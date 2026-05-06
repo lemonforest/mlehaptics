@@ -1283,3 +1283,331 @@ Lindblad resonances / galactic-disc dynamics:
 * Kormendy, J. "A heuristic introduction to bars and spiral structure." NED Level-5 review. <https://ned.ipac.caltech.edu/level5/Sept14/Kormendy/Kormendy4.html>
 
 Disclaimer on coverage: Stellar Forge is closed-source proprietary technology; all claims about its internals are derived from developer interviews and fan-wiki coverage, not source. Gaia DR3 numbers cited are from the ESA Cosmos public summary as of June 2022 release; subsequent re-releases (DR4 in preparation) may revise these counts upward.
+
+## 16. The electromagnetic sector — Sol Electromagnetic Instrument scoping
+
+This section is **research-only scoping**. The original draft (sub-sections §16.1–§16.7, retained below) evaluated extending the celestial Laplacian with magnetic-field couplings. The user's course-correction during the §16 writing — *"does mag belong with em in some special object?"* — widened the question. **Magnetic-field couplings are one channel of the broader electromagnetic sector**, alongside solar radiation pressure, synchrotron / cyclotron emission, plasma source rates, solar-wind dynamic pressure, and surface photoelectric charging. The Io flux tube is a *current loop*, not a magnetic-dipole-dipole interaction; solar-wind-driven magnetospheric coupling is *MHD*, not pure magnetism; radiation pressure on small bodies is *photon momentum*, not field-mediated at all. Slicing the EM sector into a "magnetic-only" surface is a category error.
+
+§16.1–§16.7 (the magnetic-only research) therefore stand as foundational: they establish the strongest pairwise EM-channel-level couplings (Jupiter–Io flux tube, Saturn–Enceladus, Sun–Earth IMF), establish that magnetic rhythms do not form a low-order rational lattice with each other or with orbital periods, and recommend Option B (a separate sibling instrument) as the right architectural shape. **§16.8–§16.9 then widen the sibling instrument's scope from "magnetic" to "electromagnetic"** — the *Sol Electromagnetic Instrument* — so that radiation pressure, plasma source rates, synchrotron emission, and the IMF/solar-wind state share one architectural object alongside the magnetic-coupling table.
+
+The verdict — Option B remains the right choice, and it remains the right choice *more strongly* under the wider EM scope — is the same; the *name* of the sibling instrument changes from "Sol Magnetic Instrument" to "Sol Electromagnetic Instrument", and the v0.19.x ship surface gets a richer roster.
+
+### 16.1 Why magnetic couplings — what gravitational-only modelling misses
+
+The current Laplacian models off-diagonal couplings as `~sqrt(m_a * m_b)` perturbations of mean motions ([`research/laplacian.py:153-239`](research/laplacian.py)), with Phase-9 breathing modulation `1 + α cos(n_a φ_a − m_b φ_b)` for orbital mean-motion resonances (Jupiter–Saturn 5:2, the Galilean Laplace pair, etc.). This catches every dynamically-significant gravitational interaction in the solar system. It misses three classes of phenomenon entirely:
+
+* **Plasma-mediated body-pair couplings.** The Jupiter–Io flux tube transfers ~10¹² W between the moon and the parent ionosphere via a 5 MA current loop and ~400 V potential drop ([Saur et al. 2004](https://lasp.colorado.edu/mop/files/2015/08/jupiter_ch22-1.pdf); [Hess et al. 2010](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009ja014928)). This is a real torque on Io's orbital mechanics — Io's volcanism is its observable signature — and it is invisible to a gravity-only Laplacian.
+* **External-driven magnetospheric forcing.** The Sun→Earth solar-wind / IMF coupling carries 10–10² GW into the magnetosphere (auroral hemispheric power, [OVATION coupling functions](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021SW002989)) with a dominant 27-day Carrington-rotation rhythm. This rhythm is not in the orbital lattice — Earth's orbital period is 365.25 d, and 27.275 d is not a small-integer divisor of it.
+* **Body-internal magnetic rotation periods independent of orbital periods.** Jupiter's System III magnetic period (9 h 55 min 29.71 s) is the timing reference for decametric and synchrotron emission ([Higgins et al. 1997](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/97JA02090)). Saturn's is unresolved at the ~1 % level — 10 h 39 min (Voyager, [Desch & Kaiser 1981](https://ui.adsabs.harvard.edu/abs/1981GeoRL...8..253D)) vs ~10 h 47 min (Cassini, [Gurnett et al. 2007](https://www.nature.com/articles/nature04750)). The orbital encoder has nothing to say about either.
+
+The question this section asks is *not* "should we model magnetic physics" — clearly we should at least catalogue it. The question is **where it slots in architecturally**.
+
+### 16.2 Strongest pairwise magnetic interactions in the solar system
+
+The four pairs that carry nontrivial coupling weight, ranked by power transfer:
+
+* **Jupiter ↔ Io flux tube.** Current ~5 MA, voltage drop ~400 kV, dissipated power ~2 × 10¹² W ([Bagenal et al. 2014](https://lasp.colorado.edu/mop/files/2018/08/Heliophysics_-Plasma-Physics-Chapter-13.pdf); [Saur et al. 2007](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2007JA012479) gives the system-level review). Io's motion through the corotating jovian field (corotation speed at Io's orbit ~57 km/s vs Io's orbital ~17 km/s, net ~40 km/s relative) drives an Alfvén-wave current circuit that closes through Jupiter's auroral ionosphere. The forcing **rhythm is mixed**: the Io-flux-tube footprint on Jupiter modulates at Jupiter's System III period (9.925 h, the rotation of the magnetic field) for an Earth observer, but the *intrinsic* cycle is Io's synodic-with-Jupiter-rotation period — combining 9.925 h System III with Io's 1.769 d orbital gives a synodic of about 12.95 h. This is a torus-resonance, not an orbital-mean-motion resonance: the cyclic-group lattice is `(1 / T_J3, 1 / T_Io)` rather than `(n_J / m_Io)` orbital. **Magnitude: dominant**; everything else is at least 10× weaker.
+* **Saturn ↔ Enceladus plume.** Enceladus injects ~100 kg/s of water-group ions into Saturn's inner magnetosphere ([Pontius & Hill 2006](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2006JA011674)), generating north-south asymmetric Alfvén wings with hemisphere-coupling currents ([Saur et al. 2007 JGR](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2007JA012479); [Simon et al. 2011](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2010JA016338)). Power transfer ~10⁹–10¹⁰ W (estimate; not as cleanly quantified as Io). Cycles dominantly at Saturn's rotation period (~10 h 40 min) plus the synodic-with-Enceladus combination. **Magnitude: 100–1000× weaker than Io**, but qualitatively the same architecture.
+* **Saturn ↔ Titan induced magnetosphere.** Titan has no intrinsic field; Saturn's draped field interacts with Titan's ionosphere generating a pile-up region with field-line-draping draping flow from ~120 km/s to ~100 m/s and pickup-ion outflux ~2 × 10⁶ ions cm⁻² s⁻¹ ([Bertucci et al. 2008](https://space.physics.uiowa.edu/~dag/publications/2010_SaturnsMagnetosphericInteractionWithTitanAsDefinedByCassiniEncountersT9AndT18NewResults_PSS.pdf); [Simon et al. 2013](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/jgra.50096)). The "rhythm" is dominated by Titan's exposure to the dynamic magnetodisk, which oscillates on minutes-to-5-hours timescales — *not* a clean rotational or orbital period. **Magnitude: comparable to or below Enceladus**; rhythm is not periodic enough to ride a cyclic-group encoder.
+* **Sun ↔ Earth (solar wind / IMF / magnetosphere).** Coupling power 10–10² GW ([Lockwood 2022](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021SW002989)); dominant rhythms are the 27.275-d synodic Carrington rotation, the 11-yr Schwabe sunspot cycle, and the 22-yr Hale full-polarity cycle ([Hathaway 2015](https://pmc.ncbi.nlm.nih.gov/articles/PMC4841188/)). This is more *forcing channel* than pairwise coupling — the Sun is not in any meaningful sense being torqued by Earth — but the magnetosphere's response to the IMF (specifically the Bz component, which controls reconnection rate) drives geomagnetic activity, ring current, auroral power, and is in a genuine sense a Sun→Earth coupling whose energy budget is dominated by IMF-Bz × solar-wind-velocity. **Magnitude: order GW = 10⁹ W**, which is 1000× below the Io flux tube but exceeds the gravitational-perturbation budget the existing Laplacian uses (`1e-6 * sqrt(m_E * m_S)` is a number with no SI denomination — see §16.5 on dimensional reconciliation).
+
+The pairs that carry essentially *zero* coupling weight at this scale:
+
+* **Mercury ↔ Sun magnetosphere.** Mercury's intrinsic field is ~1 % of Earth's at the surface ([MESSENGER Connerney et al. 2014](https://link.springer.com/article/10.1007/s11214-021-00822-x)); the magnetosphere is highly compressed (subsolar magnetopause distance ~1.5 R_M vs ~10 R_E for Earth) and reacts directly to solar-wind buffeting. There is genuine coupling, but it is *not pairwise* in the body-graph sense — Mercury is being driven by the solar wind, not by the Sun's body-frame magnetic moment.
+* **Jupiter ↔ Europa / Ganymede / Callisto.** Galileo magnetometer data show Europa and Callisto generate *induced* magnetic fields from subsurface conducting layers in response to Jupiter's tilted main field ([Khurana et al. 1998](https://www.nature.com/articles/27394); [Kivelson et al. 1999](https://www.sciencedirect.com/science/article/abs/pii/S001910350096456X)). Ganymede has its own intrinsic field. The induced fields are *evidence for subsurface oceans*, not significant torque sinks; the back-reaction on Jupiter is negligible.
+* **Galactic magnetic field.** ~ μG ordered field, irrelevant at solar-system scales for our purposes.
+
+**Verdict for §16.2:** Magnetic coupling is dominated by **one pair (Jupiter–Io) at ~10¹² W**, with **two more (Saturn–Enceladus, Sun–Earth) at 10⁹–10¹⁰ W**, and a long tail at 10⁸ W and below. The catalog is sparse: 3–5 entries with meaningful weight. This is the same scale at which the existing `RESONANCES` table sits (7 entries) and the diagnosed-fibers catalog operates (a handful of FFT-residual peaks).
+
+### 16.3 Natural rhythms and integer-resonance structure
+
+The Phase-9 breathing modulation `cos(n_a φ_a − m_b φ_b)` only earns its keep when the body-pair has a *small-integer* mean-motion ratio — the wired pairs (Jupiter–Saturn 5:2, Io–Europa 2:1, Mimas–Tethys 4:2, etc.) all have `(n_a, m_b)` integers below 10. The question for magnetic couplings: do their natural rhythms have similarly small integer ratios?
+
+The candidate magnetic clocks are:
+
+| Clock | Period | Source |
+| :--- | :--- | :--- |
+| Jupiter System III rotation | 9 h 55 m 29.71 s = 9.92492 h | [Higgins et al. 1997](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/97JA02090) |
+| Saturn rotation (Cassini SKR) | ~10 h 47 m = 10.78 h | [Gurnett et al. 2007](https://www.nature.com/articles/nature04750) |
+| Saturn rotation (Voyager) | 10 h 39 m 24 s = 10.657 h | [Desch & Kaiser 1981](https://ui.adsabs.harvard.edu/abs/1981GeoRL...8..253D) |
+| Earth sidereal day | 23 h 56 m 4.1 s = 23.934 h | IAU |
+| Carrington synodic rotation | 27.2753 d | [Lockwood & Owens 2024](https://link.springer.com/article/10.1007/s11207-024-02268-0) |
+| Carrington sidereal rotation | 25.38 d | Standard |
+| Schwabe (sunspot) cycle | 11.0 yr | [Hathaway 2015](https://pmc.ncbi.nlm.nih.gov/articles/PMC4841188/) |
+| Hale (polarity) cycle | 22.0 yr | [Hale's law / Wiki](https://en.wikipedia.org/wiki/Hale%27s_law) |
+| Lunar synodic month | 29.531 d | Standard |
+
+The pairwise small-integer rationals on this set:
+
+* **Earth ↔ Jupiter rotation.** 23.934 / 9.92492 ≈ 2.4117. The closest small rationals are 12/5 = 2.4000 (error 0.49%) and 17/7 ≈ 2.4286 (error 0.70%). Neither is good to better than ~0.5 %. The encoder convention `(n_a, m_b)` with both ≤ 10 cannot represent this without a 1 % phase-residue per cycle.
+* **Saturn ↔ Jupiter rotation.** 10.78 / 9.925 ≈ 1.0861. Closest small rationals: 13/12 ≈ 1.0833 (error 0.26 %), 14/13 ≈ 1.0769 (error 0.85 %). 13/12 is borderline-acceptable but uses the Cassini value, which carries its own ~1 % uncertainty between epochs.
+* **Carrington synodic ↔ Earth day.** 27.2753 d × 24 h / 23.934 h ≈ 27.36 sidereal days / Carrington rotation. Closest rationals: 27/1 (error 1.3 %), 82/3 ≈ 27.33 (error 0.1 %). 82/3 is a *high-order* rational; the Phase-9 encoder would use `(n=82, m=3)` and the cyclic-group residue space would have to be `lcm(82, 3) = 246`-dimensional for the resonance circle — far past the 10-entry-per-pair small-integer regime the orbital encoder operates in.
+* **Hale cycle ↔ Earth orbit.** 22.0 yr × 1 / 1 yr = 22 — a clean integer ratio. **This is the only clean small-integer commensurability on the table.** It's the macro-cycle / annual-orbit lock, in the same shape as the Saros / Metonic locks the existing `time_scales.py` SLT stack already encodes (§7.4).
+* **Schwabe ↔ Earth orbit.** 11.0 yr × 1 / 1 yr = 11 — also clean integer. Same comment.
+* **Carrington sidereal ↔ Earth sidereal day.** 25.38 d × 24 / 23.934 ≈ 25.45. Closest rationals: 25/1 (error 1.8 %), 178/7 ≈ 25.43 (error 0.08 %). Again a high-order rational — not a useful small-integer encoding.
+
+**Verdict for §16.3:** **The magnetic-rhythm lattice does not form a clean small-integer rational structure.** The two cleanest commensurabilities are Schwabe × annual = 11:1 and Hale × annual = 22:1, but those are **forcing on annual orbit**, not pairwise *between magnetic clocks*. Jupiter / Saturn / Earth rotation periods, Carrington rotation, and the moon's synodic month do not lock to one another at small-integer order. This is an honest null finding: the small-integer-cyclic-group encoding that the orbital BIP encoder leans on does **not** transplant cleanly to the magnetic side. A magnetic encoder would either accept high-order rationals (`(82, 3)`-style residues) or operate on **continuous frequencies** without resonance modulation — closer to the §13.9 hybrid Laplacian than to the §5 RESONANCES table.
+
+### 16.4 Public data sources
+
+Magnetometer holdings in the public archive:
+
+* **NASA PDS Planetary Plasma Interactions (PPI) node** at IGPP/UCLA hosts magnetometer data for [Voyager 1/2 Jupiter & Saturn](https://pds-ppi.igpp.ucla.edu/), [Galileo MAG at Jupiter](https://pds-smallbodies.astro.umd.edu/data_sb/missions/galileo/index.shtml), [Cassini MAG at Saturn](https://pds-ppi.igpp.ucla.edu/mission/Cassini-Huygens/CO/MAG) (1-second / 1-minute / 1-hour averages), and [Juno FGM at Jupiter](https://pds-ppi.igpp.ucla.edu/collection/JNO-J-3-FGM-CAL-V1.0). Calibrated time-tagged 3-vector field samples in body-frame coordinates.
+* **Modeled internal-field references.** [Connerney's VIP4 Jupiter model](https://www.mathworks.com/matlabcentral/fileexchange/43852-jupiter-s-magnetic-field-model-vip4) (degree-4 spherical harmonic, 1998) is the standard reference; [JRM33](https://academic.oup.com/mnras/article/533/4/4058/7730260) is the latest Juno-derived update. Saturn is exceptionally axisymmetric (dipole tilt < 0.007°, [Cassini Grand Finale](https://www.science.org/doi/10.1126/science.aat5434)). Earth has IGRF-13 / WMM 2025. Mercury has the [MESSENGER multipole models](https://www.aanda.org/articles/aa/full_html/2024/12/aa51926-24/aa51926-24.html).
+* **Solar wind / IMF.** [OMNI database at NASA SPDF](https://omniweb.gsfc.nasa.gov/html/ow_data.html) — hourly resolution from Nov 1963 onwards, IMF magnitude + 3-vector + Bz, solar-wind velocity / density / pressure, geomagnetic indices. Sourced from IMP-8, ACE, Wind, Geotail, ISEE-3 (time-shifted to bow-shock nose).
+
+**Shape question — does this populate a magnetic-Laplacian table?** What we'd need per body is essentially `(magnetic_dipole_moment_T_m3, rotation_period_days_for_field_axis, intrinsic_or_induced_flag)`. That data is *available* (Connerney for Jupiter, Cassini for Saturn, IGRF for Earth, MESSENGER for Mercury, Galileo for Ganymede / Europa / Callisto induced-field amplitudes) and is small — a few dozen scalar fields per body. The pairwise coupling-strength table would need power-transfer estimates per pair (Io flux tube, Enceladus plume, Sun→Earth coupling power), which are *order-of-magnitude* available from the literature but rarely as clean SI-denominated single numbers. The honest answer: **the data is the right shape, but the entries are mostly order-of-magnitude rather than precision-graded**. This is a different epistemic regime from JPL DE441-derived sidereal periods (which are nine-significant-figure ground truth).
+
+### 16.5 Architectural choice — kernel-patch vs separate instrument
+
+**Option A — kernel-patch onto the existing celestial Laplacian.** Add an `L_magnetic` summand so the dynamic Laplacian becomes `L_total = L_trunk + L_PN + L_static * mod_orbital + L_magnetic * mod_magnetic`. Magnetic edges enter as ~3–5 entries in a parallel `MAGNETIC_RESONANCES` table; the BIP encoder picks them up via the same `_encode_state_impl` path the existing resonances use, and the catalog-patch system ([`research/diagnosed_fibers.py`](research/diagnosed_fibers.py)) absorbs any residuals. Bridge surface gains a `weighting="magnetic"` knob on `bridge.body_architecture`.
+
+* **Pros.** Reuses every piece of existing infrastructure (Laplacian construction, BIP encoder, propagator, FFT residual diagnostic, catalog patches, ABI v2 patch overlay). Ships as a minor version (v0.19.x).
+* **Cons.** Three real ones. **(1) Dimensional mismatch.** `L_trunk[i,i] = 2π / period_days` is in rad/day; `L_static[i,j] ~ 1e-6 * sqrt(m1 * m2)` is dimensionless mass-product. Adding magnetic-torque-per-day (rad/day from a Newton·metre / kg·m² conversion) to that table requires picking a normalisation — most naturally torque/(mean-motion × moment-of-inertia), which renders into a dimensionless modulation depth. Solvable but not natural. **(2) Rhythm mismatch.** §16.3 showed magnetic rhythms (rotation periods, Carrington, Hale) don't form clean small-integer rationals with each other or with orbital periods; the existing `RESONANCES` table's `(n_a, m_b ≤ 10)` discipline does not transplant. The encoder would either need a high-order-rational extension (`(82, 3)` residues, expensive) or treat magnetic edges as static (no breathing modulation) — i.e. an `L_magnetic_static` only, which works but is a different epistemic regime from the dynamic celestial Laplacian. **(3) Surface-area pollution.** `bridge.get_system_state` would pick up magnetic phase residues that observer-agnostic users may not want (Antikythera-comparison work, ITN trajectory design, etc.). Mitigated by a `weighting=` flag, but the flag complicates the SSOT.
+
+**Option B — separate Sol Magnetic Instrument.** A sibling instrument at the same architectural level as the existing `EphemerisReferenceInstrument` ([`research/ephemeris_reference_instrument.py`](research/ephemeris_reference_instrument.py)). Has its own `BODIES_MAGNETIC` roster (only bodies with significant magnetic moment or induced response — Sun, Earth, Jupiter + Galileans, Saturn + Enceladus + Titan, Mercury, Ganymede; ~10 bodies), its own `RESONANCES_MAGNETIC` table (or, given §16.3, its own `MAGNETIC_COUPLINGS` static table without small-integer-rational modulation), its own BIP encoder operating on rotation periods rather than orbital periods, and its own bridge surface (`bridge.encode_magnetic_state(jd)`, `bridge.list_magnetic_couplings()`).
+
+* **Pros.** Clean separation of concerns. Magnetic rhythms ride their own non-rational frequency lattice without forcing the orbital encoder to accept high-order rationals. Sibling-instrument architecture parallels the existing `chess-spectral` / `doom-spectral` siblings — same family, different domain. Users opt in by importing the magnetic instrument; the celestial instrument's surface stays clean. Future extensions (galactic-scale magnetic in the §15 lift, exoplanet host-star wind / induced-magnetosphere modelling) inherit the architecture.
+* **Cons.** More code. Two instruments to keep in sync (Sol Time stacks would need a `time_scales_magnetic.py` analogue if the magnetic clock tracks differently from TT/TDB — though for solar-system-scale work TDB is fine). Cross-pollination harder: a hypothetical "Io's flux-tube torque modulates Io's orbital phase by Δλ" measurement would have to span both instruments. That cross-coupling is real (Io's volcanic heating → tidal dissipation → orbital mean-motion drift, [Lainey et al. 2009](https://www.nature.com/articles/nature08305)), but the modulation is at 10⁻⁹ level on the orbital phase per century — well below the encoder's grid size and not something the static `L_static` already represents.
+
+**Option C — null option.** Don't ship magnetic at all in v0.19.x; document the catalogue + the rhythms in this notebook, defer the architectural decision until a downstream consumer (a magnetosphere-aware Sol Time observer? a JUICE/Europa-Clipper trajectory-design surface?) is concrete. Cost: zero. Benefit: avoids over-architecting before a user demands the surface.
+
+**Verdict.** **Option B (separate instrument)**, with **Option C (defer) as an acceptable alternate** if no consumer is teed up.
+
+The deciding factor is §16.3's null finding: magnetic rhythms do not form a small-integer rational lattice. Forcing them into the orbital encoder either (a) admits high-order rationals everywhere, polluting the existing clean `(n, m ≤ 10)` table, or (b) treats magnetic edges as static-only, which is fine but is a different beast from the orbital breathing modulation and deserves its own header. The dimensional mismatch (Option A con #1) is tractable; the surface-pollution issue (con #3) is bypass-able with a flag. The rhythm mismatch (con #2) is the one that genuinely says "different instrument."
+
+The sibling-instrument architecture is also a better fit for the project's existing pluralism: `bip_instrument` (the celestial encoder), `ephemeris_reference_instrument` (the floating-point reference), and the chess / doom / haptic siblings already live as parallel encoders rather than as flags on a unified one. A `MagneticInstrument` joins that family without forcing the celestial one to grow a flag.
+
+### 16.6 Recommended ship surface for v0.19.x — `MagneticInstrument` sketch
+
+If/when a consumer requests magnetic state encoding, the v0.19.x ship would mirror `bip_instrument.py`'s shape:
+
+* **`research/magnetic_instrument.py`.** Roster of ~10 bodies with non-trivial magnetic state (Sun, Mercury, Earth, Jupiter + Galileans, Saturn + Enceladus + Titan). Per-body fields: `magnetic_dipole_moment_Tm3`, `rotation_period_days_for_field` (System III for Jupiter; Cassini SKR for Saturn with explicit uncertainty flag), `intrinsic_or_induced` enum.
+* **`research/magnetic_couplings.py`.** Static pairwise table (no breathing modulation, given §16.3): `MAGNETIC_COUPLINGS = [(jupiter, io, ~1e12, "flux-tube"), (saturn, enceladus, ~1e10, "plume/Alfvén wing"), (sun, earth, ~1e10, "IMF Bz"), (saturn, titan, ~1e9, "draped/induced"), ...]`. Power-watts denominated where literature gives a clean number; flagged "order of magnitude" where it does not.
+* **`bridge.encode_magnetic_state(jd_tdb)`.** Returns a `uint32[N_magnetic]` phase-residue array — the magnetic-instrument analogue of `bridge.encode_state`, encoding *rotational* (not orbital) phase modulo 2π.
+* **`bridge.list_magnetic_couplings()`.** Read-only export of the pairwise table for downstream consumers (JUICE / Europa-Clipper trajectory weighting; aurora-prediction tools).
+* **`bridge.magnetic_architecture(weighting="power")`.** §13-style Fiedler partition on the magnetic body-graph. With ~10 bodies and ~5 edges the partition is likely trivial (Sun-Earth vs Jovian vs Saturnian) but the surface is generic over weighting.
+* **No `find_itn_chains` analogue.** Magnetic couplings don't transport mass; the trajectory-cost framing doesn't lift.
+
+ABI/SSOT discipline: the magnetic instrument keeps its own pairwise table separate from the orbital `RESONANCES` in `laplacian.py` (no edits to the celestial Laplacian). Combined orbital + magnetic state is concatenation, not a unified encoder. Sol Time stack stays one stack — magnetic timestamps reuse TDB / SPrT.
+
+**Why not ship now.** Until a downstream consumer exists, the magnetic instrument is speculative. The honest v0.19.x scoping: this notebook section is the design doc; implementation lands when (a) someone wants magnetospheric state for ITN chains near Jupiter, (b) someone wants solar-wind forcing for an aurora-prediction sibling, or (c) chess/doom/haptic siblings start asking for magnetic-style encodings of their own.
+
+### 16.7 References
+
+Jupiter–Io flux tube and Galilean-moon induced fields:
+* Saur, J., et al. "Plasma Interaction of Io with its Plasma Torus." Chapter 22 in *Jupiter: The Planet, Satellites and Magnetosphere* (2007). <https://lasp.colorado.edu/mop/files/2015/08/jupiter_ch22-1.pdf>
+* Hess, S. L. G., et al. "Power transmission and particle acceleration along the Io flux tube." *JGR Space Physics* 115, A06205 (2010). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009ja014928>
+* Khurana, K. K., et al. "Induced magnetic fields as evidence for subsurface oceans in Europa and Callisto." *Nature* 395, 777 (1998). <https://www.nature.com/articles/27394>
+* Kivelson, M. G., et al. "Subsurface Oceans on Europa and Callisto: Constraints from Galileo Magnetometer Observations." *Icarus* 157 (2002). <https://www.sciencedirect.com/science/article/abs/pii/S001910350096456X>
+* Connerney, J. E. P., et al. "A New Model of Jupiter's Magnetic Field at the Completion of Juno's Prime Mission." *JGR Planets* 127, e2021JE007055 (2022). <https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2021je007055>
+* Higgins, C. A., et al. "A redefinition of Jupiter's rotation period." *JGR Space Physics* 102, 22033 (1997). <https://agupubs.onlinelibrary.wiley.com/doi/10.1029/97JA02090>
+
+Saturn / Enceladus / Titan magnetic interactions:
+* Pontius, D. H. & Hill, T. W. "Enceladus: A significant plasma source for Saturn's magnetosphere." *JGR Space Physics* 111, A09214 (2006). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2006JA011674>
+* Saur, J., et al. "Hemisphere coupling in Enceladus' asymmetric plasma interaction." *JGR Space Physics* 112, A11209 (2007). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2007JA012479>
+* Simon, S., et al. "Influence of negatively charged plume grains and hemisphere coupling currents on the structure of Enceladus' Alfvén wings." *JGR Space Physics* 116, A04221 (2011). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2010JA016338>
+* Simon, S., et al. "Structure of Titan's induced magnetosphere under varying background magnetic field conditions: Survey of Cassini magnetometer data from flybys TA–T85." *JGR Space Physics* 118 (2013). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/jgra.50096>
+* Gurnett, D. A., et al. "A regular period for Saturn's magnetic field that may track its internal rotation." *Nature* 441, 62 (2007). <https://www.nature.com/articles/nature04750>
+* Desch, M. D. & Kaiser, M. L. "Voyager measurement of the rotation period of Saturn's magnetic field." *Geophys. Res. Lett.* 8, 253 (1981). <https://ui.adsabs.harvard.edu/abs/1981GeoRL...8..253D>
+* Dougherty, M. K., et al. "Saturn's magnetic field revealed by the Cassini Grand Finale." *Science* 362, eaat5434 (2018). <https://www.science.org/doi/10.1126/science.aat5434>
+
+Sun–Earth coupling and solar-cycle rhythms:
+* Lockwood, M. "Solar Wind–Magnetosphere Coupling Functions: Pitfalls, Limitations, and Applications." *Space Weather* 20, e2021SW002989 (2022). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021SW002989>
+* Lockwood, M. & Owens, M. J. "Reconstruction of Carrington Rotation Means of Open Solar Flux over the Past 154 Years." *Solar Physics* 299 (2024). <https://link.springer.com/article/10.1007/s11207-024-02268-0>
+* Hathaway, D. H. "The Solar Cycle." *Living Reviews in Solar Physics* 12, 4 (2015). <https://pmc.ncbi.nlm.nih.gov/articles/PMC4841188/>
+* "Hale's law." Wikipedia. <https://en.wikipedia.org/wiki/Hale%27s_law>
+
+Mercury / BepiColombo:
+* Heyner, D., et al. "The BepiColombo Planetary Magnetometer MPO-MAG: What Can We Learn from the Hermean Magnetic Field?" *Space Sci. Rev.* 217, 52 (2021). <https://link.springer.com/article/10.1007/s11214-021-00822-x>
+* Glassmeier, K.-H., et al. "Global magnetic field properties in the solar wind interaction of Mercury from MESSENGER measurements." *A&A* 692 (2024). <https://www.aanda.org/articles/aa/full_html/2024/12/aa51926-24/aa51926-24.html>
+
+Data archives and modelled-field references:
+* NASA Planetary Data System / Planetary Plasma Interactions node, IGPP/UCLA. <https://pds-ppi.igpp.ucla.edu/>
+* Cassini MAG archive at PDS PPI. <https://pds-ppi.igpp.ucla.edu/mission/Cassini-Huygens/CO/MAG>
+* Juno FGM archive at PDS PPI. <https://pds-ppi.igpp.ucla.edu/collection/JNO-J-3-FGM-CAL-V1.0>
+* OMNI database, NASA SPDF. <https://omniweb.gsfc.nasa.gov/html/ow_data.html>
+* Connerney VIP4 Jupiter model on MATLAB Central. <https://www.mathworks.com/matlabcentral/fileexchange/43852-jupiter-s-magnetic-field-model-vip4>
+* Stallard, T. S., et al. "Internal and External Jovian Magnetic Fields: Community Code." *Space Sci. Rev.* 219 (2023). <https://link.springer.com/article/10.1007/s11214-023-00961-3>
+
+Disclaimer on coverage: Power-transfer estimates for Saturn–Enceladus, Saturn–Titan, and Sun–Earth coupling are quoted at order-of-magnitude precision from the literature; precise SI-power numbers vary with epoch (solar-wind state, Enceladus plume rate, etc.) and are not single-valued. The §16.3 commensurability table uses standard rotation-period values; Saturn's internal rotation period remains genuinely uncertain at ~1 % between Voyager and Cassini SKR measurements, and any encoder using it should carry that uncertainty as an explicit per-entry flag rather than a hidden assumption.
+
+### 16.8 Widening from magnetic to electromagnetic — additional channels
+
+The §16.1–§16.7 research treats magnetic-field couplings as a sparse off-diagonal table. But the *electromagnetic* sector of the solar system has more channels than just magnetic, and the Io flux tube — the strongest single example — is itself a *current loop*, which is an MHD/electromagnetic phenomenon rather than a magnetic-dipole-dipole interaction. Naming the sibling instrument "magnetic" would over-narrow it. This subsection enumerates the additional EM channels worth carrying, with order-of-magnitude power estimates where available.
+
+#### 16.8.1 Solar radiation pressure (photon momentum)
+
+Photons carry momentum `p = E/c`; a body intercepting solar luminosity over a cross-section experiences a force `F = (L⊙ / 4π r² c) × A_eff`. Order-of-magnitude consequences:
+
+* **Yarkovsky effect** — anisotropic thermal re-emission gives small bodies a net force along their orbital direction. Drives semi-major-axis drift on the order of 10⁻⁴ AU per Myr for sub-km asteroids (Bottke et al. 2006). Negligible for planets; *dominant* for the asteroid + NEO populations driving them onto resonance escape paths (the Yarkovsky → 3:1 Kirkwood gap → terrestrial-planet-crossing pathway).
+* **YORP effect** (Yarkovsky-O'Keefe-Radzievskii-Paddack) — torque from the *asymmetry* of the Yarkovsky force, spinning small bodies up or down. Drives rotational-state evolution on the same time-scales.
+* **Radiation pressure on dust** — for sub-micron grains the radiation force overcomes gravity; the size threshold (β = F_rad / F_grav ≈ 1) is the Poynting-Robertson regime. Defines the inner boundary of the zodiacal-dust population.
+
+Power scale: solar luminosity ≈ 3.83×10²⁶ W, of which ≈ 10¹⁷ W is intercepted by all solar-system bodies combined; the *net force* depends on body cross-section + albedo. For asteroid Bennu (a representative ~500 m body), the integrated Yarkovsky-driven semi-major-axis drift is ≈ 280 m/year — measurable by OSIRIS-REx and predictive of impact probability on a multi-century horizon.
+
+**Per-body data needed**: cross-sectional area (or volumetric radius — already in the v0.16.0 BODIES roster's `surface_radius_km`); albedo; thermal-inertia for Yarkovsky/YORP modelling. The v0.16.0 BODIES roster has the radius; the rest needs adding.
+
+#### 16.8.2 Synchrotron + decametric / kilometric radio emission
+
+Relativistic electrons trapped in planetary magnetospheres emit synchrotron radiation. **Jupiter's decametric (DAM) radio emission** at 5–40 MHz is the brightest non-thermal radio source in the solar system after the Sun; some of it is modulated by Io's orbital phase (the Io-DAM control), making it a *direct observable* of the Jupiter–Io flux-tube interaction documented in §16.2.
+
+* **Jovian DAM** — 10⁹ W radiated; Io-controlled component traces the flux-tube footprint at the Jovian ionosphere.
+* **Saturnian Kilometric Radiation (SKR)** — 5×10⁷ W; the rotation-period proxy that registered the Voyager↔Cassini disagreement flagged in §16.3.
+* **Auroral kilometric radiation (AKR)** at Earth — 10⁷ W; modulated by solar-wind state.
+
+Synchrotron + cyclotron emission is *the EM signature* of magnetospheric energy dissipation, so it ties directly into the §16.2 magnetic-coupling table — it is what the magnetic energy *becomes* when dissipated. A `Sol Electromagnetic Instrument` could include emission-rate estimates per body alongside the magnetic-moment data.
+
+**Per-body data needed**: synchrotron emission spectrum + total radiated power (mostly Jupiter, Saturn, Earth in the inner solar system; Uranus and Neptune have detectable but weaker emission per Voyager 2).
+
+#### 16.8.3 Plasma source rates
+
+Mass-loading of planetary magnetospheres by moon-sourced neutrals + their photo-ionisation products:
+
+* **Io plasma torus** — Io emits ≈ 1 ton/sec of SO₂ + neutrals; ionisation by Jovian magnetospheric electrons populates the Io torus with ≈ 2–4×10²⁸ ions/sec (Bagenal & Delamere 2011). The torus rotates with Jupiter (System III) but slips relative to Io — driving a continuous Alfvén-wing current that *is* the Io flux tube §16.2 covers. Plasma source rate is a real EM channel because the plasma carries charge; once ionised it couples to the magnetic field everywhere.
+* **Enceladus plumes / Saturn E-ring** — ≈ 100 kg/sec of H₂O vapour from south-polar plumes (Hansen et al. 2011), supporting the Saturnian magnetosphere's heavy-ion population.
+* **Solar wind mass loading at Mars/Venus** — in the absence of intrinsic magnetic field, the solar wind directly strips upper atmospheres (the Mars Atmosphere and Volatile EvolutioN / MAVEN headline result).
+
+These rates have natural timescales tied to volcanic / plume duty cycles (Io's plume statistics over Jovian orbital periods; Enceladus's tiger-stripe activity over Saturnian seasons) — all secular drift on top of the rotational rhythms covered in §16.3, not lattice-additive to them.
+
+**Per-body data needed**: per-source emission rate (ton/sec or kg/sec); ionisation efficiency; plasma-torus residence time. Mostly available from Cassini / Galileo / MAVEN datasets but not in any tabular machine-readable form yet.
+
+#### 16.8.4 Solar wind dynamic pressure + IMF state
+
+The solar wind is a continuous outflow of plasma + frozen-in magnetic field. Three components matter:
+
+* **Dynamic pressure** `P_dyn = ρ v²` ≈ 1–10 nPa at 1 AU; sets magnetospheric standoff distance.
+* **IMF magnitude + polarity** — the Bz polarity in particular gates magnetic reconnection at the magnetopause; geomagnetic-storm activity correlates with southward Bz.
+* **Carrington-rotation periodicity** — the Sun's surface differential rotation gives a 27.275-day synodic Carrington period at the equator (already in §16.3).
+
+The OMNI database (NASA SPDF) provides 1-hour cadence solar-wind + IMF time-series back to 1963; this is the canonical input for *any* magnetospheric driver. A `Sol Electromagnetic Instrument` would pull state at request time (for a given JD) rather than carry the time-series in-memory; the API shape is a "state-at-epoch" read, not a full historical roster.
+
+#### 16.8.5 Photoelectric / surface charging on small bodies
+
+Solar UV ionises surface atoms on airless bodies (lunar regolith, asteroid surfaces, ring particles), giving the surface a positive charge of order +5 V on the day side and −10 V or more on the night side. For sub-micron dust this electrostatic force can lift particles off the surface ("dust fountains"); for ring particles it's a small contribution to ring-particle dynamics. Out of scope for first-cut EM modelling but worth flagging — it's a real EM channel that shows up in mission-design-relevant scenarios (lunar surface ops, asteroid sample return).
+
+### 16.9 The Sol Electromagnetic Instrument — unified architecture proposal
+
+#### 16.9.1 Sibling-instrument shape (Option B, widened)
+
+The §16.5 architectural verdict for magnetic-only — **Option B, separate sibling instrument** — is *strengthened* under the wider EM scope. The §16.3 rhythm-mismatch finding (magnetic clocks don't form a low-order rational lattice with orbital periods) generalises: *every* EM channel above has its own native rhythm and is largely orthogonal to the orbital cyclic-group structure that the celestial encoder rides. Specifically:
+
+| EM channel | Natural rhythm(s) | Lattice with orbital periods? |
+| :--- | :--- | :--- |
+| Radiation pressure | Solar 11-yr (Schwabe) cycle; secular Yarkovsky drift | No (continuous secular forcing) |
+| Synchrotron / DAM | Jovian System III rotation 9.925 h (DAM); Saturnian SKR ~10.7 h | No (rotational, not orbital) |
+| Plasma sources | Io orbital 1.77 d (Io-DAM gating); Enceladus plume duty cycle | Partial (Io-orbital, but at 50× higher freq than encoder) |
+| Solar wind / IMF | Carrington 27.3 d synodic; CME stochastic; Bz polarity reversals stochastic | No (mostly stochastic + secular) |
+| Photoelectric charging | Diurnal (per body's sidereal day) | Different per body, no shared lattice |
+| **Magnetic dipole-dipole** (§16.2) | Body rotational periods | No (already shown in §16.3) |
+
+Every row says "no" or "partial" to the lattice question. The cyclic-group BIP encoder's small-integer-rational discipline doesn't transplant. **A Sol Electromagnetic Instrument is therefore not a BIP encoder running on EM rhythms**, but a **state-at-epoch query surface** that holds the relevant per-body EM observables and exposes them at a requested JD. The honest analogue is *not* `bridge.encode_em_state(jd)` (which would imply integer-residue propagation); it is `bridge.get_em_state(jd)` (a static-look-up + light interpolation surface).
+
+#### 16.9.2 Roster + table shape
+
+The Sol Electromagnetic Instrument's roster is a strict subset of the celestial 52-body roster — only bodies with significant EM observables. Approximately:
+
+```
+SOL_EM_BODIES = [
+    "sun",        # IMF source; solar luminosity; Carrington rotation
+    "mercury",    # weak intrinsic field; magnetosphere dominated by direct SW
+    "venus",      # induced magnetosphere; SW mass-loading of upper atm
+    "terra",      # IGRF; auroral kilometric; magnetosphere
+    "luna",       # photoelectric surface charging; minimal field
+    "mars",       # crustal-only field; SW atmospheric escape (MAVEN)
+    "jupiter",    # VIP4/JRM33 model; DAM emission; flux tubes
+    "io",         # Io flux tube anchor; plasma source rate
+    "europa",     # induced field (subsurface ocean); plasma sink
+    "ganymede",   # intrinsic field (only moon with one)
+    "callisto",   # induced field
+    "saturn",     # Cassini SOI; SKR emission; rotation-period uncertainty
+    "enceladus",  # plume mass-loading; E-ring source
+    "titan",      # induced magnetosphere
+    "uranus",     # tilted/offset internal field; Voyager 2 only
+    "neptune",    # tilted/offset internal field; Voyager 2 only
+]
+```
+
+≈ 16 bodies — sparse compared to the 52-body celestial roster, and a different shape (the relevant bodies are picked for *EM observables*, not for orbital weight). Each carries:
+
+```
+EmBodyState {
+    name: str
+    intrinsic_dipole_moment_TmY: Optional[float]    # nT·R³ at planet surface, or None
+    induced_response: Optional[InducedResponse]      # for icy moons (subsurface oceans)
+    rotation_period_days: float                      # magnetic-clock period; with uncertainty flag
+    rotation_period_uncertainty_pct: Optional[float] # e.g. 1% for Saturn
+    synchrotron_power_W: Optional[float]
+    plasma_source_rate_kg_per_s: Optional[float]
+    photoelectric_potential_V: Optional[float]
+}
+```
+
+Plus a small `EM_COUPLINGS` table for the 3–5 strongest pairwise interactions (the §16.2 entries: Jupiter–Io, Saturn–Enceladus, Saturn–Titan, Sun–Earth). And an external solar-wind/IMF state read at a given JD (deferred to a database query at runtime; not in-memory).
+
+#### 16.9.3 Bridge surface sketch
+
+```python
+# State-at-epoch: pure look-up, no propagation
+bridge.get_em_state(jd_tdb: float) -> dict
+    # returns: per-body EmBodyState values at the given epoch
+    # (rotation phase advanced from anchor; IMF state from OMNI cache
+    # if available, else a stochastic mean)
+
+# Pairwise coupling: static catalog
+bridge.list_em_couplings() -> list[EmCoupling]
+    # returns: the 3-5 entries from §16.2 + radiation pressure on dust
+    # subset; per-pair power transfer + dominant time-scale
+
+# Architectural query (parallel to body_architecture):
+bridge.em_architecture(target=None) -> dict
+    # returns: classification of bodies by EM-coupling regime
+    #   - "magnetised" (intrinsic dipole significant): Jupiter, Saturn,
+    #     Earth, Ganymede, Mercury (weak), Uranus, Neptune
+    #   - "induced" (subsurface ocean / ionosphere): Europa, Callisto,
+    #     Titan, Venus
+    #   - "unmagnetised" (atmospheric escape / SW interaction): Mars,
+    #     Luna, Enceladus, etc.
+```
+
+The architectural classification is a partition over the 16-body EM roster; it's a **different partition than the celestial inner/outer split** (`body_architecture` from v0.18.0) and is therefore a genuinely new ship surface.
+
+#### 16.9.4 Why this is one instrument, not five
+
+A reasonable counter-design splits the EM sector into multiple sub-instruments — one for radiation pressure, one for plasma sources, one for synchrotron, one for IMF/solar-wind. Three reasons to *not* do this:
+
+1. **The interactions cross channels.** Io plasma source feeds the Io flux tube (magnetic) which lights the DAM (synchrotron). Saturn–Enceladus mass loading feeds the SKR. Sun–Earth Bz reconnection lights AKR. Splitting the EM sector into channel-orthogonal sub-instruments hides the cross-channel coupling that *is the physics*.
+2. **The roster is the same**. A Sol-Magnetic-Instrument would carry Jupiter; a Sol-Radiation-Pressure-Instrument would carry Jupiter; a Sol-Plasma-Instrument would carry Jupiter (Io torus). Five instruments duplicate the body-table five times. One instrument shares the table.
+3. **Users querying `get_em_state` want a unified picture**. A trajectory designer asking "what's the EM environment my mission will experience at JD = X" wants the magnetic field *and* the radiation pressure *and* the plasma density at one stop — not five bridge calls.
+
+So one Sol Electromagnetic Instrument with an internal partition between the channels (a `kind` enum on `EmCoupling` distinguishing `"magnetic_dipole_dipole"`, `"flux_tube"`, `"radiation_pressure"`, `"plasma_source"`, etc.) is the right shape.
+
+#### 16.9.5 Updated v0.19.x ship recommendation
+
+Supersedes the §16.6 `MagneticInstrument` sketch:
+
+* **`SolEmInstrument`** as a sibling to the celestial encoder, in `research/em_instrument.py` mirroring `research/bip_instrument.py`.
+* **`SOL_EM_BODIES`** roster (≈ 16 bodies — strict subset of the 52-body celestial roster).
+* **`EM_COUPLINGS`** static table (4–8 entries: §16.2 magnetic + §16.8.1 dust radiation pressure + §16.8.3 plasma sources).
+* **Bridge surface** — `bridge.get_em_state(jd_tdb)`, `bridge.list_em_couplings()`, `bridge.em_architecture(target=None)`.
+* **No edits to `research/laplacian.py` or any celestial encoder file.** The EM sector is architecturally orthogonal; mixing them would require a normalisation discipline (magnetic-torque-per-day vs mean-motion-residues-per-day) that has no clean physical anchor.
+* **Defer implementation** until a downstream consumer materialises (JUICE / Europa-Clipper trajectory work; aurora-prediction sibling; mission-design EM-environment query). Notebook §16 (this section) is the architectural commitment; the code lands when the use-case lands.
+
+#### 16.9.6 Naming convention
+
+Following the project's existing pattern (Sol Symphony Times, Sol Terra-Luna Time, Sol Proper Time, Sol Kinematics, Sol Dynamics) the canonical name is:
+
+* **Sol Electromagnetic** (or **Sol EM**) for the instrument.
+* `bridge.get_em_state(jd_tdb)` / `bridge.list_em_couplings()` / `bridge.em_architecture(...)` for the surfaces.
+* `SOL_EM_BODIES` / `EM_COUPLINGS` / `SolEmInstrument` for the implementation symbols.
+
+### 16.10 References — additional EM-sector citations
+
+* Bottke, W. F., et al. "The Yarkovsky and YORP Effects." *Annu. Rev. Earth Planet. Sci.* 34 (2006). <https://www.annualreviews.org/doi/10.1146/annurev.earth.34.031405.125154>
+* Bagenal, F. & Delamere, P. A. "Flow of mass and energy in the magnetospheres of Jupiter and Saturn." *J. Geophys. Res.* 116, A05209 (2011). <https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2010JA016294>
+* Hansen, C. J., et al. "The composition and structure of the Enceladus plume." *Geophys. Res. Lett.* 38, L11202 (2011). <https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2011GL047415>
+* Jakosky, B. M., et al. "MAVEN observations of the response of Mars to an interplanetary coronal mass ejection." *Science* 350 (2015). <https://www.science.org/doi/10.1126/science.aad0210>
+* Zarka, P. "Plasma interactions of exoplanets with their parent star and associated radio emissions." *Planet. Space Sci.* 55 (2007). <https://www.sciencedirect.com/science/article/abs/pii/S0032063307000931> *(Jovian DAM Io-control as the prototype; cited for theoretical framework.)*
+* OSIRIS-REx Yarkovsky measurement: Farnocchia, D., et al. "Ephemeris and hazard assessment for near-Earth asteroid (101955) Bennu based on OSIRIS-REx data." *Icarus* 369, 114594 (2021). <https://www.sciencedirect.com/science/article/abs/pii/S0019103521002918>
+
+Disclaimer on coverage (extension): The §16.8 channels are surveyed at a scoping level — the goal is *architectural* (what EM observables a Sol EM Instrument should carry), not *quantitative* (publishing precise per-body emission rates / cross-sections). Order-of-magnitude figures are cited from the literature; any v0.19.x implementation would need a body-by-body data-collection pass against PDS / SPDF / OMNI / mission-archive sources, with explicit per-entry uncertainty flags (Saturn rotation-period, Enceladus plume rate, Io torus mass-loading rate are all known-uncertain).
