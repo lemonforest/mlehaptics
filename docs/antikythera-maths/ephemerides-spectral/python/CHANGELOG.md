@@ -10,7 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.7)
+(no entries yet — next entries land after v0.13.8)
+
+## [0.13.8] — 2026-05-05
+
+**README accuracy patch — two-stage architecture clarification.** Docs-only release; no API / encoder / ABI / test changes.
+
+### Why
+
+User flagged a misunderstanding triggered by the previous README framing: *"our readme says that we use complex128 for syzygy and stuff, is that still correct? because that would mean we aren't pure ALU, right?"*
+
+The README listed three backends (`bip` / `c` / `complex128`) as parallel alternatives, with `complex128` annotated as *"Used for the algebraic identities (Syzygy operator, observer binding) and as a regression baseline."* That bullet was true *before* v0.7.0, when Tier 2b shipped C-side `complex64` implementations of the HD operations. Since then the production HD path is C-side `complex64`; `complex128` is the regression baseline only (`backend="fpu-ref"`).
+
+The framing also implied "three interchangeable backends" all ran the same operation. They don't — they are three encoders for the **phase-residue stage**, plus an FPU HD pipeline that follows. The mental model was off, and the README was the load-bearing source.
+
+### Fixed
+
+- **Two-stage architecture, explicitly described**: phase-residue computation (integer ALU) + HD operations (FPU `complex64` production / `complex128` regression). Phase residues are integer ALU end-to-end; HD operations can't be (channel bases are unit-magnitude complex; `(cos(φ), sin(φ))` requires trigonometric channels).
+- **`complex128` reframed**: from "production path for syzygy / observer-bind" to "regression baseline; `backend='fpu-ref'`."
+- **"Both backends" → "All three phase-residue encoders"** typo fix (the earlier sentence had been written before `complex128` was added to the list).
+- **Status banner updated**: from "Three interchangeable backends (BIP integer ALU, native C, FPU complex128)" to a more accurate "Two-stage architecture: three interchangeable integer-ALU phase-residue encoders feeding an FPU `complex64` HD pipeline."
+- **TL;DR callout added** under the new architecture section: *"Phase residues are integer ALU end-to-end (BIP encoder hot path is uint64/int64/uint32, no floats); HD operations (syzygy / observer-bind / eclipse) lift those residues to `complex64` and run on FPU. The package is *not* pure-ALU end-to-end — the HD pipeline can't be."*
+
+### Roadmap renumber
+
+JPL_AUDIT.md: Rules 6+7 manual audits move v0.13.8 → v0.13.9 (last item in the rule-fix sequence; v0.13.8 reserved for this README hygiene patch).
+
+### Migration
+
+None. Pure docs change; no API / encoder / ABI / test surface change. 251 tests pass, 4 skipped.
 
 ## [0.13.7] — 2026-05-05
 

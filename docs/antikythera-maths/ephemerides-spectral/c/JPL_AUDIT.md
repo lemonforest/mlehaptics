@@ -21,13 +21,13 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 | 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init) |
 | 4 | Functions ≤ 60 lines | 4 | **0** | ✅ — fixed in v0.13.5 (4 long functions split via 10 new private static helpers) |
 | 5 | ≥ 2 assertions per function (avg) | 64 short | **0 short** | ✅ — fixed in v0.13.6 (88 assertions across 42 functions; 2.10/function avg; gated behind `<assert.h>` NDEBUG so production strips them entirely) |
-| 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.8 manual audit |
-| 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
+| 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.9 manual audit |
+| 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.9. |
 | 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
 | 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
 | 10 | Compile clean at most-pedantic warning level | unknown | **0 warnings** | ✅ — fixed in v0.13.7 (`ES_PEDANTIC=ON` CMake option + 3-cell `pedantic-build` CI matrix; Linux gcc / macOS clang / Windows MSVC; always-on, fails build on any warning) |
 
-**Headline:** Four ships, all five mechanically-enforceable JPL rules cleared (Rules 1, 3, 4, 5, 10). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants); v0.13.7 was the toolchain pass (`ES_PEDANTIC=ON` + 3-cell pedantic-build CI matrix enforces zero-warnings across gcc / clang / MSVC). Encoder math byte-identical across all four ships — parity smoke pins both backends to within float-ULP. Remaining: Rules 6+7 manual audits (v0.13.8).
+**Headline:** Four ships, all five mechanically-enforceable JPL rules cleared (Rules 1, 3, 4, 5, 10). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants); v0.13.7 was the toolchain pass (`ES_PEDANTIC=ON` + 3-cell pedantic-build CI matrix enforces zero-warnings across gcc / clang / MSVC). Encoder math byte-identical across all four ships — parity smoke pins both backends to within float-ULP. v0.13.8 is a docs hygiene patch (README two-stage architecture clarification; pushed Rules 6+7 from v0.13.8 to v0.13.9). Remaining: Rules 6+7 manual audits (v0.13.9).
 
 **Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.7 0.** Every Rule 1-5 source-side pin satisfied; Rule 10 toolchain-side enforcement always-on in CI. The pinned ratchet test allows this number to go DOWN only; PRs that increase it fail.
 
@@ -327,7 +327,8 @@ The v0.11.3-v0.11.7 numbering originally queued at the v0.11.2 audit ship is **o
 | **v0.13.5** | **Rule 4 fixes** — split the 4 long functions into JPL-compliant <60-line factors. |
 | **v0.13.6** | **Rule 5 fixes** — add 64+ assertions across the 32 functions to hit the 2/function average. Gate behind `#ifndef NDEBUG`. Flips the Rule-5 density skip in `test_jpl_audit.py` to passing. |
 | **v0.13.7** | **Rule 10 audit** — cross-platform pedantic-build CI matrix (`-Wall -Wextra -Wpedantic` for gcc/clang; `/W4` for MSVC); document warning counts; iterate. |
-| **v0.13.8** | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. |
+| **v0.13.8** | **README accuracy patch** — two-stage architecture clarification (phase-residue stage + HD-pipeline stage); reframes `complex128` as regression baseline; user-flagged in-session. Docs-only. |
+| **v0.13.9** | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking (renumbered from v0.13.8). |
 | v0.14.0+ | First non-audit minor after the JPL series. Likely Sol Moon Times (`#86`) or the SPICE-gap fills from `#101`. |
 
 Each v0.13.x rule-fix ship updates this audit document AND drops the corresponding pin in `test_jpl_audit.py`. The ratchet structure means even partial progress (e.g., removing 3 of 5 `goto`s in v0.13.4) lowers the pin and is permanently locked in.
