@@ -12,11 +12,18 @@ ctypes DLL path.
 > Living document.  Sibling to
 > [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md)
 > (the chess notebook's §10 is the theoretical survey this notebook
-> tests computationally) and
+> tests computationally),
 > [../logo-maths/logo_research_notebook.md](../logo-maths/logo_research_notebook.md)
 > (the second instance of the split-object-with-fiber-matrix pattern,
 > including an explicit retraction in L7b that this notebook takes
-> as a cautionary template for Phase 2 claims).
+> as a cautionary template for Phase 2 claims), and
+> [../antikythera-maths/doom_spectral_research_notebook.md](../antikythera-maths/doom_spectral_research_notebook.md)
+> — DOOM (1993, id Tech 1) translated into a graph-Laplacian spectral
+> model, where Track 3 (Dynamic Sheaf Laplacian for line-of-sight /
+> raycasting) is mathematically identical to **§10.7's ray-flanking
+> mechanic** of this notebook. The doom-spectral notebook explicitly
+> cites §10.7 as the reference; sibling-link added here so the
+> bidirectional cross-reference is complete.
 
 Every claim is tagged **KNOWN** (published, cited), **NOVEL** (no
 prior art found), **CONFIRMED** (computationally verified in this
