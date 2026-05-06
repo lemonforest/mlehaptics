@@ -280,14 +280,18 @@ The pattern: enumerate the truth, fail loudly on drift, reduce on improvement.
 
 ## Roadmap
 
+The v0.11.3-v0.11.7 numbering originally queued at the v0.11.2 audit ship is **obsolete**. After the audit landed, the project shipped v0.12.0 (Sol Kinematics) and v0.13.0 (Sol Dynamics) ahead of the JPL rule-fix work, so the rule-fix patches are renumbered to land in the **v0.13.x** series instead. The audit document and the ratchet pins are unchanged; only the version labels move.
+
 | Version | Focus |
 |---|---|
-| **v0.11.2** *(this ship)* | Audit-only. Document violations; pin counts in CI as a one-way ratchet. No code changes. |
-| v0.11.3 | **Rule 1 + Rule 3 fixes** — refactor `es_hd_state.c` HD pipeline to remove `goto` + `malloc`. Combined fix using static buffers for embedded targets / caller-supplied buffers for dynamic-D library use. |
-| v0.11.4 | **Rule 4 fixes** — split the 4 long functions into JPL-compliant <60-line factors. |
-| v0.11.5 | **Rule 5 fixes** — add 64+ assertions across the 32 functions to hit the 2/function average. Gate behind `#ifndef NDEBUG`. |
-| v0.11.6 | **Rule 10 audit** — cross-platform pedantic-build CI matrix; document warning counts; iterate. |
-| v0.11.7 | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. |
-| v0.12.0 | First non-audit minor (deferred during the v0.11.x JPL push). Probably the Kinematics module from #99. |
+| v0.11.2 *(shipped)* | Audit-only. Document violations; pin counts in CI as a one-way ratchet. No code changes. |
+| **v0.13.4** | **Rule 1 + Rule 3 fixes** — refactor `es_hd_state.c` HD pipeline to remove `goto` + `malloc`. Combined fix using static buffers for embedded targets / caller-supplied buffers for dynamic-D library use. |
+| **v0.13.5** | **Rule 4 fixes** — split the 4 long functions into JPL-compliant <60-line factors. |
+| **v0.13.6** | **Rule 5 fixes** — add 64+ assertions across the 32 functions to hit the 2/function average. Gate behind `#ifndef NDEBUG`. Flips the Rule-5 density skip in `test_jpl_audit.py` to passing. |
+| **v0.13.7** | **Rule 10 audit** — cross-platform pedantic-build CI matrix (`-Wall -Wextra -Wpedantic` for gcc/clang; `/W4` for MSVC); document warning counts; iterate. |
+| **v0.13.8** | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. |
+| v0.14.0+ | First non-audit minor after the JPL series. Likely Sol Moon Times (`#86`) or the SPICE-gap fills from `#101`. |
 
-Each v0.11.x rule-fix ship updates this audit document AND drops the corresponding pin in `test_jpl_audit.py`.
+Each v0.13.x rule-fix ship updates this audit document AND drops the corresponding pin in `test_jpl_audit.py`. The ratchet structure means even partial progress (e.g., removing 3 of 5 `goto`s in v0.13.4) lowers the pin and is permanently locked in.
+
+In-prose version references throughout the rest of this document still say "v0.11.3+" — those mean "the current rule-fix series, now starting at v0.13.4." Replace mentally if you're reading old captures of this file.

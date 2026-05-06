@@ -7,7 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.1)
+(no entries yet — next entries land after v0.13.2)
+
+## [0.13.2] — 2026-05-05
+
+**Quick-win housekeeping**: gitignore the `_native/` build directory; renumber the JPL rule-fix roadmap to v0.13.4-v0.13.8.
+
+### Fixed
+
+- **Add `_native/` to repo `.gitignore`** (`` `#85` ``). The `python/ephemerides_spectral/_native/` directory holds the compiled native C library (`ephemerides_spectral.dll` / `.so` / `.dylib`) that rebuilds on every `cmake --build ../build` followed by manual copy. Per-platform; not portable; not shipped in source. Listed in the top-level `.gitignore` alongside the existing chess-spectral and othello-spectral C-encoder build artefacts.
+
+- **`c/JPL_AUDIT.md` roadmap renumbering**. The audit document (shipped in v0.11.2) queued v0.11.3-v0.11.7 for the rule-fix patches. After the audit landed, the project shipped v0.12.0 (Sol Kinematics) and v0.13.0 (Sol Dynamics) ahead of the JPL rule-fix work; the rule-fix patches are now renumbered to land in **v0.13.4-v0.13.8**:
+
+  | Was | Now | Focus |
+  |---|---|---|
+  | v0.11.3 | **v0.13.4** | Rule 1 + Rule 3 — refactor `es_hd_state.c` HD pipeline (remove `goto` + `malloc`, combined fix via static / caller-supplied buffers) |
+  | v0.11.4 | **v0.13.5** | Rule 4 — split the 4 long functions (`es_encode_state` 109, `es_find_syzygies` 99, `es_bind_observer` 86, `es_get_eclipse_probability` 71) |
+  | v0.11.5 | **v0.13.6** | Rule 5 — add ≥64 assertions, gated by `#ifndef NDEBUG`. Flips the Rule-5 density skip in `test_jpl_audit.py` to passing |
+  | v0.11.6 | **v0.13.7** | Rule 10 — cross-platform pedantic-build CI matrix |
+  | v0.11.7 | **v0.13.8** | Rules 6 + 7 — manual variable-scope + return-value audits |
+
+  v0.13.3 reserved for `` `#98` `` (consolidated docs+parity hygiene check; absorbs `` `#87` `` + `` `#88` ``).
+
+### Task tracking housekeeping
+
+Three originally-separate tasks consolidated into `` `#98` ``:
+
+- `` `#87` `` (pre-merge C/Python parity checklist) — absorbed; the mechanical part lives in `tests/test_parity_smoke.py::PARITY_TARGETS`, the human-checklist part in `` `#98` ``'s description.
+- `` `#88` `` (pre-publish docs hygiene checklist, RTD-aware) — absorbed; the mechanical README-Status-banner-and-CLI-body-name-validity part lives in `tests/test_readme_freshness.py`, the broader notebook + RTD-aware coverage in `` `#98` ``'s description.
+
+Both marked completed-redirected; `` `#98` `` is the canonical task to track.
+
+### Migration
+
+None. Patch-level docs + repo-config + task-tracking changes; no API, no encoder, no ABI, no test changes. 248 tests pass, 5 skipped (unchanged from v0.13.1).
 
 ## [0.13.1] — 2026-05-05
 

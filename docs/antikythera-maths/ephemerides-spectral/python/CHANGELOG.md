@@ -10,7 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.1)
+(no entries yet — next entries land after v0.13.2)
+
+## [0.13.2] — 2026-05-05
+
+**Quick-win patches**: gitignore the rebuild-every-build `_native/` directory + renumber the JPL rule-fix roadmap.
+
+### Fixed
+
+- **`` `#85` ``** — Added `docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_native/` to the repo `.gitignore`. The `_native/` directory holds the compiled native C library (`ephemerides_spectral.dll` / `.so` / `.dylib`) that rebuilds on every `cmake --build ../build` followed by `cp ../build/ephemerides_spectral.dll ephemerides_spectral/_native/`. Per-platform; not portable; not shipped in source. Eliminates the friction of `git status` always showing `?? ephemerides_spectral/_native/` and the per-PR ceremony of adding files individually to avoid accidentally committing the binary.
+
+- **`c/JPL_AUDIT.md` roadmap renumbering**. The original v0.11.3-v0.11.7 numbering queued at the v0.11.2 audit ship is obsolete since the project moved past v0.11.x. Rule-fix patches are renumbered:
+
+  | Was | Now | Focus |
+  |---|---|---|
+  | v0.11.3 | **v0.13.4** | Rule 1 + Rule 3 fixes |
+  | v0.11.4 | **v0.13.5** | Rule 4 fixes |
+  | v0.11.5 | **v0.13.6** | Rule 5 fixes |
+  | v0.11.6 | **v0.13.7** | Rule 10 audit |
+  | v0.11.7 | **v0.13.8** | Rules 6 + 7 audits |
+
+  v0.13.3 is reserved for `` `#98` `` (consolidated docs+parity hygiene check; absorbs `` `#87` `` + `` `#88` ``).
+
+### Migration
+
+None. Patch-level docs + repo-config changes only; no API, no encoder, no ABI, no test changes.
 
 ## [0.13.1] — 2026-05-05
 
