@@ -55,19 +55,26 @@ Entities moving through the map have momentum and inertia.
 
 We will use the original DOOM shareware WAD (`DOOM1.WAD`), specifically parsing **E1M1: Hangar**, to extract the ground-truth node topologies, linedefs, and sectors for our initial spectral constructions.
 
-### 2.1 Track Implementations (Completed)
+### 2.1 Track Implementations (Verified May 2026)
 
-The five foundational research tracks have been materialized into Python reference implementations:
+The five foundational research tracks have been materialized into Python reference implementations and verified via `integration_test.py`:
 
-1. **Topology & Diffusion** (`research-doom/doom_topology.py`): Extracted the `L_sector` graph Laplacian and mapped sound propagation to exact matrix exponential diffusion (the Heat Equation over the sector super-graph).
-2. **Kinematics** (`research-doom/doom_kinematics.py`): Replicated John Carmack's BAM (Binary Angle Measurement) fixed-point movement model using strictly bitwise modular math on `Z_{2^{32}}`, removing all FPU dependencies for continuous spatial progression.
-3. **Dynamic Sheaf Hitscan** (`research-doom/doom_sheaf.py` & `research-doom/doom_raycast.py`): Designed a Bresenham-based 1D raycaster that models Line of Sight as a directed sheaf Laplacian, where restriction maps act as phase gates (open air = 1.0, wall = 0.0). Absorption of the ray impulse instantly reveals the hit point.
-4. **Z-Axis Fiber Bundle** (`research-doom/doom_fiber.py`): Modeled the 2.5D physical constraints (floor step-up, ceiling clearance) as state-dependent edge severing on the 2D sector graph. Height is mathematically confirmed as a scalar fiber.
-5. **WAD Geometry Mocking** (`research-doom/wad_parser_mock.py`): Scaffolded basic data structures mimicking E1M1 to pass into the sector matrices.
+1. **Topology & Diffusion** (`research-doom/doom_topology.py`): Extracted the `L_sector` graph Laplacian and mapped sound propagation to exact matrix exponential diffusion (the Heat Equation over the sector super-graph). Verified that sound decays physically across topological distances.
+2. **Kinematics** (`research-doom/doom_kinematics.py`): Replicated John Carmack's BAM (Binary Angle Measurement) fixed-point movement model using strictly bitwise modular math on $Z_{2^{32}}$, including wall-sliding projections.
+3. **Dynamic Sheaf Hitscan** (`research-doom/doom_sheaf.py` & `research-doom/doom_raycast.py`): Implemented a Bresenham-based 1D raycaster that models Line of Sight as a directed sheaf Laplacian, where restriction maps act as phase gates (open air = 1.0, wall = 0.0).
+4. **Z-Axis Fiber Bundle** (`research-doom/doom_fiber.py`): Modeled 2.5D physical constraints (floor step-up, ceiling clearance) as state-dependent edge severing on the 2D sector graph. Height is mathematically confirmed as a scalar fiber.
+5. **WAD Geometry Mocking** (`research-doom/wad_parser_mock.py`): Scaffolded a baseline topology (inspired by E1M1 Hangar) with floor/ceiling elevations for spectral testing.
 
-## 3. Next Steps & System Integration
+## 3. Results & System Integration
 
-With the individual mathematical components verified against id Tech 1's mechanics, the next phase is connecting these isolated matrices into a unified step function:
+The components were integrated in `integration_test.py` with the following results:
 
-- Integrate the **WAD Parser** with the **Z-Fiber** to prove 3D movement denial between mock sectors.
-- Fire a **Bresenham Sheaf Ray** through the collision grid, ensuring it absorbs correctly against dynamic sector wall constraints.
+- **3D Movement Denial:** The Z-Fiber successfully severs edges in the Sector Laplacian when an entity's height exceed ceiling clearance or when floor elevations exceed `MaxStep` (24 units).
+- **Sheaf Ray Absorption:** Hitscan rays correctly absorb at the first grid cell where the sheaf restriction map is $0.0$, identifying impact points through the dynamic sheaf Laplacian.
+- **Topological Diffusion:** Sound propagation via $e^{-Lt}$ correctly identifies the acoustic reachability of sectors, with sound intensity decaying as a function of graph-Laplacian distance rather than Euclidean distance.
+
+## 4. Future Directions
+
+- **Phase-9 BIP Encoding:** Transition the kinematics from standard fixed-point to the Phase-9 adaptive coupling model used in the Ephemerides HDC.
+- **BSP Spectral Partitioning:** Use spectral clustering on the Sector Graph to automatically generate BSP trees based on eigenbasis nodal domains.
+- **Visibility (PVS) as Eigenfunction:** Model the Potentially Visible Set (PVS) as the principal eigenfunction of the local visibility operator.
