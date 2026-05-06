@@ -114,3 +114,9 @@ docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.lib
 
 *.bsp.download
 skyfield_data/
+
+# ephemerides-spectral native C build output (rebuild via `cmake --build
+# ../build` then `cp ../build/ephemerides_spectral.dll
+# ephemerides_spectral/_native/`). Per-platform; not portable; not
+# shipped in source.
+docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_native/
