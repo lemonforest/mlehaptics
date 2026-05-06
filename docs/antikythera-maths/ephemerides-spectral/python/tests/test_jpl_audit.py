@@ -1,10 +1,15 @@
 """v0.11.2 — JPL Power-of-Ten violation ratchet for the C library.
 
 Mirrors `c/JPL_AUDIT.md`: every mechanically-detectable violation is
-pinned at its v0.11.2 baseline count. PRs are allowed to *decrease*
-each count (rule fixes), but increases fail the test loudly. Adding a
-new violation requires updating the pin upward in the same PR with
-explicit justification in the PR description.
+pinned. PRs are allowed to *decrease* each count (rule fixes), but
+increases fail the test loudly. Adding a new violation requires
+updating the pin upward in the same PR with explicit justification.
+
+History:
+  - v0.11.2: baseline audit, all pins set to first-measured values.
+  - v0.13.4: Rule 1 (goto) 5 → 0 and Rule 3 (dynamic alloc) 29 → 0
+             via the `es_hd_state.c` caller-supplied-scratch refactor
+             (combined fix; ABI v5 → v6).
 
 Same modular discipline as `test_native_version_string_matches_package_version`,
 `test_parity_smoke.py::PARITY_TARGETS`, and `test_readme_freshness.py`:
@@ -49,7 +54,9 @@ from typing import List, Tuple
 # UP requires explicit justification in the PR description.
 
 #: Rule 1 — control flow: no goto / setjmp / longjmp.
-PIN_RULE_1_GOTO:           int = 5
+#: v0.13.4: 5 → 0 (es_hd_state.c caller-supplied-scratch refactor
+#: removed the goto-cleanup pattern).
+PIN_RULE_1_GOTO:           int = 0
 PIN_RULE_1_SETJMP:         int = 0
 PIN_RULE_1_LONGJMP:        int = 0
 
@@ -59,7 +66,9 @@ PIN_RULE_2_UNBOUNDED:      int = 0
 #: Rule 3 — no dynamic allocation. Counts malloc + calloc + realloc + free
 #: occurrences in source (each `free()` call counts; mirrored allocation
 #: + free pairs count as 2).
-PIN_RULE_3_DYNAMIC_ALLOC:  int = 29
+#: v0.13.4: 29 → 0 (same refactor; the C library no longer calls
+#: malloc/free after init — scratch buffers are caller-supplied).
+PIN_RULE_3_DYNAMIC_ALLOC:  int = 0
 
 #: Rule 4 — functions ≤ 60 lines.
 PIN_RULE_4_LONG_FUNCTIONS: int = 4

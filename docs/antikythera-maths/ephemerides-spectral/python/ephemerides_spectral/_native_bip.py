@@ -61,7 +61,16 @@ import numpy as np
 #       es_bind_observer, es_get_eclipse_probability + body-basis /
 #       observer-coord / syzygy-node seed constants. Encoder hot
 #       path unchanged.
-EXPECTED_ABI_VERSION: int = 5
+#   v6 — v0.13.4: JPL Power-of-Ten Rule 1 + Rule 3 fixes. The three
+#       HD-pipeline entries gain caller-supplied scratch buffer
+#       parameters so the C library no longer calls malloc/free
+#       (Rule 3) and no longer needs the goto-cleanup pattern
+#       (Rule 1). Encoder math is byte-identical to v5; only the
+#       wire format changed (extra pointer params). The Python
+#       shim allocates the scratch buffers once per call alongside
+#       the existing `out_state` buffer, so the user-facing bridge
+#       API is unchanged.
+EXPECTED_ABI_VERSION: int = 6
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
@@ -274,10 +283,16 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.es_channel_basis.restype = ctypes.c_int
 
-    # ABI v5 (v0.7.0) — Tier 2b: HD encode + observer-bind + eclipse projection.
-    # es_status_t es_encode_state_hd(double, es_complex64_t *out, size_t D)
+    # ABI v6 (v0.13.4) — Tier 2b HD pipeline with caller-supplied scratch
+    # buffers (JPL Power-of-Ten Rule 1 + Rule 3 fixes).
+    # es_status_t es_encode_state_hd(double, es_complex64_t *out,
+    #                                 es_complex64_t *scratch_basis,
+    #                                 es_complex64_t *scratch_rolled,
+    #                                 size_t D)
     lib.es_encode_state_hd.argtypes = [
         ctypes.c_double,
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
         ctypes.POINTER(EsComplex64),
         ctypes.c_size_t,
     ]
@@ -285,11 +300,18 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # es_status_t es_bind_observer(const es_complex64_t *state_in,
     #                               size_t body_idx, double lat, double lon,
-    #                               es_complex64_t *out, size_t D)
+    #                               es_complex64_t *out,
+    #                               es_complex64_t *scratch_body_basis,
+    #                               es_complex64_t *scratch_coord_basis,
+    #                               es_complex64_t *scratch_coord_op,
+    #                               size_t D)
     lib.es_bind_observer.argtypes = [
         ctypes.POINTER(EsComplex64),
         ctypes.c_size_t,
         ctypes.c_double, ctypes.c_double,
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
         ctypes.POINTER(EsComplex64),
         ctypes.c_size_t,
     ]
@@ -297,11 +319,20 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # es_status_t es_get_eclipse_probability(const es_complex64_t *state,
     #                                         size_t D, size_t sun_idx,
-    #                                         size_t moon_idx, double *out)
+    #                                         size_t moon_idx,
+    #                                         es_complex64_t *scratch_sun_b,
+    #                                         es_complex64_t *scratch_moon_b,
+    #                                         es_complex64_t *scratch_node_b,
+    #                                         es_complex64_t *scratch_s_op,
+    #                                         double *out)
     lib.es_get_eclipse_probability.argtypes = [
         ctypes.POINTER(EsComplex64),
         ctypes.c_size_t,
         ctypes.c_size_t, ctypes.c_size_t,
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
+        ctypes.POINTER(EsComplex64),
         ctypes.POINTER(ctypes.c_double),
     ]
     lib.es_get_eclipse_probability.restype = ctypes.c_int
@@ -589,6 +620,9 @@ def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
     Returns a `numpy.complex64` array of length D (unit-norm).
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+
+    ABI v6 note: scratch buffers are allocated here in Python and passed
+    by pointer; the C library no longer allocates internally (Rule 3).
     """
     if not HAS_NATIVE:
         raise RuntimeError(
@@ -597,9 +631,13 @@ def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
     assert LIB is not None
     import numpy as np
     buf = (EsComplex64 * D)()
+    scratch_basis = (EsComplex64 * D)()
+    scratch_rolled = (EsComplex64 * D)()
     rc = int(LIB.es_encode_state_hd(
         ctypes.c_double(float(delta_t_days)),
         buf,
+        scratch_basis,
+        scratch_rolled,
         ctypes.c_size_t(int(D)),
     ))
     if rc != ES_OK:
@@ -613,6 +651,8 @@ def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
 
     `state` must be a numpy `complex64` array; the returned array is
     the same shape.
+
+    ABI v6 note: scratch buffers allocated here (Rule 3).
     """
     if not HAS_NATIVE:
         raise RuntimeError(
@@ -624,12 +664,18 @@ def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
     D = int(state_c64.shape[0])
     in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
     out_buf = (EsComplex64 * D)()
+    scratch_body_basis = (EsComplex64 * D)()
+    scratch_coord_basis = (EsComplex64 * D)()
+    scratch_coord_op = (EsComplex64 * D)()
     rc = int(LIB.es_bind_observer(
         in_buf,
         ctypes.c_size_t(int(body_idx)),
         ctypes.c_double(float(lat_deg)),
         ctypes.c_double(float(lon_deg)),
         out_buf,
+        scratch_body_basis,
+        scratch_coord_basis,
+        scratch_coord_op,
         ctypes.c_size_t(D),
     ))
     if rc != ES_OK:
@@ -639,7 +685,10 @@ def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
 
 def native_get_eclipse_probability(state: Any, sun_body_idx: int,
                                     moon_body_idx: int) -> float:
-    """Run the C-side syzygy projection. Returns scalar probability."""
+    """Run the C-side syzygy projection. Returns scalar probability.
+
+    ABI v6 note: scratch buffers allocated here (Rule 3).
+    """
     if not HAS_NATIVE:
         raise RuntimeError(
             "native_get_eclipse_probability called without native library"
@@ -649,12 +698,20 @@ def native_get_eclipse_probability(state: Any, sun_body_idx: int,
     state_c64 = np.ascontiguousarray(state, dtype=np.complex64)
     D = int(state_c64.shape[0])
     in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
+    scratch_sun_b = (EsComplex64 * D)()
+    scratch_moon_b = (EsComplex64 * D)()
+    scratch_node_b = (EsComplex64 * D)()
+    scratch_s_op = (EsComplex64 * D)()
     out_prob = ctypes.c_double(0.0)
     rc = int(LIB.es_get_eclipse_probability(
         in_buf,
         ctypes.c_size_t(D),
         ctypes.c_size_t(int(sun_body_idx)),
         ctypes.c_size_t(int(moon_body_idx)),
+        scratch_sun_b,
+        scratch_moon_b,
+        scratch_node_b,
+        scratch_s_op,
         ctypes.byref(out_prob),
     ))
     if rc != ES_OK:
