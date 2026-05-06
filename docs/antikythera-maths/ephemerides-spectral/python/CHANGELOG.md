@@ -10,7 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.16.0)
+(no entries yet — next entries land after v0.17.0)
+
+## [0.17.0] — 2026-05-06
+
+**Resonance-graph multi-leg `find_itn_chains` (advanced Lagrange-highway search).** Generalises the v0.8.1 closed-form Hohmann-window enumeration to multi-leg pathways via Dijkstra-style graph search over the `(body, epoch)` state space. Pure-Python addition; **no ABI bump** (first ephemerides ship since v0.13.x to leave the C wire-format alone).
+
+### Added — Pythonic API
+
+- `_research.itn_window.ITNChainCandidate` — frozen dataclass carrying `jd_tdb_launch`, `jd_tdb_arrival`, `legs: tuple[ITNCandidate, ...]`, `total_dv_kms`, `total_tof_days`, `resonance_signature: tuple[(int, int), ...]`, `score`.
+- `_research.itn_window._best_rational_approx(ratio, max_denom=30) -> (int, int)` — returns the rational approximation of a period ratio in lowest terms; `(0, 0)` sentinel for non-finite or non-positive inputs. Recovers (8, 15) for Earth/Mars, (1, 12) for Earth/Jupiter, (2, 5) for Jupiter/Saturn.
+- `_research.itn_window.find_itn_chains(jd_lo, jd_hi, *, departure, target, intermediates=None, max_legs=4, dv_budget_kms=30.0, tof_budget_days=365.25 * 20, threshold=0.05, max_chains=200, max_intermediate_windows=8) -> List[ITNChainCandidate]` — multi-leg ITN chain search via Dijkstra on the `(body, epoch)` state space. Each leg is a closed-form Hohmann window from `find_itn_pathways`. Chains are emitted in monotonically non-decreasing `total_dv_kms` order (Dijkstra invariant); empty if no chain fits the budgets. Default `intermediates=None` ⇒ all heliocentric bodies (planets + dwarf planets + asteroids) minus departure/target; pass `[]` to force a single-leg direct chain.
+
+### Added — bridge dict API (Pyodide-compatible)
+
+- `bridge.find_itn_chains(jd_lo, jd_hi, *, departure, target, intermediates=None, max_legs=4, dv_budget_kms=30.0, tof_budget_days=7305.0, threshold=0.05, max_chains=200, max_intermediate_windows=8) -> dict` — same algorithm, returns `{ok, departure, target, max_legs, n_chains, chains, ...}`. Each chain entry is a JSON-serialisable dict with `jd_tdb_launch`, `jd_tdb_arrival`, `legs` (list of leg dicts mirroring `find_itn_pathways`'s candidate shape), `total_dv_kms`, `total_tof_days`, `resonance_signature` (list of `[p, q]` pairs), `score`.
+
+### Added — CLI
+
+- `find-chains` subcommand — flags: `--from-jd`, `--to-jd`, `--departure`, `--target`, `--intermediates` (comma-separated; empty string = direct), `--max-legs`, `--dv-budget-kms`, `--tof-budget-days`, `--threshold`, `--max-chains`, `--max-intermediate-windows`, `--pretty`. Prints the same dict the bridge returns.
+
+### Algorithm
+
+Dijkstra over the `(current_body, current_jd, total_dv, legs)` state space. Each leg is a closed-form Hohmann transfer window from `find_itn_pathways` (per-pair synodic enumeration; constant time per synodic period). Legs stitch end-to-end at intermediate bodies. Cumulative Δv invariant guarantees first-popped target node is the optimal-Δv chain; subsequent chains emitted in non-decreasing total-Δv order. Worst-case `O(B^L × W)` (B = |intermediates|, L = max_legs, W = windows per leg) but the budgets prune aggressively in practice.
+
+### Resonance signature
+
+Each leg carries a small-integer `(p, q)` gear-ratio resonance signature: the rational approximation of `period_dep / period_tgt` in lowest terms (max denominator 30). The cross-pollination point between the closed-form transfer-window machinery and the BIP cyclic-group encoder.
+
+### Tests
+
+- New module `tests/test_find_itn_chains.py` (21 tests):
+  - **Rational-approximation invariants** — Earth/Mars (8, 15), Earth/Jupiter (1, 12), Jupiter/Saturn (2, 5); lowest-terms gcd invariant; non-finite / non-positive sentinel
+  - **Direct-chain consistency** — `intermediates=[]` collapses to v0.8.1 `find_itn_pathways` (per-leg jd_tdb byte-identical, modulo Dijkstra-optimal-first vs chronological ordering)
+  - **Dijkstra invariant** — chains emitted in monotonically non-decreasing `total_dv_kms` order
+  - **Resonance signature shape** — len(`resonance_signature`) == len(`legs`); per-leg `(p, q)` pinned for Earth → Mars
+  - **Budget enforcement** — Δv, TOF, max_legs all enforced cumulatively
+  - **Bridge surface** — smoke + rejection paths (self-transfer, unknown body, invalid threshold, invalid budget, invalid intermediate)
+  - **CLI surface** — direct, multi-leg, `--help`
+- Parity-smoke spec — `find_itn_chains` classified as `python_only` (no C twin planned: the priority-queue search is structurally Pythonic and bounded by the same closed-form synodic enumeration as `find_itn_pathways`)
+
+### Test count
+
+622 pass, 41 skipped (was 601 + 41 in v0.16.0; +21 new).
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see `ES_ABI_VERSION = 8` unchanged. `ES_VERSION_STRING` bumps `0.16.0 → 0.17.0`.
 
 ## [0.16.0] — 2026-05-06
 

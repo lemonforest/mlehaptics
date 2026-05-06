@@ -391,11 +391,278 @@ def find_itn_pathways(
     return out
 
 
+@dataclass(frozen=True)
+class ITNChainCandidate:
+    """One ITN multi-leg chain candidate (v0.17.0).
+
+    Composed of one or more single-leg :class:`ITNCandidate` Hohmann
+    windows stitched end-to-end via gravity-assist / synodic-sequencing
+    at intermediate bodies. The chain is "resonance-graph" because each
+    leg's (departure, target) pair carries a small-integer gear ratio
+    (p, q) recovered as a rational approximation of the period ratio
+    -- the same kind of integer signature the BIP cyclic-group encoder
+    consumes on its primary surface (notebook §6).
+
+    The dataclass shape is forward-compatible with future leg types
+    (heteroclinic-tube, weak-stability-boundary, etc.) -- the per-leg
+    ``transfer_kind`` field on :class:`ITNCandidate` already reserves
+    that room.
+    """
+    jd_tdb_launch: float
+    jd_tdb_arrival: float
+    legs: tuple
+    """Tuple[ITNCandidate, ...] -- each leg is a v0.8.1 Hohmann window."""
+    total_dv_kms: float
+    total_tof_days: float
+    resonance_signature: tuple
+    """Tuple[Tuple[int, int], ...] -- per-leg p:q gear-ratio integer
+    approximation of period_dep / period_tgt. The cross-pollination
+    point with the BIP encoder's cyclic-group machinery."""
+    score: float
+    """Sum of per-leg phase-residual scores, lower is better. Pin a
+    deterministic RMS in a future tightening pass."""
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "jd_tdb_launch": float(self.jd_tdb_launch),
+            "jd_tdb_arrival": float(self.jd_tdb_arrival),
+            "legs": [leg.to_dict() for leg in self.legs],
+            "total_dv_kms": float(self.total_dv_kms),
+            "total_tof_days": float(self.total_tof_days),
+            "resonance_signature": [list(pq) for pq in self.resonance_signature],
+            "score": float(self.score),
+        }
+
+
+def _best_rational_approx(ratio: float, max_int: int = 30) -> tuple:
+    """Best small-integer (p, q) with 1 ≤ p, q ≤ max_int minimising
+    ``|p/q − ratio|``. Reduced to lowest terms via gcd.
+
+    The returned (p, q) is the "gear ratio" in the sense
+    ``p × period_dep ≈ q × period_tgt``, i.e. p revolutions of the
+    departure body equal q revolutions of the target. Earth → Mars
+    recovers (8, 15); Earth → Jupiter recovers (1, 12) ≈ Jupiter's
+    ~12-yr orbit; Jupiter → Saturn recovers (2, 5) -- the famous
+    Jupiter-Saturn 2:5 great-inequality resonance.
+    """
+    if ratio <= 0.0 or not math.isfinite(ratio):
+        return (0, 0)
+    best_p, best_q = 1, 1
+    best_err = abs(1.0 - ratio)
+    for q in range(1, max_int + 1):
+        p = max(1, round(ratio * q))
+        if p > max_int:
+            continue
+        err = abs(p / q - ratio)
+        if err < best_err:
+            best_err, best_p, best_q = err, p, q
+    g = math.gcd(best_p, best_q)
+    return (best_p // g, best_q // g)
+
+
+def find_itn_chains(
+    jd_lo: float,
+    jd_hi: float,
+    *,
+    departure: str,
+    target: str,
+    intermediates: Optional[List[str]] = None,
+    max_legs: int = 4,
+    dv_budget_kms: float = 30.0,
+    tof_budget_days: float = 365.25 * 20.0,
+    threshold: float = 0.05,
+    max_chains: int = 200,
+    max_intermediate_windows: int = 8,
+) -> List[ITNChainCandidate]:
+    """Multi-leg ITN chain search via Dijkstra-style graph search on
+    the (body, epoch) state space.
+
+    Each "leg" is a closed-form Hohmann window from
+    :func:`find_itn_pathways`. Legs stitch end-to-end at intermediate
+    bodies; the cumulative Δv and time-of-flight are budget-bounded.
+    Each leg carries a small-integer (p, q) gear-ratio "resonance
+    signature" (period_dep / period_tgt as a rational), which is the
+    cross-pollination point with the BIP cyclic-group encoder.
+
+    Parameters
+    ----------
+    jd_lo, jd_hi : float
+        Search window [jd_lo, jd_hi] in JD (TDB).
+    departure, target : str
+        Body names from BODIES; both must orbit the Sun.
+    intermediates : Optional[List[str]]
+        Bodies allowed as intermediate stops. None ⇒ all heliocentric
+        bodies in BODIES (planets + dwarf planets + asteroids), minus
+        ``departure`` and ``target``. Pass a smaller list to constrain
+        the search; pass ``[]`` to force a single-leg direct chain.
+    max_legs : int
+        Hard cap on legs per chain. Default 4 — tunable for
+        Cassini-class V-V-E-J-S sequences (max_legs ≥ 5).
+    dv_budget_kms : float
+        Cumulative-Δv ceiling. Default 30.0 km/s (loose; Earth → Pluto
+        direct is ~25 km/s Hohmann, leaving room for one assist).
+    tof_budget_days : float
+        Cumulative time-of-flight ceiling. Default 20 yr.
+    threshold : float
+        Per-leg phase-residual cutoff (passed through to
+        :func:`find_itn_pathways`).
+    max_chains : int
+        Cap on total chains returned (Dijkstra-style; lowest-Δv first).
+    max_intermediate_windows : int
+        Per-(body, epoch) cap on enumerated next-leg windows. Keeps the
+        search tractable on multi-decade horizons; default 8 covers a
+        comfortable Cassini-class search.
+
+    Returns
+    -------
+    List[ITNChainCandidate]
+        Chains ordered by ``total_dv_kms`` ascending (Dijkstra
+        guarantees optimal-first emission). Empty if no chain fits the
+        budgets.
+
+    Notes
+    -----
+    Algorithm: priority-queue graph search. Each state is
+    ``(current_body, current_jd, total_dv, legs)``. Successors are
+    Hohmann windows from current_body to any (intermediate ∪ target),
+    starting at or after current_jd. Dijkstra invariant on
+    total_dv_kms guarantees the first-popped target node is the
+    optimal-Δv chain.
+
+    The synodic enumeration in :func:`find_itn_pathways` is exact and
+    closed-form, so each leg's existence is decidable in constant time
+    per synodic period. The graph search itself is ``O(B^L × W)``
+    worst case where B = |intermediates|, L = max_legs, W = windows
+    per leg -- bounded by ``max_intermediate_windows`` per node and by
+    ``max_chains`` overall. In practice the budgets prune aggressively.
+    """
+    import heapq
+
+    if departure == target:
+        raise ValueError("departure and target must differ")
+    if jd_hi < jd_lo:
+        raise ValueError(f"jd_hi {jd_hi} < jd_lo {jd_lo}")
+    if max_legs < 1:
+        raise ValueError(f"max_legs must be ≥ 1, got {max_legs}")
+    if dv_budget_kms <= 0.0:
+        raise ValueError(f"dv_budget_kms must be > 0, got {dv_budget_kms}")
+    if tof_budget_days <= 0.0:
+        raise ValueError(f"tof_budget_days must be > 0, got {tof_budget_days}")
+
+    # Default intermediates: all heliocentric bodies in BODIES (planets,
+    # dwarf planets, asteroids) excluding departure / target / Sun.
+    if intermediates is None:
+        intermediates = sorted(
+            k for k, b in BODIES.items()
+            if b.category in ("planet", "asteroid")
+            and k not in (departure, target)
+        )
+    else:
+        intermediates = list(intermediates)
+        for body in intermediates:
+            if body in (departure, target):
+                raise ValueError(
+                    f"intermediate {body!r} cannot equal departure/target"
+                )
+            if body not in BODIES:
+                raise ValueError(f"unknown intermediate body: {body!r}")
+
+    # Reachable next-bodies from any node = intermediates ∪ {target}.
+    next_bodies = list(intermediates) + [target]
+
+    # Dijkstra priority queue. Items are
+    # (total_dv, counter, total_tof, n_legs, head_body, head_jd,
+    #  legs_tuple, resonance_tuple, score_sum)
+    # heapq is a min-heap on the first element by default, so total_dv
+    # leads. The monotonic counter at position 1 is the FIFO
+    # tiebreaker -- it MUST precede the non-comparable ITNCandidate
+    # payload tuples or heapq's lexicographic compare will try to
+    # order ITNCandidate vs ITNCandidate and TypeError out. Standard
+    # priority-queue-with-non-comparable-payload idiom.
+    pq: List = []
+    counter = 0
+    heapq.heappush(
+        pq,
+        (0.0, counter, 0.0, 0, departure, float(jd_lo),
+         tuple(), tuple(), 0.0),
+    )
+
+    out: List[ITNChainCandidate] = []
+    while pq and len(out) < max_chains:
+        (total_dv, _ctr, total_tof, n_legs, head_body, head_jd,
+         legs_tuple, res_tuple, score_sum) = heapq.heappop(pq)
+
+        # Goal check.
+        if head_body == target and n_legs >= 1:
+            out.append(ITNChainCandidate(
+                jd_tdb_launch=float(legs_tuple[0].jd_tdb),
+                jd_tdb_arrival=float(head_jd),
+                legs=legs_tuple,
+                total_dv_kms=float(total_dv),
+                total_tof_days=float(total_tof),
+                resonance_signature=res_tuple,
+                score=float(score_sum),
+            ))
+            continue
+
+        if n_legs >= max_legs:
+            continue
+
+        # Expand: enumerate Hohmann windows from head_body to each
+        # candidate next_body in [head_jd, jd_hi].
+        for next_body in next_bodies:
+            if next_body == head_body:
+                continue
+            try:
+                windows = find_itn_pathways(
+                    head_jd, jd_hi,
+                    departure=head_body, target=next_body,
+                    threshold=threshold,
+                    max_candidates=max_intermediate_windows,
+                )
+            except ValueError:
+                # Bodies share orbital period (degenerate synodic),
+                # or one is non-heliocentric. Skip silently.
+                continue
+
+            for leg in windows:
+                leg_dv = leg.estimated_dv_kms
+                leg_tof = leg.transfer_time_days + (leg.jd_tdb - head_jd)
+                new_dv = total_dv + leg_dv
+                new_tof = total_tof + leg_tof
+                if new_dv > dv_budget_kms:
+                    continue
+                if new_tof > tof_budget_days:
+                    continue
+
+                p_dep = BODIES[head_body].period_days
+                p_tgt = BODIES[next_body].period_days
+                pq_ratio = _best_rational_approx(p_dep / p_tgt)
+                arrival_jd = leg.jd_tdb + leg.transfer_time_days
+
+                counter += 1
+                heapq.heappush(pq, (
+                    float(new_dv),
+                    counter,
+                    float(new_tof),
+                    n_legs + 1,
+                    next_body,
+                    float(arrival_jd),
+                    legs_tuple + (leg,),
+                    res_tuple + (pq_ratio,),
+                    float(score_sum + leg.score),
+                ))
+
+    return out
+
+
 __all__ = [
     "ITNCandidate",
+    "ITNChainCandidate",
     "hohmann_transfer_time_days",
     "hohmann_launch_phase_angle_rad",
     "hohmann_total_dv_kms",
     "synodic_period_days",
     "find_itn_pathways",
+    "find_itn_chains",
 ]
