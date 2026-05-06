@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.9)
+(no entries yet — next entries land after v0.13.10)
+
+## [0.13.10] — 2026-05-05
+
+**Drop `edited` from docs-check workflow trigger types — fixes post-merge double-fire.** CI-only patch; no code changes.
+
+### Why
+
+User-flagged on PR `` `#214` `` (v0.13.9 ship): the docs-check workflow was deterministically double-firing at every merge time. Two `pull_request` events at the same second on the PR's branch ~3 seconds before the merge committed; concurrency-cancel caught it (one CANCELLED, one SUCCESS) but the wasted CI churn + confusing run-history was observable.
+
+### Root cause + fix
+
+GitHub web UI's "Squash and merge" workflow fires `pull_request: edited` (merge-commit dialog populates the title/body fields) near-simultaneously with `pull_request: synchronize` (GitHub recomputes `refs/pull/N/merge`). With both event types in our workflow's `types` list, both fired runs at the same second.
+
+Fix: drop `edited` from the trigger types in `.github/workflows/ephemerides-spectral-docs-check.yml`. Now `[opened, synchronize, reopened, labeled]` — matches the narrower trigger list used by `ephemerides-spectral-ci.yml`, which never had this issue.
+
+Trade-off: `[skip-docs-check]` opt-out added retroactively (after PR open, by editing the PR body) no longer triggers a re-run; user pushes a synchronizing commit or accepts the stale advisory. Acceptable — opt-out should be set up-front.
+
+### Migration
+
+None. Workflow-only change. 251 tests pass, 4 skipped.
 
 ## [0.13.9] — 2026-05-05
 
