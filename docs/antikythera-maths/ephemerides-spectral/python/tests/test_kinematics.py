@@ -206,8 +206,8 @@ def test_bridge_get_full_system_state_smoke() -> None:
     r = bridge.get_full_system_state()
     assert r["ok"] is True
     assert r["abbreviation"] == "Sol-K"
-    assert r["n_bodies"] == 38
-    assert r["n_with_state"] == 37  # all except Sun
+    assert r["n_bodies"] == 43
+    assert r["n_with_state"] == 42  # all except Sun
     assert "totals" in r
     assert "fraction_in_jupiter" in r["totals"]
     # The headline fact baked into the bridge totals
@@ -267,7 +267,7 @@ def test_cli_kinematics_all() -> None:
     r = _run_cli_json("kinematics", "--all")
     assert r["_rc"] == 0
     assert r["ok"] is True
-    assert r["n_bodies"] == 38
+    assert r["n_bodies"] == 43
     assert "totals" in r
     assert 0.55 <= r["totals"]["fraction_in_jupiter"] <= 0.65
 

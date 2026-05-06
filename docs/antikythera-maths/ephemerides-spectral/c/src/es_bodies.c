@@ -14,13 +14,15 @@
 
 #include "ephemerides_spectral.h"
 
-_Static_assert(ES_N_BODIES == 38, "body count mismatch — re-run emit_c_tables.py and rebuild");
+_Static_assert(ES_N_BODIES == 43, "body count mismatch — re-run emit_c_tables.py and rebuild");
 
 const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "adrastea", .period_days = 0.29826, .mass_earth = 3.4e-12, .category = ES_CATEGORY_MOON },
     { .name = "amalthea", .period_days = 0.49817905, .mass_earth = 3.5e-10, .category = ES_CATEGORY_MOON },
+    { .name = "ariel", .period_days = 2.52037935, .mass_earth = 0.000227, .category = ES_CATEGORY_MOON },
     { .name = "callisto", .period_days = 16.6890184, .mass_earth = 0.018, .category = ES_CATEGORY_MOON },
     { .name = "ceres", .period_days = 1681.631, .mass_earth = 0.00015, .category = ES_CATEGORY_ASTEROID },
+    { .name = "charon", .period_days = 6.38723, .mass_earth = 0.000266, .category = ES_CATEGORY_MOON },
     { .name = "deimos", .period_days = 1.26244, .mass_earth = 2.4e-10, .category = ES_CATEGORY_MOON },
     { .name = "dione", .period_days = 2.736915, .mass_earth = 1.83e-07, .category = ES_CATEGORY_MOON },
     { .name = "enceladus", .period_days = 1.37021785, .mass_earth = 1.81e-05, .category = ES_CATEGORY_MOON },
@@ -38,7 +40,9 @@ const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "mercury", .period_days = 87.9692598, .mass_earth = 0.0553, .category = ES_CATEGORY_PLANET },
     { .name = "metis", .period_days = 0.29478, .mass_earth = 6.3e-12, .category = ES_CATEGORY_MOON },
     { .name = "mimas", .period_days = 0.94242196, .mass_earth = 6.31e-09, .category = ES_CATEGORY_MOON },
+    { .name = "miranda", .period_days = 1.41347925, .mass_earth = 1.1e-05, .category = ES_CATEGORY_MOON },
     { .name = "neptune", .period_days = 60182.0, .mass_earth = 17.15, .category = ES_CATEGORY_PLANET },
+    { .name = "oberon", .period_days = 13.46323907, .mass_earth = 0.000505, .category = ES_CATEGORY_MOON },
     { .name = "pallas", .period_days = 1686.0, .mass_earth = 3.4e-05, .category = ES_CATEGORY_ASTEROID },
     { .name = "phobos", .period_days = 0.31891023, .mass_earth = 1.7e-09, .category = ES_CATEGORY_MOON },
     { .name = "phoebe", .period_days = 550.564636, .mass_earth = 1.39e-09, .category = ES_CATEGORY_MOON },
@@ -52,6 +56,7 @@ const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "titan", .period_days = 15.945421, .mass_earth = 0.0225, .category = ES_CATEGORY_MOON },
     { .name = "titania", .period_days = 8.705869, .mass_earth = 0.00057, .category = ES_CATEGORY_MOON },
     { .name = "triton", .period_days = 5.876854, .mass_earth = 0.00359, .category = ES_CATEGORY_MOON },
+    { .name = "umbriel", .period_days = 4.144175, .mass_earth = 0.000202, .category = ES_CATEGORY_MOON },
     { .name = "uranus", .period_days = 30688.5, .mass_earth = 14.54, .category = ES_CATEGORY_PLANET },
     { .name = "venus", .period_days = 224.70079922, .mass_earth = 0.815, .category = ES_CATEGORY_PLANET },
     { .name = "vesta", .period_days = 1325.75, .mass_earth = 4.3e-05, .category = ES_CATEGORY_ASTEROID },

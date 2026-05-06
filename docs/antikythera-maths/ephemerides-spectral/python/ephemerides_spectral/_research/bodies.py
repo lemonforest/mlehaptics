@@ -89,9 +89,36 @@ BODIES: Dict[str, Body] = {
     "janus":      Body("Janus",       0.69458200, 3.16e-10, "moon", surface_radius_km=89.5),
     "epimetheus": Body("Epimetheus",  0.69423500, 8.97e-11, "moon", surface_radius_km=58.1),
 
-    # ---- Uranus / Neptune (one each; placeholders for a fuller expansion) ----
-    "titania": Body("Titania", 8.70586900, 5.7e-4,  "moon", surface_radius_km=788.4),
-    "triton":  Body("Triton",  5.87685400, 0.00359, "moon", surface_radius_km=1_353.4),
+    # ---- Uranian classical moons ----
+    # All five major moons discovered between 1787 and 1948. Sidereal
+    # periods from JPL HORIZONS; volumetric-mean radii from NASA fact
+    # sheets / Voyager 2 imagery analysis. Masses relative to Earth
+    # are derived from kg estimates against Earth = 5.9722e24 kg.
+    # Note: Uranus's rotation axis tilt (~98°) means these moons orbit
+    # in a plane near-perpendicular to the ecliptic; the encoder
+    # convention (omega = +2pi/P regardless of orbital orientation)
+    # carries through unchanged from v0.5.4 Sol Uranian Time.
+    "miranda": Body("Miranda",  1.41347925,  1.10e-5, "moon", surface_radius_km=235.8),
+    "ariel":   Body("Ariel",    2.52037935,  2.27e-4, "moon", surface_radius_km=578.9),
+    "umbriel": Body("Umbriel",  4.14417500,  2.02e-4, "moon", surface_radius_km=584.7),
+    "titania": Body("Titania",  8.70586900,  5.70e-4, "moon", surface_radius_km=788.4),
+    "oberon":  Body("Oberon",  13.46323907,  5.05e-4, "moon", surface_radius_km=761.4),
+
+    # ---- Neptunian moons ----
+    # Triton is the only large moon in the solar system that orbits
+    # its planet retrograde -- strong evidence it's a captured Kuiper
+    # Belt object. Encoder convention: positive omega; retrograde-ness
+    # is metadata, not a sign flip in the time-scale primitive.
+    "triton":  Body("Triton",   5.87685400,  0.00359, "moon", surface_radius_km=1_353.4),
+
+    # ---- Plutonian moon ----
+    # Charon is mutually tidally locked with Pluto -- both bodies show
+    # the same face to each other forever. The Pluto-Charon system is
+    # closer to a binary planet than a planet+moon (Charon's mass is
+    # ~12% of Pluto's). The barycentre is OUTSIDE Pluto; Pluto wobbles
+    # around it. Sidereal period equals the mutual rotation period of
+    # the locked pair: 6.387230 days.
+    "charon":  Body("Charon",   6.38723000,  2.66e-4, "moon", surface_radius_km=606.0),
 
     # Asteroids — sidereal periods per JPL HORIZONS; mean radii (irregular shapes).
     "ceres":   Body("Ceres",   1681.63100000, 0.00015, "asteroid", surface_radius_km=469.7),

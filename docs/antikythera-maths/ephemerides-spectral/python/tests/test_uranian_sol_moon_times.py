@@ -1,14 +1,18 @@
-"""v0.14.2 — Sol Moon Times: Uranians (Titania only, for now).
+"""v0.14.2 + v0.15.0 — Sol Moon Times: Uranian classical roster.
 
-Mirrors test_saturnian_sol_moon_times.py shape, scaled to a single
-moon. Currently Titania is the only Uranian in BODIES; Oberon /
-Umbriel / Ariel / Miranda are queued for a future ship. Same
-invariants as the Galilean / Saturnian families (J2000-zero,
+v0.14.2 shipped Titania alone. v0.15.0 closes the major-Uranian roster
+by adding Miranda / Ariel / Umbriel / Oberon — every classical moon
+discovered between 1787 (Herschel: Titania, Oberon) and 1948 (Kuiper:
+Miranda) now has a Sol Time wrapper.
+
+Same invariants as the Galilean / Saturnian families (J2000-zero,
 after-one-period, inverse round-trip, NaN/Inf rejection, CLI
-parsing) plus an explicit cross-check that SUrTiT (Titania) does
-NOT collide with SSaTiT (Saturn's Titan) — both share the `Ti`
-moon prefix, but the parent prefix (`Ur` vs `Sa`) keeps them
-globally distinct under the v0.14.1 6-letter abbreviation policy.
+parsing) plus explicit cross-checks that the abbreviations don't
+collide with prior families: SUrTiT (Titania) vs SSaTiT (Saturn's
+Titan); SUrMiT (Miranda) vs SSaMiT (Saturn's Mimas). Both pairs
+share the `Mi`/`Ti` moon prefix but differ on the parent prefix
+(`Ur` vs `Sa`), keeping them globally distinct under the v0.14.1
+6-letter policy.
 """
 
 from __future__ import annotations
@@ -29,8 +33,19 @@ from ephemerides_spectral.cli import main as cli_main
 
 URANIANS = [
     # (body_key, abbrev, sol_time_name, jd_to_fn, to_jd_fn)
+    # v0.14.2 — Titania (the only Uranian in the v0.14.2 ship)
     ("titania", "SUrTiT", "Sol Uranus-Titania Time",
      bridge.jd_to_sol_uranus_titania_time, bridge.sol_uranus_titania_time_to_jd),
+    # v0.15.0 — remaining classical Uranian moons (Miranda/Ariel/Umbriel/Oberon).
+    # Innermost first, then outward (matches BODIES roster order).
+    ("miranda", "SUrMiT", "Sol Uranus-Miranda Time",
+     bridge.jd_to_sol_uranus_miranda_time, bridge.sol_uranus_miranda_time_to_jd),
+    ("ariel", "SUrArT", "Sol Uranus-Ariel Time",
+     bridge.jd_to_sol_uranus_ariel_time, bridge.sol_uranus_ariel_time_to_jd),
+    ("umbriel", "SUrUmT", "Sol Uranus-Umbriel Time",
+     bridge.jd_to_sol_uranus_umbriel_time, bridge.sol_uranus_umbriel_time_to_jd),
+    ("oberon", "SUrObT", "Sol Uranus-Oberon Time",
+     bridge.jd_to_sol_uranus_oberon_time, bridge.sol_uranus_oberon_time_to_jd),
 ]
 
 
@@ -75,22 +90,28 @@ def test_uranian_bridge_inverse_round_trip(
     assert inv["body_name"] == body_key
 
 
-def test_titania_period_matches_bodies_roster() -> None:
-    """Titania's sidereal period is pulled from BODIES at call time;
-    the v0.14.2 ship spec'd it at 8.70586900 days. Pin that here so
-    a future BODIES tweak can't silently drift the time scale.
+def test_uranian_periods_match_bodies_roster() -> None:
+    """All 5 Uranian sidereal periods are pulled from BODIES at call
+    time; the v0.14.2 + v0.15.0 ships spec'd specific values from JPL
+    HORIZONS. Pin them here so a future BODIES tweak can't silently
+    drift the time scale.
     """
+    assert float(BODIES["miranda"].period_days) == 1.41347925
+    assert float(BODIES["ariel"].period_days)   == 2.52037935
+    assert float(BODIES["umbriel"].period_days) == 4.14417500
     assert float(BODIES["titania"].period_days) == 8.70586900
+    assert float(BODIES["oberon"].period_days)  == 13.46323907
 
 
-def test_titania_abbreviation_is_six_letters() -> None:
+@pytest.mark.parametrize("body_key, abbrev, _name, _jd_fn, _inv_fn", URANIANS)
+def test_uranian_abbreviation_is_six_letters(
+        body_key, abbrev, _name, _jd_fn, _inv_fn) -> None:
     """v0.14.1 policy: all moon abbreviations are 6-letter
-    `S<Planet2><Moon2>T`. SUrTiT → S + Ur + Ti + T = 6 letters.
+    `S<Planet2><Moon2>T`. SUr??T → S + Ur + ?? + T = 6 letters.
     """
-    out = bridge.jd_to_sol_uranus_titania_time(SOL_MOON_TIME_J2000_JD_TDB)
-    abbrev = out["epoch"]["abbreviation"]
-    assert abbrev == "SUrTiT"
     assert len(abbrev) == 6
+    assert abbrev.startswith("SUr")
+    assert abbrev.endswith("T")
 
 
 def test_titania_does_not_collide_with_saturn_titan() -> None:
@@ -118,9 +139,31 @@ def test_titania_does_not_collide_with_saturn_titan() -> None:
     assert a_titan[1:3]   == "Sa"
 
 
+def test_miranda_does_not_collide_with_saturn_mimas() -> None:
+    """v0.15.0 second-instance disambiguation. SUrMiT (Miranda,
+    Uranus) and SSaMiT (Mimas, Saturn) share the `Mi` moon prefix
+    but differ in the parent prefix (`Ur` vs `Sa`). Without the
+    v0.14.1 6-letter policy both moons would have collapsed to
+    `SMiT` — exactly the kind of collision Titania/Titan first
+    documented and that the policy was designed to prevent.
+    """
+    miranda = bridge.jd_to_sol_uranus_miranda_time(SOL_MOON_TIME_J2000_JD_TDB)
+    mimas   = bridge.jd_to_sol_saturn_mimas_time(SOL_MOON_TIME_J2000_JD_TDB)
+    a_miranda = miranda["epoch"]["abbreviation"]
+    a_mimas   = mimas["epoch"]["abbreviation"]
+    assert a_miranda == "SUrMiT"
+    assert a_mimas   == "SSaMiT"
+    assert a_miranda != a_mimas
+    assert "Mi" in a_miranda and "Mi" in a_mimas
+    assert a_miranda[1:3] == "Ur"
+    assert a_mimas[1:3]   == "Sa"
+
+
 def test_uranian_abbreviations_dont_collide_with_galileans_or_saturnians() -> None:
-    """SUrTiT must not collide with any Galilean (SJu*) or any
-    Saturnian (SSa*) abbreviation."""
+    """The 5 Uranian abbreviations (SUrMiT/SUrArT/SUrUmT/SUrTiT/SUrObT)
+    must not collide with any Galilean (SJu*) or any Saturnian (SSa*)
+    abbreviation -- the v0.14.1 6-letter policy's central guarantee.
+    """
     galilean_abbrevs = {"SJuIoT", "SJuEuT", "SJuGaT", "SJuCaT"}
     saturnian_abbrevs = {
         "SSaMiT", "SSaEnT", "SSaTeT", "SSaDiT", "SSaRhT", "SSaTiT",

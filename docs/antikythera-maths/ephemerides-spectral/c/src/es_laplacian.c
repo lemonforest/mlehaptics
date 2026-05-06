@@ -18,8 +18,10 @@
 const int64_t es_omega_diag[ES_N_BODIES] = {
     14400078106, /* adrastea */
     8621332623, /* amalthea */
+    1704095574, /* ariel */
     257352901, /* callisto */
     2554049, /* ceres */
+    672430349, /* charon */
     3402115979, /* deimos */
     1569273177, /* dione */
     3134514191, /* enceladus */
@@ -37,7 +39,9 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
     48823505, /* mercury */
     14570076993, /* metis */
     4557371834, /* mimas */
+    3038578243, /* miranda */
     71366, /* neptune */
+    319014412, /* oberon */
     2547430, /* pallas */
     13467637260, /* phobos */
     7801023, /* phoebe */
@@ -51,6 +55,7 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
     269354274, /* titan */
     493341595, /* titania */
     730827633, /* triton */
+    1036386566, /* umbriel */
     139954, /* uranus */
     19114161, /* venus */
     3239651, /* vesta */
@@ -60,8 +65,10 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
 const uint32_t es_initial_phases[ES_N_BODIES] = {
     2537566963u, /* adrastea */
     614115372u, /* amalthea */
+    3835590588u, /* ariel */
     954923981u, /* callisto */
     3597717137u, /* ceres */
+    3206571533u, /* charon */
     3548135658u, /* deimos */
     3696779743u, /* dione */
     3763270410u, /* enceladus */
@@ -79,7 +86,9 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     3027660005u, /* mercury */
     1959161098u, /* metis */
     3849210381u, /* mimas */
+    2840715143u, /* miranda */
     3626000180u, /* neptune */
+    3296855918u, /* oberon */
     257290448u, /* pallas */
     3077019855u, /* phobos */
     2303995502u, /* phoebe */
@@ -93,6 +102,7 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     1682107609u, /* titan */
     3509176257u, /* titania */
     2631119796u, /* triton */
+    269771423u, /* umbriel */
     3775006485u, /* uranus */
     2178457071u, /* venus */
     755648592u, /* vesta */
@@ -100,12 +110,12 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
 
 /* Phase 9 off-diagonal coupling table. */
 const es_coupling_t es_couplings[] = {
-    { .idx_a = 15, .idx_b = 27, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 (Great Conjunction) */
-    { .idx_a = 21, .idx_b = 25, .n_a = 3, .m_b = 2, .weight_rpd = -1322LL }, /* Neptune-Pluto 3:2 (orbital resonance) */
-    { .idx_a = 13, .idx_b = 8, .n_a = 2, .m_b = 1, .weight_rpd = -7488LL }, /* Io-Europa 2:1 (Laplace pair 1) */
-    { .idx_a = 8, .idx_b = 9, .n_a = 2, .m_b = 1, .weight_rpd = -9667LL }, /* Europa-Ganymede 2:1 (Laplace pair 2) */
-    { .idx_a = 6, .idx_b = 5, .n_a = 2, .m_b = 1, .weight_rpd = -1LL }, /* Enceladus-Dione 2:1 (powers Enceladus tidal heating) */
-    { .idx_a = 32, .idx_b = 11, .n_a = 4, .m_b = 3, .weight_rpd = -10LL }, /* Titan-Hyperion 4:3 (Hyperion chaotic rotation source) */
+    { .idx_a = 17, .idx_b = 31, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 (Great Conjunction) */
+    { .idx_a = 24, .idx_b = 29, .n_a = 3, .m_b = 2, .weight_rpd = -1322LL }, /* Neptune-Pluto 3:2 (orbital resonance) */
+    { .idx_a = 15, .idx_b = 10, .n_a = 2, .m_b = 1, .weight_rpd = -7488LL }, /* Io-Europa 2:1 (Laplace pair 1) */
+    { .idx_a = 10, .idx_b = 11, .n_a = 2, .m_b = 1, .weight_rpd = -9667LL }, /* Europa-Ganymede 2:1 (Laplace pair 2) */
+    { .idx_a = 8, .idx_b = 7, .n_a = 2, .m_b = 1, .weight_rpd = -1LL }, /* Enceladus-Dione 2:1 (powers Enceladus tidal heating) */
+    { .idx_a = 36, .idx_b = 13, .n_a = 4, .m_b = 3, .weight_rpd = -10LL }, /* Titan-Hyperion 4:3 (Hyperion chaotic rotation source) */
 };
 
 const size_t es_n_couplings = 6;

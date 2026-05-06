@@ -537,6 +537,60 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_neptune_triton_time",
         "kwargs_py": {"sidereal_count": 0.0},
     },
+    # v0.15.0 — remaining classical Uranian moons (Miranda/Ariel/Umbriel/Oberon)
+    # complete the major-Uranian roster. Pluto-Charon adds the binary-planet
+    # case (mutual tidal lock; barycentre outside Pluto). Closes task `#86`
+    # for the IAU-major roster: every classical moon now has a Sol Time wrapper.
+    "jd_to_sol_uranus_miranda_time": {
+        "status": "python_only",
+        "rationale": "v0.15.0 SUrMiT — smallest Uranian major moon (Kuiper 1948). SUrMiT vs SSaMiT disambiguation per the v0.14.1 6-letter policy.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_uranus_miranda_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_uranus_miranda_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_uranus_ariel_time": {
+        "status": "python_only",
+        "rationale": "v0.15.0 SUrArT — innermost classical Uranian moon (Lassell 1851). Brightest surface (highest albedo) of the Uranian moons; possible cryovolcanic resurfacing.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_uranus_ariel_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_uranus_ariel_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_uranus_umbriel_time": {
+        "status": "python_only",
+        "rationale": "v0.15.0 SUrUmT — second classical Uranian moon (Lassell 1851, same night as Ariel). Darkest surface (lowest albedo) of the Uranian moons.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_uranus_umbriel_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_uranus_umbriel_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_uranus_oberon_time": {
+        "status": "python_only",
+        "rationale": "v0.15.0 SUrObT — outermost (and second-largest) classical Uranian moon (Herschel 1787, same night as Titania). Longest sidereal period (13.463 d) of the major-Uranian roster.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_uranus_oberon_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_uranus_oberon_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_pluto_charon_time": {
+        "status": "python_only",
+        "rationale": "v0.15.0 SPlChT — Pluto's largest moon (Christy 1978). MUTUALLY tidally locked with Pluto (the only such 1:1:1 spin-orbit lock in the solar system). Mass ratio Charon:Pluto ≈ 0.12 — barycentre OUTSIDE Pluto, more like a binary planet than a planet-with-moon.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_pluto_charon_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_pluto_charon_time (mutual tidal lock; sidereal period = mutual rotation period)",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
     "get_proper_time_rate": {
         "status": "python_only",
         "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",

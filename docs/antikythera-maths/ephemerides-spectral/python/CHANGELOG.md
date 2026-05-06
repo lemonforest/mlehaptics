@@ -10,7 +10,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.2)
+(no entries yet — next entries land after v0.15.0)
+
+## [0.15.0] — 2026-05-06
+
+**Sol Moon Times: classical-roster completion** (Pluto-Charon + remaining major Uranian moons). BODIES roster expanded 38 → 43. Closes task `` `#86` `` for the IAU-major moon roster: every classical moon discovered between 1787 and 1948 now has a Sol Time wrapper.
+
+### Added — Uranian classical roster completion (4 moons)
+
+| Body | Sol Time | Abbrev | CLI |
+|---|---|---|---|
+| Miranda | Sol Uranus-Miranda Time | **SUrMiT** | `time-uranus-miranda` |
+| Ariel | Sol Uranus-Ariel Time | **SUrArT** | `time-uranus-ariel` |
+| Umbriel | Sol Uranus-Umbriel Time | **SUrUmT** | `time-uranus-umbriel` |
+| Oberon | Sol Uranus-Oberon Time | **SUrObT** | `time-uranus-oberon` |
+
+Discovery order: Titania + Oberon (Herschel 1787) → Ariel + Umbriel (Lassell 1851) → Miranda (Kuiper 1948). Voyager 2 (1986) imaged all five. Miranda's Verona Rupes is the tallest known cliff in the solar system (~20 km).
+
+### Added — Plutonian (1 moon)
+
+| Body | Sol Time | Abbrev | CLI |
+|---|---|---|---|
+| Charon | Sol Pluto-Charon Time | **SPlChT** | `time-pluto-charon` |
+
+Charon (Christy, 1978) is the binary-planet case: mutually tidally locked with Pluto, mass ratio Charon:Pluto ≈ 0.12, barycentre *outside* Pluto. The only 1:1:1 spin-orbit lock in the solar system. Sidereal == synodic == spin period (6.387 d).
+
+### Disambiguation — SUrMiT vs SSaMiT
+
+Second-instance case of the shared-moon-prefix pattern the v0.14.2 SUrTiT/SSaTiT pair first surfaced. Both pairs validate the v0.14.1 6-letter `S<Planet2><Moon2>T` policy — without it both moons would collapse to the same 4-letter form.
+
+### C-side wire-format change
+
+ABI v6 → v7. `ES_N_BODIES` 38 → 43; native binary rebuilt; parity-smoke ratchet ratcheted. Existing wheels at ABI 6 are not interoperable with v0.15.0 callers; v0.15.0 wheels ship with the rebuilt native at the matching ABI.
+
+### Test count
+
+512 pass, 41 skipped (was 497 + 4; +56 new — 5 Plutonian + 4 expanded Uranian + 10 parity-smoke entries + parity-smoke tier-shape variations).
 
 ## [0.14.2] — 2026-05-06
 

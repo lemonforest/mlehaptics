@@ -1591,6 +1591,69 @@ def _make_parser() -> argparse.ArgumentParser:
                    "not a sign flip). Sol Time count proceeds positive-monotonically.",
     )
 
+    # ── v0.15.0 — Remaining Uranian moons + Pluto-Charon ───────────────
+    # Closes task `#86` (Sol Moon Times completion) for the IAU-major
+    # roster: every classical moon now has a Sol Time wrapper.
+
+    _add_moon_subparser(
+        "uranus", "miranda", "Miranda", "SUrMiT", 1.41347925,
+        bridge.jd_to_sol_uranus_miranda_time, bridge.sol_uranus_miranda_time_to_jd,
+        extra_note="Smallest of Uranus's five major moons (radius ~236 km).\n"
+                   "Discovered by Gerard Kuiper, 1948 — the only one of the\n"
+                   "five not discovered in the 1700s-1800s. Voyager 2 (1986)\n"
+                   "imaged 20 km cliffs (Verona Rupes — tallest known in the\n"
+                   "solar system) and chaotic ridge-and-groove terrain.\n"
+                   "\n"
+                   "NOTE: SUrMiT (Miranda) vs SSaMiT (Saturn's Mimas) share\n"
+                   "the `Mi` moon prefix — disambiguated by parent prefix.",
+    )
+
+    _add_moon_subparser(
+        "uranus", "ariel", "Ariel", "SUrArT", 2.52037935,
+        bridge.jd_to_sol_uranus_ariel_time, bridge.sol_uranus_ariel_time_to_jd,
+        extra_note="Innermost classical Uranian moon (radius ~579 km).\n"
+                   "Discovered by William Lassell, 1851. Brightest surface\n"
+                   "(highest albedo) of the Uranian moons — extensive rift\n"
+                   "valleys; possible cryovolcanic resurfacing.",
+    )
+
+    _add_moon_subparser(
+        "uranus", "umbriel", "Umbriel", "SUrUmT", 4.14417500,
+        bridge.jd_to_sol_uranus_umbriel_time, bridge.sol_uranus_umbriel_time_to_jd,
+        extra_note="Second classical Uranian moon (radius ~585 km).\n"
+                   "Discovered by William Lassell, 1851 (same night as\n"
+                   "Ariel). Darkest surface (lowest albedo) of the Uranian\n"
+                   "moons — primordial ice/rock without cryovolcanic refresh.",
+    )
+
+    _add_moon_subparser(
+        "uranus", "oberon", "Oberon", "SUrObT", 13.46323907,
+        bridge.jd_to_sol_uranus_oberon_time, bridge.sol_uranus_oberon_time_to_jd,
+        extra_note="Outermost (and second-largest) Uranian classical moon\n"
+                   "(radius ~761 km). Discovered by William Herschel, 1787\n"
+                   "— same night as Titania. Heavily cratered surface; dark\n"
+                   "patches on crater floors may be cryovolcanic deposits.\n"
+                   "Longest sidereal period (13.463 d) of the major Uranian\n"
+                   "roster.",
+    )
+
+    _add_moon_subparser(
+        "pluto", "charon", "Charon", "SPlChT", 6.38723000,
+        bridge.jd_to_sol_pluto_charon_time, bridge.sol_pluto_charon_time_to_jd,
+        extra_note="Pluto's largest moon (radius ~606 km). Discovered by\n"
+                   "Jim Christy, 1978. MUTUALLY tidally locked with Pluto —\n"
+                   "both bodies show the same face to each other forever, the\n"
+                   "only such 1:1:1 spin-orbit lock in the solar system.\n"
+                   "\n"
+                   "Mass ratio (Charon:Pluto ≈ 0.12) is the highest of any\n"
+                   "moon-planet pair; the Pluto-Charon barycentre lies\n"
+                   "OUTSIDE Pluto, which makes the pair more like a *binary\n"
+                   "planet* than a planet-with-moon.\n"
+                   "\n"
+                   "Sidereal period = mutual rotation period = 6.387 d (the\n"
+                   "synchronous lock collapses these into a single timescale).",
+    )
+
     # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
     _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)
     tprop = sub.add_parser(
