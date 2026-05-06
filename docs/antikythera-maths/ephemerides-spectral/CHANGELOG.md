@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.7)
+(no entries yet — next entries land after v0.13.8)
+
+## [0.13.8] — 2026-05-05
+
+**README accuracy patch — two-stage architecture clarification.** Docs-only release; no API / encoder / ABI / test changes.
+
+### Why
+
+User flagged: *"our readme says that we use complex128 for syzygy and stuff, is that still correct? because that would mean we aren't pure ALU, right?"* The README's framing was load-bearing for the project's mental model; the `complex128` bullet was stale (true before Tier 2b shipped in v0.7.0).
+
+### Fixed
+
+- **README split into two-stage architecture** (phase-residue stage + HD-pipeline stage), making explicit that:
+  - The **encoder hot path is integer ALU end-to-end** (BIP encoder uint64/int64/uint32; no floats in the chunk loop).
+  - The **HD operations** (syzygy operator, observer-bind, eclipse-probability) lift integer residues to `complex64` and **necessarily run on FPU** — channel bases are `(cos(φ), sin(φ))` complex pairs.
+  - `complex128` is the **regression baseline only** (`backend="fpu-ref"`); the production HD path is C-side `complex64` since v0.7.0.
+- **TL;DR on "pure ALU"** added: *"The package is **not** pure-ALU end-to-end — the HD pipeline can't be, because complex bases require trigonometric channels. The integer-ALU discipline applies to the encoder hot path and is enforced by the JPL Power-of-Ten audit (Rule 10 pedantic-build matrix)."*
+- **Status banner refactored**: "Three interchangeable backends" → "Two-stage architecture: three interchangeable integer-ALU phase-residue encoders feeding an FPU `complex64` HD pipeline."
+
+### Roadmap renumber
+
+`c/JPL_AUDIT.md`: Rules 6+7 manual audits move v0.13.8 → **v0.13.9**. The v0.13.4-v0.13.8 sequence becomes v0.13.4-v0.13.9; v0.13.8 is the README hygiene patch.
+
+### Migration
+
+None. Pure docs change. 251 tests pass, 4 skipped (unchanged).
 
 ## [0.13.7] — 2026-05-05
 
