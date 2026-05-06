@@ -438,6 +438,31 @@ def _cmd_find_tubes(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_find_chains(args: argparse.Namespace) -> int:
+    intermediates = None
+    if args.intermediates is not None:
+        # Empty string ⇒ "[]" (force single-leg direct chain).
+        intermediates = (
+            [b.strip() for b in args.intermediates.split(",") if b.strip()]
+            if args.intermediates
+            else []
+        )
+    return _emit(
+        bridge.find_itn_chains(
+            args.from_jd, args.to_jd,
+            departure=args.departure, target=args.target,
+            intermediates=intermediates,
+            max_legs=args.max_legs,
+            dv_budget_kms=args.dv_budget_kms,
+            tof_budget_days=args.tof_budget_days,
+            threshold=args.threshold,
+            max_chains=args.max_chains,
+            max_intermediate_windows=args.max_intermediate_windows,
+        ),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -1981,6 +2006,100 @@ def _make_parser() -> argparse.ArgumentParser:
                     type=int, default=1000,
                     help="Max candidates returned (safety cap)")
     ft.set_defaults(func=_cmd_find_tubes)
+
+    # find-chains (v0.17.0) — multi-leg ITN chain search
+    fc = sub.add_parser(
+        "find-chains",
+        help="Multi-leg ITN chain search: Dijkstra graph search over Hohmann legs",
+        description=(
+            "Enumerate optimal-Δv multi-leg chains from `--departure`\n"
+            "to `--target` in [from-jd, to-jd] (TDB), using closed-form\n"
+            "Hohmann windows from find-tubes as edges in a graph search\n"
+            "over the (body, epoch) state space. Each leg carries a\n"
+            "small-integer (p, q) gear-ratio resonance signature -- the\n"
+            "cross-pollination point with the BIP cyclic-group encoder.\n"
+            "\n"
+            "Closed-form throughout (no CR3BP integrator). Stays in the\n"
+            "integer-ALU + FPU pipeline discipline. The search is\n"
+            "Dijkstra-style with cumulative Δv as the priority metric,\n"
+            "so the first chain emitted is the optimal-Δv chain.\n"
+            "\n"
+            "Pass --intermediates to constrain the allowed via-bodies\n"
+            "(comma-separated list of body names). Empty string forces\n"
+            "a single-leg direct chain (which should match find-tubes\n"
+            "exactly for the same threshold). Default: all heliocentric\n"
+            "bodies in BODIES.\n"
+            "\n"
+            "Cassini's V-V-E-J-S sequence has 5 legs; default --max-legs 4\n"
+            "covers most named missions. Apollo-class direct transfers\n"
+            "are 1 leg; Voyager grand tour is 4 legs; Galileo V-E-E-J\n"
+            "is 4 legs.\n"
+            "\n"
+            "References:\n"
+            "  - Koon, Lo, Marsden, Ross 2011 (canonical ITN text)\n"
+            "  - Murray & Dermott 1999 §3 (resonance dynamics)\n"
+            "  - Chirikov 1979 (resonance overlap)"
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral find-chains --from-jd 2451545.0 \\\n"
+            "      --to-jd 2470000.0 --departure terra --target jupiter\n"
+            "  # Find all multi-leg paths to Jupiter, default budgets\n"
+            "\n"
+            "  ephemerides-spectral find-chains --from-jd 2451545.0 \\\n"
+            "      --to-jd 2480000.0 --departure terra --target pluto \\\n"
+            "      --dv-budget-kms 25 --max-legs 5\n"
+            "  # Earth->Pluto under 25 km/s, allow up to 5 legs\n"
+            "\n"
+            "  ephemerides-spectral find-chains --from-jd 2451545.0 \\\n"
+            "      --to-jd 2470000.0 --departure terra --target jupiter \\\n"
+            "      --intermediates venus,mars\n"
+            "  # Restrict via-bodies to Venus + Mars (Galileo-class)\n"
+            "\n"
+            "  ephemerides-spectral find-chains --from-jd 2451545.0 \\\n"
+            "      --to-jd 2470000.0 --departure terra --target mars \\\n"
+            "      --intermediates ''\n"
+            "  # Force single-leg direct chain (same as find-tubes)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    fc.add_argument("--from-jd", dest="from_jd", type=float, required=True,
+                    help="Start of search window in JD (TDB)")
+    fc.add_argument("--to-jd", dest="to_jd", type=float, required=True,
+                    help="End of search window in JD (TDB)")
+    fc.add_argument("--departure", type=str, required=True,
+                    help="Departure body name (e.g. terra)")
+    fc.add_argument("--target", type=str, required=True,
+                    help="Target body name (e.g. jupiter, pluto)")
+    fc.add_argument("--intermediates", type=str, default=None,
+                    help="Comma-separated allowed via-bodies. "
+                         "Default: all heliocentric bodies. "
+                         "Empty string ('') forces single-leg direct chain.")
+    fc.add_argument("--max-legs", dest="max_legs", type=int, default=4,
+                    help="Hard cap on legs per chain. Default 4 "
+                         "(Cassini V-V-E-J-S = 5; Voyager grand tour = 4).")
+    fc.add_argument("--dv-budget-kms", dest="dv_budget_kms",
+                    type=float, default=30.0,
+                    help="Cumulative-Δv ceiling in km/s. Default 30.0 "
+                         "(loose; Earth->Pluto direct ~25 km/s leaves "
+                         "room for one assist).")
+    fc.add_argument("--tof-budget-days", dest="tof_budget_days",
+                    type=float, default=365.25 * 20.0,
+                    help="Cumulative time-of-flight ceiling in days. "
+                         "Default 7305 (20 yr).")
+    fc.add_argument("--threshold", type=float, default=0.05,
+                    help="Per-leg phase residual cutoff in (0, 1]. "
+                         "Default 0.05 (~9 deg, looser than find-tubes "
+                         "default since multi-leg search wants more "
+                         "candidate windows per node).")
+    fc.add_argument("--max-chains", dest="max_chains", type=int, default=200,
+                    help="Cap on chains returned (Dijkstra emits "
+                         "lowest-Δv first)")
+    fc.add_argument("--max-intermediate-windows",
+                    dest="max_intermediate_windows", type=int, default=8,
+                    help="Per-(body, epoch) cap on enumerated next-leg "
+                         "windows. Keeps multi-decade horizons tractable.")
+    fc.set_defaults(func=_cmd_find_chains)
 
     # lunar-kernels
     lk = sub.add_parser(

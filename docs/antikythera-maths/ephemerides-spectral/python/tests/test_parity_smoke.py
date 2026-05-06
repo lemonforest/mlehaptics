@@ -102,6 +102,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
                       "departure": "terra", "target": "mars",
                       "threshold": 0.05},
     },
+    # ── v0.17.0 multi-leg ITN chain search (find-chains): Dijkstra-style
+    # graph search over (body, epoch) state space. Pure-Python addition
+    # built on top of find_itn_pathways. No C twin planned -- the
+    # priority-queue search is structurally Pythonic and bound by the
+    # same closed-form synodic enumeration as find_itn_pathways.
+    "find_itn_chains": {
+        "status": "python_only",
+        "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 5*365.25,
+                      "departure": "terra", "target": "mars",
+                      "intermediates": []},
+    },
     "find_syzygies": {
         "status": "parity",
         "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 365.25,

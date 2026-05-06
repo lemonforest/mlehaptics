@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.16.0)
+(no entries yet — next entries land after v0.17.0)
+
+## [0.17.0] — 2026-05-06
+
+**Resonance-graph multi-leg `find_itn_chains` (advanced Lagrange-highway search).** Generalises the v0.8.1 closed-form Hohmann-window enumeration (`find_itn_pathways`) to multi-leg pathways via Dijkstra-style graph search over the `(body, epoch)` state space. Pure-Python addition; **no ABI bump** (first ephemerides ship since v0.13.x to leave the C wire-format alone — every ship from v0.14.0 through v0.16.0 either added bodies or expanded BODIES, each of which moved the ABI).
+
+### New API surface
+
+| Surface | Function / subcommand | Description |
+|---|---|---|
+| Python (Pythonic API) | `_research.itn_window.find_itn_chains` | Returns `List[ITNChainCandidate]`, lowest-Δv first |
+| Python (bridge dict API) | `bridge.find_itn_chains` | Returns `{ok, departure, target, max_legs, n_chains, chains, ...}` (Pyodide-compatible) |
+| CLI | `find-chains` | Flags: `--intermediates`, `--max-legs`, `--dv-budget-kms`, `--tof-budget-days`, `--threshold`, `--max-chains`, `--max-intermediate-windows` |
+
+### Algorithm
+
+Dijkstra-style graph search over the `(current_body, current_jd, total_dv, legs)` state space. Each "leg" is a closed-form Hohmann transfer window from `find_itn_pathways` (which is itself a per-pair synodic-anchor enumeration in constant time per synodic period). Legs stitch end-to-end at intermediate bodies; cumulative Δv and time-of-flight are budget-bounded. The Dijkstra invariant on cumulative Δv guarantees the first-popped target node is the optimal-Δv chain; subsequent chains are emitted in monotonically non-decreasing total-Δv order.
+
+The graph search itself is `O(B^L × W)` worst case where B = |intermediates|, L = max_legs, W = windows per leg — bounded per node by `max_intermediate_windows` and overall by `max_chains`. In practice the Δv and TOF budgets prune aggressively.
+
+### Resonance signature
+
+Each leg carries a small-integer `(p, q)` gear-ratio "resonance signature" — the rational approximation of `period_dep / period_tgt` in lowest terms via the new `_best_rational_approx(ratio, max_denom=30)` helper. This is the natural cross-pollination point between the closed-form transfer-window machinery and the BIP cyclic-group encoder.
+
+Canonical witnesses verified in `test_find_itn_chains.py`:
+
+| Pair | Period ratio | Resonance signature | Note |
+|---|---|---|---|
+| Earth → Mars | 365.25 / 686.98 ≈ 0.5317 | **(8, 15)** | The well-known 8-Earth-yr / 15-Mars-orbit synodic anchor |
+| Earth → Jupiter | 365.25 / 4332.589 ≈ 0.0843 | **(1, 12)** | Jupiter's ~12-year orbital period anchor |
+| Jupiter → Saturn | 4332.589 / 10759.22 ≈ 0.4027 | **(2, 5)** | The famous 2:5 great-inequality resonance |
+
+### Test count
+
+622 pass, 41 skipped (was 601 + 41 in v0.16.0; +21 new in `tests/test_find_itn_chains.py` covering: rational-approximation invariants, direct-chain consistency with v0.8.1 `find_itn_pathways`, Dijkstra optimal-first emission ordering, Δv/TOF/max-legs budget enforcement, bridge surface (smoke + rejection paths for self-transfer / unknown body / invalid threshold / invalid budget / invalid intermediate), CLI surface (direct + multi-leg + `--help`)).
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see ABI 8 unchanged.
+
+### Sets up
+
+The v0.17.x research thesis (notebook §12.2 → task `` `#118` ``): treat the body-graph Laplacian's Fiedler partition as a *prediction* of low-Δv accessibility, then check the prediction empirically against the chains `find_itn_chains` enumerates.
 
 ## [0.16.0] — 2026-05-06
 

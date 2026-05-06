@@ -120,6 +120,7 @@ from ephemerides_spectral._research.syzygy_window import (
 )
 from ephemerides_spectral._research.itn_window import (
     find_itn_pathways as _find_itn_pathways_impl,
+    find_itn_chains as _find_itn_chains_impl,
 )
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
@@ -2278,6 +2279,141 @@ def find_itn_pathways(jd_lo: float,
         "threshold": f_threshold,
         "n_candidates": len(candidates),
         "candidates": [c.to_dict() for c in candidates],
+        "backend": chosen,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.17.0 — multi-leg ITN chain search (find_itn_chains)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def find_itn_chains(jd_lo: float,
+                    jd_hi: float,
+                    *,
+                    departure: str,
+                    target: str,
+                    intermediates: Optional[List[str]] = None,
+                    max_legs: int = 4,
+                    dv_budget_kms: float = 30.0,
+                    tof_budget_days: float = 365.25 * 20.0,
+                    threshold: float = 0.05,
+                    max_chains: int = 200,
+                    max_intermediate_windows: int = 8,
+                    backend: str = "auto") -> Dict[str, Any]:
+    """Multi-leg ITN chain search via Dijkstra-style graph search on
+    the (body, epoch) state space. Each leg is a closed-form Hohmann
+    window from :func:`find_itn_pathways`; legs stitch end-to-end at
+    intermediate bodies. The cumulative Δv and time-of-flight are
+    budget-bounded; the search emits chains in optimal-Δv-first order.
+
+    The advanced Lagrange-highway extension that the v0.8.1
+    ``find_itn_pathways`` first-cut left room for. Stays in the
+    integer-ALU + FPU pipeline discipline (no CR3BP integrator). Each
+    leg carries a small-integer (p, q) gear-ratio "resonance
+    signature" -- the cross-pollination point with the BIP cyclic-
+    group encoder.
+
+    Parameters
+    ----------
+    jd_lo, jd_hi : float
+        Search window [jd_lo, jd_hi] in JD (TDB).
+    departure, target : str
+        Body names. Both must orbit the Sun.
+    intermediates : Optional[List[str]]
+        Bodies allowed as intermediate stops. None = all heliocentric
+        bodies in BODIES (planets + dwarf planets + asteroids), minus
+        ``departure`` and ``target``. Pass ``[]`` to force a single-
+        leg direct chain.
+    max_legs : int, default 4
+        Hard cap on legs per chain.
+    dv_budget_kms : float, default 30.0
+        Cumulative-Δv ceiling.
+    tof_budget_days : float, default 7305.0 (20 yr)
+        Cumulative time-of-flight ceiling.
+    threshold : float, default 0.05
+        Per-leg phase-residual cutoff (passed to find_itn_pathways).
+    max_chains : int, default 200
+        Cap on total chains returned.
+    max_intermediate_windows : int, default 8
+        Per-(body, epoch) cap on enumerated next-leg windows.
+    backend : {"auto", "bip", "c"}, default "auto"
+        Forward-compatibility hook. v0.17.0 ships only the Python impl.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_lo": ..., "jd_hi": ..., "departure": ...,
+        "target": ..., "n_chains": int,
+        "chains": [{"jd_tdb_launch", "jd_tdb_arrival", "legs": [...],
+        "total_dv_kms", "total_tof_days", "resonance_signature": [[p, q], ...],
+        "score"}, ...], "backend": "bip"}``.
+    """
+    for v in (_validate_jd(jd_lo), _validate_jd(jd_hi),
+              _validate_body(departure), _validate_body(target)):
+        if v is not None:
+            return v
+    if backend not in ("auto", "bip", "c"):
+        return _err(f"backend must be 'auto'/'bip'/'c', got {backend!r}")
+    if departure.lower() == target.lower():
+        return _err("departure and target must differ")
+
+    if intermediates is not None:
+        try:
+            intermediates_clean = [str(b).lower() for b in intermediates]
+        except (TypeError, ValueError):
+            return _err("intermediates must be an iterable of body-name strings")
+    else:
+        intermediates_clean = None
+
+    try:
+        f_threshold = float(threshold)
+        i_max_legs = int(max_legs)
+        f_dv_budget = float(dv_budget_kms)
+        f_tof_budget = float(tof_budget_days)
+        i_max_chains = int(max_chains)
+        i_max_windows = int(max_intermediate_windows)
+    except (TypeError, ValueError):
+        return _err("numeric parameter has wrong type")
+
+    if not (0.0 < f_threshold <= 1.0):
+        return _err(f"threshold must be in (0, 1], got {f_threshold}")
+    if i_max_legs < 1:
+        return _err(f"max_legs must be ≥ 1, got {i_max_legs}")
+    if f_dv_budget <= 0.0:
+        return _err(f"dv_budget_kms must be > 0, got {f_dv_budget}")
+    if f_tof_budget <= 0.0:
+        return _err(f"tof_budget_days must be > 0, got {f_tof_budget}")
+
+    chosen = "bip"
+    try:
+        chains = _find_itn_chains_impl(
+            float(jd_lo), float(jd_hi),
+            departure=departure.lower(),
+            target=target.lower(),
+            intermediates=intermediates_clean,
+            max_legs=i_max_legs,
+            dv_budget_kms=f_dv_budget,
+            tof_budget_days=f_tof_budget,
+            threshold=f_threshold,
+            max_chains=i_max_chains,
+            max_intermediate_windows=i_max_windows,
+        )
+    except (ValueError, RuntimeError) as exc:
+        return _err(str(exc))
+
+    return {
+        "ok": True,
+        "jd_lo": float(jd_lo),
+        "jd_hi": float(jd_hi),
+        "departure": departure.lower(),
+        "target": target.lower(),
+        "max_legs": i_max_legs,
+        "dv_budget_kms": f_dv_budget,
+        "tof_budget_days": f_tof_budget,
+        "threshold": f_threshold,
+        "n_chains": len(chains),
+        "chains": [c.to_dict() for c in chains],
         "backend": chosen,
     }
 
