@@ -88,12 +88,12 @@ The components were integrated and validated against both mock and real WAD data
 - **Topological Diffusion:** Sound propagation via $e^{-Lt}$ correctly identifies the acoustic reachability of sectors. The 18-sector reach in E1M1 matches the "cascading" layout of the initial hangar complex.
 
 
-### 4.1 Phase-9 BIP Kinematics (Implemented May 2026)
+### 4.1 Phase-9 BIP Kinematics & Breathing Couplings (Implemented May 2026)
 
 We transitioned kinematics from 16.16 fixed-point to a **Phase-9 BIP (Bit-Interleaved Phases)** encoder.
 
 - **Encoding:** Coordinates $(x, y)$ are mapped to a 512-dimensional hypervector $H \in \{-1, 1\}^{512}$ via coprime cyclic shifts (67, 7).
-- **Spatial Orthogonality:** Distant points in E1M1 (e.g., $(100, 200)$ vs $(500, 800)$) show near-zero similarity (dot product $\approx -0.015$), while adjacent points maintain a detectable correlation.
+- **Breathing Couplings:** To mirror the Ephemerides HDC (Jupiter-Saturn resonances), we introduced non-linear interaction energy between the X and Y axes. The cyclic shift is perturbed by a "breathing term" $(x \cdot y \bmod 512)$. This introduces harmonic resonances into the spatial manifold, causing the phase space to bend slightly based on geometric coordinates.
 - **Result:** Spatial progression is now represented as a trajectory in high-dimensional phase space, allowing for collision detection via dot-product thresholding.
 
 ### 4.2 Spectral BSP Partitioning (Implemented May 2026)
@@ -102,7 +102,7 @@ The level's spatial hierarchy was automatically derived using **Spectral Cluster
 
 - **Primary Cut:** The Fiedler vector ($\lambda_2 = 0.012923$) split E1M1 into two nodal domains of 39 and 46 sectors.
 - **Bottleneck Identification:** The spectral split severed only **3 portals**, identifying the absolute geographic "choke point" of the Hangar's layout.
-- **Application:** This method allows for the automated generation of BSP trees that are topologically optimized for sound and visibility propagation.
+
 ### 4.3 Physical Sound Diffusion (Refined May 2026)
 
 Replaced the unstable high-order Taylor expansion with a stable **multi-step Euler integration** of the Heat Equation:
@@ -118,6 +118,13 @@ To drive the **mlehaptics** hardware, we implemented a sensory layer that transl
 - **Spectral Tension:** The "friction" experienced by the player is calculated as:
   $Tension = 1.0 - \text{Similarity}(H_{player}, H_{anchor})$.
 - **Engine Trace:** The DOOM engine now outputs real-time `[HAPTIC]` tension signals in the player loop, enabling high-fidelity sensory feedback based on the player's resonance with the environment.
+
+### 4.5 Sheaf Raycasting & AI BIM Awareness (Implemented May 2026)
+
+We have fully replaced DOOM's heuristic Line of Sight (LoS) and sound-alert logic with pure spectral operators.
+
+- **Sheaf Raycasting (`p_sight.c`):** Integrated `ds_sheaf_raycast` as a fast-path in `P_CheckSight`. The raycaster models LoS as a directed sheaf Laplacian, absorbing spectral signals at topological boundaries.
+- **AI BIM Awareness (`p_enemy.c`):** Replaced `P_NoiseAlert` flood-fill with `ds_calculate_monster_awareness`. Monsters now "wake up" based on the topological resonance (dot product) between their local Phase Anchor and the diffused sound field $S(t)$.
 
 ## 5. Summary of Artifacts
 

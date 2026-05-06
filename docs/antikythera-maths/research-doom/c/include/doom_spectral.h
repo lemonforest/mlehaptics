@@ -59,4 +59,14 @@ d_boolean ds_fiber_can_traverse(int sec_a, int sec_b, int32_t entity_z, int32_t 
 /* Returns the spectral tension [0.0, 1.0] for a hypervector relative to a sector anchor */
 int32_t ds_get_haptic_tension(int sector_id, const ds_hypervector_t *h);
 
+/* --- AI (Monster Awareness) --- */
+
+/* Returns the spectral awareness [0.0, 1.0] of a monster in a sector given a sound field */
+int32_t ds_calculate_monster_awareness(int sector_id, const ds_sound_field_t *field);
+
+/* --- Physics (Sheaf Raycast) --- */
+
+/* Returns true if the spectral ray reaches from (x0, y0) to (x1, y1) without being absorbed */
+d_boolean ds_sheaf_raycast(int32_t x0, int32_t y0, int32_t x1, int32_t y1);
+
 #endif /* DOOM_SPECTRAL_H */
