@@ -470,6 +470,13 @@ def _cmd_body_architecture(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_predict_itn_accessibility(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.predict_itn_accessibility(args.departure, args.target),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2143,6 +2150,46 @@ def _make_parser() -> argparse.ArgumentParser:
              "body's record."
     )
     ba.set_defaults(func=_cmd_body_architecture)
+
+    # predict-itn-accessibility (v0.18.1) — closed-form spectral Δv
+    # estimate from the §13.9 hybrid Fiedler distance.
+    pa = sub.add_parser(
+        "predict-itn-accessibility",
+        help="Closed-form spectral Δv estimate (fast first-pass triage)",
+        description=(
+            "Predicts the minimum cumulative Δv for a multi-leg ITN\n"
+            "chain between two heliocentric bodies. Uses the §13.9\n"
+            "hybrid (inv_dv x resonance) gateway-graph Laplacian\n"
+            "Fiedler distance, calibrated against ground truth from\n"
+            "v0.17.0 find-chains via OLS linear regression\n"
+            "(Spearman rho = +0.857; LOOCV MAE ~ 4.2 km/s).\n"
+            "\n"
+            "Use case: fast first-pass TRIAGE before calling the\n"
+            "costly find-chains Dijkstra. Microseconds vs ~1.5 s for\n"
+            "the full search.\n"
+            "\n"
+            "DO NOT use for trajectory design -- the absolute MAE is\n"
+            "~4 km/s on a 2-28 km/s domain, useful for ranking pairs\n"
+            "but too coarse for mission-budget purposes. For mission\n"
+            "design, call find-chains for the full Dijkstra answer.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral predict-itn-accessibility \\\n"
+            "    --departure terra --target mars\n"
+            "\n"
+            "  # Pretty-print\n"
+            "  ephemerides-spectral predict-itn-accessibility \\\n"
+            "    --departure terra --target jupiter --pretty\n"
+            "\n"
+            "Reference: research notebook section 13.9."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pa.add_argument("--departure", required=True,
+                    help="Departure body (lower-case heliocentric name).")
+    pa.add_argument("--target", required=True,
+                    help="Target body (lower-case heliocentric name).")
+    pa.set_defaults(func=_cmd_predict_itn_accessibility)
 
     # lunar-kernels
     lk = sub.add_parser(

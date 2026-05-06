@@ -7,7 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.0)
+(no entries yet — next entries land after v0.18.1)
+
+## [0.18.1] — 2026-05-06
+
+**`bridge.predict_itn_accessibility`: closed-form spectral Δv estimate from the §13.9 hybrid Fiedler-distance regression.** Promotes the v0.17.x research output (notebook §13.9.4) — the multiplicative `inv_dv × resonance` gateway-graph Laplacian's Fiedler distance as a continuous predictor of multi-leg ITN-chain Δv — to a stable ship surface. **Pure-Python addition; no ABI bump** (third consecutive ship since v0.13.x with no ABI movement; `ES_ABI_VERSION = 8` unchanged from v0.17.0 / v0.18.0).
+
+### What ships
+
+| Surface | Function / subcommand | Description |
+|---|---|---|
+| Pythonic API | `_research.predict_itn_accessibility.predict_itn_accessibility(departure, target)` | Returns `{ok, departure, target, fiedler_distance, predicted_dv_kms, calibration}` |
+| Bridge dict API | `bridge.predict_itn_accessibility(departure, target)` | Pyodide-compatible wrapper |
+| CLI | `predict-itn-accessibility` | Flags: `--departure`, `--target`, `--pretty` |
+| Calibration script | `research/calibrate_predict_itn_accessibility.py` | OLS + LOOCV regression fitter; re-fits the constants against a re-sampled ground truth |
+
+### Algorithm
+
+1. At module load, build the **hybrid** `inv_dv × resonance` edge-weighted Laplacian on the v0.16.0 13-body heliocentric Tier-1 roster (same primitive as `body_architecture` but with hybrid weights), compute its Fiedler eigenvector with the shortest-period sign convention.
+2. For an input `(departure, target)` pair, compute the Fiedler distance `d_F = |f₂[i] - f₂[j]|`.
+3. Apply the calibrated linear regression `predicted_dv_kms = INTERCEPT + SLOPE * d_F`.
+
+### Calibration
+
+Fit by `calibrate_predict_itn_accessibility.py` against ground truth from a 50-yr `find_itn_chains` sweep at J2000 (max_legs=3, dv_budget=30 km/s, threshold=0.1). 53 feasible pairs (out of 78 in the 13-body roster; 25 infeasible within budget) drive the linear fit:
+
+| Constant | Value |
+|---|---|
+| `CALIBRATION_INTERCEPT_KMS` | 8.680818 |
+| `CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT` | 15.617194 |
+| `CALIBRATION_R2` | 0.5072 |
+| `CALIBRATION_IN_SAMPLE_MAE_KMS` | 4.110 |
+| `CALIBRATION_LOOCV_MAE_KMS` | 4.238 |
+| `CALIBRATION_SPEARMAN_RHO` | 0.857 |
+| `CALIBRATION_N_FINITE_PAIRS` | 53 |
+| `CALIBRATION_N_INF_PAIRS` | 25 |
+
+### Use case + disclaimers
+
+* **Use for fast first-pass triage** — microseconds per query vs ~1.5 s for the full Dijkstra. The +0.857 Spearman is suitable for ranking candidate pairs by predicted accessibility.
+* **Do NOT use for trajectory design** — the absolute MAE is ~4 km/s on a 2–28 km/s domain, useful for ranking but too coarse for mission-budget purposes. Mission design should call `find_itn_chains` for the full Dijkstra answer.
+* **Calibration is window-specific.** For widely different search windows (e.g. multi-decade outer-system missions), re-calibrate by running the calibration script against a re-sampled ground truth.
+
+The calibration provenance — Spearman ρ, R², MAE, LOOCV MAE, n_finite, n_inf, window — is returned in every response, so callers can decide whether the prediction is precise enough for their use case.
+
+### Notebook addition
+
+§14 (the holographic-principle-at-macro-scale section, added in this ship) re-reads the §13.9 / v0.18.1 regression as the bulk-boundary correspondence's "real" empirical payload: the spectral boundary (13-D Fiedler vector) anticipates the trajectory bulk (78-pair × 3-leg Dijkstra) at calibrated Spearman 0.857.
+
+### Test count
+
+681 pass, 41 skipped (was 658 + 41 in v0.18.0; +23 new — 22 in `tests/test_predict_itn_accessibility.py` covering: calibration constants pinned + non-negative predictions for all 13 × 12 = 156 ordered pairs + direction-symmetry + cheap-vs-expensive sanity ordering + intercept-as-lower-bound pin + calibration metadata-in-response + error paths (self-transfer / unknown body / non-string / case-insensitive normalisation) + bridge surface + CLI surface; +1 parity-smoke entry).
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see `ES_ABI_VERSION = 8` unchanged. `ES_VERSION_STRING` bumps `0.18.0 → 0.18.1`.
 
 ## [0.18.0] — 2026-05-06
 

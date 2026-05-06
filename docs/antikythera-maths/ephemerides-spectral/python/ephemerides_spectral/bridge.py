@@ -128,6 +128,9 @@ from ephemerides_spectral._research.body_architecture import (
     OUTER_CLASS as _BODY_ARCH_OUTER,
     compute_body_architecture as _compute_body_architecture_impl,
 )
+from ephemerides_spectral._research.predict_itn_accessibility import (
+    predict_itn_accessibility as _predict_itn_accessibility_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -2504,6 +2507,71 @@ def body_architecture(target: Optional[str] = None) -> Dict[str, Any]:
             f"{list(_BODY_ARCH_DEFAULT)}"
         ),
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.18.1 — predict_itn_accessibility (closed-form spectral Δv estimate
+# from the §13.9 hybrid-Fiedler-distance regression)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def predict_itn_accessibility(
+    departure: str,
+    target: str,
+) -> Dict[str, Any]:
+    """Predict the minimum cumulative Δv for a multi-leg ITN chain
+    between two heliocentric bodies — closed-form spectral estimate.
+
+    Promoted from the v0.17.x research output (notebook §13.9): the
+    hybrid ``inv_dv × resonance`` gateway-graph Laplacian's Fiedler
+    distance achieves Spearman ρ = +0.857 against empirical Δv from
+    v0.17.0 ``find_itn_chains``. This bridge surface wraps the
+    calibrated linear regression of that Fiedler distance against
+    ground-truth Δv (slope ≈ 15.62 km/s per Fiedler-unit, intercept
+    ≈ 8.68 km/s; LOOCV MAE ≈ 4.24 km/s on the v0.16.0 13-body
+    heliocentric Tier-1 roster).
+
+    Use case: **fast first-pass triage** before calling the costly
+    Dijkstra in :func:`find_itn_chains`. The predictor runs in
+    microseconds (one eigh on a 13×13 symmetric matrix at module
+    load, then O(1) lookup per query); ``find_itn_chains`` runs in
+    ~1.5 s per pair.
+
+    **Do not use for trajectory design** — the absolute MAE is ~4
+    km/s on a 2–28 km/s domain, useful for ranking pairs but too
+    coarse for mission-budget purposes. Mission design should call
+    ``find_itn_chains`` for the full Dijkstra answer.
+
+    Parameters
+    ----------
+    departure, target : str
+        Body names from the v0.16.0 13-body heliocentric Tier-1
+        roster (planets + main-belt asteroids; case-insensitive).
+        Both must be in the roster; both must differ.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "departure": str, "target": str,
+        "fiedler_distance": float, "predicted_dv_kms": float,
+        "calibration": {...}}``
+
+        On error: ``{"ok": False, "error": "..."}``.
+
+    Notes
+    -----
+    The calibration is window-specific (50 yr at J2000, max_legs=3,
+    dv_budget=30 km/s, threshold=0.1) — see ``research/calibrate_
+    predict_itn_accessibility.py`` for re-calibration against
+    different windows. The hybrid Fiedler vector is computed once
+    at module import time and memoised; no per-query cost beyond
+    a dict lookup.
+
+    Reference: notebook §13.9 + §14 (the holographic-principle
+    framing of this regression as the bulk-boundary correspondence's
+    real empirical payload).
+    """
+    return _predict_itn_accessibility_impl(departure, target)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
