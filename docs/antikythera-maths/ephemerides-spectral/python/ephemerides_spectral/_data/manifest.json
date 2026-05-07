@@ -172,6 +172,14 @@
       "sha256": "2a0a516d0fa38766f3987fc7032bb5bdb9f1830de9b6460868630f8a793f4fa2",
       "size_bytes": 18121
     },
+    "_research/mars_tharsis_catalog.py": {
+      "sha256": "3cbfcad601c2a91907c158fdb31fc5166f9a03816e1c23effccc557c929bc713",
+      "size_bytes": 15881
+    },
+    "_research/mars_tharsis_data.py": {
+      "sha256": "76aef845ed8b72648ff373db99b837aba5216dff142cde86d68b8c346a6c854c",
+      "size_bytes": 12732
+    },
     "_research/mercury_dynamical_spectrum_catalog.py": {
       "sha256": "76a1581ab6eb02afafba1db64c962f1e3fc8dae0b1ae9a35fc394ffbfded5a33",
       "size_bytes": 9312
@@ -286,5 +294,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.5"
+  "version": "0.24.7"
 }

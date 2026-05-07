@@ -261,6 +261,11 @@ from ephemerides_spectral._research.yarkovsky_yorp_catalog import (
     get_yorp_attractor_thresholds as _get_yorp_attractor_thresholds_impl,
     list_yarkovsky_yorp as _list_yarkovsky_yorp_impl,
 )
+from ephemerides_spectral._research.mars_tharsis_catalog import (
+    get_mars_tharsis_chain as _get_mars_tharsis_chain_impl,
+    get_tharsis_fiedler_signature as _get_tharsis_fiedler_signature_impl,
+    list_mars_tharsis_chain as _list_mars_tharsis_chain_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4509,6 +4514,63 @@ def list_yarkovsky_yorp() -> Dict[str, Any]:
     """Full catalog enumeration of every measured Yarkovsky/YORP
     record + citations."""
     return _list_yarkovsky_yorp_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.7 — Mars Tharsis Volcanic Chain Catalog
+# (bounded-local Laplacian on a body WITHOUT plate tectonics; direct
+# no-plate-tectonics counterpart to v0.24.5 Hawaii hotspot track)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_mars_tharsis_chain() -> Dict[str, Any]:
+    """Mars Tharsis volcanic-chain catalog + Fiedler embedding.
+
+    Five major Tharsis-region edifices: Olympus Mons (the Solar
+    System's largest volcano), the three Tharsis Montes (Arsia,
+    Pavonis, Ascraeus -- the NE-SW ridge), and Alba Mons (older,
+    broader, north outlier). Each carries published surface age
+    (crater-count chronology), summit position (MOLA), elevation,
+    edifice diameter, structural role, and a Fiedler-eigenvector
+    coordinate from the Gaussian-proximity Laplacian.
+
+    Cross-channel: where v0.24.5 Hawaii on a body **with** plate
+    tectonics extracts a *trajectory* (the Pacific Plate moves over
+    a stationary plume, producing a chronologically-ordered chain),
+    v0.24.7 Mars Tharsis on a body **without** plate tectonics
+    extracts a *cogenetic family* (stationary plumes build one
+    super-volcano per locus over Gyr timescales). Same eigen-
+    decomposition machinery, different geophysical regime.
+    """
+    return _get_mars_tharsis_chain_impl()
+
+
+def get_tharsis_fiedler_signature() -> Dict[str, Any]:
+    """The Mars Tharsis Fiedler-partition signature — THE headline
+    of v0.24.7.
+
+    Two complementary spectral observations:
+      (1) the bounded-local-Fiedler partition bisects the 5-volcano
+          roster into structural clusters (Tharsis Montes ridge vs
+          Olympus / Alba outliers);
+      (2) Olympus Mons and Alba Mons sit far off the Tharsis Montes
+          ridge axis (perpendicular residuals on the order of
+          ~1000 km) — the structural analogue of Hawaii's
+          age-vs-arc-length residual at the bend, but on a body
+          without plate motion.
+
+    There is **no** directional bend because there is no plate
+    motion. The same eigendecomposition machinery, on a no-plate-
+    tectonics body, surfaces cogenetic-family structure rather
+    than chronological trajectory.
+    """
+    return _get_tharsis_fiedler_signature_impl()
+
+
+def list_mars_tharsis_chain() -> Dict[str, Any]:
+    """Full catalog enumeration of every Mars Tharsis volcano +
+    citations."""
+    return _list_mars_tharsis_chain_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
