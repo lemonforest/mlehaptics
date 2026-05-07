@@ -425,6 +425,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.23.0 Sol Spin-Orbit Resonance Catalog (eleventh cross-channel
+    # coupling surface; spin-orbit resonance ↔ rotation lock; 8-body
+    # roster). Pure-Python static lookup; no C twin makes sense.
+    "get_spin_orbit_resonance": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_spin_orbit_resonances": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

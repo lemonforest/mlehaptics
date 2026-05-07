@@ -814,6 +814,21 @@ def _cmd_bc_reference_classes(args: argparse.Namespace) -> int:
     return _emit(bridge.list_bc_reference_classes(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.23.0 — Spin-orbit resonance CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_spin_orbit_resonance(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_spin_orbit_resonance(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_spin_orbit_resonances(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_spin_orbit_resonances(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3726,6 +3741,53 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     brcs.set_defaults(func=_cmd_bc_reference_classes)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.23.0 — Spin-orbit resonance ↔ rotation lock
+    # ──────────────────────────────────────────────────────────────────
+
+    # spin-orbit-resonance (v0.23.0)
+    sor = sub.add_parser(
+        "spin-orbit-resonance",
+        help="Per-body spin-orbit resonance ratio + libration amplitude",
+        description=(
+            "v0.23.0 — eleventh cross-channel coupling surface\n"
+            "(resumed after v0.22.0 trajectory pivot). Returns the\n"
+            "integer (p, q) spin-orbit ratio + rotation period +\n"
+            "orbital period + libration amplitude for each body.\n"
+            "\n"
+            "Mercury is the only non-1:1 spin-orbit resonance in the\n"
+            "Solar System: 3:2 (Pettengill 1965 / Margot 2007). All\n"
+            "other entries are 1:1 tidal locks (Luna canonical;\n"
+            "Galileans; Titan with anomalous libration -> subsurface\n"
+            "ocean; Triton retrograde; Pluto-Charon dual-synchronous).\n"
+            "\n"
+            "Closes the tidal-physics triple with v0.21.4 (Q-factor)\n"
+            "+ v0.21.6 (orbital migration).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral spin-orbit-resonance --pretty\n"
+            "  ephemerides-spectral spin-orbit-resonance --body mercury "
+            "--pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sor.add_argument("--body", default=None,
+                     help="Body name (lower-case). If omitted, full "
+                          "catalog.")
+    sor.set_defaults(func=_cmd_spin_orbit_resonance)
+
+    # spin-orbit-resonances (v0.23.0)
+    sors = sub.add_parser(
+        "spin-orbit-resonances",
+        help="Full spin-orbit resonance catalog enumeration",
+        description=(
+            "Returns every body's SpinOrbitResonance record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sors.set_defaults(func=_cmd_spin_orbit_resonances)
 
     # lunar-kernels
     lk = sub.add_parser(

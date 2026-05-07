@@ -188,6 +188,14 @@
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
       "size_bytes": 11594
     },
+    "_research/spin_orbit_resonance_catalog.py": {
+      "sha256": "261b2ec847a514f809ff3d26f0c9ee3ceb235023c0dfde47460e7b3d93f39411",
+      "size_bytes": 5398
+    },
+    "_research/spin_orbit_resonance_data.py": {
+      "sha256": "5e4eb5b218293fb7dd96c22c677858da9f406dd60bfe0c8ec017d8a5e42b2cea",
+      "size_bytes": 13559
+    },
     "_research/syzygy_window.py": {
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
@@ -222,5 +230,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.10"
+  "version": "0.22.0"
 }
