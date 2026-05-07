@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.23.1)
+(no entries yet — next entries land after v0.24.0)
+
+## [0.24.0] — 2026-05-07
+
+**Mercury Dynamical Spectrum.** First per-body dynamical-spectrum surface; opens the v0.24.x discipline pivot from cross-channel-coupling to action-angle decomposition of a single body's full dynamical state. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.mercury_dynamical_spectrum_catalog` — wrapper module with `get_mercury_dynamical_spectrum`, `get_mercury_precession_decomposition`, `list_mercury_dynamical_spectrum`.
+- `_research.mercury_dynamical_spectrum_data` — data module with `MERCURY_DYNAMICAL_MODES` (8 entries: 5 angles + 3 actions), `MERCURY_PRECESSION_CONTRIBUTIONS` (8 entries: 5 Newtonian perturbers + GR + solar J₂ + observed total), `SOURCES` (8 citations), `DynamicalMode` + `PrecessionContribution` dataclasses.
+
+### Added — bridge dict API
+
+- `bridge.get_mercury_dynamical_spectrum()` — full action-angle mode catalog
+- `bridge.get_mercury_precession_decomposition()` — Le Verrier/Einstein contribution breakdown with closure-invariant residual
+- `bridge.list_mercury_dynamical_spectrum()` — full enumeration
+
+### Added — CLI
+
+- `mercury-dynamical-spectrum`
+- `mercury-precession-decomposition`
+- `mercury-dynamical-spectrum-full`
+
+### Added — tests
+
+- `tests/test_mercury_dynamical_spectrum.py` — 31 tests pinning the 3:2 spin-orbit lock to ppm; the forced libration 35.8 arcsec value (cross-checked against v0.23.0); the C/MR² = 0.346 ± 0.014 Margot 2007 measurement; the Cassini-state-1 obliquity; the Le Verrier/Einstein closure invariant (residual < 1 arcsec/century); Venus as largest Newtonian perturber + Jupiter second; Einstein 42.98 GR value; solar J₂ much smaller than GR; bridge + CLI smoke + --help discipline.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1372 pass, 42 skipped (was 1338 + 42 in v0.23.1; +34 net new — 31 in `test_mercury_dynamical_spectrum.py` + 2 README-freshness tests that flipped GREEN + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.23.1 → 0.24.0`. ABI unchanged (twenty-third consecutive ship since v0.13.x with no ABI movement).
 
 ## [0.23.1] — 2026-05-07
 

@@ -436,6 +436,22 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.0 Sol Mercury Dynamical Spectrum (first per-body
+    # dynamical-spectrum surface; action-angle decomposition + Le
+    # Verrier/Einstein perihelion-precession contribution-by-perturber
+    # decomposition). Pure-Python static lookup; no C twin makes sense.
+    "get_mercury_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_mercury_precession_decomposition": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_mercury_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

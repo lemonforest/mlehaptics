@@ -148,6 +148,14 @@
       "sha256": "9fa7403ff3100f27bf734f5b214be7e8b2ba16955f320109ae6f02a3f9d41dc4",
       "size_bytes": 26703
     },
+    "_research/mercury_dynamical_spectrum_catalog.py": {
+      "sha256": "76a1581ab6eb02afafba1db64c962f1e3fc8dae0b1ae9a35fc394ffbfded5a33",
+      "size_bytes": 9312
+    },
+    "_research/mercury_dynamical_spectrum_data.py": {
+      "sha256": "072fbb8738ef7eb30abe632c71602625f8f9a26d49ed45f3207741b3cf7876b5",
+      "size_bytes": 19202
+    },
     "_research/orographic_forcing.py": {
       "sha256": "d46fb4efbb3a12a14d06828c278501760fbebe47c359ef28987f76e76506f395",
       "size_bytes": 4673
@@ -230,5 +238,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.22.0"
+  "version": "0.23.1"
 }

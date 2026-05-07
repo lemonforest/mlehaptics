@@ -829,6 +829,29 @@ def _cmd_spin_orbit_resonances(args: argparse.Namespace) -> int:
     return _emit(bridge.list_spin_orbit_resonances(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.0 — Mercury Dynamical Spectrum CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_mercury_dynamical_spectrum(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_mercury_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
+def _cmd_mercury_precession_decomposition(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_mercury_precession_decomposition(), pretty=args.pretty,
+    )
+
+
+def _cmd_mercury_dynamical_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_mercury_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3788,6 +3811,72 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sors.set_defaults(func=_cmd_spin_orbit_resonances)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.0 — Mercury Dynamical Spectrum
+    # ──────────────────────────────────────────────────────────────────
+
+    # mercury-dynamical-spectrum
+    mds = sub.add_parser(
+        "mercury-dynamical-spectrum",
+        help="Mercury's full action-angle dynamical-mode catalog",
+        description=(
+            "v0.24.0 — first per-body dynamical-spectrum surface.\n"
+            "Decomposes Mercury's dynamical state into angle variables\n"
+            "(orbital phase, spin phase, perihelion longitude,\n"
+            "ascending node) and action variables (semi-major axis,\n"
+            "eccentricity, inclination, obliquity).\n"
+            "\n"
+            "Mercury chosen as cleanest first target: no moon, no\n"
+            "atmosphere, no ocean; in the historically richest\n"
+            "dynamical-test position (Le Verrier 1859 -> Einstein 1915\n"
+            "-> Clemence 1947 -> Margot 2007 -> Park 2017).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral mercury-dynamical-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mds.set_defaults(func=_cmd_mercury_dynamical_spectrum)
+
+    # mercury-precession-decomposition (THE headline)
+    mpd = sub.add_parser(
+        "mercury-precession-decomposition",
+        help="Mercury perihelion-precession contribution-by-perturber breakdown",
+        description=(
+            "v0.24.0 headline. Total observed 574.10 arcsec/century\n"
+            "(Clemence 1947) decomposes as:\n"
+            "  Newtonian planetary perturbations  531.63\n"
+            "    Venus           277.42\n"
+            "    Jupiter         153.58\n"
+            "    Earth            90.04\n"
+            "    Saturn            7.30\n"
+            "    Mars + other      3.29\n"
+            "  General relativity (Einstein 1915)  42.98\n"
+            "  Solar quadrupole J2 (Park 2017)      0.025\n"
+            "  Sum                                ~574.6  matches\n"
+            "\n"
+            "The Le Verrier / Einstein test of GR; one of the most\n"
+            "precise quantitative confirmations in physics.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral mercury-precession-decomposition --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mpd.set_defaults(func=_cmd_mercury_precession_decomposition)
+
+    # mercury-dynamical-spectrum-full (full enumeration)
+    mdsf = sub.add_parser(
+        "mercury-dynamical-spectrum-full",
+        help="Full Mercury dynamical-spectrum enumeration (modes + precession + citations)",
+        description=(
+            "Returns all dynamical modes + precession decomposition +\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mdsf.set_defaults(func=_cmd_mercury_dynamical_spectrum_full)
 
     # lunar-kernels
     lk = sub.add_parser(
