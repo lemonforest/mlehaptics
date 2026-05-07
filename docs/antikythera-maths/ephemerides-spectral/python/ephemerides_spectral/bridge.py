@@ -163,6 +163,10 @@ from ephemerides_spectral._research.admittance_catalog import (
     compute_topography_gravity_admittance as _compute_admittance_impl,
     list_admittance_spectra as _list_admittance_spectra_impl,
 )
+from ephemerides_spectral._research.dynamo_catalog import (
+    compute_dynamo_region as _compute_dynamo_region_impl,
+    list_dynamo_regions as _list_dynamo_regions_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3204,6 +3208,65 @@ def list_admittance_spectra() -> Dict[str, Any]:
     `_research.admittance_catalog_data.SOURCES` citation dict.
     """
     return _list_admittance_spectra_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.2 — Dynamo-region constraints (second cross-channel coupling)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_dynamo_region(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body magnetic-multipole-derived dynamo-region constraint.
+
+    Promotes the v0.21.2 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **second**
+    cross-channel coupling surface (per §17.4.2: "v0.21.1+ Cross-
+    channel coupling surfaces, one per minor version: topography ↔
+    gravity admittance [v0.21.1], magnetic-multipole-derived dynamo
+    constraints [v0.21.2], orographic forcing of atmospheric
+    standing waves [v0.21.3]").
+
+    For a body with a published spherical-harmonic magnetic-field
+    expansion (v0.20.1 ``MAGNETIC_MULTIPOLE_MODELS``), the
+    Lowes-Mauersberger spectrum's log-slope inverts directly for the
+    dynamo radius:
+
+        R(n) ∝ (R_dynamo / R_surface)^(2n + 4)
+
+    For Earth this yields the canonical CMB depth at 2891 km
+    (matching seismology to better than 1 %). For Jupiter / Saturn
+    it gives deep metallic-H dynamos. For Mercury, standard
+    Lowes-Mauersberger fails because of stable stratification; the
+    depth comes from the Christensen 2006 weak-field model.
+
+    **Not a re-derivation.** Values shipped are the published
+    inversions from the cited papers.
+
+    5-body roster: terra, mercury, jupiter, saturn, ganymede.
+
+    Parameters
+    ----------
+    body : str, optional. If given, return that body's record;
+        else return the full per-body catalog.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, region: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_dynamo_region_impl(body=body)
+
+
+def list_dynamo_regions() -> Dict[str, Any]:
+    """Static enumeration of every published dynamo-region constraint.
+
+    Returns every body's record plus the citation dict so consumers
+    can verify the provenance of every dynamo-radius value. Each
+    entry carries a `source_key` pointing into the
+    `_research.dynamo_catalog_data.SOURCES` citation dict.
+    """
+    return _list_dynamo_regions_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

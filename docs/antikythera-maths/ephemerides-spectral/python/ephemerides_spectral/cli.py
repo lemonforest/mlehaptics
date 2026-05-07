@@ -600,6 +600,16 @@ def _cmd_admittance_spectra(args: argparse.Namespace) -> int:
     return _emit(bridge.list_admittance_spectra(), pretty=args.pretty)
 
 
+def _cmd_dynamo_region(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_dynamo_region(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_dynamo_regions(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_dynamo_regions(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2834,6 +2844,53 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ads.set_defaults(func=_cmd_admittance_spectra)
+
+    # dynamo-region (v0.21.2) — magnetic-multipole-derived dynamo radius.
+    dr = sub.add_parser(
+        "dynamo-region",
+        help="Per-body dynamo-region constraint (cross-channel coupling)",
+        description=(
+            "Returns the per-body magnetic-multipole-derived\n"
+            "dynamo-region constraint. For a body with a published\n"
+            "spherical-harmonic magnetic-field expansion (v0.20.1),\n"
+            "the Lowes-Mauersberger spectrum log-slope inverts\n"
+            "directly for the dynamo radius:\n"
+            "\n"
+            "  R(n) ~ (R_dynamo / R_surface)^(2n + 4)\n"
+            "\n"
+            "For Earth this gives the canonical CMB depth ~2891 km\n"
+            "(matches seismology to better than 1%). For Jupiter +\n"
+            "Saturn it gives deep metallic-H dynamos. For Mercury, the\n"
+            "standard inversion fails because of stable stratification;\n"
+            "the depth comes from the Christensen 2006 weak-field model.\n"
+            "\n"
+            "5-body roster: terra (Lowes 1974), mercury (Christensen\n"
+            "2006), jupiter (Connerney 2022), saturn (Cao 2020),\n"
+            "ganymede (Schubert 1996).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral dynamo-region --pretty\n"
+            "  ephemerides-spectral dynamo-region --body jupiter --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    dr.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    dr.set_defaults(func=_cmd_dynamo_region)
+
+    # dynamo-regions (v0.21.2) — full enumeration.
+    drs = sub.add_parser(
+        "dynamo-regions",
+        help="Full dynamo-region catalog enumeration",
+        description=(
+            "Returns every body's DynamoRegion record + citation dict\n"
+            "so consumers can verify the provenance of every dynamo-\n"
+            "radius value."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    drs.set_defaults(func=_cmd_dynamo_regions)
 
     # lunar-kernels
     lk = sub.add_parser(
