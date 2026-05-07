@@ -1298,7 +1298,9 @@ def terra_luna_time_to_jd(
 #
 # For non-Luna moons (Galileans, Saturnians, Phobos/Deimos, Titania,
 # Triton, Charon), the natural time unit is the moon's sidereal period.
-# Every moon in the 38-body roster is tidally locked, so:
+# Every classical moon in the 52-body roster is tidally locked (with
+# Hyperion the documented exception — chaotic rotation; see v0.14.1
+# ship notes), so:
 #
 #     sidereal day = orbital period = rotation period
 #

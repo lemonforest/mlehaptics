@@ -9,7 +9,7 @@
       "size_bytes": 318
     },
     "_research/bip_hd_lift.py": {
-      "sha256": "f43f919048a29205ad36b8238fffde89723f65e2c67161bb7a52d69798fad709",
+      "sha256": "50be51ba5132f5cb90438905f8fbad0257c5403444423df5a95af4c20578ffe8",
       "size_bytes": 8153
     },
     "_research/bip_instrument.py": {
@@ -61,12 +61,20 @@
       "size_bytes": 25787
     },
     "_research/kinematics.py": {
-      "sha256": "e8b6341c582490cc488db441a2f2f470c63aaa7f251f3567768b189fee17d0a2",
+      "sha256": "7afd3d7e0882efe872d8115519bf74385e09d54611e5cccfeb77d024c7f3b913",
       "size_bytes": 13185
     },
     "_research/laplacian.py": {
       "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
       "size_bytes": 12233
+    },
+    "_research/magnetic_multipole_catalog.py": {
+      "sha256": "81ce32d053d47e2814811a379c38fa37f4168521806553fb164efb68d5eea835",
+      "size_bytes": 16884
+    },
+    "_research/magnetic_multipole_catalog_data.py": {
+      "sha256": "9fa7403ff3100f27bf734f5b214be7e8b2ba16955f320109ae6f02a3f9d41dc4",
+      "size_bytes": 26703
     },
     "_research/portable_prng.py": {
       "sha256": "e1629999c1d35ab00324a2c96e3798867bbe26ce6a903064dac5395b82820cee",
@@ -85,10 +93,10 @@
       "size_bytes": 8796
     },
     "_research/time_scales.py": {
-      "sha256": "77e5f324487c11e5a3b0dc9e6f4028b57f4d855d1e65b41a1bba1554556b8a14",
-      "size_bytes": 62467
+      "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
+      "size_bytes": 62567
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.20.0"
+  "version": "0.20.1"
 }

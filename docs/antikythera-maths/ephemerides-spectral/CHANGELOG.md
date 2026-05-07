@@ -7,7 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.0)
+(no entries yet — next entries land after v0.20.1)
+
+## [0.20.1] — 2026-05-07
+
+**Sol Magnetic Multipole Catalog — state-lookup query surface for the published-internal-field roster across the solar system.** Promotes notebook §17.2 + §17.4.2 to a stable ship surface, mirroring the v0.19.0 EM Instrument and v0.20.0 Sol Geodetic Catalog patterns. **Not a BIP encoder running on magnetic-field rhythms** — per §17.4.1 the rhythm-mismatch finding generalises across magnetic multipoles alongside solid-body geodesy and fluid-envelope channels: internal-field Schmidt-quasi-normalised g_n^m / h_n^m coefficients are static at their epoch, so the cyclic-group encoder discipline does not transplant. Pure-Python additive; **no ABI bump** (seventh consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.magnetic_multipole_catalog.compute_magnetic_multipoles / evaluate_magnetic_field / compute_solar_synoptic_state / list_magnetic_multipoles / compute_magnetic_architecture` |
+| Bridge dict API | `bridge.get_magnetic_multipoles(body=None, crustal=False)` / `bridge.evaluate_magnetic_field(body, r_km, lat_deg, lon_deg, jd_tdb=None)` / `bridge.get_solar_synoptic_state(jd_tdb=None)` / `bridge.list_magnetic_multipoles()` / `bridge.magnetic_architecture(target=None)` |
+| CLI | `magnetic-multipoles [--body X] [--crustal]` / `magnetic-field --body X --r-km X --lat-deg X --lon-deg X` / `solar-synoptic [--jd-tdb X]` / `magnetic-models` / `magnetic-architecture [--target X]` |
+
+### 7-body main-field roster
+
+| Body | Model | Max degree | Tier | Structural flag |
+|---|---|---:|---|---|
+| terra | IGRF-13 (Alken 2021) | 13 | HIGH | — |
+| jupiter | JRM33 (Connerney 2022) | 18 | HIGH | great_blue_spot_resolved |
+| saturn | Cao-2020 (Cassini Grand Finale) | 14 | HIGH | axisymmetric_dipole_tilt_under_0.007_deg |
+| mercury | Thébault-2018 (MESSENGER reanalysis) | 5 | MEDIUM | offset_dipole_north_484km |
+| ganymede | Kivelson-2002 dipole | 1 | MEDIUM | only_intrinsic_moon_dipole |
+| uranus | AH5 (Holme & Bloxham 1996) | 3 | LOW | tilted_offset_58.6_deg |
+| neptune | O8 (Holme & Bloxham 1996) | 3 | LOW | tilted_offset_47_deg |
+
+Plus 1 crustal field model — Earth EMM2017 (degree 720, ~30 MB lazy-load via `crustal=True` flag) — and 1 solar synoptic reference — Stanford HMI (Carrington-rotation cadence, coverage 2010-present) accessible via `bridge.get_solar_synoptic_state(jd_tdb)`. The Sun's time-varying field lives behind a different surface than the static catalog.
+
+### Notable per-body data
+
+* **Saturn dipole tilt < 0.007°** (Cao 2020 axisymmetric-dynamo result) shipped as a first-class `structural_flag`.
+* **Mercury offset dipole** ~484 km northward of body centre.
+* **Ganymede** — only solar-system moon with a confirmed intrinsic dipole (Kivelson 2002); dipole-only published, "higher-degree pending JUICE 2034" flag.
+* **Uranus + Neptune** — Voyager-only single-flyby fits with explicit LOW precision flag.
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into a 9-entry `SOURCES` dict (DOIs / mission archives / journal refs). Tests pin the resolution:
+
+* `test_every_main_field_source_key_resolves`
+* `test_every_crustal_source_key_resolves`
+* `test_every_synoptic_source_key_resolves`
+* `test_no_unused_sources_entries` (no stale citations)
+
+### Architectural choice
+
+State-*lookup* surface, mirroring v0.20.0 Sol Geodetic Catalog (no JD-advance mechanic — the IGRF main field updates every 5 years on a published schedule, not via JD-ticking arithmetic). The `evaluate_magnetic_field` surface ships dipole-only synthesis (`synthesis_degree=1`) for v0.20.1; higher-degree synthesis is deferred to a future minor version.
+
+### Forward sequence (per §17.4.2)
+
+* **v0.20.2** — `SolFluidInstrument` (climatological summary + archive index + Earth/Mars state-at-epoch surface).
+* **v0.21.0** — `SphericalHarmonicCatalog` unification refactor across gravity (v0.20.0) + magnetic (v0.20.1) sectors.
+* **v0.21.1+** — Cross-channel coupling surfaces (one per minor version).
+
+### Package metadata refresh
+
+The `pyproject.toml` description was advertising the obsolete v0.5-era 38-body roster + omitting all the v0.16-v0.20.x catalog work. Refreshed to list the 52-body roster + per-body Sol Geodetic / Electromagnetic / Magnetic-Multipole catalogs + resonance-graph ITN-chain search + spectral body-architecture surfaces. Stale "38-body" language scrubbed from `bridge.py`, `cli.py`, and the upstream `research/` modules that codegen mirrors into `_research/`.
+
+### Test count
+
+834 pass, 41 skipped (was 769 + 41 in v0.20.0; +65 net new — 59 in `test_magnetic_multipole_catalog.py` + 5 parity-smoke entries + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.20.0 → 0.20.1`.
 
 ## [0.20.0] — 2026-05-07
 

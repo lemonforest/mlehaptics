@@ -160,6 +160,38 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.20.1 Sol Magnetic Multipole Catalog (state-lookup query
+    # surface for the per-body internal-field roster + Earth crustal
+    # + Sun synoptic pointer). Per notebook §17.4.1 the rhythm-mismatch
+    # finding generalises across magnetic multipoles alongside solid-
+    # body geodesy and fluid-envelope channels — internal-field
+    # Schmidt coefficients are static at their epoch, so the cyclic-
+    # group encoder discipline does not transplant. Five bridge
+    # surfaces, all pure-Python static lookups + dipole synthesis;
+    # no C twin makes sense.
+    "get_magnetic_multipoles": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "evaluate_magnetic_field": {
+        "status": "python_only",
+        "kwargs_py": {
+            "body": "terra", "r_km": 7000.0,
+            "lat_deg": 0.0, "lon_deg": 0.0,
+        },
+    },
+    "get_solar_synoptic_state": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_magnetic_multipoles": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "magnetic_architecture": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
