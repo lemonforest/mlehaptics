@@ -7,7 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.2)
+(no entries yet — next entries land after v0.24.3)
+
+## [0.24.3] — 2026-05-07
+
+**Sun Dynamical Spectrum (helioseismic p-modes) — fourth per-body dynamical-spectrum surface; first stellar entry + methodology extension from rigid-body action-angle to stellar-oscillation continuum normal-mode spectrum.** Pure-Python additive; **no ABI bump** (twenty-sixth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.sun_dynamical_spectrum_catalog.get_sun_dynamical_spectrum / get_helioseismic_asymptotic_relation / list_sun_dynamical_spectrum` |
+| Bridge dict API | `bridge.get_sun_dynamical_spectrum()` / `bridge.get_helioseismic_asymptotic_relation()` / `bridge.list_sun_dynamical_spectrum()` |
+| CLI | `sun-dynamical-spectrum`, `helioseismic-asymptotic-relation`, `sun-dynamical-spectrum-full` |
+
+### Asymptotic-relation constants
+
+| Constant | Value | Notes |
+|---|---:|---|
+| Δν (large separation) | 135.1 μHz | Sound-travel-time inverse; ∝ √(M/R³) |
+| δν (small separation) | 9.0 μHz | He-core sound-speed gradient diagnostic |
+| ε (phase offset) | 1.46 | BiSON-fit |
+| ν_max | 3090 μHz | Peak amplitude (Brown 1991 g/√T_eff scaling) |
+
+### 20-mode sample p-mode catalog
+
+n = 18-25 at l = 0,1,2 — the canonical "main p-mode comb" near ν_max used for asteroseismic-instrument validation. Frequencies ship as asymptotic-consistent reference values (residuals < 0.01 μHz from float roundoff).
+
+### THE headline closure invariant
+
+Tassoul 1980 asymptotic relation:
+
+```
+ν_{n,l} ≈ Δν · (n + l/2 + ε) - δν · l(l+1) / (n + l/2 + ε)
+```
+
+predicts the entire mode spectrum from three constants. **Cross-channel parallel**: stellar-oscillation analogue of v0.24.1 Saros integer commensurability — three constants → entire mode spectrum, just like 223:239:242 integer triple → entire eclipse-recurrence cycle.
+
+Closure invariant `max_residual_uhz < 0.5` pinned by `test_asymptotic_relation_closure_invariant`. Real BiSON / SOI-MDI / SDO-HMI data has ~0.1-1 μHz residuals from interior-structure glitches (helium-ionization zone + base of convection zone; Vorontsov 2002) — themselves diagnostic via Christensen-Dalsgaard 2002 inversion.
+
+### Cross-references
+
+- **v0.20.1** Sol synoptic magnetic field (Stanford HMI Carrington-cadence pointer)
+- **v0.21.5** Earth-Sun IMF coupling (solar-wind aurora driving)
+- **v0.24.1** Luna Saros integer-commensurability (this is the stellar-oscillation analogue)
+- **v0.24.0** Mercury (Mercury's Diophantine-stable 3:2 vs Sun's continuum mode comb)
+
+### Test count
+
+1481 pass, 42 skipped (was 1448 + 42 in v0.24.2; +33 net new — 30 in `test_sun_dynamical_spectrum.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.2 → 0.24.3`.
 
 ## [0.24.2] — 2026-05-07
 

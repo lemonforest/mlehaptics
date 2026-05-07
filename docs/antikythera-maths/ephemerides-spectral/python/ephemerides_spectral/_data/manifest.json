@@ -220,6 +220,14 @@
       "sha256": "5e4eb5b218293fb7dd96c22c677858da9f406dd60bfe0c8ec017d8a5e42b2cea",
       "size_bytes": 13559
     },
+    "_research/sun_dynamical_spectrum_catalog.py": {
+      "sha256": "37285e0827d4ce636d26686ff12f1665c9f49dd418c43c9fe7d633ce08038115",
+      "size_bytes": 7835
+    },
+    "_research/sun_dynamical_spectrum_data.py": {
+      "sha256": "d5fda4a667cfc8cfcfae23758677181fd61570f6639d5e67a48286579b01a4a1",
+      "size_bytes": 13773
+    },
     "_research/syzygy_window.py": {
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
@@ -254,5 +262,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.1"
+  "version": "0.24.2"
 }

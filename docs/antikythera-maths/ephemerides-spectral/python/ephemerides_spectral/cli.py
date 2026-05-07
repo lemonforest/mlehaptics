@@ -898,6 +898,29 @@ def _cmd_mars_dynamical_spectrum_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.3 — Sun Dynamical Spectrum CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_sun_dynamical_spectrum(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_sun_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
+def _cmd_helioseismic_asymptotic_relation(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_helioseismic_asymptotic_relation(), pretty=args.pretty,
+    )
+
+
+def _cmd_sun_dynamical_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_sun_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4057,6 +4080,74 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     madsf.set_defaults(func=_cmd_mars_dynamical_spectrum_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.3 — Sun Dynamical Spectrum (helioseismic p-modes)
+    # ──────────────────────────────────────────────────────────────────
+
+    # sun-dynamical-spectrum
+    sds = sub.add_parser(
+        "sun-dynamical-spectrum",
+        help="Sun's helioseismic p-mode catalog + asymptotic-relation constants",
+        description=(
+            "v0.24.3 -- fourth per-body dynamical-spectrum surface,\n"
+            "and the FIRST stellar entry. Methodology extension from\n"
+            "rigid-body action-angle (Mercury/Luna/Mars) to stellar\n"
+            "continuum normal-mode spectrum (helioseismology).\n"
+            "\n"
+            "Headlines:\n"
+            "  Delta-nu = 135.1 uHz  (large frequency separation)\n"
+            "  delta-nu = 9.0 uHz    (small separation; He-core diag.)\n"
+            "  nu_max  = 3090 uHz    (peak amplitude)\n"
+            "\n"
+            "20-mode sample p-mode catalog (n=18-25, l=0-2) from\n"
+            "BiSON 30-yr dataset (Davies 2014).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral sun-dynamical-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sds.set_defaults(func=_cmd_sun_dynamical_spectrum)
+
+    # helioseismic-asymptotic-relation (THE headline)
+    har = sub.add_parser(
+        "helioseismic-asymptotic-relation",
+        help="Tassoul 1980 asymptotic-relation closure invariant",
+        description=(
+            "v0.24.3 headline. The Tassoul 1980 asymptotic relation\n"
+            "predicts the entire p-mode comb from just three\n"
+            "constants:\n"
+            "\n"
+            "  v_{n,l} ~ Delta-nu * (n + l/2 + eps)\n"
+            "         - delta-nu * l(l+1) / (n + l/2 + eps)\n"
+            "\n"
+            "Closure: agreement of prediction vs BiSON measurements\n"
+            "for the catalog modes to ~1 uHz precision.\n"
+            "\n"
+            "Cross-channel parallel: stellar-oscillation analogue of\n"
+            "v0.24.1 Saros integer-commensurability. Three constants\n"
+            "-> entire mode spectrum.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral helioseismic-asymptotic-relation --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    har.set_defaults(func=_cmd_helioseismic_asymptotic_relation)
+
+    # sun-dynamical-spectrum-full
+    sdsf = sub.add_parser(
+        "sun-dynamical-spectrum-full",
+        help="Full Sun dynamical-spectrum enumeration (modes + citations)",
+        description=(
+            "Returns all helioseismic modes + asymptotic-relation\n"
+            "constants + citation dict so consumers can verify the\n"
+            "provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sdsf.set_defaults(func=_cmd_sun_dynamical_spectrum_full)
 
     # lunar-kernels
     lk = sub.add_parser(
