@@ -690,6 +690,130 @@ def _cmd_thermal_balances(args: argparse.Namespace) -> int:
     return _emit(bridge.list_thermal_balances(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.22.0 — Trajectory + Sensing Layer CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_ballistic_trajectory(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_ballistic_trajectory(
+            body=args.body,
+            v_m_s=args.v,
+            angle_deg=args.angle,
+            altitude_m=args.altitude,
+            with_drag=args.with_drag,
+            ballistic_coefficient=args.bc,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_ballistic_atmosphere(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_ballistic_atmosphere(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_ballistic_atmospheres(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_ballistic_atmospheres(), pretty=args.pretty)
+
+
+def _cmd_icbm_trajectory(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_icbm_trajectory(
+            burnout_velocity_m_s=args.burnout_v,
+            burnout_flight_path_angle_deg=args.burnout_gamma,
+            burnout_altitude_m=args.burnout_alt,
+            ballistic_coefficient_kg_m2=args.bc,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_icbm_reference_profile(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_icbm_reference_profile(profile_name=args.profile),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_icbm_reference_profiles(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_icbm_reference_profiles(), pretty=args.pretty)
+
+
+def _cmd_visibility_geometry(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_visibility_geometry(
+            sat_ecef_m=(args.sat_x, args.sat_y, args.sat_z),
+            target_lat_deg=args.lat,
+            target_lon_deg=args.lon,
+            target_altitude_m=args.alt,
+            minimum_elevation_deg=args.min_elev,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_sgp4_state(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_sgp4_state(
+            line1=args.line1,
+            line2=args.line2,
+            minutes_since_epoch=args.minutes,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_orbital_reference(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_orbital_reference(label=args.label), pretty=args.pretty,
+    )
+
+
+def _cmd_orbital_references(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_orbital_references(), pretty=args.pretty)
+
+
+def _cmd_bc_differential(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_bc_differential(
+            bc_heavy_kg_m2=args.bc_heavy,
+            bc_light_kg_m2=args.bc_light,
+            entry_velocity_m_s=args.v_entry,
+            entry_flight_path_angle_deg=args.gamma_entry,
+            altitude_band_lower_km=args.lower_km,
+            altitude_band_upper_km=args.upper_km,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_discrimination_altitude(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.compute_discrimination_altitude(
+            bc_heavy_kg_m2=args.bc_heavy,
+            bc_light_kg_m2=args.bc_light,
+            entry_velocity_m_s=args.v_entry,
+            entry_flight_path_angle_deg=args.gamma_entry,
+            delta_v_threshold_m_s=args.threshold,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_bc_reference_class(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_bc_reference_class(class_name=args.class_name),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_bc_reference_classes(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_bc_reference_classes(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3314,6 +3438,294 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     tbs.set_defaults(func=_cmd_thermal_balances)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.22.0 — Trajectory + Sensing Layer
+    # ──────────────────────────────────────────────────────────────────
+
+    # ballistic-trajectory (v0.22.0 Layer A)
+    bt = sub.add_parser(
+        "ballistic-trajectory",
+        help="Per-body short-range ballistic-projectile propagator",
+        description=(
+            "v0.22.0 Layer A. Per-body short-range ballistic flight\n"
+            "with optional exponential-atmosphere drag. Vacuum case\n"
+            "is the textbook closed form (Vallado §8.6.2):\n"
+            "  range = v² · sin(2θ) / g\n"
+            "  apex  = v² · sin²(θ) / (2g)\n"
+            "  T     = 2 v · sin(θ) / g\n"
+            "\n"
+            "With-drag case integrates RK4 under exponential\n"
+            "atmosphere (BC = m/(C_d·A) parameterization).\n"
+            "\n"
+            "7-body roster: terra, mars, venus, titan (atmospheric);\n"
+            "luna, mercury (vacuum); jupiter (1-bar reference).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral ballistic-trajectory --body terra "
+            "--v 700 --angle 45 --pretty\n"
+            "  ephemerides-spectral ballistic-trajectory --body mars "
+            "--v 1000 --angle 30 --with-drag --bc 200 --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    bt.add_argument("--body", required=True,
+                    help="Body name (lower-case): terra/mars/venus/titan/"
+                         "luna/mercury/jupiter")
+    bt.add_argument("--v", type=float, required=True,
+                    help="Initial speed (m/s)")
+    bt.add_argument("--angle", type=float, required=True,
+                    help="Launch angle above local horizontal (deg, 0-90)")
+    bt.add_argument("--altitude", type=float, default=0.0,
+                    help="Initial altitude above surface (m). Default 0.")
+    bt.add_argument("--with-drag", action="store_true",
+                    help="Integrate with exponential-atmosphere drag.")
+    bt.add_argument("--bc", type=float, default=None,
+                    help="Ballistic coefficient BC=m/(C_d·A) (kg/m²). "
+                         "Required when --with-drag.")
+    bt.set_defaults(func=_cmd_ballistic_trajectory)
+
+    # ballistic-atmosphere (v0.22.0 Layer A)
+    ba = sub.add_parser(
+        "ballistic-atmosphere",
+        help="Per-body ballistic-atmosphere parameter lookup",
+        description=(
+            "Returns per-body surface gravity + radius +\n"
+            "exponential-atmosphere parameters (ρ₀, H, top) used by\n"
+            "the Layer A propagator."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ba.add_argument("--body", default=None,
+                    help="Body name. If omitted, full catalog.")
+    ba.set_defaults(func=_cmd_ballistic_atmosphere)
+
+    # ballistic-atmospheres (v0.22.0 Layer A)
+    bas = sub.add_parser(
+        "ballistic-atmospheres",
+        help="Full ballistic-atmosphere catalog enumeration",
+        description=(
+            "Returns every body's BallisticAtmosphere record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    bas.set_defaults(func=_cmd_ballistic_atmospheres)
+
+    # icbm-trajectory (v0.22.0 Layer B)
+    it = sub.add_parser(
+        "icbm-trajectory",
+        help="Earth 3-regime ICBM trajectory (boost boundary + Kepler "
+             "midcourse + Allen-Eggers re-entry)",
+        description=(
+            "v0.22.0 Layer B. Earth 3-regime ballistic missile\n"
+            "trajectory propagator. Boost is a boundary condition\n"
+            "(user supplies burnout state v, γ, h). Midcourse uses\n"
+            "Kepler-ellipse (Bate-Mueller-White Ch. 6). Re-entry uses\n"
+            "Allen-Eggers closed-form (NACA Report 1381, 1958).\n"
+            "\n"
+            "**Boost is intentionally not modelled** — vehicle-specific\n"
+            "Isp/thrust/gravity-turn cross into operationally-sensitive\n"
+            "territory; publishable Layer B starts from burnout state.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral icbm-trajectory --burnout-v 7000 "
+            "--burnout-gamma 23 --bc 10000 --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    it.add_argument("--burnout-v", type=float, required=True,
+                    help="Burnout velocity (m/s)")
+    it.add_argument("--burnout-gamma", type=float, required=True,
+                    help="Burnout flight-path angle above horizon (deg)")
+    it.add_argument("--burnout-alt", type=float, default=200_000.0,
+                    help="Burnout altitude (m). Default 200000.")
+    it.add_argument("--bc", type=float, default=10000.0,
+                    help="Re-entry ballistic coefficient (kg/m²). "
+                         "Default 10000 (heavy compact RV).")
+    it.set_defaults(func=_cmd_icbm_trajectory)
+
+    # icbm-reference-profile (v0.22.0 Layer B)
+    irp = sub.add_parser(
+        "icbm-reference-profile",
+        help="Textbook ICBM reference profile lookup (SRBM/MRBM/ICBM)",
+        description=(
+            "Returns canonical SRBM / MRBM / ICBM range-class profiles\n"
+            "from Wilkening 2000 + Sessler/UCS 2000 — open-literature\n"
+            "baselines, NOT operational parameters."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    irp.add_argument("--profile", default=None,
+                     help="Profile name (srbm_300km/mrbm_1500km/"
+                          "icbm_10000km). If omitted, full catalog.")
+    irp.set_defaults(func=_cmd_icbm_reference_profile)
+
+    # icbm-reference-profiles (v0.22.0 Layer B)
+    irps = sub.add_parser(
+        "icbm-reference-profiles",
+        help="Full ICBM reference profile enumeration",
+        description=(
+            "Returns every reference profile + citations."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    irps.set_defaults(func=_cmd_icbm_reference_profiles)
+
+    # visibility-geometry (v0.22.0 Layer C(a))
+    vg = sub.add_parser(
+        "visibility-geometry",
+        help="Slant-range + look-angle + Earth-limb occlusion test",
+        description=(
+            "v0.22.0 Layer C(a). Geometric 'can a sensor see it?' from\n"
+            "satellite ECEF position + target lat/lon. Returns slant\n"
+            "range, elevation above target horizon, azimuth, and\n"
+            "Earth-limb occlusion. Vallado Ch. 11."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    vg.add_argument("--sat-x", type=float, required=True,
+                    help="Satellite ECEF x (m)")
+    vg.add_argument("--sat-y", type=float, required=True,
+                    help="Satellite ECEF y (m)")
+    vg.add_argument("--sat-z", type=float, required=True,
+                    help="Satellite ECEF z (m)")
+    vg.add_argument("--lat", type=float, required=True,
+                    help="Target geodetic latitude (deg)")
+    vg.add_argument("--lon", type=float, required=True,
+                    help="Target geodetic longitude (deg, east-positive)")
+    vg.add_argument("--alt", type=float, default=0.0,
+                    help="Target altitude above WGS-84 ellipsoid (m)")
+    vg.add_argument("--min-elev", type=float, default=5.0,
+                    help="Minimum elevation for visibility (deg). "
+                         "Default 5.")
+    vg.set_defaults(func=_cmd_visibility_geometry)
+
+    # sgp4-state (v0.22.0 Layer C(a))
+    s4 = sub.add_parser(
+        "sgp4-state",
+        help="SGP4/SDP4 TLE → ECI state vector",
+        description=(
+            "v0.22.0 Layer C(a). Propagate a TLE to the requested\n"
+            "minutes-since-epoch using SGP4/SDP4. Requires\n"
+            "ephemerides-spectral[ephemeris] for the sgp4 dependency."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    s4.add_argument("--line1", required=True, help="TLE line 1")
+    s4.add_argument("--line2", required=True, help="TLE line 2")
+    s4.add_argument("--minutes", type=float, default=0.0,
+                    help="Minutes past TLE epoch. Default 0.")
+    s4.set_defaults(func=_cmd_sgp4_state)
+
+    # orbital-reference (v0.22.0 Layer C(a))
+    orf = sub.add_parser(
+        "orbital-reference",
+        help="Reference TLE lookup (textbook samples; NOT a live catalog)",
+        description=(
+            "Returns reference TLEs for textbook orbit classes (LEO\n"
+            "sun-sync, ISS, GEO, Molniya HEO, Tundra HEO, IRIDIUM-NEXT,\n"
+            "Sentinel-1A, JPSS-1, Landsat-9). For operational use,\n"
+            "fetch fresh TLEs from CelesTrak / Space-Track."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    orf.add_argument("--label", default=None,
+                     help="Reference label. If omitted, full catalog.")
+    orf.set_defaults(func=_cmd_orbital_reference)
+
+    # orbital-references (v0.22.0 Layer C(a))
+    orfs = sub.add_parser(
+        "orbital-references",
+        help="Full orbital reference TLE enumeration + IR window constants",
+        description=(
+            "Returns every reference TLE + atmospheric IR transmission\n"
+            "windows (VIS / NIR / MWIR / LWIR) + citations."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    orfs.set_defaults(func=_cmd_orbital_references)
+
+    # bc-differential (v0.22.0 Layer C(b))
+    bd = sub.add_parser(
+        "bc-differential",
+        help="BC-differential velocity separation (decoy discrimination)",
+        description=(
+            "v0.22.0 Layer C(b). The only physics-based midcourse-\n"
+            "surviving discriminator: heavy compact RV decelerates\n"
+            "slowly in the upper atmosphere; light decoys decelerate\n"
+            "rapidly. Allen-Eggers closed-form (NACA Report 1381,\n"
+            "1958). Reference: Sessler/UCS Countermeasures 2000.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral bc-differential --bc-heavy 10000 "
+            "--bc-light 50 --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    bd.add_argument("--bc-heavy", type=float, required=True,
+                    help="Heavy object BC (kg/m²). Typical: 5000-15000")
+    bd.add_argument("--bc-light", type=float, required=True,
+                    help="Light object BC (kg/m²). Typical: 10-50")
+    bd.add_argument("--v-entry", type=float, default=7000.0,
+                    help="Re-entry velocity (m/s). Default 7000.")
+    bd.add_argument("--gamma-entry", type=float, default=23.0,
+                    help="Re-entry flight-path angle (deg). Default 23.")
+    bd.add_argument("--lower-km", type=float, default=60.0,
+                    help="Discrimination band lower altitude (km). "
+                         "Default 60.")
+    bd.add_argument("--upper-km", type=float, default=100.0,
+                    help="Upper altitude (km). Default 100 (Karman line).")
+    bd.set_defaults(func=_cmd_bc_differential)
+
+    # discrimination-altitude (v0.22.0 Layer C(b))
+    da = sub.add_parser(
+        "discrimination-altitude",
+        help="Find altitude where Δv exceeds threshold (BC pair)",
+        description=(
+            "Sweeps the discrimination band downward from re-entry\n"
+            "interface and returns the highest altitude at which the\n"
+            "BC-differential velocity gap exceeds the threshold."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    da.add_argument("--bc-heavy", type=float, required=True,
+                    help="Heavy object BC (kg/m²)")
+    da.add_argument("--bc-light", type=float, required=True,
+                    help="Light object BC (kg/m²)")
+    da.add_argument("--v-entry", type=float, default=7000.0,
+                    help="Re-entry velocity (m/s). Default 7000.")
+    da.add_argument("--gamma-entry", type=float, default=23.0,
+                    help="Re-entry flight-path angle (deg). Default 23.")
+    da.add_argument("--threshold", type=float, default=100.0,
+                    help="Δv threshold (m/s). Default 100.")
+    da.set_defaults(func=_cmd_discrimination_altitude)
+
+    # bc-reference-class (v0.22.0 Layer C(b))
+    brc = sub.add_parser(
+        "bc-reference-class",
+        help="Reference BC class lookup (heavy_rv/light_rv/replica/chaff)",
+        description=(
+            "Returns canonical BC class baselines from Sessler/UCS 2000\n"
+            "Table 8.1. NOT specific weapon-system parameters."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    brc.add_argument("--class-name", default=None,
+                     help="Class name (heavy_rv/light_rv/replica_decoy/"
+                          "chaff_decoy). If omitted, full catalog.")
+    brc.set_defaults(func=_cmd_bc_reference_class)
+
+    # bc-reference-classes (v0.22.0 Layer C(b))
+    brcs = sub.add_parser(
+        "bc-reference-classes",
+        help="Full BC reference-class enumeration + citations",
+        description=(
+            "Returns every reference BC class + citations."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    brcs.set_defaults(func=_cmd_bc_reference_classes)
 
     # lunar-kernels
     lk = sub.add_parser(
