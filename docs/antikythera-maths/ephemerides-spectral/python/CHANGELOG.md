@@ -10,7 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.0)
+(no entries yet — next entries land after v0.21.1)
+
+## [0.21.1] — 2026-05-07
+
+**Topography ↔ gravity admittance — first cross-channel coupling surface.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.admittance_catalog` — wrapper module with `compute_topography_gravity_admittance`, `list_admittance_spectra`.
+- `_research.admittance_catalog_data` — data module with `ADMITTANCE_SPECTRA` (5 entries), `SOURCES` (5 citations), `AdmittanceSpectrum` dataclass, and precision-flag constants.
+
+### Added — bridge dict API
+
+- `bridge.get_topography_gravity_admittance(body=None) -> dict` — single-body or full-roster query.
+- `bridge.list_admittance_spectra() -> dict` — full enumeration.
+
+### Added — CLI
+
+- `admittance [--body X]`
+- `admittance-spectra`
+
+### 5-body roster
+
+terra (Wieczorek 2007), luna (Wieczorek 2013 GRAIL+LOLA — the famous 2550 kg/m³ lunar crust), mars (Genova 2016 + Konopliv 2016), mercury (James 2015 MESSENGER), venus (Anderson 2002 Magellan — highest Z; weak Airy compensation).
+
+### Architectural choice
+
+State-*lookup* surface mirroring v0.20.0/v0.20.1/v0.20.2 — the per-degree Z(n) tables remain in the cited papers' supplementary materials; this catalog ships only the integrated summary published in each paper.
 
 ## [0.21.0] — 2026-05-07
 

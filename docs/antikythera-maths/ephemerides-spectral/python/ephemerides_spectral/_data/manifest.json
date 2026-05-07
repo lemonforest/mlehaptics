@@ -8,6 +8,14 @@
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
+    "_research/admittance_catalog.py": {
+      "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
+      "size_bytes": 4993
+    },
+    "_research/admittance_catalog_data.py": {
+      "sha256": "3a9742a5b6788333a539af1ffea202cc4b4467b1441308165233c91234ba9a10",
+      "size_bytes": 11264
+    },
     "_research/bip_hd_lift.py": {
       "sha256": "50be51ba5132f5cb90438905f8fbad0257c5403444423df5a95af4c20578ffe8",
       "size_bytes": 8153
@@ -110,5 +118,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.0"
+  "version": "0.21.1"
 }

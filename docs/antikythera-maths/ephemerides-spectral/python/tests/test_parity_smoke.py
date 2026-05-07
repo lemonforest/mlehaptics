@@ -231,6 +231,18 @@ PARITY_TARGETS: Dict[str, Dict] = {
             "to_convention": "4pi-Stokes",
         },
     },
+    # ── v0.21.1 Sol Topography-Gravity Admittance Catalog (first
+    # cross-channel coupling surface in the §17.4.2 v0.21.x sequence;
+    # 5-body roster: terra/luna/mars/mercury/venus). Pure-Python static
+    # lookup of published Z(n) summaries; no C twin makes sense.
+    "get_topography_gravity_admittance": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_admittance_spectra": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
