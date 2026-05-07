@@ -241,6 +241,11 @@ from ephemerides_spectral._research.mars_dynamical_spectrum_catalog import (
     get_mars_secular_resonance_overlap as _get_mars_secular_resonance_overlap_impl,
     list_mars_dynamical_spectrum as _list_mars_dynamical_spectrum_impl,
 )
+from ephemerides_spectral._research.sun_dynamical_spectrum_catalog import (
+    get_sun_dynamical_spectrum as _get_sun_dynamical_spectrum_impl,
+    get_helioseismic_asymptotic_relation as _get_helioseismic_asymptotic_relation_impl,
+    list_sun_dynamical_spectrum as _list_sun_dynamical_spectrum_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4279,6 +4284,59 @@ def get_mars_secular_resonance_overlap() -> Dict[str, Any]:
 def list_mars_dynamical_spectrum() -> Dict[str, Any]:
     """Full enumeration of Mars dynamical-spectrum data + citations."""
     return _list_mars_dynamical_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.3 — Sun Dynamical Spectrum (helioseismic p-modes)
+# (fourth per-body dynamical-spectrum surface; methodology extension
+# from rigid-body action-angle to stellar-oscillation continuum
+# normal-mode spectrum -- helioseismology)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_sun_dynamical_spectrum() -> Dict[str, Any]:
+    """Sun's helioseismic p-mode catalog + asymptotic-relation
+    constants.
+
+    Methodology extension from rigid-body action-angle (Mercury / Luna /
+    Mars) to **stellar continuum normal-mode spectrum**. Each
+    helioseismic mode is labelled by quantum numbers (n, l, m); the
+    mode frequencies ν_{n,l,m} are the action-angle frequencies of
+    the stellar oscillation.
+
+    Headlines: Δν = 135.1 μHz (large frequency separation;
+    sound-travel-time inverse), δν = 9.0 μHz (small separation;
+    helium-core sound-speed gradient diagnostic), ν_max = 3090 μHz
+    (peak amplitude).
+    """
+    return _get_sun_dynamical_spectrum_impl()
+
+
+def get_helioseismic_asymptotic_relation() -> Dict[str, Any]:
+    """Helioseismic asymptotic-relation closure invariant — THE
+    headline of v0.24.3.
+
+    The Tassoul 1980 asymptotic relation predicts the entire p-mode
+    comb from just three constants (Δν, δν, ε):
+
+        ν_{n,l} ≈ Δν · (n + l/2 + ε) - δν · l(l+1) / (n + l/2 + ε)
+
+    Closure: agreement of asymptotic prediction with measured BiSON
+    frequencies for hundreds of (n, l) pairs to ~1 μHz precision.
+    The v0.24.3 closure invariant is `max_residual_uhz` across the
+    catalog; pinned in tests.
+
+    Cross-channel parallel: this is the **stellar-oscillation
+    analogue** of v0.24.1's Saros integer-commensurability closure.
+    Three constants → entire mode spectrum, just like 223:239:242
+    integer triple → entire eclipse-recurrence cycle.
+    """
+    return _get_helioseismic_asymptotic_relation_impl()
+
+
+def list_sun_dynamical_spectrum() -> Dict[str, Any]:
+    """Full enumeration of Sun dynamical-spectrum data + citations."""
+    return _list_sun_dynamical_spectrum_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

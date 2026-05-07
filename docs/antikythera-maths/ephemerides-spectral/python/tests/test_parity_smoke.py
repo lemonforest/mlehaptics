@@ -485,6 +485,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.3 Sol Sun Dynamical Spectrum (fourth per-body
+    # dynamical-spectrum surface; methodology extension from rigid-
+    # body action-angle to stellar-oscillation continuum normal-mode
+    # spectrum -- helioseismology). Pure-Python static lookup; no C
+    # twin makes sense.
+    "get_sun_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_helioseismic_asymptotic_relation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_sun_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

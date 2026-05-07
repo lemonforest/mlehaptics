@@ -78,6 +78,8 @@ _INCLUDED_MODULES: List[str] = [
     "luna_dynamical_spectrum_catalog.py",
     "mars_dynamical_spectrum_data.py",
     "mars_dynamical_spectrum_catalog.py",
+    "sun_dynamical_spectrum_data.py",
+    "sun_dynamical_spectrum_catalog.py",
 ]
 
 def emit() -> List[Path]:

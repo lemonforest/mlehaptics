@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.2)
+(no entries yet — next entries land after v0.24.3)
+
+## [0.24.3] — 2026-05-07
+
+**Sun Dynamical Spectrum (helioseismic p-modes).** Fourth per-body dynamical-spectrum surface; first stellar entry + methodology extension from rigid-body action-angle to stellar-oscillation continuum normal-mode spectrum. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.sun_dynamical_spectrum_catalog` — wrapper module with `get_sun_dynamical_spectrum`, `get_helioseismic_asymptotic_relation`, `list_sun_dynamical_spectrum`.
+- `_research.sun_dynamical_spectrum_data` — data module with `HELIOSEISMIC_MODES` (20 entries: 8 l=0 + 6 l=1 + 6 l=2 across n=18-25), `SOURCES` (8 citations including BiSON / Davies 2014 + SOI-MDI / Schou 1998 + Tassoul 1980 + Brown 1991 + Christensen-Dalsgaard 2002 + Aerts 2010 + IAU 2015 + Libbrecht-Woodard 1990), `HelioseismicMode` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_sun_dynamical_spectrum()` — full p-mode catalog
+- `bridge.get_helioseismic_asymptotic_relation()` — Tassoul 1980 closure invariant
+- `bridge.list_sun_dynamical_spectrum()` — full enumeration
+
+### Added — CLI
+
+- `sun-dynamical-spectrum`
+- `helioseismic-asymptotic-relation`
+- `sun-dynamical-spectrum-full`
+
+### Added — tests
+
+- `tests/test_sun_dynamical_spectrum.py` — 30 tests pinning the asymptotic-relation closure (max residual < 0.5 μHz); IAU 2015 nominal solar constants; Δν = 135.1 / δν = 9.0 / ν_max = 3090 μHz; consecutive-radial-mode separation invariant; dipole-mode offset invariant; mode-frequency monotonicity; citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1481 pass, 42 skipped (was 1448 + 42 in v0.24.2; +33 net new).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.2 → 0.24.3`. ABI unchanged (twenty-sixth consecutive ship since v0.13.x).
 
 ## [0.24.2] — 2026-05-07
 
