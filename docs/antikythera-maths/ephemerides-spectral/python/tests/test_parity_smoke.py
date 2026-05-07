@@ -571,6 +571,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.8 Sol Axial Seamount Eruption Chronology Catalog
+    # (temporal-spectrum eruption-cycle observable on Juan de Fuca
+    # Ridge submarine volcano; first explicit prediction-reliability
+    # ship). Pure-Python; static lookup + small periodicity computation.
+    # No C twin makes sense.
+    "get_axial_seamount_chronology": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_axial_inflation_cycle_signature": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_axial_seamount": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

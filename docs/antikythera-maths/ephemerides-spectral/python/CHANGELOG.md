@@ -10,7 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.7)
+(no entries yet — next entries land after v0.24.8)
+
+## [0.24.8] — 2026-05-07
+
+**Axial Seamount Eruption Chronology Catalog (temporal-spectrum eruption-cycle observable on a real-time-monitored submarine volcano).** Ninth ship in v0.24.x; the project's first explicit prediction-reliability ship. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.axial_seamount_catalog` — wrapper module with `get_axial_seamount_chronology`, `get_axial_inflation_cycle_signature`, `list_axial_seamount`. Computes inter-eruption intervals + the rate-period product (Chadwick-Nooner conserved observable across 1998-2015) at query time.
+- `_research.axial_seamount_data` — data module with `AXIAL_ERUPTIONS` (3 eruptions: 1998 / 2011 / 2015), `INFLATION_PHASES` (4 phases: pre-1998 / 1998-2011 / 2011-2015 / post-2015), `CHADWICK_FORECASTS` (2 forecasts: 2015 HIT, 2024-2025 MISS), summit position + caldera dimensions + `AXIAL_GEODETIC_TRIGGER_M = 0.5`, `SOURCES` (10 citations), `AxialEruption` / `InflationPhase` / `ChadwickForecast` dataclasses.
+
+### Added — bridge dict API
+
+- `bridge.get_axial_seamount_chronology()` — eruption + inflation-phase + forecast chronology.
+- `bridge.get_axial_inflation_cycle_signature()` — inter-eruption intervals + rate-period products + Chadwick forecast track-record (1 HIT + 1 MISS as of catalog reference year 2026) + the v0.24.2-Mars-style spectral-stability methodology observation.
+- `bridge.list_axial_seamount()` — full enumeration + citations.
+
+### Added — CLI
+
+- `ephemerides-spectral axial-seamount-chronology`
+- `ephemerides-spectral axial-inflation-cycle-signature`
+- `ephemerides-spectral axial-seamount-full`
+
+### Added — Tests
+
+- `tests/test_axial_seamount.py` — 40 tests pinning roster shape (3 eruptions, 4 inflation phases, 2 forecasts), eruption years (1998/2011/2015), caldera + summit geometry (Caress 2012), inflation-phase rate progression (2011-2015 fastest at ~70 cm/yr; post-2015 slower than 2011-2015 reference), forecast track-record (2015 HIT, 2024-2025 MISS), inter-eruption interval distribution (~13 yr + ~4 yr), rate-period-product spread > 50 cm (the spectral-stability fragility signature), the v0.24.2 Mars cross-channel parallel in the methodology-observation field, citation discipline, bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Architectural commitment
+
+The v0.24.x methodology arc gains its **first temporal-spectrum ship**: where v0.24.5 Hawaii (with plate tectonics) → spatial trajectory and v0.24.7 Mars Tharsis (no plate tectonics) → spatial cogenetic family, v0.24.8 Axial Seamount (mid-ocean-ridge hotspot) → temporal quasi-periodic cycle with measurable methodology track-record. Same v0.24.x algebraic discipline; different observable axis. The HIT/MISS asymmetry of the Chadwick-Nooner forecast methodology is the **v0.24.2 Mars-style spectral-stability failure mode applied at decade timescales** — a quasi-periodic dynamical mode that is Diophantine-stable over one observation window and small-denominator-fragile outside it. Same algebraic structure on two wildly different observational scales (Gyr / arcsec-per-year for Mars vs decade / cm-per-year for Axial). The project's cleanest cross-system spectral-stability observation to date.
 
 ## [0.24.7] — 2026-05-07
 

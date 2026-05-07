@@ -32,6 +32,14 @@
       "sha256": "87dd3015794c414db3a7a370a466a848d57ce8e73a3e17b759b6d7b1bab857bf",
       "size_bytes": 13995
     },
+    "_research/axial_seamount_catalog.py": {
+      "sha256": "413272e7c6bca23d050059436150a33f2b7563eb78c5f7ff4f48e5d72c1e2348",
+      "size_bytes": 12593
+    },
+    "_research/axial_seamount_data.py": {
+      "sha256": "14ef30f2fd1bf98c3ab16f4ad6893eb4b49aac4726346bbf26a4dd54b3fde934",
+      "size_bytes": 17563
+    },
     "_research/ballistic_trajectory_catalog.py": {
       "sha256": "9d344682f78ac10fcb33339768c5764c5b3cc8a545ea05beece3e7579e47ca35",
       "size_bytes": 13488
@@ -294,5 +302,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.7"
+  "version": "0.24.8"
 }
