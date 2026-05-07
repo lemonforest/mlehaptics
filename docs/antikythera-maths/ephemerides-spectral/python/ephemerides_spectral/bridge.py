@@ -246,6 +246,11 @@ from ephemerides_spectral._research.sun_dynamical_spectrum_catalog import (
     get_helioseismic_asymptotic_relation as _get_helioseismic_asymptotic_relation_impl,
     list_sun_dynamical_spectrum as _list_sun_dynamical_spectrum_impl,
 )
+from ephemerides_spectral._research.toroidal_residual_catalog import (
+    get_toroidal_residual as _get_toroidal_residual_impl,
+    get_chandrasekhar_sequence_thresholds as _get_chandrasekhar_sequence_thresholds_impl,
+    list_toroidal_residuals as _list_toroidal_residuals_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4337,6 +4342,64 @@ def get_helioseismic_asymptotic_relation() -> Dict[str, Any]:
 def list_sun_dynamical_spectrum() -> Dict[str, Any]:
     """Full enumeration of Sun dynamical-spectrum data + citations."""
     return _list_sun_dynamical_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.4 — Per-body Toroidal-Residual J₂ Catalog
+# (per-body classification on the Chandrasekhar 1969 ellipsoidal-
+# equilibrium sequence: Sphere → Maclaurin → Jacobi → bar → ring/torus.
+# Codifies the user-named insight "rotation makes the body toroidal,
+# self-gravity rounds it back" with J₂ as the quantitative measure.)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_toroidal_residual(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body classification on the Chandrasekhar ellipsoidal-
+    equilibrium sequence.
+
+    Each body's quantitative position on the Maclaurin → Jacobi → bar
+    → ring/torus sequence, parameterised by the dimensionless
+    rotation parameter q = ω²R³/(GM):
+
+      * **Saturn closest to the bifurcation** at q=0.187 (Saturn q ≈
+        0.155; most oblate Solar-System body, 1/10 flattening).
+      * **Earth canonical Maclaurin**: q ≈ 0.0035; J₂ ≈ q/3.
+      * **Luna fossil figure**: J₂ ≈ 25× current-rotation prediction.
+        Shape frozen when Luna was closer to Earth.
+      * **Mercury fossil figure**: J₂ ≈ 50× current 3:2-locked
+        rotation prediction.
+      * **Venus essentially spherical**: q ~ 10⁻⁷ (slow retrograde).
+
+    Cross-channel: the **shape-side counterpart** to v0.24.0-v0.24.3
+    dynamical-spectrum surfaces. Together they decompose a body's
+    state-vector into dynamical (mode frequencies) + shape
+    (rotation-residual J₂) components.
+
+    See ``_research.toroidal_residual_catalog`` for the full docstring.
+    """
+    return _get_toroidal_residual_impl(body=body)
+
+
+def get_chandrasekhar_sequence_thresholds() -> Dict[str, Any]:
+    """Chandrasekhar 1969 ellipsoidal-equilibrium sequence
+    bifurcation thresholds.
+
+    The sequence: Sphere → Maclaurin → Jacobi → bar → ring/torus.
+    Threshold values in the dimensionless rotation parameter q:
+
+      * q_Maclaurin_Jacobi = 0.187 (sequence bifurcation)
+      * q_Jacobi_bar = 0.27 (bar instability)
+      * q_Roche_fission = 0.36 (equatorial unbinding → ring/torus)
+
+    These constants classify each per-body q into a regime.
+    """
+    return _get_chandrasekhar_sequence_thresholds_impl()
+
+
+def list_toroidal_residuals() -> Dict[str, Any]:
+    """Full catalog enumeration of every body's toroidal-residual
+    classification + citations."""
+    return _list_toroidal_residuals_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

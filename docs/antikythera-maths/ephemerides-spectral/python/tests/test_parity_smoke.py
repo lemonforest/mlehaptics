@@ -502,6 +502,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.4 Sol Toroidal-Residual J₂ Catalog (per-body
+    # classification on the Chandrasekhar 1969 ellipsoidal-equilibrium
+    # sequence: Sphere -> Maclaurin -> Jacobi -> bar -> ring/torus.
+    # The shape-side counterpart to v0.24.0-v0.24.3 dynamical-spectrum
+    # surfaces). Pure-Python static lookup; no C twin makes sense.
+    "get_toroidal_residual": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_chandrasekhar_sequence_thresholds": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_toroidal_residuals": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

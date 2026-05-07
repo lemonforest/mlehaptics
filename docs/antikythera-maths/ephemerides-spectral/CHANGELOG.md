@@ -7,7 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.3)
+(no entries yet — next entries land after v0.24.4)
+
+## [0.24.4] — 2026-05-07
+
+**Per-body Toroidal-Residual J₂ Catalog (Maclaurin/Jacobi/bar-ring sequence) — fifth ship in v0.24.x; the shape-side counterpart to v0.24.0–v0.24.3 dynamical-spectrum surfaces.** Codifies the "rotation makes the body toroidal, self-gravity rounds it back" insight as a per-body classification on the Chandrasekhar 1969 ellipsoidal-equilibrium sequence. Pure-Python additive; **no ABI bump** (twenty-seventh consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.toroidal_residual_catalog.get_toroidal_residual / get_chandrasekhar_sequence_thresholds / list_toroidal_residuals` |
+| Bridge dict API | `bridge.get_toroidal_residual(body=None)` / `bridge.get_chandrasekhar_sequence_thresholds()` / `bridge.list_toroidal_residuals()` |
+| CLI | `toroidal-residual [--body X]`, `chandrasekhar-sequence`, `toroidal-residuals` |
+
+### Sequence + thresholds
+
+```
+Sphere → Maclaurin → Jacobi → bar → ring/torus
+
+q = ω²R³/(GM)         dimensionless rotation parameter
+q < 0.001              sphere
+0.001 ≤ q < 0.187     Maclaurin oblate spheroid
+q ≈ 0.187              Maclaurin-Jacobi BIFURCATION
+0.187 ≤ q < 0.27      Jacobi triaxial ellipsoid
+q ≈ 0.27               bar instability
+0.27 ≤ q < 0.36       bar
+q ≈ 0.36               Roche / fission
+q ≥ 0.36               ring/torus
+```
+
+### 14-body roster
+
+| Body | q | J₂ | Regime | Fossil? | Source |
+|---|---:|---:|---|:---:|---|
+| **saturn** | **0.158** | 1.63e-2 | maclaurin | — | Iess 2019 |
+| jupiter | 0.0892 | 1.47e-2 | maclaurin | — | Iess 2018 |
+| uranus | 0.0294 | 3.51e-3 | maclaurin | — | Jacobson 2014 |
+| neptune | 0.0264 | 3.41e-3 | maclaurin | — | Jacobson 2009 |
+| mars | 4.59e-3 | 1.96e-3 | maclaurin | — | Genova 2016 |
+| terra | 3.46e-3 | 1.08e-3 | maclaurin | — | EGM2008 |
+| io | 1.71e-3 | 1.85e-3 | maclaurin | — | Anderson 2001 |
+| europa | 4.28e-4 | 4.36e-4 | sphere | — | Anderson 2001 |
+| ganymede | 1.05e-4 | 1.28e-4 | sphere | — | Anderson 2001 |
+| titan | 2.18e-5 | 3.34e-5 | sphere | — | Iess 2010 |
+| callisto | 1.43e-5 | 3.27e-5 | sphere | — | Anderson 2001 |
+| **luna** | 7.58e-6 | 2.03e-4 | sphere | **YES** | Konopliv 2013 |
+| **mercury** | 1.01e-6 | 5.03e-5 | sphere | **YES** | Smith 2012 |
+| venus | 6.11e-8 | 4.46e-6 | sphere | — | Anderson 2002 |
+
+### Highlights
+
+- 🌟 **Saturn closest to the Maclaurin-Jacobi bifurcation** — q = 0.158 vs threshold 0.187. Most oblate Solar-System body (1/10 flattening). Cross-references v0.21.4 Mankovich-Fuller 2021 ring-seismology rotation revision.
+- **Earth canonical Maclaurin** — q ≈ 0.0035, J₂ ≈ q/3 (Darwin-Radau prediction for I_M = 0.33).
+- **Luna fossil figure** — J₂ ≈ 25× current-rotation prediction. Shape frozen when Luna was closer to Earth (cross-references v0.21.6 +3.83 cm/yr tidal recession).
+- **Mercury fossil figure** — J₂ ≈ 50× current 3:2-locked rotation prediction (cross-references v0.23.0 spin-orbit-resonance Mercury 3:2 lock + v0.24.0 Mercury dynamical-spectrum).
+- **No body past the Jacobi bifurcation** in the Solar System's classical roster (Haumea would be there but is not in v0.16.0 BODIES).
+
+### Cross-references
+
+- **v0.20.0** geodetic catalog: J₂ values for all 14 bodies
+- **v0.21.4** rotational constraints: Saturn rotation (Mankovich-Fuller 2021); Mars C/MR² (Le Maistre 2023)
+- **v0.21.6** tidal migration: Luna +3.83 cm/yr context for fossil-figure
+- **v0.23.0** spin-orbit resonance: Mercury 3:2 lock context
+- **v0.24.0** Mercury dynamical spectrum: same Margot 2007 lineage for Mercury physical state
+
+### Test count
+
+1518 pass, 42 skipped (was 1481 + 42 in v0.24.3; +37 net new — 34 in `test_toroidal_residual.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.3 → 0.24.4`.
 
 ## [0.24.3] — 2026-05-07
 

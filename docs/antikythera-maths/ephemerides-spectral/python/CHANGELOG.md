@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.3)
+(no entries yet — next entries land after v0.24.4)
+
+## [0.24.4] — 2026-05-07
+
+**Per-body Toroidal-Residual J₂ Catalog (Maclaurin/Jacobi/bar-ring sequence).** Fifth ship in v0.24.x; the shape-side counterpart to v0.24.0–v0.24.3 dynamical-spectrum surfaces. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.toroidal_residual_catalog` — wrapper module with `get_toroidal_residual`, `get_chandrasekhar_sequence_thresholds`, `list_toroidal_residuals`.
+- `_research.toroidal_residual_data` — data module with `TOROIDAL_RESIDUALS` (14 bodies: terrestrial + Luna + giants + Galileans + Titan), `Q_MACLAURIN_JACOBI_BIFURCATION`, `Q_JACOBI_BAR_INSTABILITY`, `Q_ROCHE_FISSION` constants, `SOURCES` (14 citations), `ToroidalResidual` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_toroidal_residual(body=None)`
+- `bridge.get_chandrasekhar_sequence_thresholds()`
+- `bridge.list_toroidal_residuals()`
+
+### Added — CLI
+
+- `toroidal-residual [--body X]`
+- `chandrasekhar-sequence`
+- `toroidal-residuals`
+
+### Added — tests
+
+- `tests/test_toroidal_residual.py` — 34 tests pinning Saturn-closest-to-bifurcation; Earth canonical Maclaurin (q ≈ 3.46e-3, J₂ ≈ q/3); Luna + Mercury fossil-figure invariants; Venus extreme-sphere; Galileans synchronous-low-q ordering; q-recomputable-from-inputs (each row's q must equal ω²R³/(GM) within ppm); regime-classification consistency; citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1518 pass, 42 skipped (was 1481 + 42 in v0.24.3; +37 net new — 34 in `test_toroidal_residual.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.3 → 0.24.4`. ABI unchanged (twenty-seventh consecutive ship since v0.13.x).
 
 ## [0.24.3] — 2026-05-07
 

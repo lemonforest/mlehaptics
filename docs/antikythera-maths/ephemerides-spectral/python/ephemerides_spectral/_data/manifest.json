@@ -252,6 +252,14 @@
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
       "size_bytes": 62567
     },
+    "_research/toroidal_residual_catalog.py": {
+      "sha256": "db6d086c678fc7021cadb55524ec4269c4159a2d6094f8dac949d7a8e47b623c",
+      "size_bytes": 10087
+    },
+    "_research/toroidal_residual_data.py": {
+      "sha256": "98cb86ffa34bff3afc853e9ec23c68eb5216c18ef43746ce6bed3015c1ef66df",
+      "size_bytes": 20295
+    },
     "_research/volcanic_outgassing_catalog.py": {
       "sha256": "031f6b2186e55d40e5788923d299357514900b9061787e98ea21a4164991c719",
       "size_bytes": 4737
@@ -262,5 +270,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.2"
+  "version": "0.24.3"
 }
