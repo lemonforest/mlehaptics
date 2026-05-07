@@ -660,6 +660,16 @@ def _cmd_atmospheric_escapes(args: argparse.Namespace) -> int:
     return _emit(bridge.list_atmospheric_escapes(), pretty=args.pretty)
 
 
+def _cmd_heat_flow(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_heat_flow(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_heat_flows(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_heat_flows(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3154,6 +3164,50 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     aes.set_defaults(func=_cmd_atmospheric_escapes)
+
+    # heat-flow (v0.21.8) — heat flow <-> tidal heating coupling.
+    hf = sub.add_parser(
+        "heat-flow",
+        help="Per-body surface heat-flow <-> tidal-heating decomposition",
+        description=(
+            "Returns per-body total surface heat flow + decomposition\n"
+            "into tidal / radiogenic / primordial-cooling contributions.\n"
+            "\n"
+            "Cross-channel: v0.21.4 (tidal Q) + v0.21.6 (orbital\n"
+            "migration) + v0.21.8 (heat flow) close the tidal-energy-\n"
+            "budget loop. For Io, Q~80 + +3.6 cm/yr migration -> tidal\n"
+            "power ~100 TW = observed surface heat flow.\n"
+            "\n"
+            "6-body roster: terra (47 TW radiogenic-dominated), mars\n"
+            "(0.1 TW radiogenic-dominated, InSight), io (THE HEADLINE:\n"
+            "100 TW = 99% tidal; most volcanically active body in solar\n"
+            "system), europa (0.5 TW tidal-dominated; maintains\n"
+            "subsurface ocean), enceladus (10 GW SP plumes; tidal-\n"
+            "dominated; drives geyser system), titan (~2 TW; modest\n"
+            "tidal contribution).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral heat-flow --pretty\n"
+            "  ephemerides-spectral heat-flow --body io --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hf.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    hf.set_defaults(func=_cmd_heat_flow)
+
+    # heat-flows (v0.21.8) — full enumeration.
+    hfs = sub.add_parser(
+        "heat-flows",
+        help="Full heat-flow catalog enumeration",
+        description=(
+            "Returns every body's HeatFlow record + the citation\n"
+            "dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hfs.set_defaults(func=_cmd_heat_flows)
 
     # lunar-kernels
     lk = sub.add_parser(

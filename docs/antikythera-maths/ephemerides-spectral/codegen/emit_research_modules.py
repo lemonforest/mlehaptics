@@ -56,6 +56,8 @@ _INCLUDED_MODULES: List[str] = [
     "tidal_migration_catalog.py",
     "atmospheric_escape_data.py",
     "atmospheric_escape_catalog.py",
+    "heat_flow_data.py",
+    "heat_flow_catalog.py",
 ]
 
 def emit() -> List[Path]:

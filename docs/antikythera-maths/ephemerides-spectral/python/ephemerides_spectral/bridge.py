@@ -187,6 +187,10 @@ from ephemerides_spectral._research.atmospheric_escape_catalog import (
     compute_atmospheric_escape as _compute_atmospheric_escape_impl,
     list_atmospheric_escapes as _list_atmospheric_escapes_impl,
 )
+from ephemerides_spectral._research.heat_flow_catalog import (
+    compute_heat_flow as _compute_heat_flow_impl,
+    list_heat_flows as _list_heat_flows_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3576,6 +3580,59 @@ def list_atmospheric_escapes() -> Dict[str, Any]:
     `_research.atmospheric_escape_data.SOURCES` citation dict.
     """
     return _list_atmospheric_escapes_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.8 — Heat flow ↔ tidal heating
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_heat_flow(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body surface heat-flow ↔ tidal-heating decomposition.
+
+    Promotes the v0.21.8 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **eighth**
+    cross-channel coupling surface, fifth in the post-trio sequence.
+
+    For a body with measured total surface heat flow + measured
+    tidal-Q (v0.21.4), the heat flow constrains the energy-budget
+    decomposition into tidal / radiogenic / primordial-cooling
+    contributions.
+
+    The cross-channel observation: v0.21.4 + v0.21.6 + v0.21.8 close
+    the **tidal-energy-budget loop**. For Io, the v0.21.4 Q ≈ 80 +
+    v0.21.6 +3.6 cm/yr outward migration imply tidal dissipation
+    power that matches the v0.21.8 observed surface heat flow
+    ~100 TW.
+
+    **Io headline**: ~100 TW total — most volcanically active body
+    in the solar system; almost entirely tidal heating from Jupiter.
+
+    **Not a re-derivation.** Values shipped are published measurements
+    / energy-budget model outputs from cited papers.
+
+    6-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, heat_flow: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_heat_flow_impl(body=body)
+
+
+def list_heat_flows() -> Dict[str, Any]:
+    """Static enumeration of every published heat-flow record.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.heat_flow_data.SOURCES` citation dict.
+    """
+    return _list_heat_flows_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

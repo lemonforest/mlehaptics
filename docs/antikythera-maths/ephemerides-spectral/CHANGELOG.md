@@ -7,7 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.7)
+(no entries yet — next entries land after v0.21.8)
+
+## [0.21.8] — 2026-05-07
+
+**Heat flow ↔ tidal heating — eighth cross-channel coupling surface (post-trio).** **Closes the tidal-energy-budget loop** with v0.21.4 (tidal Q) + v0.21.6 (orbital migration). Pure-Python additive; **no ABI bump** (seventeenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.heat_flow_catalog.compute_heat_flow / list_heat_flows` |
+| Bridge dict API | `bridge.get_heat_flow(body=None)` / `bridge.list_heat_flows()` |
+| CLI | `heat-flow [--body X]` / `heat-flows` |
+
+### 6-body roster
+
+| Body | Source | Total (TW) | Tidal | Radiogenic | Primordial |
+|---|---|---:|---:|---:|---:|
+| terra | Davies 2010 | 47 | 0.001 | 0.66 | 0.34 |
+| mars | Khan 2023 InSight | 0.1 | 0.001 | 0.85 | 0.15 |
+| **io** | **Veeder 2012** | **100** | **0.99** | 0.005 | 0.005 |
+| europa | Vance 2018 | 0.5 | 0.85 | 0.13 | 0.02 |
+| enceladus | Howett 2011 | 0.01 | 0.95 | 0.04 | 0.01 |
+| titan | Tobie 2008 | 2 | 0.55 | 0.45 | 0.0 |
+
+### The Io tidal-energy-budget loop
+
+**v0.21.4 + v0.21.6 + v0.21.8 close the Io energy budget**:
+
+| Quantity | Source | Value |
+|---|---|---|
+| Tidal Q | v0.21.4 Lainey 2009 | ~80 |
+| Outward migration rate | v0.21.6 Lainey 2009 | +3.6 cm/yr |
+| **Surface heat flow** | **v0.21.8 Veeder 2012** | **~100 TW** |
+
+Three independent observational handles converging on the same tidal-dissipation physics — the Galilean Laplace 1:2:4 resonance is currently expanding because Jupiter's tidal Q ≈ 5×10⁴ dissipates angular momentum into Io's orbit, which then dissipates as Io's surface heat flow.
+
+### Highlights
+
+- 🌟 **Io 100 TW = 99% tidal — the headline.** Most volcanically active body in solar system; 2× Earth's heat flow despite 4× smaller radius.
+- **Earth radiogenic-dominated** (~66% radiogenic ²³⁸U/²³²Th/⁴⁰K + ~34% primordial cooling).
+- **Mars cooled faster** than Earth (only 0.1 TW today; Khan 2023 InSight).
+- **Europa subsurface ocean** maintained by ~0.5 TW tidal heating in icy shell + ocean.
+- **Enceladus south-polar plumes** powered by ~10 GW tidal dissipation in tiger-stripe terrain.
+
+### Energy-budget invariants
+
+For every body, tidal + radiogenic + primordial fractions sum to ~1 (pinned by `test_fractions_sum_to_unity`).
+
+### v0.21.x cross-channel coupling progress
+
+```
+v0.21.1 topography ↔ gravity                 (5 bodies)  ✅
+v0.21.2 magnetic   ↔ dynamo                  (5 bodies)  ✅
+v0.21.3 topography ↔ atmosphere              (4 bodies)  ✅
+v0.21.4 interior   ↔ rotation                (7 bodies)  ✅
+v0.21.5 magnetic   ↔ atmosphere              (6 bodies)  ✅
+v0.21.6 tidal      ↔ orbital migration       (6 pairs)   ✅
+v0.21.7 escape     ↔ magnetic shielding      (6 bodies)  ✅
+v0.21.8 heat flow  ↔ tidal heating           (6 bodies)  ✅ ← this ship
+```
+
+### Test count
+
+1136 pass, 41 skipped (was 1107 + 41 in v0.21.7; +29 net new — 27 in `test_heat_flow.py` + 2 README-freshness).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.7 → 0.21.8`.
 
 ## [0.21.7] — 2026-05-07
 

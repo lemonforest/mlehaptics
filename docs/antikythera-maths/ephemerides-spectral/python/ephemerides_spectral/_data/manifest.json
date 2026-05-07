@@ -96,6 +96,14 @@
       "sha256": "fe4eb38b6245f34cf81d79864dc1ee6381047c3323ba827cb973ebb04e0ea421",
       "size_bytes": 81546
     },
+    "_research/heat_flow_catalog.py": {
+      "sha256": "3f6c7f64c4f8793e922dc798d0f9094c24c1937949494f20dcf3e95047ab7fc8",
+      "size_bytes": 4120
+    },
+    "_research/heat_flow_data.py": {
+      "sha256": "3e821ec38493bcb699a1821b58ca6946a418a652784a360e9d6d4c748958015c",
+      "size_bytes": 10723
+    },
     "_research/itn_window.py": {
       "sha256": "15c511efcd3d7e36dec0783a38a21e5b7232ac868d70691d69f50cf6d5b1bff3",
       "size_bytes": 25787
@@ -166,5 +174,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.7"
+  "version": "0.21.8"
 }
