@@ -52,6 +52,8 @@ _INCLUDED_MODULES: List[str] = [
     "rotational_constraint_catalog.py",
     "auroral_coupling_data.py",
     "auroral_coupling_catalog.py",
+    "tidal_migration_data.py",
+    "tidal_migration_catalog.py",
 ]
 
 def emit() -> List[Path]:

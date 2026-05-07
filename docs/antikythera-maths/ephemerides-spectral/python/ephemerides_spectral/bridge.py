@@ -179,6 +179,10 @@ from ephemerides_spectral._research.auroral_coupling_catalog import (
     compute_auroral_coupling as _compute_auroral_coupling_impl,
     list_auroral_couplings as _list_auroral_couplings_impl,
 )
+from ephemerides_spectral._research.tidal_migration_catalog import (
+    compute_tidal_migration as _compute_tidal_migration_impl,
+    list_tidal_migrations as _list_tidal_migrations_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3455,6 +3459,64 @@ def list_auroral_couplings() -> Dict[str, Any]:
     `_research.auroral_coupling_data.SOURCES` citation dict.
     """
     return _list_auroral_couplings_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.6 — Tidal-resonance ↔ orbital migration
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_tidal_migration(pair: Optional[str] = None) -> Dict[str, Any]:
+    """Per-pair tidal-dissipation ↔ orbital-migration constraint.
+
+    Promotes the v0.21.6 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **sixth**
+    cross-channel coupling surface, third in the post-trio sequence.
+
+    A satellite's tidal interaction with its parent body dissipates
+    mechanical energy and transfers angular momentum; the secular
+    semi-major-axis drift is the observable signature. Direction
+    follows from the spin-orbit relation:
+
+    * Satellite faster than parent rotation → inward (Phobos, Triton)
+    * Satellite slower than parent rotation → outward (Moon, Galileans,
+      Titan)
+    * Tidal lock → no migration (Charon — unique solar-system case)
+
+    **Saturn-Titan headline**: Lainey 2020 measured 11 cm/yr outward,
+    100× older equilibrium-tide predictions; implies Saturn interior
+    resonance locking (cross-references v0.21.4 Mankovich-Fuller 2021
+    ring-seismology result).
+
+    **Galilean Laplace 1:2:4 currently EXPANDING** (Lainey 2009;
+    not contracting as classical theory assumed).
+
+    **Not a re-derivation.** Values shipped are published secular
+    drift fits from cited papers.
+
+    6-pair roster.
+
+    Parameters
+    ----------
+    pair : str, optional. Canonical "parent-satellite" pair string;
+        else full roster.
+
+    Returns
+    -------
+    dict
+        Single pair: ``{ok, pair, migration: {...}}``.
+        Full roster: ``{ok, n_pairs, pairs: {pair_name: {...}}}``.
+    """
+    return _compute_tidal_migration_impl(pair=pair)
+
+
+def list_tidal_migrations() -> Dict[str, Any]:
+    """Static enumeration of every published tidal-migration rate.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.tidal_migration_data.SOURCES` citation dict.
+    """
+    return _list_tidal_migrations_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

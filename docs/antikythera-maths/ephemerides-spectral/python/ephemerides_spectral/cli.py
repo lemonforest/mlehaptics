@@ -640,6 +640,16 @@ def _cmd_auroral_couplings(args: argparse.Namespace) -> int:
     return _emit(bridge.list_auroral_couplings(), pretty=args.pretty)
 
 
+def _cmd_tidal_migration(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_tidal_migration(pair=args.pair), pretty=args.pretty,
+    )
+
+
+def _cmd_tidal_migrations(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_tidal_migrations(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3049,6 +3059,48 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     acs.set_defaults(func=_cmd_auroral_couplings)
+
+    # tidal-migration (v0.21.6) — tidal dissipation <-> orbital migration.
+    tm = sub.add_parser(
+        "tidal-migration",
+        help="Per-pair tidal-dissipation <-> orbital-migration constraint",
+        description=(
+            "Returns per-pair tidal-migration rate. A satellite's\n"
+            "tidal interaction with its parent body dissipates\n"
+            "mechanical energy and transfers angular momentum; the\n"
+            "secular semi-major-axis drift is the observable signature.\n"
+            "\n"
+            "6-pair roster: terra-luna (3.83 cm/yr outward, LLR), \n"
+            "mars-phobos (-1.9 cm/yr inward, ~50 Myr Roche deadline),\n"
+            "jupiter-io (3.6 cm/yr outward, Galilean Laplace 1:2:4\n"
+            "EXPANDING -- Lainey 2009), saturn-titan (11 cm/yr outward,\n"
+            "100x older estimates -- THE HEADLINE; Lainey 2020),\n"
+            "neptune-triton (-0.5 cm/yr inward, retrograde + ~3.6 Gyr\n"
+            "Roche), pluto-charon (locked, dual-synchronous binary --\n"
+            "unique).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral tidal-migration --pretty\n"
+            "  ephemerides-spectral tidal-migration --pair saturn-titan --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tm.add_argument("--pair", default=None,
+                    help="Canonical 'parent-satellite' pair (e.g. "
+                         "'saturn-titan'). If omitted, full catalog.")
+    tm.set_defaults(func=_cmd_tidal_migration)
+
+    # tidal-migrations (v0.21.6) — full enumeration.
+    tms = sub.add_parser(
+        "tidal-migrations",
+        help="Full tidal-migration catalog enumeration",
+        description=(
+            "Returns every pair's TidalMigration record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tms.set_defaults(func=_cmd_tidal_migrations)
 
     # lunar-kernels
     lk = sub.add_parser(

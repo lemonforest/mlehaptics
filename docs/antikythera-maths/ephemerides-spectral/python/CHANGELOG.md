@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.5)
+(no entries yet — next entries land after v0.21.6)
+
+## [0.21.6] — 2026-05-07
+
+**Tidal-resonance ↔ orbital migration — sixth cross-channel coupling surface (post-trio).** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.tidal_migration_catalog` — wrapper module with `compute_tidal_migration`, `list_tidal_migrations`.
+- `_research.tidal_migration_data` — data module with `TIDAL_MIGRATIONS` (6 entries), `SOURCES` (6 citations), `TidalMigration` dataclass + direction constants.
+
+### Added — bridge dict API
+
+- `bridge.get_tidal_migration(pair=None) -> dict`
+- `bridge.list_tidal_migrations() -> dict`
+
+### Added — CLI
+
+- `tidal-migration [--pair X]`
+- `tidal-migrations`
+
+### 6-pair roster
+
+terra-luna (Williams 2014 LLR — 3.83 cm/yr canonical), mars-phobos (Lainey 2007 — −1.9 cm/yr inward, 50 Myr deadline), jupiter-io (Lainey 2009 — +3.6 cm/yr; Galilean Laplace EXPANDING), **saturn-titan** (Lainey 2020 — **+11 cm/yr, 100× older estimates; the headline; Saturn interior resonance locking**), neptune-triton (Jacobson 2009 — −0.5 cm/yr retrograde), pluto-charon (McKinnon 2017 — 0 cm/yr dual-synchronous).
 
 ## [0.21.5] — 2026-05-07
 
