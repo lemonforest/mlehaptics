@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.7)
+(no entries yet — next entries land after v0.24.8)
+
+## [0.24.8] — 2026-05-07
+
+**Axial Seamount Eruption Chronology Catalog (temporal-spectrum eruption-cycle observable on a real-time-monitored submarine volcano) — ninth ship in v0.24.x; the project's first explicit prediction-reliability ship.** Pure-Python additive; **no ABI bump** (thirty-first consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.axial_seamount_catalog.get_axial_seamount_chronology / get_axial_inflation_cycle_signature / list_axial_seamount` |
+| Bridge dict API | `bridge.get_axial_seamount_chronology()` / `bridge.get_axial_inflation_cycle_signature()` / `bridge.list_axial_seamount()` |
+| CLI | `axial-seamount-chronology`, `axial-inflation-cycle-signature`, `axial-seamount-full` |
+
+### 3-eruption roster
+
+| Eruption | Date | Subsidence | Inter-eruption interval | Source |
+|---|---|---|---|---|
+| **axial_1998** | 1998-01-25 | 3.2 m | — | Dziak & Fox 1999 (SOSUS T-wave swarm) |
+| **axial_2011** | 2011-04-06 | 2.4 m | 13.2 yr | Caress 2012 (1-m repeat AUV bathymetry; *Nat Geosci*) |
+| **axial_2015** | 2015-04-24 | 2.4 m | 4.05 yr | Chadwick 2016 (forecast HIT; *Science*) + Wilcock 2016 (real-time seismic capture) |
+
+### Inflation-phase rate timeline
+
+| Phase | Years | Mean rate | Note |
+|---|---|---|---|
+| pre-1998 | 1985–1998 | ~15 cm/yr | Nooner-Chadwick 2009 baseline |
+| 1998-to-2011 | 1998–2011 | ~15 cm/yr | Steady; matches pre-1998 |
+| 2011-to-2015 | 2011–2015 | **~70 cm/yr** | ~5× faster — drove short 4-yr interval |
+| post-2015 | 2015–2024 | ~20 cm/yr | **Slower than 2011-2015**; broke the 2024-2025 forecast |
+
+### Chadwick-Nooner forecast track-record
+
+| Forecast | Issued | Target | Outcome | Note |
+|---|---|---|---|---|
+| 2015 eruption | 2014 | 2015 | **HIT** | Chadwick 2016 — 6-month lead via OOI Cabled Array |
+| 2024-2025 window | 2022 | 2024–2025 | **MISS** | Post-2015 slowing → trigger threshold not met as of catalog ref year 2026 |
+
+### Two complementary spectral observations
+
+1. **Inter-eruption interval distribution + rate-period product** — The Chadwick-Nooner methodology assumes the inflation-rate × interval product is conserved (the integrated uplift to reach the geodetic trigger). Empirically: 1998-2011 product ≈ 198 cm; 2011-2015 product ≈ 283 cm; spread ≈ 85 cm. The product is *approximately* but not exactly conserved — the spread itself is the signature that the underlying dynamics is more complicated than a constant-rate inflation-to-trigger model.
+2. **Methodology track-record asymmetry** — same model: 1 HIT + 1 MISS on the same body. The MISS arises from post-2015 inflation slowing below the 2011-2015 reference, breaking the constant-rate extrapolation.
+
+### Cross-channel observation
+
+This is a **direct parallel to v0.24.2 Mars secular-resonance chaos** — a quasi-periodic dynamical mode that is Diophantine-stable over some observation window and small-denominator-fragile outside it. v0.24.2 showed the failure mode at **Gyr / arcsec-per-year** scale; v0.24.8 shows it at **decade / cm-per-year** scale. **Same algebraic structure on two wildly different observational scales** — the project's cleanest cross-system spectral-stability observation to date.
+
+### Tests
+
+- `tests/test_axial_seamount.py` — 40 tests pinning roster shape, eruption years, caldera + summit geometry, inflation-phase rate progression, forecast track-record, inter-eruption interval distribution, rate-period-product spread, the v0.24.2 cross-channel parallel, citation discipline, bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Sources (10)
+
+Dziak & Fox 1999 (SOSUS T-wave swarm + 1998 eruption date), Embley 1999 (1998 ROV observations), Caress 2012 (2011 eruption discovery + 1-m repeat-bathymetry deflation; *Nat Geosci*), Chadwick 2016 (2015 forecast methodology + HIT; *Science*), Wilcock 2016 (2015 seismic capture; *Science* companion), Nooner-Chadwick 2009 (geodetic baseline), Nooner-Chadwick 2016 (inflation-vs-trigger framework), post-2015 follow-ups (the 2024-2025 forecast window context), Tolstoy 2018 (mid-ocean-ridge axial seismicity context), Kelley 2014 (OOI Cabled Array context).
+
+### Architectural commitment
+
+First temporal-spectrum ship in the v0.24.x sequence. The bounded-local methodology now spans three observable axes: spatial-trajectory (v0.24.5 Hawaii, with plate tectonics) + spatial-cogenetic-family (v0.24.7 Mars Tharsis, no plate tectonics) + temporal-quasi-periodic-cycle (v0.24.8 Axial, real-time observatory). Same v0.24.x algebraic discipline; three different observable axes; one shared cross-channel theme — Diophantine stability is window-dependent.
 
 ## [0.24.7] — 2026-05-07
 

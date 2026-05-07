@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.24.7"
+version = "0.24.8"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish

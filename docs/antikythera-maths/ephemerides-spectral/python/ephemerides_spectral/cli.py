@@ -1002,6 +1002,27 @@ def _cmd_mars_tharsis_chain_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_mars_tharsis_chain(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.8 — Axial Seamount Eruption Chronology CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_axial_seamount_chronology(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_axial_seamount_chronology(), pretty=args.pretty,
+    )
+
+
+def _cmd_axial_inflation_cycle_signature(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_axial_inflation_cycle_signature(), pretty=args.pretty,
+    )
+
+
+def _cmd_axial_seamount_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_axial_seamount(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4475,6 +4496,69 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     mtcf.set_defaults(func=_cmd_mars_tharsis_chain_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.8 — Axial Seamount Eruption Chronology Catalog
+    # ──────────────────────────────────────────────────────────────────
+
+    # axial-seamount-chronology
+    asc = sub.add_parser(
+        "axial-seamount-chronology",
+        help="Axial Seamount eruption chronology + inflation phases + forecasts",
+        description=(
+            "v0.24.8 -- temporal-spectrum eruption-cycle observable\n"
+            "on Axial Seamount (Juan de Fuca Ridge submarine\n"
+            "volcano). 3-eruption roster (1998 / 2011 / 2015) +\n"
+            "4 inflation phases (pre-1998, 1998-2011, 2011-2015,\n"
+            "post-2015) + 2 Chadwick-Nooner forecasts (1 HIT in\n"
+            "2015 + 1 MISS in 2024-2025 as of catalog reference\n"
+            "year 2026).\n"
+            "\n"
+            "Cross-channel: where v0.24.5 Hawaii (with plate\n"
+            "tectonics) -> spatial trajectory and v0.24.7 Mars\n"
+            "Tharsis (no plate tectonics) -> spatial cogenetic\n"
+            "family, v0.24.8 Axial Seamount -> temporal quasi-\n"
+            "periodic cycle. Same v0.24.x algebraic discipline;\n"
+            "different observable axis; the first explicit\n"
+            "prediction-reliability ship.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral axial-seamount-chronology --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    asc.set_defaults(func=_cmd_axial_seamount_chronology)
+
+    # axial-inflation-cycle-signature
+    aics = sub.add_parser(
+        "axial-inflation-cycle-signature",
+        help="Axial Seamount inflation-cycle signature (the headline)",
+        description=(
+            "Returns the inter-eruption interval distribution + the\n"
+            "rate-period product (Chadwick-Nooner conserved observable)\n"
+            "+ Chadwick forecast track-record (1 HIT 2015, 1 MISS\n"
+            "2024-2025). The HIT/MISS asymmetry is the v0.24.2-style\n"
+            "spectral-stability failure mode applied at decade /\n"
+            "cm-per-year timescales -- same algebraic structure as\n"
+            "Mars's secular-resonance obliquity chaos, on a wildly\n"
+            "different observational scale."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    aics.set_defaults(func=_cmd_axial_inflation_cycle_signature)
+
+    # axial-seamount-full
+    asf = sub.add_parser(
+        "axial-seamount-full",
+        help="Full Axial Seamount catalog + citations",
+        description=(
+            "Returns every eruption record + inflation-phase record +\n"
+            "Chadwick forecast record + the citation dict so consumers\n"
+            "can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    asf.set_defaults(func=_cmd_axial_seamount_full)
 
     # lunar-kernels
     lk = sub.add_parser(

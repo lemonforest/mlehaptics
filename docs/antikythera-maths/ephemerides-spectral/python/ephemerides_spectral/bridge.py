@@ -266,6 +266,12 @@ from ephemerides_spectral._research.mars_tharsis_catalog import (
     get_tharsis_fiedler_signature as _get_tharsis_fiedler_signature_impl,
     list_mars_tharsis_chain as _list_mars_tharsis_chain_impl,
 )
+from ephemerides_spectral._research.axial_seamount_catalog import (
+    get_axial_seamount_chronology as _get_axial_seamount_chronology_impl,
+    get_axial_inflation_cycle_signature
+        as _get_axial_inflation_cycle_signature_impl,
+    list_axial_seamount as _list_axial_seamount_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4571,6 +4577,64 @@ def list_mars_tharsis_chain() -> Dict[str, Any]:
     """Full catalog enumeration of every Mars Tharsis volcano +
     citations."""
     return _list_mars_tharsis_chain_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.8 — Axial Seamount Eruption Chronology Catalog
+# (temporal-spectrum eruption-cycle observable on a real-time-monitored
+# submarine volcano; the prediction-track-record analogue of v0.24.5
+# Hawaii / v0.24.7 Mars Tharsis spatial ships)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_axial_seamount_chronology() -> Dict[str, Any]:
+    """Axial Seamount eruption chronology + inflation phases +
+    Chadwick forecast track-record.
+
+    Three confirmed historical eruptions: 1998, 2011, 2015. Four
+    inflation phases (pre-1998, 1998-2011, 2011-2015, post-2015).
+    Two published Chadwick-Nooner forecasts: 2015 (HIT, 6-month
+    lead via OOI Cabled Array geodetic data; Chadwick 2016) and
+    2024-2025 (MISS as of catalog reference date 2026, due to
+    post-2015 inflation slowing below the 2011-2015 reference).
+
+    Cross-channel: where v0.24.5 Hawaii (with plate tectonics) ->
+    spatial trajectory and v0.24.7 Mars Tharsis (no plate
+    tectonics) -> spatial cogenetic family, v0.24.8 Axial Seamount
+    -> temporal quasi-periodic cycle. Same v0.24.x algebraic
+    discipline; different observable axis; the first explicit
+    prediction-reliability ship.
+    """
+    return _get_axial_seamount_chronology_impl()
+
+
+def get_axial_inflation_cycle_signature() -> Dict[str, Any]:
+    """The Axial Seamount inflation-cycle signature — THE headline
+    of v0.24.8.
+
+    Two complementary spectral observations:
+      (1) inter-eruption interval distribution + the rate-period
+          product (Chadwick-Nooner conserved observable across
+          1998-2015) -- empirically validated for the 2015 forecast;
+      (2) methodology track-record asymmetry: 1 HIT (2015) + 1 MISS
+          (2024-2025) on the same body. The miss arises from post-
+          2015 inflation slowing, breaking the constant-rate
+          extrapolation. This is the v0.24.2 Mars-style spectral-
+          stability failure mode applied at decade timescales.
+
+    Cross-channel: same algebraic structure as Mars's secular-
+    resonance obliquity chaos, on a wildly different observational
+    scale -- decade / cm-per-year for Axial vs Gyr / arcsec-per-
+    year for Mars. The project's cleanest cross-system spectral-
+    stability observation to date.
+    """
+    return _get_axial_inflation_cycle_signature_impl()
+
+
+def list_axial_seamount() -> Dict[str, Any]:
+    """Full catalog enumeration of Axial Seamount eruption + inflation-
+    phase + forecast records + citations."""
+    return _list_axial_seamount_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
