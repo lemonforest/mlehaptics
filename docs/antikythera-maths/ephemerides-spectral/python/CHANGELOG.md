@@ -10,7 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.9)
+(no entries yet — next entries land after v0.21.10)
+
+## [0.21.10] — 2026-05-07
+
+**Heliocentric flux ↔ surface temperature — tenth cross-channel coupling surface.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.thermal_balance_catalog` — wrapper module with `compute_thermal_balance`, `list_thermal_balances`.
+- `_research.thermal_balance_data` — data module with `THERMAL_BALANCES` (6 entries), `SOURCES` (6 citations), `ThermalBalance` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_thermal_balance(body=None) -> dict`
+- `bridge.list_thermal_balances() -> dict`
+
+### Added — CLI
+
+- `thermal-balance [--body X]`
+- `thermal-balances`
+
+### 6-body roster
+
+terra (Kiehl 1997 — +33.5 K greenhouse, canonical), mars (Haberle 2013 — naked planet), **venus** (Bullock 2001 — **+505 K runaway greenhouse, THE HEADLINE**), mercury (Hapke 1981 — pure radiative balance), titan (Strobel 2009 — +9 K greenhouse + 2 K tidal), jupiter (Hubbard 1999 — +45 K internal-heat dominated).
+
+### Energy-budget invariant
+
+For every body, T_obs - T_eq ≈ greenhouse + tidal + internal offsets (within ~5 K rounding tolerance).
 
 ## [0.21.9] — 2026-05-07
 

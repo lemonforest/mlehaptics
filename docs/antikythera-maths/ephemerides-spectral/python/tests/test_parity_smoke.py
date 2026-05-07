@@ -331,6 +331,18 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.10 Sol Thermal Balance Catalog (tenth cross-channel
+    # coupling surface; radiative equilibrium <-> observed temperature
+    # decomposition; 6-body roster). Pure-Python static lookup; no C
+    # twin makes sense.
+    "get_thermal_balance": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_thermal_balances": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

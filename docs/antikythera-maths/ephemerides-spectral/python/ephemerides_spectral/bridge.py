@@ -195,6 +195,10 @@ from ephemerides_spectral._research.volcanic_outgassing_catalog import (
     compute_volcanic_outgassing as _compute_volcanic_outgassing_impl,
     list_volcanic_outgassings as _list_volcanic_outgassings_impl,
 )
+from ephemerides_spectral._research.thermal_balance_catalog import (
+    compute_thermal_balance as _compute_thermal_balance_impl,
+    list_thermal_balances as _list_thermal_balances_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3691,6 +3695,60 @@ def list_volcanic_outgassings() -> Dict[str, Any]:
     `_research.volcanic_outgassing_data.SOURCES` citation dict.
     """
     return _list_volcanic_outgassings_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.10 — Heliocentric flux ↔ surface temperature thermal balance
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_thermal_balance(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body radiative-equilibrium ↔ observed-temperature
+    decomposition.
+
+    Promotes the v0.21.10 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **tenth**
+    cross-channel coupling surface, seventh in the post-trio sequence.
+
+    The Stefan-Boltzmann radiative-equilibrium temperature is
+    `T_eq = ((1 - A) * S / (4 * σ))^(1/4)`, with S the solar flux
+    and A the Bond albedo (v0.20.2). The observed surface temperature
+    typically differs from T_eq by greenhouse + tidal + internal-heat
+    contributions. For Earth: +33.5 K greenhouse + ~0 K tidal +
+    +0.05 K internal-heat (a 47-TW geothermal flux is negligible vs
+    200 W/m² absorbed solar). For Venus: **+505 K runaway greenhouse**
+    — the famous case. For Jupiter: +45 K internal-heat-dominated
+    (Jupiter radiates 1.7× more than it absorbs).
+
+    The cross-channel observation: **the v0.20.2 T_obs decomposition
+    matches the v0.21.8 heat-flow energy budget**. Self-consistency
+    check across ships.
+
+    **Not a re-derivation.** Values shipped are published
+    thermal-balance decompositions from cited papers.
+
+    6-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, balance: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_thermal_balance_impl(body=body)
+
+
+def list_thermal_balances() -> Dict[str, Any]:
+    """Static enumeration of every published thermal-balance record.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.thermal_balance_data.SOURCES` citation dict.
+    """
+    return _list_thermal_balances_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

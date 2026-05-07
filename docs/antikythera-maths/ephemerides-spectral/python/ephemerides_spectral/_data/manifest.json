@@ -160,6 +160,14 @@
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
     },
+    "_research/thermal_balance_catalog.py": {
+      "sha256": "39f418c118a3ea6bff230a1d4e32defc9bed3e0f62cf3fe08f03633f7422ca59",
+      "size_bytes": 4463
+    },
+    "_research/thermal_balance_data.py": {
+      "sha256": "545eee1904f43bda66b601553b5b84cb5940fca0018afdb0f3b6aa8e5897bfe2",
+      "size_bytes": 10339
+    },
     "_research/tidal_migration_catalog.py": {
       "sha256": "dfe2f797971e0043c948aa52d23ef205705aa0d8a213c34bfd4c18bb6ae34484",
       "size_bytes": 4414
@@ -182,5 +190,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.9"
+  "version": "0.21.10"
 }

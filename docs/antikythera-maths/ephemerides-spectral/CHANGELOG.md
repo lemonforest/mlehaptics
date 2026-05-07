@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.9)
+(no entries yet — next entries land after v0.21.10)
+
+## [0.21.10] — 2026-05-07
+
+**Heliocentric flux ↔ surface temperature — tenth cross-channel coupling surface (post-trio).** Stefan-Boltzmann radiative-equilibrium decomposition of v0.20.2 observed temperatures into greenhouse + tidal + internal-heat contributions. Pure-Python additive; **no ABI bump** (nineteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.thermal_balance_catalog.compute_thermal_balance / list_thermal_balances` |
+| Bridge dict API | `bridge.get_thermal_balance(body=None)` / `bridge.list_thermal_balances()` |
+| CLI | `thermal-balance [--body X]` / `thermal-balances` |
+
+### Physics
+
+`T_eq = ((1 - A) * S / (4 * σ))^(1/4)` where S is solar flux at the body, A is Bond albedo (v0.20.2), σ is Stefan-Boltzmann constant. Observed temperature (v0.20.2) decomposes as `T_obs = T_eq + ΔT_greenhouse + ΔT_tidal + ΔT_internal`.
+
+### 6-body roster
+
+| Body | Source | T_eq (K) | T_obs (K) | Greenhouse (K) | Tidal (K) | Internal (K) |
+|---|---|---:|---:|---:|---:|---:|
+| terra | Kiehl 1997 | 254.6 | 288.15 | **+33.5** | 0 | 0.05 |
+| mars | Haberle 2013 | 210 | 210 | +5 | 0 | 0.001 |
+| **venus** | **Bullock 2001** | **231.8** | **737** | **+505 (RUNAWAY)** | 0 | 0.2 |
+| mercury | Hapke 1981 | 437 | 440 | 0 | 0 | 0 |
+| titan | Strobel 2009 | 83 | 94 | +9 | +2 | 0 |
+| **jupiter** | **Hubbard 1999** | **110** | **165** | +10 | 0 | **+45 (INTERNAL)** |
+
+### Highlights
+
+- 🌟 **Venus +505 K runaway greenhouse** — the headline. Surface hotter than Mercury despite further from Sun; CO₂ + clouds make this happen.
+- **Earth +33.5 K canonical greenhouse** — H₂O + CO₂ atmosphere; the textbook case.
+- **Jupiter internal-heat-dominated** — radiates 1.7× more than it absorbs (primordial cooling + helium-rain drainage).
+- **Mercury pure radiative balance** — no atmosphere → all three offsets exactly zero.
+- **Mars naked planet** — too thin for greenhouse.
+
+### Energy-budget consistency invariant
+
+For every body: T_obs - T_eq ≈ greenhouse + tidal + internal-heat offsets (within ~5 K rounding). Pinned by `test_observed_minus_equilibrium_consistent`.
+
+### v0.21.x cross-channel coupling progress
+
+```
+v0.21.1 topography ↔ gravity                 (5 bodies)  ✅
+v0.21.2 magnetic   ↔ dynamo                  (5 bodies)  ✅
+v0.21.3 topography ↔ atmosphere              (4 bodies)  ✅
+v0.21.4 interior   ↔ rotation                (7 bodies)  ✅
+v0.21.5 magnetic   ↔ atmosphere              (6 bodies)  ✅
+v0.21.6 tidal      ↔ orbital migration       (6 pairs)   ✅
+v0.21.7 escape     ↔ magnetic shielding      (6 bodies)  ✅
+v0.21.8 heat flow  ↔ tidal heating           (6 bodies)  ✅
+v0.21.9 outgassing ↔ atmospheric composition (6 bodies)  ✅
+v0.21.10 thermal balance ↔ surface temp      (6 bodies)  ✅ ← this ship
+```
+
+### Test count
+
+1190 pass, 41 skipped (was 1163 + 41 in v0.21.9; +27 net new — 27 in `test_thermal_balance.py`).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.9 → 0.21.10`.
 
 ## [0.21.9] — 2026-05-07
 
