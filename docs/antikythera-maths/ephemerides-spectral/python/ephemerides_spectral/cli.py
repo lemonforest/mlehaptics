@@ -921,6 +921,28 @@ def _cmd_sun_dynamical_spectrum_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.4 — Per-body Toroidal-Residual J₂ Catalog CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_toroidal_residual(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_toroidal_residual(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_chandrasekhar_sequence(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_chandrasekhar_sequence_thresholds(),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_toroidal_residuals(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_toroidal_residuals(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4148,6 +4170,66 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sdsf.set_defaults(func=_cmd_sun_dynamical_spectrum_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.4 — Per-body Toroidal-Residual J₂ Catalog
+    # ──────────────────────────────────────────────────────────────────
+
+    # toroidal-residual
+    tr = sub.add_parser(
+        "toroidal-residual",
+        help="Per-body classification on the Chandrasekhar 1969 sequence",
+        description=(
+            "v0.24.4 -- per-body shape classification on the\n"
+            "Maclaurin -> Jacobi -> bar -> ring/torus rotating-fluid\n"
+            "equilibrium sequence. Codifies the insight that rotation\n"
+            "forces the body toward the toroidal end of the sequence,\n"
+            "self-gravity restores it toward the spherical end, and\n"
+            "J2 is the quantitative measure of where in the sequence\n"
+            "the body sits.\n"
+            "\n"
+            "Headlines:\n"
+            "  Saturn closest to Maclaurin-Jacobi bifurcation\n"
+            "  (q=0.155 vs threshold 0.187; most oblate Solar-System\n"
+            "  body, 1/10 flattening).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral toroidal-residual --pretty\n"
+            "  ephemerides-spectral toroidal-residual --body saturn --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tr.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    tr.set_defaults(func=_cmd_toroidal_residual)
+
+    # chandrasekhar-sequence
+    cs = sub.add_parser(
+        "chandrasekhar-sequence",
+        help="Chandrasekhar 1969 sequence bifurcation thresholds",
+        description=(
+            "Returns the bifurcation-threshold constants for the\n"
+            "rotating-fluid equilibrium sequence:\n"
+            "  q_Maclaurin_Jacobi = 0.187 (sequence bifurcation)\n"
+            "  q_Jacobi_bar       = 0.27  (bar instability)\n"
+            "  q_Roche_fission    = 0.36  (equatorial unbinding)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cs.set_defaults(func=_cmd_chandrasekhar_sequence)
+
+    # toroidal-residuals
+    trs = sub.add_parser(
+        "toroidal-residuals",
+        help="Full toroidal-residual catalog enumeration",
+        description=(
+            "Returns every body's ToroidalResidual record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    trs.set_defaults(func=_cmd_toroidal_residuals)
 
     # lunar-kernels
     lk = sub.add_parser(
