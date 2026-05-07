@@ -243,6 +243,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.2 Sol Dynamo Region Catalog (second cross-channel
+    # coupling surface; magnetic-multipole-derived dynamo radii for
+    # 5 bodies). Pure-Python static lookup; no C twin makes sense.
+    "get_dynamo_region": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_dynamo_regions": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

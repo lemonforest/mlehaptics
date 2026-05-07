@@ -44,6 +44,8 @@ _INCLUDED_MODULES: List[str] = [
     "spherical_harmonic_catalog.py",
     "admittance_catalog_data.py",
     "admittance_catalog.py",
+    "dynamo_catalog_data.py",
+    "dynamo_catalog.py",
 ]
 
 def emit() -> List[Path]:

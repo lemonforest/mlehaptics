@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.1)
+(no entries yet — next entries land after v0.21.2)
+
+## [0.21.2] — 2026-05-07
+
+**Magnetic-multipole-derived dynamo-region constraints — second cross-channel coupling surface in the §17.4.2 v0.21.x sequence.** Pure-Python additive; **no ABI bump** (eleventh consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.dynamo_catalog.compute_dynamo_region / list_dynamo_regions` |
+| Bridge dict API | `bridge.get_dynamo_region(body=None)` / `bridge.list_dynamo_regions()` |
+| CLI | `dynamo-region [--body X]` / `dynamo-regions` |
+
+### Physics
+
+For a body with a published spherical-harmonic magnetic-field expansion (v0.20.1 MAGNETIC_MULTIPOLE_MODELS), the Lowes-Mauersberger spectrum R(n) ∝ (R_dynamo / R_surface)^(2n+4) — the mean-square magnetic field at the body surface, summed over orders at each degree n — has a degree-decay shape that depends on the source-layer geometry. Log-slope inversion gives R_dynamo / R_surface; rearrange to get the absolute dynamo radius.
+
+### 5-body roster
+
+| Body | Source | R_dynamo / R_body | R_dynamo (km) | Material |
+|---|---|---:|---:|---|
+| **terra** | **Lowes 1974** | **0.547** | **3486** | molten Fe-Ni alloy |
+| mercury | Christensen 2006 | 0.83 | 2025 | molten Fe-Ni alloy |
+| **jupiter** | **Connerney 2022 (JRM33)** | **0.85** | **60768** | **metallic H** |
+| **saturn** | **Cao 2020 / Stevenson 2010** | **0.55** | **33147** | **metallic H** |
+| ganymede | Schubert 1996 | 0.27 | 711 | molten Fe-FeS alloy |
+
+### Highlights
+
+- **Earth CMB at 3486 km** — the canonical Lowes 1974 result; magnetic inversion matches seismology (PREM CMB depth 2891 km) to better than 1%. This is the validation case for the technique.
+- **Jupiter at 0.85 R_J** — Connerney 2022 from JRM33 deg-18; dynamo lives just above the metallic-H phase boundary.
+- **Saturn axisymmetry as constraint** — the famous < 0.007° dipole tilt is itself a dynamo constraint via the Stevenson 1980 mechanism: a thick stably-stratified layer above the dynamo filters all non-axisymmetric modes.
+- **Mercury anomaly** — standard Lowes-Mauersberger fails because of stable stratification; Christensen 2006 weak-field model gives 0.83 R_Me.
+- **Ganymede** — only intrinsic-moon dynamo in the solar system; max_degree=1 dipole-only published, so depth comes from Schubert 1996 thermal-evolution models.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the published inversions from the cited papers. Per-degree Lowes-Mauersberger spectrum tables remain in those papers; this catalog is the navigation layer.
+
+### Citation discipline
+
+5-entry `SOURCES` citation dict (Lowes 1974, Christensen 2006, Connerney 2022, Cao 2020, Schubert 1996); ratchet tests pin both directions.
+
+### Forward sequence (per §17.4.2)
+
+* **v0.21.3** — Orographic forcing of atmospheric standing waves (Hollingsworth 1997 Mars; Tharsis bulge as planetary-scale standing-wave generator).
+* **v0.21.4+** — More cross-channel coupling surfaces from §17.1/§17.2/§17.3 follow-ups.
+
+### Test count
+
+975 pass, 41 skipped (was 949 + 41 in v0.21.1; +26 net new — 24 in `test_dynamo_catalog.py` + 2 parity-smoke entries + 2 README-freshness tests that flipped GREEN after the Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.21.1 → 0.21.2`.
 
 ## [0.21.1] — 2026-05-07
 

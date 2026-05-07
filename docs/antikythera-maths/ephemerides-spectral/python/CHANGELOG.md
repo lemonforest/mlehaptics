@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.1)
+(no entries yet — next entries land after v0.21.2)
+
+## [0.21.2] — 2026-05-07
+
+**Magnetic-multipole-derived dynamo-region constraints — second cross-channel coupling surface.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.dynamo_catalog` — wrapper module with `compute_dynamo_region`, `list_dynamo_regions`.
+- `_research.dynamo_catalog_data` — data module with `DYNAMO_REGIONS` (5 entries), `SOURCES` (5 citations), `DynamoRegion` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_dynamo_region(body=None) -> dict`
+- `bridge.list_dynamo_regions() -> dict`
+
+### Added — CLI
+
+- `dynamo-region [--body X]`
+- `dynamo-regions`
+
+### 5-body roster
+
+terra (Lowes 1974 — canonical CMB at 3486 km / 0.547 R_E in molten Fe-Ni; matches seismology to <1%), mercury (Christensen 2006 — weak-field anomaly), jupiter (Connerney 2022 from JRM33 — 0.85 R_J in metallic H), saturn (Cao 2020 — 0.55 R_S in metallic H; axisymmetry < 0.007° as Stevenson 1980 stable-strat constraint), ganymede (Schubert 1996 — only intrinsic-moon dynamo; small Fe-FeS core at 0.27 R_G).
 
 ## [0.21.1] — 2026-05-07
 
