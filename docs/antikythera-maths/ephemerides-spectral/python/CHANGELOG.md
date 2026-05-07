@@ -10,7 +10,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.1)
+(no entries yet — next entries land after v0.20.2)
+
+## [0.20.2] — 2026-05-07
+
+**Sol Fluid Instrument — climatology + archive index + state-at-epoch query surface for the solar-system fluid envelope.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.fluid_instrument` — wrapper module with `compute_fluid_state`, `list_fluid_archives`, `compute_fluid_architecture`.
+- `_research.fluid_instrument_data` — data module with `BODY_CLIMATOLOGY` (21 entries: 17 atmospheric + 4 airless), `FLUID_ARCHIVES` (10 entries), `FLUID_STATE_COVERAGE` (21 entries), `SOURCES` (24 citations), dataclasses (`BodyClimatology`, `FluidArchive`, `FluidStateCoverage`), and precision-flag constants.
+
+### Added — bridge dict API
+
+- `bridge.get_fluid_state(body=None, jd_tdb=None, lat=None, lon=None) -> dict` — per-body climatology + archives + coverage triage.
+- `bridge.list_fluid_archives() -> dict` — full catalog enumeration.
+- `bridge.fluid_architecture(target=None) -> dict` — HIGH/MEDIUM/LOW/NONE data-quality partition.
+
+### Added — CLI
+
+- `fluid-state [--body X] [--jd-tdb X] [--lat X] [--lon X]`
+- `fluid-archives`
+- `fluid-architecture [--target X]`
+
+### Three layers shipped together (full §17.4.2 commitment)
+
+**Climatology (21 bodies)** — atmospheric set: terra, mars, venus, titan, triton, pluto, io, europa, ganymede, enceladus, mercury, luna, sun, jupiter, saturn, uranus, neptune. Airless small bodies: ceres, vesta, bennu, ryugu.
+
+**Archives (10)** — ERA5, MCD v6.1, MAVEN PDS, VIRA + Akatsuki, Cassini PDS-PPI, Juno PDS, Voyager 2 PDS (Uranus + Neptune), New Horizons PDS (Pluto).
+
+**State-at-epoch coverage** — only terra (ERA5, 1940-present) and mars (MCD v6.1, MY 24-present) have True; all 19 other bodies fall back to climatology.
+
+### Architectural choice
+
+State-*lookup* surface, mirroring v0.19.0/v0.20.0/v0.20.1 — per §17.4.1 the rhythm-mismatch finding generalises across fluid-envelope channels by *epoch-static-ness for climatology + state-at-epoch indirection for the two refereed reanalysis products*. **No outbound network calls** — the package ships pointers + the climatological-summary fallback in a self-contained dict; consumers fetch the actual reanalysis field via the archive's own API (CDS-API for ERA5; the Python wrapper for MCD).
+
+### Forward sequence (per §17.4.2)
+
+* **v0.21.0** — `SphericalHarmonicCatalog` unification refactor across gravity + magnetic sectors.
+* **v0.21.1+** — Cross-channel coupling surfaces (one per minor version).
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into the 24-entry `SOURCES` dict; ratchet tests pin both directions.
 
 ## [0.20.1] — 2026-05-07
 
