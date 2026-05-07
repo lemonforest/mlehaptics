@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.6)
+(no entries yet — next entries land after v0.21.7)
+
+## [0.21.7] — 2026-05-07
+
+**Atmospheric escape ↔ magnetic-field shielding — seventh cross-channel coupling surface (post-trio).** Pure-Python additive; **no ABI bump** (sixteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.atmospheric_escape_catalog.compute_atmospheric_escape / list_atmospheric_escapes` |
+| Bridge dict API | `bridge.get_atmospheric_escape(body=None)` / `bridge.list_atmospheric_escapes()` |
+| CLI | `atmospheric-escape [--body X]` / `atmospheric-escapes` |
+
+### 6-body roster
+
+| Body | Source | Rate (kg/s) | Mechanism | Shielded? | 4-Gyr loss (kg) |
+|---|---|---:|---|:-:|---:|
+| terra | Lammer 2018 | 3 | thermal_jeans | ✓ | 4×10¹⁴ |
+| **mars** | **Jakosky 2018 MAVEN** | **2** | **pickup_ion** | **✗** | **10¹⁸ (50% of primordial)** |
+| venus | Persson 2020 ASPERA-4 | 0.4 | pickup_ion | ✗ | 5×10¹⁶ |
+| mercury | Killen 2007 | 0.01 | sputtering | ✓ (weak) | 10¹⁵ |
+| titan | Strobel 2008 | 30 | hydrodynamic | ✓ (Saturn mag) | 4×10¹⁸ |
+| jupiter | Bagenal 2007 | 1000 | pickup_ion (Io torus) | ✓ | 10²⁰ |
+
+### Highlights
+
+- 🌟 **Mars MAVEN headline** — Jakosky 2018 measured Mars's present-day pickup-ion escape at 2 kg/s; integrated 4-Gyr loss = **~10¹⁸ kg = ~50% of primordial CO₂ atmosphere**. The famous "Mars lost atmosphere because it lost dynamo" story.
+- **Venus paradox** — no intrinsic dipole but retains thick CO₂ atmosphere; stronger gravity holds heavier ions + induced magnetosphere does the rest.
+- **Titan highest absolute rate among classic atmospheres** — 30 kg/s hydrodynamic blowoff despite small size; Saturn magnetosphere provides partial shielding.
+- **Jupiter Io torus** dominates mass loss (1000 kg/s of S+/O+ from Io volcanism); cross-references v0.19.0 flux-tube ~10¹² W + v0.20.1 JRM33 + v0.21.5 Io aurora footprint.
+
+### Cross-channel observation
+
+**The v0.20.2 atmospheric inventory diverges by Gyr from the v0.20.1 magnetic-multipole inventory.** Mars + Venus diverge from terrestrial inventory precisely because they lack magnetic shielding. v0.21.7 ships the quantitative measurement of that divergence rate.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the published measurements / model fits from cited papers.
+
+### v0.21.x cross-channel coupling progress
+
+```
+v0.21.1 topography ↔ gravity                 (5 bodies)  ✅
+v0.21.2 magnetic   ↔ dynamo                  (5 bodies)  ✅
+v0.21.3 topography ↔ atmosphere              (4 bodies)  ✅
+v0.21.4 interior   ↔ rotation                (7 bodies)  ✅
+v0.21.5 magnetic   ↔ atmosphere              (6 bodies)  ✅
+v0.21.6 tidal      ↔ orbital migration       (6 pairs)   ✅
+v0.21.7 escape     ↔ magnetic shielding      (6 bodies)  ✅ ← this ship
+```
+
+### Test count
+
+1107 pass, 41 skipped (was 1082 + 41 in v0.21.6; +25 net new — 23 in `test_atmospheric_escape.py` + 2 README-freshness).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.6 → 0.21.7`.
 
 ## [0.21.6] — 2026-05-07
 

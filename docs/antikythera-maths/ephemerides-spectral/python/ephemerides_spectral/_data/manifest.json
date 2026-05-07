@@ -16,6 +16,14 @@
       "sha256": "3a9742a5b6788333a539af1ffea202cc4b4467b1441308165233c91234ba9a10",
       "size_bytes": 11264
     },
+    "_research/atmospheric_escape_catalog.py": {
+      "sha256": "c7540dea3e6b0e4397323d8e5a642cc9f6ff4f852cbc6d5792e6ec147d5a4cf5",
+      "size_bytes": 4551
+    },
+    "_research/atmospheric_escape_data.py": {
+      "sha256": "de53e7700b98a067b55ab165d0c1804c249a83b4b9a82ca297dac8e6f54d7181",
+      "size_bytes": 12353
+    },
     "_research/auroral_coupling_catalog.py": {
       "sha256": "f4227a0d8d807a6a28fd903947304f18b503a952c50331ec690fa4f8394f923a",
       "size_bytes": 4829
@@ -158,5 +166,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.6"
+  "version": "0.21.7"
 }

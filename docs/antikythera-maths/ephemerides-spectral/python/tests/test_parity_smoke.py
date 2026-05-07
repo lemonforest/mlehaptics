@@ -298,6 +298,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.7 Sol Atmospheric Escape Catalog (seventh cross-channel
+    # coupling surface; atmospheric escape <-> magnetic-field shielding;
+    # 6-body roster). Pure-Python static lookup; no C twin makes sense.
+    "get_atmospheric_escape": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_atmospheric_escapes": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
