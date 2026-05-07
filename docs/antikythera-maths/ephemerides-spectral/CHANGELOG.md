@@ -7,7 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.2)
+(no entries yet — next entries land after v0.21.3)
+
+## [0.21.3] — 2026-05-07
+
+**Orographic forcing of atmospheric standing waves — third cross-channel coupling surface in the §17.4.2 v0.21.x sequence.** Completes the trio of cross-channel surfaces explicitly named in §17.4.2 (topography ↔ gravity admittance [v0.21.1], magnetic-multipole-derived dynamo constraints [v0.21.2], orographic forcing of atmospheric standing waves [v0.21.3 — this ship]). Pure-Python additive; **no ABI bump** (twelfth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.orographic_forcing.compute_orographic_forcing / list_orographic_forcings` |
+| Bridge dict API | `bridge.get_orographic_forcing(body=None)` / `bridge.list_orographic_forcings()` |
+| CLI | `orographic-forcing [--body X]` / `orographic-forcings` |
+
+### Physics
+
+For a body with both a topography model (v0.20.0) and an atmosphere (v0.20.2), surface topography acts as a lower-boundary forcing on the global circulation. A mountain range or planetary-scale uplift generates downstream stationary Rossby waves — planetary waves with zero phase speed in the body-rotating frame, appearing as fixed structure in the time-mean atmosphere.
+
+### 4-body roster
+
+| Body | Source | Feature | h (km) | k | Observed? | Precision |
+|---|---|---|---:|---:|:-:|---|
+| **terra** | Held 2002 / Hoskins & Karoly 1981 | Tibetan Plateau | 4.5 | 2 | ✓ | HIGH |
+| **mars** | Hollingsworth 1997 | **Tharsis Bulge** | **10** | 2 | ✓ | HIGH |
+| venus | Lebonnois 2010 GCM | Maxwell Montes | 11 | 1 | ✗ | LOW |
+| titan | Charnay & Lebonnois 2012 | Xanadu / dunes | 0.5 | 1 | ✗ | LOW |
+
+### Highlights
+
+- **Mars Tharsis Bulge** — the headline planetary case. ~10 km elevation, ~10000 km wide; wavenumber-2 stationary pattern survives all the way to ~50 km altitude (mesopause) in MGS observations + Mars GCM. The most dramatic orographic forcing on any body in the catalog.
+- **Earth Tibetan Plateau** — the canonical Northern-Hemisphere winter stationary-wave pattern (Hoskins & Karoly 1981); Held 2002 review.
+- **Venus + Titan super-rotation suppression** — both bodies' super-rotation regime suppresses classic Hoskins-Karoly stationary-wave physics. LOW precision, `is_stationary_wave_observed=False`.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the published GCM-derived stationary-wave decompositions from the cited papers; per-degree spectral tables remain in those papers' supplementary materials.
+
+### Citation discipline
+
+4-entry `SOURCES` citation dict (Held 2002, Hollingsworth 1997, Lebonnois 2010, Charnay & Lebonnois 2012). Ratchet tests pin both directions.
+
+### Cross-channel trio complete
+
+With v0.21.3 the **three cross-channel coupling surfaces explicitly named in §17.4.2 are all shipped**:
+
+1. **v0.21.1** topography ↔ gravity admittance (5 bodies; Wieczorek 2007/2013 + Genova 2016 + James 2015 + Anderson 2002).
+2. **v0.21.2** magnetic-multipole-derived dynamo-region constraints (5 bodies; Lowes 1974 + Christensen 2006 + Connerney 2022 + Cao 2020 + Schubert 1996).
+3. **v0.21.3** orographic forcing of atmospheric standing waves (4 bodies; Held 2002 + Hollingsworth 1997 + Lebonnois 2010 + Charnay 2012).
+
+### Forward sequence
+
+Future v0.21.x minors will ship coupling surfaces from §17.1/§17.2/§17.3 subagent follow-ups (e.g., interior-derived rotational constraints; magnetic ↔ atmosphere coupling for the giants; tidal-heating / orbital-resonance ↔ interior coupling for the Galileans).
+
+### Test count
+
+1001 pass, 41 skipped (was 977 + 41 in v0.21.2; +24 net new — 24 in `test_orographic_forcing.py`; 2 parity-smoke entries are fixture rows, not separate test cases).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.21.2 → 0.21.3`.
 
 ## [0.21.2] — 2026-05-07
 

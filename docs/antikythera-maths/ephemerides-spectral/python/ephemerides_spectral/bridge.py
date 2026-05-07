@@ -167,6 +167,10 @@ from ephemerides_spectral._research.dynamo_catalog import (
     compute_dynamo_region as _compute_dynamo_region_impl,
     list_dynamo_regions as _list_dynamo_regions_impl,
 )
+from ephemerides_spectral._research.orographic_forcing import (
+    compute_orographic_forcing as _compute_orographic_forcing_impl,
+    list_orographic_forcings as _list_orographic_forcings_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3267,6 +3271,64 @@ def list_dynamo_regions() -> Dict[str, Any]:
     `_research.dynamo_catalog_data.SOURCES` citation dict.
     """
     return _list_dynamo_regions_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.3 — Orographic forcing (third cross-channel coupling)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_orographic_forcing(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body orographic-forcing summary (topography → atmospheric
+    standing waves).
+
+    Promotes the v0.21.3 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **third**
+    cross-channel coupling surface (per §17.4.2: topography ↔
+    gravity admittance [v0.21.1], magnetic-multipole-derived dynamo
+    constraints [v0.21.2], orographic forcing of atmospheric
+    standing waves [v0.21.3]).
+
+    For a body with both a topography model (v0.20.0
+    ``TOPOGRAPHY_MODELS``) and an atmosphere (v0.20.2
+    ``BODY_CLIMATOLOGY`` with ``has_atmosphere=True``), surface
+    topography acts as a lower-boundary forcing on the global
+    circulation. The forcing generates downstream stationary Rossby
+    waves — planetary waves with zero phase speed in the
+    body-rotating frame, appearing as fixed structure in the
+    time-mean atmosphere.
+
+    **Not a re-derivation.** Values shipped are the published
+    GCM-derived stationary-wave decompositions from the cited papers.
+
+    4-body roster: terra (Held 2002 / Hoskins & Karoly 1981 — Tibetan
+    Plateau forcer), mars (Hollingsworth 1997 — Tharsis bulge as
+    dominant orographic forcer; wavenumber-2 stationary mode survives
+    to ~50 km altitude), venus (Lebonnois 2010 GCM — super-rotation
+    suppresses classic stationary-wave physics), titan (Charnay &
+    Lebonnois 2012 GCM — also super-rotating; analogous to Venus).
+
+    Parameters
+    ----------
+    body : str, optional. If given, return that body's record;
+        else return the full per-body catalog.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, forcing: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_orographic_forcing_impl(body=body)
+
+
+def list_orographic_forcings() -> Dict[str, Any]:
+    """Static enumeration of every published orographic-forcing summary.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.orographic_forcing_data.SOURCES` citation dict.
+    """
+    return _list_orographic_forcings_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

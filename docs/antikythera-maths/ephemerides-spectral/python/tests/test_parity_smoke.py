@@ -254,6 +254,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.3 Sol Orographic Forcing Catalog (third cross-channel
+    # coupling surface; topography → atmospheric standing waves; 4-body
+    # roster). Pure-Python static lookup; no C twin makes sense.
+    "get_orographic_forcing": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_orographic_forcings": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
