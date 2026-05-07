@@ -610,6 +610,16 @@ def _cmd_dynamo_regions(args: argparse.Namespace) -> int:
     return _emit(bridge.list_dynamo_regions(), pretty=args.pretty)
 
 
+def _cmd_orographic_forcing(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_orographic_forcing(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_orographic_forcings(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_orographic_forcings(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2891,6 +2901,50 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     drs.set_defaults(func=_cmd_dynamo_regions)
+
+    # orographic-forcing (v0.21.3) — topography -> atmospheric standing waves.
+    of_ = sub.add_parser(
+        "orographic-forcing",
+        help="Per-body orographic-forcing summary (cross-channel coupling)",
+        description=(
+            "Returns the per-body topography -> atmospheric standing-\n"
+            "wave forcing summary. For a body with both a topography\n"
+            "model (v0.20.0) and an atmosphere (v0.20.2), surface\n"
+            "topography acts as a lower-boundary forcing on the global\n"
+            "circulation, generating downstream stationary Rossby\n"
+            "waves with zero phase speed in the body-rotating frame.\n"
+            "\n"
+            "v0.21.3 ships the published GCM-derived decompositions;\n"
+            "underlying spectral tables remain in the cited papers'\n"
+            "supplementary materials. 4-body roster: terra (Tibetan\n"
+            "Plateau forcer at k=2), mars (Tharsis bulge at k=2 to\n"
+            "the mesopause -- the headline planetary case), venus\n"
+            "(super-rotation suppresses classic stationary waves),\n"
+            "titan (super-rotation; analogous to venus).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral orographic-forcing --pretty\n"
+            "  ephemerides-spectral orographic-forcing --body mars --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    of_.add_argument("--body", default=None,
+                     help="Body name (lower-case). If omitted, full "
+                          "catalog.")
+    of_.set_defaults(func=_cmd_orographic_forcing)
+
+    # orographic-forcings (v0.21.3) — full enumeration.
+    ofs = sub.add_parser(
+        "orographic-forcings",
+        help="Full orographic-forcing catalog enumeration",
+        description=(
+            "Returns every body's OrographicForcing record + citation\n"
+            "dict so consumers can verify the provenance of every\n"
+            "stationary-wave decomposition."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ofs.set_defaults(func=_cmd_orographic_forcings)
 
     # lunar-kernels
     lk = sub.add_parser(

@@ -10,7 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.2)
+(no entries yet — next entries land after v0.21.3)
+
+## [0.21.3] — 2026-05-07
+
+**Orographic forcing of atmospheric standing waves — third cross-channel coupling surface (completes §17.4.2 trio).** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.orographic_forcing` — wrapper module with `compute_orographic_forcing`, `list_orographic_forcings`.
+- `_research.orographic_forcing_data` — data module with `OROGRAPHIC_FORCINGS` (4 entries), `SOURCES` (4 citations), `OrographicForcing` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_orographic_forcing(body=None) -> dict`
+- `bridge.list_orographic_forcings() -> dict`
+
+### Added — CLI
+
+- `orographic-forcing [--body X]`
+- `orographic-forcings`
+
+### 4-body roster
+
+terra (Held 2002 — Tibetan Plateau k=2 forcer), mars (Hollingsworth 1997 — **Tharsis Bulge k=2 surviving to mesopause; the headline planetary case**), venus (Lebonnois 2010 — super-rotation suppresses classic stationary-wave physics; LOW), titan (Charnay 2012 — analogous super-rotation regime; LOW).
+
+### Cross-channel trio complete
+
+v0.21.3 completes the trio of cross-channel coupling surfaces named in §17.4.2: topography ↔ gravity admittance (v0.21.1), magnetic ↔ dynamo (v0.21.2), topography ↔ atmosphere (v0.21.3).
 
 ## [0.21.2] — 2026-05-07
 
