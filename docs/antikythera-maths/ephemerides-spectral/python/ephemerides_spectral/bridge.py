@@ -153,6 +153,12 @@ from ephemerides_spectral._research.fluid_instrument import (
     compute_fluid_state as _compute_fluid_state_impl,
     list_fluid_archives as _list_fluid_archives_impl,
 )
+from ephemerides_spectral._research.spherical_harmonic_catalog import (
+    CHANNEL_BOTH as _SH_CHANNEL_BOTH,
+    compute_spherical_harmonics as _compute_spherical_harmonics_impl,
+    convert_normalisation as _convert_normalisation_impl,
+    list_spherical_harmonic_models as _list_spherical_harmonic_models_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3023,6 +3029,111 @@ def fluid_architecture(target: Optional[str] = None) -> Dict[str, Any]:
         else return the full partition.
     """
     return _compute_fluid_architecture_impl(target=target)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.0 — Sol Spherical Harmonic Catalog (unification refactor)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_spherical_harmonics(
+    body: str,
+    channel: str = "both",
+) -> Dict[str, Any]:
+    """Per-body spherical-harmonic query, unified across gravity +
+    magnetic sectors.
+
+    Promotes the v0.21.0 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface. **This is a unification
+    refactor**, not a new data store — the underlying records still
+    live in v0.20.0's `geodetic_catalog_data` (gravity Stokes
+    coefficients) and v0.20.1's `magnetic_multipole_catalog_data`
+    (magnetic Schmidt coefficients). The v0.20.0/v0.20.1 surfaces
+    (`bridge.get_geodetic_state`, `bridge.get_magnetic_multipoles`)
+    continue to work unchanged; this surface lets consumers ask
+    "what spherical-harmonic representations does the catalog have
+    for body X, across all channels?" with one call.
+
+    Each returned record carries a `normalisation_convention` field
+    indicating which convention applies — `"4pi-Stokes"` for gravity
+    (geodesy) and `"Schmidt-quasi-norm"` for magnetic (geomagnetic).
+    Consumers crossing channels need to apply
+    `bridge.convert_spherical_harmonic_normalisation` to translate
+    coefficients between the two.
+
+    Parameters
+    ----------
+    body : str. Lower-case body name.
+    channel : str, default "both". One of "gravity", "magnetic", "both".
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": str, "channels": {channel_name: {...}}}``
+        On error: ``{"ok": False, "error": "..."}``.
+    """
+    return _compute_spherical_harmonics_impl(body=body, channel=channel)
+
+
+def list_spherical_harmonic_models() -> Dict[str, Any]:
+    """Static enumeration of the unified Sol Spherical Harmonic Catalog.
+
+    Returns every gravity model + every magnetic model in the unified
+    shape, plus the merged body union, the both-channels intersection
+    subset, and the merged citation dict spanning both sectors.
+
+    The "unification" is a query surface — the underlying SOURCES
+    citation dicts in `geodetic_catalog_data` and
+    `magnetic_multipole_catalog_data` remain canonical for their
+    respective sectors; this surface merges them for consumer
+    convenience.
+    """
+    return _list_spherical_harmonic_models_impl()
+
+
+def convert_spherical_harmonic_normalisation(
+    coefficient_value: float,
+    n: int,
+    m: int,
+    from_convention: str,
+    to_convention: str,
+) -> Dict[str, Any]:
+    """Convert a single spherical-harmonic coefficient between
+    4π-normalised Stokes (geodesy) and Schmidt-quasi-normalised
+    (geomagnetic) conventions.
+
+    Per Winch et al. (2005) "Geomagnetic Reference Spectra":
+
+        C̄_nm = g_n^m / sqrt((2 - δ_0m) * (2n + 1))    (m ≤ n)
+
+    where δ_0m = 1 if m = 0 else 0.
+
+    The conversion is purely algebraic — it does NOT cross between
+    physical channels. It's for users who need to apply gravity-side
+    coefficient tables in geomagnetic-convention software, or vice
+    versa.
+
+    Parameters
+    ----------
+    coefficient_value : float. The numeric coefficient.
+    n : int. Spherical-harmonic degree (≥ 0).
+    m : int. Spherical-harmonic order (0 ≤ m ≤ n).
+    from_convention, to_convention : str. One of `"4pi-Stokes"` or
+        `"Schmidt-quasi-norm"`.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "value": float, "factor": float,
+          "from": str, "to": str}``
+        On error: ``{"ok": False, "error": "..."}``.
+    """
+    return _convert_normalisation_impl(
+        coefficient_value=coefficient_value,
+        n=n, m=m,
+        from_convention=from_convention,
+        to_convention=to_convention,
+    )
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

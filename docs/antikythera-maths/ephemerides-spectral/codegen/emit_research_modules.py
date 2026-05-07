@@ -41,6 +41,7 @@ _INCLUDED_MODULES: List[str] = [
     "magnetic_multipole_catalog.py",
     "fluid_instrument_data.py",
     "fluid_instrument.py",
+    "spherical_harmonic_catalog.py",
 ]
 
 def emit() -> List[Path]:

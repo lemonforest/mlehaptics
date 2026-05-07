@@ -10,7 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.2)
+(no entries yet — next entries land after v0.21.0)
+
+## [0.21.0] — 2026-05-07
+
+**Sol Spherical Harmonic Catalog — unification refactor across the v0.20.0 gravity sector + v0.20.1 magnetic sector.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.spherical_harmonic_catalog` — wrapper module with `compute_spherical_harmonics`, `list_spherical_harmonic_models`, `convert_normalisation`. Imports from + unifies the existing `geodetic_catalog_data` (gravity Stokes coefficients) + `magnetic_multipole_catalog_data` (magnetic Schmidt coefficients) without refactoring underlying storage.
+- Module-level constants: `CHANNEL_GRAVITY` / `CHANNEL_MAGNETIC` / `CHANNEL_BOTH`; `NORM_4PI_STOKES` / `NORM_SCHMIDT_QUASI`.
+
+### Added — bridge dict API
+
+- `bridge.get_spherical_harmonics(body, channel="both") -> dict` — single-body unified query.
+- `bridge.list_spherical_harmonic_models() -> dict` — full catalog enumeration.
+- `bridge.convert_spherical_harmonic_normalisation(value, n, m, from_convention, to_convention) -> dict` — Winch et al. 2005 closed-form normalisation conversion.
+
+### Added — CLI
+
+- `spherical-harmonics --body X [--channel gravity|magnetic|both]`
+- `spherical-harmonic-models`
+- `convert-normalisation --value X --n X --m X --from X --to X`
+
+### Architectural choice
+
+State-*lookup* surface, layered above v0.20.0 / v0.20.1 — **NO regression** on those surfaces. `bridge.get_geodetic_state` and `bridge.get_magnetic_multipoles` continue to return their original v0.20.0 / v0.20.1 shapes, verified by explicit regression tests in `test_spherical_harmonic_catalog.py`.
+
+### Math
+
+`C̄_nm = g_n^m / sqrt((2 - δ_0m) * (2n + 1))` (Winch et al. 2005, "Geomagnetic Reference Spectra"). Round-trip identity to float-machine precision; rejects `n < 0`, `m > n`, non-finite values, unknown convention labels.
 
 ## [0.20.2] — 2026-05-07
 

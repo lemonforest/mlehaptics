@@ -564,6 +564,31 @@ def _cmd_fluid_architecture(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_spherical_harmonics(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_spherical_harmonics(body=args.body, channel=args.channel),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_spherical_harmonic_models(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_spherical_harmonic_models(), pretty=args.pretty,
+    )
+
+
+def _cmd_convert_normalisation(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.convert_spherical_harmonic_normalisation(
+            coefficient_value=args.value,
+            n=args.n, m=args.m,
+            from_convention=getattr(args, "from"),
+            to_convention=args.to,
+        ),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2666,6 +2691,97 @@ def _make_parser() -> argparse.ArgumentParser:
                           "full partition; if given, return just that "
                           "body's tier.")
     far.set_defaults(func=_cmd_fluid_architecture)
+
+    # spherical-harmonics (v0.21.0) — unified gravity + magnetic query.
+    sh = sub.add_parser(
+        "spherical-harmonics",
+        help="Unified per-body spherical-harmonic query (gravity + magnetic)",
+        description=(
+            "Per-body spherical-harmonic query, unified across the\n"
+            "v0.20.0 gravity sector (Stokes coefficients in 4pi-norm)\n"
+            "and the v0.20.1 magnetic sector (Schmidt-quasi-normalised\n"
+            "g_n^m / h_n^m). Each returned record carries a\n"
+            "normalisation_convention field so consumers know which\n"
+            "convention to apply.\n"
+            "\n"
+            "This is a unification refactor, not a new data store --\n"
+            "the v0.20.0 / v0.20.1 surfaces (geodetic-state /\n"
+            "magnetic-multipoles) continue to work unchanged. Use this\n"
+            "surface when you need both channels in one call.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral spherical-harmonics --body terra --pretty\n"
+            "  ephemerides-spectral spherical-harmonics --body jupiter --channel magnetic\n"
+            "  ephemerides-spectral spherical-harmonics --body mars --channel gravity"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sh.add_argument("--body", required=True,
+                    help="Body name (lower-case).")
+    sh.add_argument("--channel", default="both",
+                    choices=["gravity", "magnetic", "both"],
+                    help="Channel selector. Default 'both' returns "
+                         "gravity + magnetic if available.")
+    sh.set_defaults(func=_cmd_spherical_harmonics)
+
+    # spherical-harmonic-models (v0.21.0) — full unified enumeration.
+    shm = sub.add_parser(
+        "spherical-harmonic-models",
+        help="Full Sol Spherical Harmonic Catalog enumeration (gravity + magnetic merged)",
+        description=(
+            "Returns every gravity model + every magnetic model in the\n"
+            "unified shape, plus the merged body union, the both-channels\n"
+            "intersection subset, and the merged citation dict.\n"
+            "\n"
+            "Underlying canonical SOURCES dicts remain in\n"
+            "_research.geodetic_catalog_data and\n"
+            "_research.magnetic_multipole_catalog_data; this surface\n"
+            "merges them for consumer convenience."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    shm.set_defaults(func=_cmd_spherical_harmonic_models)
+
+    # convert-normalisation (v0.21.0) — Schmidt <-> 4pi-Stokes conversion helper.
+    cn = sub.add_parser(
+        "convert-normalisation",
+        help="Convert one spherical-harmonic coefficient between 4pi-Stokes and Schmidt-quasi-norm",
+        description=(
+            "Per Winch et al. (2005) Geomagnetic Reference Spectra:\n"
+            "\n"
+            "  C_bar_nm = g_n^m / sqrt((2 - delta_0m) * (2n + 1))\n"
+            "\n"
+            "where delta_0m = 1 if m = 0 else 0.\n"
+            "\n"
+            "Schmidt -> 4pi-Stokes: divide by sqrt((2 - delta_0m)(2n+1))\n"
+            "4pi-Stokes -> Schmidt: multiply.\n"
+            "\n"
+            "The conversion is purely algebraic; it does NOT cross\n"
+            "between physical channels. For users who need to feed a\n"
+            "gravity-side coefficient table into geomagnetic-convention\n"
+            "software, or vice versa.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral convert-normalisation --value 0.001 \\\n"
+            "    --n 2 --m 0 --from 4pi-Stokes --to Schmidt-quasi-norm\n"
+            "  ephemerides-spectral convert-normalisation --value 30000 \\\n"
+            "    --n 1 --m 0 --from Schmidt-quasi-norm --to 4pi-Stokes"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cn.add_argument("--value", type=float, required=True,
+                    help="Coefficient value to convert.")
+    cn.add_argument("--n", type=int, required=True,
+                    help="Spherical-harmonic degree (>= 0).")
+    cn.add_argument("--m", type=int, required=True,
+                    help="Spherical-harmonic order (0 <= m <= n).")
+    cn.add_argument("--from", dest="from", required=True,
+                    choices=["4pi-Stokes", "Schmidt-quasi-norm"],
+                    help="Source convention.")
+    cn.add_argument("--to", required=True,
+                    choices=["4pi-Stokes", "Schmidt-quasi-norm"],
+                    help="Target convention.")
+    cn.set_defaults(func=_cmd_convert_normalisation)
 
     # lunar-kernels
     lk = sub.add_parser(
