@@ -96,6 +96,10 @@
       "sha256": "2e02707ae0cfdb9b2874ad4fd6954fb15d811b2ba1296b33808061de2fe9acfa",
       "size_bytes": 9703
     },
+    "_research/spherical_harmonic_catalog.py": {
+      "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
+      "size_bytes": 11594
+    },
     "_research/syzygy_window.py": {
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
@@ -106,5 +110,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.20.2"
+  "version": "0.21.0"
 }

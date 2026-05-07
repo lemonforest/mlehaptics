@@ -7,7 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.2)
+(no entries yet — next entries land after v0.21.0)
+
+## [0.21.0] — 2026-05-07
+
+**Sol Spherical Harmonic Catalog — unification refactor across the v0.20.0 gravity sector + v0.20.1 magnetic sector.** Promotes notebook §17.4.2 to a stable ship surface. **This is a unification refactor, not a new data store** — the underlying records still live in `geodetic_catalog_data` (gravity Stokes coefficients in 4π-norm) and `magnetic_multipole_catalog_data` (magnetic Schmidt-quasi-normalised g_n^m / h_n^m). The v0.20.0 / v0.20.1 surfaces continue to work unchanged. Pure-Python additive; **no ABI bump** (ninth consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.spherical_harmonic_catalog.compute_spherical_harmonics / list_spherical_harmonic_models / convert_normalisation` |
+| Bridge dict API | `bridge.get_spherical_harmonics(body, channel="both")` / `bridge.list_spherical_harmonic_models()` / `bridge.convert_spherical_harmonic_normalisation(value, n, m, from_convention, to_convention)` |
+| CLI | `spherical-harmonics --body X [--channel gravity|magnetic|both]` / `spherical-harmonic-models` / `convert-normalisation --value X --n X --m X --from X --to X` |
+
+### Unified query surface
+
+`get_spherical_harmonics(body, channel="both")` returns the v0.20.0 + v0.20.1 records adapted to a unified shape with explicit `normalisation_convention` per channel (`"4pi-Stokes"` / `"Schmidt-quasi-norm"`). Bodies absent from a requested channel return `None` for that channel — Mars has gravity but no global intrinsic dipole (magnetic = None); Ganymede has both (the unique intrinsic-moon-dipole case); icy moons have gravity but no magnetic.
+
+### Roster reach
+
+- 56 gravity models (from v0.20.0) + 7 magnetic models (from v0.20.1) = **56 unified bodies** (magnetic ⊆ gravity).
+- **7 both-channels bodies** (intersection): terra, mercury, jupiter, saturn, uranus, neptune, ganymede.
+- Merged 76-entry `SOURCES` citation dict spanning both sectors.
+
+### Normalisation conversion helper
+
+`convert_normalisation(coefficient_value, n, m, from_convention, to_convention)` implements the Winch et al. (2005) closed-form: `C̄_nm = g_n^m / sqrt((2 - δ_0m) * (2n + 1))`, where δ_0m = 1 if m=0 else 0. Round-trip identity verified to float-machine precision. Validates `n ≥ 0`, `0 ≤ m ≤ n`, finite numeric input, recognised convention labels.
+
+### Architectural choice
+
+The "unification" is a NEW query surface that exposes both channels via a common interface; it does NOT refactor the underlying storage. This preserves back-compat with v0.20.0 / v0.20.1 callers, which is verified by explicit regression tests:
+- `test_v0_20_0_geodetic_state_still_works` — `bridge.get_geodetic_state(body="terra")` returns its original v0.20.0 shape.
+- `test_v0_20_1_magnetic_multipoles_still_works` — `bridge.get_magnetic_multipoles(body="jupiter")` returns its original v0.20.1 shape.
+
+### Forward sequence (per §17.4.2)
+
+* **v0.21.1+** — Cross-channel coupling surfaces (one per minor): topography ↔ gravity admittance (Wieczorek 2007); magnetic-multipole-derived dynamo-region constraints (Connerney 2022 Jupiter; Stevenson 2010 reviews); orographic forcing of atmospheric standing waves (Hollingsworth 1997 Mars; Tharsis bulge as planetary-scale standing-wave generator).
+
+### Test count
+
+922 pass, 41 skipped (was 889 + 41 in v0.20.2; +33 net new — 30 in `test_spherical_harmonic_catalog.py` + 3 parity-smoke entries + 2 README-freshness tests that flipped GREEN after the Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.20.2 → 0.21.0`.
 
 ## [0.20.2] — 2026-05-07
 

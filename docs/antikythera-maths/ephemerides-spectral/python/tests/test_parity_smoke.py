@@ -210,6 +210,27 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.0 Sol Spherical Harmonic Catalog (unification refactor —
+    # NOT a new data store; reuses v0.20.0 geodetic_catalog_data +
+    # v0.20.1 magnetic_multipole_catalog_data underneath). Three new
+    # bridge surfaces, all pure-Python query / refactor / arithmetic
+    # helpers; no C twin makes sense. Per notebook §17.4.2.
+    "get_spherical_harmonics": {
+        "status": "python_only",
+        "kwargs_py": {"body": "terra"},
+    },
+    "list_spherical_harmonic_models": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "convert_spherical_harmonic_normalisation": {
+        "status": "python_only",
+        "kwargs_py": {
+            "coefficient_value": 1.0, "n": 1, "m": 0,
+            "from_convention": "Schmidt-quasi-norm",
+            "to_convention": "4pi-Stokes",
+        },
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

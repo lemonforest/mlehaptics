@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.20.2"
+version = "0.21.0"
 description = "High-precision HDC reference instrument for the Sol Star System based on JPL DE441 (native C backend, runtime kernel patching, 52-body roster including Lagrange trojans + retrograde irregulars; per-body Sol Geodetic / Electromagnetic / Magnetic-Multipole catalogs; resonance-graph ITN-chain search + spectral body-architecture surfaces; SPICE-free runtime)"
 readme = "README.md"
 requires-python = ">=3.10"
