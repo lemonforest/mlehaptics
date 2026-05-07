@@ -10,7 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.23.0)
+(no entries yet — next entries land after v0.23.1)
+
+## [0.23.1] — 2026-05-07
+
+**Packaging fix: `pyproject.toml` description trimmed to stay under PyPI's 512-char Summary limit.** Pure-Python additive (metadata-only); **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Fixed
+
+- `[project].description` in both `pyproject.toml` and `pyproject-pure.toml`: trimmed from 593 chars to 473 chars (39-char headroom under PyPI's hard 512-char Summary limit). Stripped non-ASCII arrows. Both v0.22.0 and v0.23.0 PyPI publishes silently failed at the upload step because of this; v0.23.1 is the first version to publish to PyPI after v0.21.10 — it carries all v0.22.0 + v0.23.0 features.
+
+### Added — CI guard
+
+- New `Verify [project].description is under PyPI's 512-char Summary limit` step in `.github/workflows/ephemerides-spectral-publish.yml`. Hard-fails if description ≥ 512 chars; soft-warns at ≥ 480 chars + on any non-ASCII characters. Future descriptions cannot silently exceed the limit.
+
+### Migration
+
+PyPI users: `pip install -U ephemerides-spectral` jumps from 0.21.10 directly to 0.23.1, picking up all v0.22.0 trajectory + sensing surfaces and all v0.23.0 spin-orbit-resonance surfaces. Repo `__version__` bumps `0.23.0 → 0.23.1`.
 
 ## [0.23.0] — 2026-05-07
 

@@ -150,6 +150,51 @@ jobs:
           print(f"versions agree: {main_v}")
           PY
 
+      - name: Verify [project].description is under PyPI's 512-char Summary limit
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python3 <<'PY'
+          # PyPI's "Summary" metadata field has a HARD 512-character
+          # limit. The upload endpoint silently rejects metadata that
+          # exceeds it ("could not comply" with no useful detail in the
+          # publish action's logs). `twine check --strict` does NOT
+          # enforce this. Caught us when v0.22.0 + v0.23.0 publishes
+          # both stalled at 593 chars; the description grew across
+          # ships without anyone counting until the upload failed.
+          # Pin a build-time guard with explicit error message so
+          # future-self never re-learns this the hard way.
+          import sys, tomllib
+          PYPI_SUMMARY_LIMIT = 512
+          # Leave a 32-char margin so a future surface name addition
+          # doesn't push the next ship over.
+          SOFT_LIMIT = 480
+          for path in ("pyproject.toml", "pyproject-pure.toml"):
+              with open(path, "rb") as f:
+                  desc = tomllib.load(f)["project"]["description"]
+              n = len(desc)
+              non_ascii = [c for c in desc if ord(c) > 127]
+              print(f"{path}: description = {n} chars (limit "
+                    f"{PYPI_SUMMARY_LIMIT}, soft {SOFT_LIMIT}); "
+                    f"non-ascii = {len(non_ascii)}")
+              if n >= PYPI_SUMMARY_LIMIT:
+                  print(f"::error::{path} description is {n} chars; "
+                        f"PyPI's Summary metadata field has a HARD "
+                        f"{PYPI_SUMMARY_LIMIT}-char limit. Upload will "
+                        "be silently rejected. Trim the description.")
+                  sys.exit(1)
+              if n >= SOFT_LIMIT:
+                  print(f"::warning::{path} description is {n} chars; "
+                        f"approaching the {PYPI_SUMMARY_LIMIT}-char "
+                        f"PyPI limit. Soft cap is {SOFT_LIMIT}. "
+                        "Trim before adding more surface names.")
+              if non_ascii:
+                  print(f"::warning::{path} description contains "
+                        f"non-ASCII characters: "
+                        f"{[hex(ord(c)) for c in non_ascii[:5]]}. "
+                        "Some PyPI mirrors / packaging tools choke on "
+                        "non-ASCII metadata; prefer ASCII.")
+          PY
+
       - name: Stage pure pyproject and build wheel
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         run: |

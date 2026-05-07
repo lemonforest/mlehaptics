@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.23.0)
+(no entries yet — next entries land after v0.23.1)
+
+## [0.23.1] — 2026-05-07
+
+**Packaging fix: trim `pyproject.toml` description to stay under PyPI's 512-character Summary metadata limit.**
+
+### What broke
+
+PyPI's "Summary" metadata field (`[project].description` in `pyproject.toml`) has a **HARD 512-character limit**. The upload endpoint silently rejects oversized metadata with a "could not comply" message that doesn't bubble useful detail into `pypa/gh-action-pypi-publish`'s logs. `twine check --strict` does NOT enforce this. The description grew across v0.22.0 (trajectory + sensing layer language added) and v0.23.0 (spin-orbit resonance language added) until it hit 593 characters — 81 over the limit. Both v0.22.0 and v0.23.0 publish workflows ran successfully through all 17 wheel + sdist + pure-wheel build jobs, then failed at the final PyPI upload step with no visible diagnostic.
+
+### Fix
+
+Trimmed both `pyproject.toml` and `pyproject-pure.toml` descriptions from 593 to 473 characters (39 chars of headroom under the 512 limit). Stripped the previously-included non-ASCII arrows (↔) — non-ASCII metadata is allowed but historically flaky across PyPI mirrors / packaging tools. Added inline `# IMPORTANT:` comments above each description warning future-self about the 512-char limit + ASCII preference.
+
+### CI guard
+
+Added a new `Verify [project].description is under PyPI's 512-char Summary limit` step to `.github/workflows/ephemerides-spectral-publish.yml`. Hard-fails the publish workflow if either pyproject's description hits 512 chars; soft-warns at 480 chars (32-char margin); soft-warns on non-ASCII content. Future descriptions cannot silently exceed the limit.
+
+### Migration
+
+Pure-additive packaging fix. v0.22.0 and v0.23.0 PyPI artifacts are NOT being retroactively published — the next PyPI release after v0.21.10 is v0.23.1 directly. The repo's GitHub Releases for v0.22.0 + v0.23.0 remain accurate; PyPI users get all v0.22.0 + v0.23.0 features when they upgrade to v0.23.1. `ES_VERSION_STRING` bumps `0.23.0 → 0.23.1`.
+
+### Test count
+
+1338 pass, 42 skipped (unchanged from v0.23.0).
 
 ## [0.23.0] — 2026-05-07
 
