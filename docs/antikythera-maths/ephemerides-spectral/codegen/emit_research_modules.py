@@ -72,6 +72,8 @@ _INCLUDED_MODULES: List[str] = [
     "decoy_discrimination_catalog.py",
     "spin_orbit_resonance_data.py",
     "spin_orbit_resonance_catalog.py",
+    "mercury_dynamical_spectrum_data.py",
+    "mercury_dynamical_spectrum_catalog.py",
 ]
 
 def emit() -> List[Path]:

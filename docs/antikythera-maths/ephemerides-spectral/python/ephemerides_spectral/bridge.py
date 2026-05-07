@@ -226,6 +226,11 @@ from ephemerides_spectral._research.spin_orbit_resonance_catalog import (
     get_spin_orbit_resonance as _get_spin_orbit_resonance_impl,
     list_spin_orbit_resonances as _list_spin_orbit_resonances_impl,
 )
+from ephemerides_spectral._research.mercury_dynamical_spectrum_catalog import (
+    get_mercury_dynamical_spectrum as _get_mercury_dynamical_spectrum_impl,
+    get_mercury_precession_decomposition as _get_mercury_precession_decomposition_impl,
+    list_mercury_dynamical_spectrum as _list_mercury_dynamical_spectrum_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4078,6 +4083,75 @@ def list_spin_orbit_resonances() -> Dict[str, Any]:
     `_research.spin_orbit_resonance_data.SOURCES` citation dict.
     """
     return _list_spin_orbit_resonances_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.0 — Mercury Dynamical Spectrum
+# (first per-body dynamical-spectrum surface; opens the v0.24.x
+# discipline pivot from cross-channel-coupling to action-angle
+# decomposition of a single body's full dynamical state)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_mercury_dynamical_spectrum() -> Dict[str, Any]:
+    """Mercury's full action-angle dynamical-mode catalog.
+
+    First per-body dynamical-spectrum surface. Decomposes Mercury's
+    dynamical state into angle variables (live on tori — orbital
+    phase, spin phase, perihelion longitude, ascending node) and
+    action variables (live on real intervals — semi-major axis,
+    eccentricity, inclination, obliquity).
+
+    Mercury is the cleanest possible first target: no moon, no
+    atmosphere, no ocean, smallest in the planetary roster, in the
+    historically richest dynamical-test position (Le Verrier 1859 →
+    Einstein 1915 → Clemence 1947 → Margot 2007 → Park 2017 lineage).
+
+    Headline modes:
+      * **3:2 spin-orbit lock** (Pettengill 1965 / Margot 2007).
+      * **Forced libration at orbital frequency**, 35.8 arcsec
+        amplitude (Margot 2007 → C/MR² = 0.346 ± 0.014, molten core).
+      * **Perihelion precession**, 574.10 arcsec/century (Clemence
+        1947) — see ``get_mercury_precession_decomposition`` for the
+        per-perturber breakdown.
+      * **Tiny obliquity**, 2.04 ± 0.08 arcmin (Margot 2007); Mercury
+        occupies Cassini state 1.
+
+    See ``_research.mercury_dynamical_spectrum_catalog`` for the full
+    docstring.
+    """
+    return _get_mercury_dynamical_spectrum_impl()
+
+
+def get_mercury_precession_decomposition() -> Dict[str, Any]:
+    """Mercury perihelion-precession contribution-by-perturber
+    decomposition — THE headline of v0.24.0.
+
+    The Le Verrier 1859 → Newcomb 1882 → Einstein 1915 → Clemence
+    1947 → Park 2017 lineage. Total observed (574.10 arcsec/century)
+    decomposes as Newtonian planetary perturbations (Venus 277.42 +
+    Jupiter 153.58 + Earth 90.04 + Saturn 7.30 + Mars/other 3.29 =
+    531.63) + general relativity (42.98) + solar quadrupole J₂
+    (0.025). Sum matches observed within ±0.5 arcsec/century.
+
+    The closure of the Newtonian + GR sum to within Clemence 1947's
+    observational uncertainty is one of the most precise quantitative
+    confirmations of general relativity. Park 2017's MESSENGER
+    radioscience confirmed the GR contribution to one part in 10^4.
+
+    Cross-channel observation: every contribution is from a
+    *neighbouring field* — a planetary perturbation, a spacetime-
+    geometry term, or a solar-shape term. The decomposition is the
+    spectral fingerprint of how Mercury's orbit responds to the rest
+    of the Solar System's fields.
+    """
+    return _get_mercury_precession_decomposition_impl()
+
+
+def list_mercury_dynamical_spectrum() -> Dict[str, Any]:
+    """Full enumeration of Mercury dynamical-spectrum data + citations.
+    """
+    return _list_mercury_dynamical_spectrum_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

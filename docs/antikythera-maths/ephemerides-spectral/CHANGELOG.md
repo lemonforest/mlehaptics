@@ -7,7 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.23.1)
+(no entries yet — next entries land after v0.24.0)
+
+## [0.24.0] — 2026-05-07
+
+**Mercury Dynamical Spectrum — first per-body dynamical-spectrum surface; discipline pivot from cross-channel-coupling (v0.21.x) to action-angle decomposition of a single body's full dynamical state.** Pure-Python additive; **no ABI bump** (twenty-third consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.mercury_dynamical_spectrum_catalog.get_mercury_dynamical_spectrum / get_mercury_precession_decomposition / list_mercury_dynamical_spectrum` |
+| Bridge dict API | `bridge.get_mercury_dynamical_spectrum()` / `bridge.get_mercury_precession_decomposition()` / `bridge.list_mercury_dynamical_spectrum()` |
+| CLI | `mercury-dynamical-spectrum`, `mercury-precession-decomposition`, `mercury-dynamical-spectrum-full` |
+
+### Why Mercury first
+
+Cleanest possible first target for the per-body dynamical-spectrum methodology:
+- **No moon** → clean Sol-Mercury 2-body system (no parent-satellite confounding)
+- **No atmosphere, no ocean** → no time-varying noise floor
+- **Historically richest dynamical-test position** — Le Verrier 1859 → Newcomb 1882 → Einstein 1915 → Clemence 1947 → Margot 2007 → Park 2017 lineage. Every value is anchored in a famous paper.
+
+### 8-mode action-angle catalog
+
+| Mode | Class | Frequency / Amplitude | Source |
+|---|---|---|---|
+| orbital_mean_motion | angle | 415.20 cycles/century | JPL DE441 |
+| spin_frequency | angle | 622.80 cycles/century (3:2 with orbit) | Margot 2007 |
+| forced_libration | angle | 35.8 arcsec at orbital frequency | Margot 2007 |
+| perihelion_longitude_precession | angle | 574.10 arcsec/century | Clemence 1947 |
+| ascending_node_precession | angle | −446.30 arcsec/century retrograde | Murray-Dermott 1999 |
+| eccentricity | action | 0.2056 dimensionless | Laskar 1989 |
+| inclination | action | 7.005° | JPL DE441 |
+| obliquity | action | 2.04 ± 0.08 arcmin (Cassini state 1) | Margot 2007 |
+
+### Headline: Le Verrier / Einstein perihelion-precession decomposition
+
+The famous test of general relativity, made into a spectral fingerprint:
+
+| Contribution | arcsec/century | Physics class | Source |
+|---|---:|---|---|
+| Venus | 277.42 | Newtonian perturbation | Verma 2014 |
+| Jupiter | 153.58 | Newtonian perturbation | Verma 2014 |
+| Earth | 90.04 | Newtonian perturbation | Verma 2014 |
+| Saturn | 7.30 | Newtonian perturbation | Verma 2014 |
+| Mars + other | 3.29 | Newtonian perturbation | Verma 2014 |
+| **General relativity** | **42.98** | Schwarzschild | **Einstein 1915** |
+| Solar quadrupole J₂ | 0.025 | Solar oblateness | Park 2017 |
+| **Sum of predictions** | **574.6** | (matches observed) | |
+| **Total observed** | **574.10 ± 0.65** | Observation | **Clemence 1947** |
+
+The sum of Newtonian + GR + solar-J₂ contributions closes to within ~0.5 arcsec/century of Clemence 1947's observed value — well inside the ±0.65 uncertainty. **This is one of the most precise quantitative confirmations of general relativity in physics.** Park 2017's MESSENGER radioscience confirmed Einstein's 42.98 arcsec/century to one part in 10^4.
+
+The decomposition is **the spectral fingerprint of how Mercury's orbit responds to the rest of the Solar System's fields** — every row is a contribution from a neighbouring field (planetary perturbation, spacetime geometry, solar shape).
+
+### Le Verrier/Einstein closure invariant
+
+For Mercury: `observed_total - sum_of_predictions ≈ 0` within Clemence's ±0.65 arcsec/century. Pinned by `test_le_verrier_einstein_closure_invariant`. This is the v0.24.0 analogue of v0.21.10's `test_observed_minus_equilibrium_consistent` thermal-balance invariant.
+
+### Cross-channel cross-references
+
+- v0.23.0 spin-orbit resonance: Mercury 3:2 + 35.8 arcsec libration (forced_libration mode here MUST agree with v0.23.0 value — pinned by `test_forced_libration_matches_v0_23_0_value`).
+- v0.21.4 rotational constraint: Margot 2007 provided BOTH the 3:2 lock + libration measurement here AND the C/MR² = 0.346 inversion that constrained Mercury's molten core.
+- v0.20.0 geodetic catalog: gravity-Stokes coefficients capturing Mercury's permanent quadrupole — the J₂ that couples to solar tidal torque to drive the forced libration.
+
+### Test count
+
+1372 pass, 42 skipped (was 1338 + 42 in v0.23.1; +34 net new — 31 in `test_mercury_dynamical_spectrum.py` + 2 README-freshness tests that flipped GREEN after Status banner update + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.23.1 → 0.24.0`.
 
 ## [0.23.1] — 2026-05-07
 
