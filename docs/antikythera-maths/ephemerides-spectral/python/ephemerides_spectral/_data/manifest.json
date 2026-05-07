@@ -32,6 +32,14 @@
       "sha256": "87dd3015794c414db3a7a370a466a848d57ce8e73a3e17b759b6d7b1bab857bf",
       "size_bytes": 13995
     },
+    "_research/ballistic_trajectory_catalog.py": {
+      "sha256": "9d344682f78ac10fcb33339768c5764c5b3cc8a545ea05beece3e7579e47ca35",
+      "size_bytes": 13488
+    },
+    "_research/ballistic_trajectory_data.py": {
+      "sha256": "c5849b01404d1227eecda3dd11ab94bbea43c49efddc26e01744d04820922c09",
+      "size_bytes": 9845
+    },
     "_research/bip_hd_lift.py": {
       "sha256": "50be51ba5132f5cb90438905f8fbad0257c5403444423df5a95af4c20578ffe8",
       "size_bytes": 8153
@@ -47,6 +55,14 @@
     "_research/body_architecture.py": {
       "sha256": "a5bdcaeca175883c4bcf7a9658c601d06ca84bc2057d523947dfbadfbac1e42a",
       "size_bytes": 9767
+    },
+    "_research/decoy_discrimination_catalog.py": {
+      "sha256": "545ea4d1622ce7cce039f56fb54fe96c34c645e771dfa1a75d1f520360e14880",
+      "size_bytes": 13539
+    },
+    "_research/decoy_discrimination_data.py": {
+      "sha256": "a1592b334994fbf133eae0531a94cc2f5f5874c6446e52ecd8e30eaef8e792aa",
+      "size_bytes": 7803
     },
     "_research/diagnosed_fibers.py": {
       "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
@@ -104,6 +120,14 @@
       "sha256": "3e821ec38493bcb699a1821b58ca6946a418a652784a360e9d6d4c748958015c",
       "size_bytes": 10723
     },
+    "_research/icbm_trajectory_catalog.py": {
+      "sha256": "251ace65a4556d0a23fe92aecb5d2993671b2f73871467b4ce5b80ad5e770676",
+      "size_bytes": 17109
+    },
+    "_research/icbm_trajectory_data.py": {
+      "sha256": "e292366f5e869fe705e4d7da851e2fa32ddc9e7999a588f2b7b5083bb4330975",
+      "size_bytes": 9216
+    },
     "_research/itn_window.py": {
       "sha256": "15c511efcd3d7e36dec0783a38a21e5b7232ac868d70691d69f50cf6d5b1bff3",
       "size_bytes": 25787
@@ -151,6 +175,14 @@
     "_research/rotational_constraint_data.py": {
       "sha256": "6e4ee02d5f165d0b2e1807805a520443ed4ccdb9b781df13196fc181bc01385c",
       "size_bytes": 13382
+    },
+    "_research/sensor_access_catalog.py": {
+      "sha256": "b98a8f0adaf9935b7400a9cbd7cb1a25e838f7ddc87f570b7a3bf136f3f921c8",
+      "size_bytes": 12066
+    },
+    "_research/sensor_access_data.py": {
+      "sha256": "6b6d168bbe5eaee980cd93c2c5ba043b51a9dd2bc4459ba6691e917538bcb23d",
+      "size_bytes": 13483
     },
     "_research/spherical_harmonic_catalog.py": {
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",

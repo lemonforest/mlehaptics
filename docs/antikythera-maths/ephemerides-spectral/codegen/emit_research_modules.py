@@ -62,6 +62,14 @@ _INCLUDED_MODULES: List[str] = [
     "volcanic_outgassing_catalog.py",
     "thermal_balance_data.py",
     "thermal_balance_catalog.py",
+    "ballistic_trajectory_data.py",
+    "ballistic_trajectory_catalog.py",
+    "icbm_trajectory_data.py",
+    "icbm_trajectory_catalog.py",
+    "sensor_access_data.py",
+    "sensor_access_catalog.py",
+    "decoy_discrimination_data.py",
+    "decoy_discrimination_catalog.py",
 ]
 
 def emit() -> List[Path]:

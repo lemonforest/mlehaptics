@@ -343,6 +343,88 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.22.0 Trajectory + Sensing Layer A (per-body short-range
+    # ballistic propagator; 7-body roster). Pure-Python; no C twin
+    # planned -- propagator is RK4 with body-specific atmosphere
+    # parameters from the static catalog.
+    "compute_ballistic_trajectory": {
+        "status": "python_only",
+        "kwargs_py": {"body": "terra", "v_m_s": 700.0, "angle_deg": 45.0},
+    },
+    "get_ballistic_atmosphere": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_ballistic_atmospheres": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    # ── v0.22.0 Trajectory + Sensing Layer B (Earth ICBM 3-regime
+    # propagator; boost boundary + Kepler midcourse + Allen-Eggers
+    # re-entry). Pure-Python; no C twin planned.
+    "compute_icbm_trajectory": {
+        "status": "python_only",
+        "kwargs_py": {
+            "burnout_velocity_m_s": 7000.0,
+            "burnout_flight_path_angle_deg": 23.0,
+        },
+    },
+    "get_icbm_reference_profile": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_icbm_reference_profiles": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    # ── v0.22.0 Trajectory + Sensing Layer C(a) (sensor access:
+    # SGP4 + look-angle geometry + Earth-limb occlusion). Pure-Python;
+    # no C twin planned. SGP4 is an optional dep (sgp4 / Skyfield).
+    "compute_visibility_geometry": {
+        "status": "python_only",
+        "kwargs_py": {
+            "sat_ecef_m": (7178137.0, 0.0, 0.0),
+            "target_lat_deg": 0.0,
+            "target_lon_deg": 0.0,
+        },
+    },
+    "compute_sgp4_state": {
+        "status": "tier2_skip",  # depends on optional sgp4 install
+        "tier": 2,
+    },
+    "get_orbital_reference": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_orbital_references": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    # ── v0.22.0 Trajectory + Sensing Layer C(b) (decoy
+    # discrimination: BC-differential velocity separation). Pure-Python
+    # closed-form (Allen-Eggers, NACA Report 1381, 1958); no C twin.
+    "compute_bc_differential": {
+        "status": "python_only",
+        "kwargs_py": {
+            "bc_heavy_kg_m2": 10000.0,
+            "bc_light_kg_m2": 50.0,
+        },
+    },
+    "compute_discrimination_altitude": {
+        "status": "python_only",
+        "kwargs_py": {
+            "bc_heavy_kg_m2": 10000.0,
+            "bc_light_kg_m2": 10.0,
+        },
+    },
+    "get_bc_reference_class": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_bc_reference_classes": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

@@ -7,7 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.10)
+(no entries yet — next entries land after v0.22.0)
+
+## [0.22.0] — 2026-05-07
+
+**Trajectory + Sensing Layer — discipline pivot out of v0.21.x cross-channel-coupling sequence into applied-physics propagators.** Four-layer surface (Layer A per-body ballistic; Layer B Earth ICBM 3-regime; Layer C(a) sensor access geometry; Layer C(b) decoy discrimination). Pure-Python additive; **no ABI bump** (twentieth consecutive ship since v0.13.x).
+
+**Trauma-informed defensive scope:** the publishable line is textbook physics + public TLEs + textbook geometry. Specific RV signatures, sensor NEΔT, kill-vehicle parameters, and threat-library specifics are intentionally out of scope.
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| **Layer A** Pythonic API | `_research.ballistic_trajectory_catalog.compute_ballistic_trajectory / get_ballistic_atmosphere / list_ballistic_atmospheres` |
+| **Layer A** Bridge dict API | `bridge.compute_ballistic_trajectory(...)` / `bridge.get_ballistic_atmosphere(...)` / `bridge.list_ballistic_atmospheres()` |
+| **Layer A** CLI | `ballistic-trajectory --body X --v Y --angle Z [--with-drag --bc BC]`, `ballistic-atmosphere`, `ballistic-atmospheres` |
+| **Layer B** Pythonic API | `_research.icbm_trajectory_catalog.compute_icbm_trajectory / get_icbm_reference_profile / list_icbm_reference_profiles` |
+| **Layer B** Bridge dict API | `bridge.compute_icbm_trajectory(...)` / `bridge.get_icbm_reference_profile(...)` / `bridge.list_icbm_reference_profiles()` |
+| **Layer B** CLI | `icbm-trajectory --burnout-v V --burnout-gamma G [--bc BC]`, `icbm-reference-profile`, `icbm-reference-profiles` |
+| **Layer C(a)** Pythonic API | `_research.sensor_access_catalog.compute_visibility_geometry / compute_sgp4_state / get_orbital_reference / list_orbital_references` |
+| **Layer C(a)** Bridge dict API | `bridge.compute_visibility_geometry(...)` / `bridge.compute_sgp4_state(...)` / `bridge.get_orbital_reference(...)` / `bridge.list_orbital_references()` |
+| **Layer C(a)** CLI | `visibility-geometry`, `sgp4-state`, `orbital-reference`, `orbital-references` |
+| **Layer C(b)** Pythonic API | `_research.decoy_discrimination_catalog.compute_bc_differential / compute_discrimination_altitude / get_bc_reference_class / list_bc_reference_classes` |
+| **Layer C(b)** Bridge dict API | `bridge.compute_bc_differential(...)` / `bridge.compute_discrimination_altitude(...)` / `bridge.get_bc_reference_class(...)` / `bridge.list_bc_reference_classes()` |
+| **Layer C(b)** CLI | `bc-differential`, `discrimination-altitude`, `bc-reference-class`, `bc-reference-classes` |
+
+### Layer A — per-body ballistic propagator
+
+Vacuum case: Vallado §8.6.2 closed form (range = v²·sin(2θ)/g, apex = v²·sin²(θ)/(2g), T = 2v·sin(θ)/g) — matches to numerical precision. Drag case: RK4 integration under exponential atmosphere (BC = m/(C_d·A) parameterized).
+
+7-body roster: terra (US Standard Atmosphere 1976), mars (Tewari 2011), venus (VIRA / Seiff 1985), titan (Cassini-Huygens HASI / Fulchignoni 2005), luna (vacuum), mercury (vacuum), jupiter (Galileo Probe / Seiff 1998 1-bar reference).
+
+### Layer B — Earth 3-regime ICBM
+
+Boost is a boundary condition (user supplies burnout state v, γ, h). Midcourse: Kepler-ellipse propagation (Bate-Mueller-White Ch. 6). Re-entry: Allen-Eggers closed form (NACA Report 1381, 1958). **Boost intentionally not modelled** — vehicle-specific Isp/thrust/gravity-turn cross into operationally-sensitive territory.
+
+3 reference profiles (open-literature only):
+
+| Profile | Range (km) | Burnout v / γ | Apex (km) | Re-entry v (m/s) | Source |
+|---|---:|---:|---:|---:|---|
+| srbm_300km | 300 | 1700 m/s @ 42° | 80 | 1700 | Wilkening 2000 |
+| mrbm_1500km | 1500 | 4000 m/s @ 37° | 400 | 3900 | Wilkening 2000 |
+| icbm_10000km | 10000 | 7000 m/s @ 23° | 1200 | 7000 | Sessler/UCS 2000 |
+
+### Layer C(a) — sensor access geometry
+
+WGS-84 geodetic-to-ECEF + ECEF-to-ENU + slant-range/elevation/azimuth + Earth-limb occlusion test (Vallado Ch. 11). SGP4 propagation via Brandon Rhodes' `sgp4` package (transitive optional dep through `[ephemeris]`).
+
+8 reference TLEs (textbook samples; fetch fresh from CelesTrak / Space-Track for operational use):
+
+| Label | Class | Inc. | Period | Notes |
+|---|---|---:|---:|---|
+| ISS (ZARYA) | leo_mid_inc | 51.6° | 92.9 min | Textbook reference |
+| SENTINEL-1A | leo_sun_sync | 98.2° | 98.6 min | C-band SAR |
+| NOAA-20 (JPSS-1) | leo_sun_sync | 98.7° | 101.4 min | VIIRS day-night |
+| IRIDIUM 100 | leo_polar | 86.4° | 100.4 min | 66-sat polar constellation |
+| GOES-16 | geo | 0.05° | 1436 min | GLM lightning mapper |
+| MOLNIYA-3-50 | heo_molniya | 63.4° | 720 min | **Polar-coverage geometry** |
+| TUNDRA | heo_tundra | 63.4° | 1436 min | 24-h alt. polar coverage |
+| LANDSAT-9 | leo_sun_sync | 98.2° | 98.9 min | OLI-2 + TIRS-2 |
+
+IR transmission windows: VIS 0.4-0.7 µm, NIR 0.7-2.5 µm, MWIR 3-5 µm, LWIR 8-12 µm.
+
+### Layer C(b) — decoy discrimination
+
+**The only physics-based midcourse-surviving discriminator**: ballistic-coefficient differential velocity separation in the upper atmospheric drag tail (60-100 km). Allen-Eggers closed-form `v(h) = v_e · exp[-K · exp(-h/H)]` with `K = ρ₀H/(2·BC·sin γ_e)` (NACA Report 1381, 1958).
+
+Heavy compact RV (BC ~10000 kg/m²) decelerates slowly; light decoys (BC ~50 kg/m²) decelerate rapidly. Reference: Sessler/UCS *Countermeasures* 2000.
+
+4 reference BC classes (open-literature only):
+
+| Class | Typical BC (kg/m²) | Mass / Diameter | C_d |
+|---|---:|---|---:|
+| heavy_rv | 10000 | 200 kg / 0.45 m | 0.10 |
+| light_rv | 3000 | 200 kg / 0.6 m | 0.20 |
+| replica_decoy | 50 | 10 kg / 1.0 m | 1.0 |
+| chaff_decoy | 10 | 0.05 kg / 0.1 m | 2.0 |
+
+### Citations
+
+23 unique sources spanning Vallado 2013, Bate-Mueller-White 1971, Curtis 2014, Tewari, Allen-Eggers 1958, Regan-Anandakrishnan 1993, Sessler/UCS 2000, Wilkening 2000, Postol 1991, US Standard Atmosphere 1976, VIRA / Seiff 1985, Cassini-Huygens HASI / Fulchignoni 2005, Galileo Probe / Seiff 1998, NASA Planetary Fact Sheet, CelesTrak, ESA Sentinel, NOAA JPSS / GOES, USGS Landsat, HITRAN, WGS-84 (NIMA TR8350.2).
+
+### Test count
+
+1306 pass, 42 skipped (was 1190 + 41 in v0.21.10; +103 net new across `test_ballistic_trajectory.py` (29) + `test_icbm_trajectory.py` (24) + `test_sensor_access.py` (24) + `test_decoy_discrimination.py` (26)). One additional skip: `compute_sgp4_state` parity-smoke entry tier2_skips when optional `sgp4` dep absent.
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.10 → 0.22.0` (minor bump reflects discipline-pivot scope; ABI unchanged).
 
 ## [0.21.10] — 2026-05-07
 

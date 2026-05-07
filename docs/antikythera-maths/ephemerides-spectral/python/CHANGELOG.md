@@ -10,7 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.10)
+(no entries yet — next entries land after v0.22.0)
+
+## [0.22.0] — 2026-05-07
+
+**Trajectory + Sensing Layer.** Discipline pivot out of the v0.21.x cross-channel-coupling sequence into applied-physics propagators. Four-layer surface (Layer A per-body ballistic; Layer B Earth ICBM 3-regime; Layer C(a) sensor access; Layer C(b) decoy discrimination). Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.ballistic_trajectory_catalog` — Layer A propagator + atmosphere queries (`compute_ballistic_trajectory`, `get_ballistic_atmosphere`, `list_ballistic_atmospheres`).
+- `_research.ballistic_trajectory_data` — `BALLISTIC_ATMOSPHERES` (7 bodies: terra, mars, venus, titan, luna, mercury, jupiter), `SOURCES` (6 citations), `BallisticAtmosphere` dataclass.
+- `_research.icbm_trajectory_catalog` — Layer B 3-regime propagator (`compute_icbm_trajectory`, `get_icbm_reference_profile`, `list_icbm_reference_profiles`).
+- `_research.icbm_trajectory_data` — `ICBM_REFERENCE_PROFILES` (3: SRBM/MRBM/ICBM), `SOURCES` (6 citations), `ICBMReferenceProfile` dataclass.
+- `_research.sensor_access_catalog` — Layer C(a) geometry + SGP4 (`compute_visibility_geometry`, `compute_sgp4_state`, `get_orbital_reference`, `list_orbital_references`).
+- `_research.sensor_access_data` — `ORBITAL_REFERENCES` (8 reference TLEs), IR window constants, `SOURCES` (10 citations), `OrbitalReferenceTLE` dataclass.
+- `_research.decoy_discrimination_catalog` — Layer C(b) BC-differential (`compute_bc_differential`, `compute_discrimination_altitude`, `get_bc_reference_class`, `list_bc_reference_classes`).
+- `_research.decoy_discrimination_data` — `BC_REFERENCE_CLASSES` (4: heavy_rv/light_rv/replica_decoy/chaff_decoy), `SOURCES` (4 citations), `BCReferenceClass` dataclass.
+
+### Added — bridge dict API
+
+14 new bridge surfaces:
+
+- Layer A: `bridge.compute_ballistic_trajectory`, `bridge.get_ballistic_atmosphere`, `bridge.list_ballistic_atmospheres`.
+- Layer B: `bridge.compute_icbm_trajectory`, `bridge.get_icbm_reference_profile`, `bridge.list_icbm_reference_profiles`.
+- Layer C(a): `bridge.compute_visibility_geometry`, `bridge.compute_sgp4_state`, `bridge.get_orbital_reference`, `bridge.list_orbital_references`.
+- Layer C(b): `bridge.compute_bc_differential`, `bridge.compute_discrimination_altitude`, `bridge.get_bc_reference_class`, `bridge.list_bc_reference_classes`.
+
+### Added — CLI
+
+14 new subcommands:
+
+- Layer A: `ballistic-trajectory`, `ballistic-atmosphere`, `ballistic-atmospheres`.
+- Layer B: `icbm-trajectory`, `icbm-reference-profile`, `icbm-reference-profiles`.
+- Layer C(a): `visibility-geometry`, `sgp4-state`, `orbital-reference`, `orbital-references`.
+- Layer C(b): `bc-differential`, `discrimination-altitude`, `bc-reference-class`, `bc-reference-classes`.
+
+### Added — tests
+
+- `tests/test_ballistic_trajectory.py` — 29 tests (Vallado §8.6.2 closed-form match; drag invariants; 7-body roster pin; bridge + CLI smoke + --help discipline).
+- `tests/test_icbm_trajectory.py` — 24 tests (3-regime propagator headlines; Allen-Eggers BC-independent peak decel + altitude shift; reference profile catalog; bridge + CLI smoke).
+- `tests/test_sensor_access.py` — 24 tests (look-angle geometry; Earth-limb occlusion; reference TLE roster; SGP4 propagation if `sgp4` available; bridge + CLI smoke).
+- `tests/test_decoy_discrimination.py` — 26 tests (BC-differential physics; discrimination-altitude search; BC reference class roster; bridge + CLI smoke).
+- 14 new parity-smoke entries in `tests/test_parity_smoke.py` (13 `python_only` + 1 `tier2_skip` for `compute_sgp4_state` on optional `sgp4` dep).
+
+### Trauma-informed defensive scope
+
+The publishability line: textbook physics + public TLEs + textbook geometry → catalog ✓. Specific RV signatures, sensor NEΔT/sensitivity, kill-vehicle parameters, threat-library specifics → out of scope. Boost-phase trajectory deliberately not modelled (vehicle-specific Isp/thrust/gravity-turn). Reference TLEs are textbook fixtures; users fetch fresh from CelesTrak / Space-Track for operational use.
+
+### Test count
+
+1306 pass, 42 skipped (was 1190 + 41 in v0.21.10; +103 net new + one additional optional-dep tier2_skip).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.21.10 → 0.22.0` (minor bump reflects discipline-pivot scope). ABI unchanged (twentieth consecutive ship since v0.13.x with no ABI movement).
 
 ## [0.21.10] — 2026-05-07
 

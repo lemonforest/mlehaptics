@@ -199,6 +199,28 @@ from ephemerides_spectral._research.thermal_balance_catalog import (
     compute_thermal_balance as _compute_thermal_balance_impl,
     list_thermal_balances as _list_thermal_balances_impl,
 )
+from ephemerides_spectral._research.ballistic_trajectory_catalog import (
+    compute_ballistic_trajectory as _compute_ballistic_trajectory_impl,
+    get_ballistic_atmosphere as _get_ballistic_atmosphere_impl,
+    list_ballistic_atmospheres as _list_ballistic_atmospheres_impl,
+)
+from ephemerides_spectral._research.icbm_trajectory_catalog import (
+    compute_icbm_trajectory as _compute_icbm_trajectory_impl,
+    get_icbm_reference_profile as _get_icbm_reference_profile_impl,
+    list_icbm_reference_profiles as _list_icbm_reference_profiles_impl,
+)
+from ephemerides_spectral._research.sensor_access_catalog import (
+    compute_visibility_geometry as _compute_visibility_geometry_impl,
+    compute_sgp4_state as _compute_sgp4_state_impl,
+    get_orbital_reference as _get_orbital_reference_impl,
+    list_orbital_references as _list_orbital_references_impl,
+)
+from ephemerides_spectral._research.decoy_discrimination_catalog import (
+    compute_bc_differential as _compute_bc_differential_impl,
+    compute_discrimination_altitude as _compute_discrimination_altitude_impl,
+    get_bc_reference_class as _get_bc_reference_class_impl,
+    list_bc_reference_classes as _list_bc_reference_classes_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3749,6 +3771,250 @@ def list_thermal_balances() -> Dict[str, Any]:
     `_research.thermal_balance_data.SOURCES` citation dict.
     """
     return _list_thermal_balances_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.22.0 — Trajectory + Sensing Layer (Layer A: ballistic)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def compute_ballistic_trajectory(
+    body: str,
+    v_m_s: float,
+    angle_deg: float,
+    altitude_m: float = 0.0,
+    with_drag: bool = False,
+    ballistic_coefficient: Optional[float] = None,
+    dt_s: float = 0.5,
+    max_steps: int = 100000,
+    n_vacuum_samples: int = 33,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer A — per-body short-range ballistic propagator.
+
+    Vacuum case: Vallado §8.6.2 closed-form. Drag case: RK4 integration
+    under exponential atmosphere (BC = m/(C_d·A) parameterized).
+
+    7-body roster: terra, mars, venus, titan (atmospheric);
+    luna, mercury (vacuum); jupiter (1-bar reference).
+
+    See ``_research.ballistic_trajectory_catalog`` for the full
+    docstring.
+    """
+    return _compute_ballistic_trajectory_impl(
+        body=body,
+        v_m_s=v_m_s,
+        angle_deg=angle_deg,
+        altitude_m=altitude_m,
+        with_drag=with_drag,
+        ballistic_coefficient=ballistic_coefficient,
+        dt_s=dt_s,
+        max_steps=max_steps,
+        n_vacuum_samples=n_vacuum_samples,
+    )
+
+
+def get_ballistic_atmosphere(body: Optional[str] = None) -> Dict[str, Any]:
+    """v0.22.0 Layer A — per-body ballistic-atmosphere lookup.
+
+    Returns the exponential-atmosphere parameters (ρ₀, H, top) +
+    surface gravity + body radius used by the ballistic propagator.
+    """
+    return _get_ballistic_atmosphere_impl(body=body)
+
+
+def list_ballistic_atmospheres() -> Dict[str, Any]:
+    """v0.22.0 Layer A — full enumeration of per-body
+    ballistic-atmosphere records + citations."""
+    return _list_ballistic_atmospheres_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.22.0 — Trajectory + Sensing Layer (Layer B: ICBM 3-regime)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def compute_icbm_trajectory(
+    burnout_velocity_m_s: float,
+    burnout_flight_path_angle_deg: float,
+    burnout_altitude_m: float = 200_000.0,
+    ballistic_coefficient_kg_m2: float = 10000.0,
+    n_reentry_samples: int = 33,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer B — Earth 3-regime ICBM trajectory.
+
+    Boost is a boundary condition (user supplies burnout state).
+    Midcourse propagates Kepler ellipse to the 100-km re-entry
+    interface (Bate-Mueller-White Ch. 6). Re-entry uses Allen-Eggers
+    closed-form (NACA Report 1381, 1958).
+
+    **Boost is intentionally not modelled** — boost-phase trajectory
+    requires vehicle-specific Isp + thrust profile + gravity-turn
+    pitch program; those cross into operationally-sensitive
+    territory.
+
+    See ``_research.icbm_trajectory_catalog`` for the full docstring.
+    """
+    return _compute_icbm_trajectory_impl(
+        burnout_velocity_m_s=burnout_velocity_m_s,
+        burnout_flight_path_angle_deg=burnout_flight_path_angle_deg,
+        burnout_altitude_m=burnout_altitude_m,
+        ballistic_coefficient_kg_m2=ballistic_coefficient_kg_m2,
+        n_reentry_samples=n_reentry_samples,
+    )
+
+
+def get_icbm_reference_profile(
+    profile_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer B — textbook reference profile lookup.
+
+    Returns canonical SRBM / MRBM / ICBM range-class profiles from
+    Wilkening 2000 + Sessler/UCS 2000 — open-literature baselines,
+    NOT operational parameters.
+    """
+    return _get_icbm_reference_profile_impl(profile_name=profile_name)
+
+
+def list_icbm_reference_profiles() -> Dict[str, Any]:
+    """v0.22.0 Layer B — full enumeration of ICBM reference profiles
+    + citations."""
+    return _list_icbm_reference_profiles_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.22.0 — Trajectory + Sensing Layer (Layer C(a): sensor access)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def compute_visibility_geometry(
+    sat_ecef_m: Tuple[float, float, float],
+    target_lat_deg: float,
+    target_lon_deg: float,
+    target_altitude_m: float = 0.0,
+    minimum_elevation_deg: float = 5.0,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer C(a) — slant range + look-angle + Earth-limb
+    occlusion test.
+
+    Standard Vallado Ch. 11 look-angle geometry. Returns slant range,
+    elevation, azimuth, occlusion flag, and visibility flag (elevation
+    above minimum + not occluded).
+    """
+    return _compute_visibility_geometry_impl(
+        sat_ecef_m=sat_ecef_m,
+        target_lat_deg=target_lat_deg,
+        target_lon_deg=target_lon_deg,
+        target_altitude_m=target_altitude_m,
+        minimum_elevation_deg=minimum_elevation_deg,
+    )
+
+
+def compute_sgp4_state(
+    line1: str,
+    line2: str,
+    minutes_since_epoch: float = 0.0,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer C(a) — SGP4/SDP4 TLE propagation to ECI state.
+
+    Delegates to Brandon Rhodes' ``sgp4`` package (transitive dep via
+    ``ephemerides-spectral[ephemeris]``). Returns ``ok=False`` with a
+    degradation message when ``sgp4`` is not installed.
+    """
+    return _compute_sgp4_state_impl(
+        line1=line1,
+        line2=line2,
+        minutes_since_epoch=minutes_since_epoch,
+    )
+
+
+def get_orbital_reference(label: Optional[str] = None) -> Dict[str, Any]:
+    """v0.22.0 Layer C(a) — reference TLE lookup by label.
+
+    Sample reference TLEs only — fetch fresh ones from CelesTrak /
+    Space-Track for operational use.
+    """
+    return _get_orbital_reference_impl(label=label)
+
+
+def list_orbital_references() -> Dict[str, Any]:
+    """v0.22.0 Layer C(a) — full enumeration of orbital reference
+    TLEs + atmospheric IR transmission windows + citations."""
+    return _list_orbital_references_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.22.0 — Trajectory + Sensing Layer (Layer C(b): decoy discrimination)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def compute_bc_differential(
+    bc_heavy_kg_m2: float,
+    bc_light_kg_m2: float,
+    entry_velocity_m_s: float = 7000.0,
+    entry_flight_path_angle_deg: float = 23.0,
+    altitude_band_lower_km: float = 60.0,
+    altitude_band_upper_km: float = 100.0,
+    n_samples: int = 41,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer C(b) — BC-differential velocity separation.
+
+    The only physics-based midcourse-surviving discriminator: in the
+    upper atmospheric drag tail (60-100 km), heavy compact RV
+    decelerates slowly while light decoys decelerate rapidly.
+
+    Allen-Eggers closed-form velocity-vs-altitude
+    (NACA Report 1381, 1958). Reference: Sessler/UCS 2000
+    *Countermeasures*.
+    """
+    return _compute_bc_differential_impl(
+        bc_heavy_kg_m2=bc_heavy_kg_m2,
+        bc_light_kg_m2=bc_light_kg_m2,
+        entry_velocity_m_s=entry_velocity_m_s,
+        entry_flight_path_angle_deg=entry_flight_path_angle_deg,
+        altitude_band_lower_km=altitude_band_lower_km,
+        altitude_band_upper_km=altitude_band_upper_km,
+        n_samples=n_samples,
+    )
+
+
+def compute_discrimination_altitude(
+    bc_heavy_kg_m2: float,
+    bc_light_kg_m2: float,
+    entry_velocity_m_s: float = 7000.0,
+    entry_flight_path_angle_deg: float = 23.0,
+    delta_v_threshold_m_s: float = 100.0,
+    altitude_band_lower_km: float = 60.0,
+    altitude_band_upper_km: float = 100.0,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer C(b) — find the altitude at which Δv exceeds
+    a discrimination threshold."""
+    return _compute_discrimination_altitude_impl(
+        bc_heavy_kg_m2=bc_heavy_kg_m2,
+        bc_light_kg_m2=bc_light_kg_m2,
+        entry_velocity_m_s=entry_velocity_m_s,
+        entry_flight_path_angle_deg=entry_flight_path_angle_deg,
+        delta_v_threshold_m_s=delta_v_threshold_m_s,
+        altitude_band_lower_km=altitude_band_lower_km,
+        altitude_band_upper_km=altitude_band_upper_km,
+    )
+
+
+def get_bc_reference_class(
+    class_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """v0.22.0 Layer C(b) — open-literature reference BC class lookup.
+
+    Returns canonical heavy_rv / light_rv / replica_decoy / chaff_decoy
+    baselines from Sessler/UCS 2000 Table 8.1. NOT specific weapon-
+    system parameters.
+    """
+    return _get_bc_reference_class_impl(class_name=class_name)
+
+
+def list_bc_reference_classes() -> Dict[str, Any]:
+    """v0.22.0 Layer C(b) — full enumeration of BC reference classes
+    + citations."""
+    return _list_bc_reference_classes_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
