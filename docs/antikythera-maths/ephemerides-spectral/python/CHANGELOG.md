@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.6)
+(no entries yet — next entries land after v0.21.7)
+
+## [0.21.7] — 2026-05-07
+
+**Atmospheric escape ↔ magnetic-field shielding — seventh cross-channel coupling surface.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.atmospheric_escape_catalog` — wrapper module with `compute_atmospheric_escape`, `list_atmospheric_escapes`.
+- `_research.atmospheric_escape_data` — data module with `ATMOSPHERIC_ESCAPES` (6 entries), `SOURCES` (6 citations), `AtmosphericEscape` dataclass + 5-mechanism vocabulary constants.
+
+### Added — bridge dict API
+
+- `bridge.get_atmospheric_escape(body=None) -> dict`
+- `bridge.list_atmospheric_escapes() -> dict`
+
+### Added — CLI
+
+- `atmospheric-escape [--body X]`
+- `atmospheric-escapes`
+
+### 6-body roster
+
+terra (Lammer 2018 — 3 kg/s thermal Jeans, IGRF-shielded), **mars** (Jakosky 2018 MAVEN — **2 kg/s pickup-ion + 4-Gyr loss ~50% of primordial CO₂; THE HEADLINE**), venus (Persson 2020 — 0.4 kg/s, no dipole but gravity retains), mercury (Killen 2007 — 0.01 kg/s sputtering exosphere), titan (Strobel 2008 — 30 kg/s hydrodynamic, highest absolute rate), jupiter (Bagenal 2007 — 1000 kg/s Io torus dominated).
 
 ## [0.21.6] — 2026-05-07
 

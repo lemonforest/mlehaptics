@@ -650,6 +650,16 @@ def _cmd_tidal_migrations(args: argparse.Namespace) -> int:
     return _emit(bridge.list_tidal_migrations(), pretty=args.pretty)
 
 
+def _cmd_atmospheric_escape(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_atmospheric_escape(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_atmospheric_escapes(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_atmospheric_escapes(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3101,6 +3111,49 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     tms.set_defaults(func=_cmd_tidal_migrations)
+
+    # atmospheric-escape (v0.21.7) — escape rate <-> magnetic shielding.
+    ae = sub.add_parser(
+        "atmospheric-escape",
+        help="Per-body atmospheric escape <-> magnetic-shielding constraint",
+        description=(
+            "Returns per-body atmospheric escape rate + dominant\n"
+            "mechanism + magnetic-shielding flag. Atmospheric escape\n"
+            "depends critically on magnetic-field shielding: Earth +\n"
+            "Jupiter deflect solar wind at magnetopause, retaining\n"
+            "atmospheres; Mars + Venus are exposed and lose\n"
+            "atmosphere over Gyr.\n"
+            "\n"
+            "6-body roster: terra (3 kg/s thermal, IGRF-shielded),\n"
+            "mars (2 kg/s pickup-ion, NO shielding -- THE HEADLINE:\n"
+            "lost 50%% of primordial CO2 over 4 Gyr; Jakosky 2018\n"
+            "MAVEN), venus (0.4 kg/s pickup-ion despite no shield),\n"
+            "mercury (0.01 kg/s sputtering exosphere), titan (30 kg/s\n"
+            "hydrodynamic; highest absolute rate), jupiter (1000 kg/s\n"
+            "Io plasma torus injection).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral atmospheric-escape --pretty\n"
+            "  ephemerides-spectral atmospheric-escape --body mars --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ae.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    ae.set_defaults(func=_cmd_atmospheric_escape)
+
+    # atmospheric-escapes (v0.21.7) — full enumeration.
+    aes = sub.add_parser(
+        "atmospheric-escapes",
+        help="Full atmospheric-escape catalog enumeration",
+        description=(
+            "Returns every body's AtmosphericEscape record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    aes.set_defaults(func=_cmd_atmospheric_escapes)
 
     # lunar-kernels
     lk = sub.add_parser(

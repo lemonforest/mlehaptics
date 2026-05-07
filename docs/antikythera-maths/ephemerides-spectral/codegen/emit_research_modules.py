@@ -54,6 +54,8 @@ _INCLUDED_MODULES: List[str] = [
     "auroral_coupling_catalog.py",
     "tidal_migration_data.py",
     "tidal_migration_catalog.py",
+    "atmospheric_escape_data.py",
+    "atmospheric_escape_catalog.py",
 ]
 
 def emit() -> List[Path]:

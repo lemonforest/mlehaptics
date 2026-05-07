@@ -183,6 +183,10 @@ from ephemerides_spectral._research.tidal_migration_catalog import (
     compute_tidal_migration as _compute_tidal_migration_impl,
     list_tidal_migrations as _list_tidal_migrations_impl,
 )
+from ephemerides_spectral._research.atmospheric_escape_catalog import (
+    compute_atmospheric_escape as _compute_atmospheric_escape_impl,
+    list_atmospheric_escapes as _list_atmospheric_escapes_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3517,6 +3521,61 @@ def list_tidal_migrations() -> Dict[str, Any]:
     `_research.tidal_migration_data.SOURCES` citation dict.
     """
     return _list_tidal_migrations_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.7 — Atmospheric escape ↔ magnetic-field shielding
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_atmospheric_escape(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body atmospheric escape ↔ magnetic-shielding constraint.
+
+    Promotes the v0.21.7 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **seventh**
+    cross-channel coupling surface, fourth in the post-trio sequence.
+
+    Atmospheric escape rates depend critically on magnetic-field
+    shielding. Planets with strong intrinsic dipoles (Earth, Jupiter)
+    deflect solar wind at the magnetopause, retaining atmospheres
+    against pickup-ion erosion. Unmagnetised planets (Mars, Venus)
+    are exposed to direct solar-wind interaction; over Gyr timescales
+    this preferentially removes heavy species via pickup-ion escape.
+
+    The cross-channel observation: **the v0.20.2 atmospheric inventory
+    diverges by Gyr from the v0.20.1 magnetic-multipole inventory**.
+    Mars + Venus diverge from terrestrial inventory because they
+    cannot retain atmosphere against solar-wind erosion.
+
+    **Mars-MAVEN headline**: Jakosky 2018 measured ~2 kg/s present-day
+    pickup-ion escape; integrated 4-Gyr loss ~10¹⁸ kg = ~50% of
+    primordial CO₂ atmosphere.
+
+    **Not a re-derivation.** Values shipped are published measurements
+    / model fits from cited papers.
+
+    6-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, escape: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_atmospheric_escape_impl(body=body)
+
+
+def list_atmospheric_escapes() -> Dict[str, Any]:
+    """Static enumeration of every published atmospheric-escape rate.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.atmospheric_escape_data.SOURCES` citation dict.
+    """
+    return _list_atmospheric_escapes_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
