@@ -670,6 +670,16 @@ def _cmd_heat_flows(args: argparse.Namespace) -> int:
     return _emit(bridge.list_heat_flows(), pretty=args.pretty)
 
 
+def _cmd_volcanic_outgassing(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_volcanic_outgassing(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_volcanic_outgassings(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_volcanic_outgassings(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3208,6 +3218,51 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     hfs.set_defaults(func=_cmd_heat_flows)
+
+    # volcanic-outgassing (v0.21.9) — outgassing <-> atmosphere coupling.
+    vo = sub.add_parser(
+        "volcanic-outgassing",
+        help="Per-body volcanic outgassing <-> atmospheric composition coupling",
+        description=(
+            "Returns per-body volcanic outgassing rate + dominant\n"
+            "outgassed species + source mechanism.\n"
+            "\n"
+            "Cross-channel: v0.21.7 (escape) + v0.21.9 (outgassing)\n"
+            "form the supply-and-demand sides of atmospheric mass\n"
+            "balance. v0.21.8 (heat flow) provides the energy budget.\n"
+            "\n"
+            "6-body roster: terra (3 kg/s CO2 subaerial+submarine,\n"
+            "balanced by silicate weathering NOT escape), mars\n"
+            "(dormant; ~0 outgassing while v0.21.7 says 2 kg/s\n"
+            "escape -> dead-planet story), venus (0.5 kg/s SO2 active\n"
+            "hotspots), io (THE HEADLINE: 1 ton/s SO2 from tidal-\n"
+            "driven volcanism, cross-references v0.21.8 100 TW),\n"
+            "enceladus (200 kg/s H2O plume venting -> Saturn E-ring),\n"
+            "jupiter (1000 kg/s S+/O+ via Io magnetospheric injection,\n"
+            "matches v0.21.7 escape rate downstream).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral volcanic-outgassing --pretty\n"
+            "  ephemerides-spectral volcanic-outgassing --body io --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    vo.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    vo.set_defaults(func=_cmd_volcanic_outgassing)
+
+    # volcanic-outgassings (v0.21.9) — full enumeration.
+    vos = sub.add_parser(
+        "volcanic-outgassings",
+        help="Full volcanic-outgassing catalog enumeration",
+        description=(
+            "Returns every body's VolcanicOutgassing record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    vos.set_defaults(func=_cmd_volcanic_outgassings)
 
     # lunar-kernels
     lk = sub.add_parser(

@@ -191,6 +191,10 @@ from ephemerides_spectral._research.heat_flow_catalog import (
     compute_heat_flow as _compute_heat_flow_impl,
     list_heat_flows as _list_heat_flows_impl,
 )
+from ephemerides_spectral._research.volcanic_outgassing_catalog import (
+    compute_volcanic_outgassing as _compute_volcanic_outgassing_impl,
+    list_volcanic_outgassings as _list_volcanic_outgassings_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3633,6 +3637,60 @@ def list_heat_flows() -> Dict[str, Any]:
     `_research.heat_flow_data.SOURCES` citation dict.
     """
     return _list_heat_flows_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.9 — Volcanic outgassing ↔ atmospheric composition
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_volcanic_outgassing(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body volcanic-outgassing ↔ atmospheric-composition coupling.
+
+    Promotes the v0.21.9 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **ninth**
+    cross-channel coupling surface, sixth in the post-trio sequence.
+
+    Volcanic outgassing rate sets atmospheric-inventory dynamics
+    through steady-state mass balance: outgassing (SOURCE) = escape
+    (SINK from v0.21.7) + sequestration (frost / weathering /
+    ocean dissolution). Inventory stable iff source ≈ sink.
+
+    The cross-channel observation: **v0.21.7 escape + v0.21.9
+    outgassing form the supply-and-demand sides of atmospheric mass
+    balance**. v0.21.8 heat flow provides the energy budget that
+    drives outgassing in the first place.
+
+    **Io headline**: 1 ton/s SO₂ outgassing from tidal-driven
+    volcanism (cross-references v0.21.8 100 TW heating); SO₂ is
+    injected into Jupiter's Io plasma torus at ~1 ton/s — matching
+    v0.21.7's 1000 kg/s Jupiter pickup-ion escape rate downstream.
+
+    **Not a re-derivation.** Values shipped are published
+    measurements / model fits from cited papers.
+
+    6-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, outgassing: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_volcanic_outgassing_impl(body=body)
+
+
+def list_volcanic_outgassings() -> Dict[str, Any]:
+    """Static enumeration of every published outgassing-rate record.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.volcanic_outgassing_data.SOURCES` citation dict.
+    """
+    return _list_volcanic_outgassings_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
