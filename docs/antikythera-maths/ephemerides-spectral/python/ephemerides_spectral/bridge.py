@@ -272,6 +272,12 @@ from ephemerides_spectral._research.axial_seamount_catalog import (
         as _get_axial_inflation_cycle_signature_impl,
     list_axial_seamount as _list_axial_seamount_impl,
 )
+from ephemerides_spectral._research.dynamical_regime_catalog import (
+    classify_dynamical_regime as _classify_dynamical_regime_impl,
+    get_dynamical_regime_eigenbasis
+        as _get_dynamical_regime_eigenbasis_impl,
+    list_dynamical_regimes as _list_dynamical_regimes_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4635,6 +4641,65 @@ def list_axial_seamount() -> Dict[str, Any]:
     """Full catalog enumeration of Axial Seamount eruption + inflation-
     phase + forecast records + citations."""
     return _list_axial_seamount_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.9 — Dynamical-Regime Classifier
+# (eigenbasis-projection version of the v0.24.x if/else chain;
+# consumes the v0.24.0–v0.24.8 catalogs as labelled training examples)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_dynamical_regime_eigenbasis(
+    n_components: int = 3,
+) -> Dict[str, Any]:
+    """The standardised feature matrix + its principal-component
+    eigendecomposition over the v0.24.0–v0.24.8 labelled training
+    examples.
+
+    9 training examples (one per v0.24.x ship), 7 features per
+    example: time_scale_log_s, spatial_scale_log_km, stability_index,
+    has_commensurability, prediction_track_signal, dimensionality,
+    forcing_class_index. Top 3 PCs explain ~83% of variance; top 4
+    explain ~94%.
+
+    Cross-channel: same Fiedler/eigenbasis machinery as v0.18.0
+    body_architecture and v0.24.5 / v0.24.7 bounded-local catalogs --
+    now applied to the v0.24.x ships THEMSELVES as data points.
+    """
+    return _get_dynamical_regime_eigenbasis_impl(n_components=n_components)
+
+
+def classify_dynamical_regime(
+    feature_vector,
+    n_components: int = 3,
+) -> Dict[str, Any]:
+    """Classify a 7-feature vector against the v0.24.0–v0.24.8 labelled
+    training examples.
+
+    Project the input feature vector into the top-k principal-component
+    eigenbasis derived from the 9 v0.24.x ships; return the nearest-
+    neighbour regime label + distances to every training example +
+    projection diagnostics.
+
+    This is the **eigenbasis-projection version of the v0.24.x if/else
+    chain** -- the original framing replaced by the v0.24.9 ship.
+
+    Feature schema (7 floats; see `_research.dynamical_regime_data`):
+      (time_scale_log_s, spatial_scale_log_km, stability_index,
+       has_commensurability, prediction_track_signal, dimensionality,
+       forcing_class_index)
+    """
+    return _classify_dynamical_regime_impl(
+        feature_vector=feature_vector,
+        n_components=n_components,
+    )
+
+
+def list_dynamical_regimes() -> Dict[str, Any]:
+    """Full enumeration of the v0.24.0–v0.24.8 regime training
+    examples + citations."""
+    return _list_dynamical_regimes_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

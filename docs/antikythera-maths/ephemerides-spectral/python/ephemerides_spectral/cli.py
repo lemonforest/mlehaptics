@@ -1023,6 +1023,43 @@ def _cmd_axial_seamount_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_axial_seamount(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.9 — Dynamical-Regime Classifier CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_regime_eigenbasis(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_dynamical_regime_eigenbasis(
+            n_components=args.n_components,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_regime_classify(args: argparse.Namespace) -> int:
+    feature_vector = (
+        args.time_scale_log_s,
+        args.spatial_scale_log_km,
+        args.stability_index,
+        args.has_commensurability,
+        args.prediction_track_signal,
+        args.dimensionality,
+        args.forcing_class_index,
+    )
+    return _emit(
+        bridge.classify_dynamical_regime(
+            feature_vector=feature_vector,
+            n_components=args.n_components,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_regime_list(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_dynamical_regimes(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4559,6 +4596,87 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     asf.set_defaults(func=_cmd_axial_seamount_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.9 — Dynamical-Regime Classifier
+    # ──────────────────────────────────────────────────────────────────
+
+    # regime-eigenbasis
+    re_eb = sub.add_parser(
+        "regime-eigenbasis",
+        help="Dynamical-regime classifier eigenbasis (top PCs over v0.24.x ships)",
+        description=(
+            "v0.24.9 -- the eigenbasis-projection version of the\n"
+            "v0.24.x if/else chain. 9 labelled training examples\n"
+            "(one per v0.24.0-v0.24.8 ship), 7 features per example,\n"
+            "principal-component decomposition over the standardised\n"
+            "feature matrix. Top 3 PCs explain ~83 percent of variance.\n"
+            "\n"
+            "Returns the eigenvalues + per-feature loadings + every\n"
+            "training example's projected coordinates."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    re_eb.add_argument(
+        "--n-components", type=int, default=3,
+        help="Number of top PCs to project onto (default 3; max 7).",
+    )
+    re_eb.set_defaults(func=_cmd_regime_eigenbasis)
+
+    # regime-classify
+    re_cl = sub.add_parser(
+        "regime-classify",
+        help="Classify a 7-feature vector against the v0.24.x training examples",
+        description=(
+            "Project a 7-feature vector into the dynamical-regime\n"
+            "eigenbasis and return the nearest-neighbour regime label\n"
+            "+ distances to every training example.\n"
+            "\n"
+            "Feature schema (all required):\n"
+            "  --time-scale-log-s         log10(period in seconds)\n"
+            "  --spatial-scale-log-km     log10(length in km)\n"
+            "  --stability-index          0..1 Diophantine-stability\n"
+            "  --has-commensurability     0/1 integer-resonance present\n"
+            "  --prediction-track-signal  -1/0/+1 (MISS/none/HIT-only)\n"
+            "  --dimensionality           0/1/2/3 (point/chain/surface/volume)\n"
+            "  --forcing-class-index      0..4 (gravitational..volcanic)\n"
+            "\n"
+            "Example (Enceladus probe):\n"
+            "  ephemerides-spectral regime-classify \\\n"
+            "    --time-scale-log-s 5.08 --spatial-scale-log-km 2.40 \\\n"
+            "    --stability-index 1.0 --has-commensurability 1 \\\n"
+            "    --prediction-track-signal 0 --dimensionality 0 \\\n"
+            "    --forcing-class-index 0 --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    re_cl.add_argument("--time-scale-log-s", type=float, required=True)
+    re_cl.add_argument("--spatial-scale-log-km", type=float, required=True)
+    re_cl.add_argument("--stability-index", type=float, required=True)
+    re_cl.add_argument("--has-commensurability", type=int, required=True,
+                       choices=[0, 1])
+    re_cl.add_argument("--prediction-track-signal", type=int, required=True,
+                       choices=[-1, 0, 1])
+    re_cl.add_argument("--dimensionality", type=int, required=True,
+                       choices=[0, 1, 2, 3])
+    re_cl.add_argument("--forcing-class-index", type=int, required=True,
+                       choices=[0, 1, 2, 3, 4])
+    re_cl.add_argument("--n-components", type=int, default=3)
+    re_cl.set_defaults(func=_cmd_regime_classify)
+
+    # regime-list
+    re_ls = sub.add_parser(
+        "regime-list",
+        help="Full enumeration of v0.24.x regime training examples",
+        description=(
+            "Returns every v0.24.0-v0.24.8 labelled training example,\n"
+            "its regime label, its 7-feature signature vector, the\n"
+            "catalog module that implements it, and the citation\n"
+            "pointer back to the source ship."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    re_ls.set_defaults(func=_cmd_regime_list)
 
     # lunar-kernels
     lk = sub.add_parser(

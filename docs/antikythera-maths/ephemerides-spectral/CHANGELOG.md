@@ -7,7 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.8)
+(no entries yet — next entries land after v0.24.9)
+
+## [0.24.9] — 2026-05-07
+
+**Dynamical-Regime Classifier (eigenbasis-projection version of the v0.24.x if/else chain) — tenth and capstone ship in v0.24.x; the project's first explicit meta-consumer of the v0.24.x methodology arc.** Pure-Python additive; **no ABI bump** (thirty-second consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.dynamical_regime_catalog.get_dynamical_regime_eigenbasis / classify_dynamical_regime / list_dynamical_regimes` |
+| Bridge dict API | `bridge.get_dynamical_regime_eigenbasis(n_components=3)` / `bridge.classify_dynamical_regime(feature_vector, n_components=3)` / `bridge.list_dynamical_regimes()` |
+| CLI | `regime-eigenbasis`, `regime-classify`, `regime-list` |
+
+### 9 labelled training examples (one per v0.24.x ship)
+
+| Ship | Regime label | Forcing class | Dimensionality | Stability |
+|---|---|---|---|---|
+| v0.24.0 Mercury | `rigid_body_action_angle_stable` | gravitational | 0 | 1.0 |
+| v0.24.1 Luna | `rigid_body_action_angle_commensurate` | gravitational | 0 | 1.0 |
+| v0.24.2 Mars | `rigid_body_chaotic_obliquity` | gravitational | 0 | 0.0 |
+| v0.24.3 Sun | `continuum_normal_modes` | stellar_oscillation | 3 | 1.0 |
+| v0.24.4 Toroidal-Residual | `shape_residual_chandrasekhar` | gravitational | 3 | 0.5 |
+| v0.24.5 Hawaii | `bounded_local_laplacian_trajectory` | tectonic | 1 | 0.7 |
+| v0.24.6 Yarkovsky/YORP | `radiation_coupled_drift` | radiation | 0 | 0.5 |
+| v0.24.7 Mars Tharsis | `bounded_local_laplacian_family` | volcanic | 2 | 0.6 |
+| v0.24.8 Axial Seamount | `temporal_quasi_periodic_cycle` | volcanic | 0 | 0.5 |
+
+### Feature schema (7 features per ship)
+
+1. **`time_scale_log_s`** — log10 of natural period in seconds (range: ~2.5 for solar p-modes to ~15.7 for Mars Tharsis surfaces).
+2. **`spatial_scale_log_km`** — log10 of natural length scale in km (range: ~-0.5 for sub-km asteroids to ~5.8 for solar radius).
+3. **`stability_index`** — heuristic 0..1 Diophantine-stability indicator (1.0 = stable rigid-body action-angle; 0.0 = chaotic / KAM-broken).
+4. **`has_commensurability`** — 1 if integer-resonance observable (Mercury 3:2, Saros 223:239:242), 0 otherwise.
+5. **`prediction_track_signal`** — +1 (HIT-only published track record), -1 (MISS observed), 0 (no published prediction).
+6. **`dimensionality`** — 0 (point dynamics), 1 (1D chain), 2 (2D surface family), 3 (3D volume / continuum).
+7. **`forcing_class_index`** — 0=gravitational, 1=stellar-oscillation, 2=radiation, 3=tectonic, 4=volcanic.
+
+### Eigenbasis spectrum
+
+| PC | Eigenvalue | Explained variance | Cumulative |
+|---|---|---|---|
+| PC1 | 2.94 | 41.9% | 41.9% |
+| PC2 | 1.81 | 25.8% | 67.8% |
+| PC3 | 1.07 | 15.3% | 83.1% |
+| PC4 | 0.74 | 10.6% | 93.7% |
+
+### Cross-channel observation
+
+The classifier replaces the **aspirational if/else chain** (which was always implicit, never coded) with a **learned eigenbasis projection** that exposes distance-to-all training examples. Same Fiedler/eigenbasis machinery as v0.18.0 body_architecture, v0.24.5 Hawaii, v0.24.7 Mars Tharsis — applied to **the v0.24.x ships themselves as data points**. The project's first explicit *meta-consumer* of the v0.24.x methodology arc.
+
+Out-of-sample probes (the classifier doing useful work):
+- **Yellowstone hotspot** (10-Myr North American Plate track) → `bounded_local_laplacian_trajectory` (Hawaii-like, d=0.20)
+- **K-dwarf star** (5-min p-modes, ~500000 km) → `continuum_normal_modes` (Sun-like, d=0.05)
+- **Enceladus** (1.4-day orbital, 2:1 Dione lock, 252 km) → `rigid_body_action_angle_stable` (Mercury-like, d=0.32; Luna-like 2nd-nearest, d=1.10)
+
+### Tests
+
+- `tests/test_dynamical_regime.py` — 48 tests pinning roster shape, per-ship presence, feature-vector schema invariants, eigenbasis invariants (top-3 PCs > 70% variance, top-4 > 90%, eigenvalues descending), self-classification accuracy (9/9 round-trip), out-of-sample probes, input validation, bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Sources (9)
+
+One pointer per v0.24.0–v0.24.8 ship's catalog (Mercury / Luna / Mars / Sun / Toroidal / Hawaii / Yarkovsky / Mars Tharsis / Axial). The v0.24.9 ship is a *consumer* of these prior ships; no new physical claim is made.
+
+### Architectural commitment
+
+Capstone of the v0.24.x methodology arc. After v0.24.0–v0.24.8 demonstrated nine distinct dynamical regimes (rigid stable / commensurate / chaotic; continuum normal-modes; shape-residual; bounded-local-trajectory / family; radiation-coupled drift; temporal cycle), v0.24.9 closes the arc by treating those nine ships as labelled training examples for an eigenbasis-projection regime classifier. The next ship is **v0.25.0 — Attested Multi-Source Collector framework** (config-driven adapters, see ROADMAP).
 
 ## [0.24.8] — 2026-05-07
 
