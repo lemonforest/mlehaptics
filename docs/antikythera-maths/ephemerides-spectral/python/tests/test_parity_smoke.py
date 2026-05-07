@@ -287,6 +287,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.6 Sol Tidal Migration Catalog (sixth cross-channel
+    # coupling surface; tidal dissipation <-> orbital migration; 6-pair
+    # roster). Pure-Python static lookup; no C twin makes sense.
+    "get_tidal_migration": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_tidal_migrations": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

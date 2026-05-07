@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.5)
+(no entries yet — next entries land after v0.21.6)
+
+## [0.21.6] — 2026-05-07
+
+**Tidal-resonance ↔ orbital migration — sixth cross-channel coupling surface (post-trio).** Pure-Python additive; **no ABI bump** (fifteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.tidal_migration_catalog.compute_tidal_migration / list_tidal_migrations` |
+| Bridge dict API | `bridge.get_tidal_migration(pair=None)` / `bridge.list_tidal_migrations()` |
+| CLI | `tidal-migration [--pair X]` / `tidal-migrations` |
+
+### 6-pair roster
+
+| Pair | Source | Rate (cm/yr) | Direction | Resonance? |
+|---|---|---:|---|:-:|
+| terra-luna | Williams 2014 LLR | +3.83 | outward | ✗ |
+| mars-phobos | Lainey 2007 | −1.9 | inward | ✗ |
+| **jupiter-io** | **Lainey 2009** | **+3.6** | **outward** | **✓** (Laplace) |
+| **saturn-titan** | **Lainey 2020** | **+11** | **outward** | **✓** (Saturn interior) |
+| neptune-triton | Jacobson 2009 | −0.5 | inward | ✗ |
+| pluto-charon | McKinnon 2017 | 0 | locked | ✗ |
+
+### Highlights
+
+- **Saturn-Titan 11 cm/yr — the headline.** Lainey 2020 measured this is **100× older equilibrium-tide predictions**; implies Saturn-interior resonance locking with Titan's orbit. Cross-references v0.21.4 Mankovich-Fuller 2021 ring-seismology — the two ships form a coherent picture of Saturn's deep-interior dynamics.
+- **Galilean Laplace 1:2:4 currently EXPANDING** (Lainey 2009; not contracting as classical theory assumed). Io drifts outward at 3.6 cm/yr.
+- **Earth-Moon 3.83 cm/yr** — the canonical case; most precisely measured tidal-migration rate in the solar system via Lunar Laser Ranging.
+- **Mars-Phobos** — Phobos orbits faster than Mars rotates → tidal bulge lags → inward at 1.9 cm/yr; tidal-disruption deadline ~50 Myr.
+- **Pluto-Charon dual-synchronous tidal lock** — unique solar-system case; tidal evolution end-state.
+
+### Direction-sign convention
+
+Pinned in tests: outward → positive, inward → negative, locked → zero.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the published secular drift fits from cited papers.
+
+### v0.21.x cross-channel coupling progress
+
+```
+v0.21.1 topography ↔ gravity              (5 bodies)  ✅
+v0.21.2 magnetic   ↔ dynamo               (5 bodies)  ✅
+v0.21.3 topography ↔ atmosphere           (4 bodies)  ✅
+v0.21.4 interior   ↔ rotation             (7 bodies)  ✅
+v0.21.5 magnetic   ↔ atmosphere           (6 bodies)  ✅
+v0.21.6 tidal      ↔ orbital migration    (6 pairs)   ✅ ← this ship
+```
+
+### Forward sequence
+
+* **v0.21.7+** — More cross-channel coupling surfaces (e.g., heat flow ↔ tidal heating; volcanic outgassing ↔ atmospheric composition; atmospheric escape ↔ magnetic-field shielding).
+
+### Test count
+
+1082 pass, 41 skipped (was 1056 + 41 in v0.21.5; +26 net new — 24 in `test_tidal_migration.py` + 2 README-freshness tests that flipped GREEN).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.5 → 0.21.6`.
 
 ## [0.21.5] — 2026-05-07
 

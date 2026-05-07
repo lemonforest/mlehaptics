@@ -144,11 +144,19 @@
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
     },
+    "_research/tidal_migration_catalog.py": {
+      "sha256": "dfe2f797971e0043c948aa52d23ef205705aa0d8a213c34bfd4c18bb6ae34484",
+      "size_bytes": 4414
+    },
+    "_research/tidal_migration_data.py": {
+      "sha256": "e72d2c5751edb87b351d764efe0b5d2a45a70a457aa76ad0877421d6c33d410a",
+      "size_bytes": 12216
+    },
     "_research/time_scales.py": {
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
       "size_bytes": 62567
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.5"
+  "version": "0.21.6"
 }
