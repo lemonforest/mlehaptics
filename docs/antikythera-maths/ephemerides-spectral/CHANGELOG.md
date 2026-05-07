@@ -7,7 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.19.0)
+(no entries yet — next entries land after v0.20.0)
+
+## [0.20.0] — 2026-05-07
+
+**Sol Geodetic Catalog — state-lookup query surface for the solar-system solid-body geodetic stack.** Promotes notebook §17.1 + §17.4.2 to a stable ship surface, mirroring the v0.19.0 Sol Electromagnetic Instrument pattern. **Not a BIP encoder running on geodetic rhythms** — per §17.4.1 the rhythm-mismatch finding generalises across solid-body geodesy alongside magnetic multipoles and fluid-envelope channels: solid-body geodetic observables (Stokes coefficients, DEM spectra, layered density profiles) are static parameters with no native rhythm, so the cyclic-group encoder discipline does not transplant. Three internal channels per body: gravity multipoles + topography / shape model metadata + interior structure. Pure-Python additive; **no ABI bump** (sixth consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.geodetic_catalog.compute_geodetic_state / list_geodetic_models / compute_geodetic_architecture` |
+| Bridge dict API | `bridge.get_geodetic_state(body=None)` / `bridge.list_geodetic_models()` / `bridge.geodetic_architecture(target=None)` |
+| CLI | `geodetic-state [--body X]` / `geodetic-models` / `geodetic-architecture [--target X]` |
+
+### Roster + channel coverage
+
+Full §17.4.2 commitment: every body in the v0.16.0 52-body celestial roster that has a published gravity model, topography / shape model, or interior structure model is in scope. Three internal channels — gravity multipoles, topography / shape, interior structure — partitioned by data-quality tier (HIGH / MEDIUM / LOW / NONE per §17.1.6 convention). Sparse coverage by design: not every body has a published model in every channel; missing channels return `None` rather than raising.
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into a `SOURCES` dict (DOIs / mission archives / journal refs). Tests pin the resolution: ratchet checks that every per-body `source_key` is a real key in `SOURCES`.
+
+### Architectural choice
+
+Option B (separate sibling instrument), not Option A (kernel-patch onto celestial Laplacian). Geodetic observables don't have a rhythm at all (no native period; J₂ doesn't oscillate, DEM spectra don't tick) — the rhythm-mismatch finding from §16 generalises by *absence-of-rhythm* on this side. The Sol Geodetic Catalog is therefore a state-*lookup* surface (no JD-advance mechanic) rather than a state-*at-epoch* surface like the v0.19.0 EM Instrument.
+
+### Forward sequence committed in §17.4.2
+
+* **v0.20.1** — `MagneticMultipoleCatalog` (full published high-degree internal-field roster).
+* **v0.20.2** — `SolFluidInstrument` (climatological summary + archive index + Earth/Mars state-at-epoch).
+* **v0.21.0** — `SphericalHarmonicCatalog` unification refactor across gravity + magnetic + fluid sectors.
+* **v0.21.1+** — Cross-channel coupling surfaces (one per minor version): topography ↔ gravity, interior ↔ rotation, etc.
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.19.0 → 0.20.0`.
 
 ## [0.19.0] — 2026-05-06
 

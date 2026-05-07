@@ -140,6 +140,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.20.0 Sol Geodetic Catalog (state-lookup query surface for
+    # the solid-body geodetic stack: gravity multipoles + topography +
+    # interior). Per notebook §17.4.1 the rhythm-mismatch finding
+    # generalises across solid-body geodesy alongside magnetic
+    # multipoles and fluid-envelope channels — solid-body geodetic
+    # observables are static parameters with no native rhythm, so the
+    # cyclic-group encoder discipline does not transplant. Three bridge
+    # surfaces, all pure-Python static lookups; no C twin makes sense.
+    "get_geodetic_state": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_geodetic_models": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "geodetic_architecture": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

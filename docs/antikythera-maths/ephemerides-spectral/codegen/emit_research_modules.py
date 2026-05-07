@@ -35,6 +35,8 @@ _INCLUDED_MODULES: List[str] = [
     "predict_itn_accessibility.py",
     "em_instrument_data.py",
     "em_instrument.py",
+    "geodetic_catalog_data.py",
+    "geodetic_catalog.py",
 ]
 
 def emit() -> List[Path]:
