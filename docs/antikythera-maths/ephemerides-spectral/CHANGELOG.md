@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.1)
+(no entries yet — next entries land after v0.24.2)
+
+## [0.24.2] — 2026-05-07
+
+**Mars Dynamical Spectrum — third per-body dynamical-spectrum surface in v0.24.x; the contrast case to Mercury and Luna.** Mars exhibits **secular chaos** — the canonical observable signature of KAM-theory small-denominator failure in the Solar System. Pure-Python additive; **no ABI bump** (twenty-fifth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.mars_dynamical_spectrum_catalog.get_mars_dynamical_spectrum / get_mars_secular_resonance_overlap / list_mars_dynamical_spectrum` |
+| Bridge dict API | `bridge.get_mars_dynamical_spectrum()` / `bridge.get_mars_secular_resonance_overlap()` / `bridge.list_mars_dynamical_spectrum()` |
+| CLI | `mars-dynamical-spectrum`, `mars-secular-resonance-overlap`, `mars-dynamical-spectrum-full` |
+
+### 8-mode action-angle catalog (5 angles + 3 actions)
+
+| Mode | Class | Frequency / Amplitude | Source |
+|---|---|---|---|
+| orbital_mean_motion | angle | period 686.971 d (sidereal year) | JPL DE441 |
+| spin_frequency | angle | period 24.6229 h (sol; **no spin-orbit lock**) | Le Maistre 2023 |
+| spin_axis_precession | angle | period 171 kyr; rate 7.58 arcsec/yr | Ward 1973 |
+| apsidal_precession_g4 | angle | period 71.6 kyr; rate 17.92 arcsec/yr | Laskar 2004 |
+| nodal_precession_s4 | angle | period 70 kyr retrograde; rate −17.74 arcsec/yr | Laskar 2004 |
+| eccentricity | action | 0.0934 (varies 0.005-0.119 over secular cycle) | JPL DE441 |
+| inclination_to_ecliptic | action | 1.85° (varies 0°-8° over Myr) | JPL DE441 |
+| **obliquity** | action | **25.19° present-day; Gyr excursion 0°-60°** | **Laskar 2004** |
+
+### THE headline: secular-resonance overlap (the chaos driver)
+
+| Mars mode | Secular partner | Frequency | Proximity | Notes |
+|---|---|---:|---:|---|
+| spin_axis_precession | s₃ (Earth-related) | −18.86 arcsec/yr | 11.28 arcsec/yr | Drives obliquity excursions |
+| spin_axis_precession | s₄ (Mars-related) | −17.74 arcsec/yr | 10.16 arcsec/yr | Obliquity-eccentricity coupling |
+| apsidal_precession_g4 | g₃-s₃ Earth combination | varies | 2.50 arcsec/yr | Mercury-stability resonance (Laskar 2008) |
+
+Where Mercury's v0.24.0 closure was a **successful sum** and Luna's v0.24.1 closure was a **successful integer commensurability**, Mars's v0.24.2 "closure" is a **failure mode**: secular frequencies overlap so tightly that the action-angle quasi-periodic torus structure breaks down. The chaos invariant `min_proximity_arcsec_yr < chaos_threshold` (12 arcsec/yr per Laskar 1993) is pinned by `test_chaos_active_via_min_proximity`.
+
+### Highlights
+
+- 🌟 **Chaotic obliquity** — present-day 25.19°, but Mars's *typical* state historically was MORE oblique. Laskar 2004's Gyr-scale numerical integrations show ~0°-60° excursion range with mean 37.6°.
+- **No spin-orbit lock** — unlike every other body in the v0.23.0 spin-orbit-resonance catalog. Mars is rotationally free, and the chaos lives in its obliquity rather than its rotation rate.
+- **C/MR² = 0.3645 ± 0.0005** — Le Maistre 2023 InSight RISE; cross-references v0.21.4 rotational-constraint chain (same paper).
+- **Stabilising-Moon hypothesis** — without Earth's Moon (v0.24.1 LLR-constrained tidal-locking partner), Earth would likely exhibit Mars-style obliquity chaos. v0.24.1 + v0.24.2 together ship the quantitative argument for why Earth has stable seasons.
+
+### Cross-references
+
+- **v0.21.4** rotational_constraint Mars entry: Le Maistre 2023 InSight RISE chain (same paper)
+- **v0.24.1** Luna: stabilising-Moon hypothesis — Mars-style chaos averted on Earth by Moon's tidal coupling
+- **v0.24.0** Mercury: contrasts with Mars's chaos — Mercury's 3:2 lock is Diophantine-stable
+- **v0.20.0** Mars geodetic: shape constants (J₂, polar moment of inertia)
+- **v0.20.2** Mars climate-orbit coupling: eccentricity-secular-cycle drives long-term Martian climate
+
+### Test count
+
+1448 pass, 42 skipped (was 1412 + 42 in v0.24.1; +36 net new — 33 in `test_mars_dynamical_spectrum.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.1 → 0.24.2`.
 
 ## [0.24.1] — 2026-05-07
 

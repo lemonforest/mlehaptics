@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.1)
+(no entries yet — next entries land after v0.24.2)
+
+## [0.24.2] — 2026-05-07
+
+**Mars Dynamical Spectrum (chaotic obliquity / Laskar).** Third per-body dynamical-spectrum surface; the contrast case to Mercury and Luna — Mars exhibits secular chaos via secular-resonance overlap. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.mars_dynamical_spectrum_catalog` — wrapper module with `get_mars_dynamical_spectrum`, `get_mars_secular_resonance_overlap`, `list_mars_dynamical_spectrum`.
+- `_research.mars_dynamical_spectrum_data` — data module with `MARS_DYNAMICAL_MODES` (8 entries: 5 angles + 3 actions), `MARS_SECULAR_RESONANCES` (3 near-resonance pairs driving chaos), `SOURCES` (7 citations including Laskar 1993/2004/2008 + Touma-Wisdom 1993 + Le Maistre 2023 InSight + Ward 1973 + JPL DE441), `DynamicalMode` + `SecularResonance` dataclasses.
+
+### Added — bridge dict API
+
+- `bridge.get_mars_dynamical_spectrum()`
+- `bridge.get_mars_secular_resonance_overlap()` — chaos invariant
+- `bridge.list_mars_dynamical_spectrum()`
+
+### Added — CLI
+
+- `mars-dynamical-spectrum`
+- `mars-secular-resonance-overlap`
+- `mars-dynamical-spectrum-full`
+
+### Added — tests
+
+- `tests/test_mars_dynamical_spectrum.py` — 33 tests pinning the no-spin-orbit-lock invariant (Mars must NOT appear in v0.23.0 spin-orbit roster); the C/MR² = 0.3645 Le Maistre 2023 InSight measurement; the spin-axis precession 171 kyr; the present-day obliquity 25.19°; the obliquity within the Laskar 2004 0°-60° excursion range; the chaos invariant (min frequency proximity < 12 arcsec/yr per Laskar 1993); citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1448 pass, 42 skipped (was 1412 + 42 in v0.24.1; +36 net new — 33 in `test_mars_dynamical_spectrum.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.1 → 0.24.2`. ABI unchanged (twenty-fifth consecutive ship since v0.13.x).
 
 ## [0.24.1] — 2026-05-07
 
