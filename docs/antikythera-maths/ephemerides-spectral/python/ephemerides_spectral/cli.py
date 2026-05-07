@@ -630,6 +630,16 @@ def _cmd_rotational_constraints(args: argparse.Namespace) -> int:
     return _emit(bridge.list_rotational_constraints(), pretty=args.pretty)
 
 
+def _cmd_auroral_coupling(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_auroral_coupling(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_auroral_couplings(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_auroral_couplings(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2998,6 +3008,47 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     rcs.set_defaults(func=_cmd_rotational_constraints)
+
+    # auroral-coupling (v0.21.5) — magnetic <-> atmosphere coupling.
+    ac = sub.add_parser(
+        "auroral-coupling",
+        help="Per-body magnetic <-> atmosphere auroral coupling (cross-channel)",
+        description=(
+            "Returns the per-body magnetic <-> atmosphere auroral-\n"
+            "coupling summary. Aurorae are the visible signature of\n"
+            "magnetic-field-line topology mapping into the upper\n"
+            "atmosphere; oval morphology traces internal-field geometry.\n"
+            "\n"
+            "6-body roster: terra (solar-wind reconnection, 10^11 W),\n"
+            "jupiter (JRM33 + Io footprint; corotation-driven, 10^14 W\n"
+            "-- the headline), saturn (annular oval traces Cao 2020\n"
+            "axisymmetry), uranus (partial oval / extreme tilt),\n"
+            "neptune (patchy time-variable, weakest in catalog),\n"
+            "ganymede (only intrinsic-moon-dynamo aurora; subsurface\n"
+            "ocean diagnostic via auroral rocking).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral auroral-coupling --pretty\n"
+            "  ephemerides-spectral auroral-coupling --body jupiter --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ac.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    ac.set_defaults(func=_cmd_auroral_coupling)
+
+    # auroral-couplings (v0.21.5) — full enumeration.
+    acs = sub.add_parser(
+        "auroral-couplings",
+        help="Full auroral-coupling catalog enumeration",
+        description=(
+            "Returns every body's AuroralCoupling record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    acs.set_defaults(func=_cmd_auroral_couplings)
 
     # lunar-kernels
     lk = sub.add_parser(

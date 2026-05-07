@@ -7,7 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.4)
+(no entries yet — next entries land after v0.21.5)
+
+## [0.21.5] — 2026-05-07
+
+**Magnetic ↔ atmosphere coupling via aurorae — fifth cross-channel coupling surface (post-trio).** Pure-Python additive; **no ABI bump** (fourteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.auroral_coupling_catalog.compute_auroral_coupling / list_auroral_couplings` |
+| Bridge dict API | `bridge.get_auroral_coupling(body=None)` / `bridge.list_auroral_couplings()` |
+| CLI | `auroral-coupling [--body X]` / `auroral-couplings` |
+
+### Physics
+
+Aurorae are the visible signature of magnetic-field-line topology mapping into the upper atmosphere. The morphology of the auroral oval directly traces the underlying internal-field geometry — circular oval → dipole + small-quadrupole; annular oval → axisymmetric field; partial oval → strongly tilted offset dipole; patchy/time-variable → multipole + tilt mixing.
+
+### 6-body roster
+
+| Body | Source | Morphology | Power (W) | Mechanism | Moon footprint? |
+|---|---|---|---:|---|:-:|
+| terra | Bonfond 2017 | circular_oval | 10¹¹ | solar_wind | ✗ |
+| **jupiter** | **Connerney 2017 (Juno UVS)** | **circular_oval** | **10¹⁴** | **corotation** | **✓** |
+| saturn | Hunt 2014 / Stallard 2008 | annular_oval | 10¹¹ | solar_wind | ✗ |
+| uranus | Lamy 2017 (HST 2011) | partial_oval | 10⁹ | tilted_dipole | ✗ |
+| neptune | Pryor 2007 | patchy_time_variable | 10⁸ | tilted_dipole | ✗ |
+| ganymede | Saur 2015 (HST) | circular_oval | 2×10⁹ | corotation | ✗ |
+
+### Highlights
+
+- **Jupiter ~10¹⁴ W = 1000× Earth's** — the headline. Internally driven by corotation enforcement (NOT solar wind); Io flux-tube footprint always visible inside main oval; Europa + Ganymede footprints intermittent.
+- **Saturn annular oval** directly traces Cao 2020 axisymmetry (dipole tilt < 0.007°) — cross-references the v0.20.1 result.
+- **Ganymede subsurface-ocean diagnostic** — Saur 2015 used auroral-position rocking between 2010 + 2011 HST observations to diagnose ocean conductivity. The aurora itself is the cross-channel measurement: magnetic ↔ interior coupling via observational rocking response.
+- **Uranus partial / Neptune patchy** — extreme dipole tilts (58.6° + 47°) yield non-classic morphology.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the published auroral-imaging campaign decompositions from cited papers.
+
+### 5-body cross-channel surfaces shipped so far in v0.21.x
+
+```
+v0.21.1 topography ↔ gravity         (5 bodies; admittance)
+v0.21.2 magnetic   ↔ dynamo          (5 bodies; Lowes-Mauersberger)
+v0.21.3 topography ↔ atmosphere      (4 bodies; orographic forcing)
+v0.21.4 interior   ↔ rotation        (7 bodies; Saturn ring-seismology)
+v0.21.5 magnetic   ↔ atmosphere      (6 bodies; aurorae) — this ship
+```
+
+### Forward sequence
+
+* **v0.21.6+** — More cross-channel coupling surfaces (e.g., tidal-resonance ↔ orbital migration; atmospheric escape ↔ magnetic-field shielding).
+
+### Test count
+
+1056 pass, 41 skipped (was 1029 + 41 in v0.21.4; +27 net new — 24 in `test_auroral_coupling.py` + 2 README-freshness tests that flipped GREEN + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.4 → 0.21.5`.
 
 ## [0.21.4] — 2026-05-07
 
