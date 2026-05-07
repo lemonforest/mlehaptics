@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.4)
+(no entries yet — next entries land after v0.24.5)
+
+## [0.24.5] — 2026-05-07
+
+**Hawaiian-Emperor Chain Spectral Catalog (bounded-local graph Laplacian).** Sixth ship in v0.24.x; first time the project's graph-Laplacian eigenbasis is applied to physical features on a single body's surface. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.hawaii_chain_catalog` — wrapper module with `get_hawaii_chain`, `get_hawaii_emperor_bend_signature`, `list_hawaii_chain`. Builds the seamount-graph Laplacian on demand using NumPy primitives (Gaussian-spatial-proximity edges; same pattern as `body_architecture._build_resonance_laplacian`).
+- `_research.hawaii_chain_data` — data module with `HAWAIIAN_EMPEROR_SEAMOUNTS` (18 seamounts), `HAWAIIAN_EMPEROR_BEND_AGE_MYR = 47.5`, hotspot location, `SOURCES` (10 citations), `Seamount` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_hawaii_chain()` — full catalog + plate velocity + Fiedler embedding
+- `bridge.get_hawaii_emperor_bend_signature()` — bend signature (Fiedler partition + age-vs-arc-length residuals)
+- `bridge.list_hawaii_chain()` — full enumeration
+
+### Added — CLI
+
+- `hawaii-chain`
+- `hawaii-emperor-bend`
+- `hawaii-chain-full`
+
+### Added — tests
+
+- `tests/test_hawaii_chain.py` — 28 tests pinning Meiji-oldest / Kilauea-youngest; bend age 47.5 Myr; arc-length monotonic in age; Pacific Plate velocity 8-10 cm/yr range; Fiedler eigenvalue positive (connected graph); eigenvalue gap λ₃ − λ₂ ≥ λ₂; **single Fiedler sign change** (quasi-1D structural property); bend in Hawaiian arc; Meiji largest residual; citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1549 pass, 42 skipped (was 1518 + 42 in v0.24.4; +31 net new — 28 in `test_hawaii_chain.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.4 → 0.24.5`. ABI unchanged (twenty-eighth consecutive ship since v0.13.x).
 
 ## [0.24.4] — 2026-05-07
 

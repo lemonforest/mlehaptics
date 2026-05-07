@@ -943,6 +943,25 @@ def _cmd_toroidal_residuals(args: argparse.Namespace) -> int:
     return _emit(bridge.list_toroidal_residuals(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.5 — Hawaiian-Emperor Chain Spectral Catalog CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_hawaii_chain(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_hawaii_chain(), pretty=args.pretty)
+
+
+def _cmd_hawaii_emperor_bend(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_hawaii_emperor_bend_signature(), pretty=args.pretty,
+    )
+
+
+def _cmd_hawaii_chain_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_hawaii_chain(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4230,6 +4249,76 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     trs.set_defaults(func=_cmd_toroidal_residuals)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.5 — Hawaiian-Emperor Chain Spectral Catalog
+    # ──────────────────────────────────────────────────────────────────
+
+    # hawaii-chain
+    hc = sub.add_parser(
+        "hawaii-chain",
+        help="Hawaiian-Emperor chain seamount catalog + Fiedler embedding",
+        description=(
+            "v0.24.5 -- bounded-local-Laplacian application to a\n"
+            "hotspot track on Earth's surface. First time the\n"
+            "project's graph-Laplacian eigenbasis is applied to\n"
+            "physical features on a single body's surface rather\n"
+            "than to orbital relationships between bodies.\n"
+            "\n"
+            "18-seamount roster spanning ~85 Myr (Meiji oldest -> Big\n"
+            "Island youngest). Each seamount with K-Ar/Ar-Ar age,\n"
+            "lat/lon, arc-length from present-day hotspot, Fiedler\n"
+            "vector coordinate.\n"
+            "\n"
+            "Plate-velocity reconstruction from age-vs-arc-length\n"
+            "slope (post-bend Hawaiian arc): ~10 cm/yr Pacific Plate\n"
+            "northwest motion.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral hawaii-chain --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hc.set_defaults(func=_cmd_hawaii_chain)
+
+    # hawaii-emperor-bend (THE headline)
+    heb = sub.add_parser(
+        "hawaii-emperor-bend",
+        help="Hawaiian-Emperor bend signature (Fiedler-eigenvalue gap at ~47.5 Myr)",
+        description=(
+            "v0.24.5 headline. The graph-Laplacian Fiedler partition\n"
+            "surfaces the famous Hawaiian-Emperor bend at ~47.5 Myr\n"
+            "automatically: Emperor seamounts and Hawaiian seamounts\n"
+            "fall on opposite signs of the Fiedler vector, with\n"
+            "Daikakuji at the transition. The eigenvalue gap\n"
+            "(lambda_3 - lambda_2) measures how cleanly the chain\n"
+            "bisects.\n"
+            "\n"
+            "Cross-strand observation: same algebraic machinery\n"
+            "(Fiedler partition) as v0.18.0 body_architecture's\n"
+            "inner-vs-outer Solar-System split -- applied to a\n"
+            "finite physical-feature graph on Earth's surface\n"
+            "rather than an orbital graph. The chess-board analogy\n"
+            "made explicit.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral hawaii-emperor-bend --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    heb.set_defaults(func=_cmd_hawaii_emperor_bend)
+
+    # hawaii-chain-full
+    hcf = sub.add_parser(
+        "hawaii-chain-full",
+        help="Full Hawaiian-Emperor chain catalog enumeration + citations",
+        description=(
+            "Returns every seamount + arc-length + citation dict so\n"
+            "consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hcf.set_defaults(func=_cmd_hawaii_chain_full)
 
     # lunar-kernels
     lk = sub.add_parser(

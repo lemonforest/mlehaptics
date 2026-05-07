@@ -251,6 +251,11 @@ from ephemerides_spectral._research.toroidal_residual_catalog import (
     get_chandrasekhar_sequence_thresholds as _get_chandrasekhar_sequence_thresholds_impl,
     list_toroidal_residuals as _list_toroidal_residuals_impl,
 )
+from ephemerides_spectral._research.hawaii_chain_catalog import (
+    get_hawaii_chain as _get_hawaii_chain_impl,
+    get_hawaii_emperor_bend_signature as _get_hawaii_emperor_bend_signature_impl,
+    list_hawaii_chain as _list_hawaii_chain_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4400,6 +4405,64 @@ def list_toroidal_residuals() -> Dict[str, Any]:
     """Full catalog enumeration of every body's toroidal-residual
     classification + citations."""
     return _list_toroidal_residuals_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.5 — Hawaiian-Emperor Chain Spectral Catalog
+# (bounded-local-Laplacian application to a hotspot track on Earth's
+# surface; first time the project's graph-Laplacian eigenbasis is
+# applied to physical features on a single body's surface rather
+# than to orbital relationships between bodies)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_hawaii_chain() -> Dict[str, Any]:
+    """Hawaiian-Emperor chain seamount catalog + computed
+    per-seamount arc-length + Fiedler embedding.
+
+    18-seamount roster spanning ~85 Myr, from oldest (Meiji) to
+    youngest (Big Island Kilauea). Each seamount carries name,
+    K-Ar/Ar-Ar age, lat/lon, arc classification (emperor / bend /
+    hawaiian), arc-length (cumulative great-circle distance from
+    present-day hotspot), and per-seamount Fiedler-vector
+    coordinate.
+
+    The graph Laplacian is built on demand from the seamount node
+    set with Gaussian-kernel spatial proximity edges
+    (σ = 500 km). Same algebraic machinery as v0.18.0
+    body_architecture's resonance-graph Fiedler partition — applied
+    here to a finite physical-feature graph instead of an orbital-
+    relationship graph.
+
+    See ``_research.hawaii_chain_catalog`` for the full docstring.
+    """
+    return _get_hawaii_chain_impl()
+
+
+def get_hawaii_emperor_bend_signature() -> Dict[str, Any]:
+    """The Hawaiian-Emperor bend at ~47.5 Myr — THE headline of v0.24.5.
+
+    The graph-Laplacian Fiedler partition surfaces the bend
+    automatically: Emperor seamounts (older arc; ~85-47.5 Myr) and
+    Hawaiian seamounts (younger arc; ~47.5-0 Myr) fall on opposite
+    signs of the Fiedler vector, with Daikakuji at the transition.
+    The eigenvalue gap λ₃ − λ₂ measures how cleanly the chain
+    bisects.
+
+    Cross-strand observation: this is the **bounded-local-Laplacian
+    methodology** — the same Fiedler partition that v0.18.0
+    body_architecture uses to split inner vs outer Solar System,
+    applied to a finite physical-feature graph on Earth's surface
+    rather than an orbital graph at Solar-System scale. The
+    chess-board analogy (every node a square; the local graph
+    Laplacian has its own eigenbasis) made explicit.
+    """
+    return _get_hawaii_emperor_bend_signature_impl()
+
+
+def list_hawaii_chain() -> Dict[str, Any]:
+    """Full enumeration of Hawaiian-Emperor chain data + citations."""
+    return _list_hawaii_chain_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
