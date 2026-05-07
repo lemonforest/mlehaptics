@@ -175,6 +175,10 @@ from ephemerides_spectral._research.rotational_constraint_catalog import (
     compute_rotational_constraint as _compute_rotational_constraint_impl,
     list_rotational_constraints as _list_rotational_constraints_impl,
 )
+from ephemerides_spectral._research.auroral_coupling_catalog import (
+    compute_auroral_coupling as _compute_auroral_coupling_impl,
+    list_auroral_couplings as _list_auroral_couplings_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3389,6 +3393,68 @@ def list_rotational_constraints() -> Dict[str, Any]:
     `_research.rotational_constraint_data.SOURCES` citation dict.
     """
     return _list_rotational_constraints_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.5 — Magnetic ↔ atmosphere auroral coupling
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_auroral_coupling(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body magnetic ↔ atmosphere auroral-coupling summary.
+
+    Promotes the v0.21.5 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **fifth**
+    cross-channel coupling surface, second in the post-trio sequence
+    (after v0.21.4 interior ↔ rotation).
+
+    Aurorae are the visible signature of magnetic-field-line topology
+    mapping into the upper atmosphere. The morphology of the auroral
+    oval directly traces the underlying internal-field geometry:
+
+    * **Earth** (Bonfond 2017) — circular oval at high magnetic
+      latitude; solar-wind reconnection driven; total ~10¹¹ W.
+    * **Jupiter** (Connerney 2017 Juno UVS) — circular oval traces
+      JRM33 dipole + quadrupole + Great Blue Spot; Io flux-tube
+      footprint always visible inside oval; Europa + Ganymede
+      footprints intermittent. INTERNALLY driven by corotation
+      enforcement, NOT solar wind. Total ~10¹⁴ W (1000× Earth).
+    * **Saturn** (Hunt 2014 Cassini UVIS / Stallard 2008 NIR H₃⁺)
+      — annular oval directly traces Cao 2020 axisymmetry (dipole
+      tilt < 0.007°). Solar-wind-driven.
+    * **Uranus** (Lamy 2017 HST 2011) — partial oval due to extreme
+      58.6° dipole tilt + offset.
+    * **Neptune** (Pryor 2007 Voyager 2 + HST) — patchy time-variable;
+      weakest in catalog (~10⁸ W).
+    * **Ganymede** (Saur 2015 HST) — only intrinsic-moon-dynamo
+      aurora; auroral-position rocking diagnoses subsurface saline
+      ocean's induction response to Jupiter's varying field.
+
+    **Not a re-derivation.** Values shipped are the published
+    auroral-imaging campaign decompositions from cited papers.
+
+    6-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, coupling: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_auroral_coupling_impl(body=body)
+
+
+def list_auroral_couplings() -> Dict[str, Any]:
+    """Static enumeration of every published auroral-coupling summary.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.auroral_coupling_data.SOURCES` citation dict.
+    """
+    return _list_auroral_couplings_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

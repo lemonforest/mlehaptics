@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.4)
+(no entries yet — next entries land after v0.21.5)
+
+## [0.21.5] — 2026-05-07
+
+**Magnetic ↔ atmosphere coupling via aurorae — fifth cross-channel coupling surface (post-trio).** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.auroral_coupling_catalog` — wrapper module with `compute_auroral_coupling`, `list_auroral_couplings`.
+- `_research.auroral_coupling_data` — data module with `AURORAL_COUPLINGS` (6 entries), `SOURCES` (6 citations), `AuroralCoupling` dataclass + morphology / mechanism constants.
+
+### Added — bridge dict API
+
+- `bridge.get_auroral_coupling(body=None) -> dict`
+- `bridge.list_auroral_couplings() -> dict`
+
+### Added — CLI
+
+- `auroral-coupling [--body X]`
+- `auroral-couplings`
+
+### 6-body roster
+
+terra (Bonfond 2017 — circular oval, 10¹¹ W, solar-wind), **jupiter** (Connerney 2017 Juno UVS — **circular oval traces JRM33; Io footprint visible; 10¹⁴ W = 1000× Earth; corotation-driven**), saturn (Hunt 2014 / Stallard 2008 — annular oval traces Cao 2020 axisymmetry), uranus (Lamy 2017 — partial oval / tilted dipole), neptune (Pryor 2007 — patchy time-variable; weakest in catalog), ganymede (Saur 2015 — only intrinsic-moon-dynamo aurora; subsurface-ocean diagnostic via rocking).
 
 ## [0.21.4] — 2026-05-07
 

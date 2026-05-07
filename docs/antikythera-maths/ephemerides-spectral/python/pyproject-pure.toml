@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.21.4"
+version = "0.21.5"
 description = "High-precision HDC reference instrument for the Sol Star System based on JPL DE441 (52-body roster including Lagrange trojans + retrograde irregulars; per-body Sol Geodetic / Electromagnetic / Magnetic-Multipole catalogs; resonance-graph ITN-chain search + spectral body-architecture surfaces; pure-Python build for Pyodide / WASM)"
 readme = "README.md"
 requires-python = ">=3.10"
