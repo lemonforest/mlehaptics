@@ -1683,3 +1683,745 @@ Following the project's existing pattern (Sol Symphony Times, Sol Terra-Luna Tim
 * OSIRIS-REx Yarkovsky measurement: Farnocchia, D., et al. "Ephemeris and hazard assessment for near-Earth asteroid (101955) Bennu based on OSIRIS-REx data." *Icarus* 369, 114594 (2021). <https://www.sciencedirect.com/science/article/abs/pii/S0019103521002918>
 
 Disclaimer on coverage (extension): The §16.8 channels are surveyed at a scoping level — the goal is *architectural* (what EM observables a Sol EM Instrument should carry), not *quantitative* (publishing precise per-body emission rates / cross-sections). Order-of-magnitude figures are cited from the literature; any v0.19.x implementation would need a body-by-body data-collection pass against PDS / SPDF / OMNI / mission-archive sources, with explicit per-entry uncertainty flags (Saturn rotation-period, Enceladus plume rate, Io torus mass-loading rate are all known-uncertain).
+
+## 17. The per-body spectral catalog — solid-body geodesy + magnetic multipoles + fluid envelope
+
+This section is **research-only scoping**, parallel in shape to §15 (Stellar Forge) and §16 (Sol Electromagnetic Instrument). The user's framing for v0.20.0+ is: *"with this we will find things like atmospheric and surface climate... maybe. maybe not us but someone after us might."* The deliverable is therefore an **architectural commitment** that future contributors can pick up channel-by-channel — not necessarily code that ships in the next milestone.
+
+§17 splits across three sibling sub-sections, each authored by a parallel research subagent:
+
+* **§17.1** — *solid-body geodetic channels*: gravity multipoles beyond point-mass, topography (DEM spectral content), internal-structure / interior models. Verdict: single `Sol Geodetic Catalog` sibling instrument with three internal channels.
+* **§17.2** — *magnetic multipoles beyond v0.19.0 dipole-only*: IGRF-13 / EMM2017 (Earth), JRM33 (Jupiter), Cao 2020 (Saturn axisymmetry), Holme & Bloxham 1996 (Uranus / Neptune Voyager-fly-by), Thébault 2018 (Mercury). Verdict: separate `MagneticMultipoleCatalog` extending `EmBodyState`'s dipole-only entries with an opt-in `bridge.get_magnetic_multipoles` query; Sun excluded → routed through a separate (deferred) `bridge.get_solar_synoptic_state(jd_tdb)` time-series surface.
+* **§17.3** — *atmosphere / surface climate / fluid-envelope channels*: ERA5 (Earth), MCD v6.1 (Mars), VIRA (Venus), Cassini-derived Titan, Juno+ground-based gas-giant cloud structure. Verdict: hybrid `SolFluidInstrument` with climatological summary in BODIES + archive-pointer index + state-at-epoch wrapper deferred for Earth + Mars only.
+
+All three subagents independently landed on **state-at-epoch lookup** as the architectural shape (not BIP-encoded propagation), confirming the §16.9.1 rhythm-mismatch finding generalises across solid-body geodesy, magnetic multipoles, and fluid-envelope channels alike. §17.4 reconciles their verdicts and sketches the v0.20.x ship surface.
+
+### 17.1 Solid-body channels — gravity, topography, internal structure
+
+The current `BODIES` roster characterises each body by `(name, period_days, mass_earth, surface_radius_km, category)` ([`research/bodies.py`](research/bodies.py)). The v0.19.0 Sol Electromagnetic Instrument (§16.9) extended this with intrinsic dipole moment, rotation period, plasma source rates, etc. The next-tier observable is the *solid-body geodetic state*: how each body's mass and shape are *distributed* away from the point-mass limit. This is what trajectory designers, mission planners, and planetary scientists draw from beyond the (period, mass, radius) triple.
+
+#### 17.1.1 Why solid-body spectral content matters — what's lost in a `(period, mass, radius)` reduction
+
+The current encoder treats every body as a point-mass on a Keplerian orbit. This is exactly correct for the BIP encoder's purpose (cyclic-group residue propagation of orbital phases) and for the §13 Laplacian's purpose (mean-motion + resonance graph structure). It is *not* correct for any of the following:
+
+* **Low-altitude trajectory design.** A spacecraft at 100 km altitude over Earth experiences `J2 = 1.0826 × 10⁻³` ([Pavlis et al. 2012, EGM2008](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2011JB008916)) which dominates the secular RAAN drift and is **larger than the sum of all third-body perturbations from the rest of the solar system**. An ephemeris ignoring `J2` fails for any LEO mission. Same for any low-altitude Mars (`J2 ≈ 1.96 × 10⁻³`), Moon (`J2 ≈ 2.03 × 10⁻⁴`) or Mercury (`J2 ≈ 5.0 × 10⁻⁵`) trajectory.
+* **Tidal evolution.** Io's volcanism, Enceladus's plume, Europa's subsurface ocean, the Earth-Moon recession — all are driven by solid-body tidal dissipation that depends on the Love number `k₂` and the dissipation factor `Q`. Both are second-degree-tidal-response numbers. The point-mass ephemeris has zero predictive power for any of these.
+* **Mascon-driven secular orbital drift.** The Moon's near-side mascons (Mare Imbrium, Crisium, Serenitatis, etc.) cause low-lunar orbits to be unstable on month-to-year timescales. This is degree ≥ 4 spherical-harmonic content, recovered to degree 1200 by GRAIL ([Goossens et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019JE006086); [PGDA GRGM1200B](https://pgda.gsfc.nasa.gov/products/50)). Without it, lunar mission planning fails.
+* **Body-to-body density inferences.** Bennu's heterogeneous interior ([Scheeres et al. 2020](https://www.colorado.edu/today/2019/03/19/osiris-rex-spies-weird-wild-gravity-asteroid)), Mars's molten silicate layer above the core ([Khan et al. 2023](https://www.nature.com/articles/s41586-023-06601-8)), Saturn's diffuse / fuzzy core extending to ≈ 60 % of the planet's radius and containing ≈ 17 M⊕ of ice and rock ([Mankovich & Fuller 2021](https://www.nature.com/articles/s41550-021-01448-3)) — these are constraints from *the gravity field plus the moment of inertia plus (where available) seismology / ring waves*. They are the canonical "what is this body actually made of" outputs of modern planetary science. The point-mass ephemeris produces none of them.
+* **Surface climate / habitability.** Topographic spectral slope (Kaula's-rule-like power law for surface roughness) controls erosion, drainage, atmospheric boundary layer, and small-body / regolith mechanics — and *is the bridge into §17.3 atmosphere/climate*. A body with `β ≈ 2` topography (Earth-like, Mars-like) supports very different climate dynamics from one with `β ≈ 4` (smooth maria) or rubble-pile geomorphology (Bennu, Ryugu).
+
+The thread is: **the point-mass reduction is fit-for-purpose for the BIP encoder and the §13 Laplacian, but it discards every solid-body observable a downstream consumer would want**. §17.1 catalogues *what those observables are, what data exists for each body, and where they architecturally live*.
+
+The honest framing — paralleling §16.9.1 — is that solid-body geodetic observables are *static state-at-epoch quantities*, not rhythms. The BIP encoder rides cyclic-group integer residues over orbital periods; gravity coefficients, DEMs, and interior density profiles are not periodic in any useful sense (they're *parameters*, not *phases*). So the architectural shape will be a **state-lookup surface**, not a phase-encoder extension.
+
+#### 17.1.2 Gravity multipoles per body — published spherical-harmonic models, degree/order coverage, precision
+
+Modern planetary gravity is published as a normalised spherical-harmonic expansion of the geopotential `U(r,θ,λ) = (GM/r) [1 + Σₙ Σₘ (R/r)ⁿ (C̄ₙₘ cos mλ + S̄ₙₘ sin mλ) P̄ₙₘ(sin θ)]` to some maximum degree `n_max`. The standard distribution format is the ICGEM-pioneered `.gfc` text file (one coefficient per row: `gfc l m C S sigma_C sigma_S`) plus header metadata for `GM`, `R`, `tide_system`, `errors`. Most bodies are also available as PDS-archive `.SHA` ASCII tables. Per-body summary:
+
+| Body | Model | `n_max` | Source mission | Reference | Archive |
+| :--- | :--- | ---: | :--- | :--- | :--- |
+| **Earth** | EGM2008 | 2190 (block-diag 2159) | GRACE + altimetry + terrestrial | [Pavlis et al. 2012](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2011JB008916) | [ICGEM](https://icgem.gfz-potsdam.de/) ; [NGA](http://earth-info.nga.mil/GandG/wgs84/gravitymod/egm2008/) |
+| **Moon** | GRGM1200B / GRGM1200A | 1200 | GRAIL | [Goossens et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019JE006086) | [PGDA / GSFC](https://pgda.gsfc.nasa.gov/products/50) |
+| **Mars** | MRO120F (latest) / MRO120D / MRO110C | 120 | MGS + Odyssey + MRO | [Konopliv et al. 2016](https://www.sciencedirect.com/science/article/abs/pii/S0019103516001305) | [PDS Geosciences](https://pds-geosciences.wustl.edu/dataserv/gravity_models.htm) |
+| **Venus** | MGNP180U | 180 (eq. only) / 40 (poles) | Magellan | [Konopliv et al. 1999](https://ui.adsabs.harvard.edu/abs/1999Icar..139....3K) | [PDS](https://pds-geosciences.wustl.edu/) |
+| **Mercury** | HgM008 / HgM005 | 50–100 | MESSENGER | [Mazarico et al. 2014](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014JE004675) | [PGDA](https://pgda.gsfc.nasa.gov/products/71) |
+| **Jupiter** | (zonal-only) J₂…J₁₀ + J₃, J₅, J₇, J₉ | 10 (zonal); odd-J asymmetric | Juno | [Iess et al. 2018](https://www.nature.com/articles/nature25776); [Durante et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019GL086572) | published table |
+| **Saturn** | (zonal-only) J₂…J₁₂ + J₃, J₅ | 12 (zonal) | Cassini Grand Finale | [Iess et al. 2019](https://www.science.org/doi/10.1126/science.aat2965) | published table |
+| **Uranus / Neptune** | J₂, J₄ | 4 | Voyager 2 | various; Voyager-only | published table |
+| **Bennu** | spherical-harmonic + polyhedral | 16 (sph. har.) | OSIRIS-REx | [Scheeres et al. 2020](https://www.colorado.edu/today/2019/03/19/osiris-rex-spies-weird-wild-gravity-asteroid); [Chesley et al. 2014](https://iopscience.iop.org/article/10.3847/PSJ/ac26c4) | [SBN PDS](https://sbn.psi.edu/pds/) |
+| **Eros** | sph. har. + ellipsoidal | 15 (robust to 10) | NEAR | [Miller et al. 2002](https://ui.adsabs.harvard.edu/abs/2002Icar..155....3M/abstract) | [SBN PDS](https://sbn.psi.edu/pds/resource/nearbrowse.html) |
+| **Ryugu** | shape-derived (uniform ρ assumption) | n/a | Hayabusa2 | [Watanabe et al. 2019](https://www.science.org/doi/10.1126/science.aav8032) | [JAXA DARTS](https://data.darts.isas.jaxa.jp/pub/hayabusa2/paper/Watanabe_2019/README.html) |
+| **Itokawa** | shape-derived | n/a | Hayabusa | published shape model | SBN PDS |
+| **Ceres / Vesta** | sph. har. ≤ 18 | 18 | Dawn | published Park / Konopliv | PDS |
+| **other 30+ asteroids in DE441** | point-mass only | 0 | n/a | JPL DE441 catalogue | JPL SSD |
+
+Three observations:
+
+1. **The terrestrial planets + Moon are well-resolved**: degrees ≥ 50 for Mercury, ≥ 120 for Mars, ≥ 180 for Venus (equatorial), ≥ 1200 for Moon, ≥ 2190 for Earth. The `.gfc` distribution is unambiguous, parser-friendly (text format), and ICGEM provides precision/error covariances per coefficient.
+2. **The gas giants are zonal-only**. There are no useful tesseral coefficients for Jupiter or Saturn — the bodies are dynamically fluid; the relevant content is the `J₂ₙ` / `J₂ₙ₊₁` zonal series only. Juno gives J₂ to J₁₀ (even) plus J₃, J₅, J₇, J₉ (odd-asymmetric, which encode the depth of the zonal jets per [Kaspi et al. 2018, Nature](https://www.nature.com/articles/nature25793)). Cassini gives J₂ to J₁₂ for Saturn.
+3. **The icy giants are Voyager-2-frozen** at J₂, J₄ — and that won't improve until a future Uranus / Neptune orbiter (the U.S. Decadal Survey 2023-2032 prioritises Uranus). The honest data state for these two bodies is *one orbit, one flyby, ≈ 35 years stale*.
+4. **Asteroids split**: a small set (Eros, Bennu, Ryugu, Itokawa, Ceres, Vesta) have spacecraft-derived shape + gravity to degree 10–20; the *other 30+ asteroids in DE441* are point-mass-only because none of them have ever been visited.
+
+**Power-law spectral structure.** Gravity coefficients fall off with degree as a power-law approximating Kaula's rule `σ²(C̄ₙₘ) ~ K · n⁻²` ([Kaula 1966](https://ntrs.nasa.gov/api/citations/19640005753/downloads/19640005753.pdf); generalised across the solar system by [Ermakov et al. 2018](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2018JE005562), who report β ≈ 2.16 for Earth equivalent rock topography, β ≈ 2.54 for Earth potential). This power-law structure is *itself* a spectral-content claim: a body whose gravity spectrum is steeper than Kaula's rule is *isostatically compensated* (interior density adjusted so high-degree topography doesn't show in gravity); flatter spectra indicate *uncompensated* topography (recent tectonics, or a thick rigid lithosphere). This is genuinely a per-body fingerprint and a candidate observable for a §17.1 cataloguing surface.
+
+#### 17.1.3 Topography spectral content per body — DEM coverage, resolution, where the spectral content lives
+
+Topography is published as digital elevation models (DEMs) — gridded radius / elevation arrays — typically in PDS-archive `.IMG` (raw binary) plus `.LBL` (header) format, or as USGS-distributed GeoTIFFs. Some bodies additionally have spherical-harmonic *shape* expansions parallel to their gravity expansions. Per-body summary:
+
+| Body | DEM | Horizontal res | Vertical accuracy | Coverage | Reference |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Earth** | SRTM-30 / SRTM-90; GMTED2010; ETOPO1 | 30 m / 90 m | ~6 m | 60°S–60°N (SRTM); global (ETOPO) | various |
+| **Moon** | LOLA + SLDEM2015 | 60 m at equator (118 m global) | ~1 m radial; ~3-4 m typical | global + polar focus | [Smith et al. 2010](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2010GL043751); [PGDA SLDEM2015](https://pgda.gsfc.nasa.gov/products/54) |
+| **Mars** | MOLA MEGDR | 463 m grid | ~1 m radial | global | [PDS MGS MOLA MEGDR](https://pds-geosciences.wustl.edu/missions/mgs/megdr.html) |
+| **Mercury** | MLA + MDIS-stereo (USGS) | 222 m/pix global; 78–500 m/pix regional | ~30 m global; <1 m MLA range | ~7.8 % global stereo; MLA northern hemisphere only | [Becker et al. 2016](https://www.mdpi.com/2072-4292/12/23/3989) |
+| **Venus** | Magellan SAR-derived; "synthetic 10 km" model | ~10 km resolution | ~100 m | partial (SAR coverage gaps) | [Wieczorek 2015](https://www.sciencedirect.com/science/article/abs/pii/S0019103514005272) |
+| **Titan** | Cassini SARTopo | ~10 km horizontal | ~75 m vertical (160 m avg) | ~5–23 % surface (depending on grid resolution) | [Stiles et al. 2009](https://pubs.usgs.gov/publication/70003640); [Lorenz et al. 2013](https://www.sciencedirect.com/science/article/abs/pii/S0019103513001620) |
+| **Bennu** | OLA + SPC | 20 cm | < 1 m | global | [OSIRIS-REx ALWG](https://asteroidmission.org/updated-bennu-shape-model-3d-files/) |
+| **Eros** | NLR + landmark stereo | sph. har. degree 24 | metres | global | [Miller et al. 2002](https://ui.adsabs.harvard.edu/abs/2002Icar..155....3M/abstract) |
+| **Ryugu** | SPC polygon model (3M / 800k / 200k / 49k) | sub-metre | metres | global | [Watanabe et al. 2019](https://www.science.org/doi/10.1126/science.aav8032); [JAXA DARTS](https://data.darts.isas.jaxa.jp/pub/hayabusa2/paper/Watanabe_2019/README.html) |
+| **Itokawa** | SPC polygon model | sub-metre | metres | global | various Hayabusa publications |
+| **Ceres / Vesta** | Dawn FC stereo | 100 m / 60 m | ~10 m | global | published Roatsch / Preusker |
+| **Pluto** | New Horizons LORRI/MVIC stereo | ~300 m | ~100 m | sub-encounter hemisphere only (~40 %) | published Schenk |
+| **Triton / Uranian moons / Neptunian moons** | Voyager-2 stereo | km-scale | ~km | partial hemispheres only | various Voyager-era |
+
+The honest *gradient of accessibility* runs: Bennu / Ryugu (cm-scale) > Moon / Earth (m-scale) > Mars / Mercury / Ceres / Vesta (10–100 m) > Pluto / Titan (km) > Uranian / Neptunian moons (Voyager-only, ~km, hemispheric).
+
+**Where the spectral content lives.** The MOLA topographic power spectrum decays approximately as a power law in spherical harmonic degree, with regional variations in the spectral index `β`. Aharonson et al. (2001) document the slopes-skewness-kurtosis statistics of MOLA at multiple length scales. For the Moon, the LOLA + SLDEM2015 combined product permits an analogous spectral analysis — and Wieczorek (2013) leveraged this to constrain crustal density (the topography-gravity admittance is the workhorse). For Earth, SRTM + ETOPO supports the canonical β ≈ 2 result. Ermakov et al. (2018) compares the topography power-law slopes across the solar system in one place — a useful cross-body comparator. *That paper alone, with its tabulated β values per body, would form a credible §17.1 ship-table.*
+
+#### 17.1.4 Internal structure / interior models per body — density profiles, layered models, moment-of-inertia constraints
+
+Interior models are the *most uncertain* of the three solid-body channels. The data is inferred — never directly measured — from gravity multipoles + moment of inertia + (where available) seismology / tidal Love numbers / ring-wave constraints. Per-body summary:
+
+| Body | Model | Source data | Reference |
+| :--- | :--- | :--- | :--- |
+| **Earth** | PREM (1-D radial; layers: inner core / outer core / D″ / lower mantle / transition zone / upper mantle / crust); mean ρ = 5515 kg/m³ | ~1000 normal-mode periods, ~500 travel-time observations, mass + moment of inertia | [Dziewonski & Anderson 1981](https://www.sciencedirect.com/science/article/abs/pii/0031920181900467) |
+| **Mars** | InSight: crust 20 km (2 sub-layers) or 37 km (3 sub-layers); mantle to ~1560 km; liquid core 1830 ± 40 km radius, ρ = 5955–6290 kg/m³; molten silicate layer above core | InSight SEIS (marsquakes) + MRO RISE (rotation) + gravity | [Stähler et al. 2021](https://www.science.org/doi/10.1126/science.abf2966); [Khan et al. 2023](https://www.nature.com/articles/s41586-023-06601-8) |
+| **Moon** | GRAIL: highlands crust ρ = 2550 kg/m³, porosity 12 % to depth, crustal thickness 34–43 km; deeper structure from Apollo seismology | GRAIL gravity + LOLA topography + Apollo seismology | [Wieczorek et al. 2013](https://www.science.org/doi/10.1126/science.1231530) |
+| **Mercury** | Hauck: outer-core radius 2020 ± 30 km; mantle ρ = 3380 ± 200 kg/m³; outer core ρ = 6980 ± 280 kg/m³; iron-sulfide outer core, possible solid inner core | MESSENGER gravity + radar libration | [Hauck et al. 2013](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/jgre.20091) |
+| **Venus** | very poorly constrained; no seismic data; one-plate planet with thick rigid lid | Magellan gravity (degree 180 equatorial) | [Konopliv et al. 1999](https://ui.adsabs.harvard.edu/abs/1999Icar..139....3K) |
+| **Jupiter** | dilute / fuzzy core: 7–25 M⊕ heavy elements expanded over significant fraction of planet's radius; rigid-body deep rotation; zonal jets to ~3000 km depth | Juno J₂…J₁₀ + odd zonals | [Wahl et al. 2017](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2017GL073160); [Militzer et al. 2022](https://iopscience.iop.org/article/10.3847/PSJ/ac7ec8); [Kaspi et al. 2018](https://www.nature.com/articles/nature25793) |
+| **Saturn** | diffuse / stably-stratified core extending to ~60 % of planetary radius; ~17 M⊕ ice + rock; differential rotation to ≥ 9000 km depth | Cassini Grand Finale gravity J₂…J₁₂ + ring seismology (f-modes from waves in C-ring) | [Iess et al. 2019](https://www.science.org/doi/10.1126/science.aat2965); [Mankovich & Fuller 2021](https://www.nature.com/articles/s41550-021-01448-3) |
+| **Uranus / Neptune** | layered (H/He envelope + ices + rocky core), poorly constrained | Voyager 2 J₂, J₄; tidal arguments | various; substantial uncertainty |
+| **Galilean moons** | Europa subsurface ocean (induced magnetic field response → ~100 km thick water layer above ice mantle); Ganymede liquid layer + intrinsic field; Io fully differentiated (silicate mantle + iron core) | Galileo magnetometry + gravity flybys | [Anderson et al. 1998 / 2001 series](https://science.org); [Kivelson et al. 1999](https://www.sciencedirect.com/science/article/abs/pii/S001910350096456X) |
+| **Enceladus / Titan** | Titan: subsurface ocean (electric-field signature); Enceladus: subsurface ocean below south-pole ice shell (gravity + libration) | Cassini gravity, libration | [Iess et al. 2014, Science](https://www.science.org/doi/10.1126/science.1250551) (Enceladus); various Titan |
+| **Bennu / Ryugu / Itokawa** | rubble-pile interiors, heterogeneous density; Ryugu bulk ρ = 1190 ± 20 kg/m³, porosity 50–60 %; Bennu under-dense centre + equatorial bulge | OSIRIS-REx / Hayabusa(2) gravity + shape | [Scheeres et al. 2020](https://www.colorado.edu/today/2019/03/19/osiris-rex-spies-weird-wild-gravity-asteroid); [Watanabe et al. 2019](https://www.science.org/doi/10.1126/science.aav8032) |
+
+The honest split: **Earth (PREM) is the gold standard**; **Moon (GRAIL+Apollo) is excellent**; **Mars (InSight) is very good and recent**; **Mercury (MESSENGER) is good for the core but coarse for mantle**; **Jupiter (Juno) and Saturn (Cassini Grand Finale + ring seismology) are the current frontier and are unusual in being inferred from oscillation modes and zonal gravity rather than direct seismometry**; **Venus is poorly constrained**; **Uranus / Neptune are Voyager-frozen with no near-term improvement**. Each interior model is a small fixed parameter set (mean density, layered radii, layered densities, moment-of-inertia factor `C/MR²`, possibly Love numbers `k₂`, `h₂`, dissipation `Q`) — typically 5–20 numbers per body. Storage cost is trivial; the work is sourcing and curating the per-body literature.
+
+#### 17.1.5 Architectural recommendation — does each channel earn its own bridge surface, or roll up?
+
+The brief offered Options A–D. Working through them against the §17.1 evidence:
+
+* **Option A (extend `BODIES` roster fields).** This worked for the §16 Sol-EM-Instrument's *flat-scalar* fields (intrinsic dipole moment, rotation period). It does *not* work here. Gravity multipoles are spherical-harmonic *coefficient arrays* of variable size (degree 16 for Bennu, degree 2190 for Earth — six orders of magnitude). DEMs are gridded raster files measured in MB-to-GB. Interior models are layered structures, sometimes with seismology references attached. Stuffing these into the per-body dataclass would (a) bloat the in-memory roster, (b) force a one-size-fits-all schema that doesn't fit (you can't represent a polyhedral shape model and a degree-2190 spherical-harmonic expansion the same way), and (c) couple the lightweight `BODIES` roster — currently used by every §13 / §14 / §15-style spectral primitive — to a multi-GB data dependency. **Verdict: rejected.**
+* **Option B (one separate Sol Geodetic Catalog instrument, sibling to Sol EM).** This is the §16.9 pattern. One sibling catalogue, lookup-by-body, with three internal channels (gravity / topography / interior). The roster is a strict subset of the celestial 52-body roster (only bodies with non-trivial geodetic data — say, the ~25 bodies that have been visited by spacecraft). Each entry holds *paths to data files*, not the full coefficient arrays in memory: `{body: GeodeticEntry(gravity_model_path: Path, topography_dem_path: Path, interior_layers: list[InteriorLayer], sources: list[Reference])}`. The bridge surface returns either a `GeodeticState(body, jd)` object (for state-at-epoch consumers) or path handles (for consumers who want to load the heavy data themselves via [pyshtools](https://shtools.github.io/SHTOOLS/) for spherical harmonics, [GDAL](https://gdal.org/) for DEMs, etc.). **Verdict: candidate.**
+* **Option C (channel-specific instruments — `SolGravityCatalog`, `SolTopographyCatalog`, `SolInteriorCatalog`).** The brief flagged the trade-off correctly: more API surface, but channel-orthogonal consumer profiles. The argument for splitting: gravity is consumed by trajectory designers (on-orbit propagators); topography is consumed by mission planners (landing-site selection, radar simulation, climate modelling); interior is consumed by planetary scientists (formation, evolution, habitability). These are *genuinely different audiences*, and each channel's data archive lives in a different format (gravity = `.gfc`; topography = `.IMG` / GeoTIFF; interior = literature-curated table). The argument against splitting: the §16.9.4 logic. The three channels *cross-refer* (the topography-gravity admittance is what gives the crustal density; the interior model constrains the gravity multipole spectrum's high-degree decay; ring seismology + gravity *jointly* constrain Saturn's diffuse core). And the roster is the same — every body that has GRAIL/InSight/etc. has both gravity and topography and interior all together. Splitting triplicates the body table. **Verdict: dispreferred — the cross-channel coupling is real, like the EM case.**
+* **Option D (alternative).** None warranted. Option B is the right shape.
+
+**Recommendation: Option B — `Sol Geodetic Catalog` (alternatively *Sol Geodesy Instrument*) as a sibling to Sol EM.** One instrument, three internal channels (gravity / topography / interior), one roster (~25 visited bodies + Voyager-flyby remnants), one bridge surface per query type (`bridge.get_geodetic_state(body, jd)`, `bridge.list_gravity_models()`, `bridge.list_dem_products()`, `bridge.geodetic_architecture(target=None)`). The state-at-epoch surface mirrors `bridge.get_em_state(jd)` from §16.9.3 — *static* lookup with light interpolation (gravity coefficients are time-invariant to ≥ 5 significant figures over historical epochs; the *time-varying* component is a separate Stokes-coefficient time series for Earth from GRACE-FO and is a v0.21+ stretch question, not v0.20). The architecture-classification surface — partition bodies by *geodetic regime* (terrestrial-rocky / icy-moon / gas-giant-zonal / rubble-pile-asteroid / Voyager-frozen) — produces a partition that is *different from* both the §13 inner/outer Fiedler split and the §16.9.3 magnetised/induced/unmagnetised split, and is therefore a genuinely new ship surface.
+
+**Rhythm-mismatch note (parallel to §16.9.1).** Solid-body geodetic observables have *no native rhythm* (they are static parameters of the bodies). The BIP / cyclic-group encoder cannot ride them. The Sol Geodetic Catalog is therefore *not a phase encoder* — it is a state-lookup catalogue. This is the same architectural pattern as §16.9, and it is the right one for static observables.
+
+#### 17.1.6 Per-channel ship-readiness table (high / medium / low)
+
+`(channel, body subset)` × `(data source, precision tier, format / accessibility, ship readiness)`. "Ship readiness" = *can a contributor sit down with this data tomorrow and have it in the catalogue by end of week?*
+
+| Channel | Body subset | Data source | Precision tier | Format / archive | Ship readiness |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Gravity | Earth | EGM2008 | very high (n_max=2190) | `.gfc` text, ICGEM | **HIGH** |
+| Gravity | Moon | GRGM1200B | very high (n_max=1200) | `.gfc` / PDS | **HIGH** |
+| Gravity | Mars | MRO120F / 120D | high (n_max=120) | PDS Geosciences | **HIGH** |
+| Gravity | Venus | MGNP180U | high near eq, low near poles | PDS | medium (heterogeneous resolution) |
+| Gravity | Mercury | HgM008 | high (n_max ≥ 50) | PGDA | **HIGH** |
+| Gravity | Jupiter | Juno zonals J₂…J₁₀ + odd | high but zonal-only | published table | **HIGH** (small fixed table) |
+| Gravity | Saturn | Cassini zonals J₂…J₁₂ + odd | high but zonal-only | published table | **HIGH** |
+| Gravity | Uranus / Neptune | J₂, J₄ from Voyager 2 | low | published | medium (small table; Voyager-stale) |
+| Gravity | Bennu / Ryugu / Eros / Vesta / Ceres | sph. har. n_max ~ 10–20 | high (close-orbit data) | SBN PDS / DARTS | medium (heterogeneous formats) |
+| Gravity | other 30+ DE441 asteroids | point-mass only | n/a | JPL DE441 catalogue | **HIGH** (already in DE441) |
+| Topography | Moon | LOLA + SLDEM2015 | very high (118 m global, < 10 m polar) | PDS / PGDA GeoTIFF | **HIGH** (large file but parser-clean) |
+| Topography | Mars | MOLA MEGDR | high (463 m grid) | PDS `.IMG` | **HIGH** |
+| Topography | Earth | SRTM-30 / ETOPO1 | very high | USGS / NOAA | **HIGH** |
+| Topography | Mercury | MLA + MDIS-stereo USGS | medium-high (222 m global) | USGS Astrogeology | **HIGH** |
+| Topography | Bennu / Ryugu / Itokawa / Eros | spacecraft polygon shape | very high (cm–m) | JAXA DARTS / SBN PDS | **HIGH** |
+| Topography | Ceres / Vesta | Dawn FC stereo | high (60–100 m) | PDS | **HIGH** |
+| Topography | Venus | Magellan SAR + synthetic 10 km | medium (km-scale) | PDS | medium |
+| Topography | Titan | Cassini SARTopo | medium (10 km horiz, ~150 m vert), 5–23 % coverage | PDS | medium (partial coverage) |
+| Topography | Pluto | New Horizons LORRI/MVIC stereo | medium (300 m), partial hemisphere | PDS | medium |
+| Topography | Uranian / Neptunian moons / Triton | Voyager 2 stereo | low (km-scale, partial) | PDS | low (stale, partial) |
+| Interior | Earth | PREM | gold standard | published table | **HIGH** |
+| Interior | Moon | GRAIL + Apollo seismology | excellent | published | **HIGH** |
+| Interior | Mars | InSight (Stähler 2021, Khan 2023) | very good, recent | published | **HIGH** |
+| Interior | Mercury | Hauck 2013 + Verma & Margot 2016 | good for core, coarse for mantle | published | **HIGH** |
+| Interior | Jupiter | Wahl 2017 + Militzer 2022 (dilute core) | active research; multiple competing models | published | medium (model-choice contention) |
+| Interior | Saturn | Mankovich & Fuller 2021 (diffuse core via ring seismology) | active research; recent | published | medium (model-choice contention) |
+| Interior | Galilean moons | Galileo gravity + magnetometry → subsurface oceans | good | published | medium (per-moon literature curation) |
+| Interior | Enceladus / Titan | Cassini → subsurface oceans | good | published | medium |
+| Interior | Bennu / Ryugu | OSIRIS-REx / Hayabusa2 → rubble-pile heterogeneity | good | published | medium |
+| Interior | Venus | very poorly constrained | low | none well-published | low |
+| Interior | Uranus / Neptune | layered models, Voyager-frozen | low | published, uncertain | low |
+
+**v0.20.0 ship roster.** The full §17.4.2 v0.20.0 commitment covers **every body in the v0.16.0 52-body roster for which any spacecraft- or ground-based geodetic data has been published**: ~38 bodies × 3 channels (gravity / topography / interior) with explicit per-entry source citations and per-body honest-uncertainty flags where the underlying data is Voyager-only, single-flyby, or limb-profile-only. The "HIGH"-readiness rows in the table above (EGM2008 / GRGM1200B / MRO120F / Juno + Cassini zonals / LOLA / MOLA / SRTM / PREM / InSight / Wieczorek-2013 / Hauck-2013) are the channels with `.gfc` or PDS-archive coverage at sub-week author-effort; the "MEDIUM" / "LOW" rows ship at the same v0.20.0 milestone with the same architectural shape, just with their precision flags carried explicitly through to the `bridge.get_geodetic_state` response. Voyager-bound ice giants and single-flyby moons are *not* deferred to a future-mission release — they ship now with the precision flag set, so consumers can decide whether the precision is sufficient for their use case.
+
+#### 17.1.7 References
+
+Gravity — spherical-harmonic models:
+* Pavlis, N. K., Holmes, S. A., Kenyon, S. C., & Factor, J. K. "The development and evaluation of the Earth Gravitational Model 2008 (EGM2008)." *J. Geophys. Res.* 117, B04406 (2012). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2011JB008916>
+* Goossens, S., et al. "High-Resolution Gravity Field Models from GRAIL Data and Implications for Models of the Density Structure of the Moon's Crust." *J. Geophys. Res. Planets* 125 (2020). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019JE006086>
+* Lemoine, F. G., et al. "GRGM900C: A degree 900 lunar gravity model from GRAIL primary and extended mission data." *Geophys. Res. Lett.* 41 (2014). <https://agupubs.onlinelibrary.wiley.com/doi/10.1002/2014GL060027>
+* Konopliv, A. S., et al. "An improved JPL Mars gravity field and orientation from Mars orbiter and lander tracking data." *Icarus* 274 (2016). <https://www.sciencedirect.com/science/article/abs/pii/S0019103516001305>
+* Konopliv, A. S., Banerdt, W. B., & Sjogren, W. L. "Venus Gravity: 180th Degree and Order Model." *Icarus* 139, 3–18 (1999). <https://ui.adsabs.harvard.edu/abs/1999Icar..139....3K>
+* Mazarico, E., et al. "The gravity field, orientation, and ephemeris of Mercury from MESSENGER observations after three years in orbit." *J. Geophys. Res. Planets* 119, 2417–2436 (2014). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014JE004675>
+* Iess, L., et al. "Measurement of Jupiter's asymmetric gravity field." *Nature* 555, 220–222 (2018). <https://www.nature.com/articles/nature25776>
+* Durante, D., et al. "Jupiter's Gravity Field Halfway Through the Juno Mission." *Geophys. Res. Lett.* 47 (2020). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019GL086572>
+* Iess, L., et al. "Measurement and implications of Saturn's gravity field and ring mass." *Science* 364, eaat2965 (2019). <https://www.science.org/doi/10.1126/science.aat2965>
+* Miller, J. K., et al. "Determination of Shape, Gravity, and Rotational State of Asteroid 433 Eros." *Icarus* 155, 3–17 (2002). <https://ui.adsabs.harvard.edu/abs/2002Icar..155....3M/abstract>
+* Scheeres, D. J., et al. "Heterogeneous mass distribution of the rubble-pile asteroid (101955) Bennu." *Sci. Adv.* 6 (2020). <https://www.colorado.edu/today/2019/03/19/osiris-rex-spies-weird-wild-gravity-asteroid>
+* International Centre for Global Earth Models (ICGEM). <https://icgem.gfz-potsdam.de/>
+* Planetary Data System Geosciences Node — Gravity Models. <https://pds-geosciences.wustl.edu/dataserv/gravity_models.htm>
+* Planetary Geodynamics Data Archive (PGDA), NASA GSFC. <https://pgda.gsfc.nasa.gov/>
+
+Topography — DEMs and shape models:
+* Smith, D. E., et al. "Initial observations from the Lunar Orbiter Laser Altimeter (LOLA)." *Geophys. Res. Lett.* 37 (2010). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2010GL043751>
+* Barker, M. K., et al. "A new lunar digital elevation model from the Lunar Orbiter Laser Altimeter and SELENE Terrain Camera (SLDEM2015)." *Icarus* 273 (2016). <https://www.sciencedirect.com/science/article/pii/S0019103515003450>
+* PDS MGS MOLA MEGDR (Mission Experiment Gridded Data Records). <https://pds-geosciences.wustl.edu/missions/mgs/megdr.html>
+* Becker, K. J., et al. "First Global Digital Elevation Model of Mercury." *LPSC* 47 (2016). <https://www.hou.usra.edu/meetings/lpsc2016/pdf/2959.pdf>
+* Stiles, B. W., et al. "Determining Titan surface topography from Cassini SAR data" (SARTopo). USGS publication (2009). <https://pubs.usgs.gov/publication/70003640>
+* Lorenz, R. D., et al. "A global topographic map of Titan." *Icarus* 225, 367–377 (2013). <https://www.sciencedirect.com/science/article/abs/pii/S0019103513001620>
+* Watanabe, S., et al. "Hayabusa2 arrives at the carbonaceous asteroid 162173 Ryugu — A spinning top–shaped rubble pile." *Science* 364, 268–272 (2019). <https://www.science.org/doi/10.1126/science.aav8032>
+* Aharonson, O., et al. "Statistics of Mars' topography from the Mars Orbiter Laser Altimeter: Slopes, correlations, and physical models." *J. Geophys. Res.* 106, 23723–23735 (2001). <https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2000JE001403>
+* Ermakov, A. I., et al. "Power Laws of Topography and Gravity Spectra of the Solar System Bodies." *J. Geophys. Res. Planets* 123 (2018). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2018JE005562>
+* OSIRIS-REx Bennu shape model. <https://asteroidmission.org/updated-bennu-shape-model-3d-files/>
+* JAXA DARTS — Hayabusa2 Watanabe 2019 shape models. <https://data.darts.isas.jaxa.jp/pub/hayabusa2/paper/Watanabe_2019/README.html>
+* USGS Astrogeology Science Center — Astropedia DEM archive. <https://astrogeology.usgs.gov/>
+
+Internal structure — interior models:
+* Dziewonski, A. M., & Anderson, D. L. "Preliminary Reference Earth Model." *Phys. Earth Planet. Inter.* 25, 297–356 (1981). <https://www.sciencedirect.com/science/article/abs/pii/0031920181900467>
+* Wieczorek, M. A., et al. "The Crust of the Moon as Seen by GRAIL." *Science* 339, 671–675 (2013). <https://www.science.org/doi/10.1126/science.1231530>
+* Hauck, S. A., et al. "The curious case of Mercury's internal structure." *J. Geophys. Res. Planets* 118 (2013). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/jgre.20091>
+* Stähler, S. C., et al. "Seismic detection of the martian core." *Science* 373 (2021). <https://www.science.org/doi/10.1126/science.abf2966>
+* Khan, A., et al. "Geophysical evidence for an enriched molten silicate layer above Mars's core." *Nature* 622 (2023). <https://www.nature.com/articles/s41586-023-06601-8>
+* Wahl, S. M., et al. "Comparing Jupiter interior structure models to Juno gravity measurements and the role of a dilute core." *Geophys. Res. Lett.* 44 (2017). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2017GL073160>
+* Militzer, B., et al. "Juno Spacecraft Measurements of Jupiter's Gravity Imply a Dilute Core." *Planet. Sci. J.* 3, 185 (2022). <https://iopscience.iop.org/article/10.3847/PSJ/ac7ec8>
+* Mankovich, C. R., & Fuller, J. "A diffuse core in Saturn revealed by ring seismology." *Nature Astronomy* 5 (2021). <https://www.nature.com/articles/s41550-021-01448-3>
+* Kaspi, Y., et al. "Jupiter's atmospheric jet streams extend thousands of kilometres deep." *Nature* 555, 223–226 (2018). <https://www.nature.com/articles/nature25793>
+* Iess, L., et al. "The gravity field and interior structure of Enceladus." *Science* 344, 78–80 (2014). <https://www.science.org/doi/10.1126/science.1250551>
+* Khurana, K. K., et al. "Induced magnetic fields as evidence for subsurface oceans in Europa and Callisto." *Nature* 395, 777–780 (1998). <https://www.nature.com/articles/27394>
+
+Spectral structure — Kaula's rule and topographic power spectra:
+* Kaula, W. M. *Theory of Satellite Geodesy*. Blaisdell (1966). <https://ntrs.nasa.gov/api/citations/19640005753/downloads/19640005753.pdf>
+* Rapp, R. H. "The decay of the spectrum of the gravitational potential and the topography for the Earth." *Geophys. J. Int.* 99 (1989). <https://academic.oup.com/gji/article/99/3/449/638785>
+
+Disclaimer on coverage (§17.1): The §17.1 channels are surveyed at a scoping level — the goal is *architectural* (what geodetic observables a Sol Geodetic Catalog should hold), not *quantitative* (publishing precise per-body coefficients). The "ship readiness" ratings reflect *file-level accessibility from public archives*, not whether the data have been validated or cross-checked against alternative models. Any v0.20.x implementation would need a body-by-body curation pass against ICGEM / PDS / PGDA / SBN / DARTS sources, with explicit per-entry uncertainty flags (Voyager-frozen Uranian/Neptunian data, Venus interior, Galilean-moon ocean-thickness models are all known-uncertain). This sub-section is one of three sibling §17 deliverables; §17.2 (magnetics) and §17.3 (atmosphere/climate) cover the parallel non-solid-body channels.
+
+### 17.2 Magnetic multipoles beyond dipole
+
+This subsection is **research-only scoping** for the v0.20.0 (or later) per-body spectral catalog. The v0.19.0 ship (notebook §16; [`research/em_instrument_data.py`](research/em_instrument_data.py)) carries **dipole-only** magnetic moments per body — `intrinsic_dipole_moment_T_m3` is a single scalar per `EmBodyState`. That captures the leading term of the spherical-harmonic expansion of the internal field but loses essential structure for the strongly multipolar bodies (Uranus and Neptune in particular, where the quadrupole and octupole are *comparable in magnitude* to the dipole; Mercury, where the field is significantly offset and tilted; Earth's crustal field, which lives entirely in the high-degree expansion above the IGRF-13 main field). This subsection enumerates the published higher-order internal-field models per body, the data archives + file formats that serve them, and the ship-surface shape that a v0.20.x extension should adopt.
+
+Sister subsections — §17.1 (gravity / topography / interior multipoles) and §17.3 (atmosphere / climate state) — are surveyed in parallel scoping work; the parent agent integrates all three into the unified §17. Convergence between §17.1 and §17.2 on a generic spherical-harmonic catalog is discussed in §17.2.4.
+
+#### 17.2.1 Why dipole-only is insufficient
+
+A magnetic body's internal field is conventionally written as the gradient of a scalar potential expanded in real spherical harmonics:
+
+```
+V(r, θ, φ) = a Σ_{n=1..N} (a/r)^{n+1} Σ_{m=0..n} [g_n^m cos(mφ) + h_n^m sin(mφ)] P_n^m(cos θ)
+```
+
+where `a` is the planet's reference radius, `(g_n^m, h_n^m)` are the Gauss coefficients, `P_n^m` are Schmidt-quasi-normalised associated Legendre functions, and `N` is the truncation degree. Degree `n=1` is the **dipole** (3 coefficients: `g_1^0, g_1^1, h_1^1`); `n=2` is the **quadrupole** (5 coefficients); `n=3` is the **octupole** (7 coefficients); the total coefficient count to degree `N` is `N(N+2)`. The v0.19.0 surface effectively collapses *all* degrees ≥ 2 into the implicit "noise" budget by quoting only the magnitude of the dipole vector.
+
+For most solar-system bodies this is fine to ~10% precision: the dipole dominates the surface field by an order of magnitude. For four classes of body it is *wrong* in a way that pollutes downstream physics:
+
+* **Uranus and Neptune** — Voyager 2 fly-by data (Ness et al. 1986, 1989; reanalysed by Holme & Bloxham 1996) show internal fields with quadrupole and octupole components *comparable in magnitude* to the dipole. Uranus's dipole is tilted ~59° from the rotation axis and offset ~0.3 R_U from the planet's centre; Neptune's is tilted ~47° and offset ~0.55 R_N. The dipole-only approximation gets the surface field magnitude wrong by factors of ~2 in places and gets the topology of the field lines (open vs closed flux regions, cusp locations) qualitatively wrong. Anything downstream that tries to compute, e.g., Uranian magnetospheric reconnection geometry from `intrinsic_dipole_moment_T_m3` alone would produce wrong physics.
+* **Mercury** — MESSENGER orbital data (Anderson et al. 2011; Thébault et al. 2018) show a tilted dipole offset northward by ~0.2 R_M, with a measurable quadrupole and a hint of octupole. The northward offset is the dominant non-dipole structure and is dynamically significant for the Hermean magnetosphere's north-south asymmetry (the southern open-flux region is much larger than the northern). A dipole-only `EmBodyState` for Mercury misses what is arguably the *most important* feature of the field.
+* **Earth's lithosphere** — IGRF-13 (the standard internal-field reference, Alken et al. 2021) goes to degree 13 for the main core field. Above degree 14 the signal is *crustal* — magnetised iron-bearing rocks in the lithosphere. Models like EMM2017 and MF7 extend the spherical-harmonic representation to degree ~720, capturing crustal anomalies relevant to navigation, geological survey, and (for our purposes) the *static* magnetic environment that a low-Earth-orbit spacecraft or surface compass would actually measure.
+* **Saturn** — counterintuitively, Saturn matters here for the *opposite* reason. Cassini Grand Finale data (Dougherty et al. 2018; Cao et al. 2020) show Saturn is **astonishingly axisymmetric** — the dipole tilt is < 0.007°, with the quadrupole and octupole essentially purely zonal (`g_n^0` only; all `g_n^m` and `h_n^m` for `m ≥ 1` are below the noise floor). Quoting just `intrinsic_dipole_moment_T_m3 = 4.6e18` for Saturn loses the *information that it is exceptionally axisymmetric* — which is itself a key constraint on dynamo theory (no other planetary dynamo is this clean). The structure is in the *absence* of non-axisymmetric terms; that absence has to be expressible in the catalog.
+
+**Verdict for §17.2.1.** Dipole-only is adequate for Earth's main field at low precision, for Jupiter's main field at moderate precision, for Ganymede, and for any body where the dipole is the dominant term and the user only wants order-of-magnitude surface field magnitude. It is *inadequate* for Uranus, Neptune, Mercury, and for Earth crustal modelling, and *informationally lossy* for Saturn. A v0.20.x ship should extend the catalog to carry per-body Gauss coefficients to whatever degree the published models support.
+
+#### 17.2.2 Per-body high-degree internal-field models
+
+Surveying the published literature body-by-body, with truncation degree, archive provenance, and tractability:
+
+* **Earth — IGRF-13 (Alken et al. 2021).** International Geomagnetic Reference Field, 13th generation. Spherical-harmonic to **degree 13** (main field, internal); degree 8 for secular variation (predicted change in `g_n^m` per year). Coefficients tabulated at 5-yr intervals from epoch 1900.0 onwards (1900, 1905, 1910, ..., 2020), with linear interpolation between snapshots and a forward extrapolation to 2025 using the secular-variation table. Coefficient count: `13 × 15 = 195` Gauss coefficients per epoch + 80 secular-variation coefficients. **By orders of magnitude the highest-quality internal-field model in the solar system.** Distributed by NOAA NGDC as a plain-text `.cof` file (line-oriented, one row per coefficient, columns = `degree, order, g/h flag, value at each 5-yr epoch`). DOI: 10.1186/s40623-020-01288-x. Tractability: **trivial** — the file is ~30 kB, parser is < 100 lines of Python, and the math is canonical Schmidt-normalised real spherical harmonics. **Quick-ship.**
+* **Earth crustal (EMM2017 / MF7 / CHAOS-7).** EMM2017 (Enhanced Magnetic Model, NCEI / NOAA) extends to **degree 790** for crustal anomalies; coefficient count ≈ 627k. MF7 (CHAMP-derived, GFZ Potsdam) goes to degree ~133; CHAOS-7 (Finlay et al. 2020) is a combined core + crustal model to degree 185. File sizes from a few MB (MF7) to ~30 MB (EMM2017). All distributed as `.cof` text files in the same line-oriented format as IGRF, just with many more rows. Tractability: trivial parsing, but the *data volume* matters — at degree 720 the per-epoch coefficient count exceeds the entire BIP encoder's hypervector dimension. A v0.20.x catalog should carry crustal models as an *optional, lazy-loaded, separate file* rather than baking them into the per-`EmBodyState` data structure. Most users want main-field-only; crustal-anomaly users opt in.
+* **Jupiter — JRM33 (Connerney et al. 2022).** Juno-derived, spherical-harmonic to **degree 18**. Reveals the **Great Blue Spot** — an intense localised flux feature near 45°S latitude that argues Jupiter's dynamo is regionally heterogeneous (the standard textbook picture has dynamo action throughout the conducting metallic-hydrogen layer; the Great Blue Spot suggests instead that the field generation is concentrated in localised regions). Coefficient count: `18 × 20 = 360`. JRM33 supersedes the earlier JRM09 (degree 10) and the much older VIP4 (Connerney 1998, degree 4). Coefficients are in the paper supplement (Connerney et al. 2022, JGR Planets, e2021JE007055, Table 1 + supplementary material) and are also distributed via the **Community Coordinated Modeling Center (CCMC)** Jupiter model server and PDS-PPI Juno archive. Tractability: **trivial** — coefficients are tabulated, format is the standard `(n, m, g_n^m, h_n^m)` quadruple. **Quick-ship.**
+* **Saturn — Cassini-derived models (Dougherty et al. 2018; Cao et al. 2020).** Spherical-harmonic to **degree 14**, with the striking result that all `g_n^m, h_n^m` for `m ≥ 1` are below the ~5 nT noise floor of the Grand Finale data. Effectively a *zonal-only* model: 14 nonzero coefficients (`g_1^0, g_2^0, ..., g_14^0`), zero non-axisymmetric terms. The coefficients are tabulated in Cao et al. 2020 (*Icarus* 344, 113541, Table 2) and also in the Dougherty et al. 2018 *Science* paper. Tractability: **trivial.** **Quick-ship.** The "axisymmetric flag" should be a first-class field on the catalog entry; downstream consumers can short-circuit the full spherical-harmonic sum when this flag is set.
+* **Mercury — Anderson et al. 2011 / Thébault et al. 2018.** MESSENGER orbital data. The Anderson 2011 model is a tilted dipole + offset (≈ northward 0.2 R_M); Thébault et al. 2018 (*JGR Planets* 123) extend to **degree 5** (limited by MESSENGER's high-altitude orbit, which under-samples short-wavelength field structure). Coefficient count: `5 × 7 = 35`. BepiColombo's MPO-MAG (Heyner et al. 2021) is expected to extend this to degree ~10–13 over the next several years (the spacecraft achieved Mercury orbit insertion in November 2025 and is in commissioning as of this writing). Coefficients tabulated in the Thébault paper and on the IPGP (Institut de Physique du Globe de Paris) server. Tractability: **trivial for the Anderson / Thébault models; medium-term for BepiColombo updates** (which will require a re-pull every few years as the mission flies).
+* **Ganymede — Kivelson et al. 2002.** Galileo flyby data — only seven flybys, each providing a single chord through the magnetosphere. Only the dipole is reliably constrained; the quadrupole has order-of-magnitude limits but no measurement-grade values. Tractability: **dipole-only is the honest state of the art.** Future JUICE flybys (the spacecraft is en route, Ganymede orbit insertion 2034) will improve this dramatically. For v0.20.x, Ganymede's entry should be flagged "dipole-only is the published constraint" rather than "we chose to truncate."
+* **Uranus — Ness et al. 1986 / Holme & Bloxham 1996 (AH5 model).** Voyager 2 single-flyby data. AH5 (an "anomalous hexapole" model) extends to **degree 3** with the quadrupole and octupole comparable in magnitude to the dipole. Holme & Bloxham emphasised that degree 3 is the highest *reliably constrained* degree — beyond that the single-flyby geometry can't distinguish higher harmonics from data noise. Coefficient count: 15. Tractability: **trivial to encode the existing AH5 coefficients**, but the model itself is fly-by-only and is the limiting case of "what one chord through a magnetosphere can tell you." A future Uranus Orbiter & Probe (UOP, NASA decadal recommendation 2023) would change everything; without it, this is the published state of the art for ~30+ years.
+* **Neptune — Ness et al. 1989 / Holme & Bloxham 1996.** Same situation as Uranus: Voyager 2 single-flyby, degree-3 model (sometimes called O8 or the offset-tilted-dipole + quadrupole + octupole model). Coefficient count: 15. Same tractability and same fly-by-only caveat.
+* **Sun — synoptic maps (WSO / GONG / SDO HMI).** The solar magnetic field is *highly* multipolar and *time-variable* on the 22-yr Hale cycle. Wilcox Solar Observatory publishes line-of-sight photospheric synoptic charts back to 1976; GONG and SDO/HMI provide vector synoptic maps at higher resolution from 2010 onwards. Spherical-harmonic decompositions of these maps are published by the same observatories (typically to degree 90 for SDO/HMI, degree 9 for the older WSO maps). **The crucial difference from every other body in this list is that the Sun's coefficients are time-series, not static.** A `g_n^m(t)` dataset for the Sun is gigabytes per Carrington rotation across the high-degree HMI products, and the dominant structure changes on Hale-cycle (22 yr) and Carrington (27 d) timescales rather than being a fixed catalog entry. See §17.2.4 below on architectural treatment.
+
+**Per-body summary table (truncation degree available, archive, tractability):**
+
+| Body | Best published degree | Archive / source | Tractability |
+| :--- | :--- | :--- | :--- |
+| Earth main field | 13 | NOAA NGDC IGRF-13 (`.cof` text) | **High** — quick-ship |
+| Earth crustal | 720 (EMM2017) | NCEI EMM2017; GFZ MF7; ESA CHAOS-7 | High data, large file (lazy-load) |
+| Jupiter | 18 | Connerney et al. 2022 supplement; CCMC; PDS-PPI Juno | **High** — quick-ship |
+| Saturn | 14 (zonal-only) | Cao et al. 2020 *Icarus* Table 2 | **High** — quick-ship |
+| Mercury | 5 (MESSENGER) → ~13 (BepiColombo, future) | Thébault et al. 2018; IPGP | High (current); medium (future re-pull) |
+| Ganymede | 1 (dipole-only published) | Kivelson et al. 2002 | Dipole-only is the state of the art |
+| Uranus | 3 (AH5) | Holme & Bloxham 1996 | **High** for the existing model; deferred for higher |
+| Neptune | 3 (O8) | Holme & Bloxham 1996 | **High** for the existing model; deferred for higher |
+| Sun | 90 (HMI) but **time-series** | WSO; GONG; SDO/HMI | **Architectural challenge** — see §17.2.4 |
+
+#### 17.2.3 Data archives + file formats
+
+The dominant file format for spherical-harmonic internal-field models is the IGRF-style **`.cof` text file** — line-oriented, one Gauss coefficient per row, with header lines giving the model name, reference radius, units (typically nT), epoch, and Schmidt-normalisation convention. Most planetary models published since ~2000 follow this convention. Specific archives:
+
+* **Earth.** NOAA NGDC distributes IGRF-13 at <https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html>; the canonical file is `igrf13coeffs.txt`. WMM 2025 (the World Magnetic Model used for navigation) is at <https://www.ncei.noaa.gov/products/world-magnetic-model>. CHAOS-7 (combined core + crustal + secular variation) is at <https://www.spacecenter.dk/files/magnetic-models/CHAOS-7/>.
+* **Jupiter.** JRM33 is published in Connerney et al. 2022 (DOI 10.1029/2021JE007055) supplementary material as a plain-text coefficient table; the **Community Coordinated Modeling Center** (<https://ccmc.gsfc.nasa.gov/models/JRM33>) distributes a runnable code package. PDS-PPI archives the underlying Juno FGM data at <https://pds-ppi.igpp.ucla.edu/collection/JNO-J-3-FGM-CAL-V1.0>.
+* **Saturn.** Cassini Grand Finale models live in Cao et al. 2020 (DOI 10.1016/j.icarus.2019.113541) Table 2 and in Dougherty et al. 2018 (*Science* 362, eaat5434) supplementary material. PDS-PPI archives the raw Cassini MAG data at <https://pds-ppi.igpp.ucla.edu/mission/Cassini-Huygens/CO/MAG>.
+* **Mercury.** Thébault et al. 2018 (DOI 10.1029/2018JE005552) coefficients are tabulated in the paper. MESSENGER MAG raw data at <https://pds-ppi.igpp.ucla.edu/mission/MESSENGER/MESS/MAG>.
+* **Uranus / Neptune.** Holme & Bloxham 1996 (DOI 10.1029/95JE03437) AH5 / O8 coefficients are in the paper. Voyager 2 raw MAG data at the NSSDC: <https://nssdc.gsfc.nasa.gov/space/voyager/voyager.html>.
+* **Sun.** WSO synoptic charts: <http://wso.stanford.edu/synopticl.html>. SDO/HMI synoptic maps + spherical-harmonic decompositions: <http://hmi.stanford.edu/QMap/>. GONG: <https://gong.nso.edu/data/magmap/>.
+
+**Format convention.** All of these archives use Schmidt quasi-normalised real spherical harmonics with a sign convention that follows IGRF (the geomagnetism community's de facto standard). A v0.20.x catalog should adopt the same convention and translate explicitly *only* if a downstream consumer needs (e.g.) the geodesy 4π-normalisation that the gravity-multipole §17.1 work might use. The two normalisations differ by a factor of `√((2-δ_{m,0}) (2n+1) (n-m)! / (n+m)!)`; mixing them silently is a class of bug to avoid up front.
+
+#### 17.2.4 Architectural shape — extend `EmBodyState` or separate catalog?
+
+The brief raised three options:
+
+* **Option A — extend `EmBodyState` with a sparse `multipole_coefficients` field.** Add `multipole_coefficients: Optional[Dict[str, Any]]` (or a typed `MultipoleExpansion` dataclass) that holds the Gauss coefficients per body. Sparse — populated only for the bodies with published high-degree models; `None` for the rest. **Pros:** minimum-surface-area extension; the v0.19.0 `EmBodyState` already has all the metadata (`source_key`, `rotation_period_days_uncertainty_pct`) so a `multipole_coefficients_uncertainty_degree_max` field would slot in naturally. **Cons:** the `EmBodyState` dataclass starts to do too many things (DC dipole magnitude, time-invariant rotation phase, plasma source rate, *and* a potentially-720-degree spherical-harmonic table for Earth crustal). The Earth crustal case alone would balloon a single `EmBodyState` instance by orders of magnitude.
+* **Option B — separate `MagneticMultipoleCatalog` module + bridge surface.** A sibling table to `EmBodyState`, with its own bridge surface (`bridge.get_magnetic_multipoles(body, degree=None)`). Cleaner separation; the dipole stays in `EmBodyState` (because the dipole is what users typically want for order-of-magnitude work) and the higher degrees live in `MagneticMultipoleCatalog`. **Pros:** the higher-degree data is opt-in via a separate import / bridge call, so the v0.19.0 `bridge.get_em_state(jd)` surface stays cheap and small. Lazy-loading of large crustal files is natural. **Cons:** two tables to keep in sync (the dipole magnitude in `EmBodyState` should be derivable from `g_1^0, g_1^1, h_1^1` in the multipole table; if the two get out of sync, downstream users get inconsistent answers).
+* **Option C — generic `SphericalHarmonicCatalog`.** A unified catalog that holds gravity, magnetic, *and* topography spherical-harmonic expansions in one structure. Gravity uses the `(C_n^m, S_n^m)` Stokes coefficients in the same algebraic shape as magnetic `(g_n^m, h_n^m)`; topography (e.g. lunar topography to degree 2160 from LRO LOLA) uses the same shape. The §17.1 subagent is also surveying gravity multipoles; their architectural recommendation may converge with this option.
+
+**Recommended verdict: Option B, with a hook toward Option C.** Concretely:
+
+* Ship a `research/magnetic_multipole_catalog.py` sibling to `em_instrument_data.py` in v0.20.x.
+* Per-body entries hold `(reference_radius_m, max_degree, gauss_coefficients: Dict[(n,m), (g, h)], normalisation: str, source_key: str)`.
+* The dipole magnitude in `EmBodyState` becomes a *derived* convenience field; a one-line cross-check at module load enforces consistency (assert `intrinsic_dipole_moment_T_m3` equals the Pythagorean magnitude of the `n=1` Gauss coefficients to 1%).
+* Bridge surface: `bridge.get_magnetic_multipoles(body: str, max_degree: Optional[int]=None) -> dict` returns the coefficients (truncated if `max_degree` is given). `bridge.evaluate_magnetic_field(body: str, r_km: float, lat_deg: float, lon_deg: float, jd_tdb: Optional[float]=None) -> dict` evaluates the field at a point using the standard spherical-harmonic sum, optionally including IGRF secular variation if `jd_tdb` is given for Earth.
+* Cross-pollination with §17.1 (gravity): if the §17.1 subagent recommends a `GravityMultipoleCatalog` with the same shape, the two should share a common base class (`SphericalHarmonicCatalog`) in v0.21.x or v0.22.x. Don't pre-emptively unify in v0.20.x — wait until §17.1 has shipped and the actual data shapes are concrete, then refactor.
+
+**Sun time-variability.** The Sun is the architectural outlier: its coefficients are not a fixed catalog entry but a `g_n^m(t)` time-series. Three ways to handle:
+
+1. **Exclude the Sun from `MagneticMultipoleCatalog` entirely**, keep just the dipole-magnitude-at-a-representative-epoch in `EmBodyState`, and route any time-series queries through a separate `bridge.get_solar_synoptic_state(jd_tdb)` surface that pulls from a WSO / HMI cache.
+2. **Include the Sun with an "epoch_jd" pinned to a representative date** (e.g. solar minimum 2020.0) and document the limitation explicitly. Downstream consumers who care about the time-variability use option (1)'s separate surface.
+3. **Treat the Sun's coefficients as a callable** (`gauss_coefficients: Callable[[float], Dict[(n,m), Tuple[g, h]]]`), so `gauss_coefficients(jd_tdb)` returns the time-evolved values.
+
+**Recommended: option (1).** The Sun deserves its own bridge surface. Mixing time-invariant catalog data with time-series data in the same dataclass field is the kind of polymorphism that breaks downstream consumers in confusing ways. A `bridge.get_solar_synoptic_state(jd_tdb)` surface — analogous to the existing `bridge.get_em_state(jd_tdb)` — is the honest shape. The synoptic state would carry, at minimum, the photospheric `g_n^m(t)` to whatever degree the underlying observatory (WSO degree-9 vs HMI degree-90) supports, plus the global polarity and the open-flux estimate. v0.20.x ships option (1) without the `get_solar_synoptic_state` surface itself (which can land in a later minor version when a downstream consumer materialises); the multipole catalog excludes the Sun and its dipole stays in `EmBodyState` as today.
+
+#### 17.2.4.1 Rhythm-mismatch check
+
+Per the §16.3 / §16.9.1 framing: the cyclic-group BIP encoder requires its inputs to have small-integer-rational rhythm structure. Magnetic multipole *coefficients* are generally treated as **static** — IGRF's secular variation is a slow drift (tens of nT/yr in `g_n^m`, with no resonance structure), Saturn's coefficients are constant on observable timescales, Jupiter's JRM33 is a single-epoch fit with no published time-derivative. The cyclic-group encoder discipline does **not apply** — these are static catalog entries, similar to the v0.19.0 EM Instrument's intrinsic-dipole values. Confirmed.
+
+The Sun is the exception (Hale-cycle 22 yr + Carrington 27 d), which is one more reason to route it through a separate bridge surface rather than the static catalog.
+
+#### 17.2.5 Per-body ship-readiness table
+
+| Body | Quick-ship readiness | Notes |
+| :--- | :--- | :--- |
+| Earth main field (IGRF-13) | **High** | Public `.cof`; canonical format; degree 13 |
+| Jupiter (JRM33) | **High** | Connerney 2022 supplement; degree 18 |
+| Saturn (Cao 2020) | **High** | Zonal-only flag; degree 14 |
+| Uranus (AH5) | **High** for current model | Degree 3 only; UOP would extend |
+| Neptune (O8) | **High** for current model | Degree 3 only; future mission would extend |
+| Mercury (Thébault 2018) | **High** | Degree 5; BepiColombo will refresh |
+| Earth crustal (EMM2017) | **Medium** | Lazy-load; large file (~30 MB) |
+| Ganymede | **Low** — dipole-only is published state of the art | Wait for JUICE (2034) |
+| Sun | **Low** — architectural challenge (time-series, not static) | Defer to separate bridge surface |
+
+The "high" rows are five-out-of-nine (six if you count the Mercury BepiColombo refresh path) — comfortably enough to justify a v0.20.x ship that meaningfully extends beyond v0.19.0's dipole-only. The "low" rows are honest scope limits, not implementation gaps.
+
+#### 17.2.6 References
+
+Earth main field and crustal:
+* Alken, P., et al. "International Geomagnetic Reference Field: the thirteenth generation." *Earth, Planets and Space* 73, 49 (2021). <https://doi.org/10.1186/s40623-020-01288-x>
+* Finlay, C. C., et al. "The CHAOS-7 geomagnetic field model and observed changes in the South Atlantic Anomaly." *Earth, Planets and Space* 72, 156 (2020). <https://doi.org/10.1186/s40623-020-01252-9>
+* Maus, S., et al. "EMM2017: Enhanced Magnetic Model 2017–2022." NCEI / NOAA technical report. <https://www.ncei.noaa.gov/products/enhanced-magnetic-model>
+* Maus, S. "An ellipsoidal harmonic representation of Earth's lithospheric magnetic field to degree and order 720 (MF7)." *Geochemistry, Geophysics, Geosystems* 11, Q06015 (2010). <https://doi.org/10.1029/2010GC003026>
+
+Jupiter:
+* Connerney, J. E. P., et al. "A New Model of Jupiter's Magnetic Field at the Completion of Juno's Prime Mission (JRM33)." *Journal of Geophysical Research: Planets* 127, e2021JE007055 (2022). <https://doi.org/10.1029/2021JE007055>
+* Connerney, J. E. P., Acuña, M. H., Ness, N. F., Satoh, T. "New models of Jupiter's magnetic field constrained by the Io flux tube footprint (VIP4)." *Journal of Geophysical Research* 103, 11929 (1998). <https://doi.org/10.1029/97JA03726>
+
+Saturn:
+* Dougherty, M. K., et al. "Saturn's magnetic field revealed by the Cassini Grand Finale." *Science* 362, eaat5434 (2018). <https://doi.org/10.1126/science.aat5434>
+* Cao, H., et al. "The landscape of Saturn's internal magnetic field from the Cassini Grand Finale." *Icarus* 344, 113541 (2020). <https://doi.org/10.1016/j.icarus.2019.113541>
+
+Mercury:
+* Anderson, B. J., et al. "The Global Magnetic Field of Mercury from MESSENGER Orbital Observations." *Science* 333, 1859 (2011). <https://doi.org/10.1126/science.1211001>
+* Thébault, E., et al. "A time-averaged regional model of the Hermean magnetic field." *Physics of the Earth and Planetary Interiors* 276, 93 (2018). <https://doi.org/10.1016/j.pepi.2017.07.001>
+* Heyner, D., et al. "The BepiColombo Planetary Magnetometer MPO-MAG: What Can We Learn from the Hermean Magnetic Field?" *Space Science Reviews* 217, 52 (2021). <https://doi.org/10.1007/s11214-021-00822-x>
+
+Uranus + Neptune:
+* Ness, N. F., et al. "Magnetic Fields at Uranus." *Science* 233, 85 (1986). <https://doi.org/10.1126/science.233.4759.85>
+* Ness, N. F., et al. "Magnetic Fields at Neptune." *Science* 246, 1473 (1989). <https://doi.org/10.1126/science.246.4936.1473>
+* Holme, R. & Bloxham, J. "The magnetic fields of Uranus and Neptune: Methods and models." *Journal of Geophysical Research: Planets* 101, 2177 (1996). <https://doi.org/10.1029/95JE03437>
+* National Academies. "Origins, Worlds, and Life: A Decadal Strategy for Planetary Science and Astrobiology 2023–2032" (Uranus Orbiter & Probe recommendation). <https://nap.nationalacademies.org/catalog/26522/>
+
+Ganymede:
+* Kivelson, M. G., Khurana, K. K., Volwerk, M. "The permanent and inductive magnetic moments of Ganymede." *Icarus* 157, 507 (2002). <https://doi.org/10.1006/icar.2002.6834>
+
+Sun (synoptic / spherical-harmonic decompositions):
+* Wilcox Solar Observatory, Stanford. <http://wso.stanford.edu/>
+* GONG (Global Oscillation Network Group) magnetograms. <https://gong.nso.edu/>
+* SDO HMI synoptic maps. <http://hmi.stanford.edu/QMap/>
+* DeRosa, M. L., Brun, A. S., Hoeksema, J. T. "Solar magnetic field reversals and the role of dynamo families." *Astrophysical Journal* 757, 96 (2012). <https://doi.org/10.1088/0004-637X/757/1/96>
+
+Spherical-harmonic conventions and software:
+* Winch, D. E., et al. "Geomagnetism and Schmidt quasi-normalization." *Geophysical Journal International* 160, 487 (2005). <https://doi.org/10.1111/j.1365-246X.2004.02472.x>
+* Community Coordinated Modeling Center, Jupiter JRM33 model server. <https://ccmc.gsfc.nasa.gov/models/JRM33>
+
+Disclaimer on coverage: Truncation degrees quoted reflect the highest reliably constrained degree per the cited paper's own evaluation; in several cases (Uranus AH5, Neptune O8, Ganymede) higher-degree fits exist in the literature but are not stable against re-analysis with the same single-flyby data. Values quoted as "current state of the art" reflect publication-grade consensus as of 2024-2025; future missions (BepiColombo at Mercury, JUICE at Ganymede, hypothetical UOP at Uranus) will revise these. The §17.2.4 architectural recommendation (Option B, separate `MagneticMultipoleCatalog`) is contingent on §17.1's recommendation for gravity multipoles; if §17.1 lands on a unified `SphericalHarmonicCatalog` (Option C), §17.2 should converge to that shape rather than maintaining a sibling-table parallel.
+
+### 17.3 Atmospheric structure + surface climate channels — fluid-envelope scoping
+
+This subsection is **research-only scoping**, sibling to §17.1 (gravity / topography / interior) and §17.2 (magnetics multipoles), and is the *fluid-envelope* slice of the same v0.20.x per-body observable catalog. Where §17.1 covers the static solid-body geodetic stack and §17.2 covers the harmonic decomposition of intrinsic and induced magnetic fields, §17.3 covers the *time-varying* envelope wrapped around the solid body: atmospheric structure, surface climate, ocean state, cryosphere. The user's framing — *"with this we will find things like atmospheric and surface climate... maybe. maybe not us but someone after us might!"* — applies to the *predictive-research applications on top of* the catalog (Mars dust-storm L_s prediction, Great Red Spot / Galilean tidal correlation, etc.), not to the catalog itself: the v0.20.2 ship described in §17.4.2 commits to a full-coverage fluid-envelope surface (climatological summary scalars per body, archive-pointer index per atmospheric body, state-at-epoch query for Earth + Mars).
+
+### 17.3.1 Why fluid-envelope channels are different — spatial vs temporal variability; static vs state-at-epoch
+
+The §17.1 gravity/topography channels and the §17.2 magnetic multipoles are *quasi-static*: a degree-2 spherical-harmonic gravity field for Mars or a Schmidt-normalised dipole+quadrupole+octupole for Jupiter changes on geological / dynamo-secular timescales (megayear+ for the gravity term; year-to-decade for the magnetic dynamo) and is well-served by a single "best fit" coefficient table per body, occasionally re-released when a new mission lands. A consumer querying `bridge.get_gravity_state("mars")` at JD = 2460000.5 and at JD = 2470000.5 wants and gets the same answer.
+
+The fluid envelope is not like that. Earth's surface temperature at lat = 0°, lon = 0° at noon UTC on 2025-06-21 is 28.4 °C (climatological), 31.1 °C (ERA5 actual), 24.7 °C (ERA5 same date 1992), with a standard deviation of ≈ 3 °C across the 1940–present record. Mars's surface pressure at the same surface coordinates varies by **30 % seasonally** — Hellas Basin pressure swings between ≈ 800 Pa (northern winter, polar CO₂ condensed out of atmosphere) and ≈ 1200 Pa (northern summer, CO₂ sublimated back). The Great Red Spot's System II longitude has lapped Jupiter at least 10 times since 1831 ([Sánchez-Lavega et al. 2018](https://iopscience.iop.org/article/10.3847/1538-3881/aaae01)); the GRS has shrunk by ≈ 50 % in the same window.
+
+This forces three architectural shifts relative to §17.1 / §17.2:
+
+1. **The catalog entry per body is no longer a coefficient table; it is a *climatology* (ensemble statistic) and optionally a *reanalysis pointer* (state-at-epoch lookup).** A v0.20.x per-body fluid-envelope entry that holds only a "mean surface temperature" scalar throws away every signal worth finding.
+2. **The data sources are *grids*, not coefficients.** ERA5 is a 0.25° × 0.25° × 137-vertical-level × 1-hour grid from 1940 to present; that is roughly 3 × 10¹⁵ floats. No per-body in-memory representation works.
+3. **The temporal sampling rate is genuinely fast.** Earth weather varies on hours; Earth climate on decades. Mars dust storms develop in ≈ 10 sols. Jupiter cloud features evolve on ≈ days. The clean Antikythera cyclic-group rhythms (orbital-period commensurabilities, integer-day Saros lunar cycles) do not capture any of this — and the §16.3 finding that magnetic clocks form no small-integer rational lattice with orbital periods extends *more strongly* to atmospheric clocks. Atmospheric phenomena have their own rhythms (Earth seasonal 365.25 d, Mars seasonal 687 d, Jupiter QQO ≈ 4.4 yr quasi-quadrennial oscillation, solar Schwabe-driven 11 yr) but those rhythms are weakly coupled to the orbital lattice and dominated by stochastic / nonlinear / forced-response components.
+
+The architectural verb that fits this regime is **`climatology + state-at-epoch query`**, not **`encode_state(jd) → uint32_residue`**. The BIP encoder does not transplant; the Sol EM Instrument's `bridge.get_em_state(jd_tdb)` shape (state-at-epoch lookup, no integer-residue propagation) is the better template.
+
+### 17.3.2 Per-body atmospheric structure — composition, vertical profile, top-of-atmosphere
+
+The "atmospheric structure" channel is the cleanest part of the fluid envelope to catalog because it is *quasi-static at climatological scale*. Composition (mole fractions of N₂, O₂, CO₂, CH₄, etc.) is fixed by the body's chemistry over megayears; vertical profile (P(z), T(z)) varies seasonally and diurnally but a *mean* profile is well-defined; top-of-atmosphere is a convention (Earth uses the Kármán line at 100 km; planetary equivalents are the homopause or exobase).
+
+Per-body summary (compositional dominants ≥ 1 %; vertical scale = atmospheric scale height; surface pressure to 1 sig.fig.):
+
+| Body | Surface P (Pa) | Dominant gases | Scale height (km) | TOA convention | Reference |
+| :--- | ---: | :--- | ---: | :--- | :--- |
+| Venus | 9.2 × 10⁶ | CO₂ 96.5 %, N₂ 3.5 % | 15.9 | Homopause ≈ 130 km | [VIRA, Seiff et al. 1985](https://ntrs.nasa.gov/citations/19860032568) |
+| Earth | 1.013 × 10⁵ | N₂ 78 %, O₂ 21 %, Ar 0.93 % | 8.5 | Kármán 100 km | US Standard Atmosphere 1976 |
+| Mars | 6.1 × 10² | CO₂ 95 %, N₂ 2.8 %, Ar 2 % | 11.1 | Homopause ≈ 200 km | [MCD v6.1](https://www-mars.lmd.jussieu.fr/mars/access.html) |
+| Jupiter | (1 bar reference) | H₂ 89.8 %, He 10.2 % | 27 | 1 bar level by convention | Voyager + Juno; [Gautier 1981](https://ui.adsabs.harvard.edu/abs/1981JGR....86.8713G) |
+| Saturn | (1 bar reference) | H₂ 96.3 %, He 3.25 % | 59 | 1 bar level | Voyager + Cassini |
+| Titan | 1.47 × 10⁵ | N₂ 95 %, CH₄ 4.9 % | 21 | Homopause ≈ 1000 km | Huygens HASI; [Fulchignoni et al. 2005](https://www.nature.com/articles/nature04314) |
+| Uranus | (1 bar reference) | H₂ 82.5 %, He 15.2 %, CH₄ 2.3 % | 27 | 1 bar level | Voyager 2 |
+| Neptune | (1 bar reference) | H₂ 80 %, He 19 %, CH₄ 1.5 % | 19 | 1 bar level | Voyager 2 |
+| Triton | 1.4 | N₂ 99 %, CH₄ trace | 14 | Effectively surface-bound | Voyager 2 stellar occultation |
+| Pluto | 1 (variable, perihelion-driven) | N₂ 99 %, CH₄ + CO trace | 60 | High due to low gravity + escape | New Horizons REX |
+| Io | 1 × 10⁻⁹ (near-vacuum, plume-driven) | SO₂ | n/a (non-hydrostatic) | Exosphere-only | Galileo + HST |
+
+Bodies *without* significant atmosphere (Mercury, Luna, the inner moons of the gas giants, asteroids, KBOs except Pluto): exospheric only, photoelectric / sputtered-source dominated; covered as a single-line catalog entry rather than a vertical-profile fit.
+
+**Tractability of the structure channel.** All eleven entries above have published reference profiles and well-understood compositions. A v0.20.x per-body catalog entry that carries `(surface_P_Pa, scale_height_km, [(gas, mole_frac), ...], TOA_convention_name, TOA_altitude_km, primary_reference_DOI)` is a small, principled, ship-ready surface. **This is the strongest tractability tier of the §17.3 channels** — the data is published, machine-readable, and stable.
+
+### 17.3.3 Per-body surface climate — temperature, surface pressure, weather statistics
+
+Surface climate is one tier harder. The well-defined per-body summary is a *climatology*: mean + 1σ + seasonal range for surface temperature and pressure, plus a verbal "dominant weather pattern" tag. Per-body:
+
+* **Earth.** Mean surface T ≈ 287 K with ±15 K diurnal/seasonal/latitudinal spread; mean surface P ≈ 1013 hPa with weather-system variability ±30 hPa. Dominant patterns: Hadley/Ferrel/Polar circulation cells; ENSO 2–7 yr; NAO; monsoons (annual). The deep observational record (ERA5 1940–present at 0.25° / 1 h, [Hersbach et al. 2020](https://rmets.onlinelibrary.wiley.com/doi/10.1002/qj.3803); MERRA-2 1980–present at 0.5° × 0.625°, [Gelaro et al. 2017](https://journals.ametsoc.org/view/journals/clim/30/14/jcli-d-16-0758.1.xml)) makes Earth the only body where state-at-epoch query is actually feasible from a public dataset.
+* **Mars.** Mean surface T ≈ 210 K with ±55 K diurnal range and ±50 K seasonal range; mean surface P ≈ 610 Pa with **±30 % seasonal variation** driven by polar CO₂ condensation/sublimation. Dominant patterns: Hadley circulation; dust devils (diurnal); local-to-regional dust storms (seasonal); planet-encircling global dust storms (≈ once every ≈ 3 Mars years, with high interannual variability; [Wang & Richardson 2015](https://www.sciencedirect.com/science/article/abs/pii/S0019103515000482)). Mars Year and L_s (solar longitude) are the natural calendar; MY1 begins 11 April 1955, with Mars year ≈ 686.97 days and dust season opening at L_s ≈ 132°–156° and closing at L_s ≈ 5°–25° of the following Mars year ([Mars Year / L_s reference](https://www.planetary.org/articles/mars-calendar)). The MCD v6.1 ([Millour et al. 2022](https://www-mars.lmd.jussieu.fr/mcd_python/)) is the canonical state-at-epoch surface, and it has the rare property of being a *server* (queryable) rather than just an archive.
+* **Venus.** Mean surface T ≈ 737 K (uniform within ±5 K — runaway greenhouse keeps the surface near-isothermal); mean surface P ≈ 92 bar. Dominant patterns: super-rotation of the upper atmosphere (cloud-deck rotation period ≈ 4 days vs surface rotation period ≈ 243 days, retrograde); polar vortices. Venus Express + Akatsuki have updated VIRA significantly since 1985 but no consolidated VIRA-II reference release exists yet; [Limaye et al. 2018 / 2021 / 2022](https://ui.adsabs.harvard.edu/abs/2022cosp...44..917L/abstract) have proposed reanalysis updates.
+* **Titan.** Mean surface T ≈ 94 K with ±2 K seasonal range; mean surface P ≈ 1.47 bar. Dominant patterns: Titan year is 29.5 Earth years; polar methane lakes/seas (north-pole-dominant); seasonal methane storms; superrotation of the upper atmosphere (≈ 16 Earth-day rotation of Titan's stratosphere vs 16-Earth-day rotation of Titan itself — coincidence, both at the spin period). Huygens descent profile ([Fulchignoni et al. 2005](https://www.nature.com/articles/nature04314)) is the canonical 1-D surface-to-150-km truth; TitanWRF GCM ([Newman et al. 2016](https://aeolisresearch.com/papers/NewmanEtAl16.pdf)) provides 3-D climatology. There is no Titan reanalysis.
+* **Jupiter & Saturn.** No "surface" — the 1-bar level is the convention. Cloud-deck temperature ≈ 165 K (Jupiter) and ≈ 134 K (Saturn) at 1 bar; deep-troposphere temperatures rise on adiabats. Dominant patterns: zonal jet system (≈ 5 jets/hemisphere on Jupiter, ≈ 7 on Saturn); long-lived vortices (Jupiter's Great Red Spot since at least 1831, [Sánchez-Lavega et al. 2024](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2024GL108993); Saturn's hexagon at 78°N); seasonal storms (Saturn's 30-yr Great White Spot, perihelion-driven). No reanalysis; the observational record is essentially HST + ground-based + Voyager + Galileo + Cassini + Juno snapshots stitched together.
+* **Uranus & Neptune.** Voyager 2 single-flyby plus HST + ground-based time series. Neptune has unexpectedly active weather despite its 30 AU heliocentric distance (Great Dark Spot; bright south-polar features); Uranus is much less active but spin-axis-tipped 98° on ecliptic giving extreme ≈ 42-yr seasonal forcing. Climatologies are at the level of mean disc-integrated brightness temperature, not a per-latitude/longitude surface.
+
+**Tractability.** Earth is *high* (full reanalysis state-at-epoch is a public dataset). Mars is *medium-high* (MCD v6.1 is a queryable GCM service, MY/L_s calendar is well-defined). Venus, Titan, Jupiter, Saturn are *medium* (climatology is well-characterised but state-at-epoch is observational-snapshot only, not gridded). Uranus, Neptune are *low* (climatology is sparse; state-at-epoch is "look at HST"). Triton, Pluto, Io are *single-snapshot single-flyby* — climatology is one number per channel.
+
+### 17.3.4 Per-body ocean / cryosphere state — Earth, Titan, icy-moon subsurface oceans
+
+The "ocean" channel splits sharply by body category:
+
+* **Earth's ocean.** The single-best-characterised non-atmospheric-fluid system in the solar system. Sea-surface temperature, salinity, currents, sea-ice extent, sea-level, biogeochemistry — all gridded and time-resolved. Argo float network (3000+ floats since 2000); satellite altimetry (TOPEX/Poseidon → Jason → Sentinel since 1992); GRACE/GRACE-FO mass-balance since 2002. Reanalyses: ECMWF ORAS5 ocean reanalysis; NOAA OISST. **State-at-epoch tractable from public dataset.**
+* **Earth's cryosphere.** Sea-ice (NSIDC daily since 1979); land-ice (GRACE since 2002, ICESat-2 since 2018); mountain glaciers (Randolph Glacier Inventory; mass-balance from Hugonnet et al. 2021). **State-at-epoch tractable.**
+* **Titan's surface methane lakes/seas.** Cassini RADAR observed Titan's north polar lake/sea complex over 2004–2017. Kraken Mare ≈ 400 000 km² (largest), Ligeia Mare ≈ 126 000 km² with depths up to ≈ 160 m measured by RADAR sounding ([Mastrogiuseppe et al. 2018](https://www.sciencedirect.com/science/article/abs/pii/S0012821X18303169)); composition predominantly liquid methane with ethane fraction varying latitudinally. Filling/draining over Titan's 29.5-yr seasonal cycle is an active research question; Dragonfly (NASA, launch 2028, arrival 2034) will add point-truth in situ.
+* **Titan subsurface water ocean.** Inferred from Cassini gravity field + libration measurements ([Iess et al. 2012](https://www.science.org/doi/10.1126/science.1219631)); no direct surface-ocean state observable. **Static catalog entry (depth ≈ 50–100 km below ice shell, ≈ 100 km thick estimated).**
+* **Europa subsurface ocean.** Inferred from Galileo magnetometer induced-field measurements ([Khurana et al. 1998](https://www.nature.com/articles/27394); [Kivelson et al. 2002](https://www.sciencedirect.com/science/article/abs/pii/S001910350096456X)); §17.2 / §16 magnetic catalog already carries the induced-response coefficients. Direct ocean-state measurements pending Europa Clipper (orbit insertion 2030; ECM magnetometer + G/RS gravity + dual-frequency radar will constrain ocean depth, salinity, and ice-shell thickness). **Static catalog now; state-at-epoch unlocks post-2030.**
+* **Ganymede subsurface ocean.** Inferred from Galileo + HST aurora oscillation; JUICE will add Ganymede-orbit-insertion-2034 measurements.
+* **Callisto subsurface ocean.** Galileo magnetometer-induced-response evidence; less constrained than Europa. JUICE flybys.
+* **Enceladus subsurface ocean.** Cassini directly *sampled* via plume traversals. 2025 reanalysis ([Khawaja et al. 2025 *Nature Astronomy*](https://www.nature.com/articles/s41550-025-02655-y)) confirmed organic compounds in fresh ice grains; subsurface ocean is global, ≈ 30–40 km below the ice shell, salty, and contains H₂ from hydrothermal activity ([Waite et al. 2017](https://www.science.org/doi/10.1126/science.aai8703)). **The most directly characterised non-Earth ocean.**
+
+**Tractability.** Earth ocean = *high* (state-at-epoch from reanalysis). Earth cryosphere = *high*. Titan surface lakes = *medium* (Cassini snapshots; no ongoing time-series; will be incremented by Dragonfly post-2034). Titan subsurface ocean = *low* (static parameters only). Europa, Ganymede, Callisto subsurface oceans = *low now*, *medium post-2030/2034*. Enceladus subsurface ocean = *medium* (composition known; state-at-epoch is "Cassini era only").
+
+### 17.3.5 Reanalysis products + GCMs — what's served as machine-readable, what's not
+
+Survey of the canonical machine-readable atmosphere/climate products keyed to the bodies above:
+
+| Body | Product | Type | Grid | Cadence | Coverage | Access |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Earth | ERA5 | Reanalysis | 0.25° × 137 lev | 1 h | 1940–present | [CDS](https://cds.climate.copernicus.eu/) (NetCDF/GRIB; auth required) |
+| Earth | MERRA-2 | Reanalysis | 0.5° × 0.625° × 72 lev | 1 h | 1980–present | [GES DISC](https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/) (HDF/NetCDF; free) |
+| Earth | CMIP6 | GCM ensemble | varies (≈ 100 km) | 6 h–monthly | 1850–2300 (scenarios) | [ESGF](https://esgf-node.llnl.gov/) (NetCDF; free) |
+| Mars | MCD v6.1 | GCM-derived database | 5.625° × 32 lev | per-L_s (12 seasons) × 12 local-times × 6 dust scenarios | full Mars year | [LMD](https://www-mars.lmd.jussieu.fr/mcd_python/) (web/Fortran; free; queryable) |
+| Mars | MGS-TES retrievals | Observational | per-orbit | 2 yr+ (1999–2006) | MY24–MY27 | [PDS](https://pds-atmospheres.nmsu.edu/data_and_services/atmospheres_data/Mars/Mars.html) |
+| Venus | VIRA-1 | Reference profile | latitudinal bins | static | 1985 | [NTRS](https://ntrs.nasa.gov/citations/19860032568) |
+| Venus | Venus-GRAM | Engineering model | parametric | static | NASA/MSFC release | not openly redistributed; available on request |
+| Titan | TitanWRF | GCM | 3D | per-Titan-season | full Titan year | published outputs only; not a server |
+| Titan | Huygens HASI | 1-D descent profile | single point | one-shot | 14 Jan 2005 only | [PSA](https://www.cosmos.esa.int/web/psa/huygens) |
+| Jupiter | Juno + HST | Observational snapshots | per-flyby | n/a | 2016–present | [PDS](https://pds-atmospheres.nmsu.edu/) |
+| Saturn | Cassini | Observational snapshots | per-flyby | n/a | 2004–2017 | [PDS](https://pds-atmospheres.nmsu.edu/) |
+| Uranus, Neptune | Voyager 2 + HST | Observational | sparse | snapshots | 1986/1989 + episodic | PDS + STScI archive |
+| Earth ocean | ECMWF ORAS5 | Ocean reanalysis | 0.25° × 75 lev | monthly | 1958–present | CDS |
+| Earth ocean | NOAA OISST | SST analysis | 0.25° | daily | 1981–present | [NCEI](https://www.ncei.noaa.gov/products/optimum-interpolation-sst) |
+
+**Headline.** Earth has multiple competing reanalyses at hourly cadence — ERA5 alone is ≈ 1 PB on disk. Mars has MCD as a queryable GCM service (the only non-Earth body with this property). Venus, Titan, Jupiter, Saturn, Uranus, Neptune have observational snapshots and GCM publications but no public state-at-epoch reanalysis service. The asymmetry between Earth's data wealth and everywhere else's data poverty is the dominant fact about §17.3 architectural design — it is *much* more extreme than the equivalent asymmetry in §17.1 (gravity fields are well-characterised everywhere by virtue of being measurable from orbit) or §17.2 (magnetic dipoles are well-characterised wherever a magnetometer has flown).
+
+### 17.3.6 Architectural shape — does the fluid envelope earn its own instrument?
+
+The framing question for v0.20.x: does the fluid envelope warrant a `SolFluidInstrument` (or `SolAtmosphericInstrument`, or `SolClimateInstrument`) sibling to `SolEmInstrument` (§16.9), or does it slot into the BODIES roster as additional climatological scalars + an external archive-pointer index?
+
+Four options, mirroring the §16.5 framing:
+
+* **Option A — climatological summary.** Per-body static fields baked into BODIES: `mean_surface_temp_K`, `surface_pressure_Pa`, `dominant_atmospheric_gas`, `obliquity_deg`, `seasonal_T_amplitude_K`, `seasonal_P_amplitude_pct`, `has_ocean_surface` (bool), `has_subsurface_ocean` (bool). Captures the climatological skeleton; loses everything time-resolved. Sufficient for trajectory / mission-design queries ("how thick is Mars's atmosphere?", "is Titan's atmosphere denser than Earth's?"); insufficient for finding signatures.
+* **Option B — state-at-epoch query.** A `bridge.get_climate_state(body, jd_tdb)` surface returning per-body climate state at epoch. *Possible only for Earth (ERA5/MERRA-2) and Mars (MCD v6.1)* given the data-availability asymmetry; for everything else it would degrade to climatological mean (i.e., Option A). The implementation cost is real: ERA5 alone is 1 PB and is not redistributable from a Python package; MCD v6.1 is a queryable service but requires HTTP + parser code.
+* **Option C — pointer-to-external-archive.** Per body, expose URLs / API endpoints / file formats / authentication notes for downstream consumers to pull from canonical archives. The package becomes an *index* layer over fluid-envelope datasets, not a *data* layer. Very small implementation; very high leverage for a downstream researcher who knows what they want.
+* **Option D — hybrid.** A combined Option A (per-body climatological scalars in BODIES extension) + Option C (per-body archive-pointer index) + Option B *only for Mars and Earth* (the two bodies with queryable services). Recommended.
+
+The **rhythm-mismatch question** (per §16.3 / §16.9.1): do atmospheric clocks form a low-order rational lattice with the orbital lattice that the BIP encoder rides? Survey:
+
+| Atmospheric/climate clock | Period | Rational with orbital lattice? |
+| :--- | :--- | :--- |
+| Earth seasonal cycle | 365.25 d | 1:1 with Earth orbit (definitionally) |
+| Earth ENSO | 2–7 yr (irregular) | Stochastic; no commensurability |
+| Earth NAO | quasi-biennial + decadal | Stochastic; no commensurability |
+| Earth solar-driven 11 yr Schwabe | 11.0 yr | 11:1 with Earth orbit (covered in §16.3) |
+| Mars seasonal cycle | 686.97 d | 1:1 with Mars orbit; ratio to Earth orbit ≈ 1.881 — closest small rational 15/8 = 1.875 (error 0.3 %) |
+| Mars dust storm season recurrence | 1 Mars year, with global dust ≈ every 3 MY | 3:1 with Mars year (rough) |
+| Jupiter QQO (Quasi-Quadrennial Oscillation) | ≈ 4.4 yr | 4.4 / 11.86 ≈ 0.371; closest rationals 3/8 = 0.375 (error 1.1 %), 5/13 (error 3.6 %) |
+| Saturn semiannual oscillation | ≈ 14.7 yr (half Saturn year) | 1:2 with Saturn orbit |
+| Saturn Great White Spot | ≈ 30 yr (≈ 1 Saturn year) | 1:1 with Saturn orbit |
+| Titan seasonal cycle | 29.5 yr (≈ Saturn year) | 1:1 with Saturn orbit |
+| Venus super-rotation cloud-deck | ≈ 4 d | 4 / 224.7 ≈ 0.0178; closest small rational 1/56 (error 0.4 %) — high-order |
+
+**The pattern is that fluid-envelope rhythms lock to the body's *own* orbital period (the seasonal forcing channel) and to the solar Schwabe cycle (an external solar-rhythm channel)**, but do *not* lock cleanly to *pairwise* body-pair commensurabilities the way orbital mean-motion resonances do. The only clean small-integer pairwise lock on the table is Mars–Earth seasonal at 15:8 (error 0.3 %), and that is the same Mars/Earth orbital ratio the BIP encoder *already* sees from §10.1. The Saturn-system seasonal-cycle lock at 1:1 with Saturn orbit is also a re-statement of the orbital lattice.
+
+So the §16.3 verdict transplants: **the small-integer-rational discipline does not earn its keep on the fluid-envelope side, and a fluid-envelope `bridge.encode_state(jd) → uint32_residue` surface is the wrong shape**. The Sol EM Instrument's `bridge.get_em_state(jd)` (state-at-epoch lookup, no integer-residue propagation) is the right template. **Verdict: Option D — hybrid Sol Fluid Instrument as a sibling to Sol EM**, with the same architectural framing — climatology + state-at-epoch query *where supported* + archive-pointer index for everything else.
+
+### 17.3.7 Per-channel ship-readiness table
+
+Compact summary of where each (channel × body) pair sits on a high/medium/low ship-readiness scale. *High* = data is published, machine-readable, stable, and a static catalog entry is straightforward. *Medium* = data exists but requires non-trivial collection / parser / authentication / domain knowledge. *Low* = sparse / single-snapshot / inferred indirectly / pending future mission.
+
+| Channel | Mercury | Venus | Earth | Luna | Mars | Jupiter | Saturn | Titan | Uranus | Neptune | Triton | Pluto | Io | Europa | Ganymede | Callisto | Enceladus |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Composition | n/a | High | High | n/a | High | High | High | High | High | High | High | High | n/a | n/a | n/a | n/a | n/a |
+| Surface P (climat.) | n/a | High | High | n/a | High | (1-bar conv.) | (1-bar conv.) | High | (1-bar conv.) | (1-bar conv.) | Low | Low | n/a | n/a | n/a | n/a | n/a |
+| Surface T (climat.) | High | High | High | High | High | (1-bar conv.) | (1-bar conv.) | High | (1-bar conv.) | (1-bar conv.) | Low | Low | n/a | n/a | n/a | n/a | n/a |
+| State-at-epoch climate | n/a | Low | High (ERA5/MERRA-2) | n/a | Med-High (MCD v6.1) | Low | Low | Low | Low | Low | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| Surface ocean state | n/a | n/a | High | n/a | n/a | n/a | n/a | Med (Cassini RADAR) | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| Subsurface ocean params | n/a | n/a | n/a | n/a | n/a | n/a | n/a | Med | n/a | n/a | n/a | n/a | n/a | Med (post-Clipper High) | Med (post-JUICE High) | Med | Med-High (Cassini direct sample) |
+| Cryosphere | n/a | n/a | High | Low | Med (CO₂ caps; HiRISE record) | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| Weather statistics | n/a | Med | High | n/a | Med | Med (HST/Juno time-series) | Med (HST/Cassini) | Low | Low | Low | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+
+**Reading the table.** The "High" cluster is concentrated on: (a) static composition + scale-height parameters across all bodies with atmospheres, and (b) Earth across every channel. The "Medium" cluster is Mars, Titan, Jupiter, Saturn — bodies with strong observational records but no production reanalysis. The "Low" cluster is Uranus, Neptune, Triton, Pluto, the icy-moon subsurface-ocean state. The *per-channel* ship-readiness verdict is therefore:
+
+All of the channels below ship in **v0.20.2** (per §17.4.2) — the fluid envelope is not deferred channel-by-channel:
+
+* **Composition + structure + climatology static fields** — Option A climatological summary scalars per body, baked into BODIES.
+* **Earth state-at-epoch climate** — Option C archive-pointer index *and* Option B Python wrapper to ERA5 (Copernicus public API; the package never redistributes the underlying 1 PB but does ship the wrapper that calls the API on demand).
+* **Mars state-at-epoch climate** — Option C archive-pointer *and* Option B Python wrapper to MCD v6.1 (LMD's public web service).
+* **Titan, Venus, Jupiter, Saturn weather statistics** — Option A climatological summary + Option C pointer to PDS / mission archive. Per-body time-resolved analysis is a separate scope (research-grade research papers on top of the catalog substrate, not the catalog itself).
+* **Subsurface ocean parameters** — Option A static parameters (depth, ice-shell thickness, inferred salinity) in v0.20.2. Post-Europa-Clipper-2030 / post-JUICE-2034 data refreshes are subsequent re-fits, not deferrals of the initial ship.
+* **Uranus, Neptune, Triton, Pluto, Io** — single-line catalog entries with explicit `data_paucity = HIGH` flags. They ship; the precision flag carries through to the response so consumers can decide whether the data is sufficient.
+
+### 17.3.8 Honest open question — the user's framing
+
+The user's framing — *"with this we will find things like atmospheric and surface climate... maybe. maybe not us but someone after us might!"* — deserves an explicit reckoning, not a hand-wave.
+
+**What v0.20.x can ship.** A reproducible per-body climatological-summary surface (Option A: composition, scale height, mean surface T/P, seasonal amplitude, obliquity, ocean-state booleans for ≈ 17 bodies with non-trivial fluid envelopes) and an archive-pointer index (Option C: per-body URLs / DOIs / API endpoints / authentication notes pointing to ERA5, MERRA-2, MCD v6.1, VIRA, TitanWRF, PDS atmospheres node, ECMWF ORAS5, NSIDC, etc.). That is a small, principled, technically clean ship surface. It is *not* a system for finding atmospheric / climate signatures — it is the **bibliography** for someone else's system that will find them.
+
+**What v0.20.x cannot ship.** Anything actually predictive about fluid-envelope phenomena. Examples of the kind of question that *is* the natural downstream consumer of this catalog but is *out of scope for the v0.20.x deliverable*:
+
+* "Predict the L_s window of the next planet-encircling Mars dust storm given the past 30 Mars years." — tractable research; needs MCD v6.1 + observational dust-opacity time-series + a probabilistic recurrence model.
+* "Find correlations between Jupiter Great Red Spot longitude/drift and Galilean tidal phase." — speculative research; the cyclic-group lattice would have to ride Jupiter's System II rotation modulo Io/Europa/Ganymede orbit phases, and the Great Red Spot's drift is well-fit by internal Jovian zonal-jet dynamics without invoking moon forcing, so the null hypothesis would likely win — but it's the kind of question this package's spectral apparatus was *designed* to ask, and asking it is a real research project.
+* "Predict El Niño onset from solar-cycle phase." — much-studied; consensus is weak coupling, but the ERA5 + sunspot record is the data substrate.
+* "Find the atmospheric-circulation signature of Mercury's 3:2 spin-orbit coupling on Venus's super-rotation." — almost certainly a null result, but a clean test of whether the BIP cyclic-group encoder can detect cross-body atmospheric forcing.
+* "Cross-correlate Saturn's ring-spoke statistics with Saturn-Sun electromagnetic forcing phase." — another well-studied null-or-weak-result question.
+
+**Scale honesty.** Each of those questions is a *PhD-thesis-scale* research project on top of the v0.20.2 catalog substrate. The Antikythera-style cyclic-group + spectral apparatus may find clean signatures in some of these channels (the Mars-Earth seasonal 15:8 lock is at least *suggestive* that orbital lattices and atmospheric forcing intersect cleanly somewhere), or it may find that fluid-envelope phenomena are dominated by stochastic/nonlinear dynamics that resonance encodings cannot resolve. Either outcome is a valid research result.
+
+**The architectural commitment.** v0.20.2 ships the full fluid-envelope surface — climatological summary scalars per body, archive-pointer index per atmospheric body, and state-at-epoch wrappers for Earth (ERA5) + Mars (MCD v6.1) — per the §17.4.2 plan. The notebook §17.3 is the design doc; the §17.4.2 ship sequence is the commitment. Future predictive-research contributors (whether ourselves, or someone after us) inherit the full catalog substrate for whichever question they want to ask of it. The *finding things* part — ERA5 cross-correlation with sunspot phase; MCD dust-storm L_s prediction; ring-spoke / EM forcing correlation — is the field's work, on top of the catalog this notebook commits to ship.
+
+### 17.3.9 References
+
+Earth atmospheric reanalyses:
+* Hersbach, H., et al. "The ERA5 global reanalysis." *Quarterly Journal of the Royal Meteorological Society* 146, 1999 (2020). <https://rmets.onlinelibrary.wiley.com/doi/10.1002/qj.3803>
+* Gelaro, R., et al. "The Modern-Era Retrospective Analysis for Research and Applications, Version 2 (MERRA-2)." *Journal of Climate* 30, 5419 (2017). <https://journals.ametsoc.org/view/journals/clim/30/14/jcli-d-16-0758.1.xml>
+* Eyring, V., et al. "Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization." *Geoscientific Model Development* 9, 1937 (2016). <https://gmd.copernicus.org/articles/9/1937/2016/>
+* Copernicus Climate Data Store. <https://cds.climate.copernicus.eu/>
+* NASA GMAO MERRA-2 portal. <https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/>
+
+Mars atmosphere + climate:
+* Forget, F., et al. "The Mars Climate Database (Version 6.1)." Europlanet Science Congress (2022). <https://meetingorganizer.copernicus.org/EPSC2022/EPSC2022-786.html>
+* Millour, E., et al. "MARS CLIMATE DATABASE v6.1 DETAILED DESIGN DOCUMENT." LMD/IPSL (2022). <https://www-mars.lmd.jussieu.fr/mars/info_web/ddd_MCD_v6.1.pdf>
+* Wang, H. & Richardson, M. I. "The origin, evolution, and trajectory of large dust storms on Mars during Mars years 24-30 (1999-2011)." *Icarus* 251 (2015). <https://www.sciencedirect.com/science/article/abs/pii/S0019103515000482>
+* "Mars' Calendar." The Planetary Society. <https://www.planetary.org/articles/mars-calendar>
+* "Timekeeping on Mars" (Mars Year, L_s definitions). Wikipedia. <https://en.wikipedia.org/wiki/Timekeeping_on_Mars>
+* Mars24 Sunclock — Technical Notes on Mars Solar Time. NASA GISS. <https://www.giss.nasa.gov/tools/mars24/help/notes.html>
+* PDS Atmospheres Node, Mars data. <https://pds-atmospheres.nmsu.edu/data_and_services/atmospheres_data/Mars/Mars.html>
+
+Venus atmosphere:
+* Seiff, A., et al. "Models of the structure of the atmosphere of Venus from the surface to 100 kilometers altitude" (VIRA). *Advances in Space Research* 5 (1985). <https://ntrs.nasa.gov/citations/19860032568>
+* Limaye, S. S., et al. "Updating the Venus International Reference Atmosphere (VIRA)." COSPAR (2018, 2021, 2022). <https://ui.adsabs.harvard.edu/abs/2022cosp...44..917L/abstract>
+* Akatsuki mission. JAXA. <https://akatsuki.isas.jaxa.jp/en/>
+* Venus-GRAM (Venus Global Reference Atmospheric Model). NASA/MSFC.
+
+Titan atmosphere + lakes/seas + subsurface ocean:
+* Fulchignoni, M., et al. "In situ measurements of the physical characteristics of Titan's environment" (Huygens HASI). *Nature* 438, 785 (2005). <https://www.nature.com/articles/nature04314>
+* Newman, C. E., et al. "Simulating Titan's methane cycle with the TitanWRF General Circulation Model." *Icarus* 267, 106 (2016). <https://aeolisresearch.com/papers/NewmanEtAl16.pdf>
+* Hayes, A. G. "The Lakes and Seas of Titan." *Annual Review of Earth and Planetary Sciences* 44 (2016). <https://www.annualreviews.org/doi/10.1146/annurev-earth-060115-012247>
+* Mastrogiuseppe, M., et al. "Cassini radar observation of Punga Mare and environs: Bathymetry and composition." *Earth and Planetary Science Letters* 496 (2018). <https://www.sciencedirect.com/science/article/abs/pii/S0012821X18303169>
+* Iess, L., et al. "The Tides of Titan." *Science* 337, 457 (2012). <https://www.science.org/doi/10.1126/science.1219631>
+* "Lakes and rivers of Titan." Wikipedia. <https://en.wikipedia.org/wiki/Lakes_and_rivers_of_Titan>
+
+Jupiter + Saturn weather statistics:
+* Sánchez-Lavega, A., et al. "Historical and Contemporary Trends in the Size, Drift, and Color of Jupiter's Great Red Spot." *Astronomical Journal* 155, 51 (2018). <https://iopscience.iop.org/article/10.3847/1538-3881/aaae01>
+* Sánchez-Lavega, A., et al. "The Origin of Jupiter's Great Red Spot." *Geophysical Research Letters* 51 (2024). <https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2024GL108993>
+* Gautier, D., et al. "The helium abundance of Jupiter from Voyager." *Journal of Geophysical Research* 86, 8713 (1981). <https://ui.adsabs.harvard.edu/abs/1981JGR....86.8713G>
+* PDS Atmospheres Node, outer-planet data. <https://pds-atmospheres.nmsu.edu/>
+
+Icy-moon subsurface oceans + ocean composition:
+* Khurana, K. K., et al. "Induced magnetic fields as evidence for subsurface oceans in Europa and Callisto." *Nature* 395, 777 (1998). <https://www.nature.com/articles/27394>
+* Kivelson, M. G., et al. "The Permanent and Inductive Magnetic Moments of Ganymede." *Icarus* 157, 507 (2002). <https://www.sciencedirect.com/science/article/abs/pii/S001910350096456X>
+* Waite, J. H., et al. "Cassini finds molecular hydrogen in the Enceladus plume: Evidence for hydrothermal processes." *Science* 356, 155 (2017). <https://www.science.org/doi/10.1126/science.aai8703>
+* Khawaja, N., et al. "Detection of organic compounds in freshly ejected ice grains from Enceladus's ocean." *Nature Astronomy* (2025). <https://www.nature.com/articles/s41550-025-02655-y>
+* Howell, S. M., et al. "Science Overview of the Europa Clipper Mission." *Space Science Reviews* 220, 9 (2024). <https://link.springer.com/article/10.1007/s11214-024-01070-5>
+* ESA JUICE mission. <https://www.esa.int/Science_Exploration/Space_Science/Juice>
+
+Earth ocean + cryosphere reanalyses:
+* Zuo, H., et al. "The ECMWF operational ensemble reanalysis–analysis system for ocean and sea ice (ORAS5)." *Ocean Science* 15 (2019). <https://os.copernicus.org/articles/15/779/2019/>
+* Reynolds, R. W., et al. "Daily High-Resolution-Blended Analyses for Sea Surface Temperature." *Journal of Climate* 20 (2007). NOAA OISST. <https://www.ncei.noaa.gov/products/optimum-interpolation-sst>
+* National Snow and Ice Data Center. <https://nsidc.org/>
+* Hugonnet, R., et al. "Accelerated global glacier mass loss in the early twenty-first century." *Nature* 592, 726 (2021). <https://www.nature.com/articles/s41586-021-03436-w>
+
+Disclaimer on coverage: Reanalysis volumes (ERA5 ≈ 1 PB), MCD update cadence, and Cassini/Galileo PDS holdings are quoted at scoping precision. Per-body climatological scalars in §17.3.2 / §17.3.3 are taken from canonical references and round to published precision; any v0.20.x catalog entry would carry an explicit reference DOI per scalar. The §17.3.7 ship-readiness table is the author's judgement based on the §17.3.5 data-availability survey and is not a quantitative score; "Medium" here means "real work to wrap, but tractable for one engineer-month"; "Low" means "single-snapshot or inferred-only, would require a future mission to lift".
+
+### 17.4 Architectural integration — reconciling §17.1 / §17.2 / §17.3 + the v0.20.x ship surface
+
+Three parallel research subagents (§17.1 solid-body, §17.2 magnetic-multipoles, §17.3 fluid-envelope) each produced an architectural verdict. This subsection reconciles them.
+
+#### 17.4.1 The convergence — three independent "Option B" verdicts
+
+All three subagents independently landed on the **state-at-epoch lookup pattern**, *not* BIP-encoded propagation:
+
+| Sub-section | Channel | Verdict | Sibling instrument name |
+| :--- | :--- | :--- | :--- |
+| §17.1 | Solid-body geodesy (gravity multipoles + topography + interior) | Option B | **`Sol Geodetic Catalog`** |
+| §17.2 | Magnetic multipoles beyond v0.19.0 dipole-only | Option B | **`MagneticMultipoleCatalog`** (extends `EmBodyState`) |
+| §17.3 | Fluid envelope (atmosphere + climate + ocean) | Option D hybrid | **`SolFluidInstrument`** (climatology + archive index + state-at-epoch wrapper for Earth + Mars only) |
+
+The convergence is not coincidental. Each channel surveyed independently confirmed the **§16.3 / §16.9.1 rhythm-mismatch finding** from the v0.19.0 Sol Electromagnetic Instrument:
+
+* **§17.1**: solid-body geodetic observables are static parameters with no native rhythm — they cannot ride the BIP encoder. Static state-lookup surface.
+* **§17.2**: magnetic multipole *coefficients* are static (IGRF secular variation aside, which is slow and structureless). Static state-lookup surface.
+* **§17.3**: fluid-envelope channels do have rhythms (Earth seasonal 365.25 d, Mars seasonal 687 d, Jupiter QQO ≈ 4.4 yr, solar Schwabe 11 yr) but those rhythms are weakly coupled to the orbital lattice and dominated by stochastic / nonlinear / forced-response components. The cyclic-group encoder discipline does not transplant. State-at-epoch lookup (where state-at-epoch reanalysis exists, i.e., Earth + Mars) and climatological-summary lookup otherwise.
+
+The three siblings therefore share an architectural family: each is a **static (or near-static) per-body data catalog with bridge surfaces shaped like `bridge.get_<channel>_state(...)`** — a generalisation of the v0.19.0 Sol EM Instrument's pattern.
+
+#### 17.4.2 The §17.4 verdict — three sibling catalogs, then unify if and when v0.21.x lands
+
+The §17.2 subagent specifically noted that a future **Option C unification** — a single `SphericalHarmonicCatalog` shared across §17.1 gravity Stokes coefficients + §17.2 magnetic-field Schmidt coefficients — is structurally clean (same spherical-harmonic representation; bodies overlap) but should be deferred until both §17.1 and §17.2 have shipped and actual data shapes are concrete. This notebook agrees: **don't pre-emptively unify**.
+
+The v0.20.x ship sequence — **full-coverage commitments, not minimum-viable subsets**. Each version's plan enumerates the complete surface that ships, not a stripped-down subset hoping a downstream consumer materialises. Where a body's data is genuinely Voyager-only or single-flyby, it ships *anyway* with explicit honest-uncertainty flags rather than being deferred to a hypothetical future mission's data release.
+
+##### v0.20.0 — `Sol Geodetic Catalog` (full-coverage solid-body ship)
+
+Ships the gravity / topography / interior triple for **every body in the v0.16.0 52-body BODIES roster for which any spacecraft- or ground-based geodetic data exists** — that is the entire heliocentric subset plus all major moons plus the four shipped main-belt asteroids:
+
+* **Gravity multipoles**:
+  * **Mercury** — HgM008 to degree 50 (Mazarico 2014; MESSENGER) + the published Genova et al. 2019 update.
+  * **Venus** — MGNP180U to degree 180 (Konopliv 1999; Magellan).
+  * **Earth** — EGM2008 to degree 2190 (Pavlis 2012). Lazy-load of the full coefficient set; the package ships the full `.gfc` table as a data file.
+  * **Moon** — GRGM1200B to degree 1200 (Goossens 2020; GRAIL).
+  * **Mars** — MRO120F / JGMRO_120F to degree 120 (Konopliv 2016; MRO).
+  * **Jupiter** — Juno zonals J₂…J₁₀ + odd zonals (Iess 2018; Durante 2020).
+  * **Saturn** — Cassini Grand Finale zonals J₂…J₁₂ + odd (Iess 2019).
+  * **Uranus** — J₂ from Voyager 2 fly-by, with the ±1% precision floor flagged explicitly.
+  * **Neptune** — J₂ + J₄ from Voyager 2, with the same precision flag.
+  * **Pluto** — J₂ from New Horizons fly-by + Charon binary-planet barycentre constraint (Stern 2015).
+  * **Ceres / Vesta** — DAWN-derived spherical-harmonic models (Konopliv 2018 / Park 2020).
+  * **Pallas / Hygiea** — published shape-derived gravity (HST + Very-Large-Telescope adaptive-optics imaging; Vernazza 2020 for Hygiea).
+  * **Galilean moons (Io / Europa / Ganymede / Callisto)** — Galileo-derived J₂ + C₂₂ for each (Anderson 1996, 1998a, 1998b, 2001).
+  * **Saturnian classical moons (Mimas / Enceladus / Tethys / Dione / Rhea / Titan / Iapetus)** — Cassini-derived J₂ + C₂₂ where available; published gravity coefficients per body.
+  * **Saturnian Lagrange trojans (Telesto / Calypso / Helene / Polydeuces)** — point-mass + shape-model derived for the small co-orbitals.
+  * **Jovian inner regulars (Metis / Adrastea / Amalthea / Thebe)** — Galileo + JIRAM shape-model gravity.
+  * **Jovian irregulars (Himalia / Pasiphae / Sinope)** — point-mass only with explicit "no published multipole expansion" flag.
+  * **Uranian classical moons (Miranda / Ariel / Umbriel / Titania / Oberon)** — Voyager 2 fly-by-derived; J₂ for Titania + Oberon, point-mass for the others; Voyager-only precision flag.
+  * **Neptunian moons (Triton / Proteus / Nereid)** — Voyager 2 fly-by; Triton J₂ inferred from orbital fit.
+  * **Charon** — New Horizons fly-by; J₂ shared with Pluto via barycentre.
+* **Topography**:
+  * Earth — SRTM-3 + ETOPO2022 (NOAA; the full ETOPO2022 raster, 60 arcsec global, ships as a lazy-load data file).
+  * Moon — LOLA + SLDEM2015 (Wieczorek 2015) at 60–118 m horizontal / 1 m vertical.
+  * Mars — MOLA MEGDR at 463 m (Smith 2001).
+  * Mercury — MLA + MDIS-stereo at 222 m (Becker 2016).
+  * Venus — Magellan SAR (incomplete topography; published power-spectrum decomposition where coverage exists; the package ships the spectrum, not the raster).
+  * Titan — Cassini SARTopo (Lorenz 2013) at ~10 km horizontal / 150 m vertical, ~5–23% surface coverage with the coverage gap explicitly marked.
+  * Pluto + Charon — New Horizons LORRI / Ralph stereo DEM (Schenk 2018) at ~300 m.
+  * Vesta + Ceres + Bennu + Eros + Itokawa + Ryugu — published shape-model polyhedra (mission-derived).
+  * Ganymede + Europa + Callisto + Io + Saturnian classical moons — Voyager 2 / Galileo / Cassini-derived limited topography where published; honest "limb-profile-only" flag where global DEMs do not exist.
+* **Interior models**:
+  * Earth — PREM (Dziewonski & Anderson 1981) + AK135 (Kennett 1995) cross-reference.
+  * Moon — GRAIL + Apollo seismology composite (Wieczorek 2013; Garcia 2019).
+  * Mars — InSight composite (Stähler 2021; Khan 2023 molten-silicate-layer update).
+  * Mercury — Hauck 2013 (MESSENGER + Earth-based radar) + Genova 2019 update.
+  * Venus — VeRa-bound moment-of-inertia + Magellan gravity (Margot 2021 spin update).
+  * Jupiter — Wahl 2017 + Militzer 2022 (dilute / fuzzy-core models).
+  * Saturn — Mankovich & Fuller 2021 (ring-seismology-derived diffuse core).
+  * Uranus — Helled 2020 / Nettelmann 2013 (Voyager-bound, multiple model families).
+  * Neptune — Helled 2020 / Nettelmann 2013.
+  * Galilean moons — Anderson 1996, 1998a, 1998b, 2001 (per-moon density-profile fits).
+  * Titan — Iess 2010 / Hemingway 2013 (subsurface ocean model).
+  * Triton — Voyager-only; published density profile + radius constraints.
+  * Pluto + Charon — McKinnon 2017 (interior layered model from New Horizons constraints).
+
+Total ship surface: **~38 bodies × 3 channels = ~114 entries** (some channels missing per body — see explicit honest-uncertainty flags). New `bridge.get_geodetic_state(body)`, `bridge.list_geodetic_models()`, `bridge.geodetic_architecture(target=None)`. New `geodetic-state` / `geodetic-models` / `geodetic-architecture` CLI subcommands. New `_research/geodetic_catalog.py` + `_research/geodetic_catalog_data.py` mirroring the v0.19.0 `em_instrument.py` + `em_instrument_data.py` pattern. Same citation discipline — every numeric value carries a `source_key` pointing into a `SOURCES` dict; ratchet tests pin resolution at CI time. Pure-Python additive; no ABI bump.
+
+##### v0.20.1 — `MagneticMultipoleCatalog` (full-coverage internal-field ship)
+
+Ships the **complete published high-degree internal-field roster** — every body for which a spherical-harmonic multipole expansion has been published in the refereed literature. Mercury and Earth crustal-field both ship in v0.20.1 (NOT deferred to "v0.20.y once BepiColombo refresh"); we do not gate on a future mission's data release.
+
+* **Earth** — IGRF-13 main field to degree 13 (Alken 2021) **plus** the EMM2017 crustal field to degree 720 (Maus 2010 / NOAA NCEI). EMM2017 ships as a data file (~30 MB) included in the wheel; it is opt-in only via `bridge.get_magnetic_multipoles("terra", crustal=True)`. Default (`crustal=False`) returns the IGRF-13 main field. Both fields ship at v0.20.1.
+* **Jupiter** — JRM33 to degree 18 (Connerney 2022; Juno-derived), the Great Blue Spot resolved.
+* **Saturn** — Cao 2020 axisymmetric model to degree 14 (Cassini Grand Finale). The Saturn dipole tilt < 0.007° axisymmetry result is itself a key constraint and ships as a first-class flag in the catalog response.
+* **Mercury** — Thébault 2018 to degree 5 (MESSENGER reanalysis). Ships in v0.20.1; if BepiColombo data refreshes the model post-2026, that is a v0.20.x or v0.21.x re-fit, not a deferral of the initial ship.
+* **Uranus** — Holme & Bloxham 1996 reanalysis of Voyager 2 (AH5 model to degree 3). Voyager-only precision flag explicitly carried.
+* **Neptune** — Holme & Bloxham 1996 (O8 model to degree 3). Same flag.
+* **Ganymede** — Kivelson 2002 dipole (the only solar-system moon with a confirmed intrinsic dipole). The published state-of-the-art is dipole-only; ships as such with the explicit "higher-degree pending JUICE 2034" flag.
+* **Sun** — synoptic time-varying field. Excluded from the static `MagneticMultipoleCatalog` *as a static surface*; v0.20.1 ships a parallel `bridge.get_solar_synoptic_state(jd_tdb)` query that returns the published Wilcox Solar Observatory / Stanford HMI synoptic decomposition at the requested epoch (single-Carrington-rotation cadence). The Sun is therefore in v0.20.1, just on a different time-series surface.
+
+Total ship surface: **8 bodies** with full multipole expansions + the Sun's synoptic-state surface. New `bridge.get_magnetic_multipoles(body, max_degree=None, crustal=False)`, `bridge.evaluate_magnetic_field(body, r_km, lat_deg, lon_deg, jd_tdb=None)`, `bridge.get_solar_synoptic_state(jd_tdb)`. New `_research/magnetic_multipole_catalog.py` + data tables. Pure-Python additive; no ABI bump.
+
+##### v0.20.2 — `SolFluidInstrument` (full-coverage fluid-envelope ship)
+
+Ships **all three Option-D layers together** — climatological summary baked into BODIES, archive-pointer index, AND the state-at-epoch wrapper for Earth + Mars (the only two bodies where modern reanalysis exists). The Earth + Mars state-at-epoch surface is *not* deferred to v0.21.x; it ships in v0.20.2 alongside the climatology and pointer layers.
+
+* **Climatological summary scalars per body** — mean surface temperature (K), mean surface pressure (Pa, where applicable), dominant atmospheric gas composition (top-3 mole fractions), obliquity (°), orbital eccentricity, Bond albedo. Populated for every body with a published atmospheric reference: Earth, Mars, Venus, Titan, Triton, Pluto, Io (tenuous SO₂ atmosphere), Europa (sputtered O₂ exosphere), Ganymede, Enceladus (plume column), Mercury (sodium-tail exosphere), Moon (sodium + helium exosphere), the Sun (corona / solar wind), and the four giant planets (1-bar reference level by convention). Bodies without atmospheres carry explicit `atmosphere = None` flags (Eros, Bennu, Pallas, Vesta, etc.).
+* **Archive-pointer index** per atmospheric body — canonical external data sources with file format + access protocol + temporal coverage. ERA5 (Earth, ECMWF Copernicus), MCD v6.1 (Mars, LMD), VIRA + Akatsuki (Venus, ESA + JAXA), Cassini PDS-PPI (Titan, NASA + ESA), Juno PDS + ground-based observatory networks (Jupiter), Cassini Grand Finale (Saturn), MAVEN PDS (Mars upper atmosphere + escape rates), Voyager 2 PDS (Uranus + Neptune fly-by atmospheric profiles), New Horizons PDS (Pluto + Triton). Each archive pointer carries the published API endpoint or download URL.
+* **State-at-epoch wrapper for Earth + Mars** — `bridge.get_fluid_state(body, jd_tdb, lat=None, lon=None)`. For Earth: ERA5 reanalysis lookup (1940-present coverage; pre-1940 falls back to the climatological summary scalars with an explicit `out-of-coverage` flag). For Mars: MCD v6.1 lookup (Mars-year 24 to present coverage; the MCD spans the full instrument-era Mars climate record). For all other bodies: `out-of-coverage` flag with a pointer to the archive index and the climatological summary as fallback.
+
+Total ship surface: **~16 bodies** with climatological summaries + ~10 atmospheric archives indexed + 2 bodies (Earth + Mars) with state-at-epoch query. New `bridge.get_fluid_state(body, jd_tdb=None, lat=None, lon=None)`, `bridge.list_fluid_archives()`, `bridge.fluid_architecture(target=None)`. Pure-Python additive; no ABI bump.
+
+##### v0.21.0 — `SphericalHarmonicCatalog` unification
+
+Ships the unified spherical-harmonic representation across §17.1 gravity Stokes coefficients + §17.2 magnetic-field Schmidt coefficients. The unification is *not* gated on "actual data-shape concreteness emerging from v0.20.x" — by v0.20.2 those data shapes are concrete (catalog entries are live, every numeric value has a `source_key`); v0.21.0 refactors the two underlying data tables into a single shared `SphericalHarmonicCatalog` that exposes both surfaces (gravity-coefficient query + magnetic-coefficient query) on the unified storage.
+
+The fluid-envelope catalog stays architecturally separate at v0.21.0 because its data shape is grids + climatology, not coefficient tables. A future v0.22.x or v0.23.x might add a parallel `GridCatalog` for the gridded fluid + topography raster data, but that is a separate scope.
+
+##### v0.21.1+ — Cross-channel coupling surfaces
+
+The §17.1 + §17.2 + §17.3 subagents each surfaced cross-channel physics worth exposing as bridge queries:
+
+* **Topography-gravity admittance** — the spectral admittance between topography and gravity at each spherical-harmonic degree constrains crustal density (Earth: Wieczorek 2007; Moon: Wieczorek 2013; Mars: Konopliv 2016).
+* **Magnetic multipole structure → interior dynamo** — magnetic-field harmonic spectrum constrains the depth and conductivity of the dynamo region (Connerney 2022 for Jupiter; Stevenson 2010 reviews for the giants).
+* **Topography → atmospheric circulation (orographic forcing)** — Mars MOLA topography forcing of atmospheric standing waves (Hollingsworth 1997; the Tharsis bulge as a planetary-scale standing-wave generator).
+
+These ship as `bridge.get_cross_channel_coupling(body, channel_a, channel_b)` queries in v0.21.1 onwards, one coupling per minor version. The first three above are concrete enough to ship alongside the v0.21.0 catalog unification.
+
+##### Each ship's architectural pattern
+
+Every v0.20.x and v0.21.x ship listed above follows the v0.19.0 Sol Electromagnetic Instrument pattern — pure-Python additive, no ABI bump, full citation discipline (every numeric value carries a `source_key`; ratchet tests pin resolution at CI time), state-at-epoch query surface where time-variability matters (Earth + Mars climate; Sun synoptic field), static lookup elsewhere. None of these ships requires a C twin (per §16.9 / §17.1 / §17.2 / §17.3 verdicts — the rhythm-mismatch finding rules out the cyclic-group encoder for all of these surfaces).
+
+#### 17.4.3 What's deliberately deferred to a future research programme
+
+The §17.4.2 ship sequence covers every body for which observational data exists today, every channel for which a published model has appeared in the refereed literature, and the full state-at-epoch surface where modern reanalysis exists. Three things are *deliberately* deferred — not because they could ship now and we chose smaller scope, but because the work involved is genuinely a different kind of project:
+
+1. **Predictive science applications on top of the catalog substrate.** Once §17.1 + §17.2 + §17.3 are live, a researcher can ask questions the catalog itself does not pretend to answer: *Can we predict Mars dust-storm L_s onset from MCD climatology + Phobos / Deimos tidal phase?* *Does the Great Red Spot's System II longitude correlate with Galilean tidal forcing modulated by solar-cycle UV input?* *Do Saturn ring-spoke events track an EM-forcing signal from Sun-Saturn IMF reconnection?* Each of those is a refereed-publication-scale research project on top of the catalog data, not a v0.20.x or v0.21.x ship deliverable. The catalog is the substrate; predictive research is the next building.
+2. **Cross-channel coupling surfaces** *(scheduled for v0.21.1+)*. The §17.1 subagent identified topography-gravity admittance + interior-constrained spectral decay as real cross-channel physics; §17.2 identified magnetic-multipole-derived dynamo-region constraints; §17.3 identified orographic forcing of atmospheric standing waves. v0.21.1+ ships these as `bridge.get_cross_channel_coupling(body, channel_a, channel_b)` queries, one coupling per minor version. These are scheduled, not deferred — listed in §17.4.2 above.
+3. **Time-series channels beyond Earth + Mars climate.** Earth ERA5 + Mars MCD ship in v0.20.2 as state-at-epoch queries because modern reanalysis covers them; the Sun's synoptic magnetic field ships in v0.20.1 as `bridge.get_solar_synoptic_state(jd_tdb)`. Other bodies — Jupiter cloud-feature evolution, Saturn ring-spoke time series, Titan methane-cycle seasonality — would each require a per-body time-series surface drawing on mission-archive holdings. These ship in v0.21.x or v0.22.x once a downstream consumer's question makes the per-body time-series surface concrete (not before; without a question the time-series API design is unconstrained).
+
+Steven's framing — *"with this we will find things like atmospheric and surface climate... maybe. maybe not us but someone after us might!"* — applies to point (1) above: the predictive-research applications are an open multi-decade programme. It does *not* apply to the v0.20.x / v0.21.x ship sequence itself, which is concrete, fully-scoped, and committed to ship in this notebook.
+
+#### 17.4.4 Cross-reference — the per-body instrument family
+
+After v0.20.x + v0.21.x ship, the package will host a family of static / near-static per-body instruments:
+
+| Instrument | Source | Bridge query family | Scope |
+| :--- | :--- | :--- | :--- |
+| Sol Time / SPrT / STLT (v0.5.x – v0.11.0) | Sidereal periods + IAU prime meridian + GR + epochs | `bridge.time_*` | Per-body clock primitives |
+| Sol Kinematics (v0.12.0) | Orbital state | `bridge.get_system_state` / `--state` | Per-body 6-D phase space |
+| Sol Dynamics (v0.13.0) | Newtonian forces + energies | `--dynamics` / `bridge.get_dynamics_state` | System-level forces + per-body energy budgets |
+| Sol Electromagnetic Instrument (v0.19.0) | EM observables (dipole + plasma + radio + couplings) | `bridge.get_em_state` / `list_em_couplings` / `em_architecture` | Per-body EM state-at-epoch |
+| **Sol Geodetic Catalog** *(v0.20.0; §17.1)* | Gravity multipoles + topography spectra + interior models | `bridge.get_geodetic_state` *(planned)* | Per-body solid-body geodesy |
+| **MagneticMultipoleCatalog** *(v0.20.x; §17.2)* | High-degree internal-field models | `bridge.get_magnetic_multipoles` *(planned)* | Per-body magnetic-field harmonic decomposition |
+| **SolFluidInstrument** *(v0.20.x; §17.3)* | Climatological summary + reanalysis pointer index | `bridge.get_fluid_state` *(planned)* | Per-body fluid envelope (climatology) |
+
+The package thereby spans the canonical solar-system-physics observable axes — temporal (Sol Time), kinematic, dynamic, electromagnetic, geodetic, magnetic-multipolar, and atmospheric — with each instrument shipping incrementally and citing its data provenance. By v0.21.x or v0.22.0 the package would credibly represent every body in the BODIES roster on every observable axis the published literature has data for, at scoping precision sufficient for first-pass mission design + research-prototype consumers.
+
+#### 17.4.5 Recommendation
+
+* **Ship §17 as research-only now.** Notebook §17.1 + §17.2 + §17.3 + §17.4 land together as a single research scoping commit. No code, no version bump on the ephemerides-spectral package — this PR is the architectural commitment, not the implementation.
+* **Commit to the §17.4.2 ship sequence.** The four versions (v0.20.0 / v0.20.1 / v0.20.2 / v0.21.0) plus the v0.21.1+ cross-channel coupling sequence are full-coverage commitments — every body for which observational data exists, every channel with a published model, the state-at-epoch surface where modern reanalysis exists. None of it is "subset to test the waters"; the work is enumerated and the citations are gathered.
+* **Schedule v0.21.0 unification on data-shape evidence**, not on a downstream consumer materialising. By the time v0.20.2 ships, the actual data-shape concreteness from v0.20.0 + v0.20.1 will have informed the unified `SphericalHarmonicCatalog` design; v0.21.0 then refactors the storage to expose both the gravity and magnetic surfaces on shared infrastructure.
+* **Predictive-science applications stay outside this notebook's scope.** Mars dust-storm L_s prediction; Great Red Spot / Galilean tidal correlation; Saturn ring-spoke / EM-forcing coupling — each is a refereed-publication-scale research project on top of the catalog substrate, not a v0.20.x or v0.21.x ship deliverable. The catalog provides the data; predictive science on it is a programme for the field.
