@@ -70,6 +70,8 @@ _INCLUDED_MODULES: List[str] = [
     "sensor_access_catalog.py",
     "decoy_discrimination_data.py",
     "decoy_discrimination_catalog.py",
+    "spin_orbit_resonance_data.py",
+    "spin_orbit_resonance_catalog.py",
 ]
 
 def emit() -> List[Path]:

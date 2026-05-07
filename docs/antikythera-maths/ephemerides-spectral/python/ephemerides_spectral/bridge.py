@@ -221,6 +221,11 @@ from ephemerides_spectral._research.decoy_discrimination_catalog import (
     get_bc_reference_class as _get_bc_reference_class_impl,
     list_bc_reference_classes as _list_bc_reference_classes_impl,
 )
+from ephemerides_spectral._research.spin_orbit_resonance_catalog import (
+    compute_spin_orbit_resonance as _compute_spin_orbit_resonance_impl,
+    get_spin_orbit_resonance as _get_spin_orbit_resonance_impl,
+    list_spin_orbit_resonances as _list_spin_orbit_resonances_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4015,6 +4020,64 @@ def list_bc_reference_classes() -> Dict[str, Any]:
     """v0.22.0 Layer C(b) — full enumeration of BC reference classes
     + citations."""
     return _list_bc_reference_classes_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.23.0 — Spin-orbit resonance ↔ rotation lock
+# (eleventh cross-channel coupling surface)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_spin_orbit_resonance(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body spin-orbit resonance state + libration amplitude.
+
+    Promotes the v0.23.0 architectural commitment from research
+    notebook §17.4.2 + §17.6 to a stable ship surface — the
+    **eleventh** cross-channel coupling surface, resumed after the
+    v0.22.0 trajectory + sensing discipline pivot.
+
+    Returns the (p, q) integer ratio + rotation period + orbital
+    period + libration amplitude for each body. Mercury is the
+    headline **3:2 case** (the only non-1:1 spin-orbit resonance in
+    the Solar System; Pettengill & Dyce 1965 / Margot 2007). All
+    other entries are 1:1 tidal locks: Luna, Galileans (Io/Europa/
+    Ganymede), Titan (anomalously large libration → subsurface ocean
+    diagnostic), Triton (retrograde), and Pluto-Charon (the unique
+    **dual-synchronous** case).
+
+    Cross-channel: closes the tidal-physics triple with v0.21.4
+    (Q-factor) + v0.21.6 (orbital migration). The end-state of long-
+    term tidal evolution is the spin-orbit resonance lock the body
+    settles into; v0.21.4 measures the dissipation efficiency,
+    v0.21.6 measures the secular drift, and v0.23.0 measures the
+    resulting equilibrium.
+
+    **Not a re-derivation.** Values shipped are published rotation/
+    orbit periods + libration amplitudes from cited papers.
+
+    8-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, resonance: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _get_spin_orbit_resonance_impl(body=body)
+
+
+def list_spin_orbit_resonances() -> Dict[str, Any]:
+    """Static enumeration of every published spin-orbit resonance
+    record.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.spin_orbit_resonance_data.SOURCES` citation dict.
+    """
+    return _list_spin_orbit_resonances_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

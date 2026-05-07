@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.22.0)
+(no entries yet — next entries land after v0.23.0)
+
+## [0.23.0] — 2026-05-07
+
+**Spin-orbit resonance ↔ rotation lock — eleventh cross-channel coupling surface (resumed after v0.22.0 trajectory pivot).** Closes the tidal-physics triple with v0.21.4 (Q-factor / dissipation efficiency) + v0.21.6 (orbital migration / secular drift). The **end-state** of long-term tidal evolution is the spin-orbit resonance lock. Pure-Python additive; **no ABI bump** (twenty-first consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.spin_orbit_resonance_catalog.compute_spin_orbit_resonance / get_spin_orbit_resonance / list_spin_orbit_resonances` |
+| Bridge dict API | `bridge.get_spin_orbit_resonance(body=None)` / `bridge.list_spin_orbit_resonances()` |
+| CLI | `spin-orbit-resonance [--body X]` / `spin-orbit-resonances` |
+
+### Physics
+
+A body in orbit around a parent settles into a low-integer spin-orbit resonance over Gyr timescales. End-state is the integer pair `(p, q)` such that `T_rot · q = T_orb · p` (p rotations per q orbits). Most synchronous moons are 1:1; **Mercury is the only non-1:1 case in the Solar System** at 3:2, locked by high orbital eccentricity (e=0.206; Goldreich-Peale 1966).
+
+### 8-body roster
+
+| Body | Parent | Ratio | T_rot (d) | T_orb (d) | Libration (arcsec) | Source |
+|---|---|---:|---:|---:|---:|---|
+| **mercury** | sol | **3:2** | 58.65 | 87.97 | **35.8** | Margot 2007 |
+| luna | terra | 1:1 | 27.32 | 27.32 | 7.9 | Williams 2014 |
+| io | jupiter | 1:1 | 1.769 | 1.769 | 0.05 | Lainey 2009 |
+| europa | jupiter | 1:1 | 3.551 | 3.551 | 0.10 | Van Hoolst 2008 |
+| ganymede | jupiter | 1:1 | 7.155 | 7.155 | 0.04 | Lainey 2020 |
+| titan | saturn | 1:1 | 15.945 | 15.945 | **52** | Iess 2012 |
+| triton | neptune | 1:1 | 5.877 | 5.877 | 0.50 | Jacobson 2009 |
+| **charon** | pluto | **1:1 dual** | 6.387 | 6.387 | 0.10 | McKinnon 2017 |
+
+### Highlights
+
+- 🌟 **Mercury 3:2** — the only non-1:1 spin-orbit resonance in the Solar System. Pettengill & Dyce 1965 Arecibo radar discovery; Goldreich-Peale 1966 stability theory; Margot 2007 ~36 arcsec forced libration.
+- **Luna canonical 1:1** — most precisely-measured libration in the Solar System (Williams 2014 LLR ~7.9 arcsec).
+- **Titan anomalously large libration** — ~52 arcsec, attributed to icy outer shell decoupled from interior by **subsurface H₂O ocean**. The libration itself is the ocean-depth diagnostic.
+- **Pluto-Charon dual-synchronous** — the unique solar-system case where both bodies are tidally locked to each other. Mass ratio 0.12 puts barycentre outside Pluto; a true binary planet.
+
+### Tidal-physics triple closure
+
+```
+v0.21.4 rotational constraint   (Q-factor)         ↔ dissipation efficiency
+v0.21.6 tidal migration         (cm/yr drift)      ↔ secular evolution rate
+v0.23.0 spin-orbit resonance    (p:q + libration)  ↔ END-STATE equilibrium  ← this ship
+```
+
+For Io: v0.21.4 Q≈80 + v0.21.6 +3.6 cm/yr expansion + v0.21.8 100 TW heating + v0.23.0 1:1 lock all describe the same physics — the Galilean Laplace 1:2:4 resonance is currently **expanding** because Jupiter dissipates angular momentum into Io's orbit, which dissipates as Io's surface heat flow, which drives the volcanism — all compatible with the 1:1 tidal lock end-state.
+
+### Period-consistency invariant
+
+For every entry: `T_rot / T_orb ≈ q / p` within ±1%. Pinned by `test_period_ratio_matches_p_over_q`. **Mercury-only-non-1:1** invariant pinned by `test_mercury_only_non_one_to_one`.
+
+### Test count
+
+1338 pass, 42 skipped (was 1306 + 42 in v0.22.0; +32 net new — 30 in `test_spin_orbit_resonance.py` + 2 README-freshness tests that flipped GREEN after Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.22.0 → 0.23.0`.
 
 ## [0.22.0] — 2026-05-07
 

@@ -10,7 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.22.0)
+(no entries yet — next entries land after v0.23.0)
+
+## [0.23.0] — 2026-05-07
+
+**Spin-orbit resonance ↔ rotation lock — eleventh cross-channel coupling surface.** Resumed after v0.22.0 trajectory + sensing discipline pivot. Closes tidal-physics triple with v0.21.4 + v0.21.6. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.spin_orbit_resonance_catalog` — wrapper module with `compute_spin_orbit_resonance`, `get_spin_orbit_resonance`, `list_spin_orbit_resonances`.
+- `_research.spin_orbit_resonance_data` — data module with `SPIN_ORBIT_RESONANCES` (8 entries: mercury 3:2 + luna/io/europa/ganymede/titan/triton 1:1 + charon dual-synchronous), `SOURCES` (8 citations), `SpinOrbitResonance` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_spin_orbit_resonance(body=None)`
+- `bridge.list_spin_orbit_resonances()`
+
+### Added — CLI
+
+- `spin-orbit-resonance [--body X]`
+- `spin-orbit-resonances`
+
+### Added — tests
+
+- `tests/test_spin_orbit_resonance.py` — 30 tests (Mercury 3:2 headline + Luna canonical 7.9 arcsec + Charon dual-synchronous + Titan anomalous libration → subsurface ocean diagnostic + Galileans roster + Triton retrograde + period-consistency invariant + mercury-only-non-1:1 invariant + low-integer-ratio invariant + bridge + CLI smoke + --help discipline).
+- 2 new parity-smoke entries (`get_spin_orbit_resonance`, `list_spin_orbit_resonances` — both `python_only`).
+
+### Test count
+
+1338 pass, 42 skipped (was 1306 + 42 in v0.22.0; +32 net new — 30 in `test_spin_orbit_resonance.py` + 2 README-freshness tests that flipped GREEN).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.22.0 → 0.23.0`. ABI unchanged (twenty-first consecutive ship since v0.13.x with no ABI movement).
 
 ## [0.22.0] — 2026-05-07
 
