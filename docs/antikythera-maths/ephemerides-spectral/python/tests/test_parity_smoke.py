@@ -452,6 +452,22 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.1 Sol Luna Dynamical Spectrum (second per-body
+    # dynamical-spectrum surface; LLR-anchored action-angle catalog +
+    # Saros integer-commensurability closure invariant). Pure-Python
+    # static lookup; no C twin makes sense.
+    "get_luna_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_luna_saros_commensurability": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_luna_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

@@ -140,6 +140,14 @@
       "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
       "size_bytes": 12233
     },
+    "_research/luna_dynamical_spectrum_catalog.py": {
+      "sha256": "a4be56f58fd87f83ca94896a94ea42136786c40468a9099495ae8f3780d9151d",
+      "size_bytes": 8364
+    },
+    "_research/luna_dynamical_spectrum_data.py": {
+      "sha256": "2817fa6668ba1dee6b7ee0ea7417b2dec69c7c0ba4343db031d1bc7cdee4c0fc",
+      "size_bytes": 19057
+    },
     "_research/magnetic_multipole_catalog.py": {
       "sha256": "81ce32d053d47e2814811a379c38fa37f4168521806553fb164efb68d5eea835",
       "size_bytes": 16884
@@ -238,5 +246,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.23.1"
+  "version": "0.24.0"
 }

@@ -12,7 +12,7 @@ A monorepo bridging **embedded therapeutic firmware** and **mathematical / spect
 | **othello-spectral** | Sheaf-port reference encoder; spectral fingerprints for Othello positions | [Notebook](othello-maths/othello_spectral_research_notebook.md) |
 | **logo-spectral** | Non-board generalisation of the cyclic-group / spectral framing | [Notebook](logo-maths/logo_research_notebook.md) |
 
-The `addressing-maths` substrate referenced from several of these notebooks (Diophantine approximation, packing, cyclic-group representation theory) is currently maintained in a separate repo; it is the *formal* layer the research notebooks here read as instances. References to `../addressing-maths/...` in the notebooks below will not resolve on this site.
+The cyclic-group / Diophantine-approximation / packing / representation-theory *formal* substrate (originally separated under an "addressing-maths" rubric) has since been subsumed into the **chess-spectral** and **antikythera-spectral** research notebooks themselves — those notebooks now carry the formal layer inline alongside the per-project instances. Older references to `../addressing-maths/...` are stale and will not resolve; the canonical home for that material is now within those two notebooks.
 
 ## How the research strands connect
 

@@ -7,7 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.0)
+(no entries yet — next entries land after v0.24.1)
+
+## [0.24.1] — 2026-05-07
+
+**Luna Dynamical Spectrum — second per-body dynamical-spectrum surface in the v0.24.x sequence; LLR-anchored complement to v0.24.0 Mercury.** Pure-Python additive; **no ABI bump** (twenty-fourth consecutive ship since v0.13.x). Bundled with RTD doc-maintenance fix.
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.luna_dynamical_spectrum_catalog.get_luna_dynamical_spectrum / get_luna_saros_commensurability / list_luna_dynamical_spectrum` |
+| Bridge dict API | `bridge.get_luna_dynamical_spectrum()` / `bridge.get_luna_saros_commensurability()` / `bridge.list_luna_dynamical_spectrum()` |
+| CLI | `luna-dynamical-spectrum`, `luna-saros-commensurability`, `luna-dynamical-spectrum-full` |
+
+### 11-mode action-angle catalog (8 angles + 3 actions)
+
+| Mode | Class | Frequency / Amplitude | Source |
+|---|---|---|---|
+| sidereal_mean_motion | angle | period 27.32166 d | Allen's |
+| synodic_mean_motion | angle | period 29.53059 d | Allen's |
+| anomalistic_mean_motion | angle | period 27.55455 d | Allen's |
+| draconitic_mean_motion | angle | period 27.21222 d | Allen's |
+| spin_frequency | angle | locked 1:1 sidereal | Williams 2014 |
+| forced_libration_longitude | angle | 7.9 arcsec at sidereal frequency | Williams 2014 |
+| apsidal_precession | angle | 8.85 yr prograde | Murray-Dermott 1999 |
+| nodal_precession | angle | 18.61 yr retrograde | Murray-Dermott 1999 |
+| eccentricity | action | 0.0549 dimensionless | JPL DE441 |
+| inclination_to_ecliptic | action | 5.145° | JPL DE441 |
+| obliquity_to_orbit | action | 6.687° (Cassini state 2) | Cassini 1693 |
+
+### THE headline: Saros integer-commensurability closure
+
+| Product | Days | Notes |
+|---|---:|---|
+| 223 × synodic | 6585.32 | Sun-Earth-Moon configuration repeats |
+| 239 × anomalistic | 6585.54 | Earth-Moon distance / perigee phase repeats |
+| 242 × draconitic | 6585.36 | Sun-at-node geometry repeats |
+| 19 × eclipse-year | 6585.78 | Eclipse-year consistency check |
+| **Mean** | **6585.50** | **18.0301 years** |
+| **Max spread** | **0.46 d** | **closure invariant: < 1 day** |
+
+The Saros cycle (~18.03-yr eclipse-recurrence period) emerges from this small-integer commensurability — a **textbook small-denominator phenomenon** that is exactly the structure the project's BIP encoder is built to detect: three irrational-looking frequency ratios sharing a near-rational commensurability. The closure is pinned by `test_saros_closure_invariant`.
+
+### Cross-strand observation
+
+The **Antikythera mechanism's Saros dial** is literally a hardware implementation of the (223, 239, 242) commensurability. The same integer triple shows up in:
+- `ephemerides-spectral` v0.24.1 — derived from 21st-century LLR + JPL ephemeris
+- `antikythera-spectral` — derived from ca. 150 BCE bronze gearing
+
+Two entirely different evidentiary layers; same algebraic content. This bridge surface is a direct cross-link.
+
+### LLR (Williams 2014) is the ground truth
+
+Williams J. G. & Boggs D. H. 2014 (JGR Planets 119, 1546-1578) — 50+ years of Lunar Laser Ranging from McDonald (1969 onwards), Apache Point (2006 onwards), OCA Grasse, and Matera observatories. The 7.9-arcsec forced-libration measurement constrains C/MR² = 0.3932 ± 0.0002 — **the most precise libration measurement of any body in the Solar System**.
+
+### Cross-references
+
+- v0.23.0 spin_orbit_resonance Luna entry: 7.9 arcsec libration (`test_forced_libration_matches_v0_23_0_value` pins agreement)
+- v0.21.6 tidal_migration Earth-Luna: +3.83 cm/yr secular drift (Williams 2014, same paper)
+- v0.10.0 STLT Metonic cycle: 235 synodic months (Saros uses 223; commensurability cousin)
+- v0.20.0 Luna gravity-Stokes: J₂ couples to Earth tidal torque to drive forced libration
+
+### RTD doc-maintenance (bundled)
+
+- `docs/index.md`: stale paragraph claiming `addressing-maths` lives in a separate repo replaced with note that the formal substrate has been subsumed into chess-spectral + antikythera-spectral notebooks.
+- `mkdocs.yml`: `site_description` updated to drop the `addressing-maths` reference and clarify the subsumption.
+
+### Test count
+
+1412 pass, 42 skipped (was 1372 + 42 in v0.24.0; +40 net new — 37 in `test_luna_dynamical_spectrum.py` + 2 README-freshness tests that flipped GREEN after Status banner update + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.0 → 0.24.1`.
 
 ## [0.24.0] — 2026-05-07
 

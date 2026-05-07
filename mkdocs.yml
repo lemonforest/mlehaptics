@@ -1,9 +1,11 @@
 site_name: mlehaptics research
 site_description: >
   Research repository covering the EMDR Pulser firmware, antikythera /
-  ephemerides / chess / othello / logo / addressing-maths spectral
-  projects, and the cross-cutting HDC framework that ties them
-  together.
+  ephemerides / chess / othello / logo spectral projects, and the
+  cross-cutting HDC framework that ties them together. The
+  cyclic-group / Diophantine / packing / representation-theory formal
+  substrate (formerly cross-referenced as "addressing-maths") is now
+  inline within the chess-spectral + antikythera-spectral notebooks.
 site_url: https://mlehaptics.readthedocs.io/
 site_author: Steven Kirkland & contributors
 

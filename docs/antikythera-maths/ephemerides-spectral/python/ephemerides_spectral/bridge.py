@@ -231,6 +231,11 @@ from ephemerides_spectral._research.mercury_dynamical_spectrum_catalog import (
     get_mercury_precession_decomposition as _get_mercury_precession_decomposition_impl,
     list_mercury_dynamical_spectrum as _list_mercury_dynamical_spectrum_impl,
 )
+from ephemerides_spectral._research.luna_dynamical_spectrum_catalog import (
+    get_luna_dynamical_spectrum as _get_luna_dynamical_spectrum_impl,
+    get_luna_saros_commensurability as _get_luna_saros_commensurability_impl,
+    list_luna_dynamical_spectrum as _list_luna_dynamical_spectrum_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4152,6 +4157,64 @@ def list_mercury_dynamical_spectrum() -> Dict[str, Any]:
     """Full enumeration of Mercury dynamical-spectrum data + citations.
     """
     return _list_mercury_dynamical_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.1 — Luna Dynamical Spectrum
+# (second per-body dynamical-spectrum surface; Mercury was the canonical
+# Sol-perturbation case, Luna is the canonical Earth-tidal case +
+# LLR-anchored — most precise libration measurement in the Solar System)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_luna_dynamical_spectrum() -> Dict[str, Any]:
+    """Luna's full action-angle dynamical-mode catalog.
+
+    Second per-body dynamical-spectrum surface. 8 angle modes
+    (sidereal/synodic/anomalistic/draconitic mean motions; spin
+    frequency 1:1 locked; forced libration ~7.9 arcsec; apsidal
+    precession 8.85 yr; nodal precession 18.61 yr) + 3 action modes
+    (eccentricity, inclination, obliquity to orbit — Cassini state 2).
+
+    Williams 2014 LLR is the ground-truth source: 50+ years of
+    millimetre-precision laser ranging from McDonald, Apache Point,
+    OCA, Matera observatories produces the most precise libration
+    measurement in the Solar System, with C/MR² = 0.3932 ± 0.0002.
+    """
+    return _get_luna_dynamical_spectrum_impl()
+
+
+def get_luna_saros_commensurability() -> Dict[str, Any]:
+    """Saros cycle integer-commensurability closure invariant —
+    THE headline of v0.24.1.
+
+    Luna's three distinct months (synodic 29.531 d, anomalistic
+    27.555 d, draconitic 27.212 d) admit an exact small-integer
+    commensurability:
+
+      223 × synodic    = 6585.32 d
+      239 × anomalistic = 6585.54 d
+      242 × draconitic = 6585.36 d
+      19 × eclipse-year = 6585.78 d
+
+    All four products agree within ~0.5 day. This is the
+    ~18.03-yr Saros eclipse-recurrence cycle — a textbook
+    small-denominator phenomenon and exactly the structure the
+    project's BIP encoder is built to detect.
+
+    **Cross-strand observation**: the Antikythera mechanism's Saros
+    dial is literally a hardware implementation of this
+    commensurability. This bridge surface is therefore a direct
+    cross-link between `ephemerides-spectral` and
+    `antikythera-spectral` — the same integer triple shows up in
+    both projects, in entirely different evidentiary layers.
+    """
+    return _get_luna_saros_commensurability_impl()
+
+
+def list_luna_dynamical_spectrum() -> Dict[str, Any]:
+    """Full enumeration of Luna dynamical-spectrum data + citations."""
+    return _list_luna_dynamical_spectrum_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

@@ -10,7 +10,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.0)
+(no entries yet — next entries land after v0.24.1)
+
+## [0.24.1] — 2026-05-07
+
+**Luna Dynamical Spectrum.** Second per-body dynamical-spectrum surface in v0.24.x; LLR-anchored complement to v0.24.0 Mercury. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged). Bundled with RTD doc-maintenance fix.
+
+### Added — Pythonic API
+
+- `_research.luna_dynamical_spectrum_catalog` — wrapper module with `get_luna_dynamical_spectrum`, `get_luna_saros_commensurability`, `list_luna_dynamical_spectrum`.
+- `_research.luna_dynamical_spectrum_data` — data module with `LUNA_DYNAMICAL_MODES` (11 entries: 8 angles + 3 actions), `SAROS_COMMENSURABILITY` (4 products), `SOURCES` (6 citations), `DynamicalMode` + `SarosCommensurability` dataclasses.
+
+### Added — bridge dict API
+
+- `bridge.get_luna_dynamical_spectrum()`
+- `bridge.get_luna_saros_commensurability()` — Saros closure invariant, the headline
+- `bridge.list_luna_dynamical_spectrum()`
+
+### Added — CLI
+
+- `luna-dynamical-spectrum`
+- `luna-saros-commensurability`
+- `luna-dynamical-spectrum-full`
+
+### Added — tests
+
+- `tests/test_luna_dynamical_spectrum.py` — 37 tests pinning the 1:1 tidal lock; 7.9 arcsec forced libration (cross-checked against v0.23.0); C/MR² = 0.3932 ± 0.0002 Williams 2014 measurement; the 4 distinct lunar months at high precision; apsidal 8.85 yr prograde + nodal 18.61 yr retrograde; **Saros closure invariant** (max spread across 4 products < 1 day; mean period 18.03 yr); the (223, 239, 242) integer triple is in lowest terms (gcd = 1 — ensures maximal commensurability); citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Bundled — RTD doc-maintenance
+
+- `docs/index.md` + `mkdocs.yml` — stale `addressing-maths` references corrected (substrate has been subsumed into chess + antikythera notebooks).
+
+### Test count
+
+1412 pass, 42 skipped (was 1372 + 42 in v0.24.0; +40 net new — 37 in `test_luna_dynamical_spectrum.py` + 2 README-freshness tests that flipped GREEN + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.0 → 0.24.1`. ABI unchanged (twenty-fourth consecutive ship since v0.13.x).
 
 ## [0.24.0] — 2026-05-07
 
