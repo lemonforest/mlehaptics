@@ -10,7 +10,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.7)
+(no entries yet — next entries land after v0.21.8)
+
+## [0.21.8] — 2026-05-07
+
+**Heat flow ↔ tidal heating — eighth cross-channel coupling surface; closes the Io tidal-energy-budget loop with v0.21.4 + v0.21.6.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.heat_flow_catalog` — wrapper module with `compute_heat_flow`, `list_heat_flows`.
+- `_research.heat_flow_data` — data module with `HEAT_FLOWS` (6 entries), `SOURCES` (6 citations), `HeatFlow` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_heat_flow(body=None) -> dict`
+- `bridge.list_heat_flows() -> dict`
+
+### Added — CLI
+
+- `heat-flow [--body X]`
+- `heat-flows`
+
+### 6-body roster
+
+terra (Davies 2010 — 47 TW radiogenic-dominated), mars (Khan 2023 InSight — 0.1 TW), **io** (Veeder 2012 — **100 TW = 99% tidal; THE HEADLINE; most volcanically active body in solar system**), europa (Vance 2018 — 0.5 TW maintains subsurface ocean), enceladus (Howett 2011 — 10 GW tiger-stripe SP plumes), titan (Tobie 2008 — 2 TW).
+
+### Energy-budget invariants
+
+Tidal + radiogenic + primordial fractions sum to ~1 (pinned).
+
+### Tidal-energy-budget loop closes
+
+v0.21.4 (Io Q ~ 80) + v0.21.6 (+3.6 cm/yr migration) + v0.21.8 (100 TW surface heat) — three independent observational handles converging on the same Io tidal-dissipation physics.
 
 ## [0.21.7] — 2026-05-07
 
