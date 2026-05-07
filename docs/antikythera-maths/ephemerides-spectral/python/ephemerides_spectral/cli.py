@@ -589,6 +589,17 @@ def _cmd_convert_normalisation(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_admittance(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_topography_gravity_admittance(body=args.body),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_admittance_spectra(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_admittance_spectra(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2782,6 +2793,47 @@ def _make_parser() -> argparse.ArgumentParser:
                     choices=["4pi-Stokes", "Schmidt-quasi-norm"],
                     help="Target convention.")
     cn.set_defaults(func=_cmd_convert_normalisation)
+
+    # admittance (v0.21.1) — topography <-> gravity admittance summary.
+    ad = sub.add_parser(
+        "admittance",
+        help="Per-body topography <-> gravity admittance summary (cross-channel coupling)",
+        description=(
+            "Returns the published topography-gravity spectral\n"
+            "admittance Z(n) summary for a body. For a body with both\n"
+            "a gravity multipole expansion (v0.20.0) and a topography\n"
+            "model (v0.20.0), Z(n) constrains crustal density and\n"
+            "thickness via isostatic compensation theory.\n"
+            "\n"
+            "v0.21.1 ships the integrated Z summary published in the\n"
+            "refereed literature; per-degree Z(n) tables remain in\n"
+            "the cited paper's supplementary materials. Roster:\n"
+            "terra (Wieczorek 2007), luna (Wieczorek 2013), mars\n"
+            "(Genova 2016), mercury (James 2015), venus (Anderson 2002).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral admittance --pretty\n"
+            "  ephemerides-spectral admittance --body luna --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ad.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, return "
+                         "full catalog.")
+    ad.set_defaults(func=_cmd_admittance)
+
+    # admittance-spectra (v0.21.1) — full enumeration.
+    ads = sub.add_parser(
+        "admittance-spectra",
+        help="Full topography-gravity admittance catalog enumeration",
+        description=(
+            "Returns every body's AdmittanceSpectrum record + the\n"
+            "merged SOURCES citation dict so consumers can verify\n"
+            "the provenance of every Z(n) value."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ads.set_defaults(func=_cmd_admittance_spectra)
 
     # lunar-kernels
     lk = sub.add_parser(

@@ -159,6 +159,10 @@ from ephemerides_spectral._research.spherical_harmonic_catalog import (
     convert_normalisation as _convert_normalisation_impl,
     list_spherical_harmonic_models as _list_spherical_harmonic_models_impl,
 )
+from ephemerides_spectral._research.admittance_catalog import (
+    compute_topography_gravity_admittance as _compute_admittance_impl,
+    list_admittance_spectra as _list_admittance_spectra_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3134,6 +3138,72 @@ def convert_spherical_harmonic_normalisation(
         from_convention=from_convention,
         to_convention=to_convention,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.1 — Topography ↔ gravity admittance (cross-channel coupling)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_topography_gravity_admittance(
+    body: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Per-body topography ↔ gravity spectral admittance summary.
+
+    Promotes the v0.21.1 architectural commitment from research notebook
+    §17.4.2 to a stable ship surface — the first cross-channel coupling
+    surface in the v0.21.x sequence (per §17.4.2: "v0.21.1+ Cross-channel
+    coupling surfaces, one per minor version: topography ↔ gravity
+    admittance, magnetic-multipole-derived dynamo constraints,
+    orographic forcing of atmospheric standing waves").
+
+    For a body with both a published gravity multipole expansion (from
+    v0.20.0 ``GRAVITY_MODELS``) and a topography model (v0.20.0
+    ``TOPOGRAPHY_MODELS``), the spectral admittance Z(n) constrains
+    crustal density and crustal thickness via isostatic compensation
+    theory:
+
+        Z(n) = <SH_gravity[n,m] * conj(SH_topography[n,m])>
+                / <|SH_topography[n,m]|^2>
+
+    in mGal/km. Low Z(n) at long wavelengths is a signature of Airy
+    isostatic compensation; high Z(n) at short wavelengths is
+    uncompensated topographic loading.
+
+    **Not a re-derivation.** The values returned are the integrated
+    Z summary published in the cited papers (mean Z over fitted degree
+    range + inferred crustal density + crustal thickness if reported).
+    Per-degree Z(n) tables remain in the cited paper's supplementary
+    materials.
+
+    Roster (v0.21.1): terra (Wieczorek 2007), luna (Wieczorek 2013
+    GRAIL+LOLA), mars (Genova 2016), mercury (James 2015 MESSENGER),
+    venus (Anderson 2002 Magellan).
+
+    Parameters
+    ----------
+    body : str, optional. If given, return that body's record;
+        else return the full per-body catalog.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, spectrum: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_admittance_impl(body=body)
+
+
+def list_admittance_spectra() -> Dict[str, Any]:
+    """Static enumeration of every published topography-gravity
+    admittance spectrum.
+
+    Returns every body's record plus the citation dict so consumers
+    can verify the provenance of every Z(n) value. Each entry carries
+    a `source_key` pointing into the
+    `_research.admittance_catalog_data.SOURCES` citation dict.
+    """
+    return _list_admittance_spectra_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

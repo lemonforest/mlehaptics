@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.0)
+(no entries yet — next entries land after v0.21.1)
+
+## [0.21.1] — 2026-05-07
+
+**Topography ↔ gravity admittance — first cross-channel coupling surface in the §17.4.2 v0.21.x sequence.** Promotes notebook §17.4.2 to a stable ship surface (per §17.4.2: "v0.21.1+ Cross-channel coupling surfaces, one per minor version: topography ↔ gravity admittance, magnetic-multipole-derived dynamo constraints, orographic forcing of atmospheric standing waves"). Pure-Python additive; **no ABI bump** (tenth consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.admittance_catalog.compute_topography_gravity_admittance / list_admittance_spectra` |
+| Bridge dict API | `bridge.get_topography_gravity_admittance(body=None)` / `bridge.list_admittance_spectra()` |
+| CLI | `admittance [--body X]` / `admittance-spectra` |
+
+### Physics
+
+For a body with both a published gravity multipole expansion (v0.20.0 GRAVITY_MODELS) and a topography model (v0.20.0 TOPOGRAPHY_MODELS), the spectral admittance Z(n) = ⟨SH_gravity[n,m]·conj(SH_topography[n,m])⟩ / ⟨|SH_topography[n,m]|²⟩ at each spherical-harmonic degree n constrains crustal density and crustal thickness via isostatic compensation theory. Low Z(n) at long wavelengths is a signature of Airy compensation; high Z(n) at short wavelengths is uncompensated topographic loading.
+
+### 5-body roster
+
+| Body | Source | Mean Z (mGal/km) | ρ_c (kg/m³) | Crust (km) | Compensation |
+|---|---|---:|---:|---:|---|
+| terra | Wieczorek 2007 / Watts 2001 | 50 | 2670 | 35 | Airy |
+| luna | Wieczorek 2013 (GRAIL+LOLA) | 95 | 2550 | 38.5 | Airy |
+| mars | Genova 2016 + Konopliv 2016 | 110 | 2900 | 50 | Airy |
+| mercury | James 2015 (MESSENGER) | 85 | 3200 | 35 | Airy |
+| venus | Anderson 2002 (Magellan) | 200 | 2900 | 20 | lithospheric_flexure |
+
+### Highlights
+
+- **Lunar 2550 kg/m³ crustal density** — the famous Wieczorek 2013 GRAIL+LOLA result; revised down from prior ~2900.
+- **Venus highest Z** — ~200 mGal/km, weak Airy compensation; lithospheric-flexure / mantle-plume support model dominates instead.
+- **Mars bimodal crust** — global mean ~50 km masks 30 km northern lowlands vs 70 km southern highlands; Tharsis dominates n<10.
+- **Mercury high crustal density** ~3200 kg/m³ consistent with Mercury's overall high planetary density.
+
+### Architectural choice
+
+**Not a re-derivation.** Values shipped are the integrated Z summary published in the cited papers (mean Z + inferred crustal density + crustal thickness). Per-degree Z(n) tables remain in the cited papers' supplementary materials; this catalog is the navigation layer.
+
+### Citation discipline
+
+Every Z(n) value carries a `source_key` pointing into a 5-entry `SOURCES` dict (Wieczorek 2007, Wieczorek 2013, Genova 2016, James 2015, Anderson 2002). Ratchet tests pin both directions.
+
+### Forward sequence (per §17.4.2)
+
+* **v0.21.2** — Magnetic-multipole-derived dynamo-region constraints (Connerney 2022 Jupiter; Stevenson 2010 reviews for the giants).
+* **v0.21.3** — Orographic forcing of atmospheric standing waves (Hollingsworth 1997 Mars; Tharsis bulge as planetary-scale standing-wave generator).
+* **v0.21.4+** — More cross-channel coupling surfaces from §17.1/§17.2/§17.3 follow-ups.
+
+### Test count
+
+949 pass, 41 skipped (was 922 + 41 in v0.21.0; +27 net new — 25 in `test_admittance_catalog.py` + 2 parity-smoke entries + 2 README-freshness tests that flipped GREEN after the Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.21.0 → 0.21.1`.
 
 ## [0.21.0] — 2026-05-07
 
