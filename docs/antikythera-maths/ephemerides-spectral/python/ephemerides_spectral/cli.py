@@ -680,6 +680,16 @@ def _cmd_volcanic_outgassings(args: argparse.Namespace) -> int:
     return _emit(bridge.list_volcanic_outgassings(), pretty=args.pretty)
 
 
+def _cmd_thermal_balance(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_thermal_balance(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_thermal_balances(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_thermal_balances(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3263,6 +3273,47 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     vos.set_defaults(func=_cmd_volcanic_outgassings)
+
+    # thermal-balance (v0.21.10) — radiative equilibrium <-> observed T.
+    tb = sub.add_parser(
+        "thermal-balance",
+        help="Per-body radiative-equilibrium <-> observed-temperature decomposition",
+        description=(
+            "Returns per-body Stefan-Boltzmann T_eq + observed T +\n"
+            "decomposition into greenhouse / tidal / internal-heat\n"
+            "contributions.\n"
+            "\n"
+            "T_eq = ((1 - A) * S / (4 * sigma))^(1/4) where S = solar\n"
+            "flux and A = Bond albedo (v0.20.2 BodyClimatology).\n"
+            "\n"
+            "6-body roster: terra (+33.5 K greenhouse, canonical case),\n"
+            "mars (~0 K, naked planet), venus (+505 K RUNAWAY GREENHOUSE),\n"
+            "mercury (0 K, no atmosphere -> pure radiative balance),\n"
+            "titan (+11 K CH4/N2 + tidal), jupiter (+45 K internal-heat\n"
+            "dominated -- Jupiter radiates 1.7x what it absorbs).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral thermal-balance --pretty\n"
+            "  ephemerides-spectral thermal-balance --body venus --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tb.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    tb.set_defaults(func=_cmd_thermal_balance)
+
+    # thermal-balances (v0.21.10) — full enumeration.
+    tbs = sub.add_parser(
+        "thermal-balances",
+        help="Full thermal-balance catalog enumeration",
+        description=(
+            "Returns every body's ThermalBalance record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tbs.set_defaults(func=_cmd_thermal_balances)
 
     # lunar-kernels
     lk = sub.add_parser(
