@@ -10,7 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.8)
+(no entries yet — next entries land after v0.21.9)
+
+## [0.21.9] — 2026-05-07
+
+**Volcanic outgassing ↔ atmospheric composition — ninth cross-channel coupling surface (post-trio); closes the six-ship Io→Jupiter mass-transfer pipeline.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.volcanic_outgassing_catalog` — wrapper module with `compute_volcanic_outgassing`, `list_volcanic_outgassings`.
+- `_research.volcanic_outgassing_data` — data module with `VOLCANIC_OUTGASSINGS` (6 entries), `SOURCES` (6 citations), `VolcanicOutgassing` dataclass + 6-mechanism vocabulary.
+
+### Added — bridge dict API
+
+- `bridge.get_volcanic_outgassing(body=None) -> dict`
+- `bridge.list_volcanic_outgassings() -> dict`
+
+### Added — CLI
+
+- `volcanic-outgassing [--body X]`
+- `volcanic-outgassings`
+
+### 6-body roster
+
+terra (Burton 2013 — 3 kg/s CO₂; balanced by silicate weathering), mars (Halevy 2014 — dormant; "dead planet" story), venus (Bullock 2001 — 0.5 kg/s SO₂ active hotspots), **io** (Lellouch 2007 — **1 ton/s SO₂ tidal-volcanism; THE HEADLINE**), enceladus (Hansen 2011 — 200 kg/s H₂O plume venting → Saturn E-ring), jupiter (Bagenal 2007 — 1000 kg/s Io plasma torus injection; matches v0.21.7 escape).
+
+### Six-ship closure
+
+v0.19.0 + v0.20.1 + v0.21.5 + v0.21.7 + v0.21.8 + v0.21.9 — six independent observational handles closing the Io→Jupiter mass-transfer pipeline.
 
 ## [0.21.8] — 2026-05-07
 

@@ -171,8 +171,16 @@
     "_research/time_scales.py": {
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
       "size_bytes": 62567
+    },
+    "_research/volcanic_outgassing_catalog.py": {
+      "sha256": "031f6b2186e55d40e5788923d299357514900b9061787e98ea21a4164991c719",
+      "size_bytes": 4737
+    },
+    "_research/volcanic_outgassing_data.py": {
+      "sha256": "2f92ec0bb2c57aac678aaef8c8d5be46714db01b091f6cd937f85381da86453d",
+      "size_bytes": 12687
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.8"
+  "version": "0.21.9"
 }

@@ -7,7 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.8)
+(no entries yet — next entries land after v0.21.9)
+
+## [0.21.9] — 2026-05-07
+
+**Volcanic outgassing ↔ atmospheric composition — ninth cross-channel coupling surface (post-trio).** Forms the supply-side of atmospheric mass balance with v0.21.7 escape as demand-side. **Closes the Io→Jupiter mass-transfer pipeline across six ships** (v0.19.0 + v0.20.1 + v0.21.5 + v0.21.7 + v0.21.8 + v0.21.9). Pure-Python additive; **no ABI bump** (eighteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.volcanic_outgassing_catalog.compute_volcanic_outgassing / list_volcanic_outgassings` |
+| Bridge dict API | `bridge.get_volcanic_outgassing(body=None)` / `bridge.list_volcanic_outgassings()` |
+| CLI | `volcanic-outgassing [--body X]` / `volcanic-outgassings` |
+
+### 6-body roster
+
+| Body | Source | Rate (kg/s) | Species | Mechanism | Active? |
+|---|---|---:|---|---|:-:|
+| terra | Burton 2013 | 3 | CO₂ | subaerial_volcanism | ✓ |
+| mars | Halevy 2014 | 0.001 | SO₂ (upper limit) | dormant | ✗ |
+| venus | Bullock 2001 | 0.5 | SO₂ | subaerial_volcanism | ✓ |
+| **io** | **Lellouch 2007** | **1000** | **SO₂** | **tidal_volcanism** | **✓** |
+| enceladus | Hansen 2011 | 200 | H₂O | plume_venting | ✓ |
+| jupiter | Bagenal 2007 | 1000 | S+/O+ (via Io) | magnetospheric_injection | ✓ |
+
+### The Io→Jupiter mass-transfer pipeline (six-ship closure)
+
+| Ship | Channel | Quantity | Value |
+|---|---|---|---:|
+| v0.19.0 | EM Instrument | Io flux tube | 10¹² W |
+| v0.20.1 | Magnetic Multipole | JRM33 dipole | 1.5×10²⁰ T·m³ |
+| v0.21.5 | Auroral Coupling | Io footprint | observed |
+| v0.21.7 | Atmospheric Escape | Jupiter pickup-ion | 1000 kg/s |
+| v0.21.8 | Heat Flow | Io tidal heating | 100 TW |
+| **v0.21.9** | **Outgassing** | **Io SO₂** | **1000 kg/s** |
+
+Six observational handles, all consistent with the same physics: Jupiter's gravitational tidal heating drives Io's volcanism → Io vents 1 ton/s SO₂ → SO₂ injected into Jupiter's plasma torus → torus injection rate matches Jupiter's pickup-ion escape rate downstream.
+
+### Highlights
+
+- 🌟 **Io 1 ton/s SO₂ outgassing** — the headline; tidal-driven volcanism powers the Io→Jupiter pipeline.
+- **Mars dormant** — modern outgassing ~0 while v0.21.7 escape ~2 kg/s → the famous "dead planet" story.
+- **Earth carbon cycle** — outgassing balanced by carbonate-silicate weathering on Gyr timescales (not by escape).
+- **Enceladus E-ring supply** — 200 kg/s H₂O plume venting feeds Saturn's ring system.
+
+### v0.21.x cross-channel coupling progress
+
+```
+v0.21.1 topography ↔ gravity                 (5 bodies)  ✅
+v0.21.2 magnetic   ↔ dynamo                  (5 bodies)  ✅
+v0.21.3 topography ↔ atmosphere              (4 bodies)  ✅
+v0.21.4 interior   ↔ rotation                (7 bodies)  ✅
+v0.21.5 magnetic   ↔ atmosphere              (6 bodies)  ✅
+v0.21.6 tidal      ↔ orbital migration       (6 pairs)   ✅
+v0.21.7 escape     ↔ magnetic shielding      (6 bodies)  ✅
+v0.21.8 heat flow  ↔ tidal heating           (6 bodies)  ✅
+v0.21.9 outgassing ↔ atmospheric composition (6 bodies)  ✅ ← this ship
+```
+
+### Test count
+
+1163 pass, 41 skipped (was 1136 + 41 in v0.21.8; +27 net new — 24 in `test_volcanic_outgassing.py` + 2 README-freshness + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.21.8 → 0.21.9`.
 
 ## [0.21.8] — 2026-05-07
 
