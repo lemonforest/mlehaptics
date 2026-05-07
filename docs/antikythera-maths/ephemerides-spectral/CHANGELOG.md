@@ -7,7 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.3)
+(no entries yet — next entries land after v0.21.4)
+
+## [0.21.4] — 2026-05-07
+
+**Interior-derived rotational constraints — fourth cross-channel coupling surface (post-trio).** Opens the v0.21.4+ sequence of cross-channel coupling surfaces from §17.1/§17.2/§17.3 subagent follow-up findings, after v0.21.1-v0.21.3 shipped the trio explicitly named in §17.4.2. Pure-Python additive; **no ABI bump** (thirteenth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.rotational_constraint_catalog.compute_rotational_constraint / list_rotational_constraints` |
+| Bridge dict API | `bridge.get_rotational_constraint(body=None)` / `bridge.list_rotational_constraints()` |
+| CLI | `rotational-constraint [--body X]` / `rotational-constraints` |
+
+### 7-body roster
+
+| Body | Source | Type | Value | Constrains |
+|---|---|---|---:|---|
+| terra | Mathews 2002 IERS | free_core_nutation | 430.21 d | core-mantle friction |
+| mars | Le Maistre 2023 InSight RISE | insight_nutation | 1830 km | core radius |
+| jupiter | Kaspi 2018 (Juno) | zonal_wind_depth | 3000 km | wind penetration |
+| **saturn** | **Mankovich & Fuller 2021** | **ring_seismology** | **0.43539 d** | **deep-interior rotation** |
+| io | Lainey 2009 | tidal_dissipation_Q | 80 | volcanic dissipation |
+| europa | Lainey 2020 | tidal_dissipation_Q | 500 | subsurface ocean |
+| ganymede | Lainey 2020 | tidal_dissipation_Q | 300 | dynamo energy budget |
+
+### The Saturn headline
+
+Mankovich & Fuller 2021's ring-seismology mode-fit revises Saturn's true rotation period from the Voyager-era cloud-deck estimate of 10h 39min 22s down to **10h 33min 38s = 0.43539 days = 37618 s**. The ring-mode forcing only matches deep-interior rotation, not cloud-deck rotation, resolving the decades-long debate about Saturn's "true" rotation period.
+
+### 6 sources for 7 bodies
+
+Lainey 2020 covers both Europa and Ganymede tidal Q (single Nature paper, two-body astrometric fit), explaining the 6:7 ratio. Citation discipline ratchet tests pin both directions.
+
+### Forward sequence
+
+* **v0.21.5+** more cross-channel coupling surfaces from §17.1/§17.2/§17.3 follow-ups (e.g., magnetic ↔ atmosphere coupling for the giants — Jupiter aurora morphology ↔ JRM33 magnetospheric topology; tidal-resonance ↔ orbital migration; etc.).
+
+### Test count
+
+1029 pass, 41 skipped (was 1001 + 41 in v0.21.3; +28 net new — 26 in `test_rotational_constraint.py` + 2 README-freshness tests that flipped GREEN after the Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.21.3 → 0.21.4`.
 
 ## [0.21.3] — 2026-05-07
 

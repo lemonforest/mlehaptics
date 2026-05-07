@@ -120,6 +120,14 @@
       "sha256": "2e02707ae0cfdb9b2874ad4fd6954fb15d811b2ba1296b33808061de2fe9acfa",
       "size_bytes": 9703
     },
+    "_research/rotational_constraint_catalog.py": {
+      "sha256": "b2eb8e4af45388956a2c5e890b60b5917d6440a91dfcdc133d524ea01124bf53",
+      "size_bytes": 4621
+    },
+    "_research/rotational_constraint_data.py": {
+      "sha256": "6e4ee02d5f165d0b2e1807805a520443ed4ccdb9b781df13196fc181bc01385c",
+      "size_bytes": 13382
+    },
     "_research/spherical_harmonic_catalog.py": {
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
       "size_bytes": 11594
@@ -134,5 +142,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.21.3"
+  "version": "0.21.4"
 }

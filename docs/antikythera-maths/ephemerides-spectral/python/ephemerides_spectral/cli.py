@@ -620,6 +620,16 @@ def _cmd_orographic_forcings(args: argparse.Namespace) -> int:
     return _emit(bridge.list_orographic_forcings(), pretty=args.pretty)
 
 
+def _cmd_rotational_constraint(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_rotational_constraint(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_rotational_constraints(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_rotational_constraints(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2945,6 +2955,49 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ofs.set_defaults(func=_cmd_orographic_forcings)
+
+    # rotational-constraint (v0.21.4) — interior <-> rotation coupling.
+    rc = sub.add_parser(
+        "rotational-constraint",
+        help="Per-body interior <-> rotation cross-channel constraint",
+        description=(
+            "Returns the per-body interior <-> rotation constraint.\n"
+            "For a body with a published interior model (v0.20.0),\n"
+            "the constraint connects interior structure (moment-of-\n"
+            "inertia, core size, tidal viscosity) to observed\n"
+            "rotational behaviour: free-core nutation (terra), InSight\n"
+            "nutation (mars), zonal-wind depth (jupiter), ring-\n"
+            "seismology rotation revision (saturn -- the headline:\n"
+            "10h 39 -> 10h 33 from Mankovich & Fuller 2021), tidal\n"
+            "dissipation Q (io/europa/ganymede via Lainey 2009/2020).\n"
+            "\n"
+            "v0.21.4 ships published constraint values; per-degree\n"
+            "spectra remain in the cited papers' supplementary\n"
+            "materials. 7-body roster.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral rotational-constraint --pretty\n"
+            "  ephemerides-spectral rotational-constraint --body saturn --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rc.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, full "
+                         "catalog.")
+    rc.set_defaults(func=_cmd_rotational_constraint)
+
+    # rotational-constraints (v0.21.4) — full enumeration.
+    rcs = sub.add_parser(
+        "rotational-constraints",
+        help="Full rotational-constraint catalog enumeration",
+        description=(
+            "Returns every body's RotationalConstraint record + the\n"
+            "citation dict so consumers can verify the provenance of\n"
+            "every constraint value."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rcs.set_defaults(func=_cmd_rotational_constraints)
 
     # lunar-kernels
     lk = sub.add_parser(

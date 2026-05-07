@@ -265,6 +265,17 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.21.4 Sol Rotational Constraint Catalog (fourth cross-channel
+    # coupling surface; interior <-> rotation; 7-body roster). Pure-
+    # Python static lookup; no C twin makes sense.
+    "get_rotational_constraint": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_rotational_constraints": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
