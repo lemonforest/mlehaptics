@@ -10,7 +10,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.0)
+(no entries yet — next entries land after v0.20.1)
+
+## [0.20.1] — 2026-05-07
+
+**Sol Magnetic Multipole Catalog — state-lookup query surface for the published-internal-field roster across the solar system.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.magnetic_multipole_catalog` — wrapper module with `compute_magnetic_multipoles`, `evaluate_magnetic_field`, `compute_solar_synoptic_state`, `list_magnetic_multipoles`, `compute_magnetic_architecture`.
+- `_research.magnetic_multipole_catalog_data` — data module with `MAGNETIC_MULTIPOLE_MODELS` (7 entries), `CRUSTAL_FIELD_MODELS` (1 entry — Earth EMM2017), `SOLAR_SYNOPTIC_REFERENCES` (1 entry — Stanford HMI), `SOURCES` (9 citations), dataclasses (`MagneticMultipoleModel`, `CrustalFieldModel`, `SolarSynopticReference`), and precision-flag constants.
+
+### Added — bridge dict API
+
+- `bridge.get_magnetic_multipoles(body: Optional[str] = None, crustal: bool = False) -> dict`
+- `bridge.evaluate_magnetic_field(body, r_km, lat_deg, lon_deg, jd_tdb=None) -> dict` — closed-form Schmidt-quasi-normalised dipole synthesis (synthesis_degree=1 in v0.20.1).
+- `bridge.get_solar_synoptic_state(jd_tdb: Optional[float] = None) -> dict` — Sun synoptic-archive pointer surface.
+- `bridge.list_magnetic_multipoles() -> dict`
+- `bridge.magnetic_architecture(target: Optional[str] = None) -> dict`
+
+### Added — CLI
+
+- `magnetic-multipoles [--body X] [--crustal]`
+- `magnetic-field --body X --r-km X --lat-deg X --lon-deg X [--jd-tdb X]`
+- `solar-synoptic [--jd-tdb X]`
+- `magnetic-models`
+- `magnetic-architecture [--target X]`
+
+### 7-body main-field roster
+
+Per the §17.4.2 commitment — every body in the published refereed literature with a multipole expansion: terra (IGRF-13 deg 13), jupiter (JRM33 deg 18), saturn (Cao 2020 deg 14, axisymmetric), mercury (Thébault 2018 deg 5, offset dipole), uranus (AH5 deg 3, Voyager-only), neptune (O8 deg 3, Voyager-only), ganymede (Kivelson 2002 dipole-only).
+
+### Architectural choice
+
+State-*lookup* surface, mirroring v0.20.0 Sol Geodetic Catalog. Per §17.4.1 the rhythm-mismatch finding generalises across magnetic multipoles by *epoch-static-ness*: the IGRF main field updates every 5 years on a published schedule (not via JD arithmetic); JRM33 is a Juno-prime-mission snapshot; Voyager-derived AH5/O8 are single-flyby fits.
+
+### Changed
+
+- `pyproject.toml` description refreshed to advertise the 52-body roster + per-body Sol Geodetic / Electromagnetic / Magnetic-Multipole catalogs + resonance-graph ITN-chain search + spectral body-architecture surfaces (was advertising the obsolete v0.5-era 38-body roster).
+- Stale "38-body" callouts in `bridge.py` + `cli.py` user-facing CLI help text bumped to "52-body" (the actual current `SUPPORTED_BODIES` count since v0.16.0).
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into the 9-entry `SOURCES` dict; ratchet tests pin resolution at CI time.
 
 ## [0.20.0] — 2026-05-07
 

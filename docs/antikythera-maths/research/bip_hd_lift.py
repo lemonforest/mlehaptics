@@ -4,12 +4,12 @@ The original `EphemerisHDCInstrument.encode_state` propagates phases via
 `scipy.linalg.expm` of a state-dependent Laplacian — an FPU-only path
 that diverges from the BIP integer encoder. For the C/Python parity
 story we want a single propagation path on both sides, with the FPU
-hyperdimensional state derived from the same 38-body integer phases
+hyperdimensional state derived from the same 52-body integer phases
 the BIP / native-C encoder produces.
 
 This module is that bridge:
 
-  1. Call the BIP encoder (Python or C) to get 38 × uint32 phase
+  1. Call the BIP encoder (Python or C) to get 52 × uint32 phase
      residues.
   2. Convert each uint32 phase to a residue in [0, D) via
      ``round(phi / 2**32 * D) mod D``.

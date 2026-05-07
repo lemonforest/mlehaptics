@@ -368,7 +368,7 @@ def _cmd_kinematics(args: argparse.Namespace) -> int:
 
     Standalone "give me the orbital state" surface, complementary to
     the ``--state`` flag on every ``time-*`` subcommand. With
-    ``--all``, dumps every body in the 38-body roster + system totals
+    ``--all``, dumps every body in the 52-body roster + system totals
     (Jupiter angular-momentum fraction, etc.).
     """
     if args.all:
@@ -504,6 +504,43 @@ def _cmd_geodetic_models(args: argparse.Namespace) -> int:
 def _cmd_geodetic_architecture(args: argparse.Namespace) -> int:
     return _emit(
         bridge.geodetic_architecture(target=args.target), pretty=args.pretty
+    )
+
+
+def _cmd_magnetic_multipoles(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_magnetic_multipoles(body=args.body, crustal=args.crustal),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_magnetic_field(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.evaluate_magnetic_field(
+            body=args.body,
+            r_km=args.r_km,
+            lat_deg=args.lat_deg,
+            lon_deg=args.lon_deg,
+            jd_tdb=args.jd_tdb,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_solar_synoptic(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_solar_synoptic_state(jd_tdb=args.jd_tdb),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_magnetic_models(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_magnetic_multipoles(), pretty=args.pretty)
+
+
+def _cmd_magnetic_architecture(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.magnetic_architecture(target=args.target), pretty=args.pretty,
     )
 
 
@@ -1903,7 +1940,7 @@ def _make_parser() -> argparse.ArgumentParser:
         description=(
             "Compute mean orbital kinematic state — semi-major axis,\n"
             "orbital velocity, kinetic energy, angular momentum — for a\n"
-            "single body or the full 38-body roster.\n"
+            "single body or the full 52-body roster.\n"
             "\n"
             "v0.12.0 implements the circular-orbit Kepler-mean approximation\n"
             "from Kepler's third law (same math as `proper_time.py`'s\n"
@@ -2376,6 +2413,153 @@ def _make_parser() -> argparse.ArgumentParser:
                          "full partition; if given, return just that body's "
                          "tier and per-channel flags.")
     ga.set_defaults(func=_cmd_geodetic_architecture)
+
+    # magnetic-multipoles (v0.20.1) — Sol Magnetic Multipole Catalog:
+    # per-body Schmidt-quasi-normalised internal-field expansion.
+    mm = sub.add_parser(
+        "magnetic-multipoles",
+        help="Per-body internal-field spherical-harmonic expansion (Schmidt g_n^m / h_n^m, geomagnetic convention)",
+        description=(
+            "Returns the per-body internal-field Schmidt coefficients\n"
+            "for the Sol Magnetic Multipole Catalog roster: Earth\n"
+            "IGRF-13 (deg 13), Jupiter JRM33 (deg 18), Saturn Cao 2020\n"
+            "(deg 14, axisymmetric), Mercury Thebault 2018 (deg 5,\n"
+            "offset dipole), Uranus Holme & Bloxham AH5 (deg 3, Voyager-\n"
+            "only), Neptune Holme & Bloxham O8 (deg 3, Voyager-only),\n"
+            "Ganymede Kivelson 2002 (dipole-only -- the only solar-\n"
+            "system moon with a confirmed intrinsic dipole).\n"
+            "\n"
+            "The Sol Magnetic Multipole Catalog is a state-lookup\n"
+            "query surface, not a BIP encoder -- per section 17.4.1\n"
+            "the rhythm-mismatch finding generalises across magnetic\n"
+            "multipoles alongside solid-body geodesy and fluid-envelope\n"
+            "channels: internal-field Schmidt coefficients are static\n"
+            "at their epoch, so the cyclic-group encoder discipline\n"
+            "does not transplant. See research notebook section 17.\n"
+            "\n"
+            "Every numeric value carries a source_key pointing into\n"
+            "_research.magnetic_multipole_catalog_data.SOURCES for\n"
+            "citation.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral magnetic-multipoles --pretty\n"
+            "  ephemerides-spectral magnetic-multipoles --body terra --crustal --pretty\n"
+            "  ephemerides-spectral magnetic-multipoles --body jupiter"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mm.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, return the "
+                         "full per-body catalog.")
+    mm.add_argument("--crustal", action="store_true",
+                    help="Include crustal anomaly model where available "
+                         "(Earth EMM2017 only in v0.20.1; ~30 MB lazy-load).")
+    mm.set_defaults(func=_cmd_magnetic_multipoles)
+
+    # magnetic-field (v0.20.1) — vector field at (r, lat, lon).
+    mf = sub.add_parser(
+        "magnetic-field",
+        help="Vector magnetic field at (r, lat, lon) via Schmidt dipole synthesis",
+        description=(
+            "Closed-form Schmidt-quasi-normalised dipole synthesis from\n"
+            "the per-body multipole expansion. Returns spherical\n"
+            "components (B_r, B_theta, B_phi) and total magnitude in nT.\n"
+            "\n"
+            "v0.20.1 ships dipole-only synthesis (synthesis_degree=1),\n"
+            "the dominant contribution beyond a few body-radii for every\n"
+            "body in the roster. Higher-degree synthesis is left for a\n"
+            "future minor version.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral magnetic-field --body terra \\\n"
+            "    --r-km 7000 --lat-deg 0 --lon-deg 0 --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mf.add_argument("--body", required=True,
+                    help="Body name (lower-case; must be in the "
+                         "magnetic multipole roster).")
+    mf.add_argument("--r-km", dest="r_km", type=float, required=True,
+                    help="Radial distance from body centre, km. Must be > 0.")
+    mf.add_argument("--lat-deg", dest="lat_deg", type=float, required=True,
+                    help="Geocentric latitude, degrees, [-90, 90].")
+    mf.add_argument("--lon-deg", dest="lon_deg", type=float, required=True,
+                    help="Body-fixed longitude, degrees.")
+    mf.add_argument("--jd-tdb", dest="jd_tdb", type=float, default=None,
+                    help="Reserved for forward compatibility (secular "
+                         "variation handling in a future minor version).")
+    mf.set_defaults(func=_cmd_magnetic_field)
+
+    # solar-synoptic (v0.20.1) — Sun pointer surface.
+    ss = sub.add_parser(
+        "solar-synoptic",
+        help="Sun synoptic-state archive pointer (Stanford HMI / WSO)",
+        description=(
+            "Returns pointers into the published synoptic-magnetogram\n"
+            "archives for the Sun (Stanford HMI / Wilcox Solar\n"
+            "Observatory). The Sun's internal field is time-varying\n"
+            "with a ~22-yr Hale cycle modulated by the ~11-yr sunspot\n"
+            "cycle; a single static set of Schmidt coefficients is not\n"
+            "the right representation, so the package ships pointers\n"
+            "into Carrington-rotation-cadence external archives instead.\n"
+            "\n"
+            "If --jd-tdb is given, the response includes a\n"
+            "coverage_status field: in_coverage / before_archive / future.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-synoptic --pretty\n"
+            "  ephemerides-spectral solar-synoptic --jd-tdb 2451545.0"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ss.add_argument("--jd-tdb", dest="jd_tdb", type=float, default=None,
+                    help="Julian Date in TDB; if given, response carries "
+                         "coverage_status flag relative to archive start year.")
+    ss.set_defaults(func=_cmd_solar_synoptic)
+
+    # magnetic-models (v0.20.1) — full catalog enumeration.
+    mml = sub.add_parser(
+        "magnetic-models",
+        help="Full Sol Magnetic Multipole Catalog enumeration",
+        description=(
+            "Returns the full catalog enumeration: every main-field\n"
+            "multipole model + every crustal field model + every solar\n"
+            "synoptic reference. Each entry carries a source_key\n"
+            "pointing into _research.magnetic_multipole_catalog_data.\n"
+            "SOURCES for citation."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mml.set_defaults(func=_cmd_magnetic_models)
+
+    # magnetic-architecture (v0.20.1) — data-quality tier partition.
+    mar = sub.add_parser(
+        "magnetic-architecture",
+        help="Per-body magnetic-channel data-quality tier (HIGH/MEDIUM/LOW/NONE)",
+        description=(
+            "Per-body data-quality-tier partition over the Sol Magnetic\n"
+            "Multipole Catalog. Voyager-only models (Uranus, Neptune)\n"
+            "are LOW; current-best models (Earth IGRF-13, Jupiter JRM33,\n"
+            "Saturn Cao 2020) are HIGH; single-mission limited-coverage\n"
+            "models (Mercury Thebault 2018, Ganymede Kivelson 2002)\n"
+            "are MEDIUM. Bodies with a published crustal anomaly model\n"
+            "carry a has_crustal flag (Earth EMM2017 only in v0.20.1).\n"
+            "\n"
+            "Different partition than geodetic-architecture (which\n"
+            "tracks gravity + topography + interior). This one tracks\n"
+            "the magnetic channel specifically.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral magnetic-architecture --pretty\n"
+            "  ephemerides-spectral magnetic-architecture --target jupiter"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mar.add_argument("--target", default=None,
+                     help="Body name (lower-case). If omitted, return the "
+                          "full partition; if given, return just that "
+                          "body's tier.")
+    mar.set_defaults(func=_cmd_magnetic_architecture)
 
     # lunar-kernels
     lk = sub.add_parser(

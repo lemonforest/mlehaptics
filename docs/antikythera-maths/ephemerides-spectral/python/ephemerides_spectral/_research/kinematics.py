@@ -298,7 +298,7 @@ def get_full_system_state(
     jd_tdb: Optional[float] = None,
     frame: str = DEFAULT_FRAME,
 ) -> Dict[str, KinematicState]:
-    """Compute kinematic state for every body in the 38-body roster.
+    """Compute kinematic state for every body in the 52-body roster.
 
     Returns a dict keyed by body name. Bodies that can't be computed
     (Sun, period=0) get a `KinematicState` with `note` set explaining

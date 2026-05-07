@@ -141,6 +141,13 @@ from ephemerides_spectral._research.geodetic_catalog import (
     compute_geodetic_state as _compute_geodetic_state_impl,
     list_geodetic_models as _list_geodetic_models_impl,
 )
+from ephemerides_spectral._research.magnetic_multipole_catalog import (
+    compute_magnetic_architecture as _compute_magnetic_architecture_impl,
+    compute_magnetic_multipoles as _compute_magnetic_multipoles_impl,
+    compute_solar_synoptic_state as _compute_solar_synoptic_state_impl,
+    evaluate_magnetic_field as _evaluate_magnetic_field_impl,
+    list_magnetic_multipoles as _list_magnetic_multipoles_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -1679,7 +1686,7 @@ sol_neptune_nereid_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (T
 # within 0.30 % — see `tests/test_sprt.py` and the Phase A audit
 # script `research/proper_time_rates.py` for the validation discipline.
 
-#: The `body` argument's accepted set — all 38 bodies in the roster.
+#: The `body` argument's accepted set — all 52 bodies in the roster.
 _SPRT_BODY_KEYS = sorted(_BODIES)
 
 
@@ -2745,6 +2752,169 @@ def geodetic_architecture(target: Optional[str] = None) -> Dict[str, Any]:
             `{ok, body, tier, channel_flags}`.
     """
     return _compute_geodetic_architecture_impl(target=target)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.20.1 — Sol Magnetic Multipole Catalog
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_magnetic_multipoles(
+    body: Optional[str] = None,
+    crustal: bool = False,
+) -> Dict[str, Any]:
+    """Per-body internal-field spherical-harmonic expansion.
+
+    Promotes the v0.20.1 architectural commitment from research notebook
+    §17.2 + §17.4.2 to a stable ship surface, mirroring the v0.19.0 EM
+    Instrument and v0.20.0 Sol Geodetic Catalog patterns. Schmidt
+    quasi-normalised g_n^m / h_n^m coefficients (geomagnetic
+    convention) for the published per-body internal-field roster:
+    Earth IGRF-13 (deg 13), Jupiter JRM33 (deg 18), Saturn Cao 2020
+    (deg 14, axisymmetric), Mercury Thébault 2018 (deg 5, offset
+    dipole), Uranus Holme & Bloxham 1996 AH5 (deg 3, Voyager-only),
+    Neptune Holme & Bloxham 1996 O8 (deg 3, Voyager-only), Ganymede
+    Kivelson 2002 (dipole-only — the only solar-system moon with a
+    confirmed intrinsic dipole).
+
+    The Sol Magnetic Multipole Catalog is a **state-lookup query
+    surface**, not a BIP encoder — per §17.4.1 the rhythm-mismatch
+    finding generalises across magnetic multipoles alongside solid-
+    body geodesy and fluid-envelope channels: internal-field Schmidt
+    coefficients are static at their epoch (IGRF main field updates
+    every 5 years on a published schedule; JRM33 is a Juno-prime-
+    mission snapshot; Voyager-derived AH5/O8 are single-flyby fits).
+    The cyclic-group encoder discipline does not transplant.
+
+    Parameters
+    ----------
+    body : str, optional. If given, return just that body's record;
+        else return the full per-body catalog.
+    crustal : bool, default False. If True and the requested body has
+        a crustal field model on file (Earth EMM2017 only), the
+        crustal record is included alongside the main-field record.
+
+    Returns
+    -------
+    dict
+        Single body (`body=name`):
+            ``{"ok": True, "body": str, "main_field": {...} or None,
+              "crustal_field": {...} or None}``
+        Full roster (`body=None`):
+            ``{"ok": True, "n_bodies": int, "bodies": {name: {...}}}``
+
+    See research notebook §17.2 for the architectural scoping and
+    §17.4.2 for the v0.20.1 ship sequence.
+    """
+    return _compute_magnetic_multipoles_impl(body=body, crustal=crustal)
+
+
+def evaluate_magnetic_field(
+    body: str,
+    r_km: float,
+    lat_deg: float,
+    lon_deg: float,
+    jd_tdb: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Evaluate the vector magnetic field at (r, lat, lon).
+
+    Closed-form Schmidt-quasi-normalised dipole synthesis from the
+    per-body multipole expansion. Returns spherical components
+    (B_r, B_θ, B_φ) and total magnitude in nT.
+
+    The v0.20.1 ship surface returns the dipole approximation
+    (synthesis_degree=1), which is the dominant contribution beyond
+    a few body-radii for every body in the roster. Higher-degree
+    synthesis is left for a future minor version — the dipole-only
+    surface ships now per the §17.4.2 full-coverage commitment.
+
+    Parameters
+    ----------
+    body : str. Lower-case body name (must be in the multipole roster).
+    r_km : float. Radial distance from body centre, km. Must be > 0.
+    lat_deg : float. Geocentric latitude, degrees, [-90, 90].
+    lon_deg : float. Body-fixed longitude, degrees.
+    jd_tdb : float, optional. Reserved for forward compatibility
+        (secular variation handling in a future minor version).
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": str, "B_r_nT": float, "B_theta_nT": float,
+          "B_phi_nT": float, "B_total_nT": float, "epoch_year": float,
+          "synthesis_degree": int, "below_surface": bool}``
+    """
+    return _evaluate_magnetic_field_impl(
+        body=body, r_km=r_km, lat_deg=lat_deg, lon_deg=lon_deg, jd_tdb=jd_tdb,
+    )
+
+
+def get_solar_synoptic_state(
+    jd_tdb: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Sun synoptic-state pointer surface.
+
+    The Sun's internal field is time-varying with a ~22-yr Hale cycle
+    modulated by the ~11-yr sunspot cycle; a single static set of
+    Schmidt coefficients is not the right representation. The package
+    therefore ships a pointer into the published synoptic-magnetogram
+    archive (Stanford HMI / Wilcox Solar Observatory) so consumers
+    can pull the correct Carrington-rotation-cadence field for a
+    specific JD outside the package itself.
+
+    Parameters
+    ----------
+    jd_tdb : float, optional. If given, the response includes
+        coverage-status triage relative to each archive's start year.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": "sun", "n_archives": int,
+          "archives": [...], (optional) "jd_tdb", "year_at_jd",
+          "coverage_status": "in_coverage" | "before_archive" | "future"}``
+    """
+    return _compute_solar_synoptic_state_impl(jd_tdb=jd_tdb)
+
+
+def list_magnetic_multipoles() -> Dict[str, Any]:
+    """Static enumeration of the full Sol Magnetic Multipole Catalog.
+
+    Returns every published main-field multipole model + every
+    crustal-field model + every solar synoptic reference. Each entry
+    carries a `source_key` pointing into the
+    `_research.magnetic_multipole_catalog_data.SOURCES` citation dict
+    so users can verify the provenance of every numeric value.
+    """
+    return _list_magnetic_multipoles_impl()
+
+
+def magnetic_architecture(target: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body data-quality-tier partition over the Sol Magnetic
+    Multipole Catalog.
+
+    Each body lands in HIGH / MEDIUM / LOW / NONE based on its
+    main-field `precision_flag`. Voyager-only models (Uranus, Neptune)
+    are LOW; current-best models (Earth IGRF-13, Jupiter JRM33,
+    Saturn Cao 2020) are HIGH; single-mission limited-coverage models
+    (Mercury Thébault 2018, Ganymede Kivelson 2002 dipole-only) are
+    MEDIUM. Bodies with a published crustal anomaly model carry a
+    `has_crustal` flag (Earth EMM2017 only in v0.20.1).
+
+    This is a different partition than v0.20.0's `geodetic_architecture`
+    (which classifies by gravity / topography / interior data quality)
+    — this one tracks the magnetic channel specifically. Bodies that
+    appear in both partitions may land in different tiers (e.g.,
+    Mars is HIGH-tier geodetic but absent from the magnetic roster
+    entirely because Mars has no significant intrinsic global dipole;
+    its crustal magnetic anomalies are a candidate for a future minor).
+
+    Parameters
+    ----------
+    target : str, optional. If given, return just that body's tier;
+        else return the full partition.
+    """
+    return _compute_magnetic_architecture_impl(target=target)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
