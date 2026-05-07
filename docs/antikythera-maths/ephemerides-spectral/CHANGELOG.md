@@ -7,7 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.4)
+(no entries yet — next entries land after v0.24.5)
+
+## [0.24.5] — 2026-05-07
+
+**Hawaiian-Emperor Chain Spectral Catalog (bounded-local graph Laplacian) — sixth ship in v0.24.x; first time the project's graph-Laplacian eigenbasis is applied to physical features on a single body's surface.** Pure-Python additive; **no ABI bump** (twenty-eighth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.hawaii_chain_catalog.get_hawaii_chain / get_hawaii_emperor_bend_signature / list_hawaii_chain` |
+| Bridge dict API | `bridge.get_hawaii_chain()` / `bridge.get_hawaii_emperor_bend_signature()` / `bridge.list_hawaii_chain()` |
+| CLI | `hawaii-chain`, `hawaii-emperor-bend`, `hawaii-chain-full` |
+
+### 18-seamount roster (oldest → youngest)
+
+| Name | Age (Myr) | Arc | Source |
+|---|---:|---|---|
+| meiji | 85.0 | emperor | Keller 1995 |
+| detroit | 75.8 | emperor | Duncan-Keller 2004 |
+| suiko | 64.7 | emperor | Duncan-Clague 1985 |
+| nintoku | 56.2 | emperor | Sharp-Clague 2006 |
+| koko | 48.1 | emperor | Sharp-Clague 2006 |
+| **daikakuji** | **46.7** | **bend** | **Sharp-Clague 2006** |
+| yuryaku | 43.4 | hawaiian | Sharp-Clague 2006 |
+| kammu | 38.5 | hawaiian | O'Connor 2013 |
+| midway | 27.7 | hawaiian | Sharp-Clague 2006 |
+| pearl_hermes | 20.0 | hawaiian | Clague-Dalrymple 1989 |
+| laysan | 19.9 | hawaiian | Clague-Dalrymple 1989 |
+| necker | 10.3 | hawaiian | Clague-Dalrymple 1989 |
+| niihau | 5.0 | hawaiian | Clague-Dalrymple 1989 |
+| kauai | 4.7 | hawaiian | Garcia 2010 |
+| oahu | 2.6 | hawaiian | Garcia 2010 |
+| molokai | 1.7 | hawaiian | Clague 2010 |
+| maui_haleakala | 1.0 | hawaiian | Clague 2010 |
+| hawaii_kilauea | 0.0 | hawaiian | Garcia 2010 |
+
+### THE headlines: two complementary spectral observations
+
+**(1) Bounded-local Fiedler partition.** Graph Laplacian over Gaussian-spatial-proximity edges (σ=500 km). Fiedler vector has **exactly one sign change** along the age-ordered chain (a quasi-1D structural property), at the spatial gap between Midway (27.7 Myr) and Pearl-and-Hermes (20 Myr). Eigenvalue gap λ₃ − λ₂ ≈ 3× λ₂ confirms structurally crisp partition.
+
+**(2) Age-vs-arc-length residuals.** Linear fit through post-bend Hawaiian arc gives **Pacific Plate velocity 8.5 cm/yr** (matches Sharp 2006 published 8-10). The directional bend at 47.5 Myr surfaces in the slope residuals: largest residual at Meiji (oldest, 85 Myr) at ~1265 km from the post-bend linear extrapolation.
+
+The two-step decomposition matters: the bend is **directional** (60° kink), not **proximal** (no spatial gap there) — so spatial-proximity Laplacian (1) doesn't see it; slope-residuals (2) do.
+
+### Why this ship matters
+
+- **First non-orbital eigenbasis application.** Until v0.24.5, every Laplacian eigendecomposition the project has done was over orbital relationships (resonance graph, gateway graph). v0.24.5 applies the same machinery to **physical features on a single body's surface** — the chess-board / bounded-local-Laplacian methodology made explicit.
+- **Same algebraic machinery as v0.18.0** body_architecture's inner/outer Fiedler partition, just on a different graph.
+- **Cross-channel observation**: bend at 47.5 Myr is independently observable in paleomagnetic data (Tarduno 2003 high-paleolatitude Emperor seamounts) — v0.21.x-style multi-channel confirmation.
+
+### Cross-references
+
+- **v0.18.0** body-architecture: same Fiedler-partition mechanism, different graph
+- **v0.18.2** predict_itn_accessibility: two-eigenvector embedding pattern
+- **v0.20.0** Earth geodetic: Earth interior context
+- **v0.21.x** cross-channel coupling: bend's multi-channel observability
+
+### Test count
+
+1549 pass, 42 skipped (was 1518 + 42 in v0.24.4; +31 net new — 28 in `test_hawaii_chain.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.4 → 0.24.5`.
 
 ## [0.24.4] — 2026-05-07
 

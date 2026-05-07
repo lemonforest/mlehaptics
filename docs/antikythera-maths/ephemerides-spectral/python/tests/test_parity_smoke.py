@@ -519,6 +519,25 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.5 Sol Hawaiian-Emperor Chain Spectral Catalog
+    # (bounded-local-Laplacian application to a hotspot track on
+    # Earth's surface; first time the project's graph-Laplacian
+    # eigenbasis is applied to physical features on a single body's
+    # surface rather than to orbital relationships between bodies).
+    # Pure-Python; the eigendecomposition is computed at query time
+    # from the seamount catalog. No C twin makes sense.
+    "get_hawaii_chain": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_hawaii_emperor_bend_signature": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_hawaii_chain": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

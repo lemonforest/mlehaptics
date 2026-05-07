@@ -112,6 +112,14 @@
       "sha256": "fe4eb38b6245f34cf81d79864dc1ee6381047c3323ba827cb973ebb04e0ea421",
       "size_bytes": 81546
     },
+    "_research/hawaii_chain_catalog.py": {
+      "sha256": "cedc719b19a479fa0260622bf2fcfca5d2344aba767d87e581cb1490bfdadadb",
+      "size_bytes": 16066
+    },
+    "_research/hawaii_chain_data.py": {
+      "sha256": "1428693d0fc0747d7a2af55dcc6af51998888a4ab23eae80b4d6ae3f69412c6d",
+      "size_bytes": 14185
+    },
     "_research/heat_flow_catalog.py": {
       "sha256": "3f6c7f64c4f8793e922dc798d0f9094c24c1937949494f20dcf3e95047ab7fc8",
       "size_bytes": 4120
@@ -270,5 +278,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.3"
+  "version": "0.24.4"
 }
