@@ -852,6 +852,29 @@ def _cmd_mercury_dynamical_spectrum_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.1 — Luna Dynamical Spectrum CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_luna_dynamical_spectrum(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_luna_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
+def _cmd_luna_saros_commensurability(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_luna_saros_commensurability(), pretty=args.pretty,
+    )
+
+
+def _cmd_luna_dynamical_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_luna_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3877,6 +3900,74 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     mdsf.set_defaults(func=_cmd_mercury_dynamical_spectrum_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.1 — Luna Dynamical Spectrum
+    # ──────────────────────────────────────────────────────────────────
+
+    # luna-dynamical-spectrum
+    lds = sub.add_parser(
+        "luna-dynamical-spectrum",
+        help="Luna's full action-angle dynamical-mode catalog (LLR-anchored)",
+        description=(
+            "v0.24.1 — second per-body dynamical-spectrum surface.\n"
+            "Decomposes Luna's dynamical state into 8 angle modes\n"
+            "(sidereal / synodic / anomalistic / draconitic mean\n"
+            "motions; spin 1:1 locked; forced libration ~7.9 arcsec;\n"
+            "apsidal precession 8.85 yr; nodal precession 18.61 yr)\n"
+            "plus 3 action modes (eccentricity, inclination, obliquity\n"
+            "to orbit; Cassini state 2).\n"
+            "\n"
+            "LLR (Lunar Laser Ranging) is the ground-truth source:\n"
+            "50+ years of millimetre-precision ranging from McDonald,\n"
+            "Apache Point, OCA, Matera observatories.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral luna-dynamical-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lds.set_defaults(func=_cmd_luna_dynamical_spectrum)
+
+    # luna-saros-commensurability (THE headline)
+    lsc = sub.add_parser(
+        "luna-saros-commensurability",
+        help="Saros cycle integer-commensurability closure invariant",
+        description=(
+            "v0.24.1 headline. Luna's three distinct months admit an\n"
+            "exact small-integer commensurability:\n"
+            "\n"
+            "  223 x synodic     = 6585.32 d\n"
+            "  239 x anomalistic = 6585.54 d\n"
+            "  242 x draconitic  = 6585.36 d\n"
+            "   19 x eclipse-yr  = 6585.78 d\n"
+            "\n"
+            "All four products agree within ~0.5 day. This is the\n"
+            "~18.03-yr Saros eclipse-recurrence cycle -- a textbook\n"
+            "small-denominator phenomenon and exactly the structure\n"
+            "the project's BIP encoder is built to detect.\n"
+            "\n"
+            "Cross-strand: the Antikythera mechanism's Saros dial is\n"
+            "literally a hardware implementation of this triple.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral luna-saros-commensurability --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lsc.set_defaults(func=_cmd_luna_saros_commensurability)
+
+    # luna-dynamical-spectrum-full
+    ldsf = sub.add_parser(
+        "luna-dynamical-spectrum-full",
+        help="Full Luna dynamical-spectrum enumeration (modes + Saros + citations)",
+        description=(
+            "Returns all dynamical modes + Saros commensurability +\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ldsf.set_defaults(func=_cmd_luna_dynamical_spectrum_full)
 
     # lunar-kernels
     lk = sub.add_parser(
