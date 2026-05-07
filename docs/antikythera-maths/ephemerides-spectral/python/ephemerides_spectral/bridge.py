@@ -171,6 +171,10 @@ from ephemerides_spectral._research.orographic_forcing import (
     compute_orographic_forcing as _compute_orographic_forcing_impl,
     list_orographic_forcings as _list_orographic_forcings_impl,
 )
+from ephemerides_spectral._research.rotational_constraint_catalog import (
+    compute_rotational_constraint as _compute_rotational_constraint_impl,
+    list_rotational_constraints as _list_rotational_constraints_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -3329,6 +3333,62 @@ def list_orographic_forcings() -> Dict[str, Any]:
     `_research.orographic_forcing_data.SOURCES` citation dict.
     """
     return _list_orographic_forcings_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.21.4 — Interior ↔ rotation cross-channel constraints
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_rotational_constraint(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body interior ↔ rotation cross-channel constraint.
+
+    Promotes the v0.21.4 architectural commitment from research
+    notebook §17.4.2 to a stable ship surface — the **fourth**
+    cross-channel coupling surface, opening the post-trio sequence
+    after v0.21.1-v0.21.3 shipped the trio explicitly named in §17.4.2.
+
+    For a body with a published interior model (v0.20.0
+    ``INTERIOR_MODELS``), the constraint connects interior structure
+    (moment-of-inertia, core size, tidal viscosity) to observed
+    rotational behaviour:
+
+    * **Earth** (Mathews 2002) — free-core-nutation period 430.21 days
+      constrains liquid outer-core / mantle boundary friction.
+    * **Mars** (Le Maistre 2023) — InSight RISE nutation gives core
+      radius 1830 ± 40 km, revising pre-InSight estimates.
+    * **Jupiter** (Kaspi 2018) — Juno J6/J8/J10 places zonal-wind base
+      at ~3000 km depth (~4 % of radius).
+    * **Saturn** (Mankovich & Fuller 2021) — ring-seismology revises
+      rotation 10:39 → 10:33 (cloud-deck vs deep-interior). Headline.
+    * **Io / Europa / Ganymede** (Lainey 2009 / 2020) — tidal Q-factors
+      from astrometric fits.
+
+    **Not a re-derivation.** Values shipped are the published
+    constraint values from the cited papers.
+
+    7-body roster.
+
+    Parameters
+    ----------
+    body : str, optional. Single-body lookup; else full roster.
+
+    Returns
+    -------
+    dict
+        Single body: ``{ok, body, constraint: {...}}``.
+        Full roster: ``{ok, n_bodies, bodies: {name: {...}}}``.
+    """
+    return _compute_rotational_constraint_impl(body=body)
+
+
+def list_rotational_constraints() -> Dict[str, Any]:
+    """Static enumeration of every published rotational constraint.
+
+    Each entry carries a `source_key` pointing into the
+    `_research.rotational_constraint_data.SOURCES` citation dict.
+    """
+    return _list_rotational_constraints_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

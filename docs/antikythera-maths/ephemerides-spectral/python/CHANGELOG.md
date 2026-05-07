@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.21.3)
+(no entries yet — next entries land after v0.21.4)
+
+## [0.21.4] — 2026-05-07
+
+**Interior-derived rotational constraints — fourth cross-channel coupling surface (post-trio sequence).** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.rotational_constraint_catalog` — wrapper module with `compute_rotational_constraint`, `list_rotational_constraints`.
+- `_research.rotational_constraint_data` — data module with `ROTATIONAL_CONSTRAINTS` (7 entries), `SOURCES` (6 citations), `RotationalConstraint` dataclass + observation-type constants.
+
+### Added — bridge dict API
+
+- `bridge.get_rotational_constraint(body=None) -> dict`
+- `bridge.list_rotational_constraints() -> dict`
+
+### Added — CLI
+
+- `rotational-constraint [--body X]`
+- `rotational-constraints`
+
+### 7-body roster
+
+terra (Mathews 2002 — FCN 430.21 d), mars (Le Maistre 2023 — InSight core radius 1830 km), jupiter (Kaspi 2018 — wind base 3000 km), **saturn** (Mankovich-Fuller 2021 — **ring-seismology revises rotation 10:39 → 10:33; the headline**), io (Lainey 2009 — Q ~80), europa (Lainey 2020 — Q ~500), ganymede (Lainey 2020 — Q ~300).
 
 ## [0.21.3] — 2026-05-07
 

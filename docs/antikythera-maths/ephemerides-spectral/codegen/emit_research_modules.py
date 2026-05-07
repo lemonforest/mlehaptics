@@ -48,6 +48,8 @@ _INCLUDED_MODULES: List[str] = [
     "dynamo_catalog.py",
     "orographic_forcing_data.py",
     "orographic_forcing.py",
+    "rotational_constraint_data.py",
+    "rotational_constraint_catalog.py",
 ]
 
 def emit() -> List[Path]:
