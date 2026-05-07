@@ -10,7 +10,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.19.0)
+(no entries yet — next entries land after v0.20.0)
+
+## [0.20.0] — 2026-05-07
+
+**Sol Geodetic Catalog — state-lookup query surface for the solid-body geodetic stack (gravity multipoles + topography + interior structure).** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.geodetic_catalog` — wrapper module with `compute_geodetic_state`, `list_geodetic_models`, `compute_geodetic_architecture`.
+- `_research.geodetic_catalog_data` — data module with `GRAVITY_MODELS`, `TOPOGRAPHY_MODELS`, `INTERIOR_MODELS`, `SOURCES` citation dict, dataclasses (`GravityModel`, `TopographyModel`, `InteriorLayer`, `InteriorModel`), and precision-flag constants (`PRECISION_HIGH` / `_MEDIUM` / `_LOW` / `_NONE`).
+
+### Added — bridge dict API
+
+- `bridge.get_geodetic_state(body: Optional[str] = None) -> dict`
+- `bridge.list_geodetic_models() -> dict`
+- `bridge.geodetic_architecture(target: Optional[str] = None) -> dict`
+
+### Added — CLI
+
+- `geodetic-state [--body <body>]`
+- `geodetic-models`
+- `geodetic-architecture [--target <body>]`
+
+### Roster + channel coverage
+
+Full §17.4.2 commitment: every body in the v0.16.0 52-body celestial roster that has a published gravity, topography / shape, or interior structure model is in scope across three internal channels (gravity / topography / interior). Sparse coverage is intentional: not every body has a published model in every channel; missing channels return `None` rather than raising. Each body's overall data-quality tier (HIGH / MEDIUM / LOW / NONE) is the median of its per-channel `precision_flag` values per the §17.1.6 ship-readiness convention.
+
+### Architectural choice
+
+State-*lookup* surface, not BIP encoder. Per §17.4.1 the rhythm-mismatch finding from §16 generalises across solid-body geodesy by *absence-of-rhythm*: Stokes coefficients don't oscillate, DEM spectra don't tick, layered density profiles are static. The Sol Geodetic Catalog therefore has no JD-advance mechanic and accepts `body` (not `jd_tdb`) as its primary argument.
+
+### Forward sequence committed in §17.4.2
+
+* **v0.20.1** `MagneticMultipoleCatalog`, **v0.20.2** `SolFluidInstrument`, **v0.21.0** `SphericalHarmonicCatalog` unification, **v0.21.1+** cross-channel coupling surfaces (one per minor version).
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into the `SOURCES` dict; ratchet tests pin the resolution at CI.
 
 ## [0.19.0] — 2026-05-06
 

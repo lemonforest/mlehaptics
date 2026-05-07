@@ -491,6 +491,22 @@ def _cmd_em_architecture(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_geodetic_state(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_geodetic_state(body=args.body), pretty=args.pretty
+    )
+
+
+def _cmd_geodetic_models(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_geodetic_models(), pretty=args.pretty)
+
+
+def _cmd_geodetic_architecture(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.geodetic_architecture(target=args.target), pretty=args.pretty
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2276,6 +2292,90 @@ def _make_parser() -> argparse.ArgumentParser:
                          "full partition; if given, return just that body's "
                          "record.")
     ea.set_defaults(func=_cmd_em_architecture)
+
+    # geodetic-state (v0.20.0) — Sol Geodetic Catalog: per-body
+    # gravity + topography + interior records.
+    gs = sub.add_parser(
+        "geodetic-state",
+        help="Per-body geodetic state (gravity multipoles + topography + interior)",
+        description=(
+            "Returns the per-body geodetic records for the Sol Geodetic\n"
+            "Catalog roster: gravity multipole expansion (full Stokes\n"
+            "coefficients for terrestrial bodies + the Moon; zonal-only\n"
+            "J_n series for the gas + ice giants), topography / shape\n"
+            "model metadata (DEMs / SARTopo / polyhedral models), and\n"
+            "interior structure (radial density profiles, layered models,\n"
+            "moment-of-inertia constraints).\n"
+            "\n"
+            "The Sol Geodetic Catalog is a state-lookup query surface,\n"
+            "not a BIP encoder — solid-body geodetic observables are\n"
+            "static parameters with no native rhythm (per section 17.4.1\n"
+            "the rhythm-mismatch finding generalises across solid-body\n"
+            "geodesy alongside magnetic multipoles and fluid-envelope\n"
+            "channels). The cyclic-group encoder discipline does not\n"
+            "transplant. See research notebook section 17.\n"
+            "\n"
+            "Every numeric value carries a source_key pointing into\n"
+            "_research.geodetic_catalog_data.SOURCES for citation.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral geodetic-state --pretty\n"
+            "  ephemerides-spectral geodetic-state --body mars --pretty\n"
+            "  ephemerides-spectral geodetic-state --body jupiter"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gs.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, return the "
+                         "full per-body catalog; if given, return just "
+                         "that body's records.")
+    gs.set_defaults(func=_cmd_geodetic_state)
+
+    # geodetic-models (v0.20.0) — full catalog enumeration across all
+    # three channels (gravity / topography / interior).
+    gm = sub.add_parser(
+        "geodetic-models",
+        help="Full Sol Geodetic Catalog enumeration (every model in every channel)",
+        description=(
+            "Returns the full catalog enumeration: every gravity model,\n"
+            "every topography model, every interior model across the\n"
+            "complete body roster. Each entry carries a source_key\n"
+            "pointing into _research.geodetic_catalog_data.SOURCES for\n"
+            "citation, so users can verify the provenance of every\n"
+            "numeric value."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gm.set_defaults(func=_cmd_geodetic_models)
+
+    # geodetic-architecture (v0.20.0) — data-quality-tier partition
+    # (HIGH / MEDIUM / LOW / NONE per section 17.1.6 convention).
+    ga = sub.add_parser(
+        "geodetic-architecture",
+        help="Per-body data-quality tier (HIGH / MEDIUM / LOW / NONE)",
+        description=(
+            "Per-body data-quality-tier partition over the Sol Geodetic\n"
+            "Catalog. Each body lands in HIGH / MEDIUM / LOW / NONE based\n"
+            "on the median precision flag across its three channels\n"
+            "(gravity / topography / interior). A body with HIGH gravity\n"
+            "but LOW interior is summarised as MEDIUM.\n"
+            "\n"
+            "Different partition than body_architecture (orbital position\n"
+            "via resonance Fiedler) and em_architecture (intrinsic-field\n"
+            "presence). The geodetic partition classifies by published-\n"
+            "data quality, not by physical body class.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral geodetic-architecture --pretty\n"
+            "  ephemerides-spectral geodetic-architecture --target mars"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ga.add_argument("--target", default=None,
+                    help="Body name (lower-case). If omitted, return the "
+                         "full partition; if given, return just that body's "
+                         "tier and per-channel flags.")
+    ga.set_defaults(func=_cmd_geodetic_architecture)
 
     # lunar-kernels
     lk = sub.add_parser(

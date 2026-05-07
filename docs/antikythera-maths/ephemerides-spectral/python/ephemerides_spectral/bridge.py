@@ -136,6 +136,11 @@ from ephemerides_spectral._research.em_instrument import (
     compute_em_state_at_jd as _compute_em_state_at_jd_impl,
     list_em_couplings as _list_em_couplings_impl,
 )
+from ephemerides_spectral._research.geodetic_catalog import (
+    compute_geodetic_architecture as _compute_geodetic_architecture_impl,
+    compute_geodetic_state as _compute_geodetic_state_impl,
+    list_geodetic_models as _list_geodetic_models_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -2646,6 +2651,100 @@ def em_architecture(target: Optional[str] = None) -> Dict[str, Any]:
         Single-body (target=name): per-body record + class.
     """
     return _compute_em_architecture_impl(target=target)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.20.0 — Sol Geodetic Catalog
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_geodetic_state(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body geodetic state — gravity + topography + interior records.
+
+    Promotes the v0.20.0 architectural commitment from research notebook
+    §17.1 + §17.4.2 to a stable ship surface, mirroring the v0.19.0 Sol
+    Electromagnetic Instrument pattern. **This is not a BIP encoder
+    running on geodetic rhythms** — solid-body geodetic observables are
+    static parameters with no native rhythm (per §17.4.1 the rhythm-
+    mismatch finding generalises across solid-body geodesy alongside
+    magnetic multipoles and fluid-envelope channels). The cyclic-group
+    encoder discipline does not transplant.
+
+    Returns three internal channels per body:
+
+    * gravity — multipole expansion (full spherical-harmonic Stokes
+      coefficients for terrestrial bodies + the Moon; zonal-only J_n
+      series for the gas + ice giants).
+    * topography — DEM / shape-model metadata (full-coverage DEMs for
+      the inner solar system + the Moon; partial-coverage SARTopo for
+      Titan; polyhedral shape models for the small-body roster).
+    * interior — radial density profiles, layered models,
+      moment-of-inertia constraints (PREM / GRAIL+Apollo / InSight /
+      JRM33-companion / Cassini Grand Finale ring-seismology /
+      Voyager-derived for the ice giants).
+
+    Parameters
+    ----------
+    body : str, optional. If given, return just that body's records;
+        else return the full per-body catalog.
+
+    Returns
+    -------
+    dict
+        Single body (body=name): `{ok, body, gravity, topography, interior}`
+        with each channel either a record dict or None for sparse coverage.
+        Full roster (body=None): `{ok, n_bodies, bodies}` with bodies a
+        dict keyed by body name.
+
+    See research notebook §17 for the architectural scoping.
+    """
+    return _compute_geodetic_state_impl(body=body)
+
+
+def list_geodetic_models() -> Dict[str, Any]:
+    """Static enumeration of the full Sol Geodetic Catalog.
+
+    Returns every model in every channel — gravity multipole expansions,
+    topography / shape models, interior structure models — across the
+    full body roster. Each entry carries a `source_key` pointing into
+    the `_research.geodetic_catalog_data.SOURCES` citation dict so users
+    can verify the provenance of every numeric value.
+    """
+    return _list_geodetic_models_impl()
+
+
+def geodetic_architecture(target: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body data-quality-tier partition over the Sol Geodetic Catalog.
+
+    Per the §17.1.6 ship-readiness convention, each body lands in a
+    HIGH / MEDIUM / LOW / NONE tier based on the median precision flag
+    across its three channels (gravity / topography / interior). A body
+    with HIGH gravity but LOW interior is summarised as MEDIUM.
+
+    This is a different partition than the v0.18.0 inner/outer split
+    from `bridge.body_architecture` (which classifies by orbital
+    position via the resonance Fiedler partition) and the v0.19.0
+    magnetised/induced/unmagnetised split from `bridge.em_architecture`
+    (which classifies by intrinsic-field presence). The geodetic
+    partition classifies by **published-data quality**, not by physical
+    body class.
+
+    Parameters
+    ----------
+    target : str, optional. If given, return just that body's tier and
+        per-channel flags; else return the full partition.
+
+    Returns
+    -------
+    dict
+        Full partition (target=None):
+            `{ok, n_bodies, partitions, bodies}` with
+            `partitions = {"HIGH": [...], "MEDIUM": [...], "LOW": [...],
+            "NONE": [...]}`.
+        Single body (target=name):
+            `{ok, body, tier, channel_flags}`.
+    """
+    return _compute_geodetic_architecture_impl(target=target)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
