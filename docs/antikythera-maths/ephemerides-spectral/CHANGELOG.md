@@ -7,7 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.20.1)
+(no entries yet — next entries land after v0.20.2)
+
+## [0.20.2] — 2026-05-07
+
+**Sol Fluid Instrument — climatology + archive index + state-at-epoch query surface for the solar-system fluid envelope (atmospheres, oceans, cryospheres, exospheres).** Promotes notebook §17.3 + §17.4.2 to a stable ship surface, mirroring the v0.19.0 EM Instrument / v0.20.0 Sol Geodetic Catalog / v0.20.1 Sol Magnetic Multipole Catalog patterns. **Ships all three Option-D layers together** per the §17.4.2 full-coverage commitment — no MVP subset, no deferred layer. **Not a BIP encoder running on fluid-envelope rhythms** — per §17.4.1 the rhythm-mismatch finding generalises across fluid envelopes alongside solid-body geodesy and magnetic multipoles. Pure-Python additive; **no ABI bump** (eighth consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.fluid_instrument.compute_fluid_state / list_fluid_archives / compute_fluid_architecture` |
+| Bridge dict API | `bridge.get_fluid_state(body=None, jd_tdb=None, lat=None, lon=None)` / `bridge.list_fluid_archives()` / `bridge.fluid_architecture(target=None)` |
+| CLI | `fluid-state [--body X] [--jd-tdb X] [--lat X] [--lon X]` / `fluid-archives` / `fluid-architecture [--target X]` |
+
+### Three layers
+
+**Layer 1 — Climatological summary** (21 entries: 17 atmospheric + 4 airless small bodies):
+- Atmospheric: terra / mars / venus / titan / triton / pluto / io / europa / ganymede / enceladus / mercury / luna / sun / jupiter / saturn / uranus / neptune.
+- Airless: ceres / vesta / bennu / ryugu.
+- Per-body fields: mean surface temperature K, mean surface pressure Pa, top-3 dominant gases (formula + mole fraction), obliquity deg, orbital eccentricity, Bond albedo.
+
+**Layer 2 — Archive-pointer index** (10 entries):
+ERA5 (terra), MCD v6.1 (mars), MAVEN (mars-upper-atmosphere), VIRA + Akatsuki (venus), Cassini (titan + saturn), Juno (jupiter), Voyager 2 PDS (uranus + neptune), New Horizons PDS (pluto). Each entry carries archive_url + format + access_protocol + temporal coverage window.
+
+**Layer 3 — State-at-epoch coverage flags** (21 entries):
+ONLY terra (ERA5; JD ≈ 2429630.5 onward = 1940-01-01) and mars (MCD v6.1; MY 24-start onward) have the True flag. All 19 other bodies fall back to the climatological summary with explicit `out-of-coverage-fallback-to-climatology` query_type.
+
+### No outbound network calls
+
+The package ships pointers + the climatological-summary fallback in a self-contained dict; consumers fetch the actual reanalysis field via the archive's own API (CDS-API for ERA5; the Python wrapper for MCD). The package never makes outbound HTTP calls.
+
+### Coverage status triage
+
+When `jd_tdb` is passed to `get_fluid_state`, the response includes a `coverage_status` flag: `in_coverage` / `before_archive` / `future` / `no_state_at_epoch`. Earth at modern JD → `in_coverage`; Earth at JD 2400000 (1858) → `before_archive`; Venus at any JD → `no_state_at_epoch` (no state-at-epoch wrapper, only climatology + archive pointers).
+
+### Highlights
+
+- **Titan** — 94 K + 1.45 bar atmosphere (denser than Earth's despite the cold; the only moon with a thick atmosphere).
+- **Triton** — 38 K + 1.4 Pa (one of the coldest known surfaces in the solar system).
+- **Pluto** — seasonal atmospheric collapse / recovery cycle tracked via HST stellar occultations + New Horizons in situ.
+- **Io** — SO₂ pressure variability over 8 orders of magnitude from sublimation cycle.
+- **Enceladus** — column-not-pressure convention applies (south-polar plume venting via tiger-stripe fractures).
+- **Uranus** — extreme 97.77° obliquity → 42-yr seasonal cycles.
+
+### Architecture partition
+
+`{HIGH: 13, MEDIUM: 8, LOW: 0, NONE: 1}` — fluid-channel sibling of the v0.20.0/v0.20.1 partitions. The single NONE entry is `mars-upper-atmosphere` (appears as an archive-only body string for MAVEN PDS data, distinct from `mars` MCD lower-atmosphere coverage).
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into a 24-entry `SOURCES` dict (NASA fact sheets / mission archives / journal refs). Ratchet tests pin both directions (every key resolves; no unused entries).
+
+### Forward sequence (per §17.4.2)
+
+* **v0.21.0** — `SphericalHarmonicCatalog` unification refactor across gravity (v0.20.0) + magnetic (v0.20.1) sectors.
+* **v0.21.1+** — Cross-channel coupling surfaces (one per minor): topography ↔ gravity admittance, magnetic-multipole-derived dynamo constraints, orographic forcing of atmospheric standing waves.
+
+### Test count
+
+889 pass, 41 skipped (was 834 + 41 in v0.20.1; +55 net new — 50 in `test_fluid_instrument.py` + 3 parity-smoke entries + 2 README-freshness tests that flipped GREEN after the Status banner update).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.20.1 → 0.20.2`.
 
 ## [0.20.1] — 2026-05-07
 

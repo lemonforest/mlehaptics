@@ -148,6 +148,11 @@ from ephemerides_spectral._research.magnetic_multipole_catalog import (
     evaluate_magnetic_field as _evaluate_magnetic_field_impl,
     list_magnetic_multipoles as _list_magnetic_multipoles_impl,
 )
+from ephemerides_spectral._research.fluid_instrument import (
+    compute_fluid_architecture as _compute_fluid_architecture_impl,
+    compute_fluid_state as _compute_fluid_state_impl,
+    list_fluid_archives as _list_fluid_archives_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -2915,6 +2920,109 @@ def magnetic_architecture(target: Optional[str] = None) -> Dict[str, Any]:
         else return the full partition.
     """
     return _compute_magnetic_architecture_impl(target=target)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.20.2 — Sol Fluid Instrument
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_fluid_state(
+    body: Optional[str] = None,
+    jd_tdb: Optional[float] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Per-body fluid-envelope state query.
+
+    Promotes the v0.20.2 architectural commitment from research notebook
+    §17.3 + §17.4.2 to a stable ship surface. Ships **all three Option-D
+    layers together** per the §17.4.2 full-coverage commitment:
+
+    1. **Climatological summary** — per-body scalars (mean surface
+       temperature, mean surface pressure, dominant gas composition,
+       obliquity, orbital eccentricity, Bond albedo).
+    2. **Archive-pointer index** — canonical external data sources
+       (ERA5 / MCD / VIRA / Cassini-PDS / Juno-PDS / MAVEN-PDS /
+       Voyager-PDS / New-Horizons-PDS / Akatsuki) with file format +
+       access protocol + temporal coverage + endpoint URL.
+    3. **State-at-epoch coverage flags** — Earth (ERA5) and Mars
+       (MCD v6.1) have True; all other bodies fall back to the
+       climatological summary with explicit out-of-coverage notes.
+
+    **No outbound network calls.** The package ships pointers + the
+    climatological-summary fallback in a self-contained dict;
+    consumers fetch the actual reanalysis field via the archive's
+    own API (CDS-API for ERA5, the Python wrapper for MCD).
+
+    The Sol Fluid Instrument is a **state-lookup query surface**, not
+    a BIP encoder — per §17.4.1 the rhythm-mismatch finding generalises
+    across fluid-envelope channels alongside solid-body geodesy and
+    magnetic multipoles. Fluid envelopes have spatial variability and
+    temporal variability on weather-/climate-cycle timescales, but
+    those timescales do not form a low-order rational lattice with
+    orbital periods, so the cyclic-group encoder discipline does not
+    transplant.
+
+    Parameters
+    ----------
+    body : str, optional. If given, return just that body's record.
+    jd_tdb : float, optional. When given, the response adds a
+        `coverage_status` flag: `in_coverage` / `before_archive` /
+        `future` / `no_state_at_epoch`.
+    lat, lon : float, optional. Reserved for spatial query interface;
+        currently passed through unchanged (the body's archive endpoint
+        accepts the lat/lon directly; this surface does not interpolate
+        the field itself).
+
+    Returns
+    -------
+    dict
+        Single body: `{ok, body, climatology, archives, state_coverage,
+        (jd_tdb / coverage_status if jd_tdb given)}`.
+        Full roster: `{ok, n_bodies, bodies}`.
+
+    See research notebook §17.3 for the architectural scoping and
+    §17.4.2 for the v0.20.2 ship sequence.
+    """
+    return _compute_fluid_state_impl(
+        body=body, jd_tdb=jd_tdb, lat=lat, lon=lon,
+    )
+
+
+def list_fluid_archives() -> Dict[str, Any]:
+    """Static enumeration of the full Sol Fluid Instrument catalog.
+
+    Returns every climatology entry, every archive pointer, every
+    state-at-epoch coverage record. Each entry carries a `source_key`
+    pointing into the `_research.fluid_instrument_data.SOURCES`
+    citation dict so users can verify the provenance of every numeric
+    value.
+    """
+    return _list_fluid_archives_impl()
+
+
+def fluid_architecture(target: Optional[str] = None) -> Dict[str, Any]:
+    """Per-body data-quality-tier partition over the Sol Fluid Instrument.
+
+    Each body lands in HIGH / MEDIUM / LOW / NONE based on its
+    climatology `precision_flag`. Bodies with state-at-epoch coverage
+    carry a `has_state_at_epoch` flag (Earth ERA5 + Mars MCD only in
+    v0.20.2); bodies with archive holdings carry an `n_archives` count.
+
+    This is the fluid-channel sibling of v0.20.0's `geodetic_architecture`
+    + v0.20.1's `magnetic_architecture` — a fourth orthogonal data-
+    quality classification axis. Bodies appearing in multiple
+    architectures may land in different tiers per channel (e.g., Mars
+    is HIGH-tier in geodetic + fluid but absent from the magnetic
+    multipole roster entirely).
+
+    Parameters
+    ----------
+    target : str, optional. If given, return just that body's tier;
+        else return the full partition.
+    """
+    return _compute_fluid_architecture_impl(target=target)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

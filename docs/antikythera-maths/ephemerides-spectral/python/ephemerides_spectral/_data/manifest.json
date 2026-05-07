@@ -48,6 +48,14 @@
       "sha256": "9b0db0f91f428a4b0cfcbdf8b9dba30c871b0f3faebdc062a7aff8024a4d6e51",
       "size_bytes": 11035
     },
+    "_research/fluid_instrument.py": {
+      "sha256": "da10fff7e2e32d3aa71a7186add52d63e0cd4a0f5c167327b0d8f1dd135b5476",
+      "size_bytes": 13728
+    },
+    "_research/fluid_instrument_data.py": {
+      "sha256": "159aa393634e4a10c03f859bd1d54a71bbb36d86c6f6474a3b1dc3e22443115a",
+      "size_bytes": 54638
+    },
     "_research/geodetic_catalog.py": {
       "sha256": "9d0d664456a831ffc6ed7004a26be91e695ee8129e8fce61739727db3b57792b",
       "size_bytes": 11657
@@ -98,5 +106,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.20.1"
+  "version": "0.20.2"
 }

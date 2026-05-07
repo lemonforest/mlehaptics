@@ -192,6 +192,24 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.20.2 Sol Fluid Instrument (state-lookup query surface for
+    # the fluid envelope: climatology + archive index + state-at-epoch
+    # coverage triage). Per notebook §17.4.1 the rhythm-mismatch finding
+    # generalises across fluid-envelope channels alongside solid-body
+    # geodesy and magnetic multipoles. Three bridge surfaces, all pure-
+    # Python static lookups (no live HTTP calls); no C twin makes sense.
+    "get_fluid_state": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_fluid_archives": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "fluid_architecture": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

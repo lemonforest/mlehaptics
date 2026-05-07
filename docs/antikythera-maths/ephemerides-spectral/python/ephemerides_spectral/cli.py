@@ -544,6 +544,26 @@ def _cmd_magnetic_architecture(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_fluid_state(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_fluid_state(
+            body=args.body, jd_tdb=args.jd_tdb,
+            lat=args.lat, lon=args.lon,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_fluid_archives(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_fluid_archives(), pretty=args.pretty)
+
+
+def _cmd_fluid_architecture(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.fluid_architecture(target=args.target), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2560,6 +2580,92 @@ def _make_parser() -> argparse.ArgumentParser:
                           "full partition; if given, return just that "
                           "body's tier.")
     mar.set_defaults(func=_cmd_magnetic_architecture)
+
+    # fluid-state (v0.20.2) — Sol Fluid Instrument: per-body climatology
+    # + archive index + state-at-epoch coverage triage.
+    fs = sub.add_parser(
+        "fluid-state",
+        help="Per-body fluid-envelope climatology + archive pointers + state-at-epoch coverage",
+        description=(
+            "Returns the per-body climatology summary + archive-pointer\n"
+            "index + state-at-epoch coverage triage for the requested\n"
+            "body. Earth (ERA5) and Mars (MCD v6.1) have full state-at-\n"
+            "epoch coverage; all other bodies fall back to the\n"
+            "climatological summary with explicit out-of-coverage notes.\n"
+            "\n"
+            "**No outbound network calls.** The package ships pointers +\n"
+            "the climatological-summary fallback in a self-contained dict;\n"
+            "consumers fetch the actual reanalysis field via the archive's\n"
+            "own API (CDS-API for ERA5, the Python wrapper for MCD).\n"
+            "\n"
+            "The Sol Fluid Instrument is a state-lookup query surface,\n"
+            "not a BIP encoder -- per section 17.4.1 the rhythm-mismatch\n"
+            "finding generalises across fluid-envelope channels alongside\n"
+            "solid-body geodesy and magnetic multipoles. See research\n"
+            "notebook section 17.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral fluid-state --pretty\n"
+            "  ephemerides-spectral fluid-state --body terra --pretty\n"
+            "  ephemerides-spectral fluid-state --body mars --jd-tdb 2451545.0\n"
+            "  ephemerides-spectral fluid-state --body terra --lat 45 --lon 0"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    fs.add_argument("--body", default=None,
+                    help="Body name (lower-case). If omitted, return the "
+                         "full per-body catalog.")
+    fs.add_argument("--jd-tdb", dest="jd_tdb", type=float, default=None,
+                    help="Julian Date in TDB; if given, response carries "
+                         "coverage_status flag (in_coverage / before_archive / "
+                         "future / no_state_at_epoch).")
+    fs.add_argument("--lat", type=float, default=None,
+                    help="Latitude (degrees). Reserved for spatial query "
+                         "interface; currently passed through unchanged.")
+    fs.add_argument("--lon", type=float, default=None,
+                    help="Longitude (degrees). Same.")
+    fs.set_defaults(func=_cmd_fluid_state)
+
+    # fluid-archives (v0.20.2) — full archive enumeration.
+    fa = sub.add_parser(
+        "fluid-archives",
+        help="Full Sol Fluid Instrument archive enumeration",
+        description=(
+            "Returns the full archive enumeration: every climatology\n"
+            "entry, every archive pointer, every state-at-epoch coverage\n"
+            "record. Each entry carries a source_key pointing into\n"
+            "_research.fluid_instrument_data.SOURCES for citation."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    fa.set_defaults(func=_cmd_fluid_archives)
+
+    # fluid-architecture (v0.20.2) — data-quality tier partition.
+    far = sub.add_parser(
+        "fluid-architecture",
+        help="Per-body fluid-channel data-quality tier (HIGH/MEDIUM/LOW/NONE)",
+        description=(
+            "Per-body data-quality-tier partition over the Sol Fluid\n"
+            "Instrument. Bodies with state-at-epoch coverage carry a\n"
+            "has_state_at_epoch flag (Earth ERA5 + Mars MCD only in\n"
+            "v0.20.2); bodies with archive holdings carry an n_archives\n"
+            "count.\n"
+            "\n"
+            "This is the fluid-channel sibling of geodetic-architecture\n"
+            "(v0.20.0) and magnetic-architecture (v0.20.1) -- a fourth\n"
+            "orthogonal data-quality classification axis.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral fluid-architecture --pretty\n"
+            "  ephemerides-spectral fluid-architecture --target mars"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    far.add_argument("--target", default=None,
+                     help="Body name (lower-case). If omitted, return the "
+                          "full partition; if given, return just that "
+                          "body's tier.")
+    far.set_defaults(func=_cmd_fluid_architecture)
 
     # lunar-kernels
     lk = sub.add_parser(
