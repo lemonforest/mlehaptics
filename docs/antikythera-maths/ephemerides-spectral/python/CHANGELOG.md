@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.5)
+(no entries yet — next entries land after v0.24.6)
+
+## [0.24.6] — 2026-05-07
+
+**Small-body Yarkovsky/YORP Catalog (thermal-radiation orbital + spin drift).** Seventh and final ship in the v0.24.x backlog. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.yarkovsky_yorp_catalog` — wrapper module with `get_yarkovsky_yorp`, `get_yorp_attractor_thresholds`, `list_yarkovsky_yorp`.
+- `_research.yarkovsky_yorp_data` — data module with `YARKOVSKY_YORP_ENTRIES` (10 asteroids), threshold constants (`ROTATIONAL_FISSION_PERIOD_HOURS = 2.2`, `YARKOVSKY_OBSERVABILITY_DIAMETER_KM = 30`, `YORP_OBLIQUITY_ATTRACTOR_LO_DEG = 55`, `YORP_OBLIQUITY_ATTRACTOR_HI_DEG = 125`), `SOURCES` (12 citations), `YarkovskyYorpEntry` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_yarkovsky_yorp(body=None)`
+- `bridge.get_yorp_attractor_thresholds()`
+- `bridge.list_yarkovsky_yorp()`
+
+### Added — CLI
+
+- `yarkovsky-yorp [--body X]`
+- `yorp-attractor-thresholds`
+- `yarkovsky-yorps`
+
+### Added — tests
+
+- `tests/test_yarkovsky_yorp.py` — 34 tests pinning Bennu Yarkovsky -19×10⁻⁴ AU/Myr (Chesley 2014); 2000 PH5 huge YORP spin-up (Lowry 2007); Itokawa spin-down (Lowry 2014); 1950 DA at 2.121-h fission limit (Farnocchia 2014); Apophis 2068 impact-prediction relevance; Golevka first Yarkovsky detection (Chesley 2003); rotational-fission limit 2.2 h; YORP obliquity attractors 55° / 125° (Vokrouhlický-Čapek 2002); **direction-sign invariant** (retrograde rotators drift inward); 1/D² observability threshold; framework-references-in-SOURCES (Vokrouhlický-Čapek 2002, Rubincam 2000); citation discipline + bridge + CLI + --help.
+- 3 new parity-smoke entries (all `python_only`).
+
+### Test count
+
+1586 pass, 42 skipped (was 1549 + 42 in v0.24.5; +37 net new — 34 in `test_yarkovsky_yorp.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `__version__` bumps `0.24.5 → 0.24.6`. ABI unchanged (twenty-ninth consecutive ship since v0.13.x).
 
 ## [0.24.5] — 2026-05-07
 

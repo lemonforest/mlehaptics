@@ -538,6 +538,22 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.6 Sol Yarkovsky/YORP Catalog (per-asteroid thermal-
+    # radiation orbital + spin-state drift; spin-FREE counterpart to
+    # v0.23.0 spin-orbit-locked roster). Pure-Python static lookup;
+    # no C twin makes sense.
+    "get_yarkovsky_yorp": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_yorp_attractor_thresholds": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_yarkovsky_yorp": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

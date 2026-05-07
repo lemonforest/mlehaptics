@@ -256,6 +256,11 @@ from ephemerides_spectral._research.hawaii_chain_catalog import (
     get_hawaii_emperor_bend_signature as _get_hawaii_emperor_bend_signature_impl,
     list_hawaii_chain as _list_hawaii_chain_impl,
 )
+from ephemerides_spectral._research.yarkovsky_yorp_catalog import (
+    get_yarkovsky_yorp as _get_yarkovsky_yorp_impl,
+    get_yorp_attractor_thresholds as _get_yorp_attractor_thresholds_impl,
+    list_yarkovsky_yorp as _list_yarkovsky_yorp_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4463,6 +4468,47 @@ def get_hawaii_emperor_bend_signature() -> Dict[str, Any]:
 def list_hawaii_chain() -> Dict[str, Any]:
     """Full enumeration of Hawaiian-Emperor chain data + citations."""
     return _list_hawaii_chain_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.6 — Small-body Yarkovsky/YORP Catalog
+# (per-asteroid thermal-radiation orbital + spin-state drift; the
+# radiation-coupled analogue of v0.24.2 Mars's gravitation-coupled
+# obliquity chaos; spin-FREE counterpart to v0.23.0's spin-LOCKED roster)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_yarkovsky_yorp(body: Optional[str] = None) -> Dict[str, Any]:
+    """Per-asteroid Yarkovsky semi-major-axis drift + YORP
+    spin-state evolution.
+
+    Headlines:
+      * **(101955) Bennu** -- OSIRIS-REx headline; -19×10⁻⁴ AU/Myr
+        inward drift (retrograde rotator).
+      * **(54509) 2000 PH5** -- first YORP detection (Lowry 2007);
+        12-minute rotation period (near fission limit).
+      * **Apophis** Yarkovsky uncertainty matters for 2068 close
+        approach.
+      * **Prograde rotators drift outward; retrograde drift inward.**
+
+    Cross-channel: spin-FREE counterpart to v0.23.0's spin-orbit-
+    LOCKED roster; radiation-coupled analogue of v0.24.2 Mars's
+    gravitational-secular-resonance obliquity chaos.
+    """
+    return _get_yarkovsky_yorp_impl(body=body)
+
+
+def get_yorp_attractor_thresholds() -> Dict[str, Any]:
+    """Physical-regime thresholds for the small-body Yarkovsky/YORP
+    sequence: rotational-fission limit (~2.2 h), observability
+    diameter (~30 km), YORP obliquity attractors (~55° / ~125°)."""
+    return _get_yorp_attractor_thresholds_impl()
+
+
+def list_yarkovsky_yorp() -> Dict[str, Any]:
+    """Full catalog enumeration of every measured Yarkovsky/YORP
+    record + citations."""
+    return _list_yarkovsky_yorp_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

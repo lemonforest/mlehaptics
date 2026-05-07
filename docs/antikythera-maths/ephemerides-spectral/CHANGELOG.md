@@ -7,7 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.5)
+(no entries yet — next entries land after v0.24.6)
+
+## [0.24.6] — 2026-05-07
+
+**Small-body Yarkovsky/YORP Catalog (thermal-radiation orbital + spin drift) — seventh and FINAL ship in the v0.24.x backlog.** Pure-Python additive; **no ABI bump** (twenty-ninth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.yarkovsky_yorp_catalog.get_yarkovsky_yorp / get_yorp_attractor_thresholds / list_yarkovsky_yorp` |
+| Bridge dict API | `bridge.get_yarkovsky_yorp(body=None)` / `bridge.get_yorp_attractor_thresholds()` / `bridge.list_yarkovsky_yorp()` |
+| CLI | `yarkovsky-yorp [--body X]`, `yorp-attractor-thresholds`, `yarkovsky-yorps` |
+
+### 10-asteroid roster
+
+| Asteroid | D (km) | T_rot (h) | Yarkovsky (10⁻⁴ AU/Myr) | YORP (10⁻⁸ rad/d²) | Source |
+|---|---:|---:|---:|---:|---|
+| **(101955) Bennu** | 0.49 | 4.296 | **−19.0 ± 0.1** | +0.064 | Farnocchia 2013 |
+| (54509) 2000 PH5 (YORP) | 0.114 | **0.203** | — | **+350 ± 35** | Lowry 2007 |
+| (99942) Apophis | 0.34 | 30.4 | −1.99 ± 0.3 | — | Vokrouhlický 2015 |
+| (162173) Ryugu | 0.87 | 7.633 | −2.4 ± 0.5 | — | Watanabe 2019 |
+| (25143) Itokawa | 0.33 | 12.13 | — | **−3.5 ± 1.0** | Lowry 2014 |
+| (1862) Apollo | 1.5 | 3.065 | — | +5.5 ± 1.2 | Kaasalainen 2007 |
+| (1620) Geographos | 2.5 | 5.222 | — | +1.14 ± 0.27 | Durech 2008 |
+| (29075) 1950 DA | 1.3 | **2.121** | −0.9 ± 0.1 | — | Farnocchia 2014 |
+| (6489) Golevka | 0.53 | 6.026 | −1.5 ± 0.4 | — | Chesley 2003 |
+| (3103) Eger | 1.5 | 5.711 | — | +2.4 ± 0.6 | Durech 2012 |
+
+### Threshold constants
+
+- **Rotational-fission limit** ~ 2.2 h (rubble-pile spin-up cap)
+- **Observability diameter** ~ 30 km (1/D² scaling cuts off larger bodies)
+- **YORP obliquity attractors** ~ 55° / ~125° (Vokrouhlický-Čapek 2002 long-term end-states)
+
+### Highlights
+
+- 🌟 **Bennu** — OSIRIS-REx target; first directly-imaged Yarkovsky drift; -19×10⁻⁴ AU/Myr (~285 m/yr inward; retrograde).
+- 🌟 **2000 PH5** — first YORP detection; the asteroid that lent its name to the effect; 12-minute rotation period.
+- **Apophis** — Yarkovsky uncertainty matters for the 2068 close approach.
+- **Itokawa** — one of few measured spin-DOWN cases.
+- **1950 DA** — rotation period AT the 2.2-h fission limit; cohesive forces required to prevent disruption.
+- **Golevka** — Chesley 2003 first-ever Yarkovsky detection.
+
+### Direction-sign invariant
+
+Every retrograde rotator in the catalog drifts inward (negative da/dt) — the textbook diurnal-Yarkovsky direction signature. Pinned by `test_retrograde_drift_inward`.
+
+### Cross-channel observation
+
+Where **v0.23.0** catalogs **spin-orbit LOCKED** bodies (Mercury 3:2; Luna 1:1; Galileans), v0.24.6 catalogs **spin-FREE** bodies driven *by sunlight*. The radiation-coupled analogue of v0.24.2 Mars's gravitational-secular-resonance obliquity chaos.
+
+### v0.24.x arc complete
+
+With v0.24.6 the v0.24.x backlog is fully shipped. Sequence:
+
+```
+v0.24.0  Mercury Dynamical Spectrum     (rigid-body action-angle, stable)
+v0.24.1  Luna    Dynamical Spectrum     (rigid-body, Saros commensurability)
+v0.24.2  Mars    Dynamical Spectrum     (rigid-body, chaotic)
+v0.24.3  Sun     Dynamical Spectrum     (continuum normal-mode spectrum)
+v0.24.4  Toroidal-Residual J₂ Catalog   (shape-side; Maclaurin/Jacobi/bar)
+v0.24.5  Hawaii Chain                   (bounded-local-Laplacian; chess-board)
+v0.24.6  Yarkovsky/YORP                 (small-body radiation-coupled drift)
+```
+
+### Test count
+
+1586 pass, 42 skipped (was 1549 + 42 in v0.24.5; +37 net new — 34 in `test_yarkovsky_yorp.py` + 2 README-freshness GREEN flips + 1 reconciliation).
+
+### Migration
+
+Pure-additive bridge + CLI. `ES_VERSION_STRING` bumps `0.24.5 → 0.24.6`.
 
 ## [0.24.5] — 2026-05-07
 
