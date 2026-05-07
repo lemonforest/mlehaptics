@@ -10,7 +10,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.6)
+(no entries yet — next entries land after v0.24.7)
+
+## [0.24.7] — 2026-05-07
+
+**Mars Tharsis Volcanic Chain Catalog (bounded-local Laplacian on a body WITHOUT plate tectonics).** Eighth ship in v0.24.x; second time the project's graph-Laplacian eigenbasis is applied to physical features on a single body's surface (the no-plate-tectonics counterpart to v0.24.5 Hawaii). Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.mars_tharsis_catalog` — wrapper module with `get_mars_tharsis_chain`, `get_tharsis_fiedler_signature`, `list_mars_tharsis_chain`. Same Gaussian-proximity-Laplacian + Fiedler-eigenpair machinery as v0.24.5 Hawaii; `σ = 1500 km` on Mars's 3389.5 km-radius surface; sign-convention pinned to make Olympus Mons positive.
+- `_research.mars_tharsis_data` — data module with `MARS_THARSIS_VOLCANOES` (5 volcanoes: Olympus Mons + Arsia / Pavonis / Ascraeus Montes + Alba Mons), `THARSIS_CENTRE_LAT_DEG = 0.0`, `THARSIS_CENTRE_LON_DEG = 265.0` (Anderson 2001), `THARSIS_MONTES_RIDGE_AZIMUTH_DEG = 40.0` (NE-SW), `MARS_RADIUS_KM = 3389.5`, `SOURCES` (8 citations), `TharsisVolcano` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_mars_tharsis_chain()` — Tharsis catalog + Fiedler embedding (per-volcano `fiedler_value` + `distance_from_tharsis_centre_km`).
+- `bridge.get_tharsis_fiedler_signature()` — eigenvalue gap, Fiedler clusters, Olympus / Alba ridge-residual offsets, no-directional-bend interpretation.
+- `bridge.list_mars_tharsis_chain()` — full enumeration + citations.
+
+### Added — CLI
+
+- `ephemerides-spectral mars-tharsis-chain`
+- `ephemerides-spectral tharsis-fiedler-signature`
+- `ephemerides-spectral mars-tharsis-chain-full`
+
+### Added — Tests
+
+- `tests/test_mars_tharsis.py` — 35 tests pinning roster shape (5 volcanoes, role distribution), Olympus super-volcano magnitudes (>20 km elevation, >500 km diameter), Alba morphology (1500 km × 6.8 km), Fiedler partition (Alba isolated; three Tharsis Montes clustered together), ridge-residual offsets (>500 km for both Olympus + Alba), no-directional-bend invariant, citation discipline (Hartmann + Werner + Plescia + MOLA + Anderson all present), and bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries (`get_mars_tharsis_chain`, `get_tharsis_fiedler_signature`, `list_mars_tharsis_chain`).
+
+### Architectural commitment
+
+- The bounded-local-Laplacian methodology (introduced in v0.24.5 on Earth) is now **cross-body**: same eigendecomposition machinery operates on Earth and Mars surface-feature graphs. The geophysical regime (presence/absence of plate tectonics) determines what kind of structure the partition surfaces. Hawaii (with plate tectonics) → trajectory; Mars (no plate tectonics) → cogenetic family.
+- Closes a v0.24.x extension thread: the user-suggested "we don't have to stick to Terra if we do have other good candidates" → Mars Tharsis is the cleanest non-Terra candidate because its no-plate-tectonics regime is a strict cross-channel contrast to v0.24.5.
 
 ## [0.24.6] — 2026-05-07
 

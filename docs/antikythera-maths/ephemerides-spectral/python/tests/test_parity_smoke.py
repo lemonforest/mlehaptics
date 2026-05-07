@@ -554,6 +554,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.7 Sol Mars Tharsis Volcanic Chain Catalog (bounded-local
+    # Laplacian on a body WITHOUT plate tectonics; no-plate-tectonics
+    # counterpart to v0.24.5 Hawaii). Pure-Python; eigendecomposition
+    # computed at query time from a 5-volcano roster. No C twin makes
+    # sense.
+    "get_mars_tharsis_chain": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_tharsis_fiedler_signature": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_mars_tharsis_chain": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

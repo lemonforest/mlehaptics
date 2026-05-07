@@ -86,6 +86,8 @@ _INCLUDED_MODULES: List[str] = [
     "hawaii_chain_catalog.py",
     "yarkovsky_yorp_data.py",
     "yarkovsky_yorp_catalog.py",
+    "mars_tharsis_data.py",
+    "mars_tharsis_catalog.py",
 ]
 
 def emit() -> List[Path]:

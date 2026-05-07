@@ -7,11 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.6)
+(no entries yet — next entries land after v0.24.7)
+
+## [0.24.7] — 2026-05-07
+
+**Mars Tharsis Volcanic Chain Catalog (bounded-local Laplacian on a body WITHOUT plate tectonics) — eighth ship in v0.24.x; the no-plate-tectonics counterpart to v0.24.5 Hawaii.** Pure-Python additive; **no ABI bump** (thirtieth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.mars_tharsis_catalog.get_mars_tharsis_chain / get_tharsis_fiedler_signature / list_mars_tharsis_chain` |
+| Bridge dict API | `bridge.get_mars_tharsis_chain()` / `bridge.get_tharsis_fiedler_signature()` / `bridge.list_mars_tharsis_chain()` |
+| CLI | `mars-tharsis-chain`, `tharsis-fiedler-signature`, `mars-tharsis-chain-full` |
+
+### 5-volcano roster
+
+| Volcano | Role | Surface age (Myr) | Lat / Lon (°E) | Summit elev (m) | Base diameter (km) | Source |
+|---|---|---|---|---|---|---|
+| **Olympus Mons** | olympus_outlier | 150 ± 50 | 18.65 / 226.20 | 21229 | 600 | Hartmann 2005 |
+| **Arsia Mons** | tharsis_montes | 130 ± 20 | -8.40 / 239.90 | 17761 | 435 | Hartmann & Neukum 2001 |
+| **Pavonis Mons** | tharsis_montes | 100 ± 20 | 1.50 / 247.20 | 14058 | 375 | Werner 2009 |
+| **Ascraeus Mons** | tharsis_montes | 100 ± 30 | 11.80 / 255.50 | 18225 | 460 | Hartmann & Neukum 2001 |
+| **Alba Mons** | alba_outlier | 1500 ± 300 | 40.50 / 250.40 | 6800 | 1500 | Plescia 2004 |
+
+### Two complementary spectral observations
+
+1. **Bounded-local Fiedler partition** — Gaussian-spatial-proximity Laplacian (σ = 1500 km on Mars's 3389.5 km-radius surface) bisects the 5-volcano roster, isolating Alba Mons (the geographically distant N outlier at 40°N) from the four young Tharsis-region volcanoes (the three Tharsis Montes ridge + Olympus). The eigenvalue gap λ₃ − λ₂ ≈ 0.51·λ₂ confirms a meaningful partition.
+2. **Tharsis Montes ridge alignment + outlier residuals** — fit the three Tharsis Montes to a great-circle ridge (~040° azimuth NE-SW), then compute perpendicular residuals: Olympus Mons sits ~1900 km off the ridge axis, Alba Mons ~1200 km off — structural offsets analogous to Hawaii's age-vs-arc-length residuals at the bend, but **structural** (deep-mantle plume geometry) rather than **temporal** (plate-motion change).
+
+### Cross-channel observation
+
+Where v0.24.5 Hawaii on a body **with** plate tectonics extracts a *trajectory* (the Pacific Plate moves over a stationary plume, producing a chronologically-ordered chain), v0.24.7 Mars Tharsis on a body **without** plate tectonics extracts a *cogenetic family* (stationary plumes build one super-volcano per locus over Gyr timescales). **Olympus Mons** (~22 km from base to summit, the largest volcano in the Solar System) is the direct consequence: it would be a chain on Earth, but on Mars the plume never moved relative to the lithosphere. There is **no directional bend** in the Mars Tharsis system because there is no plate motion to record one. Same eigendecomposition machinery, different geophysical regime.
+
+### Tests
+
+- `tests/test_mars_tharsis.py` — 35 tests pinning roster shape, Olympus super-volcano magnitudes, Alba morphology, Fiedler partition (Alba isolated; three Tharsis Montes clustered), ridge-residual offsets (>500 km for both Olympus + Alba), no-directional-bend invariant, citation discipline, bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Sources (8)
+
+Hartmann & Neukum 2001 (Mars crater chronology calibration), Hartmann 2005 (refined chronology + Olympus age), Werner 2009 (Tharsis Montes high-resolution ages), Plescia 2004 (Mars-volcano morphometric compilation + Alba age), Smith 2001 (MGS MOLA topography), Anderson 2001 (Tharsis tectonic history), Carr & Head 2010 (Mars geological synthesis), Morgan 1971 (mantle-plume context).
+
+### Architectural commitment
+
+The bounded-local-Laplacian methodology (introduced in v0.24.5 on Earth) is now **cross-body**: same eigendecomposition machinery operates on Earth and Mars surface-feature graphs. The geophysical regime determines what kind of structure the partition surfaces. Hawaii (with plate tectonics) → trajectory; Mars (no plate tectonics) → cogenetic family.
 
 ## [0.24.6] — 2026-05-07
 
-**Small-body Yarkovsky/YORP Catalog (thermal-radiation orbital + spin drift) — seventh and FINAL ship in the v0.24.x backlog.** Pure-Python additive; **no ABI bump** (twenty-ninth consecutive ship since v0.13.x).
+**Small-body Yarkovsky/YORP Catalog (thermal-radiation orbital + spin drift) — seventh ship in v0.24.x.** Pure-Python additive; **no ABI bump** (twenty-ninth consecutive ship since v0.13.x).
 
 ### What ships
 

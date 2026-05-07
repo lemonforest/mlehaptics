@@ -983,6 +983,25 @@ def _cmd_yarkovsky_yorps(args: argparse.Namespace) -> int:
     return _emit(bridge.list_yarkovsky_yorp(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.7 — Mars Tharsis Volcanic Chain CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_mars_tharsis_chain(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_mars_tharsis_chain(), pretty=args.pretty)
+
+
+def _cmd_tharsis_fiedler_signature(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_tharsis_fiedler_signature(), pretty=args.pretty,
+    )
+
+
+def _cmd_mars_tharsis_chain_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_mars_tharsis_chain(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4400,6 +4419,62 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     yys.set_defaults(func=_cmd_yarkovsky_yorps)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.7 — Mars Tharsis Volcanic Chain Catalog
+    # ──────────────────────────────────────────────────────────────────
+
+    # mars-tharsis-chain
+    mtc = sub.add_parser(
+        "mars-tharsis-chain",
+        help="Mars Tharsis volcanic-chain catalog + Fiedler embedding",
+        description=(
+            "v0.24.7 -- Mars Tharsis volcanic chain: 5-volcano roster\n"
+            "(Olympus Mons, Arsia / Pavonis / Ascraeus Montes,\n"
+            "Alba Mons) on a body WITHOUT plate tectonics. Direct\n"
+            "no-plate-tectonics counterpart to v0.24.5 Hawaii hotspot\n"
+            "track. Same eigendecomposition machinery; cogenetic-\n"
+            "family structure surfaces instead of trajectory.\n"
+            "\n"
+            "Each volcano carries surface age (crater-count), summit\n"
+            "position (MOLA), elevation, edifice diameter, structural\n"
+            "role, and a Fiedler-eigenvector coordinate from the\n"
+            "Gaussian-proximity Laplacian.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral mars-tharsis-chain --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mtc.set_defaults(func=_cmd_mars_tharsis_chain)
+
+    # tharsis-fiedler-signature
+    tfs = sub.add_parser(
+        "tharsis-fiedler-signature",
+        help="Mars Tharsis Fiedler-partition signature (the headline)",
+        description=(
+            "Returns the eigenvalue gap, Fiedler clusters, and\n"
+            "Olympus / Alba ridge-residual offsets for the Tharsis\n"
+            "system. Unlike Hawaii (v0.24.5), there is no directional\n"
+            "'bend' because there is no plate motion: the Fiedler\n"
+            "partition surfaces structural cogenetic-family geometry\n"
+            "rather than chronological trajectory."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tfs.set_defaults(func=_cmd_tharsis_fiedler_signature)
+
+    # mars-tharsis-chain-full
+    mtcf = sub.add_parser(
+        "mars-tharsis-chain-full",
+        help="Full Mars Tharsis volcano catalog + citations",
+        description=(
+            "Returns every volcano's TharsisVolcano record + the\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mtcf.set_defaults(func=_cmd_mars_tharsis_chain_full)
 
     # lunar-kernels
     lk = sub.add_parser(

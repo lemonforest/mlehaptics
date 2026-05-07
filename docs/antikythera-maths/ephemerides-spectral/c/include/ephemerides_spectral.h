@@ -620,8 +620,8 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 24
-#define ES_VERSION_PATCH 6
-#define ES_VERSION_STRING "0.24.6"
+#define ES_VERSION_PATCH 7
+#define ES_VERSION_STRING "0.24.7"
 
 const char *es_version(void);
 
