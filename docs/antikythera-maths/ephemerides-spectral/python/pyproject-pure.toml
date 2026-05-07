@@ -15,8 +15,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.23.0"
-description = "High-precision HDC reference instrument for the Sol Star System based on JPL DE441 (52-body roster including Lagrange trojans + retrograde irregulars; per-body Sol Geodetic / Electromagnetic / Magnetic-Multipole catalogs; eleven cross-channel coupling surfaces including v0.23.0 spin-orbit resonance ↔ rotation lock; v0.22.0 trajectory + sensing layer with per-body ballistic propagator + 3-regime ICBM + look-angle geometry + BC-differential discrimination; resonance-graph ITN-chain search + spectral body-architecture surfaces; pure-Python build for Pyodide / WASM)"
+version = "0.23.1"
+# IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
+# limit. The upload endpoint silently rejects oversize metadata
+# ("could not comply" with no useful detail bubbled into the publish
+# action's logs). `twine check --strict` does NOT enforce this.
+# Keep this string ASCII-only and under ~480 chars to leave headroom.
+# A guard in `.github/workflows/ephemerides-spectral-publish.yml`
+# pins this at build time. Must agree with `pyproject.toml`.
+description = "High-precision HDC reference instrument for the Sol Star System based on JPL DE441. 52-body roster (Lagrange trojans + retrograde irregulars); per-body Geodetic, Electromagnetic, Magnetic-Multipole, Fluid catalogs; eleven cross-channel coupling surfaces; trajectory + sensing layer (ballistic propagator, 3-regime ICBM, look-angle geometry, BC-differential discrimination); resonance-graph ITN-chain search; spectral body-architecture; pure-Python build for Pyodide / WASM."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
