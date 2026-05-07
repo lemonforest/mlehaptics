@@ -275,8 +275,16 @@
     "_research/volcanic_outgassing_data.py": {
       "sha256": "2f92ec0bb2c57aac678aaef8c8d5be46714db01b091f6cd937f85381da86453d",
       "size_bytes": 12687
+    },
+    "_research/yarkovsky_yorp_catalog.py": {
+      "sha256": "16008a246d12894c4a1a31cc5670d17c5a425822d8b9f5d50c9b5da18fa6e7cd",
+      "size_bytes": 6712
+    },
+    "_research/yarkovsky_yorp_data.py": {
+      "sha256": "0a027acc599126cf2bff100b94b4ddbff65f641c11e4583d1070f195a2d7efdd",
+      "size_bytes": 17910
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.4"
+  "version": "0.24.5"
 }

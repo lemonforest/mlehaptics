@@ -962,6 +962,27 @@ def _cmd_hawaii_chain_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_hawaii_chain(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.6 — Yarkovsky/YORP CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_yarkovsky_yorp(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_yarkovsky_yorp(body=args.body), pretty=args.pretty,
+    )
+
+
+def _cmd_yorp_attractor_thresholds(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_yorp_attractor_thresholds(), pretty=args.pretty,
+    )
+
+
+def _cmd_yarkovsky_yorps(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_yarkovsky_yorp(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4319,6 +4340,66 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     hcf.set_defaults(func=_cmd_hawaii_chain_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.6 — Small-body Yarkovsky/YORP
+    # ──────────────────────────────────────────────────────────────────
+
+    # yarkovsky-yorp
+    yy = sub.add_parser(
+        "yarkovsky-yorp",
+        help="Per-asteroid Yarkovsky drift + YORP spin-state evolution",
+        description=(
+            "v0.24.6 -- per-asteroid thermal-radiation orbital +\n"
+            "spin-state drift. 10-asteroid roster including Bennu\n"
+            "(OSIRIS-REx; first imaged Yarkovsky), 2000 PH5 (first\n"
+            "YORP detection; lent its name to the effect), Apophis,\n"
+            "Ryugu, Itokawa, Apollo, Geographos, 1950 DA, Golevka,\n"
+            "Eger.\n"
+            "\n"
+            "Yarkovsky: thermal-emission asymmetry produces a force\n"
+            "that drifts the semi-major axis. Prograde rotators\n"
+            "outward, retrograde inward.\n"
+            "\n"
+            "YORP: same mechanism on irregular shapes produces a\n"
+            "torque that changes spin rate + obliquity.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral yarkovsky-yorp --body bennu --pretty\n"
+            "  ephemerides-spectral yarkovsky-yorp --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    yy.add_argument("--body", default=None,
+                    help="Asteroid short name (e.g., bennu, apophis, "
+                         "itokawa). If omitted, full catalog.")
+    yy.set_defaults(func=_cmd_yarkovsky_yorp)
+
+    # yorp-attractor-thresholds
+    yat = sub.add_parser(
+        "yorp-attractor-thresholds",
+        help="YORP physical-regime threshold constants",
+        description=(
+            "Returns the bifurcation-threshold constants for the\n"
+            "small-body YORP sequence: rotational-fission limit\n"
+            "(~2.2 h), observability diameter (~30 km), YORP\n"
+            "obliquity attractors (~55 deg + ~125 deg)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    yat.set_defaults(func=_cmd_yorp_attractor_thresholds)
+
+    # yarkovsky-yorps
+    yys = sub.add_parser(
+        "yarkovsky-yorps",
+        help="Full Yarkovsky/YORP catalog enumeration",
+        description=(
+            "Returns every asteroid's YarkovskyYorpEntry record +\n"
+            "the citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    yys.set_defaults(func=_cmd_yarkovsky_yorps)
 
     # lunar-kernels
     lk = sub.add_parser(
