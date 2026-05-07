@@ -236,6 +236,11 @@ from ephemerides_spectral._research.luna_dynamical_spectrum_catalog import (
     get_luna_saros_commensurability as _get_luna_saros_commensurability_impl,
     list_luna_dynamical_spectrum as _list_luna_dynamical_spectrum_impl,
 )
+from ephemerides_spectral._research.mars_dynamical_spectrum_catalog import (
+    get_mars_dynamical_spectrum as _get_mars_dynamical_spectrum_impl,
+    get_mars_secular_resonance_overlap as _get_mars_secular_resonance_overlap_impl,
+    list_mars_dynamical_spectrum as _list_mars_dynamical_spectrum_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4215,6 +4220,65 @@ def get_luna_saros_commensurability() -> Dict[str, Any]:
 def list_luna_dynamical_spectrum() -> Dict[str, Any]:
     """Full enumeration of Luna dynamical-spectrum data + citations."""
     return _list_luna_dynamical_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.2 — Mars Dynamical Spectrum
+# (third per-body dynamical-spectrum surface; the contrast case to
+# Mercury and Luna -- canonical CHAOTIC dynamics in the Solar System;
+# secular-resonance overlap drives obliquity wandering 0-60 deg over
+# Gyr. The KAM-theory small-denominator failure mode in observable
+# form -- Laskar 1993/2004 + Touma-Wisdom 1993 lineage.)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_mars_dynamical_spectrum() -> Dict[str, Any]:
+    """Mars's full action-angle dynamical-mode catalog.
+
+    Third per-body dynamical-spectrum surface. Mars is the
+    **contrast case** to Mercury (clean Le Verrier closure) and
+    Luna (clean Saros commensurability): the canonical chaotic-
+    dynamics example.
+
+    Headlines:
+      * **Chaotic obliquity** — present 25.19°, Gyr excursion ~0°-60°
+        (Laskar et al. 2004), mean ~37.6°.
+      * **No spin-orbit lock** — rotationally free unlike Mercury/Luna.
+      * **C/MR² = 0.3645 ± 0.0005** — Le Maistre 2023 InSight RISE.
+      * **Spin-axis precession 171 kyr** — Ward 1973; this is the
+        chaos-driver mode whose frequency overlaps with inner-Solar-
+        System secular fundamentals.
+    """
+    return _get_mars_dynamical_spectrum_impl()
+
+
+def get_mars_secular_resonance_overlap() -> Dict[str, Any]:
+    """Mars secular-resonance overlap — THE chaos-driver headline.
+
+    Where Mercury's v0.24.0 closure was a successful sum and Luna's
+    v0.24.1 closure was a successful integer commensurability,
+    Mars's v0.24.2 "closure" is a **failure mode**: the proximity of
+    Mars's spin-axis precession frequency to the inner-Solar-System
+    secular fundamentals s₃, s₄, ... drives the action-angle torus
+    structure to break down on Gyr timescales — chaos.
+
+    This is the **observable signature of KAM-theory small-
+    denominator failure** in our Solar System. Laskar 1993 / 2004
+    / 2008 numerical secular integrations established the quantitative
+    framework; Touma & Wisdom 1993 gave independent confirmation
+    via direct N-body integration.
+
+    Cross-channel: without Earth's stabilising Moon (v0.24.1 LLR-
+    constrained), Earth's obliquity would be subject to similar
+    chaos. The Moon's tidal-stabilisation role is therefore
+    load-bearing for long-term climate predictability.
+    """
+    return _get_mars_secular_resonance_overlap_impl()
+
+
+def list_mars_dynamical_spectrum() -> Dict[str, Any]:
+    """Full enumeration of Mars dynamical-spectrum data + citations."""
+    return _list_mars_dynamical_spectrum_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

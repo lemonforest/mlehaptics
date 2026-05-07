@@ -875,6 +875,29 @@ def _cmd_luna_dynamical_spectrum_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.2 — Mars Dynamical Spectrum CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_mars_dynamical_spectrum(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_mars_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
+def _cmd_mars_secular_resonance_overlap(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_mars_secular_resonance_overlap(), pretty=args.pretty,
+    )
+
+
+def _cmd_mars_dynamical_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_mars_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -3968,6 +3991,72 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ldsf.set_defaults(func=_cmd_luna_dynamical_spectrum_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.2 — Mars Dynamical Spectrum (chaotic obliquity / Laskar)
+    # ──────────────────────────────────────────────────────────────────
+
+    # mars-dynamical-spectrum
+    mads = sub.add_parser(
+        "mars-dynamical-spectrum",
+        help="Mars's full action-angle dynamical-mode catalog (chaos contrast case)",
+        description=(
+            "v0.24.2 -- third per-body dynamical-spectrum surface.\n"
+            "Mars is the CONTRAST case to Mercury (clean Le Verrier\n"
+            "closure) and Luna (clean Saros commensurability): the\n"
+            "canonical chaotic-dynamics example in the Solar System.\n"
+            "\n"
+            "8-mode catalog (5 angles + 3 actions): orbital mean\n"
+            "motion, spin frequency (no spin-orbit lock), spin-axis\n"
+            "precession (~171 kyr -- the chaos-driver), apsidal +\n"
+            "nodal precession, eccentricity, inclination, OBLIQUITY\n"
+            "(present 25.19 deg, Gyr excursion 0-60 deg per Laskar 2004).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral mars-dynamical-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mads.set_defaults(func=_cmd_mars_dynamical_spectrum)
+
+    # mars-secular-resonance-overlap (THE headline)
+    msro = sub.add_parser(
+        "mars-secular-resonance-overlap",
+        help="Mars secular-resonance overlap (the chaos driver)",
+        description=(
+            "v0.24.2 headline. Mars's spin-axis precession frequency\n"
+            "(~7.58 arcsec/yr) overlaps with inner-Solar-System\n"
+            "secular orbital fundamentals s_3 (~-18.86) and s_4\n"
+            "(~-17.74 arcsec/yr). The overlap drives chaotic\n"
+            "obliquity wandering on Gyr timescales (Laskar 1993/2004;\n"
+            "Touma-Wisdom 1993).\n"
+            "\n"
+            "This is the OBSERVABLE SIGNATURE of KAM-theory small-\n"
+            "denominator failure in our Solar System -- the regime\n"
+            "where the action-angle quasi-periodic torus structure\n"
+            "breaks down.\n"
+            "\n"
+            "Cross-channel: without Earth's stabilising Moon (v0.24.1\n"
+            "LLR-constrained), Earth would be subject to similar chaos.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral mars-secular-resonance-overlap --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    msro.set_defaults(func=_cmd_mars_secular_resonance_overlap)
+
+    # mars-dynamical-spectrum-full
+    madsf = sub.add_parser(
+        "mars-dynamical-spectrum-full",
+        help="Full Mars dynamical-spectrum enumeration (modes + resonances + citations)",
+        description=(
+            "Returns all dynamical modes + secular resonances +\n"
+            "citation dict so consumers can verify the provenance."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    madsf.set_defaults(func=_cmd_mars_dynamical_spectrum_full)
 
     # lunar-kernels
     lk = sub.add_parser(

@@ -156,6 +156,14 @@
       "sha256": "9fa7403ff3100f27bf734f5b214be7e8b2ba16955f320109ae6f02a3f9d41dc4",
       "size_bytes": 26703
     },
+    "_research/mars_dynamical_spectrum_catalog.py": {
+      "sha256": "ff612978abe297f691bf5c3c43f728080a5cbe4edc2b82d074e5f8881015151e",
+      "size_bytes": 8715
+    },
+    "_research/mars_dynamical_spectrum_data.py": {
+      "sha256": "2a0a516d0fa38766f3987fc7032bb5bdb9f1830de9b6460868630f8a793f4fa2",
+      "size_bytes": 18121
+    },
     "_research/mercury_dynamical_spectrum_catalog.py": {
       "sha256": "76a1581ab6eb02afafba1db64c962f1e3fc8dae0b1ae9a35fc394ffbfded5a33",
       "size_bytes": 9312
@@ -246,5 +254,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.0"
+  "version": "0.24.1"
 }

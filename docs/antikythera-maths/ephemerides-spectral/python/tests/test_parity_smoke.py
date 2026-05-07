@@ -468,6 +468,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.2 Sol Mars Dynamical Spectrum (third per-body
+    # dynamical-spectrum surface; the contrast case to Mercury and
+    # Luna -- chaotic obliquity via secular-resonance overlap;
+    # observable signature of KAM-theory small-denominator failure).
+    # Pure-Python static lookup; no C twin makes sense.
+    "get_mars_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_mars_secular_resonance_overlap": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_mars_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
