@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gmrt.bathymetry_grid_row.v1",
+  "title": "GMRT bathymetry grid row",
+  "description": "One row from a GMRT GridServer ESRI ASCII Grid response. Each row carries the row index within the requested bounding box and the serialised string of elevations for that row (space-separated; metres above the WGS-84 ellipsoid; negative for below sea level).",
+  "type": "object",
+  "required": ["row_index", "elevation_string"],
+  "additionalProperties": true,
+  "properties": {
+    "row_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0-based row index within the requested bounding box."
+    },
+    "elevation_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Space-separated elevation values for this row (metres). Parsed lazily by downstream consumers to avoid per-cell row inflation in the NDJSON file."
+    }
+  }
+}

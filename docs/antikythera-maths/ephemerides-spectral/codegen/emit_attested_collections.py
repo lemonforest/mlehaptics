@@ -49,8 +49,17 @@ def emit() -> List[Path]:
         rel = src.relative_to(ATTESTED_SRC)
         dst = ATTESTED_DST / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        # Byte-exact: no read-modify-write; no LF normalisation.
-        dst.write_bytes(src.read_bytes())
+        # NDJSON files must stay byte-exact: per-row attestation
+        # blocks carry response_sha256 computed at fetch time over
+        # upstream bytes; LF↔CRLF conversion would silently
+        # invalidate every row's attestation. For other text files
+        # (TOML descriptors, JSON Schemas, __init__.py) we normalise
+        # CRLF→LF so manifest SHA-256s are stable across platforms
+        # regardless of the source-of-truth file's checkout EOL.
+        raw = src.read_bytes()
+        if src.suffix != ".ndjson":
+            raw = raw.replace(b"\r\n", b"\n")
+        dst.write_bytes(raw)
         written.append(dst)
 
     return written

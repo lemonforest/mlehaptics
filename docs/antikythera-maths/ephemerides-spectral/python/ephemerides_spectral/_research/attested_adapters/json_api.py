@@ -20,17 +20,106 @@ ADAPTER_NAME = "json_api"
 
 
 def fetch(descriptor: Descriptor) -> Iterator[bytes]:
-    """Fetch upstream JSON pages. Real impl ships in v0.25.0b."""
+    """Fetch upstream JSON pages.
+
+    Honours ``[fetch].endpoint``, ``[fetch].query_params``, and
+    ``[fetch].pagination`` (``type = "page_query" | "offset_limit"``).
+    Pagination terminates when an empty page is returned (page_query)
+    or when ``next_offset`` is None (offset_limit, server-driven).
+    """
     try:
         import requests
     except ImportError as exc:
         raise _base.AdapterError(
             "json_api requires the `collector` optional dependency"
         ) from exc
+
+    import time
+
+    endpoint_template = str(descriptor.fetch["endpoint"])
+    query_params = dict(descriptor.fetch.get("query_params", {}))
+    headers = {
+        "User-Agent": (
+            "ephemerides-spectral attested-collector "
+            "(github.com/lemonforest/mlehaptics)"
+        ),
+        "Accept": "application/json",
+    }
+    timeout_s = float(descriptor.fetch.get("timeout_s", 60.0))
+    rate_limit_rps = float(descriptor.fetch.get("rate_limit_rps", 1.0))
+    delay_s = 1.0 / rate_limit_rps if rate_limit_rps > 0 else 0.0
+
+    pagination = dict(descriptor.fetch.get("pagination", {}))
+    pag_type = pagination.get("type")
+
+    if pag_type is None:
+        url = endpoint_template.format(**query_params) if query_params else endpoint_template
+        response = requests.get(url, headers=headers, timeout=timeout_s)
+        response.raise_for_status()
+        yield response.content
+        return
+
+    if pag_type == "page_query":
+        page = int(pagination.get("start", 1))
+        # Detect end via empty results array at records_path.
+        records_path = str(descriptor.parse.get("records_path", ""))
+        while True:
+            ctx = {**query_params, "page": page}
+            url = endpoint_template.format(**ctx)
+            response = requests.get(url, headers=headers, timeout=timeout_s)
+            if response.status_code == 404:
+                break
+            response.raise_for_status()
+            body = response.content
+            if _has_records(body, records_path):
+                yield body
+            else:
+                break
+            page += 1
+            if delay_s > 0:
+                time.sleep(delay_s)
+        return
+
+    if pag_type == "offset_limit":
+        offset = int(pagination.get("start_offset", 0))
+        page_size = int(pagination.get("page_size", 100))
+        records_path = str(descriptor.parse.get("records_path", ""))
+        while True:
+            ctx = {**query_params, "offset": offset, "limit": page_size}
+            url = endpoint_template.format(**ctx)
+            response = requests.get(url, headers=headers, timeout=timeout_s)
+            if response.status_code == 404:
+                break
+            response.raise_for_status()
+            body = response.content
+            if not _has_records(body, records_path):
+                break
+            yield body
+            offset += page_size
+            if delay_s > 0:
+                time.sleep(delay_s)
+        return
+
     raise _base.AdapterError(
-        "json_api.fetch live impl ships in v0.25.0b; v0.25.0a "
-        "uses fixture data via the bootstrap path"
+        f"json_api: unknown pagination type {pag_type!r}; "
+        f"supported: page_query, offset_limit, or omit for single-shot"
     )
+
+
+def _has_records(body: bytes, records_path: str) -> bool:
+    """Return True if the response body contains at least one record
+    at the configured records_path. Used to detect end-of-pagination."""
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    cursor: Any = payload
+    if records_path:
+        for part in records_path.split("."):
+            if not isinstance(cursor, dict):
+                return False
+            cursor = cursor.get(part)
+    return bool(cursor) if isinstance(cursor, list) else False
 
 
 def parse(

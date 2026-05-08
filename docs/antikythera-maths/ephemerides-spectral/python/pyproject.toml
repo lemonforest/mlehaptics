@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.24.12"
+version = "0.25.0"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -45,6 +45,18 @@ dependencies = ["numpy>=1.24"]
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
 tests      = ["pytest>=7.0"]
+# v0.25.0+ — Attested Multi-Source Collector framework. Build/codegen-
+# time tooling for the T1 collect workflow; runtime read paths
+# (loading committed NDJSON via bridge.get_attested_dataset etc.)
+# never need these. Each adapter module imports its dependencies
+# lazily inside fetch/parse so missing extras don't break import.
+collector         = ["requests>=2.28", "beautifulsoup4>=4.11", "tomli>=2.0; python_version<'3.11'", "jsonschema>=4.0"]
+# Future-deferred. The netcdf_grid + geotiff_bbox adapters ship as
+# fixture-only stubs in v0.25.0; the real impls land when a
+# downstream consumer's question concretely needs gridded reanalysis
+# / raster tiles as ground-proof rows.
+collector-netcdf  = ["netCDF4>=1.6"]
+collector-geotiff = ["rasterio>=1.3"]
 
 [project.urls]
 Homepage      = "https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/ephemerides-spectral/"

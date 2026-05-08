@@ -1,0 +1,80 @@
+# Global Multi-Resolution Topography (GMRT) — pilot source for v0.25.0b.
+#
+# GMRT is a community-maintained, well-attributed global elevation
+# / bathymetry compilation curated at Lamont-Doherty Earth
+# Observatory. It feeds v0.24.5 Hawaii / v0.24.7 Mars Tharsis
+# bounded-local-Laplacian spatial-grid ground-proof regimes.
+#
+# v0.25.0b uses GMRT's GridServer ESRI ASCII Grid output to keep
+# the pilot inside the lighter `csv_bulk` adapter (no rasterio /
+# gdal dependency stack). Future ships may add an alternative
+# pipeline using netcdf_grid / geotiff_bbox if higher-resolution
+# raster work justifies the dep cost.
+
+[source]
+key = "gmrt"
+human_readable_name = "Global Multi-Resolution Topography (GMRT)"
+purpose = "ground-proof bathymetry / topography rows for hotspot-track + bounded-local-Laplacian regimes (v0.24.5 / v0.24.7)"
+license = "CC-BY-4.0"
+homepage = "https://www.gmrt.org/"
+canonical_doi = "10.1029/2008GC002332"
+
+[fetch]
+adapter = "csv_bulk"
+# GMRT GridServer endpoint — returns ESRI ASCII Grid raster for the
+# requested bounding box at the requested resolution. ESRI ASCII
+# Grid is a header-then-rows text format the csv_bulk adapter parses
+# row-by-row (one elevation cell per logical row in the file).
+#
+# v0.25.0b sample: a small bounding box around the Big Island
+# of Hawaii at low resolution (~10 km grid spacing) to keep first-
+# T1 runs lightweight; full-coverage and higher-resolution sweeps
+# land in future patch ships.
+endpoint = "https://www.gmrt.org/services/GridServer?north=20.5&south=18.5&west=-156.5&east=-154.5&format=esriascii&resolution=low"
+rate_limit_rps = 0.5
+robots_txt_compliant = true
+timeout_s = 90.0
+
+[parse]
+# ESRI ASCII Grid: 6 header lines (ncols / nrows / xllcorner /
+# yllcorner / cellsize / NODATA_value) then space-separated rows
+# of elevations. The csv_bulk adapter's parser is row-based; for
+# this pilot we use a delimiter-aware parse that treats each grid
+# row as a single record with a serialised value string + the
+# row's geographic offset.
+delimiter = " "
+has_header = false
+header_lines_to_skip = 6
+field_map = [
+    { canonical = "row_index",       column_index = 0, type = "int"    },
+    { canonical = "elevation_string", column_index = 1, type = "string" },
+]
+
+[schema]
+data_schema_id = "gmrt.bathymetry_grid_row.v1"
+data_schema_path = "bathymetry.schema.json"
+
+[rendering]
+cite_as_template = "Global Multi-Resolution Topography (Ryan et al. 2009, doi:10.1029/2008GC002332); retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof bathymetry-grid row for {schema.regime_label} regime"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+regime_labels = [
+    "bounded_local_laplacian_trajectory",
+    "bounded_local_laplacian_family",
+]
