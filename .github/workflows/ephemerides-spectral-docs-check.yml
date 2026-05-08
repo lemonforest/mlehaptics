@@ -26,6 +26,18 @@ name: ephemerides-spectral-docs-check
 #   * c/src/*.c, c/include/*.h — expect CHANGELOG (package + project)
 #       + parity smoke / native parity tests touched
 #
+# Content-staleness check (runs unconditionally, regardless of touch):
+#   * Stale `Status: vX.Y.Z` banner detection — extracts the first
+#       `Status: vX.Y.Z` line from python/README.md and the research
+#       notebook, compares against `version.py`'s __version__. The
+#       touch-based categories above can't catch this: the notebook
+#       gets touched on every ship (we add §4 release-history
+#       entries) so touch-based detection sees "notebook touched"
+#       and calls the case clean — while the line-5 status banner
+#       can drift by ~6 ships' worth of versions before anyone
+#       reads readthedocs.io and notices. Surfaces as a finding
+#       with a diagnostic body explaining the gap.
+#
 # Opt-out: include the literal string `[skip-docs-check]` anywhere in
 # the PR body to silence the warning. Use this for trivial typos /
 # whitespace / cosmetic-only diffs that don't warrant doc churn.
@@ -141,11 +153,13 @@ jobs:
           set -euo pipefail
           python3 <<'PY' > /tmp/advisory.md
           import os
+          import re
           import sys
           from pathlib import Path
 
           PKG_DIR = "docs/antikythera-maths/ephemerides-spectral"
           NOTEBOOK = "docs/antikythera-maths/ephemerides_spectral_research_notebook.md"
+          VERSION_PY = f"{PKG_DIR}/python/ephemerides_spectral/version.py"
 
           # The five documentation files we watch as the SSOT surface.
           DOC_FILES = {
@@ -275,6 +289,85 @@ jobs:
                       c_evidence,
                   ))
 
+          # ── CONTENT-STALENESS check: detect stale `Status: vX.Y.Z`
+          # banners in known-stale-prone docs.
+          #
+          # The categories above are TOUCH-based — they ask "did the
+          # PR touch the docs we expect to move with this code-side
+          # change?" That misses the failure mode where a doc was
+          # touched (e.g. notebook §4 release-history entry added)
+          # but a *different region* of the doc (the Status banner
+          # at the top) was left stale. The v0.19.0 → v0.24.10
+          # banner staleness in the notebook was a real instance:
+          # every v0.24.x ship touched the notebook (added §4 entry)
+          # so touch-based detection saw "notebook touched" and
+          # called the case clean — while the line-5 banner stayed
+          # frozen at v0.19.0 across ~6 ships' worth of releases,
+          # surfacing as the live readthedocs.io rendering still
+          # claiming v0.19.0.
+          #
+          # This check runs unconditionally (cheap; just a regex
+          # parse of two files). For each banner-bearing file, we
+          # extract the first `Status: vX.Y.Z` and compare against
+          # `version.py`'s __version__. Mismatches surface as
+          # findings with a diagnostic body explaining what to fix.
+          STATUS_BANNER_PATTERN = re.compile(
+              r"\bStatus[:\s\*]+v(\d+\.\d+\.\d+)"
+          )
+          VERSION_PY_PATTERN = re.compile(
+              r'__version__\s*[:=].*["\'](\d+\.\d+\.\d+)["\']'
+          )
+
+          banner_files_to_check = {
+              "notebook": NOTEBOOK,
+              "package_readme": f"{PKG_DIR}/python/README.md",
+          }
+
+          expected_version = None
+          vp = Path(VERSION_PY)
+          if vp.exists():
+              vp_match = VERSION_PY_PATTERN.search(
+                  vp.read_text(encoding="utf-8", errors="ignore")
+              )
+              if vp_match:
+                  expected_version = vp_match.group(1)
+
+          if expected_version is not None:
+              for banner_key, banner_path in banner_files_to_check.items():
+                  bp = Path(banner_path)
+                  if not bp.exists():
+                      continue
+                  body = bp.read_text(encoding="utf-8", errors="ignore")
+                  banner_match = STATUS_BANNER_PATTERN.search(body)
+                  if banner_match is None:
+                      # File doesn't have a Status: vX.Y.Z line — maybe
+                      # the banner format was deliberately changed.
+                      # Don't false-alarm; just skip the check.
+                      continue
+                  found = banner_match.group(1)
+                  if found != expected_version:
+                      label = DOC_LABELS[banner_key]
+                      findings.append((
+                          f"Stale `Status:` banner in {label} "
+                          f"(says v{found}, version.py says v{expected_version})",
+                          set(),
+                          set(),
+                          [banner_path],
+                          (
+                              f"`{banner_path}` contains `Status: v{found}` "
+                              f"near the top of the file, but `version.py` is "
+                              f"at `v{expected_version}`. The "
+                              f"readthedocs.io rendering currently displays "
+                              f"the stale banner. Bump the inline version "
+                              f"before merge (any historical-context "
+                              f"blockquote can stay verbatim). The "
+                              f"detection regex is `\\bStatus[:\\s\\*]+v"
+                              f"(\\d+\\.\\d+\\.\\d+)` — refactoring the "
+                              f"banner format to bypass that pattern will "
+                              f"silently disable this check."
+                          ),
+                      ))
+
           # ── Build advisory.
           if not findings:
               # Nothing to say. Emit an empty placeholder so downstream
@@ -293,8 +386,30 @@ jobs:
           print()
           print("### Drift detected")
           print()
-          for name, expected, missing, evidence in findings:
+          for finding in findings:
+              # Each finding is (name, expected, missing, evidence) for
+              # the touch-based categories, OR a 5-tuple with an extra
+              # `diagnostic` body string for content-staleness findings
+              # (stale-banner class). Extract by index so the touch-
+              # based 4-tuples stay backwards-compat.
+              name = finding[0]
+              expected = finding[1]
+              missing = finding[2]
+              evidence = finding[3]
+              diagnostic = finding[4] if len(finding) > 4 else None
+
               print(f"**{name}**")
+
+              # Content-staleness findings carry their full diagnostic
+              # message in the 5th element. Render it directly under
+              # the name (no "Touched files:" / "Expected to see"
+              # boilerplate, which doesn't apply to staleness findings).
+              if diagnostic is not None:
+                  print()
+                  print(diagnostic)
+                  print()
+                  continue
+
               if evidence:
                   print()
                   print("Touched files:")
