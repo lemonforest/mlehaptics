@@ -1,0 +1,13 @@
+# MFO research/results subtrees must be byte-identical across platforms.
+# The Python scripts in research-mfo/ open their JSON output with
+# newline="\n" (LF) for cross-platform reproducibility. Pin LF endings here
+# so Windows checkouts don't autocrlf them back to CRLF, which would
+# defeat the byte-stable regeneration discipline.
+
+research-mfo/*.py    text eol=lf
+research-mfo/*.md    text eol=lf
+results-mfo/*.json   text eol=lf
+
+# The MFO notebook itself is also text; LF on every platform for diff
+# stability across Linux / macOS / Windows authoring.
+mfo_spectral_research_notebook.md  text eol=lf

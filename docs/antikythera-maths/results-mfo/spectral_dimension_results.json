@@ -1,0 +1,98 @@
+{
+  "dimensional_flow_approaches": {
+    "CDT (Ambjorn-Jurkiewicz-Loll 2005)": {
+      "UV": 1.8,
+      "IR": 4.02,
+      "flow": "smooth, monotonic",
+      "note": "Numerically computed from Monte Carlo simulations of causal triangulations"
+    },
+    "Asymptotic Safety (Lauscher-Reuter 2005)": {
+      "UV": 2.0,
+      "IR": 4.0,
+      "flow": "smooth, from anomalous scaling at UV fixed point",
+      "note": "d_S = 2d/(2+d) at UV fixed point, giving d_S=2 for d=4"
+    },
+    "Horava-Lifshitz (Horava 2009)": {
+      "UV": 2.0,
+      "IR": 4.0,
+      "flow": "controlled by anisotropy exponent z",
+      "note": "d_S = 1 + d/z, giving d_S=2 for d=3, z=3"
+    },
+    "Loop Quantum Gravity (Modesto 2009)": {
+      "UV": 2.0,
+      "IR": 4.0,
+      "flow": "derived from area gap in LQG",
+      "note": "Uses effective metric from LQG area spectrum"
+    },
+    "Causal Sets (Carlip 2015)": {
+      "UV": 2.0,
+      "IR": 4.0,
+      "flow": "from sprinkling density on causal sets",
+      "note": "Discrete structure naturally gives dimensional reduction"
+    },
+    "Noncommutative Geometry (Benedetti 2009)": {
+      "UV": 2.0,
+      "IR": 4.0,
+      "flow": "from noncommutative \u03ba-Minkowski spacetime",
+      "note": "Deformed dispersion relation gives scale-dependent dimension"
+    },
+    "Multifractional (Calcagni 2010-2017)": {
+      "UV": "model-dependent (1-3)",
+      "IR": 4.0,
+      "flow": "controlled by fractional exponents in measure",
+      "note": "Most developed phenomenology; strongest observational constraints"
+    },
+    "String Theory (Atick-Witten 1988)": {
+      "UV": 2.0,
+      "IR": "10 or 11",
+      "flow": "from Hagedorn temperature / T-duality",
+      "note": "High-energy density of states grows like d_eff=2"
+    }
+  },
+  "framework_flow": {
+    "UV_limit": 2,
+    "IR_limit": 4,
+    "peak_scale": "intermediate (~100-1000 \u00d7 Planck length)",
+    "peak_dimension": "6-8 (anisotropic fractal, not all channels equal)",
+    "shape": "non-monotonic with single peak",
+    "distinguishing_feature": "non-monotonic flow distinguishes framework from CDT and KK"
+  },
+  "unique_predictions": [
+    {
+      "name": "Non-monotonic spectral dimension flow",
+      "description": "Unlike CDT (monotonic 2\u21924) or KK (monotonic 4\u219211), the framework predicts d_S flows 2\u2192peak\u21924 with a peak at intermediate scales where fractal fine structure is maximally resolved.",
+      "test": "Could be measured in analog systems (metamaterial waveguides with designed fractal geometry) or constrained by precision particle physics at multiple energy scales.",
+      "status": "Novel prediction \u2014 no other framework predicts this"
+    },
+    {
+      "name": "Particle spectrum from dimensional flow profile",
+      "description": "The particle mass spectrum should be readable from the shape of the d_S(\u03c3) flow profile. Each bump or feature in the dimensional flow corresponds to a new waveguide channel opening up, and the mass of the associated particle is determined by the scale of that feature.",
+      "test": "Compute d_S(\u03c3) on candidate fractal geometries and check whether features in the flow correspond to observed particle masses.",
+      "status": "Requires computation on specific fractal models"
+    },
+    {
+      "name": "Three generations from three-fold fractal self-similarity",
+      "description": "If the metric field's geometry has 3-fold self-similarity, the d_S(\u03c3) profile should show 3 self-similar features at 3 different scales, each producing one generation of fermions.",
+      "test": "Compute d_S(\u03c3) on the Sierpinski gasket and check for 3 self-similar features. Compare their spacing to the generational mass ratios.",
+      "status": "Computable now"
+    },
+    {
+      "name": "Dark energy from dimensional flow at cosmological scales",
+      "description": "If the spectral dimension is still flowing slightly at cosmological scales (d_S not exactly 4.000...), this would appear as a scale-dependent vacuum energy \u2014 i.e., dynamical dark energy.",
+      "test": "DESI measurements of w(z) should show specific features if dimensional flow is ongoing at cosmological scales.",
+      "status": "Potentially testable with current DESI data"
+    },
+    {
+      "name": "Mode-dependent cosmological redshift",
+      "description": "If spatial and internal dimensions are the same fractal at different scales, different field modes (EM, gravity, neutrinos) probe slightly different effective dimensions. This would cause mode-dependent redshift corrections at cosmological distances.",
+      "test": "Multi-messenger astronomy: compare redshifts of EM radiation, gravitational waves, and neutrinos from the same source at high z. Einstein Telescope, LISA, and IceCube could test this.",
+      "status": "Requires next-generation multi-messenger observations"
+    },
+    {
+      "name": "Fractal waveguide analog experiments",
+      "description": "The framework's predictions about dimensional flow, mode selection, and chirality can be tested in engineered metamaterial waveguides with fractal cross-sections.",
+      "test": "Build waveguides with Sierpinski-gasket cross-sections. Measure the mode spectrum and compare with fractal Laplacian eigenvalues. Test whether asymmetric fractal geometries produce chiral mode selection.",
+      "status": "Could be done with current metamaterial technology"
+    }
+  ]
+}

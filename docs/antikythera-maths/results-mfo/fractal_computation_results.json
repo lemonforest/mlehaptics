@@ -1,0 +1,34 @@
+{
+  "sg_spectral_dimension": 1.3652123889719707,
+  "sm_mass_sq_ratios": {
+    "electron": 1.0,
+    "up": 18.53546823120317,
+    "down": 84.59679612133841,
+    "strange": 34562.52082367946,
+    "muon": 42786.63914430476,
+    "charm": 6225562.095733397,
+    "tau": 12092972.223605148,
+    "bottom": 66913040.314643405,
+    "top": 114617361299.93379
+  },
+  "generation_mass_ratios": {
+    "leptons": {
+      "mu_over_e": 206.84931506849318,
+      "tau_over_mu": 16.81173131504257
+    },
+    "up_quarks": {
+      "c_over_u": 579.5454545454545,
+      "t_over_c": 135.68627450980392
+    },
+    "down_quarks": {
+      "s_over_d": 20.21276595744681,
+      "b_over_s": 44.0
+    }
+  },
+  "chirality_dissolution": {
+    "statement": "Fractal internal geometry bypasses Atiyah-Hirzebruch no-go theorem",
+    "reason": "Fractals are not smooth manifolds; theorem's hypotheses fail",
+    "bonus": "Localized eigenfunctions and self-similar structure may naturally produce chirality and generation structure"
+  },
+  "three_generations_from_three_fold_symmetry": true
+}

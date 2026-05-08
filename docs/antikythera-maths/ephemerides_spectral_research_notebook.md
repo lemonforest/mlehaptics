@@ -8,7 +8,7 @@
 >
 > ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
 >
-> **This notebook is the active ephemerides-spectral notebook**; future ephemerides framework additions land here. For sister notebooks (chess-spectral, chess-spectral-4d, antikythera-spectral, doom-spectral, othello-spectral, logo) and any new sister projects, the RTD landing is the canonical index — those notebooks are snapshots and will not be back-ported into; new framework developments are recorded here and pointed to from the RTD landing.
+> **This notebook is the active ephemerides-spectral notebook**; future ephemerides framework additions land here. For sister notebooks (chess-spectral, chess-spectral-4d, antikythera-spectral, doom-spectral, othello-spectral, logo, mfo-spectral) and any new sister projects, the RTD landing is the canonical index — those notebooks are snapshots and will not be back-ported into; new framework developments are recorded here and pointed to from the RTD landing.
 
 **Brief shape-of-the-project snapshot (as of v0.26.0):**
 
@@ -26,6 +26,8 @@
   * **dynamical-regime classifier** — eigenbasis-projection meta-consumer that treats the v0.24.0–v0.24.8 ships themselves as ground-proof rows (v0.24.9; the classifier's "training step" is `np.linalg.eigh` — closed-form, deterministic, byte-identical, no SGD anywhere);
   * **OOS probe roster + classifier calibration-ratio metric** — surfaces the latent diagnostic that the v0.24.9 classifier exposes through `distances_to_all` but doesn't summarise (v0.24.10).
 * **Live on PyPI**: `pip install ephemerides-spectral`.
+* **Foundational-ontology sister-notebook (May 2026)**: [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**, *one candidate* foundational-ontology framing hosted in the project (cavity-instrument analogy for matter; fractal metric field; ~11D dimensional structure motivated independently from gauge-group + spectral requirements). **Not the project's endorsed answer over alternatives.** Cited from §20.2.1 / §20.4.0 / §20.7 as a worked example of "matter modelled as some kind of excitation" — §20 does not pick a spatial-structure side and treats the current modelling stance as provisional (FFT-untruncation framing, §20.4.0). Future MPM target.
+* **§20 + §21 — the symmetric MPM screening sections**: §20 names the *producer-side* screening failure (orphan-from-instrument; string-theory critique through the MPM lens); **§21** names the *evaluator-side* screening failure (rejection-by-tool-of-creation; banning the use of a tool is the mark of a fool). Both fail for the same reason — judging by surface markers instead of by reproducible content. §21 anchors the principle on the historical precedent of the orbital-mechanics chain DE441 traces back to (Copernicus / Bruno / Galileo / Kepler — every one suppressed in their time, every one now load-bearing in the framework this project consumes); §21.3 names the **disability-accommodation dimension** explicitly (categorical tool bans — calculators, screen readers, voice dictation, AI assistance — function as participation barriers for contributors who depend on those tools, including those with aphantasia, ADHD, dyslexia, motor disabilities, and many other cognitive and physical variations); §21.5 documents the four-screen discipline this project applies to its own contribution gate.
 
 **Original (frozen) v0.19.0 status banner** (preserved for historical context):
 
@@ -2814,11 +2816,32 @@ Every observable resonance the project has catalogued — gravitational, electro
 
 String theory's foundational object — a 1-D extended object vibrating in N-dimensional spacetime — is, methodologically, **a string attached to nothing**. The framework asks: where in nature do we observe such a thing produce music or any noise? The answer, as far as this project's catalogues go, is nowhere. Every resonant phenomenon we have ground-proof for is a coupled system. That observation is not a disproof of string theory; it is the question MPM screens for first, before any predictions are evaluated.
 
-### 20.2 Counterfactual mathematical truths and compensating physics
+### 20.2 The signature is ontological, not dimensional — narrowing the audit
 
-A pattern this notebook documents repeatedly (§0.0; the Inkscape `gemini_failure_mode.md` precedent) is the failure mode where mathematics that looks rigorous is *vocabulary-matched* to physics rather than *grounded* in physics. The marker is **compensating new physics** — every time the orphan-from-an-instrument framing produces a deficit, additional structure is invented to close the gap. String theory's compensating apparatus is large: 10- or 11-dimensional spacetime; supersymmetry; Calabi-Yau compactification; multiple dualities; the landscape of ~10^500 vacua. Each addition is internally consistent. None is observed.
+#### 20.2.0 MPM self-correction note (2026-05-08, mid-revision)
 
-The MPM stance is not "this is wrong" — it is "this is the pattern that emerges when a system was extracted from its instrument and the resulting math is asked to recover the missing context." Every *counterfactual mathematical truth* (locally rigorous, globally orphaned from observation) the framework has encountered in adjacent work has had this signature. String theory's signature looks similar enough to be worth naming.
+An earlier version of this sub-section conflated two distinct observations that needed separating: (a) the orphan-from-instrument problem at the foundational object's *ontology*, and (b) the apparatus added on top of the foundational object. The original wrote *"String theory's compensating apparatus is large: 10- or 11-dimensional spacetime; supersymmetry; Calabi-Yau compactification; multiple dualities; the landscape of ~10^500 vacua. Each addition is internally consistent. None is observed,"* lumping extra dimensions together with everything else. That conflation was caught by the user during re-screening, and is wrong: **extra dimensions are not the issue.** This sub-section is rewritten below to narrow the audit to where it should land.
+
+Reference for the correction: the project's own **MFO (Metric Field Ontology)** sister-notebook, `mfo_spectral_research_notebook.md` (May 2026), derives ~11 dimensions *bottom-up* from the gauge-group requirements (Witten 1981 minimum for SU(3)×SU(2)×U(1) isometries; Nahm 1978 maximum consistent with a single graviton; Cremmer-Julia-Scherk 1978 uniqueness of 11D supergravity). MFO §III.5 names this "the 11-dimensional convergence" and treats the appearance of ~11 internal dimensions at intermediate scale as a *property* of the metric field's fractal spectral-dimension flow, not as compensation for a deficit. **Our framework agrees with extra dimensions; we live in a shadow projection of a higher-dimensional metric field whose fine structure gets coarse-grained out at large scales.** What the framework disagrees with is one specific ontological commitment — the orphan-from-instrument framing of the foundational object.
+
+#### 20.2.1 What's an MPM-flagged signature, and what isn't
+
+MFO §I.2 claim 2 makes the actual ontological distinction explicit: *"'Vibration' is the dynamic coupling between complementary geometric structures within the metric field, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply."* That is the same observation §20.1 made about the missing instrument, formalized.
+
+So the audit narrows. Of the apparatus around string theory:
+
+| Apparatus | MPM screen verdict |
+|---|---|
+| **Extra dimensions (10D / 11D)** | **Not flagged.** Triple-convergent bottom-up motivation (Witten 1981, Nahm 1978, Cremmer-Julia-Scherk 1978). MFO §III.5 derives the same ~11 from gauge-group requirements + fractal spectral flow. The framework has additional dimensions of its own; this is shared ground, not compensation for missing instrument. |
+| **Supersymmetry** | **Independently motivated.** Hierarchy / consistency arguments in the Standard Model exist whether or not strings exist. SUSY is a hypothesis under independent scrutiny; not part of the orphan-from-instrument signature. |
+| **Calabi-Yau compactification** | **Conditionally flagged.** As a mathematical structure, fine. As "the specific 6-manifold that recovers the SM spectrum from a string in isolation," it's the part of the apparatus that exists *because* the foundational object cannot, on its own, distinguish which compactification it lives in. MFO §IV.4 proposes fractal × gauge-coset product geometries as a parsimonious alternative. Audit: yes, this is compensation for the foundational object's lack of an instrument. |
+| **Dualities (T-, S-, U-, mirror)** | **Mostly mathematical observation.** The dualities themselves are real mathematical structures connecting different limits; they don't compensate for missing instrument. They become flagged only when used to argue "the landscape is fine, every choice is dual to every other," which is a separate epistemic move. |
+| **The landscape (~10^500 vacua)** | **Symptom, not cause.** The landscape is what happens when the foundational object is underconstrained — there's no instrument to pick which compactification is *the* one. This is where the orphan-from-instrument framing produces an actual deficit. MPM-flagged. |
+| **The static-string ontology itself** | **Flagged.** This is the original observation: a 1-D extended object vibrating in N-dimensional spacetime without coupling to any named instrument. The §20 critique lives here, not in the dimensional apparatus around it. |
+
+The pattern this notebook documents repeatedly (§0.0; the Inkscape `gemini_failure_mode.md` precedent) is mathematics that looks rigorous but is *vocabulary-matched* to physics rather than *grounded* in physics. The marker is *compensating new physics required by the foundational object's missing instrument*. After the correction above, the parts of string theory's apparatus that fit that marker are: the static-string ontology itself; the specific Calabi-Yau choice as compensation for the missing instrument; the landscape as symptom. Extra dimensions and SUSY land in different epistemic categories and should not be bundled into the same critique.
+
+The MPM stance is not "string theory is wrong." It is: **screen each part of the apparatus separately for whether it exists because the foundational object was extracted from any instrument, or for independent reasons.** Bundling them together overreaches; the previous version of this sub-section did exactly that, and the user caught it. The corrected screen lands more precisely.
 
 ### 20.3 The framework's alternative — graph-Laplacian eigenbasis IS the instrument
 
@@ -2835,13 +2858,22 @@ In every case the project ships byte-reproducible eigenbasis projections precise
 
 #### 20.4.0 MPM self-correction note (mid-revision)
 
-An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Two screens were missed in the original write-up:
+An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Three screens were missed in the original write-up:
 
 1. **Counterexample availability.** Bowed strings (violin, cello) and blown reeds / pipes (oboe, organ, brass) produce **genuine driven sustain** via continuous energy injection balanced against continuous dissipation. The ring-up + ring-down decomposition only describes **impulse-excited** systems (plucked, struck, single-pulse driven). Saying "all resonance is ring-up + ring-down" is a vocabulary-match to the user's specific phrasing, not a screened observation.
 
 2. **Project foundation availability.** The chess-spectral framework that this project descends from already explicitly names continuously-driven dynamical systems and irreversible-vs-reversible co-existence. Tasks `#99` (Kinematics module) and `#100` (Dynamics module) ported chess-spectral's `qm_*.py` and `qm_*_dynamics.py` machinery into ephemerides-spectral; both modules are first-class machinery for handling driven, dissipative, and irreversible regimes. The original §20.4 wrote as if the framework had no such tooling, which is materially wrong.
 
-The corrected sub-section below distinguishes three excitation regimes and shows the instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their instruments, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less. The user's broader §20 critique survives the refinement; my acceptance of the over-broad sub-claim did not.
+3. **MFO availability — as one candidate framing, not as endorsement** *(added 2026-05-08, refined 2026-05-08)*. The project's Metric Field Ontology sister-notebook (`mfo_spectral_research_notebook.md`, May 2026) makes a stronger spatial-structure claim — cavity-instrument geometry, fractal metric field, ~11D structure — at the foundational-ontology layer. **MFO is one candidate foundational-ontology framing hosted within the project. It is not the project's endorsed answer over alternatives** (strings, loops, branes, networks, or anything else). §20 cites MFO at three points (§20.2.1 / §20.4.0 / §20.7) as a *worked example* of "matter modelled as some kind of excitation, with the same maths used for instruments" — without picking a spatial-structure side.
+
+**Note on framing modesty.** §20.4 below is making a *modelling* claim, not a *spatial-structure* claim:
+
+- The load-bearing observation is that **all instruments are anharmonic because they need an excitation channel**. Without something to drive the math, nothing happens. This is a property of the modelling apparatus, not of any particular spatial structure.
+- If you model "the stuff around us" using the same mathematical machinery that you use to model instruments — Laplacian eigenbasis, Hamiltonian flow, KAM theory, Hatano-Nelson lattice dynamics, Nambu non-equilibrium thermodynamics — then certain features (excitation-dependent dynamics; the three regimes named in §20.4.1–§20.4.3) show up *regardless of which spatial-structure ontology you ultimately pick*.
+- The project does not claim that the universe **is** an instrument, that it **is** currently in any particular harmonic state, or that any specific spatial-structure choice (cavity, string, loop, fractal, brane, network) is correct. The claim is the modelling-equivalence one: **if you use the same maths, you see the same shapes**.
+- **The modelling stance itself is provisional — sort of like FFT untruncation.** Our current spectral reconstruction of "what stuff around us can be modelled as" is working from finite data and incomplete observations, which means it carries windowing artifacts. As the project tests, learns, and researches further — each new ground-proof row, each new MPM-screened catalogue, each new cross-channel coupling surface — the windowing narrows and the reconstruction gets closer to whatever the underlying structure actually is. The three regimes in §20.4.1–§20.4.3 are the current-best-screened modelling distinctions, not eternal categories; we expect them to be refined as the data widens.
+
+This modesty is what §20.4 below is doing. The three regimes (impulse + ring-down / driven sustain / driven with irreversibility) are dynamical-modelling distinctions that survive any spatial-structure choice and that the project expects to keep tuning. The instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their excitation channel, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less — but it does so without committing to any particular foundational ontology and without claiming the current model is final.
 
 References for the chess-spectral foundation that this sub-section now cites:
 
@@ -2912,7 +2944,7 @@ The framing does not require string theory to abandon its program. It does ask t
 
 1. **Acknowledge the missing instrument.** If the foundational object is a 1-D string vibrating in N-dimensional spacetime, name what couples it. If nothing couples it, name why nature is expected to behave differently from every observed instrument.
 2. **Account for source, sink, and irreversibility.** Every observed oscillation has both an excitation channel and a dissipation channel; some have a third, irreversibility-breaking channel that produces entropy (Regime C of §20.4). Plucked / struck systems pay their excitation up front and ring down; bowed / blown systems balance continuous source against continuous sink; chess-pawn-like systems do both AND break T-symmetry at the Hamiltonian level. If the strings of string theory have none of these — name the mechanism by which the math's eternal vibration makes contact with the world's observed energy balance.
-3. **Audit the compensating mathematics.** For each piece of compensating new physics (extra dimensions, supersymmetry, Calabi-Yau, dualities) — was it required because the instrument was absent? If the answer is yes, the parsimony argument for re-introducing the instrument first is real.
+3. **Audit the compensating mathematics — separately, not as a bundle.** For each piece of apparatus, screen independently: was it required because the foundational object was extracted from any instrument, or for independent reasons? Per §20.2.1's narrowed audit: extra dimensions are not the compensation — both string theory (top-down) and the project's own MFO sister-notebook (bottom-up) converge on ~11D for unrelated reasons (gauge-group requirements; fractal spectral flow). SUSY is independently motivated. The parts of the apparatus that *are* compensation for the missing instrument — the static-string ontology itself, the specific Calabi-Yau as compensation for the missing instrument, and the landscape (~10^500 vacua) as symptom of the foundational object being underconstrained — are where the parsimony argument for re-introducing the instrument first lands.
 
 None of this is hostile. All three are MPM-discipline screens this project applies to its own work before it ships. They are the screens that a defensible theory should be able to pass.
 
@@ -2921,6 +2953,7 @@ None of this is hostile. All three are MPM-discipline screens this project appli
 **Project-internal:**
 
 - §0.0 — The Mathematical Provenance Method (the discipline this section applies)
+- **§21 — Tool-rejection as MPM-screening failure (the symmetric counterpart to this section).** §20 names the failure mode at the *producer* of work (orphan-from-instrument); §21 names the failure mode at the *evaluator* of work (rejection-by-tool-of-creation). Both share a single root cause: judging by surface markers instead of by reproducible content. The MPM screens defend against both.
 - §1.4 — Phase-9 breathing Laplacian / adaptive Kuramoto coupling (the framework's instrument-first formulation of resonance; Regime B + C territory)
 - §17 — per-body spectral catalog (every channel ships with its instrument)
 - §19 — spectral noise as Perlin replacement (cousin example of needing the instrument; PSD shaping is a property of the cavity, not the wiggle)
@@ -2939,3 +2972,101 @@ None of this is hostile. All three are MPM-discipline screens this project appli
 **Sister-project precedent:**
 
 - Inkscape `gemini_failure_mode.md` — the counterfactual-mathematical-truth / vocabulary-match-vs-grounded pattern this section names in physics. The same MPM screening discipline that catches AI-characteristic failure modes catches the orphan-from-instrument framing.
+
+**Sister-notebook (project-internal, foundational-ontology layer; one candidate framing):**
+
+- [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**, *one candidate* foundational-ontology framing the project hosts. **MFO is not the project's endorsed answer over alternatives** (strings, loops, branes, networks, or any other spatial-structure choice). MFO derives a visible / extra dimensional structure bottom-up as a fractal metric field whose spectral cutoff scale fixes mass, and proposes a cavity-instrument analogy for matter at the ontology layer. §20 cites MFO at three points as a *worked example* of "matter modelled as some kind of excitation, with the same maths used for instruments" — without picking a spatial-structure side and without claiming the current model is final (see §20.4.0's modesty note: provisional, FFT-untruncation framing).
+  - **§I.2 claim 2** — *"'Vibration' is the dynamic coupling between complementary geometric structures within the metric field, not a thing vibrating."* Cited in §20.4.0 as one candidate articulation of the driven-coupling reading.
+  - **§I.2 claim 3** — *"Matter is sustained resonance, not ringing-down excitation. The right analogy is cavity instruments where geometry **selects** which frequencies sustain — not plucked strings."* Cited in §20.4.0 / §20.4 as one candidate articulation of the broader observation that matter, modelled with instrument-math, exhibits excitation-dependent dynamics. The cavity-instrument analogy is MFO's spatial-structure choice; §20 does not pick a spatial-structure side.
+  - **§III.5** — Triple-convergent ~11D derivation (Witten 1981 SUGRA / Nahm 1978 SUSY / Cremmer-Julia-Scherk 1978). Cited in §20.2.1 as evidence that ~11D dimensional structure has multiple independent motivations — that pluralism is why §20.2.1 excludes "extra dimensions" from the MPM-flagged signature, not because the project endorses MFO's specific bottom-up derivation over string theory's top-down one.
+  - **§IV** — Fractal geometry as one candidate SM-hierarchy mechanism. MFO's specific spatial-structure choice; §20 does not endorse it over alternatives.
+
+MFO is itself a future MPM target (data-driven validation of fractal-cutoff predictions against Standard Model mass spectra, gauge-coupling running, etc.). At the foundational-ontology layer, **the project hosts MFO as one candidate framing** rather than as an endorsed answer; chess-spectral provides the kinematic / dynamical machinery layer; ephemerides-spectral provides the multi-regime empirical catalog layer. Other candidate foundational-ontology framings are welcome to join the collection on the same MPM-screened terms.
+
+---
+
+## 21. Tool-rejection as an MPM-screening failure — the symmetric counterpart to §20
+
+> *Banning the use of a tool is the mark of a fool.*
+
+§20 named one failure mode in the evaluation of mathematical work — the **orphan-from-instrument** framing. That failure mode is committed by the *producer* of a theory: the foundational object (the static string) gets ripped off the apparatus that gave the resonance vocabulary its meaning, and then a cascade of compensating apparatus has to be reinvented to recover what was thrown away.
+
+There is a symmetric failure mode committed by the *evaluator* of work: **rejection-by-tool-of-creation** — judging a contribution by which tool was used to make it, instead of by the testable claims it carries. The two failure modes share a single root cause: **judging by surface markers instead of by reproducible content**.
+
+This section names the second failure mode and points back at it from the other one, so the screening discipline applies symmetrically.
+
+### 21.1 The pattern
+
+| Failure mode | Where it sits | Form of rejection |
+|---|---|---|
+| Orphan-from-instrument (§20) | The producer | Foundational object stripped of the apparatus that gave its vocabulary meaning; compensating new physics required to recover the missing instrument. |
+| Rejection-by-tool-of-creation (§21) | The evaluator | Contribution rejected because of *which tool was used to produce it*, not because of what it claims or whether the math reproduces. |
+
+The MPM discipline (§0.0) is **tool-agnostic by design**. Its four screens are:
+
+1. **Closed-form computation.** Is the math `np.linalg.eigh`-style closed-form, or is it a black-box training step?
+2. **Ground-proof rows recoverable from the artifact.** Can a reader regenerate the artifact's claimed outputs from the artifact alone?
+3. **Byte-identical regeneration.** Does running the artifact produce byte-stable output across re-runs and platforms?
+4. **Gemini-failure-mode screen** (chess-spectral §42; Inkscape `gemini_failure_mode.md`). Does the artifact survive the vocabulary-match-without-grounding / counterfactual-mathematical-truth tests?
+
+**None of those screens look at which tool the human used to author the artifact.** A reviewer who treats "this used AI" / "this used a telescope" / "this used a microscope" / "this used a hyperdimensional encoding I don't recognise" as primary grounds for rejection is failing the screening discipline. The contribution either passes the four MPM screens or it does not; the tool used to assemble it is not one of those screens.
+
+### 21.2 Historical precedent — the Church and orbital mechanics
+
+This is not a hypothetical pattern. The project's ephemerides-spectral framework — the DE441 ephemeris, Keplerian elements, Lagrangian perturbation theory, and the resonance vocabulary that powers every v0.24.x catalogue from §17 onward — descends directly from work that was suppressed, banned, or persecuted on tool-of-creation grounds in its own time:
+
+- **Copernicus, *De revolutionibus orbium coelestium*** (1543) — placed on the Catholic Church's Index of Forbidden Books in 1616, two generations after publication. The grounds were not that the heliocentric calculation produced wrong numbers — Copernicus's tables were widely used for ephemeris work even by the institutions that condemned the framework. The grounds were that the *framework* (heliocentrism) contradicted authorised scriptural reading. The text was removed from the Index only in 1835.
+- **Giordano Bruno** (1548–1600) — burned at the stake. Among the charges: cosmological pluralism (the proposal that other stars are suns with their own planets). His tool of creation was philosophical reasoning combined with the broadly Copernican framework. The screening was not on his arguments — it was on the framework that produced them.
+- **Galileo Galilei** (1564–1642) — placed under house arrest by the Roman Inquisition (1633). The principal grounds were not that his observations were wrong: Jupiter's moons, the phases of Venus, lunar terrain — all were reproducible by anyone with a telescope. The grounds were that he had used his **tool** (the telescope) to make claims that the institutional framework did not authorise. The screening rejected the work on the basis of the optical instrument used to produce it, not on whether the observations could be reproduced.
+- **Kepler** (1571–1630) — escaped the worst of the persecution but published *Astronomia nova* (1609) and *Harmonices mundi* (1619) under the same institutional shadow.
+
+Every one of those rejected or suppressed contributions is now load-bearing in the orbital-mechanics chain that this project consumes. The DE441 ephemeris that v0.5.0 onward depends on; the Keplerian elements `astronomical_cycles.py` references; the perturbation framework that v0.17.0–v0.18.x's resonance graph encodes; the heliocentric basis that every Sol-Time clock (§7, §10) is anchored to — every one of those traces directly to people whose work was rejected on tool-of-creation grounds. The institution that performed the rejections has, several centuries later, formally reversed each judgement. **The work survived; the screening did not.**
+
+The lesson is not that the Church was uniquely foolish. The lesson is that **rejection-by-tool-of-creation is a recurring screening failure mode** that institutions repeat under different banners. When the reviewer asks "what tool did you use to make this?" before "does the math reproduce?", the screening is in failure mode.
+
+### 21.3 Tool-rejection as denial of disability accommodation
+
+There is a second harm pattern that runs alongside the screening-failure pattern of §21.1–§21.2, and §21 names it explicitly: **categorical bans on a tool function as denial of accommodation for contributors who depend on that tool to participate at parity with peers who do not need it.** This is a recurring institutional failure across many tool-and-disability pairings:
+
+- **Calculators in mathematics education** — categorical bans through the 1980s–1990s on grounds that calculators were "shortcuts" effectively excluded students with dyscalculia, working-memory limitations, and computation-fatigue conditions for whom the calculator was not a shortcut but the accommodation that enabled parity participation. The institutional position eventually shifted to accommodation policies; the categorical ban was the harm.
+- **Spell-checkers and text-to-speech software** — resisted by some academic publishers and editing venues on "authorial voice" / "shortcut" grounds. Contributors with dyslexia, dysgraphia, and certain ADHD presentations depend on these tools as accommodation.
+- **Voice-dictation software** — banned by some certification programs and competitive venues. Contributors with motor disabilities, repetitive-strain injuries, or other reasons not to type were excluded by the ban itself, not by any failure of their work.
+- **Screen readers and assistive-display software** — periodically resisted in editorial contexts on grounds of "fairness" or "uniform reviewer experience." Contributors with low or no vision rely on these tools at every step.
+- **AI-assisted contribution tools** — now in the same position. Contributors with **aphantasia** (the cognitive variation in which voluntary mental imagery is reduced or absent) frequently use AI tools to scaffold tasks that high-imagery thinkers do internally: describing geometric structures, drafting visual layouts, articulating spatial reasoning, externalising what cannot be seen "in the mind's eye." Contributors with ADHD, dyslexia, dysgraphia, executive-function-limiting conditions, processing-speed differences, chronic-fatigue and chronic-pain conditions, and many other cognitive and physical variations report similar dependencies on AI as accommodation. **A categorical ban on AI-assisted contributions is not a neutral scope or fairness decision in practice; it is a participation barrier that lands hardest on contributors who depend on the tool for parity participation.**
+
+§21's screening discipline applies symmetrically here: the tests are the math, the reproducibility, the regenerability, and the Gemini-failure-mode screen (§21.1's four screens; reiterated as the project's own gate in §21.5 below). None of those are tool-of-creation tests; all of them are tool-agnostic by construction. A contribution that passes the four MPM screens has earned its place; the contributor's tool dependencies — cognitive, physical, or preferential — are not screening criteria.
+
+The historical pattern in §21.2 is recurring under new banners: the institution that excluded Galileo's telescope; the institution that banned the calculator; the institution that resisted the screen reader; the institution that proposes excluding AI assistance now. Each is a variation on the same screening failure, and each has been (or will eventually be) revisited at the cost of the contributors excluded in the meantime. The MPM discipline this notebook codifies is designed to be immune to all of them.
+
+### 21.4 What the principle does *not* say
+
+A few things this section is careful to **not** claim:
+
+- **Substantive scope decisions are not tool-rejection.** A venue that says *"we are an SVG editor / a Lean-3 library / a numerical-recipes book / a peer-reviewed journal in field X, and we don't host work outside our scope"* is performing a scope screen, not a tool-of-creation rejection. That kind of decision is tool-agnostic by construction — it would close a hand-typed contribution by a 30-year veteran the same way. §21 has no quarrel with substantive scope screening.
+- **Editorial style requirements are not tool-rejection.** A venue that requires a particular file format, citation style, language, level of formality, or prose register is making editorial decisions, not screening for tool-of-creation. Those are content-presentation rules.
+- **Identity-verification or anti-abuse requirements are a separate question.** Some projects require hardware-key signing, real-name registration, prior-contribution thresholds, or other gating mechanisms before accepting submissions. Those are *participation barriers*, not *tool-of-creation rejections* — they sit at the gate before evaluation rather than inside the evaluation. They may have their own merits and costs, but they are not what §21 is about.
+
+§21 is narrowly about **the screening failure mode that occurs when a contribution that passes every reproducibility / provenance / regenerability test the discipline cares about is rejected on the basis of which tool the human used to author it**. That is the failure mode the historical precedent in §21.2 documents, and that is the failure mode the MPM screening discipline is designed to be immune to.
+
+### 21.5 The discipline at this project's own gates
+
+Independent of how any other venue chooses to screen, this is how *this* project screens contributions submitted to ephemerides-spectral, chess-spectral, and the rest of the spectral-research collection. The screening order is:
+
+1. **Run the artifact.** Does the byte-stable regeneration produce the claimed output? If yes, the reproducibility screen is passed. If the artifact is not runnable, that is a substantive failure to reject on.
+2. **Screen the math.** Does it survive the Gemini failure-mode discipline (counterfactual-mathematical-truth, vocabulary-match-without-grounding, plausible-but-not-derivable)?
+3. **Trace the ground-proof rows.** Are the closing claims tied to data the contributor did not generate, or to closed-form derivations the contributor did not invent? If the rows are not traceable, that is a substantive failure to reject on.
+4. **Look at the regenerability.** Will future re-runs against future versions of the upstream substrate continue to produce coherent output, or has the contribution been written to be brittle? If brittle, that is a substantive failure to reject on.
+
+If a contribution passes all four screens, **the tool used to author it does not matter at this project's gate.** If it fails any of them, the failure is on substantive grounds and the tool-of-creation question is irrelevant. Either way, **the tool is not a screen here**.
+
+This is also how the project's own internal v0.24.x catalogues are evaluated — every per-body decomposition ships with closed-form `np.linalg.eigh` math, ground-proof rows, byte-identical regeneration, and a Gemini-failure-mode screen, regardless of which collaborator (human or AI-assisted) authored which line. The discipline applies symmetrically: the project does not ban AI-assistance for its own work, and it does not ban hand-typed work for its own work, and it does not ban contributions from outside the project on tool-of-creation grounds. The screen is the math.
+
+Other venues are free to choose differently. §21 is not a request that they change their screens; it is a documentation of the screen *this* project applies and a flag of the historical pattern (§21.2) that any institution adopting tool-of-creation rejection invites.
+
+### 21.6 Cross-references
+
+- **§0.0** — Mathematical Provenance Method (the four screens). Tool-agnostic by design.
+- **§20** — Orphan-from-instrument failure mode. The symmetric counterpart at the producer side.
+- **§7 / §10** (Sol-Time clocks anchored to heliocentric / Antikythera epochs); **§13 / §17 / §18** (resonance graph + DE441 substrate); **all v0.24.x catalogues** (every per-body decomposition that uses Keplerian / perturbation / Lagrangian machinery) — the project work that depends, several centuries downstream, on the contributions §21.2 names as historical precedent.
+- **chess-spectral §42** — AI-as-tool methodology; authorship-discipline section that names the same vocabulary-match failure mode this section's MPM screens defend against.
+- **Inkscape `gemini_failure_mode.md`** — companion document in the broader project that catalogues AI-characteristic failure modes, all of which are tool-agnostic to detect.
