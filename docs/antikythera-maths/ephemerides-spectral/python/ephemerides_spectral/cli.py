@@ -1172,6 +1172,15 @@ def _cmd_local_kernel_state(args: argparse.Namespace) -> int:
     return _emit(bridge.get_local_kernel_state(), pretty=args.pretty)
 
 
+# v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
+
+def _cmd_suggest_gap_collections(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.suggest_gap_collections(ood_threshold=args.ood_threshold),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -5098,6 +5107,43 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     lks.set_defaults(func=_cmd_local_kernel_state)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
+    # ──────────────────────────────────────────────────────────────────
+
+    sgc = sub.add_parser(
+        "suggest-gap-collections",
+        help="Match OOS probe gaps against attested-source [gap_targeting]",
+        description=(
+            "v0.26.0 -- the system identifies what it doesn't\n"
+            "know and points at attested sources that could\n"
+            "populate the gap.\n"
+            "\n"
+            "Reads the v0.24.10 OOS probe roster, runs each\n"
+            "probe through the v0.24.9 dynamical-regime\n"
+            "classifier, identifies gaps (OOD / spurious /\n"
+            "surprise), and matches each against descriptors\n"
+            "registered under the target regime label via\n"
+            "[gap_targeting].regime_labels.\n"
+            "\n"
+            "Output is a deterministic suggestion list: same\n"
+            "Mathematical Provenance Method discipline as every\n"
+            "other v0.24.x / v0.25.x surface — no LLM, no SGD,\n"
+            "no random init.\n"
+            "\n"
+            "Closes the MPM loop the v0.24.10 -> v0.24.11 ->\n"
+            "v0.24.12 ships demonstrated manually."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sgc.add_argument(
+        "--ood-threshold",
+        type=float,
+        default=0.85,
+        help="calibration-ratio threshold for OOD detection (default 0.85)",
+    )
+    sgc.set_defaults(func=_cmd_suggest_gap_collections)
 
     # lunar-kernels
     lk = sub.add_parser(

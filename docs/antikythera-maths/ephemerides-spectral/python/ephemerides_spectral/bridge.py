@@ -5872,6 +5872,35 @@ def get_local_kernel_state() -> Dict[str, Any]:
     return _attested_catalog.get_local_kernel_state()
 
 
+# v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
+
+def suggest_gap_collections(
+    *,
+    ood_threshold: float = 0.85,
+) -> Dict[str, Any]:
+    """Identify regime gaps from OOS probes and match each gap
+    against attested-source descriptors via ``[gap_targeting]``.
+
+    Reads the v0.24.10 OOS probe roster, runs each probe through
+    the v0.24.9 dynamical-regime classifier, identifies gaps
+    (high calibration ratio, spurious match, surprise landing),
+    and matches each gap against descriptors registered under the
+    target regime label. Output is a deterministic suggestion
+    list — no LLM, no SGD; same Mathematical Provenance Method
+    discipline.
+
+    Closes the MPM loop established in v0.24.10 → v0.24.11 →
+    v0.24.12 manual demonstration: the system identifies what it
+    doesn't know and points at sources that could populate the
+    gap. The v0.26.x research thread will wire this into a CI
+    auto-PR mechanism; v0.26.0 ships the analysis half.
+
+    Reference: notebook §18.5 (T1 re-bake triggers; option 3).
+    """
+    from ._research import attested_collector_gap_suggester as _suggester
+    return _suggester.suggest_gap_collections(ood_threshold=ood_threshold)
+
+
 __all__ = [
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
@@ -5908,4 +5937,5 @@ __all__ = [
     "use_local_kernel",
     "clear_local_kernel",
     "get_local_kernel_state",
+    "suggest_gap_collections",
 ]

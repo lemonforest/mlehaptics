@@ -92,6 +92,10 @@
       "sha256": "608f515901c0737388123a0e9c21f52bcac057a9df89287476e0ef74569ff1be",
       "size_bytes": 13676
     },
+    "_research/attested_collector_gap_suggester.py": {
+      "sha256": "bea6fcfbc57c78c52b4c0779a8ffecf16572fa1c286f4fc5ca909e4a91ddc73b",
+      "size_bytes": 9154
+    },
     "_research/auroral_coupling_catalog.py": {
       "sha256": "f4227a0d8d807a6a28fd903947304f18b503a952c50331ec690fa4f8394f923a",
       "size_bytes": 4829
@@ -398,5 +402,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.25.2"
+  "version": "0.26.0"
 }

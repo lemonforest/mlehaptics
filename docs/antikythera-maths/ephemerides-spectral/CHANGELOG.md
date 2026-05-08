@@ -7,7 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.2)
+(no entries yet — next entries land after v0.26.0)
+
+## [0.26.0] — 2026-05-08
+
+**Schema-gap-driven trigger — closes the Mathematical Provenance Method loop.** The system identifies what it doesn't know and points at attested sources that could populate the gap.
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Suggester module | `_research.attested_collector_gap_suggester` |
+| Bridge | `bridge.suggest_gap_collections(*, ood_threshold=0.85)` |
+| CLI | `suggest-gap-collections [--ood-threshold N]` |
+| Tests | 10 new tests in `tests/test_attested_collector.py` |
+
+### Behaviour
+
+Reads the v0.24.10 OOS probe roster, runs each probe through the v0.24.9 dynamical-regime classifier, identifies regime gaps, and matches each gap against attested-source descriptors via `[gap_targeting].regime_labels`. Three gap kinds surfaced:
+
+- **`ood`** — calibration ratio exceeds threshold (no close neighbour exists in eigenbasis).
+- **`spurious_match`** — classifier's nearest regime disagrees with probe's `expected_regime`.
+- **`surprise`** — probe was declared `expected_regime=None, ood_expected=False` ("let classifier surprise us"); flag wherever it landed for densification consideration.
+
+For each gap, the suggester finds descriptors whose `[gap_targeting].regime_labels` includes the target regime label. Output is deterministic given (probe roster, descriptor set, ood_threshold). Same MPM discipline — no LLM, no SGD, no random init.
+
+### What's deferred
+
+The CI auto-PR mechanism that consumes the suggestion surface and opens targeted T1 collection PRs is not in v0.26.0. v0.26.0 ships the analysis surface — the suggestion API is itself the deliverable. The auto-PR half lands when a maintainer-review-grade mechanism is wired up. Open research questions documented in #161.
+
+### Cross-references
+
+- Notebook §0.0 — The Mathematical Provenance Method.
+- Notebook §18.5 — T1 re-bake triggers (option 3 = schema-gap-driven).
+- v0.24.10 OOS probes + v0.24.9 classifier + v0.25.x descriptor `[gap_targeting]`.
 
 ## [0.25.2] — 2026-05-08
 
