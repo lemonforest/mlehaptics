@@ -2797,3 +2797,77 @@ But the substrate-portability argument is now empirical. The Inkscape design not
 * **Keep `#104` open** as a stretch goal, but mark it "first step shipped (sibling project)" rather than fully aspirational. The Inkscape `feSpectralNoise` primitive demonstrates the substrate generates white / pink / brown / blue noise at production quality on a real renderer's filter pipeline.
 * **Don't port the generator into `ephemerides-spectral` yet** — the package's discipline is per-body / per-system catalogs and HDC encoding, not generic noise generation. The right home for any reusable noise primitive is the next downstream consumer (a procedural-terrain library or Doom93-style game-engine port), not an ephemeris package.
 * **Cite this section** when the project's stretch-goal narrative lands somewhere external (PR description, paper, talk) — Inkscape's `feSpectralNoise` is the concrete-and-shipped step that makes the Perlin-replacement claim defensible rather than aspirational.
+
+## 20. String theory through the Mathematical Provenance Method lens — instrument-first vs wiggle-in-isolation
+
+This section uses the framework as a tool to **set the question correctly**, not to prove or disprove string theory. Per the MPM screening discipline, what comes first is whether the proposition's framing has citable mathematical provenance grounded in observable resonance, or whether it stands as a self-consistent algebra orphaned from any instrument that produces measurable phenomena. String theory's framing is — at minimum — worth screening that way before its predictions are accepted as physics.
+
+### 20.1 The leading question — where in nature is a string attached to nothing making music?
+
+Every observable resonance the project has catalogued — gravitational, electromagnetic, magnetic, fluid, geodetic, dynamical, temporal — is a property of an **instrument**. The string requires the bridge, the body, the air, and the listener's ear; the gear requires the mesh, the axle, and the next gear; the seamount requires the lithosphere, the mantle plume, and the ocean above; the ringing volcano requires the magma reservoir, the tidal forcing, and the conduit geometry. The eigenvalues that determine which frequencies couple are properties of the *coupled system*, not of the string in isolation.
+
+String theory's foundational object — a 1-D extended object vibrating in N-dimensional spacetime — is, methodologically, **a string attached to nothing**. The framework asks: where in nature do we observe such a thing produce music or any noise? The answer, as far as this project's catalogues go, is nowhere. Every resonant phenomenon we have ground-proof for is a coupled system. That observation is not a disproof of string theory; it is the question MPM screens for first, before any predictions are evaluated.
+
+### 20.2 Counterfactual mathematical truths and compensating physics
+
+A pattern this notebook documents repeatedly (§0.0; the Inkscape `gemini_failure_mode.md` precedent) is the failure mode where mathematics that looks rigorous is *vocabulary-matched* to physics rather than *grounded* in physics. The marker is **compensating new physics** — every time the orphan-from-an-instrument framing produces a deficit, additional structure is invented to close the gap. String theory's compensating apparatus is large: 10- or 11-dimensional spacetime; supersymmetry; Calabi-Yau compactification; multiple dualities; the landscape of ~10^500 vacua. Each addition is internally consistent. None is observed.
+
+The MPM stance is not "this is wrong" — it is "this is the pattern that emerges when a system was extracted from its instrument and the resulting math is asked to recover the missing context." Every *counterfactual mathematical truth* (locally rigorous, globally orphaned from observation) the framework has encountered in adjacent work has had this signature. String theory's signature looks similar enough to be worth naming.
+
+### 20.3 The framework's alternative — graph-Laplacian eigenbasis IS the instrument
+
+The eigenbasis substrate this project ships across §17, §18, and the v0.24.x catalogues is not "a string vibrating freely." It is, in every case, a **graph-Laplacian whose nodes ARE the bodies and whose edges ARE the couplings**. The eigenvalues are properties of the operator, which is in turn a property of the network's boundary conditions. Concrete demonstrations:
+
+- **v0.24.5 Hawaii bounded-local-Laplacian**: the lithosphere + mantle-plume system IS the instrument. The spectral signature of the chain is a property of the coupled system, not of any one seamount.
+- **v0.24.11 Pluto-Charon mutual lock**: the dyadic system IS the instrument. The triple-synchronous-period eigenvalue is a property of the gravitational coupling between the two bodies + their angular momentum + their tidal Q.
+- **v0.24.12 Loki Patera + Galilean Laplace 4:2:1**: the three-body Io-Europa-Ganymede orbital lock IS the instrument. The ~540-day cycle on Io's surface is downstream of the resonance that the three-body coupling sustains.
+- **§1.4 Phase-9 breathing Laplacian**: the framework's adaptive-coupling formulation is *explicitly* parametric in the bodies' relative phases. The resonant modes co-evolve with the system's own state.
+
+In every case the project ships byte-reproducible eigenbasis projections precisely because the operator is the instrument. Removing the instrument from any of these calculations does not preserve the music; it produces a wiggle line that does nothing useful until someone invents new physics to recover what was thrown away.
+
+### 20.4 There is no sustain — only ring-up and ring-down
+
+This sub-section captures a sharp observation that connects directly to the framework's catalogues. In real resonant cavities, **there is no sustain**. There is ring-up (energy entering the cavity faster than it dissipates) and ring-down (energy dissipating faster than it enters). The two phases can be so gradual on the observation timescale that long stretches *look* like homeostasis. The eye sees stability; the math sees the slow envelope of a coupled system trading energy with its surroundings.
+
+The framework's catalogues already document this empirically:
+
+- **v0.24.2 Mars chaotic obliquity**: Gyr-scale obliquity wandering is a slow-envelope failure of secular-resonance stability — what looks "stable" on Myr timescales is the locally-stable phase of a system that breaks down at Gyr scales because the secular frequencies overlap.
+- **v0.24.8 Axial Seamount ~8.6-yr cycle + v0.24.12 Loki Patera ~540-day cycle**: both are explicitly *temporal-quasi-periodic-cycle* regimes — slow-envelope ring-up + ring-down patterns the framework names + classifies, not eternal sustains. The "stability" between cycles is the locally-stable phase of an envelope that resets.
+- **v0.24.11 Pluto-Charon mutual lock**: the triple-synchronous state IS the end-state of dyadic tidal evolution — the system has rung-down to its lowest-energy resonant mode. The "stability" is the steady state of a system that already gave up its tidal-dissipation budget.
+- **v0.24.4 Maclaurin / Jacobi shape sequence**: every q value is locally stable until it isn't; the bifurcations at q = 0.187 / 0.27 / 0.36 are where the slow envelope of a body's rotation meets a regime change. Saturn at q ≈ 0.158 is mid-ring-up.
+
+String theory's static-string formulation does not naturally accommodate this. Strings vibrate eternally without coupling to any envelope; the theory does not name "this oscillation is currently in its ring-up phase" or "we are observing the system between its ring-up and ring-down" because the orphan-from-instrument framing has no envelope to define those phases. That this project's framework names them naturally — and that the v0.24.x catalogues have empirical examples of every regime — is itself an MPM-style argument that the instrument-coupled framing produces more falsifiable, more observable structure than the instrument-removed framing does.
+
+### 20.5 What this section is and is not
+
+What it is:
+
+* a **methodological observation** — the question "where in nature is a string attached to nothing?" should be asked first, before any string-theory predictions are evaluated as physics
+* a **framework demonstration** — the project's eigenbasis substrate handles resonance-with-instrument naturally and produces falsifiable, observable consequences across many systems
+* a **distinction** — sustain is a metaphor; ring-up + ring-down is the observable
+
+What it is not:
+
+* a **disproof** of string theory — none of the above shows the theory is wrong
+* an **alternative TOE** — the framework's eigenbasis substrate operates at a different scale and on a different question
+* a **claim that strings cannot exist** — observable strings (real ones, on real instruments) are everywhere; what is unobserved is the orphan-from-instrument string
+* a **personal aesthetic complaint** — the user's note (captured in personal-stance memory) is explicit on this point: the discomfort is methodological, not stylistic. The discomfort is with **inventing new physics before asking whether we must**, and with the absence of an instrument in the foundational object
+
+### 20.6 Recommendation for the field
+
+The framing does not require string theory to abandon its program. It does ask three things to be made explicit:
+
+1. **Acknowledge the missing instrument.** If the foundational object is a 1-D string vibrating in N-dimensional spacetime, name what couples it. If nothing couples it, name why nature is expected to behave differently from every observed instrument.
+2. **Account for the absence of envelope.** Ring-up + ring-down is observable; eternal sustain is not. If the strings of string theory are exempt from this — name the mechanism.
+3. **Audit the compensating mathematics.** For each piece of compensating new physics (extra dimensions, supersymmetry, Calabi-Yau, dualities) — was it required because the instrument was absent? If the answer is yes, the parsimony argument for re-introducing the instrument first is real.
+
+None of this is hostile. All three are MPM-discipline screens this project applies to its own work before it ships. They are the screens that a defensible theory should be able to pass.
+
+### 20.7 Cross-references
+
+- §0.0 — The Mathematical Provenance Method (the discipline this section applies)
+- §1.4 — Phase-9 breathing Laplacian / adaptive Kuramoto coupling (the framework's instrument-first formulation of resonance)
+- §17 — per-body spectral catalog (every channel ships with its instrument)
+- §19 — spectral noise as Perlin replacement (cousin example of needing the instrument; PSD shaping is a property of the cavity, not the wiggle)
+- v0.24.x catalogues, especially v0.24.2 (Mars chaotic obliquity), v0.24.8 (Axial), v0.24.11 (Pluto-Charon), v0.24.12 (Loki Patera) — empirical demonstrations of ring-up / ring-down envelopes the framework names explicitly
+- Inkscape `gemini_failure_mode.md` (sister-project precedent for the counterfactual-mathematical-truth pattern this section names in physics)
