@@ -1,0 +1,78 @@
+{
+  "de_broglie_identity": {
+    "statement": "v_g \u00b7 v_p = c\u00b2",
+    "verified": true,
+    "source": "Follows algebraically from \u03c9\u00b2 = k\u00b2c\u00b2 + \u03c9c\u00b2 (KK dispersion relation)"
+  },
+  "mass_cutoff_equivalence": {
+    "statement": "mc\u00b2/\u210f = \u03c9c (rest mass = internal dimension cutoff frequency)",
+    "verified": true,
+    "note": "Algebraic identity, not approximation"
+  },
+  "de_broglie_wavelength": {
+    "statement": "\u03bb_dB = h/p is the spatial projection of a wave at angle \u03b8 = arccos(pc/E) in the full metric field",
+    "verified": true,
+    "note": "Bounce angle \u03b8 determined by mass/energy ratio"
+  },
+  "s7_spectrum": {
+    "manifold": "S\u2077 (round, unit radius)",
+    "first_nonzero_eigenvalue": 7,
+    "mass_ratios": [
+      {
+        "l": 1,
+        "eigenvalue": 7,
+        "mass_ratio_squared": 1.0,
+        "degeneracy": 8
+      },
+      {
+        "l": 2,
+        "eigenvalue": 16,
+        "mass_ratio_squared": 2.2857142857142856,
+        "degeneracy": 35
+      },
+      {
+        "l": 3,
+        "eigenvalue": 27,
+        "mass_ratio_squared": 3.857142857142857,
+        "degeneracy": 112
+      },
+      {
+        "l": 4,
+        "eigenvalue": 40,
+        "mass_ratio_squared": 5.714285714285714,
+        "degeneracy": 294
+      },
+      {
+        "l": 5,
+        "eigenvalue": 55,
+        "mass_ratio_squared": 7.857142857142857,
+        "degeneracy": 672
+      },
+      {
+        "l": 6,
+        "eigenvalue": 72,
+        "mass_ratio_squared": 10.285714285714286,
+        "degeneracy": 1386
+      }
+    ]
+  },
+  "mass_hierarchy": {
+    "observation": "Round S\u2077 spectrum is too evenly spaced for SM mass hierarchy",
+    "implication": "Internal manifold must be highly anisotropic or topologically complex",
+    "consistency": "Consistent with non-Killing requirement for chirality"
+  },
+  "anisotropic_hierarchy": {
+    "radii": [
+      1000,
+      10,
+      1
+    ],
+    "hierarchy_range": 90009.0,
+    "conclusion": "Anisotropic internal geometry naturally produces large mass hierarchies"
+  },
+  "impedance_matching": {
+    "statement": "Conservation laws = orthogonality of internal manifold eigenmodes",
+    "mechanism": "Overlap integrals between modes on different internal geometries",
+    "u1_example": "Charge conservation = Fourier mode orthogonality on S\u00b9"
+  }
+}
