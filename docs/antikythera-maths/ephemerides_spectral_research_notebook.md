@@ -2753,3 +2753,47 @@ Each pilot exercises a different adapter; together they prove the shared-core cl
 * **MPR v1 is normative.** Once v0.25.0 ships, the format is versioned; v1.1 / v2 require explicit migration story.
 * **Design v0.25.0 for v0.26.x schema-gap-driven trigger.** The `[gap_targeting]` descriptor block + the trigger-decision CI seam are part of v0.25.0 even though the trigger itself isn't.
 * **Hand-coded `_research/*_data.py` modules continue to ship** for sources where the dataset is small (a dozen rows or fewer) and the inline citation discipline is a feature, not a cost. v0.25.x extends the pattern to scale; it does not deprecate the inline pattern.
+
+## 19. Spectral noise as a Perlin replacement — graph-Laplacian PSD-weighted generation
+
+**Project-tracking note (2026-05-08):** task #104 in this project's roadmap is the long-pending stretch goal "**replace Perlin noise with procedural physics for surface feature generation**." Until recently, that was an aspirational entry — Perlin and its octave-fractal cousin `feTurbulence` are what every SVG renderer, terrain engine, and procedural-texture pipeline ships, and the path away from them was unclear. **A concrete first step has now landed in a sister-project Inkscape contribution**: three new SVG filter primitives wired through Inkscape's filter pipeline on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — `feSpectralBilateral`, `feSpectralDistance`, and the one this section anchors, **`feSpectralNoise`**. The contribution's design notebook is at <https://gitlab.com/lemonforest/inkscape/-/blob/spectral-faithful/doc/spectral/readme.md?ref_type=heads&plain=1>.
+
+### 19.1 Why this matters for the stretch goal
+
+`feSpectralNoise` ships **explicit power-spectral-density (PSD) control** over the noise it generates: the same primitive selects between **white** (β=0; equal energy at every frequency), **pink** (β=1; 1/f), **brown / red** (β=2; 1/f²), and **blue** (β=−1; f) noise via a single `spectralNoiseProfile` attribute. Perlin and `feTurbulence` cannot do this — their power spectrum is determined implicitly by the gradient-octave algorithm and amounts to a fixed, slightly-coloured roll-off that approximates pink-ish but isn't selectable. The Inkscape design notebook puts it directly: *"SVG only ships Perlin-style `feTurbulence`; spectral noise gives white/pink/brown/blue spectra directly."*
+
+This is the **capability gap** that makes Perlin replacement a real conversation, not just an architectural-purity argument. A procedural-generation system pinned to Perlin (Elite Dangerous's procedural galaxy, Minecraft-family terrain, every off-the-shelf SVG turbulence filter) can express *one* noise character. A system built on `feSpectralNoise`-style PSD control can express *the family*, with the colour selection tied to the physics of whatever surface or texture is being modelled — pink for natural terrain (where the 1/f law is genuinely measured in real geography), brown for tectonic / fault structure, white for true randomness, blue for high-frequency detail layers.
+
+### 19.2 Mathematical structure — the same MPM substrate
+
+`feSpectralNoise` operates on the same mathematical machinery as the rest of this notebook's framework: **lattice-Laplacian heat kernel on the DCT eigenbasis with Neumann boundary conditions.** The Inkscape design notebook describes the implementation as the *reverse* of the heat-kernel application: *"random DCT coefficients with prescribed P(λ), inverse DCT-III to spatial."* Concretely:
+
+1. Sample independent Gaussian coefficients in the DCT-II / DCT-III basis using **LCG + Box-Muller** for byte-stable reproducibility from the `seed` attribute.
+2. Weight each coefficient at eigenvalue λ by √P(λ), where P(λ) ∝ λ^(−β/2) gives the chosen spectral colour.
+3. Inverse DCT-III back to the spatial domain. Cost is O(N log N) per pixel via FFT-via-DCT, matching every other primitive in the substrate.
+
+The discipline match is exact: same lattice-Laplacian eigenbasis as v0.18.0 body_architecture, v0.24.5 Hawaii bounded-local-Fiedler, v0.24.9 dynamical-regime classifier. The only difference is the **direction** of the projection — physics catalogs project ground-proof rows *into* the eigenbasis to extract structure; spectral noise projects *out of* the eigenbasis with prescribed PSD weights to synthesise fields. Both are byte-reproducible; both are Mathematical Provenance Method surfaces.
+
+### 19.3 Cross-project relevance — task #104 first concrete step
+
+This is the right scope to claim as **task #104's first concrete step**, not a full closure: the Inkscape contribution demonstrates the substrate works inside a real renderer (Inkscape's filter pipeline; tests pass; icons render via the primitive itself). It does *not* yet:
+
+* port the same generator into ephemerides-spectral as a callable bridge surface
+* cover textured / vector / 3-D-noise variants (planet surface heightmaps, volumetric clouds, marble / wood grain stylisations)
+* close the Perlin-replacement claim for procedural-galaxy / procedural-terrain consumers (Elite Dangerous-family). Those engines need additional integration work — gradient noise on arbitrary 3-D meshes, GPU-side eigenbasis approximations, etc.
+
+But the substrate-portability argument is now empirical. The Inkscape design notebook's [Doom93 spectral research notebook](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/doom_spectral_research_notebook/) precedent (eight FPU-bound id Tech 1 subsystems translated to graph-Laplacian primitives) plus this Inkscape ship plus a parallel Skia branch (<https://github.com/lemonforest/spectral-skai/tree/spectral-faithful>) are now three independent real-renderer integrations of the same eigenbasis substrate. Per the discipline of this notebook's §0.0 (The Mathematical Provenance Method), the path to closing #104 is now: ship the next downstream consumer as a real integration, accept the resulting empirical findings (vanilla Perlin still wins on cost in some niches; the contribution is the *capability* of selectable PSDs, not always the *speed*), and document the where-it-maps-cleanly / where-it-doesn't envelope.
+
+### 19.4 Cross-references
+
+* Inkscape design notebook (formatted): <https://gitlab.com/lemonforest/inkscape/-/blob/spectral-faithful/doc/spectral/readme.md?ref_type=heads&plain=1>
+* Inkscape design notebook (raw): <https://gitlab.com/lemonforest/inkscape/-/raw/spectral-faithful/doc/spectral/readme.md?ref_type=heads&inline=false>
+* Skia parallel: <https://github.com/lemonforest/spectral-skai/tree/spectral-faithful>
+* Doom93 precedent (eight FPU subsystems; methodologically the closest cousin): <https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/doom_spectral_research_notebook/>
+* This project's task #104 (the long-pending stretch goal that this work materially advances): roadmap.
+
+### 19.5 Recommendation
+
+* **Keep #104 open** as a stretch goal, but mark it "first step shipped (sibling project)" rather than fully aspirational. The Inkscape `feSpectralNoise` primitive demonstrates the substrate generates white / pink / brown / blue noise at production quality on a real renderer's filter pipeline.
+* **Don't port the generator into `ephemerides-spectral` yet** — the package's discipline is per-body / per-system catalogs and HDC encoding, not generic noise generation. The right home for any reusable noise primitive is the next downstream consumer (a procedural-terrain library or Doom93-style game-engine port), not an ephemeris package.
+* **Cite this section** when the project's stretch-goal narrative lands somewhere external (PR description, paper, talk) — Inkscape's `feSpectralNoise` is the concrete-and-shipped step that makes the Perlin-replacement claim defensible rather than aspirational.
