@@ -9,6 +9,17 @@ Paired with the implementation plan `when-we-need-to-spicy-seahorse.md`
 (kept in `~/.claude/plans/`), which defined the six-phase v1.0 roadmap
 and the seven-phase v1.1.1 pawn-axis extension.
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is a snapshot.** Future framework additions will not be back-ported into it; the RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief since-summary** (as of 2026-05-08):
+> - **ephemerides-spectral** framework matured through **v0.26.0** — per-body action-angle catalogues, Attested Multi-Source Collector framework with **MPR v1** normative format, **four-tier reproducibility model** (T0 / T1 / T2 / T3), schema-gap-driven trigger. PyPI: <https://pypi.org/project/ephemerides-spectral/>.
+> - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20 with three-regime classification grounded in this 4D extension's parent (the chess-spectral §1b literature work).
+> - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) using the same eigenbasis substrate.
+
 ## Run the gates yourself
 
 ```

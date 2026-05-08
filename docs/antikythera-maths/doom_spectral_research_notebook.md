@@ -4,6 +4,17 @@
 **Date:** May 2026
 **Status:** Active research — translating id Tech 1 into a graph-Laplacian spectral model. **End-to-end existence proof for the chess-spectral Rosetta Stone procedure** (see §7.4); anchored at v1.0.0.
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is a snapshot.** Future framework additions will not be back-ported into it; the RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief since-summary** (as of 2026-05-08):
+> - **ephemerides-spectral** framework matured through **v0.26.0** — per-body action-angle catalogues, Attested Multi-Source Collector framework with **MPR v1** normative format, **four-tier reproducibility model** (T0 / T1 / T2 / T3), and a schema-gap-driven trigger. PyPI: <https://pypi.org/project/ephemerides-spectral/>.
+> - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20 with explicit three-regime classification (impulse + ring-down / driven sustain / driven with irreversibility) that names the doom-spectral substrate as a regime-A/B/C-handling framework natively.
+> - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`); the closest sibling to doom-spectral in spirit (real-renderer integration of the same eigenbasis substrate; see Inkscape `mr_description.md`).
+
 ### Authorship attribution
 
 The notebook covers an arc that spans two AI collaborators with very different scopes of contribution; documenting which work came from where is the same authorship-discipline the chess-spectral notebook applies in §42.

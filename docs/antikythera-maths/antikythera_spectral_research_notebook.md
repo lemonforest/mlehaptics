@@ -4,6 +4,17 @@
 **Date:** April 2026
 **Status:** Active research — reconstructive/descriptive project. The Greeks did the math 2100 years ago; this notebook reads it off in the vocabulary the addressing-maths thread now provides.
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is a snapshot.** Future framework additions will not be back-ported into it; the RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief since-summary** (as of 2026-05-08):
+> - **ephemerides-spectral** framework matured through **v0.26.0** — per-body action-angle catalogues (Mercury / Luna / Mars / Sun / Pluto-Charon / Loki Patera), Attested Multi-Source Collector framework with **MPR v1** normative format, **four-tier reproducibility model** (T0 frozen / T1 CI-baked / T2 user runtime kernel / T3 live query), and a schema-gap-driven trigger. PyPI: <https://pypi.org/project/ephemerides-spectral/>.
+> - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20.
+> - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) wired through Inkscape's filter pipeline; advances the long-pending Perlin-replacement stretch goal (ephemerides §19).
+
 > Living document. Sibling to:
 > - [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md) — the parent template; cross-references to §9a (character-table audit), §9f (coprime-roll binding), §9m (Hatano-Nelson pawn), §11.3.3 (torus-clip).
 > - [../othello-maths/othello_spectral_research_notebook.md](../othello-maths/othello_spectral_research_notebook.md) — second-instance template; the Phase-1 hypothesis-battery format mirrors theirs.
