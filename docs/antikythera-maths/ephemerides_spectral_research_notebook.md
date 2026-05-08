@@ -2508,3 +2508,243 @@ The package thereby spans the canonical solar-system-physics observable axes —
 * **Commit to the §17.4.2 ship sequence.** The four versions (v0.20.0 / v0.20.1 / v0.20.2 / v0.21.0) plus the v0.21.1+ cross-channel coupling sequence are full-coverage commitments — every body for which observational data exists, every channel with a published model, the state-at-epoch surface where modern reanalysis exists. None of it is "subset to test the waters"; the work is enumerated and the citations are gathered.
 * **Schedule v0.21.0 unification on data-shape evidence**, not on a downstream consumer materialising. By the time v0.20.2 ships, the actual data-shape concreteness from v0.20.0 + v0.20.1 will have informed the unified `SphericalHarmonicCatalog` design; v0.21.0 then refactors the storage to expose both the gravity and magnetic surfaces on shared infrastructure.
 * **Predictive-science applications stay outside this notebook's scope.** Mars dust-storm L_s prediction; Great Red Spot / Galilean tidal correlation; Saturn ring-spoke / EM-forcing coupling — each is a refereed-publication-scale research project on top of the catalog substrate, not a v0.20.x or v0.21.x ship deliverable. The catalog provides the data; predictive science on it is a programme for the field.
+
+## 18. Attested Multi-Source Collector framework — format standard for ground-proof rows from external archives
+
+Scoping note for the **v0.25.x ship sequence**: a generic, attested, multi-source data collector that ingests external open-data archives (EarthRef SC, GMRT, GEBCO, EMAG2, PetDB, MagIC, etc.) and emits canonical-format ground-proof rows at scale. This section is the *format standard*, normative for the v0.25.x sequence and downstream citations.
+
+The architectural commitment is documented as scoping (no code yet) before v0.25.0 begins. Treat §18 the way §17 was treated for the v0.20.x ships: an architectural pre-commit, then ships implement against this spec.
+
+### 18.0 Why a format standard now
+
+Through v0.24.x every ground-proof row was *hand-coded* into a `_research/<topic>_data.py` module — full provenance carried in inline `SOURCES` dicts and per-row docstrings. That pattern is correct (and the Mathematical Provenance Method discipline depends on it), but it does not scale past a few dozen sources. The work to add the EarthRef SC ~1,800-seamount roster as hand-coded rows is impractical; the work to add the next 10 archives after that is unthinkable.
+
+The escape is **CONFIG, not CODE**: each new attested source becomes a TOML/YAML descriptor that the existing collector core consumes, producing the same per-row attestation shape `_research/*_data.py` modules carry today. This requires a normative format standard so:
+
+1. **MPM byte-level reproducibility holds** when collectors run (the eigenbasis is identical across users for the same baseline state).
+2. **New sources don't multiply code paths** — a new archive is a descriptor + (optionally) a small parsing helper, not a parallel module.
+3. **Provenance survives at scale** — every row carries the same attestation fields the hand-coded `SOURCES` dicts encoded, so a future researcher can reconstruct *exactly* which mirror, on which day, with which parser, produced any specific row.
+4. **The format itself is citable** — when v0.25.0 publishes, downstream tools that consume our NDJSON can rely on the spec being versioned.
+
+The format gets a name: a **Mathematical Provenance Record (MPR)** — one canonical NDJSON row per ground-proof datum, with a mandatory attestation block. The discipline name (Mathematical Provenance Method, §0.0) and the format name (Mathematical Provenance Record) deliberately align: the format is the on-disk crystallisation of the discipline.
+
+### 18.1 The four-tier reproducibility model
+
+The fundamental tension: MPM requires byte-level reproducibility, but live external archives are time-varying. We resolve this by stratifying the system into **four explicit tiers** with different reproducibility semantics. Every consumer of the collector framework chooses a tier (or composes them); the tier is part of the contract, not implicit.
+
+| Tier | Mechanism | Reproducibility guarantee | Owner |
+| :--- | :--- | :--- | :--- |
+| **T0 frozen baseline** | Current `_research/*_data.py` ships baked into the wheel | Byte-identical across all installs of `vX.Y.Z` for all time | Released wheel |
+| **T1 CI-baked extension** | Collectors run on schedule via CI, auto-PR new `_data.py` files | Byte-identical at the next ship — `vX.Y.(Z+1)` baseline includes the new rows | CI workflow + maintainer review |
+| **T2 user runtime kernel** | Local NDJSON cache; user runs collector once, persists; bridge merges on top of T0+T1 at load time | Byte-identical *within a user's local cache state* (cache hash documents the state) | Local user, opt-in |
+| **T3 live query** | At simulation time, collector fetches from attested source; result stamped with retrieval-time + checksum | Reproducible *only if the timestamp + checksum is replayed*; weakest tier | Per-call opt-in; explicit `live=True` flag |
+
+**Default behaviour is T0+T1 only**: a fresh `pip install` reproduces the same eigenbasis as every other installation of the same version. The user has to opt explicitly into T2 (local-kernel overlay) or T3 (live query); both downgrade reproducibility but stamp themselves so a paper or pipeline can document its own reproducibility floor.
+
+The current v0.24.x ships are entirely T0. v0.25.0 introduces the T1 mechanism (CI-baked) on top of the existing T0 substrate. T2 and T3 ship in v0.25.1 / v0.25.2 respectively — they are individually substantial surfaces, not a single shared landing.
+
+### 18.2 The Mathematical Provenance Record (MPR) — canonical NDJSON spec
+
+Each ground-proof row is one NDJSON line. The format is **append-only-friendly** (single-row failures don't corrupt the file), **streamable** (process row-by-row without loading the file), and **schema-validated** (a row missing any mandatory attestation field is invalid).
+
+**Schema (v1):**
+
+```json
+{
+  "mpr_version": "1.0",
+  "data": {
+    /* Domain payload — schema is per-source, but every key/value is plain JSON.
+     * Numbers carry units in their key name (e.g. "elevation_m", not "elevation").
+     * No code objects, no Python-specific types — must round-trip cleanly to / from
+     * other languages.
+     */
+  },
+  "data_schema_id": "earthref_sc.seamount.v1",
+  "attestation": {
+    "source_doi": "10.1029/...",
+    "source_url": "https://www.earthref.org/...",
+    "license": "CC-BY-4.0",
+    "retrieved_at": "2026-05-08T14:23:11Z",
+    "response_sha256": "0a1b2c...",
+    "parser_version": "ephemerides-spectral 0.25.0",
+    "parser_rule_hash": "sha256:...",
+    "collector_descriptor_path": "configs/earthref_sc.toml",
+    "collector_descriptor_hash": "sha256:..."
+  },
+  "rendering": {
+    "human_readable_name": "EarthRef Seamount Catalog — Hawaii-Emperor segment row",
+    "cite_as": "Wessel & Sandwell 2018 + Koppers 2019; retrieved EarthRef SC 2026-05-08.",
+    "purpose": "ground-proof row for the v0.24.5 bounded-local Laplacian regime"
+  }
+}
+```
+
+**Mandatory invariants:**
+
+* `mpr_version` exists and is recognised. Future schema bumps go to v1.1 / v2; consumers MUST refuse to load an unrecognised version (no silent drift).
+* Every field of `attestation` is present and non-empty. A row missing `response_sha256` is *not a valid MPR* — the format does not allow attestation to be partial.
+* `data_schema_id` resolves to a registered per-source schema (declared in the collector descriptor). The data block is validated against it at load time.
+* `rendering.human_readable_name` and `rendering.cite_as` exist. These come from the source descriptor (§18.4) — *self-describing*: adding a new source requires no code change to render its provenance text.
+
+**On-disk layout:**
+
+```
+_research/
+  attested/
+    earthref_sc/
+      seamount.ndjson           ← MPR file, one row per seamount
+      seamount.schema.json      ← data_schema_id schema (versioned alongside)
+      collector_descriptor.toml ← source spec (§18.4)
+    gmrt/
+      bathymetry_5deg_grid.ndjson
+      ...
+```
+
+Each `_research/attested/<source>/` directory is the unit of audit: descriptor + schema + NDJSON together are reproducible-from-scratch given the source URL.
+
+### 18.3 Format adapters (input) and renderers (output)
+
+The collector framework's surface is asymmetric: many input formats from the wild, one canonical output (MPR NDJSON), optional renderers for downstream tools.
+
+**Input format adapters** (small shared core, ~5 types covering the realistic source space):
+
+| Adapter | Sources that use it (examples) |
+| :--- | :--- |
+| `html_scraper` | EarthRef SC, USGS catalog pages, IRIS station listings |
+| `json_api` | PetDB v4, NASA ADS, MagIC API, USGS earthquake catalog API |
+| `csv_bulk` | NOAA NCEI ASCII archives, paleoclimate datasets, MAGIC-derived CSV exports |
+| `netcdf_grid` | ERA5 reanalysis, Mars MCD, GMRT grid tiles, NCEP reanalysis |
+| `geotiff_bbox` | GMRT bathymetry by lat/lon, GEBCO topography, EMAG2 magnetic-anomaly grid |
+
+A new source is: **descriptor TOML + (existing) adapter selection + (rare) parser-helper Python callable**. Most sources are pure-descriptor — the adapter handles fetch + parse generically, the descriptor maps fields to the canonical schema.
+
+**Output renderers** (one canonical, several optional):
+
+| Output | Purpose |
+| :--- | :--- |
+| **NDJSON** *(canonical)* | Primary on-disk format; what `_research/attested/*` stores; what bridge consumers read |
+| XML | Per-row XML for consumers (legacy GIS tools, some JPL pipelines) that prefer XML |
+| CSV | Flat-table export for spreadsheet / R / Stata workflows |
+| Parquet | Columnar export for analytic pipelines on large NDJSON corpora |
+
+No-one is locked into NDJSON: a renderer takes any MPR NDJSON file and re-emits it. The attestation block round-trips through every renderer; data block round-trips when the target format supports nesting (NDJSON → XML / Parquet round-trip cleanly; NDJSON → CSV flattens, with attestation preserved as columns).
+
+### 18.4 Source descriptors — TOML/YAML with self-describing rendering verbiage
+
+Each attested source is one descriptor file. Adding a source is a CONFIG change, not a CODE change.
+
+**Example: `configs/earthref_sc.toml`** (sketch):
+
+```toml
+[source]
+key = "earthref_sc"
+human_readable_name = "EarthRef Seamount Catalog"
+purpose = "ground-proof rows for hotspot-track / bounded-local Laplacian regimes (v0.24.5 / v0.24.7)"
+license = "CC-BY-4.0"
+homepage = "https://www.earthref.org/SC/"
+canonical_doi = "10.1029/..."
+
+[fetch]
+adapter = "html_scraper"
+endpoint = "https://www.earthref.org/SC/catalog?page={page}"
+pagination = { type = "page_query", start = 1, end_detected_by = "empty_page" }
+rate_limit_rps = 0.5
+robots_txt_compliant = true
+
+[parse]
+table_selector = "table#sc_main"
+row_selector = "tr.sc_row"
+field_map = [
+  { canonical = "name",          selector = "td.name",       type = "string" },
+  { canonical = "latitude_deg",  selector = "td.lat",        type = "float" },
+  { canonical = "longitude_deg", selector = "td.lon",        type = "float" },
+  { canonical = "summit_depth_m",selector = "td.depth",      type = "float" },
+  # ...
+]
+
+[schema]
+data_schema_id = "earthref_sc.seamount.v1"
+data_schema_path = "schemas/earthref_sc_seamount_v1.json"
+
+[rendering]
+# Self-describing rendering verbiage — what the program tells users about
+# rows from this source. No code change needed when descriptors are added.
+cite_as_template = "Wessel & Sandwell 2018 + Koppers 2019; retrieved EarthRef SC {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for {schema.regime_label} regime"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = ["source_doi", "source_url", "license", "retrieved_at", "response_sha256"]
+```
+
+The `[rendering]` block is the **architectural addition the v0.24.12 conversation surfaced**: the program takes its language for describing rows from the descriptor. A user querying `bridge.list_attested_sources()` gets back human-readable purpose strings, citations, and licenses *without* any of those strings being hard-coded in the bridge; a new descriptor brings its own verbiage.
+
+### 18.5 T1 re-bake triggers — periodic + manual now; schema-gap-driven later
+
+The CI mechanism that promotes T1 collected data into the next baked ship needs a trigger. Three options were on the table during the v0.25.0 scoping:
+
+1. **Periodic** (cron monthly): low ops burden; releases drift from "interesting" events.
+2. **Event-driven** (collector polls source's `Last-Modified` or `ETag`): tight to source updates; hostile sources don't always honour HTTP headers.
+3. **Schema-gap-driven**: the v0.24.9 dynamical-regime classifier surfaces a feature-space gap (an OOS probe with `calibration_ratio` near 1, or a probe whose nearest-regime label disagrees with the physics — *e.g.* the v0.24.12-introduced Vesta gap); CI kicks off a targeted collection in the regime the gap implies needs filling.
+
+**Decision**: v0.25.0 ships **(1) periodic + manual trigger**. Option (3) is deferred but **the v0.25.0 architecture must support plugging it in later without descriptor / collector framework changes**.
+
+The schema-gap-driven trigger is philosophically beautiful: the system's own diagnostics drive its own data acquisition; the eigenbasis points at its own next ground-proof row. The v0.24.10 OOS probes + v0.24.12 schema-gap surfacing show the discipline works in the small; (3) is the automation of that loop. But three concrete unknowns make it the wrong v0.25.0 lift:
+
+* **Which descriptor matches a regime gap?** Maps from regime labels (`bounded_local_laplacian_trajectory`, `temporal_quasi_periodic_cycle`, ...) to source descriptors aren't 1:1; some regimes are populated from multiple sources (v0.24.5 Hawaii used 5 published sources hand-sourced).
+* **What stops a gap-driven trigger from over-collecting?** A gap that surfaces at v0.24.12 might already be in-flight at v0.24.13 from periodic collection; the trigger needs a "is anyone already fetching this?" check.
+* **How does the maintainer review a gap-driven CI PR?** It's auto-generated; the discipline says ground-proof rows must cite real published physics, so the PR needs a human stop-gate for citation provenance.
+
+These are interesting research questions; they're not v0.25.0 work. The v0.25.0 design constraint is: **define the descriptor schema and CI workflow so that a future v0.26.x research thread can wire the schema-gap classifier to the collector trigger via a thin layer**, not by rewriting either side. Concretely, that means:
+
+* Each descriptor declares which regime label(s) it's relevant to (`[gap_targeting]` block in the TOML).
+* The CI workflow's trigger-decision step is a separate stage (not baked into `pio collect`); this is the seam where a future `decide_what_to_collect_from_classifier_gap()` plugs in.
+* The `bridge.run_dynamical_regime_probes()` already returns calibration ratios; a future scheduler reads that output and selects descriptors from the `[gap_targeting]` declarations.
+
+### 18.6 v0.25.0 ship scope + v0.25.x sequence
+
+| Version | Theme | Tier coverage |
+| :--- | :--- | :--- |
+| **v0.25.0** | Adapter shared core (5 format types) + descriptor schema + 3 pilot sources end-to-end + CI workflow scaffolding | T0 + **T1** (new) |
+| **v0.25.1** | User runtime kernel — local NDJSON cache; `bridge.use_local_kernel(path)` overlay; bridge surfaces merge T0+T1+T2 at load | + **T2** |
+| **v0.25.2** | Live query — `bridge.get_attested_dataset(key, live=True)`; per-call timestamp + checksum stamping; cache-replay reproducibility | + **T3** |
+| v0.25.x or v0.26.x | Renderer triplet (XML / CSV / Parquet) — separate ship; not in critical path |  |
+| v0.26.x or later | Schema-gap-driven trigger — research thread; wires the v0.24.9 classifier output to the v0.25.0 collector | T1 enhancement |
+
+**v0.25.0 pilot sources:**
+
+* **EarthRef SC** (~1,800 seamounts; `html_scraper`) — feeds v0.24.5 Hawaii / v0.24.7 Mars Tharsis bounded-local-Laplacian regime.
+* **GMRT** (`geotiff_bbox` bathymetry by lat/lon) — feeds Mars Tharsis spatial alignment + future Pacific-rim hotspot rosters.
+* **PetDB v4** (`json_api` geochemistry) — feeds future cogenetic-family ships (v0.24.7 cousin work on island-arc volcanic chains).
+
+Each pilot exercises a different adapter; together they prove the shared-core claim on real archives.
+
+**v0.25.0 bridge surfaces:**
+
+* `bridge.list_attested_sources()` — enumerate descriptors; returns rendered `human_readable_name` / `purpose` / `license` / `cite_as_template` per source.
+* `bridge.get_attested_dataset(source_key)` — return the latest baked T0+T1 NDJSON content as a list of dict (data + attestation + rendering).
+* `bridge.attestation_audit(source_key)` — return the attestation manifest for every row in a source: timestamps, checksums, descriptor hashes. Useful for paper appendices.
+
+**Out of v0.25.0 scope** (deferred to v0.25.1+):
+
+* `bridge.use_local_kernel(path)` — T2 user runtime kernel
+* `bridge.get_attested_dataset(key, live=True)` — T3 live query
+* The schema-gap-driven trigger
+* Renderer triplet (NDJSON → XML / CSV / Parquet)
+
+### 18.7 Cross-references
+
+* §0.0 — The Mathematical Provenance Method (the discipline; MPR is the on-disk crystallisation).
+* §17 — Per-body spectral catalog (the v0.20.x ships that hand-coded the rosters; v0.25.x is the scale-out).
+* §4 release history — v0.24.10 (OOS probes), v0.24.11 / v0.24.12 (Path-B schema-gap closure mechanic; the loop the schema-gap-driven trigger automates).
+* `_research/dynamical_regime_data.py` — the SOURCES dict shape this format formalises.
+* External: NDJSON spec (https://github.com/ndjson/ndjson-spec); JSON Lines (https://jsonlines.org).
+
+### 18.8 Recommendation
+
+* **Ship §18 as research-only now.** This commit lands as scoping; no `_research/attested/` directory yet, no descriptors, no CI workflow. Same pattern as §17 → v0.20.x.
+* **v0.25.0 implements §18 with the 5 adapters + 3 pilot sources + T1 CI workflow.** Full coverage of the architectural surface, not a subset; pilot sources exercise the full pipeline end-to-end.
+* **MPR v1 is normative.** Once v0.25.0 ships, the format is versioned; v1.1 / v2 require explicit migration story.
+* **Design v0.25.0 for v0.26.x schema-gap-driven trigger.** The `[gap_targeting]` descriptor block + the trigger-decision CI seam are part of v0.25.0 even though the trigger itself isn't.
+* **Hand-coded `_research/*_data.py` modules continue to ship** for sources where the dataset is small (a dozen rows or fewer) and the inline citation discipline is a feature, not a cost. v0.25.x extends the pattern to scale; it does not deprecate the inline pattern.
