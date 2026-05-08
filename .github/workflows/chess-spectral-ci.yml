@@ -10,8 +10,20 @@ name: chess-spectral-ci
 
 on:
   pull_request:
+    # Narrow path filter: trigger ONLY on changes that affect the
+    # build/test surface. Skip docs-only edits (ROADMAP.md, AUDIT_*.md,
+    # internal docs/ subdirectory) because those don't change what the
+    # build evaluates and burn CI minutes per PR for zero useful signal.
     paths:
-      - "docs/chess-maths/chess-spectral/**"
+      - "docs/chess-maths/chess-spectral/python/**"
+      - "docs/chess-maths/chess-spectral/bridge/**"
+      - "docs/chess-maths/chess-spectral/src/**"
+      - "docs/chess-maths/chess-spectral/include/**"
+      - "docs/chess-maths/chess-spectral/codegen/**"
+      - "docs/chess-maths/chess-spectral/test/**"
+      - "docs/chess-maths/chess-spectral/vendor/**"
+      - "docs/chess-maths/chess-spectral/CMakeLists.txt"
+      - "docs/chess-maths/chess-spectral/CMakePresets.json"
       - ".github/workflows/chess-spectral-ci.yml"
   workflow_dispatch: {}
 
