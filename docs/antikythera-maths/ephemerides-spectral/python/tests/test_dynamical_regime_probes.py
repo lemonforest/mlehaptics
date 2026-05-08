@@ -191,19 +191,39 @@ def test_alpha_centauri_b_classifies_as_continuum() -> None:
     assert label == "continuum_normal_modes"
 
 
-def test_ceres_classifies_as_rigid_stable() -> None:
+def test_ceres_now_ood_after_v_0_24_11() -> None:
+    """v0.24.11 ratchet revision: prior to v0.24.11 Ceres classified
+    as rigid_body_action_angle_stable (matched Mercury at modest
+    cal_ratio). After v0.24.11 added Pluto-Charon to the training
+    set, Ceres sits in feature-space terrain with no close training
+    analog -- both Mercury and Pluto-Charon have has_commensurability=1
+    but Ceres has =0. The classifier honestly OODs at cal_ratio ~0.998.
+
+    This is the rigid-stable-no-commensurability gap surfaced by
+    the v0.24.11 Path-B test; documented for a future ship to
+    populate (Vesta, Pallas, etc.)."""
+    import math
+    from ephemerides_spectral._research.dynamical_regime_catalog import (
+        classify_dynamical_regime,
+    )
     by = {p.name: p for p in REGIME_PROBES}
-    label = _classified_regime(by["ceres"].feature_vector())
-    assert label == "rigid_body_action_angle_stable"
+    r = classify_dynamical_regime(by["ceres"].feature_vector())
+    assert r["out_of_distribution"] is True
+    assert r["calibration_ratio"] > 0.85
 
 
-def test_pluto_charon_classifies_as_mercury_due_to_schema_gap() -> None:
-    """Pluto-Charon HAS commensurability but no Saros-style track-record;
-    v0.24.9 schema can't distinguish it from Mercury-stable. Documented
-    behaviour, not a bug — see probe notes."""
+def test_pluto_charon_classifies_as_mutual_lock_v_0_24_11() -> None:
+    """v0.24.11 Path-B closure: Pluto-Charon was added as a ground-
+    proof row with new regime label `rigid_body_action_angle_mutual_lock`.
+    The probe (matching feature vector) now self-classifies to the
+    new label deterministically (cal_ratio = 0).
+
+    Prior to v0.24.11 this probe collapsed to Mercury-stable due to
+    the v0.24.9 feature-schema gap; the new ground-proof row populated
+    the binary-mutual-lock niche."""
     by = {p.name: p for p in REGIME_PROBES}
     label = _classified_regime(by["pluto_charon"].feature_vector())
-    assert label == "rigid_body_action_angle_stable"
+    assert label == "rigid_body_action_angle_mutual_lock"
 
 
 def test_vesta_flagged_out_of_distribution() -> None:
@@ -258,13 +278,18 @@ def test_run_probes_all_pass_or_correctly_flagged() -> None:
 
 
 def test_run_probes_match_count() -> None:
-    """8 probes have explicit non-OOD expectations; 1 is OOD-expected
-    (Vesta); 1 is let-classifier-surprise-us (Phobos). All 8 expected
-    matches should hit; the 1 OOD should fire."""
+    """v0.24.11 ratchet revision: 7 probes have explicit non-OOD
+    expectations (Yellowstone, Reunion, Pluto-Charon, Enceladus, Io,
+    Alpha Centauri B, magnetar); 2 are OOD-expected (Vesta, Ceres);
+    1 is let-classifier-surprise-us (Phobos).
+
+    Pre-v0.24.11 counts were 8 + 1 + 1; the v0.24.11 schema-extension
+    moved Ceres from in-distribution to OOD-expected (a remaining
+    gap the v0.24.11 Path-B revealed but did not close)."""
     r = run_dynamical_regime_probes()
     summary = r["summary"]
-    assert summary["n_matches_expected"] == 8
-    assert summary["n_correctly_flagged_ood"] == 1
+    assert summary["n_matches_expected"] == 7
+    assert summary["n_correctly_flagged_ood"] == 2
 
 
 def test_run_probes_each_entry_has_calibration_ratio() -> None:

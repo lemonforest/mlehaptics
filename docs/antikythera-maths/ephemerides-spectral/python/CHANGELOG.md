@@ -10,7 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.10)
+(no entries yet — next entries land after v0.24.11)
+
+## [0.24.11] — 2026-05-07
+
+**Pluto-Charon Dynamical Spectrum (binary mutual tidal lock; Path-B closure of v0.24.10 OOS-probe-roster schema-gap).** Fourth per-body action-angle ship in v0.24.x; first binary mutual-tidal-lock entry. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.pluto_charon_dynamical_spectrum_data` — data module with `PLUTO_CHARON_DYNAMICAL_MODES` (12 modes: mutual orbital + Pluto spin + Charon spin all locked at 6.387 d, slow apsidal libration, 4 actions, 4 small-moon near-3:4:5:6 commensurabilities), binary geometry constants (mass ratio 0.1218, semi-major axis 19591 km, eccentricity 5e-5, mutual obliquity 0.0006°, barycenter offset 2128 km, barycenter-above-Pluto-surface 940 km), small-moon orbital periods (Styx/Nix/Kerberos/Hydra), `SOURCES` (7 citations), `DynamicalMode` dataclass.
+- `_research.pluto_charon_dynamical_spectrum_catalog` — wrapper module with `get_pluto_charon_dynamical_spectrum`, `get_double_synchronous_signature`, `list_pluto_charon_dynamical_spectrum`.
+
+### Added — bridge dict API
+
+- `bridge.get_pluto_charon_dynamical_spectrum()` — full action-angle catalog + binary geometry + small-moon periods.
+- `bridge.get_double_synchronous_signature()` — the triple-lock invariant headline + companion observables (e, mutual obliquity, mass ratio, barycenter offset, small-moon near-commensurabilities).
+- `bridge.list_pluto_charon_dynamical_spectrum()` — full enumeration + citations.
+
+### Added — CLI
+
+- `ephemerides-spectral pluto-charon-dynamical-spectrum`
+- `ephemerides-spectral double-synchronous-signature`
+- `ephemerides-spectral pluto-charon-dynamical-spectrum-full`
+
+### Path-B closure of v0.24.10 schema-gap
+
+The v0.24.10 OOS probes flagged a **feature-schema gap**: bodies with commensurabilities-but-no-Saros-style-track (Pluto-Charon, Enceladus, Io) all collapsed onto Mercury-stable in the v0.24.9 classifier. v0.24.11 closes the gap via the project's discipline: **populate the missing regime with a real ground-proof row** rather than engineer a new feature (which would alter eigenbasis numerics).
+
+- Pluto-Charon added to `_research.dynamical_regime_data.REGIME_EXAMPLES` with NEW regime label `rigid_body_action_angle_mutual_lock`. The classifier now has 10 ground-proof rows (was 9).
+- Pluto-Charon probe self-classifies to the new label deterministically (cal_ratio = 0).
+- Enceladus / Io probes now land on `mutual_lock` (was Mercury-stable). Partial closure — they're feature-space neighbors of the new row but not perfect matches; the asymmetric-satellite-with-partner-resonance niche is the next remaining gap.
+- Ceres now OOD-flagged at cal_ratio 0.998 — genuine "no rigid-stable-no-commensurability training row exists." Honest gap-surfacing.
+
+### Reframing — "ground-proof rows", not "training data"
+
+`dynamical_regime_data.py` docstring updated: the v0.24.x catalogs are **ground-proof rows**, not "training examples." Pluto-Charon's mass ratio is 0.1218 because Brozovic 2015's orbital fit measured it — not because a loss function converged on it. Adding a new row is a **deterministic schema extension**, not retraining. `np.linalg.eigh` recomputes byte-identically; no SGD, no random init, no validation split, no pseudorandom anywhere.
+
+### Added — Tests
+
+- `tests/test_pluto_charon_dynamical_spectrum.py` — 33 tests pinning catalog shape (12 modes, 7 sources), triple-lock invariant (P_orb = P_spin_pluto = P_spin_charon = 6.387 d), eccentricity / mutual obliquity essentially zero, mass ratio largest in Solar System, barycenter outside Pluto's surface, small-moon near-3:4:5:6 commensurabilities (Styx 6%, Nix 4%, Kerberos 1%, Hydra 0.5% off), classifier integration (Pluto-Charon ground-proof row present + new regime label unique), bridge + CLI smoke.
+- `tests/test_dynamical_regime.py` — assertions updated from `n=9` to `n=10` (regime count, source count, distances-to-all length, eigenbasis n_examples, list n_regimes).
+- `tests/test_dynamical_regime_probes.py` — three probe ratchets revised: `pluto_charon` now expects `mutual_lock` (was Mercury-stable); `enceladus` + `io_galilean_resonance` updated to `mutual_lock` with notes documenting remaining asymmetric-satellite gap; `ceres` updated to `ood_expected=True` with notes documenting the rigid-stable-no-commensurability gap.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Architectural commitment
+
+The v0.24.x methodology arc gains its first **demonstrated Path-B closure**: a real schema-gap surfaced by the OOS probe layer (v0.24.10), then closed not by feature engineering but by populating the missing regime with a real ground-proof row. The v0.24.11 ship is a concrete demonstration of the loop the v0.25.0 multi-source-collector framework will mechanise: probes flag → ground-proof rows close → eigenbasis recomputes deterministically.
+
+Two new gaps surfaced as a result of v0.24.11: (a) asymmetric-satellite-with-partner-resonance (Enceladus, Io); (b) rigid-stable-no-commensurability (Ceres, Vesta). Documented in probe notes; future ship candidates.
 
 ## [0.24.10] — 2026-05-07
 

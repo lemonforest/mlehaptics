@@ -621,6 +621,23 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.11 Sol Pluto-Charon Dynamical Spectrum (binary mutual
+    # tidal lock; Path-B response to v0.24.10 schema-gap; the only
+    # double-synchronous binary planet in the Solar System). Pure-
+    # Python; static published values from Brozovic 2015 + Stern 2015
+    # + Showalter-Hamilton 2015. No C twin makes sense.
+    "get_pluto_charon_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_double_synchronous_signature": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_pluto_charon_dynamical_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
