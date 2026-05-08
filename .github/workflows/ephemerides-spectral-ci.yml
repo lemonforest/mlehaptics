@@ -15,8 +15,18 @@ name: ephemerides-spectral-ci
 on:
   push:
     branches: [main]
+    # Narrow path filter: trigger ONLY on changes that affect the
+    # build/test surface. Skip docs-only edits (ROADMAP.md,
+    # CHANGELOG.md, README.md, TIER2_DESIGN.md, notebook) because
+    # those don't change what pytest evaluates and burn ~15 CI-minutes
+    # per PR for zero useful signal. Documentation drift is covered by
+    # ephemerides-spectral-docs-check.yml (soft-warning) and the
+    # in-pytest freshness ratchets (test_readme_freshness etc.).
     paths:
-      - "docs/antikythera-maths/ephemerides-spectral/**"
+      - "docs/antikythera-maths/ephemerides-spectral/python/**"
+      - "docs/antikythera-maths/ephemerides-spectral/c/**"
+      - "docs/antikythera-maths/ephemerides-spectral/codegen/**"
+      - "docs/antikythera-maths/ephemerides-spectral/CMakeLists.txt"
       - "docs/antikythera-maths/research/**"
       - ".github/workflows/ephemerides-spectral-ci.yml"
   pull_request:
@@ -29,7 +39,10 @@ on:
     types: [opened, synchronize, reopened, labeled]
     branches: [main]
     paths:
-      - "docs/antikythera-maths/ephemerides-spectral/**"
+      - "docs/antikythera-maths/ephemerides-spectral/python/**"
+      - "docs/antikythera-maths/ephemerides-spectral/c/**"
+      - "docs/antikythera-maths/ephemerides-spectral/codegen/**"
+      - "docs/antikythera-maths/ephemerides-spectral/CMakeLists.txt"
       - "docs/antikythera-maths/research/**"
       - ".github/workflows/ephemerides-spectral-ci.yml"
   workflow_dispatch: {}
