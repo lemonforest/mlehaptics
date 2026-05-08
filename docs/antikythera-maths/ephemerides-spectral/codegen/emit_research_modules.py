@@ -101,6 +101,8 @@ _INCLUDED_MODULES: List[str] = [
     "attested_collector_format.py",
     "attested_collector_descriptor.py",
     "attested_collector_catalog.py",
+    # v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
+    "attested_collector_gap_suggester.py",
 ]
 
 # Subdirectories under research/ to mirror recursively (preserves

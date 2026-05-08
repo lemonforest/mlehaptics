@@ -10,7 +10,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.2)
+(no entries yet — next entries land after v0.26.0)
+
+## [0.26.0] — 2026-05-08
+
+**Schema-gap-driven trigger — closes the Mathematical Provenance Method loop.** The system identifies what it doesn't know and points at attested sources that could populate the gap. Pure-Python additive; **no ABI bump** (thirty-ninth consecutive ship since v0.13.x).
+
+### Added — Pythonic API
+
+- `_research.attested_collector_gap_suggester` — new module. Reads the v0.24.10 OOS probe roster, runs each probe through the v0.24.9 dynamical-regime classifier, identifies regime gaps (OOD / spurious-match / surprise), and matches each gap against attested-source descriptors via `[gap_targeting].regime_labels`. Deterministic, closed-form analysis. No LLM, no SGD; same Mathematical Provenance Method discipline as every other v0.24.x / v0.25.x surface.
+- Constants: `GAP_KIND_OOD`, `GAP_KIND_SPURIOUS`, `GAP_KIND_SURPRISE`, `GAP_KIND_NONE`.
+- `suggest_gap_collections(*, ood_threshold=0.85, descriptors=None)` returns the suggestion envelope.
+
+### Added — bridge dict API
+
+- `bridge.suggest_gap_collections(*, ood_threshold=0.85)` — wraps the suggester. Each suggestion entry: `probe_name`, `calibration_ratio`, `current_landing`, `expected_regime`, `gap_kind`, `target_regime_label`, `candidate_descriptors`.
+
+### Added — CLI
+
+- `ephemerides-spectral suggest-gap-collections [--ood-threshold N]`
+
+### Three real gaps surfaced on the current v0.25.x descriptor set
+
+When run against the shipped probe roster (10 OOS probes) + descriptor set (3 attested sources), the suggester surfaces:
+
+- **phobos**: surprise gap; classifier landed it on `rigid_body_chaotic_obliquity`. No descriptor currently targets that label → 0 candidates. Future-source backlog hint.
+- **ceres**: OOD gap (cal_ratio > 0.85). `expected_regime=None` → no target label → 0 candidates. Documented honest "I don't know" — the framework would need a new descriptor whose `[gap_targeting]` covers a regime fitting Ceres's rigid-stable-no-commensurability physics.
+- **vesta**: surprise gap (the v0.24.12-introduced schema-gap that the user's research notebook identified manually). Classifier lands it on `rigid_body_chaotic_obliquity` spuriously; no descriptor targets that label → 0 candidates. Same future-source backlog hint as phobos.
+
+The candidate-matching code path is exercised by tests against synthetic descriptors; on the production set, all three current gaps need new descriptors covering currently-untargeted regimes — which is exactly the scope the v0.26.x research thread will surface.
+
+### CI automation for v0.26.x or later
+
+The auto-PR mechanism that consumes the suggestion surface and opens targeted T1 collection PRs is **not** in v0.26.0. v0.26.0 ships the analysis surface; the trigger half lands when a maintainer-review-grade auto-PR mechanism is wired up (open research questions documented in #161).
+
+### Reproducibility
+
+Suggester output is deterministic given: same probe roster, same descriptor set, same `ood_threshold`. `regenerate.py` does no network I/O (existing ratchet remains green). The suggester reads only T0+T1 baseline + module-load-cached descriptor dictionary; no overlay or live state involved.
+
+### Tests
+
+10 new tests in `tests/test_attested_collector.py`:
+- envelope shape + `n_probes`/`n_gaps`/`n_suggestions` counts
+- per-suggestion field shape
+- gap_kind vocabulary check
+- vesta-is-currently-a-gap ratchet (pins the v0.24.12 schema-gap surfacing)
+- candidate-matching path
+- ood_threshold parameter honoured
+- 3 CLI tests (smoke / threshold flag / --help)
+
+### Cross-references
+
+- Notebook §18.5 (T1 re-bake triggers; option 3 — schema-gap-driven).
+- Notebook §0.0 The Mathematical Provenance Method.
+- v0.24.10 OOS probe roster (#152).
+- v0.24.9 dynamical-regime classifier (#151).
+- v0.24.11 / v0.24.12 manual demonstrations of the loop.
 
 ## [0.25.2] — 2026-05-08
 

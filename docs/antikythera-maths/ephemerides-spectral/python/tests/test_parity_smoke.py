@@ -690,6 +690,13 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.26.0 Schema-gap-driven trigger — closes the MPM loop.
+    # Pure Python; reads OOS probes + descriptors + classifier
+    # output; deterministic suggestion list. No C twin makes sense.
+    "suggest_gap_collections": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
