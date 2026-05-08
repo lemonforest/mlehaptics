@@ -7,7 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.9)
+(no entries yet — next entries land after v0.24.10)
+
+## [0.24.10] — 2026-05-07
+
+**OOS probe catalog + classifier calibration-ratio metric — closes a v0.24.9 loose end and surfaces a latent diagnostic.** Pure-Python additive; **no ABI bump** (thirty-third consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.dynamical_regime_probes_data.REGIME_PROBES`; `_research.dynamical_regime_catalog.run_dynamical_regime_probes / list_dynamical_regime_probes` (+ extended `classify_dynamical_regime` return) |
+| Bridge dict API | `bridge.run_dynamical_regime_probes(n_components=3, ood_threshold=0.85)` / `bridge.list_dynamical_regime_probes()` (+ extended `bridge.classify_dynamical_regime`) |
+| CLI | `regime-probes`, `regime-probes-list` |
+
+### 10-probe out-of-sample roster
+
+| Probe | Expected | Classified | Calibration ratio | OOD |
+|---|---|---|---|---|
+| yellowstone_hotspot | bounded_local_laplacian_trajectory | ✓ | 0.24 | — |
+| reunion_hotspot | bounded_local_laplacian_trajectory | ✓ | 0.07 | — |
+| pluto_charon | rigid_body_action_angle_stable† | ✓ | 0.14 | — |
+| enceladus | rigid_body_action_angle_stable† | ✓ | 0.29 | — |
+| io_galilean_resonance | rigid_body_action_angle_stable† | ✓ | 0.22 | — |
+| phobos | (let-classifier-surprise-us) | rigid_body_chaotic_obliquity ‡ | 0.38 | — |
+| ceres | rigid_body_action_angle_stable | ✓ | 0.72 | — |
+| alpha_centauri_b | continuum_normal_modes | ✓ | 0.01 | — |
+| vesta | (out-of-distribution) | bounded_local_laplacian_trajectory | 0.98 | ✓ |
+| magnetar_typical | shape_residual_chandrasekhar ‡ | ✓ | 0.49 | — |
+
+† Feature-schema gap: Pluto-Charon / Enceladus / Io have commensurabilities but no Saros-style multi-millennium prediction record, so the v0.24.9 schema can't distinguish them from Mercury-stable. Documented as ratchet; a future schema extension would let these land on Luna.
+
+‡ Surprising classification pinned as documented v0.24.9 ground truth (Phobos = let-classifier-surprise-us; magnetar = dimensionality dominates over size mismatch).
+
+**Zero unexpected classifications** in the summary aggregate — every probe either matches expectation or is correctly OOD-flagged.
+
+### v0.24.10 calibration-ratio metric
+
+`bridge.classify_dynamical_regime` return dict gains four new fields:
+
+- `calibration_ratio = nearest_distance / 2nd_nearest_distance` — small (~0 for self-classification) = confident; near 1 = honest "I don't know"
+- `nearest_neighbour_margin = 2nd_nearest_distance - nearest_distance` — absolute version
+- `out_of_distribution: bool` — True when `calibration_ratio > ood_threshold` (default 0.85)
+- `ood_threshold_used: float` — for reproducibility / custom thresholds
+
+The diagnostic was latent in v0.24.9's `distances_to_all` but never summarised. v0.24.10 surfaces it as first-class.
+
+### NOT machine learning (in the SGD sense)
+
+The catalog module's docstring now explicitly notes: the v0.24.9 classifier *looks* like nearest-neighbour ML, but its "training step" is a closed-form `np.linalg.eigh` call on the standardised covariance matrix. **No random initialisation, no stochastic gradient descent, no hyperparameter search, no validation split, no pseudorandom anywhere.** The eigenbasis is a *property* of the labelled data, not a model fit to it. Identical inputs yield byte-identical bases across runs. The v0.24.10 OOS probes are *test vectors*, never *training data*. This is the spectral-methods discipline at work: classical math, deterministic decomposition, exposed eigenstructure.
+
+### Tests
+
+- `tests/test_dynamical_regime_probes.py` — 33 tests covering roster shape, per-probe classification ratchets, calibration-metric invariants, bridge + CLI smoke. **0 unexpected classifications** in the run-probes summary.
+- `tests/test_parity_smoke.py` — two new `python_only` parity entries.
+
+### Sources (10)
+
+Pierce-Morgan 1992 (Yellowstone hotspot track), Courtillot 1986 (Reunion / Deccan), Stern 1992 (Pluto-Charon mutual lock), Murray-Dermott 1999 (Enceladus 2:1 Dione lock), Peale-Cassen-Reynolds 1979 (Io tidal heating prediction), Bills 2005 (Phobos tidal decay), Park 2016 (Ceres Dawn gravity/shape), Kjeldsen 2005 (Alpha Cen B asteroseismology), Russell 2012 (Vesta Dawn), Kaspi-Beloborodov 2017 (magnetars review).
+
+### Architectural commitment
+
+Closes the v0.24.9 loose end by promoting smoke-test probes into a curated ratchet-pinned roster, AND surfaces the calibration-ratio metric the user correctly intuited the classifier was leaving on the table. Future feature-schema extensions can be tested by re-running the probes — if a probe's classification changes, the test fails clearly.
 
 ## [0.24.9] — 2026-05-07
 

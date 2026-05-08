@@ -277,6 +277,8 @@ from ephemerides_spectral._research.dynamical_regime_catalog import (
     get_dynamical_regime_eigenbasis
         as _get_dynamical_regime_eigenbasis_impl,
     list_dynamical_regimes as _list_dynamical_regimes_impl,
+    run_dynamical_regime_probes as _run_dynamical_regime_probes_impl,
+    list_dynamical_regime_probes as _list_dynamical_regime_probes_impl,
 )
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
@@ -4700,6 +4702,54 @@ def list_dynamical_regimes() -> Dict[str, Any]:
     """Full enumeration of the v0.24.0–v0.24.8 regime training
     examples + citations."""
     return _list_dynamical_regimes_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.10 — OOS probe roster + classifier calibration-ratio metric
+# ──────────────────────────────────────────────────────────────────────
+
+
+def run_dynamical_regime_probes(
+    n_components: int = 3,
+    ood_threshold: float = 0.85,
+) -> Dict[str, Any]:
+    """Run every curated OOS probe through the v0.24.9 classifier;
+    return a results table with calibration ratios + OOD flags +
+    match-vs-expected status.
+
+    The probes are NOT training data — they're test vectors. The
+    classifier's eigenbasis is computed only from the 9 v0.24.0-
+    v0.24.8 training examples in REGIME_EXAMPLES; probes are
+    projected into that basis without ever altering it.
+
+    10 probes spanning every regime label in the v0.24.x training
+    set: Yellowstone hotspot, Reunion hotspot, Pluto-Charon,
+    Enceladus, Io (Galilean Laplace), Phobos (let-classifier-
+    surprise-us), Ceres, Alpha Centauri B (K-dwarf), Vesta
+    (out-of-distribution), magnetar (surprising classification).
+
+    Origin context: combines two payloads. First, the probes
+    promote the ad-hoc smoke-tests from v0.24.9 development into a
+    ratchet-pinned roster — future classifier refactors can't
+    silently change which regime Yellowstone or Vesta lands on.
+    Second, the calibration-ratio metric (nearest_distance /
+    2nd_nearest_distance) was latent in v0.24.9's distances_to_all
+    output but never summarised; v0.24.10 surfaces it as a first-
+    class diagnostic.
+    """
+    return _run_dynamical_regime_probes_impl(
+        n_components=n_components, ood_threshold=ood_threshold,
+    )
+
+
+def list_dynamical_regime_probes() -> Dict[str, Any]:
+    """Full enumeration of the OOS probe roster + citations.
+
+    Pure data-side enumerator (does NOT run the classifier). Useful
+    for inspecting the curated probe roster without paying the
+    eigendecomposition cost.
+    """
+    return _list_dynamical_regime_probes_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

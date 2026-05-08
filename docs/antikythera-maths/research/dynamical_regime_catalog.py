@@ -7,15 +7,35 @@ if/else chain that selects which v0.24.x methodology to apply with a
 **learned eigenbasis projection** over the 9 v0.24.0-v0.24.8
 labelled training examples.
 
-Three bridge surfaces:
+This is **NOT machine learning** in the SGD sense
+-----------------------------------------------------
+The classifier looks like nearest-neighbour ML on the surface, but
+the "training step" is a single closed-form ``np.linalg.eigh`` call
+on the standardised covariance matrix. There is **no random
+initialisation, no stochastic gradient descent, no hyperparameter
+search, no validation split, no pseudorandom anywhere**. The
+eigenbasis is a *property* of the labelled data, not a model fit
+to it; identical inputs yield byte-identical bases across runs.
+This is the spectral-methods discipline at work: classical math,
+deterministic decomposition, exposed eigenstructure. The v0.24.10
+calibration-ratio metric and OOS probe roster are likewise
+deterministic — out-of-sample probes are *test vectors*, never
+*training data*.
+
+Bridge surfaces (v0.24.9 + v0.24.10 additions)
+----------------------------------------------
 
 * :func:`get_dynamical_regime_eigenbasis` -- the standardised
   feature matrix + its principal-component eigendecomposition.
 * :func:`classify_dynamical_regime` -- given a feature vector,
   returns the nearest-neighbour regime label + distances to every
-  training example + projection diagnostics.
+  training example + projection diagnostics + (v0.24.10) the
+  calibration ratio and out-of-distribution flag.
 * :func:`list_dynamical_regimes` -- full enumeration of every
   v0.24.x regime + which catalog implements it.
+* :func:`run_dynamical_regime_probes` -- (v0.24.10) run every
+  curated OOS probe through the classifier; return a results table
+  with calibration ratios + OOD flags + match-vs-expected status.
 
 Cross-channel reach: same eigenbasis machinery used by v0.18.0
 body_architecture (resonance-graph Fiedler partition), v0.24.5
@@ -31,7 +51,7 @@ Reference: research notebook section 17.7.
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -50,6 +70,12 @@ from .dynamical_regime_data import (
     REGIME_EXAMPLES,
     SOURCES,
     RegimeExample,
+)
+from .dynamical_regime_probes_data import (
+    OOD_CALIBRATION_RATIO_THRESHOLD,
+    REGIME_PROBES,
+    SOURCES as PROBE_SOURCES,
+    RegimeProbe,
 )
 
 
@@ -240,16 +266,37 @@ def get_dynamical_regime_eigenbasis(
 def classify_dynamical_regime(
     feature_vector: Sequence[float],
     n_components: int = 3,
+    ood_threshold: float = OOD_CALIBRATION_RATIO_THRESHOLD,
 ) -> Dict[str, Any]:
     """Classify a feature vector against the v0.24.x training examples.
 
     Project the input feature vector into the top-k principal-component
     eigenbasis derived from the 9 v0.24.x training examples; return the
     nearest-neighbour regime label + distances to every training
-    example.
+    example + (v0.24.10) the calibration-ratio metric and out-of-
+    distribution flag.
 
     This is the **eigenbasis-projection version of the v0.24.x if/else
     chain** -- the original framing replaced by the v0.24.9 ship.
+
+    The v0.24.10 additions
+    ----------------------
+    * ``calibration_ratio`` = nearest_distance / 2nd_nearest_distance.
+      Small (~0 for self-classification of training examples; < 0.5
+      for confident in-distribution probes like Yellowstone or
+      K-dwarf) means the classifier has a clear winner. Near 1 means
+      the 1st-nearest and 2nd-nearest are essentially tied and the
+      classifier is honestly saying "I don't know" (e.g., Vesta sits
+      in feature-space terrain with no close training analog and
+      gives ratio ~ 0.98).
+
+    * ``nearest_neighbour_margin`` = 2nd_nearest_distance - nearest_distance.
+      The absolute version of the same signal (in eigenbasis units).
+      Larger margin = more confident.
+
+    * ``out_of_distribution`` = ``calibration_ratio > ood_threshold``.
+      The diagnostic was latent in ``distances_to_all`` from v0.24.9;
+      v0.24.10 surfaces it as a first-class field.
 
     Parameters
     ----------
@@ -259,13 +306,18 @@ def classify_dynamical_regime(
         prediction_track_signal, dimensionality, forcing_class_index)``.
     n_components : int, default 3
         Number of top principal components to use for the projection.
+    ood_threshold : float, default OOD_CALIBRATION_RATIO_THRESHOLD (0.85)
+        Calibration-ratio cutoff above which the input is flagged
+        out-of-distribution. Empirically calibrated; see
+        ``dynamical_regime_probes_data`` module docstring.
 
     Returns
     -------
     dict
         ``{ok, n_examples, input_features, projected_coordinates,
-        nearest_regime: {name, ship_version, regime_label,
-        catalog_module, distance, ...}, distances_to_all: [...]}``.
+        nearest_regime: {...}, distances_to_all: [...],
+        calibration_ratio, nearest_neighbour_margin,
+        out_of_distribution, ood_threshold_used}``.
 
     Raises
     ------
@@ -309,6 +361,29 @@ def classify_dynamical_regime(
     nearest_idx = int(np.argmin(distances))
     nearest = REGIME_EXAMPLES[nearest_idx]
 
+    # --- v0.24.10: calibration-ratio metric ---
+    nearest_distance = float(distances_list[0]["distance"])
+    second_nearest_distance: float
+    if len(distances_list) >= 2:
+        second_nearest_distance = float(distances_list[1]["distance"])
+    else:
+        second_nearest_distance = float("inf")
+
+    if second_nearest_distance > 0.0 and math.isfinite(second_nearest_distance):
+        calibration_ratio = nearest_distance / second_nearest_distance
+    elif nearest_distance == 0.0:
+        # Both zero — degenerate case; treat as confident match.
+        calibration_ratio = 0.0
+    else:
+        calibration_ratio = float("inf")
+
+    nearest_neighbour_margin = (
+        second_nearest_distance - nearest_distance
+        if math.isfinite(second_nearest_distance) else float("inf")
+    )
+
+    out_of_distribution = bool(calibration_ratio > ood_threshold)
+
     return {
         "ok": True,
         "n_examples": len(REGIME_EXAMPLES),
@@ -325,6 +400,160 @@ def classify_dynamical_regime(
             "distance": float(distances[nearest_idx]),
         },
         "distances_to_all": distances_list,
+        # v0.24.10 calibration-metric additions
+        "calibration_ratio": float(calibration_ratio),
+        "nearest_neighbour_margin": float(nearest_neighbour_margin),
+        "out_of_distribution": out_of_distribution,
+        "ood_threshold_used": float(ood_threshold),
+    }
+
+
+# ---------------------------------------------------------------------------
+# v0.24.10 — OOS probe roster runner
+# ---------------------------------------------------------------------------
+
+
+def _probe_to_dict(p: RegimeProbe) -> Dict[str, Any]:
+    return {
+        "name": p.name,
+        "description": p.description,
+        "feature_vector": list(p.feature_vector()),
+        "expected_regime": p.expected_regime,
+        "ood_expected": p.ood_expected,
+        "notes": p.notes,
+        "source_key": p.source_key,
+        "precision_flag": p.precision_flag,
+    }
+
+
+def run_dynamical_regime_probes(
+    n_components: int = 3,
+    ood_threshold: float = OOD_CALIBRATION_RATIO_THRESHOLD,
+) -> Dict[str, Any]:
+    """Run every curated OOS probe through the v0.24.9 classifier.
+
+    For each probe, project its feature vector into the top-k
+    eigenbasis, classify against the v0.24.0-v0.24.8 training set,
+    and record the nearest regime + calibration ratio + match-vs-
+    expected status. Returns a results table suitable for
+    ratchet-pinning the classifier's behaviour on real bodies.
+
+    The probes are **not training data** -- they're test vectors. The
+    classifier's eigenbasis is computed only from the 9 training
+    examples in :data:`REGIME_EXAMPLES`; probes are projected into
+    that basis without ever altering it.
+
+    Parameters
+    ----------
+    n_components : int, default 3
+        Number of top PCs to use for projection (matches the
+        :func:`classify_dynamical_regime` default).
+    ood_threshold : float, default OOD_CALIBRATION_RATIO_THRESHOLD (0.85)
+        Calibration-ratio cutoff for OOD flagging.
+
+    Returns
+    -------
+    dict
+        ``{ok, n_probes, n_components, ood_threshold,
+        probes: [...], summary: {...}}``.
+
+        Each entry in ``probes`` carries the probe's identity +
+        feature vector + expected regime/OOD status + the
+        classifier's actual output (nearest regime, calibration
+        ratio, OOD flag, match-vs-expected booleans).
+
+        ``summary`` aggregates: ``n_matches_expected``,
+        ``n_correctly_flagged_ood``, ``n_unexpected_classifications``.
+    """
+    probe_results: List[Dict[str, Any]] = []
+    n_matches = 0
+    n_correct_ood = 0
+    n_unexpected = 0
+
+    for p in REGIME_PROBES:
+        result = classify_dynamical_regime(
+            feature_vector=p.feature_vector(),
+            n_components=n_components,
+            ood_threshold=ood_threshold,
+        )
+        classified_regime = result["nearest_regime"]["regime_label"]
+        classified_name = result["nearest_regime"]["name"]
+        cal_ratio = result["calibration_ratio"]
+        ood_flag = result["out_of_distribution"]
+
+        # Match-vs-expected logic: a probe matches its expectation if
+        #   - expected_regime is set AND classifier returns it AND not OOD; OR
+        #   - ood_expected is True AND classifier flags out_of_distribution.
+        # Probes with expected_regime=None and ood_expected=False are
+        # "let classifier surprise us" cases -- they ratchet the current
+        # behaviour but don't have a pass/fail expectation.
+        matches_expected: Optional[bool] = None
+        if p.expected_regime is not None and not p.ood_expected:
+            matches_expected = (
+                classified_regime == p.expected_regime
+                and not ood_flag
+            )
+            if matches_expected:
+                n_matches += 1
+            else:
+                n_unexpected += 1
+        elif p.ood_expected:
+            matches_expected = bool(ood_flag)
+            if matches_expected:
+                n_correct_ood += 1
+            else:
+                n_unexpected += 1
+
+        probe_results.append({
+            "name": p.name,
+            "description": p.description,
+            "expected_regime": p.expected_regime,
+            "ood_expected": p.ood_expected,
+            "classified_regime": classified_regime,
+            "classified_training_example": classified_name,
+            "matches_expected": matches_expected,
+            "calibration_ratio": cal_ratio,
+            "out_of_distribution": ood_flag,
+            "nearest_distance": result["nearest_regime"]["distance"],
+            "second_nearest_distance": (
+                result["distances_to_all"][1]["distance"]
+                if len(result["distances_to_all"]) >= 2 else None
+            ),
+            "second_nearest_regime": (
+                result["distances_to_all"][1]["regime_label"]
+                if len(result["distances_to_all"]) >= 2 else None
+            ),
+            "feature_vector": list(p.feature_vector()),
+            "source_key": p.source_key,
+        })
+
+    return {
+        "ok": True,
+        "n_probes": len(REGIME_PROBES),
+        "n_components": n_components,
+        "ood_threshold": float(ood_threshold),
+        "probes": probe_results,
+        "summary": {
+            "n_matches_expected": n_matches,
+            "n_correctly_flagged_ood": n_correct_ood,
+            "n_unexpected_classifications": n_unexpected,
+        },
+    }
+
+
+def list_dynamical_regime_probes() -> Dict[str, Any]:
+    """Full enumeration of every OOS probe + citations.
+
+    Pure data-side enumerator (does NOT run the classifier). Useful
+    for inspecting the curated probe roster without paying the
+    eigendecomposition cost.
+    """
+    return {
+        "ok": True,
+        "n_probes": len(REGIME_PROBES),
+        "n_sources": len(PROBE_SOURCES),
+        "ood_threshold": OOD_CALIBRATION_RATIO_THRESHOLD,
+        "probes": [_probe_to_dict(p) for p in REGIME_PROBES],
     }
 
 
@@ -347,9 +576,15 @@ __all__ = [
     "PRECISION_NONE",
     "FEATURE_NAMES",
     "REGIME_EXAMPLES",
+    "REGIME_PROBES",
+    "OOD_CALIBRATION_RATIO_THRESHOLD",
     "SOURCES",
+    "PROBE_SOURCES",
     "RegimeExample",
+    "RegimeProbe",
     "get_dynamical_regime_eigenbasis",
     "classify_dynamical_regime",
     "list_dynamical_regimes",
+    "run_dynamical_regime_probes",
+    "list_dynamical_regime_probes",
 ]

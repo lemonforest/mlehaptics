@@ -607,6 +607,20 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.10 OOS probe roster + classifier calibration-ratio metric
+    # (10 curated out-of-sample probes spanning the v0.24.x regime space;
+    # calibration_ratio + out_of_distribution surfaced as first-class
+    # diagnostics on classify_dynamical_regime). Pure-Python; deterministic
+    # eigendecomposition over the same 9 x 7 feature matrix as v0.24.9.
+    # No C twin makes sense.
+    "run_dynamical_regime_probes": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_dynamical_regime_probes": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

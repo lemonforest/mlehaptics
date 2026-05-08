@@ -1060,6 +1060,27 @@ def _cmd_regime_list(args: argparse.Namespace) -> int:
     return _emit(bridge.list_dynamical_regimes(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.10 — OOS probe + calibration-metric CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_regime_probes(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.run_dynamical_regime_probes(
+            n_components=args.n_components,
+            ood_threshold=args.ood_threshold,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_regime_probes_list(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_dynamical_regime_probes(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4677,6 +4698,53 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     re_ls.set_defaults(func=_cmd_regime_list)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.10 — OOS probe roster + classifier calibration-ratio metric
+    # ──────────────────────────────────────────────────────────────────
+
+    # regime-probes
+    re_probes = sub.add_parser(
+        "regime-probes",
+        help="Run the curated OOS probe roster through the classifier",
+        description=(
+            "v0.24.10 -- run every curated out-of-sample probe\n"
+            "(Yellowstone, Reunion, Pluto-Charon, Enceladus, Io,\n"
+            "Phobos, Ceres, Alpha Centauri B, Vesta, magnetar)\n"
+            "through the v0.24.9 classifier and return a results\n"
+            "table with calibration ratios + OOD flags + match-vs-\n"
+            "expected status.\n"
+            "\n"
+            "The probes are NOT training data -- they're test\n"
+            "vectors. The classifier's eigenbasis is computed only\n"
+            "from the 9 v0.24.0-v0.24.8 training examples; probes\n"
+            "are projected into that basis without ever altering it."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    re_probes.add_argument(
+        "--n-components", type=int, default=3,
+        help="Number of top PCs to use (default 3; max 7).",
+    )
+    re_probes.add_argument(
+        "--ood-threshold", type=float, default=0.85,
+        help="Calibration-ratio cutoff for OOD flagging (default 0.85).",
+    )
+    re_probes.set_defaults(func=_cmd_regime_probes)
+
+    # regime-probes-list
+    re_probes_ls = sub.add_parser(
+        "regime-probes-list",
+        help="Full enumeration of OOS probe roster (no classifier run)",
+        description=(
+            "Pure data-side enumerator. Returns every curated OOS\n"
+            "probe's identity + feature vector + expected regime /\n"
+            "OOD status + citation -- without paying the\n"
+            "eigendecomposition cost of running the classifier."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    re_probes_ls.set_defaults(func=_cmd_regime_probes_list)
 
     # lunar-kernels
     lk = sub.add_parser(
