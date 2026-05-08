@@ -1157,6 +1157,20 @@ def _cmd_attested_audit(args: argparse.Namespace) -> int:
     )
 
 
+# v0.25.1 — T2 user runtime kernel
+
+def _cmd_local_kernel_use(args: argparse.Namespace) -> int:
+    return _emit(bridge.use_local_kernel(args.path), pretty=args.pretty)
+
+
+def _cmd_local_kernel_clear(args: argparse.Namespace) -> int:
+    return _emit(bridge.clear_local_kernel(), pretty=args.pretty)
+
+
+def _cmd_local_kernel_state(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_local_kernel_state(), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -5022,6 +5036,62 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     aa.add_argument("--source", required=True, help="source key")
     aa.set_defaults(func=_cmd_attested_audit)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.25.1 — T2 user runtime kernel
+    # ──────────────────────────────────────────────────────────────────
+
+    # local-kernel-use
+    lku = sub.add_parser(
+        "local-kernel-use",
+        help="Register a T2 user-runtime-kernel overlay path",
+        description=(
+            "v0.25.1 -- register a directory shaped like\n"
+            "<source_key>/<table>.ndjson as the T2 overlay. Once\n"
+            "registered, queries consult the overlay FIRST per\n"
+            "source; matching files REPLACE the baseline.\n"
+            "\n"
+            "Reproducibility tier: T2. Within a single user's\n"
+            "local cache state, queries are byte-identical; the\n"
+            "cache hash from local-kernel-state documents the\n"
+            "state for paper appendices."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lku.add_argument("--path", required=True, help="overlay directory path")
+    lku.set_defaults(func=_cmd_local_kernel_use)
+
+    # local-kernel-clear
+    lkc = sub.add_parser(
+        "local-kernel-clear",
+        help="Remove the registered T2 overlay (revert to T0+T1 only)",
+        description=(
+            "v0.25.1 -- clear any previously-registered T2\n"
+            "user-runtime-kernel overlay. Subsequent queries\n"
+            "return T0+T1 baseline rows only."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lkc.set_defaults(func=_cmd_local_kernel_clear)
+
+    # local-kernel-state
+    lks = sub.add_parser(
+        "local-kernel-state",
+        help="Return the current T2 overlay state + cache hash",
+        description=(
+            "v0.25.1 -- return the registered overlay path (if\n"
+            "any), per-source overlay file SHAs, and the\n"
+            "consolidated cache hash. The cache hash is SHA-256\n"
+            "over the canonical-serialised list of (source_key,\n"
+            "ndjson_sha256) pairs and uniquely documents which T2\n"
+            "rows are currently in scope.\n"
+            "\n"
+            "Paper appendices: record this hash to document\n"
+            "exactly which T2 rows were consumed at runtime."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lks.set_defaults(func=_cmd_local_kernel_state)
 
     # lunar-kernels
     lk = sub.add_parser(

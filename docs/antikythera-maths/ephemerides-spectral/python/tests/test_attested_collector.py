@@ -482,3 +482,158 @@ def test_regenerate_path_has_no_network_imports() -> None:
     # appear in the regenerate.py source.
     assert "import requests" not in src
     assert "from requests" not in src
+
+
+# ──────────────────────────────────────────────────────────────────────
+# T2 — User runtime kernel (v0.25.1)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _write_overlay_row(
+    overlay_root: Path, source_key: str, table: str, data: dict
+) -> Path:
+    """Write a single MPR row to an overlay NDJSON file."""
+    record = MPRRecord(
+        mpr_version=MPR_SCHEMA_VERSION,
+        data=data,
+        data_schema_id=f"{source_key}.{table}.v1",
+        attestation=_valid_attestation(),
+        rendering=_valid_rendering(),
+    )
+    target = overlay_root / source_key / f"{table}.ndjson"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    from ephemerides_spectral._research.attested_collector_format import write_ndjson
+    write_ndjson(target, [record])
+    return target
+
+
+def test_local_kernel_starts_inactive() -> None:
+    """Default state: no overlay registered; T0+T1 baseline only."""
+    bridge.clear_local_kernel()
+    state = bridge.get_local_kernel_state()
+    assert state["ok"] is True
+    assert state["active"] is False
+    assert state["path"] is None
+    assert state["n_overlay_sources"] == 0
+
+
+def test_use_local_kernel_rejects_nonexistent_path(tmp_path: Path) -> None:
+    bad = tmp_path / "definitely_not_here"
+    result = bridge.use_local_kernel(str(bad))
+    assert result["ok"] is False
+    assert "does not exist" in result["error"]
+    bridge.clear_local_kernel()
+
+
+def test_use_local_kernel_rejects_file_not_directory(tmp_path: Path) -> None:
+    f = tmp_path / "a_file.txt"
+    f.write_text("not a directory")
+    result = bridge.use_local_kernel(str(f))
+    assert result["ok"] is False
+    assert "not a directory" in result["error"]
+    bridge.clear_local_kernel()
+
+
+def test_use_local_kernel_registers_valid_path(tmp_path: Path) -> None:
+    result = bridge.use_local_kernel(str(tmp_path))
+    try:
+        assert result["ok"] is True
+        assert result["active"] is True
+        assert Path(result["path"]) == tmp_path.resolve()
+    finally:
+        bridge.clear_local_kernel()
+
+
+def test_overlay_replaces_baseline_for_matching_source(tmp_path: Path) -> None:
+    """When an overlay file exists for a source, get_attested_dataset
+    returns the OVERLAY content (not the baseline)."""
+    _write_overlay_row(
+        tmp_path,
+        "earthref_sc",
+        "seamount",
+        {"name": "Overlay Mountain", "latitude_deg": 0.0, "longitude_deg": 0.0},
+    )
+    bridge.use_local_kernel(str(tmp_path))
+    try:
+        result = bridge.get_attested_dataset("earthref_sc")
+        assert result["ok"] is True
+        assert result["total"] == 1
+        assert result["rows"][0]["data"]["name"] == "Overlay Mountain"
+    finally:
+        bridge.clear_local_kernel()
+
+
+def test_overlay_does_not_affect_unrelated_sources(tmp_path: Path) -> None:
+    """An overlay for source A leaves source B's baseline intact."""
+    _write_overlay_row(
+        tmp_path,
+        "earthref_sc",
+        "seamount",
+        {"name": "Only EarthRef", "latitude_deg": 0.0, "longitude_deg": 0.0},
+    )
+    bridge.use_local_kernel(str(tmp_path))
+    try:
+        # gmrt has no overlay file in tmp_path → falls through to baseline.
+        result = bridge.get_attested_dataset("gmrt")
+        assert result["ok"] is True
+        # Baseline is empty in the test (no NDJSON shipped) — that's OK;
+        # the contract is that gmrt's response doesn't reflect EarthRef
+        # overlay.
+        assert "Only EarthRef" not in str(result.get("rows", []))
+    finally:
+        bridge.clear_local_kernel()
+
+
+def test_clear_local_kernel_reverts_to_baseline(tmp_path: Path) -> None:
+    _write_overlay_row(
+        tmp_path,
+        "earthref_sc",
+        "seamount",
+        {"name": "Will Be Cleared", "latitude_deg": 0.0, "longitude_deg": 0.0},
+    )
+    bridge.use_local_kernel(str(tmp_path))
+    bridge.clear_local_kernel()
+    state = bridge.get_local_kernel_state()
+    assert state["active"] is False
+
+
+def test_local_kernel_state_cache_hash_deterministic(tmp_path: Path) -> None:
+    """The cache hash uniquely identifies the overlay state and is
+    stable across reads."""
+    _write_overlay_row(
+        tmp_path,
+        "earthref_sc",
+        "seamount",
+        {"name": "Hash Test", "latitude_deg": 0.0, "longitude_deg": 0.0},
+    )
+    bridge.use_local_kernel(str(tmp_path))
+    try:
+        state1 = bridge.get_local_kernel_state()
+        state2 = bridge.get_local_kernel_state()
+        assert state1["cache_hash"] == state2["cache_hash"]
+        assert len(state1["cache_hash"]) == 64  # SHA-256 hex
+        assert state1["n_overlay_sources"] == 1
+    finally:
+        bridge.clear_local_kernel()
+
+
+def test_cli_local_kernel_state_smoke() -> None:
+    bridge.clear_local_kernel()
+    payload = _run_cli("local-kernel-state")
+    assert payload["ok"] is True
+    assert payload["active"] is False
+
+
+def test_cli_local_kernel_clear_smoke() -> None:
+    payload = _run_cli("local-kernel-clear")
+    assert payload["ok"] is True
+
+
+def test_cli_local_kernel_help() -> None:
+    """Three v0.25.1 subcommands render --help cleanly."""
+    from ephemerides_spectral.cli import main as cli_main
+
+    for cmd in ("local-kernel-use", "local-kernel-clear", "local-kernel-state"):
+        with pytest.raises(SystemExit) as exc_info:
+            cli_main([cmd, "--help"])
+        assert exc_info.value.code == 0

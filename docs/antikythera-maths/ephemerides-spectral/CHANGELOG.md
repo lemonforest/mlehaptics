@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.0)
+(no entries yet — next entries land after v0.25.1)
+
+## [0.25.1] — 2026-05-08
+
+**Attested collector — T2 user runtime kernel.** Local NDJSON overlay over the T0+T1 baseline. The second of three reproducibility-tier extensions promised in notebook §18.1.
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Catalog wrapper | `_research.attested_collector_catalog.{use_local_kernel, clear_local_kernel, get_local_kernel_state, _resolved_ndjson_path}` |
+| Bridge | `bridge.use_local_kernel(path)`, `bridge.clear_local_kernel()`, `bridge.get_local_kernel_state()` |
+| CLI | `local-kernel-use --path <DIR>`, `local-kernel-clear`, `local-kernel-state` |
+| Tests | 11 new tests in `tests/test_attested_collector.py` |
+
+### Behaviour
+
+When an overlay path is registered (directory shaped like `<source_key>/<table>.ndjson`), queries consult the overlay FIRST per source. Matching overlay files REPLACE the baseline NDJSON for that source; sources with no overlay file fall through to T0+T1 unchanged. Default policy is REPLACE; APPEND policy may land in a later v0.25.x.
+
+### Cache hash for paper-appendix replay
+
+`get_local_kernel_state` returns SHA-256 over canonical-serialised `(source_key, ndjson_sha256)` pairs. Papers record this hash; archived overlay trees + the recorded hash uniquely identify which T2 rows were consumed at runtime.
+
+### Cross-references
+
+- Notebook §18.1 — four-tier reproducibility model.
+- T0+T1 baseline: v0.25.0 (#163).
+- T3 live query: v0.25.2 (#160).
 
 ## [0.25.0] — 2026-05-08
 
