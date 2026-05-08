@@ -25,16 +25,16 @@
       "size_bytes": 12353
     },
     "_research/attested/__init__.py": {
-      "sha256": "f6ad6562a8b0fc6e258e02e459e2934ffdc882e27f87082e54c4bc89858eb1ad",
-      "size_bytes": 340
+      "sha256": "23372e208b47de5c44504c53b0938ec955bd3108c2f03493ff4db684da1e15b7",
+      "size_bytes": 331
     },
     "_research/attested/earthref_sc/descriptor.toml": {
-      "sha256": "4b01d0efda3de4ca912b6369dadcc2606b84984942c75613f73d82f731e85b92",
-      "size_bytes": 2809
+      "sha256": "bad23ef8bd725d0c2cf44a0506d4e3bd186354f4c95e69b3d2069debb295f771",
+      "size_bytes": 2732
     },
     "_research/attested/earthref_sc/seamount.schema.json": {
-      "sha256": "a4f79927ce26ccbb4946251d5d43af5b40b751eca86ef3abcc5eb687d462e665",
-      "size_bytes": 1347
+      "sha256": "8dd79e63cdb428faac6c12e11b9d6e0a52574b4cb555f301cf72c115e34a7b8a",
+      "size_bytes": 1311
     },
     "_research/attested/gmrt/bathymetry.schema.json": {
       "sha256": "591e721aa5593b2587500b562c4dbb3f2a22cc9fbd0a5ff4bd397d3efbeb9d93",
