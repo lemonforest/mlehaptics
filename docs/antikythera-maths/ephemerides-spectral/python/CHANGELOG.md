@@ -10,7 +10,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.9)
+(no entries yet — next entries land after v0.24.10)
+
+## [0.24.10] — 2026-05-07
+
+**OOS probe catalog + classifier calibration-ratio metric.** Closes a v0.24.9 loose end + surfaces the latent diagnostic the classifier was leaving on the table. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.dynamical_regime_probes_data` — data module with `REGIME_PROBES` (10 curated out-of-sample probes: Yellowstone, Reunion, Pluto-Charon, Enceladus, Io Galilean Laplace, Phobos, Ceres, Alpha Centauri B, Vesta, magnetar), `OOD_CALIBRATION_RATIO_THRESHOLD = 0.85`, `SOURCES` (10 citations — one per probe), `RegimeProbe` dataclass.
+- `_research.dynamical_regime_catalog.run_dynamical_regime_probes(n_components=3, ood_threshold=0.85)` — runs every probe through the v0.24.9 classifier; returns table with calibration ratios + OOD flags + match-vs-expected status + summary aggregates.
+- `_research.dynamical_regime_catalog.list_dynamical_regime_probes()` — pure-data enumerator (does NOT run the classifier).
+- `_research.dynamical_regime_catalog.classify_dynamical_regime` — extended return dict with new keys: `calibration_ratio`, `nearest_neighbour_margin`, `out_of_distribution`, `ood_threshold_used`. The diagnostic was latent in `distances_to_all` from v0.24.9; v0.24.10 surfaces it as a first-class field. Optional `ood_threshold` kwarg defaults to 0.85.
+
+### Added — bridge dict API
+
+- `bridge.run_dynamical_regime_probes(n_components=3, ood_threshold=0.85)`
+- `bridge.list_dynamical_regime_probes()`
+- `bridge.classify_dynamical_regime` — extended with the four new fields above (additive; no breaking change).
+
+### Added — CLI
+
+- `ephemerides-spectral regime-probes [--n-components K] [--ood-threshold X]`
+- `ephemerides-spectral regime-probes-list`
+
+### Added — Tests
+
+- `tests/test_dynamical_regime_probes.py` — 33 tests pinning roster shape (10 probes), per-probe presence + classification (Yellowstone → Hawaii regime; Reunion → Hawaii regime; Alpha Centauri B → Sun regime; Ceres → rigid-stable; Pluto-Charon/Enceladus/Io → Mercury due to schema-gap ratchet; Vesta → OOD-flagged; Phobos → chaotic-Mars surprise pinned; magnetar → Toroidal-Residual surprise pinned), calibration-metric invariants (self-classification ratio = 0; ratio ∈ [0, 1] for normal inputs; margin ≥ 0; OOD flag consistent with threshold; custom thresholds respected), bridge + CLI smoke. **Zero unexpected classifications** in the run-probes summary — the ratchet is clean.
+- `tests/test_parity_smoke.py` — two new `python_only` parity entries.
+
+### Reframing in module docstring
+
+`_research.dynamical_regime_catalog`'s docstring now explicitly notes that the classifier is **NOT machine learning in the SGD sense** — its "training step" is a closed-form `np.linalg.eigh` call: no random initialisation, no stochastic gradient descent, no hyperparameter search, no validation split, no pseudorandom anywhere. The eigenbasis is a *property* of the labelled data, not a model fit to it. Probes are *test vectors*, never *training data*. This distinction is load-bearing for understanding what the classifier does and what guarantees its determinism.
+
+### Architectural commitment
+
+Closes the v0.24.9 loose end by promoting the ad-hoc smoke-test probes into a curated ratchet-pinned roster, AND surfaces the calibration-ratio metric the v0.24.9 classifier left latent. The probe roster is honest about both the **feature-schema gap** (Pluto-Charon / Enceladus / Io with commensurabilities but no Saros-style track-record collapse onto Mercury-stable; documented as ratchet) and **surprising classifications** (magnetar's dimensionality dominates over size; Phobos lands on chaotic-Mars). Future feature-schema extensions (e.g., a "commensurability-without-published-track" axis) would let those probes land on Luna-commensurate; the test would then FAIL clearly, signaling that the gap has been addressed.
 
 ## [0.24.9] — 2026-05-07
 

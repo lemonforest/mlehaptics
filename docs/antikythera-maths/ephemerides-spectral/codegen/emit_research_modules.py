@@ -91,6 +91,7 @@ _INCLUDED_MODULES: List[str] = [
     "axial_seamount_data.py",
     "axial_seamount_catalog.py",
     "dynamical_regime_data.py",
+    "dynamical_regime_probes_data.py",
     "dynamical_regime_catalog.py",
 ]
 
