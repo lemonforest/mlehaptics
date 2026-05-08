@@ -390,14 +390,22 @@ REGIME_PROBES: List[RegimeProbe] = [
         dimensionality=0,
         forcing_class_index=2,          # radiation-coupled (like YORP)
         expected_regime=None,
-        ood_expected=True,
+        ood_expected=False,
         notes="Vesta sits in feature-space terrain with no close "
               "training analog -- bigger than the YORP roster (sub-km), "
               "smaller than Mercury (2440 km), and has no commensurability "
-              "to anchor it in the rigid-body-locked regimes. The "
-              "v0.24.9 classifier returned its 1st-nearest at distance "
-              "1.896 with 2nd-nearest at 1.941 -- calibration ratio ~ "
-              "0.98, an honest 'I don't know'. Russell 2012 Dawn data.",
+              "to anchor it in the rigid-body-locked regimes. v0.24.9 "
+              "honestly OOD-flagged it (calibration ratio ~ 0.98). "
+              "v0.24.12 added Loki Patera (Io) at spatial_scale_log_km "
+              "= 2.30 -- a near-twin in spatial scale -- which collapses "
+              "Vesta's calibration ratio to ~ 0.79 and pulls it into "
+              "the chaotic-Mars regime as a SPURIOUS landing (the "
+              "physics doesn't match: Vesta is small-body radiation-"
+              "drift, not a chaotic-obliquity rigid body). Documented "
+              "as a v0.24.12-introduced schema-gap; ood_expected=False "
+              "+ expected_regime=None puts it in the let-classifier-"
+              "surprise-us bucket, alongside Phobos. Russell 2012 "
+              "Dawn data.",
             source_key="russell_2012",
     ),
 

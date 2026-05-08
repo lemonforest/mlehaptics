@@ -7,7 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.11)
+(no entries yet — next entries land after v0.24.12)
+
+## [0.24.12] — 2026-05-07
+
+**Loki Patera Eruption Cycle Catalog (Io tidal-heating temporal-spectrum cousin to v0.24.8 Axial Seamount; Galilean Laplace 4:2:1 forcing) — eleventh ship in v0.24.x and the second temporal-spectrum observable on a single sub-system.** Pure-Python additive; **no ABI bump** (thirty-fifth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.loki_patera_catalog.get_loki_patera_eruption_cycle / get_loki_galilean_laplace_signature / list_loki_patera_eruption_cycle` |
+| Bridge dict API | `bridge.get_loki_patera_eruption_cycle()` / `bridge.get_loki_galilean_laplace_signature()` / `bridge.list_loki_patera_eruption_cycle()` |
+| CLI | `loki-patera-eruption-cycle`, `loki-galilean-laplace-signature`, `loki-patera-eruption-cycle-full` |
+
+### THE headline — Galilean Laplace 4:2:1 commensurability
+
+Io / Europa / Ganymede orbital periods satisfy the canonical 3-body mean-motion resonance:
+
+```
+4 · P_Io     = 4 · 1.7691378 d = 7.0765512 d
+2 · P_Europa = 2 · 3.5511810 d = 7.1023620 d
+P_Ganymede   =                   7.1545530 d
+```
+
+The agreement is to within ~1% — a **libration around exact resonance**, not strict equality. Peale-Cassen-Reynolds 1979 used this near-commensurability to **predict Io's tidal heating two weeks before Voyager 1 confirmed active volcanism**, one of the cleanest closed-loop predictions in planetary science.
+
+### Loki Patera physics
+
+The deep-mechanism reason Loki exists:
+
+- The Galilean Laplace lock forces Io's orbital eccentricity to ~0.0041 (far above tidal-damping equilibrium).
+- The forced eccentricity drives ~10¹⁴ W of tidal dissipation in Io's interior (~2-3 orders of magnitude larger than Earth's total volcanic output).
+- Loki Patera, a ~200 km diameter lava lake at ~12.7° N / ~309.6° W, is the largest persistent surface manifestation — accounting for **5-15% of Io's globally-integrated thermal output**.
+- The headline observable is a quasi-periodic ~540-day brightening / resurfacing cycle (Rathbun 2002 *GRL* canonical paper; range 480-580 d), proceeding through brightening → resurfacing-wave → cooling → quiescent phases.
+
+### Cousin to v0.24.8 Axial — same regime, different forcing class
+
+Loki and Axial occupy the same `temporal_quasi_periodic_cycle` regime label in the v0.24.9 dynamical-regime classifier — but with fundamentally different forcing physics:
+
+| Body | Cycle period | Spatial scale | Forcing class | Prediction track |
+|---|---|---|---|---|
+| Axial Seamount (v0.24.8) | ~8.6 yr (3140 d) | ~3-8 km caldera | Mantle-plume magma supply | -1 (Chadwick 1 HIT + 1 MISS) |
+| Loki Patera (v0.24.12) | ~540 d | ~200 km lava lake | Galilean Laplace tidal heating | +1 (Rathbun 2002 cycle validated) |
+
+The two ships demonstrate the project's ability to recognise **same regime, different forcing**: Loki populates the temporal-cycle regime more densely rather than opening a new one. The classifier now has 11 ground-proof rows (was 10).
+
+### Schema-gap surfacing — the Path-B loop continues
+
+Adding Loki at `spatial_scale_log_km = 2.30` made it a near-twin to Vesta (2.42, main-belt asteroid in the OOS probe roster), collapsing Vesta's calibration ratio from ~0.98 (honest "I don't know" in v0.24.9–v0.24.11) to ~0.79 — Vesta now lands on `rigid_body_chaotic_obliquity` as a SPURIOUS classification (the physics is small-body radiation-drift, not chaotic obliquity).
+
+Pinned in `tests/test_dynamical_regime_probes.py::test_vesta_classifier_landing_v_0_24_12_pinned` as the next schema-gap to close. A future ship will need a small-body-radiation ground-proof row to give Vesta a correct home — the loop continues.
+
+### The Mathematical Provenance Method (naming-discipline addition)
+
+The v0.24.x methodology is formally **The Mathematical Provenance Method** — we don't train, we don't fit, we don't initialise pseudorandomly; we project labelled ground-proof rows through closed-form `np.linalg.eigh` and accept the eigenbasis as a *property* of the data, not a fit to it. Each new ship deterministically extends the schema; `np.linalg.eigh` recomputes byte-identically. Recorded in the research notebook §0 Framing.
+
+### Cross-channel reach
+
+- **v0.21.5 Sol Electromagnetic Instrument** — Loki is downstream of the Jupiter-Io flux tube (~10¹² W) which is itself a sibling consequence of the Galilean Laplace lock.
+- **v0.21.6 Tidal-resonance ↔ orbital migration** — the 4:2:1 commensurability is the canonical 3-body lock catalogued there; Loki is its largest persistent surface manifestation.
+- **v0.24.11 Pluto-Charon** — the small-moon near-3:4:5:6 commensurabilities are the binary-system analogue of the Galilean Laplace 4:2:1 (same algebraic structure: small-integer mean-motion ratios producing tidal heating, different central-body geometry).
+
+### Tests
+
+- New `tests/test_loki_patera_eruption_cycle.py` (41 tests).
+- Updated `tests/test_dynamical_regime.py` for n=11 + densified-regime tests.
+- Updated `tests/test_dynamical_regime_probes.py` for Vesta's v0.24.12 landing flip.
+- 3 new parity-smoke entries (all `python_only`).
 
 ## [0.24.11] — 2026-05-07
 

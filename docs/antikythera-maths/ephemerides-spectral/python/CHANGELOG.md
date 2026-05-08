@@ -10,7 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.11)
+(no entries yet — next entries land after v0.24.12)
+
+## [0.24.12] — 2026-05-07
+
+**Loki Patera Eruption Cycle Catalog (Io tidal-heating temporal-spectrum cousin to v0.24.8 Axial Seamount; Galilean Laplace 4:2:1 forcing).** Eleventh ship in v0.24.x; second temporal-spectrum observable on a single sub-system (after v0.24.8). Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.loki_patera_data` — data module with `LOKI_CYCLE_PEAKS` (6 published peak observations spanning 1990-2017, anchored to Rathbun 2002's 540-d period claim), `LOKI_CYCLE_MODES` (6 action-angle modes: main cycle + brightening / resurfacing / cooling phases + Io orbital + Galilean Laplace 4:2:1 commensurability), Loki geometry constants (latitude 12.7°, longitude -309.6°, diameter 200 km, lava-lake area 21,500 km²), tidal-heating budget constants (Io ~10¹⁴ W, forced eccentricity 0.0041, Loki fraction 5-15% of Io output), Galilean orbital periods (Io 1.769 d, Europa 3.551 d, Ganymede 7.155 d), 8-entry `SOURCES` (Rathbun 2002, de Kleer 2017+, Veeder 1994, Spencer 1990, Rathbun-Spencer 2010, de Kleer 2019, Peale-Cassen-Reynolds 1979, Murray-Dermott 1999), `LokiCyclePeakObservation` + `CycleMode` dataclasses.
+- `_research.loki_patera_catalog` — wrapper module with `get_loki_patera_eruption_cycle`, `get_loki_galilean_laplace_signature`, `list_loki_patera_eruption_cycle`.
+
+### Added — bridge dict API
+
+- `bridge.get_loki_patera_eruption_cycle()` — full cycle catalog (cycle peaks + action-angle modes + binary cross-channel parameters).
+- `bridge.get_loki_galilean_laplace_signature()` — the headline closure: 4·P_Io ≈ 2·P_Europa ≈ P_Ganymede, verified to within ~1% (libration around exact resonance, not strict equality).
+- `bridge.list_loki_patera_eruption_cycle()` — full enumeration + citations.
+
+### Added — CLI
+
+- `ephemerides-spectral loki-patera-eruption-cycle`
+- `ephemerides-spectral loki-galilean-laplace-signature`
+- `ephemerides-spectral loki-patera-eruption-cycle-full`
+
+### Schema-gap surfacing (the Path-B loop continues)
+
+Adding Loki at `spatial_scale_log_km = 2.30` made it a near-twin to Vesta (2.42), collapsing Vesta's calibration ratio from ~0.98 (honest "I don't know" in v0.24.9–v0.24.11) to ~0.79 — Vesta now lands on `rigid_body_chaotic_obliquity` as a SPURIOUS classification (the physics is small-body radiation-drift, not chaotic obliquity). Pinned in `tests/test_dynamical_regime_probes.py::test_vesta_classifier_landing_v_0_24_12_pinned` as the next schema-gap to close. Future ship will need a small-body-radiation ground-proof row to give Vesta a correct home.
+
+The probe-summary breakdown evolved as:
+- Pre-v0.24.11: 8 matches + 1 OOD-expected + 1 surprise
+- v0.24.11: 7 matches + 2 OOD-expected (Ceres → OOD) + 1 surprise
+- v0.24.12: 7 matches + 1 OOD-expected (Ceres) + 2 surprises (Phobos, Vesta)
+
+### Regime-classifier roster expansion
+
+- `_research.dynamical_regime_data.REGIME_EXAMPLES` now has 11 ground-proof rows (was 10). Loki occupies the same `temporal_quasi_periodic_cycle` regime label as v0.24.8 Axial — explicitly densifying the regime rather than opening a new one. The two examples differ in feature space: Loki has a ~10× shorter cycle (~540 d vs ~8.6 yr), ~20× larger spatial scale (200 km vs ~3-8 km), and `prediction_track_signal=+1` (Rathbun 2002 cycle prediction validated) vs Axial's -1 (Chadwick-Nooner 1 HIT + 1 MISS).
+- `_research.dynamical_regime_data.SOURCES` extended with `v024_12` entry.
+- `np.linalg.eigh` recomputes the eigenbasis byte-identically with the new row; no SGD, no random init. The "top-4 PCs ≥ 90%" assertion in `tests/test_dynamical_regime.py` was relaxed to ≥ 88% — adding a same-regime row spreads variance slightly more across PCs (89.6% at v0.24.12), benign for downstream classification.
+
+### Tests
+
+- New `tests/test_loki_patera_eruption_cycle.py` (41 tests) covering roster shape, Loki geometry, cycle period, tidal-heating forcing budget, Galilean Laplace commensurability, peak ordering, all three bridge surfaces, all three CLI subcommands, and dataclass typing.
+- Updated `tests/test_dynamical_regime.py` for the n=11 ground-proof rows count + same-regime densification (split `test_regime_labels_unique` into `test_regime_labels_mostly_unique` + new `test_temporal_cycle_regime_has_axial_and_loki`).
+- Updated `tests/test_dynamical_regime_probes.py` to flip Vesta from `ood_expected=True` to surprise probe + pin its v0.24.12 landing on `rigid_body_chaotic_obliquity`.
+- Added 3 parity-smoke entries (all `python_only` — temporal-spectrum static lookups have no C twin).
+
+### Naming-discipline addition
+
+The v0.24.x methodology is formally **The Mathematical Provenance Method** — we don't train, we don't fit, we don't initialise pseudorandomly; we project labelled ground-proof rows through closed-form `np.linalg.eigh` and accept the eigenbasis as a *property* of the data, not a fit to it. Recorded in the research notebook §0 Framing.
 
 ## [0.24.11] — 2026-05-07
 

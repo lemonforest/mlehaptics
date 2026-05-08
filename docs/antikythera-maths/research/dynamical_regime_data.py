@@ -464,6 +464,47 @@ REGIME_EXAMPLES: List[RegimeExample] = [
               "state of dyadic tidal evolution.",
         source_key="v024_11",
     ),
+
+    # ==== v0.24.12 — Loki Patera (Io) eruption cycle =================
+
+    RegimeExample(
+        name="loki_patera_eruption_cycle",
+        ship_version="0.24.12",
+        regime_label="temporal_quasi_periodic_cycle",
+        description=(
+            "Quasi-periodic ~540-day brightening/resurfacing cycle "
+            "on Loki Patera (Io). The Solar System's most active "
+            "volcano, located on Jupiter's moon Io and driven by "
+            "tidal heating from the Galilean Laplace 4:2:1 mean-"
+            "motion resonance with Europa+Ganymede. Same temporal-"
+            "spectrum regime as v0.24.8 Axial Seamount; different "
+            "forcing physics (tidal vs mantle-plume)."
+        ),
+        catalog_module="loki_patera_catalog",
+        # Mean cycle period 540 d = 540 * 86400 s = 4.67e7 s
+        time_scale_log_s=7.67,
+        # Loki Patera diameter ~200 km
+        spatial_scale_log_km=2.30,
+        stability_index=0.6,         # quasi-periodic; tighter than Axial
+        has_commensurability=0,      # Loki itself; the Galilean lock is Io's orbital state
+        prediction_track_signal=1,   # Rathbun 2002 cycle prediction validated by subsequent observations
+        dimensionality=0,
+        forcing_class_index=FORCING_CLASS_VOLCANIC,
+        notes="Eleventh ground-proof row in the regime classifier. "
+              "Same regime label as Axial (temporal_quasi_periodic_"
+              "cycle) — populates the regime more densely rather "
+              "than opening a new one. Distinguished from Axial in "
+              "feature space by ~10x shorter cycle period and ~20x "
+              "larger spatial scale. The +1 prediction_track_signal "
+              "reflects Rathbun 2002's published 540-d periodicity "
+              "prediction, validated by subsequent observations "
+              "(Rathbun-Spencer 2010; de Kleer 2017+). Unlike "
+              "Axial's Chadwick-Nooner methodology, Loki has had "
+              "no published MISS — though the cycle period is "
+              "quasi-periodic (480-580 d range), not strictly "
+              "periodic, so future predictions could diverge.",
+        source_key="v024_12",
+    ),
 ]
 
 
@@ -536,6 +577,20 @@ SOURCES: Dict[str, str] = {
         "pluto_charon_dynamical_spectrum_data.py. Path-B response "
         "to the v0.24.10 schema-gap; populates the binary-mutual-"
         "lock regime that v0.24.9 couldn't see."
+    ),
+    "v024_12": (
+        "ephemerides-spectral v0.24.12 (Loki Patera Eruption "
+        "Cycle, temporal-quasi-periodic-cycle regime, Galilean "
+        "Laplace 4:2:1 forcing). Rathbun 2002 *Icarus* ~540-day "
+        "cycle prediction (validated by de Kleer 2017); de Kleer "
+        "2017+ JWST/Keck high-cadence monitoring; Veeder 1994 "
+        "long-baseline thermal record; Peale-Cassen-Reynolds 1979 "
+        "tidal-heating prediction (Voyager-confirmed). See "
+        "research/loki_patera_data.py. Cousin to v0.24.8 Axial "
+        "(same temporal-cycle regime, different forcing — tidal "
+        "instead of mantle-plume); demonstrates 3-body mean-"
+        "motion-resonance forcing as an additional source class "
+        "for cyclic surface activity."
     ),
 }
 
