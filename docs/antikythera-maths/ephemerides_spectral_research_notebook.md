@@ -2825,18 +2825,65 @@ The eigenbasis substrate this project ships across §17, §18, and the v0.24.x c
 
 In every case the project ships byte-reproducible eigenbasis projections precisely because the operator is the instrument. Removing the instrument from any of these calculations does not preserve the music; it produces a wiggle line that does nothing useful until someone invents new physics to recover what was thrown away.
 
-### 20.4 There is no sustain — only ring-up and ring-down
+### 20.4 Three excitation regimes — and the instrument requirement holds in all of them
 
-This sub-section captures a sharp observation that connects directly to the framework's catalogues. In real resonant cavities, **there is no sustain**. There is ring-up (energy entering the cavity faster than it dissipates) and ring-down (energy dissipating faster than it enters). The two phases can be so gradual on the observation timescale that long stretches *look* like homeostasis. The eye sees stability; the math sees the slow envelope of a coupled system trading energy with its surroundings.
+#### 20.4.0 MPM self-correction note (mid-revision)
 
-The framework's catalogues already document this empirically:
+An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Two screens were missed in the original write-up:
 
-- **v0.24.2 Mars chaotic obliquity**: Gyr-scale obliquity wandering is a slow-envelope failure of secular-resonance stability — what looks "stable" on Myr timescales is the locally-stable phase of a system that breaks down at Gyr scales because the secular frequencies overlap.
-- **v0.24.8 Axial Seamount ~8.6-yr cycle + v0.24.12 Loki Patera ~540-day cycle**: both are explicitly *temporal-quasi-periodic-cycle* regimes — slow-envelope ring-up + ring-down patterns the framework names + classifies, not eternal sustains. The "stability" between cycles is the locally-stable phase of an envelope that resets.
-- **v0.24.11 Pluto-Charon mutual lock**: the triple-synchronous state IS the end-state of dyadic tidal evolution — the system has rung-down to its lowest-energy resonant mode. The "stability" is the steady state of a system that already gave up its tidal-dissipation budget.
-- **v0.24.4 Maclaurin / Jacobi shape sequence**: every q value is locally stable until it isn't; the bifurcations at q = 0.187 / 0.27 / 0.36 are where the slow envelope of a body's rotation meets a regime change. Saturn at q ≈ 0.158 is mid-ring-up.
+1. **Counterexample availability.** Bowed strings (violin, cello) and blown reeds / pipes (oboe, organ, brass) produce **genuine driven sustain** via continuous energy injection balanced against continuous dissipation. The ring-up + ring-down decomposition only describes **impulse-excited** systems (plucked, struck, single-pulse driven). Saying "all resonance is ring-up + ring-down" is a vocabulary-match to the user's specific phrasing, not a screened observation.
 
-String theory's static-string formulation does not naturally accommodate this. Strings vibrate eternally without coupling to any envelope; the theory does not name "this oscillation is currently in its ring-up phase" or "we are observing the system between its ring-up and ring-down" because the orphan-from-instrument framing has no envelope to define those phases. That this project's framework names them naturally — and that the v0.24.x catalogues have empirical examples of every regime — is itself an MPM-style argument that the instrument-coupled framing produces more falsifiable, more observable structure than the instrument-removed framing does.
+2. **Project foundation availability.** The chess-spectral framework that this project descends from already explicitly names continuously-driven dynamical systems and irreversible-vs-reversible co-existence. Tasks `#99` (Kinematics module) and `#100` (Dynamics module) ported chess-spectral's `qm_*.py` and `qm_*_dynamics.py` machinery into ephemerides-spectral; both modules are first-class machinery for handling driven, dissipative, and irreversible regimes. The original §20.4 wrote as if the framework had no such tooling, which is materially wrong.
+
+The corrected sub-section below distinguishes three excitation regimes and shows the instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their instruments, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less. The user's broader §20 critique survives the refinement; my acceptance of the over-broad sub-claim did not.
+
+References for the chess-spectral foundation that this sub-section now cites:
+
+- Chess-spectral research notebook on ReadTheDocs: <https://mlehaptics.readthedocs.io/en/latest/chess-maths/chess_spectral_research_notebook/>
+- Chess-spectral PyPI package: <https://pypi.org/project/chess-spectral/>
+- Project root on ReadTheDocs: <https://mlehaptics.readthedocs.io/en/latest/>
+- Chess-spectral notebook §1b.1 (Hatano-Nelson non-Hermitian lattice dynamics; the pawn IS the maximally-asymmetric Hatano-Nelson Hamiltonian — exact, not analogical), §1b.2 (five independent mathematical frameworks supporting the conservation-law structure, including KAM theory + PCAC + Ginsparg-Wilson), §1b.6 (Nambu Non-equilibrium Thermodynamics — *axiomatic* covariant integration of reversible Nambu-bracket structure with irreversible entropy-gradient structure in a single dynamical system; Katagiri 2025; Sekizawa-Ito-Oizumi 2024 spectral decomposition of entropy production via oscillatory modes).
+
+#### 20.4.1 Regime A — impulse + ring-down (plucked / struck / single-pulse)
+
+A pluck, a strike, a single eruption: energy enters once; dissipation removes it from then on. The ring-up is essentially instantaneous on the observation timescale; everything else is the ring-down envelope. The "stability" you see between events is the slow phase of a decay function. Examples:
+
+- A plucked guitar string: pluck (impulse) → exponential decay shaped by string + body + air dissipation.
+- **v0.24.8 Axial Seamount ~8.6-yr eruption cycle**: tectonic + magmatic strain accumulation is gradual, but each *eruption* is impulse-like; the ~8.6-yr inter-eruption interval is the strain accumulation phase + the brief discharge. The framework's `temporal_quasi_periodic_cycle` regime label captures this honestly — it isn't sustain; it's a sequence of ring-ups followed by ring-downs.
+- **v0.24.12 Loki Patera ~540-d resurfacing cycle**: same regime label; same structure (slow accumulation → eruption-like resurfacing → cool-down).
+
+#### 20.4.2 Regime B — continuously driven sustain (bowed / blown)
+
+Bowed strings (Helmholtz mode under stick-slip friction) and blown reeds / pipes (self-sustained feedback between airflow and standing-wave resonance) inject energy *continuously*. Steady-state amplitude is reached when input rate = dissipation rate. The string oscillates at fixed amplitude as long as the bow moves; the air column oscillates at fixed amplitude as long as breath flows. **This is genuine sustain.** When excitation stops, ring-down begins.
+
+The framework's catalogues include continuously-driven systems too:
+
+- **v0.24.12 Loki Patera tidal heating**: the Galilean Laplace 4:2:1 lock continuously injects ~10¹⁴ W into Io's interior. The lava lake's quasi-periodic resurfacing is the *response* of a continuously-driven nonlinear system; the underlying tidal energy budget is sustained, not impulse-like.
+- **§17 SolFluidInstrument + SolElectromagneticInstrument**: every fluid-envelope channel is continuously forced by stellar flux, tidal coupling, magnetic-field-line motion, atmospheric escape — these are driven oscillator surfaces top to bottom.
+- **§1.4 Phase-9 breathing Laplacian (adaptive Kuramoto coupling)**: the framework's adaptive-coupling formulation is *literally* the formalism for driven oscillators with state-dependent coupling. This was never a ring-up + ring-down framework; it was always a driven-oscillator framework.
+
+#### 20.4.3 Regime C — driven with irreversibility (NNET territory)
+
+Some systems are continuously driven AND have explicit T-symmetry-breaking in their Hamiltonian. The chess pawn is the canonical example: forward-only hopping makes its adjacency matrix non-Hermitian (Hatano-Nelson at maximal asymmetry); every pawn move contributes maximal entropy production. Reversible + irreversible dynamics co-exist in one system. The Nambu Non-equilibrium Thermodynamics framework (Katagiri et al. 2025; chess-spectral §1b.6) gives this its axiomatic integration: velocity field decomposes into a reversible Nambu-bracket part and an irreversible entropy-gradient part, both present, both required.
+
+The framework's catalogues again include this regime:
+
+- **v0.24.2 Mars chaotic obliquity**: Gyr-scale obliquity wandering is the chaotic response of a continuously-driven system whose secular frequencies overlap. KAM-style adiabatic-invariant breakdown (chess-spectral §1b.2) is the formal grounding.
+- **v0.24.6 Yarkovsky / YORP**: thermal radiation drift on small bodies is irreversibly-coupled to incident solar flux. Continuous driving + dissipative drift; the spin attractors at obliquity 55° / 125° are end-states of the driven-with-irreversibility system, not eternally-sustained modes.
+- **v0.24.11 Pluto-Charon mutual lock**: the END state of dyadic tidal evolution. Continuous tidal dissipation withdrew angular momentum until the system reached its lowest-energy resonant configuration. The "stability" now is the steady state of a continuously-coupled system that has paid its entropy budget.
+- **v0.24.4 Maclaurin / Jacobi shape sequence**: bifurcations at q = 0.187 / 0.27 / 0.36 are where a body's rotation, tidally driven over Gyr, crosses regime boundaries.
+
+#### 20.4.4 The instrument requirement holds in all three regimes
+
+Every regime above requires an *instrument*:
+
+- **Regime A** needs something to pluck the string against, something for the eruption to break out of, something for the strain to accumulate within.
+- **Regime B** needs the bow + the friction surface, the reed + the air column, the tidal coupling + the resonant body.
+- **Regime C** needs the driving source, the dissipation channel, AND the irreversibility-breaking asymmetry — all three are properties of the *coupled system*, not of any isolated 1-D wiggle.
+
+String theory's foundational object is exempt from all of this. The string vibrates in N-dimensional spacetime without naming the analog of bow, reed, body, magma reservoir, planetary perturbation, tidal partner, or thermal-radiation reservoir. The compensating mathematics (extra dimensions, supersymmetry, Calabi-Yau, dualities) recovers some of what the orphan-from-instrument framing threw away, but does not name the source, the sink, or the irreversibility channel of any specific observed resonance.
+
+This is not a disproof. It is the screen MPM applies first, and it is the screen that the chess-spectral foundation + the v0.24.x catalogues + the Nambu NNET grounding all pass natively because their dynamical structure was written to handle reversible + driven + irreversible regimes from the start.
 
 ### 20.5 What this section is and is not
 
@@ -2844,7 +2891,7 @@ What it is:
 
 * a **methodological observation** — the question "where in nature is a string attached to nothing?" should be asked first, before any string-theory predictions are evaluated as physics
 * a **framework demonstration** — the project's eigenbasis substrate handles resonance-with-instrument naturally and produces falsifiable, observable consequences across many systems
-* a **distinction** — sustain is a metaphor; ring-up + ring-down is the observable
+* a **three-regime distinction** — impulse + ring-down (Regime A; plucked / struck), driven sustain (Regime B; bowed / blown / continuously-forced), and driven with irreversibility (Regime C; reversible + irreversible co-existence per Nambu NNET). All three require an instrument; none of the three matches a 1-D string vibrating in spacetime with no named source, sink, or irreversibility channel
 
 What it is not:
 
@@ -2858,16 +2905,31 @@ What it is not:
 The framing does not require string theory to abandon its program. It does ask three things to be made explicit:
 
 1. **Acknowledge the missing instrument.** If the foundational object is a 1-D string vibrating in N-dimensional spacetime, name what couples it. If nothing couples it, name why nature is expected to behave differently from every observed instrument.
-2. **Account for the absence of envelope.** Ring-up + ring-down is observable; eternal sustain is not. If the strings of string theory are exempt from this — name the mechanism.
+2. **Account for source, sink, and irreversibility.** Every observed oscillation has both an excitation channel and a dissipation channel; some have a third, irreversibility-breaking channel that produces entropy (Regime C of §20.4). Plucked / struck systems pay their excitation up front and ring down; bowed / blown systems balance continuous source against continuous sink; chess-pawn-like systems do both AND break T-symmetry at the Hamiltonian level. If the strings of string theory have none of these — name the mechanism by which the math's eternal vibration makes contact with the world's observed energy balance.
 3. **Audit the compensating mathematics.** For each piece of compensating new physics (extra dimensions, supersymmetry, Calabi-Yau, dualities) — was it required because the instrument was absent? If the answer is yes, the parsimony argument for re-introducing the instrument first is real.
 
 None of this is hostile. All three are MPM-discipline screens this project applies to its own work before it ships. They are the screens that a defensible theory should be able to pass.
 
 ### 20.7 Cross-references
 
+**Project-internal:**
+
 - §0.0 — The Mathematical Provenance Method (the discipline this section applies)
-- §1.4 — Phase-9 breathing Laplacian / adaptive Kuramoto coupling (the framework's instrument-first formulation of resonance)
+- §1.4 — Phase-9 breathing Laplacian / adaptive Kuramoto coupling (the framework's instrument-first formulation of resonance; Regime B + C territory)
 - §17 — per-body spectral catalog (every channel ships with its instrument)
 - §19 — spectral noise as Perlin replacement (cousin example of needing the instrument; PSD shaping is a property of the cavity, not the wiggle)
-- v0.24.x catalogues, especially v0.24.2 (Mars chaotic obliquity), v0.24.8 (Axial), v0.24.11 (Pluto-Charon), v0.24.12 (Loki Patera) — empirical demonstrations of ring-up / ring-down envelopes the framework names explicitly
-- Inkscape `gemini_failure_mode.md` (sister-project precedent for the counterfactual-mathematical-truth pattern this section names in physics)
+- v0.24.x catalogues — empirical demonstrations of all three regimes: §20.4.1 (Axial, Loki resurfacing), §20.4.2 (Loki tidal-heating budget, fluid envelopes), §20.4.3 (Mars chaotic obliquity, Yarkovsky/YORP, Pluto-Charon end-state, Maclaurin/Jacobi sequence)
+- Tasks `#99` (Kinematics module port) and `#100` (Dynamics module port) — explicit ports of chess-spectral's `qm_*.py` and `qm_*_dynamics.py` machinery into ephemerides-spectral
+
+**Foundation work (chess-spectral):**
+
+- Chess-spectral research notebook on ReadTheDocs — <https://mlehaptics.readthedocs.io/en/latest/chess-maths/chess_spectral_research_notebook/>
+- Chess-spectral PyPI package — <https://pypi.org/project/chess-spectral/>
+- Project root on ReadTheDocs — <https://mlehaptics.readthedocs.io/en/latest/>
+- Chess-spectral §1b.1 — Hatano-Nelson non-Hermitian lattice dynamics; pawn IS the maximally-asymmetric Hatano-Nelson Hamiltonian (exact, not analogical). Foundation for Regime C in §20.4.3.
+- Chess-spectral §1b.2 — five independent mathematical frameworks supporting conservation-law structure (BGI approximate Noether; PCAC; lattice Ward identities with Wilson fermions; Ginsparg-Wilson; KAM). The driven-and-conserved bookkeeping the v0.24.x catalogues inherit.
+- Chess-spectral §1b.6 — Nambu Non-equilibrium Thermodynamics (Katagiri et al. 2025; arXiv:2508.00207); Spectral decomposition of entropy production via oscillatory modes (Sekizawa, Ito & Oizumi 2024; *Phys. Rev. X* 14, 041003). Axiomatic integration of reversible Nambu-bracket structure with irreversible entropy-gradient structure.
+
+**Sister-project precedent:**
+
+- Inkscape `gemini_failure_mode.md` — the counterfactual-mathematical-truth / vocabulary-match-vs-grounded pattern this section names in physics. The same MPM screening discipline that catches AI-characteristic failure modes catches the orphan-from-instrument framing.
