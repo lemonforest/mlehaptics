@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.12)
+### v0.25.0a — Attested Multi-Source Collector framework (checkpoint)
+
+**Framework foundation for the v0.25.0 ship.** Code-only checkpoint commit; no PyPI release. v0.25.0 stable publishes when v0.25.0b lands (GMRT + PetDB pilots + T1 collect CI workflow).
+
+The v0.25.0 ship implements notebook §18: a CONFIG-not-CODE escape from the v0.24.x hand-coding pattern. Each new attested source becomes a TOML descriptor consumed by a generic collector core, producing canonical NDJSON rows with mandatory `attestation` blocks. The format gets a name aligned with the discipline (§0.0): **MPR — Mathematical Provenance Record**.
+
+#### What ships in v0.25.0a
+
+| Surface | Function / subcommand |
+|---|---|
+| Format module | `_research.attested_collector_format` (MPRRecord + IO + validation) |
+| Descriptor module | `_research.attested_collector_descriptor` (TOML parsing + templating + canonical hashing) |
+| Adapter core | `_research.attested_adapters` (5 modules sharing `_base.attest` + `_base.run`) |
+| Catalog wrapper | `_research.attested_collector_catalog` (universal bridge surfaces) |
+| Bridge | `bridge.list_attested_sources`, `bridge.get_attested_dataset` (paginated), `bridge.get_attested_descriptor`, `bridge.attestation_audit` |
+| CLI | `attested-list`, `attested-dataset`, `attested-descriptor`, `attested-audit` |
+| Pilot | EarthRef SC descriptor + JSON Schema (NDJSON committed in v0.25.0b T1 first run) |
+| Tests | 37 new tests (`tests/test_attested_collector.py`) |
+
+#### What ships in v0.25.0b
+
+GMRT pilot (via `csv_bulk` GridServer ASCII XYZ — no rasterio dep), PetDB v4 pilot (via `json_api`), T1 CI workflow (`ephemerides-spectral-collect.yml`), PyPI 0.25.0 stable release.
+
+#### Determinism preserved
+
+NDJSON files committed verbatim under `research/attested/<source>/`; codegen mirror is byte-exact (no LF normalisation; preserves SHA-256 in attestation blocks). `regenerate.py` does no network I/O — T1 collector workflow is the only place network fetches happen. CI codegen-determinism step passes; manifest reproduces byte-identically.
+
+#### Mathematical Provenance Method (renaming-discipline anchor)
+
+The framework is the on-disk crystallisation of the discipline established in §0.0. Per-row attestation block carries source DOI + URL + license + retrieval timestamp + response checksum + parser metadata + descriptor hash — every step has citable mathematical provenance. The format itself is normative once shipped; future bumps require explicit migration.
 
 ## [0.24.12] — 2026-05-07
 

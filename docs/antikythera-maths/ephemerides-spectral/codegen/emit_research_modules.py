@@ -97,6 +97,16 @@ _INCLUDED_MODULES: List[str] = [
     "pluto_charon_dynamical_spectrum_catalog.py",
     "loki_patera_data.py",
     "loki_patera_catalog.py",
+    # v0.25.0a — Attested Multi-Source Collector framework
+    "attested_collector_format.py",
+    "attested_collector_descriptor.py",
+    "attested_collector_catalog.py",
+]
+
+# Subdirectories under research/ to mirror recursively (preserves
+# package structure for nested modules like attested_adapters/).
+_INCLUDED_SUBDIRS: List[str] = [
+    "attested_adapters",
 ]
 
 def emit() -> List[Path]:
@@ -114,6 +124,21 @@ def emit() -> List[Path]:
         raw = src.read_bytes().replace(b"\r\n", b"\n")
         dst.write_bytes(raw)
         written.append(dst)
+
+    # Mirror nested-package subdirectories (v0.25.0+).
+    for subdir in _INCLUDED_SUBDIRS:
+        src_dir = src_root / subdir
+        if not src_dir.exists():
+            continue
+        dst_dir = _RESEARCH_DST / subdir
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for src_file in sorted(src_dir.rglob("*.py")):
+            rel = src_file.relative_to(src_dir)
+            dst_file = dst_dir / rel
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            raw = src_file.read_bytes().replace(b"\r\n", b"\n")
+            dst_file.write_bytes(raw)
+            written.append(dst_file)
 
     return written
 

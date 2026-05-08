@@ -1128,6 +1128,35 @@ def _cmd_loki_patera_eruption_cycle_full(args: argparse.Namespace) -> int:
     )
 
 
+# v0.25.0a — Attested Multi-Source Collector framework
+
+def _cmd_attested_list(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_attested_sources(), pretty=args.pretty)
+
+
+def _cmd_attested_dataset(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_attested_dataset(
+            args.source,
+            limit=args.limit,
+            offset=args.offset,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_attested_descriptor(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_attested_descriptor(args.source), pretty=args.pretty,
+    )
+
+
+def _cmd_attested_audit(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.attestation_audit(args.source), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4916,6 +4945,83 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     lpecf.set_defaults(func=_cmd_loki_patera_eruption_cycle_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.25.0a — Attested Multi-Source Collector framework
+    # ──────────────────────────────────────────────────────────────────
+
+    # attested-list
+    al = sub.add_parser(
+        "attested-list",
+        help="List every registered attested source (descriptor metadata)",
+        description=(
+            "v0.25.0a -- enumerate every attested source registered\n"
+            "in research/attested/<source>/descriptor.toml. Returns\n"
+            "rendered metadata: human-readable name, purpose,\n"
+            "license, citation template, adapter, gap-targeting\n"
+            "regime labels.\n"
+            "\n"
+            "Source-of-truth lives in the descriptor TOML. Adding a\n"
+            "new source is a CONFIG change, not a CODE change."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    al.set_defaults(func=_cmd_attested_list)
+
+    # attested-dataset
+    ad = sub.add_parser(
+        "attested-dataset",
+        help="Return paginated rows for one attested source",
+        description=(
+            "v0.25.0a -- emit paginated MPR (Mathematical Provenance\n"
+            "Record) rows for one source. Each row carries data +\n"
+            "attestation + rendering blocks.\n"
+            "\n"
+            "Use --limit / --offset for pagination over large\n"
+            "rosters. The cheap data-block-free variant is\n"
+            "`attested-audit` (provenance metadata only)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ad.add_argument("--source", required=True, help="source key (e.g. earthref_sc)")
+    ad.add_argument("--limit", type=int, default=None, help="max rows to return")
+    ad.add_argument("--offset", type=int, default=0, help="row offset")
+    ad.set_defaults(func=_cmd_attested_dataset)
+
+    # attested-descriptor
+    adesc = sub.add_parser(
+        "attested-descriptor",
+        help="Return the parsed descriptor for one attested source",
+        description=(
+            "v0.25.0a -- return the full parsed descriptor TOML for\n"
+            "one source ([source], [fetch], [parse], [schema],\n"
+            "[rendering], [attestation], [gap_targeting]). Useful\n"
+            "for UI source-pickers + the v0.26.x schema-gap-driven\n"
+            "trigger that consumes [gap_targeting] declarations."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    adesc.add_argument("--source", required=True, help="source key")
+    adesc.set_defaults(func=_cmd_attested_descriptor)
+
+    # attested-audit
+    aa = sub.add_parser(
+        "attested-audit",
+        help="Return per-row attestation metadata (no data payload)",
+        description=(
+            "v0.25.0a -- per-row attestation metadata for one\n"
+            "source: response_sha256, retrieved_at, parser_version,\n"
+            "parser_rule_hash, collector_descriptor_hash. No data\n"
+            "block — cheap; paper-appendix-ready.\n"
+            "\n"
+            "Use this when you need to document the provenance trail\n"
+            "of a source's row content without materialising the\n"
+            "data payload itself."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    aa.add_argument("--source", required=True, help="source key")
+    aa.set_defaults(func=_cmd_attested_audit)
 
     # lunar-kernels
     lk = sub.add_parser(

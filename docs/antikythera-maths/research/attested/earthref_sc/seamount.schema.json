@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "earthref_sc.seamount.v1",
+  "title": "EarthRef SC seamount row",
+  "description": "One seamount entry from the EarthRef Seamount Catalog. Mandatory fields are name + (latitude_deg, longitude_deg) for spatial placement; depth/height fields are optional because not all catalogued seamounts have measured bathymetry.",
+  "type": "object",
+  "required": ["name", "latitude_deg", "longitude_deg"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Catalogued seamount name."
+    },
+    "latitude_deg": {
+      "type": "number",
+      "minimum": -90.0,
+      "maximum": 90.0,
+      "description": "Geocentric latitude in degrees."
+    },
+    "longitude_deg": {
+      "type": "number",
+      "minimum": -180.0,
+      "maximum": 360.0,
+      "description": "Geocentric longitude in degrees (either signed [-180, 180] or unsigned [0, 360] convention)."
+    },
+    "summit_depth_m": {
+      "type": ["number", "null"],
+      "description": "Depth of summit below sea level, metres. Null if unmeasured."
+    },
+    "summit_height_m": {
+      "type": ["number", "null"],
+      "description": "Height of summit above seafloor, metres. Null if unmeasured."
+    }
+  }
+}

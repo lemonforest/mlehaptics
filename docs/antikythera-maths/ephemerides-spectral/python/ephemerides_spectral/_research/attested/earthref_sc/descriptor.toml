@@ -1,0 +1,77 @@
+# EarthRef Seamount Catalog (SC) — pilot source for v0.25.0a.
+#
+# EarthRef SC is a community-maintained catalog of named global
+# seamounts with location + summit-depth + age (where measured)
+# data. It feeds the v0.24.5 Hawaii / v0.24.7 Mars Tharsis bounded-
+# local-Laplacian regimes — the ground-proof rows for hotspot-track
+# spectral analysis. As of v0.25.0a, the descriptor is shipped and
+# discovered by the framework; the first NDJSON commit lands via
+# the v0.25.0b T1 CI workflow's first auto-PR run.
+
+[source]
+key = "earthref_sc"
+human_readable_name = "EarthRef Seamount Catalog"
+purpose = "ground-proof rows for hotspot-track / bounded-local-Laplacian regimes (v0.24.5 / v0.24.7)"
+license = "CC-BY-4.0"
+homepage = "https://www.earthref.org/SC/"
+canonical_doi = ""
+
+[fetch]
+adapter = "html_scraper"
+endpoint = "https://www.earthref.org/SC/catalog?page={page}"
+rate_limit_rps = 0.5
+robots_txt_compliant = true
+
+[fetch.pagination]
+type = "page_query"
+start = 1
+end_detected_by = "empty_page"
+
+[parse]
+# Per-row HTML selectors. The actual EarthRef SC HTML structure
+# is settled at first T1 PR review; v0.25.0a ships these as a
+# starting point sourced from the public-facing catalog page.
+table_selector = "table.sc_main"
+row_selector = "tr.sc_row"
+field_map = [
+    { canonical = "name",          selector = "td.name",  type = "string" },
+    { canonical = "latitude_deg",  selector = "td.lat",   type = "float"  },
+    { canonical = "longitude_deg", selector = "td.lon",   type = "float"  },
+    { canonical = "summit_depth_m", selector = "td.depth", type = "float" },
+    { canonical = "summit_height_m", selector = "td.height", type = "float" },
+]
+
+[schema]
+data_schema_id = "earthref_sc.seamount.v1"
+data_schema_path = "seamount.schema.json"
+
+[rendering]
+# Self-describing rendering verbiage — what the program tells users
+# about rows from this source. New sources require no code change to
+# render their provenance text.
+cite_as_template = "EarthRef Seamount Catalog (Wessel & Sandwell 2018; Koppers 2019); retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for {schema.regime_label} regime"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Regime labels this source can populate, declared for the v0.26.x
+# schema-gap-driven trigger. Validated at descriptor-load time
+# against the dynamical-regime classifier's known labels.
+regime_labels = [
+    "bounded_local_laplacian_trajectory",
+    "bounded_local_laplacian_family",
+]

@@ -18,9 +18,10 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
+import emit_attested_collections
 import emit_research_modules
 import emit_initial_phases
-from _paths import DATA_DIR
+from _paths import ATTESTED_DST, DATA_DIR, PACKAGE_ROOT
 
 _PYPROJECT: Path = Path(__file__).resolve().parents[1] / "python" / "pyproject.toml"
 
@@ -51,7 +52,17 @@ def main() -> None:
     print("copying research modules ...")
     research_paths = emit_research_modules.emit()
     for p in research_paths:
-        written[f"_research/{p.name}"] = p
+        # Manifest keys are paths relative to the package root, so
+        # nested subdirectories (v0.25.0+ attested_adapters/) get
+        # stable per-file keys regardless of depth.
+        rel = p.relative_to(PACKAGE_ROOT).as_posix()
+        written[rel] = p
+
+    print("copying attested-data subtree ...")
+    attested_paths = emit_attested_collections.emit()
+    for p in attested_paths:
+        rel = p.relative_to(PACKAGE_ROOT).as_posix()
+        written[rel] = p
 
     print("emitting initial-phases JSON (SPICE-free BIP fallback) ...")
     init_phases_path = emit_initial_phases.emit()

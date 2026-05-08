@@ -11,8 +11,15 @@ _THIS = Path(__file__).resolve()
 _RESEARCH_ROOT = _THIS.parents[2]  # docs/antikythera-maths/
 _PACKAGE_ROOT = _THIS.parents[1] / "python" / "ephemerides_spectral"
 
+PACKAGE_ROOT: Path = _PACKAGE_ROOT
 DATA_DIR: Path = _PACKAGE_ROOT / "_data"
 RESEARCH_ROOT: Path = _RESEARCH_ROOT
+
+# v0.25.0+: attested-data subtree (descriptors + JSON Schemas + NDJSON).
+# Source-of-truth lives in research/attested/<source>/; mirrored to
+# _research/attested/<source>/ at codegen time by emit_attested_collections.
+ATTESTED_SRC: Path = _RESEARCH_ROOT / "research" / "attested"
+ATTESTED_DST: Path = _PACKAGE_ROOT / "_research" / "attested"
 
 def ensure_research_importable() -> None:
     """Add research-scaffold root to sys.path."""

@@ -12,6 +12,23 @@ python/ephemerides_spectral/_research/*.py  text eol=lf
 python/ephemerides_spectral/_research/*.md  text eol=lf
 python/ephemerides_spectral/_data/manifest.json text eol=lf
 
+# v0.25.0a — attested-collector subtrees. Recursive globs cover
+# nested package directories (attested_adapters/) and the attested-
+# data tree (descriptor.toml + JSON Schema + NDJSON per source).
+# NDJSON in particular MUST stay byte-identical across platforms:
+# the per-row attestation block carries response_sha256 computed at
+# fetch time over upstream bytes; LF↔CRLF conversion would drift it.
+python/ephemerides_spectral/_research/**/*.py    text eol=lf
+python/ephemerides_spectral/_research/**/*.toml  text eol=lf
+python/ephemerides_spectral/_research/**/*.json  text eol=lf
+python/ephemerides_spectral/_research/**/*.ndjson text eol=lf
+
+# Same discipline for the source-of-truth research/ tree.
+research/attested/**/*.toml    text eol=lf
+research/attested/**/*.json    text eol=lf
+research/attested/**/*.ndjson  text eol=lf
+research/attested_adapters/**/*.py text eol=lf
+
 # CHANGELOG / README / ROADMAP / pyproject — LF on every platform for
 # diff stability (PyPI renders these regardless of EOL style).
 README.md             text eol=lf
