@@ -10,7 +10,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.12)
+### v0.25.0a — Attested Multi-Source Collector framework (checkpoint)
+
+Framework foundation for the v0.25.0 ship. Code-only checkpoint;
+no PyPI release. v0.25.0 stable will publish when v0.25.0b lands
+(GMRT + PetDB pilots + T1 collect CI workflow).
+
+#### Added
+
+- **MPR (Mathematical Provenance Record) v1 normative format** (`_research/attested_collector_format.py`). NDJSON with mandatory `mpr_version` + `data` + `data_schema_id` + `attestation` + `rendering` blocks. 9 required attestation fields per row; 3 required rendering fields. SHA-256 over fetch-time response bytes; deterministic `to_json_line` serialisation.
+- **Descriptor module** (`_research/attested_collector_descriptor.py`). Parses TOML descriptors (`[source]`, `[fetch]`, `[parse]`, `[schema]`, `[rendering]`, `[attestation]`, `[gap_targeting]`); validates against the v0.25.0 schema; renders self-describing verbiage templates with format-spec support.
+- **5-adapter shared core** (`_research/attested_adapters/`) via `typing.Protocol`:
+  - `html_scraper` — real impl (lazy `requests` + `bs4`); EarthRef SC pilot.
+  - `json_api` — `parse` real; `fetch` stub for v0.25.0b PetDB.
+  - `csv_bulk` — `parse` real; `fetch` stub for v0.25.0b GMRT.
+  - `netcdf_grid` — fixture-only stub; gated behind `collector-netcdf` extra.
+  - `geotiff_bbox` — fixture-only stub; gated behind `collector-geotiff` extra.
+  - Shared `attest()` step computes per-row attestation block; shared `run()` composer turns descriptor → MPRRecord iterator.
+- **Universal catalog wrapper** (`_research/attested_collector_catalog.py`). Discovers descriptors at module load; surfaces 4 universal bridge functions (no per-source code paths).
+- **4 new bridge surfaces**:
+  - `bridge.list_attested_sources()` — every registered source's rendered metadata.
+  - `bridge.get_attested_dataset(source_key, *, limit=None, offset=0)` — paginated row content.
+  - `bridge.get_attested_descriptor(source_key)` — full parsed descriptor for UI.
+  - `bridge.attestation_audit(source_key)` — per-row provenance metadata, no data payload.
+- **4 new CLI subcommands**: `attested-list`, `attested-dataset`, `attested-descriptor`, `attested-audit`.
+- **EarthRef SC pilot descriptor + JSON Schema** (`research/attested/earthref_sc/{descriptor.toml, seamount.schema.json}`). NDJSON not yet committed; first T1 auto-PR commits it in v0.25.0b.
+- **Codegen wiring**: new `emit_attested_collections.py` for byte-exact recursive mirror of `research/attested/` (preserves SHA-256 determinism); `emit_research_modules.py` extended with `attested_*.py` modules + `attested_adapters/` recursive subdir support; `regenerate.py` uses PACKAGE_ROOT-relative manifest keys.
+- **37 new tests** (`tests/test_attested_collector.py`): MPR format round-trip + validation, descriptor TOML loading + template rendering + canonical hashing, adapter registry + html_scraper.parse against fixture HTML, bridge surfaces + CLI subcommands smoke + `--help`, no-network-imports check on `regenerate.py`.
+
+#### Changed
+
+- `tests/test_data_freshness.py::test_manifest_lists_every_committed_file` walks `_research/` recursively (catches v0.25.0+ subtrees).
+- `tests/test_parity_smoke.py` PARITY_TARGETS extends with 4 new `python_only` entries (rationale: I/O surfaces, not encoder-touching; no C twin makes sense).
+
+#### References
+
+- Format spec: notebook §18 (PR #272 merged 2026-05-08).
+- Discipline: notebook §0.0 The Mathematical Provenance Method.
 
 ## [0.24.12] — 2026-05-07
 
