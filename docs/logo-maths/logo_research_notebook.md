@@ -31,6 +31,7 @@ numbers and interpretation.
 > - The chess-spectral split-object pattern this notebook generalises was further instantiated on **antikythera-spectral**, **doom-spectral** (v1.0.0; first end-to-end Rosetta Stone existence proof), **ephemerides-spectral** (matured through **v0.26.0**; PyPI: <https://pypi.org/project/ephemerides-spectral/>), and **othello-spectral**.
 > - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20.
 > - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) using the same eigenbasis substrate.
+> - **mfo-spectral** sister-notebook added (May 2026) — Metric Field Ontology, the project's bottom-up derivation of the foundational ontology (matter as sustained resonance in cavity-instrument geometries; fractal spectral cutoff fixes mass; ~11D dimensional structure motivated independently of string theory). Joins the collection at the foundational-ontology layer; future MPM target.
 
 ---
 

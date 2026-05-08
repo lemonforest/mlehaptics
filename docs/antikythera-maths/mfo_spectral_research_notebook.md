@@ -1,0 +1,1110 @@
+# MFO Spectral Research Notebook
+
+**Working draft, May 2026.** Monolithic consolidation of the Metric Field Ontology framework as developed through v3 of the survey and the three computation scripts. The intent is that this single document contains enough math and method that the supporting Python scripts can be **regenerated** from it, rather than copy-pasted. Format hygiene to match sister notebooks (state pointer block, formal H-battery, sister cross-refs) is deferred — this is a working draft.
+
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is a working draft.** Format alignment with sister notebooks (state-pointer block, formal H-battery, sister cross-references) is deferred to a later iteration. The RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief shape-of-the-project snapshot (as of 2026-05-08):**
+> - The mlehaptics spectral-research collection began with **chess-spectral** (foundation; eigenbasis substrate + Hatano-Nelson + Nambu NNET literature) and was instantiated on **antikythera-spectral** (Hellenistic bronze), **doom-spectral** (id Tech 1 game engine; v1.0.0 first end-to-end Rosetta-Stone existence proof), **ephemerides-spectral** (live JPL DE441; matured through v0.26.0; PyPI: <https://pypi.org/project/ephemerides-spectral/>), **othello-spectral** (dynamic sheaf-Laplacian board), **logo** (non-board generalisation), and **chess-spectral-4d** (Z_8^4 lattice extension).
+> - **The Mathematical Provenance Method (MPM)** is the project's reproducibility discipline (ephemerides notebook §0.0): closed-form `np.linalg.eigh`, no SGD, ground-proof rows, MPR v1 normative format, four-tier reproducibility model. MFO is a future MPM target.
+> - **Ephemerides §20** is the project's instrument-first physics critique. §20.2.1's narrowed audit explicitly **excludes** "extra dimensions" from the MPM-flagged signature, citing this notebook's §III.5 triple-convergent ~11D derivation as the project's own bottom-up framework arriving at the same dimensionality from unrelated foundational requirements (gauge-group / spectral cutoff). §20.4.0 and §20.7 cite this notebook's §I.2 claims 2-3 (driven coupling; cavity-instrument resonance) as the foundational-ontology formalisation.
+>
+> **Sister notebooks (project-internal):**
+> - [`../chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md) — foundation document; establishes the eigenbasis substrate and the §1b literature anchors (Hatano-Nelson, Nambu NNET, KAM, BGI, PCAC) that this notebook's dynamical claims rely on.
+> - [`../chess-maths/chess_spectral_4d_notebook.md`](../chess-maths/chess_spectral_4d_notebook.md) — Z_8^4 lattice extension; cousin to the dimensional-flow modelling in this notebook's §III.
+> - [`./antikythera_spectral_research_notebook.md`](./antikythera_spectral_research_notebook.md) — Hellenistic bronze; the integer-ALU + cosine-LUT discipline; concrete-instrument framing in the kinematic regime.
+> - [`./doom_spectral_research_notebook.md`](./doom_spectral_research_notebook.md) — id Tech 1 game engine; first end-to-end Rosetta Stone procedure existence proof.
+> - [`./ephemerides_spectral_research_notebook.md`](./ephemerides_spectral_research_notebook.md) — live JPL DE441 ephemeris with state-dependent fiber couplings; **§20 instrument-first physics critique** is where this notebook's foundational-ontology claims feed back into the project's physics writing. Future MPM targets in this notebook will reuse the ephemerides MPR v1 format.
+> - [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) — dynamic sheaf-Laplacian board; §10.7 ray-flanking algebra reused across the project.
+> - [`../logo-maths/logo_research_notebook.md`](../logo-maths/logo_research_notebook.md) — non-board generalisation; the chess-spectral split-object pattern in continuous-stroke form.
+
+**Sources consolidated:**
+- `metric_field_survey_v3.md` — ontological framework, literature anchors, 20-item roadmap
+- `metric_field_computations.py` — waveguide/de Broglie proofs, KK eigenvalue computations
+- `fractal_computations.py` — Sierpinski spectral decimation, SM mass ratio comparison, chirality argument
+- `spectral_dimension_computations.py` — dimensional flow models, 8-approach QG comparison
+
+**Companion JSON results** (computed values, preserved at end of document): `computation_results.json`, `fractal_computation_results.json`, `spectral_dimension_results.json`.
+
+---
+
+## Part I — Framing
+
+### I.1 The thesis
+
+All matter and force fields are harmonic excitations of a single fractal metric field. The metric field is more fundamental than spacetime — spacetime is one of its configurations, not its container. What have traditionally been called "spatial" and "internal" dimensions are the same fractal geometry at different resolutions; there is no categorical boundary between them. The metric field's spectral dimension flows with scale: ~4 at large (cosmological) scales, peaking at ~6–8 at intermediate scales (where the particle spectrum lives, and where the fractal's fine structure is maximally resolved), and dropping to ~2 at the UV — consistent with every known approach to quantum gravity.
+
+The ontological cost is minimal. No new fundamental objects are introduced (no strings, branes, or extra fields), no mathematical structures beyond what GR and QFT already use, and no new free parameters beyond those of the Standard Model. The framework is a reinterpretation: particles are waveguide modes of the metric field's geometry, and the spatial/internal distinction is a resolution artifact.
+
+### I.2 Six core ontological claims
+
+1. **The metric field is more fundamental than spacetime.** Our 3D spatial vacuum is not the ground state of reality; it is a configuration of the metric field that supports spatial extension. Black hole interiors (where the radial coordinate becomes timelike), the holographic principle, AdS/CFT, and ER=EPR are all already pointing at this.
+
+2. **"Vibration" is the dynamic coupling between complementary geometric structures within the metric field**, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply.
+
+3. **Matter is sustained resonance, not ringing-down excitation.** The right analogy is cavity instruments (flutes, organ pipes), where geometry *selects* which frequencies sustain — not plucked strings, where the interesting event is the initial pluck and everything after is decay.
+
+4. **Particle-antiparticle pair creation is decoherence of internal coupling**, not creation from nothing. Complementary mode components that normally cancel in spatial projection become spatially manifest when local conditions disrupt internal coherence.
+
+5. **The Planck density floor is minimum geometric complexity**, not maximum compression. The configuration supporting the fewest resonant modes.
+
+6. **The metric field's geometry is fractal.** "Spatial" and "internal" dimensions are the same geometry at different resolutions. Compactification is not something that happened to extra dimensions — it is what coarse-graining does to fractal geometry. The ~11 dimensions at intermediate scales (Witten's KK convergence) and the ~4 at large scales (our experience) are properties of the fractal's structure, not free parameters.
+
+### I.3 Methodological position
+
+This is a **theoretical proposal** awaiting full computation, not a discovery project where structure is extracted from data. The framework arrives at ~11 dimensions bottom-up (asking what the metric field needs to support U(1)×SU(2)×SU(3)) and converges with string theory's top-down result and with quantum gravity's universal d_S → 2 finding. The convergence of three independent approaches on the same dimensional structure is the principal evidence; the next phase is computation on specific candidate fractal geometries to derive the SM spectrum.
+
+The framework should be read as a **conservative reinterpretation** of GR + QFT, not a replacement. Every existing algebraic identity remains. What changes is the ontological reading of those identities: the de Broglie phase velocity stops being mysterious and becomes standard waveguide physics; mass stops being intrinsic and becomes a cutoff frequency; conservation laws stop being externally imposed and become topological impedance matching.
+
+---
+
+## Part II — The Waveguide Correspondence (Mathematical Core)
+
+The central mathematical result of the framework is that **Kaluza-Klein compactification IS electromagnetic waveguide physics**, not analogous to it. This Part derives the exact correspondence step by step. The script `metric_field_computations.py` is a sympy implementation of these derivations; everything below should be reproducible from the math.
+
+### II.1 Setup: Klein-Gordon in M⁴ × S¹
+
+Take a massless scalar field Φ in 5D spacetime with topology M⁴ × S¹, where the compact direction y has period 2πR. The 5D Klein-Gordon equation is
+
+$$\frac{\partial^2 \Phi}{\partial t^2} - c^2 \nabla_3^2 \Phi - c^2 \frac{\partial^2 \Phi}{\partial y^2} = 0$$
+
+Fourier expand in the compact direction:
+
+$$\Phi(\mathbf{x}, y, t) = \sum_n \phi_n(\mathbf{x}, t) \, e^{i n y / R}$$
+
+Each mode φₙ satisfies the 4D Klein-Gordon equation with effective mass
+
+$$\frac{\partial^2 \phi_n}{\partial t^2} - c^2 \nabla_3^2 \phi_n + \left(\frac{nc}{R}\right)^2 \phi_n = 0
+\quad \Longrightarrow \quad m_n = \frac{n \hbar}{R c}$$
+
+The dispersion relation in wave variables (E = ℏω, p = ℏk) is
+
+$$\omega^2 = k^2 c^2 + \omega_c^2, \qquad \omega_c = \frac{nc}{R} = \frac{m_n c^2}{\hbar}$$
+
+This is the **KK dispersion relation**. It is also, term-for-term, the dispersion relation of a propagating mode in an EM waveguide whose transverse geometry sets the cutoff frequency ω_c. The two are not analogous — they are the same equation.
+
+### II.2 The de Broglie phase velocity identity (algebraic proof)
+
+From the dispersion relation, compute group and phase velocities:
+
+$$v_g = \frac{d\omega}{dk} = \frac{kc^2}{\sqrt{k^2 c^2 + \omega_c^2}} = \frac{kc^2}{\omega}$$
+
+$$v_p = \frac{\omega}{k} = \frac{\sqrt{k^2 c^2 + \omega_c^2}}{k}$$
+
+The product is
+
+$$v_g \cdot v_p = \frac{kc^2}{\omega} \cdot \frac{\omega}{k} = c^2$$
+
+**This is exact, not an approximation.** It holds for any value of ω_c (any mass, any KK mode number).
+
+The de Broglie matter-wave for a particle of mass m has phase velocity v_phase satisfying v · v_phase = c². The two relations are identical when we identify ω_c = mc²/ℏ. The "spooky" superluminal phase velocity that has been unexplained since 1924 is the standard waveguide phase velocity of an excitation propagating at an angle through internal dimensions — bouncing through the transverse geometry such that the phase intersection along the longitudinal axis outruns c. This carries no energy and no information, so it doesn't violate relativity.
+
+The script implements this by symbolically defining ω = √(k²c² + ω_c²), differentiating to get v_g, dividing to get v_p, multiplying, and verifying that `simplify(v_g * v_p - c**2)` returns 0.
+
+### II.3 Mass = cutoff frequency
+
+The waveguide dispersion relation ω² = k²c² + ω_c² and the relativistic energy-momentum relation E² = (pc)² + (mc²)² are identical under the substitution
+
+$$\omega_c = \frac{mc^2}{\hbar}$$
+
+Particle rest mass IS the cutoff frequency of the internal-dimension waveguide channel, multiplied by ℏ/c². In a waveguide, ω_c is determined entirely by the transverse geometry (cross-section dimensions). In KK theory on a circle of radius R, the n-th mode has cutoff ω_c = nc/R. The metric field's internal geometry — whatever it turns out to be — sets every particle mass via this same mechanism.
+
+Verification of the velocity identifications:
+
+$$v_g = \frac{kc^2}{\omega} = \frac{(p/\hbar) c^2}{E/\hbar} = \frac{pc^2}{E} = v_{\text{relativistic}}$$
+
+$$v_p = \frac{\omega}{k} = \frac{E/\hbar}{p/\hbar} = \frac{E}{p} = v_{\text{phase}}^{\text{de Broglie}}$$
+
+Group velocity IS particle velocity. Phase velocity IS de Broglie phase velocity.
+
+### II.4 De Broglie wavelength as spatial projection
+
+In a waveguide, an excitation propagates at angle θ to the guide axis, where
+
+$$\cos\theta = \frac{k_{\text{spatial}}}{k_{\text{total}}} = \frac{kc}{\omega}$$
+
+with k_total = ω/c (total wavenumber in the medium), k_spatial = k (longitudinal component), and k_transverse = ω_c/c = mc/ℏ.
+
+The Pythagorean relation k² + k_transverse² = k_total² gives
+
+$$k^2 + \left(\frac{mc}{\hbar}\right)^2 = \left(\frac{\omega}{c}\right)^2 = \left(\frac{E}{\hbar c}\right)^2$$
+
+which rearranges to E² = p²c² + m²c⁴ ✓.
+
+The de Broglie wavelength is the **spatial projection** of the wavelength along the guide axis:
+
+$$\lambda_{dB} = \frac{2\pi}{k_{\text{spatial}}} = \frac{2\pi}{k_{\text{total}} \cos\theta} = \frac{h}{p}$$
+
+Special cases:
+- **Massless (m = 0):** θ = 0°, pure spatial propagation, v = c, no transverse component
+- **At rest (p = 0):** θ = 90°, pure transverse (internal-dimension) propagation, v = 0
+- **General:** 0 < θ < 90°, mixed propagation, v < c
+
+The de Broglie relation ceases to be a quantum postulate and becomes geometry: a wave propagating through the full metric field at an angle determined by the ratio of internal-to-spatial energy projects to a longer or shorter spatial wavelength depending on bounce angle.
+
+### II.5 Chirality from waveguide asymmetry
+
+A rectangular waveguide with different width and height has different cutoff frequencies for modes polarized along the two transverse axes. One polarization can propagate at frequencies where the other cannot. Geometric asymmetry — without any chiral material or imposed handedness — produces preferred handedness via boundary conditions.
+
+This connects directly to **Baptista's non-Killing mechanism** (arXiv:2306.01049, 2306.01049, 2506.09126, 2023–2025). The standard chirality no-go theorem (Atiyah-Hirzebruch) applies specifically to gauge fields associated with *exact isometries* (Killing vector fields) of the internal metric. Baptista showed that gauge fields associated with *non-Killing* vector fields — even small perturbations of Killing fields — automatically come out:
+
+- **Massive** (mass proportional to non-Killing perturbation, arbitrarily light)
+- **Flavor-mixing**
+- **Chiral** (asymmetric coupling to L vs R fermions)
+
+All three properties emerge together from a single geometric feature. The W and Z bosons have all three. Higgs becomes a modulus field parameterizing internal-metric deformations rather than a fundamental scalar.
+
+The waveguide picture gives this a direct physical reading: the weak gauge fields are the modes that propagate in an asymmetric internal-dimension cavity, and the asymmetry IS the broken isometry. The "polarization" picked out by the asymmetric waveguide IS the L vs R selection.
+
+### II.6 Evanescent modes and virtual particles
+
+Below cutoff in a waveguide, modes don't disappear — they become evanescent, decaying exponentially with distance but still present in the near field. They contribute to measurable effects: coupling between closely-spaced waveguides, tunneling, near-field interactions.
+
+Virtual particles in QFT behave identically. They don't propagate freely, but contribute to:
+- Casimir force
+- Vacuum polarization
+- Lamb shift
+- Loop corrections to scattering amplitudes
+
+In the framework, virtual particles are modes of the metric field that the current geometric configuration doesn't support as propagating modes, but which exist as evanescent structure. The off-shell condition is the below-cutoff condition. The reframe is:
+
+| Excitation type | Waveguide picture | On-shell? |
+|---|---|---|
+| Real particle | Propagating mode above cutoff | E² = (pc)² + (mc²)², stable |
+| Virtual particle | Evanescent mode below cutoff | E² ≠ (pc)² + (mc²)², transient within ΔE·Δt ≥ ℏ/2 |
+| Horizon-trapped | Mode in terminated waveguide section | On-shell locally, causally sealed |
+
+### II.7 Mode confinement without walls
+
+Naive question: what makes the "walls" of the metric field's waveguide? The metric field has no material boundary.
+
+Resolution comes from differential geometry: a wave doesn't need a wall to reflect; it needs a region of the manifold where its propagation equation has no real solutions. Modes are confined to internal dimensions because the intrinsic curvature and topology in localized regions forbid propagation outside specific symmetry groups. Loop quantum gravity's discrete/periodic Planck-scale structure naturally creates topological band gaps — the photonic band gap analogy where periodic dielectric structure forbids photon propagation in certain frequency ranges through destructive interference, not absorption.
+
+The metric field acts as its own boundary. The "cavity" is a stable harmonic trap created by the metric field's geometry folding back on itself.
+
+### II.8 Conservation laws as topological impedance matching
+
+At a waveguide junction where the cross-section changes, mode coupling is determined by overlap integrals:
+
+$$S_{mn} = \iint \psi_m^*(x,y) \cdot \psi_n'(x,y) \, dA$$
+
+If the waveguides have the same cross-section (same internal geometry), modes are orthonormal: S_{mn} = δ_{mn}. **No mode mixing — quantum numbers are conserved.** If cross-sections differ, off-diagonal S_{mn} ≠ 0 allows mode conversion, with amplitudes set by the overlap integral, which is purely geometric.
+
+**The U(1) charge conservation case (proven exactly):**
+
+Modes on S¹ are ψ_n(y) = exp(iny/R)/√(2πR). Charge = mode number n. The overlap integral is
+
+$$S_{mn} = \frac{1}{2\pi R} \int_0^{2\pi R} e^{-imy/R} \cdot e^{iny/R} \, dy = \frac{1}{2\pi R} \int_0^{2\pi R} e^{i(n-m)y/R} \, dy = \delta_{mn}$$
+
+This is charge conservation. It's not dynamics — it's pure geometry. Charge is conserved because the topology of the S¹ factor forces orthogonality of different modes. Different modes are different irreducible representations of U(1), and reps don't mix.
+
+For non-Abelian groups (SU(2), SU(3)) the argument generalizes: modes on the internal manifold form irreducible representations, and overlap integrals enforce Clebsch-Gordan decomposition rules — which ARE the selection rules for particle interactions. **Feynman diagrams are not abstract computational tools; they are schematic maps of waveguide junction topologies, and the amplitudes they compute are impedance matching coefficients.**
+
+Selection rule consequences in this language:
+- **Color confinement:** SU(3)-charged modes are evanescent in any geometry that doesn't support SU(3); isolated quarks are below cutoff in 3+1 vacuum, so they cannot propagate spatially.
+- **Forbidden decays:** A particle cannot decay into a heavier particle because the heavier mode requires a geometric configuration the local curvature cannot support — infinite topological impedance barrier, total internal reflection.
+- **Angular momentum conservation:** Preservation of rotational mode indices across junctions.
+
+### II.9 Existing literature on dimensional deconstruction and layered phases
+
+The waveguide-as-extra-dimension connection has partial development:
+
+**Dimensional deconstruction** (Arkani-Hamed, Cohen, Georgi, 2001): chains of coupled 4D gauge theories replicate compactified-extra-dimension physics. Inter-layer coupling controls whether modes propagate along the deconstructed dimension. Demonstrates that extra-dimensional physics emerges from 4D structures with the right coupling geometry, without literal higher dimensions.
+
+**Layered phases in lattice gauge theory** (Murata-So 2003, Fu-Nielsen 1984): 5D lattice gauge theories with anisotropic couplings exhibit layered phases — Coulomb-type within 4D layers, confining along the extra dimension. Literally waveguide physics: free in 4D, evanescent in the 5th.
+
+What's new in the framework: both programs build extra dimensions algebraically (gauge groups on lattice sites). The framework's claim is geometric — the metric field's own dimensional structure creates the waveguide channels, and different geometric arrangements produce different mode spectra.
+
+---
+
+## Part III — Internal Manifolds and the Mass Hierarchy
+
+### III.1 Laplacian eigenvalues on round spheres
+
+On the unit n-sphere Sⁿ, eigenvalues of the Laplace-Beltrami operator are
+
+$$\lambda_l = l(l + n - 1), \qquad l = 0, 1, 2, \ldots$$
+
+with degeneracy
+
+$$d(l, n) = \binom{l+n}{n} - \binom{l+n-2}{n}$$
+
+Computed values for relevant cases:
+
+| Manifold | l=0 | l=1 | l=2 | l=3 | l=4 | l=5 |
+|---|---:|---:|---:|---:|---:|---:|
+| S¹ (eigenvalues / degeneracies) | 0/1 | 1/2 | 4/2 | 9/2 | 16/2 | 25/2 |
+| S² | 0/1 | 2/3 | 6/5 | 12/7 | 20/9 | 30/11 |
+| S⁷ | 0/1 | 7/8 | 16/35 | 27/112 | 40/294 | 55/672 |
+
+The S⁷ spectrum is what KK compactification on the round 7-sphere would produce as the 4D mass spectrum. Mass ratios (relative to the lowest mode) are √(l(l+6)/7): 1, 1.51, 1.96, 2.39, 2.81, ... — far too evenly spaced to reproduce the SM hierarchy (which spans ~5 orders of magnitude from electron to top quark).
+
+### III.2 CP² eigenvalues
+
+CP² with the Fubini-Study metric has Laplacian eigenvalues
+
+$$\lambda_{p,q} = 4(p+q)(p+q+2), \qquad p, q = 0, 1, 2, \ldots$$
+
+Unique values: 0, 12, 32, 60, 96, 140, ... — also too evenly spaced for the SM hierarchy on its own, but useful as a factor in product geometries because it carries SU(3) representation structure (it's a coset SU(3)/U(2)).
+
+### III.3 Anisotropic torus toy model
+
+For T^k = S¹(R₁) × S¹(R₂) × ... × S¹(R_k), eigenvalues are sums:
+
+$$\lambda = \sum_i \frac{n_i^2}{R_i^2}$$
+
+With anisotropic radii R₁ = 1000, R₂ = 10, R₃ = 1 (Planck units), the spectrum gives:
+
+| Mode (n₁, n₂, n₃) | Eigenvalue | Ratio to lightest |
+|---|---:|---:|
+| (1, 0, 0) | 1.00e-6 | 1 |
+| (2, 0, 0) | 4.00e-6 | 4 |
+| (3, 0, 0) | 9.00e-6 | 9 |
+| (0, 1, 0) | 1.00e-2 | 10⁴ |
+| (0, 2, 0) | 4.00e-2 | 4·10⁴ |
+| (0, 0, 1) | 1.00e+0 | 10⁶ |
+
+Just three anisotropic circles with ratio 1000:10:1 produce a mass² hierarchy spanning 6 orders of magnitude. The SM hierarchy (m²_top/m²_e ~ 10¹¹) requires more dimensions and/or larger anisotropy ratios, but the **mechanism works**: geometric anisotropy produces mass hierarchy. The round S⁷ is the wrong starting point because it has maximal symmetry SO(8); SM physics requires much less symmetric internal geometry.
+
+### III.4 Why round spheres fail and what's required
+
+On the round S⁷, eigenvalues grow as l(l+6) — polynomial growth, ratios of order unity. The SM hierarchy requires:
+
+- Ratios spanning ~10¹¹ in mass²
+- Clustered, gappy structure (tight groups within generations, huge gaps between generations)
+- Approximately 3 self-similar "layers" matching the 3 generations
+- Asymmetric/non-Killing structure for chirality
+
+Smooth maximally symmetric manifolds cannot produce any of these. The internal geometry must be:
+- Highly anisotropic, OR
+- Topologically complex (orbifolds, conical singularities), OR
+- Non-smooth (fractal, discrete)
+
+Each of these breaks the assumptions of the Atiyah-Hirzebruch no-go theorem in different ways (see Part VI). The framework's commitment is to the third route: **fractal**.
+
+### III.5 The 11-dimensional convergence
+
+Three independent results converge on 11D:
+
+**Witten (1981)** — *bottom-up:* Proved that 7 extra dimensions (11 total) is the *minimum* required for a compact internal manifold whose isometry group contains SU(3)×SU(2)×U(1). Constructive: quotienting S⁵×S³ by U(1) action produces a 7-manifold with the right isometry.
+
+**Nahm (1978)** — *consistency:* Proved 11 is the *maximum* dimensionality consistent with a single graviton and no spin >2 fields.
+
+**Cremmer-Julia-Scherk (1978)** — *uniqueness:* Constructed the unique 11D supergravity. Freund-Rubin (1980) showed preferential compactification to 4+7.
+
+The triple convergence (minimum from gauge groups, maximum from supersymmetry, uniqueness of the action) is the principal motivation for taking 11 seriously. The framework's contribution: 11 isn't a free parameter or a string-theory anomaly cancellation result. It's the effective dimensionality at the *intermediate* scale where the fractal's fine structure is maximally resolved, in the non-monotonic spectral dimension flow described in Part V.
+
+---
+
+## Part IV — Fractal Geometry and the SM Spectrum
+
+The script `fractal_computations.py` implements the spectral computations summarized below. The key claim: fractal internal geometry naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot.
+
+### IV.1 The compactification problem dissolves
+
+Standard KK has two unsolved puzzles:
+
+1. **Why are 7 dimensions compactified (small) while 4 are extended (large)?** The asymmetry is imposed as initial condition, never derived.
+2. **Why does the spectral dimension at short distances flow toward 2, not toward 11?** Every QG approach finds d_S → 2 at UV; KK predicts d_S → 11.
+
+Both dissolve if there is no split. The metric field is one geometry whose spectral dimension depends on scale. "Spatial" is how it appears at low resolution; "internal" is how the same geometry appears at higher resolution. The fine structure averages out at large scales, producing the effectively 4D coarse-grained picture. Compactification is not something that happened to extra dimensions — it's what coarse-graining does to fractal geometry.
+
+### IV.2 Sierpinski gasket: spectral decimation
+
+The Sierpinski gasket (SG) is the canonical 3-fold self-similar fractal. Its Laplacian eigenvalues are computed via **spectral decimation** (Rammal-Toulouse 1984, Fukushima-Shima 1992): if λ is an eigenvalue at level m+1 of the pre-gasket graph, then R(λ) is an eigenvalue at level m, where
+
+$$R(\lambda) = \lambda(5 - \lambda)$$
+
+The inverse map is
+
+$$R^{-1}(w) = \frac{5 \pm \sqrt{25 - 4w}}{2}$$
+
+To generate eigenvalues at level m+1, take the level-m eigenvalues, apply R⁻¹ to each, and add the "born" eigenvalues at {2, 5} (the values where R(λ) hits the seed). At level 0 (pre-gasket), the relevant eigenvalues with Neumann boundary conditions are {0, 5}.
+
+Iterating gives a self-similar tree of eigenvalues. To get the continuous-Laplacian eigenvalues, scale by 5^m at level m (this is the renormalization factor for the SG; it's the decimation constant, related to the spectral dimension).
+
+**Spectral dimension of SG:**
+
+$$d_S = \frac{2 \ln 3}{\ln 5} \approx 1.365$$
+
+The 3 in the numerator is the number of self-similar copies at each scale; the 5 in the denominator is the decimation constant (the polynomial degree of R is 2, but the relevant scaling factor accounts for both the spatial scaling factor 1/2 and the time scaling factor coming from the random walk on the fractal).
+
+Eigenvalues cluster in groups separated by factors of ~5 (the decimation constant), with sub-clusters at finer scales. **This is qualitatively different from smooth manifolds**, whose eigenvalues grow polynomially and fill in uniformly per Weyl's law:
+
+$$N_{\text{smooth}}(\lambda) \sim \frac{\omega_d}{(2\pi)^d} V \lambda^{d/2}$$
+
+The fractal counting function is
+
+$$N_{\text{fractal}}(\lambda) \sim \lambda^{d_S/2}$$
+
+with d_S < d_H < d_topological. **Fractals have sparser spectra than smooth manifolds of the same Hausdorff dimension** — fewer eigenvalues per unit interval, creating large gaps. This is what's needed for the SM mass hierarchy.
+
+### IV.3 Generalized Sierpinski fractals (Pn)
+
+The Sierpinski gasket generalizes to Pn fractals — n-dimensional analogs:
+
+| Fractal | Hausdorff dim | Spectral dim | Decimation factor |
+|---|---:|---:|---:|
+| P₂ (interval) | 1.000 | 1.000 | 2 |
+| P₃ (SG) | 1.585 | 1.365 | 5 |
+| P₄ | 2.000 | 1.643 | 6 |
+| P₅ | 2.322 | 1.861 | 8 |
+| P₆ | 2.585 | 2.041 | 10 |
+| P₇ | 2.807 | 2.193 | 12 |
+| P₈ | 3.000 | 2.323 | 14 |
+
+Formulas: d_H = ln(n)/ln(2), d_S = 2ln(n)/ln(2n−2), decimation factor = 2n−2.
+
+Notice: the spectral dimension of P_n is below n−1 for small n but reaches ~2 by P_5. The framework's interesting region (d_S ~ 2 at UV) is naturally produced by Pn-type fractals in the n=4 to n=8 range.
+
+### IV.4 Product geometries: fractal × gauge manifold
+
+A candidate internal geometry combining fractal hierarchy with gauge structure is
+
+$$M_{\text{internal}} = F \times G/H$$
+
+where F is a fractal (providing the mass hierarchy through its spectral gaps) and G/H is a coset space (providing the gauge group). Concretely: F × CP² × S¹ where CP² → SU(3), S¹ → U(1), F provides the hierarchy.
+
+On a product space, eigenvalues add:
+
+$$\lambda_{\text{total}} = \lambda_F + \lambda_{CP^2} + \lambda_{S^1}$$
+
+The product spectrum inherits:
+- Large-scale gaps from F (between generations)
+- Fine structure from gauge manifolds (within generations)
+- Multiplet degeneracies from gauge group representations
+
+This qualitatively matches SM structure: large gaps between e/μ/τ generations, smaller splittings within generations from electroweak/color quantum numbers.
+
+The script computes this for SG × CP² × S¹ with first ~12 product eigenvalues. The qualitative structure is right; the quantitative match to SM masses requires identifying the *specific* fractal whose decimation constant gives the right inter-generation ratio.
+
+### IV.5 Three generations from three-fold self-similarity
+
+The Sierpinski gasket has **3-fold self-similarity** — it's the union of 3 copies of itself at half-scale.
+
+Claim: if the metric field's internal geometry has 3-fold self-similarity, eigenfunctions naturally come in 3 families related by the self-similarity maps. Each family corresponds to one generation of fermions.
+
+This is a prediction, not a postulate: the number of fermion generations equals the self-similarity count of the internal fractal. SG-like 3-fold → 3 generations, matching the SM. P₂ would give 2 generations (too few); P₄ would give 4 (too many); only n = 3 matches.
+
+**SM generation mass ratios:**
+
+| Sector | Ratio 1 | Ratio 2 | (Ratio 2)/(Ratio 1) |
+|---|---:|---:|---:|
+| Charged leptons | m_μ/m_e = 207 | m_τ/m_μ = 17 | 0.082 |
+| Up quarks | m_c/m_u = 580 | m_t/m_c = 136 | 0.234 |
+| Down quarks | m_s/m_d = 20 | m_b/m_s = 44 | 2.18 |
+
+If generations were *exactly* 3-fold self-similar copies at scale factor r, the within-sector ratios would be constant (m_n+1/m_n = r per sector). They're not — but they're within an order of magnitude. The internal geometry is **approximately but not exactly self-similar**.
+
+This is the same condition needed for chirality (Baptista's non-Killing requirement), the same condition needed for mass hierarchy (anisotropic geometry), and the same condition that breaks the Atiyah-Hirzebruch hypotheses. Approximate broken self-similarity is a single geometric property doing three jobs.
+
+### IV.6 SM mass squared ratios as a target spectrum
+
+Computed from charged fermion masses (m_e = 0.000511 GeV):
+
+| Particle | Mass (GeV) | m²/m_e² |
+|---|---:|---:|
+| electron | 0.000511 | 1.0 |
+| up | 0.0022 | 18.5 |
+| down | 0.0047 | 84.6 |
+| strange | 0.095 | 34,562 |
+| muon | 0.1057 | 42,787 |
+| charm | 1.275 | 6.23·10⁶ |
+| tau | 1.777 | 1.21·10⁷ |
+| bottom | 4.18 | 6.69·10⁷ |
+| top | 173.0 | 1.15·10¹¹ |
+
+This is the 9-element vector that any candidate internal geometry must match (up to overall scale). Ratios span 11 orders of magnitude. The eigenvalue spectrum of the candidate fractal × gauge product space, with the lightest non-zero eigenvalue normalized to 1, must reproduce these 9 ratios.
+
+The current state: **no specific fractal geometry has been identified that matches this exactly.** The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn't the answer. Identifying the specific fractal is the framework's central computational goal — analogous to finding the specific Calabi-Yau in string theory, but constrained additionally by the d_S → 2 condition at UV.
+
+---
+
+## Part V — Spectral Dimension Flow
+
+The script `spectral_dimension_computations.py` compares the spectral dimension flow predictions of 8 quantum gravity approaches and articulates the framework's unique non-monotonic prediction.
+
+### V.1 Definition
+
+Spectral dimension d_S is measured from how a random walk (diffusion process) spreads on the geometry. The return probability after diffusion time σ scales as
+
+$$P(\sigma) \sim \sigma^{-d_S/2}$$
+
+σ acts as a scale probe: small σ probes short distances; large σ probes long distances. For smooth manifolds, d_S equals the topological dimension (Weyl's law). For fractals, d_S is scale-dependent and generally less than the Hausdorff dimension.
+
+The diagnostic is: take a scalar Laplacian on the geometry, evaluate the heat kernel K(σ; x, x), and compute
+
+$$d_S(\sigma) = -2 \frac{d \ln K(\sigma; x, x)}{d \ln \sigma}$$
+
+Plot d_S as a function of σ. The shape of this curve is the geometry's signature.
+
+### V.2 The universal d_S → 2 finding
+
+Multiple independent QG approaches converge on d_S → 2 at the UV (Planck scale). The script tabulates 8:
+
+| Approach | d_S(UV) | d_S(IR) | Mechanism |
+|---|---:|---:|---|
+| CDT (Ambjorn-Jurkiewicz-Loll 2005) | 1.80 | 4.02 | Monte Carlo on causal triangulations |
+| Asymptotic Safety (Lauscher-Reuter 2005) | 2.0 | 4.0 | Anomalous scaling at UV fixed point: d_S = 2d/(2+d) |
+| Horava-Lifshitz (2009) | 2.0 | 4.0 | Anisotropic scaling: d_S = 1 + d/z, with z=3, d=3 |
+| Loop Quantum Gravity (Modesto 2009) | 2.0 | 4.0 | Effective metric from area gap |
+| Causal Sets (Carlip 2015) | 2.0 | 4.0 | Sprinkling density on causal sets |
+| Noncommutative Geometry (Benedetti 2009) | 2.0 | 4.0 | Deformed dispersion on κ-Minkowski |
+| Multifractional (Calcagni 2010–17) | 1–3 (model-dep.) | 4.0 | Scale-dependent measure |
+| String Theory (Atick-Witten 1988) | 2.0 | 10 or 11 | Hagedorn density of states |
+
+Carlip (Class. Quantum Grav. 34, 2017; Universe 5(3), 2019) reviews this convergence and notes: "It seems rather unlikely that so many different approaches to quantum gravity would converge on the same result merely by accident." He proposes "asymptotic silence" (BKL-like behavior) as a possible common mechanism, but acknowledges this remains speculative.
+
+### V.3 The framework's non-monotonic prediction
+
+| Theory | Predicted d_S(σ) shape |
+|---|---|
+| Standard KK | Monotonic increase: 4 → 11 at short distances |
+| Standard QG approaches | Monotonic decrease: 4 → 2 at short distances |
+| **Framework** | **Non-monotonic: 4 → peak (~6–8) → 2** |
+
+The peak at intermediate scales is where the fractal's fine structure is maximally resolved. This is the scale at which particles "see" the most internal structure, and therefore where the particle mass spectrum is determined. The peak height tells you the effective number of internal channels at that scale; the peak position identifies the energy scale where particle physics transitions to quantum gravity.
+
+**This is a smoking-gun prediction.** No other framework predicts a bump. If spectral dimension flow is ever measured precisely enough to resolve its shape, the framework predicts it; CDT, asymptotic safety, etc., do not.
+
+### V.4 Modeling the flow profile
+
+To produce a non-monotonic flow with controllable peak position, height, and width, take a CDT-like base plus a Gaussian bump:
+
+$$d_S^{\text{base}}(\sigma) = 2 + \frac{2\sigma}{\sigma + \sigma_0}$$
+
+This goes from 2 at σ → 0 (UV) to 4 at σ → ∞ (IR), with crossover at σ₀ (Planck scale).
+
+Add a bump:
+
+$$d_S^{\text{bump}}(\sigma) = A \cdot \exp\left(-\frac{1}{2}\left(\frac{\log_{10}(\sigma/\sigma_{\text{peak}})}{w}\right)^2\right)$$
+
+with A = bump height (~4 to reach effective d_S ~ 6–8 at peak), σ_peak = scale of maximum internal-structure resolution (~100 to 1000 Planck lengths), w = bump width in log-scale (~1.5 decades).
+
+Total:
+
+$$d_S^{\text{framework}}(\sigma) = d_S^{\text{base}}(\sigma) + d_S^{\text{bump}}(\sigma)$$
+
+Computed values from the script (σ in Planck units):
+
+| σ/σ_Planck | d_S(CDT) | d_S(KK) | d_S(framework) |
+|---:|---:|---:|---:|
+| 0.001 | 2.00 | 11.00 | 2.42 |
+| 0.01 | 2.04 | 10.94 | 3.70 |
+| 0.1 | 2.36 | 9.11 | 6.33 |
+| 1.0 | 3.00 | 5.00 | 5.39 |
+| 10 | 3.82 | 4.07 | 4.21 |
+| 100 | 3.98 | 4.001 | 4.01 |
+| 1000 | 3.998 | 4.000 | 4.00 |
+
+The framework's curve rises from ~2 at UV, peaks above 6 near σ ~ 0.1 σ_Planck, then settles to 4 at IR. The CDT curve is monotonic. The KK curve runs in the wrong direction.
+
+### V.5 Observational constraints
+
+| Constraint | Bound | Implication |
+|---|---|---|
+| Lamb shift (Calcagni 2016) | ℓ* < 10⁻²⁰ m | Bulk of dimensional flow must be sub-atomic |
+| CMB (Planck 2018, Asghari-Sheykhi 2022) | d_H ≈ 4 at cosmological scales | Fractal models consistent with ΛCDM |
+| LIGO/Virgo (2017, 2024) | v_grav = c to ~10⁻¹⁵ | Strong constraint on dimensional dispersion |
+| Meson mixing (Shevchenko, Addazi-Calcagni-Marcianò 2018) | Insensitive to d_H ∈ [2, 5] at ~10⁻¹⁸ m | LHC-energy physics doesn't probe relevant scales |
+| GRB dispersion (LHAASO, Fermi-LAT) | Constrains, doesn't detect | Below current sensitivity |
+
+The framework is not excluded by current data. The strongest near-term tests are:
+- Multi-messenger redshift comparison (Einstein Telescope + LISA + IceCube)
+- Precision Lamb shift improvements
+- CMB-S4 / LiteBIRD primordial gravitational wave spectrum
+- GRB energy-dependent dispersion at next-generation sensitivity
+- DESI dynamical dark energy w(z) measurements
+
+### V.6 Carlip's "common thread" — what the framework provides
+
+Carlip's question: why do CDT, asymptotic safety, Horava-Lifshitz, LQG, causal sets, NCG, multifractional theories, and string theory all find d_S → 2 at UV? He proposes "asymptotic silence" but doesn't have a mechanism.
+
+The framework's answer: they're all independently discovering the same fact — the metric field is a fractal, and the fractal's spectral dimension at fine structural scale is ~2. Each approach builds the fractal from different mathematical starting points (simplices in CDT, spin networks in LQG, RG flow in asymptotic safety), but they all converge on the same fixed point because the fixed point is a property of the geometry itself, not of the building method.
+
+The d_S → 2 result is **not a phenomenon requiring explanation** within any specific QG approach. It's the *definition* of what it means for the geometry to be fractal. A fractal necessarily has scale-dependent spectral dimension. The d_S → 2 at UV is the fractal's spectral dimension at finest structural scale; the d_S → 4 at IR is the effective dimension after coarse-graining.
+
+This dissolves the puzzle and identifies the unifying structure across all QG programs.
+
+---
+
+## Part VI — Chirality
+
+### VI.1 The Atiyah-Hirzebruch no-go
+
+The chirality problem has been the executioner of every pure-geometry approach to particle physics for 44 years. Witten (1981, 1983) proved that smooth Kaluza-Klein compactification cannot produce chiral fermions in 4D.
+
+The mathematical content (Atiyah-Hirzebruch theorem):
+
+> The index of the Dirac operator on a compact manifold M that admits a smooth action of a compact Lie group G through isometries must vanish when evaluated in any complex representation of G.
+
+Index = number of left-handed zero modes minus number of right-handed zero modes. Vanishing index ⟹ equal L and R fermions ⟹ no chirality.
+
+For 4+7 = 11 dimensional KK, the index conditions don't naturally produce chiral fermions. This was the principal reason pure KK was abandoned in the 1980s. String theory's introduction of branes was partly motivated by the need to circumvent this geometric obstruction.
+
+### VI.2 Known resolutions
+
+Each known resolution works by **breaking at least one of the theorem's hypotheses**:
+
+| Structure | Smooth manifold? | Smooth G-action? | Standard Dirac? |
+|---|:---:|:---:|:---:|
+| Smooth manifold | YES | YES | YES |
+| Orbifold | NO | YES | modified |
+| G₂ w/ conical sing. | NO | YES | modified |
+| Noncommutative | NO | algebraic | spectral |
+| Fractal (Kigami Δ) | NO | not defined | Kigami Δ |
+| Discrete graph | NO | combinatorial | graph Δ |
+
+Specific resolutions in the literature:
+
+- **Singular manifolds (orbifolds):** Dixon-Harvey-Vafa-Witten (1985–86). Orbifold singularities open a loophole; smooth-manifold hypothesis fails.
+- **G₂ manifolds with conical singularities:** Acharya-Witten (2001), Acharya-Kane et al. (2008–2012) developed G₂-MSSM with phenomenologically viable Standard Model.
+- **Noncommutative geometry:** Connes' spectral action principle. Internal "space" is a finite NC algebra (C ⊕ H ⊕ M₃(C)), no smooth manifold to apply Atiyah-Hirzebruch to. Yields full chiral SM Lagrangian.
+
+### VI.3 Baptista's non-Killing breakthrough (2025)
+
+A potentially transformative result: **Joao M. Baptista** (arXiv:2306.01049, 2506.09126) showed that chiral interactions can arise *within pure Kaluza-Klein on smooth compact internal spaces* — without orbifolds, singularities, strings, or new fields — if part of the gauge group corresponds to **non-Killing vector fields** rather than exact isometries.
+
+The mathematical insight: the Atiyah-Hirzebruch argument applies specifically to gauge fields linked to *isometries* (Killing vector fields). The Kosmann-Lichnerowicz derivative along a Killing field has a chiral symmetry that forces equal coupling to L and R fermions. Baptista showed this symmetry is *specific to Killing fields* — it does not hold for non-Killing fields, even small perturbations of Killing fields.
+
+If the vacuum metric is slightly perturbed so some gauge fields correspond to non-Killing vectors, those fields are automatically:
+- Massive (mass ∝ non-Killing perturbation, arbitrarily light)
+- Flavor-mixing
+- Chiral
+
+All three properties — exactly those of W and Z — emerge from one geometric feature. The Higgs becomes a modulus parameterizing internal-metric deformations; the Higgs mechanism is geometrized as spontaneous symmetry breaking by vacuum metric choice.
+
+Status: explicit calculations to date cover S² and T² as toy internal spaces. Extension to realistic 7-manifolds and full SM particle content is the principal open computation. The conceptual breakthrough is that the chirality no-go has a loophole that doesn't require non-smooth structure — only broken (non-Killing) symmetry.
+
+### VI.4 Why fractals dissolve the problem entirely
+
+The Atiyah-Hirzebruch theorem requires: (1) smooth compact manifold M, (2) smooth action of compact Lie group G, (3) standard Dirac operator. **All three fail on a fractal.**
+
+There is no smooth manifold (the geometry has structure at every scale, no tangent spaces in the usual sense). There is no smooth G-action (a continuous group cannot act smoothly on a Sierpinski gasket). There is no standard Dirac operator — the analog is the Kigami Laplacian, which has different analytical properties. The theorem cannot even be stated.
+
+Moreover, the Kigami Laplacian on fractals like the SG has eigenfunctions that are **localized** — compact support on subsets of the fractal. This localization is fractal-specific (no smooth-manifold analog) and naturally breaks the L-R symmetry that the theorem relies on. The fractal's self-similar structure means eigenfunctions at different scales have different symmetry properties — a built-in scale-dependent symmetry breaking that may generate the generation structure as excitations at three different self-similarity scales.
+
+The chirality "problem" was always an artifact of assuming the internal geometry belongs to the mathematical category where the no-go theorem lives — smooth manifolds. The fractal picture, the orbifold picture, the noncommutative picture, and Baptista's non-Killing picture are all different mathematical descriptions of the same physical reality: **the metric field's geometry is not a smooth manifold.** Once recognized, there is no theorem to overcome.
+
+---
+
+## Part VII — Cosmological and Foundational Reframings
+
+### VII.1 c as substrate propagation rate
+
+Light is not "going fast." c is the propagation rate of the electromagnetic field through the metric field substrate. An excitation of the metric field cannot "catch up" to c for the same reason a wave on the ocean cannot outrun the ocean — the thing trying to move is made of the medium it would need to outrun. Massive particles are excitations that couple to both spatial and internal dimensions, propagating at an angle through the full geometry; they appear subluminal in spatial projection. The massless photon couples only to spatial dimensions and propagates at the full substrate rate. This is the waveguide picture (mass = cutoff = bounce angle), stated in its most primitive form.
+
+### VII.2 Time as metric field dynamics
+
+At cosmological scales, time and the metric field's expansion are intimately linked. The FLRW scale factor a(t) parameterizes the spatial field's "size" with time; cosmic time is effectively defined by the expansion state. Entropy increases because expansion provides ever more available phase space. Time may not be an independent parameter but the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. A static metric field at maximum entropy would have no arrow of time. The observed directionality emerges from ongoing complexification.
+
+### VII.3 Pair creation as decoherence
+
+Standard picture: virtual particle-antiparticle pairs "borrow energy from the vacuum" via uncertainty principle. Parker (1966–71) — gravitational pair creation. Hawking (1975) — thermal radiation from black holes. Schwinger (1951) — pair creation in strong fields. Unruh (1976) — accelerated observers see thermal particles.
+
+Framework reinterpretation: pair creation is not creation from nothing. The metric field's internal dimensional structure supports paired complementary modes that cancel in spatial projection. When local conditions (curvature, field strength) disrupt the internal coupling past a coherence threshold, these components project into spatial dimensions as observable particle-antiparticle pairs.
+
+The on-shell/off-shell/horizon-trapped trichotomy unifies particle types:
+- **Real (on-shell):** propagating modes above cutoff in the internal-dimension waveguide
+- **Virtual (off-shell):** evanescent modes below cutoff
+- **Horizon-trapped:** propagating mode locally, causally sealed
+
+### VII.4 Hawking radiation as dimensional mismatch
+
+Event horizons are 2D surfaces — closed manifolds in 3D space — that don't participate in the surrounding 3D field's structure. The dimensional mismatch creates tension that releases as thermal radiation.
+
+Unruh, Hawking, and de Sitter effects are the same mathematical structure applied to different geometries where two regions disagree about the vacuum:
+- **Unruh:** accelerated frame creates Rindler horizon
+- **Hawking:** BH event horizon between exterior and causally sealed interior
+- **De Sitter:** cosmological horizon beyond which causal contact is lost
+
+All three produce thermal radiation at T = ℏκ/(2πck_B) from vacuum mismatch across a dimensional boundary. The fractal framework gives this geometric content: these are regions where the metric field's effective spectral dimension changes rapidly, and the vacuum state appropriate to one spectral dimension is incompatible with the vacuum appropriate to another. Particle creation is the metric field resolving the incompatibility.
+
+Connection to **Jacobson (1995)**: derived Einstein's field equations from horizon thermodynamics by applying Clausius δQ = TdS. If Hawking radiation is dimensional-mismatch energy release, and Jacobson showed horizon thermodynamics implies gravity, then gravity itself is the metric field's response to dimensional transitions in its own fractal structure.
+
+### VII.5 Dark matter as geometric curvature
+
+If the metric field's geometry is fractal, it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal geometry is complex enough to curve spacetime without supporting particle-like excitations.
+
+This is **not** modified gravity (MOND): the curvature obeys standard GR — it lenses light, attracts matter, creates gravitational wells. The difference is what *sources* the curvature: not invisible particles, but the metric field's geometric complexity.
+
+Suggestive features:
+- **Distribution:** Dark matter traces large-scale structure, doesn't clump at small scales — expected if fractal geometric complexity has scale-dependent properties
+- **Non-interaction:** Couples only gravitationally — tautological if it's geometry, not particles
+- **Bullet Cluster:** Halos pass through without interacting — geometric curvature would do this; particle collections wouldn't
+- **Detection failures:** WIMPs, axions not found — if it's not a particle, no particle detector can find it
+
+This remains speculative within the framework and requires formalization. The qualitative alignment is striking; the quantitative match (specific halo profiles, rotation curves) is the open computation.
+
+### VII.6 Dark energy as complexification cost
+
+Standard problem: ~10¹²⁰ discrepancy between predicted vacuum energy and observed dark energy density. Standard quintessence requires w > −1, but DESI (2024–25) hints at w < −1 ("phantom crossing"), which is hard to accommodate.
+
+Framework reading: if the metric field is in a highly differentiated, complex waveguide state (non-Killing, chiral, multi-mode), it is *not* in its lowest-energy configuration. The simplest, most symmetric geometry would be energetically preferred. **Dark energy is the thermodynamic cost of maintaining current geometric complexity against the tendency to collapse to a simpler symmetric state.**
+
+In biology, maintaining a differentiated organism requires constant energy flux to resist entropic decay. The metric field maintaining its chiral, multi-generation, symmetry-broken configuration may similarly require a residual energy expenditure observed as the cosmological constant.
+
+Reframes the cosmological constant problem: the enormous QFT-predicted vacuum energy is the energy the metric field *would* release if it collapsed to its simplest symmetric state. The tiny observed dark energy is the *marginal* energy maintaining current complexity. The 10¹²⁰ discrepancy isn't that the prediction is wrong — we're computing the wrong transition.
+
+### VII.7 Expansion as projection of complexification
+
+Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
+
+1. **Pure spatial expansion** (current consensus). Spatial dimensions genuinely expanding; internal dimensions static.
+2. **Internal geometry evolution contributes.** Both spatial expansion and internal dimensional evolution combined; current observations attribute everything to spatial expansion because no framework for dynamical internal dimensions.
+3. **Complexification IS expansion.** The Planck density floor is the metric field at minimum geometric complexity. Universal evolution = metric field complexifying. "Expansion" is what complexification looks like from inside the spatial projection. Space getting "bigger" is the spatial shadow of the metric field gaining more internal structure.
+
+Possibility 3 connects to **Van Raamsdonk (2010)**: classical spacetime emerges from quantum entanglement; disentangling causes spacetime regions to pinch off. Applied to the framework: 3D spatial volume is proportional to entanglement entropy between internal dimensions. Expansion accelerates because entanglement is autocatalytic — more entangled nodes ⟹ more permutations of future entanglement.
+
+**Testable distinctions:**
+- **Multi-messenger redshift:** Pure expansion predicts identical redshift for EM, GW, neutrinos. Internal evolution could cause subtly different redshifts for modes coupling to different internal subsets.
+- **Frequency-dependent (1+z) corrections:** SN time dilation tracks (1+z) exactly; internal evolution could introduce frequency-dependent corrections.
+- **Coupling constant evolution:** Webb et al. (2011) reported α variation at ~10⁻⁵ in quasar absorption. Systematic drift = direct test.
+- **DESI w(z):** Specific time-evolution patterns from complexification dynamics.
+
+### VII.8 Open: α(z) tracking H(z)
+
+A potentially testable functional relationship between the fine-structure constant variation and the Hubble parameter:
+
+$$\alpha(z) = \alpha_0 \cdot f(H(z))$$
+
+If coupling constants are dynamical moduli expectation values (already accepted in KK and string theory), and if cosmological expansion is partly the spatial projection of internal-dimension evolution, then α should drift with cosmic time in a way determined by the fractal's spectral structure. Not just *that* it drifts (Webb et al.) but *how* — the functional form should be predictable from the candidate fractal geometry.
+
+This is one of the framework's sharpest near-term predictions and is currently under-formalized. The roadmap entry is to derive f from the fractal's spectral dimension flow profile.
+
+### VII.9 The epistemological boundary
+
+We have never observed the universe without gravitational distortion. Every photon that has reached a detector traveled through curved spacetime. Our "corrections" for gravitational lensing are anchored to assumptions about what the undistorted universe should look like — assumptions we cannot independently verify because we have no access to an undistorted reference.
+
+This is not a gotcha against physics — the framework is self-consistent and predictive. But it means we genuinely cannot distinguish "we've correctly solved for the distortion" from "we've built an internally consistent framework that produces satisfying outputs from within the distortion." When we observe gravitational effects and attribute them to invisible dark matter, we add mass to models until outputs match expectations — expectations themselves formed within the distorted observation framework.
+
+If the metric field's fractal geometry creates curvature that's been attributed to dark matter particles, we would not have noticed. Lensing models would assign that curvature to invisible mass; models would work because the curvature is real — only the source attribution is wrong.
+
+This doesn't prove the dark matter reframe is correct. It establishes that the observational framework is structurally incapable of distinguishing "curvature from invisible particles" from "curvature from geometric complexity" without a theory predicting specific differences between the two.
+
+---
+
+## Part VIII — Convergent Independent Results
+
+### VIII.1 Topological defect hierarchy as fractal sampling
+
+Earlier development of the framework established a hierarchy: monopoles (0D), cosmic strings (1D), event horizons (2D), domain walls (2D) — each a lower-dimensional structure embedded in 3D space whose topological invariant fully determines the surrounding geometry. The conclusion: "the shape of the lower-dimensional object IS the physics."
+
+In the fractal framework, this generalizes. Rather than discrete dimensional objects in a fixed-dimensional space, the metric field's fractal geometry has structure at every scale. The 0D→1D→2D→3D hierarchy is a discrete sampling of a continuous fractal scale structure:
+- Cosmic strings = 1D skeletal structure of the fractal at one resolution
+- Event horizons = 2D surfaces where spectral dimension transitions sharply
+- Monopoles = 0D points where self-similarity maps intersect
+
+Each is a feature of the fractal at a particular scale, not a separate object in a smooth background.
+
+This connects to the earlier observation that gravity's 1/r² law may be a consequence of the sphere being the unique maximally symmetric closed 2-manifold in 3D space — geometry determining force law rather than vice versa. In the fractal picture, 1/r² emerges at scales where effective dimension is ~3+1; at scales where effective dimension differs, the force law would differ. This is what MOND-like proposals attempt to capture phenomenologically.
+
+### VIII.2 HDC architectural convergence
+
+Independent work on hyperdimensional computing (HDC) for the PHYRFLY/UTLP suite arrived at parallel mathematical structure from a different direction. The key insight: "inside-out texture mapping" — binding HDC encoding to the *interior* surface of a torus rather than the exterior — changes similarity measurement from cosine distance (extrinsic) to geodesic distance (intrinsic). This creates an "anharmonic drum surface": a non-uniform resonant membrane whose eigenvalues encode information.
+
+The Kigami Laplacian on a fractal **is** an anharmonic drum. Kac's question "can you hear the shape of a drum?" (1966) applied to a fractal produces exactly the gappy, hierarchical eigenvalue spectra computed in Part IV. The HDC architecture was independently building the same mathematics.
+
+The connection deepens with hierarchical grid cell encoding — hypervectors of hypervectors, where each level's state becomes a coordinate in the next level's interior manifold. Structurally identical to the fractal's self-similar hierarchy: eigenfunctions at each scale become the basis for decomposing structure at the next coarser scale.
+
+The brain's grid cell system (Moser & Moser, 2005) uses exactly this: modules at different spatial scales, bound by hippocampal indexing. The metric field's fractal geometry, the brain's spatial navigation system, and the HDC encoding architecture may all be instances of the same mathematical structure — hierarchical eigenfunctions on a self-similar geometry, with geodesic distance as the natural similarity metric.
+
+A note on **basis seeding**: Mandelbrot seeding for HDC basis vectors concentrates information at fractal boundaries rather than distributing it uniformly — problematic for vector space partitioning. Structured orthogonal seeding is preferable for the HDC application; this informs how candidate fractal Laplacian bases should be constructed for the MFO computational program.
+
+### VIII.3 Woit Euclidean Twistor Unification
+
+Woit (2021, arXiv:2104.05099) proposed a Euclidean twistor unification framework. Convergence with the framework appears in the hypercube projection thinking tool (separately documented in `hypercube_projection_exercise.md`):
+
+The hypercube projection DOF count: 6 faces × 5 observations = 30 raw, reducing to 6 independent DOF from 3D faces + 4 more from the 4th dimension (3 gauge + 1 dilaton scalar). This independent intuitive route arrived at the same gauge + dilaton structure that emerges from twistor unification through different mathematics.
+
+This is a thinking tool, not a framework claim — but the convergence at the DOF count is suggestive that the framework's internal-dimension structure matches what twistor methods derive top-down.
+
+### VIII.4 Ibarra-Vempati and fractal flavor physics
+
+Ibarra and Vempati (2025) used Sierpinski triangle geometry for flavor physics — the closest independent convergence on the framework's central claim that fractal internal geometry can encode the fermion mass and mixing structure. This is a citable anchor for the central computational program (identifying the specific fractal that matches the SM spectrum).
+
+### VIII.5 The model-free spectral inverse problem (gap)
+
+A specific unfilled gap in the literature: **no model-free spectral geometry inverse analysis has treated the full particle mass spectrum as eigenvalue data to infer the internal geometry.** Standard approaches assume a manifold class (Calabi-Yau, G₂, etc.) and search within it. The framework's commitment to fractal geometry is a different starting class — and the inverse spectral problem on fractals is mathematically tractable (Strichartz and others have developed it for SG and related fractals).
+
+The right computation: take the 9-dimensional SM mass² ratio vector, treat it as eigenvalue data, and ask what fractal Laplacian's spectrum reproduces it. Constraint: the fractal must have d_S → 2 at UV (consistent with QG convergence) and d_S → 4 at IR (consistent with our spatial experience), with non-monotonic flow in between. This is the framework's central open computation.
+
+---
+
+## Part IX — Status and Roadmap
+
+### IX.1 Framework status by claim
+
+**Algebraically proven:**
+- de Broglie identity v_g · v_p = c² (Part II.2)
+- Mass = waveguide cutoff frequency mc²/ℏ = ω_c (Part II.3)
+- de Broglie wavelength as spatial projection λ = h/p (Part II.4)
+- U(1) charge conservation as Fourier mode orthogonality on S¹ (Part II.8)
+
+**Numerically demonstrated:**
+- Anisotropic geometry produces mass hierarchy (Part III.3)
+- Round Sⁿ insufficient; SM hierarchy requires asymmetric/fractal geometry (Part III.4)
+- Fractal spectra have qualitatively correct gappy structure (Part IV.2)
+- Product geometry F × CP² × S¹ reproduces SM spectral pattern qualitatively (Part IV.4)
+- Non-monotonic d_S flow profile is constructible (Part V.4)
+
+**Supported by convergent literature:**
+- d_S → 2 at UV (8 independent QG approaches, Part V.2)
+- Fractal cosmology consistent with Planck CMB (Asghari-Sheykhi 2022)
+- Non-Killing chirality mechanism (Baptista 2025)
+- Entanglement-geometry correspondence (Van Raamsdonk 2010, Ryu-Takayanagi 2006)
+- Independent fractal flavor physics work (Ibarra-Vempati 2025)
+
+**Not yet computed:**
+- Specific fractal geometry matching SM masses (the central open computation)
+- Baptista non-Killing mechanism on a 7D internal manifold
+- Complexification dynamics for w(z)
+- Full non-Abelian impedance matching (overlap integrals on candidate manifolds)
+- Non-monotonic d_S flow profile on specific fractal candidates
+- α(z) functional relationship from spectral structure
+
+### IX.2 The 20-item roadmap
+
+**Phase 1 — Mathematical validation (near-term):**
+
+1. Extend Baptista's non-Killing calculation to 7 dimensions. Single most important calculation for the framework.
+2. Compute mode spectra on candidate 7-manifolds. Match Laplacian eigenvalues to observed mass ratios.
+3. Connect Baptista mechanism to the cavity resonance picture. Show non-Killing perturbation = onset of new resonance mode.
+4. Formalize the waveguide correspondence completely — full mapping of waveguide mode decomposition (cutoffs, dispersion, evanescence, geometric chirality) onto KK decomposition.
+5. Prove the de Broglie phase velocity identity from higher-dimensional waveguide decomposition (already done; document fully).
+6. Formalize conservation laws as topological impedance matching for non-Abelian groups (charge, angular momentum, color confinement).
+7. Compute spectral dimension flow on candidate fractal geometries (Pn, products with gauge manifolds). Verify non-monotonic shape; identify mass-scale features.
+8. Compute fractal Laplacian spectra and compare to SM masses. The central computation.
+
+**Phase 2 — Empirical predictions (medium-term):**
+
+9. Derive pair creation corrections in high-curvature environments from decoherence interpretation.
+10. Predict Planck star (primordial black hole bounce) gamma-ray burst signatures.
+11. CMB predictions from complexification cosmology.
+12. Design fractal waveguide analog experiments — metamaterial waveguides with engineered fractal cross-sections to directly test KK predictions and chirality from asymmetry.
+13. Derive complexification dynamics for w(z) and compare with DESI.
+14. Multi-messenger redshift predictions for Einstein Telescope + LISA + IceCube.
+15. Predict coupling constant drift from internal evolution; compare with quasar α measurements.
+
+**Phase 3 — Synthesis (long-term):**
+
+16. Unify the three chirality approaches (Baptista non-Killing, G₂ singular, NCG) — show they are different descriptions of the same underlying non-smooth geometry.
+17. Derive 3 generations from topology of the internal manifold.
+18. Reframe the cosmological constant problem from complexification picture; compute residual vacuum energy.
+19. Derive expansion history from complexification dynamics — radiation domination → matter domination → acceleration with correct transition redshifts.
+20. Identify the specific fractal geometry of the metric field. The framework's ultimate computational goal — analog of finding the specific Calabi-Yau in string theory, but constrained additionally by d_S → 2 at UV.
+
+### IX.3 What distinguishes the framework
+
+| Feature | String Theory | This Framework |
+|---|---|---|
+| Fundamental entity | 1D extended object | Metric field's fractal geometry |
+| Extra dimensions | Top-down anomaly cancellation | Same geometry at different scales |
+| Dimensional count | 10 or 11 | ~11 at intermediate scales, → 2 at UV, → 4 at IR |
+| What's vibrating | The string | Coupling between dimensional components |
+| Pair creation | Quantum field process | Metric decoherence |
+| Planck density floor | String length minimum | Minimum geometric complexity |
+| Chirality | Strings/branes/orbifolds | Fractal dissolution of no-go theorem |
+| Compactification | Extra dims rolled up small (unexplained) | Coarse-graining of fractal (no separate compactification) |
+| New ontology | Strings, branes, landscape | None — conservative GR + QFT extension |
+| Empirical predictions | None confirmed in 40+ years | Same status, lower ontological cost |
+| EM waveguide connection | No direct analog | Internal dimensions ARE waveguide channels |
+| Dark energy | Cosmological constant or quintessence | Internal geometry evolution; dynamical by default |
+| Cosmological expansion | Spatial scale factor growing | Partly spatial, partly projection of complexification |
+| de Broglie phase velocity | Unexplained quantum postulate | Standard waveguide phase velocity (v_g · v_p = c²) |
+| Conservation laws | Externally imposed | Topological impedance matching |
+| Quantum nonlocality | Spooky action | Phase correlations through internal connectivity |
+| Mode confinement | Strings/branes/boundaries | Geometric evanescence; topological band gaps |
+| d_S at UV | Not addressed | → 2 (consistent with all QG approaches) |
+| d_S flow shape | Monotonic increase | Non-monotonic: 4 → peak → 2 (unique prediction) |
+| Mass hierarchy | No natural explanation | Fractal spectral gaps |
+| Three generations | Calabi-Yau topology | Three-fold fractal self-similarity |
+| QG dimensional reduction | Separate, unexplained | Same phenomenon as internal structure |
+
+---
+
+## Part X — Reference Numerical Results
+
+### X.1 Computed values from `metric_field_computations.py`
+
+```
+de_broglie_identity:
+  statement: v_g · v_p = c²
+  verified: True (algebraic identity from ω² = k²c² + ω_c²)
+
+mass_cutoff_equivalence:
+  statement: mc²/ℏ = ω_c
+  verified: True (algebraic identity, not approximation)
+
+de_broglie_wavelength:
+  statement: λ_dB = h/p is spatial projection of wave at angle θ = arccos(pc/E)
+  verified: True
+
+s7_spectrum (round 7-sphere, unit radius):
+  l=1: λ = 7,  m²/m₁² = 1.000, degeneracy = 8
+  l=2: λ = 16, m²/m₁² = 2.286, degeneracy = 35
+  l=3: λ = 27, m²/m₁² = 3.857, degeneracy = 112
+  l=4: λ = 40, m²/m₁² = 5.714, degeneracy = 294
+  l=5: λ = 55, m²/m₁² = 7.857, degeneracy = 672
+  l=6: λ = 72, m²/m₁² = 10.286, degeneracy = 1386
+
+mass_hierarchy:
+  observation: Round S⁷ spectrum too evenly spaced for SM
+  implication: Internal manifold must be highly anisotropic or fractal
+  consistency: Matches non-Killing requirement for chirality
+
+anisotropic_hierarchy (toy model):
+  radii: [1000, 10, 1] in Planck units
+  hierarchy_range: ~90,000× (factor between heaviest and lightest in low-l shown)
+  conclusion: Mechanism works; SM hierarchy needs more dimensions / larger ratios
+
+impedance_matching:
+  statement: Conservation laws = orthogonality of internal manifold eigenmodes
+  mechanism: Overlap integrals between modes at junctions
+  u1_example: Charge conservation = Fourier mode orthogonality on S¹ (proven exactly)
+```
+
+### X.2 Computed values from `fractal_computations.py`
+
+```
+sg_spectral_dimension: 1.3652 (= 2 ln 3 / ln 5)
+
+sm_mass_squared_ratios (relative to electron):
+  electron: 1.0
+  up:       18.5
+  down:     84.6
+  strange:  3.46e4
+  muon:     4.28e4
+  charm:    6.23e6
+  tau:      1.21e7
+  bottom:   6.69e7
+  top:      1.15e11
+
+generation_mass_ratios:
+  leptons:    m_μ/m_e = 207, m_τ/m_μ = 17
+  up_quarks:  m_c/m_u = 580, m_t/m_c = 136
+  down_quarks: m_s/m_d = 20, m_b/m_s = 44
+
+chirality_dissolution:
+  statement: Fractal internal geometry bypasses Atiyah-Hirzebruch
+  reason: Fractals are not smooth manifolds; theorem hypotheses fail
+  bonus: Localized eigenfunctions and self-similar structure may
+         naturally produce chirality and generation structure
+
+three_generations_from_three_fold_symmetry: True (predicted from SG-like geometry)
+```
+
+### X.3 Computed values from `spectral_dimension_computations.py`
+
+```
+QG approach summary:
+  CDT:                d_S(UV) = 1.80, d_S(IR) = 4.02
+  Asymptotic Safety:  d_S(UV) = 2.0,  d_S(IR) = 4.0
+  Horava-Lifshitz:    d_S(UV) = 2.0,  d_S(IR) = 4.0
+  LQG:                d_S(UV) = 2.0,  d_S(IR) = 4.0
+  Causal Sets:        d_S(UV) = 2.0,  d_S(IR) = 4.0
+  NCG:                d_S(UV) = 2.0,  d_S(IR) = 4.0
+  Multifractional:    d_S(UV) = 1-3,  d_S(IR) = 4.0
+  String Theory:      d_S(UV) = 2.0,  d_S(IR) = 10 or 11
+
+framework_flow:
+  UV_limit: 2
+  IR_limit: 4
+  peak_scale: intermediate (~100-1000 Planck lengths)
+  peak_dimension: 6-8 (anisotropic fractal)
+  shape: non-monotonic with single peak
+  distinguishing_feature: only framework predicts non-monotonic flow
+
+unique_predictions:
+  1. Non-monotonic spectral dimension flow
+  2. Particle spectrum readable from flow profile shape
+  3. Three generations from three-fold fractal self-similarity
+  4. Dark energy from dimensional flow at cosmological scales
+  5. Mode-dependent cosmological redshift
+  6. Fractal waveguide analog experiments (testable now)
+```
+
+---
+
+## Part XI — Mathematical Tools Catalog
+
+### For harmonic decomposition
+- Peter-Weyl theorem + representation theory for harmonic analysis on coset spaces
+- Laplace-Beltrami eigenvalue computation on compact manifolds
+- Heat kernel expansion (McKean-Singer) connecting spectrum to geometry
+- Weyl asymptotic formula relating eigenvalue density to volume
+- Lichnerowicz bound on spectral gap from Ricci curvature
+
+### For chirality
+- Atiyah-Singer index theorem — counts chiral zero mode imbalance
+- Atiyah-Hirzebruch theorem — the no-go for smooth manifolds with isometric G-action
+- Kosmann-Lichnerowicz derivative — key operator in Baptista's non-Killing approach
+- G₂ holonomy geometry — Acharya-Witten singular construction
+- Connes' spectral action — noncommutative alternative
+
+### For multi-component coupling
+- Fiber bundle formalism (Wu-Yang 1975; Eguchi-Gilkey-Hanson 1980)
+- Coupled oscillator theory on Riemannian manifolds
+- Einstein-Langevin equation (Hu-Verdaguer) for coupled field-geometry dynamics
+- Cobordism in TQFT (Atiyah 1988)
+- Spectral geometry — "Can you hear the shape of a drum?" (Kac 1966)
+
+### For decoherence
+- Bogoliubov transformation formalism in curved spacetime
+- Gravitational decoherence master equations (Anastopoulos-Hu; Danielson-Satishchandran-Wald)
+- Lindblad formalism for Planck-scale decoherence (Petruzziello-Illuminati)
+
+### For fractal geometry and spectral dimension flow
+- Kigami Laplacian on post-critically finite (PCF) self-similar sets (Kigami 1989, 1993)
+- Spectral decimation method (Rammal-Toulouse 1984; Fukushima-Shima 1992; Shima 1996)
+- Laplacians on higher-dimensional Sierpinski simplices Pn (explicit spectral decimation)
+- Spectral dimension as diffusion diagnostic: P(σ) ~ σ^{-d_S/2}
+- Multifractional field theory and scale-dependent measures (Calcagni 2010–17)
+- Heat kernel methods on fractals (Hambly, Kumagai, Barlow-Perkins)
+- Localized eigenfunctions on fractals — compact support (Teplyaev 1998)
+- Dimensional flow in discrete quantum geometries (Calcagni-Oriti-Thürigen 2015)
+- Observational constraints on multifractional spacetimes (Addazi-Calcagni-Marcianò 2018)
+
+---
+
+## Part XII — Literature Anchors
+
+**Foundational geometric tradition:**
+- Wheeler (1955) — gravitational geons, "mass without mass"
+- Misner-Wheeler (1957) — "charge without charge" from topology
+- Rainich (1925) — already unified field theory
+- Sakharov (1967) — induced gravity
+- Volovik (2003) — *The Universe in a Helium Droplet*; emergent SM from superfluid ³He-A
+
+**Kaluza-Klein and dimensional convergence:**
+- Kaluza (1921), Klein (1926) — original 5D unification
+- Witten (1981) — 11 minimum from gauge groups
+- Nahm (1978) — 11 maximum from supergravity
+- Cremmer-Julia-Scherk (1978) — unique 11D supergravity
+- Salam-Strathdee (1982); Duff-Nilsson-Pope (1986); Castellani-D'Auria-Fré (1984)
+- Schwahn-Semmelmann-Weingart (2024) — Lichnerowicz spectra on standard homogeneous Einstein manifolds
+
+**Holography and emergent spacetime:**
+- 't Hooft (1993); Susskind (1995) — holographic principle
+- Maldacena (1997) — AdS/CFT
+- Rovelli-Smolin (1995) — loop quantum gravity, spin networks
+- Maldacena-Susskind (2013) — ER=EPR
+- Van Raamsdonk (2010) — spacetime from entanglement
+- Ryu-Takayanagi (2006) — entanglement entropy and area
+- Padmanabhan — thermodynamic spacetime
+- Verlinde — emergent gravity
+- Jacobson (1995) — Einstein equations from horizon thermodynamics
+
+**Spectral dimension flow:**
+- Ambjorn-Jurkiewicz-Loll (2005) — CDT
+- Lauscher-Reuter (2005) — asymptotic safety
+- Horava (2009) — Horava-Lifshitz
+- Modesto (2009) — LQG dimensional reduction
+- Carlip (2015, 2017, 2019) — causal sets, comprehensive reviews of convergence
+- Benedetti (2009) — NCG
+- Calcagni (2010–2017) — multifractional theories
+- Atick-Witten (1988) — string Hagedorn
+
+**Chirality:**
+- Witten (1981, 1983) — Atiyah-Hirzebruch no-go for KK
+- Dixon-Harvey-Vafa-Witten (1985–86) — orbifolds resolution
+- Acharya-Witten (2001) — G₂ singular geometry
+- Acharya-Kane et al. (2008–2012) — G₂-MSSM
+- Connes — spectral action / NCG Standard Model
+- Baptista (2023, 2025) — non-Killing vector fields produce chirality
+
+**Decoherence:**
+- Parker (1966–71) — gravitational pair creation
+- Schwinger (1951) — strong-field pair creation
+- Hawking (1975) — black hole radiation
+- Unruh (1976) — accelerated observer thermal radiation
+- Anastopoulos-Hu (2013) — gravitational decoherence
+- Danielson-Satishchandran-Wald (2022–25) — horizon-induced decoherence via soft gravitons
+- Petruzziello-Illuminati (2021) — Planck-scale decoherence
+
+**Fractals:**
+- Kigami (1989, 1993) — Laplacian on fractals
+- Rammal-Toulouse (1984) — spectral decimation
+- Fukushima-Shima (1992) — SG Dirichlet eigenvalues
+- Strichartz — analysis on fractals
+- Teplyaev (1998) — localized eigenfunctions
+- Shima (1996) — higher-dimensional Sierpinski simplices
+
+**Independent convergent work:**
+- Ibarra-Vempati (2025) — Sierpinski geometry for flavor physics
+- Woit (2021, arXiv:2104.05099) — Euclidean twistor unification
+
+**Modern partial successes (geometry to particles):**
+- Finkelstein-Rubinstein (1968) — topological kinks carry half-integer spin
+- Friedman-Sorkin (1983) — topological geons via mapping class group
+- Skyrme (1961–62) — baryons as topological solitons
+- Giulini (2018) — *Matter from Space*
+
+---
+
+## Part XIII — Open Threads (Priorities for Next Sessions)
+
+### XIII.1 The central computation
+
+Identify the specific fractal F such that the Laplacian eigenvalue spectrum of F × G/H (with G/H carrying SU(3)×SU(2)×U(1)) reproduces the SM mass spectrum. Constraints:
+- d_S(σ) → 2 at UV
+- d_S(σ) → 4 at IR
+- Non-monotonic flow with peak at intermediate scale
+- 3-fold approximate self-similarity for 3 generations
+- Non-Killing perturbation enabling chirality
+
+Approach: parametric search over the space of post-critically finite self-similar fractals (SG generalizations, nested fractals, products), computing Laplacian spectra via spectral decimation, comparing to the 9-dimensional SM mass² ratio target.
+
+### XIII.2 Baptista at 7D
+
+Baptista's S² and T² toy calculations need extension to a 7-manifold whose isometry approximately contains SU(3)×SU(2)×U(1), with SU(2)×U(1) corresponding to non-Killing perturbations. Compute:
+- Dirac operator spectrum (with Kosmann-Lichnerowicz derivatives along non-Killing fields)
+- Resulting 4D fermion content (chirality, generation structure, hypercharges)
+- Gauge boson masses (W, Z) — should emerge with correct ratio + Weinberg angle
+
+If successful: most important result in theoretical physics since the SM was formulated.
+
+### XIII.3 The α(z) functional relationship
+
+If coupling constants are dynamical moduli, and if cosmological evolution is partly internal-geometry evolution, then α should drift with cosmic time in a way determined by the fractal's spectral structure. Derive the predicted form α(z) = α₀ · f(H(z)) from the candidate fractal and compare with quasar absorption data.
+
+### XIII.4 The non-monotonic d_S flow on a specific fractal
+
+Compute d_S(σ) explicitly for candidate fractal product geometries. Verify the non-monotonic shape. Identify features in the flow corresponding to particle mass scales. The peak position and height become testable predictions.
+
+### XIII.5 Fractal waveguide analog experiments
+
+Design metamaterial waveguides with engineered fractal cross-sections. Test predictions:
+- Mode spectra match fractal Laplacian eigenvalues
+- Evanescent modes below cutoff reproduce virtual particle phenomenology
+- Asymmetric fractal geometry produces chiral mode selection
+
+These experiments are achievable with current metamaterial technology and would directly validate the mathematical formalism.
+
+### XIII.6 Convergent independent results to track
+
+- ephemerides-spectral / breathing Laplacian / adaptive Kuramoto coupling formalism (sister project) — the mathematical machinery for state-dependent off-diagonal couplings in graph Laplacians may directly apply to the metric field's complexification dynamics
+- Mathematical Provenance Method (MPM) — cross-project epistemic discipline
+- HDC/SORF-DCT framework convergence — may inform how to construct effective fractal Laplacian bases
+
+---
+
+## Appendix — Notes on file regeneration
+
+Each Python script consolidated here can be regenerated from this document:
+
+**`metric_field_computations.py`** corresponds to Part II (especially II.2–II.4, II.8) and Part III (especially III.1–III.3). Use sympy for symbolic verification of v_g · v_p = c²; use numpy for numerical eigenvalue computations on Sⁿ, CP², and anisotropic tori. The script's structure: 7 parts, one per derivation, each writing results to a `results` dict that's serialized to JSON at end.
+
+**`fractal_computations.py`** corresponds to Part IV. Implement spectral decimation as iterating R⁻¹(w) = (5 ± √(25−4w))/2, accumulating eigenvalues at each level, with born seeds {2, 5} added at each level. Scale by 5^m for continuous Laplacian. Compute Pn parameters from formulas in IV.3. Build product spectra by adding eigenvalues. Compare against SM mass² ratios target (Part X.2).
+
+**`spectral_dimension_computations.py`** corresponds to Part V. Tabulate the 8 QG approaches with their UV/IR limits. Model the framework's flow as base + Gaussian bump (formulas in V.4). Plot d_S(σ) for CDT, KK, framework on a log-σ axis. Document observational constraints from V.5. Output unique predictions list from V.6 (and the framework's distinguishing features overall from IX.3).
+
+The document should be self-sufficient for regenerating these scripts without consulting the original `.py` files. If anything below is ambiguous, that's a bug — flag it for the next iteration.
+
+---
+
+*End of working draft. Next iteration should: (a) align format with sister notebooks (state-pointer block, formal H-battery format, sister cross-references), (b) integrate any of the next-session computational results that close open Part IX items, (c) add a "Computability Audit" section in the style of the Antikythera notebook §12 once enough hypotheses are formalized to warrant one.*

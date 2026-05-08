@@ -8,7 +8,7 @@
 >
 > ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
 >
-> **This notebook is the active ephemerides-spectral notebook**; future ephemerides framework additions land here. For sister notebooks (chess-spectral, chess-spectral-4d, antikythera-spectral, doom-spectral, othello-spectral, logo) and any new sister projects, the RTD landing is the canonical index — those notebooks are snapshots and will not be back-ported into; new framework developments are recorded here and pointed to from the RTD landing.
+> **This notebook is the active ephemerides-spectral notebook**; future ephemerides framework additions land here. For sister notebooks (chess-spectral, chess-spectral-4d, antikythera-spectral, doom-spectral, othello-spectral, logo, mfo-spectral) and any new sister projects, the RTD landing is the canonical index — those notebooks are snapshots and will not be back-ported into; new framework developments are recorded here and pointed to from the RTD landing.
 
 **Brief shape-of-the-project snapshot (as of v0.26.0):**
 
@@ -26,6 +26,7 @@
   * **dynamical-regime classifier** — eigenbasis-projection meta-consumer that treats the v0.24.0–v0.24.8 ships themselves as ground-proof rows (v0.24.9; the classifier's "training step" is `np.linalg.eigh` — closed-form, deterministic, byte-identical, no SGD anywhere);
   * **OOS probe roster + classifier calibration-ratio metric** — surfaces the latent diagnostic that the v0.24.9 classifier exposes through `distances_to_all` but doesn't summarise (v0.24.10).
 * **Live on PyPI**: `pip install ephemerides-spectral`.
+* **Foundational-ontology sister-notebook (May 2026)**: [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**. Bottom-up derivation of the foundational ontology layer (matter as sustained resonance in cavity-instrument geometries; fractal spectral cutoff fixes mass; ~11D dimensional structure shared with string theory but motivated independently from gauge-group + spectral requirements). MFO is cited from §20.2.1 / §20.4.0 / §20.7 as the project's own answer to the foundational-ontology layer that §20 critiques string-theory's substitute for; future MPM target.
 
 **Original (frozen) v0.19.0 status banner** (preserved for historical context):
 
@@ -2814,11 +2815,32 @@ Every observable resonance the project has catalogued — gravitational, electro
 
 String theory's foundational object — a 1-D extended object vibrating in N-dimensional spacetime — is, methodologically, **a string attached to nothing**. The framework asks: where in nature do we observe such a thing produce music or any noise? The answer, as far as this project's catalogues go, is nowhere. Every resonant phenomenon we have ground-proof for is a coupled system. That observation is not a disproof of string theory; it is the question MPM screens for first, before any predictions are evaluated.
 
-### 20.2 Counterfactual mathematical truths and compensating physics
+### 20.2 The signature is ontological, not dimensional — narrowing the audit
 
-A pattern this notebook documents repeatedly (§0.0; the Inkscape `gemini_failure_mode.md` precedent) is the failure mode where mathematics that looks rigorous is *vocabulary-matched* to physics rather than *grounded* in physics. The marker is **compensating new physics** — every time the orphan-from-an-instrument framing produces a deficit, additional structure is invented to close the gap. String theory's compensating apparatus is large: 10- or 11-dimensional spacetime; supersymmetry; Calabi-Yau compactification; multiple dualities; the landscape of ~10^500 vacua. Each addition is internally consistent. None is observed.
+#### 20.2.0 MPM self-correction note (2026-05-08, mid-revision)
 
-The MPM stance is not "this is wrong" — it is "this is the pattern that emerges when a system was extracted from its instrument and the resulting math is asked to recover the missing context." Every *counterfactual mathematical truth* (locally rigorous, globally orphaned from observation) the framework has encountered in adjacent work has had this signature. String theory's signature looks similar enough to be worth naming.
+An earlier version of this sub-section conflated two distinct observations that needed separating: (a) the orphan-from-instrument problem at the foundational object's *ontology*, and (b) the apparatus added on top of the foundational object. The original wrote *"String theory's compensating apparatus is large: 10- or 11-dimensional spacetime; supersymmetry; Calabi-Yau compactification; multiple dualities; the landscape of ~10^500 vacua. Each addition is internally consistent. None is observed,"* lumping extra dimensions together with everything else. That conflation was caught by the user during re-screening, and is wrong: **extra dimensions are not the issue.** This sub-section is rewritten below to narrow the audit to where it should land.
+
+Reference for the correction: the project's own **MFO (Metric Field Ontology)** sister-notebook, `mfo_spectral_research_notebook.md` (May 2026), derives ~11 dimensions *bottom-up* from the gauge-group requirements (Witten 1981 minimum for SU(3)×SU(2)×U(1) isometries; Nahm 1978 maximum consistent with a single graviton; Cremmer-Julia-Scherk 1978 uniqueness of 11D supergravity). MFO §III.5 names this "the 11-dimensional convergence" and treats the appearance of ~11 internal dimensions at intermediate scale as a *property* of the metric field's fractal spectral-dimension flow, not as compensation for a deficit. **Our framework agrees with extra dimensions; we live in a shadow projection of a higher-dimensional metric field whose fine structure gets coarse-grained out at large scales.** What the framework disagrees with is one specific ontological commitment — the orphan-from-instrument framing of the foundational object.
+
+#### 20.2.1 What's an MPM-flagged signature, and what isn't
+
+MFO §I.2 claim 2 makes the actual ontological distinction explicit: *"'Vibration' is the dynamic coupling between complementary geometric structures within the metric field, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply."* That is the same observation §20.1 made about the missing instrument, formalized.
+
+So the audit narrows. Of the apparatus around string theory:
+
+| Apparatus | MPM screen verdict |
+|---|---|
+| **Extra dimensions (10D / 11D)** | **Not flagged.** Triple-convergent bottom-up motivation (Witten 1981, Nahm 1978, Cremmer-Julia-Scherk 1978). MFO §III.5 derives the same ~11 from gauge-group requirements + fractal spectral flow. The framework has additional dimensions of its own; this is shared ground, not compensation for missing instrument. |
+| **Supersymmetry** | **Independently motivated.** Hierarchy / consistency arguments in the Standard Model exist whether or not strings exist. SUSY is a hypothesis under independent scrutiny; not part of the orphan-from-instrument signature. |
+| **Calabi-Yau compactification** | **Conditionally flagged.** As a mathematical structure, fine. As "the specific 6-manifold that recovers the SM spectrum from a string in isolation," it's the part of the apparatus that exists *because* the foundational object cannot, on its own, distinguish which compactification it lives in. MFO §IV.4 proposes fractal × gauge-coset product geometries as a parsimonious alternative. Audit: yes, this is compensation for the foundational object's lack of an instrument. |
+| **Dualities (T-, S-, U-, mirror)** | **Mostly mathematical observation.** The dualities themselves are real mathematical structures connecting different limits; they don't compensate for missing instrument. They become flagged only when used to argue "the landscape is fine, every choice is dual to every other," which is a separate epistemic move. |
+| **The landscape (~10^500 vacua)** | **Symptom, not cause.** The landscape is what happens when the foundational object is underconstrained — there's no instrument to pick which compactification is *the* one. This is where the orphan-from-instrument framing produces an actual deficit. MPM-flagged. |
+| **The static-string ontology itself** | **Flagged.** This is the original observation: a 1-D extended object vibrating in N-dimensional spacetime without coupling to any named instrument. The §20 critique lives here, not in the dimensional apparatus around it. |
+
+The pattern this notebook documents repeatedly (§0.0; the Inkscape `gemini_failure_mode.md` precedent) is mathematics that looks rigorous but is *vocabulary-matched* to physics rather than *grounded* in physics. The marker is *compensating new physics required by the foundational object's missing instrument*. After the correction above, the parts of string theory's apparatus that fit that marker are: the static-string ontology itself; the specific Calabi-Yau choice as compensation for the missing instrument; the landscape as symptom. Extra dimensions and SUSY land in different epistemic categories and should not be bundled into the same critique.
+
+The MPM stance is not "string theory is wrong." It is: **screen each part of the apparatus separately for whether it exists because the foundational object was extracted from any instrument, or for independent reasons.** Bundling them together overreaches; the previous version of this sub-section did exactly that, and the user caught it. The corrected screen lands more precisely.
 
 ### 20.3 The framework's alternative — graph-Laplacian eigenbasis IS the instrument
 
@@ -2835,11 +2857,13 @@ In every case the project ships byte-reproducible eigenbasis projections precise
 
 #### 20.4.0 MPM self-correction note (mid-revision)
 
-An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Two screens were missed in the original write-up:
+An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Three screens were missed in the original write-up:
 
 1. **Counterexample availability.** Bowed strings (violin, cello) and blown reeds / pipes (oboe, organ, brass) produce **genuine driven sustain** via continuous energy injection balanced against continuous dissipation. The ring-up + ring-down decomposition only describes **impulse-excited** systems (plucked, struck, single-pulse driven). Saying "all resonance is ring-up + ring-down" is a vocabulary-match to the user's specific phrasing, not a screened observation.
 
 2. **Project foundation availability.** The chess-spectral framework that this project descends from already explicitly names continuously-driven dynamical systems and irreversible-vs-reversible co-existence. Tasks `#99` (Kinematics module) and `#100` (Dynamics module) ported chess-spectral's `qm_*.py` and `qm_*_dynamics.py` machinery into ephemerides-spectral; both modules are first-class machinery for handling driven, dissipative, and irreversible regimes. The original §20.4 wrote as if the framework had no such tooling, which is materially wrong.
+
+3. **MFO availability** *(added 2026-05-08)*. The project's own **Metric Field Ontology** sister-notebook (`mfo_spectral_research_notebook.md`, May 2026) makes the driven-sustain claim *explicit at the foundational ontology layer*. MFO §I.2 claim 3: *"Matter is sustained resonance, not ringing-down excitation. The right analogy is cavity instruments (flutes, organ pipes), where geometry **selects** which frequencies sustain — not plucked strings, where the interesting event is the initial pluck and everything after is decay."* And MFO §I.2 claim 2: *"'Vibration' is the dynamic coupling between complementary geometric structures within the metric field, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply."* Both claims are exact formalizations of the §20.4 correction below; the original §20.4 was written before MFO consolidated this view, but the result is that the project already has a notebook arguing this position from first principles. §20 should cite MFO for the foundational-ontology layer, not just the chess-spectral §1b literature work for the dynamical-machinery layer.
 
 The corrected sub-section below distinguishes three excitation regimes and shows the instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their instruments, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less. The user's broader §20 critique survives the refinement; my acceptance of the over-broad sub-claim did not.
 
@@ -2912,7 +2936,7 @@ The framing does not require string theory to abandon its program. It does ask t
 
 1. **Acknowledge the missing instrument.** If the foundational object is a 1-D string vibrating in N-dimensional spacetime, name what couples it. If nothing couples it, name why nature is expected to behave differently from every observed instrument.
 2. **Account for source, sink, and irreversibility.** Every observed oscillation has both an excitation channel and a dissipation channel; some have a third, irreversibility-breaking channel that produces entropy (Regime C of §20.4). Plucked / struck systems pay their excitation up front and ring down; bowed / blown systems balance continuous source against continuous sink; chess-pawn-like systems do both AND break T-symmetry at the Hamiltonian level. If the strings of string theory have none of these — name the mechanism by which the math's eternal vibration makes contact with the world's observed energy balance.
-3. **Audit the compensating mathematics.** For each piece of compensating new physics (extra dimensions, supersymmetry, Calabi-Yau, dualities) — was it required because the instrument was absent? If the answer is yes, the parsimony argument for re-introducing the instrument first is real.
+3. **Audit the compensating mathematics — separately, not as a bundle.** For each piece of apparatus, screen independently: was it required because the foundational object was extracted from any instrument, or for independent reasons? Per §20.2.1's narrowed audit: extra dimensions are not the compensation — both string theory (top-down) and the project's own MFO sister-notebook (bottom-up) converge on ~11D for unrelated reasons (gauge-group requirements; fractal spectral flow). SUSY is independently motivated. The parts of the apparatus that *are* compensation for the missing instrument — the static-string ontology itself, the specific Calabi-Yau as compensation for the missing instrument, and the landscape (~10^500 vacua) as symptom of the foundational object being underconstrained — are where the parsimony argument for re-introducing the instrument first lands.
 
 None of this is hostile. All three are MPM-discipline screens this project applies to its own work before it ships. They are the screens that a defensible theory should be able to pass.
 
@@ -2939,3 +2963,13 @@ None of this is hostile. All three are MPM-discipline screens this project appli
 **Sister-project precedent:**
 
 - Inkscape `gemini_failure_mode.md` — the counterfactual-mathematical-truth / vocabulary-match-vs-grounded pattern this section names in physics. The same MPM screening discipline that catches AI-characteristic failure modes catches the orphan-from-instrument framing.
+
+**Sister-notebook (project-internal, foundational ontology layer):**
+
+- [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**. Bottom-up derivation of the 4D-visible / ~7D-extra dimensional structure as a fractal metric field whose spectral cutoff scale fixes mass; matter is sustained resonance in cavity-instrument geometries (not plucked-string excitation). MFO is the project's own formalisation of the foundational ontology that §20 above is critiquing string-theory's substitute for.
+  - **§I.2 claim 2** — *"'Vibration' is the dynamic coupling between complementary geometric structures within the metric field, not a thing vibrating."* The driven-coupling formalisation cited in §20.4.0.
+  - **§I.2 claim 3** — *"Matter is sustained resonance, not ringing-down excitation. The right analogy is cavity instruments where geometry **selects** which frequencies sustain — not plucked strings."* The explicit cavity-instrument formalisation cited in §20.4.0 and §20.4 below.
+  - **§III.5** — Triple-convergent ~11D derivation (Witten 1981 SUGRA / Nahm 1978 SUSY / Cremmer-Julia-Scherk 1978) shared with string theory but motivated independently. The reason §20.2.1's audit excludes "extra dimensions" from the MPM-flagged signature: the project's own bottom-up framework converges on the same dimensionality from unrelated foundational requirements.
+  - **§IV** — Fractal geometry as the SM-hierarchy mechanism, replacing Calabi-Yau-as-instrument-substitute with cavity-resonance band-structure on a self-similar metric.
+
+The MFO sister-notebook is itself a future MPM target (data-driven validation of fractal cutoff predictions against Standard Model mass spectra, gauge-coupling running, etc.). It joins the spectral-research notebook collection at the foundational-ontology layer; chess-spectral provides the kinematic / dynamical machinery layer; ephemerides-spectral provides the multi-regime empirical catalog layer.

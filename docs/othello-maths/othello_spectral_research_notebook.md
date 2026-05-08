@@ -40,6 +40,7 @@ session), **FAILED** (tested and didn't work), or **UNDETERMINED**
 > - **ephemerides-spectral** framework matured through **v0.26.0** — per-body action-angle catalogues, Attested Multi-Source Collector framework with **MPR v1** normative format, **four-tier reproducibility model** (T0 / T1 / T2 / T3), schema-gap-driven trigger. PyPI: <https://pypi.org/project/ephemerides-spectral/>.
 > - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20 with three-regime classification (impulse + ring-down / driven sustain / driven with irreversibility).
 > - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) using the same eigenbasis substrate this notebook tests on Othello.
+> - **mfo-spectral** sister-notebook added (May 2026) — Metric Field Ontology, the project's bottom-up derivation of the foundational ontology (matter as sustained resonance in cavity-instrument geometries; fractal spectral cutoff fixes mass; ~11D dimensional structure motivated independently of string theory). Joins the collection at the foundational-ontology layer; future MPM target.
 
 ---
 
