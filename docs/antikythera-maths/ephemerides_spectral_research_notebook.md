@@ -27,7 +27,7 @@
   * **OOS probe roster + classifier calibration-ratio metric** — surfaces the latent diagnostic that the v0.24.9 classifier exposes through `distances_to_all` but doesn't summarise (v0.24.10).
 * **Live on PyPI**: `pip install ephemerides-spectral`.
 * **Foundational-ontology sister-notebook (May 2026)**: [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**, *one candidate* foundational-ontology framing hosted in the project (cavity-instrument analogy for matter; fractal metric field; ~11D dimensional structure motivated independently from gauge-group + spectral requirements). **Not the project's endorsed answer over alternatives.** Cited from §20.2.1 / §20.4.0 / §20.7 as a worked example of "matter modelled as some kind of excitation" — §20 does not pick a spatial-structure side and treats the current modelling stance as provisional (FFT-untruncation framing, §20.4.0). Future MPM target.
-* **§20 + §21 — the symmetric MPM screening sections**: §20 names the *producer-side* screening failure (orphan-from-instrument; string-theory critique through the MPM lens); **§21** names the *evaluator-side* screening failure (rejection-by-tool-of-creation; banning the use of a tool is the mark of a fool). Both fail for the same reason — judging by surface markers instead of by reproducible content. §21 anchors the principle on the historical precedent of the orbital-mechanics chain DE441 traces back to (Copernicus / Bruno / Galileo / Kepler — every one suppressed in their time, every one now load-bearing in the framework this project consumes), and documents the four-screen discipline this project applies to its own contribution gate.
+* **§20 + §21 — the symmetric MPM screening sections**: §20 names the *producer-side* screening failure (orphan-from-instrument; string-theory critique through the MPM lens); **§21** names the *evaluator-side* screening failure (rejection-by-tool-of-creation; banning the use of a tool is the mark of a fool). Both fail for the same reason — judging by surface markers instead of by reproducible content. §21 anchors the principle on the historical precedent of the orbital-mechanics chain DE441 traces back to (Copernicus / Bruno / Galileo / Kepler — every one suppressed in their time, every one now load-bearing in the framework this project consumes); §21.3 names the **disability-accommodation dimension** explicitly (categorical tool bans — calculators, screen readers, voice dictation, AI assistance — function as participation barriers for contributors who depend on those tools, including those with aphantasia, ADHD, dyslexia, motor disabilities, and many other cognitive and physical variations); §21.5 documents the four-screen discipline this project applies to its own contribution gate.
 
 **Original (frozen) v0.19.0 status banner** (preserved for historical context):
 
@@ -3024,7 +3024,21 @@ Every one of those rejected or suppressed contributions is now load-bearing in t
 
 The lesson is not that the Church was uniquely foolish. The lesson is that **rejection-by-tool-of-creation is a recurring screening failure mode** that institutions repeat under different banners. When the reviewer asks "what tool did you use to make this?" before "does the math reproduce?", the screening is in failure mode.
 
-### 21.3 What the principle does *not* say
+### 21.3 Tool-rejection as denial of disability accommodation
+
+There is a second harm pattern that runs alongside the screening-failure pattern of §21.1–§21.2, and §21 names it explicitly: **categorical bans on a tool function as denial of accommodation for contributors who depend on that tool to participate at parity with peers who do not need it.** This is a recurring institutional failure across many tool-and-disability pairings:
+
+- **Calculators in mathematics education** — categorical bans through the 1980s–1990s on grounds that calculators were "shortcuts" effectively excluded students with dyscalculia, working-memory limitations, and computation-fatigue conditions for whom the calculator was not a shortcut but the accommodation that enabled parity participation. The institutional position eventually shifted to accommodation policies; the categorical ban was the harm.
+- **Spell-checkers and text-to-speech software** — resisted by some academic publishers and editing venues on "authorial voice" / "shortcut" grounds. Contributors with dyslexia, dysgraphia, and certain ADHD presentations depend on these tools as accommodation.
+- **Voice-dictation software** — banned by some certification programs and competitive venues. Contributors with motor disabilities, repetitive-strain injuries, or other reasons not to type were excluded by the ban itself, not by any failure of their work.
+- **Screen readers and assistive-display software** — periodically resisted in editorial contexts on grounds of "fairness" or "uniform reviewer experience." Contributors with low or no vision rely on these tools at every step.
+- **AI-assisted contribution tools** — now in the same position. Contributors with **aphantasia** (the cognitive variation in which voluntary mental imagery is reduced or absent) frequently use AI tools to scaffold tasks that high-imagery thinkers do internally: describing geometric structures, drafting visual layouts, articulating spatial reasoning, externalising what cannot be seen "in the mind's eye." Contributors with ADHD, dyslexia, dysgraphia, executive-function-limiting conditions, processing-speed differences, chronic-fatigue and chronic-pain conditions, and many other cognitive and physical variations report similar dependencies on AI as accommodation. **A categorical ban on AI-assisted contributions is not a neutral scope or fairness decision in practice; it is a participation barrier that lands hardest on contributors who depend on the tool for parity participation.**
+
+§21's screening discipline applies symmetrically here: the tests are the math, the reproducibility, the regenerability, and the Gemini-failure-mode screen (§21.1's four screens; reiterated as the project's own gate in §21.5 below). None of those are tool-of-creation tests; all of them are tool-agnostic by construction. A contribution that passes the four MPM screens has earned its place; the contributor's tool dependencies — cognitive, physical, or preferential — are not screening criteria.
+
+The historical pattern in §21.2 is recurring under new banners: the institution that excluded Galileo's telescope; the institution that banned the calculator; the institution that resisted the screen reader; the institution that proposes excluding AI assistance now. Each is a variation on the same screening failure, and each has been (or will eventually be) revisited at the cost of the contributors excluded in the meantime. The MPM discipline this notebook codifies is designed to be immune to all of them.
+
+### 21.4 What the principle does *not* say
 
 A few things this section is careful to **not** claim:
 
@@ -3034,7 +3048,7 @@ A few things this section is careful to **not** claim:
 
 §21 is narrowly about **the screening failure mode that occurs when a contribution that passes every reproducibility / provenance / regenerability test the discipline cares about is rejected on the basis of which tool the human used to author it**. That is the failure mode the historical precedent in §21.2 documents, and that is the failure mode the MPM screening discipline is designed to be immune to.
 
-### 21.4 The discipline at this project's own gates
+### 21.5 The discipline at this project's own gates
 
 Independent of how any other venue chooses to screen, this is how *this* project screens contributions submitted to ephemerides-spectral, chess-spectral, and the rest of the spectral-research collection. The screening order is:
 
@@ -3049,7 +3063,7 @@ This is also how the project's own internal v0.24.x catalogues are evaluated —
 
 Other venues are free to choose differently. §21 is not a request that they change their screens; it is a documentation of the screen *this* project applies and a flag of the historical pattern (§21.2) that any institution adopting tool-of-creation rejection invites.
 
-### 21.5 Cross-references
+### 21.6 Cross-references
 
 - **§0.0** — Mathematical Provenance Method (the four screens). Tool-agnostic by design.
 - **§20** — Orphan-from-instrument failure mode. The symmetric counterpart at the producer side.
