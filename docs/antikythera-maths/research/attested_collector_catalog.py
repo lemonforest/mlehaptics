@@ -281,6 +281,7 @@ def get_attested_dataset(
     *,
     limit: Optional[int] = None,
     offset: int = 0,
+    live: bool = False,
 ) -> Dict[str, Any]:
     """Return paginated row content for a registered source.
 
@@ -288,13 +289,30 @@ def get_attested_dataset(
     ``rendering`` blocks. Use :func:`attestation_audit` for the
     cheap data-block-free variant.
 
+    Parameters
+    ----------
+    source_key
+        The descriptor's ``[source].key`` string.
+    limit, offset
+        Pagination over the result set.
+    live
+        *(v0.25.2+)* When ``True``, fetch the source's rows from
+        its upstream archive at call time (T3 reproducibility tier)
+        instead of reading the committed NDJSON. The fetch uses
+        the descriptor's declared adapter; each row is stamped
+        with retrieval-time + response checksum + collector-
+        descriptor-hash, just like a T1 collector run, plus a
+        ``"_tier": "T3"`` discriminator on the returned envelope.
+        Defaults to ``False`` (T0+T1+T2 baseline).
+
     Returns
     -------
     dict
         ``{ok, source_key, total, offset, limit, next_offset, rows}``
-        where ``rows`` is a list-of-dict slice of the source's
-        committed NDJSON. ``next_offset`` is ``None`` when the
-        slice extends through end-of-file.
+        where ``rows`` is a list-of-dict slice. ``next_offset`` is
+        ``None`` when the slice extends through end-of-file. T3
+        responses also carry ``tier="T3"`` + ``retrieved_at`` +
+        ``upstream_response_sha256`` for paper-appendix replay.
     """
     descriptors = _descriptors()
     if source_key not in descriptors:
@@ -304,11 +322,18 @@ def get_attested_dataset(
             "available": sorted(descriptors.keys()),
         }
     descriptor = descriptors[source_key]
+
+    if live:
+        return _get_attested_dataset_live(
+            descriptor, limit=limit, offset=offset
+        )
+
     ndjson = _resolved_ndjson_path(descriptor)
     if not ndjson.exists():
         return {
             "ok": True,
             "source_key": source_key,
+            "tier": "T0+T1+T2",
             "total": 0,
             "offset": offset,
             "limit": limit,
@@ -343,12 +368,118 @@ def get_attested_dataset(
     return {
         "ok": True,
         "source_key": source_key,
+        "tier": "T0+T1+T2",
         "total": total,
         "offset": offset,
         "limit": limit,
         "next_offset": next_offset,
         "rows": rows,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# T3 — Live query (v0.25.2+)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _get_attested_dataset_live(
+    descriptor: Descriptor,
+    *,
+    limit: Optional[int],
+    offset: int,
+) -> Dict[str, Any]:
+    """Fetch a source's rows live from upstream (T3 tier).
+
+    Runs the descriptor's declared adapter at call time. The
+    composer in ``attested_adapters._base.run`` handles fetch +
+    parse + per-row attestation; this function paginates the
+    resulting MPRRecord stream and adds the T3 envelope fields.
+
+    Reproducibility: weakest tier. Each row's attestation block
+    carries the response_sha256 + retrieved_at the upstream
+    *currently* serves; replaying requires re-running the live
+    fetch against an unchanged upstream OR archiving the response
+    bytes alongside the recorded retrieved_at + sha256.
+    """
+    import datetime as _dt
+
+    # Lazy-import to keep regenerate.py off the network path.
+    from . import attested_adapters as _adapters
+
+    package_version = _read_package_version()
+    parser_version = f"ephemerides-spectral {package_version}"
+    retrieved_at = _dt.datetime.now(_dt.timezone.utc)
+
+    rows: List[Dict[str, Any]] = []
+    total = 0
+    upstream_hashes: List[str] = []
+
+    try:
+        for record in _adapters.run(
+            descriptor,
+            parser_version=parser_version,
+            retrieved_at=retrieved_at,
+        ):
+            total += 1
+            sha = record.attestation.get("response_sha256", "")
+            if sha and sha not in upstream_hashes:
+                upstream_hashes.append(sha)
+            if total - 1 < offset:
+                continue
+            if limit is not None and len(rows) >= limit:
+                # Keep iterating to compute total when no limit
+                # would be respected — but break early on limit
+                # to avoid pulling the whole upstream just to
+                # count when the consumer only wants `limit`
+                # rows. Trade-off: total reflects only the
+                # partial fetch consumed.
+                continue
+            rows.append({
+                "data": dict(record.data),
+                "attestation": dict(record.attestation),
+                "rendering": dict(record.rendering),
+                "data_schema_id": record.data_schema_id,
+                "mpr_version": record.mpr_version,
+            })
+    except Exception as exc:  # noqa: BLE001 — surface adapter errors
+        return {
+            "ok": False,
+            "source_key": descriptor.key,
+            "tier": "T3",
+            "error": f"live fetch failed: {exc}",
+            "retrieved_at": retrieved_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+
+    next_offset: Optional[int]
+    if limit is None:
+        next_offset = None
+    else:
+        end = offset + len(rows)
+        next_offset = end if end < total else None
+
+    return {
+        "ok": True,
+        "source_key": descriptor.key,
+        "tier": "T3",
+        "retrieved_at": retrieved_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "upstream_response_sha256s": upstream_hashes,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "next_offset": next_offset,
+        "rows": rows,
+    }
+
+
+def _read_package_version() -> str:
+    """Read the running package's version string. Used in T3
+    attestation blocks so consumers can replay against the same
+    parser_version that produced the row."""
+    try:
+        from .. import version as _ver  # type: ignore
+        return str(_ver.__version__)
+    except Exception:
+        return "unknown"
 
 
 def get_attested_descriptor(source_key: str) -> Dict[str, Any]:

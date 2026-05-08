@@ -14,7 +14,7 @@ human_readable_name = "EarthRef Seamount Catalog"
 purpose = "ground-proof rows for hotspot-track / bounded-local-Laplacian regimes (v0.24.5 / v0.24.7)"
 license = "CC-BY-4.0"
 homepage = "https://www.earthref.org/SC/"
-canonical_doi = ""
+canonical_doi = "10.1029/2009GL040749"
 
 [fetch]
 adapter = "html_scraper"
