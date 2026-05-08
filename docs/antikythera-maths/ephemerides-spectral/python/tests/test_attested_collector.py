@@ -275,16 +275,22 @@ def test_descriptor_hash_deterministic() -> None:
     assert len(h1) == 64  # SHA-256 hex
 
 
-def test_discover_descriptors_finds_three_pilots() -> None:
-    """Walking research/attested/ surfaces v0.25.0b's three pilots."""
+def test_discover_descriptors_finds_committed_pilots() -> None:
+    """Walking research/attested/ surfaces every committed pilot."""
     from ephemerides_spectral._research.attested_collector_catalog import (
         _attested_root,
     )
     found = discover_descriptors(_attested_root())
-    assert sorted(found.keys()) == ["earthref_sc", "gmrt", "petdb_v4"]
+    assert sorted(found.keys()) == [
+        "earthref_sc",
+        "gmrt",
+        "petdb_v4",
+        "saturn_rings",
+    ]
     assert found["earthref_sc"].adapter_name == "html_scraper"
     assert found["gmrt"].adapter_name == "csv_bulk"
     assert found["petdb_v4"].adapter_name == "json_api"
+    assert found["saturn_rings"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -292,8 +298,15 @@ def test_discover_descriptors_finds_three_pilots() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_all_five_adapters_registered() -> None:
-    expected = {"html_scraper", "json_api", "csv_bulk", "netcdf_grid", "geotiff_bbox"}
+def test_all_known_adapters_registered() -> None:
+    expected = {
+        "html_scraper",
+        "json_api",
+        "csv_bulk",
+        "netcdf_grid",
+        "geotiff_bbox",
+        "literature_curated",
+    }
     assert set(ADAPTERS.keys()) == expected
 
 
