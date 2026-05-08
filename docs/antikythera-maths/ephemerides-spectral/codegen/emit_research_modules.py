@@ -90,6 +90,8 @@ _INCLUDED_MODULES: List[str] = [
     "mars_tharsis_catalog.py",
     "axial_seamount_data.py",
     "axial_seamount_catalog.py",
+    "dynamical_regime_data.py",
+    "dynamical_regime_catalog.py",
 ]
 
 def emit() -> List[Path]:

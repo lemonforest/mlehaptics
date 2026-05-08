@@ -588,6 +588,25 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.9 Sol Dynamical-Regime Classifier (eigenbasis-projection
+    # version of the v0.24.x if/else chain; consumes v0.24.0-v0.24.8
+    # catalogs as labelled training examples). Pure-Python; the
+    # eigendecomposition is computed at query time on a 9 x 7 feature
+    # matrix. No C twin makes sense.
+    "get_dynamical_regime_eigenbasis": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "classify_dynamical_regime": {
+        "status": "python_only",
+        "kwargs_py": {
+            "feature_vector": (6.88, 3.39, 1.0, 1, 0, 0, 0),
+        },
+    },
+    "list_dynamical_regimes": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

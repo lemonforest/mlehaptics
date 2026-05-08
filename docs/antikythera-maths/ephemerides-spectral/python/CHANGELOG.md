@@ -10,7 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.8)
+(no entries yet — next entries land after v0.24.9)
+
+## [0.24.9] — 2026-05-07
+
+**Dynamical-Regime Classifier (eigenbasis-projection version of the v0.24.x if/else chain).** Tenth and capstone ship in v0.24.x; the project's first explicit *meta-consumer* of the v0.24.x methodology arc. Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.dynamical_regime_catalog` — wrapper module with `get_dynamical_regime_eigenbasis(n_components=3)`, `classify_dynamical_regime(feature_vector, n_components=3)`, `list_dynamical_regimes`. PCA over the 9×7 standardised feature matrix; nearest-neighbour classification in the top-k eigenbasis; sign-convention pinned (largest-magnitude PC entry positive) for LAPACK reproducibility.
+- `_research.dynamical_regime_data` — data module with `REGIME_EXAMPLES` (9 labelled training examples, one per v0.24.0–v0.24.8 ship), `N_FEATURES = 7`, `FORCING_CLASS_*` enum constants, `FEATURE_NAMES` ordered tuple, `SOURCES` (9 citations — one pointer per source ship), `RegimeExample` dataclass.
+
+### Added — bridge dict API
+
+- `bridge.get_dynamical_regime_eigenbasis(n_components=3)` — eigenvalues + per-feature loadings + per-training-example projections.
+- `bridge.classify_dynamical_regime(feature_vector, n_components=3)` — projects a 7-feature vector into the eigenbasis; returns nearest-neighbour regime label + distances to every training example + projection diagnostics.
+- `bridge.list_dynamical_regimes()` — full enumeration + citations.
+
+### Added — CLI
+
+- `ephemerides-spectral regime-eigenbasis [--n-components K]`
+- `ephemerides-spectral regime-classify --time-scale-log-s ... --spatial-scale-log-km ... --stability-index ... --has-commensurability ... --prediction-track-signal ... --dimensionality ... --forcing-class-index ... [--n-components K]`
+- `ephemerides-spectral regime-list`
+
+### Added — Tests
+
+- `tests/test_dynamical_regime.py` — 48 tests pinning roster shape (9 examples, one per v0.24.0–v0.24.8 ship), feature-vector schema invariants (length 7; stability_index ∈ [0,1]; has_commensurability ∈ {0,1}; prediction_track_signal ∈ {-1,0,1}; dimensionality ∈ {0,1,2,3}; forcing_class in known set), per-ship presence (every v0.24.x version represented with the right regime label), eigenbasis invariants (eigenvalues descending and non-negative; explained-variance-ratios sum to 1; top-3 PCs explain >70%; top-4 explain >90%), self-classification accuracy (9/9 round-trip), out-of-sample probes (Yellowstone → Hawaii regime; K-dwarf → continuum), input validation (wrong-length feature vectors raise ValueError), bridge + CLI smoke.
+- `tests/test_parity_smoke.py` — three new `python_only` parity entries.
+
+### Architectural commitment
+
+The v0.24.x methodology arc gains its **capstone ship**: nine training examples, one per v0.24.0–v0.24.8 ship, projected into a 7-dimensional feature space + standardised + PCA-decomposed. The eigenbasis is the project's dynamical-regime classifier: replaces the aspirational hand-coded if/else chain ("if body has commensurability, dispatch to Mercury / Luna methodology; else if body is chaotic, dispatch to Mars methodology; …") with a **learned eigenbasis projection** that exposes distance-to-all training examples so callers can see calibration when out-of-sample. This is the **same Fiedler / eigenbasis machinery** used by v0.18.0 body_architecture (resonance-graph), v0.24.5 Hawaii (Earth-surface bounded-local), and v0.24.7 Mars Tharsis (Mars-surface bounded-local) — now applied to **the v0.24.x ships themselves as data points**, the project's first explicit meta-consumer of the methodology arc.
 
 ## [0.24.8] — 2026-05-07
 
