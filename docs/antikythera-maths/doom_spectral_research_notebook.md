@@ -15,6 +15,7 @@
 > - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20 with explicit three-regime classification (impulse + ring-down / driven sustain / driven with irreversibility) that names the doom-spectral substrate as a regime-A/B/C-handling framework natively.
 > - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`); the closest sibling to doom-spectral in spirit (real-renderer integration of the same eigenbasis substrate; see Inkscape `mr_description.md`).
 > - **mfo-spectral** sister-notebook added (May 2026) — Metric Field Ontology, the project's bottom-up derivation of the foundational ontology (matter as sustained resonance in cavity-instrument geometries; fractal spectral cutoff fixes mass; ~11D dimensional structure shared with string theory but motivated independently). Joins the collection at the foundational-ontology layer; future MPM target.
+> - **Ephemerides §21 — Tool-rejection as MPM-screening failure** (symmetric counterpart to §20). Names the evaluator-side screening failure: rejecting work by which tool was used to make it, not by what it claims. Anchored on the historical orbital-mechanics chain DE441 traces back to (Copernicus / Bruno / Galileo / Kepler). MPM screens are tool-agnostic by design.
 
 ### Authorship attribution
 

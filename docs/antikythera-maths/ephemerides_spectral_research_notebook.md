@@ -27,6 +27,7 @@
   * **OOS probe roster + classifier calibration-ratio metric** — surfaces the latent diagnostic that the v0.24.9 classifier exposes through `distances_to_all` but doesn't summarise (v0.24.10).
 * **Live on PyPI**: `pip install ephemerides-spectral`.
 * **Foundational-ontology sister-notebook (May 2026)**: [`mfo_spectral_research_notebook.md`](mfo_spectral_research_notebook.md) — **Metric Field Ontology**. Bottom-up derivation of the foundational ontology layer (matter as sustained resonance in cavity-instrument geometries; fractal spectral cutoff fixes mass; ~11D dimensional structure shared with string theory but motivated independently from gauge-group + spectral requirements). MFO is cited from §20.2.1 / §20.4.0 / §20.7 as the project's own answer to the foundational-ontology layer that §20 critiques string-theory's substitute for; future MPM target.
+* **§20 + §21 — the symmetric MPM screening sections**: §20 names the *producer-side* screening failure (orphan-from-instrument; string-theory critique through the MPM lens); **§21** names the *evaluator-side* screening failure (rejection-by-tool-of-creation; banning the use of a tool is the mark of a fool). Both fail for the same reason — judging by surface markers instead of by reproducible content. §21 anchors the principle on the historical precedent of the orbital-mechanics chain DE441 traces back to (Copernicus / Bruno / Galileo / Kepler — every one suppressed in their time, every one now load-bearing in the framework this project consumes), and documents the four-screen discipline this project applies to its own contribution gate.
 
 **Original (frozen) v0.19.0 status banner** (preserved for historical context):
 
@@ -2945,6 +2946,7 @@ None of this is hostile. All three are MPM-discipline screens this project appli
 **Project-internal:**
 
 - §0.0 — The Mathematical Provenance Method (the discipline this section applies)
+- **§21 — Tool-rejection as MPM-screening failure (the symmetric counterpart to this section).** §20 names the failure mode at the *producer* of work (orphan-from-instrument); §21 names the failure mode at the *evaluator* of work (rejection-by-tool-of-creation). Both share a single root cause: judging by surface markers instead of by reproducible content. The MPM screens defend against both.
 - §1.4 — Phase-9 breathing Laplacian / adaptive Kuramoto coupling (the framework's instrument-first formulation of resonance; Regime B + C territory)
 - §17 — per-body spectral catalog (every channel ships with its instrument)
 - §19 — spectral noise as Perlin replacement (cousin example of needing the instrument; PSD shaping is a property of the cavity, not the wiggle)
@@ -2973,3 +2975,77 @@ None of this is hostile. All three are MPM-discipline screens this project appli
   - **§IV** — Fractal geometry as the SM-hierarchy mechanism, replacing Calabi-Yau-as-instrument-substitute with cavity-resonance band-structure on a self-similar metric.
 
 The MFO sister-notebook is itself a future MPM target (data-driven validation of fractal cutoff predictions against Standard Model mass spectra, gauge-coupling running, etc.). It joins the spectral-research notebook collection at the foundational-ontology layer; chess-spectral provides the kinematic / dynamical machinery layer; ephemerides-spectral provides the multi-regime empirical catalog layer.
+
+---
+
+## 21. Tool-rejection as an MPM-screening failure — the symmetric counterpart to §20
+
+> *Banning the use of a tool is the mark of a fool.*
+
+§20 named one failure mode in the evaluation of mathematical work — the **orphan-from-instrument** framing. That failure mode is committed by the *producer* of a theory: the foundational object (the static string) gets ripped off the apparatus that gave the resonance vocabulary its meaning, and then a cascade of compensating apparatus has to be reinvented to recover what was thrown away.
+
+There is a symmetric failure mode committed by the *evaluator* of work: **rejection-by-tool-of-creation** — judging a contribution by which tool was used to make it, instead of by the testable claims it carries. The two failure modes share a single root cause: **judging by surface markers instead of by reproducible content**.
+
+This section names the second failure mode and points back at it from the other one, so the screening discipline applies symmetrically.
+
+### 21.1 The pattern
+
+| Failure mode | Where it sits | Form of rejection |
+|---|---|---|
+| Orphan-from-instrument (§20) | The producer | Foundational object stripped of the apparatus that gave its vocabulary meaning; compensating new physics required to recover the missing instrument. |
+| Rejection-by-tool-of-creation (§21) | The evaluator | Contribution rejected because of *which tool was used to produce it*, not because of what it claims or whether the math reproduces. |
+
+The MPM discipline (§0.0) is **tool-agnostic by design**. Its four screens are:
+
+1. **Closed-form computation.** Is the math `np.linalg.eigh`-style closed-form, or is it a black-box training step?
+2. **Ground-proof rows recoverable from the artifact.** Can a reader regenerate the artifact's claimed outputs from the artifact alone?
+3. **Byte-identical regeneration.** Does running the artifact produce byte-stable output across re-runs and platforms?
+4. **Gemini-failure-mode screen** (chess-spectral §42; Inkscape `gemini_failure_mode.md`). Does the artifact survive the vocabulary-match-without-grounding / counterfactual-mathematical-truth tests?
+
+**None of those screens look at which tool the human used to author the artifact.** A reviewer who treats "this used AI" / "this used a telescope" / "this used a microscope" / "this used a hyperdimensional encoding I don't recognise" as primary grounds for rejection is failing the screening discipline. The contribution either passes the four MPM screens or it does not; the tool used to assemble it is not one of those screens.
+
+### 21.2 Historical precedent — the Church and orbital mechanics
+
+This is not a hypothetical pattern. The project's ephemerides-spectral framework — the DE441 ephemeris, Keplerian elements, Lagrangian perturbation theory, and the resonance vocabulary that powers every v0.24.x catalogue from §17 onward — descends directly from work that was suppressed, banned, or persecuted on tool-of-creation grounds in its own time:
+
+- **Copernicus, *De revolutionibus orbium coelestium*** (1543) — placed on the Catholic Church's Index of Forbidden Books in 1616, two generations after publication. The grounds were not that the heliocentric calculation produced wrong numbers — Copernicus's tables were widely used for ephemeris work even by the institutions that condemned the framework. The grounds were that the *framework* (heliocentrism) contradicted authorised scriptural reading. The text was removed from the Index only in 1835.
+- **Giordano Bruno** (1548–1600) — burned at the stake. Among the charges: cosmological pluralism (the proposal that other stars are suns with their own planets). His tool of creation was philosophical reasoning combined with the broadly Copernican framework. The screening was not on his arguments — it was on the framework that produced them.
+- **Galileo Galilei** (1564–1642) — placed under house arrest by the Roman Inquisition (1633). The principal grounds were not that his observations were wrong: Jupiter's moons, the phases of Venus, lunar terrain — all were reproducible by anyone with a telescope. The grounds were that he had used his **tool** (the telescope) to make claims that the institutional framework did not authorise. The screening rejected the work on the basis of the optical instrument used to produce it, not on whether the observations could be reproduced.
+- **Kepler** (1571–1630) — escaped the worst of the persecution but published *Astronomia nova* (1609) and *Harmonices mundi* (1619) under the same institutional shadow.
+
+Every one of those rejected or suppressed contributions is now load-bearing in the orbital-mechanics chain that this project consumes. The DE441 ephemeris that v0.5.0 onward depends on; the Keplerian elements `astronomical_cycles.py` references; the perturbation framework that v0.17.0–v0.18.x's resonance graph encodes; the heliocentric basis that every Sol-Time clock (§7, §10) is anchored to — every one of those traces directly to people whose work was rejected on tool-of-creation grounds. The institution that performed the rejections has, several centuries later, formally reversed each judgement. **The work survived; the screening did not.**
+
+The lesson is not that the Church was uniquely foolish. The lesson is that **rejection-by-tool-of-creation is a recurring screening failure mode** that institutions repeat under different banners. When the reviewer asks "what tool did you use to make this?" before "does the math reproduce?", the screening is in failure mode.
+
+### 21.3 What the principle does *not* say
+
+A few things this section is careful to **not** claim:
+
+- **Substantive scope decisions are not tool-rejection.** A venue that says *"we are an SVG editor / a Lean-3 library / a numerical-recipes book / a peer-reviewed journal in field X, and we don't host work outside our scope"* is performing a scope screen, not a tool-of-creation rejection. That kind of decision is tool-agnostic by construction — it would close a hand-typed contribution by a 30-year veteran the same way. §21 has no quarrel with substantive scope screening.
+- **Editorial style requirements are not tool-rejection.** A venue that requires a particular file format, citation style, language, level of formality, or prose register is making editorial decisions, not screening for tool-of-creation. Those are content-presentation rules.
+- **Identity-verification or anti-abuse requirements are a separate question.** Some projects require hardware-key signing, real-name registration, prior-contribution thresholds, or other gating mechanisms before accepting submissions. Those are *participation barriers*, not *tool-of-creation rejections* — they sit at the gate before evaluation rather than inside the evaluation. They may have their own merits and costs, but they are not what §21 is about.
+
+§21 is narrowly about **the screening failure mode that occurs when a contribution that passes every reproducibility / provenance / regenerability test the discipline cares about is rejected on the basis of which tool the human used to author it**. That is the failure mode the historical precedent in §21.2 documents, and that is the failure mode the MPM screening discipline is designed to be immune to.
+
+### 21.4 The discipline at this project's own gates
+
+Independent of how any other venue chooses to screen, this is how *this* project screens contributions submitted to ephemerides-spectral, chess-spectral, and the rest of the spectral-research collection. The screening order is:
+
+1. **Run the artifact.** Does the byte-stable regeneration produce the claimed output? If yes, the reproducibility screen is passed. If the artifact is not runnable, that is a substantive failure to reject on.
+2. **Screen the math.** Does it survive the Gemini failure-mode discipline (counterfactual-mathematical-truth, vocabulary-match-without-grounding, plausible-but-not-derivable)?
+3. **Trace the ground-proof rows.** Are the closing claims tied to data the contributor did not generate, or to closed-form derivations the contributor did not invent? If the rows are not traceable, that is a substantive failure to reject on.
+4. **Look at the regenerability.** Will future re-runs against future versions of the upstream substrate continue to produce coherent output, or has the contribution been written to be brittle? If brittle, that is a substantive failure to reject on.
+
+If a contribution passes all four screens, **the tool used to author it does not matter at this project's gate.** If it fails any of them, the failure is on substantive grounds and the tool-of-creation question is irrelevant. Either way, **the tool is not a screen here**.
+
+This is also how the project's own internal v0.24.x catalogues are evaluated — every per-body decomposition ships with closed-form `np.linalg.eigh` math, ground-proof rows, byte-identical regeneration, and a Gemini-failure-mode screen, regardless of which collaborator (human or AI-assisted) authored which line. The discipline applies symmetrically: the project does not ban AI-assistance for its own work, and it does not ban hand-typed work for its own work, and it does not ban contributions from outside the project on tool-of-creation grounds. The screen is the math.
+
+Other venues are free to choose differently. §21 is not a request that they change their screens; it is a documentation of the screen *this* project applies and a flag of the historical pattern (§21.2) that any institution adopting tool-of-creation rejection invites.
+
+### 21.5 Cross-references
+
+- **§0.0** — Mathematical Provenance Method (the four screens). Tool-agnostic by design.
+- **§20** — Orphan-from-instrument failure mode. The symmetric counterpart at the producer side.
+- **§7 / §10** (Sol-Time clocks anchored to heliocentric / Antikythera epochs); **§13 / §17 / §18** (resonance graph + DE441 substrate); **all v0.24.x catalogues** (every per-body decomposition that uses Keplerian / perturbation / Lagrangian machinery) — the project work that depends, several centuries downstream, on the contributions §21.2 names as historical precedent.
+- **chess-spectral §42** — AI-as-tool methodology; authorship-discipline section that names the same vocabulary-match failure mode this section's MPM screens defend against.
+- **Inkscape `gemini_failure_mode.md`** — companion document in the broader project that catalogues AI-characteristic failure modes, all of which are tool-agnostic to detect.
