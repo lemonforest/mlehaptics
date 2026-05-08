@@ -676,6 +676,20 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {"source_key": "earthref_sc"},
     },
+    # ── v0.25.1 T2 user runtime kernel — local NDJSON overlay over
+    # the T0+T1 baseline. Pure-Python file IO; no C twin makes sense.
+    "use_local_kernel": {
+        "status": "python_only",
+        "kwargs_py": {"path": None},
+    },
+    "clear_local_kernel": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_local_kernel_state": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

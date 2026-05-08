@@ -5820,6 +5820,44 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
     return _attested_catalog.attestation_audit(source_key)
 
 
+# v0.25.1 — T2 user runtime kernel surfaces
+
+def use_local_kernel(path: Optional[str]) -> Dict[str, Any]:
+    """Register a user-runtime-kernel overlay (T2).
+
+    The path should be a directory shaped like
+    ``<source_key>/<table>.ndjson``. Once registered, queries
+    consult the overlay directory FIRST per source: if a matching
+    overlay file exists, it REPLACES the baseline NDJSON for that
+    source. Sources with no overlay file fall through to T0+T1.
+
+    Pass ``None`` to clear a previously-registered overlay.
+
+    Reproducibility tier: T2. Within a single user's local cache
+    state, queries are byte-identical; the cache hash returned by
+    :func:`get_local_kernel_state` documents the state for paper
+    appendices.
+    """
+    return _attested_catalog.use_local_kernel(path)
+
+
+def clear_local_kernel() -> Dict[str, Any]:
+    """Remove the registered T2 overlay. Equivalent to
+    ``use_local_kernel(None)``."""
+    return _attested_catalog.clear_local_kernel()
+
+
+def get_local_kernel_state() -> Dict[str, Any]:
+    """Return the current T2 overlay state + per-source cache hash.
+
+    The cache hash is SHA-256 over the canonical-serialised list of
+    ``(source_key, ndjson_sha256)`` pairs that the overlay
+    currently supplies. Paper appendices can record this hash to
+    document exactly which T2 rows were consumed at runtime.
+    """
+    return _attested_catalog.get_local_kernel_state()
+
+
 __all__ = [
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
@@ -5853,4 +5891,7 @@ __all__ = [
     "get_attested_dataset",
     "get_attested_descriptor",
     "attestation_audit",
+    "use_local_kernel",
+    "clear_local_kernel",
+    "get_local_kernel_state",
 ]

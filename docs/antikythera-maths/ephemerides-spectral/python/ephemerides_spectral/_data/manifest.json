@@ -81,8 +81,8 @@
       "size_bytes": 1851
     },
     "_research/attested_collector_catalog.py": {
-      "sha256": "99c94bed888ad7957e0dc145e45d55d915c6703b94e4d7375be9c8fea513cac4",
-      "size_bytes": 10585
+      "sha256": "74e2afe56f8b793537814a87b45de8d84884a222efc9555de89030fda1830968",
+      "size_bytes": 16850
     },
     "_research/attested_collector_descriptor.py": {
       "sha256": "b76ade56ce5096187103dcd96e5d22bf787dbaf29241f9d42d98f14d428d6ec2",
@@ -398,5 +398,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.25.0"
+  "version": "0.25.1"
 }

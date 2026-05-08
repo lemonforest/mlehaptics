@@ -6,16 +6,42 @@ without per-source code paths. The whole point of v0.25.0 is that
 adding a source is a CONFIG change (descriptor + schema + NDJSON);
 no per-source ``*_catalog.py`` module needed.
 
+Reproducibility tiers (notebook §18.1)
+---------------------------------------
+* **T0** — committed NDJSON under ``_research/attested/<source>/``.
+  Byte-identical across all installs of a given version.
+* **T1** — CI-baked extension (auto-PR refresh via the collect
+  workflow). Byte-identical at the next ship.
+* **T2** — *(v0.25.1+)* user runtime kernel. Local NDJSON cache
+  registered via :func:`use_local_kernel`. Byte-identical *within*
+  a user's local cache state; the cache hash documents the state
+  for paper appendices.
+* **T3** — *(v0.25.2+)* live query.
+
+When a T2 overlay is registered, queries merge T0+T1 baseline rows
+with T2 overlay rows on a per-source-and-table basis. Default
+policy is **replace**: an overlay file at
+``<overlay>/<source>/<table>.ndjson`` REPLACES the baseline file
+for that source. Future v0.25.x ships may add an explicit append
+policy.
+
 Surfaces
 --------
 * :func:`list_attested_sources` — every registered source's
   rendered metadata (name, purpose, license, cite_as, gap_targeting).
 * :func:`get_attested_dataset` — paginated row content for one
-  source, with full attestation + rendering blocks.
+  source, with full attestation + rendering blocks. Honours T2
+  overlay when registered.
 * :func:`get_attested_descriptor` — full parsed descriptor for one
   source (UI / pre-fetch).
 * :func:`attestation_audit` — per-row attestation metadata, **no
   data payload** (cheap, paper-appendix-ready).
+* :func:`use_local_kernel` — register a T2 user-runtime-kernel
+  overlay. *(v0.25.1+)*
+* :func:`clear_local_kernel` — remove the T2 overlay. *(v0.25.1+)*
+* :func:`get_local_kernel_state` — return current T2 state +
+  per-source cache-hash so a paper can replay exactly which rows
+  were used. *(v0.25.1+)*
 
 References
 ----------
@@ -26,6 +52,7 @@ References
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -63,7 +90,7 @@ def _descriptors() -> Dict[str, Descriptor]:
 
 
 def _ndjson_path(descriptor: Descriptor) -> Path:
-    """Resolve the NDJSON file path for a descriptor.
+    """Resolve the baseline NDJSON file path for a descriptor.
 
     The descriptor's ``[schema].data_schema_id`` is used as the
     filename stem; e.g. ``earthref_sc.seamount.v1`` →
@@ -75,6 +102,142 @@ def _ndjson_path(descriptor: Descriptor) -> Path:
     # Convention: <source_key>.<table>.<version>
     table = parts[1] if len(parts) >= 3 else parts[-1]
     return descriptor.path.parent / f"{table}.ndjson"
+
+
+def _table_name(descriptor: Descriptor) -> str:
+    """Resolve the table-name part of the descriptor's data_schema_id.
+    Mirrors :func:`_ndjson_path` filename stem."""
+    schema_id = str(descriptor.schema["data_schema_id"])
+    parts = schema_id.split(".")
+    return parts[1] if len(parts) >= 3 else parts[-1]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# T2 — User runtime kernel (v0.25.1+)
+# ──────────────────────────────────────────────────────────────────────
+
+
+_LOCAL_KERNEL_PATH: Optional[Path] = None
+"""Currently registered T2 overlay root (or None for T0+T1 only)."""
+
+
+def use_local_kernel(path: Optional[Path | str]) -> Dict[str, Any]:
+    """Register a user-runtime-kernel overlay (T2).
+
+    Parameters
+    ----------
+    path
+        Filesystem path to a directory shaped like
+        ``<source_key>/<table>.ndjson``. When None, clears any
+        registered overlay (equivalent to :func:`clear_local_kernel`).
+
+    Behaviour
+    ---------
+    Once registered, queries (``get_attested_dataset`` /
+    ``attestation_audit``) consult the overlay directory FIRST. For
+    each registered source, if the overlay contains a matching
+    ``<source>/<table>.ndjson`` file, it REPLACES the baseline
+    NDJSON for that source. Sources with no overlay file fall
+    through to the T0+T1 baseline.
+
+    Returns the new local-kernel state for confirmation.
+    """
+    global _LOCAL_KERNEL_PATH
+    if path is None:
+        _LOCAL_KERNEL_PATH = None
+        return {
+            "ok": True,
+            "active": False,
+            "path": None,
+            "message": "T2 overlay cleared; queries return T0+T1 baseline only",
+        }
+    resolved = Path(path).expanduser().resolve()
+    if not resolved.exists():
+        return {
+            "ok": False,
+            "error": f"local kernel path does not exist: {resolved}",
+        }
+    if not resolved.is_dir():
+        return {
+            "ok": False,
+            "error": f"local kernel path is not a directory: {resolved}",
+        }
+    _LOCAL_KERNEL_PATH = resolved
+    return {
+        "ok": True,
+        "active": True,
+        "path": str(resolved),
+        "message": f"T2 overlay registered at {resolved}",
+    }
+
+
+def clear_local_kernel() -> Dict[str, Any]:
+    """Remove the registered T2 overlay. Equivalent to
+    ``use_local_kernel(None)``."""
+    return use_local_kernel(None)
+
+
+def get_local_kernel_state() -> Dict[str, Any]:
+    """Return the current T2 state and per-source cache-hash.
+
+    The cache-hash is SHA-256 over the canonical-serialised list of
+    ``(source_key, ndjson_sha256)`` pairs. Used in paper appendices
+    to document exactly which rows were used at runtime — papers
+    can replay the cache state by recomputing this hash against the
+    archived overlay tree.
+    """
+    descriptors = _descriptors()
+    per_source: List[Dict[str, str]] = []
+    for key in sorted(descriptors.keys()):
+        descriptor = descriptors[key]
+        overlay = _overlay_path_for(descriptor)
+        if overlay is None or not overlay.exists():
+            continue
+        per_source.append({
+            "source_key": key,
+            "table": _table_name(descriptor),
+            "overlay_path": str(overlay),
+            "overlay_sha256": _file_sha256(overlay),
+        })
+
+    canonical = "\n".join(
+        f"{e['source_key']}\t{e['overlay_sha256']}" for e in per_source
+    )
+    cache_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    return {
+        "ok": True,
+        "active": _LOCAL_KERNEL_PATH is not None,
+        "path": str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None,
+        "n_overlay_sources": len(per_source),
+        "per_source": per_source,
+        "cache_hash": cache_hash,
+    }
+
+
+def _overlay_path_for(descriptor: Descriptor) -> Optional[Path]:
+    """Resolve the T2 overlay NDJSON path for a descriptor (or
+    None when no overlay is registered)."""
+    if _LOCAL_KERNEL_PATH is None:
+        return None
+    return _LOCAL_KERNEL_PATH / descriptor.key / f"{_table_name(descriptor)}.ndjson"
+
+
+def _file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _resolved_ndjson_path(descriptor: Descriptor) -> Path:
+    """Resolve the NDJSON path actually consumed at query time —
+    T2 overlay if registered + present, else T0+T1 baseline."""
+    overlay = _overlay_path_for(descriptor)
+    if overlay is not None and overlay.exists():
+        return overlay
+    return _ndjson_path(descriptor)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -141,7 +304,7 @@ def get_attested_dataset(
             "available": sorted(descriptors.keys()),
         }
     descriptor = descriptors[source_key]
-    ndjson = _ndjson_path(descriptor)
+    ndjson = _resolved_ndjson_path(descriptor)
     if not ndjson.exists():
         return {
             "ok": True,
@@ -226,7 +389,7 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
             "available": sorted(descriptors.keys()),
         }
     descriptor = descriptors[source_key]
-    ndjson = _ndjson_path(descriptor)
+    ndjson = _resolved_ndjson_path(descriptor)
     if not ndjson.exists():
         return {
             "ok": True,
@@ -274,7 +437,7 @@ def iter_attested_dataset(source_key: str) -> Iterator[MPRRecord]:
     if source_key not in descriptors:
         raise KeyError(f"unknown source_key {source_key!r}")
     descriptor = descriptors[source_key]
-    ndjson = _ndjson_path(descriptor)
+    ndjson = _resolved_ndjson_path(descriptor)
     if not ndjson.exists():
         return iter(())
     return read_ndjson(ndjson)
@@ -286,4 +449,7 @@ __all__ = [
     "get_attested_descriptor",
     "attestation_audit",
     "iter_attested_dataset",
+    "use_local_kernel",
+    "clear_local_kernel",
+    "get_local_kernel_state",
 ]

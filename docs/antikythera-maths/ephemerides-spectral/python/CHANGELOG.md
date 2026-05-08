@@ -10,7 +10,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.0)
+(no entries yet — next entries land after v0.25.1)
+
+## [0.25.1] — 2026-05-08
+
+**Attested collector — T2 user runtime kernel.** Adds the local-NDJSON overlay layer promised by notebook §18.1's four-tier reproducibility model. Pure-Python additive; **no ABI bump** (thirty-seventh consecutive ship since v0.13.x).
+
+### Added — Pythonic API
+
+- `_research.attested_collector_catalog.use_local_kernel(path)` — register an overlay directory shaped like `<source_key>/<table>.ndjson`. REPLACE policy: a matching overlay file replaces the baseline NDJSON for that source; sources with no overlay file fall through to T0+T1 unchanged. Pass `None` to clear.
+- `_research.attested_collector_catalog.clear_local_kernel()` — remove the registered overlay.
+- `_research.attested_collector_catalog.get_local_kernel_state()` — return the current overlay state + per-source overlay file list + a **cache hash** (SHA-256 over the canonical-serialised list of `(source_key, ndjson_sha256)` pairs).
+
+### Added — bridge dict API
+
+- `bridge.use_local_kernel(path)` (Optional[str])
+- `bridge.clear_local_kernel()`
+- `bridge.get_local_kernel_state()`
+
+### Added — CLI
+
+- `ephemerides-spectral local-kernel-use --path <DIR>`
+- `ephemerides-spectral local-kernel-clear`
+- `ephemerides-spectral local-kernel-state`
+
+### Reproducibility tier
+
+T2. Within a single user's local cache state, queries are byte-identical. The cache hash from `get_local_kernel_state` uniquely identifies which T2 rows were consumed at runtime — paper appendices record this hash to enable deterministic replay against an archived overlay tree.
+
+### Catalog wrapper changes
+
+- New `_resolved_ndjson_path(descriptor)` helper resolves T2 overlay first then T0+T1 baseline; `get_attested_dataset`, `attestation_audit`, and `iter_attested_dataset` route through it.
+- `_LOCAL_KERNEL_PATH` module-level state holds the registered overlay (or None for baseline-only mode).
+- Default policy is REPLACE; APPEND policy may land in a later v0.25.x.
+
+### Tests
+
+11 new tests in `tests/test_attested_collector.py` covering overlay registration / clearing / state, REPLACE-policy behaviour, source isolation (overlay for A doesn't affect B), cache-hash determinism, CLI smoke + `--help`.
+
+### Cross-references
+
+- Notebook §18.1 — four-tier reproducibility model (T0 / T1 / T2 / T3).
+- T0+T1 baseline shipped v0.25.0 (#150 + #163).
+- T3 live query ships v0.25.2 (#160).
 
 ## [0.25.0] — 2026-05-08
 
