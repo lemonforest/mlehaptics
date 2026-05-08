@@ -2756,7 +2756,7 @@ Each pilot exercises a different adapter; together they prove the shared-core cl
 
 ## 19. Spectral noise as a Perlin replacement — graph-Laplacian PSD-weighted generation
 
-**Project-tracking note (2026-05-08):** task #104 in this project's roadmap is the long-pending stretch goal "**replace Perlin noise with procedural physics for surface feature generation**." Until recently, that was an aspirational entry — Perlin and its octave-fractal cousin `feTurbulence` are what every SVG renderer, terrain engine, and procedural-texture pipeline ships, and the path away from them was unclear. **A concrete first step has now landed in a sister-project Inkscape contribution**: three new SVG filter primitives wired through Inkscape's filter pipeline on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — `feSpectralBilateral`, `feSpectralDistance`, and the one this section anchors, **`feSpectralNoise`**. The contribution's design notebook is at <https://gitlab.com/lemonforest/inkscape/-/blob/spectral-faithful/doc/spectral/readme.md?ref_type=heads&plain=1>.
+**Project-tracking note (2026-05-08):** `task #104` in this project's roadmap is the long-pending stretch goal "**replace Perlin noise with procedural physics for surface feature generation**." Until recently, that was an aspirational entry — Perlin and its octave-fractal cousin `feTurbulence` are what every SVG renderer, terrain engine, and procedural-texture pipeline ships, and the path away from them was unclear. **A concrete first step has now landed in a sister-project Inkscape contribution**: three new SVG filter primitives wired through Inkscape's filter pipeline on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — `feSpectralBilateral`, `feSpectralDistance`, and the one this section anchors, **`feSpectralNoise`**. The contribution's design notebook is at <https://gitlab.com/lemonforest/inkscape/-/blob/spectral-faithful/doc/spectral/readme.md?ref_type=heads&plain=1>.
 
 ### 19.1 Why this matters for the stretch goal
 
@@ -2774,15 +2774,15 @@ This is the **capability gap** that makes Perlin replacement a real conversation
 
 The discipline match is exact: same lattice-Laplacian eigenbasis as v0.18.0 body_architecture, v0.24.5 Hawaii bounded-local-Fiedler, v0.24.9 dynamical-regime classifier. The only difference is the **direction** of the projection — physics catalogs project ground-proof rows *into* the eigenbasis to extract structure; spectral noise projects *out of* the eigenbasis with prescribed PSD weights to synthesise fields. Both are byte-reproducible; both are Mathematical Provenance Method surfaces.
 
-### 19.3 Cross-project relevance — task #104 first concrete step
+### 19.3 Cross-project relevance — `task #104` first concrete step
 
-This is the right scope to claim as **task #104's first concrete step**, not a full closure: the Inkscape contribution demonstrates the substrate works inside a real renderer (Inkscape's filter pipeline; tests pass; icons render via the primitive itself). It does *not* yet:
+This is the right scope to claim as **`task #104`'s first concrete step**, not a full closure: the Inkscape contribution demonstrates the substrate works inside a real renderer (Inkscape's filter pipeline; tests pass; icons render via the primitive itself). It does *not* yet:
 
 * port the same generator into ephemerides-spectral as a callable bridge surface
 * cover textured / vector / 3-D-noise variants (planet surface heightmaps, volumetric clouds, marble / wood grain stylisations)
 * close the Perlin-replacement claim for procedural-galaxy / procedural-terrain consumers (Elite Dangerous-family). Those engines need additional integration work — gradient noise on arbitrary 3-D meshes, GPU-side eigenbasis approximations, etc.
 
-But the substrate-portability argument is now empirical. The Inkscape design notebook's [Doom93 spectral research notebook](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/doom_spectral_research_notebook/) precedent (eight FPU-bound id Tech 1 subsystems translated to graph-Laplacian primitives) plus this Inkscape ship plus a parallel Skia branch (<https://github.com/lemonforest/spectral-skai/tree/spectral-faithful>) are now three independent real-renderer integrations of the same eigenbasis substrate. Per the discipline of this notebook's §0.0 (The Mathematical Provenance Method), the path to closing #104 is now: ship the next downstream consumer as a real integration, accept the resulting empirical findings (vanilla Perlin still wins on cost in some niches; the contribution is the *capability* of selectable PSDs, not always the *speed*), and document the where-it-maps-cleanly / where-it-doesn't envelope.
+But the substrate-portability argument is now empirical. The Inkscape design notebook's [Doom93 spectral research notebook](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/doom_spectral_research_notebook/) precedent (eight FPU-bound id Tech 1 subsystems translated to graph-Laplacian primitives) plus this Inkscape ship plus a parallel Skia branch (<https://github.com/lemonforest/spectral-skai/tree/spectral-faithful>) are now three independent real-renderer integrations of the same eigenbasis substrate. Per the discipline of this notebook's §0.0 (The Mathematical Provenance Method), the path to closing `#104` is now: ship the next downstream consumer as a real integration, accept the resulting empirical findings (vanilla Perlin still wins on cost in some niches; the contribution is the *capability* of selectable PSDs, not always the *speed*), and document the where-it-maps-cleanly / where-it-doesn't envelope.
 
 ### 19.4 Cross-references
 
@@ -2790,10 +2790,10 @@ But the substrate-portability argument is now empirical. The Inkscape design not
 * Inkscape design notebook (raw): <https://gitlab.com/lemonforest/inkscape/-/raw/spectral-faithful/doc/spectral/readme.md?ref_type=heads&inline=false>
 * Skia parallel: <https://github.com/lemonforest/spectral-skai/tree/spectral-faithful>
 * Doom93 precedent (eight FPU subsystems; methodologically the closest cousin): <https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/doom_spectral_research_notebook/>
-* This project's task #104 (the long-pending stretch goal that this work materially advances): roadmap.
+* This project's `task #104` (the long-pending stretch goal that this work materially advances): roadmap.
 
 ### 19.5 Recommendation
 
-* **Keep #104 open** as a stretch goal, but mark it "first step shipped (sibling project)" rather than fully aspirational. The Inkscape `feSpectralNoise` primitive demonstrates the substrate generates white / pink / brown / blue noise at production quality on a real renderer's filter pipeline.
+* **Keep `#104` open** as a stretch goal, but mark it "first step shipped (sibling project)" rather than fully aspirational. The Inkscape `feSpectralNoise` primitive demonstrates the substrate generates white / pink / brown / blue noise at production quality on a real renderer's filter pipeline.
 * **Don't port the generator into `ephemerides-spectral` yet** — the package's discipline is per-body / per-system catalogs and HDC encoding, not generic noise generation. The right home for any reusable noise primitive is the next downstream consumer (a procedural-terrain library or Doom93-style game-engine port), not an ephemeris package.
 * **Cite this section** when the project's stretch-goal narrative lands somewhere external (PR description, paper, talk) — Inkscape's `feSpectralNoise` is the concrete-and-shipped step that makes the Perlin-replacement claim defensible rather than aspirational.
