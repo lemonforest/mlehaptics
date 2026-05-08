@@ -1,0 +1,78 @@
+# PetDB v4 / EarthChem unified search — pilot source for v0.25.0b.
+#
+# PetDB is the canonical petrology database for igneous rock
+# geochemistry; v4 lives under the EarthChem umbrella search API.
+# It feeds v0.24.5 Hawaii / v0.24.7 Mars Tharsis / v0.24.8 Axial
+# bounded-local-Laplacian regimes by providing per-locality
+# major-element + trace-element + isotope analyses.
+#
+# v0.25.0b sample query: a small page of recent samples from the
+# Hawaii region (relevant to v0.24.5 Hawaii hotspot ground-proof
+# rows). First-T1 runs may need to adjust the endpoint path; the
+# descriptor's [parse].records_path is the lone seam for that
+# adjustment.
+
+[source]
+key = "petdb_v4"
+human_readable_name = "PetDB v4 (EarthChem unified search)"
+purpose = "ground-proof igneous-rock geochemistry rows for hotspot-track + bounded-local-Laplacian regimes (v0.24.5 / v0.24.7 / v0.24.8)"
+license = "CC-BY-4.0"
+homepage = "https://search.earthchem.org/"
+canonical_doi = "10.1029/2002GC000345"
+
+[fetch]
+adapter = "json_api"
+# EarthChem unified search API — JSON. Sample query targets Hawaii
+# region samples (lat/lon bounding box around the Big Island);
+# limited to a small page size for v0.25.0b. Real-world consumers
+# would page through the full result set via pagination.
+endpoint = "https://search.earthchem.org/api/samples?format=json&latitude_min=18.5&latitude_max=20.5&longitude_min=-156.5&longitude_max=-154.5&page={page}&limit=20"
+rate_limit_rps = 0.5
+robots_txt_compliant = true
+timeout_s = 60.0
+
+[fetch.pagination]
+type = "page_query"
+start = 1
+end_detected_by = "empty_records"
+
+[parse]
+records_path = "samples"
+field_map = [
+    { canonical = "sample_id",      source_key = "id",                 type = "string" },
+    { canonical = "sample_name",    source_key = "name",               type = "string" },
+    { canonical = "latitude_deg",   source_key = "location.latitude",  type = "float"  },
+    { canonical = "longitude_deg",  source_key = "location.longitude", type = "float"  },
+    { canonical = "rock_type",      source_key = "rock_type",          type = "string" },
+    { canonical = "method",         source_key = "analysis_method",    type = "string" },
+    { canonical = "publication_doi", source_key = "publication.doi",   type = "string" },
+]
+
+[schema]
+data_schema_id = "petdb_v4.sample.v1"
+data_schema_path = "geochem.schema.json"
+
+[rendering]
+cite_as_template = "PetDB v4 / EarthChem (Lehnert et al. 2000, doi:10.1029/2002GC000345); retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof geochemistry sample for {schema.regime_label} regime"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+regime_labels = [
+    "bounded_local_laplacian_trajectory",
+    "bounded_local_laplacian_family",
+]

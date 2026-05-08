@@ -25,16 +25,32 @@
       "size_bytes": 12353
     },
     "_research/attested/__init__.py": {
-      "sha256": "23372e208b47de5c44504c53b0938ec955bd3108c2f03493ff4db684da1e15b7",
-      "size_bytes": 331
+      "sha256": "f6ad6562a8b0fc6e258e02e459e2934ffdc882e27f87082e54c4bc89858eb1ad",
+      "size_bytes": 340
     },
     "_research/attested/earthref_sc/descriptor.toml": {
-      "sha256": "bad23ef8bd725d0c2cf44a0506d4e3bd186354f4c95e69b3d2069debb295f771",
-      "size_bytes": 2732
+      "sha256": "4b01d0efda3de4ca912b6369dadcc2606b84984942c75613f73d82f731e85b92",
+      "size_bytes": 2809
     },
     "_research/attested/earthref_sc/seamount.schema.json": {
-      "sha256": "8dd79e63cdb428faac6c12e11b9d6e0a52574b4cb555f301cf72c115e34a7b8a",
-      "size_bytes": 1311
+      "sha256": "a4f79927ce26ccbb4946251d5d43af5b40b751eca86ef3abcc5eb687d462e665",
+      "size_bytes": 1347
+    },
+    "_research/attested/gmrt/bathymetry.schema.json": {
+      "sha256": "591e721aa5593b2587500b562c4dbb3f2a22cc9fbd0a5ff4bd397d3efbeb9d93",
+      "size_bytes": 940
+    },
+    "_research/attested/gmrt/descriptor.toml": {
+      "sha256": "3df91c32a0fdc7042295a6f8c198f1f761fae2a348f3385f7dd84af85916818a",
+      "size_bytes": 2983
+    },
+    "_research/attested/petdb_v4/descriptor.toml": {
+      "sha256": "60290984367eabee1266ac1a4b0af773716fb33948b5c9191ef9402330b4ffa8",
+      "size_bytes": 2979
+    },
+    "_research/attested/petdb_v4/geochem.schema.json": {
+      "sha256": "938b2309f6ffa0c566ebddf1510dedab337dc0c82a51b3cdcd917f2cdc473a7c",
+      "size_bytes": 1477
     },
     "_research/attested_adapters/__init__.py": {
       "sha256": "915da1cab6bf073091be94637a1e1dc2beecc0e699c67d2f26fab040a8ffcab6",
@@ -45,8 +61,8 @@
       "size_bytes": 8289
     },
     "_research/attested_adapters/csv_bulk.py": {
-      "sha256": "9dc7941f89acc49722c57ddaf7d0ef3f013f088c16aea355cba6d5502bc5e8d0",
-      "size_bytes": 2961
+      "sha256": "3283c1cf36c8e19d1553bdc89fc7a5a209bd75e7a5497dfe993d398a15a16f8d",
+      "size_bytes": 4514
     },
     "_research/attested_adapters/geotiff_bbox.py": {
       "sha256": "14fcdd06903f6b7f5c91c2a7032be9f6e5889946e72a9f218788ac7503675679",
@@ -57,8 +73,8 @@
       "size_bytes": 4376
     },
     "_research/attested_adapters/json_api.py": {
-      "sha256": "5cce2b53d5a9d4f02afe0547d74c12e0ec98bdcda1ca62eb899d38b31474e650",
-      "size_bytes": 2979
+      "sha256": "e68bf2221f65b19044553e3f28c27ade0c076ca5bb408d24de728930f293e9da",
+      "size_bytes": 6327
     },
     "_research/attested_adapters/netcdf_grid.py": {
       "sha256": "3bdea890850b701d99c0ff4dbc9ba734098124b099c4c5ecfaa8cf77b5e2b86c",
@@ -382,5 +398,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.12"
+  "version": "0.25.0"
 }

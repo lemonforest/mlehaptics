@@ -10,11 +10,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### v0.25.0a — Attested Multi-Source Collector framework (checkpoint)
+(no entries yet — next entries land after v0.25.0)
 
-Framework foundation for the v0.25.0 ship. Code-only checkpoint;
-no PyPI release. v0.25.0 stable will publish when v0.25.0b lands
-(GMRT + PetDB pilots + T1 collect CI workflow).
+## [0.25.0] — 2026-05-08
+
+**Attested Multi-Source Collector framework v1 — three pilots end-to-end + T1 collect CI workflow + MPR v1 normative format.** Completes the v0.25.0a/b ship sequence (notebook §18). Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged; thirty-sixth consecutive ship since v0.13.x).
+
+### Added (v0.25.0b layer on top of v0.25.0a foundation)
+
+- **Two new pilot descriptors + JSON Schemas**:
+  - `research/attested/gmrt/descriptor.toml` + `bathymetry.schema.json` — GMRT GridServer ESRI ASCII Grid endpoint via `csv_bulk` adapter (Ryan et al. 2009; bathymetry-grid rows for v0.24.5 Hawaii / v0.24.7 Mars Tharsis bounded-local-Laplacian regimes).
+  - `research/attested/petdb_v4/descriptor.toml` + `geochem.schema.json` — PetDB v4 / EarthChem unified search endpoint via `json_api` adapter (Lehnert et al. 2000; igneous-rock geochemistry samples).
+- **Real `csv_bulk.fetch`** implementation. Lazy `requests` import; honours `[fetch].endpoint` template + `query_params` substitution + optional pagination. Used by GMRT pilot.
+- **Real `json_api.fetch`** implementation. Lazy `requests` import; supports `[fetch].pagination.type ∈ {page_query, offset_limit}` and single-shot. End-of-pagination detected via empty `records_path` array. Used by PetDB v4 pilot.
+- **T1 CI workflow** (`.github/workflows/ephemerides-spectral-collect.yml`): scheduled monthly + manual dispatch with optional `--source` filter. Runs `codegen/run_collectors.py`, re-runs `regenerate.py` to refresh manifest SHAs, opens auto-PR with refreshed NDJSON via `peter-evans/create-pull-request@v6`. Maintainer review checklist embedded in PR body covers per-row attestation completeness + license + CI green.
+- **`codegen/run_collectors.py`** — the **only** network-touching code path in the project at codegen time. Discovers descriptors, runs each adapter against its declared upstream archive, writes per-source NDJSON. `regenerate.py` does NOT import this module (verified by `tests/test_attested_collector.py::test_regenerate_path_has_no_network_imports` ratchet).
+
+### Added — pyproject optional dependencies
+
+- `[project.optional-dependencies].collector` — `requests`, `beautifulsoup4`, `tomli` (3.10 backport), `jsonschema`. Required for T1 collector runs; runtime read paths never need these.
+- `[project.optional-dependencies].collector-netcdf` — `netCDF4`. Future-deferred (`netcdf_grid` adapter ships as fixture-only stub in v0.25.0).
+- `[project.optional-dependencies].collector-geotiff` — `rasterio`. Future-deferred (`geotiff_bbox` adapter ships as fixture-only stub in v0.25.0).
+
+### Tests
+
+- `tests/test_attested_collector.py::test_bridge_list_attested_sources_returns_three_pilots` (was `..._returns_earthref_sc`) — n_sources is now 3 (was 1 in v0.25.0a).
+- `tests/test_attested_collector.py::test_discover_descriptors_finds_three_pilots` (was `..._earthref_sc`) — pins all three pilots' adapter assignments.
+
+### Documentation cascade
+
+5-doc cascade ratchet update: README Status banner v0.24.12 → v0.25.0; new \`## Status\` bullet for v0.25.0; both CHANGELOGs roll [Unreleased] → [0.25.0]; ROADMAP.md released-versions table prepend; notebook §4 release-history entry below.
+
+### Cross-references
+
+- Format spec: notebook §18 (PR #272 merged 2026-05-08).
+- Discipline: notebook §0.0 The Mathematical Provenance Method.
+- v0.25.0a foundation: PR #273 merged 2026-05-08.
+
+### v0.25.0a foundation (merged 2026-05-08; rolled into v0.25.0)
+
+The framework foundation that v0.25.0b builds on. Code-only checkpoint at v0.25.0a (no PyPI release); the consolidated PyPI artifact is v0.25.0.
 
 #### Added
 

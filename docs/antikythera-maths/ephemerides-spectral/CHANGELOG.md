@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+(no entries yet — next entries land after v0.25.0)
+
+## [0.25.0] — 2026-05-08
+
+**Attested Multi-Source Collector framework v1 — three pilots end-to-end + T1 collect CI workflow + MPR v1 normative format.** Completes the v0.25.0a/b ship sequence (notebook §18). The CONFIG-not-CODE escape from the v0.24.x hand-coding pattern is now production-ready. Pure-Python additive; **no ABI bump** (thirty-sixth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Format module | `_research.attested_collector_format` (MPRRecord + IO + validation) |
+| Descriptor module | `_research.attested_collector_descriptor` (TOML + templating + canonical hashing) |
+| Adapter core | `_research.attested_adapters` (5 modules sharing `_base.attest` + `_base.run`) |
+| Catalog wrapper | `_research.attested_collector_catalog` (universal bridge surfaces) |
+| Bridge | `bridge.list_attested_sources`, `bridge.get_attested_dataset` (paginated), `bridge.get_attested_descriptor`, `bridge.attestation_audit` |
+| CLI | `attested-list`, `attested-dataset`, `attested-descriptor`, `attested-audit` |
+| Pilots (3) | EarthRef SC (`html_scraper`) + GMRT (`csv_bulk`) + PetDB v4 (`json_api`) |
+| T1 workflow | `.github/workflows/ephemerides-spectral-collect.yml` (scheduled monthly + manual dispatch) |
+| Tests | 38 new tests in `tests/test_attested_collector.py` |
+
+### Three pilots end-to-end
+
+- **EarthRef Seamount Catalog** (Wessel & Sandwell 2018; Koppers 2019). HTML-scraped; ~1,800 named seamounts globally. Feeds v0.24.5 Hawaii / v0.24.7 Mars Tharsis bounded-local-Laplacian regimes.
+- **Global Multi-Resolution Topography** (Ryan et al. 2009, doi:10.1029/2008GC002332). GMRT GridServer ESRI ASCII Grid output via `csv_bulk` adapter (no rasterio/gdal dep). Bathymetry rows for hotspot-track regimes.
+- **PetDB v4 / EarthChem unified search** (Lehnert et al. 2000, doi:10.1029/2002GC000345). JSON API; igneous-rock geochemistry samples relevant to v0.24.5 / v0.24.7 / v0.24.8 ground-proof rows.
+
+### T1 (CI-baked extension) — first auto-PR pending
+
+The new `ephemerides-spectral-collect.yml` workflow runs collectors against live archives on schedule (monthly, 02:00 UTC on the 1st) and on manual dispatch (with optional `--source` filter). It writes per-source NDJSON, re-runs `regenerate.py` to refresh manifest SHA-256 sums, and opens an auto-PR via `peter-evans/create-pull-request@v6` with a maintainer-review checklist embedded in the PR body. **The first T1 run** populates the seamount/bathymetry/geochem NDJSON files that v0.25.0 ships descriptor-only.
+
+`codegen/run_collectors.py` is the **only** network-touching code path in the project. `regenerate.py` does no network I/O; the ratchet test `test_regenerate_path_has_no_network_imports` enforces this.
+
+### Reproducibility tier coverage
+
+- **T0 frozen baseline** — committed NDJSON; byte-identical across all installs of v0.25.0.
+- **T1 CI-baked extension** — collectors auto-refresh via the new workflow.
+- **T2 user runtime kernel** — ships v0.25.1 (#159).
+- **T3 live query** — ships v0.25.2 (#160).
+- **Schema-gap-driven trigger** — v0.26.x research thread (#161); descriptor `[gap_targeting]` block is shipped in v0.25.0 already, awaiting the consumer.
+
+### MPR v1 is normative
+
+Mathematical Provenance Record v1 is the canonical NDJSON format, aligned with the discipline name from §0.0 (The Mathematical Provenance Method). 9 mandatory attestation fields per row + 3 mandatory rendering fields. Future schema bumps require explicit migration story; consumers MUST refuse unrecognised versions.
+
+### Cross-references
+
+- v0.25.0a foundation (PR #273 merged 2026-05-08).
+- Format spec: notebook §18 (PR #272 merged 2026-05-08).
+- Discipline: notebook §0.0 The Mathematical Provenance Method.
+
+## [Unreleased — earlier v0.25.0a entries (rolled into v0.25.0)]
+
 ### v0.25.0a — Attested Multi-Source Collector framework (checkpoint)
 
 **Framework foundation for the v0.25.0 ship.** Code-only checkpoint commit; no PyPI release. v0.25.0 stable publishes when v0.25.0b lands (GMRT + PetDB pilots + T1 collect CI workflow).

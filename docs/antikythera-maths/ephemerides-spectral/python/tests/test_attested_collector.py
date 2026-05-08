@@ -275,15 +275,16 @@ def test_descriptor_hash_deterministic() -> None:
     assert len(h1) == 64  # SHA-256 hex
 
 
-def test_discover_descriptors_finds_earthref_sc() -> None:
-    """Walking research/attested/ surfaces the shipped EarthRef SC
-    descriptor (and only that one in v0.25.0a)."""
+def test_discover_descriptors_finds_three_pilots() -> None:
+    """Walking research/attested/ surfaces v0.25.0b's three pilots."""
     from ephemerides_spectral._research.attested_collector_catalog import (
         _attested_root,
     )
     found = discover_descriptors(_attested_root())
-    assert "earthref_sc" in found
+    assert sorted(found.keys()) == ["earthref_sc", "gmrt", "petdb_v4"]
     assert found["earthref_sc"].adapter_name == "html_scraper"
+    assert found["gmrt"].adapter_name == "csv_bulk"
+    assert found["petdb_v4"].adapter_name == "json_api"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -354,12 +355,14 @@ def test_geotiff_bbox_stub_raises_without_extra() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_bridge_list_attested_sources_returns_earthref_sc() -> None:
+def test_bridge_list_attested_sources_returns_three_pilots() -> None:
+    """v0.25.0b ships three pilots: EarthRef SC + GMRT + PetDB v4.
+    v0.25.0a was 1 (EarthRef SC only)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 1
-    keys = [s["key"] for s in result["sources"]]
-    assert "earthref_sc" in keys
+    assert result["n_sources"] == 3
+    keys = sorted(s["key"] for s in result["sources"])
+    assert keys == ["earthref_sc", "gmrt", "petdb_v4"]
 
 
 def test_bridge_get_attested_dataset_handles_missing_ndjson() -> None:

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "petdb_v4.sample.v1",
+  "title": "PetDB v4 sample row",
+  "description": "One geochemistry sample from PetDB v4 / EarthChem unified search. Mandatory fields are sample_id and (latitude_deg, longitude_deg) for spatial placement; rock_type and analytical metadata are optional because not every sample carries every field.",
+  "type": "object",
+  "required": ["sample_id", "latitude_deg", "longitude_deg"],
+  "additionalProperties": true,
+  "properties": {
+    "sample_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "PetDB / EarthChem sample identifier."
+    },
+    "sample_name": {
+      "type": ["string", "null"],
+      "description": "Sample name as recorded in the original publication."
+    },
+    "latitude_deg": {
+      "type": "number",
+      "minimum": -90.0,
+      "maximum": 90.0,
+      "description": "Sample latitude (degrees)."
+    },
+    "longitude_deg": {
+      "type": "number",
+      "minimum": -180.0,
+      "maximum": 360.0,
+      "description": "Sample longitude (degrees)."
+    },
+    "rock_type": {
+      "type": ["string", "null"],
+      "description": "Rock-type classification (basalt, andesite, etc.)."
+    },
+    "method": {
+      "type": ["string", "null"],
+      "description": "Analytical method (XRF, ICP-MS, etc.)."
+    },
+    "publication_doi": {
+      "type": ["string", "null"],
+      "description": "DOI of the publishing paper."
+    }
+  }
+}

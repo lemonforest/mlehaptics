@@ -22,7 +22,11 @@ ADAPTER_NAME = "csv_bulk"
 def fetch(descriptor: Descriptor) -> Iterator[bytes]:
     """Fetch a CSV / ASCII-XYZ blob from the upstream archive.
 
-    Real impl ships in v0.25.0b for GMRT GridServer.
+    Honours ``[fetch].endpoint`` (URL with optional ``{...}`` query
+    placeholders filled from ``[fetch].query_params``) and
+    ``[fetch].rate_limit_rps``. Single-shot fetch by default;
+    multi-page sources can declare ``[fetch].pagination`` like
+    html_scraper.
     """
     try:
         import requests
@@ -30,9 +34,45 @@ def fetch(descriptor: Descriptor) -> Iterator[bytes]:
         raise _base.AdapterError(
             "csv_bulk requires the `collector` optional dependency"
         ) from exc
-    raise _base.AdapterError(
-        "csv_bulk.fetch live impl ships in v0.25.0b"
-    )
+
+    endpoint_template = str(descriptor.fetch["endpoint"])
+    query_params = dict(descriptor.fetch.get("query_params", {}))
+    headers = {
+        "User-Agent": (
+            "ephemerides-spectral attested-collector "
+            "(github.com/lemonforest/mlehaptics)"
+        ),
+    }
+    timeout_s = float(descriptor.fetch.get("timeout_s", 60.0))
+
+    pagination = dict(descriptor.fetch.get("pagination", {}))
+    if "type" not in pagination:
+        # Single-shot fetch — most CSV bulk endpoints.
+        url = endpoint_template.format(**query_params) if query_params else endpoint_template
+        response = requests.get(url, headers=headers, timeout=timeout_s)
+        response.raise_for_status()
+        yield response.content
+        return
+
+    # Paginated bulk export.
+    import time
+    rate_limit_rps = float(descriptor.fetch.get("rate_limit_rps", 1.0))
+    delay_s = 1.0 / rate_limit_rps if rate_limit_rps > 0 else 0.0
+    page = int(pagination.get("start", 1))
+    while True:
+        ctx = {**query_params, "page": page}
+        url = endpoint_template.format(**ctx)
+        response = requests.get(url, headers=headers, timeout=timeout_s)
+        if response.status_code == 404:
+            break
+        response.raise_for_status()
+        body = response.content
+        if not body.strip():
+            break
+        yield body
+        page += 1
+        if delay_s > 0:
+            time.sleep(delay_s)
 
 
 def parse(
