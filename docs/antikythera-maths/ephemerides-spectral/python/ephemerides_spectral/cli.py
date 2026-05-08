@@ -1140,6 +1140,7 @@ def _cmd_attested_dataset(args: argparse.Namespace) -> int:
             args.source,
             limit=args.limit,
             offset=args.offset,
+            live=args.live,
         ),
         pretty=args.pretty,
     )
@@ -5000,6 +5001,11 @@ def _make_parser() -> argparse.ArgumentParser:
     ad.add_argument("--source", required=True, help="source key (e.g. earthref_sc)")
     ad.add_argument("--limit", type=int, default=None, help="max rows to return")
     ad.add_argument("--offset", type=int, default=0, help="row offset")
+    ad.add_argument(
+        "--live",
+        action="store_true",
+        help="(v0.25.2+) T3 tier: fetch live from upstream archive (slow, network)",
+    )
     ad.set_defaults(func=_cmd_attested_dataset)
 
     # attested-descriptor

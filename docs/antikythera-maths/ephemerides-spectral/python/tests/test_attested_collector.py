@@ -637,3 +637,133 @@ def test_cli_local_kernel_help() -> None:
         with pytest.raises(SystemExit) as exc_info:
             cli_main([cmd, "--help"])
         assert exc_info.value.code == 0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# T3 — Live query (v0.25.2)
+# ──────────────────────────────────────────────────────────────────────
+
+
+_T3_FIXTURE_HTML = b"""<html><body>
+    <table class="sc_main">
+    <tr class="sc_row">
+        <td class="name">Live-Fetched Seamount A</td>
+        <td class="lat">19.0</td>
+        <td class="lon">-155.0</td>
+        <td class="depth">100.0</td>
+        <td class="height">1000.0</td>
+    </tr>
+    <tr class="sc_row">
+        <td class="name">Live-Fetched Seamount B</td>
+        <td class="lat">20.0</td>
+        <td class="lon">-156.0</td>
+        <td class="depth">200.0</td>
+        <td class="height">2000.0</td>
+    </tr>
+    </table>
+</body></html>"""
+
+
+def test_get_attested_dataset_default_is_baseline() -> None:
+    """live=False (default) returns the T0+T1+T2 baseline tier."""
+    result = bridge.get_attested_dataset("earthref_sc")
+    assert result["ok"] is True
+    assert result["tier"] == "T0+T1+T2"
+
+
+def test_get_attested_dataset_live_true_fetches_upstream(monkeypatch) -> None:
+    """live=True invokes the adapter's fetch/parse pipeline."""
+    pytest.importorskip("bs4")
+
+    from ephemerides_spectral._research.attested_adapters import html_scraper
+
+    def _fake_fetch(descriptor):
+        yield _T3_FIXTURE_HTML
+
+    monkeypatch.setattr(html_scraper, "fetch", _fake_fetch)
+    result = bridge.get_attested_dataset("earthref_sc", live=True)
+    assert result["ok"] is True
+    assert result["tier"] == "T3"
+    assert result["total"] == 2
+    assert "retrieved_at" in result
+    assert "upstream_response_sha256s" in result
+    assert len(result["upstream_response_sha256s"]) == 1
+    names = [r["data"]["name"] for r in result["rows"]]
+    assert "Live-Fetched Seamount A" in names
+
+
+def test_get_attested_dataset_live_per_row_attestation(monkeypatch) -> None:
+    """Each T3 row carries the same 9 mandatory attestation fields
+    as a T1 collector run."""
+    pytest.importorskip("bs4")
+
+    from ephemerides_spectral._research.attested_adapters import html_scraper
+
+    def _fake_fetch(descriptor):
+        yield _T3_FIXTURE_HTML
+
+    monkeypatch.setattr(html_scraper, "fetch", _fake_fetch)
+    result = bridge.get_attested_dataset("earthref_sc", live=True)
+    assert result["ok"] is True
+    for row in result["rows"]:
+        attestation = row["attestation"]
+        for field_name in MANDATORY_ATTESTATION_FIELDS:
+            assert attestation.get(field_name), (
+                f"T3 row missing {field_name} in attestation"
+            )
+
+
+def test_get_attested_dataset_live_pagination(monkeypatch) -> None:
+    """T3 honours limit + offset like the baseline path."""
+    pytest.importorskip("bs4")
+
+    from ephemerides_spectral._research.attested_adapters import html_scraper
+
+    def _fake_fetch(descriptor):
+        yield _T3_FIXTURE_HTML
+
+    monkeypatch.setattr(html_scraper, "fetch", _fake_fetch)
+    result = bridge.get_attested_dataset(
+        "earthref_sc", live=True, limit=1, offset=0,
+    )
+    assert result["ok"] is True
+    assert len(result["rows"]) == 1
+    assert result["next_offset"] == 1
+
+
+def test_get_attested_dataset_live_unknown_source() -> None:
+    result = bridge.get_attested_dataset("not_a_source", live=True)
+    assert result["ok"] is False
+
+
+def test_get_attested_dataset_live_adapter_error_surfaces(monkeypatch) -> None:
+    """When the adapter raises, the bridge returns ok=False with
+    diagnostic + retrieved_at so the consumer can record the
+    failed attempt."""
+    from ephemerides_spectral._research.attested_adapters import html_scraper, _base
+
+    def _broken_fetch(descriptor):
+        raise _base.AdapterError("upstream returned 503; rate-limited")
+        yield  # unreachable
+
+    monkeypatch.setattr(html_scraper, "fetch", _broken_fetch)
+    result = bridge.get_attested_dataset("earthref_sc", live=True)
+    assert result["ok"] is False
+    assert result["tier"] == "T3"
+    assert "503" in result["error"] or "rate-limited" in result["error"]
+    assert "retrieved_at" in result
+
+
+def test_cli_attested_dataset_live_flag(monkeypatch) -> None:
+    """The --live CLI flag wires through to live=True on the bridge."""
+    pytest.importorskip("bs4")
+
+    from ephemerides_spectral._research.attested_adapters import html_scraper
+
+    def _fake_fetch(descriptor):
+        yield _T3_FIXTURE_HTML
+
+    monkeypatch.setattr(html_scraper, "fetch", _fake_fetch)
+    payload = _run_cli("attested-dataset", "--source", "earthref_sc", "--live")
+    assert payload["ok"] is True
+    assert payload["tier"] == "T3"

@@ -29,8 +29,8 @@
       "size_bytes": 331
     },
     "_research/attested/earthref_sc/descriptor.toml": {
-      "sha256": "bad23ef8bd725d0c2cf44a0506d4e3bd186354f4c95e69b3d2069debb295f771",
-      "size_bytes": 2732
+      "sha256": "ffa4810a82a8e15690b048dbca6c167e9f75e1d4829ce0aec84a0b55a9fb6611",
+      "size_bytes": 2752
     },
     "_research/attested/earthref_sc/seamount.schema.json": {
       "sha256": "8dd79e63cdb428faac6c12e11b9d6e0a52574b4cb555f301cf72c115e34a7b8a",
@@ -81,8 +81,8 @@
       "size_bytes": 1851
     },
     "_research/attested_collector_catalog.py": {
-      "sha256": "74e2afe56f8b793537814a87b45de8d84884a222efc9555de89030fda1830968",
-      "size_bytes": 16850
+      "sha256": "d0c3a99cf452acb9ad550c45187deb899af675b3c2711d9e9c943d752314bc10",
+      "size_bytes": 21761
     },
     "_research/attested_collector_descriptor.py": {
       "sha256": "b76ade56ce5096187103dcd96e5d22bf787dbaf29241f9d42d98f14d428d6ec2",
@@ -398,5 +398,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.25.1"
+  "version": "0.25.2"
 }

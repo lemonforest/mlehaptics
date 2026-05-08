@@ -7,7 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.1)
+(no entries yet — next entries land after v0.25.2)
+
+## [0.25.2] — 2026-05-08
+
+**Attested collector — T3 live query.** The fourth-tier reproducibility extension — completes the T0/T1/T2/T3 model from notebook §18.1.
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Catalog wrapper | `_research.attested_collector_catalog.get_attested_dataset(..., live=False)` extended with new T3 path; new private `_get_attested_dataset_live` |
+| Bridge | `bridge.get_attested_dataset(..., live=False)` extended kwarg |
+| CLI | `attested-dataset --live` flag |
+| Tests | 7 new tests in `tests/test_attested_collector.py` |
+
+### Behaviour
+
+`live=True` invokes the descriptor's declared adapter against the upstream archive at call time. Each row carries its full per-row attestation (the same 9 mandatory fields T1 collector runs produce); the response envelope adds `tier="T3"` + `retrieved_at` + `upstream_response_sha256s` for paper-appendix replay.
+
+`live=False` (default) returns the T0+T1+T2 baseline (committed NDJSON, possibly overlaid by a registered T2 runtime kernel). Baseline responses now also carry an explicit `tier="T0+T1+T2"` discriminator for diagnostic clarity.
+
+### Reproducibility tier
+
+T3 — weakest. Each row's `response_sha256` documents the upstream content currently served; replay requires re-fetching against an unchanged upstream OR archiving response bytes alongside the recorded attestation. Adapter errors surface as `ok=False` with diagnostic + `retrieved_at`.
+
+### Cross-references
+
+- Notebook §18.1 — four-tier reproducibility model (now fully implemented).
+- T2 user runtime kernel: v0.25.1 (#159).
+- T0+T1 baseline: v0.25.0 (#150 + #163).
+
+### Other
+
+EarthRef SC descriptor's `[source].canonical_doi` updated to `10.1029/2009GL040749` (was empty; MPR validation requires non-empty `source_doi`).
 
 ## [0.25.1] — 2026-05-08
 

@@ -10,7 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.25.1)
+(no entries yet — next entries land after v0.25.2)
+
+## [0.25.2] — 2026-05-08
+
+**Attested collector — T3 live query.** Completes the four-tier reproducibility model from notebook §18.1. Pure-Python additive; **no ABI bump** (thirty-eighth consecutive ship since v0.13.x).
+
+### Added — Pythonic API
+
+- `_research.attested_collector_catalog.get_attested_dataset(source_key, *, limit=None, offset=0, live=False)` — new `live` parameter. When `True`, invokes the descriptor's declared adapter against the upstream archive at call time and returns rows with full per-row attestation; the response envelope adds `tier="T3"` + `retrieved_at` + `upstream_response_sha256s`. When `False` (default), returns the T0+T1+T2 baseline (now also carrying an explicit `tier="T0+T1+T2"` discriminator).
+- New private helper `_get_attested_dataset_live(descriptor, *, limit, offset)` composes `attested_adapters._base.run` into the T3 envelope. Lazy-imports the adapters to keep `regenerate.py` off the network path.
+
+### Added — bridge dict API
+
+- `bridge.get_attested_dataset(source_key, *, limit=None, offset=0, live=False)` — extended with the `live` kwarg (PEP 440 backward-compatible: a positional caller's existing args still work).
+
+### Added — CLI
+
+- `attested-dataset --live` — opt-in flag for T3 fetches.
+
+### Reproducibility tier
+
+T3 is the weakest. Each row's `response_sha256` documents the upstream content currently served; replay requires re-fetching against an unchanged upstream OR archiving response bytes alongside the recorded attestation. Adapter errors surface as `ok=False` with diagnostic + `retrieved_at` so consumers can record the failed attempt.
+
+### Tests
+
+7 new tests in `tests/test_attested_collector.py`:
+- `test_get_attested_dataset_default_is_baseline` — baseline tier discriminator.
+- `test_get_attested_dataset_live_true_fetches_upstream` — adapter pipeline runs end-to-end.
+- `test_get_attested_dataset_live_per_row_attestation` — all 9 mandatory attestation fields populated.
+- `test_get_attested_dataset_live_pagination` — limit/offset honoured.
+- `test_get_attested_dataset_live_unknown_source` — error path.
+- `test_get_attested_dataset_live_adapter_error_surfaces` — adapter failure diagnostic envelope.
+- `test_cli_attested_dataset_live_flag` — CLI wire-through.
+
+Tests use `monkeypatch.setattr(html_scraper, "fetch", _fake_fetch)` to inject a fixture HTML response, exercising the full `run()` composer (fetch → parse → attest → MPRRecord) without network I/O.
+
+### Other
+
+- Updated EarthRef SC descriptor's `[source].canonical_doi` to `10.1029/2009GL040749` (Wessel & Sandwell 2010 reference — empty string was rejecting MPR validation since `source_doi` is mandatory).
+
+### Cross-references
+
+- Notebook §18.1 — four-tier reproducibility model.
+- T2 user runtime kernel: v0.25.1.
+- T0+T1 baseline: v0.25.0.
 
 ## [0.25.1] — 2026-05-08
 

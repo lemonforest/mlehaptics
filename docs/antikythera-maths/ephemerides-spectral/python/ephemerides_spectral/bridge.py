@@ -5784,6 +5784,7 @@ def get_attested_dataset(
     *,
     limit: Optional[int] = None,
     offset: int = 0,
+    live: bool = False,
 ) -> Dict[str, Any]:
     """Return paginated row content for a registered source.
 
@@ -5792,11 +5793,24 @@ def get_attested_dataset(
     large rosters (EarthRef SC seamount table will reach ~1,800
     rows; full materialisation would be ~1.1 MB Python objects).
 
+    Reproducibility tiers:
+    * ``live=False`` (default) — return the T0+T1+T2 baseline
+      (committed NDJSON, possibly overlaid by a registered T2
+      runtime kernel). Byte-identical within a given install +
+      cache state.
+    * ``live=True`` *(v0.25.2+)* — fetch from the upstream archive
+      at call time (T3 tier). Each row carries its
+      ``response_sha256`` + ``retrieved_at`` + descriptor hash;
+      the response envelope adds ``tier="T3"`` +
+      ``upstream_response_sha256s`` for paper-appendix replay.
+      Weakest reproducibility tier; opt-in only.
+
     Use :func:`attestation_audit` for the cheap data-block-free
-    variant when only provenance metadata is needed.
+    variant when only provenance metadata is needed (T0+T1+T2 only;
+    audit is committed-row metadata, never live).
     """
     return _attested_catalog.get_attested_dataset(
-        source_key, limit=limit, offset=offset
+        source_key, limit=limit, offset=offset, live=live
     )
 
 
