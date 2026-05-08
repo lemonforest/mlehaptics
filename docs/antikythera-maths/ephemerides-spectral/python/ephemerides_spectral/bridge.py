@@ -288,6 +288,14 @@ from ephemerides_spectral._research.pluto_charon_dynamical_spectrum_catalog impo
     list_pluto_charon_dynamical_spectrum
         as _list_pluto_charon_dynamical_spectrum_impl,
 )
+from ephemerides_spectral._research.loki_patera_catalog import (
+    get_loki_patera_eruption_cycle
+        as _get_loki_patera_eruption_cycle_impl,
+    get_loki_galilean_laplace_signature
+        as _get_loki_galilean_laplace_signature_impl,
+    list_loki_patera_eruption_cycle
+        as _list_loki_patera_eruption_cycle_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4807,6 +4815,59 @@ def list_pluto_charon_dynamical_spectrum() -> Dict[str, Any]:
     """Full enumeration of every Pluto-Charon dynamical mode +
     citations."""
     return _list_pluto_charon_dynamical_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.12 — Loki Patera (Io) Eruption Cycle
+# (temporal-quasi-periodic-cycle on the Solar System's most active
+# volcano; v0.24.8 Axial Seamount cousin with Galilean-Laplace
+# tidal-heating forcing instead of mantle-plume forcing)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_loki_patera_eruption_cycle() -> Dict[str, Any]:
+    """Loki Patera eruption-cycle catalog: 6 published cycle-peak
+    observations (1990-2017) + 6 action-angle modes (cycle period,
+    brightening / resurfacing / cooling phases, Io orbital,
+    Galilean Laplace 4:2:1) + binary geometry + tidal-heating
+    forcing budget.
+
+    The Solar System's most active volcano. Located on Jupiter's
+    moon Io at ~12.7° N / ~309.6° W; ~200 km diameter; ~540-day
+    quasi-periodic resurfacing cycle.
+
+    Cross-channel: Loki's existence at all is downstream of the
+    Galilean Laplace 4:2:1 lock — Io's forced eccentricity 0.0041
+    drives ~10^14 W of tidal dissipation, of which Loki accounts
+    for 5-15% as the largest single surface manifestation.
+    """
+    return _get_loki_patera_eruption_cycle_impl()
+
+
+def get_loki_galilean_laplace_signature() -> Dict[str, Any]:
+    """The Galilean Laplace 4:2:1 commensurability signature —
+    THE headline of v0.24.12.
+
+    Verifies 4 * P_Io ≈ 2 * P_Europa ≈ P_Ganymede (the textbook
+    3-body mean-motion lock; near-exact libration around perfect
+    resonance), reports the residual + the forced-eccentricity
+    consequence + the tidal-heating budget that makes Loki Patera
+    exist.
+
+    Cross-channel: structurally analogous to v0.24.11 Pluto-Charon's
+    4-small-moon near-3:4:5:6 commensurability with the mutual
+    orbital period — same algebraic shape (small-integer mean-
+    motion lock producing tidal heating in locked bodies),
+    different central-body geometry (3-body satellite chain vs
+    binary central body).
+    """
+    return _get_loki_galilean_laplace_signature_impl()
+
+
+def list_loki_patera_eruption_cycle() -> Dict[str, Any]:
+    """Full enumeration of Loki Patera cycle peaks + modes +
+    citations."""
+    return _list_loki_patera_eruption_cycle_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

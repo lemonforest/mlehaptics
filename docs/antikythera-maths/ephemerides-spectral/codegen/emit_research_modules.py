@@ -95,6 +95,8 @@ _INCLUDED_MODULES: List[str] = [
     "dynamical_regime_catalog.py",
     "pluto_charon_dynamical_spectrum_data.py",
     "pluto_charon_dynamical_spectrum_catalog.py",
+    "loki_patera_data.py",
+    "loki_patera_catalog.py",
 ]
 
 def emit() -> List[Path]:

@@ -1105,6 +1105,29 @@ def _cmd_pluto_charon_dynamical_spectrum_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.12 — Loki Patera (Io) Eruption Cycle CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_loki_patera_eruption_cycle(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_loki_patera_eruption_cycle(), pretty=args.pretty,
+    )
+
+
+def _cmd_loki_galilean_laplace_signature(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_loki_galilean_laplace_signature(), pretty=args.pretty,
+    )
+
+
+def _cmd_loki_patera_eruption_cycle_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_loki_patera_eruption_cycle(), pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4832,6 +4855,67 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     pcdsf.set_defaults(func=_cmd_pluto_charon_dynamical_spectrum_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.12 — Loki Patera (Io) Eruption Cycle
+    # ──────────────────────────────────────────────────────────────────
+
+    # loki-patera-eruption-cycle
+    lpec = sub.add_parser(
+        "loki-patera-eruption-cycle",
+        help="Loki Patera eruption-cycle catalog (Io tidal-heating cousin to Axial)",
+        description=(
+            "v0.24.12 -- Loki Patera (Io) eruption cycle. The Solar\n"
+            "System's most active volcano (~200 km lava lake on\n"
+            "Jupiter's moon Io, accounting for 5-15% of Io's\n"
+            "globally-integrated ~10^14 W tidal-heating output).\n"
+            "\n"
+            "~540-day quasi-periodic resurfacing cycle (Rathbun 2002\n"
+            "*GRL* canonical paper); cousin to v0.24.8 Axial Seamount\n"
+            "in the temporal-quasi-periodic-cycle regime, with\n"
+            "fundamentally different forcing physics (tidal heating\n"
+            "from Galilean Laplace 4:2:1 commensurability vs Axial's\n"
+            "mantle-plume-over-spreading-ridge magma supply).\n"
+            "\n"
+            "6 cycle-peak observations (1990-2017) + 6 action-angle\n"
+            "modes (cycle period, brightening / resurfacing /\n"
+            "cooling phases, Io orbital, Galilean Laplace 4:2:1)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lpec.set_defaults(func=_cmd_loki_patera_eruption_cycle)
+
+    # loki-galilean-laplace-signature
+    lgls = sub.add_parser(
+        "loki-galilean-laplace-signature",
+        help="Galilean Laplace 4:2:1 commensurability signature (the headline)",
+        description=(
+            "Returns the 4*P_Io ≈ 2*P_Europa ≈ P_Ganymede\n"
+            "commensurability check + the forced-eccentricity 0.0041\n"
+            "consequence + the ~10^14 W tidal-heating budget that\n"
+            "makes Loki Patera exist + the Loki cycle / Io orbital\n"
+            "ratio. Cross-references v0.24.11 Pluto-Charon's\n"
+            "near-3:4:5:6 small-moon commensurability (binary-system\n"
+            "analogue of the same algebraic structure)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lgls.set_defaults(func=_cmd_loki_galilean_laplace_signature)
+
+    # loki-patera-eruption-cycle-full
+    lpecf = sub.add_parser(
+        "loki-patera-eruption-cycle-full",
+        help="Full Loki Patera cycle catalog + citations",
+        description=(
+            "Returns every cycle peak + mode + the citation dict so\n"
+            "consumers can verify the provenance (Rathbun 2002 *GRL*\n"
+            "canonical period; Veeder 1994 KAO; de Kleer 2017\n"
+            "adaptive-optics; de Kleer 2019 multi-phase resurfacing;\n"
+            "Peale-Cassen-Reynolds 1979 deep-mechanism forcing)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    lpecf.set_defaults(func=_cmd_loki_patera_eruption_cycle_full)
 
     # lunar-kernels
     lk = sub.add_parser(

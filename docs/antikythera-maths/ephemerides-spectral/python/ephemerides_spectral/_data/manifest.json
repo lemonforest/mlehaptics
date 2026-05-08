@@ -81,12 +81,12 @@
       "size_bytes": 21563
     },
     "_research/dynamical_regime_data.py": {
-      "sha256": "1cedf119f1dbbf42e35e9a5d9250e923e01b1fcbaa0d000bf0ce16af3db3b69b",
-      "size_bytes": 22642
+      "sha256": "e14ca6b10b90f665bc29389eab6b2db96337cff01da9267100e450adad9c6ec9",
+      "size_bytes": 25611
     },
     "_research/dynamical_regime_probes_data.py": {
-      "sha256": "10d536e89f7dd04be505f3eb3c9e7634e5c435032f9ff87705f58155a8262fe2",
-      "size_bytes": 22877
+      "sha256": "1aace18421a507c3753b854ed3425d9e959bb43a8143f1db34029811f79a2a74",
+      "size_bytes": 23401
     },
     "_research/dynamics.py": {
       "sha256": "693ca209643a84fef67346b3ec042986766394afc962e38b568e526dbb4296b3",
@@ -167,6 +167,14 @@
     "_research/laplacian.py": {
       "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
       "size_bytes": 12233
+    },
+    "_research/loki_patera_catalog.py": {
+      "sha256": "6a53db61aba7ac77f947cadebd5902844a73296cbf26c9153ab5489dfae6910d",
+      "size_bytes": 9012
+    },
+    "_research/loki_patera_data.py": {
+      "sha256": "b77e834ca3e1cd1d1624ffb45a146524ed260ad8767dcd26abe6e148a9071010",
+      "size_bytes": 17985
     },
     "_research/luna_dynamical_spectrum_catalog.py": {
       "sha256": "a4be56f58fd87f83ca94896a94ea42136786c40468a9099495ae8f3780d9151d",
@@ -322,5 +330,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.11"
+  "version": "0.24.12"
 }

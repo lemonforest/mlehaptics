@@ -638,6 +638,24 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.24.12 Sol Loki Patera Eruption Cycle Catalog (temporal-
+    # quasi-periodic-cycle regime cousin to v0.24.8 Axial Seamount;
+    # different forcing physics — Galilean Laplace 4:2:1 tidal heating
+    # rather than mantle-plume magma supply). Pure-Python; static
+    # published values from Rathbun 2002 + de Kleer 2017+ + Peale-
+    # Cassen-Reynolds 1979. No C twin makes sense.
+    "get_loki_patera_eruption_cycle": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_loki_galilean_laplace_signature": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_loki_patera_eruption_cycle": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
