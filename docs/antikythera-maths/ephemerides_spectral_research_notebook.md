@@ -2,9 +2,9 @@
 
 **Authors:** Gemini CLI (initial scaffolding); Steven Kirkland & Claude Opus (Phase 9 ALU-native)
 **Date:** May 2026 (initial; living-document)
-**Status:** **v0.24.10 (current).** See §4 release history below for the version-by-version landing record. The legacy v0.19.0 status banner used to attempt a chronological summary inline; that pattern didn't scale past v0.19.0 and was never updated thereafter. This banner now points at the canonical sources — `python/CHANGELOG.md`, `ROADMAP.md`, and §4 below — for current state, and gives only a brief shape-of-the-project snapshot.
+**Status:** **v0.24.11 (current).** See §4 release history below for the version-by-version landing record. The legacy v0.19.0 status banner used to attempt a chronological summary inline; that pattern didn't scale past v0.19.0 and was never updated thereafter. This banner now points at the canonical sources — `python/CHANGELOG.md`, `ROADMAP.md`, and §4 below — for current state, and gives only a brief shape-of-the-project snapshot.
 
-**Brief shape-of-the-project snapshot (as of v0.24.10):**
+**Brief shape-of-the-project snapshot (as of v0.24.11):**
 
 * **Two-stage architecture**: integer-ALU phase-residue encoders (`bip` Python / `c` native / `complex128` reference) feeding an FPU `complex64` HD pipeline (syzygy, observer-bind, eclipse-probability). 52-body roster (v0.16.0 Tier-1 expansion). SPICE-free runtime. JPL Power-of-Ten audit baseline (all 10 rules satisfied since v0.13.9). Two-stage-architecture parity Tier 1 + Tier 2a + Tier 2b complete (v0.6.0 / v0.6.1 / v0.7.0 — every encoder-touching bridge method has a paired C path).
 * **v0.20.x–v0.21.x — physical instruments + cross-channel couplings**: Geodetic / Electromagnetic / Magnetic-Multipole / Fluid catalogs; eleven cross-channel coupling surfaces (topography ↔ gravity admittance, magnetic-derived dynamo constraints, orographic atmospheric forcing, interior-derived rotational constraints, magnetic ↔ atmosphere coupling for giants, tidal-resonance ↔ migration, atmospheric-escape ↔ magnetic shielding, heat-flow ↔ tidal heating, volcanic outgassing ↔ atmosphere, heliocentric flux ↔ surface temperature). Plus the v0.22.0 trajectory + sensing layer (ballistic, ICBM, look-angle, BC-differential).
