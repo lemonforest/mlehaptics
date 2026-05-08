@@ -656,6 +656,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.25.0a Attested Multi-Source Collector framework (universal
+    # bridge surfaces over the descriptor-driven collector core; pure-
+    # Python I/O over committed NDJSON, no C twin makes sense — these
+    # are file-IO + descriptor traversal, not encoder-touching).
+    "list_attested_sources": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_attested_dataset": {
+        "status": "python_only",
+        "kwargs_py": {"source_key": "earthref_sc"},
+    },
+    "get_attested_descriptor": {
+        "status": "python_only",
+        "kwargs_py": {"source_key": "earthref_sc"},
+    },
+    "attestation_audit": {
+        "status": "python_only",
+        "kwargs_py": {"source_key": "earthref_sc"},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

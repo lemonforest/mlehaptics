@@ -5748,6 +5748,78 @@ def clear_patches() -> Dict[str, Any]:
     return {"ok": True, "cleared": int(n_py)}
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.25.0a — Attested Multi-Source Collector framework (T0+T1)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Universal bridge surfaces over the descriptor-driven collector
+# framework. Each surface iterates the registered descriptors at
+# query time; data lives under _research/attested/<source>/.
+#
+# Pyodide-friendly: returns JSON-serialisable dicts. For Python-only
+# streaming consumers, use _research.attested_collector_catalog.
+# iter_attested_dataset directly (not bridge-exposed).
+#
+# Reproducibility tier: T0+T1. T2 (user runtime kernel) ships
+# v0.25.1; T3 (live query) ships v0.25.2.
+
+from ._research import attested_collector_catalog as _attested_catalog
+
+
+def list_attested_sources() -> Dict[str, Any]:
+    """Enumerate every registered attested source.
+
+    Returns a dict with each source's rendered metadata: human-
+    readable name, purpose, license, citation template, adapter,
+    gap-targeting regime labels. Source-of-truth lives in the
+    descriptor TOML; the bridge surfaces it without per-source
+    code paths (the v0.25.0 CONFIG-not-CODE escape from the
+    v0.24.x hand-coding pattern).
+    """
+    return _attested_catalog.list_attested_sources()
+
+
+def get_attested_dataset(
+    source_key: str,
+    *,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """Return paginated row content for a registered source.
+
+    Each row carries its full data + attestation + rendering
+    blocks. Pagination via ``limit`` + ``offset`` is required for
+    large rosters (EarthRef SC seamount table will reach ~1,800
+    rows; full materialisation would be ~1.1 MB Python objects).
+
+    Use :func:`attestation_audit` for the cheap data-block-free
+    variant when only provenance metadata is needed.
+    """
+    return _attested_catalog.get_attested_dataset(
+        source_key, limit=limit, offset=offset
+    )
+
+
+def get_attested_descriptor(source_key: str) -> Dict[str, Any]:
+    """Return the full parsed descriptor for one source.
+
+    Lets UI code render the descriptor's [rendering], [source],
+    [gap_targeting] content without iterating row data first.
+    """
+    return _attested_catalog.get_attested_descriptor(source_key)
+
+
+def attestation_audit(source_key: str) -> Dict[str, Any]:
+    """Return per-row attestation metadata (no data payload).
+
+    Cheap; paper-appendix-ready. Each row returns its
+    response_sha256, retrieved_at, parser_version,
+    parser_rule_hash, collector_descriptor_hash so a downstream
+    consumer can reproduce the row's provenance trail.
+    """
+    return _attested_catalog.attestation_audit(source_key)
+
+
 __all__ = [
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
@@ -5777,4 +5849,8 @@ __all__ = [
     "apply_patch",
     "apply_custom_patch",
     "clear_patches",
+    "list_attested_sources",
+    "get_attested_dataset",
+    "get_attested_descriptor",
+    "attestation_audit",
 ]

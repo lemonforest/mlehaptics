@@ -37,9 +37,17 @@ def test_manifest_lists_every_committed_file(manifest: dict) -> None:
         if p.suffix == ".json" and p.name != "manifest.json":
             expected.add(f"_data/{p.name}")
     if _RESEARCH_DIR.exists():
-        for p in _RESEARCH_DIR.iterdir():
-            if p.is_file():
-                expected.add(f"_research/{p.name}")
+        # Walk recursively (v0.25.0+: attested_adapters/ + attested/
+        # subtrees ship under _research/). Use rglob so nested
+        # directories are covered without depth limits.
+        for p in _RESEARCH_DIR.rglob("*"):
+            if not p.is_file():
+                continue
+            # Skip transient build artifacts.
+            if p.suffix == ".pyc" or "__pycache__" in p.parts:
+                continue
+            rel = p.relative_to(_PKG_ROOT).as_posix()
+            expected.add(rel)
     listed = set(manifest["files"].keys())
     assert listed == expected
 

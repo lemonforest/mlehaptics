@@ -24,6 +24,58 @@
       "sha256": "de53e7700b98a067b55ab165d0c1804c249a83b4b9a82ca297dac8e6f54d7181",
       "size_bytes": 12353
     },
+    "_research/attested/__init__.py": {
+      "sha256": "23372e208b47de5c44504c53b0938ec955bd3108c2f03493ff4db684da1e15b7",
+      "size_bytes": 331
+    },
+    "_research/attested/earthref_sc/descriptor.toml": {
+      "sha256": "bad23ef8bd725d0c2cf44a0506d4e3bd186354f4c95e69b3d2069debb295f771",
+      "size_bytes": 2732
+    },
+    "_research/attested/earthref_sc/seamount.schema.json": {
+      "sha256": "8dd79e63cdb428faac6c12e11b9d6e0a52574b4cb555f301cf72c115e34a7b8a",
+      "size_bytes": 1311
+    },
+    "_research/attested_adapters/__init__.py": {
+      "sha256": "915da1cab6bf073091be94637a1e1dc2beecc0e699c67d2f26fab040a8ffcab6",
+      "size_bytes": 1568
+    },
+    "_research/attested_adapters/_base.py": {
+      "sha256": "e1714eccc34dd0af4f3f1f68570d9a5ede05cd8468cb527e586db375b6465c03",
+      "size_bytes": 8289
+    },
+    "_research/attested_adapters/csv_bulk.py": {
+      "sha256": "9dc7941f89acc49722c57ddaf7d0ef3f013f088c16aea355cba6d5502bc5e8d0",
+      "size_bytes": 2961
+    },
+    "_research/attested_adapters/geotiff_bbox.py": {
+      "sha256": "14fcdd06903f6b7f5c91c2a7032be9f6e5889946e72a9f218788ac7503675679",
+      "size_bytes": 1714
+    },
+    "_research/attested_adapters/html_scraper.py": {
+      "sha256": "92b24aa8a5105e6e0c273f4b26551f8a61fc55c465db830974ecedba23783465",
+      "size_bytes": 4376
+    },
+    "_research/attested_adapters/json_api.py": {
+      "sha256": "5cce2b53d5a9d4f02afe0547d74c12e0ec98bdcda1ca62eb899d38b31474e650",
+      "size_bytes": 2979
+    },
+    "_research/attested_adapters/netcdf_grid.py": {
+      "sha256": "3bdea890850b701d99c0ff4dbc9ba734098124b099c4c5ecfaa8cf77b5e2b86c",
+      "size_bytes": 1851
+    },
+    "_research/attested_collector_catalog.py": {
+      "sha256": "99c94bed888ad7957e0dc145e45d55d915c6703b94e4d7375be9c8fea513cac4",
+      "size_bytes": 10585
+    },
+    "_research/attested_collector_descriptor.py": {
+      "sha256": "b76ade56ce5096187103dcd96e5d22bf787dbaf29241f9d42d98f14d428d6ec2",
+      "size_bytes": 14018
+    },
+    "_research/attested_collector_format.py": {
+      "sha256": "608f515901c0737388123a0e9c21f52bcac057a9df89287476e0ef74569ff1be",
+      "size_bytes": 13676
+    },
     "_research/auroral_coupling_catalog.py": {
       "sha256": "f4227a0d8d807a6a28fd903947304f18b503a952c50331ec690fa4f8394f923a",
       "size_bytes": 4829
