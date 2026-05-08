@@ -21,6 +21,17 @@ numbers and interpretation.
 > prediction → experiment → numbers → interpretation → what it means
 > for the broader pattern.
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is a snapshot.** Future framework additions will not be back-ported into it; the RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief since-summary** (as of 2026-05-08):
+> - The chess-spectral split-object pattern this notebook generalises was further instantiated on **antikythera-spectral**, **doom-spectral** (v1.0.0; first end-to-end Rosetta Stone existence proof), **ephemerides-spectral** (matured through **v0.26.0**; PyPI: <https://pypi.org/project/ephemerides-spectral/>), and **othello-spectral**.
+> - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); instrument-first physics critique in ephemerides §20.
+> - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) using the same eigenbasis substrate.
+
 ---
 
 ## Framing — Why LOGO

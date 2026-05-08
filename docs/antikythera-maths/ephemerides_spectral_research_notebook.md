@@ -4,6 +4,12 @@
 **Date:** May 2026 (initial; living-document)
 **Status:** **v0.26.0 (current).** See §4 release history below for the version-by-version landing record. The legacy v0.19.0 status banner used to attempt a chronological summary inline; that pattern didn't scale past v0.19.0 and was never updated thereafter. This banner now points at the canonical sources — `python/CHANGELOG.md`, `ROADMAP.md`, and §4 below — for current state, and gives only a brief shape-of-the-project snapshot.
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is the active ephemerides-spectral notebook**; future ephemerides framework additions land here. For sister notebooks (chess-spectral, chess-spectral-4d, antikythera-spectral, doom-spectral, othello-spectral, logo) and any new sister projects, the RTD landing is the canonical index — those notebooks are snapshots and will not be back-ported into; new framework developments are recorded here and pointed to from the RTD landing.
+
 **Brief shape-of-the-project snapshot (as of v0.26.0):**
 
 * **Two-stage architecture**: integer-ALU phase-residue encoders (`bip` Python / `c` native / `complex128` reference) feeding an FPU `complex64` HD pipeline (syzygy, observer-bind, eclipse-probability). 52-body roster (v0.16.0 Tier-1 expansion). SPICE-free runtime. JPL Power-of-Ten audit baseline (all 10 rules satisfied since v0.13.9). Two-stage-architecture parity Tier 1 + Tier 2a + Tier 2b complete (v0.6.0 / v0.6.1 / v0.7.0 — every encoder-touching bridge method has a paired C path).

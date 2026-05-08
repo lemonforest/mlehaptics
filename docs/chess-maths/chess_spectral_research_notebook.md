@@ -7,6 +7,17 @@
 **Status:** Active research — reproducible results with open problems
 **Tools:** Python 3, NumPy, SciPy (all code runnable standalone)
 
+> ## Project navigation + state-pointer
+>
+> ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
+>
+> **This notebook is the foundation document.** Future framework additions will not be back-ported into it; the RTD landing tells you whether new sister notebooks or downstream developments are available.
+>
+> **Brief since-summary** (as of 2026-05-08):
+> - The framework documented here was instantiated on six other domains: **antikythera-spectral** (Hellenistic bronze mechanism), **doom-spectral** (id Tech 1 game engine; v1.0.0; first end-to-end existence proof of the Rosetta Stone procedure from §42), **ephemerides-spectral** (live JPL DE441; matured through v0.26.0; PyPI: <https://pypi.org/project/ephemerides-spectral/>), **othello-spectral** (dynamic sheaf-Laplacian board), **logo** (non-board generalisation), **chess-spectral-4d** (Z_8^4 lattice extension; v1.1.1).
+> - **The Mathematical Provenance Method (MPM)** formalised as the project's discipline (ephemerides notebook §0.0); `qm_*.py` and `qm_*_dynamics.py` machinery from this notebook ported into ephemerides-spectral as Kinematics + Dynamics modules. Instrument-first physics critique in ephemerides §20 cites this notebook's §1b.1 (Hatano-Nelson) and §1b.6 (Nambu NNET) as the dynamical-regime foundation.
+> - **Inkscape** contribution shipped on the [`spectral-faithful`](https://gitlab.com/lemonforest/inkscape/-/tree/spectral-faithful) branch — three new SVG filter primitives (`feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`) using the same eigenbasis substrate this notebook establishes; the contribution's design notebook explicitly cites this notebook as the parent template.
+
 ---
 
 ## 1. Overview & Motivation
