@@ -188,20 +188,24 @@ REGIME_PROBES: List[RegimeProbe] = [
         prediction_track_signal=0,
         dimensionality=0,
         forcing_class_index=0,
-        expected_regime="rigid_body_action_angle_stable",
+        expected_regime="rigid_body_action_angle_mutual_lock",
         ood_expected=False,
         notes="Mutual tidal lock — both bodies tidally locked to "
               "each other (the Solar System's only known "
               "double-synchronous binary planet). Stern 1992; "
-              "Brozovic 2015. **Feature-schema gap**: Pluto-Charon "
-              "has the commensurability but no Saros-style multi-"
-              "millennium prediction track-record, so the v0.24.9 "
-              "schema can't distinguish it from Mercury-stable. The "
-              "classifier returns Mercury (1st-nearest) with Luna-"
-              "commensurate as 2nd. Documenting this as the current "
-              "behaviour; a future feature-schema extension that "
-              "adds a 'commensurability-without-published-track' "
-              "axis would let this probe land on Luna instead.",
+              "Brozovic 2015. **v0.24.11 Path-B closure**: prior "
+              "to v0.24.11, this probe collapsed onto Mercury-"
+              "stable due to the v0.24.9 feature-schema gap "
+              "(commensurabilities-without-Saros-track couldn't be "
+              "distinguished from Mercury). v0.24.11 ships Pluto-"
+              "Charon itself as a ground-proof row in the regime "
+              "classifier with a NEW regime label "
+              "`rigid_body_action_angle_mutual_lock`, populating "
+              "the gap rather than engineering a feature to force "
+              "discrimination. This probe now self-classifies to "
+              "the new label — the v0.24.10 ratchet has been "
+              "advanced one notch by deterministic schema "
+              "extension.",
         source_key="stern_1992",
     ),
 
@@ -218,17 +222,28 @@ REGIME_PROBES: List[RegimeProbe] = [
         prediction_track_signal=0,
         dimensionality=0,
         forcing_class_index=0,
-        expected_regime="rigid_body_action_angle_stable",
+        expected_regime="rigid_body_action_angle_mutual_lock",
         ood_expected=False,
         notes="2:1 Dione lock provides tidal heating that drives the "
               "tiger-stripe geyser plumes. Murray-Dermott 1999. "
-              "**Feature-schema gap (same as pluto_charon, io_*)**: "
-              "Enceladus has the commensurability but no published "
-              "multi-millennium prediction track-record, so the "
-              "v0.24.9 schema returns Mercury-stable (1st-nearest) "
-              "with Luna-commensurate as 2nd-nearest. This probe "
-              "ratchets the current behaviour — a future feature-"
-              "schema extension would let Enceladus land on Luna.",
+              "**v0.24.11 partial closure**: prior to v0.24.11 this "
+              "probe collapsed to Mercury-stable (the v0.24.9 "
+              "feature-schema gap). After v0.24.11 added Pluto-"
+              "Charon as a ground-proof row, Enceladus now lands on "
+              "the new mutual_lock label at moderate confidence "
+              "(cal_ratio ~0.64, with Mercury-stable as 2nd-"
+              "nearest). **Remaining gap**: Enceladus is an "
+              "asymmetric *satellite-with-partner-resonance* (locked "
+              "to Saturn + 2:1 with Dione), NOT a true mutual "
+              "binary lock like Pluto-Charon. The current schema "
+              "still can't distinguish those subregimes; the "
+              "classifier picks mutual_lock because that's the "
+              "closest *available* analog. A future v0.24.x ship "
+              "for an asymmetric-satellite-with-partner-resonance "
+              "(e.g., Galilean Io ship with Laplace-resonance "
+              "physics) would populate the missing niche. The probe "
+              "now ratchets the current best-available answer + "
+              "documents the remaining schema gap.",
         source_key="murray_dermott_1999",
     ),
 
@@ -246,19 +261,24 @@ REGIME_PROBES: List[RegimeProbe] = [
         prediction_track_signal=0,
         dimensionality=0,
         forcing_class_index=0,
-        expected_regime="rigid_body_action_angle_stable",
+        expected_regime="rigid_body_action_angle_mutual_lock",
         ood_expected=False,
         notes="Galilean Laplace resonance — the canonical 3-body "
               "mean-motion lock. Io's tidal heating from this "
               "resonance drives ~10^14 W of volcanic activity, more "
               "than all other Solar-System volcanism combined. "
               "Peale-Cassen-Reynolds 1979 prediction; Voyager 1 "
-              "confirmation 2 weeks later. **Feature-schema gap "
-              "(same as pluto_charon, enceladus)**: Io has the "
-              "commensurability but no published multi-millennium "
-              "prediction track-record, so the v0.24.9 schema "
-              "returns Mercury-stable. Future schema extension may "
-              "let this land on Luna.",
+              "confirmation 2 weeks later. **v0.24.11 partial "
+              "closure** (same shape as enceladus): now lands on "
+              "mutual_lock at cal_ratio ~0.51 (with Mercury-stable "
+              "as 2nd-nearest). **Remaining gap**: Io is an "
+              "asymmetric Jupiter-satellite with a *3-body* partner "
+              "resonance (Io+Europa+Ganymede 4:2:1 Galilean "
+              "Laplace), NOT a 2-body mutual binary. A future Io "
+              "Galilean Laplace ship would populate the partner-"
+              "resonance niche. Cross-references task #154 (Loki "
+              "Patera Io ship) which when shipped would natively "
+              "include Io's Laplace-resonance dynamical spectrum.",
         source_key="peale_cassen_reynolds_1979",
     ),
 
@@ -305,11 +325,28 @@ REGIME_PROBES: List[RegimeProbe] = [
         prediction_track_signal=0,
         dimensionality=0,
         forcing_class_index=0,
-        expected_regime="rigid_body_action_angle_stable",
-        ood_expected=False,
+        expected_regime=None,
+        ood_expected=True,
         notes="Dwarf planet; main-belt asteroid type C. Park 2016 "
-              "Dawn gravity / shape; Russell 2016 mission overview.",
+              "Dawn gravity / shape; Russell 2016 mission overview. "
+              "**v0.24.11 ratchet revision**: prior to v0.24.11 "
+              "Ceres classified as rigid_body_action_angle_stable "
+              "(matched Mercury at modest cal_ratio). After v0.24.11 "
+              "added Pluto-Charon, Ceres now sits in feature-space "
+              "terrain with no close training analog -- both Mercury "
+              "and Pluto-Charon have has_commensurability=1 but "
+              "Ceres has =0. Cal_ratio ~0.998, OOD-flagged honestly. "
+              "**Remaining gap (rigid-stable-no-commensurability)**: "
+              "no training row exists for a Diophantine-stable "
+              "rigid body without an integer commensurability. Mars "
+              "(chaotic) is the closest unstable analog; Mercury "
+              "(stable + 3:2) is the closest stable analog but "
+              "carries the commensurability marker. A future v0.24.x "
+              "ship for a stable rigid body without commensurability "
+              "(Vesta, Pallas, or another asteroid) would populate "
+              "the niche.",
         source_key="park_2016",
+        precision_flag=PRECISION_MEDIUM,
     ),
 
     # ==== Continuum normal-modes probe (Sun cousin) ===================

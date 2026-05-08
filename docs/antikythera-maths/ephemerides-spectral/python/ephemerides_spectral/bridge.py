@@ -280,6 +280,14 @@ from ephemerides_spectral._research.dynamical_regime_catalog import (
     run_dynamical_regime_probes as _run_dynamical_regime_probes_impl,
     list_dynamical_regime_probes as _list_dynamical_regime_probes_impl,
 )
+from ephemerides_spectral._research.pluto_charon_dynamical_spectrum_catalog import (
+    get_pluto_charon_dynamical_spectrum
+        as _get_pluto_charon_dynamical_spectrum_impl,
+    get_double_synchronous_signature
+        as _get_double_synchronous_signature_impl,
+    list_pluto_charon_dynamical_spectrum
+        as _list_pluto_charon_dynamical_spectrum_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4750,6 +4758,55 @@ def list_dynamical_regime_probes() -> Dict[str, Any]:
     eigendecomposition cost.
     """
     return _list_dynamical_regime_probes_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.11 — Pluto-Charon Dynamical Spectrum
+# (binary mutual tidal lock; Path-B response to v0.24.10 schema-gap;
+# the Solar System's only known double-synchronous binary planet)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_pluto_charon_dynamical_spectrum() -> Dict[str, Any]:
+    """Pluto-Charon action-angle mode catalog + binary geometry +
+    small-moon near-commensurabilities.
+
+    The fourth per-body dynamical-spectrum surface (after Mercury /
+    Luna / Mars) and the first **binary mutual-tidal-lock** entry.
+    12 modes (3 angle-locked at the 6.387-d mutual orbital period;
+    1 slow apsidal libration; 4 actions; 4 small-moon near-3:4:5:6
+    near-commensurabilities) + binary geometry (mass ratio 0.122,
+    barycenter ~940 km outside Pluto's surface) + small-moon
+    orbital periods.
+
+    Path-B response to v0.24.10 OOS-probe-roster schema-gap:
+    populates the binary-mutual-lock regime with a real
+    ground-proof row.
+    """
+    return _get_pluto_charon_dynamical_spectrum_impl()
+
+
+def get_double_synchronous_signature() -> Dict[str, Any]:
+    """The double-synchronous lock signature — THE headline of v0.24.11.
+
+    Pluto + Charon are both tidally locked to each other
+    simultaneously (mutual orbital period = both spin periods =
+    6.387 d). The END STATE of dyadic tidal evolution; the
+    Solar System's only known example.
+
+    Returns the triple-lock invariant + companion observables
+    (eccentricity 5e-5, mutual obliquity 0.0006°, mass ratio
+    0.122, barycenter offset 940 km above Pluto's surface) +
+    small-moon near-3:4:5:6 commensurabilities (Showalter-
+    Hamilton 2015 chaotic in libration).
+    """
+    return _get_double_synchronous_signature_impl()
+
+
+def list_pluto_charon_dynamical_spectrum() -> Dict[str, Any]:
+    """Full enumeration of every Pluto-Charon dynamical mode +
+    citations."""
+    return _list_pluto_charon_dynamical_spectrum_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

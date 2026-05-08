@@ -49,9 +49,11 @@ def test_feature_names_count() -> None:
     assert len(FEATURE_NAMES) == N_FEATURES
 
 
-def test_regime_count_9() -> None:
-    """One training example per v0.24.0–v0.24.8 ship."""
-    assert len(REGIME_EXAMPLES) == 9
+def test_regime_count_10() -> None:
+    """One ground-proof row per v0.24.x ship that participates in
+    the regime classifier (v0.24.0–v0.24.8 + v0.24.11 Pluto-Charon
+    Path-B addition)."""
+    assert len(REGIME_EXAMPLES) == 10
 
 
 def test_regime_names_unique() -> None:
@@ -70,9 +72,9 @@ def test_ship_versions_in_v_0_24_x() -> None:
         assert e.ship_version.startswith("0.24.")
 
 
-def test_sources_count_9() -> None:
-    """One source pointer per v0.24.x ship."""
-    assert len(SOURCES) == 9
+def test_sources_count_10() -> None:
+    """One source pointer per v0.24.x ship in the classifier roster."""
+    assert len(SOURCES) == 10
 
 
 def test_every_source_key_resolves() -> None:
@@ -292,11 +294,12 @@ def test_k_dwarf_star_classifies_as_continuum() -> None:
     )
 
 
-def test_classify_returns_distances_to_all_9_examples() -> None:
+def test_classify_returns_distances_to_all_10_examples() -> None:
+    """v0.24.11 added Pluto-Charon as a 10th ground-proof row."""
     res = classify_dynamical_regime(
         (0.0, 0.0, 0.5, 0, 0, 0, 0), n_components=3,
     )
-    assert len(res["distances_to_all"]) == 9
+    assert len(res["distances_to_all"]) == 10
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -321,13 +324,14 @@ def test_classify_rejects_too_long_feature_vector() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_list_returns_all_9_regimes() -> None:
+def test_list_returns_all_10_regimes() -> None:
+    """v0.24.0–v0.24.8 + v0.24.11 = 10 regime examples."""
     r = list_dynamical_regimes()
     assert r["ok"] is True
-    assert r["n_regimes"] == 9
+    assert r["n_regimes"] == 10
     assert r["n_features"] == N_FEATURES
-    assert r["n_sources"] == 9
-    assert len(r["regimes"]) == 9
+    assert r["n_sources"] == 10
+    assert len(r["regimes"]) == 10
 
 
 def test_list_includes_per_regime_catalog_module() -> None:
@@ -354,7 +358,7 @@ def test_list_includes_forcing_class_name() -> None:
 def test_bridge_get_dynamical_regime_eigenbasis() -> None:
     r = bridge.get_dynamical_regime_eigenbasis()
     assert r["ok"] is True
-    assert r["n_examples"] == 9
+    assert r["n_examples"] == 10
     assert r["n_features"] == N_FEATURES
 
 
@@ -369,7 +373,7 @@ def test_bridge_classify_dynamical_regime() -> None:
 def test_bridge_list_dynamical_regimes() -> None:
     r = bridge.list_dynamical_regimes()
     assert r["ok"] is True
-    assert r["n_regimes"] == 9
+    assert r["n_regimes"] == 10
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -389,7 +393,7 @@ def test_cli_regime_eigenbasis_smoke() -> None:
         rc = cli_main(["regime-eigenbasis"])
     assert rc == 0
     payload = _json.loads(buf.getvalue())
-    assert payload["n_examples"] == 9
+    assert payload["n_examples"] == 10
 
 
 def test_cli_regime_classify_smoke() -> None:
@@ -431,7 +435,7 @@ def test_cli_regime_list_smoke() -> None:
         rc = cli_main(["regime-list"])
     assert rc == 0
     payload = _json.loads(buf.getvalue())
-    assert payload["n_regimes"] == 9
+    assert payload["n_regimes"] == 10
 
 
 def test_cli_regime_help() -> None:

@@ -1081,6 +1081,30 @@ def _cmd_regime_probes_list(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.24.11 — Pluto-Charon Dynamical Spectrum CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_pluto_charon_dynamical_spectrum(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_pluto_charon_dynamical_spectrum(), pretty=args.pretty,
+    )
+
+
+def _cmd_double_synchronous_signature(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_double_synchronous_signature(), pretty=args.pretty,
+    )
+
+
+def _cmd_pluto_charon_dynamical_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_pluto_charon_dynamical_spectrum(),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -4745,6 +4769,69 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     re_probes_ls.set_defaults(func=_cmd_regime_probes_list)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.24.11 — Pluto-Charon Dynamical Spectrum
+    # ──────────────────────────────────────────────────────────────────
+
+    # pluto-charon-dynamical-spectrum
+    pcds = sub.add_parser(
+        "pluto-charon-dynamical-spectrum",
+        help="Pluto-Charon binary action-angle catalog + small-moon resonances",
+        description=(
+            "v0.24.11 -- Pluto-Charon dynamical spectrum. Fourth\n"
+            "per-body ship in the v0.24.x action-angle sequence\n"
+            "(after Mercury/Luna/Mars); the FIRST binary mutual-\n"
+            "tidal-lock entry. Pluto + Charon both tidally locked\n"
+            "to each other simultaneously (mutual orbital period =\n"
+            "both spin periods = 6.387 d). The Solar System's only\n"
+            "known double-synchronous binary planet.\n"
+            "\n"
+            "Includes 12 modes (3 angle-locked at 6.387 d, 1 slow\n"
+            "apsidal libration, 4 actions, 4 small-moon near-3:4:5:6\n"
+            "near-resonances) + binary geometry (mass ratio 0.122,\n"
+            "barycenter ~940 km outside Pluto's surface) + small-\n"
+            "moon orbital periods.\n"
+            "\n"
+            "Path-B response to v0.24.10 schema-gap: populates the\n"
+            "binary-mutual-lock regime that the v0.24.9 classifier\n"
+            "couldn't see."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pcds.set_defaults(func=_cmd_pluto_charon_dynamical_spectrum)
+
+    # double-synchronous-signature
+    dss = sub.add_parser(
+        "double-synchronous-signature",
+        help="Pluto-Charon double-synchronous lock signature (the headline)",
+        description=(
+            "Returns the triple-lock invariant (P_orb = P_spin_pluto\n"
+            "= P_spin_charon = 6.387 d) + companion observables\n"
+            "(eccentricity 5e-5, mutual obliquity 0.0006 deg, mass\n"
+            "ratio 0.122, barycenter offset 940 km above Pluto's\n"
+            "surface) + small-moon near-3:4:5:6 commensurabilities\n"
+            "with the mutual orbital period (Showalter-Hamilton 2015\n"
+            "chaotic in libration on Myr timescales)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    dss.set_defaults(func=_cmd_double_synchronous_signature)
+
+    # pluto-charon-dynamical-spectrum-full
+    pcdsf = sub.add_parser(
+        "pluto-charon-dynamical-spectrum-full",
+        help="Full Pluto-Charon mode catalog + citations",
+        description=(
+            "Returns every Pluto-Charon dynamical mode + the\n"
+            "citation dict so consumers can verify the provenance\n"
+            "(Brozovic 2015 post-New-Horizons orbital fit; Stern 2015\n"
+            "*Science*; Showalter-Hamilton 2015 *Nature* small-moon\n"
+            "chaos; Tholen-Buie 1990 mutual events)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pcdsf.set_defaults(func=_cmd_pluto_charon_dynamical_spectrum_full)
 
     # lunar-kernels
     lk = sub.add_parser(

@@ -81,12 +81,12 @@
       "size_bytes": 21563
     },
     "_research/dynamical_regime_data.py": {
-      "sha256": "74df573bba83800300e699089b2ded8a67dd89b891002d6763284928499de4f3",
-      "size_bytes": 19670
+      "sha256": "1cedf119f1dbbf42e35e9a5d9250e923e01b1fcbaa0d000bf0ce16af3db3b69b",
+      "size_bytes": 22642
     },
     "_research/dynamical_regime_probes_data.py": {
-      "sha256": "f7a5f8c1dbaa3bf682770460112d35832f8db2304e6ed93cb7035af4a0ba68b4",
-      "size_bytes": 20543
+      "sha256": "10d536e89f7dd04be505f3eb3c9e7634e5c435032f9ff87705f58155a8262fe2",
+      "size_bytes": 22877
     },
     "_research/dynamics.py": {
       "sha256": "693ca209643a84fef67346b3ec042986766394afc962e38b568e526dbb4296b3",
@@ -216,6 +216,14 @@
       "sha256": "f86a809e739a20ae21acb6b076cde6067c9663c164ad87569598d573776f9b19",
       "size_bytes": 10659
     },
+    "_research/pluto_charon_dynamical_spectrum_catalog.py": {
+      "sha256": "8a1e4b69e37ac127f1df112abd48c7564329d446fd7fe1bd64bfcd99bd67ca38",
+      "size_bytes": 11361
+    },
+    "_research/pluto_charon_dynamical_spectrum_data.py": {
+      "sha256": "0481fa279fc4d35c866f95eb17da0eaa280301517b3828edb352025820d0f4ca",
+      "size_bytes": 20300
+    },
     "_research/portable_prng.py": {
       "sha256": "e1629999c1d35ab00324a2c96e3798867bbe26ce6a903064dac5395b82820cee",
       "size_bytes": 2902
@@ -314,5 +322,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.24.10"
+  "version": "0.24.11"
 }

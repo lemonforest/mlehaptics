@@ -7,7 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.24.10)
+(no entries yet — next entries land after v0.24.11)
+
+## [0.24.11] — 2026-05-07
+
+**Pluto-Charon Dynamical Spectrum (binary mutual tidal lock; Path-B closure of v0.24.10 OOS-probe-roster schema-gap) — fourth per-body action-angle ship in v0.24.x and the first binary mutual-tidal-lock entry.** Pure-Python additive; **no ABI bump** (thirty-fourth consecutive ship since v0.13.x).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.pluto_charon_dynamical_spectrum_catalog.get_pluto_charon_dynamical_spectrum / get_double_synchronous_signature / list_pluto_charon_dynamical_spectrum` |
+| Bridge dict API | `bridge.get_pluto_charon_dynamical_spectrum()` / `bridge.get_double_synchronous_signature()` / `bridge.list_pluto_charon_dynamical_spectrum()` |
+| CLI | `pluto-charon-dynamical-spectrum`, `double-synchronous-signature`, `pluto-charon-dynamical-spectrum-full` |
+
+### THE headline — triple synchronous lock
+
+Pluto and Charon are simultaneously locked to each other:
+
+```
+P_orb(Pluto-Charon) = P_spin(Pluto) = P_spin(Charon) = 6.387230 days
+```
+
+The **end state of dyadic tidal evolution** — the only example in the Solar System. Earth-Luna is *en route* to this state (Earth's rotation is currently spinning down via tidal recession at +3.83 cm/yr per v0.21.6 / Williams 2014); Pluto-Charon has *arrived*.
+
+### Companion observables confirming the end-state
+
+| Observable | Value | Note |
+|---|---|---|
+| Eccentricity | 5e-5 | ~1100x smaller than Luna's 0.0549 — fully damped |
+| Mutual obliquity | 0.0006° | both spin axes aligned with mutual orbit normal |
+| Mass ratio Charon/Pluto | 0.1218 | **largest binary mass ratio in the Solar System** (Earth-Luna is 0.0123, ~10x smaller) |
+| Barycenter offset | 2128 km from Pluto centre | sits ~940 km **outside** Pluto's surface (radius 1188 km); both bodies orbit a point in empty space |
+
+### Cross-channel — small-moon near-3:4:5:6 commensurabilities
+
+The four small moons (Styx, Nix, Kerberos, Hydra) orbit the barycenter at near-integer multiples of the mutual orbital period:
+
+| Moon | Period (d) | × P_orb | Off integer |
+|---|---|---|---|
+| Styx | 20.16 | 3.16 | 5.22% |
+| Nix | 24.85 | 3.89 | 2.72% |
+| Kerberos | 32.17 | 5.04 | 0.72% |
+| Hydra | 38.20 | 5.98 | 0.32% |
+
+Showalter-Hamilton 2015 *Nature* found the system is **chaotic in libration** on Myr timescales because the resonances aren't exact — a v0.24.2-Mars-style spectral-stability failure at the small-moon shepherd network's scale. A mini-Galilean-Laplace structure built on top of a binary lock, exhibited exactly once in the Solar System.
+
+### Path-B closure — populated a v0.24.10 schema-gap with a real ground-proof row
+
+The v0.24.10 OOS probes flagged that bodies with commensurabilities-but-no-Saros-style-track (Pluto-Charon, Enceladus, Io) all collapsed onto Mercury-stable in the v0.24.9 classifier. v0.24.11 closes the gap by **populating the missing regime** (new label `rigid_body_action_angle_mutual_lock`) rather than engineering a new feature. This is the project's discipline: when the eigenbasis honestly can't see a distinction, *give it more ground-proof data*, don't *re-engineer the schema*.
+
+After v0.24.11:
+- **Pluto-Charon probe** self-classifies to `mutual_lock` deterministically (cal_ratio 0).
+- **Enceladus / Io probes** now land on `mutual_lock` (was Mercury-stable). Partial closure — the next gap surfaced is **asymmetric-satellite-with-partner-resonance** (Enceladus 2:1 Dione, Io 4:2:1 Galilean Laplace), structurally distinct from binary mutual lock.
+- **Ceres probe** OOD-flagged at cal_ratio 0.998 — genuine "no rigid-stable-no-commensurability training row exists." Honest gap-surfacing.
+
+### Reframing — "ground-proof rows", not "training data"
+
+The v0.24.x catalogs are now consistently called **ground-proof rows** in code and docs. The classifier's "training step" is `np.linalg.eigh` (closed-form, byte-identical across runs). Adding a new row is a **deterministic schema extension**, not retraining. No SGD, no random init, no validation split, no pseudorandom anywhere.
+
+### Tests
+
+- `tests/test_pluto_charon_dynamical_spectrum.py` — 33 tests (catalog shape, triple-lock invariant, eccentricity / obliquity / mass-ratio / barycenter ratchets, small-moon near-resonance bounds, classifier integration, bridge + CLI smoke).
+- `tests/test_dynamical_regime.py` — 7 assertion updates (n=9 → n=10 across regime count, source count, distances-to-all length, eigenbasis n_examples, list n_regimes).
+- `tests/test_dynamical_regime_probes.py` — 3 probe-ratchet revisions (pluto_charon → mutual_lock, enceladus + io_galilean_resonance → mutual_lock, ceres → ood_expected=True with notes).
+- `tests/test_parity_smoke.py` — 3 new `python_only` parity entries.
+
+**1782 tests pass, 42 skipped** (was 1753 + 42 in v0.24.10; +29 net new — 33 in test_pluto_charon plus updated regime tests).
+
+### Sources (7)
+
+Stern 1992 (canonical pre-New-Horizons review), Tholen-Buie 1990 (mutual events 1985-1990), Brozovic 2015 (post-New-Horizons orbital fit; mass ratio + small-moon orbits), Stern 2015 (New Horizons flyby summary), Showalter-Hamilton 2015 (small-moon chaos), Showalter 2015 (Kerberos discovery), Weaver 2016 (small-satellite imaging).
+
+### Architectural commitment
+
+The project's first **demonstrated Path-B closure**: a real schema-gap surfaced by the OOS probe layer (v0.24.10), then closed not by feature engineering but by populating the missing regime with a real ground-proof row. v0.24.11 is the concrete demonstration of the loop the v0.25.0 multi-source-collector framework will mechanise: probes flag → ground-proof rows close → eigenbasis recomputes deterministically.
+
+Two new gaps surfaced and documented for future ships: (a) asymmetric-satellite-with-partner-resonance (Enceladus, Io); (b) rigid-stable-no-commensurability (Ceres, Vesta).
 
 ## [0.24.10] — 2026-05-07
 

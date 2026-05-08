@@ -1,17 +1,31 @@
-"""Sol Dynamical-Regime Classifier — labelled training examples and
+"""Sol Dynamical-Regime Classifier — labelled ground-proof rows and
 feature schema for the v0.24.9 ship (eigenbasis-projection version
 of the v0.24.x if/else chain).
 
-Real, sourced data for the v0.24.9 ship — the **tenth and capstone
-ship in v0.24.x** and the **first time** the project ships an
-explicit *consumer* of the v0.24.x methodology arc rather than
-another generative catalog. Each v0.24.x ship (v0.24.0 through
-v0.24.8) becomes a **labelled training example** in a 7-dimensional
-feature space. The eigenbasis of the resulting 9 x 7 feature
-matrix is the project's **dynamical-regime classifier**: given an
-arbitrary feature vector for a body or sub-system, project it into
-the eigenbasis and the nearest-neighbour regime label tells you
-which v0.24.x methodology to apply.
+Real, sourced data for the v0.24.9 ship — the **tenth ship in
+v0.24.x** and the project's first explicit *meta-consumer* of the
+v0.24.x methodology arc. Each v0.24.x ship (v0.24.0 through
+v0.24.8 originally; v0.24.11 added later) becomes a **labelled
+ground-proof row** in a 7-dimensional feature space. The eigen-
+basis of the resulting feature matrix is the project's
+**dynamical-regime classifier**: given an arbitrary feature
+vector for a body or sub-system, project it into the eigenbasis
+and the nearest-neighbour regime label tells you which v0.24.x
+methodology to apply.
+
+Terminology
+-----------
+**These are NOT training examples in the SGD sense.** They are
+**ground-proof rows**: published, deterministic, observationally-
+established physics. Pluto-Charon's mass ratio is 0.1218 because
+that's what Brozovic 2015's orbital fit measured — not because a
+loss function converged on it. The classifier doesn't *train*;
+its eigenbasis is computed via a single closed-form
+``np.linalg.eigh`` call, byte-identical across runs. Adding a
+new v0.24.x ship to this roster (e.g., v0.24.11 Pluto-Charon
+populating the binary-mutual-lock regime that v0.24.10 OOS
+probes flagged as a schema gap) is a **deterministic schema
+extension**, not a re-training.
 
 Origin context
 --------------
@@ -413,6 +427,43 @@ REGIME_EXAMPLES: List[RegimeExample] = [
               "methodology, same body, one HIT and one MISS.",
         source_key="v024_8",
     ),
+
+    # ==== v0.24.11 — Pluto-Charon (binary mutual tidal lock) =========
+
+    RegimeExample(
+        name="pluto_charon_dynamical_spectrum",
+        ship_version="0.24.11",
+        regime_label="rigid_body_action_angle_mutual_lock",
+        description=(
+            "Binary mutual tidal lock: Pluto and Charon are both "
+            "tidally locked to each other simultaneously (mutual "
+            "orbital period = both spin periods = 6.387 d). The "
+            "ONLY example in the Solar System; the END STATE of "
+            "dyadic tidal evolution. Mass ratio Charon/Pluto = "
+            "0.122 (largest binary ratio in the Solar System); "
+            "barycenter sits ~940 km outside Pluto's surface."
+        ),
+        catalog_module="pluto_charon_dynamical_spectrum_catalog",
+        # Mutual orbital period 6.387 days = 5.52e5 s
+        time_scale_log_s=5.74,
+        # Pluto radius 1188 km
+        spatial_scale_log_km=3.08,
+        stability_index=1.0,
+        has_commensurability=1,    # mutual 1:1 lock
+        prediction_track_signal=0,  # no published Saros-style framework
+        dimensionality=0,
+        forcing_class_index=FORCING_CLASS_GRAVITATIONAL,
+        notes="Path-B response to the v0.24.10 OOS-probe-roster "
+              "feature-schema gap: Pluto-Charon (Enceladus, Io) "
+              "with commensurabilities-but-no-Saros-track were "
+              "collapsing onto Mercury-stable in v0.24.9. v0.24.11 "
+              "populates the gap with a real ground-proof example, "
+              "creating a new regime label for the binary-mutual-"
+              "lock niche. Eccentricity 5e-5 + mutual obliquity "
+              "0.0006 deg confirm the system has reached the END "
+              "state of dyadic tidal evolution.",
+        source_key="v024_11",
+    ),
 ]
 
 
@@ -475,6 +526,16 @@ SOURCES: Dict[str, str] = {
         "Nooner-Chadwick 2016 inflation-trigger framework; "
         "post-2015 follow-ups for 2024-2025 MISS context. See "
         "research/axial_seamount_data.py."
+    ),
+    "v024_11": (
+        "ephemerides-spectral v0.24.11 (Pluto-Charon Dynamical "
+        "Spectrum, binary mutual tidal lock). Brozovic 2015 post-"
+        "New-Horizons orbital fit; Stern 2015 *Science* flyby "
+        "summary; Showalter-Hamilton 2015 *Nature* small-moon "
+        "chaos; Tholen-Buie 1990 mutual events. See research/"
+        "pluto_charon_dynamical_spectrum_data.py. Path-B response "
+        "to the v0.24.10 schema-gap; populates the binary-mutual-"
+        "lock regime that v0.24.9 couldn't see."
     ),
 }
 
