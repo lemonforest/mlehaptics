@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.26.0)
+### Documentation
+
+- `bridge.find_syzygies` and `bridge.get_eclipse_probability` docstrings now explicitly frame the two surfaces as a **two-tier eclipse-finding discipline**: `find_syzygies` is the Saros-class mean-period triage tier (no DE441 query; `O(n_syzygies)` per window), and `get_eclipse_probability` is the per-JD JPL-anchored arc-second-class confirmation tier (reads DE441 via `inst.encode_state(jd)` and projects against the Syzygy Operator). The two surfaces compute related-but-different quantities (Born-rule projection vs mean-period geometric residual) on different data; both are deliberately load-bearing. Pre-v0.27.0 wording suggested `find_syzygies` "replaced" `get_eclipse_probability`, which was misleading — only the windowed-loop *usage* of `get_eclipse_probability` was replaced; per-call use as the precision tier is the intended workflow. No code change.
 
 ## [0.26.0] — 2026-05-08
 
