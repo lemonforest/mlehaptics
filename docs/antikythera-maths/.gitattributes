@@ -11,3 +11,17 @@ results-mfo/*.json   text eol=lf
 # The MFO notebook itself is also text; LF on every platform for diff
 # stability across Linux / macOS / Windows authoring.
 mfo_spectral_research_notebook.md  text eol=lf
+
+# Attested-collector framework source-tree files. The codegen mirror
+# from research/attested/ → ephemerides-spectral/python/ephemerides_spectral/_research/attested/
+# is byte-exact; the manifest captures SHA-256 over the mirrored bytes. If the
+# source files are CRLF on a Windows working copy, codegen captures CRLF SHAs
+# while git commits them as LF, and the runtime test_data_freshness manifest
+# check fails on every platform that gets the LF version. Pin LF on every
+# attested-source file (TOML / JSON / NDJSON) and on the adapter modules to
+# keep regenerate.py byte-stable regardless of authoring platform.
+research/attested/**/*.toml          text eol=lf
+research/attested/**/*.json          text eol=lf
+research/attested/**/*.ndjson        text eol=lf
+research/attested_adapters/*.py      text eol=lf
+research/attested_collector_*.py     text eol=lf
