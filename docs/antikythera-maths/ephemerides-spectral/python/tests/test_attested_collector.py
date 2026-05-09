@@ -275,6 +275,88 @@ def test_descriptor_hash_deterministic() -> None:
     assert len(h1) == 64  # SHA-256 hex
 
 
+def test_ndjson_path_honors_explicit_fetch_field(tmp_path: Path) -> None:
+    """A descriptor with ``[fetch].ndjson_path`` set must resolve to
+    that path, not to the schema-id-derived fallback. Pre-this-fix
+    the resolver ignored the explicit field; the symptom was an
+    apparently-correctly-authored descriptor returning empty rows
+    with the misleading "first T1 collection pending" note."""
+    from ephemerides_spectral._research.attested_collector_catalog import (
+        _ndjson_path,
+    )
+    from ephemerides_spectral._research.attested_collector_descriptor import (
+        Descriptor,
+    )
+    descriptor = Descriptor(
+        path=tmp_path / "descriptor.toml",
+        source={"key": "demo"},
+        fetch={
+            "adapter": "literature_curated",
+            "ndjson_path": "explicit_filename.ndjson",
+        },
+        parse={},
+        schema={"data_schema_id": "demo.row.v1"},
+        rendering={},
+        attestation={},
+    )
+    resolved = _ndjson_path(descriptor)
+    assert resolved == tmp_path / "explicit_filename.ndjson"
+
+
+def test_ndjson_path_falls_back_to_schema_id_when_explicit_absent(
+    tmp_path: Path,
+) -> None:
+    """When ``[fetch].ndjson_path`` is unset, the resolver falls back
+    to deriving the filename from the schema-id middle part. This is
+    the legacy convention; preserves backwards compatibility for
+    descriptors that omit the explicit field."""
+    from ephemerides_spectral._research.attested_collector_catalog import (
+        _ndjson_path,
+    )
+    from ephemerides_spectral._research.attested_collector_descriptor import (
+        Descriptor,
+    )
+    descriptor = Descriptor(
+        path=tmp_path / "descriptor.toml",
+        source={"key": "demo"},
+        fetch={"adapter": "literature_curated"},
+        parse={},
+        schema={"data_schema_id": "demo.row.v1"},
+        rendering={},
+        attestation={},
+    )
+    resolved = _ndjson_path(descriptor)
+    assert resolved == tmp_path / "row.ndjson"
+
+
+def test_ndjson_path_explicit_wins_over_schema_id_derivation(
+    tmp_path: Path,
+) -> None:
+    """When ``[fetch].ndjson_path`` and the schema-id derivation
+    disagree, the explicit field wins. Pins the resolution rule
+    against silent regression."""
+    from ephemerides_spectral._research.attested_collector_catalog import (
+        _ndjson_path,
+    )
+    from ephemerides_spectral._research.attested_collector_descriptor import (
+        Descriptor,
+    )
+    descriptor = Descriptor(
+        path=tmp_path / "descriptor.toml",
+        source={"key": "demo"},
+        fetch={
+            "adapter": "literature_curated",
+            "ndjson_path": "explicit_disagrees.ndjson",
+        },
+        parse={},
+        schema={"data_schema_id": "demo.different.v1"},  # would derive different.ndjson
+        rendering={},
+        attestation={},
+    )
+    resolved = _ndjson_path(descriptor)
+    assert resolved == tmp_path / "explicit_disagrees.ndjson"
+
+
 def test_discover_descriptors_finds_committed_pilots() -> None:
     """Walking research/attested/ surfaces every committed pilot."""
     from ephemerides_spectral._research.attested_collector_catalog import (
