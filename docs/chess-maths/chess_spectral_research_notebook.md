@@ -3992,6 +3992,113 @@ contract, the failing test points at the right wishlist item.
   `_validate_psi_full` into a dedicated `chess_spectral._shared`
   module) is a follow-up ship that doesn't gate 1.14.0 publish.
 
+#### 2026-05-09 amendment 3 — 4D pure-phase encoder (1.15.0)
+
+User-stated priority on the 1.14.0 → 1.15.0 transition:
+
+> *"the chess4d pure phase work the most important. this was part
+> of our chess2d parity drift I was talking about."*
+
+The 1.14.0 amendment 1 shipped 4D evaluator parity but **deferred**
+the 4D pure-phase encoder to 1.15.0+ with an open design question:
+how to integerize the B₄-driven 4D structure when there's no
+integer character formula analog to D₄'s ±1, ±2, 0 table. 1.15.0
+closes this gap.
+
+**The design unlock — scale-by-LCM for the A_1 projector**
+
+The 4D encoder's hot path uses ``P_A1 @ sig`` where ``P_A1`` is
+the sparse A_1 orbit projector with entries ``1/orbit_size``. The
+1.14.0 deferral note framed this as "no integer character formula"
+— but the projector is **already** structurally integerizable
+without characters: every B_4 orbit on the 8⁴ lattice has size
+dividing ``|B_4| = 384``, so multiplying P_A1 by 384 makes every
+entry integer (specifically, divisors of 384). The 1/384 factor is
+absorbed into the channel dequantization scale, exactly the same
+pattern as 2D's ``/8`` factor for D₄ irreps.
+
+This is a design pattern, not a 4D-specific trick: any sparse
+projector whose nonzero entries are reciprocals of integers can be
+integerized by scaling by their LCM. For B_4 this is just 384.
+
+**The other 4D channels — analogous integerization**
+
+- **STD4 channels** (1-4): coord_resid is a quarter-integer table
+  (multiples of 0.25), so scale by 4 makes everything integer.
+  Range [-21, +21] in int8.
+- **Fiber-symmetric / pawn-antisym / diag channels** (5-10): same
+  int16-quantization with per-table max-abs scale as 2D.
+
+**Piece-value scaling — _VALS_INT_SCALE_4D = 4**
+
+The 4D ``PIECE_VALUES_4D`` has B=3.25 (vs 2D's B=3.5), so 4D needs
+``_VALS_INT_SCALE_4D = 4`` (vs 2D's 2). All other piece values
+(P=1, N=3, R=5, Q=9, K=12) are integer-multiplicative-clean.
+
+**Empirical bench — uniformly equal or faster**
+
+Bench at iters=100 on 3 random positions:
+
+| Position    | float (µs) | pure_int (µs) | pure/float |
+|---|---|---|---|
+| sparse n=4  | 10 707     | 10 549        | 0.99×      |
+| midgame n=24| 21 805     | 21 095        | 0.97×      |
+| dense n=128 | 88 996     | 70 283        | **0.79×**  |
+
+This is the **OPPOSITE** of 2D's empirical result. 2D pure-phase
+was 1.64× SLOWER at the opening (dense) corpus because per-piece
+Python-loop overhead vs numpy float64 SIMD ate the integer-
+arithmetic win. 4D pure-phase is faster at dense because:
+
+1. **Sparse matvec scales differently**: the A_1 channel's
+   ``P_A1_INT @ sig_int32`` is a sparse 4096×4096 × 4096 matvec.
+   scipy's CSR matvec on integer data avoids the float-mul cost on
+   every nonzero entry. 2D doesn't have this kernel — D₄ uses
+   permutation gathers.
+2. **STD4 is 16 384 elementwise operations**, large enough for SIMD
+   to amortize the python-side overhead.
+
+The Python-loop bottleneck still exists (fiber-sym channels iterate
+per-piece) but doesn't dominate at 4D's scale because the matvec +
+elementwise channels are doing real numerical work.
+
+**Test coverage**
+
+  * ``tests/test_encoder_pure_phase_4d.py`` (21 immolation tests):
+    output shape/dtype, quantized-table contracts (P_A1_INT entries
+    are divisors of 384, coord_resid_int8 in int8 range, fiber
+    int16 shapes), §20.15 cosine-sim acceptance ≥ 0.999 across 5-
+    position representative corpus, **A_1 + STD4 bit-exactness
+    against ``encode_4d``**, channel-energy Spearman ρ ≥ 0.99,
+    edge cases (empty position, single-piece, str-keyed, legacy
+    pawn schema, determinism).
+  * ``tests/test_pure_phase_stress_4d.py`` (8 stress tests on 500
+    random 4D positions): per-position cosine ≥ 0.99 (no
+    exceptions), median ≥ 0.999, **A_1 + STD4 bit-exact at scale**,
+    channel-energy Spearman ρ ≥ 0.99, no NaN/Inf, int32 bounded,
+    deterministic + reproducible.
+
+**All 29 new tests pass.** The chess2d/chess4d pure-phase parity
+gap is closed.
+
+**What 1.15.0 does NOT do** (still deferred):
+
+- **Vectorize the per-piece Python loop**. Still applies. Would
+  benefit ALL encoder variants (float and pure-phase, 2D and 4D).
+  Estimated 30-50× win. Deferred until empirical motivation
+  surfaces from a downstream consumer.
+- **Port to C**. The 4D pure-phase encoder is the natural target
+  for a C port — sparse matvec + int elementwise ops map cleanly
+  to C-side SIMD. Deferred.
+- **Tournament-driven evaluator validation** (Phase 7+).
+- **Move-gen + eval combined bench** (nodes/sec at depth).
+- **PGN-sourced channel-energy-clustered phase classification**.
+
+These are the items called out by the user as "deferred" at the
+1.14.0 → 1.15.0 transition. 1.15.0 ships the most important one
+(4D pure-phase encoder, the parity drift item); the others remain
+on the follow-up roadmap.
+
 ### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:
