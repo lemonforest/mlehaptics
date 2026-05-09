@@ -122,9 +122,13 @@ Public API
     :func:`apply_move_qm`             — per-channel dict (low-level)
     :func:`apply_move_qm_full`        — assembled ψ_post (high-level dispatch)
     :func:`measure_at`                — Born-rule projective measurement
-    :func:`get_density_matrix_of`     — reduced density matrix (deferred to v1.7+)
+    :func:`get_density_matrix_of`     — reduced density matrix (1.14.0+ partial impl)
     :func:`get_probability_current`   — j_p(c) = Im(ψ* ∇ψ) on the lattice
     :func:`get_qm_expectation`        — ⟨ψ|H|ψ⟩ for a named observable
+
+§17.1 ψ-direct variants (1.14.0+ chess4D-OC M14.4c hot path):
+    :func:`get_qm_density_from_psi`           — ψ-direct |ψ|² density
+    :func:`get_probability_current_from_psi`  — ψ-direct current, flat (16384,)
 
 §17.5 (developer / debug bridge surface):
     :func:`get_version`               — chess_spectral.__version__
@@ -133,6 +137,10 @@ Public API
     :func:`load_fen4`                 — parse FEN4 string into a state object
     :func:`load_jsonl_fixture`        — load test-fixture in-memory pieces dict
     :func:`has_legal_moves`           — does a team have any legal move?
+
+§17.6 (Pyodide-friendly evaluator entries, 1.14.0+):
+    :func:`channel_energies_2d`       — encode + per-channel L2 energy (2D)
+    :func:`channel_energies_4d`       — encode + per-channel L2 energy (4D)
 
 Helpers (Pyodide-bridge serialization):
     :func:`complex_to_interleaved_float32`  — ComplexArray = real+imag interleaved
