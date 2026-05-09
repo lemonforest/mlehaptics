@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 1.16.0+ in-progress: PGN-sourced phase classifier
+
+`chess_spectral.phase_classifier` — data-driven open/midgame/endgame
+phase classifier built from real games, addressing the deferred item
+from 1.14.0 amendment 1's stress-test note (*"PGN-sourced phase
+classification — replace hand-picked open/mid/end FENs with channel-
+energy-clustered phase labels from real games"*).
+
+**Method**: For each position in a PGN file, compute the 10-dim
+log-channel-energy fingerprint (log1p transform handles the 4-5
+order-of-magnitude span across channels). Cluster all fingerprints
+with pure-numpy k-means (k=3 default, ~30 LOC, no sklearn dep).
+Label clusters via heuristic — the cluster with highest A1+B1+B2
+(structural symmetry channels active in opening) → "opening"; lowest
+total energy → "endgame"; remaining → "midgame".
+
+**API** (`chess_spectral.phase_classifier`):
+
+  * `extract_fingerprint_2d(pos)` — 10-dim log-energy fingerprint
+  * `extract_fingerprints_from_pgn(pgn_path, ...)` — walk a PGN file
+  * `kmeans_cluster(points, k=3)` — pure-numpy k-means with
+    k-means++ init
+  * `label_phases(centroids)` — heuristic labeler
+  * `PhaseClassifier` dataclass — `(centroids, phase_map,
+    channel_names)` with `.classify(pos) -> str` and
+    JSON-serializable `to_dict / from_dict`
+  * `train_phase_classifier_from_pgn(pgn_path, ...)` — end-to-end
+    training pipeline
+
+**CLI**:
+
+```
+python -m chess_spectral.phase_classifier games.pgn \
+    --max-games 100 --sample-every 3 --skip-initial-plies 4 \
+    --output classified_corpus.json
+```
+
+**Empirical validation** at scale on a 100-game TWIC tournament
+corpus (2 793 positions sampled): 34% opening / 41% midgame / 25%
+endgame — proportions look right for tournament chess (midgame is
+typically the largest phase; not every game reaches a long endgame).
+
+**18 immolation tests** (`tests/test_phase_classifier.py`):
+fingerprint shape/dtype, log-transform application, k-means
+correctness on synthetic data, deterministic seeded clustering, label
+heuristic on hand-crafted centroids, end-to-end PGN training,
+classifier serialization round-trip.
+
+This module is **research tooling** — not yet wired into the §16
+bench harness. Next ship: re-run the §20.21 acceptance bench on a
+PGN-sourced corpus and see if the "opening 1.64× SLOWER, endgame
+1.50× FASTER" finding from the hand-picked corpus replicates.
+
 ## [1.15.0] — 2026-05-09
 
 **4D pure-phase encoder** ships — completing the chess2d/chess4d
