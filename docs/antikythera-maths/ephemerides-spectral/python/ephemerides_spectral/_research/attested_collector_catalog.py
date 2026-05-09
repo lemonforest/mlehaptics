@@ -121,8 +121,19 @@ def _table_name(descriptor: Descriptor) -> str:
 _LOCAL_KERNEL_PATH: Optional[Path] = None
 """Currently registered T2 overlay root (or None for T0+T1 only)."""
 
+_LOCAL_KERNEL_ADAPTER_CLASS: Optional[str] = None
+"""Currently registered T2 overlay's adapter-class scope (or None for
+all-classes). When set, only sources whose adapter matches this class
+consult the overlay; sources outside the class fall through to the
+T0+T1 baseline regardless of whether the overlay has a file for them.
+See ADAPTER_CLASSES."""
 
-def use_local_kernel(path: Optional[Path | str]) -> Dict[str, Any]:
+
+def use_local_kernel(
+    path: Optional[Path | str],
+    *,
+    adapter_class: Optional[str] = None,
+) -> Dict[str, Any]:
     """Register a user-runtime-kernel overlay (T2).
 
     Parameters
@@ -131,27 +142,57 @@ def use_local_kernel(path: Optional[Path | str]) -> Dict[str, Any]:
         Filesystem path to a directory shaped like
         ``<source_key>/<table>.ndjson``. When None, clears any
         registered overlay (equivalent to :func:`clear_local_kernel`).
+    adapter_class
+        Optional scope for the overlay. When set, the overlay only
+        applies to sources whose adapter matches the class:
+
+        * ``None`` (default) — overlay applies to all sources.
+        * ``"fetched"`` — overlay applies only to live-fetched
+          sources (html_scraper / json_api / csv_bulk / netcdf_grid /
+          geotiff_bbox). Useful for "patch the live archives but
+          leave curated literature alone."
+        * ``"curated"`` — overlay applies only to literature-curated
+          sources. Useful for "augment my literature catalogue with
+          a private supplement, leave fetched data on the baseline."
+        * A specific adapter name — overlay applies only to that
+          adapter's sources.
+
+        Validated against the same taxonomy as
+        ``list_attested_sources(adapter_class=...)``; unknown class
+        names raise ``ValueError``.
 
     Behaviour
     ---------
     Once registered, queries (``get_attested_dataset`` /
-    ``attestation_audit``) consult the overlay directory FIRST. For
-    each registered source, if the overlay contains a matching
+    ``attestation_audit``) consult the overlay directory FIRST when
+    the source's adapter matches the registered class. For each
+    in-scope source, if the overlay contains a matching
     ``<source>/<table>.ndjson`` file, it REPLACES the baseline
-    NDJSON for that source. Sources with no overlay file fall
-    through to the T0+T1 baseline.
+    NDJSON for that source. Out-of-scope sources, and in-scope
+    sources without an overlay file, fall through to the T0+T1
+    baseline.
 
-    Returns the new local-kernel state for confirmation.
+    Returns the new local-kernel state for confirmation, including
+    ``adapter_class`` echo.
     """
-    global _LOCAL_KERNEL_PATH
+    global _LOCAL_KERNEL_PATH, _LOCAL_KERNEL_ADAPTER_CLASS
     if path is None:
         _LOCAL_KERNEL_PATH = None
+        _LOCAL_KERNEL_ADAPTER_CLASS = None
         return {
             "ok": True,
             "active": False,
             "path": None,
+            "adapter_class": None,
             "message": "T2 overlay cleared; queries return T0+T1 baseline only",
         }
+    # Validate adapter_class up-front so a typo doesn't silently
+    # register an unreachable overlay.
+    if adapter_class is not None:
+        try:
+            _adapter_matches_class("html_scraper", adapter_class)
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
     resolved = Path(path).expanduser().resolve()
     if not resolved.exists():
         return {
@@ -164,11 +205,17 @@ def use_local_kernel(path: Optional[Path | str]) -> Dict[str, Any]:
             "error": f"local kernel path is not a directory: {resolved}",
         }
     _LOCAL_KERNEL_PATH = resolved
+    _LOCAL_KERNEL_ADAPTER_CLASS = adapter_class
+    scope_msg = (
+        f" (scope: adapter_class={adapter_class!r})"
+        if adapter_class else ""
+    )
     return {
         "ok": True,
         "active": True,
         "path": str(resolved),
-        "message": f"T2 overlay registered at {resolved}",
+        "adapter_class": adapter_class,
+        "message": f"T2 overlay registered at {resolved}{scope_msg}",
     }
 
 
@@ -210,6 +257,7 @@ def get_local_kernel_state() -> Dict[str, Any]:
         "ok": True,
         "active": _LOCAL_KERNEL_PATH is not None,
         "path": str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None,
+        "adapter_class": _LOCAL_KERNEL_ADAPTER_CLASS,
         "n_overlay_sources": len(per_source),
         "per_source": per_source,
         "cache_hash": cache_hash,
@@ -218,9 +266,16 @@ def get_local_kernel_state() -> Dict[str, Any]:
 
 def _overlay_path_for(descriptor: Descriptor) -> Optional[Path]:
     """Resolve the T2 overlay NDJSON path for a descriptor (or
-    None when no overlay is registered)."""
+    None when no overlay is registered, or when the overlay's
+    registered adapter_class scope excludes this descriptor's
+    adapter)."""
     if _LOCAL_KERNEL_PATH is None:
         return None
+    if _LOCAL_KERNEL_ADAPTER_CLASS is not None:
+        if not _adapter_matches_class(
+            descriptor.adapter_name, _LOCAL_KERNEL_ADAPTER_CLASS
+        ):
+            return None
     return _LOCAL_KERNEL_PATH / descriptor.key / f"{_table_name(descriptor)}.ndjson"
 
 
@@ -366,18 +421,102 @@ def _iter_literature_curated_records(
 # ──────────────────────────────────────────────────────────────────────
 
 
-def list_attested_sources() -> Dict[str, Any]:
-    """Enumerate every registered attested source.
+# Adapter-class taxonomy. Two natural classes plus the option to
+# filter by a specific adapter name. The classes are an interpretive
+# overlay on the adapter set — they let consumers say "give me only
+# offline-safe sources" or "give me only live-archive sources" without
+# enumerating individual adapter names. See notebook §18.9 for the
+# user-facing framing of this discipline.
+ADAPTER_CLASSES: Dict[str, frozenset] = {
+    # Network-fetching adapters. Require live archive + a `requests`-
+    # style dep at fetch time; T1 CI workflow auto-PRs refreshed
+    # NDJSON; useful for evolving upstream archives.
+    "fetched": frozenset({
+        "html_scraper",
+        "json_api",
+        "csv_bulk",
+        "netcdf_grid",
+        "geotiff_bbox",
+    }),
+    # Literature-curated adapters. No network fetch; rows committed
+    # directly with per-row source DOI; useful for offline-first
+    # workflows and per-body literature catalogues.
+    "curated": frozenset({"literature_curated"}),
+}
+
+
+def _adapter_matches_class(
+    adapter_name: str, adapter_class: Optional[str]
+) -> bool:
+    """Return True if the adapter belongs to the requested class.
+
+    `adapter_class` accepts:
+      - None — match any (no filter; default).
+      - "fetched" / "curated" — match the named class (see
+        ADAPTER_CLASSES).
+      - a specific adapter name (e.g., "literature_curated",
+        "html_scraper") — exact match.
+
+    Unknown class names raise ValueError so consumers see the typo
+    instead of a silently empty result.
+    """
+    if adapter_class is None:
+        return True
+    if adapter_class in ADAPTER_CLASSES:
+        return adapter_name in ADAPTER_CLASSES[adapter_class]
+    # Treat as specific adapter name; validate against KNOWN_ADAPTERS
+    # to surface typos.
+    from .attested_collector_descriptor import KNOWN_ADAPTERS
+    if adapter_class in KNOWN_ADAPTERS:
+        return adapter_name == adapter_class
+    raise ValueError(
+        f"unknown adapter_class {adapter_class!r}; "
+        f"valid classes: {sorted(ADAPTER_CLASSES.keys())}; "
+        f"or a specific adapter name from {sorted(KNOWN_ADAPTERS)}"
+    )
+
+
+def list_attested_sources(
+    *, adapter_class: Optional[str] = None
+) -> Dict[str, Any]:
+    """Enumerate registered attested sources, optionally filtered by
+    adapter class.
+
+    Parameters
+    ----------
+    adapter_class
+        Optional filter on adapter type. Accepts:
+
+        * ``None`` (default) — return all sources.
+        * ``"fetched"`` — only network-fetching adapters
+          (html_scraper / json_api / csv_bulk / netcdf_grid /
+          geotiff_bbox). Useful when a consumer wants only sources
+          that the T1 CI workflow can auto-refresh against live
+          archives.
+        * ``"curated"`` — only literature-curated adapters
+          (literature_curated). Useful for offline-first workflows
+          and consumers who want only peer-reviewed-DOI-attested
+          rows.
+        * A specific adapter name (e.g., ``"literature_curated"``,
+          ``"html_scraper"``) — exact-match filter on that adapter.
+
+        Unknown class names raise ``ValueError`` to surface typos.
 
     Returns a dict with each source's rendered metadata: human-
     readable name, purpose, license, citation template, adapter,
     and gap-targeting regime labels. Useful for UI source-pickers
     and for the v0.26.x schema-gap-driven trigger.
+
+    The response carries an ``adapter_class`` echo field for
+    downstream consumers that want to log which filter was applied;
+    this is None when no filter was passed.
     """
     descriptors = _descriptors()
     sources: List[Dict[str, Any]] = []
     for key in sorted(descriptors.keys()):
         d = descriptors[key]
+        if not _adapter_matches_class(d.adapter_name, adapter_class):
+            continue
         sources.append({
             "key": key,
             "human_readable_name": str(d.source.get("human_readable_name", key)),
@@ -393,6 +532,7 @@ def list_attested_sources() -> Dict[str, Any]:
     return {
         "ok": True,
         "n_sources": len(sources),
+        "adapter_class": adapter_class,
         "sources": sources,
     }
 

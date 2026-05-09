@@ -5766,8 +5766,29 @@ def clear_patches() -> Dict[str, Any]:
 from ._research import attested_collector_catalog as _attested_catalog
 
 
-def list_attested_sources() -> Dict[str, Any]:
-    """Enumerate every registered attested source.
+def list_attested_sources(
+    *, adapter_class: Optional[str] = None
+) -> Dict[str, Any]:
+    """Enumerate registered attested sources, optionally filtered
+    by adapter class.
+
+    Parameters
+    ----------
+    adapter_class : str, optional
+        Filter on adapter type. Accepts:
+
+        * ``None`` (default) — return all sources.
+        * ``"fetched"`` — only network-fetching adapters
+          (html_scraper / json_api / csv_bulk / netcdf_grid /
+          geotiff_bbox). For "give me only sources the T1 CI
+          workflow can auto-refresh."
+        * ``"curated"`` — only literature-curated adapters. For
+          offline-first workflows and consumers who want only
+          peer-reviewed-DOI-attested rows.
+        * A specific adapter name (e.g.,
+          ``"literature_curated"``) — exact-match filter.
+
+        Unknown class names raise ``ValueError`` to surface typos.
 
     Returns a dict with each source's rendered metadata: human-
     readable name, purpose, license, citation template, adapter,
@@ -5775,8 +5796,13 @@ def list_attested_sources() -> Dict[str, Any]:
     descriptor TOML; the bridge surfaces it without per-source
     code paths (the v0.25.0 CONFIG-not-CODE escape from the
     v0.24.x hand-coding pattern).
+
+    The response carries an ``adapter_class`` echo field
+    documenting which filter was applied (None when unfiltered).
     """
-    return _attested_catalog.list_attested_sources()
+    return _attested_catalog.list_attested_sources(
+        adapter_class=adapter_class
+    )
 
 
 def get_attested_dataset(
@@ -5836,23 +5862,48 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
 
 # v0.25.1 — T2 user runtime kernel surfaces
 
-def use_local_kernel(path: Optional[str]) -> Dict[str, Any]:
-    """Register a user-runtime-kernel overlay (T2).
+def use_local_kernel(
+    path: Optional[str],
+    *,
+    adapter_class: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Register a user-runtime-kernel overlay (T2), optionally
+    scoped to an adapter class.
 
-    The path should be a directory shaped like
-    ``<source_key>/<table>.ndjson``. Once registered, queries
-    consult the overlay directory FIRST per source: if a matching
-    overlay file exists, it REPLACES the baseline NDJSON for that
-    source. Sources with no overlay file fall through to T0+T1.
+    Parameters
+    ----------
+    path
+        Filesystem path to a directory shaped like
+        ``<source_key>/<table>.ndjson``. Pass ``None`` to clear a
+        previously-registered overlay.
+    adapter_class : str, optional
+        Optional scope for the overlay. When set, the overlay
+        applies ONLY to sources whose adapter matches the class
+        (``"fetched"`` / ``"curated"`` / specific adapter name);
+        out-of-scope sources fall through to the T0+T1 baseline.
+        ``None`` (default) means the overlay applies to all sources.
 
-    Pass ``None`` to clear a previously-registered overlay.
+        Validated against the same taxonomy as
+        :func:`list_attested_sources`; unknown class names return
+        an ``ok=False`` envelope so the caller can surface the
+        typo.
+
+    Behaviour
+    ---------
+    Once registered, queries consult the overlay directory FIRST for
+    in-scope sources: if a matching overlay file exists, it REPLACES
+    the baseline NDJSON for that source. Out-of-scope sources, and
+    in-scope sources without an overlay file, fall through to the
+    T0+T1 baseline.
 
     Reproducibility tier: T2. Within a single user's local cache
     state, queries are byte-identical; the cache hash returned by
-    :func:`get_local_kernel_state` documents the state for paper
-    appendices.
+    :func:`get_local_kernel_state` documents the state (including
+    the ``adapter_class`` scope) for paper appendices.
     """
-    return _attested_catalog.use_local_kernel(path)
+    return _attested_catalog.use_local_kernel(
+        path, adapter_class=adapter_class
+    )
 
 
 def clear_local_kernel() -> Dict[str, Any]:
