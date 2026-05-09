@@ -114,11 +114,14 @@ fi
 source "${VENV_DIR}/bin/activate"
 
 # Pure-Python install — no native build deps required. This matches
-# the "fallback (pure-Python, no native)" CI job and avoids requiring
-# gcc/cmake/scikit-build-core in the local WSL2 environment.
+# the deps the full test suite needs without invoking
+# scikit-build-core's C build. The CI's ubuntu jobs get scipy
+# transitively (likely via skyfield); we install it explicitly so
+# the smoke matches what the package actually imports at runtime
+# (e.g., _research/laplacian.py uses scipy.linalg.expm).
 step "Installing runtime + test deps (pure-Python; no native build)"
 python -m pip install --upgrade --quiet pip
-python -m pip install --quiet pytest numpy skyfield jplephem
+python -m pip install --quiet pytest numpy scipy skyfield jplephem
 # tomli for Python <3.11 (descriptor parsing); harmless on >=3.11.
 python -m pip install --quiet 'tomli; python_version < "3.11"'
 note "deps installed"
@@ -139,13 +142,19 @@ trap 'rm -rf "${SNAPSHOT_DIR}"' EXIT
 DATA_DIR="${PYTHON_DIR}/ephemerides_spectral/_data"
 RESEARCH_DIR="${PYTHON_DIR}/ephemerides_spectral/_research"
 
-# Manifest + initial_phases JSON are excluded from the diff because
-# they're regenerated each run with timestamps inside; CI's check
-# uses the same exclusions.
+# Manifest + initial_phases JSON are excluded because they're
+# regenerated each run with timestamps inside (CI uses the same
+# exclusions). __pycache__/*.pyc are excluded because the local
+# smoke runs codegen + pytest in the same workflow — pycache from
+# the prior run sits in _research/__pycache__/ at the BEFORE
+# snapshot, regenerate.py wipes _research/ and rebuilds, so
+# pycache files appear "missing" in the AFTER. CI doesn't hit this
+# because codegen + pytest are separate jobs with fresh checkouts.
 snapshot() {
     find "${DATA_DIR}" "${RESEARCH_DIR}" -type f \
         -not -name manifest.json \
         -not -name initial_phases.json \
+        -not -path "*/__pycache__/*" \
         -exec sha256sum {} \; | sort
 }
 
