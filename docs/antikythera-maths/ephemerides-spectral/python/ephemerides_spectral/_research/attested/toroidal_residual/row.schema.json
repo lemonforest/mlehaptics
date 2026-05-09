@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "toroidal_residual.row.v1",
+  "title": "Per-body toroidal-residual J₂ classification row",
+  "description": "One body's classification on the Chandrasekhar 1969 rotating-fluid equilibrium-figure sequence. Single row_type catalogue (`toroidal_residual_classification`); each row pairs measured gravitational quadrupole J₂ with the dimensionless rotation parameter q = ω²R³/(GM), the moment-of-inertia factor C/MR², and a regime classification (sphere / maclaurin / jacobi / bar / ring). The fossil_figure flag marks bodies whose observed J₂ exceeds current-rotation equilibrium prediction (Mercury, Luna).",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "rotation_period_days",
+    "equatorial_radius_km",
+    "GM_m3_s2",
+    "rotation_parameter_q",
+    "J2_observed",
+    "moment_of_inertia_factor",
+    "regime",
+    "fossil_figure",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Body name (lower-case, matches BODIES roster: terra / mars / venus / mercury / luna / jupiter / saturn / uranus / neptune / io / europa / ganymede / callisto / titan)."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["toroidal_residual_classification"],
+      "description": "Single value in this catalogue. Field retained for symmetry with multi-row-type planetary catalogues."
+    },
+    "rotation_period_days": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Sidereal rotation period in days, positive magnitude. For retrograde rotators (Venus), the magnitude is what matters for figure equilibrium."
+    },
+    "equatorial_radius_km": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Equatorial radius R in kilometres. For gas giants this is the 1-bar level."
+    },
+    "GM_m3_s2": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Gravitational parameter G·M in m³/s²."
+    },
+    "rotation_parameter_q": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Dimensionless rotation parameter q = ω²R³/(GM). Below 0.187 → Maclaurin sequence; above → Jacobi triaxial; above 0.27 → bar instability; above 0.36 → Roche fission."
+    },
+    "J2_observed": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Measured gravitational quadrupole coefficient J₂. Dimensionless; positive by convention (oblate)."
+    },
+    "moment_of_inertia_factor": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "exclusiveMaximum": 1.0,
+      "description": "Normalised moment of inertia I_M = C/(MR²). 2/5 = 0.4 for uniform density; smaller values indicate central density concentration (gas giants)."
+    },
+    "regime": {
+      "type": "string",
+      "enum": ["sphere", "maclaurin", "jacobi", "bar", "ring"],
+      "description": "Chandrasekhar-sequence regime classification derived from q. Computed by `_classify_regime(q)` in the hand-coded module."
+    },
+    "fossil_figure": {
+      "type": "boolean",
+      "description": "True if observed J₂ exceeds current-rotation equilibrium prediction by more than a small factor — meaning the body's shape was set by historical rotation, not present rotation. True for Mercury (3:2-lock fossil) and Luna (frozen at faster rotation)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — historical context, fossil-figure rationale, cross-references."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited gravity-field reference."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For gravity-model release tags (e.g., 'EGM2008', 'GRAIL primary mission')."
+    }
+  }
+}
