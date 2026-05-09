@@ -79,11 +79,30 @@ def parse(
 
     Empty lines and lines starting with ``#`` are skipped (allows
     in-file curator commentary without breaking parse). Every parsed
-    row is required to carry a non-empty ``source_doi`` field — the
-    per-row attestation discipline this adapter exists to enforce.
+    row is required to carry three per-row provenance fields — the
+    attestation discipline this adapter exists to enforce:
+
+    * ``source_doi`` — DOI of the cited paper / textbook / archive
+      entry (per-row, distinct from the descriptor-wide canonical_doi).
+    * ``source_published_date`` — when the cited source was published
+      (Dublin Core dcterms:issued; YYYY / YYYY-MM / YYYY-MM-DD).
+    * ``entered_locally_at`` — when the row was first added to the
+      catalogue or last meaningfully amended (Dublin Core
+      dcterms:dateAccessioned; YYYY-MM-DD).
+
+    Each can be opted out individually via descriptor flags
+    (``require_per_row_source_doi``, ``require_per_row_published_date``,
+    ``require_per_row_entered_locally_at``); all default to True, so
+    new descriptors get the strict discipline by default.
     """
     require_per_row_doi = bool(
         descriptor.parse.get("require_per_row_source_doi", True)
+    )
+    require_per_row_published = bool(
+        descriptor.parse.get("require_per_row_published_date", True)
+    )
+    require_per_row_entered = bool(
+        descriptor.parse.get("require_per_row_entered_locally_at", True)
     )
     text = raw.decode("utf-8")
     for line_index, line in enumerate(text.splitlines(), start=1):
@@ -104,15 +123,42 @@ def parse(
                 f"object (got {type(row).__name__})"
             )
         if require_per_row_doi:
-            doi = row.get("source_doi")
-            if not isinstance(doi, str) or not doi.strip():
-                raise _base.AdapterError(
-                    f"literature_curated: row at line {line_index} "
-                    f"in {descriptor.path.name!r} is missing a "
-                    f"non-empty 'source_doi' field — required by "
-                    f"this adapter for per-row attestation"
-                )
+            _check_nonempty_string(
+                row, "source_doi", line_index, descriptor.path.name,
+                "DOI of the paper / textbook / archive entry"
+            )
+        if require_per_row_published:
+            _check_nonempty_string(
+                row, "source_published_date", line_index,
+                descriptor.path.name,
+                "ISO 8601 date when the cited source was published"
+            )
+        if require_per_row_entered:
+            _check_nonempty_string(
+                row, "entered_locally_at", line_index,
+                descriptor.path.name,
+                "ISO 8601 date when the row was added to the catalogue"
+            )
         yield row
+
+
+def _check_nonempty_string(
+    row: Dict[str, Any],
+    field: str,
+    line_index: int,
+    descriptor_name: str,
+    field_purpose: str,
+) -> None:
+    """Enforce that a row has a non-empty string field. Shared helper
+    for the three required per-row provenance fields."""
+    value = row.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise _base.AdapterError(
+            f"literature_curated: row at line {line_index} in "
+            f"{descriptor_name!r} is missing a non-empty "
+            f"{field!r} field ({field_purpose}) — required by "
+            f"this adapter for per-row attestation"
+        )
 
 
 _base.register(ADAPTER_NAME, sys.modules[__name__])
