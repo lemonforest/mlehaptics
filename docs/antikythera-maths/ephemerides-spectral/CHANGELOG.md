@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Toroidal-Residual J₂ AMSC backfill
+
+Fifth v0.24.x AMSC backfill. 14 bodies classified on the Chandrasekhar 1969 equilibrium-figure sequence (Sphere → Maclaurin → Jacobi → bar → ring); each row pairs measured J₂ with dimensionless rotation parameter q + moment-of-inertia factor + regime + fossil-figure flag (Mercury and Luna are the canonical fossils). Per-row DOIs across the gravity-field literature (EGM2008 / Genova 2016 / Anderson 2002 / Smith 2012 MESSENGER / Konopliv 2013 GRAIL / Iess 2018 Juno / Iess 2019 Cassini / Jacobson 2014 / Jacobson 2009 / Anderson 2001 Galileo / Iess 2010). 12 new dual-author tests including a Saturn-closest-to-Maclaurin-Jacobi-bifurcation ratchet. 2012 tests pass.
+
 ### Added — v0.27.0 phase A — Sun Dynamical Spectrum AMSC backfill
 
 Fourth v0.24.x AMSC backfill (after Mercury / Luna / Mars). 20 helioseismic p-mode rows at canonical (n, l) labels — the stellar-oscillation analogue of rigid-body action-angle decomposition. Davies-2014-cited BiSON catalogue values. 11 new dual-author tests including a Tassoul-asymptotic-monotonicity ratchet (frequencies increase with n at fixed l). 2000 tests pass total.
