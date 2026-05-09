@@ -1,4 +1,4 @@
-# Stored-relationship computer — research spike
+# Stored-relationship mechanism — research spike
 
 **Date:** 2026-05-09
 **Status:** Research spike. Pre-v1.0 architectural-review artifact. Not a ship.
@@ -10,7 +10,7 @@
 
 > *"What is really so different about chess-spectral and ephemerides-spectral that we couldn't have the same stored-relationship computer thing? I think there is probably no reason that we cannot have everything config-driven such that we are a chess engine if we load chess-kernel things or we are a massive ephemeris if we add cosmic kernels."*
 
-The hypothesis: the project's eight spectral-domain notebooks — chess-spectral, chess-spectral-4d, othello-spectral, doom-spectral, antikythera-spectral, ephemerides-spectral, MFO, logo-HDC — are not actually eight different things. They're eight **instantiations** of a deeper substrate that the project has been building incrementally without naming. Each domain is a *kernel* loaded against a shared **stored-relationship computer**. v1.0 of the unified work would be to pull the substrate out from under all eight projects and let them be **plug-ins**.
+The hypothesis: the project's eight spectral-domain notebooks — chess-spectral, chess-spectral-4d, othello-spectral, doom-spectral, antikythera-spectral, ephemerides-spectral, MFO, logo-HDC — are not actually eight different things. They're eight **instantiations** of a deeper substrate that the project has been building incrementally without naming. Each domain is a *kernel* loaded against a shared **stored-relationship mechanism**. v1.0 of the unified work would be to pull the substrate out from under all eight projects and let them be **plug-ins**. (See [Naming](#naming) below for why "mechanism" — borrowing Antikythera verbiage — and not "computer".)
 
 This spike checks the hypothesis empirically. It does not commit to a unification — it surfaces what would need to be true for the unification to be load-bearing, and what concrete next steps would test the proposition.
 
@@ -175,20 +175,20 @@ Each project depends on `spectral-substrate>=1.0`; each retains its own kinemati
 - **Pros**: bounded scope; immediate de-duplication of AMSC + MPM + codegen machinery; can be staged across multiple ships.
 - **Cons**: doesn't actualise §15.4's cross-domain template; doesn't enable runtime kernel composition.
 
-### Path C — Stored-relationship computer (full unification of computation)
+### Path C — Stored-relationship mechanism (full unification of computation)
 
 Build a unified core whose surface is **kernel-driven**:
 
 ```python
-import stored_relationship_computer as src
+import stored_relationship_mechanism as srm
 
-src.load_kernel("chess-kernel")
+srm.load_kernel("chess-kernel")
 # bridge surfaces are now: encode_fen, apply_move, analyze, etc.
 
-src.load_kernel("cosmic-kernel")
+srm.load_kernel("cosmic-kernel")
 # bridge surfaces are now: list_bodies, get_system_state, find_syzygies, etc.
 
-src.load_kernel("doom-kernel")
+srm.load_kernel("doom-kernel")
 # bridge surfaces are now: encode_player, sound_diffuse, sector_tension, etc.
 ```
 
@@ -228,9 +228,9 @@ If fail → regime taxonomy is per-domain; unified-classifier idea needs nuance.
 
 ### Spike 3: Single-bridge multi-kernel demo (Path C runtime)
 
-Author a small `stored_relationship_computer/` package that exposes one bridge surface and loads any of: chess-spectral, ephemerides-spectral, doom-spectral. Goal: prove the load-kernel mechanic works for three existing kernels without modifying any of them.
+Author a small `stored_relationship_mechanism/` package that exposes one bridge surface and loads any of: chess-spectral, ephemerides-spectral, doom-spectral. Goal: prove the load-kernel mechanic works for three existing kernels without modifying any of them.
 
-If `srcomp encode --kernel chess --fen "..."` and `srcomp encode --kernel ephemerides --jd 2451545` and `srcomp encode --kernel doom --player "352,1136"` all work through the same CLI: unification is real, not theoretical. Time to plan the v0.30.x or v1.0 ship.
+If `srmech encode --kernel chess --fen "..."` and `srmech encode --kernel ephemerides --jd 2451545` and `srmech encode --kernel doom --player "352,1136"` all work through the same CLI: unification is real, not theoretical. Time to plan the v0.30.x or v1.0 ship.
 
 ### Spike 4: Spectral RDB on real data (Path D foundation)
 
@@ -244,14 +244,19 @@ If fail → the storage-as-spectral angle is conceptually right but expressively
 
 ## Naming
 
-The user's phrasing — **"stored-relationship computer"** — fits. Each domain is a corpus of *relationships* (chess piece adjacency, satellite resonance, ring shepherd modulation, doom sector portals, antikythera gear ratios, othello bracket validity, MFO fractal eigenvalue gaps, logo atom↔rule couplings) that gets *stored* in the catalogue layer and *computed against* via the spectral substrate.
+The user's original phrasing was *"stored-relationship computer"*. After working through the spike, that resolved to **"stored-relationship mechanism"** for two reasons:
 
-Path D extends the metaphor: storage is *also* in the eigenbasis. Then "stored-relationship computer" means: relationships are stored as hypervectors, and computations are inner products in the same basis. That's exactly the HDC / VSA / vector-DB family of architectures, applied to the project's domain-specific substrates as kernels.
+1. **Antikythera echo.** The Antikythera mechanism is one of the project's eight sister notebooks; the verbiage borrows directly. The bronze antikythera *is* a stored-relationship mechanism — gear ratios encode astronomical period relations; dial pointers compute against them. The project is building the algebraic / spectral generalisation of that pattern. Calling it a "mechanism" makes the lineage explicit.
 
-**Recommendation: stored-relationship-computer (or `srcomp` in code).**
+2. **Not a different computer.** The mechanism runs on existing computers — CPU, GPU, the integer-ALU BIP path, the C reference, ANN backends if any kernel grows one. It is a *software pattern* — kernels + index-pattern surfaces + bridge / CLI / codegen — not a new processor architecture. ASIC or FPGA realisations are conceivable for specific kernel shapes (cyclic-group binding maps cleanly to dedicated silicon; HDC similarity is naturally parallel) but they are future work, not a present claim. Calling the present design a "computer" would overpromise.
+
+Each domain remains a corpus of *relationships* (chess piece adjacency, satellite resonance, ring-shepherd modulation, doom sector portals, antikythera gear ratios, othello bracket validity, MFO fractal eigenvalue gaps, logo atom↔rule couplings) that gets *stored* in the catalogue layer and *computed against* via the spectral substrate. Path D extends the metaphor: storage is *also* in the eigenbasis. Relationships are stored as hypervectors, and computations are inner products in the same basis — the HDC / VSA / vector-DB family of architectures, applied to the project's domain-specific substrates as kernels.
+
+**Recommendation: stored-relationship-mechanism (or `srmech` in code).**
 
 Other candidates considered + why they're worse:
-- *Spectral lattice computer* — accurate but sells short the relationship aspect.
+- *Stored-relationship computer* — overpromises. Implies a new computer; the present design is software on existing computers.
+- *Spectral lattice mechanism* — accurate but sells short the relationship aspect.
 - *Cross-domain spectral substrate* — descriptive but bland.
 - *Universal Time Lord Protocol* (UTLP) extended — already used for the EMDR project's sync layer; would conflate two contributions.
 
