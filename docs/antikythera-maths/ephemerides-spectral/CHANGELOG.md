@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Mars Dynamical Spectrum AMSC backfill
+
+Third v0.24.x AMSC backfill (after Mercury PR #303, Luna PR #306). 11 rows: 8 dynamical-mode (orbital + sol-rotation + spin-axis-precession + apsidal g₄ + nodal s₄ + eccentricity / inclination / obliquity) + 3 secular-resonance (the chaos-driving near-resonances). Per-row DOIs cite Park 2021 / Le Maistre 2023 (InSight) / Ward 1973 / Laskar 1993 / Laskar 2004 / Laskar 2008 / Touma-Wisdom 1993. 9 new dual-author tests including a secular_resonance proximity ratchet.
+
 ### Added — v0.27.0 phase A — Luna Dynamical Spectrum AMSC backfill
 
 Second v0.24.x AMSC backfill (after Mercury PR #303). 15 rows: 11 dynamical-mode (four classical lunar months + spin lock + Williams-2014 forced libration + apsidal + nodal precession + eccentricity / inclination / obliquity actions) + 4 saros-commensurability (the integer-product closure invariant: 223 synodic ≈ 239 anomalistic ≈ 242 draconitic ≈ 19 eclipse-years ≈ 6585.32 days). Per-row DOIs cite Allen's Astrophysical Quantities, JPL DE441, Williams & Boggs 2014 LLR libration, Murray-Dermott 1999, Cassini 1693 (introduces `historical:` DOI prefix for pre-DOI works), Meeus 1991. 9 new dual-author tests including a Saros closure-invariant ratchet (four product_days values agree within 0.5 day).
