@@ -3737,19 +3737,101 @@ Realistic search hit rates for chess at depth 4-6 are in the 30-70% range; the 1
 
 ### 20.20. Joint progress summary across §20
 
-After 1.13.0 ships, the §20.15 phasing table looks like this:
+After 1.14.0 ships, the §20.15 phasing table looks like this:
 
 | Phase | Status | Version | Acceptance |
 |---|---|---|---|
 | B-spike-1a | ✅ shipped | 1.10.0 | 87,264-case bit-exact round trip on sheet block |
 | B-spike-1b | ✅ shipped | 1.11.0 | parametrized parity vs python-chess pseudo_legal_moves on 8-FEN corpus |
 | B-spike-2 | ✅ shipped | 1.12.0 | cosine-sim ≥ 99.5% median + ≥ 95% worst-case at 8-bit on 2D and 4D corpora |
-| **B-spike-3** | **✅ shipped (partial)** | **1.13.0** | **bench harness + (a) cache-hit + (b) LRU-cached evaluator measure ~15× speedup at warm-LRU steady state. (d) float32 standalone shipped as null result; (c) Pyodide loop deferred (can't bench from CPython).** |
-| B-spike-4 | parked | unscheduled | full pure-phase rewrite — high risk, blocked behind 1a/1b/2 acceptance |
+| B-spike-3 | ✅ shipped (partial) | 1.13.0 | bench harness + (a) cache-hit + (b) LRU-cached evaluator measure ~15× speedup at warm-LRU steady state. (d) float32 standalone shipped as null result; (c) Pyodide loop deferred (can't bench from CPython). |
+| **B-spike-4** | **✅ shipped (mixed empirical result)** | **1.14.0** | **cosine-sim ≥ 99.998% on the acceptance corpus; D₄ channels bit-exact. Bench: 1.64× SLOWER at opening, parity at midgame, 1.50× FASTER at endgame. Per-piece Python-loop overhead vs numpy float SIMD trade-off — see §20.21.** |
 
-Four of the five phases shipped within ~5 days from the §20 spike's first sketch. The chess-side BSHDC stack is now substantially complete: representation (1.10.0-1.12.0) plus runtime speedup (1.13.0). B-spike-3's tournament-driven validation (the question of whether the spectral evaluator beats material at deep search) is now de-gated from the §16.7 Othello prior (per its 2026-05-09 amendment — that data is ML-fork-contaminated) and is an open empirical question for chess to answer on its own. B-spike-4 remains parked behind clear empirical motivation.
+**All five §20.15 phases now shipped** within ~5 days from the spike's first sketch. The chess-side BSHDC stack is complete: representation (1.10.0-1.12.0), runtime speedup with caching (1.13.0), and pure-phase encoder (1.14.0). B-spike-3's tournament-driven validation is now de-gated from the §16.7 Othello prior (per its 2026-05-09 amendment — that data is ML-fork-contaminated) and is an open empirical question for chess to answer on its own. B-spike-4's empirical answer was nuanced (positional density determines the win), not the clean speedup §20.4 had hoped for; the §20.21 update below documents the finding honestly.
 
-### 20.21. Sibling project — `ephemerides-spectral`
+### 20.21. B-spike-4 implementation update — pure-phase encoder, mixed empirical result
+
+**Date:** 2026-05-09. **Shipped:** chess-spectral 1.14.0. **Scope:** the fifth and final §20.15 phase — eliminate float arithmetic from the encoder hot path and replace with integer arithmetic throughout. Acceptance gate (§20.15: cosine-sim with float baseline ≥ 99% per position) **met with substantial margin** (≥99.998% across the corpus). Speed answer is **mixed**, not a clean win or loss.
+
+#### What landed
+
+- `chess_spectral.encoder_pure_phase` module:
+  - `encode_2d_pure_phase(pos, *, vals=None)` — integer-output (int32) encoder.
+  - `encode_2d_pure_phase_to_float(pos, *, vals=None)` — same encoder with per-channel dequantization to float64 (drop-in for `encode_640` comparison).
+  - `CHANNEL_DEQUANT_SCALES` — per-channel float multiplier to recover float values from integer output.
+  - Module-load quantization of the float fiber tables (`LOCAL_FIBER_3D` / `PAWN_ANTI_FIBER` / `DIAG_DEV`) to int16 with per-table scale factors.
+- `tests/test_encoder_pure_phase.py` — 21 immolation tests including the §20.15 cosine-sim acceptance gate, D₄-channel bit-exactness check, channel-energy ranking Spearman ρ ≥ 0.99, and edge cases (empty position, single-piece, str-keyed dict, determinism).
+- Bench variant `spectral_pure_phase` registered in `tests/bench_spectral_eval.py`.
+- `tests/bench_baselines/after_b_spike_4_corrected.json` records the post-implementation numbers.
+
+#### Architecture
+
+The encoder hot path decomposes into two structurally different pieces:
+
+1. **D₄ irrep projection (channels A1, A2, B1, B2, E — 320 dims).** The character formula `proj[i] = Σ_g χ(g) · sig[g·i]` is **already integer** at the core. `CHARS` is integer (±1, ±2, 0); permutations are integer; the only float operation is the final `/8` scaling. Pure-phase implementation: drop the `/8` (carry it as a per-channel dequantization scale) and use integer arithmetic throughout. **Output is bit-exact relative to the float baseline modulo the dequant scale** — the test suite locks this property.
+
+2. **Fiber channels (F1/F2/F3 + FA + FD — 320 dims).** These use precomputed float tables derived from the grid Laplacian eigendecomposition. Pure-phase implementation: quantize the tables to int16 at module load (one-time cost; per-table scale factor stored alongside) and use integer arithmetic in the accumulation, dequantizing at the channel-output boundary. The int16 quantization preserves cosine-sim ≥ 99.998% on the acceptance corpus.
+
+#### Piece-value choice — half-integer bishop wrinkle
+
+`VALS` defines bishop value as **3.5** (modern chess engine convention, not the textbook 3). A naive `int(v)` truncation breaks D₄-channel bit-exactness. Fix: scale the integer signal by 2 so `B → 7`, `b → -7`, with the per-channel dequant scale absorbing the factor of `1/2`. Documented as `_VALS_INT_SCALE = 2` in `encoder_pure_phase.py`. Storage: `int16` for the signal (king value 200 = 100 × 2 doesn't fit in int8; int16 has ample headroom up to ±32 768).
+
+#### Empirical findings
+
+Bench at iters=1000 on the standard 5+5+5 FEN corpora:
+
+| Variant | Opening (µs) | Midgame (µs) | Endgame (µs) |
+|---|---|---|---|
+| material | 7 | 8 | 2 |
+| **spectral_float64** (1.0–1.13.x baseline) | **943** | **991** | **600** |
+| **spectral_pure_phase** (1.14.0+) | **1546** | **992** | **400** |
+| spectral_hybrid_8bit_lru (1.13.0+, the cache-hit winner) | 45 | 49 | 45 |
+
+Pure-phase vs float64 baseline:
+- **Opening (dense, 16 non-pawn pieces / side):** **1.64× SLOWER**.
+- **Midgame:** **parity** (within 0.1%).
+- **Endgame (sparse, 2-3 non-pawn pieces / side):** **1.50× FASTER**.
+
+#### Why the result is positional
+
+The fiber-channel computation has a per-piece Python loop — for each occupied non-pawn square, do a small numpy operation (64-element dot product, accumulate). Both the float and integer encoders share this structure. The performance trade-off:
+
+- **Per-iteration constant cost** (Python interpreter overhead, numpy small-array allocation): roughly equal for float and integer.
+- **Per-element arithmetic**: numpy float64 SIMD beats numpy int8/int16/int32 SIMD on this CPU when the array is small (64 elements). At larger arrays float64 SIMD's lead narrows.
+- **Total cost = per-iteration overhead + per-element × dim** dominated by the iteration count at sparse positions and by the per-element cost at dense positions.
+
+The result: pure-phase wins where the iteration count is low (endgame); float wins where the per-element cost dominates (opening); midgame is the crossover point.
+
+#### What the empirical answer actually says
+
+§20.15's optimistic framing was: pure-phase encoder eliminates float and gets a clean speedup. The empirical answer: **integer arithmetic on the encoder hot path is correct (cosine-sim ≥ 99.998%) but does not, on its own, deliver a uniform speedup against numpy float64 SIMD on CPython.** The win lives positionally — sparse positions favor it; dense positions don't.
+
+This is consistent with the §20.18 finding that the BIP-hybrid encoder's "full path" (encode + quantize + eval) is slower than the float64 baseline, and the cleaner speedup story is **caching the hybrid form** (§20.18's path (b), shipped in 1.13.0). Both findings point at the same root cause: **the float encoder is hard to beat on raw CPython numpy speed; the win lives in caching, in alternative arithmetic substrates (Pyodide / WASM / FPGA where numpy float doesn't win), or in vectorizing the per-piece Python loop entirely (numpy fancy indexing) — none of which 1.14.0 ships.**
+
+#### Where the win does live
+
+- **Cache-hit paths (§20.19 / 1.13.0)**: ~15× faster than `spectral_float64` at warm-LRU steady state. Unambiguous.
+- **Pyodide / WASM consumers**: chess4D-OC's runtime; numpy-on-WASM has per-call overhead that integer ops sidestep. Not benched in 1.14.0 (deferred per §20.19's (c)).
+- **Sparse positions (1.14.0+)**: pure-phase wins ~1.5× at endgame. Probably useful for deep-search endgame tablebases, where positions are sparse and per-piece cost is low; not consumed yet.
+- **Future: vectorize the per-piece loop** with numpy fancy indexing across all occupied squares simultaneously. Estimated 30-50× speedup for both pure-phase AND float (since they share the same loop). Not done in 1.14.0; deferred until empirical motivation surfaces.
+
+#### Acceptance gate review
+
+§20.15 said: cosine-sim with float baseline ≥ 99% on every position; channel-energy ranking Spearman ρ ≥ 0.99. **Both met with substantial margin:**
+
+- Cosine-sim: ≥ 99.998% across 7-FEN representative corpus (locked in `test_immolation_cosine_sim_with_float_baseline_above_99pct` at the tighter 0.999 threshold for regression detection).
+- Spearman ρ on channel-energy ranking: passes ≥ 0.99 (locked in `test_immolation_channel_energy_ranking_spearman_above_99pct`).
+- D₄ channels bit-exact (locked in `test_immolation_d4_channels_match_baseline_exactly`).
+
+The cosine-sim acceptance gate was the right gate. The mistake was framing it as a speedup gate too. The actual speedup result is mixed; documented honestly here.
+
+#### What B-spike-4 closes
+
+The §20.15 phasing table is now fully resolved. B-spike-1a (sheet BIP), 1b (ALU phase engine), 2 (encoder hybrid), 3 (cache speedup), 4 (pure-phase encoder) — all shipped, all benched, all documented. Subsequent BSHDC work on chess-spectral falls outside the original §20 spike: it would be either follow-on optimization (vectorize per-piece loops; native C mirror of the pure-phase encoder; Pyodide-side loop benchmarking) or an entirely new spike for a different research question.
+
+The next chess-side ship is whatever the user prioritizes. Possible directions: (1) vectorize the per-piece Python loop, which would benefit ALL evaluator variants; (2) port the pure-phase encoder to C for the matrix-arithmetic SIMD win without Python overhead; (3) ship a chess4D-OC integration that adopts the cached evaluator from 1.13.0 and validates the Pyodide path for §20.19 (c). All three are post-§20 work.
+
+### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:
 
@@ -3763,7 +3845,7 @@ Where the chess engine encodes a discrete board topology (`Z_640`), `ephemerides
 
 The §20.18 cross-pollination note above gives the chess-side framing for why the two projects diverge on what's quantized vs what's exact (chess channels carry both phase and magnitude; ephemerides is pure-phase). The two projects are intentionally not merged — chess and ephemeris evidentiary objects are different (a board game's rule structure vs the gravitational N-body problem), and consolidating would muddle the per-project hypothesis batteries — but they are expected to share the *encoding-pattern* layer over time. The cosine LUT, the Q-format scaling rules, the int64 saturation envelope check, and the cyclic-group binding semantics are project-agnostic and worth porting as-needed.
 
-### 20.22. Sibling project — `doom-spectral` (DOOM as a Spectral Lattice System)
+### 20.23. Sibling project — `doom-spectral` (DOOM as a Spectral Lattice System)
 
 > **Date:** 2026-05-06. **Co-authors of doom-spectral notebook:** Steven (mlehaptics) & Gemini Code Assist. **Status:** active research; living notebook lives at [`../antikythera-maths/doom_spectral_research_notebook.md`](../antikythera-maths/doom_spectral_research_notebook.md). The notebook lives in the antikythera-maths folder rather than its own top-level folder because the implementation reuses the antikythera/ephemerides BIP encoder and the Phase-9 adaptive-coupling apparatus directly; it sits alongside the ephemerides notebook so the cross-references are physically adjacent.
 

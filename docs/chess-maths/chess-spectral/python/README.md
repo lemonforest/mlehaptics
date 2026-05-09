@@ -28,6 +28,44 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.14 (May 2026)
+
+The §20.15 fifth and final phase: **pure-phase encoder rewrite**
+(B-spike-4). Integer arithmetic throughout the encoder hot path
+— D₄ irrep projection is integer at the core, fiber tables are
+int16-quantized at module load, dequantization happens at the
+channel-output boundary. New `encoder_pure_phase` module.
+Acceptance gate met (cosine-sim ≥ 99.998% vs float baseline; D₄
+channels bit-exact). Speed result is **mixed/positional**, not a
+clean win. **All five §20.15 phases now shipped**.
+
+- **`encode_2d_pure_phase(pos)`** — int32 output, integer
+  arithmetic throughout. **`encode_2d_pure_phase_to_float(pos)`**
+  — same encoder with per-channel dequantization; drop-in for
+  `encode_640` comparison.
+
+- **D₄ channels (A1/A2/B1/B2/E) are bit-exact** vs the float
+  baseline — the character formula is integer at the core.
+
+- **Fiber channels (F1/F2/F3/FA/FD)** use int16-quantized tables
+  with per-table scale factors; cosine-sim ≥ 99.998% agreement.
+
+- **Empirical speed verdict — mixed**: 1.64× SLOWER at opening
+  (dense), parity at midgame, 1.50× FASTER at endgame (sparse).
+  The runtime winner remains `spectral_hybrid_8bit_lru`
+  (1.13.0+) at ~50 µs across all corpora. Honest finding
+  documented in §20.21.
+
+- **Half-integer bishop fix**: VALS has `B=3.5`; pure-phase
+  scales the signal by 2 and absorbs the factor in the dequant
+  scale. Documented as `_VALS_INT_SCALE = 2`.
+
+- **21 new immolation tests** lock cosine-sim acceptance,
+  D₄ bit-exactness, Spearman ρ ≥ 0.99, quantized-table contracts.
+
+**B-spike-4** in the §20.15 phasing — the fifth and final
+phase. 1a → 1b → 2 → 3 → 4, all shipped within ~5 days.
+
 ## What's new in v1.13 (May 2026)
 
 The §20.15 fourth-tier ship (partial): **encoder-eval speedup work**.

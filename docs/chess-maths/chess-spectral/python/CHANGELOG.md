@@ -7,6 +7,138 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-05-09
+
+**B-spike-4** from notebook §20.15 ships: **pure-phase encoder
+rewrite**. Integer arithmetic throughout the encoder hot path —
+D₄ irrep projection is integer (character formula × integer
+signal), fiber tables are int16-quantized at module load,
+dequantization happens at the channel-output boundary. New
+`chess_spectral.encoder_pure_phase` module. Acceptance gate met
+(cosine-sim ≥ 99.998% vs float baseline; D₄ channels bit-exact).
+**Empirical speed result is mixed/positional**: 1.64× SLOWER at
+opening, parity at midgame, 1.50× FASTER at endgame. No breaking
+changes vs 1.13.x.
+
+**All five §20.15 phases now shipped** within ~5 days from the
+spike's first sketch.
+
+### Why this is the 1.14.0 ship
+
+§20.15's fifth and final phase. The user's framing for
+authorizing it: *"if it's better, that's awesome! if we find
+regression, let's investigate."* We benched both before and
+after; the answer is nuanced.
+
+### Empirical findings (notebook §20.21)
+
+Bench at iters=1000 on the standard 5+5+5 FEN corpora:
+
+| Variant | Opening (µs) | Midgame (µs) | Endgame (µs) |
+|---|---|---|---|
+| material (reference) | 7 | 8 | 2 |
+| **spectral_float64** (1.0–1.13.x baseline) | **943** | **991** | **600** |
+| **spectral_pure_phase** (1.14.0+) | **1546** | **992** | **400** |
+| spectral_hybrid_8bit_lru (1.13.0+) | 45 | 49 | 45 |
+
+**Pure-phase vs float64**:
+
+- Opening (dense, 16 non-pawn pieces / side): **1.64× SLOWER**.
+- Midgame: **parity** (within 0.1%).
+- Endgame (sparse, 2-3 non-pawn pieces / side): **1.50× FASTER**.
+
+The mechanism: per-piece Python-loop overhead is roughly equal
+for float and integer encoders; numpy float64 SIMD beats numpy
+int16/int32 SIMD on 64-element arrays. Sparse positions favor
+pure-phase (iteration count low → SIMD doesn't have time to
+amortize); dense positions favor float (SIMD wins on more work).
+
+The cache-hit / warm-LRU path from 1.13.0 (~50 µs) remains the
+unambiguous runtime winner. Pure-phase encoder is a structurally
+correct ALU-native implementation, but on CPython with numpy
+the speedup story is positional, not uniform.
+
+### Architecture
+
+The encoder hot path decomposes into two pieces:
+
+1. **D₄ irrep projection (channels A1, A2, B1, B2, E — 320 dims)**.
+   The character formula `proj[i] = Σ_g χ(g) · sig[g·i]` is
+   already integer at the core (CHARS = ±1, ±2, 0; permutations
+   are integer; only `/8` is float). Pure-phase: drop the `/8`,
+   carry it as a per-channel dequant scale, integer arithmetic
+   throughout. **Bit-exact** relative to float baseline (locked
+   in `test_immolation_d4_channels_match_baseline_exactly`).
+
+2. **Fiber channels (F1/F2/F3/FA/FD — 320 dims)**. Use
+   precomputed float tables (LOCAL_FIBER_3D, PAWN_ANTI_FIBER,
+   DIAG_DEV) from grid Laplacian eigendecomposition. Pure-phase:
+   quantize tables to int16 at module load (one-time cost; per-
+   table scale factor stored alongside) + integer arithmetic in
+   accumulation + dequantize at output boundary. int16
+   quantization preserves cosine-sim ≥ 99.998% on the corpus.
+
+### Piece-value choice — the half-integer bishop wrinkle
+
+`VALS` defines bishop value as **3.5** (modern engine
+convention), not the textbook 3. Naive `int(v)` truncation
+broke D₄-channel bit-exactness; fix was to scale the integer
+signal by 2 (so `B → 7`, `b → -7`) and absorb the factor of 1/2
+into the per-channel dequantization scale. Documented as
+`_VALS_INT_SCALE = 2` in `encoder_pure_phase.py`. Storage:
+int16 for the signal (king value 200 = 100 × 2 doesn't fit in
+int8; int16 has ample headroom).
+
+### Added — `chess_spectral.encoder_pure_phase` module
+
+- `encode_2d_pure_phase(pos, *, vals=None) -> np.ndarray (int32)`
+- `encode_2d_pure_phase_to_float(pos, *, vals=None) -> np.ndarray (float64)`
+- `CHANNEL_DEQUANT_SCALES` — per-channel float multiplier
+- Module-load quantization of LOCAL_FIBER_3D / PAWN_ANTI_FIBER
+  / DIAG_DEV to int16 with per-table scale factors.
+
+### Added — 21 immolation tests in `tests/test_encoder_pure_phase.py`
+
+- Output shape + dtype contract (int32 / float64).
+- Quantized table contracts (int16 shapes; LOCAL_ADJ_ROWS_INT8
+  is 0/1 only).
+- §20.15 cosine-sim acceptance gate (≥ 0.999 locked, observed
+  ≥ 0.999998).
+- D₄-channel bit-exactness vs `encode_640(pos, vals=VALS)`.
+- Channel-energy ranking Spearman ρ ≥ 0.99.
+- Edge cases: empty position, single-piece, str-keyed pos
+  dict, determinism across calls.
+
+### Notebook updates
+
+- §20.20 — joint progress summary table updated to reflect 5
+  of 5 phases shipped.
+- §20.21 — B-spike-4 implementation update with empirical
+  bench numbers, the half-integer bishop fix story, and the
+  honest framing of the mixed result.
+- §20.22 / §20.23 (renumbered from §20.21 / §20.22) — sibling
+  project sections shifted.
+
+### What this 1.14.0 does NOT do
+
+- **Does not vectorize the per-piece Python loop.** The fiber
+  computation iterates `for sq, piece_char in pos.items()` and
+  calls numpy on small arrays per iteration. Both float and
+  integer encoders share this structure. Vectorizing across all
+  occupied squares simultaneously (numpy fancy indexing) would
+  unlock a much bigger speedup, applicable to ALL encoder
+  variants. Estimated 30-50× win. Deferred until empirical
+  motivation surfaces.
+- **Does not port to C.** A C-side mirror of the pure-phase
+  encoder would skip Python interpreter overhead entirely. Real
+  win on dense positions where Python loop dominates. Deferred.
+- **Does not bench Pyodide.** §20.19 (c) was deferred for the
+  same reason; pure-phase encoder is the natural target for
+  Pyodide validation. Picks up when chess4D-OC's Pyodide
+  profile surfaces it.
+- **Does not change `encode_640` / `encode_4d` defaults.** C
+  parity tests pass unchanged.
+
 ## [1.13.0] — 2026-05-09
 
 B-spike-3 from notebook §20.15 ships (partial): **encoder-eval
