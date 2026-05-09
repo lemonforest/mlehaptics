@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.26.0)
+### Documentation
+
+- **Two-tier eclipse-finding discipline now explicit in bridge docstrings.** `bridge.find_syzygies` (Saros-class mean-period triage) and `bridge.get_eclipse_probability` (JPL-anchored arc-second-class confirmation) are deliberately different precision tiers, both load-bearing. The pre-v0.27.0 docstring wording suggested `find_syzygies` "replaced" `get_eclipse_probability`, which was misleading — only the *windowed loop over* `get_eclipse_probability` was replaced; per-call use as the precision-confirmation tier remains the intended workflow. No code change. Direct comparison of `bip_hd_lift.eclipse_probability` (Born-rule projection on DE441-derived HD state) vs `syzygy_window.SyzygyCandidate.score` (mean-period geometric residual) confirms they compute related-but-different quantities on different data — keeping both surfaces is correct, not redundant. Surfaced by the bridge-wide audit in [docs/research-spikes/stored-relationship-computer-spike.md](../../research-spikes/stored-relationship-computer-spike.md).
 
 ## [0.26.0] — 2026-05-08
 

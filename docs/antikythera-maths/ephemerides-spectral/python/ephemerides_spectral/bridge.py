@@ -4951,12 +4951,31 @@ def find_syzygies(jd_lo: float,
                   backend: str = "auto") -> Dict[str, Any]:
     """Spectral-native syzygy window search (v0.3.1+).
 
-    Replaces the v0.3.0 point-evaluation pattern (encode-then-check
-    at a single JD via ``get_eclipse_probability``). Enumerates
-    candidate syzygies in [jd_lo, jd_hi] (TDB) by walking new-moon
-    and full-moon multiples of the synodic month and confirming
-    against the draconic-month phase. Closed-form, no per-JD
-    encoding — cost is `O(n_syzygies)` instead of `O(window_days)`.
+    The Saros-class triage tier of a two-tier eclipse-finding
+    discipline. Pairs with :func:`get_eclipse_probability` (the
+    per-JD JPL-anchored arc-second-class confirmation tier):
+
+    - ``find_syzygies(jd_lo, jd_hi)`` (this function) enumerates
+      candidates from mean synodic + draconic periods. No DE441
+      query; ``O(n_syzygies)`` per window. Bronze-antikythera
+      precision — the same fixed-period arithmetic the ancient
+      Saros dial implements.
+    - ``get_eclipse_probability(jd_tdb)`` reads DE441 at the queried
+      JD and projects the resulting HD state against the Syzygy
+      Operator. Captures real lunar-node regression and monthly
+      perturbations; arc-second-class precision.
+
+    The two surfaces are *not* numerically equivalent — they
+    compute related-but-different quantities on different data.
+    Intended workflow: triage with ``find_syzygies``, confirm
+    candidates with ``get_eclipse_probability`` or skyfield's
+    ``almanac.find_syzygies``.
+
+    The v0.3.0 windowed loop over ``get_eclipse_probability``
+    (encode-then-check every JD) had cost ``O(window_days)`` and
+    is now obsolete for window queries; ``get_eclipse_probability``
+    itself is *not* obsolete — it is the precision tier this
+    function delegates confirmation to.
 
     Parameters
     ----------
@@ -5299,7 +5318,28 @@ def get_eclipse_probability(
     backend: str = "auto",
     D: int = 4096,
 ) -> Dict[str, Any]:
-    """Syzygy probability via spectral alignment with the Syzygy Operator.
+    """Syzygy probability via spectral alignment with the Syzygy Operator
+    (the JPL-anchored arc-second-class precision tier).
+
+    The per-JD high-precision counterpart to the window-scale
+    :func:`find_syzygies` triage tier:
+
+    - ``find_syzygies(jd_lo, jd_hi)`` enumerates candidates from
+      mean synodic + draconic periods. Saros-class / bronze-
+      antikythera precision; no DE441 query; ``O(n_syzygies)`` per
+      window. Use it to *find* candidate eclipse times.
+    - ``get_eclipse_probability(jd_tdb)`` (this function) reads
+      DE441 at the queried JD via ``inst.encode_state(jd)`` and
+      projects the resulting HD state against the Syzygy Operator.
+      Captures real lunar-node regression (18.6 yr), monthly
+      perturbations, and instantaneous Sun-Moon angular geometry.
+      Use it to *confirm* a single candidate JD with arc-second-
+      class precision.
+
+    The two surfaces are *not* numerically equivalent — they
+    compute related-but-different quantities (Born-rule projection
+    on DE441-derived HD state vs mean-period geometric residual)
+    on different data. Both are deliberately load-bearing.
 
     Parameters
     ----------
