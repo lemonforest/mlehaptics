@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — first AMSC backfill of a v0.24.x catalogue (Mercury Dynamical Spectrum)
+
+- **`research/attested/mercury_dynamical_spectrum/`** — new attested source: descriptor.toml + row.schema.json + row.ndjson covering the v0.24.0 catalogue. 16 rows total: 8 dynamical_mode rows (orbital + spin + libration + secular-precession angle modes; eccentricity / inclination / obliquity action variables) + 8 precession_contribution rows (Le Verrier–Einstein decomposition: 5 Newtonian perturbers + GR + solar J₂ + observed total). Per-row source DOIs cite Park 2021 (DE441), Margot 2007, Clemence 1947, Einstein 1915, Verma 2014 (INPOP), Park 2017, Murray-Dermott 1999, Laskar 1989. The hand-coded `_research/mercury_dynamical_spectrum_data.py` module is unchanged and remains the working authority; the AMSC NDJSON is the attestation envelope.
+- **`bridge.list_attested_sources()`** now returns 5 sources (was 4); the new `mercury_dynamical_spectrum` joins `earthref_sc` / `gmrt` / `petdb_v4` / `saturn_rings`. `adapter_class="curated"` returns 2 (saturn_rings + mercury_dynamical_spectrum); `adapter_class="literature_curated"` returns the same 2.
+- **`bridge.get_attested_dataset("mercury_dynamical_spectrum")`** returns the 16 attested rows.
+
+### Tests
+
+- `tests/test_mercury_dynamical_spectrum_dual_author.py` — 10 new tests inheriting the Saturn-rings PR #291 dual-author pattern: AMSC dataset loads; row-count + row-name set agreement; per-row field agreement; full dict equality; SOURCE_KEY_PROVENANCE coverage of every source_key referenced by the hand-coded module; provenance entries have valid DOI + ISO 8601 published_date + (optional) source_version; ENTERED_LOCALLY_AT is ISO date; AMSC rows carry every required attestation field; row-type distribution is 8 dynamical_mode + 8 precession_contribution.
+- `tests/_mercury_amsc_helpers.py` — shared converter that maps hand-coded rows → AMSC-shape dicts via static SOURCE_KEY_PROVENANCE table. Used by both the dual-author test and any future regenerator script.
+- `tests/test_attested_collector.py` ratchet tests updated for the new source count + adapter-class membership.
+
 ### Added — v0.27.0 phase C — body→kernel registry (the layer-2-to-layer-3 interface)
 
 - **`_research.body_kernel_registry`** — new module. Stores `{body → (kernel_path, precision_tier)}` registrations as module-level singleton state. API: `register(body, kernel_path, *, precision_tier="jpl_published")`, `lookup(body)`, `clear(body=None)`, `state()`, `state_hash()`, `is_active()`, `all_bodies()`. Three precision tiers: `jpl_published`, `bodies_fallback`, `user_fit`. SHA-256 over canonical-serialised state participates as the cache key for module-load-time eigenbasis caches in `body_architecture` and `predict_itn_accessibility` — phase B will extend those caches to invalidate on registry change. Phase C ships the registry as **structural** infrastructure: registrations are tracked + hashed + surfaced via bridge metadata, but orbital-mechanics surfaces fall back to BODIES-distilled state lookups because the binary kernels are not yet readable. Phase B's `binary_archive` adapter + `ephemeris_loader` integration turns the registry from metadata into behaviour.
