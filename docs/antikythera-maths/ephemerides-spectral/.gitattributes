@@ -29,6 +29,12 @@ research/attested/**/*.json    text eol=lf
 research/attested/**/*.ndjson  text eol=lf
 research/attested_adapters/**/*.py text eol=lf
 
+# Top-level research/*.py modules — hand-coded v0.24.x catalogue
+# data modules (loki_patera_data.py, saturn_rings_data.py, etc.).
+# Pin LF so manifest SHAs computed against codegen output match
+# what git stores on every platform.
+research/*.py      text eol=lf
+
 # CHANGELOG / README / ROADMAP / pyproject — LF on every platform for
 # diff stability (PyPI renders these regardless of EOL style).
 README.md             text eol=lf
