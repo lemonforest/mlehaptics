@@ -25,3 +25,9 @@ research/attested/**/*.json          text eol=lf
 research/attested/**/*.ndjson        text eol=lf
 research/attested_adapters/*.py      text eol=lf
 research/attested_collector_*.py     text eol=lf
+
+# Top-level research/*.py — hand-coded v0.24.x catalogue data
+# modules (loki_patera_data.py, saturn_rings_data.py, etc.). Pin
+# LF so codegen-time SHA capture matches what git stores; otherwise
+# the test_data_freshness manifest check fails on Windows authoring.
+research/*.py                        text eol=lf

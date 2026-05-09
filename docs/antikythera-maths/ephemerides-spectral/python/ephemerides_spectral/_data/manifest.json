@@ -340,6 +340,10 @@
       "sha256": "6e4ee02d5f165d0b2e1807805a520443ed4ccdb9b781df13196fc181bc01385c",
       "size_bytes": 13382
     },
+    "_research/saturn_rings_data.py": {
+      "sha256": "5ba6dda5757e9cfda3e3c447698826097c5b62a20b60f0ba8218d9daabe90b6e",
+      "size_bytes": 16484
+    },
     "_research/sensor_access_catalog.py": {
       "sha256": "b98a8f0adaf9935b7400a9cbd7cb1a25e838f7ddc87f570b7a3bf136f3f921c8",
       "size_bytes": 12066

@@ -97,6 +97,12 @@ _INCLUDED_MODULES: List[str] = [
     "pluto_charon_dynamical_spectrum_catalog.py",
     "loki_patera_data.py",
     "loki_patera_catalog.py",
+    # v0.27.x — Saturn ring system, Phase 3 dual-author counterpart to
+    # the AMSC literature_curated catalogue at
+    # research/attested/saturn_rings/. Both paths encode the same 12
+    # ring-feature rows; the dual-author diff test asserts byte-stable
+    # agreement.
+    "saturn_rings_data.py",
     # v0.25.0a — Attested Multi-Source Collector framework
     "attested_collector_format.py",
     "attested_collector_descriptor.py",
