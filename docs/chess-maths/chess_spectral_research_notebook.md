@@ -4099,6 +4099,204 @@ These are the items called out by the user as "deferred" at the
 (4D pure-phase encoder, the parity drift item); the others remain
 on the follow-up roadmap.
 
+#### 2026-05-09 amendment 4 — vectorize per-piece Python loop (1.17.0)
+
+The 1.14.0 §20.21 framed pure-phase as "mixed/positional, not a
+clean win" — 1.64× SLOWER at opening, parity at midgame, 1.50× faster
+at endgame. The story of the per-piece Python-loop overhead vs
+numpy float64 SIMD was honest but missed a key follow-up.
+
+After 1.15.0 shipped 4D pure-phase, the `bench_search_tree.py`
+baseline (PR #302) at depth=4 surfaced the actual constraint:
+`spectral_hybrid_8bit_lru` underperformed `spectral_float64` in
+nodes/sec, and the breakdown pointed at per-piece Python loop
+overhead in the encoder hot path as the dominant cost — exactly
+the deferred item the 1.14.0 amendment had flagged. The empirical
+motivation surfaced; vectorize was the natural follow-up.
+
+**Result is stronger than estimated.**
+
+The 30-50× win estimate from the 1.14.0 amendment note was for
+the fiber-loop alone. After integration, the encoder-level
+speedup is:
+
+  * **2D pure-phase**: 1.88× faster on opening (vs 1.64× SLOWER
+    pre-vectorize), 1.13× faster on midgame, 1.45× faster on
+    endgame. The mixed-result narrative is replaced by a uniform
+    "pure-phase wins on every position type" story.
+  * **4D pure-phase**: 1.73× faster on n=4, 2.47× on n=24, 2.40×
+    on n=64, 2.25× on n=128. On top of 1.15.0's 1.27× win at
+    dense, this is another 2-3× layered.
+
+**Three vectorization patterns** for three different channel
+structures:
+
+1. **Loop-swap + einsum batching** (2D fiber-sym, channels 5-7).
+   The original encoded each of the 3 fiber-d channels in a
+   separate loop over occupied squares; the new code groups
+   occupied squares by FIBER piece type (5 types: N/B/R/Q/K) and
+   batches all 3 d-channels via:
+
+   ```python
+   contributions = np.einsum('pd,pc->dc', weighted, adj_rows)
+   ```
+
+   where ``weighted`` is ``(n_sqs_of_type, 3)`` and ``adj_rows``
+   is ``(n_sqs_of_type, 64)``. The 3 d-channels share the same
+   adjacency gather and gradient computation; only ``fib_d`` per
+   d differs. Bench: opening 4.69× faster, midgame 2.95× faster,
+   endgame 1.70× faster (fiber-sym only).
+
+2. **Loop-swap + broadcast** (4D fiber-sym, channels 5-7). The
+   4D ``PIECE_ADJ`` is a sparse CSR matrix — the einsum approach
+   doesn't translate cleanly because sparse-row gathering returns
+   variable-size index arrays per square. Instead, swap the loop
+   order from "outer per-d, inner per-piece" to "outer per-piece,
+   broadcast over d":
+
+   ```python
+   fc_all = np.zeros((3, CHANNEL_DIM), dtype=np.int64)
+   for k, pval in sorted_items:
+       ...
+       weighted = gradient * fib_d_vec  # (3,) — d-batched
+       fc_all[:, cols] += weighted[:, None]  # (3, len(cols)) broadcast
+   ```
+
+   Eliminates the 3× redundant sparse-row gather. The
+   ``(3, len(cols))`` broadcast add is one numpy operation per
+   piece.
+
+3. **Group-by-piece-type aggregation** (4D FD_DIAG, channel 10).
+   The original looped per-piece, accumulating into a 4096-vector
+   per occupied square. The vectorized version groups by diag-row
+   (6 piece types: P=0, N=1, B=2, R=3, Q=4, K=5), sums sig values
+   per bucket, then does ONE 4096-vector add per bucket:
+
+   ```python
+   diag_coef_per_row = [0] * 6
+   for k, pval in sorted_items:
+       diag_coef_per_row[_DIAG_DEV_ROW[_piece_char(pval)]] += sig[k]
+   for row_idx, coef in enumerate(diag_coef_per_row):
+       if coef == 0: continue
+       diag_ch += coef * DIAG_DEV_INT16[row_idx]
+   ```
+
+   ~10× fewer 4096-vector adds at dense positions (6 buckets
+   vs 64+ pieces).
+
+Plus a minor **STD4 axis-broadcast** (4D channels 1-4): the
+per-axis 4-iteration loop replaced by a single ``(4, 4096)``
+broadcast multiply.
+
+**Test coverage** — bit-exactness preserved on every position in
+the 1500-position random stress corpus (87 tests across 6 test
+files, all pass).
+
+**What 1.17.0 does NOT do** (still deferred):
+
+  * **Vectorize the float encoder hot path** (encode_640 /
+    encode_4d). The float baselines in this section are unchanged.
+    Vectorizing the float encoders would also win, but they're
+    more load-bearing and the float64 SIMD already competes well
+    with the per-piece loop for non-pure-phase callers. Future work.
+  * **Vectorize 4D FA_PAWN scatter**. Pawn-by-pawn axis-dependent
+    scatter doesn't batch cleanly (different stride patterns per
+    axis). Pawns are typically <16; the loop overhead is small.
+  * **Port to C** — still on the deferred list.
+
+#### 2026-05-09 amendment 5 — endgame parity investigation + einsum→matmul Pareto fix (1.17.0 polish)
+
+User noticed an empirical curiosity in the 1.17.0 vectorize numbers:
+
+> *"how curious that endgame is faster not vectorized. let's learn
+> why at some point."*
+
+The 1.17.0 ship inverted the 1.14.0 mixed-result on opening
+(1.64× SLOWER → 1.88× faster) and midgame (parity → 1.13× faster)
+— but endgame crept slightly the wrong way: 1.50× faster (loop)
+→ 1.45× faster (batched). Sub-3% regression, well within bench
+noise, but the *direction* was unexpected and worth understanding.
+
+**Mechanism: vectorization pays a fixed numpy-dispatch toll that
+doesn't shrink with sparsity.**
+
+Decomposing `_fiber_symmetric_int_batched` on the K+P-vs-K endgame
+position (n=2 fiber-eligible pieces in 1 piece-type group) yields
+the per-call cumulative breakdown:
+
+| Step                                                | Cumulative | Marginal |
+|-----------------------------------------------------|------------|----------|
+| dict grouping pass over `pos.items()`               | 1.7 µs     | 1.7 µs   |
+| + `np.zeros((3,64), int64)` + `np.asarray(sqs)`     | 5.4 µs     | +3.7 µs  |
+| + `LOCAL_ADJ_ROWS_INT8[pidx, sq_arr]` fancy-index   | 16.4 µs    | +11.0 µs |
+|   (includes 2× `.astype(np.int64)` widening)        |            |          |
+| + `gradients = adj_rows @ sig_int64` + broadcast    | 27.2 µs    | +10.7 µs |
+| + `np.einsum('pd,pc->dc', weighted, adj_rows)`      | 43.7 µs    | +16.6 µs |
+
+The corresponding loop path (`_fiber_symmetric_int` × 3) on the
+same position runs in ~47 µs — three calls each doing two cheap
+`np.dot(int8, int32)` operations on 64-element rows in their
+native dtypes, no int64 widening, no einsum parser dispatch.
+
+Two distinct overheads conspire on sparse inputs:
+
+1. **einsum dispatch on tiny tiles.** A standalone
+   `np.einsum('pd,pc->dc', (n,3), (n,64))` call costs 6.2 µs on
+   the n=1 endgame group shape — comparable to the entire per-d
+   loop work. einsum's parser/optimizer overhead is well-known to
+   dominate when the contraction itself is cheap.
+
+2. **dtype-widening + fancy-index allocation.** The batched path
+   does `LOCAL_ADJ_ROWS_INT8[pidx, sq_arr].astype(np.int64)` and
+   `LOCAL_FIBER_3D_INT16[pidx, sq_arr, :].astype(np.int64)` to
+   keep the contraction accumulator in int64 (correctly, to avoid
+   intermediate overflow on dense positions). The loop version
+   stays in int8/int16 and lets `np.dot` do implicit widening.
+
+**Principle.** Vectorization helps when N (number of elements per
+kernel call) is large enough to amortize the fixed numpy + einsum
+dispatch cost (~5-15 µs). For sparse inputs where N ≤ 2 in any
+group, the per-call dispatch overhead exceeds the per-element
+math savings. The speedup curve has a crossover point near
+N ≈ 4-8 for typical contractions.
+
+**The einsum→matmul swap (1.17.0 polish).** Micro-bench across
+group sizes ``n ∈ {1, 2, 5, 16}``:
+
+| n  | einsum  | weighted.T @ adj_rows | speedup |
+|----|---------|----------------------|---------|
+| 1  | 10.98 µs| 3.06 µs              | **3.59×** |
+| 2  | 9.29 µs | 6.13 µs              | 1.52×   |
+| 5  | 7.63 µs | 4.80 µs              | 1.59×   |
+| 16 | 8.69 µs | 5.43 µs              | 1.60×   |
+
+`weighted.T @ adj_rows` is **mathematically equivalent** to
+`einsum('pd,pc->dc', weighted, adj_rows)` (both compute the same
+``(3, 64)`` outer-then-sum), but **1.5-3.6× faster at every
+group size**, with the largest win exactly where it matters most
+(n=1, the sparse-endgame case). Pareto improvement; the swap
+landed in the same 1.17.0 ship.
+
+**Mitigations not yet shipped:**
+
+- *N-threshold dispatch*: fall back to `_fiber_symmetric_int` ×3
+  when every group has size 1. One-line branch; would recover the
+  remaining sub-microsecond endgame gap. Not shipped because the
+  matmul swap above largely closes the issue and adding a
+  conditional path costs maintainability.
+- *Skip int64 widening on sparse inputs*: keep the accumulator
+  in int32 when total piece count ≤ 8 (overflow-safe). Marginal
+  gain; not shipped.
+
+**Take-away for future encoder rewrites.** When vectorizing a
+per-piece loop, prefer `@` matmul over `einsum` whenever the
+contraction is a 2D outer-then-sum — the einsum parser pays a
+fixed ~5-10 µs tax per call that hurts sparse-input regimes. The
+loop-swap-and-broadcast pattern (1.17.0's 4D fiber-sym approach)
+has the same property: outer per-piece, broadcast over batch
+dimension, no einsum dispatch. Both patterns avoid the
+einsum-tax cliff at small N.
+
 ### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:

@@ -425,44 +425,51 @@ def encode_4d_pure_phase(
     # Result dtype depends on scipy's promotion; force int32.
     out[0:CHANNEL_DIM] = np.asarray(a1_int, dtype=np.int32)
 
-    # ── Channels 1-4 (STD4_X/Y/Z/W): coord_resid × sig elementwise ──
+    # ── Channels 1-4 (STD4_X/Y/Z/W): vectorized over all 4 axes
+    # at once via numpy broadcasting (1.17.0+). The per-axis
+    # 4-iteration loop replaced by a single (4, 4096) broadcast
+    # multiply.
     coord_resid_int8 = qt['coord_resid_int8']  # type: ignore[assignment]
-    for a in range(t4.N_DIMS):
-        start = (1 + a) * CHANNEL_DIM
-        # int8 × int32 → int32 (numpy auto-promotes).
-        out[start:start + CHANNEL_DIM] = (
-            coord_resid_int8[a].astype(np.int32) * sig_int32  # type: ignore[index]
-        )
+    # coord_resid_int8 shape: (4, 4096) int8; sig_int32 shape: (4096,) int32
+    # Result: (4, 4096) int32 = coord_resid[:, None_broadcast] * sig
+    std4_block = (
+        coord_resid_int8.astype(np.int32) * sig_int32  # type: ignore[index]
+    )
+    out[CHANNEL_DIM:5 * CHANNEL_DIM] = std4_block.reshape(-1)
 
-    # ── Channels 5-7 (FIB_SYM): mirror float encoder semantics ──
+    # ── Channels 5-7 (FIB_SYM): vectorized via loop-swap (1.17.0+) ──
+    # The original per-d outer loop redid the per-piece sparse-row
+    # gather + gradient sum 3× for the 3 d-channels. Loop-swap: do
+    # the per-piece work ONCE, accumulate into all 3 d-channels in
+    # parallel via a (3, len(cols)) broadcast add.
     FIBER_LOCAL_INT16 = qt['FIBER_LOCAL_INT16']  # type: ignore[assignment]
     PIECE_ADJ = qt['PIECE_ADJ']  # type: ignore[assignment]
     sorted_items = sorted(pos4.items(), key=lambda kv: int(kv[0]))
-    for d in range(3):
-        # int64 accumulator: per-piece contribution can reach
-        # |gradient × fib_d| ≈ 5e3 × 32767 ≈ 1.6e8, accumulated
-        # across up to 64 occupied squares → 1e10, exceeds int32.
-        fc = np.zeros(CHANNEL_DIM, dtype=np.int64)
-        for k, pval in sorted_items:
-            pkey = _piece_char(pval).upper()
-            if pkey not in _FIBER_IDX_4D:
-                continue  # skip pawn — handled in FA channels
-            pidx = _FIBER_IDX_4D[pkey]
-            s = int(k)
-            row = PIECE_ADJ[pidx].getrow(s)  # type: ignore[index]
-            cols = row.indices
-            if cols.size == 0:
-                continue
-            gradient = int(sig_int32[cols].sum())
-            if gradient == 0:
-                continue
-            fib_d = int(FIBER_LOCAL_INT16[pidx, s, d])  # type: ignore[index]
-            if fib_d == 0:
-                continue
-            # fc[cols] += gradient × fib_d (scalar broadcasts to cols).
-            fc[cols] += gradient * fib_d
-        start = (5 + d) * CHANNEL_DIM
-        out[start:start + CHANNEL_DIM] = fc.astype(np.int32)
+    fc_all = np.zeros((3, CHANNEL_DIM), dtype=np.int64)
+    for k, pval in sorted_items:
+        pkey = _piece_char(pval).upper()
+        if pkey not in _FIBER_IDX_4D:
+            continue  # skip pawn — handled in FA channels
+        pidx = _FIBER_IDX_4D[pkey]
+        s = int(k)
+        row = PIECE_ADJ[pidx].getrow(s)  # type: ignore[index]
+        cols = row.indices
+        if cols.size == 0:
+            continue
+        gradient = int(sig_int32[cols].sum())
+        if gradient == 0:
+            continue
+        # Batch all 3 d-channels via broadcast.
+        fib_d_vec = FIBER_LOCAL_INT16[pidx, s, :].astype(np.int64)  # (3,)
+        if not fib_d_vec.any():
+            continue
+        weighted = gradient * fib_d_vec  # (3,) int64
+        # fc_all[:, cols] is (3, len(cols)); weighted[:, None] is (3, 1).
+        # Broadcast: each d-row of fc_all gets weighted[d] added at cols.
+        fc_all[:, cols] += weighted[:, None]
+    out[5 * CHANNEL_DIM:8 * CHANNEL_DIM] = (
+        fc_all.reshape(-1).astype(np.int32)
+    )
 
     # ── Channels 8-9 (FA_PAWN_W, FA_PAWN_Y) ──
     W_ANTI_DCT_INT16 = qt['W_ANTI_DCT_INT16']  # type: ignore[assignment]
@@ -494,15 +501,22 @@ def encode_4d_pure_phase(
     out[8 * CHANNEL_DIM:9 * CHANNEL_DIM] = pawn_w.astype(np.int32)
     out[9 * CHANNEL_DIM:10 * CHANNEL_DIM] = pawn_y.astype(np.int32)
 
-    # ── Channel 10 (FD_DIAG) ──
+    # ── Channel 10 (FD_DIAG): vectorized by piece type (1.17.0+) ──
+    # The original per-piece loop did 1 numpy add of a 4096-vector
+    # PER occupied square. Vectorize: group occupied squares by
+    # diag-row (6 piece-type buckets: pawn=0, N=1, B=2, R=3, Q=4,
+    # K=5), sum sig values per bucket, do 1 numpy add per bucket.
+    # 6 buckets vs 64+ pieces = ~10× fewer 4096-vector adds at dense.
     DIAG_DEV_INT16 = qt['DIAG_DEV_INT16']  # type: ignore[assignment]
-    diag_ch = np.zeros(CHANNEL_DIM, dtype=np.int64)
+    diag_coef_per_row = [0] * 6
     for k, pval in sorted_items:
-        row = _DIAG_DEV_ROW[_piece_char(pval)]
-        coef = int(sig_int32[int(k)])
+        row_idx = _DIAG_DEV_ROW[_piece_char(pval)]
+        diag_coef_per_row[row_idx] += int(sig_int32[int(k)])
+    diag_ch = np.zeros(CHANNEL_DIM, dtype=np.int64)
+    for row_idx, coef in enumerate(diag_coef_per_row):
         if coef == 0:
             continue
-        diag_ch += coef * DIAG_DEV_INT16[row].astype(np.int64)  # type: ignore[index]
+        diag_ch += coef * DIAG_DEV_INT16[row_idx].astype(np.int64)  # type: ignore[index]
     out[10 * CHANNEL_DIM:11 * CHANNEL_DIM] = diag_ch.astype(np.int32)
 
     return out
