@@ -1,0 +1,300 @@
+{
+  "depth": 4,
+  "reps": 2,
+  "variants": [
+    "material",
+    "spectral_float64",
+    "spectral_hybrid_8bit_lru"
+  ],
+  "corpora": {
+    "opening": [
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
+    ],
+    "midgame": [
+      "r1b2rk1/pp2bppp/2nppn2/q1p5/2P5/2N1PN2/PPQ1BPPP/2KR1B1R w - - 4 11",
+      "r2q1rk1/pp1bbppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8"
+    ],
+    "endgame": [
+      "8/8/8/4k3/4P3/4K3/8/8 w - - 0 1",
+      "8/8/8/4k3/8/8/4R3/4K3 w - - 0 1"
+    ]
+  },
+  "sweep": {
+    "material": {
+      "opening": [
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "mean_nodes": 9337.0,
+          "mean_elapsed_ms": 2055.581750057172,
+          "nodes_per_sec": 4542.266440991855,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            2075.6418000673875,
+            2035.5217000469565
+          ]
+        },
+        {
+          "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+          "mean_nodes": 5812.0,
+          "mean_elapsed_ms": 2793.5361500130966,
+          "nodes_per_sec": 2080.5171968054724,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            3080.8935000095516,
+            2506.1788000166416
+          ]
+        }
+      ],
+      "midgame": [
+        {
+          "fen": "r1b2rk1/pp2bppp/2nppn2/q1p5/2P5/2N1PN2/PPQ1BPPP/2KR1B1R w - - 4 11",
+          "mean_nodes": 9776.0,
+          "mean_elapsed_ms": 6689.8772500571795,
+          "nodes_per_sec": 1461.3123133038716,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            6831.753300037235,
+            6548.001200077124
+          ]
+        },
+        {
+          "fen": "r2q1rk1/pp1bbppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8",
+          "mean_nodes": 9991.0,
+          "mean_elapsed_ms": 8699.410150002223,
+          "nodes_per_sec": 1148.4686694531179,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            8265.227299998514,
+            9133.59300000593
+          ]
+        }
+      ],
+      "endgame": [
+        {
+          "fen": "8/8/8/4k3/4P3/4K3/8/8 w - - 0 1",
+          "mean_nodes": 115.0,
+          "mean_elapsed_ms": 14.37204994726926,
+          "nodes_per_sec": 8001.642105470862,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            14.918599976226687,
+            13.825499918311834
+          ]
+        },
+        {
+          "fen": "8/8/8/4k3/8/8/4R3/4K3 w - - 0 1",
+          "mean_nodes": 726.0,
+          "mean_elapsed_ms": 90.87835001992062,
+          "nodes_per_sec": 7988.701377620304,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            91.99620003346354,
+            89.7605000063777
+          ]
+        }
+      ]
+    },
+    "spectral_float64": {
+      "opening": [
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "mean_nodes": 33587.0,
+          "mean_elapsed_ms": 32962.48629997717,
+          "nodes_per_sec": 1018.9461952092873,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            35217.704299953766,
+            30707.268300000578
+          ]
+        },
+        {
+          "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+          "mean_nodes": 10187.0,
+          "mean_elapsed_ms": 24927.304550015833,
+          "nodes_per_sec": 408.66833313486075,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            27554.62730000727,
+            22299.981800024398
+          ]
+        }
+      ],
+      "midgame": [
+        {
+          "fen": "r1b2rk1/pp2bppp/2nppn2/q1p5/2P5/2N1PN2/PPQ1BPPP/2KR1B1R w - - 4 11",
+          "mean_nodes": 167.0,
+          "mean_elapsed_ms": 327.8134500142187,
+          "nodes_per_sec": 509.43608321365855,
+          "depth_reached": 2,
+          "per_rep_elapsed_ms": [
+            267.11739995516837,
+            388.509500073269
+          ]
+        },
+        {
+          "fen": "r2q1rk1/pp1bbppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8",
+          "mean_nodes": 8506.0,
+          "mean_elapsed_ms": 35754.62159997551,
+          "nodes_per_sec": 237.8993153714659,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            41902.56009995937,
+            29606.683099991642
+          ]
+        }
+      ],
+      "endgame": [
+        {
+          "fen": "8/8/8/4k3/4P3/4K3/8/8 w - - 0 1",
+          "mean_nodes": 159.0,
+          "mean_elapsed_ms": 42.11184999439865,
+          "nodes_per_sec": 3775.659345793376,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            41.44669999368489,
+            42.77699999511242
+          ]
+        },
+        {
+          "fen": "8/8/8/4k3/8/8/4R3/4K3 w - - 0 1",
+          "mean_nodes": 906.0,
+          "mean_elapsed_ms": 289.08484999556094,
+          "nodes_per_sec": 3134.0279506653915,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            266.7037999490276,
+            311.4659000420943
+          ]
+        }
+      ]
+    },
+    "spectral_hybrid_8bit_lru": {
+      "opening": [
+        {
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "mean_nodes": 34463.0,
+          "mean_elapsed_ms": 40606.065599946305,
+          "nodes_per_sec": 848.715567263566,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            38741.43699998967,
+            42470.69419990294
+          ]
+        },
+        {
+          "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2",
+          "mean_nodes": 10244.0,
+          "mean_elapsed_ms": 21796.614499995485,
+          "nodes_per_sec": 469.98124410569,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            21677.695599966682,
+            21915.533400024287
+          ]
+        }
+      ],
+      "midgame": [
+        {
+          "fen": "r1b2rk1/pp2bppp/2nppn2/q1p5/2P5/2N1PN2/PPQ1BPPP/2KR1B1R w - - 4 11",
+          "mean_nodes": 167.0,
+          "mean_elapsed_ms": 297.95629996806383,
+          "nodes_per_sec": 560.4848765335713,
+          "depth_reached": 2,
+          "per_rep_elapsed_ms": [
+            297.64349991455674,
+            298.2691000215709
+          ]
+        },
+        {
+          "fen": "r2q1rk1/pp1bbppp/2np1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8",
+          "mean_nodes": 8506.0,
+          "mean_elapsed_ms": 34278.99120002985,
+          "nodes_per_sec": 248.14032450268235,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            34326.21810003184,
+            34231.76430002786
+          ]
+        }
+      ],
+      "endgame": [
+        {
+          "fen": "8/8/8/4k3/4P3/4K3/8/8 w - - 0 1",
+          "mean_nodes": 163.0,
+          "mean_elapsed_ms": 53.39529999764636,
+          "nodes_per_sec": 3052.7031406731485,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            53.997699986211956,
+            52.79290000908077
+          ]
+        },
+        {
+          "fen": "8/8/8/4k3/8/8/4R3/4K3 w - - 0 1",
+          "mean_nodes": 906.0,
+          "mean_elapsed_ms": 321.25115004600957,
+          "nodes_per_sec": 2820.2233668898702,
+          "depth_reached": 4,
+          "per_rep_elapsed_ms": [
+            317.6390000153333,
+            324.86330007668585
+          ]
+        }
+      ]
+    }
+  },
+  "aggregates": {
+    "material": {
+      "opening": {
+        "mean_nodes_per_sec": 3311.3918188986636,
+        "mean_nodes": 7574.5,
+        "mean_elapsed_ms": 2424.5589500351343
+      },
+      "midgame": {
+        "mean_nodes_per_sec": 1304.8904913784947,
+        "mean_nodes": 9883.5,
+        "mean_elapsed_ms": 7694.643700029701
+      },
+      "endgame": {
+        "mean_nodes_per_sec": 7995.171741545582,
+        "mean_nodes": 420.5,
+        "mean_elapsed_ms": 52.62519998359494
+      }
+    },
+    "spectral_float64": {
+      "opening": {
+        "mean_nodes_per_sec": 713.807264172074,
+        "mean_nodes": 21887.0,
+        "mean_elapsed_ms": 28944.895424996503
+      },
+      "midgame": {
+        "mean_nodes_per_sec": 373.66769929256225,
+        "mean_nodes": 4336.5,
+        "mean_elapsed_ms": 18041.217524994863
+      },
+      "endgame": {
+        "mean_nodes_per_sec": 3454.8436482293837,
+        "mean_nodes": 532.5,
+        "mean_elapsed_ms": 165.5983499949798
+      }
+    },
+    "spectral_hybrid_8bit_lru": {
+      "opening": {
+        "mean_nodes_per_sec": 659.348405684628,
+        "mean_nodes": 22353.5,
+        "mean_elapsed_ms": 31201.340049970895
+      },
+      "midgame": {
+        "mean_nodes_per_sec": 404.3126005181268,
+        "mean_nodes": 4336.5,
+        "mean_elapsed_ms": 17288.473749998957
+      },
+      "endgame": {
+        "mean_nodes_per_sec": 2936.4632537815096,
+        "mean_nodes": 534.5,
+        "mean_elapsed_ms": 187.32322502182797
+      }
+    }
+  }
+}
