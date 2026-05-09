@@ -100,6 +100,18 @@
       "sha256": "d30257f1e1f2a012d553e1448a27c76bf4ceb7244c78897d1aa82c2649dd9a5f",
       "size_bytes": 5357
     },
+    "_research/attested/sun_dynamical_spectrum/descriptor.toml": {
+      "sha256": "8988232361e844222e88917c206d6c2f8bbbf6a1ada86c1cb77d63e1574c5360",
+      "size_bytes": 3059
+    },
+    "_research/attested/sun_dynamical_spectrum/row.ndjson": {
+      "sha256": "2f85c1a796c2bad168695604e75bcc7f3bf11f2cfdc93d81ef4ad1e6c36d40d2",
+      "size_bytes": 6780
+    },
+    "_research/attested/sun_dynamical_spectrum/row.schema.json": {
+      "sha256": "5a242271f02b8d5bad7f679f2802ab87d79d8bea0e467bf15f7e3ca84575b3e3",
+      "size_bytes": 3371
+    },
     "_research/attested_adapters/__init__.py": {
       "sha256": "a31d47928869e0c6bcd97a9dd48f7c5eea76432b8ab6c361e5c6dcd27431c837",
       "size_bytes": 1796

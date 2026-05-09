@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sun_dynamical_spectrum.row.v1",
+  "title": "Sun helioseismic p-mode row",
+  "description": "One helioseismic p-mode at canonical (n, l) labels in the Sun's dynamical decomposition. Single row_type catalogue ('helioseismic_mode'); the row_type field is retained for consistency with the multi-row-type Mercury / Luna / Mars descriptors, even though all rows in this catalogue share the same type.",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "n",
+    "l",
+    "frequency_uhz",
+    "mode_class",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^n[0-9]+_l[0-9]+$",
+      "description": "Composite row identifier 'n<radial_order>_l<spherical_harmonic_degree>' (e.g., 'n18_l0', 'n21_l2'). Sufficient to uniquely identify a p-mode in this slice of the comb."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["helioseismic_mode"],
+      "description": "Row category. Single value in this catalogue ('helioseismic_mode'); the field is retained for symmetry with the multi-row-type planetary catalogues. Future extension might add 'g_mode' / 'f_mode' / 'mixed_mode' rows."
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Radial order. Number of pressure-pressure crossings in the radial eigenfunction inside the Sun. The catalogue's slice spans n=18 through n=25 — the high-SNR portion of the BiSON comb."
+    },
+    "l": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Spherical-harmonic degree (angular structure). l=0 = radial; l=1 = dipole; l=2 = quadrupole. The catalogue ships l=0, 1, 2 (low-degree global modes resolvable by sun-as-a-star instruments)."
+    },
+    "frequency_uhz": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Mode frequency ν_{n,l} in microhertz. Positive by definition; m=0 (zonal) frequency — rotation-induced m-splitting (~430 nHz) is not represented in this catalogue."
+    },
+    "mode_class": {
+      "type": "string",
+      "enum": ["p", "g", "f", "mixed"],
+      "description": "Mode physics class. p-mode = pressure-driven acoustic; g-mode = buoyancy-driven gravity; f-mode = surface fundamental; mixed = avoided-crossing mode. All catalogue rows are 'p'."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited reference."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For BiSON / SOI-MDI / SDO-HMI release tags or catalogue versions."
+    }
+  }
+}
