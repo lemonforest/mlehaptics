@@ -93,11 +93,33 @@ def _descriptors() -> Dict[str, Descriptor]:
 def _ndjson_path(descriptor: Descriptor) -> Path:
     """Resolve the baseline NDJSON file path for a descriptor.
 
-    The descriptor's ``[schema].data_schema_id`` is used as the
-    filename stem; e.g. ``earthref_sc.seamount.v1`` →
-    ``seamount.ndjson`` (we strip the source-prefix and version
-    suffix, taking the middle as the table name).
+    Resolution order:
+
+    1. **Explicit** ``[fetch].ndjson_path`` field if set in the
+       descriptor. This is the load-bearing field — every existing
+       descriptor authors it deliberately, and it's the field whose
+       comment (in saturn_rings, mercury_dynamical_spectrum, etc.)
+       documents the intent. Resolved relative to the descriptor's
+       directory.
+    2. **Fallback**: derive the filename stem from
+       ``[schema].data_schema_id``'s middle part — e.g.
+       ``earthref_sc.seamount.v1`` → ``seamount.ndjson``. This
+       fallback exists for descriptors that omit the explicit
+       field; if both are present, the explicit field wins.
+
+    Pre-this-fix the resolver ignored the explicit field and used
+    only the schema-id derivation, which silently disagreed when
+    the two conventions diverged (the symptom: a descriptor with
+    ``[fetch].ndjson_path = "foo.ndjson"`` but
+    ``[schema].data_schema_id = "src.row.v1"`` would look for
+    ``row.ndjson``, not ``foo.ndjson``, returning empty rows with
+    the misleading ``"no committed NDJSON; first T1 collection
+    pending"`` note even though the file existed at the documented
+    path).
     """
+    explicit = descriptor.fetch.get("ndjson_path")
+    if explicit:
+        return descriptor.path.parent / str(explicit)
     schema_id = str(descriptor.schema["data_schema_id"])
     parts = schema_id.split(".")
     # Convention: <source_key>.<table>.<version>

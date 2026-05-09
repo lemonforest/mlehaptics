@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — AMSC `_ndjson_path` honours explicit `[fetch].ndjson_path`
+
+Surfaced during the v0.27.0 phase A Mercury migration (PR #303): the path resolver ignored the descriptor's explicit `[fetch].ndjson_path` field and used only the schema-id-derived fallback. When the two disagreed, descriptors silently returned empty rows with the misleading "first T1 collection pending" note even though the file existed at the documented path. Fix: resolve `[fetch].ndjson_path` first; fall back to schema-id derivation only when the explicit field is unset. Backwards-compatible (no existing source's behaviour changes). 3 new regression tests pin the resolution order.
+
 ### Added — v0.27.0 phase A — first AMSC backfill of a v0.24.x catalogue
 
 The v0.24.0 Mercury Dynamical Spectrum catalogue is now wrapped in the AMSC framework as the first `literature_curated` backfill of an existing v0.24.x ship. New `research/attested/mercury_dynamical_spectrum/` source: descriptor + JSON Schema + NDJSON covering 16 rows (8 dynamical-mode rows + 8 precession-contribution rows from the Le Verrier–Einstein decomposition). Per-row DOIs cite Park 2021 / Margot 2007 / Clemence 1947 / Einstein 1915 / Verma 2014 / Park 2017 / Murray-Dermott 1999 / Laskar 1989. Hand-coded `_research/mercury_dynamical_spectrum_data.py` remains the working authority; AMSC NDJSON is the attestation envelope. 10 new dual-author tests inheriting the Saturn-rings PR #291 pattern ratchet byte-stable agreement between the two paths.

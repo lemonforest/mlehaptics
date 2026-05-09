@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — AMSC `_ndjson_path` now honours explicit `[fetch].ndjson_path`
+
+Surfaced during the v0.27.0 phase A Mercury migration (PR #303): the resolver in `_research/attested_collector_catalog.py::_ndjson_path` ignored the descriptor's explicit `[fetch].ndjson_path` field and used only the schema-id-derived fallback (split `data_schema_id` on `.`, take parts[1] as the filename stem). When the two conventions disagreed, the symptom was an apparently-correctly-authored descriptor returning empty rows with the misleading `"no committed NDJSON; first T1 collection pending"` note even though the file existed at the documented path.
+
+The fix: resolve `[fetch].ndjson_path` first; fall back to schema-id derivation only when the explicit field is unset. Backwards-compatible — the saturn_rings + mercury_dynamical_spectrum descriptors author both fields consistently, so no existing source's behaviour changes.
+
+3 new regression tests in `tests/test_attested_collector.py`:
+- `test_ndjson_path_honors_explicit_fetch_field` — explicit field is honoured
+- `test_ndjson_path_falls_back_to_schema_id_when_explicit_absent` — fallback works
+- `test_ndjson_path_explicit_wins_over_schema_id_derivation` — when they disagree, explicit wins
+
 ### Added — v0.27.0 phase A — first AMSC backfill of a v0.24.x catalogue (Mercury Dynamical Spectrum)
 
 - **`research/attested/mercury_dynamical_spectrum/`** — new attested source: descriptor.toml + row.schema.json + row.ndjson covering the v0.24.0 catalogue. 16 rows total: 8 dynamical_mode rows (orbital + spin + libration + secular-precession angle modes; eccentricity / inclination / obliquity action variables) + 8 precession_contribution rows (Le Verrier–Einstein decomposition: 5 Newtonian perturbers + GR + solar J₂ + observed total). Per-row source DOIs cite Park 2021 (DE441), Margot 2007, Clemence 1947, Einstein 1915, Verma 2014 (INPOP), Park 2017, Murray-Dermott 1999, Laskar 1989. The hand-coded `_research/mercury_dynamical_spectrum_data.py` module is unchanged and remains the working authority; the AMSC NDJSON is the attestation envelope.
