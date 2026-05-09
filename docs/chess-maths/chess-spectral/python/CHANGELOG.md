@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 1.16.0+ in-progress: tournament runner + search-tree bench
+
+`tests/run_evaluator_tournament.py` — round-robin tournament runner
+that pits evaluator variants (material, spectral_float64,
+spectral_hybrid_8bit_lru) against each other at configurable depth.
+Reports final ELO + per-pair win/loss/draw + termination histogram
+as JSON. Addresses the deferred item from 1.14.0 amendment 1:
+*"Tournament-driven evaluator validation — does spectral_hybrid_8bit_lru
+actually beat material at deep search via the §16 tournament harness?"*
+
+  * 9 smoke tests in `tests/test_run_evaluator_tournament.py`
+    (depth=2, 1 game per pair, 60-ply cap; verifies the runner
+    works without committing CI minutes to a full empirical sweep)
+  * Production sweeps run manually:
+    `python tests/run_evaluator_tournament.py --depth 4 --games-per-pair 8`
+
+`tests/bench_search_tree.py` — search-tree benchmark combining
+move-gen + eval into nodes/sec at depth. Addresses the deferred
+item: *"Move-gen cost in the bench (currently bench measures only
+static eval; combining with move-gen for nodes/sec at depth is real
+but separate work)."*
+
+Empirical preview at depth=3 (reps=1; not statistically locked):
+
+| Variant | opening (k_nodes/s) | midgame (k_nodes/s) | endgame (k_nodes/s) |
+|---|---|---|---|
+| material | 4.0 | 2.5 | 12.0 |
+| spectral_float64 | 0.8 | 0.4 | 1.7 |
+| spectral_hybrid_8bit_lru | 0.6 | 0.4 | 1.5 |
+
+**Notable**: spectral_hybrid_8bit_lru is SLOWER than
+spectral_float64 in search-tree throughput at depth=3 — the
+~17× static-eval speedup the cache hit gives doesn't translate
+because TT re-visits are rare at low depth and the cache adds
+hash-and-LRU overhead per call. This is exactly the open question
+1.14.0's amendment 1 flagged. Higher-depth runs may change the
+verdict; the bench infrastructure is the deliverable.
+
+  * 6 smoke tests in `tests/test_bench_search_tree.py`
+  * Production runs: `python tests/bench_search_tree.py --depth 4 --reps 3 --output bench.json`
+
 ### Added — 1.16.0+ in-progress: PGN-sourced phase classifier
 
 `chess_spectral.phase_classifier` — data-driven open/midgame/endgame
