@@ -92,15 +92,14 @@ SATURN_GM_M3_S2 = _SATURN.GM_m3_s2
 MIMAS_PERIOD_DAYS = BODIES["mimas"].period_days
 
 
-def _kepler_a_from_period(period_days: float, gm_m3_s2: float) -> float:
-    """Closed-form semi-major axis from Kepler's third law.
+def _kepler_a_naive_from_period(period_days: float, gm_m3_s2: float) -> float:
+    """Naïve-Kepler semi-major axis from period.
 
         a³ = GM × P² / (4π²)
 
-    Works for any satellite + central body whose GM is known. Used
-    here to derive Mimas's semi-major axis from its sidereal period
-    + Saturn's GM (both SSOT-pulled), avoiding a hardcoded
-    semi-major axis that could drift from the BODIES table.
+    No oblateness correction. The OBSERVED period of an orbit around
+    an oblate primary differs from the period this `a` would imply by
+    O(J₂(R/a)²) — see _kepler_a_first_order_j2 for the corrected form.
     """
     period_s = period_days * 86400.0
     a_m = (gm_m3_s2 * period_s * period_s / (4.0 * math.pi * math.pi)) ** (
@@ -109,8 +108,68 @@ def _kepler_a_from_period(period_days: float, gm_m3_s2: float) -> float:
     return a_m / 1000.0  # km
 
 
-# Mimas semi-major axis derived via Kepler from SSOT period + GM.
-MIMAS_SEMI_MAJOR_KM = _kepler_a_from_period(
+def _kepler_a_first_order_j2(
+    period_days: float,
+    gm_m3_s2: float,
+    j2: float,
+    r_eq_km: float,
+) -> float:
+    """Semi-major axis from period, with first-order J₂ oblateness
+    correction.
+
+    For an orbit around an oblate primary, the relation between
+    observed mean motion and geometric semi-major axis is:
+
+        n² × a³ = GM × (1 + (3/2)·J₂·(R_eq/a)² + O(J₄))
+
+    To first order in J₂, with a₀ = (GM/n²)^(1/3) the naïve Kepler a:
+
+        a = a₀ × (1 + (1/2)·J₂·(R_eq/a₀)² + O(J₂²))
+
+    For Mimas: J₂ correction is +160 km out of 185300 km (0.086%),
+    closing most of the 240-km gap between naïve-Kepler-from-period
+    and Cooper 2008's directly measured a_Mimas (185539 km).
+
+    What remains after first-order J₂ correction:
+
+      - Higher-order J₂² terms (~10× smaller than first-order)
+      - J₄ contribution (~30× smaller than J₂; the next layer of
+        untruncation when a J₄ field becomes a v0.27.x SSOT entry)
+      - Satellite perturbations from other moons (mean vs osculating
+        element distinction; smaller still for Mimas given its
+        proximity to Saturn relative to other classical Saturnians)
+
+    Reference: Murray & Dermott 1999, *Solar System Dynamics*,
+    eq. 6.244 (or equivalent first-order J₂ relation).
+
+    Note on why J₂ is "measured" not "derived": for a rotating fluid
+    body in hydrostatic equilibrium (gas giants, approximately the
+    terrestrial planets), Darwin-Radau gives J₂ from the body's
+    rotation rate q = ω²R³/GM and internal moment-of-inertia factor.
+    Saturn's MOI factor (0.220, Helled 2011) is in TOROIDAL_RESIDUALS
+    alongside J₂_observed; closing the loop at Darwin-Radau is the
+    next layer of untruncation — derive J₂ from q + MOI rather than
+    measuring it directly. v0.27.x or later target.
+    """
+    a0_km = _kepler_a_naive_from_period(period_days, gm_m3_s2)
+    delta = 0.5 * j2 * (r_eq_km / a0_km) ** 2
+    return a0_km * (1.0 + delta)
+
+
+# Mimas semi-major axis derived via J₂-corrected Kepler from SSOT
+# period + GM + J₂ + R_eq. Closes most of the residual against
+# Cooper 2008's directly-measured value; what remains is J₄ +
+# satellite-perturbation territory (notebook §20.4.0
+# FFT-untruncation modesty: each new layer of physics shrinks the
+# windowing).
+MIMAS_SEMI_MAJOR_KM = _kepler_a_first_order_j2(
+    MIMAS_PERIOD_DAYS, SATURN_GM_M3_S2, SATURN_J2, SATURN_R_EQ_KM
+)
+
+# Naïve-Kepler comparison value for the documentation paragraph in
+# the test docstring — preserved so the test surface explicitly
+# carries the "before vs after J₂ correction" residual story.
+MIMAS_SEMI_MAJOR_NAIVE_KEPLER_KM = _kepler_a_naive_from_period(
     MIMAS_PERIOD_DAYS, SATURN_GM_M3_S2
 )
 
@@ -181,30 +240,52 @@ def _get_saturn_rings_row(name: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_mimas_2_1_anchor_matches_project_ssot_kepler() -> None:
+def test_mimas_2_1_anchor_matches_project_ssot_j2_kepler() -> None:
     """The catalogue's 'Mimas 2:1 mean-motion resonance anchor' row
     must agree with the project's SSOT-derived 2:1 Lindblad-resonance
-    location to within ~0.2%.
+    location, J₂-corrected, to within ~0.06%.
 
-    The catalogue row was authored from the literature value
-    a_Mimas = 185539 km (Cooper 2008 astrometry), giving 185539 ×
-    (1/2)^(2/3) ≈ 116930 km. This test re-derives the prediction
-    using the project's SSOT chain — Mimas period from BODIES table +
-    Saturn GM from TOROIDAL_RESIDUALS — which gives a_Mimas ≈ 185300
-    km via Kepler's third law, and a 2:1 prediction of ≈ 116780 km.
+    SSOT chain (no hardcoded constants):
 
-    The ~150 km / 0.13% offset between "literature Kepler" and
-    "project-SSOT Kepler" is the project's effective numerical
-    precision relative to direct astrometry — driven by the GM and
-    period values' sig-fig truncation. This test checks the catalogue
-    is consistent with the project SSOT (the right discipline for
-    catalogue maintenance), not with raw literature numbers (which
-    the catalogue's per-row source_doi already attests).
+      Saturn R_eq, GM, J₂  ← TOROIDAL_RESIDUALS Saturn entry
+      Mimas P_sidereal     ← BODIES["mimas"].period_days
+      Mimas semi-major     ← _kepler_a_first_order_j2(P, GM, J₂, R_eq)
+      2:1 ILR location     ← a_Mimas × (1/2)^(2/3)
 
-    Threshold of 0.25% leaves room for further GM / period precision
-    revisions while still catching the kinds of error this test is
-    meant to surface — a typo in the catalogue value, or a unit
-    mismatch (R_S vs km), would produce >>1% offset.
+    Untruncation history of this test (notebook §20.4.0 modesty):
+
+      Iteration 1 (PR #289 first push) — naïve Kepler. Offset
+      between catalogue (116930 km, literature-Kepler from Cooper
+      2008 a=185539) and SSOT-Kepler-from-period (116780 km) was
+      ~150 km / 0.13%. Originally framed as "numerical precision"
+      with threshold 0.25%.
+
+      Iteration 2 (this version) — J₂-corrected Kepler. The 0.13%
+      offset turned out to be the J₂ correction to Kepler's third
+      law: for an orbit around an oblate primary, the geometric a
+      and the period-equivalent a differ by O(J₂(R/a)²). Adding
+      the first-order J₂ correction lifts the SSOT-derived a from
+      185300 to 185460 km, the 2:1 prediction from 116780 to
+      116883 km, and the offset against the catalogue's 116930
+      drops from 150 km to ~50 km / 0.04%.
+
+    What remains after first-order J₂ correction (the next layer
+    of untruncation):
+
+      - J₂² (second-order) ≈ 1 km
+      - J₄ contribution ≈ 5 km (Saturn J₄ ≈ -0.000936)
+      - Satellite perturbation from other moons ≈ 5-10 km
+      - Cooper 2008 measurement uncertainty ≈ 10s of km
+
+    Threshold of 0.07% accommodates these residual layers while
+    still catching catalogue typos (would produce >>1% offset) or
+    unit mismatches.
+
+    Closing the loop further (v0.27.x or later untruncation):
+      - J₄-corrected Kepler when a J₄ field is added to
+        TOROIDAL_RESIDUALS (Iess 2019 Cassini measured J₄ too).
+      - Darwin-Radau closed-form derivation of J₂ from q + MOI
+        factor (both already in TOROIDAL_RESIDUALS for Saturn).
     """
     anchor = _get_saturn_rings_row("Mimas 2:1 mean-motion resonance anchor")
     catalogue_radius_km = anchor["radial_distance_km"]
@@ -216,14 +297,16 @@ def test_mimas_2_1_anchor_matches_project_ssot_kepler() -> None:
     abs_offset_km = abs(catalogue_radius_km - predicted_radius_km)
     rel_offset = abs_offset_km / predicted_radius_km
 
-    assert rel_offset < 0.0025, (
+    assert rel_offset < 0.0007, (
         f"Mimas 2:1 anchor: catalogue={catalogue_radius_km:.1f} km "
-        f"(literature-Kepler from a_Mimas=185539); "
-        f"predicted={predicted_radius_km:.1f} km (SSOT-Kepler from "
-        f"BODIES['mimas'].period_days={MIMAS_PERIOD_DAYS} + Saturn "
-        f"GM={SATURN_GM_M3_S2:.3e}); offset={abs_offset_km:.1f} km "
-        f"({rel_offset * 100:.3f}%). Expected <0.25% — catalogue's "
-        f"value should track project SSOT within numerical precision."
+        f"(literature-Kepler from a_Mimas=185539, Cooper 2008); "
+        f"predicted={predicted_radius_km:.1f} km (SSOT J₂-Kepler "
+        f"from BODIES['mimas'].period_days={MIMAS_PERIOD_DAYS} + "
+        f"Saturn GM={SATURN_GM_M3_S2:.3e} + Saturn J₂={SATURN_J2:.5f} "
+        f"+ R_eq={SATURN_R_EQ_KM:.1f} km); offset={abs_offset_km:.1f} "
+        f"km ({rel_offset * 100:.4f}%). Expected <0.07% with first-"
+        f"order J₂ correction; if larger, J₄ / satellite-perturbation "
+        f"layers may need to be added to the SSOT-Kepler chain."
     )
 
 
