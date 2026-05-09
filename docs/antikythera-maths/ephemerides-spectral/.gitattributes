@@ -44,6 +44,13 @@ python/tests/*.py     text eol=lf
 codegen/*.py          text eol=lf
 bridge/*.py           text eol=lf
 
+# Local-developer scripts (WSL2 smoke etc.) — LF so they execute
+# correctly under bash on every platform that runs them. Without
+# this pin, a Windows checkout would see CRLF in the shebang line
+# and bash would fail with "/usr/bin/env^M: No such file or directory".
+scripts/*.sh          text eol=lf
+scripts/*.md          text eol=lf
+
 # C port — LF for the source/header/Makefile, the manifest, the .pages.
 c/include/*.h         text eol=lf
 c/src/*.c             text eol=lf
