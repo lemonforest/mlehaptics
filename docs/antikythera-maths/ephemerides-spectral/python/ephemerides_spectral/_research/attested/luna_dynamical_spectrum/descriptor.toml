@@ -1,0 +1,78 @@
+# Luna Dynamical Spectrum — per-body action-angle decomposition.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.1
+# hand-coded `_research/luna_dynamical_spectrum_data.py` module.
+# Luna was the second per-body dynamical-spectrum ship — the
+# Lunar-Laser-Ranging-anchored Earth-tidal counterpart to v0.24.0
+# Mercury's Sol-perturbation lineage. The Saros commensurability
+# (223 synodic ≈ 239 anomalistic ≈ 242 draconitic months ≈ 19
+# eclipse-years ≈ 6585.32 days) is the headline closure invariant.
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope. Dual-author byte-stable diff test in
+# `tests/test_luna_dynamical_spectrum_dual_author.py` ratchets
+# agreement.
+#
+# Pattern follows research/attested/mercury_dynamical_spectrum/
+# (PR #303) and research/attested/saturn_rings/ (PR #291).
+
+[source]
+key = "luna_dynamical_spectrum"
+human_readable_name = "Luna Dynamical Spectrum Catalogue"
+purpose = "ground-proof rows for Luna's per-body action-angle decomposition (sidereal + synodic + anomalistic + draconitic mean motions; spin lock; forced libration; apsidal + nodal precession angles; eccentricity / inclination / obliquity action variables) plus the Saros integer-commensurability closure invariant"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+canonical_doi = "10.1002/2013JE004489"
+
+# canonical_doi above points at Williams & Boggs 2014, *JGR Planets*
+# 119:1546–1578 — the 50+-year Lunar Laser Ranging libration
+# analysis that constrains Luna's forced-libration amplitude (7.9
+# arcsec) and normalised moment of inertia (C/MR² = 0.3932 ±
+# 0.0002), the most precise libration measurement in the Solar
+# System. Per-row provenance is finer-grained: Allen's
+# Astrophysical Quantities for the four classical lunar months,
+# JPL DE441 for orbital-element actions, Murray-Dermott 1999 for
+# precession rates, Cassini 1693 for the historic Cassini-state-2
+# rotation laws, Meeus 1991 for the Saros integer-commensurability
+# derivation.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "luna_dynamical_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Luna Dynamical Spectrum Catalogue (curated against published literature; Williams & Boggs 2014 *JGR Planets* 119:1546-1578 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for Luna action-angle decomposition (row_type={schema.row_type})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Luna's regime labels: rigid-body action-angle (the four-month
+# ladder + precession angles + secular actions) plus mutual lock
+# (Earth-Luna 1:1 spin-orbit; the most strongly tidally-locked
+# planet-satellite pair the project models). The Saros
+# commensurability is itself a textbook small-denominator
+# rigid-body-action-angle phenomenon.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_action_angle_mutual_lock",
+]

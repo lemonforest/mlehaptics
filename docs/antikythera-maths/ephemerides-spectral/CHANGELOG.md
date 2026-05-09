@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Luna Dynamical Spectrum AMSC backfill
+
+Second v0.24.x AMSC backfill (after Mercury PR #303). 15 rows: 11 dynamical-mode (four classical lunar months + spin lock + Williams-2014 forced libration + apsidal + nodal precession + eccentricity / inclination / obliquity actions) + 4 saros-commensurability (the integer-product closure invariant: 223 synodic ≈ 239 anomalistic ≈ 242 draconitic ≈ 19 eclipse-years ≈ 6585.32 days). Per-row DOIs cite Allen's Astrophysical Quantities, JPL DE441, Williams & Boggs 2014 LLR libration, Murray-Dermott 1999, Cassini 1693 (introduces `historical:` DOI prefix for pre-DOI works), Meeus 1991. 9 new dual-author tests including a Saros closure-invariant ratchet (four product_days values agree within 0.5 day).
+
 ### Fixed — AMSC `_ndjson_path` honours explicit `[fetch].ndjson_path`
 
 Surfaced during the v0.27.0 phase A Mercury migration (PR #303): the path resolver ignored the descriptor's explicit `[fetch].ndjson_path` field and used only the schema-id-derived fallback. When the two disagreed, descriptors silently returned empty rows with the misleading "first T1 collection pending" note even though the file existed at the documented path. Fix: resolve `[fetch].ndjson_path` first; fall back to schema-id derivation only when the explicit field is unset. Backwards-compatible (no existing source's behaviour changes). 3 new regression tests pin the resolution order.
