@@ -368,14 +368,15 @@ def test_geotiff_bbox_stub_raises_without_extra() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_bridge_list_attested_sources_returns_three_pilots() -> None:
-    """v0.25.0b ships three pilots: EarthRef SC + GMRT + PetDB v4.
-    v0.25.0a was 1 (EarthRef SC only)."""
+def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
+    """v0.25.0b shipped three pilots (EarthRef SC + GMRT + PetDB v4);
+    Saturn rings (v0.27.x AMSC pilot) added the fourth via the
+    literature_curated adapter. v0.25.0a was 1 (EarthRef SC only)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 3
+    assert result["n_sources"] == 4
     keys = sorted(s["key"] for s in result["sources"])
-    assert keys == ["earthref_sc", "gmrt", "petdb_v4"]
+    assert keys == ["earthref_sc", "gmrt", "petdb_v4", "saturn_rings"]
 
 
 def test_bridge_get_attested_dataset_handles_missing_ndjson() -> None:
