@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase C — body→kernel registry
+
+The layer-2-to-layer-3 interface from notebook §22.6: `{body → (kernel_path, precision_tier)}`. Pure Python additive; no ABI bump. New module `_research.body_kernel_registry` + three new bridge surfaces (`register_body_kernel`, `clear_body_kernel`, `get_body_kernel_registry`) + metadata propagation (`kernel_registry` field) into `body_architecture` and `predict_itn_accessibility` response envelopes. Registry hashing (SHA-256 over canonical-serialised state) provides the cache-invalidation key that phase B's `binary_archive` adapter will consume. 36 new tests including integration-test stubs for phases A + B + C convergence. **Phase C is structural** — registrations are tracked but orbital-mechanics state lookups still fall back to BODIES until phase B ships kernel-reading. See [docs/antikythera-maths/ephemerides_spectral_research_notebook.md](../ephemerides_spectral_research_notebook.md) §22.6 for the architecture.
+
 ### Documentation
 
 - **Two-tier eclipse-finding discipline now explicit in bridge docstrings.** `bridge.find_syzygies` (Saros-class mean-period triage) and `bridge.get_eclipse_probability` (JPL-anchored arc-second-class confirmation) are deliberately different precision tiers, both load-bearing. The pre-v0.27.0 docstring wording suggested `find_syzygies` "replaced" `get_eclipse_probability`, which was misleading — only the *windowed loop over* `get_eclipse_probability` was replaced; per-call use as the precision-confirmation tier remains the intended workflow. No code change. Direct comparison of `bip_hd_lift.eclipse_probability` (Born-rule projection on DE441-derived HD state) vs `syzygy_window.SyzygyCandidate.score` (mean-period geometric residual) confirms they compute related-but-different quantities on different data — keeping both surfaces is correct, not redundant. Surfaced by the bridge-wide audit in [docs/research-spikes/stored-relationship-mechanism-spike.md](../../research-spikes/stored-relationship-mechanism-spike.md).

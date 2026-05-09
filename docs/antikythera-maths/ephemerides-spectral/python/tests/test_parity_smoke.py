@@ -697,6 +697,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.27.0 phase C — body→kernel registry (notebook §22.6).
+    # Pure-Python module-level state; no compute path; no C twin
+    # makes sense. Phase B's binary_archive adapter (when it lands)
+    # may add C-side kernel-loading for state lookups, but the
+    # registry abstraction itself stays Python-only by construction.
+    "register_body_kernel": {
+        "status": "python_only",
+        "kwargs_py": {
+            "body": "_parity_smoke_test_body",
+            "kernel_path": "/tmp/parity_smoke.bsp",
+        },
+    },
+    "clear_body_kernel": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_body_kernel_registry": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at

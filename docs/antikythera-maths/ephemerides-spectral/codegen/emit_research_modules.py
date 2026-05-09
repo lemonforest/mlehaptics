@@ -109,6 +109,10 @@ _INCLUDED_MODULES: List[str] = [
     "attested_collector_catalog.py",
     # v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
     "attested_collector_gap_suggester.py",
+    # v0.27.0 phase C — Body→kernel registry (notebook §22.6); the
+    # layer-2-to-layer-3 interface from the three-layer mechanism
+    # architecture
+    "body_kernel_registry.py",
 ]
 
 # Subdirectories under research/ to mirror recursively (preserves
