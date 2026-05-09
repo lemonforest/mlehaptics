@@ -129,6 +129,27 @@ roadmap shipped 1.10-1.14, the 1.15 4D parity restoration closed
 the 2D/4D drift, and 1.17 surfaces the architectural win that
 1.14's bench had hidden.
 
+## What's new in v1.16 (May 2026) — research tooling
+
+Three diagnostic + analysis instruments addressing deferred items
+from 1.14.0's stress-test note. Not core encoder API; infrastructure
+for asking empirical questions and locking in answers.
+
+- **Tournament runner** (`tests/run_evaluator_tournament.py`) —
+  round-robin between evaluator variants (material, spectral_float64,
+  spectral_hybrid_8bit_lru) at configurable depth. Reports ELO +
+  per-pair record + termination histogram as JSON.
+- **Search-tree bench** (`tests/bench_search_tree.py`) — measures
+  nodes/sec at depth, combining move-gen + eval + TT + ordering +
+  quiescence. Complements the existing static-eval-only bench.
+- **PGN-sourced phase classifier** (`chess_spectral.phase_classifier`)
+  — k-means clustering of log-channel-energy fingerprints from real
+  games. Replaces the hand-picked open/mid/end FEN corpus with
+  data-driven phase labels.
+
+33 immolation tests across the three modules; baseline JSON for
+`bench_search_tree.py` at depth=4 captured in `tests/bench_baselines/`.
+
 ## What's new in v1.15 (May 2026)
 
 **4D pure-phase encoder** ships — completing the chess2d/chess4d
@@ -315,8 +336,9 @@ and a benchmark harness records before/after numbers for each path.
   property.
 
 This is **B-spike-3** in the §20.15 phasing — 4 of 5 phases now
-shipped (1.10.0-1.13.0). B-spike-4 (pure-phase rewrite) remains
-parked behind clear empirical motivation.
+shipped (1.10.0-1.13.0). B-spike-4 (pure-phase rewrite) shipped
+across the 1.14.0-1.18.0 sequence: 2D in 1.14.0, 4D in 1.15.0,
+vectorized in 1.17.0, C-ported in 1.18.0.
 
 ## What's new in v1.12 (May 2026)
 
@@ -360,7 +382,8 @@ and 4D acceptance corpora. No breaking changes vs 1.11.x; `encode_640`
 This is **B-spike-2** in the §20.15 three-tier phasing. B-spike-1a
 (sheet-block BIP) shipped in 1.10.0; B-spike-1b (ALU-native phase
 engine) shipped in 1.11.0; B-spike-3 (search-engine integration)
-remains parked.
+shipped in 1.13.0; B-spike-4 (pure-phase rewrite) shipped across
+1.14.0-1.18.0 (2D → 4D → vectorize → C port).
 
 ## What's new in v1.11 (May 2026)
 

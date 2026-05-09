@@ -3745,9 +3745,9 @@ After 1.14.0 ships, the §20.15 phasing table looks like this:
 | B-spike-1b | ✅ shipped | 1.11.0 | parametrized parity vs python-chess pseudo_legal_moves on 8-FEN corpus |
 | B-spike-2 | ✅ shipped | 1.12.0 | cosine-sim ≥ 99.5% median + ≥ 95% worst-case at 8-bit on 2D and 4D corpora |
 | B-spike-3 | ✅ shipped (partial) | 1.13.0 | bench harness + (a) cache-hit + (b) LRU-cached evaluator measure ~15× speedup at warm-LRU steady state. (d) float32 standalone shipped as null result; (c) Pyodide loop deferred (can't bench from CPython). |
-| **B-spike-4** | **✅ shipped (mixed empirical result)** | **1.14.0** | **cosine-sim ≥ 99.998% on the acceptance corpus; D₄ channels bit-exact. Bench: 1.64× SLOWER at opening, parity at midgame, 1.50× FASTER at endgame. Per-piece Python-loop overhead vs numpy float SIMD trade-off — see §20.21.** |
+| **B-spike-4** | **✅ shipped end-to-end** | **1.14.0 (2D), 1.15.0 (4D), 1.17.0 (vectorize), 1.18.0 (C port, JPL-compliant)** | **cosine-sim ≥ 99.998% acceptance gate met. After vectorize+C port, pure-phase 4D is 13-47× faster than Python at n=4..128 (1.18.0); ~125× faster than 1.0 float baseline at dense. The 1.14.0 "mixed result" inverted by 1.17.0; see §20.21 amendments 3-6 for the layered empirical story.** |
 
-**All five §20.15 phases now shipped** within ~5 days from the spike's first sketch. The chess-side BSHDC stack is complete: representation (1.10.0-1.12.0), runtime speedup with caching (1.13.0), and pure-phase encoder (1.14.0). B-spike-3's tournament-driven validation is now de-gated from the §16.7 Othello prior (per its 2026-05-09 amendment — that data is ML-fork-contaminated) and is an open empirical question for chess to answer on its own. B-spike-4's empirical answer was nuanced (positional density determines the win), not the clean speedup §20.4 had hoped for; the §20.21 update below documents the finding honestly.
+**All five §20.15 phases now shipped** within ~5 days from the spike's first sketch — and then the empirical follow-ups (1.15.0-1.18.0) closed every deferred item from the original 1.14.0 amendment notes. The chess-side BSHDC stack is complete: representation (1.10.0-1.12.0), runtime speedup with caching (1.13.0), pure-phase encoder Python (1.14.0 2D / 1.15.0 4D), vectorized hot path (1.17.0), and JPL-compliant C port (1.18.0). B-spike-3's tournament-driven validation is now de-gated from the §16.7 Othello prior (per its 2026-05-09 amendment — that data is ML-fork-contaminated); the runner + bench infrastructure shipped in 1.16.0, but a depth-≥-5 empirical baseline remains genuinely deferred. B-spike-4's 1.14.0-ship empirical result was nuanced (positional density determined the win); subsequent ships (1.15/1.17/1.18) layered the architectural win until the C port reaches §20.4's original speedup target. The §20.21 amendments 3-6 document the layered story.
 
 ### 20.21. B-spike-4 implementation update — pure-phase encoder, mixed empirical result
 
@@ -4098,6 +4098,18 @@ These are the items called out by the user as "deferred" at the
 1.14.0 → 1.15.0 transition. 1.15.0 ships the most important one
 (4D pure-phase encoder, the parity drift item); the others remain
 on the follow-up roadmap.
+
+**Status post-amendments 4-6 (2026-05-09 ship sequence):** Every
+"still deferred" bullet above has shipped. Vectorize landed in
+1.17.0 (amendment 4). The C port shipped in 1.18.0 (amendment 6,
+JPL Power-of-Ten compliant). Tournament runner, search-tree
+nodes/sec bench, and PGN-sourced phase classifier all shipped as
+1.16.0 research tooling. The only items from the deferred-at-1.15
+list still genuinely outstanding are an empirical tournament sweep
+at depth ≥ 5 (the runner is built; no recorded baseline JSON yet)
+and the 4D FA_PAWN scatter vectorize (per-axis stride irregularity;
+deemed not motivated). See ROADMAP.md "Still deferred (post-1.18.0)"
+for the canonical post-§20 deferral list.
 
 #### 2026-05-09 amendment 4 — vectorize per-piece Python loop (1.17.0)
 
