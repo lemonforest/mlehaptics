@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "saturn_rings.ring_feature.v1",
+  "title": "Saturn ring-system feature row",
+  "description": "One feature in Saturn's ring system. Covers ring boundaries, gaps, resonance anchors, shepherd moons, and edge structures. The feature_type field discriminates row sub-shape; required fields are the ones every feature shares (name, feature_type, radial_distance_km, source_doi). Optional fields are populated where the feature_type and the cited source supply them.",
+  "type": "object",
+  "required": [
+    "name",
+    "feature_type",
+    "radial_distance_km",
+    "source_doi"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Catalogued feature name (e.g., 'Cassini Division inner edge', 'Encke Gap', 'Pan', 'F-ring core')."
+    },
+    "feature_type": {
+      "type": "string",
+      "enum": [
+        "ring_boundary",
+        "ring_gap",
+        "resonance_anchor",
+        "shepherd_moon",
+        "ring_edge_structure"
+      ],
+      "description": "Feature category. ring_boundary = the inner/outer edge of a named ring (B-ring outer, A-ring outer); ring_gap = a maintained gap inside a ring (Cassini Division, Encke, Keeler); resonance_anchor = a ring location whose existence is sustained by a mean-motion resonance with a satellite; shepherd_moon = a satellite whose orbit gravitationally maintains a ring boundary or gap; ring_edge_structure = scalloped / wavy / azimuthal structure on a ring edge."
+    },
+    "radial_distance_km": {
+      "type": "number",
+      "minimum": 60000.0,
+      "maximum": 480000.0,
+      "description": "Distance from Saturn's centre, kilometres. Saturn's equatorial radius is 60268 km (1 R_S); the E ring extends past 480000 km. Ring features sit between ~67000 km (D-ring inner edge) and ~480000 km (E-ring outer extent)."
+    },
+    "width_km": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "description": "Radial width for ring_gap and ring_boundary features. Null for point-like features (resonance_anchor, shepherd_moon)."
+    },
+    "associated_body": {
+      "type": ["string", "null"],
+      "description": "For resonance_anchor: the satellite whose mean-motion resonance maintains this feature. For shepherd_moon: the body's own name (redundant with name). For ring_gap: the shepherd body if known (e.g., Pan for Encke)."
+    },
+    "resonance_p": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Resonance ratio numerator p in p:q mean-motion resonance. Convention: p:q = (satellite period) : (particle period); for inner Lindblad resonances p > q."
+    },
+    "resonance_q": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Resonance ratio denominator q in p:q mean-motion resonance. See resonance_p for convention."
+    },
+    "regime_label": {
+      "type": "string",
+      "enum": [
+        "rigid_body_action_angle_stable",
+        "rigid_body_action_angle_mutual_lock",
+        "temporal_quasi_periodic_cycle",
+        "bounded_local_laplacian_family"
+      ],
+      "description": "Which dynamical regime (notebook §0.0 / §20.4 / v0.24.9 classifier) this row contributes to. Optional but strongly recommended; populated when the row's regime is unambiguous."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the peer-reviewed paper or canonical reference authorising this row's numerical values. Required by the literature_curated adapter for per-row attestation. ISBN form acceptable for textbook citations (e.g., 'isbn:978-0521575973' for Murray-Dermott 1999)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — historical context, measurement caveats, cross-references to other rows or to the §20.4 dynamical regimes."
+    }
+  }
+}

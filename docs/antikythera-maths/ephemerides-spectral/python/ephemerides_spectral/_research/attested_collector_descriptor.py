@@ -93,10 +93,15 @@ KNOWN_ADAPTERS: Tuple[str, ...] = (
     "csv_bulk",
     "netcdf_grid",
     "geotiff_bbox",
+    "literature_curated",
 )
-"""The five adapter categories shipped in v0.25.0. New adapter
-types require a new module under ``research/attested_adapters/``
-+ entry here."""
+"""Adapter categories. The first five shipped in v0.25.0. The sixth
+(``literature_curated``) shipped after v0.26.0 to support per-body
+catalogues whose ground-proof rows come from peer-reviewed
+literature with stable DOIs rather than from a live archive (no
+network fetch; NDJSON committed directly; per-row ``source_doi``
+mandatory in each row's data block). New adapter types require a
+new module under ``research/attested_adapters/`` + entry here."""
 
 
 # ──────────────────────────────────────────────────────────────────────

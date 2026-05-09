@@ -1,0 +1,84 @@
+# Saturn Ring System — multi-regime body catalogue.
+#
+# First per-body catalogue authored through the AMSC framework.
+# Combines three regime types (rigid-body action-angle for Mimas-
+# Cassini-division 2:1 lock + classical Saturnian resonance ladder;
+# temporal cycles for F-ring shepherd modulation; shape-residual
+# context tying to v0.24.4 toroidal-J₂). The ground-proof rows are
+# published values from peer-reviewed literature with stable DOIs;
+# the literature_curated adapter handles the no-live-fetch shape.
+#
+# Pre-v1.0 architectural-review experiment: this catalogue is
+# authored TWICE — once through this AMSC path (canonical from
+# day one if MPM screens pass), once through a v0.24.x-style
+# hand-coded `_research/saturn_rings_data.py` module. The two
+# paths' resulting NDJSON are diff-checked. Agreement is the
+# empirical evidence for the pre-v1.0 backfill question
+# (notebook §18.4 + ROADMAP "later" entry).
+
+[source]
+key = "saturn_rings"
+human_readable_name = "Saturn Ring System Catalogue"
+purpose = "ground-proof rows for the Saturn ring multi-regime catalogue (rigid-body action-angle resonances + temporal-cycle shepherd modulation + shape-residual context)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://pds-rings.seti.org/saturn/"
+canonical_doi = "10.1146/annurev-earth-050212-124230"
+
+# canonical_doi above points at Tiscareno 2013, *Annual Review of
+# Earth and Planetary Sciences* — a comprehensive review covering
+# Saturn ring structure, resonance locations, and shepherd dynamics.
+# Per-row provenance is finer-grained: each row carries its own
+# source_doi pointing at the specific paper authorising that row's
+# numerical values.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "ring_feature.ndjson"
+# No endpoint, no pagination, no rate limiting — the literature_curated
+# adapter does no network I/O. The "fetch" reads the committed NDJSON
+# file at ndjson_path (relative to this descriptor's directory).
+
+[parse]
+# require_per_row_source_doi enforces the per-row DOI discipline
+# at parse time. Set to false only if you accept catalogue-wide
+# attestation as sufficient (NOT recommended for literature-derived
+# catalogues where rows can have heterogeneous provenance).
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "saturn_rings.ring_feature.v1"
+data_schema_path = "ring_feature.schema.json"
+
+[rendering]
+cite_as_template = "Saturn Ring System Catalogue (curated against published literature; Tiscareno 2013 *Annu. Rev. Earth Planet. Sci.* 41:289-316 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for {schema.regime_label} regime (Saturn rings)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Regime labels this source can populate, declared for the v0.26.0
+# schema-gap-driven trigger. Saturn rings span three regimes:
+# rigid-body action-angle (resonance anchors), temporal quasi-
+# periodic (shepherd modulation cycles), and the bounded-local
+# graph-Laplacian regime (the ring system as an internally-coupled
+# resonance ladder is structurally similar to the Hawaii / Mars
+# Tharsis bounded-local cases).
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_action_angle_mutual_lock",
+    "temporal_quasi_periodic_cycle",
+    "bounded_local_laplacian_family",
+]

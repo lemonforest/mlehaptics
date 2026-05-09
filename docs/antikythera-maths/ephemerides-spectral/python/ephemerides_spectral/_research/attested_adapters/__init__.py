@@ -1,7 +1,6 @@
 """Adapter implementations for the attested collector framework.
 
-Five adapter categories cover the realistic external-archive
-source space:
+Six adapter categories cover the realistic source space:
 
 * ``html_scraper`` — pages parsed via BeautifulSoup field-map
 * ``json_api`` — JSON endpoints with pagination
@@ -10,6 +9,9 @@ source space:
   v0.25.0; real impl gated behind ``collector-netcdf`` extra)
 * ``geotiff_bbox`` — GeoTIFF tiles by bounding box (fixture-only
   in v0.25.0; real impl gated behind ``collector-geotiff`` extra)
+* ``literature_curated`` — per-body catalogues from peer-reviewed
+  literature; no network fetch, NDJSON committed directly,
+  per-row ``source_doi`` mandatory in each row's data block
 
 Each adapter exposes:
 
@@ -34,6 +36,7 @@ from . import csv_bulk
 from . import geotiff_bbox
 from . import html_scraper
 from . import json_api
+from . import literature_curated
 from . import netcdf_grid
 from ._base import ADAPTERS, AdapterError, attest, get_adapter, run
 
@@ -46,6 +49,7 @@ __all__ = [
     "get_adapter",
     "html_scraper",
     "json_api",
+    "literature_curated",
     "netcdf_grid",
     "run",
 ]
