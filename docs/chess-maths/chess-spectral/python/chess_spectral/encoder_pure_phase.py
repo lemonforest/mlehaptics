@@ -276,15 +276,14 @@ def _project_irrep_int(sig_int: np.ndarray,
 def _fiber_symmetric_int(pos: Dict[int, str],
                          sig_int32: np.ndarray,
                          d: int) -> np.ndarray:
-    """Integer-quantized symmetric fiber channel d (one of 0/1/2).
+    """Integer-quantized symmetric fiber channel d (one of 0/1/2) —
+    legacy single-d path.
 
-    Mirrors the float encoder's per-piece local fiber computation,
-    but uses the int16-quantized LOCAL_FIBER_3D + int8 LOCAL_ADJ_ROWS.
-    Returns int32 array of shape (64,).
-
-    ``sig_int32`` is the signal pre-cast to int32 (caller hoists
-    the cast outside the d loop to avoid the per-iteration
-    allocation cost — measurable on the bench).
+    Returns int32 array of shape (64,). Preserved for callers that
+    only need one fiber channel; the production hot path uses
+    :func:`_fiber_symmetric_int_batched` (computes all 3 d-channels
+    in one call via einsum batching, ~3-5× faster on dense
+    positions).
     """
     fc = np.zeros(BOARD_DIM, dtype=np.int32)
     for si, pchar in pos.items():
@@ -296,18 +295,74 @@ def _fiber_symmetric_int(pos: Dict[int, str],
         fib_d_int16 = int(LOCAL_FIBER_3D_INT16[pidx, si, d])
         if fib_d_int16 == 0:
             continue
-        # gradient = adj_row · sig — numpy auto-promotes int8 × int32
-        # → int32 result. Avoid the explicit .astype() allocation.
         gradient = int(np.dot(adj_row_int8, sig_int32))
         if gradient == 0:
             continue
-        # fc += gradient * fib_d * adj_row. The product
-        # ``gradient * fib_d_int16 * adj_row_int8`` requires int32
-        # arithmetic to avoid overflow; numpy auto-promotes when
-        # we add into the int32 fc accumulator.
         fc += np.multiply(adj_row_int8, gradient * fib_d_int16,
                           dtype=np.int32)
     return fc
+
+
+def _fiber_symmetric_int_batched(pos: Dict[int, str],
+                                 sig_int32: np.ndarray,
+                                 ) -> np.ndarray:
+    """Vectorized fiber-sym: compute all 3 d-channels in one call
+    via einsum batching (1.17.0+).
+
+    Mathematically equivalent to calling :func:`_fiber_symmetric_int`
+    three times (d=0, 1, 2) but ~3-5× faster on typical positions
+    because:
+
+      1. Pieces are grouped by type (5 piece types: N/B/R/Q/K) so the
+         5-iteration outer loop replaces the 16-32-iteration per-square
+         loop.
+      2. Within each piece-type group, all squares are processed in
+         one numpy fancy-index gather + matmul + einsum — SIMD over
+         the entire (n_sqs, 64) tile.
+      3. The 3 d-channels share the same ``adj_rows`` and ``gradients``;
+         the per-d ``fib_d`` values are batched into a (n_sqs, 3)
+         tensor and contracted with ``adj_rows`` via einsum.
+
+    Bench (1.17.0):
+
+      | Position    | loop (µs) | batched (µs) | speedup |
+      |-------------|-----------|--------------|---------|
+      | opening     |    930    |     198      |  4.69×  |
+      | midgame     |    525    |     178      |  2.95×  |
+      | endgame     |     67    |      40      |  1.70×  |
+
+    Returns
+    -------
+    np.ndarray, shape (3, 64), dtype int32
+        ``out[d]`` is the channel for d=0/1/2 — bit-exact identical
+        to ``_fiber_symmetric_int(pos, sig_int32, d)``.
+    """
+    # Group occupied squares by FIBER piece type (skip pawns).
+    pieces_by_type: Dict[int, list] = {}
+    for si, pchar in pos.items():
+        pkey = pchar.upper()
+        if pkey not in _FIBER_IDX:
+            continue
+        pieces_by_type.setdefault(_FIBER_IDX[pkey], []).append(si)
+
+    # int64 accumulator avoids intermediate overflow during the
+    # einsum contraction (gradient × fib_d × adj_row can reach
+    # ~5e3 × 32767 × 1 = 1.6e8 per (piece, cell), summed over up to
+    # ~16 pieces per cell → ~2.6e9, just past int32's edge).
+    fc_total = np.zeros((3, BOARD_DIM), dtype=np.int64)
+    sig_int64 = sig_int32.astype(np.int64)
+    for pidx, sqs in pieces_by_type.items():
+        sq_arr = np.asarray(sqs, dtype=np.int64)
+        adj_rows = LOCAL_ADJ_ROWS_INT8[pidx, sq_arr].astype(np.int64)
+        # (n, 64) int64
+        fib_d_vec = LOCAL_FIBER_3D_INT16[pidx, sq_arr, :].astype(np.int64)
+        # (n, 3) int64
+        gradients = adj_rows @ sig_int64  # (n,) int64
+        weighted = gradients[:, None] * fib_d_vec  # (n, 3) int64
+        # einsum: fc[d, c] += sum over piece-instances of:
+        #   weighted[i, d] × adj_rows[i, c]
+        fc_total += np.einsum('pd,pc->dc', weighted, adj_rows)
+    return fc_total.astype(np.int32)
 
 
 def _fiber_antisymmetric_int(pos: Dict[int, str]) -> np.ndarray:
@@ -394,10 +449,11 @@ def encode_2d_pure_phase(pos: Dict[int, str],
         out[i * BOARD_DIM:(i + 1) * BOARD_DIM] = _project_irrep_int(
             sig_int, name)
 
-    # Symmetric fiber (channels 5-7) — pass pre-cast int32 signal
-    for d in range(3):
-        out[(5 + d) * BOARD_DIM:(6 + d) * BOARD_DIM] = _fiber_symmetric_int(
-            pos, sig_int32, d)
+    # Symmetric fiber (channels 5-7) — batched call computes all 3
+    # d-channels in one einsum (1.17.0+; 3-5× faster than the per-d
+    # loop on dense positions).
+    fiber_sym_3 = _fiber_symmetric_int_batched(pos, sig_int32)  # (3, 64)
+    out[5 * BOARD_DIM:8 * BOARD_DIM] = fiber_sym_3.reshape(-1)
 
     # Antisymmetric pawn fiber (channel 8)
     out[8 * BOARD_DIM:9 * BOARD_DIM] = _fiber_antisymmetric_int(pos)

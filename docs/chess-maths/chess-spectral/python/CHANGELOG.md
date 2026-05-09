@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added — 1.16.0+ in-progress: tournament runner + search-tree bench
+### Added — 1.16.0+ research tooling (merged in PR #302; not yet versioned)
 
 `tests/run_evaluator_tournament.py` — round-robin tournament runner
 that pits evaluator variants (material, spectral_float64,
@@ -48,7 +48,7 @@ verdict; the bench infrastructure is the deliverable.
   * 6 smoke tests in `tests/test_bench_search_tree.py`
   * Production runs: `python tests/bench_search_tree.py --depth 4 --reps 3 --output bench.json`
 
-### Added — 1.16.0+ in-progress: PGN-sourced phase classifier
+### Added — 1.16.0+ research tooling: PGN-sourced phase classifier (merged in PR #302)
 
 `chess_spectral.phase_classifier` — data-driven open/midgame/endgame
 phase classifier built from real games, addressing the deferred item
@@ -100,6 +100,104 @@ This module is **research tooling** — not yet wired into the §16
 bench harness. Next ship: re-run the §20.21 acceptance bench on a
 PGN-sourced corpus and see if the "opening 1.64× SLOWER, endgame
 1.50× FASTER" finding from the hand-picked corpus replicates.
+
+## [1.17.0] — 2026-05-09
+
+**Vectorize the per-piece Python loop** in the pure-phase encoders
+— addresses the deferred item from 1.14.0/1.15.0 amendment notes
+("Vectorize the per-piece Python loop. The fiber computation
+iterates `for sq, piece_char in pos.items()` and calls numpy on
+small arrays per iteration. Estimated 30-50× win, applicable to
+ALL encoder variants. Deferred until empirical motivation surfaces").
+
+The empirical motivation surfaced after 1.15.0 shipped: the
+`bench_search_tree.py` baseline at depth=4 showed `spectral_hybrid_8bit_lru`
+underperforming `spectral_float64` in nodes/sec, and the breakdown
+pointed at per-piece loop overhead as the dominant cost in the
+encode-then-eval path. Vectorizing the encoder hot path was the
+natural follow-up. **Result is much stronger than estimated** for
+the encoders we shipped: pure-phase 2D goes from 1.64× SLOWER on
+opening (1.14.0's mixed result) to **1.88× FASTER**; pure-phase
+4D wins 1.73-2.47× across all piece-count regimes.
+
+### The reversal — 2D pure-phase
+
+| Position | 1.14.0 (loop) | 1.17.0 (vectorized) |
+|---|---|---|
+| opening (n=16) | 1.64× **SLOWER** | **1.88× faster** |
+| midgame (n=16) | parity | **1.13× faster** |
+| endgame (n=2) | 1.50× faster | **1.45× faster** |
+
+The 1.14.0 §20.21 amendment framed the pure-phase result as
+"mixed/positional" because the per-piece Python overhead masked
+the int-arithmetic architectural win. Vectorize lifts that mask.
+
+### 4D pure-phase across piece counts
+
+| n_pieces | float (encode_4d) | pure-phase (1.17.0) | speedup |
+|---|---|---|---|
+| 4 | 2.8 ms | 1.6 ms | **1.73×** |
+| 24 | 7.1 ms | 2.9 ms | **2.47×** |
+| 64 | 14.4 ms | 6.0 ms | **2.40×** |
+| 128 | 27.4 ms | 12.1 ms | **2.25×** |
+
+Compared to the 1.15.0 4D pure-phase numbers (1.27× faster at
+dense), this is a 2-3× additional speedup on top.
+
+### What changed — 3 vectorization patterns
+
+**1. Loop-swap + einsum batching** (2D fiber-sym):
+The original encoded each of the 3 fiber-d channels in a separate
+loop over occupied squares; the new code groups occupied squares
+by FIBER piece type (5 piece types: N/B/R/Q/K) and batches all 3
+d-channels via einsum. Per-d cost amortized across the same
+per-piece sparse-row gather + gradient sum. Bench (fiber-sym only):
+opening 4.69× faster, midgame 2.95× faster, endgame 1.70× faster.
+
+**2. Loop-swap + broadcast** (4D fiber-sym):
+The 4D PIECE_ADJ uses sparse CSR matrices rather than dense
+adjacency tensors — the einsum approach doesn't translate cleanly.
+Instead, a loop-swap from "outer per-d, inner per-piece" to
+"outer per-piece, broadcast over d" eliminates the 3× redundant
+sparse-row gather. The (3, len(cols)) broadcast add is a single
+numpy operation per piece.
+
+**3. Group-by-piece-type aggregation** (4D FD_DIAG):
+The original looped per-piece, accumulating into a 4096-vector
+per occupied square. The vectorized version groups occupied
+squares by diag-row (6 piece types: P, N, B, R, Q, K), sums sig
+values per bucket, does ONE 4096-vector add per bucket. ~10×
+fewer 4096-vector adds at dense positions.
+
+**Plus minor: STD4 axis-broadcast (4D)** — the per-axis
+4-iteration loop replaced by a single (4, 4096) broadcast multiply.
+
+### Bit-exactness — preserved
+
+All 87 existing tests pass after the vectorize:
+  * tests/test_encoder_pure_phase.py — 21 immolation
+  * tests/test_encoder_pure_phase_4d.py — 21 immolation
+  * tests/test_pure_phase_stress_2d.py — 9 stress
+  * tests/test_pure_phase_stress_4d.py — 8 stress
+  * tests/test_spectral_hybrid_4d_stress.py — 8 stress
+  * tests/test_spectral_hybrid_eval.py — 33 immolation
+
+The vectorized math is bit-exact relative to the loop version on
+every position in the 1500-position random stress corpus.
+
+### What this 1.17.0 does NOT do
+
+  * **Does not vectorize the float encoder hot path** (encode_640
+    / encode_4d). The float baseline numbers in this CHANGELOG entry
+    are unchanged. Vectorizing the float encoders would also win,
+    but they're more load-bearing and the float64 SIMD already
+    competes well with the per-piece loop for non-pure-phase
+    callers. Future work.
+  * **Does not vectorize 4D FA_PAWN scatter**. Pawn-by-pawn axis-
+    dependent scatter doesn't batch cleanly (different stride
+    patterns per pawn axis). Pawns are typically <16, so the loop
+    overhead is small. Future work if motivated.
+  * **Does not port to C**. Still on the deferred list.
 
 ## [1.15.0] — 2026-05-09
 

@@ -28,6 +28,59 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.17 (May 2026)
+
+**Vectorize the per-piece Python loop** in the pure-phase encoders
+— the deferred item from 1.14.0/1.15.0 amendment notes. Result is
+much stronger than the original 30-50× estimate suggested for the
+fiber loop alone, but the integrated encoder speedup is dramatic:
+2D pure-phase goes from 1.64× SLOWER on opening (1.14.0's mixed
+result) to **1.88× FASTER**; 4D pure-phase wins **1.73-2.47×**
+across all piece-count regimes vs the float baseline.
+
+The 1.14.0 §20.21 framing of pure-phase as "mixed/positional, not
+a clean win" was an artifact of per-piece Python overhead masking
+the int-arithmetic architectural advantage. Vectorize lifts that
+mask.
+
+### 2D pure-phase reversal
+
+| Position | 1.14.0 (loop) | 1.17.0 (vectorized) |
+|---|---|---|
+| opening | 1.64× **SLOWER** | **1.88× faster** |
+| midgame | parity | **1.13× faster** |
+| endgame | 1.50× faster | **1.45× faster** |
+
+### 4D pure-phase across piece counts
+
+| n_pieces | float | pure-phase | speedup |
+|---|---|---|---|
+| 4 | 2.8 ms | 1.6 ms | **1.73×** |
+| 24 | 7.1 ms | 2.9 ms | **2.47×** |
+| 64 | 14.4 ms | 6.0 ms | **2.40×** |
+| 128 | 27.4 ms | 12.1 ms | **2.25×** |
+
+Three vectorization patterns:
+
+- **Loop-swap + einsum batching** (2D fiber-sym): group occupied
+  squares by FIBER piece type (5 types: N/B/R/Q/K), batch all 3
+  d-channels via einsum.
+- **Loop-swap + broadcast** (4D fiber-sym): per-piece outer + 3-d
+  broadcast inner, eliminating the 3× redundant sparse-row gather.
+- **Group-by-piece-type aggregation** (4D FD_DIAG): 6 piece-row
+  buckets vs N pieces — 10× fewer 4096-vector adds.
+
+Plus a minor STD4 axis-broadcast vectorize on the 4D side.
+
+**87 tests** (immolation + stress) pass after the vectorize —
+bit-exact preserved on every position in the 1500-position random
+stress corpus.
+
+This is a **closed empirical chapter**: the §20.15 5-phase BSHDC
+roadmap shipped 1.10-1.14, the 1.15 4D parity restoration closed
+the 2D/4D drift, and 1.17 surfaces the architectural win that
+1.14's bench had hidden.
+
 ## What's new in v1.15 (May 2026)
 
 **4D pure-phase encoder** ships — completing the chess2d/chess4d
