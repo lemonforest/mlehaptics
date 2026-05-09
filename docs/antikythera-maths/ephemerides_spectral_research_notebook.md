@@ -3103,3 +3103,170 @@ Other venues are free to choose differently. §21 is not a request that they cha
 - **§7 / §10** (Sol-Time clocks anchored to heliocentric / Antikythera epochs); **§13 / §17 / §18** (resonance graph + DE441 substrate); **all v0.24.x catalogues** (every per-body decomposition that uses Keplerian / perturbation / Lagrangian machinery) — the project work that depends, several centuries downstream, on the contributions §21.2 names as historical precedent.
 - **chess-spectral §42** — AI-as-tool methodology; authorship-discipline section that names the same vocabulary-match failure mode this section's MPM screens defend against.
 - **Inkscape `gemini_failure_mode.md`** — companion document in the broader project that catalogues AI-characteristic failure modes, all of which are tool-agnostic to detect.
+
+---
+
+## 22. The three-layer mechanism architecture — attestation, heavy-store, spectral scaffold
+
+> *The bronze antikythera was a stored-relationship mechanism: gear ratios encoded astronomical period relations; pointers computed against them. v0.27.x onward names the algebraic / spectral generalisation of that pattern in this codebase.*
+
+§17 shipped the per-body spectral catalogue. §18 shipped the Attested Multi-Source Collector framework that pulls external ground-proof rows under MPM-screened provenance. The v0.24.x catalogues each codified one body's dynamical decomposition from cited literature; v0.25.x generalised the attestation envelope to arbitrary external archives (EarthRef SC, GMRT, PetDB) plus a user-runtime-kernel hook (T2) and live-query path (T3). The §13 / §17 / §18 substrate already does the load-bearing work; what was missing was the architectural framing that names the three layers as a single design.
+
+This section names them. It then identifies the operations that are kernel-native (function of `(body, time)`) versus scaffold-only (function of system structure or a time-window analysis), describes how the three layers compose under multi-kernel registration, and points at the v0.27.x ship that makes the composition explicit at the bridge surface.
+
+The architecture is not new in this section — every piece is already present somewhere across §13–§21. What is new is **naming the assembly** so future ships, future kernels, and future contributors can locate their work in one of the three layers without re-deriving the framing each time. That is the role of §22 in the notebook: a coordinate system for v0.27.x onward.
+
+The companion artifact is the [stored-relationship mechanism research spike](../research-spikes/stored-relationship-mechanism-spike.md) (PR #294), which evaluates the same three-layer architecture across the full eight-notebook spectral-research collection (chess-spectral, chess-spectral-4d, othello-spectral, doom-spectral, antikythera-spectral, ephemerides-spectral, MFO, logo-HDC). §22 is the ephemerides-spectral-side codification; the spike is the cross-domain framing.
+
+### 22.1 The three layers
+
+| Layer | Role | Where it lives in the codebase | Where it lives in MPM discipline |
+|---|---|---|---|
+| **1. Attestation envelope (AMSC)** | Where each piece of data came from; when it was fetched; SHA-256 over the upstream bytes; descriptor hash that locks the parse rules. | `research/attested/<source>/descriptor.toml` + `<table>.schema.json` + `<table>.ndjson`; `research/attested_adapters/*.py`; `bridge.list_attested_sources` / `get_attested_dataset` / `attestation_audit`. | The screen-2 (closed-form) and screen-3 (byte-identical regeneration) substrate. Provenance the four MPM screens are checked *against*. |
+| **2. Heavy-store substrate** | The actual scientific data the project consumes: JPL ephemeris binary kernels (DE441 + the IAU kernel set + small-body / spacecraft kernels), plus the v0.24.x hand-coded `_data.py` modules for catalogues no JPL kernel covers. Provides `body→state(jd)` for every registered body. | DE441 (currently bundled or relied-on-via-skyfield); `_research/*_data.py` modules (Mercury, Luna, Mars, Sun, Saturn rings, Pluto-Charon, Loki, Hawaii, Tharsis, Axial, Yarkovsky, dynamical-regime, toroidal-residuals, etc.); BODIES roster. | Every claim about a specific body's state at a specific epoch routes through this layer's data. |
+| **3. Spectral scaffold** | Everything that is a function of system *structure* rather than of a single body's instantaneous state: the resonance graph, the Fiedler partition, the per-body action-angle catalogues, the channel decomposition, the cross-channel coupling surfaces, the bridge surfaces that consume them. Independent of which kernel any given body's state came from. | `body_architecture.py`, `predict_itn_accessibility.py`, `itn_window.py`, `syzygy_window.py`, `kinematics.py`, `dynamics.py`, all `_research/*_catalog.py` modules, all v0.21.x cross-channel coupling surfaces, the v0.24.9 dynamical-regime classifier. | The screen-1 (closed-form math) and screen-4 (Gemini failure-mode) substrate. The empirical content the project's claims live in. |
+
+The architecture is a strict ordering: layer 3 consumes layer 2 (querying body state from the heavy store); layer 2 is attested by layer 1 (provenance check at every load). Reversing the order is incoherent — the spectral scaffold cannot manufacture body state from nothing, and the attestation envelope is meaningless without the data it attests.
+
+### 22.2 Layer 1 — AMSC as the attestation envelope
+
+Status: present and shipping since v0.25.0a (§18). Three adapter classes are real in v0.26.0:
+
+- `literature_curated` — for hand-curated / cited-literature data committed as NDJSON (the EarthRef SC seamount roster pilot; Saturn rings dual-author exercise via PR #291).
+- `html_scraper` — for web-page-shaped sources where the parse rules can be encoded in the descriptor.
+- `json_api` — for paginated REST JSON sources.
+
+Two adapter classes are stubbed: `csv_bulk` (v0.25.0b GMRT pilot) and the `geotiff_bbox` / `netcdf_grid` placeholders for raster sources.
+
+§22 names a fourth adapter class for v0.27.x:
+
+- **`binary_archive`** — for binary scientific archives (JPL kernels, SPICE BSP files, similar). Streams to a content-addressed cache (XDG cache on POSIX; `%LOCALAPPDATA%` on Windows). SHA-256 verified on download and on every subsequent load. MPRRecord points at the on-disk path rather than embedding the binary. Lazy: pulled on first use, not at codegen time. Cache invalidation on SHA mismatch.
+
+After v0.27.x, every piece of data the project consumes — text or binary, hand-curated or fetched, AMSC-introduced or v0.24.x-legacy — has a descriptor with full attested provenance. The AMSC backfill of the v0.24.x catalogues (already prefigured by the Saturn-rings dual-author exercise in PR #291) follows the same pattern: each `_data.py` module gets a sibling `descriptor.toml` + `<table>.schema.json` + `<table>.ndjson`; the `_data.py` module remains the working authority; the AMSC NDJSON is the attestation envelope; a byte-stable diff test ratchets agreement.
+
+### 22.3 Layer 2 — JPL kernels as the heavy store
+
+Currently the project consumes DE441 either via a wheel-bundled copy or via skyfield's lazy-fetch path. v0.27.x makes the consumption explicit: every body in the 52-body roster registers to one of:
+
+- **DE441 part 1** (ancient: -13200 BCE to ~1550 CE) — for historical-anchor work.
+- **DE441 part 2** (modern: ~1550 CE to +17191 CE) — the default.
+- **`sat441.bsp`** — Saturnian satellites at JPL precision.
+- **`ura111.bsp`** (or successor) — Uranian satellites.
+- **`nep097.bsp`** — Neptunian satellites.
+- **`jup365.bsp`** — Galilean satellites.
+- **`plu060.bsp`** — Pluto-Charon system.
+- **Small-body kernels** — asteroid-specific kernels for Bennu, Psyche, Vesta, Ceres, Itokawa, etc.
+- **Spacecraft kernels** — for active probes (JWST, JUICE, Lucy, etc.) when relevant.
+- **`_research/*_data.py` fallback** — for bodies with no published JPL kernel (some Lagrange trojans, some retrograde irregulars, hypothetical research bodies). Marked as fallback-precision in the registry.
+
+The body→kernel registry is the layer-2 to layer-3 interface. v0.27.x extends `bridge.use_local_kernel(path)` (v0.25.1 T2 hook) to accept this registry, with per-body or roster-level scoping.
+
+### 22.4 Layer 3 — Spectral scaffold
+
+The scaffold is everything in §13 and §17–§21 that does not query body state directly. Concretely:
+
+- **Resonance graph** — `BODIES` table's pairwise resonance ratios; the gateway-graph topology that v0.16.0 expanded to 52 bodies and v0.18.0 partitioned via Fiedler decomposition.
+- **Per-body action-angle catalogues** — Mercury (v0.24.0), Luna (v0.24.1), Mars (v0.24.2), Sun (v0.24.3), Pluto-Charon (v0.24.11), Loki Patera (v0.24.12). Each is a closed-form decomposition of the body's dominant dynamical modes.
+- **Per-body toroidal-residual catalogue** — v0.24.4 J₂ Maclaurin/Jacobi/bar-ring sequence.
+- **Cross-channel coupling surfaces** — the ten v0.21.x surfaces from topography↔gravity admittance through heliocentric-flux↔surface-temperature.
+- **Channel decomposition** — the BIP encoder's Z_{2^32} integer-ALU substrate; cyclic-group binding; the Syzygy Operator and its kin.
+- **Dynamical-regime classifier** — v0.24.9 eigenbasis-projection over labelled regime training rows.
+- **Index-pattern bridge surfaces** — `predict_itn_accessibility`, `find_itn_chains`, `find_itn_pathways`, `find_syzygies`, `body_architecture`, plus the regime classifier and probe surfaces.
+
+The scaffold's defining property: **none of these depend on which kernel any given body's state came from.** The Fiedler eigenvector is a function of the resonance graph topology; the action-angle decomposition is a function of the body's dominant modes (which are stable across decades regardless of kernel precision); the dynamical-regime classifier projects features that are kernel-independent by construction. Replacing DE441 with INPOP, or with a hypothetical higher-precision kernel, leaves the scaffold's structure unchanged.
+
+### 22.5 The DE441-native vs spectral-only taxonomy
+
+The fulcrum that makes multi-kernel composition cheap:
+
+| Operation | Class | Kernel dependence |
+|---|---|---|
+| `position(body, jd)`, `velocity(body, jd)`, `state(body, jd)` | DE441-native | Direct — any DE441-shaped kernel answers identically up to its precision tier. |
+| Kepler elements at epoch (a, e, i, Ω, ω, M) | DE441-native | Direct. |
+| Two-body force, Hill sphere, angular separation, instantaneous syzygy geometry | DE441-native | Direct. Only requires per-pair / per-body state lookups. |
+| `get_eclipse_probability(jd)` (the v0.3.0 single-JD JPL-anchored confirmation tier) | DE441-native (consumes `inst.encode_state(jd)` which is a layer-2 query) | Direct. |
+| Resonance ratios | Spectral-scaffold | Uses period fits over a window or cited orbital periods; layer-2 provides the period; layer-3 holds the graph topology. |
+| Fiedler partition; `body_architecture`; `predict_itn_accessibility` | Spectral-scaffold | Pure topology; body→kernel mapping irrelevant to the eigenvector. |
+| Action-angle decomposition | Spectral-scaffold | Function of the body's dominant dynamical modes; same modes for any kernel that resolves them. |
+| `find_syzygies(jd_lo, jd_hi)` (closed-form mean-period triage) | Spectral-scaffold | No kernel query at all; uses constant SYNODIC_MONTH_DAYS / DRACONIC_MONTH_DAYS. |
+| Dynamical-regime classifier (v0.24.9) | Spectral-scaffold | Eigenbasis-projection over feature vectors that are kernel-independent. |
+| Channel decomposition; BIP encode + Syzygy Operator projection | Spectral-scaffold (consumes layer-2 phases as input) | The encoder + operator are layer-3; the input phases come from layer-2. |
+| Cross-channel coupling surfaces (admittance, dynamo, orographic, ...) | Spectral-scaffold | Static parameters from cited literature; no per-call kernel query. |
+
+The taxonomy is the architectural fulcrum because **layer-3 surfaces are reusable across layer-2 changes.** A user who registers a higher-precision lunar kernel for Luna-related queries gets that precision in their `state(luna, jd)` calls and in the syzygy-confirmation layer (`get_eclipse_probability`), without any layer-3 surface needing recomputation. The Fiedler eigenvector still partitions the same way; the action-angle decomposition still resolves the same dominant modes; the regime classifier still projects features that are kernel-independent.
+
+### 22.6 Multi-kernel composition: how the layers cooperate
+
+The architecture's payoff is that arbitrary kernels can compose without recomputing the scaffold. The composition rule:
+
+1. **Kernel registry** declares `{body → (kernel_path, precision_tier)}`. Each body in the 52-body roster maps to one kernel; the precision_tier records whether it's JPL-published or fallback-precision (orbital-element fit).
+2. **Layer-2 queries** dispatch on the registry. `state(body, jd)` reads from `kernel_path(body)`; `state(body_a, jd) - state(body_b, jd)` reads from two different kernels if the bodies registered to different ones.
+3. **Layer-3 surfaces** consume layer-2 queries without caring about the registry. The scaffold's cached eigenvectors / action-angle decompositions / Fiedler partition stay valid as long as the body roster doesn't change. (When the roster changes, the scaffold caches re-key on a new roster hash.)
+4. **Layer-1 attestation** runs at kernel-load time: SHA-256 over the binary, descriptor_hash, retrieved_at. Subsequent state queries trust the loaded kernel; re-attestation only happens on cache invalidation.
+
+Three real composition cases v0.27.x targets:
+
+- **Different JPL kernel** — user replaces DE441 with INPOP or DE440. Layer-2 dispatch changes; layer-3 surfaces produce the same shape of result at INPOP / DE440 precision.
+- **Higher-precision regime** — user registers `sat441.bsp` for Saturnian moons specifically while the rest of the roster stays on DE441. Sat moon queries get JPL-precision; other queries use DE441; the Fiedler eigenvector unchanged.
+- **Small-body addition** — user registers Bennu, Psyche, etc. via small-body kernel. The roster expands by 1–N bodies; the resonance graph re-runs `np.linalg.eigh` (milliseconds for typical N); the scaffold provides JPL-quality results for the expanded roster.
+
+### 22.7 The 52-body JPL-quality result
+
+The architecture's empirical claim: *every body in the 52-body roster can be served at the highest-precision available kernel, with the spectral scaffold binding them into a unified system regardless of which kernel served which body.*
+
+For the 52-body roster:
+
+| Body class | Highest-precision kernel | Scaffold-side coverage |
+|---|---|---|
+| Sun, Moon, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto | DE441 part 1/part 2 | Full action-angle catalogue (§17 + v0.24.x); cross-channel coupling (§17.x + v0.21.x); resonance graph (§13 / §16). |
+| Galileans (Io, Europa, Ganymede, Callisto) | `jup365.bsp` | Loki-Patera tidal catalogue (v0.24.12) for Io; rotational-constraint surfaces (v0.21.4) for the rest. |
+| Saturnians (Titan, Enceladus, Mimas, Iapetus, Rhea, Dione, Tethys) | `sat441.bsp` | Toroidal-residual J₂ catalogue (v0.24.4); tidal-migration surfaces (v0.21.6). |
+| Uranian + Neptunian satellites | `ura111.bsp`, `nep097.bsp` | Toroidal-residual + rotational-constraint surfaces. |
+| Pluto-Charon | `plu060.bsp` | Mutual-tidal-lock catalogue (v0.24.11). |
+| Lagrange trojans (Jupiter L4/L5 etc.); retrograde irregulars; hypothetical research bodies | `_research/*_data.py` fallback (orbital-element fits) | Resonance-graph topology only (no JPL precision available). |
+
+The fallback-precision rows are honest about their tier; the registry exposes the precision_tier field so consumers can scope queries. v0.27.x doesn't manufacture JPL precision where no JPL kernel exists; it routes every body to the best available kernel and tags the result.
+
+### 22.8 Empirical evidence the scaffold-pattern already works
+
+The architecture is not speculative; the BODIES-only case has been shipping since v0.18.0:
+
+- `body_architecture` (v0.18.0) — Fiedler-partition computed once at module load; query is metadata. Empirically resonance-graph-driven; kernel-independent in shape.
+- `predict_itn_accessibility` (v0.18.x) — hybrid-Laplacian Fiedler eigenvector at module load; query is O(1) array lookup + linear regression. Microseconds per query vs ~1.5 s for the `find_itn_chains` Dijkstra ground truth. **Spearman ρ = +0.857 vs the ground truth** at the calibrated 50-yr-J2000 window — the scaffold-pattern is empirically calibrated, not just argued for.
+- `find_syzygies` (v0.3.1+) — closed-form slow-mode enumeration; 100–1000× speedup vs the v0.3.0 windowed-loop pattern. The v0.27.x docstring update (PR #295) makes the two-tier discipline (mean-period triage + JPL-anchored confirmation) explicit.
+- v0.24.9 dynamical-regime classifier — eigenbasis projection over labelled regime training rows; v0.24.10 OOS calibration-ratio metric; v0.26.0 schema-gap-driven trigger that closes the MPM loop. The classifier's eigenbasis is layer-3; the regime training rows could come from any kernel.
+
+The bridge-wide surface audit (recorded in the [research spike](../research-spikes/stored-relationship-mechanism-spike.md) on 2026-05-09) catalogued every public bridge surface and found **zero waste-class surfaces**: ~14 fast-path implementations using either precompute-at-module-load or closed-form slow-mode enumeration; one deliberately-precise JPL-anchored confirmation surface (`get_eclipse_probability`, paired with `find_syzygies` as the two-tier eclipse-finding discipline); ~30 catalogue lookups from precomputed `_research/*_data.py` tables; ~30 DE441 point-lookups; ~50 metadata / control. The scaffold-pattern is essentially complete on the surface side; v0.27.x makes the layer-2 substrate as flexible as the scaffold has been since v0.18.x.
+
+### 22.9 What v0.27.x ships against this architecture
+
+Full-coverage scope on the user-controlled-data axis (one banner ship; multiple PRs underneath):
+
+1. **`literature_curated` AMSC backfill of every v0.24.x `_data.py` module** — descriptor + schema + NDJSON for each, dual-author byte-stable diff tests inheriting the Saturn-rings pattern. Hand-coded module remains the working authority; AMSC NDJSON is the attestation envelope.
+2. **`binary_archive` adapter + descriptors for the JPL kernel set** — DE441, sat441, ura111, nep097, jup365, plu060, plus a published-asteroid kernel pilot. Lazy-fetch, content-addressed cache, SHA-verified on every load.
+3. **Body→kernel registry + layer-2/layer-3 plumbing** — extend `bridge.use_local_kernel()` to accept the registry; extend every orbital-mechanics surface (`predict_itn_accessibility`, `find_itn_chains`, `find_itn_pathways`, `find_syzygies`, `get_breathing_modulation`, `get_eclipse_probability`, `body_architecture`, plus the action-angle / coupling / regime surfaces) to honour the active registry; eigenbasis cached by roster+kernel hash; fallback to BODIES-distilled values when no kernel registered.
+4. **Notebook §22 itself** — this section. The MPM-discipline ship-blueprint that names the architecture before code.
+
+The four pieces are mutually reinforcing: (1) attests the catalogues, (2) attests the kernels, (3) routes them to the surfaces, (4) names the assembly. Each piece is independently shippable as a PR; the v0.27.0 banner flips when all four are merged.
+
+### 22.10 What the architecture does *not* claim
+
+A few things this section is careful to **not** claim:
+
+- **It does not subsume the spike.** The [stored-relationship mechanism research spike](../research-spikes/stored-relationship-mechanism-spike.md) (PR #294) asks whether the eight-notebook collection (chess-spectral + ephemerides-spectral + six siblings) could share a single kernel-loading mechanism. §22 is the ephemerides-spectral-side codification of the three-layer architecture for *one* notebook; the spike asks whether the same architecture lifts across all eight. Those are different questions; one does not commit the other.
+- **It does not claim cross-domain queries.** Layer-3 scaffolds are per-domain (chess's 11-channel D4 ≠ ephemerides' per-body action-angle ≠ doom's 5 tracks). The architecture promises that *each domain's* layer-3 is independent of *its* layer-2 — not that chess and ephemerides share a layer-3.
+- **It does not promise lossless spectral storage.** Layer-3 may be lossy (truncated eigenbases; mean-period approximations; classifier-of-9-examples). The mathematical-provenance route runs through layers 1 and 2: the heavy store is byte-exact via the attestation envelope; the scaffold's spectral compression is documented (precision tier per surface) and the consumer is free to drop to layer-2 / layer-1 for ground-truth verification at any time.
+- **It does not propose a new processor architecture.** §22's "mechanism" framing is software on existing computers — CPU, GPU, integer-ALU BIP path, C reference. ASIC / FPGA realisations are conceivable for specific layer-3 shapes (cyclic-group binding maps cleanly to dedicated silicon; HDC similarity is naturally parallel) but they are future work, not a v0.27.x claim.
+
+### 22.11 Cross-references
+
+- **§0.0** — Mathematical Provenance Method. The four screens that gate every claim in §22.
+- **§13** — Gateway-graph Laplacian; the resonance graph that layer-3 partitions.
+- **§17** — Per-body spectral catalogue (v0.20.x / v0.21.x); the cross-channel coupling surfaces that live in layer-3.
+- **§18** — Attested Multi-Source Collector framework (v0.25.x); the layer-1 substrate.
+- **`bridge.use_local_kernel`** (v0.25.1, T2) — the existing user-runtime-kernel hook that v0.27.x extends to layer-2.
+- **`bridge.predict_itn_accessibility`, `find_syzygies`, `body_architecture`** (v0.18.x / v0.3.1+) — the empirically-calibrated layer-3 surfaces that prove the scaffold-pattern works on the BODIES-only case.
+- **PR #284 ROADMAP entry** — the pre-v1.0 backfill review that asks whether all v0.24.x catalogues should land as AMSC sources. §22.9 commits to "yes" on the v0.27.x timeline.
+- **PR #291** — Saturn-rings dual-author exercise; the precedent for the v0.24.x AMSC backfill pattern.
+- **PR #294** — [stored-relationship mechanism research spike](../research-spikes/stored-relationship-mechanism-spike.md). The cross-domain framing this section codifies for ephemerides-spectral specifically.
+- **PR #295** — bridge-docstring update making the two-tier eclipse-finding discipline (`find_syzygies` triage / `get_eclipse_probability` confirmation) explicit. Empirical evidence that the architecture's "scaffold-only vs DE441-native" taxonomy is already deliberate at the surface level.
