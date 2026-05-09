@@ -56,11 +56,11 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 ### I.2 Six core ontological claims
 
-1. **The metric field is more fundamental than spacetime.** Our 3D spatial vacuum is not the ground state of reality; it is a configuration of the metric field that supports spatial extension. Black hole interiors (where the radial coordinate becomes timelike), the holographic principle, AdS/CFT, and ER=EPR are all already pointing at this.
+1. **The metric field is more fundamental than spacetime.** Our 3D spatial vacuum is not the ground state of reality; it is a configuration of the metric field that supports spatial extension. Black hole horizon physics (the radial coordinate becoming timelike at the horizon — see §VII.4.1 for the framework's specific stance that the horizon is where the black hole *ends*, not a wrapper around an interior), the holographic principle, AdS/CFT, and ER=EPR are all already pointing at this.
 
 2. **"Vibration" is the dynamic coupling between complementary geometric structures within the metric field**, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply.
 
-3. **Matter is sustained resonance, not ringing-down excitation.** The right analogy is cavity instruments (flutes, organ pipes), where geometry *selects* which frequencies sustain — not plucked strings, where the interesting event is the initial pluck and everything after is decay.
+3. **Matter is some kind of excitation, and the framework lets us *ask* what kind.** The instrument-first methodological move — applying the same maths used for instruments (Laplacian eigenbasis, Hamiltonian flow, KAM, Hatano-Nelson, Nambu NNET) to "the stuff around us" — opens up a question that string theory's static-string ontology forecloses: is matter more cavity-like (geometry-selected sustaining modes), more string-like (vibrating object as the foundational thing), neither of those, or **something that is like both but unlike both**? The cavity-instrument analogy used elsewhere in this notebook is *one candidate* framing the project hosts; it is **not** the project's commitment to cavity-instrument over alternatives. The framework's contribution at this layer is methodological: making the question askable and screenable, not picking the answer. Whether matter is currently in driven sustain, slow ring-down, or driven-with-irreversibility (the three regimes named in ephemerides §20.4.1–§20.4.3) is observation-dependent — observation (Hubble expansion; second-law entropy increase at every scale; tidal / gravitational-wave / Hawking dissipation channels — Earth-Moon recession at +3.83 cm/yr, Hulse-Taylor PSR B1913+16 orbital-decay confirmation of GR-predicted GW emission, eventual Hawking evaporation of every black hole) suggests the universe at large is in **slow ring-down from a Big Bang impulse**, with local pockets of driven sustain (stellar fusion → planetary-system processes → biology) embedded in that global ring-down envelope, like a top wobbling as it slowly loses angular momentum. *(An earlier version of this claim asserted "matter is sustained resonance"; a later revision asserted "matter is excitation in a cavity-instrument geometry." Both overcommitted — the first picked sustain over ring-down before observation could screen it; the second picked cavity over string and other geometries before the framework had asked the question. The load-bearing claim is that matter is **some kind of** excitation **in some geometry the framework lets us ask about**; both the regime classification and the geometry choice are observation-dependent. Same FFT-untruncation modesty as ephemerides §20.4.0: as data and screening accumulate, both refine.)*
 
 4. **Particle-antiparticle pair creation is decoherence of internal coupling**, not creation from nothing. Complementary mode components that normally cancel in spatial projection become spatially manifest when local conditions disrupt internal coherence.
 
@@ -633,12 +633,42 @@ Event horizons are 2D surfaces — closed manifolds in 3D space — that don't p
 
 Unruh, Hawking, and de Sitter effects are the same mathematical structure applied to different geometries where two regions disagree about the vacuum:
 - **Unruh:** accelerated frame creates Rindler horizon
-- **Hawking:** BH event horizon between exterior and causally sealed interior
+- **Hawking:** BH event horizon as a 2D phase boundary between regimes — see §VII.4.1 for the specific stance that this is where 3D-bound matter ends, not a membrane wrapping a causally-sealed interior
 - **De Sitter:** cosmological horizon beyond which causal contact is lost
 
 All three produce thermal radiation at T = ℏκ/(2πck_B) from vacuum mismatch across a dimensional boundary. The fractal framework gives this geometric content: these are regions where the metric field's effective spectral dimension changes rapidly, and the vacuum state appropriate to one spectral dimension is incompatible with the vacuum appropriate to another. Particle creation is the metric field resolving the incompatibility.
 
 Connection to **Jacobson (1995)**: derived Einstein's field equations from horizon thermodynamics by applying Clausius δQ = TdS. If Hawking radiation is dimensional-mismatch energy release, and Jacobson showed horizon thermodynamics implies gravity, then gravity itself is the metric field's response to dimensional transitions in its own fractal structure.
+
+### VII.4.1 The framework's stance — black holes end at the 2D boundary
+
+A clarifying note about how the framework reads black-hole horizon physics, since the language across §I.2, §VII.4, and §VIII.1 has used "horizon" loosely.
+
+The standard picture treats the event horizon as the boundary of a region — the "exterior" outside, the "interior" inside, with the horizon as the membrane between them. The interior is described by Schwarzschild metrics with timelike radial coordinate, "all paths lead to the singularity," etc.
+
+**The framework's stance is sharper: the black hole ends at the horizon. There is no interior.** The event horizon is the 2D phase boundary between matter bound in 3D space and information bound to a 2D surface — the dimensional reduction is real, and the "interior" Schwarzschild metric is read as a coordinate description of what 3D-bound observers project onto a region where 3D-supportive metric-field configuration has failed.
+
+Why this reads cleanly within the framework:
+
+- **Dimensional mismatch is the physics.** §VII.4's Hawking-radiation argument already treats the horizon as where 2D and 3D dynamics fail to agree. Carrying that all the way says: 3D doesn't extend across the horizon; the horizon is where 3D ends.
+- **Holographic principle taken seriously.** AdS/CFT, ER=EPR, and the Bekenstein-Hawking entropy bound all say the bulk physics is fully encoded on the boundary. If the boundary is where the physics lives, the boundary IS the object.
+- **The "interior solution" is the framework's degenerate case.** The Schwarzschild interior metric (where the radial coordinate becomes timelike) is, in this reading, the metric-field's degenerate behavior at the boundary surface — a coordinate description of the phase transition, not a description of a separate region with its own dynamics.
+- **The information paradox dissolves on its own terms.** Information falling "into" a black hole becomes information re-encoded on the 2D boundary. There is no information loss because there is no interior to lose it into; the matter's information content transitions from 3D-bound to 2D-bound and is preserved on the surface — exactly what the holographic principle has been claiming since 't Hooft and Susskind's original formulations.
+- **Consistency with §VIII.1.** §VIII.1's topological-defect hierarchy already names event horizons as "2D surfaces where spectral dimension transitions sharply." That is the same claim, viewed from the fractal-spectral-dimension side: the 2D surface is not a wrapper around 3D content; it IS the place where the spectral-dimension structure shifts.
+
+**What this stance does *not* claim:**
+
+- It does not claim Schwarzschild's interior metric is wrong as math. The math describes what 3D-bound observers compute; the stance is about what the math is *of* (a phase transition, not a separate region).
+- It does not claim a contradiction with current observations of black holes — every imaging result (EHT M87*, Sgr A*) sees the horizon's projection in 3D and is consistent with both readings.
+- It does not require modifying GR. Same field equations; different ontological reading of what the equations describe at the horizon.
+
+**What it predicts that could discriminate it from the standard picture:**
+
+- Page-curve evolution of Hawking radiation should match the boundary-as-everything reading exactly (no late-time information loss; full unitarity from the start). Recent work on quantum extremal surfaces and the islands construction (Penington 2020, Almheiri-Engelhardt-Marolf-Maxfield 2019) has been moving the standard-picture community toward the same Page-curve answer the boundary-as-everything reading gives natively. Convergence is partial evidence.
+- Numerical relativity simulations of black-hole mergers should show no observable signature from "interior" structure — every observable signature is encoded in the 2D event horizon's geometry. This is consistent with current LIGO-Virgo-KAGRA observations.
+- Hawking-radiation entanglement structure should obey the boundary-locality bounds the holographic principle predicts, with no anomalies attributable to "interior" dynamics.
+
+**Status:** This is a stance on ontological reading, not a new mathematical result. The framework will treat black-hole references throughout the rest of this document under this reading. The stance is testable against future high-precision Hawking-radiation entanglement observations if/when they become available, and against the page-curve resolution of the information paradox as that literature continues to develop.
 
 ### VII.5 Dark matter as geometric curvature
 
