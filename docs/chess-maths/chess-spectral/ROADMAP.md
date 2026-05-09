@@ -7,18 +7,40 @@ real status doc. Per-release detail lives in
 [python/CHANGELOG.md](python/CHANGELOG.md); this doc is the strategic
 view.
 
-## Current release: v1.12.0 (May 2026)
+## Current release: v1.18.0 (May 2026)
 
-**B-spike-2 from notebook §20.15** — encoder BIP-hybrid (sign ×
-magnitude factoring per dim). Sign packs as 1 bit per dim
-(algebraically exact); magnitude quantizes to 4 or 8 bits per dim
-with per-channel scaling. New `chess_spectral.encoder_bip_hybrid`
-module; `encode_2d_bip_hybrid` / `encode_4d_bip_hybrid` public API.
-~3.4× compression at 8-bit, 5.8× at 4-bit. Cosine-sim ≥ 99.99% on
-the §20.15 acceptance corpus (median 0.999996 / worst 0.999996 on
-2D 7-FEN corpus; 0.999979 on 4D canonical Oana-Chiru). 4D 4-bit
-research finding documented in §20.18 (lands at 0.994358 — below
-99.5% but above 95%). No breaking changes vs 1.11.x.
+**The §20.15 5-phase BSHDC roadmap is fully shipped.** B-spike-1a
+through B-spike-4 all landed across 1.10.0-1.14.0; the chess2d/chess4d
+parity drift closed in 1.15.0; the 1.14.0 "mixed result" inverted in
+1.17.0 (vectorize); and 1.18.0 ships the production-grade
+JPL-compliant C port.
+
+  * **1.18.0** — C port of `encode_4d_pure_phase`, JPL Power-of-Ten
+    discipline throughout. **13-47× faster** than Python pure-phase
+    (n=4 → n=128); ~125× faster than the original 1.0 float
+    baseline at dense positions. 0/500 mismatches on the random
+    stress corpus.
+  * **1.17.0** — vectorize per-piece Python loop in pure-phase
+    encoders. Inverts 1.14.0's "mixed result": pure-phase now
+    uniformly faster than float (1.13-2.47×). Plus einsum→matmul
+    Pareto polish from §20.21 amendment 5.
+  * **1.16.0** — research tooling: tournament runner, search-tree
+    bench (nodes/sec at depth), PGN-sourced phase classifier.
+    Diagnostic infrastructure, not core API.
+  * **1.15.0** — 4D pure-phase encoder. The chess2d/chess4d parity
+    drift closes via the scale-by-LCM trick (P_A1 × 384) and
+    coord_resid scale-by-4.
+  * **1.14.0** — B-spike-4: 2D pure-phase encoder rewrite. Mixed
+    initial result documented honestly; later resolved by 1.17.0.
+  * **1.13.0** — B-spike-3: spectral_hybrid evaluator + LRU cache.
+    ~15× faster at warm-LRU steady state vs spectral_float64.
+  * **1.12.0** — B-spike-2: encoder BIP-hybrid (sign × magnitude
+    factoring). 3.4-5.8× compression at 8/4-bit.
+
+Per-release detail in [python/CHANGELOG.md](python/CHANGELOG.md);
+the §20.21 amendments 1-6 in
+[chess_spectral_research_notebook.md](../chess_spectral_research_notebook.md)
+document the layered empirical story.
 
 ## v1.11.0 (May 2026) — B-spike-1b: ALU-native phase-operator engine
 
@@ -187,38 +209,79 @@ findings.
   sheet-aware scoring is wanted; weighted-channel hooks into the
   existing `eval=spectral` path would lose information.
 
-### BSHDC / bit-serialization (notebook §20)
+### BSHDC / bit-serialization (notebook §20) — COMPLETE
 
-The §20.15 three-tier B-spike phasing's status as of v1.12.0:
+All five §20.15 B-spike phases shipped:
 
 - **B-spike-1a — sheet-block BIP encoding.** ✅ Shipped in v1.10.0.
   Integer-native form (uint16 + uint8 = 3 bytes) for the 1.9.0
   88-byte float64 sheet block. 29× compression with bit-exact
-  round trip on the legal state space (87,264 cases). See
-  notebook §20.14 / §20.16 for design + implementation plan.
+  round trip on the legal state space (87,264 cases).
 - **B-spike-1b — ALU-native phase-operator engine.** ✅ Shipped
   in v1.11.0. `phase_only_pseudo_legal_moves(pos,
   side_to_move_white, ep_file=...)` integration entry point with
   no python-chess dependency on the hot path. Z_640 wire contract
-  documented in notebook §20.13 / §20.17. Parity vs
-  `board.pseudo_legal_moves` on an 8-FEN corpus locks the
-  acceptance gate.
+  documented in notebook §20.13 / §20.17.
 - **B-spike-2 — encoder BIP-hybrid.** ✅ Shipped in v1.12.0. Sign
   × magnitude factoring per dim. 3.4× / 5.8× compression at
-  8-bit / 4-bit. §20.15 acceptance gate met at 8-bit; 4D 4-bit
-  research finding documented in §20.18 (lands at 0.994 — below
-  99.5% but above 95%).
+  8-bit / 4-bit. §20.15 acceptance gate met at 8-bit.
 - **B-spike-3 — search-engine evaluator hot path with hybrid
-  vectors.** Parked. Tournament: float32 spectral vs hybrid
-  spectral at equal search depth. Acceptance: tournament ELO
-  within noise + ≥ 10× wall-clock speedup on the evaluator hot
-  path. Picks up when a §16-aware consumer wants the runtime
-  speedup empirically validated.
-- **B-spike-4 — pure-phase encoder rewrite.** Parked. ~3000-5000
-  LOC rewrite eliminating float32 from the encoder path entirely.
-  High risk; gated behind clear empirical motivation (which
-  B-spike-2's success at preserving cosine-sim already partially
-  provides — but a full rewrite still wants stronger justification).
+  vectors.** ✅ Shipped in v1.13.0. `spectral_hybrid` evaluator
+  family + `HybridCache` LRU + `make_cached_evaluator` factory.
+  ~15× speedup at warm-LRU steady state vs `spectral_float64`.
+  The §16.7 amendment de-gated the depth-decay claim from the
+  ML-fork-contaminated Othello prior. Tournament-driven empirical
+  validation tooling (1.16.0 `run_evaluator_tournament.py` +
+  `bench_search_tree.py`) shipped; a depth-≥-5 baseline sweep
+  remains genuinely deferred (the runner is built; no recorded
+  baseline JSON yet).
+- **B-spike-4 — pure-phase encoder rewrite.** ✅ Shipped across
+  v1.14.0 (2D), v1.15.0 (4D), v1.17.0 (vectorize), v1.18.0
+  (JPL-compliant C port). The 1.14.0 "mixed result" inverted by
+  1.17.0; the C port hits 13-47× faster than Python pure-phase
+  at n=4..128 (~125× faster than the 1.0 float baseline at dense).
+
+### Post-§20 ships (1.15.0-1.18.0)
+
+  * **1.15.0** — chess2d/chess4d parity drift closed via 4D
+    pure-phase encoder (scale-by-LCM design unlock).
+  * **1.16.0** — research tooling (3 modules):
+    `tests/run_evaluator_tournament.py` (round-robin ELO),
+    `tests/bench_search_tree.py` (nodes/sec at depth),
+    `chess_spectral.phase_classifier` (PGN-sourced k-means phase
+    labels). 33 immolation tests; baseline JSON for depth=4.
+  * **1.17.0** — vectorize per-piece Python loop in pure-phase
+    encoders (loop-swap + matmul/broadcast patterns). Inverts the
+    1.14.0 "mixed result"; pure-phase now uniformly faster than
+    float. §20.21 amendment 5 documents the einsum→matmul Pareto
+    polish triggered by an endgame-regression investigation.
+  * **1.18.0** — C port of `encode_4d_pure_phase`. JPL Power-of-Ten
+    discipline throughout (no goto/recursion, all loops bounded,
+    no dynamic allocation, functions ≤ 60 lines, ≥ 2 assertions
+    per function, no function pointers). 8 source files mirror
+    the Python module's per-channel structure; 10 immolation
+    tests; 0/500 mismatches on the random stress corpus.
+
+### Still deferred (post-1.18.0)
+
+Items that remain genuinely open:
+
+- **Empirical tournament sweep at depth ≥ 5** — the runner exists
+  (1.16.0); no recorded baseline JSON yet. A real ELO comparison
+  between `spectral_hybrid_8bit_lru` and `material` at depth 5-7
+  would close the §16.7 question.
+- **Wire PGN classifier into `bench_spectral_eval.py`** — the
+  classifier exists (1.16.0); the bench still uses the hand-picked
+  open/mid/end FEN corpus.
+- **2D pure-phase C port** — only 4D was C-ported in 1.18.0. 2D
+  per-encode cost is much smaller (~700 µs Python); interpreter-
+  overhead win less impactful. Future work if motivated.
+- **4D FA_PAWN scatter vectorize** — per-axis stride irregularity
+  doesn't batch cleanly. Pawns are typically <16 so loop overhead
+  is small; not motivated.
+- **Vectorize float encoder hot path** — `encode_640` / `encode_4d`
+  per-piece loops. Float SIMD already competes well with the
+  per-piece loop for non-pure-phase callers; not motivated.
 
 ### Per-channel optimization opportunities (notebook §20.12, deferred to 1.13.0+)
 

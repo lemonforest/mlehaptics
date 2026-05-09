@@ -128,100 +128,6 @@ loadable (sdist install, Pyodide WASM).
     correctness reference; C is performance fast-path with
     `HAS_NATIVE_PURE_PHASE` guard.
 
-### Added — 1.16.0+ research tooling (merged in PR #302; not yet versioned)
-
-`tests/run_evaluator_tournament.py` — round-robin tournament runner
-that pits evaluator variants (material, spectral_float64,
-spectral_hybrid_8bit_lru) against each other at configurable depth.
-Reports final ELO + per-pair win/loss/draw + termination histogram
-as JSON. Addresses the deferred item from 1.14.0 amendment 1:
-*"Tournament-driven evaluator validation — does spectral_hybrid_8bit_lru
-actually beat material at deep search via the §16 tournament harness?"*
-
-  * 9 smoke tests in `tests/test_run_evaluator_tournament.py`
-    (depth=2, 1 game per pair, 60-ply cap; verifies the runner
-    works without committing CI minutes to a full empirical sweep)
-  * Production sweeps run manually:
-    `python tests/run_evaluator_tournament.py --depth 4 --games-per-pair 8`
-
-`tests/bench_search_tree.py` — search-tree benchmark combining
-move-gen + eval into nodes/sec at depth. Addresses the deferred
-item: *"Move-gen cost in the bench (currently bench measures only
-static eval; combining with move-gen for nodes/sec at depth is real
-but separate work)."*
-
-Empirical preview at depth=3 (reps=1; not statistically locked):
-
-| Variant | opening (k_nodes/s) | midgame (k_nodes/s) | endgame (k_nodes/s) |
-|---|---|---|---|
-| material | 4.0 | 2.5 | 12.0 |
-| spectral_float64 | 0.8 | 0.4 | 1.7 |
-| spectral_hybrid_8bit_lru | 0.6 | 0.4 | 1.5 |
-
-**Notable**: spectral_hybrid_8bit_lru is SLOWER than
-spectral_float64 in search-tree throughput at depth=3 — the
-~17× static-eval speedup the cache hit gives doesn't translate
-because TT re-visits are rare at low depth and the cache adds
-hash-and-LRU overhead per call. This is exactly the open question
-1.14.0's amendment 1 flagged. Higher-depth runs may change the
-verdict; the bench infrastructure is the deliverable.
-
-  * 6 smoke tests in `tests/test_bench_search_tree.py`
-  * Production runs: `python tests/bench_search_tree.py --depth 4 --reps 3 --output bench.json`
-
-### Added — 1.16.0+ research tooling: PGN-sourced phase classifier (merged in PR #302)
-
-`chess_spectral.phase_classifier` — data-driven open/midgame/endgame
-phase classifier built from real games, addressing the deferred item
-from 1.14.0 amendment 1's stress-test note (*"PGN-sourced phase
-classification — replace hand-picked open/mid/end FENs with channel-
-energy-clustered phase labels from real games"*).
-
-**Method**: For each position in a PGN file, compute the 10-dim
-log-channel-energy fingerprint (log1p transform handles the 4-5
-order-of-magnitude span across channels). Cluster all fingerprints
-with pure-numpy k-means (k=3 default, ~30 LOC, no sklearn dep).
-Label clusters via heuristic — the cluster with highest A1+B1+B2
-(structural symmetry channels active in opening) → "opening"; lowest
-total energy → "endgame"; remaining → "midgame".
-
-**API** (`chess_spectral.phase_classifier`):
-
-  * `extract_fingerprint_2d(pos)` — 10-dim log-energy fingerprint
-  * `extract_fingerprints_from_pgn(pgn_path, ...)` — walk a PGN file
-  * `kmeans_cluster(points, k=3)` — pure-numpy k-means with
-    k-means++ init
-  * `label_phases(centroids)` — heuristic labeler
-  * `PhaseClassifier` dataclass — `(centroids, phase_map,
-    channel_names)` with `.classify(pos) -> str` and
-    JSON-serializable `to_dict / from_dict`
-  * `train_phase_classifier_from_pgn(pgn_path, ...)` — end-to-end
-    training pipeline
-
-**CLI**:
-
-```
-python -m chess_spectral.phase_classifier games.pgn \
-    --max-games 100 --sample-every 3 --skip-initial-plies 4 \
-    --output classified_corpus.json
-```
-
-**Empirical validation** at scale on a 100-game TWIC tournament
-corpus (2 793 positions sampled): 34% opening / 41% midgame / 25%
-endgame — proportions look right for tournament chess (midgame is
-typically the largest phase; not every game reaches a long endgame).
-
-**18 immolation tests** (`tests/test_phase_classifier.py`):
-fingerprint shape/dtype, log-transform application, k-means
-correctness on synthetic data, deterministic seeded clustering, label
-heuristic on hand-crafted centroids, end-to-end PGN training,
-classifier serialization round-trip.
-
-This module is **research tooling** — not yet wired into the §16
-bench harness. Next ship: re-run the §20.21 acceptance bench on a
-PGN-sourced corpus and see if the "opening 1.64× SLOWER, endgame
-1.50× FASTER" finding from the hand-picked corpus replicates.
-
 ## [1.17.0] — 2026-05-09
 
 **Vectorize the per-piece Python loop** in the pure-phase encoders
@@ -331,7 +237,116 @@ every position in the 1500-position random stress corpus.
     dependent scatter doesn't batch cleanly (different stride
     patterns per pawn axis). Pawns are typically <16, so the loop
     overhead is small. Future work if motivated.
-  * **Does not port to C**. Still on the deferred list.
+  * **Does not port to C** — addressed by 1.18.0 (4D pure-phase C
+    port; 2D pure-phase C port still deferred).
+
+## [1.16.0] — 2026-05-09
+
+**Research tooling ship** — three diagnostic + analysis instruments
+addressing deferred items from the 1.14.0 stress-test note. Not core
+encoder API; infrastructure for asking empirical questions and
+locking in answers as baselines.
+
+Originally landed as PR #302 between 1.15.0 (4D pure-phase encoder)
+and 1.17.0 (vectorize) without an explicit version bump — the
+CHANGELOG framing at merge time was "1.16.0+ in-progress." Versioned
+1.16.0 retroactively post-1.18.0 to keep the semver story coherent.
+
+### Added — tournament runner
+
+`tests/run_evaluator_tournament.py` — round-robin tournament runner
+that pits evaluator variants (material, spectral_float64,
+spectral_hybrid_8bit_lru) against each other at configurable depth.
+Reports final ELO + per-pair win/loss/draw + termination histogram
+as JSON. Addresses the deferred item from 1.14.0 amendment 1:
+*"Tournament-driven evaluator validation — does spectral_hybrid_8bit_lru
+actually beat material at deep search via the §16 tournament harness?"*
+
+  * 9 smoke tests in `tests/test_run_evaluator_tournament.py`
+    (depth=2, 1 game per pair, 60-ply cap; verifies the runner
+    works without committing CI minutes to a full empirical sweep)
+  * Production sweeps run manually:
+    `python tests/run_evaluator_tournament.py --depth 4 --games-per-pair 8`
+
+### Added — search-tree bench
+
+`tests/bench_search_tree.py` — search-tree benchmark combining
+move-gen + eval into nodes/sec at depth. Addresses the deferred
+item: *"Move-gen cost in the bench (currently bench measures only
+static eval; combining with move-gen for nodes/sec at depth is real
+but separate work)."*
+
+Empirical preview at depth=3 (reps=1; not statistically locked):
+
+| Variant | opening (k_nodes/s) | midgame (k_nodes/s) | endgame (k_nodes/s) |
+|---|---|---|---|
+| material | 4.0 | 2.5 | 12.0 |
+| spectral_float64 | 0.8 | 0.4 | 1.7 |
+| spectral_hybrid_8bit_lru | 0.6 | 0.4 | 1.5 |
+
+**Notable**: spectral_hybrid_8bit_lru is SLOWER than
+spectral_float64 in search-tree throughput at depth=3 — the
+~17× static-eval speedup the cache hit gives doesn't translate
+because TT re-visits are rare at low depth and the cache adds
+hash-and-LRU overhead per call. This is exactly the open question
+1.14.0's amendment 1 flagged. Higher-depth runs may change the
+verdict; the bench infrastructure is the deliverable.
+
+  * 6 smoke tests in `tests/test_bench_search_tree.py`
+  * Production runs: `python tests/bench_search_tree.py --depth 4 --reps 3 --output bench.json`
+
+### Added — PGN-sourced phase classifier
+
+`chess_spectral.phase_classifier` — data-driven open/midgame/endgame
+phase classifier built from real games, addressing the deferred item
+from 1.14.0 amendment 1's stress-test note (*"PGN-sourced phase
+classification — replace hand-picked open/mid/end FENs with channel-
+energy-clustered phase labels from real games"*).
+
+**Method**: For each position in a PGN file, compute the 10-dim
+log-channel-energy fingerprint (log1p transform handles the 4-5
+order-of-magnitude span across channels). Cluster all fingerprints
+with pure-numpy k-means (k=3 default, ~30 LOC, no sklearn dep).
+Label clusters via heuristic — the cluster with highest A1+B1+B2
+(structural symmetry channels active in opening) → "opening"; lowest
+total energy → "endgame"; remaining → "midgame".
+
+**API** (`chess_spectral.phase_classifier`):
+
+  * `extract_fingerprint_2d(pos)` — 10-dim log-energy fingerprint
+  * `extract_fingerprints_from_pgn(pgn_path, ...)` — walk a PGN file
+  * `kmeans_cluster(points, k=3)` — pure-numpy k-means with
+    k-means++ init
+  * `label_phases(centroids)` — heuristic labeler
+  * `PhaseClassifier` dataclass — `(centroids, phase_map,
+    channel_names)` with `.classify(pos) -> str` and
+    JSON-serializable `to_dict / from_dict`
+  * `train_phase_classifier_from_pgn(pgn_path, ...)` — end-to-end
+    training pipeline
+
+**CLI**:
+
+```
+python -m chess_spectral.phase_classifier games.pgn \
+    --max-games 100 --sample-every 3 --skip-initial-plies 4 \
+    --output classified_corpus.json
+```
+
+**Empirical validation** at scale on a 100-game TWIC tournament
+corpus (2 793 positions sampled): 34% opening / 41% midgame / 25%
+endgame — proportions look right for tournament chess (midgame is
+typically the largest phase; not every game reaches a long endgame).
+
+**18 immolation tests** (`tests/test_phase_classifier.py`):
+fingerprint shape/dtype, log-transform application, k-means
+correctness on synthetic data, deterministic seeded clustering, label
+heuristic on hand-crafted centroids, end-to-end PGN training,
+classifier serialization round-trip.
+
+This module is **research tooling** — not yet wired into the §16
+bench harness. Next ship: re-run the §20.21 acceptance bench on a
+PGN-sourced corpus and see if the "opening 1.64× SLOWER, endgame
+1.50× FASTER" finding from the hand-picked corpus replicates.
 
 ## [1.15.0] — 2026-05-09
 
@@ -710,6 +725,23 @@ What the stress tests don't yet address (deferred to follow-up):
   open/mid/end FENs with channel-energy-clustered phase labels
   from real games)
 - `encode_4d_pure_phase` (see above)
+
+**Status update (post-1.18.0 ship sequence):** All four bullets
+above shipped:
+
+- `encode_4d_pure_phase` Python: 1.15.0; vectorized: 1.17.0; C port: 1.18.0
+- Tournament runner: 1.16.0 (`tests/run_evaluator_tournament.py`)
+- Move-gen + eval combined bench: 1.16.0 (`tests/bench_search_tree.py`)
+- PGN-sourced phase classifier: 1.16.0 (`chess_spectral.phase_classifier`)
+
+What remains genuinely deferred:
+
+- An empirical baseline tournament sweep at depth ≥ 5 (the runner
+  exists; no recorded baseline JSON yet)
+- Wiring the PGN classifier into `bench_spectral_eval.py` as a
+  corpus source (the classifier exists; the bench still uses the
+  hand-picked corpus)
+- 2D pure-phase C port (only 4D was ported in 1.18.0)
 
 ### 2026-05-09 amendment 2 — chess4D-OC consumer wishlist landing
 
