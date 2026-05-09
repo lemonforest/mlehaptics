@@ -44,6 +44,18 @@
       "sha256": "3df91c32a0fdc7042295a6f8c198f1f761fae2a348f3385f7dd84af85916818a",
       "size_bytes": 2983
     },
+    "_research/attested/mercury_dynamical_spectrum/descriptor.toml": {
+      "sha256": "3c12fd8206661270ecf2e0738958b65b96b05e614eab4a5855048b4447a91cdc",
+      "size_bytes": 3775
+    },
+    "_research/attested/mercury_dynamical_spectrum/row.ndjson": {
+      "sha256": "b77637a107a2b6f980632e3d7ff391ce63f913bed42ea907944028dcd7528cc4",
+      "size_bytes": 11042
+    },
+    "_research/attested/mercury_dynamical_spectrum/row.schema.json": {
+      "sha256": "c355780b79bfcd9006fa231ab43b71f3b01b9b3421bcfb3104d5634ecf858c4b",
+      "size_bytes": 5986
+    },
     "_research/attested/petdb_v4/descriptor.toml": {
       "sha256": "60290984367eabee1266ac1a4b0af773716fb33948b5c9191ef9402330b4ffa8",
       "size_bytes": 2979

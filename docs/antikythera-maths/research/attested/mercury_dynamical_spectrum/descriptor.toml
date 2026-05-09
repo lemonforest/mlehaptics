@@ -1,0 +1,83 @@
+# Mercury Dynamical Spectrum — per-body action-angle decomposition.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.0
+# hand-coded `_research/mercury_dynamical_spectrum_data.py` module.
+# Mercury was the first per-body dynamical-spectrum ship (Le Verrier
+# 1859 → Einstein 1915 → Clemence 1947 → Margot 2007 → Park 2017
+# lineage); v0.27.0 phase A wraps the catalogue with full attested
+# provenance via the AMSC framework. Hand-coded module remains the
+# working authority; this NDJSON is the attestation envelope. The
+# dual-author byte-stable diff test in
+# `tests/test_mercury_dynamical_spectrum_dual_author.py` ratchets the
+# two paths to agreement.
+#
+# Pattern follows research/attested/saturn_rings/ (PR #291).
+
+[source]
+key = "mercury_dynamical_spectrum"
+human_readable_name = "Mercury Dynamical Spectrum Catalogue"
+purpose = "ground-proof rows for Mercury's per-body action-angle decomposition (orbital + spin + libration angle modes; eccentricity / inclination / obliquity action variables; Le Verrier–Einstein perihelion-precession contribution decomposition)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+canonical_doi = "10.1126/science.1140514"
+
+# canonical_doi above points at Margot et al. 2007, *Science* 316:710 —
+# the spin-libration measurement that constrained C/MR² and proved
+# Mercury has a molten outer core. Per-row provenance is finer-grained:
+# each row carries its own source_doi pointing at the specific paper
+# authorising that row's numerical values (Le Verrier / Newcomb / Verma
+# for Newtonian perturbations; Einstein / Clemence / Park for the
+# relativistic + observational anchors; Murray-Dermott / Laskar for
+# secular dynamics + chaotic-evolution context).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+# No endpoint, no pagination, no rate limiting — the literature_curated
+# adapter does no network I/O. The "fetch" reads the committed NDJSON
+# file at ndjson_path (relative to this descriptor's directory).
+
+[parse]
+# require_per_row_source_doi enforces the per-row DOI discipline at
+# parse time. Each row's source_doi must trace to a peer-reviewed
+# paper, textbook, or canonical reference; the SOURCES dict in
+# `_research/mercury_dynamical_spectrum_data.py` is the authoritative
+# version for the hand-coded path.
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "mercury_dynamical_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Mercury Dynamical Spectrum Catalogue (curated against published literature; Margot et al. 2007 *Science* 316:710-714 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for Mercury action-angle decomposition (row_type={schema.row_type})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Regime labels this source can populate, declared for the v0.26.0
+# schema-gap-driven trigger. Mercury action-angle decomposition is
+# the cleanest single-body example of a rigid-body action-angle
+# regime with a strong commensurability (3:2 spin-orbit lock) — the
+# primary regime label is rigid-body action-angle. Secular drift
+# of perihelion + node (the precession decomposition) populates the
+# rigid-body action-angle stable regime as the GR / J₂ / planetary-
+# perturbation contributions are well-anchored.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_action_angle_mutual_lock",
+]

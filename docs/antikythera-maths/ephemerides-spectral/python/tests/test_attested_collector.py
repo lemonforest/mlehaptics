@@ -284,6 +284,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert sorted(found.keys()) == [
         "earthref_sc",
         "gmrt",
+        "mercury_dynamical_spectrum",
         "petdb_v4",
         "saturn_rings",
     ]
@@ -291,6 +292,8 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["gmrt"].adapter_name == "csv_bulk"
     assert found["petdb_v4"].adapter_name == "json_api"
     assert found["saturn_rings"].adapter_name == "literature_curated"
+    # v0.27.0 phase A — first AMSC backfill of a v0.24.x catalogue.
+    assert found["mercury_dynamical_spectrum"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -371,25 +374,35 @@ def test_geotiff_bbox_stub_raises_without_extra() -> None:
 def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     """v0.25.0b shipped three pilots (EarthRef SC + GMRT + PetDB v4);
     Saturn rings (v0.27.x AMSC pilot) added the fourth via the
-    literature_curated adapter. v0.25.0a was 1 (EarthRef SC only)."""
+    literature_curated adapter. v0.27.0 phase A added Mercury
+    Dynamical Spectrum as the fifth (first v0.24.x backfill).
+    v0.25.0a was 1 (EarthRef SC only)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 4
+    assert result["n_sources"] == 5
     keys = sorted(s["key"] for s in result["sources"])
-    assert keys == ["earthref_sc", "gmrt", "petdb_v4", "saturn_rings"]
+    assert keys == [
+        "earthref_sc",
+        "gmrt",
+        "mercury_dynamical_spectrum",
+        "petdb_v4",
+        "saturn_rings",
+    ]
     # adapter_class echo should be None when no filter applied.
     assert result["adapter_class"] is None
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
     """adapter_class='curated' returns only literature_curated sources
-    (saturn_rings as of this ship)."""
+    (saturn_rings + mercury_dynamical_spectrum as of v0.27.0 phase A)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 1
+    assert result["n_sources"] == 2
     assert result["adapter_class"] == "curated"
-    assert result["sources"][0]["key"] == "saturn_rings"
-    assert result["sources"][0]["adapter"] == "literature_curated"
+    keys = sorted(s["key"] for s in result["sources"])
+    assert keys == ["mercury_dynamical_spectrum", "saturn_rings"]
+    for src in result["sources"]:
+        assert src["adapter"] == "literature_curated"
 
 
 def test_bridge_list_attested_sources_fetched_class_filter() -> None:
@@ -415,8 +428,11 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     match) for fine-grained filtering."""
     result = bridge.list_attested_sources(adapter_class="literature_curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 1
-    assert result["sources"][0]["adapter"] == "literature_curated"
+    # saturn_rings + mercury_dynamical_spectrum (v0.27.0 phase A first
+    # v0.24.x backfill).
+    assert result["n_sources"] == 2
+    for src in result["sources"]:
+        assert src["adapter"] == "literature_curated"
 
     result = bridge.list_attested_sources(adapter_class="html_scraper")
     assert result["ok"] is True

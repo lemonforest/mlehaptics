@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — first AMSC backfill of a v0.24.x catalogue
+
+The v0.24.0 Mercury Dynamical Spectrum catalogue is now wrapped in the AMSC framework as the first `literature_curated` backfill of an existing v0.24.x ship. New `research/attested/mercury_dynamical_spectrum/` source: descriptor + JSON Schema + NDJSON covering 16 rows (8 dynamical-mode rows + 8 precession-contribution rows from the Le Verrier–Einstein decomposition). Per-row DOIs cite Park 2021 / Margot 2007 / Clemence 1947 / Einstein 1915 / Verma 2014 / Park 2017 / Murray-Dermott 1999 / Laskar 1989. Hand-coded `_research/mercury_dynamical_spectrum_data.py` remains the working authority; AMSC NDJSON is the attestation envelope. 10 new dual-author tests inheriting the Saturn-rings PR #291 pattern ratchet byte-stable agreement between the two paths.
+
 ### Added — v0.27.0 phase C — body→kernel registry
 
 The layer-2-to-layer-3 interface from notebook §22.6: `{body → (kernel_path, precision_tier)}`. Pure Python additive; no ABI bump. New module `_research.body_kernel_registry` + three new bridge surfaces (`register_body_kernel`, `clear_body_kernel`, `get_body_kernel_registry`) + metadata propagation (`kernel_registry` field) into `body_architecture` and `predict_itn_accessibility` response envelopes. Registry hashing (SHA-256 over canonical-serialised state) provides the cache-invalidation key that phase B's `binary_archive` adapter will consume. 36 new tests including integration-test stubs for phases A + B + C convergence. **Phase C is structural** — registrations are tracked but orbital-mechanics state lookups still fall back to BODIES until phase B ships kernel-reading. See [docs/antikythera-maths/ephemerides_spectral_research_notebook.md](../ephemerides_spectral_research_notebook.md) §22.6 for the architecture.
