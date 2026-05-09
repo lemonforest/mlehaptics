@@ -28,6 +28,54 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.18 (May 2026)
+
+**C port of `encode_4d_pure_phase`** — the last deferred item from
+the 1.14.0/1.15.0/1.17.0 amendment notes. Substantial multi-file
+native shared library compiled with **JPL Coding Standards** (Power
+of Ten) discipline throughout.
+
+### Empirical bench — C is 13-47× faster than Python
+
+| n_pieces | Python pure-phase | C pure-phase | speedup |
+|---|---|---|---|
+| 4 | 1.5 ms | 118 µs | **13×** |
+| 24 | 2.9 ms | 162 µs | **18×** |
+| 64 | 5.4 ms | 175 µs | **31×** |
+| 128 | 10.2 ms | 215 µs | **47×** |
+
+vs the Python `encode_4d` float baseline at n=128 (~27 ms):
+**~125× faster end-to-end**.
+
+### Bit-exact parity
+
+500-position random 4D stress corpus: **0/500 mismatches** between
+Python and C. Both sides do integer arithmetic only; tolerance is
+zero.
+
+### JPL discipline applied throughout
+
+  * No goto, no recursion, no setjmp/longjmp
+  * All loops compile-time-bounded
+  * No dynamic allocation (caller-provided buffers + static tables)
+  * Functions ≤ 60 lines (split where needed)
+  * ≥ 2 assertions per function
+  * Restricted variable scope; const where possible
+  * No function pointers (switch dispatch + data pointer arrays)
+  * Builds clean under MSVC `/W4` and GCC `-Wall -Wextra`
+
+### API
+
+  * `include/cs_encoder_pure_phase_4d.h` — C public API
+  * `chess_spectral._native_pure_phase_4d` — Python ctypes wrapper
+    with `HAS_NATIVE_PURE_PHASE` guard
+  * Falls back gracefully to Python when shared library isn't
+    loadable (sdist install, Pyodide WASM)
+
+8 new C source files mirror the Python module's per-channel
+structure; codegen extension emits the integer tables alongside
+the existing float tables.
+
 ## What's new in v1.17 (May 2026)
 
 **Vectorize the per-piece Python loop** in the pure-phase encoders

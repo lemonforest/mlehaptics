@@ -4297,6 +4297,94 @@ has the same property: outer per-piece, broadcast over batch
 dimension, no einsum dispatch. Both patterns avoid the
 einsum-tax cliff at small N.
 
+#### 2026-05-09 amendment 6 — C port of encode_4d_pure_phase (1.18.0)
+
+User-stated requirement at the 1.17.0 → 1.18.0 transition:
+
+> *"our C port needs to be JPL C standard throughout please."*
+
+The last deferred item from the 1.14.0/1.15.0/1.17.0 amendment
+notes ("port to C") shipped as 1.18.0. The C-side numbers close
+the empirical chapter: pure-phase 4D went from a 1.27× win at
+dense (1.15.0) to **47× faster than Python** (1.18.0 C port at
+n=128) — the same encoder, the same integer arithmetic, the same
+quantization tables, just without the Python interpreter
+overhead.
+
+**Empirical bench (1.18.0 C vs 1.17.0 Python pure-phase):**
+
+| n_pieces | Python | C    | C/Python |
+|----------|--------|------|----------|
+|        4 | 1.5 ms | 118 µs | 13×    |
+|       24 | 2.9 ms | 162 µs | 18×    |
+|       64 | 5.4 ms | 175 µs | 31×    |
+|      128 | 10.2 ms| 215 µs | **47×**|
+
+Compared to the **float-baseline** `encode_4d` from 1.0+ at n=128
+(~27 ms), the C pure-phase is ~125× faster end-to-end. The chess-
+side integer-arithmetic story (B-spike-4) reaches its empirical
+ceiling: no further encoder optimization is on the deferred list.
+
+**Bit-exact parity (0/500 mismatches at scale).** The C port
+produces output that is bit-exact identical to Python's
+`encode_4d_pure_phase` on every position in the 500-position
+random 4D stress corpus. Tolerance is zero — both sides do
+integer arithmetic only, so any disagreement is a bug. None
+observed.
+
+**JPL discipline (Power of Ten) applied throughout** — restricted
+control flow, all loops bounded, no dynamic allocation, functions
+≤ 60 lines (split where needed), ≥ 2 assertions per function,
+restricted variable scope, all return values checked, limited
+preprocessor, no function pointers, all warnings as errors.
+
+**Architecture: 8 C source files mirroring the Python per-channel
+structure** + a generated tables-data TU. Codegen
+(`codegen/emit_tables_4d.py`) extended to emit the integer tables
+(SIGNED_VALS_INT_4D, COORD_RESID_INT8, ORBIT_INT_SCALE,
+FIBER_LOCAL_INT16_4D, W/Y_ANTI_DCT_INT16, DIAG_DEV_INT16_4D,
+CHANNEL_DEQUANT_SCALES_4D) alongside the existing float tables —
+SSOT-locked at codegen time.
+
+**Build integration:** new `cs_encoder_pure_phase_4d` SHARED
+library in CMakeLists.txt, sibling to `cs_bitboard4d` (1.7.0).
+`WINDOWS_EXPORT_ALL_SYMBOLS ON` for MSVC export-table generation.
+`cs_core_4d` static library also includes the new sources.
+
+**Python integration:** `chess_spectral._native_pure_phase_4d`
+ctypes wrapper with `HAS_NATIVE_PURE_PHASE` guard. Falls back
+gracefully to Python when the .so/.dll isn't loadable (sdist
+install without C toolchain, Pyodide WASM).
+
+**Test coverage:** 10 immolation tests in
+`tests/test_c_py_parity_pure_phase_4d.py` — 5 hand-crafted
+positions (full-coverage, sparse-endgame, axis-isolated pawns),
+3 edge cases, 1 random-corpus test (500 positions all bit-exact),
+1 determinism test. All pass.
+
+**What 1.18.0 does NOT do:**
+
+- *Does not port 2D pure-phase to C*. 2D per-encode cost is much
+  smaller (~700 µs Python); interpreter-overhead win is less
+  impactful. Future work if motivated by a downstream consumer.
+- *Does not change Python defaults*. The Python encoder remains
+  the correctness reference; the C path is the performance
+  fast-path with the `HAS_NATIVE_PURE_PHASE` guard.
+
+**Closes the chess-side BSHDC roadmap.** The §20.15 5-phase plan
+(B-spike-1a → 1b → 2 → 3 → 4) shipped through 1.10-1.14. The
+2D/4D parity drift the user flagged at the 1.14.0 merge closed in
+1.15.0 (4D pure-phase encoder) and again in 1.17.0 (vectorize
+both sides). 1.18.0 ships the production-grade C port that pulls
+the empirical numbers all the way to where the §20.15 framework
+suggested they could go: ~50× faster than Python pure-phase at
+dense positions; ~125× faster than the original 1.0 float
+baseline. Subsequent chess-side work falls outside the §20 spike
+— would be either tournament-driven evaluator validation
+(addressed via 1.16.0 research tooling), data-driven phase
+classification (1.16.0 PGN classifier), or new research questions
+entirely.
+
 ### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:

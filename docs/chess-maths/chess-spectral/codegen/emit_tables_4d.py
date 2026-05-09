@@ -517,6 +517,263 @@ def write_committed_tables_4d_npz() -> None:
     print(f"Wrote {path} ({os.path.getsize(path) / 1024:.1f} KB)")
 
 
+# ─── Pure-phase integer quantization (1.18.0+) ──────────────────────────────
+#
+# Mirror of ``chess_spectral.encoder_pure_phase_4d`` quantization. Emit
+# the integer tables the C-side pure-phase encoder consumes:
+#
+#   SIGNED_VALS_INT_4D[6]                    int16
+#   COORD_RESID_INT8[4][4096]                int8
+#   ORBIT_INT_SCALE[N_ORBITS]                int16  (=384/orbit_size)
+#   FIBER_LOCAL_INT16_4D[5][4096][3]         int16  (+ scale double)
+#   W_ANTI_DCT_INT16[8][8]                   int16  (+ scale double)
+#   Y_ANTI_DCT_INT16[8][8]                   int16  (+ scale double)
+#   DIAG_DEV_INT16_4D[6][4096]               int16  (+ scale double)
+#   CHANNEL_DEQUANT_SCALES_4D[11]            double
+#
+# All quantization parameters are SSOT'd against the Python module
+# (chess_spectral.encoder_pure_phase_4d) so a build-time mismatch is
+# surfaced at codegen time, not in CI parity tests.
+
+from chess_spectral.encoder_pure_phase_4d import (   # noqa: E402
+    _VALS_INT_SCALE_4D,
+    _P_A1_INT_SCALE,
+    _COORD_RESID_INT_SCALE,
+    _FIBER_QUANT_BITS,
+    _FIBER_QUANT_MAX,
+    _SIGNED_VALS_INT_4D,
+    _build_quant_tables,
+    _ensure_dequant_scales,
+    CHANNEL_DEQUANT_SCALES_4D,
+)
+
+
+# Build the integer tables once, here at codegen time, and then re-emit
+# them as C const initializers. Keeps the C and Python builds stuck to
+# the same numeric values by construction.
+
+_PURE_PHASE_QT = _build_quant_tables()
+_ensure_dequant_scales()
+
+PURE_PHASE_SIGNED_VALS_INT = np.asarray(
+    [_SIGNED_VALS_INT_4D[c] for c in DIAG_PIECE_CHARS], dtype=np.int16
+)
+assert PURE_PHASE_SIGNED_VALS_INT.shape == (6,)
+
+PURE_PHASE_COORD_RESID_INT8 = np.asarray(
+    _PURE_PHASE_QT['coord_resid_int8'], dtype=np.int8
+)
+assert PURE_PHASE_COORD_RESID_INT8.shape == (4, t4.N_SQUARES)
+
+# Per-orbit integer scale: 384 / orbit_size. Stored as int16 (max 384).
+_ORBIT_INT_SCALE = np.asarray(
+    [_P_A1_INT_SCALE // len(orb) for orb in _orbits], dtype=np.int16
+)
+assert _ORBIT_INT_SCALE.shape == (N_ORBITS,)
+# Sanity: every entry is a divisor of 384 by construction.
+for v in _ORBIT_INT_SCALE.tolist():
+    assert _P_A1_INT_SCALE % int(v) == 0, (
+        f"orbit scale {v} does not divide {_P_A1_INT_SCALE}"
+    )
+
+PURE_PHASE_FIBER_LOCAL_INT16 = np.asarray(
+    _PURE_PHASE_QT['FIBER_LOCAL_INT16'], dtype=np.int16
+)
+PURE_PHASE_FIBER_LOCAL_SCALE = float(_PURE_PHASE_QT['scale_fiber'])
+
+PURE_PHASE_W_ANTI_DCT_INT16 = np.asarray(
+    _PURE_PHASE_QT['W_ANTI_DCT_INT16'], dtype=np.int16
+)
+PURE_PHASE_W_ANTI_DCT_SCALE = float(_PURE_PHASE_QT['scale_w_anti_dct'])
+
+PURE_PHASE_Y_ANTI_DCT_INT16 = np.asarray(
+    _PURE_PHASE_QT['Y_ANTI_DCT_INT16'], dtype=np.int16
+)
+PURE_PHASE_Y_ANTI_DCT_SCALE = float(_PURE_PHASE_QT['scale_y_anti_dct'])
+
+PURE_PHASE_DIAG_DEV_INT16 = np.asarray(
+    _PURE_PHASE_QT['DIAG_DEV_INT16'], dtype=np.int16
+)
+PURE_PHASE_DIAG_DEV_SCALE = float(_PURE_PHASE_QT['scale_diag_dev'])
+
+# Per-channel dequantization scales in CHANNELS_4D order (A1, STD4_X/Y/Z/W,
+# FIB_SYM_1/2/3, FA_PAWN_W/Y, FD_DIAG).
+_CHANNEL_NAMES_4D = [
+    'A1', 'STD4_X', 'STD4_Y', 'STD4_Z', 'STD4_W',
+    'FIB_SYM_1', 'FIB_SYM_2', 'FIB_SYM_3',
+    'FA_PAWN_W', 'FA_PAWN_Y', 'FD_DIAG',
+]
+PURE_PHASE_DEQUANT_SCALES = np.asarray(
+    [CHANNEL_DEQUANT_SCALES_4D[name] for name in _CHANNEL_NAMES_4D],
+    dtype=np.float64,
+)
+assert PURE_PHASE_DEQUANT_SCALES.shape == (11,)
+
+
+def emit_i8_2d(fout, name: str, arr, dim0: int, dim1: int) -> None:
+    fout.write(f"const int8_t {name}[{dim0}][{dim1}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {")
+        fout.write(", ".join(str(int(arr[i][j])) for j in range(dim1)))
+        fout.write(f"}}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def emit_i16_1d(fout, name: str, arr, dim0: int) -> None:
+    fout.write(f"const int16_t {name}[{dim0}] = {{\n    ")
+    cols = 16
+    for i in range(dim0):
+        fout.write(str(int(arr[i])))
+        if i + 1 < dim0:
+            fout.write(",")
+        if (i + 1) % cols == 0 and i + 1 < dim0:
+            fout.write("\n    ")
+        elif i + 1 < dim0:
+            fout.write(" ")
+    fout.write("\n};\n\n")
+
+
+def emit_i16_2d(fout, name: str, arr, dim0: int, dim1: int) -> None:
+    fout.write(f"const int16_t {name}[{dim0}][{dim1}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {")
+        fout.write(", ".join(str(int(arr[i][j])) for j in range(dim1)))
+        fout.write(f"}}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def emit_i16_3d(fout, name: str, arr,
+                dim0: int, dim1: int, dim2: int) -> None:
+    fout.write(f"const int16_t {name}[{dim0}][{dim1}][{dim2}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {\n")
+        for j in range(dim1):
+            fout.write("        {")
+            fout.write(", ".join(
+                str(int(arr[i][j][k])) for k in range(dim2)
+            ))
+            fout.write(f"}}{',' if j + 1 < dim1 else ''}\n")
+        fout.write(f"    }}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def write_cs_pure_phase_tables_4d_h() -> None:
+    """Public header for the pure-phase integer tables."""
+    path = os.path.join(INC_DIR, 'cs_pure_phase_tables_4d.h')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write("/* GENERATED by codegen/emit_tables_4d.py - DO NOT EDIT */\n")
+        f.write("#ifndef CS_PURE_PHASE_TABLES_4D_H\n")
+        f.write("#define CS_PURE_PHASE_TABLES_4D_H\n\n")
+        f.write("#include <stdint.h>\n")
+        f.write("#include \"cs_tables_4d.h\"\n\n")
+        f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
+
+        f.write("/* Pure-phase quantization parameters (mirrors\n")
+        f.write(" * chess_spectral.encoder_pure_phase_4d).\n")
+        f.write(" *\n")
+        f.write(" * Signal values scaled by CS_VALS_INT_SCALE_4D=4 to\n")
+        f.write(" * represent the half-integer-quarter bishop value\n")
+        f.write(" * (B=3.25 in PIECE_VALUES_4D) as exact integer 13.\n")
+        f.write(" *\n")
+        f.write(" * P_A1 sparse projector scaled by 384 (=|B_4|): every\n")
+        f.write(" * orbit size divides 384 so 384/orbit_size is integer.\n")
+        f.write(" *\n")
+        f.write(" * coord_resid scaled by 4: residuals are quarter-\n")
+        f.write(" * integers (multiples of 0.25), range [-21, +21] in int8.\n")
+        f.write(" *\n")
+        f.write(" * Fiber tables quantized to int16 with abs-max scaling\n")
+        f.write(" * (15 magnitude bits + 1 sign). */\n")
+        f.write(f"#define CS_VALS_INT_SCALE_4D       {_VALS_INT_SCALE_4D}\n")
+        f.write(f"#define CS_P_A1_INT_SCALE          {_P_A1_INT_SCALE}\n")
+        f.write(f"#define CS_COORD_RESID_INT_SCALE   {_COORD_RESID_INT_SCALE}\n")
+        f.write(f"#define CS_FIBER_QUANT_BITS        {_FIBER_QUANT_BITS}\n")
+        f.write(f"#define CS_FIBER_QUANT_MAX         {_FIBER_QUANT_MAX}\n\n")
+
+        f.write("/* Signed integer piece values, scaled by CS_VALS_INT_SCALE_4D.\n")
+        f.write(" * Indexed by cs_piece_4d_t: P=4, N=12, B=13, R=20, Q=36, K=48. */\n")
+        f.write("extern const int16_t SIGNED_VALS_INT_4D[CS_PIECE_4D_COUNT];\n\n")
+
+        f.write("/* coord_resid table scaled to int8.\n")
+        f.write(" * Indexed [axis][square]; values in [-21, +21]. */\n")
+        f.write("extern const int8_t COORD_RESID_INT8")
+        f.write(f"[{t4.N_DIMS}][{t4.N_SQUARES}];\n\n")
+
+        f.write("/* Per-orbit integer scale = 384 / orbit_size. Index\n")
+        f.write(" * by ORBIT_OF[s] to get the multiplier for cell s.\n")
+        f.write(" * All values are divisors of 384 (small ints). */\n")
+        f.write(f"extern const int16_t ORBIT_INT_SCALE[{N_ORBITS}];\n\n")
+
+        f.write("/* Quantized fiber-local table (int16), per (piece, square,\n")
+        f.write(" * direction). Dequantize via FIBER_LOCAL_SCALE_4D. */\n")
+        f.write("extern const int16_t FIBER_LOCAL_INT16_4D")
+        f.write(f"[5][{t4.N_SQUARES}][3];\n")
+        f.write("extern const double FIBER_LOCAL_SCALE_4D;\n\n")
+
+        f.write("/* Pawn antisymmetric DCT blocks, quantized to int16. */\n")
+        f.write("extern const int16_t W_ANTI_DCT_INT16[8][8];\n")
+        f.write("extern const double W_ANTI_DCT_SCALE;\n\n")
+        f.write("extern const int16_t Y_ANTI_DCT_INT16[8][8];\n")
+        f.write("extern const double Y_ANTI_DCT_SCALE;\n\n")
+
+        f.write("/* DIAG_DEV table, quantized to int16. */\n")
+        f.write("extern const int16_t DIAG_DEV_INT16_4D")
+        f.write(f"[CS_PIECE_4D_COUNT][{t4.N_SQUARES}];\n")
+        f.write("extern const double DIAG_DEV_SCALE_4D;\n\n")
+
+        f.write("/* Per-channel dequantization scales (CS_N_CHANNELS_4D=11).\n")
+        f.write(" * Multiply int32 channel output by the scale to recover\n")
+        f.write(" * the float64 value comparable to encode_4d().\n")
+        f.write(" * Order matches CHANNELS_4D: A1, STD4_X/Y/Z/W,\n")
+        f.write(" * FIB_SYM_1/2/3, FA_PAWN_W/Y, FD_DIAG. */\n")
+        f.write("extern const double CHANNEL_DEQUANT_SCALES_4D")
+        f.write("[CS_N_CHANNELS_4D];\n\n")
+
+        f.write("#ifdef __cplusplus\n}\n#endif\n\n")
+        f.write("#endif /* CS_PURE_PHASE_TABLES_4D_H */\n")
+    print(f"Wrote {path}")
+
+
+def write_cs_pure_phase_tables_data_4d_c() -> None:
+    """Definitions for the pure-phase integer tables."""
+    path = os.path.join(SRC_DIR, 'cs_pure_phase_tables_data_4d.c')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write("/* GENERATED by codegen/emit_tables_4d.py - DO NOT EDIT */\n")
+        f.write("#include \"cs_pure_phase_tables_4d.h\"\n\n")
+
+        emit_i16_1d(f, "SIGNED_VALS_INT_4D",
+                    PURE_PHASE_SIGNED_VALS_INT, 6)
+        emit_i8_2d(f, "COORD_RESID_INT8",
+                   PURE_PHASE_COORD_RESID_INT8, 4, t4.N_SQUARES)
+        emit_i16_1d(f, "ORBIT_INT_SCALE",
+                    _ORBIT_INT_SCALE, N_ORBITS)
+
+        emit_i16_3d(f, "FIBER_LOCAL_INT16_4D",
+                    PURE_PHASE_FIBER_LOCAL_INT16,
+                    5, t4.N_SQUARES, 3)
+        f.write(f"const double FIBER_LOCAL_SCALE_4D = ")
+        f.write(f"{_fmt_d(PURE_PHASE_FIBER_LOCAL_SCALE)};\n\n")
+
+        emit_i16_2d(f, "W_ANTI_DCT_INT16",
+                    PURE_PHASE_W_ANTI_DCT_INT16, 8, 8)
+        f.write(f"const double W_ANTI_DCT_SCALE = ")
+        f.write(f"{_fmt_d(PURE_PHASE_W_ANTI_DCT_SCALE)};\n\n")
+
+        emit_i16_2d(f, "Y_ANTI_DCT_INT16",
+                    PURE_PHASE_Y_ANTI_DCT_INT16, 8, 8)
+        f.write(f"const double Y_ANTI_DCT_SCALE = ")
+        f.write(f"{_fmt_d(PURE_PHASE_Y_ANTI_DCT_SCALE)};\n\n")
+
+        emit_i16_2d(f, "DIAG_DEV_INT16_4D",
+                    PURE_PHASE_DIAG_DEV_INT16, 6, t4.N_SQUARES)
+        f.write(f"const double DIAG_DEV_SCALE_4D = ")
+        f.write(f"{_fmt_d(PURE_PHASE_DIAG_DEV_SCALE)};\n\n")
+
+        f.write("const double CHANNEL_DEQUANT_SCALES_4D[11] = {\n    ")
+        f.write(", ".join(_fmt_d(s) for s in PURE_PHASE_DEQUANT_SCALES))
+        f.write("\n};\n")
+    print(f"Wrote {path}")
+
+
 # ─── Main ───────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -526,6 +783,9 @@ def main() -> None:
     write_cs_fiber_tables_4d_h()
     write_cs_tables_data_4d_c()
     write_committed_tables_4d_npz()
+    # 1.18.0+ pure-phase integer tables for the C-port encoder.
+    write_cs_pure_phase_tables_4d_h()
+    write_cs_pure_phase_tables_data_4d_c()
     print()
     orbit_sizes = sorted({len(orb) for orb in _orbits})
     print(f"B_4 orbits:          {N_ORBITS} classes, sizes {orbit_sizes}")
