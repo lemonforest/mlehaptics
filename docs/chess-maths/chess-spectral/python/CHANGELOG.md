@@ -7,6 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] — 2026-05-09
+
+**Port `encode_4d_pure_phase` to C** — the last deferred item from
+1.14.0/1.15.0/1.17.0 amendment notes. Substantial multi-file native
+shared library compiled with **JPL Coding Standards** (Power of Ten)
+discipline throughout.
+
+User's framing: *"our C port needs to be JPL C standard throughout
+please."* Delivered.
+
+### Empirical bench — C is 13-47× faster than Python
+
+Bench at iters=100 on random 4D positions across piece counts:
+
+| n_pieces | Python pure-phase | C pure-phase | C/Python |
+|---|---|---|---|
+| 4 | 1 534 µs | 118 µs | **13.0×** |
+| 24 | 2 851 µs | 162 µs | **17.6×** |
+| 64 | 5 396 µs | 175 µs | **30.9×** |
+| 128 | 10 196 µs | 215 µs | **47.3×** |
+
+Speedup grows with piece count because the C port eliminates the
+per-piece Python-loop overhead that even 1.17.0's vectorize couldn't
+fully amortize at dense positions.
+
+Compared to the **float baseline** `encode_4d` at n=128 (~27 ms),
+the C pure-phase encoder is roughly **125× faster** end-to-end.
+
+### Bit-exactness — 0/500 mismatches on random corpus
+
+The C port produces output that is **bit-exact identical** to
+Python's `encode_4d_pure_phase` on every position in the
+500-position random 4D stress corpus. Tolerance is zero — both
+sides do integer arithmetic only, so any disagreement is a bug.
+None observed across the corpus or the 5 hand-crafted full-channel
+positions.
+
+### JPL coding standards — applied throughout
+
+All C source files in `src/cs_pure_phase_*.c` follow JPL Power of Ten:
+
+  1. **Restricted control flow** — no `goto`, no recursion, no
+     `setjmp`/`longjmp`. Switch dispatch on small enums (≤ 5 cases)
+     for adjacency lookup is the only branching.
+  2. **All loops bounded** — every loop has a compile-time-provable
+     upper bound (CS_N_SQUARES_4D = 4096, CS_PIECE_4D_COUNT = 6,
+     CS_N_DIMS = 4, etc.).
+  3. **No dynamic allocation** — caller-provided buffers + static
+     const tables. Largest stack allocation: 96-KB int64 fc_all
+     accumulator in fiber-sym; documented in file header.
+  4. **Functions ≤ 60 lines** — fiber-sym hot path split between
+     orchestrator (~40 lines) + per-piece helper (~50 lines).
+  5. **≥ 2 assertions per function** — pointer non-null + table
+     dimension invariants.
+  6. **Restricted variable scope** — `const` declarations in inner
+     blocks where possible.
+  7. **All return values checked** — compute kernels are `void`;
+     ctypes path uses standard argtypes/restype.
+  8. **Limited preprocessor** — header guards, codegen dimension
+     macros, no function-like macros in implementation.
+  9. **No function pointers** — switch dispatch on enums, data
+     pointer arrays for adjacency CSR lookup.
+  10. **All warnings as errors** — builds clean under MSVC `/W4`
+      and GCC `-Wall -Wextra`.
+
+### Architecture — 8 C source files
+
+Mirrors the Python module's per-channel structure:
+
+  * `cs_pure_phase_signal_4d.c` — int16 board signal builder
+  * `cs_pure_phase_a1_4d.c` — A_1 orbit-sum projection (×384 integer)
+  * `cs_pure_phase_std4_4d.c` — STD4 (int8 × int16 elementwise)
+  * `cs_pure_phase_fiber_sym_4d.c` — fiber-sym (3 channels via
+    1.17.0 loop-swap + broadcast pattern)
+  * `cs_pure_phase_pawn_w_4d.c` — FA_PAWN_W
+  * `cs_pure_phase_pawn_y_4d.c` — FA_PAWN_Y
+  * `cs_pure_phase_diag_4d.c` — FD_DIAG (1.17.0 group-by-piece-type)
+  * `cs_encoder_pure_phase_4d.c` — orchestrator
+
+Plus `cs_pure_phase_tables_data_4d.c` (codegen-generated integer
+tables: SIGNED_VALS_INT_4D, COORD_RESID_INT8, ORBIT_INT_SCALE,
+FIBER_LOCAL_INT16_4D, W/Y_ANTI_DCT_INT16, DIAG_DEV_INT16_4D,
+CHANNEL_DEQUANT_SCALES_4D).
+
+### Build integration
+
+  * SHARED library `cs_encoder_pure_phase_4d` in `CMakeLists.txt`,
+    sibling to `cs_bitboard4d` (1.7.0).
+  * `WINDOWS_EXPORT_ALL_SYMBOLS ON` for MSVC export-table generation.
+  * Codegen extension in `codegen/emit_tables_4d.py` emits the
+    integer tables alongside the existing float tables.
+  * `cs_core_4d` static library also includes the new sources.
+
+### API surface
+
+  * `include/cs_encoder_pure_phase_4d.h` — public C API
+  * `cs_encode_pure_phase_4d(pos, enc)` — top-level encoder
+  * Per-channel functions exposed for testing
+  * `chess_spectral._native_pure_phase_4d.py` — ctypes wrapper
+    with `HAS_NATIVE_PURE_PHASE` guard
+
+### Tests — 10 immolation tests in tests/test_c_py_parity_pure_phase_4d.py
+
+  * 5 parametrized hand-crafted positions (imbalanced, full-channel,
+    sparse-endgame, y-axis-pawns-only, w-axis-pawns-only)
+  * 3 edge cases (empty, single piece, legacy pawn schema)
+  * 1 random-corpus test (500 positions, all bit-exact)
+  * 1 determinism test
+
+All 10 tests pass. Skip gracefully when the native library isn't
+loadable (sdist install, Pyodide WASM).
+
+### What this 1.18.0 does NOT do
+
+  * **Does not port 2D pure-phase to C** — 2D per-encode cost is
+    smaller (~700 µs Python); interpreter-overhead win is less
+    impactful. Future work if motivated.
+  * **Does not change Python defaults** — Python encoder remains
+    correctness reference; C is performance fast-path with
+    `HAS_NATIVE_PURE_PHASE` guard.
+
 ### Added — 1.16.0+ research tooling (merged in PR #302; not yet versioned)
 
 `tests/run_evaluator_tournament.py` — round-robin tournament runner
