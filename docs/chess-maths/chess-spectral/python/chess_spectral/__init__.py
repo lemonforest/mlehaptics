@@ -144,6 +144,22 @@ from .sheets import (
     decode_sheet_state,
 )
 
+# 1.14.0 — Pure-phase encoder (B-spike-4 / notebook §20.21).
+# Integer arithmetic throughout: D₄ irrep projection is integer
+# (character formula × integer signal), fiber tables are int16-
+# quantized at module load. Returns same-shape (640,) output as
+# encode_640. Cosine-sim ≥99.998% on the acceptance corpus.
+# Bench finding (§20.21): mixed empirical result — slower at
+# dense positions (opening, ~1.64×), parity at midgame, faster at
+# sparse positions (endgame, ~1.50×). Per-piece Python-loop
+# overhead vs numpy float SIMD trade-off; the cleaner runtime win
+# remains spectral_hybrid_8bit_lru (1.13.0).
+from .encoder_pure_phase import (
+    encode_2d_pure_phase,
+    encode_2d_pure_phase_to_float,
+    CHANNEL_DEQUANT_SCALES,
+)
+
 # 1.12.0 — Encoder BIP-hybrid (notebook §20.18). Sign × magnitude
 # factoring per channel: sign packs as 1 bit per dim (algebraically
 # exact); magnitude quantizes to 4 or 8 bits per dim with per-channel
@@ -258,6 +274,10 @@ __all__ = [
     "bip_hybrid_storage_bytes_4d",
     "DEFAULT_MAGNITUDE_BITS",
     "VALID_MAGNITUDE_BITS",
+    # 1.14.0 — Pure-phase encoder (B-spike-4)
+    "encode_2d_pure_phase",
+    "encode_2d_pure_phase_to_float",
+    "CHANNEL_DEQUANT_SCALES",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
     # 1.9.0 — non-Markovian sheet aux block (representation completeness)

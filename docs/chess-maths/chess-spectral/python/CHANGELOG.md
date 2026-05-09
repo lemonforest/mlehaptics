@@ -7,6 +7,296 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-05-09
+
+**B-spike-4** from notebook §20.15 ships: **pure-phase encoder
+rewrite**. Integer arithmetic throughout the encoder hot path —
+D₄ irrep projection is integer (character formula × integer
+signal), fiber tables are int16-quantized at module load,
+dequantization happens at the channel-output boundary. New
+`chess_spectral.encoder_pure_phase` module. Acceptance gate met
+(cosine-sim ≥ 99.998% vs float baseline; D₄ channels bit-exact).
+**Empirical speed result is mixed/positional**: 1.64× SLOWER at
+opening, parity at midgame, 1.50× FASTER at endgame. No breaking
+changes vs 1.13.x.
+
+**All five §20.15 phases now shipped** within ~5 days from the
+spike's first sketch.
+
+### Why this is the 1.14.0 ship
+
+§20.15's fifth and final phase. The user's framing for
+authorizing it: *"if it's better, that's awesome! if we find
+regression, let's investigate."* We benched both before and
+after; the answer is nuanced.
+
+### Empirical findings (notebook §20.21)
+
+Bench at iters=1000 on the standard 5+5+5 FEN corpora:
+
+| Variant | Opening (µs) | Midgame (µs) | Endgame (µs) |
+|---|---|---|---|
+| material (reference) | 7 | 8 | 2 |
+| **spectral_float64** (1.0–1.13.x baseline) | **943** | **991** | **600** |
+| **spectral_pure_phase** (1.14.0+) | **1546** | **992** | **400** |
+| spectral_hybrid_8bit_lru (1.13.0+) | 45 | 49 | 45 |
+
+**Pure-phase vs float64**:
+
+- Opening (dense, 16 non-pawn pieces / side): **1.64× SLOWER**.
+- Midgame: **parity** (within 0.1%).
+- Endgame (sparse, 2-3 non-pawn pieces / side): **1.50× FASTER**.
+
+The mechanism: per-piece Python-loop overhead is roughly equal
+for float and integer encoders; numpy float64 SIMD beats numpy
+int16/int32 SIMD on 64-element arrays. Sparse positions favor
+pure-phase (iteration count low → SIMD doesn't have time to
+amortize); dense positions favor float (SIMD wins on more work).
+
+The cache-hit / warm-LRU path from 1.13.0 (~50 µs) remains the
+unambiguous runtime winner. Pure-phase encoder is a structurally
+correct ALU-native implementation, but on CPython with numpy
+the speedup story is positional, not uniform.
+
+### Architecture
+
+The encoder hot path decomposes into two pieces:
+
+1. **D₄ irrep projection (channels A1, A2, B1, B2, E — 320 dims)**.
+   The character formula `proj[i] = Σ_g χ(g) · sig[g·i]` is
+   already integer at the core (CHARS = ±1, ±2, 0; permutations
+   are integer; only `/8` is float). Pure-phase: drop the `/8`,
+   carry it as a per-channel dequant scale, integer arithmetic
+   throughout. **Bit-exact** relative to float baseline (locked
+   in `test_immolation_d4_channels_match_baseline_exactly`).
+
+2. **Fiber channels (F1/F2/F3/FA/FD — 320 dims)**. Use
+   precomputed float tables (LOCAL_FIBER_3D, PAWN_ANTI_FIBER,
+   DIAG_DEV) from grid Laplacian eigendecomposition. Pure-phase:
+   quantize tables to int16 at module load (one-time cost; per-
+   table scale factor stored alongside) + integer arithmetic in
+   accumulation + dequantize at output boundary. int16
+   quantization preserves cosine-sim ≥ 99.998% on the corpus.
+
+### Piece-value choice — the half-integer bishop wrinkle
+
+`VALS` defines bishop value as **3.5** (modern engine
+convention), not the textbook 3. Naive `int(v)` truncation
+broke D₄-channel bit-exactness; fix was to scale the integer
+signal by 2 (so `B → 7`, `b → -7`) and absorb the factor of 1/2
+into the per-channel dequantization scale. Documented as
+`_VALS_INT_SCALE = 2` in `encoder_pure_phase.py`. Storage:
+int16 for the signal (king value 200 = 100 × 2 doesn't fit in
+int8; int16 has ample headroom).
+
+### Added — `chess_spectral.encoder_pure_phase` module
+
+- `encode_2d_pure_phase(pos, *, vals=None) -> np.ndarray (int32)`
+- `encode_2d_pure_phase_to_float(pos, *, vals=None) -> np.ndarray (float64)`
+- `CHANNEL_DEQUANT_SCALES` — per-channel float multiplier
+- Module-load quantization of LOCAL_FIBER_3D / PAWN_ANTI_FIBER
+  / DIAG_DEV to int16 with per-table scale factors.
+
+### Added — 21 immolation tests in `tests/test_encoder_pure_phase.py`
+
+- Output shape + dtype contract (int32 / float64).
+- Quantized table contracts (int16 shapes; LOCAL_ADJ_ROWS_INT8
+  is 0/1 only).
+- §20.15 cosine-sim acceptance gate (≥ 0.999 locked, observed
+  ≥ 0.999998).
+- D₄-channel bit-exactness vs `encode_640(pos, vals=VALS)`.
+- Channel-energy ranking Spearman ρ ≥ 0.99.
+- Edge cases: empty position, single-piece, str-keyed pos
+  dict, determinism across calls.
+
+### Notebook updates
+
+- §20.20 — joint progress summary table updated to reflect 5
+  of 5 phases shipped.
+- §20.21 — B-spike-4 implementation update with empirical
+  bench numbers, the half-integer bishop fix story, and the
+  honest framing of the mixed result.
+- §20.22 / §20.23 (renumbered from §20.21 / §20.22) — sibling
+  project sections shifted.
+
+### What this 1.14.0 does NOT do
+
+- **Does not vectorize the per-piece Python loop.** The fiber
+  computation iterates `for sq, piece_char in pos.items()` and
+  calls numpy on small arrays per iteration. Both float and
+  integer encoders share this structure. Vectorizing across all
+  occupied squares simultaneously (numpy fancy indexing) would
+  unlock a much bigger speedup, applicable to ALL encoder
+  variants. Estimated 30-50× win. Deferred until empirical
+  motivation surfaces.
+- **Does not port to C.** A C-side mirror of the pure-phase
+  encoder would skip Python interpreter overhead entirely. Real
+  win on dense positions where Python loop dominates. Deferred.
+- **Does not bench Pyodide.** §20.19 (c) was deferred for the
+  same reason; pure-phase encoder is the natural target for
+  Pyodide validation. Picks up when chess4D-OC's Pyodide
+  profile surfaces it.
+- **Does not change `encode_640` / `encode_4d` defaults.** C
+  parity tests pass unchanged.
+
+### 2026-05-09 amendment — 4D parity regression repaired + pedantic stress tests added
+
+The original 1.14.0 ship was 2D-only for the pure-phase encoder,
+AND the 1.13.0 spectral_hybrid evaluator family was 2D-only.
+User flagged this as a parity regression and refused to merge
+until repaired. Amendment scope:
+
+#### 4D evaluator parity restored
+
+- `chess_spectral.engine.eval.spectral_hybrid` now exposes
+  **`channel_energies_from_hybrid_4d`**, **`evaluate_from_hybrid_4d`**,
+  and **`evaluate_4d`** — full parity with the 2D versions
+  shipped in 1.13.0. Same algebraic identity (sign cancels in
+  squared sum; uint32 sum-of-squares + per-channel scale²
+  multiply); 11-channel × 4096-dim coverage.
+- `chess_spectral.engine.eval.spectral_hybrid_cache` now exposes
+  **`make_cached_evaluator_4d`** — LRU-cached 4D evaluator
+  factory. Returns `(evaluator_fn, cache)` for plugging into
+  `SearchOptions.evaluator` for the 4D engine.
+- The `SpectralBIPHybrid4D` dataclass shipped in 1.12.0 already
+  had the storage; 1.14.0 just adds the eval-side wrappers.
+
+#### encode_4d_pure_phase deferred to 1.15.0+
+
+The 2D pure-phase encoder works because D₄ irrep projection has
+an integer character formula at the core. 4D's B₄ structure
+uses sparse matrix arithmetic (`P_A1 @ sig`) and float-table
+fiber accumulation, without the integer-character convenience.
+A meaningful 4D pure-phase encoder needs more design work;
+deferred. The 4D hybrid encoder (1.12.0+) already provides the
+integer-storage path; the eval-side parity above is what was
+missing.
+
+#### Pedantic non-deterministic stress testing
+
+- **`tests/_random_positions.py`** — deterministic seeded RNG
+  for random 2D and 4D positions across sparse-to-dense piece
+  counts; reproducible across CI runs.
+- **`tests/test_pure_phase_stress_2d.py`** — 9 stress tests
+  against **1000 random 2D positions**:
+    * cosine-sim ≥ 0.99 on every single position
+    * median cosine-sim ≥ 0.999
+    * D₄-channel bit-exactness on every position
+    * channel-energy Spearman ρ ≥ 0.99 across all (pos, channel)
+    * no NaN / Inf in output
+    * int32 output bounded (max abs < 2³⁰)
+    * deterministic + reproducible
+- **`tests/test_spectral_hybrid_4d_stress.py`** — 8 stress tests
+  against **500 random 4D positions** (smaller corpus because
+  the 4D encoder is ~10× more expensive per call):
+    * channel-energy parity within 5% relative on every channel
+    * sign-of-score agreement
+    * channel-energy Spearman ρ ≥ 0.99
+    * no NaN / Inf
+    * cached evaluator hits ≡ misses semantics at scale
+    * LRU eviction correctness when corpus exceeds cache cap
+    * `evaluate_4d` round-trip consistency
+
+**Result: all 17 stress tests pass on the 1500-position random
+corpus.** The hand-picked 7-FEN findings from the original 1.14.0
+ship hold at scale. The 4D parity additions are correct at scale.
+
+#### Why this matters
+
+The hand-picked corpus methodology in the original 1.14.0 ship
+was honest but unprincipled. The pedantic stress tests address
+the gap by validating against 1500 random positions across a
+wide piece-count distribution. The acceptance gates hold;
+B-spike-4's empirical conclusions weren't artifacts of the
+hand-picked corpus.
+
+What the stress tests don't yet address (deferred to follow-up):
+
+- Tournament-driven evaluator validation (§16 tournament harness;
+  whether `spectral_hybrid_8bit_lru` actually beats `material`
+  at deep search)
+- Move-gen cost in the bench (currently bench measures only
+  static eval; combining with move-gen for nodes/sec at depth
+  is real but separate work)
+- PGN-sourced phase classification (replace hand-picked
+  open/mid/end FENs with channel-energy-clustered phase labels
+  from real games)
+- `encode_4d_pure_phase` (see above)
+
+### 2026-05-09 amendment 2 — chess4D-OC consumer wishlist landing
+
+Late-1.14.0 additions driven by the chess4D-OC pre-publish wishlist.
+All ship in this 1.14.0 release; no new minor bump needed since the
+public surface only grows (no breaking changes).
+
+#### Tier 1: M14.4c entanglement-viz unblockers
+
+- **`qm_4d_bridge.get_qm_density_from_psi(psi)`** — ψ-direct variant
+  of `get_qm_density`. Takes a precomputed ψ vector (shape `(45056,)`
+  flat or `(11, 4096)` channel-block) and returns
+  `{ok, density: ndarray (4096,) float32}`. Skips the
+  `state_to_psi` re-encode step on the post-collapse render path.
+- **`qm_4d_bridge.get_probability_current_from_psi(psi)`** — ψ-direct
+  variant of `get_probability_current`. Same operator
+  (`j(c, a) = Im(ψ* ∂_a ψ)` summed across the 11 channels), but
+  returns the field flattened to `{ok, j: ndarray (16384,) float32}`
+  in C-order (so cell `c`'s 4-vector is `j[c*4 : c*4+4]`).
+  The flat shape is the consumer-requested return type — chess4D-OC's
+  worker hands it directly to a JS Float32Array.
+- **`qm_4d_bridge.get_density_matrix_of(state, piece_id, *, neighborhood_radius=1)`**
+  — partial implementation. Replaces the previous unconditional
+  `NotImplementedError` raise (which was deferred to v1.7+ originally,
+  then to ADR-005). The new implementation computes the **channel
+  reduced density on a 4D-Manhattan neighborhood** of the piece's
+  cell — a placeholder that gives **nontrivial purity per piece**
+  for the M14.3 entanglement-halo viz to light up. Returns dict with
+  `rho` (11×11 complex128, Hermitian, trace 1), `purity ∈ [0, 1]`,
+  `rank ∈ [1, 11]`, `eigvals (11,)`, `neighborhoodSize`, and
+  `isPartial: True`. The `isPartial` flag tells consumers it's a
+  placeholder; the full η-metric construction (ADR-005) ships later
+  with the same signature.
+
+#### Tier 2: consumer ergonomics
+
+- **`HybridCache.clear()`** — drops all cached entries and resets
+  hit/miss counters; preserves `max_size`. For chess4D-OC's "new
+  game" reset path (avoids stale cache entries leaking across
+  same-process sessions).
+- **`qm_4d_bridge.channel_energies_2d(pos, *, magnitude_bits=8)`** —
+  Pyodide-friendly wrapper. Takes a 2D position dict, runs encode +
+  channel-energy in one shot, returns `{ok, energies: Dict[str, float]}`
+  (JS-serializable as-is). Saves the consumer from importing
+  `engine.eval.spectral_hybrid` (which pulls in scipy/sparse).
+- **`qm_4d_bridge.channel_energies_4d(pos4, *, magnitude_bits=8)`** —
+  4D analog of the above; 11-channel result.
+
+#### Added — 33 immolation tests for the wishlist surface
+
+- `tests/test_wishlist_surface_1_14.py` (23 tests):
+    * `TestProbabilityCurrentFromPsi` (5): flat shape, state-driven
+      parity, channel-block view acceptance, real-input promotion,
+      invalid-shape `ValueError`.
+    * `TestQmDensityFromPsi` (5): shape, state-driven parity,
+      non-negativity + sum-to-norm, channel-block view, invalid shape.
+    * `TestChannelEnergiesBridge2D` (4): return shape, non-negativity,
+      direct-call match, magnitude_bits kwarg.
+    * `TestChannelEnergiesBridge4D` (3): return shape, non-negativity,
+      direct-call match.
+    * `TestHybridCacheClear` (4): drops entries, resets counters,
+      preserves `max_size`, populating after clear works.
+    * Cross-cutting: wishlist functions in `__all__`; `clear` is an
+      attribute on `HybridCache`.
+- `tests/test_qm_4d_bridge_v15.py::TestGetDensityMatrixOf` rewritten
+  (10 tests) to assert the new partial-impl contract: dict shape,
+  Hermitian rho, trace 1, purity bounds, rank in range, eigval sum,
+  **purity varies by piece_id** (this is the test that proves the
+  function isn't degenerate — halo viz will see distinct values),
+  radius=0 collapses to rank-1, radius=2 enlarges, invalid piece_id
+  raises.
+
+All 33 wishlist tests pass + the 95-test broader bridge / hybrid-eval
+surface continues to pass with no regressions.
+
 ## [1.13.0] — 2026-05-09
 
 B-spike-3 from notebook §20.15 ships (partial): **encoder-eval

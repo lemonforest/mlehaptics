@@ -236,6 +236,35 @@ except ImportError:
 
 
 try:
+    from chess_spectral.encoder_pure_phase import (
+        encode_2d_pure_phase_to_float,
+    )
+    from chess_spectral.engine.eval.spectral import (
+        DEFAULT_WEIGHTS, channel_energies, _resolve_weights,
+    )
+    from chess_spectral.engine.eval.spectral import _CHANNEL_NAMES as _CN_SPEC
+
+    @_register(
+        "spectral_pure_phase",
+        "(B-spike-4) pure-phase encoder: integer arithmetic "
+        "throughout encode + dequantize at output. Returns float64 "
+        "for parity with spectral_float64. 1.14.0+.",
+    )
+    def _eval_spectral_pure_phase(pos: dict, side: bool) -> float:
+        v = encode_2d_pure_phase_to_float(pos)
+        energies = channel_energies(v)
+        score = 0.0
+        for name in _CN_SPEC:
+            score += DEFAULT_WEIGHTS.get(name, 1.0) * energies[name]
+        if not side:
+            score = -score
+        return float(score)
+
+except ImportError:
+    pass
+
+
+try:
     from chess_spectral.engine.eval.spectral_hybrid_cache import (
         make_cached_evaluator,
     )

@@ -28,6 +28,94 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.14 (May 2026)
+
+The §20.15 fifth and final phase: **pure-phase encoder rewrite**
+(B-spike-4). Integer arithmetic throughout the encoder hot path
+— D₄ irrep projection is integer at the core, fiber tables are
+int16-quantized at module load, dequantization happens at the
+channel-output boundary. New `encoder_pure_phase` module.
+Acceptance gate met (cosine-sim ≥ 99.998% vs float baseline; D₄
+channels bit-exact). Speed result is **mixed/positional**, not a
+clean win. **All five §20.15 phases now shipped**.
+
+- **`encode_2d_pure_phase(pos)`** — int32 output, integer
+  arithmetic throughout. **`encode_2d_pure_phase_to_float(pos)`**
+  — same encoder with per-channel dequantization; drop-in for
+  `encode_640` comparison.
+
+- **D₄ channels (A1/A2/B1/B2/E) are bit-exact** vs the float
+  baseline — the character formula is integer at the core.
+
+- **Fiber channels (F1/F2/F3/FA/FD)** use int16-quantized tables
+  with per-table scale factors; cosine-sim ≥ 99.998% agreement.
+
+- **Empirical speed verdict — mixed**: 1.64× SLOWER at opening
+  (dense), parity at midgame, 1.50× FASTER at endgame (sparse).
+  The runtime winner remains `spectral_hybrid_8bit_lru`
+  (1.13.0+) at ~50 µs across all corpora. Honest finding
+  documented in §20.21.
+
+- **Half-integer bishop fix**: VALS has `B=3.5`; pure-phase
+  scales the signal by 2 and absorbs the factor in the dequant
+  scale. Documented as `_VALS_INT_SCALE = 2`.
+
+- **21 new immolation tests** lock cosine-sim acceptance,
+  D₄ bit-exactness, Spearman ρ ≥ 0.99, quantized-table contracts.
+
+**B-spike-4** in the §20.15 phasing — the fifth and final
+phase. 1a → 1b → 2 → 3 → 4, all shipped within ~5 days.
+
+**1.14.0 amendment (May 2026) — 4D parity restored + pedantic stress tests added.**
+The original 1.14.0 ship was 2D-only and 1.13.0's
+`spectral_hybrid` evaluator family was 2D-only too — both
+flagged as a parity regression. Amendment:
+
+- **4D evaluator parity restored**: `evaluate_from_hybrid_4d`,
+  `channel_energies_from_hybrid_4d`, `evaluate_4d`,
+  `make_cached_evaluator_4d` — full parity with the 2D
+  versions, using the 1.12.0 `SpectralBIPHybrid4D` storage.
+- **Pedantic stress testing**: 1000 random 2D positions for
+  the pure-phase encoder, 500 random 4D positions for the
+  hybrid evaluator family. **All 17 stress tests pass.**
+  Acceptance gates (cosine-sim ≥ 0.99 every position; D₄ bit-
+  exactness; channel-energy Spearman ρ ≥ 0.99; no NaN; LRU
+  semantics) hold at scale.
+- **`encode_4d_pure_phase` deferred** to 1.15.0+. 2D's
+  pure-phase encoder works because D₄ has an integer character
+  formula; 4D's B₄ structure uses sparse-matrix arithmetic
+  without the same convenience. The 4D hybrid encoder (1.12.0)
+  already provides integer storage; this amendment closes the
+  eval-side parity gap.
+
+**1.14.0 amendment 2 (May 2026) — chess4D-OC consumer wishlist surface.**
+Late-cycle additions driven by the chess4D-OC pre-publish wishlist;
+all ship in 1.14.0 (no minor bump — public surface only grows):
+
+- **Tier 1: M14.4c entanglement-viz unblockers**
+    - `qm_4d_bridge.get_qm_density_from_psi(psi)` and
+      `qm_4d_bridge.get_probability_current_from_psi(psi)` —
+      ψ-direct variants of the existing state-driven functions,
+      for the post-collapse render path. The current-from-psi
+      variant returns `j` flattened to `(16384,)` (cell-major) so
+      consumers don't re-flatten in the worker.
+    - `qm_4d_bridge.get_density_matrix_of(state, piece_id, *, neighborhood_radius=1)`
+      — partial implementation that replaces the previous unconditional
+      `NotImplementedError`. Computes a Manhattan-neighborhood
+      channel reduced density giving **per-piece purity** for the
+      M14.3 entanglement-halo viz to light up. Carries an
+      `isPartial: True` flag; the full η-metric construction
+      (ADR-005) ships later with the same signature.
+- **Tier 2: consumer ergonomics**
+    - `HybridCache.clear()` — drops cached entries + resets counters
+      for the chess4D-OC reset path.
+    - `qm_4d_bridge.channel_energies_2d` /
+      `qm_4d_bridge.channel_energies_4d` — Pyodide-friendly entry
+      points (encode + channel-energy in one shot, JS-serializable
+      dict). Saves consumers from importing the engine sub-package.
+- **33 immolation tests** lock the wishlist surface contracts; the
+  existing 95-test bridge / hybrid-eval surface continues to pass.
+
 ## What's new in v1.13 (May 2026)
 
 The §20.15 fourth-tier ship (partial): **encoder-eval speedup work**.

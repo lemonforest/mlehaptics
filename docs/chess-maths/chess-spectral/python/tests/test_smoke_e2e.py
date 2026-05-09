@@ -89,7 +89,8 @@ What it covers (organized by surface):
     v1.5 §17.1 + §17.5 bridge surface (chess_spectral.qm_4d_bridge):
       All 7 §17.1 consumer methods (get_qm_state, get_qm_density,
       apply_move_qm_full, measure_at, get_density_matrix_of —
-      raises NIE pointing at v1.7+, get_probability_current,
+      1.14.0+ partial impl returning purity / rank / 11×11 rho;
+      was NIE through 1.13.x, get_probability_current,
       get_qm_expectation) plus the 6 §17.5 dev/debug methods
       (get_version, get_encoder_shape, get_fen4_state, load_fen4,
       load_jsonl_fixture, has_legal_moves) — return-type contracts,
@@ -2317,12 +2318,12 @@ def test_b2_evolve_under_h0_conserves_energy():
 # ─── v1.5 §17.1 + §17.5 bridge surface smoke ─────────────────────────
 #
 # All 7 §17.1 consumer methods (get_qm_state, get_qm_density,
-# apply_move_qm_full, measure_at, get_density_matrix_of (NIE),
-# get_probability_current, get_qm_expectation) plus 6 §17.5 dev
-# methods (get_version, get_encoder_shape, get_fen4_state,
-# load_fen4, load_jsonl_fixture, has_legal_moves). Smoke verifies
-# the documented return shapes + numerics agree with direct
-# state_to_psi calls (the SSOT).
+# apply_move_qm_full, measure_at, get_density_matrix_of (1.14.0+
+# partial impl — was NIE through 1.13.x), get_probability_current,
+# get_qm_expectation) plus 6 §17.5 dev methods (get_version,
+# get_encoder_shape, get_fen4_state, load_fen4, load_jsonl_fixture,
+# has_legal_moves). Smoke verifies the documented return shapes +
+# numerics agree with direct state_to_psi calls (the SSOT).
 
 
 def test_v15_get_qm_state_float32_interleaved():
@@ -2390,17 +2391,25 @@ def test_v15_measure_at_born_rule_matches_projector():
     assert abs(res['probability'] - expected_prob) < 1e-10
 
 
-def test_v15_get_density_matrix_of_raises_nie():
-    """get_density_matrix_of is deferred to v1.7+; raises
-    NotImplementedError with a message pointing at the partial-
-    trace deferral and v1.7+ landing."""
+def test_v15_get_density_matrix_of_partial_impl():
+    """get_density_matrix_of (1.14.0+ partial implementation): returns
+    a dict with ``rho`` (11×11 Hermitian, trace 1), ``purity ∈ [0, 1]``,
+    ``rank ∈ [1, 11]``, and ``isPartial: True`` to flag that the full
+    η-metric construction (ADR-005) is still deferred. Replaces the
+    pre-1.14.0 unconditional ``NotImplementedError`` raise."""
+    import numpy as np
     from chess_spectral import qm_4d_bridge as br
     pos = _qm4_smoke_position()
     first_sq = next(iter(pos))
-    with pytest.raises(NotImplementedError) as excinfo:
-        br.get_density_matrix_of(pos, first_sq)
-    msg = str(excinfo.value).lower()
-    assert 'partial trace' in msg or 'v1.7' in msg
+    res = br.get_density_matrix_of(pos, first_sq)
+    assert res['ok'] is True
+    assert res['isPartial'] is True
+    assert res['rho'].shape == (11, 11)
+    assert res['rho'].dtype == np.complex128
+    assert np.allclose(res['rho'], res['rho'].conj().T, atol=1e-12)
+    assert abs(float(np.trace(res['rho']).real) - 1.0) < 1e-9
+    assert 0.0 <= res['purity'] <= 1.0 + 1e-9
+    assert 1 <= res['rank'] <= 11
 
 
 def test_v15_get_probability_current_divergence_free():
