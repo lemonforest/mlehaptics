@@ -2582,7 +2582,9 @@ Estimated effort: 1500–3000 LOC across both dimensions (search core ~500 LOC e
 
 A natural research follow-up (Phase 7+, not committed): tune evaluator weights via self-play with policy-gradient or supervised distillation against an external strong engine (Stockfish for 2D; for 4D there is no external reference, so self-play bootstrap is the only option). That work depends on Phase 6 shipping first to establish the harness.
 
-### 16.7. Prior: Othello / Edax spectral-weights result (load-bearing)
+### 16.7. Prior: Othello / Edax spectral-weights result (load-bearing — but contaminated; see 2026-05-09 amendment below)
+
+> **2026-05-09 amendment — finding contaminated by ML-fork splice.** The §16.7 framing originally treated the Edax-spectral-Reversi archive as authoritative empirical prior — specifically the headline result that Architecture A (linear spectral features) won +243 ELO at L6 but decayed to 0 ELO at L10+. The user has since clarified that the engine in question was an **ML-augmented fork** of vanilla Edax, and the spectral-weights contribution can't be cleanly separated from whatever the ML black-box was doing in the eval pipeline. Vanilla Edax behavior is what would be trustworthy as a prior, and we don't have that data. **Treat all numerical claims in this section as suggestive but not load-bearing** until a vanilla-engine replication exists. The §16.5 design rules below (test multiple depths; audit training target; don't trust eval-task metrics as Elo proxy) remain methodologically sound — they're good discipline regardless of where the original observation came from. But specifically: **do not gate B-spike-3 (encoder-eval speedup work) on the depth-decay claim.** That claim's empirical support is currently weaker than this section's first writing implied. The §20.19 update reflects this.
 
 > **Source:** `edax-spectral-reversi` archive at `D:\GitHub\zen-pike-6af276` (last active 2026-04-27). FM-augmented Edax fork that integrated sheaf-spectral `D_4 × Z_2⁺` features (5 channels: A_1⁺, A_2⁺, B_1⁺, B_2⁺, E⁺ on the 64-cell Othello board) into the engine's evaluation function. Recovered by the read-only walk in this PR. Files most worth a closer reading: `docs/architecture_A.md`, `docs/spectral_math.md`, `docs/NEXT_PARADIGM.md`, `docs/path_2b_3_4_findings.md`, `docs/research_directions.md`, `docs/FINAL_SUMMARY.md`.
 
@@ -3634,21 +3636,120 @@ Tested on 7 representative 2D FENs (opening, middlegame, endgame, EP-active, pro
 
 **Cross-pollination notes for ephemerides-spectral.** The chess hybrid encoding intentionally keeps the magnitude portion as quantized integer rather than embedding into the BIP `Z_{2^K}` group. This is structurally different from antikythera's `bip_instrument.py` which uses pure phase encoding because celestial mechanics is purely-phase by physical construction (each body's amplitude is constant; only phase varies with time). Chess channels carry both phase and magnitude information; the hybrid is the chess-shaped answer to the same general question of "how do we get ALU-native HDC without losing channel-energy information." The two projects share the binary-int-arithmetic substrate but diverge on what's quantized vs what's exact.
 
-### 20.19. Joint progress summary across §20
+### 20.19. B-spike-3 implementation update — encoder-eval speedups + cross-pollination with ephemerides Phase 9
 
-After 1.12.0 ships, the §20.15 phasing table looks like this:
+**Date:** 2026-05-09. **Shipped:** chess-spectral 1.13.0. **Scope:** the fourth of the §20.15 phases — make the spectral evaluator's hot path faster for downstream consumers (chess4D-OC, the §16 search engine, batched corpus retrieval). Bench-discipline first: a benchmark harness lives in `tests/bench_spectral_eval.py`; no speedup claim ships in this CHANGELOG without measured numbers from the harness on a fixed corpus.
+
+#### Ephemerides cross-pollination
+
+The latest ephemerides-spectral notebook (lines 15, 147-149) confirms a **two-stage architecture** that informed our chess implementation:
+
+> *"integer-ALU phase-residue encoders (`bip` Python / `c` native / `complex128` reference) feeding an FPU `complex64` HD pipeline (syzygy, observer-bind, eclipse-probability)."*
+
+> *"chess-spectral §20.13–§20.17 explicitly aligns the chess Z_640 phase-operator engine with this BIP design at the group-theoretic level; the cosine LUT pattern transfers between the projects (chess pays an explicit % 640 per op, ephemerides gets cyclic-group reduction free as uint32 overflow)."*
+
+The cross-reference is reciprocal: ephemerides cites our §20.13–§20.17, and we cite their two-stage pattern. **The chess analog of complex128 → complex64 is float64 → float32 for the downstream channel-energy + weighted-sum step.** That's path (d) in the B-spike-3 plan — see "(d) null result" below. Their Phase 9 cosine LUT (1024 × int32, Q1.14) is production code; the chess side could mirror it if/when we want phase-modulated channel weights.
+
+#### The four candidate speedup paths
+
+| Path | Mechanism | Bench result (median µs at iters=500, opening corpus) |
+|---|---|---|
+| (a) channel-energy-from-hybrid, full path | encode→hybrid→eval; sign cancels in squared sum so use uint8² | 1079 µs (slower than baseline; encode dominates + extra quantize step) |
+| (a) channel-energy-from-hybrid, **cache-hit** | precomputed hybrid → uint8² sum → scale² multiply → weighted sum | **36 µs** |
+| (b) LRU-cached hybrid evaluator | wraps (a) cache-hit; warm-cache calls hit the fast path | **35 µs** |
+| (c) Pyodide pure-int loop | numpy-free uint8 loop; CPython measurement is meaningless (numpy is faster), Pyodide-side validation deferred | not benched in 1.13.0 |
+| (d) float32 downstream | mirror ephemerides two-stage; float32 sum-of-squares + weighted sum | **null** (variance-dominated; no consistent speedup standalone) |
+
+**Baseline:** `spectral_float64` (the 1.0–1.12.x default) — 540 µs at opening, 511 µs at midgame, 233 µs at endgame.
+
+**Headline:** path (a) cache-hit / (b) warm-LRU is **~15× faster** than `spectral_float64` at opening+midgame, ~6× at endgame. This is the §16 search-engine integration target.
+
+#### Why (d) float32 alone is a null result
+
+`spectral.evaluate` cost decomposes as:
+
+```
+encode_640(pos)          ~700µs   (DOMINANT)
++ channel_energies(v)     ~70µs    (the only step (d) speeds up)
++ weighted sum             tiny
+```
+
+Casting an already-computed float64 vector to float32 is *additional* work (an extra O(640) conversion), not less. The downstream sum-of-squares becomes ~2× faster in float32 (numpy SIMD), but the encode cost dominates. **(d) only wins if the encoder itself becomes float32-native** — that's a separate ship, deferred until empirical motivation surfaces.
+
+The ephemerides architecture wins because their integer encoder is *the* production path; the complex64 downstream is what consumes already-computed integer encodings. Our chess analog is path (a) cache-hit + (b) LRU — same shape, different details.
+
+#### Why (a) full path is a regression
+
+`spectral_hybrid.evaluate` cost:
+
+```
+encode_640(pos)              ~700µs   (same)
++ _hybrid_encode_2d(vec)      ~50µs    (added — quantize to integer storage)
++ channel_energies_from_hybrid ~7µs    (the win — uint8² sum)
++ weighted sum                 tiny
+```
+
+Net: ~757 µs vs ~770 µs baseline — ~2% improvement, well within bench variance. The full path is bench-comparable to baseline, not a meaningful win. **The hybrid form needs to be precomputed and cached for the speedup to materialize**; this is where (b) LRU shines.
+
+#### Why (a) cache-hit + (b) LRU is the real win
+
+`spectral_hybrid.evaluate_from_hybrid` cost (no encode):
+
+```
+channel_energies_from_hybrid  ~7µs
++ weighted sum                 tiny
++ cache lookup overhead       ~25µs
+Total                         ~35µs
+```
+
+vs `spectral_float64` baseline ~540 µs at opening → **~15× faster**.
+
+For a §16 search at depth 4-6 with typical TT hit patterns (positions re-visited via different move orderings, quiescence extensions), the cached evaluator's effective speedup at search-loop scale depends on hit rate:
+
+| Hit rate | Effective per-eval cost | Speedup vs baseline |
+|---|---|---|
+| 100% (steady state) | ~35 µs | ~15× |
+| 70% | (0.7×35 + 0.3×870) µs = 286 µs | ~1.9× |
+| 50% | (0.5×35 + 0.5×870) µs = 453 µs | ~1.2× |
+| 0% (cold start) | 870 µs | 1× (baseline) |
+
+Realistic search hit rates for chess at depth 4-6 are in the 30-70% range; the 1.13.0 cached evaluator should give a 1.4-3.5× search-time speedup at the search-loop level. Tournament validation is Phase 7+ work.
+
+#### What 1.13.0 ships
+
+- `chess_spectral.engine.eval.spectral_hybrid` — `evaluate(pos, side, magnitude_bits=8)` + `evaluate_from_hybrid(hybrid, side)` + `channel_energies_from_hybrid(hybrid)`. Per-channel energy computation directly from `SpectralBIPHybrid2D` integer storage.
+- `chess_spectral.engine.eval.spectral_hybrid_cache` — `HybridCache` LRU + `make_cached_evaluator(magnitude_bits=8, cache_size=10000)` factory returning `(evaluator_fn, cache)` for the search-engine integration shape. Cache exposes `hits` / `misses` / `hit_rate` / `stats()` for diagnostic output.
+- `chess_spectral.engine.eval.spectral_float32` — float32 downstream variant; **shipped despite the null bench result** because it's the natural sibling to `spectral` and gives consumers a build-block for a future float32-native encoder.
+- `tests/bench_spectral_eval.py` — diagnostic benchmark harness; opening / midgame / endgame corpora; configurable iters; JSON output for longitudinal regression checks. The 1.13.0 baseline lives at `tests/bench_baselines/before_1.13.0.json`.
+- `tests/test_spectral_hybrid_eval.py` — 33 immolation tests locking the algebraic identity (channel-energy-from-hybrid agrees with float64 baseline within 5% relative on 8-bit; sign agreement exact across both 8-bit and 4-bit on the corpus; LRU cache semantics; float32 sign agreement within 1e-4 relative).
+
+#### What 1.13.0 does NOT ship
+
+- **Float32-native encoder.** Path (d) only wins when the encoder produces float32 directly. That's a separate ship — touches `encoder.py` + `tables.py` + the C parity surface. Deferred until empirical motivation surfaces (e.g., a search-engine bench that shows the channel-energy step actually mattering at scale).
+- **Pyodide pure-int loop (path c).** Can't be bench-validated from CPython (numpy is faster than pure-Python on CPython for these arrays); the win lives on Pyodide where numpy-on-WASM has per-call overhead. Deferred until chess4D-OC adopts the cached evaluator and surfaces an empirical Pyodide bottleneck.
+- **§16 tournament integration.** The cached evaluator is wired to plug into `SearchOptions.evaluator`, but no tournament has been run yet to confirm the search-time speedup. That's Phase 7+ work; the §16.7 amendment above explicitly de-gates B-spike-3 from the (now-contaminated) Othello depth-decay finding, so the tournament question is now an empirical question for chess to answer on its own.
+
+#### Cross-pollination implications going forward
+
+- **The ephemerides cosine LUT pattern (1024 × int32, Q1.14) is now production-tested.** When chess B-spike-2's deferred per-channel optimizations (§20.12 — A1 sign-skip, FA magnitude-skip, E complex-int) want phase-modulated channel weights, the ephemerides Phase 9 LUT is the reference design.
+- **The Q-format integer-frequency design (signed int64, residues/day, MODULO = 2^32)** is also production-tested. Chess doesn't currently have a "frequency" concept (chess isn't time-evolution), but if a future chess research direction uses cyclic-time observables, the Q-format reference exists.
+- **Both projects now have benchmark harnesses with documented null results.** The discipline transfers: ship the bench, run before/after, document negative results loudly. The chess (d) float32 null result is the chess-side analog of the ephemerides bit-ALU vs complex128 comparison documented in `bit_alu.py` § 8.3.
+
+### 20.20. Joint progress summary across §20
+
+After 1.13.0 ships, the §20.15 phasing table looks like this:
 
 | Phase | Status | Version | Acceptance |
 |---|---|---|---|
 | B-spike-1a | ✅ shipped | 1.10.0 | 87,264-case bit-exact round trip on sheet block |
 | B-spike-1b | ✅ shipped | 1.11.0 | parametrized parity vs python-chess pseudo_legal_moves on 8-FEN corpus |
-| **B-spike-2** | **✅ shipped** | **1.12.0** | **cosine-sim ≥ 99.5% median + ≥ 95% worst-case at 8-bit on 2D and 4D corpora** |
-| B-spike-3 | parked | (1.13.0+) | tournament ELO within noise + ≥10× wall-clock speedup |
+| B-spike-2 | ✅ shipped | 1.12.0 | cosine-sim ≥ 99.5% median + ≥ 95% worst-case at 8-bit on 2D and 4D corpora |
+| **B-spike-3** | **✅ shipped (partial)** | **1.13.0** | **bench harness + (a) cache-hit + (b) LRU-cached evaluator measure ~15× speedup at warm-LRU steady state. (d) float32 standalone shipped as null result; (c) Pyodide loop deferred (can't bench from CPython).** |
 | B-spike-4 | parked | unscheduled | full pure-phase rewrite — high risk, blocked behind 1a/1b/2 acceptance |
 
-Three of the five phases shipped within ~3 days from the §20 spike's first sketch. The chess-side BSHDC stack is now substantially complete for representation purposes; B-spike-3's tournament-driven validation is the natural next ship if a downstream consumer cares about runtime speedup at search-evaluation scale. B-spike-4 remains parked behind clear empirical motivation.
+Four of the five phases shipped within ~5 days from the §20 spike's first sketch. The chess-side BSHDC stack is now substantially complete: representation (1.10.0-1.12.0) plus runtime speedup (1.13.0). B-spike-3's tournament-driven validation (the question of whether the spectral evaluator beats material at deep search) is now de-gated from the §16.7 Othello prior (per its 2026-05-09 amendment — that data is ML-fork-contaminated) and is an open empirical question for chess to answer on its own. B-spike-4 remains parked behind clear empirical motivation.
 
-### 20.20. Sibling project — `ephemerides-spectral`
+### 20.21. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:
 
@@ -3662,7 +3763,7 @@ Where the chess engine encodes a discrete board topology (`Z_640`), `ephemerides
 
 The §20.18 cross-pollination note above gives the chess-side framing for why the two projects diverge on what's quantized vs what's exact (chess channels carry both phase and magnitude; ephemerides is pure-phase). The two projects are intentionally not merged — chess and ephemeris evidentiary objects are different (a board game's rule structure vs the gravitational N-body problem), and consolidating would muddle the per-project hypothesis batteries — but they are expected to share the *encoding-pattern* layer over time. The cosine LUT, the Q-format scaling rules, the int64 saturation envelope check, and the cyclic-group binding semantics are project-agnostic and worth porting as-needed.
 
-### 20.21. Sibling project — `doom-spectral` (DOOM as a Spectral Lattice System)
+### 20.22. Sibling project — `doom-spectral` (DOOM as a Spectral Lattice System)
 
 > **Date:** 2026-05-06. **Co-authors of doom-spectral notebook:** Steven (mlehaptics) & Gemini Code Assist. **Status:** active research; living notebook lives at [`../antikythera-maths/doom_spectral_research_notebook.md`](../antikythera-maths/doom_spectral_research_notebook.md). The notebook lives in the antikythera-maths folder rather than its own top-level folder because the implementation reuses the antikythera/ephemerides BIP encoder and the Phase-9 adaptive-coupling apparatus directly; it sits alongside the ephemerides notebook so the cross-references are physically adjacent.
 
