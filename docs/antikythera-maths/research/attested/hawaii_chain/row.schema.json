@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hawaii_chain.row.v1",
+  "title": "Hawaiian-Emperor seamount row",
+  "description": "One seamount in the Hawaiian-Emperor hotspot-track chain. Single row_type catalogue ('seamount'); each row records the published age + 1-σ uncertainty + geographic position + arc classification (emperor / bend / hawaiian).",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "age_myr",
+    "age_uncertainty_myr",
+    "latitude_deg",
+    "longitude_deg",
+    "arc",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Seamount name (lower-case; the active 'Big Island' is named 'hawaii_kilauea' to disambiguate from 'hawaiian' arc designation; 'maui_haleakala' similarly disambiguates)."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["seamount"],
+      "description": "Single value in this catalogue."
+    },
+    "age_myr": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Published K-Ar / Ar-Ar / U-Pb age of the seamount in millions of years. 0.0 for currently-active Kilauea."
+    },
+    "age_uncertainty_myr": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "1-σ age uncertainty in millions of years."
+    },
+    "latitude_deg": {
+      "type": "number",
+      "minimum": -90.0,
+      "maximum": 90.0,
+      "description": "Geographic latitude (north positive)."
+    },
+    "longitude_deg": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 360.0,
+      "description": "Geographic longitude (east positive, 0-360 convention; west-Pacific Hawaiian seamounts past the antimeridian are stored as positive longitudes east of 180° for great-circle calculations to behave cleanly)."
+    },
+    "arc": {
+      "type": "string",
+      "enum": ["emperor", "bend", "hawaiian"],
+      "description": "Chain segment: 'emperor' = older arc (~85 to ~47.5 Myr); 'bend' = the canonical Hawaiian-Emperor bend marker (Daikakuji); 'hawaiian' = younger arc (~47 Myr to present)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — drilling site, paleolatitude evidence, etc."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited geochronology reference. 'nodoi:' prefix accepted for pre-DOI book chapters and observatory compilations (e.g., 'nodoi:duncan_clague_1985_pacific_plate_motion')."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For drill-program release tags or compilation versions."
+    }
+  }
+}

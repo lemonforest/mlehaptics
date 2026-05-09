@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Hawaiian-Emperor Chain AMSC backfill
+
+- **`research/attested/hawaii_chain/`** — sixth v0.24.x backfill. 18 seamounts spanning the full ~85 Myr Hawaiian-Emperor hotspot track from Meiji (oldest, near the Aleutian Trench) through the Hawaiian-Emperor bend at 47.5 Myr (Daikakuji marker) to Kilauea (presently active). Per-seamount: name + age + uncertainty + lat/lon + arc classification (emperor / bend / hawaiian).
+- Per-row source DOIs: Sharp & Clague 2006 (canonical bend age), Duncan & Keller 2004 (Detroit ODP Leg 197), O'Connor 2013 (Kammu), Garcia 2010 (Kauai/Oahu/Big Island), plus 4 `nodoi:`-prefixed pre-DOI sources (Duncan & Clague 1985 Plenum book chapter, Keller 1995 ODP Leg 145 reports, Clague & Dalrymple 1989 GSA volume, Clague 2010 USGS HVO compilation). Introduces the `nodoi:` prefix convention for pre-DOI book chapters and observatory compilations.
+- **`tests/test_hawaii_chain_dual_author.py`** — 8 tests including:
+  - **Arc distribution ratchet** — 5 emperor + 1 bend + 12 hawaiian
+  - **Meiji-oldest / Kilauea-youngest ratchet**
+  - **Bend age consistency ratchet** — Daikakuji within 47.5 ± 1.5 Myr (Sharp & Clague 2006)
+- Ratchets: `n_sources` 9 → 10; `adapter_class="curated"` 6 → 7.
+
 ### Added — v0.27.0 phase A — Toroidal-Residual J₂ AMSC backfill
 
 - **`research/attested/toroidal_residual/`** — fifth v0.24.x backfill. 14 bodies classified on the Chandrasekhar 1969 rotating-fluid equilibrium-figure sequence: terra / mars / venus / mercury / luna / jupiter / saturn / uranus / neptune / io / europa / ganymede / callisto / titan. Each row records measured J₂ + dimensionless rotation parameter q = ω²R³/(GM) + moment-of-inertia factor + regime classification (sphere / maclaurin / jacobi / bar / ring) + fossil-figure flag.

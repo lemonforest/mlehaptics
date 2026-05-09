@@ -1,0 +1,73 @@
+# Hawaiian-Emperor Chain Spectral Catalogue.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.5
+# hand-coded `_research/hawaii_chain_data.py` module. The first
+# v0.24.x catalogue applying the project's graph-Laplacian eigenbasis
+# to physical features on a single body's surface (vs. orbital
+# relationships between bodies) — bounded-local-Laplacian regime.
+# 18 seamounts spanning ~85 Myr from Meiji (oldest, near the
+# Aleutian Trench) through the Hawaiian-Emperor bend at 47.5 Myr to
+# Kilauea (presently active over the hotspot).
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "hawaii_chain"
+human_readable_name = "Hawaiian-Emperor Seamount Chain Catalogue"
+purpose = "ground-proof rows for the Hawaiian-Emperor hotspot-track seamounts (canonical bounded-local-Laplacian application: 18 seamounts spanning the Pacific Plate motion over the Hawaii mantle plume from ~85 Myr to present)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://volcanoes.usgs.gov/observatories/hvo/"
+canonical_doi = "10.1126/science.1128489"
+
+# canonical_doi above points at Sharp & Clague 2006, *Science*
+# 313:1281-1284 — the canonical 47.5 Myr bend-age determination +
+# Ar-Ar dates for Koko / Daikakuji / Yuryaku / Nintoku / Midway.
+# Per-row provenance is finer-grained: each seamount cites its
+# specific dating reference (Duncan & Keller 2004 Detroit ODP Leg
+# 197; Duncan & Clague 1985 Suiko; Keller 1995 Meiji ODP Leg 145;
+# Sharp & Clague 2006 main bend-region group; O'Connor 2013 Kammu;
+# Clague & Dalrymple 1989 Pearl-Hermes / Laysan / Necker / Niihau;
+# Garcia 2010 Kauai / Oahu / Big Island; Clague 2010 Molokai /
+# Maui).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "hawaii_chain.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Hawaiian-Emperor Chain Catalogue (curated against published geochronology literature; Sharp & Clague 2006 *Science* 313:1281-1284 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof seamount {schema.name} ({schema.arc} arc) on the Hawaiian-Emperor hotspot track"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Hawaiian-Emperor chain is the canonical bounded-local-Laplacian
+# regime: the eigenbasis lives on a finite local graph (the chain
+# itself) rather than on the global spherical-harmonic basis of
+# Earth's surface. Maps onto v0.24.9 dynamical-regime classifier's
+# bounded-local categories.
+regime_labels = [
+    "bounded_local_laplacian_trajectory",
+    "bounded_local_laplacian_family",
+]

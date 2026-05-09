@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Hawaiian-Emperor Chain AMSC backfill
+
+Sixth v0.24.x AMSC backfill. 18 seamounts spanning ~85 Myr from Meiji through the Hawaiian-Emperor bend at 47.5 Myr (Daikakuji marker) to Kilauea. First v0.24.x catalogue with the bounded-local-Laplacian regime label. Introduces the `nodoi:` DOI-prefix for pre-DOI book chapters and USGS observatory compilations. 8 new dual-author tests including arc-distribution + Meiji-oldest/Kilauea-youngest + bend-age consistency ratchets.
+
 ### Added — v0.27.0 phase A — Toroidal-Residual J₂ AMSC backfill
 
 Fifth v0.24.x AMSC backfill. 14 bodies classified on the Chandrasekhar 1969 equilibrium-figure sequence (Sphere → Maclaurin → Jacobi → bar → ring); each row pairs measured J₂ with dimensionless rotation parameter q + moment-of-inertia factor + regime + fossil-figure flag (Mercury and Luna are the canonical fossils). Per-row DOIs across the gravity-field literature (EGM2008 / Genova 2016 / Anderson 2002 / Smith 2012 MESSENGER / Konopliv 2013 GRAIL / Iess 2018 Juno / Iess 2019 Cassini / Jacobson 2014 / Jacobson 2009 / Anderson 2001 Galileo / Iess 2010). 12 new dual-author tests including a Saturn-closest-to-Maclaurin-Jacobi-bifurcation ratchet. 2012 tests pass.
