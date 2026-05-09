@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Sun Dynamical Spectrum AMSC backfill
+
+- **`research/attested/sun_dynamical_spectrum/`** — fourth v0.24.x backfill (after Mercury PR #303, Luna PR #306, Mars PR #308). 20 helioseismic p-mode rows at canonical (n, l) labels: 8 radial (l=0, n=18-25), 6 dipole (l=1, n=18-23), 6 quadrupole (l=2, n=18-23). Single row_type catalogue (`helioseismic_mode`); Sun is a methodology extension from rigid-body action-angle to continuum normal-mode oscillation spectrum.
+- Per-row source DOIs: Davies et al. 2014 (BiSON 22-yr low-degree p-mode catalogue, MNRAS 439:2025-2032).
+- **`tests/test_sun_dynamical_spectrum_dual_author.py`** — 11 tests including:
+  - `test_all_rows_share_helioseismic_mode_row_type` (single-type ratchet)
+  - `test_all_rows_are_p_modes` (mode_class enforcement)
+  - `test_n_l_grid_coverage` (the 20-row grid is pinned: l=0 n=18-25; l=1/2 n=18-23)
+  - `test_frequencies_increase_with_n_at_fixed_l` (Tassoul-asymptotic monotonicity)
+- Ratchets: `n_sources` 7 → 8; `adapter_class="curated"` 4 → 5.
+- **2000 tests pass** total — milestone marker.
+
 ### Added — v0.27.0 phase A — Mars Dynamical Spectrum AMSC backfill
 
 - **`research/attested/mars_dynamical_spectrum/`** — third v0.24.x backfill (after Mercury PR #303 and Luna PR #306). 11 rows: 8 dynamical_mode (orbital + sol-rotation + spin-axis-precession + apsidal-precession g₄ + nodal-precession s₄ angle modes; eccentricity / inclination / obliquity actions) + 3 secular_resonance (the near-resonances driving Mars obliquity chaos: spin_axis_precession ↔ s₃, spin_axis_precession ↔ s₄, apsidal_precession_g4 ↔ g3-s3). Per-row source DOIs cite Park 2021 (DE441), Le Maistre 2023 (InSight RISE), Ward 1973 (spin-axis precession), Laskar 1993 + Laskar 2004 + Laskar 2008 (chaos finding + Gyr-scale evolution + Mercury-eccentricity instability), Touma & Wisdom 1993 (independent confirmation).

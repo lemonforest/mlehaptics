@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Sun Dynamical Spectrum AMSC backfill
+
+Fourth v0.24.x AMSC backfill (after Mercury / Luna / Mars). 20 helioseismic p-mode rows at canonical (n, l) labels — the stellar-oscillation analogue of rigid-body action-angle decomposition. Davies-2014-cited BiSON catalogue values. 11 new dual-author tests including a Tassoul-asymptotic-monotonicity ratchet (frequencies increase with n at fixed l). 2000 tests pass total.
+
 ### Added — v0.27.0 phase A — Mars Dynamical Spectrum AMSC backfill
 
 Third v0.24.x AMSC backfill (after Mercury PR #303, Luna PR #306). 11 rows: 8 dynamical-mode (orbital + sol-rotation + spin-axis-precession + apsidal g₄ + nodal s₄ + eccentricity / inclination / obliquity) + 3 secular-resonance (the chaos-driving near-resonances). Per-row DOIs cite Park 2021 / Le Maistre 2023 (InSight) / Ward 1973 / Laskar 1993 / Laskar 2004 / Laskar 2008 / Touma-Wisdom 1993. 9 new dual-author tests including a secular_resonance proximity ratchet.

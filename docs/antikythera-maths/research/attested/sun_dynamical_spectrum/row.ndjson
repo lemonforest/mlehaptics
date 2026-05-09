@@ -1,0 +1,33 @@
+# Sun Dynamical Spectrum bootstrap catalogue (helioseismic p-modes).
+# Each line below is one MPR row data block (NDJSON).
+# Lines starting with "#" or empty lines are skipped by the
+# literature_curated adapter.
+#
+# Single row_type "helioseismic_mode" catalogue (20 rows): a
+# representative slice of the high-SNR p-mode comb spanning
+# n=18-25 at l=0,1,2. Frequencies are asymptotic-consistent
+# reference values from BiSON catalog (Davies 2014).
+#
+# AMSC backfill of v0.24.3 hand-coded
+# _research/sun_dynamical_spectrum_data.py for v0.27.0 phase A.
+# Hand-coded module remains the working authority.
+{"name": "n18_l0", "row_type": "helioseismic_mode", "n": 18, "l": 0, "frequency_uhz": 2629.05, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=18 (asymptotic reference).", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n19_l0", "row_type": "helioseismic_mode", "n": 19, "l": 0, "frequency_uhz": 2764.15, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=19. ν₁₉₀-ν₁₈₀ = Δν.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n20_l0", "row_type": "helioseismic_mode", "n": 20, "l": 0, "frequency_uhz": 2899.25, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=20.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n21_l0", "row_type": "helioseismic_mode", "n": 21, "l": 0, "frequency_uhz": 3034.35, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=21. Near ν_max=3090.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n22_l0", "row_type": "helioseismic_mode", "n": 22, "l": 0, "frequency_uhz": 3169.45, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=22.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n23_l0", "row_type": "helioseismic_mode", "n": 23, "l": 0, "frequency_uhz": 3304.55, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=23.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n24_l0", "row_type": "helioseismic_mode", "n": 24, "l": 0, "frequency_uhz": 3439.65, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=24.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n25_l0", "row_type": "helioseismic_mode", "n": 25, "l": 0, "frequency_uhz": 3574.75, "mode_class": "p", "precision_flag": "high", "notes": "Radial p-mode n=25.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n18_l1", "row_type": "helioseismic_mode", "n": 18, "l": 1, "frequency_uhz": 2695.7, "mode_class": "p", "precision_flag": "high", "notes": "Dipole p-mode n=18,l=1. Offset from (n,0) by Δν/2.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n19_l1", "row_type": "helioseismic_mode", "n": 19, "l": 1, "frequency_uhz": 2830.84, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n20_l1", "row_type": "helioseismic_mode", "n": 20, "l": 1, "frequency_uhz": 2965.98, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n21_l1", "row_type": "helioseismic_mode", "n": 21, "l": 1, "frequency_uhz": 3101.12, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n22_l1", "row_type": "helioseismic_mode", "n": 22, "l": 1, "frequency_uhz": 3236.25, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n23_l1", "row_type": "helioseismic_mode", "n": 23, "l": 1, "frequency_uhz": 3371.38, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n18_l2", "row_type": "helioseismic_mode", "n": 18, "l": 2, "frequency_uhz": 2761.51, "mode_class": "p", "precision_flag": "high", "notes": "Quadrupole p-mode. Pairs with (n+1, l=0) via small separation δν₀₂.", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n19_l2", "row_type": "helioseismic_mode", "n": 19, "l": 2, "frequency_uhz": 2896.73, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n20_l2", "row_type": "helioseismic_mode", "n": 20, "l": 2, "frequency_uhz": 3031.95, "mode_class": "p", "precision_flag": "high", "notes": "(n=20, l=2) and (n=21, l=0) define small separation δν₀₂(n=20).", "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n21_l2", "row_type": "helioseismic_mode", "n": 21, "l": 2, "frequency_uhz": 3167.15, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n22_l2", "row_type": "helioseismic_mode", "n": 22, "l": 2, "frequency_uhz": 3302.34, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "n23_l2", "row_type": "helioseismic_mode", "n": 23, "l": 2, "frequency_uhz": 3437.53, "mode_class": "p", "precision_flag": "high", "notes": null, "source_doi": "10.1093/mnras/stu080", "source_published_date": "2014-04", "entered_locally_at": "2026-05-09", "source_version": null}

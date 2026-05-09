@@ -1,0 +1,73 @@
+# Sun Dynamical Spectrum — helioseismic p-mode action-angle decomposition.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.3
+# hand-coded `_research/sun_dynamical_spectrum_data.py` module.
+# The Sun is a methodology extension: rigid-body action-angle (Mercury
+# / Luna / Mars) → continuum normal-mode oscillation spectrum
+# (helioseismology). Each p-mode at canonical (n, l) labels is one
+# action-angle frequency of the stellar oscillation. The catalogue
+# ships a representative slice of the high-SNR p-mode "comb" used
+# for asteroseismic-instrument validation.
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+#
+# Pattern follows research/attested/{mercury,luna,mars}_dynamical_spectrum/
+# (PRs #303, #306, #308).
+
+[source]
+key = "sun_dynamical_spectrum"
+human_readable_name = "Sun Dynamical Spectrum (Helioseismic p-mode) Catalogue"
+purpose = "ground-proof rows for the Sun's helioseismic p-mode spectrum across canonical (n, l) labels — the stellar-oscillation analogue of rigid-body action-angle decomposition; reference frequencies for the Tassoul-1980 asymptotic-relation closure invariant"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://bison.ph.bham.ac.uk/"
+canonical_doi = "10.1093/mnras/stu080"
+
+# canonical_doi above points at Davies et al. 2014, *MNRAS* 439:2025-
+# 2032 — the Birmingham Solar Oscillations Network (BiSON) 22-year
+# (now 30+) low-degree p-mode catalogue. Per-row provenance: every
+# row is davies_2014-cited. Module-level constants (Δν, δν, ν_max,
+# ε from Tassoul 1980 / Christensen-Dalsgaard 2002 review) live in
+# the hand-coded module's scalar attributes and aren't AMSC rows.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "sun_dynamical_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Sun Dynamical Spectrum Catalogue (curated against published literature; Davies et al. 2014 *MNRAS* 439:2025-2032 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof p-mode at (n, l) for Sun helioseismic action-angle decomposition"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# The Sun's p-mode spectrum is the canonical continuum-normal-mode
+# decomposition. The v0.24.9 dynamical-regime classifier doesn't yet
+# have a regime label specifically for stellar oscillations, but the
+# closest existing label is rigid_body_action_angle_stable (the modes
+# are extremely stable on observational timescales modulo the ~0.4
+# μHz solar-cycle shift). A future regime label
+# (`stellar_oscillation_continuum`) would be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
