@@ -2,13 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "saturn_rings.ring_feature.v1",
   "title": "Saturn ring-system feature row",
-  "description": "One feature in Saturn's ring system. Covers ring boundaries, gaps, resonance anchors, shepherd moons, and edge structures. The feature_type field discriminates row sub-shape; required fields are the ones every feature shares (name, feature_type, radial_distance_km, source_doi). Optional fields are populated where the feature_type and the cited source supply them.",
+  "description": "One feature in Saturn's ring system. Covers ring boundaries, gaps, resonance anchors, shepherd moons, and edge structures. The feature_type field discriminates row sub-shape; required fields are the ones every feature shares (name, feature_type, radial_distance_km, source_doi, source_published_date, entered_locally_at). Optional fields are populated where the feature_type and the cited source supply them.",
   "type": "object",
   "required": [
     "name",
     "feature_type",
     "radial_distance_km",
-    "source_doi"
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
   ],
   "additionalProperties": true,
   "properties": {
@@ -67,6 +69,20 @@
       "type": "string",
       "minLength": 5,
       "description": "DOI of the peer-reviewed paper or canonical reference authorising this row's numerical values. Required by the literature_curated adapter for per-row attestation. ISBN form acceptable for textbook citations (e.g., 'isbn:978-0521575973' for Murray-Dermott 1999)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 date when the cited paper / textbook / archive entry was published. Format: 'YYYY' (year only, e.g., '1999' for textbooks where exact issue date doesn't matter), 'YYYY-MM' (year + month for journal issues), or 'YYYY-MM-DD' (full date for online papers). Curator-authored from the cited DOI's metadata. Distinct from attestation.retrieved_at (when the framework processed this row); aligns with Dublin Core dcterms:issued."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was first added to the catalogue or last meaningfully amended. Curator-authored. Lets future MPM auditors trace when the catalogue took its current shape independent of when the underlying papers were published. Aligns with Dublin Core dcterms:dateAccessioned."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For archives or textbook editions where the version matters (e.g., 'DE441' for an ephemeris kernel; '1st edition' or '2nd edition' for textbook citations; an archive release tag like 'v4.2'). Null for journal papers where the DOI fully resolves the version."
     },
     "notes": {
       "type": ["string", "null"],

@@ -57,12 +57,12 @@
       "size_bytes": 3610
     },
     "_research/attested/saturn_rings/ring_feature.ndjson": {
-      "sha256": "6ce13ccb522792fcdfe73f97776d847979363a19450396f455f7233f0aeac82b",
-      "size_bytes": 7255
+      "sha256": "480bef3be9b35f240bd0067536dade6f943f6fb2aed85e1f2f1b8bdfe77b3595",
+      "size_bytes": 8507
     },
     "_research/attested/saturn_rings/ring_feature.schema.json": {
-      "sha256": "08fb30debef29884daf7479d105d87b41e7e06d74a97b2257974c76e27adc68c",
-      "size_bytes": 3937
+      "sha256": "d30257f1e1f2a012d553e1448a27c76bf4ceb7244c78897d1aa82c2649dd9a5f",
+      "size_bytes": 5357
     },
     "_research/attested_adapters/__init__.py": {
       "sha256": "a31d47928869e0c6bcd97a9dd48f7c5eea76432b8ab6c361e5c6dcd27431c837",
@@ -89,16 +89,16 @@
       "size_bytes": 6327
     },
     "_research/attested_adapters/literature_curated.py": {
-      "sha256": "9a98160cd8e168ec85e9db3fd91c12dd72c058852cd51f26388f3cef8cbd41a4",
-      "size_bytes": 4761
+      "sha256": "9ef1ab5d72787cfee8c8de17daeb1e249c9631df8f7487a4390752e1b40c1ea5",
+      "size_bytes": 6600
     },
     "_research/attested_adapters/netcdf_grid.py": {
       "sha256": "3bdea890850b701d99c0ff4dbc9ba734098124b099c4c5ecfaa8cf77b5e2b86c",
       "size_bytes": 1851
     },
     "_research/attested_collector_catalog.py": {
-      "sha256": "d0c3a99cf452acb9ad550c45187deb899af675b3c2711d9e9c943d752314bc10",
-      "size_bytes": 21761
+      "sha256": "8e8dd115e091e975935a1f3118fa1f0dc98331c502232af7eecf5276100e7966",
+      "size_bytes": 27042
     },
     "_research/attested_collector_descriptor.py": {
       "sha256": "44a0a363ff77aaff7c7181a23243eb45e3118202c11e39bdddede9e4b4fbdf2d",

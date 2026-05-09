@@ -53,6 +53,7 @@ References
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -240,6 +241,126 @@ def _resolved_ndjson_path(descriptor: Descriptor) -> Path:
     return _ndjson_path(descriptor)
 
 
+def _iter_records_for_descriptor(
+    descriptor: Descriptor, ndjson: Path
+) -> Iterator[MPRRecord]:
+    """Yield MPRRecords for a descriptor's committed NDJSON.
+
+    Two on-disk formats are recognised, dispatched on adapter type:
+
+    * **Live-fetcher adapters** (html_scraper, json_api, csv_bulk,
+      netcdf_grid, geotiff_bbox) — committed NDJSON is the byte-exact
+      output of a prior ``_base.run()`` invocation: full MPRRecord
+      shape per line (data + attestation + rendering). Read via
+      ``read_ndjson()``.
+    * **literature_curated** — committed NDJSON is curator-friendly
+      data-only (one row's data block per line; no attestation /
+      rendering). Synthesise the full MPRRecord at read time using
+      the descriptor's metadata + per-row data hash. This keeps the
+      curator's authoring experience light (hand-edit one JSON
+      object per line) while preserving the runtime invariant that
+      ``get_attested_dataset()`` returns full attestation + rendering
+      blocks.
+
+    For unknown adapter names, falls back to read_ndjson() — same
+    behaviour as before this dispatch was introduced.
+    """
+    adapter_name = descriptor.adapter_name
+    if adapter_name == "literature_curated":
+        yield from _iter_literature_curated_records(descriptor, ndjson)
+    else:
+        yield from read_ndjson(ndjson)
+
+
+def _iter_literature_curated_records(
+    descriptor: Descriptor, ndjson: Path
+) -> Iterator[MPRRecord]:
+    """Read a literature_curated descriptor's data-only NDJSON and
+    synthesise full MPRRecords at read time.
+
+    Attestation block fields synthesised per-row:
+
+    * ``source_doi`` — from the row's ``data.source_doi`` (per-row
+      DOI; the descriptor's ``canonical_doi`` is the catalogue-wide
+      fallback for live-fetcher adapters but each literature-curated
+      row carries its own paper-level DOI).
+    * ``source_url`` — descriptor's ``[source].homepage``.
+    * ``license`` — descriptor's ``[source].license``.
+    * ``retrieved_at`` — the row's ``data.entered_locally_at``,
+      converted to an ISO 8601 datetime at midnight UTC. This is
+      deterministic per-row (curator-supplied) and stable across
+      reads, so ``response_sha256`` stays byte-stable.
+    * ``response_sha256`` — SHA-256 over canonical JSON encoding of
+      the row's data block. Each row is its own attestation unit
+      since rows are independently authored.
+    * ``parser_version`` — ``"literature_curated/v1"`` (constant).
+    * ``parser_rule_hash`` — adapter base hash of the descriptor's
+      ``[parse]`` section (same as live-fetcher adapters).
+    * ``collector_descriptor_path`` + ``collector_descriptor_hash``
+      — descriptor file name + canonical-serialisation SHA.
+    """
+    from .attested_adapters import literature_curated as _lc
+    from .attested_adapters._base import parser_rule_hash as _rule_hash
+    from .attested_collector_descriptor import descriptor_hash as _desc_hash
+    from .attested_collector_format import sha256_bytes as _sha256
+
+    raw = ndjson.read_bytes()
+    rule_hash = _rule_hash(descriptor.parse)
+    desc_hash = _desc_hash(descriptor.path)
+    data_schema_id = str(descriptor.schema["data_schema_id"])
+    license_val = str(descriptor.source["license"])
+    homepage = str(descriptor.source.get("homepage", ""))
+
+    for row_index, data in enumerate(_lc.parse(raw, descriptor), start=1):
+        # Canonical-JSON encoding for byte-stable response_sha256.
+        row_bytes = json.dumps(
+            data, sort_keys=True, ensure_ascii=False
+        ).encode("utf-8")
+        row_sha256 = _sha256(row_bytes)
+
+        # entered_locally_at is YYYY-MM-DD; convert to a midnight-UTC
+        # ISO 8601 stamp for retrieved_at compatibility.
+        entered = str(data.get("entered_locally_at", ""))
+        retrieved_at = (
+            f"{entered}T00:00:00Z" if entered else "1970-01-01T00:00:00Z"
+        )
+
+        attestation = {
+            "source_doi": str(data.get("source_doi", "")),
+            "source_url": homepage,
+            "license": license_val,
+            "retrieved_at": retrieved_at,
+            "response_sha256": row_sha256,
+            "parser_version": "literature_curated/v1",
+            "parser_rule_hash": rule_hash,
+            "collector_descriptor_path": str(descriptor.path.name),
+            "collector_descriptor_hash": desc_hash,
+        }
+
+        rendering = {
+            "human_readable_name": (
+                f"{descriptor.source['human_readable_name']} — row {row_index}"
+            ),
+            "cite_as": str(
+                descriptor.rendering.get("cite_as_template", "")
+            ).replace("{retrieved_at:%Y-%m-%d}", entered or "unknown"),
+            "purpose": (
+                f"ground-proof row for "
+                f"{data.get('regime_label', 'unspecified')} regime "
+                f"(literature-curated, source DOI: "
+                f"{data.get('source_doi', '<missing>')})"
+            ),
+        }
+
+        yield MPRRecord(
+            mpr_version="1.0",
+            data=data,
+            data_schema_id=data_schema_id,
+            attestation=attestation,
+            rendering=rendering,
+        )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Bridge surfaces
 # ──────────────────────────────────────────────────────────────────────
@@ -344,7 +465,8 @@ def get_attested_dataset(
 
     rows: List[Dict[str, Any]] = []
     total = 0
-    for record in read_ndjson(ndjson):
+    record_iter = _iter_records_for_descriptor(descriptor, ndjson)
+    for record in record_iter:
         total += 1
         if total - 1 < offset:
             continue
@@ -571,7 +693,7 @@ def iter_attested_dataset(source_key: str) -> Iterator[MPRRecord]:
     ndjson = _resolved_ndjson_path(descriptor)
     if not ndjson.exists():
         return iter(())
-    return read_ndjson(ndjson)
+    return _iter_records_for_descriptor(descriptor, ndjson)
 
 
 __all__ = [
