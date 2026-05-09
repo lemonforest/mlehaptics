@@ -7,6 +7,164 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-05-09
+
+B-spike-3 from notebook §20.15 ships (partial): **encoder-eval
+speedup work** — bench harness + `spectral_hybrid` evaluator
+that computes channel energy directly from a `SpectralBIPHybrid2D`
+(skipping the float decode) + LRU-cached wrapper + float32
+sibling + diagnostic baselines. **§20.15 acceptance gate met for
+the cache-hit path:** ~15× faster than `spectral_float64` at the
+warm-LRU steady state. No breaking changes vs 1.12.x.
+
+### Why this is the 1.13.0 ship
+
+§20.15's three-tier B-spike phasing's fourth leg — make the
+spectral evaluator's hot path faster for the §16 search engine and
+chess4D-OC consumers. The user-mandated discipline: **bench harness
+first; speedup claims must come from measured numbers on a fixed
+corpus**. No CHANGELOG entry without bench-validated deltas.
+
+### Empirical findings (notebook §20.19)
+
+Bench corpora: 5 opening + 5 midgame + 5 endgame FENs; 500 iters
+per (variant × position); median-of-medians per corpus reported.
+
+| Variant | Opening (µs) | Midgame (µs) | Endgame (µs) | vs float64 baseline |
+|---|---|---|---|---|
+| material (reference) | 4 | 8 | 2 | — |
+| **spectral_float64** (1.0–1.12.x default) | **540** | **511** | **233** | 1× |
+| qm | 1280 | 1690 | 1276 | 2-3× slower |
+| spectral_float32 | 747 | 787 | 350 | **null** (no consistent win) |
+| spectral_hybrid_8bit_full (encode+eval) | 1079 | 1111 | 656 | 2× slower |
+| **spectral_hybrid_8bit_from_cache** | **36** | **38** | **37** | **~15× / ~14× / ~6× faster** |
+| **spectral_hybrid_8bit_lru** (warm cache) | **35** | **36** | **39** | **~15× / ~14× / ~6× faster** |
+
+**Headline:** the cache-hit path (a) and LRU-cached wrapper (b)
+deliver ~15× speedup at the warm-LRU steady state. The full
+encode+eval hybrid path (a-with-encode) is *slower* than the
+float64 baseline because the extra quantization step adds work;
+the speedup only materializes when the hybrid form is precomputed
+and reused.
+
+**Null result:** path (d) — float32 downstream of the float64
+encoder — shows no consistent speedup. Encoder cost dominates
+(~700 µs) and the float32 cast adds ~50 µs of conversion work.
+Mirrors the ephemerides two-stage architecture (complex128 →
+complex64) but only wins when the encoder itself goes float32-
+native, which is a separate ship.
+
+**Deferred:** path (c) — Pyodide pure-int loop. Can't be
+bench-validated from CPython (numpy is faster than pure-Python on
+CPython for these arrays). The win lives on Pyodide / WASM where
+numpy-on-WASM has per-call overhead. Picks up when chess4D-OC's
+Pyodide profile surfaces an empirical bottleneck.
+
+### Added — `chess_spectral.engine.eval.spectral_hybrid` module
+
+- `evaluate(pos, side, *, magnitude_bits=8)` — full encode + eval
+  path; bench-comparable to `spectral.evaluate` (slightly slower
+  due to the quantization step).
+- `evaluate_from_hybrid(hybrid, side)` — cache-hit fast path;
+  takes a precomputed `SpectralBIPHybrid2D` and skips encoding
+  entirely. **The big-speedup entry point** — ~15× faster than
+  `spectral_float64` at warm-LRU steady state.
+- `channel_energies_from_hybrid(hybrid)` — per-channel energy
+  computation directly from integer storage. The mathematical
+  identity: `‖v_c‖² = Σᵢ (sign × mag)² = Σᵢ mag²` (sign cancels
+  in squared sum), so use uint8² sum + per-channel scale²
+  multiply.
+
+### Added — `chess_spectral.engine.eval.spectral_hybrid_cache` module
+
+- `HybridCache(max_size=10000)` — LRU cache of
+  `SpectralBIPHybrid2D` keyed by position-dict hash. Tracks
+  `hits` / `misses` / `hit_rate` for diagnostic output.
+  Supports `move_to_end` LRU semantics on access; evicts least-
+  recently-used on overflow.
+- `make_cached_evaluator(*, magnitude_bits=8, cache_size=10000,
+  weights=None)` — factory returning `(evaluator_fn, cache)`. The
+  `evaluator_fn` is suitable for `SearchOptions.evaluator`. Models
+  the §16 search-engine integration shape; a search at depth 4-6
+  with typical 30-70% TT hit rates should see 1.4-3.5× search-time
+  speedup.
+
+### Added — `chess_spectral.engine.eval.spectral_float32` module
+
+- `evaluate(pos, side, *, weights=None)` — float32 downstream
+  variant. Mirrors the ephemerides two-stage architecture
+  (notebook §20.19; ephemerides notebook line 15). Shipped as a
+  build-block sibling for the float32-native encoder work
+  (deferred), even though the standalone bench shows null.
+- `channel_energies_f32(v)` — per-channel L2 energy in float32.
+
+### Added — `tests/bench_spectral_eval.py`
+
+Diagnostic benchmark harness. Variants registered as plug-ins;
+adding a new variant is one decorator + one import. Corpora:
+opening (5 FENs), midgame (5), endgame (5). Reports mean / median
+/ p95 / min / max in µs per (variant × position). Output: human
+table to stdout + structured JSON via `--output PATH`. The 1.13.0
+baseline + post-implementation results live at
+`tests/bench_baselines/before_1.13.0.json` and
+`tests/bench_baselines/after_b_spike_3_partial.json`.
+
+### Added — 33 immolation tests in `tests/test_spectral_hybrid_eval.py`
+
+- Channel-energy parity: hybrid agrees with float64 baseline
+  within 5% relative on every channel for the 6-FEN representative
+  corpus.
+- Sign-of-score agreement: hybrid evaluator's sign matches
+  float64 baseline (the load-bearing search-correctness property).
+- Magnitude envelope: hybrid score within 5% relative of float64.
+- 4-bit hybrid sign agreement (looser tolerance — still exact
+  on the corpus).
+- HybridCache LRU semantics: empty start, miss-then-hit, LRU
+  eviction policy, hit/miss counter accuracy.
+- `make_cached_evaluator` integration: returns callable + cache;
+  distinct positions hash to distinct keys; second pass is all
+  hits.
+- `spectral_float32` sign agreement within 1e-4 relative of
+  float64 baseline.
+- Cached-evaluator-vs-baseline corpus integration check (the
+  search-correctness property at the cache layer).
+
+### §16.7 amendment — Othello prior contamination
+
+Notebook §16.7 has been amended (2026-05-09) to flag that the
+Edax-spectral-Reversi finding (+243 ELO at L6, decays to 0 at L10+)
+came from an ML-augmented fork of vanilla Edax. The spectral-
+weights contribution can't be cleanly separated from the ML
+black-box's contribution; the depth-decay claim is not load-
+bearing. **B-spike-3 is no longer gated on whether chess
+replicates the Othello result**; tournament validation is open
+empirical work for chess to do on its own.
+
+### What this 1.13.0 does NOT do
+
+- Does not modify the existing `spectral.evaluate` path. 1.0–1.12.x
+  consumers see no behavior change.
+- Does not change `encode_640` / `encode_4d`. C parity tests pass
+  unchanged.
+- Does not implement a float32-native encoder (deferred — touches
+  encoder.py + tables.py + C parity).
+- Does not implement Pyodide-friendly pure-Python channel-energy
+  loop (deferred until chess4D-OC bench surfaces it).
+- Does not run a §16 tournament. The cached evaluator is wired to
+  plug into search but tournament validation is Phase 7+.
+
+### Notebook updates
+
+- §16.7 amendment — Othello data ML-contamination disclaimer.
+- §20.19 — B-spike-3 implementation update with empirical bench
+  numbers + cross-pollination ack to ephemerides Phase 9 cosine
+  LUT + Q-format integer-frequency design.
+- §20.20 (renumbered from §20.19) — joint progress summary table
+  updated to mark B-spike-3 shipped (partial); 4 of 5 phases now
+  shipped.
+- §20.21 / §20.22 (renumbered from §20.20 / §20.21) — sibling
+  project sections.
+
 ## [1.12.0] — 2026-05-04
 
 B-spike-2 from notebook §20.15 ships: **encoder BIP-hybrid** —

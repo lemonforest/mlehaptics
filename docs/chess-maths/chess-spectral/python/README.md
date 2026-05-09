@@ -28,6 +28,56 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.13 (May 2026)
+
+The §20.15 fourth-tier ship (partial): **encoder-eval speedup work**.
+A new `spectral_hybrid` evaluator computes channel energy directly
+from a `SpectralBIPHybrid2D` (skipping the float decode step), an
+LRU-cached wrapper makes that practical for the §16 search engine,
+and a benchmark harness records before/after numbers for each path.
+**~15× speedup** at the warm-LRU steady state vs `spectral_float64`.
+
+- **`spectral_hybrid` module** — `evaluate`, `evaluate_from_hybrid`,
+  `channel_energies_from_hybrid`. The mathematical identity:
+  `‖v_c‖² = Σ (sign × mag)² = Σ mag²` (sign cancels in squared
+  sum), so use uint8² sum + per-channel scale² multiply. Skips
+  the float decode step entirely on the cache-hit path.
+
+- **`spectral_hybrid_cache` module** — `HybridCache` LRU plus
+  `make_cached_evaluator(magnitude_bits=8, cache_size=10000)`
+  factory returning `(evaluator_fn, cache)`. Drop the callable
+  into `SearchOptions.evaluator` and inspect `cache.stats()` for
+  hit/miss diagnostics. Models the §16 TT-cache-hit pattern.
+
+- **`spectral_float32` module** — float32 downstream sibling
+  mirroring the ephemerides two-stage architecture (their
+  complex128 → complex64 is our float64 → float32). Shipped
+  despite a null bench result on the standalone path; a build-
+  block for future float32-native encoder work.
+
+- **`tests/bench_spectral_eval.py`** — diagnostic benchmark
+  harness with three corpora (opening / midgame / endgame).
+  Variants registered as plug-ins; the discipline: **no speedup
+  claim ships in the CHANGELOG without measured numbers from
+  this harness on a fixed corpus**. Baselines saved at
+  `tests/bench_baselines/before_1.13.0.json`.
+
+- **§16.7 amendment** — the Othello prior (Edax-spectral, +243 Elo
+  at L6 / 0 Elo at L10+) is now flagged as ML-fork-contaminated;
+  B-spike-3 is no longer gated on the depth-decay claim. The
+  §16.5 design discipline (test multiple depths, audit training
+  target, don't trust eval-task RMSE as Elo proxy) remains sound.
+
+- **33 new immolation tests** lock the algebraic identity (channel-
+  energy from hybrid agrees with float64 within 5% relative on
+  the corpus; sign agreement exact at 8-bit and 4-bit), the LRU
+  cache semantics, and the float32 sign-agreement-within-1e-4
+  property.
+
+This is **B-spike-3** in the §20.15 phasing — 4 of 5 phases now
+shipped (1.10.0-1.13.0). B-spike-4 (pure-phase rewrite) remains
+parked behind clear empirical motivation.
+
 ## What's new in v1.12 (May 2026)
 
 The §20.15 third-tier ship: **encoder BIP-hybrid** — sign × magnitude
