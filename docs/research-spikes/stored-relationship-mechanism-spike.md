@@ -60,6 +60,20 @@ What each domain *adds* that the others don't address — these are the architec
 
 ---
 
+## Adjacent / future kernel candidates: graphics-domain orphan work
+
+The eight spectral-domain notebooks are this spike's primary scope. Three additional graphics-domain implementations exist in the project's broader work — none notebook-tier, but all empirical evidence that the kernel pattern lifts beyond board-game / orbital-mechanics / first-person-shooter substrates onto graphics:
+
+- **Inkscape kernel** — `lemonforest/inkscape` `spectral-faithful` branch. Three new SVG filter primitives: `feSpectralBilateral`, `feSpectralDistance`, `feSpectralNoise`. 5-point lattice Laplacian → DCT eigenbasis → Perona-Malik / Varadhan SDF / power-spectrum noise. Did not land upstream because the primitives aren't in W3C SVG Filter Effects spec + 22–50× slowdown vs default at small radii. Vector roundtrip degrades because other SVG renderers don't ship the filters.
+- **Skia kernel** — `lemonforest/spectral-skai` `spectral-faithful` branch. More substantive than Inkscape: `SkLatticeDCT` (full DCT-II/III + heat kernel), `SkSpectralBlur`, `SkSpectralBilateral`, `SkSpectralDistanceField`, `SkShaders::SpectralNoise`, **`SkPhase9BIP`** (32×uint32 residue vectors + cyclic-group binding via coprime-roll — this is HDC, structurally identical to the project's existing chess + ephemerides BIP family), `SkRadix2FFT` (Makhoul real-input DCT via FFT). Parity tests at residual ≤ 1.4e-14. Did not land upstream because of Google Gerrit's FIDO2 contribution gate, NOT technical reasons.
+- **GEGL / GIMP venue** (recommended fresh target): GEGL is the graph-based image-processing engine GIMP uses; its node graph is an architectural 1:1 fit with the layer-3 scaffold. A GEGL kernel would register operations like `gegl:spectral-bilateral`, `gegl:spectral-distance`, `gegl:spectral-noise` consuming the same DCT/heat-kernel substrate the Skia fork already implements. GIMP auto-picks-up new GEGL ops; distribution via standalone repo + `~/.local/share/gegl-0.4/plug-ins/` (no GIMP recompile). Wider raster-editor reach than Inkscape because the spectral filters' value is in raster *export* — the visible effect manifests at raster-render time, not at vector-edit time.
+
+A complementary **Pyodide PWA "no-install" demo** could ride on the project's existing `ephemerides-spectral` wheel (the BIP encoder is the `SkPhase9BIP` cousin in math). Maximum reach for "show people" — anyone with a browser tries it, no GIMP required.
+
+These three are not kernel-loading-interface candidates *yet* — they're orphan or future work that would consume the same layer-3 spectral scaffold (DCT eigenbasis + heat kernel + Perona-Malik + Varadhan SDF + power-spectrum noise + cyclic-group binding) under different hosts. Each new host (Inkscape, Skia, GEGL, Pyodide) is a separate kernel registration. **Host interchangeable; kernel load-bearing.** That's the empirical claim worth testing once Spike 1 (channel-shape abstraction) below passes — if the Protocol unifies chess's 11-channel D4 with ephemerides' per-body action-angle, it should also unify those with a 2D-lattice DCT eigenbasis + format-dispatcher pattern. Tracked as task `#168` for post-spike v0.28.x+ exploration.
+
+---
+
 ## What's genuinely domain-specific
 
 The domain-specific surfaces across all eight projects:
