@@ -3831,6 +3831,70 @@ The §20.15 phasing table is now fully resolved. B-spike-1a (sheet BIP), 1b (ALU
 
 The next chess-side ship is whatever the user prioritizes. Possible directions: (1) vectorize the per-piece Python loop, which would benefit ALL evaluator variants; (2) port the pure-phase encoder to C for the matrix-arithmetic SIMD win without Python overhead; (3) ship a chess4D-OC integration that adopts the cached evaluator from 1.13.0 and validates the Pyodide path for §20.19 (c). All three are post-§20 work.
 
+#### 2026-05-09 amendment — 2D/4D parity regression repaired + pedantic stress tests added
+
+The original 1.14.0 ship (this section's first writing) shipped pure-phase encoder for 2D only, AND the 1.13.0 spectral_hybrid evaluator family was 2D-only. The user flagged this as a parity regression and refused to merge until repaired. The amendment:
+
+1. **4D evaluator parity restored** (1.13.0 work back-filled into 1.14.0):
+   - `chess_spectral.engine.eval.spectral_hybrid` now exposes
+     `evaluate_from_hybrid_4d`, `channel_energies_from_hybrid_4d`,
+     and `evaluate_4d` — full parity with the 2D versions.
+   - `chess_spectral.engine.eval.spectral_hybrid_cache` now exposes
+     `make_cached_evaluator_4d` — the LRU-cached evaluator factory
+     for 4D, mirroring the 2D version.
+   - The `SpectralBIPHybrid4D` dataclass shipped in 1.12.0 already had
+     the storage; 1.14.0 just adds the eval-side wrappers.
+
+2. **`encode_4d_pure_phase` deferred** to 1.15.0+. The 2D pure-phase
+   encoder works because D₄ irrep projection has an integer character
+   formula at the core. 4D's B₄ structure uses sparse matrix arithmetic
+   (`P_A1 @ sig`) and float-table fiber accumulation (`coord_resid`,
+   `FIBER_LOCAL`, `W_ANTI_DCT`, `Y_ANTI_DCT`), without the same
+   integer-character convenience. A meaningful 4D pure-phase encoder
+   needs more design work; deferred until empirical motivation
+   surfaces. The 4D hybrid encoder (1.12.0+) already provides the
+   integer-storage path; the eval-side parity above is what was
+   missing.
+
+3. **Pedantic non-deterministic stress testing**:
+   - `tests/_random_positions.py` — deterministic seeded RNG that
+     generates random 2D and 4D positions across sparse-to-dense
+     piece counts. Reproducible across CI runs.
+   - `tests/test_pure_phase_stress_2d.py` — 9 stress tests against
+     **1000 random 2D positions**. Locked acceptance gates:
+       * cosine-sim ≥ 0.99 on **every single position** (no
+         exceptions; documented failure modes if any drop below)
+       * median cosine-sim ≥ 0.999
+       * D₄-channel bit-exactness on every position
+       * channel-energy Spearman ρ ≥ 0.99 across all (pos,
+         channel) pairs
+       * no NaN / Inf in output
+       * int32 output stays well within bounds (max abs < 2³⁰)
+     **Result: all 9 tests pass.** The hand-picked 7-FEN findings
+     hold at scale.
+   - `tests/test_spectral_hybrid_4d_stress.py` — 8 stress tests
+     against **500 random 4D positions** (smaller corpus because the
+     4D encoder is ~10× more expensive per call). Locks:
+       * channel-energy parity within 5% relative on every channel
+       * sign-of-score agreement between hybrid and float baseline
+       * channel-energy Spearman ρ ≥ 0.99
+       * no NaN / Inf
+       * cached evaluator's hits ≡ misses semantics at scale
+       * LRU eviction works correctly when corpus exceeds cache cap
+     **Result: all 8 tests pass.** The 4D parity additions are
+     correct at scale.
+
+#### Why this matters
+
+The §20.15 acceptance numbers in this section were measured on a 7-FEN hand-picked corpus. The user's framing: *"how did you partition open/mid/end games?"* — the answer was honest (hand-picked, not principled). The pedantic stress tests address that gap by validating the encoder + evaluators on 1500 random positions across a wide piece-count distribution. The acceptance gates hold; B-spike-4's empirical conclusions weren't artifacts of the hand-picked corpus.
+
+What the stress tests **don't** address (deferred to a future ship):
+
+- **Tournament-driven evaluator validation** — the question of whether `spectral_hybrid_8bit_lru` actually beats `material` at deep search via the §16 tournament harness. The hybrid evaluator is ~15× faster than `spectral_float64` at warm-LRU steady state per §20.19; whether that translates to ELO at depth ≥ 8 is an open empirical question.
+- **Move-generation cost in the bench** — the existing bench measures only `evaluator(pos, side)` static cost. Move-gen is benched separately in `tests/bench_phase_operator_movegen.py` (§20.17). Combining them into a search-tree bench (negamax cost / depth, nodes/sec) is real but separate work.
+- **PGN-sourced phase classification** — instead of hand-picked open/mid/end FENs, sample real games and cluster channel-energy fingerprints to define data-driven phase labels. Would let us bench against position distributions that match real play. Per §20's framing, the encoder *is* an FFT-equivalent, so its own channel-energy fingerprint is a natural feature space for clustering. Future ship.
+- **`encode_4d_pure_phase`** — see point 2 above. Deferred.
+
 ### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:

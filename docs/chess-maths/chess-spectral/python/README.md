@@ -66,6 +66,28 @@ clean win. **All five §20.15 phases now shipped**.
 **B-spike-4** in the §20.15 phasing — the fifth and final
 phase. 1a → 1b → 2 → 3 → 4, all shipped within ~5 days.
 
+**1.14.0 amendment (May 2026) — 4D parity restored + pedantic stress tests added.**
+The original 1.14.0 ship was 2D-only and 1.13.0's
+`spectral_hybrid` evaluator family was 2D-only too — both
+flagged as a parity regression. Amendment:
+
+- **4D evaluator parity restored**: `evaluate_from_hybrid_4d`,
+  `channel_energies_from_hybrid_4d`, `evaluate_4d`,
+  `make_cached_evaluator_4d` — full parity with the 2D
+  versions, using the 1.12.0 `SpectralBIPHybrid4D` storage.
+- **Pedantic stress testing**: 1000 random 2D positions for
+  the pure-phase encoder, 500 random 4D positions for the
+  hybrid evaluator family. **All 17 stress tests pass.**
+  Acceptance gates (cosine-sim ≥ 0.99 every position; D₄ bit-
+  exactness; channel-energy Spearman ρ ≥ 0.99; no NaN; LRU
+  semantics) hold at scale.
+- **`encode_4d_pure_phase` deferred** to 1.15.0+. 2D's
+  pure-phase encoder works because D₄ has an integer character
+  formula; 4D's B₄ structure uses sparse-matrix arithmetic
+  without the same convenience. The 4D hybrid encoder (1.12.0)
+  already provides integer storage; this amendment closes the
+  eval-side parity gap.
+
 ## What's new in v1.13 (May 2026)
 
 The §20.15 fourth-tier ship (partial): **encoder-eval speedup work**.

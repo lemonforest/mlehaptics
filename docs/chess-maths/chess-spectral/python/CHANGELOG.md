@@ -139,6 +139,90 @@ int8; int16 has ample headroom).
 - **Does not change `encode_640` / `encode_4d` defaults.** C
   parity tests pass unchanged.
 
+### 2026-05-09 amendment — 4D parity regression repaired + pedantic stress tests added
+
+The original 1.14.0 ship was 2D-only for the pure-phase encoder,
+AND the 1.13.0 spectral_hybrid evaluator family was 2D-only.
+User flagged this as a parity regression and refused to merge
+until repaired. Amendment scope:
+
+#### 4D evaluator parity restored
+
+- `chess_spectral.engine.eval.spectral_hybrid` now exposes
+  **`channel_energies_from_hybrid_4d`**, **`evaluate_from_hybrid_4d`**,
+  and **`evaluate_4d`** — full parity with the 2D versions
+  shipped in 1.13.0. Same algebraic identity (sign cancels in
+  squared sum; uint32 sum-of-squares + per-channel scale²
+  multiply); 11-channel × 4096-dim coverage.
+- `chess_spectral.engine.eval.spectral_hybrid_cache` now exposes
+  **`make_cached_evaluator_4d`** — LRU-cached 4D evaluator
+  factory. Returns `(evaluator_fn, cache)` for plugging into
+  `SearchOptions.evaluator` for the 4D engine.
+- The `SpectralBIPHybrid4D` dataclass shipped in 1.12.0 already
+  had the storage; 1.14.0 just adds the eval-side wrappers.
+
+#### encode_4d_pure_phase deferred to 1.15.0+
+
+The 2D pure-phase encoder works because D₄ irrep projection has
+an integer character formula at the core. 4D's B₄ structure
+uses sparse matrix arithmetic (`P_A1 @ sig`) and float-table
+fiber accumulation, without the integer-character convenience.
+A meaningful 4D pure-phase encoder needs more design work;
+deferred. The 4D hybrid encoder (1.12.0+) already provides the
+integer-storage path; the eval-side parity above is what was
+missing.
+
+#### Pedantic non-deterministic stress testing
+
+- **`tests/_random_positions.py`** — deterministic seeded RNG
+  for random 2D and 4D positions across sparse-to-dense piece
+  counts; reproducible across CI runs.
+- **`tests/test_pure_phase_stress_2d.py`** — 9 stress tests
+  against **1000 random 2D positions**:
+    * cosine-sim ≥ 0.99 on every single position
+    * median cosine-sim ≥ 0.999
+    * D₄-channel bit-exactness on every position
+    * channel-energy Spearman ρ ≥ 0.99 across all (pos, channel)
+    * no NaN / Inf in output
+    * int32 output bounded (max abs < 2³⁰)
+    * deterministic + reproducible
+- **`tests/test_spectral_hybrid_4d_stress.py`** — 8 stress tests
+  against **500 random 4D positions** (smaller corpus because
+  the 4D encoder is ~10× more expensive per call):
+    * channel-energy parity within 5% relative on every channel
+    * sign-of-score agreement
+    * channel-energy Spearman ρ ≥ 0.99
+    * no NaN / Inf
+    * cached evaluator hits ≡ misses semantics at scale
+    * LRU eviction correctness when corpus exceeds cache cap
+    * `evaluate_4d` round-trip consistency
+
+**Result: all 17 stress tests pass on the 1500-position random
+corpus.** The hand-picked 7-FEN findings from the original 1.14.0
+ship hold at scale. The 4D parity additions are correct at scale.
+
+#### Why this matters
+
+The hand-picked corpus methodology in the original 1.14.0 ship
+was honest but unprincipled. The pedantic stress tests address
+the gap by validating against 1500 random positions across a
+wide piece-count distribution. The acceptance gates hold;
+B-spike-4's empirical conclusions weren't artifacts of the
+hand-picked corpus.
+
+What the stress tests don't yet address (deferred to follow-up):
+
+- Tournament-driven evaluator validation (§16 tournament harness;
+  whether `spectral_hybrid_8bit_lru` actually beats `material`
+  at deep search)
+- Move-gen cost in the bench (currently bench measures only
+  static eval; combining with move-gen for nodes/sec at depth
+  is real but separate work)
+- PGN-sourced phase classification (replace hand-picked
+  open/mid/end FENs with channel-energy-clustered phase labels
+  from real games)
+- `encode_4d_pure_phase` (see above)
+
 ## [1.13.0] — 2026-05-09
 
 B-spike-3 from notebook §20.15 ships (partial): **encoder-eval

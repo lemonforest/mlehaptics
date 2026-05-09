@@ -195,8 +195,117 @@ def evaluate(
     return evaluate_from_hybrid(hybrid, side_to_move, weights=weights)
 
 
+# ─── 4D variants (1.14.0+ — parity restoration) ─────────────────────
+
+
+def channel_energies_from_hybrid_4d(
+    hybrid: "object",  # SpectralBIPHybrid4D — late-bound to avoid cycle
+) -> Dict[str, float]:
+    """4D analog of :func:`channel_energies_from_hybrid`.
+
+    Computes per-channel L2 energy directly from the
+    :class:`SpectralBIPHybrid4D` integer storage (11 channels ×
+    4096 dims = 45 056 dims total). Same algebraic identity:
+    ``‖v_c‖² = Σ mag²`` (sign cancels), so use uint32 sum-of-squares
+    + per-channel scale² multiply.
+
+    Returns
+    -------
+    dict[str, float]
+        ``{channel_name: energy}`` with float64 values. Channel
+        names mirror ``encoder_4d.CHANNELS_4D``: A1, STD4_X/Y/Z/W,
+        FIB_SYM_1/2/3, FA_PAWN_W/Y, FD_DIAG.
+    """
+    from chess_spectral.encoder_bip_hybrid import (
+        SpectralBIPHybrid4D, _unpack_4bit,
+        N_CHANNELS_4D, CHANNEL_DIM_4D,
+    )
+    from chess_spectral.encoder_4d import CHANNELS_4D
+
+    if not isinstance(hybrid, SpectralBIPHybrid4D):
+        raise TypeError(
+            f"expected SpectralBIPHybrid4D, got {type(hybrid).__name__}"
+        )
+
+    n_dims = N_CHANNELS_4D * CHANNEL_DIM_4D
+    if hybrid.magnitude_bits == 4:
+        magnitudes = _unpack_4bit(hybrid.magnitudes, n_dims)
+    else:
+        magnitudes = hybrid.magnitudes
+
+    max_q = (1 << hybrid.magnitude_bits) - 1
+    out: Dict[str, float] = {}
+    for ch_idx, (name, _start) in enumerate(CHANNELS_4D):
+        start = ch_idx * CHANNEL_DIM_4D
+        block = magnitudes[start:start + CHANNEL_DIM_4D].astype(np.uint32)
+        ssq_int = int(np.dot(block, block))
+        scale = float(hybrid.magnitude_scales[ch_idx])
+        out[name] = (scale / max_q) ** 2 * ssq_int
+    return out
+
+
+def evaluate_from_hybrid_4d(
+    hybrid: "object",
+    side_to_move: bool,
+    *,
+    weights: Optional[Dict[str, float]] = None,
+) -> float:
+    """4D analog of :func:`evaluate_from_hybrid`.
+
+    Spectral evaluation directly from a precomputed
+    :class:`SpectralBIPHybrid4D`; the 4D cache-hit fast path.
+
+    Parameters
+    ----------
+    hybrid : SpectralBIPHybrid4D
+    side_to_move : bool
+        True = white to move, False = black.
+    weights : dict[str, float] or None
+        Per-channel weight overrides; ``None`` → equal weights
+        (1.0 for all 11 channels). Channel names match
+        ``CHANNELS_4D``.
+
+    Returns
+    -------
+    float
+        Score from side-to-move's perspective (positive = winning).
+    """
+    from chess_spectral.encoder_4d import CHANNELS_4D
+
+    energies = channel_energies_from_hybrid_4d(hybrid)
+    if weights is None:
+        weights = {name: 1.0 for name, _ in CHANNELS_4D}
+    score = 0.0
+    for name, _start in CHANNELS_4D:
+        score += weights.get(name, 1.0) * energies[name]
+    if not side_to_move:
+        score = -score
+    return float(score)
+
+
+def evaluate_4d(
+    pos4: Dict[int, "object"],
+    side_to_move: bool,
+    *,
+    magnitude_bits: int = 8,
+    weights: Optional[Dict[str, float]] = None,
+) -> float:
+    """4D analog of :func:`evaluate` — encode + eval. Slower than
+    the cache-hit fast path; bench-comparable to a hypothetical
+    spectral_float64_4d evaluator."""
+    from chess_spectral.encoder_bip_hybrid import (
+        encode_4d_bip_hybrid,
+    )
+    hybrid = encode_4d_bip_hybrid(pos4, magnitude_bits=magnitude_bits)
+    return evaluate_from_hybrid_4d(hybrid, side_to_move, weights=weights)
+
+
 __all__ = [
     "evaluate",
     "evaluate_from_hybrid",
     "channel_energies_from_hybrid",
+    # 1.14.0+ — 4D parity
+    "evaluate_4d",
+    "evaluate_from_hybrid_4d",
+    "channel_energies_from_hybrid_4d",
 ]

@@ -172,7 +172,63 @@ def make_cached_evaluator(
     return cached_evaluator, cache
 
 
+# ─── 4D variants (1.14.0+ — parity restoration) ─────────────────────
+
+
+def _hash_position_dict_4d(pos4: Dict["int | str", "object"]) -> int:
+    """Deterministic hash of a 4D-encoder-format position dict.
+
+    Handles the 4D piece-value schema: pawns are tuples
+    ``(color, axis)``, non-pawns are single chars. Tuples are
+    hashable so ``frozenset(pos4.items())`` works directly.
+    """
+    return hash(frozenset(pos4.items()))
+
+
+def make_cached_evaluator_4d(
+    *,
+    magnitude_bits: int = 8,
+    cache_size: int = 10000,
+    weights: Optional[Dict[str, float]] = None,
+) -> Tuple[Callable[[Dict["int | str", "object"], bool], float], HybridCache]:
+    """4D analog of :func:`make_cached_evaluator`.
+
+    Returns ``(evaluator_fn, cache)`` for the 4D engine. Hot path:
+
+      1. hash the 4D position dict
+      2. cache lookup; on hit, use the stored
+         :class:`SpectralBIPHybrid4D`
+      3. on miss, encode via ``encode_4d_bip_hybrid`` and store
+      4. compute channel-energy via
+         :func:`evaluate_from_hybrid_4d`
+
+    Per-call cost on hit: ~50-100 µs (the 4D channel-energy step
+    is bigger than 2D's by 70× because 4D has 45 056 dims vs
+    640). On miss: ~tens-of-ms per the 4D encoder's typical cost.
+    """
+    from chess_spectral.encoder_bip_hybrid import encode_4d_bip_hybrid
+    from chess_spectral.engine.eval.spectral_hybrid import (
+        evaluate_from_hybrid_4d,
+    )
+
+    cache = HybridCache(max_size=cache_size)
+
+    def cached_evaluator_4d(pos4: Dict, side_to_move: bool) -> float:
+        key = _hash_position_dict_4d(pos4)
+        hybrid = cache.get_or_compute(
+            key,
+            lambda: encode_4d_bip_hybrid(
+                pos4, magnitude_bits=magnitude_bits),
+        )
+        return evaluate_from_hybrid_4d(
+            hybrid, side_to_move, weights=weights)
+
+    return cached_evaluator_4d, cache
+
+
 __all__ = [
     "HybridCache",
     "make_cached_evaluator",
+    # 1.14.0+ — 4D parity
+    "make_cached_evaluator_4d",
 ]
