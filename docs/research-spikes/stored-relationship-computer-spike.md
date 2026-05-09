@@ -106,21 +106,50 @@ Each of the project's eight notebooks already encodes domain relationships as sp
 
 **The storage layer is already spectral in seven of eight projects.** What's missing is a **unified spectral-storage primitive** that all kernels share — today, each project rolls its own encoder + its own dimension + its own binding scheme.
 
-### What the unification would look like (Path D, below)
+### What the unification looks like (the index pattern, not replacement)
 
-A spectral relationship database that subsumes the AMSC layer would:
+DE441 stays as the source of truth. AMSC NDJSON stays as the source of truth. The spectral layer is an *index*, not a replacement — structurally identical to:
 
-1. **Write path**: at AMSC ingestion time, project each row onto a domain-relationship-graph Laplacian eigenbasis. The descriptor declares the graph topology + the eigenbasis dimension; the adapter emits row hypervectors instead of (or alongside) the current data-dict NDJSON.
-2. **Read path**: bridge surface returns hypervectors directly; queries are cosine-similarity searches in eigenbasis.
-3. **Multi-relation joins**: become **product-eigenbasis searches** — bind two hypervectors via cyclic-group binding, query result via cosine in the product space.
-4. **Per-mode attestation**: instead of per-row `response_sha256`, emit per-eigenmode SHA-256 over the projection coefficient vector. AMSC's MPM discipline survives the spectral encoding because each mode's coefficient is reproducibly derived from raw bytes through a published projection operator.
+- **pgvector** — Postgres = source of truth, vector index = fast similarity search alongside
+- **ElasticSearch** — raw documents = source of truth, inverted index = fast text search
+- **Druid / Pinot** — raw events = source of truth, columnar+bitmap indexes = fast OLAP
+- **Neo4j** — graph traversals cheap; predicate filters cheap relative to relational JOINs of the same shape
 
-### Architectural tensions
+The project has been building this pattern *implicitly* across bridge surfaces:
 
-- **Lossy vs lossless**: spectral storage is naturally lossy when truncated; AMSC's MPM discipline requires byte-exact provenance. The fix: store both (raw NDJSON + spectral projection); the spectral layer is a derived index, not a replacement. The dual-author pattern (PR #291) is precedent for this — two authoritative encodings of the same data, asserted equal.
-- **Schema evolution**: eigenbasis depends on graph topology; topology depends on schema. Adding a foreign-key relation changes the Laplacian → existing hypervectors stop matching. RDBMS `ADD COLUMN` is cheap; spectral re-projection is not. The fix: kernel-versioned eigenbases (cf. `_research/saturn_rings_data.py` v0.27.x rolling); old hypervectors live until kernel version bumps; new hypervectors use the new basis.
-- **Query expressiveness**: cosine similarity is great for "find similar"; SQL JOIN with predicate filters is harder. The fix: spectral DB augments, doesn't replace. SQL stays for predicate filters; spectral layer answers "which rows resemble this configuration" / "which dynamical regime is this" / "which sector cluster does this player belong to" — questions SQL can't ask cheaply.
-- **Cross-kernel queries**: chess hypervectors live in ℂ^{45056}; doom hypervectors live in ℝ^{512} (BIP); ephemerides hypervectors live in BIP D=32. They are not directly comparable. The fix: per-kernel hypervector spaces stay disjoint; cross-kernel queries route through a kernel-router that knows how to translate (or refuse). Path D doesn't promise universal cross-kernel queries — it promises that *each kernel* shares the substrate.
+- `predict_itn_accessibility` (v0.18.x) — precompute hybrid-Laplacian Fiedler eigenvector at module load → query is O(1) array lookup + linear regression. Microseconds vs ~1.5 s for the full Dijkstra. (See [`_research/predict_itn_accessibility.py`](../antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/predict_itn_accessibility.py) module docstring for the calibration provenance.)
+- `find_syzygies` (v0.3.1+) — enumerate slow-mode multiples (Saros 6585.32 d, synodic 29.53 d, draconic 27.21 d) in closed form → confirm at O(n_syzygies) candidates instead of O(window_days). 100–1000× speedup vs the v0.3.0 `get_eclipse_probability` encode-then-check pattern. (See [`_research/syzygy_window.py`](../antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_research/syzygy_window.py) module docstring.)
+- `body_architecture` (v0.18.0) — resonance-weighted Fiedler-partition computed once at module load.
+- v0.24.9 dynamical-regime classifier — eigenbasis projection over labelled regime training rows.
+
+Each surface implements the index-pattern in its own way. **Path D's contribution is making that pattern explicit and unified across every kernel surface — current and future.** New bridge functions inherit the fast-path automatically, instead of each one re-deriving its own spectral cache architecture.
+
+### But what about replacing SQL? The trilemma
+
+A natural follow-on: *if SQL is also a relationship database, can we replace a real production SQL store with a spectral encoding that's faster, lossless, and same-volume?*
+
+The answer is no — that's a trilemma; pick any two:
+
+1. **The math doesn't compress.** Eigendecomposition is a basis change, not compression. `M = U Σ V^T` losing no information requires keeping all of U, Σ, V — *more* storage than M, not less. Storage shrinks only when you truncate to top-k, and that's mathematically lossy. No algorithm beats the data's information content; spectral form is no exception.
+
+2. **Compute cost at production volumes.** Sparse SVD on a TB dataset is O(N·k·iter) per refresh. Every INSERT invalidates the eigenbasis or requires streaming-SVD updates with approximation cost. Production write rates outpace eigenbasis maintenance.
+
+3. **Most SQL queries don't reduce to spectral primitives.** `JOIN ON PK = FK` → spectral graph traversal works. `WHERE col = value` → exact match, not spectral. `WHERE col > value` → range scan, not spectral. `GROUP BY` → spectral clustering is approximation. `SELECT col_a, col_b` → projection onto data axes, not eigenaxes. The spectral fast-path covers similarity / multi-hop / clustering — not the predicate-filter / range-scan workload that dominates real SQL.
+
+**Strings are not the obstacle.** Several lossless mappings exist: interning (`"Alice" → 1` + lookup table — what VARCHAR-with-dictionary already does), byte-level (`"Alice" → 0x416c696365` as integer), hash (SHA-256 → 256-bit int, lossless modulo collisions). The lossy embeddings (Word2Vec/BERT) are optional; you don't have to use them. The wall is SQL semantics, not strings.
+
+### The escape: domain-specific low rank
+
+Where the project escapes the trilemma: **structured-physics data is naturally low-rank.** Saturn ring features, action-angle catalogues, sector graphs, board states — variance concentrates in a few eigenmodes; the discarded modes carry near-zero information. Truncation isn't really "lossy" when what you're truncating is noise. This is the deep reason HDC + KG-embedding + the project's existing encoders work. It does not generalise to e-commerce or transactional data.
+
+The project's data also fits in low memory at scale. Concrete sanity check: precomputed daily configuration hypervectors covering 1900–2100 = 73,000 dates × 52 bodies × 512 dims × 1 byte (BIP int8) ≈ **1.9 GB**. Smaller than DE441 itself (~3 GB); ships with the wheel. At HDC dim 10,000 it's 38 GB (downloadable cache only). At ephemerides' current BIP D=32 it's 122 MB (trivially shippable). There's a real engineering choice here about which queries earn cache space — exactly the trade-off pgvector users make when choosing index dimensions.
+
+### Architectural tensions (after the index-pattern reframe)
+
+- **Lossy vs lossless**: the index is naturally lossy when truncated; the source of truth (DE441 / AMSC NDJSON) stays byte-exact. **Resolution**: spectral layer is a derived index, not a replacement. The dual-author pattern (PR #291) is precedent — two authoritative encodings, asserted equal where both are lossless; the spectral index is allowed to be lossy because the source is preserved.
+- **Schema evolution**: eigenbasis depends on graph topology; topology depends on schema. Adding a foreign-key relation changes the Laplacian → existing hypervectors stop matching. **Resolution**: kernel-versioned eigenbases (cf. `_research/saturn_rings_data.py` v0.27.x rolling); old hypervectors live until kernel version bumps.
+- **Query expressiveness**: cosine similarity is great for "find similar"; SQL JOIN with predicate filters is harder. **Resolution**: spectral DB augments, doesn't replace. SQL / NDJSON / DE441 stay for predicate-filter and exact-match queries; the spectral layer answers similarity / regime / configuration queries.
+- **Cross-kernel queries**: chess hypervectors live in ℂ^{45056}; doom in ℝ^{512}; ephemerides in BIP D=32. They are not directly comparable. **Resolution**: per-kernel hypervector spaces stay disjoint; cross-kernel routing is a separate research question. Path D doesn't promise universal cross-kernel queries — it promises that *each kernel* shares the substrate.
 
 ---
 
@@ -168,14 +197,14 @@ Each kernel registers: channel decomposition; per-channel builder dispatch; stat
 - **Pros**: actualises §15.4 literally; new domains require kernel-registration only; doom-spectral's existence proof + othello-spectral's machine-precision substrate transfer + the chess→ephemerides v0.12/v0.13 port are all independent evidence the unification is feasible.
 - **Cons**: substantial migration cost; channel-shape abstraction needs careful design (chess 11-channel D4 vs ephemerides per-body action-angle vs doom's 5 tracks vs antikythera's 13 dials is not trivially unified); doom's three new layers (fiber-bundle gating, sheaf raycasting, sound diffusion) need to be hooks on the core, not chess-specific.
 
-### Path D — Spectral relationship database (unify storage + computation)
+### Path D — Spectral index over the heavy store
 
-Path C, plus: AMSC's row-level data store becomes a **spectral hypervector store**. Each ingested row is projected onto the kernel's Laplacian eigenbasis at write time; queries are cosine-similarity searches in eigenbasis.
+Path C, plus: a unified spectral-index layer above each kernel's authoritative store. Heavy stores stay (DE441 binary kernel; AMSC NDJSON; gear database; WAD parser; SQL if applicable). The spectral index precomputes hypervector projections at canonical points (epochs, configurations, plies, sector-states) and answers similarity / regime / configuration queries in O(D) cosine time.
 
-- **Pros**: collapses two layers (current AMSC NDJSON + per-domain HDC encoder) into one substrate; per-mode attestation extends MPM into spectral storage; the project becomes a fully-fledged HDC database, not a collection of HDC encoders + a relational data layer that don't talk to each other.
-- **Cons**: significant new design surface; lossy/lossless tension (mitigated by storing both); schema-evolution cost (mitigated by kernel-versioning); doesn't eliminate SQL/relational queries (they coexist).
+- **Pros**: collapses the project's per-surface index-pattern (`predict_itn_accessibility`, `find_syzygies`, `body_architecture`, dynamical-regime classifier) into one explicit substrate; per-mode attestation extends MPM into spectral storage; new bridge surfaces inherit the fast-path automatically.
+- **Cons**: cache-sizing engineering (which queries earn what dim?); kernel-versioning discipline for eigenbasis evolution; **Path D depends on Path C succeeding** (cross-kernel sharing requires the kernel abstraction).
 
-Path D is the strongest version of the user's framing. It's also the largest scope. **Path D depends on Path C succeeding.** A standalone Path D without Path C is a different project (a spectral RDB without the kernel-loading abstraction), already partially served by existing vector DBs + KG-embedding libraries.
+Path D is the strongest version of the user's framing. **It does not replace the heavy stores** — DE441, AMSC NDJSON, SQL all stay. The spectral layer is an *index*, the same engineering pattern pgvector / ElasticSearch / Druid / Neo4j ship today, applied to the project's domain-specific kernels. Per the trilemma above, full spectral *replacement* of a production SQL store isn't on the table; the index pattern is the load-bearing claim.
 
 ---
 
