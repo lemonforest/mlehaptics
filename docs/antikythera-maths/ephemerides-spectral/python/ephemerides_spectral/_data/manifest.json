@@ -44,6 +44,18 @@
       "sha256": "3df91c32a0fdc7042295a6f8c198f1f761fae2a348f3385f7dd84af85916818a",
       "size_bytes": 2983
     },
+    "_research/attested/luna_dynamical_spectrum/descriptor.toml": {
+      "sha256": "04717ff62c3eaa59384b58eb3f57850c0d30b3343abaa09c0286403fa577a83f",
+      "size_bytes": 3382
+    },
+    "_research/attested/luna_dynamical_spectrum/row.ndjson": {
+      "sha256": "dee6832ecb52802e76d846c3ca348d0f67e4dc5a740acbcc5d430d99b7e59d22",
+      "size_bytes": 10955
+    },
+    "_research/attested/luna_dynamical_spectrum/row.schema.json": {
+      "sha256": "287fe29914d0939054108e640d2b484ac69fc8b24479332f52609f6eacc131d8",
+      "size_bytes": 5674
+    },
     "_research/attested/mercury_dynamical_spectrum/descriptor.toml": {
       "sha256": "3c12fd8206661270ecf2e0738958b65b96b05e614eab4a5855048b4447a91cdc",
       "size_bytes": 3775

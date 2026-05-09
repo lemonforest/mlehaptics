@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Luna Dynamical Spectrum AMSC backfill
+
+- **`research/attested/luna_dynamical_spectrum/`** — new attested source: descriptor.toml + row.schema.json + row.ndjson covering the v0.24.1 catalogue. 15 rows total: 11 dynamical_mode rows (four classical lunar months — sidereal / synodic / anomalistic / draconitic — + spin lock + Williams-2014 forced-libration + apsidal + nodal precession + eccentricity / inclination / obliquity actions) + 4 saros_commensurability rows (223 synodic ≈ 239 anomalistic ≈ 242 draconitic months ≈ 19 eclipse-years ≈ 6585.32 days; the integer-commensurability closure invariant). Per-row source DOIs cite Allen's Astrophysical Quantities (4th ed.), JPL DE441, Williams & Boggs 2014 (LLR libration analysis), Murray-Dermott 1999, Cassini 1693 (historical lunar libration laws), Meeus 1991 (Saros derivation).
+- **`tests/_luna_amsc_helpers.py`** — converter mapping hand-coded rows → AMSC-shape dicts via static SOURCE_KEY_PROVENANCE (mirrors the `_mercury_amsc_helpers.py` pattern from PR #303). Introduces the `historical:` DOI-prefix convention for pre-DOI canonical works.
+- **`tests/test_luna_dynamical_spectrum_dual_author.py`** — 9 tests: AMSC dataset loads (15 rows); row-count + row-name set + per-row field + full dict equality; SOURCE_KEY_PROVENANCE coverage of every source_key referenced by the hand-coded module; ISO 8601 published-date pattern; row-type distribution 11/4; **Saros closure invariant** (the four product_days values agree within 0.5 day).
+- **`bridge.list_attested_sources()`** now returns 6 sources (was 5); `adapter_class="curated"` returns 3 (saturn_rings + mercury_dynamical_spectrum + luna_dynamical_spectrum).
+- The hand-coded `_research/luna_dynamical_spectrum_data.py` module is unchanged; AMSC NDJSON is the attestation envelope.
+
 ### Fixed — AMSC `_ndjson_path` now honours explicit `[fetch].ndjson_path`
 
 Surfaced during the v0.27.0 phase A Mercury migration (PR #303): the resolver in `_research/attested_collector_catalog.py::_ndjson_path` ignored the descriptor's explicit `[fetch].ndjson_path` field and used only the schema-id-derived fallback (split `data_schema_id` on `.`, take parts[1] as the filename stem). When the two conventions disagreed, the symptom was an apparently-correctly-authored descriptor returning empty rows with the misleading `"no committed NDJSON; first T1 collection pending"` note even though the file existed at the documented path.
