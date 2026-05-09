@@ -172,6 +172,19 @@ fewer 4096-vector adds at dense positions.
 **Plus minor: STD4 axis-broadcast (4D)** — the per-axis
 4-iteration loop replaced by a single (4, 4096) broadcast multiply.
 
+### Pareto polish — einsum → matmul
+
+After the initial vectorize landed, an investigation into why
+endgame (n=2) showed a small regression (1.50× → 1.45×) traced
+the cause to fixed numpy-dispatch overhead in the einsum call —
+~6 µs/call on small tiles, comparable to the entire per-d loop
+work in the legacy path. Replacing the einsum with the
+mathematically-equivalent `weighted.T @ adj_rows` matmul gives a
+**Pareto win at every group size** (1.5-3.6× faster on the
+contraction itself, largest win at n=1 sparse-endgame). Detailed
+investigation + micro-bench numbers in
+[notebook §20.21 amendment 5](../../chess_spectral_research_notebook.md).
+
 ### Bit-exactness — preserved
 
 All 87 existing tests pass after the vectorize:

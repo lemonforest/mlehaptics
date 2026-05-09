@@ -346,7 +346,7 @@ def _fiber_symmetric_int_batched(pos: Dict[int, str],
         pieces_by_type.setdefault(_FIBER_IDX[pkey], []).append(si)
 
     # int64 accumulator avoids intermediate overflow during the
-    # einsum contraction (gradient × fib_d × adj_row can reach
+    # contraction (gradient × fib_d × adj_row can reach
     # ~5e3 × 32767 × 1 = 1.6e8 per (piece, cell), summed over up to
     # ~16 pieces per cell → ~2.6e9, just past int32's edge).
     fc_total = np.zeros((3, BOARD_DIM), dtype=np.int64)
@@ -359,9 +359,11 @@ def _fiber_symmetric_int_batched(pos: Dict[int, str],
         # (n, 3) int64
         gradients = adj_rows @ sig_int64  # (n,) int64
         weighted = gradients[:, None] * fib_d_vec  # (n, 3) int64
-        # einsum: fc[d, c] += sum over piece-instances of:
-        #   weighted[i, d] × adj_rows[i, c]
-        fc_total += np.einsum('pd,pc->dc', weighted, adj_rows)
+        # Equivalent to einsum('pd,pc->dc', weighted, adj_rows) but
+        # 1.5-3.6× faster across all group sizes (verified
+        # micro-bench, §20.21 amendment 5). einsum has parser
+        # dispatch overhead that dominates on small tiles.
+        fc_total += weighted.T @ adj_rows  # (3, 64) int64
     return fc_total.astype(np.int32)
 
 
