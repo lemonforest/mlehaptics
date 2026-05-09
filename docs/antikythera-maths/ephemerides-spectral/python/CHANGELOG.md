@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Mars Dynamical Spectrum AMSC backfill
+
+- **`research/attested/mars_dynamical_spectrum/`** — third v0.24.x backfill (after Mercury PR #303 and Luna PR #306). 11 rows: 8 dynamical_mode (orbital + sol-rotation + spin-axis-precession + apsidal-precession g₄ + nodal-precession s₄ angle modes; eccentricity / inclination / obliquity actions) + 3 secular_resonance (the near-resonances driving Mars obliquity chaos: spin_axis_precession ↔ s₃, spin_axis_precession ↔ s₄, apsidal_precession_g4 ↔ g3-s3). Per-row source DOIs cite Park 2021 (DE441), Le Maistre 2023 (InSight RISE), Ward 1973 (spin-axis precession), Laskar 1993 + Laskar 2004 + Laskar 2008 (chaos finding + Gyr-scale evolution + Mercury-eccentricity instability), Touma & Wisdom 1993 (independent confirmation).
+- **`tests/_mars_amsc_helpers.py`** — converter mirroring `_mercury_amsc_helpers.py` / `_luna_amsc_helpers.py`. Composite row name `<mars_mode>__<secular_partner>` for secular_resonance rows.
+- **`tests/test_mars_dynamical_spectrum_dual_author.py`** — 9 tests including a `secular_resonance` proximity ratchet (every row carries a non-null, non-negative `proximity_arcsec_per_year` — the headline quantity that measures frequency closeness; null would defeat the row's purpose).
+- **`bridge.list_attested_sources()`** now returns 7 sources (was 6); `adapter_class="curated"` returns 4.
+
 ### Added — v0.27.0 phase A — Luna Dynamical Spectrum AMSC backfill
 
 - **`research/attested/luna_dynamical_spectrum/`** — new attested source: descriptor.toml + row.schema.json + row.ndjson covering the v0.24.1 catalogue. 15 rows total: 11 dynamical_mode rows (four classical lunar months — sidereal / synodic / anomalistic / draconitic — + spin lock + Williams-2014 forced-libration + apsidal + nodal precession + eccentricity / inclination / obliquity actions) + 4 saros_commensurability rows (223 synodic ≈ 239 anomalistic ≈ 242 draconitic months ≈ 19 eclipse-years ≈ 6585.32 days; the integer-commensurability closure invariant). Per-row source DOIs cite Allen's Astrophysical Quantities (4th ed.), JPL DE441, Williams & Boggs 2014 (LLR libration analysis), Murray-Dermott 1999, Cassini 1693 (historical lunar libration laws), Meeus 1991 (Saros derivation).

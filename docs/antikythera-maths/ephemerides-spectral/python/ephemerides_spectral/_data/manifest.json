@@ -56,6 +56,18 @@
       "sha256": "287fe29914d0939054108e640d2b484ac69fc8b24479332f52609f6eacc131d8",
       "size_bytes": 5674
     },
+    "_research/attested/mars_dynamical_spectrum/descriptor.toml": {
+      "sha256": "c5f3b67991e4c55c2cead8baf0264369116bdcedf2032b88cadd1b19f857db44",
+      "size_bytes": 3480
+    },
+    "_research/attested/mars_dynamical_spectrum/row.ndjson": {
+      "sha256": "20579092360f9bb280865c0bb32f14cfc33f148dce9a0b6fa0ba9fc522ae78a9",
+      "size_bytes": 9200
+    },
+    "_research/attested/mars_dynamical_spectrum/row.schema.json": {
+      "sha256": "92b19f070922e032ec162924db437f1b77147d2bbbc834030237271af6e2ab6f",
+      "size_bytes": 5619
+    },
     "_research/attested/mercury_dynamical_spectrum/descriptor.toml": {
       "sha256": "3c12fd8206661270ecf2e0738958b65b96b05e614eab4a5855048b4447a91cdc",
       "size_bytes": 3775

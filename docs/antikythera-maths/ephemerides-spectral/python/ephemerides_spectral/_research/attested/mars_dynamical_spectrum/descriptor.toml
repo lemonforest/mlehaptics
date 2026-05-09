@@ -1,0 +1,81 @@
+# Mars Dynamical Spectrum — per-body action-angle decomposition.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.2
+# hand-coded `_research/mars_dynamical_spectrum_data.py` module.
+# Mars was the third per-body dynamical-spectrum ship — the
+# **canonical chaotic-dynamics case** in the Solar System (Laskar
+# 1993; Touma-Wisdom 1993). Where Mercury (v0.24.0) and Luna
+# (v0.24.1) admit clean spectral fingerprints, Mars exhibits
+# secular chaos: long-term obliquity wandering driven by secular-
+# resonance overlap between spin-axis precession and the inner-
+# Solar-System fundamentals s₃ / s₄ / s₅. The KAM-theory small-
+# denominator failure mode in observable form.
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope. Dual-author byte-stable diff test in
+# `tests/test_mars_dynamical_spectrum_dual_author.py` ratchets
+# agreement.
+#
+# Pattern follows research/attested/mercury_dynamical_spectrum/
+# (PR #303), research/attested/luna_dynamical_spectrum/ (PR #306),
+# and research/attested/saturn_rings/ (PR #291).
+
+[source]
+key = "mars_dynamical_spectrum"
+human_readable_name = "Mars Dynamical Spectrum Catalogue"
+purpose = "ground-proof rows for Mars's per-body action-angle decomposition (orbital + spin + spin-axis-precession + apsidal-precession + nodal-precession angle modes; eccentricity / inclination / obliquity action variables) plus the secular-resonance-overlap catalogue that drives Mars obliquity chaos"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+canonical_doi = "10.1016/j.icarus.2004.04.005"
+
+# canonical_doi above points at Laskar et al. 2004, *Icarus*
+# 170:343-364 — the definitive ~0°-60° obliquity-excursion range +
+# Gyr-scale chaotic-diffusion analysis. Per-row provenance is
+# finer-grained: JPL DE441 for orbital-element actions, Le Maistre
+# 2023 (InSight RISE) for the modern C/MR² + spin refinement,
+# Ward 1973 for the original spin-axis-precession identification,
+# Laskar 1993 / Touma-Wisdom 1993 for the chaos finding, Laskar
+# 2008 for the Mercury-eccentricity-instability secular-chaos
+# quantification.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "mars_dynamical_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Mars Dynamical Spectrum Catalogue (curated against published literature; Laskar et al. 2004 *Icarus* 170:343-364 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for Mars action-angle decomposition (row_type={schema.row_type})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Mars's regime labels: rigid-body action-angle (the modes + secular
+# precession + actions) plus chaotic-obliquity (the secular-
+# resonance-overlap catalogue is the chaos signature). The chaotic
+# label maps onto the v0.24.9 dynamical-regime classifier's
+# "rigid_body_chaotic_obliquity" category — Mars is the canonical
+# training example for that regime.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_chaotic_obliquity",
+]
