@@ -88,6 +88,34 @@ flagged as a parity regression. Amendment:
   already provides integer storage; this amendment closes the
   eval-side parity gap.
 
+**1.14.0 amendment 2 (May 2026) — chess4D-OC consumer wishlist surface.**
+Late-cycle additions driven by the chess4D-OC pre-publish wishlist;
+all ship in 1.14.0 (no minor bump — public surface only grows):
+
+- **Tier 1: M14.4c entanglement-viz unblockers**
+    - `qm_4d_bridge.get_qm_density_from_psi(psi)` and
+      `qm_4d_bridge.get_probability_current_from_psi(psi)` —
+      ψ-direct variants of the existing state-driven functions,
+      for the post-collapse render path. The current-from-psi
+      variant returns `j` flattened to `(16384,)` (cell-major) so
+      consumers don't re-flatten in the worker.
+    - `qm_4d_bridge.get_density_matrix_of(state, piece_id, *, neighborhood_radius=1)`
+      — partial implementation that replaces the previous unconditional
+      `NotImplementedError`. Computes a Manhattan-neighborhood
+      channel reduced density giving **per-piece purity** for the
+      M14.3 entanglement-halo viz to light up. Carries an
+      `isPartial: True` flag; the full η-metric construction
+      (ADR-005) ships later with the same signature.
+- **Tier 2: consumer ergonomics**
+    - `HybridCache.clear()` — drops cached entries + resets counters
+      for the chess4D-OC reset path.
+    - `qm_4d_bridge.channel_energies_2d` /
+      `qm_4d_bridge.channel_energies_4d` — Pyodide-friendly entry
+      points (encode + channel-energy in one shot, JS-serializable
+      dict). Saves consumers from importing the engine sub-package.
+- **33 immolation tests** lock the wishlist surface contracts; the
+  existing 95-test bridge / hybrid-eval surface continues to pass.
+
 ## What's new in v1.13 (May 2026)
 
 The §20.15 fourth-tier ship (partial): **encoder-eval speedup work**.

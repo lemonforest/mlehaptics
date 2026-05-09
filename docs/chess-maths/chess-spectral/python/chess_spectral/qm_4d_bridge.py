@@ -139,7 +139,7 @@ Helpers (Pyodide-bridge serialization):
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sp
@@ -877,48 +877,196 @@ def measure_at(
     }
 
 
-# ---- §17.1 #5: get_density_matrix_of (deferred to v1.7+) -----------
+# ---- §17.1 #5: get_density_matrix_of (1.14.0+ — partial impl) ------
+
+
+def _decode_4d_cell(c: int, board_side: int = 8) -> Tuple[int, int, int, int]:
+    """Decode a linear cell index into ``(x, y, z, w)`` lattice
+    coordinates on the ``board_side⁴`` lattice.
+
+    Inverse of the row-major linearization
+    ``c = x + y·BS + z·BS² + w·BS³`` where ``BS = board_side``.
+    """
+    BS = int(board_side)
+    if not (0 <= int(c) < BS * BS * BS * BS):
+        raise ValueError(
+            f"cell index {c} out of range [0, {BS**4}) for "
+            f"{BS}^4 lattice"
+        )
+    c_int = int(c)
+    x = c_int % BS
+    y = (c_int // BS) % BS
+    z = (c_int // (BS * BS)) % BS
+    w = (c_int // (BS * BS * BS)) % BS
+    return (x, y, z, w)
+
+
+def _manhattan_neighborhood_4d(
+    piece_id: int,
+    radius: int = 1,
+    board_side: int = 8,
+) -> List[int]:
+    """Enumerate cells within 4D Manhattan distance ``radius`` of
+    cell ``piece_id`` on the ``board_side⁴`` lattice.
+
+    ``radius=0`` returns the single center cell. ``radius=1`` returns
+    the center plus 8 axis-neighbors (1 + 2·4 = 9 cells, fewer at
+    boundaries). ``radius=2`` returns up to 41 cells. The default of 1
+    is the smallest neighborhood that yields nontrivial reduced-density
+    rank for typical mid-game amplitude distributions.
+    """
+    BS = int(board_side)
+    if int(radius) < 0:
+        raise ValueError(f"radius must be ≥ 0; got {radius}")
+    cx, cy, cz, cw = _decode_4d_cell(piece_id, BS)
+    cells: List[int] = []
+    r = int(radius)
+    for dx in range(-r, r + 1):
+        nx = cx + dx
+        if not (0 <= nx < BS):
+            continue
+        for dy in range(-r, r + 1):
+            ny = cy + dy
+            if not (0 <= ny < BS):
+                continue
+            if abs(dx) + abs(dy) > r:
+                continue
+            for dz in range(-r, r + 1):
+                nz = cz + dz
+                if not (0 <= nz < BS):
+                    continue
+                if abs(dx) + abs(dy) + abs(dz) > r:
+                    continue
+                for dw in range(-r, r + 1):
+                    nw = cw + dw
+                    if not (0 <= nw < BS):
+                        continue
+                    if abs(dx) + abs(dy) + abs(dz) + abs(dw) > r:
+                        continue
+                    cells.append(
+                        nx + ny * BS + nz * BS * BS + nw * BS * BS * BS
+                    )
+    return cells
 
 
 def get_density_matrix_of(
-    state: Any,  # noqa: ARG001
+    state: Any,
     piece_id: int,
+    *,
+    side_to_move: bool = True,
+    neighborhood_radius: int = 1,
 ) -> Dict[str, Any]:
     """§17.1 #5 ``getDensityMatrixOf``: reduced density matrix for a
-    piece via partial trace.
+    piece — **1.14.0+ partial implementation**.
 
-    **Deferred to v1.7+.** The reduced density matrix
-    ``ρ = Tr_chans(|ψ⟩⟨ψ|)`` requires (a) a channel-to-piece
-    attribution map (currently 1:N — multiple pieces contribute to
-    the same channel via the bilinear encoder formulas) and (b) the
-    partial-trace operator over channel labels. Both are mechanical
-    sparse-matrix operations once the attribution map is decided, but
-    the design is open enough that v1.5 ships the deferred-NIE
-    pattern rather than committing prematurely.
+    Caveats first
+    -------------
+    The full η-metric / partial-trace construction (ADR-005) is still
+    deferred. This 1.14.0 ship is a **placeholder with sensible
+    geometry**: instead of the disputed channel-to-piece attribution,
+    it computes the reduced density on **channels** restricted to a
+    4D-Manhattan neighborhood around ``piece_id`` cell. Concretely:
+
+    1. Take the channel-block matrix ``M = ψ.reshape(11, 4096)``.
+    2. Restrict to columns ``M[:, neighborhood]`` where ``neighborhood``
+       is the Manhattan-radius-``neighborhood_radius`` 4D ball around
+       the cell.
+    3. Compute ``ρ_ch = M_local @ M_local.conj().T`` (11×11 PSD).
+    4. Normalize by trace so ``Tr(ρ) == 1`` (when nonempty).
+    5. Eigendecompose for purity / rank.
+
+    This is **not** the η-metric reduced density; the channel-content
+    geometry around a piece's cell is a useful proxy for "how mixed
+    is the local QM state?" and lights up the M14.3 entanglement-halo
+    viz. When ADR-005 ships, this function's signature is preserved
+    and the body is replaced.
+
+    The ``rho`` field on the return dict is the 11×11 reduced density
+    on channels (interpreted as the locally-supported channel-content
+    summary); ``purity`` and ``rank`` are derived from its eigenvalues.
 
     Parameters
     ----------
     state
-        Pre-move state (position dict or object with ``.position``).
+        Position dict or object with ``.position`` attribute. Forwarded
+        to :func:`chess_spectral.qm_4d.state_to_psi`.
     piece_id : int
-        Linear-square index of the piece to trace out the rest of
-        the system from.
+        Linear-cell index in ``[0, 4096)`` (4D row-major encoding:
+        ``c = x + 8·y + 64·z + 512·w``). The "piece" is interpreted as
+        the local-cell vantage point for the reduced density; the
+        function does NOT consult the position-dict's piece type at
+        that cell — it operates purely on ψ's amplitude geometry.
+    side_to_move : bool, optional
+        Forwarded to :func:`chess_spectral.qm_4d.state_to_psi`.
+    neighborhood_radius : int, optional
+        Manhattan radius of the cell neighborhood used for the
+        local-support partial trace. Default 1 (9 cells: center + 8
+        axis-neighbors). 0 collapses to a rank-1 single-cell density
+        (purity always 1.0); 2+ enlarges the neighborhood.
+
+    Returns
+    -------
+    dict with keys:
+
+      * ``ok`` (bool).
+      * ``rho`` (ndarray[complex128, (11, 11)]): the 11×11 reduced
+        channel-density matrix, trace-normalized. Hermitian PSD.
+      * ``purity`` (float): ``Tr(ρ²) ∈ [1/N_eff, 1]`` where
+        ``N_eff`` is at most the channel count (11). Lower → more
+        mixed; halo viz can map this to halo intensity.
+      * ``rank`` (int): number of eigenvalues above ``1e-10`` (after
+        trace-normalization). Sensible signal of effective dimension.
+      * ``eigvals`` (ndarray[float64, (11,)]): the 11 eigenvalues in
+        ascending order. Sum ≈ 1 within float rounding.
+      * ``neighborhoodSize`` (int): cell count actually used (may be
+        less than the geometric maximum at boundaries).
+      * ``isPartial`` (bool): always ``True`` in 1.14.x — flag for
+        consumers to disclaim η-metric semantics.
 
     Raises
     ------
-    NotImplementedError
-        Always, until v1.7+. Message points to the design decision
-        and the §17.1 infrastructure note.
+    ValueError
+        If ``piece_id`` is not in ``[0, 4096)`` or
+        ``neighborhood_radius`` is negative.
+
+    Notes
+    -----
+    When the neighborhood has zero total amplitude (rare; can happen
+    near a depleted region of ψ in the lategame), the function returns
+    a rank-0 zero matrix with ``purity = 0.0``, ``rank = 0`` and a
+    flag in the dict; the halo-viz consumer should treat this as
+    "no local state" and dim the halo to zero.
     """
-    raise NotImplementedError(
-        f"get_density_matrix_of(piece_id={piece_id!r}) — partial trace "
-        "over channels requires a channel-to-piece attribution map "
-        "(currently 1:N due to the bilinear encoder formulas in "
-        "FIB_SYM / FD_DIAG / FA_PAWN). The mechanical partial-trace "
-        "operation is straightforward once the attribution is decided; "
-        "see §17.1's infrastructure note. Deferred to v1.7+ along with "
-        "the per-piece variant of get_qm_density."
+    from chess_spectral import qm_4d as _qm4
+    pos = getattr(state, "position", state)
+    psi = _qm4.state_to_psi(pos, side_to_move)
+    M = psi.reshape(_qm4.N_CHANNELS, _qm4.CHANNEL_DIM)
+
+    cells = _manhattan_neighborhood_4d(
+        piece_id, radius=neighborhood_radius, board_side=8,
     )
+    M_local = M[:, cells]
+    rho = M_local @ M_local.conj().T  # (11, 11) PSD Hermitian
+    tr = float(np.trace(rho).real)
+    if tr > 1e-15:
+        rho_norm = rho / tr
+    else:
+        rho_norm = np.zeros_like(rho)
+
+    eigvals = np.linalg.eigvalsh(rho_norm).real
+    eigvals = np.clip(eigvals, 0.0, 1.0)
+    purity = float((eigvals ** 2).sum())
+    rank = int(np.sum(eigvals > 1e-10))
+
+    return {
+        'ok': True,
+        'rho': rho_norm.astype(np.complex128),
+        'purity': purity,
+        'rank': rank,
+        'eigvals': eigvals.astype(np.float64),
+        'neighborhoodSize': int(len(cells)),
+        'isPartial': True,
+    }
 
 
 # ---- §17.1 #6: get_probability_current -----------------------------
@@ -1051,6 +1199,153 @@ def get_probability_current(
     return {
         'ok': True,
         'j': j_total.astype(np.float32),
+    }
+
+
+# ---- §17.1 ψ-direct variants (1.14.0+ — chess4D-OC M14.4c) ---------
+
+
+def _validate_psi_full(psi: Any) -> np.ndarray:
+    """Validate a full-position ψ vector and return it as complex128.
+
+    Accepts numpy arrays of shape ``(45056,)`` (canonical) or
+    ``(11, 4096)`` (channel-block view). Anything else raises
+    :class:`ValueError`. Real-valued arrays are promoted to complex
+    (the imaginary part defaults to zero).
+
+    Used by :func:`get_qm_density_from_psi` and
+    :func:`get_probability_current_from_psi` — the ψ-direct variants
+    that skip the ``state_to_psi`` re-encode step. The canonical
+    encoding dim is :data:`chess_spectral.qm_4d.ENCODING_DIM`.
+    """
+    from chess_spectral import qm_4d as _qm4
+    if not isinstance(psi, np.ndarray):
+        psi = np.asarray(psi)
+    expected_total = _qm4.N_CHANNELS * _qm4.CHANNEL_DIM
+    if psi.shape == (_qm4.N_CHANNELS, _qm4.CHANNEL_DIM):
+        psi = psi.reshape(expected_total)
+    elif psi.shape != (expected_total,):
+        raise ValueError(
+            f"psi must have shape ({expected_total},) or "
+            f"({_qm4.N_CHANNELS}, {_qm4.CHANNEL_DIM}); got {psi.shape}"
+        )
+    if not np.iscomplexobj(psi):
+        psi = psi.astype(np.complex128)
+    elif psi.dtype != np.complex128:
+        psi = psi.astype(np.complex128)
+    return psi
+
+
+def get_qm_density_from_psi(psi: Any) -> Dict[str, Any]:
+    """ψ-direct variant of :func:`get_qm_density` — no state input.
+
+    Same contract as :func:`get_qm_density` (full-position density,
+    summed across the 11 channels per cell), but takes a precomputed
+    ψ vector instead of re-encoding from a state dict.
+
+    For chess4D-OC's M14.4c entanglement-viz path: after a measurement
+    yields a ``postCollapsePsi`` from :func:`measure_at`, the consumer
+    needs to re-render the density without a fresh encoder pass. This
+    function is the ψ-driven hot path.
+
+    Parameters
+    ----------
+    psi
+        Complex-valued ψ vector. Accepted shapes: ``(45056,)`` flat
+        or ``(11, 4096)`` channel-block view. Real-valued inputs are
+        promoted to complex (imag=0). dtype is normalized to
+        ``complex128``.
+
+    Returns
+    -------
+    dict with keys:
+
+      * ``ok`` (bool).
+      * ``density`` (ndarray[float32, (4096,)]): per-cell sum of
+        ``|ψ_chan(cell)|²`` across the 11 channels. Identical shape
+        to :func:`get_qm_density`'s ``density`` field.
+
+    Raises
+    ------
+    ValueError
+        If ``psi`` shape is not ``(45056,)`` or ``(11, 4096)``.
+    """
+    from chess_spectral import qm_4d as _qm4
+    psi = _validate_psi_full(psi)
+    psi_block_view = psi.reshape(_qm4.N_CHANNELS, _qm4.CHANNEL_DIM)
+    density_per_cell = (
+        np.abs(psi_block_view) ** 2
+    ).sum(axis=0).astype(np.float32)
+    return {
+        'ok': True,
+        'density': density_per_cell,
+    }
+
+
+def get_probability_current_from_psi(psi: Any) -> Dict[str, Any]:
+    """ψ-direct variant of :func:`get_probability_current` — no state input.
+
+    Same operator as :func:`get_probability_current` (``j(c, a) =
+    Im(ψ* ∂_a ψ)`` summed across the 11 channels) but takes a
+    precomputed ψ vector. The flattened ``(16384,)`` return shape is
+    chosen so chess4D-OC's worker can hand the buffer directly to a
+    JS ``Float32Array`` without re-flattening — the C-order flatten
+    groups the 4 axis components per cell together
+    (``j[c*4+0:c*4+4]`` is the 4-vector for cell ``c``).
+
+    For chess4D-OC's M14.4c current-arrow overlay update path: after
+    a measurement collapses ψ, the current-vector field updates from
+    the post-collapse ψ without a fresh encoder pass.
+
+    Parameters
+    ----------
+    psi
+        Complex-valued ψ vector. Accepted shapes: ``(45056,)`` flat
+        or ``(11, 4096)`` channel-block view. Real-valued inputs are
+        promoted to complex (imag=0). dtype is normalized to
+        ``complex128``.
+
+    Returns
+    -------
+    dict with keys:
+
+      * ``ok`` (bool).
+      * ``j`` (ndarray[float32, (16384,)]): per-cell × 4-axis current
+        field, **flattened in C-order** so cell ``c``'s 4-vector
+        occupies indices ``[c*4 : c*4+4]``. Reshape to ``(4096, 4)``
+        to recover the matrix form used by :func:`get_probability_current`.
+
+    Raises
+    ------
+    ValueError
+        If ``psi`` shape is not ``(45056,)`` or ``(11, 4096)``.
+
+    See Also
+    --------
+    get_probability_current
+        State-driven variant; same operator, same physical content,
+        but different return shape (``(4096, 4)`` matrix vs
+        ``(16384,)`` flat).
+    """
+    from chess_spectral import qm_4d as _qm4
+    psi = _validate_psi_full(psi)
+    grads = _get_lattice_gradient_4d()
+
+    j_total = np.zeros(
+        (_qm4.CHANNEL_DIM, 4), dtype=np.float64,
+    )
+    psi_view = psi.reshape(_qm4.N_CHANNELS, _qm4.CHANNEL_DIM)
+    for chan in range(_qm4.N_CHANNELS):
+        psi_chan = psi_view[chan]
+        for axis in range(4):
+            grad_psi = grads[axis] @ psi_chan
+            j_total[:, axis] += (psi_chan.conj() * grad_psi).imag
+
+    # Flatten in C-order so consumers iterate per-cell
+    # (j_flat[c*4 + a] = component a at cell c).
+    return {
+        'ok': True,
+        'j': j_total.astype(np.float32).flatten(order='C'),
     }
 
 
@@ -1516,6 +1811,104 @@ def has_legal_moves(
     }
 
 
+# =====================================================================
+# §17.6 Pyodide-bridge entry for channel-energy evaluation
+# =====================================================================
+#
+# Mirrors the channel-energy hot path from
+# :mod:`chess_spectral.engine.eval.spectral_hybrid` (the 1.13.0+
+# B-spike-3 path (a) — direct channel-energy from a hybrid encoding,
+# without round-tripping through float64 spectral vectors). Exposed
+# here as a Pyodide-friendly entry so chess4D-OC and other consumers
+# don't have to import the engine sub-package directly (the engine
+# sub-package pulls in scipy / sparse machinery; the bridge keeps the
+# import surface narrow). The functions accept a position dict and
+# return a plain ``Dict[str, float]`` — JS-serializable as-is.
+
+
+def channel_energies_2d(
+    pos: Mapping,
+    *,
+    magnitude_bits: int = 8,
+) -> Dict[str, Any]:
+    """§17.6 Pyodide bridge: per-channel L2 energy from a 2D position.
+
+    Encodes ``pos`` to the 8-bit hybrid form (BIP sign + magnitude),
+    then computes the L2 energy of each spectral channel directly from
+    the hybrid factoring (the 1.13.0 B-spike-3 path (a) — ~25× faster
+    than the float64 round-trip). The return dict is JS-serializable;
+    the Pyodide bridge worker can hand it to the consumer's HUD or
+    evaluator weights without further conversion.
+
+    Parameters
+    ----------
+    pos
+        2D position dict, encoder-format: ``{square_idx: piece_char}``.
+    magnitude_bits : int, optional
+        Magnitude bit-width for the hybrid encoding. Default 8 (the
+        1.12.0 acceptance gate); use ``magnitude_bits=16`` for higher
+        fidelity at ~2× cost.
+
+    Returns
+    -------
+    dict with keys:
+
+      * ``ok`` (bool).
+      * ``energies`` (Dict[str, float]): map from channel name to L2
+        energy (``Σ |c|²`` over the channel block). All values
+        non-negative; the sum equals the total spectral energy of
+        the position within hybrid quantization tolerance.
+    """
+    from chess_spectral.encoder_bip_hybrid import encode_2d_bip_hybrid
+    from chess_spectral.engine.eval.spectral_hybrid import (
+        channel_energies_from_hybrid,
+    )
+    hybrid = encode_2d_bip_hybrid(pos, magnitude_bits=magnitude_bits)
+    energies = channel_energies_from_hybrid(hybrid)
+    return {
+        'ok': True,
+        'energies': {str(k): float(v) for k, v in energies.items()},
+    }
+
+
+def channel_energies_4d(
+    pos4: Mapping,
+    *,
+    magnitude_bits: int = 8,
+) -> Dict[str, Any]:
+    """§17.6 Pyodide bridge: per-channel L2 energy from a 4D position.
+
+    4D analog of :func:`channel_energies_2d`. Encodes ``pos4`` to the
+    8-bit hybrid form, then computes per-channel L2 energy via the
+    1.14.0 4D-parity ``channel_energies_from_hybrid_4d`` path.
+
+    Parameters
+    ----------
+    pos4
+        4D position dict, encoder-format: ``{linear_cell_idx: piece}``
+        where pawns are ``(color, axis)`` tuples and non-pawns are
+        single chars.
+    magnitude_bits : int, optional
+        See :func:`channel_energies_2d`.
+
+    Returns
+    -------
+    dict with the same shape as :func:`channel_energies_2d` (keys
+    ``ok`` and ``energies``). The 4D channel set has 11 entries
+    matching :data:`chess_spectral.encoder_4d.CHANNELS_4D`.
+    """
+    from chess_spectral.encoder_bip_hybrid import encode_4d_bip_hybrid
+    from chess_spectral.engine.eval.spectral_hybrid import (
+        channel_energies_from_hybrid_4d,
+    )
+    hybrid = encode_4d_bip_hybrid(pos4, magnitude_bits=magnitude_bits)
+    energies = channel_energies_from_hybrid_4d(hybrid)
+    return {
+        'ok': True,
+        'energies': {str(k): float(v) for k, v in energies.items()},
+    }
+
+
 __all__ = [
     # Original §17.1 #3 entry-point (per-channel dispatch dict).
     'apply_move_qm',
@@ -1527,6 +1920,9 @@ __all__ = [
     'get_density_matrix_of',
     'get_probability_current',
     'get_qm_expectation',
+    # §17.1 1.14.0+ ψ-direct variants (chess4D-OC M14.4c hot path).
+    'get_qm_density_from_psi',
+    'get_probability_current_from_psi',
     # §17.5 dev/debug bridge surface.
     'get_version',
     'get_encoder_shape',
@@ -1534,6 +1930,9 @@ __all__ = [
     'load_fen4',
     'load_jsonl_fixture',
     'has_legal_moves',
+    # §17.6 Pyodide-bridge channel-energy entries (1.14.0+).
+    'channel_energies_2d',
+    'channel_energies_4d',
     # Pyodide-bridge serialization helpers.
     'complex_to_interleaved_float32',
 ]

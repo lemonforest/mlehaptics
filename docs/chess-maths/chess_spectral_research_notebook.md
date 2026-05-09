@@ -3895,6 +3895,103 @@ What the stress tests **don't** address (deferred to a future ship):
 - **PGN-sourced phase classification** — instead of hand-picked open/mid/end FENs, sample real games and cluster channel-energy fingerprints to define data-driven phase labels. Would let us bench against position distributions that match real play. Per §20's framing, the encoder *is* an FFT-equivalent, so its own channel-energy fingerprint is a natural feature space for clustering. Future ship.
 - **`encode_4d_pure_phase`** — see point 2 above. Deferred.
 
+#### 2026-05-09 amendment 2 — chess4D-OC consumer wishlist surface
+
+After the parity repair landed in PR #293, the chess4D-OC consumer
+(running in a parallel Claude session) provided a pre-publish
+wishlist of items needed to unblock M14.4c (entanglement-viz with
+post-collapse ψ updates), M14.3 (entanglement halo), and the new-
+game reset path. All Tier 1 + Tier 2 items shipped in 1.14.0:
+
+**Tier 1 — entanglement-viz unblockers**
+
+1. `qm_4d_bridge.get_qm_density_from_psi(psi)` — ψ-direct variant of
+   `get_qm_density(state)`. Returns `{ok, density: ndarray (4096,)
+   float32}`. The hot path is identical (reshape → |ψ|² → channel-
+   sum); the new entry skips the encoder re-encode after collapse,
+   which the §17.1 #4 `measure_at` path produces as a
+   `postCollapsePsi` field already. **<50 LOC including docstring +
+   shape validator**.
+
+2. `qm_4d_bridge.get_probability_current_from_psi(psi)` — ψ-direct
+   variant of `get_probability_current(state)`. Same operator
+   (`j(c, a) = Im(ψ* ∂_a ψ)` summed across the 11 channels), but
+   returns the field flattened to `(16384,)` in C-order so the
+   chess4D-OC worker can hand it to a JS Float32Array without
+   re-flattening. Cell `c`'s 4-vector lives at `j[c*4 : c*4+4]`.
+   **<60 LOC**, reuses the existing 4096×4096 sparse gradient cache
+   from `_build_lattice_gradient_4d()`.
+
+3. `qm_4d_bridge.get_density_matrix_of(state, piece_id, *, neighborhood_radius=1)`
+   — partial implementation. Replaces the previous unconditional
+   `NotImplementedError`. Computes the **channel reduced density on
+   a 4D-Manhattan neighborhood** of the piece's cell:
+   * Take `M = ψ.reshape(11, 4096)`.
+   * Restrict to columns `M[:, neighborhood]` where neighborhood is
+     the Manhattan-radius-1 4D ball around piece_id (1 + 8 = 9
+     cells; fewer at boundaries).
+   * Compute `ρ_ch = M_local @ M_local^†` (11×11 PSD).
+   * Trace-normalize, eigendecompose for purity / rank.
+
+   **Caveats made explicit**: this is *not* the η-metric reduced
+   density. The full ADR-005 partial-trace construction stays
+   deferred. The 1.14.0 ship is a placeholder with sensible
+   geometry — the channel-content geometry around a piece's cell
+   is a useful proxy for "how mixed is the local QM state?", and
+   crucially, **purity varies by piece_id** (locked in
+   `test_purity_varies_by_piece_id`), so the M14.3 halo viz lights
+   up. The return dict carries `isPartial: True` for consumers to
+   disclaim η-metric semantics. When ADR-005 ships, the function's
+   signature is preserved and the body is replaced.
+
+**Tier 2 — consumer ergonomics**
+
+4. `HybridCache.clear()` — drops cached entries + resets
+   hits/misses; preserves `max_size`. For chess4D-OC's "new game"
+   reset path. **~10 LOC including docstring**.
+
+5. `qm_4d_bridge.channel_energies_2d(pos, *, magnitude_bits=8)` and
+   `qm_4d_bridge.channel_energies_4d(pos4, *, magnitude_bits=8)` —
+   Pyodide-friendly entry points that take a position dict, run
+   encode + channel-energy in one shot, return `{ok, energies:
+   Dict[str, float]}` (JS-serializable as-is). Saves the consumer
+   from importing `engine.eval.spectral_hybrid` (which pulls in
+   scipy / sparse machinery the bridge's WASM context shouldn't
+   need). **~30 LOC each, late-bound imports** keep the module-
+   import surface narrow.
+
+**Test coverage** — 33 new immolation tests across two files:
+
+- `tests/test_wishlist_surface_1_14.py` (23 tests): each Tier 1 / 2
+  item gets a class. The cross-cutting tests assert the new symbols
+  are in `qm_4d_bridge.__all__` and that `clear` is a callable
+  attribute on `HybridCache`.
+- `tests/test_qm_4d_bridge_v15.py::TestGetDensityMatrixOf` rewritten
+  (10 tests) for the new partial-impl contract. The
+  `test_purity_varies_by_piece_id` test is the load-bearing one —
+  it proves the function isn't degenerate (i.e., purity is not
+  constant across cells), which is what makes the halo viz
+  meaningful.
+
+The 95-test broader bridge / hybrid-eval surface continues to pass
+with no regressions. The wishlist surface is auditable in one place
+(the dedicated test file) so when a chess4D-OC PR breaks any Tier
+contract, the failing test points at the right wishlist item.
+
+**What this consumer wishlist landing does NOT do**:
+
+- η-metric construction (ADR-005). Deferred. The new
+  `get_density_matrix_of` is a placeholder; the real construction
+  needs a channel-to-piece attribution map that's still open
+  design.
+- C-extension wheels. Long-term, NOT this release. The pure-Python
+  wishlist surface is what the user asked for.
+- SSoT pass for chess2d/chess4d shared elements. The wishlist
+  items only grow the public surface; an architectural cleanup
+  (e.g., moving shared helpers like `_decode_4d_cell` /
+  `_validate_psi_full` into a dedicated `chess_spectral._shared`
+  module) is a follow-up ship that doesn't gate 1.14.0 publish.
+
 ### 20.22. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:

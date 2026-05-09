@@ -116,6 +116,23 @@ class HybridCache:
             "max_size": self._max_size,
         }
 
+    def clear(self) -> None:
+        """Drop all cached entries and reset hit/miss counters.
+
+        For consumer reset paths — chess4D-OC's "new game" flow needs
+        this to avoid stale cache entries leaking across sessions
+        (the cache is keyed by position-dict hash, and Python's per-
+        process hash randomization makes cross-process key collisions
+        extremely unlikely, but a same-process new-game session would
+        otherwise inherit the previous game's cache state).
+
+        After ``clear()``, the cache reports zero hits, zero misses,
+        and ``size == 0``; ``max_size`` is preserved.
+        """
+        self._cache.clear()
+        self.hits = 0
+        self.misses = 0
+
 
 def _hash_position_dict(pos: Position2D) -> int:
     """Deterministic hash of an encoder-format position dict.

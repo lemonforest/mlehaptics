@@ -444,19 +444,108 @@ class TestMeasureAt:
 
 
 class TestGetDensityMatrixOf:
-    """getDensityMatrixOf is deferred to v1.7+; raises NIE always."""
+    """1.14.0+ partial implementation contract for ``getDensityMatrixOf``.
 
-    def test_raises_nie(self, imbalanced_position):
+    The function ships a placeholder neighborhood-restricted channel
+    reduced density (Manhattan radius 1) — full η-metric machinery is
+    still deferred (ADR-005). The 1.14.0 acceptance gate is geometric
+    sanity:
+      * ``rho`` is 11×11 complex128, Hermitian, trace == 1 (when
+        nonzero amplitude in the neighborhood).
+      * ``purity`` ∈ [0, 1].
+      * ``rank`` ≥ 1 for typical mid-board positions.
+      * ``isPartial`` flag tells consumers it's a placeholder.
+    """
+
+    def test_returns_partial_implementation_dict(self, imbalanced_position):
         first_sq = next(iter(imbalanced_position))
-        with pytest.raises(NotImplementedError) as excinfo:
-            br.get_density_matrix_of(imbalanced_position, first_sq)
-        msg = str(excinfo.value)
-        assert 'v1.7' in msg or 'partial trace' in msg
+        res = br.get_density_matrix_of(imbalanced_position, first_sq)
+        assert res['ok'] is True
+        assert res['isPartial'] is True
+        assert 'rho' in res
+        assert 'purity' in res
+        assert 'rank' in res
+        assert 'eigvals' in res
+        assert 'neighborhoodSize' in res
 
-    def test_nie_message_mentions_partial_trace(self, imbalanced_position):
-        with pytest.raises(NotImplementedError) as excinfo:
-            br.get_density_matrix_of(imbalanced_position, 0)
-        assert 'partial trace' in str(excinfo.value).lower()
+    def test_rho_shape_and_hermitian(self, imbalanced_position):
+        first_sq = next(iter(imbalanced_position))
+        res = br.get_density_matrix_of(imbalanced_position, first_sq)
+        rho = res['rho']
+        assert rho.shape == (11, 11)
+        assert rho.dtype == np.complex128
+        # Hermitian within float64 tolerance.
+        assert np.allclose(rho, rho.conj().T, atol=1e-12)
+
+    def test_rho_trace_is_one(self, imbalanced_position):
+        # Pick a cell that has nonzero amplitude in its neighborhood.
+        first_sq = next(iter(imbalanced_position))
+        res = br.get_density_matrix_of(imbalanced_position, first_sq)
+        tr = float(np.trace(res['rho']).real)
+        assert abs(tr - 1.0) < 1e-9, f"Tr(rho) = {tr}, expected 1.0"
+
+    def test_purity_bounds(self, imbalanced_position):
+        for sq in list(imbalanced_position)[:3]:
+            res = br.get_density_matrix_of(imbalanced_position, sq)
+            assert 0.0 <= res['purity'] <= 1.0 + 1e-9
+
+    def test_rank_in_range(self, imbalanced_position):
+        first_sq = next(iter(imbalanced_position))
+        res = br.get_density_matrix_of(imbalanced_position, first_sq)
+        # Rank must be at most the channel count (11) and at least 1
+        # for a nonempty neighborhood with nontrivial amplitude.
+        assert 1 <= res['rank'] <= 11
+
+    def test_eigvals_sum_to_trace(self, imbalanced_position):
+        first_sq = next(iter(imbalanced_position))
+        res = br.get_density_matrix_of(imbalanced_position, first_sq)
+        eig_sum = float(res['eigvals'].sum())
+        assert abs(eig_sum - 1.0) < 1e-9
+
+    def test_purity_varies_by_piece_id(self, imbalanced_position):
+        """Different pieces ⇒ different local channel content ⇒
+        different purity. This is the whole point of shipping a
+        per-piece variant — halo viz lights up because purity is
+        not constant across cells."""
+        sqs = list(imbalanced_position.keys())
+        purities = [
+            br.get_density_matrix_of(imbalanced_position, s)['purity']
+            for s in sqs
+        ]
+        # Not all pieces should have identical purity (would mean the
+        # function is degenerate). Given 6+ random mid-board pieces,
+        # expect at least 2 distinct purities.
+        distinct = {round(p, 9) for p in purities}
+        assert len(distinct) >= 2, (
+            f"All purities identical across {len(sqs)} pieces "
+            f"(=> degenerate placeholder); got {purities}"
+        )
+
+    def test_radius_zero_collapses_to_rank_one(self, imbalanced_position):
+        """Radius=0 = single cell ⇒ rank-1 outer product
+        ⇒ purity == 1.0 always."""
+        first_sq = next(iter(imbalanced_position))
+        res = br.get_density_matrix_of(
+            imbalanced_position, first_sq, neighborhood_radius=0,
+        )
+        assert res['rank'] == 1
+        assert abs(res['purity'] - 1.0) < 1e-9
+
+    def test_radius_two_enlarges_neighborhood(self, imbalanced_position):
+        first_sq = next(iter(imbalanced_position))
+        res1 = br.get_density_matrix_of(
+            imbalanced_position, first_sq, neighborhood_radius=1,
+        )
+        res2 = br.get_density_matrix_of(
+            imbalanced_position, first_sq, neighborhood_radius=2,
+        )
+        assert res2['neighborhoodSize'] > res1['neighborhoodSize']
+
+    def test_invalid_piece_id_raises(self, imbalanced_position):
+        with pytest.raises(ValueError):
+            br.get_density_matrix_of(imbalanced_position, 4096)
+        with pytest.raises(ValueError):
+            br.get_density_matrix_of(imbalanced_position, -1)
 
 
 # =====================================================================

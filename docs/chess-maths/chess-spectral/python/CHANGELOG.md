@@ -223,6 +223,80 @@ What the stress tests don't yet address (deferred to follow-up):
   from real games)
 - `encode_4d_pure_phase` (see above)
 
+### 2026-05-09 amendment 2 — chess4D-OC consumer wishlist landing
+
+Late-1.14.0 additions driven by the chess4D-OC pre-publish wishlist.
+All ship in this 1.14.0 release; no new minor bump needed since the
+public surface only grows (no breaking changes).
+
+#### Tier 1: M14.4c entanglement-viz unblockers
+
+- **`qm_4d_bridge.get_qm_density_from_psi(psi)`** — ψ-direct variant
+  of `get_qm_density`. Takes a precomputed ψ vector (shape `(45056,)`
+  flat or `(11, 4096)` channel-block) and returns
+  `{ok, density: ndarray (4096,) float32}`. Skips the
+  `state_to_psi` re-encode step on the post-collapse render path.
+- **`qm_4d_bridge.get_probability_current_from_psi(psi)`** — ψ-direct
+  variant of `get_probability_current`. Same operator
+  (`j(c, a) = Im(ψ* ∂_a ψ)` summed across the 11 channels), but
+  returns the field flattened to `{ok, j: ndarray (16384,) float32}`
+  in C-order (so cell `c`'s 4-vector is `j[c*4 : c*4+4]`).
+  The flat shape is the consumer-requested return type — chess4D-OC's
+  worker hands it directly to a JS Float32Array.
+- **`qm_4d_bridge.get_density_matrix_of(state, piece_id, *, neighborhood_radius=1)`**
+  — partial implementation. Replaces the previous unconditional
+  `NotImplementedError` raise (which was deferred to v1.7+ originally,
+  then to ADR-005). The new implementation computes the **channel
+  reduced density on a 4D-Manhattan neighborhood** of the piece's
+  cell — a placeholder that gives **nontrivial purity per piece**
+  for the M14.3 entanglement-halo viz to light up. Returns dict with
+  `rho` (11×11 complex128, Hermitian, trace 1), `purity ∈ [0, 1]`,
+  `rank ∈ [1, 11]`, `eigvals (11,)`, `neighborhoodSize`, and
+  `isPartial: True`. The `isPartial` flag tells consumers it's a
+  placeholder; the full η-metric construction (ADR-005) ships later
+  with the same signature.
+
+#### Tier 2: consumer ergonomics
+
+- **`HybridCache.clear()`** — drops all cached entries and resets
+  hit/miss counters; preserves `max_size`. For chess4D-OC's "new
+  game" reset path (avoids stale cache entries leaking across
+  same-process sessions).
+- **`qm_4d_bridge.channel_energies_2d(pos, *, magnitude_bits=8)`** —
+  Pyodide-friendly wrapper. Takes a 2D position dict, runs encode +
+  channel-energy in one shot, returns `{ok, energies: Dict[str, float]}`
+  (JS-serializable as-is). Saves the consumer from importing
+  `engine.eval.spectral_hybrid` (which pulls in scipy/sparse).
+- **`qm_4d_bridge.channel_energies_4d(pos4, *, magnitude_bits=8)`** —
+  4D analog of the above; 11-channel result.
+
+#### Added — 33 immolation tests for the wishlist surface
+
+- `tests/test_wishlist_surface_1_14.py` (23 tests):
+    * `TestProbabilityCurrentFromPsi` (5): flat shape, state-driven
+      parity, channel-block view acceptance, real-input promotion,
+      invalid-shape `ValueError`.
+    * `TestQmDensityFromPsi` (5): shape, state-driven parity,
+      non-negativity + sum-to-norm, channel-block view, invalid shape.
+    * `TestChannelEnergiesBridge2D` (4): return shape, non-negativity,
+      direct-call match, magnitude_bits kwarg.
+    * `TestChannelEnergiesBridge4D` (3): return shape, non-negativity,
+      direct-call match.
+    * `TestHybridCacheClear` (4): drops entries, resets counters,
+      preserves `max_size`, populating after clear works.
+    * Cross-cutting: wishlist functions in `__all__`; `clear` is an
+      attribute on `HybridCache`.
+- `tests/test_qm_4d_bridge_v15.py::TestGetDensityMatrixOf` rewritten
+  (10 tests) to assert the new partial-impl contract: dict shape,
+  Hermitian rho, trace 1, purity bounds, rank in range, eigval sum,
+  **purity varies by piece_id** (this is the test that proves the
+  function isn't degenerate — halo viz will see distinct values),
+  radius=0 collapses to rank-1, radius=2 enlarges, invalid piece_id
+  raises.
+
+All 33 wishlist tests pass + the 95-test broader bridge / hybrid-eval
+surface continues to pass with no regressions.
+
 ## [1.13.0] — 2026-05-09
 
 B-spike-3 from notebook §20.15 ships (partial): **encoder-eval
