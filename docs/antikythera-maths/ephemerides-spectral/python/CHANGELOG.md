@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase C — body→kernel registry (the layer-2-to-layer-3 interface)
+
+- **`_research.body_kernel_registry`** — new module. Stores `{body → (kernel_path, precision_tier)}` registrations as module-level singleton state. API: `register(body, kernel_path, *, precision_tier="jpl_published")`, `lookup(body)`, `clear(body=None)`, `state()`, `state_hash()`, `is_active()`, `all_bodies()`. Three precision tiers: `jpl_published`, `bodies_fallback`, `user_fit`. SHA-256 over canonical-serialised state participates as the cache key for module-load-time eigenbasis caches in `body_architecture` and `predict_itn_accessibility` — phase B will extend those caches to invalidate on registry change. Phase C ships the registry as **structural** infrastructure: registrations are tracked + hashed + surfaced via bridge metadata, but orbital-mechanics surfaces fall back to BODIES-distilled state lookups because the binary kernels are not yet readable. Phase B's `binary_archive` adapter + `ephemeris_loader` integration turns the registry from metadata into behaviour.
+
+### Added — bridge dict API
+
+- `bridge.register_body_kernel(body, kernel_path, *, precision_tier)` — register a kernel for a body. Returns `{ok, body, kernel_path, precision_tier, registry_size, state_hash}` on success or `{ok: False, error}` on validation failure.
+- `bridge.clear_body_kernel(body=None)` — clear one body's registration, or every registration (`body=None`). Returns `{ok, cleared, registry_size, state_hash}`.
+- `bridge.get_body_kernel_registry()` — return the full registry state envelope. Returns `{ok, active, registry_size, registrations, state_hash}`.
+
+### Changed — bridge response envelopes
+
+- `bridge.body_architecture()` and `bridge.body_architecture(target=name)` now include a `kernel_registry` field carrying the registry state envelope (active flag, size, registrations, state_hash). Empty-registry default is byte-stable across platforms (the empty-registry hash is `SHA-256("[]")`).
+- `bridge.predict_itn_accessibility(departure, target)` now includes the same `kernel_registry` field on success envelopes. Eigenbasis-cache invalidation against the registry hash lands in phase B.
+
+### Tests
+
+- `test_body_kernel_registry.py` — 36 new tests covering registry semantics (register / lookup / clear / state / hash), bridge surface delegation, validation errors, hash determinism + invalidation, metadata propagation into `body_architecture` + `predict_itn_accessibility`, and integration-test stubs that activate when phases A and B land. Hash-independence-of-registration-order is pinned as the load-bearing invariant for cache-key stability.
+
 ### Documentation
 
 - `bridge.find_syzygies` and `bridge.get_eclipse_probability` docstrings now explicitly frame the two surfaces as a **two-tier eclipse-finding discipline**: `find_syzygies` is the Saros-class mean-period triage tier (no DE441 query; `O(n_syzygies)` per window), and `get_eclipse_probability` is the per-JD JPL-anchored arc-second-class confirmation tier (reads DE441 via `inst.encode_state(jd)` and projects against the Syzygy Operator). The two surfaces compute related-but-different quantities (Born-rule projection vs mean-period geometric residual) on different data; both are deliberately load-bearing. Pre-v0.27.0 wording suggested `find_syzygies` "replaced" `get_eclipse_probability`, which was misleading — only the windowed-loop *usage* of `get_eclipse_probability` was replaced; per-call use as the precision tier is the intended workflow. No code change.

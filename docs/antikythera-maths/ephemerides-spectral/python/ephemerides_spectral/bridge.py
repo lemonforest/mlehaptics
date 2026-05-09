@@ -2651,8 +2651,15 @@ def body_architecture(target: Optional[str] = None) -> Dict[str, Any]:
     except (ValueError, RuntimeError) as exc:
         return {"ok": False, "error": str(exc)}
 
+    # v0.27.0 phase C — surface the body→kernel registry state (notebook
+    # §22.6). When the registry is empty, this is a fixed metadata hash;
+    # phase B will extend the surface to actually consume registered
+    # kernels for state lookups.
+    from ._research import body_kernel_registry as _bkr
+    registry_state = _bkr.state()
+
     if target is None:
-        return result
+        return {**result, "kernel_registry": registry_state}
 
     name = str(target).lower()
     for record in result["bodies"]:
@@ -2664,6 +2671,7 @@ def body_architecture(target: Optional[str] = None) -> Dict[str, Any]:
                 "fiedler_value": record["fiedler_value"],
                 "period_days": record["period_days"],
                 "lambda_2": result["lambda_2"],
+                "kernel_registry": registry_state,
             }
     return {
         "ok": False,
@@ -2736,7 +2744,15 @@ def predict_itn_accessibility(
     framing of this regression as the bulk-boundary correspondence's
     real empirical payload).
     """
-    return _predict_itn_accessibility_impl(departure, target)
+    result = _predict_itn_accessibility_impl(departure, target)
+    # v0.27.0 phase C — surface the body→kernel registry state (notebook
+    # §22.6). When the registry is empty, this is a fixed metadata hash;
+    # phase B will extend the surface to actually consume registered
+    # kernels for state lookups.
+    if isinstance(result, dict) and result.get("ok"):
+        from ._research import body_kernel_registry as _bkr
+        result = {**result, "kernel_registry": _bkr.state()}
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -5992,6 +6008,117 @@ def suggest_gap_collections(
     return _suggester.suggest_gap_collections(ood_threshold=ood_threshold)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.27.0 phase C — Body→kernel registry (notebook §22.6)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Layer-2-to-layer-3 interface from the three-layer mechanism
+# architecture: a mapping of {body → (kernel_path, precision_tier)}
+# that orbital-mechanics surfaces consult before falling back to the
+# BODIES-distilled values codegen-derived from DE441.
+#
+# Phase C ships the registry abstraction + the bridge surfaces that
+# expose it. The registry is *structural* in v0.27.x phase C:
+# registrations are tracked, hashed, and surfaced via bridge metadata,
+# but orbital-mechanics surfaces fall back to BODIES for actual state
+# lookups because the binary kernels are not yet readable. Phase B
+# (binary_archive adapter + ephemeris_loader integration) adds the
+# kernel-reading capability that turns the registry from metadata into
+# behaviour.
+
+
+def register_body_kernel(
+    body: str,
+    kernel_path: str,
+    *,
+    precision_tier: str = "jpl_published",
+) -> Dict[str, Any]:
+    """Register a kernel path for a specific body in the body→kernel
+    registry (notebook §22.6, the layer-2-to-layer-3 interface).
+
+    Phase C of v0.27.0. The registry is structural in this phase —
+    registrations are tracked and hashed, but orbital-mechanics
+    surfaces fall back to BODIES-distilled values for actual state
+    lookups until phase B's ``binary_archive`` adapter ships the
+    kernel-reading capability that consumes registered paths.
+
+    Parameters
+    ----------
+    body
+        Body name to register (e.g. ``"jupiter"``, ``"luna"``,
+        ``"bennu"``). Validation against the BODIES roster is lazy:
+        bodies not in the roster are accepted and have no scaffold-
+        side consumers until the roster is extended via codegen.
+    kernel_path
+        Filesystem path to the kernel file (typically a JPL .bsp
+        binary). Stored verbatim in phase C; phase B's adapter will
+        validate readability when the kernel is actually loaded.
+    precision_tier
+        ``"jpl_published"`` (default), ``"bodies_fallback"``, or
+        ``"user_fit"``. Identifies the precision regime of the
+        registered kernel for downstream consumers that scope
+        queries by precision.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": ..., "kernel_path": ...,
+        "precision_tier": ..., "registry_size": int,
+        "state_hash": str}`` on success.
+        ``{"ok": False, "error": str}`` on validation failure.
+
+    See also
+    --------
+    :func:`clear_body_kernel`, :func:`get_body_kernel_registry`,
+    :func:`use_local_kernel` (the v0.25.1 AMSC-layer T2 hook;
+    distinct concept — that one overlays attested NDJSON sources,
+    this one registers binary kernels for body-state lookups).
+    """
+    from ._research import body_kernel_registry as _bkr
+    return _bkr.register(
+        body, kernel_path, precision_tier=precision_tier,
+    )
+
+
+def clear_body_kernel(body: Optional[str] = None) -> Dict[str, Any]:
+    """Clear one body's registration, or the entire registry.
+
+    Parameters
+    ----------
+    body
+        Body to clear. ``None`` (default) clears every registration.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "cleared": int, "registry_size": int,
+        "state_hash": str}``.
+    """
+    from ._research import body_kernel_registry as _bkr
+    return _bkr.clear(body)
+
+
+def get_body_kernel_registry() -> Dict[str, Any]:
+    """Return the current body→kernel registry state envelope.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "active": bool, "registry_size": int,
+        "registrations": [{body, kernel_path, precision_tier}, ...],
+        "state_hash": str}``. The ``state_hash`` is SHA-256 over the
+        canonical-serialised registration list and serves as a cache
+        key for module-load-time eigenbasis caches in
+        ``body_architecture`` and ``predict_itn_accessibility``.
+    """
+    from ._research import body_kernel_registry as _bkr
+    state = _bkr.state()
+    return {
+        "ok": True,
+        **state,
+    }
+
+
 __all__ = [
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
@@ -6029,4 +6156,7 @@ __all__ = [
     "clear_local_kernel",
     "get_local_kernel_state",
     "suggest_gap_collections",
+    "register_body_kernel",
+    "clear_body_kernel",
+    "get_body_kernel_registry",
 ]

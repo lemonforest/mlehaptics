@@ -152,6 +152,10 @@
       "sha256": "a5bdcaeca175883c4bcf7a9658c601d06ca84bc2057d523947dfbadfbac1e42a",
       "size_bytes": 9767
     },
+    "_research/body_kernel_registry.py": {
+      "sha256": "65120628f0e9514cbd9b8df5ea3fe1e675c74acfdd146ef5a28b9c6c4816d34f",
+      "size_bytes": 10209
+    },
     "_research/decoy_discrimination_catalog.py": {
       "sha256": "545ea4d1622ce7cce039f56fb54fe96c34c645e771dfa1a75d1f520360e14880",
       "size_bytes": 13539
