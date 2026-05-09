@@ -377,6 +377,93 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     assert result["n_sources"] == 4
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == ["earthref_sc", "gmrt", "petdb_v4", "saturn_rings"]
+    # adapter_class echo should be None when no filter applied.
+    assert result["adapter_class"] is None
+
+
+def test_bridge_list_attested_sources_curated_class_filter() -> None:
+    """adapter_class='curated' returns only literature_curated sources
+    (saturn_rings as of this ship)."""
+    result = bridge.list_attested_sources(adapter_class="curated")
+    assert result["ok"] is True
+    assert result["n_sources"] == 1
+    assert result["adapter_class"] == "curated"
+    assert result["sources"][0]["key"] == "saturn_rings"
+    assert result["sources"][0]["adapter"] == "literature_curated"
+
+
+def test_bridge_list_attested_sources_fetched_class_filter() -> None:
+    """adapter_class='fetched' returns only network-fetching sources
+    (earthref_sc + gmrt + petdb_v4 as of this ship)."""
+    result = bridge.list_attested_sources(adapter_class="fetched")
+    assert result["ok"] is True
+    assert result["n_sources"] == 3
+    assert result["adapter_class"] == "fetched"
+    keys = sorted(s["key"] for s in result["sources"])
+    assert keys == ["earthref_sc", "gmrt", "petdb_v4"]
+    # Every returned source's adapter must be in the fetched class.
+    fetched_adapters = {
+        "html_scraper", "json_api", "csv_bulk",
+        "netcdf_grid", "geotiff_bbox",
+    }
+    for src in result["sources"]:
+        assert src["adapter"] in fetched_adapters
+
+
+def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
+    """adapter_class can also accept a specific adapter name (exact
+    match) for fine-grained filtering."""
+    result = bridge.list_attested_sources(adapter_class="literature_curated")
+    assert result["ok"] is True
+    assert result["n_sources"] == 1
+    assert result["sources"][0]["adapter"] == "literature_curated"
+
+    result = bridge.list_attested_sources(adapter_class="html_scraper")
+    assert result["ok"] is True
+    assert result["n_sources"] == 1
+    assert result["sources"][0]["key"] == "earthref_sc"
+
+
+def test_bridge_list_attested_sources_unknown_class_raises() -> None:
+    """Unknown adapter_class raises ValueError to surface typos
+    instead of silently returning an empty result."""
+    with pytest.raises(ValueError, match="unknown adapter_class"):
+        bridge.list_attested_sources(adapter_class="bogus_class")
+
+
+def test_bridge_use_local_kernel_unknown_adapter_class_returns_error() -> None:
+    """use_local_kernel with an unknown adapter_class returns
+    ok=False (envelope-style; doesn't raise — bridge surfaces are
+    Pyodide-friendly so unknown-input errors are returned as
+    structured responses)."""
+    result = bridge.use_local_kernel("/tmp/x", adapter_class="bogus_class")
+    assert result["ok"] is False
+    assert "unknown adapter_class" in result["error"]
+
+
+def test_bridge_curated_and_fetched_classes_partition_the_roster() -> None:
+    """The two named classes (curated + fetched) must partition the
+    full source roster — every source falls into exactly one class.
+    Ratchets the discipline as new pilots ship: a new adapter that
+    isn't in either class would break this test, surfacing the
+    decision about which class it belongs to."""
+    full = bridge.list_attested_sources()
+    curated = bridge.list_attested_sources(adapter_class="curated")
+    fetched = bridge.list_attested_sources(adapter_class="fetched")
+
+    full_keys = {s["key"] for s in full["sources"]}
+    curated_keys = {s["key"] for s in curated["sources"]}
+    fetched_keys = {s["key"] for s in fetched["sources"]}
+
+    # Disjoint
+    assert curated_keys.isdisjoint(fetched_keys), (
+        f"curated and fetched overlap: {curated_keys & fetched_keys}"
+    )
+    # Cover
+    assert curated_keys | fetched_keys == full_keys, (
+        f"sources outside both classes: "
+        f"{full_keys - (curated_keys | fetched_keys)}"
+    )
 
 
 def test_bridge_get_attested_dataset_handles_missing_ndjson() -> None:
