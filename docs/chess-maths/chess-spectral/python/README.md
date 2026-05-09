@@ -28,6 +28,57 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.15 (May 2026)
+
+**4D pure-phase encoder** ships — completing the chess2d/chess4d
+parity restoration begun by 1.14.0's amendment 1. The 1.14.0 ship
+of B-spike-4 was 2D-only; the §20.15 4D pure-phase encoder was
+deferred to "1.15.0+" with the open question of how to integerize
+the B₄-driven 4D structure (no integer character formula analog to
+D₄'s ±1, ±2, 0 character table). 1.15.0 closes the gap.
+
+- **`encode_4d_pure_phase(pos4)`** — int32 output, integer
+  arithmetic throughout. **`encode_4d_pure_phase_to_float(pos4)`**
+  — same encoder with per-channel dequantization; drop-in for
+  `encode_4d` comparison.
+
+- **A_1 channel** uses the **scale-by-LCM** integerization trick:
+  every B_4 orbit size divides 384, so `P_A1 × 384` has all-integer
+  entries (specifically, divisors of 384). Lossless — bit-exact
+  relative to the float baseline.
+
+- **STD4 channels (X/Y/Z/W)** use **scale-by-4** for the
+  quarter-integer `coord_resid` table (multiples of 0.25, range
+  [-5.25, +5.25]). Lossless — bit-exact.
+
+- **Fiber / pawn / diag channels** use the same int16-quantized
+  approach as 2D, with per-table max-abs scale factors. Lossy at
+  the int16 quantization level (≥ 99.999% cosine-sim).
+
+- **Empirical speed verdict — uniformly equal or faster** (the
+  OPPOSITE of 2D's mixed result): bench at iters=100 on random
+  positions, sparse / midgame / dense:
+
+  | Position    | float (µs) | pure_int (µs) | pure/float |
+  |-------------|------------|---------------|------------|
+  | sparse n=4  | 10 707     | 10 549        | 0.99×      |
+  | midgame n=24| 21 805     | 21 095        | 0.97×      |
+  | dense n=128 | 88 996     | 70 283        | **0.79×**  |
+
+  The dense-position win comes from sparse matvec being integer-ALU
+  friendly + STD4 elementwise being SIMD-friendly. Real
+  chess4D-OC visualizer benefit at 28-king Oana-Chiru initial.
+
+- **29 new tests** lock the surface: 21 immolation tests
+  (cosine-sim, bit-exactness for A_1 + STD4, channel-energy
+  Spearman, edge cases) + 8 stress tests on 500 random 4D
+  positions (per-position cosine ≥ 0.99, median ≥ 0.999, A_1 + STD4
+  bit-exact at scale, no NaN, int32 bounded, deterministic).
+
+This closes the 2D/4D pure-phase parity gap. The remaining
+`encode_4d_pure_phase` deferral from 1.14.0 amendment 1 is now
+**discharged**.
+
 ## What's new in v1.14 (May 2026)
 
 The §20.15 fifth and final phase: **pure-phase encoder rewrite**

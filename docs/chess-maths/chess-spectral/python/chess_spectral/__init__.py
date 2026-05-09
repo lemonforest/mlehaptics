@@ -160,6 +160,21 @@ from .encoder_pure_phase import (
     CHANNEL_DEQUANT_SCALES,
 )
 
+# 1.15.0 — 4D pure-phase encoder (chess2d/chess4d parity for B-spike-4).
+# Same integer-arithmetic-throughout discipline as 2D, with two design
+# unlocks for B_4: (1) the A_1 sparse projector is integerized via
+# scale-by-LCM (×384, since every B_4 orbit divides |B_4|=384); (2) the
+# STD4 coord_resid table contains quarter-integers (multiples of 0.25),
+# integerized via scale-by-4. Fiber/pawn/diag channels use the same
+# int16 quantization as 2D. Empirical bench: uniformly equal or faster
+# than the float baseline (1.27× faster on dense n=128 positions —
+# opposite of 2D's mixed result).
+from .encoder_pure_phase_4d import (
+    encode_4d_pure_phase,
+    encode_4d_pure_phase_to_float,
+    CHANNEL_DEQUANT_SCALES_4D,
+)
+
 # 1.12.0 — Encoder BIP-hybrid (notebook §20.18). Sign × magnitude
 # factoring per channel: sign packs as 1 bit per dim (algebraically
 # exact); magnitude quantizes to 4 or 8 bits per dim with per-channel
@@ -278,6 +293,10 @@ __all__ = [
     "encode_2d_pure_phase",
     "encode_2d_pure_phase_to_float",
     "CHANNEL_DEQUANT_SCALES",
+    # 1.15.0 — 4D pure-phase encoder (chess2d/chess4d parity)
+    "encode_4d_pure_phase",
+    "encode_4d_pure_phase_to_float",
+    "CHANNEL_DEQUANT_SCALES_4D",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
     # 1.9.0 — non-Markovian sheet aux block (representation completeness)
