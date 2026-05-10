@@ -1,0 +1,91 @@
+# Sol Dynamical-Regime Classifier — labelled ground-proof rows for
+# the v0.24.9 eigenbasis-projection version of the v0.24.x if/else
+# chain.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.9
+# hand-coded `_research/dynamical_regime_data.py` module. This is
+# the project's first explicit *meta-consumer* of the v0.24.x
+# methodology arc — each v0.24.x ship becomes a labelled ground-
+# proof row in a 7-dimensional feature space. The eigenbasis of
+# the resulting feature matrix is the dynamical-regime classifier.
+#
+# These are NOT training examples in the SGD sense. They are
+# ground-proof rows: published, deterministic, observationally-
+# established physics. The classifier doesn't *train*; its
+# eigenbasis is computed via a single closed-form np.linalg.eigh
+# call. Adding a new v0.24.x ship is a deterministic schema
+# extension, not a re-training.
+#
+# Companion source: `dynamical_regime_probes` (the v0.24.10 OOS
+# probe roster) lives in a separate AMSC source for cleaner gap-
+# suggester wiring.
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "dynamical_regime"
+human_readable_name = "Sol Dynamical-Regime Classifier Training Roster"
+purpose = "ground-proof rows for the v0.24.9 dynamical-regime classifier (each row is one v0.24.x ship's 7-feature signature vector + regime label, used to compute the eigenbasis projection that maps an arbitrary feature vector onto the nearest regime)"
+license = "literature-curated; per-row source DOIs cited via the v0.24.x ship that defined each label"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/research/dynamical_regime_data.py"
+canonical_doi = "10.3847/1538-3881/abd414"
+
+# canonical_doi above points at Park 2021 *Astron. J.* 161:105 —
+# JPL DE441, the gravitational-ephemeris foundation for most of
+# the v0.24.x ships in this roster. Per-row provenance is
+# finer-grained: each row cites the canonical paper most identified
+# with the v0.24.x ship that defined its regime label (Margot 2007
+# for Mercury, Williams 2014 for Luna, Laskar 1993 for Mars,
+# Davies 2014 for Sun, Iess 2019 for Saturn-toroidal, Sharp & Clague
+# 2006 for Hawaii, Chesley 2003 for Yarkovsky, Hartmann 2005 for
+# Tharsis, Chadwick 2016 for Axial, Brozovic 2015 for Pluto-Charon,
+# Rathbun 2002 for Loki Patera).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "dynamical_regime.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Sol Dynamical-Regime Classifier Training Roster (curated as a meta-consumer of the v0.24.x ship sequence; per-row source DOIs cite the canonical paper most identified with each v0.24.x ship); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof regime-classifier row for {schema.name} (regime: {schema.regime_label})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# The dynamical_regime training roster IS the regime-label vocabulary
+# itself — every label declared in this catalogue is a regime that
+# downstream gap-targeting uses. Self-referential: the classifier
+# rows declare the label space.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_action_angle_commensurate",
+    "rigid_body_chaotic_obliquity",
+    "continuum_normal_modes",
+    "shape_residual_chandrasekhar",
+    "bounded_local_laplacian_trajectory",
+    "radiation_coupled_drift",
+    "bounded_local_laplacian_family",
+    "temporal_quasi_periodic_cycle",
+    "rigid_body_action_angle_mutual_lock",
+]

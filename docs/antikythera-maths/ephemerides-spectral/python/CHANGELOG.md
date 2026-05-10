@@ -10,6 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Sol Dynamical-Regime Classifier AMSC backfill (paired)
+
+- **`research/attested/dynamical_regime/`** — tenth v0.24.x backfill; the v0.24.9 dynamical-regime classifier training roster (11 rows, one per v0.24.x ship spanning v0.24.0-v0.24.8 + v0.24.11 + v0.24.12). Single row_type `regime_example`. Each row stores the ship's 7-feature signature vector (time_scale_log_s, spatial_scale_log_km, stability_index, has_commensurability, prediction_track_signal, dimensionality, forcing_class_index) + regime label + description + catalog module pointer.
+- **`research/attested/dynamical_regime_probes/`** — eleventh v0.24.x backfill (paired with the training roster); the v0.24.10 OOS probe roster (10 probes — Yellowstone, Reunion, Pluto-Charon, Enceladus, Io-Galilean, Phobos, Ceres, Alpha Centauri B, Vesta, magnetar — spanning every v0.24.x regime label including OOD-flagged + let-classifier-surprise-us cases). Single row_type `regime_probe`.
+- **Pairing decision**: shipped as TWO separate AMSC sources rather than one combined. Different dataclasses (RegimeExample vs RegimeProbe with `expected_regime` / `ood_expected`); the gap-suggester pipeline already imports `REGIME_PROBES` separately; future schema-gap suggester wiring is per-source. Two ratchet bumps instead of one.
+- Per-row source DOIs:
+  - **Training roster**: canonical paper for each v0.24.x ship — Margot 2007 (Mercury), Williams 2014 (Luna), Laskar 1993 (Mars), Davies 2014 (Sun), Iess 2019 (Saturn-Toroidal), Sharp & Clague 2006 (Hawaii), Chesley 2003 (Yarkovsky), Plescia 2004 (Mars Tharsis), Chadwick 2016 (Axial), Brozovic 2015 (Pluto-Charon), Rathbun 2002 (Loki Patera).
+  - **Probes**: real per-probe DOIs (Pierce & Morgan 1992 / Courtillot 1986 / Stern 1992 / Peale-Cassen-Reynolds 1979 / Bills 2005 / Park 2016 / Kjeldsen 2005 / Russell 2012 / Kaspi-Beloborodov 2017) + one `isbn:` (Murray-Dermott 1999 textbook).
+- **`tests/test_dynamical_regime_dual_author.py`** — 11 tests including:
+  - **Regime-label distribution ratchet** — pins the v0.24.0-v0.24.12 ship taxonomy (10 unique labels, with `temporal_quasi_periodic_cycle` shared between Axial + Loki)
+  - **Pluto-Charon-only-mutual-lock ratchet** — pinning the v0.24.10 → v0.24.11 schema-gap closure
+  - **Axial-only-negative-prediction-track ratchet** — pins the v0.24.8 first-MISS-on-this-methodology observation
+  - **v024_N → real-DOI ratchet** — pins that no `nodoi:` / `historical:` / `isbn:` / `ads:` prefixes appear in the training roster
+- **`tests/test_dynamical_regime_probes_dual_author.py`** — 11 tests including:
+  - **OOD probe distribution ratchet** — exactly Ceres carries `ood_expected=True`
+  - **Let-classifier-surprise-us ratchet** — Phobos + Vesta land in this bucket
+  - **Pluto-Charon probe targets v024_11 label ratchet** — pins the schema-gap closure as ground truth
+  - **`isbn:`-prefix-only-for-textbook ratchet** — pins Murray-Dermott as the only textbook source
+- Ratchets: `n_sources` 13 → 15 (+2); `adapter_class="curated"` 10 → 12 (+2).
+
 ### Added — v0.27.0 phase A — Axial Seamount Eruption Chronology AMSC backfill
 
 - **`research/attested/axial_seamount/`** — ninth v0.24.x backfill. Multi-row-type catalogue: 9 rows across 3 row types (`eruption` × 3, `inflation_phase` × 4, `forecast` × 2). Real-time-monitored submarine volcano on the Juan de Fuca Ridge / hotspot intersection. The decade-scale Diophantine-stability-vs-window cousin of v0.24.2 Mars secular-resonance chaos: same algebraic structure on wildly different observational scales, with one published forecast HIT (2015 eruption) and one MISS (2024-2025 window) on the same body.
