@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Axial Seamount Eruption Chronology AMSC backfill
+
+- **`research/attested/axial_seamount/`** — ninth v0.24.x backfill. Multi-row-type catalogue: 9 rows across 3 row types (`eruption` × 3, `inflation_phase` × 4, `forecast` × 2). Real-time-monitored submarine volcano on the Juan de Fuca Ridge / hotspot intersection. The decade-scale Diophantine-stability-vs-window cousin of v0.24.2 Mars secular-resonance chaos: same algebraic structure on wildly different observational scales, with one published forecast HIT (2015 eruption) and one MISS (2024-2025 window) on the same body.
+- Per-row source DOIs (mostly real, Crossref-indexed): Dziak & Fox 1999 *GRL* (1998 onset T-wave swarm), Caress 2012 *Nature Geoscience* (2011 repeat-bathymetry), Chadwick 2016 *Science* (2015 forecast HIT + canonical_doi), Nooner-Chadwick 2009 *G³* (geodetic baseline), Nooner-Chadwick 2016 *Science* companion (inflation-trigger framework). The post-2015 follow-up uses `nodoi:nooner_chadwick_post_2015_ooi_followup` for the non-Crossref-indexed conference proceedings + OOI Cabled Array status updates that document the post-2015 inflation-rate slowing + 2024-2025 forecast MISS.
+- **`tests/test_axial_seamount_dual_author.py`** — 11 tests including:
+  - **Row-type distribution ratchet** — 3 eruption + 4 inflation_phase + 2 forecast
+  - **Eruption-chronology ratchet** — 1998 → 2011 → 2015 by Julian date
+  - **Forecast-outcomes ratchet** — exactly 2 forecasts, outcomes = {HIT, MISS}, with `forecast_2015_eruption` as the HIT
+  - **Post-2015-rate-slowed ratchet** — pinning the rate-decay observation that broke the constant-rate extrapolation underlying the MISS
+  - **Inflation-phases-chronologically-chained ratchet** — the 4 phases form a continuous timeline
+  - **`nodoi:` discipline ratchet** — only `nooner_chadwick_post_2015` carries the prefix (the only non-Crossref source in the catalogue)
+- Ratchets: `n_sources` 12 → 13; `adapter_class="curated"` 9 → 10.
+
 ### Added — v0.27.0 phase A — Mars Tharsis Volcanic Chain AMSC backfill
 
 - **`research/attested/mars_tharsis/`** — eighth v0.24.x backfill. 5-volcano roster spanning the Tharsis bulge: the NE-SW Tharsis Montes ridge (Arsia / Pavonis / Ascraeus, three aligned shields at ~3400 km spacing) plus the two outliers — Olympus Mons (the Solar System's largest known volcano, ~22 km from base to summit, 600 km diameter, NW of the ridge) and Alba Mons (older / broader / shorter ~1500-km-diameter shield north of the ridge). Per-volcano: name + age + uncertainty + lat/lon + summit elevation + edifice diameter + structural-role classification (tharsis_montes / olympus_outlier / alba_outlier).
