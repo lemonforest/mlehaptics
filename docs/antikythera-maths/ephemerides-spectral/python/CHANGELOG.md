@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Loki Patera Eruption Cycle AMSC backfill
+
+- **`research/attested/loki_patera/`** — the v0.24.12 ship; final phase-A backfill. Multi-row-type catalogue (12 rows): 6 `cycle_peak` rows (1990 / 1995 / 1997 / 2002 / 2013 / 2015 — Veeder 1994 KAO observations through de Kleer 2019 *Nature* adaptive-optics era) + 6 `cycle_mode` rows (`loki_main_cycle` ~540 d, `brightening_phase`, `resurfacing_wave` at ~1 km/day across the ~200-km-diameter caldera, `cooling_phase`, `io_orbital_period`, `galilean_laplace_4_2_1_commensurability`). Direct cousin to v0.24.8 Axial Seamount in the `temporal_quasi_periodic_cycle` regime, but with fundamentally different forcing physics: Galilean Laplace tidal heating from the Io-Europa-Ganymede 4:2:1 mean-motion resonance (Io's forced eccentricity ~0.0041 dissipates ~10^14 W in the moon's interior) instead of mantle-plume / mid-ocean-ridge dynamics.
+- Per-row source DOIs (mostly real, Crossref-indexed; one `isbn:` for the Murray-Dermott textbook): Veeder 1994 *J. Geophys. Res.* (10.1029/94JE00637; 1990 KAO peak), Rathbun 2002 *GRL* (10.1029/2002GL014747 — canonical_doi; ~540-d periodicity + 1995-2002 peaks), de Kleer & de Pater 2017 *Icarus* (10.1016/j.icarus.2016.06.019; 2013-2015 AO peaks), de Kleer 2019 *Nature* (10.1038/s41586-020-03031-8; multi-phase resurfacing analysis, ~1 km/day wave speed), Peale-Cassen-Reynolds 1979 *Science* (10.1126/science.203.4383.892; the famous Io tidal-heating prediction confirmed 2 weeks later by Voyager 1), Murray-Dermott 1999 *Solar System Dynamics* (`isbn:978-0521575973`; canonical Galilean-Laplace 4:2:1 textbook).
+- **`tests/test_loki_patera_dual_author.py`** — 13 tests including:
+  - **Row-type distribution ratchet** — 6 cycle_peak + 6 cycle_mode
+  - **540-day-mean-cycle ratchet** — pinning the canonical Rathbun 2002 quasi-periodic period as the v0.24.12 headline observable
+  - **Galilean-Laplace-4:2:1-arithmetic ratchet** — pins 4·P_Io ≈ 2·P_Europa ≈ P_Ganymede within 0.1 d (~1% of P_Ganymede; the period-ratio approximation of the resonance, not the exact Laplace argument); the Peale-Cassen-Reynolds 1979 prediction confirmed by Voyager 1
+  - **Rathbun-2002-anchor-cycle ratchet** — 2002 peak is index 0; pre-anchor 1990s peaks carry null cycle_index_from_anchor; AO-era peaks carry positive integer indices (2013 = 7, 2015 = 8)
+  - **Three-subcycle-phase-modes ratchet** — brightening + resurfacing-wave + cooling modes all carry mode_class='phase'
+  - **`isbn:`-prefix-only-for-textbook ratchet** — Murray-Dermott 1999 is the only `isbn:` source (no `nodoi:` / `historical:` / `ads:` prefixes elsewhere)
+  - **Chronological-peak-ordering ratchet** — 1990 → 1995 → 1997 → 2002 → 2013 → 2015
+- Ratchets: `n_sources` 16 → 17; `adapter_class="curated"` 13 → 14.
+- **Phase A complete**: v0.24.0 Mercury through v0.24.12 Loki Patera all have AMSC backfill PRs (12 PRs total; v0.24.9-v0.24.10 paired as the dynamical_regime + dynamical_regime_probes ship in PR #316).
+
 ### Added — v0.27.0 phase A — Pluto-Charon Dynamical Spectrum AMSC backfill
 
 - **`research/attested/pluto_charon_dynamical_spectrum/`** — twelfth v0.24.x backfill (the v0.24.11 ship). 12-mode roster covering the Solar System's only known double-synchronous binary: the TRIPLE 1:1 lock at 6.387230 d (mutual_orbital_sidereal + pluto_spin_frequency + charon_spin_frequency, all at the same period — P_Pluto = P_Charon = P_orbit, the END state of dyadic tidal evolution), the apsidal-libration mode, four action variables (eccentricity ≈ 5e-5 / mutual obliquity ≈ 0.0006° / Charon-Pluto mass ratio ≈ 0.1218 / heliocentric inclination ≈ 119.6°), and four small-moon near-3:4:5:6 commensurability angles (Styx / Nix / Kerberos / Hydra orbital periods at integer-multiple ratios with the mutual orbital period, ~0.3% to ~5% from perfect resonance). Single row_type `dynamical_mode`. Path-B response to the v0.24.10 OOS-probe schema-gap that surfaced when Pluto-Charon collapsed onto Mercury-stable in the v0.24.9 classifier — closes the new `rigid_body_action_angle_mutual_lock` regime label introduced for this ship.

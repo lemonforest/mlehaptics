@@ -89,6 +89,54 @@ backward-compat but should be retired in a future release.
   * `tests/bench_spectral_eval.py` — new flags, `build_pgn_sourced_corpora`,
     `run_bench` accepts overrides + provenance, `--quiet`.
   * `tests/test_bench_spectral_eval_pgn_corpus.py` — new test file (7 tests).
+### Added — empirical tournament baseline at depth 4 (1.19.0+ research data)
+
+First real recorded ELO baseline from the 1.16.0 tournament runner.
+Closes part of the §16.7 deferred item ("does spectral_hybrid_8bit_lru
+actually beat material at deep search?").
+
+**Run config**: depth=4, 2 games per pair, 150-ply cap, 6 games total,
+37-min wall-clock.
+
+**Final ELOs**:
+
+| Variant | Final ELO |
+|---|---|
+| **material** | **1530.6** |
+| spectral_float64 | 1485.6 |
+| spectral_hybrid_8bit_lru | 1483.8 |
+
+Material wins by ~47 ELO over both spectral variants. The two
+spectral variants are statistically indistinguishable at this depth
++ game count.
+
+**Statistical caveat**: 2 games per pair is NOT statistically
+meaningful. The 47-ELO gap could flip with a few more games.
+Standard rule of thumb is ≥ 100 games per pair for ±30 ELO
+confidence; this baseline is **directional**, not locked.
+
+**Hypothesis**: at depth 4, TT re-visits are rare (the depth-4
+search-tree bench from 1.16.0 already showed `spectral_hybrid_8bit_lru`
+slightly slower than `spectral_float64` in nodes/sec). The cache-hit
+advantage that 1.13.0 measured at static-eval level doesn't translate
+to search-tree wins at this depth. Higher depth (5-7) might shift
+the verdict — that's a follow-up sweep.
+
+**Files added**:
+
+  * `tests/bench_baselines/tournament_d4.json` — full structured
+    results
+  * `tests/bench_baselines/tournament_d4_summary.md` — interpretation,
+    statistical caveats, recommended follow-ups
+
+**Workflow note**: this baseline was originally dispatched via a
+subagent (SA1, agent ID a8116e350b1b4de4d) targeting depth=5/2 games
+per pair. SA1 silently stalled at the 30-minute mark with an empty
+output file. Parent agent took over directly, scaled to depth=4 to
+fit the time budget, ran the bench, wrote the summary. The stall is
+a workflow finding worth noting: subagents dispatched with
+long-running (>20 min) background processes can lose track of their
+own state and need explicit watchdog timeouts in the prompt.
 
 ## [1.18.0] — 2026-05-09
 

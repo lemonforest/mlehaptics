@@ -1,0 +1,95 @@
+# Loki Patera Eruption Cycle Catalogue — temporal-spectrum
+# observable on the Solar System's most active volcano (Io's
+# largest persistent thermal anomaly), driven by Galilean Laplace
+# tidal heating.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.12
+# hand-coded `_research/loki_patera_data.py` module. Direct cousin to
+# v0.24.8 Axial Seamount (same temporal-quasi-periodic-cycle regime
+# in the v0.24.9 dynamical-regime classifier) but with fundamentally
+# different forcing physics: where Axial is a mid-ocean-ridge
+# submarine volcano driven by mantle-plume magma supply, Loki Patera
+# is driven by tidal heating from the Galilean Laplace 4:2:1
+# mean-motion resonance — the canonical 3-body orbital lock between
+# Io / Europa / Ganymede that forces Io's orbital eccentricity to
+# ~0.0041 (far above what tidal damping alone would allow),
+# dissipating ~10^14 W of mechanical energy in Io's interior.
+#
+# Multi-row-type catalogue (12 rows): 6 cycle_peak rows (1990 / 1995
+# / 1997 / 2002 / 2013 / 2015) + 6 cycle_mode rows (loki_main_cycle
+# at ~540 d + brightening_phase + resurfacing_wave + cooling_phase +
+# io_orbital_period + galilean_laplace_4_2_1_commensurability).
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope. Dual-author byte-stable diff test in
+# `tests/test_loki_patera_dual_author.py` ratchets agreement.
+#
+# Pattern follows research/attested/axial_seamount/ (PR #315) for the
+# multi-row-type union schema with row-type-specific optional fields.
+
+[source]
+key = "loki_patera"
+human_readable_name = "Loki Patera Eruption Cycle Catalogue"
+purpose = "ground-proof rows for the Loki Patera (Io) eruption-cycle chronology + action-angle deep-forcing context: 6 published cycle-peak observations spanning 1990-2015 (Veeder 1994 KAO through de Kleer 2019 adaptive-optics) + 6 cycle modes including the ~540-day mean cycle period, three phase modes (brightening / resurfacing-wave / cooling), and two Galilean-Laplace cross-channel modes (Io orbital period + 4:2:1 mean-motion commensurability)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://photojournal.jpl.nasa.gov/target/Io"
+canonical_doi = "10.1029/2002GL014747"
+
+# canonical_doi above points at Rathbun et al. 2002, *Geophys. Res.
+# Lett.* 29:1443 — THE canonical paper establishing Loki Patera's
+# ~540-day quasi-periodic brightening cycle from 12 years of
+# multi-band ground-based and Galileo-era thermal observations.
+# Per-row provenance is finer-grained: Veeder 1994 *J. Geophys. Res.*
+# (first multi-year time-series of Io's thermal output, 1990 KAO
+# peak), Rathbun 2002 (~540 d periodicity + 1995-2002 peaks), Rathbun
+# & Spencer 2010 *Icarus* (refined cycle period statistics + 480-580
+# d range), de Kleer & de Pater 2017 *Icarus* (modern adaptive-optics
+# era 2013-2015 peaks), de Kleer 2019 *Nature* (multi-phase
+# resurfacing analysis, ~1 km/day wave speed), Peale-Cassen-Reynolds
+# 1979 *Science* (the famous Io tidal-heating prediction published
+# 2 weeks before Voyager 1's confirming flyby), Murray-Dermott 1999
+# *Solar System Dynamics* (Galilean Laplace 4:2:1 mean-motion
+# resonance reference).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "loki_patera.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Loki Patera Eruption Cycle Catalogue (curated against published Io-thermal-monitoring literature; Rathbun et al. 2002 *Geophys. Res. Lett.* 29:1443 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof Loki Patera {schema.row_type} {schema.name}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Loki Patera is the second body in the temporal_quasi_periodic_cycle
+# regime (after v0.24.8 Axial Seamount). Same algebraic discipline,
+# different forcing — Galilean Laplace tidal heating instead of
+# classical mantle-plume / mid-ocean-ridge dynamics. The cycle is
+# QUASI-periodic (~480-580 d range, ~540 d mean), not strictly
+# periodic; small-denominator-Diophantine-stable on decade scale.
+# Also populates rigid_body_action_angle_commensurate via the
+# Galilean Laplace 4:2:1 cross-channel mode.
+regime_labels = [
+    "temporal_quasi_periodic_cycle",
+    "rigid_body_action_angle_commensurate",
+]
