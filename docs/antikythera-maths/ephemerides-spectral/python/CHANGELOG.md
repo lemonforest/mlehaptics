@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Sol Yarkovsky/YORP AMSC backfill
+
+- **`research/attested/yarkovsky_yorp/`** — seventh v0.24.x backfill. 10 NEA + Hayabusa-target asteroids with published Yarkovsky (semi-major-axis drift, in 10⁻⁴ AU/Myr) and/or YORP (spin-rate change, in 10⁻⁸ rad/d²) measurements. Roster: Bennu (OSIRIS-REx headline) / 2000 PH5 (first-ever YORP detection) / Apophis / Ryugu / Itokawa / Apollo / Geographos / 1950 DA / Golevka (first-ever Yarkovsky detection) / Eger.
+- Per-row source DOIs (all real, Crossref-indexed): Farnocchia 2013 *Icarus* (Bennu), Lowry 2007 *Science* (2000 PH5), Vokrouhlický 2015 *Icarus* (Apophis), Watanabe 2019 *Science* (Ryugu), Lowry 2014 *A&A* (Itokawa YORP spin-down), Kaasalainen 2007 *Nature* (Apollo), Durech 2008 *A&A* (Geographos), Farnocchia 2014 *Icarus* (1950 DA), Chesley 2003 *Science* (Golevka), Durech 2012 *A&A* (Eger).
+- **`tests/test_yarkovsky_yorp_dual_author.py`** — 10 tests including:
+  - **Prograde-outward / retrograde-inward Yarkovsky-direction ratchet** (the canonical diurnal effect's direction-of-drift relation)
+  - **Bennu-largest-magnitude ratchet** (|drift| = 19e-4 AU/Myr is the maximum in the catalogue)
+  - **1950-DA-near-fission-limit ratchet** (2.121 h period below the 2.2 h rubble-pile fission limit; closest in the catalogue ≥ 1 h to the threshold)
+  - Single-row-type ratchet
+- Ratchets: `n_sources` 10 → 11; `adapter_class="curated"` 7 → 8.
+
 ### Added — v0.27.0 phase A — Hawaiian-Emperor Chain AMSC backfill
 
 - **`research/attested/hawaii_chain/`** — sixth v0.24.x backfill. 18 seamounts spanning the full ~85 Myr Hawaiian-Emperor hotspot track from Meiji (oldest, near the Aleutian Trench) through the Hawaiian-Emperor bend at 47.5 Myr (Daikakuji marker) to Kilauea (presently active). Per-seamount: name + age + uncertainty + lat/lon + arc classification (emperor / bend / hawaiian).
