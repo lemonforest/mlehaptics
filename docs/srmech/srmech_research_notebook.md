@@ -59,7 +59,7 @@ Three-layer architecture (the ephemerides-spectral §22 framing made cross-domai
 
 ---
 
-## §1.5 Cross-domain pollination map
+## §1.5 Cross-domain pollination map + absorption rounds
 
 The eight-notebook collection plus this srmech notebook. Each per-domain notebook is the authoritative home for its domain; srmech surfaces what generalises across them and hosts knowledge for domains that do not yet have their own home.
 
@@ -88,6 +88,17 @@ The eight-notebook collection plus this srmech notebook. Each per-domain noteboo
 - Per-domain encoding choices (modulus, quantisation policy, dimensionality).
 - Per-domain decay / weight functions `g(λ)` (problem-specific).
 - Per-domain heavy-store substrates (DE441 kernels, hand-coded gear ratios, board-state lookups, etc.).
+
+### Future-notebook candidates from cross-domain absorption rounds
+
+Domains scoped via the dual-agent research pattern (memory: `feedback_dual_agent_research_pattern.md`) but not yet committed to dedicated notebooks. Detailed scoping reports in `notes/`; headline findings landed in §3.5, §4.2, §5.
+
+| Domain | Status | Round date | Detailed scoping | Project-mission relevance |
+|---|---|---|---|---|
+| **Audio (DSP / music / speech / spatial / EMDR-bilateral)** | scoped; **strongest project-mission fit** | 2026-05-09 | [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md) | **Direct** — bilateral audio extends EMDR pulser as peer modality alongside motor + LED |
+| **Protein folding (NMA / GNM / contact-map / coevolution / AlphaFold-era)** | scoped; **strongest cross-domain validation evidence** (NMA = ephemerides Fiedler-partition primitive identity) | 2026-05-09 | [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test for srmech universality |
+
+For domains in this state: the per-domain notebook may be created when cross-pollination warrants dedicated scope. Until then, the scoping report in `notes/` is the home; master architectural learnings (§3.5 manifold instantiations, §4.2 calibration ratios, §5 absorption-round subsections) land in this notebook directly.
 
 ---
 
@@ -187,15 +198,17 @@ The unifying insight that ties **chess-spectral**, **ephemerides-spectral**, and
 
 | Manifold | Transform | λ_k | Project example |
 |---|---|---|---|
-| **Euclidean grid + Neumann BC** | DCT-II/III | `2(1−cos πk_x/W) + 2(1−cos πk_y/H)` | Inkscape, Skia, GEGL/GIMP — graphics-domain kernels |
-| **Sphere S²** | spherical-harmonic projection | `l(l+1)` | future — full-sky imaging, planetary topography |
-| **Flat torus T²** | 2D Fourier | `(2πm/L_x)² + (2πn/L_y)²` | future — periodic-tile kernels |
-| **Triangle mesh** | cotangent Laplacian + sparse Lanczos | (eigendecomposition output) | future — 3D mesh-domain kernels |
-| **General graph** | graph Laplacian `L = D − A`, eigendecomposition by SVD | (eigendecomposition output) | **ephemerides-spectral** — 52-body resonance graph; the gateway-graph Fiedler partition. **Antikythera-spectral** — gear-DAG. **Doom-spectral** — sector graph + sheaf-Laplacian raycasting |
+| **Euclidean grid + Neumann BC** | DCT-II/III | `2(1−cos πk_x/W) + 2(1−cos πk_y/H)` | Inkscape / Skia / GEGL/GIMP graphics-domain kernels; **audio spectrograms (STFT-domain)**; **protein contact maps** + **distance maps** |
+| **Sphere S²** | spherical-harmonic projection | `l(l+1)` | **audio HRTF + ambisonics**; **globular protein surface (genus-0)**; future — full-sky imaging, planetary topography |
+| **Flat torus T²** | 2D Fourier | `(2πm/L_x)² + (2πn/L_y)²` | **protein backbone Ramachandran (φ, ψ)**; **audio periodic-loop / circular-buffer**; future — periodic-tile graphics kernels |
+| **Triangle mesh** | cotangent Laplacian + sparse Lanczos | (eigendecomposition output) | **protein solvent-accessible-surface mesh**; **3D acoustic-cavity meshes**; future — 3D mesh-domain graphics kernels |
+| **General graph** | graph Laplacian `L = D − A`, eigendecomposition by SVD | (eigendecomposition output) | **ephemerides-spectral** — 52-body resonance graph (gateway-graph Fiedler partition). **Antikythera-spectral** — gear-DAG. **Doom-spectral** — sector graph + sheaf-Laplacian raycasting. **Chess-spectral** — 8×8 board adjacency. **Protein folding** — residue-interaction network (GNM / ANM / NMA — *literally the same primitive* as ephemerides Fiedler partition). **Audio** — microphone-array beamforming; Tonnetz key-relationship graph |
 
 The point: chess's 8×8 board Laplacian and ephemerides' resonance-graph Laplacian and Inkscape's pixel-lattice Laplacian are **the same architectural slot**, parameterised differently. The config catalogue's `eigenvalues:` field selects which manifold; the same `decay:` (heat kernel, sharpen, Helmholtz, etc.) works on any of them.
 
 This is the deepest answer to the unification question: srmech is not "the project's seven projects glued together" — it's "the Laplace-Beltrami spectral pattern instantiated on whichever manifold the domain provides." The graph-Laplacian and the lattice-Laplacian are siblings, not strangers.
+
+The **protein-folding absorption round** (see §5.3 + [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md)) supplied the strongest evidence for this claim to date: GNM / ANM / NMA on the residue-interaction network is graph-Laplacian eigendecomposition — *literally the same primitive* ephemerides uses on the 52-body resonance graph (§13 gateway-graph Fiedler partition; Matthews φ = +0.336, Spearman ρ = +0.743 vs empirical Δv). Same math, different graph. Not analogy — identity. The **audio absorption round** (§5.2 + [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md)) instantiates *every row* of the table above (spectrogram → Euclidean grid; HRTF / ambisonics → sphere; periodic loops → torus; acoustic-cavity meshes → triangle mesh; mic-array + Tonnetz → general graph), the cleanest cross-pollination test the framing has faced.
 
 ### §3.6 Selection-shape question (host-side masking)
 
@@ -269,11 +282,27 @@ State-dependent or coupled-PDE operations don't close under pure spectral form. 
 
 This answers the earlier question ("are we going to be able to have config-driven special operations in some or all cases?") concretely: **most cases yes, a small set of mathematically-imperative outliers no.** The split is principled and has a sharp boundary.
 
+### Calibration update from cross-domain absorption rounds (2026-05-09)
+
+The config-vs-substrate ratio **varies by domain**. From the audio (§5.2) and protein-folding (§5.3) rounds:
+
+- **Graphics ~80/20.** Most operators are closed-form `g(λ)`; bilateral / reaction-diffusion / full Cahn-Hilliard are the imperative outliers.
+- **Audio ~80/20.** Same profile. EQ family, denoising (Wiener / spectral subtraction / MMSE-LSA), reverb, pitch-shift, ambisonic encoding all close. Compressors / auto-tune / neural vocoders / source separation are substrate.
+- **Protein folding ~20/80** — *inverted*. The closed-form menu is meaningful (NMA / GNM / ANM family, contact-map smoothing, Ramachandran-T² priors, surface heat-kernel signatures, coevolution / DCA spectral) but molecular dynamics / AlphaFold / Rosetta / Monte Carlo / docking dominate the actual computational work.
+
+The architectural framing must accommodate **both** ratios. srmech's value proposition is *not* "everything fits in config" — it's:
+
+> **The closed-form portion fits in config. The substrate portion is named primitives invoked by config. The ratio depends on the domain's underlying physics.**
+
+In substrate-dominated domains (proteins), the **Path D** pattern from §2 (spectral *index* over heavy substrate work) is more relevant than the **Path C** pure-unification pattern. In config-dominated domains (graphics, audio), Path C's full unification carries the work. Both paths are first-class srmech offerings; which dominates depends on which side of the 80/20 the domain falls.
+
 ---
 
-## §5 Sources / inbound-doc absorption
+## §5 Sources & cross-domain absorption rounds
 
-The 2026-05-09 inbound research brief (`srmech-art-knowledge-subsume.md`, since deleted per the user's "exclude from tracking, delete when done" instruction) contributed:
+### §5.1 Original inbound brief — graphics-domain (2026-05-09)
+
+The original 2026-05-09 inbound research brief (`srmech-art-knowledge-subsume.md`, since deleted per "exclude from tracking, delete when done") contributed:
 
 - The universal `(Transform, λ_k, g)` decomposition framing now in §3.0
 - The four-existing-primitives table in §3.1
@@ -284,6 +313,46 @@ The 2026-05-09 inbound research brief (`srmech-art-knowledge-subsume.md`, since 
 - The closed-form-vs-substrate-primitive answer in §4.2
 
 The brief proposed a 3000–5000-word standalone notebook chapter and detailed file-by-file repo references; we absorbed the architectural insights into this notebook's existing structure rather than writing a separate chapter, per the user's "don't do exactly what it says if it's against what we've already been doing" framing. Where the brief and the existing srmech work overlap (Inkscape + Skia + GEGL framing, three-layer architecture, SkPhase9BIP-as-HDC), we deferred to what was already in §0–§3 of this notebook and the 2026-05-09 subagent investigation memorialised in `project_inkscape_skia_gegl_kernel_candidates.md`.
+
+### §5.2 Audio absorption round (2026-05-09)
+
+Cross-domain scoping run via the dual-agent research pattern. **Detailed report:** [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md).
+
+**Headline findings:**
+
+- **Audio instantiates every row of §3.5 cross-manifold table** — spectrogram → Euclidean grid; HRTF / ambisonics → sphere S² (`l(l+1)`); periodic loops → torus T²; acoustic meshes → triangle mesh; mic-array + Tonnetz → general graph. Cleanest cross-pollination test the framing has faced.
+- **Spectrogram is a 2D image** → all graphics primitives port directly. Heat-kernel blur on spectrogram = noise reduction; Perona-Malik on spectrogram = harmonic-percussive separation (Fitzgerald 2010); DoG on spectrogram = onset detection.
+- **Music theory IS cyclic-group theory.** Z₁₂ chromatic, D₁₂ key+transposition, Tonnetz Z₁₂×Z₁₂. **`AudioPhase12BIP` is the audio-domain `SkPhase9BIP` cousin** — same architecture, different alphabet.
+- **Bilateral audio is directly load-bearing for the EMDR project's mission.** Audio as a peer modality alongside motor + LED, under the same UTLP-coordinated catalogue. Operators (alternating tones, binaural beats, isochronic tones, music-driven panning, cardiac-coherence pacing) are all closed-form `g(λ)` entries. Hardware: ~$2–5 BOM (PCM5102 / MAX98357 / UDA1334 I²S DAC). Potentially the shortest-path proof-of-concept for srmech on the project's actual mission.
+- **AMSC `literature_curated` already covers DSP knowledge** (RBJ EQ Cookbook, ISO 226, ERB/Bark/A-weighting, Moore-Glasberg masking, codec specs); `binary_archive` covers HRTF / RIR / speech / music corpora.
+- **Operator counts:** ~75 closed-form `g(λ)` operators across 11 thematic groups; ~26 substrate primitives. Config-vs-substrate ratio ~80/20.
+
+### §5.3 Protein-folding absorption round (2026-05-09)
+
+Cross-domain scoping run via the dual-agent research pattern. **Detailed report:** [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md).
+
+**Headline findings:**
+
+- **GNM / ANM / NMA on the residue-interaction network is graph-Laplacian eigendecomposition — literally the same primitive** ephemerides uses on the 52-body resonance graph (§13 gateway-graph Fiedler partition; Matthews φ = +0.336, Spearman ρ = +0.743 vs empirical Δv). Same math, different graph. **Not analogy — identity.** Strongest cross-domain validation evidence to date that srmech's manifold-parameterised Laplace-Beltrami framing is load-bearing rather than aesthetic.
+- **Helmholtz wave on RIN = NMA harmonic time evolution.** `g(λ_k) = cos(c·t·√λ_k)` where `√λ_k = ω_k`. The §4.1 Helmholtz-wave row *is* the harmonic time evolution of vibrational modes on a protein. Same equation; not metaphor.
+- **Contact / distance map = 2D image** → all graphics primitives port verbatim. Perona-Malik on contact map preserves α-helix and β-sheet diagonal-band structure (state-dependent diffusion preserving edges).
+- **Ramachandran (φ, ψ) torus T²** = first non-graphics use of §3.5 torus row. **Protein surface** = sphere + triangle-mesh rows (3D Zernike, Sun-Ovsjanikov-Guibas heat-kernel signature).
+- **Foldseek 3Di alphabet = `SkPhase9BIP` structural cousin** — 20-letter learned structural alphabet, cyclic-group-amenable HDC binding.
+- **Sheaf-Laplacian on RIN ↔ doom-spectral §3 sheaf-Laplacian raycasting** — cross-pollination beyond graphics.
+- **AMSC binary_archive scaling forcing function:** AlphaFold DB ~25 TB; ESM Atlas ~100 TB. 4000–20000× larger than JPL DE441 (~5 GB). Forces streaming-download / partial-fetch / content-addressed dedup design.
+- **Config-vs-substrate ratio inverts to ~20/80.** Substrate dominates (MD, AlphaFold, Rosetta, Monte Carlo, docking). **Calibration update for §4.2** — see calibration block above.
+- **EMDR-project connection: none direct.** Cross-domain stretch test for srmech's universality, not productisation target. Honest framing.
+
+### §5.4 Standard practice — dual-agent research pattern
+
+Going forward, cross-domain absorption rounds use the dual-agent research pattern (memory: `feedback_dual_agent_research_pattern.md`):
+
+- **Main agent** (with conversation history + project context) produces analysis informed by conversation-context sharpness on framework edges.
+- **Sub-agent** (independent fresh-read of srmech notebook; general-purpose `Agent` tool, run_in_background=true) produces breadth-first enumeration with stronger citation discipline and (counterintuitively) often better memory application.
+- **Comparison** identifies convergent load-bearing claims (high-confidence) and divergent margin findings. Combined > either alone.
+- Headline findings land in this notebook (§3.5 manifold examples, §4.2 calibration ratios, new §5.X subsection); detailed scoping reports preserved in `notes/`.
+
+The dedicated-updates gate (`project_srmech_dedicated_updates_gate.md`) was lifted 2026-05-09; cross-domain absorption is the primary srmech work, not a side thread.
 
 ---
 
