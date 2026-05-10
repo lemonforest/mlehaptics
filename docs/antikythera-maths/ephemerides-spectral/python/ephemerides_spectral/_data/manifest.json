@@ -28,6 +28,18 @@
       "sha256": "23372e208b47de5c44504c53b0938ec955bd3108c2f03493ff4db684da1e15b7",
       "size_bytes": 331
     },
+    "_research/attested/axial_seamount/descriptor.toml": {
+      "sha256": "096bcdd028bbf8c61ce8ed0b249ad15f3b8ca1eab9236945d8e69ab429a68ea0",
+      "size_bytes": 3526
+    },
+    "_research/attested/axial_seamount/row.ndjson": {
+      "sha256": "1e93e18b2b7af52f16075ea4a37a4ee2e80954a13ce0716fc37975e59a3aa6c4",
+      "size_bytes": 7948
+    },
+    "_research/attested/axial_seamount/row.schema.json": {
+      "sha256": "a0a2d854388267106ded0f55079fab83d4fb18b19dad254863292292a20f3744",
+      "size_bytes": 4246
+    },
     "_research/attested/earthref_sc/descriptor.toml": {
       "sha256": "ffa4810a82a8e15690b048dbca6c167e9f75e1d4829ce0aec84a0b55a9fb6611",
       "size_bytes": 2752

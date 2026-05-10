@@ -1,0 +1,77 @@
+# Axial Seamount Eruption Chronology Catalog — temporal-spectrum
+# observable on a real-time-monitored submarine volcano.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.8
+# hand-coded `_research/axial_seamount_data.py` module. The first
+# v0.24.x catalogue applying the project's spectral methodology to
+# a *temporal-spectrum* observable on a single sub-system rather
+# than a spatial graph or per-body action-angle roster. 9 rows
+# across 3 row types: eruption (3), inflation_phase (4), forecast (2).
+# The decade-scale Diophantine-stability-vs-window cousin of v0.24.2
+# Mars secular-resonance chaos: same algebraic structure on wildly
+# different observational scales, with one published forecast HIT
+# (2015 eruption) and one MISS (2024-2025 window) on the same body.
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "axial_seamount"
+human_readable_name = "Axial Seamount Eruption Chronology Catalogue"
+purpose = "ground-proof rows for the Axial Seamount eruption / inflation / forecast chronology (canonical temporal-spectrum methodology test: real-time-monitored submarine volcano on a hotspot/mid-ocean-ridge intersection, with 3 confirmed eruptions [1998 / 2011 / 2015] + 4 inflation phases + 2 published Chadwick-Nooner forecasts [1 HIT + 1 MISS])"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://oceanobservatories.org/array/cabled-array/"
+canonical_doi = "10.1126/science.aah4666"
+
+# canonical_doi above points at Chadwick et al. 2016 *Science*
+# 354:1395-1399 — THE canonical successfully-forecast eruption paper:
+# the 2015 eruption was publicly predicted ~6 months in advance from
+# OOI Cabled Array geodetic data. Per-row provenance is finer-grained:
+# Dziak & Fox 1999 (1998 onset T-wave swarm), Caress 2012 (2011
+# repeat-bathymetry detection), Chadwick 2016 (2015 forecast HIT +
+# event), Wilcock 2016 (2015 seismic onset), Nooner-Chadwick 2009 +
+# 2016 (geodetic baseline + inflation-trigger framework), and
+# nodoi:nooner_chadwick_post_2015 for the post-2015 follow-up
+# analyses (conference proceedings + OOI status updates) that document
+# the post-2015 inflation-rate slowing + 2024-2025 forecast MISS.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "axial_seamount.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Axial Seamount Eruption Chronology Catalogue (curated against published submarine-volcano monitoring literature; Chadwick et al. 2016 *Science* 354:1395-1399 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof Axial Seamount {schema.row_type} {schema.name}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Axial Seamount is the temporal-quasi-periodic-cycle regime: a
+# decade-scale Diophantine-stable inflation cycle that is window-
+# stable and small-denominator-fragile outside the window (the post-
+# 2015 rate decay broke the constant-rate extrapolation underlying
+# the 2024-2025 MISS). Maps onto v0.24.9 dynamical-regime
+# classifier's temporal_quasi_periodic_cycle category.
+regime_labels = [
+    "temporal_quasi_periodic_cycle",
+]

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Axial Seamount Eruption Chronology AMSC backfill
+
+Ninth v0.24.x AMSC backfill. Multi-row-type catalogue (9 rows): 3 eruption rows (1998 / 2011 / 2015) + 4 inflation_phase rows (pre-1998, 1998-to-2011, 2011-to-2015, post-2015) + 2 forecast rows (2015 HIT, 2024-2025 MISS — the methodology's first observed missed prediction). First v0.24.x catalogue applying the spectral methodology to a *temporal-spectrum* observable on a single sub-system. Per-row DOIs cite Dziak & Fox 1999 / Caress 2012 / Chadwick 2016 / Wilcock 2016 / Nooner-Chadwick 2009 / 2016. The post-2015 follow-up uses `nodoi:nooner_chadwick_post_2015_ooi_followup` since these are conference proceedings + OOI Cabled Array status updates rather than Crossref-indexed publications. 11 new dual-author tests including row-type-distribution + eruption-chronology + forecast-outcomes (HIT + MISS) + post-2015-rate-slowed + chronologically-chained-phases ratchets.
+
 ### Added — v0.27.0 phase A — Mars Tharsis Volcanic Chain AMSC backfill
 
 Eighth v0.24.x AMSC backfill. 5-volcano roster: the Tharsis Montes ridge (Arsia / Pavonis / Ascraeus) plus the two outliers — Olympus Mons (the Solar System's largest known volcano) and Alba Mons (older / broader / shorter shield). Second v0.24.x catalogue applying the bounded-local-Laplacian methodology to physical features on a single body's surface — the no-plate-tectonics counterpart of v0.24.5 Hawaii. Per-row DOIs cite Hartmann & Neukum 2001 / Hartmann 2005 / Werner 2009 / Plescia 2004. 10 new dual-author tests including Olympus-tallest + Alba-broadest + Alba-oldest + role-distribution ratchets.

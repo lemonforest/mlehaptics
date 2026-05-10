@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "axial_seamount.row.v1",
+  "title": "Axial Seamount eruption / inflation / forecast row",
+  "description": "One row in the Axial Seamount chronology. Multi-row-type catalogue: 'eruption' for confirmed eruptive events (year + month + day + Julian date + caldera-floor subsidence); 'inflation_phase' for inter-eruption inflation phases (start_year + end_year + mean inflation rate); 'forecast' for published Chadwick-Nooner forecasts (issued_year + target window + outcome HIT/MISS/OPEN). Fields are union-typed by row_type; non-applicable fields are null.",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lower-case row identifier (e.g., 'axial_1998', 'phase_pre_1998', 'forecast_2024_2025_window')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["eruption", "inflation_phase", "forecast"],
+      "description": "Three values in this multi-row-type catalogue: 'eruption' / 'inflation_phase' / 'forecast'."
+    },
+    "year": {
+      "type": ["integer", "null"],
+      "description": "Eruption year (eruption rows only)."
+    },
+    "month": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 12,
+      "description": "Eruption month, 1-12 (eruption rows only)."
+    },
+    "approximate_day": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 31,
+      "description": "Day-of-month of eruption onset (eruption rows only)."
+    },
+    "julian_date": {
+      "type": ["number", "null"],
+      "description": "JD_TDB at eruption onset (eruption rows only)."
+    },
+    "caldera_floor_subsidence_m": {
+      "type": ["number", "null"],
+      "description": "Observed deflation in metres (eruption rows only)."
+    },
+    "start_year": {
+      "type": ["integer", "null"],
+      "description": "Inflation phase start year (inflation_phase rows only)."
+    },
+    "end_year": {
+      "type": ["integer", "null"],
+      "description": "Inflation phase end year (inflation_phase rows only)."
+    },
+    "mean_inflation_rate_cm_per_yr": {
+      "type": ["number", "null"],
+      "description": "Mean caldera-floor uplift rate in cm/yr (inflation_phase rows only)."
+    },
+    "issued_year": {
+      "type": ["integer", "null"],
+      "description": "Year the Chadwick-Nooner forecast was issued (forecast rows only)."
+    },
+    "target_start_year": {
+      "type": ["integer", "null"],
+      "description": "Forecast target window start year (forecast rows only)."
+    },
+    "target_end_year": {
+      "type": ["integer", "null"],
+      "description": "Forecast target window end year (forecast rows only)."
+    },
+    "outcome": {
+      "type": ["string", "null"],
+      "enum": ["HIT", "MISS", "OPEN", null],
+      "description": "Forecast outcome — HIT if eruption occurred within window, MISS if not, OPEN if still active (forecast rows only)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — observation provenance, methodology context, etc."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited reference. 'nodoi:' prefix accepted for non-Crossref-indexed sources (e.g., 'nodoi:nooner_chadwick_post_2015' for post-2015 follow-up conference proceedings + OOI Cabled Array status updates)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For dataset/program release tags when applicable."
+    }
+  }
+}
