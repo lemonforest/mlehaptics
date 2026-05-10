@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pluto_charon_dynamical_spectrum.row.v1",
+  "title": "Pluto-Charon dynamical-spectrum row",
+  "description": "One row in Pluto-Charon's per-body action-angle decomposition. Single row_type catalogue ('dynamical_mode'); each row records one frequency mode in the binary's dynamical state — the TRIPLE 1:1 lock angles (mutual orbital sidereal motion + Pluto spin + Charon spin, all at 6.387230 d), the apsidal-libration mode, four action variables (eccentricity / mutual obliquity / Charon-Pluto mass ratio / heliocentric inclination), and four small-moon near-commensurability angles (Styx ≈ 3 × P_orb, Nix ≈ 4 × P_orb, Kerberos ≈ 5 × P_orb, Hydra ≈ 6 × P_orb).",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "frequency_per_century",
+    "period_days",
+    "amplitude_value",
+    "amplitude_units",
+    "angle_or_action",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Mode name (e.g., 'mutual_orbital_sidereal', 'pluto_spin_frequency', 'charon_spin_frequency', 'eccentricity_action', 'styx_near_3_to_1_with_pc_orbit')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["dynamical_mode"],
+      "description": "Single value in this catalogue."
+    },
+    "frequency_per_century": {
+      "type": "number",
+      "description": "Mode frequency in cycles per century. 0.0 indicates a pure-action row (eccentricity / mutual obliquity / mass-ratio / heliocentric-inclination)."
+    },
+    "period_days": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Equivalent period in days for cycle-class modes; +inf for pure-action rows (the JSON encoding writes pure-action periods as Infinity)."
+    },
+    "amplitude_value": {
+      "type": "number",
+      "description": "Characteristic amplitude of the mode in source-units (see amplitude_units)."
+    },
+    "amplitude_units": {
+      "type": "string",
+      "enum": ["rad", "arcsec", "deg", "ratio", "dimensionless"],
+      "description": "Units of amplitude_value: 'rad' for the locked-angle modes (2π); 'deg' for mutual-obliquity / heliocentric-inclination; 'ratio' for small-moon near-commensurability ratios; 'dimensionless' for eccentricity / mass-ratio actions."
+    },
+    "angle_or_action": {
+      "type": "string",
+      "enum": ["angle", "action"],
+      "description": "Whether the mode is an angle variable (lives on a torus, periodic mod 2π) or an action variable (slowly varying real interval)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention. 'high' = post-New-Horizons published precision; 'medium' for the small-moon Styx near-3:1 (5% off, the loosest commensurability); 'low' for the apsidal-libration mode (largely a mathematical construct given the e ~ 5e-5 amplitude)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — physical interpretation, cross-references to v0.21.6 tidal-migration / v0.23.0 spin-orbit-resonance / v0.24.x companion catalogues."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the peer-reviewed paper authorising this row's numerical values. All Pluto-Charon row sources are real Crossref-indexed papers (Brozovic 2015, Stern 1992 / 2015, Showalter-Hamilton 2015) — no nodoi: / historical: / isbn: prefixes."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For mission/dataset release tags (e.g., 'New Horizons') when applicable."
+    }
+  }
+}
