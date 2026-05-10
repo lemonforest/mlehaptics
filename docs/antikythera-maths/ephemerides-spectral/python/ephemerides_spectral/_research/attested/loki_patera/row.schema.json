@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "loki_patera.row.v1",
+  "title": "Loki Patera eruption-cycle row",
+  "description": "One row in the Loki Patera (Io) eruption-cycle catalogue. Multi-row-type catalogue: 'cycle_peak' for observed brightening-cycle peaks (peak_year + peak_month + cycle_index_from_anchor; Rathbun 2002 anchor at index 0); 'cycle_mode' for action-angle / cross-channel modes (period_days + mode_class — 'cycle' for the ~540-d main cycle, 'phase' for sub-cycle phases, 'orbital' for Io's Jupiter-orbit, 'commensurability' for the Galilean Laplace 4:2:1 lock). Fields are union-typed by row_type; non-applicable fields are null.",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lower-case row identifier (e.g., 'loki_peak_1990', 'loki_main_cycle', 'galilean_laplace_4_2_1_commensurability')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["cycle_peak", "cycle_mode"],
+      "description": "Two values in this multi-row-type catalogue: 'cycle_peak' for observed brightening-cycle peaks; 'cycle_mode' for action-angle modes + cross-channel deep-forcing context."
+    },
+    "peak_year": {
+      "type": ["integer", "null"],
+      "description": "Calendar year of the brightening peak (cycle_peak rows only)."
+    },
+    "peak_month": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 12,
+      "description": "Calendar month of peak, 1-12 (cycle_peak rows only). Null when month-resolution unavailable."
+    },
+    "cycle_index_from_anchor": {
+      "type": ["integer", "null"],
+      "description": "Cycle number relative to the Rathbun 2002 anchor cycle (= 0). Null for the pre-anchor 1990s peaks where cycle indexing was not formally established (cycle_peak rows only)."
+    },
+    "period_days": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "description": "Mode period in days (cycle_mode rows only)."
+    },
+    "mode_class": {
+      "type": ["string", "null"],
+      "enum": [null, "cycle", "phase", "orbital", "commensurability"],
+      "description": "Mode classification — 'cycle' for the main ~540-d brightening cycle; 'phase' for sub-cycle phases (brightening / resurfacing-wave / cooling); 'orbital' for Io's orbital period around Jupiter; 'commensurability' for the Galilean Laplace 4:2:1 mean-motion resonance (cycle_mode rows only)."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "Human-readable mode description; carries the physics commentary including the inline Galilean-Laplace verification arithmetic for the commensurability mode (cycle_mode rows only)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention. 'high' for the canonical Rathbun 2002 ~540-d cycle period; 'medium' / 'low' for less-well-constrained sub-cycle phases."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — observation provenance, methodology context (cycle_peak rows only)."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited reference. 'isbn:' prefix accepted for the Murray-Dermott 1999 *Solar System Dynamics* textbook (the canonical Galilean-Laplace 4:2:1 reference)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For mission/dataset release tags or textbook editions when applicable."
+    }
+  }
+}

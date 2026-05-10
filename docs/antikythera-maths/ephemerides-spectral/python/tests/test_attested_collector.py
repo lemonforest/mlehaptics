@@ -370,6 +370,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
         "earthref_sc",
         "gmrt",
         "hawaii_chain",
+        "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
         "mars_tharsis",
@@ -398,6 +399,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["dynamical_regime"].adapter_name == "literature_curated"
     assert found["dynamical_regime_probes"].adapter_name == "literature_curated"
     assert found["pluto_charon_dynamical_spectrum"].adapter_name == "literature_curated"
+    assert found["loki_patera"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -481,10 +483,11 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     Sun (8th), toroidal_residual (9th), hawaii_chain (10th),
     yarkovsky_yorp (11th), mars_tharsis (12th), axial_seamount (13th),
     dynamical_regime (14th), dynamical_regime_probes (15th),
-    pluto_charon_dynamical_spectrum (16th)."""
+    pluto_charon_dynamical_spectrum (16th), loki_patera (17th —
+    phase A complete)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 16
+    assert result["n_sources"] == 17
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "axial_seamount",
@@ -493,6 +496,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "earthref_sc",
         "gmrt",
         "hawaii_chain",
+        "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
         "mars_tharsis",
@@ -508,11 +512,11 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
-    """adapter_class='curated' returns 13 sources after v0.27.0 phase A
-    through pluto_charon_dynamical_spectrum."""
+    """adapter_class='curated' returns 14 sources after v0.27.0 phase A
+    through loki_patera (phase A complete)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 13
+    assert result["n_sources"] == 14
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -520,6 +524,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "dynamical_regime",
         "dynamical_regime_probes",
         "hawaii_chain",
+        "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
         "mars_tharsis",
@@ -560,9 +565,9 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # saturn_rings + mercury + luna + mars + sun + toroidal_residual
     # + hawaii_chain + yarkovsky_yorp + mars_tharsis + axial_seamount
     # + dynamical_regime + dynamical_regime_probes
-    # + pluto_charon_dynamical_spectrum (v0.27.0 phase A through
-    # v0.24.11).
-    assert result["n_sources"] == 13
+    # + pluto_charon_dynamical_spectrum + loki_patera (v0.27.0 phase A
+    # complete through v0.24.12).
+    assert result["n_sources"] == 14
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 
