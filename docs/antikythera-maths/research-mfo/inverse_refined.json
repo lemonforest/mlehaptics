@@ -1,0 +1,135 @@
+{
+  "global_optimization": {
+    "scale_factor": 0.29747909909760933,
+    "total_error": 0.2490658902637244,
+    "mappings": [
+      {
+        "particle": "electron",
+        "target_log": 0.0,
+        "scaled_val": 0.0,
+        "mapped_eigenvalue": 0.0
+      },
+      {
+        "particle": "up",
+        "target_log": 1.2680035613749872,
+        "scaled_val": 0.37720455709039136,
+        "mapped_eigenvalue": 0.4384471872
+      },
+      {
+        "particle": "down",
+        "target_log": 1.9273539156020096,
+        "scaled_val": 0.5733475064555356,
+        "mapped_eigenvalue": 0.4384471872
+      },
+      {
+        "particle": "strange",
+        "target_log": 4.5386054103082705,
+        "scaled_val": 1.3501402486180398,
+        "mapped_eigenvalue": 1.3556949494
+      },
+      {
+        "particle": "muon",
+        "target_log": 4.631308174345428,
+        "scaled_val": 1.3777173833476717,
+        "mapped_eigenvalue": 1.3766500081
+      },
+      {
+        "particle": "charm",
+        "target_log": 6.794178569270523,
+        "scaled_val": 2.0211261198948796,
+        "mapped_eigenvalue": 2.0
+      },
+      {
+        "particle": "tau",
+        "target_log": 7.082533055341178,
+        "scaled_val": 2.106905552631932,
+        "mapped_eigenvalue": 2.0
+      },
+      {
+        "particle": "bottom",
+        "target_log": 7.825510763280645,
+        "scaled_val": 2.3279258918393717,
+        "mapped_eigenvalue": 2.0
+      },
+      {
+        "particle": "top",
+        "target_log": 11.059250405988166,
+        "scaled_val": 3.28989584746823,
+        "mapped_eigenvalue": 3.6180339887
+      }
+    ]
+  },
+  "per_generation_optimization": {
+    "scale_factors": [
+      0.7028957015667948,
+      0.7612385498785539,
+      0.46870957555717635
+    ],
+    "total_error": 0.18757892674955293,
+    "mappings": [
+      {
+        "particle": "electron",
+        "generation": 1,
+        "scale_factor": 0.7028957015667948,
+        "scaled_val": 0.0,
+        "mapped_eigenvalue": 0.0
+      },
+      {
+        "particle": "up",
+        "generation": 1,
+        "scale_factor": 0.7028957015667948,
+        "scaled_val": 0.891274252861866,
+        "mapped_eigenvalue": 0.8898056882
+      },
+      {
+        "particle": "down",
+        "generation": 1,
+        "scale_factor": 0.7028957015667948,
+        "scaled_val": 1.3547287826745835,
+        "mapped_eigenvalue": 1.3556949494
+      },
+      {
+        "particle": "strange",
+        "generation": 2,
+        "scale_factor": 0.7612385498785539,
+        "scaled_val": 3.454961401014027,
+        "mapped_eigenvalue": 3.6180339887
+      },
+      {
+        "particle": "muon",
+        "generation": 2,
+        "scale_factor": 0.7612385498785539,
+        "scaled_val": 3.5255303186794062,
+        "mapped_eigenvalue": 3.6180339887
+      },
+      {
+        "particle": "charm",
+        "generation": 2,
+        "scale_factor": 0.7612385498785539,
+        "scaled_val": 5.171990641687441,
+        "mapped_eigenvalue": 5.0
+      },
+      {
+        "particle": "tau",
+        "generation": 3,
+        "scale_factor": 0.46870957555717635,
+        "scaled_val": 3.3196510622386346,
+        "mapped_eigenvalue": 3.6180339887
+      },
+      {
+        "particle": "bottom",
+        "generation": 3,
+        "scale_factor": 0.46870957555717635,
+        "scaled_val": 3.6678918283753865,
+        "mapped_eigenvalue": 3.6572742783
+      },
+      {
+        "particle": "top",
+        "generation": 3,
+        "scale_factor": 0.46870957555717635,
+        "scaled_val": 5.183576563771243,
+        "mapped_eigenvalue": 5.0
+      }
+    ]
+  }
+}

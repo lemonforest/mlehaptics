@@ -1,0 +1,82 @@
+{
+  "parameters": {
+    "L": 5.0,
+    "S": 0.297479,
+    "R": 1000.0
+  },
+  "total_log10_squared_error": 2.813994039002816,
+  "assignments": [
+    {
+      "particle": "electron",
+      "base_eigenvalue": 0.0,
+      "s1_n": 0,
+      "target_log": 0.0,
+      "predicted_log": 0.0,
+      "error": 0.0
+    },
+    {
+      "particle": "up",
+      "base_eigenvalue": 0.4384,
+      "s1_n": 0,
+      "target_log": 1.2680035613749872,
+      "predicted_log": 1.4737174724938569,
+      "error": 0.042318213227822234
+    },
+    {
+      "particle": "down",
+      "base_eigenvalue": 0.4384,
+      "s1_n": 5,
+      "target_log": 1.9273539156020096,
+      "predicted_log": 1.4738015120395054,
+      "error": 0.2057097827773247
+    },
+    {
+      "particle": "strange",
+      "base_eigenvalue": 1.3557,
+      "s1_n": 0,
+      "target_log": 4.5386054103082705,
+      "predicted_log": 4.557296481432303,
+      "error": 0.00034935613976363984
+    },
+    {
+      "particle": "muon",
+      "base_eigenvalue": 1.3767,
+      "s1_n": 5,
+      "target_log": 4.631308174345428,
+      "predicted_log": 4.627973739322775,
+      "error": 1.1118456920290201e-05
+    },
+    {
+      "particle": "charm",
+      "base_eigenvalue": 2.0,
+      "s1_n": 5,
+      "target_log": 6.794178569270523,
+      "predicted_log": 6.723247691433681,
+      "error": 0.00503118943070501
+    },
+    {
+      "particle": "tau",
+      "base_eigenvalue": 2.0,
+      "s1_n": 5,
+      "target_log": 7.082533055341178,
+      "predicted_log": 6.723247691433681,
+      "error": 0.12908597271814246
+    },
+    {
+      "particle": "bottom",
+      "base_eigenvalue": 2.0,
+      "s1_n": 5,
+      "target_log": 7.825510763280645,
+      "predicted_log": 6.723247691433681,
+      "error": 1.2149838795575065
+    },
+    {
+      "particle": "top",
+      "base_eigenvalue": 3.618,
+      "s1_n": 0,
+      "target_log": 11.059250405988166,
+      "predicted_log": 12.16220304626545,
+      "error": 1.2165045266946313
+    }
+  ]
+}

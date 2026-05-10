@@ -1,0 +1,87 @@
+{
+  "ln_lambda_mu": 38.2428913216674,
+  "lambda_mu_ratio": 4.06140849646658e+16,
+  "mu_gev": 246.22,
+  "lambda_gev": 1e+19,
+  "total_residual_error": 4.0523034944265035,
+  "multiplets": [
+    {
+      "name": "charged_lepton",
+      "alpha": -0.014113916950438673,
+      "mean_mass_shift": 1.1718099867090992,
+      "rms_error": 0.24047457602725436,
+      "particles": [
+        {
+          "name": "electron",
+          "observed_mass_shift": 1.0,
+          "corrected_mass_shift": 1.171809986709099,
+          "residual": -0.17180998670909897
+        },
+        {
+          "name": "muon",
+          "observed_mass_shift": 1.003543721020664,
+          "corrected_mass_shift": 1.171809986709099,
+          "residual": -0.16826626568843506
+        },
+        {
+          "name": "tau",
+          "observed_mass_shift": 1.5118862391066332,
+          "corrected_mass_shift": 1.171809986709099,
+          "residual": 0.34007625239753425
+        }
+      ]
+    },
+    {
+      "name": "up_quark",
+      "alpha": 0.023144960759801277,
+      "mean_mass_shift": 0.7182543007382169,
+      "rms_error": 0.3319800588454902,
+      "particles": [
+        {
+          "name": "up",
+          "observed_mass_shift": 0.7891134265744058,
+          "corrected_mass_shift": 0.7182543007382169,
+          "residual": 0.07085912583618881
+        },
+        {
+          "name": "charm",
+          "observed_mass_shift": 1.0847580375364823,
+          "corrected_mass_shift": 0.7182543007382169,
+          "residual": 0.3665037367982653
+        },
+        {
+          "name": "top",
+          "observed_mass_shift": 0.28089143810376277,
+          "corrected_mass_shift": 0.7182543007382169,
+          "residual": -0.4373628626344542
+        }
+      ]
+    },
+    {
+      "name": "down_quark",
+      "alpha": -0.08818041382197195,
+      "mean_mass_shift": 2.0734281475480105,
+      "rms_error": 1.0875334708821418,
+      "particles": [
+        {
+          "name": "down",
+          "observed_mass_shift": 1.6852002848326368,
+          "corrected_mass_shift": 2.073428147548011,
+          "residual": -0.38822786271537413
+        },
+        {
+          "name": "strange",
+          "observed_mass_shift": 0.9787236586493656,
+          "corrected_mass_shift": 2.073428147548011,
+          "residual": -1.0947044888986452
+        },
+        {
+          "name": "bottom",
+          "observed_mass_shift": 3.5563604991620297,
+          "corrected_mass_shift": 2.073428147548011,
+          "residual": 1.4829323516140187
+        }
+      ]
+    }
+  ]
+}
