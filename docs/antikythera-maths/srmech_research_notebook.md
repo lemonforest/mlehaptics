@@ -198,21 +198,55 @@ For the v0.27.x stretch goal of replacing Perlin, the cosmological-style static 
 
 *Inbound doc to populate this section.*
 
-Pre-known operator family from existing forks (DCT/heat-kernel/Perona-Malik/Varadhan/power-spectrum-noise/HDC binding). The question is what *additional* operations the user wants the architecture to absorb beyond these.
+Beyond the four existing primitives in §3.1, seven candidate effects are worth absorbing into the catalogue. All but two fit the universal `(Transform, λ_k, g)` decomposition cleanly:
 
-### 4.2 Config-driven special operations: which can / cannot be configured
+| Effect | Spectral form g(λ) | Fits pure config? | Why include |
+|---|---|---|---|
+| Sharpen / Laplacian / band-pass | `g(λ) = α·λ` (high-pass) or `λ·exp(-σ²λ/2)` (band-pass) | **yes** | One-line addition to existing DCT path. Every photo editor has these. |
+| Difference of Gaussians (DoG) / unsharp mask | `exp(-σ₁²λ/2) − exp(-σ₂²λ/2)`; variant `1 + α·(1 − exp(-σ²λ/2))` | **yes** | Heavily used in astrophotography; tests the catalogue's ability to compose two heat kernels |
+| Wave / ripple (Helmholtz) | `cos(c·t·√λ)` | **yes** | Standing waves on the manifold; ripple-pool effects. `c, t` parameterise wave speed and elapsed time |
+| Reaction-diffusion (Gray-Scott / Turing) | coupled PDE; diffusion part `exp(-D·t·λ)` per field; reaction part real-space pointwise nonlinear | **no — substrate primitive** | Pattern formation: animal coats, sand ripples, dendrites, mineral zoning, vegetation banding. Strongest candidate for the Perlin-replacement stretch goal |
+| Cahn-Hilliard phase separation | linearised `g(λ) ≈ exp((λ − λ²)·t)` | **partially** — linearised form fits config; full nonlinear form is substrate-primitive | Blobby phase-separated patterns reminiscent of cosmic-web large-scale structure |
+| Log-normal cosmological field | Gaussian random field with chosen `P(λ)`, then real-space `exp()` | **yes** (sequenced ops) | Galaxy-density filaments and voids: a single nonlinearity converts Gaussian noise into observed bias/clustering |
+| Anisotropic diffusion (true tensor) | scalar λ replaced by eigenvalues of a per-pixel structure tensor; per-direction decay | **yes** | Vector-field-aware smoothing; directional blur along edges instead of across them. Linear with variable coefficients (distinct from state-dependent bilateral) |
 
-*Inbound doc to populate this section.*
+The reaction-diffusion entry is load-bearing for the Perlin-replacement stretch goal (`task #104`): Perlin gives "natural-looking gradient noise," reaction-diffusion gives patterns that *literally are* the math behind real biological/geological pattern formation. See §3.7 for the full static-vs-dynamic discussion.
 
-Pre-known: AMSC framework is config-driven at the data-source level (descriptor.toml + adapter dispatch). Open question: how far does config-driven extend to *operation* level (not just data-source level)? Some operations are stable + parameter-driven (e.g., heat-kernel σ); others may need code-level per-kernel implementation. The split is the design question.
+### 4.2 Config-driven special operations — the closed-form-vs-substrate-primitive split
+
+The architectural rule that falls out of §3.0 + §3.1 + §4.1:
+
+**Config-driven (catalogue entries fully express the operation):**
+
+Any effect that closes under `Transform → g(λ) → InverseTransform` is pure config. The catalogue ships three component types — transforms, eigenvalue tables, decay functions — and effects compose by referencing combinations. Authoring a new such effect requires zero C++; it's a YAML/TOML entry. Examples: heat-kernel blur, Varadhan SDF, sharpen, DoG, Helmholtz waves, log-normal field, anisotropic diffusion.
+
+**Substrate primitives (config sequences them but doesn't define them):**
+
+State-dependent or coupled-PDE operations don't close under pure spectral form. The substrate library ships them as named primitives; the catalogue invokes them by name and supplies parameters. Examples: Perona-Malik bilateral (state-dependent diffusion), reaction-diffusion (coupled PDE with real-space nonlinear reaction), full nonlinear Cahn-Hilliard, future iterative or feedback-driven operators.
+
+**The boundary is the math, not the implementation.** An operator is config-driven iff its spectral form `g(λ)` is a pure function of `λ` and a fixed parameter set — no dependence on the field's current real-space state, no coupling to a second field whose evolution feeds back. As soon as state-dependence or coupling appears, the operator becomes a substrate primitive.
+
+**Pedagogically: bilateral is the load-bearing example.** Perona-Malik weights diffusion by `exp(-Δ²/2σ_r²)` where Δ is the local gradient — that's a function of the *current pixel state*, not just the eigenvalue index. No closed-form `g(λ)` captures it. So the substrate ships `srmech_bilateral_iter()` as a primitive; the catalogue entry for "edge-preserving blur" calls that primitive with a parameter dict, but the loop body itself is C++ in the substrate.
+
+**Pragmatic implication.** The catalogue covers most of the user-facing operator menu (probably 80%+ in a typical photo editor), and the substrate library exposes the few exceptions as named hooks. The split is stable: bilateral and reaction-diffusion will always be substrate primitives because the underlying math doesn't reduce to a single `g(λ)`. Adding more operators of the same closed-form kind is config-only work.
+
+This answers the earlier question ("are we going to be able to have config-driven special operations in some or all cases?") concretely: **most cases yes, a small set of mathematically-imperative outliers no.** The split is principled and has a sharp boundary.
 
 ---
 
-## §5 To absorb (inbound doc)
+## §5 Sources / inbound-doc absorption
 
-*Placeholder. The user is dropping a doc into `docs/antikythera-maths/` once this scaffold is in place; that doc populates §3 / §4 and informs the v0.28.x+ kernel-loading design work.*
+The 2026-05-09 inbound research brief (`srmech-art-knowledge-subsume.md`, since deleted per the user's "exclude from tracking, delete when done" instruction) contributed:
 
-The user has noted: the session generating that doc may not realise that some items have already been delivered or discussed. Items already delivered or discussed will be skipped during absorption.
+- The universal `(Transform, λ_k, g)` decomposition framing now in §3.0
+- The four-existing-primitives table in §3.1
+- The Laplace-Beltrami cross-manifold table in §3.5
+- The selection-shape host-side discipline in §3.6
+- The Perlin-replacement static-vs-dynamic split in §3.7
+- The seven additional candidate effects in §4.1
+- The closed-form-vs-substrate-primitive answer in §4.2
+
+The brief proposed a 3000–5000-word standalone notebook chapter and detailed file-by-file repo references; we absorbed the architectural insights into this notebook's existing structure rather than writing a separate chapter, per the user's "don't do exactly what it says if it's against what we've already been doing" framing. Where the brief and the existing srmech work overlap (Inkscape + Skia + GEGL framing, three-layer architecture, SkPhase9BIP-as-HDC), we deferred to what was already in §0–§3 of this notebook and the 2026-05-09 subagent investigation memorialised in `project_inkscape_skia_gegl_kernel_candidates.md`.
 
 ---
 
