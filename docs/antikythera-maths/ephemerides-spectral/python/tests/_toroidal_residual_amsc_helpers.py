@@ -4,16 +4,44 @@ v0.24.4 Per-body Toroidal-Residual J₂ Catalogue.
 Mirrors `_{mercury,luna,mars,sun}_amsc_helpers.py` (PRs #303, #306,
 #308, #309). Single row_type ('toroidal_residual_classification')
 simplifies the converter to one function.
+
+Cross-platform float discipline
+-------------------------------
+``rotation_parameter_q`` is computed via ``ω²·R³/GM`` in the
+hand-coded module — a libm chain (``math.pi``, multiplications,
+divisions) that produces last-bit-different results across
+platforms (Windows libm vs POSIX libm; even between two Windows
+hosts with different CRT versions). The dual-author test compares
+dict equality, so a single ULP difference fails CI. Both the AMSC
+NDJSON write path and the hand-coded → AMSC converter round
+``rotation_parameter_q`` to 12 significant figures via
+:func:`_round_sig` before emission, well above the input precision
+(rotation periods + radii are 5–6 sig fig measurements; GM values
+are 8 sig figs); the rounding throws away last-bit platform
+divergence without losing physically meaningful precision. Other
+fields in this catalogue are direct measurements, not libm-computed;
+they don't need rounding.
 """
 
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Dict, List
 
 from ephemerides_spectral._research.toroidal_residual_data import (
     TOROIDAL_RESIDUALS,
 )
+
+
+def _round_sig(x: float, sig: int = 12) -> float:
+    """Round to ``sig`` significant figures. Used for libm-computed
+    values to guarantee cross-platform byte-stability without
+    requiring a tolerance-based comparison."""
+    if x == 0.0:
+        return 0.0
+    digits = sig - int(math.floor(math.log10(abs(x)))) - 1
+    return round(x, digits)
 
 
 SOURCE_KEY_PROVENANCE: Dict[str, Dict[str, Any]] = {
@@ -78,7 +106,12 @@ ENTERED_LOCALLY_AT: str = "2026-05-09"
 
 
 def residual_to_amsc_dict(residual) -> Dict[str, Any]:
-    """Convert a :class:`ToroidalResidual` to its AMSC-shape dict."""
+    """Convert a :class:`ToroidalResidual` to its AMSC-shape dict.
+
+    ``rotation_parameter_q`` is rounded to 12 significant figures via
+    :func:`_round_sig` to remove last-bit cross-platform libm
+    divergence (the only libm-computed field in this catalogue;
+    everything else is a direct measurement)."""
     prov = SOURCE_KEY_PROVENANCE[residual.source_key]
     return {
         "name": residual.body,
@@ -86,7 +119,7 @@ def residual_to_amsc_dict(residual) -> Dict[str, Any]:
         "rotation_period_days": residual.rotation_period_days,
         "equatorial_radius_km": residual.equatorial_radius_km,
         "GM_m3_s2": residual.GM_m3_s2,
-        "rotation_parameter_q": residual.rotation_parameter_q,
+        "rotation_parameter_q": _round_sig(residual.rotation_parameter_q),
         "J2_observed": residual.J2_observed,
         "moment_of_inertia_factor": residual.moment_of_inertia_factor,
         "regime": residual.regime,

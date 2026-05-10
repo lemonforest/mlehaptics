@@ -117,8 +117,8 @@
       "size_bytes": 3253
     },
     "_research/attested/toroidal_residual/row.ndjson": {
-      "sha256": "536565414f49c0fca110aaebcfaaa6eee8eb4d83e0a164b351b0ddbb46a60fe4",
-      "size_bytes": 9424
+      "sha256": "f14a6f53b4c9cc178d5306353985fad790688618608c7049c0d271414a3a7644",
+      "size_bytes": 9364
     },
     "_research/attested/toroidal_residual/row.schema.json": {
       "sha256": "c6362f517e0852fab5114cd7063ebe7e78d9cdbdd768298728e02e56322c4148",
