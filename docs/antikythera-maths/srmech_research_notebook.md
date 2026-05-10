@@ -69,9 +69,49 @@ The index pattern: **heavy stores stay; spectral scaffold is the index.** DE441 
 
 ---
 
-## §3 Graphics-domain kernel candidates
+## §3 The universal spectral pattern + graphics-domain kernel candidates
 
-This section's substantive content lands via the inbound doc the user is dropping. Pre-existing context (from the 2026-05-09 subagent investigation, memory `project_inkscape_skia_gegl_kernel_candidates.md`):
+### §3.0 The universal `(Transform, λ_k, g)` decomposition
+
+The central abstraction of the srmech config layer: every closed-form spectral effect decomposes as
+
+```
+1. Project to eigenbasis:      coeffs = Transform(input)
+2. Pointwise weight by g(λ):   coeffs *= g(λ_k) for each mode k
+3. Project back:               output = InverseTransform(coeffs)
+4. Quantize / clamp as needed
+```
+
+Three component types fully express the effect: **(a) the transform** (DCT-II/III, FFT, spherical-harmonic projection, graph-Laplacian eigendecomposition), **(b) the eigenvalue formula λ_k** (depends on the manifold — see §3.5), **(c) the decay or weight function g(λ)** that shapes the spectral response. The config catalogue ships these three component types; effects compose by referencing combinations.
+
+This is what makes the catalogue claim concrete: a non-expert can author a new effect in YAML/TOML by picking transform + eigenvalue source + decay function, without writing C++. Sketch:
+
+```yaml
+effect: heat_kernel_blur
+pipeline:
+  - op: srmech.transforms.dct2_2d
+  - op: srmech.kernels.heat_decay
+    args:
+      eigenvalues: srmech.lattices.dirichlet_2d
+      decay: "exp(-0.5 * sigma_x**2 * lambda_x - 0.5 * sigma_y**2 * lambda_y)"
+  - op: srmech.transforms.dct3_2d
+output: { quantize: clamp_uint8 }
+```
+
+The schema is not committed yet (ephemerides §22 + PR #294 framing leaves it open); this is the pre-schema sketch. The four-component-type framing — transform / eigenvalue / decay / quantize — is the load-bearing claim, not the YAML-key shape.
+
+### §3.1 Existing primitives in the universal form
+
+The four operators that already exist in the Inkscape and Skia forks, expressed in the `(Transform, λ_k, g)` decomposition:
+
+| Primitive | Transform | λ_k | g(λ) | Notes |
+|---|---|---|---|---|
+| Heat-kernel blur | DCT-II/III | `2(1−cos πk/W) + 2(1−cos πl/H)` | `exp(-σ²λ/2)` | Anisotropic σ separates by axis |
+| Perona-Malik bilateral | (none — real-space iteration) | — | — | **Substrate primitive, not config primitive.** Forward Euler stencil with state-dependent weights `exp(-Δ²/2σ_r²)`; doesn't close under pure spectral form |
+| Varadhan SDF | DCT-II/III | (same lattice eigenvalues) | `exp(-σ²λ/2)`, then real-space `σ·√(-2·ln(u))` | Heat kernel + scalar postprocess |
+| Power-spectrum noise | DCT-III only | (same lattice eigenvalues) | source: `iid Gaussian × √P(λ)`, then real-space minmax-normalize | P ∈ {1, 1/√λ, 1/λ, √λ} for white / pink / brown / blue |
+
+Three of four fit pure config; bilateral is the imperative outlier (see §4.2 for the broader split).
 
 ### Inkscape kernel — orphan upstream
 
@@ -103,6 +143,52 @@ GEGL is the graph-based image-processing engine GIMP uses; its node graph is an 
 ### Pyodide PWA "no-install" demo
 
 Complement to GEGL/GIMP. Static-HTML PWA: drag-drop a PNG, pick filter + parameters, apply via the project's existing `ephemerides-spectral` wheel (the BIP encoder is `SkPhase9BIP`'s cousin in math), download the result. Maximum reach — anyone with a browser tries it.
+
+### §3.5 Laplace-Beltrami generalisation across manifolds
+
+The unifying insight that ties **chess-spectral**, **ephemerides-spectral**, and the graphics-domain kernels into a single framework: the Laplace-Beltrami operator `Δ_g f = (1/√|g|) ∂_i(√|g| g^{ij} ∂_j f)` generalises across manifolds. Same `g(λ)` decomposition; different transform, different eigenvalue formula:
+
+| Manifold | Transform | λ_k | Project example |
+|---|---|---|---|
+| **Euclidean grid + Neumann BC** | DCT-II/III | `2(1−cos πk_x/W) + 2(1−cos πk_y/H)` | Inkscape, Skia, GEGL/GIMP — graphics-domain kernels |
+| **Sphere S²** | spherical-harmonic projection | `l(l+1)` | future — full-sky imaging, planetary topography |
+| **Flat torus T²** | 2D Fourier | `(2πm/L_x)² + (2πn/L_y)²` | future — periodic-tile kernels |
+| **Triangle mesh** | cotangent Laplacian + sparse Lanczos | (eigendecomposition output) | future — 3D mesh-domain kernels |
+| **General graph** | graph Laplacian `L = D − A`, eigendecomposition by SVD | (eigendecomposition output) | **ephemerides-spectral** — 52-body resonance graph; the gateway-graph Fiedler partition. **Antikythera-spectral** — gear-DAG. **Doom-spectral** — sector graph + sheaf-Laplacian raycasting |
+
+The point: chess's 8×8 board Laplacian and ephemerides' resonance-graph Laplacian and Inkscape's pixel-lattice Laplacian are **the same architectural slot**, parameterised differently. The config catalogue's `eigenvalues:` field selects which manifold; the same `decay:` (heat kernel, sharpen, Helmholtz, etc.) works on any of them.
+
+This is the deepest answer to the unification question: srmech is not "the project's seven projects glued together" — it's "the Laplace-Beltrami spectral pattern instantiated on whichever manifold the domain provides." The graph-Laplacian and the lattice-Laplacian are siblings, not strangers.
+
+### §3.6 Selection-shape question (host-side masking)
+
+When a user runs a spectral effect on a non-rectangular selection (lasso, magic wand) in Krita / GIMP / Photoshop / Inkscape, who handles the masking?
+
+**Answer: host-side, every time.** The wiring layer rasterizes the bounding rectangle of the selection, runs srmech on a rectangle, and the host composites through its own selection mask. Reasons:
+
+- **DCT / FFT need rectangular grids.** Padding to power-of-two-or-similar is unavoidable for the math.
+- **Every host already has a selection compositor** with feathering, anti-aliasing, and partial transparency. Reimplementing that in srmech would duplicate stable, well-tested code.
+- **Halo handling is already in wiring.** The wiring decides how much padding to add to the bounding rect to avoid edge-bleed; that lives at the host integration level, not in the spectral substrate.
+
+The "srmech accepts a mask" alternative fights the math. Don't pursue it.
+
+### §3.7 Perlin-replacement: static vs dynamic generators
+
+Perlin gradient noise approximates a band-passed Gaussian random field with `P(k) ~ k^{-2}`. It's already "spectral noise with a particular spectrum" — just dressed up. There are two ways to generalise it:
+
+**Static generators (cosmologically motivated):**
+
+- **Power-law cosmological field.** `P(k) ~ k^n` with appropriate spectral index. White / pink / brown / blue noise are special cases of this; star-system gravitational large-scale structure (matter power spectrum) is another. Suitable for patterns whose source physics changes on Myr–Gyr scales — gravitational filaments, voids, large-scale cosmic structure. A static spectral generator captures these fine.
+- **Log-normal cosmological field.** Power-spectrum noise + real-space `exp()` postprocess. A single nonlinearity converts Gaussian noise into the bias / clustering observed in galaxy density. Realistic filaments and voids fall out naturally.
+
+**Dynamic generators (planetary-pattern-shaped):**
+
+- **Reaction-diffusion (Gray-Scott / Turing).** Two coupled scalar fields with cross-coupling: `∂_t u = D_u ∇²u − uv² + F(1 − u)`, `∂_t v = D_v ∇²v + uv² − (F + k) v`. Each field's diffusion uses `exp(-D·t·λ)` spectrally; the reaction term is real-space pointwise nonlinear. Animal coats, sand ripples, dendrites, mineral zoning, vegetation banding — pattern formation that *literally is* the math behind the real patterns.
+- **Cahn-Hilliard phase separation.** `∂_t u = -Δ²u + Δ f(u)` with a double-well potential. Linearised spectral form `g(λ) ≈ exp((λ − λ²) · t)`. Produces blobby phase-separated patterns reminiscent of cosmic-web large-scale structure.
+
+**Why the planet-vs-star asymmetry matters.** Star-system patterns operate on Myr–Gyr scales; the system is essentially in equilibrium at any human-timescale snapshot. Static spectral generation captures this well. Planetary patterns (cloud cells, sand dunes, vegetation stripes, river networks) are **dynamic coupled-PDE outputs** at minute-to-decade scales; they don't sit at equilibrium. Reaction-diffusion and Cahn-Hilliard give patterns that *emerge from the same physics that produces the real ones*. That's what "HDC-similar to things in the universe" means: not "looks similar" but "is the same generative process."
+
+For the v0.27.x stretch goal of replacing Perlin, the cosmological-style static path covers the easy case (cosmological-scale gravitational structure for star-system rendering); the dynamic path is the harder, more interesting one (planet-scale climate / biology / geology).
 
 ---
 
