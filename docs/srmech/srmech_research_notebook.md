@@ -1,8 +1,9 @@
 # Stored-Relationship Mechanism (srmech) — Research Notebook
 
-**Status:** Active. Architecture-naming + experiment-scaffold notebook for the unified mechanism that absorbs domain-specific kernels.
-**Version:** v0 (inception ship of the dedicated notebook; prior to this, srmech framing lived in PR #294 spike + ephemerides §22).
-**Started:** 2026-05-10.
+**Status:** Active. **Master architecture notebook for the spectral-research collection.** Cross-domain pollination layer above the per-domain notebooks (chess / ephemerides / antikythera / doom / othello / logo / MFO); home for domains without their own notebook (currently: graphics-domain Inkscape / Skia / GEGL).
+**Version:** v0.1 (master-architecture framing; was v0 inception-only).
+**Started:** 2026-05-09. Promoted to master architecture notebook same day per user direction.
+**Location:** `docs/srmech/` — top-level home, separate from any single domain.
 
 ---
 
@@ -17,7 +18,9 @@
 
 ## §0 What is srmech
 
-Three-layer architecture (the notebook §22 framing made cross-domain):
+The master architecture notebook for the eight-notebook spectral-research collection. Each per-domain notebook (chess / ephemerides / antikythera / doom / othello / logo / MFO) is the authoritative home for its domain; this notebook is the cross-pollination layer where shared abstractions are surfaced — Laplace-Beltrami across manifolds, HDC binding via cyclic-group representations, the AMSC attestation envelope, the `(Transform, λ_k, g)` decomposition. Domains that do not yet have their own research notebook are temporarily homed here (currently §3 hosts graphics-domain Inkscape / Skia / GEGL/GIMP knowledge until/unless that work spawns a dedicated notebook).
+
+Three-layer architecture (the ephemerides-spectral §22 framing made cross-domain):
 
 1. **L1 — AMSC attestation envelope.** Provenance / SHA-256 / descriptor hash / per-mode attestation. Where each piece of data came from, when it was fetched, what the parse rules were.
 2. **L2 — Heavy-store substrate.** The actual data: JPL ephemeris kernels, hand-coded catalogues, raster pixels, board states, gear ratios, fractal eigenvalue structures. Provides `state(...)` for every registered entity.
@@ -56,6 +59,38 @@ Three-layer architecture (the notebook §22 framing made cross-domain):
 
 ---
 
+## §1.5 Cross-domain pollination map
+
+The eight-notebook collection plus this srmech notebook. Each per-domain notebook is the authoritative home for its domain; srmech surfaces what generalises across them and hosts knowledge for domains that do not yet have their own home.
+
+| Domain | Notebook | Manifold / structure | Spectral primitive shared with srmech | Status |
+|---|---|---|---|---|
+| chess-spectral | [`../chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md) | 8×8 board adjacency graph + cyclic group `Z_640` | Graph-Laplacian eigenbasis; 11-channel D₄ decomposition; HDC binding (BIP — sibling of `SkPhase9BIP`) | independent notebook; foundational for the phase-operator framework |
+| chess-spectral 4D | (chess notebook §38+) | 4D `Z_8⁴` cyclic group | 4D extension of the 2D framework | sibling section in chess notebook |
+| ephemerides-spectral | [`../antikythera-maths/ephemerides_spectral_research_notebook.md`](../antikythera-maths/ephemerides_spectral_research_notebook.md) | 52-body resonance graph + per-body modular `Z_{2^32}` | Graph-Laplacian + resonance-weighted gateway-graph Fiedler partition; per-body action-angle dynamical spectra | independent notebook; most mature; AMSC framework lives here (§18 / §22) |
+| antikythera-spectral | [`../antikythera-maths/antikythera_spectral_research_notebook.md`](../antikythera-maths/antikythera_spectral_research_notebook.md) | gear DAG + cyclic-group ratios | `Z/nℤ` representations; gear-DAG Laplacian eigenbasis projected to spatial pointer motion; Diophantine-approximation framing | independent notebook; the bronze antikythera is the original stored-relationship mechanism |
+| doom-spectral | [`../antikythera-maths/doom_spectral_research_notebook.md`](../antikythera-maths/doom_spectral_research_notebook.md) | sector graph (BSP) + sheaf structure | Sheaf-Laplacian raycasting; end-to-end existence proof of the chess-spectral §42 procedure | independent notebook; first cross-disciplinary methodological capstone |
+| othello-spectral | [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) | 8×8 board adjacency graph (different ruleset than chess) | Sheaf-port reference encoder; spectral fingerprints | independent notebook; instantiates chess §10 framework on simpler domain |
+| logo-spectral | [`../logo-maths/logo_research_notebook.md`](../logo-maths/logo_research_notebook.md) | turtle-graphics geometry; non-board cyclic-group framing | Split-object pattern (atoms × productions × geometry); L7b critical negative result on partial-trace fibers | independent notebook; non-board generalisation |
+| MFO (Metric Field Ontology) | [`../antikythera-maths/mfo_spectral_research_notebook.md`](../antikythera-maths/mfo_spectral_research_notebook.md) | metric-field manifolds | Foundational ontology layer — sits *above* srmech as physics-meta-framing | sister notebook; **not a kernel candidate** per memory `project_mfo_sister_notebook.md` |
+| **graphics-domain (Inkscape / Skia / GEGL/GIMP)** | **homed here, §3** | Euclidean grid + Neumann BC | DCT-II/III; Laplace-Beltrami on regular pixel lattice; same `(Transform, λ_k, g)` decomposition | **no independent notebook yet** — knowledge collected in §3 of this notebook |
+
+### What generalises across domains
+
+- **Laplace-Beltrami operator** — graph Laplacians (chess / ephemerides / antikythera / doom / othello / logo) and lattice Laplacians (graphics) are the same architectural slot, parameterised by manifold. Same `g(λ)` decomposition; manifold-specific eigenvalue formula. See §3.5.
+- **HDC binding via cyclic-group representations** — chess BIP, ephemerides BIP, `SkPhase9BIP` (graphics) are siblings under one math. See `project_inkscape_skia_gegl_kernel_candidates.md` and ephemerides §22.
+- **AMSC attestation envelope (L1)** — provenance / SHA-256 / descriptor-hash framework. Currently homed in ephemerides-spectral; the discipline is portable to any domain with literature- or archive-sourced data.
+- **The `(Transform, λ_k, g)` decomposition** — how every closed-form spectral effect factors into three components: which transform, which manifold's eigenvalues, which weighting function. The catalogue layer this notebook is sketching expresses any such operator as a YAML/TOML config entry. See §3.0.
+
+### What is domain-specific (does not generalise)
+
+- Per-domain semantics of what the eigenbasis *means* (chess: piece-mobility; ephemerides: orbital-resonance; antikythera: gear-period; doom: visibility-sector; etc.).
+- Per-domain encoding choices (modulus, quantisation policy, dimensionality).
+- Per-domain decay / weight functions `g(λ)` (problem-specific).
+- Per-domain heavy-store substrates (DE441 kernels, hand-coded gear ratios, board-state lookups, etc.).
+
+---
+
 ## §2 Architectural commitments inherited from spike + ephemerides §22
 
 The four paths from PR #294:
@@ -70,6 +105,8 @@ The index pattern: **heavy stores stay; spectral scaffold is the index.** DE441 
 ---
 
 ## §3 The universal spectral pattern + graphics-domain kernel candidates
+
+> **Note on homing.** The graphics-domain content in this section (Inkscape / Skia / GEGL/GIMP / Pyodide PWA) lives here — in the master srmech notebook — because graphics-domain work does not yet have its own per-domain research notebook. Per the cross-domain pollination map (§1.5), domains without their own notebook are temporarily collected here. If the graphics-domain work spawns a dedicated `docs/<graphics-domain>/` notebook in the future, this section moves there and §1.5 updates accordingly.
 
 ### §3.0 The universal `(Transform, λ_k, g)` decomposition
 
@@ -252,13 +289,30 @@ The brief proposed a 3000–5000-word standalone notebook chapter and detailed f
 
 ## §6 Cross-references
 
+### Per-domain notebooks
+
+The authoritative homes for each domain's research. Cross-pollination summary in §1.5; this section is the link map.
+
+- [`../chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md) — chess-spectral (2D + 4D)
+- [`../antikythera-maths/ephemerides_spectral_research_notebook.md`](../antikythera-maths/ephemerides_spectral_research_notebook.md) — ephemerides-spectral
+- [`../antikythera-maths/antikythera_spectral_research_notebook.md`](../antikythera-maths/antikythera_spectral_research_notebook.md) — antikythera-spectral
+- [`../antikythera-maths/doom_spectral_research_notebook.md`](../antikythera-maths/doom_spectral_research_notebook.md) — doom-spectral
+- [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) — othello-spectral
+- [`../logo-maths/logo_research_notebook.md`](../logo-maths/logo_research_notebook.md) — logo-spectral
+- [`../antikythera-maths/mfo_spectral_research_notebook.md`](../antikythera-maths/mfo_spectral_research_notebook.md) — MFO (Metric Field Ontology, foundational layer)
+
+### PRs / tasks / memories (project state)
+
 - PR #294 — research spike (cross-domain framing across the eight-notebook collection)
 - PR #296 — ephemerides §22 architecture-naming section
 - PR #297 — v0.27.0 ROADMAP entry
 - PR #299 — phase C part 1 body→kernel registry abstraction (the layer-2-to-layer-3 interface)
 - PRs #303 / #306 / #308 / #309 / #311 / #312 / #313 / #314 / #315 / #316 / #317 / #319 — phase A AMSC backfill of all 12 v0.24.x catalogues
 - Task `#168` — v0.28.x+ exploration of Inkscape + Skia + GEGL/GIMP graphics kernels
-- Memory: `feedback_subagent_dispatch_pattern.md` — the mint-first-then-subagent-rest workflow used for phase A
+- Memory: `project_stored_relationship_mechanism_spike.md` — spike-test sequence + Path A/B/C/D recap
+- Memory: `project_inkscape_skia_gegl_kernel_candidates.md` — graphics-domain investigation
+- Memory: `project_mfo_sister_notebook.md` — MFO as foundational ontology layer
+- Memory: `feedback_subagent_dispatch_pattern.md` — mint-first-then-subagent-rest workflow
 - Memory: `feedback_run_wsl_smoke_before_amsc_push.md` — cross-platform float discipline
 
 ---

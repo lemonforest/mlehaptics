@@ -1,0 +1,12 @@
+title: srmech (master architecture)
+
+# Stored-Relationship Mechanism — the master architecture notebook for the
+# spectral-research collection. Currently a single notebook; future
+# additions land here.
+#
+# IMPORTANT: explicit-nav whitelist — anything not listed here is silently
+# excluded from the RTD sidebar (still indexed by site search). Add new
+# srmech files to this list when you create them.
+
+nav:
+  - srmech_research_notebook.md
