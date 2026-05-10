@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Toroidal-Residual J₂ AMSC backfill
+
+- **`research/attested/toroidal_residual/`** — fifth v0.24.x backfill. 14 bodies classified on the Chandrasekhar 1969 rotating-fluid equilibrium-figure sequence: terra / mars / venus / mercury / luna / jupiter / saturn / uranus / neptune / io / europa / ganymede / callisto / titan. Each row records measured J₂ + dimensionless rotation parameter q = ω²R³/(GM) + moment-of-inertia factor + regime classification (sphere / maclaurin / jacobi / bar / ring) + fossil-figure flag.
+- Per-row source DOIs: EGM2008 (Earth), Genova 2016 (Mars MRO), Anderson 2002 (Venus), Smith 2012 MESSENGER (Mercury), Konopliv 2013 GRAIL (Luna), Iess 2018 Juno (Jupiter), Iess 2019 Cassini (Saturn), Jacobson 2014/2009 (Uranus/Neptune), Anderson 2001 Galileo (Galileans), Iess 2010 (Titan).
+- **`tests/test_toroidal_residual_dual_author.py`** — 12 tests including:
+  - **Saturn-is-closest-to-bifurcation ratchet** (Saturn q is largest in the catalogue, still below q=0.187 Maclaurin-Jacobi threshold)
+  - **Fossil-figure ratchet** (Mercury + Luna are the canonical fossil cases; pinned)
+  - Regime-enum validity check (sphere / maclaurin / jacobi / bar / ring)
+  - Single-row-type ratchet
+  - Sphere-or-Maclaurin coverage (no triaxials in this roster; Venus = sphere because q ≈ 10⁻⁷)
+- Ratchets: `n_sources` 8 → 9; `adapter_class="curated"` 5 → 6.
+
 ### Added — v0.27.0 phase A — Sun Dynamical Spectrum AMSC backfill
 
 - **`research/attested/sun_dynamical_spectrum/`** — fourth v0.24.x backfill (after Mercury PR #303, Luna PR #306, Mars PR #308). 20 helioseismic p-mode rows at canonical (n, l) labels: 8 radial (l=0, n=18-25), 6 dipole (l=1, n=18-23), 6 quadrupole (l=2, n=18-23). Single row_type catalogue (`helioseismic_mode`); Sun is a methodology extension from rigid-body action-angle to continuum normal-mode oscillation spectrum.

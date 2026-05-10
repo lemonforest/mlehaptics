@@ -1,0 +1,73 @@
+# Toroidal-Residual J₂ Catalog — per-body classification on the
+# Chandrasekhar 1969 rotating-fluid equilibrium-figure sequence.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.4
+# hand-coded `_research/toroidal_residual_data.py` module. The user-
+# named insight: rotation pushes a body toward toroidal, self-gravity
+# pulls it back toward spherical; J₂ (the leading rotation-induced
+# gravitational quadrupole) is the quantitative measure of where on
+# the Sphere → Maclaurin → Jacobi → bar → ring sequence the body sits.
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+#
+# Pattern follows research/attested/{mercury,luna,mars,sun}_dynamical_spectrum/
+# (PRs #303, #306, #308, #309).
+
+[source]
+key = "toroidal_residual"
+human_readable_name = "Per-body Toroidal-Residual J₂ Catalogue"
+purpose = "ground-proof rows for per-body classification on the Chandrasekhar 1969 rotating-fluid equilibrium-figure sequence (Sphere → Maclaurin → Jacobi → bar → ring). Each row records measured J₂ + dimensionless rotation parameter q = ω²R³/(GM) + moment-of-inertia factor + regime classification + fossil-figure flag (True for Mercury / Luna where J₂ exceeds current-rotation prediction)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+canonical_doi = "10.1126/science.aat2965"
+
+# canonical_doi above points at Iess et al. 2019 Cassini Grand Finale
+# Saturn gravity measurement — Saturn is THE extreme case (q ≈ 0.155,
+# closest to the q = 0.187 Maclaurin-Jacobi bifurcation). Per-row
+# provenance is finer-grained: each body's J₂ source cited
+# individually (EGM2008 for Earth; Genova 2016 for Mars; Anderson
+# 2002 for Venus; Smith 2012 MESSENGER for Mercury; Konopliv 2013
+# GRAIL for Luna; Iess 2018 Juno for Jupiter; Iess 2019 for Saturn;
+# Jacobson 2014/2009 for Uranus/Neptune; Anderson 2001 Galileo for
+# the four Galileans; Iess 2010 for Titan).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "toroidal_residual.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Toroidal-Residual J₂ Catalogue (curated against published gravity-field literature; Iess et al. 2019 *Science* 364:eaat2965 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "Chandrasekhar-sequence regime classification for {schema.body} (J₂ + q + I_M)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# The toroidal-residual catalogue is the rigid-body action-angle
+# regime's "shape" projection. Maps onto the v0.24.9 dynamical-regime
+# classifier's stable rigid-body category. Saturn-near-bifurcation
+# (q ≈ 0.155 vs threshold 0.187) is the Maclaurin-Jacobi-edge case
+# the v0.25.x Saturn ring system catalogue (task #153) will cite.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]

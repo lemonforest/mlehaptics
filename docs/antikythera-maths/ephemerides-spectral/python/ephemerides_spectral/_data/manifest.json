@@ -112,6 +112,18 @@
       "sha256": "5a242271f02b8d5bad7f679f2802ab87d79d8bea0e467bf15f7e3ca84575b3e3",
       "size_bytes": 3371
     },
+    "_research/attested/toroidal_residual/descriptor.toml": {
+      "sha256": "01310b58a96f0f0ee680b17ad37630d61d5f92e2803f2862b878b3f5e79ea5e6",
+      "size_bytes": 3253
+    },
+    "_research/attested/toroidal_residual/row.ndjson": {
+      "sha256": "f14a6f53b4c9cc178d5306353985fad790688618608c7049c0d271414a3a7644",
+      "size_bytes": 9364
+    },
+    "_research/attested/toroidal_residual/row.schema.json": {
+      "sha256": "c6362f517e0852fab5114cd7063ebe7e78d9cdbdd768298728e02e56322c4148",
+      "size_bytes": 4513
+    },
     "_research/attested_adapters/__init__.py": {
       "sha256": "a31d47928869e0c6bcd97a9dd48f7c5eea76432b8ab6c361e5c6dcd27431c837",
       "size_bytes": 1796
