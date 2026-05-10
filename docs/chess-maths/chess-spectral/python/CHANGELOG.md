@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — PGN classifier wired into bench_spectral_eval (1.19.0+)
+
+**Closes the deferred 1.16.0 item.** The `chess_spectral.phase_classifier`
+module shipped a data-driven phase classifier in 1.16.0 (k-means on
+log-channel-energy fingerprints), but `tests/bench_spectral_eval.py`
+still defaulted to the hand-picked `OPENING_FENS` / `MIDGAME_FENS` /
+`ENDGAME_FENS` lists that 1.14.0 honestly admitted were ad-hoc. The
+1.19.0 change adds a `--pgn-corpus PATH` flag (and helpers) so the
+bench can train the classifier on a PGN and use its phase-clustered
+sample as the corpus.
+
+**New CLI flags** in `tests/bench_spectral_eval.py`:
+
+  * `--pgn-corpus PATH` — PGN file. When set, train the classifier
+    and replace the hand-picked CORPORA with sampled-per-cluster FENs.
+  * `--pgn-max-games INT` — cap on training games (default 100).
+  * `--pgn-positions-per-phase INT` — FENs sampled per phase
+    (default 5; matches hand-picked size, so cell shape is unchanged).
+  * `--pgn-seed INT` — seed for both k-means init and the
+    deterministic FEN sampler (default 42).
+  * `--quiet` — suppress the human-readable summary table; pairs
+    nicely with `--output` for CI-style invocations.
+
+**Helper API** added to the same module:
+
+  * `build_pgn_sourced_corpora(pgn_path, ...)` returns
+    `(corpora_dict, provenance_dict)`.
+  * `run_bench(...)` now accepts `corpus_overrides` and
+    `corpus_provenance` kwargs; the result dict carries
+    `corpus_provenance` at the top level (`{"source": "hand_picked"}`
+    by default, or the classifier's training metadata when PGN is
+    used). Existing call sites are unaffected.
+
+**Tests** at `tests/test_bench_spectral_eval_pgn_corpus.py` (7 tests):
+
+  * Unit: returned corpus dict has all 3 phases, provenance is
+    correctly populated, sampling is deterministic for fixed seed,
+    different seeds yield different samples.
+  * Integration: end-to-end `run_bench(corpus_overrides=...)` returns
+    valid summary cells.
+  * CLI: `--pgn-corpus` and the legacy hand-picked path both produce
+    valid JSON with the expected keys; the legacy path stamps
+    `source: "hand_picked"`.
+
+  All 7 tests pass in ~22 s.
+
+**Sanity bench — hand-picked vs PGN-sampled corpus diverge measurably**
+
+Run at `--iters 50 --pgn-max-games 30 --pgn-positions-per-phase 3
+--pgn-seed 42`, on `twic_tatamast26.pgn` (88th Tata Steel Masters
+2026, 30 games sampled → 838 training positions across all clusters):
+
+| Variant            | Phase   | hand-picked | PGN-sampled | ratio |
+|--------------------|---------|-------------|-------------|-------|
+| `material`         | opening | 5.60 µs     | 3.20 µs     | 0.57× |
+| `material`         | midgame | 4.10 µs     | 6.95 µs     | 1.70× |
+| `material`         | endgame | 1.30 µs     | 2.15 µs     | 2.15× |
+| `spectral_float64` | opening | 561 µs      | 543 µs      | 0.97× |
+| `spectral_float64` | midgame | 634 µs      | 811 µs      | 1.28× |
+| `spectral_float64` | endgame | 299 µs      | 433 µs      | 1.45× |
+
+**Reading the divergence:** the hand-picked endgame FENs are
+extreme — sparse K+P configurations with 3-5 pieces total. The PGN
+classifier's "endgame" cluster sweeps in everything-after-queens-off
+positions which still have 8-12 pieces typical. So the PGN corpus
+makes endgame look ~1.45× *slower* for `spectral_float64` than the
+hand-picked numbers suggested — not because anything regressed, but
+because the hand-picked endgame sample was unrepresentative of real
+endgame frequency in tournament play. Same direction, smaller
+magnitude, on midgame.
+
+**The 1.14.0 amendment 1 framing was directionally correct
+(opening expensive, endgame cheap) but the magnitude was inflated
+by the hand-picked corpus.** The data-driven numbers should now be
+the bench's primary reference; the hand-picked path remains for
+backward-compat but should be retired in a future release.
+
+### Files changed
+
+  * `tests/bench_spectral_eval.py` — new flags, `build_pgn_sourced_corpora`,
+    `run_bench` accepts overrides + provenance, `--quiet`.
+  * `tests/test_bench_spectral_eval_pgn_corpus.py` — new test file (7 tests).
 ### Added — empirical tournament baseline at depth 4 (1.19.0+ research data)
 
 First real recorded ELO baseline from the 1.16.0 tournament runner.
