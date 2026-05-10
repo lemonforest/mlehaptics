@@ -1,0 +1,66 @@
+{
+  "variants": [
+    "material",
+    "spectral_float64",
+    "spectral_hybrid_8bit_lru"
+  ],
+  "depths": [
+    4
+  ],
+  "games_per_pair": 2,
+  "max_plies": 150,
+  "starting_fen": null,
+  "results": [
+    {
+      "depth": 4,
+      "games_per_pair": 2,
+      "max_plies": 150,
+      "n_games_played": 6,
+      "elapsed_seconds": 2246.1653346999083,
+      "final_elos": {
+        "material": 1530.5950719527063,
+        "spectral_float64": 1485.5924254497254,
+        "spectral_hybrid_8bit_lru": 1483.8125025975683
+      },
+      "pair_records": {
+        "material_vs_spectral_float64": {
+          "wins": 1,
+          "losses": 0,
+          "draws": 1
+        },
+        "material_vs_spectral_hybrid_8bit_lru": {
+          "wins": 1,
+          "losses": 0,
+          "draws": 1
+        },
+        "spectral_float64_vs_spectral_hybrid_8bit_lru": {
+          "wins": 1,
+          "losses": 1,
+          "draws": 0
+        }
+      },
+      "termination_by_pair": {
+        "material_vs_spectral_float64": {
+          "max_plies": 1
+        },
+        "spectral_float64_vs_material": {
+          "checkmate": 1
+        },
+        "material_vs_spectral_hybrid_8bit_lru": {
+          "max_plies": 1
+        },
+        "spectral_hybrid_8bit_lru_vs_material": {
+          "checkmate": 1
+        },
+        "spectral_float64_vs_spectral_hybrid_8bit_lru": {
+          "checkmate": 1
+        },
+        "spectral_hybrid_8bit_lru_vs_spectral_float64": {
+          "checkmate": 1
+        }
+      },
+      "mean_plies_per_game": 61.333333333333336,
+      "mean_elapsed_per_game_ms": 374359.4621333371
+    }
+  ]
+}

@@ -7,6 +7,20 @@ the CHANGELOG without a measurement from this harness, run on the
 same corpora and the same iteration count, before-and-after the
 change.
 
+PGN-sourced corpora (1.19.0+)
+-----------------------------
+
+The hand-picked OPENING_FENS / MIDGAME_FENS / ENDGAME_FENS lists
+below were honestly admitted in 1.14.0 to be ad-hoc. The
+:mod:`chess_spectral.phase_classifier` module (1.16.0+) ships the
+data-driven alternative — k-means on log-channel-energy fingerprints
+from PGN games — but the bench harness still defaulted to
+hand-picked corpora. The ``--pgn-corpus PATH`` flag (1.19.0+) closes
+that gap: when supplied, the bench trains a phase classifier on the
+PGN, deterministically samples N FENs per phase cluster, and uses
+those in place of the hand-picked corpus. All other bench machinery
+(variants, iters, summary table) is unchanged.
+
 Variants registered as of 1.13.0 (see :data:`VARIANTS` below):
 
   * ``material``                 — Phase 6.1.1 baseline (integer
@@ -55,6 +69,7 @@ Usage::
     python tests/bench_spectral_eval.py --iters 1000
     python tests/bench_spectral_eval.py --variants material,spectral_float64
     python tests/bench_spectral_eval.py --output bench_results.json
+    python tests/bench_spectral_eval.py --pgn-corpus ../../.pgn_cache/twic_tatamast26.pgn
 
 The --output flag emits structured JSON suitable for CI artifacts
 or longitudinal regression checks.
@@ -64,6 +79,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import statistics
 import sys
 import time
@@ -114,6 +130,122 @@ CORPORA: Dict[str, List[str]] = {
     "midgame": MIDGAME_FENS,
     "endgame": ENDGAME_FENS,
 }
+
+
+# ─── PGN-sourced corpora (1.19.0+) ──────────────────────────────────
+
+
+def build_pgn_sourced_corpora(
+    pgn_path: str | Path,
+    *,
+    max_games: int = 100,
+    positions_per_phase: int = 5,
+    seed: int = 42,
+    sample_every: int = 3,
+    skip_initial_plies: int = 4,
+) -> "tuple[Dict[str, List[str]], Dict[str, object]]":
+    """Train phase classifier on PGN, return phase-keyed FEN corpora.
+
+    Replaces the hand-picked ``CORPORA`` dict with FENs sampled
+    deterministically from each phase-cluster the classifier learned.
+
+    Parameters
+    ----------
+    pgn_path
+        Path to a PGN file.
+    max_games : int, optional
+        Cap on games to walk for classifier training (default 100).
+    positions_per_phase : int, optional
+        Number of FENs sampled per phase-cluster. Default 5 (matches
+        the hand-picked corpus size, so bench cell shape is
+        unchanged).
+    seed : int, optional
+        Seed for the deterministic FEN sampler. Same seed → same
+        sampled FENs, given the same PGN + classifier output.
+    sample_every : int, optional
+        Forwarded to :func:`extract_fingerprints_from_pgn`.
+    skip_initial_plies : int, optional
+        Forwarded to :func:`extract_fingerprints_from_pgn`.
+
+    Returns
+    -------
+    corpora
+        Dict ``{'opening': [...], 'midgame': [...], 'endgame': [...]}``.
+        Each list has ``positions_per_phase`` FENs (or fewer if the
+        cluster has fewer total positions).
+    provenance
+        Dict describing the PGN training run:
+        ``{'pgn_path', 'max_games', 'positions_per_phase', 'seed',
+        'training_position_count', 'cluster_counts'}``. Stamped into
+        the bench output's top level for reproducibility.
+
+    Raises
+    ------
+    ValueError
+        If a phase-cluster has zero positions (classifier failed to
+        recover all three phases). Caller should retry with a larger
+        ``max_games`` or different PGN.
+    """
+    from chess_spectral.phase_classifier import (
+        train_phase_classifier_from_pgn,
+    )
+
+    classifier, labeled = train_phase_classifier_from_pgn(
+        pgn_path,
+        max_games=max_games,
+        sample_every=sample_every,
+        skip_initial_plies=skip_initial_plies,
+        seed=seed,
+    )
+
+    # Group FENs by phase label.
+    fens_by_phase: Dict[str, List[str]] = {
+        'opening': [], 'midgame': [], 'endgame': [],
+    }
+    for fen, _fp, cluster in labeled:
+        phase = classifier.phase_map[cluster]
+        fens_by_phase[phase].append(fen)
+
+    cluster_counts = {
+        phase: len(fens) for phase, fens in fens_by_phase.items()
+    }
+
+    # Validate every phase has at least one FEN — classifier should
+    # always recover all three on real PGN data, but guard for the
+    # degenerate "all-opening" or empty-corpus cases.
+    for phase, fens in fens_by_phase.items():
+        if not fens:
+            raise ValueError(
+                f"PGN-sourced corpus has zero positions for phase "
+                f"{phase!r} (classifier counts={cluster_counts}). "
+                f"Try a larger --pgn-max-games or a different PGN."
+            )
+
+    # Deterministic per-phase sampling via random.Random(seed).
+    sampler = random.Random(seed)
+    sampled_corpora: Dict[str, List[str]] = {}
+    for phase in ('opening', 'midgame', 'endgame'):
+        candidates = fens_by_phase[phase]
+        n = min(positions_per_phase, len(candidates))
+        # sort first for stable ordering across runs (PGN walk order
+        # is deterministic but sampler-without-list-sort still varies
+        # by interpreter ordering whims if the upstream changes).
+        candidates_sorted = sorted(candidates)
+        sampled_corpora[phase] = sampler.sample(candidates_sorted, n)
+
+    provenance = {
+        "source": "pgn",
+        "pgn_path": str(pgn_path),
+        "max_games": max_games,
+        "positions_per_phase": positions_per_phase,
+        "seed": seed,
+        "sample_every": sample_every,
+        "skip_initial_plies": skip_initial_plies,
+        "training_position_count": len(labeled),
+        "cluster_counts": cluster_counts,
+        "phase_map": {str(k): v for k, v in classifier.phase_map.items()},
+    }
+    return sampled_corpora, provenance
 
 
 # ─── Variant registry ───────────────────────────────────────────────
@@ -346,6 +478,9 @@ def run_bench(
     variants: Optional[List[str]] = None,
     corpora: Optional[List[str]] = None,
     iters: int = 500,
+    *,
+    corpus_overrides: Optional[Dict[str, List[str]]] = None,
+    corpus_provenance: Optional[Dict[str, object]] = None,
 ) -> Dict[str, object]:
     """Run the benchmark across selected variants × corpora.
 
@@ -359,6 +494,14 @@ def run_bench(
         ``"midgame"`` / ``"endgame"``). ``None`` → all.
     iters
         Iterations per (variant × position) call site.
+    corpus_overrides
+        Optional dict ``{phase: [fen, ...]}``. When supplied, replaces
+        the hand-picked :data:`CORPORA` lookup for the duration of
+        this call. Used by the PGN-sourced corpus path (1.19.0+).
+    corpus_provenance
+        Optional metadata describing where the corpora came from.
+        Stamped into the result dict's ``corpus_provenance`` key for
+        reproducibility / CI artifact diffs.
 
     Returns
     -------
@@ -372,9 +515,14 @@ def run_bench(
             ``{variant: {corpus: {fen: {mean_us, median_us, p95_us, ...}}}}``
           * ``"summary"``: per-(variant, corpus) median-of-medians
             for the headline table
+          * ``"corpus_provenance"`` (1.19.0+): if supplied, the
+            classifier-training metadata; else ``{"source": "hand_picked"}``.
     """
+    corpus_lookup: Dict[str, List[str]] = (
+        corpus_overrides if corpus_overrides is not None else CORPORA
+    )
     chosen_variants = variants if variants else list(VARIANTS.keys())
-    chosen_corpora = corpora if corpora else list(CORPORA.keys())
+    chosen_corpora = corpora if corpora else list(corpus_lookup.keys())
 
     # Filter to available variants only.
     chosen_variants = [v for v in chosen_variants if v in VARIANTS]
@@ -389,7 +537,7 @@ def run_bench(
         for corpus_name in chosen_corpora:
             results[variant_name][corpus_name] = {}
             corpus_medians: List[float] = []
-            for fen in CORPORA[corpus_name]:
+            for fen in corpus_lookup[corpus_name]:
                 pos, side = _fen_to_pos_side(fen)
                 stats = _bench_one(fn, pos, side, iters)
                 results[variant_name][corpus_name][fen] = stats
@@ -397,12 +545,17 @@ def run_bench(
             summary[variant_name][corpus_name] = float(
                 statistics.median(corpus_medians))
 
+    provenance = (
+        corpus_provenance if corpus_provenance is not None
+        else {"source": "hand_picked"}
+    )
     return {
         "variants": chosen_variants,
         "corpora": chosen_corpora,
         "iters": iters,
         "results": results,
         "summary": summary,
+        "corpus_provenance": provenance,
     }
 
 
@@ -484,6 +637,38 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="write structured JSON results to FILE (in addition to "
              "the stdout summary table).",
     )
+    ap.add_argument(
+        "--quiet", action="store_true",
+        help="Suppress the human-readable summary table on stdout. "
+             "Use with --output for CI / programmatic consumers. "
+             "(1.19.0+).",
+    )
+    ap.add_argument(
+        "--pgn-corpus", default=None,
+        help="(1.19.0+) Path to a PGN file. If set, train the "
+             "phase classifier from chess_spectral.phase_classifier "
+             "on the PGN, sample N FENs deterministically per "
+             "phase-cluster, and use those instead of the hand-picked "
+             "OPENING/MIDGAME/ENDGAME_FENS lists. The bench machinery "
+             "is otherwise unchanged.",
+    )
+    ap.add_argument(
+        "--pgn-max-games", type=int, default=100,
+        help="(1.19.0+) Cap on games walked for classifier training. "
+             "Default 100. Only used when --pgn-corpus is set.",
+    )
+    ap.add_argument(
+        "--pgn-positions-per-phase", type=int, default=5,
+        help="(1.19.0+) Number of FENs sampled per phase-cluster. "
+             "Default 5 (matches the hand-picked corpus size). "
+             "Only used when --pgn-corpus is set.",
+    )
+    ap.add_argument(
+        "--pgn-seed", type=int, default=42,
+        help="(1.19.0+) Seed for the deterministic FEN sampler AND "
+             "for the k-means initialization. Same seed → same "
+             "sampled FENs, given the same PGN. Default 42.",
+    )
     args = ap.parse_args(argv)
 
     if args.variants == "all":
@@ -496,12 +681,37 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         corpora = [c.strip() for c in args.corpora.split(",") if c.strip()]
 
+    corpus_overrides: Optional[Dict[str, List[str]]] = None
+    corpus_provenance: Optional[Dict[str, object]] = None
+    if args.pgn_corpus:
+        corpus_overrides, corpus_provenance = build_pgn_sourced_corpora(
+            args.pgn_corpus,
+            max_games=args.pgn_max_games,
+            positions_per_phase=args.pgn_positions_per_phase,
+            seed=args.pgn_seed,
+        )
+        if not args.quiet:
+            counts = corpus_provenance["cluster_counts"]
+            print(
+                f"PGN corpus: {args.pgn_corpus} "
+                f"({corpus_provenance['training_position_count']} "
+                f"training positions; "
+                f"opening={counts.get('opening', 0)}, "
+                f"midgame={counts.get('midgame', 0)}, "
+                f"endgame={counts.get('endgame', 0)}). "
+                f"Sampling {args.pgn_positions_per_phase} per phase, "
+                f"seed={args.pgn_seed}."
+            )
+
     bench = run_bench(
         variants=variants,
         corpora=corpora,
         iters=args.iters,
+        corpus_overrides=corpus_overrides,
+        corpus_provenance=corpus_provenance,
     )
-    _print_summary_table(bench)
+    if not args.quiet:
+        _print_summary_table(bench)
 
     if args.output:
         out_path = Path(args.output)
@@ -509,7 +719,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             json.dumps(bench, indent=2, sort_keys=True),
             encoding="utf-8",
         )
-        print(f"Wrote structured results to {out_path}")
+        if not args.quiet:
+            print(f"Wrote structured results to {out_path}")
 
     return 0
 
