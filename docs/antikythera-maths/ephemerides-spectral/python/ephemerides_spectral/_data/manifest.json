@@ -44,6 +44,18 @@
       "sha256": "3df91c32a0fdc7042295a6f8c198f1f761fae2a348f3385f7dd84af85916818a",
       "size_bytes": 2983
     },
+    "_research/attested/hawaii_chain/descriptor.toml": {
+      "sha256": "4b72bbf3961cc7321923b1197d0e28acb43d95fb909db03d6f2ae42a54eba4c7",
+      "size_bytes": 2973
+    },
+    "_research/attested/hawaii_chain/row.ndjson": {
+      "sha256": "42b5e08a5e31d02a11dcd957856d411bde2a08ab5247a5151c3d0c5a5aec987f",
+      "size_bytes": 8129
+    },
+    "_research/attested/hawaii_chain/row.schema.json": {
+      "sha256": "88b47ea1b7d659295feddcb394a549f78b151717ad216f8022e21ff0c0b873db",
+      "size_bytes": 3283
+    },
     "_research/attested/luna_dynamical_spectrum/descriptor.toml": {
       "sha256": "04717ff62c3eaa59384b58eb3f57850c0d30b3343abaa09c0286403fa577a83f",
       "size_bytes": 3382
