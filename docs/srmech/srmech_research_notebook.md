@@ -95,8 +95,10 @@ Domains scoped via the dual-agent research pattern (memory: `feedback_dual_agent
 
 | Domain | Status | Round date | Detailed scoping | Project-mission relevance |
 |---|---|---|---|---|
-| **Audio (DSP / music / speech / spatial / EMDR-bilateral)** | scoped; **strongest project-mission fit** | 2026-05-09 | [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md) | **Direct** — bilateral audio extends EMDR pulser as peer modality alongside motor + LED |
-| **Protein folding (NMA / GNM / contact-map / coevolution / AlphaFold-era)** | scoped; **strongest cross-domain validation evidence** (NMA = ephemerides Fiedler-partition primitive identity) | 2026-05-09 | [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test for srmech universality |
+| **Audio (DSP / music / speech / spatial / EMDR-bilateral)** | scoped; strongest project-mission *modality* fit | 2026-05-09 | [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md) | **Direct** — bilateral audio extends EMDR pulser as peer modality alongside motor + LED |
+| **Protein folding (NMA / GNM / contact-map / coevolution / AlphaFold-era)** | scoped; strongest cross-domain *validation* (NMA = ephemerides Fiedler-partition primitive identity) | 2026-05-09 | [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test for srmech universality |
+| **Telecom (terrestrial cellular/Wi-Fi/cable/fibre/mesh + orbital satellite-constellation/TT&C)** | scoped; **strongest project-mission *infrastructure* fit** — UTLP IS a telecom protocol; RFIP IS Path D in radio; OFDM IS the (Transform, λ_k, g) decomposition (identity, not analogy) | 2026-05-09 | [`notes/telecom-scoping-2026-05-09.md`](notes/telecom-scoping-2026-05-09.md) | **Direct** — UTLP / RFIP / BLE+ESP-NOW are project-internal telecom protocols; Path D over UTLP beacon history is concrete v0.27.x demo candidate |
+| **Power grid (terrestrial AC + DC + microgrid + orbital SBSP / lunar / Mars)** | scoped; **fifth-instantiation cross-domain validation** (Y-bus = graph-Laplacian; inter-area mode = NMA harmonic time evolution) | 2026-05-09 | [`notes/power-grid-scoping-2026-05-09.md`](notes/power-grid-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test; **PMU/IEEE 1588 literature directly informs UTLP doctrine** (genuine cross-pollination win) |
 
 For domains in this state: the per-domain notebook may be created when cross-pollination warrants dedicated scope. Until then, the scoping report in `notes/` is the home; master architectural learnings (§3.5 manifold instantiations, §4.2 calibration ratios, §5 absorption-round subsections) land in this notebook directly.
 
@@ -198,11 +200,11 @@ The unifying insight that ties **chess-spectral**, **ephemerides-spectral**, and
 
 | Manifold | Transform | λ_k | Project example |
 |---|---|---|---|
-| **Euclidean grid + Neumann BC** | DCT-II/III | `2(1−cos πk_x/W) + 2(1−cos πk_y/H)` | Inkscape / Skia / GEGL/GIMP graphics-domain kernels; **audio spectrograms (STFT-domain)**; **protein contact maps** + **distance maps** |
-| **Sphere S²** | spherical-harmonic projection | `l(l+1)` | **audio HRTF + ambisonics**; **globular protein surface (genus-0)**; future — full-sky imaging, planetary topography |
-| **Flat torus T²** | 2D Fourier | `(2πm/L_x)² + (2πn/L_y)²` | **protein backbone Ramachandran (φ, ψ)**; **audio periodic-loop / circular-buffer**; future — periodic-tile graphics kernels |
-| **Triangle mesh** | cotangent Laplacian + sparse Lanczos | (eigendecomposition output) | **protein solvent-accessible-surface mesh**; **3D acoustic-cavity meshes**; future — 3D mesh-domain graphics kernels |
-| **General graph** | graph Laplacian `L = D − A`, eigendecomposition by SVD | (eigendecomposition output) | **ephemerides-spectral** — 52-body resonance graph (gateway-graph Fiedler partition). **Antikythera-spectral** — gear-DAG. **Doom-spectral** — sector graph + sheaf-Laplacian raycasting. **Chess-spectral** — 8×8 board adjacency. **Protein folding** — residue-interaction network (GNM / ANM / NMA — *literally the same primitive* as ephemerides Fiedler partition). **Audio** — microphone-array beamforming; Tonnetz key-relationship graph |
+| **Euclidean grid + Neumann BC** | DCT-II/III | `2(1−cos πk_x/W) + 2(1−cos πk_y/H)` | Inkscape / Skia / GEGL/GIMP graphics-domain kernels; **audio spectrograms (STFT-domain)**; **protein contact maps** + **distance maps**; **telecom OFDM resource grid** (subcarrier × OFDM-symbol) + **modulation symbol constellation 2D**; **power-grid demand × time** |
+| **Sphere S²** | spherical-harmonic projection | `l(l+1)` | **audio HRTF + ambisonics**; **globular protein surface (genus-0)**; **telecom antenna far-field radiation pattern** + **ground-station hemispheric visibility**; **power-grid solar irradiance + SBSP antenna beam-pattern**; future planetary topography |
+| **Flat torus T²** | 2D Fourier | `(2πm/L_x)² + (2πn/L_y)²` | **protein backbone Ramachandran (φ, ψ)**; **audio periodic-loop / circular-buffer**; **telecom OFDM cyclic-prefix subcarrier basis** (DFT *is* the eigenbasis of the periodic-CP boundary); **power-grid multi-bus phasor on T^N**; future periodic-tile graphics kernels |
+| **Triangle mesh** | cotangent Laplacian + sparse Lanczos | (eigendecomposition output) | **protein solvent-accessible-surface mesh**; **3D acoustic-cavity meshes**; **telecom reflector-antenna mesh + indoor 3D propagation environment**; future — 3D mesh-domain graphics kernels |
+| **General graph** | graph Laplacian `L = D − A`, eigendecomposition by SVD | (eigendecomposition output) | **ephemerides-spectral** — 52-body resonance graph (gateway-graph Fiedler partition). **Antikythera-spectral** — gear-DAG. **Doom-spectral** — sector graph + sheaf-Laplacian raycasting. **Chess-spectral** — 8×8 board adjacency. **Protein folding** — residue-interaction network (GNM / ANM / NMA — *literally the same primitive* as ephemerides Fiedler partition). **Audio** — microphone-array beamforming; Tonnetz key-relationship graph. **Telecom terrestrial** — cell-tower handover graph; mesh-network routing (BLE-Mesh / ESP-NOW / Thread); BGP AS topology; submarine fibre cable graph. **Telecom orbital** — satellite ISL constellation (Starlink / Iridium NEXT / OneWeb / Telesat) — *direct sibling of ephemerides 52-body resonance graph*. **Power grid** — Y-bus admittance matrix on transmission graph (5th instantiation; identical primitive). |
 
 The point: chess's 8×8 board Laplacian and ephemerides' resonance-graph Laplacian and Inkscape's pixel-lattice Laplacian are **the same architectural slot**, parameterised differently. The config catalogue's `eigenvalues:` field selects which manifold; the same `decay:` (heat kernel, sharpen, Helmholtz, etc.) works on any of them.
 
@@ -284,17 +286,21 @@ This answers the earlier question ("are we going to be able to have config-drive
 
 ### Calibration update from cross-domain absorption rounds (2026-05-09)
 
-The config-vs-substrate ratio **varies by domain**. From the audio (§5.2) and protein-folding (§5.3) rounds:
+The config-vs-substrate ratio **varies by domain**. From the audio (§5.2), protein-folding (§5.3), telecom (§5.4), and power-grid (§5.5) rounds:
 
 - **Graphics ~80/20.** Most operators are closed-form `g(λ)`; bilateral / reaction-diffusion / full Cahn-Hilliard are the imperative outliers.
 - **Audio ~80/20.** Same profile. EQ family, denoising (Wiener / spectral subtraction / MMSE-LSA), reverb, pitch-shift, ambisonic encoding all close. Compressors / auto-tune / neural vocoders / source separation are substrate.
-- **Protein folding ~20/80** — *inverted*. The closed-form menu is meaningful (NMA / GNM / ANM family, contact-map smoothing, Ramachandran-T² priors, surface heat-kernel signatures, coevolution / DCA spectral) but molecular dynamics / AlphaFold / Rosetta / Monte Carlo / docking dominate the actual computational work.
+- **Telecom ~70/30.** Intermediate. OFDM equalisation, MIMO precoding (SVD), beamforming weights, filter design, error-correction algebra, CSI-based positioning all close. Iterative decoders (Turbo / LDPC / Polar SCL), adaptive equalisers, cognitive-radio ML, satellite station-keeping are substrate.
+- **Power grid ~30/70.** Closed-form menu meaningful (modal damping, harmonic filtering, voltage regulation, stability margins) but Newton-Raphson power flow, OPF, unit commitment, dynamic simulation, EMS / DERMS dominate.
+- **Protein folding ~20/80** — *most inverted*. NMA / GNM / ANM family, contact-map smoothing, Ramachandran-T² priors, surface heat-kernel signatures close; molecular dynamics / AlphaFold / Rosetta / Monte Carlo / docking dominate.
 
-The architectural framing must accommodate **both** ratios. srmech's value proposition is *not* "everything fits in config" — it's:
+The architectural framing must accommodate **all** ratios. srmech's value proposition is *not* "everything fits in config" — it's:
 
 > **The closed-form portion fits in config. The substrate portion is named primitives invoked by config. The ratio depends on the domain's underlying physics.**
 
-In substrate-dominated domains (proteins), the **Path D** pattern from §2 (spectral *index* over heavy substrate work) is more relevant than the **Path C** pure-unification pattern. In config-dominated domains (graphics, audio), Path C's full unification carries the work. Both paths are first-class srmech offerings; which dominates depends on which side of the 80/20 the domain falls.
+**The pattern across five rounds** (2026-05-09 articulation, surfaced by the power-grid round): substrate dominates where physics is **nonlinearly state-coupled** (proteins, power grid); closed-form dominates in **passive signal-processing** domains (graphics, audio); **telecom is intermediate** because both apply (OFDM is closed-form; channel tracking and iterative decoding are substrate). The ratio is a property of the domain's underlying physics, not a design choice.
+
+In substrate-dominated domains (proteins, power grid), the **Path D** pattern from §2 (spectral *index* over heavy substrate work) is more relevant than the **Path C** pure-unification pattern. In config-dominated domains (graphics, audio), Path C's full unification carries the work. Telecom is mixed; both Paths apply at different layers. **Path C and Path D are both first-class srmech offerings; which dominates depends on which side of the ratio the domain falls.**
 
 ---
 
@@ -343,7 +349,39 @@ Cross-domain scoping run via the dual-agent research pattern. **Detailed report:
 - **Config-vs-substrate ratio inverts to ~20/80.** Substrate dominates (MD, AlphaFold, Rosetta, Monte Carlo, docking). **Calibration update for §4.2** — see calibration block above.
 - **EMDR-project connection: none direct.** Cross-domain stretch test for srmech's universality, not productisation target. Honest framing.
 
-### §5.4 Standard practice — dual-agent research pattern
+### §5.4 Telecom absorption round (2026-05-09)
+
+Cross-domain scoping run via the dual-agent research pattern. **Detailed report:** [`notes/telecom-scoping-2026-05-09.md`](notes/telecom-scoping-2026-05-09.md).
+
+**Headline findings:**
+
+- **OFDM IS the `(Transform=DFT, λ_k=subcarrier-frequency, g(λ_k)=channel-equaliser-coefficient)` decomposition.** §3.0's universal decomposition is the operating principle of every modern wireless standard (5G NR / Wi-Fi 6/6E/7 / DVB-T2 / LTE / ADSL / DOCSIS 3.1). Transmitter applies IDFT, receiver applies DFT, channel equaliser is exactly `g(λ_k) = 1/H(λ_k)` per-subcarrier. **Identity, not analogy.** Comparable strength to GNM/NMA-on-RIN identity in protein round.
+- **MIMO precoding via SVD = PCA sibling.** Channel `H = U Σ V*`; same primitive as protein-ensemble PCA, ephemerides Fiedler eigendecomposition.
+- **Satellite ISL constellation graph is direct sibling of ephemerides 52-body resonance graph.** Starlink ~6500 sats × 4 lasers; Iridium NEXT 66 × 4. Time-varying graph; Fiedler vector predicts congested gateways. **Path D spectral index is the natural pattern for satellite-constellation queries.**
+- **UTLP IS a telecom protocol** (per `UTLP_Specification.md`). The project has been shipping a connectionless distributed-coordination telecom protocol since v0.3.0-beta.1 without using the word.
+- **RFIP IS Path D in the radio domain.** RSSI / CSI / TDoA / FTM / UWB / AoA observations form a heavy-store; CSI fingerprint mode is most spectrally direct.
+- **`SpectrumPhase4096BIP` + `OfdmGridPhaseBIP` + `IPMACPhaseBIP` + `TLEPhaseBIP`** — multiple `SkPhase9BIP` cousins. Most cyclic-group-rich domain scoped to date.
+- **Operator counts:** 80+ closed-form `g(λ)` operators across 11 thematic groups; 52 substrate primitives. Config-vs-substrate ratio **~70/30** — intermediate between graphics/audio and protein/power.
+- **AMSC `literature_curated` corpus** is largest scoped (ITU-T / ITU-R / 3GPP TS+TR / IEEE 802 / IETF RFC / DVB / ETSI / CCSDS / FCC).
+- **Project-mission relevance: STRONGEST INFRASTRUCTURE FIT.** Telecom is the substrate underneath audio, motor, LED, BLE, ESP-NOW, UTLP, RFIP, every coordinated bilateral pulse.
+- **Path-D-on-UTLP-beacon-history is a concrete v0.27.x demo candidate** — same primitive as ephemerides 52-body Path D, applied to project's operating infrastructure.
+
+### §5.5 Power-grid absorption round (2026-05-09)
+
+Cross-domain scoping run via the dual-agent research pattern. **Detailed report:** [`notes/power-grid-scoping-2026-05-09.md`](notes/power-grid-scoping-2026-05-09.md).
+
+**Headline findings:**
+
+- **Y-bus admittance matrix IS a weighted graph Laplacian** on the transmission graph. **Fifth instantiation** of the same architectural slot: chess board-adjacency → ephemerides 52-body resonance graph → protein RIN GNM → audio mic-array → power transmission. **Five domains; no analogy — identity.** Strongest cumulative validation of §3.5 to date.
+- **Inter-area electromechanical oscillation modes (0.1–1 Hz) ARE NMA on the rotor-swing graph.** Linearised swing equation `M ẍ + D ẋ + K x = 0` has eigenvalues `√λ_k = ω_k` — *literally* protein NMA on a different graph. Same Helmholtz-wave row of §4.1 instantiated for the third domain.
+- **Fiedler partition for islanding analysis = ephemerides §13 + protein domain decomposition.** **Concrete falsifiable spike test:** run Fiedler partition on IEEE 39-bus / 118-bus benchmarks; compare to Chow-Kokotović slow-coherency. If Matthews φ and Spearman ρ comparable to ephemerides §13 (φ = +0.336, ρ = +0.743), srmech's universality claim acquires a fourth quantitative datapoint. **A real testable cross-domain prediction.**
+- **PMU / IEEE C37.118 + IEEE 1588 PTP literature is the gold-standard reference for distributed-time-coordination.** PMU delivers ~1 μs across continental-scale grids; UTLP delivers ~100 μs across two BLE peers. Same protocol class, three orders of magnitude tighter, 30+ years operational. **Genuine cross-pollination win for UTLP doctrine.**
+- **`Phase60HzBIP` + `PhaseHarmonicBIP` + `PhaseEventBIP`** — direct cousins of `SkPhase9BIP`.
+- **Cascade-failure spread is reaction-diffusion-on-graph** — sibling of graphics §3.7 dynamic generators.
+- **Operator counts:** 55+ closed-form `g(λ)` operators across 9 thematic groups; 39 substrate primitives. Config-vs-substrate ratio **~30/70** — substrate-dominated, similar to proteins.
+- **Project-mission relevance: none direct.** Cross-domain stretch test for srmech universality. Genuine wins: (a) Y-bus = Laplacian validates §3.5 for the fifth time; (b) PMU/IEEE 1588 literature directly informs UTLP doctrine; (c) Fiedler-partition falsifiable cross-domain prediction.
+
+### §5.6 Standard practice — dual-agent research pattern
 
 Going forward, cross-domain absorption rounds use the dual-agent research pattern (memory: `feedback_dual_agent_research_pattern.md`):
 
