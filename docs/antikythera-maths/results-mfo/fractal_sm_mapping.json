@@ -1,0 +1,121 @@
+{
+  "parameters": {
+    "L": 5.0,
+    "n": 3,
+    "S": 0.297479,
+    "R": 1000.0
+  },
+  "mappings": [
+    {
+      "particle": "electron",
+      "generation": 1,
+      "multiplet": "charged_lepton",
+      "anchor_eigenvalue": 0.0,
+      "s1_n": 0,
+      "predicted_log": 0.0,
+      "observed_log": 0.0,
+      "residual": 0.0,
+      "shift_factor": 1.0
+    },
+    {
+      "particle": "up",
+      "generation": 1,
+      "multiplet": "up_quark",
+      "anchor_eigenvalue": 0.4384,
+      "s1_n": 0,
+      "predicted_log": 1.4737174724938569,
+      "observed_log": 1.2680035613749872,
+      "residual": -0.20571391111886972,
+      "shift_factor": 0.6227103567951143
+    },
+    {
+      "particle": "down",
+      "generation": 1,
+      "multiplet": "down_quark",
+      "anchor_eigenvalue": 0.4384,
+      "s1_n": 10,
+      "predicted_log": 1.4740536306764511,
+      "observed_log": 1.9273539156020096,
+      "residual": 0.4533002849255585,
+      "shift_factor": 2.839881933846087
+    },
+    {
+      "particle": "strange",
+      "generation": 2,
+      "multiplet": "down_quark",
+      "anchor_eigenvalue": 1.3557,
+      "s1_n": 0,
+      "predicted_log": 4.557296481432303,
+      "observed_log": 4.5386054103082705,
+      "residual": -0.018691071124032455,
+      "shift_factor": 0.9578751991894373
+    },
+    {
+      "particle": "muon",
+      "generation": 2,
+      "multiplet": "charged_lepton",
+      "anchor_eigenvalue": 1.3767,
+      "s1_n": 10,
+      "predicted_log": 4.6282258579597215,
+      "observed_log": 4.631308174345428,
+      "residual": 0.0030823163857061076,
+      "shift_factor": 1.0071225412547522
+    },
+    {
+      "particle": "charm",
+      "generation": 2,
+      "multiplet": "up_quark",
+      "anchor_eigenvalue": 2.0,
+      "s1_n": 10,
+      "predicted_log": 6.723499810070628,
+      "observed_log": 6.794178569270523,
+      "residual": 0.07067875919989497,
+      "shift_factor": 1.1767352389710346
+    },
+    {
+      "particle": "tau",
+      "generation": 3,
+      "multiplet": "charged_lepton",
+      "anchor_eigenvalue": 2.0,
+      "s1_n": 10,
+      "predicted_log": 6.723499810070628,
+      "observed_log": 7.082533055341178,
+      "residual": 0.3590332452705498,
+      "shift_factor": 2.2857737728078518
+    },
+    {
+      "particle": "bottom",
+      "generation": 3,
+      "multiplet": "down_quark",
+      "anchor_eigenvalue": 2.0,
+      "s1_n": 10,
+      "predicted_log": 6.723499810070628,
+      "observed_log": 7.825510763280645,
+      "residual": 1.1020109532100175,
+      "shift_factor": 12.64768245406998
+    },
+    {
+      "particle": "top",
+      "generation": 3,
+      "multiplet": "up_quark",
+      "anchor_eigenvalue": 3.618,
+      "s1_n": 0,
+      "predicted_log": 12.16220304626545,
+      "observed_log": 11.059250405988166,
+      "residual": -1.1029526402772838,
+      "shift_factor": 0.0788946147340607
+    }
+  ],
+  "patterns": {
+    "generation_means": {
+      "1": 1.487530763547067,
+      "2": 1.0472443264717413,
+      "3": 5.004116947203964
+    },
+    "multiplet_means": {
+      "charged_lepton": 1.430965438020868,
+      "up_quark": 0.6261134035000698,
+      "down_quark": 5.481813195701835
+    }
+  }
+}

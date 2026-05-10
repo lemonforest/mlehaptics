@@ -1,0 +1,112 @@
+{
+  "parameters": {
+    "L": 5.0,
+    "S": 0.297479,
+    "R": 1000.0,
+    "C_gens": [
+      0.001,
+      0.000631,
+      0.01
+    ],
+    "Lambda_mu_ratio": 4.06140849646658e+16,
+    "ln_Lambda_mu": 38.2428913216674
+  },
+  "alpha_fits": {
+    "charged_lepton": 0.0012503872091109286,
+    "up_quark": 0.025369513266964953,
+    "down_quark": 0.00026565967703270666
+  },
+  "total_error": 0.7325924953044582,
+  "mappings": [
+    {
+      "particle": "electron",
+      "multiplet": "charged_lepton",
+      "observed_log_m2": 0.0,
+      "model_log_m2": 0.0,
+      "rg_corrected_log_m2": -0.013322509736263387,
+      "shift_factor": 1.0,
+      "coupling_alpha": 0.0012503872091109286,
+      "final_error": 0.00017748926567283274
+    },
+    {
+      "particle": "up",
+      "multiplet": "up_quark",
+      "observed_log_m2": 1.2680035613749872,
+      "model_log_m2": 1.4737174724938569,
+      "rg_corrected_log_m2": 1.152893039868228,
+      "shift_factor": 0.7891199888452417,
+      "coupling_alpha": 0.025369513266964953,
+      "final_error": 0.013250432161558062
+    },
+    {
+      "particle": "down",
+      "multiplet": "down_quark",
+      "observed_log_m2": 1.9273539156020096,
+      "model_log_m2": 1.9444229676716676,
+      "rg_corrected_log_m2": 1.941609486751589,
+      "shift_factor": 0.9805403591147905,
+      "coupling_alpha": 0.00026565967703270666,
+      "final_error": 0.00020322130880071813
+    },
+    {
+      "particle": "strange",
+      "multiplet": "down_quark",
+      "observed_log_m2": 4.5386054103082705,
+      "model_log_m2": 4.557296481432303,
+      "rg_corrected_log_m2": 4.554483000512224,
+      "shift_factor": 0.9787109885913396,
+      "coupling_alpha": 0.00026565967703270666,
+      "final_error": 0.0002520978706846913
+    },
+    {
+      "particle": "muon",
+      "multiplet": "charged_lepton",
+      "observed_log_m2": 4.631308174345428,
+      "model_log_m2": 4.627973739322775,
+      "rg_corrected_log_m2": 4.614651229586512,
+      "shift_factor": 1.003846288242283,
+      "coupling_alpha": 0.0012503872091109286,
+      "final_error": 0.00027745380870157157
+    },
+    {
+      "particle": "charm",
+      "multiplet": "up_quark",
+      "observed_log_m2": 6.794178569270523,
+      "model_log_m2": 6.791124751663143,
+      "rg_corrected_log_m2": 6.470300319037515,
+      "shift_factor": 1.0035220252558723,
+      "coupling_alpha": 0.025369513266964953,
+      "final_error": 0.10489712097399508
+    },
+    {
+      "particle": "tau",
+      "multiplet": "charged_lepton",
+      "observed_log_m2": 7.082533055341178,
+      "model_log_m2": 7.1266375105469635,
+      "rg_corrected_log_m2": 7.1133150008107,
+      "shift_factor": 0.9504904822234312,
+      "coupling_alpha": 0.0012503872091109286,
+      "final_error": 0.0009475281668886505
+    },
+    {
+      "particle": "bottom",
+      "multiplet": "down_quark",
+      "observed_log_m2": 7.825510763280645,
+      "model_log_m2": 7.798953875735766,
+      "rg_corrected_log_m2": 7.796140394815687,
+      "shift_factor": 1.0310469545142082,
+      "coupling_alpha": 0.00026565967703270666,
+      "final_error": 0.0008626185437674122
+    },
+    {
+      "particle": "top",
+      "multiplet": "up_quark",
+      "observed_log_m2": 11.059250405988166,
+      "model_log_m2": 12.16220304626545,
+      "rg_corrected_log_m2": 11.84137861363982,
+      "shift_factor": 0.28088185191297194,
+      "coupling_alpha": 0.025369513266964953,
+      "final_error": 0.6117245332043892
+    }
+  ]
+}
