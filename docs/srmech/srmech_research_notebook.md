@@ -9,7 +9,7 @@
 
 ## Cross-references
 
-- **[PR #294 spike](research-spikes/stored-relationship-mechanism-spike.md)** — research spike establishing the cross-domain framing across the eight spectral-research-collection notebooks. Path A / B / C / D options with four pre-v1.0 spike experiments.
+- **[PR #294 spike](../research-spikes/stored-relationship-mechanism-spike.md)** — research spike establishing the cross-domain framing across the eight spectral-research-collection notebooks. Path A / B / C / D options with four pre-v1.0 spike experiments.
 - **ephemerides-spectral §22** — single-domain codification of the three-layer architecture (attestation / heavy-store / spectral scaffold).
 - **Memory: `project_stored_relationship_mechanism_spike.md`** — spike pointer + recommended sequence (Spike 1 first; conditional on pass, run Spikes 2/3/4 in parallel).
 - **Memory: `project_inkscape_skia_gegl_kernel_candidates.md`** — graphics-domain kernel candidates investigation (2026-05-09 subagent run).
