@@ -374,6 +374,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
         "saturn_rings",
         "sun_dynamical_spectrum",
         "toroidal_residual",
+        "yarkovsky_yorp",
     ]
     assert found["earthref_sc"].adapter_name == "html_scraper"
     assert found["gmrt"].adapter_name == "csv_bulk"
@@ -386,6 +387,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["sun_dynamical_spectrum"].adapter_name == "literature_curated"
     assert found["toroidal_residual"].adapter_name == "literature_curated"
     assert found["hawaii_chain"].adapter_name == "literature_curated"
+    assert found["yarkovsky_yorp"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -466,10 +468,11 @@ def test_geotiff_bbox_stub_raises_without_extra() -> None:
 def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     """v0.25.0b shipped 3 fetched pilots; saturn_rings added the 4th.
     v0.27.0 phase A migrations: Mercury (5th), Luna (6th), Mars (7th),
-    Sun (8th), toroidal_residual (9th), hawaii_chain (10th)."""
+    Sun (8th), toroidal_residual (9th), hawaii_chain (10th),
+    yarkovsky_yorp (11th)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 10
+    assert result["n_sources"] == 11
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "earthref_sc",
@@ -482,16 +485,17 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "saturn_rings",
         "sun_dynamical_spectrum",
         "toroidal_residual",
+        "yarkovsky_yorp",
     ]
     assert result["adapter_class"] is None
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
-    """adapter_class='curated' returns 7 sources after v0.27.0 phase A
-    through hawaii_chain."""
+    """adapter_class='curated' returns 8 sources after v0.27.0 phase A
+    through yarkovsky_yorp."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 7
+    assert result["n_sources"] == 8
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -502,6 +506,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "saturn_rings",
         "sun_dynamical_spectrum",
         "toroidal_residual",
+        "yarkovsky_yorp",
     ]
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
@@ -531,8 +536,8 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     result = bridge.list_attested_sources(adapter_class="literature_curated")
     assert result["ok"] is True
     # saturn_rings + mercury + luna + mars + sun + toroidal_residual
-    # + hawaii_chain (v0.27.0 phase A through v0.24.5).
-    assert result["n_sources"] == 7
+    # + hawaii_chain + yarkovsky_yorp (v0.27.0 phase A through v0.24.6).
+    assert result["n_sources"] == 8
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 

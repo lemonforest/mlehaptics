@@ -1,0 +1,72 @@
+# Sol Yarkovsky/YORP Catalog — per-asteroid thermal-radiation orbital
+# + spin-state drift measurements.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.6
+# hand-coded `_research/yarkovsky_yorp_data.py` module. 10-asteroid
+# roster spanning the canonical Yarkovsky/YORP literature: Bennu
+# (OSIRIS-REx headline), 2000 PH5 (the asteroid that lent its name to
+# YORP), Apophis (impact-prediction), Ryugu / Itokawa (Hayabusa
+# missions), Apollo / Geographos / Eger (NEA YORP detections), 1950 DA
+# (radar Yarkovsky at the rotational-fission limit), Golevka (the
+# first-ever Yarkovsky detection).
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "yarkovsky_yorp"
+human_readable_name = "Sol Yarkovsky/YORP Small-Body Catalogue"
+purpose = "ground-proof rows for thermal-radiation-induced orbital + spin-state drift on small bodies (Yarkovsky semi-major-axis drift + YORP spin-rate change). Each row records published da/dt + dω/dt measurements with cited DOIs"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html"
+canonical_doi = "10.1126/science.1091452"
+
+# canonical_doi above points at Chesley et al. 2003 *Science*
+# 302:1739-1742 — the first-ever Yarkovsky detection (asteroid 6489
+# Golevka via radar ranging). Per-row provenance is finer-grained:
+# Farnocchia 2013 (Bennu), Lowry 2007 (2000 PH5 first YORP),
+# Vokrouhlický 2015 (Apophis), Watanabe 2019 (Ryugu), Lowry 2014
+# (Itokawa YORP spin-down), Kaasalainen 2007 (Apollo), Durech 2008
+# (Geographos), Farnocchia 2014 (1950 DA radar), Chesley 2003
+# (Golevka), Durech 2012 (Eger).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "yarkovsky_yorp.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Sol Yarkovsky/YORP Catalogue (curated against published thermal-radiation-drift literature; Chesley et al. 2003 *Science* 302:1739-1742 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof Yarkovsky/YORP measurement for asteroid {schema.designation}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Yarkovsky/YORP is the radiation-coupled spin-state-drift regime —
+# the radiative analogue of v0.24.2 Mars's gravitational chaos.
+# Maps onto v0.24.9 dynamical-regime classifier's
+# radiation_coupled_drift category. Sub-km/few-km bodies whose
+# observed da/dt or dω/dt couples to the small-denominator
+# spin/obliquity-attractor evolution that v0.24.x catalogues.
+regime_labels = [
+    "radiation_coupled_drift",
+]

@@ -136,6 +136,18 @@
       "sha256": "c6362f517e0852fab5114cd7063ebe7e78d9cdbdd768298728e02e56322c4148",
       "size_bytes": 4513
     },
+    "_research/attested/yarkovsky_yorp/descriptor.toml": {
+      "sha256": "749fd89abb49ed1cf1e90ee14345d31da8d80e9952ff355473adc0b48fced1d4",
+      "size_bytes": 2949
+    },
+    "_research/attested/yarkovsky_yorp/row.ndjson": {
+      "sha256": "b69ea58847663d561452160b2897bc140cef7bb418bd011f7e0dd73d451d3339",
+      "size_bytes": 7958
+    },
+    "_research/attested/yarkovsky_yorp/row.schema.json": {
+      "sha256": "084d6eb9f266c127889be1d12d34f419845076611ce4be18b28efb308c31cd89",
+      "size_bytes": 4026
+    },
     "_research/attested_adapters/__init__.py": {
       "sha256": "a31d47928869e0c6bcd97a9dd48f7c5eea76432b8ab6c361e5c6dcd27431c837",
       "size_bytes": 1796

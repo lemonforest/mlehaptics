@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Sol Yarkovsky/YORP AMSC backfill
+
+Seventh v0.24.x AMSC backfill. 10 NEA / Hayabusa-target asteroids with published Yarkovsky semi-major-axis drift and/or YORP spin-rate-change measurements: Bennu (OSIRIS-REx headline; first directly-imaged drifter), 2000 PH5 (the asteroid that lent its name to YORP), Apophis (impact-prediction relevance), Ryugu / Itokawa (Hayabusa missions), Apollo / Geographos / Eger (NEA YORP detections), 1950 DA (radar Yarkovsky at the rotational-fission limit), Golevka (the first-ever Yarkovsky detection). Per-row DOIs cite Farnocchia 2013 / Lowry 2007 / Vokrouhlický 2015 / Watanabe 2019 / Lowry 2014 / Kaasalainen 2007 / Durech 2008 / Farnocchia 2014 / Chesley 2003 / Durech 2012. 10 new dual-author tests including a prograde-outward / retrograde-inward Yarkovsky-direction ratchet and a 1950-DA-near-fission-limit ratchet.
+
 ### Added — v0.27.0 phase A — Hawaiian-Emperor Chain AMSC backfill
 
 Sixth v0.24.x AMSC backfill. 18 seamounts spanning ~85 Myr from Meiji through the Hawaiian-Emperor bend at 47.5 Myr (Daikakuji marker) to Kilauea. First v0.24.x catalogue with the bounded-local-Laplacian regime label. Introduces the `nodoi:` DOI-prefix for pre-DOI book chapters and USGS observatory compilations. 8 new dual-author tests including arc-distribution + Meiji-oldest/Kilauea-youngest + bend-age consistency ratchets.

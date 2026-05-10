@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "yarkovsky_yorp.row.v1",
+  "title": "Per-asteroid Yarkovsky/YORP measurement row",
+  "description": "One asteroid's published Yarkovsky semi-major-axis drift + YORP spin-rate change. Single row_type catalogue ('yarkovsky_yorp_entry'); each row records the asteroid's designation + short_name + orbital elements + size + rotation period + drift values (Yarkovsky and/or YORP, either or both may be null when not measured) + prograde flag + cited source.",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "designation",
+    "semi_major_axis_au",
+    "eccentricity",
+    "diameter_km",
+    "rotation_period_hours",
+    "is_prograde",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lower-case asteroid identifier matching the hand-coded module's short_name (e.g., 'bennu', '2000_ph5', 'apophis')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["yarkovsky_yorp_entry"],
+      "description": "Single value in this catalogue."
+    },
+    "designation": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full asteroid designation including parenthesised number (e.g., '(101955) Bennu')."
+    },
+    "semi_major_axis_au": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Semi-major axis in astronomical units."
+    },
+    "eccentricity": {
+      "type": "number",
+      "minimum": 0.0,
+      "exclusiveMaximum": 1.0,
+      "description": "Orbital eccentricity (bound orbit only)."
+    },
+    "diameter_km": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Effective diameter in kilometres."
+    },
+    "rotation_period_hours": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Rotation period in hours, magnitude (retrograde sense encoded in is_prograde)."
+    },
+    "yarkovsky_drift_1e4_au_per_myr": {
+      "type": ["number", "null"],
+      "description": "Yarkovsky da/dt in 10⁻⁴ AU/Myr; positive = outward drift (prograde rotators), negative = inward (retrograde). Null when not measured for this body."
+    },
+    "yarkovsky_uncertainty_1e4_au_per_myr": {
+      "type": ["number", "null"],
+      "description": "1-σ uncertainty on the Yarkovsky drift in 10⁻⁴ AU/Myr."
+    },
+    "yorp_spin_rate_change_1e8_rad_per_day_sq": {
+      "type": ["number", "null"],
+      "description": "YORP dω/dt in 10⁻⁸ rad/d²; positive = spin-up, negative = spin-down. Null when not measured."
+    },
+    "yorp_uncertainty_1e8_rad_per_day_sq": {
+      "type": ["number", "null"],
+      "description": "1-σ uncertainty on the YORP spin-rate change in 10⁻⁸ rad/d²."
+    },
+    "is_prograde": {
+      "type": "boolean",
+      "description": "True if rotation is prograde, False if retrograde. Distinguishes the diurnal-Yarkovsky drift direction."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — mission context, fission-limit proximity, prediction track, etc."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited Yarkovsky/YORP measurement reference."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For survey/catalogue release tags when applicable."
+    }
+  }
+}
