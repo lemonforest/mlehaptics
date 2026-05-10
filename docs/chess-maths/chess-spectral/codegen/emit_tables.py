@@ -282,6 +282,266 @@ def write_committed_tables_npz():
     print(f"Wrote {path} ({os.path.getsize(path) / 1024:.1f} KB)")
 
 
+# ============================================================================
+# 1.19.0+ — pure-phase 2D integer tables (B-spike-4 / chess2d C port)
+# ============================================================================
+#
+# Mirror of ``chess_spectral.encoder_pure_phase`` quantization. Emit
+# the integer tables the C-side pure-phase 2D encoder consumes:
+#
+#   SIGNED_VALS_INT_2D[12]                   int16  (one per piece char)
+#   LOCAL_FIBER_3D_INT16[5][64][3]           int16  (+ scale double)
+#   LOCAL_ADJ_ROWS_INT8[5][64][64]           int8
+#   PAWN_ANTI_FIBER_INT16[64][64]            int16  (+ scale double)
+#   DIAG_DEV_INT16_2D[6][64]                 int16  (+ scale double)
+#   CHANNEL_DEQUANT_SCALES_2D[10]            double
+#
+# All quantization parameters are SSOT'd against the Python module
+# (chess_spectral.encoder_pure_phase) so a build-time mismatch is
+# surfaced at codegen time, not in CI parity tests.
+
+from chess_spectral.encoder_pure_phase import (   # noqa: E402
+    _VALS_INT_SCALE,
+    _FIBER_QUANT_BITS,
+    _FIBER_QUANT_MAX,
+    _SIGNED_VALS_INT,
+    _SCALE_LOCAL_FIBER_3D,
+    _SCALE_PAWN_ANTI,
+    _SCALE_DIAG_DEV,
+    LOCAL_FIBER_3D_INT16 as _PP_LOCAL_FIBER_INT16,
+    LOCAL_ADJ_ROWS_INT8 as _PP_LOCAL_ADJ_INT8,
+    PAWN_ANTI_FIBER_INT16 as _PP_PAWN_ANTI_INT16,
+    DIAG_DEV_INT16 as _PP_DIAG_DEV_INT16,
+    CHANNEL_DEQUANT_SCALES as _PP_CHANNEL_DEQUANT_SCALES,
+)
+
+# Piece-char ordering for the C-side SIGNED_VALS_INT_2D table. Order
+# matches the indexing convention in the C encoder: the row is
+# determined per-piece by looking up the char into a switch (see
+# cs_pure_phase_signal_2d.c). We emit a 12-entry table indexed by a
+# helper function in the C source.
+_PIECE_CHARS_2D = ('P', 'N', 'B', 'R', 'Q', 'K',
+                   'p', 'n', 'b', 'r', 'q', 'k')
+
+PURE_PHASE_SIGNED_VALS_INT_2D = np.asarray(
+    [_SIGNED_VALS_INT[c] for c in _PIECE_CHARS_2D], dtype=np.int16
+)
+assert PURE_PHASE_SIGNED_VALS_INT_2D.shape == (12,)
+
+# Bit-exact copies of the Python int-quantized fiber tables. We
+# re-pack as the appropriate numpy dtype to match the C extern
+# declarations exactly.
+PURE_PHASE_LOCAL_FIBER_INT16_2D = np.asarray(
+    _PP_LOCAL_FIBER_INT16, dtype=np.int16
+)
+assert PURE_PHASE_LOCAL_FIBER_INT16_2D.shape == (5, 64, 3)
+
+PURE_PHASE_LOCAL_ADJ_INT8_2D = np.asarray(
+    _PP_LOCAL_ADJ_INT8, dtype=np.int8
+)
+assert PURE_PHASE_LOCAL_ADJ_INT8_2D.shape == (5, 64, 64)
+
+PURE_PHASE_PAWN_ANTI_INT16_2D = np.asarray(
+    _PP_PAWN_ANTI_INT16, dtype=np.int16
+)
+assert PURE_PHASE_PAWN_ANTI_INT16_2D.shape == (64, 64)
+
+PURE_PHASE_DIAG_DEV_INT16_2D = np.asarray(
+    _PP_DIAG_DEV_INT16, dtype=np.int16
+)
+assert PURE_PHASE_DIAG_DEV_INT16_2D.shape == (6, 64)
+
+# Per-channel dequantization scales in CHANNELS order
+# (A1, A2, B1, B2, E, F1, F2, F3, FA, FD).
+_CHANNEL_NAMES_2D = (
+    'A1', 'A2', 'B1', 'B2', 'E',
+    'F1', 'F2', 'F3', 'FA', 'FD',
+)
+PURE_PHASE_DEQUANT_SCALES_2D = np.asarray(
+    [_PP_CHANNEL_DEQUANT_SCALES[name] for name in _CHANNEL_NAMES_2D],
+    dtype=np.float64,
+)
+assert PURE_PHASE_DEQUANT_SCALES_2D.shape == (10,)
+
+
+def _emit_i8_2d_2d(fout, name, arr, dim0, dim1):
+    fout.write(f"const int8_t {name}[{dim0}][{dim1}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {")
+        fout.write(", ".join(str(int(arr[i][j])) for j in range(dim1)))
+        fout.write(f"}}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def _emit_i8_3d_2d(fout, name, arr, dim0, dim1, dim2):
+    fout.write(f"const int8_t {name}[{dim0}][{dim1}][{dim2}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {\n")
+        for j in range(dim1):
+            fout.write("        {")
+            fout.write(", ".join(str(int(arr[i][j][k])) for k in range(dim2)))
+            fout.write(f"}}{',' if j + 1 < dim1 else ''}\n")
+        fout.write(f"    }}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def _emit_i16_1d_2d(fout, name, arr, dim0):
+    fout.write(f"const int16_t {name}[{dim0}] = {{\n    ")
+    cols = 16
+    for i in range(dim0):
+        fout.write(str(int(arr[i])))
+        if i + 1 < dim0:
+            fout.write(",")
+        if (i + 1) % cols == 0 and i + 1 < dim0:
+            fout.write("\n    ")
+        elif i + 1 < dim0:
+            fout.write(" ")
+    fout.write("\n};\n\n")
+
+
+def _emit_i16_2d_2d(fout, name, arr, dim0, dim1):
+    fout.write(f"const int16_t {name}[{dim0}][{dim1}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {")
+        fout.write(", ".join(str(int(arr[i][j])) for j in range(dim1)))
+        fout.write(f"}}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def _emit_i16_3d_2d(fout, name, arr, dim0, dim1, dim2):
+    fout.write(f"const int16_t {name}[{dim0}][{dim1}][{dim2}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {\n")
+        for j in range(dim1):
+            fout.write("        {")
+            fout.write(", ".join(str(int(arr[i][j][k])) for k in range(dim2)))
+            fout.write(f"}}{',' if j + 1 < dim1 else ''}\n")
+        fout.write(f"    }}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def write_cs_pure_phase_tables_2d_h():
+    """Public header for the pure-phase 2D integer tables."""
+    path = os.path.join(INC_DIR, 'cs_pure_phase_tables_2d.h')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write("/* GENERATED by codegen/emit_tables.py - DO NOT EDIT */\n")
+        f.write("#ifndef CS_PURE_PHASE_TABLES_2D_H\n")
+        f.write("#define CS_PURE_PHASE_TABLES_2D_H\n\n")
+        f.write("#include <stdint.h>\n")
+        f.write("#include \"cs_tables.h\"\n\n")
+        f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
+
+        f.write("/* Pure-phase quantization parameters (mirrors\n")
+        f.write(" * chess_spectral.encoder_pure_phase, 1.19.0+).\n")
+        f.write(" *\n")
+        f.write(" * Signal values scaled by CS_VALS_INT_SCALE_2D=2 to\n")
+        f.write(" * represent the half-integer bishop value (B=3.5 in VALS)\n")
+        f.write(" * as exact integer 7. King K=100 → 200 fits int16.\n")
+        f.write(" *\n")
+        f.write(" * D4 character formula is integer-valued throughout (no\n")
+        f.write(" * scale-by-LCM trick needed; CHARS entries are ±1, ±2, 0).\n")
+        f.write(" * The dim_mu/8 factor is absorbed in CHANNEL_DEQUANT_SCALES_2D.\n")
+        f.write(" *\n")
+        f.write(" * Fiber tables quantized to int16 with abs-max scaling\n")
+        f.write(" * (15 magnitude bits + 1 sign). LOCAL_ADJ_ROWS is\n")
+        f.write(" * naturally 0/1 → int8. */\n")
+        f.write(f"#define CS_VALS_INT_SCALE_2D       {_VALS_INT_SCALE}\n")
+        f.write(f"#define CS_FIBER_QUANT_BITS_2D     {_FIBER_QUANT_BITS}\n")
+        f.write(f"#define CS_FIBER_QUANT_MAX_2D      {_FIBER_QUANT_MAX}\n\n")
+
+        f.write("/* Number of fiber-piece types (N, B, R, Q, K). */\n")
+        f.write("#define CS_NUM_FIBER_PIECES        5\n\n")
+
+        f.write("/* Number of diag-piece types (P, N, B, R, Q, K). */\n")
+        f.write("#define CS_NUM_DIAG_PIECES         6\n\n")
+
+        f.write("/* Number of distinct piece chars (white + black). */\n")
+        f.write("#define CS_NUM_PIECE_CHARS         12\n\n")
+
+        f.write("/* Output dimensions. */\n")
+        f.write("#define CS_PURE_PHASE_DIM_2D       640\n\n")
+
+        f.write("/* Channel offsets (cell index of each channel block). */\n")
+        f.write("#define CS_CHANNEL_A1_OFFSET_2D    0\n")
+        f.write("#define CS_CHANNEL_A2_OFFSET_2D    64\n")
+        f.write("#define CS_CHANNEL_B1_OFFSET_2D    128\n")
+        f.write("#define CS_CHANNEL_B2_OFFSET_2D    192\n")
+        f.write("#define CS_CHANNEL_E_OFFSET_2D     256\n")
+        f.write("#define CS_CHANNEL_F1_OFFSET_2D    320\n")
+        f.write("#define CS_CHANNEL_F2_OFFSET_2D    384\n")
+        f.write("#define CS_CHANNEL_F3_OFFSET_2D    448\n")
+        f.write("#define CS_CHANNEL_FA_OFFSET_2D    512\n")
+        f.write("#define CS_CHANNEL_FD_OFFSET_2D    576\n\n")
+
+        f.write("/* Signed integer piece values, scaled by CS_VALS_INT_SCALE_2D.\n")
+        f.write(" * Index: 0=P, 1=N, 2=B, 3=R, 4=Q, 5=K (white),\n")
+        f.write(" *        6=p, 7=n, 8=b, 9=r, 10=q, 11=k (black). */\n")
+        f.write("extern const int16_t SIGNED_VALS_INT_2D[CS_NUM_PIECE_CHARS];\n\n")
+
+        f.write("/* Quantized symmetric fiber-local table (int16), per\n")
+        f.write(" * (fiber_piece, square, direction). Fiber-piece order:\n")
+        f.write(" * 0=N, 1=B, 2=R, 3=Q, 4=K. Dequantize via LOCAL_FIBER_SCALE_2D. */\n")
+        f.write("extern const int16_t LOCAL_FIBER_3D_INT16[CS_NUM_FIBER_PIECES][CS_BOARD_DIM][3];\n")
+        f.write("extern const double LOCAL_FIBER_SCALE_2D;\n\n")
+
+        f.write("/* Dense per-(fiber_piece, square) adjacency rows in {0,1}.\n")
+        f.write(" * Stored as int8 for SIMD-friendliness. */\n")
+        f.write("extern const int8_t LOCAL_ADJ_ROWS_INT8[CS_NUM_FIBER_PIECES][CS_BOARD_DIM][CS_BOARD_DIM];\n\n")
+
+        f.write("/* Antisymmetric pawn fiber in eigenbasis, quantized to int16. */\n")
+        f.write("extern const int16_t PAWN_ANTI_FIBER_INT16[CS_BOARD_DIM][CS_BOARD_DIM];\n")
+        f.write("extern const double PAWN_ANTI_SCALE_2D;\n\n")
+
+        f.write("/* Per-piece diagonal-deviation table, quantized to int16.\n")
+        f.write(" * Indexed [piece_type][k]; piece_type: 0=P, 1=N, 2=B, 3=R, 4=Q, 5=K. */\n")
+        f.write("extern const int16_t DIAG_DEV_INT16_2D[CS_NUM_DIAG_PIECES][CS_BOARD_DIM];\n")
+        f.write("extern const double DIAG_DEV_SCALE_2D;\n\n")
+
+        f.write("/* Per-channel dequantization scales (CS_NUM_CHANNELS=10).\n")
+        f.write(" * Multiply int32 channel output by the scale to recover\n")
+        f.write(" * the float64 value comparable to encode_640(pos, vals=VALS).\n")
+        f.write(" * Order matches CHANNELS: A1, A2, B1, B2, E, F1, F2, F3, FA, FD. */\n")
+        f.write("extern const double CHANNEL_DEQUANT_SCALES_2D[CS_NUM_CHANNELS];\n\n")
+
+        f.write("#ifdef __cplusplus\n}\n#endif\n\n")
+        f.write("#endif /* CS_PURE_PHASE_TABLES_2D_H */\n")
+    print(f"Wrote {path}")
+
+
+def write_cs_pure_phase_tables_data_2d_c():
+    """Definitions for the pure-phase 2D integer tables."""
+    path = os.path.join(SRC_DIR, 'cs_pure_phase_tables_data_2d.c')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write("/* GENERATED by codegen/emit_tables.py - DO NOT EDIT */\n")
+        f.write("#include \"cs_pure_phase_tables_2d.h\"\n\n")
+
+        _emit_i16_1d_2d(f, "SIGNED_VALS_INT_2D",
+                        PURE_PHASE_SIGNED_VALS_INT_2D, 12)
+
+        _emit_i16_3d_2d(f, "LOCAL_FIBER_3D_INT16",
+                        PURE_PHASE_LOCAL_FIBER_INT16_2D, 5, 64, 3)
+        f.write("const double LOCAL_FIBER_SCALE_2D = ")
+        f.write(f"{_fmt_d(_SCALE_LOCAL_FIBER_3D)};\n\n")
+
+        _emit_i8_3d_2d(f, "LOCAL_ADJ_ROWS_INT8",
+                       PURE_PHASE_LOCAL_ADJ_INT8_2D, 5, 64, 64)
+
+        _emit_i16_2d_2d(f, "PAWN_ANTI_FIBER_INT16",
+                        PURE_PHASE_PAWN_ANTI_INT16_2D, 64, 64)
+        f.write("const double PAWN_ANTI_SCALE_2D = ")
+        f.write(f"{_fmt_d(_SCALE_PAWN_ANTI)};\n\n")
+
+        _emit_i16_2d_2d(f, "DIAG_DEV_INT16_2D",
+                        PURE_PHASE_DIAG_DEV_INT16_2D, 6, 64)
+        f.write("const double DIAG_DEV_SCALE_2D = ")
+        f.write(f"{_fmt_d(_SCALE_DIAG_DEV)};\n\n")
+
+        f.write("const double CHANNEL_DEQUANT_SCALES_2D[10] = {\n    ")
+        f.write(", ".join(_fmt_d(s) for s in PURE_PHASE_DEQUANT_SCALES_2D))
+        f.write("\n};\n")
+    print(f"Wrote {path}")
+
+
 def main():
     os.makedirs(INC_DIR, exist_ok=True)
     os.makedirs(SRC_DIR, exist_ok=True)
@@ -289,6 +549,9 @@ def main():
     write_cs_fiber_tables_h()
     write_cs_tables_data_c()
     write_committed_tables_npz()
+    # 1.19.0+ pure-phase 2D integer tables for the C-port encoder.
+    write_cs_pure_phase_tables_2d_h()
+    write_cs_pure_phase_tables_data_2d_c()
     print()
     print(f"SPECTRAL_VALS (P,N,B,R,Q,K) = {SPECTRAL_VALS}")
     print(f"TRAD_VALS     (P,N,B,R,Q,K) = {TRAD_VALS}")
@@ -296,6 +559,11 @@ def main():
     print(f"||A_anti||                 = {float(np.linalg.norm(_A_anti)):.4f}")
     print(f"||PAWN_ANTI_FIBER||        = {float(np.linalg.norm(PAWN_ANTI_FIBER)):.4f}")
     print(f"Spatial offsets distinct   = {len(offsets)}/64 ✓")
+    print(f"PP signed VALS scaled       = "
+          f"{PURE_PHASE_SIGNED_VALS_INT_2D.tolist()}")
+    print(f"PP fiber-local scale       = {_SCALE_LOCAL_FIBER_3D:.6e}")
+    print(f"PP pawn-anti scale         = {_SCALE_PAWN_ANTI:.6e}")
+    print(f"PP diag-dev scale          = {_SCALE_DIAG_DEV:.6e}")
     print("All tables emitted successfully.")
 
 
