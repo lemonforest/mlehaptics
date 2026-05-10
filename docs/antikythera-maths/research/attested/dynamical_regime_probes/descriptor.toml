@@ -1,0 +1,81 @@
+# Sol Dynamical-Regime Out-of-Sample Probe Roster — labelled OOS
+# feature vectors for v0.24.x bodies / sub-systems that AREN'T in
+# the v0.24.0-v0.24.8 training set.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.10
+# hand-coded `_research/dynamical_regime_probes_data.py` module.
+# Each probe is a real body / sub-system (Yellowstone, Reunion,
+# Pluto-Charon, Enceladus, Io, Phobos, Ceres, Alpha Centauri B,
+# Vesta, magnetar) whose v0.24.9 feature vector is hand-computed
+# from published parameters; the classifier's behaviour on each
+# probe is then ratchet-pinned.
+#
+# This is the spectral-methods discipline: classical math,
+# deterministic decomposition, exposed eigenstructure. No
+# pseudorandom anywhere. Companion source to `dynamical_regime`
+# (the v0.24.9 training roster).
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "dynamical_regime_probes"
+human_readable_name = "Sol Dynamical-Regime Out-of-Sample Probe Roster"
+purpose = "ground-proof OOS probes for the v0.24.9 dynamical-regime classifier (10 real bodies / sub-systems whose feature vectors are hand-computed from published parameters; the classifier's nearest-regime behaviour is ratchet-pinned, including OOD-flag for genuinely out-of-distribution cases like Vesta and the typical magnetar)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/research/dynamical_regime_probes_data.py"
+canonical_doi = "10.1146/annurev.aa.30.090192.001153"
+
+# canonical_doi above points at Stern 1992 *Annu. Rev. Astron.
+# Astrophys.* 30:185 — the canonical Pluto-Charon system review,
+# the headline "schema-gap surfacer" probe whose v0.24.10 OOS
+# behaviour led to the v0.24.11 ground-proof addition. Per-row
+# provenance is finer-grained per the SOURCES dict.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "dynamical_regime_probes.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Sol Dynamical-Regime OOS Probe Roster (curated against published planetary-science + asteroseismology + dwarf-planet literature; per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof OOS probe {schema.name} (expected_regime: {schema.expected_regime})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Probes target every regime label that v0.24.0-v0.24.8 covers,
+# with OOD probes (Vesta, magnetar) testing OOS classifier
+# behaviour. No new label declared here; consumes the labels
+# defined in the dynamical_regime training roster.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "rigid_body_action_angle_commensurate",
+    "rigid_body_chaotic_obliquity",
+    "continuum_normal_modes",
+    "shape_residual_chandrasekhar",
+    "bounded_local_laplacian_trajectory",
+    "radiation_coupled_drift",
+    "bounded_local_laplacian_family",
+    "temporal_quasi_periodic_cycle",
+    "rigid_body_action_angle_mutual_lock",
+]

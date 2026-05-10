@@ -40,6 +40,30 @@
       "sha256": "a0a2d854388267106ded0f55079fab83d4fb18b19dad254863292292a20f3744",
       "size_bytes": 4246
     },
+    "_research/attested/dynamical_regime/descriptor.toml": {
+      "sha256": "2a80551e7c157ba853dba49471747b1a16ad4b12ddf1df3b530c2d5651a0f793",
+      "size_bytes": 3895
+    },
+    "_research/attested/dynamical_regime/row.ndjson": {
+      "sha256": "fb69119f82ebab1ca5d827abbf37337e72f7fb3d87d8eb941eeaacf599f2616f",
+      "size_bytes": 12024
+    },
+    "_research/attested/dynamical_regime/row.schema.json": {
+      "sha256": "3e5e38c942deeb8e5659c16603edee260bd9c9286488e5ccc0214d505bbb4c30",
+      "size_bytes": 4562
+    },
+    "_research/attested/dynamical_regime_probes/descriptor.toml": {
+      "sha256": "ad8a28386310095a8c88ae47335ff2c6c7373ef8ea68646ffbc099f652537ab7",
+      "size_bytes": 3377
+    },
+    "_research/attested/dynamical_regime_probes/row.ndjson": {
+      "sha256": "23097cde3efbb31ad76cf748b2ceceebc243bd17ffb8d8576e063f3d2d9fb457",
+      "size_bytes": 12478
+    },
+    "_research/attested/dynamical_regime_probes/row.schema.json": {
+      "sha256": "7e69136415c1ded4b66d9786ff93259ed38d84d9c8bb4cb7a54390de39f97614",
+      "size_bytes": 3895
+    },
     "_research/attested/earthref_sc/descriptor.toml": {
       "sha256": "ffa4810a82a8e15690b048dbca6c167e9f75e1d4829ce0aec84a0b55a9fb6611",
       "size_bytes": 2752

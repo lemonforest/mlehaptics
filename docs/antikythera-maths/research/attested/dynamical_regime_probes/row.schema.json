@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dynamical_regime_probes.row.v1",
+  "title": "Sol dynamical-regime OOS probe row",
+  "description": "One out-of-sample probe for the v0.24.9 dynamical-regime classifier. Single row_type catalogue ('regime_probe'); each row records the probe's identity + 7-feature signature vector + expected_regime (or null for genuinely OOD cases) + ood_expected flag.",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "description",
+    "time_scale_log_s",
+    "spatial_scale_log_km",
+    "stability_index",
+    "has_commensurability",
+    "prediction_track_signal",
+    "dimensionality",
+    "forcing_class_index",
+    "ood_expected",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lower-case probe identifier (e.g., 'yellowstone_hotspot', 'pluto_charon', 'magnetar_typical')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["regime_probe"],
+      "description": "Single value in this catalogue."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable probe description with key physical parameters."
+    },
+    "time_scale_log_s": {
+      "type": "number",
+      "description": "log10 of the body / sub-system's natural period in seconds."
+    },
+    "spatial_scale_log_km": {
+      "type": "number",
+      "description": "log10 of the natural length scale in kilometres."
+    },
+    "stability_index": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Heuristic 0..1 indicator of Diophantine stability."
+    },
+    "has_commensurability": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "1 if the probe carries an observable small-integer commensurability."
+    },
+    "prediction_track_signal": {
+      "type": "integer",
+      "minimum": -1,
+      "maximum": 1,
+      "description": "+1 / 0 / -1 prediction-methodology track-record signal."
+    },
+    "dimensionality": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "0 = point dynamics, 1 = 1D chain, 2 = 2D surface family, 3 = 3D volume / continuum."
+    },
+    "forcing_class_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "0 = gravitational, 1 = stellar-oscillation, 2 = radiation-coupled, 3 = tectonic, 4 = volcanic."
+    },
+    "expected_regime": {
+      "type": ["string", "null"],
+      "description": "Expected regime label from the v0.24.0-v0.24.8 set, OR null if the probe is expected to be out-of-distribution."
+    },
+    "ood_expected": {
+      "type": "boolean",
+      "description": "True if the probe is expected to be flagged out-of-distribution (calibration ratio > 0.85)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Per-row free-text notes — schema-gap closure history, surprising classification results."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited reference."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For dataset/program release tags when applicable."
+    }
+  }
+}

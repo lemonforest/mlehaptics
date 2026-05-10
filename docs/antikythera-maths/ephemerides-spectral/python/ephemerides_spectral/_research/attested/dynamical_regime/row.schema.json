@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dynamical_regime.row.v1",
+  "title": "Sol dynamical-regime classifier training row",
+  "description": "One v0.24.x ship's 7-feature signature vector + regime label, used as a ground-proof row in the v0.24.9 eigenbasis-projection classifier. Single row_type catalogue ('regime_example'); each row records ship_version + regime_label + description + catalog_module + the 7-feature vector (time_scale_log_s, spatial_scale_log_km, stability_index, has_commensurability, prediction_track_signal, dimensionality, forcing_class_index).",
+  "type": "object",
+  "required": [
+    "name",
+    "row_type",
+    "ship_version",
+    "regime_label",
+    "description",
+    "catalog_module",
+    "time_scale_log_s",
+    "spatial_scale_log_km",
+    "stability_index",
+    "has_commensurability",
+    "prediction_track_signal",
+    "dimensionality",
+    "forcing_class_index",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lower-case ship identifier (e.g., 'mercury_dynamical_spectrum', 'hawaii_chain', 'pluto_charon_dynamical_spectrum')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["regime_example"],
+      "description": "Single value in this catalogue."
+    },
+    "ship_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ephemerides-spectral release version that defined this regime label (e.g., '0.24.0' for Mercury, '0.24.11' for Pluto-Charon)."
+    },
+    "regime_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Regime classification label (e.g., 'rigid_body_action_angle_stable', 'temporal_quasi_periodic_cycle')."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of the regime, including the v0.24.x mechanism."
+    },
+    "catalog_module": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Catalog wrapper module name in `_research/` that provides the canonical implementation."
+    },
+    "time_scale_log_s": {
+      "type": "number",
+      "description": "log10 of the body / sub-system's natural period in seconds."
+    },
+    "spatial_scale_log_km": {
+      "type": "number",
+      "description": "log10 of the natural length scale in kilometres."
+    },
+    "stability_index": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Heuristic 0..1 indicator of Diophantine stability."
+    },
+    "has_commensurability": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "1 if the system carries an observable small-integer commensurability."
+    },
+    "prediction_track_signal": {
+      "type": "integer",
+      "minimum": -1,
+      "maximum": 1,
+      "description": "+1 if the system has a published prediction methodology with HIT-only track record; -1 if a published methodology has been observed to MISS; 0 if no published methodology."
+    },
+    "dimensionality": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "0 = point dynamics, 1 = 1D chain, 2 = 2D surface family, 3 = 3D volume / continuum."
+    },
+    "forcing_class_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "0 = gravitational, 1 = stellar-oscillation, 2 = radiation-coupled, 3 = tectonic, 4 = volcanic."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Per-row free-text notes — cross-references, ratchet-pinning observations."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the canonical paper most identified with the v0.24.x ship that defined this regime label."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional. For dataset/program release tags when applicable."
+    }
+  }
+}
