@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Vectorize FA_PAWN_W and FA_PAWN_Y scatter loops in `encode_4d_pure_phase`
+
+1.17.0 vectorized fiber-sym, FD_DIAG, and STD4 but **explicitly
+skipped** the FA_PAWN channels with the rationale: *"pawn-by-pawn
+axis-dependent scatter doesn't batch cleanly (different stride
+patterns per axis); pawns typically <16 so loop overhead is
+small."*
+
+Empirical answer (5 000 iters/trial, 7 trials, min over trials, on
+the isolated pawn scatter — see `tests/_bench_fa_pawn_micro.py`):
+
+The "doesn't batch cleanly" claim is **wrong within a single
+axis**. Different axes do need separate buckets with separate
+index expressions, but each axis batches fine on its own — both as
+``np.add.at(pawn_w, bases[:, None] + arange(8), values)`` for the
+W-axis and ``np.add.at(pawn_y, bases[:, None] | (arange(8) << 6),
+values)`` for the Y-axis. ``np.add.at`` is required (not plain
+fancy-index ``+=``) because two pawns can share the same base on
+the same line and would collide on overlapping target cells.
+
+The "<16 pawns so overhead is small" claim is **right at very low
+counts** (n_pawns ≤ 4 the loop wins) but **wrong at typical
+midgame densities** (n_pawns ≥ 8 the batched scatter wins).
+Solution: per-axis hybrid that vectorizes when a bucket has
+≥ ``FA_PAWN_AXIS_VECTORIZE_THRESHOLD`` (= 4) pawns and falls back
+to the loop otherwise. No regression at any pawn count.
+
+Microbench numbers (isolated pawn scatter, ms/call, best of 7 trials):
+
+| n_pawns | baseline loop | hybrid (this change) | speedup |
+|---|---|---|---|
+| 0 | 0.0097 | 0.0131 | 0.74× (sub-µs noise) |
+| 4 | 0.0651 | 0.0600 | 1.09× |
+| 8 | 0.0888 | 0.0712 | **1.25×** |
+| 12 | 0.1125 | 0.0715 | **1.57×** |
+| 16 | 0.1726 | 0.0902 | **1.91×** |
+| 24 | 0.2489 | 0.0785 | **3.17×** |
+| 32 | 0.2718 | 0.1112 | **2.44×** |
+
+At chess midgame densities (8-16 pawns) the hybrid is 1.25-1.91×
+faster than the per-pawn loop. At endgame densities (≤ 4 pawns)
+the difference is sub-microsecond noise.
+
+Bit-exact verified: 39/39 tests pass (21 immolation + 8 stress on
+500 random positions + 10 C↔Python parity), `np.array_equal`
+tolerance against the C reference port.
+
+* `chess_spectral/encoder_pure_phase_4d.py` — bucket pawns by axis
+  in a single pass, then choose batched scatter vs per-pawn loop
+  independently per axis based on count. New module-level constant
+  `FA_PAWN_AXIS_VECTORIZE_THRESHOLD = 4`.
+* `tests/_bench_fa_pawn_micro.py` (new) — isolated microbench
+  comparing baseline loop, full vectorize, and the per-axis hybrid
+  at controlled per-axis pawn counts.
+* `tests/_bench_fa_pawn_integrated.py` (new) — integrated bench
+  driver (full `encode_4d_pure_phase`) for cross-check.
+
 ## [1.18.0] — 2026-05-09
 
 **Port `encode_4d_pure_phase` to C** — the last deferred item from

@@ -121,6 +121,16 @@ from chess_spectral.encoder_4d import (
 _VALS_INT_SCALE_4D: int = 4
 
 
+# 1.18.0+: Per-axis pawn-count cutover between batched scatter and
+# per-pawn loop in FA_PAWN_W/Y channels. Below this, numpy setup
+# overhead exceeds the savings; above, batched scatter wins.
+# Empirically determined on x86_64 + numpy 1.x: vec wins from ~5
+# per-axis pawns; threshold of 4 chosen as the conservative cutover
+# (parity at exactly 4, clear win from 8 upward).
+# See tests/_bench_fa_pawn_micro.py for the bench harness.
+FA_PAWN_AXIS_VECTORIZE_THRESHOLD: int = 4
+
+
 def _build_signed_vals_int_scaled_4d() -> Dict[str, int]:
     out: Dict[str, int] = {}
     for k, v in PIECE_VALUES_4D.items():
@@ -471,16 +481,43 @@ def encode_4d_pure_phase(
         fc_all.reshape(-1).astype(np.int32)
     )
 
-    # ── Channels 8-9 (FA_PAWN_W, FA_PAWN_Y) ──
+    # ── Channels 8-9 (FA_PAWN_W, FA_PAWN_Y): per-axis hybrid scatter ──
+    # 1.18.0+ vectorize: bucket pawns by axis once, then choose
+    # batched scatter vs per-pawn loop independently per axis based
+    # on count. The 1.17.0 author skipped this with "different
+    # stride patterns per axis don't batch cleanly"; the empirical
+    # answer (5000-iter microbench, see tests/_bench_fa_pawn_micro.py)
+    # is that they DO batch cleanly within a single axis — different
+    # axes just need separate buckets with separate index expressions.
+    #
+    # Algorithm (W-axis, mirror for Y):
+    #   bases  = (sx<<9) | (sy<<6) | (sz<<3)           # contiguous base
+    #   cols   = bases[:, None] + arange(8)            # (n_w, 8)
+    #   values = signs[:, None] * W_ANTI_DCT_INT16[sw_idx]  # (n_w, 8) i64
+    #   np.add.at(pawn_w, cols, values)
+    # np.add.at is required (not plain fancy-index +=) because two
+    # pawns can share the same (sx, sy, sz) base on a W-line and
+    # would collide on the same target cells.
+    #
+    # Below FA_PAWN_AXIS_VECTORIZE_THRESHOLD per-axis pawns the numpy
+    # setup overhead exceeds the loop savings; fall back to the
+    # loop. Empirical crossover ~4 per-axis pawns on this hardware.
     W_ANTI_DCT_INT16 = qt['W_ANTI_DCT_INT16']  # type: ignore[assignment]
     Y_ANTI_DCT_INT16 = qt['Y_ANTI_DCT_INT16']  # type: ignore[assignment]
     pawn_w = np.zeros(CHANNEL_DIM, dtype=np.int64)
     pawn_y = np.zeros(CHANNEL_DIM, dtype=np.int64)
+
+    # Bucket pawns by axis in a single pass.
+    w_signs: list = []
+    w_bases: list = []
+    w_sw: list = []
+    y_signs: list = []
+    y_bases: list = []
+    y_sy: list = []
     for k, pval in sorted_items:
         if not _is_pawn(pval):
             continue
-        color = _piece_char(pval)
-        sign = 1 if color == 'P' else -1
+        sign = 1 if _piece_char(pval) == 'P' else -1
         axis = _pawn_axis(pval)
         s = int(k)
         sx = (s >> 9) & 7
@@ -488,16 +525,48 @@ def encode_4d_pure_phase(
         sz = (s >> 3) & 7
         sw = s & 7
         if axis == 'w':
-            base = (sx << 9) | (sy << 6) | (sz << 3)
+            w_signs.append(sign)
+            w_bases.append((sx << 9) | (sy << 6) | (sz << 3))
+            w_sw.append(sw)
+        else:  # axis == 'y'
+            y_signs.append(sign)
+            y_bases.append((sx << 9) | (sz << 3) | sw)
+            y_sy.append(sy)
+
+    n_w = len(w_signs)
+    if n_w >= FA_PAWN_AXIS_VECTORIZE_THRESHOLD:
+        signs_arr = np.asarray(w_signs, dtype=np.int64)
+        bases_arr = np.asarray(w_bases, dtype=np.int64)
+        sw_arr = np.asarray(w_sw, dtype=np.int64)
+        # values shape (n_w, 8) int64
+        values = signs_arr[:, None] * W_ANTI_DCT_INT16[sw_arr].astype(  # type: ignore[index]
+            np.int64
+        )
+        cols = bases_arr[:, None] + np.arange(8, dtype=np.int64)
+        np.add.at(pawn_w, cols, values)
+    elif n_w > 0:
+        for sign, base, sw in zip(w_signs, w_bases, w_sw):
             pawn_w[base:base + 8] += (
                 sign * W_ANTI_DCT_INT16[sw].astype(np.int64)  # type: ignore[index]
             )
-        else:  # axis == 'y'
-            base = (sx << 9) | (sz << 3) | sw
-            idx = base | (np.arange(8) << 6)
-            pawn_y[idx] += (
+
+    n_y = len(y_signs)
+    if n_y >= FA_PAWN_AXIS_VECTORIZE_THRESHOLD:
+        signs_arr = np.asarray(y_signs, dtype=np.int64)
+        bases_arr = np.asarray(y_bases, dtype=np.int64)
+        sy_arr = np.asarray(y_sy, dtype=np.int64)
+        values = signs_arr[:, None] * Y_ANTI_DCT_INT16[sy_arr].astype(  # type: ignore[index]
+            np.int64
+        )
+        cols = bases_arr[:, None] | (np.arange(8, dtype=np.int64) << 6)
+        np.add.at(pawn_y, cols, values)
+    elif n_y > 0:
+        offsets = np.arange(8, dtype=np.int64) << 6
+        for sign, base, sy in zip(y_signs, y_bases, y_sy):
+            pawn_y[base | offsets] += (
                 sign * Y_ANTI_DCT_INT16[sy].astype(np.int64)  # type: ignore[index]
             )
+
     out[8 * CHANNEL_DIM:9 * CHANNEL_DIM] = pawn_w.astype(np.int32)
     out[9 * CHANNEL_DIM:10 * CHANNEL_DIM] = pawn_y.astype(np.int32)
 
