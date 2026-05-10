@@ -1,0 +1,74 @@
+# Mars Tharsis Volcanic Chain Spectral Catalog — bounded-local
+# graph-Laplacian application to a hotspot family on a body
+# WITHOUT plate tectonics.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.7
+# hand-coded `_research/mars_tharsis_data.py` module. The second
+# v0.24.x catalogue applying the project's graph-Laplacian eigenbasis
+# to physical features on a single body's surface (after v0.24.5
+# Hawaii). 5-volcano roster: the Tharsis Montes ridge (Arsia / Pavonis
+# / Ascraeus, three aligned shields at ~3400 km spacing) plus the two
+# outliers — Olympus Mons (the Solar System's largest known volcano,
+# NW of the ridge) and Alba Mons (older / broader / shorter shield
+# north of the ridge). The Hawaii-Tharsis pair lets the bounded-local
+# methodology be cross-body: same eigendecomposition machinery,
+# different tectonic regime (plate motion vs no plate tectonics).
+#
+# Hand-coded module remains the working authority; this NDJSON is
+# the attestation envelope.
+
+[source]
+key = "mars_tharsis"
+human_readable_name = "Mars Tharsis Volcanic Chain Catalogue"
+purpose = "ground-proof rows for the Tharsis-region shield volcanoes (canonical bounded-local-Laplacian application on a no-plate-tectonics body: 5 edifices spanning the Tharsis bulge — Tharsis Montes ridge, Olympus Mons super-volcano, and Alba Mons earlier-phase shield)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://mola.gsfc.nasa.gov/"
+canonical_doi = "10.1029/2002JE002031"
+
+# canonical_doi above points at Plescia 2004 *J. Geophys. Res.* 109
+# E03003 — the canonical Mars-volcano morphometric compilation
+# (edifice diameters, summit elevations, slopes, caldera dimensions
+# for all major Mars volcanoes). Per-row provenance: Hartmann &
+# Neukum 2001 + Werner 2009 (Tharsis Montes crater-count ages),
+# Hartmann 2005 (Olympus Mons summit flows), Plescia 2004 (Alba
+# Mons surface age + morphometric values).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "mars_tharsis.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Mars Tharsis Volcanic Chain Catalogue (curated against published Mars-chronology + morphometric literature; Plescia 2004 *J. Geophys. Res.* 109:E03003 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof Tharsis-region shield volcano {schema.name} ({schema.role})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Mars Tharsis is the bounded-local-Laplacian regime applied to a
+# stationary-plume / no-plate-tectonics tectonic regime. Maps onto
+# v0.24.9 dynamical-regime classifier's bounded_local_laplacian_family
+# category — the no-plate-motion counterpart of v0.24.5 Hawaii's
+# bounded_local_laplacian_trajectory.
+regime_labels = [
+    "bounded_local_laplacian_family",
+]
