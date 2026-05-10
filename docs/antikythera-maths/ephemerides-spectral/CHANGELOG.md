@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Mars Tharsis Volcanic Chain AMSC backfill
+
+Eighth v0.24.x AMSC backfill. 5-volcano roster: the Tharsis Montes ridge (Arsia / Pavonis / Ascraeus) plus the two outliers — Olympus Mons (the Solar System's largest known volcano) and Alba Mons (older / broader / shorter shield). Second v0.24.x catalogue applying the bounded-local-Laplacian methodology to physical features on a single body's surface — the no-plate-tectonics counterpart of v0.24.5 Hawaii. Per-row DOIs cite Hartmann & Neukum 2001 / Hartmann 2005 / Werner 2009 / Plescia 2004. 10 new dual-author tests including Olympus-tallest + Alba-broadest + Alba-oldest + role-distribution ratchets.
+
 ### Added — v0.27.0 phase A — Sol Yarkovsky/YORP AMSC backfill
 
 Seventh v0.24.x AMSC backfill. 10 NEA / Hayabusa-target asteroids with published Yarkovsky semi-major-axis drift and/or YORP spin-rate-change measurements: Bennu (OSIRIS-REx headline; first directly-imaged drifter), 2000 PH5 (the asteroid that lent its name to YORP), Apophis (impact-prediction relevance), Ryugu / Itokawa (Hayabusa missions), Apollo / Geographos / Eger (NEA YORP detections), 1950 DA (radar Yarkovsky at the rotational-fission limit), Golevka (the first-ever Yarkovsky detection). Per-row DOIs cite Farnocchia 2013 / Lowry 2007 / Vokrouhlický 2015 / Watanabe 2019 / Lowry 2014 / Kaasalainen 2007 / Durech 2008 / Farnocchia 2014 / Chesley 2003 / Durech 2012. 10 new dual-author tests including a prograde-outward / retrograde-inward Yarkovsky-direction ratchet and a 1950-DA-near-fission-limit ratchet.

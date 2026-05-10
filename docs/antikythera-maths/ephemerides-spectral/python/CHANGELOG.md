@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Mars Tharsis Volcanic Chain AMSC backfill
+
+- **`research/attested/mars_tharsis/`** — eighth v0.24.x backfill. 5-volcano roster spanning the Tharsis bulge: the NE-SW Tharsis Montes ridge (Arsia / Pavonis / Ascraeus, three aligned shields at ~3400 km spacing) plus the two outliers — Olympus Mons (the Solar System's largest known volcano, ~22 km from base to summit, 600 km diameter, NW of the ridge) and Alba Mons (older / broader / shorter ~1500-km-diameter shield north of the ridge). Per-volcano: name + age + uncertainty + lat/lon + summit elevation + edifice diameter + structural-role classification (tharsis_montes / olympus_outlier / alba_outlier).
+- Per-row source DOIs (all real, Crossref-indexed): Hartmann & Neukum 2001 *Space Sci. Rev.* (Arsia/Ascraeus crater chronology), Hartmann 2005 *Icarus* (Olympus Mons summit flows), Werner 2009 *Icarus* (Pavonis Mons), Plescia 2004 *J. Geophys. Res.* (Alba Mons + canonical morphometric compilation).
+- **`tests/test_mars_tharsis_dual_author.py`** — 10 tests including:
+  - **Role distribution ratchet** — 3 tharsis_montes + 1 olympus_outlier + 1 alba_outlier
+  - **Olympus-tallest ratchet** — pinning the no-plate-tectonics super-volcano signature
+  - **Alba-broadest ratchet** — 1500 km base diameter exceeds all other Tharsis edifices
+  - **Alba-oldest ratchet** — mid-Hesperian earlier-phase Tharsis volcanism
+- Ratchets: `n_sources` 11 → 12; `adapter_class="curated"` 8 → 9.
+
 ### Added — v0.27.0 phase A — Sol Yarkovsky/YORP AMSC backfill
 
 - **`research/attested/yarkovsky_yorp/`** — seventh v0.24.x backfill. 10 NEA + Hayabusa-target asteroids with published Yarkovsky (semi-major-axis drift, in 10⁻⁴ AU/Myr) and/or YORP (spin-rate change, in 10⁻⁸ rad/d²) measurements. Roster: Bennu (OSIRIS-REx headline) / 2000 PH5 (first-ever YORP detection) / Apophis / Ryugu / Itokawa / Apollo / Geographos / 1950 DA / Golevka (first-ever Yarkovsky detection) / Eger.

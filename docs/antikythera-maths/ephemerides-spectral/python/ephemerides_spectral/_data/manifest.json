@@ -80,6 +80,18 @@
       "sha256": "92b19f070922e032ec162924db437f1b77147d2bbbc834030237271af6e2ab6f",
       "size_bytes": 5619
     },
+    "_research/attested/mars_tharsis/descriptor.toml": {
+      "sha256": "190ace00fc6175817ca8e506d6300b3387cb8e061fe6c4a99f8c5b70d1f1d05c",
+      "size_bytes": 3156
+    },
+    "_research/attested/mars_tharsis/row.ndjson": {
+      "sha256": "07acab7d5e3fe2fc8ff9e75da14a2a8d587b8e3d21b7a28b5f3d0b190a3ac707",
+      "size_bytes": 3846
+    },
+    "_research/attested/mars_tharsis/row.schema.json": {
+      "sha256": "d1486ccbd6bdf70bc4291fc79093f3c174c77cf3e758c11f03722e3b79bf199a",
+      "size_bytes": 3455
+    },
     "_research/attested/mercury_dynamical_spectrum/descriptor.toml": {
       "sha256": "3c12fd8206661270ecf2e0738958b65b96b05e614eab4a5855048b4447a91cdc",
       "size_bytes": 3775

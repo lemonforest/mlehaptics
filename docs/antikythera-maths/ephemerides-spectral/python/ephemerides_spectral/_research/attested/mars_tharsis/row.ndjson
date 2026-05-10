@@ -1,0 +1,19 @@
+# Mars Tharsis Volcanic Chain catalogue.
+# Each line below is one MPR row data block (NDJSON).
+# Lines starting with "#" or empty lines are skipped by the
+# literature_curated adapter.
+#
+# Single row_type "tharsis_volcano" catalogue (5 rows): the
+# Tharsis Montes ridge (Arsia / Pavonis / Ascraeus, three aligned
+# shields) plus the two outliers — Olympus Mons (NW super-volcano,
+# the Solar System's largest known volcano) and Alba Mons
+# (older / broader / shorter shield north of the ridge).
+#
+# AMSC backfill of v0.24.7 hand-coded
+# _research/mars_tharsis_data.py for v0.27.0 phase A. Hand-coded
+# module remains the working authority.
+{"name": "arsia_mons", "row_type": "tharsis_volcano", "age_myr": 130.0, "age_uncertainty_myr": 20.0, "latitude_deg": -8.4, "longitude_deg": 239.9, "summit_elevation_m": 17761.0, "edifice_diameter_km": 435.0, "role": "tharsis_montes", "precision_flag": "high", "notes": "Southernmost of the three Tharsis Montes. Largest summit caldera (~110 km diameter); flank vents on SW slope. Hartmann & Neukum 2001 crater-count age for youngest surface flows.", "source_doi": "10.1023/A:1011945222010", "source_published_date": "2001", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "pavonis_mons", "row_type": "tharsis_volcano", "age_myr": 100.0, "age_uncertainty_myr": 20.0, "latitude_deg": 1.5, "longitude_deg": 247.2, "summit_elevation_m": 14058.0, "edifice_diameter_km": 375.0, "role": "tharsis_montes", "precision_flag": "high", "notes": "Central Tharsis Mons (its name means 'peacock' in Latin). Sits almost exactly on the Mars equator. Werner 2009 crater-count age.", "source_doi": "10.1016/j.icarus.2008.12.019", "source_published_date": "2009-05", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "ascraeus_mons", "row_type": "tharsis_volcano", "age_myr": 100.0, "age_uncertainty_myr": 30.0, "latitude_deg": 11.8, "longitude_deg": 255.5, "summit_elevation_m": 18225.0, "edifice_diameter_km": 460.0, "role": "tharsis_montes", "precision_flag": "high", "notes": "Northernmost of the three Tharsis Montes; tallest of the three. Hartmann & Neukum 2001.", "source_doi": "10.1023/A:1011945222010", "source_published_date": "2001", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "olympus_mons", "row_type": "tharsis_volcano", "age_myr": 150.0, "age_uncertainty_myr": 50.0, "latitude_deg": 18.65, "longitude_deg": 226.2, "summit_elevation_m": 21229.0, "edifice_diameter_km": 600.0, "role": "olympus_outlier", "precision_flag": "high", "notes": "THE Solar-System-scale super-volcano: ~22 km from base to summit (taller than Earth's Mount Everest is above sea level by 2.5x), 600 km base diameter, encircled by a 6-km-high basal scarp. Direct consequence of stationary plume + no plate tectonics: the same plume that produced the Hawaiian-Emperor chain on Earth would build ONE Olympus-Mons-scale volcano on Mars. Hartmann 2005 crater-count age for youngest summit flows; older flank flows extend back to ~3 Gyr.", "source_doi": "10.1016/j.icarus.2004.11.023", "source_published_date": "2005-04", "entered_locally_at": "2026-05-09", "source_version": null}
+{"name": "alba_mons", "row_type": "tharsis_volcano", "age_myr": 1500.0, "age_uncertainty_myr": 300.0, "latitude_deg": 40.5, "longitude_deg": 250.4, "summit_elevation_m": 6800.0, "edifice_diameter_km": 1500.0, "role": "alba_outlier", "precision_flag": "medium", "notes": "Formerly 'Alba Patera'. Largest volcano in the Solar System by *base area* (~1500 km diameter), but only ~6.8 km tall — a vastly broader / shorter geometry than the Tharsis Montes. Represents an EARLIER phase of Tharsis volcanism (mid-Hesperian). Plescia 2004 crater-count surface age.", "source_doi": "10.1029/2002JE002031", "source_published_date": "2004-03", "entered_locally_at": "2026-05-09", "source_version": null}
