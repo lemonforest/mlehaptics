@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — v0.27.0 phase A — Pluto-Charon Dynamical Spectrum AMSC backfill
+
+- **`research/attested/pluto_charon_dynamical_spectrum/`** — twelfth v0.24.x backfill (the v0.24.11 ship). 12-mode roster covering the Solar System's only known double-synchronous binary: the TRIPLE 1:1 lock at 6.387230 d (mutual_orbital_sidereal + pluto_spin_frequency + charon_spin_frequency, all at the same period — P_Pluto = P_Charon = P_orbit, the END state of dyadic tidal evolution), the apsidal-libration mode, four action variables (eccentricity ≈ 5e-5 / mutual obliquity ≈ 0.0006° / Charon-Pluto mass ratio ≈ 0.1218 / heliocentric inclination ≈ 119.6°), and four small-moon near-3:4:5:6 commensurability angles (Styx / Nix / Kerberos / Hydra orbital periods at integer-multiple ratios with the mutual orbital period, ~0.3% to ~5% from perfect resonance). Single row_type `dynamical_mode`. Path-B response to the v0.24.10 OOS-probe schema-gap that surfaced when Pluto-Charon collapsed onto Mercury-stable in the v0.24.9 classifier — closes the new `rigid_body_action_angle_mutual_lock` regime label introduced for this ship.
+- Per-row source DOIs (all real, Crossref-indexed): Brozovic 2015 *Icarus* (canonical_doi; post-New-Horizons orbital fit + mass ratio + eccentricity + small-moon periods), Stern 1992 *Annu. Rev. Astron. Astrophys.* (canonical pre-New-Horizons binary review + mutual tidal lock), Stern 2015 *Science* (New Horizons flyby summary + radii + mutual obliquity + heliocentric inclination), Showalter & Hamilton 2015 *Nature* (small-moon resonant interactions + chaotic libration on Myr timescales). No nodoi: / historical: / isbn: prefixes.
+- **`tests/test_pluto_charon_dynamical_spectrum_dual_author.py`** — 12 tests including:
+  - **Triple-synchronous-lock ratchet** — P_Pluto_spin = P_Charon_spin = P_mutual_orbit = 6.3872304 d, the v0.24.10 → v0.24.11 schema-gap closure
+  - **Largest-binary-mass-ratio ratchet** — Charon/Pluto ≈ 0.1218 (~10x larger than Earth-Luna's 0.0123); the geometric reason the barycenter sits 940 km above Pluto's surface
+  - **Small-moon near-3:4:5:6 ratio-bracket ratchet** — pins Styx / Nix / Kerberos / Hydra ratios into expected near-integer windows
+  - **Pure-action Infinity-period round-trip ratchet** — validates the JSON Infinity-token serialisation for the four action variables
+- Ratchets: `n_sources` 15 → 16; `adapter_class="curated"` 12 → 13.
+
 ### Added — v0.27.0 phase A — Sol Dynamical-Regime Classifier AMSC backfill (paired)
 
 - **`research/attested/dynamical_regime/`** — tenth v0.24.x backfill; the v0.24.9 dynamical-regime classifier training roster (11 rows, one per v0.24.x ship spanning v0.24.0-v0.24.8 + v0.24.11 + v0.24.12). Single row_type `regime_example`. Each row stores the ship's 7-feature signature vector (time_scale_log_s, spatial_scale_log_km, stability_index, has_commensurability, prediction_track_signal, dimensionality, forcing_class_index) + regime label + description + catalog module pointer.

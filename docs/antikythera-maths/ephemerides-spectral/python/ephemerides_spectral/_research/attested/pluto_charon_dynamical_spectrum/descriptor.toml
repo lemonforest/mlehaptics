@@ -1,0 +1,91 @@
+# Pluto-Charon Dynamical Spectrum — per-body action-angle decomposition
+# of the Solar System's only double-synchronous binary planet.
+#
+# v0.27.0 phase A: AMSC literature_curated backfill of the v0.24.11
+# hand-coded `_research/pluto_charon_dynamical_spectrum_data.py`
+# module. The fourth per-body dynamical-spectrum surface (after
+# Mercury v0.24.0, Luna v0.24.1, Mars v0.24.2) and the project's
+# first BINARY mutual-tidal-lock case. Path-B response to the
+# v0.24.10 OOS-probe roster's identification of a feature-schema gap:
+# Pluto-Charon, Enceladus, and Io all collapsed onto Mercury-stable
+# in the v0.24.9 classifier because the schema couldn't distinguish
+# them. The project's discipline says: when the eigenbasis honestly
+# can't see a distinction, populate the regime with a real labelled
+# training example rather than engineer features. Pluto-Charon was
+# chosen as the cleanest single body to populate the new regime
+# label `rigid_body_action_angle_mutual_lock` — the ONLY known
+# example of TRIPLE synchronous lock (P_Pluto_spin = P_Charon_spin =
+# P_orbit = 6.387230 d) in the Solar System.
+#
+# Headline payload — TRIPLE synchronous lock + small-moon near-3:4:5:6
+# commensurabilities (Styx, Nix, Kerberos, Hydra orbital periods at
+# integer-multiple ratios with the Pluto-Charon mutual orbital
+# period, ~0.3% to ~5% from perfect resonance). Hand-coded module
+# remains the working authority; this NDJSON is the attestation
+# envelope. Dual-author byte-stable diff test in
+# `tests/test_pluto_charon_dynamical_spectrum_dual_author.py`
+# ratchets agreement.
+#
+# Pattern follows research/attested/luna_dynamical_spectrum/ (PR
+# #306) and research/attested/mercury_dynamical_spectrum/ (PR #303).
+
+[source]
+key = "pluto_charon_dynamical_spectrum"
+human_readable_name = "Pluto-Charon Dynamical Spectrum Catalogue"
+purpose = "ground-proof rows for Pluto-Charon's per-body action-angle decomposition (mutual orbital sidereal motion + Pluto spin + Charon spin = TRIPLE 1:1 lock at 6.387230 d; eccentricity / mutual obliquity / mass-ratio / heliocentric-inclination action variables; small-moon near-3:4:5:6 commensurability angles for Styx / Nix / Kerberos / Hydra)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/sats/elem/sep.html"
+canonical_doi = "10.1016/j.icarus.2014.03.015"
+
+# canonical_doi above points at Brozovic et al. 2015, *Icarus*
+# 246:317-329 — the post-New-Horizons definitive orbital fit for
+# Pluto-Charon + the four small moons. Source for mass ratio
+# (0.1218), eccentricity (0.00005), all four small-moon periods,
+# and the near-commensurability ratios. Per-row provenance is
+# finer-grained: Stern 1992 *Annu. Rev. Astron. Astrophys.* (the
+# canonical pre-New-Horizons review of the binary's mutual tidal
+# lock); Stern 2015 *Science* (New Horizons flyby summary; radii,
+# mutual obliquity, heliocentric inclination); Showalter & Hamilton
+# 2015 *Nature* (small-moon resonant-interaction + chaos analysis).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "pluto_charon_dynamical_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Pluto-Charon Dynamical Spectrum Catalogue (curated against published New-Horizons-era literature; Brozovic et al. 2015 *Icarus* 246:317-329 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof row for Pluto-Charon action-angle decomposition (row_type={schema.row_type})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Pluto-Charon defines the rigid_body_action_angle_mutual_lock regime
+# label — the v0.24.10 schema-gap closure. The regime is populated by
+# this single body (the Solar System provides exactly one arrived-at-
+# end-state example of dyadic tidal evolution; everything else is en
+# route). Also populates rigid_body_action_angle_commensurate via the
+# small-moon near-3:4:5:6 ratios with the mutual orbital period.
+regime_labels = [
+    "rigid_body_action_angle_mutual_lock",
+    "rigid_body_action_angle_commensurate",
+]

@@ -148,6 +148,18 @@
       "sha256": "938b2309f6ffa0c566ebddf1510dedab337dc0c82a51b3cdcd917f2cdc473a7c",
       "size_bytes": 1477
     },
+    "_research/attested/pluto_charon_dynamical_spectrum/descriptor.toml": {
+      "sha256": "75bf71c3e29a1d1225854feb60214a4601609a2722a66fb440941954e968ea85",
+      "size_bytes": 4397
+    },
+    "_research/attested/pluto_charon_dynamical_spectrum/row.ndjson": {
+      "sha256": "3eecda6005be528001338f0ae3c13e8ca29366c62eeb3385c2e366362dbfb44e",
+      "size_bytes": 8516
+    },
+    "_research/attested/pluto_charon_dynamical_spectrum/row.schema.json": {
+      "sha256": "b7aaed980236120a9fb05efa99e6c6d88aa74fe1c04f6ed329b1d3f387e19670",
+      "size_bytes": 4171
+    },
     "_research/attested/saturn_rings/descriptor.toml": {
       "sha256": "6a962ddb7ba8fd30640206207c7e8513df83b1068b3adb8e45c69fa14abaa47a",
       "size_bytes": 3610
