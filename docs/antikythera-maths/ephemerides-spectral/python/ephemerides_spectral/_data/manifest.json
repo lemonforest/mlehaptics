@@ -92,6 +92,18 @@
       "sha256": "88b47ea1b7d659295feddcb394a549f78b151717ad216f8022e21ff0c0b873db",
       "size_bytes": 3283
     },
+    "_research/attested/loki_patera/descriptor.toml": {
+      "sha256": "5433917d08fc05c735d1335ada0c057251e3ed27df4bfeb7464350370c15b18f",
+      "size_bytes": 4628
+    },
+    "_research/attested/loki_patera/row.ndjson": {
+      "sha256": "8ebb601829f7287fab61f77bf7bfb2772e954f69be5376e7bf81378aa2e80201",
+      "size_bytes": 7427
+    },
+    "_research/attested/loki_patera/row.schema.json": {
+      "sha256": "49fd4d80861cca9507da464bbde39eff227a6c453df92c465157ede7e3929e98",
+      "size_bytes": 4106
+    },
     "_research/attested/luna_dynamical_spectrum/descriptor.toml": {
       "sha256": "04717ff62c3eaa59384b58eb3f57850c0d30b3343abaa09c0286403fa577a83f",
       "size_bytes": 3382
