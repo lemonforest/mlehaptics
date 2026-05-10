@@ -227,6 +227,43 @@ endif()
 # clean as C in cs_core_4d so the same source files build as C here
 # without further MSVC workarounds.)
 
+# ─── 1.19.0 — native shared library for the pure-phase 2D encoder ─────────
+# Loaded at import time by chess_spectral._native_pure_phase_2d via
+# ctypes. Mirror of the 4D port pattern: separate SHARED .so/.dll
+# alongside the static cs_core (which is the float 2D encoder), with
+# default symbol visibility so every cs_encode_pure_phase_2d /
+# cs_channel_pure_phase_*_2d entry point is dlsym-visible from Python.
+#
+# Closes the chess2d / chess4d C-port parity gap noted in the 1.18.0
+# CHANGELOG: 4D shipped a JPL-compliant pure-phase C port; 2D was
+# Python-only. With 1.19.0 both encoders have parallel C paths.
+add_library(cs_encoder_pure_phase_2d SHARED
+    src/cs_pure_phase_signal_2d.c
+    src/cs_pure_phase_d4_irreps_2d.c
+    src/cs_pure_phase_fiber_sym_2d.c
+    src/cs_pure_phase_fa_2d.c
+    src/cs_pure_phase_diag_2d.c
+    src/cs_encoder_pure_phase_2d.c
+    src/cs_pure_phase_tables_data_2d.c
+    # D4_PERMS / CHARS symbols live in the float-table TU;
+    # pure-phase D4 channel uses them. Linked statically into the
+    # shared lib (compiled twice — once for cs_core, once here —
+    # but the data is const and small).
+    src/cs_tables_data.c
+)
+target_include_directories(cs_encoder_pure_phase_2d PUBLIC include)
+# Same WINDOWS_EXPORT_ALL_SYMBOLS pattern as the 4D pure-phase lib;
+# auto-generate __declspec(dllexport) annotations on MSVC so the
+# strict-C17 sources don't need manual decoration.
+set_target_properties(cs_encoder_pure_phase_2d PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON)
+if(WIN32)
+    set_target_properties(cs_encoder_pure_phase_2d PROPERTIES PREFIX "")
+endif()
+# Plain C17 build. The 2D pure-phase headers use _Static_assert which
+# is a C-only keyword; the C++-as-C trick used for cs_bitboard4d does
+# not apply here.
+
 # ─── scikit-build-core wheel install ────────────────────────────────────────
 # When building under scikit-build-core (i.e. `pip install .` or
 # `python -m build`), SKBUILD is defined and we install spectral +
@@ -240,6 +277,11 @@ if(DEFINED SKBUILD)
     # 1.7.0 D2 M2.1 — also ship the bitboard shared library.
     # RUNTIME for Windows DLLs, LIBRARY for POSIX .so/.dylib.
     install(TARGETS cs_bitboard4d
+            RUNTIME DESTINATION chess_spectral/_native
+            LIBRARY DESTINATION chess_spectral/_native
+            COMPONENT chess_spectral_native)
+    # 1.19.0 — pure-phase 2D shared library.
+    install(TARGETS cs_encoder_pure_phase_2d
             RUNTIME DESTINATION chess_spectral/_native
             LIBRARY DESTINATION chess_spectral/_native
             COMPONENT chess_spectral_native)
