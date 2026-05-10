@@ -42,6 +42,12 @@ nav:
       - requirements_spec.md
       - KNOWN_ISSUES.md
 
+  # Master architecture notebook for the spectral-research collection.
+  # Listed first as the cross-domain pollination layer above the
+  # per-domain notebooks; per-domain notebooks remain the authoritative
+  # home for their domain.
+  - srmech
+
   # Major sub-projects in alphabetical order; each has its own
   # .pages file controlling internal ordering.
   - antikythera-maths

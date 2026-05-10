@@ -1,0 +1,14 @@
+title: Cross-domain scoping reports
+
+# Detailed scoping reports from srmech cross-domain absorption rounds.
+# Each round is the output of the dual-agent research pattern
+# (feedback_dual_agent_research_pattern.md): main-agent analysis +
+# sub-agent independent fresh-read + comparison. Headline findings
+# land in the master notebook (§3.5, §4.2, §5); these files are the
+# detailed appendices.
+
+nav:
+  - audio-scoping-2026-05-09.md
+  - protein-scoping-2026-05-09.md
+  - telecom-scoping-2026-05-09.md
+  - power-grid-scoping-2026-05-09.md
