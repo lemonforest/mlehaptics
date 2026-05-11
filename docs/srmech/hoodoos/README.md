@@ -14,9 +14,9 @@ This directory holds **locally vendored copies of external publications** that s
 
 | Hoodoo | Authors | Year | Venue | DOI | Project locus |
 |---|---|---|---|---|---|
-| [`oana-chiru-2026.xml`](oana-chiru-2026.xml) | Rinaldi (Unciuleanu) Oana & Costin-Gabriel Chiru | 2026 | *AppliedMath* (MDPI) Vol. 6, Issue 3, Article 48 | [`10.3390/appliedmath6030048`](https://doi.org/10.3390/appliedmath6030048) | spatial-rules SSOT for chess-spectral 4D (`{1,...,8}^4 = 4096`-cell hypercube board); cross-referenced in srmech §3.5.4 fiber-bundle row, §3.5.3(F) product-graph universality, and chess-spectral notebook |
+| [`rinaldi-unciuleanu-chiru-2026.xml`](rinaldi-unciuleanu-chiru-2026.xml) | Rinaldi (Unciuleanu) Oana & Costin-Gabriel Chiru | 2026 | *AppliedMath* (MDPI) Vol. 6, Issue 3, Article 48 | [`10.3390/appliedmath6030048`](https://doi.org/10.3390/appliedmath6030048) | spatial-rules SSOT for chess-spectral 4D (`{1,...,8}^4 = 4096`-cell hypercube board); cross-referenced in srmech §3.5.4 fiber-bundle row, §3.5.3(F) product-graph universality, and chess-spectral notebook |
 
-### Naming-convention note for `oana-chiru-2026.xml`
+### Naming-convention note for `rinaldi-unciuleanu-chiru-2026.xml`
 
 The first author's name follows Romanian academic convention: **married surname (maiden surname) given name**. So:
 
@@ -26,9 +26,9 @@ The first author's name follows Romanian academic convention: **married surname 
 
 **Project convention: hyphenate both surnames of the first author.** Prose citations in srmech and elsewhere use **"Rinaldi-Unciuleanu & Chiru 2026"** — honoring both the married name (Rinaldi) AND the maiden name (Unciuleanu) avoids choosing between them and respects the author's pre-marriage publication record alongside her current name. The second author's surname (Chiru) is separated by ampersand for two-author clarity.
 
-The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Filename ≠ canonical citation; prose citations use the hyphenated-surname form.
+The local hoodoo filename `rinaldi-unciuleanu-chiru-2026.xml` follows this canonical citation convention (surnames hyphenated for filesystem-friendliness, ampersand dropped). The upstream repository [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) retains its `oana-chiru` naming in repo identity and internal paths because that's the existing repo identifier — divergence is intentional for clarity in this project's local SSOT. The vendored XML content is byte-identical between the two locations; only the filename differs.
 
-**Note on the citation slip.** The user initially miscalled the citation "Oana-Chiru" thinking both halves were surnames; the convention reads given-name-last in Romanian academic listing, so "Oana" is the given name and the surnames are Rinaldi (married) and Unciuleanu (maiden). Recorded here for future reference so the same mistake isn't re-introduced by reading the verbatim author string without parsing the convention.
+**Note on the citation slip.** The user initially miscalled the citation "Oana-Chiru" thinking both halves were surnames; the convention reads given-name-last in Romanian academic listing, so "Oana" is the given name and the surnames are Rinaldi (married) and Unciuleanu (maiden). The hoodoo file was originally named `oana-chiru-2026.xml` (mirroring upstream) and renamed to the canonical hyphenated-surname form on 2026-05-11 once the convention was codified. Recorded here for future reference so the same mistake isn't re-introduced by reading the verbatim author string without parsing the convention.
 
 ## When to add a new hoodoo
 
@@ -40,4 +40,4 @@ Do not vendor publications that are immediately retrievable from canonical sourc
 
 ## License caveat
 
-Vendored copies remain under the original publication's license. Open-access publications (CC-BY, CC-BY-NC, etc.) permit redistribution with attribution; paywalled publications should not be vendored here. Verify license before adding. The current `oana-chiru-2026.xml` is from MDPI *AppliedMath* (open access, CC-BY by default).
+Vendored copies remain under the original publication's license. Open-access publications (CC-BY, CC-BY-NC, etc.) permit redistribution with attribution; paywalled publications should not be vendored here. Verify license before adding. The current `rinaldi-unciuleanu-chiru-2026.xml` is from MDPI *AppliedMath* (open access, CC-BY by default).
