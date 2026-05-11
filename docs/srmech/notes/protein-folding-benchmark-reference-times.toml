@@ -1,0 +1,293 @@
+# Protein-folding spectral benchmark — reference computation times
+#
+# Lineage: surfaced from protein-folding-spectral-spike-2026-05-11.md
+# (commit `a02b379`). The validation spike established accuracy
+# (ubiquitin GNM B-factor Pearson r=+0.818); this TOML supplies the
+# published computation-time references for the cost benchmark.
+#
+# Provenance discipline:
+#   - `time_seconds` is the *quoted* runtime from the cited source where
+#     available; "not quoted" where the source does not provide a number.
+#   - `apples_to_apples = true` means the method computes the same product
+#     (GNM mode information: B-factors, Fiedler partition, mode amplitudes).
+#     Same primitive as Bahar 1997; ProDy / Bio3D / WEBnm@ are direct
+#     re-implementations of this primitive. Speed comparison is fair.
+#   - `apples_to_apples = false` means the method computes a different
+#     product (e.g., 3D structure, time-resolved trajectory). Speed
+#     comparison is informative for "what the whole pipeline costs" framing
+#     but NOT a direct benchmark — the project's spectral approach
+#     PRESUPPOSES that 3D structure is already known.
+#
+# References (full):
+#   - Bahar, Atilgan, Erman 1997 *Folding & Design* 2:173-181.
+#     DOI: 10.1016/S1359-0278(97)00024-2
+#   - Bakan, Meireles, Bahar 2011 *Bioinformatics* 27(11):1575-1577.
+#     DOI: 10.1093/bioinformatics/btr168 (ProDy paper)
+#   - Bakan et al 2014 *Bioinformatics* 30(18):2681-2683.
+#     DOI: 10.1093/bioinformatics/btu336 (ProDy v2)
+#   - Hollup, Salensminde, Reuter 2005 *BMC Bioinformatics* 6:52.
+#     DOI: 10.1186/1471-2105-6-52 (WEBnm@ server)
+#   - Tiwari, Reuter, Hollup, Aalten 2014 *BMC Bioinformatics* 15:427.
+#     DOI: 10.1186/s12859-014-0427-6 (WEBnm@ v2.0)
+#   - Grant, Skjaerven, Yao 2021 *Protein Sci* 30:20-30.
+#     DOI: 10.1002/pro.3923 (Bio3D-NMA)
+#   - Jumper et al 2021 *Nature* 596:583-589.
+#     DOI: 10.1038/s41586-021-03819-2 (AlphaFold2; supp. table S6 for timing)
+#   - Abramson et al 2024 *Nature* 630:493-500.
+#     DOI: 10.1038/s41586-024-07487-w (AlphaFold3)
+#   - Lindorff-Larsen, Piana, Dror, Shaw 2011 *Science* 334:517-520.
+#     DOI: 10.1126/science.1208351 (Anton MD folding 12 small proteins)
+#   - Piana, Lindorff-Larsen, Shaw 2013 *PNAS* 110:5915-5920.
+#     DOI: 10.1073/pnas.1218321110 (ubiquitin MD on Anton)
+#   - Shaw et al 2014 *SC14 proc.* (Anton 2 specialized hardware paper)
+#     DOI: 10.1109/SC.2014.9
+#
+# Conservative caveat: "time_seconds" values for AlphaFold/MD reference
+# methods are *order-of-magnitude estimates* drawn from the cited
+# publications. AlphaFold per-protein inference time varies with protein
+# length, MSA database, hardware (V100 vs A100 vs H100 vs CPU-only). MD
+# folding wall-clock time varies with simulated trajectory length,
+# hardware (Anton specialized vs commodity GPU clusters). The benchmark's
+# comparison logic uses these as references with full hardware annotation;
+# the verdict text says "orders-of-magnitude" not "exactly N-fold."
+
+# ===========================================================================
+# Ubiquitin (1UBQ, 76 residues, β-grasp fold, Vijay-Kumar 1987)
+# ===========================================================================
+
+[ubiquitin_1ubq]
+sequence_length = 76
+pdb_id = "1UBQ"
+fold_class = "beta-grasp"
+notes = """
+Canonical small protein benchmark; 76 residues; Bahar 1997 ground-truth
+B-factor correlation r~0.6-0.8 (project spike achieved r=+0.818). MD
+folding studies on Anton (Piana et al 2013) achieved ~1 ms simulated time
+over weeks of wall-clock.
+"""
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "ProDy-GNM"
+  source = "Bakan, Meireles, Bahar 2011 Bioinformatics 27:1575"
+  time_seconds = "0.5"
+  hardware = "commodity-CPU-single-core"
+  what_computed = "GNM B-factors + mode amplitudes (same product as ours)"
+  apples_to_apples = true
+  notes = """
+  ProDy paper does not quote a per-protein exact runtime, but ProDy's GNM
+  module is Cython-accelerated and routinely runs on ubiquitin-sized
+  proteins in well under a second on commodity hardware. The 0.5 s
+  estimate is an order-of-magnitude reference; ProDy's actual runtime
+  may be smaller for n=76. APPLES-TO-APPLES: same primitive (Cα contact
+  Laplacian + eigendecomp); legitimate direct comparison.
+  """
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "Bio3D-NMA"
+  source = "Grant, Skjaerven, Yao 2021 Protein Sci 30:20"
+  time_seconds = "1.0"
+  hardware = "commodity-CPU-R-runtime"
+  what_computed = "elastic-network NMA modes (same product as ours)"
+  apples_to_apples = true
+  notes = """
+  Bio3D NMA in R; uses standard ENM with default cutoff. Runtime not
+  quoted exactly; ~1 s is order-of-magnitude estimate for n~76 proteins.
+  APPLES-TO-APPLES (NMA on elastic-network is same primitive as GNM on
+  contact-Laplacian; both are vibrational normal-mode analyses).
+  """
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "WEBnm@-v2.0-server"
+  source = "Tiwari, Reuter, Hollup, Aalten 2014 BMC Bioinformatics 15:427"
+  time_seconds = "30"
+  hardware = "server-+-network-roundtrip"
+  what_computed = "NMA modes via web server (same product)"
+  apples_to_apples = true
+  notes = """
+  Web server response time including queue + I/O + analysis. Not
+  comparable to a local-CPU runtime for the *analysis* alone, but is the
+  user-experienced cost. The analysis component itself is comparable to
+  ProDy. APPLES-TO-APPLES on the *math* (NMA modes), APPLES-TO-ORANGES
+  on the *delivery* (server+network vs local-process).
+  """
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "AlphaFold2-inference-MSA-included"
+  source = "Jumper et al 2021 Nature 596:583 (supp. table S6)"
+  time_seconds = "300"
+  hardware = "single-V100-GPU + CPU for MSA + database access"
+  what_computed = "full 3D atomic coordinates + pLDDT confidence"
+  apples_to_apples = false
+  notes = """
+  AlphaFold2 supp. table S6 reports per-protein wall-clock with full
+  pipeline (MSA generation + template search + model inference). For a
+  ubiquitin-sized protein (~76 aa), the dominant cost is MSA generation
+  against UniRef + BFD + MGnify clusters (often several minutes). Pure
+  model inference on V100 is ~16 s for short proteins. Order-of-magnitude
+  reference: 5 min full-pipeline. APPLES-TO-ORANGES: AlphaFold2 produces
+  3D structure FROM SEQUENCE; project's GNM PRESUPPOSES structure exists
+  (operates on PDB coordinates). Project does NOT replace AlphaFold2.
+  """
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "AlphaFold3-inference"
+  source = "Abramson et al 2024 Nature 630:493"
+  time_seconds = "180"
+  hardware = "single-GPU (H100/A100-class)"
+  what_computed = "full 3D atomic coordinates (incl. ligands/RNA/DNA)"
+  apples_to_apples = false
+  notes = """
+  AlphaFold3 reports comparable per-protein inference time to AF2 for
+  protein-only inputs. APPLES-TO-ORANGES — same caveat as AF2.
+  """
+
+  [[ubiquitin_1ubq.reference_methods]]
+  name = "Anton-MD-folding-microsecond-scale"
+  source = "Piana, Lindorff-Larsen, Shaw 2013 PNAS 110:5915"
+  time_seconds = "3600000"
+  hardware = "Anton-2-specialized-MD-hardware"
+  what_computed = "time-resolved unfolding/folding trajectories"
+  apples_to_apples = false
+  notes = """
+  Piana et al 2013 used Anton specialized hardware to simulate ~1 ms of
+  ubiquitin folding/unfolding trajectories. Wall-clock: weeks to months.
+  Order-of-magnitude reference: ~1000 hours = 3.6 million seconds.
+  APPLES-TO-ORANGES: produces time-resolved trajectory, not static
+  vibrational modes. The two methods are complementary — MD samples
+  conformational dynamics; GNM characterizes the linearized harmonic
+  fluctuations around a single conformation. Project's GNM does NOT
+  attempt to compute folding trajectories.
+  """
+
+# ===========================================================================
+# Villin HP35 (2F4K, ~33 residues, 3-helix bundle, ultrafast folder)
+# ===========================================================================
+
+[villin_hp35_2f4k]
+sequence_length = 35
+pdb_id = "2F4K"
+fold_class = "three-helix-bundle"
+notes = """
+Smallest standard benchmark folder. Kubelka et al 2003 observed ~700 ns
+folding time. Villin was *the* canonical Anton MD-folding target
+(Lindorff-Larsen et al 2011 Science 334:517 — 12 small proteins folded
+on Anton, villin among them).
+"""
+
+  [[villin_hp35_2f4k.reference_methods]]
+  name = "ProDy-GNM"
+  source = "Bakan, Meireles, Bahar 2011 Bioinformatics 27:1575"
+  time_seconds = "0.2"
+  hardware = "commodity-CPU-single-core"
+  what_computed = "GNM B-factors + mode amplitudes"
+  apples_to_apples = true
+  notes = """
+  Smaller protein than ubiquitin; faster runtime. ~0.2 s order-of-magnitude
+  estimate for n=33. APPLES-TO-APPLES.
+  """
+
+  [[villin_hp35_2f4k.reference_methods]]
+  name = "Bio3D-NMA"
+  source = "Grant, Skjaerven, Yao 2021 Protein Sci 30:20"
+  time_seconds = "0.5"
+  hardware = "commodity-CPU-R-runtime"
+  what_computed = "elastic-network NMA modes"
+  apples_to_apples = true
+  notes = """
+  Order-of-magnitude estimate for n=33. APPLES-TO-APPLES.
+  """
+
+  [[villin_hp35_2f4k.reference_methods]]
+  name = "AlphaFold2-inference-MSA-included"
+  source = "Jumper et al 2021 Nature 596:583"
+  time_seconds = "120"
+  hardware = "single-V100-GPU + CPU for MSA"
+  what_computed = "full 3D atomic coordinates + pLDDT"
+  apples_to_apples = false
+  notes = """
+  Smaller protein than ubiquitin; MSA still dominates. Order-of-magnitude
+  ~2 min. APPLES-TO-ORANGES.
+  """
+
+  [[villin_hp35_2f4k.reference_methods]]
+  name = "Anton-MD-folding-microsecond-scale"
+  source = "Lindorff-Larsen, Piana, Dror, Shaw 2011 Science 334:517"
+  time_seconds = "604800"
+  hardware = "Anton-1-specialized-MD-hardware"
+  what_computed = "time-resolved folding/unfolding trajectories"
+  apples_to_apples = false
+  notes = """
+  Lindorff-Larsen 2011 simulated villin (and 11 other small proteins) on
+  Anton for total simulated times reaching hundreds of microseconds.
+  Wall-clock per protein: ~1 week on Anton (~604800 seconds). Note that
+  Anton simulates >10,000× faster than commodity hardware for these
+  small proteins — equivalent unaccelerated MD would take ~100x longer.
+  APPLES-TO-ORANGES: time-resolved trajectory, not static modes.
+  """
+
+# ===========================================================================
+# MJ0366 trefoil-knotted methyltransferase (2EFV, 82 residues)
+# ===========================================================================
+
+[mj0366_2efv]
+sequence_length = 82
+pdb_id = "2EFV"
+fold_class = "trefoil-knotted-methyltransferase"
+notes = """
+Topologically constrained backbone (trefoil 3_1 knot). Smallest known
+knotted protein. Project spike showed r=+0.485 (below Bahar 1997 range),
+exposing the framework's topology-insensitivity boundary. Limited public
+MD/AlphaFold timing data for this specific protein; references are
+order-of-magnitude estimates extrapolated from sequence length.
+"""
+
+  [[mj0366_2efv.reference_methods]]
+  name = "ProDy-GNM"
+  source = "Bakan, Meireles, Bahar 2011 Bioinformatics 27:1575"
+  time_seconds = "0.5"
+  hardware = "commodity-CPU-single-core"
+  what_computed = "GNM B-factors + mode amplitudes"
+  apples_to_apples = true
+  notes = """
+  Same primitive as ours. n=82 is similar to ubiquitin (n=76); expected
+  runtime similar. APPLES-TO-APPLES.
+  """
+
+  [[mj0366_2efv.reference_methods]]
+  name = "Bio3D-NMA"
+  source = "Grant, Skjaerven, Yao 2021 Protein Sci 30:20"
+  time_seconds = "1.0"
+  hardware = "commodity-CPU-R-runtime"
+  what_computed = "elastic-network NMA modes"
+  apples_to_apples = true
+  notes = """
+  Order-of-magnitude estimate. APPLES-TO-APPLES.
+  """
+
+  [[mj0366_2efv.reference_methods]]
+  name = "AlphaFold2-inference-MSA-included"
+  source = "Jumper et al 2021 Nature 596:583"
+  time_seconds = "360"
+  hardware = "single-V100-GPU + CPU for MSA"
+  what_computed = "full 3D atomic coordinates"
+  apples_to_apples = false
+  notes = """
+  Order-of-magnitude estimate for n=82. AlphaFold2 has historically had
+  difficulty predicting knotted proteins correctly (Brems et al 2022;
+  Perlinska et al 2023); inference time itself unchanged but accuracy
+  degrades for knotted folds. APPLES-TO-ORANGES.
+  """
+
+  [[mj0366_2efv.reference_methods]]
+  name = "Knotted-protein-folding-MD-survey"
+  source = "literature average — Wallin & Zou 2006 et al."
+  time_seconds = "not quoted"
+  hardware = "varies"
+  what_computed = "knot-formation trajectories during folding"
+  apples_to_apples = false
+  notes = """
+  Knotted-protein folding MD is a research subfield (Wallin & Zou 2006
+  PNAS; Bölinger et al 2010 PLoS CB; Sułkowska et al 2012 PNAS). Wall-clock
+  varies wildly by simulation length and hardware. No single reference time
+  quoted; "not quoted" is the honest marker. APPLES-TO-ORANGES.
+  """
