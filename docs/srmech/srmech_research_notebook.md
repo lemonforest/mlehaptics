@@ -212,6 +212,88 @@ This is the deepest answer to the unification question: srmech is not "the proje
 
 The **protein-folding absorption round** (see §5.3 + [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md)) supplied the strongest evidence for this claim to date: GNM / ANM / NMA on the residue-interaction network is graph-Laplacian eigendecomposition — *literally the same primitive* ephemerides uses on the 52-body resonance graph (§13 gateway-graph Fiedler partition; Matthews φ = +0.336, Spearman ρ = +0.743 vs empirical Δv). Same math, different graph. Not analogy — identity. The **audio absorption round** (§5.2 + [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md)) instantiates *every row* of the table above (spectrogram → Euclidean grid; HRTF / ambisonics → sphere; periodic loops → torus; acoustic-cavity meshes → triangle mesh; mic-array + Tonnetz → general graph), the cleanest cross-pollination test the framing has faced.
 
+### §3.5.1 Algebraic-hyperdimensional layer — eigenbasis ambient geometry
+
+The six §3.5 rows describe **manifolds the Laplace-Beltrami operator acts on** — substrate geometries for the eigenbasis itself. A separate ambient-geometry layer lives **above** the substrate manifold, on the eigenbasis itself: orthonormal eigenvectors are points in an algebraic-hyperdimensional space of dimension `n = |V|` (or grid-size, or mesh-vertex-count, etc.), and that space has its own geometric structure independent of which substrate manifold the rows above name.
+
+Per the **`hyper = 3D-spatial-interface` distinction** (`memory/user_stance_hyper_as_3d_spatial_interface.md`): this layer is **algebraic-hyperdimensional**, not 3D-spatial-interface — distinct from the spherical-compression operator applied to 3D-bound matter/information at event horizons, gravitational figures, and HDC similarity metrics. Different ontological domain, different vocabulary.
+
+Two project-relevant algebraic-hyperdimensional structures live at this layer:
+
+**(a) Eigenbasis cross-polytope on S^(n−1).** For any graph Laplacian L acting on n vertices, the orthonormal eigenvectors `{v_1, …, v_n}` together with their negatives `{−v_1, …, −v_n}` form **2n vertices of a cross-polytope inscribed in the unit sphere S^(n−1)** (verified numerically; off-diagonal residual 1.1×10⁻¹⁵ at n=6 via `numpy.linalg.eigh`). Vocabulary is informationally new but no current project code exploits the sign-closure structure — `eigh` / `eigvalsh` already preserve orthonormality. Named here for future use; deferred until a use case (e.g., sign-symmetry-aware similarity, antipodal averaging, dyadic group action on eigenspaces) needs it.
+
+**(b) Eigenphase torus T^n — phase-preserving quantum-walk lift.** Quantum walk `U(t) = exp(−i L t)` on ℂ^n evolves eigencomponents as phases `exp(−i λ_k t)` on S¹; the time-evolved state in eigenbasis lives on **T^n indexed by eigenphases**. Classical heat flow `exp(−L t)` is the magnitude-only projection of this richer dynamics (the "magnitude shadow"). Two project loci already ship phase-preserving quantum walks without naming the T^n ambient explicitly:
+
+| Locus | Substrate | Walk type | Ambient |
+|---|---|---|---|
+| `ephemerides_spectral/_research/ephemeris_reference_instrument.py:156-170` | 52-body resonance graph | `U = expm(-1j * L_dyn * step); psi = U @ exp(1j * φ)` | T^52 |
+| `chess_spectral/qm_2d_dynamics.py` + `qm_4d_dynamics.py` `evolve_under_h0` | board-spectral C^640 / C^45056 | `U(t) = exp(−i H_0 t)` projective Hilbert ray | T^640 / T^45056 (via inscribed S^(2N−1) ⊂ C^N) |
+
+Every §3.5 row admits this lift: replace the classical evolution operator `exp(−Δ_g t)` with the unitary quantum-walk operator `exp(−i Δ_g t)`. The substrate manifold is unchanged; the dynamics gain phase information that classical evolution discards. **The project has been quantum-walking on T^n in two loci for over a year without naming the ambient.** Naming surfaces what's already shipped, without new code.
+
+Connects to continuous-time quantum walk (CTQW) literature: Childs (2011) `https://www.cs.umd.edu/~amchilds/teaching/w11/l13.pdf`; Farhi & Gutmann (1998); arxiv:2509.26243 (already cited in `chess_spectral_research_notebook.md` for spectral coverage). Future ships that need phase-coherent evolution on any §3.5 row can read this section as the project's canonical name for the operator.
+
+**MPM provenance:** structural-layer claims investigated 2026-05-11 in `docs/antikythera-maths/research-mfo/graph_laplacian_hyperring_investigation_findings.md`. Layer (a) cross-polytope STANDS as math; project-marginal at present. Layer (b) eigenphase torus STANDS as both math and load-bearing project structure. A third candidate (Krasner hyperring on degenerate eigenspaces) was investigated and FALSIFIED — MFO Phase B's `22A + 18B + 40E` decomposition under D₃ is standard Maschke + Schur direct-sum representation theory, not Krasner's set-valued algebra. Vocabulary discipline: this section names the algebraic-hyperdimensional ambient layer; the 3D-spatial-interface spherical-compression operator (`memory/user_stance_hyper_as_3d_spatial_interface.md`) is a separate scope and the two should not be conflated.
+
+The cross-polytope eigenbasis and eigenphase torus are **math-instruments** that describe spectral structure (per the project's instrument-vs-phenomenon discipline; see MFO `§VII.1.1`'s two-level ontology and `memory/user_stance_string_theory_instrument_first.md`). They are not field-domain excitations, not matter-wave-domain excitations — they sit outside the physical-domain dichotomy as mathematical descriptions of physical-system structure. Adopting them as project canon for naming spectral-decomposition ambient geometry does not require commitment about the underlying physics of the systems they describe.
+
+### §3.5.2 Empirical anchors of cross-manifold rows — MFO MPM orchestration findings (2026-05-11)
+
+The §3.5 cross-manifold rows are not just architecturally compatible — they have been empirically anchored across the project's domain catalogues by the MFO MPM orchestration arc on `feat/mfo-mpm-srmech-review` (15-commit sequence `251fcc6` → `bcd24f5`). Full provenance in [`docs/antikythera-maths/research-mfo/`](../antikythera-maths/research-mfo/). All findings under math-doesn't-lie MPM discipline: closed-form / standard-library deterministic computation; no SGD; no fit-parameters except where explicitly named; ground-proof against canonical references.
+
+**Row 1 (general graph) — 4-tier d_S/2 classification.** Bottom-up cross-spectrum survey (no external target fitting) sorted 15 srmech-collection domains by graph-Laplacian eigenvalue-density slope into four tiers:
+
+| Tier | Domains | d_S/2 |
+|---|---|---|
+| Chain/tree | P₂ • ephemerides 52-body • antikythera gear-DAG • Hawaii σ=500km | 0.49–0.55 |
+| SG fractal | L=5 SG levels 3, 4, 5 | 1.00–1.09 |
+| 2-3D lattice | Chess king-move • P₄ tetrahedral | 1.44–1.55 |
+| Near-complete | Othello line-of-sight | 3.25 |
+
+Within-tier agreement at the chain endpoint is within 10% across **four fundamentally different construction methods** (integer mesh, integer tree, integer DAG, Gaussian proximity kernel). Cross-domain validation of the graph-Laplacian primitive producing a sortable structural fingerprint independent of construction method. Provenance: [`mpm_survey_findings.md`](../antikythera-maths/results-mfo/mpm_survey_findings.md) + [`mpm_survey_v2_findings.md`](../antikythera-maths/results-mfo/mpm_survey_v2_findings.md).
+
+**Row 2 (sphere S²) — 3-fingerprint cross-body anchor.** Sphere-S² parallel survey on the ephemerides `SolGeodeticCatalog` + `MagneticMultipoleCatalog` (gravity: 11 bodies; magnetic: 7 bodies) found three reproducible cross-body fingerprints: Kaula-scaling slope α in `power(l) ~ l^{−α}`, l-vs-(l+1) power partition, and dipole-vs-higher-multipole ratio. Magnetic-archetype clusters (axisymmetric Saturn/Mercury; aligned Earth/Jupiter/Ganymede; extreme-tilt Uranus/Neptune) reproduce in scalar-SH structure. Provenance: [`mpm_sh_survey_findings.md`](../antikythera-maths/results-mfo/mpm_sh_survey_findings.md).
+
+**Row 3 (flat torus T²) — 3-fingerprint magnetospheric anchor.** T² L-shell magnetospheric survey on the 7-body magnetic-catalogue intersection (Mercury / Ganymede / Earth / Saturn / Neptune / Uranus / Jupiter). Three reproducible fingerprints: Chapman-Ferraro derived `R_mp/R_p = (4 B²/(μ₀ P_sw))^(1/6)` reproducing published spacecraft values to factor-of-2 (7/7 bodies; Jupiter at 0.54× is the worst case due to Io-plasma-torus mass-loading outside the vacuum-dipole assumption); dayside-vs-nightside compression ratio (small-tier 1.6–3.1×, moderate 21×, giant 43–124×, ice-giant short-tail 0.42×); inner-boundary spherical-departure proxy (ice giants ~1.0 vs ≤0.2 for all other bodies, five orders of magnitude separation). Ice-giant 2-body cluster (Uranus/Neptune) agrees to 1% on R_mp/R_p and compression, 11% on distortion proxy — tightest within-cluster anchor in the survey. **Three §3.5 T² instantiations now empirically populated**: audio periodic loops + protein Ramachandran (φ, ψ) + planetary magnetospheric L-shell. Provenance: [`mpm_t2_lshell_survey_findings.md`](../antikythera-maths/results-mfo/mpm_t2_lshell_survey_findings.md).
+
+**Hawaii bend triple-channel decomposition** (bounded-local graph-Laplacian instantiation of row 1). The Hawaiian-Emperor chain bend (Pacific-plate direction change at 47.5 Myr; ephemerides-spectral v0.24.5 catalogue) decomposes into three complementary channels:
+
+1. **Subtle Fiedler-monotonicity reversal at the bend marker** (yuryaku → daikakuji has `dF = +5.5×10⁻⁴`, factor-1000 deviation from neighbouring ~10⁻² to 10⁻¹ steps, localised right at the bend). The user-intuited "stick-slip from slightly curving" maps specifically to this channel.
+2. **Strong age-vs-arc-length non-spectral residual** (Meiji at −1265 km — the catalogue's documented non-spectral diagnostic).
+3. **NOT** a single eigenvalue-gap signature (largest gap is dominated by post-bend isolated pair Midway / Pearl-and-Hermes).
+
+Geometric direction-change → spectral signature is a generalisable pattern; the magnetospheric analog appears in ice-giant 3-way axis mismatch (dipole vs rotation vs orbital) producing patchy / partial / time-variable auroral signatures. Different physical systems, same math-identity family. Provenance: [`mpm_survey_v2_hawaii_bend.ndjson`](../antikythera-maths/results-mfo/mpm_survey_v2_hawaii_bend.ndjson).
+
+**SG self-similarity quantitative spectral signature.** L=5 SG levels 3, 4, 5 are the **only multi-domain match** under 5%-tolerance gap-fingerprint clustering across the 15 cataloged domains. Levels 4 and 5 fingerprints agree to 4 decimal places. Empirical support for fractal-self-similarity claims (MFO notebook §IV.2 decimation-tree). Provenance: [`mpm_survey_cross_spectrum.ndjson`](../antikythera-maths/results-mfo/mpm_survey_cross_spectrum.ndjson).
+
+### §3.5.3 Cross-cutting math-identity motifs (project-wide)
+
+The MFO orchestration surfaced math-identity motifs that span multiple §3.5 rows and multiple project domains. These are the abstract claims srmech holds for the spectral collection:
+
+**(A) Rotational compression breaks pure sphericity.** Same mechanism family identified across three independent project loci:
+
+- **Saturn J₂ gravitational figure** — most-oblate-Solar-System body co-occurring with most-axisymmetric magnetic dipole (Cao 2020 `<0.007°` tilt). Same rotational-alignment mechanism governs both gravitational and magnetic axisymmetry. Matter-wave domain (gravitational figure of mass distribution).
+- **Kerr event-horizon oblateness** — rotation parameter `a = J/(Mc)` deforms static Schwarzschild S² into oblate spheroid. Matter-wave domain (mass-information compressed to inscribed 2-boundary per MFO §VII.4.1 spherical-compression operator).
+- **Ice-giant magnetospheric inner-boundary distortion** — Uranus/Neptune inner-boundary distortion proxy `tilt/90 + offset/R ~ 1.0` vs `≤0.2` for all other surveyed bodies (T² survey). Matter-bound planet × field-domain magnetic-structure coupling (per MFO §VII.1.1 two-level ontology).
+
+Rotation-breaks-roundness is a substrate-level mechanism that manifests at both the matter-wave layer and the matter-bound × field-domain coupling layer. The "spherical compression" operator (MFO §VII.4.1) accepts a rotational-deformation parameter that converts static S² boundaries into oblate spheroids while preserving the closed-2-manifold topology.
+
+**(B) HDC architecture is plural.** Project HDC is not a single substrate — surfaced by spherical-compression concertmaster investigation (commit `8fc973c`):
+
+| Flavour | Substrate | Bind operation | Similarity metric | Inscribed-sphere geometry? |
+|---|---|---|---|---|
+| **MFO Phase C bipolar BIP** | `{−1,+1}^D` | element-wise multiplication | `⟨a,b⟩/D` | YES — vertices on inscribed S^(D−1) at radius √D |
+| **Ephemerides BIP / SkPhase9BIP** | `(Z_{2^K})^D = T^D` (flat torus) | modular phase addition mod `2^K` | post-superposition Born-rule norm | PARTIAL — appears at lift-and-normalize step only |
+| **Chess-spectral production encoder** | `R^640` float | spectral channel projection + value lookup | cosine in R^640 | NO — substrate is R^640 directly |
+
+When discussing HDC in formal contexts, distinguish which flavour is operative; cross-flavour properties do not automatically inherit. Provenance: [`spherical_compression_investigation_findings.md`](../antikythera-maths/research-mfo/spherical_compression_investigation_findings.md).
+
+**(C) 18-block geometric count from D₃ representation theory.** Math-identity finding from MFO Phase B + Phase F: the `λ=6` eigenspace of the L=5 SG decimation Laplacian at level 5 has dimension `120`, decomposing cleanly under D₃ as `22A + 18B + 40E` (integer-exact, machine precision). `min(22A, 18B, 40E) = 18` is the number of distinct `(1A + 1B + 1E)` "generation blocks" the eigenspace can host. The Standard Model has 3 generations × 6 charged-fermion components per generation = 18. **Match exact, structural prediction from rep theory** (not fit-parameter). Selection mechanism among the 18 candidate blocks remains the central open computation per MFO §XIII.1. Provenance: [`mpm_phase_b_findings.md`](../antikythera-maths/results-mfo/mpm_phase_b_findings.md) + [`mpm_phase_f_findings.md`](../antikythera-maths/results-mfo/mpm_phase_f_findings.md).
+
+**(D) Math-identity orthogonality**: graph-Laplacian eigendecomposition (row 1) admits the phase-preserving quantum-walk lift via `e^(−iLt)` to T^n eigenphase ambient (§3.5.1 layer b) on any §3.5 row. Standard CTQW. Two project loci already ship this lift unnamed: `ephemerides_spectral/_research/ephemeris_reference_instrument.py:156-170` (T^52) and `chess_spectral/qm_2d_dynamics.py` + `qm_4d_dynamics.py` (T^640 / T^45056 via inscribed S^(2N−1) ⊂ C^N). Provenance: [`graph_laplacian_hyperring_investigation_findings.md`](../antikythera-maths/research-mfo/graph_laplacian_hyperring_investigation_findings.md).
+
+**(E) Ontological commitment delegation.** srmech is the math-identity layer; foundational ontology (metric-field substrate, particle-matter-wave vs field-domain excitation classes, spherical-compression operator scope, holographic-principle commitment) is held in **MFO §VII.1.1 + §VII.4.1 + §VIII.1**. Cross-reference to MFO is mandatory when invoking the two-level ontology; srmech does not duplicate it.
+
 ### §3.6 Selection-shape question (host-side masking)
 
 When a user runs a spectral effect on a non-rectangular selection (lasso, magic wand) in Krita / GIMP / Photoshop / Inkscape, who handles the masking?
