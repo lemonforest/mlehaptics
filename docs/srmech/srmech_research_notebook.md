@@ -68,7 +68,7 @@ The eight-notebook collection plus this srmech notebook. Each per-domain noteboo
 | chess-spectral | [`../chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md) | 8×8 board adjacency graph + cyclic group `Z_640` | Graph-Laplacian eigenbasis; 11-channel D₄ decomposition; HDC binding (BIP — sibling of `SkPhase9BIP`) | independent notebook; foundational for the phase-operator framework |
 | chess-spectral 4D | (chess notebook §38+) | 4D `Z_8⁴` cyclic group | 4D extension of the 2D framework | sibling section in chess notebook |
 | ephemerides-spectral | [`../antikythera-maths/ephemerides_spectral_research_notebook.md`](../antikythera-maths/ephemerides_spectral_research_notebook.md) | 52-body resonance graph + per-body modular `Z_{2^32}` | Graph-Laplacian + resonance-weighted gateway-graph Fiedler partition; per-body action-angle dynamical spectra | independent notebook; most mature; AMSC framework lives here (§18 / §22) |
-| antikythera-spectral | [`../antikythera-maths/antikythera_spectral_research_notebook.md`](../antikythera-maths/antikythera_spectral_research_notebook.md) | gear DAG + cyclic-group ratios | `Z/nℤ` representations; gear-DAG Laplacian eigenbasis projected to spatial pointer motion; Diophantine-approximation framing | independent notebook; the bronze antikythera is the original stored-relationship mechanism |
+| antikythera-spectral | [`../antikythera-maths/antikythera_spectral_research_notebook.md`](../antikythera-maths/antikythera_spectral_research_notebook.md) | gear DAG + cyclic-group ratios | `Z/nZ` representations; gear-DAG Laplacian eigenbasis projected to spatial pointer motion; Diophantine-approximation framing | independent notebook; the bronze antikythera is the original stored-relationship mechanism |
 | doom-spectral | [`../antikythera-maths/doom_spectral_research_notebook.md`](../antikythera-maths/doom_spectral_research_notebook.md) | sector graph (BSP) + sheaf structure | Sheaf-Laplacian raycasting; end-to-end existence proof of the chess-spectral §42 procedure | independent notebook; first cross-disciplinary methodological capstone |
 | othello-spectral | [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) | 8×8 board adjacency graph (different ruleset than chess) | Sheaf-port reference encoder; spectral fingerprints | independent notebook; instantiates chess §10 framework on simpler domain |
 | logo-spectral | [`../logo-maths/logo_research_notebook.md`](../logo-maths/logo_research_notebook.md) | turtle-graphics geometry; non-board cyclic-group framing | Split-object pattern (atoms × productions × geometry); L7b critical negative result on partial-trace fibers | independent notebook; non-board generalisation |
@@ -222,7 +222,7 @@ Two project-relevant algebraic-hyperdimensional structures live at this layer:
 
 **(a) Eigenbasis cross-polytope on S^(n−1).** For any graph Laplacian L acting on n vertices, the orthonormal eigenvectors `{v_1, …, v_n}` together with their negatives `{−v_1, …, −v_n}` form **2n vertices of a cross-polytope inscribed in the unit sphere S^(n−1)** (verified numerically; off-diagonal residual 1.1×10⁻¹⁵ at n=6 via `numpy.linalg.eigh`). Vocabulary is informationally new but no current project code exploits the sign-closure structure — `eigh` / `eigvalsh` already preserve orthonormality. Named here for future use; deferred until a use case (e.g., sign-symmetry-aware similarity, antipodal averaging, dyadic group action on eigenspaces) needs it.
 
-**(b) Eigenphase torus T^n — phase-preserving quantum-walk lift.** Quantum walk `U(t) = exp(−i L t)` on ℂ^n evolves eigencomponents as phases `exp(−i λ_k t)` on S¹; the time-evolved state in eigenbasis lives on **T^n indexed by eigenphases**. Classical heat flow `exp(−L t)` is the magnitude-only projection of this richer dynamics (the "magnitude shadow"). Two project loci already ship phase-preserving quantum walks without naming the T^n ambient explicitly:
+**(b) Eigenphase torus T^n — phase-preserving quantum-walk lift.** Quantum walk `U(t) = exp(−i L t)` on `C^n` (complex n-space) evolves eigencomponents as phases `exp(−i λ_k t)` on S¹; the time-evolved state in eigenbasis lives on **T^n indexed by eigenphases**. Classical heat flow `exp(−L t)` is the magnitude-only projection of this richer dynamics (the "magnitude shadow"). Two project loci already ship phase-preserving quantum walks without naming the T^n ambient explicitly:
 
 | Locus | Substrate | Walk type | Ambient |
 |---|---|---|---|
@@ -293,6 +293,41 @@ When discussing HDC in formal contexts, distinguish which flavour is operative; 
 **(D) Math-identity orthogonality**: graph-Laplacian eigendecomposition (row 1) admits the phase-preserving quantum-walk lift via `e^(−iLt)` to T^n eigenphase ambient (§3.5.1 layer b) on any §3.5 row. Standard CTQW. Two project loci already ship this lift unnamed: `ephemerides_spectral/_research/ephemeris_reference_instrument.py:156-170` (T^52) and `chess_spectral/qm_2d_dynamics.py` + `qm_4d_dynamics.py` (T^640 / T^45056 via inscribed S^(2N−1) ⊂ C^N). Provenance: [`graph_laplacian_hyperring_investigation_findings.md`](../antikythera-maths/research-mfo/graph_laplacian_hyperring_investigation_findings.md).
 
 **(E) Ontological commitment delegation.** srmech is the math-identity layer; foundational ontology (metric-field substrate, particle-matter-wave vs field-domain excitation classes, spherical-compression operator scope, holographic-principle commitment) is held in **MFO §VII.1.1 + §VII.4.1 + §VIII.1**. Cross-reference to MFO is mandatory when invoking the two-level ontology; srmech does not duplicate it.
+
+**(F) Product-graph universality.** For graphs `G_1, ..., G_d`, both the **Cartesian product** (graph-theory `\square` operator) and the **strong product** (graph-theory `\boxtimes` operator) give closed-form access to composed-system spectra: adjacency and Laplacian eigenvalues of the product are sums of eigenvalues of the factors (Imrich-Klavžar *Product Graphs*). This is a math-identity that applies anywhere the project has a composed-graph structure:
+
+- **Chess-spectral 4D** (formalized in [hoodoos/oana-chiru-2026.xml](hoodoos/oana-chiru-2026.xml) — Rinaldi-Chiru 2026, DOI `10.3390/appliedmath6030048`): rook graph is the Hamming graph `H(4,8)`, equivalently the Cartesian product of four `K_8` factors (uniform mobility 28; diameter 4); king graph is the strong product of four `P_8` factors (interior degree 80; Chebyshev-metric diameter 7); bishop graph is parity-stratified by `π(x,y,z,w) = (x+y+z+w) mod 2`; knight is `(2,1)`-leaper with interior max degree 48.
+- **Coding theory**: Hamming graphs `H(n,q)` underlie Hamming-distance codes — direct sibling of the project's HDC bipolar flavour (`{−1,+1}^D` per §3.5.3(B)).
+- **Telecom MIMO**: Cartesian-product channel matrices (Tx × Rx antenna arrays) admit Kronecker / Cartesian-product eigendecomposition.
+- **Power grid**: Cartesian-product transmission/distribution coupling on hierarchical bus graphs.
+- **Future extension candidate**: any project domain with a composed-system structure benefits from invoking this identity rather than computing the full eigendecomposition directly. **Provenance for chess-4D**: Rinaldi-Chiru 2026 explicitly names "spectral analysis of move graphs" as future work; chess-spectral's [qm_2d](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py) + [qm_4d](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py) modules are the implemented spectral analysis of those move graphs.
+
+### §3.5.4 Fiber-bundle structure — rich features over a discrete base
+
+A distinct manifold structure not captured by the six §3.5 rows: **a fiber bundle over a discrete base manifold**. The base is some n-dim space (2D grid, 4D hypercube lattice, residue chain, resource grid, bus graph); the fiber is a k-dim vector space at each base point holding semantic content (piece types, feature channels, modulation symbols, measurement types); the total space is the section bundle of rank `k` over the base. Math identity: `total_dim = |base| × k`.
+
+| Instance | Base manifold | `|base|` | Fiber rank `k` | Total dim |
+|---|---|---|---|---|
+| **chess-spectral 2D** | 8×8 grid | 64 | 10 (piece types + game-state) | 640 |
+| **chess-spectral 4D** | `{1,...,8}^4` hypercube | 4096 | 11 (piece types + game-state) | 45056 |
+| **Protein folding** | residue chain | `N_residues` | per-residue feature channels | `N × k` |
+| **Telecom OFDM** | (subcarrier × OFDM-symbol) grid | `N_c × N_s` | modulation symbol | `N_c · N_s · k` |
+| **Power grid** | bus / generator / load graph | `N_nodes` | measurement type (voltage / current / phase / power) | `N · 4` |
+| **CNN feature maps** | spatial position | `H × W` | feature channel | `H · W · C` |
+
+**Anchor citations**: chess-spectral 4D's spatial base is the Rinaldi-Chiru 2026 hypercube (`{1,...,8}^4`, Chebyshev metric, interior degree `3^4 − 1 = 80`) — vendored at [`hoodoos/oana-chiru-2026.xml`](hoodoos/oana-chiru-2026.xml). chess-spectral 2D's 64×10 = 640D and 4D's 4096×11 = 45056D structures are explicit in [`qm_2d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py:103) and [`qm_4d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py).
+
+**A third distinct sense of "hyper" surfaces here.** Project usage of "hyper" now has three documented senses:
+
+1. **Algebraic-hyperdimensional** (§3.5.1) — high-dim vector space for spectral representation; HDC hypervectors, eigenphase T^n, cross-polytope on S^(n−1). Math-instrument layer.
+2. **Hyper-as-3D-spatial-interface** (MFO §VII.4.1 + [`memory/user_stance_hyper_as_3d_spatial_interface.md`](../../memory)) — higher-dim phenomenon whose 3D-spatial boundary is a closed n-manifold; event horizons, magnetospheres, gravitational figures. Physics-layer scoped operator.
+3. **Hyper-dimensional-spatial-base** (this section) — a discrete base manifold whose intrinsic dimensionality exceeds 3; chess-4D's `{1,...,8}^4` is the load-bearing project instance. Mathematical-geometry-of-the-base layer.
+
+When discussing "hyper" anywhere in the project, distinguish which of the three senses is operative; they are mathematically distinct and should not be conflated.
+
+**Operator orthogonality**: the §3.5.4 fiber bundle decomposes as `total = base × fiber` (tensor product). The graph-Laplacian + eigenphase-torus lift (§3.5.1 layer b) applies to the **base** factor; HDC bind/bundle operations apply to the **fiber** factor; group-theoretic symmetry actions (D₄ on chess-2D base, B₄ on chess-4D base, signed-permutation groups generally) act on the base. The total-space `C^N` quantum state in chess-spectral is `psi ∈ C^|base| × C^k` (tensor product), with the channel-projector `P_c` (sparse `I_k × I_|base|` Kronecker slice) reading the per-fiber-component probability via Born-rule measurement. Math identity: this is **standard fibered representation theory**, applied to the chess move-graph base.
+
+**MPM provenance**: chess-spectral's qm_4d implementation directly addresses Rinaldi-Chiru's future-work bullet "spectral analysis of move graphs." The project does not claim invention of 4D chess (cite Rinaldi-Chiru for the spatial rules); the project contributes the spectral-analysis implementation of the open direction those authors named.
 
 ### §3.6 Selection-shape question (host-side masking)
 
