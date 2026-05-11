@@ -16,6 +16,10 @@ This directory holds **locally vendored copies of external publications** that s
 |---|---|---|---|---|---|
 | [`oana-chiru-2026.xml`](oana-chiru-2026.xml) | Rinaldi (Unciuleanu) Oana & Costin-Gabriel Chiru | 2026 | *AppliedMath* (MDPI) Vol. 6, Issue 3, Article 48 | [`10.3390/appliedmath6030048`](https://doi.org/10.3390/appliedmath6030048) | spatial-rules SSOT for chess-spectral 4D (`{1,...,8}^4 = 4096`-cell hypercube board); cross-referenced in srmech §3.5.4 fiber-bundle row, §3.5.3(F) product-graph universality, and chess-spectral notebook |
 
+### Naming-convention note for `oana-chiru-2026.xml`
+
+The first author's name follows Romanian academic convention: **married surname (maiden surname) given name**. So **Rinaldi** is the surname (or **Unciuleanu** if honoring the maiden name); **Oana** is the given name. Western-style surname-only citations should use **"Rinaldi & Chiru 2026"** or **"Rinaldi-Unciuleanu & Chiru 2026"**. The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Prose citations in srmech and elsewhere should use the surname form.
+
 ## When to add a new hoodoo
 
 - The publication is a load-bearing SSOT for a project notebook section or concertmaster finding.
