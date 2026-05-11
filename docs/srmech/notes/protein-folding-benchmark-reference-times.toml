@@ -71,15 +71,20 @@ over weeks of wall-clock.
   source = "Bakan, Meireles, Bahar 2011 Bioinformatics 27:1575"
   time_seconds = "0.5"
   hardware = "commodity-CPU-single-core"
-  what_computed = "GNM B-factors + mode amplitudes (same product as ours)"
-  apples_to_apples = true
+  what_computed = "GNM B-factors + mode amplitudes (same product, same primitive)"
+  apples_to_apples = false # RECATEGORIZED 2026-05-11: A2O within GNM family
   notes = """
-  ProDy paper does not quote a per-protein exact runtime, but ProDy's GNM
-  module is Cython-accelerated and routinely runs on ubiquitin-sized
-  proteins in well under a second on commodity hardware. The 0.5 s
-  estimate is an order-of-magnitude reference; ProDy's actual runtime
-  may be smaller for n=76. APPLES-TO-APPLES: same primitive (Cα contact
-  Laplacian + eigendecomp); legitimate direct comparison.
+  RECATEGORIZED 2026-05-11 per user correction "our workflow is not LAPACK":
+  ProDy GNM uses LAPACK eigh on a dense float64 Kirchhoff matrix; project's
+  canonical workflow uses complex64 FPU-lift + expm/expm_multiply
+  propagator + time-integration to extract diag(L^+). Same MATHEMATICAL
+  PRODUCT (GNM B-factors), DIFFERENT WORKFLOW. A2A on what each computes;
+  A2O on how each computes it. The prior categorization (A2A=true) was a
+  false-parity framing — the prior benchmark measured project's then-
+  workflow (also LAPACK eigh), masking the workflow distinction. With the
+  refactor, the LAPACK vs project-workflow comparison is the project's
+  own internal speed test on the GNM B-factor task. ProDy comparison is
+  now A2O on workflow.
   """
 
   [[ubiquitin_1ubq.reference_methods]]
@@ -290,4 +295,73 @@ order-of-magnitude estimates extrapolated from sequence length.
   PNAS; Bölinger et al 2010 PLoS CB; Sułkowska et al 2012 PNAS). Wall-clock
   varies wildly by simulation length and hardware. No single reference time
   quoted; "not quoted" is the honest marker. APPLES-TO-ORANGES.
+  """
+
+# ===========================================================================
+# Project-internal A2A comparisons (added 2026-05-11)
+#
+# Per user correction "our workflow is not LAPACK", the natural apples-to-
+# apples comparison for the project's RBS-HDC + complex64 FPU-lift workflow
+# is against other subsystems using the same workflow on different graphs:
+#
+#   - ephemerides-spectral T^52 propagation (52-body resonance graph)
+#   - chess-spectral qm_2d_dynamics / qm_4d_dynamics (640-/45056-dim
+#     phase-coded state)
+#
+# These are not separate "reference methods" in the published literature
+# sense; they are project-internal subsystems that share the workflow.
+# We catalog them here for completeness — the protein-GNM benchmark's
+# numbers can be compared against ephemerides/chess timings to establish
+# whether the workflow's per-Hamiltonian-mvm cost scales as expected.
+# ===========================================================================
+
+[project_internal_a2a_workflow_comparators]
+notes = """
+Project-internal subsystems that use the same canonical workflow
+(complex64 FPU-lift + scipy.linalg.expm or scipy.sparse.linalg.expm_multiply
+propagator). NOT reference methods in the published-literature sense —
+catalog entries so the protein-GNM benchmark's numbers can be cross-
+checked against the project's own subsystems for workflow-consistency.
+"""
+
+  [[project_internal_a2a_workflow_comparators.methods]]
+  name = "ephemerides-spectral T^52 phase evolution"
+  source = "docs/antikythera-maths/ephemerides-spectral (v0.7.0)"
+  workflow_hop = "scipy.linalg.expm(-1j * L_dyn_52x52 * step) @ exp(1j * phases)"
+  what_computed = "52-body resonance graph phase evolution; ~30 day chunks; iterative breathing"
+  apples_to_apples_on_workflow = true
+  notes = """
+  Closest project-internal analog to the protein-GNM workflow at the
+  n=52-ish scale. ephemerides-spectral runs the dense complex128
+  propagator (in the reference instrument) and complex64 HD lift (in the
+  bip_hd_lift path); protein-GNM at n=76-82 occupies the same regime.
+  No per-evolution wall-clock published; the v0.6.x "1000× speedup vs
+  Python BIP" line in CHANGELOG refers to the C backend on the integer-
+  ALU encoder stage, not the FPU dense-expm propagator. Workflow A2A.
+  """
+
+  [[project_internal_a2a_workflow_comparators.methods]]
+  name = "chess-spectral qm_2d_dynamics evolve_under_h0"
+  source = "docs/chess-maths/chess-spectral/python/chess_spectral/qm_2d_dynamics.py"
+  workflow_hop = "scipy.sparse.linalg.expm_multiply((-1j*t)*H0, psi_640)"
+  what_computed = "640-dim phase-coded state evolution under H_0 = -Δ_{P_8^2}"
+  apples_to_apples_on_workflow = true
+  notes = """
+  Chess-spectral uses sparse expm_multiply at C^640 (10 channels x 64
+  modes). The Krylov-based propagator is the canonical scaling-regime
+  variant. Protein-GNM at n=500+ would use the same code path. Workflow
+  A2A on the iterative variant.
+  """
+
+  [[project_internal_a2a_workflow_comparators.methods]]
+  name = "chess-spectral qm_4d_dynamics evolve_under_h0"
+  source = "docs/chess-maths/chess-spectral/python/chess_spectral/qm_4d_dynamics.py"
+  workflow_hop = "scipy.sparse.linalg.expm_multiply((-1j*t)*H0, psi_45056)"
+  what_computed = "45056-dim phase-coded state evolution under 4D path-Laplacian H_0"
+  apples_to_apples_on_workflow = true
+  notes = """
+  Chess-spectral 4D uses sparse expm_multiply at C^45056. Larger n than
+  any protein-GNM target; demonstrates expm_multiply's scaling. Workflow
+  A2A on the iterative variant; data point for predicted ribosome-scale
+  protein-GNM cost.
   """

@@ -1,5 +1,22 @@
 # Protein-folding spectral computational-cost benchmark — 2026-05-11
 
+> **SUPERSEDED 2026-05-11 (same-day correction).** This benchmark
+> measured `numpy.linalg.eigh` on a dense float64 Kirchhoff matrix —
+> the same primitive ProDy GNM uses. Per user correction 2026-05-11
+> ("our workflow is not LAPACK"), this was a **false-parity result**:
+> the benchmark compared LAPACK-vs-LAPACK and framed it as
+> project-vs-ProDy. The corrected benchmark using the project's
+> canonical complex64 FPU-lift workflow lives at
+> [`protein-folding-project-workflow-benchmark-2026-05-11.md`](protein-folding-project-workflow-benchmark-2026-05-11.md).
+> Honest verdict from the corrected benchmark: project workflow is
+> mathematically equivalent to LAPACK at complex64 precision
+> (r=+1.000000 agreement) but ~80-160× slower at protein-GNM scale;
+> LAPACK eigh is the right primitive for single-protein GNM. The
+> spike's accuracy results (r=+0.818 ubiquitin, r=+0.678 villin,
+> r=+0.485 MJ0366) are preserved. This file is retained for provenance
+> of the workflow-distinction lesson.
+
+
 **Lineage:** Companion to the protein-folding validation spike (commit [`a02b379`](../notes/protein-folding-spectral-spike-2026-05-11.md), 2026-05-11). The validation spike established ACCURACY (ubiquitin GNM B-factor Pearson r = +0.818 at the top of the Bahar 1997 published range). This benchmark establishes COMPUTATIONAL COST: runtime of the project's graph-Laplacian spectral approach vs published computation times for the same proteins, with explicit apples-to-apples vs apples-to-oranges classification.
 
 **Spike type:** Cost benchmark with provenance discipline. Standard graph-Laplacian on Cα-contact network; deterministic seed `20260511`; numpy + scipy only; median + IQR over **N = 20 timed trials with 3 warmups**; same vendored hoodoo PDBs as the validation spike. **Provenance:** [`benchmark-protein-spectral-script.py`](benchmark-protein-spectral-script.py); [`protein-folding-benchmark-reference-times.toml`](protein-folding-benchmark-reference-times.toml); [`protein-folding-benchmark-per-comparison-2026-05-11.ndjson`](protein-folding-benchmark-per-comparison-2026-05-11.ndjson) (35 records).
