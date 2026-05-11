@@ -12,9 +12,12 @@ This directory holds **locally vendored copies of external publications** that s
 
 ## Contents
 
-| Hoodoo | Authors | Year | Venue | DOI | Project locus |
-|---|---|---|---|---|---|
-| [`rinaldi-unciuleanu-chiru-2026.xml`](rinaldi-unciuleanu-chiru-2026.xml) | Rinaldi (Unciuleanu) Oana & Costin-Gabriel Chiru | 2026 | *AppliedMath* (MDPI) Vol. 6, Issue 3, Article 48 | [`10.3390/appliedmath6030048`](https://doi.org/10.3390/appliedmath6030048) | spatial-rules SSOT for chess-spectral 4D (`{1,...,8}^4 = 4096`-cell hypercube board); cross-referenced in srmech §3.5.4 fiber-bundle row, §3.5.3(F) product-graph universality, and chess-spectral notebook |
+| Hoodoo | Authors | Year | Venue | DOI / PDB | License | Project locus |
+|---|---|---|---|---|---|---|
+| [`rinaldi-unciuleanu-chiru-2026.xml`](rinaldi-unciuleanu-chiru-2026.xml) | Rinaldi (Unciuleanu) Oana & Costin-Gabriel Chiru | 2026 | *AppliedMath* (MDPI) Vol. 6, Issue 3, Article 48 | [`10.3390/appliedmath6030048`](https://doi.org/10.3390/appliedmath6030048) | CC-BY 4.0 | spatial-rules SSOT for chess-spectral 4D (`{1,...,8}^4 = 4096`-cell hypercube board); cross-referenced in srmech §3.5.4 fiber-bundle row, §3.5.3(F) product-graph universality, and chess-spectral notebook |
+| [`ubiquitin-1ubq.pdb`](ubiquitin-1ubq.pdb) | Vijay-Kumar, Bugg, Cook | 1987 | *J. Mol. Biol.* 194(3):531-544 | [`PDB 1UBQ`](https://www.rcsb.org/structure/1UBQ) / [DOI](https://doi.org/10.1016/0022-2836(87)90679-6) | RCSB public domain (CC0) | structure SSOT for srmech §5.3 protein-folding spectral validation spike (76 Cα residues, X-ray 1.8 Å); B-factor + Fiedler-partition GNM benchmark |
+| [`villin-hp35-2f4k.pdb`](villin-hp35-2f4k.pdb) | Kubelka, Chiu, Davies, Eaton, Hofrichter | 2006 | *J. Mol. Biol.* 359(3):546-553 | [`PDB 2F4K`](https://www.rcsb.org/structure/2F4K) / [DOI](https://doi.org/10.1016/j.jmb.2006.03.034) | RCSB public domain (CC0) | structure SSOT for srmech §5.3 protein-folding spike sanity case (33 resolved residues, ultrafast 3-helix bundle; Kubelka et al 2003 folding time ~700 ns); small-system robustness check |
+| [`mj0366-knotted-2efv.pdb`](mj0366-knotted-2efv.pdb) | Wang, Goh, Wong, Pan, Yan, Song | 2007 | *J. Biol. Chem.* 282(11):8550-8558 | [`PDB 2EFV`](https://www.rcsb.org/structure/2EFV) / [DOI](https://doi.org/10.1074/jbc.M610925200) | RCSB public domain (CC0) | structure SSOT for srmech §5.3 protein-folding spike topological-constraint stretch case (82 Cα residues, trefoil 3_1-knotted backbone); anomaly target for graph-spectral framework's topology-insensitivity boundary |
 
 ### Naming-convention note for `rinaldi-unciuleanu-chiru-2026.xml`
 
