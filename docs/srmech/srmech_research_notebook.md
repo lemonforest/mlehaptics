@@ -235,6 +235,8 @@ Connects to continuous-time quantum walk (CTQW) literature: Childs (2011) `https
 
 **MPM provenance:** structural-layer claims investigated 2026-05-11 in `docs/antikythera-maths/research-mfo/graph_laplacian_hyperring_investigation_findings.md`. Layer (a) cross-polytope STANDS as math; project-marginal at present. Layer (b) eigenphase torus STANDS as both math and load-bearing project structure. A third candidate (Krasner hyperring on degenerate eigenspaces) was investigated and FALSIFIED — MFO Phase B's `22A + 18B + 40E` decomposition under D₃ is standard Maschke + Schur direct-sum representation theory, not Krasner's set-valued algebra. Vocabulary discipline: this section names the algebraic-hyperdimensional ambient layer; the 3D-spatial-interface spherical-compression operator (`memory/user_stance_hyper_as_3d_spatial_interface.md`) is a separate scope and the two should not be conflated.
 
+The cross-polytope eigenbasis and eigenphase torus are **math-instruments** that describe spectral structure (per the project's instrument-vs-phenomenon discipline; see MFO `§VII.1.1`'s two-level ontology and `memory/user_stance_string_theory_instrument_first.md`). They are not field-domain excitations, not matter-wave-domain excitations — they sit outside the physical-domain dichotomy as mathematical descriptions of physical-system structure. Adopting them as project canon for naming spectral-decomposition ambient geometry does not require commitment about the underlying physics of the systems they describe.
+
 ### §3.6 Selection-shape question (host-side masking)
 
 When a user runs a spectral effect on a non-rectangular selection (lasso, magic wand) in Krita / GIMP / Photoshop / Inkscape, who handles the masking?
