@@ -212,6 +212,29 @@ This is the deepest answer to the unification question: srmech is not "the proje
 
 The **protein-folding absorption round** (see §5.3 + [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md)) supplied the strongest evidence for this claim to date: GNM / ANM / NMA on the residue-interaction network is graph-Laplacian eigendecomposition — *literally the same primitive* ephemerides uses on the 52-body resonance graph (§13 gateway-graph Fiedler partition; Matthews φ = +0.336, Spearman ρ = +0.743 vs empirical Δv). Same math, different graph. Not analogy — identity. The **audio absorption round** (§5.2 + [`notes/audio-scoping-2026-05-09.md`](notes/audio-scoping-2026-05-09.md)) instantiates *every row* of the table above (spectrogram → Euclidean grid; HRTF / ambisonics → sphere; periodic loops → torus; acoustic-cavity meshes → triangle mesh; mic-array + Tonnetz → general graph), the cleanest cross-pollination test the framing has faced.
 
+### §3.5.1 Algebraic-hyperdimensional layer — eigenbasis ambient geometry
+
+The six §3.5 rows describe **manifolds the Laplace-Beltrami operator acts on** — substrate geometries for the eigenbasis itself. A separate ambient-geometry layer lives **above** the substrate manifold, on the eigenbasis itself: orthonormal eigenvectors are points in an algebraic-hyperdimensional space of dimension `n = |V|` (or grid-size, or mesh-vertex-count, etc.), and that space has its own geometric structure independent of which substrate manifold the rows above name.
+
+Per the **`hyper = 3D-spatial-interface` distinction** (`memory/user_stance_hyper_as_3d_spatial_interface.md`): this layer is **algebraic-hyperdimensional**, not 3D-spatial-interface — distinct from the spherical-compression operator applied to 3D-bound matter/information at event horizons, gravitational figures, and HDC similarity metrics. Different ontological domain, different vocabulary.
+
+Two project-relevant algebraic-hyperdimensional structures live at this layer:
+
+**(a) Eigenbasis cross-polytope on S^(n−1).** For any graph Laplacian L acting on n vertices, the orthonormal eigenvectors `{v_1, …, v_n}` together with their negatives `{−v_1, …, −v_n}` form **2n vertices of a cross-polytope inscribed in the unit sphere S^(n−1)** (verified numerically; off-diagonal residual 1.1×10⁻¹⁵ at n=6 via `numpy.linalg.eigh`). Vocabulary is informationally new but no current project code exploits the sign-closure structure — `eigh` / `eigvalsh` already preserve orthonormality. Named here for future use; deferred until a use case (e.g., sign-symmetry-aware similarity, antipodal averaging, dyadic group action on eigenspaces) needs it.
+
+**(b) Eigenphase torus T^n — phase-preserving quantum-walk lift.** Quantum walk `U(t) = exp(−i L t)` on ℂ^n evolves eigencomponents as phases `exp(−i λ_k t)` on S¹; the time-evolved state in eigenbasis lives on **T^n indexed by eigenphases**. Classical heat flow `exp(−L t)` is the magnitude-only projection of this richer dynamics (the "magnitude shadow"). Two project loci already ship phase-preserving quantum walks without naming the T^n ambient explicitly:
+
+| Locus | Substrate | Walk type | Ambient |
+|---|---|---|---|
+| `ephemerides_spectral/_research/ephemeris_reference_instrument.py:156-170` | 52-body resonance graph | `U = expm(-1j * L_dyn * step); psi = U @ exp(1j * φ)` | T^52 |
+| `chess_spectral/qm_2d_dynamics.py` + `qm_4d_dynamics.py` `evolve_under_h0` | board-spectral C^640 / C^45056 | `U(t) = exp(−i H_0 t)` projective Hilbert ray | T^640 / T^45056 (via inscribed S^(2N−1) ⊂ C^N) |
+
+Every §3.5 row admits this lift: replace the classical evolution operator `exp(−Δ_g t)` with the unitary quantum-walk operator `exp(−i Δ_g t)`. The substrate manifold is unchanged; the dynamics gain phase information that classical evolution discards. **The project has been quantum-walking on T^n in two loci for over a year without naming the ambient.** Naming surfaces what's already shipped, without new code.
+
+Connects to continuous-time quantum walk (CTQW) literature: Childs (2011) `https://www.cs.umd.edu/~amchilds/teaching/w11/l13.pdf`; Farhi & Gutmann (1998); arxiv:2509.26243 (already cited in `chess_spectral_research_notebook.md` for spectral coverage). Future ships that need phase-coherent evolution on any §3.5 row can read this section as the project's canonical name for the operator.
+
+**MPM provenance:** structural-layer claims investigated 2026-05-11 in `docs/antikythera-maths/research-mfo/graph_laplacian_hyperring_investigation_findings.md`. Layer (a) cross-polytope STANDS as math; project-marginal at present. Layer (b) eigenphase torus STANDS as both math and load-bearing project structure. A third candidate (Krasner hyperring on degenerate eigenspaces) was investigated and FALSIFIED — MFO Phase B's `22A + 18B + 40E` decomposition under D₃ is standard Maschke + Schur direct-sum representation theory, not Krasner's set-valued algebra. Vocabulary discipline: this section names the algebraic-hyperdimensional ambient layer; the 3D-spatial-interface spherical-compression operator (`memory/user_stance_hyper_as_3d_spatial_interface.md`) is a separate scope and the two should not be conflated.
+
 ### §3.6 Selection-shape question (host-side masking)
 
 When a user runs a spectral effect on a non-rectangular selection (lasso, magic wand) in Krita / GIMP / Photoshop / Inkscape, who handles the masking?
