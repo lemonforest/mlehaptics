@@ -18,7 +18,17 @@ This directory holds **locally vendored copies of external publications** that s
 
 ### Naming-convention note for `oana-chiru-2026.xml`
 
-The first author's name follows Romanian academic convention: **married surname (maiden surname) given name**. So **Rinaldi** is the surname (or **Unciuleanu** if honoring the maiden name); **Oana** is the given name. Western-style surname-only citations should use **"Rinaldi & Chiru 2026"** or **"Rinaldi-Unciuleanu & Chiru 2026"**. The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Prose citations in srmech and elsewhere should use the surname form.
+The first author's name follows Romanian academic convention: **married surname (maiden surname) given name**. So:
+
+- **Given name**: Oana
+- **Married surname**: Rinaldi
+- **Maiden surname**: Unciuleanu
+
+**Project convention: honor the maiden name.** Prose citations in srmech and elsewhere use **"Unciuleanu-Chiru 2026"** — recognizing the maiden name preserves the author's pre-marriage publication record and is the form to use throughout this project unless a downstream context explicitly requires the married surname.
+
+The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Filename ≠ canonical citation; prose citations use the surname form.
+
+**Note on the citation slip.** The user initially miscalled the citation "Oana-Chiru" thinking both halves were surnames; the convention reads given-name-last in Romanian academic listing, so "Oana" is the given name and the surname is "Rinaldi" or (preferred) "Unciuleanu". Recorded here for future reference so the same mistake isn't re-introduced by reading the verbatim author string without parsing the convention.
 
 ## When to add a new hoodoo
 
