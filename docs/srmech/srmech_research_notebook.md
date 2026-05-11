@@ -296,11 +296,11 @@ When discussing HDC in formal contexts, distinguish which flavour is operative; 
 
 **(F) Product-graph universality.** For graphs `G_1, ..., G_d`, both the **Cartesian product** (graph-theory `\square` operator) and the **strong product** (graph-theory `\boxtimes` operator) give closed-form access to composed-system spectra: adjacency and Laplacian eigenvalues of the product are sums of eigenvalues of the factors (Imrich-Klavžar *Product Graphs*). This is a math-identity that applies anywhere the project has a composed-graph structure:
 
-- **Chess-spectral 4D** (formalized in [hoodoos/oana-chiru-2026.xml](hoodoos/oana-chiru-2026.xml) — Unciuleanu-Chiru 2026, DOI `10.3390/appliedmath6030048`): rook graph is the Hamming graph `H(4,8)`, equivalently the Cartesian product of four `K_8` factors (uniform mobility 28; diameter 4); king graph is the strong product of four `P_8` factors (interior degree 80; Chebyshev-metric diameter 7); bishop graph is parity-stratified by `π(x,y,z,w) = (x+y+z+w) mod 2`; knight is `(2,1)`-leaper with interior max degree 48.
+- **Chess-spectral 4D** (formalized in [hoodoos/oana-chiru-2026.xml](hoodoos/oana-chiru-2026.xml) — Rinaldi-Unciuleanu & Chiru 2026, DOI `10.3390/appliedmath6030048`): rook graph is the Hamming graph `H(4,8)`, equivalently the Cartesian product of four `K_8` factors (uniform mobility 28; diameter 4); king graph is the strong product of four `P_8` factors (interior degree 80; Chebyshev-metric diameter 7); bishop graph is parity-stratified by `π(x,y,z,w) = (x+y+z+w) mod 2`; knight is `(2,1)`-leaper with interior max degree 48.
 - **Coding theory**: Hamming graphs `H(n,q)` underlie Hamming-distance codes — direct sibling of the project's HDC bipolar flavour (`{−1,+1}^D` per §3.5.3(B)).
 - **Telecom MIMO**: Cartesian-product channel matrices (Tx × Rx antenna arrays) admit Kronecker / Cartesian-product eigendecomposition.
 - **Power grid**: Cartesian-product transmission/distribution coupling on hierarchical bus graphs.
-- **Future extension candidate**: any project domain with a composed-system structure benefits from invoking this identity rather than computing the full eigendecomposition directly. **Provenance for chess-4D**: Unciuleanu-Chiru 2026 explicitly names "spectral analysis of move graphs" as future work; chess-spectral's [qm_2d](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py) + [qm_4d](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py) modules are the implemented spectral analysis of those move graphs.
+- **Future extension candidate**: any project domain with a composed-system structure benefits from invoking this identity rather than computing the full eigendecomposition directly. **Provenance for chess-4D**: Rinaldi-Unciuleanu & Chiru 2026 explicitly names "spectral analysis of move graphs" as future work; chess-spectral's [qm_2d](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py) + [qm_4d](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py) modules are the implemented spectral analysis of those move graphs.
 
 ### §3.5.4 Fiber-bundle structure — rich features over a discrete base
 
@@ -315,7 +315,7 @@ A distinct manifold structure not captured by the six §3.5 rows: **a fiber bund
 | **Power grid** | bus / generator / load graph | `N_nodes` | measurement type (voltage / current / phase / power) | `N · 4` |
 | **CNN feature maps** | spatial position | `H × W` | feature channel | `H · W · C` |
 
-**Anchor citations**: chess-spectral 4D's spatial base is the Unciuleanu-Chiru 2026 hypercube (`{1,...,8}^4`, Chebyshev metric, interior degree `3^4 − 1 = 80`) — vendored at [`hoodoos/oana-chiru-2026.xml`](hoodoos/oana-chiru-2026.xml). chess-spectral 2D's 64×10 = 640D and 4D's 4096×11 = 45056D structures are explicit in [`qm_2d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py:103) and [`qm_4d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py).
+**Anchor citations**: chess-spectral 4D's spatial base is the Rinaldi-Unciuleanu & Chiru 2026 hypercube (`{1,...,8}^4`, Chebyshev metric, interior degree `3^4 − 1 = 80`) — vendored at [`hoodoos/oana-chiru-2026.xml`](hoodoos/oana-chiru-2026.xml). chess-spectral 2D's 64×10 = 640D and 4D's 4096×11 = 45056D structures are explicit in [`qm_2d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_2d.py:103) and [`qm_4d.py`](../chess-maths/chess-spectral/python/chess_spectral/qm_4d.py).
 
 **A third distinct sense of "hyper" surfaces here.** Project usage of "hyper" now has three documented senses:
 
@@ -327,7 +327,7 @@ When discussing "hyper" anywhere in the project, distinguish which of the three 
 
 **Operator orthogonality**: the §3.5.4 fiber bundle decomposes as `total = base × fiber` (tensor product). The graph-Laplacian + eigenphase-torus lift (§3.5.1 layer b) applies to the **base** factor; HDC bind/bundle operations apply to the **fiber** factor; group-theoretic symmetry actions (D₄ on chess-2D base, B₄ on chess-4D base, signed-permutation groups generally) act on the base. The total-space `C^N` quantum state in chess-spectral is `psi ∈ C^|base| × C^k` (tensor product), with the channel-projector `P_c` (sparse `I_k × I_|base|` Kronecker slice) reading the per-fiber-component probability via Born-rule measurement. Math identity: this is **standard fibered representation theory**, applied to the chess move-graph base.
 
-**MPM provenance**: chess-spectral's qm_4d implementation directly addresses Unciuleanu-Chiru's future-work bullet "spectral analysis of move graphs." The project does not claim invention of 4D chess (cite Unciuleanu-Chiru for the spatial rules); the project contributes the spectral-analysis implementation of the open direction those authors named.
+**MPM provenance**: chess-spectral's qm_4d implementation directly addresses Rinaldi-Unciuleanu & Chiru's future-work bullet "spectral analysis of move graphs." The project does not claim invention of 4D chess (cite Rinaldi-Unciuleanu & Chiru for the spatial rules); the project contributes the spectral-analysis implementation of the open direction those authors named.
 
 ### §3.6 Selection-shape question (host-side masking)
 

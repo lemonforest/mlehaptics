@@ -24,11 +24,11 @@ The first author's name follows Romanian academic convention: **married surname 
 - **Married surname**: Rinaldi
 - **Maiden surname**: Unciuleanu
 
-**Project convention: honor the maiden name.** Prose citations in srmech and elsewhere use **"Unciuleanu-Chiru 2026"** — recognizing the maiden name preserves the author's pre-marriage publication record and is the form to use throughout this project unless a downstream context explicitly requires the married surname.
+**Project convention: hyphenate both surnames of the first author.** Prose citations in srmech and elsewhere use **"Rinaldi-Unciuleanu & Chiru 2026"** — honoring both the married name (Rinaldi) AND the maiden name (Unciuleanu) avoids choosing between them and respects the author's pre-marriage publication record alongside her current name. The second author's surname (Chiru) is separated by ampersand for two-author clarity.
 
-The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Filename ≠ canonical citation; prose citations use the surname form.
+The filename `oana-chiru-2026.xml` mixes the first author's given name with the second author's surname — kept for upstream consistency with the [`lemonforest/python-chess4d-oana-chiru`](https://github.com/lemonforest/python-chess4d-oana-chiru) repository where the paper XML originates. Filename ≠ canonical citation; prose citations use the hyphenated-surname form.
 
-**Note on the citation slip.** The user initially miscalled the citation "Oana-Chiru" thinking both halves were surnames; the convention reads given-name-last in Romanian academic listing, so "Oana" is the given name and the surname is "Rinaldi" or (preferred) "Unciuleanu". Recorded here for future reference so the same mistake isn't re-introduced by reading the verbatim author string without parsing the convention.
+**Note on the citation slip.** The user initially miscalled the citation "Oana-Chiru" thinking both halves were surnames; the convention reads given-name-last in Romanian academic listing, so "Oana" is the given name and the surnames are Rinaldi (married) and Unciuleanu (maiden). Recorded here for future reference so the same mistake isn't re-introduced by reading the verbatim author string without parsing the convention.
 
 ## When to add a new hoodoo
 
