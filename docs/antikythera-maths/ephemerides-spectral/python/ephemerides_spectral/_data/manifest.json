@@ -1,8 +1,8 @@
 {
   "files": {
     "_data/initial_phases.json": {
-      "sha256": "613f067ebe27f87d5aba618cd9f08678fd9ec6fbc4ac1764ff42792291c89915",
-      "size_bytes": 3877
+      "sha256": "22159d58f84ee766e8535695e89bb38016751dafad09cd1037e10dbf736536f9",
+      "size_bytes": 3878
     },
     "_research/__init__.py": {
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
@@ -39,6 +39,18 @@
     "_research/attested/axial_seamount/row.schema.json": {
       "sha256": "a0a2d854388267106ded0f55079fab83d4fb18b19dad254863292292a20f3744",
       "size_bytes": 4246
+    },
+    "_research/attested/cmb_power_spectrum/descriptor.toml": {
+      "sha256": "1d64ecb71f24cf112079588d8b7f497cd07602b66743c82d4ebc45a3d5df5a91",
+      "size_bytes": 4736
+    },
+    "_research/attested/cmb_power_spectrum/row.ndjson": {
+      "sha256": "0103141005d7e43557a6eb0b4ac2d09c314765b36f58e3787d0779523c47b6e0",
+      "size_bytes": 62699
+    },
+    "_research/attested/cmb_power_spectrum/row.schema.json": {
+      "sha256": "8303c0458c8beec70c510a4e1de8bd9f86ef008360d8a926c9557d33911428de",
+      "size_bytes": 4434
     },
     "_research/attested/dynamical_regime/descriptor.toml": {
       "sha256": "2a80551e7c157ba853dba49471747b1a16ad4b12ddf1df3b530c2d5651a0f793",
