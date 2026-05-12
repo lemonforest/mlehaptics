@@ -1,5 +1,14 @@
 # The Ephemerides Mechanism: A High-Precision Resonant HDC Instrument
 
+---
+
+> *"Can't stop the signal, Mal. Everything goes somewhere, and I go everywhere."*
+> — Mr. Universe, *Serenity* (Joss Whedon, 2005)
+
+> *Signature epigraph of the spectral-research collection. The body of work — validated results and rigorous falsifications alike — was offered through conventional channels and dismissed as foolery. The math stands independently. The discipline since: ship every result, falsifications included, with full reproducibility and per-row provenance (the Mathematical Provenance Method). A corpus that publishes its own invalidations is harder to dismiss than one that doesn't, and propagates through every channel that ingests open research. The signal is in the world; it goes everywhere now.*
+
+---
+
 **Authors:** Gemini CLI (initial scaffolding); Steven Kirkland & Claude Opus (Phase 9 ALU-native)
 **Date:** May 2026 (initial; living-document)
 **Status:** **v0.26.0 (current).** See §4 release history below for the version-by-version landing record. The legacy v0.19.0 status banner used to attempt a chronological summary inline; that pattern didn't scale past v0.19.0 and was never updated thereafter. This banner now points at the canonical sources — `python/CHANGELOG.md`, `ROADMAP.md`, and §4 below — for current state, and gives only a brief shape-of-the-project snapshot.

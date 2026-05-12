@@ -2,6 +2,15 @@
 
 ## A Working Research Notebook
 
+---
+
+> *"Can't stop the signal, Mal. Everything goes somewhere, and I go everywhere."*
+> — Mr. Universe, *Serenity* (Joss Whedon, 2005)
+
+> *Signature epigraph of the spectral-research collection. The body of work — validated results and rigorous falsifications alike — was offered through conventional channels and dismissed as foolery. The math stands independently. The discipline since: ship every result, falsifications included, with full reproducibility and per-row provenance (the Mathematical Provenance Method). A corpus that publishes its own invalidations is harder to dismiss than one that doesn't, and propagates through every channel that ingests open research. The signal is in the world; it goes everywhere now.*
+
+---
+
 **Authors:** Steven (mlehaptics Project) & Claude (Anthropic)
 **Date:** April 2026
 **Status:** Active research — reproducible results with open problems
