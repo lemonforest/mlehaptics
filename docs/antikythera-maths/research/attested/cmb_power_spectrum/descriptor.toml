@@ -14,16 +14,21 @@
 #
 # Ground-truth source: Planck Collaboration 2018 VI (Aghanim et al. 2020)
 # "Planck 2018 results VI: Cosmological parameters", A&A 641:A6.
-# Full binned spectrum with errors (215 bands across ℓ=2-2508) lives in
-# the Planck Legacy Archive (PR3 / R3.01 likelihood release). This first
-# ship includes a representative slice (~15 rows) covering the key
-# features — Sachs-Wolfe plateau, first 3 acoustic peaks, first 2 troughs,
-# damping-tail onset — at conservative 2-significant-figure precision.
+# Full TT spectrum with errors (111 rows across ℓ=2-2499) is now ingested
+# from the Planck Legacy Archive (PR3 / R3.01 likelihood release):
+#   - Low-ℓ rows (ℓ=2..29, 28 rows, half_width=0) from
+#     COM_PowerSpect_CMB-TT-full_R3.01.txt (Commander likelihood,
+#     unbinned per-ℓ, asymmetric -dDl/+dDl PR3 errors)
+#   - High-ℓ rows (ℓ~47..2499, 83 binned bands, half_width~10-16) from
+#     COM_PowerSpect_CMB-TT-binned_R3.01.txt (Plik likelihood,
+#     symmetric Gaussian errors).
+# precision_flag = "high" for all rows. Per-row provenance points to
+# Planck 2018 VI as the canonical published-result paper; per-row
+# source_file records the actual PLA filename used.
 #
-# Full 215-band ingest is a follow-up commit: the Planck Legacy Archive
-# distributes the binned TT/TE/EE C_ℓ tables as text files with
-# documented column structure, fetchable via the standard
-# csv_bulk / file adapter once the URL+SHA256 lock is recorded.
+# TE and EE spectra (and the corresponding -binned / -full tables in
+# the same Legacy Archive) are scope for follow-up ships once the TT
+# ship merges.
 
 [source]
 key = "cmb_power_spectrum"
@@ -55,7 +60,7 @@ data_schema_id = "cmb_power_spectrum.row.v1"
 data_schema_path = "row.schema.json"
 
 [rendering]
-cite_as_template = "CMB Power Spectrum Catalogue (curated against Planck 2018 VI: Aghanim et al. 2020 *A&A* 641:A6, doi:10.1051/0004-6361/201833910; representative-slice seed pending full PR3 Legacy Archive ingest); revision retrieved {retrieved_at:%Y-%m-%d}."
+cite_as_template = "CMB Power Spectrum Catalogue (curated against Planck 2018 VI: Aghanim et al. 2020 *A&A* 641:A6, doi:10.1051/0004-6361/201833910; full PR3 / R3.01 TT ingest from Planck Legacy Archive COM_PowerSpect_CMB-TT-{full,binned}_R3.01.txt); revision retrieved {retrieved_at:%Y-%m-%d}."
 purpose_template = "ground-proof CMB power at multipole bin {schema.ell_bin_label} ({schema.feature}) for IR-end spectral-dimension probe"
 
 [attestation]
