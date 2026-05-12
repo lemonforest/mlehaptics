@@ -1,0 +1,5 @@
+{"test": "rotation_pca_canonical", "results": [{"label": "rot_30deg_z", "cosine": 1.0000001192092896}, {"label": "rot_90deg_z", "cosine": 1.0000001192092896}, {"label": "rot_180deg_z", "cosine": 1.0000001192092896}, {"label": "rot_90deg_x", "cosine": 1.0000001192092896}, {"label": "rot_90deg_y", "cosine": 1.0000001192092896}], "min": 1.0000001192092896}
+{"test": "translation_pca_canonical", "cosine": 1.0000001192092896}
+{"test": "cross_protein_pca_canonical", "cosine": -0.5816136598587036}
+{"test": "cross_protein_raw_voxel_hdc", "cosine": -0.3434511721134186}
+{"test": "config", "voxel_n": 64, "sigma": 4.0, "fiedler_weighted_pca": true, "sign_disambig": "skewness"}
