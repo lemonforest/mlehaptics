@@ -1,0 +1,23 @@
+{
+  "effect": "difference_of_gaussians",
+  "description": "DoG / unsharp mask: g(\u03bb) = exp(-\u03c3\u2081\u00b2\u03bb/2) \u2212 exp(-\u03c3\u2082\u00b2\u03bb/2)",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "exp(-0.5 * sigma1**2 * lam_k) - exp(-0.5 * sigma2**2 * lam_k)",
+        "params": {
+          "sigma1": 1.5,
+          "sigma2": 3.5
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}

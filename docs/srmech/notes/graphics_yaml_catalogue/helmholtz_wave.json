@@ -1,0 +1,23 @@
+{
+  "effect": "helmholtz_wave",
+  "description": "Standing-wave / ripple effect: g(\u03bb) = cos(c\u00b7t\u00b7\u221a\u03bb)",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "cos(c * t * sqrt(lam_k + 1e-12))",
+        "params": {
+          "c": 1.0,
+          "t": 8.0
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}

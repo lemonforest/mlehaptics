@@ -1,0 +1,23 @@
+{
+  "effect": "anisotropic_diffusion",
+  "description": "Anisotropic linear diffusion (tensor-decomposed); different \u03c3 per axis",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "exp(-0.5 * sigma_x**2 * lam_x - 0.5 * sigma_y**2 * lam_y)",
+        "params": {
+          "sigma_x": 1.0,
+          "sigma_y": 6.0
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}

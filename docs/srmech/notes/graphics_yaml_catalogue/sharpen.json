@@ -1,0 +1,22 @@
+{
+  "effect": "sharpen",
+  "description": "High-pass sharpen: g(\u03bb) = 1 + \u03b1\u00b7\u03bb (enhances high frequencies)",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "1 + alpha * lam_k",
+        "params": {
+          "alpha": 0.5
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}

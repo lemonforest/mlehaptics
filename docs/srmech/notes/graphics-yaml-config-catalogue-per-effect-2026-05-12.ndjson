@@ -1,0 +1,6 @@
+{"test": "catalogue_summary", "n_effects": 5, "n_pass": 5, "verdict": "PASS"}
+{"effect": "heat_kernel_blur", "config_file": "heat_kernel_blur.json", "success": true, "error": null, "output_stats": {"min": 0.001847673504229208, "max": 1.1892138088276587, "mean": 0.6206793546735541, "std": 0.28623485876360716}}
+{"effect": "sharpen", "config_file": "sharpen.json", "success": true, "error": null, "output_stats": {"min": -0.3855471770353568, "max": 1.790148843185998, "mean": 0.6206793546735541, "std": 0.345216919887596}}
+{"effect": "difference_of_gaussians", "config_file": "difference_of_gaussians.json", "success": true, "error": null, "output_stats": {"min": -0.12084009928298006, "max": 0.17191196444964085, "mean": 2.168404344971009e-19, "std": 0.030750710000368223}}
+{"effect": "helmholtz_wave", "config_file": "helmholtz_wave.json", "success": true, "error": null, "output_stats": {"min": -0.03269759899240174, "max": 1.218244446477073, "mean": 0.6206793546536924, "std": 0.2716197146889329}}
+{"effect": "anisotropic_diffusion", "config_file": "anisotropic_diffusion.json", "success": true, "error": null, "output_stats": {"min": -0.0012370142390603633, "max": 1.1790822924931708, "mean": 0.6206793546735541, "std": 0.28389404379312255}}

@@ -1,0 +1,23 @@
+{
+  "effect": "heat_kernel_blur",
+  "description": "Gaussian-like blur via heat-kernel decay on lattice Laplacian",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "exp(-0.5 * sigma_x**2 * lam_x - 0.5 * sigma_y**2 * lam_y)",
+        "params": {
+          "sigma_x": 3.0,
+          "sigma_y": 3.0
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}
