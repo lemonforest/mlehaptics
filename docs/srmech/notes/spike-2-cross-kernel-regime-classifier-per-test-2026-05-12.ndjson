@@ -1,0 +1,2 @@
+{"test": "per_kernel_classifiers", "chess": {"accuracy": 1.0, "n_regimes": 4, "regimes": ["tactical", "quiet", "endgame", "opening"], "chance_baseline": 0.25}, "ephem": {"accuracy": 1.0, "n_regimes": 5, "regimes": ["chaotic", "resonant", "transit", "libration", "tidal_locked"], "chance_baseline": 0.2}, "doom": {"accuracy": 1.0, "n_regimes": 3, "regimes": ["combat", "explore", "safe"], "chance_baseline": 0.3333333333333333}}
+{"test": "unified_classifier", "n_total_regimes": 12, "unified_accuracy": 1.0, "chance_baseline": 0.08333333333333333, "verdict": "PASS"}

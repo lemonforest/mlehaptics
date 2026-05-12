@@ -1,0 +1,1 @@
+{"test": "spike_3_summary", "kernels_tested": ["chess", "ephem", "doom"], "decode_errors": {"chess": 8.622245894284043e-15, "ephem": 7.474002194205275e-15, "doom": 8.617576157955908e-15}, "all_decode_pass": true, "verdict": "PASS"}
