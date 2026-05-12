@@ -1,0 +1,4 @@
+{"test": "timing_breakdown", "n_residues": 76, "voxel_n": 64, "hypervector_dim": 262144, "eigh_ms": 20.320999901741743, "voxelize_ms": 1785.5044000316411, "render_ms": 518.8027999829501, "hdc_query_ms": 6.1211001593619585}
+{"test": "similarity_v1_naive", "self": 0.9998573660850525, "pert_small": 0.9995413422584534, "pert_large": -0.9718862175941467, "independent": 0.9227761626243591, "random": -0.0034102394711226225, "monotonic_decreasing": false}
+{"test": "similarity_v2_sign_only", "self": 1.0, "pert_small": 0.972757875919342, "pert_large": 0.17119713127613068, "independent": -0.11088358610868454, "random": 0.0020329891704022884, "monotonic_decreasing": true}
+{"test": "similarity_v3_tanh_smooth", "self": 1.0000017881393433, "pert_small": 0.999844491481781, "pert_large": 0.9841052889823914, "independent": 0.9442246556282043, "random": 0.0008966082241386175, "monotonic_decreasing": true}

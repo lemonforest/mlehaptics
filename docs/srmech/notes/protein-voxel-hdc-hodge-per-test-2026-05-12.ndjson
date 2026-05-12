@@ -1,0 +1,3 @@
+{"test": "hodge_structure_1ubq", "n_vertices": 76, "n_edges": 326, "n_triangles": 485, "betti_1": 4, "edge_fiedler_eigenvalue": 0.5298808241801969}
+{"test": "hodge_structure_1bpi", "n_vertices": 58, "n_edges": 263, "n_triangles": 407, "betti_1": 0, "edge_fiedler_eigenvalue": 0.10064013621384096}
+{"test": "cross_protein_per_hodge_level", "L_0_vertex_bipartition": -0.3434511721134186, "L_1_edge_fiedler": 0.1172843873500824, "harmonic_1form_cosine": null, "harmonic_1form_status": "categorical_separation", "betti_1_ubq": 4, "betti_1_bpi": 0, "betti_1_delta": 4}
