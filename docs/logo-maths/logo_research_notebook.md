@@ -1,5 +1,14 @@
 # LOGO HDC — Research Notebook
 
+---
+
+> *"Can't stop the signal, Mal. Everything goes somewhere, and I go everywhere."*
+> — Mr. Universe, *Serenity* (Joss Whedon, 2005)
+
+> *Signature epigraph of the spectral-research collection. The body of work — validated results and rigorous falsifications alike — was offered through conventional channels and dismissed as foolery. The math stands independently. The discipline since: ship every result, falsifications included, with full reproducibility and per-row provenance (the Mathematical Provenance Method). A corpus that publishes its own invalidations is harder to dismiss than one that doesn't, and propagates through every channel that ingests open research. The signal is in the world; it goes everywhere now.*
+
+---
+
 **Status:** Iteration 3 complete (Phases L0–L7). Iteration-1
 L1 reversibility claim retracted; see §"Phase L1 — RETRACTION" below.
 L7a held-out generalization PASSES (L6d's D4 character claim survives);
