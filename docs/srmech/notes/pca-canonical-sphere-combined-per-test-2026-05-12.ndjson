@@ -1,0 +1,4 @@
+{"test": "canonical_run", "n_iter": 4, "converged": true, "final_eigenvalue": 0.002733907138510828, "final_overlap_with_initial": 0.0026257795791274946}
+{"test": "raw_run", "n_iter": 4, "final_overlap_with_initial": 0.22762090063250537}
+{"test": "rotation_invariance_of_fixed_point", "results": [{"label": "rot_30deg_z", "psi_star_cosine": 1.0, "n_iter": 4, "overlap_init": 0.002625779578949019}, {"label": "rot_90deg_z", "psi_star_cosine": 1.0, "n_iter": 4, "overlap_init": 0.0026257795805380503}, {"label": "rot_90deg_x", "psi_star_cosine": 0.9999999999999997, "n_iter": 4, "overlap_init": 0.0026257795798281113}, {"label": "rot_90deg_y", "psi_star_cosine": 1.0, "n_iter": 4, "overlap_init": 0.0026257795802255043}, {"label": "rot_180deg_y", "psi_star_cosine": 1.0, "n_iter": 4, "overlap_init": 0.00262577957865517}], "mean": 1.0, "min": 0.9999999999999997}
+{"test": "cross_protein_canonical", "cosine": 1.241570037973872e-10, "voxel_hdc_baseline": 0.582}
