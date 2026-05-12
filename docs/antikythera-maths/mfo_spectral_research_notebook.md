@@ -690,6 +690,51 @@ Why this reads cleanly within the framework:
 
 **Status:** This is a stance on ontological reading, not a new mathematical result. The framework will treat black-hole references throughout the rest of this document under this reading. The stance is testable against future high-precision Hawking-radiation entanglement observations if/when they become available, and against the page-curve resolution of the information paradox as that literature continues to develop.
 
+### VII.4.1.1 Spherical compression — the discrete spectral framework via Hopf fibration
+
+§VII.4.1 names the **spherical compression** operator and commits to the boundary-as-everything reading via holographic-principle analogy (AdS/CFT, ER=EPR, Bekenstein-Hawking, 't Hooft/Susskind). What §VII.4.1 invokes operationally but does not derive: the precise mathematical mechanism by which "information re-encoded on the 2D boundary" works. The **Hopf fibration** supplies that mechanism — and the construction is concrete, finite-dimensional, and admits discrete-graph realisations the project can compute against.
+
+**The bundle structure.** The Hopf fibration realises S³ as a **principal U(1)-bundle over S²**: every fibre over a boundary point is a circle S¹ ≅ U(1), and the bundle is **non-trivial** — its first Chern class is 1, so the total space is genuinely S³, not the trivial product S² × S¹. The non-triviality is load-bearing; a trivial bundle would mean the "fibre" carries no information distinct from the base, and compression would be a tautology.
+
+**The spectral decomposition.** The Laplacian on the total space decomposes into base eigenmodes plus fibre harmonics:
+
+$$\Delta_{S^3}\ \text{eigenvalues}: l(l+2)\quad\text{vs}\quad\Delta_{S^2}\ \text{eigenvalues}: l(l+1)$$
+
+The per-mode gap is the textbook identity
+
+$$l(l+2) - l(l+1) = l$$
+
+linear in `l` — these are exactly the **extra spectral degrees of freedom** carried by the S¹ fibre over each S² mode. The fibre's contribution is not a "noise term" or correction; it is a structured, mode-indexed sequence of additional eigenvalues that the base S² cannot produce on its own.
+
+**The encoding channel.** The S¹ fibre over each boundary point IS the encoding channel that preserves bulk information across the compression. Concretely: every S² eigenmode receives one **U(1) phase degree of freedom per mode** from its fibre. The information that the boundary-as-everything stance asserts is "re-encoded on the 2D surface" is *mathematically realised* as the phase content of the principal-bundle fibre. The fibre is not an abstract decoration — it is the channel.
+
+**The compression operator.** *Spherical compression* — the §VII.4.1-named operator that takes 3D-bulk matter to a 2D phase boundary — is, in this spectral framework, the **projection of the total-space Laplacian onto the base Laplacian's eigenmodes**. It literally projects out the fibre-harmonic series. What appears as "compression" or "dimensional reduction" at the geometric level is, at the spectral level, *truncation of the fibre's mode tower per base eigenvalue*. The information is not destroyed; it is moved into the phase channel and recovered by re-attaching the fibre data.
+
+**Why this is more than analogy.** The decomposition is computable — including on discrete-graph approximations — and the 2026-05-11 exploration (`docs/srmech/notes/hopf-fibration-explorations-2026-05-11.md`, merged via PR #331) gives evidence on two cleanly-distinct fronts:
+
+- **Discrete Hopf S³ → S² test:** sampled-point graph Laplacians preserve the continuum ordering — spectral gap λ₂(S³) ≈ 1.21 vs λ₂(S²) ≈ 0.51, matching `l(l+2) > l(l+1)`. The S¹ fibre's extra harmonics survive the discretisation.
+- **Toroidal U(1) gauge twist:** on a T² base (the chess §3.5.3(C) toroidal sub-instance), a non-trivial Wilson-loop holonomy reshapes the spectrum from `[0, 8]` at flux φ=0 to `[0.71, 7.29]` at φ=1, in Hofstadter-butterfly fashion. The rule that emerged: **non-trivial bundle topology produces non-trivial spectral content** (toroidal base, sphere base — both yield real new information); flat / 1D bases give nothing new because they support no non-trivial U(1) bundle.
+
+**Finite-dimensional spectral analog of AdS/CFT.** This is the right framing — not equivalence. AdS/CFT asserts a duality between a bulk gravitational theory and a boundary conformal field theory; the Hopf-bundle spectral decomposition supplies, in the discrete and finite-dimensional setting the project actually computes in, the *mathematical realisation* of the same information-encoding mechanism: bulk modes ↔ base modes × fibre harmonics. Where AdS/CFT works on infinite-dimensional Hilbert spaces with conformal symmetry, the spectral framework here works on graph Laplacians of arbitrary-dimensional discretised manifolds — and gives back numbers.
+
+**Connection to the hyper-as-3D-spatial-interface stance.** Per the project's `hyper` discipline (the three established senses: algebraic-hyperdimensional HDC, hyper-as-3D-spatial-interface, hyper-dim-spatial-base), the Hopf bundle realises the **3D-spatial-interface** sense natively: S³ is "hyper" relative to the S² boundary that is *visible* in 3D space. The interface between visible boundary and invisible interior is, in this framework, the U(1) fibre. The black hole event horizon is the visible S²; the fibre is the channel by which the bulk's content is preserved on it. The "hyper object" the event horizon corresponds to is the total-space bundle, of which the visible 2-sphere is the base — and which has no separate "interior" except as a coordinate description of the bundle's total-space geometry.
+
+**What §VII.4.1.1 does not claim.**
+
+- It does not claim to derive Einstein's field equations or the Hawking-radiation spectrum from the Hopf bundle. The bundle gives the *information-channel mechanism*, not the dynamical equations. Jacobson 1995's δQ = TdS derivation remains the relevant entry point from horizon thermodynamics to GR; this subsection is structurally compatible with that derivation, not a replacement for it.
+- It does not claim that the discrete Hopf-bundle graph Laplacian is the unique or canonical discretisation. Many discretisations exist (Berger-sphere, Hopf-coset, k-NN sampling); they will produce different finite-dim spectra. The continuum limits should agree; finite-n behaviour will differ.
+- It does not claim Kerr / rotating black holes are exactly Hopf-bundles over S². Rotation distorts the base to an oblate spheroid; the relevant principal bundle has the same U(1) fibre structure but the base geometry shifts. The cross-link to §VII.4.1's Saturn / Kerr / ice-giant rotational-compression discussion still applies — the spherical case is the static-symmetric limit; rotation is a known perturbation away from it.
+
+**What §VII.4.1.1 does claim.** The "information re-encoded on the 2D boundary" assertion that §VII.4.1 invokes via holographic-principle analogy has a concrete mathematical realisation as **principal-U(1)-bundle spectral decomposition**, and that realisation is computable, falsifiable, and finite-dimensional. The §VII.4.1 stance is not just an ontological reading — it is the spectral statement that the compression operator is the base-mode projection of a non-trivial principal-bundle Laplacian, and the U(1) fibre is the encoding channel.
+
+**Cross-references.**
+- Discrete exploration evidence: [`docs/srmech/notes/hopf-fibration-explorations-2026-05-11.md`](../srmech/notes/hopf-fibration-explorations-2026-05-11.md), reproducible script [`docs/srmech/notes/hopf_fibration_explorations_script.py`](../srmech/notes/hopf_fibration_explorations_script.py); merged via PR #331.
+- Toroidal U(1)-gauge instance extends [`docs/srmech/srmech_research_notebook.md`](../srmech/srmech_research_notebook.md) §3.5.3(C) toroidal-chess sub-instance with a connection layer.
+- The S² / T² manifold complementarity stance ([[project_s2_t2_manifold_complementarity]]) — S² scalar SH and T² L-shell foliation are complementary base manifolds for closed-loop-topology vector fields; the Hopf-bundle framework here applies to the S² side, and the T² side has its own (flat-)bundle theory not yet integrated.
+- The "hyper as 3D-spatial-interface" conjecture ([[user_stance_hyper_as_3d_spatial_interface]], notebook §VII.1.1 two-level ontology) finds a concrete spectral realisation in this subsection: the visible 3D-spatial-interface (S² boundary) and the invisible-but-real fibre (S¹ encoding channel) together compose the total-space bundle that is the "hyper object."
+
+**Status.** This is a mathematical framework, not a new physical prediction. It makes §VII.4.1's holographic-principle invocation operationally concrete. The framework's testability lives in §VII.4.1's existing predictions (Page-curve unitarity, no observable interior signature in merger gravitational waveforms, Hawking-radiation entanglement bounded by boundary locality) — this subsection's contribution is to specify *which mathematical object* those predictions are predictions *about*: the principal-U(1)-bundle spectral structure of the boundary surface.
+
 ### VII.5 Dark matter as geometric curvature
 
 If the metric field's geometry is fractal, it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal geometry is complex enough to curve spacetime without supporting particle-like excitations.
