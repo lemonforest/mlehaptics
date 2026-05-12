@@ -365,6 +365,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     found = discover_descriptors(_attested_root())
     assert sorted(found.keys()) == [
         "axial_seamount",
+        "cmb_power_spectrum",
         "dynamical_regime",
         "dynamical_regime_probes",
         "earthref_sc",
@@ -400,6 +401,8 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["dynamical_regime_probes"].adapter_name == "literature_curated"
     assert found["pluto_charon_dynamical_spectrum"].adapter_name == "literature_curated"
     assert found["loki_patera"].adapter_name == "literature_curated"
+    # First cosmology-instrument ship (Planck 2018 TT, 111 binned bands).
+    assert found["cmb_power_spectrum"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -484,13 +487,15 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     yarkovsky_yorp (11th), mars_tharsis (12th), axial_seamount (13th),
     dynamical_regime (14th), dynamical_regime_probes (15th),
     pluto_charon_dynamical_spectrum (16th), loki_patera (17th —
-    phase A complete)."""
+    phase A complete). cmb_power_spectrum (18th — first cosmology-
+    instrument ship, Planck 2018 TT)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 17
+    assert result["n_sources"] == 18
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "axial_seamount",
+        "cmb_power_spectrum",
         "dynamical_regime",
         "dynamical_regime_probes",
         "earthref_sc",
@@ -512,15 +517,17 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
-    """adapter_class='curated' returns 14 sources after v0.27.0 phase A
-    through loki_patera (phase A complete)."""
+    """adapter_class='curated' returns 15 sources after v0.27.0 phase A
+    through loki_patera (phase A complete) + cmb_power_spectrum (first
+    cosmology-instrument ship, Planck 2018 TT)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 14
+    assert result["n_sources"] == 15
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "axial_seamount",
+        "cmb_power_spectrum",
         "dynamical_regime",
         "dynamical_regime_probes",
         "hawaii_chain",
@@ -566,8 +573,9 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # + hawaii_chain + yarkovsky_yorp + mars_tharsis + axial_seamount
     # + dynamical_regime + dynamical_regime_probes
     # + pluto_charon_dynamical_spectrum + loki_patera (v0.27.0 phase A
-    # complete through v0.24.12).
-    assert result["n_sources"] == 14
+    # complete through v0.24.12) + cmb_power_spectrum (first cosmology-
+    # instrument ship).
+    assert result["n_sources"] == 15
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 

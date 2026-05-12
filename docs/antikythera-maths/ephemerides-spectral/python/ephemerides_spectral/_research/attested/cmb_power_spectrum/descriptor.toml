@@ -1,0 +1,97 @@
+# CMB Power Spectrum — Planck 2018 binned TT/TE/EE spectra.
+#
+# First cosmology-instrument ship: the CMB power spectrum is the canonical
+# spectral observable at IR scale (σ → ∞ in MFO's spectral-dimension flow).
+# Each multipole ℓ is a spherical-harmonic eigenmode of S² (the sky sphere);
+# the power C_ℓ at each ℓ measures the variance of CMB temperature
+# fluctuations projected onto the ℓ-th spherical harmonic.
+#
+# This is the cosmological-scale analogue of:
+# - sun_dynamical_spectrum (continuum p-mode decomposition of a star)
+# - hawaii_chain (bounded-local-Laplacian on a 1D geological track)
+# Here the geometry is the celestial sphere; the eigenbasis is real
+# spherical harmonics Y_ℓm; the spectrum C_ℓ is published.
+#
+# Ground-truth source: Planck Collaboration 2018 VI (Aghanim et al. 2020)
+# "Planck 2018 results VI: Cosmological parameters", A&A 641:A6.
+# Full TT spectrum with errors (111 rows across ℓ=2-2499) is now ingested
+# from the Planck Legacy Archive (PR3 / R3.01 likelihood release):
+#   - Low-ℓ rows (ℓ=2..29, 28 rows, half_width=0) from
+#     COM_PowerSpect_CMB-TT-full_R3.01.txt (Commander likelihood,
+#     unbinned per-ℓ, asymmetric -dDl/+dDl PR3 errors)
+#   - High-ℓ rows (ℓ~47..2499, 83 binned bands, half_width~10-16) from
+#     COM_PowerSpect_CMB-TT-binned_R3.01.txt (Plik likelihood,
+#     symmetric Gaussian errors).
+# precision_flag = "high" for all rows. Per-row provenance points to
+# Planck 2018 VI as the canonical published-result paper; per-row
+# source_file records the actual PLA filename used.
+#
+# TE and EE spectra (and the corresponding -binned / -full tables in
+# the same Legacy Archive) are scope for follow-up ships once the TT
+# ship merges.
+
+[source]
+key = "cmb_power_spectrum"
+human_readable_name = "Cosmic Microwave Background TT Power Spectrum (Planck 2018) Catalogue"
+purpose = "ground-proof rows for the CMB angular power spectrum C_ℓ at canonical multipole bins — the canonical spherical-harmonic spectral observable at cosmological (Mpc–Gpc) scale; reference for the IR end of the spectral-dimension flow predicted by MFO Part V"
+license = "literature-curated; per-row source DOI cites Planck 2018 VI (Aghanim et al. 2020 A&A 641:A6)"
+homepage = "https://pla.esac.esa.int/"
+canonical_doi = "10.1051/0004-6361/201833910"
+
+# canonical_doi above points at Planck Collaboration 2018 VI — the canonical
+# Planck 2018 cosmological-parameters paper. The likelihood release (PR3 /
+# R3.01) is described in Planck 2018 V (Akrami et al. 2020 A&A 641:A5) DOI
+# 10.1051/0004-6361/201936386 — that's the technical companion to the
+# binned-spectrum tables. Per-row provenance points to Planck 2018 VI as
+# the canonical published-result paper for the cosmological-spectrum
+# rows; later ingest of the full PR3 binned tables from the Planck
+# Legacy Archive will add per-row response_sha256 attestations against
+# the actual download bytes.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cmb_power_spectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "CMB Power Spectrum Catalogue (curated against Planck 2018 VI: Aghanim et al. 2020 *A&A* 641:A6, doi:10.1051/0004-6361/201833910; full PR3 / R3.01 TT ingest from Planck Legacy Archive COM_PowerSpect_CMB-TT-{full,binned}_R3.01.txt); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof CMB power at multipole bin {schema.ell_bin_label} ({schema.feature}) for IR-end spectral-dimension probe"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# The CMB spectrum is the canonical continuum-spherical-harmonic
+# decomposition on S² (the sky sphere). The v0.24.9 dynamical-regime
+# classifier doesn't yet have a regime label for cosmological continua;
+# closest existing label is rigid_body_action_angle_stable (the CMB is
+# extraordinarily stable observationally — temperature fluctuations
+# are ~10⁻⁵ of the mean over the entire sky). A future regime label
+# (`cosmological_continuum_spherical_harmonic` or
+# `large_scale_structure_continuum`) would be more precise.
+#
+# MFO connection: this is the IR end of the d_S(σ) → 4 flow. CMB
+# analyses give effective d_H ≈ 4 at cosmological scales (consistent
+# with ΛCDM); the CMB power spectrum encodes the field's localization
+# statistics at the largest accessible scales.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
