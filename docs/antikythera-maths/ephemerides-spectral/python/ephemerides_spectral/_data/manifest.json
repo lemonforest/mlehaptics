@@ -40,6 +40,18 @@
       "sha256": "a0a2d854388267106ded0f55079fab83d4fb18b19dad254863292292a20f3744",
       "size_bytes": 4246
     },
+    "_research/attested/cmb_anomalies/descriptor.toml": {
+      "sha256": "b031509b45e835d160359087539ce91dbb0679f7a00c1b351f755eeb10932be6",
+      "size_bytes": 3892
+    },
+    "_research/attested/cmb_anomalies/row.ndjson": {
+      "sha256": "85f889f58442e0cc65be5d214083bef7f8581a58b353dc76f15ec7df209ecf17",
+      "size_bytes": 8295
+    },
+    "_research/attested/cmb_anomalies/row.schema.json": {
+      "sha256": "be90070c765ee810f9384197a0feae96b5d304fca1cf1d221dbc4a7ef02a2399",
+      "size_bytes": 5719
+    },
     "_research/attested/cmb_power_spectrum/descriptor.toml": {
       "sha256": "1d64ecb71f24cf112079588d8b7f497cd07602b66743c82d4ebc45a3d5df5a91",
       "size_bytes": 4736
