@@ -1,0 +1,14 @@
+{"deformation": "identity", "sigma": 4.0, "field_min": -1.12699682875423, "field_max": 0.6777839195639879, "hdc_cosine_vs_identity": 0.9999999403953552}
+{"deformation": "uniform_scale_alpha_0.8", "sigma": 3.2, "field_min": -1.1269968287542302, "field_max": 0.6777839195639881, "hdc_cosine_vs_identity": 0.9999999403953552}
+{"deformation": "uniform_scale_alpha_1.2", "sigma": 4.8, "field_min": -1.1269968287542298, "field_max": 0.677783919563988, "hdc_cosine_vs_identity": 0.9999999403953552}
+{"deformation": "uniform_scale_2.0_no_sigma", "sigma": 4.0, "field_min": -0.57780703136725, "field_max": 0.2005775459475514, "hdc_cosine_vs_identity": 0.8214877843856812}
+{"deformation": "anisotropic_x_1.5", "sigma": 4.0, "field_min": -1.053035965865547, "field_max": 0.5056966108291061, "hdc_cosine_vs_identity": 0.939288318157196}
+{"deformation": "anisotropic_x_2.0_y_0.5", "sigma": 4.0, "field_min": -1.1252289821761738, "field_max": 0.5634982939302542, "hdc_cosine_vs_identity": 0.8294929265975952}
+{"deformation": "thermal_noise_0.5", "sigma": 4.0, "field_min": -1.096023489666846, "field_max": 0.6875449078730942, "hdc_cosine_vs_identity": 0.972581684589386}
+{"deformation": "thermal_noise_2.0", "sigma": 4.0, "field_min": -1.2721365628917436, "field_max": 0.68095840610507, "hdc_cosine_vs_identity": 0.8680734634399414}
+{"deformation": "thermal_noise_5.0", "sigma": 4.0, "field_min": -0.5210794833286815, "field_max": 0.5974497130283143, "hdc_cosine_vs_identity": 0.7160987854003906}
+{"deformation": "normal_mode_amplitude_3", "sigma": 4.0, "field_min": -1.0805927292321096, "field_max": 0.6751471390229079, "hdc_cosine_vs_identity": 0.9789474010467529}
+{"deformation": "normal_mode_amplitude_10", "sigma": 4.0, "field_min": -0.9949134414622749, "field_max": 0.6669213767813074, "hdc_cosine_vs_identity": 0.9064287543296814}
+{"deformation": "rotation_30deg", "sigma": 4.0, "field_min": -1.1279084284325174, "field_max": 0.6775886409028575, "hdc_cosine_vs_identity": 0.6675248146057129}
+{"deformation": "rotation_90deg", "sigma": 4.0, "field_min": -1.12699682875423, "field_max": 0.6777839195639879, "hdc_cosine_vs_identity": 0.13816197216510773}
+{"deformation": "translation_10A_x", "sigma": 4.0, "field_min": -1.12699682875423, "field_max": 0.6777839195639881, "hdc_cosine_vs_identity": 0.9999999403953552}
