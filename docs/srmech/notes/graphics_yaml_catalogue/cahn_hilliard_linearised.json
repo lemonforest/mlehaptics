@@ -1,0 +1,23 @@
+{
+  "effect": "cahn_hilliard_linearised",
+  "description": "Cahn-Hilliard linearised phase-separation: g(\u03bb) = exp((\u03bb \u2212 \u03bb\u00b2)\u00b7t) \u2014 selects intermediate-scale modes; produces blobby phase-separated patterns reminiscent of cosmic-web large-scale structure (\u00a74.1).",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "exp((lam_k - lam_k**2 / lambda_scale) * t)",
+        "params": {
+          "t": 0.4,
+          "lambda_scale": 4.0
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "effect": "log_normal_cosmological_field",
+  "description": "Log-normal cosmological field: Gaussian random field with power-spectrum shaping P(\u03bb), then pointwise exp() to convert Gaussian \u2192 log-normal. Galaxy density filaments / voids (\u00a74.1). Sequences a closed-form g(\u03bb) op with a substrate-primitive exp() \u2014 demonstrates pipeline composition across the \u00a74.2 config-vs-substrate boundary.",
+  "pipeline": [
+    {
+      "op": "srmech.transforms.dct2_2d"
+    },
+    {
+      "op": "srmech.kernels.weight",
+      "args": {
+        "eigenvalues": "srmech.lattices.dirichlet_2d",
+        "decay": "(lam_k + epsilon)**(-n_spectral / 4)",
+        "params": {
+          "n_spectral": 2.0,
+          "epsilon": 0.01
+        }
+      }
+    },
+    {
+      "op": "srmech.transforms.idct2_2d"
+    },
+    {
+      "op": "srmech.transforms.center"
+    },
+    {
+      "op": "srmech.transforms.pointwise_exp",
+      "args": {
+        "scale": 1.5,
+        "offset": 0.0
+      }
+    }
+  ]
+}
