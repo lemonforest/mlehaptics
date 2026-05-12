@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_anomalies.row.v1",
+  "title": "CMB anomaly row",
+  "description": "One canonical CMB large-scale structural anomaly. Single row_type catalogue ('anomaly_feature'); each row records the anomaly's canonical name, anomaly_kind classification, multipole range, statistical significance, sky location (where applicable), discovery + key confirmation references.",
+  "type": "object",
+  "required": [
+    "anomaly_id",
+    "row_type",
+    "canonical_name",
+    "anomaly_kind",
+    "ell_range_min",
+    "ell_range_max",
+    "principal_reference_doi",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "anomaly_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable kebab-case identifier (e.g., 'axis-of-evil-l2-l3-alignment'). Used in cite_as / purpose templates."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["anomaly_feature"],
+      "description": "Single value in this catalogue."
+    },
+    "canonical_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable name as used in the literature (e.g., 'Axis of Evil', 'Cold Spot', 'Hemispherical Power Asymmetry')."
+    },
+    "anomaly_kind": {
+      "type": "string",
+      "enum": [
+        "alignment",
+        "hotspot",
+        "asymmetry",
+        "suppression",
+        "parity_violation",
+        "correlation_anomaly",
+        "other"
+      ],
+      "description": "Structural classification: 'alignment' = multipole vectors aligned with each other / external direction; 'hotspot' = localized region of extreme temperature; 'asymmetry' = power difference between hemispheres or directions; 'suppression' = deficit relative to ΛCDM prediction; 'parity_violation' = excess odd-vs-even multipole power; 'correlation_anomaly' = deviation in two-point or higher-point correlation; 'other' = anything not fitting the above."
+    },
+    "ell_range_min": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 2508,
+      "description": "Minimum multipole over which the anomaly is defined."
+    },
+    "ell_range_max": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 2508,
+      "description": "Maximum multipole over which the anomaly is defined."
+    },
+    "statistical_significance_sigma": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "description": "Reported statistical significance in equivalent Gaussian σ, where applicable. Many CMB anomaly significances are test-dependent and analysis-dependent; this field reports a representative value from the cited principal reference. Null if not quantified by a single number (e.g., 'observed' but uncertain whether anomalous)."
+    },
+    "statistical_test": {
+      "type": ["string", "null"],
+      "description": "Brief description of the statistical test used to compute the significance (e.g., 'Angle between l=2 and l=3 multipole vectors, vs. simulated ΛCDM ensemble', or 'S 1/2 statistic, vs. simulations')."
+    },
+    "sky_location_galactic_lon_deg": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "maximum": 360.0,
+      "description": "Galactic longitude in degrees of the anomaly's central direction, where applicable (Cold Spot, hemispherical asymmetry preferred direction, alignment axis). Null if the anomaly does not have a localized direction (e.g., low quadrupole, parity asymmetry)."
+    },
+    "sky_location_galactic_lat_deg": {
+      "type": ["number", "null"],
+      "minimum": -90.0,
+      "maximum": 90.0,
+      "description": "Galactic latitude in degrees of the anomaly's central direction, where applicable."
+    },
+    "principal_reference_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the canonical discovery paper for this anomaly. 'nodoi:' prefix accepted for pre-DOI references (rare for CMB literature)."
+    },
+    "principal_reference_label": {
+      "type": ["string", "null"],
+      "description": "Human-readable label of the principal reference (e.g., 'de Oliveira-Costa et al. 2004 PRD 69:063516')."
+    },
+    "confirmation_reference_dois": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "DOIs of key confirmation / follow-up references. Includes the Planck 2018 VII re-validation (10.1051/0004-6361/201833881) for anomalies confirmed in PR3."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "test_dependent", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention. 'test_dependent' flags anomalies whose significance varies meaningfully across statistical tests (most CMB anomalies fall here)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — typical interpretive caveats, alternative analyses, or links to related anomalies."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the primary citation for this row's facts. Default 10.1051/0004-6361/201833881 (Planck 2018 VII) for anomalies confirmed in PR3."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional Planck release version (e.g., 'PR3') for the confirmation re-validation."
+    }
+  }
+}
