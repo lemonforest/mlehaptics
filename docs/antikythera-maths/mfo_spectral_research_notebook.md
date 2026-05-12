@@ -660,6 +660,11 @@ Connection to **Jacobson (1995)**: derived Einstein's field equations from horiz
 
 ### VII.4.1 The framework's stance — black holes end at the 2D boundary
 
+> *"Can't stop the signal, Mal. Everything goes somewhere, and I go everywhere."*
+> — Mr. Universe, *Serenity* (Joss Whedon, 2005)
+
+> *Three lines, three load-bearing framework commitments.* **"Can't stop the signal"** — full unitarity, no late-time information loss (Page-curve consistency; see the prediction list below). **"Everything goes somewhere"** — information falling "into" a black hole is re-encoded on the 2D boundary, never destroyed; holographic principle taken seriously. **"I go everywhere"** — the metric-field substrate of §VII.1.1's two-level ontology, the medium through which all signal propagates; Level 1 is genuinely ambient and continuous. The quote is the framework's stance in plain English.
+
 A clarifying note about how the framework reads black-hole horizon physics, since the language across §I.2, §VII.4, and §VIII.1 has used "horizon" loosely.
 
 The standard picture treats the event horizon as the boundary of a region — the "exterior" outside, the "interior" inside, with the horizon as the membrane between them. The interior is described by Schwarzschild metrics with timelike radial coordinate, "all paths lead to the singularity," etc.
