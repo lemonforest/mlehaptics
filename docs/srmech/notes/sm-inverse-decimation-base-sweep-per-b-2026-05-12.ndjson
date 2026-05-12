@@ -1,0 +1,11 @@
+{"test": "universal_b_per_ratio", "family": "leptons", "ratio_kind": "mid_light", "ratio": 42754.2618173184, "b_star": 1.5321462653764473, "log_b_value": 24.991763309189555, "k_nearest": 25, "dev": 0.008236690810445424}
+{"test": "universal_b_per_ratio", "family": "leptons", "ratio_kind": "heavy_mid", "ratio": 282.80377927135953, "b_star": 1.5321462653764473, "log_b_value": 13.229801439445719, "k_nearest": 13, "dev": 0.22980143944571907}
+{"test": "universal_b_per_ratio", "family": "up_quarks", "ratio_kind": "mid_light", "ratio": 345700.44581618655, "b_star": 1.5321462653764473, "log_b_value": 29.89041099162456, "k_nearest": 30, "dev": 0.1095890083754405}
+{"test": "universal_b_per_ratio", "family": "up_quarks", "ratio_kind": "heavy_mid", "ratio": 18504.56792113584, "b_star": 1.5321462653764473, "log_b_value": 23.029000124113182, "k_nearest": 23, "dev": 0.02900012411318187}
+{"test": "universal_b_per_ratio", "family": "down_quarks", "ratio_kind": "mid_light", "ratio": 400.0, "b_star": 1.5321462653764473, "log_b_value": 14.04240045744952, "k_nearest": 14, "dev": 0.0424004574495207}
+{"test": "universal_b_per_ratio", "family": "down_quarks", "ratio_kind": "heavy_mid", "ratio": 2002.8978994814042, "b_star": 1.5321462653764473, "log_b_value": 17.81788865503033, "k_nearest": 18, "dev": 0.18211134496966963}
+{"test": "q1_verdict", "b_star": 1.5321462653764473, "mean_dev": 0.1001898441939962, "verdict": "WEAK"}
+{"test": "per_family_best_b", "family": "leptons", "b_star": 1.8724778803245192, "mean_dev": 0.0006781453182078678, "k_mid": 17, "k_heavy": 9, "predicted_log_b_ratio_mid": 16.999616688052114, "predicted_log_b_ratio_heavy": 8.99902702131147}
+{"test": "per_family_best_b", "family": "up_quarks", "b_star": 2.667246074149701, "mean_dev": 0.007942794386207375, "k_mid": 13, "k_heavy": 10, "predicted_log_b_ratio_mid": 12.999717976366236, "predicted_log_b_ratio_heavy": 10.015603565138651}
+{"test": "per_family_best_b", "family": "down_quarks", "b_star": 1.7212114346608827, "mean_dev": 0.01675721182533696, "k_mid": 11, "k_heavy": 14, "predicted_log_b_ratio_mid": 11.03342832353102, "predicted_log_b_ratio_heavy": 13.999913899880346}
+{"test": "q2_verdict", "n_survive": 3, "families_b": [1.8724778803245192, 2.667246074149701, 1.7212114346608827], "verdict": "PARTIAL \u2014 at least 2 families admit clean integer-b fits"}
