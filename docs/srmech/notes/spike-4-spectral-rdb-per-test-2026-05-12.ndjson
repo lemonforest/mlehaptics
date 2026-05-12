@@ -1,0 +1,1 @@
+{"test": "spike_4_summary", "hdc_dim": 1024, "n_kernels": 3, "inserted_counts": {"chess": 60, "ephem": 60, "doom": 60}, "total_entries": 180, "n_queries_benchmarked": 100, "avg_query_ms": 0.22761499974876642, "verdict": "PASS"}
