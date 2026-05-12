@@ -1,0 +1,6 @@
+{"test": "self_similarity", "cosine": 1.0}
+{"test": "rotation", "results": [{"label": "rot_30deg_z", "cosine": 0.9999999910835587}, {"label": "rot_90deg_z", "cosine": 0.9999999999999997}, {"label": "rot_180deg_z", "cosine": 0.9999999999999994}, {"label": "rot_90deg_x", "cosine": 0.9999999710403413}, {"label": "rot_90deg_y", "cosine": 0.9999999930533987}], "mean": 0.9999999910354596, "min": 0.9999999710403413}
+{"test": "translation_10A", "cosine": 1.0}
+{"test": "cross_protein_1ubq_1bpi", "cosine": 0.9294927482122384}
+{"test": "rotation_1bpi_self_rotated", "cosine": 0.9999999734121381}
+{"test": "config", "voxel_n": 64, "l_max": 20, "n_shells": 8, "n_theta": 80, "n_phi": 160}
