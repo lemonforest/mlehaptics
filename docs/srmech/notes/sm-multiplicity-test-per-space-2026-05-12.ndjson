@@ -1,0 +1,16 @@
+{"test": "matter_overlap", "space": "S\u00b2", "score": 0.5, "present": [1, 3], "missing": [2, 6], "first_15_mults": [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]}
+{"test": "matter_overlap", "space": "S\u00b3", "score": 0.25, "present": [1], "missing": [2, 3, 6], "first_15_mults": [1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225]}
+{"test": "matter_overlap", "space": "CP\u00b2", "score": 0.75, "present": [1, 3, 6], "missing": [2], "first_15_mults": [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78, 91, 105, 120]}
+{"test": "matter_overlap", "space": "S\u00b2 \u00d7 S\u00b2", "score": 0.5, "present": [1, 6], "missing": [2, 3], "first_15_mults": [1, 6, 9, 10, 30, 39, 42, 70, 18, 54, 49, 90, 22, 192, 110]}
+{"test": "matter_overlap", "space": "S\u00b2 \u00d7 S\u00b9", "score": 0.5, "present": [1, 3], "missing": [2, 6], "first_15_mults": [1, 4, 3, 12, 4, 17, 20, 4, 20, 12, 7, 28, 20, 32, 12]}
+{"test": "matter_overlap", "space": "SU(2)", "score": 1.0, "present": [1, 2, 3, 6], "missing": [], "first_15_mults": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}
+{"test": "matter_overlap", "space": "SU(3)", "score": 0.75, "present": [1, 3, 6], "missing": [2], "first_15_mults": [1, 3, 3, 8, 6, 6, 15, 15, 10, 10, 27, 24, 24, 15, 15]}
+{"test": "matter_overlap", "space": "SU(3)\u00d7SU(2)\u00d7U(1)", "score": 1.0, "present": [1, 2, 3, 6], "missing": [], "first_15_mults": [1, 1, 1, 1, 1, 2, 2, 2, 3, 2, 6, 6, 6, 6, 2]}
+{"test": "full_overlap", "space": "S\u00b2", "score": 0.4, "present": [1, 3], "missing": [2, 6, 8]}
+{"test": "full_overlap", "space": "S\u00b3", "score": 0.2, "present": [1], "missing": [2, 3, 6, 8]}
+{"test": "full_overlap", "space": "CP\u00b2", "score": 0.6, "present": [1, 3, 6], "missing": [2, 8]}
+{"test": "full_overlap", "space": "S\u00b2 \u00d7 S\u00b2", "score": 0.4, "present": [1, 6], "missing": [2, 3, 8]}
+{"test": "full_overlap", "space": "S\u00b2 \u00d7 S\u00b9", "score": 0.4, "present": [1, 3], "missing": [2, 6, 8]}
+{"test": "full_overlap", "space": "SU(2)", "score": 1.0, "present": [1, 2, 3, 6, 8], "missing": []}
+{"test": "full_overlap", "space": "SU(3)", "score": 0.8, "present": [1, 3, 6, 8], "missing": [2]}
+{"test": "full_overlap", "space": "SU(3)\u00d7SU(2)\u00d7U(1)", "score": 0.8, "present": [1, 2, 3, 6], "missing": [8]}
