@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_power_spectrum.row.v1",
+  "title": "CMB power spectrum row",
+  "description": "One binned multipole of the CMB angular power spectrum from Planck 2018 VI. Single row_type catalogue ('multipole_bin'); each row records the bin center ℓ, the bin half-width Δℓ, the power D_ℓ = ℓ(ℓ+1)C_ℓ/(2π) in μK² (the standard published form), the 1-σ error on D_ℓ, the spectrum kind (TT, TE, or EE), and a feature label identifying the row's role in the acoustic-peak structure.",
+  "type": "object",
+  "required": [
+    "ell_bin_label",
+    "row_type",
+    "ell_center",
+    "ell_half_width",
+    "D_ell_muK2",
+    "D_ell_error_muK2",
+    "spectrum_kind",
+    "feature",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "ell_bin_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this binned multipole (e.g. 'TT_ell0220_first_peak'). Used in cite_as / purpose templates."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["multipole_bin"],
+      "description": "Single value in this catalogue."
+    },
+    "ell_center": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 2508,
+      "description": "Central multipole of the bin. Planck 2018 high-ℓ likelihood covers ℓ=30-2508; low-ℓ likelihood covers ℓ=2-29."
+    },
+    "ell_half_width": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Half-width of the multipole bin (so the bin spans [ell_center - half_width, ell_center + half_width]). Low-ℓ rows use half_width = 0 (single ℓ); high-ℓ bins are typically Δℓ ≈ 5-30 depending on bin position."
+    },
+    "D_ell_muK2": {
+      "type": "number",
+      "description": "Binned power D_ℓ = ℓ(ℓ+1)C_ℓ/(2π) in units of μK². For TT spectrum this is positive; for TE it can be positive or negative; for EE it is positive but much smaller than TT."
+    },
+    "D_ell_error_muK2": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "1-σ Gaussian error on D_ℓ in μK² (Planck-likelihood-marginalized; combines cosmic variance + instrumental + foreground)."
+    },
+    "spectrum_kind": {
+      "type": "string",
+      "enum": ["TT", "TE", "EE", "BB"],
+      "description": "Which auto/cross spectrum this bin belongs to: TT = temperature-temperature, TE = temperature-E-polarization, EE = E-mode polarization, BB = B-mode (Planck has only upper limits on BB)."
+    },
+    "feature": {
+      "type": "string",
+      "enum": [
+        "sachs_wolfe_plateau",
+        "rising_to_first_peak",
+        "first_acoustic_peak",
+        "first_trough",
+        "second_acoustic_peak",
+        "second_trough",
+        "third_acoustic_peak",
+        "damping_tail",
+        "low_ell_anomaly",
+        "other"
+      ],
+      "description": "Qualitative label identifying the row's role in the acoustic-peak structure. 'low_ell_anomaly' covers the well-known suppressed quadrupole / octupole alignment ('Axis of Evil') regime ℓ ∈ [2, 5]."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rounded_2sf", "rounded_3sf", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention. First-ship seed rows are 'rounded_2sf' (values quoted to 2 significant figures from Planck 2018 VI Table B.1 / Fig. 1); follow-up ingest of full PR3 Legacy Archive bands will upgrade to 'high'."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — e.g. 'first peak position is one of the most-cited values in cosmology' or 'low-ℓ commander likelihood'."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited Planck reference. Default 10.1051/0004-6361/201833910 (Planck 2018 VI)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional Planck release version, e.g. 'PR3' or 'PR3/R3.01'."
+    }
+  }
+}
