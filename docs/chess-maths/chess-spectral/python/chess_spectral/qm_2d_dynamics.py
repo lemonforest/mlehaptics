@@ -34,13 +34,50 @@ across move boundaries. v1.5 shipped the 4D dynamics + bridge;
 v1.6 shipped 2D kinematics; v1.6.x closes the asymmetry by shipping
 the 2D dynamics + bridge.
 
+Eigenbasis-diagonal optimization (ADR-002 §6.1)
+-----------------------------------------------
+``evolve_under_h0`` now implements the eigenbasis-diagonal optimization
+from ADR-002 §6 future-work item 1 (originally deferred from v1.5.0).
+The 64×64 ``H_0`` is real-symmetric so :func:`numpy.linalg.eigh` decomposes
+it as ``H_0 = V @ diag(λ) @ V^H`` once, lazily cached at first call. Time
+evolution then reduces to the diagonal-phase form::
+
+    U(t) = V @ diag(exp(-i*λ*t)) @ V^H
+
+For the full 640-dim 10-channel state, the 10 blocks are evolved in
+parallel via two ``(10, 64) @ (64, 64)`` matrix products — the
+"hyper-wrap-for-parallel-ops" interpretation of ``H_full = I_10 ⊗ H_0``
+as a fiber-bundle operator (chess-spectral / srmech §3.5.4 sub-row
+covering ``I_fiber ⊗ O_base`` factorisations). At chess-2D scale the
+synthetic benchmark in :file:`docs/srmech/notes/chess-channels-and-hyper-parallel-script.py`
+measures **~196× speedup** over the previous per-channel
+``scipy.sparse.linalg.expm_multiply`` loop, with max-abs deviation
+``1.8e-16`` (machine-precision bit-equivalent against the sparse path).
+
+Norm and energy preservation hold exactly because ``V`` is unitary
+(``V^H V = I``) and the phase factors ``exp(-i λ t)`` are unit-modulus.
+The eigenbasis cache is invalidated only if the H_0 cache is rebuilt
+(which currently only happens via module reload or explicit
+``_H_FREE_2D = None`` poke — neither is part of the public API).
+
+ADR conformance: the eigenbasis is computed via ``numpy.linalg.eigh``
+(LAPACK syevd / syevr) at module-first-call (lazy), kept in
+``complex128``, and shared between the single-block and full-vector
+paths. Per ADR-002 §6.1, the 4D analogue is **not** enabled because
+its 4096×4096 eigendecomposition takes ~124 s one-shot and the per-call
+cost inverts to slower-than-sparse (`docs/srmech/notes/chess-channels-and-hyper-parallel-2026-05-11.md`).
+
 Design references
 -----------------
 - :mod:`chess_spectral.qm_4d_dynamics` — the 4D analogue (this module
-  mirrors its structure 1:1 at d=2).
+  mirrors its structure 1:1 at d=2, except the 4D side keeps the
+  sparse ``expm_multiply`` path per the 2026-05-11 honest-negative
+  benchmark finding above).
 - ADR-002 §3.1 (in 4D research notebook) — the Zeno free-evolution
   semantics; the 2D and 4D side share the construction up to lattice
   dimension.
+- ADR-002 §6.1 — the eigenbasis-diagonal optimization spec implemented
+  here.
 """
 from __future__ import annotations
 
@@ -49,7 +86,6 @@ from typing import Optional, Tuple
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import csr_matrix
-from scipy.sparse.linalg import expm_multiply
 
 from chess_spectral.qm_2d import (
     CHANNEL_DIM,          # 64 = mode count per channel (8 * 8 squares)
@@ -137,6 +173,51 @@ def _get_h_free_2d() -> csr_matrix:
     return _H_FREE_2D
 
 
+# ─── Eigenbasis cache (ADR-002 §6.1 optimization) ──────────────────
+#
+# Lazy module-level cache of ``eigh(H_FREE_2D.toarray())``. Holds
+# ``(λ, V)`` where ``λ`` is a real ``(64,)`` array of eigenvalues and
+# ``V`` is a unitary ``(64, 64)`` complex128 array of eigenvectors as
+# columns, satisfying ``H_0 == V @ diag(λ) @ V.conj().T`` to machine
+# precision. ``H_0`` is real-symmetric (Hermitian with zero imaginary
+# part) so :func:`numpy.linalg.eigh` returns a *real* λ and the V is
+# real-orthogonal in principle; we keep V in complex128 so the
+# downstream phase-multiplication is a single dtype-clean operation.
+
+_H0_EIGENBASIS_2D: Optional[Tuple[np.ndarray, np.ndarray]] = None
+
+
+def _get_h0_eigenbasis_2d() -> Tuple[np.ndarray, np.ndarray]:
+    """Cached accessor for the eigendecomposition of H_FREE_2D.
+
+    Returns ``(eigvals, eigvecs)`` where ``eigvals`` is a real
+    ``(CHANNEL_DIM,)`` float64 array (ascending order) and ``eigvecs``
+    is a complex128 ``(CHANNEL_DIM, CHANNEL_DIM)`` array with the k-th
+    eigenvector in column k. ``H_FREE_2D() == eigvecs @ diag(eigvals)
+    @ eigvecs.conj().T`` to machine precision.
+
+    Built on first call via :func:`numpy.linalg.eigh` on the dense
+    64×64 form; cost is well under 1 ms (negligible against any
+    realistic propagation workload). The 4D analogue is deliberately
+    NOT enabled — see ADR-002 §6.1 and the 2026-05-11 benchmark in
+    :file:`docs/srmech/notes/chess-channels-and-hyper-parallel-2026-05-11.md`
+    for the breakeven calculation that justified the deferral.
+    """
+    global _H0_EIGENBASIS_2D
+    if _H0_EIGENBASIS_2D is None:
+        H0_dense = _get_h_free_2d().toarray()
+        # eigh returns real eigvals and a real-orthogonal V for
+        # real-symmetric input; we lift V to complex128 so the
+        # subsequent phase-multiplication stays in one dtype.
+        eigvals, eigvecs = np.linalg.eigh(H0_dense)
+        eigvecs = np.ascontiguousarray(eigvecs, dtype=np.complex128)
+        # eigvals stays float64; we never need it as complex (phases are
+        # exp(-i * eigvals * t), and the multiplication promotes to
+        # complex128 naturally).
+        _H0_EIGENBASIS_2D = (eigvals, eigvecs)
+    return _H0_EIGENBASIS_2D
+
+
 def _channel_offset_2d(channel: str) -> Tuple[int, int]:
     """Map a 2D channel name to its ``(start, end)`` slice into the
     640-dim full encoder vector.
@@ -167,8 +248,11 @@ def H_FREE_2D() -> csr_matrix:
 
     The full 640-dim Hamiltonian (operating on the 10-channel ψ) is
     ``I_{10} ⊗ H_FREE_2D``; we don't materialize that 640×640 explicitly
-    because :func:`evolve_under_h0` broadcasts H_0 across the 10 channel
-    blocks using :func:`scipy.sparse.linalg.expm_multiply`.
+    because :func:`evolve_under_h0` evaluates ``U(t) = exp(-i H_0 t)``
+    in the eigenbasis of ``H_0`` (cached via
+    :func:`_get_h0_eigenbasis_2d`) and broadcasts the unitary across
+    the 10 channel blocks via a single ``(10, 64) @ (64, 64)`` matmul
+    pair. See ADR-002 §6.1.
     """
     return _get_h_free_2d()
 
@@ -245,30 +329,50 @@ def evolve_under_h0(
     if t == 0.0:
         return psi_c.copy()
 
-    H0 = _get_h_free_2d()
-    # U(t) = exp(-i t H_0); since H_0 is Hermitian, this is unitary.
-    # expm_multiply takes A and v and returns exp(A) @ v efficiently
-    # via Krylov subspace iteration; A here is the anti-Hermitian
-    # operator -i*t*H_0.
-    A = (-1j * t) * H0
+    # ADR-002 §6.1 eigenbasis-diagonal path:
+    #   U(t) = exp(-i t H_0) = V @ diag(exp(-i λ t)) @ V^H
+    # H_0 is real-symmetric Hermitian; eigh decomposes once at module-
+    # first-call and we apply U(t) per-block as two matrix products
+    # with an elementwise phase factor in between. At chess-2D scale
+    # this is ~196× faster than the previous per-channel
+    # ``scipy.sparse.linalg.expm_multiply`` loop, with max-abs
+    # deviation 1.8e-16 (machine-precision bit-equivalent). See the
+    # 2026-05-11 benchmark in
+    # ``docs/srmech/notes/chess-channels-and-hyper-parallel-2026-05-11.md``.
+    eigvals, V = _get_h0_eigenbasis_2d()
+    phases = np.exp(-1j * eigvals * t)  # (CHANNEL_DIM,) complex128
 
     if psi_c.shape[0] == CHANNEL_DIM:
-        # Single 64-block.
-        return np.asarray(expm_multiply(A, psi_c), dtype=np.complex128)
+        # Single 64-block: V^H @ ψ → phase-multiply → V @ result.
+        # V is unitary (V^H V = I); phases are unit-modulus; so the
+        # whole operation is exactly the action of U(t) on ψ.
+        coefs = V.conj().T @ psi_c          # (n,)
+        coefs *= phases                     # (n,) elementwise
+        return np.ascontiguousarray(V @ coefs, dtype=np.complex128)
 
-    # Full 640-dim. Evolve per-channel. If `channel` is set, only
-    # touch that block; otherwise broadcast H_0 across all 10.
+    # Full 640-dim. If `channel` is set, only touch that block;
+    # otherwise broadcast V across all 10 channel blocks in one batched
+    # matmul ("hyper-wrap-for-parallel-ops" via the I_10 ⊗ H_0 fiber
+    # factorisation — see chess-spectral / srmech §3.5.4 fiber-bundle
+    # row covering ``I_fiber ⊗ O_base`` operators).
     out = psi_c.copy()
     if channel is not None:
         start, end = _channel_offset_2d(channel)
-        out[start:end] = expm_multiply(A, psi_c[start:end])
+        block = psi_c[start:end]
+        coefs = V.conj().T @ block
+        coefs *= phases
+        out[start:end] = V @ coefs
         return out
 
-    for ch in range(N_CHANNELS):
-        start = ch * CHANNEL_DIM
-        end = start + CHANNEL_DIM
-        out[start:end] = expm_multiply(A, psi_c[start:end])
-    return out
+    # Reshape psi_c into (N_CHANNELS, CHANNEL_DIM) and apply U(t) to
+    # all 10 channel blocks simultaneously via two matmuls. The
+    # ``ravel()`` at the end returns a contiguous 1-D array; we
+    # explicitly cast for dtype-clarity.
+    psi_blocks = psi_c.reshape(N_CHANNELS, CHANNEL_DIM)
+    coefs = psi_blocks @ V.conj()   # (N, n): equivalent to (V^H @ psi.T).T per row
+    coefs *= phases                  # broadcasts (N, n) * (n,)
+    psi_out_blocks = coefs @ V.T     # (N, n) @ (n, n) -> (N, n)
+    return np.ascontiguousarray(psi_out_blocks.ravel(), dtype=np.complex128)
 
 
 # ─── A_1 channel (D_4 trivial irrep) projector ─────────────────────

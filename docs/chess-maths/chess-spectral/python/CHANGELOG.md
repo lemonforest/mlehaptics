@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ADR-002 §6.1 eigenbasis-diagonal optimization for `qm_2d_dynamics.evolve_under_h0` (~190× speedup)
+
+Enables the eigenbasis-diagonal optimization that was listed as Open
+Question / Future Work item 1 in [ADR-002 §6.1](../docs/adr/qm_4d/ADR-002-time-evolution-semantics.md)
+("deferred until profiling justifies the LOC"). The honest-negative
+chess-channels + hyper-parallel-ops benchmark from 2026-05-11
+([docs/srmech/notes/chess-channels-and-hyper-parallel-2026-05-11.md](../../../srmech/notes/chess-channels-and-hyper-parallel-2026-05-11.md))
+showed that at chess-2D scale the eigenbasis path is dramatically
+faster than the previous per-channel
+`scipy.sparse.linalg.expm_multiply` loop, while at chess-4D scale the
+4096×4096 eigendecomposition cost is prohibitive (124 s one-shot;
+per-call cost inverts to 12× slower). This change enables the 2D
+optimization only — the 4D side keeps its sparse path as documented in
+the benchmark.
+
+The new path replaces the per-channel `expm_multiply` loop in
+`evolve_under_h0` with the closed-form eigenbasis-diagonal expression
+
+> U(t) = V @ diag(exp(-i λ t)) @ V^H
+
+where `(λ, V) = eigh(H_FREE_2D.toarray())` is cached in a
+module-level singleton via `_get_h0_eigenbasis_2d()` (lazy first-call
+build, ~6 ms one-shot on commodity hardware). For the full 640-dim
+10-channel state, all 10 blocks are evolved in parallel through two
+`(10, 64) @ (64, 64)` matrix products plus an elementwise phase
+multiplication — the "hyper-wrap-for-parallel-ops" form documented in
+the spike. H_0 is real-symmetric Hermitian so V is unitary; phases are
+unit-modulus; the new path is bit-equivalent to the sparse reference.
+
+**Empirical numbers (real `H_FREE_2D`, not the spike's synthetic
+Laplacian; N_TRIALS=20 with warmup; deterministic seed 20260511):**
+
+| Path | Median ms | IQR ms |
+|---|---|---|
+| New: eigenbasis-diagonal, batched | 0.057 | 0.030 |
+| Old: per-channel sparse expm_multiply | 10.75 | 2.77 |
+| **Speedup** | **189.7×** | — |
+
+Max-abs deviation new vs old: **1.54e-16** (machine-precision
+bit-equivalent — same scale as the spike's measured 1.8e-16).
+
+**Test coverage (51 new tests + all 28 pre-existing tests pass):**
+
+* `tests/test_qm_2d_dynamics_eigenbasis.py` (new) — dedicated
+  optimization-parity regression layer covering:
+  * Eigenbasis cache shape / dtype / singleton invariants (5 tests)
+  * Eigendecomposition reconstructs H_0 to machine precision (1 test)
+  * V is unitary (V^H V = I, V V^H = I) (1 test)
+  * Eigenvalues lie in the expected spectrum [-8, 0] (1 test)
+  * Parity against fresh sparse `expm_multiply` reference across
+    7 t-values ∈ {1e-6, 1e-3, 0.05, 0.1, 0.5, 1.0, 2.5}, tolerance
+    1e-14 (single-block + full-640 + per-channel) — 24 tests
+  * Norm preservation across the same 7 t-values (single-block +
+    full-640) — 14 tests
+  * Energy ⟨ψ|H_0|ψ⟩ preservation under U(t) — 4 tests
+  * Determinism (same t → bit-identical; different t → different;
+    composition U(t1+t2) = U(t2)∘U(t1); inverse U(-t)∘U(t)=I) — 4 tests
+* `tests/test_qm_2d_dynamics.py` (unchanged) — all 28 pre-existing
+  tests pass without modification, since the optimization preserves
+  the public API contract exactly.
+
+**ADR conformance:** The optimization uses
+`numpy.linalg.eigh` (LAPACK syevd/syevr backend; the standard backward-stable
+real-symmetric solver) on the dense form of H_0 at module-first-call,
+caches `(λ, V)` as a `(np.float64, np.complex128)` pair in a
+module-level singleton, and applies the diagonal-phase form per
+ADR-002 §4.1 ("aligns with Pre-flight 3 — the encoder *is* the
+simultaneous eigenbasis of (Δ, B_4 commutant)"). The 4D analogue is
+explicitly deferred per the benchmark — the spike adds a measured
+justification to ADR-002 §6.1's previous "deferred until profiling
+justifies" language. **No public API change**: signature and
+exceptions are identical; `H_FREE_2D()` is unchanged.
+
+**Files modified:**
+
+* `chess_spectral/qm_2d_dynamics.py` — adds `_H0_EIGENBASIS_2D`
+  module-level cache + `_get_h0_eigenbasis_2d()` accessor; rewrites
+  `evolve_under_h0` body to use the eigenbasis-diagonal path for
+  single-block, full-vector batched, and single-channel paths; drops
+  the now-unused `scipy.sparse.linalg.expm_multiply` import.
+* `tests/test_qm_2d_dynamics_eigenbasis.py` (new) — 51-test parity
+  regression layer.
+
+**Lineage:** `surfaced_from: chess_channels_hyper_parallel_research_2026-05-11 (commit 7e98a7e)`
+
 ### Vectorize FA_PAWN_W and FA_PAWN_Y scatter loops in `encode_4d_pure_phase`
 
 1.17.0 vectorized fiber-sym, FD_DIAG, and STD4 but **explicitly
