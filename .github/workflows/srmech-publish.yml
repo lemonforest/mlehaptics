@@ -81,12 +81,25 @@ jobs:
             exit 1
           fi
           # Sanity: ensure the native binary actually shipped in the wheel.
-          if ! python -m zipfile -l dist/*.whl \
-              | grep -E 'srmech/_native/.*\.(so|dll|dylib)$'; then
-            echo "::error::wheel does NOT contain srmech/_native/libsrmech.{so,dll,dylib}"
-            python -m zipfile -l dist/*.whl
-            exit 1
-          fi
+          # Use Python rather than grep — `python -m zipfile -l` interleaves
+          # file size + timestamp after the path, so a `$`-anchored regex
+          # over its output never matches (caught at PR #388 rc5 first push).
+          python3 <<'PY'
+          import sys, zipfile, glob
+          whls = glob.glob("dist/*.whl")
+          assert len(whls) == 1, f"expected 1 wheel, found {whls}"
+          with zipfile.ZipFile(whls[0]) as z:
+              hits = [n for n in z.namelist()
+                      if n.startswith("srmech/_native/")
+                      and n.rsplit(".", 1)[-1] in ("so", "dll", "dylib")]
+          if not hits:
+              print(f"::error::wheel {whls[0]} does NOT contain "
+                    f"srmech/_native/libsrmech.{{so,dll,dylib}}")
+              with zipfile.ZipFile(whls[0]) as z:
+                  for n in sorted(z.namelist()): print(" ", n)
+              sys.exit(1)
+          print(f"OK — wheel contains native library: {hits!r}")
+          PY
           python -m twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
