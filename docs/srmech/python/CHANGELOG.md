@@ -4,7 +4,9 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-### Infrastructure — Task #200 Phase 1 cibuildwheel adoption (2026-05-13)
+## [0.1.1] - 2026-05-13
+
+### Infrastructure — Task #200 Phase 1 cibuildwheel adoption
 
 - **`.github/workflows/srmech-publish.yml`** rewritten to use the
   ``pypa/cibuildwheel@v3.4`` action under a 3-OS × 5-Python matrix
