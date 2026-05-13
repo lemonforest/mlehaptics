@@ -4,6 +4,82 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc4] - 2026-05-13
+
+### Infrastructure — Task #201 Phase B2: scikit-build-core + pyproject-pure swap
+
+Switches srmech's build backend from hatchling to **scikit-build-core +
+CMake**, mirroring ephemerides-spectral. Adds the
+`pyproject-pure.toml` hatchling-fallback file for the Pyodide / WASM
+build path. Rewrites `srmech-publish.yml` with the three-job shape
+(scikit-build-core wheel + sdist + pure-Python wheel) that mirrors
+`ephemerides-spectral-publish.yml`.
+
+**Phase B2 still ships py3-none-any wheels** — until Phase B3 lands
+real C code in `docs/srmech/c/src/`, the CMake step short-circuits
+to "no library" and the wheel is tagged py3-none-any via the
+`wheel.py-api = "py3"` + `wheel.platlib = false` overrides in
+pyproject.toml. Both overrides come back OUT at Phase B3 so the
+wheel becomes legitimately platform-tagged once the native binary
+is real.
+
+#### Added — `pyproject-pure.toml`
+
+Parallel pyproject mirroring `docs/antikythera-maths/ephemerides-spectral/python/pyproject-pure.toml`:
+
+- Uses `hatchling` backend instead of `scikit-build-core`.
+- Same `[project]` block (name, version, deps, classifiers, urls) so
+  the pure wheel and the platform wheel are interchangeable at
+  install time.
+- Excludes `srmech/_native/*` from both wheel + sdist so accidental
+  rebuild artifacts can't leak in.
+- Version-locked to `pyproject.toml`'s version by a workflow guard
+  (see "Verify pyproject-pure.toml version matches main" step).
+
+#### Changed — `pyproject.toml`: hatchling → scikit-build-core
+
+- `build-system.requires = ["scikit-build-core>=0.10", "cmake>=3.23"]`
+- `build-system.build-backend = "scikit_build_core.build"`
+- New `[tool.scikit-build]` block:
+  - `cmake.source-dir = ".."` points at `docs/srmech/CMakeLists.txt`
+  - `wheel.packages = ["srmech"]`
+  - `wheel.py-api = "py3"` + `wheel.platlib = false` — Phase B2 only,
+    keeps the wheel py3-none-any while CMake validates the
+    infrastructure. Removed at Phase B3.
+  - `sdist.include` adds the C tree one directory up (the same
+    pattern ephemerides-spectral uses for its CMakeLists.txt + c/).
+- `[project.optional-dependencies].dev` gains `scikit-build-core>=0.10`
+  and `cmake>=3.23`; retains `hatchling` for the pyproject-pure swap
+  build path.
+
+#### Changed — `.github/workflows/srmech-publish.yml`
+
+Replaced the single-`build` job with a three-job pattern mirroring
+`ephemerides-spectral-publish.yml`:
+
+- **`build-wheel`** — scikit-build-core wheel via `python -m build
+  --wheel` (the `--wheel` flag skips the sdist→wheel detour that
+  trips scikit-build-core's `cmake.source-dir=".."` indirection when
+  the sdist is unpacked).
+- **`build-sdist`** — `python -m build --sdist`, twine-strict-check.
+- **`build-pure-wheel`** — swaps in `pyproject-pure.toml` over
+  `pyproject.toml` (saved as `.platform`), runs hatchling build,
+  restores. Includes the version-match guard + PyPI 512-char
+  description guard, copied wholesale from ephemerides-spectral's
+  workflow.
+- **`publish`** — `needs: [build-wheel, build-sdist, build-pure-wheel]`.
+  Same rc-routing logic; `cp -n` dedupe in the artefact-collection
+  step handles the case where build-wheel and build-pure-wheel produce
+  identically-named wheels at Phase B2 (will not happen at Phase B3+
+  when build-wheel becomes platform-tagged).
+
+#### Phase B7 follow-up
+
+`build-wheel` at Phase B7 graduates from a single Ubuntu cell to a
+cibuildwheel matrix (Linux / macOS / Windows × py3.10–3.14). The
+trigger for that promotion: C/Python parity tests passing in CI
+across all three platforms (Phase B5 complete).
+
 ## [0.1.1rc3] - 2026-05-13
 
 ### Infrastructure — Task #201 Phase B1: srmech C scaffolding

@@ -1,22 +1,35 @@
 # srmech — Stored-Relationship Mechanism research package.
 #
-# Phase 2 (Task #197) ships srmech as the new home of the Attested
-# Multi-Source Collector (AMSC) framework, previously living inside
-# ephemerides-spectral's _research/ mirror. Pure Python; no native
-# binary; one wheel (py3-none-any).
+# Phase B2 of Task #201 (the srmech build-out to peer-quality with
+# ephemerides-spectral) switches this file from hatchling to
+# scikit-build-core. scikit-build-core drives the top-level
+# CMakeLists.txt at docs/srmech/ (which sits one directory up from
+# this pyproject.toml). When `c/src/*.c` is empty (Phase B1–B2 state)
+# the CMake build is effectively a no-op and the wheel ships as
+# pure-Python with a platform tag.
 #
-# See docs/srmech/notes/task_197_phase_1_amsc_refactor_scope_2026-05-13.md
-# (on branch refactor/amsc-to-srmech-phase-1-scope) for the design
-# document. Phase 3 (planned) rewires ephemerides-spectral's bridge
-# to import from srmech.amsc.* instead of its in-tree mirror.
+# Phase B3 onward populates `c/src/` with the real C ports
+# (sha256 / ndjson / toml-canonical); the platform-tagged wheel then
+# contains srmech/_native/libsrmech.{so,dll,dylib}.
+#
+# The pure-Python fallback path for Pyodide / WASM lives in
+# `pyproject-pure.toml` (hatchling backend, py3-none-any wheel-tag).
+# The publish workflow swaps it in for the `build-pure-wheel` job.
 
 [build-system]
-requires = ["hatchling>=1.18"]
-build-backend = "hatchling.build"
+requires = ["scikit-build-core>=0.10", "cmake>=3.23"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.1.1rc3"
+version = "0.1.1rc4"
+# IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
+# limit. The upload endpoint silently rejects metadata that exceeds it
+# ("could not comply" with no useful detail bubbled into the publish
+# action's logs). `twine check --strict` does NOT enforce this.
+# Keep this string ASCII-only and under ~480 chars to leave headroom.
+# A guard in `.github/workflows/srmech-publish.yml` pins this at
+# build time. Must agree with `pyproject-pure.toml`.
 description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -70,6 +83,8 @@ dev = [
     "pytest>=7.0",
     "build",
     "twine",
+    "scikit-build-core>=0.10",
+    "cmake>=3.23",
     "hatchling>=1.18",
     "jsonschema>=4.0",
     "requests>=2.28",
@@ -83,45 +98,67 @@ Issues = "https://github.com/lemonforest/mlehaptics/issues"
 Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/python/CHANGELOG.md"
 "Research notebook" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
 
-[tool.hatch.build.targets.wheel]
-# Include the `srmech` package directory; py.typed marker is included
-# by virtue of being inside the package.
-packages = ["srmech"]
+# ─────────────────────────────────────────────────────────────────
+# scikit-build-core
+# ─────────────────────────────────────────────────────────────────
+#
+# CMake source dir is the parent of python/ — that's where
+# CMakeLists.txt lives (docs/srmech/CMakeLists.txt). At Phase B2 the
+# CMake build short-circuits (no c/src/*.c yet); at Phase B3 onward
+# it builds libsrmech and installs into srmech/_native/.
 
-[tool.hatch.build.targets.wheel.force-include]
-# Future srmech-primary catalogs land under srmech/amsc/attested/.
-# Phase 2 ships an empty subtree (just __init__.py); Spike #23 adds
-# the first catalog. Hatchling picks up the __init__.py automatically
-# via `packages`; this force-include slot is reserved for the eventual
-# descriptor.toml + row.ndjson + row.schema.json data files that
-# packages= alone wouldn't include.
+[tool.scikit-build]
+cmake.source-dir = ".."
+cmake.version = ">=3.23"
+cmake.build-type = "Release"
 
-[tool.hatch.build.targets.sdist]
-include = [
+# Python package included in the wheel alongside the (eventual)
+# CMake-installed native binary.
+wheel.packages = ["srmech"]
+
+# Make the wheel reproducible across rebuilds.
+wheel.exclude = ["*.pyc", "__pycache__"]
+
+# Phase B2 only — until Phase B3 lands real C code in c/src/, tag the
+# wheel as py3-none-any (purelib) so it stays cross-platform. The
+# CMake step still runs (validating the infrastructure end-to-end);
+# it just short-circuits to "no library" via the SRMECH_SRCS check
+# in CMakeLists.txt. Both these overrides come back OUT at Phase B3
+# so the wheel becomes legitimately platform-tagged once the
+# native binary is real.
+wheel.py-api = "py3"
+wheel.platlib = false
+
+# Sdist contents (pure-Python sources + CMake config + the C tree
+# one directory up). `pip install srmech` from sdist can compile
+# the C library locally once Phase B3 lands.
+sdist.include = [
     "srmech/**",
     "tests/**",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
     "pyproject.toml",
+    "../CMakeLists.txt",
+    "../c/include/**",
+    "../c/src/**",
+    "../c/Makefile",
+    "../c/README.md",
+    "../c/JPL_AUDIT.md",
 ]
-exclude = [
-    "**/__pycache__",
+sdist.exclude = [
+    "../c/build/**",
+    "../.pytest_cache/**",
+    "**/__pycache__/**",
     "**/*.pyc",
 ]
 
-# cibuildwheel configuration intentionally OMITTED while srmech is
-# pure-Python. cibuildwheel v3+ rejects pure-Python builds by design
-# ("Build failed because a pure Python wheel was generated"), making
-# the cibuildwheel matrix incompatible with srmech's current shape.
+# cibuildwheel configuration intentionally OMITTED at Phase B2 while
+# c/src/ is still empty. cibuildwheel v3+ rejects pure-Python builds
+# by design ("Build failed because a pure Python wheel was generated"),
+# so wiring it in before C code exists is a guaranteed failure mode
+# (the Task #200 Phase 1 trap, PR #383).
 #
-# Phase B of the srmech build-out (Task #201, pending) introduces
-# C/Python parity via scikit-build-core + CMake mirroring
-# ephemerides-spectral's pattern. At that point this file gains a
-# [tool.cibuildwheel] block and srmech-publish.yml gains a
-# build-wheels (cibuildwheel matrix) job + a build-pure-wheel
-# (hatchling fallback) job to mirror ephemerides-spectral-publish.yml.
-#
-# History: Task #200 Phase 1 (PR #383, merged) introduced cibuildwheel
-# prematurely; Phase A reverted it (this commit) and replaced with
-# rc-version auto-routing in srmech-publish.yml.
+# Phase B7 of Task #201 adds [tool.cibuildwheel] + the matrix job in
+# srmech-publish.yml once Phases B3–B5 have populated c/src/ with
+# real native code.

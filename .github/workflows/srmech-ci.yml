@@ -69,11 +69,13 @@ jobs:
         run: pytest tests/ -q
 
   pure-wheel-build:
-    # Always-on lightweight build of the py3-none-any wheel. Mirrors
-    # ephemerides-spectral-ci's `pure-wheel-build` job: builds with
-    # hatchling, runs `twine check --strict`, asserts no native
-    # binaries leaked. Catches pyproject.toml / hatchling-config drift
-    # on the PR before it can block a release.
+    # Always-on lightweight build of the py3-none-any wheel via the
+    # pyproject-pure.toml swap (hatchling backend). Mirrors
+    # ephemerides-spectral-ci's `pure-wheel-build` job. Task #201
+    # Phase B2 introduced scikit-build-core as the primary backend
+    # for `pyproject.toml`; the Pyodide / WASM fallback path lives in
+    # `pyproject-pure.toml`. This job validates the pure-wheel build
+    # path stays healthy.
     name: pure-wheel build
     runs-on: ubuntu-latest
     steps:
@@ -82,20 +84,37 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build wheel + sdist
+      - name: Verify pyproject-pure.toml version matches main
+        working-directory: docs/srmech/python
+        run: |
+          python3 <<'PY'
+          import sys, tomllib
+          with open("pyproject.toml", "rb") as f:
+              main_v = tomllib.load(f)["project"]["version"]
+          with open("pyproject-pure.toml", "rb") as f:
+              pure_v = tomllib.load(f)["project"]["version"]
+          if main_v != pure_v:
+              print(f"::error::pyproject.toml version {main_v!r} != "
+                    f"pyproject-pure.toml version {pure_v!r}. Bump them "
+                    "together.")
+              sys.exit(1)
+          print(f"versions agree: {main_v}")
+          PY
+
+      - name: Build pure wheel via pyproject-pure swap
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
           python -m pip install --upgrade pip build hatchling twine
           python -m build
           ls -la dist/
-          # Sanity: ensure the wheel has 'py3-none-any' tag (srmech
-          # ships no native binary).
           if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
             echo "::error::expected a py3-none-any wheel, did not find one"
             exit 1
           fi
-          # Sanity: ensure no .so/.dll/.dylib leaked into the wheel.
           if python -m zipfile -l dist/*-py3-none-any.whl \
               | grep -E '\.(so|dll|dylib|exe)$'; then
             echo "::error::native binaries leaked into pure wheel"

@@ -1,35 +1,32 @@
 name: srmech-publish
 
-# Build the pure-Python py3-none-any wheel + sdist for the ``srmech``
-# package and publish to PyPI / TestPyPI via OIDC trusted publishing.
+# Build platform-specific binary wheels (via scikit-build-core, with
+# cibuildwheel matrix coming in Task #201 Phase B7) plus an sdist
+# plus a pure-Python wheel for ``srmech`` and publish them to
+# PyPI / TestPyPI via OIDC trusted publishing.
 #
-# srmech is currently pure-Python (no native binary). Phase B of the
-# srmech build-out (Task #201, pending) introduces C/Python parity via
-# scikit-build-core + CMake mirroring ephemerides-spectral's pattern;
-# at that point the workflow gains a build-wheels (cibuildwheel)
-# matrix and a build-pure-wheel (hatchling fallback) job to mirror
-# ephemerides-spectral-publish.yml's three-job shape. For now, single
-# ``build`` job ships the py3-none-any wheel + sdist.
+# Task #201 Phase B2 (2026-05-13) switched the build to the
+# scikit-build-core + CMake pattern mirroring
+# ephemerides-spectral-publish.yml. Until Phase B3 lands real C
+# code under docs/srmech/c/src/, the CMake step short-circuits to
+# "no library" and the wheel is tagged py3-none-any (via the
+# wheel.py-api + wheel.platlib overrides in pyproject.toml). At
+# Phase B7 the cibuildwheel matrix gets added and the wheels
+# become legitimately platform-tagged.
 #
-# RC-version auto-routing (added Task #200 Phase A — 2026-05-13):
-#   * Tag ``srmech-vX.Y.ZrcN``  → TestPyPI (testpypi environment)
-#   * Tag ``srmech-vX.Y.Z``      → PyPI    (pypi environment)
+# A pure-Python ``py3-none-any`` wheel is also built (using the
+# ``pyproject-pure.toml`` swap) for Pyodide / WASM environments.
+#
+# RC-version auto-routing (Task #200 Phase A — 2026-05-13):
+#   * Tag ``srmech-vX.Y.ZrcN``  → TestPyPI auto-route
+#   * Tag ``srmech-vX.Y.Z``      → PyPI       auto-route
 # The tag suffix is the source of truth. TestPyPI releases happen
 # autonomously on rc-tagged pushes; PyPI releases happen on clean-
-# version pushes (which are human-in-loop because tagging a non-rc
-# version is itself the gate).
+# version pushes (tagging a non-rc version is itself the gate).
 #
-# Triggers:
-#   * ``push`` on ``srmech-v*`` tags — auto-routes per rc-suffix
-#     (see above). Tags pushed by the autotag workflow's GITHUB_TOKEN
-#     do NOT trigger this event (GitHub's anti-recursion guard).
-#   * ``workflow_dispatch`` — manual fallback. Pick the tag in the
-#     Ref dropdown and choose target (testpypi / pypi) to override
-#     the auto-routing rule.
-#
-# Trusted publisher configuration (one-time, done by a human):
-#   pypi.org      project=srmech, environment=pypi
-#   test.pypi.org project=srmech, environment=testpypi
+# Trusted-publisher entries (one-time setup, both done):
+#   * pypi.org      project=srmech, env=pypi
+#   * test.pypi.org project=srmech, env=testpypi
 
 on:
   push:
@@ -44,16 +41,17 @@ on:
         options: [testpypi, pypi]
         default: testpypi
 
-# Default token permissions: read-only. The build job only needs to
-# read the repo and upload artifacts (no contents:write needed).
-# The publish job overrides this to add id-token:write for PyPI
-# trusted publishing — see its job-level `permissions:` block.
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: build (sdist + py3-none-any wheel)
+  build-wheel:
+    # Phase B2 single-cell wheel build via scikit-build-core. At Phase
+    # B7 this job becomes a cibuildwheel matrix (Linux / macOS /
+    # Windows × py3.10–3.14), mirroring ephemerides-spectral. While
+    # c/src/ is empty, scikit-build-core's CMake step still runs but
+    # produces no library; the wheel ships as py3-none-any.
+    name: scikit-build-core wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,33 +60,163 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tooling
-        run: python -m pip install --upgrade pip build hatchling twine
+        run: python -m pip install --upgrade pip build scikit-build-core cmake twine
 
-      - name: Build wheel + sdist
+      - name: Build wheel (scikit-build-core, --wheel only — sdist is its own job)
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
-          python -m build
+          # `python -m build --wheel` skips the sdist→wheel detour
+          # that breaks scikit-build-core's `cmake.source-dir=".."`
+          # (the unpacked sdist root is not the same shape as the
+          # source tree). Direct wheel build matches ephemerides-
+          # spectral's cibuildwheel pattern.
+          python -m build --wheel
           ls -la dist/
-          # Sanity: ensure the wheel has 'py3-none-any' tag.
+          # Sanity: at Phase B2, expect a py3-none-any wheel (no
+          # real C code yet). At Phase B3+ this expectation flips.
           if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
-            echo "::error::expected a py3-none-any wheel, did not find one"
+            echo "::error::Phase B2 expected a py3-none-any wheel, did not find one"
             exit 1
           fi
-          # Sanity: ensure no native binaries leaked (srmech is pure-
-          # Python until Task #201 Phase B introduces the C side).
+          # Sanity: ensure no native binaries leaked (srmech is still
+          # pure-Python at B2; the binary lands at Phase B3+).
           if python -m zipfile -l dist/*-py3-none-any.whl \
               | grep -E '\.(so|dll|dylib|exe)$'; then
-            echo "::error::native binaries leaked into pure wheel"
+            echo "::error::native binaries leaked into Phase B2 wheel"
             exit 1
           fi
-          # Twine metadata check (strict).
           python -m twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: docs/srmech/python/dist/*
+          name: wheel-skbuild
+          path: docs/srmech/python/dist/*.whl
+
+  build-sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build twine
+
+      - name: Build sdist
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          # `python -m build --sdist` runs through scikit-build-core's
+          # sdist hook (no CMake invocation). The sdist captures both
+          # the python/ tree and the c/ tree one directory up via the
+          # `sdist.include` entries in pyproject.toml.
+          python -m build --sdist
+          ls -la dist/
+          python -m twine check --strict dist/*.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: docs/srmech/python/dist/*.tar.gz
+
+  build-pure-wheel:
+    # Pure-Python ``py3-none-any`` wheel for environments that can't
+    # run the (eventual) native binary — Pyodide / WASM in browsers,
+    # primarily. Built via hatchling against ``pyproject-pure.toml``
+    # which is swapped in over ``pyproject.toml`` for the build then
+    # restored. Same mechanism ephemerides-spectral uses.
+    name: pure-python wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify pyproject-pure.toml version matches main
+        working-directory: docs/srmech/python
+        run: |
+          python3 <<'PY'
+          import sys, tomllib
+          with open("pyproject.toml", "rb") as f:
+              main_v = tomllib.load(f)["project"]["version"]
+          with open("pyproject-pure.toml", "rb") as f:
+              pure_v = tomllib.load(f)["project"]["version"]
+          if main_v != pure_v:
+              print(f"::error::pyproject.toml version {main_v!r} != "
+                    f"pyproject-pure.toml version {pure_v!r}. Bump them "
+                    "together; the pure-wheel + platform-wheel pair must "
+                    "agree on version.")
+              sys.exit(1)
+          print(f"versions agree: {main_v}")
+          PY
+
+      - name: Verify [project].description is under PyPI's 512-char Summary limit
+        working-directory: docs/srmech/python
+        run: |
+          python3 <<'PY'
+          # PyPI's "Summary" metadata field has a HARD 512-character
+          # limit. The upload endpoint silently rejects metadata that
+          # exceeds it ("could not comply" with no useful detail in the
+          # publish action's logs). `twine check --strict` does NOT
+          # enforce this. Caught us when ephemerides-spectral v0.22.0
+          # + v0.23.0 both stalled at 593 chars.
+          import sys, tomllib
+          PYPI_SUMMARY_LIMIT = 512
+          SOFT_LIMIT = 480
+          for path in ("pyproject.toml", "pyproject-pure.toml"):
+              with open(path, "rb") as f:
+                  desc = tomllib.load(f)["project"]["description"]
+              n = len(desc)
+              non_ascii = [c for c in desc if ord(c) > 127]
+              print(f"{path}: description = {n} chars (limit "
+                    f"{PYPI_SUMMARY_LIMIT}, soft {SOFT_LIMIT}); "
+                    f"non-ascii = {len(non_ascii)}")
+              if n >= PYPI_SUMMARY_LIMIT:
+                  print(f"::error::{path} description is {n} chars; "
+                        f"PyPI's Summary metadata field has a HARD "
+                        f"{PYPI_SUMMARY_LIMIT}-char limit. Upload will "
+                        "be silently rejected. Trim the description.")
+                  sys.exit(1)
+              if n >= SOFT_LIMIT:
+                  print(f"::warning::{path} description is {n} chars; "
+                        f"approaching the {PYPI_SUMMARY_LIMIT}-char "
+                        f"PyPI limit. Soft cap is {SOFT_LIMIT}.")
+          PY
+
+      - name: Stage pure pyproject and build wheel
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip build hatchling
+          python -m build --wheel
+          ls -la dist/
+          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no _native/ binaries leaked into the pure wheel.
+          if python -m zipfile -l dist/*-py3-none-any.whl \
+              | grep -E '_native/.*\.(so|dll|dylib)|\.exe$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          echo "pure-wheel sanity checks passed"
+
+      - name: Twine metadata check
+        working-directory: docs/srmech/python
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check --strict dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-pure
+          path: docs/srmech/python/dist/*py3-none-any.whl
 
   publish:
     name: >-
@@ -98,17 +226,12 @@ jobs:
         || (contains(github.ref_name, 'rc') && 'testpypi')
         || 'pypi'
       }})
-    needs: [build]
+    needs: [build-wheel, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
-    # Publish only on tag-push or workflow_dispatch; never on PR /
-    # branch dispatches.
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/srmech-v'))
     environment:
-      # rc-version auto-routing: tag ending in rcN goes to testpypi;
-      # plain semver tag goes to pypi. workflow_dispatch overrides
-      # via `inputs.target`.
       name: >-
         ${{
           (github.event_name == 'workflow_dispatch' && inputs.target)
@@ -123,17 +246,15 @@ jobs:
             || 'https://pypi.org/project/srmech/'
         }}
     permissions:
-      id-token: write  # OIDC token for PyPI trusted publishing
+      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist
+          path: artifacts
 
-      - name: Verify tag matches pyproject version (tag-push only)
+      - name: Verify tag matches pyproject (tag-push only)
         if: github.event_name == 'push'
         shell: bash
         run: |
@@ -143,34 +264,37 @@ jobs:
               import tomllib
           except ImportError:
               import tomli as tomllib  # type: ignore[no-redef]
-          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "srmech-v0.1.1rc1"
+          tag = os.environ["GITHUB_REF_NAME"]
           # Allow rcN suffix (TestPyPI auto-route trigger). Matches
           # PEP 440 pre-release form: X.Y.ZrcN, no separator before rc.
           m = re.fullmatch(r"srmech-v(\d+\.\d+\.\d+(?:rc\d+)?)", tag)
           if not m:
-              print(f"::error::Tag {tag!r} does not match srmech-vX.Y.Z[rcN]")
+              print(f"::error::tag {tag!r} does not match srmech-vX.Y.Z[rcN]")
               sys.exit(1)
           tag_version = m.group(1)
           with open("docs/srmech/python/pyproject.toml", "rb") as f:
-              pyproject_version = tomllib.load(f)["project"]["version"]
-          if tag_version != pyproject_version:
-              print(
-                  f"::error::Tag version {tag_version!r} != pyproject version "
-                  f"{pyproject_version!r}; refusing to publish."
-              )
+              pyver = tomllib.load(f)["project"]["version"]
+          if tag_version != pyver:
+              print(f"::error::tag {tag_version!r} != pyproject {pyver!r}")
               sys.exit(1)
-          # Cross-check the auto-routing rule. If the tag has rc, this
-          # publish should hit TestPyPI; if not, PyPI. Surface this as
-          # a log line so the run page makes the routing obvious.
           if "rc" in tag_version:
               print(f"Tag {tag_version!r} is an rc release → TestPyPI")
           else:
               print(f"Tag {tag_version!r} is a clean release → PyPI")
-          print(f"Tag and pyproject agree: {tag_version}")
+          print(f"tag and pyproject agree: {tag_version}")
           PY
 
-      - name: List artefacts before publish
-        run: ls -la dist/
+      - name: Collect into dist/
+        run: |
+          mkdir -p dist
+          # Dedupe by name — wheel-skbuild and wheel-pure both produce
+          # the same py3-none-any wheel at Phase B2 (same content). At
+          # Phase B3+ scikit-build-core produces platform wheels and
+          # this dedupe is a no-op. Use `cp -n` so the first copy
+          # wins; the second one is a duplicate of the same artifact.
+          find artifacts -name '*.whl' -exec cp -n {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp -n {} dist/ \;
+          ls -la dist/
 
       - name: Publish to TestPyPI
         if: >-

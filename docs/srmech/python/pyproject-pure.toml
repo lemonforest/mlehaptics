@@ -1,0 +1,108 @@
+# srmech — pure-Python pyproject for Pyodide / WASM environments.
+#
+# Pure-Python wheel (py3-none-any). Built for Pyodide / WASM / no-C
+# environments where the scikit-build-core CMake compile in
+# pyproject.toml can't run. Same package name + version; the
+# difference is wheel-tag (py3-none-any vs platform-specific).
+#
+# The wheel-publish workflow swaps this in temporarily during the
+# build-pure-wheel job (and asserts the version matches the main
+# pyproject.toml's version via a tag-version-check step).
+#
+# Mirrors docs/antikythera-maths/ephemerides-spectral/python/
+# pyproject-pure.toml.
+
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "srmech"
+version = "0.1.1rc4"
+# IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
+# limit. The upload endpoint silently rejects oversize metadata
+# ("could not comply" with no useful detail bubbled into the publish
+# action's logs). `twine check --strict` does NOT enforce this.
+# Keep this string ASCII-only and under ~480 chars to leave headroom.
+# A guard in `.github/workflows/srmech-publish.yml` pins this at
+# build time. Must agree with `pyproject.toml`.
+description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Steven Kirkland" }]
+keywords = [
+    "stored-relationship",
+    "mechanism",
+    "attested",
+    "provenance",
+    "ndjson",
+    "ground-proof",
+    "research",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+dependencies = [
+    "tomli>=2.0; python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+validation = ["jsonschema>=4.0"]
+collectors = [
+    "requests>=2.28",
+    "beautifulsoup4>=4.11",
+]
+tests = ["pytest>=7.0"]
+dev = [
+    "pytest>=7.0",
+    "build",
+    "twine",
+    "hatchling>=1.18",
+    "jsonschema>=4.0",
+    "requests>=2.28",
+    "beautifulsoup4>=4.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"
+Repository = "https://github.com/lemonforest/mlehaptics"
+Issues = "https://github.com/lemonforest/mlehaptics/issues"
+Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/python/CHANGELOG.md"
+"Research notebook" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["srmech"]
+# Exclude any _native/ directory if it leaked in from a prior build.
+# Hatchling's `exclude` must be an array of glob strings — *not* a
+# table. (The earlier table form `"...\_native/*" = true` broke
+# ephemerides-spectral's v0.3.1 publish workflow; cargo-culting it
+# avoids the same trap.)
+exclude = [
+    "srmech/_native/*",
+    "srmech/_native/**",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "srmech/**",
+    "tests/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+    "srmech/_native/**",
+]
