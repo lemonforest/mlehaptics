@@ -130,4 +130,11 @@ docs/antikythera-maths/doom-spectral/source/linuxdoom-1.10/CVS/
 docs/antikythera-maths/doom-spectral/source/ipx/CVS/
 docs/antikythera-maths/doom-spectral/source/sersrc/CVS/
 docs/antikythera-maths/doom-spectral/source/sndserv/CVS/
+
+# Datasets downloaded from external repositories (Dryad, etc.) — fetched on
+# demand by scripts/fetch_*.py; not redistributed in this repo.
+/data/
+
+# Per-run logs from spike scripts.
+/logs/
 *.o
