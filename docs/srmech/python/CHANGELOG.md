@@ -4,38 +4,73 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-05-13
+## [0.1.1rc1] - 2026-05-13
 
-### Infrastructure — Task #200 Phase 1 cibuildwheel adoption
+### Infrastructure — Task #200 Phase A: revert cibuildwheel + add rc-routing
 
-- **`.github/workflows/srmech-publish.yml`** rewritten to use the
-  ``pypa/cibuildwheel@v3.4`` action under a 3-OS × 5-Python matrix
-  (Ubuntu / macOS-14 / Windows × Py3.10–3.14, 15 cells), replacing
-  the prior single ``python -m build`` job. This **mirrors the
-  cibuildwheel matrix shape of chess-spectral-publish.yml and
-  ephemerides-spectral-publish.yml** for structural consistency
-  across the spectral collection.
-- **`docs/srmech/python/pyproject.toml`** gains a ``[tool.cibuildwheel]``
-  configuration block (build / skip / test-requires / test-command /
-  test-skip) plus a ``[tool.cibuildwheel.linux]`` block pinning
-  ``manylinux_2_28`` as the Linux baseline image — sibling-parity
-  choice with chess-spectral.
-- **No code, API, or behaviour changes.** srmech remains pure-Python;
-  each matrix cell produces an identical ``srmech-X.Y.Z-py3-none-any.whl``
-  which deduplicates at the publish job's artifact-collection step.
-  The same wheel reaches PyPI as before — the only change is the
-  build path that produces it.
-- **Forward-readiness rationale.** When srmech eventually grows a
-  native (C / Rust) extension, the workflow needs **no further
-  changes** — cibuildwheel's matrix automatically begins producing
-  genuinely platform-tagged wheels at that point. This is the
-  payoff for adopting the matrix shape now while the package is
-  still pure-Python.
-- Local dev path (``cd docs/srmech/python && python -m build``)
-  remains unchanged and continues to produce the same wheel + sdist.
-  Tests: 59 / 59 pass unchanged.
-- No version bump in this phase; Task #200 Phase 2 will tag and
-  publish ``srmech v0.1.1`` (patch — infrastructure-only).
+This release reverts the premature cibuildwheel adoption from PR #383
+and introduces **rc-suffix auto-routing** in the publish workflow.
+
+#### Reverted (the cibuildwheel mis-application)
+
+- **`.github/workflows/srmech-publish.yml`** restored to the
+  single-build-job shape (``python -m build`` produces sdist +
+  py3-none-any wheel). cibuildwheel v3.x rejects pure-Python builds
+  by design ("Build failed because a pure Python wheel was
+  generated") — the matrix that PR #383 introduced was structurally
+  incompatible with srmech's current pure-Python state. The
+  ``ephemerides-spectral-publish.yml`` template adopted there
+  legitimately uses cibuildwheel because that package ships a
+  native C library; srmech does not (yet).
+- **`docs/srmech/python/pyproject.toml`** ``[tool.cibuildwheel]``
+  configuration block removed. Replaced with an explanatory comment
+  documenting that cibuildwheel returns once srmech grows the
+  C/Python parity surface (Task #201 Phase B).
+- The failed ``srmech-v0.1.1`` tag was deleted before any artifact
+  reached TestPyPI or PyPI; ``v0.1.0`` remains the current TestPyPI
+  release.
+
+#### Added — rc-suffix auto-routing (`srmech-publish.yml`)
+
+- Tag ``srmech-vX.Y.ZrcN`` → publishes to **TestPyPI** (testpypi
+  environment) automatically. No manual workflow_dispatch needed.
+- Tag ``srmech-vX.Y.Z`` (no rc suffix) → publishes to **PyPI**
+  (pypi environment). The act of tagging a non-rc version IS the
+  human-in-loop gate for production releases.
+- ``workflow_dispatch`` with ``target ∈ {testpypi, pypi}`` retained
+  as a manual override path.
+- Tag-version regex extended to accept rcN suffix:
+  ``r"srmech-v(\d+\.\d+\.\d+(?:rc\d+)?)"``. The version-match
+  check now also logs the routing decision so the run page makes
+  TestPyPI-vs-PyPI obvious.
+- Same rc-routing pattern simultaneously added to
+  ``ephemerides-spectral-publish.yml`` for sibling consistency.
+
+#### Version-discipline policy (going forward)
+
+- **Every srmech release between now and peer-quality with
+  ephemerides-spectral** ships as an rc on TestPyPI:
+  ``0.1.1rc1``, ``0.1.1rc2``, ``0.1.2rc1``, …
+- **No non-rc tag pushed** until srmech has Python/C parity, JPL
+  Power-of-Ten C standard discipline, scikit-build-core build,
+  and cibuildwheel matrix legitimately producing platform wheels.
+- Each rc-tagged release is auto-shipped to TestPyPI; the next rc
+  iteration is the response to whatever the prior rc-test surfaced.
+
+#### Tests + parity
+
+- All 59 srmech tests pass post-revert (no test changes).
+- ephemerides-spectral tests still pass with this srmech version
+  (the `srmech>=0.1.0` floor in ephemerides-spectral's
+  `pyproject.toml` is satisfied by `0.1.1rc1`; pre-release versions
+  resolve normally as PEP 440 allows).
+
+#### History link
+
+Task #200 Phase 1 cibuildwheel adoption (PR #383, merged) → Phase A
+revert (this release). The premature cibuildwheel adoption was
+caught by the publish workflow's own pure-Python-wheel sanity check
+failing under cibuildwheel v3.x's defensive build-time error.
 
 ### Notes — Task #197 Phase 4 cleanup (2026-05-13)
 

@@ -1,44 +1,35 @@
 name: srmech-publish
 
-# Build wheels (via cibuildwheel matrix) + sdist for the ``srmech``
-# package and publish to PyPI / TestPyPI via OIDC trusted publishing
-# on a ``srmech-v*`` tag.
+# Build the pure-Python py3-none-any wheel + sdist for the ``srmech``
+# package and publish to PyPI / TestPyPI via OIDC trusted publishing.
 #
-# srmech is currently pure-Python (no native binary). cibuildwheel is
-# adopted here for STRUCTURAL CONSISTENCY with the sibling spectral
-# packages (chess-spectral, ephemerides-spectral) which DO bundle
-# native binaries and need the per-OS / per-Python-version matrix.
+# srmech is currently pure-Python (no native binary). Phase B of the
+# srmech build-out (Task #201, pending) introduces C/Python parity via
+# scikit-build-core + CMake mirroring ephemerides-spectral's pattern;
+# at that point the workflow gains a build-wheels (cibuildwheel)
+# matrix and a build-pure-wheel (hatchling fallback) job to mirror
+# ephemerides-spectral-publish.yml's three-job shape. For now, single
+# ``build`` job ships the py3-none-any wheel + sdist.
 #
-# Each matrix cell here produces an identical ``py3-none-any`` wheel
-# (since hatchling is the build backend and there's no native code to
-# compile per-platform). The wheels are uploaded under unique
-# artifact names; the ``publish`` job collects them into ``dist/``
-# where ``cp`` deduplicates to a single wheel for PyPI upload.
-#
-# When srmech eventually grows a native C / Rust extension, NO
-# workflow changes are needed — cibuildwheel's matrix will start
-# producing genuinely platform-tagged wheels automatically (the
-# ``[tool.cibuildwheel]`` config in ``pyproject.toml`` activates
-# meaningfully at that point). This is the architectural-readiness
-# rationale for adopting the matrix shape now (Task #200 Phase 1).
+# RC-version auto-routing (added Task #200 Phase A — 2026-05-13):
+#   * Tag ``srmech-vX.Y.ZrcN``  → TestPyPI (testpypi environment)
+#   * Tag ``srmech-vX.Y.Z``      → PyPI    (pypi environment)
+# The tag suffix is the source of truth. TestPyPI releases happen
+# autonomously on rc-tagged pushes; PyPI releases happen on clean-
+# version pushes (which are human-in-loop because tagging a non-rc
+# version is itself the gate).
 #
 # Triggers:
-#   * ``push`` on ``srmech-v*`` tags — only fires when the tag push
-#     comes from a human / PAT. Tags pushed by the autotag workflow's
-#     GITHUB_TOKEN do NOT trigger this event (GitHub's anti-recursion
-#     guard). The autotag workflow compensates by dispatching this
-#     workflow explicitly after it pushes the tag.
-#   * ``workflow_dispatch`` — manual fallback. Pick the tag (e.g.
-#     ``srmech-v0.1.0``) in the Ref dropdown and choose target
-#     (testpypi / pypi).
+#   * ``push`` on ``srmech-v*`` tags — auto-routes per rc-suffix
+#     (see above). Tags pushed by the autotag workflow's GITHUB_TOKEN
+#     do NOT trigger this event (GitHub's anti-recursion guard).
+#   * ``workflow_dispatch`` — manual fallback. Pick the tag in the
+#     Ref dropdown and choose target (testpypi / pypi) to override
+#     the auto-routing rule.
 #
-# Trusted publisher configuration (one-time, done by a human on
-# pypi.org / test.pypi.org):
-#   Project:           srmech
-#   Owner:             lemonforest
-#   Repository:        mlehaptics
-#   Workflow filename: srmech-publish.yml
-#   Environment name:  pypi (for production) and testpypi (for dispatches)
+# Trusted publisher configuration (one-time, done by a human):
+#   pypi.org      project=srmech, environment=pypi
+#   test.pypi.org project=srmech, environment=testpypi
 
 on:
   push:
@@ -47,13 +38,13 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Publish target"
+        description: "Publish target (override rc-auto-route)"
         required: true
         type: choice
         options: [testpypi, pypi]
         default: testpypi
 
-# Default token permissions: read-only. The build jobs only need to
+# Default token permissions: read-only. The build job only needs to
 # read the repo and upload artifacts (no contents:write needed).
 # The publish job overrides this to add id-token:write for PyPI
 # trusted publishing — see its job-level `permissions:` block.
@@ -61,121 +52,53 @@ permissions:
   contents: read
 
 jobs:
-  build-wheels:
-    name: wheel • ${{ matrix.os }} • py${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # macos-13 (Intel x86_64) intentionally excluded: GitHub Actions
-        # macos-13 runner capacity is severely constrained as Apple
-        # deprecates Intel Macs (observed in chess-spectral PR #62 publish
-        # run #6: 1+ hour queue with no start). macos-14 (Apple Silicon)
-        # provides sufficient macOS coverage. Sibling-parity choice with
-        # chess-spectral-publish.yml + ephemerides-spectral-publish.yml.
-        os: [ubuntu-latest, macos-14, windows-latest]
-        # Python 3.10–3.14: matches the [project] classifiers in
-        # pyproject.toml. Sibling-parity choice.
-        python: ["310", "311", "312", "313", "314"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Build wheel via cibuildwheel
-        uses: pypa/cibuildwheel@v3.4
-        with:
-          package-dir: docs/srmech/python
-        env:
-          # Build only the matrix's Python; cibuildwheel handles the
-          # cp/abi/platform combinatorics. CPython only — PyPy is out
-          # of scope (sibling parity).
-          CIBW_BUILD: "cp${{ matrix.python }}-*"
-          # Skip 32-bit Windows / Linux: srmech runtime is 64-bit only;
-          # skip musl: sibling parity (manylinux_2_28 is the supported
-          # Linux baseline).
-          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
-          # manylinux_2_28: sibling parity (chess-spectral CI choice;
-          # scipy 1.17+ dropped manylinux2014 wheel support). srmech
-          # doesn't depend on scipy today but the baseline-image choice
-          # is consistent across the spectral collection.
-          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
-          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
-          # Use the `build` frontend (python -m build) instead of the
-          # default `pip wheel` — hatchling's PEP-517 backend is
-          # exercised more directly this way, matching the local
-          # `python -m build` dev path.
-          CIBW_BUILD_FRONTEND: build
-          # Per-wheel test: import the package and run the full srmech
-          # suite (59 tests covering format / descriptor / adapters /
-          # register_attested_root / classifier). pytest is the only
-          # explicit test-require; runtime deps (tomli on Py3.10) come
-          # in with the wheel install. The validation + collectors
-          # extras are NOT installed here — tests that need them are
-          # already gated by importorskip / extra-aware skips.
-          CIBW_TEST_REQUIRES: "pytest"
-          CIBW_TEST_COMMAND: >
-            pytest {package}/tests -q
-          # Skip wheel testing on cross-built aarch64 / arm64 where the
-          # build runner can't natively execute the wheel (cibuildwheel
-          # default sibling-parity skip set).
-          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
-
-      - name: Sanity-check wheel is pure-Python py3-none-any
-        shell: bash
-        run: |
-          set -euo pipefail
-          for whl in wheelhouse/*.whl; do
-            echo "=== $whl ==="
-            # srmech ships no native code today. Guard against accidental
-            # binary inclusion (e.g. a future stub C extension landing
-            # before the workflow is updated to ship platform wheels).
-            if python -m zipfile -l "$whl" \
-                 | grep -E '\.(so|dll|dylib|exe)$'; then
-              echo "::error::wheel $whl unexpectedly contains native binaries"
-              echo "    contents:"
-              python -m zipfile -l "$whl"
-              exit 1
-            fi
-            # Verify the universal tag — when native code is added
-            # later this check must be flipped to expect platform tags.
-            if ! basename "$whl" | grep -q 'py3-none-any\.whl$'; then
-              echo "::error::wheel $whl is not py3-none-any (srmech is pure-Python)"
-              exit 1
-            fi
-          done
-          echo "all wheels are pure-Python py3-none-any"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}
-          path: wheelhouse/*.whl
-
-  build-sdist:
-    name: sdist
+  build:
+    name: build (sdist + py3-none-any wheel)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip build twine
-      - name: Build sdist
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build hatchling twine
+
+      - name: Build wheel + sdist
         working-directory: docs/srmech/python
-        run: python -m build --sdist
-      - name: Twine metadata check
-        working-directory: docs/srmech/python
-        run: python -m twine check --strict dist/*.tar.gz
+        run: |
+          set -euo pipefail
+          python -m build
+          ls -la dist/
+          # Sanity: ensure the wheel has 'py3-none-any' tag.
+          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no native binaries leaked (srmech is pure-
+          # Python until Task #201 Phase B introduces the C side).
+          if python -m zipfile -l dist/*-py3-none-any.whl \
+              | grep -E '\.(so|dll|dylib|exe)$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          # Twine metadata check (strict).
+          python -m twine check --strict dist/*
+
       - uses: actions/upload-artifact@v4
         with:
-          name: sdist
-          path: docs/srmech/python/dist/*.tar.gz
+          name: dist
+          path: docs/srmech/python/dist/*
 
   publish:
-    name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
-    needs: [build-wheels, build-sdist]
+    name: >-
+      publish
+      (${{
+        (github.event_name == 'workflow_dispatch' && inputs.target)
+        || (contains(github.ref_name, 'rc') && 'testpypi')
+        || 'pypi'
+      }})
+    needs: [build]
     runs-on: ubuntu-latest
     # Publish only on tag-push or workflow_dispatch; never on PR /
     # branch dispatches.
@@ -183,11 +106,22 @@ jobs:
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/srmech-v'))
     environment:
-      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }}
+      # rc-version auto-routing: tag ending in rcN goes to testpypi;
+      # plain semver tag goes to pypi. workflow_dispatch overrides
+      # via `inputs.target`.
+      name: >-
+        ${{
+          (github.event_name == 'workflow_dispatch' && inputs.target)
+          || (contains(github.ref_name, 'rc') && 'testpypi')
+          || 'pypi'
+        }}
       url: >-
-        ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        ${{
+          ((github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+           || (github.event_name == 'push' && contains(github.ref_name, 'rc')))
             && 'https://test.pypi.org/project/srmech/'
-            || 'https://pypi.org/project/srmech/' }}
+            || 'https://pypi.org/project/srmech/'
+        }}
     permissions:
       id-token: write  # OIDC token for PyPI trusted publishing
       contents: read
@@ -196,7 +130,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: dist
+          path: dist
 
       - name: Verify tag matches pyproject version (tag-push only)
         if: github.event_name == 'push'
@@ -208,10 +143,12 @@ jobs:
               import tomllib
           except ImportError:
               import tomli as tomllib  # type: ignore[no-redef]
-          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "srmech-v0.1.0"
-          m = re.fullmatch(r"srmech-v(\d+\.\d+\.\d+)", tag)
+          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "srmech-v0.1.1rc1"
+          # Allow rcN suffix (TestPyPI auto-route trigger). Matches
+          # PEP 440 pre-release form: X.Y.ZrcN, no separator before rc.
+          m = re.fullmatch(r"srmech-v(\d+\.\d+\.\d+(?:rc\d+)?)", tag)
           if not m:
-              print(f"::error::Tag {tag!r} does not match srmech-vX.Y.Z")
+              print(f"::error::Tag {tag!r} does not match srmech-vX.Y.Z[rcN]")
               sys.exit(1)
           tag_version = m.group(1)
           with open("docs/srmech/python/pyproject.toml", "rb") as f:
@@ -222,35 +159,32 @@ jobs:
                   f"{pyproject_version!r}; refusing to publish."
               )
               sys.exit(1)
+          # Cross-check the auto-routing rule. If the tag has rc, this
+          # publish should hit TestPyPI; if not, PyPI. Surface this as
+          # a log line so the run page makes the routing obvious.
+          if "rc" in tag_version:
+              print(f"Tag {tag_version!r} is an rc release → TestPyPI")
+          else:
+              print(f"Tag {tag_version!r} is a clean release → PyPI")
           print(f"Tag and pyproject agree: {tag_version}")
           PY
-
-      - name: Collect wheels + sdist into dist/
-        run: |
-          # cibuildwheel matrix produces 15 identical py3-none-any wheels
-          # (sibling-parity matrix shape on a pure-Python package). Each
-          # is uploaded under a unique artifact name (wheels-<os>-cp<ver>)
-          # so the download fans them out into separate subdirectories;
-          # the `cp` here collapses them into a single dist/ entry (last
-          # writer wins, content is byte-identical so this is a no-op
-          # dedup). Sdist contributes the tar.gz alongside.
-          mkdir -p dist
-          find artifacts -name '*.whl' -exec cp {} dist/ \;
-          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
-          ls -la dist/
 
       - name: List artefacts before publish
         run: ls -la dist/
 
       - name: Publish to TestPyPI
-        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+          || (github.event_name == 'push' && contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
 
       - name: Publish to PyPI
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+          || (github.event_name == 'push' && !contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist

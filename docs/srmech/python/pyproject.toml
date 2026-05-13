@@ -16,7 +16,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.1.1"
+version = "0.1.1rc1"
 description = "Spectral-resonance mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -110,32 +110,18 @@ exclude = [
     "**/*.pyc",
 ]
 
-# cibuildwheel configuration — adopted in Task #200 Phase 1 for
-# STRUCTURAL CONSISTENCY with the sibling spectral packages
-# (chess-spectral, ephemerides-spectral) which DO bundle native
-# binaries and need the per-OS / per-Python-version matrix.
+# cibuildwheel configuration intentionally OMITTED while srmech is
+# pure-Python. cibuildwheel v3+ rejects pure-Python builds by design
+# ("Build failed because a pure Python wheel was generated"), making
+# the cibuildwheel matrix incompatible with srmech's current shape.
 #
-# srmech is currently pure-Python (no native binary): each matrix
-# cell in .github/workflows/srmech-publish.yml produces an identical
-# py3-none-any wheel, deduplicated at artifact-collection time. This
-# config sits READY for the day srmech grows a C / Rust extension —
-# at that point the workflow needs no changes; cibuildwheel's
-# matrix simply starts producing genuinely platform-tagged wheels.
+# Phase B of the srmech build-out (Task #201, pending) introduces
+# C/Python parity via scikit-build-core + CMake mirroring
+# ephemerides-spectral's pattern. At that point this file gains a
+# [tool.cibuildwheel] block and srmech-publish.yml gains a
+# build-wheels (cibuildwheel matrix) job + a build-pure-wheel
+# (hatchling fallback) job to mirror ephemerides-spectral-publish.yml.
 #
-# Matches the build/skip filters used by chess-spectral and
-# ephemerides-spectral; see those packages' pyproject.toml / publish
-# workflow comments for rationale.
-[tool.cibuildwheel]
-build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
-skip = "*-musllinux_* *-win32 *_i686"
-build-frontend = "build"
-test-requires = "pytest"
-test-command = "pytest {package}/tests -q"
-# Skip wheel testing on cross-built aarch64 / arm64 (cibuildwheel
-# sibling-parity skip set — the build runner can't natively execute
-# the wheel).
-test-skip = "*-macosx_arm64 *-*linux_aarch64"
-
-[tool.cibuildwheel.linux]
-manylinux-x86_64-image = "manylinux_2_28"
-manylinux-aarch64-image = "manylinux_2_28"
+# History: Task #200 Phase 1 (PR #383, merged) introduced cibuildwheel
+# prematurely; Phase A reverted it (this commit) and replaced with
+# rc-version auto-routing in srmech-publish.yml.
