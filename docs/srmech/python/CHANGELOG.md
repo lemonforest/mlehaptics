@@ -4,6 +4,16 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc2] - 2026-05-13
+
+### Fixed — hallucination in shipped metadata
+
+- **`pyproject.toml` description, `README.md`, `srmech/__init__.py` docstring**: corrected the package's expanded name from the hallucinated "spectral-resonance mechanism" to the correct **Stored-Relationship Mechanism** (per the srmech research notebook title `# Stored-Relationship Mechanism (srmech) — Research Notebook` and the project memory `project_stored_relationship_mechanism_spike.md`). The error was caught in the TestPyPI verification of v0.1.1rc1 — the wrong text shipped to TestPyPI as srmech-0.1.1rc1's PyPI Summary metadata; rc2 corrects it.
+- **`pyproject.toml` keywords**: `"spectral-resonance"` → `"stored-relationship"`.
+- **`README.md` Status line** updated to reflect current state (v0.1.0 on PyPI, v0.1.1rcN iterating on TestPyPI toward Task #201 peer-quality cut).
+
+No behaviour or API changes. Wheel + sdist content identical to rc1 except for metadata fields.
+
 ## [0.1.1rc1] - 2026-05-13
 
 ### Infrastructure — Task #200 Phase A: revert cibuildwheel + add rc-routing

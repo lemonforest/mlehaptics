@@ -1,8 +1,8 @@
 # srmech
 
-**Status:** v0.1.0 (Phase 2 bootstrap — Task #197 of the AMSC-to-srmech refactor)
+**Status:** v0.1.0 on PyPI (initial ship from the Task #197 AMSC-to-srmech refactor). v0.1.1rcN iterating on TestPyPI toward peer-quality with ephemerides-spectral (Task #201 build-out: Python/C parity + JPL Power-of-Ten + scikit-build-core).
 
-`srmech` (spectral-resonance mechanism) is a research package. As of v0.1.0 it ships the **Attested Multi-Source Collector (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time.
+`srmech` (Stored-Relationship Mechanism) is a research package. It ships the **Attested Multi-Source Collector (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time.
 
 The package was extracted from `ephemerides-spectral`'s `_research/` mirror in Task #197 so that other spectral-research packages can consume the AMSC framework without depending on ephemerides-spectral. The catalog SSOTs themselves do NOT migrate — each downstream package registers its own root via `srmech.amsc.catalog.register_attested_root(path, source=...)`.
 

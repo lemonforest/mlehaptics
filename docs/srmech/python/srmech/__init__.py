@@ -1,4 +1,4 @@
-"""srmech — spectral-resonance mechanism research package.
+"""srmech — Stored-Relationship Mechanism research package.
 
 Phase 2 (Task #197) ships srmech as the home of the Attested
 Multi-Source Collector (AMSC) framework — previously living inside
