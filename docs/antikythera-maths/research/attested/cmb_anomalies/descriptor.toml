@@ -1,0 +1,82 @@
+# CMB Anomalies Catalogue — canonical large-scale CMB structural anomalies.
+#
+# Companion to cmb_power_spectrum: where that catalogue indexes the CMB
+# spectrum by multipole bin (C_ℓ at each ℓ), this catalogue indexes the
+# CMB by STRUCTURAL ANOMALY — observed features that deviate from the
+# statistical-isotropy + Gaussianity null hypothesis of standard ΛCDM at
+# statistically interesting levels (typically 2σ-3σ).
+#
+# Each row is one named anomaly with its discovery + confirmation
+# references, statistical significance, sky location (where applicable),
+# multipole range, and a structural anomaly_kind classification. The
+# catalogue is data: it does NOT include any specific theoretical
+# interpretation (bubble-collision mechanism, EM-medium-pressure
+# mechanism, axion / cosmic-string explanations, etc.) — those are
+# research-scope and would need separate derivation, not recovery from
+# prior Gemini-CLI speculation per
+# [[project_may8_commit_gemini_taint_caveat]].
+#
+# These anomalies have been studied across WMAP (2003-2010), Planck
+# (2013, 2015, 2018), and remain present in Planck 2018 data with
+# largely-unchanged statistical significance. Their existence as DATA
+# is uncontroversial; their INTERPRETATION (statistical fluke vs.
+# new physics vs. residual systematics) is the open question.
+
+[source]
+key = "cmb_anomalies"
+human_readable_name = "CMB Large-Scale Anomalies Catalogue"
+purpose = "ground-proof rows for canonical large-scale CMB structural anomalies — quadrupole-octupole alignment ('Axis of Evil'), Cold Spot, hemispherical power asymmetry, low quadrupole, parity asymmetry, large-angle correlation suppression — as observed-data records (no interpretation), companion to cmb_power_spectrum"
+license = "literature-curated; per-row discovery + confirmation references cited"
+homepage = "https://wiki.cosmos.esa.int/planck-legacy-archive/"
+canonical_doi = "10.1051/0004-6361/201833881"
+
+# canonical_doi above points at Planck 2018 VII (Akrami et al. 2020,
+# A&A 641:A7) — the canonical Planck 2018 isotropy + statistics paper
+# that re-validated each anomaly using PR3 maps. Per-row provenance
+# additionally cites the original discovery papers (de Oliveira-Costa
+# 2004; Vielva 2004; Eriksen 2004; Land & Magueijo 2005; Schwarz 2004;
+# Copi 2010) and key confirmation papers.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cmb_anomalies.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "CMB Anomalies Catalogue (curated against Planck 2018 VII: Akrami et al. 2020 *A&A* 641:A7, doi:10.1051/0004-6361/201833881 + per-row discovery references); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof CMB anomaly {schema.canonical_name} ({schema.anomaly_kind}, ~{schema.statistical_significance_sigma}σ) at ℓ ∈ [{schema.ell_range_min}, {schema.ell_range_max}]"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# CMB anomalies are STRUCTURAL features in the CMB sky beyond what the
+# binned power spectrum captures (which assumes statistical isotropy).
+# They probe deviations from the isotropy + Gaussianity null hypothesis.
+# The v0.24.9 dynamical-regime classifier doesn't yet have a regime
+# label for structural-anomaly catalogues; closest existing label is
+# rigid_body_action_angle_stable (anomalies are observationally stable
+# across CMB experiments). A future label like
+# `cosmological_structural_anomaly` or `isotropy_violation_observation`
+# would be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
