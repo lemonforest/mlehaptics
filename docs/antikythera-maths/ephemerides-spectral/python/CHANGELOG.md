@@ -10,6 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — AMSC framework migrated to `srmech.amsc.*` (Task #197 Phase 4)
+
+The Attested Multi-Source Collector (AMSC) framework — previously vendored
+as `_research/attested_collector_{format,descriptor,catalog,gap_suggester}.py`
+and `_research/attested_adapters/` — has been **removed from this package**
+and now lives at `srmech.amsc.*` on PyPI.
+
+- **New runtime dependency**: `srmech>=0.1.0` (added in Phase 3, was already
+  pulled in for the import-swap; this phase removes the now-dead duplicate
+  copies).
+- **Files deleted** from the wheel: 12 framework modules (~2,931 LOC inside
+  the package) — 4 top-level (`attested_collector_format.py`,
+  `attested_collector_descriptor.py`, `attested_collector_catalog.py`,
+  `attested_collector_gap_suggester.py`) and 8 adapter modules under
+  `_research/attested_adapters/` (`_base.py`, `__init__.py`,
+  `html_scraper.py`, `json_api.py`, `csv_bulk.py`, `netcdf_grid.py`,
+  `geotiff_bbox.py`, `literature_curated.py`).
+- **Wheel size delta**: −37,416 bytes (−4.7 % from 800,096 B to 762,680 B
+  on the cp314-cp314-win_amd64 build).
+- **Codegen `manifest.json` n_files**: 154 → 142 (−12). Codegen
+  `_INCLUDED_MODULES` and `_INCLUDED_SUBDIRS` updated in
+  `codegen/emit_research_modules.py` to drop the AMSC framework entries
+  (the dropped entries are preserved as comments documenting the
+  migration).
+- **No API surface changes** in `ephemerides_spectral.bridge`. The
+  bridge functions `list_attested_sources`, `get_attested_dataset`,
+  `get_attested_descriptor`, `attestation_audit`,
+  `suggest_gap_collections`, and all CLI subcommands that delegate to
+  them continue to work byte-identically. The cross-package
+  `register_attested_root()` /  `register_classifier()` /
+  `register_probes()` bootstrap (added in Phase 3 in
+  `ephemerides_spectral/__init__.py`) is what wires srmech's accessors
+  to ephemerides-spectral's `_research/attested/` catalog SSOTs.
+- **Test parity** (5-gate boundary check): srmech 59/59 pass;
+  ephemerides-spectral 2128 passed + 42 skipped = 2170 collected,
+  byte-identical to the Phase 3 boundary baseline (the 42 skips are all
+  native-library-fallback environmental skips unrelated to the
+  refactor). Wheel builds clean; `twine check --strict` PASSED. Codegen
+  deterministic on re-run (manifest byte-identical).
+
+This is a **structural refactor**, not a behaviour change. Existing
+consumers who only call public bridge surfaces or CLI subcommands need
+no code changes. Consumers who imported from `ephemerides_spectral._research.attested_collector_*`
+(a private, `_`-prefixed subpackage that has no documented public API)
+must switch to `srmech.amsc.*` — this is the only breaking change, and
+its blast radius is internal-only by design.
+
 ### Added — LLM tool-schema export
 
 Self-describing bridge surface for LLM tool-use clients. Introspects `ephemerides_spectral.bridge` at call time and emits machine-readable tool descriptions in the standard formats: **Anthropic Claude tool-use spec** (default — `{name, description, input_schema}`), **OpenAI function-calling spec** (`{type: "function", function: {...}}`), **Anthropic MCP / Model Context Protocol tools/list spec** (camelCase `inputSchema`), **plain JSON Schema** (no LLM-vendor wrapping). Three new bridge surfaces: `get_tool_schema(format="anthropic", filter_prefix=None)` returns the full schema for all ~240 public bridge functions; `list_tool_names(filter_prefix=None)` returns just the inventory; `get_one_tool_schema(name, format="anthropic")` returns one tool's schema by name. Three new CLI subcommands: `tool-schema [--format FORMAT] [--filter-prefix STR]`, `tool-names [--filter-prefix STR]`, `tool-schema-one --name NAME [--format FORMAT]`. **Self-describing API discipline**: no hand-maintained list — every public bridge function with a docstring and type hints is automatically included. Adding a new ship's bridge surface automatically extends every emitted schema. The ratchet test `test_every_tool_has_non_empty_description` enforces docstring discipline (LLM tool-use clients can't use a tool they can't describe). Type-hint mapping handles `int`, `float`, `str`, `bool`, `Optional[X]`, `List[X]`, `Dict[X, Y]`, `Union[X, Y]`, and string-form (PEP 563) annotations. Name resolution uses the **bridge namespace binding** (not `fn.__name__`) — necessary because some bridge functions are factory-generated and share an inner `_impl` closure name, but the public contract is the namespace key. **Pure-Python additive; no ABI bump** (forty-plus consecutive ships since v0.13.x). 15 new tests in `tests/test_tool_schema.py` covering: inventory + sort + filter, all 4 formats, type-hint mapping (int → integer, str → string, Optional → not-required), unknown-name + unknown-format error paths, and the every-tool-has-description discipline ratchet. Reference: research notebook §0.0 The Mathematical Provenance Method — the bridge surface IS the surface other systems consume; making it self-describing to LLM clients is the natural completion of the "machine-readable everywhere" discipline.

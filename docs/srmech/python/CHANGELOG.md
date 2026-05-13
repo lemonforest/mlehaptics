@@ -4,6 +4,27 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+### Notes — Task #197 Phase 4 cleanup (2026-05-13)
+
+Phase 4 is the **final phase** of the AMSC-to-srmech refactor (Task #197). It does
+not change the srmech package itself; it cleans up the upstream duplicate copies in
+ephemerides-spectral now that Phase 3's import-swap has settled:
+
+- ephemerides-spectral deletes 12 vendored AMSC framework modules (4 top-level +
+  8 adapters) from its `_research/` mirror and its `docs/antikythera-maths/research/`
+  SSOT. ephemerides-spectral's codegen `_INCLUDED_MODULES` / `_INCLUDED_SUBDIRS`
+  are updated to no longer mirror the deleted framework into the wheel.
+- ephemerides-spectral's wheel shrinks by ~37 KB (~4.7 %) and its codegen
+  `manifest.json` n_files drops from 154 to 142.
+- All 5 Phase 1 parity gates remain green at the Phase 4 boundary; srmech
+  in-isolation 59/59 tests pass (unchanged from Phase 3); ephemerides-spectral
+  pytest is byte-identical to the Phase 3 baseline (2128 passed + 42 skipped
+  = 2170 collected).
+- `srmech v0.1.0` is now ready for the **first TestPyPI release**. See
+  `TESTPYPI_RELEASE_NOTES_v0.1.0.md` in this directory for the release
+  procedure (autonomous TestPyPI publish via the `srmech-v0.1.0` tag through
+  `.github/workflows/srmech-publish.yml`; PyPI release remains human-in-loop).
+
 ## [0.1.0] - 2026-05-13
 
 ### Added

@@ -108,12 +108,19 @@ _INCLUDED_MODULES: List[str] = [
     # ring-feature rows; the dual-author diff test asserts byte-stable
     # agreement.
     "saturn_rings_data.py",
-    # v0.25.0a — Attested Multi-Source Collector framework
-    "attested_collector_format.py",
-    "attested_collector_descriptor.py",
-    "attested_collector_catalog.py",
-    # v0.26.0 — Schema-gap-driven trigger (closes the MPM loop)
-    "attested_collector_gap_suggester.py",
+    # AMSC framework — REMOVED in Task #197 Phase 4 (2026-05-13). The
+    # framework (format / descriptor / catalog / gap_suggester +
+    # attested_adapters/) now lives at srmech.amsc.* on PyPI and is
+    # pulled in via the `srmech>=0.1.0` runtime dependency in
+    # pyproject.toml. ephemerides-spectral's __init__.py registers its
+    # `_research/attested/` catalog root with srmech.amsc.catalog via
+    # `register_attested_root()` and registers its dynamical-regime
+    # classifier + probes via `register_classifier()` /
+    # `register_probes()` at package-import time. Prior entries were:
+    #   "attested_collector_format.py",
+    #   "attested_collector_descriptor.py",
+    #   "attested_collector_catalog.py",
+    #   "attested_collector_gap_suggester.py",
     # LLM tool-schema export — introspects bridge.py at call time and
     # emits the bridge surface as Anthropic / OpenAI / MCP / jsonschema
     # tool descriptions. Self-describing API for LLM-tool-use clients.
@@ -124,11 +131,12 @@ _INCLUDED_MODULES: List[str] = [
     "body_kernel_registry.py",
 ]
 
-# Subdirectories under research/ to mirror recursively (preserves
-# package structure for nested modules like attested_adapters/).
-_INCLUDED_SUBDIRS: List[str] = [
-    "attested_adapters",
-]
+# Subdirectories under research/ to mirror recursively. Empty after
+# Task #197 Phase 4 (2026-05-13) — `attested_adapters` was removed
+# when the AMSC framework migrated to srmech.amsc.adapters.* on PyPI.
+# Kept as a list so future nested-package ships can re-add entries
+# without re-introducing the iteration scaffolding.
+_INCLUDED_SUBDIRS: List[str] = []
 
 def emit() -> List[Path]:
     if _RESEARCH_DST.exists():
