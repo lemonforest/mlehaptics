@@ -73,17 +73,18 @@ jobs:
           # spectral's cibuildwheel pattern.
           python -m build --wheel
           ls -la dist/
-          # Sanity: at Phase B2, expect a py3-none-any wheel (no
-          # real C code yet). At Phase B3+ this expectation flips.
-          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
-            echo "::error::Phase B2 expected a py3-none-any wheel, did not find one"
+          # Sanity: Phase B3+ ships platform-tagged wheels with the
+          # native binary inside. Reject py3-none-any (means CMake
+          # short-circuited and the wheel is missing the .so).
+          if ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::Phase B3+ expected a platform-tagged wheel, found py3-none-any (missing native binary?)"
             exit 1
           fi
-          # Sanity: ensure no native binaries leaked (srmech is still
-          # pure-Python at B2; the binary lands at Phase B3+).
-          if python -m zipfile -l dist/*-py3-none-any.whl \
-              | grep -E '\.(so|dll|dylib|exe)$'; then
-            echo "::error::native binaries leaked into Phase B2 wheel"
+          # Sanity: ensure the native binary actually shipped in the wheel.
+          if ! python -m zipfile -l dist/*.whl \
+              | grep -E 'srmech/_native/.*\.(so|dll|dylib)$'; then
+            echo "::error::wheel does NOT contain srmech/_native/libsrmech.{so,dll,dylib}"
+            python -m zipfile -l dist/*.whl
             exit 1
           fi
           python -m twine check --strict dist/*

@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.1.1rc4"
+version = "0.1.1rc5"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -119,15 +119,16 @@ wheel.packages = ["srmech"]
 # Make the wheel reproducible across rebuilds.
 wheel.exclude = ["*.pyc", "__pycache__"]
 
-# Phase B2 only — until Phase B3 lands real C code in c/src/, tag the
-# wheel as py3-none-any (purelib) so it stays cross-platform. The
-# CMake step still runs (validating the infrastructure end-to-end);
-# it just short-circuits to "no library" via the SRMECH_SRCS check
-# in CMakeLists.txt. Both these overrides come back OUT at Phase B3
-# so the wheel becomes legitimately platform-tagged once the
-# native binary is real.
-wheel.py-api = "py3"
-wheel.platlib = false
+# Phase B3 onward: srmech ships real native code (srmech_sha256.c +
+# srmech_meta.c → libsrmech.{so,dll,dylib} installed under
+# srmech/_native/). The wheel is now legitimately platform-tagged
+# (e.g. cp312-cp312-linux_x86_64). The pure-Python fallback for
+# Pyodide / WASM lives in pyproject-pure.toml.
+#
+# Phase B7 adds a cibuildwheel matrix to srmech-publish.yml so all
+# Linux × macOS × Windows wheel cells get built per release. Until
+# then, the build-wheel CI job runs on a single Ubuntu cell and the
+# pure-Python wheel is the fallback for non-Linux platforms.
 
 # Sdist contents (pure-Python sources + CMake config + the C tree
 # one directory up). `pip install srmech` from sdist can compile
