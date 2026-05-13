@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from ephemerides_spectral import bridge
-from ephemerides_spectral._research.attested_adapters import (
+from srmech.amsc.adapters import (
     ADAPTERS,
     csv_bulk,
     geotiff_bbox,
@@ -40,7 +40,7 @@ from ephemerides_spectral._research.attested_adapters import (
     netcdf_grid,
     _base,
 )
-from ephemerides_spectral._research.attested_collector_descriptor import (
+from srmech.amsc.descriptor import (
     Descriptor,
     DescriptorValidationError,
     descriptor_hash,
@@ -48,7 +48,7 @@ from ephemerides_spectral._research.attested_collector_descriptor import (
     load_descriptor,
     render_template,
 )
-from ephemerides_spectral._research.attested_collector_format import (
+from srmech.amsc.format import (
     MANDATORY_ATTESTATION_FIELDS,
     MANDATORY_RENDERING_FIELDS,
     MPR_SCHEMA_VERSION,
@@ -214,11 +214,22 @@ def test_sha256_bytes_deterministic() -> None:
 
 
 def _earthref_descriptor_path() -> Path:
-    """Real EarthRef SC descriptor shipped at v0.25.0a."""
-    from ephemerides_spectral._research.attested_collector_catalog import (
-        _attested_root,
+    """Real EarthRef SC descriptor shipped at v0.25.0a.
+
+    The descriptor lives in ephemerides-spectral's ``_research/attested/``
+    SSOT. Post-Phase-3 we resolve the path from the ephemerides package
+    location directly rather than from ``srmech.amsc.catalog._attested_root()``
+    (which returns srmech's own — currently empty — catalog root, not
+    ephemerides's).
+    """
+    import ephemerides_spectral
+    return (
+        Path(ephemerides_spectral.__file__).resolve().parent
+        / "_research"
+        / "attested"
+        / "earthref_sc"
+        / "descriptor.toml"
     )
-    return _attested_root() / "earthref_sc" / "descriptor.toml"
 
 
 def test_load_descriptor_earthref_sc() -> None:
@@ -281,10 +292,10 @@ def test_ndjson_path_honors_explicit_fetch_field(tmp_path: Path) -> None:
     the resolver ignored the explicit field; the symptom was an
     apparently-correctly-authored descriptor returning empty rows
     with the misleading "first T1 collection pending" note."""
-    from ephemerides_spectral._research.attested_collector_catalog import (
+    from srmech.amsc.catalog import (
         _ndjson_path,
     )
-    from ephemerides_spectral._research.attested_collector_descriptor import (
+    from srmech.amsc.descriptor import (
         Descriptor,
     )
     descriptor = Descriptor(
@@ -310,10 +321,10 @@ def test_ndjson_path_falls_back_to_schema_id_when_explicit_absent(
     to deriving the filename from the schema-id middle part. This is
     the legacy convention; preserves backwards compatibility for
     descriptors that omit the explicit field."""
-    from ephemerides_spectral._research.attested_collector_catalog import (
+    from srmech.amsc.catalog import (
         _ndjson_path,
     )
-    from ephemerides_spectral._research.attested_collector_descriptor import (
+    from srmech.amsc.descriptor import (
         Descriptor,
     )
     descriptor = Descriptor(
@@ -335,10 +346,10 @@ def test_ndjson_path_explicit_wins_over_schema_id_derivation(
     """When ``[fetch].ndjson_path`` and the schema-id derivation
     disagree, the explicit field wins. Pins the resolution rule
     against silent regression."""
-    from ephemerides_spectral._research.attested_collector_catalog import (
+    from srmech.amsc.catalog import (
         _ndjson_path,
     )
-    from ephemerides_spectral._research.attested_collector_descriptor import (
+    from srmech.amsc.descriptor import (
         Descriptor,
     )
     descriptor = Descriptor(
@@ -358,11 +369,21 @@ def test_ndjson_path_explicit_wins_over_schema_id_derivation(
 
 
 def test_discover_descriptors_finds_committed_pilots() -> None:
-    """Walking research/attested/ surfaces every committed pilot."""
-    from ephemerides_spectral._research.attested_collector_catalog import (
-        _attested_root,
+    """Walking research/attested/ surfaces every committed pilot.
+
+    Post-Phase-3 the catalog root for ephemerides's pilots is no
+    longer ``srmech.amsc.catalog._attested_root()`` (which is srmech's
+    own — currently empty — root). Resolve from the ephemerides
+    package location directly so this test stays focused on the
+    ephemerides catalog inventory.
+    """
+    import ephemerides_spectral
+    ephemerides_attested_root = (
+        Path(ephemerides_spectral.__file__).resolve().parent
+        / "_research"
+        / "attested"
     )
-    found = discover_descriptors(_attested_root())
+    found = discover_descriptors(ephemerides_attested_root)
     assert sorted(found.keys()) == [
         "axial_seamount",
         "cmb_anomalies",
@@ -772,7 +793,7 @@ def _write_overlay_row(
     )
     target = overlay_root / source_key / f"{table}.ndjson"
     target.parent.mkdir(parents=True, exist_ok=True)
-    from ephemerides_spectral._research.attested_collector_format import write_ndjson
+    from srmech.amsc.format import write_ndjson
     write_ndjson(target, [record])
     return target
 
@@ -945,7 +966,7 @@ def test_get_attested_dataset_live_true_fetches_upstream(monkeypatch) -> None:
     """live=True invokes the adapter's fetch/parse pipeline."""
     pytest.importorskip("bs4")
 
-    from ephemerides_spectral._research.attested_adapters import html_scraper
+    from srmech.amsc.adapters import html_scraper
 
     def _fake_fetch(descriptor):
         yield _T3_FIXTURE_HTML
@@ -967,7 +988,7 @@ def test_get_attested_dataset_live_per_row_attestation(monkeypatch) -> None:
     as a T1 collector run."""
     pytest.importorskip("bs4")
 
-    from ephemerides_spectral._research.attested_adapters import html_scraper
+    from srmech.amsc.adapters import html_scraper
 
     def _fake_fetch(descriptor):
         yield _T3_FIXTURE_HTML
@@ -987,7 +1008,7 @@ def test_get_attested_dataset_live_pagination(monkeypatch) -> None:
     """T3 honours limit + offset like the baseline path."""
     pytest.importorskip("bs4")
 
-    from ephemerides_spectral._research.attested_adapters import html_scraper
+    from srmech.amsc.adapters import html_scraper
 
     def _fake_fetch(descriptor):
         yield _T3_FIXTURE_HTML
@@ -1010,7 +1031,7 @@ def test_get_attested_dataset_live_adapter_error_surfaces(monkeypatch) -> None:
     """When the adapter raises, the bridge returns ok=False with
     diagnostic + retrieved_at so the consumer can record the
     failed attempt."""
-    from ephemerides_spectral._research.attested_adapters import html_scraper, _base
+    from srmech.amsc.adapters import html_scraper, _base
 
     def _broken_fetch(descriptor):
         raise _base.AdapterError("upstream returned 503; rate-limited")
@@ -1028,7 +1049,7 @@ def test_cli_attested_dataset_live_flag(monkeypatch) -> None:
     """The --live CLI flag wires through to live=True on the bridge."""
     pytest.importorskip("bs4")
 
-    from ephemerides_spectral._research.attested_adapters import html_scraper
+    from srmech.amsc.adapters import html_scraper
 
     def _fake_fetch(descriptor):
         yield _T3_FIXTURE_HTML
@@ -1080,7 +1101,7 @@ def test_suggest_gap_collections_per_suggestion_shape() -> None:
 
 def test_suggest_gap_collections_classifies_gap_kinds() -> None:
     """Every gap_kind comes from the documented vocabulary."""
-    from ephemerides_spectral._research.attested_collector_gap_suggester import (
+    from srmech.amsc.gap_suggester import (
         GAP_KIND_OOD,
         GAP_KIND_SPURIOUS,
         GAP_KIND_SURPRISE,

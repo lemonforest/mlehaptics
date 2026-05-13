@@ -31,6 +31,56 @@ from typing import Any
 from ephemerides_spectral.version import __version__
 
 
+# ──────────────────────────────────────────────────────────────────────
+# AMSC bootstrap registration (Task #197 Phase 3)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Push ephemerides-spectral's catalog SSOT root + the gap_suggester's
+# classifier + probe modules into the srmech.amsc framework. The
+# framework lives in srmech (the AMSC-to-srmech refactor); the catalogs
+# and the dynamical-regime classifier remain ephemerides-specific and
+# live in ephemerides's ``_research/`` subpackage. Bootstrap binds the
+# two at package-import time so any consumer importing
+# ``ephemerides_spectral`` (or its bridge / cli / submodules) gets the
+# correct cross-package wiring without thinking about it.
+#
+# Idempotent: re-importing ephemerides_spectral re-runs the bootstrap,
+# but :func:`register_attested_root` / :func:`register_classifier` /
+# :func:`register_probes` all handle re-registration cleanly (first-
+# wins for roots; last-wins for classifier/probes).
+
+
+def _bootstrap_amsc() -> None:
+    """Register ephemerides-spectral's catalog root + gap_suggester
+    dependencies with srmech.amsc."""
+    from pathlib import Path
+
+    from srmech.amsc import catalog as _amsc_catalog
+    from srmech.amsc import gap_suggester as _amsc_gap
+
+    # Register the attested catalog root.
+    _research_dir = Path(__file__).resolve().parent / "_research"
+    _attested_root = _research_dir / "attested"
+    _amsc_catalog.register_attested_root(
+        _attested_root, source="ephemerides-spectral"
+    )
+
+    # Register gap_suggester dependencies (Phase 2 Deviation #1
+    # resolution: cross-package classifier + probes pushed by the
+    # consumer at import time).
+    from ephemerides_spectral._research import (
+        dynamical_regime_catalog as _classifier_mod,
+    )
+    from ephemerides_spectral._research import (
+        dynamical_regime_probes_data as _probes_mod,
+    )
+    _amsc_gap.register_classifier(_classifier_mod)
+    _amsc_gap.register_probes(_probes_mod)
+
+
+_bootstrap_amsc()
+
+
 DEFAULT_BACKEND: str = "bip"
 """Module-level default for ``default_encode`` and the bridge's
 ``backend`` keyword.

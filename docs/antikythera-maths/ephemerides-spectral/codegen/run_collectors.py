@@ -29,11 +29,11 @@ from _paths import ATTESTED_SRC, ensure_research_importable
 
 ensure_research_importable()
 
-from research.attested_adapters._base import run as adapter_run  # noqa: E402
-from research.attested_collector_descriptor import (  # noqa: E402
+from srmech.amsc.adapters._base import run as adapter_run  # noqa: E402
+from srmech.amsc.descriptor import (  # noqa: E402
     discover_descriptors,
 )
-from research.attested_collector_format import (  # noqa: E402
+from srmech.amsc.format import (  # noqa: E402
     write_ndjson,
 )
 
