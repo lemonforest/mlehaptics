@@ -305,6 +305,11 @@ from ephemerides_spectral._research.cmb_anomalies_catalog import (
     get_cmb_anomaly as _get_cmb_anomaly_impl,
     list_cmb_anomalies as _list_cmb_anomalies_impl,
 )
+from ephemerides_spectral._research.tool_schema import (
+    get_tool_schema as _get_tool_schema_impl,
+    list_tool_names as _list_tool_names_impl,
+    get_one_tool_schema as _get_one_tool_schema_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4983,6 +4988,65 @@ def list_cmb_anomalies() -> Dict[str, Any]:
     from isotropy + Gaussianity at 2σ-3σ levels).
     """
     return _list_cmb_anomalies_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# LLM tool-schema export — self-describing bridge surface for tool-use
+# clients (Anthropic Claude, OpenAI function-calling, MCP / Model Context
+# Protocol, plain JSON Schema)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_tool_schema(
+    format: str = "anthropic",
+    filter_prefix: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Emit the bridge surface as an LLM tool-schema list.
+
+    The bridge has ~240 public functions across 40+ ships; this surface
+    introspects them at call time and emits machine-readable tool
+    descriptions in the format the requested LLM tool-use client expects.
+    Adding a new bridge function automatically extends every emitted
+    schema — no hand-maintained list.
+
+    Args:
+        format: One of ``"anthropic"`` (Claude tool-use spec; default),
+            ``"openai"`` (function-calling spec), ``"mcp"`` (Anthropic
+            Model Context Protocol tools/list spec), or ``"jsonschema"``
+            (plain JSON Schema without LLM-vendor wrapping).
+        filter_prefix: If given, only include tools whose name starts
+            with this prefix. Useful for selecting catalog-specific
+            subsets — e.g. ``"get_cmb_"`` for the cosmology-instrument
+            tools, ``"get_axial_"`` for the Axial Seamount catalog.
+
+    Returns ``{"ok": True, "format": ..., "n_tools": N, "tools": [...]}``
+    on success; ``{"ok": False, "reason": ...}`` for unknown format.
+
+    Reference: research notebook §0.0 The Mathematical Provenance Method
+    — the bridge surface IS the surface other systems consume; making
+    it self-describing to LLM clients is the natural completion of the
+    "machine-readable everywhere" discipline.
+    """
+    return _get_tool_schema_impl(format=format, filter_prefix=filter_prefix)
+
+
+def list_tool_names(filter_prefix: Optional[str] = None) -> Dict[str, Any]:
+    """List the names of all bridge tools, optionally filtered by prefix.
+
+    Useful for inventory + tab-completion + verifying which catalog a
+    particular tool belongs to before requesting its full schema via
+    :func:`get_one_tool_schema`.
+    """
+    return _list_tool_names_impl(filter_prefix=filter_prefix)
+
+
+def get_one_tool_schema(name: str, format: str = "anthropic") -> Dict[str, Any]:
+    """Return the schema for a single bridge tool by name.
+
+    Companion to :func:`get_tool_schema` for fine-grained inspection.
+    Same ``format`` parameter as the full-surface variant.
+    """
+    return _get_one_tool_schema_impl(name=name, format=format)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

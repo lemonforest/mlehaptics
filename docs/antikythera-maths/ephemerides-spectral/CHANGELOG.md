@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — LLM tool-schema export
+
+Self-describing bridge surface for LLM tool-use clients. The bridge (~240 public functions across 40+ ships) now emits machine-readable tool descriptions in Anthropic Claude tool-use spec, OpenAI function-calling spec, Anthropic Model Context Protocol (MCP) tools/list spec, and plain JSON Schema formats. Three new bridge surfaces (`get_tool_schema`, `list_tool_names`, `get_one_tool_schema`) + three new CLI subcommands (`tool-schema`, `tool-names`, `tool-schema-one`) wire the export. **Self-describing API**: introspects `bridge.py` at call time — no hand-maintained list; every public bridge function with a docstring + type hints is automatically included. Adding a new ship's bridge surface automatically extends every emitted schema. The ratchet test `test_every_tool_has_non_empty_description` enforces docstring discipline. Filter by name prefix for catalog-specific subsets (e.g. `--filter-prefix get_cmb_` for the cosmology-instrument tools). Type-hint mapping handles `Optional[X]`, `List[X]`, `Dict[X, Y]`, `Union[X, Y]`, and string-form annotations. Name resolution uses the bridge namespace binding (not `fn.__name__`) — necessary because some bridge functions are factory-generated. **Pure-Python additive; no ABI bump.** 15 new tests. Reference: research notebook §0.0 (The Mathematical Provenance Method) — the bridge surface IS the surface other systems consume; making it self-describing to LLM clients is the natural completion of the "machine-readable everywhere" discipline.
+
 ### Added — First cosmology-instrument pair (CMB Power Spectrum + CMB Anomalies)
 
 The project's first cosmology-scale instrument addition, opening the Mpc-to-Gpc regime as a new AMSC channel. Three sequential PRs.

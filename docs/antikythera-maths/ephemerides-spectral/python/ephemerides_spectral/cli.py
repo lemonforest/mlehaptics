@@ -1150,6 +1150,32 @@ def _cmd_cmb_anomalies_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_cmb_anomalies(), pretty=args.pretty)
 
 
+# LLM tool-schema export
+
+def _cmd_tool_schema(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_tool_schema(
+            format=args.format,
+            filter_prefix=args.filter_prefix,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_tool_names(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_tool_names(filter_prefix=args.filter_prefix),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_tool_schema_one(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.get_one_tool_schema(name=args.name, format=args.format),
+        pretty=args.pretty,
+    )
+
+
 # v0.25.0a — Attested Multi-Source Collector framework
 
 def _cmd_attested_list(args: argparse.Namespace) -> int:
@@ -5088,6 +5114,84 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     canmf.set_defaults(func=_cmd_cmb_anomalies_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # LLM tool-schema export
+    # ──────────────────────────────────────────────────────────────────
+
+    # tool-schema
+    ts = sub.add_parser(
+        "tool-schema",
+        help="Emit the bridge surface as an LLM tool-schema list",
+        description=(
+            "Introspects ephemerides_spectral.bridge at call time and\n"
+            "emits machine-readable tool descriptions in the standard\n"
+            "formats LLM tool-use clients expect. Self-describing API:\n"
+            "no hand-maintained list, every bridge function is included.\n"
+            "\n"
+            "Formats:\n"
+            "  anthropic   — Claude tool-use spec (default)\n"
+            "  openai      — OpenAI function-calling spec\n"
+            "  mcp         — Anthropic Model Context Protocol tools/list\n"
+            "  jsonschema  — Plain JSON Schema, no LLM-vendor wrapper\n"
+            "\n"
+            "Use --filter-prefix to subset (e.g. --filter-prefix get_cmb_\n"
+            "for the cosmology-instrument tools)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ts.add_argument(
+        "--format",
+        default="anthropic",
+        choices=["anthropic", "openai", "mcp", "jsonschema"],
+        help="Tool-schema format (default: anthropic)",
+    )
+    ts.add_argument(
+        "--filter-prefix",
+        dest="filter_prefix",
+        default=None,
+        help="Only include tools whose name starts with this prefix",
+    )
+    ts.set_defaults(func=_cmd_tool_schema)
+
+    # tool-names
+    tn = sub.add_parser(
+        "tool-names",
+        help="List bridge tool names without full schemas (inventory)",
+        description=(
+            "Returns the sorted list of every public bridge function name.\n"
+            "Useful for inventory + tab-completion + verifying which\n"
+            "catalog a tool belongs to before requesting its full schema."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tn.add_argument(
+        "--filter-prefix",
+        dest="filter_prefix",
+        default=None,
+        help="Only include names that start with this prefix",
+    )
+    tn.set_defaults(func=_cmd_tool_names)
+
+    # tool-schema-one
+    tso = sub.add_parser(
+        "tool-schema-one",
+        help="Emit the schema for a single bridge tool by name",
+        description=(
+            "Companion to tool-schema for fine-grained inspection.\n"
+            "Returns the schema for one named tool. Use tool-names\n"
+            "to discover available tool names."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tso.add_argument("--name", required=True, help="Tool name (bridge function name)")
+    tso.add_argument(
+        "--format",
+        default="anthropic",
+        choices=["anthropic", "openai", "mcp", "jsonschema"],
+        help="Tool-schema format (default: anthropic)",
+    )
+    tso.set_defaults(func=_cmd_tool_schema_one)
 
     # ──────────────────────────────────────────────────────────────────
     # v0.25.0a — Attested Multi-Source Collector framework

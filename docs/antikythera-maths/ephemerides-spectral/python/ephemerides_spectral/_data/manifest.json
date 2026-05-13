@@ -588,6 +588,10 @@
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
       "size_bytes": 62567
     },
+    "_research/tool_schema.py": {
+      "sha256": "e53cda09c8205ab476d8f042288ab3fb2d70ee065b258905f62ea80e5f310761",
+      "size_bytes": 14670
+    },
     "_research/toroidal_residual_catalog.py": {
       "sha256": "db6d086c678fc7021cadb55524ec4269c4159a2d6094f8dac949d7a8e47b623c",
       "size_bytes": 10087
