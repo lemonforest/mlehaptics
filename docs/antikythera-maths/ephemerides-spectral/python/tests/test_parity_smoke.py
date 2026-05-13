@@ -679,6 +679,21 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── LLM tool-schema export. Pure-Python introspection over the
+    # bridge module's signature + docstring metadata; no encoder-
+    # touching, no C twin makes sense.
+    "get_tool_schema": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_tool_names": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_one_tool_schema": {
+        "status": "python_only",
+        "kwargs_py": {"name": "get_cmb_first_acoustic_peak"},
+    },
     # ── v0.25.0a Attested Multi-Source Collector framework (universal
     # bridge surfaces over the descriptor-driven collector core; pure-
     # Python I/O over committed NDJSON, no C twin makes sense — these
