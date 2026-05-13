@@ -198,3 +198,56 @@ Per `feedback_no_mvp_framing.md`: full-coverage consolidation of all 10 settings
 **No shared-file edits.** This consolidation is strictly srmech-local. CHANGELOG.md, README.md, the MFO notebook, the Antikythera `pin_and_slot.py` D-H1 semantics lock, and `.gitignore` are untouched.
 
 ---
+
+## §10. Acknowledgments
+
+This consolidation synthesizes a 5-spike research arc (Spikes #14–#18) executed via the project's main-agent + subagent orchestration pattern (see `feedback_orchestration_metaphor.md`). The arc was conducted in collaboration with several large language models acting as research subagents and conversation partners:
+
+- **Claude (Anthropic, Opus 4.7)** — primary collaborator and orchestration conductor; executed all subagent dispatches, draft authoring, and extended-thinking self-review passes throughout the May 2026 arc. Conductor at Opus 4.7 [1M context]; subagents at Opus 4.7 standard.
+- **DeepSeek** — outside-assist research model. The framing fragment that anchored the §4.D structural-law-test spike protocol — *"the Laplacian is the spine. The group is the hidden symmetry. The Casimir is the closed form. The slot is the encoding."* — originated in a user–DeepSeek conversation on 2026-05-13 and is quoted verbatim in PR #367 (spectral-calculus rebuild scope) and §1 of this consolidation.
+- **Qwen** — outside-assist research model used at the project level for cross-checking and second-opinion work.
+
+Per `feedback_no_lineage_claims_in_notebook.md`: *"honoring some ancestors without all (including LLM contributors who made the cross-lexicon translation) is incomplete."* This Acknowledgments section discharges that discipline. Models used for outside assistance whose first-principles output consistently failed verification are intentionally not listed.
+
+---
+
+## §11. How to cite this document
+
+### Plain-text citation
+
+Kirkland, S. (2026, May 13). *Refined structural law: closed-form spectral compression across 10 settings — consolidation of Spikes #14–#18.* mlehaptics/srmech research notes. https://github.com/lemonforest/mlehaptics/pull/373
+
+### BibTeX
+
+```bibtex
+@misc{kirkland2026refined,
+  author       = {Kirkland, Steven},
+  title        = {Refined structural law: closed-form spectral compression across 10 settings --- consolidation of Spikes \#14--\#18},
+  year         = {2026},
+  month        = {may},
+  note         = {mlehaptics/srmech research notes; branch research/refined-structural-law-consolidation},
+  url          = {https://github.com/lemonforest/mlehaptics/pull/373}
+}
+```
+
+When citing specific claims, prefer citing the originating spike note (see §12 below) over this consolidation — the spike-level references carry the PDF-verified scholarship that this consolidation synthesizes.
+
+---
+
+## §12. Source spike notes (appendix)
+
+This consolidation synthesizes 5 antecedent spike notes. Readers tracing specific claims back to their PDF-verified sources should follow this table:
+
+| Spike | Mechanism contribution | Notes file | Branch | Commit | PR |
+|---|---|---|---|---|---|
+| #14 | Original 3-mechanism law (i, ii, iii); KY abelian-tower obstruction; 5/5 fit | `spike_14_abelian_wall_structural_law_test_2026-05-13.md` | `research/spike-14-abelian-wall-structural-law-test` | `77cf6af` | [#368](https://github.com/lemonforest/mlehaptics/pull/368) |
+| #15 | Mechanism (iv) introduced; (ii) absorbed into (iv); 6/6 fit | `spike_15_heun_monodromy_test_2026-05-13.md` | `research/spike-15-heun-monodromy-test` | `0ba297a` | [#369](https://github.com/lemonforest/mlehaptics/pull/369) |
+| #16 | Nonlinear extension via character-variety + Bäcklund-orbit forms; 7/7 fit | `spike_16_painleve_algebraic_classification_2026-05-13.md` | `research/spike-16-painleve-algebraic-classification` | `efa4dea` | [#370](https://github.com/lemonforest/mlehaptics/pull/370) |
+| #17 | Higher-d via S^d harmonics; compactness paired-test via H^d; 9/9 fit | `spike_17_spherical_harmonics_higher_d_2026-05-13.md` | `research/spike-17-spherical-harmonics-higher-d` | `c4acc61` | [#371](https://github.com/lemonforest/mlehaptics/pull/371) |
+| #18 | Non-compact non-semisimple via Heisenberg; layered-mechanism finding; 10/10 fit | `spike_18_heisenberg_representations_2026-05-13.md` | `research/spike-18-heisenberg-representations` | `ac345e2` | [#372](https://github.com/lemonforest/mlehaptics/pull/372) |
+
+All spike notes live in `docs/srmech/notes/`. PDF-verified citation chains in those notes are the load-bearing scholarship of the May 2026 arc.
+
+**Citation hygiene metadata.** The May 2026 spike arc caught 18 misattributions in flight; 11 (61%) originated from conductor briefs. Two additional would-be misattributions (Castro–Maloney–Strominger 2010 for CMS Kerr hidden conformal; Berti–Cardoso–Starinets 2009 review) were caught in this consolidation's extended-thinking self-review pass and removed before commit; they appear in no published source-of-truth for this work. The topic-only conductor-brief discipline (Spikes #17–#18) and extended-thinking self-review (this consolidation) both held to 0 catches after the methodological adjustment.
+
+---
