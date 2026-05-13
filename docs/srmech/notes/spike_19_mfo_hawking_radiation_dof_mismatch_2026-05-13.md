@@ -514,3 +514,20 @@ The reframing is *legitimate physics within the holographic-principle program* a
 - **Commit message:** `research(srmech): Spike #19 MFO — Hawking radiation as 3D/2D DoF mismatch — mostly-pure-wash with small MFO-distinctive tail`.
 - **No push, no PR.** Per conductor brief: strictly local notes for review; the conductor decides whether to PR.
 - **No shared files touched.** MFO notebook, CHANGELOG.md, README.md, refined-law consolidation file all untouched.
+
+---
+
+## Post-spike citation corrections (2026-05-13)
+
+This section appends corrections identified during PR-cleanup pass after spike landed.
+
+### Verified arXiv IDs (2020+ post-spike WebFetch verifications)
+
+| Citation | Status | Verified arXiv ID | Title |
+|---|---|---|---|
+| Penington 2020 (entanglement-wedge / Page curve) | ✓ verified | arXiv:1905.08255 | "Entanglement Wedge Reconstruction and the Information Paradox" (Geoffrey Penington, 2019, published JHEP 2020) |
+| Almheiri-Engelhardt-Marolf-Maxfield 2019-2020 (islands formula) | ✓ verified | arXiv:1905.08762 | "The entropy of bulk quantum fields and the entanglement wedge of an evaporating black hole" (AEMM, 2019, JHEP12(2019)063) |
+| Visser 2011 (Verlinde critique, pre-2020 exempt but flagged) | ✓ verified | arXiv:1108.5240 | "Conservative entropic forces" (Matt Visser, 2011, JHEP 1110 (2011) 140) |
+| Loveridge-Pereira 2014 (Verlinde critique) | ⚠ unverified in cleanup pass | — | candidate not located via arXiv WebFetch; pre-2020 → exempt from strict discipline, citation should be reviewed if used downstream |
+
+All 2020+ flagged citations now Tier-A PDF-verified per `feedback_pdf_extraction_citation_discipline.md`. Loveridge-Pereira 2014 remains unverified but pre-2020 exempt.
