@@ -1,0 +1,111 @@
+# srmech — spectral-resonance mechanism research package.
+#
+# Phase 2 (Task #197) ships srmech as the new home of the Attested
+# Multi-Source Collector (AMSC) framework, previously living inside
+# ephemerides-spectral's _research/ mirror. Pure Python; no native
+# binary; one wheel (py3-none-any).
+#
+# See docs/srmech/notes/task_197_phase_1_amsc_refactor_scope_2026-05-13.md
+# (on branch refactor/amsc-to-srmech-phase-1-scope) for the design
+# document. Phase 3 (planned) rewires ephemerides-spectral's bridge
+# to import from srmech.amsc.* instead of its in-tree mirror.
+
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "srmech"
+version = "0.1.0"
+description = "Spectral-resonance mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Steven Kirkland" }]
+keywords = [
+    "spectral-resonance",
+    "mechanism",
+    "attested",
+    "provenance",
+    "ndjson",
+    "ground-proof",
+    "research",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+# Runtime deps are minimal: jsonschema is optional (the format module
+# falls back to a `required`-fields-only check when jsonschema is not
+# installed). TOML parsing uses stdlib `tomllib` on Python 3.11+; the
+# 3.10 path requires `tomli` (declared as a conditional dep here).
+dependencies = [
+    "tomli>=2.0; python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+# Validation extra: enables strict per-source JSON Schema checks
+# inside `validate_mpr_record` when `data_schemas` is supplied.
+validation = ["jsonschema>=4.0"]
+# Collector extra: deps needed by the `fetched`-class adapters
+# (html_scraper / json_api / csv_bulk). netcdf_grid + geotiff_bbox
+# stubs raise NotImplementedError unless their own extras are
+# installed (left as a follow-up; not blocking Phase 2).
+collectors = [
+    "requests>=2.28",
+    "beautifulsoup4>=4.11",
+]
+# Tests extra: runs srmech's own pytest suite.
+tests = ["pytest>=7.0"]
+# Dev extra: everything plus build tooling.
+dev = [
+    "pytest>=7.0",
+    "build",
+    "twine",
+    "hatchling>=1.18",
+    "jsonschema>=4.0",
+    "requests>=2.28",
+    "beautifulsoup4>=4.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"
+Repository = "https://github.com/lemonforest/mlehaptics"
+Issues = "https://github.com/lemonforest/mlehaptics/issues"
+Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/python/CHANGELOG.md"
+"Research notebook" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
+
+[tool.hatch.build.targets.wheel]
+# Include the `srmech` package directory; py.typed marker is included
+# by virtue of being inside the package.
+packages = ["srmech"]
+
+[tool.hatch.build.targets.wheel.force-include]
+# Future srmech-primary catalogs land under srmech/amsc/attested/.
+# Phase 2 ships an empty subtree (just __init__.py); Spike #23 adds
+# the first catalog. Hatchling picks up the __init__.py automatically
+# via `packages`; this force-include slot is reserved for the eventual
+# descriptor.toml + row.ndjson + row.schema.json data files that
+# packages= alone wouldn't include.
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "srmech/**",
+    "tests/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+]

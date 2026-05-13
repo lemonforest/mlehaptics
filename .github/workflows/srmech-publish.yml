@@ -1,0 +1,154 @@
+name: srmech-publish
+
+# Build the pure-Python py3-none-any wheel + sdist for the ``srmech``
+# package and publish to PyPI via trusted publishing (OIDC) on a
+# ``srmech-v*`` tag.
+#
+# srmech is pure Python (no native binary), so unlike chess-spectral /
+# ephemerides-spectral, no cibuildwheel matrix is needed — one wheel
+# fits every platform + Python version.
+#
+# Triggers:
+#   * ``push`` on ``srmech-v*`` tags — only fires when the tag push
+#     comes from a human / PAT. Tags pushed by the autotag workflow's
+#     GITHUB_TOKEN do NOT trigger this event (GitHub's anti-recursion
+#     guard). The autotag workflow compensates by dispatching this
+#     workflow explicitly after it pushes the tag.
+#   * ``workflow_dispatch`` — manual fallback. Pick the tag (e.g.
+#     ``srmech-v0.1.0``) in the Ref dropdown and choose target
+#     (testpypi / pypi).
+#
+# Trusted publisher configuration (one-time, done by a human on
+# pypi.org / test.pypi.org):
+#   Project:           srmech
+#   Owner:             lemonforest
+#   Repository:        mlehaptics
+#   Workflow filename: srmech-publish.yml
+#   Environment name:  pypi (for production) and testpypi (for dispatches)
+
+on:
+  push:
+    tags:
+      - "srmech-v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Publish target"
+        required: true
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+# Default token permissions: read-only. The build jobs only need to
+# read the repo and upload artifacts (no contents:write needed).
+# The publish job overrides this to add id-token:write for PyPI
+# trusted publishing — see its job-level `permissions:` block.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (sdist + py3-none-any wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build hatchling twine
+
+      - name: Build wheel + sdist
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          python -m build
+          ls -la dist/
+          # Sanity: ensure the wheel has 'py3-none-any' tag.
+          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no native binaries leaked.
+          if python -m zipfile -l dist/*-py3-none-any.whl \
+              | grep -E '\.(so|dll|dylib|exe)$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          # Twine metadata check (strict).
+          python -m twine check --strict dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: docs/srmech/python/dist/*
+
+  publish:
+    name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
+    needs: [build]
+    runs-on: ubuntu-latest
+    # Publish only on tag-push or workflow_dispatch; never on PR /
+    # branch dispatches.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/srmech-v'))
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }}
+      url: >-
+        ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+            && 'https://test.pypi.org/project/srmech/'
+            || 'https://pypi.org/project/srmech/' }}
+    permissions:
+      id-token: write  # OIDC token for PyPI trusted publishing
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Verify tag matches pyproject version (tag-push only)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import os, re, sys
+          try:
+              import tomllib
+          except ImportError:
+              import tomli as tomllib  # type: ignore[no-redef]
+          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "srmech-v0.1.0"
+          m = re.fullmatch(r"srmech-v(\d+\.\d+\.\d+)", tag)
+          if not m:
+              print(f"::error::Tag {tag!r} does not match srmech-vX.Y.Z")
+              sys.exit(1)
+          tag_version = m.group(1)
+          with open("docs/srmech/python/pyproject.toml", "rb") as f:
+              pyproject_version = tomllib.load(f)["project"]["version"]
+          if tag_version != pyproject_version:
+              print(
+                  f"::error::Tag version {tag_version!r} != pyproject version "
+                  f"{pyproject_version!r}; refusing to publish."
+              )
+              sys.exit(1)
+          print(f"Tag and pyproject agree: {tag_version}")
+          PY
+
+      - name: List artefacts before publish
+        run: ls -la dist/
+
+      - name: Publish to TestPyPI
+        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

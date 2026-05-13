@@ -1,0 +1,120 @@
+name: srmech-ci
+
+# Per-PR build + test for the srmech package. srmech is pure-Python
+# (no native binary, no cibuildwheel matrix); the CI shape mirrors
+# ephemerides-spectral-ci.yml's `build-and-test` job at a 4-cell
+# always-on matrix plus a `pure-wheel build` smoke test.
+#
+# Triggers: pull_request changes under docs/srmech/python/**, push
+# to main affecting srmech, OR a manual workflow_dispatch.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/srmech/python/**"
+      - ".github/workflows/srmech-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/srmech/python/**"
+      - ".github/workflows/srmech-ci.yml"
+  workflow_dispatch: {}
+
+# Default token permissions: read-only. None of the jobs here writes
+# to the repo. Artifact uploads (if any) don't need contents:write.
+permissions:
+  contents: read
+
+# Cancel older runs for the same ref when a newer event fires —
+# saves CI minutes on rapid pushes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # 4 cells, always-on. Same shape as ephemerides-spectral-ci's
+    # build-and-test job: one Python (3.12) across three OS + a
+    # min-supported-Python (3.10) cell on Linux to catch the
+    # tomllib / typing regressions that only surface on the floor.
+    name: ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  python: "3.12" }
+          - { os: macos-14,       python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: ubuntu-latest,  python: "3.10" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install package + dev tools
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          # Install the [dev] extra so all adapter deps + pytest +
+          # jsonschema are available for the full test suite.
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        working-directory: docs/srmech/python
+        shell: bash
+        run: pytest tests/ -q
+
+  pure-wheel-build:
+    # Always-on lightweight build of the py3-none-any wheel. Mirrors
+    # ephemerides-spectral-ci's `pure-wheel-build` job: builds with
+    # hatchling, runs `twine check --strict`, asserts no native
+    # binaries leaked. Catches pyproject.toml / hatchling-config drift
+    # on the PR before it can block a release.
+    name: pure-wheel build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel + sdist
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip build hatchling twine
+          python -m build
+          ls -la dist/
+          # Sanity: ensure the wheel has 'py3-none-any' tag (srmech
+          # ships no native binary).
+          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no .so/.dll/.dylib leaked into the wheel.
+          if python -m zipfile -l dist/*-py3-none-any.whl \
+              | grep -E '\.(so|dll|dylib|exe)$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          python -m twine check --strict dist/*
+          echo "pure-wheel sanity checks passed"
+
+      - name: Verify wheel installs + imports
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet dist/*.whl
+          cd /tmp
+          python -c "
+          from srmech import __version__
+          from srmech.amsc import (
+              MPRRecord, Descriptor, get_attested_dataset,
+              register_attested_root, list_registered_roots,
+          )
+          print(f'srmech {__version__} OK')
+          "
