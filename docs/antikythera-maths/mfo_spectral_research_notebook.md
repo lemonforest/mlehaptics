@@ -751,6 +751,51 @@ linear in `l` — these are exactly the **extra spectral degrees of freedom** ca
 
 **Status.** This is a mathematical framework, not a new physical prediction. It makes §VII.4.1's holographic-principle invocation operationally concrete. The framework's testability lives in §VII.4.1's existing predictions (Page-curve unitarity, no observable interior signature in merger gravitational waveforms, Hawking-radiation entanglement bounded by boundary locality) — this subsection's contribution is to specify *which mathematical object* those predictions are predictions *about*: the principal-U(1)-bundle spectral structure of the boundary surface.
 
+### VII.4.1.2 Casimir-decomposition universality — across spin, gauge, and hidden symmetry
+
+§VII.4.1.1 establishes spherical compression via the Hopf bundle and proves the textbook identity `λ_S³(ℓ) − λ_S²(ℓ) = ℓ` for the scalar Laplacian. The 2026-05-12 spike series (Spikes #7 through #10, see `docs/srmech/notes/` for scripts and per-test NDJSON outputs) extended this in seven directions, producing a *unifying abstract statement* that subsumes the Hopf result as one instance of a much broader pattern.
+
+**The unified statement.** Let `G` be a Lie group acting on a bundle over a base `M`. The Laplacian on the total space decomposes via the Peter-Weyl theorem into base eigenmodes plus group-theoretic harmonics, and the eigenvalues satisfy
+
+$$\lambda_{\mathrm{total}}\ =\ \lambda_M\ +\ C_2(\rho_G)\ +\ (\text{closed-form cross-terms determined by the connection / curvature})$$
+
+where `C₂(ρ_G)` is the Casimir of the representation `ρ_G` that the field-mode carries. The Hopf result is the special case `G = U(1)`, `M = S²`, `C₂(ρ_q) = q²`, with `q = ℓ` matched mode-by-mode by topological constraint, yielding the linear gap `ℓ`. Other choices of `G` (compact or non-compact) give *different* closed-form expressions for the gap — but the structural pattern `base + Casimir-of-hidden-symmetry-Group + cross-terms` is universal.
+
+**Seven independent positive structural results** verify the universal statement across compact + non-compact + multi-spin + multi-gauge-group regimes:
+
+| Spike | Regime tested | Closed-form identity | Reference |
+|---|---|---|---|
+| #7 | Compact `U(1)` Hopf, scalar (`s=0`) | `λ_S³ − λ_S² = ℓ` | PR `92dd8c8` |
+| #8 A | Compact `U(1)` trivial `T²` + AB-twisted `T²` | additivity + Aharonov-Bohm holonomy `(m+ω)²` | PR #354 |
+| #8 B2 | Dirac (spin-`½`) on round `S²` | mult-2 doublets native; eigenvalues `±(n+1)` | PR #354 |
+| #9 A | Compact `U(1)` Hopf, all spins `s ∈ {0, ½, 1, 2}` | `λ_S³(ℓ,s) − λ_S²(ℓ,s) = ℓ`; the `−s²` shifts cancel | PR #356 |
+| #9 B | Compact `SU(2)` flat bundle on `S²` | `λ_total(ℓ, j) − λ_S²(ℓ) = j(j+1)` | PR #356 |
+| #9 C | Non-compact `SL(2,ℝ)²` CMS hidden, scalar | `C_L + C_R = 2·λ_S²(ℓ)` | PR #356 |
+| #10 | Non-compact `SL(2,ℝ)²` CMS hidden, spin-weighted (LIGO target `s=2`) | `C_L + C_R = 2·λ_S²(ℓ,s) + 4s²` (SPIN-SHIFT convention; `+16` at `s=2`) | PR #357 |
+
+The Casimir-decomposition family is **real, broad, and computable in closed form** wherever the relevant Lie-group structure is identified. The specific identity is group-dependent: linear `ℓ` gap for compact `U(1)` Hopf; quadratic `j(j+1)` for compact `SU(2)`; identity-via-doubling for non-compact `SL(2,ℝ)²` CMS; spin-shifted offsets `4s²` for spin-weighted CMS. The pattern is invariant; the closed forms are not.
+
+**Implications for the substrate-vs-excitation ontology** (§VII.1.1 two-level framing). The seven results jointly support the *emerge-together* reading: substrate (continuous symmetry group) and excitation (its Casimir-labelled irrep) are not independent. The MFO substrate-field carries the symmetry; excitation classes are the Casimir-decomposed irreps. The framework does *not* support the *separable* reading where substrate and excitation are two distinct ontological layers — every test attempting separation found Casimir-mediated coupling.
+
+**What the framework reaches.** Compact and non-compact hidden symmetries; multiple spin weights; multiple gauge groups; static and AB-twisted bundles; both event-horizon-geometry (Hopf S² → S³) and gravitational-radiation regime (CMS low-`Mω` Kerr QNMs, the LIGO observational target class). The spherical-compression operator from §VII.4.1.1 is the spectral statement of the universal pattern, and §VII.4.1.2 generalises it: the operator projects out *the Casimir-decomposed irrep structure*, not specifically the `U(1)` fibre, with the irrep depending on which symmetry group governs the regime.
+
+**What the framework does NOT reach.**
+
+- *Standard Model gauge-irrep choice* remains an INPUT, not derived from geometry alone. Spike #8 B3 and Spike #9 B3 both confirm: the Casimir-decomposition framework can host SM matter multiplicities `{1, 2, 3, 6}`, but the specific selection of `SU(3) × SU(2) × U(1)` (rather than any other gauge group of comparable Casimir structure) is not selected by the geometry. The bundle framework supplies an *encoding channel*; SM-specific representation theory is layered on top.
+- *High-frequency Kerr QNMs* outside the CMS asymptotic regime (`Mω « 1`) — for which LIGO's fundamental ringdown modes (`Mω ~ 0.3–0.5`) lie — are NOT closed-form via the CMS identity. The CMS framework is a low-frequency asymptotic anchor; perturbation corrections build on it, but the closed-form Casimir identity does not extend to generic-frequency Kerr.
+
+**The open Killing-Yano gap.** The Kerr black hole's *geometric* hidden symmetry is the Killing-Yano (KY) tensor (Carter 1968; Penrose-Floyd 1973), which generates a commuting-operator algebra of 4 / 7 / 8 operators (for scalar / vector / tensor fields respectively, per Cariglia-Krtouš-Kubizňák 2011 arXiv:1102.4501 + Houri-Tanahashi-Yasui 2024 arXiv:2401.03553). CMS's `SL(2,ℝ)²` is *not* the KY hidden symmetry — CMS is a wave-equation symmetry that coincides with KY-geometry only at extremality. The KY commuting-operator algebra has *the right algebraic shape* for a Casimir decomposition that would yield a closed-form QNM identity at generic `Mω`, but no published work has pushed the construction through to a closed-form analog of `C_L + C_R = 2·λ_S²(ℓ)`. This is the natural next research direction (Spike #11, ref. `docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md` for the literature scan); a positive result would be a publishable physics contribution closing a real gap in the Kerr/CFT-correspondence + hidden-symmetry literature.
+
+**Cross-references.**
+- Spike #7 (PR `92dd8c8` on branch `research/event-horizon-2d-spectrum-spike`): scalar Hopf identity verification, 2D-horizon spectrum vs SM bulk mismatch, structural feature test.
+- Spike #8 (PR #354): 1D cosmic-string Hopf analog + spinor / SU(2) bundle exploration + SM-fermion-multiplicity inventory.
+- Spike #9 (PR #356): closed-form Hopf identity across spin, gauge, and CMS hidden conformal regimes.
+- Spike #10 (PR #357): closed-form CMS Casimir identity for spin-weighted modes (LIGO target `s=2`).
+- KY literature review (`docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md`, branch `research/killing-yano-literature-review`): state-of-field for the open generic-`Mω` Kerr regime.
+- §VII.4.1.1 (above): original Hopf-fibration framing that this section generalises.
+
+**Status.** This is a *consolidation* of seven independent computational verifications into a unified abstract statement, not a new physical prediction. The framework's testable claims live in §VII.4.1, §VII.5–§VII.7 (cosmological reframings), and §XIII.1 (the SM-mass-fractal open problem). §VII.4.1.2's contribution is to identify *the mathematical object* the framework is built on — the Casimir-decomposition family across symmetry groups — and to document where its reach is bounded by SM-specific representation choices and the KY-Kerr-QNM open gap.
+
 ### VII.5 Dark matter as geometric curvature
 
 If the metric field's geometry is fractal, it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal geometry is complex enough to curve spacetime without supporting particle-like excitations.
