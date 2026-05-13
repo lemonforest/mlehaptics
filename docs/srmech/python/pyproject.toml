@@ -1,4 +1,4 @@
-# srmech — spectral-resonance mechanism research package.
+# srmech — Stored-Relationship Mechanism research package.
 #
 # Phase 2 (Task #197) ships srmech as the new home of the Attested
 # Multi-Source Collector (AMSC) framework, previously living inside
@@ -16,14 +16,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.1.1rc1"
-description = "Spectral-resonance mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
+version = "0.1.1rc2"
+description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 authors = [{ name = "Steven Kirkland" }]
 keywords = [
-    "spectral-resonance",
+    "stored-relationship",
     "mechanism",
     "attested",
     "provenance",
