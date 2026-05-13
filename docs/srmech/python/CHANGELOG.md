@@ -4,6 +4,39 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-13
+
+### Infrastructure — Task #200 Phase 1 cibuildwheel adoption
+
+- **`.github/workflows/srmech-publish.yml`** rewritten to use the
+  ``pypa/cibuildwheel@v3.4`` action under a 3-OS × 5-Python matrix
+  (Ubuntu / macOS-14 / Windows × Py3.10–3.14, 15 cells), replacing
+  the prior single ``python -m build`` job. This **mirrors the
+  cibuildwheel matrix shape of chess-spectral-publish.yml and
+  ephemerides-spectral-publish.yml** for structural consistency
+  across the spectral collection.
+- **`docs/srmech/python/pyproject.toml`** gains a ``[tool.cibuildwheel]``
+  configuration block (build / skip / test-requires / test-command /
+  test-skip) plus a ``[tool.cibuildwheel.linux]`` block pinning
+  ``manylinux_2_28`` as the Linux baseline image — sibling-parity
+  choice with chess-spectral.
+- **No code, API, or behaviour changes.** srmech remains pure-Python;
+  each matrix cell produces an identical ``srmech-X.Y.Z-py3-none-any.whl``
+  which deduplicates at the publish job's artifact-collection step.
+  The same wheel reaches PyPI as before — the only change is the
+  build path that produces it.
+- **Forward-readiness rationale.** When srmech eventually grows a
+  native (C / Rust) extension, the workflow needs **no further
+  changes** — cibuildwheel's matrix automatically begins producing
+  genuinely platform-tagged wheels at that point. This is the
+  payoff for adopting the matrix shape now while the package is
+  still pure-Python.
+- Local dev path (``cd docs/srmech/python && python -m build``)
+  remains unchanged and continues to produce the same wheel + sdist.
+  Tests: 59 / 59 pass unchanged.
+- No version bump in this phase; Task #200 Phase 2 will tag and
+  publish ``srmech v0.1.1`` (patch — infrastructure-only).
+
 ### Notes — Task #197 Phase 4 cleanup (2026-05-13)
 
 Phase 4 is the **final phase** of the AMSC-to-srmech refactor (Task #197). It does

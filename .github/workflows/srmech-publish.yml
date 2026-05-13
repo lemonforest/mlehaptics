@@ -1,12 +1,26 @@
 name: srmech-publish
 
-# Build the pure-Python py3-none-any wheel + sdist for the ``srmech``
-# package and publish to PyPI via trusted publishing (OIDC) on a
-# ``srmech-v*`` tag.
+# Build wheels (via cibuildwheel matrix) + sdist for the ``srmech``
+# package and publish to PyPI / TestPyPI via OIDC trusted publishing
+# on a ``srmech-v*`` tag.
 #
-# srmech is pure Python (no native binary), so unlike chess-spectral /
-# ephemerides-spectral, no cibuildwheel matrix is needed — one wheel
-# fits every platform + Python version.
+# srmech is currently pure-Python (no native binary). cibuildwheel is
+# adopted here for STRUCTURAL CONSISTENCY with the sibling spectral
+# packages (chess-spectral, ephemerides-spectral) which DO bundle
+# native binaries and need the per-OS / per-Python-version matrix.
+#
+# Each matrix cell here produces an identical ``py3-none-any`` wheel
+# (since hatchling is the build backend and there's no native code to
+# compile per-platform). The wheels are uploaded under unique
+# artifact names; the ``publish`` job collects them into ``dist/``
+# where ``cp`` deduplicates to a single wheel for PyPI upload.
+#
+# When srmech eventually grows a native C / Rust extension, NO
+# workflow changes are needed — cibuildwheel's matrix will start
+# producing genuinely platform-tagged wheels automatically (the
+# ``[tool.cibuildwheel]`` config in ``pyproject.toml`` activates
+# meaningfully at that point). This is the architectural-readiness
+# rationale for adopting the matrix shape now (Task #200 Phase 1).
 #
 # Triggers:
 #   * ``push`` on ``srmech-v*`` tags — only fires when the tag push
@@ -47,46 +61,121 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: build (sdist + py3-none-any wheel)
+  build-wheels:
+    name: wheel • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-13 (Intel x86_64) intentionally excluded: GitHub Actions
+        # macos-13 runner capacity is severely constrained as Apple
+        # deprecates Intel Macs (observed in chess-spectral PR #62 publish
+        # run #6: 1+ hour queue with no start). macos-14 (Apple Silicon)
+        # provides sufficient macOS coverage. Sibling-parity choice with
+        # chess-spectral-publish.yml + ephemerides-spectral-publish.yml.
+        os: [ubuntu-latest, macos-14, windows-latest]
+        # Python 3.10–3.14: matches the [project] classifiers in
+        # pyproject.toml. Sibling-parity choice.
+        python: ["310", "311", "312", "313", "314"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel via cibuildwheel
+        uses: pypa/cibuildwheel@v3.4
+        with:
+          package-dir: docs/srmech/python
+        env:
+          # Build only the matrix's Python; cibuildwheel handles the
+          # cp/abi/platform combinatorics. CPython only — PyPy is out
+          # of scope (sibling parity).
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
+          # Skip 32-bit Windows / Linux: srmech runtime is 64-bit only;
+          # skip musl: sibling parity (manylinux_2_28 is the supported
+          # Linux baseline).
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          # manylinux_2_28: sibling parity (chess-spectral CI choice;
+          # scipy 1.17+ dropped manylinux2014 wheel support). srmech
+          # doesn't depend on scipy today but the baseline-image choice
+          # is consistent across the spectral collection.
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          # Use the `build` frontend (python -m build) instead of the
+          # default `pip wheel` — hatchling's PEP-517 backend is
+          # exercised more directly this way, matching the local
+          # `python -m build` dev path.
+          CIBW_BUILD_FRONTEND: build
+          # Per-wheel test: import the package and run the full srmech
+          # suite (59 tests covering format / descriptor / adapters /
+          # register_attested_root / classifier). pytest is the only
+          # explicit test-require; runtime deps (tomli on Py3.10) come
+          # in with the wheel install. The validation + collectors
+          # extras are NOT installed here — tests that need them are
+          # already gated by importorskip / extra-aware skips.
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: >
+            pytest {package}/tests -q
+          # Skip wheel testing on cross-built aarch64 / arm64 where the
+          # build runner can't natively execute the wheel (cibuildwheel
+          # default sibling-parity skip set).
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - name: Sanity-check wheel is pure-Python py3-none-any
+        shell: bash
+        run: |
+          set -euo pipefail
+          for whl in wheelhouse/*.whl; do
+            echo "=== $whl ==="
+            # srmech ships no native code today. Guard against accidental
+            # binary inclusion (e.g. a future stub C extension landing
+            # before the workflow is updated to ship platform wheels).
+            if python -m zipfile -l "$whl" \
+                 | grep -E '\.(so|dll|dylib|exe)$'; then
+              echo "::error::wheel $whl unexpectedly contains native binaries"
+              echo "    contents:"
+              python -m zipfile -l "$whl"
+              exit 1
+            fi
+            # Verify the universal tag — when native code is added
+            # later this check must be flipped to expect platform tags.
+            if ! basename "$whl" | grep -q 'py3-none-any\.whl$'; then
+              echo "::error::wheel $whl is not py3-none-any (srmech is pure-Python)"
+              exit 1
+            fi
+          done
+          echo "all wheels are pure-Python py3-none-any"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
+    name: sdist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build hatchling twine
-
-      - name: Build wheel + sdist
+      - run: python -m pip install --upgrade pip build twine
+      - name: Build sdist
         working-directory: docs/srmech/python
-        run: |
-          set -euo pipefail
-          python -m build
-          ls -la dist/
-          # Sanity: ensure the wheel has 'py3-none-any' tag.
-          if ! ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
-            echo "::error::expected a py3-none-any wheel, did not find one"
-            exit 1
-          fi
-          # Sanity: ensure no native binaries leaked.
-          if python -m zipfile -l dist/*-py3-none-any.whl \
-              | grep -E '\.(so|dll|dylib|exe)$'; then
-            echo "::error::native binaries leaked into pure wheel"
-            exit 1
-          fi
-          # Twine metadata check (strict).
-          python -m twine check --strict dist/*
-
+        run: python -m build --sdist
+      - name: Twine metadata check
+        working-directory: docs/srmech/python
+        run: python -m twine check --strict dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: docs/srmech/python/dist/*
+          name: sdist
+          path: docs/srmech/python/dist/*.tar.gz
 
   publish:
     name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
-    needs: [build]
+    needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
     # Publish only on tag-push or workflow_dispatch; never on PR /
     # branch dispatches.
@@ -107,8 +196,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist
+          path: artifacts
 
       - name: Verify tag matches pyproject version (tag-push only)
         if: github.event_name == 'push'
@@ -136,6 +224,20 @@ jobs:
               sys.exit(1)
           print(f"Tag and pyproject agree: {tag_version}")
           PY
+
+      - name: Collect wheels + sdist into dist/
+        run: |
+          # cibuildwheel matrix produces 15 identical py3-none-any wheels
+          # (sibling-parity matrix shape on a pure-Python package). Each
+          # is uploaded under a unique artifact name (wheels-<os>-cp<ver>)
+          # so the download fans them out into separate subdirectories;
+          # the `cp` here collapses them into a single dist/ entry (last
+          # writer wins, content is byte-identical so this is a no-op
+          # dedup). Sdist contributes the tar.gz alongside.
+          mkdir -p dist
+          find artifacts -name '*.whl' -exec cp {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist/
 
       - name: List artefacts before publish
         run: ls -la dist/
