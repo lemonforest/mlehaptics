@@ -460,3 +460,32 @@ The scan's conclusions (territory rankings, leverage assessments, recommended sp
 - **Commit message:** `research(srmech): Spike #19b MFO — horizon-thermodynamics leverage scan — Territory 4 (cosmological / de Sitter) top-ranked`.
 - **No push, no PR.** Per conductor brief: strictly local notes for review; the conductor decides whether to PR.
 - **No shared files touched.** MFO notebook, CHANGELOG.md, README.md, refined-structural-law consolidation file all untouched.
+
+---
+
+## §13. Post-spike citation corrections (2026-05-13)
+
+This section appends corrections identified during PR-cleanup pass after spike landed.
+
+### Critical factual correction — Verlinde 2017 is emergent dark **MATTER**, not dark **ENERGY**
+
+Spike #21A's deeper PDF-verification of arXiv:1611.02269 established that Verlinde 2016/2017 "Emergent Gravity and the Dark Universe" predicts emergent **dark matter** with MOND-like rotation-curve phenomenology (acceleration scale `a_0 = cH_0/(2π)`), NOT emergent dark energy. References in this document to "emergent-dark-energy testable predictions" (§4.5, §9, §11) should be read as referring to **emergent-dark-matter / MOND-like** predictions instead.
+
+Specifically:
+- §4.5 leverage assessment: "Verlinde-2017-style emergent-dark-energy predictions" → emergent-dark-matter / MOND-like predictions
+- §9 citation list: "Verlinde 2017 emergent dark energy" → Verlinde 2016 emergent gravity / dark matter
+- §11 epistemic note: same correction
+
+The structural conclusion (Territory 4 cosmological / de Sitter being top-leverage with empirical-prediction inheritance candidate) stands — the testable predictions are RAR / BTFR / Brouwer-2017-weak-lensing, all of which are matter-side phenomenology, not energy-side.
+
+### Verified arXiv IDs (2020+ post-spike WebFetch verifications)
+
+| Citation | Status | Verified arXiv ID | Title |
+|---|---|---|---|
+| Penington 2020 (entanglement-wedge / Page curve) | ✓ verified | arXiv:1905.08255 | "Entanglement Wedge Reconstruction and the Information Paradox" (Geoffrey Penington, 2019) |
+| Almheiri-Engelhardt-Marolf-Maxfield 2019-2020 (islands formula) | ✓ verified | arXiv:1905.08762 | "The entropy of bulk quantum fields and the entanglement wedge of an evaporating black hole" (AEMM, 2019, JHEP12(2019)063) |
+| Verlinde 2016 (emergent gravity / dark matter, MOND-like) | ✓ verified | arXiv:1611.02269 | "Emergent Gravity and the Dark Universe" (Erik P. Verlinde, 2016) — predicts dark MATTER not dark energy |
+| Haco-Hawking-Perry-Strominger 2018 Kerr soft-hair | ✓ verified | **arXiv:1810.01847** | "Black Hole Entropy and Soft Hair" (HHPS, 2018, JHEP 12(2018)098) — NOT arXiv:1803.10194 which is Henneaux-Troessaert on electromagnetism asymptotic symmetries |
+| Iliesiu-Turiaci 2020 near-extremal JT | ✓ verified | arXiv:2003.02860 | "The statistical mechanics of near-extremal black holes" (Iliesiu-Turiaci, 2020, JHEP 2021:145) |
+
+All citations now Tier-A PDF-verified per `feedback_pdf_extraction_citation_discipline.md`.
