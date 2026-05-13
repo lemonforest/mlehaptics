@@ -244,54 +244,6 @@
       "sha256": "084d6eb9f266c127889be1d12d34f419845076611ce4be18b28efb308c31cd89",
       "size_bytes": 4026
     },
-    "_research/attested_adapters/__init__.py": {
-      "sha256": "a31d47928869e0c6bcd97a9dd48f7c5eea76432b8ab6c361e5c6dcd27431c837",
-      "size_bytes": 1796
-    },
-    "_research/attested_adapters/_base.py": {
-      "sha256": "e1714eccc34dd0af4f3f1f68570d9a5ede05cd8468cb527e586db375b6465c03",
-      "size_bytes": 8289
-    },
-    "_research/attested_adapters/csv_bulk.py": {
-      "sha256": "3283c1cf36c8e19d1553bdc89fc7a5a209bd75e7a5497dfe993d398a15a16f8d",
-      "size_bytes": 4514
-    },
-    "_research/attested_adapters/geotiff_bbox.py": {
-      "sha256": "14fcdd06903f6b7f5c91c2a7032be9f6e5889946e72a9f218788ac7503675679",
-      "size_bytes": 1714
-    },
-    "_research/attested_adapters/html_scraper.py": {
-      "sha256": "92b24aa8a5105e6e0c273f4b26551f8a61fc55c465db830974ecedba23783465",
-      "size_bytes": 4376
-    },
-    "_research/attested_adapters/json_api.py": {
-      "sha256": "e68bf2221f65b19044553e3f28c27ade0c076ca5bb408d24de728930f293e9da",
-      "size_bytes": 6327
-    },
-    "_research/attested_adapters/literature_curated.py": {
-      "sha256": "9ef1ab5d72787cfee8c8de17daeb1e249c9631df8f7487a4390752e1b40c1ea5",
-      "size_bytes": 6600
-    },
-    "_research/attested_adapters/netcdf_grid.py": {
-      "sha256": "3bdea890850b701d99c0ff4dbc9ba734098124b099c4c5ecfaa8cf77b5e2b86c",
-      "size_bytes": 1851
-    },
-    "_research/attested_collector_catalog.py": {
-      "sha256": "23086c3976ef9f78ccc48344bea11a2ccd5cc84f6636693ec766e977fe2eb117",
-      "size_bytes": 33899
-    },
-    "_research/attested_collector_descriptor.py": {
-      "sha256": "44a0a363ff77aaff7c7181a23243eb45e3118202c11e39bdddede9e4b4fbdf2d",
-      "size_bytes": 14353
-    },
-    "_research/attested_collector_format.py": {
-      "sha256": "608f515901c0737388123a0e9c21f52bcac057a9df89287476e0ef74569ff1be",
-      "size_bytes": 13676
-    },
-    "_research/attested_collector_gap_suggester.py": {
-      "sha256": "bea6fcfbc57c78c52b4c0779a8ffecf16572fa1c286f4fc5ca909e4a91ddc73b",
-      "size_bytes": 9154
-    },
     "_research/auroral_coupling_catalog.py": {
       "sha256": "f4227a0d8d807a6a28fd903947304f18b503a952c50331ec690fa4f8394f923a",
       "size_bytes": 4829
