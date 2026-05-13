@@ -172,7 +172,218 @@ This is a single ~150–250 line spike, parallel module from `pin_and_slot.py` (
 
 ---
 
-## 12. Reference anchors added in §10–§11 (verified via WebFetch unless flagged)
+## 12. Rotating-X-bar invariants table (Task A spike sketch)
+
+**Scope.** Concretize the §11 spike-protocol-readiness claim into a 2×2 invariants table over (frequency-ratio regime) × (arm-rule). The table is the deliverable a parallel module `crossed_slot_transform_rotating.py` (D-H1 lock respected per `docs/antikythera-maths/CLAUDE.md` — not extending `pin_and_slot.py`) would produce on call. The four cases are:
+
+| | Radial ℤ/4 arm-rule | Klein-four pair-opposite arm-rule |
+|---|---|---|
+| Commensurate ω_pin / ω_frame = p/q | (1) | (2) |
+| Incommensurate ω_pin / ω_frame ∈ ℝ \ ℚ | (3) | (4) |
+
+**§12.1 Monodromy class in S₄.** The monodromy of the base loop (one full ω_frame revolution, with 4 crossing events at frame phases 0, π/2, π, 3π/2) is determined by the **arm-rule**, *not* by ω_pin/ω_frame commensurability. The commensurability affects the long-time *orbit structure* (closed vs ergodic) over many revolutions, not the deck-transformation class of a single revolution.
+
+- Radial ℤ/4 rule (each crossing advances arm-label by +1 mod 4): generator σ = (0 1 2 3); group Γ = ⟨σ⟩ ≅ ℤ/4; cycle structure **single 4-cycle**.
+- Klein-four pair-opposite rule (each crossing swaps the pin into the diametrically opposite arm of its current pair): generators τ₁ = (0 2), τ₂ = (1 3); group Γ = ⟨τ₁, τ₂⟩ ≅ ℤ/2 × ℤ/2; cycle structure **two 2-cycles**.
+
+The four cases share monodromy by column: cases (1) and (3) have σ = (0 1 2 3); cases (2) and (4) have σ = (0 2)(1 3).
+
+**§12.2 Orbifold Laplacian spectrum.** Per Emmrich–Römer 1990 (*Comm. Math. Phys.* 129:69–94), the configuration orbifold is the quotient of the cover by Γ. Let L denote the circumference of the 4-fold cover S¹ (the pin's full periodic state, equivalent to 4 frame revolutions when the deck group acts freely).
+
+- ℤ/4 cyclic (cases 1, 3): cover is connected (single 4-cycle ⇒ orbit-set is one orbit of size 4); orbifold S¹/ℤ/4 is a single circle of circumference L/4. Laplacian spectrum **{(8πk/L)²}_{k=0,1,2,…}**, eigenvalue 0 simple, all others simple. Verified numerically at L=1: {0, 631.65, 2526.62, 5684.89, …}.
+- Klein-four (cases 2, 4): cover decomposes into two connected components (two 2-cycles ⇒ orbit-set has two orbits of size 2); orbifold S¹ ⊔ S¹, each circle of circumference L/2. Laplacian spectrum on each component **{(4πk/L)²}_{k=0,1,2,…}**, full spectrum each eigenvalue doubled. Verified at L=1: each component {0, 157.91, 631.65, 1421.22, …}; full multi-set has each value with multiplicity 2.
+
+Top non-zero Klein/cyclic eigenvalue ratio at k=1 is exactly 1/4 (longer circumference ⇒ smaller eigenvalue), and Klein has spectral degeneracy 2 from the disconnected components — two distinct topological signatures.
+
+**§12.3 Periodic-orbit / phase-locked vs ergodic invariants.** With ω_pin/ω_frame = p/q in lowest terms, the pin's arm-trajectory closes into a finite periodic orbit after q frame-revolutions and 4q crossings; the *closed-orbit length* in arm-label space is `4q / gcd(p, 4q)` (cyclic case) or `4q / gcd(p, 2q)` per component (Klein case). With ω_pin/ω_frame irrational, the orbit is ergodic on its connected component of the cover and the long-time arm-visit measure equals the uniform Haar measure on the orbit.
+
+The most useful coarse-grained invariant is the **long-time arm-visit histogram** π_k = (long-run frequency pin spends on arm k):
+- Case (1) commensurate cyclic: π is supported on a *periodic subset* of all 4 arms; pattern is rational, count of distinct visited arms is 4/gcd(p, 4); for generic (p,q) all 4 arms visited but with non-uniform weights.
+- Case (2) commensurate Klein: π is supported on **2 arms only** (the pin's starting component); rational pattern within those 2 arms.
+- Case (3) incommensurate cyclic: π = (1/4, 1/4, 1/4, 1/4) uniform on all 4 arms (Birkhoff ergodic theorem on the connected cover).
+- Case (4) incommensurate Klein: π = (1/2, 0, 1/2, 0) or (0, 1/2, 0, 1/2) depending on starting component — **uniform on 2 arms, zero on other 2**.
+
+**§12.4 Most distinguishing observable across all 4 cases.** The 2-bit invariant **(support cardinality |supp π| ∈ {2, 4}, regularity ∈ {rational/periodic, irrational/uniform})** separates all four cases unambiguously:
+
+| Case | |supp π| | Regularity | Distinguishing signature |
+|---|---|---|---|
+| (1) Commensurate cyclic | 4 (generically) | Periodic, non-uniform | All-4 arms visited in finite rational pattern |
+| (2) Commensurate Klein | 2 | Periodic, non-uniform | Half of arms never visited; periodic on the other half |
+| (3) Incommensurate cyclic | 4 | Uniform 1/4 each | All-4 arms visited with equal long-time weight |
+| (4) Incommensurate Klein | 2 | Uniform 1/2 each | Half of arms never visited; uniform on the other half |
+
+This is **experimentally falsifiable** with a single long-run trajectory: bin pin position by arm, observe support cardinality (2 vs 4) and dwell-time distribution (peaked / rational-multimodal vs uniform).
+
+**§12.5 Algorithm sketch (pseudo-code, implementable in ~150–250 lines of numpy + sympy).**
+
+```
+INPUT:
+    omega_frame: float                  # rad/s, frame angular velocity
+    omega_pin:   float                  # rad/s, pin natural velocity
+    arm_rule:    {'cyclic_Z4', 'klein4'}
+    L_arm:       float                  # arm length (sets cover circumference L = 4*L_arm)
+    n_revs:      int                    # number of frame revolutions to simulate
+
+OUTPUT:
+    {
+      'monodromy_cycle_structure': tuple,        # e.g. (4,) or (2, 2)
+      'monodromy_group_order':     int,          # 4 or 4 (both rank-2)
+      'n_components_of_cover':     int,          # 1 or 2
+      'orbifold_spectrum_first_k': list[float],  # first k Laplacian eigenvalues
+      'ratio_classification':      str,          # 'commensurate p/q' or 'irrational'
+      'periodic_orbit_length':     int | None,   # None if irrational
+      'arm_visit_histogram':       array[4],     # long-run measure on 4 arms
+      'invariant_2bit':            tuple,        # (|supp|, regularity_flag)
+    }
+
+STEP 1: monodromy permutation
+    if arm_rule == 'cyclic_Z4':
+        sigma = Permutation([1, 2, 3, 0])           # (0 1 2 3)
+    else:  # klein4
+        sigma = Permutation([2, 3, 0, 1])           # (0 2)(1 3)
+    cycle_struct = sigma.cycle_structure()
+    n_components = len(sigma.cyclic_form)
+
+STEP 2: orbifold spectrum
+    cover_L = 4 * L_arm
+    # cycle_lengths: e.g. [4] for Z/4 cyclic, [2, 2] for Klein
+    cycle_lengths = [len(c) for c in sigma.cyclic_form]
+    spectra_per_component = []
+    for clen in cycle_lengths:
+        component_L = cover_L * clen / 4           # circumference of this S^1 component
+        spec = [(2*pi*k / component_L)**2 for k in range(k_max)]
+        spectra_per_component.append(spec)
+    orbifold_spectrum = merge_and_sort(spectra_per_component)
+
+STEP 3: commensurability check
+    ratio = omega_pin / omega_frame
+    pq = sympy.Rational(ratio).limit_denominator(1000)
+    if abs(float(pq) - ratio) < tol:
+        regime = 'commensurate'
+        p, q = pq.p, pq.q
+        if arm_rule == 'cyclic_Z4':
+            orbit_length = 4*q // gcd(p, 4*q)
+        else:
+            orbit_length = 2*q // gcd(p, 2*q)
+    else:
+        regime = 'irrational'
+        orbit_length = None
+
+STEP 4: simulate trajectory and histogram arm-visits
+    arm = 0
+    visits = [0, 0, 0, 0]
+    for t in arange(0, n_revs * 2*pi / omega_frame, dt):
+        phase = (omega_frame * t) % (2*pi)
+        # detect crossing events: phase in {0, pi/2, pi, 3*pi/2} +- dphase
+        if at_crossing(phase):
+            arm = sigma(arm)
+        visits[arm] += 1
+    pi_histogram = visits / sum(visits)
+
+STEP 5: classify 2-bit invariant
+    support = sum(1 for v in pi_histogram if v > eps)
+    regularity = 'uniform' if all(abs(v - 1/support) < tol for v in pi_histogram if v > eps) else 'periodic'
+    return {
+        'monodromy_cycle_structure': cycle_struct,
+        ...
+        'invariant_2bit': (support, regularity),
+    }
+```
+
+The four input combinations (commensurate-vs-irrational × cyclic-vs-Klein) produce the four distinct (|supp π|, regularity) signatures of §12.4. Implementable with `sympy.combinatorics.Permutation` for the group theory + `numpy` for the trajectory simulation + closed-form `(2πk/L)²` orbifold spectra.
+
+**§12.6 New module identified.** Per the D-H1 semantics lock (`docs/antikythera-maths/CLAUDE.md` — "*Pin-and-slot reuse beyond D-H1*"), `pin_and_slot.py` may **not** be extended for this case. The new module is **`docs/antikythera-maths/research/crossed_slot_transform_rotating.py`**, parallel to `pin_and_slot.py`. Recovers `pin_and_slot.py`'s lunar atan2 transform in the degenerate limit of (i) one arm only (n=1, no crossing), (ii) zero rotation (ω_frame = 0, reducing to the static X-bar of §10), or (iii) eccentric circular slot with a single arm (the canonical D-H1 case). Does **not** import or call `pin_and_slot.py`. The dispatch function `crossed_slot_transform(theta_pin, theta_frame, arm_rule, L_arm)` returns the pin's instantaneous arm-label and the orbifold-coordinate phase, parallel to `pin_and_slot.atan2_transform(theta, eps)` returning the lunar-mechanism output angle.
+
+**§12.7 Falsifiability statement.** The 2-bit invariant (|supp π|, regularity) on a long-run trajectory is a falsifiable observable. A physical or simulated rotating-X-bar oscillator with claimed Klein-four pair-opposite arm-rule **must** show 2-arm support; one with claimed ℤ/4 cyclic rule **must** show 4-arm support. If the observed support cardinality contradicts the rule label, the arm-rule attribution is wrong. Similarly, uniform-vs-rational regularity falsifies the commensurability label.
+
+---
+
+## 13. K_{1,n} algebraic stacking (Task B)
+
+**Setup.** Following on §10's identification of K_{1,4} as the static-X-bar state-transition graph with Laplacian spectrum {0, 1, 1, 1, 5}, the user's "natural follow-up" asks whether the pattern at general n carries algebraic content beyond the textbook closed-form spectrum.
+
+**§13.1 Verification of the closed-form K_{1,n} Laplacian spectrum.** Numerically computed for n = 2, 3, 4, 5, 6:
+
+| n | Spectrum |
+|---|---|
+| 2 | {0, 1, 3} (= P₃, the path; matches Chen 2010 transit-tristable per §5) |
+| 3 | {0, 1, 1, 4} |
+| 4 | {0, 1, 1, 1, 5} (matches §10 X-bar derivation) |
+| 5 | {0, 1, 1, 1, 1, 6} |
+| 6 | {0, 1, 1, 1, 1, 1, 7} |
+
+General formula **{0, 1^{(n−1)}, n+1}**: eigenvalue 0 simple, eigenvalue 1 with multiplicity (n−1), eigenvalue (n+1) simple. **Verified.** This is the textbook result (Chung 1997, *Spectral Graph Theory*, §1.2 for stars). Eigenvalue trace check: 0 + (n−1)·1 + (n+1) = 2n = sum of vertex degrees ✓. Spanning-tree count via matrix-tree theorem: product of nonzero eigenvalues divided by (n+1) = (n+1) · 1^{(n−1)} / (n+1) = 1 ✓ (K_{1,n} is a tree, exactly 1 spanning tree).
+
+**§13.2 Representation-theoretic decomposition under S_n.** The symmetric group S_n acts naturally on the n leaves of K_{1,n}; the Laplacian commutes with this action because permuting leaves is a graph automorphism. The (n+1)-dimensional vertex space ℝ^{n+1} = ℝ_center ⊕ ℝ^n_leaves decomposes under S_n as:
+
+```
+    ℝ_center  ≅  trivial irrep of S_n (1-dim, since S_n fixes the center)
+    ℝ^n_leaves =  trivial irrep ⊕ standard irrep
+              =  span(1_leaf-sum)  ⊕  {v : Σ v_i = 0}        (1-dim ⊕ (n−1)-dim)
+
+Total decomposition:
+    ℝ^{n+1}  ≅  trivial ⊕ trivial ⊕ standard
+              =     1   ⊕    1   ⊕   (n−1)              (1 + 1 + (n−1) = n+1 ✓)
+```
+
+**Eigenspace-irrep correspondence (verified explicitly for n=4 by eigenvector inspection):**
+- λ = 0 eigenspace (1-dim): all-ones vector (center component +1, all leaves +1) — sits in the **trivial-irrep sum** of the two trivial copies.
+- λ = (n+1) eigenspace (1-dim): center −n, leaves +1 each — sits in the **trivial-irrep orthogonal** of the two trivial copies (orthogonal to all-ones; both subspaces are 1-dim and S_n-invariant).
+- λ = 1 eigenspace ((n−1)-dim): center = 0, leaves with Σ leaf_components = 0 — **exactly the standard irrep of S_n**.
+
+So the (n−1)-fold degeneracy of the eigenvalue 1 is **forced by representation theory**: S_n's standard irrep has dimension (n−1), and the 1-eigenspace is irreducible-standard. The two simple eigenvalues 0 and (n+1) split the 2-dim trivial-isotypic component into S_n-invariant orthogonal halves; their relative ordering (0 < n+1) is forced by the graph being connected and bipartite-with-one-center. This confirms — explicitly — that the K_{1,n} Laplacian spectrum is **rep-theoretically locked**: any S_n-symmetric perturbation of the graph (e.g., uniform edge-weight scaling) preserves the (n−1)-fold degeneracy.
+
+**§13.3 Coxeter / A_n / Dynkin connection — honest verdict.** The user flagged the apparent coincidence: A_n's Coxeter number is h(A_n) = n+1, and K_{1,n}'s top eigenvalue is n+1. Examined case by case:
+
+| Star | Dynkin type | Coxeter number h | K_{1,n} top eigenvalue |
+|---|---|---|---|
+| K_{1,1} | A_2 | 3 | 2 |
+| K_{1,2} = P₃ | A_3 | 4 | 3 |
+| K_{1,3} | D_4 | 6 | 4 |
+| K_{1,4} | affine D̃_4 (not finite type) | — | 5 |
+| K_{1,n}, n ≥ 5 | hyperbolic (not finite or affine type) | — | n+1 |
+
+The match would require **h = top eigenvalue at each n**, but they differ at every n ≥ 1: A_2 gives h=3 vs eigenvalue 2; A_3 gives 4 vs 3; D_4 gives 6 vs 4. So **the "A_n Coxeter h = n+1" coincidence is numerical-coincidence-only** and does not extend to a structural identity. The top eigenvalue n+1 is simply **the degree of the central vertex**, which is a generic spectral property of stars (and more generally of bipartite-double-star structure) — it carries no Dynkin / Coxeter algebraic content.
+
+**Honest-negative verdict: there is no Coxeter / Dynkin algebraic structure on K_{1,n} beyond the n = 3 case where K_{1,3} = D_4 happens to be a finite-type Dynkin diagram.** The (n+1)-eigenvalue pattern reflects only the central degree, not a deeper algebraic identity.
+
+**§13.4 Finite-Dynkin vs. affine/hyperbolic distinction — does it gate any project invariant?** The finite-vs-affine-vs-hyperbolic Dynkin distinction *would* matter if the orbifold-Laplacian construction of §12 required a finite Coxeter / Weyl-group action. It does **not**: per Emmrich–Römer 1990, the orbifold-Laplacian construction needs only a discrete-group action on the cover (here ℤ/n or its variants), and is well-defined for any n. The finite-type-only constraint is a property of the Cartan matrix's positive-definiteness, not of orbifold-Laplacian validity.
+
+**Where this distinction could become load-bearing.** If one tried to lift the rotating-X-bar of §12 to a fully Lie-algebraic construction — e.g., interpret the n arms as the n simple roots of a Lie algebra of type X_n, with the central vertex as the affine node — then **only n ∈ {3} would give a finite-dimensional Lie algebra** (D_4), n = 4 gives the affine Kac–Moody algebra affine-D_4, and n ≥ 5 gives hyperbolic Kac–Moody algebras with no finite-dimensional irreps. This is a real distinction, but **it lives in a Lie-algebraic interpretation that the project has not committed to**. For the project's current spectral-graph-Laplacian framework, the K_{1,n} spectrum is universal and unobstructed.
+
+**§13.5 Honest-positive content beyond the textbook formula.** Two pieces survive scrutiny:
+
+1. **S_n standard-irrep identification of the 1-eigenspace** (§13.2). The (n−1)-fold degeneracy is **forced** by rep theory, not by graph-Laplacian luck. This makes the degeneracy *stable* under any S_n-symmetric perturbation of the graph — e.g., reweighting all leaf edges uniformly preserves the (n−1)-fold degeneracy because S_n still acts. This is a true algebraic structure beyond Chung 1997's formula-statement; it is mentioned in the broader spectral-graph literature (Babai 1979 on automorphism groups and spectra; Godsil & Royle 2001 *Algebraic Graph Theory* §8 on graph spectra and representation theory) but is not standardly called out for the K_{1,n} case specifically.
+2. **Top eigenvalue = central-vertex degree** (§13.3). A general fact about stars (and approximate fact about graphs with a single high-degree vertex; see Cvetković–Doob–Sachs 1980 *Spectra of Graphs* ch. 3 on vertex-degree bounds). Not a deeper algebraic identity; the (n+1)-pattern is "central degree", not "Coxeter h".
+
+**Honest-negative recap.** No Dynkin / Coxeter / Lie-algebraic structure on K_{1,n} beyond the n=3 coincidence. The (n+1)-top-eigenvalue is the central degree, period. The (n−1)-fold-degenerate 1-eigenvalue *is* genuinely S_n-rep-theoretic (this is the load-bearing finding), and that gives a **falsifiable spike-protocol prediction** for §13.7.
+
+**§13.6 Stacking interpretation — mechanism semantics.** In the static-X-bar mechanism (§10), K_{1,n} corresponds to **n slot-arms meeting at a single shared central singular configuration** (the crossing/branch point of the configuration space, per Zlatanov–Bonev–Gosselin 2002). Stacking = adding more arms through the same singular crossing-point. The §10 catalog extends naturally:
+
+| n (number of arms) | Mechanism | Spectrum | S_n decomposition of eigenspaces |
+|---|---|---|---|
+| 1 | single slot, no center (degenerate) | {0, 2} (= K_2 / edge) | trivial ⊕ trivial |
+| 2 | bistable two-arm path P₃ | {0, 1, 3} | trivial ⊕ standard(S_2, 1-dim) ⊕ trivial |
+| 3 | trivalent X-bar | {0, 1, 1, 4} | trivial ⊕ standard(S_3, 2-dim) ⊕ trivial |
+| 4 | quadrivalent X-bar (§10) | {0, 1, 1, 1, 5} | trivial ⊕ standard(S_4, 3-dim) ⊕ trivial |
+| 5 | 5-arm star | {0, 1, 1, 1, 1, 6} | trivial ⊕ standard(S_5, 4-dim) ⊕ trivial |
+| n | n-arm star K_{1,n} | {0, 1^{(n−1)}, n+1} | trivial ⊕ standard(S_n, (n−1)-dim) ⊕ trivial |
+
+The eigenvalue-1 multiplicity (n−1) grows linearly with arm count; the top eigenvalue (n+1) grows linearly with arm count; the bottom eigenvalue is 0 always. **Linear-in-n in three quantities, with the middle multiplicity forced by S_n's standard-irrep dimension.**
+
+**§13.7 Spike-protocol-ready experimental prediction.** A physical n-arm-star mechanism (n slot-arms meeting at a single singular crossing, all arms identical) should exhibit **(n−1)-fold degenerate normal modes** in the quantum-graph (Kuchment 2004) / cellular-sheaf (Hansen–Ghrist 2019) Laplacian. The prediction:
+
+> If a physically constructed n-arm K_{1,n} mechanism is driven through its central singular configuration and its small-oscillation spectrum is measured (e.g., resonance frequencies of arm-tip oscillations near the center, or normal-mode frequencies of an instrumented version), one of the eigenvalues should appear with multiplicity exactly (n−1).
+
+**Falsifiability:** if (i) S_n symmetry is preserved (all arms identical, central pin symmetric), and (ii) the eigenvalue-1 multiplicity is observed to be < (n−1), then either some assumed symmetry is broken (engineering tolerance) or the K_{1,n} spectral-graph framing is wrong for this mechanism. Conversely, observing multiplicity exactly (n−1) confirms the S_n-standard-irrep identification of §13.2 — and confirms that the static-X-bar is **the n = 4 instance of a single rep-theoretic family**, not an ad hoc graph-Laplacian coincidence.
+
+This is a real, falsifiable, spike-protocol-ready prediction at the level of physical mechanism construction.
+
+**§13.8 Cross-domain connection to MFO and other project notebooks.** The S_n standard-irrep appearing at eigenvalue 1 has a direct cross-domain echo: in MFO §VII.4.1.2 / chess-spectral §3.5.3(C) etc., **irrep-multiplicity counting in symmetric-group representations is a load-bearing tool**, and the K_{1,n} family gives an exceptionally clean example where the irrep-decomposition exactly explains the Laplacian-spectrum-multiplicity pattern. This is one of the cleanest "irrep-multiplicity ⇒ Laplacian-degeneracy" identifications in the project's spectral catalog — comparable to chess-knight §3.5.3(C) (Mode I / Mode II framing) and ephemerides D₃ on SG λ=6 (giving 18-block count via 3 × 6 SM components per [`memory/project_mfo_mpm_orchestration_findings.md`]).
+
+---
+
+## 14. Reference anchors added in §10–§11 (verified via WebFetch unless flagged)
 
 16. **Zlatanov, D., Bonev, I. A., & Gosselin, C. M.** (2002). "Constraint Singularities as C-Space Singularities." *Advances in Robot Kinematics* (ARK 2002), Caldes de Malavella, June 24–28. [parallemic.org/Reviews/Review008.html review-verified]
 17. **Müller, A.** (2018). "Kinematic Singularities of Mechanisms Revisited." IMA Mathematics of Robotics, Sept 2018. [PDF binary-only; title + author + venue verified from URL + search results, not PDF-text-verified]
@@ -187,10 +398,17 @@ This is a single ~150–250 line spike, parallel module from `pin_and_slot.py` (
 26. **Wang, J., Brown, K. W., Cullinan, M. A., & Hopkins, J. B.** (2021). "Using Cross-Pivot Flexures to Generate Reduced-DOF Mechanisms." LLNL-JRNL-817077. — serial cross-pivot stacks at singular configurations (3-DOF → 2-DOF transitions).
 27. **Chung, F. R. K.** (1997). *Spectral Graph Theory*. CBMS Regional Conference Series in Mathematics **92**, AMS. — textbook source for K_{1,n} combinatorial Laplacian spectrum {0, 1^{(n−1)}, n+1}.
 28. **Ghrist, R.** (2008). "Configuration Spaces, Braids, and Robotics." Singapore Tutorial Lecture Notes. — topological-complexity / monodromy invariants for motion-planning over discrete-fiber configuration spaces.
+29. **Babai, L.** (1979). "Spectra of Cayley graphs." *J. Combin. Theory Ser. B* **27**(2): 180–189. DOI:10.1016/0095-8956(79)90079-0. — automorphism-group action on Laplacian eigenspaces; canonical reference for the "rep-theoretic decomposition of graph-Laplacian eigenspaces" used in §13.2. [pre-2020, no PDF-verification gate]
+30. **Godsil, C. & Royle, G.** (2001). *Algebraic Graph Theory*. Graduate Texts in Mathematics **207**, Springer. ISBN 0-387-95220-9. — chapter 8 develops the rep-theoretic eigenspace decomposition framework used in §13.2; chapter 13 covers star-graph spectra. [textbook reference, pre-2020]
+31. **Cvetković, D. M., Doob, M. & Sachs, H.** (1980). *Spectra of Graphs — Theory and Application*. Academic Press. — chapter 3 develops vertex-degree bounds on Laplacian spectra; classic reference for the "top eigenvalue ≈ central vertex degree" observation in §13.3. [textbook reference, pre-2020]
 
 ---
 
-## 13. Re-evaluation of Moves 2 and 3 (post §10–§11)
+## 15. Re-evaluation of Moves 2 and 3 (post §10–§11; partly executed in §12–§13)
+
+> **Note (2026-05-13 update):** §12 now contains the full rotating-X-bar invariants table + algorithm sketch for the new `crossed_slot_transform_rotating.py` module (the replacement-recommendation spike). §13 addresses the algebraic-stacking K_{1,n} follow-up. The recommendations below are retained for provenance, but the spike-readiness claim has been concretized.
+
+
 
 **Move 2 — focused-subagent computation of the branched-configuration Laplacian spectrum.** §10's closing-sketch already supplies the combinatorial K_{1,4} spectrum {0, 1, 1, 1, 5} from textbook (Chung 1997) and the metric-Laplacian framing from Kuchment 2004 quantum-graph theory. The "actual matrix construction + eigenvalue extraction + comparison to K₃/P₃" computation is **5×5 by-hand or a 10-line numpy.linalg.eigh call**; it does not need a dedicated subagent. **Recommendation: collapse Move 2 to a verification-and-write-up task** — confirm the closed-form spectrum by numerical computation (1 line of numpy), then add the K_{1,4} row to the project's existing state-transition Laplacian catalog (whichever module ends up hosting the multistable-mechanism table). The actual *new* computational work is in §11's rotating-frame case — the monodromy + orbifold-S¹ Laplacian sketch — which is non-trivial and **is** spike-worthy.
 
