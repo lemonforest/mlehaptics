@@ -656,6 +656,29 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── First cosmology-instrument pair — cmb_power_spectrum +
+    # cmb_anomalies. Pure-Python query surfaces over committed NDJSON;
+    # no encoder-touching, no C twin makes sense.
+    "get_cmb_power_at_ell": {
+        "status": "python_only",
+        "kwargs_py": {"ell": 220},
+    },
+    "get_cmb_first_acoustic_peak": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_cmb_power_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_cmb_anomaly": {
+        "status": "python_only",
+        "kwargs_py": {"anomaly_id": "cold-spot"},
+    },
+    "list_cmb_anomalies": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.25.0a Attested Multi-Source Collector framework (universal
     # bridge surfaces over the descriptor-driven collector core; pure-
     # Python I/O over committed NDJSON, no C twin makes sense — these

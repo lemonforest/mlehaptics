@@ -97,6 +97,11 @@ _INCLUDED_MODULES: List[str] = [
     "pluto_charon_dynamical_spectrum_catalog.py",
     "loki_patera_data.py",
     "loki_patera_catalog.py",
+    # First cosmology-instrument pair — AMSC-first ships (no _data.py;
+    # catalog modules read directly from attested NDJSON via the AMSC
+    # universal accessor).
+    "cmb_power_spectrum_catalog.py",
+    "cmb_anomalies_catalog.py",
     # v0.27.x — Saturn ring system, Phase 3 dual-author counterpart to
     # the AMSC literature_curated catalogue at
     # research/attested/saturn_rings/. Both paths encode the same 12

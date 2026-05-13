@@ -296,6 +296,15 @@ from ephemerides_spectral._research.loki_patera_catalog import (
     list_loki_patera_eruption_cycle
         as _list_loki_patera_eruption_cycle_impl,
 )
+from ephemerides_spectral._research.cmb_power_spectrum_catalog import (
+    get_cmb_power_at_ell as _get_cmb_power_at_ell_impl,
+    get_cmb_first_acoustic_peak as _get_cmb_first_acoustic_peak_impl,
+    list_cmb_power_spectrum as _list_cmb_power_spectrum_impl,
+)
+from ephemerides_spectral._research.cmb_anomalies_catalog import (
+    get_cmb_anomaly as _get_cmb_anomaly_impl,
+    list_cmb_anomalies as _list_cmb_anomalies_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -4884,6 +4893,96 @@ def list_loki_patera_eruption_cycle() -> Dict[str, Any]:
     """Full enumeration of Loki Patera cycle peaks + modes +
     citations."""
     return _list_loki_patera_eruption_cycle_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
+# (the canonical spherical-harmonic spectral observable at cosmological
+# scale + the canonical structural-anomaly catalog companion;
+# IR end of the d_S(σ) flow predicted by notebook §V)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_cmb_power_at_ell(ell: int) -> Dict[str, Any]:
+    """Return the Planck PR3 TT binned D_ℓ at the band containing ``ell``.
+
+    Each Planck PR3 band has a center ℓ and half-width; this routine
+    returns the band whose [center − half, center + half] window covers
+    the queried ℓ. Low-ℓ bands (ℓ ≤ 29) are unbinned (half_width = 0)
+    from the commander likelihood; high-ℓ bands are from the Plik
+    likelihood with bin half-widths ~10-16.
+
+    Returns ``{"ok": True, "D_ell_muK2": ..., "feature": ..., ...}`` on
+    match; ``{"ok": False, "reason": ...}`` if the ℓ is outside PR3
+    coverage [2, 2508] or falls in a gap between bands.
+
+    Companion to :func:`get_cmb_first_acoustic_peak` and
+    :func:`list_cmb_power_spectrum`. Data source: Planck Collaboration
+    2018 VI (doi:10.1051/0004-6361/201833910), full PR3 / R3.01
+    likelihood release.
+    """
+    return _get_cmb_power_at_ell_impl(ell)
+
+
+def get_cmb_first_acoustic_peak() -> Dict[str, Any]:
+    """The first CMB acoustic peak — THE headline cosmological observable.
+
+    D_ℓ ≈ 5800 μK² at ℓ ≈ 220 is one of the most-cited numerical
+    results in cosmology. Peak position constrains spatial flatness;
+    peak height constrains baryon density Ω_b h².
+
+    MFO connection: the CMB power spectrum probes the IR end of the
+    spectral-dimension flow d_S(σ) → 4 predicted by notebook §V. CMB
+    analyses give effective d_H ≈ 4 at Mpc scales — the empirical
+    anchor for the framework's IR limit.
+    """
+    return _get_cmb_first_acoustic_peak_impl()
+
+
+def list_cmb_power_spectrum() -> Dict[str, Any]:
+    """Full enumeration of Planck PR3 binned TT spectrum (111 bands).
+
+    Spans ℓ = 2 to ℓ = 2499; covers low-ℓ Sachs-Wolfe plateau (unbinned
+    commander likelihood ℓ=2..29), rising-to-first-peak, first/second/
+    third acoustic peaks, first/second troughs, and the Silk damping
+    tail. Per-row data includes ``ell_center``, ``ell_half_width``,
+    ``D_ell_muK2``, ``D_ell_error_muK2``, ``feature`` classification,
+    and per-row source provenance.
+    """
+    return _list_cmb_power_spectrum_impl()
+
+
+def get_cmb_anomaly(anomaly_id: str) -> Dict[str, Any]:
+    """Return one canonical CMB large-scale anomaly by stable id.
+
+    Six anomalies catalogued (all observed and re-confirmed in Planck
+    2018 VII, doi:10.1051/0004-6361/201833881):
+
+    - ``axis-of-evil-l2-l3-alignment`` (alignment, ~3σ)
+    - ``cold-spot`` (hotspot, ~3σ)
+    - ``hemispherical-power-asymmetry`` (asymmetry, ~3σ)
+    - ``low-quadrupole`` (suppression, ~2σ)
+    - ``parity-asymmetry-low-ell`` (parity_violation, ~2.5σ)
+    - ``missing-large-angle-correlation`` (correlation_anomaly, ~3σ)
+
+    Returns the full anomaly row including discovery + confirmation
+    references, statistical test description, and sky location where
+    applicable. The catalog is DATA, not interpretation — theoretical
+    explanations (bubble-collision, axion, cosmic-string, etc.) are
+    research-scope and not part of catalog rows.
+    """
+    return _get_cmb_anomaly_impl(anomaly_id)
+
+
+def list_cmb_anomalies() -> Dict[str, Any]:
+    """Full enumeration of all 6 canonical CMB anomalies.
+
+    Companion to :func:`list_cmb_power_spectrum`. Where the power
+    spectrum indexes the CMB by multipole bin (assuming statistical
+    isotropy), this surface indexes structural anomalies (deviations
+    from isotropy + Gaussianity at 2σ-3σ levels).
+    """
+    return _list_cmb_anomalies_impl()
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
