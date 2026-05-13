@@ -4,6 +4,83 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc5] - 2026-05-13
+
+### Added — Task #201 Phase B3: SHA-256 C port (first native symbol)
+
+First C/Python parity surface in srmech. Native ``srmech_sha256_hex``
+replaces ``hashlib.sha256`` on the hot path used by every adapter's
+``attest()`` step. Byte-exact agreement pinned by the new pytest
+parity suite in ``tests/test_native_sha256.py`` (18 tests) plus the
+C-side smoke tests in ``c/test/test_srmech_sha256.c`` (12 assertions
+against FIPS 180-4 fixtures + padding-boundary edge cases).
+
+#### C side (`docs/srmech/c/src/`)
+
+- **`srmech_sha256.c`** — self-contained SHA-256 (FIPS 180-4). No
+  OpenSSL / libcrypto dependency. ~200 lines, JPL-Power-of-Ten-
+  compatible (bounded loops, no malloc, no goto, ≥2 asserts/fn).
+  Public entry: ``srmech_sha256_hex(data, data_len, out_hex)``.
+- **`srmech_meta.c`** — ``srmech_version()`` + ``srmech_abi_version()``
+  metadata accessors. Called by the Python ctypes shim at load time
+  to verify ABI agreement before binding.
+
+The header (`docs/srmech/c/include/srmech.h`) grows
+``SRMECH_ABI_VERSION = 1`` and declarations for the three new
+symbols.
+
+#### Python side (`docs/srmech/python/srmech/amsc/`)
+
+- **`_native.py`** *(NEW)* — ctypes wrapper mirroring
+  ``ephemerides_spectral/_native_bip.py``:
+  - ``HAS_NATIVE`` boolean — guards every callsite.
+  - ABI-version check at load time; mismatch falls back to Python
+    silently (LOAD_ERROR is populated).
+  - Three-strategy library discovery: ``srmech.__path__`` walk,
+    relative-to-module-file, ``importlib.metadata.files()`` fallback.
+    The third strategy is load-bearing for scikit-build-core editable
+    installs where the .py files live in the source tree but the
+    CMake-installed .so/.dll/.dylib lives in site-packages.
+  - ``sha256_hex_c(data) -> str`` — native entry. Handles empty
+    bytes correctly (mirrors hashlib.sha256(b"") semantics).
+- **`format.py`** — ``sha256_bytes()`` now dispatches to native
+  when available, falls back to ``hashlib`` otherwise. The
+  user-facing API is unchanged; the implementation is one
+  branch deeper.
+
+#### Tests
+
+- **`tests/test_native_sha256.py`** *(NEW)* — 18 parity tests:
+  15 fixture inputs (empty, FIPS B.2, B.3, padding boundaries at
+  55/56/63/64/65/119/128 bytes, 1 KiB, 64 KiB, 256 KiB),
+  ``format.sha256_bytes`` dispatch test, version/ABI lock test,
+  200-input randomised parity test. Auto-skipped when
+  ``HAS_NATIVE`` is False (pure-Python wheel / Pyodide install).
+- **`c/test/test_srmech_sha256.c`** *(NEW)* — 12 C-side asserts
+  against FIPS 180-4 vectors + padding edge cases. Exits 0 on
+  all-pass.
+
+#### Build
+
+- **`pyproject.toml`** — Phase B2's ``wheel.py-api = "py3"`` +
+  ``wheel.platlib = false`` overrides REMOVED. The wheel is now
+  legitimately platform-tagged (e.g.
+  ``srmech-0.1.1rc5-cp312-cp312-linux_x86_64.whl``) and contains
+  ``srmech/_native/libsrmech.{so,dll,dylib}``.
+- **`.github/workflows/srmech-publish.yml`** —
+  ``build-wheel`` sanity check inverted: rejects py3-none-any
+  output (would indicate CMake short-circuited and the .so is
+  missing), requires ``srmech/_native/`` to contain a .so / .dll /
+  .dylib in the wheel.
+
+#### Phase B7 follow-up
+
+The ``build-wheel`` job still runs on a single Ubuntu cell, so only
+the Linux wheel is published at rc5. Mac / Windows users on TestPyPI
+get the pure-Python wheel (built by ``build-pure-wheel``) and the
+pure-Python ``hashlib`` fallback. Phase B7 adds the cibuildwheel
+matrix that produces wheels for all platform/Python combinations.
+
 ## [0.1.1rc4] - 2026-05-13
 
 ### Infrastructure — Task #201 Phase B2: scikit-build-core + pyproject-pure swap

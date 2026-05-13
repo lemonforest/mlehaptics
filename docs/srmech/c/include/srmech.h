@@ -64,8 +64,17 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 1
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc3"
-#define SRMECH_VERSION       "0.1.1rc3"
+#define SRMECH_VERSION_PRE   "rc5"
+#define SRMECH_VERSION       "0.1.1rc5"
+
+/* ABI version. Bumped in lockstep with the Python shim's
+ * EXPECTED_ABI_VERSION whenever the wire format of any exported
+ * function changes. Adding a NEW symbol does not bump ABI; changing
+ * an existing signature does.
+ *
+ * v1 — Phase B3 baseline: srmech_sha256_hex.
+ */
+#define SRMECH_ABI_VERSION 1
 
 /* ------------------------------------------------------------------ *
  * Status codes
@@ -86,12 +95,16 @@ typedef enum srmech_status {
 } srmech_status_t;
 
 /* ------------------------------------------------------------------ *
- * Forward-declared API (defined in Phases B3–B5)
+ * Metadata accessors (defined in src/srmech_meta.c)
  *
- * These declarations let downstream code reference the eventual
- * symbol names today; at Phase B1 they resolve to nothing because
- * no .c file defines them. Phase B2's CMakeLists.txt builds the
- * (empty) library shell; Phase B3 adds the first definition.
+ * Called by the Python ctypes shim at load time to verify version +
+ * ABI agreement before binding the rest of the API.
+ * ------------------------------------------------------------------ */
+const char *srmech_version(void);
+int         srmech_abi_version(void);
+
+/* ------------------------------------------------------------------ *
+ * Public API (Phase B3+)
  * ------------------------------------------------------------------ */
 
 /* B3: SHA-256 over an arbitrary byte buffer. Writes 64 lowercase hex
@@ -101,9 +114,10 @@ srmech_status_t srmech_sha256_hex(const uint8_t *data,
                                   size_t         data_len,
                                   char          *out_hex);
 
-/* B4: NDJSON streaming line iterator. Caller provides a file handle
- *     and a per-line callback; srmech_ndjson_iter advances line by
- *     line, invoking the callback with the parsed line bytes. */
+/* B4 (planned): NDJSON streaming line iterator. Caller provides a
+ *     file handle and a per-line callback; srmech_ndjson_iter
+ *     advances line by line, invoking the callback with the parsed
+ *     line bytes. */
 typedef srmech_status_t (*srmech_ndjson_line_cb)(const char *line,
                                                  size_t      line_len,
                                                  void       *user);
@@ -111,9 +125,10 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
                                    srmech_ndjson_line_cb  cb,
                                    void                  *user);
 
-/* B5: Canonical-serialised TOML hash. Re-emits the parsed TOML with
- *     sorted keys + normalised whitespace, then SHA-256s the result.
- *     Output is 64 lowercase hex chars + NUL into `out_hex`. */
+/* B5 (planned): Canonical-serialised TOML hash. Re-emits the parsed
+ *     TOML with sorted keys + normalised whitespace, then SHA-256s
+ *     the result. Output is 64 lowercase hex chars + NUL into
+ *     `out_hex`. */
 srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
                                            char       *out_hex);
 

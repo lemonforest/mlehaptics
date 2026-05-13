@@ -340,7 +340,19 @@ def _resolve_sort_key(record: MPRRecord, dotted: str) -> Any:
 def sha256_bytes(data: bytes) -> str:
     """SHA-256 over raw bytes; returns lowercase hex string. Used
     by every adapter's ``attest()`` step to fingerprint upstream
-    response bytes."""
+    response bytes.
+
+    Task #201 Phase B3 — dispatches to the native C implementation
+    (``srmech.amsc._native.sha256_hex_c``) when the shared library
+    is available, otherwise uses stdlib ``hashlib``. The two paths
+    are byte-identical (pinned by ``tests/test_native_sha256.py``).
+    """
+    # Lazy import to keep srmech.amsc.format importable on platforms
+    # where _native fails to load — the module always exposes a
+    # HAS_NATIVE flag, even when the .so is absent.
+    from . import _native
+    if _native.HAS_NATIVE:
+        return _native.sha256_hex_c(data)
     h = hashlib.sha256()
     h.update(data)
     return h.hexdigest()
