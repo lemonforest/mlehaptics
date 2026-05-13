@@ -1,0 +1,5 @@
+# src/ — srmech C source files
+#
+# Empty at Phase B1 (scaffolding). First .c file lands at Phase B3
+# (srmech_sha256.c). Kept under version control so the directory
+# exists when CMakeLists.txt walks it at Phase B2 wire-up time.

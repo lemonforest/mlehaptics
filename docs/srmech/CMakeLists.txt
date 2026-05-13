@@ -1,0 +1,103 @@
+cmake_minimum_required(VERSION 3.20)
+project(srmech C)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# Mirrors docs/antikythera-maths/ephemerides-spectral/CMakeLists.txt.
+# Same flags, same scikit-build-core install pattern, same JPL Rule 10
+# pedantic-build option. The two C trees in this monorepo share one
+# build mental model.
+#
+# srmech is C11-clean; -std=c17 works under gcc ≥ 8 / clang ≥ 7, but
+# we pin C11 here for the broadest cross-compiler support. See
+# c/README.md for the local Makefile flow.
+
+if(MSVC OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
+    add_compile_options(/W4 /O2)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -O2)
+endif()
+
+# ─────────────────────────────────────────────────────────────────
+# JPL Power-of-Ten Rule 10 — pedantic-build option (planned: B6).
+#
+# When SRMECH_PEDANTIC=ON, elevate Wall/Wextra/Wpedantic (gcc/clang)
+# or /W4 (MSVC) to ERRORS so any new warning fails the build. Off by
+# default so casual local builds stay friendly; the CI matrix at
+# .github/workflows/srmech-ci.yml turns it on once Phase B6 is live.
+# ─────────────────────────────────────────────────────────────────
+option(SRMECH_PEDANTIC "Treat compiler warnings as errors (JPL Rule 10)" OFF)
+if(SRMECH_PEDANTIC)
+    if(MSVC OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
+        add_compile_options(/WX)
+    else()
+        add_compile_options(-Werror)
+    endif()
+    message(STATUS "SRMECH_PEDANTIC=ON — compiler warnings will fail the build")
+endif()
+
+# libm: GNU/Linux requires explicit -lm to link math runtime symbols.
+# MSVC links it implicitly; macOS Clang resolves it via libSystem
+# (linking -lm there is a harmless no-op).
+if(UNIX)
+    set(SRMECH_MATH_LIB m)
+else()
+    set(SRMECH_MATH_LIB "")
+endif()
+
+# ─────────────────────────────────────────────────────────────────
+# Shared library
+#
+# What gets shipped in the Python wheel under srmech/_native/ and
+# called via ctypes from srmech.amsc._native (planned, Phase B3+).
+#
+# Phase B1: file(GLOB ... c/src/*.c) returns the empty list because
+# src/ contains only .gitkeep. CMake refuses to add a library with
+# zero sources, so we add a placeholder TU (c/include/srmech.h
+# compiled as C via a trivial wrapper) only when SRCS is empty.
+# Phase B3 onward populates src/ and the placeholder branch is no
+# longer taken.
+# ─────────────────────────────────────────────────────────────────
+
+file(GLOB SRMECH_SRCS CONFIGURE_DEPENDS c/src/*.c)
+
+if(SRMECH_SRCS)
+    add_library(srmech SHARED ${SRMECH_SRCS})
+    target_include_directories(srmech PUBLIC c/include)
+    target_link_libraries(srmech PRIVATE ${SRMECH_MATH_LIB})
+
+    if(WIN32)
+        # Drop the "lib" prefix so the file is `srmech.dll`,
+        # matching what the ctypes wrapper looks for. POSIX gets
+        # `libsrmech.{so,dylib}` from CMake defaults.
+        set_target_properties(srmech PROPERTIES PREFIX "")
+    endif()
+
+    # POSIX: PIC so ctypes can load the .so from any process.
+    # Windows: WINDOWS_EXPORT_ALL_SYMBOLS so the export list is
+    # generated automatically (no __declspec(dllexport) needed in
+    # the header). Default symbol visibility — see the visibility
+    # note in ephemerides-spectral's CMakeLists.txt for the chess-
+    # spectral 1.7.0 M2.1 trap (hidden visibility broke ctypes
+    # dlsym, silently flipped HAS_NATIVE to False).
+    set_target_properties(srmech PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+    )
+
+    # scikit-build-core wheel install. SKBUILD is defined when
+    # building under `pip install .` / `python -m build`; the
+    # shared library goes into srmech/_native/.
+    if(DEFINED SKBUILD)
+        install(TARGETS srmech
+                RUNTIME DESTINATION srmech/_native
+                LIBRARY DESTINATION srmech/_native
+                ARCHIVE DESTINATION srmech/_native)
+    endif()
+else()
+    # Phase B1 only: no .c files yet. Emit a status line so the
+    # build log makes the scaffold state obvious.
+    message(STATUS "srmech: no C sources in c/src/ yet (Phase B1 scaffolding); skipping library target")
+endif()
