@@ -5982,7 +5982,7 @@ def clear_patches() -> Dict[str, Any]:
 # Reproducibility tier: T0+T1. T2 (user runtime kernel) ships
 # v0.25.1; T3 (live query) ships v0.25.2.
 
-from ._research import attested_collector_catalog as _attested_catalog
+from srmech.amsc import catalog as _attested_catalog
 
 
 def list_attested_sources(
@@ -6167,7 +6167,7 @@ def suggest_gap_collections(
 
     Reference: notebook §18.5 (T1 re-bake triggers; option 3).
     """
-    from ._research import attested_collector_gap_suggester as _suggester
+    from srmech.amsc import gap_suggester as _suggester
     return _suggester.suggest_gap_collections(ood_threshold=ood_threshold)
 
 

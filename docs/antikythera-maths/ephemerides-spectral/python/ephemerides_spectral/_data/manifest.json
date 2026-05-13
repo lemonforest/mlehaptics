@@ -337,12 +337,12 @@
       "size_bytes": 10209
     },
     "_research/cmb_anomalies_catalog.py": {
-      "sha256": "d78eb9a2a7a0cd56b998e5d61270ff01b74f3e2101efd44573f0c87922ea0b79",
-      "size_bytes": 3610
+      "sha256": "ecc6dbbe7553682d52f3c261d894e402612a5391c471df101811fae85316bc06",
+      "size_bytes": 3602
     },
     "_research/cmb_power_spectrum_catalog.py": {
-      "sha256": "b3f34c9430050d571b83b40f39a811287fb6c750214a0422b83d93285e8fbad4",
-      "size_bytes": 5750
+      "sha256": "d060cb8d5b7d867037c60954dd3248c5f48b7e45918ef5eb23232248b6f3d8de",
+      "size_bytes": 5742
     },
     "_research/decoy_discrimination_catalog.py": {
       "sha256": "545ea4d1622ce7cce039f56fb54fe96c34c645e771dfa1a75d1f520360e14880",

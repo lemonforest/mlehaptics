@@ -45,6 +45,112 @@ from .descriptor import (
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Cross-package classifier / probes registration
+# ──────────────────────────────────────────────────────────────────────
+#
+# The classifier (``classify_dynamical_regime``) and probe roster
+# (``REGIME_PROBES``) are ephemerides-specific data sources living in
+# ``ephemerides_spectral._research.dynamical_regime_catalog`` and
+# ``ephemerides_spectral._research.dynamical_regime_probes_data``.
+# Pre-refactor these were lazy-imported via the AMSC framework's
+# in-package relative-import (``from .dynamical_regime_catalog import
+# classify_dynamical_regime``) because the framework itself lived
+# inside ephemerides's ``_research/`` namespace.
+#
+# After the AMSC-to-srmech refactor (Task #197 Phase 3) the framework
+# lives at ``srmech.amsc.*`` and no longer has access to ephemerides's
+# private ``_research/`` modules via relative import. Downstream
+# consumers PUSH the modules at package-import time via
+# :func:`register_classifier` / :func:`register_probes`. The
+# suggester resolves them at call time, raising a clear runtime error
+# if no consumer has registered.
+#
+# Discipline mirrors :func:`srmech.amsc.catalog.register_attested_root`:
+# push-only, idempotent re-registration, fail-clearly with an
+# actionable error message when missing.
+
+
+_registered_classifier: Optional[Any] = None
+"""The registered classifier module. Set via :func:`register_classifier`.
+
+The module is expected to expose a top-level
+``classify_dynamical_regime(feature_vector, *, ood_threshold)``
+function returning a dict shaped like::
+
+    {"nearest_regime": {"regime_label": str, ...},
+     "calibration_ratio": float,
+     "out_of_distribution": bool,
+     ...}
+"""
+
+_registered_probes: Optional[Any] = None
+"""The registered probes module. Set via :func:`register_probes`.
+
+The module is expected to expose a top-level ``REGIME_PROBES``
+iterable of probe objects. Each probe has ``.name`` (str),
+``.expected_regime`` (str | None), ``.ood_expected`` (bool), and
+``.feature_vector()`` (callable returning the feature vector for
+the classifier).
+"""
+
+
+def register_classifier(classifier_module: Any) -> Dict[str, Any]:
+    """Register the classifier module used by :func:`suggest_gap_collections`.
+
+    Downstream packages whose ``classify_dynamical_regime`` symbol
+    lives outside ``srmech.amsc`` call this at package-import time so
+    the suggester can resolve the classifier without a relative
+    import.
+
+    Parameters
+    ----------
+    classifier_module
+        A module (or module-like object) exposing the top-level
+        callable ``classify_dynamical_regime(feature_vector, *,
+        ood_threshold)``.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "module": repr(classifier_module)}`` for
+        confirmation. Idempotent: re-registering is a no-op.
+
+    Notes
+    -----
+    Conflict policy: re-registration silently replaces the previous
+    registration. The suggester is a single-classifier consumer and
+    the last-registered module wins, mirroring the consumer-bootstrap
+    convention.
+    """
+    global _registered_classifier
+    _registered_classifier = classifier_module
+    return {"ok": True, "module": repr(classifier_module)}
+
+
+def register_probes(probes_module: Any) -> Dict[str, Any]:
+    """Register the probes module used by :func:`suggest_gap_collections`.
+
+    Downstream packages whose ``REGIME_PROBES`` roster lives outside
+    ``srmech.amsc`` call this at package-import time.
+
+    Parameters
+    ----------
+    probes_module
+        A module (or module-like object) exposing the top-level
+        iterable ``REGIME_PROBES``.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "module": repr(probes_module)}`` for
+        confirmation. Idempotent: re-registering is a no-op.
+    """
+    global _registered_probes
+    _registered_probes = probes_module
+    return {"ok": True, "module": repr(probes_module)}
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Gap kinds
 # ──────────────────────────────────────────────────────────────────────
 
@@ -116,13 +222,40 @@ def suggest_gap_collections(
         signals "framework knows there's a gap but no source yet
         targets that regime" — a future-source backlog hint.
     """
-    # Lazy imports to keep this module isolatable for unit tests.
-    from .dynamical_regime_catalog import classify_dynamical_regime
-    from .dynamical_regime_probes_data import REGIME_PROBES
+    # Resolve classifier + probes from the cross-package registry.
+    # Downstream consumers (e.g. ephemerides-spectral) call
+    # :func:`register_classifier` / :func:`register_probes` at
+    # package-import time; we read from the registry at call time so
+    # registration order doesn't depend on import order.
+    if _registered_classifier is None:
+        raise RuntimeError(
+            "srmech.amsc.gap_suggester: no classifier registered. "
+            "Call srmech.amsc.gap_suggester.register_classifier("
+            "<module exposing classify_dynamical_regime>) first. "
+            "Downstream consumers normally register at package-"
+            "import time; this error indicates the consumer's "
+            "bootstrap did not run."
+        )
+    if _registered_probes is None:
+        raise RuntimeError(
+            "srmech.amsc.gap_suggester: no probes registered. "
+            "Call srmech.amsc.gap_suggester.register_probes("
+            "<module exposing REGIME_PROBES>) first. Downstream "
+            "consumers normally register at package-import time; "
+            "this error indicates the consumer's bootstrap did "
+            "not run."
+        )
+    classify_dynamical_regime = _registered_classifier.classify_dynamical_regime
+    REGIME_PROBES = _registered_probes.REGIME_PROBES
 
     if descriptors is None:
-        from .catalog import _attested_root
-        descriptors = discover_descriptors(_attested_root())
+        # Cross-package descriptor discovery: prefer the unified
+        # :func:`_descriptors` from catalog (which walks srmech's
+        # own root + every externally-registered root) so the
+        # suggester sees descriptors from all consumers, not just
+        # srmech's own subtree.
+        from .catalog import _descriptors as _all_descriptors
+        descriptors = _all_descriptors()
 
     descriptor_index = _build_descriptor_index(descriptors)
 
@@ -229,5 +362,7 @@ __all__ = [
     "GAP_KIND_SPURIOUS",
     "GAP_KIND_SURPRISE",
     "GAP_KIND_NONE",
+    "register_classifier",
+    "register_probes",
     "suggest_gap_collections",
 ]

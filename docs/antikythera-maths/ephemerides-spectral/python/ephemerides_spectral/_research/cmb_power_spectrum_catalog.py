@@ -32,7 +32,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
-from .attested_collector_catalog import get_attested_dataset
+from srmech.amsc.catalog import get_attested_dataset
 
 
 CATALOG_KEY = "cmb_power_spectrum"
