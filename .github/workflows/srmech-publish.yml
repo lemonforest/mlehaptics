@@ -45,67 +45,80 @@ permissions:
   contents: read
 
 jobs:
-  build-wheel:
-    # Phase B2 single-cell wheel build via scikit-build-core. At Phase
-    # B7 this job becomes a cibuildwheel matrix (Linux / macOS /
-    # Windows × py3.10–3.14), mirroring ephemerides-spectral. While
-    # c/src/ is empty, scikit-build-core's CMake step still runs but
-    # produces no library; the wheel ships as py3-none-any.
-    name: scikit-build-core wheel
-    runs-on: ubuntu-latest
+  build-wheels:
+    # Phase B3 onward: cibuildwheel matrix (Linux / macOS / Windows ×
+    # py3.10–3.14). Required by PyPI / TestPyPI because raw
+    # `linux_x86_64` wheels (the unmanaged scikit-build-core output)
+    # are rejected with HTTP 400 — only manylinux-tagged wheels are
+    # accepted, and cibuildwheel produces those by building inside
+    # manylinux container images.
+    #
+    # Mirrors ephemerides-spectral-publish.yml. The build itself is
+    # still driven by scikit-build-core + CMake under the hood;
+    # cibuildwheel orchestrates the platform matrix + manylinux
+    # containerisation.
+    name: wheel • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["310", "311", "312", "313", "314"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build scikit-build-core cmake twine
+      - name: Build wheel via cibuildwheel
+        uses: pypa/cibuildwheel@v3.4
+        with:
+          package-dir: docs/srmech/python
+        env:
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
+          # Skip 32-bit + musl: same coverage as ephemerides-spectral.
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          # Per-wheel test: ensure the bundled C library loaded and
+          # parity holds across the fixture matrix.
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: >
+            pytest {package}/tests/test_native_sha256.py
+            {package}/tests/test_format.py -q
+          # Skip aarch64 wheel testing where the build runner can't
+          # execute the wheel natively (cibuildwheel default skip set).
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
 
-      - name: Build wheel (scikit-build-core, --wheel only — sdist is its own job)
-        working-directory: docs/srmech/python
+      - name: Sanity-check native library is in the wheel
+        shell: bash
         run: |
           set -euo pipefail
-          # `python -m build --wheel` skips the sdist→wheel detour
-          # that breaks scikit-build-core's `cmake.source-dir=".."`
-          # (the unpacked sdist root is not the same shape as the
-          # source tree). Direct wheel build matches ephemerides-
-          # spectral's cibuildwheel pattern.
-          python -m build --wheel
-          ls -la dist/
-          # Sanity: Phase B3+ ships platform-tagged wheels with the
-          # native binary inside. Reject py3-none-any (means CMake
-          # short-circuited and the wheel is missing the .so).
-          if ls dist/srmech-*-py3-none-any.whl 1>/dev/null 2>&1; then
-            echo "::error::Phase B3+ expected a platform-tagged wheel, found py3-none-any (missing native binary?)"
-            exit 1
-          fi
-          # Sanity: ensure the native binary actually shipped in the wheel.
-          # Use Python rather than grep — `python -m zipfile -l` interleaves
-          # file size + timestamp after the path, so a `$`-anchored regex
-          # over its output never matches (caught at PR #388 rc5 first push).
           python3 <<'PY'
-          import sys, zipfile, glob
-          whls = glob.glob("dist/*.whl")
-          assert len(whls) == 1, f"expected 1 wheel, found {whls}"
-          with zipfile.ZipFile(whls[0]) as z:
-              hits = [n for n in z.namelist()
-                      if n.startswith("srmech/_native/")
-                      and n.rsplit(".", 1)[-1] in ("so", "dll", "dylib")]
-          if not hits:
-              print(f"::error::wheel {whls[0]} does NOT contain "
-                    f"srmech/_native/libsrmech.{{so,dll,dylib}}")
-              with zipfile.ZipFile(whls[0]) as z:
-                  for n in sorted(z.namelist()): print(" ", n)
+          import glob, sys, zipfile
+          whls = glob.glob("wheelhouse/*.whl")
+          if not whls:
+              print("::error::no wheels in wheelhouse/")
               sys.exit(1)
-          print(f"OK — wheel contains native library: {hits!r}")
+          for whl in whls:
+              print(f"=== {whl} ===")
+              with zipfile.ZipFile(whl) as z:
+                  hits = [n for n in z.namelist()
+                          if n.startswith("srmech/_native/")
+                          and n.rsplit(".", 1)[-1] in ("so", "dll", "dylib")]
+              if not hits:
+                  print(f"::error::wheel {whl} missing srmech/_native/lib*.{{so,dll,dylib}}")
+                  with zipfile.ZipFile(whl) as z:
+                      for n in sorted(z.namelist()): print(" ", n)
+                  sys.exit(1)
+              print(f"  native: {hits!r}")
+          print("all wheels contain native library")
           PY
-          python -m twine check --strict dist/*
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheel-skbuild
-          path: docs/srmech/python/dist/*.whl
+          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}
+          path: wheelhouse/*.whl
 
   build-sdist:
     name: sdist
@@ -240,7 +253,7 @@ jobs:
         || (contains(github.ref_name, 'rc') && 'testpypi')
         || 'pypi'
       }})
-    needs: [build-wheel, build-sdist, build-pure-wheel]
+    needs: [build-wheels, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch'
@@ -301,13 +314,11 @@ jobs:
       - name: Collect into dist/
         run: |
           mkdir -p dist
-          # Dedupe by name — wheel-skbuild and wheel-pure both produce
-          # the same py3-none-any wheel at Phase B2 (same content). At
-          # Phase B3+ scikit-build-core produces platform wheels and
-          # this dedupe is a no-op. Use `cp -n` so the first copy
-          # wins; the second one is a duplicate of the same artifact.
-          find artifacts -name '*.whl' -exec cp -n {} dist/ \;
-          find artifacts -name '*.tar.gz' -exec cp -n {} dist/ \;
+          # build-wheels matrix produces N platform-tagged wheels;
+          # build-pure-wheel produces 1 py3-none-any wheel; build-sdist
+          # produces 1 sdist. All distinct filenames; cp without -n.
+          find artifacts -name '*.whl' -exec cp {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
           ls -la dist/
 
       - name: Publish to TestPyPI
