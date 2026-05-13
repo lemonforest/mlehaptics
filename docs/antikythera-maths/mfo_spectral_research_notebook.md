@@ -543,6 +543,8 @@ The framework is not excluded by current data. The strongest near-term tests are
 - GRB energy-dependent dispersion at next-generation sensitivity
 - DESI dynamical dark energy w(z) measurements
 
+**Empirical anchors as attested catalogues (sister project, 2026-05-12 ships):** the first cosmology-instrument pair in the ephemerides-spectral AMSC framework — `cmb_power_spectrum` (Planck 2018 PR3 binned TT, 111 bands spanning ℓ=2–2499) and `cmb_anomalies` (the six canonical large-scale anomalies — Axis of Evil quadrupole-octupole alignment, Cold Spot, hemispherical asymmetry, low quadrupole, parity asymmetry, missing C(θ) at large angles) — provide the testable IR-end observational targets at multipole-bin resolution. Bridge surfaces: `get_cmb_power_at_ell(ell)`, `get_cmb_first_acoustic_peak()`, `list_cmb_power_spectrum()`, `get_cmb_anomaly(anomaly_id)`, `list_cmb_anomalies()`. The first acoustic peak D_ℓ ≈ 5793 μK² at ℓ ≈ 225 — one of the most-cited numerical results in cosmology — sits inside the catalogue as the canonical IR-end empirical anchor for the d_S → 4 limit. The CMB anomalies catalogue is **data not interpretation**: theoretical explanations (bubble-collision mechanisms, EM-medium-pressure mechanisms, axion / cosmic-string explanations) remain research-scope and are NOT recorded as catalogue rows.
+
 ### V.6 Carlip's "common thread" — what the framework provides
 
 Carlip's question: why do CDT, asymptotic safety, Horava-Lifshitz, LQG, causal sets, NCG, multifractional theories, and string theory all find d_S → 2 at UV? He proposes "asymptotic silence" but doesn't have a mechanism.

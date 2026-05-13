@@ -1128,6 +1128,28 @@ def _cmd_loki_patera_eruption_cycle_full(args: argparse.Namespace) -> int:
     )
 
 
+# First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
+
+def _cmd_cmb_power_at_ell(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_cmb_power_at_ell(args.ell), pretty=args.pretty)
+
+
+def _cmd_cmb_first_acoustic_peak(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_cmb_first_acoustic_peak(), pretty=args.pretty)
+
+
+def _cmd_cmb_power_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_cmb_power_spectrum(), pretty=args.pretty)
+
+
+def _cmd_cmb_anomaly(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_cmb_anomaly(args.anomaly_id), pretty=args.pretty)
+
+
+def _cmd_cmb_anomalies_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_cmb_anomalies(), pretty=args.pretty)
+
+
 # v0.25.0a — Attested Multi-Source Collector framework
 
 def _cmd_attested_list(args: argparse.Namespace) -> int:
@@ -4969,6 +4991,103 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     lpecf.set_defaults(func=_cmd_loki_patera_eruption_cycle_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
+    # ──────────────────────────────────────────────────────────────────
+
+    # cmb-power-at-ell
+    cpae = sub.add_parser(
+        "cmb-power-at-ell",
+        help="Planck PR3 binned TT D_l at the band containing a given l",
+        description=(
+            "Returns D_l = l(l+1)C_l/(2pi) in uK^2 at the Planck PR3\n"
+            "band whose multipole window covers the queried l. Low-l\n"
+            "bands (l <= 29) are unbinned (commander likelihood); high-l\n"
+            "bands (~47..2499) are Plik-binned with half-widths ~10-16."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cpae.add_argument("--ell", type=int, required=True,
+                       help="Multipole l to query (2..2508)")
+    cpae.set_defaults(func=_cmd_cmb_power_at_ell)
+
+    # cmb-first-acoustic-peak
+    cfap = sub.add_parser(
+        "cmb-first-acoustic-peak",
+        help="The first CMB acoustic peak (D_l ~ 5800 uK^2 at l ~ 220)",
+        description=(
+            "Returns the binned band containing the canonical first\n"
+            "acoustic peak. One of the most-cited numerical results\n"
+            "in cosmology -- peak position constrains spatial flatness,\n"
+            "peak height constrains Omega_b h^2 (baryon density).\n"
+            "\n"
+            "MFO connection: empirical anchor at the IR end of the\n"
+            "spectral-dimension flow d_S(sigma) -> 4 predicted by\n"
+            "notebook Part V (CMB analyses give effective d_H ~ 4 at\n"
+            "Mpc scales)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cfap.set_defaults(func=_cmd_cmb_first_acoustic_peak)
+
+    # cmb-power-spectrum-full
+    cpsf = sub.add_parser(
+        "cmb-power-spectrum-full",
+        help="Full Planck PR3 binned TT spectrum (111 bands)",
+        description=(
+            "Returns all 111 binned TT bands spanning l = 2 to l = 2499,\n"
+            "covering low-l Sachs-Wolfe plateau, rising-to-first-peak,\n"
+            "first/second/third acoustic peaks, troughs, and the Silk\n"
+            "damping tail. Per-row: ell_center, ell_half_width, D_l,\n"
+            "D_l error, feature classification, source DOI.\n"
+            "\n"
+            "Data source: Planck Collaboration 2018 VI (Aghanim et al.\n"
+            "2020, A&A 641:A6, doi:10.1051/0004-6361/201833910)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cpsf.set_defaults(func=_cmd_cmb_power_spectrum_full)
+
+    # cmb-anomaly
+    canm = sub.add_parser(
+        "cmb-anomaly",
+        help="One canonical CMB large-scale anomaly by stable id",
+        description=(
+            "Returns a single CMB anomaly entry. Six anomaly_ids\n"
+            "available: axis-of-evil-l2-l3-alignment, cold-spot,\n"
+            "hemispherical-power-asymmetry, low-quadrupole,\n"
+            "parity-asymmetry-low-ell, missing-large-angle-correlation.\n"
+            "\n"
+            "Catalog is DATA not interpretation; theoretical\n"
+            "explanations are research-scope, not in catalog rows."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    canm.add_argument("--anomaly-id", dest="anomaly_id", required=True,
+                       help="Stable id of the anomaly (e.g. 'cold-spot')")
+    canm.set_defaults(func=_cmd_cmb_anomaly)
+
+    # cmb-anomalies-full
+    canmf = sub.add_parser(
+        "cmb-anomalies-full",
+        help="All 6 canonical CMB anomalies + discovery references",
+        description=(
+            "Full enumeration of the six canonical large-scale CMB\n"
+            "anomalies (alignment / hotspot / asymmetry / suppression /\n"
+            "parity_violation / correlation_anomaly). Each row cites\n"
+            "discovery paper DOI + Planck 2018 VII (doi:10.1051/\n"
+            "0004-6361/201833881) re-validation.\n"
+            "\n"
+            "Companion to cmb-power-spectrum-full. Where the power\n"
+            "spectrum indexes the CMB by multipole bin (assuming\n"
+            "statistical isotropy), this surface indexes structural\n"
+            "anomalies (deviations from isotropy + Gaussianity at\n"
+            "typically 2-sigma to 3-sigma levels)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    canmf.set_defaults(func=_cmd_cmb_anomalies_full)
 
     # ──────────────────────────────────────────────────────────────────
     # v0.25.0a — Attested Multi-Source Collector framework
