@@ -4,6 +4,66 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc3] - 2026-05-13
+
+### Infrastructure — Task #201 Phase B1: srmech C scaffolding
+
+First phase of the **srmech build-out to peer-quality with
+ephemerides-spectral** (Task #201). Ships the C tree scaffolding so
+Phase B2 can wire scikit-build-core in next. **Pure-Python wheel
+contents are byte-identical to rc2** — this release adds files outside
+the wheel, no API changes, no behaviour changes.
+
+#### Added — C tree scaffolding (`docs/srmech/c/` + `docs/srmech/CMakeLists.txt`)
+
+Mirrors `docs/antikythera-maths/ephemerides-spectral/c/` layout:
+
+- `c/include/srmech.h` — public C API header. Status enum
+  (`srmech_status_t`), version macros, and forward declarations
+  for the three planned symbols (`srmech_sha256_hex`,
+  `srmech_ndjson_iter`, `srmech_toml_canonical_hash`). No
+  definitions yet — those land in Phases B3–B5.
+- `c/src/.gitkeep` — empty source directory placeholder.
+- `c/test/.gitkeep` — empty test directory placeholder.
+- `c/Makefile` — local build/test/parity flow mirroring
+  ephemerides-spectral's Makefile. Phase B1 targets noop
+  gracefully (no .c files → no .a archive); Phase B3 onward they
+  do real work.
+- `c/README.md` — phase plan, layout, build instructions.
+- `c/JPL_AUDIT.md` — JPL Power-of-Ten audit log placeholder
+  (populated in Phase B6).
+- `c/.gitignore` — `build/`.
+- `c/.pages` — mkdocs nav stub.
+- `CMakeLists.txt` (at `docs/srmech/`) — top-level CMake driver,
+  mirrors `docs/antikythera-maths/ephemerides-spectral/CMakeLists.txt`.
+  At Phase B1 it short-circuits library creation when `c/src/*.c`
+  is empty; Phase B2 wires it into pyproject.toml via
+  scikit-build-core's `cmake.source-dir = ".."`.
+
+#### Why Phase B1 stops here
+
+The scaffolding is intentionally **inert at rc3**: no .c files means
+no library is built, the existing hatchling pyproject.toml backend is
+unchanged, and the wheel content is byte-identical to rc2. This
+verifies the scaffolding doesn't disturb the existing build before
+Phase B2 starts moving the build backend.
+
+#### Phase plan (Task #201 B1–B7)
+
+| Phase | Deliverable                                    | Version    |
+| ----- | ---------------------------------------------- | ---------- |
+| B1    | C tree scaffolding (this release)              | `0.1.1rc3` |
+| B2    | scikit-build-core + CMake + pyproject-pure     | `0.1.1rc4` |
+| B3    | `srmech_sha256_hex` — first symbol + parity test | `0.1.1rc5` |
+| B4    | `srmech_ndjson_iter` — streaming NDJSON reader | `0.1.1rc6` |
+| B5    | `srmech_toml_canonical_hash` — descriptor hash | `0.1.1rc7` |
+| B6    | JPL Power-of-Ten audit + JPL_AUDIT.md          | `0.1.1rc8` |
+| B7    | cibuildwheel matrix + production v0.2.0 cut    | `0.2.0`    |
+
+Each rc auto-routes to TestPyPI via `srmech-publish.yml`'s rc-suffix
+gate; the non-rc `0.2.0` tag is the human-in-loop gate for
+production PyPI.
+
 ## [0.1.1rc2] - 2026-05-13
 
 ### Fixed — hallucination in shipped metadata

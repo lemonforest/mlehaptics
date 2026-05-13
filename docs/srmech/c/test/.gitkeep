@@ -1,0 +1,7 @@
+# test/ — srmech C smoke tests + cross-language parity tests
+#
+# Empty at Phase B1 (scaffolding). Phase B3 adds test_srmech_sha256.c
+# (C unit tests) + test_parity_python.py (byte-compares C output to
+# the Python reference per `feedback_run_wsl_smoke_before_amsc_push`
+# memory: WSL2 smoke catches libm last-bit divergence that
+# Windows-local pytest can't.)
