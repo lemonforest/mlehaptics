@@ -540,3 +540,17 @@ The literal claim is established (stochastic parrots; Hopfield resonance; Grossb
 The user's intuition is correct, the literal claim is in established territory, and the operational refinement (consensus-depth vs frequency, with truth-condition controlled) is the genuinely-new research question the spike identifies. Spike candidate A of §8.1 is the recommended follow-up.
 
 The polynomial of `refined_structural_law_consolidation_2026-05-13.md` §1 — *"this is pure pin-slot until a value is placed upon x and it becomes more than just a statement"* — applies here too. The LLM weight-substrate is the slot; the prompt is the value; the output token distribution is the motion. *The math is the slot; the motion is the integral.* The user's framing is consistent with this stance; whether the LLM's motion has the structural integrity of physics-grade closed-form spectral compression is, ultimately, a question for the empirical follow-up.
+
+---
+
+## Post-spike citation corrections (2026-05-13)
+
+This section appends corrections identified during PR-cleanup pass after spike landed.
+
+### Verified arXiv IDs (2020+ post-spike WebFetch verifications)
+
+| Citation | Status | Verified arXiv ID | Title |
+|---|---|---|---|
+| TruthfulQA 2021 | ✓ verified | arXiv:2109.07958 | "TruthfulQA: Measuring How Models Mimic Human Falsehoods" (Stephanie Lin, Jacob Hilton, Owain Evans, 2021, ACL 2022 main conference) |
+
+The single 2020+ flagged citation is now Tier-A PDF-verified per `feedback_pdf_extraction_citation_discipline.md`.
