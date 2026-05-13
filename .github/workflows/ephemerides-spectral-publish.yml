@@ -13,10 +13,18 @@ name: ephemerides-spectral-publish
 # where the native binary can't run; the package falls back to the
 # pure-Python BIP encoder in that case.
 #
+# RC-version auto-routing (added Task #200 Phase A — 2026-05-13):
+#   * Tag ``ephemerides-spectral-vX.Y.ZrcN``  → TestPyPI auto-route
+#   * Tag ``ephemerides-spectral-vX.Y.Z``      → PyPI       auto-route
+# The tag suffix is the source of truth. TestPyPI releases happen
+# autonomously on rc-tagged pushes; PyPI releases happen on clean-
+# version pushes (tagging a non-rc version is itself the gate).
+#
 # Triggers:
-#   * push on ``ephemerides-spectral-v*`` tags  -> publishes to PyPI.
+#   * push on ``ephemerides-spectral-v*`` tags — auto-routes per
+#     rc-suffix (see above).
 #   * workflow_dispatch with ``target ∈ {testpypi, pypi}`` (default
-#     testpypi) — manual fallback / RC dispatches.
+#     testpypi) — manual fallback to override the auto-route.
 #
 # Trusted-publisher entries (one-time setup; both done):
 #   * pypi.org      project=ephemerides-spectral, env=pypi
@@ -229,18 +237,35 @@ jobs:
           path: docs/antikythera-maths/ephemerides-spectral/python/dist/*py3-none-any.whl
 
   publish:
-    name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
+    name: >-
+      publish
+      (${{
+        (github.event_name == 'workflow_dispatch' && inputs.target)
+        || (contains(github.ref_name, 'rc') && 'testpypi')
+        || 'pypi'
+      }})
     needs: [build-wheels, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ephemerides-spectral-v'))
     environment:
-      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }}
+      # rc-version auto-routing: tag ending in rcN goes to testpypi;
+      # plain semver tag goes to pypi. workflow_dispatch overrides
+      # via `inputs.target`.
+      name: >-
+        ${{
+          (github.event_name == 'workflow_dispatch' && inputs.target)
+          || (contains(github.ref_name, 'rc') && 'testpypi')
+          || 'pypi'
+        }}
       url: >-
-        ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        ${{
+          ((github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+           || (github.event_name == 'push' && contains(github.ref_name, 'rc')))
             && 'https://test.pypi.org/project/ephemerides-spectral/'
-            || 'https://pypi.org/project/ephemerides-spectral/' }}
+            || 'https://pypi.org/project/ephemerides-spectral/'
+        }}
     permissions:
       id-token: write
       contents: read
@@ -257,9 +282,11 @@ jobs:
           python3 <<'PY'
           import os, re, tomllib, sys
           tag = os.environ["GITHUB_REF_NAME"]
-          m = re.fullmatch(r"ephemerides-spectral-v(\d+\.\d+\.\d+)", tag)
+          # Allow rcN suffix (TestPyPI auto-route trigger). Matches
+          # PEP 440 pre-release form: X.Y.ZrcN, no separator before rc.
+          m = re.fullmatch(r"ephemerides-spectral-v(\d+\.\d+\.\d+(?:rc\d+)?)", tag)
           if not m:
-              print(f"::error::tag {tag!r} does not match ephemerides-spectral-vX.Y.Z")
+              print(f"::error::tag {tag!r} does not match ephemerides-spectral-vX.Y.Z[rcN]")
               sys.exit(1)
           tag_version = m.group(1)
           path = "docs/antikythera-maths/ephemerides-spectral/python/pyproject.toml"
@@ -268,6 +295,12 @@ jobs:
           if tag_version != pyver:
               print(f"::error::tag {tag_version!r} != pyproject {pyver!r}")
               sys.exit(1)
+          # Cross-check the auto-routing rule. If the tag has rc, this
+          # publish should hit TestPyPI; if not, PyPI. Log the routing.
+          if "rc" in tag_version:
+              print(f"Tag {tag_version!r} is an rc release → TestPyPI")
+          else:
+              print(f"Tag {tag_version!r} is a clean release → PyPI")
           print(f"tag and pyproject agree: {tag_version}")
           PY
 
@@ -279,14 +312,18 @@ jobs:
           ls -la dist/
 
       - name: Publish to TestPyPI
-        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+          || (github.event_name == 'push' && contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
 
       - name: Publish to PyPI
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+          || (github.event_name == 'push' && !contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
