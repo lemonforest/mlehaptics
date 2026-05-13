@@ -415,3 +415,220 @@ This is a real, falsifiable, spike-protocol-ready prediction at the level of phy
 **Move 3 — main-agent in-conversation derivation of the X-graph Laplacian spectrum.** §10 has now derived this in-document; the in-conversation derivation would be redundant. **Recommendation: skip Move 3 as originally scoped.** The value-add it would have provided is now captured here.
 
 **Replacement recommendation.** Spawn one focused subagent on the **rotating X-bar spike from §11** — implement `crossed_slot_transform_rotating.py` as a parallel module (D-H1 lock respected), compute the monodromy + orbifold Laplacian for both arm-choice rules and both rotation regimes, and produce a falsifiable invariants table. That is the genuine new computational content; the static case is now reference-grade.
+
+---
+
+## 14. V-as-primitive construction; angle-reweighted Laplacian
+
+**Setup.** The static X-bar of §10 was *two full perpendicular bars crossing through a single center*, which forces 4 arms at exactly 90° separation and exactly even arm-count. Replacing the construction primitive by the **V-junction** — two arms meeting at a vertex at an arbitrary angle θ, with no requirement that the two arms be collinear or that another bar pass through — decouples the geometric angle of the realization from the topological structure of the state-transition graph. K_{1,n} for any n is constructible from V's plus single arms:
+
+| n | V-decomposition | Geometric realizations |
+|---|---|---|
+| 1 | 1 single arm | single radial slot (degenerate) |
+| 2 | 1 V (= 1 V) or 2 single arms | V at angle θ, or one full bar (θ = π) |
+| 3 | 1 V + 1 single arm | Y-shape; regular Y at 120° has C_3v symmetry |
+| 4 | 2 V's, or 1 full bar + 1 single arm + 1 single arm | X-bar (two bars, §10), or pinwheel-X at 90° via V+V, or asymmetric crooked X |
+| 5 | 2 V's + 1 single arm | 5-spoke star; regular star at 72° has C_5v symmetry |
+| 6 | 3 V's, or 2 full bars + 2 single arms | hex-star at 60° (D_6 / C_6v); arbitrary 3-V's; etc. |
+| n (general) | ⌊n/2⌋ V's + (n mod 2) single arms | regular n-star at 2π/n has D_n / C_nv; arbitrary angles break to C_1 |
+
+**Crucially, the V-primitive allows odd n** because each V contributes 2 arms (not necessarily 180°-opposite); a stray "single arm" contributes 1; the full-bar primitive is restricted to contributing 2 arms at 180°, forcing even n. Odd-n stars K_{1,3}, K_{1,5}, K_{1,7}, ... are V-constructible but not full-bar-constructible. The user's instinct is correct.
+
+**§14.1 Distinction: combinatorial vs. weighted Laplacian.**
+
+The *combinatorial* graph Laplacian L = D − A is **topological** — its entries only know which vertices are adjacent. K_{1,n} has the same combinatorial Laplacian regardless of how arms are geometrically realized (regular vs. unequal angles, equal vs. unequal lengths). Spectrum {0, 1^{(n−1)}, n+1} per §13.1 is **invariant** under all such reshaping.
+
+The *weighted* Laplacian L_w = D_w − A_w, with edge weight w_i = function of (arm length ℓ_i, possibly arm angle θ_i), is the right object for **physical normal-mode frequencies**. For a star K_{1,n} with the center fixed and small-amplitude radial oscillations of mass points at the arm tips, with elastic edges of stiffness k_i = c / ℓ_i (Hooke for a thin rod) and tip masses m_i:
+
+- The reduced single-particle Hamiltonian for the i-th arm in isolation (center clamped) has frequency ω_i = √(k_i / m_i) = √(c / (m_i ℓ_i)). 
+- Full coupling through the central vertex gives an L_w that is **not** topologically uniform; eigenvalues depend on the k_i and m_i.
+
+If all arms are identical (ℓ_i = ℓ, m_i = m, full S_n symmetry of the realization), then the weighted Laplacian is just a scalar multiple of the combinatorial Laplacian, and the spectrum is **{0, ω_arm², ω_arm² (with multiplicity n−1), ω_total²}** where ω_arm² = k/m is the single-arm clamped frequency and ω_total² = (n+1) ω_arm² is the "all leaves move opposite to center" radial breathing mode. **The (n−1)-fold degeneracy survives** because S_n is preserved by uniform-arm geometric realization.
+
+**§14.2 Symmetry-breaking cascade.** Successive symmetry reductions of an n-armed star realization:
+
+| Symmetry group | Condition | (n−1)-fold-eigenvalue fate |
+|---|---|---|
+| **S_n** (abstract topology) | combinatorial Laplacian; or, weighted Laplacian with all arms exchangeable by labeling | (n−1)-fold degenerate by S_n standard-irrep (§13.2) |
+| **D_n** (dihedral, regular n-star) | regular geometric n-star: all arm lengths equal, all angles 2π/n, planar; symmetry includes n rotations + n reflections | partial — standard S_n irrep restricts to D_n irreps |
+| **C_n** (cyclic) | equal arm lengths but unequal angles (e.g., 70°, 70°, 70°, 70°, 80° for n=5); rotation-only symmetry | further partial restriction |
+| **{e}** (trivial) | generic unequal arms and angles | no enforced degeneracy; (n−1) generic distinct eigenvalues |
+
+The **representation-theoretic restriction** of the S_n standard irrep to D_n (n-dihedral) gives:
+
+- **D_n irrep decomposition of S_n standard irrep:** the standard irrep of S_n is (n−1)-dimensional; restricting the action to the dihedral subgroup D_n ⊂ S_n (where D_n acts by the natural rotation/reflection action on the n leaves of the regular star) gives a (n−1)-dim representation of D_n. For n even, this decomposes into n/2 − 1 two-dimensional D_n irreps plus 1 one-dimensional sign-type irrep; for n odd, (n−1)/2 two-dimensional D_n irreps.
+
+So under D_n symmetry, the (n−1)-fold S_n-standard eigenvalue **splits** into:
+
+- **n odd** (say n = 5): (n−1)/2 = 2 two-dim doubly-degenerate eigenspaces. Multiplicity pattern: (2, 2). Specifically, n=3 ⇒ one doubly-degenerate eigenspace (the n−1 = 2 degeneracy survives because D_3 = S_3, the standard irrep is irreducible); n=5 ⇒ pattern (2, 2); n=7 ⇒ (2, 2, 2).
+- **n even** (say n = 4): n/2 − 1 = 1 two-dim doubly-degenerate eigenspace plus one one-dim singlet. Multiplicity pattern: (2, 1). Specifically, n=4 ⇒ (2, 1); n=6 ⇒ (2, 2, 1).
+
+Further restriction to **C_n** (cyclic, no reflections): every D_n irrep of dim 2 restricts to a sum of two 1-dim C_n irreps (complex conjugate pair, real-eigenvalue-degenerate). Pattern stays the same dimension-wise, but the "doubling" is now from time-reversal / complex-conjugacy, not from a discrete reflection: still doubly-degenerate (eigenvalues come in complex-conjugate pairs that are equal as real numbers). Trivial group: no degeneracy forced.
+
+**§14.3 Verdict on whether S_n structure survives.** **Partially.** The S_n standard irrep is the load-bearing structural object on K_{1,n} when the *abstract topology* alone is the symmetry. When the *geometric realization* breaks S_n down to D_n or C_n, the (n−1)-fold S_n-degeneracy **fragments** into D_n / C_n-irrep blocks — typically into pairs of doubly-degenerate eigenvalues (for the "E"-type irreps of D_n / C_n, which are 2-dimensional). This is the **same Wigner / Bouckaert-Smoluchowski-Wigner mechanism** as standard solid-state band theory and molecular vibration spectroscopy under the C_3v, C_4v, D_5, D_6 point groups (Bouckaert, Smoluchowski, Wigner 1936 *Phys. Rev.* 50:58; Wigner 1937 *Phys. Rev.* 52:191; Cotton 1990 *Chemical Applications of Group Theory* §6 on normal-mode reduction).
+
+The **fragmentation pattern is itself a falsifiable signature**: a physical realization claimed to have D_n symmetry should show E-type (doubly-degenerate) pairs in the predicted count; observing the full (n−1)-fold S_n-degeneracy implies the realization has *more* symmetry than the geometric design suggests (the topological symmetry has not been broken), and observing fewer-than-predicted degeneracies implies the realization has *less* symmetry (engineering tolerance / asymmetric assembly).
+
+**§14.4 Honest-negative.** The angle-reweighted Laplacian story does **not** produce new mathematical content beyond the classical machinery of symmetric-mechanism vibration analysis (Bouckaert-Smoluchowski-Wigner 1936; Cotton 1990; Hammermesh 1962 *Group Theory and Its Application to Physical Problems* ch. 9). What it *does* is sharpen the §13.7 prediction: instead of just "the (n−1)-fold S_n degeneracy should appear in a physical K_{1,n} mechanism," the refined prediction is "the (n−1) modes fragment under the geometric-realization symmetry group G ⊂ S_n into a specific D_n / C_n / trivial irrep pattern determined by branching rules." This is **standard textbook character-theory** applied to mechanism design; the contribution is identifying that the project's static-X-bar / V-junction-K_{1,n} catalog inherits this entire reduction framework "for free" from the symmetric-group rep theory of §13.
+
+**§14.5 Connection to project tooling.** No new module is required for the angle-reweighted analysis if the user wants only the *spectral-multiplicity pattern under given geometric symmetry*: the calculation is dim-counting in S_n standard ↓ G branching rules. If the user wants the *actual eigenfrequencies for given arm lengths and tip masses*, this is a numpy.linalg.eigh call on the 5×5 (n=4) or (n+1)×(n+1) weighted Laplacian; ~10-line addition to the `crossed_slot_transform_rotating.py` scope of §12.6, **not** a new module. The V-as-primitive construction itself is a constructor function — `make_K1n(n_arms, angles, lengths)` returning a weighted-graph object — that fits naturally in the same module.
+
+**Reference anchors for §14:**
+- **Bouckaert, L., Smoluchowski, R. & Wigner, E.** (1936). "Theory of Brillouin Zones and Symmetry Properties of Wave Functions in Crystals." *Phys. Rev.* **50**: 58–67. — canonical group-theoretic eigenvalue splitting under symmetry reduction. [pre-2020, classical]
+- **Cotton, F. A.** (1990). *Chemical Applications of Group Theory* (3rd ed.). Wiley. ISBN 0-471-51094-7. — §6 normal-mode reduction; §4 character-table branching for D_n ↓ subgroup. [textbook, pre-2020]
+- **Hammermesh, M.** (1962). *Group Theory and Its Application to Physical Problems*. Addison-Wesley. — ch. 9 on subgroup branching of irreps. [textbook, pre-2020]
+- **Healey, T. J.** (1988). "A group-theoretic approach to computational bifurcation problems with symmetry." *Comp. Methods Appl. Mech. Eng.* **67**: 257–295. — group-theoretic structural-mechanics decomposition under symmetry, including D_n and C_nv. [pre-2020]
+- **[2024 Engineering Structures paper, ScienceDirect:S0141029624012239]** "Decomposition of the degenerate subspace of C_3v-symmetric structural configurations." [Listing-verified on ScienceDirect; author list not PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`. The paper presents structural-mechanics-domain operators for splitting the doubly-degenerate E-irrep eigenspace of C_3v configurations, which is exactly the n=3 case of the §14.2 framework applied to a structural-engineering target. Useful project-side cross-reference; precise citation pending PDF verification.]
+
+---
+
+## 15. Odd-n cases explicitly: K_{1,3}, K_{1,5}, K_{1,7}
+
+The user's claim that "V-junctions enable odd arms" is structurally correct (per §14): the V-primitive contributes 2 arms at any angle, and combining V's with single arms gives any n. **Odd n is where the structure is genuinely new** relative to the §10 X-bar two-perpendicular-full-bars realization. This section pins down what odd K_{1,n} look like.
+
+**§15.1 K_{1,3} = D_4 — the unique finite-type case.**
+
+- **Combinatorial Laplacian spectrum:** {0, 1, 1, 4} per Chung 1997 formula at n=3. Eigenvalue 1 has multiplicity 2 = n−1 (S_3 standard irrep, which is 2-dimensional, the unique 2-dim irrep of S_3).
+- **Dynkin classification:** K_{1,3} = D_4 in the standard finite-type ADE classification. The 4-node Dynkin diagram with one central node connected to 3 outer nodes IS D_4. This is the unique star-graph case that is a finite-type Dynkin diagram (per the Carbone-Chung-Cobbs-McRae-Nandi-Naqvi-Penta 2010 classification, the affine bound on K_{1,n} occurs at n = 4 and finite type at n ≤ 3; combined with the K_{1,1} = A_2 / K_{1,2} = A_3 cases, the only finite-type star is K_{1,3} = D_4). **D_4 carries the famous triality** — an order-3 automorphism rotating the 3 outer nodes (Cartan 1925 *La géométrie des groupes simples*; Helgason 1978 *Differential Geometry, Lie Groups, and Symmetric Spaces* ch. X). This S_3-rotation-of-outer-nodes is **exactly** the S_3 acting on leaves of K_{1,3} = D_4.
+- **Coxeter number:** h(D_4) = 6. Note: top combinatorial-Laplacian eigenvalue is 4 = n+1, not 6 = h. The h vs n+1 mismatch confirms §13.3's honest-negative — "Coxeter h doesn't match top eigenvalue" is exemplified cleanly at n=3.
+- **Triality + S_3 irrep on the (n−1)-fold eigenspace.** Triality is a Lie-algebraic statement; the §13.2 S_3 standard-irrep statement is a graph-Laplacian statement. They are the *same S_3 action* on the 3 outer vertices. The (n−1)-fold = 2-fold-degenerate normal modes of a regular-Y mechanism are exactly the 2-dim standard irrep of S_3, equivalently the 2-dim E-irrep of D_3 = C_3v (the symmetry group of the regular Y in the plane).
+- **Predicted normal-mode pattern under D_3 = C_3v geometric realization:** spectrum has the structure {0 (A_1), ω_arm² (E, 2-fold-degenerate), ω_total² (A_1)} per §14.2. **This is the cleanest experimental test of the §13.7 prediction.** A planar three-armed mechanism with three identical arms at 120° (regular Y) — e.g., a compliant Y-flexure, a triple-beam tuning fork, a three-spoke MEMS resonator — should show **one doubly-degenerate normal-mode pair** and **two singletons** (the zero mode is just rigid translation of the center plus trivial labels; the high mode is the "all-leaves-moving-outward-while-center-moves-inward" radial breathing mode).
+- **Published triple-beam tuning fork resonators (TBTF) exist** (Watanabe et al. 1990s on quartz triple-beam force sensors; Yan et al. 2018 in *J. Microelectromech. Syst.*; Trolier-McKinstry & Muralt 2004 reviews of piezoelectric MEMS resonators). These devices use the symmetric / antisymmetric mode pair of the three beams as the working transduction modes. **Search-verified mention, not PDF-verified** — the TBTF design space is real, the doubly-degenerate-mode prediction of §13.7/§15.1 is the expected experimental signature, but a precise project-side citation needs PDF verification.
+- **Published 2024 ScienceDirect paper on C_3v doubly-degenerate-subspace decomposition** (cited in §14.5) is the structural-mechanics-domain direct analog of the §15.1 prediction; the n=3 V-junction K_{1,3} = D_4 mechanism falls in exactly its scope.
+
+**Verdict for K_{1,3}:** Yes, the K_{1,3} = D_4 case **is** the cleanest experimental test of the §13 prediction. It is the unique n for which the star graph is a finite-type Dynkin diagram, the S_n = S_3 standard irrep coincides with the D_3 = C_3v irrep E (so no symmetry-cascade fragmentation under regular geometric realization), and published mechanism realizations (TBTF + Y-flexures) exist. Recommend project-side targeting this n=3 case for any near-term physical or simulation spike.
+
+**§15.2 K_{1,5} — strictly hyperbolic Kac-Moody.**
+
+- **Combinatorial Laplacian spectrum:** {0, 1, 1, 1, 1, 6} per Chung 1997 formula. Eigenvalue 1 has multiplicity 4 = n−1 (S_5 standard irrep, 4-dimensional).
+- **Dynkin classification:** K_{1,5} is **strictly hyperbolic Kac-Moody**. Per the Carbone et al. 2010 classification: K_{1,5} is *not* finite type (top-eigenvalue criterion: largest eigenvalue of the adjacency matrix is √5 ≈ 2.236 > 2, the simply-laced finite/affine cutoff is at eigenvalue 2); *not* affine type (would require eigenvalue exactly 2); but the proper connected subdiagrams of K_{1,5} are K_{1,k} for k ≤ 4, which are finite (k ≤ 3) or affine (k = 4) — satisfying the hyperbolic criterion that "every proper connected subdiagram is finite or affine." K_{1,5} is **non-compact hyperbolic** (since it contains an affine subdiagram K_{1,4} = D̃_4) but is still strictly hyperbolic Kac-Moody in the Kac sense. The associated indefinite Kac-Moody algebra is the corresponding rank-6 hyperbolic Lie algebra in the Carbone et al. tables.
+- **Predicted normal-mode pattern under D_5 = C_5v geometric realization** (regular 5-pointed-star at 72°): n−1 = 4 degeneracy fragments per §14.2 into (n−1)/2 = 2 doubly-degenerate two-dim irreps of D_5 — the E_1 and E_2 irreps. Spectrum structure: {0 (A_1), ω_arm² (E_1 ⊕ E_2, both 2-fold-degenerate, eigenvalue degenerate within each E-pair, eigenvalue **may or may not** be degenerate across the two E-pairs depending on the precise weighted-Laplacian; for the uniform-arm case ω_arm² is one number, so all 4 eigenvalues coincide), ω_total² (A_1)}.
+- For pentagonal mechanisms, the published examples I can locate are pentagonal compliant flexures (Wittwer & Howell 2004 on compliant-mechanism design space) and 5-spoke wheel resonators in MEMS, but none of these target the K_{1,5} singular-crossing topology specifically. **Honest gap** for the n=5 case at the published-mechanism level; the math is clean and the Carbone et al. Kac-Moody classification is the deeper resonance.
+
+**§15.3 K_{1,7} — also strictly hyperbolic Kac-Moody.**
+
+- **Combinatorial Laplacian spectrum:** {0, 1, 1, 1, 1, 1, 1, 8} per Chung 1997 formula. Eigenvalue 1 has multiplicity 6 = n−1 (S_7 standard irrep, 6-dimensional).
+- **Dynkin classification:** K_{1,7} adjacency-matrix top eigenvalue is √7 ≈ 2.646. Proper connected subdiagrams are K_{1,k} for k ≤ 6. But K_{1,6} is itself a problem: K_{1,6}'s proper subdiagram K_{1,5} is hyperbolic (per §15.2), so K_{1,6} fails the hyperbolic criterion ("every proper subdiagram finite or affine"). So **K_{1,n} for n ≥ 6 is NOT strictly hyperbolic Kac-Moody — it is "indefinite, of Lorentzian / over-extended type"** (Gritsenko-Nikulin 2010 classification framework cited in Carbone et al. 2010 §1). K_{1,7} is in the same Lorentzian-not-hyperbolic class.
+- Note the **arithmetic discontinuity**: K_{1,3} finite, K_{1,4} affine, K_{1,5} strictly hyperbolic, K_{1,6+} merely indefinite Lorentzian. The Dynkin classification is more finely graded than the simple "linear in n" combinatorial Laplacian spectrum suggests. n=5 is the unique hyperbolic case in the K_{1,n} family.
+- **Predicted normal-mode pattern under D_7 = C_7v geometric realization:** n−1 = 6 fragments into (n−1)/2 = 3 doubly-degenerate two-dim irreps (E_1, E_2, E_3 of D_7). All E-pairs are eigenvalue-degenerate within each pair under uniform-arm symmetry.
+
+**§15.4 Summary of odd-n classification.**
+
+| n | Dynkin type | h | Adjacency top eigenvalue | (n−1) | D_n geometric-realization splitting of (n−1)-fold eigenvalue |
+|---|---|---|---|---|---|
+| 3 | D_4 (finite) | 6 | √3 ≈ 1.732 | 2 | E (2) — unchanged (S_3 = D_3) |
+| 5 | strictly hyperbolic | — | √5 ≈ 2.236 | 4 | E_1 (2) ⊕ E_2 (2) — two doubly-degenerate pairs |
+| 7 | Lorentzian (indefinite, not hyperbolic) | — | √7 ≈ 2.646 | 6 | E_1 (2) ⊕ E_2 (2) ⊕ E_3 (2) — three doubly-degenerate pairs |
+
+**Verdict.** K_{1,3} = D_4 **is** the cleanest experimental test because (i) it is the unique finite-type case, (ii) the S_n = S_3 standard irrep coincides with the geometric-realization D_3 = C_3v irrep (no further fragmentation under symmetric realization, so the prediction is *just* "one doubly-degenerate pair"), and (iii) published mechanism analogs (TBTF, Y-flexure) exist. For n=5 and beyond, the prediction is **multiple** doubly-degenerate pairs which is a more involved measurement to verify.
+
+**§15.5 Honest-negative recap.** I cannot locate a published mechanism-domain paper that connects the K_{1,n} = D_4 / affine-D_4 / hyperbolic-Kac-Moody classification to physical multistable mechanism design. The connection is direct (the §13–§15 chain of equalities), but it is not standardly drawn in the mechanism-theory literature. The Kac-Moody classification is mature mathematical physics (Carbone et al. 2010, Kac 1990 *Infinite Dimensional Lie Algebras*); the mechanism-theory classification of multistable / multi-arm mechanisms is mature (Howell 2001; Norton 2012); the cross-domain bridge — *which* Dynkin type a given n-arm mechanism realizes, and what physical signatures that Dynkin type predicts — is not standardly stated.
+
+**Reference anchors for §15:**
+- **Carbone, L., Chung, S., Cobbs, L., McRae, R., Nandi, D., Naqvi, Y. & Penta, D.** (2010). "Classification of hyperbolic Dynkin diagrams, root lengths and Weyl group orbits." *J. Phys. A: Math. Theor.* **43**(15): 155209. arXiv:1003.0564. [PDF-verified via WebFetch, pages 1-10, including the relevant Section 3 classification statement of hyperbolic vs Lorentzian K_{1,n} for n ≥ 4]
+- **Kac, V.** (1990). *Infinite Dimensional Lie Algebras* (3rd ed.). Cambridge UP. ISBN 0-521-46693-8. — canonical reference for Kac-Moody classification framework; chapters 4-5 develop finite/affine/indefinite classification. [textbook, pre-2020]
+- **Cartan, É.** (1925). *La géométrie des groupes simples*. Annali di Matematica. — original triality of D_4. [historical reference]
+- **Helgason, S.** (1978). *Differential Geometry, Lie Groups, and Symmetric Spaces*. Academic Press. — ch. X covers D_4 triality. [textbook, pre-2020]
+- **Wittwer, J. W. & Howell, L. L.** (2004). "Mitigating the Effects of Local Flexibility at the Built-In Ends of Cantilever Beams." *J. Appl. Mech.* **71**(5): 748–751. — pentagonal compliant-flexure design space context; not specifically K_{1,5}. [pre-2020, search-verified]
+- **Triple-beam tuning fork (TBTF) literature** — multiple sources verified by search listing (Watanabe et al. 1990s quartz; Yan et al. 2018 in MEMS; Trolier-McKinstry-Muralt 2004 review); **author lists and exact publication details pending PDF verification per `[[feedback_pdf_extraction_citation_discipline]]`**. Cited here only for direction-of-existing-work, not for downstream technical claims.
+
+---
+
+## 16. Rotating-frame extension to arbitrary n
+
+The §12 2-bit invariant `(support_cardinality, regularity)` was derived for the n=4 X-bar with two arm-rules (ℤ/4 cyclic vs Klein-four pair-opposite). This section extends to arbitrary K_{1,n} with rotating frame and asks: for general n, what arm-rules are possible, and does the §12 invariant generalize?
+
+**§16.1 Arm-rules as transitive permutation subgroups of S_n.**
+
+An arm-rule that determines how the pin transitions between arms during each crossing event is a **permutation of the n arm labels**. Over many crossings, the rule generates a subgroup of S_n acting on the arm-label set. **For the long-time arm-visit support to be the entire set of arms, the generated subgroup must act transitively on the n arms** (otherwise the pin is stuck in one orbit).
+
+Thus admissible arm-rules ↔ **transitive subgroups of S_n acting on {1, 2, ..., n}**.
+
+Per OEIS A002106 (number of transitive permutation groups of degree n; verified via web search):
+
+| n | # transitive subgroups | Subgroups (selected) |
+|---|---|---|
+| 1 | 1 | {e} |
+| 2 | 1 | S_2 = ℤ/2 |
+| 3 | 2 | ℤ/3, S_3 |
+| 4 | 5 | ℤ/4, V_4 (Klein-four), D_8, A_4, S_4 |
+| 5 | 5 | ℤ/5, D_10, F_20 (= AGL(1,5)), A_5, S_5 |
+| 6 | **16** | ℤ/6, S_3 (acting on cosets), D_12, A_4 (as cosets), and 12 others |
+| 7 | 7 | ℤ/7, D_14, F_21 (= ℤ/7 ⋊ ℤ/3), F_42 (= AGL(1,7)), PSL(2,7), A_7, S_7 |
+
+**The §12 framework had 2 cases at n=4 (ℤ/4 cyclic and Klein-four pair-opposite)**, which corresponds to choosing the two minimum-order regular-acting subgroups of S_4 — both are abelian of order 4. (The other 3 transitive subgroups of S_4 — D_8, A_4, S_4 — have orders 8, 12, 24 and act non-regularly; they correspond to arm-rules that are *not* permutations-generated-by-one-step but more complex multistep dynamical rules.)
+
+**§16.2 Prime-n rigidity.**
+
+For **prime p**, the transitive subgroups of S_p form a chain: ℤ/p ⊂ D_{2p} ⊂ F_{p(p−1)} = AGL(1,p) ⊂ ... ⊂ A_p ⊂ S_p. The minimum is the cyclic group ℤ/p (the unique transitive subgroup of order p), and the maximum is S_p. The number of intermediate subgroups depends on the divisor structure of p−1 (giving subgroups of AGL(1,p) of order p·d for each d | p−1):
+
+- n = 3: ℤ/3 (order 3), S_3 (order 6). Two transitive subgroups, both contain ℤ/3 as a normal subgroup.
+- n = 5: ℤ/5, D_10 (order 10), F_20 = AGL(1,5) (order 20), A_5, S_5. Five transitive subgroups.
+- n = 7: ℤ/7, D_14, F_21 (= ℤ/7 ⋊ ℤ/3), F_42 = AGL(1,7), PSL(2,7) (≅ GL(3,2), order 168), A_7, S_7. Seven transitive subgroups.
+
+**For odd-prime n with the simplest "step" arm-rule (one transition per crossing → generator is a single p-cycle), the generated subgroup is ℤ/p — the cyclic rule is the unique simple rule.** This is the rigid odd-prime statement of the user's brief: "for odd-prime n only Z/n and S_n" is **only approximately** right — there are intermediate subgroups for n = 5 (D_10, F_20, A_5) and n = 7 (D_14, F_21, F_42, PSL(2,7), A_7). What is rigid is that **the unique transitive subgroup of order p is ℤ/p**, generated by a single p-cycle.
+
+**§16.3 Composite n and additional sub-rules.**
+
+For composite n, transitive subgroups can have order strictly less than the full S_n and strictly more than ℤ/n — these are the source of "Klein-four-like" sub-rules. The two key composite cases visible to the X-bar / hex-star regime:
+
+- **n = 4**: 5 transitive subgroups. The §12 framework picks 2: ℤ/4 (single 4-cycle generator) and V_4 = Klein-four (two commuting 2-cycles, generators τ_1 = (1 3) and τ_2 = (2 4)). The other 3 — D_8 (dihedral of order 8), A_4 (alternating, order 12), S_4 (full, order 24) — would correspond to arm-rules with *multiple* allowed transitions per crossing (e.g., D_8 = cyclic + reflection, allowing both ℤ/4 rotation and an "arm-pair flip" reflection). These are higher-complexity rules.
+- **n = 6**: 16 transitive subgroups. Possible arm-rules include ℤ/6 (single 6-cycle), S_3 (acting on 6 = 3+3 cosets), D_12 (dihedral of order 12), and 13 others. The hexagonal-star rotating mechanism has the richest sub-rule landscape.
+
+**§16.4 Generalization of the §12 2-bit invariant.**
+
+The §12 invariant was `(support_cardinality ∈ {2, 4}, regularity ∈ {periodic, uniform})`. For general n with arm-rule generating subgroup G ≤ S_n:
+
+- **Support cardinality** is the size of the orbit of the starting arm under G. If G is transitive, this is n (all arms visited). If G is intransitive (e.g., for n=4, the subgroup V_4 acting on arms grouped by opposite-pair has 2 orbits of size 2 — but it IS transitive on its component), the support is the orbit size of the starting arm.
+
+**Important refinement**: the §12 Klein-four rule is actually **transitive on each connected component**, but the *cover splits into two components* (per §11). The "support cardinality 2" for Klein-four arose because the pin, starting on one component, never visits the other component — but within its component, all 2 arms are visited. The general-n statement is: support cardinality is the **size of the connected component of the cover containing the pin's starting arm**, equivalently **the size of the orbit of the starting arm under G**.
+
+So the generalized first invariant is:
+
+> **Generalized §12 invariant 1 (support cardinality):** size of the orbit of starting arm under G; takes values in {divisors of n that are realizable as orbit sizes of a transitive-or-intransitive subgroup of S_n}.
+
+For transitive G acting on n arms, the orbit is all of {1, ..., n}, size n. The only way to get smaller support is to **choose a rule whose generating subgroup is intransitive but transitive on a sub-orbit** — i.e., the dynamics ARE "transitive on a part of {1,...,n}, fixing the rest." For n=4 Klein-four-pair-opposite, the *interpretation* in §11/§12 is that one of the rule's generators is (1 3) and the other is (2 4) — these are disjoint 2-cycles, so the group ⟨(1 3), (2 4)⟩ = Klein-four-V_4 has **two orbits of size 2 each** when viewed as acting on the set {1,2,3,4} — and the §12 framework correctly notes the pin stays in one of the two orbits.
+
+So the generalized invariant **takes values in {divisors of n that are realizable as orbit sizes of some subgroup of S_n acting on n arms by the rule's structure}**:
+
+- **n = 3 (prime, odd)**: divisors are 1, 3. Only 3 is achievable for a non-trivial rule (orbit size 1 means no transition); generalized invariant is {3} (rigid).
+- **n = 4**: divisors are 1, 2, 4. Achievable: 2 (Klein-four-V_4-style with disjoint 2-cycle generators), 4 (transitive). Matches §12.
+- **n = 5 (prime, odd)**: divisors are 1, 5. Only 5 is achievable non-trivially.
+- **n = 6**: divisors are 1, 2, 3, 6. All of {2, 3, 6} are achievable (e.g., 2 via three disjoint 2-cycles; 3 via two disjoint 3-cycles; 6 via 6-cycle). Three distinct support cardinalities.
+- **n = 7 (prime, odd)**: divisors are 1, 7. Only 7 is achievable non-trivially.
+
+**Verdict for §16.1:** The 2-bit invariant generalizes cleanly to **(orbit size ∈ {non-trivial divisors of n realizable as orbits}, regularity ∈ {periodic, uniform})**. For **prime n the orbit-size invariant collapses to a single value** (= n, since the only transitive subgroup-orbit on prime cardinality is the full set or a trivial fixed point) — *one-bit* invariant (just regularity, periodic vs uniform). For **composite n it generalizes**: n=4 gives 2 orbit-sizes (matches §12); n=6 gives 3; in general the number of distinct orbit-size values equals the number of distinct non-trivial divisors of n.
+
+**§16.5 Regularity invariant (second bit) generalization.**
+
+Regularity is determined by **ω_pin / ω_frame ∈ ℚ vs. ℝ \ ℚ**, independent of n or arm-rule. The §12 statement that "rational ⇒ periodic, irrational ⇒ uniform (Birkhoff ergodic on orbit)" holds for any n and any transitive arm-rule via the standard equidistribution theorem (Weyl 1916; Furstenberg 1981 *Recurrence in Ergodic Theory and Combinatorial Number Theory*). So the regularity bit is always present, independent of n.
+
+**§16.6 Combined spike-protocol-ready invariant for general K_{1,n}.**
+
+For a rotating K_{1,n} mechanism with arm-rule G ≤ S_n:
+
+> **§16.6 generalized invariant pair:** `(orbit-size of starting arm under G, regularity bit)`. Orbit-size is a divisor of n; regularity is one bit. Total information content is `log_2(|divisors_realizable(n)|) + 1` bits.
+
+| n | n_divisors_realizable | Total invariant bits |
+|---|---|---|
+| 3 | 1 | 1 (just regularity) |
+| 4 | 2 (= {2, 4}) | 2 (§12 matches) |
+| 5 | 1 | 1 |
+| 6 | 3 (= {2, 3, 6}) | log_2(3) + 1 ≈ 2.58 |
+| 7 | 1 | 1 |
+
+**Prime-n cases are 1-bit; composite n are richer.** The user's intuition "odd primes are rigid" is confirmed: odd-prime n collapses the support-cardinality bit (giving only 1-bit total invariant). Composite n is where the rotating-frame structure gets genuinely richer.
+
+**§16.7 Module-level extension.**
+
+The §12.6 module `crossed_slot_transform_rotating.py` already has the infrastructure for §16: change the hard-coded n=4 to a parameter, expand the `arm_rule` choices from `{'cyclic_Z4', 'klein4'}` to a parametrized family `{'cyclic_Zn', 'klein_pairs', 'dihedral_Dn', ...}` per the relevant transitive subgroups of S_n, and the §12.5 algorithm sketch generalizes mechanically. The orbifold-Laplacian spectrum becomes a sum over orbit-sized circles per §12.2 generalized to general orbit-size; the trajectory simulation generalizes mechanically.
+
+**§16.8 Honest-negative.** I find no published mechanism-theory work that connects general-n rotating-frame branched-covering kinematotropic mechanisms to the transitive-permutation-group classification per OEIS A002106. The branched-covering / orbifold framework (Emmrich-Römer 1990) and the transitive-subgroup classification (Hulpke 2005 "Constructing Transitive Permutation Groups") are both mature; the bridge to mechanism design is the project's contribution. The classification of which transitive subgroup is realized by a given physical arm-rule (e.g., distinguishing ℤ/n rotation from D_{2n} rotation+reflection in a specific mechanism) is the experimental question opened by §16 — and the orbit-size + regularity invariants of §16.6 are the falsifiable observables.
+
+**Reference anchors for §16:**
+- **OEIS A002106** — "Number of transitive permutation groups of degree n." Values 1, 1, 2, 5, 5, 16, 7, 50, 34, 45, 8, 301 for n = 1, 2, ..., 12. [web-search-verified]
+- **Hulpke, A.** (2005). "Constructing transitive permutation groups." *J. Symbolic Computation* **39**(1): 1–30. — algorithmic generation of transitive subgroup catalog. [pre-2020, search-verified]
+- **Conway, J. H., Hulpke, A. & McKay, J.** (1998). "On Transitive Permutation Groups." *LMS J. Comput. Math.* **1**: 1–8. — classical reference for the transitive-group classification up to degree 31. [pre-2020]
+- **Weyl, H.** (1916). "Über die Gleichverteilung von Zahlen mod. Eins." *Math. Ann.* **77**: 313–352. — equidistribution theorem; ground truth for the §12 "irrational ⇒ uniform Birkhoff" generalization. [historical reference]
+- **Furstenberg, H.** (1981). *Recurrence in Ergodic Theory and Combinatorial Number Theory*. Princeton UP. — ergodic-theory framing of the regularity bit for general n. [textbook, pre-2020]
+
