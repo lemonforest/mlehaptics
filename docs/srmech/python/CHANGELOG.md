@@ -4,6 +4,32 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-14
+
+### Production cut of the v0.3.0 ship (no code change from 0.3.0rc1)
+
+The 0.3.0rc1 → 0.3.0 transition contains only version-string bumps
+in the four SSOT locations (`pyproject.toml`, `pyproject-pure.toml`,
+`srmech/version.py`, `c/include/srmech.h`) plus this CHANGELOG header.
+
+TestPyPI verification (clean venv, Windows / Python 3.14):
+
+```
+version: 0.3.0rc1
+HAS_NATIVE: True ABI: 2
+tool_schema_version: 1.0
+builtin tools: 6
+list_profiles: {}
+ProfileNotFoundError works: no profile named 'nonexistent'; enumerated profiles: []
+All profile loader exports present: True
+```
+
+Native dispatch healthy, builtin AMSC tools self-register at amsc
+import time, profile loader API complete. No issues surfaced through
+the rc cycle; cutting straight to production.
+
+See [0.3.0rc1] below for the full feature description.
+
 ## [0.3.0rc1] - 2026-05-14
 
 ### Added — Task #198 (`srmech.amsc.tool_schema`) + Task #199 (profile loader)
