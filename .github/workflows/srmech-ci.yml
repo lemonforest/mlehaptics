@@ -84,21 +84,33 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify pyproject-pure.toml version matches main
+      - name: Verify pyproject-pure.toml version + description match main
         working-directory: docs/srmech/python
         run: |
           python3 <<'PY'
           import sys, tomllib
           with open("pyproject.toml", "rb") as f:
-              main_v = tomllib.load(f)["project"]["version"]
+              main = tomllib.load(f)["project"]
           with open("pyproject-pure.toml", "rb") as f:
-              pure_v = tomllib.load(f)["project"]["version"]
-          if main_v != pure_v:
-              print(f"::error::pyproject.toml version {main_v!r} != "
-                    f"pyproject-pure.toml version {pure_v!r}. Bump them "
-                    "together.")
+              pure = tomllib.load(f)["project"]
+          if main["version"] != pure["version"]:
+              print(f"::error::pyproject.toml version {main['version']!r} "
+                    f"!= pyproject-pure.toml version {pure['version']!r}. "
+                    f"Bump them together.")
               sys.exit(1)
-          print(f"versions agree: {main_v}")
+          print(f"versions agree: {main['version']}")
+          # Description-match guard (added during the rc8 "Pure Python."
+          # drift fix). Both descriptions feed the same PyPI Summary;
+          # they must stay in lockstep.
+          if main["description"] != pure["description"]:
+              print(f"::error::pyproject.toml and pyproject-pure.toml "
+                    f"have drifted descriptions. Update both together.")
+              print(f"  main ({len(main['description'])} chars): "
+                    f"{main['description']!r}")
+              print(f"  pure ({len(pure['description'])} chars): "
+                    f"{pure['description']!r}")
+              sys.exit(1)
+          print(f"descriptions agree: {len(main['description'])} chars")
           PY
 
       - name: Build pure wheel via pyproject-pure swap

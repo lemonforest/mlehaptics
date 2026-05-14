@@ -4,6 +4,70 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc9] - 2026-05-13
+
+### Fixed — PyPI metadata drift after Phase B3 (native code) landed
+
+User-spotted drift on the TestPyPI project page: the Summary still
+read "...Pure Python." even though Phase B3 (rc5) shipped native C
+dispatch and Phase B4 (rc6) added the second native symbol. Both
+`pyproject.toml` and `pyproject-pure.toml` had the stale claim
+verbatim because the description text was copy-pasted between them
+without revisiting the trailing sentence after each phase.
+
+#### Fixed
+
+- **`pyproject.toml` + `pyproject-pure.toml` `[project].description`**
+  — replaced "Pure Python." with "Native C dispatch (SHA-256 +
+  NDJSON line reader) with pure-Python fallback for Pyodide / WASM."
+  Both files now carry identical 442-char descriptions (well under
+  the 480-char soft cap; well under PyPI's 512-char hard limit).
+- **`README.md` Status line** — refreshed to reflect the rc3→rc8
+  arc and the impending v0.2.0 cut. Adds a one-liner clarifying
+  the native-C + pure-Python-fallback architecture in the package
+  intro paragraph.
+- **`Development Status` classifier** — bumped from
+  `3 - Alpha` → `4 - Beta` on both pyproject files. After 6 rc
+  iterations including cibuildwheel matrix, JPL Power-of-Ten audit,
+  Python/C parity tests, and pedantic-build CI on three platforms,
+  "Beta" is the honest label. Same status ephemerides-spectral
+  carries.
+
+#### Added — description-match guard (defensive ratchet)
+
+The publish workflow (`srmech-publish.yml`) and CI workflow
+(`srmech-ci.yml`) already enforce **version-match** between
+`pyproject.toml` and `pyproject-pure.toml`. The same guard pattern
+now also asserts **description-match**: any drift between the two
+descriptions fails CI with a clear error message including both
+char counts. This catches future copy-paste drift before it can
+reach a TestPyPI / PyPI upload.
+
+PyPI's Summary metadata is per-project-version (not per-wheel), so
+both wheels uploaded under the same version must carry the same
+Summary text. The match guard formalises that invariant.
+
+#### Audit scope
+
+Reviewed every user-facing PyPI metadata surface for similar drift:
+
+- ✅ `description` — fixed (both files).
+- ✅ `Development Status` classifier — bumped.
+- ✅ README Status line — refreshed.
+- ✅ `keywords` — accurate (stored-relationship, mechanism, attested,
+  provenance, ndjson, ground-proof, research). No change.
+- ✅ `Topic :: Scientific/Engineering` classifier — accurate.
+- ✅ `Programming Language ::` classifiers — match `requires-python`.
+- ✅ `[project.urls]` — Homepage, Repository, Issues, Changelog,
+  Notebook. Stable, no drift.
+- ✅ Docstrings in `_native.py` / `format.py` / `c/README.md` that
+  mention "pure-Python" — all referring to the fallback path
+  correctly; no drift.
+
+#### No ABI change
+
+C surface unchanged from rc8. `SRMECH_ABI_VERSION` stays at 2.
+
 ## [0.1.1rc8] - 2026-05-13
 
 ### Added — Task #201 Phase B6: JPL Power-of-Ten audit

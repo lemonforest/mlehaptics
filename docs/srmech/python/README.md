@@ -1,8 +1,8 @@
 # srmech
 
-**Status:** v0.1.0 on PyPI (initial ship from the Task #197 AMSC-to-srmech refactor). v0.1.1rcN iterating on TestPyPI toward peer-quality with ephemerides-spectral (Task #201 build-out: Python/C parity + JPL Power-of-Ten + scikit-build-core).
+**Status:** v0.1.0 on PyPI (initial pure-Python ship from the Task #197 AMSC-to-srmech refactor). v0.1.1rc3 → rc8 on TestPyPI complete the Task #201 build-out to peer quality with ephemerides-spectral: native C dispatch for SHA-256 + NDJSON line reader, scikit-build-core + CMake build, cibuildwheel matrix (Linux/macOS/Windows × py3.10–3.14), pure-Python fallback for Pyodide / WASM, and JPL Power-of-Ten audit. v0.2.0 cuts to PyPI once a final `0.2.0rc1` TestPyPI verification passes.
 
-`srmech` (Stored-Relationship Mechanism) is a research package. It ships the **Attested Multi-Source Collector (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time.
+`srmech` (Stored-Relationship Mechanism) is a research package. It ships the **Attested Multi-Source Collector (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time. **Native C** for the SHA-256 attestation hash + NDJSON streaming reader; pure-Python fallback for Pyodide / WASM environments.
 
 The package was extracted from `ephemerides-spectral`'s `_research/` mirror in Task #197 so that other spectral-research packages can consume the AMSC framework without depending on ephemerides-spectral. The catalog SSOTs themselves do NOT migrate — each downstream package registers its own root via `srmech.amsc.catalog.register_attested_root(path, source=...)`.
 

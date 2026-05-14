@@ -177,6 +177,26 @@ jobs:
                     "agree on version.")
               sys.exit(1)
           print(f"versions agree: {main_v}")
+          # Also verify descriptions agree — they become the PyPI
+          # Summary metadata; PyPI deduplicates per project-version,
+          # so a drift between the two pyproject files would land
+          # whichever artifact uploads first as the Summary winner.
+          # That's how rc3-rc8 shipped with "Pure Python." even
+          # after native code landed — caught when reviewing the
+          # TestPyPI project page after Phase B6.
+          with open("pyproject.toml", "rb") as f:
+              main_d = tomllib.load(f)["project"]["description"]
+          with open("pyproject-pure.toml", "rb") as f:
+              pure_d = tomllib.load(f)["project"]["description"]
+          if main_d != pure_d:
+              print(f"::error::pyproject.toml description differs "
+                    f"from pyproject-pure.toml description. Both "
+                    f"feed the same PyPI Summary field; keep them "
+                    f"in lockstep.")
+              print(f"  pyproject.toml      ({len(main_d)} chars): {main_d!r}")
+              print(f"  pyproject-pure.toml ({len(pure_d)} chars): {pure_d!r}")
+              sys.exit(1)
+          print(f"descriptions agree: {len(main_d)} chars")
           PY
 
       - name: Verify [project].description is under PyPI's 512-char Summary limit
