@@ -1,0 +1,92 @@
+# chess_spectral srmech profile descriptor.
+#
+# ADR-0001 (srmech v0.3.0) §7 Step 1 — chess-spectral simple-profile POC.
+# This file declares chess-spectral as a discoverable srmech profile so a
+# user / LLM agent can do:
+#
+#     import srmech
+#     chess = srmech.profile("chess")
+#     enc = chess.encode_2d(chess.fen_to_pos(fen))
+#
+# instead of (or alongside) the existing:
+#
+#     from chess_spectral import encode_2d, fen_to_pos
+#     enc = encode_2d(fen_to_pos(fen))
+#
+# Both paths call the same underlying functions; the profile path adds
+# srmech-mediated discovery + introspection + the tool-schema surface.
+#
+# Schema: docs/srmech/adr/0001-profile-pattern.schema.json
+# Tier:   simple (no [profile.native] block; the chess_spectral
+#         package binds its own C library internally via
+#         _native_pure_phase_2d.py / _native_bitboard4d.py).
+
+profile_schema_version = "1.0"
+
+[profile]
+name            = "chess"
+version         = "1.19.0"
+summary         = "Spectral chess encoder (2D D₄ / 4D B₄ irrep decomposition; graph-Laplacian eigenbasis; HDC)"
+package         = "chess_spectral"
+srmech_requires = ">=0.3.1,<0.4"
+homepage        = "https://github.com/lemonforest/mlehaptics/tree/main/docs/chess-maths/chess-spectral"
+license         = "GPL-3.0-or-later"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.bridge]
+#
+# Functions exposed as attributes on the Profile object returned by
+# srmech.profile("chess"). Each entry is "module:callable". The loader
+# imports the module, gets the callable, and binds it to the Profile.
+#
+# This is a curated subset of chess_spectral's full public surface
+# (which is far larger — see chess_spectral.__init__.__all__). The
+# simple-profile tier picks load-bearing, signature-stable functions
+# that exercise the core 2D + 4D encoder paths plus the ALU-native
+# phase-operator engine. Profile authors can grow this surface in
+# minor version bumps without breaking compatibility.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.bridge]
+# Canonical 2D encoder (640-dim spectral payload, D₄ irrep decomposition).
+encode_2d                       = "chess_spectral.encoder:encode_2d"
+# Canonical 4D encoder (45056-dim spectral payload, B₄ irrep decomposition).
+encode_4d                       = "chess_spectral.encoder_4d:encode_4d"
+# FEN-to-position parser (the entry point for any chess-board input).
+fen_to_pos                      = "chess_spectral.fen:fen_to_pos"
+# Channel-decomposition introspection (per-channel energy of an encoding).
+channel_energies                = "chess_spectral.encoder:channel_energies"
+# Pure-phase encoder (integer arithmetic throughout; Pyodide-friendly,
+# representative of the ALU-native discipline).
+encode_2d_pure_phase            = "chess_spectral.encoder_pure_phase:encode_2d_pure_phase"
+# Phase-operator engine — pseudo-legal move enumeration without
+# python-chess. Demonstrates the integer-arithmetic surface.
+phase_only_pseudo_legal_moves   = "chess_spectral.phase_operators:phase_only_pseudo_legal_moves"
+# BIP-hybrid compression: sign × magnitude factoring (~3.4× at 8-bit).
+encode_2d_bip_hybrid            = "chess_spectral.encoder_bip_hybrid:encode_2d_bip_hybrid"
+decode_2d_bip_hybrid            = "chess_spectral.encoder_bip_hybrid:decode_2d_bip_hybrid"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.smoke_test]
+#
+# Single callable srmech invokes at first profile activation per
+# version. Returns None on success; raises on failure. The loader
+# caches a "passed" record at ~/.cache/srmech/profile_smoke_tests/
+# chess-1.19.0.toml so subsequent activations of the same version
+# skip the smoke test.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.smoke_test]
+callable = "chess_spectral._srmech_smoke:smoke_test"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.tool_schema]
+#
+# Path (within the package) to a TOML extension file that registers
+# chess_spectral functions into srmech.amsc.tool_schema so LLM agents
+# can discover them. Loaded by srmech.profile_loader at profile
+# activation time.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.tool_schema]
+extension_file = "_srmech_tool_schema.toml"

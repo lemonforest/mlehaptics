@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "chess-spectral"
-version = "1.18.0"
+version = "1.19.0"
 description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,7 +39,7 @@ classifiers = [
 # compatible. The `[corpus]` extra below is retained as a no-op for
 # back-compat with existing `pip install chess-spectral[corpus]`
 # invocations.
-dependencies = ["numpy", "scipy", "chess"]
+dependencies = ["numpy", "scipy", "chess", "srmech>=0.3.1,<0.4"]
 
 [project.optional-dependencies]
 corpus = ["chess"]   # no-op alias post-v1.6; chess is now a runtime dep
@@ -62,6 +62,15 @@ Roadmap = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/
 [project.scripts]
 chess-spectral = "chess_spectral.cli:main"
 chess-spectral-4d = "chess_spectral_4d.cli:main"
+
+# srmech profile pattern (ADR-0001 §4 — entry-point discovery, Task #211).
+# `srmech.list_profiles()` walks the "srmech.profiles" entry-point group
+# at first call. This declaration makes chess-spectral discoverable as
+# the "chess" profile. srmech v0.3.1+ resolves the package name via
+# `importlib.resources.files(chess_spectral) / "srmech_profile.toml"`
+# (Form-1 entry-point resolution; ADR-0001 §3 + the srmech 0.3.1 fix).
+[project.entry-points."srmech.profiles"]
+chess = "chess_spectral"
 
 [tool.scikit-build]
 # CMake source dir is the parent of python/ — that's where CMakeLists.txt
