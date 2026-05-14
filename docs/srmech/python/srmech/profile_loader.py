@@ -675,6 +675,13 @@ class Profile:
         self._native_meta: Optional[Dict[str, Any]] = None
         self._maybe_load_native()
 
+        # Register profile-declared tool_schema entries (v0.3.1rc2):
+        # if [profile.tool_schema].extension_file points at a TOML
+        # inside the package, load + register it. Authors who don't
+        # declare this block don't get LLM-introspection coverage,
+        # but everything else still works.
+        self._load_tool_schema_extension()
+
     def _resolve_bridge(self) -> None:
         """Import + bind every bridge surface. Failures raise (this
         runs at activation time; the smoke test should have already
@@ -704,6 +711,49 @@ class Profile:
         from .amsc.catalog import register_attested_root
         source = self.catalogs.get("source", self.name)
         register_attested_root(catalog_path, source=source)
+
+    def _load_tool_schema_extension(self) -> None:
+        """If ``[profile.tool_schema].extension_file`` is declared,
+        locate the TOML inside the profile's package and register every
+        ``[[tools]]`` entry into ``srmech.amsc.tool_schema`` with
+        ``owner = self.name``.
+
+        Wired in v0.3.1rc2 after the chess-spectral simple-profile POC
+        revealed the descriptor block was being parsed but the actual
+        extension file was never loaded. Pure addition; profiles that
+        don't declare a tool_schema block work identically to v0.3.0.
+        """
+        ts_block = self._raw["profile"].get("tool_schema")
+        if not ts_block:
+            return
+        extension_file = ts_block.get("extension_file")
+        if not extension_file:
+            return
+
+        # Locate the extension file inside the profile's package.
+        try:
+            pkg = importlib.import_module(self.package)
+        except ImportError:
+            # Already caught by smoke test in normal flow; defensive.
+            return
+        if pkg.__file__ is None:
+            return  # namespace package without __file__
+        pkg_root = Path(pkg.__file__).resolve().parent
+        toml_path = pkg_root / extension_file
+
+        if not toml_path.exists():
+            raise InvalidProfileError(
+                f"{self._source_hint}: [profile.tool_schema].extension_file "
+                f"= {extension_file!r} not found at {toml_path}"
+            )
+
+        # Delegate to the canonical loader.
+        from .amsc.tool_schema import (
+            load_extension_file,
+            register_profile_tools,
+        )
+        entries = load_extension_file(str(toml_path), owner=self.name)
+        register_profile_tools(self.name, entries)
 
     def _maybe_load_native(self) -> None:
         """If [profile.native] is declared, load the plugin and verify
