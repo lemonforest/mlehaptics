@@ -262,3 +262,129 @@ def test_profile_loader_constants_exported() -> None:
     assert hasattr(srmech, "AbiMismatchError")
     assert hasattr(srmech, "ProfileSchemaVersionError")
     assert hasattr(srmech, "ProfileStatus")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.3.1 — entry-point resolution forms
+#
+# Three forms are supported (see _resolve_entry_point_toml docstring):
+#   1. Package only:        chess = "chess_spectral"
+#   2. Path/str attribute:  chess = "chess_spectral:_SRMECH_PATH"
+#   3. Callable:            chess = "chess_spectral:_get_path"
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_entry_point_form_1_package_only(tmp_path: Path) -> None:
+    """Form 1: entry-point value is a package name. Loader uses
+    importlib.resources.files(package) to locate srmech_profile.toml.
+
+    We can't easily exercise the full entry-point machinery in a unit
+    test without pip-installing a fixture package, so we test the
+    underlying resolver against a synthesised module-with-resources
+    pattern: directly stub the entry-point's load() result and verify
+    _resolve_entry_point_toml handles ModuleType targets.
+    """
+    from srmech.profile_loader import _resolve_entry_point_toml
+    import types
+    import sys as _sys
+
+    # Build a fake package on disk so importlib.resources.files() works.
+    pkg_dir = tmp_path / "fake_profile_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+    (pkg_dir / "srmech_profile.toml").write_text(
+        'profile_schema_version = "1.0"\n'
+        '[profile]\nname = "fake"\nversion = "1.0.0"\n'
+        'summary = "fake profile"\npackage = "fake_profile_pkg"\n'
+        'srmech_requires = ">=0.3"\n',
+        encoding="utf-8",
+    )
+
+    # Make it importable.
+    _sys.path.insert(0, str(tmp_path))
+    try:
+        import importlib
+        mod = importlib.import_module("fake_profile_pkg")
+
+        # Synthesise an entry-point-like shim whose .load() returns
+        # the module object (Form 1 behavior).
+        fake_ep = types.SimpleNamespace(
+            name="fake",
+            value="fake_profile_pkg",
+            load=lambda: mod,
+        )
+        path = _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]
+        assert path.name == "srmech_profile.toml"
+        assert path.exists()
+    finally:
+        _sys.path.remove(str(tmp_path))
+        _sys.modules.pop("fake_profile_pkg", None)
+
+
+def test_entry_point_form_2_path_constant(tmp_path: Path) -> None:
+    """Form 2: entry-point value resolves to a Path constant."""
+    from srmech.profile_loader import _resolve_entry_point_toml
+    import types
+
+    p = tmp_path / "srmech_profile.toml"
+    p.write_text("# empty", encoding="utf-8")
+
+    fake_ep = types.SimpleNamespace(
+        name="constpath",
+        value="some_pkg:_PATH",
+        load=lambda: p,
+    )
+    resolved = _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]
+    assert resolved == p
+
+
+def test_entry_point_form_2_string_constant(tmp_path: Path) -> None:
+    """Form 2: entry-point value resolves to a str constant."""
+    from srmech.profile_loader import _resolve_entry_point_toml
+    import types
+
+    p = tmp_path / "srmech_profile.toml"
+    p.write_text("# empty", encoding="utf-8")
+
+    fake_ep = types.SimpleNamespace(
+        name="conststr",
+        value="some_pkg:_PATH",
+        load=lambda: str(p),
+    )
+    resolved = _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]
+    assert resolved == p
+
+
+def test_entry_point_form_3_callable_returning_path(tmp_path: Path) -> None:
+    """Form 3: entry-point value resolves to a callable."""
+    from srmech.profile_loader import _resolve_entry_point_toml
+    import types
+
+    p = tmp_path / "srmech_profile.toml"
+    p.write_text("# empty", encoding="utf-8")
+
+    def _get_path() -> Path:
+        return p
+
+    fake_ep = types.SimpleNamespace(
+        name="callable",
+        value="some_pkg:_get_path",
+        load=lambda: _get_path,
+    )
+    resolved = _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]
+    assert resolved == p
+
+
+def test_entry_point_unknown_type_rejected() -> None:
+    """Anything other than module/Path/str/callable raises
+    InvalidProfileError with a clear diagnostic."""
+    from srmech.profile_loader import _resolve_entry_point_toml
+    import types
+
+    fake_ep = types.SimpleNamespace(
+        name="weird",
+        value="some_pkg:_BAD",
+        load=lambda: 42,  # int, not supported
+    )
+    with pytest.raises(InvalidProfileError, match="int"):
+        _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]

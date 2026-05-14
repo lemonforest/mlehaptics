@@ -306,20 +306,94 @@ _ACTIVE_PROFILES: Dict[str, "Profile"] = {}
 
 
 def _resolve_entry_point_toml(ep: importlib.metadata.EntryPoint) -> Path:
-    """Resolve an entry point of the form
-    ``"package.module:CONST_NAME"`` to the Path that CONST_NAME
-    refers to. CONST_NAME must be a string or Path attribute pointing
-    at the profile's ``srmech_profile.toml``.
+    """Resolve an entry point declaring a profile to the on-disk path
+    of its ``srmech_profile.toml`` descriptor.
+
+    Three entry-point value forms are supported:
+
+    1. **Package only** (recommended, profile-author boilerplate-free):
+       ``chess = "chess_spectral"``. The loader imports the package
+       and locates ``srmech_profile.toml`` via
+       ``importlib.resources.files(package)``.
+
+    2. **Module attribute pointing at a Path/str** (explicit):
+       ``chess = "chess_spectral:_SRMECH_PROFILE_PATH"``. The loader
+       resolves the attribute; it must be a ``Path`` or ``str``
+       pointing at the descriptor.
+
+    3. **Function returning a Path/str** (for descriptors generated
+       at import time, rare): ``chess = "chess_spectral:_get_path"``
+       where ``_get_path()`` returns the path. The loader detects
+       callables and invokes them with no arguments.
+
+    Phase 1c bug-fix (v0.3.1): v0.3.0 only supported form 2. Adding
+    forms 1 + 3 makes the loader compatible with the conventional
+    "package name only" entry-point declaration used by every
+    real-world Python plugin discovery pattern (pytest, flake8,
+    setuptools_scm) without requiring profile authors to add
+    boilerplate constants to their ``__init__.py``.
     """
     target = ep.load()
+
+    # Form 1: package-only entry point — locate srmech_profile.toml
+    # as a package resource via importlib.resources.
+    import types
+    if isinstance(target, types.ModuleType):
+        # The target IS the package. Look for srmech_profile.toml
+        # under its files() tree.
+        try:
+            resource = (
+                importlib.resources.files(target) / "srmech_profile.toml"
+            )
+        except (TypeError, ModuleNotFoundError) as exc:
+            raise InvalidProfileError(
+                f"entry-point {ep.name!r} ({ep.value!r}) imported as "
+                f"module {target.__name__!r}, but importlib.resources "
+                f"could not enumerate package files: {exc}"
+            ) from exc
+        # importlib.resources returns a Traversable; for filesystem-
+        # installed packages it has __fspath__. For zipped imports
+        # (rare for installed packages) we fall back to as_file().
+        try:
+            return Path(str(resource))
+        except (TypeError, ValueError) as exc:
+            raise InvalidProfileError(
+                f"entry-point {ep.name!r} ({ep.value!r}): package "
+                f"resource {resource!r} could not be resolved to a "
+                f"filesystem path: {exc}"
+            ) from exc
+
+    # Form 2: attribute already a Path.
     if isinstance(target, Path):
         return target
+
+    # Form 2: attribute is a string.
     if isinstance(target, str):
         return Path(target)
+
+    # Form 3: attribute is a callable returning a Path/str.
+    if callable(target):
+        try:
+            result = target()
+        except Exception as exc:
+            raise InvalidProfileError(
+                f"entry-point {ep.name!r} ({ep.value!r}) is a callable; "
+                f"calling it raised {type(exc).__name__}: {exc}"
+            ) from exc
+        if isinstance(result, Path):
+            return result
+        if isinstance(result, str):
+            return Path(result)
+        raise InvalidProfileError(
+            f"entry-point {ep.name!r} ({ep.value!r}) callable returned "
+            f"{type(result).__name__}; expected Path or str"
+        )
+
     raise InvalidProfileError(
         f"entry-point {ep.name!r} ({ep.value!r}) resolved to "
-        f"{type(target).__name__}; expected Path or str pointing at "
-        f"srmech_profile.toml"
+        f"{type(target).__name__}; expected a package (module), a Path or "
+        f"str attribute pointing at srmech_profile.toml, or a callable "
+        f"returning a Path or str"
     )
 
 

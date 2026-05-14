@@ -4,6 +4,65 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.1rc1] - 2026-05-14
+
+### Fixed — entry-point Form-1 (package-only) support for profile loader
+
+v0.3.0's `_resolve_entry_point_toml` only handled `"package:CONST"`
+attribute-style entry-point declarations (Form 2). Every real-world
+Python plugin discovery system (pytest, flake8, setuptools_scm) uses
+the simpler `"package_name"` form — and that's what surfaced
+immediately during the **chess-spectral simple-profile POC migration**
+([Task #211](https://github.com/lemonforest/mlehaptics/...),
+[ADR-0001](../adr/0001-profile-pattern.md) §7 Step 1).
+
+Symptom (v0.3.0 against chess-spectral 1.19.0's declaration):
+
+```python
+>>> import srmech
+>>> srmech.list_profiles()
+{'chess': ProfileStatus(name='chess', ..., status='invalid',
+   diagnostic="entry-point 'chess' ('chess_spectral') resolved to
+   module; expected Path or str pointing at srmech_profile.toml")}
+```
+
+Fix in `srmech/profile_loader.py`:
+`_resolve_entry_point_toml` now handles **three** entry-point value
+forms:
+
+1. **Package only** (recommended, boilerplate-free):
+   `chess = "chess_spectral"`. Loader uses
+   `importlib.resources.files(package) / "srmech_profile.toml"`.
+2. **Path/str attribute** (explicit, v0.3.0 form):
+   `chess = "chess_spectral:_SRMECH_PROFILE_PATH"`. Unchanged.
+3. **Callable returning a Path/str** (for descriptors generated at
+   import time): `chess = "chess_spectral:_get_path"`. Unchanged in
+   intent — was always documented as supported but never wired.
+
+Backward-compatible: every v0.3.0 caller continues to work; Form 1
+is purely additive.
+
+ADR-0001 §7 Step 1 explicitly anticipated this kind of finding:
+> "Lessons learned go back into the ADR + the §3 schema if needed."
+
+The schema doesn't change; only the loader implementation. The
+authoring guide (Task #214) will recommend Form 1 as canonical.
+
+### Tests
+
+- New: `test_entry_point_form_1_package_only` (synthesised package
+  on tmp_path; verifies `importlib.resources.files()` resolution).
+- New: `test_entry_point_form_2_path_constant` (Form 2 regression).
+- New: `test_entry_point_form_2_string_constant` (Form 2 regression).
+- New: `test_entry_point_form_3_callable_returning_path`.
+- New: `test_entry_point_unknown_type_rejected` (negative case).
+
+### Why a patch bump (not minor)
+
+The fix is purely additive to the loader's accepted inputs.
+v0.3.0's documented behaviour (Form 2) continues to work identically.
+No new public surface, no API breakage. SemVer patch is correct.
+
 ## [0.3.0] - 2026-05-14
 
 ### Production cut of the v0.3.0 ship (no code change from 0.3.0rc1)
