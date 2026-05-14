@@ -4,6 +4,84 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc6] - 2026-05-13
+
+### Added — Task #201 Phase B4: NDJSON streaming reader C port
+
+Second C/Python parity surface. Native ``srmech_ndjson_iter`` does
+file-IO + line tokenisation in C; JSON parsing stays in Python.
+Byte-exact line-set agreement pinned by the new pytest parity
+suite in ``tests/test_native_ndjson.py`` (18 tests including
+chunk-boundary span + max-line-overflow + CRLF / mixed-EOL fixtures).
+
+#### C side (`docs/srmech/c/`)
+
+- **`src/srmech_ndjson.c`** *(NEW)* — streaming line reader.
+  Reads 64 KiB chunks via ``fread``; assembles partial lines into a
+  static 1 MiB buffer (single-thread contract); invokes the caller's
+  callback with ``(line, line_len, lineno, user)`` per non-empty
+  line. Empty lines are silently skipped but ``lineno`` still
+  advances, so callback-side error messages line up byte-exactly
+  with the file (verified by ``test_read_ndjson_malformed_line_lineno_correct``).
+  CR-stripping at line boundaries matches Python's
+  ``raw.rstrip("\r\n")``.
+- **`include/srmech.h`** — callback typedef gains ``size_t lineno``
+  parameter; ``SRMECH_ABI_VERSION`` bumped to **2**.
+- **`src/srmech_meta.c`** — ``srmech_abi_version()`` now returns the
+  macro indirectly so a missed manual bump can't silently lie.
+
+#### Python side (`docs/srmech/python/srmech/amsc/`)
+
+- **`_native.py`** —
+  - ``EXPECTED_ABI_VERSION = 2`` (matches C-side bump).
+  - ``_NDJSON_LINE_CB`` — ctypes ``CFUNCTYPE`` mirroring the
+    4-argument C callback typedef.
+  - ``ndjson_lines_c(path) -> list[(lineno, bytes)]`` — Python
+    wrapper that runs the native iterator under a ctypes callback
+    and collects ``(lineno, line_bytes)`` tuples.
+  - ``NativeNDJsonError`` — distinct from ``MPRValidationError``
+    because the failure is upstream of JSON parsing (file IO or
+    overflow). Translated to ``OSError`` at the ``format.read_ndjson``
+    boundary so callers see consistent semantics.
+- **`format.py`** — ``read_ndjson()`` dispatches via the native
+  iterator when ``HAS_NATIVE`` is True; pure-Python streaming path
+  remains unchanged. JSON parsing (``json.loads`` +
+  ``MPRRecord.from_json_line``) stays in Python on both paths.
+
+#### Tests
+
+- **`tests/test_native_ndjson.py`** *(NEW)* — 18 parity tests:
+  12 fixture inputs (empty file, no-trailing-newline, CRLF / mixed-EOL,
+  blank-line patterns, long lines, 100-record stress, etc.) + the
+  ``format.read_ndjson`` dispatch test + lineno-fidelity test +
+  missing-file ``OSError`` test + 1000-record stress + chunk-
+  boundary span test + ``SRMECH_ERR_OVERFLOW`` test (1.25 MiB line
+  rejection).
+- All 59 existing tests still pass; all 18 native-sha256 tests
+  still pass (ABI v2 lift didn't break the v1 surface).
+
+#### Notes on design
+
+- **No JSON parsing in C.** srmech's hot path is the file-IO + line
+  tokenisation overhead (Python's text-mode line iteration has
+  per-line allocator pressure that adds up across thousand-row
+  catalogs). Doing the JSON parse in C would need a vendored JSON
+  parser; bytes returned to Python and parsed via
+  ``MPRRecord.from_json_line`` is byte-equivalent and avoids that
+  surface-area expansion.
+- **Static 1 MiB line buffer.** Trade-off: ``srmech_ndjson_iter`` is
+  not thread-safe. The two callsites today (Python
+  ``format.read_ndjson`` and any future C-side parity test) are
+  serial. Phase B6 audit may revisit, but for srmech's data-pipeline
+  workload — read a catalog file once, iterate — single-thread is
+  the correct model.
+- **Eager line collection.** The native path returns a list rather
+  than a generator. For the catalog files srmech actually reads
+  (small, few KB to a few MB), the eager materialisation is fine.
+  If a future use case wants a true generator, the callback can be
+  wired to a ``queue.Queue`` + worker thread, but we're not paying
+  that complexity until a real need surfaces.
+
 ## [0.1.1rc5] - 2026-05-13
 
 ### Added — Task #201 Phase B3: SHA-256 C port (first native symbol)

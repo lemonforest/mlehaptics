@@ -18,12 +18,10 @@ const char *srmech_version(void)
 
 int srmech_abi_version(void)
 {
-    /* v1 — Phase B3 baseline: srmech_sha256_hex.
-     *
-     * Bump in lockstep with the C side whenever the wire format of
-     * any exported function changes. Adding a new symbol does NOT
-     * bump ABI (the Python shim's _bind() simply doesn't reference
-     * symbols it doesn't know about). Changing signatures DOES.
+    /* Returns SRMECH_ABI_VERSION (declared in srmech.h). Indirected
+     * through this function so the Python ctypes shim can verify
+     * ABI agreement at runtime without compile-time symbol-binding
+     * to the macro value.
      */
-    return 1;
+    return SRMECH_ABI_VERSION;
 }

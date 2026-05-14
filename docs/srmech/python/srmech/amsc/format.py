@@ -255,7 +255,34 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     Skips empty lines (NDJSON allows them by convention). Raises
     ``MPRValidationError`` on a malformed line, with the line
     number for diagnostics.
+
+    Task #201 Phase B4 — when the native library is available, the
+    file-IO + line tokenisation runs in C (``srmech_ndjson_iter``)
+    and JSON parsing stays in Python. Byte-exact output equivalence
+    with the pure-Python path is pinned by
+    ``tests/test_native_ndjson.py``.
     """
+    from . import _native
+    if _native.HAS_NATIVE:
+        # Native path: C reads + tokenises, Python parses JSON.
+        try:
+            lines = _native.ndjson_lines_c(str(path))
+        except _native.NativeNDJsonError as exc:
+            # Re-raise as a plain OSError so callers that previously
+            # caught Python's FileNotFoundError / IsADirectoryError
+            # see consistent behaviour. The .__cause__ chain keeps
+            # the underlying SRMECH_ERR_* status visible.
+            raise OSError(str(exc)) from exc
+        for lineno, line_bytes in lines:
+            try:
+                yield MPRRecord.from_json_line(line_bytes.decode("utf-8"))
+            except (json.JSONDecodeError, ValueError) as exc:
+                raise MPRValidationError(
+                    f"{path}:{lineno}: malformed MPR line: {exc}"
+                ) from exc
+        return
+
+    # Pure-Python streaming path (unchanged from rc4).
     with path.open("r", encoding="utf-8") as f:
         for lineno, raw in enumerate(f, start=1):
             line = raw.strip()

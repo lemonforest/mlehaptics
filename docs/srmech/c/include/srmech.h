@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 1
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc5"
-#define SRMECH_VERSION       "0.1.1rc5"
+#define SRMECH_VERSION_PRE   "rc6"
+#define SRMECH_VERSION       "0.1.1rc6"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -73,8 +73,13 @@ extern "C" {
  * an existing signature does.
  *
  * v1 — Phase B3 baseline: srmech_sha256_hex.
+ * v2 — Phase B4: srmech_ndjson_iter callback signature gained
+ *      `size_t lineno` param so callback-side errors can report
+ *      file-relative line numbers without a side channel. Pure
+ *      addition; srmech_sha256_hex unchanged. ABI bumped because
+ *      the callback typedef wire-format changed.
  */
-#define SRMECH_ABI_VERSION 1
+#define SRMECH_ABI_VERSION 2
 
 /* ------------------------------------------------------------------ *
  * Status codes
@@ -114,12 +119,38 @@ srmech_status_t srmech_sha256_hex(const uint8_t *data,
                                   size_t         data_len,
                                   char          *out_hex);
 
-/* B4 (planned): NDJSON streaming line iterator. Caller provides a
- *     file handle and a per-line callback; srmech_ndjson_iter
- *     advances line by line, invoking the callback with the parsed
- *     line bytes. */
+/* B4: NDJSON streaming line iterator. Caller provides a file path
+ *     and a per-line callback; srmech_ndjson_iter walks the file
+ *     line by line and invokes the callback for every non-empty
+ *     line. Empty lines (zero-length after CR-stripping) are
+ *     skipped silently — they don't trigger the callback but the
+ *     lineno counter still advances, so callback-side error
+ *     messages line up byte-exactly with the file.
+ *
+ *     `line` points into srmech's static line-assembly buffer and
+ *     is valid only for the duration of the callback. `line_len`
+ *     excludes the terminating LF and any trailing CR (mirrors
+ *     Python's `raw.rstrip("\r\n")`).
+ *
+ *     `lineno` is 1-indexed over ALL lines in the file (including
+ *     the skipped empties); callers can use it directly in error
+ *     messages.
+ *
+ *     SINGLE-THREAD CONTRACT: srmech_ndjson_iter uses a static
+ *     1 MiB line-assembly buffer, so it is not safe to call from
+ *     two threads concurrently. (The two callsites in srmech today
+ *     — Python format.read_ndjson + the C-side parity test —
+ *     are both serial.)
+ *
+ *     Error returns:
+ *       SRMECH_ERR_NULL_ARG     — path or cb is NULL
+ *       SRMECH_ERR_IO           — fopen / fread failed
+ *       SRMECH_ERR_OVERFLOW     — line exceeds SRMECH_NDJSON_MAX_LINE_BYTES
+ *       <cb return value>       — propagated if cb returns non-OK
+ */
 typedef srmech_status_t (*srmech_ndjson_line_cb)(const char *line,
                                                  size_t      line_len,
+                                                 size_t      lineno,
                                                  void       *user);
 srmech_status_t srmech_ndjson_iter(const char            *path,
                                    srmech_ndjson_line_cb  cb,
