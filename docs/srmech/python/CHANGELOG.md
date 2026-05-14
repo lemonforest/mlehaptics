@@ -4,6 +4,71 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.2.0rc1] - 2026-05-13
+
+### Task #201 Phase B7 — final TestPyPI rc before v0.2.0 production cut
+
+No code changes from `0.1.1rc9`. This release exists to validate
+the **v0.2.0** version string itself through one more TestPyPI
+round-trip before the clean `srmech-v0.2.0` tag goes to
+**production PyPI**. Discipline: TestPyPI before PyPI, always —
+the rc-suffix auto-routing in `srmech-publish.yml` means a clean
+non-rc tag IS the production gate; we want one last sanity
+verification on the version string + metadata immediately before
+the gate-passing tag.
+
+#### Why a minor bump (0.1.1 → 0.2.0)
+
+The rc3 → rc9 series turned srmech from a pure-Python AMSC
+framework into a native-C-accelerated package with cibuildwheel
+matrix + JPL Power-of-Ten audit + per-platform parity tests
+covering 3 OS × 5 Python versions. That's a real capability
+boundary, large enough that consumers of `srmech==0.1.0`
+upgrading via `pip install -U srmech` are going on a substantive
+ride. Minor bump signals that.
+
+#### Cross-package readiness (parallel session shipped this)
+
+While the srmech rc series was iterating, a parallel Claude
+Code session verified srmech rc9 against the sister package
+**ephemerides-spectral** (which depends on srmech as its AMSC
+substrate per Task #197). The verification result lives at
+[`docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md`](../../antikythera-maths/ephemerides-spectral/python/CHANGELOG.md)
+under `ephemerides-spectral 0.26.1rc1`. That rc shipped to
+TestPyPI with `srmech>=0.1.1rc9` pinned + a
+`PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple/` test-env
+override (Option B from the verification prompt), confirming
+the cibuildwheel test matrix actually exercises against the
+TestPyPI srmech rc rather than silently falling back to PyPI's
+`srmech==0.1.0`. Cross-package integration confirmed green.
+
+After srmech v0.2.0 ships to production PyPI, ephemerides-spectral
+will bump its srmech floor `>=0.1.1rc9` → `>=0.2.0` and drop the
+TestPyPI test-env override in its own follow-up release. That's
+ephemerides-spectral's ship to plan, not srmech's.
+
+#### Path forward
+
+1. **This rc1** auto-ships to TestPyPI via the rc-suffix routing.
+2. Maintainer verifies wheel install + native dispatch + sha256
+   parity + ndjson parity end-to-end from a clean venv outside
+   the repo tree.
+3. If clean, maintainer bumps `0.2.0rc1` → `0.2.0` (drop the
+   `rcN` suffix in all four SSOT files), merges that bump, and
+   tags `srmech-v0.2.0`. That clean tag auto-routes to
+   **production PyPI** via the workflow's environment-name claim.
+4. After v0.2.0 lands on PyPI, ephemerides-spectral can bump
+   its srmech floor; downstream consumers can upgrade via
+   `pip install -U srmech`.
+
+#### No ABI / API / behaviour change
+
+C ABI version unchanged (still 2). Python public surface
+unchanged. Wheel content identical to rc9 modulo the version
+string. The `SRMECH_VERSION` macro updates in lockstep
+(`0.1.1rc9` → `0.2.0rc1`) and the Python `_native.py` reads it
+back through `srmech_version()` at load time.
+
 ## [0.1.1rc9] - 2026-05-13
 
 ### Fixed — PyPI metadata drift after Phase B3 (native code) landed
