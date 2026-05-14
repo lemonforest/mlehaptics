@@ -10,6 +10,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc4] — 2026-05-14
+
+### Added — Task `#212` PR-c: bridge call-site migration through srmech profile
+
+ADR-0001 §7 Step 2 call-site-migration portion (the third and final
+PR of Task `#212`). With PR-b (rc3) wiring the srmech `[profile.native]`
+plugin tier, PR-c migrates ephemerides-spectral's OWN internal native-
+library loading to go through `srmech.profile("ephemerides").native`
+when srmech is importable — replacing the existing direct
+`ctypes.CDLL(library_path)` call as the primary path.
+
+**Wire-up** (`python/ephemerides_spectral/_native_bip.py`):
+
+- New `_load_via_srmech_profile()` function. Lazily imports srmech
+  (so the module stays importable without srmech), calls
+  `srmech.profile("ephemerides")`, returns the loaded `(CDLL handle,
+  library_path)` tuple when the plugin tier loaded successfully;
+  returns `None` on any failure so the existing direct-ctypes path
+  remains the fallback.
+- Module-load logic reworked: try the srmech path first; if it
+  returns a handle, reuse it; otherwise fall through to
+  `_find_library()` + `ctypes.CDLL()`. Both paths converge on the
+  same `_bind()` + ABI handshake + globals-population block.
+- New `LOAD_SOURCE` module global: `"srmech_profile"` when the
+  profile path won, `"direct_ctypes"` when the local fallback did,
+  `None` when `HAS_NATIVE` is False.
+
+**Why object identity matters**: srmech's profile-tier callers and
+ephemerides-spectral's own `LIB.*` calls now share the *same*
+`ctypes.CDLL` object. Patch-registry runtime state
+(`es_apply_patch` / `es_clear_patches` / `es_n_active_patches`
+internal globals) is therefore consistent across the two surfaces.
+Without PR-c, two separate `dlopen()` calls of the same library
+file would yield two CDLL instances that could see different
+patch-registry views even when registered through the same Python
+process — a footgun the migration eliminates.
+
+### Tests
+
+`tests/test_native_parity.py` — three new ratchets:
+
+- `test_load_source_is_srmech_profile_when_available` — pins that
+  when srmech + the ephemerides plugin tier are present, the
+  profile path is chosen over the direct fallback. Skips cleanly
+  when srmech is missing.
+- `test_lib_is_same_object_as_profile_native` — pins
+  `_native_bip.LIB is srmech.profile("ephemerides").native`
+  (Python `is`, not `==`). Catches the regression where two CDLLs
+  of the same file land in the two surfaces.
+- `test_profile_native_encode_matches_direct_ctypes_encode` —
+  opens a SECOND independent `ctypes.CDLL` on the same library file
+  and runs `es_encode_state` through both handles at four Δt
+  epochs (0, 1 yr, 20 yr, -100 yr); asserts byte-exact agreement
+  on every body. Defends against the hypothetical "both paths
+  return garbage that happens to match because they're the same
+  object" failure mode.
+
+Combined with the existing 12 tests, `test_native_parity.py` now
+pins a **four-way parity property**: Python BIP encoder ↔ profile-
+loaded native ↔ direct-ctypes native ↔ bridge `backend="c"`.
+Every cell of the matrix produces byte-identical phase residues
+at the same JD.
+
+### Dependency change
+
+`srmech>=0.3.1,<0.4` — unchanged. PR-c calls
+`srmech.profile("ephemerides")` lazily; module import remains
+clean when srmech isn't installed.
+
+### Versioning
+
+`0.28.0rc3` → `0.28.0rc4`. Cumulative per the rc-stacking discipline:
+rc4 carries forward the Phase 10a EOC catalog (rc1) + plugin-tier
+declaration + ABI realignment + es_laplacian regen (rc3); adds the
+PR-c migration on top. The clean `v0.28.0` will ship rc1 + rc3 +
+rc4 + the forthcoming rc5 (EOC C-side completion).
+
+### No ABI bump
+
+`ES_ABI_VERSION = 8` unchanged. `EXPECTED_ABI_VERSION = 8`
+unchanged. PR-c rearranges *how* the library handle is obtained;
+it does not change *what* the C side exposes or how the Python
+side calls it.
+
 ## [0.28.0rc3] — 2026-05-14
 
 The rc2 git tag (`ephemerides-spectral-v0.28.0rc2`) was pushed but

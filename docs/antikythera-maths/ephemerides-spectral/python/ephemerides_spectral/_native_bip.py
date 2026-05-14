@@ -196,6 +196,54 @@ def _find_library() -> Optional[Path]:
     return None
 
 
+def _load_via_srmech_profile() -> Optional[Tuple[ctypes.CDLL, Path]]:
+    """Try to load the native library via the srmech profile.
+
+    PR-c (v0.28.0rc4): when srmech is importable AND the ephemerides
+    profile has its plugin tier loaded, return the same CDLL handle
+    srmech already loaded — avoiding a duplicate dlopen of the same
+    library file.
+
+    Returns ``(cdll, library_path)`` on success; ``None`` if srmech
+    isn't installed, the profile isn't registered, or the plugin tier
+    didn't load. All failures are silent: the direct ``_find_library``
+    + ``ctypes.CDLL`` fallback handles every case the profile path
+    doesn't cover (sdist installs, Pyodide / WASM, srmech import
+    errors, profile-loader bugs).
+
+    Design note: doing the import lazily here (rather than at module
+    top) keeps ``ephemerides_spectral._native_bip`` importable even
+    when srmech isn't installed — critical for test environments
+    that only need the pure-Python BIP path.
+    """
+    try:
+        import srmech  # noqa: F401 — module-availability probe.
+    except ImportError:
+        return None
+
+    try:
+        profile = srmech.profile("ephemerides")
+    except Exception:
+        # Any error from the profile loader (not registered,
+        # InvalidProfileError, AbiMismatchError, etc.) — fall through
+        # to the direct path. The direct path's ABI check will
+        # report a coherent LOAD_ERROR if something is wrong with
+        # the underlying library.
+        return None
+
+    if profile.native is None:
+        # Profile resolved but plugin tier didn't load (pure-Python
+        # wheel, missing native binary, etc.). Direct path will see
+        # the same condition and report it.
+        return None
+
+    meta = profile._native_meta or {}
+    lib_path_str = meta.get("library_path")
+    if not lib_path_str:
+        return None
+    return profile.native, Path(lib_path_str)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # ctypes prototype binding
 # ──────────────────────────────────────────────────────────────────────
@@ -354,17 +402,48 @@ def _bind(lib: ctypes.CDLL) -> None:
 # Module-level state
 # ──────────────────────────────────────────────────────────────────────
 
-_LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
 LIB_PATH: Optional[Path] = None
 ABI_VERSION: Optional[int] = None
 N_BODIES: Optional[int] = None
 HAS_NATIVE: bool = False
 LOAD_ERROR: Optional[str] = None
+LOAD_SOURCE: Optional[str] = None
+"""``"srmech_profile"`` if the library handle came from
+``srmech.profile("ephemerides").native``; ``"direct_ctypes"`` if from
+the local ``_find_library()`` + ``ctypes.CDLL()`` fallback. ``None``
+when ``HAS_NATIVE`` is False. PR-c surfaces this so callers + tests
+can prove the profile-tier path is exercised when available."""
 
-if _LIB_PATH is not None:
+# ── PR-c (v0.28.0rc4): prefer srmech profile-loaded handle ─────────
+# When srmech is installed AND the ephemerides profile's plugin tier
+# loaded successfully, reuse THAT CDLL handle rather than opening the
+# library a second time. Object identity matters here: srmech-side
+# bindings (e.g. tool_schema introspection, future cross-profile
+# dispatch) and ephemerides-spectral's own ``LIB.*`` calls then share
+# state — avoids the class of bug where two CDLL instances of the same
+# .so/.dll see different runtime state in patch-registry-style globals.
+#
+# Fallback to the direct ``_find_library`` + ``ctypes.CDLL`` path on
+# any failure of the profile route. Both paths converge on the same
+# ABI handshake + binding logic below.
+_LIB_PATH: Optional[Path] = None
+_candidate_lib: Optional[ctypes.CDLL] = None
+_srmech_handle = _load_via_srmech_profile()
+if _srmech_handle is not None:
+    _candidate_lib, _LIB_PATH = _srmech_handle
+    LOAD_SOURCE = "srmech_profile"
+else:
+    _LIB_PATH = _find_library()
+    if _LIB_PATH is not None:
+        try:
+            _candidate_lib = ctypes.CDLL(str(_LIB_PATH))
+            LOAD_SOURCE = "direct_ctypes"
+        except OSError as exc:
+            LOAD_ERROR = f"failed to load {_LIB_PATH}: {exc}"
+
+if _candidate_lib is not None:
     try:
-        _candidate_lib = ctypes.CDLL(str(_LIB_PATH))
         _bind(_candidate_lib)
         version = int(_candidate_lib.es_abi_version())
         if version != EXPECTED_ABI_VERSION:
@@ -373,15 +452,17 @@ if _LIB_PATH is not None:
                 f"binary is v{version}, Python expects v{EXPECTED_ABI_VERSION}; "
                 "rebuild the C extension or fall back to pure Python."
             )
+            LOAD_SOURCE = None
         else:
             LIB = _candidate_lib
             LIB_PATH = _LIB_PATH
             ABI_VERSION = version
             N_BODIES = int(_candidate_lib.es_n_bodies())
             HAS_NATIVE = True
-    except (OSError, AttributeError, ValueError) as exc:
-        LOAD_ERROR = f"failed to load {_LIB_PATH}: {exc}"
-else:
+    except (AttributeError, ValueError) as exc:
+        LOAD_ERROR = f"failed to bind {_LIB_PATH}: {exc}"
+        LOAD_SOURCE = None
+elif LOAD_ERROR is None:
     LOAD_ERROR = (
         "native library not found in ephemerides_spectral/_native/; "
         "this is normal for sdist installs without a C toolchain and "

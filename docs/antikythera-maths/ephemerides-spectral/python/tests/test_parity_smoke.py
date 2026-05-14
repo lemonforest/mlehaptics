@@ -391,6 +391,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
     "compute_sgp4_state": {
         "status": "tier2_skip",  # depends on optional sgp4 install
         "tier": 2,
+        # ISS (ZARYA) reference TLE — mirrors the entry in
+        # _research/sensor_access_data.py REFERENCE_TLES. Used by
+        # the tier-2 parity smoke to verify the Python path returns
+        # ok=True (the C twin is deferred). Pre-rc4 this entry was
+        # missing kwargs_py and the test silently skipped because
+        # HAS_NATIVE was False under the v0.16.0 silent-rejection
+        # bug; with rc3's ABI v6→v8 realignment HAS_NATIVE flipped
+        # True on the wheel matrix and the missing-key KeyError
+        # surfaced. Adding the keyword args fixes the regression.
+        "kwargs_py": {
+            "line1": (
+                "1 25544U 98067A   24001.00000000  .00010000  "
+                "00000+0  18000-3 0  9990"
+            ),
+            "line2": (
+                "2 25544  51.6400 100.0000 0001000  90.0000 "
+                "270.0000 15.50000000000000"
+            ),
+            "minutes_since_epoch": 0.0,
+        },
     },
     "get_orbital_reference": {
         "status": "python_only",
