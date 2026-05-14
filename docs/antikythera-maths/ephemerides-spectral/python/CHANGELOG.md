@@ -10,6 +10,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0rc1] — 2026-05-14
+
+### Added — srmech profile pattern, PR-a (Task #212, ADR-0001 §7 Step 2)
+
+ephemerides-spectral is now discoverable as the **`"ephemerides"`
+srmech profile** via the `srmech.profiles` entry-point group. Two paths
+to the same code:
+
+```python
+# Direct (unchanged):
+from ephemerides_spectral import bridge
+bodies = bridge.list_bodies()
+
+# Via srmech (new in 0.27.0):
+import srmech
+eph = srmech.profile("ephemerides")
+bodies = eph.list_bodies()
+```
+
+**This rc1 is PR-a — the simple-tier portion.** PR-b will add
+`[profile.native]` for `libephemerides_spectral` (plugin tier, ctypes
+ABI handshake); PR-c will migrate bridge call sites to exercise the
+ctypes path through srmech's loader. Splitting per ADR §7 Step 2 so
+each layer of the integration gets its own verification cycle.
+
+### Bridge surfaces declared
+
+Nine functions, curated subset of the full ~166-function bridge:
+
+- **Introspection**: `get_version`, `list_bodies`.
+- **Dynamics**: `find_syzygies`, `get_breathing_modulation`,
+  `find_itn_chains` (the v0.17.0 resonance-graph ITN search).
+- **Electromagnetic**: `get_em_state` (the v0.19.0 surface).
+- **AMSC**: `list_attested_sources`, `get_attested_dataset`,
+  `attestation_audit` — these are the post-Task-#197 srmech-powered
+  surfaces; the profile-level path makes them double-discoverable
+  via `srmech.profile("ephemerides")` (consistent with the profile
+  pattern) **or** via srmech's own universal catalog bridge.
+
+The remaining ~157 bridge functions stay accessible via direct
+import (`from ephemerides_spectral import bridge`). Profile authors
+can grow the declared subset in minor version bumps without breaking
+compatibility.
+
+### New files (under `ephemerides_spectral/`)
+
+- `srmech_profile.toml` — profile descriptor (ADR-0001 §3 schema
+  v1.0).
+- `_srmech_smoke.py` — activation-time smoke test (calls
+  `get_version` + `list_bodies` + `list_attested_sources`; avoids
+  heavy skyfield-dependent surfaces).
+- `_srmech_tool_schema.toml` — tool_schema extension registering
+  the nine bridge functions with `owner = "ephemerides"`.
+
+### Dependency change
+
+- `srmech>=0.2.0` → `srmech>=0.3.1,<0.4`. Same rationale as
+  chess-spectral 1.19.0: v0.3.1 is the first srmech version with
+  Form-1 entry-point support + `[profile.tool_schema]` extension
+  loading. v0.3.0 would enumerate the ephemerides profile as
+  invalid.
+
+### `[project.entry-points."srmech.profiles"]` declaration
+
+```toml
+[project.entry-points."srmech.profiles"]
+ephemerides = "ephemerides_spectral"
+```
+
+### Versioning
+
+`0.26.1` → `0.27.0rc1`. Minor bump (additive surface). RC suffix per
+the rc-first publish discipline; TestPyPI verification before the
+clean `0.27.0` cut. Tags `ephemerides-spectral-v0.27.0rc1` auto-route
+to TestPyPI via the existing rc-suffix workflow logic.
+
 ## [0.26.1] — 2026-05-14
 
 ### Production cut — AMSC migration + LLM tool-schema + CMB cosmology pair + v0.27.0-phase-A AMSC backfills

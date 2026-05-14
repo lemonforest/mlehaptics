@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.26.1"
+version = "0.27.0rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -40,7 +40,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Typing :: Typed",
 ]
-dependencies = ["numpy>=1.24", "srmech>=0.2.0"]
+dependencies = ["numpy>=1.24", "srmech>=0.3.1,<0.4"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
@@ -69,6 +69,16 @@ Notebook      = "https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/e
 
 [project.scripts]
 ephemerides-spectral = "ephemerides_spectral.cli:main"
+
+# srmech profile pattern (ADR-0001 §4 — entry-point discovery, Task #212).
+# srmech.list_profiles() walks the "srmech.profiles" entry-point group at
+# first call; this declaration makes ephemerides-spectral discoverable as
+# the "ephemerides" profile. PR-a (this ship) is the simple-tier portion
+# (catalogs + Python bridge). PR-b adds [profile.native] for the
+# libephemerides_spectral plugin tier; PR-c migrates bridge call sites
+# to exercise the ctypes path through srmech's loader.
+[project.entry-points."srmech.profiles"]
+ephemerides = "ephemerides_spectral"
 
 # ───────────────────────────────────────────────────────────────────
 # scikit-build-core

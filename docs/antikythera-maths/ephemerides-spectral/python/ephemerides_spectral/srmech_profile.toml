@@ -1,0 +1,96 @@
+# ephemerides_spectral srmech profile descriptor.
+#
+# ADR-0001 (srmech v0.3.x) §7 Step 2 — ephemerides-spectral plugin-
+# profile POC, PR-a (simple-profile portion).
+#
+# This file declares ephemerides-spectral as a discoverable srmech
+# profile. A user / LLM agent can do:
+#
+#     import srmech
+#     eph = srmech.profile("ephemerides")
+#     bodies = eph.list_bodies()
+#     em = eph.get_em_state(jd_tdb=2451545.0)
+#     audit = eph.attestation_audit("earthref_sc")
+#
+# instead of (or alongside) the existing:
+#
+#     from ephemerides_spectral import bridge
+#     bodies = bridge.list_bodies()
+#     em = bridge.get_em_state(jd_tdb=2451545.0)
+#
+# Both paths call the same underlying functions. The profile path adds
+# srmech-mediated discovery + introspection + the tool-schema surface.
+#
+# Schema: docs/srmech/adr/0001-profile-pattern.schema.json
+# Tier:   simple (this PR — PR-a). PR-b adds [profile.native] for
+#         libephemerides_spectral; PR-c migrates bridge call sites to
+#         exercise the plugin-tier path.
+
+profile_schema_version = "1.0"
+
+[profile]
+name            = "ephemerides"
+version         = "0.27.0rc1"
+summary         = "Sol Star System spectral instrument — 52-body roster, 11 cross-channel coupling surfaces, native-C BIP encoder, AMSC-attested catalogs (Geodetic/EM/Magnetic/Fluid/Dynamical) anchored on JPL DE441"
+package         = "ephemerides_spectral"
+srmech_requires = ">=0.3.1,<0.4"
+homepage        = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/ephemerides-spectral"
+license         = "GPL-3.0-or-later"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.bridge]
+#
+# Curated subset of ephemerides_spectral.bridge.* — the full public
+# surface is 166 functions; this profile exposes a representative
+# 9-function set covering: introspection, time scales, dynamics
+# (syzygies / breathing / ITN), electromagnetic state, and AMSC
+# attested-catalog access.
+#
+# Profile authors can grow this surface in minor version bumps. The
+# direct `from ephemerides_spectral import bridge` path remains
+# unchanged for callers who want the full 166-function API.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.bridge]
+# Version + body introspection
+get_version             = "ephemerides_spectral.bridge:get_version"
+list_bodies             = "ephemerides_spectral.bridge:list_bodies"
+
+# Dynamics — syzygies (eclipse / alignment finder), breathing
+# (parametric time-scale modulation), and the resonance-graph
+# ITN-pathway search (low-Δv accessibility prediction).
+find_syzygies           = "ephemerides_spectral.bridge:find_syzygies"
+get_breathing_modulation = "ephemerides_spectral.bridge:get_breathing_modulation"
+find_itn_chains         = "ephemerides_spectral.bridge:find_itn_chains"
+
+# Electromagnetic state at epoch
+get_em_state            = "ephemerides_spectral.bridge:get_em_state"
+
+# AMSC attested-catalog access (powered by srmech.amsc internally
+# post-Task-#197 refactor; profile-level surface makes them
+# double-discoverable via srmech.profile("ephemerides") or via
+# srmech's universal catalog bridge).
+list_attested_sources   = "ephemerides_spectral.bridge:list_attested_sources"
+get_attested_dataset    = "ephemerides_spectral.bridge:get_attested_dataset"
+attestation_audit       = "ephemerides_spectral.bridge:attestation_audit"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.smoke_test]
+#
+# Activation-time smoke test. Returns None on success; raises on
+# failure. Cached at ~/.cache/srmech/profile_smoke_tests/
+# ephemerides-<version>.toml.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.smoke_test]
+callable = "ephemerides_spectral._srmech_smoke:smoke_test"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.tool_schema]
+#
+# Tool-schema extension file registering the 9 bridge surfaces into
+# srmech.amsc.tool_schema for LLM-agent discovery.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.tool_schema]
+extension_file = "_srmech_tool_schema.toml"
