@@ -46,7 +46,9 @@ from typing import Optional
 # the C side whenever the wire format of any exported function
 # changes.
 #   v1 — Phase B3 baseline: srmech_sha256_hex.
-EXPECTED_ABI_VERSION: int = 1
+#   v2 — Phase B4: srmech_ndjson_iter callback signature gained
+#        `size_t lineno` (the callback typedef wire-format changed).
+EXPECTED_ABI_VERSION: int = 2
 
 
 SRMECH_OK: int = 0
@@ -127,6 +129,23 @@ def _find_library() -> Optional[Path]:
     return None
 
 
+# Callback type for srmech_ndjson_iter. Wire-format-locked by ABI v2:
+#   typedef srmech_status_t (*srmech_ndjson_line_cb)(
+#       const char *line, size_t line_len, size_t lineno, void *user);
+# The wrapper bytes-buffer convention follows ctypes: c_char_p
+# materialises the line as a Python bytes object (auto-NUL-terminated
+# at line_len). We don't trust c_char_p NUL semantics in this codebase
+# because JSON lines may contain embedded NULs in malformed inputs;
+# use ctypes.string_at(ptr, length) to slice explicitly by length.
+_NDJSON_LINE_CB = ctypes.CFUNCTYPE(
+    ctypes.c_int,
+    ctypes.c_void_p,   # line — opaque pointer; we ctypes.string_at it
+    ctypes.c_size_t,   # line_len
+    ctypes.c_size_t,   # lineno (1-indexed over all lines including empty)
+    ctypes.c_void_p,   # user (we pass None / NULL from Python)
+)
+
+
 def _bind(lib: ctypes.CDLL) -> None:
     """Set argtypes / restype for every function we call into."""
     # const char *srmech_version(void)
@@ -144,6 +163,16 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.c_char_p,
     ]
     lib.srmech_sha256_hex.restype = ctypes.c_int
+
+    # int srmech_ndjson_iter(const char *path,
+    #                        srmech_ndjson_line_cb cb,
+    #                        void *user)
+    lib.srmech_ndjson_iter.argtypes = [
+        ctypes.c_char_p,
+        _NDJSON_LINE_CB,
+        ctypes.c_void_p,
+    ]
+    lib.srmech_ndjson_iter.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
@@ -209,6 +238,76 @@ def sha256_hex_c(data: bytes) -> str:
     return out.value.decode("ascii")
 
 
+class NativeNDJsonError(Exception):
+    """srmech_ndjson_iter returned a non-OK status.
+
+    Distinct from MPRValidationError because the failure is upstream
+    of JSON parsing — it's a file-IO or buffer-overflow error from
+    the C layer, not a per-record validation failure.
+    """
+
+    def __init__(self, status: int, path: str) -> None:
+        self.status = status
+        self.path = path
+        kind = {
+            SRMECH_ERR_NULL_ARG: "NULL_ARG",
+            SRMECH_ERR_IO: "IO (fopen / fread failed)",
+            SRMECH_ERR_OVERFLOW: f"OVERFLOW (line exceeded "
+                                 f"SRMECH_NDJSON_MAX_LINE_BYTES = 1 MiB)",
+        }.get(status, f"status {status}")
+        super().__init__(f"srmech_ndjson_iter({path!r}) failed: {kind}")
+
+
+def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
+    """Read an NDJSON file via the native loader.
+
+    Returns a list of ``(lineno, line_bytes)`` tuples, one per
+    non-empty line in the file. ``lineno`` is 1-indexed over ALL
+    lines in the file (including the skipped empty ones), so
+    callsites can use it directly in error messages and the numbers
+    line up with what an editor shows.
+
+    The Python side then runs ``json.loads`` (and
+    ``MPRRecord.from_json_line``) on each line. JSON parsing stays
+    in Python; the C side just does the IO + line tokenisation.
+
+    Must only be called when ``HAS_NATIVE`` is True.
+
+    Raises ``NativeNDJsonError`` on file-IO or overflow failure.
+    """
+    if not HAS_NATIVE or LIB is None:
+        raise RuntimeError(
+            "srmech.amsc._native.ndjson_lines_c called but HAS_NATIVE "
+            "is False; use srmech.amsc.format.read_ndjson (which "
+            "dispatches correctly)"
+        )
+
+    results: list[tuple[int, bytes]] = []
+
+    def _on_line(line_ptr: int,
+                 line_len: int,
+                 lineno: int,
+                 _user: int) -> int:
+        # ctypes.string_at slices exactly line_len bytes starting at
+        # line_ptr — safe even if the line contains embedded NULs.
+        # We hold the GIL inside this callback (ctypes does that
+        # automatically for CFUNCTYPE wrappers), so list.append is
+        # thread-safe vs. the calling thread.
+        line_bytes = ctypes.string_at(line_ptr, line_len)
+        results.append((lineno, line_bytes))
+        return SRMECH_OK
+
+    cb = _NDJSON_LINE_CB(_on_line)
+    rc = LIB.srmech_ndjson_iter(
+        path.encode("utf-8"),
+        cb,
+        None,
+    )
+    if rc != SRMECH_OK:
+        raise NativeNDJsonError(rc, path)
+    return results
+
+
 __all__ = [
     "EXPECTED_ABI_VERSION",
     "HAS_NATIVE",
@@ -216,6 +315,8 @@ __all__ = [
     "LOAD_ERROR",
     "NATIVE_ABI_VERSION",
     "NATIVE_VERSION",
+    "NativeNDJsonError",
+    "ndjson_lines_c",
     "sha256_hex_c",
     "SRMECH_OK",
     "SRMECH_ERR_NULL_ARG",
