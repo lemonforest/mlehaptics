@@ -16,11 +16,12 @@ beyond a single-file read.
 
 **srmech** is short for **Stored-Relationship Mechanism**. It is:
 
-- A Python research package, published as **`srmech`** on PyPI
-  (`v0.1.0` shipped, rc-series at `0.1.1rc9` on TestPyPI; about
-  to cut **`v0.2.0`** to production PyPI).
-- The home of the **Attested Multi-Source Collector (AMSC)
-  framework** — every ground-proof datum carries a mandatory
+- A Python research package, published as **`srmech`** on PyPI.
+  Current release: **`v0.2.0`** (native-C-accelerated, multi-
+  platform wheels via cibuildwheel matrix). Earlier
+  pure-Python `v0.1.0` still exists in PyPI history.
+- The home of the **Attested Multi-Source Collector/Catalog
+  (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
   `retrieved_at`, `response_sha256`, `parser_version`,
   `parser_rule_hash`, `collector_descriptor_path`,
@@ -201,9 +202,12 @@ for the post-mortem.
     Tagging without `rc` IS the human-in-loop production gate.
   - The tag-version regex: `r"srmech-v(\d+\.\d+\.\d+(?:rc\d+)?)"`.
 - **User discipline (mandatory)**: TestPyPI rc-verification BEFORE
-  a clean tag goes to production PyPI. Every release between
-  v0.1.0 and v0.2.0 has shipped this way (rc3 → rc9 on TestPyPI;
-  v0.2.0 will be preceded by at least `0.2.0rc1` on TestPyPI).
+  a clean tag goes to production PyPI. The v0.2.0 ship history
+  illustrates: `0.1.1rc3` → `0.1.1rc9` on TestPyPI (the rc series
+  for the Task #201 build-out), then `0.2.0rc1` → `0.2.0rc2` on
+  TestPyPI (final TestPyPI gate + AMSC dual-name doc fix), then
+  the clean `srmech-v0.2.0` tag to production PyPI. Apply the
+  same pattern to any future release.
 
 ### Tag flow for a new rc
 
@@ -361,9 +365,10 @@ Plan:
      --extra-index-url https://pypi.org/simple/ \
      "ephemerides-spectral==<rc-version>"
    ```
-   Note: this will pull `srmech>=0.1.0` from TestPyPI too
-   (or PyPI if floor is satisfied there). The latest srmech rc
-   on TestPyPI is `0.1.1rc9` (see this session's PR #394).
+   Note: this will resolve srmech from PyPI (production
+   `v0.2.0` satisfies any reasonable floor downstream packages
+   pin). If a downstream package pins srmech against a TestPyPI
+   rc explicitly, you'll need `--pre` plus the version pin.
 4. **Verify imports, native dispatch, key API surfaces.** Pattern:
    ```python
    import ephemerides_spectral, srmech
@@ -468,18 +473,13 @@ For deeper context the user might reference in conversation:
 If you need to know what was true *as of this session's open*
 without the parent's persistent memory:
 
-- `srmech` is at **`0.2.0rc2` on TestPyPI** (Phase B7; rc2 adds
-  AMSC "Collector/Catalog" dual-name wording on top of rc1's
-  no-op version bump from `0.1.1rc9`). Production PyPI still at
-  `v0.1.0`. Earlier rc series: `0.1.1rc3` → `0.1.1rc9`,
-  `0.2.0rc1`, `0.2.0rc2`.
-- Task #201 phases B1–B6 + metadata-drift rc9 fix all shipped.
-  See `python/CHANGELOG.md` for the per-rc record.
-- **Phase B7 status**: 0.2.0rc1 published to TestPyPI; cross-
-  package verification against ephemerides-spectral 0.26.1rc1
-  confirmed green. The final clean tag `srmech-v0.2.0` →
-  production PyPI is gated on one more end-to-end install check
-  from a clean venv outside the repo tree.
+- `srmech` is at **`v0.2.0` on production PyPI**. The earlier
+  pure-Python `v0.1.0` is still in the PyPI release history but
+  no longer the recommended install. TestPyPI rc history covers
+  `0.1.1rc3` → `0.1.1rc9` and `0.2.0rc1` → `0.2.0rc2` (the full
+  Task #201 build-out and the metadata-drift sweep).
+- Task #201 (all 7 phases B1–B7) shipped. See
+  `python/CHANGELOG.md` for the per-rc + per-release record.
 - The C library is at ABI v2 with two native symbols
   (`srmech_sha256_hex`, `srmech_ndjson_iter`) plus version /
   ABI accessors.
