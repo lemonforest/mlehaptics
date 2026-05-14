@@ -114,3 +114,106 @@ def test_bridge_backend_c_phases_match_bip() -> None:
         f"  bip: {py['phases_uint32']}\n"
         f"  c:   {c['phases_uint32']}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# PR-c (v0.28.0rc4) — profile-tier call-site migration
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_load_source_is_srmech_profile_when_available() -> None:
+    """When srmech + ephemerides plugin tier are present, _native_bip
+    must load THROUGH the srmech profile (single shared CDLL handle),
+    not through the direct ctypes fallback. Pins the PR-c migration:
+    the bridge call sites and srmech profile callers see object-
+    identical native library state."""
+    try:
+        import srmech  # noqa: F401
+    except ImportError:
+        pytest.skip("srmech not installed; LOAD_SOURCE check N/A")
+    profile = srmech.profile("ephemerides")
+    if profile.native is None:
+        pytest.skip(
+            "srmech profile registered but plugin tier did not load "
+            "(pure-Python wheel?); LOAD_SOURCE check N/A"
+        )
+    assert _native_bip.LOAD_SOURCE == "srmech_profile", (
+        f"expected LOAD_SOURCE='srmech_profile' (the profile-tier "
+        f"path), got {_native_bip.LOAD_SOURCE!r}. The PR-c migration "
+        f"silently fell back to direct ctypes."
+    )
+
+
+def test_lib_is_same_object_as_profile_native() -> None:
+    """_native_bip.LIB and srmech.profile('ephemerides').native must
+    be the SAME ctypes.CDLL object (identity, not equality). Catches
+    the regression class where ephemerides-spectral re-opens the
+    library and ends up with a second CDLL instance that doesn't
+    share patch-registry / coupling-table runtime state with the
+    srmech-loaded one."""
+    try:
+        import srmech  # noqa: F401
+    except ImportError:
+        pytest.skip("srmech not installed; identity check N/A")
+    profile = srmech.profile("ephemerides")
+    if profile.native is None:
+        pytest.skip("plugin tier not loaded; identity check N/A")
+    assert _native_bip.LIB is profile.native, (
+        "_native_bip.LIB is not the same object as "
+        "srmech.profile('ephemerides').native. PR-c's "
+        "_load_via_srmech_profile() should have wired the same CDLL "
+        "handle into both surfaces; a fresh ctypes.CDLL() call "
+        "happened somewhere."
+    )
+
+
+def test_profile_native_encode_matches_direct_ctypes_encode() -> None:
+    """Open a SECOND independent ctypes.CDLL on the same library file
+    and prove its es_encode_state() output byte-matches the profile-
+    loaded path. This pins that the byte-parity property is a
+    property of the *library file*, not an artifact of single-handle
+    coincidence — defends PR-c's migration against the hypothetical
+    'profile path returns garbage and direct returns garbage and
+    they happen to match because they're the same object' bug."""
+    import ctypes
+    from ephemerides_spectral._research.ephemeris_reference_instrument import (
+        REFERENCE_JD,
+    )
+    if _native_bip.LIB is None or _native_bip.LIB_PATH is None:
+        pytest.skip("native not loaded; cannot run dual-handle parity")
+
+    # Fresh, independent CDLL on the same library file.
+    fresh_lib = ctypes.CDLL(str(_native_bip.LIB_PATH))
+    fresh_lib.es_encode_state.argtypes = [
+        ctypes.c_double,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    fresh_lib.es_encode_state.restype = ctypes.c_int
+    fresh_lib.es_n_bodies.argtypes = []
+    fresh_lib.es_n_bodies.restype = ctypes.c_int
+
+    n = fresh_lib.es_n_bodies()
+    import numpy as np
+    for delta_t_days in [0.0, 365.25, 20 * 365.25, -100 * 365.25]:
+        # Via the profile-loaded handle (= _native_bip.LIB).
+        profile_buf = np.zeros(n, dtype=np.uint32)
+        rc1 = _native_bip.LIB.es_encode_state(
+            ctypes.c_double(delta_t_days),
+            profile_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+        )
+        assert rc1 == 0, f"profile handle es_encode_state returned {rc1}"
+
+        # Via the fresh CDLL handle.
+        fresh_buf = np.zeros(n, dtype=np.uint32)
+        rc2 = fresh_lib.es_encode_state(
+            ctypes.c_double(delta_t_days),
+            fresh_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+        )
+        assert rc2 == 0, f"fresh handle es_encode_state returned {rc2}"
+
+        assert (profile_buf == fresh_buf).all(), (
+            f"profile-loaded vs fresh-CDLL phases differ at "
+            f"delta_t={delta_t_days} d.\n"
+            f"  profile: {profile_buf.tolist()}\n"
+            f"  fresh:   {fresh_buf.tolist()}"
+        )
