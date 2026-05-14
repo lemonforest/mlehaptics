@@ -4,6 +4,89 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-14
+
+### Task #201 Phase B7 — production cut to PyPI
+
+First **production PyPI** release of native-C-accelerated srmech.
+Content is functionally identical to **`0.2.0rc2`** on TestPyPI;
+only the version string changes (rc-suffix stripped) and the
+docs lose the rc-cycle commentary. The tag-routing claim in
+`srmech-publish.yml` directs a non-rc tag to the production PyPI
+trusted-publisher environment.
+
+#### What v0.2.0 ships, headline
+
+The Task #201 build-out (rc3 → rc9 + rc1 → rc2 = 11 TestPyPI
+rcs across phases B1 through B7) turned srmech from a pure-Python
+AMSC framework (the v0.1.0 ship) into a native-C-accelerated
+multi-platform package at peer quality with ephemerides-spectral:
+
+- **Native C library** (`srmech_sha256_hex`, `srmech_ndjson_iter`,
+  + version / ABI accessors) shipped under `srmech/_native/`
+  inside platform-tagged wheels.
+- **15-cell cibuildwheel matrix** — Linux (manylinux_2_28) × macOS
+  × Windows × py3.10 / 3.11 / 3.12 / 3.13 / 3.14. Each cell runs
+  `test_native_sha256.py` + `test_format.py` to verify the wheel's
+  native dispatch + sha256 parity post-build.
+- **scikit-build-core + CMake** build backend (Phase B2). Pure-
+  Python fallback for Pyodide / WASM lives in `pyproject-pure.toml`
+  (hatchling backend, swapped in for the `build-pure-wheel` CI
+  job).
+- **All `hashlib.sha256` callsites** in `srmech.amsc` route through
+  `format.sha256_bytes()` → native dispatch when available;
+  hashlib fallback otherwise.
+- **JPL Power-of-Ten audit** complete (Phase B6). 10/10 rules
+  satisfied modulo one documented Rule 9 callback deviation; ratchet
+  enforced by `tests/test_jpl_audit.py` (6 mechanical tests, pinned
+  exemption list) + `pedantic-build` CI job (3-cell:
+  Linux gcc / macOS clang / Windows MSVC × `-DSRMECH_PEDANTIC=ON`
+  → `-Werror` / `/WX`).
+- **Description-match guard** between `pyproject.toml` and
+  `pyproject-pure.toml` (rc9 post-mortem). Both descriptions
+  carry the same 450-char Summary: "*Stored-Relationship
+  Mechanism research package: home of the Attested Multi-Source
+  Collector/Catalog (AMSC) framework — ...*".
+- **AMSC dual-name framing** (rc2). Both *Collector* (at fetch
+  time) and *Catalog* (at read time) work; same abbreviation;
+  pick whichever fits the lifecycle stage.
+- **Development Status classifier** bumped `3 - Alpha` → `4 - Beta`
+  (rc9).
+
+#### Cross-package readiness
+
+ephemerides-spectral 0.26.1rc1 (the parallel-session ship) pins
+`srmech>=0.1.1rc9` with a TestPyPI `PIP_EXTRA_INDEX_URL` override
+to exercise the cibuildwheel matrix against the TestPyPI srmech
+rcs. With v0.2.0 now on production PyPI, the next
+ephemerides-spectral release will bump that floor to
+`srmech>=0.2.0` and drop the TestPyPI override.
+
+#### v0.1.0 status
+
+Still on PyPI as the historical release. `pip install srmech`
+without any version constraint now resolves to v0.2.0; users on
+older Python paths can still pin `srmech==0.1.0` for the
+pure-Python wheel.
+
+#### History
+
+See the rc-by-rc entries below for the full per-phase record:
+
+- `0.2.0rc2` — AMSC "Collector/Catalog" dual-name wording
+- `0.2.0rc1` — Phase B7 final TestPyPI gate (no-op version bump
+  from rc9)
+- `0.1.1rc9` — Metadata drift sweep ("Pure Python." → "Native C
+  dispatch"; Dev Status 3-Alpha → 4-Beta; description-match guard)
+- `0.1.1rc8` — Phase B6 JPL Power-of-Ten audit + ratchet
+- `0.1.1rc7` — Phase B5 sha256 callsites routed through native
+- `0.1.1rc6` — Phase B4 NDJSON streaming reader C port
+- `0.1.1rc5` — Phase B3 SHA-256 C port + cibuildwheel matrix
+- `0.1.1rc4` — Phase B2 scikit-build-core + pyproject-pure
+- `0.1.1rc3` — Phase B1 C tree scaffolding
+- `0.1.1rc1` / `rc2` — Earlier infrastructure cycles
+- `0.1.0` — Initial AMSC-to-srmech refactor (pure-Python)
+
 ## [0.2.0rc2] - 2026-05-14
 
 ### Added — Task #201 Phase B7: AMSC dual-name wording ("Collector / Catalog")
