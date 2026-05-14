@@ -322,12 +322,19 @@ def descriptor_hash(path: Path) -> str:
 
     Used by adapters' ``attest()`` step to populate the per-row
     ``collector_descriptor_hash`` attestation field.
+
+    Task #201 Phase B5: the canonical-serialisation step stays in
+    Python (TOML parsing + ``json.dumps(sort_keys=True)`` is small
+    and already C-accelerated inside CPython's json module). The
+    final SHA-256 routes through ``sha256_bytes`` which dispatches
+    to the native C implementation when available.
     """
+    from .format import sha256_bytes  # local import; avoids cycle
     parsed = tomllib.loads(path.read_bytes().decode("utf-8"))
     canonical = json.dumps(
         parsed, sort_keys=True, ensure_ascii=False
     ).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()
+    return sha256_bytes(canonical)
 
 
 # ──────────────────────────────────────────────────────────────────────
