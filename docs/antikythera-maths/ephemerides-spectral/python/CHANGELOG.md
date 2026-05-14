@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.26.1rc1] — 2026-05-13
+
+### Infrastructure — TestPyPI rc to verify compatibility with `srmech==0.1.1rc9`
+
+This rc exists for cross-package verification ahead of the **srmech v0.2.0 production cut to PyPI**. The parallel srmech session has shipped `srmech 0.1.1rc3` → `0.1.1rc9` to TestPyPI through Task #201 phases B1–B6 plus a metadata-drift sweep (PR #394). Before that session promotes srmech to production PyPI, this rc proves the latest ephemerides-spectral source (which already carries the Task #197 Phase 4 AMSC migration to `srmech.amsc.*`) still works correctly against the rc series.
+
+- **`.github/workflows/ephemerides-spectral-publish.yml`** — added `CIBW_BEFORE_TEST` to the cibuildwheel matrix. Each per-cell test env now `pip install`s `srmech==0.1.1rc9` from TestPyPI BEFORE cibuildwheel installs the ephemerides-spectral wheel. Without this, the wheel's `srmech>=0.1.0` floor would resolve from PyPI to `srmech 0.1.0` (the only stable release) and the matrix would silently verify against the wrong srmech. Reverts naturally to default resolution once the floor bumps to `>=0.2.0` after the srmech production cut. **Option A** in the verification-rc plan (non-invasive); the alternative (Option B) was to bump `srmech>=0.1.0` → `srmech>=0.1.1rc9` in pyproject.toml directly, but Option A doesn't require reverting any pyproject change after v0.2.0 ships.
+- **`python/pyproject-pure.toml`** — added missing `srmech>=0.1.0` dep to the pure-wheel build's `[project].dependencies` list (was `["numpy>=1.24"]`, now `["numpy>=1.24", "srmech>=0.1.0"]`). The Task #197 Phase 3 `_bootstrap_amsc()` in `ephemerides_spectral/__init__.py` imports `srmech.amsc.catalog` and `srmech.amsc.gap_suggester` at package-load time, so any environment lacking srmech (including the previous pure-wheel install path) would have failed at first import. The platform pyproject has carried this dep since the Phase 3 import swap landed; the pure pyproject was missed.
+- No code changes. No ABI bump (ES_ABI_VERSION = 8 unchanged). The accumulated unreleased content below — AMSC migration to srmech, LLM tool-schema export, the CMB power-spectrum + anomalies cosmology-instrument pair, the v0.27.0-phase-A AMSC backfills — all ship as part of this rc because they're the surface that exercises srmech.
+
 ### Changed — AMSC framework migrated to `srmech.amsc.*` (Task #197 Phase 4)
 
 The Attested Multi-Source Collector (AMSC) framework — previously vendored

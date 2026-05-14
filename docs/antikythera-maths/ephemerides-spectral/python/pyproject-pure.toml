@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.26.0"
+version = "0.26.1rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -51,7 +51,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Typing :: Typed",
 ]
-dependencies = ["numpy>=1.24"]
+# Note: srmech is a hard runtime dep — ephemerides_spectral/__init__.py's
+# _bootstrap_amsc() imports srmech.amsc.* at package import (Task #197
+# Phase 3 cross-package wiring). The platform pyproject.toml has carried
+# this dep since v0.25.x; the pure-wheel pyproject was missing it until
+# v0.26.1rc1. Pyodide / WASM environments must have a srmech pure-Python
+# wheel installable in the same env.
+dependencies = ["numpy>=1.24", "srmech>=0.1.0"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]

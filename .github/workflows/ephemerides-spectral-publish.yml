@@ -77,6 +77,23 @@ jobs:
           # the three-way (Python ↔ native) parity holds at the
           # +/-1 yr / +/-20 yr / +/-100 yr ladder.
           CIBW_TEST_REQUIRES: "pytest skyfield jplephem"
+          # v0.26.1rc1: pre-install the srmech rc under verification
+          # from TestPyPI into each cibuildwheel test env BEFORE
+          # cibuildwheel installs the ephemerides-spectral wheel.
+          # Without this, the wheel's `srmech>=0.1.0` floor resolves
+          # from PyPI to srmech 0.1.0 and the matrix silently verifies
+          # against the wrong srmech. The Task #197 Phase 4 AMSC
+          # migration makes ephemerides-spectral import srmech.amsc.*
+          # at package-load time, so this matters at every cell.
+          # Update the rc-pin alongside the ephemerides-spectral rc
+          # version on each verification ship; revert (delete this
+          # CIBW_BEFORE_TEST) once srmech v0.2.0 lands on production
+          # PyPI and the pyproject.toml floor is bumped to >=0.2.0.
+          CIBW_BEFORE_TEST: >
+            pip install --no-cache-dir
+            --index-url https://test.pypi.org/simple/
+            --extra-index-url https://pypi.org/simple/
+            --pre "srmech==0.1.1rc9"
           CIBW_TEST_COMMAND: >
             pytest {package}/tests/test_native_parity.py
             {package}/tests/test_immolation.py
