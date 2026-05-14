@@ -78,12 +78,24 @@ def test_format_sha256_bytes_dispatches_to_native() -> None:
 
 
 def test_native_version_and_abi() -> None:
-    """The shipped C library reports the version + ABI we expect."""
-    # Version string follows pyproject; both should be 0.1.1rcN at
-    # this point. We don't assert exact equality (the test must keep
-    # passing across rc bumps); we just sanity-check shape + ABI lock.
+    """The shipped C library reports the version + ABI we expect.
+
+    The real invariant: the C-side ``srmech_version()`` string must
+    match the Python-side ``srmech.__version__``. Both are derived
+    from the SSOT (`pyproject.toml` + `c/include/srmech.h`); if they
+    drift, the wheel was built against a stale header or a stale
+    Python version file. Asserting equality here catches that
+    drift across all future version bumps without per-version
+    string churn in the test.
+    """
+    import srmech as _srmech
     assert _native.NATIVE_VERSION is not None
-    assert _native.NATIVE_VERSION.startswith("0.1.")
+    assert _native.NATIVE_VERSION == _srmech.__version__, (
+        f"C-side srmech_version() = {_native.NATIVE_VERSION!r} but "
+        f"Python srmech.__version__ = {_srmech.__version__!r}; the "
+        f"version SSOTs (c/include/srmech.h and "
+        f"python/srmech/version.py) have drifted out of sync."
+    )
     assert _native.NATIVE_ABI_VERSION == _native.EXPECTED_ABI_VERSION
 
 
