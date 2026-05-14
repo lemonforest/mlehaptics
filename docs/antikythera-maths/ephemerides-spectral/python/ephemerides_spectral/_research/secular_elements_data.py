@@ -1,14 +1,17 @@
-"""Per-body J2000 Keplerian secular elements for the 51-body BIP roster.
+"""Per-body J2000 Keplerian secular elements for the BIP roster.
 
-Phase 10a (v0.27.0) — closed-form labelled physics anchoring the
+Phase 10a (v0.27.0a1) — closed-form labelled physics anchoring the
 equation-of-center catalog in :mod:`._research.eoc_catalog`.
 
 What this module is
 -------------------
 
-A 50-body (Sun excluded; ``e_sun = 0``) table of Keplerian orbital
-elements at the J2000.0 TDB epoch, in the frame the BIP encoder
-calibrates against:
+A **51-row** table of Keplerian orbital elements at the J2000.0 TDB
+epoch, in the frame the BIP encoder calibrates against. The row count
+is ``len(BODIES) − 1 = 52 − 1 = 51``: every body in the full 52-body
+BIP roster *except* the Sun, which has ``e ≡ 0`` and contributes no
+equation-of-center correction. This is not a count of bodies in the
+encoder — it's a count of bodies that admit a Kepler EOC patch.
 
 * **Planets + asteroids + Pluto**: heliocentric ecliptic-J2000.
   Frame matches ``bip_instrument._calibrate_initial_phases`` for
