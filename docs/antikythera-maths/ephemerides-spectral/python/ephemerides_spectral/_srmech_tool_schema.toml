@@ -1,0 +1,179 @@
+# ephemerides_spectral tool_schema extension for the srmech profile loader.
+#
+# ADR-0001 §3.4 — profiles register tool entries with srmech.amsc.tool_schema
+# so LLM agents can discover what each profile exposes. The loader parses
+# this file via srmech.amsc.tool_schema.load_extension_file(path, owner)
+# and registers each [[tools]] block as a ToolEntry with owner = "ephemerides".
+
+[[tools]]
+name     = "ephemerides.get_version"
+category = "introspection"
+summary  = "Return the ephemerides-spectral package version + build metadata. Cheap; safe to call from any context."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{version: str, ok: bool, ...}"
+
+
+[[tools]]
+name     = "ephemerides.list_bodies"
+category = "introspection"
+summary  = "Enumerate the Sol Star System body roster. Returns ~52 bodies as of v0.16.0 (Sun + 9 planets + IAU-major moons + Lagrange trojans + retrograde irregulars + Neptune sub-graph)."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, bodies: List[Dict], n_bodies: int}; each body dict carries body_id, name, parent, body_type, mass_kg, …"
+
+
+[[tools]]
+name     = "ephemerides.find_syzygies"
+category = "dynamics"
+summary  = "Resonance-graph syzygy (eclipse / alignment) finder over a JD interval. Returns 2-body and 3-body alignment events filtered by separation tolerance and body kind."
+
+[[tools.parameters]]
+name     = "jd_lo"
+type     = "float"
+required = true
+summary  = "Lower bound of JD search window (UTC)."
+
+[[tools.parameters]]
+name     = "jd_hi"
+type     = "float"
+required = true
+summary  = "Upper bound of JD search window (UTC)."
+
+[[tools.parameters]]
+name     = "tolerance_deg"
+type     = "float"
+required = false
+summary  = "Angular separation tolerance in degrees (default 1.0)."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, events: List[Dict], n_events: int}; each event carries jd, bodies, separation_deg, kind"
+
+
+[[tools]]
+name     = "ephemerides.get_breathing_modulation"
+category = "dynamics"
+summary  = "Compute the breathing (parametric-coupling) modulation envelope for a body at epoch. Used by the resonance-graph time-scale architecture (see notebook §1.4 for the formal-aliases vocabulary)."
+
+[[tools.parameters]]
+name     = "body_id"
+type     = "str"
+required = true
+summary  = "Canonical body id (e.g. 'terra', 'luna', 'mars'). See list_bodies for the roster."
+
+[[tools.parameters]]
+name     = "jd_tdb"
+type     = "float"
+required = true
+summary  = "Epoch in JD_TDB."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, amplitude: float, phase_rad: float, period_s: float, mode: str}"
+
+
+[[tools]]
+name     = "ephemerides.find_itn_chains"
+category = "dynamics"
+summary  = "Multi-leg resonance-graph ITN (Lagrange-highway) pathway search. v0.17.0+ surface; returns ranked low-Δv trajectories between source/target bodies."
+
+[[tools.parameters]]
+name     = "jd_lo"
+type     = "float"
+required = true
+summary  = "Lower bound of JD search window."
+
+[[tools.parameters]]
+name     = "jd_hi"
+type     = "float"
+required = true
+summary  = "Upper bound of JD search window."
+
+[[tools.parameters]]
+name     = "source_body"
+type     = "str"
+required = false
+summary  = "Source body id; default 'terra'."
+
+[[tools.parameters]]
+name     = "target_body"
+type     = "str"
+required = false
+summary  = "Target body id; default 'mars'."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, chains: List[Dict], n_chains: int}; each chain dict carries legs, total_dv_km_s, transit_time_days"
+
+
+[[tools]]
+name     = "ephemerides.get_em_state"
+category = "electromagnetic"
+summary  = "Get the Sol electromagnetic state at a given epoch — solar wind, interplanetary magnetic field, plasma density, planetary magnetospheric coupling indicators."
+
+[[tools.parameters]]
+name     = "jd_tdb"
+type     = "float"
+required = true
+summary  = "Epoch in JD_TDB."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, solar_wind: Dict, imf: Dict, plasma: Dict, planetary_coupling: Dict}"
+
+
+[[tools]]
+name     = "ephemerides.list_attested_sources"
+category = "amsc"
+summary  = "List every AMSC-attested catalog available in this ephemerides-spectral install. Powered by srmech.amsc internally (post-Task-#197 refactor); profile-level surface lets LLM agents enumerate catalogs via srmech.profile('ephemerides') consistently with the profile pattern."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, sources: List[Dict], n_sources: int}; each source dict carries name, purpose, license, cite_as_template"
+
+
+[[tools]]
+name     = "ephemerides.get_attested_dataset"
+category = "amsc"
+summary  = "Paginated read of an AMSC-attested catalog. Every returned row carries its full mandatory-attestation block (source_doi, license, retrieved_at, response_sha256, parser_version, descriptor_hash)."
+
+[[tools.parameters]]
+name     = "source_key"
+type     = "str"
+required = true
+summary  = "Source key as returned by list_attested_sources (e.g. 'earthref_sc', 'gmrt', 'petdb_v4')."
+
+[[tools.parameters]]
+name     = "limit"
+type     = "Optional[int]"
+required = false
+summary  = "Max rows per page (default 100)."
+
+[[tools.parameters]]
+name     = "offset"
+type     = "int"
+required = false
+summary  = "Page offset (default 0)."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, rows: List[Dict], total: int, next_offset: Optional[int]}"
+
+
+[[tools]]
+name     = "ephemerides.attestation_audit"
+category = "amsc"
+summary  = "Per-row attestation audit for an AMSC catalog — every row's response_sha256, retrieved_at, descriptor_hash. NO data payload (cheap; paper-appendix-ready). Validates MPM discipline."
+
+[[tools.parameters]]
+name     = "source_key"
+type     = "str"
+required = true
+summary  = "Source key as returned by list_attested_sources."
+
+[tools.returns]
+type  = "Dict[str, Any]"
+shape = "{ok: bool, rows: List[Dict], n_rows: int}; each row carries hash, timestamp, descriptor_hash (no data payload)"

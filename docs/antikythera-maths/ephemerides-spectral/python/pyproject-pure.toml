@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.26.1"
+version = "0.27.0rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -55,7 +55,7 @@ classifiers = [
 # _bootstrap_amsc() imports srmech.amsc.* at package import (Task #197
 # Phase 3 cross-package wiring). MUST stay congruent with the floor
 # in pyproject.toml.
-dependencies = ["numpy>=1.24", "srmech>=0.2.0"]
+dependencies = ["numpy>=1.24", "srmech>=0.3.1,<0.4"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
@@ -76,6 +76,13 @@ Notebook      = "https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/e
 [project.scripts]
 ephemerides-spectral = "ephemerides_spectral.cli:main"
 
+# srmech profile pattern (ADR-0001 §4 — Task #212 PR-a).
+# Mirror of the platform pyproject.toml declaration; required so the
+# pure-Python wheel (Pyodide / WASM) also surfaces the ephemerides
+# profile to srmech.list_profiles().
+[project.entry-points."srmech.profiles"]
+ephemerides = "ephemerides_spectral"
+
 [tool.hatch.build.targets.wheel]
 packages = ["ephemerides_spectral"]
 # Exclude any _native/ directory if it leaked in from a prior build.
@@ -90,3 +97,7 @@ exclude = [
 
 [tool.hatch.build.targets.wheel.force-include]
 "ephemerides_spectral/_data/manifest.json" = "ephemerides_spectral/_data/manifest.json"
+# v0.27.0 PR-a — srmech profile artifacts (Task #212). Hatchling
+# needs explicit inclusion for TOMLs since they're data not Python.
+"ephemerides_spectral/srmech_profile.toml" = "ephemerides_spectral/srmech_profile.toml"
+"ephemerides_spectral/_srmech_tool_schema.toml" = "ephemerides_spectral/_srmech_tool_schema.toml"
