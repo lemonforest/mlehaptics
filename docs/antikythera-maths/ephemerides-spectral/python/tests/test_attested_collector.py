@@ -513,10 +513,12 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     pluto_charon_dynamical_spectrum (16th), loki_patera (17th —
     phase A complete). cmb_power_spectrum (18th — first cosmology-
     instrument ship, Planck 2018 TT). cmb_anomalies (19th — companion
-    cosmology-instrument ship)."""
+    cosmology-instrument ship). secular_elements (20th — v0.27.0a1
+    Phase 10a per-body J2000 Keplerian mean elements catalog
+    anchoring the equation-of-center patch series)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 19
+    assert result["n_sources"] == 20
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "axial_seamount",
@@ -535,6 +537,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "petdb_v4",
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
+        "secular_elements",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
@@ -543,13 +546,14 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
-    """adapter_class='curated' returns 16 sources after v0.27.0 phase A
-    through loki_patera (phase A complete) + cmb_power_spectrum (first
-    cosmology-instrument ship, Planck 2018 TT) + cmb_anomalies (companion
-    cosmology-instrument ship)."""
+    """adapter_class='curated' returns 17 sources after v0.27.0 phase A
+    through loki_patera (phase A complete) + cmb_power_spectrum +
+    cmb_anomalies (cosmology-instrument pair) + secular_elements
+    (v0.27.0a1 Phase 10a per-body J2000 Keplerian mean-elements
+    catalog)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 16
+    assert result["n_sources"] == 17
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -566,6 +570,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "mercury_dynamical_spectrum",
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
+        "secular_elements",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
