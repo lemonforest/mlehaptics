@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc1] — 2026-05-14
+
+### Phase 10a — Per-body equation-of-center catalog (PEP 440 alpha pre-release of v0.27.0)
+
+Closed-form Kepler equation-of-center patch catalog for every non-Sun body in the 52-body BIP roster (51 patches; Sun has e ≡ 0). Newton-iteration on Kepler's equation, J2000-anchored, exact at any eccentricity from Triton's e ≈ 1.6e-5 through Nereid's e = 0.7507.
+
+The headline empirical claim — validated against the 100-yr Earth-Mars syzygy sweep on v0.26.1 — is that Earth+Mars EOC patches collapse the closed-form Kepler residual at BIP-opposition JDs from **9.26° RMS (peak 15.75°) → 0.014° RMS (peak 0.015°)**, a 99.85% collapse to numerical precision. Anchor-date offsets vs textbook Mars-opposition dates drop from **19.79 d RMS (max 35.32 d) → 1.12 d RMS (max 3.05 d)**, a 94% collapse. The remaining 1.12 d is the genuine off-diagonal Mars-Jupiter fiber content — Phase 10b's target.
+
+Sub-thread: the Sun-from-SSB wobble hypothesis on FFT bin-5 (20.07 yr ≈ Jupiter-Saturn synodic) tested closed-form and falsified (0.7% collapse under direct subtraction). Stashed as `docs/srmech/notes/sun-wobble-falsification-2026-05-14.md`. First published-internal falsification of a candidate Phase-10b coupling — the MPM discipline at work.
+
+**Architecturally:** v0.28.0rc1 is an alpha pre-release on PyPI; the v0.27.0 banner-flip (Phase B `binary_archive` adapter + C2 registry plumbing + D `use_local_kernel` extension per the ROADMAP) ships separately as a clean v0.27.0 once those land. Phase 10a's work is independent of v0.27.0's three-layer-mechanism banner — but sequenced before it so the version progression is monotonic on both axes (version number AND content richness).
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0rc1](python/CHANGELOG.md) — bridge surfaces (6), CLI subcommands (6), AMSC source ([`research/attested/secular_elements/`](research/attested/secular_elements/)), 39 test ratchets, workflow regex extension, Python-BIP-backend-only caveat.
+
 ## [0.26.1] — 2026-05-14
 
 ### Production cut after TestPyPI verify-rc cycle

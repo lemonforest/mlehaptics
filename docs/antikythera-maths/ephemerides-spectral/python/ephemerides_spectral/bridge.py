@@ -5968,6 +5968,268 @@ def clear_patches() -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# v0.28.0rc1 (Phase 10a) — Per-body equation-of-center catalog
+# ──────────────────────────────────────────────────────────────────────
+#
+# Bridge surface over the closed-form Kepler equation-of-center patch
+# catalog in :mod:`._research.eoc_catalog`. Each body in the BIP roster
+# (Sun excluded; e ≡ 0) has a labelled-physics-derived
+# EccentricityCorrectionPatch generated from its secular elements
+# (`_research.secular_elements_data.SECULAR_ELEMENTS`).
+#
+# The patch evaluator is closed-form Newton iteration on Kepler's
+# equation `E − e·sin E = M` plus the half-angle true-anomaly formula
+# — exact at any eccentricity from Triton's e ≈ 0 to Nereid's e = 0.75.
+# Patches are J2000-anchored: they evaluate to ZERO at the BIP's
+# calibration epoch (because BIP's initial phase IS `L_true(J2000)`,
+# not `L_mean(J2000)`).
+#
+# Backend support (v0.28.0rc1): Python BIP backend (`backend="bip"`,
+# default for the Python wheel) ONLY. The C-side patch registry does
+# not yet recognise the `eccentricity-correction` kind — adding it
+# requires an ABI bump (new `ES_PATCH_KIND_ECCENTRICITY_CORRECTION`),
+# queued for v0.27.0 or v0.28.0. Until then, when EOC patches are
+# active, `backend="c"` returns the unpatched BIP residue. Callers
+# requiring matching C-side behaviour must either (a) avoid EOC
+# patches with C backend, or (b) wait for the C-side support.
+#
+# Pyodide-friendly: returns JSON-serialisable dicts. The underlying
+# closed-form Kepler evaluation runs in pure Python (no native deps).
+
+from ephemerides_spectral._research import eoc_catalog as _eoc_catalog
+from ephemerides_spectral._research import secular_elements_data as _secular
+
+
+def list_secular_elements(
+    *, frame: Optional[str] = None, parent: Optional[str] = None
+) -> Dict[str, Any]:
+    """List the 51-row Keplerian secular-elements catalog (J2000 epoch).
+
+    Each row carries `(e, I, Ω, ϖ, L₀, n)` plus `frame` and `parent`
+    metadata. The catalog covers the 51 non-Sun bodies in the
+    52-body BIP roster (Sun has e ≡ 0 and contributes no EOC; not
+    represented here).
+
+    Filter optionally by frame (``"heliocentric_ecliptic"`` for the 9
+    planets + 4 asteroids; ``"parent_centric_ecliptic"`` for the 38
+    moons) or by parent body name (e.g. ``"jupiter"`` for the 11
+    Jovian moons). Filters intersect.
+
+    Returns a JSON-friendly dict with the rows under ``elements``.
+    """
+    if frame is not None and frame not in (
+        "heliocentric_ecliptic",
+        "parent_centric_ecliptic",
+    ):
+        return _err(
+            f"frame must be one of 'heliocentric_ecliptic' / "
+            f"'parent_centric_ecliptic'; got {frame!r}"
+        )
+    rows = []
+    for body, row in sorted(_secular.SECULAR_ELEMENTS.items()):
+        if frame is not None and row.frame != frame:
+            continue
+        if parent is not None and row.parent != parent:
+            continue
+        rows.append(
+            {
+                "body": row.body,
+                "e": row.e,
+                "I_deg": row.I_deg,
+                "Omega_deg": row.Omega_deg,
+                "omega_bar_deg": row.omega_bar_deg,
+                "L0_deg": row.L0_deg,
+                "n_deg_per_day": row.n_deg_per_day,
+                "M0_deg": row.mean_anomaly_at_j2000_deg(),
+                "period_days": row.orbital_period_days_from_n(),
+                "frame": row.frame,
+                "parent": row.parent,
+                "source_key": row.source_key,
+                "notes": row.notes,
+            }
+        )
+    return {
+        "ok": True,
+        "n_rows": len(rows),
+        "elements": rows,
+        "frame_filter": frame,
+        "parent_filter": parent,
+        "n_sources": len(_secular.SOURCES),
+    }
+
+
+def get_secular_elements(body: str) -> Dict[str, Any]:
+    """Return the secular-elements row for one body."""
+    if not isinstance(body, str):
+        return _err(f"body must be a string, got {type(body).__name__}")
+    if body not in _secular.SECULAR_ELEMENTS:
+        return _err(
+            f"body {body!r} is not in the secular-elements catalog; "
+            f"the Sun is excluded by design (e ≡ 0). Available bodies: "
+            f"{sorted(_secular.SECULAR_ELEMENTS.keys())}"
+        )
+    row = _secular.SECULAR_ELEMENTS[body]
+    return {
+        "ok": True,
+        "body": row.body,
+        "e": row.e,
+        "I_deg": row.I_deg,
+        "Omega_deg": row.Omega_deg,
+        "omega_bar_deg": row.omega_bar_deg,
+        "L0_deg": row.L0_deg,
+        "n_deg_per_day": row.n_deg_per_day,
+        "M0_deg": row.mean_anomaly_at_j2000_deg(),
+        "period_days": row.orbital_period_days_from_n(),
+        "frame": row.frame,
+        "parent": row.parent,
+        "source_key": row.source_key,
+        "source_citation": _secular.SOURCES.get(row.source_key, ""),
+        "notes": row.notes,
+    }
+
+
+def list_eoc_patches(
+    *, frame: Optional[str] = None, parent: Optional[str] = None
+) -> Dict[str, Any]:
+    """List every closed-form Kepler equation-of-center patch in the catalog.
+
+    51 patches total — one per non-Sun body in the BIP roster.
+    Filter optionally by frame or parent (same semantics as
+    :func:`list_secular_elements`).
+
+    The patches are constructed at module import via
+    :func:`_eoc_catalog.build_eoc_patch`; this function is a JSON-
+    friendly listing surface, not a registration step. Use
+    :func:`apply_eoc_patches` to register a selection.
+    """
+    if frame is not None and frame not in (
+        "heliocentric_ecliptic",
+        "parent_centric_ecliptic",
+    ):
+        return _err(
+            f"frame must be 'heliocentric_ecliptic' or "
+            f"'parent_centric_ecliptic'; got {frame!r}"
+        )
+    patches = []
+    for entry in _eoc_catalog.list_eoc_patches():
+        if frame is not None and entry.get("frame") != frame:
+            continue
+        if parent is not None and entry.get("parent") != parent:
+            continue
+        patches.append(entry)
+    return {
+        "ok": True,
+        "n_patches": len(patches),
+        "patches": patches,
+        "frame_filter": frame,
+        "parent_filter": parent,
+    }
+
+
+def get_eoc_patch(body: str) -> Dict[str, Any]:
+    """Return one body's EOC patch envelope (JSON-friendly)."""
+    if not isinstance(body, str):
+        return _err(f"body must be a string, got {type(body).__name__}")
+    try:
+        return {"ok": True, **_eoc_catalog.get_eoc_patch(body)}
+    except KeyError as exc:
+        return _err(str(exc))
+
+
+def apply_eoc_patches(
+    *,
+    bodies: Optional[List[str]] = None,
+    frame: Optional[str] = None,
+    parent: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Register a selection of EOC patches into the runtime overlay.
+
+    Default (no filters) registers ALL 51 patches — one for every
+    non-Sun body in the BIP roster. Filter semantics:
+
+    * ``bodies``: explicit list of body names (whitelist).
+    * ``frame``: ``"heliocentric_ecliptic"`` or
+      ``"parent_centric_ecliptic"``.
+    * ``parent``: parent body name (e.g. ``"jupiter"`` for the 11
+      Jovian moons).
+
+    Filters intersect. The patches are J2000-anchored (zero at the
+    BIP calibration epoch) and exact at any eccentricity via Newton
+    iteration on Kepler's equation.
+
+    **Backend caveat (v0.28.0rc1)**: EOC patches are not yet mirrored
+    to the C-side registry. With EOC patches active, ``backend="c"``
+    in any encode call will return the unpatched BIP residue while
+    ``backend="bip"`` (default) returns the patched value. C-side
+    support requires an ABI bump (new
+    ``ES_PATCH_KIND_ECCENTRICITY_CORRECTION``) queued for v0.27.0 /
+    v0.28.0.
+
+    Returns a JSON-friendly dict with the registered patch names + the
+    total count active in the registry.
+
+    Raises (surfaced as ``ok=False``) if any selected patch's name
+    collides with an already-registered patch in the overlay. Call
+    :func:`clear_eoc_patches` first if you intend to re-register.
+    """
+    if frame is not None and frame not in (
+        "heliocentric_ecliptic",
+        "parent_centric_ecliptic",
+    ):
+        return _err(
+            f"frame must be 'heliocentric_ecliptic' or "
+            f"'parent_centric_ecliptic'; got {frame!r}"
+        )
+    if bodies is not None:
+        if not isinstance(bodies, (list, tuple)):
+            return _err(
+                f"bodies must be a list of body name strings; "
+                f"got {type(bodies).__name__}"
+            )
+        unknown = [
+            b for b in bodies if b not in _secular.SECULAR_ELEMENTS
+        ]
+        if unknown:
+            return _err(
+                f"unknown body name(s): {unknown}. The Sun is excluded "
+                f"by design (e ≡ 0). Available: "
+                f"{sorted(_secular.SECULAR_ELEMENTS.keys())}"
+            )
+    try:
+        registered = _eoc_catalog.apply_eoc_patches(
+            bodies=bodies, frame=frame, parent=parent
+        )
+    except ValueError as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "registered": registered,
+        "n_registered": len(registered),
+        "n_active_total": len(_patches.snapshot()),
+        "backend_caveat": (
+            "EOC patches are Python-BIP-backend only in v0.28.0rc1; "
+            "C-side support requires an ABI bump (queued)."
+        ),
+    }
+
+
+def clear_eoc_patches() -> Dict[str, Any]:
+    """Remove every EOC patch (kind ``eccentricity-correction``) from
+    the runtime overlay.
+
+    Other patch kinds (sinusoid, coupled-sinusoid — e.g. the v0.5.x
+    CATALOG_V2 LS-fit catalog) are left in place. To wipe the entire
+    overlay use :func:`clear_patches`.
+    """
+    n_cleared = _eoc_catalog.clear_eoc_patches()
+    return {
+        "ok": True,
+        "cleared": n_cleared,
+        "n_active_total": len(_patches.snapshot()),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
 # v0.25.0a — Attested Multi-Source Collector framework (T0+T1)
 # ──────────────────────────────────────────────────────────────────────
 #
