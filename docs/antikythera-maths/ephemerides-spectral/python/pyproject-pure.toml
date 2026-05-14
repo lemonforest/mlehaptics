@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.26.1rc1"
+version = "0.26.1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -53,16 +53,9 @@ classifiers = [
 ]
 # srmech is a hard runtime dep — ephemerides_spectral/__init__.py's
 # _bootstrap_amsc() imports srmech.amsc.* at package import (Task #197
-# Phase 3 cross-package wiring). The platform pyproject.toml has carried
-# this dep since v0.25.x; the pure-wheel pyproject was missing it until
-# v0.26.1rc1. MUST match the floor in pyproject.toml: the publish
-# workflow's pure-wheel build asserts the two pyprojects agree on
-# version, but the dep set is also expected to be congruent.
-#
-# v0.26.1rc1 verify-rc (Option B): pinned to rc9 on TestPyPI to
-# co-ordinate with the parallel srmech rc series ahead of v0.2.0's
-# production cut. Bump to `srmech>=0.2.0` after that cut lands.
-dependencies = ["numpy>=1.24", "srmech>=0.1.1rc9"]
+# Phase 3 cross-package wiring). MUST stay congruent with the floor
+# in pyproject.toml.
+dependencies = ["numpy>=1.24", "srmech>=0.2.0"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
