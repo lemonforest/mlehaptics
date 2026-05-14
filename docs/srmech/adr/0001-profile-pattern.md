@@ -314,7 +314,35 @@ Things explicitly left open for future ADRs or research spikes:
 
 Skip steps at your peril.
 
-## 12. References
+## 12. Roadmap touchpoints beyond this ADR
+
+Things this ADR doesn't directly own but which it makes more
+urgent to think about:
+
+- **Task #209 — srmech extracted into its own repository upon
+  maturity.** The profile pattern this ADR specifies pushes
+  srmech further into the role of *substrate* — a package that
+  third-party domain authors (audio-spectral, biology-spectral,
+  …) build on. As that role solidifies, hosting srmech inside a
+  monorepo whose root identity is the EMDR firmware project
+  becomes increasingly awkward for outside contributors and for
+  academic citation. The trigger for extraction is profile-pattern
+  maturity: ≥1 third-party consumer in the wild, semantic v1.x
+  stability, and decoupled CI/CD. Tracked separately so this ADR
+  can land independently.
+
+- **A profile authoring guide** (`docs/srmech/PROFILE_AUTHORING_GUIDE.md`)
+  becomes the load-bearing onboarding document for third-party
+  authors. Written after the chess + ephemerides POCs surface
+  the practical sharp edges.
+
+- **CITATION.cff at the srmech level** (currently only at the
+  monorepo level per Task #188). Once profiles exist, citing srmech
+  vs citing a profile vs citing a profile's plugin needs to be
+  cleanly distinguishable. Probably a follow-up ADR after
+  Task #188 lands.
+
+## 13. References
 
 - Task #197 — AMSC-to-srmech refactor (the substrate's existing scope).
 - Task #198 — srmech.amsc.tool_schema (the prerequisite for this ADR).
