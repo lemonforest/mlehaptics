@@ -28,6 +28,56 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.19 (May 2026)
+
+**srmech profile pattern** — chess-spectral is now discoverable via
+the `srmech.profiles` entry-point group ([ADR-0001](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/adr/0001-profile-pattern.md)
+§7 Step 1, **Task #211**). Two paths to the same encoder:
+
+```python
+# Direct (unchanged; works as it always has):
+from chess_spectral import encode_2d, fen_to_pos
+enc = encode_2d(fen_to_pos(fen))
+
+# Via srmech (new in 1.19.0):
+import srmech
+chess = srmech.profile("chess")
+enc = chess.encode_2d(chess.fen_to_pos(fen))
+```
+
+### Simple-tier profile
+chess-spectral keeps its own ctypes binding to its C library
+internally — srmech only exposes the **Python bridge surfaces**. This
+is the canonical simple-tier pattern from ADR-0001 §5: the native
+binary belongs to chess-spectral, the discovery / introspection
+surface belongs to srmech.
+
+### Eight bridge surfaces declared
+- `encode_2d`, `encode_4d` — canonical 640-dim / 45 056-dim encoders.
+- `fen_to_pos` — FEN parser.
+- `channel_energies` — per-channel L² introspection.
+- `encode_2d_pure_phase` — integer-arithmetic encoder.
+- `phase_only_pseudo_legal_moves` — ALU-native move enumeration.
+- `encode_2d_bip_hybrid` / `decode_2d_bip_hybrid` — sign × magnitude
+  compression (~3.4× at 8-bit).
+
+The same eight functions register as `srmech.amsc.tool_schema`
+entries (owner=`chess`) for LLM-agent discovery.
+
+### New runtime dep: srmech>=0.3.1,<0.4
+srmech v0.3.1 added the loader's package-only entry-point support and
+`[profile.tool_schema]` extension loading. v0.3.0 would silently
+enumerate the chess profile as invalid; v0.3.1 makes it work
+end-to-end.
+
+### Workflow: TestPyPI auto-routing for rc tags
+`chess-spectral-publish.yml` now matches the pattern srmech and
+ephemerides-spectral use:
+
+- Tag `chess-spectral-vX.Y.ZrcN` → TestPyPI (auto)
+- Tag `chess-spectral-vX.Y.Z` (no rc) → PyPI (auto)
+- `workflow_dispatch` w/ `target` input remains as a manual override.
+
 ## What's new in v1.18 (May 2026)
 
 **C port of `encode_4d_pure_phase`** — the last deferred item from
