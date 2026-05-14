@@ -10,6 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-05-14
+
+### Production cut — srmech profile pattern PR-a (no code change from 0.27.0rc1)
+
+Version-only bump from 0.27.0rc1 → 0.27.0 in the four SSOT locations
+plus the profile descriptor + this CHANGELOG header. End-to-end
+TestPyPI verification cleared on Windows / Python 3.14 + production
+srmech 0.3.1:
+
+```
+srmech:                0.3.1 (from PyPI)
+ephemerides-spectral:  0.27.0rc1 (from TestPyPI)
+Profile: ephemerides 0.27.0rc1
+ephemerides tools: 9
+get_version: 0.27.0rc1
+list_bodies n=: 52
+list_attested_sources ok=: True | n_sources=: 19
+```
+
+PR-b (plugin tier — `[profile.native]` for libephemerides_spectral)
+and PR-c (call-site migration with ABI parity) follow as separate
+ships per ADR-0001 §7 Step 2's multi-PR plan.
+
+See [0.27.0rc1] below for the full PR-a content.
+
 ## [0.27.0rc1] — 2026-05-14
 
 ### Added — srmech profile pattern, PR-a (Task #212, ADR-0001 §7 Step 2)
