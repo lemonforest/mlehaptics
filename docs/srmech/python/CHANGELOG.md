@@ -4,6 +4,51 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-14
+
+### Production cut bundling rc1 + rc2 (no code change from 0.3.1rc2)
+
+The 0.3.1rc2 → 0.3.1 transition contains only version-string bumps in
+the four SSOT locations plus this CHANGELOG header. Bundles both POC
+findings from the chess-spectral simple-profile migration ([Task #211](../...)):
+
+- **rc1**: entry-point Form-1 (package-only) support — every
+  real-world Python plugin discovery system uses
+  `"package_name"` rather than `"package:CONST"`.
+- **rc2**: `[profile.tool_schema].extension_file` was parsed at
+  validation time but never loaded at activation time, so profile
+  tool entries silently went missing from the registry.
+
+Both fixes are backward-compatible additions to the loader; no
+v0.3.0 API breakage.
+
+End-to-end verification (Windows / Python 3.14, clean venv, TestPyPI
+0.3.1rc2 + chess-spectral 1.19.0 pre-release wheel):
+
+```
+srmech version: 0.3.1rc2
+=== chess profile activation ===
+Profile: chess v1.19.0
+=== tool_schema integration ===
+chess tools registered: 8
+ - chess.encode_2d : Spectral 2D chess encoder...
+ - chess.encode_4d : Spectral 4D chess encoder...
+ - chess.fen_to_pos : Parse a FEN string into the 2D position dict...
+ - chess.channel_energies : Compute per-channel L² energy...
+ - chess.encode_2d_pure_phase : Integer-arithmetic 2D chess encoder...
+ - chess.phase_only_pseudo_legal_moves : Pure-phase pseudo-legal...
+ - chess.encode_2d_bip_hybrid : BIP-hybrid sign × magnitude...
+ - chess.decode_2d_bip_hybrid : Inverse of encode_2d_bip_hybrid...
+=== bridge call still works ===
+encode_2d shape: (640,)
+```
+
+Profile pattern (ADR-0001) is now exercised by a real third-party-style
+package. ADR §7 Step 1 (chess POC) drives ADR §7 Step 2 (ephemerides
+plugin-profile) next.
+
+See [0.3.1rc2] + [0.3.1rc1] below for the full bug + fix narratives.
+
 ## [0.3.1rc2] - 2026-05-14
 
 ### Fixed — `[profile.tool_schema]` extension file loading
