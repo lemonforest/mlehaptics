@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.1.1rc8"
+version = "0.1.1rc9"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -26,7 +26,7 @@ version = "0.1.1rc8"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject.toml`.
-description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Pure Python."
+description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Native C dispatch (SHA-256 + NDJSON line reader) with pure-Python fallback for Pyodide / WASM."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
@@ -41,7 +41,7 @@ keywords = [
     "research",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
