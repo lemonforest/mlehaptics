@@ -10,6 +10,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc1] — 2026-05-14
+
+### Added — Phase 10a: Per-body equation-of-center catalog (closed-form Kepler series)
+
+**Sprint opener for the v0.28.x rc cycle.** v0.27.0 production shipped earlier today with only the Task #212 srmech profile pattern (PR-a). Phase 10a is the next feature ship and starts a fresh minor cycle under the project's rc-stacking discipline (`memory/feedback_rc_stacking_versioning.md`): subsequent v0.28.0rcN tags will accumulate further v0.28-cycle features on top of this rc1, with the final `v0.28.0` to production PyPI shipping the accumulated stack.
+
+**Motivation** — 100-yr Earth-Mars syzygy sweep on v0.26.1 surfaced a residual whose 47-pt FFT placed **84% of power** in two adjacent bins bracketing the predicted Earth+Mars equation-of-center alias (~15.78 yr at synodic cadence). The BIP encoder calibrates each body's phase residue at J2000 to `L_true(J2000)` (read from DE441) and then linearly advances at the mean motion, so the residual is exactly the EOC term `L_true(t) − L_BIP(t) = (ν(t) − M(t)) − (ν(J2000) − M(J2000))`. Phase 10a closes this residual closed-form, MPM-clean (no fit, no SGD, no random init).
+
+**New artefacts:**
+
+- `_research/secular_elements_data.py` — 51-row J2000 Keplerian mean-elements catalog covering every non-Sun body in the 52-body BIP roster (Sun has e ≡ 0; no EOC contribution). Frame partition: 13 heliocentric (9 planets + 4 main-belt asteroids) + 38 parent-centric (1 Luna + 2 Mars moons + 11 Jovian + 15 Saturnian + 5 Uranian + 3 Neptunian + 1 Charon). Subsystem authority chain in `SOURCES`: Standish 1992 + Park 2021 DE441 (planets); Chapront-Touzé & Chapront 1991 ELP2000 (Luna); Lainey 2007 MAR063 (Mars moons); Lieske 1998 E5 (Galileans); Cooper 2006 (Jovian inner regulars); Jacobson 2000 JUP100 (Jovian irregulars); Vienne & Duriez 1995 TASS / Jacobson 2006 SAT375 (Saturnian classical); Spitale 2006 (co-orbitals + trojans); Jacobson 1998 (Phoebe); Laskar-Jacobson 1987 GUST86 (Uranian); Jacobson 2009 NEP078 (Neptunian); Brozovic 2015 (Charon); JPL Small-Body Database (asteroids). 16 SOURCES entries total.
+
+- `_research/diagnosed_fibers.py` — new `EccentricityCorrectionPatch` dataclass + Newton-Kepler evaluator. Patch parameters `(eccentricity, mean_anomaly_at_j2000_rad, n_rad_per_day)` derive closed-form from the body's secular elements; evaluator Newton-solves Kepler's equation `E − e·sin E = M` (bounded 30-iter loop, tol 1e-14 rad) at both `M(t) = M₀ + n·Δt` and `M(J2000) = M₀`, computes `ν` via half-angle formula, returns `(ν(t) − M(t)) − (ν(J2000) − M₀)` as the integer residue correction. **J2000-anchored by construction** — patch returns exactly 0 at Δt=0, so BIP's `L_true(J2000)` calibration isn't double-counted. Exact at any eccentricity from Triton's e ≈ 1.6e-5 through Nereid's e = 0.7507; no power-series truncation.
+
+- `_research/eoc_catalog.py` — generator that turns each secular-elements row into an `EccentricityCorrectionPatch`. Public surfaces: `EOC_CATALOG` dict (51 patches keyed by body), `build_eoc_patch(body)`, `list_eoc_patches()`, `get_eoc_patch(body)`, `apply_eoc_patches(bodies=None, frame=None, parent=None)`, `clear_eoc_patches()`, `heliocentric_bodies()`, `parent_centric_bodies(parent=None)`.
+
+- `research/attested/secular_elements/` (mirrored to `_research/attested/secular_elements/`) — AMSC `literature_curated` attested source. `descriptor.toml` (canonical_doi: 10.3847/1538-3881/abd414 Park 2021 DE441), `row.schema.json` (14-field row contract; draft 2020-12), `row.ndjson` (51 data rows generated from `SECULAR_ELEMENTS` with per-row `source_doi` following the v0.27.0-phase-A naming convention: real Crossref DOIs preferred; `nodoi:` for pre-Crossref JPL technical documents; `isbn:` for textbook references; `url:` for the JPL Small-Body Database). `n_sources` 19 → 20; `adapter_class="curated"` 16 → 17.
+
+**Bridge surfaces (6 new functions)** — `list_secular_elements`, `get_secular_elements`, `list_eoc_patches`, `get_eoc_patch`, `apply_eoc_patches`, `clear_eoc_patches`. Each takes `frame` and/or `parent` filters where applicable. The LLM tool-schema export (v0.26.1 feature) auto-discovers all 6 — total tool count 240 → 246.
+
+**CLI subcommands (6 new)** — `secular-elements`, `secular-elements-get`, `eoc-patches`, `eoc-patch`, `eoc-patches-apply`, `eoc-patches-clear`. Mirror the bridge surfaces 1:1.
+
+**Validation (the closed-form-algebra payoff)** — 100-yr Earth-Mars syzygy sweep with `terra` + `mars` EOC patches active:
+
+| Metric | Before EOC | After Earth+Mars EOC | Collapse |
+|---|---:|---:|---:|
+| Worst anchor-date offset (vs textbook) | 35.32 d | **3.05 d** | **91%** |
+| RMS anchor-date offset (16 anchors) | 19.79 d | **1.12 d** | **94%** |
+| Kepler-truth Δλ at opposition JDs (RMS) | 9.26° | **0.014°** | **99.85%** |
+| Kepler-truth Δλ peak | 15.75° | **0.015°** | **99.90%** |
+
+The 0.014° RMS means the BIP+EOC encoder matches the closed-form Kepler ground truth to ~1/60th of a degree (essentially numerical precision); the residual 1.12 d anchor RMS is the genuine off-diagonal Mars-Jupiter fiber content — Phase 10b's target.
+
+**Sun-from-SSB wobble falsified** as bin-5 explanation. Hypothesis (bin-5 at 20.07 yr = Jupiter-Saturn synodic Sun-wobble) tested closed-form by direct Sun-SSB subtraction; collapsed only 0.7%. Most likely DFT side-lobe leakage from the dominant EOC peak at bin 6 (predicted 3.0%, observed 3.5%). Note stashed at `docs/srmech/notes/sun-wobble-falsification-2026-05-14.md`. This is the project's first published-internal falsification of a candidate Phase-10b coupling.
+
+### Backend caveat
+
+EOC patches are **Python BIP backend only** in v0.28.0rc1 (`backend="bip"`, default for the Python wheel). The C-side patch registry doesn't yet recognise the `eccentricity-correction` kind; C-side support requires an ABI bump (new `ES_PATCH_KIND_ECCENTRICITY_CORRECTION`) queued for a later v0.28.x rcN or for v0.29. With EOC patches active, `backend="c"` returns the unpatched BIP residue while `backend="bip"` returns the patched value. A regression test (`test_eoc_patch_is_python_only_kind` in `test_eoc_catalog.py`) pins the design decision so the docstring + ROADMAP + ABI-bump plan don't drift apart.
+
+### Tests
+
+- `tests/test_eoc_catalog.py` — 39 ratchets: coverage (51-body, frame partition, 16 sources), period agreement vs `BODIES` (max rel_err 4.6e-4 Saturn), Newton-Kepler correctness vs independent closed-form (parametrized across e=0.0001 through 0.75), J2000-anchoring (every patch returns 0 at Δt=0), frame discipline, AMSC dual-author parity (byte-for-byte field agreement on 8 spot-checked bodies + provenance completeness + source_doi prefix convention), bridge filter semantics, apply/clear round trip, Python-BIP-only kind ratchet.
+- `tests/test_attested_collector.py` — `n_sources` ratchets bumped 19 → 20 and 16 → 17 (curated class); alphabetical key list updated.
+- `tests/test_parity_smoke.py` — 6 new EOC bridge functions classified as `python_only` with rationale (mirroring the backend caveat).
+
+### Dependency change
+
+`srmech>=0.3.1,<0.4` — unchanged from v0.27.0 (entered the dependency floor at v0.27.0rc1). Phase 10a doesn't introduce additional srmech surface; the v0.27.0 srmech-profile-pattern integration (`[project.entry-points."srmech.profiles"] ephemerides = "ephemerides_spectral"`) continues to work.
+
+### Versioning
+
+`0.27.0` → `0.28.0rc1`. v0.27.0 production already shipped with Task #212 PR-a content; Phase 10a is feature-rich enough (51-body catalog + 6 bridge surfaces + 6 CLI subcommands + new AMSC source) to merit a minor bump on its own. RC suffix auto-routes to TestPyPI per the existing rc-suffix workflow logic; later v0.28.x rcs accumulate on top, and the final `v0.28.0` ships the stack to production PyPI.
+
+### No ABI bump
+
+`ES_ABI_VERSION = 8` unchanged (since v0.13.x). Phase 10a is Python-side additive; the C-side ABI bump that adds `ES_PATCH_KIND_ECCENTRICITY_CORRECTION` is queued separately.
+
 ## [0.27.0] — 2026-05-14
 
 ### Production cut — srmech profile pattern PR-a (no code change from 0.27.0rc1)
