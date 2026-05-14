@@ -1206,6 +1206,45 @@ def _cmd_attested_audit(args: argparse.Namespace) -> int:
     )
 
 
+# v0.27.0a1 — Phase 10a per-body equation-of-center catalog
+
+def _cmd_secular_elements(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_secular_elements(frame=args.frame, parent=args.parent),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_secular_elements_get(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_secular_elements(args.body), pretty=args.pretty)
+
+
+def _cmd_eoc_patches(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.list_eoc_patches(frame=args.frame, parent=args.parent),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_eoc_patch(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_eoc_patch(args.body), pretty=args.pretty)
+
+
+def _cmd_eoc_patches_apply(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.apply_eoc_patches(
+            bodies=args.bodies,
+            frame=args.frame,
+            parent=args.parent,
+        ),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_eoc_patches_clear(args: argparse.Namespace) -> int:
+    return _emit(bridge.clear_eoc_patches(), pretty=args.pretty)
+
+
 # v0.25.1 — T2 user runtime kernel
 
 def _cmd_local_kernel_use(args: argparse.Namespace) -> int:
@@ -5274,6 +5313,147 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     aa.add_argument("--source", required=True, help="source key")
     aa.set_defaults(func=_cmd_attested_audit)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.27.0a1 (Phase 10a) — per-body equation-of-center catalog
+    # ──────────────────────────────────────────────────────────────────
+
+    # secular-elements
+    se_list = sub.add_parser(
+        "secular-elements",
+        help="List the 51-row J2000 Keplerian secular elements catalog",
+        description=(
+            "v0.27.0a1 -- list per-body J2000 Keplerian mean elements\n"
+            "(e, I, Omega, omega_bar, L0, n) for every non-Sun body in\n"
+            "the BIP roster. 51 rows total: 13 heliocentric (9 planets\n"
+            "+ 4 main-belt asteroids) and 38 parent-centric (moons).\n"
+            "Filter optionally by --frame or --parent."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    se_list.add_argument(
+        "--frame",
+        choices=("heliocentric_ecliptic", "parent_centric_ecliptic"),
+        default=None,
+        help="restrict to one frame",
+    )
+    se_list.add_argument(
+        "--parent",
+        default=None,
+        help="restrict to moons of a parent (e.g. jupiter, saturn, uranus, neptune)",
+    )
+    se_list.set_defaults(func=_cmd_secular_elements)
+
+    # secular-elements-get
+    se_get = sub.add_parser(
+        "secular-elements-get",
+        help="Return one body's secular-elements row",
+        description=(
+            "v0.27.0a1 -- emit one body's Keplerian mean elements at\n"
+            "J2000.0 TDB plus the source citation. Sun is excluded by\n"
+            "design (e == 0); request returns ok=False with an explicit\n"
+            "message naming every available body."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    se_get.add_argument("--body", required=True, help="body name (e.g. mars, luna)")
+    se_get.set_defaults(func=_cmd_secular_elements_get)
+
+    # eoc-patches
+    eoc_list = sub.add_parser(
+        "eoc-patches",
+        help="List every closed-form Kepler EOC patch in the bundled catalog",
+        description=(
+            "v0.27.0a1 -- list 51 EccentricityCorrectionPatch entries.\n"
+            "Each patch is a Newton-Kepler closed-form correction\n"
+            "anchored at J2000 (zero at the BIP calibration epoch by\n"
+            "construction). Filter optionally by --frame or --parent.\n"
+            "This is a LISTING surface; use eoc-patches-apply to\n"
+            "register a selection into the overlay."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    eoc_list.add_argument(
+        "--frame",
+        choices=("heliocentric_ecliptic", "parent_centric_ecliptic"),
+        default=None,
+        help="restrict by frame",
+    )
+    eoc_list.add_argument(
+        "--parent",
+        default=None,
+        help="restrict by parent body",
+    )
+    eoc_list.set_defaults(func=_cmd_eoc_patches)
+
+    # eoc-patch
+    eoc_get = sub.add_parser(
+        "eoc-patch",
+        help="Return one body's EOC patch parameters + source citation",
+        description=(
+            "v0.27.0a1 -- emit one body's Newton-Kepler EOC patch envelope\n"
+            "(eccentricity, mean anomaly at J2000, mean motion, frame,\n"
+            "parent, source citation, derived period). Useful for\n"
+            "introspection + provenance audits."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    eoc_get.add_argument("--body", required=True, help="body name (e.g. mars, nereid)")
+    eoc_get.set_defaults(func=_cmd_eoc_patch)
+
+    # eoc-patches-apply
+    eoc_apply = sub.add_parser(
+        "eoc-patches-apply",
+        help="Register a selection of EOC patches into the overlay registry",
+        description=(
+            "v0.27.0a1 -- register Newton-Kepler EOC patches into the\n"
+            "diagnosed-fibers overlay. Default (no filters) registers\n"
+            "all 51 patches. Filters intersect: --bodies (whitelist),\n"
+            "--frame, --parent.\n"
+            "\n"
+            "BACKEND CAVEAT: EOC patches are Python-BIP-backend-only in\n"
+            "v0.27.0a1 (backend='bip', the default). The C-side patch\n"
+            "registry does NOT yet recognise the 'eccentricity-correction'\n"
+            "kind; C-side support requires an ABI bump (new\n"
+            "ES_PATCH_KIND_ECCENTRICITY_CORRECTION) queued for v0.27.0 /\n"
+            "v0.28.0. With EOC patches active, backend='c' returns the\n"
+            "unpatched residue."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    eoc_apply.add_argument(
+        "--bodies",
+        nargs="*",
+        default=None,
+        help="explicit body whitelist (e.g. --bodies terra mars)",
+    )
+    eoc_apply.add_argument(
+        "--frame",
+        choices=("heliocentric_ecliptic", "parent_centric_ecliptic"),
+        default=None,
+        help="restrict by frame",
+    )
+    eoc_apply.add_argument(
+        "--parent",
+        default=None,
+        help="restrict by parent body",
+    )
+    eoc_apply.set_defaults(func=_cmd_eoc_patches_apply)
+
+    # eoc-patches-clear
+    eoc_clear = sub.add_parser(
+        "eoc-patches-clear",
+        help="Remove every EOC-kind patch from the overlay registry",
+        description=(
+            "v0.27.0a1 -- clear EOC patches (kind 'eccentricity-correction')\n"
+            "from the diagnosed-fibers overlay. Other patch kinds\n"
+            "(sinusoid / coupled-sinusoid -- e.g. the v0.5.x CATALOG_V2\n"
+            "LS-fit patches) are LEFT IN PLACE. To wipe the entire\n"
+            "overlay use the existing clear-patches subcommand."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    eoc_clear.set_defaults(func=_cmd_eoc_patches_clear)
 
     # ──────────────────────────────────────────────────────────────────
     # v0.25.1 — T2 user runtime kernel
