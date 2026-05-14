@@ -1448,6 +1448,43 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "package metadata",
         "kwargs_py": {},
     },
+    # ── v0.27.0a1 Phase 10a — per-body equation-of-center catalog.
+    # Closed-form Kepler series patches; the C-side patch registry does
+    # not yet recognise the `eccentricity-correction` patch kind.
+    # python_only here pins the design until the ABI bump (queued
+    # for v0.27.0 / v0.28.0; new ES_PATCH_KIND_ECCENTRICITY_CORRECTION).
+    # When the C-side support lands, these flip to `parity` with C-twin
+    # kwargs added.
+    "list_secular_elements": {
+        "status": "python_only",
+        "rationale": "JSON listing over SECULAR_ELEMENTS table; not encoder runtime",
+        "kwargs_py": {},
+    },
+    "get_secular_elements": {
+        "status": "python_only",
+        "rationale": "JSON envelope around one SECULAR_ELEMENTS row + provenance",
+        "kwargs_py": {"body": "mars"},
+    },
+    "list_eoc_patches": {
+        "status": "python_only",
+        "rationale": "JSON listing over EOC_CATALOG (51 patches); not encoder runtime",
+        "kwargs_py": {},
+    },
+    "get_eoc_patch": {
+        "status": "python_only",
+        "rationale": "JSON envelope around one EOC patch's params + provenance",
+        "kwargs_py": {"body": "mars"},
+    },
+    "apply_eoc_patches": {
+        "status": "python_only",
+        "rationale": "registers EccentricityCorrectionPatch into the diagnosed-fibers overlay; the patch kind is python-only in v0.27.0a1 pending C-side ABI bump",
+        "kwargs_py": {"bodies": ["terra"]},
+    },
+    "clear_eoc_patches": {
+        "status": "python_only",
+        "rationale": "removes EOC-kind patches from the overlay; mirrors apply_eoc_patches scope",
+        "kwargs_py": {},
+    },
 }
 
 

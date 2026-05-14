@@ -208,6 +208,18 @@
       "sha256": "d30257f1e1f2a012d553e1448a27c76bf4ceb7244c78897d1aa82c2649dd9a5f",
       "size_bytes": 5357
     },
+    "_research/attested/secular_elements/descriptor.toml": {
+      "sha256": "91ba5474fd336de434889e458aac6188d67ef9b17d75481c5c752d202ebb2202",
+      "size_bytes": 3530
+    },
+    "_research/attested/secular_elements/row.ndjson": {
+      "sha256": "2adb401c5f8a77297e2188b9bf34fe8c290e7917eeddf227dd50254251761e26",
+      "size_bytes": 23392
+    },
+    "_research/attested/secular_elements/row.schema.json": {
+      "sha256": "9b6a555cf3c606ed7d7c0983caea8e1fdeb51a4f22b83c959f4dd301a5931857",
+      "size_bytes": 4846
+    },
     "_research/attested/sun_dynamical_spectrum/descriptor.toml": {
       "sha256": "8988232361e844222e88917c206d6c2f8bbbf6a1ada86c1cb77d63e1574c5360",
       "size_bytes": 3059
@@ -305,8 +317,8 @@
       "size_bytes": 7803
     },
     "_research/diagnosed_fibers.py": {
-      "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
-      "size_bytes": 21602
+      "sha256": "d9ec03e07cb54330b462364f52a8ae1223522779d220df0ea06eb90ffd492cfd",
+      "size_bytes": 27022
     },
     "_research/dynamical_regime_catalog.py": {
       "sha256": "2dec0dd043e176379f88d6000f761cef0f87487aaa015f729edb277471221d21",
@@ -339,6 +351,10 @@
     "_research/em_instrument_data.py": {
       "sha256": "7c4c6fc49f8ae51812f343eb71386c260bb9d50bd4b093a009a169f4b20201e7",
       "size_bytes": 28418
+    },
+    "_research/eoc_catalog.py": {
+      "sha256": "bea6a57441cf4e22d750025ccf6a8b6284e9c95d9f7fa76de40c06414f4d13c3",
+      "size_bytes": 10445
     },
     "_research/ephemeris_loader.py": {
       "sha256": "59cc22dd5162449cd8c753b95fc64ba0d69fad0288f3964e2bdc1845c553453f",
@@ -488,6 +504,10 @@
       "sha256": "5ba6dda5757e9cfda3e3c447698826097c5b62a20b60f0ba8218d9daabe90b6e",
       "size_bytes": 16484
     },
+    "_research/secular_elements_data.py": {
+      "sha256": "9c8e24a448022af4e7671f7c80c403401f2c458526189522f22ffc3edb33e213",
+      "size_bytes": 48345
+    },
     "_research/sensor_access_catalog.py": {
       "sha256": "b98a8f0adaf9935b7400a9cbd7cb1a25e838f7ddc87f570b7a3bf136f3f921c8",
       "size_bytes": 12066
@@ -570,5 +590,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.26.0"
+  "version": "0.27.0a1.dev1"
 }
