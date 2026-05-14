@@ -493,9 +493,10 @@ Things explicitly left open for future ADRs or research spikes:
 
 ### Negative
 
-- More moving parts. The profile-loader is a new failure surface; ctypes binding mistakes in plugins can crash the host process.
-- Schema migration costs. Anything we get wrong in `srmech_profile.toml` v1 has to be migrated (`profile_schema_version` field is the escape hatch).
-- Discovery latency. `importlib.metadata.entry_points()` enumeration is fast but not free; lazy-load helps. Measure on Pyodide where filesystem walks are slow.
+- More moving parts. The profile-loader is a new failure surface. §5.5 catches the worst classes at boot (eager enumeration; JSON-Schema boundary check; ABI handshake; smoke-test cache per profile version) so ctypes binding mistakes in plugins fail loudly at startup rather than mid-run. The residual risks: a plugin author writes a smoke test that passes but doesn't cover a real failure mode, or a plugin's binary segfaults in a code path the smoke test doesn't exercise. Both are out-of-scope for the loader to prevent; document in the authoring guide.
+- Schema migration costs. Anything we get wrong in `srmech_profile.toml` v1 has to be migrated. `profile_schema_version` field is the escape hatch; the reserved `[profile.interpreted]` block (§5.6) keeps the door open for future runtime adapters without breaking v1.
+- Discovery cost at boot. `importlib.metadata.entry_points()` enumeration is fast but not free; the smoke-test cache (§5.5) keeps re-runs to the per-version-change boundary so steady-state imports are O(n_profiles × declaration-read), not O(n_profiles × full-smoke-test). Pyodide is the worst case for filesystem walks — measure on Pyodide before v0.3.0 ships, document the observed cold-start time, and revisit if it crosses a usability threshold.
+- Trust surface widens. Each installed profile is a `pip install` away from running arbitrary code in the host process (Python entry-point + ctypes binding + interpreted-runtime adapter when §5.6 lands). This is the same trust surface as any pip-installed package; no new boundary, but the profile-loader makes the surface more visible to LLM consumers via tool_schema introspection. Document in the authoring guide.
 
 ### Neutral
 
