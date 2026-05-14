@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.26.0"
+version = "0.26.1rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -40,7 +40,14 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Typing :: Typed",
 ]
-dependencies = ["numpy>=1.24", "srmech>=0.1.0"]
+# v0.26.1rc1 verify-rc (Option B): floor pinned to the latest srmech
+# rc on TestPyPI for the cross-package verify cycle. The rc-form spec
+# (>=X.Y.ZrcN) auto-enables pip's pre-release resolution per PEP 440
+# without needing a `--pre` flag at the caller. Once srmech v0.2.0
+# lands on production PyPI, bump this floor to `srmech>=0.2.0` and
+# drop the `PIP_EXTRA_INDEX_URL` / `CIBW_ENVIRONMENT` plumbing from
+# the workflows.
+dependencies = ["numpy>=1.24", "srmech>=0.1.1rc9"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
