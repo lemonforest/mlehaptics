@@ -291,7 +291,7 @@ Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/Fals
 | **Cosine LUT (Phase 9)** | `int32[1024]` | **4 KB**    | Off-diagonal adaptive ("breathing") modulation. |
 | **DE441 Truth**         | BSP          | **3,300 MB** | Original JPL source (calibration only).     |
 
-**Compression vs DE441:** > 100:1. Once calibrated, the HDC instrument functions as standalone algebraic truth — no kernel needed for propagation, local-view extraction, or syzygy detection.
+**Compression vs DE441:** > 100:1. The HDC instrument functions as standalone algebraic truth — no calibration step needed at runtime; the DE441-derived initial phases are baked into the package at codegen time. No kernel needed for propagation, local-view extraction, or syzygy detection.
 
 ### Microcontroller Compatibility
 

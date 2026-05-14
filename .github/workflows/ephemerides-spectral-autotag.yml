@@ -98,11 +98,24 @@ jobs:
         shell: bash
         run: |
           tag='${{ steps.ver.outputs.tag }}'
-          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists; nothing to do."
+          # Check the REMOTE for the tag, not just the local runner clone.
+          # actions/checkout@v4 by default fetches only the triggering ref
+          # (the push to main), not the tag space — so a local
+          # `git rev-parse --verify refs/tags/$tag` would false-negative
+          # any tag that's on the remote but absent locally. Concretely:
+          # this fired on the 0.26.1 production cut (#400), where the
+          # maintainer pushed `ephemerides-spectral-v0.26.1` manually
+          # before the autotag workflow's git push step ran. Local check
+          # said "doesn't exist", the workflow created + tried to push,
+          # the remote rejected the push with "already exists", and the
+          # job failed despite the desired outcome (tag at the merge
+          # commit) already being achieved. `git ls-remote --exit-code`
+          # consults the remote and exits 0 iff the ref exists there.
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists on origin; nothing to do."
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Tag $tag does not exist; will create."
+            echo "Tag $tag does not exist on origin; will create."
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
