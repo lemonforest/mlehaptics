@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.27.0a1] — 2026-05-14
+## [0.28.0rc1] — 2026-05-14
 
 ### Phase 10a — Per-body equation-of-center catalog (PEP 440 alpha pre-release of v0.27.0)
 
@@ -17,9 +17,9 @@ The headline empirical claim — validated against the 100-yr Earth-Mars syzygy 
 
 Sub-thread: the Sun-from-SSB wobble hypothesis on FFT bin-5 (20.07 yr ≈ Jupiter-Saturn synodic) tested closed-form and falsified (0.7% collapse under direct subtraction). Stashed as `docs/srmech/notes/sun-wobble-falsification-2026-05-14.md`. First published-internal falsification of a candidate Phase-10b coupling — the MPM discipline at work.
 
-**Architecturally:** v0.27.0a1 is an alpha pre-release on PyPI; the v0.27.0 banner-flip (Phase B `binary_archive` adapter + C2 registry plumbing + D `use_local_kernel` extension per the ROADMAP) ships separately as a clean v0.27.0 once those land. Phase 10a's work is independent of v0.27.0's three-layer-mechanism banner — but sequenced before it so the version progression is monotonic on both axes (version number AND content richness).
+**Architecturally:** v0.28.0rc1 is an alpha pre-release on PyPI; the v0.27.0 banner-flip (Phase B `binary_archive` adapter + C2 registry plumbing + D `use_local_kernel` extension per the ROADMAP) ships separately as a clean v0.27.0 once those land. Phase 10a's work is independent of v0.27.0's three-layer-mechanism banner — but sequenced before it so the version progression is monotonic on both axes (version number AND content richness).
 
-**Per-area detail:** see [python/CHANGELOG.md §0.27.0a1](python/CHANGELOG.md) — bridge surfaces (6), CLI subcommands (6), AMSC source ([`research/attested/secular_elements/`](research/attested/secular_elements/)), 39 test ratchets, workflow regex extension, Python-BIP-backend-only caveat.
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0rc1](python/CHANGELOG.md) — bridge surfaces (6), CLI subcommands (6), AMSC source ([`research/attested/secular_elements/`](research/attested/secular_elements/)), 39 test ratchets, workflow regex extension, Python-BIP-backend-only caveat.
 
 ## [0.26.1] — 2026-05-14
 

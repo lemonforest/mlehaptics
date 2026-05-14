@@ -1,4 +1,4 @@
-"""v0.27.0a1 Phase 10a — EOC catalog tests.
+"""v0.28.0rc1 Phase 10a — EOC catalog tests.
 
 Ratchets covering:
 
@@ -424,7 +424,7 @@ def test_apply_intersects_filters() -> None:
 
 def test_eoc_patch_is_python_only_kind() -> None:
     """The eccentricity-correction patch kind is intentionally Python-
-    BIP-backend only in v0.27.0a1. The C-side `es_patches.c` does not
+    BIP-backend only in v0.28.0rc1. The C-side `es_patches.c` does not
     recognise it; mirroring is skipped. This test pins the design
     decision so the backend-caveat in the bridge docstring + the
     ROADMAP queue for the ABI bump don't drift apart."""
@@ -439,6 +439,6 @@ def test_eoc_patch_is_python_only_kind() -> None:
     rc = _mirror_patch_to_native(patch)
     # rc=None when no native loaded; otherwise an error string
     # describing the unknown-kind. EITHER outcome is acceptable for
-    # v0.27.0a1; the test pins that the kind is NOT recognised
+    # v0.28.0rc1; the test pins that the kind is NOT recognised
     # natively right now.
     assert rc is None or "unknown patch type" in rc

@@ -1448,7 +1448,7 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "package metadata",
         "kwargs_py": {},
     },
-    # ── v0.27.0a1 Phase 10a — per-body equation-of-center catalog.
+    # ── v0.28.0rc1 Phase 10a — per-body equation-of-center catalog.
     # Closed-form Kepler series patches; the C-side patch registry does
     # not yet recognise the `eccentricity-correction` patch kind.
     # python_only here pins the design until the ABI bump (queued
@@ -1477,7 +1477,7 @@ PARITY_TARGETS: Dict[str, Dict] = {
     },
     "apply_eoc_patches": {
         "status": "python_only",
-        "rationale": "registers EccentricityCorrectionPatch into the diagnosed-fibers overlay; the patch kind is python-only in v0.27.0a1 pending C-side ABI bump",
+        "rationale": "registers EccentricityCorrectionPatch into the diagnosed-fibers overlay; the patch kind is python-only in v0.28.0rc1 pending C-side ABI bump",
         "kwargs_py": {"bodies": ["terra"]},
     },
     "clear_eoc_patches": {

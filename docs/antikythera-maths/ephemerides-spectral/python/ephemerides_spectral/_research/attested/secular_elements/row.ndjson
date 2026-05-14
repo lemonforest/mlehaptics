@@ -2,7 +2,7 @@
 # Each non-comment line below is one MPR row data block (NDJSON).
 # Covers 51 bodies — every entry in BODIES except the Sun (e == 0).
 # Generated from `_research/secular_elements_data.SECULAR_ELEMENTS`
-# by `tools/gen_secular_ndjson.py` (v0.27.0a1 Phase 10a).
+# by `tools/gen_secular_ndjson.py` (v0.28.0rc1 Phase 10a).
 # Dual-author byte-stable diff asserted by
 # `tests/test_secular_elements_dual_author.py`.
 {"I_deg": 0.03, "L0_deg": 33.91, "Omega_deg": 228.38, "body": "adrastea", "e": 0.0015, "entered_locally_at": "2026-05-14", "frame": "parent_centric_ecliptic", "n_deg_per_day": 1206.995974, "notes": "Near-circular; 2e ≈ 0.17°.", "omega_bar_deg": 99.65, "parent": "jupiter", "source_doi": "10.1016/j.icarus.2005.11.007", "source_published_date": "2006-04-01", "source_version": null}

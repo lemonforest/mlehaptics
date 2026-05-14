@@ -1206,7 +1206,7 @@ def _cmd_attested_audit(args: argparse.Namespace) -> int:
     )
 
 
-# v0.27.0a1 — Phase 10a per-body equation-of-center catalog
+# v0.28.0rc1 — Phase 10a per-body equation-of-center catalog
 
 def _cmd_secular_elements(args: argparse.Namespace) -> int:
     return _emit(
@@ -5315,7 +5315,7 @@ def _make_parser() -> argparse.ArgumentParser:
     aa.set_defaults(func=_cmd_attested_audit)
 
     # ──────────────────────────────────────────────────────────────────
-    # v0.27.0a1 (Phase 10a) — per-body equation-of-center catalog
+    # v0.28.0rc1 (Phase 10a) — per-body equation-of-center catalog
     # ──────────────────────────────────────────────────────────────────
 
     # secular-elements
@@ -5323,7 +5323,7 @@ def _make_parser() -> argparse.ArgumentParser:
         "secular-elements",
         help="List the 51-row J2000 Keplerian secular elements catalog",
         description=(
-            "v0.27.0a1 -- list per-body J2000 Keplerian mean elements\n"
+            "v0.28.0rc1 -- list per-body J2000 Keplerian mean elements\n"
             "(e, I, Omega, omega_bar, L0, n) for every non-Sun body in\n"
             "the BIP roster. 51 rows total: 13 heliocentric (9 planets\n"
             "+ 4 main-belt asteroids) and 38 parent-centric (moons).\n"
@@ -5349,7 +5349,7 @@ def _make_parser() -> argparse.ArgumentParser:
         "secular-elements-get",
         help="Return one body's secular-elements row",
         description=(
-            "v0.27.0a1 -- emit one body's Keplerian mean elements at\n"
+            "v0.28.0rc1 -- emit one body's Keplerian mean elements at\n"
             "J2000.0 TDB plus the source citation. Sun is excluded by\n"
             "design (e == 0); request returns ok=False with an explicit\n"
             "message naming every available body."
@@ -5364,7 +5364,7 @@ def _make_parser() -> argparse.ArgumentParser:
         "eoc-patches",
         help="List every closed-form Kepler EOC patch in the bundled catalog",
         description=(
-            "v0.27.0a1 -- list 51 EccentricityCorrectionPatch entries.\n"
+            "v0.28.0rc1 -- list 51 EccentricityCorrectionPatch entries.\n"
             "Each patch is a Newton-Kepler closed-form correction\n"
             "anchored at J2000 (zero at the BIP calibration epoch by\n"
             "construction). Filter optionally by --frame or --parent.\n"
@@ -5391,7 +5391,7 @@ def _make_parser() -> argparse.ArgumentParser:
         "eoc-patch",
         help="Return one body's EOC patch parameters + source citation",
         description=(
-            "v0.27.0a1 -- emit one body's Newton-Kepler EOC patch envelope\n"
+            "v0.28.0rc1 -- emit one body's Newton-Kepler EOC patch envelope\n"
             "(eccentricity, mean anomaly at J2000, mean motion, frame,\n"
             "parent, source citation, derived period). Useful for\n"
             "introspection + provenance audits."
@@ -5406,13 +5406,13 @@ def _make_parser() -> argparse.ArgumentParser:
         "eoc-patches-apply",
         help="Register a selection of EOC patches into the overlay registry",
         description=(
-            "v0.27.0a1 -- register Newton-Kepler EOC patches into the\n"
+            "v0.28.0rc1 -- register Newton-Kepler EOC patches into the\n"
             "diagnosed-fibers overlay. Default (no filters) registers\n"
             "all 51 patches. Filters intersect: --bodies (whitelist),\n"
             "--frame, --parent.\n"
             "\n"
             "BACKEND CAVEAT: EOC patches are Python-BIP-backend-only in\n"
-            "v0.27.0a1 (backend='bip', the default). The C-side patch\n"
+            "v0.28.0rc1 (backend='bip', the default). The C-side patch\n"
             "registry does NOT yet recognise the 'eccentricity-correction'\n"
             "kind; C-side support requires an ABI bump (new\n"
             "ES_PATCH_KIND_ECCENTRICITY_CORRECTION) queued for v0.27.0 /\n"
@@ -5445,7 +5445,7 @@ def _make_parser() -> argparse.ArgumentParser:
         "eoc-patches-clear",
         help="Remove every EOC-kind patch from the overlay registry",
         description=(
-            "v0.27.0a1 -- clear EOC patches (kind 'eccentricity-correction')\n"
+            "v0.28.0rc1 -- clear EOC patches (kind 'eccentricity-correction')\n"
             "from the diagnosed-fibers overlay. Other patch kinds\n"
             "(sinusoid / coupled-sinusoid -- e.g. the v0.5.x CATALOG_V2\n"
             "LS-fit patches) are LEFT IN PLACE. To wipe the entire\n"

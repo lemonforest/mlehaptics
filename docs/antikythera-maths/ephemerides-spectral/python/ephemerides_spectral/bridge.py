@@ -5968,7 +5968,7 @@ def clear_patches() -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# v0.27.0a1 (Phase 10a) — Per-body equation-of-center catalog
+# v0.28.0rc1 (Phase 10a) — Per-body equation-of-center catalog
 # ──────────────────────────────────────────────────────────────────────
 #
 # Bridge surface over the closed-form Kepler equation-of-center patch
@@ -5984,7 +5984,7 @@ def clear_patches() -> Dict[str, Any]:
 # calibration epoch (because BIP's initial phase IS `L_true(J2000)`,
 # not `L_mean(J2000)`).
 #
-# Backend support (v0.27.0a1): Python BIP backend (`backend="bip"`,
+# Backend support (v0.28.0rc1): Python BIP backend (`backend="bip"`,
 # default for the Python wheel) ONLY. The C-side patch registry does
 # not yet recognise the `eccentricity-correction` kind — adding it
 # requires an ABI bump (new `ES_PATCH_KIND_ECCENTRICITY_CORRECTION`),
@@ -6157,7 +6157,7 @@ def apply_eoc_patches(
     BIP calibration epoch) and exact at any eccentricity via Newton
     iteration on Kepler's equation.
 
-    **Backend caveat (v0.27.0a1)**: EOC patches are not yet mirrored
+    **Backend caveat (v0.28.0rc1)**: EOC patches are not yet mirrored
     to the C-side registry. With EOC patches active, ``backend="c"``
     in any encode call will return the unpatched BIP residue while
     ``backend="bip"`` (default) returns the patched value. C-side
@@ -6207,7 +6207,7 @@ def apply_eoc_patches(
         "n_registered": len(registered),
         "n_active_total": len(_patches.snapshot()),
         "backend_caveat": (
-            "EOC patches are Python-BIP-backend only in v0.27.0a1; "
+            "EOC patches are Python-BIP-backend only in v0.28.0rc1; "
             "C-side support requires an ABI bump (queued)."
         ),
     }

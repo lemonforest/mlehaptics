@@ -401,6 +401,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
         "petdb_v4",
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
+        "secular_elements",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
@@ -427,6 +428,8 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["cmb_power_spectrum"].adapter_name == "literature_curated"
     # Companion cosmology-instrument ship (6 canonical CMB anomalies).
     assert found["cmb_anomalies"].adapter_name == "literature_curated"
+    # v0.28.0rc1 Phase 10a — per-body J2000 Keplerian mean elements.
+    assert found["secular_elements"].adapter_name == "literature_curated"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -513,7 +516,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     pluto_charon_dynamical_spectrum (16th), loki_patera (17th —
     phase A complete). cmb_power_spectrum (18th — first cosmology-
     instrument ship, Planck 2018 TT). cmb_anomalies (19th — companion
-    cosmology-instrument ship). secular_elements (20th — v0.27.0a1
+    cosmology-instrument ship). secular_elements (20th — v0.28.0rc1
     Phase 10a per-body J2000 Keplerian mean elements catalog
     anchoring the equation-of-center patch series)."""
     result = bridge.list_attested_sources()
@@ -549,7 +552,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
     """adapter_class='curated' returns 17 sources after v0.27.0 phase A
     through loki_patera (phase A complete) + cmb_power_spectrum +
     cmb_anomalies (cosmology-instrument pair) + secular_elements
-    (v0.27.0a1 Phase 10a per-body J2000 Keplerian mean-elements
+    (v0.28.0rc1 Phase 10a per-body J2000 Keplerian mean-elements
     catalog)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
@@ -608,8 +611,9 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # + pluto_charon_dynamical_spectrum + loki_patera (v0.27.0 phase A
     # complete through v0.24.12) + cmb_power_spectrum (first cosmology-
     # instrument ship) + cmb_anomalies (companion cosmology-instrument
-    # ship).
-    assert result["n_sources"] == 16
+    # ship) + secular_elements (v0.28.0rc1 Phase 10a per-body J2000
+    # Keplerian mean elements).
+    assert result["n_sources"] == 17
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 

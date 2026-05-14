@@ -1,7 +1,7 @@
 # Solar System Keplerian Secular Elements at J2000.0 TDB —
 # 51-row catalog covering every non-Sun body in the BIP roster.
 #
-# v0.27.0a1 Phase 10a: AMSC literature_curated attestation envelope
+# v0.28.0rc1 Phase 10a: AMSC literature_curated attestation envelope
 # for the hand-coded `_research/secular_elements_data.py` module that
 # powers the equation-of-center patch catalog. The hand-coded module
 # remains the working authority; this NDJSON is the attestation

@@ -1,6 +1,6 @@
 """Per-body J2000 Keplerian secular elements for the BIP roster.
 
-Phase 10a (v0.27.0a1) — closed-form labelled physics anchoring the
+Phase 10a (v0.28.0rc1) — closed-form labelled physics anchoring the
 equation-of-center catalog in :mod:`._research.eoc_catalog`.
 
 What this module is

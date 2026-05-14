@@ -209,16 +209,16 @@
       "size_bytes": 5357
     },
     "_research/attested/secular_elements/descriptor.toml": {
-      "sha256": "91ba5474fd336de434889e458aac6188d67ef9b17d75481c5c752d202ebb2202",
-      "size_bytes": 3530
+      "sha256": "7acc7d610e3cc7fa0e056a2556a9b714be4a6be2e23c9a07c3abfa686df16677",
+      "size_bytes": 3531
     },
     "_research/attested/secular_elements/row.ndjson": {
-      "sha256": "2adb401c5f8a77297e2188b9bf34fe8c290e7917eeddf227dd50254251761e26",
-      "size_bytes": 23392
+      "sha256": "0af1afa44c2a11175e1d6e957c023bfa8c37f29e827dbfdf963f1602be7f781b",
+      "size_bytes": 23393
     },
     "_research/attested/secular_elements/row.schema.json": {
-      "sha256": "9b6a555cf3c606ed7d7c0983caea8e1fdeb51a4f22b83c959f4dd301a5931857",
-      "size_bytes": 4846
+      "sha256": "88e6c28938d3eae9f581775b7f2f71edd0f23f140378af5c12f07f757832c44c",
+      "size_bytes": 4847
     },
     "_research/attested/sun_dynamical_spectrum/descriptor.toml": {
       "sha256": "8988232361e844222e88917c206d6c2f8bbbf6a1ada86c1cb77d63e1574c5360",
@@ -353,8 +353,8 @@
       "size_bytes": 28418
     },
     "_research/eoc_catalog.py": {
-      "sha256": "bea6a57441cf4e22d750025ccf6a8b6284e9c95d9f7fa76de40c06414f4d13c3",
-      "size_bytes": 10445
+      "sha256": "2d0be358417efb969ff4d60792dcf66f55f5cbc172b7ad353b8e95ceec236a9d",
+      "size_bytes": 10446
     },
     "_research/ephemeris_loader.py": {
       "sha256": "59cc22dd5162449cd8c753b95fc64ba0d69fad0288f3964e2bdc1845c553453f",
@@ -505,8 +505,8 @@
       "size_bytes": 16484
     },
     "_research/secular_elements_data.py": {
-      "sha256": "9c8e24a448022af4e7671f7c80c403401f2c458526189522f22ffc3edb33e213",
-      "size_bytes": 48345
+      "sha256": "2e28a361027fe37d3eed145eb99a404461b6c312be2ad4485004a22ed3b9e13c",
+      "size_bytes": 48346
     },
     "_research/sensor_access_catalog.py": {
       "sha256": "b98a8f0adaf9935b7400a9cbd7cb1a25e838f7ddc87f570b7a3bf136f3f921c8",
@@ -590,5 +590,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.27.0a1.dev1"
+  "version": "0.28.0rc1"
 }

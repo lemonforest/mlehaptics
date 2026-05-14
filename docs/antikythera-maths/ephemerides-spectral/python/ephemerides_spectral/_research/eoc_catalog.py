@@ -108,7 +108,7 @@ def build_eoc_patch(body: str) -> EccentricityCorrectionPatch:
         mean_anomaly_at_j2000_rad=row.mean_anomaly_at_j2000_rad(),
         n_rad_per_day=math.radians(row.n_deg_per_day),
         notes=(
-            f"Phase 10a (v0.27.0a1) closed-form Kepler EOC for {body}. "
+            f"Phase 10a (v0.28.0rc1) closed-form Kepler EOC for {body}. "
             f"Newton-iteration on E - e·sin(E) = M, half-angle true-"
             f"anomaly formula, J2000-anchored. e = {row.e:.6f}; "
             f"M₀ = {row.mean_anomaly_at_j2000_deg():.4f}°; "
