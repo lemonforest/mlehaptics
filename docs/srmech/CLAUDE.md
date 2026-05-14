@@ -468,9 +468,11 @@ For deeper context the user might reference in conversation:
 If you need to know what was true *as of this session's open*
 without the parent's persistent memory:
 
-- `srmech` is at **`0.2.0rc1` on TestPyPI** (Phase B7 final rc
-  before the production cut), with `v0.1.0` on production PyPI.
-  Earlier rc series: `0.1.1rc3` → `0.1.1rc9` on TestPyPI.
+- `srmech` is at **`0.2.0rc2` on TestPyPI** (Phase B7; rc2 adds
+  AMSC "Collector/Catalog" dual-name wording on top of rc1's
+  no-op version bump from `0.1.1rc9`). Production PyPI still at
+  `v0.1.0`. Earlier rc series: `0.1.1rc3` → `0.1.1rc9`,
+  `0.2.0rc1`, `0.2.0rc2`.
 - Task #201 phases B1–B6 + metadata-drift rc9 fix all shipped.
   See `python/CHANGELOG.md` for the per-rc record.
 - **Phase B7 status**: 0.2.0rc1 published to TestPyPI; cross-

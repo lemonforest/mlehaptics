@@ -32,6 +32,9 @@ The master architecture notebook for the eight-notebook spectral-research collec
 Three-layer architecture (the ephemerides-spectral §22 framing made cross-domain):
 
 1. **L1 — AMSC attestation envelope.** Provenance / SHA-256 / descriptor hash / per-mode attestation. Where each piece of data came from, when it was fetched, what the parse rules were.
+
+   *Naming aside.* **AMSC** reads two ways — both correct, same abbreviation. At T1 / T3 lifecycle stages (fetch / live query / re-bake), the framework's adapter classes are *collecting* attested rows from upstream archives, so the framework is the **Attested Multi-Source Collector**. After collection, when the resulting NDJSON SSOTs are committed to the package and downstream packages register their roots through the universal bridge, the same framework is also an **Attested Multi-Source Catalog** — a catalog of attested data, queryable through `list_attested_sources()` / `get_attested_dataset()` / `attestation_audit()`. One framework wearing two hats; pick whichever fits the lifecycle stage you're describing.
+
 2. **L2 — Heavy-store substrate.** The actual data: JPL ephemeris kernels, hand-coded catalogues, raster pixels, board states, gear ratios, fractal eigenvalue structures. Provides `state(...)` for every registered entity.
 3. **L3 — Spectral scaffold.** Graph-Laplacian eigenbasis + channel decomposition + kinematics layer (state → ψ) + dynamics dispatcher + HDC / cyclic-group binding + bridge surfaces. Independent of which heavy-store provided which entity's state.
 

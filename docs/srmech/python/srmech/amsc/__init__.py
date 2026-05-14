@@ -1,4 +1,12 @@
-"""Attested Multi-Source Collector (AMSC) framework.
+"""Attested Multi-Source Collector/Catalog (AMSC) framework.
+
+Both names work for AMSC — at *collection time* (T1/T3) the
+framework's adapter classes are *collecting* attested rows from
+upstream archives; at *read time* the resulting NDJSON SSOTs are a
+*catalog* of attested data that downstream packages register and
+query via the universal bridge. Same abbreviation either way;
+either reading is correct, pick whichever fits the lifecycle stage
+you're naming.
 
 The framework's modules and their public re-exports:
 
