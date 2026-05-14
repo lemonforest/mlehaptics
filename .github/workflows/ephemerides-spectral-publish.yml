@@ -77,23 +77,27 @@ jobs:
           # the three-way (Python ↔ native) parity holds at the
           # +/-1 yr / +/-20 yr / +/-100 yr ladder.
           CIBW_TEST_REQUIRES: "pytest skyfield jplephem"
-          # v0.26.1rc1: pre-install the srmech rc under verification
-          # from TestPyPI into each cibuildwheel test env BEFORE
-          # cibuildwheel installs the ephemerides-spectral wheel.
-          # Without this, the wheel's `srmech>=0.1.0` floor resolves
-          # from PyPI to srmech 0.1.0 and the matrix silently verifies
-          # against the wrong srmech. The Task #197 Phase 4 AMSC
-          # migration makes ephemerides-spectral import srmech.amsc.*
-          # at package-load time, so this matters at every cell.
-          # Update the rc-pin alongside the ephemerides-spectral rc
-          # version on each verification ship; revert (delete this
-          # CIBW_BEFORE_TEST) once srmech v0.2.0 lands on production
-          # PyPI and the pyproject.toml floor is bumped to >=0.2.0.
-          CIBW_BEFORE_TEST: >
-            pip install --no-cache-dir
-            --index-url https://test.pypi.org/simple/
-            --extra-index-url https://pypi.org/simple/
-            --pre "srmech==0.1.1rc9"
+          # v0.26.1rc1 verify-rc (Option B): pyproject.toml pins the
+          # runtime dep as `srmech>=0.1.1rc9` while the parallel srmech
+          # session iterates the rc series on TestPyPI ahead of the
+          # v0.2.0 production cut. Two pieces are required to make
+          # this resolve correctly in cibuildwheel test envs:
+          #
+          #   1. pyproject pins `srmech>=0.1.1rc9` — the rc-form
+          #      requirement spec auto-enables pip's pre-release
+          #      resolution per PEP 440 (no `--pre` flag needed).
+          #
+          #   2. CIBW_ENVIRONMENT exports PIP_EXTRA_INDEX_URL into the
+          #      cibuildwheel build + test envs so pip can SEE
+          #      srmech rc9 (TestPyPI only — production PyPI's latest
+          #      srmech is 0.1.0).
+          #
+          # Revert plan when srmech v0.2.0 lands on production PyPI:
+          # bump pyproject.toml + pyproject-pure.toml floors to
+          # `srmech>=0.2.0` and delete this CIBW_ENVIRONMENT block
+          # (the rc-form auto-pre-release behaviour also stops applying
+          # once the spec is a clean version range).
+          CIBW_ENVIRONMENT: PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple/
           CIBW_TEST_COMMAND: >
             pytest {package}/tests/test_native_parity.py
             {package}/tests/test_immolation.py

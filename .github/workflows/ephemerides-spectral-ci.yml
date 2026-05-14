@@ -110,21 +110,17 @@ jobs:
       - name: Install package + dev tools
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         shell: bash
+        env:
+          # v0.26.1rc1 verify-rc (Option B): pyproject.toml pins
+          # `srmech>=0.1.1rc9`. The rc-form spec auto-enables pip's
+          # pre-release resolution per PEP 440, but TestPyPI must be
+          # visible as an index so rc9 can be located (production
+          # PyPI's latest srmech is 0.1.0). Drop this env var when
+          # srmech v0.2.0 lands on production PyPI and the floor is
+          # bumped to `srmech>=0.2.0`.
+          PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
         run: |
           python -m pip install --upgrade pip
-          # v0.26.1rc1 verify-rc: pre-install the srmech rc under
-          # verification from TestPyPI BEFORE the editable
-          # ephemerides-spectral install. Without this, pip resolves
-          # `srmech>=0.1.0` to srmech 0.1.0 from production PyPI, which
-          # lacks `register_classifier` / `register_probes` (added in
-          # the rc-series for Task #197 Phase 3 wiring) → every test
-          # collection errors on _bootstrap_amsc() at conftest time.
-          # Remove this step when srmech v0.2.0 lands on production
-          # PyPI and the floor in pyproject.toml bumps to `>=0.2.0`.
-          python -m pip install --no-cache-dir \
-            --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple/ \
-            --pre "srmech==0.1.1rc9"
           python -m pip install -e ".[ephemeris,tests]"
           # tomllib is stdlib on 3.11+; codegen + version-agreement
           # tests use tomli on 3.10.
@@ -206,18 +202,15 @@ jobs:
         # back. We add the source tree to sys.path explicitly in the
         # smoke-test step.
         #
-        # v0.26.1rc1 verify-rc: srmech is also installed from TestPyPI
-        # (rc9) — _bootstrap_amsc() in ephemerides_spectral/__init__.py
-        # imports srmech.amsc.gap_suggester.register_classifier which
-        # was added in the rc-series and is absent from srmech 0.1.0
-        # on production PyPI. Remove the rc-pin install line when
-        # srmech v0.2.0 ships to PyPI.
+        # v0.26.1rc1 verify-rc (Option B): srmech rc9 lives on
+        # TestPyPI only; the rc-form spec in pyproject.toml plus
+        # PIP_EXTRA_INDEX_URL make pip pull it in alongside the other
+        # runtime deps from PyPI. Drop the env var when srmech v0.2.0
+        # ships to production PyPI.
+        env:
+          PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
         run: |
-          python -m pip install --upgrade pip pytest numpy skyfield jplephem
-          python -m pip install --no-cache-dir \
-            --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple/ \
-            --pre "srmech==0.1.1rc9"
+          python -m pip install --upgrade pip pytest numpy skyfield jplephem "srmech>=0.1.1rc9"
 
       - name: Verify HAS_NATIVE=False without a build
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
