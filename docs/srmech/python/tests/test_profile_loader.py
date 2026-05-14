@@ -388,3 +388,162 @@ def test_entry_point_unknown_type_rejected() -> None:
     )
     with pytest.raises(InvalidProfileError, match="int"):
         _resolve_entry_point_toml(fake_ep)  # type: ignore[arg-type]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.3.1rc2 — [profile.tool_schema].extension_file loading
+#
+# Profile.__init__ now resolves the declared extension_file inside the
+# package directory and registers every [[tools]] block with the
+# profile's name as the owner.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
+    """When a profile declares [profile.tool_schema].extension_file,
+    the loader reads the TOML at activation time and registers each
+    [[tools]] block into srmech.amsc.tool_schema with the profile's
+    name as the owner.
+
+    Synthesises a minimal package on disk with both descriptor +
+    extension file, then runs the loader.
+    """
+    import sys as _sys
+    import importlib
+    from srmech.amsc import tool_schema as ts
+    from srmech.profile_loader import Profile
+
+    # Build the fake package.
+    pkg_dir = tmp_path / "fake_ts_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+    (pkg_dir / "srmech_profile.toml").write_text(
+        'profile_schema_version = "1.0"\n'
+        '[profile]\n'
+        'name = "fakets"\nversion = "1.0.0"\n'
+        'summary = "fake ts profile"\npackage = "fake_ts_pkg"\n'
+        'srmech_requires = ">=0.3"\n'
+        '[profile.tool_schema]\n'
+        'extension_file = "tools.toml"\n',
+        encoding="utf-8",
+    )
+    (pkg_dir / "tools.toml").write_text(
+        '[[tools]]\n'
+        'name = "fakets.do_thing"\n'
+        'category = "test"\n'
+        'summary = "A test tool registered via extension file"\n',
+        encoding="utf-8",
+    )
+
+    _sys.path.insert(0, str(tmp_path))
+    try:
+        mod = importlib.import_module("fake_ts_pkg")
+        raw = {
+            "profile_schema_version": "1.0",
+            "profile": {
+                "name": "fakets",
+                "version": "1.0.0",
+                "summary": "fake ts profile",
+                "package": "fake_ts_pkg",
+                "srmech_requires": ">=0.3",
+                "tool_schema": {"extension_file": "tools.toml"},
+            },
+        }
+        p = Profile(
+            name="fakets",
+            version="1.0.0",
+            summary="fake ts profile",
+            package="fake_ts_pkg",
+            raw=raw,
+            source_hint="test",
+        )
+
+        view = ts.get_tool_schema()
+        fakets_tools = view.by_owner("fakets")
+        assert len(fakets_tools) == 1
+        assert fakets_tools[0].name == "fakets.do_thing"
+        assert fakets_tools[0].owner == "fakets"
+    finally:
+        # Always unregister so test ordering is stable.
+        from srmech.amsc.tool_schema import unregister_profile_tools
+        unregister_profile_tools("fakets")
+        _sys.path.remove(str(tmp_path))
+        _sys.modules.pop("fake_ts_pkg", None)
+
+
+def test_tool_schema_extension_missing_file_raises(tmp_path: Path) -> None:
+    """If [profile.tool_schema].extension_file points at a missing
+    file, activation raises InvalidProfileError immediately (fail
+    loud at boot per ADR-0001 §5.5)."""
+    import sys as _sys
+    import importlib
+    from srmech.profile_loader import Profile
+
+    pkg_dir = tmp_path / "fake_missing_ts_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+
+    _sys.path.insert(0, str(tmp_path))
+    try:
+        importlib.import_module("fake_missing_ts_pkg")
+        raw = {
+            "profile_schema_version": "1.0",
+            "profile": {
+                "name": "fakemiss",
+                "version": "1.0.0",
+                "summary": "",
+                "package": "fake_missing_ts_pkg",
+                "srmech_requires": ">=0.3",
+                "tool_schema": {"extension_file": "nonexistent.toml"},
+            },
+        }
+        with pytest.raises(InvalidProfileError, match="nonexistent.toml"):
+            Profile(
+                name="fakemiss",
+                version="1.0.0",
+                summary="",
+                package="fake_missing_ts_pkg",
+                raw=raw,
+                source_hint="test",
+            )
+    finally:
+        _sys.path.remove(str(tmp_path))
+        _sys.modules.pop("fake_missing_ts_pkg", None)
+
+
+def test_tool_schema_extension_block_optional(tmp_path: Path) -> None:
+    """Profiles without a [profile.tool_schema] block activate
+    cleanly (no-op path)."""
+    import sys as _sys
+    import importlib
+    from srmech.profile_loader import Profile
+
+    pkg_dir = tmp_path / "fake_no_ts_pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("")
+
+    _sys.path.insert(0, str(tmp_path))
+    try:
+        importlib.import_module("fake_no_ts_pkg")
+        raw = {
+            "profile_schema_version": "1.0",
+            "profile": {
+                "name": "fakenots",
+                "version": "1.0.0",
+                "summary": "",
+                "package": "fake_no_ts_pkg",
+                "srmech_requires": ">=0.3",
+            },
+        }
+        # Should not raise:
+        Profile(
+            name="fakenots",
+            version="1.0.0",
+            summary="",
+            package="fake_no_ts_pkg",
+            raw=raw,
+            source_hint="test",
+        )
+    finally:
+        _sys.path.remove(str(tmp_path))
+        _sys.modules.pop("fake_no_ts_pkg", None)

@@ -4,6 +4,51 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.1rc2] - 2026-05-14
+
+### Fixed — `[profile.tool_schema]` extension file loading
+
+Second issue surfaced by the chess-spectral simple-profile POC (Task #211).
+v0.3.0–v0.3.1rc1: the profile loader's `_validate_descriptor` accepted
+`[profile.tool_schema]` blocks at parse time, but `Profile.__init__`
+never actually loaded the referenced extension TOML at activation
+time. Profiles declaring tool-schema extensions activated cleanly but
+contributed zero `ToolEntry` records to `srmech.amsc.tool_schema`.
+
+Repro (v0.3.1rc1 against chess-spectral 1.19.0):
+
+```python
+>>> import srmech
+>>> p = srmech.profile("chess")  # activates cleanly
+>>> from srmech.amsc.tool_schema import get_tool_schema
+>>> get_tool_schema().by_owner("chess")
+[]   # ← should have been 8 entries from chess-spectral's
+     # _srmech_tool_schema.toml
+```
+
+Fix in `Profile.__init__`: new `_load_tool_schema_extension()` step.
+After bridge resolution + catalog registration + native plugin
+loading, if `[profile.tool_schema].extension_file` is declared, the
+loader resolves it inside the package directory and registers every
+`[[tools]]` block via `srmech.amsc.tool_schema.register_profile_tools()`
+with `owner = profile.name`.
+
+Verified against chess-spectral's 8-tool extension file
+(`_srmech_tool_schema.toml`):
+
+```
+chess tools registered: 8
+ - chess.encode_2d : Spectral 2D chess encoder...
+ - chess.encode_4d : Spectral 4D chess encoder...
+ - chess.fen_to_pos : Parse a FEN string into the 2D position dict...
+ ...
+```
+
+Backward-compatible: profiles without a `[profile.tool_schema]` block
+take the no-op path. Profiles with malformed extension files raise
+`InvalidProfileError` at activation time, before any bridge surface
+is bound — fail-loud-at-boot per ADR-0001 §5.5.
+
 ## [0.3.1rc1] - 2026-05-14
 
 ### Fixed — entry-point Form-1 (package-only) support for profile loader
