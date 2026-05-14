@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.28.0rc2] — 2026-05-14
+## [0.28.0rc3] — 2026-05-14
+
+The rc2 git tag (`ephemerides-spectral-v0.28.0rc2`) was pushed but
+the publish workflow failed at the cibuildwheel Linux matrix step
+and never reached TestPyPI. rc3 absorbs the full rc2 content plus
+the `es_laplacian.c` drift fix described below.
 
 ### Added — Task `#212` PR-b: srmech `[profile.native]` plugin-tier declaration
 
@@ -49,8 +54,42 @@ library; native acceleration is restored across the install base.
 
 ABI history comment block extended (`v7` = v0.15.0 Sol Moon Times
 roster completion; `v8` = v0.16.0 Tier-1 BODIES expansion). The
-v0.28.0rc2 realignment is a Python-side catch-up only; the C side
+v0.28.0rc3 realignment is a Python-side catch-up only; the C side
 has been at v8 since v0.16.0.
+
+### Fixed (rc3 only) — native parity drift unmasked by the v6→v8 realignment
+
+Flipping `HAS_NATIVE` from False to True for the first time since
+v0.16.0 (above) caused `test_native_parity` to actually run on the
+cibuildwheel Linux matrix. It failed: native and Python BIP phases
+diverged on 15 bodies at every Δt — calypso, deimos, dione,
+enceladus, helene, hyperion, iapetus, mimas, phobos, phoebe,
+polydeuces, rhea, telesto, tethys, titan — exactly the Mars +
+Saturnian moons that depend on the `mar099s` + `sat441` JPL
+auxiliary kernels.
+
+Root cause: `c/src/es_laplacian.c` and
+`python/.../_data/initial_phases.json` were last regenerated under
+DIFFERENT auxiliary-kernel availability. `es_laplacian.c` was
+emitted at a session when those kernels WERE staged on the dev box;
+the JSON was rebuilt later when they were NOT. The stub-period
+fallback path produces different phase residues than the full-kernel
+calibration path. Native-parity silently held while `HAS_NATIVE` was
+False; surfaced loudly once the realignment unblocked the test.
+
+Fix (rc3): re-ran `python c/codegen/emit_c_tables.py` with the
+current dev-box kernel state (still missing `mar099s` + `sat441` —
+JPL FTP returns 404 for both, archived in the codegen DEBUG log).
+The codegen falls back to the parent-body period stub for the 15
+affected moons. Result: C side now produces the SAME stub-fallback
+phases the JSON does. `Bodies disagreeing: 0` after the regen.
+
+This aligns the two sides but does NOT restore real-truth ephemeris
+calibration for Mars + Saturnian moons; both sides now consistently
+use the parent-period stub. Restoring real-truth calibration
+requires mirroring `mar099s` + `sat441` (~1.5 GB combined) into the
+dev box build environment AND into the cibuildwheel CI matrix.
+Deferred to a separate ship; out of scope for Task `#212`.
 
 ### Smoke + ratchets
 
@@ -84,11 +123,15 @@ loader fixes the chess-spectral POC surfaced).
 
 ### Versioning
 
-`0.28.0rc1` → `0.28.0rc2`. Cumulative per the rc-stacking discipline
-(`memory/feedback_rc_stacking_versioning.md`): rc2 carries forward
-the Phase 10a EOC catalog from rc1 and adds Task `#212` PR-b on top.
-The clean `v0.28.0` to production PyPI will ship the accumulated stack
-(rc1 EOC + rc2 plugin tier + rc3 PR-c + rc4 EOC C-side completion).
+`0.28.0rc1` → `0.28.0rc3`. (rc2 was a failed-publish tag — pushed
+to GitHub but the cibuildwheel Linux matrix failed before TestPyPI
+upload. rc3 absorbs rc2's full content + the `es_laplacian.c`
+drift fix.) Cumulative per the rc-stacking discipline
+(`memory/feedback_rc_stacking_versioning.md`): rc3 carries forward
+the Phase 10a EOC catalog from rc1 and adds Task `#212` PR-b on
+top. The clean `v0.28.0` to production PyPI will ship the
+accumulated stack (rc1 EOC + rc3 plugin tier + native-parity fix +
+forthcoming rc4 PR-c + rc5 EOC C-side completion).
 
 ### No ABI bump
 
