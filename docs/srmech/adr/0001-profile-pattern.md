@@ -1,0 +1,554 @@
+# ADR-0001: The srmech profile pattern — domain-specific extension as configuration
+
+**Status:** Draft (Task #199 design phase; not yet implemented).
+**Date:** 2026-05-14.
+**Authors:** Steven Kirkland + Claude Opus 4.7.
+**Supersedes:** none.
+**Superseded-by:** none.
+
+---
+
+## 1. Context
+
+`srmech` v0.2.0 ships the **Attested Multi-Source Collector/Catalog (AMSC) framework** as a domain-agnostic substrate: the MPR v1 attestation format, NDJSON streaming I/O, descriptor TOML loader, six adapter classes (html / json / csv / netcdf / geotiff / literature), a universal catalog bridge with `register_attested_root()` cross-package overlay, and native-C dispatch for the hot paths (SHA-256, NDJSON line tokenisation).
+
+Sister packages in the spectral-research portfolio currently consume srmech as a runtime dependency while shipping their own domain APIs:
+
+- **`ephemerides-spectral`** — Sol star system. 52-body resonance graph, 19 attested catalogs, 11 cross-channel coupling surfaces, native BIP HDC encoder (`libephemerides_spectral`), bridge surfaces (`get_em_state`, `list_em_couplings`, `predict_itn_accessibility`, etc.).
+- **`chess-spectral`** — chess piece-graph spectra, D₄/B₄ irrep decomposition, `qm_*.py` kinematics/dynamics modules, channel-decomposition framework.
+- **`antikythera-spectral`** — bronze gear-DAG, cyclic-group algebra, Almagest/Freeth parameter sets.
+
+Task #199 names these three as candidates for collapse "into srmech configs, not separate packages." That collapse, naively executed, would:
+
+1. **Reduce maintenance overhead** — one publish workflow, one cibuildwheel matrix, one version cadence across the portfolio.
+2. **Centralise the substrate** — research code shares the AMSC framework + native-dispatch infrastructure naturally.
+3. **Lose modularity** — users wanting only `chess-spectral` would now pull the whole portfolio.
+4. **Lose the third-party publishing story** — a researcher in some unrelated discipline (audio, biology, etc.) who wants to build on srmech's MPM substrate would have no template; they'd either fork srmech or paper over with their own version of `register_attested_root`.
+
+The naive collapse is the wrong target. The **right target** is a *profile pattern* that:
+
+- Lets srmech remain a publishable substrate that **anyone** can build on.
+- Lets each domain's code stay coherent under its own name and version.
+- Allows the domain code to be distributed either **inside** the mlehaptics monorepo (as srmech learns about it natively) or **outside** as a third-party PyPI package.
+- Handles both **simple profiles** (catalogs + Python bridge functions) and **plugin profiles** (catalogs + Python bridge + a domain-specific native library that srmech loads dynamically).
+
+This ADR specifies that pattern.
+
+## 2. Decision
+
+srmech v0.3.0 will introduce a **profile** concept: a unit of domain-specific extension that consists of:
+
+1. A declarative TOML manifest (`srmech_profile.toml`) describing the profile's identity, catalogs, bridge surfaces, and (optionally) native library.
+2. A Python entry-point registration (`[project.entry-points."srmech.profiles"]` in the consuming package's `pyproject.toml`) so srmech can discover profiles via `importlib.metadata.entry_points()`.
+3. Optionally, a domain-specific native library loaded as a **plugin** through srmech's ctypes infrastructure when the profile declares one.
+
+A srmech installation at runtime can:
+
+- Enumerate registered profiles (`srmech.list_profiles()`).
+- Activate a specific profile (`srmech.profile("ephemerides")`), which:
+  - Registers the profile's catalog SSOTs via the existing `register_attested_root()` API.
+  - Optionally loads the profile's native plugin library and binds the declared symbols.
+  - Returns a `Profile` object exposing the profile's bridge surfaces as attributes.
+- Compose multiple active profiles in the same process (e.g. cross-domain experiments that need both `chess` and `ephemerides` substrates loaded).
+
+Profiles can be:
+
+- **In-tree**: ship inside srmech itself under `srmech/profiles/<name>/`. Their `srmech_profile.toml` is data, not metadata; they auto-register at srmech import time.
+- **Out-of-tree, monorepo**: a sibling package under `docs/*-maths/` declares its profile and entry-point. Discoverable by srmech via the standard entry-point mechanism.
+- **Out-of-tree, third-party**: someone in another discipline publishes a Python package that depends on srmech, declares a `srmech_profile.toml` + entry-point, and ships it to PyPI. `pip install their-package` makes their profile visible to any srmech installation.
+
+The third-party publishing story is **first-class**, not a happy accident. Test that constraint at every design step.
+
+## 3. The profile descriptor schema
+
+Each profile ships a `srmech_profile.toml` at a discoverable location (specified by the entry-point — see §4). Schema:
+
+```toml
+# ─────────────────────────────────────────────────────────────────
+# Required: schema version (escape hatch for future migration)
+# ─────────────────────────────────────────────────────────────────
+profile_schema_version = "1.0"
+
+# ─────────────────────────────────────────────────────────────────
+# Required: identity
+# ─────────────────────────────────────────────────────────────────
+[profile]
+name = "ephemerides"                            # profile registry key
+version = "0.27.0"                              # MANDATORY profile version (see §5.5)
+summary = "Sol star system spectral instrument"  # one-line description
+package = "ephemerides_spectral"                # owning Python package
+home = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/ephemerides-spectral"
+
+# srmech version range this profile is compatible with.
+# Mirrors `requires-python` semantics. srmech checks at load time.
+srmech_requires = ">=0.3,<0.4"
+
+# Profile version is the cache key for the smoke-test result
+# (see §5.5 — Loader discipline). Bumping `version` invalidates
+# the cached smoke-test pass and forces re-run on next load.
+# Plugin authors MUST bump `version` whenever ANY of the following
+# change in a way that affects observable behaviour:
+#   - native library binary content
+#   - declared symbol signatures
+#   - tool_schema declarations
+#   - CLI command declarations
+#   - bridge-surface return shapes
+# Patch / minor / major distinctions follow semver inside the
+# profile's own version namespace, independent of srmech's
+# version.
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: catalog SSOTs the profile registers
+# ─────────────────────────────────────────────────────────────────
+[profile.catalogs]
+# Relative to the profile's owning package install root. srmech
+# resolves via importlib.resources.files(package).joinpath(path).
+attested_root = "_research/attested"
+
+# Optional source-label override; defaults to profile name.
+source = "ephemerides-spectral"
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: bridge surfaces (Python functions surfaced via the
+# Profile object as `srmech.profile("name").FUNCTION_NAME(...)`)
+# ─────────────────────────────────────────────────────────────────
+[profile.bridge]
+get_em_state         = "ephemerides_spectral.bridge:get_em_state"
+list_em_couplings    = "ephemerides_spectral.bridge:list_em_couplings"
+predict_itn_accessibility = "ephemerides_spectral.bridge:predict_itn_accessibility"
+# ... etc; one entry per surface, value is `module:function`
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: native plugin library (the "plugin tier")
+# Only present when the profile ships a domain-specific
+# .so/.dll/.dylib that srmech should load + bind via ctypes.
+# ─────────────────────────────────────────────────────────────────
+[profile.native]
+# Library name pattern (srmech expands to platform-specific filename).
+# Example: "ephemerides_spectral" → libephemerides_spectral.so on Linux,
+# libephemerides_spectral.dylib on macOS, ephemerides_spectral.dll on Windows.
+library = "ephemerides_spectral"
+
+# Install location relative to the owning package, mirroring srmech's
+# own _native/ convention. Discovered via importlib.metadata.files().
+install_path = "_native"
+
+# Symbols the plugin exports + their ctypes signatures.
+# srmech binds these at profile activation time.
+[profile.native.symbols.es_encode_state]
+argtypes = ["c_double", "POINTER(c_uint32)"]
+restype  = "c_int"
+
+[profile.native.symbols.es_find_syzygies]
+argtypes = ["c_double", "c_double", "POINTER(es_syzygy_t)", "size_t"]
+restype  = "c_size_t"
+# ...
+
+# ABI version contract — srmech checks at plugin load time.
+abi_version_function = "es_abi_version"
+expected_abi_version = 6
+
+# Custom ctypes structs the plugin requires (mirrored from C headers).
+[[profile.native.structs]]
+name   = "es_syzygy_t"
+fields = [
+  { name = "body_a",    type = "c_uint8" },
+  { name = "body_b",    type = "c_uint8" },
+  { name = "jd_tdb",    type = "c_double" },
+  { name = "kind",      type = "c_int" },
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: tool_schema extension declarations
+#
+# When Task #198 (srmech.amsc.tool_schema) lands, profiles can
+# extend srmech's introspection surface with their own
+# function-level schema entries. The format mirrors whatever
+# tool_schema's own definition file uses (TBD by Task #198).
+#
+# srmech enumerates profile tool_schema extensions at load time
+# (§5.5) and merges them into the global tool_schema view that
+# `srmech --tool-schema` (and any LLM consumer) sees.
+# ─────────────────────────────────────────────────────────────────
+[profile.tool_schema]
+# Path within the package, resolved via importlib.resources.
+extension_file = "tool_schema_extensions.toml"
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: CLI command extensions
+#
+# Plugin-declared subcommands that join srmech's CLI help menu.
+# Each entry adds a `srmech <profile> <command>` invocation path
+# (or some equivalent — exact CLI shape TBD by Task #198's CLI
+# extension design).
+# ─────────────────────────────────────────────────────────────────
+[profile.cli]
+[profile.cli.commands.encode-state]
+help     = "Compute the BIP HDC encoded state for a given delta_t (days)"
+entry    = "ephemerides_spectral.cli:encode_state"
+joins_help_menu = true   # shows under `srmech --help`
+
+[profile.cli.commands.find-syzygies]
+help     = "Find Sun/Earth/Moon syzygies in a time window"
+entry    = "ephemerides_spectral.cli:find_syzygies"
+joins_help_menu = true
+
+# ─────────────────────────────────────────────────────────────────
+# Optional: smoke-test declaration
+#
+# Plugin authors can declare an explicit smoke test, OR rely on
+# srmech to AUTO-DERIVE one from the [profile.tool_schema]
+# extension + the [profile.cli] declarations (the common case).
+#
+# Run once per profile.version change; cached at
+# ~/.cache/srmech/profile_smoke_tests/<name>-<version>.toml.
+# Cache hit → skipped on subsequent loads. Cache miss → run,
+# write result. Any failure → profile not activated; the error
+# is surfaced explicitly with the failing assertion.
+# ─────────────────────────────────────────────────────────────────
+[profile.smoke_test]
+# Default: auto-derive from tool_schema + cli declarations.
+# Set to "explicit" to override with hand-written assertions.
+mode = "auto"   # or "explicit"
+
+# Optional override: per-symbol minimal-input synthesis hints.
+# (e.g. "for this function, use this bytes value as the input").
+[profile.smoke_test.input_hints]
+es_encode_state = { delta_t_days = 1.0 }
+es_find_syzygies = { jd_start = 2451545.0, jd_end = 2451555.0, max_hits = 10 }
+
+# ─────────────────────────────────────────────────────────────────
+# RESERVED (not implemented in v0.3.0): interpreted-runtime plugins
+#
+# See §5.6 for the future-tier design. The namespace is reserved in
+# v1.0 of srmech_profile.toml so adding Julia / R / Lua / subprocess
+# adapters later doesn't break the schema. The v0.3.0 loader IGNORES
+# this block if present (with a warning); a future srmech version
+# binds the adapter and activates it.
+# ─────────────────────────────────────────────────────────────────
+# [profile.interpreted]
+# runtime = "julia"
+# script = "main.jl"
+```
+
+The `[profile.native]`, `[profile.tool_schema]`, `[profile.cli]`, and `[profile.smoke_test]` blocks are all **optional**. Profiles without `[profile.native]` are *simple profiles* (Python + data only). Profiles with it are *plugin profiles* (Python + data + a domain-specific .so/.dll/.dylib). Tool-schema, CLI, and smoke-test extensions are independent — a simple profile can declare them too.
+
+## 4. Discovery mechanism
+
+A profile is discoverable to srmech when its owning Python package declares:
+
+```toml
+# In the consuming package's pyproject.toml:
+[project.entry-points."srmech.profiles"]
+ephemerides = "ephemerides_spectral:srmech_profile_toml_path"
+```
+
+Where `srmech_profile_toml_path` is a module-level constant pointing at the TOML file's path relative to the package root (typically via `importlib.resources.files(__package__) / "srmech_profile.toml"`).
+
+At srmech import time (or on first `srmech.list_profiles()` call — open question, see §10), srmech enumerates `importlib.metadata.entry_points(group="srmech.profiles")` to discover all installed profiles. The TOML is **lazily** parsed; the catalog registration + native-library load only fire when the profile is **activated** via `srmech.profile(name)`.
+
+In-tree profiles (under `srmech/profiles/<name>/`) get auto-registered at srmech import time. They use the same TOML schema but don't need a separate `[project.entry-points]` declaration — srmech walks its own `profiles/` directory.
+
+## 5. The two tiers
+
+### Simple profile tier
+
+Catalogs + Python bridge surfaces; no native code beyond srmech's own. `chess-spectral` is the canonical example. Activation cost: register the catalog root + bind the Python functions. **No ctypes, no .so loading**, no plugin-side ABI version check.
+
+Suitable for any domain whose hot paths are either already covered by srmech's own native dispatch (SHA-256, NDJSON I/O) or aren't hot enough to need C.
+
+### Plugin profile tier
+
+Simple profile **plus** a domain-specific shared library that srmech loads via ctypes and binds against the symbols declared in `[profile.native.symbols]`. `ephemerides-spectral` is the canonical example (libephemerides_spectral with BIP HDC encoder, Fiedler partition, syzygy finder, etc.).
+
+Plugin profiles take a stricter contract:
+
+- **ABI version handshake.** The plugin must export a no-argument `int abi_version(void)` function. srmech compares the return value to `expected_abi_version`; mismatch → plugin not loaded, simple-profile path runs.
+- **JPL discipline at the plugin boundary.** Plugins SHOULD follow srmech's own JPL Power-of-Ten audit pattern (bounded loops, no malloc-after-init, ≥2 asserts per function, ≤60-line functions, etc.). srmech does NOT enforce this; the plugin's maintainer does.
+- **Single-thread contract per plugin.** srmech's own `srmech_ndjson_iter` uses a static line-assembly buffer; plugins that use similar static state must declare it. srmech does NOT thread-coordinate plugin calls; the calling code is responsible.
+- **Library packaging.** Plugin libraries ship inside the plugin's own Python wheel, under the package's `_native/` directory (mirroring srmech's own convention). cibuildwheel matrix on the plugin side produces per-platform wheels. srmech doesn't redistribute plugin binaries; each plugin owns its own publish flow.
+
+The plugin tier is what lets `ephemerides-spectral` keep its native BIP encoder + its own cibuildwheel matrix while still being a profile under srmech. ephemerides-spectral the *package* doesn't disappear; it becomes a srmech profile + plugin that ships its own wheels.
+
+## 5.5. Loader discipline — JPL Power-of-Ten applied to the phase boundary
+
+The profile loader is a new phase boundary in srmech's runtime. It runs **Python code** (not C), but it interacts with foreign-installed plugin binaries via ctypes and depends on declarations supplied by third-party authors. That combination — boundary + foreign data + foreign code — is exactly the surface where srmech's existing JPL discipline (`c/JPL_AUDIT.md`) was designed to harden the C side. **The same discipline applies to the loader.**
+
+### Discovery: eager, fully enumerated, at first program load
+
+srmech walks `importlib.metadata.entry_points(group="srmech.profiles")` **once**, at first srmech import, and enumerates every declared profile. No lazy-deferred discovery; no mid-execution re-scan. The enumeration result is cached on the `srmech` module for the rest of the process lifetime.
+
+Rationale: JPL Rule 2 ("all loops have fixed bounds") at the Python level. A program that knows its full plugin roster at startup can refuse to run if anything's wrong; a program that discovers plugins lazily can paper over a bad declaration until the bad declaration is hit at minute 47 of a long-running job. **Fail loud at boot, not silent in production.**
+
+This supersedes the §10 "lazy discovery" default proposal in the draft. Lock as eager.
+
+### Boundary type checking
+
+At enumeration time, srmech validates every profile against the `srmech_profile.toml` JSON Schema (the §3 strawman, rendered as a formal validator). Schema violations → that profile is marked invalid, its declarations don't enter the global tool_schema view, calling `srmech.profile("name")` for it raises `InvalidProfileError` with the schema diagnostic. The profile is enumerated but not *active*.
+
+For plugin profiles, ABI handshake + symbol-signature checks (`argtypes` / `restype` declared in `[profile.native.symbols]`) happen at activation time and use the same fail-loud policy: signature mismatch → activation refused, error names the conflicting symbol.
+
+### Smoke-test: once per profile.version change, cached, mandatory
+
+Every profile (simple or plugin) has a smoke test associated with it. The test is either:
+
+- **Auto-derived** (default) from the profile's `[profile.tool_schema]` + `[profile.cli]` declarations. Each declared function gets a minimal-input synthesis (driven by `[profile.smoke_test.input_hints]` when the schema can't infer plausible inputs) + a return-shape check against what tool_schema declares the function should return. Plugin profiles additionally exercise each bound ctypes symbol with a sentinel input to confirm the .so loads + executes without crashing.
+
+- **Explicit** (override) — when `mode = "explicit"` in `[profile.smoke_test]`, the profile ships a small Python test file under its package, srmech imports + runs it via a stripped-down pytest invocation, captures the result.
+
+The smoke-test result is cached at `~/.cache/srmech/profile_smoke_tests/<profile_name>-<profile.version>.toml` with content like:
+
+```toml
+[smoke_test]
+profile = "ephemerides"
+profile_version = "0.27.0"
+srmech_version = "0.3.0"
+ran_at = "2026-06-01T14:23:47Z"
+status = "passed"
+duration_ms = 142
+n_assertions = 23
+```
+
+On subsequent srmech imports:
+1. If the profile's `version` field in `srmech_profile.toml` matches the cached `profile_version`: smoke-test **skipped** (cache hit; cold-start cost ~0).
+2. If `version` differs (plugin was upgraded), or no cache entry exists: smoke-test **re-runs**. Pass → cache updated; profile activates normally. Fail → cache records the failure; profile enumerated but not active; calling code that requests the profile gets `SmokeTestFailedError` with the failing assertion + the cache file path.
+3. If the cache file is malformed or unreadable: treated as a cache miss; re-run.
+
+This is why `profile.version` is mandatory and why §3 enumerates the conditions under which it MUST be bumped — the cache is correct only if authors bump version honestly. Cache invalidation by version bump is the simplest correctness story; we are not building cache-key derivation from file hashes (which would re-introduce filesystem I/O cost we just avoided).
+
+### Bounded resource use at the loader
+
+JPL Rule 3 analog ("no dynamic allocation after init") for the Python side:
+
+- Loader allocates its per-profile data structures (declaration objects, ctypes function pointer cache, tool_schema view) **once**, at enumeration time, and reuses them for the process lifetime.
+- No reflection-driven attribute lookup in the hot path — bridge surfaces are resolved to bound function references at activation, then called directly.
+- No `eval` / `exec` against profile-author-supplied strings; entry-point names are `pkg.mod:attr` strings consumed by `importlib.import_module()` + `getattr()`, which is bounded and safe.
+
+### Tool-schema view assembly is also eager
+
+When Task #198's tool_schema lands, srmech's introspection surface (`srmech --tool-schema`, programmatic API, LLM-introspection endpoint) returns a **merged view** of srmech's own schema plus every active profile's `[profile.tool_schema]` extension. The merge happens once at enumeration time, after smoke-test cache resolution. An LLM consumer asking "what can srmech do?" gets one coherent answer, with each function tagged by the profile that contributed it.
+
+CLI help integration is the same shape: `srmech --help` lists the base srmech commands first, then each active profile's commands grouped under its profile name. Plugins extending the help menu is mechanical, not policy-laden.
+
+### Loader-side JPL ratchet test
+
+Mirroring `tests/test_jpl_audit.py` for srmech's C, srmech v0.3.0 ships a `tests/test_loader_discipline.py` that ratchets:
+
+- No unbounded loops in the loader (no `while True`; bounded iteration count for all enumeration passes).
+- No `eval` / `exec` in the loader path.
+- All profile-supplied strings consumed via `importlib`-family safe APIs.
+- Smoke-test cache file format is validated by JSON Schema at read time.
+
+This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. PRs that introduce a regression fail CI.
+
+## 5.6. Interpreted-runtime plugins (future tier; reserved in v0.3.0 schema, not implemented)
+
+The plugin tier specified in §5 binds via **ctypes** — it assumes the plugin author shipped a compiled C / Rust / Zig / Fortran shared library. That's the right design for the highest-performance case (ephemerides-spectral's BIP HDC encoder, syzygy finder, etc.) and for languages with mature C ABIs.
+
+But not every domain author works in a compiled language. A researcher whose tooling is in **Julia**, **R**, **Lua**, or just a heavier Python module than fits comfortably in `[profile.bridge]` will want a different invocation path. **The architecture should accommodate them**, even though v0.3.0 doesn't ship the support — the §3 schema reserves `[profile.interpreted]` as a top-level optional block so adding it later isn't a breaking change.
+
+Sketch (deliberately rough; locked by a follow-up ADR):
+
+```toml
+[profile.interpreted]
+runtime = "julia"          # or "r", "lua", "subprocess", "python_module"
+script = "main.jl"         # entry point, relative to profile package
+
+[profile.interpreted.julia]
+juliacall_min_version = "0.10"
+required_packages = ["LinearAlgebra", "DataFrames"]
+```
+
+Three runtime-adapter shapes worth distinguishing:
+
+1. **In-process language runtime** — Julia (via `juliacall`), R (via `rpy2`), Lua (via `lupa`). Marshaling overhead higher than ctypes but functions feel native to the host process. srmech ships an optional adapter per runtime; `pip install srmech[julia]` pulls juliacall + the adapter module. Each runtime requires a discrete small adapter; adding one is a ship, not a flag flip.
+2. **Subprocess plugin** — language-agnostic, the most general fallback. Plugin declares a command, srmech spawns it, marshals input / output as NDJSON over stdin / stdout (fits the project's existing discipline — same wire format as the AMSC catalogs). Slower than in-process but supports anything: MATLAB, Mathematica, Haskell, COBOL, hand-written Forth.
+3. **Heavyweight pure-Python module** — already covered by the simple-profile tier; the question is just whether to formalise a separate declaration style for plugins that ARE pure Python but big enough to want their own package. Verdict: no separate tier needed; just a fat simple profile.
+
+What stays identical across all interpreted runtimes:
+
+- `profile.version` still mandatory, still the smoke-test cache key.
+- `[profile.tool_schema]` / `[profile.cli]` / `[profile.smoke_test]` sections work the same way.
+- Loader discipline (§5.5) extends naturally: eager enumeration, type-check at the boundary, smoke-test cache invalidated by profile-version bump.
+- Bridge surfaces declared the same way (`function_name = "module_or_namespace:callable"`) — what differs is how srmech resolves the right-hand side.
+
+What changes per runtime:
+
+- **Boundary validation** — Julia function-signature check via juliacall introspection; R via `formals()`; Lua via `debug.getinfo`; subprocess via the declared tool_schema only (no runtime introspection available).
+- **Marshaling layer** — distinct adapter per runtime, handles conversion to / from the runtime's native types. Each adapter is a discrete module under `srmech.runtimes.<name>` and a discrete optional extra.
+- **Runtime availability check** — at smoke-test time. Julia binary on PATH? R installed? lua interpreter present? Missing runtime → smoke-test records "runtime unavailable" not "profile broken"; profile is enumerated but inactive; clear error when called.
+
+**Why this isn't in v0.3.0:** locking a marshaling schema for any of these runtimes before we've validated the basic profile pattern in practice is premature optimisation. The §3 schema reserves the `[profile.interpreted]` namespace so a future ADR (call it ADR-0002 or whatever lands first) can fill it in without breaking v1.0 of `srmech_profile.toml`. Concrete trigger for that follow-up ADR: someone in the spectral-research portfolio (or third-party) shows up with a real Julia / R / non-C workload they want to package as a srmech profile.
+
+## 6. Third-party publishing story (worked example)
+
+Suppose a researcher building an audio-spectral domain wants to consume srmech's MPM substrate. Their package layout:
+
+```
+audio-spectral/
+├── pyproject.toml
+├── srmech_profile.toml
+├── audio_spectral/
+│   ├── __init__.py        # exposes the path to the TOML
+│   ├── bridge.py          # domain functions
+│   ├── _research/
+│   │   └── attested/      # NDJSON catalogs (HRTF, ITU-R BS.1770, ...)
+│   └── _native/           # (optional, plugin tier)
+│       └── libaudio_spectral.so
+```
+
+`pyproject.toml`:
+
+```toml
+[project]
+name = "audio-spectral"
+dependencies = ["srmech>=0.3"]
+
+[project.entry-points."srmech.profiles"]
+audio = "audio_spectral:SRMECH_PROFILE_TOML"
+```
+
+`audio_spectral/__init__.py`:
+
+```python
+from importlib.resources import files
+SRMECH_PROFILE_TOML = files(__package__) / "srmech_profile.toml"
+```
+
+After `pip install audio-spectral`:
+
+```python
+import srmech
+audio = srmech.profile("audio")          # activates → registers catalogs + (if plugin) loads .so
+spectrum = audio.compute_hrtf_spectrum(...)  # bridge surface declared in srmech_profile.toml
+```
+
+The audio-spectral researcher never edits anything in srmech's own repo. They never need to be part of the mlehaptics monorepo. They publish their package independently to PyPI. Their profile is fully equal-citizen with ephemerides-spectral inside any srmech installation that has it pip-installed.
+
+This is the third-party-publishable property. The ADR locks it in as a primary requirement, not a secondary nice-to-have.
+
+## 7. Migration plan for existing portfolio packages
+
+### Step 1 — chess-spectral as the simple-profile POC (validates §5 simple tier)
+
+`chess-spectral` is the smallest of the three named in Task #199 and is structurally simpler (smaller native library footprint; fewer cross-channel surfaces). Migration:
+
+1. Add `srmech_profile.toml` at the chess-spectral repo root (or under the package; placement TBD).
+2. Add the `[project.entry-points."srmech.profiles"]` declaration to `chess-spectral`'s pyproject.toml.
+3. chess-spectral's existing bridge.* functions stay; users can either keep `from chess_spectral import bridge` OR use `srmech.profile("chess")` — both work, both call the same underlying functions.
+4. Ship chess-spectral X.Y.Z with the profile declaration; verify on TestPyPI; cut to PyPI.
+5. Lessons learned go back into the ADR + the §3 schema if needed.
+
+**Outcome:** The simple-profile tier is validated. No native-library complications. If something in the ADR turns out to need revision, it's caught here cheaply.
+
+### Step 2 — ephemerides-spectral as the plugin-profile POC (validates §5 plugin tier)
+
+Only after Step 1 is solid. Applies the schema to ephemerides-spectral's native library (libephemerides_spectral with BIP encoder, syzygy finder, etc.). Multi-PR:
+
+1. PR-a: declare the simple-profile portion (catalogs + Python bridge). Verify that part works in isolation.
+2. PR-b: declare `[profile.native]` for libephemerides_spectral; srmech learns to load it at plugin-profile activation time. Verify ABI handshake + ctypes binding.
+3. PR-c: migrate the bridge-surface call sites so a user can do `srmech.profile("ephemerides").es_encode_state(...)` and get exactly what `ephemerides_spectral._native_bip.encode_state(...)` returns today.
+4. ephemerides-spectral remains a separate PyPI package; its publish workflow keeps producing platform wheels. The PROFILE pattern is additive to its existing API.
+
+**Outcome:** The plugin-profile tier is validated against the project's most demanding consumer. Any architectural shortcoming surfaces against a real workload before any third party tries to use the pattern.
+
+### Step 3 — antikythera-spectral profile declaration
+
+The smallest residual; mostly catalogs + parameter-set tables. Likely a simple profile (no native code). Quick win after Steps 1 + 2 land.
+
+### Step 4 — Document the third-party publishing flow
+
+After Steps 1-3 land, write a separate guide (probably `docs/srmech/PROFILE_AUTHORING_GUIDE.md` or similar) walking a third-party author through the §6 worked example with copy-pasteable templates. This is what enables the "researcher in another discipline" path.
+
+### What does NOT migrate
+
+- **Research notebooks** stay where they are. `ephemerides_spectral_research_notebook.md` is a research record, not code; it gets cross-referenced from srmech docs but doesn't move.
+- **The standalone PyPI packages** stay published. We are *adding* the profile pattern, not *replacing* the package pattern. Users who want `pip install chess-spectral` should still be able to do that. Whether to *yank* a package later is a separate decision (see §10).
+
+## 8. What this ADR does NOT decide
+
+Things explicitly left open for future ADRs or research spikes:
+
+- **In-tree vs out-of-tree placement for chess-spectral, antikythera-spectral, ephemerides-spectral after the profile pattern lands.** They could stay where they are (out-of-tree, sibling-of-srmech subtrees inside the monorepo) or move under `srmech/profiles/` (in-tree). Both work; performance is equivalent; the choice is about monorepo organisation, not about the pattern itself. Pick later; document in a subsequent ADR.
+- **The exact srmech version that introduces the profile loader.** Targeting v0.3.0 but the actual cut depends on whether tool_schema (Task #198) lands first as the schema-spec foundation.
+- **Conflict resolution when two profiles register the same catalog key or the same bridge-surface name.** Current `register_attested_root()` uses first-wins-with-warning. The profile loader will use the same policy unless a stronger rule is needed; revisit if a real conflict surfaces.
+- **Plugin profile sandboxing / security.** A plugin profile is loaded via ctypes; the plugin can do anything the calling process can do. `pip install audio-spectral` is the existing trust boundary (same as any other PyPI package). No additional sandbox is proposed. Document the trust model in the authoring guide.
+- **Multi-version coexistence.** Can two installed profiles declare different `srmech_requires` ranges and coexist? Open question. Worst case: srmech refuses to load profiles outside its compatibility range; the user pins srmech to the intersection of the ranges or removes one profile.
+- ~~Lazy vs eager profile discovery.~~ **Resolved in §5.5**: eager, at first srmech import. JPL Rule 2 analog at the Python level — fail loud at boot, not silent at minute 47 of a long-running job.
+
+## 9. Prerequisites — what must land before any of this can ship
+
+1. **Task #198 — `srmech.amsc.tool_schema`** (in queue as pending). Provides the LLM-friendly AMSC introspection layer that the profile schema declares into. Without it the profile descriptor has no formal target.
+2. **A draft `srmech_profile.toml` JSON Schema** alongside this ADR — the strawman §3 schema rendered as a formal validator file so profile authors can `jsonschema`-validate their TOML.
+3. **Versioning policy for the profile schema itself.** The TOML carries `version = "0.27.0"` (the *profile's* version) but the *schema's* version is implicit. We need a `srmech_profile_schema_version = "1.0"` top-level field so srmech can refuse to load profiles declared against unknown schema versions. Add to §3 before locking.
+
+## 10. Consequences
+
+### Positive
+
+- srmech becomes a true substrate; the third-party publishing path is opened.
+- Domain packages keep their own version cadence + cibuildwheel matrices + native libraries. No forced collapse.
+- The MPM discipline (citation attestation, NDJSON ground-proof) propagates by inheritance — any profile gets it free.
+- LLM-friendly introspection (via Task #198) lets future Claude sessions discover what's installed and what each profile offers without reading every package's docs.
+
+### Negative
+
+- More moving parts. The profile-loader is a new failure surface. §5.5 catches the worst classes at boot (eager enumeration; JSON-Schema boundary check; ABI handshake; smoke-test cache per profile version) so ctypes binding mistakes in plugins fail loudly at startup rather than mid-run. The residual risks: a plugin author writes a smoke test that passes but doesn't cover a real failure mode, or a plugin's binary segfaults in a code path the smoke test doesn't exercise. Both are out-of-scope for the loader to prevent; document in the authoring guide.
+- Schema migration costs. Anything we get wrong in `srmech_profile.toml` v1 has to be migrated. `profile_schema_version` field is the escape hatch; the reserved `[profile.interpreted]` block (§5.6) keeps the door open for future runtime adapters without breaking v1.
+- Discovery cost at boot. `importlib.metadata.entry_points()` enumeration is fast but not free; the smoke-test cache (§5.5) keeps re-runs to the per-version-change boundary so steady-state imports are O(n_profiles × declaration-read), not O(n_profiles × full-smoke-test). Pyodide is the worst case for filesystem walks — measure on Pyodide before v0.3.0 ships, document the observed cold-start time, and revisit if it crosses a usability threshold.
+- Trust surface widens. Each installed profile is a `pip install` away from running arbitrary code in the host process (Python entry-point + ctypes binding + interpreted-runtime adapter when §5.6 lands). This is the same trust surface as any pip-installed package; no new boundary, but the profile-loader makes the surface more visible to LLM consumers via tool_schema introspection. Document in the authoring guide.
+
+### Neutral
+
+- The current `register_attested_root()` API remains; it becomes one of several mechanisms (profile loader being the new ergonomic one). No deprecation of existing surface.
+
+## 11. Decision
+
+**Adopt the two-tier profile pattern as the design target for Task #199.** Implement in the order:
+
+1. This ADR + the JSON Schema for `srmech_profile.toml`.
+2. Task #198 (`tool_schema`).
+3. srmech v0.3.0 with the profile loader + the `srmech.profile()` API + auto-discovery of `srmech.profiles` entry-points (no consumer yet).
+4. chess-spectral simple-profile POC.
+5. ephemerides-spectral plugin-profile POC.
+6. antikythera-spectral simple-profile declaration.
+7. Third-party authoring guide.
+
+Skip steps at your peril.
+
+## 12. Roadmap touchpoints beyond this ADR
+
+Things this ADR doesn't directly own but which it makes more
+urgent to think about:
+
+- **Task #209 — srmech extracted into its own repository upon
+  maturity.** The profile pattern this ADR specifies pushes
+  srmech further into the role of *substrate* — a package that
+  third-party domain authors (audio-spectral, biology-spectral,
+  …) build on. As that role solidifies, hosting srmech inside a
+  monorepo whose root identity is the EMDR firmware project
+  becomes increasingly awkward for outside contributors and for
+  academic citation. The trigger for extraction is profile-pattern
+  maturity: ≥1 third-party consumer in the wild, semantic v1.x
+  stability, and decoupled CI/CD. Tracked separately so this ADR
+  can land independently.
+
+- **A profile authoring guide** (`docs/srmech/PROFILE_AUTHORING_GUIDE.md`)
+  becomes the load-bearing onboarding document for third-party
+  authors. Written after the chess + ephemerides POCs surface
+  the practical sharp edges.
+
+- **CITATION.cff at the srmech level** (currently only at the
+  monorepo level per Task #188). Once profiles exist, citing srmech
+  vs citing a profile vs citing a profile's plugin needs to be
+  cleanly distinguishable. Probably a follow-up ADR after
+  Task #188 lands.
+
+## 13. References
+
+- Task #197 — AMSC-to-srmech refactor (the substrate's existing scope).
+- Task #198 — srmech.amsc.tool_schema (the prerequisite for this ADR).
+- Task #199 — Config-driven srmech profile pattern (this ADR is its design).
+- `docs/srmech/srmech_research_notebook.md` §0 — three-layer architecture; profiles live at L1+L2 boundary.
+- `docs/srmech/CLAUDE.md` — session-level brief on srmech's current state and conventions.
+- ephemerides-spectral's `_native_bip.py` — model of the ctypes binding pattern a plugin profile will follow.
