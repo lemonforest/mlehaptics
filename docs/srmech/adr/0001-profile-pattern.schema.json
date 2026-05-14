@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/adr/0001-profile-pattern.schema.json",
+  "title": "srmech_profile.toml v1 schema",
+  "description": "Formal validator for srmech profile descriptors. Renders ADR-0001 §3 into a machine-checkable shape. Used by srmech's loader at enumeration time (§5.5) to validate every discovered profile before activation. Note: TOML parses [profile.catalogs] etc. as nested under the `profile` key, so the schema structure mirrors that.",
+  "type": "object",
+  "required": ["profile_schema_version", "profile"],
+  "additionalProperties": false,
+  "properties": {
+    "profile_schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Version of this schema that the profile is declared against. srmech refuses to load profiles against unknown schema versions."
+    },
+    "profile": {
+      "type": "object",
+      "required": ["name", "version", "summary", "package", "srmech_requires"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Profile registry key. Lowercase, alphanumeric + dash/underscore. Used as the argument to srmech.profile(name)."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(rc[0-9]+)?$",
+          "description": "MANDATORY. Profile's own version, independent of srmech's version. Cache key for the smoke-test result (see ADR §5.5). MUST bump on native binary change / declared signature change / tool_schema declaration change / CLI declaration change / bridge-surface return shape change."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "One-line description shown in `srmech list-profiles` output."
+        },
+        "package": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Importable name of the owning Python package."
+        },
+        "home": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional URL pointing at the profile's documentation / source."
+        },
+        "srmech_requires": {
+          "type": "string",
+          "description": "srmech version range the profile is compatible with. PEP 440 specifier (e.g. '>=0.3,<0.4'). Checked at load time."
+        },
+        "catalogs": {
+          "type": "object",
+          "description": "Optional. Path to the profile's attested-NDJSON SSOTs.",
+          "additionalProperties": false,
+          "properties": {
+            "attested_root": {
+              "type": "string",
+              "description": "Path relative to the owning package's install location. Resolved via importlib.resources.files(package).joinpath(path)."
+            },
+            "source": {
+              "type": "string",
+              "description": "Optional source-label override for register_attested_root(). Defaults to profile.name."
+            }
+          }
+        },
+        "bridge": {
+          "type": "object",
+          "description": "Optional. Map of function_name -> 'module:callable'. Each entry surfaces a Python callable as srmech.profile('name').function_name(...).",
+          "patternProperties": {
+            "^[a-z_][a-z0-9_]*$": {
+              "type": "string",
+              "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "native": {
+          "type": "object",
+          "description": "Optional. Plugin-tier declaration. Present only when the profile ships a ctypes-loaded shared library (see ADR §5).",
+          "required": ["library", "install_path", "abi_version_function", "expected_abi_version"],
+          "additionalProperties": false,
+          "properties": {
+            "library": {
+              "type": "string",
+              "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+              "description": "Library basename pattern. srmech expands to lib<name>.so / .dylib / <name>.dll per platform."
+            },
+            "install_path": {
+              "type": "string",
+              "description": "Install location relative to the owning package. Discovered via importlib.metadata.files()."
+            },
+            "abi_version_function": {
+              "type": "string",
+              "description": "Name of the no-argument int function exported by the plugin that returns its ABI version."
+            },
+            "expected_abi_version": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "ABI version the plugin profile was built against. srmech compares to runtime abi_version() return; mismatch -> plugin not loaded."
+            },
+            "symbols": {
+              "type": "object",
+              "description": "Map of symbol_name -> { argtypes, restype }. Each entry binds a ctypes signature.",
+              "patternProperties": {
+                "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                  "type": "object",
+                  "required": ["argtypes", "restype"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "argtypes": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "restype": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "structs": {
+              "type": "array",
+              "description": "Custom ctypes structs the plugin requires. Mirrors C-header definitions.",
+              "items": {
+                "type": "object",
+                "required": ["name", "fields"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {"type": "string"},
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["name", "type"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {"type": "string"},
+                        "type": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tool_schema": {
+          "type": "object",
+          "description": "Optional. Tool-schema extension declaration. Profile adds entries to srmech's introspection surface.",
+          "additionalProperties": false,
+          "properties": {
+            "extension_file": {
+              "type": "string",
+              "description": "Path within the package containing the profile's tool_schema entries (format defined by Task #198)."
+            }
+          }
+        },
+        "cli": {
+          "type": "object",
+          "description": "Optional. CLI subcommand declarations. Plugin commands join the srmech --help menu.",
+          "additionalProperties": false,
+          "properties": {
+            "commands": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z][a-z0-9-]*$": {
+                  "type": "object",
+                  "required": ["help", "entry"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "help": {"type": "string"},
+                    "entry": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[a-zA-Z_][a-zA-Z0-9_]*$"
+                    },
+                    "joins_help_menu": {"type": "boolean", "default": true}
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "smoke_test": {
+          "type": "object",
+          "description": "Optional. Smoke-test declaration. See ADR §5.5.",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["auto", "explicit"],
+              "default": "auto"
+            },
+            "explicit_test_module": {
+              "type": "string",
+              "description": "Only when mode == 'explicit'. The 'module:callable' that runs the smoke test."
+            },
+            "input_hints": {
+              "type": "object",
+              "description": "Per-symbol minimal-input synthesis hints (used when mode == 'auto').",
+              "additionalProperties": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "interpreted": {
+          "type": "object",
+          "description": "RESERVED. ADR §5.6 future tier. srmech v0.3.0 IGNORES this block (with a warning).",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
