@@ -4,6 +4,112 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.0rc1] - 2026-05-14
+
+### Added — Task #198 (`srmech.amsc.tool_schema`) + Task #199 (profile loader)
+
+First implementation of the **profile pattern** specified in
+[ADR-0001](../adr/0001-profile-pattern.md). Ships as v0.3.0rc1 to
+TestPyPI for verification before the production v0.3.0 cut.
+
+#### `srmech.amsc.tool_schema` — LLM-friendly introspection (Task #198)
+
+New module that produces a single structured view of every callable
+srmech exposes (and, post-profile-pattern, every profile-contributed
+callable). API:
+
+- **`get_tool_schema()`** — returns a `ToolSchema` dataclass with
+  every registered `ToolEntry`. JSON-serialisable via `.to_jsonable()`.
+- **`tool_schema_view()`** — convenience wrapper returning the same
+  as a dict.
+- **`register_tool(entry)`** — imperative registration; idempotent
+  on identical re-registration; raises `ToolSchemaConflictError`
+  on name collision with different content.
+- **`register_profile_tools(profile_name, entries)`** — batch path
+  used by the profile loader; enforces `entry.owner == profile_name`
+  so profile-attribution can't drift.
+- **`unregister_profile_tools(profile_name)`** — removes every entry
+  owned by the named profile (used on profile deactivation).
+- **`load_extension_file(path, owner)`** — parses a profile's
+  TOML extension file into a list of `ToolEntry` ready for batch
+  registration.
+
+srmech's own AMSC functions (sha256_bytes, read_ndjson,
+descriptor_hash, list_attested_sources, get_attested_dataset,
+register_attested_root) are registered at AMSC import time with
+their parameter signatures, return shapes, and smoke-test hints.
+
+#### `srmech.profile_loader` — profile activation API (Task #199)
+
+New module implementing ADR-0001's profile pattern:
+
+- **`srmech.list_profiles()`** — enumerates every installed profile
+  via `importlib.metadata.entry_points(group="srmech.profiles")`.
+  **Eager at first call** per ADR §5.5 (JPL Rule 2 analog); cached
+  for process lifetime.
+- **`srmech.profile(name)`** — activation API. Returns a `Profile`
+  object exposing bridge surfaces as attributes. On first call for
+  a given profile-version:
+  - Validates the descriptor against the v1.0 schema (strict).
+  - Checks smoke-test cache at
+    `~/.cache/srmech/profile_smoke_tests/<name>-<version>.toml`.
+  - Cache miss / version bump → re-runs smoke test (bridge surfaces
+    importable + callable; catalog roots exist).
+  - On smoke-test pass: registers catalog roots into srmech's
+    universal bridge; loads native plugin via ctypes if
+    `[profile.native]` declared, performs ABI handshake; caches
+    result; returns `Profile`.
+  - On smoke-test fail: raises `SmokeTestFailedError`; profile not
+    activated; cache records the failure (re-runs on next process).
+- **`Profile.<bridge_surface>(args)`** — invoke a profile-declared
+  bridge function.
+- **`Profile.native`** — bound ctypes library (plugin tier only).
+
+Error hierarchy:
+`ProfileError` ⊂ `Exception`
+  - `ProfileNotFoundError` — unknown profile name
+  - `InvalidProfileError` — descriptor failed validation
+    - `ProfileSchemaVersionError` — descriptor against unknown schema version
+  - `SmokeTestFailedError` — smoke test failed (cache may record)
+  - `AbiMismatchError` — plugin's `abi_version()` mismatch
+
+#### JSON Schema for `srmech_profile.toml`
+
+[`docs/srmech/adr/0001-profile-pattern.schema.json`](../adr/0001-profile-pattern.schema.json)
+renders ADR §3 into a machine-checkable shape. The loader uses a
+pure-Python minimal validator that covers the load-bearing
+constraints (required fields, name/version patterns, schema-version
+match); the full JSON Schema is the documented source-of-truth for
+profile authors and for third-party validation tools.
+
+#### `[profile.interpreted]` is reserved (ADR §5.6)
+
+Profiles declaring an `[profile.interpreted]` block (Julia / R / Lua /
+subprocess runtimes) parse cleanly but emit a `FutureWarning` and
+the block is ignored. The namespace is reserved in v1.0 of the
+schema so adding interpreted-runtime adapters later (a follow-up
+ADR) won't be a breaking change.
+
+#### Tests
+
+- **`tests/test_tool_schema.py`** *(NEW)* — 11 tests covering
+  imperative + extension-file registration, idempotency, conflict
+  detection, owner-tag enforcement, by_owner filter, lookup,
+  serialisation round-trip.
+- **`tests/test_profile_loader.py`** *(NEW)* — 14 tests covering
+  schema validation paths (minimal valid; missing fields; bad
+  patterns; full plugin-tier `[profile.native]`; reserved
+  `[profile.interpreted]` block warns), public API surface, and
+  error-class exports.
+
+All v0.2.0 tests (sha256 parity, NDJSON parity, JPL audit ratchet,
+etc.) continue to pass unchanged.
+
+#### Version
+
+This is a **minor bump** (0.2.0 → 0.3.0). Adds new APIs; no breaking
+changes to v0.2.0's public surface. C ABI still 2.
+
 ## [0.2.0] - 2026-05-14
 
 ### Task #201 Phase B7 — production cut to PyPI

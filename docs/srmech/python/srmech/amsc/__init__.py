@@ -62,6 +62,10 @@ from .format import (
     validate_mpr_record,
     write_ndjson,
 )
+# v0.3.0 — tool_schema introspection (Task #198) registers srmech's
+# own AMSC tools at import time. Profile-contributed tools register
+# later, at profile-activation time via profile_loader.
+from . import tool_schema  # noqa: F401  (side effect: register tools)
 
 __all__ = [
     # format
