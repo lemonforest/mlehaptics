@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "secular_elements.row.v1",
+  "title": "Solar System Keplerian secular-elements row (J2000.0 TDB)",
+  "description": "One row in the per-body J2000 Keplerian mean-elements catalog. Each row carries the six classical elements (e, I, Omega, omega_bar, L0, n) plus the frame in which they are expressed (heliocentric_ecliptic for planets + asteroids; parent_centric_ecliptic for moons), the parent body name (null for planets / asteroids), and the canonical-subsystem source DOI. Anchors the Phase 10a EOC catalog (`_research/eoc_catalog.py`) which Newton-solves Kepler's equation against (e, M_0 = L0 - omega_bar, n) at evaluation time to recover L_true from L_BIP's mean-motion linear advance.",
+  "type": "object",
+  "required": [
+    "body",
+    "e",
+    "I_deg",
+    "Omega_deg",
+    "omega_bar_deg",
+    "L0_deg",
+    "n_deg_per_day",
+    "frame",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Body name (lowercase). Matches BODIES key (e.g. 'mercury', 'terra', 'mars', 'luna', 'io', 'nereid', 'charon', 'ceres')."
+    },
+    "e": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Orbital eccentricity (dimensionless). 0 = circular, < 1 = bound. Range covers Triton's e ~ 1.6e-5 through Nereid's e ~ 0.7507."
+    },
+    "I_deg": {
+      "type": "number",
+      "description": "Inclination to the J2000 ecliptic (degrees). May be negative (Standish 1992 convention for Earth, ~-1.5e-5 deg)."
+    },
+    "Omega_deg": {
+      "type": "number",
+      "description": "Longitude of ascending node at J2000 (degrees, [0, 360))."
+    },
+    "omega_bar_deg": {
+      "type": "number",
+      "description": "Longitude of perihelion / periapsis at J2000 (degrees). For planets / asteroids this is the heliocentric perihelion; for moons it is the parent-centric periapsis. May be negative in Standish 1992 (e.g. Mars omega_bar = -23.94 = 336.06 mod 360)."
+    },
+    "L0_deg": {
+      "type": "number",
+      "description": "Mean longitude at J2000.0 TDB (degrees). For planets / asteroids this is the heliocentric mean longitude (= Omega + omega_arg + M0); for moons it is the parent-centric mean longitude. Standish 1992 conventions permit negative values (e.g. Mars L0 = -4.55 deg = 355.45 mod 360)."
+    },
+    "n_deg_per_day": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "description": "Mean motion (degrees per day, TDB). Equivalent to 360 / P_orb_days. Cross-checked against BODIES.period_days in tests; max relative error ~5e-4 (Saturn, due to Standish-1992 J2000-epoch round-off vs DE441 sidereal period)."
+    },
+    "frame": {
+      "type": "string",
+      "enum": ["heliocentric_ecliptic", "parent_centric_ecliptic"],
+      "description": "Reference frame for the elements. 'heliocentric_ecliptic' for planets + asteroids (centre at Sun, J2000 ecliptic equinox); 'parent_centric_ecliptic' for moons (centre at parent body's barycentre, same J2000 ecliptic equinox). Matches the frame the BIP encoder calibrates against per `bip_instrument._calibrate_initial_phases`."
+    },
+    "parent": {
+      "type": ["string", "null"],
+      "description": "Parent body name for moons; null for planets / asteroids. Lowercase. Must match BODIES key if non-null (e.g. 'terra', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto')."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Per-row provenance — DOI, ISBN, or namespace-prefixed identifier (`nodoi:`, `isbn:`, `url:`) for the canonical subsystem reference. Naming follows the v0.27.0-phase-A convention: real Crossref-indexed DOIs preferred; `isbn:` for textbook references; `nodoi:` for pre-Crossref JPL technical documents; `url:` for JPL Small-Body Database entries."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 date (YYYY-MM-DD) of the source publication. For textbook / pre-Crossref sources, the date of the cited edition."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 date the row was authored into the catalog. v0.27.0a1 rows: 2026-05-14."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional source-specific version tag (e.g. 'DE441' for Park 2021, 'IGRF-13', 'JRM33'). Null when not applicable."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form per-row notes (EOC-amplitude estimate, resonance context, frame caveat). Mirrors `SecularElements.notes` in the hand-coded module."
+    }
+  }
+}

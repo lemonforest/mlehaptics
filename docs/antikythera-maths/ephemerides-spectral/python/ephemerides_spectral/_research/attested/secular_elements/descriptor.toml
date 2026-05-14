@@ -1,0 +1,71 @@
+# Solar System Keplerian Secular Elements at J2000.0 TDB —
+# 51-row catalog covering every non-Sun body in the BIP roster.
+#
+# v0.27.0a1 Phase 10a: AMSC literature_curated attestation envelope
+# for the hand-coded `_research/secular_elements_data.py` module that
+# powers the equation-of-center patch catalog. The hand-coded module
+# remains the working authority; this NDJSON is the attestation
+# envelope, asserted byte-stable agreement by
+# `tests/test_secular_elements_dual_author.py`.
+#
+# Pattern follows research/attested/mercury_dynamical_spectrum/
+# (PR #303) and research/attested/luna_dynamical_spectrum/ (PR #306).
+
+[source]
+key = "secular_elements"
+human_readable_name = "Solar System Keplerian Secular Elements (J2000.0 TDB)"
+purpose = "ground-proof rows for the J2000 Keplerian mean elements (e, I, Omega, omega_bar, L0, n) of every non-Sun body in the 52-body BIP roster; subsystem-level authority chain (Standish 1992 / Park 2021 DE440-441 for the 9 planets; Chapront-Touze & Chapront 1991 ELP2000 for Luna; Lainey 2007 MAR063 for Mars moons; Lieske 1998 E5 for the Galileans; Cooper 2006 for Jovian inner regulars; Jacobson 2000 JUP100 for Jovian irregulars; Vienne & Duriez 1995 TASS / Jacobson 2006 SAT375 for Saturnian classical; Spitale 2006 for Saturn co-orbitals + trojans; Jacobson 1998 for Phoebe; Laskar-Jacobson 1987 GUST86 for Uranian; Jacobson 2009 NEP078 for Neptunian; Brozovic 2015 for Charon; JPL Small-Body Database for the 4 main-belt asteroids)"
+license = "literature-curated; per-row source DOIs / ISBN / canonical references cited"
+homepage = "https://ssd.jpl.nasa.gov/planets/approx_pos.html"
+canonical_doi = "10.3847/1538-3881/abd414"
+
+# canonical_doi above points at Park R. S. et al. (2021), *The JPL
+# Planetary and Lunar Ephemerides DE440 and DE441*, Astron. J. 161,
+# 105 — the canonical DE441 paper that anchors the 9-planet
+# heliocentric elements. Per-row provenance is finer-grained:
+# subsystem authority for each body's elements is named in the
+# `source_doi` field of each row (Lieske 1998 E5 for Galileans,
+# GUST86 for Uranians, etc.) and resolves to the corresponding
+# subsystem-level entry in `secular_elements_data.SOURCES`.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "secular_elements.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Solar System Keplerian Secular Elements at J2000.0 TDB (curated against published literature; Park 2021 *Astron. J.* 161:105 DE441 canonical for planets + 13 subsystem references for moons / asteroids); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof J2000 Keplerian secular elements for {body} (frame={schema.frame})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Per-body secular elements anchor the Phase 10a Kepler EOC catalog
+# (`_research/eoc_catalog.py`). The regime labels here describe what
+# downstream Phase 10a + Phase 10b ships use this catalog for:
+# rigid_body_action_angle (single-body Kepler element evolution) is
+# the primary use; secular_perturbation is the Phase 10b target for
+# multi-body coupling.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+    "secular_perturbation_coupling",
+]

@@ -191,7 +191,129 @@ class CoupledSinusoidPatch:
         return out
 
 
-Patch = Union[SinusoidPatch, CoupledSinusoidPatch]
+@dataclass(frozen=True)
+class EccentricityCorrectionPatch:
+    """Closed-form Kepler equation-of-center on a single body.
+
+    Phase 10a (v0.27.0). The BIP encoder calibrates each body's phase
+    residue at J2000.0 TDB to ``L_true(J2000)`` (read from the DE441
+    kernel via ``bip_instrument._calibrate_initial_phases``) and then
+    advances LINEARLY at the mean motion: ``L_BIP(t) = L_true(J2000) +
+    ω · (t − J2000)``. The truth has the Keplerian equation-of-center
+    drift baked in: ``L_true(t) = L_mean(t) + 2e·sin(M(t)) + …``. So
+    the residual ``L_true(t) − L_BIP(t)`` is:
+
+        L_true(t) − L_BIP(t)
+          = (ν(t) − M(t)) − (ν(J2000) − M(J2000))
+          = EOC(t) − EOC(J2000)
+
+    where ``ν(M, e)`` is the true anomaly as a function of mean
+    anomaly (closed-form via Kepler's equation).
+
+    Evaluation method: at each encode-time ``jd_tdb``, the patch
+    Newton-solves Kepler's equation ``E − e·sin(E) = M`` at both
+    ``M(t) = M₀ + n·Δt`` and ``M(J2000) = M₀``, computes ``ν(t)`` and
+    ``ν(J2000)`` via the half-angle formula, and returns the integer
+    residue corresponding to ``(ν(t) − M(t)) − (ν(J2000) − M₀)``.
+
+    Closed-form / MPM discipline:
+
+    * No SGD, no random init, no fit parameters. The patch's three
+      inputs (``e``, ``M₀``, ``n``) are labelled physics from the
+      :mod:`._research.secular_elements_data` catalog (Standish 1992
+      / Park 2021 DE441 for planets; subsystem theory references for
+      moons; JPL Small-Body Database for asteroids).
+    * Newton iteration converges to machine precision in ≤20 iters
+      for any ``e < 1`` (typically 5-10 iters at ``e < 0.3``); no
+      truncation of the power-series expansion of ``ν − M``. This
+      gives exact EOC at Nereid's e ≈ 0.75 just as well as at Earth's
+      e ≈ 0.017.
+    * J2000-anchored by construction. At ``jd_tdb == REFERENCE_JD``,
+      ``M(t) = M₀`` and the patch returns exactly zero (no double-
+      counting of the J2000 EOC value already baked into BIP's
+      ``L_true(J2000)`` initial phase).
+
+    Note on signed residues: the integer residue is ``round((ν(t) −
+    M(t) − ν(J2000) + M₀) / 2π × 2³²)`` which can be negative. The
+    BIP encoder's residue arithmetic is ``uint32`` cyclic-group, so
+    a negative correction underflows mod 2³² — same convention as
+    :class:`SinusoidPatch`.
+    """
+
+    name: str
+    body: str
+    eccentricity: float
+    mean_anomaly_at_j2000_rad: float
+    n_rad_per_day: float
+    notes: str = ""
+    kind: str = field(default="eccentricity-correction", init=False)
+
+    # Newton-solve convergence parameters (fixed-bound iteration per
+    # JPL Power-of-Ten Rule 2). The bound 30 is well above the
+    # empirical convergence count even at e → 1.
+    _NEWTON_MAX_ITER: int = field(default=30, init=False, repr=False)
+    _NEWTON_TOL_RAD: float = field(default=1e-14, init=False, repr=False)
+
+    def _solve_kepler(self, mean_anomaly_rad: float) -> float:
+        """Newton-iterate ``E − e·sin(E) = M`` to ``≤ _NEWTON_TOL_RAD``.
+
+        Closed-form, deterministic. Warm-start from ``E = M`` is
+        adequate for ``e < 0.6``; for higher eccentricities, the
+        warm start adjusts to ``E = M + e·sin(M)`` (one half-step of
+        Newton from ``E = M``) which keeps the iteration count under
+        the 30-step bound at all e < 1.
+        """
+        e = self.eccentricity
+        M = mean_anomaly_rad
+        # Warm start
+        E = M + e * math.sin(M) if e > 0.6 else M
+        for _ in range(self._NEWTON_MAX_ITER):
+            sin_E = math.sin(E)
+            cos_E = math.cos(E)
+            f = E - e * sin_E - M
+            fp = 1.0 - e * cos_E
+            delta = f / fp
+            E = E - delta
+            if abs(delta) < self._NEWTON_TOL_RAD:
+                return E
+        return E  # bounded fallback
+
+    def _true_anomaly(self, eccentric_anomaly_rad: float) -> float:
+        """Closed-form half-angle formula: ν = 2·atan2(√(1+e) sin(E/2),
+        √(1−e) cos(E/2))."""
+        e = self.eccentricity
+        half_E = 0.5 * eccentric_anomaly_rad
+        return 2.0 * math.atan2(
+            math.sqrt(1.0 + e) * math.sin(half_E),
+            math.sqrt(1.0 - e) * math.cos(half_E),
+        )
+
+    def evaluate(
+        self, jd_tdb: float, body_to_idx: Mapping[str, int]
+    ) -> Dict[int, int]:
+        if self.body not in body_to_idx:
+            return {}
+        delta_t = float(jd_tdb) - REFERENCE_JD
+        M_0 = self.mean_anomaly_at_j2000_rad
+        M_t = M_0 + self.n_rad_per_day * delta_t
+
+        E_t = self._solve_kepler(M_t)
+        E_0 = self._solve_kepler(M_0)
+        nu_t = self._true_anomaly(E_t)
+        nu_0 = self._true_anomaly(E_0)
+
+        # EOC(t) - EOC(J2000) — the correction to add to BIP's
+        # linear-advance result to recover L_true(t).
+        eoc_delta_rad = (nu_t - M_t) - (nu_0 - M_0)
+        # Wrap to the principal branch [-π, π) before residue conversion
+        # so we don't carry an integer 2π that would translate to a
+        # 2³² over/under-flow in the residue conversion.
+        eoc_delta_rad = ((eoc_delta_rad + math.pi) % (2.0 * math.pi)) - math.pi
+        delta_residue = int(round(eoc_delta_rad / (2.0 * math.pi) * MODULO))
+        return {body_to_idx[self.body]: delta_residue}
+
+
+Patch = Union[SinusoidPatch, CoupledSinusoidPatch, EccentricityCorrectionPatch]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -213,10 +335,10 @@ def apply_patch(patch: Patch) -> None:
     already active. (Same name twice is almost always a bug; clear
     first if you mean to replace.)
     """
-    if not isinstance(patch, (SinusoidPatch, CoupledSinusoidPatch)):
+    if not isinstance(patch, (SinusoidPatch, CoupledSinusoidPatch, EccentricityCorrectionPatch)):
         raise TypeError(
-            f"apply_patch expects a SinusoidPatch or CoupledSinusoidPatch, "
-            f"got {type(patch).__name__}"
+            f"apply_patch expects a SinusoidPatch, CoupledSinusoidPatch, "
+            f"or EccentricityCorrectionPatch, got {type(patch).__name__}"
         )
     with _LOCK:
         if any(p.name == patch.name for p in _ACTIVE):

@@ -129,6 +129,14 @@ _INCLUDED_MODULES: List[str] = [
     # layer-2-to-layer-3 interface from the three-layer mechanism
     # architecture
     "body_kernel_registry.py",
+    # v0.27.0a1 Phase 10a — per-body equation-of-center catalog.
+    # secular_elements_data.py carries J2000 Keplerian mean elements
+    # for every non-Sun body in the 52-body BIP roster (51 rows);
+    # eoc_catalog.py is the generator that turns each row into a
+    # closed-form Newton-Kepler EccentricityCorrectionPatch (new
+    # kind landed in diagnosed_fibers.py alongside this ship).
+    "secular_elements_data.py",
+    "eoc_catalog.py",
 ]
 
 # Subdirectories under research/ to mirror recursively. Empty after
