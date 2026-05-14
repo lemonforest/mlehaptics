@@ -70,7 +70,19 @@ import numpy as np
 #       shim allocates the scratch buffers once per call alongside
 #       the existing `out_state` buffer, so the user-facing bridge
 #       API is unchanged.
-EXPECTED_ABI_VERSION: int = 6
+#   v7 — v0.15.0: Sol Moon Times classical-roster completion. The
+#       BODIES roster grew (Pluto-Charon + remaining Uranians), which
+#       changed ES_N_BODIES + the on-the-wire size of every per-body
+#       array. Encoder math unchanged on shared bodies; the ABI bump
+#       captures the roster-cardinality wire-format change.
+#   v8 — v0.16.0: Tier-1 BODIES expansion (Lagrange trojans + retrograde
+#       irregulars + Neptune sub-graph). ES_N_BODIES = 52 (current).
+#       Same wire-format-by-roster-size mechanism as v7. Stable through
+#       v0.27.0 / v0.28.0rc1; the v0.28.0rc2 realignment is a pure
+#       Python-side EXPECTED_ABI_VERSION catch-up — the C side has been
+#       at v8 since v0.16.0 but this constant was left at 6, silently
+#       forcing HAS_NATIVE = False on every wheel install.
+EXPECTED_ABI_VERSION: int = 8
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
