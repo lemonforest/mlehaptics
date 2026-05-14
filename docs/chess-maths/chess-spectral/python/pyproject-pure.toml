@@ -38,7 +38,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chess-spectral"
-version = "1.18.0"
+version = "1.19.0"
 description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -68,7 +68,7 @@ classifiers = [
 # See pyproject.toml for the rationale; `chess` is a runtime dep
 # from v1.6 onward. Pure-Python wheel keeps the same dep set as
 # the platform wheels.
-dependencies = ["numpy", "scipy", "chess"]
+dependencies = ["numpy", "scipy", "chess", "srmech>=0.3.1,<0.4"]
 
 [project.optional-dependencies]
 corpus = ["chess"]   # no-op alias post-v1.6
@@ -87,6 +87,13 @@ Roadmap = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/
 chess-spectral = "chess_spectral.cli:main"
 chess-spectral-4d = "chess_spectral_4d.cli:main"
 
+# srmech profile pattern (ADR-0001 §4 — entry-point discovery, Task #211).
+# Mirror of the platform pyproject.toml declaration; required so the
+# pure-Python wheel (used in Pyodide / WASM) also surfaces the chess
+# profile to srmech.list_profiles().
+[project.entry-points."srmech.profiles"]
+chess = "chess_spectral"
+
 [tool.hatch.build.targets.wheel]
 # Include only the Python packages. Notably absent: the
 # `chess_spectral/_native/` directory that scikit-build-core
@@ -99,6 +106,11 @@ packages = ["chess_spectral", "chess_spectral_4d"]
 # include because they're not under a packages/ dir by default.
 "chess_spectral/_committed_tables.npz" = "chess_spectral/_committed_tables.npz"
 "chess_spectral/_committed_tables_4d.npz" = "chess_spectral/_committed_tables_4d.npz"
+# v1.19.0 — srmech profile artifacts (Task #211). These TOMLs are
+# read at srmech.profile("chess") activation time via
+# importlib.resources.files(chess_spectral).
+"chess_spectral/srmech_profile.toml" = "chess_spectral/srmech_profile.toml"
+"chess_spectral/_srmech_tool_schema.toml" = "chess_spectral/_srmech_tool_schema.toml"
 
 [tool.hatch.build.targets.wheel.shared-data]
 # No shared data files in this build.

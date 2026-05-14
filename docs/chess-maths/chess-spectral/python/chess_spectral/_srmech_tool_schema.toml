@@ -1,0 +1,159 @@
+# chess_spectral tool_schema extension for the srmech profile loader.
+#
+# ADR-0001 §3.4 — profiles register tool entries with srmech.amsc.tool_schema
+# so LLM agents can discover what each profile exposes. The loader parses
+# this file via srmech.amsc.tool_schema.load_extension_file(path, owner)
+# and registers each [[tools]] block as a ToolEntry with owner = "chess".
+#
+# Why not just import the functions and inspect their signatures? Because
+# Python signatures don't carry rich types (shape, range, semantics) and
+# don't speak the tool_schema's parameter/return shape language. The TOML
+# is the authored truth; the signatures are the runtime binding.
+
+[[tools]]
+name     = "chess.encode_2d"
+category = "encoder"
+summary  = "Spectral 2D chess encoder. Decomposes a board position into 10 D₄-irrep channels × 64 board dimensions = 640-dim payload. Float64."
+
+[[tools.parameters]]
+name     = "pos"
+type     = "Dict[int, str]"
+required = true
+summary  = "Board state as {square_index (0-63) → piece_letter}. Use fen_to_pos(fen) to construct."
+
+[tools.returns]
+type  = "numpy.ndarray"
+shape = "(640,) float64 — concatenated channel projections"
+
+[tools.smoke_test_hint]
+fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+
+[[tools]]
+name     = "chess.encode_4d"
+category = "encoder"
+summary  = "Spectral 4D chess encoder. 11 B₄-irrep channels × 4096 board dimensions = 45 056-dim payload. For 4D chess research (Oana & Chiru 2026)."
+
+[[tools.parameters]]
+name     = "pos4"
+type     = "Dict[int, str]"
+required = true
+summary  = "4D board state as {board_index (0-4095) → piece_letter}. See chess_spectral_4d.fen_4d for parser."
+
+[tools.returns]
+type  = "numpy.ndarray"
+shape = "(45056,) float64 — concatenated channel projections (4D)"
+
+
+[[tools]]
+name     = "chess.fen_to_pos"
+category = "io"
+summary  = "Parse a FEN string into the 2D position dict consumed by encode_2d / channel_energies / phase_only_pseudo_legal_moves."
+
+[[tools.parameters]]
+name     = "fen"
+type     = "str"
+required = true
+summary  = "Forsyth-Edwards Notation chess position. Side-to-move + castling + en-passant fields are parsed; halfmove + move-number are ignored."
+
+[tools.returns]
+type  = "Dict[int, str]"
+shape = "Mapping square (0-63, a1=0) → piece letter (K/Q/R/B/N/P uppercase = white, lowercase = black)"
+
+
+[[tools]]
+name     = "chess.channel_energies"
+category = "introspection"
+summary  = "Compute per-channel L² energy of a 640-dim chess-spectral encoding. Returns a dict keyed by D₄-irrep label."
+
+[[tools.parameters]]
+name     = "enc"
+type     = "numpy.ndarray"
+required = true
+summary  = "640-dim float64 array as produced by encode_2d."
+
+[tools.returns]
+type  = "Dict[str, float]"
+shape = "10-entry dict keyed by channel name (A1, A2, B1, B2, E_dim1, E_dim2, …)"
+
+
+[[tools]]
+name     = "chess.encode_2d_pure_phase"
+category = "encoder"
+summary  = "Integer-arithmetic 2D chess encoder. D₄ irrep projection + fiber tables in int16 quantization throughout. Pyodide / WASM friendly; ≥99.998% cosine similarity to encode_2d on the acceptance corpus."
+
+[[tools.parameters]]
+name     = "pos"
+type     = "Dict[int, str]"
+required = true
+summary  = "Board state as {square_index → piece_letter}."
+
+[tools.returns]
+type  = "numpy.ndarray"
+shape = "(640,) int16 — integer-quantized channel projections"
+
+
+[[tools]]
+name     = "chess.phase_only_pseudo_legal_moves"
+category = "phase_operators"
+summary  = "Pure-phase pseudo-legal move enumeration. Integer arithmetic over ℤ_640; no python-chess dependency. Returns the candidate move set without legality filtering (does not test check-leaving)."
+
+[[tools.parameters]]
+name     = "pos"
+type     = "Dict[int, str]"
+required = true
+summary  = "Board state as {square_index → piece_letter}."
+
+[[tools.parameters]]
+name     = "side_to_move_white"
+type     = "bool"
+required = true
+summary  = "True for white-to-move; False for black-to-move."
+
+[[tools.parameters]]
+name     = "ep_file"
+type     = "Optional[int]"
+required = false
+summary  = "En-passant target file 0-7 if available; None otherwise."
+
+[tools.returns]
+type  = "List[Tuple[int, int]]"
+shape = "List of (from_square, to_square) tuples enumerating pseudo-legal candidates"
+
+
+[[tools]]
+name     = "chess.encode_2d_bip_hybrid"
+category = "compression"
+summary  = "BIP-hybrid sign × magnitude factoring of a 2D chess encoding. ~3.4× compression at 8-bit, ~5.8× at 4-bit; round-trip cosine similarity ≥99.99% on acceptance corpus."
+
+[[tools.parameters]]
+name     = "enc"
+type     = "numpy.ndarray"
+required = true
+summary  = "640-dim float64 array as produced by encode_2d."
+
+[[tools.parameters]]
+name     = "magnitude_bits"
+type     = "int"
+required = false
+summary  = "Bits per magnitude (4 or 8). Default 8."
+
+[tools.returns]
+type  = "SpectralBIPHybrid2D"
+shape = "Dataclass with .signs (bit-packed) + .magnitudes (int8/int4) + per-channel scales"
+
+
+[[tools]]
+name     = "chess.decode_2d_bip_hybrid"
+category = "compression"
+summary  = "Inverse of encode_2d_bip_hybrid. Reconstructs the float64 spectral payload from the BIP-hybrid representation."
+
+[[tools.parameters]]
+name     = "hybrid"
+type     = "SpectralBIPHybrid2D"
+required = true
+summary  = "BIP-hybrid encoding from encode_2d_bip_hybrid."
+
+[tools.returns]
+type  = "numpy.ndarray"
+shape = "(640,) float64 — reconstructed spectral payload"

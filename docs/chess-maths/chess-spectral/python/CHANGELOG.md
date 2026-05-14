@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-05-14
+
+### Added — srmech profile pattern (Task #211, ADR-0001 §7 Step 1)
+
+chess-spectral is now discoverable as the **`"chess"` srmech profile**
+via the `srmech.profiles` entry-point group. Consumers can choose
+either path:
+
+```python
+# Direct (unchanged; works as it always has):
+from chess_spectral import encode_2d, fen_to_pos
+enc = encode_2d(fen_to_pos(fen))
+
+# Via srmech (new in 1.19.0):
+import srmech
+chess = srmech.profile("chess")
+enc = chess.encode_2d(chess.fen_to_pos(fen))
+```
+
+The profile is the **simple tier** (no native plugin) — chess-spectral
+keeps its own C-library binding internally via
+`_native_pure_phase_2d.py` and `_native_bitboard4d.py`. srmech only
+exposes the **Python bridge surfaces** declared in the descriptor.
+
+Eight bridge surfaces ship:
+
+- `encode_2d`, `encode_4d` — canonical 640-dim / 45 056-dim encoders.
+- `fen_to_pos` — FEN parser.
+- `channel_energies` — per-channel L² introspection.
+- `encode_2d_pure_phase` — integer-arithmetic encoder.
+- `phase_only_pseudo_legal_moves` — ALU-native move enumeration.
+- `encode_2d_bip_hybrid` / `decode_2d_bip_hybrid` — sign × magnitude
+  compression (~3.4× at 8-bit).
+
+The same eight functions also register as **`srmech.amsc.tool_schema`
+entries** with `owner = "chess"` so LLM agents can discover them via
+`srmech.amsc.tool_schema.get_tool_schema()`.
+
+#### New files
+
+- `chess_spectral/srmech_profile.toml` — profile descriptor
+  (ADR-0001 §3 schema v1.0).
+- `chess_spectral/_srmech_smoke.py` — activation-time smoke test
+  (calls `fen_to_pos` + `encode_2d` + `channel_energies` against
+  the starting position).
+- `chess_spectral/_srmech_tool_schema.toml` — tool_schema extension
+  registering the 8 bridge functions.
+
+#### Dependency change
+
+- Added `srmech>=0.3.1,<0.4` to runtime deps. **Why 0.3.1, not 0.3.0**:
+  v0.3.1 added the loader's Form-1 entry-point support
+  (`chess = "chess_spectral"`) and `[profile.tool_schema]` extension
+  file loading. Both surfaced during this POC migration — see srmech
+  v0.3.1 CHANGELOG.
+
+#### `[project.entry-points."srmech.profiles"]` declaration
+
+```toml
+[project.entry-points."srmech.profiles"]
+chess = "chess_spectral"
+```
+
+This is what makes `srmech.list_profiles()` enumerate the chess
+profile at first srmech import.
+
+### Changed — TestPyPI auto-routing for rc-suffixed tags
+
+`chess-spectral-publish.yml` now matches the pattern srmech and
+ephemerides-spectral use:
+
+- **Tag `chess-spectral-vX.Y.ZrcN`** → TestPyPI auto-route.
+- **Tag `chess-spectral-vX.Y.Z`** (no rc) → PyPI auto-route.
+- `workflow_dispatch` with `target` input remains as a manual override.
+
+The tag suffix is the source of truth. Trusted-publisher entries
+exist for chess-spectral on both pypi.org and test.pypi.org.
+
+Verification on TestPyPI is now a first-class step in chess-spectral's
+release flow rather than a manual-override-only path.
+
+### Added — pyproject description ↔ description + 512-char Summary guards
+
+Mirroring the srmech rc8 lesson: `pyproject.toml` ↔ `pyproject-pure.toml`
+**description** fields must now agree at workflow time (not just
+**version**). PyPI's Summary metadata has a hard 512-character limit;
+the workflow now enforces a soft cap of 480 with an explicit error
+above 512. Proactive — chess-spectral's current description is ~140
+chars, well under either threshold.
+
 ### ADR-002 §6.1 eigenbasis-diagonal optimization for `qm_2d_dynamics.evolve_under_h0` (~190× speedup)
 
 Enables the eigenbasis-diagonal optimization that was listed as Open
