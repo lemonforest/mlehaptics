@@ -468,14 +468,21 @@ For deeper context the user might reference in conversation:
 If you need to know what was true *as of this session's open*
 without the parent's persistent memory:
 
-- `srmech` is at **`0.1.1rc9` on TestPyPI**, with `v0.1.0` on
-  production PyPI.
-- Task #201 phases B1–B6 + metadata-drift rc9 fix all shipped
-  (see `python/CHANGELOG.md`).
-- Phase B7 (the **v0.2.0 production cut to PyPI**) is the only
-  remaining piece — pending one more TestPyPI rc verification.
+- `srmech` is at **`0.2.0rc1` on TestPyPI** (Phase B7 final rc
+  before the production cut), with `v0.1.0` on production PyPI.
+  Earlier rc series: `0.1.1rc3` → `0.1.1rc9` on TestPyPI.
+- Task #201 phases B1–B6 + metadata-drift rc9 fix all shipped.
+  See `python/CHANGELOG.md` for the per-rc record.
+- **Phase B7 status**: 0.2.0rc1 published to TestPyPI; cross-
+  package verification against ephemerides-spectral 0.26.1rc1
+  confirmed green. The final clean tag `srmech-v0.2.0` →
+  production PyPI is gated on one more end-to-end install check
+  from a clean venv outside the repo tree.
 - The C library is at ABI v2 with two native symbols
   (`srmech_sha256_hex`, `srmech_ndjson_iter`) plus version /
   ABI accessors.
-- ephemerides-spectral depends on srmech at `>=0.1.0` (will
-  bump to `>=0.2.0` after the production cut).
+- **ephemerides-spectral 0.26.1rc1** (sibling subtree) pins
+  `srmech>=0.1.1rc9` for the parallel-session verification round.
+  After srmech v0.2.0 lands on production PyPI, ephemerides-
+  spectral will bump that floor to `>=0.2.0` in its own follow-up
+  release.
