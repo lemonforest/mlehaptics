@@ -127,10 +127,14 @@ def test_readme_status_does_not_invent_unreleased_versions() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 def test_readme_status_banner_matches_package_version() -> None:
-    """The 'Status: vX.Y.Z' banner under the H1 must equal __version__."""
+    """The 'Status: vX.Y.Z[rcN]' banner under the H1 must equal __version__."""
     text = _read(_README)
     match = re.search(
-        r"\*\*Status:\s*v(\d+\.\d+\.\d+)[^*]*\*\*",
+        # PEP 440 pre-release form: optional rcN suffix with no separator.
+        # The README banner stamps the actual __version__ so during an
+        # rc cycle (e.g. 0.26.1rc1 verifying srmech compatibility on
+        # TestPyPI) the marker tracks the rc, not the stable predecessor.
+        r"\*\*Status:\s*v(\d+\.\d+\.\d+(?:rc\d+)?)[^*]*\*\*",
         text,
     )
     assert match is not None, (
@@ -147,10 +151,11 @@ def test_readme_status_banner_matches_package_version() -> None:
 
 
 def test_readme_current_marker_matches_package_version() -> None:
-    """The `*(current)*` marker in the Status section must point at __version__."""
+    """The `*(current)*` marker in the Status section must equal __version__."""
     body = _status_section(_read(_README))
     match = re.search(
-        r"\*\*v(\d+\.\d+\.\d+)\*\*\s*\*\(current\)\*",
+        # PEP 440 pre-release form: optional rcN suffix with no separator.
+        r"\*\*v(\d+\.\d+\.\d+(?:rc\d+)?)\*\*\s*\*\(current\)\*",
         body,
     )
     assert match is not None, (
