@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.26.1] — 2026-05-14
+
+### Production cut after TestPyPI verify-rc cycle
+
+`ephemerides-spectral 0.26.1` ships to production PyPI as the consolidated landing of substantive unreleased content (Task #197 Phase 4 AMSC migration to `srmech.amsc.*`, LLM tool-schema export, first cosmology-instrument pair, v0.27.0-phase-A AMSC backfills) plus the runtime dep bump `srmech>=0.1.0` → `srmech>=0.2.0` to match the parallel session's srmech v0.2.0 production cut.
+
+The 0.26.1rc1 TestPyPI cycle (tag `ephemerides-spectral-v0.26.1rc1`, PR #396) verified compatibility against `srmech==0.1.1rc9` on TestPyPI ahead of the srmech v0.2.0 production cut: 15-cell cibuildwheel matrix green; end-to-end clean external venv install + `srmech.__version__ == "0.1.1rc9"` assertion passed.
+
+This `[0.26.1]` block consolidates the four `### Added` / `### Changed` entries below (which lived under `[Unreleased]` during the rc cycle). The headline shape:
+
+- **Task #197 Phase 4** — AMSC framework migrated out of `ephemerides-spectral._research/attested_collector_*` + `_research/attested_adapters/` and into `srmech.amsc.*`. 12 framework modules (~2,931 LOC) removed from the ephemerides-spectral wheel. `srmech>=0.2.0` becomes a hard runtime dep. No `ephemerides_spectral.bridge` public-API changes (delegation wired by `_bootstrap_amsc()` at package import).
+- **LLM tool-schema export** — three new bridge functions + three CLI subcommands; 240 public bridge functions are now self-describing in four formats (Anthropic Claude / OpenAI function-calling / Anthropic MCP / plain JSON Schema).
+- **First cosmology-instrument pair** — `cmb_power_spectrum` (Planck 2018 PR3 TT, 111 bands) + `cmb_anomalies` (six canonical large-scale anomalies). Five new bridge functions + five CLI subcommands.
+- **v0.27.0-phase-A AMSC backfills × 12** — Mercury, Luna, Mars, Sun, Toroidal-Residual, Hawaiian-Emperor, Yarkovsky/YORP, Mars Tharsis, Axial Seamount, Sol Dynamical-Regime classifier (paired training + probes rosters), Pluto-Charon, Loki Patera. `n_sources` 13 → 19; `adapter_class="curated"` 10 → 16.
+
+### Cleanup — TestPyPI rc-cycle scaffolding removed
+
+- `pyproject.toml` + `pyproject-pure.toml`: dep floor `srmech>=0.1.1rc9` → `srmech>=0.2.0`. The rc-cycle's "verify-rc (Option B)" comment blocks are removed.
+- `.github/workflows/ephemerides-spectral-publish.yml`: `CIBW_ENVIRONMENT: PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple/` block removed.
+- `.github/workflows/ephemerides-spectral-ci.yml`: three `PIP_EXTRA_INDEX_URL` env stanzas removed (build-and-test, codegen-determinism, fallback-test install steps); fallback-test explicit `srmech` install now uses plain `srmech>=0.2.0`.
+- `python/CHANGELOG.md`: `[0.26.1rc1]` header rewritten as `[0.26.1]` with production framing.
+- `python/README.md`: Status banner + `*(current)*` bullet updated for production.
+- **Kept**: the `test_readme_freshness.py` regex relaxation that accepts optional `(?:rc\d+)?` suffixes — option-independent ratchet useful for any future rc cycle.
+
+No code changes; no ABI bump (ES_ABI_VERSION = 8 unchanged).
+
 ### Added — LLM tool-schema export
 
 Self-describing bridge surface for LLM tool-use clients. The bridge (~240 public functions across 40+ ships) now emits machine-readable tool descriptions in Anthropic Claude tool-use spec, OpenAI function-calling spec, Anthropic Model Context Protocol (MCP) tools/list spec, and plain JSON Schema formats. Three new bridge surfaces (`get_tool_schema`, `list_tool_names`, `get_one_tool_schema`) + three new CLI subcommands (`tool-schema`, `tool-names`, `tool-schema-one`) wire the export. **Self-describing API**: introspects `bridge.py` at call time — no hand-maintained list; every public bridge function with a docstring + type hints is automatically included. Adding a new ship's bridge surface automatically extends every emitted schema. The ratchet test `test_every_tool_has_non_empty_description` enforces docstring discipline. Filter by name prefix for catalog-specific subsets (e.g. `--filter-prefix get_cmb_` for the cosmology-instrument tools). Type-hint mapping handles `Optional[X]`, `List[X]`, `Dict[X, Y]`, `Union[X, Y]`, and string-form annotations. Name resolution uses the bridge namespace binding (not `fn.__name__`) — necessary because some bridge functions are factory-generated. **Pure-Python additive; no ABI bump.** 15 new tests. Reference: research notebook §0.0 (The Mathematical Provenance Method) — the bridge surface IS the surface other systems consume; making it self-describing to LLM clients is the natural completion of the "machine-readable everywhere" discipline.

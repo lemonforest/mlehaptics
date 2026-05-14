@@ -110,15 +110,6 @@ jobs:
       - name: Install package + dev tools
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         shell: bash
-        env:
-          # v0.26.1rc1 verify-rc (Option B): pyproject.toml pins
-          # `srmech>=0.1.1rc9`. The rc-form spec auto-enables pip's
-          # pre-release resolution per PEP 440, but TestPyPI must be
-          # visible as an index so rc9 can be located (production
-          # PyPI's latest srmech is 0.1.0). Drop this env var when
-          # srmech v0.2.0 lands on production PyPI and the floor is
-          # bumped to `srmech>=0.2.0`.
-          PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[ephemeris,tests]"
@@ -158,13 +149,6 @@ jobs:
           python-version: "3.12"
       - name: Install editable
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
-        env:
-          # v0.26.1rc1 verify-rc (Option B): same TestPyPI index
-          # pass-through as the build-and-test + fallback-test jobs
-          # — pyproject.toml's `srmech>=0.1.1rc9` floor needs
-          # TestPyPI visibility to resolve. Drop with the v0.2.0
-          # floor bump.
-          PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[ephemeris,tests]"
@@ -207,17 +191,10 @@ jobs:
         # Skip `pip install -e .` so scikit-build-core never invokes
         # CMake — _native/ ends up empty and the loader has to fall
         # back. We add the source tree to sys.path explicitly in the
-        # smoke-test step.
-        #
-        # v0.26.1rc1 verify-rc (Option B): srmech rc9 lives on
-        # TestPyPI only; the rc-form spec in pyproject.toml plus
-        # PIP_EXTRA_INDEX_URL make pip pull it in alongside the other
-        # runtime deps from PyPI. Drop the env var when srmech v0.2.0
-        # ships to production PyPI.
-        env:
-          PIP_EXTRA_INDEX_URL: https://test.pypi.org/simple/
+        # smoke-test step. srmech is named explicitly here because the
+        # no-`-e` install path doesn't read pyproject deps.
         run: |
-          python -m pip install --upgrade pip pytest numpy skyfield jplephem "srmech>=0.1.1rc9"
+          python -m pip install --upgrade pip pytest numpy skyfield jplephem "srmech>=0.2.0"
 
       - name: Verify HAS_NATIVE=False without a build
         working-directory: docs/antikythera-maths/ephemerides-spectral/python

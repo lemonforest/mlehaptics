@@ -10,19 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.26.1rc1] — 2026-05-13
+## [0.26.1] — 2026-05-14
 
-### Infrastructure — TestPyPI rc to verify compatibility with `srmech==0.1.1rc9`
+### Production cut — AMSC migration + LLM tool-schema + CMB cosmology pair + v0.27.0-phase-A AMSC backfills
 
-This rc exists for cross-package verification ahead of the **srmech v0.2.0 production cut to PyPI**. The parallel srmech session has shipped `srmech 0.1.1rc3` → `0.1.1rc9` to TestPyPI through Task #201 phases B1–B6 plus a metadata-drift sweep (PR #394). Before that session promotes srmech to production PyPI, this rc proves the latest ephemerides-spectral source (which already carries the Task #197 Phase 4 AMSC migration to `srmech.amsc.*`) still works correctly against the rc series.
+Production PyPI ship of the accumulated unreleased work after a TestPyPI verification cycle confirmed cross-package compatibility with the parallel **srmech v0.2.0** production cut.
 
-**Option B** in the verification-rc plan — invasive (pyproject runtime-dep pin) instead of non-invasive (workflow-side pre-install). Maintainer chose Option B because srmech v0.2.0 is the next ship from the parallel session, so the rc-form pin reverts in a single edit alongside the v0.2.0 floor bump.
+**Headline content** (sub-sections below have the per-area detail):
 
-- **`python/pyproject.toml`** — bumped runtime dep floor `srmech>=0.1.0` → `srmech>=0.1.1rc9`. The rc-form spec (PEP 440) auto-enables pip's pre-release resolution at any caller — no `--pre` flag needed. Revert to `srmech>=0.2.0` once that lands on production PyPI.
-- **`python/pyproject-pure.toml`** — added the missing `srmech` dep to the pure-wheel build's `[project].dependencies` list (was `["numpy>=1.24"]`, now `["numpy>=1.24", "srmech>=0.1.1rc9"]`). The Task #197 Phase 3 `_bootstrap_amsc()` in `ephemerides_spectral/__init__.py` imports `srmech.amsc.catalog` and `srmech.amsc.gap_suggester` at package-load time, so any environment lacking srmech (including the previous pure-wheel install path) would have failed at first import. The platform pyproject has carried this dep since the Phase 3 import swap landed; the pure pyproject was missed. Pinned to the same rc-form spec for two-pyproject congruence.
-- **`.github/workflows/ephemerides-spectral-publish.yml`** — added `CIBW_ENVIRONMENT: PIP_EXTRA_INDEX_URL=https://test.pypi.org/simple/` so the cibuildwheel build + test envs can SEE srmech rc9 (TestPyPI only — production PyPI's latest srmech is 0.1.0). With the pyproject pin's rc-form requirement plus this env, pip auto-resolves rc9 in every cell. Revert when bumping the floor to `>=0.2.0`.
-- **`.github/workflows/ephemerides-spectral-ci.yml`** — set `PIP_EXTRA_INDEX_URL` env on the `Install package + dev tools` and `Install runtime deps only` install steps so editable + runtime resolutions in the PR-time test matrix can also see TestPyPI. The fallback-test step's explicit pip install line now uses `"srmech>=0.1.1rc9"` to match the pyproject form (its no-`-e` install path doesn't read pyproject deps automatically).
-- No code changes. No ABI bump (ES_ABI_VERSION = 8 unchanged). The accumulated unreleased content below — AMSC migration to srmech, LLM tool-schema export, the CMB power-spectrum + anomalies cosmology-instrument pair, the v0.27.0-phase-A AMSC backfills — all ship as part of this rc because they're the surface that exercises srmech.
+- **Task #197 Phase 4** — AMSC framework migrated out of ephemerides-spectral and into `srmech.amsc.*`. 12 framework modules (~2,931 LOC) removed from the wheel; `srmech` becomes a hard runtime dep. No public-API changes on `ephemerides_spectral.bridge` — all attested surfaces still work, they now delegate.
+- **LLM tool-schema export** — self-describing bridge surface across all ~240 public functions in four formats (Anthropic Claude / OpenAI function-calling / Anthropic MCP / plain JSON Schema). Three new bridge functions (`get_tool_schema`, `list_tool_names`, `get_one_tool_schema`) + three CLI subcommands.
+- **First cosmology-instrument pair** — `cmb_power_spectrum` (Planck 2018 PR3 TT, 111 bands, ℓ=2..2499) + `cmb_anomalies` (six canonical large-scale anomalies). First catalogs at the Mpc-to-Gpc scale; bridge gains five new public functions and five new CLI subcommands.
+- **v0.27.0-phase-A AMSC backfills × 12** — Mercury, Luna, Mars, Sun, Toroidal-Residual, Hawaiian-Emperor, Yarkovsky/YORP, Mars Tharsis, Axial Seamount, Sol Dynamical-Regime classifier (paired training + probes rosters), Pluto-Charon, Loki Patera. `n_sources` rose 13 → 19; `adapter_class="curated"` 10 → 16.
+
+### Runtime dependency — `srmech>=0.2.0`
+
+- `python/pyproject.toml`: `srmech>=0.1.0` → `srmech>=0.2.0`. Floor bumped to match the parallel session's production cut. Mirrored in `python/pyproject-pure.toml` (which gained the `srmech` dep declaration in this version — it had been missing since the Phase 3 import swap; pure-wheel installs prior to v0.26.1 would have hit `ImportError` on first import, caught and fixed here).
+
+### Verification history
+
+A `0.26.1rc1` rc was shipped to TestPyPI (tag `ephemerides-spectral-v0.26.1rc1`, PR #396) to verify ephemerides-spectral source compatibility against `srmech==0.1.1rc9` on TestPyPI ahead of the srmech v0.2.0 production cut. The rc cycle used Option B (pyproject runtime-dep pin to the rc-form spec + workflow-side `PIP_EXTRA_INDEX_URL` exports), all 15 cibuildwheel matrix cells passed, and end-to-end install + assertion verify on a clean external venv reported `ALL ASSERTIONS PASSED` (including `srmech.__version__ == "0.1.1rc9"`). With this 0.26.1 production cut, the rc-cycle plumbing is reverted: `srmech>=0.2.0` floor + no `PIP_EXTRA_INDEX_URL` env / `CIBW_ENVIRONMENT` block.
+
+### Other notes
+
+- No code changes between 0.26.1rc1 and 0.26.1; only the rc-cycle scaffolding was reverted (workflow envs, pyproject comment blocks) and the version SSOT bumped.
+- No ABI bump (ES_ABI_VERSION = 8 unchanged).
+- README freshness regexes in `tests/test_readme_freshness.py` now accept optional `(?:rc\d+)?` suffixes on Status banner + `*(current)*` marker — option-independent ratchet relaxation kept for any future rc cycle.
 
 ### Changed — AMSC framework migrated to `srmech.amsc.*` (Task #197 Phase 4)
 
