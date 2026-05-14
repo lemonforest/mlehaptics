@@ -418,7 +418,8 @@ def get_local_kernel_state() -> Dict[str, Any]:
     canonical = "\n".join(
         f"{e['source_key']}\t{e['overlay_sha256']}" for e in per_source
     )
-    cache_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    from .format import sha256_bytes as _sha256
+    cache_hash = _sha256(canonical.encode("utf-8"))
 
     return {
         "ok": True,
@@ -447,11 +448,17 @@ def _overlay_path_for(descriptor: Descriptor) -> Optional[Path]:
 
 
 def _file_sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """SHA-256 of an arbitrary file's bytes.
+
+    Phase B5: for files small enough to fit in memory (the only
+    callsite is overlay attestation, where NDJSON ground-proof
+    files run a few KB to a few MB), we just slurp + route through
+    ``sha256_bytes`` to get the native C dispatch. Streaming
+    hashlib would require a multi-update C API (not yet ported)
+    and we don't have files large enough to justify it.
+    """
+    from .format import sha256_bytes
+    return sha256_bytes(path.read_bytes())
 
 
 def _resolved_ndjson_path(descriptor: Descriptor) -> Path:

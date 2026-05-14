@@ -123,7 +123,10 @@ def parser_rule_hash(parse_section: Mapping[str, Any]) -> str:
     canonical = _json.dumps(
         dict(parse_section), sort_keys=True, ensure_ascii=False
     ).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()
+    # Route through sha256_bytes so the native C dispatch (Task #201
+    # Phase B3) handles the hash when available. Pure-Python falls
+    # back to hashlib transparently.
+    return sha256_bytes(canonical)
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -4,6 +4,64 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc7] - 2026-05-13
+
+### Changed — Task #201 Phase B5: route remaining sha256 callsites through native dispatch
+
+Phase B5's nominal title was "TOML canonical-serialization C port".
+The shipped scope is narrower and better-fit: the actual hot work
+(SHA-256 over canonicalised bytes) already has a native C path
+from Phase B3. **B5 routes the four remaining ``hashlib.sha256``
+callsites in srmech through ``sha256_bytes``** so every per-row
+attestation hash benefits from the native dispatch.
+
+Vendoring a TOML parser in C — the original phase plan's
+implication — was rejected. CPython's ``tomllib`` + ``json.dumps``
+canonicalisation is small, fast, and well-tested; replicating it
+in C would 3× srmech's native-code surface area for no measurable
+gain on the inputs srmech actually processes.
+
+#### Wired callsites
+
+- **`descriptor.descriptor_hash`** — the load-bearing one. Used by
+  every adapter's ``attest()`` step to compute
+  ``collector_descriptor_hash`` per row.
+- **`catalog._file_sha256`** — hashes overlay NDJSON files for T2
+  user-runtime-kernel attestation. Small files (< few MB), so
+  slurp-and-hash via ``sha256_bytes`` is fine; streaming hashlib
+  (which we'd need for huge files) would require a separate
+  C-side multi-update API not yet ported.
+- **`catalog._kernel_cache_hash`** — cache-key hash over the
+  registered T2 overlay summary.
+- **`adapters._base.parser_rule_hash`** — per-row attestation field
+  documenting the parse-section rules.
+
+#### What stays in Python
+
+- TOML parsing (``tomllib.loads``) — stdlib, already C-accelerated.
+- Canonical JSON serialisation (``json.dumps(sort_keys=True, ...)``) —
+  stdlib, already C-accelerated.
+- Streaming hashlib for the (currently unused) very-large-file case.
+
+#### Tests
+
+- **`tests/test_native_descriptor_hash.py`** *(NEW)* — 7 parity
+  tests:
+  - 3 descriptor-shape fixtures (minimal, comments + odd-spacing,
+    deeply-nested keys) comparing native-routed ``descriptor_hash``
+    to a pure-Python hashlib reference computation.
+  - ``catalog._file_sha256`` parity vs streaming hashlib.
+  - ``adapters._base.parser_rule_hash`` parity vs hashlib.
+  - Defensive ratchet asserting all four wired callsites resolve to
+    the same native path (catches accidental re-introduction of
+    direct ``hashlib.sha256`` calls).
+- Full pytest suite (100 tests + 1 skip) all green under native
+  wheel install on Windows MSVC + Python 3.14.
+
+#### No ABI change
+
+C surface area unchanged from rc6. SRMECH_ABI_VERSION stays at 2.
+
 ## [0.1.1rc6] - 2026-05-13
 
 ### Added — Task #201 Phase B4: NDJSON streaming reader C port
