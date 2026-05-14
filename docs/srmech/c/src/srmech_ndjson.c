@@ -100,6 +100,59 @@ static srmech_status_t srmech_ndjson_emit(srmech_ndjson_line_cb cb,
 }
 
 /* ------------------------------------------------------------------ *
+ * Helper: process one chunk of bytes through the line-tokeniser
+ * state machine. Updates *line_len_inout and *lineno_inout in
+ * place; invokes the callback for every complete non-empty line.
+ *
+ * Phase B6 (Task #201) refactor: extracted out of
+ * srmech_ndjson_iter to bring that function under JPL Rule 4's
+ * 60-line limit. Same byte semantics as the original inline loop.
+ * ------------------------------------------------------------------ */
+static srmech_status_t srmech_ndjson_process_chunk(
+    const uint8_t           *chunk,
+    size_t                   n_read,
+    srmech_ndjson_line_cb    cb,
+    void                    *user,
+    size_t                  *line_len_inout,
+    size_t                  *lineno_inout)
+{
+    assert(chunk != NULL);
+    assert(cb != NULL);
+    assert(line_len_inout != NULL);
+    assert(lineno_inout != NULL);
+
+    size_t line_len = *line_len_inout;
+    size_t lineno = *lineno_inout;
+
+    for (size_t i = 0u; i < n_read; i++) {
+        const uint8_t b = chunk[i];
+        if (b == (uint8_t)'\n') {
+            const srmech_status_t st = srmech_ndjson_emit(
+                cb, g_line_buf, line_len, lineno, user);
+            if (st != SRMECH_OK) {
+                *line_len_inout = line_len;
+                *lineno_inout = lineno;
+                return st;
+            }
+            line_len = 0u;
+            lineno += 1u;
+        } else {
+            if (line_len >= SRMECH_NDJSON_MAX_LINE_BYTES) {
+                *line_len_inout = line_len;
+                *lineno_inout = lineno;
+                return SRMECH_ERR_OVERFLOW;
+            }
+            g_line_buf[line_len] = (char)b;
+            line_len += 1u;
+        }
+    }
+
+    *line_len_inout = line_len;
+    *lineno_inout = lineno;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
  * Public entry — declared in srmech.h.
  *
  * Open `path`, walk it line by line, invoke `cb(line, line_len,
@@ -125,9 +178,6 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
     assert(path != NULL);
     assert(cb != NULL);
 
-    /* Open in binary mode — we handle '\n' explicitly so Windows
-     * CRLF doesn't get silently translated to LF (which would
-     * change the byte count we hand to the callback). */
     FILE *fp = fopen(path, "rb");
     if (fp == NULL) {
         return SRMECH_ERR_IO;
@@ -139,42 +189,21 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
     srmech_status_t st = SRMECH_OK;
     int eof_reached = 0;
 
-    /* Outer chunk loop — bounded by the file size, which is bounded
-     * by available disk. JPL Rule 2: ferror/feof break the loop. */
     while (!eof_reached) {
-        const size_t n_read = fread(chunk, 1u, SRMECH_NDJSON_CHUNK_BYTES, fp);
+        const size_t n_read = fread(
+            chunk, 1u, SRMECH_NDJSON_CHUNK_BYTES, fp);
         if (n_read == 0u) {
             if (ferror(fp)) {
                 st = SRMECH_ERR_IO;
             }
-            eof_reached = 1;
             break;
         }
-
-        /* Inner byte loop — bounded by n_read, ≤ chunk size. */
-        for (size_t i = 0u; i < n_read; i++) {
-            const uint8_t b = chunk[i];
-            if (b == (uint8_t)'\n') {
-                /* End of a line — emit, advance lineno, reset buffer. */
-                st = srmech_ndjson_emit(cb, g_line_buf, line_len, lineno, user);
-                if (st != SRMECH_OK) {
-                    /* Either callback signalled an error, or emit
-                     * itself failed; propagate. */
-                    fclose(fp);
-                    return st;
-                }
-                line_len = 0u;
-                lineno += 1u;
-            } else {
-                if (line_len >= SRMECH_NDJSON_MAX_LINE_BYTES) {
-                    fclose(fp);
-                    return SRMECH_ERR_OVERFLOW;
-                }
-                g_line_buf[line_len] = (char)b;
-                line_len += 1u;
-            }
+        st = srmech_ndjson_process_chunk(
+            chunk, n_read, cb, user, &line_len, &lineno);
+        if (st != SRMECH_OK) {
+            fclose(fp);
+            return st;
         }
-
         if (n_read < SRMECH_NDJSON_CHUNK_BYTES) {
             if (ferror(fp)) {
                 st = SRMECH_ERR_IO;
@@ -183,7 +212,6 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
         }
     }
 
-    /* Trailing line with no final '\n' — emit if non-empty. */
     if (st == SRMECH_OK && line_len > 0u) {
         st = srmech_ndjson_emit(cb, g_line_buf, line_len, lineno, user);
     }

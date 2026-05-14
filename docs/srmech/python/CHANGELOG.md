@@ -4,6 +4,77 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.1rc8] - 2026-05-13
+
+### Added — Task #201 Phase B6: JPL Power-of-Ten audit
+
+Formal audit of srmech's native C library against
+[Holzmann's JPL Power-of-Ten rules](https://web.eecs.umich.edu/~imarkov/10rules.pdf).
+Mirrors the pattern ephemerides-spectral applied via Tasks
+#105–#110. **All ten rules satisfied** for srmech's C surface,
+modulo one documented Rule 9 deviation (callback-based iterator).
+
+#### Audit deliverables (`docs/srmech/c/JPL_AUDIT.md`)
+
+- **Rule-by-rule compliance review** across all 3 C source files
+  (`srmech_meta.c`, `srmech_sha256.c`, `srmech_ndjson.c`) + the
+  public header `srmech.h`. ~500 LOC total.
+- **Per-function line + assertion counts** with explicit exemption
+  policy for trivial accessors (`srmech_version`,
+  `srmech_abi_version`) and `static inline` arithmetic primitives
+  (sha256 bit-rotation helpers).
+- **Rule 9 deviation rationale** documented: the `srmech_ndjson_iter`
+  callback is the smallest API surface satisfying Rules 3 + 4 simultaneously.
+
+#### Code fix shipped in this audit pass
+
+- **`srmech_ndjson_iter`** at rc6 was **76 lines** (Rule 4 violation:
+  > 60 lines). The chunk-byte-loop body extracted into a new
+  `static srmech_ndjson_process_chunk` helper along its natural
+  state-update seam. Post-refactor: 51-line `iter` + 43-line
+  `process_chunk`. Byte semantics identical; 18 ndjson parity
+  tests re-ran clean.
+
+#### Tests + CI ratchet
+
+- **`tests/test_jpl_audit.py`** *(NEW)* — 6 mechanically-detectable
+  ratchet tests:
+  - Rule 1: no `goto` / `setjmp` / `longjmp` anywhere.
+  - Rule 3: no `malloc` / `calloc` / `realloc` / `free` / `alloca`.
+  - Rule 4: every function ≤ 60 lines (line-count regex + brace-
+    depth scanner).
+  - Rule 5: every non-exempt function has ≥ 2 assertions.
+    Exempt list pinned (8 entries: 2 trivial accessors, 6 inline
+    helpers); adding to the exempt list requires documenting
+    rationale in JPL_AUDIT.md AND updating the test.
+  - Rule 8: no multi-line macros / token-paste / `__VA_ARGS__`.
+  - Audit doc present-and-mentions-all-rules sanity check.
+- **`.github/workflows/srmech-ci.yml`** gains a **`pedantic-build`
+  job** (3-cell matrix: Linux gcc / macOS clang / Windows MSVC)
+  that runs `cmake -DSRMECH_PEDANTIC=ON` → builds with `-Werror`
+  (POSIX) or `/WX` (MSVC). Any new warning fails CI. Rule 10
+  toolchain-side enforcement.
+- All 100 existing tests still pass; pytest collects 106 tests +
+  the JPL ratchet's 6 = 112 total Python tests.
+
+#### Verification (local)
+
+- ``gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -O2`` builds all
+  3 C files clean.
+- `pytest tests/test_jpl_audit.py` → 6/6 pass.
+- Full pytest suite (rc8 wheel install) → 106 passed + 1 skipped
+  (1 native-dispatch skip when run from source tree).
+
+#### Phase plan progress
+
+| B1 | C tree scaffolding (rc3)                          | ✅ |
+| B2 | scikit-build-core + pyproject-pure (rc4)          | ✅ |
+| B3 | SHA-256 + cibuildwheel matrix (rc5)               | ✅ |
+| B4 | NDJSON streaming reader (rc6)                     | ✅ |
+| B5 | Route remaining sha256 callsites (rc7)            | ✅ |
+| B6 | JPL Power-of-Ten audit (rc8)                      | this ship |
+| B7 | v0.2.0rc1 final TestPyPI verify → v0.2.0 to PyPI  | next |
+
 ## [0.1.1rc7] - 2026-05-13
 
 ### Changed — Task #201 Phase B5: route remaining sha256 callsites through native dispatch

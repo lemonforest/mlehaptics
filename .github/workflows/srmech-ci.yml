@@ -137,3 +137,32 @@ jobs:
           )
           print(f'srmech {__version__} OK')
           "
+
+  pedantic-build:
+    # Task #201 Phase B6 — JPL Power-of-Ten Rule 10 ratchet.
+    # Build the srmech C library with SRMECH_PEDANTIC=ON across
+    # Linux gcc / macOS clang / Windows MSVC. Any new warning fails
+    # the build — `-Werror` on POSIX, `/WX` on MSVC. Mirrors
+    # ephemerides-spectral-ci's pedantic-build job (their Tasks
+    # #105–#110 audit work).
+    #
+    # Smoke target only — produces the shared library and the
+    # ephemerides-style test binary (when present). Doesn't ship a
+    # wheel; the wheel-build matrix in srmech-publish.yml does that
+    # at tag time.
+    name: pedantic C build • ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure with SRMECH_PEDANTIC=ON
+        working-directory: docs/srmech
+        run: cmake -S . -B build -DSRMECH_PEDANTIC=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (warnings = errors)
+        working-directory: docs/srmech
+        run: cmake --build build --config Release
