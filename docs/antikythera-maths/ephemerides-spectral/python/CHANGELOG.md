@@ -10,6 +10,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc3] — 2026-05-14
+
+The rc2 git tag (`ephemerides-spectral-v0.28.0rc2`) was pushed but
+the publish workflow failed at the cibuildwheel Linux matrix step
+and never reached TestPyPI. rc3 absorbs the full rc2 content plus
+the `es_laplacian.c` drift fix described below.
+
+### Added — Task `#212` PR-b: srmech `[profile.native]` plugin-tier declaration
+
+ADR-0001 §7 Step 2 plugin-tier portion. ephemerides-spectral's srmech
+profile graduates from "simple" (PR-a, v0.27.0) to "plugin" tier.
+`srmech.profile("ephemerides")._maybe_load_native()` now resolves the
+platform-specific shared library bundled in the wheel, performs the
+`es_abi_version()` handshake, and exposes a bound `ctypes.CDLL` as
+`Profile.native`.
+
+**Wire-up** (`python/ephemerides_spectral/srmech_profile.toml`):
+
+- New `[profile.native]` block: `library = "ephemerides_spectral"`,
+  `install_path = "ephemerides_spectral/_native"`,
+  `abi_version_function = "es_abi_version"`,
+  `expected_abi_version = 8`.
+- 8 new `[profile.native.symbols.*]` entries covering the encoder hot
+  path + introspection accessors (`es_version`, `es_abi_version`,
+  `es_n_bodies`, `es_body_index`, `es_encode_state`, `es_encode_at_jd`,
+  `es_cos_lut`, `es_residue_to_radians`). srmech v0.3.x binds by name
+  only; declaring `argtypes`/`restype` is forward-compatible with
+  future srmech versions and documents the intended plugin-tier
+  surface for PR-c's bridge call-site migration.
+- File header tier comment updated from "simple" → "plugin".
+
+### Fixed — silent native-acceleration rejection across v0.16.0 → v0.28.0rc1
+
+`_native_bip.EXPECTED_ABI_VERSION` was left at `6` while the C
+library's `ES_ABI_VERSION` advanced to `8` in v0.16.0 (Tier-1 BODIES
+expansion, commit `f1d4b82`). Every wheel install since v0.16.0 has
+silently fallen back to the pure-Python BIP encoder because the
+ctypes shim's ABI-handshake check rejected the bundled library with
+`LOAD_ERROR = "native ABI mismatch ... binary is v8, Python expects v6"`.
+Bumping the constant to `8` realigns the shim with the shipped
+library; native acceleration is restored across the install base.
+
+ABI history comment block extended (`v7` = v0.15.0 Sol Moon Times
+roster completion; `v8` = v0.16.0 Tier-1 BODIES expansion). The
+v0.28.0rc3 realignment is a Python-side catch-up only; the C side
+has been at v8 since v0.16.0.
+
+### Fixed (rc3 only) — native parity drift unmasked by the v6→v8 realignment
+
+Flipping `HAS_NATIVE` from False to True for the first time since
+v0.16.0 (above) caused `test_native_parity` to actually run on the
+cibuildwheel Linux matrix. It failed: native and Python BIP phases
+diverged on 15 bodies at every Δt — calypso, deimos, dione,
+enceladus, helene, hyperion, iapetus, mimas, phobos, phoebe,
+polydeuces, rhea, telesto, tethys, titan — exactly the Mars +
+Saturnian moons that depend on the `mar099s` + `sat441` JPL
+auxiliary kernels.
+
+Root cause: `c/src/es_laplacian.c` and
+`python/.../_data/initial_phases.json` were last regenerated under
+DIFFERENT auxiliary-kernel availability. `es_laplacian.c` was
+emitted at a session when those kernels WERE staged on the dev box;
+the JSON was rebuilt later when they were NOT. The stub-period
+fallback path produces different phase residues than the full-kernel
+calibration path. Native-parity silently held while `HAS_NATIVE` was
+False; surfaced loudly once the realignment unblocked the test.
+
+Fix (rc3): re-ran `python c/codegen/emit_c_tables.py` with the
+current dev-box kernel state (still missing `mar099s` + `sat441` —
+JPL FTP returns 404 for both, archived in the codegen DEBUG log).
+The codegen falls back to the parent-body period stub for the 15
+affected moons. Result: C side now produces the SAME stub-fallback
+phases the JSON does. `Bodies disagreeing: 0` after the regen.
+
+This aligns the two sides but does NOT restore real-truth ephemeris
+calibration for Mars + Saturnian moons; both sides now consistently
+use the parent-period stub. Restoring real-truth calibration
+requires mirroring `mar099s` + `sat441` (~1.5 GB combined) into the
+dev box build environment AND into the cibuildwheel CI matrix.
+Deferred to a separate ship; out of scope for Task `#212`.
+
+### Smoke + ratchets
+
+`ephemerides_spectral/_srmech_smoke.py` gains a fourth check: assert
+`_native_bip.HAS_NATIVE is True` on plugin-tier installs. Pure-Python
+wheels (Pyodide / WASM / no-C build) detected by `LOAD_ERROR` pattern
+matching and skipped without failure. Catches future silent-rejection
+regressions loudly via the srmech-side `SmokeTestFailedError`.
+
+New `tests/test_srmech_profile.py` — 13 ratchets total:
+
+- **Static (9 tests, no srmech required)**: `[profile.native]` block
+  presence + required-field schema + `expected_abi_version` agreement
+  with `_native_bip.EXPECTED_ABI_VERSION` (the single anti-drift
+  ratchet for the v0.27.0 silent-rejection bug) + library basename +
+  install path + abi function name + 8 declared symbols.
+- **Activation-path (4 tests, require srmech + plugin-tier wheel)**:
+  `srmech.profile("ephemerides")` resolves; `Profile.native` is not
+  None; `_native_meta["abi_version"] == 8`; `repr(p)` reports
+  `(plugin)`; every declared symbol resolves via `getattr(p.native, ...)`.
+
+Activation-path tests skip cleanly on pure-Python installs and source-
+tree shadowing with explicit reason strings so CI matrix surfaces
+what's running where.
+
+### Dependency change
+
+`srmech>=0.3.1,<0.4` — unchanged from v0.28.0rc1 (already pinned at
+the floor that contains the Form-1 entry-point + `[profile.tool_schema]`
+loader fixes the chess-spectral POC surfaced).
+
+### Versioning
+
+`0.28.0rc1` → `0.28.0rc3`. (rc2 was a failed-publish tag — pushed
+to GitHub but the cibuildwheel Linux matrix failed before TestPyPI
+upload. rc3 absorbs rc2's full content + the `es_laplacian.c`
+drift fix.) Cumulative per the rc-stacking discipline
+(`memory/feedback_rc_stacking_versioning.md`): rc3 carries forward
+the Phase 10a EOC catalog from rc1 and adds Task `#212` PR-b on
+top. The clean `v0.28.0` to production PyPI will ship the
+accumulated stack (rc1 EOC + rc3 plugin tier + native-parity fix +
+forthcoming rc4 PR-c + rc5 EOC C-side completion).
+
+### No ABI bump
+
+`ES_ABI_VERSION = 8` unchanged. The Python-side `EXPECTED_ABI_VERSION`
+catch-up does not change the C ABI; it aligns the Python shim with
+the C side's existing v8.
+
 ## [0.28.0rc1] — 2026-05-14
 
 ### Added — Phase 10a: Per-body equation-of-center catalog (closed-form Kepler series)

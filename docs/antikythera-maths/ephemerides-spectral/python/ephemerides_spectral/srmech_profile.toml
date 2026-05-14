@@ -22,15 +22,19 @@
 # srmech-mediated discovery + introspection + the tool-schema surface.
 #
 # Schema: docs/srmech/adr/0001-profile-pattern.schema.json
-# Tier:   simple (this PR — PR-a). PR-b adds [profile.native] for
-#         libephemerides_spectral; PR-c migrates bridge call sites to
-#         exercise the plugin-tier path.
+# Tier:   plugin. PR-a (v0.27.0) shipped [profile.bridge] +
+#         [profile.smoke_test] + [profile.tool_schema]. PR-b (this
+#         file, v0.28.0rc2) ships [profile.native] for the
+#         libephemerides_spectral plugin tier; the ABI handshake
+#         binds the native library at srmech.profile() activation
+#         time. PR-c (v0.28.0rc3) migrates bridge call sites to
+#         exercise the plugin-tier handle.
 
 profile_schema_version = "1.0"
 
 [profile]
 name            = "ephemerides"
-version         = "0.28.0rc1"
+version         = "0.28.0rc3"
 summary         = "Sol Star System spectral instrument — 52-body roster, 11 cross-channel coupling surfaces, native-C BIP encoder, AMSC-attested catalogs (Geodetic/EM/Magnetic/Fluid/Dynamical) anchored on JPL DE441"
 package         = "ephemerides_spectral"
 srmech_requires = ">=0.3.1,<0.4"
@@ -94,3 +98,86 @@ callable = "ephemerides_spectral._srmech_smoke:smoke_test"
 
 [profile.tool_schema]
 extension_file = "_srmech_tool_schema.toml"
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.native]
+#
+# Plugin-tier declaration (ADR-0001 §5). PR-b (v0.28.0rc2) wires the
+# srmech-side loader: srmech.profile("ephemerides")._maybe_load_native()
+# resolves the platform-specific shared library from the installed
+# wheel via importlib.metadata.files("ephemerides-spectral"), opens it
+# with ctypes.CDLL, calls es_abi_version(), and rejects the load if
+# the runtime ABI doesn't match expected_abi_version below.
+#
+# ABI v8 = current. ABI history (mirror of c/include/ephemerides_spectral.h):
+#   v1 — v0.3.1 baseline (encode-only).
+#   v2 — v0.4.1 (es_patch_t / es_apply_patch / es_clear_patches).
+#   v3 — v0.6.0 (es_breathing_modulation, es_find_syzygies).
+#   v4 — v0.6.1 (es_complex64_t, es_channel_basis, splitmix64).
+#   v5 — v0.7.0 (HD pipeline: es_encode_state_hd, es_bind_observer,
+#       es_get_eclipse_probability).
+#   v6 — v0.13.4 (JPL Power-of-Ten Rule 1 + Rule 3: caller-supplied
+#       scratch buffers, no malloc/goto).
+#   v7 — v0.13.6 (subsequent JPL hardening; encoder math byte-identical).
+#   v8 — current. Body-roster and Tier-2 surfaces stable.
+#
+# The pure-Python Pyodide / WASM wheel does NOT ship a native library;
+# srmech's loader raises InvalidProfileError on those installs and
+# falls back to bridge.* calls through ephemerides_spectral's pure-
+# Python BIP path. The wheel-tag is the only discriminator.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.native]
+library              = "ephemerides_spectral"
+install_path         = "ephemerides_spectral/_native"
+abi_version_function = "es_abi_version"
+expected_abi_version = 8
+
+# ────────────────────────────────────────────────────────────────────────
+# [profile.native.symbols]
+#
+# Curated symbol declarations. srmech v0.3.x binds by name only
+# (loader at docs/srmech/python/srmech/profile_loader.py:815 — argtype
+# binding is deferred per the loader's inline comment). Listing the
+# symbols is forward-compatible and documents the intended plugin-
+# tier surface for PR-c's bridge call-site migration.
+#
+# Subset rationale: introspection accessors (es_version, es_abi_version,
+# es_n_bodies, es_body_index) + encoder hot path (es_encode_state,
+# es_encode_at_jd, es_cos_lut, es_residue_to_radians). Tier-1 / Tier-2
+# surfaces (es_find_syzygies, es_breathing_modulation,
+# es_encode_state_hd, etc.) grow into this section as PR-c migrates
+# them; the symbols table is incremental.
+# ────────────────────────────────────────────────────────────────────────
+
+[profile.native.symbols.es_version]
+argtypes = []
+restype  = "c_char_p"
+
+[profile.native.symbols.es_abi_version]
+argtypes = []
+restype  = "c_int"
+
+[profile.native.symbols.es_n_bodies]
+argtypes = []
+restype  = "c_int"
+
+[profile.native.symbols.es_body_index]
+argtypes = ["c_char_p"]
+restype  = "c_size_t"
+
+[profile.native.symbols.es_encode_state]
+argtypes = ["c_double", "POINTER(c_uint32)"]
+restype  = "c_int"
+
+[profile.native.symbols.es_encode_at_jd]
+argtypes = ["c_double", "POINTER(c_uint32)"]
+restype  = "c_int"
+
+[profile.native.symbols.es_cos_lut]
+argtypes = ["c_uint32", "c_uint32"]
+restype  = "c_int32"
+
+[profile.native.symbols.es_residue_to_radians]
+argtypes = ["c_uint32"]
+restype  = "c_double"
