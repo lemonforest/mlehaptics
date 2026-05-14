@@ -20,10 +20,18 @@ Discipline:
 from __future__ import annotations
 
 import importlib.resources
-import tomllib
+import sys
 from pathlib import Path
 
 import pytest
+
+# tomllib landed in stdlib at Python 3.11; fall back to the tomli
+# backport on 3.10 (the package's minimum). Mirrors the same pattern
+# used in codegen/regenerate.py.
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover
+    import tomli as tomllib  # type: ignore[no-redef]
 
 
 # ──────────────────────────────────────────────────────────────────────

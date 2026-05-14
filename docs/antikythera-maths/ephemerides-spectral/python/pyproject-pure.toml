@@ -59,7 +59,7 @@ dependencies = ["numpy>=1.24", "srmech>=0.3.1,<0.4"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
-tests      = ["pytest>=7.0"]
+tests      = ["pytest>=7.0", "tomli>=2.0; python_version<'3.11'"]
 collector         = ["requests>=2.28", "beautifulsoup4>=4.11", "tomli>=2.0; python_version<'3.11'", "jsonschema>=4.0"]
 collector-netcdf  = ["netCDF4>=1.6"]
 collector-geotiff = ["rasterio>=1.3"]
