@@ -76,20 +76,20 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     614115372u, /* amalthea */
     3835590588u, /* ariel */
     954923981u, /* callisto */
-    481889435u, /* calypso */
+    3857626825u, /* calypso */
     3597717137u, /* ceres */
     3206571533u, /* charon */
-    3548135658u, /* deimos */
-    3696779743u, /* dione */
-    3763270410u, /* enceladus */
+    474935390u, /* deimos */
+    4163626977u, /* dione */
+    1725934353u, /* enceladus */
     3594951378u, /* epimetheus */
     2533952976u, /* europa */
     2622888258u, /* ganymede */
-    481803649u, /* helene */
+    4163626977u, /* helene */
     90833842u, /* himalia */
     270682330u, /* hygiea */
-    982362469u, /* hyperion */
-    2568594452u, /* iapetus */
+    2327281680u, /* hyperion */
+    1880014365u, /* iapetus */
     213641777u, /* io */
     2884306668u, /* janus */
     432980277u, /* jupiter */
@@ -97,27 +97,27 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     4288313135u, /* mars */
     3027660005u, /* mercury */
     1959161098u, /* metis */
-    3849210381u, /* mimas */
+    625840904u, /* mimas */
     2840715143u, /* miranda */
     3626000180u, /* neptune */
     1168202796u, /* nereid */
     3296855918u, /* oberon */
     257290448u, /* pallas */
     3121869374u, /* pasiphae */
-    3077019855u, /* phobos */
-    2303995502u, /* phoebe */
+    1374519043u, /* phobos */
+    3364117205u, /* phoebe */
     2989119291u, /* pluto */
-    481970894u, /* polydeuces */
+    4163626977u, /* polydeuces */
     1979799237u, /* proteus */
-    2149643563u, /* rhea */
+    3643334025u, /* rhea */
     545464656u, /* saturn */
     1686520298u, /* sinope */
     0u, /* sun */
-    481859913u, /* telesto */
+    3857626825u, /* telesto */
     1197504024u, /* terra */
-    3809851868u, /* tethys */
+    3857626825u, /* tethys */
     2233542473u, /* thebe */
-    1682107609u, /* titan */
+    81596567u, /* titan */
     3509176257u, /* titania */
     2631119796u, /* triton */
     269771423u, /* umbriel */

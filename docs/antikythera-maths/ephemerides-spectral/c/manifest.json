@@ -11,8 +11,8 @@
       "size_bytes": 9198
     },
     "es_laplacian.c": {
-      "sha256": "d871ca8786e35fc5b9c9d51c2af2bacf0d9c22daa2dcc530d80bcea54c1df0d9",
-      "size_bytes": 4410
+      "sha256": "456a36a11e0ba6fc414361456a98439d97cd3cb91f9459a36a4e0ce92183b76e",
+      "size_bytes": 4411
     }
   },
   "k_bits": 32,
@@ -20,5 +20,5 @@
   "n_bodies": 52,
   "package": "ephemerides-spectral-c",
   "reference_jd": 2451545.0,
-  "version": "0.15.0"
+  "version": "0.28.0rc2"
 }
