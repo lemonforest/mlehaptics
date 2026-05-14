@@ -1,8 +1,17 @@
 # srmech
 
-**Status:** v0.1.0 on PyPI (initial pure-Python ship from the Task #197 AMSC-to-srmech refactor). v0.1.1rc3 → rc9 + v0.2.0rc1 on TestPyPI complete the Task #201 build-out to peer quality with ephemerides-spectral: native C dispatch for SHA-256 + NDJSON line reader, scikit-build-core + CMake build, cibuildwheel matrix (Linux/macOS/Windows × py3.10–3.14), pure-Python fallback for Pyodide / WASM, and JPL Power-of-Ten audit. v0.2.0rc1 cross-package verification against ephemerides-spectral 0.26.1rc1 confirmed green on TestPyPI. **v0.2.0 production cut to PyPI is the only remaining step.**
+**Status:** v0.1.0 on PyPI (initial pure-Python ship from the Task #197 AMSC-to-srmech refactor). v0.1.1rc3 → rc9 + v0.2.0rc1 → rc2 on TestPyPI complete the Task #201 build-out to peer quality with ephemerides-spectral: native C dispatch for SHA-256 + NDJSON line reader, scikit-build-core + CMake build, cibuildwheel matrix (Linux/macOS/Windows × py3.10–3.14), pure-Python fallback for Pyodide / WASM, and JPL Power-of-Ten audit. v0.2.0rc1 cross-package verification against ephemerides-spectral 0.26.1rc1 confirmed green on TestPyPI. **v0.2.0 production cut to PyPI is the only remaining step.**
 
-`srmech` (Stored-Relationship Mechanism) is a research package. It ships the **Attested Multi-Source Collector (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time. **Native C** for the SHA-256 attestation hash + NDJSON streaming reader; pure-Python fallback for Pyodide / WASM environments.
+`srmech` (Stored-Relationship Mechanism) is a research package. It ships the **Attested Multi-Source Collector/Catalog (AMSC) framework** — the Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time. **Native C** for the SHA-256 attestation hash + NDJSON streaming reader; pure-Python fallback for Pyodide / WASM environments.
+
+### Why "Collector/Catalog"?
+
+Both readings of **AMSC** are correct and the abbreviation is the same either way:
+
+- At **collection time** (T1 / T3 lifecycle stages — fetch / live-query / re-bake), the adapter classes are *collecting* attested rows from upstream archives. The framework's name describes what it's doing in that moment: **Attested Multi-Source Collector**.
+- After collection, the resulting NDJSON SSOTs are a *catalog* of attested data — committed into the package, registered into the universal bridge by downstream consumers, queryable through `list_attested_sources()` / `get_attested_dataset()`. The same framework name describes the post-collection state: **Attested Multi-Source Catalog**.
+
+Both names abbreviate to AMSC. Pick whichever fits the lifecycle stage you're describing — the framework is one thing wearing two hats.
 
 The package was extracted from `ephemerides-spectral`'s `_research/` mirror in Task #197 so that other spectral-research packages can consume the AMSC framework without depending on ephemerides-spectral. The catalog SSOTs themselves do NOT migrate — each downstream package registers its own root via `srmech.amsc.catalog.register_attested_root(path, source=...)`.
 

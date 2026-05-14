@@ -4,6 +4,75 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.2.0rc2] - 2026-05-14
+
+### Added — Task #201 Phase B7: AMSC dual-name wording ("Collector / Catalog")
+
+Documents the dual reading of the **AMSC** abbreviation across
+srmech's user-facing surface. **No code, no API, no ABI change**
+— pure documentation polish discovered while reviewing the
+0.2.0rc1 TestPyPI metadata.
+
+#### The framing
+
+**AMSC** abbreviates both:
+
+- **Attested Multi-Source Collector** — at collection time
+  (T1 fetch / T3 live query / re-bake lifecycle stages), the
+  framework's adapter classes are *collecting* attested rows
+  from upstream archives.
+- **Attested Multi-Source Catalog** — after collection, the
+  committed NDJSON SSOTs constitute a *catalog* of attested
+  data that downstream packages register and query through the
+  universal bridge.
+
+Both names are correct; both abbreviate to AMSC; pick whichever
+fits the lifecycle stage you're describing. One framework wearing
+two hats.
+
+#### Surfaces updated
+
+- **`pyproject.toml` + `pyproject-pure.toml`** `[project].description`
+  — "Attested Multi-Source Collector (AMSC)" →
+  "Attested Multi-Source Collector/Catalog (AMSC)". 442 chars →
+  450 chars (still under both the 480 soft cap and PyPI's 512
+  hard cap).
+- **`python/README.md`** — package-intro paragraph updated;
+  new "Why 'Collector/Catalog'?" subsection explains the dual
+  reading with the T1/T3-fetch vs read-time-query lifecycle
+  framing.
+- **`python/srmech/__init__.py`** docstring — package-level
+  framing now leads with the dual name and gives a paragraph on
+  the lifecycle-stage interpretation.
+- **`python/srmech/amsc/__init__.py`** docstring — same dual-
+  name framing at the AMSC subpackage level.
+- **`docs/srmech/srmech_research_notebook.md` §0** — three-layer
+  architecture's L1 paragraph gains a "Naming aside" note
+  introducing both readings, with explicit lifecycle-stage
+  cross-references (`list_attested_sources` etc.).
+- **`docs/srmech/CLAUDE.md`** state snapshot bumped to reflect
+  the rc2 ship.
+
+#### Why TestPyPI rc rather than land-as-unreleased
+
+Initial intent (per maintainer's "leave this as an unreleased
+update" guidance) was to land the doc change on `main` without a
+new rc; but per the project's TestPyPI-before-PyPI discipline,
+any text that goes to production PyPI's Summary metadata should
+have been visible on TestPyPI first. PyPI Summary drift (the
+"Pure Python." bug at rc8 → rc9) was the specific failure mode
+that motivated the description-match guard; landing the dual-name
+wording without a TestPyPI round-trip would re-open the same
+exposure. So we ship rc2 to TestPyPI and verify there, then v0.2.0
+(no rc suffix) cuts to production PyPI carrying the rc2 text.
+
+#### No code change
+
+C ABI still **2**. Python public API surface unchanged. Wheel
+content identical to rc1 modulo the description string +
+docstrings. Pytest matrix unaffected (the
+`test_native_version_and_abi` rc9-bump fix from rc1 keeps working).
+
 ## [0.2.0rc1] - 2026-05-13
 
 ### Task #201 Phase B7 — final TestPyPI rc before v0.2.0 production cut
