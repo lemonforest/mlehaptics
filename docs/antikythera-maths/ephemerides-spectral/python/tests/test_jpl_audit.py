@@ -89,16 +89,26 @@ PIN_RULE_4_LONG_FUNCTIONS: int = 0
 #: Rule 5 — ≥ 2 assertions per function (averaged). Total assertion
 #: count across the codebase. Pinned as the assertion total; the
 #: 2/function average is enforced as a derived test below.
-#: v0.13.6: 0 → 88. Assertions gated behind <assert.h> NDEBUG so
-#: production builds (-DNDEBUG) strip them entirely — assertions
-#: are a development tool, not a runtime cost.
-PIN_RULE_5_ASSERTIONS:     int = 88
+#: v0.13.6:   0  → 88. Assertions gated behind <assert.h> NDEBUG so
+#:                  production builds (-DNDEBUG) strip them entirely
+#:                  — assertions are a development tool, not a
+#:                  runtime cost.
+#: v0.28.0rc5: 88 → 102. +14 from the Phase 10a EOC C-side
+#:                  completion (es_solve_kepler ×3,
+#:                  es_true_anomaly ×2, es_eval_eoc_residue ×4,
+#:                  es_clear_eoc_patches ×2, es_validate_patch
+#:                  ECC-kind branch ×3).
+PIN_RULE_5_ASSERTIONS:     int = 102
 #: Total functions in the codebase. Used to compute the 2/function
 #: average enforcement. Pinned because adding functions changes the
 #: required assertion count; if a PR adds functions it should ALSO
 #: add proportional assertions to keep the average above 2.
-#: v0.13.5: 32 → 42 (10 new static helpers from the Rule 4 splits).
-PIN_RULE_5_TOTAL_FUNCS:    int = 42
+#: v0.13.5:   32 → 42 (10 new static helpers from the Rule 4 splits).
+#: v0.28.0rc5: 42 → 46. +4 from Phase 10a EOC: es_solve_kepler,
+#:                  es_true_anomaly, es_eval_eoc_residue,
+#:                  es_clear_eoc_patches. Density: 102 / 46 = 2.22
+#:                  (well above the ≥2.0 floor).
+PIN_RULE_5_TOTAL_FUNCS:    int = 46
 
 #: Rule 8 — limited preprocessor: no multi-line macros.
 PIN_RULE_8_MULTILINE_MACROS: int = 0

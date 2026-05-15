@@ -1468,13 +1468,18 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "package metadata",
         "kwargs_py": {},
     },
-    # ── v0.28.0rc1 Phase 10a — per-body equation-of-center catalog.
-    # Closed-form Kepler series patches; the C-side patch registry does
-    # not yet recognise the `eccentricity-correction` patch kind.
-    # python_only here pins the design until the ABI bump (queued
-    # for v0.27.0 / v0.28.0; new ES_PATCH_KIND_ECCENTRICITY_CORRECTION).
-    # When the C-side support lands, these flip to `parity` with C-twin
-    # kwargs added.
+    # ── v0.28.0rc1 Phase 10a / v0.28.0rc5 EOC C-side completion ────
+    # The 4 read-only entries (list/get) are JSON envelopes over
+    # SECULAR_ELEMENTS / EOC_CATALOG; they don't touch the encoder
+    # runtime so python_only is correct (no C twin needed).
+    # apply_eoc_patches / clear_eoc_patches are state mutators: they
+    # NOW (rc5, ABI v9) register / clear C-side patches in addition
+    # to the Python overlay via _mirror_patch_to_native. The
+    # actual encoder-runtime cross-backend parity is pinned by
+    # test_eoc_catalog.test_eoc_patch_byte_parity_across_backends —
+    # the parity_smoke status stays python_only because mutators
+    # don't fit the parity_smoke pattern (which compares pure
+    # function outputs).
     "list_secular_elements": {
         "status": "python_only",
         "rationale": "JSON listing over SECULAR_ELEMENTS table; not encoder runtime",
@@ -1497,12 +1502,12 @@ PARITY_TARGETS: Dict[str, Dict] = {
     },
     "apply_eoc_patches": {
         "status": "python_only",
-        "rationale": "registers EccentricityCorrectionPatch into the diagnosed-fibers overlay; the patch kind is python-only in v0.28.0rc1 pending C-side ABI bump",
+        "rationale": "state mutator: registers EccentricityCorrectionPatch in both Python overlay AND C-side registry (rc5, ABI v9). Encoder-runtime cross-backend parity pinned by test_eoc_catalog.test_eoc_patch_byte_parity_across_backends",
         "kwargs_py": {"bodies": ["terra"]},
     },
     "clear_eoc_patches": {
         "status": "python_only",
-        "rationale": "removes EOC-kind patches from the overlay; mirrors apply_eoc_patches scope",
+        "rationale": "state mutator: clears EOC-kind patches from both Python overlay AND C-side registry (rc5, ABI v9) via es_clear_eoc_patches",
         "kwargs_py": {},
     },
 }

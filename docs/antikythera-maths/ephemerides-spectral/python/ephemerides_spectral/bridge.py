@@ -5792,6 +5792,18 @@ def _mirror_patch_to_native(patch: _patches.Patch) -> Optional[str]:
             phase_rad=patch.phase_rad,
             correlation=patch.correlation,
         )
+    elif isinstance(patch, _patches.EccentricityCorrectionPatch):
+        # v0.28.0rc5 (ABI v9) — Phase 10a EOC C-side completion.
+        # The C-side Newton-Kepler evaluator in es_patches.c mirrors
+        # the Python evaluator byte-for-byte; backend="c" now agrees
+        # with backend="bip" when EOC patches are active.
+        idx = _body_index(patch.body)
+        rc = _native_bip.native_apply_eoc_patch(
+            name=patch.name, body_idx=idx,
+            eccentricity=patch.eccentricity,
+            mean_anomaly_at_j2000_rad=patch.mean_anomaly_at_j2000_rad,
+            n_rad_per_day=patch.n_rad_per_day,
+        )
     else:
         return f"unknown patch type {type(patch).__name__!r}"
     if rc == 0:
@@ -6157,13 +6169,12 @@ def apply_eoc_patches(
     BIP calibration epoch) and exact at any eccentricity via Newton
     iteration on Kepler's equation.
 
-    **Backend caveat (v0.28.0rc1)**: EOC patches are not yet mirrored
-    to the C-side registry. With EOC patches active, ``backend="c"``
-    in any encode call will return the unpatched BIP residue while
-    ``backend="bip"`` (default) returns the patched value. C-side
-    support requires an ABI bump (new
-    ``ES_PATCH_KIND_ECCENTRICITY_CORRECTION``) queued for v0.27.0 /
-    v0.28.0.
+    **v0.28.0rc5 (ABI v9)**: EOC patches are now mirrored into the
+    C-side registry via ``ES_PATCH_KIND_ECCENTRICITY_CORRECTION`` +
+    the Newton-Kepler evaluator in ``c/src/es_patches.c``. With EOC
+    patches active, ``backend="c"`` and ``backend="bip"`` return
+    byte-identical phase residues — pinned by
+    ``test_eoc_catalog.py``'s both-backends parity ratchet.
 
     Returns a JSON-friendly dict with the registered patch names + the
     total count active in the registry.
@@ -6201,30 +6212,68 @@ def apply_eoc_patches(
         )
     except ValueError as exc:
         return _err(str(exc))
+
+    # v0.28.0rc5 (ABI v9): mirror the just-registered patches into the
+    # C-side registry via _mirror_patch_to_native (which dispatches by
+    # patch kind — added EOC support same ship). If any mirror call
+    # fails, roll back BOTH sides so the two registries never drift.
+    from ephemerides_spectral import _native_bip
+    c_mirrored: List[str] = []
+    if _native_bip.HAS_NATIVE:
+        # `registered` is the list of patch names; find each in
+        # EOC_CATALOG (keyed by body) to recover the patch object.
+        name_to_patch = {
+            p.name: p for p in _eoc_catalog.EOC_CATALOG.values()
+        }
+        for patch_name in registered:
+            patch = name_to_patch.get(patch_name)
+            if patch is None:
+                continue
+            err = _mirror_patch_to_native(patch)
+            if err is not None:
+                # C-side rejected — roll back both registries.
+                _eoc_catalog.clear_eoc_patches()
+                _native_bip.native_clear_eoc_patches()
+                return _err(
+                    f"C-side EOC patch registration failed for "
+                    f"{patch_name!r}: {err}. Both Python and C "
+                    f"registries rolled back to keep parity."
+                )
+            c_mirrored.append(patch_name)
+
     return {
         "ok": True,
         "registered": registered,
         "n_registered": len(registered),
+        "n_registered_c_side": len(c_mirrored),
         "n_active_total": len(_patches.snapshot()),
-        "backend_caveat": (
-            "EOC patches are Python-BIP-backend only in v0.28.0rc1; "
-            "C-side support requires an ABI bump (queued)."
+        "backends_active": (
+            ["bip", "c"] if _native_bip.HAS_NATIVE else ["bip"]
         ),
     }
 
 
 def clear_eoc_patches() -> Dict[str, Any]:
     """Remove every EOC patch (kind ``eccentricity-correction``) from
-    the runtime overlay.
+    the runtime overlay (Python AND C-side registry).
 
     Other patch kinds (sinusoid, coupled-sinusoid — e.g. the v0.5.x
-    CATALOG_V2 LS-fit catalog) are left in place. To wipe the entire
-    overlay use :func:`clear_patches`.
+    CATALOG_V2 LS-fit catalog) are left in place on BOTH sides. To
+    wipe everything use :func:`clear_patches`.
+
+    v0.28.0rc5 (ABI v9): native_clear_eoc_patches mirrors the
+    selective clear to the C-side registry, keeping the two in sync.
     """
-    n_cleared = _eoc_catalog.clear_eoc_patches()
+    from ephemerides_spectral import _native_bip
+    n_cleared_py = _eoc_catalog.clear_eoc_patches()
+    n_cleared_c = (
+        _native_bip.native_clear_eoc_patches()
+        if _native_bip.HAS_NATIVE else 0
+    )
     return {
         "ok": True,
-        "cleared": n_cleared,
+        "cleared": n_cleared_py,
+        "cleared_c_side": n_cleared_c,
         "n_active_total": len(_patches.snapshot()),
     }
 
