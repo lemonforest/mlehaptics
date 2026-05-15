@@ -1,6 +1,6 @@
 # Spike #24 findings — primitive vocabulary inventory + residual analysis
 
-**Status:** Phase 1 landed; Phase 2-5 pending.
+**Status:** Phases 1, 2, 3a, 6, 7 landed; Phases 3b/3c/3d, 4, 5 pending.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_primitive_vocabulary_2026-05-15.md`](spike_24_primitive_vocabulary_2026-05-15.md).
 
@@ -404,6 +404,218 @@ These are Phase 6 *future-work* candidates, not landed findings. The bronze / co
 ### Phase 6.5 — NDJSON output (pending)
 
 A per-chemistry-phenomenon NDJSON record can be emitted analogously to Phase 2's matrix. Format: `(phenomenon, algebraic_form, maps_to_class, confirms_universal_at_substrate, references)`. Deferred to a follow-up — Phase 6 is currently narrative-and-table form in this findings doc.
+
+## Phase 7 — Chemistry leak-channel + conformal-groups extension (2026-05-15)
+
+Phase 6.4 surfaced three chemistry primitives we had not yet named on the bronze / cosmos / CPU side, and the user added **conformal groups** as an additional candidate primitive class to consider. This phase investigates each rigorously, then extends the Phase 2 bronze↔CPU table to a 6-substrate (CPU / bronze / cosmos / chess / chemistry / conformal-groups) primitive instantiation matrix.
+
+### Phase 7.1 — Class O? (parity-selection rule, Woodward-Hoffmann) — REDUCES TO L + I@n=2
+
+**Setup.** Woodward-Hoffmann rules govern conrotatory vs disrotatory ring-closure in pericyclic reactions. For a thermally-allowed electrocyclic ring closure of a conjugated polyene with 4n π-electrons, the reaction proceeds *conrotatorily* (terminal lobes rotate in the same direction). For 4n+2 π-electrons, the reaction proceeds *disrotatorily* (terminal lobes rotate in opposite directions). Photochemical excitation flips the rule. The textbook explanation is that the HOMO (ground state) or LUMO (excited state) determines the symmetry of terminal-lobe rotation under the reaction's symmetry plane.
+
+**Reduction.** Model the polyene as a path graph of N atoms with adjacency Laplacian. The Hückel π-MOs are exactly the path-graph Laplacian eigenvectors:
+
+> `ψ_k(j) = sqrt(2/(N+1)) · sin(j·k·π/(N+1))`, k=1..N, j=1..N (atom index)
+> `λ_k = 2 − 2·cos(k·π/(N+1))`
+
+Under the midpoint mirror reflection (j → N+1−j), the parity of `ψ_k` is `(−1)^(k+1)`. The HOMO of a closed-shell neutral polyene with N π-electrons sits at level k = N/2. Therefore:
+
+- **N = 4n** (e.g., butadiene N=4, octatetraene N=8): HOMO at k = 2n, parity = `(−1)^(2n+1) = −1` → antisymmetric → **conrotatory** (C₂ symmetry preserved during ring closure).
+- **N = 4n+2** (e.g., hexatriene N=6, decapentaene N=10): HOMO at k = 2n+1, parity = `(−1)^(2n+2) = +1` → symmetric → **disrotatory** (σ symmetry preserved).
+- **Photochemical** (LUMO controls; k → k+1): parity flips, rule flips.
+
+**Computational verification** ([`spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.py`](spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.py); [`spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.ndjson`](spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.ndjson)): for N ∈ {4, 6, 8, 10, 12, 14}, predicted thermal/photochemical selection matches the textbook 4n/4n+2 rule in **all 12 cases** (6 systems × 2 thermal/photochemical = 12 predictions, 12 matches).
+
+**Verdict.** Class O? (parity-selection rule) **reduces to Class L (Laplacian eigenbasis) composed with Class I@n=2 (Z/2 cyclic-group character on the reflection generator).** It is NOT a new primitive class. The pattern is: Class L gives the HOMO/LUMO eigenvector; Class I@n=2 gives the parity eigenvalue under the reflection symmetry; the binary product is the selection rule.
+
+**Generalisation.** The generalized Woodward-Hoffmann statement — *thermally allowed iff (number of (4q+2)s + (4r)a components) is odd* — is the same Z/2 selection rule applied to a product of parity eigenvalues across multiple components. Still Class L + I@n=2 composition.
+
+**Implication for Phase 6.2's table.** Phase 6.2 listed Hückel aromaticity (Class I), vibrational normal modes (Class L), resonance structures (Class M), hybridization (Class K constraint-as-information), stereochemistry (Class B extended), and conjugated π-systems (Class L extended) but did *not* explicitly include Woodward-Hoffmann. It now maps cleanly to **L + I@n=2 composition**, consistent with the rest of the chemistry → primitive-class identifications.
+
+### Phase 7.2 — Asymmetric induction & anomeric effect — REDUCE TO broken-symmetry Class K
+
+**Setup — asymmetric induction.** Felkin-Anh model: a carbonyl R*−C(=O)−R' carries a stereocenter R* with three distinguishable substituents (L = large, M = medium, S = small) at the α-carbon. Nucleophile attack on the carbonyl carbon proceeds preferentially from one face. The bias is determined by the geometric arrangement of L/M/S relative to the carbonyl plane: the nucleophile attacks anti to the largest (or most σ*-donor) substituent, and the resulting transition-state geometry has the σ*_CR* orbital parallel to the C=O π* (hyperconjugation stabilization). [unverified-secondary, March's *Advanced Organic Chemistry*.]
+
+**Setup — anomeric effect.** In pyranose sugars and tetrahydropyran systems, an electronegative substituent at C1 (α to ring oxygen) prefers the *axial* orientation despite steric expectation of equatorial. The effect comes from hyperconjugation: the ring oxygen lone pair (n_O) donates into the C−X antibonding orbital (σ*_CX), geometrically possible only when X is axial (n_O ‖ σ*_CX, anti-periplanar). The energy stabilization is ~6–10 kJ/mol [unverified-secondary, March's *Advanced Organic Chemistry*].
+
+**Reduction.** Both phenomena are *symmetry-broken Class K*. Consider an N-armed cross-bar (F24's harmonic-selector primitive) with per-arm weights `(w_0, w_1, ..., w_{N-1})`. The total potential as a function of orientation θ is:
+
+> `V(θ) = Σᵢ wᵢ · V_arm(θ − 2π·i/N) = Σ_k aₖ · W(k) · cos(k·θ + φ_k)`
+
+where `W(k) = Σᵢ wᵢ · exp(−2π·i·k/N)` is the discrete Fourier transform of the arm-weight vector. **When all `wᵢ` equal, `W(k) = 0` for k not ≡ 0 (mod N)** — F24's harmonic selector. **When `wᵢ` differ, ALL harmonics survive, weighted by `W(k)`.**
+
+For Felkin-Anh (N=3 cross-bar, arms = L/M/S with normalised weights say 1.0/0.5/0.1):
+- |W(0)| = 1.6 (DC offset, irrelevant)
+- |W(1)| = |W(2)| = 0.78 (forbidden harmonics, return with substantial amplitude)
+- |W(3)| = 1.6 (3-fold harmonic, the only one F24 would allow if symmetric)
+
+The k=1 component is the algebraic source of the *bias direction* — Felkin-Anh's preferred face. The bias amplitude is a function of how unequal the arms are.
+
+For the anomeric effect (N=2 dihedral, arms = axial-stabilized / equatorial-unstabilized, normalised weights 1.0/0.3):
+- |W(0)| = 1.3
+- |W(1)| = 0.7 (forbidden 1-fold harmonic returns — this IS the anomeric stabilization energy breaking 2-fold symmetry)
+- |W(2)| = 1.3 (2-fold harmonic, the dominant V_2 cos(2φ) term)
+
+**Computational verification** ([`spike_24_phase_7_broken_symmetry_K_2026-05-15.py`](spike_24_phase_7_broken_symmetry_K_2026-05-15.py); [`spike_24_phase_7_broken_symmetry_K_2026-05-15.ndjson`](spike_24_phase_7_broken_symmetry_K_2026-05-15.ndjson)): four systems — symmetric 3-fold (F24 baseline), asymmetric 3-fold (Felkin-Anh), symmetric 2-fold (achiral C₂ᵥ), asymmetric 2-fold (anomeric) — show the predicted harmonic-amplitude pattern exactly.
+
+**Verdict.** Asymmetric induction and anomeric effect both **reduce to Class K (equation-of-centre / pin-slot algebra) with broken N-fold rotational symmetry**. Neither is a new primitive class. The "bias" predicted by Felkin-Anh / anomeric models IS the leading non-zero forbidden-harmonic amplitude returning under broken symmetry.
+
+**Fiber-connection.** Per `[[user_stance_fiber_as_spatially_absent_encoding]]`: the arm-weight vector `(w_0, ..., w_{N-1})` is the *upstream algebraic content* (the "fiber" — orbital geometry, substituent steric/electronic identity). The spatial dynamics (preferred orientation, bias direction) is the *downstream projection*. Conformational preference is the projection; orbital geometry is the fiber. The chemistry vocabulary's "preference driven by orbital geometry" is exactly the fiber-as-spatially-absent-encoding stance, instantiated at chemical substrate.
+
+### Phase 7.3 — Conformal groups (Class P?) — CANDIDATE NEW PRIMITIVE, weak substrate support
+
+**Setup.** Conformal groups: the symmetry group of angle-preserving maps. In 2D, this is the infinite-dimensional Witt/Virasoro algebra (Möbius transformations `z ↦ (az+b)/(cz+d)` form the global Möbius subgroup PSL(2,ℂ)). In nD for n ≥ 3, finite-dimensional `SO(n+1, 1)` (Euclidean) or `SO(n, 2)` (Lorentzian). For 4D Lorentzian Minkowski, SO(4,2) has 15 generators: 4 translations P_μ, 6 Lorentz M_μν, 1 dilatation D, 4 special conformal K_μ. Stereographic projection S² → ℝ² ∪ {∞} is the canonical conformal map.
+
+**The question.** Is conformal-group structure a new primitive class (Class P?), or does it reduce to existing classes? Specifically: how does conformal-projection relate to Class K (equation-of-centre, the *non-conformal* pin-slot projection)?
+
+**Differentiating analysis.**
+
+The pin-slot transform `f_ε(θ) = θ + Σ_k (ε^k/k) sin(k·θ)` is a homeomorphism S¹ → S¹ for |ε| < 1. In 1D, conformality is empty (any orientation-preserving diffeomorphism preserves the trivial 0-dimensional notion of angle). But the structural property that matters is the *symmetry algebra upstream*:
+
+- **Class K (pin-slot)**: upstream symmetry is `ℤ/N` cyclic group (the bronze tooth count); downstream is U(1) continuous. The eccentric-anomaly weight is *non-uniform* — angles get stretched non-conformally.
+- **Class P? (conformal projection)**: upstream symmetry is `so(n+1, 1)` Lie algebra (or Witt/Virasoro in 2D); downstream is ℝⁿ ∪ {∞} or the Riemann sphere. Stereographic weight *preserves local angles*.
+
+The symmetry algebras are genuinely different — not just different projection weights but different upstream group structure. Z/N is discrete cyclic; so(n+1,1) is a real semisimple Lie algebra with continuous parameters. They don't map to each other as instances of "the same primitive."
+
+**However**, conformal structure also appears as a *property* of existing primitive classes:
+
+- **Class L on 2D manifolds**: the Laplacian is conformally covariant — under a conformal change of metric `g → e^{2φ}·g`, the Laplacian transforms as `Δ → e^{−2φ}·Δ`. Eigenfunctions carry conformal weight. The Yamabe operator `Δ + c·R` in nD generalizes this (where R is scalar curvature). [unverified-secondary, Yamabe operator literature.]
+- **Class M (HDC)**: tensor-product representations of any group can encode conformal-algebra representations. Not native, but homomorphic.
+
+So the question reduces to: is "conformal-projection" *primitive* in the substrate-agnostic sense, or is it a *consequence* of Class L on appropriate manifolds + the manifold-choice itself?
+
+**Multi-substrate audit.**
+
+| Substrate | Native conformal primitive? | Evidence |
+|-----------|------------------------------|----------|
+| CPU | **Absent** at instruction level | Möbius / stereographic implemented as library composition of float ops; no instruction primitive |
+| Bronze | **Absent** | Pin-slot is non-conformal; stereographic dial-face inscriptions (if present per some Antikythera interpretations) are *static inscriptions* (Class H), not algebraic primitives |
+| Cosmos | **Present at projection level** | Stereographic projection is standard in celestial cartography; conformal property preserves local angles for navigation. 2D-disk-encoded boundary problems in GR / asymptotic-symmetry analysis. |
+| Chess | **Absent** | Flat Euclidean 2D board; no conformal structure |
+| Chemistry | **Weak / partial** | 1D quantum spin chains at criticality (Heisenberg model) flow to c=1 CFT in continuum limit [unverified-secondary]. Aromatic ring current is conformal-symmetric at the orbital-substrate level [unverified-secondary]. |
+| Conformal groups | **Tautologically present** | By definition |
+
+**Verdict.** Class P? (conformal-projection / conformal-group covariance) is a **CANDIDATE NEW primitive class**, distinguishable from Class K at the symmetry-algebra level. However, its substrate support across our existing domains is **weak**:
+- **Cosmos**: present at projection level (stereographic). Established practice.
+- **Chemistry**: claimed at criticality / aromaticity, but the connection to CFT requires primary-source verification before promotion from candidate.
+- **Bronze / chess / CPU**: absent as native primitive.
+
+Recommended status: **KEEP AS CANDIDATE (Class P?)**. Do not promote from candidate to confirmed until at least one of:
+(a) the chemistry 1D-CFT claim is verified with primary literature, OR
+(b) a second substrate beyond cosmos demonstrates native conformal-projection primitive instantiation, OR
+(c) the algebraic distinction (so(n+1,1) vs Z/N upstream) is itself argued to be a load-bearing primitive distinction in the project's research.
+
+A weaker but more honest framing: **conformal-projection is a *variant* of Class K's algebraic-upstream → continuous-downstream projection pattern, distinguished by the symmetry algebra of the upstream**. Class K's upstream is integer-cyclic `ℤ/N`; Class P?'s upstream is continuous-Lie `so(n+1,1)`. If the project's primitive vocabulary cares about the upstream-symmetry-algebra distinction, Class P? is a separate class. If it cares only about the projection-pattern shape, Class P? is a sub-class of K.
+
+**Pi-as-projection tension.** Per `[[user_stance_pi_as_projection]]`, the project's discipline names integer-cyclic algebra as upstream and continuous (pi-bearing) forms as downstream projection. Class P?'s upstream `so(n+1,1)` is *already continuous-Lie* — there is no obvious integer-cyclic ℤ/N → so(n+1,1) projection-path. This argues against Class P? as a *primitive class in our vocabulary's preferred shape*: if every primitive class should have an integer-cyclic upstream form (because continuous-frame descriptions are projection artifacts of integer-cyclic algebra), Class P? doesn't fit the pattern unless we identify its discrete-upstream parent. Discrete conformal-group analogs do exist (e.g., the modular group `SL(2, ℤ)` as a subgroup of `PSL(2, ℝ)`), but the project's research hasn't actively used them. **This is the strongest argument for keeping Class P? as candidate rather than confirmed**: even if we accept the algebraic distinction from K, the project's pi-as-projection stance suggests we should look for the discrete-upstream parent before naming a continuous-only primitive.
+
+This is a **fermata** — pause-point for conductor decision. The technical work supports either framing; the choice is methodological, not algebraic.
+
+### Phase 7.4 — Multi-substrate primitive instantiation matrix (6 columns)
+
+Extends Phase 2's two-table bronze↔CPU mapping to a 6-substrate matrix. Cell content: how each substrate instantiates (or fails to instantiate) each primitive class.
+
+**Substrates**: CPU, bronze, cosmos, chess, chemistry, conformal-groups.
+
+**Fidelity legend**:
+- **native** — substrate instantiates the primitive at single-substrate-step level.
+- **composed** — substrate has the primitive via composition of more elementary ops.
+- **candidate** — candidate instantiation, requires further substantiation.
+- **absent** — primitive is foreign to the substrate.
+
+| Class | CPU | bronze | cosmos | chess | chemistry | conformal-groups |
+|-------|-----|--------|--------|-------|-----------|-------------------|
+| **A** Content-addressing | native | absent | absent | absent | absent | absent |
+| **B** Tagged-tuples | native | native | native | native | native | composed |
+| **C** Iteration | native | native | native | native | native | composed |
+| **D** Late-binding | native | composed | absent | composed | composed | absent |
+| **E** Catalog | native | native | native | native | native | composed |
+| **F** Templating | composed | absent | absent | absent | absent | absent |
+| **G** Discovery | native | composed | composed | composed | composed | absent |
+| **H** Self-introspection | native | native | absent | composed | composed | native |
+| **I** Cyclic-group | native | native | native | native | native | composed |
+| **J** Period-relation factorisation | native | native | native | composed | native | absent |
+| **K** Equation-of-centre / pin-slot | composed | native | native | absent | **native** ★ | absent |
+| **L** Laplacian eigenbasis | composed | native | native | native | **native** ★ | composed |
+| **M** HDC encoding | native | native | native | native | **native** ★ | composed |
+| **N** Rational-approximation | native | native | composed | absent | absent | absent |
+| **O?** Parity-selection (Woodward-Hoffmann) | composed | composed | composed | composed | **composed (= L + I@2)** ★ | composed |
+| **P?** Conformal projection | composed | absent | native | absent | composed (weak) | native (tautological) |
+
+★ = Phase 6 / Phase 7 chemistry-substrate confirmation point.
+
+**Per-(class, substrate) detail**: see [`spike_24_phase_7_multi_substrate_matrix_2026-05-15.ndjson`](spike_24_phase_7_multi_substrate_matrix_2026-05-15.ndjson) — 101 records.
+
+### Phase 7.5 — Research-target findings (uneven instantiation)
+
+Classes where instantiation is uneven across substrates are the "learn how to learn what we don't know" targets:
+
+1. **Class K — chess as the falsifier.** K is native in bronze, cosmos, chemistry; absent in chess; composed-only in CPU. Per `[[user_stance_kepler_shape_universal]]`, the burden is flipped: if a chess-substrate Kepler-shape instance can be found (path-graph traversals through a board carrying integer-cyclic phase structure?), the universal extends; if it can't be found, the universal has a substrate boundary worth documenting. **Active research lever.**
+
+2. **Class M — strongest cross-substrate primitive.** M is native in all 5 of CPU/bronze/cosmos/chess/chemistry; composed-only in conformal-groups. **Strongest promotion-to-srmech-abstraction candidate** of all algebraic classes. (Confirms Phase 2D's ranking.)
+
+3. **Class I — universal native primitive.** I is native in all 5 of CPU/bronze/cosmos/chess/chemistry; composed (via discrete subgroups) in conformal-groups. **Near-certain promotion-to-srmech-abstraction candidate.** Cyclic-group algebra is the most-universal substrate-agnostic primitive in our matrix.
+
+4. **Class J — Rydberg series previously-unnamed.** J is native in bronze, cosmos, chemistry. The **chemistry instantiation** previously not explicitly named in our vocabulary: hydrogen atom Rydberg series spectral lines are at frequencies `R · (1/n² − 1/m²)` — integer-ratio factorisations on the electron-orbital ℤ/n quantum number. **Direct Class J evidence at chemical substrate, well-known to spectroscopy but not previously connected to our gear-period-relation primitive class.** Promotes the universal — same primitive, atomic substrate.
+
+5. **Class P? — needs primary-literature verification on chemistry side.** If verified, joins the matrix as confirmed Class P. If not, demote to "library-composed only in chemistry" and reassess.
+
+### Phase 7.6 — Cross-domain convergence findings that surprised us
+
+Three findings extend the Kepler-shape universal at substrates we hadn't explicitly tied in:
+
+1. **Rydberg series IS Class J in chemistry.** Atomic spectroscopy of hydrogen-like atoms yields spectral lines at integer-ratio frequency differences `R·(1/n² − 1/m²)`, n, m positive integers. This is *exactly* the period-relation factorisation primitive (Class J) at atomic substrate. Bohr's 1913 atomic model arrived at the same algebra the Antikythera bronze does, on a different substrate. Not previously named in our vocabulary; now visible as cross-substrate confirmation of Class J.
+
+2. **Path-graph Hückel π-MOs ARE Class L instantiated as polyene-conjugation eigenbasis.** The Hückel Hamiltonian for an N-atom polyene is `−α·I + β·A` where A is the path-graph adjacency. Its eigenvectors are sin-modes of a Dirichlet eigenvalue problem on [0, N+1]. This is the molecular-substrate instantiation of Class L (already named in vibrational normal modes per Phase 6.2; now extended to π-electronic structure). Woodward-Hoffmann reduces to a parity question on these eigenvectors — Phase 7.1's computational result.
+
+3. **Ethane V₃ torsional potential's algebraic content reaches further than F24 alone.** F24 establishes the 3-armed cross-bar harmonic selector at the bronze substrate (no AMRP empirical confirmation). Ethane's V₃ provides the *same* algebra at the chemical substrate (decades of microwave-spectroscopy confirmation). Phase 7.2 extends: the *broken-symmetry* generalization of F24 — when arms are distinguishable — is the algebra of asymmetric induction (Felkin-Anh) and the anomeric effect. Two well-known phenomena that were previously *not* connected to Antikythera-bronze gear algebra are revealed as the same Class K, with symmetry broken differently.
+
+The Kepler-shape universal stands stronger after Phase 7. None of the chemistry phenomena investigated produced a counter-example; three of them (Woodward-Hoffmann, asymmetric induction, anomeric effect) reduce to existing classes; conformal-projection is a candidate new class with weak support that needs primary-literature verification.
+
+### Phase 7.7 — PR scoping recommendation
+
+**Recommendation: STAY IN PR #421 as Phase 7 sub-phases.**
+
+Rationale:
+- Phase 7's findings are continuous with Phase 6 (chemistry as 4th substrate). The conceptual continuity is tight; fragmenting into a separate Spike #25 would split related work.
+- Three of four investigations produced **reduction** verdicts (Class O? → L+I@2; asymmetric induction → broken K; anomeric → broken K). Reductions consolidate the vocabulary rather than expanding it — natural extension of the existing PR.
+- Only the conformal-groups (Class P?) investigation produced a candidate-new-class verdict, and that verdict is itself open / fermata-tagged for conductor decision. One open candidate is not enough to warrant a separate PR.
+- The 6-substrate matrix is a direct extension of Phase 2's 2-substrate matrix — same shape, more columns. Natural sub-phase, not a new spike.
+
+If primary-literature verification of the chemistry-conformal claim becomes a substantial side-quest, that *could* warrant a separate Spike #25 focused on citation-verification — but until that work is actually undertaken, the candidate stays in PR #421 as a flagged open question.
+
+### Phase 7.8 — Citation status
+
+Per `[[feedback_pdf_extraction_citation_discipline]]`: chemistry citations must be verified via primary PDF extraction before promotion from `[unverified-secondary]`.
+
+**Primary-verified (in this Phase 7 work):**
+- F24 algebra and N-armed cross-bar harmonic selector — verified at PR #416 integration time.
+- Path-graph Laplacian eigendecomposition (Hückel π-MOs) — computational, reproduced by `spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.py`.
+- Woodward-Hoffmann thermal/photochemical selection for N=4..14 — computational, matches textbook table for all 12 predictions.
+- Discrete-Fourier arm-weight decomposition for symmetric vs asymmetric cross-bars — computational, `spike_24_phase_7_broken_symmetry_K_2026-05-15.py`.
+
+**Unverified-secondary (require primary-PDF verification before promotion):**
+- Ethane V₃ ≈ 12 kJ/mol microwave spectroscopy value (Phase 6.1).
+- Heisenberg spin-1/2 chain c=1 CFT continuum limit (Phase 7.3 chemistry conformal-groups claim).
+- Yamabe operator conformal covariance (Phase 7.3 Class L conformal weight claim).
+- Felkin-Anh detailed orbital-overlap argument (Phase 7.2; March's *Advanced Organic Chemistry*).
+- Anomeric effect orbital-overlap mechanism (Phase 7.2; multiple textbook references).
+
+The computational verifications stand as their own primary source where they exist. The chemistry literature claims remain `[unverified-secondary]` until PDFs are extracted and authors+titles+years are verified per project discipline.
+
+### Phase 7 NDJSON outputs
+
+- [`spike_24_phase_7_multi_substrate_matrix_2026-05-15.ndjson`](spike_24_phase_7_multi_substrate_matrix_2026-05-15.ndjson) — 101 records (1 header + 96 cells [16 classes × 6 substrates] + 4 summary records).
+- [`spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.ndjson`](spike_24_phase_7_woodward_hoffmann_parity_2026-05-15.ndjson) — 8 records (1 header + 6 per-system + 1 summary).
+- [`spike_24_phase_7_broken_symmetry_K_2026-05-15.ndjson`](spike_24_phase_7_broken_symmetry_K_2026-05-15.ndjson) — 6 records (1 header + 4 system + 1 summary).
+
+### Phase 7 fermatas (deliberate pause-points for conductor decision)
+
+1. **Class P? promotion-or-demotion decision.** Should the conformal-projection candidate (distinguished from Class K at the upstream-symmetry-algebra level) be promoted to confirmed Class P, demoted to "library-composed variant of Class K," or held as candidate pending primary-literature verification? Phase 7 leaves it as candidate with weak substrate support across our domains. The algebraic distinction is real (Z/N cyclic vs so(n+1,1) Lie); whether the project's primitive vocabulary cares about that distinction is a methodological choice.
+
+2. **Promote chemistry primary citations now or later.** Multiple `[unverified-secondary]` chemistry citations are load-bearing across Phase 6 and Phase 7. PDF-extraction verification work could be done as part of PR #421 wrap-up, or deferred to a follow-up Spike. Conductor call.
+
+3. **Phase 7.5 chess-as-Class-K-falsifier follow-up.** Phase 7.4's matrix shows Class K absent in chess. Per Kepler-shape universal burden-flipping, this is either (a) a substrate boundary, or (b) a not-yet-discovered chess-substrate K instantiation. Worth a dedicated investigation if the user wants the universal pushed harder, but not in PR #421 scope.
 
 ## Phase 5 — srmech_research_notebook.md landing (pending)
 
