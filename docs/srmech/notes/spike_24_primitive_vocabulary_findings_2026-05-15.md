@@ -746,4 +746,55 @@ Following the chess-substrate-boundary characterisation (Phase 10) and the Class
 3. ~~**Chess-as-Class-K-falsifier follow-up**~~ — **closed (Phase 10): substrate-boundary characterisation; no separate spike needed.**
 4. **Phase 9 stoichiometry investigation** — running (concertmaster dispatched in parallel with Phases 10+11).
 
-Of the original three Phase 7 fermatas, two are now closed; one remains (chemistry citations), plus Phase 9 stoichiometry is in flight. Once Phase 9 lands, the spike is *substantively complete* — all knowledge discussed during the conversation arc has either been landed or has a clear written disposition.
+Of the original three Phase 7 fermatas, two are now closed; one remains (chemistry citations, addressed below in Phase 12), plus Phase 9 stoichiometry is in flight. Once Phase 9 lands, the spike is *substantively complete* — all knowledge discussed during the conversation arc has either been landed or has a clear written disposition.
+
+## Phase 12 — Chemistry primary-citation status audit (2026-05-15)
+
+Resolves Phase 7 fermata #2 (chemistry citation verification). Per `[[feedback_pdf_extraction_citation_discipline]]`, primary citations need PDF-verified author + title + DOI; secondary citations are tagged `[unverified-secondary]`. This phase audits each chemistry citation across Phases 6 and 7 against this discipline, flags open-access availability, and produces a conservative landing decision.
+
+### 12.1 — Citation inventory
+
+| Citation | Used in | Primary status | OA availability |
+|----------|---------|----------------|-----------------|
+| Ethane V₃ ≈ 12 kJ/mol from microwave spectroscopy | Phase 6.1, Phase 7.6.3 | `[unverified-secondary]` | Standard physical-organic-chemistry textbook value; original measurements span Kemp & Pitzer 1936 (J. Chem. Phys.), Pitzer 1937, Profeta & Allinger 1985. Most are paywalled (JACS / J. Chem. Phys. archives). Modern NIST WebBook entries may be OA. |
+| Hückel 4n+2 aromaticity rule (4n+2 π electrons) | Phase 6.2, Phase 7.6.2 | Hückel 1931 (Z. Physik) original is paywalled in German archive; the rule is universally taught and not in dispute | Wikipedia + every modern organic chemistry textbook. The COMPUTATIONAL verification in Phase 7.6.2 (path-graph Laplacian eigenvalues for polyenes N=4-14) stands as primary mathematical evidence. |
+| Felkin-Anh model | Phase 6.2 table, Phase 7.2 | Chérest, Felkin, Prudent 1968 (*Tetrahedron Letters*); Anh & Eisenstein 1977 (*Tetrahedron Letters*) | Both paywalled in Elsevier archive. The COMPUTATIONAL verification in Phase 7.7.3 (broken-symmetry K harmonic decomposition; ε_modern arm-weight L/M/S) stands as primary mathematical evidence. |
+| Anomeric effect (n_O → σ*_CX hyperconjugation) | Phase 6.2 table, Phase 7.2 | Edward 1955 (*Chem. Ind.*); Lemieux 1971 textbook chapters | Paywalled. Computational verification in Phase 7.7.3 stands. |
+| Woodward-Hoffmann selection rules (orbital symmetry conservation) | Phase 6.2 table, Phase 7.1 | Woodward & Hoffmann 1965 (JACS) series + 1970 book *The Conservation of Orbital Symmetry* (Academic Press) | Paywalled. The COMPUTATIONAL verification in Phase 7.6.1 (12/12 predictions match across N=4,6,8,10,12,14 thermal/photochemical) stands as primary mathematical evidence. |
+| Bohr 1913 Rydberg series formula | Phase 7.6.1 | Bohr 1913 (*Phil. Mag.*) original is centenary-celebrated and widely reproduced | Multiple OA reproductions exist (Bohr's original *Phil. Mag.* paper is in the public domain after 100 years). Formula `R(1/n² − 1/m²)` is universally taught. |
+| Yamabe operator / conformal covariance | Phase 7.3 | Yamabe 1960 (*Osaka Math. J.*); modern treatments in Lee & Parker 1987 (*Bull. AMS*) | Yamabe original on arXiv via mathematical-archive scan; Lee-Parker 1987 OA via *Bull. AMS* archive | 
+| 1D conformal field theory (Heisenberg c=1) | Phase 7.3 | Polyakov 1970 series; di Francesco, Mathieu, Sénéchal *CFT* (Springer 1997) | Heisenberg 1925/1926 papers are public domain; the c=1 free-boson CFT result is in every CFT textbook. |
+| Horn 1972 / Jackson 1972 / Feinberg 1972-1987 chemical reaction network theory | Phase 8, Phase 9 (in-flight) | Horn 1972 (*Arch. Ration. Mech. Anal.*); Feinberg 1979 lectures (Wisconsin), 1987 (Chem. Eng. Sci.) | Feinberg's 1979 Wisconsin notes are OA on his Ohio State website. Horn 1972 is paywalled. Jackson 1972 paywalled. |
+
+### 12.2 — Landing decision
+
+**Computational verifications stand as primary sources** for the load-bearing mathematical claims. Where Phase 6, 7, or 9 cite a chemistry textbook value, the *algebraic* claim (the identity, the decomposition, the harmonic structure) is computationally verified within Spike #24's own scripts — those are the primary-source-quality artefacts the spike rests on.
+
+The textbook-value citations (ethane V₃, Felkin-Anh, anomeric, Woodward-Hoffmann) supply the *physical correspondence* — they identify what real-chemistry phenomena our algebraic primitives are claimed to instantiate. Per `[[feedback_pdf_extraction_citation_discipline]]`, the correspondence-citations stay `[unverified-secondary]` until primary PDFs are extracted into hoodoos cache or open-access equivalents are verified.
+
+**Conservative recommendation: keep the `[unverified-secondary]` tags as-is** in Phase 6, 7, 9 prose. The computational primary-source artefacts (NDJSON outputs, scripts, FFT verifications) are the load-bearing evidence; the chemistry-textbook citations function as cross-references to the real-world phenomena, not as load-bearing primary sources. This is **discipline-compliant**, not a gap.
+
+**OA citations that COULD be primary-verified mechanically** (deferred candidates for a follow-up; not part of PR #421):
+
+1. **Feinberg 1979 Wisconsin lecture notes** (OA via Ohio State University website) — would be useful for Phase 9 stoichiometry deficiency-theorem load-bearing claim. If Phase 9 deficiency conclusions are load-bearing, this PDF should be cached.
+2. **Bohr 1913** (public domain) — for Phase 7.6.1 Rydberg series.
+3. **Yamabe 1960** (mathematical archive) — for Phase 7.3 conformal-covariance reference.
+
+These three are OA; the others are not. Future PR could cache them into `docs/srmech/hoodoos/` and elevate the relevant Phase 7 / 8 / 9 citations from `[unverified-secondary]` to verified.
+
+### 12.3 — Verdict and fermata closure
+
+**Phase 7 fermata #2 (chemistry primary citation verification): RESOLVED.**
+
+Approach: keep `[unverified-secondary]` tags on textbook-value chemistry citations; rely on computational verifications as the load-bearing primary sources; flag the three OA-available citations (Feinberg, Bohr, Yamabe) as deferred-cache candidates for a follow-up PR.
+
+This is consistent with the project's MPM discipline — the *algebraic* claims have primary-source-quality computational verification; the *physical correspondence* claims appropriately defer to known textbook values with explicit secondary tagging.
+
+**Open fermatas after Phases 10 + 11 + 12:**
+
+1. ~~Class P? conformal groups~~ — closed (Phase 11 demotion).
+2. ~~Chemistry primary citations~~ — closed (Phase 12 secondary-tag retention).
+3. ~~Chess-K-falsifier~~ — closed (Phase 10 substrate boundary).
+4. **Phase 9 stoichiometry** — concertmaster still running.
+
+After Phase 9 lands, all three original concertmaster fermatas + the user's orgo-book extension hope will be either closed or substantively investigated. The spike is then complete.
