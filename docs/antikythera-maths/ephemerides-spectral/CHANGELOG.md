@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc5] — 2026-05-14
+
+### Phase 10a EOC C-side completion — ABI v8 → v9
+
+The final rc in the v0.28.x stack. Closes the rc1 backend_caveat: per-body equation-of-center patches now produce **byte-identical phase residues on both `backend="bip"` and `backend="c"`** across all 52 bodies at every Δt tested.
+
+**C-side additions** (`c/include/ephemerides_spectral.h` + `c/src/es_patches.c`):
+- New patch kind `ES_PATCH_KIND_ECCENTRICITY_CORRECTION = 2`
+- `es_patch_t` extended with 3 trailing `double` fields (`eccentricity`, `mean_anomaly_at_j2000_rad`, `n_rad_per_day`)
+- Newton-Kepler evaluator `es_eval_eoc_residue` — bounded 30-iter Newton on `E − e·sin(E) = M`, tol 1e-14 rad, half-angle true-anomaly, principal-branch wrap via floor-based modulo
+- `es_clear_eoc_patches` — selective clear by kind
+- `ES_ABI_VERSION 8 → 9`
+- JPL Power-of-Ten clean: every new function ≥2 asserts, no goto, no malloc, all loops bounded, ≤60 lines
+
+**Python wiring** (`_native_bip.py` + `bridge.py` + `srmech_profile.toml`):
+- `EXPECTED_ABI_VERSION 8 → 9`; `[profile.native].expected_abi_version 8 → 9`
+- `EsPatch` ctypes struct extended in lockstep
+- New helpers `native_apply_eoc_patch` + `native_clear_eoc_patches`
+- `_mirror_patch_to_native` gains an `EccentricityCorrectionPatch` dispatch branch
+- `bridge.apply_eoc_patches` registers C-side patches with Python+C rollback parity invariant; return envelope now reports `backends_active = ["bip", "c"]`
+- `bridge.clear_eoc_patches` mirrors selective clear to the C registry
+
+**Test ratchet flips**:
+- rc1 `test_eoc_patch_is_python_only_kind` → rc5 `test_eoc_patch_kind_now_c_native` (positive ratchet)
+- New `test_eoc_patch_byte_parity_across_backends` pins byte-exact EOC parity at 4 Δt epochs (J2000, ±1 yr, +20 yr, -100 yr)
+- `test_parity_smoke` rationale strings refreshed
+- JPL audit pins: `PIN_RULE_5_TOTAL_FUNCS 42 → 46`; `PIN_RULE_5_ASSERTIONS 88 → 102` (density 2.22, well above the ≥2.0 average floor)
+
+**ABI wire-format**: `sizeof(es_patch_t)` increased by 24 bytes. The ABI handshake (srmech `_maybe_load_native` + `_native_bip` direct check) catches v8/v9 mismatches and degrades to pure-Python rather than producing silent garbage.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0rc5](python/CHANGELOG.md).
+
+## [0.28.0rc4] — 2026-05-14
+
+### Task `#212` PR-c — bridge call-site migration through srmech profile
+
+Final PR of Task `#212` (ADR-0001 §7 Step 2 call-site-migration portion). `_native_bip.py` now resolves the bundled native library via `srmech.profile("ephemerides").native` first (when srmech is importable + the plugin tier loaded); the existing direct `ctypes.CDLL()` path remains as the fallback. `_native_bip.LIB` and `Profile.native` are now **the same Python object** (Python `is` identity), keeping patch-registry runtime state consistent across both surfaces. New module global `LOAD_SOURCE ∈ {"srmech_profile", "direct_ctypes", None}`.
+
+Four-way native parity verified on TestPyPI: Python BIP / profile-loaded native / direct-ctypes native / bridge `backend="c"` all produce byte-identical phase residues.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0rc4](python/CHANGELOG.md).
+
+## [0.28.0rc3] — 2026-05-14
+
+### Task `#212` PR-b — srmech `[profile.native]` plugin tier + ABI v6→v8 realignment + native-parity drift fix
+
+(rc2 was a failed-publish tombstone; the cibuildwheel Linux matrix surfaced an `es_laplacian.c` ↔ `_data/initial_phases.json` drift on 15 Mars + Saturnian moons that depend on the missing `mar099s` + `sat441` JPL auxiliary kernels. rc3 regenerated `es_laplacian.c` against the same stub-fallback state the JSON uses; both sides now byte-agree on all 52 bodies.)
+
+ephemerides-spectral's srmech profile graduates from "simple" to "plugin" tier. Closes the silent-rejection bug that had quietly forced pure-Python fallback for every v0.16.0+ install: `_native_bip.EXPECTED_ABI_VERSION` was left at `6` while the C library advanced to `8` in v0.16.0. Bumping both sides to v8 in lockstep restores native acceleration across the install base.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0rc3](python/CHANGELOG.md).
+
 ## [0.28.0rc1] — 2026-05-14
 
 ### Phase 10a — Per-body equation-of-center catalog (PEP 440 alpha pre-release of v0.27.0)
