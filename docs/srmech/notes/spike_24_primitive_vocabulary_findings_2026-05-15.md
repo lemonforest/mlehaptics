@@ -1,6 +1,6 @@
 # Spike #24 findings — primitive vocabulary inventory + residual analysis
 
-**Status:** Phases 1–14 landed (Phase 14 = OA chemistry-citation PDF cache). Spike substantively complete; one user-side Yamabe download pending.
+**Status:** Phases 1–14 landed (Phase 14 = OA chemistry-citation PDF cache, all three cached). Spike substantively complete.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_primitive_vocabulary_2026-05-15.md`](spike_24_primitive_vocabulary_2026-05-15.md).
 
@@ -1028,22 +1028,26 @@ User request: scope the Phase 12 deferred OA candidates into this PR. Two of thr
 |---|---|---|---|---|---|
 | [`docs/srmech/hoodoos/feinberg_1979_lectures_on_chemical_reaction_networks.pdf`](../hoodoos/feinberg_1979_lectures_on_chemical_reaction_networks.pdf) | Martin Feinberg | 1979 (Wisconsin lectures); 2019 Zenodo deposit | [Zenodo 10631900](https://zenodo.org/records/10631900) (10.5281/zenodo.10631900) | CC-BY 4.0 | `eb51082c29b976e427fb1ea0030959a1c23f9727c765732a9b17e611c898d1c7` |
 | [`docs/srmech/hoodoos/bohr_1913_on_the_constitution_of_atoms_and_molecules.pdf`](../hoodoos/bohr_1913_on_the_constitution_of_atoms_and_molecules.pdf) | Niels Bohr | 1913 (Phil. Mag. Series 6, Vol. 26, Part I, pp. 1–25, July 1913) | [Internet Archive 125Bohr](https://archive.org/details/125Bohr) facsimile of *Phil. Mag.* original | Public domain (>100 years since publication) | `02d1e2752ed5b05d71b6d8a4f197dc1b3641995814b90990378455bd72ff937b` |
+| [`docs/srmech/hoodoos/yamabe_1960_on_deformation_of_riemannian_structures.pdf`](../hoodoos/yamabe_1960_on_deformation_of_riemannian_structures.pdf) | Hidehiko Yamabe | 1960 (Osaka Math. J. Vol. 12 Issue 1, pp. 21–37) | [Project Euclid OJM open archive](https://projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full) — user-side browser download (Project Euclid is Incapsula-gated for scripts) | CC-BY-NC (Project Euclid open archive) | `32152d06ee2eebb597173739857106a4484824fd9e658357ccdd1998a6bb66c6` |
 
 Both fetched via single-shot `curl` from machine-permitted sources (Zenodo OpenAIRE-affiliated; Internet Archive's API explicitly supports automated retrieval). Per `[[reference_autonomous_validation_tos_landscape]]`, both are inside the permitted-automation zone.
 
-### 14.2 — Yamabe 1960 — user-side download required
+### 14.2 — Yamabe 1960 — user-fetched via browser ✓
 
-Project Euclid (which hosts Osaka Mathematical Journal back-volumes) is **Incapsula-gated** — automated retrieval returns a 1.1KB Incapsula challenge page instead of the PDF. Per `[[reference_autonomous_validation_tos_landscape]]`, the discipline is "don't build TOS-violating tooling into the project repo"; Project Euclid's anti-bot gate constitutes a TOS signal against scripted access, even though the content is OA for older volumes.
+Project Euclid (which hosts Osaka Mathematical Journal back-volumes) is **Incapsula-gated** — scripted retrieval returns a 1.1KB Incapsula challenge page instead of the PDF. Per `[[reference_autonomous_validation_tos_landscape]]`, scripted access to Project Euclid sits outside the permitted-automation zone, but a browser download is fine: the content is CC-BY-NC open-archive material.
 
-**For the user to download:**
+User downloaded it manually and dropped it into the project tree on 2026-05-15 12:56 UTC. Now cached at the canonical location alongside Feinberg and Bohr. The 18-page scanned facsimile is what Project Euclid serves for this 1960 article.
+
+**Reproduction instructions** (for anyone re-verifying):
 
 - **Citation:** Hidehiko Yamabe, *"On a deformation of Riemannian structures on compact manifolds"*, **Osaka Mathematical Journal** Vol. 12, Issue 1, pp. 21–37 (1960).
-- **DOI (Project Euclid):** [10.18910/8081](https://doi.org/10.18910/8081) *(unverified — Project Euclid uses 10.18910/* DOI prefix for OJM but the per-article number is not confirmed without a browser fetch)*
-- **Landing page:** [`projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full`](https://projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full) — click the "PDF" / "Download" button after the page loads in a browser.
-- **Save as:** `docs/srmech/hoodoos/yamabe_1960_on_deformation_of_riemannian_structures.pdf`
-- **License:** Project Euclid open archive (CC-BY-NC by default for older OJM volumes; verify on the download page).
+- **DOI (Project Euclid):** [10.18910/8081](https://doi.org/10.18910/8081) *(unverified prefix — verify on the landing page when re-fetching)*
+- **Landing page:** [`projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full`](https://projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full)
+- **Download via:** browser only (Project Euclid blocks scripts via Incapsula).
+- **Canonical path:** `docs/srmech/hoodoos/yamabe_1960_on_deformation_of_riemannian_structures.pdf`
+- **License:** CC-BY-NC (Project Euclid open archive default for older OJM volumes).
 
-Once cached, the hoodoos/README.md table entry can be ratcheted up like the other two; this finding-doc Phase 14.1 table will gain a third row; and Phase 7.3's Yamabe citation tag advances from `[unverified-secondary]` to verified.
+**OCR caveat:** the PDF is a scanned print facsimile (image-only PDF, 18 pages, version 1.4). OCR enhancement would produce a derived file with a different SHA-256, breaking the canonical-bytes attestation. **Discipline:** keep the original scan as the load-bearing hoodoo; if text-search is later wanted, OCR creates a derived file (e.g., `yamabe_1960_*_ocr.pdf`) with its own hash, stored alongside the original. The original scan SHA-256 (`32152d06...`) remains the attestation anchor.
 
 ### 14.3 — Citation ratchet — Phase 7 / Phase 9 references
 
@@ -1051,8 +1055,7 @@ The Phase 7 / Phase 9 chemistry-and-physics citations advance from `[unverified-
 
 - **Feinberg 1979** (Phase 9 sub-phases 9.1, 9.3, 9.3b, 9.4): the *Lectures on Chemical Reaction Networks* notes referenced for the deficiency formula `δ = n − ℓ − s`, the deficiency-zero theorem, and the Wegscheider conditions all live in the cached PDF. Spike #24 Phase 9 conclusions are now backed by a directly-verified primary PDF.
 - **Bohr 1913** (Phase 7.6.1, Phase 9.6): the hydrogen Rydberg-series derivation `R(1/n² − 1/m²)` is in Part I (pp. 1–25 of the cached PDF, the Internet Archive facsimile). Class J atomic-substrate instantiation is now backed by a directly-verified primary PDF.
-
-Yamabe 1960 (Phase 7.3) remains `[unverified-secondary]` pending user-side download.
+- **Yamabe 1960** (Phase 7.3, Phase 11): the conformal-deformation operator `L_g = −4(n−1)/(n−2) · Δ_g + R_g` and Yamabe-invariant minimum construction live in the cached PDF (user-fetched). The Phase 11 demotion argument (Class P? → downstream-continuous-projection) is now backed by a directly-verified primary PDF.
 
 ### 14.4 — Out of scope for Phase 14
 
