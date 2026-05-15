@@ -223,7 +223,7 @@ The Phase 1 prediction held quantitatively: srmech is currently provenance scaff
 
 [See `spike_24_phase_2_matrix_2026-05-15.ndjson` — to be emitted.]
 
-## Phase 3 — Ephemerides residual analysis (analytical pass landed; 3b/3c pending)
+## Phase 3 — Ephemerides residual analysis (all sub-phases complete)
 
 ### Phase 3a — Analytical predicted residual signatures (2026-05-15)
 
@@ -925,7 +925,7 @@ Resolves Phase 7 fermata #2 (chemistry citation verification). Per `[[feedback_p
 | Bohr 1913 Rydberg series formula | Phase 7.6.1 | Bohr 1913 (*Phil. Mag.*) original is centenary-celebrated and widely reproduced | Multiple OA reproductions exist (Bohr's original *Phil. Mag.* paper is in the public domain after 100 years). Formula `R(1/n² − 1/m²)` is universally taught. |
 | Yamabe operator / conformal covariance | Phase 7.3 | Yamabe 1960 (*Osaka Math. J.*); modern treatments in Lee & Parker 1987 (*Bull. AMS*) | Yamabe original on arXiv via mathematical-archive scan; Lee-Parker 1987 OA via *Bull. AMS* archive | 
 | 1D conformal field theory (Heisenberg c=1) | Phase 7.3 | Polyakov 1970 series; di Francesco, Mathieu, Sénéchal *CFT* (Springer 1997) | Heisenberg 1925/1926 papers are public domain; the c=1 free-boson CFT result is in every CFT textbook. |
-| Horn 1972 / Jackson 1972 / Feinberg 1972-1987 chemical reaction network theory | Phase 8, Phase 9 (in-flight) | Horn 1972 (*Arch. Ration. Mech. Anal.*); Feinberg 1979 lectures (Wisconsin), 1987 (Chem. Eng. Sci.) | Feinberg's 1979 Wisconsin notes are OA on his Ohio State website. Horn 1972 is paywalled. Jackson 1972 paywalled. |
+| Horn 1972 / Jackson 1972 / Feinberg 1972-1987 chemical reaction network theory | Phase 8, Phase 9 | Horn 1972 (*Arch. Ration. Mech. Anal.*); Feinberg 1979 lectures (Wisconsin), 1987 (Chem. Eng. Sci.) | Feinberg's 1979 Wisconsin notes are OA on his Ohio State website. Horn 1972 is paywalled. Jackson 1972 paywalled. |
 
 ### 12.2 — Landing decision
 
@@ -956,9 +956,9 @@ This is consistent with the project's MPM discipline — the *algebraic* claims 
 1. ~~Class P? conformal groups~~ — closed (Phase 11 demotion).
 2. ~~Chemistry primary citations~~ — closed (Phase 12 secondary-tag retention).
 3. ~~Chess-K-falsifier~~ — closed (Phase 10 substrate boundary).
-4. **Phase 9 stoichiometry** — concertmaster still running.
+4. ~~Phase 9 stoichiometry~~ — closed (Phase 9 landed; full investigation + 9.3b counterpoint resolved Class O? to existing-class composition).
 
-After Phase 9 lands, all three original concertmaster fermatas + the user's orgo-book extension hope will be either closed or substantively investigated. The spike is then complete.
+All three original concertmaster fermatas + the user's orgo-book extension hope are closed or substantively investigated. The final closure table lives in Phase 13.3 below.
 
 ## Phase 13 — §3.8 notebook landing (2026-05-15)
 
