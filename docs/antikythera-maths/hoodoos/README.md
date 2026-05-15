@@ -97,6 +97,22 @@ the repo.
 | **Copyright** | © The Author(s) 2021. **Open access under CC BY 4.0.** |
 | **Used for** | Spike F12 / Batch B / Batch C F17 (2026-05-14). **Contents inspected:** 59 pages; sections S1 (Physical Evidence), S2 (Texts & Inscriptions), S3 (Planetary Periods incl. Babylonian period-relation tables S3–S6), S4 (Theoretical Mechanisms — gear-train derivations, Table S8 gear modules, Table S9 geometric parameters for planetary gear trains), S5 (Matching the Evidence — explicit Venus + Mercury gear-train derivations on p.37–38), S6 (Reconstructing the Cosmos — full mechanism layout incl. shared-fixed-gear 56 architecture on p.51–52). **F17 finding (load-bearing):** the document does NOT contain per-planet bronze-measured eccentricity values, because Freeth's planetary mechanism design uses **AU distance** per planet (Table S9), NOT planetary eccentricity. The originally-anticipated BronzeHipparchan encoder mode (B2 spec) is therefore based on a faulty premise; replaced by BronzeGeocentricEpicycle which uses bronze's actual data (Sun-vector + AU-distance epicycle, vector composition). |
 
+### 6. Rushkin 2015 — arXiv (open-access)
+
+| Field | Value |
+|-------|-------|
+| **File** | `rushkin_2015_ptolemy_model_arxiv_1502.01967.pdf` |
+| **Title** | Optimizing the Ptolemaic Model of Planetary and Solar Motion |
+| **Authors** | Ilia Rushkin |
+| **Venue** | arXiv preprint |
+| **arXiv ID** | [1502.01967](https://arxiv.org/abs/1502.01967) |
+| **Published** | 6 February 2015 |
+| **Publisher URL** | <https://arxiv.org/pdf/1502.01967> |
+| **Copyright** | arXiv non-exclusive license to distribute. **Open access** (no journal paywall; permissive use). |
+| **Local SHA-256** | `a87931b5b1920dc004487c36be487a5bdbdc4b384588cd7e5468983dde9a5b90` |
+| **Used for** | Batch D F18-F23 (2026-05-15), `spike_pinslot_era_appropriate_findings_2026-05-15.md`. **Table on p.7** gives Ptolemy's planetary AU values (`p_AU`), eccentricities, and periods derived from Almagest IX-XI epicycle:deferent ratios (using Toomer 1984 translation as Rushkin's underlying source). These are the era-appropriate (Hellenistic-tradition Ptolemaic) reference values that the dispatch compared bronze and modern AU values against. **Caveat (Rushkin p.6):** Ptolemy's Mercury parameters are notably poor; era-appropriate confidence is HIGH for Mars/Jupiter, MODERATE for Venus/Saturn, LOW for Mercury. |
+| **OA distinction** | This is an open-access paper that the project policy says "can be cited by URL or hashed-pointer; no need to cache locally." It IS cached locally for the dispatch's primary-source-verification discipline (verifying authors+title+arXiv-ID per [`feedback_pdf_extraction_citation_discipline`](../../../C:/Users/sckir/.claude/projects/D--GitHub-mlehaptics/memory/feedback_pdf_extraction_citation_discipline.md)); the SHA-256 above lets future verifiers re-pin the same exact PDF if needed. |
+
 ## Retrieval notes
 
 ResearchGate hosts both PDFs as publisher Version-of-Record files. The

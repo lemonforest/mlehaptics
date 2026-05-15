@@ -1881,3 +1881,108 @@ The diff at c_2 is dominantly `−e_1 e_2 / 2 + O(e³)` — exactly matching Bat
 - F17's closed-form `c_k = p_AU^k / k` Fourier series per planet gives BronzeGeocentricEpicycle a clean implementation: just feed `p_AU` to the existing `pin_slot_output_angle` function in `research/pin_and_slot.py` with `ε = p_AU` (clamped to <1 for inferior planets only; superior planets have p_AU > 1 and the series diverges — for superior planets the geometry composes as `arctan(d sin M / (o + d cos M))` directly, not via the pin-slot series).
 - Counterpoint pass NOT executed in this dispatch (single-agent concertmaster). The closed-form derivations are self-checking against the FFT corroboration — convergence within ~14% on C3 target amplitude — so additional counterpoint may be lower-priority than landing this dispatch.
 
+## Batch D — Era-appropriate pin-slot mathematics for 6 non-lunar trains (F18-F23, 2026-05-15)
+
+Concertmaster follow-up dispatch. The lunar pin-slot was settled in F2 (Freeth 2006 Fig. 6, ε=0.1146); F17 settled the planetary algebra (`d/(i or o) = p_AU`, 0.05% across 5 planets). This batch addresses the open era-vs-modern question: do the bronze's reconstructed AU values match Hipparchan / Ptolemaic estimates (era-appropriate for the bronze's ~150 BCE construction) or modern (JPL DE441 / NASA NSSDC)?
+
+**Source files for this batch:**
+- `spike_pinslot_era_appropriate_2026-05-15.py` — analysis script (stdlib only).
+- `spike_pinslot_era_appropriate_2026-05-15.ndjson` — 8 records.
+- `spike_pinslot_era_appropriate_findings_2026-05-15.md` — narrative findings doc with per-planet tables.
+
+**Headline forensic finding (load-bearing).** Freeth 2021 Supp S9's `p` column matches NASA NSSDC modern values (Distance from Sun in 10^6 km / 149.598 AU/km) rounded to 2 decimal places for ALL 5 planets (5/5: Mercury 0.39, Venus 0.72, Mars 1.52, Jupiter 5.20, Saturn 9.58). The Supp S9 caption is explicit: "Parameters are calculated using modern theory for the planets, but could equally be calculated from ancient Greek parameters." The bronze AS RECONSTRUCTED uses modern AU as design input.
+
+### F18 — Sun (solar anomaly)
+
+**Verdict: UNDERDETERMINED.** Freeth 2021 does NOT publish (pin offset, pin distance) for the True Sun mechanism. Supp S4.3.1 (page 28) confirms the architecture (`g1 ~ g2 ~ g3 + follower`, eccentric pin on g3 per Supp p.51) but gives no numerical eccentricity. Hipparchus e_⊙=1/24=0.0417 differs from modern e_earth=0.0167 by ~150% — IF Sun pin geometry were available this would be the cleanest era-vs-modern test in the analysis. Fermata for conductor: pursue Carman & Evans (2010, 2019), Evans/Carman/Thorndike (2010), or Freeth Supp S6 figures.
+
+### F19 — Mercury
+
+| Reference | p_AU | rel err vs bronze 0.39 |
+|---|---:|---:|
+| Ptolemy (Almagest IX, 22;30 sixtieths) | 0.3750 | 4.00% |
+| Modern NSSDC (NASA fact-sheet) | 0.38704 | 0.77% |
+| Modern JPL DE441 (Fitzpatrick Table 5.1) | 0.387098 | 0.75% |
+
+**Verdict: MODERN.** Bronze matches modern 4-5× better than Ptolemy. Caveat: Rushkin (2015) p.6 notes Ptolemy's Mercury data is poor; era-appropriate confidence LOW.
+
+### F20 — Venus
+
+| Reference | p_AU | rel err vs bronze 0.7198 |
+|---|---:|---:|
+| Ptolemy (Almagest X, 43;10 sixtieths) | 0.7190 | 0.11% |
+| Modern NSSDC | 0.72327 | 0.48% |
+| Modern JPL DE441 | 0.723334 | 0.49% |
+
+**Verdict: ERA-APPROPRIATE (marginal).** Bronze matches Ptolemy 4× better than modern, but both within bronze fabrication noise floor.
+
+### F21 — Mars
+
+| Reference | p_AU | rel err vs bronze 1.5198 |
+|---|---:|---:|
+| Ptolemy (Almagest X, 39;30 sixtieths) | 1.5190 | 0.05% |
+| Modern NSSDC | 1.52342 | 0.24% |
+| Modern JPL DE441 | 1.523706 | 0.26% |
+
+**Verdict: ERA-APPROPRIATE (marginal — strongest in dispatch).** Bronze d/o = 10.00/6.58 = 1.5198 uncannily matches Ptolemy's 39;30 epicycle:deferent (60/39.5 = 1.519) to 0.05%. May be Freeth's deliberate i=6.58 choice for Ptolemaic consistency, or coincidence. Fermata for conductor.
+
+### F22 — Jupiter
+
+| Reference | p_AU | rel err vs bronze 5.2025 |
+|---|---:|---:|
+| Ptolemy (Almagest XI, 11;30 sixtieths) | 5.2170 | 0.28% |
+| Modern NSSDC | 5.20462 | 0.04% |
+| Modern JPL DE441 | 5.202873 | 0.007% |
+
+**Verdict: MODERN (decisive).** Bronze 5.2025 = JPL DE441 5.2029 to 0.007%. Cleanest "modern" match.
+
+### F23 — Saturn
+
+| Reference | p_AU | rel err vs bronze 9.58 |
+|---|---:|---:|
+| Ptolemy (Almagest XI, 6;30 sixtieths) | 9.2310 | 3.78% |
+| Modern NSSDC | 9.58235 | 0.025% |
+| Modern JPL DE441 | 9.536651 | 0.46% |
+
+**Verdict: MODERN (sharpest era-vs-modern distinction in dispatch).** Saturn's Ptolemaic AU is the only era-appropriate value to fall outside both the bronze fabrication noise floor (1-3%) AND the F17 precision floor (0.05%); the 3.78% gap to Ptolemy is robust. Whatever AU value the historical bronze designer used for Saturn's d/o, it was NOT Ptolemaic 9.231. Freeth used NSSDC convention (9.582) not JPL DE441 J2000 (9.537); these conventions differ by 0.5% due to Saturn's secular perturbations.
+
+### Aggregate Batch D verdict
+
+- 3/5 planets: MODERN (Mercury, Jupiter, Saturn — decisive for Saturn)
+- 2/5 planets: ERA-APPROPRIATE marginal (Venus, Mars — within noise floor)
+- Sun: UNDERDETERMINED (Freeth 2021 silent on Sun pin geometry)
+- Freeth Supp S9 `p` matches NASA NSSDC round-2dp: 5/5
+
+The era-vs-modern dispatch question is two-layered. At the construction level (Freeth's RECONSTRUCTION), modern wins by Freeth's own admission. At the historical level (the ACTUAL ancient designer), the bronze fabrication noise floor (1-3%) overlaps the Ptolemy-vs-modern gap (0.2-3.8%) — so era vs modern is only sharply distinguishable for Saturn (where bronze falls on the modern side) and would-be-distinguishable for the Sun (if pin geometry existed). The dispatch's question, asked at the historical-bronze-designer level, is mostly below the instrument's noise floor.
+
+**Implication for F17 BronzeGeocentricEpicycle:** the encoder mode is sound as defined (it consumes Freeth Supp S9 d/i ratios = modern AU). No amendment needed. A future spike could run BronzeGeocentricEpicycle with Ptolemaic AU values for sensitivity analysis, but this is a sensitivity probe on top of the encoder, not an encoder swap.
+
+### Methodological notes (Batch D)
+
+- **Citation discipline (per `feedback_pdf_extraction_citation_discipline`):** Freeth 2021 Supp S9 + Supp S4.3.1 + Supp S6.3 (page 28, page 51 for Sun) extracted from cached PDF. Rushkin 2015 arXiv:1502.01967 PDF cached locally at `docs/antikythera-maths/hoodoos/rushkin_2015_ptolemy_model_arxiv_1502.01967.pdf` (SHA-256 `a87931b5b1920dc004487c36be487a5bdbdc4b384588cd7e5468983dde9a5b90`), title page and Table p.7 verified. Fitzpatrick Modern Almagest open-access Table 5.1 verified. NASA NSSDC fact-sheet values verified via standard 1433.5 / 149.598 = 9.582 arithmetic. Toomer 1984 cited indirectly (unverified-secondary).
+- **NDJSON output** (`feedback_ndjson_over_bloated_json`).
+- **Closed-form algebra (per Batch C lesson):** c_1 amplitudes via `arctan(p_AU)` (closed-form pin-slot peak) for planets; Greek-doubling `2e` for Sun. No FFT.
+- **Era-appropriate framing caveat:** Ptolemy (150 CE) postdates the bronze (~150 BCE) by ~300 years. Hipparchus is reported by Ptolemy (Almagest IX.2; corroborated by Freeth 2021 Supp p.11) to NOT have produced a systematic planetary theory. The dispatch's "Hipparchan / Ptolemaic" target is therefore Ptolemy-as-proxy-for-Hellenistic-tradition, not actual Hipparchan-era values which are unrecoverable.
+
+### Fermata records (Batch D, for conductor)
+
+1. **F18 Sun pin geometry pursuit** — most impactful follow-on, since the 150% Hipparchus-vs-modern gap on solar e would give a sharp test.
+2. **F21 Mars suspicious Ptolemy match** — bronze 1.5198 = Ptolemy 1.519 to 0.05% is striking; Freeth may have deliberately chosen i=6.58 for Ptolemaic consistency. Whether to flag this in antikythera notebook §11.6 or §20.
+3. **F23 Saturn convention choice** — Freeth used NSSDC 9.582 not JPL DE441 9.537. F17 BronzeGeocentricEpicycle encoder needs a default-convention decision for Saturn (the 0.5% gap is at the encoder's noise floor).
+4. **Notebook integration** — where in the project notebook structure does Batch D belong? srmech §11.6.6 (cascade architectures, but this is not cascade) or antikythera §20 (Almagest / Freeth parameter sets, but this is era-vs-modern not Almagest)? Most natural fit may be a new antikythera notebook subsection on era-appropriate vs modern parameter encoding.
+
+### NDJSON inventory (Batch D)
+
+- `spike_pinslot_era_appropriate_2026-05-15.ndjson` (8 records: header + Sun + Mercury + Venus + Mars + Jupiter + Saturn + aggregate)
+
+### Scripts (Batch D)
+
+- `spike_pinslot_era_appropriate_2026-05-15.py` (stdlib only; era-vs-modern comparison + F18 Sun-geometry-underdetermined note)
+
+### Recommendations for next dispatch
+
+- F18 Sun pin geometry: pursue Carman & Evans (2010 JHA, 2019 AHES), Evans/Carman/Thorndike (2010), or Wright (2007) for alternate Sun-mechanism reconstructions that might give numerical pin-offset / pin-distance values. The Hipparchus-vs-modern e_⊙ gap (150%) is the cleanest era-vs-modern lever in the analysis.
+- F21 Mars: whether the suspicious Ptolemy-match is deliberate Freeth-team choice or coincidence is unanswerable without their working notes; ask the conductor to defer / flag.
+- F17 BronzeGeocentricEpicycle encoder: default-convention decision for Saturn (NSSDC vs JPL DE441); document either way in the encoder spec.
+- Counterpoint pass NOT executed (single-agent concertmaster). The Freeth Supp S9 = NASA NSSDC round-2dp finding is mechanically verifiable and self-checking; high-confidence even without counterpoint.
+
