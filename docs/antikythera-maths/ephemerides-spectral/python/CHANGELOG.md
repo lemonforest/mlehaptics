@@ -10,6 +10,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc2] — 2026-05-15
+
+### Fixed — two flagged-but-untouched items from the rc1 proofread pass
+
+User reviewed the rc1 PR's "Known ambiguities NOT touched" section
+and chose minimum-disruption fixes for both. Neither is a code
+change — pure README hygiene continuing the v0.28.1 docs-only
+patch story.
+
+**Issue 1 — "256 KB state at D=65536" BIP-vs-HD-state ambiguity (Option C):**
+- BIP bullet (Two-stage architecture section): removed the orphan
+  "305× faster than the FPU reference; 256 KB state at D=65536"
+  fragment that conflated the BIP encoder's per-body output with
+  the HD-lifted hypervector state. Replaced with the precise
+  user-facing characterisation: "Produces `uint32[52]` per-body
+  residues (208 bytes) at any JD."
+- Memory Footprint table: renamed `State (BIP)` → `HD state (BIP path)`
+  and `State (complex128)` → `HD state (complex128 path)`. Added
+  an explanatory paragraph above the table clarifying that the
+  BIP encoder's user-facing output (from `default_encode()` /
+  `bridge.get_system_state()`) is the `uint32[52]` per-body residue
+  array (208 bytes), and the two HD-state rows below size the
+  hypervector representation the HD pipeline lifts those residues
+  into when running syzygy / observer-bind / eclipse-probability.
+
+**Issue 2 — DE441 sweep table uses `earth`/`moon` (pre-v0.9.0 names) (Option B):**
+- Renamed table row identifiers `earth` → `terra` and `moon` →
+  `luna` to match the v0.9.0+ Latin-proper-noun convention used
+  throughout the rest of the codebase. Prose references to "Earth"
+  / "Moon" in English-language sentences (e.g. "Earth phase error
+  scales roughly linearly...") stay as natural-language usage; the
+  v0.9.0 rename was specifically about body-identifier strings,
+  not English vocabulary.
+
+### Versioning
+
+`0.28.1rc1` → `0.28.1rc2`. rc1 hit TestPyPI successfully (verified
+externally); rc2 folds the two user-approved proofread fixes into
+the same v0.28.1 cycle so the clean v0.28.1 ships the accumulated
+README hygiene.
+
 ## [0.28.1rc1] — 2026-05-15
 
 ### Fixed — stale "Unreleased" bullets in PyPI-rendered README

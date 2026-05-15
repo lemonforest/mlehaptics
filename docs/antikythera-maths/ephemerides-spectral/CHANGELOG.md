@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc2] — 2026-05-15
+
+### Fixed — two flagged-but-untouched README items from the rc1 proofread
+
+User reviewed the rc1 PR's "Known ambiguities NOT touched" section and chose minimum-disruption fixes:
+
+- **Issue 1 (Option C)** — BIP-vs-HD-state ambiguity in the "256 KB state at D=65536" framing. The orphan fragment is removed from the BIP bullet; the Memory Footprint table renames `State (BIP)` / `State (complex128)` → `HD state (BIP path)` / `HD state (complex128 path)` with a clarifying paragraph above the table that distinguishes the BIP encoder's user-facing `uint32[52]` per-body output (208 bytes) from the HD-lifted D-dimensional hypervector the HD pipeline uses.
+- **Issue 2 (Option B)** — DE441 sweep table renames `earth` → `terra` and `moon` → `luna` to match the v0.9.0+ Latin-proper-noun convention used throughout the rest of the codebase. Prose references to "Earth" / "Moon" in English-language sentences stay as natural-language usage.
+
+Pure README hygiene. No code change; no ABI change; no test ratchet changes. SSOT files bump in lockstep `0.28.1rc1` → `0.28.1rc2`.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.1rc2](python/CHANGELOG.md).
+
 ## [0.28.1rc1] — 2026-05-15
 
 ### Fixed — stale "Unreleased" bullets in PyPI-rendered README
