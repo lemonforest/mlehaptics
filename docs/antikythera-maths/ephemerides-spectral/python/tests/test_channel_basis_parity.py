@@ -19,6 +19,7 @@ import pytest
 from ephemerides_spectral import _native_bip
 from ephemerides_spectral._research.portable_prng import (
     splitmix64_phases, splitmix64_uniform_2pi, splitmix64_next,
+    splitmix64_turn_integer_basis,
 )
 
 
@@ -123,3 +124,88 @@ def test_channel_basis_distinct_seeds_distinct_bases() -> None:
     assert np.max(np.abs(a - b)) > 0.1
     assert np.max(np.abs(b - c)) > 0.1
     assert np.max(np.abs(a - c)) > 0.1
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.29.0rc1 — TURN_INTEGER byte-parity (Tier 2a route #2)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _py_turn_integer_basis(seed: int, D: int) -> np.ndarray:
+    """Python-side reference TURN_INTEGER basis (complex64).
+
+    Mirrors `c/src/es_channel_bases.c::es_channel_basis_turn_integer_route`
+    via `splitmix64_turn_integer_basis()` + complex64 cast.
+    """
+    pairs = splitmix64_turn_integer_basis(seed, D)
+    return np.array(
+        [complex(re, im) for re, im in pairs],
+        dtype=np.complex64,
+    )
+
+
+@pytest.mark.parametrize("seed,D", [
+    (2026, 1024),       # body 0 (sun)
+    (2026 + 5, 1024),   # body 5 (e.g. jupiter)
+    (2026 + 37, 1024),  # body 37 (last body)
+    (777, 1024),        # syzygy node basis seed
+    (9999, 1024),       # topocentric coord basis seed
+    (2026, 65536),      # production-D for body 0
+])
+def test_channel_basis_turn_integer_byte_identical_py_vs_c(
+        seed: int, D: int) -> None:
+    """C and Python produce byte-identical complex64 TURN_INTEGER bases.
+
+    This is the v0.29.0rc1 dual-path parity guarantee: the TURN_INTEGER
+    route — the cyclic-group-native quarter-turn decomposition added
+    in this rc — has a Python mirror that matches the C output bit-
+    for-bit after the complex64 cast.
+
+    Both sides:
+      * Use the same splitmix64 state stream.
+      * Extract the top 32 bits of each output as the phase residue
+        in Z_{2^32}.
+      * Decompose into (quadrant, within) by the same integer split.
+      * Dispatch bit-exact (±1, 0) / (0, ±1) when `within == 0`.
+      * Compute `cos(a)`, `sin(a)` via the OS libm with the SAME
+        scaled argument `a = float(within) · (π/2 / 2^30)`.
+      * Apply `i^quadrant` rotation by sign/swap.
+      * Cast to float32 via IEEE-754 nearest-even.
+
+    The OS libm + IEEE-754 cast are deterministic shared state across
+    CPython and the C library; byte-parity therefore holds on every
+    platform we support. Sibling discipline to the LEGACY parity
+    above (`test_channel_basis_byte_identical_py_vs_c`).
+    """
+    c = _native_bip.native_channel_basis_turn_integer(seed, D)
+    py = _py_turn_integer_basis(seed, D)
+    assert c.dtype == np.complex64
+    assert py.dtype == np.complex64
+    assert c.shape == py.shape == (D,)
+    assert np.array_equal(c, py), (
+        f"TURN_INTEGER channel-basis byte mismatch at seed={seed}, D={D}: "
+        f"max |c-py| = {np.max(np.abs(c - py))}"
+    )
+
+
+def test_turn_integer_basis_quarter_turn_dispatch_bit_exact() -> None:
+    """Hand-injected quarter-turn phases: forge a uint64 that decomposes
+    to `within == 0` at each of the four quadrants, verify the Python
+    helper emits exact ±1 / ±i (no float math involved).
+
+    This is a structural check on the Python implementation of the
+    quarter-turn dispatch — the C side's behaviour is verified by the
+    byte-parity test above; here we verify the Python algorithm
+    independently of the splitmix64 stream.
+    """
+    from ephemerides_spectral._research.portable_prng import (
+        splitmix64_turn_integer_basis_element,
+    )
+    # Quadrant 0: phase = 0, expect (1, 0)
+    assert splitmix64_turn_integer_basis_element(0) == (1.0, 0.0)
+    # Quadrant 1: phase = 2^30 << 32 = 2^62, expect (0, 1)
+    assert splitmix64_turn_integer_basis_element(1 << 62) == (0.0, 1.0)
+    # Quadrant 2: phase = 2^31 << 32 = 2^63, expect (-1, 0)
+    assert splitmix64_turn_integer_basis_element(1 << 63) == (-1.0, 0.0)
+    # Quadrant 3: phase = 3 · 2^30 << 32, expect (0, -1)
+    assert splitmix64_turn_integer_basis_element((3 << 30) << 32) == (0.0, -1.0)

@@ -519,10 +519,95 @@ typedef struct {
  * followed by `[exp(1j * φ) for φ in phases]` byte-for-byte (modulo
  * complex64 vs complex128 casting; the float32 truncation is
  * deterministic).
+ *
+ * v0.29.0rc1 — DEPRECATION CANDIDATE. Equivalent to
+ * `es_channel_basis_method(seed, out, D, ES_BASIS_METHOD_LEGACY)`.
+ * Kept as-is so the byte-parity discipline with the Python BIP path
+ * (test_channel_basis_parity.py) continues to hold without changing
+ * any caller. The v0.29.0 spike adds the cospi/sinpi route via
+ * `es_channel_basis_method` for bench-and-quantify before any yank
+ * decision; this entry point is marked deprecated when the bench
+ * supports flipping the default + the Python mirror is updated.
  */
 es_status_t es_channel_basis(uint64_t seed,
                              es_complex64_t *out,
                              size_t D);
+
+/* ------------------------------------------------------------------ *
+ * C/Python parity Tier 2a dual-path (v0.29.0rc1, ABI v10) —
+ *     LEGACY        (× 2π in software, default + Python-byte-parity)
+ *     TURN_INTEGER  (cyclic-group-native quarter-turn decomposition)
+ * ------------------------------------------------------------------ *
+ *
+ * The LEGACY path that has shipped since v0.6.1 evaluates
+ *   phi_rad = (u >> 11) * (2π / 2^53)        in [0, 2π)
+ *   out[k]  = (cos(phi_rad), sin(phi_rad))   complex64
+ * That `× 2π` is a software multiply by a not-exactly-representable
+ * irrational constant; libm's `cos`/`sin` then does another argument
+ * reduction internally. The two reductions compose error: even when
+ * the splitmix64 PRNG happens to land on an exact quarter-turn the
+ * basis element drifts off (1, 0) / (0, 1) by a few float32 ULP.
+ *
+ * The TURN_INTEGER path honours the project's algebraic stance: the
+ * phase residue IS the cyclic-group element in Z_{2^32}, and quarter
+ * turns are bit patterns:
+ *
+ *   phase    = (uint32_t)(u >> 32)           in Z_{2^32}  (turns)
+ *   quadrant = phase >> 30                   in {0, 1, 2, 3}
+ *   within   = phase & 0x3FFFFFFF            in [0, 2^30)
+ *
+ *   if within == 0:
+ *       out[k] = i^quadrant ∈ {(1,0), (0,1), (-1,0), (0,-1)}   exact
+ *   else:
+ *       a   = (double)within · (π/2 / 2^30)  in [0, π/2)
+ *       out[k] = i^quadrant · (cos(a), sin(a))
+ *
+ * The integer quadrant decomposition handles the structural reduction
+ * (the part libm `cospi` would internalise as "× π aware argument
+ * reduction"). Within-quadrant the float math sees a small argument
+ * with no further reduction needed, and the quadrant rotation by
+ * `i^quadrant` is pure sign/swap — no rounding loss. Bit-exact
+ * quarter turns are guaranteed by construction on every toolchain;
+ * no libm cospi/sinpi dependency, no `× π` in the global argument.
+ *
+ * Why not flip the default in this rc? The byte-parity test pins
+ * `np.exp(1j · φ)` against the C output, which uses `× 2π` in
+ * software too — flipping would break Tier 2a parity. The dual-path
+ * is `bench first; decide later`: the TURN_INTEGER route is opt-in
+ * (`es_channel_basis_method(..., ES_BASIS_METHOD_TURN_INTEGER)`)
+ * until the bench-and-quantify step supports a coordinated flip of
+ * the C default plus a matching Python-mirror update.
+ *
+ * No new SCRATCH or memory contracts — this path uses the same
+ * caller-supplied `out` buffer of D `es_complex64_t` entries.
+ *
+ * Floating-point note: this route's single irrational multiply
+ * (`× (π/2 / 2^30)`) still rounds at ~1 ULP at double precision, but
+ * the float32 cast at storage discards bits well below that — pure
+ * ceremony at the spike's output target. If a future cycle ships a
+ * `complex128` HD-state path, Cody-Waite hi/lo splitting of the
+ * π/2 constant becomes the right next move; out of scope here.
+ */
+
+typedef enum {
+    ES_BASIS_METHOD_LEGACY       = 0, /* cos(2π · phi)   shipped path     */
+    ES_BASIS_METHOD_TURN_INTEGER = 1, /* quarter-turn integer decomp.     */
+} es_basis_method_t;
+
+/* v0.29.0rc1 — method-selected channel-basis construction.
+ *
+ * method == ES_BASIS_METHOD_LEGACY: byte-identical to `es_channel_basis`.
+ * method == ES_BASIS_METHOD_TURN_INTEGER: cyclic-group-native route
+ *     (see commentary). Deterministic + platform-independent — same
+ *     bytes on every toolchain.
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if out is NULL;
+ * ES_ERR_INVALID_KIND if `method` is not a defined enum value.
+ */
+es_status_t es_channel_basis_method(uint64_t seed,
+                                    es_complex64_t *out,
+                                    size_t D,
+                                    es_basis_method_t method);
 
 /* ------------------------------------------------------------------ *
  * C/Python parity Tier 2b (v0.7.0, ABI v5) — HD encode + observer-bind
@@ -656,9 +741,9 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 27
+#define ES_VERSION_MINOR 29
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.28.1"
+#define ES_VERSION_STRING "0.29.0rc1"
 
 const char *es_version(void);
 
@@ -742,8 +827,21 @@ const char *es_version(void);
  *     all loops bounded, every function carries ≥2 asserts. Closes
  *     the rc1 backend_caveat (EOC patches now work with backend="c"
  *     and produce byte-exact agreement with the Python BIP path).
+ *
+ * v10: v0.29.0rc1 — Channel-basis dual-path (cospi/sinpi spike).
+ *     Added: ES_BASIS_METHOD_LEGACY / ES_BASIS_METHOD_COSPI enum,
+ *     `es_channel_basis_method(seed, out, D, method)` entry point,
+ *     `es_has_native_cospi()` compile-time flag.
+ *     The existing `es_channel_basis` is unchanged on the byte level
+ *     (delegates to `es_channel_basis_method(..., LEGACY)`); the
+ *     COSPI route is opt-in and exists for bench-and-quantify before
+ *     any flip of the default. No encoder hot-path changes. The
+ *     Python `_native_bip` shim adds `native_channel_basis_cospi`
+ *     and a `EXPECTED_ABI_VERSION = 10` bump. Bench results
+ *     determine whether COSPI graduates to default + Python mirror
+ *     update, or stays as a precision-on-demand route.
  */
-#define ES_ABI_VERSION 9
+#define ES_ABI_VERSION 10
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

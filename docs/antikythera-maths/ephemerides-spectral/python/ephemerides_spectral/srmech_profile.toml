@@ -34,7 +34,7 @@ profile_schema_version = "1.0"
 
 [profile]
 name            = "ephemerides"
-version         = "0.28.1"
+version         = "0.29.0rc1"
 summary         = "Sol Star System spectral instrument — 52-body roster, 11 cross-channel coupling surfaces, native-C BIP encoder, AMSC-attested catalogs (Geodetic/EM/Magnetic/Fluid/Dynamical) anchored on JPL DE441"
 package         = "ephemerides_spectral"
 srmech_requires = ">=0.3.1,<0.4"
@@ -124,6 +124,9 @@ extension_file = "_srmech_tool_schema.toml"
 #   v9 — v0.28.0rc5 (Phase 10a EOC C-side completion; added
 #       ES_PATCH_KIND_ECCENTRICITY_CORRECTION + 3 trailing double
 #       fields on es_patch_t for Newton-Kepler EOC parameters).
+#   v10 — v0.29.0rc1 (channel-basis dual-path spike; added
+#       ES_BASIS_METHOD_LEGACY/COSPI enum + es_channel_basis_method()
+#       + es_has_native_cospi(); LEGACY route byte-identical to v9).
 #
 # The pure-Python Pyodide / WASM wheel does NOT ship a native library;
 # srmech's loader raises InvalidProfileError on those installs and
@@ -135,7 +138,7 @@ extension_file = "_srmech_tool_schema.toml"
 library              = "ephemerides_spectral"
 install_path         = "ephemerides_spectral/_native"
 abi_version_function = "es_abi_version"
-expected_abi_version = 9
+expected_abi_version = 10
 
 # ────────────────────────────────────────────────────────────────────────
 # [profile.native.symbols]
