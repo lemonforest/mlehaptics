@@ -117,7 +117,7 @@ Per user direction *"let's stick to one subagent at a time"*:
 
 1. ~~Phase 15~~ ✓ committed
 2. ~~SHA-256 queued~~ ✓ committed
-3. NN-output queued — in flight at time of writing
+3. NN-output queued — ✓ completed (bonus 4 synthesis landed)
 4. **THIS spike — dispatches after NN-output reports and is committed.**
 
 The user may request a different ordering when summary lands; this spec stays valid regardless.

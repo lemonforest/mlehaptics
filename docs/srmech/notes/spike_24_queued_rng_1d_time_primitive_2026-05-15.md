@@ -28,7 +28,7 @@ Plus three relevant user stances:
 - **`[[user_stance_time_as_dimensional_shadow]]`** — 1D-time as projection-deficit; freezing time = trap an oscillation; co-emergence is the ontology. If 1D-time is the projection axis, then "structurelessness in observation" might be a *projection artifact* rather than a substrate property — the structure is fully there in the upstream, only the 1D-time projection obscures it.
 - **`[[user_stance_pi_as_projection]]`** — integer-cyclic upstream, continuous downstream. Pseudo-RNGs are integer-cyclic with very long periods; true-RNG candidates (thermal noise, quantum measurement) are continuous-projection. The asymmetry is project-load-bearing.
 
-## Connection to MFO spike (currently in flight)
+## Connection to MFO spike (now completed; bonus 5 synthesis landed)
 
 The MFO 11D = 3+7+1 conjecture (with antiquity-geocentric methodological discriminator) is testing whether dimensional ontology supports the project's primitive vocabulary across dimensional projections. If the MFO concertmaster's verdict identifies a primitive uniquely-instantiated in the 1D-time dimensional projection (not in 3D or 7D), that primitive is a candidate for the "1D-time primitive that says there will never be such a thing as RNG."
 
@@ -103,7 +103,7 @@ But the concertmaster should remain open to the other three outcomes; the user h
 1. ~~Phase 15~~ ✓ committed
 2. ~~SHA-256 queued~~ ✓ committed
 3. ~~NN-output queued~~ ✓ committed
-4. MFO queued — in flight at time of writing
+4. MFO queued — ✓ completed (bonus 5 synthesis landed)
 5. **THIS spike — dispatches after MFO reports and is committed.**
 
 ## Cross-references
@@ -115,7 +115,7 @@ But the concertmaster should remain open to the other three outcomes; the user h
 - Spike #24 SHA-256 bonus (`docs/srmech/notes/spike_24_bonus_sha256_structure_2026-05-15.md`) — Class A primitive used by CSPRNG; avalanche-saturation precedent for engineered-margin pattern.
 - Spike #24 NN-output bonus — avalanche-design-pressure inversion; RNG sits on the maximise-Lipschitz side.
 - Spike #24 Phase 9.2 / Phase 15 (chemistry-dynamics mass-action oscillators) — apparent-chaos Kepler-shape findings.
-- Spike #24 MFO bonus (in flight) — 1D-time dimensional decomposition; potential primitive uniquely-1D-time that forbids RNG.
+- Spike #24 MFO bonus (completed; bonus 5 synthesis landed) — 1D-time dimensional decomposition; no uniquely-`1D_t` primitive surfaced (confirmed 14/14 vocabulary consolidation).
 - Spike #24 tactical-choice bonus — Class D dispatch over Class L spectral graph + substrate-specific criterion; RNG output IS the dispatch criterion if we frame it that way.
 
 ## Why this question is well-formed (methodological note)
