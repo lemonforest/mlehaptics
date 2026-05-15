@@ -10,6 +10,143 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0rc5] — 2026-05-14
+
+### Added — Phase 10a EOC C-side completion (ABI v8 → v9)
+
+The final rc in the v0.28.x stack before the production cut. Closes
+the rc1 backend_caveat: per-body equation-of-center patches now work
+on both `backend="bip"` and `backend="c"`, producing byte-identical
+phase residues across all 52 bodies at every Δt.
+
+### C-side additions (`c/include/ephemerides_spectral.h` + `c/src/es_patches.c`)
+
+- **`ES_PATCH_KIND_ECCENTRICITY_CORRECTION = 2`** — third patch kind
+  enum value, joining `SINUSOID` and `COUPLED_SINUSOID`.
+
+- **`es_patch_t` struct grew by three trailing `double` fields**:
+  `eccentricity`, `mean_anomaly_at_j2000_rad`, `n_rad_per_day`.
+  Additive layout — original field offsets preserved, but
+  `sizeof(es_patch_t)` increased. This is the load-bearing ABI v9
+  bump captured below.
+
+- **Newton-Kepler evaluator** (`es_eval_eoc_residue` in
+  `es_patches.c`). Mirrors the Python
+  `EccentricityCorrectionPatch.evaluate()` byte-for-byte:
+  - Newton iteration on `E - e·sin E = M` (bounded 30 iters, tol
+    1e-14 rad, warm-start `E = M + e·sin M` for `e > 0.6`).
+  - Half-angle true-anomaly formula:
+    `nu = 2·atan2(sqrt(1+e)·sin(E/2), sqrt(1-e)·cos(E/2))`.
+  - Returns `(nu(t) - M(t)) - (nu(J2000) - M_0)` mapped to the
+    uint32 residue with `es_banker_round`. **J2000-anchored by
+    construction** — returns 0 at Δt = 0.
+  - Principal-branch wrap uses `floor`-based modulo (single libm
+    call, no unbounded `while`-loop).
+
+- **`es_clear_eoc_patches()`** — selective clear by kind. Mirrors
+  the Python `_eoc_catalog.clear_eoc_patches()` so the two
+  registries stay in sync when the bridge selectively clears EOC
+  patches.
+
+- **Validator extension** — `es_validate_patch` accepts the new
+  kind and enforces `eccentricity ∈ [0, 1)` + non-zero
+  `n_rad_per_day` (rejects hyperbolic / parabolic / degenerate
+  inputs at apply time).
+
+- **JPL Power-of-Ten compliance** — every new function carries ≥ 2
+  asserts (Rule 5); no `goto` (Rule 1); no `malloc` (Rule 3); all
+  loops bounded (Rule 2, Newton at 30 iters; `es_clear_eoc_patches`
+  at `ES_MAX_PATCHES = 32`); each function under 60 lines (Rule 4).
+
+### Python-side wiring (`_native_bip.py` + `bridge.py`)
+
+- **`EXPECTED_ABI_VERSION = 9`** (was 8) — lockstep with the C
+  header. ABI history comment extended.
+
+- **`EsPatch` ctypes struct gained the 3 trailing doubles**, in
+  the same order as the C struct.
+
+- **`native_apply_eoc_patch()`** — new helper to register an EOC
+  patch in the C registry; mirrors `native_apply_sinusoid_patch` /
+  `native_apply_coupled_patch` style.
+
+- **`native_clear_eoc_patches()`** — wrapper for `es_clear_eoc_patches`.
+
+- **`_mirror_patch_to_native` gained an EOC branch** —
+  `isinstance(patch, EccentricityCorrectionPatch)` dispatches to
+  `native_apply_eoc_patch`. Bridge call sites that go through
+  `_mirror_patch_to_native` (e.g. `apply_patch`,
+  `apply_custom_patch`) now pick up C-side EOC support
+  transparently.
+
+- **`bridge.apply_eoc_patches`** — after registering Python-side
+  patches via `_eoc_catalog.apply_eoc_patches`, iterates and calls
+  `_mirror_patch_to_native` for each. On any C-side rejection,
+  rolls back BOTH registries (Python + C) to keep parity. Return
+  envelope now includes `n_registered_c_side` and `backends_active`
+  (e.g. `["bip", "c"]` on native installs).
+
+- **`bridge.clear_eoc_patches`** — calls
+  `native_clear_eoc_patches()` after the Python-side clear so the
+  two registries stay in sync.
+
+- **`srmech_profile.toml` `[profile.native].expected_abi_version = 9`**
+  — lockstep with the C side. srmech's loader will surface
+  `AbiMismatchError` if the bundled library reports anything other
+  than 9.
+
+### Tests
+
+- **`test_eoc_catalog.test_eoc_patch_kind_now_c_native`** —
+  **flipped from the rc1 python-only ratchet**. Asserts
+  `_mirror_patch_to_native(EOC patch)` returns `None` (success) on
+  native installs; documents the pure-Python skip path.
+
+- **`test_eoc_catalog.test_eoc_patch_byte_parity_across_backends`**
+  — new ratchet pinning the rc5 deliverable. Registers Earth +
+  Mars EOC patches and asserts byte-identical phase residues
+  between `backend="bip"` and `backend="c"` at four Δt epochs
+  (J2000, ±1 yr, +20 yr, -100 yr).
+
+- **`test_parity_smoke`** — rationale strings for the 6 EOC bridge
+  entries updated. The 4 read-only listings stay `python_only` (no
+  encoder runtime; JSON envelope only). `apply_eoc_patches` /
+  `clear_eoc_patches` stay `python_only` in the parity_smoke
+  framework (state mutators don't fit its pure-function model);
+  the encoder-runtime parity is pinned by the new
+  `test_eoc_catalog` test instead.
+
+### Dependency change
+
+`srmech>=0.3.1,<0.4` — unchanged. rc5 doesn't change the srmech
+profile surface; it bumps `expected_abi_version` 8 → 9 within the
+existing srmech-loader-managed activation flow.
+
+### Versioning
+
+`0.28.0rc4` → `0.28.0rc5`. Cumulative per the rc-stacking discipline:
+- rc1 — Phase 10a EOC catalog (Python-BIP backend)
+- rc3 — srmech `[profile.native]` plugin tier + ABI v6→v8 realignment
+   + `es_laplacian.c` parity-drift fix (rc2 was a failed-publish
+  tombstone)
+- rc4 — bridge call-site migration through `srmech.profile.native`
+  (four-way parity ratchet)
+- **rc5** — Phase 10a EOC C-side completion (ABI v8 → v9)
+
+After rc5 verifies on TestPyPI, the v0.28.0 production-cut PR opens
+for human review.
+
+### ABI bump (v8 → v9)
+
+`ES_ABI_VERSION = 9`. **Wire-format change**: `sizeof(es_patch_t)`
+increased by 24 bytes (3 trailing `double`s). Caller code linked
+against v8 headers reading patches written by v9 (or vice versa)
+would see truncated / overrun reads on the new fields; the
+load-time ABI handshake (srmech's `_maybe_load_native` +
+`_native_bip`'s direct check) catches the mismatch and refuses to
+load — degrading to pure-Python rather than producing silent
+garbage.
+
 ## [0.28.0rc4] — 2026-05-14
 
 ### Added — Task `#212` PR-c: bridge call-site migration through srmech profile
