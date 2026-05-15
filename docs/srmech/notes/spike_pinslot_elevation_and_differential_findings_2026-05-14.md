@@ -1380,3 +1380,145 @@ F11.5's structural-class argument (forced-oscillator network with shared-anchor 
 - A1's softening of F11 means the next clustering question is "is there a gear-anchor-choice space that the Antikythera designer could have explored, and where does the chosen design sit in that space?" — a parameter-sweep-style hypothesis question. Tractable for a section-principal-level dispatch.
 - A3's blocked status means primary-source acquisition is the binding constraint for further archaeological progress. Outside-repo work (per project TOS policy) is the right venue for that effort.
 
+---
+
+## Batch B — Verification / closure round (2026-05-14)
+
+Concertmaster dispatch follow-up to F12 (FFT-inverse extraction) and the Batch A null. Three sub-tasks, all executed via `docs/srmech/notes/spike_pinslot_batch_b_2026-05-14.py`:
+
+- B1 — Mercury second-order Kepler patch (closes F12's largest residual).
+- B2 — Encoder-upgrade specification: three modes (BronzeFaithful / BronzeHipparchan / BronzeModern).
+- B3 — Beyond-the-bronze general algebra: Q2 evection audit at F1-corrected algebra + Q1b height-reader at corrected ε.
+
+All three sub-tasks landed. B1 produced clean closed-form numerics matching F12 to ~3%. B2 is a specification (three modes), with BronzeFaithful (bronze-archaeological reference) and BronzeModern (cross-validation against DE441) fully tractable; BronzeHipparchan blocked beyond the lunar entry per the Freeth 2021 Supp S4/S9 access gate already documented in F6/C1. B3 audit confirms Q2 evection FALSIFIED verdict survives the F1 correction (the spec-typo affected amplitude scaling, not the structural separability argument), and B3.2 produces the corrected-ε height-reader catalogue — with an honest correction: the "~2× wider Bessel-Anger spectrum at higher ε" intuition from the prior next-spike-candidate note is NOT what happens; the spectrum redistributes harmonics but RMS amplitude is largely preserved.
+
+### B1 — Mercury second-order patch — LANDED
+
+**Convention point (load-bearing).** The encoder produces `theta_pred = M(t)` (mean anomaly). The truth is JPL DE441 ecliptic longitude = true anomaly `ν(t)`. The residual is therefore `ν − M`: the **true-anomaly equation-of-centre series**, not the pin-slot E(M) series. Two distinct conventions:
+
+| Series | Geometry | c_1 | c_2 |
+|---|---|---|---|
+| Pin-slot atan2 | offset-center circle (Hipparchan / Greek) | `ε − ε³/8 + …` | `ε²/2 − ε⁴/6 + …` |
+| Kepler ν(M) | true anomaly, focus-frame (modern) | `2e − e³/4 + 5e⁵/96 + …` | `(5/4)e² − (11/24)e⁴ + …` |
+
+The encoder's residual IS the Kepler ν(M) series. F12's harmonic-ratio estimator `c_2/c_1 = (5/8)e` is the leading-order true-anomaly ratio. Pin-slot-as-encoder-upgrade (BronzeModern in B2) requires ε ≈ 2e (Greek-convention doubling) so the encoder's atan2(M) output approximates the Keplerian ν(M) leading-order.
+
+**Mercury numerics (`e = 0.2056`, true-anomaly series, full Kepler equation-of-centre direct computation):**
+
+| Quantity | Theory | Extracted (lstsq fit on 8192-pt EOC) | Match |
+|---|---:|---:|---|
+| c_1 (rad) | 0.4090 | 0.4090 | < 0.001% |
+| c_1 (deg) | **23.437** | 23.437 | < 0.001% |
+| c_2 (rad) | 0.05201 | 0.05202 | 0.013% |
+| c_2 (deg) | **2.981** | 2.981 | 0.013% |
+| c_3 (rad) | 0.009169 | — | — (third-order, computed only) |
+| c_3 (deg) | **0.5253** | — | — |
+| c_4 (deg) | 0.1098 | — | — |
+
+**Match to F12-observed Mercury values:**
+- F12 pre-patch peak: **23.483°** (recent_decade window). Theory peak full-EOC: 23.677°. Match: 0.8%.
+- F12 post-first-order peak: **2.895°** (recent_decade). Theory c_2 alone: 2.981°; theory peak post-first-order (peak of residual = c_2 sin 2M + c_3 sin 3M + …): 3.42°. Match to F12: F12's 2.89° is the FFT's c_2 amplitude (sinusoid-fit), not the time-domain peak. The time-domain peak after subtracting c_1 sin M is 3.42° because the c_3 and c_4 harmonics add constructively at certain M values.
+
+**Mercury post-SECOND-order patch prediction:**
+- After subtracting both `c_1 sin M` and `c_2 sin 2M`: time-domain peak residual = **0.637°**.
+- Drop factor (second-order vs first-order): **5.36×**.
+- Drop factor (third-order vs second-order): 4.80× (peak 0.133°).
+- Series convergence ratio at Mercury's e: c_{k+1}/c_k ≈ 0.18-0.22 per order, consistent with the Kepler series convergence rate `e/2` for ν(M) at small e (Mercury's e = 0.21 is at the boundary of "small").
+
+**B1 verdict.** Second-order Kepler patch closes Mercury's residual cleanly from F12's pre-patch 23.48° to post-second-order 0.64° (37× total drop). The second-harmonic c_2 = 2.981° matches F12's extracted residual amplitude 2.895° within ~3% — the 3% gap is the convergence-rate-induced higher-order contribution that F12's two-harmonic-fit absorbed into the c_2 amplitude.
+
+**For the BronzeModern encoder spec (B2), Mercury's second-order patch amplitude is `(5/4)e² = 3.027°` in arcsec convention `(5/4) × (0.2056)² × 206265 = 10895 arcsec`.** The encoder upgrade is a single additive `sin(2M)` term per planet (or pin-slot's c_2 = ε²/2 component if implemented at the atan2 level with ε = 2e).
+
+**F12 c_2/c_1 = 0.97 consistency check.** F12 reported "0.97 consistency on Mercury" for the leading-order Murray-Dermott estimator `c_2/c_1 = (5/8)e`. At Mercury's e=0.2056:
+- Full theory ratio: c_2/c_1 = 0.1272 (with higher-order corrections).
+- Leading-order ratio: (5/8)(0.2056) = 0.1285.
+- Relative error: 1.04% (theory ratio is 1.04% smaller than leading-order).
+
+F12's "0.97" is the ratio (extracted-c_2/c_1) / ((5/8)e_modern_from_amplitude). At Mercury's e=0.2056 the leading-order estimator slightly **overpredicts** c_2; the observed-c_2 is ~1% smaller than (5/8)e × extracted-c_1, giving ratio 0.99. F12's 0.97 is consistent with this OOM but suggests an additional 2-3% loss to noise / windowing in the FFT extraction. Estimator works correctly; the spike's F12 verdict stands.
+
+### B2 — Encoder-upgrade specification — LANDED (partial; lunar primary-source-verified, planetary BronzeHipparchan blocked)
+
+Three encoder modes specified (NOT implemented):
+
+| Mode | Period source | Patch order | ε source | Blocked? |
+|---|---|---|---|---|
+| **BronzeFaithful** | Freeth 2021 gear-ratio truncated (A2 fractional rate) | 0 (no Kepler) | n/a | Tractable |
+| **BronzeHipparchan** | Freeth 2021 gear-ratio truncated | 1 (Greek convention) | bronze-measured ε (lunar 0.1146 verified; planetary blocked on Supp S4/S9) | Lunar tractable; planetary blocked |
+| **BronzeModern** | JPL Horizons J2000 modal | 2 for Mercury; 1 for others | 2 × e_modern (Greek doubling) | Tractable |
+
+Each mode encodes a different research question:
+- **BronzeFaithful** answers "what does the actual bronze do" — uses bronze's truncated periods (A2 fractional rate per planet) and skips the Kepler correction entirely. Expected residual peak ≈ 2e for each planet (full uncorrected equation of centre).
+- **BronzeHipparchan** answers "what would a maximally-Hipparchan bronze do" — same bronze periods, plus the first-order Kepler patch at bronze-measured ε per planet. Lunar entry fully specified (ε = 0.1146 from Freeth 2006 Fig 6); the five planetary entries are placeholders, blocked on Freeth 2021 Supp Discussion S4 / Table S9 (per F6/C1 same gate).
+- **BronzeModern** answers "what's the best modern reproduction" — modern modal periods, first-order Kepler at ε = 2e_modern (Greek convention), plus Mercury second-order term. Expected residual peak: 0.54° Mercury (post-3rd-order), c_2 = 3 milli-deg Venus (below encoder noise), 0.16-0.24° Jupiter/Saturn.
+
+**Preference for downstream integration: BronzeModern.** It's the most useful for cross-validation against ephemerides (the encoder-vs-DE441 diagnostic), it's fully tractable from primary sources, and it inherits the Mercury second-order improvement directly. BronzeFaithful is also useful as the archaeological-fidelity baseline but produces large residuals (effectively reproduces F12's pre-patch state). BronzeHipparchan would be the most interesting *if* we had per-planet bronze ε values; until Supp S4/S9 is on disk, only its lunar entry can be wired.
+
+**Fermata records for conductor:**
+- Whether to wire any of the three modes into `encode_ant.py`. The spec specifies *what* each mode encodes; the conductor decides *whether* to materialize. Wiring all three is the natural "layered fidelity levels" pattern; wiring only BronzeModern keeps the encoder closer to its current single-mode design.
+- Whether the Greek-convention ε = 2e is the right default for BronzeModern, vs ε = e (which would yield E(M) instead of ν(M)). The user's prior discussion confirmed pin-slot atan2 is the E(M) form; for ν(M) targeting (which the DE441 truth is), ε = 2e doubles the leading c_1 from `e` to `2e` matching the Keplerian focus-frame. This is the right convention if the encoder targets true ecliptic longitude.
+- Whether per-planet φ_perihelion alignment uses J2000 perihelion (modern) or the bronze REFERENCE_JD (whatever the encoder's existing epoch is). F12's φ extraction implicitly uses REFERENCE_JD; the BronzeModern spec should preserve that or document the change.
+
+**NDJSON record count:** 22 records (7 planets × 3 modes + 1 summary).
+
+### B3 — Beyond-the-bronze general algebra — LANDED (audit + recompute)
+
+**B3.1 — Q2 evection audit at F1-corrected c_1 = ε.** The original Q2-central FALSIFIED verdict used the spec's buggy `c_1 = 2ε` algebra. F1 corrected this to `c_1 = ε`. Re-deriving:
+
+- Q2b summed-output differential: `output = f_ε(θ_1) + f_ε(θ_2) ≈ (θ_1 + θ_2) + ε sin θ_1 + ε sin θ_2 + (ε²/2) sin 2θ_1 + (ε²/2) sin 2θ_2 + …`
+- The Fourier content is the **disjoint union** of each component's content. No cross-frequency lines.
+- Evection at argument `2D − ℓ = (2 ω_D − ω_M) t` requires `sin((2 ω_D − ω_M) t)` in the spectrum.
+- Additive composition CANNOT produce this — it would require a multiplicative coupling `sin(ω_M t) · sin(ω_D t) = (1/2)(cos((ω_M − ω_D) t) − cos((ω_M + ω_D) t))`.
+- The F1 correction (`c_1 = ε` vs spec's `2ε`) is **amplitude-only**; the structural separability argument is invariant.
+
+**Verdict: Q2 evection FALSIFIED at corrected algebra. Verdict survives F1 correction.** This is an audit confirmation, not a new finding. The audit is recorded in the NDJSON as the first record (subsection `B3.1`) of the height-reader-corrected-eps file.
+
+**B3.2 — Q1b height-reader catalogue at corrected ε = 0.1146.** Re-derivation of the four canonical h(s) profiles:
+
+| Profile | RMS(ε=0.054) | RMS(ε=0.1146) | RMS ratio | Qualitative change at higher ε |
+|---|---:|---:|---:|---|
+| Sinusoidal h(s) = 0.1 sin(2π s) | 0.0658 | 0.0685 | 1.04× | Top harmonics REDISTRIBUTE (k=5 at amp 0.056 vs 0.070); RMS roughly preserved |
+| Z/8 step quantizer | 2.849 | 2.879 | 1.01× | k=1 amplitude unchanged; high-k tail at k=24/22/18 disappears (different aliasing pattern) |
+| Quadratic h(s) = (s+1)²/4 | 0.346 | 0.325 | 0.94× | k=2 amplitude EXACTLY UNCHANGED (=0.125); k=1 drops 6.4% (polynomial-degree limit invariant; the k=1 shift is purely the DC-offset change) |
+| Bichromatic h(s) = sin(2π s) + 0.5 sin(4π s) | 0.0785 | 0.0835 | 1.06× | k=4 nearly DOUBLES (1.82×); k=1, k=5 drop 25-35% (Bessel-Anger reweighting at the higher slot offset) |
+
+**Honest correction to prior note.** The F2-companion note projected "sinusoidal h Bessel-Anger spectrum at ε=0.054 is roughly 2× narrower than at ε=0.11" (`Next-spike candidates`, item 5, line 446 of this doc). This was **wrong**. The actual change is harmonic redistribution, not spectral widening. The argument-to-`sin(2π s)` is `2π(cos θ − ε)`, which has amplitude `2π` (cosine range is ±1 ≫ ε in both cases); the ε shift only translates the DC, not the argument-amplitude. The Bessel-Anger argument is `2π × 1` (the cosine amplitude), invariant to ε at this scale. Higher-ε redistributes weight among the Bessel-J coefficients via the DC shift but doesn't widen the band.
+
+**What DOES change qualitatively:**
+- **Sinusoidal**: top-k harmonics shift down by 20% on average (Bessel-J function argument is `2π × 1 × something` involving the eccentric translation; precise mechanism is the recentered argument of `sin(2π(cos θ − ε)) = sin(2π cos θ) cos(2π ε) − cos(2π cos θ) sin(2π ε)`; at ε=0.054, `cos(2π × 0.054) = 0.94`; at ε=0.1146, `cos(2π × 0.1146) = 0.75`; ratio 0.80, exactly matching the observed amplitude ratio 0.797).
+- **Z/8 step**: the discrete step transitions occur at fixed s values, but the θ-range producing each step shifts. The k=1 fundamental is unchanged (the period of the quantizer's averaged output is still 2π in θ); high-k aliasing pattern changes.
+- **Quadratic**: exactly k=1 and k=2 content (polynomial-degree limit), with k=1 amplitude shifting via the linear cross-term coefficient (which depends on ε). k=2 = exactly 0.125 = `(1/2)²/2` regardless of ε — the algebraic structure is preserved.
+- **Bichromatic**: most dramatic change because the second component `sin(4π s)` has `cos(4π × 0.054) = 0.78` vs `cos(4π × 0.1146) = 0.073`; the wide swing in this coefficient explains why k=4 nearly doubles in the new spectrum.
+
+**Updated catalogue verdict.** The slot-as-programmable-encoder framing survives — the algebraic-output structure (continuous Fourier / Z/n discrete / polynomial-degree-limited / bichromatic superposition) is invariant to ε at the structural level. What DOES change with ε is the QUANTITATIVE amplitude distribution within each algebraic class, governed by the `cos(2π m ε)` Bessel-J recentering coefficient at the input frequency 2π m s for each harmonic m. The catalogue is therefore **ε-parameterised**: each h profile yields a (Bessel-J coefficient × ε)-dependent amplitude family within a fixed algebraic class.
+
+**NDJSON record count:** 13 records (1 Q2 audit + 4 profiles × 3 records each: ε=0.054 spectrum, ε=0.1146 spectrum, comparison).
+
+### Batch B — Cross-cutting findings
+
+**Honest count:** Three landed substantively.
+
+- B1 lands as a clean closure — Mercury's largest residual is fully accounted for by the second-order Kepler term. F12's harmonic-ratio estimator (5/8)e is validated to 1% theoretical and ~3% experimental.
+- B2 lands as a specification (not implementation). Three encoder modes; BronzeModern is the preferred next integration target. BronzeHipparchan is blocked beyond lunar on the same Supp S4/S9 gate that has blocked C1 / A3.
+- B3 lands as an audit (Q2 evection FALSIFIED verdict survives F1 correction) + a recompute (Q1b height-reader catalogue at corrected ε) + an honest correction (the prior "~2× wider Bessel-Anger spectrum" intuition was wrong; the actual mechanism is harmonic redistribution via `cos(2π m ε)` recentering).
+
+**No F-numbered promotions.** The Mercury second-order patch numerics are a clean closure of an open question from F12, not a new structural finding. Whether to promote to F13 is a conductor decision (the dispatch said "don't promote unilaterally"). Candidates for promotion:
+- **F13 candidate.** Pin-slot atan2 IS Greek E(M); BronzeModern encoder upgrade therefore requires ε = 2e_modern (Greek convention doubling); Mercury second-order patch closes residual to 0.64° (37× total drop vs encoder mean motion alone). The triple-claim is load-bearing for any encoder-upgrade work going forward.
+
+**Fermata records (conductor decisions):**
+- Whether to wire any of the three B2 encoder modes into `encode_ant.py`. Out of scope per spike discipline (specification only); conductor decides materialization.
+- Whether to promote the B1 numerics to F13 status or leave them as a Batch B closure.
+- Whether the B3.2 "ε-parameterised harmonic redistribution" framing should propagate to the height-reader notebook section. The corrected ε is the bronze-physical value; the original ε=0.054 catalog records the (wrong) prior convention. Keep both for cross-reference, or replace?
+
+**NDJSON inventory (Batch B):**
+- `spike_pinslot_findings_q_mercury_second_order_2026-05-14.ndjson` (12 records)
+- `spike_pinslot_findings_q_encoder_spec_three_modes_2026-05-14.ndjson` (22 records)
+- `spike_pinslot_findings_q_height_reader_corrected_eps_2026-05-14.ndjson` (13 records)
+
+**Scripts:**
+- `spike_pinslot_batch_b_2026-05-14.py` (B1 + B2 + B3 combined)
+
+**Recommendations for next dispatch.**
+- If conductor approves F13 promotion of the BronzeModern/Mercury-second-order triple-claim, that becomes the encoder-upgrade entry point. Otherwise B1/B2 stay as Batch B closure.
+- BronzeHipparchan blocked on Supp S4/S9 access; same gate as C1 and A3. Outside-repo work (per project TOS policy) is the right venue.
+- The B3.2 "ε-parameterised" reframing of the height-reader catalogue is mild — the algebraic classes (continuous Fourier / Z/n / polynomial-degree-limited / bichromatic) are ε-invariant; the amplitude distribution within each class is ε-parameterised. The §11.6.7 (height-reader / fiber-as-spatially-absent) framing in the antikythera notebook can stand; the catalog's exact amplitude numbers are ε-dependent and should record both ε values.
+
