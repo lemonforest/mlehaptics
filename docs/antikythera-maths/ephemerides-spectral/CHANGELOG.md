@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc1] — 2026-05-15
+
+### Fixed — stale "Unreleased" bullets in PyPI-rendered README
+
+`python/README.md` had two bullets at the top of the version-by-version list flagging features as future work that had actually shipped in v0.26.1 (LLM tool-schema export + first cosmology-instrument pair). The PyPI-rendered README on v0.28.0 still showed both as "Unreleased" — misleading to users landing on the package page. v0.28.1rc1 removes both bullets and leaves a brief HTML comment documenting the removal + the cross-package architecture (srmech provides `srmech.amsc.tool_schema`; ephemerides-spectral's `[profile.tool_schema].extension_file = "_srmech_tool_schema.toml"` registers the 9 profile-tier surfaces with `owner="ephemerides"` for LLM-agent discovery; the local `bridge.get_tool_schema` / `list_tool_names` / `get_one_tool_schema` introspect the full ~246 public bridge functions in 4 formats).
+
+Pure docs hygiene patch. No code change; no ABI change (`ES_ABI_VERSION = 9` unchanged from v0.28.0); no `_research` mirror changes; no test ratchet changes. All 5 SSOT files bump in lockstep + manifest re-stamp.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.1rc1](python/CHANGELOG.md).
+
 ## [0.28.0] — 2026-05-14
 
 ### Production cut after the v0.28.x rc stack — Task `#212` closed

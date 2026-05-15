@@ -10,6 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc1] — 2026-05-15
+
+### Fixed — stale "Unreleased" bullets in PyPI-rendered README
+
+Two bullets at the top of the version-by-version list in
+`python/README.md` described features as future work even though
+they had shipped in v0.26.1 (the v0.26.1 entry below explicitly
+records them):
+
+- **LLM tool-schema export** — `get_tool_schema`, `list_tool_names`,
+  `get_one_tool_schema` + the three CLI subcommands shipped in
+  v0.26.1. The local introspection surface now covers ~246
+  self-describing bridge functions across 4 formats (Anthropic
+  Claude / OpenAI function-calling / Anthropic MCP / plain JSON
+  Schema). Cross-package integration through srmech's profile
+  pattern landed in v0.27.0: `[profile.tool_schema].extension_file
+  = "_srmech_tool_schema.toml"` registers the 9 profile-tier
+  bridge surfaces with `srmech.amsc.tool_schema` so LLM agents can
+  discover ephemerides-spectral's offerings via the unified
+  cross-package surface (`owner="ephemerides"`).
+
+- **First cosmology-instrument pair (CMB Power Spectrum + CMB
+  Anomalies)** — `cmb_power_spectrum` (Planck 2018 PR3, 111 bands)
+  and `cmb_anomalies` (6 canonical large-scale anomalies) both
+  shipped in v0.26.1.
+
+Both bullets removed from the README's release-history section in
+this rc. A short HTML comment is left in place documenting the
+removal + the cross-package architecture for future readers.
+
+### No code change
+
+Pure README hygiene. All 5 SSOT files bump in lockstep
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`,
+`srmech_profile.toml`, `c/include/ephemerides_spectral.h`);
+manifest regenerated; no `_research` mirror changes; no test
+ratchet changes; no ABI change (`ES_ABI_VERSION = 9` unchanged
+from v0.28.0).
+
+### Versioning
+
+`0.28.0` → `0.28.1rc1`. Patch bump (docs-only). RC suffix
+auto-routes to TestPyPI per the existing publish-workflow regex.
+The clean `v0.28.1` ships to production PyPI after rc verify.
+
 ## [0.28.0] — 2026-05-14
 
 ### Production cut after the v0.28.x rc stack (no code change from 0.28.0rc5)
