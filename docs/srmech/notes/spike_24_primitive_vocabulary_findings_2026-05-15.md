@@ -133,9 +133,95 @@ srmech currently is the **provenance scaffolding** (Classes A-H). The **algebrai
 
 The Phase 1 finding alone validates the spec's prediction. Phase 2 will quantify it.
 
-## Phase 2 — Per-plug-in instantiation matrix (pending)
+## Phase 2 — Per-plug-in instantiation matrix (2026-05-15)
 
-[To be filled in next.]
+Audit of which plug-ins use / extend / are absent for each primitive class. Three packaged plug-ins exist: **antikythera-spectral**, **ephemerides-spectral**, **chess-spectral**. (doom-spectral, othello-spectral, logo exist as research notebooks but not packaged plug-ins; outside Phase 2 scope.)
+
+### Phase 2A — Primary instantiation matrix
+
+Rows = primitive classes (A-N). Columns = plug-ins. Cells:
+- ✅ **uses** — plug-in consumes srmech-native primitive of this class
+- 🔧 **extends** — plug-in implements its own version of this class (promotion candidate if substrate-agnostic)
+- ⛔ **absent** — plug-in doesn't touch this class
+- 🔀 **bundled** — plug-in receives a srmech-native primitive but only via its bundled `_research/` mirror (codegen-copied, not directly imported from srmech package)
+
+| Class | Description | antikythera-spectral | ephemerides-spectral | chess-spectral | Notes |
+|-------|-------------|----------------------|----------------------|----------------|-------|
+| **A** | Content-addressing (SHA-256) | ✅ via `srmech.amsc.format.sha256_bytes` | ✅ via `srmech` | ✅ via `srmech` | All three consume srmech-native primitive. |
+| **B** | Tagged-tuple / records | ✅ for MPR; 🔧 for `Gear`, `Cycle`, `PinSlotGeometry`, `PlanetaryPinSlotGeometry` | ✅ for MPR; 🔧 for `Body`, `Cycle`, action-angle catalog records | ✅ for MPR; 🔧 for piece records, position records | All extend with domain-specific records. |
+| **C** | Iteration / streaming (NDJSON) | ✅ via `srmech.amsc.format.read_ndjson` + bundled mirror | ✅ via `srmech` | ✅ via `srmech` | All consume srmech NDJSON iteration. |
+| **D** | Late-binding / plugin | ✅ — consumed BY srmech as a profile; doesn't extend D itself | ✅ — same | ✅ — same | All three ARE plug-ins of D; none extends D as a primitive class. |
+| **E** | Catalog / naming | ✅ via `srmech.amsc.catalog.register_attested_root`; ✅ for bridge dial registry | ✅ for AMSC source registration; ✅ for 52-body roster catalog | ✅ for AMSC; ✅ for piece-class catalog | All consume srmech catalog and extend with domain catalogs. |
+| **F** | Templating (`render_template`) | ✅ in descriptor renders | ✅ in descriptor renders | ✅ in descriptor renders | All three use the srmech-native primitive at descriptor render time only. |
+| **G** | Discovery / gap-finding | ✅ via `srmech.amsc.gap_suggester` | ✅ via `srmech.amsc.gap_suggester` + plug-in registers classifier (`dynamical_regime` per v0.24.9) | ⛔ — chess-spectral hasn't wired the gap-suggester yet | Two of three; chess-spectral is the holdout. |
+| **H** | Self-introspection (version, ABI) | ✅ via srmech version surfaces + package-local `version.py` | ✅ via srmech + local `version.py` | ✅ via srmech + local `version.py` | All three consume srmech version primitives + add their own package version. |
+| **I** | **Cyclic-group / modular arithmetic** | 🔧 in `research/cyclic_group_algebra.py` + bundled `_research/` (CRTTable, roll_operator, lcm_many, gcd_many, gear_mesh_ratio, chain_ratio) | ⛔ at the top level; uses native-C `ephemerides_spectral` library for ℤ/2^32 ops on body state; no top-level cyclic-group module | 🔧 implicit in encoder.py / encoder_4d.py for piece-square encoding (D₄ / B₄ representation theory) | **Two of three extend; promotion candidate.** ephemerides-spectral re-uses srmech's pattern via its own C library. |
+| **J** | **Prime-factorisation / period-relation** | 🔧 in `research/astronomical_cycles.py` + `research/gear_topology.py` (shared_primes_among_planetary, shared_prime_planet_pairs/triples) | ⛔ at top level — ephemerides-spectral reads pre-integrated DE441 truth, no factorisation of period ratios in core | 🔧 in chess-spectral's lattice setup (piece-period-relation analogues) | **Two of three extend; promotion candidate.** |
+| **K** | **Equation-of-centre / pin-slot algebra** | 🔧 in `research/pin_and_slot.py` + `research/bronze_planetary_encoder.py` (pin_slot_output_angle, equation_of_centre_unreduced, equation_of_centre_series, equation_of_centre_n_armed_cross). Includes new F24 N-armed cross-bar. | ⛔ at top level — **NO equation-of-centre transform in ephemerides-spectral**. The package reads pre-integrated DE441 positions and uses simpler approximations. *This is the load-bearing absence for Phase 3.* | ⛔ — chess doesn't deal with planetary motion; Class K is bronze/cosmos-specific in current form | **Only antikythera-spectral extends.** Per `[[user_stance_kepler_shape_universal]]`, the absence in ephemerides-spectral is exactly where the F12-inverse residual analysis will surface the missing-primitive signature against DE441 truth (Phase 3). |
+| **L** | **Graph-Laplacian / eigenbasis** | 🔧 in `research/gear_topology.py` (gear-DAG Laplacian) + bundled mirror; bridge.py exposes Laplacian surfaces | 🔧 in `research/gateway_graph_laplacian.py` + `research/body_architecture.py` (52-body resonance-weighted Fiedler partition) + `research/predict_itn_accessibility.py` (continuous Δv predictor) | 🔧 in encoder.py 8×8 board adjacency + encoder_4d.py 4D-board Laplacian + `_native_pure_phase_2d.py`/`4d.py` C kernels | **All three extend with package-specific Laplacian primitives. Strongest promotion candidate** — three independent implementations of the same primitive class indicate it ought to be at the abstraction layer. |
+| **M** | **HDC encoding** | 🔧 in `research/encode_ant.py` (Callippic / packing / LCM encoders; channel_basis_gram; roll-vector binding) | 🔧 in `bridge/ephemeris_bridge.py` + native `ephemerides_spectral.h` (HDC state primitives; `es_hd_state` C struct; topocentric observer-bind; eclipse projection) | 🔧 in `python/chess_spectral/encoder.py` + `_native_*` (bit-packed BSC encoder; complex128 FHRR encoder; `bind`/`bundle`/`permute`/`similarity` core ops) | **All three extend with package-specific HDC primitives. Second-strongest promotion candidate.** Per chess-spectral §sec9f's coprime-roll architecture, the HDC primitive is inherently substrate-agnostic. |
+| **N** | **Rational-approximation / Diophantine** | 🔧 in `research/rational_approximation.py` + `research/pareto_analysis.py` + `research/paired_chain_search.py` (continued-fraction convergents, Stern-Brocot, best_pq_constrained, Pareto-optimal chain search) | ⛔ at top level — uses pre-integrated period ratios from DE441 directly; no rational-approximation search | ⛔ — chess uses exact representations; rational approximation not needed in current encoder | **Only antikythera-spectral extends.** Less urgent promotion candidate, but the primitive is substrate-agnostic algebra. |
+
+### Phase 2B — Bronze-to-CPU mapping table (Class-by-class)
+
+The two-table CPU mapping per user instruction. Table 2A: bronze→CPU correspondence; Table 2B: bronze-standalone (lossy + leaks documented).
+
+**Table 2A — Bronze ↔ CPU correspondence (exact mappings)**
+
+| Class | Bronze primitive instantiation | CPU operator analog | Mapping fidelity |
+|-------|-------------------------------|---------------------|-------------------|
+| A | (none — bronze has no content-addressing primitive) | SHA-256 = composition of XOR + ADD-mod-2³² + ROL on 256-bit accumulators | N/A bronze-side; the CPU side is exact composition of elementary CPU ops |
+| B | `Gear` record (tooth_count + fragment + mesh_edges) | STRUCT layout: `MOV r, [base+offset]` per field | Exact — both are fixed-offset labeled records |
+| C | The crank-turn — each turn advances gear-DAG state | `LOOP / LOAD / BRANCH-IF-DONE` iterator pattern | Exact for forward direction; *see Table 2B for the bidirectional leak* |
+| D | Operator-chosen crank start position + operator-inserted calendar-anchor pins (Voulgaris 2024 setting-mode interpretation) | `CALL via indirect address` (function pointer / vtable dispatch) | Lossy — *see Table 2B* |
+| E | Dial registry: celestial-observation-class → bronze-mechanism-instance | `HASH + LOAD-INDIRECT` standard catalog pattern | Lossy — *see Table 2B* |
+| F | (none — bronze has no templating primitive; everything is statically inscribed) | String concatenation via `MOV` + `LOAD-FROM-MAP` in loop | N/A bronze-side; srmech-specific to digital substrate |
+| G | F12-style residual error reveals gaps (passive surfacing) | `LOOP + CMP + STORE_IF_NOT_EQUAL` active gap-search | Lossy — *see Table 2B* |
+| H | Inscribed text on the bronze itself (Parapegma; back-door instructions; dial markings) | `CONSTANT LOAD` / `READ REGISTRY VALUE` | Lossy — *see Table 2B* |
+| I | Tooth-count ℤ/n native; gear-mesh ratio is integer-cyclic multiplication; chain-ratio is composition of ℤ/n ops | `MUL` on integers; `MOD` on ℤ/n; rotate operations are `ROL`/`ROR` | Exact — both substrates run integer-cyclic algebra natively |
+| J | Prime factorisations of period ratios are integer arithmetic on tooth counts | `GCD` (Euclid's algorithm in elementary ALU ops); prime-test via trial-division | Exact — integer factorisation on either substrate produces identical results |
+| K | Pin-slot atan2 transform on integer-cyclic input phase → output phase | Per pi-as-projection, the underlying primitive is integer-cyclic. The atan2 is the *continuous projection*; the integer-cyclic form is `(input phase position) → (output phase position)` with the offset-ε relationship | Lossy — *see Table 2B* |
+| L | Gear-DAG topology eigenbasis (Laplacian of the integer-tooth-count graph) | `EIGENDECOMP` via SVD library calls; `LOAD-MATRIX` + `MATRIX-MULTIPLY` | Exact at the level of substrate-agnostic matrix algebra |
+| M | The bronze IS a HDC encoder — gear residues are the "channels"; the crank-turn is `permute = sigma_day`; the gear-DAG instantiates `bind` and `bundle` | Bit-packed BSC: `XOR` (bind), `popcount-majority` (bundle), `ROL` (permute), `popcount + invert + count` (similarity) | Exact — chess-spectral's bit_alu backend made this explicit (HDC reduces to bitwise ops + popcount) |
+| N | Rational approximation: tooth-count choices instantiate continued-fraction convergents on observed period ratios | `DIV-WITH-REMAINDER` loop is the elementary CF algorithm | Exact — Euclid's algorithm runs identically on either substrate |
+
+**Table 2B — Bronze-standalone (lossy + leaks)**
+
+Where the CPU mapping in Table 2A is *not* exact, the bronze instantiation carries content the CPU operator name elides. Per user instruction: *"that does not mean metal has more answers, it means we cannot discount that it might."* Both **lossy** (CPU has an operator but it elides bronze algebra) and **leaks** (CPU operator captures less than bronze content carries) are documented.
+
+| Class | What CPU mapping loses or leaks | Bronze content not captured by CPU operator name |
+|-------|---------------------------------|----------------------------------------------------|
+| C (iteration) | **Leak** | CPU iteration is forward-only-by-convention; the bronze crank is **bidirectionally symmetric** at every step (F11 establishes the bronze is in the bidirectionally-coupled regime — operator FELT the planetary phase-locking through the crank handle). CPU `reversed()` exists but the underlying memory access doesn't preserve the bronze's algebraic invertibility at every state. |
+| D (late-binding) | **Lossy** | CPU late-binding is internal-state-mediated (function-pointer / vtable held by the program). The bronze's late-binding is **operator-mediated** (Voulgaris 2024 setting-mode: operator inserts a key, chooses a calendar anchor, picks a crank-direction). The operator is an *active participant in the mechanism*, not external. CPU mapping elides the operator-as-substrate role. |
+| E (catalog) | **Lossy** | CPU catalog is one-shot lookup (`HASH + LOAD`). The bronze's catalog is **continuously-active in parallel** — every crank turn updates *all* dials simultaneously. The CPU notion of "catalog lookup" elides the bronze's parallel-update property at every state-advance. |
+| G (gap-finding) | **Lossy** | CPU gap-finding is *active* (run a query, get a list of misses). The bronze surfaces gaps **passively, via residual error** — only an external F12-inverse analysis makes the gap visible. CPU mapping elides the *residual-as-spec* property: the bronze's missing primitives *broadcast their specifications* into the error signature, which is a different kind of primitive than internal introspection. |
+| H (self-introspection) | **Lossy** | CPU self-introspection is *mutable runtime state* (read registry, returns current value). The bronze's self-introspection is **immutable inscription** — the Parapegma text, dial markings, back-door instructions are fixed at fabrication and cannot be runtime-changed. CPU notion of "version" elides the bronze's *compile-time-frozen* property — the bronze IS what was inscribed, no mutation channel exists. |
+| K (Kepler / pin-slot) | **Leak** | The CPU's algebraic version of pin-slot (under pi-as-projection: integer-cyclic phase + offset-`ε` integer ratio) captures the structural transform but the **bronze's pin-slot also carries kinematic content** — the actual physical pin must physically traverse a slot with finite geometry, and the slot's *constraint* (pin can't leave the slot) instantiates the algebraic transform with no degree of freedom. The CPU's equivalent always *could* go off-script (any function pointer can be re-pointed); the bronze can't. This is a *constraint-as-information* primitive that CPU operators don't have an equivalent for at the single-instruction level. Closely related to F24's harmonic-selector property: rotational-symmetric pin-slot has only certain harmonics by *physical constraint*, not by choice. |
+
+### Phase 2C — Notes for primitives without bronze counterparts
+
+Classes A, F have **no bronze counterpart** — they're srmech-side / digital-substrate-side primitives. Per the user instruction these are documented honestly: *"we cannot discount that it might [have more answers]"* applies to the bronze-having-more direction; the CPU/digital substrate having primitives the bronze doesn't have is the OTHER direction, and is equally well-documented (the digital substrate can do content-addressing and templating that the bronze cannot).
+
+### Phase 2D — Promotion candidates summary
+
+From the matrix, the strongest promotion-from-plug-in-to-srmech candidates are:
+
+1. **Class L (Graph-Laplacian / eigenbasis)** — three independent plug-in implementations indicates substrate-agnostic primitive that should live at the abstraction layer.
+2. **Class M (HDC encoding)** — three independent plug-in implementations of `bind`/`bundle`/`permute`/`similarity` core ops.
+3. **Class I (Cyclic-group / modular arithmetic)** — two extends + one indirectly-via-C; the primitive is exactly the algebra srmech's abstraction layer would benefit from owning.
+4. **Class K (Equation-of-centre / pin-slot)** — one extends, but per `[[user_stance_kepler_shape_universal]]` the algebra is substrate-agnostic and ought to be available to any plug-in modelling Kepler-shape behavior.
+5. **Class J (Prime-factorisation / period-relation)** — substrate-agnostic algebra, two plug-ins use independently.
+6. **Class N (Rational-approximation / Diophantine)** — substrate-agnostic algebra, one plug-in uses; less urgent.
+
+The Phase 1 prediction held quantitatively: srmech is currently provenance scaffolding, and there are six substrate-agnostic algebraic primitive classes that ought to be promoted to the abstraction layer.
+
+### Phase 2E — Key absence for Phase 3 (load-bearing)
+
+**ephemerides-spectral does NOT have Class K (equation-of-centre / pin-slot algebra) in its package**. It reads pre-integrated DE441 truth and uses simpler approximations. Per `[[user_stance_kepler_shape_universal]]`, any system showing Kepler-shape behavior instantiates Class K primitives at some substrate — DE441 truth carries them (via integrated orbital dynamics); ephemerides-spectral's encoder doesn't. The gap between the two should leak as residual signature, and Phase 3 is the test.
+
+### Phase 2 NDJSON output
+
+[See `spike_24_phase_2_matrix_2026-05-15.ndjson` — to be emitted.]
 
 ## Phase 3 — Ephemerides residual analysis (pending)
 
