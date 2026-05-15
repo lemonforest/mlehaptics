@@ -84,6 +84,19 @@ the repo.
 | **Copyright** | © The Author(s) 2021. **Open access under CC BY 4.0.** Same OA framing as the original paper (entry 3 above). |
 | **Used for** | Spike F2 / F6 verification step (2026-05-14): confirmed the corrections are **purely typographic** — Greek-letter encoding (ΨΞΒ → ϒΞΒ, ΨΜΒ → ϒΜΒ in the inscriptional number-spellings; the *numerical* values 462 and 442 were never wrong) and fraction-formatting fixes (-¹²/₂₂₃ superscript → -12/223 proper fraction). **No impact on the load-bearing pin-and-slot / lunar-anomaly / planetary-mechanism findings.** Cited per `feedback_pdf_extraction_citation_discipline` discipline — the correction-check itself is the load-bearing step, regardless of outcome. |
 
+### 5. Freeth et al. 2021 — Supplementary Information (Scientific Reports)
+
+| Field | Value |
+|-------|-------|
+| **File** | `41598_2021_84310_MOESM4_ESM.pdf` |
+| **Title** | Supplementary Information for "A Model of the Cosmos in the ancient Greek Antikythera Mechanism" |
+| **Authors** | Tony Freeth, David Higgon, Aris Dacanalis, Lindsay MacDonald, Myrto Georgakopoulou, Adam Wojcik |
+| **Journal** | *Scientific Reports* **11**, 5821 — Supplementary Information 4 (2021) |
+| **DOI** | [10.1038/s41598-021-84310-w](https://doi.org/10.1038/s41598-021-84310-w) (same as main paper; supplementary file is MOESM4_ESM) |
+| **Publisher URL** | <https://static-content.springer.com/esm/art%3A10.1038%2Fs41598-021-84310-w/MediaObjects/41598_2021_84310_MOESM4_ESM.pdf> |
+| **Copyright** | © The Author(s) 2021. **Open access under CC BY 4.0.** |
+| **Used for** | Spike F12 / Batch B / Batch C (2026-05-14): unblocks the BronzeHipparchan encoder mode by providing per-planet ε values (Supplementary Discussion S4 / Table S9). Cross-validates F12's FFT-inverse-extracted per-planet (ε, φ) values against Freeth's reconstruction. Also expected to contain the per-planet gear-train detailed specifications referenced in main paper Figure 3. |
+
 ## Retrieval notes
 
 ResearchGate hosts both PDFs as publisher Version-of-Record files. The
