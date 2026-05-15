@@ -422,23 +422,84 @@ def test_apply_intersects_filters() -> None:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_eoc_patch_is_python_only_kind() -> None:
-    """The eccentricity-correction patch kind is intentionally Python-
-    BIP-backend only in v0.28.0rc1. The C-side `es_patches.c` does not
-    recognise it; mirroring is skipped. This test pins the design
-    decision so the backend-caveat in the bridge docstring + the
-    ROADMAP queue for the ABI bump don't drift apart."""
+def test_eoc_patch_kind_now_c_native() -> None:
+    """v0.28.0rc5 (ABI v9) flips the rc1 python-only ratchet.
+
+    The eccentricity-correction patch kind is now supported on BOTH
+    backends. The C-side `es_patches.c` implements the Newton-Kepler
+    evaluator (see ``es_eval_eoc_residue``); the Python BIP encoder
+    has the same evaluator since rc1. The mirror call must succeed
+    when HAS_NATIVE — proving the rc1 backend_caveat is closed.
+
+    Negative ratchet: if a future commit breaks C-side EOC support,
+    this test fails clearly, signalling the rc1 caveat language has
+    to come back in the docstring + ROADMAP simultaneously."""
     patch = eoc_catalog.EOC_CATALOG["mars"]
     assert patch.kind == "eccentricity-correction"
-    # Backend mirror should NOT be exercised — confirm we have no
-    # native registration helper that handles this kind. (Negative
-    # ratchet: if a future commit adds C-side support, this test
-    # FAILS clearly, signalling that the ABI bump should be reflected
-    # in the bridge docstring + ROADMAP simultaneously.)
     from ephemerides_spectral.bridge import _mirror_patch_to_native
+    from ephemerides_spectral import _native_bip
+
+    # Clear any prior native-side state from earlier tests so the
+    # mirror call's duplicate-name check stays clean.
+    if _native_bip.HAS_NATIVE:
+        _native_bip.native_clear_eoc_patches()
+
     rc = _mirror_patch_to_native(patch)
-    # rc=None when no native loaded; otherwise an error string
-    # describing the unknown-kind. EITHER outcome is acceptable for
-    # v0.28.0rc1; the test pins that the kind is NOT recognised
-    # natively right now.
-    assert rc is None or "unknown patch type" in rc
+    if _native_bip.HAS_NATIVE:
+        assert rc is None, (
+            f"C-side EOC mirror failed: {rc!r}. ABI v9 EOC support is "
+            f"the load-bearing rc5 deliverable; if this test fails, "
+            f"either the wheel was built against an older ABI or the "
+            f"C-side Newton-Kepler evaluator regressed."
+        )
+        # Clean up so the test doesn't leak state into later tests.
+        _native_bip.native_clear_eoc_patches()
+    else:
+        # Pure-Python / Pyodide install: mirror returns None silently
+        # (the bridge's _mirror_patch_to_native checks HAS_NATIVE first
+        # and returns None without dispatching). This branch
+        # documents the expected behaviour on installs without C.
+        assert rc is None
+
+
+def test_eoc_patch_byte_parity_across_backends() -> None:
+    """rc5 deliverable: with an EOC patch registered, encoding via the
+    Python BIP encoder and the C-side encoder must produce byte-
+    identical phase residues. Pinned at four Δt epochs (J2000,
+    J2000+1yr, J2000+20yr, J2000-100yr) consistent with the wheel-
+    matrix native-parity test.
+
+    Skipped on pure-Python installs (no C backend to compare against)."""
+    from ephemerides_spectral import _native_bip, default_encode
+    if not _native_bip.HAS_NATIVE:
+        pytest.skip("native library not loaded; cross-backend parity N/A")
+    from ephemerides_spectral._research.ephemeris_reference_instrument import (
+        REFERENCE_JD,
+    )
+    from ephemerides_spectral import bridge
+
+    # Clean slate on both registries.
+    bridge.clear_eoc_patches()
+
+    # Register Earth + Mars EOC patches (the canonical Phase 10a pair).
+    result = bridge.apply_eoc_patches(bodies=["terra", "mars"])
+    assert result["ok"] is True
+    assert result["n_registered"] == 2
+    assert result["n_registered_c_side"] == 2
+    assert "bip" in result["backends_active"]
+    assert "c" in result["backends_active"]
+
+    try:
+        for delta_t_yr in [0.0, 1.0, 20.0, -100.0]:
+            jd = REFERENCE_JD + delta_t_yr * 365.25
+            py = default_encode(jd, backend="bip", kernel="de421")
+            c  = default_encode(jd, backend="c",   kernel="de421")
+            assert (py == c).all(), (
+                f"EOC-patched native vs Python phases differ at "
+                f"delta_t = {delta_t_yr} yr.\n"
+                f"  python: {py.tolist()}\n"
+                f"  native: {c.tolist()}"
+            )
+    finally:
+        # Always clean up the registries, even on parity failure.
+        bridge.clear_eoc_patches()

@@ -150,8 +150,22 @@ def _can_load_native() -> tuple[bool, str]:
 
 
 def test_profile_activation_resolves_ephemerides() -> None:
-    """srmech.profile('ephemerides') resolves the descriptor."""
-    p = srmech.profile("ephemerides")
+    """srmech.profile('ephemerides') resolves the descriptor.
+
+    Requires the ephemerides-spectral package to be installed via a
+    proper wheel / pip install (entry-point discovery walks the
+    installed-package metadata; source-tree shadowing has no
+    entry-point registration). Skipped cleanly when the profile is
+    not registered — the source-tree test run and CI smoke take
+    this branch."""
+    try:
+        p = srmech.profile("ephemerides")
+    except srmech.ProfileNotFoundError:
+        pytest.skip(
+            "ephemerides profile not registered as an entry point "
+            "(source-tree install or non-pip install); profile "
+            "activation tests require a proper wheel install"
+        )
     assert p.name == "ephemerides"
 
 
