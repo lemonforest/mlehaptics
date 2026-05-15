@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-05-15
+
+### Production cut — channel-basis dual-path spike (TURN_INTEGER)
+
+`ephemerides-spectral 0.29.0` ships to production PyPI as the consolidated landing of the v0.29.x cycle. Version-only bump from `0.29.0rc1` → `0.29.0`; the substantive content landed in the rc1 cycle (TURN_INTEGER cyclic-group-native channel-basis route + C/Python byte-parity preserved on both routes) and verified on TestPyPI in a clean external venv before the cut.
+
+**Cumulative content of v0.29.0:**
+
+* **TURN_INTEGER channel-basis route** (rc1) — opt-in `es_channel_basis_method(seed, out, D, ES_BASIS_METHOD_TURN_INTEGER)` entry point. Integer quarter-turn decomposition on the splitmix64-derived phase residue + small libm cos/sin on the within-quadrant fraction + i^quadrant sign/swap rotation. Bit-exact quarter turns by construction on every toolchain; no libm cospi/sinpi dependency; no `× π` in the global argument. The existing `es_channel_basis` is preserved as-is and still delegates to LEGACY → Tier 2a Python-vs-C byte-parity continues to hold byte-for-byte.
+
+* **ABI v9 → v10** (additive only) — new `es_basis_method_t` enum + `es_channel_basis_method()` entry point. The encoder hot path is unchanged; the 52-body uint32 phase residues emitted by `es_encode_state` / `bridge.encode_state` are byte-identical to v0.28.1.
+
+* **C/Python byte-parity preserved on both routes** (rc1) — `_research/portable_prng.py` gained `splitmix64_turn_integer_basis_element` + `splitmix64_turn_integer_basis` (Python mirror of the C TURN_INTEGER route). Sibling parity discipline to the LEGACY route's existing mirror. Verified cross-platform on Windows MSVC + WSL2 glibc 2.35 + the cibuildwheel macOS-14 / Ubuntu / Windows matrix: identical bytes everywhere.
+
+* **JPL Power-of-Ten clean** (rc1) — pins ratcheted 46 → 49 functions / 102 → 109 assertions (density 2.22). No `goto`, no `malloc`, all loops bounded, every function ≥ 2 asserts.
+
+**Verified on TestPyPI** before the production cut: clean external venv install of `0.29.0rc1` boots cleanly on Python 3.10-3.14; plugin-tier `Profile.native` resolves; ABI v10 handshake clean; LEGACY method byte-identical to default `es_channel_basis`; C/Python TURN_INTEGER byte-parity holds on the live wheel; encoder hot path produces 52 uint32 residues at J2000.
+
+**No code change from v0.29.0rc1**; the rc cycle was a single rc and the production cut is a clean version-only bump. No ABI change (`ES_ABI_VERSION = 10` unchanged from rc1).
+
+**Per-area detail:** see [python/CHANGELOG.md §0.29.0](python/CHANGELOG.md).
+
 ## [0.29.0rc1] — 2026-05-15
 
 ### Added — channel-basis dual-path spike (cyclic-group-native quarter-turn decomposition)

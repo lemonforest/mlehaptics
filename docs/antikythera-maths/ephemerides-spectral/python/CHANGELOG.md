@@ -10,6 +10,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-05-15
+
+### Production cut after the v0.29.0 rc cycle (no code change from 0.29.0rc1)
+
+Version-only bump from `0.29.0rc1` → `0.29.0` in the 5 SSOT locations
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`,
+`c/include/ephemerides_spectral.h`) plus the manifest regen and this
+CHANGELOG header.
+
+**Cumulative content of v0.29.0** (one-rc cycle, all content from rc1):
+
+* **TURN_INTEGER channel-basis route** — opt-in
+  `es_channel_basis_method(seed, out, D, ES_BASIS_METHOD_TURN_INTEGER)`
+  entry point. Cyclic-group-native quarter-turn decomposition (notebook
+  §1.4): the splitmix64-derived phase residue lives in `Z_{2^32}`,
+  quadrant + within split is integer arithmetic, bit-exact dispatch at
+  quarter turns, libm `cos`/`sin` only on the within-quadrant fraction
+  (small argument), `i^quadrant` rotation by pure sign/swap. Bit-exact
+  quarter turns by construction on every toolchain; no libm cospi/sinpi
+  dependency; no `× π` in the global argument.
+
+* **ABI v9 → v10** (additive only): new `es_basis_method_t` enum +
+  `es_channel_basis_method()` entry point. The existing
+  `es_channel_basis` is preserved as-is and still delegates to LEGACY,
+  so the Tier 2a Python-vs-C byte-parity test continues to hold
+  byte-for-byte. `_native_bip.EXPECTED_ABI_VERSION` 9 → 10;
+  `srmech_profile.toml` `[profile.native].expected_abi_version` 9 → 10.
+
+* **C/Python byte-parity preserved on both routes**:
+  `_research/portable_prng.py` gained `splitmix64_turn_integer_basis_element`
+  + `splitmix64_turn_integer_basis` (Python mirror of the C TURN_INTEGER
+  route). Sibling parity discipline to the LEGACY route's existing
+  `splitmix64_phases` + `numpy.exp(1j · φ)` mirror. Both routes now
+  have Python-vs-C byte-for-byte agreement pinned in
+  `tests/test_channel_basis_parity.py`.
+
+* **JPL Power-of-Ten clean**: pins ratcheted 46 → 49 functions /
+  102 → 109 assertions (density 2.22). No `goto`, no `malloc`,
+  bounded loops, ≤ 60 lines / function.
+
+* **Bench** (`scripts/bench_turn_integer_basis.py`, NDJSON output):
+  on Windows MSVC + WSL2 glibc 2.35, max `|basis(legacy) -
+  basis(turn_integer)|` = 8.43e-08 (at float32 ULP scale); both routes
+  land at 1.19e-07 on unit-magnitude error; HDC accumulator norm drift
+  3.23e-07. Cross-platform bit-identical across all matrix rows.
+
+**Verified on TestPyPI** before the production cut: `0.29.0rc1` boots
+cleanly in an external venv on Python 3.10-3.14; plugin-tier
+`Profile.native` resolves with ABI v10; LEGACY method byte-identical
+to default `es_channel_basis`; C/Python TURN_INTEGER byte-parity holds
+on the live wheel; encoder hot path produces 52 uint32 residues at
+J2000.
+
+**No code change from v0.29.0rc1**; no ABI change (`ES_ABI_VERSION = 10`
+unchanged from rc1).
+
 ## [0.29.0rc1] — 2026-05-15
 
 ### Added — channel-basis dual-path spike (cyclic-group-native quarter-turn decomposition)
