@@ -268,6 +268,18 @@ double es_residue_to_radians(uint32_t residue);
  *      `correlation` * A * sin(...) to body_b.
  *      `correlation` must be +1 or -1.
  *
+ *   ES_PATCH_KIND_ECCENTRICITY_CORRECTION (v0.28.0rc5, ABI v9):
+ *      Per-body Newton-Kepler equation-of-center correction.
+ *      Adds (nu(t) - M(t)) - (nu(J2000) - M_0) to body_a, where
+ *      M(t) = M_0 + n * dt and nu = true_anomaly(E, e) via the
+ *      half-angle formula. J2000-anchored by construction (returns 0
+ *      at delta_t = 0). Fields used: `eccentricity`,
+ *      `mean_anomaly_at_j2000_rad`, `n_rad_per_day`. `amplitude_deg`,
+ *      `period_days`, `phase_rad`, `correlation`, `body_idx_b` are
+ *      ignored. Mirrors `EccentricityCorrectionPatch.evaluate()`
+ *      from `_research/diagnosed_fibers.py`. Backend parity ratchet
+ *      pins byte-exact agreement with the Python path.
+ *
  * Capacity: ES_MAX_PATCHES (32). `es_apply_patch` returns
  * ES_ERR_PATCH_FULL when the registry is at capacity.
  *
@@ -288,8 +300,9 @@ double es_residue_to_radians(uint32_t residue);
 #define ES_PATCH_NAME_MAX   64
 
 typedef enum {
-    ES_PATCH_KIND_SINUSOID         = 0,
-    ES_PATCH_KIND_COUPLED_SINUSOID = 1,
+    ES_PATCH_KIND_SINUSOID                = 0,
+    ES_PATCH_KIND_COUPLED_SINUSOID        = 1,
+    ES_PATCH_KIND_ECCENTRICITY_CORRECTION = 2,  /* v0.28.0rc5 (ABI v9) */
 } es_patch_kind_t;
 
 typedef struct {
@@ -297,10 +310,20 @@ typedef struct {
     char     name[ES_PATCH_NAME_MAX];
     int32_t  body_idx_a;                    /* [0, ES_N_BODIES); -1 = unused */
     int32_t  body_idx_b;                    /* coupled only; -1 for sinusoid */
+    /* Sinusoid / coupled-sinusoid params. Unused for ECC kind. */
     double   amplitude_deg;
     double   period_days;
     double   phase_rad;
     int32_t  correlation;                   /* +1 or -1; coupled only        */
+    /* v0.28.0rc5 (ABI v9): eccentricity-correction params. Unused for
+     * sinusoid kinds. Adding fields at the end of the struct is the
+     * cleanest additive ABI bump — older code linked against ABI v8
+     * sees the same field offsets for the original members, but the
+     * struct size differs (so the runtime ABI handshake catches the
+     * mismatch). */
+    double   eccentricity;                  /* dimensionless, [0, 1) */
+    double   mean_anomaly_at_j2000_rad;     /* M_0 at J2000          */
+    double   n_rad_per_day;                 /* mean motion           */
 } es_patch_t;
 
 /* Status codes specific to the patch registry. Returned by
@@ -330,6 +353,15 @@ int es_apply_patch(const es_patch_t *patch);
  * returns 0 with no side effects.
  */
 size_t es_clear_patches(void);
+
+/* v0.28.0rc5 (ABI v9): Clear only EOC patches (kind ==
+ * ES_PATCH_KIND_ECCENTRICITY_CORRECTION). Sinusoid + coupled-
+ * sinusoid patches are left intact. Returns the count of EOC
+ * patches removed. Mirrors `_eoc_catalog.clear_eoc_patches()` on
+ * the Python side so the two registries stay in sync when the
+ * bridge clears Phase 10a patches selectively.
+ */
+size_t es_clear_eoc_patches(void);
 
 /* Number of patches currently in the registry. */
 size_t es_n_active_patches(void);
@@ -621,7 +653,7 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 27
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.28.0rc4"
+#define ES_VERSION_STRING "0.28.0rc5"
 
 const char *es_version(void);
 
@@ -683,8 +715,30 @@ const char *es_version(void);
  *     The Python ctypes shim allocates these once per call alongside
  *     the existing `out_state` buffer, so the user-facing bridge API
  *     is unchanged.
+ *
+ * v7: v0.15.0 — Sol Moon Times classical-roster completion.
+ *     ES_N_BODIES grew (Pluto-Charon + remaining Uranians); per-body
+ *     array sizes change on the wire. Encoder math unchanged on
+ *     overlapping bodies.
+ *
+ * v8: v0.16.0 — Tier-1 BODIES expansion (Lagrange trojans + retrograde
+ *     irregulars + Neptune sub-graph). ES_N_BODIES = 52 (current).
+ *     Same wire-format-by-roster-size mechanism as v7.
+ *
+ * v9: v0.28.0rc5 — Phase 10a EOC C-side completion.
+ *     Added: ES_PATCH_KIND_ECCENTRICITY_CORRECTION patch kind.
+ *     `es_patch_t` grew three trailing double fields (eccentricity,
+ *     mean_anomaly_at_j2000_rad, n_rad_per_day) — additive, original
+ *     field offsets preserved, but sizeof(es_patch_t) increased.
+ *     The encoder hook gains a third dispatch branch that runs
+ *     bounded Newton-Kepler (30 iters, tol 1e-14) + half-angle true-
+ *     anomaly. With no ECC patches active the encoder is byte-
+ *     identical to v8. JPL Power-of-Ten clean: no goto, no malloc,
+ *     all loops bounded, every function carries ≥2 asserts. Closes
+ *     the rc1 backend_caveat (EOC patches now work with backend="c"
+ *     and produce byte-exact agreement with the Python BIP path).
  */
-#define ES_ABI_VERSION 8
+#define ES_ABI_VERSION 9
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python
