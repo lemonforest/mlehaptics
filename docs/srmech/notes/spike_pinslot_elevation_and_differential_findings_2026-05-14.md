@@ -1986,3 +1986,107 @@ The era-vs-modern dispatch question is two-layered. At the construction level (F
 - F17 BronzeGeocentricEpicycle encoder: default-convention decision for Saturn (NSSDC vs JPL DE441); document either way in the encoder spec.
 - Counterpoint pass NOT executed (single-agent concertmaster). The Freeth Supp S9 = NASA NSSDC round-2dp finding is mechanically verifiable and self-checking; high-confidence even without counterpoint.
 
+
+---
+
+## Future-research candidate — F24: cross-bar / N-armed pin-slot architecture (2026-05-15)
+
+### F24 (CANDIDATE) — N-armed cross-bar pin-slot as a harmonic-selector primitive
+
+**Status:** CANDIDATE; algebraic half tractable now, empirical half gated on AMRP X-ray tomography access.
+
+**Hypothesis.** Some Antikythera gears exhibit a small "star shape" near the gear centre, conventionally read as either bronze-corrosion radial patterns or a polygonal axle-hole for slip-prevention. A third reading is that some of these features are a small **cross-bar pin-slot**: an N-armed cross at the gear centre whose arms each form a pin-slot relationship with the surrounding ring (or with a small inner gear). This would be a mechanism *primitive* distinct from Freeth 2021's single planar pin-slot, with materially different algebraic content.
+
+This finding is recorded now as a CANDIDATE — the empirical question of whether any specific bronze gear's central feature is actually a cross-bar pin-slot is **not** in our scope (it requires AMRP X-ray tomography of fragment internals, gated per notebook §10.6). The **algebraic content** of what a cross-bar pin-slot *would* encode IS in scope and is derived below.
+
+### F24.1 Closed-form algebra of the N-armed cross-bar pin-slot
+
+**Setup.** N arms at angles 2πk/N for k = 0, ..., N-1. Each arm is a single planar pin-slot identical to the lunar primitive, with shared eccentricity ε. The total output is the rotational-symmetric sum:
+
+    f_N(θ) − θ = (1/N) Σ_{k=0..N-1} [ f_ε(θ − 2πk/N) − (θ − 2πk/N) ]
+               = (1/N) Σ_{k=0..N-1} Σ_{j≥1} (ε^j / j) sin(j(θ − 2πk/N))
+
+The inner sum (per harmonic j) over the N arms:
+
+    S_j(θ) = (1/N) Σ_{k=0..N-1} sin(j(θ − 2πk/N))
+           = sin(jθ) · [ (1/N) Σ_k cos(2πjk/N) ] − cos(jθ) · [ (1/N) Σ_k sin(2πjk/N) ]
+
+The bracketed sums are **discrete Fourier sums**: (1/N) Σ_k exp(2πijk/N) equals 1 if j ≡ 0 (mod N) and 0 otherwise. Therefore:
+
+    S_j(θ) = sin(jθ)    if j ≡ 0 (mod N)
+           = 0          otherwise
+
+The cross-bar pin-slot's closed-form output is therefore:
+
+    f_N(θ) − θ = Σ_{m≥1} (ε^(mN) / (mN)) sin(mNθ)
+
+**Interpretation.** An N-armed cross-bar pin-slot is a **harmonic selector**: it produces *only* the harmonics that are multiples of N (the N-th, 2N-th, 3N-th, ...) of the input phase. All harmonics that are not multiples of N are **identically zero** by rotational symmetry — they cancel exactly across the N arms.
+
+The leading harmonic moves from j=1 (single pin-slot) to j=N (cross-bar with N arms). Its amplitude is ε^N / N, which is dramatically smaller than the single pin-slot's ε. For typical lunar ε = 0.1146:
+
+| N | leading harmonic | leading amplitude | suppression vs single |
+|---|------------------|-------------------|------------------------|
+| 1 | 1×θ              | 0.1146            | 1× (single pin-slot)  |
+| 2 | 2×θ              | 0.0066            | 17.5× weaker          |
+| 3 | 3×θ              | 0.00050           | 229× weaker           |
+| 4 | 4×θ              | 0.000043          | 2670× weaker          |
+| 5 | 5×θ              | 0.0000039         | 29400× weaker         |
+
+The amplitudes fall off extremely steeply with N. This is the *cost* of the harmonic-selector property: you get spectral purity at the price of dramatic amplitude reduction.
+
+### F24.2 What a cross-bar pin-slot could be used for in the bronze
+
+The harmonic-selector property suggests cross-bar pin-slots are **not** appropriate for the standard equation-of-centre (which wants the j=1 leading harmonic at sizeable amplitude). They *would* be appropriate for:
+
+1. **High-order-harmonic-specific encoding.** If a particular gear-train wants to drive an output that's specifically a 2θ or 3θ component of the input — e.g., a second-inequality emphasis, a frequency-doubling stage, a quasi-periodic ratio — the cross-bar gives clean spectral content at that harmonic with no contamination from neighbouring modes.
+2. **Phase-bookkeeping or registration features.** A cross-bar with N=4 or N=6 could serve as a phase-registration mark — the gear "remembers" only every 1/N rotation visibly, useful for synchronisation with another gear's pointer or with the operator's reading of a dial.
+3. **Differential-mode pin-slots within a planetary train.** A 2-armed (N=2) pin-slot with arms at 0 and π would have output frequency 2θ — possibly useful for synodic-period encoding where the mean motion is twice the geocentric apparent motion.
+4. **Setting-mode interfaces (§11.6.15 cross-reference).** The "operator inserts a key to advance the gear" reading some gears support could naturally use a polygonal hole that *happens* to also act as a pin-slot during operation, giving the setting-mode gear a structurally-different transfer function than a normal mesh.
+
+If a cross-bar pin-slot IS present in the bronze, it's most likely (4) — a setting-mode interface that doubles as a registration mark. Categories (1)-(3) would represent mechanisms the bronze does not currently appear to need.
+
+### F24.3 Why F24 doesn't break existing findings
+
+Critically, adding a cross-bar pin-slot primitive **does not invalidate** any of the §11.6.17 algebraic-uniqueness arguments:
+
+- **Cyclic-group decomposition** (primes 5, 7, 17, 19) is computed from period-relation factorisation; pin-slot primitives don't enter.
+- **F14 Pareto-optimal partition** is at the integer arithmetic / gear-economy level; the choice of pin-slot architecture per planet is independent.
+- **F15 architecture enumeration** considered seven candidates; N-armed cross-bar is a *new* eighth candidate distinct from all of them. It does not falsify any of the F15 closures (notably, the cross-bar parallel-sum still cannot produce evection's 2(D − ℓ) lattice element, because the integer-frequency lattice it spans is {m·N · Ω_M} only — single-Doppler not multi-body).
+- **F17 BronzeGeocentricEpicycle encoder** uses single pin-slot per planet; F24 if confirmed would be a *parallel* primitive available at specific gears, not a replacement.
+
+The bronze gear-groups (5-prime ℤ/5ℤ and 7-prime ℤ/7ℤ subgroups) remain unbroken. F24 is purely **additive** to the architectural vocabulary — it adds a primitive without re-ranking the existing ones.
+
+### F24.4 Encoder support for the with/without comparison
+
+To make the role of the pin-slot primitive visible to anyone who wants to see, `bronze_planetary_encoder.py` gains:
+
+- An `apply_pin_slot: bool = True` flag on `apparent_longitude()`. When False, the function returns the bare gear-train output (mean longitude only, no equation-of-centre correction). Setting True applies the pin-slot transform; the difference between the two outputs is exactly what the pin-slot primitive contributes — the equation-of-centre at the planet's p_AU.
+- A new function `equation_of_centre_n_armed_cross(M, geometry, n_arms)` that implements the F24 closed-form Σ_{m≥1} (ε^(mN) / (mN)) sin(mNθ) series. Set n_arms=1 for single pin-slot (degenerates correctly); set n_arms=2, 3, 4, ... for N-armed cross-bar variants.
+
+This is the "real math calculations of what this missing primitive does in such a way that anyone can now see" — the difference between `apply_pin_slot=False` and `apply_pin_slot=True` shows what the bronze's pin-slot contributes; varying `n_arms` shows what a hypothetical F24 cross-bar would contribute.
+
+### F24.5 Evidence pathway for the empirical question
+
+To move F24 from CANDIDATE to F-numbered finding requires *empirical* evidence that a cross-bar pin-slot is present in some bronze gear. Pathways:
+
+- **AMRP X-ray tomography volumes** (currently gated; raw volumes not openly downloadable per notebook §10.6 line 531; held by the National Archaeological Museum Athens).
+- **Allen et al. 2018, PLOS ONE** — published high-resolution tomography of the largest fragment. Possibly contains visible internal cross-sectional features at gear centres. DOI: 10.1371/journal.pone.0207430. PDF cache for hoodoos: not yet added.
+- **Voulgaris et al. 2024 / 2025** (arXiv:2407.15858, arXiv:2505.08484, arXiv:2104.06181) — functional reconstructions that discuss internal-gear structure. Open-access; potential cache target for hoodoos.
+- **Wright (multiple papers, 2005-2012)** — alternate reconstructions including manufacturing-detail commentary. Most are paywalled; arXiv preprint search recommended.
+
+If any of these surface a clear cross-bar feature in a specific gear, F24 promotes to a real F-finding with that gear identified. Until then, F24 stays a candidate with the algebra fully worked out and the encoder support ready.
+
+### F24.6 Scope discipline
+
+Per `docs/antikythera-maths/CLAUDE.md`, CAD-grade investigation of "is this physical feature a pin-slot mechanism?" is **out of scope** for this subtree. The algebraic content of "what would an N-armed cross-bar pin-slot encode?" is **in scope** as a phase-space / cyclic-group analysis, and is what is delivered here.
+
+The empirical promotion of F24 to F-numbered status would happen in a separate workspace (a future `docs/antikythera-physical/` or by ingesting a paper that resolves the question) — not here. F24 stays in the algebraic-half-only, candidate-only state as the right respect for the subtree's discipline.
+
+### F24.7 NDJSON inventory
+
+- (none yet — algebraic-only candidate; if promoted to F-finding, NDJSON entries would record per-N harmonic spectrum and per-gear hypothesis status)
+
+### F24.8 Scripts
+
+- Encoder extensions live in `bronze_planetary_encoder.py` (`apply_pin_slot` flag, `equation_of_centre_n_armed_cross()`).
+- A small CLI demo showing the with/without and single/cross-bar comparison runs via `python research/bronze_planetary_encoder.py` (the module's `_print_summary()` now includes the comparison).

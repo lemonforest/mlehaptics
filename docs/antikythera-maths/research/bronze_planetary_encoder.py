@@ -262,6 +262,7 @@ def apparent_longitude(
     *,
     use_series: bool = False,
     n_terms: int = 6,
+    apply_pin_slot: bool = True,
 ) -> np.ndarray | float:
     """Bronze apparent geocentric ecliptic longitude.
 
@@ -271,6 +272,16 @@ def apparent_longitude(
     ``use_series=True`` retains only ``n_terms`` harmonics. For superior
     planets with p_AU > 1 the series diverges; ``use_series=False`` (the
     default) computes the unreduced arctangent directly.
+
+    The ``apply_pin_slot`` flag (default True) controls whether the
+    pin-slot equation-of-centre transform is applied. Setting it to False
+    returns the bare mean longitude unchanged — the "without pin-slot"
+    output, showing what the gear-train would produce *before* the
+    pin-slot primitive is composed on top. The difference between
+    apply_pin_slot=True and apply_pin_slot=False is exactly the
+    equation-of-centre contribution. This is the user-facing handle for
+    seeing what the pin-slot primitive contributes mathematically, per
+    the F24 candidate's "with/without comparison" framing.
 
     Parameters
     ----------
@@ -285,17 +296,128 @@ def apparent_longitude(
         unreduced arctangent form.
     n_terms : int
         Number of series harmonics (ignored if use_series=False).
+    apply_pin_slot : bool
+        If True (default), apply the pin-slot equation-of-centre transform.
+        If False, return mean_longitude unchanged (bare gear-train output).
 
     Returns
     -------
     λ_app : array-like or float
         Apparent geocentric ecliptic longitude (radians).
     """
+    mean = np.asarray(mean_longitude, dtype=np.float64)
+    if not apply_pin_slot:
+        return mean
     if use_series:
         delta = equation_of_centre_series(M, geometry, n_terms=n_terms)
     else:
         delta = equation_of_centre_unreduced(M, geometry)
-    return np.asarray(mean_longitude, dtype=np.float64) + delta
+    return mean + delta
+
+
+def equation_of_centre_n_armed_cross(
+    M: np.ndarray | float,
+    geometry: PlanetaryPinSlotGeometry,
+    n_arms: int = 1,
+    n_terms: int = 6,
+) -> np.ndarray | float:
+    """N-armed cross-bar pin-slot equation-of-centre (F24 candidate).
+
+    Implements the closed-form rotational-symmetric sum of N pin-slots at
+    angles 2πk/N for k = 0, ..., N-1:
+
+        Δλ(M) = Σ_{m≥1} (ε^(m·N) / (m·N)) sin(m·N·M)
+
+    derived in F24.1 of the spike findings doc. An N-armed cross-bar
+    pin-slot is a **harmonic selector**: only harmonics that are multiples
+    of N survive; all others cancel exactly by rotational symmetry.
+
+    Special cases:
+        n_arms=1 → degenerates to the standard single-pin-slot Bessel-Anger
+                   series (equivalent to equation_of_centre_series, ε form).
+        n_arms=2 → produces only even harmonics 2θ, 4θ, ... (frequency-
+                   doubling) with leading amplitude ε² / 2.
+        n_arms=N → leading harmonic at Nθ with amplitude ε^N / N.
+
+    F24 is a CANDIDATE finding; the algebra here is exact, the empirical
+    question of whether any bronze gear actually instantiates a cross-bar
+    pin-slot remains gated on AMRP X-ray tomography access.
+
+    Parameters
+    ----------
+    M : array-like or float
+        Pin-slot input phase (radians).
+    geometry : PlanetaryPinSlotGeometry
+        Per-planet bronze pin-slot parameters. Provides ε via p_AU_derived.
+    n_arms : int
+        Number of cross-bar arms (≥ 1). For n_arms=1 the result equals the
+        standard single-pin-slot series.
+    n_terms : int
+        Number of cross-bar harmonics to retain (each at m·n_arms in θ).
+        Total harmonics computed = n_arms × n_terms.
+
+    Returns
+    -------
+    Δλ : array-like or float
+        N-armed cross-bar equation-of-centre output (radians).
+    """
+    if n_arms < 1:
+        raise ValueError("n_arms must be >= 1")
+    M = np.asarray(M, dtype=np.float64)
+    eps = geometry.p_AU_derived
+    total = np.zeros_like(M)
+    for m in range(1, n_terms + 1):
+        jN = m * n_arms
+        total += (eps ** jN / jN) * np.sin(jN * M)
+    return total
+
+
+def n_armed_cross_leading_amplitude(
+    geometry: PlanetaryPinSlotGeometry, n_arms: int = 1
+) -> float:
+    """Formal leading-harmonic coefficient of an N-armed cross-bar (rad).
+
+    Returns ``eps^N / N`` from the Bessel-Anger series. For the convergent
+    regime (|eps| < 1, inferior planets) this is the physical amplitude
+    of the N-th harmonic. For the divergent regime (eps >= 1, superior
+    planets) it is a formal series coefficient — the *physical* amplitude
+    is bounded by pi/2 (the arctan range) and must be computed numerically
+    via :func:`n_armed_cross_peak_amplitude`.
+    """
+    if n_arms < 1:
+        raise ValueError("n_arms must be >= 1")
+    eps = geometry.p_AU_derived
+    return float(eps ** n_arms / n_arms)
+
+
+def n_armed_cross_peak_amplitude(
+    geometry: PlanetaryPinSlotGeometry,
+    n_arms: int = 1,
+    n_samples: int = 720,
+) -> float:
+    """Numerical peak amplitude of the N-armed cross-bar transform (rad).
+
+    Computes max |Δλ(M)| over a uniform sweep of M in [0, 2π). Always
+    bounded by pi/2 since the underlying transform is an arctangent.
+    Works for both convergent (|eps| < 1) and divergent (|eps| >= 1)
+    regimes — the rotational-symmetric sum is always finite even when
+    the series expansion isn't.
+    """
+    if n_arms < 1:
+        raise ValueError("n_arms must be >= 1")
+    M = np.linspace(0.0, 2.0 * np.pi, n_samples, endpoint=False)
+    if geometry.planet_type == "inferior":
+        lever = geometry.i_mm
+    else:
+        lever = geometry.o_mm
+    d = geometry.d_mm
+    total = np.zeros_like(M)
+    for k in range(n_arms):
+        offset = 2.0 * np.pi * k / n_arms
+        total += np.arctan2(d * np.sin(M - offset),
+                            lever + d * np.cos(M - offset))
+    total /= n_arms
+    return float(np.max(np.abs(total)))
 
 
 def leading_amplitude_degrees(geometry: PlanetaryPinSlotGeometry) -> float:
@@ -322,7 +444,11 @@ def leading_amplitude_degrees(geometry: PlanetaryPinSlotGeometry) -> float:
 # ---------------------------------------------------------------------------
 
 def _print_summary() -> None:
-    """Print a per-planet summary of the bronze pin-slot encoding."""
+    """Print a per-planet summary of the bronze pin-slot encoding.
+
+    Includes the F24 with/without comparison: bare gear-train output
+    (no pin-slot) vs single pin-slot vs N-armed cross-bar variants.
+    """
     print("BronzeGeocentricEpicycle encoder — Freeth 2021 Supp S9 parameters")
     print("=" * 70)
     print(
@@ -337,6 +463,44 @@ def _print_summary() -> None:
             f"{geom.d_mm:>8.2f} {geom.p_AU_derived:>11.4f} "
             f"{leading_amplitude_degrees(geom):>11.2f}"
         )
+
+    print()
+    print("F24 with/without and N-armed cross-bar peak-amplitude comparison")
+    print("=" * 70)
+    print(
+        f"{'Planet':<8} {'bare (deg)':>11} {'N=1 (deg)':>11} "
+        f"{'N=2 (deg)':>11} {'N=3 (deg)':>11} {'N=4 (deg)':>11}"
+    )
+    for planet, geom in PLANETARY_GEOMETRIES.items():
+        amps = [
+            np.degrees(n_armed_cross_peak_amplitude(geom, n_arms=n))
+            for n in (1, 2, 3, 4)
+        ]
+        print(
+            f"{planet:<8} {0.0:>11.4f} "
+            f"{amps[0]:>11.4f} {amps[1]:>11.4f} "
+            f"{amps[2]:>11.4f} {amps[3]:>11.4f}"
+        )
+    print()
+    print("'bare' = apply_pin_slot=False (no equation-of-centre correction)")
+    print("'N=1'  = single pin-slot (bronze actual; F17 BronzeGeocentricEpicycle)")
+    print("'N=2+' = N-armed cross-bar (F24 candidate; harmonic selector)")
+    print()
+    print(
+        "Amplitudes are numerical peak |delta_lambda(M)| over a 720-sample "
+        "sweep; bounded by 180 degrees (arctan2 range pi). The difference "
+        "between bare and N=1 is what the bronze's single pin-slot "
+        "contributes per planet. N=2..4 show what hypothetical N-armed "
+        "cross-bar pin-slots (F24) would contribute. In the convergent "
+        "regime (inferior planets, p_AU < 1) leading amplitudes fall as "
+        "eps^N/N as expected. In the divergent regime (superior planets, "
+        "p_AU > 1) the rotational-sum peak saturates at approximately "
+        "180/N degrees because each arm's arctan saturates near +-180 "
+        "and the N-arm average compresses the range. The harmonic-"
+        "selector property (output spectrum contains only multiples of "
+        "N) still holds in both regimes; only the amplitude story "
+        "depends on regime."
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover
