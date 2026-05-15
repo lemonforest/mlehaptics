@@ -933,8 +933,9 @@ def native_channel_basis(seed: int, D: int) -> Any:
     v0.29.0rc1: equivalent to ``native_channel_basis_method(seed, D,
     ES_BASIS_METHOD_LEGACY)``. Use
     ``native_channel_basis_turn_integer`` to exercise the cyclic-
-    group-native quarter-turn-decomposition route (no Python
-    byte-parity; bit-exact quarter turns by construction).
+    group-native quarter-turn-decomposition route (separately byte-
+    parity-pinned against
+    ``_research/portable_prng.splitmix64_turn_integer_basis``).
     """
     if not HAS_NATIVE:
         raise RuntimeError(
@@ -966,8 +967,10 @@ def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
     quarter-turn decomposition on the splitmix64-derived phase
     residue + a small libm ``cos``/``sin`` on the within-quadrant
     fraction. Bit-exact quarter turns by construction on every
-    toolchain; no libm cospi/sinpi dependency; deterministic across
-    platforms.
+    toolchain; no libm cospi/sinpi dependency; byte-identical to
+    ``_research/portable_prng.splitmix64_turn_integer_basis`` after
+    the complex64 cast (sibling Tier 2a parity discipline to the
+    LEGACY route).
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
     """

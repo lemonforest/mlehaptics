@@ -71,6 +71,29 @@ project-level [CHANGELOG §0.29.0rc1](../CHANGELOG.md).
   - Invalid enum value rejected via `ES_ERR_INVALID_KIND`.
   - Deterministic across calls: same seed + same D → byte-identical
     output (deterministic across platforms by construction).
+- Extended `python/tests/test_channel_basis_parity.py` (the Tier 2a
+  parity file) with sibling TURN_INTEGER byte-parity coverage:
+  - `test_channel_basis_turn_integer_byte_identical_py_vs_c` — same
+    seed/D grid as the LEGACY parity test, pins byte-for-byte
+    agreement between C `es_channel_basis_method(..., TURN_INTEGER)`
+    and the new Python mirror
+    `_research/portable_prng.splitmix64_turn_integer_basis()` after
+    the complex64 cast.
+  - `test_turn_integer_basis_quarter_turn_dispatch_bit_exact` — hand-
+    injects splitmix64 outputs that decompose to `within == 0` at
+    each of the four quadrants, asserts the Python helper emits exact
+    `(±1, 0) / (0, ±1)` without invoking any float math.
+
+**Python mirror (TURN_INTEGER):**
+
+- `_research/portable_prng.py` gains
+  `splitmix64_turn_integer_basis_element(u)` and
+  `splitmix64_turn_integer_basis(seed, n)` — byte-identical Python
+  mirror of the C `es_channel_basis_turn_integer_route`. Sibling
+  parity discipline to the existing LEGACY mirror
+  (`splitmix64_phases` + `numpy.exp(1j · φ)`). Both routes now have
+  Python-vs-C byte-parity pinned. Verified cross-platform on Windows
+  MSVC + WSL2 glibc 2.35 — identical bytes on both.
 
 **Bench script (not run in CI):**
 

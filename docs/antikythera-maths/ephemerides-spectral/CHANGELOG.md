@@ -31,6 +31,8 @@ This honours the notebook §1.4 framing — "every gear is a faithful representa
 
 **Why this design beats the cospi/sinpi alternative**: the cospi/sinpi route (an earlier draft of this spike) needed libm support that's still rolling out (Apple libsystem yes; C23 glibc 2.40+ partial; MSVC libm no). It worked around the `× π` rounding loss but introduced a platform-feature-detection problem. The TURN_INTEGER design captures the same precision benefit — and the structural-correctness-at-quarter-turns benefit — using only universally-available libm `cos`/`sin` + integer arithmetic. No platform dependency, no feature gate, no fallback path that silently no-ops.
 
+**C/Python parity preserved**: `_research/portable_prng.py` gains a byte-identical Python mirror of the TURN_INTEGER route (`splitmix64_turn_integer_basis_element` + `splitmix64_turn_integer_basis`). Sibling parity discipline to the LEGACY route's existing mirror — both routes now have Python-vs-C byte-for-byte agreement pinned in `tests/test_channel_basis_parity.py`. Verified cross-platform on Windows MSVC + WSL2 glibc 2.35: identical bytes on both.
+
 **Per-area detail:** see [python/CHANGELOG.md §0.29.0rc1](python/CHANGELOG.md).
 
 ## [0.28.1] — 2026-05-15
