@@ -1249,3 +1249,134 @@ NDJSON: `spike_pinslot_findings_q_dynamical_class_2026-05-14.ndjson` (4 records 
 - `docs/srmech/notes/spike_pinslot_findings_q_back_reaction_2026-05-14.ndjson` — 7 records (per-leaf BRI + regime comparison)
 - `docs/srmech/notes/spike_pinslot_findings_q_dynamical_class_2026-05-14.ndjson` — 4 records (structural class statements)
 
+---
+
+## Batch A — Architectural / archaeological investigation (2026-05-14)
+
+Concertmaster dispatch follow-up to F11 (gear-DAG clustering) and F12 (FFT-inverse phase-fit on bronze-vs-truth residual). Three sub-tasks:
+
+- A1 — Aristotelian inner/outer clustering — intentional or gear-economy forced?
+- A2 — Apsidal precession from F12's bronze-to-today phase drift.
+- A3 — Pre-Almagest Hipparchan ε ≈ 0.1146 — what specific tradition?
+
+All three executed via `docs/srmech/notes/spike_pinslot_batch_a_2026-05-14.py` (+ A2 follow-up `spike_pinslot_batch_a2_sliding_window_2026-05-14.py`). Three NDJSON outputs + one diagnostic NDJSON.
+
+### A1 — Aristotelian inner/outer clustering — SOFTENED CLAIM
+
+**Method.** Prime-factorise the Freeth 2021 period-relation numerators and denominators per planet, prime-factorise each gear in the proposed trains, and check whether shared upstream gears in the bronze DAG (g51 for Mercury+Venus; g56 for Mars+Jupiter+Saturn; g64 additionally for Mars+Jupiter) correspond to shared prime factors in the planetary period algebras.
+
+**Result.** The bronze's clustering is **gear-DAG topological, not period-algebra forced.**
+
+| Cluster | Shared anchor | Anchor primes | Periods (factor union) | Shared primes among cluster periods |
+|---|---|---|---|---|
+| Inner | g51 = 3·17 | {3, 17} | Mercury (5,29; 2,23); Venus (17; 2,3,7,11) | **∅** |
+| Outer | g56 = 2³·7 | {2, 7} | Mars (7,19; 5); Jupiter (2,19; 83); Saturn (7,61; 2,13,17) | **∅** |
+
+- Mercury and Venus periods share NO common prime; g51 carries 17, which matches Venus 289=17² only (Mercury rides along on DAG topology).
+- Mars/Jupiter/Saturn periods share no common prime across all three; g56 carries 7, matching Mars 133=7·19 and Saturn 427=7·61, with Jupiter (no 7 in 76=2²·19 or 83) riding along.
+
+**Alternative-cost estimate.** Removing the 3 shared anchor gears and giving each planet a private input chain costs ≈ +8 gears (≈24% over the bronze's 33-gear planetary trains). The bronze design IS gear-economical; clustering reduces gear count. But the clustering does NOT fall out of period-algebra necessity — it's a design choice that pairs anchor gears to ONE planet's period factor (17 for Venus; 7 for Mars+Saturn) while the other planets in the cluster ride the DAG.
+
+**F11.3 amendment.** F11.3's reading "inner+outer cluster" remains geometrically correct on the Freeth-2021-proposed gear DAG (the shared upstream gears do mediate back-reaction). The reading "Aristotelian-taxonomy encoded" is **softened** to "consistent-with-Aristotelian-taxonomy; not period-algebra-forced." An alternative bronze with different anchor choices (e.g. an anchor gear carrying primes {5, 7} for Mars-Mercury hybrid) could share gears differently without violating any period relation. The Aristotelian reading is a post-hoc interpretive frame, not a forced structural consequence.
+
+F11.5's structural-class argument (forced-oscillator network with shared-anchor coupling) is **unaffected** — that claim depends on the EXISTENCE of shared anchors, not on why those specific anchors were chosen.
+
+**Files:** `spike_pinslot_findings_q_aristotle_clustering_2026-05-14.ndjson` (19 records: per-planet factorisations, pairwise shared-prime analysis, anchor-match analysis, alternative-cost estimate, verdict).
+
+### A2 — Apsidal precession from F12 phase drift — **NULL** (both methods)
+
+**Method 1 — two-window phase comparison.** F12's `phi1_rad` is the sinusoid phase of the bronze-vs-truth residual, anchored at REFERENCE_JD. The recent-decade (2014-2024) and bronze-to-today (≈100 BCE – 2024 CE) fits give phi1 at the two windows' effective epochs (mean JD difference ≈ 386 kd ≈ 1057 yr). If apsidal precession is the dominant signal in d(phi1)/dt, the bronze rate should match modern apsidal-precession rate per planet in sign and OOM.
+
+**Method 1 result table.**
+
+| Planet | Bronze rate ("/cy) | Modern inertial peri rate ("/cy) | Sign match | Ratio |
+|---|---:|---:|:---:|---:|
+| Mercury | -2134 | +571 | ✗ | -3.74 |
+| Venus | +104 | +41 | ✓ | +2.53 (Venus degenerate, e≈0.007) |
+| Mars | -2483 | +1605 | ✗ | -1.55 |
+| Jupiter | -698 | +8 | ✗ | -90.6 |
+| Saturn | -1733 | +2022 | ✗ | -0.86 |
+
+4 of 5 planets show WRONG SIGN; Saturn alone lands at the right OOM (within 15%). The dispatch's preliminary hint ("Mercury drifts 6° over 2100 yr → apsidal precession ≈ 10″/yr, of correct sign and order") is a coincidental near-OOM match against geocentric rate; against the more physically apt inertial-frame rate the bronze rate is 3.7× too large and wrong sign. The 2-window method is dominated by amplitude-weighted phase averaging over the wide bronze-to-today window.
+
+**Method 2 — sliding-window phi regression.** Re-fit the bronze residual on overlapping 100-year windows (22 windows stepping 95 yr) from 100 BCE to 2024 CE. Regress phi1(t) linearly. If apsidal precession is real, slope = -apsidal_rate; if amplitude-weighting bias, phi1(t) should wobble or be non-linear.
+
+**Method 2 result.** Phi1(t) is **PERFECTLY LINEAR** for all 5 planets (R² = 1.0000 in all cases, RMS residual ≈ 0.015° at Mercury, similar for others). The bronze residual carries a clean linear-in-time phase drift in phi1. **BUT the slope is 100-14000× larger than modern apsidal-precession rates**:
+
+| Planet | Sliding-window rate ("/cy) | Modern inertial ("/cy) | Ratio | R² |
+|---|---:|---:|---:|---:|
+| Mercury | -602,103 | +571 | -1055 | 1.0000 |
+| Venus | -575,601 | +41 | -13,971 | 1.0000 |
+| Mars | +671,274 | +1605 | +418 | 1.0000 |
+| Jupiter | -11,304 | +8 | -1468 | 1.0000 |
+| Saturn | -304,769 | +2022 | -151 | 1.0000 |
+
+**The bronze residual phi(t) is dominated by a clean linear drift that is NOT apsidal precession.** The drift's magnitude (≈0.029 rad/yr at Mercury, 0.11% of the anomalistic frequency) is consistent with the bronze's **period-relation truncation error** in the encoder's mean motion vs JPL-DE441 truth, not with apsidal-line motion. The sinusoid-fit at the modern anomalistic frequency is the wrong basis for capturing apsidal precession when the bronze's encoder mean motion has even small fractional error against modern truth — the truncation error dominates over the planetary apsidal motion by 2-4 orders of magnitude.
+
+**Verdict.** A2 is a clean null. The hypothesis "bronze residual carries apsidal-precession signal" is FALSIFIED at both methods. No F13 promotion. The bronze does NOT track apsidal precession through its first-inequality (or absence thereof); the residual carries the encoder's period-relation truncation error as the dominant secular drift, which masks any apsidal-precession contribution by factors of 100-14000.
+
+**What we learned that IS useful.** The sliding-window phi1(t) trajectory being perfectly linear (R²=1.0) is itself a clean diagnostic: the bronze's encoder error against modern truth has a **dominant linear-in-time component per planet**, with magnitude that should equal (modern anomalistic ω) × (bronze fractional period-relation error). This is a refinement of the existing F12 drift-sweep finding — the residual's secular component is a single clean linear term, not a complex mix.
+
+**Fermata records (conductor decisions).**
+- Whether the period-relation truncation-rate measurement (the bronze-encoder fractional mean-motion error per planet) is worth promoting as its own finding. It's a precise per-planet number (0.11% Mercury, ~1.0% Venus, similar Mars, smaller Jupiter/Saturn) characterising what the bronze period relations get wrong over the millennial baseline. Could be useful for the "compare encoder versions" thread.
+- Whether the F12 single-window phi1 extraction methodology should be amended to include the explicit linear-detrend step before reporting amplitude/phase. Current F12 amplitudes are robust (R² ≈ 0.99 per planet); phases are biased by the secular drift. The linear-detrended phi1 might match modern apsidal-line orientations more cleanly (untested here).
+
+**Files:**
+- `spike_pinslot_batch_a_2026-05-14.py` (A1 + A2 first-pass + A3 driver)
+- `spike_pinslot_batch_a2_sliding_window_2026-05-14.py` (A2 follow-up sliding-window regression)
+- `spike_pinslot_findings_q_apsidal_precession_2026-05-14.ndjson` (7 records: window geometry, 5 per-planet 2-window rates, verdict)
+- `spike_pinslot_findings_q_apsidal_sliding_window_2026-05-14.ndjson` (61 records: 5 sliding-window summaries + samples + verdict)
+
+### A3 — Pre-Almagest Hipparchan ε ≈ 0.1146 — BLOCKED at primary sources
+
+**Method.** Inventory the cached PDFs in `docs/antikythera-maths/hoodoos/`, catalogue the candidate Hipparchan/Babylonian/independent-empirical traditions, identify which can be verified from accessible sources and which are blocked.
+
+**Source inventory.** Hoodoos directory contains: Freeth 2006 (`Decoding_an_Ancient_Computer.pdf` for SciAm 2009 + `s41598-021-84310-w.pdf` Freeth 2021 main + `s41598-021-96382-9.pdf` Freeth 2021 correction + `antik2.pdf`). **No Almagest PDF. No Toomer 1984 commentary. No Babylonian ACT volumes. No Neugebauer HAMA.**
+
+**Candidate ranking.**
+
+| # | Candidate | Source needed | Verification status |
+|---|---|---|---|
+| 1 | Babylonian System B lunar tables | Britton 2009 / Neugebauer ACT vol II / Aaboe 1974 | BLOCKED — no PDF; Freeth 2006 remark "larger than Hipparchos" is the only accessible evidence |
+| 2 | Pre-Almagest Hipparchan refinement (second-model) | Toomer 1984 Almagest IV.11 commentary / Neugebauer HAMA vol II | BLOCKED — no PDF |
+| 3 | Independent empirical observation by bronze designer | None — by construction unfalsifiable | UNFALSIFIABLE |
+| 4 | Direct transcription of preserved Hipparchan 5.9° or 4.5° | Already RULED OUT by Freeth 2006 numerical mismatch (bronze 6.5° vs Hipparchan 5.9°, 4.5°) | RULED OUT |
+
+**Archaeological finding (F2-companion-refinement).** The bronze's calibration sits in a **pre-Almagest range** that is more accurate than either Hipparchan value Ptolemy preserved (6.5° vs 5.9°/4.5°; bronze closer to modern 6.29° than to either Hipparchan value) but more uncertain in attribution than either. The instrument witnesses an astronomical-precision tradition (Babylonian, late-Hipparchan, or hybrid) that the Almagest does not faithfully transmit. **Within accessible sources, the three candidate traditions (Babylonian System B, second-model Hipparchan, independent empirical) remain indistinguishable.**
+
+**Honest verdict.** No specific known calculation in Hipparchan or Babylonian tradition matches ε = 0.1146 / 6.5° within sources accessible to this spike. The "pre-Almagest range" framing of F2-companion stands; specific tradition identification is blocked at the primary-source access level.
+
+**Tractable next steps (cited but not autonomously verifiable per project TOS policy).**
+- Acquire Britton 2009 "Studies in Babylonian Lunar Theory" for System B parameter extraction.
+- Acquire Toomer 1984 Almagest translation + commentary for Hipparchan 5.9°/4.5° verification and second-model parameters.
+- Cross-reference Aaboe 1974 "Scientific Astronomy in Antiquity" for System B / Hipparchan reconciliation.
+- Per `reference_autonomous_validation_tos_landscape`: any future verification work must respect the publisher TOS landscape; PDF acquisition for cited reading is permitted, but no scripted scraping or batch verification belongs in-repo.
+
+**Files:** `spike_pinslot_findings_q_hipparchan_tradition_2026-05-14.ndjson` (6 records: source inventory + 4 candidates + verdict).
+
+### Batch A — Cross-cutting findings
+
+**Honest count.** Three landed substantively; one positive (A1), two negative (A2 null at both methods; A3 blocked on primary sources).
+
+- A1 lands as a structural finding that **softens** F11's Aristotelian-clustering claim. The clustering is geometrically real on the Freeth-2021-proposed DAG but driven by gear economy, not period-algebra necessity. F11.3 is amended; F11.5 (structural-class argument) is unaffected.
+- A2 lands as a clean null. The bronze residual has a perfectly linear secular drift in phi1(t), but it's period-relation truncation error, not apsidal precession. NO F13 PROMOTION.
+- A3 lands as F2-companion-refinement: the bronze calibration sits in a pre-Almagest range that the Almagest does not faithfully transmit. Specific tradition identification is blocked.
+
+**No new findings promoted to F-numbered status.** F11.3 amended in place; A2 stays as null result; A3 informs F2-companion framing.
+
+**NDJSON inventory (Batch A):**
+- `spike_pinslot_findings_q_aristotle_clustering_2026-05-14.ndjson` (19 records, A1)
+- `spike_pinslot_findings_q_apsidal_precession_2026-05-14.ndjson` (7 records, A2 first pass)
+- `spike_pinslot_findings_q_apsidal_sliding_window_2026-05-14.ndjson` (61 records, A2 follow-up + final verdict)
+- `spike_pinslot_findings_q_hipparchan_tradition_2026-05-14.ndjson` (6 records, A3)
+
+**Scripts:**
+- `spike_pinslot_batch_a_2026-05-14.py` (A1 + A2 first pass + A3)
+- `spike_pinslot_batch_a2_sliding_window_2026-05-14.py` (A2 follow-up diagnostic)
+
+**Recommendations for next dispatch.**
+- The sliding-window phi1 trajectory's perfect linearity (R²=1.0 in all 5 planets) is a clean diagnostic of the bronze's period-relation truncation rate per planet. Worth folding into the encoder-upgrade research branch if/when that gets dispatched.
+- A2's null does NOT close the apsidal-precession question entirely — it closes the "bronze tracks precession through its first-inequality" hypothesis. If a future dispatch wants to study apsidal precession explicitly, the right method is direct measurement against JPL DE441 with the bronze TOTALLY OUT OF THE PICTURE; the bronze residual is too dominated by truncation error to serve as a measurement substrate.
+- A1's softening of F11 means the next clustering question is "is there a gear-anchor-choice space that the Antikythera designer could have explored, and where does the chosen design sit in that space?" — a parameter-sweep-style hypothesis question. Tractable for a section-principal-level dispatch.
+- A3's blocked status means primary-source acquisition is the binding constraint for further archaeological progress. Outside-repo work (per project TOS policy) is the right venue for that effort.
+
