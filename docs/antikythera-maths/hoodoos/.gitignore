@@ -1,0 +1,14 @@
+# hoodoos/ — local cache of published external knowledge.
+#
+# PDFs are .gitignore'd because the project does not own copyright to them.
+# Read locally for analysis; redistribution would violate the publishers'
+# terms. The per-paper metadata (DOI, title, link, retrieval notes) is
+# documented in README.md, which DOES land in git.
+
+*.pdf
+*.PDF
+*.djvu
+
+# Allow README.md and any other non-PDF metadata to be committed
+!README.md
+!.gitignore
