@@ -94,7 +94,7 @@ EXPECTED_ABI_VERSION: int = 9
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
-ES_MAX_PATCHES: int = 32
+ES_MAX_PATCHES: int = 64  # v0.28.0rc5: bumped 32 → 64 to fit 51-body EOC catalog
 ES_PATCH_KIND_SINUSOID: int = 0
 ES_PATCH_KIND_COUPLED_SINUSOID: int = 1
 ES_PATCH_KIND_ECCENTRICITY_CORRECTION: int = 2  # v0.28.0rc5 (ABI v9)

@@ -148,7 +148,7 @@ size_t es_clear_eoc_patches(void) {
     assert(es_n_patches <= ES_MAX_PATCHES);
     size_t write_idx = 0;
     size_t n_removed = 0;
-    /* Bounded loop: ES_MAX_PATCHES = 32. */
+    /* Bounded loop: ES_MAX_PATCHES = 64 (v0.28.0rc5). */
     for (size_t read_idx = 0; read_idx < es_n_patches; ++read_idx) {
         if (es_active_patches[read_idx].kind ==
                 ES_PATCH_KIND_ECCENTRICITY_CORRECTION) {

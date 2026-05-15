@@ -280,8 +280,13 @@ double es_residue_to_radians(uint32_t residue);
  *      from `_research/diagnosed_fibers.py`. Backend parity ratchet
  *      pins byte-exact agreement with the Python path.
  *
- * Capacity: ES_MAX_PATCHES (32). `es_apply_patch` returns
- * ES_ERR_PATCH_FULL when the registry is at capacity.
+ * Capacity: ES_MAX_PATCHES (64). `es_apply_patch` returns
+ * ES_ERR_PATCH_FULL when the registry is at capacity. Bumped 32 → 64
+ * in v0.28.0rc5 to fit the full 51-body Phase 10a EOC catalog plus
+ * headroom for additional sinusoid / coupled-sinusoid patches. The
+ * registry is a file-scope static array so the size change is
+ * internal — no ABI break beyond the v9 wire-format change that
+ * already lands this rc.
  *
  * Threading: NOT thread-safe. The registry is a process-global state
  * shared by all callers; serialise apply/clear/encode from the caller
@@ -296,7 +301,7 @@ double es_residue_to_radians(uint32_t residue);
  * empty (the default) and the libm reference is not pulled in.
  */
 
-#define ES_MAX_PATCHES      32
+#define ES_MAX_PATCHES      64
 #define ES_PATCH_NAME_MAX   64
 
 typedef enum {

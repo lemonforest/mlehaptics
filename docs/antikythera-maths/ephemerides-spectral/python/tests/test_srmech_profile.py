@@ -182,15 +182,21 @@ def test_profile_native_loaded_when_wheel_has_native_lib() -> None:
     )
 
 
-def test_profile_native_meta_reports_abi_v8() -> None:
+def test_profile_native_meta_reports_abi_v9() -> None:
+    """rc5 (v0.28.0rc5) bumped the C ABI 8 → 9 (Phase 10a EOC C-side
+    completion: ES_PATCH_KIND_ECCENTRICITY_CORRECTION + 3 trailing
+    double fields on es_patch_t). This test pins the v9 expectation;
+    if a future rc bumps the ABI further, rename + update in lockstep
+    with c/include/ephemerides_spectral.h's ES_ABI_VERSION and
+    _native_bip.py's EXPECTED_ABI_VERSION."""
     loadable, reason = _can_load_native()
     if not loadable:
         pytest.skip(f"pure-Python install or load error: {reason}")
     p = srmech.profile("ephemerides")
     assert p._native_meta is not None
-    assert p._native_meta["abi_version"] == 8, (
+    assert p._native_meta["abi_version"] == 9, (
         f"Plugin-tier ABI handshake reported "
-        f"{p._native_meta['abi_version']}, expected 8."
+        f"{p._native_meta['abi_version']}, expected 9 (v0.28.0rc5+)."
     )
 
 
