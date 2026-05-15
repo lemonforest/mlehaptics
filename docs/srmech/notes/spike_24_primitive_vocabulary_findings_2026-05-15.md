@@ -223,9 +223,68 @@ The Phase 1 prediction held quantitatively: srmech is currently provenance scaff
 
 [See `spike_24_phase_2_matrix_2026-05-15.ndjson` — to be emitted.]
 
-## Phase 3 — Ephemerides residual analysis (pending)
+## Phase 3 — Ephemerides residual analysis (analytical pass landed; 3b/3c pending)
 
-[To be filled in after Phase 2.]
+### Phase 3a — Analytical predicted residual signatures (2026-05-15)
+
+Per body, predicted residual signature assuming **Class K (equation-of-centre / pin-slot algebra) is absent** from the encoder while DE441 truth carries it via integrated orbital dynamics. Per `[[user_stance_kepler_shape_universal]]`: the gap leaks as sinusoidal signal at the body's anomalistic frequency with amplitude near `ε ≈ 2·e` (Greek-frame convention per `[[user_stance_pi_as_projection]]`).
+
+**Formula:** for each body with sidereal period P_days and modern eccentricity e:
+- ε = 2·e (Greek convention)
+- Leading harmonic c₁ amplitude = ε radians ≈ 2·e radians = degrees(2·e)
+- Higher harmonics: c_k = ε^k / k at frequency k · (1/P_days) cycles/day
+- *Upper bound* — no real-coupling subtraction yet (deferred to 3c)
+
+**Top 5 expected signals (largest predicted c₁):**
+
+| Body | c₁ amplitude (deg) | Frequency basis |
+|------|-------------------:|-----------------|
+| **Pluto** | **28.510** | 1/90560 cycles/day (sidereal; near-equality of P_anomalistic) |
+| **Mercury** | **23.560** | 1/87.97 cycles/day |
+| **Hyperion** | **14.095** | 1/21.28 cycles/day (Saturn's irregular moon) |
+| **Mars** | **10.703** | 1/686.98 cycles/day |
+| **Luna** | **6.291** | 1/27.32 cycles/day |
+
+**Cross-validation with PR #416's empirical bronze finding:** Luna's predicted c₁ of **6.29°** matches Brown's modern lunar amplitude (6.29°) and Freeth's bronze geometry (6.5° at ε=0.1146) — the analytical formula exactly reproduces the empirical observation we landed in PR #416. The methodology is internally consistent across the bronze instance and the ephemerides instance, which validates the universal claim at quantitative level for Luna at least.
+
+**Bottom 5 expected signals (smallest predicted c₁, below or near detection threshold):**
+
+| Body | c₁ (deg) |
+|------|---------:|
+| Titania | 0.126 |
+| Rhea | 0.115 |
+| Deimos | 0.023 |
+| Tethys | 0.011 |
+| Triton | 0.000 |
+
+Triton's e ≈ 0 (circular orbit) makes its predicted c₁ vanish — and there should be no Class K residual in Triton's per-body forward-sweep against DE441. If the actual numerical validation (3b) shows non-zero residual for Triton, that's a *different* primitive class leaking (probably tidal locking + orbital-plane precession from Neptune's oblateness — Class L / J effects rather than Class K). The framework lets us distinguish: Class-K signature is at the anomalistic frequency; other-class signatures appear elsewhere in the spectrum.
+
+**Implication:** every ephemerides-spectral body whose `e > 0.01` should leak a measurable Class-K signature into the forward-sweep residual. The 31 bodies in the analytical roster (planets + major moons + Pluto-Charon) range from 0° (Triton) to 28.5° (Pluto) in predicted c₁ amplitude. The package-wide residual against DE441 is predicted to be **dominated by missing Class K** for high-e bodies; **dominated by other classes** (real couplings, Class L, etc.) for low-e bodies.
+
+**Per-body NDJSON:** [`spike_24_phase_3a_predicted_residuals_2026-05-15.ndjson`](spike_24_phase_3a_predicted_residuals_2026-05-15.ndjson) — 34 records (header + 31 per-body + ranked summary + Phase 3b/3c pointer).
+
+**Script:** [`spike_24_phase_3a_analytical_residual_2026-05-15.py`](spike_24_phase_3a_analytical_residual_2026-05-15.py) — stdlib only, runs in <1s, reproducible.
+
+### Phase 3b — Numerical validation (pending)
+
+Run ephemerides-spectral encoder's forward-sweep vs JPL DE441 over the design epoch (e.g. -200 BCE to +100 CE for the bronze-era anchor, or modern epoch for cleaner test signal). FFT-inverse the per-body residual; verify c₁ peak amplitude and frequency match the Phase 3a predictions within fabrication noise.
+
+### Phase 3c — Real-coupling subtraction (pending)
+
+Subtract contributions from real couplings BEFORE claiming the surviving residual is Class-K-missing:
+- Mean-motion resonances (Sol Resonance Graph from `ephemerides_spectral/_research/gateway_graph_laplacian.py`)
+- Secular precession (Laskar planetary tables; apsidal/nodal drift)
+- Tidal couplings (Luna especially; `tidal_migration_data.py`)
+- J₂ gravitational harmonic (close satellites + Earth's oblateness)
+- Solar tides on Moon (evection's `2(D−ℓ)` arg per PR #416 F15)
+- Breathing-Laplacian state-dependent terms (Phase 9 dynamic coupling)
+- Spin-orbit resonance locks (`spin_orbit_resonance_data.py`)
+
+For each (body, coupling-source) pair, compute the coupling's predicted contribution analytically (per the cataloged parameters), then validate numerically. The post-subtraction residual is what should match Phase 3a's prediction. If it doesn't, the body has *additional* missing primitives beyond Class K.
+
+### Phase 3d — Partition into (integer-algebraic / continuous / unexplained) — pending
+
+Final classification of post-subtraction residual content per Phase 1 + the *learn how to learn what we don't know* discipline (the earned frontier).
 
 ## Phase 4 — Ephemerides handoff packet (pending)
 
