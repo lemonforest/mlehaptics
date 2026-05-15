@@ -105,26 +105,35 @@ classes B/D/E/F/G/H/I/J/K/L/M/N (and Class O if accepted per Spike
 phased per-class with the same Python/C parity ratchet, JPL
 Power-of-Ten audit, and cibuildwheel matrix discipline as Phase B.
 
-**Do not** read the current Phase B state (Class A + Class C
-implemented) as the architectural ceiling. Per
-`[[feedback_no_mvp_framing]]`, the goal is full parity for every
-primitive class so that srmech can run on a microcontroller without
-a host Python or external LAPACK — same target as ephemerides-
-spectral. Adding a class to libsrmech is *expected work* per the
-Task #217 roadmap, not a deviation requiring justification.
+**The current Phase B state (Class A + Class C implemented)** is
+Phase B's stopping point and Task #217's starting point. Per
+`[[feedback_no_mvp_framing]]` (the MPM way of full-coverage
+shipping), the architectural target is full parity for every
+primitive class so that srmech runs on a microcontroller without
+a host Python or external LAPACK — same target ephemerides-spectral
+already markets on PyPI. Adding a class to libsrmech is expected
+work per the Task #217 per-class build-out roadmap, with each
+class's port following Task #201 Phase B's ratchet (parity test +
+JPL Power-of-Ten audit + cibuildwheel matrix update + TestPyPI rc
+verification per `[[feedback_always_rc_first_for_downstream_publishes]]`).
 
-**Carve-outs that do NOT need C ports:** parsing layers — `tomllib`,
-`json`, `MPRRecord.from_json_line` — stay in Python because they're
-not primitive-class operations; they're language-binding
-conveniences. The Phase B5 decision (TOML canonical-serialization
-port via Python `tomli` round-trip rather than vendoring a C TOML
-parser) remains correct because TOML parsing is a binding-layer
-concern, not a primitive-class operation. Distinguish: *primitive
-class operations* (numerical hot paths, hash algorithms, cyclic-
-group arithmetic, graph-Laplacian eigenvalue computation, HDC
-bind/bundle/permute, etc. — these get C ports) vs *language binding
-conveniences* (TOML/JSON parsing, Python-side caching, dispatch
-plumbing — these stay Python).
+**Operational scope clarification — what gets C ports vs what stays
+Python:**
+
+*Primitive class operations* (the C-port surface) — numerical hot
+paths, hash algorithms, cyclic-group arithmetic, graph-Laplacian
+eigenvalue computation, HDC bind/bundle/permute/similarity, prime
+factorization, equation-of-centre / pin-slot algebra, signed-metric
+composition (Class O if accepted). Each becomes a libsrmech symbol
+exported via `srmech.amsc.<class>` Python wrapper.
+
+*Language binding conveniences* (stay in Python) — `tomllib` /
+`json` / `MPRRecord.from_json_line` parsing, Python-side caching,
+dispatch plumbing, namespace-package machinery. These are not
+primitive-class operations; they're host-language ergonomics. The
+Phase B5 decision (TOML canonical-serialization via Python `tomli`
+round-trip rather than vendoring a C TOML parser) remains correct
+because TOML parsing is a binding-layer concern.
 
 **srmech is not the EMDR firmware.** The repo root `CLAUDE.md`
 describes the EMDR bilateral-stimulation device (`src/`, `test/`,
