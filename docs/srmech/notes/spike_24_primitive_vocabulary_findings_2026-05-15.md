@@ -1,6 +1,6 @@
 # Spike #24 findings — primitive vocabulary inventory + residual analysis
 
-**Status:** Phases 1, 2, 3a, 6, 7 landed; Phases 3b/3c/3d, 4, 5 pending.
+**Status:** Phases 1, 2, 3a, 5, 6, 7, 8, 9 landed; Phases 3b/3c/3d, 4 pending.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_primitive_vocabulary_2026-05-15.md`](spike_24_primitive_vocabulary_2026-05-15.md).
 
@@ -685,7 +685,168 @@ Per `[[feedback_pdf_extraction_citation_discipline]]`, primary citations to Horn
 
 **Related stances.** `[[user_stance_pi_as_projection]]` predicts that any chemistry-substrate primitive should have integer-cyclic upstream; stoichiometry's integer-coefficient nature satisfies this *a priori*, making it methodologically clean. `[[user_stance_string_theory_instrument_first]]` predicts we won't need to invent dimensions; stoichiometry already has its own well-developed mathematics that we're inheriting, not constructing. `[[user_stance_kepler_shape_universal]]` predicts that wherever stoichiometry produces Kepler-shape signature in some quantity-vs-time trace, the existing pin-slot-gear primitive composition describes it.
 
-The hope is recorded; investigation deferred to Phase 9 (concertmaster dispatch running in parallel, 2026-05-15).
+The hope is recorded; investigation carried out in Phase 9 (below).
+
+## Phase 9 — Stoichiometry investigation (2026-05-15)
+
+Concertmaster dispatch. The Phase 8 hope is converted into computational investigation across six sub-phases: stoichiometric coefficient null spaces (9.1), mass-action ODE Kepler-shape signature (9.2), Feinberg deficiency as candidate Class O (9.3) with counterpoint verification (9.3b), detailed balance + Wegscheider cycles (9.4), multi-substrate matrix update (9.5), Rydberg-to-vibrational-quanta bridge (9.6).
+
+**Scripts and NDJSON outputs:**
+- [`spike_24_phase_9_1_stoichiometric_nullspace_2026-05-15.py`](spike_24_phase_9_1_stoichiometric_nullspace_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_2_massaction_kepler_shape_2026-05-15.py`](spike_24_phase_9_2_massaction_kepler_shape_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_3_feinberg_deficiency_2026-05-15.py`](spike_24_phase_9_3_feinberg_deficiency_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_3b_counterpoint_deficiency_vs_laplacian_2026-05-15.py`](spike_24_phase_9_3b_counterpoint_deficiency_vs_laplacian_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_4_detailed_balance_2026-05-15.py`](spike_24_phase_9_4_detailed_balance_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_5_matrix_update_2026-05-15.py`](spike_24_phase_9_5_matrix_update_2026-05-15.py) + `.ndjson`
+- [`spike_24_phase_9_6_rydberg_vibrational_bridge_2026-05-15.py`](spike_24_phase_9_6_rydberg_vibrational_bridge_2026-05-15.py) + `.ndjson`
+
+### Phase 9.1 — Stoichiometric coefficients ≡ Class J extended — CONFIRMED
+
+**Setup.** For a chemical reaction, the elemental-conservation constraint is a linear map: each element (rows) summed across species (columns) signed by reactant-negative / product-positive convention must equal zero. The integer null space of this matrix gives the balanced stoichiometric coefficients.
+
+**Computational result.**
+- Methane combustion `CH4 + 2 O2 → CO2 + 2 H2O`: null space 1-D, primitive integer generator `(1, 2, 1, 2)` — matches textbook exactly.
+- Photosynthesis `6 CO2 + 6 H2O → C6H12O6 + 6 O2`: null space 1-D, generator `(6, 6, 1, 6)` — matches.
+- Haber-Bosch `N2 + 3 H2 → 2 NH3`: null space 1-D, generator `(1, 3, 2)` — matches.
+- Pyruvate parallel pathways (5 species, 2 independent pathways): null space 2-D, integer basis vectors are the two pathway-stoichiometries (lactate vs ethanol fates).
+
+**Verdict.** Stoichiometric coefficients **REDUCE to Class J extended** — period-relation / integer-Diophantine algebra extended from gear-tooth-count ratios (bronze substrate) to atomic-count basis (chemical-substrate). The integer null space's primitive generator (gcd=1) gives the balanced coefficient vector directly. For multi-pathway networks, the integer module structure encodes parallel reaction stoichiometries as basis vectors. No new primitive class required.
+
+### Phase 9.2 — Mass-action ODE Kepler-shape signature — CONFIRMED at chemistry-dynamics substrate
+
+**Setup.** Mass-action kinetics: `d[X]/dt = Σ_r ν_{r,X} k_r Π_Y [Y]^{ν^-_{r,Y}}`. Polynomial ODE in concentrations. Test whether concentration-vs-time residuals against equilibrium / time-mean show the same sparse integer-multiple harmonic spectrum that Kepler equation-of-centre series produces in orbital residuals (Phase 3a/3b).
+
+**Method.** RK45 (Brusselator, Lotka-Volterra) and LSODA stiff (Oregonator BZ) integration with high precision; Hann-windowed FFT with parabolic-interpolation peak refinement to remove FFT-bin discretisation artifacts; check that leading harmonic frequencies are integer multiples of the fundamental (within bin-aware tolerance).
+
+**Computational result.**
+- Lotka-Volterra (predator-prey): f₀ = 0.233 Hz; harmonics at ratios `1.000, 2.000, 3.000, 4.000, 5.000, 6.000` (deviation ≤ 0.005). Amplitudes monotonically decreasing. **Kepler-shape confirmed.**
+- Brusselator (autocatalytic oscillator): f₀ = 0.139 Hz; harmonics at ratios `1.000, 2.007, 3.006, 4.007, 5.013, 6.012` (deviation ≤ 0.013). **Kepler-shape confirmed.**
+- Oregonator (Field-Noyes BZ, stiff relaxation oscillator): true fundamental f₀ = 0.063 Hz; v1/v2 variables show integer-multiple harmonics at ratios `1.000, 2.014, 3.005, 4.027, 5.014, 6.040`. **Kepler-shape confirmed** (peak-detection noisier due to sharp relaxation excursions, but underlying integer structure visible).
+- Linear reversible `A ⇌ B` (control): no oscillation, no fundamental detected. Control passes — non-oscillating systems correctly excluded.
+
+**Verdict.** **3/3 oscillating mass-action systems show Kepler-shape sparse integer-multiple harmonic spectrum on concentration residuals.** Class K is **confirmed at chemistry-dynamics substrate**. This extends the Kepler-shape universal to a substrate where it was not previously documented in the spectral-research collection (chemistry-static Phase 6/7 vs chemistry-dynamics Phase 9.2).
+
+Per `[[user_stance_kepler_shape_universal]]`, the burden-flipped framing is satisfied: any mass-action oscillator (predator-prey, autocatalytic, relaxation BZ) tested shows Kepler-shape signature on its dynamics. No counter-example found.
+
+### Phase 9.3 — Feinberg deficiency δ = n − ℓ − s — CANDIDATE Class O (resolved in 9.3b)
+
+**Setup.** Feinberg's deficiency invariant: δ = (number of complexes) − (number of linkage classes) − (rank of stoichiometric matrix). The deficiency-zero theorem (Horn-Jackson-Feinberg 1972/1987): weakly-reversible CRN with δ = 0 has a unique positive equilibrium per stoichiometric class, asymptotically stable, **regardless of rate constants**. A purely topological/combinatorial invariant on the reaction graph controlling global dynamics.
+
+**Computational result.** Verified on canonical test networks:
+- Reversible Haber-Bosch: n=2, ℓ=1, s=1, δ=0, weakly-reversible.
+- Schlögl bistable mechanism `2X ⇌ 3X, X ⇌ 0`: n=4, ℓ=2, s=1, **δ=1** — the canonical deficiency-one textbook example reproduced exactly.
+- Triangle cycle `A→B→C→A`: n=3, ℓ=1, s=2, δ=0.
+- Michaelis-Menten `E+S ⇌ ES → E+P`: n=3, ℓ=1, s=2, δ=0.
+- All 6 cases with `expected` annotations matched the textbook values.
+
+**Provisional Phase 9.3 verdict.** δ is a counting/topological invariant that does NOT directly reduce to a Class L eigenvalue (Class L gives spectrum; δ is a rank/kernel-dimension statement) and does NOT directly reduce to Class J factorisation. Phase 9.3 named it **candidate Class O** (topological-invariant-on-reaction-graph) and dispatched the load-bearing question to a counterpoint verification (9.3b).
+
+### Phase 9.3b — Counterpoint: Class O? RESOLVES to Class L × Class J composition
+
+**Counterpoint approach.** Build the complex-space Laplacian L_complex (vertices = distinct chemical complexes; edges = reactions, undirected for the kernel-counting result). Compute rank and kernel dimension. Test three identities from CRN theory:
+
+  (i)   dim(ker L_complex) = ℓ (linkage class count)
+  (ii)  rank(L_complex) = n − ℓ
+  (iii) δ = rank(L_complex) − rank(stoichiometric matrix N)
+
+**Computational result.** All three identities verify on all 5 test networks (Haber-Bosch, Schlögl, Edelstein, triangle, Michaelis-Menten).
+
+**Resolved verdict.** Feinberg deficiency **REDUCES to Class L × Class J composition**: specifically `δ = rank(L_complex) − rank(N)`. Both ranks are linear-algebra invariants on graph-derived matrices. Class L gives the complex-space Laplacian's rank/eigenstructure; Class J (or linear-algebra-rank as a general primitive) gives the stoichiometric matrix's rank.
+
+**Beautiful re-statement of the deficiency-zero theorem.** When the two ranks AGREE (δ = 0), the dynamics has a unique stable equilibrium regardless of rate constants. The condition is a *rank-equality between two graph-derived linear maps*: the complex-space Laplacian and the stoichiometric matrix. No new primitive class needed; the algebraic content is already in our existing vocabulary as a *Class L + Class J composition*.
+
+**Methodological note (fermata).** If the project's primitive vocabulary cares about *differences of ranks* as a separate primitive class, Class O? survives as a derived-rank primitive distinct from L and J alone. Conductor decision: name the composition (Class O retained) or absorb into Class L × J (Class O retracted). Phase 9 recommends the latter, but the choice is methodological, not algebraic.
+
+### Phase 9.4 — Detailed balance & Wegscheider cycles — Class J × Class I composition
+
+**Setup.** Microscopic reversibility imposes `k₊/k₋ = K_eq` per elementary reaction. For a cycle of reactions on the reaction graph, the product of equilibrium constants around the cycle must equal 1 (Wegscheider condition), equivalently the sum of `log(K)` around the cycle is zero.
+
+**Computational result.**
+- Single reaction `A ⇌ B`: K_eq is a multiplicative ratio of rate constants. Real-valued Class J at chemistry substrate (the integer-cyclic upstream form is a rational rate ratio in discrete-rate Markov-chain kinetics).
+- Triangle cycle with consistent K's `(K_AB·K_BC·K_CA = 1)`: Wegscheider satisfied; log-sum = 0.
+- Triangle cycle with deliberately inconsistent K: Wegscheider violated; product = 3.0, log-sum = 1.1.
+- Kite graph (4 vertices, 4 edges, 1 independent cycle): consistent K's give product = 1.0 exactly.
+
+**Verdict.** Detailed balance reduces to **Class J × Class I composition**: Class J (per-edge multiplicative ratio) × Class I (cycle-closure constraint — the cyclic-group closure relation that compositions around a cycle return to identity). The Wegscheider condition at chemistry substrate is isomorphic to Kirchhoff's voltage law at EE substrate and to the gear-DAG closure constraint at bronze substrate — all the same additive ℤ-cohomology on the cycle subgroup of H₁ of the network graph. No new primitive class needed.
+
+### Phase 9.5 — Multi-substrate matrix update with CRN column
+
+**Update.** Phase 7.4's 16-row × 6-column matrix becomes 16-row × 7-column with a new chemistry-reaction-network (CRN) column added. The CRN column reports:
+
+- **native** in 10 classes: B (complexes as tagged tuples), C (mass-action iteration), E (catalog), G (conservation analysis as discovery), H (deficiency/rank as introspection), I (Wegscheider closure), J (stoichiometric integer null space), K (mass-action Kepler-shape), L (reaction-graph Laplacian), and the candidate O? (deficiency-style topological invariant before its 9.3b reduction).
+- **composed** in 2 classes: D (rate-law late-binding via composition), M (HDC encoding of reactions is possible but not native).
+- **absent** in 4 classes: A (no content-addressing), F (no templating), N (no rational-approximation; stoichiometric integers are integers by construction), P? (no conformal-projection).
+
+If Class O? is retracted per 9.3b's reduction, the matrix retains its prior 16 rows; the CRN column adds 7 rows of `native` cells in addition to the existing matrix.
+
+**Class K's chemistry row now reads as confirmed at TWO sub-substrates**: chemistry-static (Phase 6/7: ethane V₃, Felkin-Anh, anomeric) AND chemistry-dynamics (Phase 9.2: Lotka-Volterra, Brusselator, Oregonator residuals). The Kepler-shape universal has accumulated additional confirming evidence within the chemistry substrate column.
+
+### Phase 9.6 — Rydberg ⇔ molecular vibrational bridge
+
+**Setup.** Phase 7.6.1 identified hydrogen Rydberg series (`E_n = -R_H/n²`; line frequencies `R_H · (1/n² − 1/m²)`) as Class J at atomic substrate (integer-ratio period-relation factorisation on the principal quantum number n). Phase 9.6 tests whether **molecular vibrational quanta** (anharmonic oscillator: `E_v = ν_e(v+½) − ν_e·x_e·(v+½)²`) show analogous Class J structure on the vibrational quantum number v.
+
+**Computational result.**
+- Hydrogen Balmer-α (n=2→3): 15233.00 cm⁻¹ — matches textbook value 656.3 nm = 15233 cm⁻¹.
+- HCl fundamental (v=0→1) with ν_e=2990.95 cm⁻¹ [unverified-secondary; Herzberg]: 2885.33 cm⁻¹.
+- HCl first overtone (v=0→2) / fundamental ratio: 1.9634 — anharmonicity reduces the ratio from the harmonic limit of 2.0 by ~1.8%.
+
+**Verdict.** Molecular vibrational quanta **REDUCE to Class J extended at molecular substrate**, exactly analogous to Rydberg series at atomic substrate. Class J's universal extends across:
+
+- Bronze: gear-tooth integer ratios; Metonic / Saros / Callippic period relations.
+- Cosmos: planetary period ratios (5:2 Saturn:Jupiter, 2:1 mean-motion resonances).
+- Chemistry-static-atomic: Rydberg series 1/n² factorisation.
+- Chemistry-static-molecular: vibrational ladders with (v+½)² anharmonicity.
+- Chemistry-dynamics-CRN: stoichiometric integer null-space coefficients.
+- CPU: integer arithmetic; rational number arithmetic.
+
+**Six native instantiations across distinct substrates** — Class J is now the strongest-supported primitive class in the spectral-research portfolio's matrix.
+
+**Cross-substrate bridge.** The "atomic Class J → molecular Class J" cascade (Rydberg integers → vibrational v-quanta) is the chemistry-substrate analog of the bronze-substrate "individual gear tooth count → composed gear-train period relation" cascade. Per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the integer quantum number is the *upstream fiber* (algebraically present, spatially absent until measurement projects it); the continuous spectral line is the *downstream projection*.
+
+### Phase 9 — Verdict summary
+
+| Sub-phase | Question | Verdict |
+|-----------|----------|---------|
+| **9.1** | Stoichiometric coefficients = Class J extended? | **YES** — REDUCES to integer null-space Diophantine. |
+| **9.2** | Mass-action ODEs show Kepler-shape signature? | **YES** — 3/3 oscillating systems confirm Class K at chemistry-dynamics. |
+| **9.3** | Feinberg deficiency = candidate new Class O? | Provisional YES → resolved by 9.3b. |
+| **9.3b** | Counterpoint: does Class O? reduce? | **YES** — `δ = rank(L_complex) − rank(N)` = Class L × Class J composition. |
+| **9.4** | Detailed balance / Wegscheider = new class? | **NO** — Class J × Class I composition (per-edge ratio × cycle closure). |
+| **9.5** | Multi-substrate matrix update | Added CRN column; 10/14 classes native; Class O? consumed by 9.3b. |
+| **9.6** | Rydberg ⇔ molecular vibrational quanta bridge? | **YES** — both Class J at adjacent substrates (atomic → molecular). |
+
+**Strongest new-primitive candidate** (Feinberg deficiency) **RESOLVED to existing-class composition.** No genuinely-new primitive class surfaces in Phase 9. The Spike #24 vocabulary remains at 14 confirmed classes (A–N) + 1 fermata candidate (P? conformal projection from Phase 7.3). Class O? is retracted per 9.3b.
+
+**Kepler-shape universal status:** STANDS STRONGER. Phase 9.2 added chemistry-dynamics as a fourth confirming substrate (after bronze, cosmos, chemistry-static). The universal continues to predict correctly across every substrate tested.
+
+**Vocabulary CONSOLIDATES (further).** Phase 7 already showed three reductions (Woodward-Hoffmann → L+I@2; Felkin-Anh + anomeric → broken K). Phase 9 adds four reductions:
+1. Stoichiometric coefficients → Class J extended.
+2. Mass-action Kepler-shape → Class K.
+3. Feinberg deficiency → Class L × Class J composition.
+4. Detailed balance + Wegscheider → Class J × Class I composition.
+
+The 5-substrate primitive vocabulary continues to absorb new chemistry phenomena without expanding. This is consistent with `[[user_stance_string_theory_instrument_first]]`: the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
+
+### Phase 9 fermatas (conductor decisions pending)
+
+1. **Class O? retract-or-keep-as-composition-label.** Phase 9.3b's counterpoint shows δ reduces to Class L × Class J. If the project's vocabulary wants a named *composition* for the deficiency formula (as a useful working label), keep Class O as "Class L × Class J difference-of-ranks composition." If the vocabulary should not multiply composition-labels, retract O? entirely. Phase 9 leans toward retraction; the conductor decides.
+
+2. **Chemistry primary-PDF citations.** Phase 9 introduces three new `[unverified-secondary]` claims requiring primary verification before notebook landing:
+   - HCl ν_e and ν_e·x_e values (Herzberg Vol I; or NIST WebBook diatomic spectra).
+   - Horn 1972, Jackson 1972, Feinberg 1979/1987 deficiency-zero theorem citations.
+   - Field & Noyes 1974 Oregonator parameters.
+
+3. **Phase 9.2 expansion to more chemistry oscillators.** Three oscillators tested; the universal holds for all three. If the conductor wants stronger confirmation, more systems (CIMA reaction, glycolytic oscillation in yeast extracts, calcium-signaling oscillators) could be added. Optional follow-up.
+
+4. **CRN matrix column placement in notebook §3.8.** The current spike-only matrix lives in this findings doc; landing it in the notebook needs conductor's call on whether it joins §3.8 as a sub-table or warrants its own §3.9 subsection.
+
+### Phase 9 closing observation
+
+Phase 8's hope is honoured: stoichiometry's algebra IS systematically catalogued in the existing primitive vocabulary. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The chemistry substrate (across static + dynamic + atomic + molecular sub-substrates) supplies the LARGEST single haul of primitive-instantiation confirmations in Spike #24 — and produces ZERO genuinely-new primitive classes. The Kepler-shape universal continues to hold; the vocabulary continues to consolidate; `[[user_stance_string_theory_instrument_first]]` continues to predict correctly that we don't need new dimensions.
+
+The candidate-new-class verdict (Phase 9.3 → Class O?) was the right conservative call to make pending counterpoint; the counterpoint (Phase 9.3b) resolved it to existing-class composition. This pattern — *propose, counterpoint, reduce* — is the dual-agent verification discipline (`[[feedback_dual_agent_research_pattern]]`) working as intended.
+
+Phase 9 is complete. Stoichiometry's algebra theory IS the existing primitive vocabulary, instantiated at chemistry substrate.
 
 ## Phase 10 — Chess substrate boundary characterisation (2026-05-15)
 
