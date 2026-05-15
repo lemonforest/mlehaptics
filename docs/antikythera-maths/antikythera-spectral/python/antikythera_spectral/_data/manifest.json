@@ -44,6 +44,10 @@
       "sha256": "67c680afed30cf0c44e13f26d0e5a0b067678a1edb892275477a4fd69f03466f",
       "size_bytes": 16679
     },
+    "_research/bronze_planetary_encoder.py": {
+      "sha256": "ad38124fd0ee048a4b14276c7b0ab1d6a45e0ed21b778cf07780c1df4a3d4b6e",
+      "size_bytes": 12464
+    },
     "_research/consolidated_tests.py": {
       "sha256": "dc69597f01fd82c60ac54ac630c7f2703ecc1e80c4f655a01d0c983e68115648",
       "size_bytes": 63871
@@ -131,6 +135,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "15e7e2839c209331b7af8fdf2fff1c565afd9337",
+  "source_commit": "fbb8630484d88697027e15756a004bd83c82e9de",
   "version": "0.3.0"
 }

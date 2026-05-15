@@ -55,6 +55,7 @@ _INCLUDED_MODULES: List[str] = [
     "astronomical_cycles.py",
     "astronomical_ground_truth.py",
     "bit_alu.py",
+    "bronze_planetary_encoder.py",
     "consolidated_tests.py",
     "cyclic_group_algebra.py",
     "dial_decoder.py",
