@@ -82,13 +82,22 @@ import numpy as np
 #       Python-side EXPECTED_ABI_VERSION catch-up — the C side has been
 #       at v8 since v0.16.0 but this constant was left at 6, silently
 #       forcing HAS_NATIVE = False on every wheel install.
-EXPECTED_ABI_VERSION: int = 8
+#   v9 — v0.28.0rc5: Phase 10a EOC C-side completion.
+#       Added: ES_PATCH_KIND_ECCENTRICITY_CORRECTION + 3 trailing
+#       double fields on `es_patch_t` (eccentricity,
+#       mean_anomaly_at_j2000_rad, n_rad_per_day). Additive — original
+#       field offsets preserved, but sizeof(es_patch_t) increased.
+#       Closes the rc1 backend_caveat: EOC patches now work on
+#       backend="c" and produce byte-exact agreement with the Python
+#       BIP path (pinned by test_eoc_catalog's both-backends parity).
+EXPECTED_ABI_VERSION: int = 9
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
 ES_MAX_PATCHES: int = 32
 ES_PATCH_KIND_SINUSOID: int = 0
 ES_PATCH_KIND_COUPLED_SINUSOID: int = 1
+ES_PATCH_KIND_ECCENTRICITY_CORRECTION: int = 2  # v0.28.0rc5 (ABI v9)
 
 # Patch registry status codes (es_apply_patch / es_get_patch_at).
 ES_ERR_PATCH_FULL: int = 100
@@ -103,9 +112,15 @@ class EsPatch(ctypes.Structure):
     """Wire-format mirror of ``es_patch_t`` from the C header.
 
     Field order MUST match the C struct exactly. Any field-order or
-    type drift here vs the ABI v2 layout would silently corrupt
+    type drift here vs the ABI v9 layout would silently corrupt
     patch registration; the field layout is locked in by the C
-    side's ``ES_ABI_VERSION = 2`` and the load-time abi-version check.
+    side's ``ES_ABI_VERSION = 9`` and the load-time abi-version check.
+
+    ABI v9 (v0.28.0rc5) extended the struct with 3 trailing double
+    fields for the ECC patch kind. Original field offsets are
+    unchanged — older patches written through ABI v2/v8 layouts
+    remain valid as long as the new ECC fields are zero-initialised
+    (which `EsPatch()` default-construct does).
     """
     _fields_ = [
         ("kind", ctypes.c_int32),
@@ -116,6 +131,10 @@ class EsPatch(ctypes.Structure):
         ("period_days", ctypes.c_double),
         ("phase_rad", ctypes.c_double),
         ("correlation", ctypes.c_int32),
+        # ── v0.28.0rc5 (ABI v9): eccentricity-correction fields ────
+        ("eccentricity", ctypes.c_double),
+        ("mean_anomaly_at_j2000_rad", ctypes.c_double),
+        ("n_rad_per_day", ctypes.c_double),
     ]
 
 #: Status codes from ``es_status_t``.
@@ -304,6 +323,11 @@ def _bind(lib: ctypes.CDLL) -> None:
     # int es_get_patch_at(size_t idx, es_patch_t *out)
     lib.es_get_patch_at.argtypes = [ctypes.c_size_t, ctypes.POINTER(EsPatch)]
     lib.es_get_patch_at.restype = ctypes.c_int
+
+    # ABI v9 (v0.28.0rc5) — Phase 10a EOC C-side completion.
+    # size_t es_clear_eoc_patches(void)
+    lib.es_clear_eoc_patches.argtypes = []
+    lib.es_clear_eoc_patches.restype = ctypes.c_size_t
 
     # ABI v3 (v0.6.0) — Tier 1 parity surface.
     # es_status_t es_breathing_modulation(
@@ -593,6 +617,44 @@ def native_apply_coupled_patch(name: str, body_idx_a: int, body_idx_b: int,
     return int(LIB.es_apply_patch(ctypes.byref(patch)))
 
 
+def native_apply_eoc_patch(name: str, body_idx: int,
+                           eccentricity: float,
+                           mean_anomaly_at_j2000_rad: float,
+                           n_rad_per_day: float) -> int:
+    """Mirror a Phase 10a eccentricity-correction patch into the C
+    registry (v0.28.0rc5, ABI v9).
+
+    The C-side evaluator Newton-solves Kepler's equation and applies
+    the half-angle true-anomaly formula in lockstep with the Python
+    BIP encoder's `EccentricityCorrectionPatch.evaluate()`; with both
+    sides registered, `default_encode(..., backend="c")` byte-matches
+    `backend="bip"` even when EOC patches are active.
+
+    Returns ``ES_OK`` (0) on success, otherwise one of the
+    ``ES_ERR_PATCH_*`` codes (``BAD_PARAM`` if eccentricity is out of
+    [0, 1) or n_rad_per_day is zero / non-finite).
+
+    No-op (returns ``ES_OK`` immediately) if HAS_NATIVE is False.
+    """
+    if not HAS_NATIVE:
+        return ES_OK
+    assert LIB is not None
+    patch = EsPatch(
+        kind=ES_PATCH_KIND_ECCENTRICITY_CORRECTION,
+        name=name.encode("utf-8")[: ES_PATCH_NAME_MAX - 1],
+        body_idx_a=int(body_idx),
+        body_idx_b=-1,
+        amplitude_deg=0.0,
+        period_days=0.0,
+        phase_rad=0.0,
+        correlation=0,
+        eccentricity=float(eccentricity),
+        mean_anomaly_at_j2000_rad=float(mean_anomaly_at_j2000_rad),
+        n_rad_per_day=float(n_rad_per_day),
+    )
+    return int(LIB.es_apply_patch(ctypes.byref(patch)))
+
+
 def native_clear_patches() -> int:
     """Wipe the C-side patch registry. Returns prior count.
 
@@ -602,6 +664,23 @@ def native_clear_patches() -> int:
         return 0
     assert LIB is not None
     return int(LIB.es_clear_patches())
+
+
+def native_clear_eoc_patches() -> int:
+    """Selectively clear only EOC patches (kind ==
+    ``ES_PATCH_KIND_ECCENTRICITY_CORRECTION``) from the C-side
+    registry. Sinusoid + coupled-sinusoid patches are left intact.
+    Returns the count of EOC patches removed.
+
+    Mirrors ``_eoc_catalog.clear_eoc_patches()`` on the Python side
+    so the two registries stay in sync. v0.28.0rc5 (ABI v9).
+
+    No-op (returns 0) if HAS_NATIVE is False.
+    """
+    if not HAS_NATIVE:
+        return 0
+    assert LIB is not None
+    return int(LIB.es_clear_eoc_patches())
 
 
 def native_n_active_patches() -> int:
