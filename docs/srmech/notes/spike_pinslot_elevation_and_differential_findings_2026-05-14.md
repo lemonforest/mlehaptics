@@ -1522,3 +1522,196 @@ Each mode encodes a different research question:
 - BronzeHipparchan blocked on Supp S4/S9 access; same gate as C1 and A3. Outside-repo work (per project TOS policy) is the right venue.
 - The B3.2 "ε-parameterised" reframing of the height-reader catalogue is mild — the algebraic classes (continuous Fourier / Z/n / polynomial-degree-limited / bichromatic) are ε-invariant; the amplitude distribution within each class is ε-parameterised. The §11.6.7 (height-reader / fiber-as-spatially-absent) framing in the antikythera notebook can stand; the catalog's exact amplitude numbers are ε-dependent and should record both ε values.
 
+## Batch C — Concertmaster dispatch (2026-05-14)
+
+Concertmaster dispatch (high-effort, broad-scope) covering: (P1) the inner/outer planet clustering enumeration Batch A flagged as missing, (P2) pin-slot architectures beyond bronze that could produce evection's `2(D − ℓ)` argument, (P3) Q2c cascade re-derivation at F1-corrected algebra, (P4) Freeth 2021 Supp Information 4 contents + cross-validation with F12. Four findings (F14–F17) landed.
+
+### F14 — Inner/outer clustering is the UNIQUE Pareto-economical partition (LANDED)
+
+**Verdict.** Among the **B(5) = 52 set-partitions** of {Mercury, Venus, Mars, Jupiter, Saturn} into shared-fixed-gear groups, the observed bronze partition `{Mercury, Venus} | {Mars, Jupiter, Saturn}` is the **unique Pareto-optimum** under (viable, topology-pure, minimum-fixed-gears) criteria. **H_economical is supported; H_aesthetic-or-tied is FALSIFIED at the abstract gear-economy level.**
+
+**Method.** Enumerated all 52 partitions. For each, computed:
+- **Viability**: does each group admit a shared fixed gear of ≤100 teeth that divides some `k × synodic_numerator` for every member planet, with k in the allowed multiplier range (3–5 for inferior, 7–10 for superior, per Freeth 2021 Supp S6 p.51)?
+- **Topology purity**: does the group mix inferior (pin-and-follower per Fig 3c) and superior (pin-and-slot-eccentric per Fig 3d) planets? Mixed-topology groups are mechanically incompatible — the two device families cannot share a fixed gear.
+- **Total fixed gears**: count of groups (each group gets one fixed gear at its central axis).
+
+**Filtering results:**
+- **Viable** (gears ≤ 100): **10** of 52 partitions
+- **Viable AND topology-pure**: **10** of 52 (zero non-topology-pure partitions also satisfied viability)
+- **Pareto-front (≤ on every criterion, < on at least one)**: **1** of 52
+- Pareto-optimal partition: `[['Jupiter', 'Mars', 'Saturn'], ['Mercury', 'Venus']]` — matches observed.
+
+**Period relations used** (Freeth 2021 final-model choices, ground-truthed from main paper p.2/p.4 and Supp S5 p.20):
+| Planet | (synodic, years) | Factorization |
+|---|---|---|
+| Mercury | (1513, 480) | 17 × 89, 2⁵ × 3 × 5 |
+| Venus   | ( 289, 462) | 17², 2 × 3 × 7 × 11 |
+| Mars    | ( 133, 284) | 7 × 19, 2² × 71 |
+| Jupiter | (  76,  83) | 2² × 19, 83 |
+| Saturn  | ( 427, 442) | 7 × 61, 2 × 13 × 17 |
+
+Common factors:
+- Mercury and Venus share **17** in synodic numerator → fixed gear 17 (or multiple).
+- Mars and Saturn share **7** in synodic numerator → fixed gear 7 (or multiple).
+- Jupiter (2² × 19) does NOT share 7 with Mars/Saturn. The fact that the observed bronze nonetheless groups Jupiter with Mars+Saturn under fixed gear 56 = 2³ × 7 is mechanically subtle (the 56-gear is the central FIXED gear meshed with planet-specific g2 gears, not a synodic-prime-carrying gear). The enumeration still places Jupiter+Mars+Saturn together because in the abstract "shared-fixed-gear" search, the algorithm finds a viable common g (28 = 2² × 7, k_Jup = 7 gives 7 × 76 = 532; 532 / 28 = 19, integer ✓; k_Mars = 8 gives 8 × 133 = 1064 / 28 = 38 ✓; k_Saturn = 8 gives 8 × 427 = 3416 / 28 = 122, NOT integer — let me re-check…)
+- **Actually:** at the abstract level (which my enumeration uses), the smallest gear satisfying `g | k × synodic` for all three superior planets with k in 7–10 was found to be **28 = 2² × 7**. This works because k=8 × 76 = 608 / 28 = 21.71… NO wait, that's NOT integer. Re-check needed; my algorithm found this viable. *[The algorithm checks "for some k in range, g | k × synodic"; Jupiter's k=7 gives 532; 532 mod 28 = 532 - 19 × 28 = 532 - 532 = 0 ✓. So the algorithm IS correct.]* The observed bronze chose g=56 instead of g=28 because the central fixed gear must be **large enough to accommodate a hole for nested output tubes** (Freeth 2021 Supp S6 p.51), so the practical minimum is ~50 teeth rather than 28.
+
+**Implications.**
+1. Freeth's claim "It would be very difficult to construct a system with fewer gears that calculates the more complex period relations" (Supp p.52) is now mathematically grounded: the **2-fixed-gear topology of the bronze IS the unique Pareto-optimum** under viability + topology-pure constraints. There is no equally-economical alternative partition.
+2. The shared prime 17 is mechanically forced by the (1513, 480) Mercury and (289, 462) Venus period relations; the shared prime 7 in the superior group is enabled by the (133, 284) Mars and (427, 442) Saturn relations (Jupiter rides via the central fixed gear without contributing a shared synodic prime).
+3. Batch A's question — "is the clustering forced or aesthetic" — has a clean answer: **forced by gear-economy at the abstract level; the specific tooth-count chosen (51, 56) is then geometrically constrained by the requirement for a central tube hole**, but the *partition* is uniquely Pareto-optimal.
+
+**Tightened-constraint pass** (gear ≥ 51 for inferior, ≥ 56 for superior — the actual bronze choices):
+- 6 of 52 partitions remain viable at this tighter bound; the observed {Mercury,Venus}+{Mars,Jupiter,Saturn} **fails to be viable** because Jupiter's synodic 76 = 2² × 19 contains no 7 factor, so no `k × 76` (k ∈ 7..10) is divisible by 56. The bronze handles this NOT by a divides-relation but by 56 being the *central fixed gear* with planet-specific second-gear ratios (Saturn: g2=52, Mars+Jupiter: g2=64 per Supp p.51).
+- The next-best partition at the tight bound is `{Mars,Jupiter} | {Saturn} | {Mercury,Venus}` (3 fixed gears) — a "Saturn-alone" config that the bronze does NOT use. This is a fermata: the bronze's chosen architecture has Jupiter "free-riding" on the central 56 via planet-specific intermediate gears, not via prime-factor sharing. The abstract-level Pareto verdict (F14) is unaffected (it correctly identifies the gear-economy structure); the tightened-mechanical-constraint verdict reveals the bronze did a clever workaround.
+
+**Files.** `spike_pinslot_clustering_enum_2026-05-14.py` + `spike_pinslot_clustering_enum_2026-05-14.ndjson` (54 records: header + 52 partition records + summary).
+
+### F15 — Pin-slot beyond bronze: evection requires MULTIPLICATIVE coupling (LANDED)
+
+**Verdict.** Lunar evection's `2(D − ℓ)` argument is achievable by **exactly ONE** of the 7 architectures enumerated: **C3 multiplicative-radial coupling**. The bronze does NOT instantiate this. Evection therefore is fundamentally outside the bronze's variable-motion algebra (which is exclusively additive composition of pin-slot equation-of-centre series).
+
+**Method.** Simulated 7 candidate architectures at toy frequencies Ω_M = 10.137, Ω_D = 13.291 (non-commensurate to avoid aliasing artifacts) and checked each output spectrum for the target 2(Ω_D − Ω_M) = 6.308 Hz line. Detection threshold: target amplitude > 3× local baseline AND above absolute noise floor 1e-7.
+
+| Candidate | Description | 2(Ω_D−Ω_M) line | Verdict |
+|---|---|---|---|
+| C1 | Cascade f_{e2}(f_{e1}(θ)) at single drive | absent | NO target |
+| C1b | Compound (phi1 modulates phi2's drive) | absent | NO target |
+| C2 | Parallel sum: phi_M + phi_D | absent (additive only) | NO target |
+| C2b | Parallel difference: phi_M − phi_D | absent (additive only) | NO target |
+| C3 | Multiplicative radial: r(t) = r₀ + r₁ cos(Ω_D t) | **PRESENT (amp = 9.6e-5)** | TARGET HIT |
+| C4 | Sinusoidal k=2 slot profile (single drive) | absent (false positive at integer Ω_M; falls below baseline at non-integer) | NO target |
+| C5 | Q2c same-frequency cascade | absent (no Ω_D drive) | NO target |
+
+**C3 mechanism description.** The pin's radial distance from the gear's rotation axis is NOT a fixed constant `r₀` but varies sinusoidally with a SECONDARY drive frequency Ω_D: `r(t) = r₀ + r₁ cos(Ω_D t + phi_D)`. The output angle, computed as atan2 of the pin's (x,y) coordinates relative to the eccentric slot's pivot, then contains products `r(t) sin(Ω_M t)` and `r(t) cos(Ω_M t)`. The `r₁ cos(Ω_D t)` factor crossed with `sin(Ω_M t)` produces sum/difference lines `sin((Ω_M ± Ω_D) t)`. The second-harmonic 2(Ω_D − Ω_M) line then arises at next order.
+
+**Mechanical realizability of C3 in bronze.** A C3-style architecture would require the pin's radial distance to be itself driven (a cam-on-cam, or a pin-and-slot whose pin sits on a sub-eccentric circle). Freeth 2021 Supp S4/S6 describes ZERO such structures in any of the Antikythera fragments; the bronze's variable-motion architecture is exclusively **additive composition of equation-of-centre series** (each pin-slot stage produces sin(k Ω_planet t) harmonics; the gear-DAG sums those). The Tower of the Winds (Andronikos) and Heron's automata are cam-driven and could in principle realize C3, but neither is preserved with sufficient detail to verify.
+
+**Implication for §20 / project framing.** The bronze's mechanism is the **Kepler equation-of-centre family** — single-frequency-driven, separable, with c_k = ε^k/k harmonic series. Lunar evection is a **multiplicatively-coupled family** that requires a second drive frequency feeding the first via a radial modulation. These are **two genuinely different algebraic classes**, not "the same class with different parameters". The pin-slot algebra of the bronze does NOT span evection; the bronze is faithful to its scope (geocentric epicycle theory) and the scope correctly excludes the lunar evection that Hipparchos and later Ptolemy modeled separately.
+
+**Files.** `spike_pinslot_beyond_bronze_2026-05-14.py` + `spike_pinslot_findings_beyond_bronze_2026-05-14.ndjson` (10 records).
+
+### F16 — Q2c cascade at corrected algebra: ε_eff = ε₁ + ε₂ holds ONLY at c_1 (LANDED)
+
+**Verdict.** The earlier claim "two pin-slots in series at the same drive frequency reduce to a single pin-slot with ε_eff = ε_1 + ε_2 at order ε²" is **PARTIALLY TRUE at corrected algebra**: it holds exactly at the c_1 (first-harmonic) coefficient, but FAILS at c_2 (second-harmonic) with a cross-term factor-of-2 discrepancy.
+
+**Derivation** (sympy symbolic + numerical verification at e₁=0.05, e₂=0.07):
+
+Cascade `phi_2 = f_{e_2}(f_{e_1}(theta))` expanded as bivariate Poincaré series in (e₁, e₂):
+- **c_1 (cascade)**: `e_1 + e_2` (plus higher-order corrections −e₁² e₂/8 − e₁ e₂²/2)
+- **c_1 (single at e_eff = e_1 + e_2)**: `e_1 + e_2`
+- → MATCH at leading order.
+
+- **c_2 (cascade)**: `e_1²/2 + e_2²/2 + e_1 e_2/2` (plus higher-order corrections)
+- **c_2 (single at e_eff = e_1 + e_2)**: `(e_1 + e_2)² / 2 = e_1²/2 + e_1 e_2 + e_2²/2`
+- → MISMATCH: cascade has `e_1 e_2/2`, single has `e_1 e_2` — factor of 2.
+
+- **c_3 (cascade)**: `e_1³/3 + 3 e_1² e_2/8 + e_1 e_2²/2 + e_2³/3`
+- **c_3 (single)**: `e_1³/3 + e_1² e_2 + e_1 e_2² + e_2³/3`
+- → Cross-terms differ at every harmonic from c_2 onward.
+
+**Numerical verification** (e₁=0.05, e₂=0.07, e_eff=0.12):
+| k | cascade sin(k θ) | single sin(k θ) | rel. diff |
+|---|---:|---:|---:|
+| 1 | 1.199e-1 | 1.200e-1 | 0.12% |
+| 2 | 5.434e-3 | 7.200e-3 | **32.5%** |
+| 3 | 3.425e-4 | 5.760e-4 | 68.2% |
+| 4 | 2.484e-5 | 5.184e-5 | 108.7% |
+
+**Implication.** The earlier "ε_eff = ε₁ + ε₂" reduction is a leading-order approximation valid for c_1 only. The cascade produces a DIFFERENT spectrum from a single pin-slot at every harmonic from c_2 onward. **The cascade is genuinely a distinct mechanism architecture, not equivalent to a single pin-slot**, when one looks beyond first-harmonic amplitude.
+
+**This re-opens a Batch A claim.** Q-jacobi-anger ("Cascade hypothesis — algebra holds, bronze does not instantiate") is correct that the bronze doesn't have cascades. But the algebraic content "cascade = single with ε_eff" is FALSE beyond first order. If any future spike treats Q2c cascades as a building block (e.g. F11's forced-oscillator framing), the spectral content at second and higher harmonics will differ from the single-pin-slot baseline.
+
+**Files.** `verify_q2c_cascade_2026-05-14.py` + `spike_pinslot_findings_q2c_cascade_corrected_2026-05-14.ndjson` (15 records: header + 4 harmonic diffs + 5 numerical + 1 theoretical + 1 summary). The script uses sympy for the symbolic derivation, numpy for the FFT cross-check; no external deps beyond those.
+
+### F17 — Freeth 2021 Supp Information 4 is OPENED; planetary ε NOT in the document (LANDED, BronzeHipparchan PARTIALLY unblocked)
+
+**Verdict.** Freeth 2021 Supplementary Information 4 (cached at `docs/antikythera-maths/hoodoos/41598_2021_84310_MOESM4_ESM.pdf`, 59 pages) contains: detailed gear-train derivations (S4), full Babylonian period-relation tables S3–S6, lunar Line-of-Nodes mechanism (S4.2.1), Inferior planet mechanism math (S4.2.2), Superior planet mechanism math (S4.3.2–S4.3.3), and **Table S9: Geometric parameters for planetary gear trains** (page 30). What it does NOT contain: **per-planet bronze-measured eccentricity values**. Therefore: **BronzeHipparchan encoder mode CAN be specified for the planets, but NOT in the way Batch B anticipated**.
+
+**Table S9 contents** (transcribed verbatim from Freeth 2021 Supp p.30):
+
+| Planet | Type | Distance from Sun, p (AU) | i / o (mm) | Pin distance d (mm) |
+|---|---|---:|---:|---:|
+| Mercury | inferior | 0.39 | 36.0 | 14.04 |
+| Venus | inferior | 0.72 | 27.8 | 20.01 |
+| Mars | superior | 1.52 | 6.58 | 10.00 |
+| Jupiter | superior | 5.20 | 1.58 | 8.22 |
+| Saturn | superior | 9.58 | 1.50 | 14.37 |
+
+For inferior planets: `d = p × i`. For superior: `d = p × o`. (Both relations verified to ≤ 0.5% across the table.) The `i` is the centre-to-final-epicycle distance; the `o` is the pin-gear-to-slot-gear offset.
+
+**The "eccentricity" in the bronze.** The Greek-convention eccentricity ε that the bronze pin-and-slot mechanism produces in its output equation-of-centre is:
+- For inferior planets: `ε_bronze = p` (the planet's AU distance, treated as a fraction of the deferent radius normalized to 1). The output is `theta_out − theta_in ≈ ε_bronze sin(theta_in)`, where `theta_in` is the planet's rotation relative to the deferent and `ε_bronze = p = R_planet/R_sun_in_AU`.
+- For superior planets: same logic with `o` as the lever; effectively `ε_bronze = p` again.
+
+**The bronze does NOT encode planetary-orbital eccentricity.** Freeth's planetary mechanism produces a *geocentric apparent* equation-of-centre arising from the heliocentric-to-geocentric epicycle projection. The Greek-convention ε of the resulting variable motion is the planet's AU distance, NOT its orbital eccentricity e. The actual orbital eccentricity (Mercury 0.21, Venus 0.007, Mars 0.093, Jupiter 0.049, Saturn 0.055) is **invisible to the bronze**.
+
+**Consequence for BronzeHipparchan encoder spec (B2):**
+- **Lunar entry (Freeth 2006)**: ε = 1.1/9.6 = 0.1146. PRIMARY-SOURCE VERIFIED. This is a genuine Hipparchan-era eccentricity (the Moon's elliptic orbit eccentricity ~0.0549, ε_Greek = 2e ≈ 0.110, close match to the bronze's 0.1146).
+- **Planetary entries**: cannot be wired with bronze-measured eccentricities **because the bronze does not contain them**. The Supp S9 gives geometric `(p, i, d)` per planet, which lets us reconstruct the bronze's actual planetary equation-of-centre amplitudes — but these are AU-distance-based, not eccentricity-based.
+
+**Cross-validation with F12 patch parameters.** F12 extracted (e, φ_apsidal) per planet from JPL DE441 residuals. Comparing:
+| Planet | F12 patch e | F12 patch ε = 2e | Supp S9 derived ε_bronze (= p_AU) | Comments |
+|---|---:|---:|---:|---|
+| Mercury | 0.2060 | 0.4120 | 0.39 | F12 and bronze AGREE at 6% (because Mercury's high e is a fortuitous match to its 0.39 AU; Greek doubling 2e = 0.41 ~ 0.39 AU within 5%) |
+| Venus | 0.0068 | 0.0136 | 0.72 | F12 (modern Kepler) and bronze (AU-distance) differ by **53×**. The bronze's Venus produces a much larger equation-of-centre than physical Venus has, because the bronze encodes AU distance, not eccentricity |
+| Mars | 0.0934 | 0.1868 | 1.52 | F12 and bronze differ by 8× (bronze's `o`-distance is small, but pin-distance d scales it back up) — wait, the Greek-convention ε out of Mars's pin-and-slot is actually `d/o = p = 1.52`, which is the AU distance of Mars. Bronze produces a tan-amplification of ~57° (huge); modern e gives 10.7°. The bronze massively overshoots Mars's equation-of-centre. (THIS IS NEW.) |
+| Jupiter | 0.0468 | 0.0936 | 5.20 | Same pattern: bronze d/o = 5.20, massively larger than Jupiter's actual eccentricity-driven 0.094. |
+| Saturn | 0.0588 | 0.1176 | 9.58 | Same. |
+
+**Important re-interpretation.** The "ε" in the pin-slot output equation-of-centre `theta_out − theta_in ≈ ε sin theta_in` depends on which ANGLE θ_in refers to. In Freeth's geometry: θ_in is the **epicycle gear's rotation relative to the deferent**, and after the pin-and-slot transformation, the OUTPUT angle is the **planet's position in the geocentric frame**. The c_1 amplitude in degrees is **arctan(d/i) for inferior or arctan(d/o) for superior**, which works out to:
+- Mercury: arctan(14.04/36) = 21.3° (vs. modern 23.4° Mercury equation-of-centre, ~9% match)
+- Venus: arctan(20.01/27.8) = 35.7° (vs. modern Venus eq-of-centre 0.78°, **45× too large**)
+- Mars: arctan(10/6.58) = 56.6° (vs. modern Mars 10.7°, **5× too large**)
+- Jupiter: arctan(8.22/1.58) = 79.1° (vs. modern Jupiter 5.5°, **14× too large**)
+- Saturn: arctan(14.37/1.5) = 84.0° (vs. modern Saturn 6.2°, **14× too large**)
+
+**These are RADICALLY DIFFERENT amplitudes from what the planets actually do.** The bronze produces enormously exaggerated equation-of-centre for Venus, Mars, Jupiter, Saturn — because the bronze's pin-slot is modeling the **heliocentric→geocentric epicycle composition**, not the Hipparchan eccentric-deferent model. **This is a Batch C surprise.**
+
+**Resolution: the bronze's pin-slot does NOT directly produce the planet's equation-of-centre as `ε sin θ_in`.** It produces a *vector composition* — `(red' + black')` per Supp S4.3.3 p.29-30 — that combines the Sun's annual motion `black' = (1)·sun_vector` with a vector of length `d` rotating at rate `1/r' = sigma/Y + 1`. The OUTPUT is *not* a small-amplitude sinusoidal correction; it's a full vector-addition reconstruction of the planet's geocentric ecliptic longitude.
+
+**Implication: F12's "ε_A ≈ 2e_modern" finding still holds.** F12 fit the c_1 amplitude from the planet's DE441 residual (after subtracting mean-motion). That c_1 IS the Kepler equation-of-centre `2e` in the Greek center-frame convention. It's a real planetary-eccentricity measurement extracted from observed ecliptic longitude. **The bronze does not encode this — instead it composes Sun-vector + epicycle-vector to reconstruct the planet's apparent geocentric position from heliocentric motion.** The c_1 = 2e signature that F12 extracts is therefore a property of the *physical planet's elliptical orbit projected to Earth*, NOT a parameter the bronze designer chose.
+
+**BronzeHipparchan encoder mode revisited:** as B2 specified, this mode would use bronze-measured ε per planet. With F17, we now know: **the bronze DOES NOT measure planetary eccentricity**. The bronze measures planet-Sun distance (`p` in AU) and uses it as the pin-gear's radius. The "Hipparchan" framing of BronzeHipparchan should be revised: it cannot be "Greek-convention-eccentricity per planet" because the bronze has no such concept. The most faithful BronzeHipparchan mode would be **BronzeGeocentricEpicycle** — using the Sun's annual motion + the planet's heliocentric epicycle radius (= AU distance) composed vectorially.
+
+**Encoder-mode tree update (supersedes B2 partial):**
+| Mode | Period source | Eccentricity source | Description |
+|---|---|---|---|
+| BronzeFaithful | Freeth 2021 gear-ratio | n/a | Uncorrected mean motion |
+| **BronzeGeocentricEpicycle** | Freeth 2021 gear-ratio | bronze AU distances per Supp Table S9 | Vector composition of Sun-vector + epicycle-vector; produces full geocentric ecliptic longitude. **Closest to what the bronze actually does** |
+| ~~BronzeHipparchan~~ | ~~Freeth gear-ratio~~ | ~~bronze-measured ε per planet~~ | **DEPRECATED — bronze does not measure planetary ε** |
+| BronzeModern | JPL Horizons | 2e_modern (Greek doubling) | Modern Kepler equation-of-centre patch |
+
+**Files.** The Supp PDF text extraction was via `pypdf` ad-hoc (no in-repo script). The findings here are documented; no new NDJSON for F17 alone (the Table S9 values transcribed above are the load-bearing artifact, plus the cross-validation table). Cross-references: `spike_pinslot_findings_q_fft_inverse_per_planet_2026-05-14.ndjson` is the F12 source. Future encoder-spec NDJSON (BronzeGeocentricEpicycle) is a fermata for the conductor.
+
+### Batch C — Cross-cutting findings
+
+Three substantively-new findings + one re-derivation correction.
+
+- **F14** is the user-flagged Batch A gap-fill: clustering enumeration confirms the bronze's choice is uniquely Pareto-optimal at the abstract gear-economy level.
+- **F15** answers the "pin-slot algebra beyond bronze" question: the bronze's algebra is exclusively additive composition; lunar evection requires multiplicative-radial coupling (C3) which the bronze does not instantiate.
+- **F16** re-derives Q2c cascade at corrected algebra: ε_eff = ε₁ + ε₂ holds at c_1 only; c_2+ have cross-term discrepancies. This invalidates the cascade-as-single-pin-slot reduction beyond first harmonic and is load-bearing for any future cascade-architecture spike.
+- **F17** opens Supp Information 4. Big surprise: Freeth's planetary mechanisms do NOT encode per-planet eccentricity. They encode AU distance and compose Sun-vector + epicycle-vector to produce geocentric ecliptic longitude. The BronzeHipparchan encoder mode (B2) is therefore based on a faulty premise; replaced by **BronzeGeocentricEpicycle** which uses bronze's actual data.
+
+**Fermata records (conductor decisions):**
+- Whether to promote F14 (clustering enumeration) to a "Pareto-optimal-by-construction" claim in the antikythera notebook §11.6 (currently about pin-and-slot algebra; F14 is about gear-DAG-level economy and would fit there).
+- Whether to deprecate the BronzeHipparchan encoder mode in B2's spec and replace with BronzeGeocentricEpicycle. The latter is more faithful but requires vector-composition rather than scalar ε-patching. Per the dispatch's "specification only" discipline, B2's three-mode spec should be amended *after* conductor confirmation.
+- Whether F16's cascade-vs-single discrepancy should propagate to F11 (forced-oscillator framing). The discrepancy at c_2+ harmonics means cascade torque-distribution differs from single-pin-slot torque distribution at the second harmonic; whether this matters for F11's claim depends on which harmonics carry the torque load. (Conductor: this is a real open question.)
+- Whether the F15 verdict ("evection is outside the bronze's algebraic class") should propagate to §20 of the antikythera notebook as a clean statement of mechanism-class separation. Right now §20 treats the bronze as one instance of a broader pin-slot family; F15 sharpens this: the broader family is *additive composition of pin-slot equation-of-centre series*, and even within that family the bronze covers only the geocentric-epicycle subclass.
+
+**NDJSON inventory (Batch C):**
+- `spike_pinslot_clustering_enum_2026-05-14.ndjson` (54 records: header + 52 partitions + summary)
+- `spike_pinslot_findings_beyond_bronze_2026-05-14.ndjson` (9 records: header + 7 candidates + summary)
+- `spike_pinslot_findings_q2c_cascade_corrected_2026-05-14.ndjson` (12 records: header + 4 harmonic diffs + 5 numerical + 1 theoretical + 1 summary)
+
+**Scripts (Batch C):**
+- `spike_pinslot_clustering_enum_2026-05-14.py` (Bell number partition enumerator + Pareto analysis)
+- `spike_pinslot_beyond_bronze_2026-05-14.py` (7-candidate FFT comparison)
+- `verify_q2c_cascade_2026-05-14.py` (sympy + numpy cascade vs single derivation)
+
+**Recommendations for next dispatch.**
+- F14, F15, F17 each warrant a §-level mention in the antikythera or srmech notebook (conductor decides which).
+- F16's c_2+ discrepancy is a real algebraic surprise that warrants attention — the cascade architecture has been used as a building block in earlier spikes; the "cascade = single with ε_eff" reduction was a load-bearing simplification that turns out to be valid only at c_1.
+- BronzeHipparchan mode (B2) needs a deprecation note pointing to BronzeGeocentricEpicycle (or some equivalent name) as the corrected encoder spec. The Greek-convention "ε per planet" framing implicitly assumed planetary eccentricity was a quantity the bronze encoded; F17 falsifies that assumption.
+- Counterpoint check: this dispatch was executed by single-agent (concertmaster), not dual-agent. Convergence verification not run; consider a counterpoint pass on F14 or F17 specifically before committing to notebook updates.
+
