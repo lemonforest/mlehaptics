@@ -44,9 +44,13 @@
       "sha256": "67c680afed30cf0c44e13f26d0e5a0b067678a1edb892275477a4fd69f03466f",
       "size_bytes": 16679
     },
+    "_research/bronze_planetary_encoder.py": {
+      "sha256": "7fc7d146bee64717b03935165ee360875b840e00d114c2733364f69c18cd7b18",
+      "size_bytes": 19243
+    },
     "_research/consolidated_tests.py": {
-      "sha256": "ed67c39c8126e006dd233042139b9c6913dfe3db675e19e74fe6f57945187b87",
-      "size_bytes": 63870
+      "sha256": "dc69597f01fd82c60ac54ac630c7f2703ecc1e80c4f655a01d0c983e68115648",
+      "size_bytes": 63871
     },
     "_research/cyclic_group_algebra.py": {
       "sha256": "976657dead7d1bcec218d28cc4f16803d16f8b820f52183b3fa8d57343c537c7",
@@ -61,8 +65,8 @@
       "size_bytes": 20450
     },
     "_research/ephemeris_loader.py": {
-      "sha256": "cc025d703e393d6062a94a6a0427400736dc5bd0ef213db217c762ae67946b7b",
-      "size_bytes": 14878
+      "sha256": "59cc22dd5162449cd8c753b95fc64ba0d69fad0288f3964e2bdc1845c553453f",
+      "size_bytes": 19110
     },
     "_research/equant_encoder.py": {
       "sha256": "0b03063fd0d64ab7dba7843db8b63c640359a727a69bfd6bd01882bbc6cc2fe1",
@@ -109,8 +113,8 @@
       "size_bytes": 25119
     },
     "_research/pin_and_slot.py": {
-      "sha256": "da03e2430e237d02397a2a345500fff679e6be9801a2fe307b3c8f368626c57d",
-      "size_bytes": 13758
+      "sha256": "ded6ac012887d4ada3fe96c8ebadeb3ab51f9503aa5f6d077121fdb2ff25b764",
+      "size_bytes": 16540
     },
     "_research/rational_approximation.py": {
       "sha256": "74a0332e179d8032f800854ce963633c6bfd1c8607edddd6bd893a3b8f05d8e1",
@@ -131,6 +135,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "2ffa5f9ae6e8f368eaf358d25b48f4f602d04c7e",
+  "source_commit": "3ff6cb7adc9eabaa638c85345f9c4c3bd4daafbe",
   "version": "0.3.0"
 }

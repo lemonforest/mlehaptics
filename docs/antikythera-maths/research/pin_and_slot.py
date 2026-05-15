@@ -30,8 +30,29 @@ astronomical calculator known as the Antikythera Mechanism", *Nature*
     pin position in driven-wheel frame:   (r cos theta_in − e,  r sin theta_in)
     theta_out = atan2(r sin theta_in, r cos theta_in − e)
 
-We work with the dimensionless eccentricity eps = e / r.  Freeth 2006
-estimates eps ≈ 0.054 from the surviving Fragment B geometry.
+We work with the dimensionless eccentricity eps = e / r.
+
+**Eccentricity reconstruction note (spike F2, 2026-05-14):** Freeth et al.
+2006 (*Nature* 444, 587–591) published the lunar pin-and-slot geometry
+directly in Fig. 6: pin offset 1.1 mm, pin distance 9.6 mm, giving
+**eps = 0.1146 ± 0.0057**. At this eps the pin-slot's leading equation-
+of-centre coefficient is 6.58°, matching Brown's modern lunar amplitude
+(6.29°) within 4%. A project-internal transcription error had earlier
+propagated 0.054 (= 1.1 / 20, computing against pin *diameter* rather
+than pin *distance*) as "the Freeth value"; that 0.054 was never
+Freeth's published number. The 0.054 transcription has been removed
+from this module; F2's correction reinstates 0.1146 as the canonical
+Freeth-2006-published Freeth value.
+
+The pin-slot's atan2 algebra implements the **eccentric-anomaly Kepler
+series** `E(M) = M + Σ_k (ε^k / k) sin(kM)` — the Greek center-frame
+eccentric-circle, NOT the Keplerian focus-frame true-anomaly series.
+This is structurally what Hipparchus's lunar theory required; the
+Greek convention's eccentricity-doubling (ε ≈ 2 × modern e_moon) is
+exactly what Freeth's published bronze geometry shows.
+
+See [docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md)
+for the deep dive + falsification protocols.
 
 D-H1 deliverable: the ratio ||M_anti|| / ||M_sym|| for the pin-and-slot
 directed-advance operator on a discretised input angle space, compared
@@ -52,15 +73,35 @@ import numpy as np
 # Eccentricity presets
 # ---------------------------------------------------------------------------
 
-ECCENTRICITY_FREETH_2006 = 0.054
-"""Dimensionless eccentricity eps = e / r per Freeth 2006 Fragment B reconstruction."""
+ECCENTRICITY_FREETH_2006 = 0.1146
+"""Dimensionless eccentricity eps = e / r as published by Freeth et al.
+2006 (*Nature* 444, 587–591, Fig. 6 caption, p. 590): pin offset 1.1 mm,
+pin distance 9.6 mm, giving eps = 0.1146 ± 0.0057. At this eps the
+pin-slot's leading equation-of-centre coefficient is 6.58°, matching
+Brown's modern lunar amplitude (6.29°) within 4%. **This is the bronze's
+actual algebraic value as Freeth originally published.**
+
+Per spike F2 (2026-05-14): a project-internal transcription error
+earlier propagated 0.054 (= 1.1/20 rather than 1.1/9.6) as "the Freeth
+value." That was never Freeth's published number — Freeth 2006 Figure 6
+gives 1.1 mm and 9.6 mm directly. The 0.054 transcription error has
+been removed from this module; if you encounter it in an older commit,
+treat it as a known-incorrect derivative of the same geometric inputs.
+
+The pin-slot implements the eccentric-anomaly Kepler series (Greek
+eccentric-circle convention); the bronze's eps ≈ 2 × modern e_moon is
+the convention's eccentricity-doubling that matches Hipparchus's
+observed lunar amplitudes.
+"""
 
 ECCENTRICITY_WRIGHT = 0.060
 """Wright's slightly larger eccentricity estimate; not authoritative.
 
-Wright's reconstructions of the lunar epicycle vary across his papers; we use
-0.060 as a representative alternate per the project's both/and discipline.
-The exact figure is less load-bearing than the qualitative T-breaking claim.
+Wright's reconstructions of the lunar epicycle vary across his papers; we
+use 0.060 as a representative alternate per the project's both/and
+discipline. This is below Freeth's directly-published 0.1146 and may
+reflect a different convention choice in Wright's papers; the qualitative
+T-breaking claim is what's load-bearing, not the exact figure.
 """
 
 
@@ -88,6 +129,13 @@ FREETH_2006_GEOMETRY = PinSlotGeometry(
     eccentricity=ECCENTRICITY_FREETH_2006,
     teeth_each=50,
 )
+"""Canonical bronze geometry per Freeth et al. 2006 (Nature 444, 587–591,
+Fig. 6): pin offset 1.1 mm, pin distance 9.6 mm → eps = 0.1146. This is
+the default-recommended geometry for new D-H1 analyses. (Spike F2
+2026-05-14 corrected the project-internal transcription that earlier
+propagated 0.054 as the "Freeth value"; that 0.054 was never Freeth's
+published number.)"""
+
 WRIGHT_GEOMETRY = PinSlotGeometry(
     eccentricity=ECCENTRICITY_WRIGHT,
     teeth_each=50,
@@ -243,9 +291,9 @@ def perigee_apogee_velocity_ratio(
 ) -> float:
     """Ratio of angular velocity at perigee (theta = 0) to apogee (theta = pi).
 
-    Closed form: (1 + eps) / (1 − eps).  For eps = 0.054 this is ≈ 1.114, i.e.
-    the Moon "as approximated by the pin-and-slot" moves about 11% faster
-    at perigee than at apogee.
+    Closed form: (1 + eps) / (1 − eps).  For Freeth's eps = 0.1146 this is
+    ≈ 1.259, i.e. the Moon "as approximated by the pin-and-slot" moves
+    about 26% faster at perigee than at apogee.
     """
     eps = geometry.eccentricity
     return (1.0 + eps) / (1.0 - eps)

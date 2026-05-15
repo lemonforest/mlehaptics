@@ -701,23 +701,61 @@ This is exactly what Voulgaris et al. 2024 ([arXiv:2407.15858](https://arxiv.org
 
 The graph-theoretic role of such an element is unusual: it sits at a leaf (single output) but its two input shafts may both come from the core. So in periphery-rule terms, a drift-collector differential is *graph-position peripheral* (output side) with *attachment-side coupling to core bridges* (the two input chains). The b1-b2 differential matches this pattern exactly — its inputs are b1 (core bridge) and the lunar sidereal chain (mid-chain transmission) and its output is the lunar phase ball (a leaf).
 
-#### B. Feedback dampening via mechanical low-pass filters
+#### B. Continuous-motion smoothing — where it actually lives
 
-True closed-loop feedback (where a downstream output corrects an upstream input) is anachronistic for Greek mechanics — it requires either a sensor or a self-actuated regulator that the Antikythera's bronze toolbox doesn't include. **But the Antikythera *does* include mechanical low-pass filtering**, and the operator's intuition about "feedback dampening from gears" maps cleanly onto this:
+> **Amended 2026-05-14 per spike F5** ([docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md), [PR #416](https://github.com/lemonforest/mlehaptics/pull/416)). The original §11.6.6 sub-B (in commit history through 2026-05-13) claimed pin-and-slot was a per-mesh mechanical low-pass filter. Direct measurement falsified that claim; the rewrite below restates where the bronze's actual continuous-motion smoothing lives. See §11.6.6.4 for the amendment record.
 
-- **Pin-and-slot is a mechanical low-pass filter.** The lunar pin-and-slot epicycle (D-H1, [research/pin_and_slot.py](research/pin_and_slot.py)) takes a uniform-rotating input and produces a *non-uniform* output via a continuous pin-in-slot constraint. The pin slides smoothly along the slot rather than snapping discrete tooth-by-tooth, which means the output's angular position is integrated over the slot's contact arc — averaging out tooth-pitch noise on its input. Mechanically: the slot is a moving-average kernel. Spectrally: it is a low-pass filter with cutoff inversely proportional to the slot's angular extent.
-- **A pin-and-slot inserted mid-chain damps tooth-pitch noise on that mesh.** Replace a single mesh in the Saros chain (e.g. between f2 and g1) with a pin-and-slot, and the downstream Saros pointer's drift no longer accumulates tooth-pitch quantisation error from that mesh — the slot smooths it out.
-- **Differentials as variance-isolation, not averaging.** Note: a differential between two *independently noisy* paths *increases* output variance (variance sums for differences, just as for sums). Differentials don't average out noise — they isolate the *systematic* discrepancy from the *common* signal. So differential dampening only works if the two paths share a common systematic drift you want to subtract out (e.g., both are biased the same direction by temperature). Independent random noise gets *amplified*, not averaged.
+True closed-loop feedback (where a downstream output corrects an upstream input) is anachronistic for Greek mechanics — it requires either a sensor or a self-actuated regulator that the Antikythera's bronze toolbox doesn't include. The original §11.6.6 framing claimed pin-and-slot provided per-mesh mechanical low-pass filtering for tooth-pitch noise. **Direct k=100 noise transmission test** (spike F5, Q-tooth-noise) shows this is incorrect: pin-and-slot transmits high-spatial-frequency noise at near-unity gain, with only small ε/2-scale sidebands induced by the eccentricity itself. The pin-slot's atan2 transform is smooth and analytic but **not** band-attenuating.
+
+The continuous-motion intuition is still correct, just at a different mechanism. Three places in the bronze actually provide noise reduction, none of them via per-mesh low-pass filtering:
+
+- **Pointer-integration low-pass.** The lunar pointer (and other dial pointers) rotates slowly relative to the input crank. Per-revolution tooth-pitch noise on intermediate meshes averages out over the pointer's slower rotation. The integration step is the time-domain low-pass; this lives at the pointer, not at any mesh.
+- **Phase-averaging variance reduction.** Tooth-pitch errors on a mesh have zero mean over a full revolution. Over many revolutions the angular position's variance grows as √N (random walk), but the variance per-radian-of-pointer-output stays bounded if the train's gear ratios spread the cumulative error broadband. The pin-slot's nonlinear-but-smooth transmission redistributes spectral energy without removing it.
+- **Shared-upstream noise cancellation in differentials.** Per §11.6.7: differentials between paths that share an upstream gear cancel that gear's tooth-pitch error in the difference. This is genuine noise reduction at the dial level; the b1-b2 differential is the canonical bronze example.
+- **Differentials as variance-isolation, not averaging.** Note: a differential between two *independently noisy* paths *increases* output variance (variance sums for differences, just as for sums). Differentials don't average out independent noise — they isolate the *systematic* discrepancy from the *common* signal. So differential dampening only works if the two paths share a common systematic drift you want to subtract out (e.g., both are biased the same direction by temperature). Independent random noise gets *amplified*, not averaged.
+
+What pin-and-slot *does* spectrally is **bound the equation-of-centre amplitude geometrically**. The Hipparchan eccentric-circle that the pin-and-slot implements (Freeth et al. 2006 *Nature* Fig. 6, p. 590 — see §11.6.6.5 for the attribution-correction record) produces output angular content of the form `θ + Σ_k (ε^k / k) sin(kθ)` — exactly the eccentric-anomaly series `E(M)`, with leading coefficient ε ≈ 0.1146 (Freeth's directly-published pin geometry: 1.1 mm pin offset / 9.6 mm pin distance). Structurally NOT a Keplerian true-anomaly generator (which would have leading coefficient `2e`), but exactly what Hipparchus's lunar theory required.
 
 #### Implication for compensator architecture
 
-Combining §10's combination-gear principle, §11.6's periphery rule, and the §11.6.6 dampening regimes, **a strongly-favoured compensator shape emerges**:
+Combining §10's combination-gear principle, §11.6's periphery rule, and the §11.6.6 dampening regimes, **a strongly-favoured compensator shape emerges**. The original §11.6.6 framing motivated item 1 below as a noise-reduction mechanism; spike F5 (2026-05-14, see [docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md) Q-tooth-noise) falsified the per-mesh low-pass claim. Item 1 is re-grounded below to reflect pin-and-slot's actual algebraic role:
 
-1. **Pin-and-slot inserted at a peripheral leaf**, providing continuous-motion smoothing for that pointer's drift. Adds one degree-2 node to the DAG; preserves the surviving train's bridges and core; reduces tooth-pitch noise propagation to that one output.
+1. **Pin-and-slot inserted at a peripheral leaf**, providing the **Hipparchan equation-of-centre transform** that shapes the dial output's spectral content geometrically — *not* a noise filter for that mesh. The pin-and-slot's atan2 constraint produces the eccentric-anomaly Kepler series `θ + Σ_k (ε^k / k) sin(kθ)` at Freeth's published ε ≈ 0.1146 (see §11.6.6.5 amendment for the attribution-correction record), bounding the dial's astronomical amplitude to match the lunar first inequality. Adds one degree-2 node to the DAG; preserves the surviving train's bridges and core; **shapes amplitude, does not smooth noise**. The noise-reduction in the bronze actually lives elsewhere — at the pointer integration step, in phase-averaging across many revolutions, and in shared-upstream cancellation within differentials (§11.6.7) — none of it at the pin-and-slot itself.
 2. **Differential at a peripheral leaf**, with both input shafts coming from the same train's mid-chain (so the inputs share systematic bias). Output reads pure drift as a calibration signal — the lost Cover Disc indicators Voulgaris hypothesises.
-3. **NOT a fresh transmission gear inserted mid-chain** — that adds noise without dampening it.
+3. **NOT a fresh transmission gear inserted mid-chain** — that adds noise without dampening it. (The drift-redirection argument in §11.6.6 sub-A holds independently of the F5 falsification of the noise-filter claim.)
 
-The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated.
+The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated. The corrected reading: pin-and-slot at a peripheral leaf adds an astronomical-amplitude transform, not a noise filter.
+
+#### 11.6.6.4 Amendment record — F5 falsification of the pin-slot low-pass claim
+
+**2026-05-14.** The original §11.6.6 sub-B (commit history through 2026-05-13) framed pin-and-slot as a per-mesh mechanical low-pass filter. **Spike F5** ([docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md), Q-tooth-noise direct k=100 measurement; [PR #416](https://github.com/lemonforest/mlehaptics/pull/416)) falsified this claim by direct test:
+
+- A pure k=100 angular-frequency input was injected into the canonical D-H1 pin-and-slot constraint (Freeth-2006 / Gourtsoyannis bronze geometry).
+- The output spectrum shows the **k=100 component at near-unity gain**, with only ε/2-scale sidebands at k=99 and k=101 induced by the eccentricity.
+- The pin-slot is therefore **NOT** a frequency-band-attenuating filter. The atan2 transform is smooth and analytic, but pin-slot transmission preserves high-spatial-frequency content.
+
+The rewrite at §11.6.6 sub-B relocates the bronze's actual continuous-motion smoothing to three correctly-attributed mechanisms: pointer-integration (time-domain low-pass at the slow dial), phase-averaging variance reduction (broadband redistribution across many revolutions), and shared-upstream noise cancellation in differentials (§11.6.7's mechanism). None of these live at the pin-and-slot.
+
+The pin-and-slot's actual algebraic role is the **Hipparchan equation-of-centre transform** — see also §11.6.6.5 below for the related F2 finding on Freeth-2006's ε convention.
+
+**Downstream impact:** the "Implication for compensator architecture" subsection's item 1 was re-grounded in the same PR; items 2 and 3 stand independently of the F5 falsification. §11.6.7's differential variance discussion is unaffected.
+
+#### 11.6.6.5 Amendment record — F2 finding on the lunar pin-and-slot ε
+
+**2026-05-14 (initial), 2026-05-15 (corrected attribution).** Spike F2 (same PR) re-examined the lunar pin-and-slot eccentricity ε used in [docs/antikythera-maths/research/pin_and_slot.py](research/pin_and_slot.py). Direct primary-PDF extraction of Freeth et al. 2006 (*Nature* 444, 587–591) Figure 6 caption (p. 590) gives the geometry directly: **pin offset 1.1 mm, pin distance 9.6 mm → ε = 0.1146 ± 0.0057**. The Springer 2012 chapter "Phases in the Unraveling" reports the same numbers as a 6.5° max equation of centre.
+
+A project-internal transcription error had earlier propagated **0.054** through `pin_and_slot.py` as "the Freeth value." That 0.054 was never Freeth's published number — it would have to come from dividing 1.1 mm by the pin's *diameter* (~20 mm-ish) rather than the *pin distance* 9.6 mm. The 0.054 has been removed from the codebase; **0.1146 is the canonical Freeth-2006-published value**.
+
+Earlier framings in this section attributed the 0.1146 to Gourtsoyannis ("Hipparchos vs. Ptolemy and the Antikythera Mechanism," academia.edu/41392086) as if it were an independent measurement correcting Freeth. That attribution was wrong. Gourtsoyannis cites the **same Freeth-published numbers** (1.1 mm / 9.6 mm) and re-derives 0.1146 from them — Gourtsoyannis is not correcting Freeth, they are working from Freeth's own data. The corrected ε is Freeth's own; the prior 0.054 was a project-side transcription error, not a publication error in Freeth.
+
+- Freeth-published bronze geometry: ε = 0.1146; leading equation-of-centre coefficient 6.58°, matching Brown's modern lunar value (6.29°) within 4%.
+- Project-internal transcription 0.054 (now removed): would have produced only 3.09° — below both modern and Hipparchan amplitudes; arithmetically inconsistent with Freeth's own published geometry.
+
+**Deeper structural finding (unchanged by the attribution correction):** the pin-and-slot atan2 algebra implements the **eccentric-anomaly Kepler series** `E(M) = M + Σ_k (ε^k / k) sin(kM)`, NOT the **true-anomaly series** `ν(M) = M + 2e sin M + (5/4)e² sin 2M + ...`. This is the Greek **eccentric-circle (center-frame) geometry**, which produces leading coefficient `ε` rather than the Keplerian focus-frame `2e`. The Greek convention required *doubled* eccentricity to match observed amplitudes — exactly what the bronze's ε ≈ 2 × modern e_moon (0.0549) shows. The bronze is structurally not a Keplerian generator, but it is structurally what Hipparchus's lunar theory required.
+
+**Downstream impact:** `ECCENTRICITY_FREETH_2006` in `pin_and_slot.py` now correctly carries 0.1146; `ECCENTRICITY_GOURTSOYANNIS` (introduced in the initial F2 amendment under the incorrect "independent measurement" attribution) has been removed; the deprecated `0.054` constant is gone. D-H1 numerical outputs scale with the corrected ε.
+
+**Citation status (per [feedback_pdf_extraction_citation_discipline](../../memory/feedback_pdf_extraction_citation_discipline.md)):** Freeth 2006 *Nature* primary PDF cached locally in [docs/antikythera-maths/hoodoos/antik2.pdf](hoodoos/antik2.pdf); Figure 6 caption verified directly. Freeth 2021 *Scientific Reports* + Supp S4 also cached and verified (see hoodoos README). Gourtsoyannis 2012 academia.edu paper: cross-confirms Freeth's numbers; primary PDF extraction not load-bearing now that Freeth's own publication is verified.
 
 ### 11.6.7 Shared differential leaves — when does sharing amplify or cancel noise?
 
@@ -1420,6 +1458,87 @@ In effect, **§11.6.16 is the missing link between the empirical results (E-H2/E
 **RATIONALE (not hypothesis).**  Seasonal observability itself is well-established astronomical fact.  The novel contribution is the **integrated framing**: connecting (i) theoretical-accuracy ceilings, (ii) visibility-window gating, and (iii) selective-engagement architecture, as three layers of a single design philosophy.  Per the prior-art search, this integration appears unpublished.  Per the viability assessment, the rationale is moderately plausible in Hellenistic context.
 
 This subsection serves as the *why* that motivates the *what* in §11.6.10–§11.6.15.  Without seasonal observability, the field-programmable architecture is a curiosity; with it, the architecture is the natural design response to how the Hellenistic sky actually presents itself to an observer.
+
+### 11.6.17 Algebraic uniqueness — why there is only one bronze
+
+**2026-05-15.** Recorded as a synthesis subsection because four separate threads of PR #416 (cyclic-group decomposition, partition enumeration F14, closed-form architecture F15, and Freeth 2021's spatial reconstruction) converge on the same answer: **the bronze's structure is not a choice — it is forced**. Given the period relations the Greeks observed, the engineering substrate they had, and the optimisation principle "minimum bronze cost," there is only one solution. This subsection records why, and notes the discipline around what is independent vs Freeth-derived in our work.
+
+#### The convergence
+
+Our research and Freeth 2021's reconstruction arrive at compatible substructures from disjoint starting points:
+
+- **Our path (algebraic):** start from observed period relations (MUL.APIN / Babylonian astronomical diaries / Hipparchan tables), decompose into prime factors of the synodic-period numerators and denominators, and ask which primes are *shared* across planetary trains. The function `shared_primes_among_planetary()` in [research/astronomical_cycles.py](research/astronomical_cycles.py) computes this directly from the period-relation table — *no Freeth input enters here.* Output:
+
+  | Prime | Planets sharing it (non-trivial shared primes only) |
+  |-------|-----------------------------------------------------|
+  | **5** | Mercury, Mars |
+  | **7** | Venus, Mars, Saturn |
+  | 17    | Venus, Saturn |
+  | 19    | Mars, Jupiter |
+
+  The non-trivial dominant shared primes are **5 and 7**. Any gear-train that encodes these period relations *must* factor through ℤ/5ℤ and ℤ/7ℤ — there is no alternative arithmetic.
+
+- **Freeth's path (spatial):** start from the surviving bronze gears in Fragments A/B/C/D, lay them out three-dimensionally to satisfy mesh adjacency and tooth-count constraints, and infer the conjectural missing-gear topology that completes the planetary plate. This yields Freeth 2021 Fig 3e/3f's reconstruction with two shared-fixed-gear clusters: **inner planets (Mercury, Venus) share gear g51 (the 51-tooth fixed gear)**, and **outer planets (Mars, Jupiter, Saturn) share gear g56 (the 56-tooth fixed gear)**.
+
+These two paths are *not identical*. The algebraic prime-5 group is {Mercury, Mars}; Freeth's spatial inner-cluster is {Mercury, Venus}. The algebraic prime-7 group is {Venus, Mars, Saturn}; Freeth's spatial outer-cluster is {Mars, Jupiter, Saturn}. The partitions differ. What is shared is the *substructure*: both paths identify two coupled clusters spanning the five planets, distinguished by which arithmetic factors they share, with the bronze's economical instantiation lying in the intersection of the algebraic constraints.
+
+#### Four layers of uniqueness
+
+The bronze is forced by four independent uniqueness arguments:
+
+1. **Cyclic-group uniqueness.** Once you fix the period relations and choose gear-tooth-count algebra as your implementation, the prime factorisation of the relations is invariant. Primes 5, 7, 17, 19 *are* the factorisation. No designer can avoid them; no alternate bronze can use different primes for the same period observations. The cyclic-group decomposition is a property of the period relations themselves, not of any particular reconstruction. (Code: [cyclic_group_algebra.py](research/cyclic_group_algebra.py), [astronomical_cycles.py](research/astronomical_cycles.py).)
+
+2. **Pareto-optimal partition uniqueness (F14).** Of the B(5) = 52 possible set-partitions of {Mercury, Venus, Mars, Jupiter, Saturn} into shared-fixed-gear groups, **exactly one** is Pareto-optimal under (viable, topology-pure, minimum-fixed-gears) criteria: the observed bronze partition {Mercury, Venus} | {Mars, Jupiter, Saturn}. F14's closed-form integer-exact re-verification (Batch C, [spike_pinslot_closed_form_f14_2026-05-15.py](../srmech/notes/spike_pinslot_closed_form_f14_2026-05-15.py)) confirms this at zero tolerance dependence — the uniqueness is not a numerical accident, it's a continued-fraction-convergent fact about the period ratios. Jupiter "free-rides" through planet-specific intermediate gears because `76 = 2² × 19` contains no 7-factor for 56 to divide; this constraint is integer-exact.
+
+3. **Closed-form architecture uniqueness (F15).** Of the seven mechanism architectures enumerated as candidates for variable-motion encoding (compound cascade C1, parallel-sum C2, multiplicative-radial C3, sinusoidal-slot C4, k=2 harmonic slot C5, plus differential and additive variants), **only C3 (multiplicative-radial coupling)** can produce the lunar evection's `2(D − ℓ)` lattice element via an integer-frequency-lattice argument. The pin-slot's additive equation-of-centre algebra forecloses certain motions geometrically, not parametrically. (See [F15 closed-form work](../srmech/notes/spike_pinslot_closed_form_f15_2026-05-15.py).) The bronze's single-pin-slot-per-train choice is the *only* architecture in the enumerated set that fits both the Greek center-frame Kepler series and the manufacturing simplicity constraint.
+
+4. **Spatial-reconstruction uniqueness (Freeth 2021).** The surviving 30 of 69 bronze gears plus the surviving mesh adjacency constraints leave a finite space of completion topologies (estimated at ≤10⁵ candidates per §11.6 footnote). Freeth's reconstruction is one such completion; the candidate space is small enough that any future reconstruction satisfying the same constraints will land near Freeth's. The mechanical reconstruction problem has approximately one solution-class, not a continuum.
+
+All four layers are *independent*. Each could in principle have failed without the others (algebraic primes are forced regardless of bronze archaeology; F14 partition optimality is independent of cyclic-group primes; closed-form architecture choice is independent of partition choice; Freeth's spatial completion is independent of all three). That they all *agree* is what the uniqueness claim rests on: four uncoupled "this had to be the way" arguments arriving at compatible substructure.
+
+#### What this means
+
+The bronze is *not* a model of the cosmos. The cosmos permits many models — Ptolemy, Copernicus, Kepler, GR — and each is a fundamentally different mathematical object. What the bronze instantiates is the **algebraic-uniqueness of cyclic-group encodings of observed period ratios**. Given those particular period ratios and the constraint "inscribe them into circle-perimeter tooth-count algebra," there is exactly one Pareto-optimal solution, and the bronze inhabits it.
+
+The implication runs the other direction too: anyone with the same period observations, the same engineering substrate (Hellenistic-era bronze + lathe + hand-pinning), and the same optimisation principle (minimum cost subject to fitting in the 34 × 18 × 9 cm case) *must* converge on something containing a 5-driven subgroup and a 7-driven subgroup; *must* use pin-and-slot as the unique variable-motion primitive (per F15); *must* cluster planets per the F14 Pareto-optimal partition. The bronze is what the algebra permits, full stop. It is the rule, not the choice.
+
+This reframes the archaeological question. "Why did the Greeks build *this* bronze?" admits a trivial answer once the algebra is in view: because no other bronze satisfies the constraints. The interesting questions are upstream:
+
+- *Why* did the Greeks observe these particular period relations and not others? (Astronomical-cultural history, partially knowable; the 462/442-year inner/outer relations track back to Babylonian Goal-Year texts via Hipparchus.)
+- *Why* did they choose gear-tooth-count algebra rather than (say) marked-rod abacuses or astrolabe-style nomograms? (Engineering-cultural history, partially knowable; gear-cutting on lathes was a high-precision Hellenistic capability.)
+- *Why* the specific tooth counts within the prime constraints? (Pareto-economical search within the algebraic constraint set; this is where Freeth's reconstruction provides the operative answer.)
+
+The "is the bronze era-appropriate or modern?" question Batch D investigated (F18–F23) becomes sharper in this light: at the **algebraic-structure level** the bronze is forced and era-blind. The 5-driven and 7-driven subgroups would emerge for any Greek with the period relations in hand. At the **specific-parameter level** (which AU value gets encoded per planet), the bronze AS RECONSTRUCTED uses modern parameters — but that's a reconstruction-choice question about Freeth's tooth-count selections, not an algebraic-structure question.
+
+#### What is independent vs Freeth-derived in our work — the discipline
+
+Per `feedback_no_lineage_claims_in_notebook` and `feedback_pdf_extraction_citation_discipline`, this subsection should not claim "natural extension of Freeth" or imply our path was identical to his. The honest record:
+
+**Independent of Freeth (our research's contributions):**
+- The period-relation prime decomposition (primes 5, 7, 17, 19) — computed directly from observed period ratios via [astronomical_cycles.py](research/astronomical_cycles.py). The period relations themselves are MUL.APIN / Babylonian / Hipparchan, not Freeth.
+- The F14 Pareto-optimal partition enumeration — all 52 set-partitions evaluated from first principles under gear-economy constraints, not from Freeth's specific completion.
+- The F15 closed-form mechanism architecture enumeration — seven candidate architectures evaluated for lunar evection production, independent of any bronze reconstruction.
+- The pin-slot closed-form Bessel-Anger / Kepler series algebra — derived from the atan2 transform, not from any reconstruction.
+- The DE422 / DE441 ground-truth astronomical comparison — independent of any bronze reconstruction.
+
+**Borrowed from Freeth 2021 (and tagged KNOWN per §1's convention):**
+- The conjectural planetary gear-train topology (which gears mesh with which) — Freeth 2021 Fig 3e/3f, used as baseline in [gear_database.py](research/gear_database.py)'s `PLANETARY` train.
+- The Supp S9 (p, i, o, d) per-planet pin-slot geometric parameters — used as input to [bronze_planetary_encoder.py](research/bronze_planetary_encoder.py)'s BronzeGeocentricEpicycle encoder.
+- The total gear count (69) and surviving-gear count (30) used in §11.6's size-budget reasoning.
+
+**Convergent observation, not lineage claim:** the two paths arriving at compatible substructures (algebraic shared-prime groups + spatial shared-fixed-gear clusters) is what uniqueness predicts. Neither path "discovered" the other's framing; both paths were forced to compatible substructures by the algebra. The convergence is evidence *that* the substructure is forced, not evidence that either path borrowed from the other.
+
+#### Cross-references
+
+- [astronomical_cycles.py](research/astronomical_cycles.py) `shared_primes_among_planetary()` — the algebraic prime decomposition.
+- [cyclic_group_algebra.py](research/cyclic_group_algebra.py) — the CRT / cyclic-group machinery that underlies the encoder.
+- [gear_topology.py](research/gear_topology.py) `shared_prime_planet_pairs()` / `shared_prime_planet_triples()` — pair / triple-level shared-prime queries.
+- [bronze_planetary_encoder.py](research/bronze_planetary_encoder.py) — the F17-derived BronzeGeocentricEpicycle encoder.
+- [pin_and_slot.py](research/pin_and_slot.py) — the lunar pin-slot algebra (corrected Freeth-2006 ε = 0.1146 per §11.6.6.5).
+- [F11.3 in spike findings](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md) — gear-DAG coupling clusters (with Batch C softening: gear-economically forced, not Aristotelian-forced).
+- [F14 closed-form](../srmech/notes/spike_pinslot_closed_form_f14_2026-05-15.py) — integer-exact partition enumeration.
+- [F15 closed-form](../srmech/notes/spike_pinslot_closed_form_f15_2026-05-15.py) — mechanism architecture uniqueness for evection.
+- [Batch D era-appropriate findings](../srmech/notes/spike_pinslot_era_appropriate_findings_2026-05-15.md) — F18-F23, modern-vs-era-appropriate parameter encoding (the layer of specificity *below* algebraic uniqueness).
 
 ---
 

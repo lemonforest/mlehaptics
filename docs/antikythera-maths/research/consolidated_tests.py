@@ -554,7 +554,7 @@ def hypothesis_D_H1() -> Tuple[Dict[str, str], Dict[str, Any]]:
     status = PASS if abs(ratio_ps - 1.0) < (1.0 - threshold) else PARTIAL
     notes = (
         f"||M_anti||/||M_sym|| = {ratio_ps:.6f} for the pin-and-slot "
-        f"directed-advance operator with Freeth 2006 eps=0.054.  Reference "
+        f"directed-advance operator with Freeth 2006 eps=0.1146.  Reference "
         f"circular-gear ratio: {ratio_circ:.6f}.  Both saturate at 1.0; "
         "the structural difference between pin-and-slot and circular lives "
         "in M_sym (Jacobian-weighted Laplacian), not in the saturation ratio."
