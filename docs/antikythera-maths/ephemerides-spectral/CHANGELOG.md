@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc2] — 2026-05-15
+
+### Fixed — two flagged-but-untouched README items from the rc1 proofread
+
+User reviewed the rc1 PR's "Known ambiguities NOT touched" section and chose minimum-disruption fixes:
+
+- **Issue 1 (Option C)** — BIP-vs-HD-state ambiguity in the "256 KB state at D=65536" framing. The orphan fragment is removed from the BIP bullet; the Memory Footprint table renames `State (BIP)` / `State (complex128)` → `HD state (BIP path)` / `HD state (complex128 path)` with a clarifying paragraph above the table that distinguishes the BIP encoder's user-facing `uint32[52]` per-body output (208 bytes) from the HD-lifted D-dimensional hypervector the HD pipeline uses.
+- **Issue 2 (Option B)** — DE441 sweep table renames `earth` → `terra` and `moon` → `luna` to match the v0.9.0+ Latin-proper-noun convention used throughout the rest of the codebase. Prose references to "Earth" / "Moon" in English-language sentences stay as natural-language usage.
+
+Pure README hygiene. No code change; no ABI change; no test ratchet changes. SSOT files bump in lockstep `0.28.1rc1` → `0.28.1rc2`.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.1rc2](python/CHANGELOG.md).
+
+## [0.28.1rc1] — 2026-05-15
+
+### Fixed — stale "Unreleased" bullets in PyPI-rendered README
+
+`python/README.md` had two bullets at the top of the version-by-version list flagging features as future work that had actually shipped in v0.26.1 (LLM tool-schema export + first cosmology-instrument pair). The PyPI-rendered README on v0.28.0 still showed both as "Unreleased" — misleading to users landing on the package page. v0.28.1rc1 removes both bullets and leaves a brief HTML comment documenting the removal + the cross-package architecture (srmech provides `srmech.amsc.tool_schema`; ephemerides-spectral's `[profile.tool_schema].extension_file = "_srmech_tool_schema.toml"` registers the 9 profile-tier surfaces with `owner="ephemerides"` for LLM-agent discovery; the local `bridge.get_tool_schema` / `list_tool_names` / `get_one_tool_schema` introspect the full ~246 public bridge functions in 4 formats).
+
+Pure docs hygiene patch. No code change; no ABI change (`ES_ABI_VERSION = 9` unchanged from v0.28.0); no `_research` mirror changes; no test ratchet changes. All 5 SSOT files bump in lockstep + manifest re-stamp.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.1rc1](python/CHANGELOG.md).
+
 ## [0.28.0] — 2026-05-14
 
 ### Production cut after the v0.28.x rc stack — Task `#212` closed

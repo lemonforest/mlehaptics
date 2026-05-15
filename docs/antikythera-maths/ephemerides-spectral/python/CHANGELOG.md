@@ -10,6 +10,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1rc2] — 2026-05-15
+
+### Fixed — two flagged-but-untouched items from the rc1 proofread pass
+
+User reviewed the rc1 PR's "Known ambiguities NOT touched" section
+and chose minimum-disruption fixes for both. Neither is a code
+change — pure README hygiene continuing the v0.28.1 docs-only
+patch story.
+
+**Issue 1 — "256 KB state at D=65536" BIP-vs-HD-state ambiguity (Option C):**
+- BIP bullet (Two-stage architecture section): removed the orphan
+  "305× faster than the FPU reference; 256 KB state at D=65536"
+  fragment that conflated the BIP encoder's per-body output with
+  the HD-lifted hypervector state. Replaced with the precise
+  user-facing characterisation: "Produces `uint32[52]` per-body
+  residues (208 bytes) at any JD."
+- Memory Footprint table: renamed `State (BIP)` → `HD state (BIP path)`
+  and `State (complex128)` → `HD state (complex128 path)`. Added
+  an explanatory paragraph above the table clarifying that the
+  BIP encoder's user-facing output (from `default_encode()` /
+  `bridge.get_system_state()`) is the `uint32[52]` per-body residue
+  array (208 bytes), and the two HD-state rows below size the
+  hypervector representation the HD pipeline lifts those residues
+  into when running syzygy / observer-bind / eclipse-probability.
+
+**Issue 2 — DE441 sweep table uses `earth`/`moon` (pre-v0.9.0 names) (Option B):**
+- Renamed table row identifiers `earth` → `terra` and `moon` →
+  `luna` to match the v0.9.0+ Latin-proper-noun convention used
+  throughout the rest of the codebase. Prose references to "Earth"
+  / "Moon" in English-language sentences (e.g. "Earth phase error
+  scales roughly linearly...") stay as natural-language usage; the
+  v0.9.0 rename was specifically about body-identifier strings,
+  not English vocabulary.
+
+### Versioning
+
+`0.28.1rc1` → `0.28.1rc2`. rc1 hit TestPyPI successfully (verified
+externally); rc2 folds the two user-approved proofread fixes into
+the same v0.28.1 cycle so the clean v0.28.1 ships the accumulated
+README hygiene.
+
+## [0.28.1rc1] — 2026-05-15
+
+### Fixed — stale "Unreleased" bullets in PyPI-rendered README
+
+Two bullets at the top of the version-by-version list in
+`python/README.md` described features as future work even though
+they had shipped in v0.26.1 (the v0.26.1 entry below explicitly
+records them):
+
+- **LLM tool-schema export** — `get_tool_schema`, `list_tool_names`,
+  `get_one_tool_schema` + the three CLI subcommands shipped in
+  v0.26.1. The local introspection surface now covers ~246
+  self-describing bridge functions across 4 formats (Anthropic
+  Claude / OpenAI function-calling / Anthropic MCP / plain JSON
+  Schema). Cross-package integration through srmech's profile
+  pattern landed in v0.27.0: `[profile.tool_schema].extension_file
+  = "_srmech_tool_schema.toml"` registers the 9 profile-tier
+  bridge surfaces with `srmech.amsc.tool_schema` so LLM agents can
+  discover ephemerides-spectral's offerings via the unified
+  cross-package surface (`owner="ephemerides"`).
+
+- **First cosmology-instrument pair (CMB Power Spectrum + CMB
+  Anomalies)** — `cmb_power_spectrum` (Planck 2018 PR3, 111 bands)
+  and `cmb_anomalies` (6 canonical large-scale anomalies) both
+  shipped in v0.26.1.
+
+Both bullets removed from the README's release-history section in
+this rc. A short HTML comment is left in place documenting the
+removal + the cross-package architecture for future readers.
+
+### No code change
+
+Pure README hygiene. All 5 SSOT files bump in lockstep
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`,
+`srmech_profile.toml`, `c/include/ephemerides_spectral.h`);
+manifest regenerated; no `_research` mirror changes; no test
+ratchet changes; no ABI change (`ES_ABI_VERSION = 9` unchanged
+from v0.28.0).
+
+### Versioning
+
+`0.28.0` → `0.28.1rc1`. Patch bump (docs-only). RC suffix
+auto-routes to TestPyPI per the existing publish-workflow regex.
+The clean `v0.28.1` ships to production PyPI after rc verify.
+
 ## [0.28.0] — 2026-05-14
 
 ### Production cut after the v0.28.x rc stack (no code change from 0.28.0rc5)
