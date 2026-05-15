@@ -30,8 +30,28 @@ astronomical calculator known as the Antikythera Mechanism", *Nature*
     pin position in driven-wheel frame:   (r cos theta_in − e,  r sin theta_in)
     theta_out = atan2(r sin theta_in, r cos theta_in − e)
 
-We work with the dimensionless eccentricity eps = e / r.  Freeth 2006
-estimates eps ≈ 0.054 from the surviving Fragment B geometry.
+We work with the dimensionless eccentricity eps = e / r.
+
+**Eccentricity reconstruction note (spike F2, 2026-05-14):** Freeth 2006
+published eps ≈ 0.054 from the surviving Fragment B geometry, but
+Gourtsoyannis ("Hipparchos vs. Ptolemy and the Antikythera Mechanism")
+measured the bronze directly — pin offset 1.1 mm, pin distance 9.6 mm,
+giving **eps = 0.1146 ± 0.0057**, exactly 2.12× Freeth's value. The
+factor-2 discrepancy is most likely a convention error in Freeth 2006
+(offset/diameter vs offset/radius). At eps = 0.1146 the pin-slot's
+leading equation-of-centre coefficient is 6.58°, matching Brown's
+modern lunar value (6.29°) within 4%. At Freeth's 0.054 the coefficient
+is only 3.09°, below both modern and Hipparchan amplitudes.
+
+The pin-slot's atan2 algebra implements the **eccentric-anomaly Kepler
+series** `E(M) = M + Σ_k (ε^k / k) sin(kM)` — the Greek center-frame
+eccentric-circle, NOT the Keplerian focus-frame true-anomaly series.
+This is structurally what Hipparchus's lunar theory required; the
+Greek convention's eccentricity-doubling (ε ≈ 2 × modern e_moon) is
+exactly what Gourtsoyannis's bronze measurement shows.
+
+See [docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md)
+for the deep dive + falsification protocols.
 
 D-H1 deliverable: the ratio ||M_anti|| / ||M_sym|| for the pin-and-slot
 directed-advance operator on a discretised input angle space, compared
@@ -52,15 +72,42 @@ import numpy as np
 # Eccentricity presets
 # ---------------------------------------------------------------------------
 
+ECCENTRICITY_GOURTSOYANNIS = 0.1146
+"""Dimensionless eccentricity eps = e / r measured directly from the bronze
+Fragment B by Gourtsoyannis ("Hipparchos vs. Ptolemy and the Antikythera
+Mechanism", academia.edu/41392086): pin offset 1.1 mm, pin distance 9.6 mm
+→ eps = 0.1146 ± 0.0057. At this eps the pin-slot's leading equation-of-
+centre coefficient is 6.58°, matching Brown's modern lunar amplitude
+(6.29°) within 4%. **This is the bronze's actual algebraic value**;
+the default for new code (see PinSlotGeometry.eccentricity below).
+
+Per spike F2 (2026-05-14): the pin-slot implements the eccentric-anomaly
+Kepler series (Greek eccentric-circle convention); the bronze's
+eps ≈ 2 × modern e_moon is the convention's eccentricity-doubling that
+matches Hipparchus's observed lunar amplitudes.
+"""
+
 ECCENTRICITY_FREETH_2006 = 0.054
-"""Dimensionless eccentricity eps = e / r per Freeth 2006 Fragment B reconstruction."""
+"""**DEPRECATED for new code; kept for traceability of Freeth 2006's
+published value.**
+
+Freeth 2006 reported eps ≈ 0.054 from the Fragment B reconstruction, but
+spike F2 (2026-05-14) showed this is half the bronze's directly-measured
+eps (see ECCENTRICITY_GOURTSOYANNIS above) — most likely a convention
+error in Freeth 2006 (offset/diameter vs offset/radius). At Freeth's
+0.054 the pin-slot's equation-of-centre is 3.09°, below both Hipparchan
+(~5°) and Brown's modern (6.29°) amplitudes. Use ECCENTRICITY_GOURTSOYANNIS
+for new analyses; this constant is retained so explicit references to
+"the Freeth 2006 published value" still resolve."""
 
 ECCENTRICITY_WRIGHT = 0.060
 """Wright's slightly larger eccentricity estimate; not authoritative.
 
 Wright's reconstructions of the lunar epicycle vary across his papers; we use
 0.060 as a representative alternate per the project's both/and discipline.
-The exact figure is less load-bearing than the qualitative T-breaking claim.
+Like Freeth 2006's 0.054 this is below the Gourtsoyannis-measured 0.1146
+and likely subject to a similar convention question. The exact figure is
+less load-bearing than the qualitative T-breaking claim.
 """
 
 
@@ -80,14 +127,25 @@ class PinSlotGeometry:
         itself — recorded for cross-reference with gear_database.LUNAR_TRAIN.
     """
 
-    eccentricity: float = ECCENTRICITY_FREETH_2006
+    eccentricity: float = ECCENTRICITY_GOURTSOYANNIS
     teeth_each: int = 50
 
+
+GOURTSOYANNIS_GEOMETRY = PinSlotGeometry(
+    eccentricity=ECCENTRICITY_GOURTSOYANNIS,
+    teeth_each=50,
+)
+"""Canonical bronze geometry per Gourtsoyannis 2012 direct measurement;
+the default-recommended geometry for new D-H1 analyses."""
 
 FREETH_2006_GEOMETRY = PinSlotGeometry(
     eccentricity=ECCENTRICITY_FREETH_2006,
     teeth_each=50,
 )
+"""Freeth 2006 published geometry; preserved for traceability. The 0.054
+eccentricity is half the bronze's directly-measured value per spike F2
+(2026-05-14) — likely a Freeth-2006 convention error."""
+
 WRIGHT_GEOMETRY = PinSlotGeometry(
     eccentricity=ECCENTRICITY_WRIGHT,
     teeth_each=50,

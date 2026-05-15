@@ -701,23 +701,60 @@ This is exactly what Voulgaris et al. 2024 ([arXiv:2407.15858](https://arxiv.org
 
 The graph-theoretic role of such an element is unusual: it sits at a leaf (single output) but its two input shafts may both come from the core. So in periphery-rule terms, a drift-collector differential is *graph-position peripheral* (output side) with *attachment-side coupling to core bridges* (the two input chains). The b1-b2 differential matches this pattern exactly — its inputs are b1 (core bridge) and the lunar sidereal chain (mid-chain transmission) and its output is the lunar phase ball (a leaf).
 
-#### B. Feedback dampening via mechanical low-pass filters
+#### B. Continuous-motion smoothing — where it actually lives
 
-True closed-loop feedback (where a downstream output corrects an upstream input) is anachronistic for Greek mechanics — it requires either a sensor or a self-actuated regulator that the Antikythera's bronze toolbox doesn't include. **But the Antikythera *does* include mechanical low-pass filtering**, and the operator's intuition about "feedback dampening from gears" maps cleanly onto this:
+> **Amended 2026-05-14 per spike F5** ([docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md), [PR #416](https://github.com/lemonforest/mlehaptics/pull/416)). The original §11.6.6 sub-B (in commit history through 2026-05-13) claimed pin-and-slot was a per-mesh mechanical low-pass filter. Direct measurement falsified that claim; the rewrite below restates where the bronze's actual continuous-motion smoothing lives. See §11.6.6.4 for the amendment record.
 
-- **Pin-and-slot is a mechanical low-pass filter.** The lunar pin-and-slot epicycle (D-H1, [research/pin_and_slot.py](research/pin_and_slot.py)) takes a uniform-rotating input and produces a *non-uniform* output via a continuous pin-in-slot constraint. The pin slides smoothly along the slot rather than snapping discrete tooth-by-tooth, which means the output's angular position is integrated over the slot's contact arc — averaging out tooth-pitch noise on its input. Mechanically: the slot is a moving-average kernel. Spectrally: it is a low-pass filter with cutoff inversely proportional to the slot's angular extent.
-- **A pin-and-slot inserted mid-chain damps tooth-pitch noise on that mesh.** Replace a single mesh in the Saros chain (e.g. between f2 and g1) with a pin-and-slot, and the downstream Saros pointer's drift no longer accumulates tooth-pitch quantisation error from that mesh — the slot smooths it out.
-- **Differentials as variance-isolation, not averaging.** Note: a differential between two *independently noisy* paths *increases* output variance (variance sums for differences, just as for sums). Differentials don't average out noise — they isolate the *systematic* discrepancy from the *common* signal. So differential dampening only works if the two paths share a common systematic drift you want to subtract out (e.g., both are biased the same direction by temperature). Independent random noise gets *amplified*, not averaged.
+True closed-loop feedback (where a downstream output corrects an upstream input) is anachronistic for Greek mechanics — it requires either a sensor or a self-actuated regulator that the Antikythera's bronze toolbox doesn't include. The original §11.6.6 framing claimed pin-and-slot provided per-mesh mechanical low-pass filtering for tooth-pitch noise. **Direct k=100 noise transmission test** (spike F5, Q-tooth-noise) shows this is incorrect: pin-and-slot transmits high-spatial-frequency noise at near-unity gain, with only small ε/2-scale sidebands induced by the eccentricity itself. The pin-slot's atan2 transform is smooth and analytic but **not** band-attenuating.
+
+The continuous-motion intuition is still correct, just at a different mechanism. Three places in the bronze actually provide noise reduction, none of them via per-mesh low-pass filtering:
+
+- **Pointer-integration low-pass.** The lunar pointer (and other dial pointers) rotates slowly relative to the input crank. Per-revolution tooth-pitch noise on intermediate meshes averages out over the pointer's slower rotation. The integration step is the time-domain low-pass; this lives at the pointer, not at any mesh.
+- **Phase-averaging variance reduction.** Tooth-pitch errors on a mesh have zero mean over a full revolution. Over many revolutions the angular position's variance grows as √N (random walk), but the variance per-radian-of-pointer-output stays bounded if the train's gear ratios spread the cumulative error broadband. The pin-slot's nonlinear-but-smooth transmission redistributes spectral energy without removing it.
+- **Shared-upstream noise cancellation in differentials.** Per §11.6.7: differentials between paths that share an upstream gear cancel that gear's tooth-pitch error in the difference. This is genuine noise reduction at the dial level; the b1-b2 differential is the canonical bronze example.
+- **Differentials as variance-isolation, not averaging.** Note: a differential between two *independently noisy* paths *increases* output variance (variance sums for differences, just as for sums). Differentials don't average out independent noise — they isolate the *systematic* discrepancy from the *common* signal. So differential dampening only works if the two paths share a common systematic drift you want to subtract out (e.g., both are biased the same direction by temperature). Independent random noise gets *amplified*, not averaged.
+
+What pin-and-slot *does* spectrally is **bound the equation-of-centre amplitude geometrically**. The Hipparchan eccentric-circle that the pin-and-slot implements (Gourtsoyannis, "Hipparchos vs. Ptolemy and the Antikythera Mechanism" — see §11.6.6.4) produces output angular content of the form `θ + Σ_k (ε^k / k) sin(kθ)` — exactly the eccentric-anomaly series `E(M)`, with leading coefficient ε ≈ 0.1146 (the bronze's measured value; Freeth-2006's published 0.054 is half this via convention difference). Structurally NOT a Keplerian true-anomaly generator (which would have leading coefficient `2e`), but exactly what Hipparchus's lunar theory required.
 
 #### Implication for compensator architecture
 
-Combining §10's combination-gear principle, §11.6's periphery rule, and the §11.6.6 dampening regimes, **a strongly-favoured compensator shape emerges**:
+Combining §10's combination-gear principle, §11.6's periphery rule, and the §11.6.6 dampening regimes, **a strongly-favoured compensator shape emerges**. The original §11.6.6 framing motivated item 1 below as a noise-reduction mechanism; spike F5 (2026-05-14, see [docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md) Q-tooth-noise) falsified the per-mesh low-pass claim. Item 1 is re-grounded below to reflect pin-and-slot's actual algebraic role:
 
-1. **Pin-and-slot inserted at a peripheral leaf**, providing continuous-motion smoothing for that pointer's drift. Adds one degree-2 node to the DAG; preserves the surviving train's bridges and core; reduces tooth-pitch noise propagation to that one output.
+1. **Pin-and-slot inserted at a peripheral leaf**, providing the **Hipparchan equation-of-centre transform** that shapes the dial output's spectral content geometrically — *not* a noise filter for that mesh. The pin-and-slot's atan2 constraint produces the eccentric-anomaly Kepler series `θ + Σ_k (ε^k / k) sin(kθ)` at the bronze's measured ε ≈ 0.1146 (Gourtsoyannis, see §11.6.6.4 amendment), bounding the dial's astronomical amplitude to match the lunar first inequality. Adds one degree-2 node to the DAG; preserves the surviving train's bridges and core; **shapes amplitude, does not smooth noise**. The noise-reduction in the bronze actually lives elsewhere — at the pointer integration step, in phase-averaging across many revolutions, and in shared-upstream cancellation within differentials (§11.6.7) — none of it at the pin-and-slot itself.
 2. **Differential at a peripheral leaf**, with both input shafts coming from the same train's mid-chain (so the inputs share systematic bias). Output reads pure drift as a calibration signal — the lost Cover Disc indicators Voulgaris hypothesises.
-3. **NOT a fresh transmission gear inserted mid-chain** — that adds noise without dampening it.
+3. **NOT a fresh transmission gear inserted mid-chain** — that adds noise without dampening it. (The drift-redirection argument in §11.6.6 sub-A holds independently of the F5 falsification of the noise-filter claim.)
 
-The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated.
+The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated. The corrected reading: pin-and-slot at a peripheral leaf adds an astronomical-amplitude transform, not a noise filter.
+
+#### 11.6.6.4 Amendment record — F5 falsification of the pin-slot low-pass claim
+
+**2026-05-14.** The original §11.6.6 sub-B (commit history through 2026-05-13) framed pin-and-slot as a per-mesh mechanical low-pass filter. **Spike F5** ([docs/srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md), Q-tooth-noise direct k=100 measurement; [PR #416](https://github.com/lemonforest/mlehaptics/pull/416)) falsified this claim by direct test:
+
+- A pure k=100 angular-frequency input was injected into the canonical D-H1 pin-and-slot constraint (Freeth-2006 / Gourtsoyannis bronze geometry).
+- The output spectrum shows the **k=100 component at near-unity gain**, with only ε/2-scale sidebands at k=99 and k=101 induced by the eccentricity.
+- The pin-slot is therefore **NOT** a frequency-band-attenuating filter. The atan2 transform is smooth and analytic, but pin-slot transmission preserves high-spatial-frequency content.
+
+The rewrite at §11.6.6 sub-B relocates the bronze's actual continuous-motion smoothing to three correctly-attributed mechanisms: pointer-integration (time-domain low-pass at the slow dial), phase-averaging variance reduction (broadband redistribution across many revolutions), and shared-upstream noise cancellation in differentials (§11.6.7's mechanism). None of these live at the pin-and-slot.
+
+The pin-and-slot's actual algebraic role is the **Hipparchan equation-of-centre transform** — see also §11.6.6.5 below for the related F2 finding on Freeth-2006's ε convention.
+
+**Downstream impact:** the "Implication for compensator architecture" subsection's item 1 was re-grounded in the same PR; items 2 and 3 stand independently of the F5 falsification. §11.6.7's differential variance discussion is unaffected.
+
+#### 11.6.6.5 Amendment record — F2 finding on Freeth-2006 ε convention
+
+**2026-05-14.** Spike F2 (same PR) surfaced that Freeth-2006's published pin-and-slot eccentricity `ε = 0.054` is **half the value measured on the actual bronze** by Gourtsoyannis ("Hipparchos vs. Ptolemy and the Antikythera Mechanism," academia.edu/41392086):
+
+- Bronze direct measurement (Gourtsoyannis): pin offset 1.1mm / pin distance 9.6mm → **ε = 0.1146 ± 0.0057** (exactly 2.12× Freeth's 0.054).
+- At Gourtsoyannis's measured ε, the pin-and-slot's leading equation-of-centre coefficient is **6.58°**, matching Brown's modern lunar value (6.29°) within 4%.
+- At Freeth's published ε=0.054, the pin-and-slot produces only **3.09°** — half the modern equation-of-centre AND below the Hipparchan ~5°.
+
+The factor-2 discrepancy is most likely a **convention error in Freeth 2006** (offset/diameter vs offset/radius). The bronze itself is correct; the published reconstruction parameter is half-the-real-ratio.
+
+**Deeper structural finding:** the pin-and-slot atan2 algebra implements the **eccentric-anomaly Kepler series** `E(M) = M + Σ_k (ε^k / k) sin(kM)`, NOT the **true-anomaly series** `ν(M) = M + 2e sin M + (5/4)e² sin 2M + ...`. This is the Greek **eccentric-circle (center-frame) geometry**, which produces leading coefficient `ε` rather than the Keplerian focus-frame `2e`. The Greek convention required *doubled* eccentricity to match observed amplitudes — exactly what Gourtsoyannis's measured ε ≈ 2 × modern e_moon (0.0549) shows the bronze provides. The bronze is structurally not a Keplerian generator, but it is structurally what Hipparchus's lunar theory required.
+
+**Downstream impact:** [docs/antikythera-maths/research/pin_and_slot.py](research/pin_and_slot.py)'s `ECCENTRICITY_FREETH_2006 = 0.054` constant is amended in the same PR to reflect Gourtsoyannis's measured ε=0.1146 with the convention documentation. The D-H1 numerical outputs scale; downstream tests need verification.
+
+**Citation status (per [feedback_pdf_extraction_citation_discipline](../../memory/feedback_pdf_extraction_citation_discipline.md)):** Gourtsoyannis primary PDF not extracted (academia.edu WebFetch summary only); Freeth 2006 *Nature* paywalled; Carman-Thorndike-Evans 2012 binary-corrupted. Verdict is `best-available-without-PDF-access` — load-bearing because Gourtsoyannis's parameters cross-confirm with the Springer "Phases in the Unraveling" chapter quotation independently. Primary-PDF re-verification flagged as the next spike.
 
 ### 11.6.7 Shared differential leaves — when does sharing amplify or cancel noise?
 
