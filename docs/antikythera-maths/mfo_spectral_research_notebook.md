@@ -903,6 +903,52 @@ A specific unfilled gap in the literature: **no model-free spectral geometry inv
 
 The right computation: take the 9-dimensional SM mass² ratio vector, treat it as eigenvalue data, and ask what fractal Laplacian's spectrum reproduces it. Constraint: the fractal must have d_S → 2 at UV (consistent with QG convergence) and d_S → 4 at IR (consistent with our spatial experience), with non-monotonic flow in between. This is the framework's central open computation.
 
+### VIII.6 Space-gauge-time framework — Spike #24 bonus 5 spectral-graph signature
+
+A 2026-05-15 Spike #24 bonus inquiry tested the conjecture *"1D is 11D compressed or expressed; 11D = 3D + 7D + 1D; 'inverse' reads as fiber-projection duality"* with a load-bearing methodological discriminator: **the falsifier must be a spectral-graph operation, not a math-consistency check.** (The framing is per `[[feedback_antiquity_not_greek]]` — antiquity's geocentric models were "wrong about which body is central" but "right about what the primitives are"; modern physics may be in the analogous position with respect to 4D space-time, with the math fitting locally despite the wrong frame.)
+
+The MFO-conjecture framework name resulting from the spike: **"space-gauge-time"** — distinct from conventional "space-time" by treating gauge as a co-equal dimensional kind rather than "internal degrees of freedom layered on space-time." Canonical decomposition:
+
+`1D ≡ space-gauge-time ≡ 3D_s + 7D_g + 1D_t = 11D`
+
+(The subscripted-D notation avoids collision with manifold notation `S¹`/`T³`/`T⁷`/`SU(n)`/`SG(λ)` and field notation `GF(2^256)`. Per `[[project_space_gauge_time_framework]]`.)
+
+**Spectral-graph falsifier result.** Three candidate substrates over eigenvalue interval λ ∈ [0, 1.265] (M_flat radii tuned to Weyl-law agreement at 3%):
+
+- M_split = SG(3) × T⁷ × S¹ (fractal 3+7+1, per Part IV's product geometry)
+- M_smooth_split = T³ × T⁷ × S¹ (smooth 3+7+1, control)
+- M_flat = T⁴ (pure-4D "epicycle-tuned" — the antiquity-geocentric epistemological position)
+
+Class L on the eigenvalue degeneracy graph distinguishes 3+7+1 from pure-4D by **3–5× across multiple metrics**:
+
+| Metric | M_split | M_smooth_split | M_flat |
+|---|---:|---:|---:|
+| Gap CV (σ/μ) | 1.365 | **1.645** | 0.511 |
+| Connected components | 1 | **4 tower-clusters** | 1 |
+| Max multiplicity at level | 7 | **16** | 12 |
+| Fiedler λ₂ | 0.264 | 0.000 | 1.202 |
+
+The pure-4D observer can match the Weyl-law shape (3% error) but **cannot reach the CV = 1.6 super-Poisson regime** — the constraint comes from the *number of factor manifolds*, not from any individual factor's metric. The 4D-observer's "epicycles" structurally cannot reach the 3+7+1 regime.
+
+**A surprise that sharpens MFO §XIII.1.** The smooth 3+7+1 (T³ × T⁷ × S¹) carries the **cleanest** tower signature; the fractal SG-3D substrate **dilutes** the 3+7+1 fingerprint by filling product-structure gaps with its own decimation eigenvalues. This **separates two concerns MFO §XIII.1 had bundled:**
+
+- The 3+7+1 *framework discrimination* (large inter-cluster gaps) and
+- The fractal F's *within-cluster mass ratio tuning* (Part IV.5's three-generation self-similarity)
+
+are **independently discriminable.** Future §XIII.1 work can prosecute these targets separately: the spectral-graph signature of "is the geometry 3+7+1 vs pure-4D" lives in inter-cluster gap statistics; the spectral-graph signature of "is the within-3D substrate fractal with three-fold self-similarity" lives in the within-cluster eigenvalue distribution.
+
+**Cross-substrate vocabulary survival.** The Spike #24 14-class A–N primitive vocabulary survives the 3+7+1 projection unchanged: 12 classes instantiate at all three dimensional projections (3D_s, 7D_g, 1D_t); 2 (Class A content-addressing, Class F templating) are uniformly absent — confirmed digital-substrate-only. **No class is uniquely 1D_t.** This pre-answers a question the immediately-following bonus 6 (RNG) asked: there is no uniquely-1D_t primitive in the vocabulary that could forbid classical RNG construction.
+
+**Companion finding from RNG bonus 6 (substrate-internal-dilution pattern).** A sibling finding surfaced at an independent substrate within the same week: Brusselator's raw-LSB extraction (a chaotic-substrate process projected to discrete bits) destroys the Kepler-shape integer-harmonic signature by itself — a ~4,660× collapse in DFT peak-to-floor ratio. Two independent substrates (fractal SG-3D in MFO; chaotic floating-point Brusselator in RNG) where the substrate's *own* internal structure obscures the upstream spectral signature you might hope to read off. **Hypothesis for future MFO work**: Class L spectral signatures are *substrate-internally-dilutable*. Reading them off downstream-observable signals requires either a substrate whose internal dynamics don't compete, OR an extraction step that bypasses the substrate's competing-spectrum machinery.
+
+**Files / cross-references.**
+
+- Spike #24 bonus 5 synthesis: [`docs/srmech/notes/spike_24_bonus_mfo_11d_ontology_decomposition_2026-05-15.md`](../srmech/notes/spike_24_bonus_mfo_11d_ontology_decomposition_2026-05-15.md).
+- Spike #24 bonus 5 falsifier probe: [`docs/srmech/notes/spike_24_bonus_mfo_dimensional_inverse_catalog_2026-05-15.py`](../srmech/notes/spike_24_bonus_mfo_dimensional_inverse_catalog_2026-05-15.py) + companion NDJSON.
+- Spike #24 bonus series synthesis: [`docs/srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md`](../srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md).
+- Canonical framework name + notation: `[[project_space_gauge_time_framework]]` memory.
+- Methodological discriminator: `[[feedback_antiquity_not_greek]]` memory.
+
 ---
 
 ## Part IX — Status and Roadmap
@@ -936,6 +982,11 @@ The right computation: take the 9-dimensional SM mass² ratio vector, treat it a
 - Full non-Abelian impedance matching (overlap integrals on candidate manifolds)
 - Non-monotonic d_S flow profile on specific fractal candidates
 - α(z) functional relationship from spectral structure
+
+**Newly demonstrated (Spike #24 bonus 5, 2026-05-15; see Part VIII.6):**
+- Spectral-graph signature for the space-gauge-time framework: Class L on eigenvalue degeneracy graph distinguishes 3D_s + 7D_g + 1D_t product structure from pure-4D anisotropic torus by 3–5× across multiple metrics (gap CV super-Poisson 1.6 vs sub-Poisson 0.5; tower-clustering connected components; max-multiplicity differential). The "antiquity-geocentric epicycle fit" — a 4D observer Weyl-tuning T⁴ radii — provably cannot reach the super-Poisson regime characteristic of multi-factor products.
+- Smooth-vs-fractal independent-discriminability finding (§VIII.6): the 3+7+1 framework-discrimination signature and the fractal F's within-cluster mass-ratio tuning (Part IV.5) are independently discriminable — separating two concerns §XIII.1 had bundled.
+- Cross-substrate primitive vocabulary survives the 3+7+1 projection: 12/14 classes instantiate at all three dimensional kinds, 2/14 (content-addressing, templating) digital-only.
 
 ### IX.2 The 20-item roadmap
 

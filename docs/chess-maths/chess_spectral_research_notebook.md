@@ -4562,7 +4562,60 @@ This is worth saying out loud because it makes the framework easier to introduce
 
 ---
 
-## 43. Appendix: Environment & Reproducibility
+## 44. Chess opening as Class-D dispatch over Class-L spectral graph (Spike #24 bonus 2 — 2026-05-15)
+
+A 2026-05-15 Spike #24 bonus inquiry on the **structure of tactical choice** tested the user hypothesis *"a tactical choice might be a constraint manifold with branching points"* across three substrates: tic-tac-toe (5478 positions enumerated, 765 D₄-orbits), chess opening (ply 0-3: 8023 positions, 9322 edges), and chemical-reaction-network reaction-firing (Lotka-Volterra CTMC, 961 states).
+
+**Verdict: REFINED.** The verbatim "constraint manifold" framing is falsified at strict-geometric level — none of the three position graphs are locally-Euclidean d-dimensional manifolds; they are **depth-truncated branching DAGs with terminals concentrated at the horizon**. But the framing refines cleanly into existing srmech vocabulary:
+
+> **A tactical choice = Class D dispatch over a Class L-spectral graph of legal successor states, optionally quotiented by Class I symmetries of the state substrate, with the dispatch criterion (minimax value for adversarial games; propensity for physics-driven dynamics) being substrate-specific and disjoint from the primitive vocabulary.**
+
+This decomposition makes the chess-spectral notebook's piece-resonance / fiber-bundle / Markov framings (§3, §7, §42) **adjacent to** game-decision structure in a way the notebook had not previously articulated: the *board state graph* (legal moves as edges) carries a Class L spectrum just like the piece-mobility graph does, and a player's tactical choice is a Class D late-binding dispatch over the candidate successor edges with the minimax evaluator as criterion.
+
+### Chess opening's surprise: trivial symmetry |G| = 1
+
+The bonus inquiry computed the symmetry group of the chess opening position graph (ply 0-3). **Result: |G| = 1.** No non-trivial graph automorphism exists.
+
+This was a surprise. The naïve expectation is that a-h file-mirror should be a symmetry of the chess opening — the chessboard *is* mirror-symmetric in the a-h direction at a purely geometric level. But the **King is at e1 and Queen at d1 by convention**; reflecting under the a-h mirror swaps them, producing a position with Queen at e1 and King at d1, which is *not* a legal chess starting position. The mirror image of the standard opening is not in the game-state space at all.
+
+**Implication for chess-spectral analysis.** The Class I (cyclic-group / dihedral symmetry) factor in tactical-choice decomposition is **optional and substrate-dependent**: tic-tac-toe inherits the full board's D₄ symmetry (8-fold orbit reduction; 765 orbits out of 5478 positions); chess opening inherits **none** of it because the King/Queen convention breaks every non-trivial mirror. The chess-spectral notebook's reliance on D₄ / B₄ / Cayley-graph structure for piece sectors (§3, §1b.3) lives at the *piece-on-empty-board* layer; once the King/Queen convention enters at the *game-position* layer, the symmetry breaks. The two layers are not the same Class I instantiation.
+
+This is a clean substrate-boundary observation: the chess-spectral vocabulary is correct at the piece-mobility layer but does not automatically transfer to the game-position layer. The Spike #24 vocabulary (Class L spectral + Class D dispatch + optional Class I quotient) is what connects them.
+
+### Quantitative comparison
+
+| Metric | Tic-tac-toe (D₄-quotient) | Chess opening (ply 0-3, |G|=1) | CRN reaction-firing (LV CTMC) |
+|---|---:|---:|---:|
+| State count | 5478 (765 orbits) | 8023 | 961 |
+| Edge count | (varies by orbit) | 9322 | (varies by reaction) |
+| Symmetry quotient | 8-fold (D₄) | 1-fold (none) | — |
+| Quotient Laplacian λ₁ | 0.242 | 0.00156 | — |
+| Mean 1-hop degree (depth-1) | 9.0 (full) | (board-dependent) | — |
+| Mean 1-hop degree (depth-9) | 2.33 | — | — |
+
+The dramatic difference in quotient-graph λ₁ (0.242 vs 0.00156) reflects chess's tree-like branching DAG vs tic-tac-toe's symmetry-quotient mixing. Chess is **more nearly tree-like** at the opening — lots of bottlenecks, low spectral gap, slow random-walk mixing on the position graph. This is consistent with the notebook's §10 phase-space Othello finding that game-graphs near opening positions have low-conductance bottlenecks.
+
+### Connection to the notebook's existing apparatus
+
+Three concrete bridges:
+
+1. **§3 piece-resonance** is **Class L on the piece-mobility graph**. The §3 analyses (knight, bishop, rook, queen, pawn DCT eigenstructure) are spectral-graph-theory instantiations of Class L at the piece-on-empty-board substrate.
+2. **§7 fiber-bundle** is **Class L composed with Class M (HDC binding)**. The rank-3 fiber bundle structure is a hyperdimensional encoding of the piece-mobility graph's eigenbasis, where Class M's bind/bundle/permute operations live on the fiber.
+3. **§42 Markov-chain reformulation** is **the same Class L** under transition-kernel vocabulary. The conductance bounds and mixing-time arguments mentioned at §42's tail are Cheeger-style spectral results on the same Class L spectrum.
+
+The new §44 contribution (this section) extends the framework with **Class D late-binding dispatch** as the tactical-choice primitive — sitting *above* the §3/§7/§42 spectral apparatus, taking the spectral graph as input and emitting one selected successor edge as output. Tactical choice is **not** a spectral primitive; it is a *dispatch over* the spectral primitive.
+
+### Files / cross-references
+
+- Spike #24 bonus 2 synthesis: [`docs/srmech/notes/spike_24_bonus_tactical_choice_structure_2026-05-15.md`](../srmech/notes/spike_24_bonus_tactical_choice_structure_2026-05-15.md).
+- Chess-opening probe (ply 0-3 enumeration + |G|=1 finding): [`docs/srmech/notes/spike_24_bonus_tactical_choice_chess_opening_2026-05-15.py`](../srmech/notes/spike_24_bonus_tactical_choice_chess_opening_2026-05-15.py) + companion NDJSON.
+- Tic-tac-toe probe (D₄-quotient enumeration + minimax verdict): [`docs/srmech/notes/spike_24_bonus_tactical_choice_tictactoe_2026-05-15.py`](../srmech/notes/spike_24_bonus_tactical_choice_tictactoe_2026-05-15.py) + companion NDJSON.
+- Spike #24 bonus series synthesis: [`docs/srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md`](../srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md).
+- Phase 10 substrate-boundary characterisation (preceded this bonus): [`docs/srmech/notes/spike_24_primitive_vocabulary_findings_2026-05-15.md`](../srmech/notes/spike_24_primitive_vocabulary_findings_2026-05-15.md) §10.
+
+---
+
+## 45. Appendix: Environment & Reproducibility
 
 ### Requirements
 ```
