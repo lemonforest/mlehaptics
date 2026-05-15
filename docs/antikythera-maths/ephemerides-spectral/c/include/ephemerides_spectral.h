@@ -519,10 +519,84 @@ typedef struct {
  * followed by `[exp(1j * φ) for φ in phases]` byte-for-byte (modulo
  * complex64 vs complex128 casting; the float32 truncation is
  * deterministic).
+ *
+ * v0.29.0rc1 — DEPRECATION CANDIDATE. Equivalent to
+ * `es_channel_basis_method(seed, out, D, ES_BASIS_METHOD_LEGACY)`.
+ * Kept as-is so the byte-parity discipline with the Python BIP path
+ * (test_channel_basis_parity.py) continues to hold without changing
+ * any caller. The v0.29.0 spike adds the cospi/sinpi route via
+ * `es_channel_basis_method` for bench-and-quantify before any yank
+ * decision; this entry point is marked deprecated when the bench
+ * supports flipping the default + the Python mirror is updated.
  */
 es_status_t es_channel_basis(uint64_t seed,
                              es_complex64_t *out,
                              size_t D);
+
+/* ------------------------------------------------------------------ *
+ * C/Python parity Tier 2a dual-path (v0.29.0rc1, ABI v10) —
+ *     LEGACY (× π in software, default + Python-byte-parity preserved)
+ *     COSPI  (libm cospi/sinpi or fallback; spike for bench-and-yank)
+ * ------------------------------------------------------------------ *
+ *
+ * The LEGACY path that has shipped since v0.6.1 evaluates
+ *   phi_rad = (u >> 11) * (2π / 2^53)        in [0, 2π)
+ *   out[k]  = (cos(phi_rad), sin(phi_rad))   complex64
+ * That `× 2π` is a software multiply by a not-exactly-representable
+ * irrational constant, then libm's `cos`/`sin` does another argument
+ * reduction internally. The two reductions compose error: even when
+ * the splitmix64 PRNG happens to land on an exact quarter-turn the
+ * basis element drifts off (1, 0) / (0, 1) by a few float32 ULP.
+ *
+ * The COSPI path keeps the phase in half-turns (units of π):
+ *   phi_ht  = (u >> 11) * (2  / 2^53)        in [0, 2)
+ *   out[k]  = (cospi(phi_ht), sinpi(phi_ht)) complex64
+ * Where `cospi(x) ≡ cos(π · x)` and `sinpi(x) ≡ sin(π · x)` are
+ * provided natively by C23 libm and by Apple's libsystem (as
+ * `__cospi`/`__sinpi`). The libm implementation does the π-aware
+ * argument reduction with full precision — no `× π` rounding loss.
+ * Quarter-turn channels (phi_ht ∈ {0, 1/2, 1, 3/2}) become bit-exact
+ * (1+0i, 0+1i, -1+0i, 0-1i).
+ *
+ * Why not flip the default in this rc? The byte-parity test pins
+ * `np.exp(1j * φ)` against the C output. numpy uses `× π` in software
+ * too, so COSPI's bytes DIFFER from Python's bytes — flipping the
+ * default would break Tier 2a parity. The dual-path is `bench first;
+ * decide later`: measure (LEGACY vs COSPI) quarter-turn fidelity +
+ * HDC-accumulation drift on hardware, then either (a) flip the
+ * default + update the Python mirror to compute via half-turn
+ * argument reduction too, or (b) keep LEGACY as default and the
+ * COSPI route as the precision-when-you-need-it option.
+ *
+ * No new SCRATCH or memory contracts — this path uses the same
+ * caller-supplied `out` buffer of D `es_complex64_t` entries.
+ */
+
+typedef enum {
+    ES_BASIS_METHOD_LEGACY = 0, /* cos(2π · phi/2π)  shipped path        */
+    ES_BASIS_METHOD_COSPI  = 1, /* cospi(2 · phi/2π) v0.29.0rc1 spike    */
+} es_basis_method_t;
+
+/* Compile-time-resolved flag: returns 1 if this binary's COSPI route
+ * uses the native libm cospi/sinpi (or Apple's __cospi/__sinpi); 0 if
+ * it falls back to `cos(π · x)` / `sin(π · x)` (which has the same
+ * rounding loss as LEGACY, so COSPI ≡ LEGACY at the byte level on
+ * those toolchains). Bench scripts read this to label results.
+ */
+int es_has_native_cospi(void);
+
+/* v0.29.0rc1 — method-selected channel-basis construction.
+ *
+ * method == ES_BASIS_METHOD_LEGACY: byte-identical to `es_channel_basis`.
+ * method == ES_BASIS_METHOD_COSPI : cospi/sinpi route (see commentary).
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if out is NULL;
+ * ES_ERR_INVALID_KIND if `method` is not a defined enum value.
+ */
+es_status_t es_channel_basis_method(uint64_t seed,
+                                    es_complex64_t *out,
+                                    size_t D,
+                                    es_basis_method_t method);
 
 /* ------------------------------------------------------------------ *
  * C/Python parity Tier 2b (v0.7.0, ABI v5) — HD encode + observer-bind
@@ -656,9 +730,9 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 27
+#define ES_VERSION_MINOR 29
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.28.1"
+#define ES_VERSION_STRING "0.29.0rc1"
 
 const char *es_version(void);
 
@@ -742,8 +816,21 @@ const char *es_version(void);
  *     all loops bounded, every function carries ≥2 asserts. Closes
  *     the rc1 backend_caveat (EOC patches now work with backend="c"
  *     and produce byte-exact agreement with the Python BIP path).
+ *
+ * v10: v0.29.0rc1 — Channel-basis dual-path (cospi/sinpi spike).
+ *     Added: ES_BASIS_METHOD_LEGACY / ES_BASIS_METHOD_COSPI enum,
+ *     `es_channel_basis_method(seed, out, D, method)` entry point,
+ *     `es_has_native_cospi()` compile-time flag.
+ *     The existing `es_channel_basis` is unchanged on the byte level
+ *     (delegates to `es_channel_basis_method(..., LEGACY)`); the
+ *     COSPI route is opt-in and exists for bench-and-quantify before
+ *     any flip of the default. No encoder hot-path changes. The
+ *     Python `_native_bip` shim adds `native_channel_basis_cospi`
+ *     and a `EXPECTED_ABI_VERSION = 10` bump. Bench results
+ *     determine whether COSPI graduates to default + Python mirror
+ *     update, or stays as a precision-on-demand route.
  */
-#define ES_ABI_VERSION 9
+#define ES_ABI_VERSION 10
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

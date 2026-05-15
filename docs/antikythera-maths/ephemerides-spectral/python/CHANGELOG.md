@@ -10,6 +10,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.0rc1] — 2026-05-14
+
+### Added — channel-basis dual-path spike (cospi/sinpi precision route)
+
+Opens the v0.29.x cycle with a small bench-and-quantify spike on the
+channel-basis construction path. Motivation, design, and the
+bench-before-yank discipline are described in the project-level
+[CHANGELOG §0.29.0rc1](../CHANGELOG.md).
+
+**C surface (ABI v9 → v10, additive):**
+
+- New `es_basis_method_t` enum in `c/include/ephemerides_spectral.h`
+  (`ES_BASIS_METHOD_LEGACY = 0`, `ES_BASIS_METHOD_COSPI = 1`).
+- New `es_status_t es_channel_basis_method(uint64_t seed,
+  es_complex64_t *out, size_t D, es_basis_method_t method)` entry
+  point. The existing `es_channel_basis(seed, out, D)` is preserved
+  as-is — it delegates to `es_channel_basis_method(..., LEGACY)`, so
+  the Tier 2a byte-parity test continues to hold byte-for-byte.
+- New `int es_has_native_cospi(void)` — compile-time-resolved flag
+  reporting whether this binary's COSPI route uses the native libm
+  (`cospi`/`sinpi` on C23, `__cospi`/`__sinpi` on Apple) or the
+  `cos(π · x)` fallback (under which COSPI ≡ LEGACY at the byte
+  level; the spike is informationless on those toolchains).
+- New internal helper `es_splitmix64_uniform_half_turns(u)` in
+  `c/include/es_prng.h` + `c/src/es_prng.c`. Companion to the
+  existing `_uniform_2pi` — same `(u >> 11)` mantissa extraction,
+  scaling factor `2 / 2^53` instead of `2π / 2^53` (the half-turn
+  factor is exactly representable in IEEE-754 double).
+- `c/src/es_channel_bases.c` refactored: LEGACY and COSPI routes as
+  separate static helpers, each ≤ 60 lines with ≥ 2 asserts. The
+  preprocessor branch (Apple / C23 / fallback) is internalised inside
+  the two `es_cospi_d` / `es_sinpi_d` inlines to keep the function
+  count discipline simple.
+- JPL audit pins ratcheted: `PIN_RULE_5_TOTAL_FUNCS` 46 → 53,
+  `PIN_RULE_5_ASSERTIONS` 102 → 110 (density 110 / 53 ≈ 2.075, above
+  the ≥ 2.0 floor). Power-of-Ten clean: no goto, no malloc, bounded
+  loops.
+
+**Python surface:**
+
+- `_native_bip.EXPECTED_ABI_VERSION` 9 → 10.
+- New constants exposed: `ES_BASIS_METHOD_LEGACY`,
+  `ES_BASIS_METHOD_COSPI`.
+- New wrapper helpers: `native_channel_basis_method(seed, D, method)`,
+  `native_channel_basis_cospi(seed, D)`, `native_has_native_cospi()`.
+- `__all__` updated; existing `native_channel_basis` is unchanged.
+- `srmech_profile.toml` bumps `expected_abi_version` 9 → 10.
+
+**Tests:**
+
+- New `python/tests/test_channel_basis_dual_path.py`:
+  - LEGACY-method route byte-identical to the default `es_channel_basis`.
+  - COSPI route returns correct shape / dtype.
+  - COSPI route's per-element `|mag - 1|` ≤ float32 ULP (~1e-6).
+  - Soft ratchet: COSPI's max `|mag - 1|` ≤ LEGACY's (plus a ~6e-8
+    fairness allowance for fallback toolchains).
+  - `native_has_native_cospi` returns `bool`.
+  - Invalid enum value rejected via `ES_ERR_INVALID_KIND`.
+
+**Bench script (not run in CI):**
+
+- New `scripts/bench_cospi_basis.py` emits NDJSON to stdout (one
+  record per measurement) with per-(seed, D) drift, unit-magnitude
+  error, and a representative HDC roll-and-accumulate norm
+  comparison. The script is the artifact of the bench-and-quantify
+  step — its quantitative output decides whether the v0.29.x cycle
+  graduates COSPI to default + updates the Python mirror, or keeps
+  LEGACY as the byte-parity default and COSPI as opt-in precision.
+
+**No encoder hot-path changes.** The 52-body uint32 phase residues
+emitted by `es_encode_state` / `bridge.encode_state` are byte-
+identical to v0.28.1.
+
 ## [0.28.1] — 2026-05-15
 
 ### Production cut after the v0.28.1 rc cycle (no code change from 0.28.1rc2)

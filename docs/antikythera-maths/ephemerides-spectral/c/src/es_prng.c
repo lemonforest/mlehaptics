@@ -50,3 +50,18 @@ double es_splitmix64_uniform_2pi(uint64_t u)
     assert(r < 6.283185307179587);  /* < 2π (loose upper, accounts for round-up) */
     return r;
 }
+
+double es_splitmix64_uniform_half_turns(uint64_t u)
+{
+    /* v0.29.0rc1 — half-turn companion. Take the high 53 bits and
+     * scale to [0, 2). Argument is in units of π (half-turns), suitable
+     * for direct consumption by libm `cospi`/`sinpi`. The scaling
+     * factor 2 / 2**53 is exactly representable in IEEE-754 double
+     * (a power of two), unlike 2π / 2**53.
+     */
+    static const double SCALE_HT = 2.0 / 9007199254740992.0;
+    const double r = (double)(u >> 11) * SCALE_HT;
+    assert(r >= 0.0);
+    assert(r < 2.0);  /* strict upper: (2^53 - 1) * (2 / 2^53) < 2 */
+    return r;
+}

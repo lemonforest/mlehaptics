@@ -98,7 +98,14 @@ PIN_RULE_4_LONG_FUNCTIONS: int = 0
 #:                  es_true_anomaly ×2, es_eval_eoc_residue ×4,
 #:                  es_clear_eoc_patches ×2, es_validate_patch
 #:                  ECC-kind branch ×3).
-PIN_RULE_5_ASSERTIONS:     int = 102
+#: v0.29.0rc1: 102 → 110. +8 from the channel-basis dual-path spike:
+#:                  es_channel_basis_legacy ×3, es_channel_basis_cospi_route
+#:                  ×3, es_channel_basis (post-null-check) ×1,
+#:                  es_channel_basis_method (post-null-check) ×1; old
+#:                  es_channel_basis loop's 2 asserts roll into
+#:                  _legacy. New es_splitmix64_uniform_half_turns
+#:                  carries 2 asserts (range invariants). Net +8.
+PIN_RULE_5_ASSERTIONS:     int = 110
 #: Total functions in the codebase. Used to compute the 2/function
 #: average enforcement. Pinned because adding functions changes the
 #: required assertion count; if a PR adds functions it should ALSO
@@ -108,7 +115,14 @@ PIN_RULE_5_ASSERTIONS:     int = 102
 #:                  es_true_anomaly, es_eval_eoc_residue,
 #:                  es_clear_eoc_patches. Density: 102 / 46 = 2.22
 #:                  (well above the ≥2.0 floor).
-PIN_RULE_5_TOTAL_FUNCS:    int = 46
+#: v0.29.0rc1: 46 → 53. +7 from the channel-basis dual-path spike:
+#:                  es_cospi_d (inline), es_sinpi_d (inline),
+#:                  es_has_native_cospi, es_channel_basis_legacy,
+#:                  es_channel_basis_cospi_route, es_channel_basis_method,
+#:                  es_splitmix64_uniform_half_turns (in es_prng.c);
+#:                  es_channel_basis (preserved). Density: 110/53 =
+#:                  2.075 (above the ≥2.0 floor).
+PIN_RULE_5_TOTAL_FUNCS:    int = 53
 
 #: Rule 8 — limited preprocessor: no multi-line macros.
 PIN_RULE_8_MULTILINE_MACROS: int = 0

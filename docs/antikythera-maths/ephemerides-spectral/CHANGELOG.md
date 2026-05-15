@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.0rc1] — 2026-05-14
+
+### Added — channel-basis dual-path spike (cospi/sinpi precision route)
+
+First rc of the v0.29.x cycle is a small precision spike: the channel-basis construction path gains a second route that uses C23 / Apple-libsystem `cospi` / `sinpi` (with a `cos(π · x)` fallback on other toolchains). Motivation: the shipped LEGACY route does `phi = (u >> 11) · (2π / 2^53)` as a software multiply then calls libm `cos`/`sin` on the radian result — composing two argument-reductions and accumulating roughly two ULP of error at quarter-turn channels. The COSPI route keeps the phase in half-turns (`x = (u >> 11) · (2 / 2^53)`, scaling factor exactly representable in IEEE-754), passes that directly to `cospi`/`sinpi`, and lets libm do the π-aware argument reduction internally. Quarter-turn channels collapse to bit-exact `(±1, ±i)` under the native backend.
+
+**Why opt-in (not default flip)**: the Tier 2a byte-parity test (`test_channel_basis_parity.py`) pins the C output against `numpy.exp(1j · φ)`, and numpy uses `× π` in software too — flipping the default would break Python parity. The dual-path lets us bench-and-quantify on hardware (`scripts/bench_cospi_basis.py`) before deciding whether to graduate COSPI to default + update the Python mirror, or keep LEGACY as the byte-parity default and COSPI as the precision-on-demand route.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.29.0rc1](python/CHANGELOG.md).
+
 ## [0.28.1] — 2026-05-15
 
 ### Production cut — README hygiene patch on top of v0.28.0
