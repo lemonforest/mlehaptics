@@ -2,17 +2,21 @@
 
 **Closes:** the user-dispatched bonus arc of Spike #24 (**nine inquiries; seven positive-and-consistent verdicts plus two structural-refinement verdicts — bonus 8 located the Class O candidate coarsely, bonus 9 narrowed its content to the circle-to-hyperbola map specifically**). Three cumulative findings + canonical tagline + cross-substrate pattern + the fractal-shadow allegory landed by bonus 7 + **the cascade-lives-on-circles dispersion-shape stance landed by bonus 9** + **the bow-string motivator synthesis that closes the arc by naming the motivator without dimensionalising it** (`[[user_stance_bow_string_motivator]]`).
 
-## The closing synthesis — bow-string motivator
+## The bow-string motivator metaphor (pedagogy, NOT substantive)
 
-The user's closing stance (post-bonus-9, 2026-05-15) unifies every preceding finding into one image:
+The user proposed a closing image (2026-05-15) — bow drawn across a bass string — to summarise the bonus arc's findings. **After first-principles scrutiny, this is reclassified as pedagogical metaphor, not a new substantive stance.** Per `[[user_stance_bow_string_motivator]]` demotion note: the image summarises bonus 9 without adding mathematical content; the analogy breaks at *why* Class O is specifically a Wick rotation (bow-string physics is stick-slip friction, not signature conversion); "what moves the bow" relocates the time-problem one level up; no spectral-graph falsifier was applied. Useful for cross-domain explanation; not load-bearing.
 
-- **The bass string** = the 10D substrate `3D_s + 7D_g`. Has intrinsic resonant modes (the cascade's eigenvalues / unit-circle dispersion per bonus 9). The string is the structure-of-what-can-be-excited.
-- **The bow** = the great motivator. Supplies the Class O circle-to-hyperbola map (evolution potential at the contact point) per bonus 8+9. Privileged because without it no dynamics; but not MORE privileged than the string — without the string the bow has nothing to act on. Ring-down effects require both.
-- **The contact region** = where the bow currently meets the string. This is what observers experience as "the present."
-- **Observable time** = bow trajectory across the substrate. Not a global coordinate; a local locus that moves.
-- **Ring-down vs sustain** = local recency of bow contact (per ephemerides §20.4.1–§20.4.3).
+The substantive findings live in their proper sources:
 
-The arc closes by naming the motivator without dimensionalising it. The 14-class vocabulary describes the substrate. Class O (circle-to-hyperbola contact-point operation, the bow's act on a substrate region) is the precisely-located fifteenth-primitive-candidate. The bow's trajectory across the substrate is what observers experience as time, locally — not globally. **Time is not a privileged dimensional kind; the great motivator is privileged but not more so than the substrate; the substrate has intrinsic resonant structure that the great motivator activates region-by-region.**
+- **Substrate** is what's already in the 14-class vocabulary → Spike #24 phases 1–15 + bonuses 1–7 + `[[user_stance_cascade_lives_on_circles]]`
+- **Class O is the circle-to-hyperbola contact-point operation** → `[[project_class_o_signed_metric_composition]]` (bonus 8 located, bonus 9 narrowed)
+- **Time as local trajectory not global coordinate** → `[[user_stance_time_as_dimensional_shadow]]` (the original stance; pre-existed the bonus arc)
+
+## What's next — the §XIII.1 cascade-composition search
+
+The bonus arc surfaced enough machinery to **begin** a serious §XIII.1 attempt — substrate framework (cyclic-group cascade composition), gauge-rank decomposition (bonus 8 cascade), Lorentzian signature operation (Class O Wick rotation), multi-scale capacity (bonus 7 showed 11+ orders of magnitude trivially). What's missing for full SM: the actual mass-spectrum match (§XIII.1 central computation), CKM/PMNS mixing matrices, coupling constants, Higgs mechanism.
+
+The realistic next probe: **§XIII.1 cascade-composition search.** Find the cascade composition `C_{n₁} × C_{n₂} × ... × C_{nₖ}` whose Class L Laplacian spectrum matches the SM mass² ratio vector (~12 orders of magnitude, 9 charged fermions) on the gear-DAG. Antikythera-spectral has the tooling (`gear_database.py`, `gear_topology.py`, `pin_and_slot.py`); numpy + LAPACK supply C-speed eigenvalue computation; multiprocessing for parallel search if scale demands.
 
 ## Roster
 
