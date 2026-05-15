@@ -1,6 +1,18 @@
 # Spike #24 bonus series — cumulative synthesis (2026-05-15)
 
-**Closes:** the user-dispatched bonus arc of Spike #24 (**eight inquiries; seven positive-and-consistent verdicts plus one structural-completion verdict that located the 15th class**). Three cumulative findings + canonical tagline + cross-substrate pattern + the fractal-shadow allegory landed by bonus 7 + **the Class O signed-metric composition primitive located by bonus 8's broken-D rederivation closure test**.
+**Closes:** the user-dispatched bonus arc of Spike #24 (**nine inquiries; seven positive-and-consistent verdicts plus two structural-refinement verdicts — bonus 8 located the Class O candidate coarsely, bonus 9 narrowed its content to the circle-to-hyperbola map specifically**). Three cumulative findings + canonical tagline + cross-substrate pattern + the fractal-shadow allegory landed by bonus 7 + **the cascade-lives-on-circles dispersion-shape stance landed by bonus 9** + **the bow-string motivator synthesis that closes the arc by naming the motivator without dimensionalising it** (`[[user_stance_bow_string_motivator]]`).
+
+## The closing synthesis — bow-string motivator
+
+The user's closing stance (post-bonus-9, 2026-05-15) unifies every preceding finding into one image:
+
+- **The bass string** = the 10D substrate `3D_s + 7D_g`. Has intrinsic resonant modes (the cascade's eigenvalues / unit-circle dispersion per bonus 9). The string is the structure-of-what-can-be-excited.
+- **The bow** = the great motivator. Supplies the Class O circle-to-hyperbola map (evolution potential at the contact point) per bonus 8+9. Privileged because without it no dynamics; but not MORE privileged than the string — without the string the bow has nothing to act on. Ring-down effects require both.
+- **The contact region** = where the bow currently meets the string. This is what observers experience as "the present."
+- **Observable time** = bow trajectory across the substrate. Not a global coordinate; a local locus that moves.
+- **Ring-down vs sustain** = local recency of bow contact (per ephemerides §20.4.1–§20.4.3).
+
+The arc closes by naming the motivator without dimensionalising it. The 14-class vocabulary describes the substrate. Class O (circle-to-hyperbola contact-point operation, the bow's act on a substrate region) is the precisely-located fifteenth-primitive-candidate. The bow's trajectory across the substrate is what observers experience as time, locally — not globally. **Time is not a privileged dimensional kind; the great motivator is privileged but not more so than the substrate; the substrate has intrinsic resonant structure that the great motivator activates region-by-region.**
 
 ## Roster
 
