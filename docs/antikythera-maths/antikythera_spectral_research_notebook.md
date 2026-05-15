@@ -1459,6 +1459,87 @@ In effect, **§11.6.16 is the missing link between the empirical results (E-H2/E
 
 This subsection serves as the *why* that motivates the *what* in §11.6.10–§11.6.15.  Without seasonal observability, the field-programmable architecture is a curiosity; with it, the architecture is the natural design response to how the Hellenistic sky actually presents itself to an observer.
 
+### 11.6.17 Algebraic uniqueness — why there is only one bronze
+
+**2026-05-15.** Recorded as a synthesis subsection because four separate threads of PR #416 (cyclic-group decomposition, partition enumeration F14, closed-form architecture F15, and Freeth 2021's spatial reconstruction) converge on the same answer: **the bronze's structure is not a choice — it is forced**. Given the period relations the Greeks observed, the engineering substrate they had, and the optimisation principle "minimum bronze cost," there is only one solution. This subsection records why, and notes the discipline around what is independent vs Freeth-derived in our work.
+
+#### The convergence
+
+Our research and Freeth 2021's reconstruction arrive at compatible substructures from disjoint starting points:
+
+- **Our path (algebraic):** start from observed period relations (MUL.APIN / Babylonian astronomical diaries / Hipparchan tables), decompose into prime factors of the synodic-period numerators and denominators, and ask which primes are *shared* across planetary trains. The function `shared_primes_among_planetary()` in [research/astronomical_cycles.py](research/astronomical_cycles.py) computes this directly from the period-relation table — *no Freeth input enters here.* Output:
+
+  | Prime | Planets sharing it (non-trivial shared primes only) |
+  |-------|-----------------------------------------------------|
+  | **5** | Mercury, Mars |
+  | **7** | Venus, Mars, Saturn |
+  | 17    | Venus, Saturn |
+  | 19    | Mars, Jupiter |
+
+  The non-trivial dominant shared primes are **5 and 7**. Any gear-train that encodes these period relations *must* factor through ℤ/5ℤ and ℤ/7ℤ — there is no alternative arithmetic.
+
+- **Freeth's path (spatial):** start from the surviving bronze gears in Fragments A/B/C/D, lay them out three-dimensionally to satisfy mesh adjacency and tooth-count constraints, and infer the conjectural missing-gear topology that completes the planetary plate. This yields Freeth 2021 Fig 3e/3f's reconstruction with two shared-fixed-gear clusters: **inner planets (Mercury, Venus) share gear g51 (the 51-tooth fixed gear)**, and **outer planets (Mars, Jupiter, Saturn) share gear g56 (the 56-tooth fixed gear)**.
+
+These two paths are *not identical*. The algebraic prime-5 group is {Mercury, Mars}; Freeth's spatial inner-cluster is {Mercury, Venus}. The algebraic prime-7 group is {Venus, Mars, Saturn}; Freeth's spatial outer-cluster is {Mars, Jupiter, Saturn}. The partitions differ. What is shared is the *substructure*: both paths identify two coupled clusters spanning the five planets, distinguished by which arithmetic factors they share, with the bronze's economical instantiation lying in the intersection of the algebraic constraints.
+
+#### Four layers of uniqueness
+
+The bronze is forced by four independent uniqueness arguments:
+
+1. **Cyclic-group uniqueness.** Once you fix the period relations and choose gear-tooth-count algebra as your implementation, the prime factorisation of the relations is invariant. Primes 5, 7, 17, 19 *are* the factorisation. No designer can avoid them; no alternate bronze can use different primes for the same period observations. The cyclic-group decomposition is a property of the period relations themselves, not of any particular reconstruction. (Code: [cyclic_group_algebra.py](research/cyclic_group_algebra.py), [astronomical_cycles.py](research/astronomical_cycles.py).)
+
+2. **Pareto-optimal partition uniqueness (F14).** Of the B(5) = 52 possible set-partitions of {Mercury, Venus, Mars, Jupiter, Saturn} into shared-fixed-gear groups, **exactly one** is Pareto-optimal under (viable, topology-pure, minimum-fixed-gears) criteria: the observed bronze partition {Mercury, Venus} | {Mars, Jupiter, Saturn}. F14's closed-form integer-exact re-verification (Batch C, [spike_pinslot_closed_form_f14_2026-05-15.py](../srmech/notes/spike_pinslot_closed_form_f14_2026-05-15.py)) confirms this at zero tolerance dependence — the uniqueness is not a numerical accident, it's a continued-fraction-convergent fact about the period ratios. Jupiter "free-rides" through planet-specific intermediate gears because `76 = 2² × 19` contains no 7-factor for 56 to divide; this constraint is integer-exact.
+
+3. **Closed-form architecture uniqueness (F15).** Of the seven mechanism architectures enumerated as candidates for variable-motion encoding (compound cascade C1, parallel-sum C2, multiplicative-radial C3, sinusoidal-slot C4, k=2 harmonic slot C5, plus differential and additive variants), **only C3 (multiplicative-radial coupling)** can produce the lunar evection's `2(D − ℓ)` lattice element via an integer-frequency-lattice argument. The pin-slot's additive equation-of-centre algebra forecloses certain motions geometrically, not parametrically. (See [F15 closed-form work](../srmech/notes/spike_pinslot_closed_form_f15_2026-05-15.py).) The bronze's single-pin-slot-per-train choice is the *only* architecture in the enumerated set that fits both the Greek center-frame Kepler series and the manufacturing simplicity constraint.
+
+4. **Spatial-reconstruction uniqueness (Freeth 2021).** The surviving 30 of 69 bronze gears plus the surviving mesh adjacency constraints leave a finite space of completion topologies (estimated at ≤10⁵ candidates per §11.6 footnote). Freeth's reconstruction is one such completion; the candidate space is small enough that any future reconstruction satisfying the same constraints will land near Freeth's. The mechanical reconstruction problem has approximately one solution-class, not a continuum.
+
+All four layers are *independent*. Each could in principle have failed without the others (algebraic primes are forced regardless of bronze archaeology; F14 partition optimality is independent of cyclic-group primes; closed-form architecture choice is independent of partition choice; Freeth's spatial completion is independent of all three). That they all *agree* is what the uniqueness claim rests on: four uncoupled "this had to be the way" arguments arriving at compatible substructure.
+
+#### What this means
+
+The bronze is *not* a model of the cosmos. The cosmos permits many models — Ptolemy, Copernicus, Kepler, GR — and each is a fundamentally different mathematical object. What the bronze instantiates is the **algebraic-uniqueness of cyclic-group encodings of observed period ratios**. Given those particular period ratios and the constraint "inscribe them into circle-perimeter tooth-count algebra," there is exactly one Pareto-optimal solution, and the bronze inhabits it.
+
+The implication runs the other direction too: anyone with the same period observations, the same engineering substrate (Hellenistic-era bronze + lathe + hand-pinning), and the same optimisation principle (minimum cost subject to fitting in the 34 × 18 × 9 cm case) *must* converge on something containing a 5-driven subgroup and a 7-driven subgroup; *must* use pin-and-slot as the unique variable-motion primitive (per F15); *must* cluster planets per the F14 Pareto-optimal partition. The bronze is what the algebra permits, full stop. It is the rule, not the choice.
+
+This reframes the archaeological question. "Why did the Greeks build *this* bronze?" admits a trivial answer once the algebra is in view: because no other bronze satisfies the constraints. The interesting questions are upstream:
+
+- *Why* did the Greeks observe these particular period relations and not others? (Astronomical-cultural history, partially knowable; the 462/442-year inner/outer relations track back to Babylonian Goal-Year texts via Hipparchus.)
+- *Why* did they choose gear-tooth-count algebra rather than (say) marked-rod abacuses or astrolabe-style nomograms? (Engineering-cultural history, partially knowable; gear-cutting on lathes was a high-precision Hellenistic capability.)
+- *Why* the specific tooth counts within the prime constraints? (Pareto-economical search within the algebraic constraint set; this is where Freeth's reconstruction provides the operative answer.)
+
+The "is the bronze era-appropriate or modern?" question Batch D investigated (F18–F23) becomes sharper in this light: at the **algebraic-structure level** the bronze is forced and era-blind. The 5-driven and 7-driven subgroups would emerge for any Greek with the period relations in hand. At the **specific-parameter level** (which AU value gets encoded per planet), the bronze AS RECONSTRUCTED uses modern parameters — but that's a reconstruction-choice question about Freeth's tooth-count selections, not an algebraic-structure question.
+
+#### What is independent vs Freeth-derived in our work — the discipline
+
+Per `feedback_no_lineage_claims_in_notebook` and `feedback_pdf_extraction_citation_discipline`, this subsection should not claim "natural extension of Freeth" or imply our path was identical to his. The honest record:
+
+**Independent of Freeth (our research's contributions):**
+- The period-relation prime decomposition (primes 5, 7, 17, 19) — computed directly from observed period ratios via [astronomical_cycles.py](research/astronomical_cycles.py). The period relations themselves are MUL.APIN / Babylonian / Hipparchan, not Freeth.
+- The F14 Pareto-optimal partition enumeration — all 52 set-partitions evaluated from first principles under gear-economy constraints, not from Freeth's specific completion.
+- The F15 closed-form mechanism architecture enumeration — seven candidate architectures evaluated for lunar evection production, independent of any bronze reconstruction.
+- The pin-slot closed-form Bessel-Anger / Kepler series algebra — derived from the atan2 transform, not from any reconstruction.
+- The DE422 / DE441 ground-truth astronomical comparison — independent of any bronze reconstruction.
+
+**Borrowed from Freeth 2021 (and tagged KNOWN per §1's convention):**
+- The conjectural planetary gear-train topology (which gears mesh with which) — Freeth 2021 Fig 3e/3f, used as baseline in [gear_database.py](research/gear_database.py)'s `PLANETARY` train.
+- The Supp S9 (p, i, o, d) per-planet pin-slot geometric parameters — used as input to [bronze_planetary_encoder.py](research/bronze_planetary_encoder.py)'s BronzeGeocentricEpicycle encoder.
+- The total gear count (69) and surviving-gear count (30) used in §11.6's size-budget reasoning.
+
+**Convergent observation, not lineage claim:** the two paths arriving at compatible substructures (algebraic shared-prime groups + spatial shared-fixed-gear clusters) is what uniqueness predicts. Neither path "discovered" the other's framing; both paths were forced to compatible substructures by the algebra. The convergence is evidence *that* the substructure is forced, not evidence that either path borrowed from the other.
+
+#### Cross-references
+
+- [astronomical_cycles.py](research/astronomical_cycles.py) `shared_primes_among_planetary()` — the algebraic prime decomposition.
+- [cyclic_group_algebra.py](research/cyclic_group_algebra.py) — the CRT / cyclic-group machinery that underlies the encoder.
+- [gear_topology.py](research/gear_topology.py) `shared_prime_planet_pairs()` / `shared_prime_planet_triples()` — pair / triple-level shared-prime queries.
+- [bronze_planetary_encoder.py](research/bronze_planetary_encoder.py) — the F17-derived BronzeGeocentricEpicycle encoder.
+- [pin_and_slot.py](research/pin_and_slot.py) — the lunar pin-slot algebra (corrected Freeth-2006 ε = 0.1146 per §11.6.6.5).
+- [F11.3 in spike findings](../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md) — gear-DAG coupling clusters (with Batch C softening: gear-economically forced, not Aristotelian-forced).
+- [F14 closed-form](../srmech/notes/spike_pinslot_closed_form_f14_2026-05-15.py) — integer-exact partition enumeration.
+- [F15 closed-form](../srmech/notes/spike_pinslot_closed_form_f15_2026-05-15.py) — mechanism architecture uniqueness for evection.
+- [Batch D era-appropriate findings](../srmech/notes/spike_pinslot_era_appropriate_findings_2026-05-15.md) — F18-F23, modern-vs-era-appropriate parameter encoding (the layer of specificity *below* algebraic uniqueness).
+
 ---
 
 ## 12. Computability audit (April 25, 2026)
