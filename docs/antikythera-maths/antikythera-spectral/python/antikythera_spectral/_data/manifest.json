@@ -45,8 +45,8 @@
       "size_bytes": 16679
     },
     "_research/consolidated_tests.py": {
-      "sha256": "ed67c39c8126e006dd233042139b9c6913dfe3db675e19e74fe6f57945187b87",
-      "size_bytes": 63870
+      "sha256": "dc69597f01fd82c60ac54ac630c7f2703ecc1e80c4f655a01d0c983e68115648",
+      "size_bytes": 63871
     },
     "_research/cyclic_group_algebra.py": {
       "sha256": "976657dead7d1bcec218d28cc4f16803d16f8b820f52183b3fa8d57343c537c7",
@@ -109,8 +109,8 @@
       "size_bytes": 25119
     },
     "_research/pin_and_slot.py": {
-      "sha256": "b175cd81703523c46bb1d9fd32fbd91018faec294f8215dbb02ff7ea644c0646",
-      "size_bytes": 16942
+      "sha256": "ded6ac012887d4ada3fe96c8ebadeb3ab51f9503aa5f6d077121fdb2ff25b764",
+      "size_bytes": 16540
     },
     "_research/rational_approximation.py": {
       "sha256": "74a0332e179d8032f800854ce963633c6bfd1c8607edddd6bd893a3b8f05d8e1",
@@ -131,6 +131,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "bcb03a7eef84c4db5575df4ee95dd7a77f28485b",
+  "source_commit": "15e7e2839c209331b7af8fdf2fff1c565afd9337",
   "version": "0.3.0"
 }
