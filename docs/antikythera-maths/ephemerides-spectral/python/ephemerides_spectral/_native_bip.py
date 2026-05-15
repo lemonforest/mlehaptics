@@ -90,20 +90,24 @@ import numpy as np
 #       Closes the rc1 backend_caveat: EOC patches now work on
 #       backend="c" and produce byte-exact agreement with the Python
 #       BIP path (pinned by test_eoc_catalog's both-backends parity).
-#   v10 — v0.29.0rc1: Channel-basis dual-path (cospi/sinpi spike).
-#       Added: ES_BASIS_METHOD_LEGACY / ES_BASIS_METHOD_COSPI enum +
-#       es_channel_basis_method() entry point + es_has_native_cospi()
-#       flag. The existing es_channel_basis is preserved as-is
-#       (delegates to LEGACY), so the Tier 2a byte-parity test
-#       continues to hold without changes; the COSPI route is opt-in
-#       and exists for bench-and-quantify before any flip of the
-#       default. Encoder hot path is unchanged.
+#   v10 — v0.29.0rc1: Channel-basis dual-path (cyclic-group-native).
+#       Added: ES_BASIS_METHOD_LEGACY / ES_BASIS_METHOD_TURN_INTEGER
+#       enum + es_channel_basis_method() entry point. The existing
+#       es_channel_basis is preserved as-is (delegates to LEGACY), so
+#       the Tier 2a byte-parity test continues to hold without
+#       changes; the TURN_INTEGER route is opt-in and exists for
+#       bench-and-quantify before any flip of the default. Encoder
+#       hot path is unchanged. The TURN_INTEGER route does integer
+#       quarter-turn decomposition on the splitmix64-derived phase
+#       residue + a small libm cos/sin on the within-quadrant
+#       fraction — no libm cospi/sinpi dependency, no platform
+#       feature gate, bit-exact quarter turns by construction.
 EXPECTED_ABI_VERSION: int = 10
 
 # v0.29.0rc1 (ABI v10) — channel-basis method enum.
 # Mirrors `es_basis_method_t` in c/include/ephemerides_spectral.h.
 ES_BASIS_METHOD_LEGACY: int = 0
-ES_BASIS_METHOD_COSPI: int = 1
+ES_BASIS_METHOD_TURN_INTEGER: int = 1
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
@@ -380,7 +384,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.es_channel_basis.restype = ctypes.c_int
 
-    # ABI v10 (v0.29.0rc1) — channel-basis dual-path (cospi/sinpi spike).
+    # ABI v10 (v0.29.0rc1) — channel-basis dual-path (turn-integer route).
     # es_status_t es_channel_basis_method(uint64_t, es_complex64_t *out,
     #                                       size_t, es_basis_method_t)
     lib.es_channel_basis_method.argtypes = [
@@ -390,10 +394,6 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.c_int,  # es_basis_method_t enum
     ]
     lib.es_channel_basis_method.restype = ctypes.c_int
-
-    # int es_has_native_cospi(void)
-    lib.es_has_native_cospi.argtypes = []
-    lib.es_has_native_cospi.restype = ctypes.c_int
 
     # ABI v6 (v0.13.4) — Tier 2b HD pipeline with caller-supplied scratch
     # buffers (JPL Power-of-Ten Rule 1 + Rule 3 fixes).
@@ -931,9 +931,10 @@ def native_channel_basis(seed: int, D: int) -> Any:
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
 
     v0.29.0rc1: equivalent to ``native_channel_basis_method(seed, D,
-    ES_BASIS_METHOD_LEGACY)``. Use ``native_channel_basis_cospi`` to
-    exercise the C23 / Apple ``cospi``/``sinpi`` route (no Python
-    byte-parity).
+    ES_BASIS_METHOD_LEGACY)``. Use
+    ``native_channel_basis_turn_integer`` to exercise the cyclic-
+    group-native quarter-turn-decomposition route (no Python
+    byte-parity; bit-exact quarter turns by construction).
     """
     if not HAS_NATIVE:
         raise RuntimeError(
@@ -958,13 +959,15 @@ def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
     """v0.29.0rc1 — method-selected channel-basis construction.
 
     ``method = ES_BASIS_METHOD_LEGACY`` (0) is byte-identical to
-    ``native_channel_basis(seed, D)``. ``method = ES_BASIS_METHOD_COSPI``
-    (1) uses libm ``cospi``/``sinpi`` (or Apple ``__cospi``/``__sinpi``)
-    on a half-turn phase argument, eliminating the user-side ``× π``
-    rounding loss. Quarter-turn channels become bit-exact (±1, ±i)
-    under the native COSPI backend; under the fallback backend
-    (``native_has_native_cospi()`` returns 0) the COSPI route is
-    byte-equivalent to LEGACY.
+    ``native_channel_basis(seed, D)`` and to the Python BIP path
+    (``_research/portable_prng.splitmix64_phases`` + ``exp(1j · φ)``).
+
+    ``method = ES_BASIS_METHOD_TURN_INTEGER`` (1) does integer
+    quarter-turn decomposition on the splitmix64-derived phase
+    residue + a small libm ``cos``/``sin`` on the within-quadrant
+    fraction. Bit-exact quarter turns by construction on every
+    toolchain; no libm cospi/sinpi dependency; deterministic across
+    platforms.
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
     """
@@ -988,26 +991,18 @@ def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
     return np.frombuffer(buf, dtype=np.complex64).copy()
 
 
-def native_channel_basis_cospi(seed: int, D: int) -> Any:
-    """v0.29.0rc1 — shortcut for the COSPI route. Equivalent to
-    ``native_channel_basis_method(seed, D, ES_BASIS_METHOD_COSPI)``."""
-    return native_channel_basis_method(seed, D, ES_BASIS_METHOD_COSPI)
+def native_channel_basis_turn_integer(seed: int, D: int) -> Any:
+    """v0.29.0rc1 — shortcut for the TURN_INTEGER route. Equivalent
+    to ``native_channel_basis_method(seed, D,
+    ES_BASIS_METHOD_TURN_INTEGER)``.
 
-
-def native_has_native_cospi() -> bool:
-    """v0.29.0rc1 — True if the loaded C binary's COSPI route uses
-    native libm ``cospi``/``sinpi`` (or Apple ``__cospi``/``__sinpi``).
-
-    Returns False if the binary falls back to ``cos(π · x)``, in which
-    case ``native_channel_basis_cospi`` produces byte-identical output
-    to ``native_channel_basis`` (the dual-path collapses).
-
-    Returns False unconditionally if ``HAS_NATIVE`` is False.
+    Cyclic-group-native: integer quarter-turn decomposition + libm
+    cos/sin on the within-quadrant fraction + i^quadrant rotation by
+    pure sign/swap. Quarter-turn channels collapse to bit-exact
+    (±1, ±i) on every toolchain — no platform feature gate, no
+    cospi/sinpi dependency.
     """
-    if not HAS_NATIVE:
-        return False
-    assert LIB is not None
-    return int(LIB.es_has_native_cospi()) == 1
+    return native_channel_basis_method(seed, D, ES_BASIS_METHOD_TURN_INTEGER)
 
 
 __all__ = [
@@ -1022,7 +1017,7 @@ __all__ = [
     "ES_PATCH_KIND_COUPLED_SINUSOID",
     "ES_MAX_PATCHES",
     "ES_BASIS_METHOD_LEGACY",
-    "ES_BASIS_METHOD_COSPI",
+    "ES_BASIS_METHOD_TURN_INTEGER",
     "EsPatch",
     "EsSyzygy",
     "EsComplex64",
@@ -1042,8 +1037,7 @@ __all__ = [
     "native_find_syzygies",
     "native_channel_basis",
     "native_channel_basis_method",
-    "native_channel_basis_cospi",
-    "native_has_native_cospi",
+    "native_channel_basis_turn_integer",
     "native_encode_state_hd",
     "native_bind_observer",
     "native_get_eclipse_probability",

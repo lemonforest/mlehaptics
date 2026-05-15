@@ -535,60 +535,71 @@ es_status_t es_channel_basis(uint64_t seed,
 
 /* ------------------------------------------------------------------ *
  * C/Python parity Tier 2a dual-path (v0.29.0rc1, ABI v10) —
- *     LEGACY (× π in software, default + Python-byte-parity preserved)
- *     COSPI  (libm cospi/sinpi or fallback; spike for bench-and-yank)
+ *     LEGACY        (× 2π in software, default + Python-byte-parity)
+ *     TURN_INTEGER  (cyclic-group-native quarter-turn decomposition)
  * ------------------------------------------------------------------ *
  *
  * The LEGACY path that has shipped since v0.6.1 evaluates
  *   phi_rad = (u >> 11) * (2π / 2^53)        in [0, 2π)
  *   out[k]  = (cos(phi_rad), sin(phi_rad))   complex64
  * That `× 2π` is a software multiply by a not-exactly-representable
- * irrational constant, then libm's `cos`/`sin` does another argument
+ * irrational constant; libm's `cos`/`sin` then does another argument
  * reduction internally. The two reductions compose error: even when
  * the splitmix64 PRNG happens to land on an exact quarter-turn the
  * basis element drifts off (1, 0) / (0, 1) by a few float32 ULP.
  *
- * The COSPI path keeps the phase in half-turns (units of π):
- *   phi_ht  = (u >> 11) * (2  / 2^53)        in [0, 2)
- *   out[k]  = (cospi(phi_ht), sinpi(phi_ht)) complex64
- * Where `cospi(x) ≡ cos(π · x)` and `sinpi(x) ≡ sin(π · x)` are
- * provided natively by C23 libm and by Apple's libsystem (as
- * `__cospi`/`__sinpi`). The libm implementation does the π-aware
- * argument reduction with full precision — no `× π` rounding loss.
- * Quarter-turn channels (phi_ht ∈ {0, 1/2, 1, 3/2}) become bit-exact
- * (1+0i, 0+1i, -1+0i, 0-1i).
+ * The TURN_INTEGER path honours the project's algebraic stance: the
+ * phase residue IS the cyclic-group element in Z_{2^32}, and quarter
+ * turns are bit patterns:
+ *
+ *   phase    = (uint32_t)(u >> 32)           in Z_{2^32}  (turns)
+ *   quadrant = phase >> 30                   in {0, 1, 2, 3}
+ *   within   = phase & 0x3FFFFFFF            in [0, 2^30)
+ *
+ *   if within == 0:
+ *       out[k] = i^quadrant ∈ {(1,0), (0,1), (-1,0), (0,-1)}   exact
+ *   else:
+ *       a   = (double)within · (π/2 / 2^30)  in [0, π/2)
+ *       out[k] = i^quadrant · (cos(a), sin(a))
+ *
+ * The integer quadrant decomposition handles the structural reduction
+ * (the part libm `cospi` would internalise as "× π aware argument
+ * reduction"). Within-quadrant the float math sees a small argument
+ * with no further reduction needed, and the quadrant rotation by
+ * `i^quadrant` is pure sign/swap — no rounding loss. Bit-exact
+ * quarter turns are guaranteed by construction on every toolchain;
+ * no libm cospi/sinpi dependency, no `× π` in the global argument.
  *
  * Why not flip the default in this rc? The byte-parity test pins
- * `np.exp(1j * φ)` against the C output. numpy uses `× π` in software
- * too, so COSPI's bytes DIFFER from Python's bytes — flipping the
- * default would break Tier 2a parity. The dual-path is `bench first;
- * decide later`: measure (LEGACY vs COSPI) quarter-turn fidelity +
- * HDC-accumulation drift on hardware, then either (a) flip the
- * default + update the Python mirror to compute via half-turn
- * argument reduction too, or (b) keep LEGACY as default and the
- * COSPI route as the precision-when-you-need-it option.
+ * `np.exp(1j · φ)` against the C output, which uses `× 2π` in
+ * software too — flipping would break Tier 2a parity. The dual-path
+ * is `bench first; decide later`: the TURN_INTEGER route is opt-in
+ * (`es_channel_basis_method(..., ES_BASIS_METHOD_TURN_INTEGER)`)
+ * until the bench-and-quantify step supports a coordinated flip of
+ * the C default plus a matching Python-mirror update.
  *
  * No new SCRATCH or memory contracts — this path uses the same
  * caller-supplied `out` buffer of D `es_complex64_t` entries.
+ *
+ * Floating-point note: this route's single irrational multiply
+ * (`× (π/2 / 2^30)`) still rounds at ~1 ULP at double precision, but
+ * the float32 cast at storage discards bits well below that — pure
+ * ceremony at the spike's output target. If a future cycle ships a
+ * `complex128` HD-state path, Cody-Waite hi/lo splitting of the
+ * π/2 constant becomes the right next move; out of scope here.
  */
 
 typedef enum {
-    ES_BASIS_METHOD_LEGACY = 0, /* cos(2π · phi/2π)  shipped path        */
-    ES_BASIS_METHOD_COSPI  = 1, /* cospi(2 · phi/2π) v0.29.0rc1 spike    */
+    ES_BASIS_METHOD_LEGACY       = 0, /* cos(2π · phi)   shipped path     */
+    ES_BASIS_METHOD_TURN_INTEGER = 1, /* quarter-turn integer decomp.     */
 } es_basis_method_t;
-
-/* Compile-time-resolved flag: returns 1 if this binary's COSPI route
- * uses the native libm cospi/sinpi (or Apple's __cospi/__sinpi); 0 if
- * it falls back to `cos(π · x)` / `sin(π · x)` (which has the same
- * rounding loss as LEGACY, so COSPI ≡ LEGACY at the byte level on
- * those toolchains). Bench scripts read this to label results.
- */
-int es_has_native_cospi(void);
 
 /* v0.29.0rc1 — method-selected channel-basis construction.
  *
  * method == ES_BASIS_METHOD_LEGACY: byte-identical to `es_channel_basis`.
- * method == ES_BASIS_METHOD_COSPI : cospi/sinpi route (see commentary).
+ * method == ES_BASIS_METHOD_TURN_INTEGER: cyclic-group-native route
+ *     (see commentary). Deterministic + platform-independent — same
+ *     bytes on every toolchain.
  *
  * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if out is NULL;
  * ES_ERR_INVALID_KIND if `method` is not a defined enum value.

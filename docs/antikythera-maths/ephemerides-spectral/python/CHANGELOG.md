@@ -10,74 +10,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.29.0rc1] — 2026-05-14
+## [0.29.0rc1] — 2026-05-15
 
-### Added — channel-basis dual-path spike (cospi/sinpi precision route)
+### Added — channel-basis dual-path spike (cyclic-group-native quarter-turn decomposition)
 
 Opens the v0.29.x cycle with a small bench-and-quantify spike on the
-channel-basis construction path. Motivation, design, and the
-bench-before-yank discipline are described in the project-level
-[CHANGELOG §0.29.0rc1](../CHANGELOG.md).
+channel-basis construction path. Motivation + design rationale in the
+project-level [CHANGELOG §0.29.0rc1](../CHANGELOG.md).
 
 **C surface (ABI v9 → v10, additive):**
 
 - New `es_basis_method_t` enum in `c/include/ephemerides_spectral.h`
-  (`ES_BASIS_METHOD_LEGACY = 0`, `ES_BASIS_METHOD_COSPI = 1`).
+  (`ES_BASIS_METHOD_LEGACY = 0`, `ES_BASIS_METHOD_TURN_INTEGER = 1`).
 - New `es_status_t es_channel_basis_method(uint64_t seed,
   es_complex64_t *out, size_t D, es_basis_method_t method)` entry
   point. The existing `es_channel_basis(seed, out, D)` is preserved
   as-is — it delegates to `es_channel_basis_method(..., LEGACY)`, so
   the Tier 2a byte-parity test continues to hold byte-for-byte.
-- New `int es_has_native_cospi(void)` — compile-time-resolved flag
-  reporting whether this binary's COSPI route uses the native libm
-  (`cospi`/`sinpi` on C23, `__cospi`/`__sinpi` on Apple) or the
-  `cos(π · x)` fallback (under which COSPI ≡ LEGACY at the byte
-  level; the spike is informationless on those toolchains).
-- New internal helper `es_splitmix64_uniform_half_turns(u)` in
-  `c/include/es_prng.h` + `c/src/es_prng.c`. Companion to the
-  existing `_uniform_2pi` — same `(u >> 11)` mantissa extraction,
-  scaling factor `2 / 2^53` instead of `2π / 2^53` (the half-turn
-  factor is exactly representable in IEEE-754 double).
-- `c/src/es_channel_bases.c` refactored: LEGACY and COSPI routes as
-  separate static helpers, each ≤ 60 lines with ≥ 2 asserts. The
-  preprocessor branch (Apple / C23 / fallback) is internalised inside
-  the two `es_cospi_d` / `es_sinpi_d` inlines to keep the function
-  count discipline simple.
-- JPL audit pins ratcheted: `PIN_RULE_5_TOTAL_FUNCS` 46 → 53,
-  `PIN_RULE_5_ASSERTIONS` 102 → 110 (density 110 / 53 ≈ 2.075, above
+- `c/src/es_channel_bases.c` refactored: LEGACY and TURN_INTEGER
+  routes as separate static helpers, each ≤ 60 lines with ≥ 2 asserts.
+  TURN_INTEGER does the integer quarter-turn decomposition described
+  in the project CHANGELOG — `phase = (uint32_t)(u >> 32)`,
+  `quadrant = phase >> 30`, `within = phase & 0x3FFFFFFF`,
+  bit-exact dispatch when `within == 0`, else `cos`/`sin` on
+  `(double)within · (π/2 / 2^30)` followed by `i^quadrant` rotation
+  (sign/swap, no math).
+- JPL audit pins ratcheted: `PIN_RULE_5_TOTAL_FUNCS` 46 → 49,
+  `PIN_RULE_5_ASSERTIONS` 102 → 109 (density 109 / 49 ≈ 2.22, above
   the ≥ 2.0 floor). Power-of-Ten clean: no goto, no malloc, bounded
-  loops.
+  loops, ≤60 lines/function.
 
 **Python surface:**
 
 - `_native_bip.EXPECTED_ABI_VERSION` 9 → 10.
 - New constants exposed: `ES_BASIS_METHOD_LEGACY`,
-  `ES_BASIS_METHOD_COSPI`.
+  `ES_BASIS_METHOD_TURN_INTEGER`.
 - New wrapper helpers: `native_channel_basis_method(seed, D, method)`,
-  `native_channel_basis_cospi(seed, D)`, `native_has_native_cospi()`.
+  `native_channel_basis_turn_integer(seed, D)`.
 - `__all__` updated; existing `native_channel_basis` is unchanged.
 - `srmech_profile.toml` bumps `expected_abi_version` 9 → 10.
+
+**Build system:**
+
+- No new CMake feature detection required — the TURN_INTEGER route
+  uses only universally-available libm `cos`/`sin` + integer
+  arithmetic. Earlier drafts of this spike (cospi/sinpi route) needed
+  `check_function_exists(cospi)`; the pivot to integer quarter-turn
+  decomposition makes that ceremony unnecessary.
 
 **Tests:**
 
 - New `python/tests/test_channel_basis_dual_path.py`:
   - LEGACY-method route byte-identical to the default `es_channel_basis`.
-  - COSPI route returns correct shape / dtype.
-  - COSPI route's per-element `|mag - 1|` ≤ float32 ULP (~1e-6).
-  - Soft ratchet: COSPI's max `|mag - 1|` ≤ LEGACY's (plus a ~6e-8
-    fairness allowance for fallback toolchains).
-  - `native_has_native_cospi` returns `bool`.
+  - TURN_INTEGER route returns correct shape / dtype.
+  - TURN_INTEGER route's per-element `|mag - 1|` ≤ float32 ULP (~1e-6).
+  - Quarter-turn dispatch structurally bit-exact: any TURN_INTEGER
+    element near a quadrant has the orthogonal component exactly `0.0f`.
+  - Soft ratchet: TURN_INTEGER's max `|mag - 1|` ≤ LEGACY's (plus a
+    ~6e-8 fairness allowance).
   - Invalid enum value rejected via `ES_ERR_INVALID_KIND`.
+  - Deterministic across calls: same seed + same D → byte-identical
+    output (deterministic across platforms by construction).
 
 **Bench script (not run in CI):**
 
-- New `scripts/bench_cospi_basis.py` emits NDJSON to stdout (one
-  record per measurement) with per-(seed, D) drift, unit-magnitude
-  error, and a representative HDC roll-and-accumulate norm
-  comparison. The script is the artifact of the bench-and-quantify
-  step — its quantitative output decides whether the v0.29.x cycle
-  graduates COSPI to default + updates the Python mirror, or keeps
-  LEGACY as the byte-parity default and COSPI as opt-in precision.
+- New `scripts/bench_turn_integer_basis.py` emits NDJSON to stdout
+  (one record per measurement) with per-(seed, D) drift,
+  unit-magnitude error, a representative HDC roll-and-accumulate
+  norm comparison, and a count of quarter-turn bit-exact dispatches
+  (expected ~0 for random splitmix64 phases at D ≤ 65536; non-zero
+  if a future bench deliberately seeds quarter-turn-aligned phases).
+  The script is the artifact of the bench-and-quantify step — its
+  quantitative output decides whether the v0.29.x cycle graduates
+  TURN_INTEGER to default + updates the Python mirror, or keeps
+  LEGACY as the byte-parity default and TURN_INTEGER as opt-in.
 
 **No encoder hot-path changes.** The 52-body uint32 phase residues
 emitted by `es_encode_state` / `bridge.encode_state` are byte-

@@ -7,13 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.29.0rc1] — 2026-05-14
+## [0.29.0rc1] — 2026-05-15
 
-### Added — channel-basis dual-path spike (cospi/sinpi precision route)
+### Added — channel-basis dual-path spike (cyclic-group-native quarter-turn decomposition)
 
-First rc of the v0.29.x cycle is a small precision spike: the channel-basis construction path gains a second route that uses C23 / Apple-libsystem `cospi` / `sinpi` (with a `cos(π · x)` fallback on other toolchains). Motivation: the shipped LEGACY route does `phi = (u >> 11) · (2π / 2^53)` as a software multiply then calls libm `cos`/`sin` on the radian result — composing two argument-reductions and accumulating roughly two ULP of error at quarter-turn channels. The COSPI route keeps the phase in half-turns (`x = (u >> 11) · (2 / 2^53)`, scaling factor exactly representable in IEEE-754), passes that directly to `cospi`/`sinpi`, and lets libm do the π-aware argument reduction internally. Quarter-turn channels collapse to bit-exact `(±1, ±i)` under the native backend.
+First rc of the v0.29.x cycle is a small precision spike that honours the project's algebraic stance: the channel-basis construction path gains a second route that does **integer quarter-turn decomposition** on the splitmix64-derived phase residue, with a small libm `cos`/`sin` on the within-quadrant fraction only. Motivation: the shipped LEGACY route does `phi = (u >> 11) · (2π / 2^53)` as a software multiply then calls libm `cos`/`sin` on the radian result — composing two argument-reductions and accumulating ~2 ULP of error at quarter-turn channels. The new TURN_INTEGER route works in turns from the start:
 
-**Why opt-in (not default flip)**: the Tier 2a byte-parity test (`test_channel_basis_parity.py`) pins the C output against `numpy.exp(1j · φ)`, and numpy uses `× π` in software too — flipping the default would break Python parity. The dual-path lets us bench-and-quantify on hardware (`scripts/bench_cospi_basis.py`) before deciding whether to graduate COSPI to default + update the Python mirror, or keep LEGACY as the byte-parity default and COSPI as the precision-on-demand route.
+```
+phase    = (uint32_t)(u >> 32)        # Z_{2^32}, the cyclic group itself
+quadrant = phase >> 30                # 0..3
+within   = phase & 0x3FFFFFFF         # 30-bit fraction OF a quarter turn
+
+if within == 0:
+    out[k] = i^quadrant ∈ {(1,0), (0,1), (-1,0), (0,-1)}   # bit-exact
+else:
+    a   = (double)within · (π/2 / 2^30)                    # [0, π/2)
+    out[k] = i^quadrant · (cos(a), sin(a))                  # sign/swap rotation
+```
+
+This honours the notebook §1.4 framing — "every gear is a faithful representation of ℤ/nℤ" — by keeping the structural decomposition in the integer cyclic group and only converting to float at the within-quadrant reduction. Quarter-turn channels collapse to bit-exact `(±1, ±i)` on every toolchain (no libm cospi/sinpi dependency, no platform feature gate); the within-quadrant `cos`/`sin` sees a small argument with no further reduction needed; the `i^quadrant` quadrant rotation is pure sign/swap.
+
+**Why opt-in (not default flip)**: the Tier 2a byte-parity test (`test_channel_basis_parity.py`) pins the C output against `numpy.exp(1j · φ)`, which uses `× 2π` in software too — flipping the default would break Python parity. The dual-path lets us bench-and-quantify (`scripts/bench_turn_integer_basis.py`) before deciding whether to graduate TURN_INTEGER to default + update the Python mirror, or keep LEGACY as the byte-parity default and TURN_INTEGER as the precision-on-demand route.
+
+**Why this design beats the cospi/sinpi alternative**: the cospi/sinpi route (an earlier draft of this spike) needed libm support that's still rolling out (Apple libsystem yes; C23 glibc 2.40+ partial; MSVC libm no). It worked around the `× π` rounding loss but introduced a platform-feature-detection problem. The TURN_INTEGER design captures the same precision benefit — and the structural-correctness-at-quarter-turns benefit — using only universally-available libm `cos`/`sin` + integer arithmetic. No platform dependency, no feature gate, no fallback path that silently no-ops.
 
 **Per-area detail:** see [python/CHANGELOG.md §0.29.0rc1](python/CHANGELOG.md).
 

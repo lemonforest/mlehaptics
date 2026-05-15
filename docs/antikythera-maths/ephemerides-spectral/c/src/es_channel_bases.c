@@ -13,16 +13,28 @@
  *         phi      = (u >> 11) * (2π / 2**53)    in [0, 2π)
  *         out[k]   = (cosf(phi), sinf(phi))      complex64
  *
- *   ES_BASIS_METHOD_COSPI (v0.29.0rc1 spike, bench-and-quantify):
+ *   ES_BASIS_METHOD_TURN_INTEGER (v0.29.0rc1 spike, bench-and-quantify):
  *     state = seed
  *     for k in range(D):
  *         state, u = splitmix64_next(state)
- *         x        = (u >> 11) * (2 / 2**53)     in [0, 2)  half-turns
- *         out[k]   = (cospif(x), sinpif(x))      complex64
+ *         phase    = (uint32_t)(u >> 32)         in Z_{2^32}   turns
+ *         quadrant = phase >> 30                 in {0, 1, 2, 3}
+ *         within   = phase & 0x3FFFFFFF          in [0, 2^30)
+ *         if within == 0:
+ *             out[k] = quarter-turn dispatch      (±1, 0) / (0, ±1)
+ *         else:
+ *             a   = (double)within * (π/2 / 2^30)  in [0, π/2)
+ *             c,s = cos(a), sin(a)
+ *             out[k] = i^quadrant · (c, s)        sign/swap, no math
  *
- * The COSPI route uses C23 libm `cospi`/`sinpi` (or Apple libsystem
- * `__cospi`/`__sinpi`) when available, falling back to `cos(π · x)` /
- * `sin(π · x)` otherwise — see `es_has_native_cospi()`.
+ * The TURN_INTEGER route honours the project's algebraic stance: the
+ * phase residue IS the cyclic-group element in Z_{2^32}, and quarter
+ * turns are bit patterns (low 30 bits zero). The native cyclic-group
+ * structure handles the structural decomposition; libm cos/sin only
+ * touches the within-quadrant fraction on a small argument range
+ * [0, π/2). No cospi/sinpi libm dependency; no π in the global
+ * argument; quarter-turn channels collapse to bit-exact (±1, 0) /
+ * (0, ±1) on every toolchain.
  *
  * The public `es_channel_basis()` entry is preserved as-is: it
  * delegates to the LEGACY route so the Python-vs-C byte-parity test
@@ -36,70 +48,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stddef.h>
-
-/* ------------------------------------------------------------------ *
- * cospi/sinpi feature detection
- * ------------------------------------------------------------------ *
- *
- * Single inline per function with the toolchain branch internalized
- * via #if/#elif/#else. This keeps the function-count discipline (the
- * JPL audit ratchet) simple — one es_cospi_d, one es_sinpi_d — rather
- * than the heuristic detecting three duplicate definitions per branch.
- *
- *   ES_COSPI_BACKEND = 1 → native (Apple __cospi / C23 cospi)
- *   ES_COSPI_BACKEND = 0 → fallback (cos(π·x), same rounding as LEGACY)
- *
- * Bench reports include `es_has_native_cospi()` so results are
- * labelled with the toolchain's actual route.
- */
-
-#if defined(__APPLE__)
-    #define ES_COSPI_BACKEND 1
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
-    #define ES_COSPI_BACKEND 1
-#else
-    #define ES_COSPI_BACKEND 0
-#endif
-
-static inline double es_cospi_d(double x)
-{
-#if defined(__APPLE__)
-    return __cospi(x);
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
-    return cospi(x);
-#else
-    /* Apple libsystem ships __cospi / __sinpi as non-standard
-     * extensions; C23 added cospi / sinpi to <math.h>. On other
-     * toolchains we fall back to cos(π · x), which has the same
-     * software `× π` rounding loss as LEGACY — so under fallback the
-     * COSPI route is byte-equivalent to LEGACY and the spike
-     * collapses to a no-op precision-wise.
-     */
-    static const double PI_D = 3.141592653589793238462643383279502884;
-    return cos(PI_D * x);
-#endif
-}
-
-static inline double es_sinpi_d(double x)
-{
-#if defined(__APPLE__)
-    return __sinpi(x);
-#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
-    return sinpi(x);
-#else
-    static const double PI_D = 3.141592653589793238462643383279502884;
-    return sin(PI_D * x);
-#endif
-}
-
-int es_has_native_cospi(void)
-{
-    /* Returns 1 if the COSPI route uses native libm cospi/sinpi (or
-     * Apple's __cospi/__sinpi); 0 if it falls back to cos(π·x). The
-     * value is fixed at compile time so the call is branch-free.
-     */
-    return ES_COSPI_BACKEND;
-}
+#include <stdint.h>
 
 /* ------------------------------------------------------------------ *
  * LEGACY route — shipped path, byte-parity with Python
@@ -129,26 +78,56 @@ static es_status_t es_channel_basis_legacy(uint64_t seed,
 }
 
 /* ------------------------------------------------------------------ *
- * COSPI route — v0.29.0rc1 spike
+ * TURN_INTEGER route — v0.29.0rc1 spike (cyclic-group-native)
  * ------------------------------------------------------------------ */
 
-static es_status_t es_channel_basis_cospi_route(uint64_t seed,
-                                                es_complex64_t *out,
-                                                size_t D)
+static es_status_t es_channel_basis_turn_integer_route(uint64_t seed,
+                                                       es_complex64_t *out,
+                                                       size_t D)
 {
+    /* Constant: scale a 30-bit within-quadrant fraction to radians in
+     * [0, π/2). The × (π/2 / 2^30) multiply has ≤1 ULP rounding at
+     * double precision (the constant is irrational); the float32 cast
+     * at storage discards bits well below that — pure ceremony at this
+     * precision target. See research notebook §4 v0.29.0rc1 entry.
+     */
+    static const double PI_HALF_PER_2P30 = 1.5707963267948966 / (double)(1u << 30);
     assert(out != NULL);
-    assert(D == 0 || out != NULL);  /* pin: out is valid for D > 0 */
+    assert(D == 0 || out != NULL);
     uint64_t state = seed;
     for (size_t k = 0; k < D; ++k) {
         const uint64_t u = es_splitmix64_next(&state);
-        const double x = es_splitmix64_uniform_half_turns(u);
-        assert(x >= 0.0 && x < 2.0);
-        /* Quarter-turn channels (x ∈ {0, 1/2, 1, 3/2}) collapse to
-         * (±1, 0) / (0, ±1) bit-exactly under native cospi/sinpi —
-         * the bench script's quarter_turn_exact test pins this.
-         */
-        out[k].real = (float)es_cospi_d(x);
-        out[k].imag = (float)es_sinpi_d(x);
+        const uint32_t phase = (uint32_t)(u >> 32);
+        const uint32_t quadrant = phase >> 30;
+        const uint32_t within = phase & 0x3FFFFFFFu;
+        assert(quadrant < 4u);
+        float re;
+        float im;
+        if (within == 0u) {
+            /* Bit-exact quarter turn — no float arithmetic at all. */
+            switch (quadrant) {
+                case 0u:  re =  1.0f; im =  0.0f; break;
+                case 1u:  re =  0.0f; im =  1.0f; break;
+                case 2u:  re = -1.0f; im =  0.0f; break;
+                default:  re =  0.0f; im = -1.0f; break;
+            }
+        } else {
+            const double a = (double)within * PI_HALF_PER_2P30;
+            assert(a >= 0.0 && a < 1.5707963267948966);
+            const double c = cos(a);
+            const double s = sin(a);
+            /* Quadrant rotation = multiply by i^quadrant. Sign/swap
+             * only — no float math, no rounding loss.
+             */
+            switch (quadrant) {
+                case 0u:  re =  (float)c; im =  (float)s; break;
+                case 1u:  re = -(float)s; im =  (float)c; break;
+                case 2u:  re = -(float)c; im = -(float)s; break;
+                default:  re =  (float)s; im = -(float)c; break;
+            }
+        }
+        out[k].real = re;
+        out[k].imag = im;
     }
     return ES_OK;
 }
@@ -180,8 +159,8 @@ es_status_t es_channel_basis_method(uint64_t seed,
     switch (method) {
         case ES_BASIS_METHOD_LEGACY:
             return es_channel_basis_legacy(seed, out, D);
-        case ES_BASIS_METHOD_COSPI:
-            return es_channel_basis_cospi_route(seed, out, D);
+        case ES_BASIS_METHOD_TURN_INTEGER:
+            return es_channel_basis_turn_integer_route(seed, out, D);
         default:
             return ES_ERR_INVALID_KIND;
     }
