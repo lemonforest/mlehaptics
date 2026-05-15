@@ -447,6 +447,179 @@ Per `gear_database.py` LUNAR_TRAIN, the upstream chain b1→c1→c2→d1→d2→
 
 ---
 
+## F2 refinement — primary-source verified (2026-05-14, after Freeth 2006 PDF extraction)
+
+**Status:** REFINED with primary-source data. User added the Freeth 2006 *Nature* paper to `docs/antikythera-maths/hoodoos/` after the original F2 deep-dive completed. PDF read locally; below is the corrected verdict.
+
+### Freeth 2006 main letter explicitly publishes the bronze geometry
+
+**Page 590, Figure 6 caption** (verbatim quote):
+
+> "Our estimate of the distance between the arbors on the k gears is about 1.1 mm, with a pin distance of 9.6 mm, giving an angular variation of 6.5°. According to Ptolemy, Hipparchos made two estimates for a lunar anomaly parameter, based on eclipse data, which would require angular variations of 5.9° or 4.5° here—although estimates of the anomaly from Babylonian astronomy were generally larger."
+
+**Computed from Freeth 2006's own numbers:** ε = 1.1 mm / 9.6 mm = **0.1146** (matches Gourtsoyannis exactly — Gourtsoyannis is not correcting Freeth, they're citing the same measurement from the same source).
+
+### Verdict: corrected
+
+The original F2 deep-dive framed this as "Freeth 2006's published ε is half of the bronze-measured ε; Gourtsoyannis re-measured." **That framing was wrong.** Freeth 2006's primary text (the *Nature* paper itself) publishes the same numbers Gourtsoyannis cites. They agree.
+
+**What was actually wrong:** the project's `docs/antikythera-maths/research/pin_and_slot.py` had `ECCENTRICITY_FREETH_2006 = 0.054` — that constant does NOT appear in Freeth 2006. It's a project-internal transcription error or convention conflation. Speculation on origin:
+
+- Possibly `e / diameter` instead of `e / radius`: 1.1 / (2 × 9.6) ≈ 0.057 (close to 0.054 but not exact).
+- Possibly conflation with the **modern lunar orbital eccentricity** e_moon = 0.0549 (numerically very close to 0.054). Substituting the astronomical eccentricity for the *mechanical* eccentricity would produce exactly this number.
+
+Either way, **the constant in `pin_and_slot.py` was never what Freeth 2006 said**. The `feedback_pdf_extraction_citation_discipline` memory exists precisely for this: don't trust prior attributions; extract the actual PDF.
+
+### Greek-convention finding survives
+
+The deeper finding from the original F2 deep-dive — that the pin-slot atan2 implements the **eccentric-anomaly E(M) series** (Greek center-frame eccentric-circle), NOT the Keplerian focus-frame ν(M) series — remains correct and primary-source-confirmed:
+
+- Bronze's ε ≈ 0.1146 ≈ 2 × modern e_moon (0.0549).
+- Greek center-frame geometry produces leading-order `c_1 = ε`.
+- Modern focus-frame produces `c_1 = 2e`.
+- These match at the OBSERVED level because the Greek convention's eccentricity-doubling is exactly the algebraic relation between the two frames.
+
+The bronze does the right astronomy in the right way for its convention. The convention isn't wrong; it's the Greek geometric tradition.
+
+---
+
+## NEW finding: Bronze calibration is closer to MODERN than to Hipparchos's published values
+
+This **emerged from the primary-source extraction** — not a question we went in asking, but it falls out cleanly from Freeth 2006's own data.
+
+### The calibration table (all values from Freeth 2006 + Brown 1896)
+
+| Source | Angular variation | Equivalent ε (e / pin-distance) |
+|--------|-------------------|-------------------------------|
+| Antikythera bronze (direct measurement) | **6.5°** | **0.1146** |
+| Hipparchos estimate #1 (per Ptolemy/Almagest) | 5.9° | 0.1031 |
+| Hipparchos estimate #2 (per Ptolemy/Almagest) | 4.5° | 0.0785 |
+| Modern Brown's lunar theory (leading EOC) | 6.29° | 0.1098 |
+| Babylonian astronomy (per Freeth 2006) | ">5.9°" ("generally larger") | unspecified |
+
+### The headline
+
+**The bronze's 6.5° is higher than either of Hipparchos's published estimates and is closest to MODERN.** The bronze does NOT just transcribe Hipparchos. Three possible explanations:
+
+1. **Empirical calibration from direct observation.** The bronze builders may have observed the lunar anomaly themselves rather than copying Hipparchos's published value. Greek astronomers had direct observational capability; a 6.5° amplitude is within the range you'd measure from naked-eye eclipse timing over a few decades.
+
+2. **Babylonian-derived value.** Freeth 2006 explicitly notes "estimates of the anomaly from Babylonian astronomy were generally larger." Babylonian lunar tables (ACT/Goal-Year texts; System A and System B) had precision-empirical lunar models that often exceeded Greek geometric reconstructions on the first inequality. If the bronze used a Babylonian value, it would plausibly land near 6-7°.
+
+3. **Pre-Almagest Hipparchan refinement.** Hipparchos published multiple values across his career. Ptolemy's *Almagest* (~150 CE, ~250 years after Hipparchos) compresses Hipparchos's work into the two estimates quoted; the bronze (~150-100 BCE, contemporaneous with Hipparchos's later work) might use a value Hipparchos refined but Ptolemy didn't preserve.
+
+### Why this matters
+
+The §11.6.6.4 / §11.6.6.5 amendment subsections in the antikythera notebook currently frame the ε question as "Greek-convention eccentricity-doubling." That's correct but incomplete. The bronze's specific value (6.5°, ε=0.1146) is not the Hipparchan value from the *Almagest* (4.5° or 5.9°); the bronze is operating at higher amplitude. **The instrument is more accurate than Hipparchos's surviving published values suggest.**
+
+Cross-cuts with the **antikythera notebook §11.6 architectural-mode thread**: the bronze's empirical accuracy on the first lunar inequality is a partial constraint on the design tradition. If the builders had access to better lunar values than Hipparchos's published ones, that itself is a non-trivial archaeological finding — it suggests either Babylonian transmission, independent observational tradition, or Hipparchan inheritance through channels other than the *Almagest* lineage.
+
+### Falsification risk
+
+The Gourtsoyannis bronze measurement (1.1 mm / 9.6 mm) may be biased by Fragment B distortion (the corrosion / squashing over 2000 years of seabed). If the bronze was originally calibrated to Hipparchos's 5.9° (ε ≈ 0.103) but distorted into the measured 6.5° (ε ≈ 0.115), the "closer to modern" finding evaporates. The 10% gap between Hipparchos #1 and bronze-measured is geometrically achievable as distortion.
+
+**Conservative claim:** within measurement uncertainty, the bronze ε is consistent with Hipparchos #1 (5.9°), Babylonian (larger), modern (6.29°), OR a Hipparchan refinement Ptolemy didn't preserve. Confidently *NOT* consistent with Hipparchos #2 (4.5°).
+
+### Next-spike candidate that came FROM this result
+
+**"Bronze calibration sensitivity to Fragment B distortion."** A direct uncertainty analysis: given the published uncertainty bounds on Gourtsoyannis's 1.1 ± 0.05 mm and 9.6 ± 0.2 mm (or similar — the actual error bars would need to be verified), propagate through to ε's error bar. Compare the 1σ confidence interval against Hipparchos #1 (5.9°), Babylonian, and modern. This quantifies whether "bronze closer to modern than to Hipparchos" is a real signal or measurement noise.
+
+---
+
+## F6 — Pin-and-slot is the bronze's universal variable-motion primitive (Freeth 2021)
+
+User added Freeth et al. 2021 *Scientific Reports* "A Model of the Cosmos in the ancient Greek Antikythera Mechanism" ([DOI 10.1038/s41598-021-84310-w](https://doi.org/10.1038/s41598-021-84310-w), open-access CC BY 4.0) to `docs/antikythera-maths/hoodoos/` after F2-refinement landed. Author Correction ([DOI 10.1038/s41598-021-96382-9](https://doi.org/10.1038/s41598-021-96382-9), 24 Aug 2021) also added — the correction is purely typographic (Greek-letter encoding + fraction-formatting), no impact on mechanism findings; correction-check itself is the load-bearing discipline step per `feedback_pdf_extraction_citation_discipline`.
+
+### Major finding from Freeth 2021
+
+Per Figure 3c, 3d, and the "Theoretical mechanisms for our model" section (page 7), **the pin-and-slot mechanism is NOT exclusive to the lunar anomaly** — Freeth's 2021 reconstruction proposes that pin-and-slot (or its sibling, pin-and-slotted follower) is the **universal variable-motion primitive** for all 5 planets in the cosmos display:
+
+| Mechanism | Architecture | Pin-and-slot configuration |
+|-----------|--------------|----------------------------|
+| Lunar anomaly (Freeth 2006) | 4-gear epicycle | Single pin-and-slot on eccentric axes (D-H1) |
+| Inferior planets — Mercury, Venus (Freeth 2021 Fig 3c) | 5-gear *direct* mechanism | Pin-and-slotted follower (on the central axis) |
+| Superior planets — Mars, Jupiter, Saturn (Freeth 2021 Fig 3d) | 7-gear *indirect* mechanism | Pin-and-slot device on eccentric axes — **structurally analogous to the lunar mechanism** (Freeth's own wording, p. 7: *"analogous to the subtle mechanism that drives the lunar anomaly"*) |
+
+Direct quote, Freeth 2021 p. 7:
+
+> "Using our identified period relations for all the planets, we have devised new theoretical planetary mechanisms expressing the epicyclic theories, which fit the physical evidence. For the inferior planets, previous 2-gear mechanisms are inadequate for more complex period relations because the gears would be too large. Two-stage compound trains with idler gears are necessary, leading to new 5-gear mechanisms with pin-and-slotted followers for the variable motions (Fig. 3c). For the superior planets, earlier models used direct mechanisms, directly reflecting epicyclic theories with pin-and-slotted followers. Here we propose novel 7-gear indirect mechanisms with pin-and-slot devices for variable motions (Fig. 3d), analogous to the subtle mechanism that drives the lunar anomaly."
+
+### Architectural pattern: gear-ratio chain → single pin-slot at the leaf
+
+Reading the gear-train notation in Figure 3 (`~` means meshes-with, `+` means fixed-to-same-arbor, `⊕` means with-a-pin-and-follower-on-central-axis OR with-a-pin-and-slot-on-eccentric-axes):
+
+| Planet | Gear train (Freeth 2021 Fig 3e, 3f) | Pin-and-slot location |
+|--------|---------------------------------------|------------------------|
+| Mercury | `51 ~ 72 + 89 ~ 40 ~ 20 ⊕ follower` | At the final stage |
+| Venus | `51 ~ 44 + 34 ~ 26 ~ 63 ⊕ follower` | At the final stage |
+| Mars | `56 ~ 64 + 38 ~ 40 ~ 71 ⊕ 80 ~ 80` | Mid-to-late stage |
+| Jupiter | `56 ~ 64 + 45 ~ 40 ~ 43 ⊕ 65 ~ 65` | Mid-to-late stage |
+| Saturn | `56 ~ 52 + 61 ~ 40 ~ 68 ~ 86 ⊕ 86` | Late stage |
+| True Sun | `56 ~ 52 ~ 56 ⊕ follower` | At the final stage (simple 3-gear) |
+| Mean Sun | (no nonlinear stage — uniform rotation) | n/a |
+| Nodes | `49 ~ 62 + 64 ~ 48` | n/a (no pin-and-slot; pure gear cascade) |
+| Lunar (Freeth 2006) | b1 → ... → e3 → k1 ⊕ k2 | At the final stage |
+
+**Pattern**: every variable-motion output in the bronze is `multi-stage gear chain → single pin-and-slot at or near the leaf`. The cumulative gear ratio of the upstream chain determines what frequency the pin-and-slot perturbs.
+
+### Refinement of Open Question 6
+
+**The original Open Question 6** in the spike spec ("Gear-ratio-mediated pin-slot cascade") imagined a chain like `G_k1 → f_ε1 → G_k2 → f_ε2 → ... → G_kN → f_εN` — multiple alternating pin-and-slot and gear stages.
+
+**The bronze pattern (now known from Freeth 2021)** is simpler: `G_k1 → G_k2 → ... → G_kN → f_ε` — a multi-stage gear-ratio cascade feeding a *single* terminal pin-and-slot.
+
+The Jacobi-Anger amplitude hypothesis from Open Question 6 still applies, but in a degenerate form: with only one pin-and-slot stage at the leaf, the output spectrum is the simple Bessel-series perturbation of the cumulative-gear-ratio fundamental. For a single pin-slot driven at input frequency `k·θ` with eccentricity ε:
+
+```
+f_ε(k·θ) ≈ k·θ + ε sin(k·θ) + (ε²/2) sin(2k·θ) + O(ε³)
+```
+
+The k-harmonic content appears at integer multiples of k·θ, with amplitudes `ε^m / m` (the corrected Kepler-form expansion from F1). **No cross-product Bessel cascade** — just a single ε-modulated frequency comb at the chain's cumulative ratio.
+
+### Updated Q-jacobi-anger verdict (post-Freeth-2021)
+
+- **Algebra holds** at the synthetic multi-pin-slot cascade level (Q-jacobi-anger findings doc) — confirmed.
+- **Bronze does not instantiate the multi-pin-slot cascade.** Confirmed: each variable-motion output in Freeth 2021 has at most one pin-and-slot stage.
+- **Bronze DOES instantiate the gear-ratio frequency injection**: every planet's pin-and-slot is driven at the cumulative gear ratio of the upstream train, so the perturbation appears at that frequency. The k-harmonic injection mechanism is real and pervasive — just not via cascaded pin-slots.
+
+### Why this matters for the project's spectral framing
+
+Pin-and-slot becomes a **single architectural primitive that the bronze re-uses across 6 outputs** (lunar + 5 planets). The bronze's design philosophy is more unified than Freeth 2006 alone suggested:
+
+1. **Cyclic-group cascade** (multi-stage gear train) sets the rate / harmonic.
+2. **Eccentric-anomaly perturbation** (single pin-and-slot at the leaf) adds the Hipparchan equation-of-centre.
+3. **The two-step decomposition is universal** — every variable-motion dial gets the same architectural treatment.
+
+This is a **substantially cleaner architectural finding** than the spike originally aimed at. The pin-and-slot is a *vocabulary primitive* in the bronze; it's the bronze's `f_ε` function, instantiated 6 times with different upstream gear ratios.
+
+### Connection back to MFO substrate/excitation framing
+
+The split that emerges is:
+
+- **Substrate layer** (cyclic group action): the gear ratios. Multi-stage cyclic-group composition.
+- **Excitation layer** (perturbation): the pin-and-slot's eccentric-anomaly transform. Geometrically nonlinear; small ε; produces the Hipparchan first lunar/planetary inequality at the cumulative frequency.
+
+The bronze's architectural separation of "rate-setting cyclic-group cascade" from "amplitude-setting pin-and-slot leaf" maps cleanly onto MFO §VII.1.1's substrate/excitation ontology. The cyclic-group structure is substrate (extends to all bodies via shared gear primitives); the pin-and-slot is excitation (localized nonlinear perturbation at a body-specific eccentric axis).
+
+This makes the bronze a **bench-scale realization of the substrate/excitation distinction at the constraint-geometry layer** — a closed-form, tractable, archaeologically attested example of the framework the project's MFO discipline normally invokes at cosmological scale.
+
+### Next-spike candidates that came FROM F6
+
+1. **Per-planet eccentricity catalogue.** Each planetary mechanism has its own ε for the terminal pin-and-slot. Freeth 2021 Supplementary Discussion S4 / Table S9 (referenced but not yet extracted) presumably lists these. Catalogue all 6 ε values (lunar + 5 planets); compare against ancient Greek values for each planet's equation of centre.
+2. **Cumulative gear-ratio Fourier signatures.** For each planet, compute the cumulative gear ratio `k` from b1 to the pin-slot input; predict the Fourier amplitude at `k·ω_b1`, `2k·ω_b1`, etc. Compare against modern epicyclic-theory amplitudes for that planet. Quantifies how *accurate* the bronze is per planet.
+3. **Universal pin-and-slot consequence**: if pin-and-slot is the bronze's universal primitive, then **every planetary dial inherits the same Greek-convention eccentricity-doubling** (per F2 refinement). Modern observers reading the bronze's planetary outputs should see angular variations 2× the modern epicyclic Δθ for each planet. Is this empirically confirmed by the bronze's surviving dial scales?
+4. **Bronze's design unification at the spectral level.** The bronze isn't 6 separate astronomical instruments stitched together — it's *one* spectral architecture (cyclic-group rate-setting + pin-and-slot excitation) instantiated 6 times. This frames the bronze as a *programmable spectral computer* with one nonlinear primitive and configurable gear chains. **Possible cross-reference to the project's broader stored-relationship mechanism (PR #294) framing.**
+
+### Citation status (per `feedback_pdf_extraction_citation_discipline`)
+
+- **Freeth 2021 (DOI 10.1038/s41598-021-84310-w):** Primary PDF extracted directly from `docs/antikythera-maths/hoodoos/s41598-021-84310-w.pdf`. Open-access CC BY 4.0. **Verified directly.**
+- **Freeth 2021 Author Correction (DOI 10.1038/s41598-021-96382-9):** Primary PDF extracted directly. Confirmed purely typographic; no impact on F2/F5/F6 findings. **Verified directly.**
+- **Freeth 2006 (DOI 10.1038/nature05357):** Primary PDF extracted directly. Paywalled; cached in `hoodoos/antik2.pdf`. **Verified directly.** The 1.1mm / 9.6mm / 6.5° / Hipparchan-calibration claims in F2-refinement above are direct quotes from page 590.
+- **Freeth 2009 SciAm (DOI 10.1038/scientificamerican1209-76):** Cached but provides only secondary popular-audience commentary; not load-bearing for any specific claim above.
+- **Gourtsoyannis (academia.edu/41392086):** Still not extracted as primary PDF; cross-confirmed via the Freeth 2006 numbers above (which Gourtsoyannis quotes exactly).
+- **Carman-Thorndike-Evans 2012:** Still not extracted; flagged as next-spike but lower priority now that the Freeth 2006 / 2021 primary verification is complete.
+
+---
+
 ## §11.6.6 re-attribution (informed by F2)
 
 **Status:** PROPOSED REWRITE (not applied; conductor decision pending). The antikythera notebook §11.6.6 ([antikythera_spectral_research_notebook.md L686–L720](../../antikythera-maths/antikythera_spectral_research_notebook.md)) makes two distinct claims about pin-and-slot. Q-tooth-noise (F5) shows the second is wrong; F2 deep-dive constrains the first.

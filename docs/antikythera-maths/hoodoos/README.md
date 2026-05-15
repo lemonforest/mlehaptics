@@ -54,6 +54,36 @@ the repo.
 | **Copyright** | © 2009 Scientific American, Inc. (Nature America / Springer Nature). **Not redistributable.** GitHub-excluded via `.gitignore`. |
 | **Used for** | Popular-audience complement to Freeth 2006; cross-reference for spike F2 lunar-mechanism architecture claims |
 
+### 3. Freeth et al. 2021 — Scientific Reports
+
+| Field | Value |
+|-------|-------|
+| **File** | `s41598-021-84310-w.pdf` |
+| **Title** | A Model of the Cosmos in the ancient Greek Antikythera Mechanism |
+| **Authors** | Tony Freeth, David Higgon, Aris Dacanalis, Lindsay MacDonald, Myrto Georgakopoulou, Adam Wojcik |
+| **Journal** | *Scientific Reports* **11**, 5821 (2021) |
+| **DOI** | [10.1038/s41598-021-84310-w](https://doi.org/10.1038/s41598-021-84310-w) |
+| **Publisher URL** | <https://www.nature.com/articles/s41598-021-84310-w> |
+| **Retrieved from** | Open-access publisher download (`www.nature.com/scientificreports`) |
+| **Copyright** | © 2021 The Author(s). **Open access under CC BY 4.0.** This paper *could* legally be hosted on GitHub with attribution, unlike the other two hoodoos. We keep the `.gitignore` discipline uniform for repo-size hygiene and consistency of the hoodoos pattern; the PDF is retrievable from the publisher URL by anyone. |
+| **Used for** | Spike F2 / F6 (2026-05-14): Freeth's substantially updated reconstruction, particularly the planetary mechanisms. Major finding: pin-and-slot is the bronze's universal nonlinear primitive for variable motion — applied to **all 5 planets** (Mercury, Venus, Mars, Jupiter, Saturn) per the proposed planetary gear trains, not just the lunar anomaly. Confirms the architectural cascade premise of Open Question 6 in our spike spec, with refinement (single pin-slot per train, not multi-stage). |
+
+> **Note on the OA distinction.** Scientific Reports is fully open-access under CC BY 4.0. This means redistribution with attribution is legally permitted — unlike the Nature 2006 and SciAm 2009 papers above. We keep the uniform `.gitignore` discipline anyway because the hoodoos pattern is about durability of external knowledge via the publisher's canonical URL, not about repo storage. If someone wanted to vendor open-access papers explicitly, that decision is a separate one from the hoodoos cache pattern.
+
+### 4. Freeth et al. 2021 — Author Correction (Scientific Reports)
+
+| Field | Value |
+|-------|-------|
+| **File** | `s41598-021-96382-9.pdf` |
+| **Title** | Author Correction: A Model of the Cosmos in the ancient Greek Antikythera Mechanism |
+| **Authors** | Tony Freeth, David Higgon, Aris Dacanalis, Lindsay MacDonald, Myrto Georgakopoulou, Adam Wojcik |
+| **Journal** | *Scientific Reports* **11**, 17361 (2021) |
+| **DOI** | [10.1038/s41598-021-96382-9](https://doi.org/10.1038/s41598-021-96382-9) |
+| **Published** | 24 August 2021 |
+| **Publisher URL** | <https://www.nature.com/articles/s41598-021-96382-9> |
+| **Copyright** | © The Author(s) 2021. **Open access under CC BY 4.0.** Same OA framing as the original paper (entry 3 above). |
+| **Used for** | Spike F2 / F6 verification step (2026-05-14): confirmed the corrections are **purely typographic** — Greek-letter encoding (ΨΞΒ → ϒΞΒ, ΨΜΒ → ϒΜΒ in the inscriptional number-spellings; the *numerical* values 462 and 442 were never wrong) and fraction-formatting fixes (-¹²/₂₂₃ superscript → -12/223 proper fraction). **No impact on the load-bearing pin-and-slot / lunar-anomaly / planetary-mechanism findings.** Cited per `feedback_pdf_extraction_citation_discipline` discipline — the correction-check itself is the load-bearing step, regardless of outcome. |
+
 ## Retrieval notes
 
 ResearchGate hosts both PDFs as publisher Version-of-Record files. The
