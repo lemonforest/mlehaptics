@@ -1,6 +1,6 @@
 # Spike #24 findings — primitive vocabulary inventory + residual analysis
 
-**Status:** Phases 1, 2, 3a, 5, 6, 7, 8, 9 landed; Phases 3b/3c/3d, 4 pending.
+**Status:** Phases 1–13 landed. Spike substantively complete.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_primitive_vocabulary_2026-05-15.md`](spike_24_primitive_vocabulary_2026-05-15.md).
 
@@ -959,3 +959,61 @@ This is consistent with the project's MPM discipline — the *algebraic* claims 
 4. **Phase 9 stoichiometry** — concertmaster still running.
 
 After Phase 9 lands, all three original concertmaster fermatas + the user's orgo-book extension hope will be either closed or substantively investigated. The spike is then complete.
+
+## Phase 13 — §3.8 notebook landing (2026-05-15)
+
+User direction *"we want all the knowledge we've talked about learning to land here. let's keep up the phases please"* requires the canonical synthesis to reach `srmech_research_notebook.md §3.8`. Phase 13 rewrites §3.8 to reflect Phases 1–12 closures.
+
+### 13.1 — What §3.8 now says (post-rewrite)
+
+The rewritten §3.8 lands these consolidated facts (replacing the pre-Phase-9 draft):
+
+1. **14 confirmed primitive classes A–N**; zero new classes added by Spike #24.
+2. **Class K (Kepler equation-of-centre / pin-slot) confirmed across 4 substrates:** bronze, cosmos, chemistry-static (ethane V₃), chemistry-dynamics (Lotka-Volterra / Brusselator / Oregonator mass-action).
+3. **Class K substrate boundary** characterised: chess is Class-K-absent (Phase 10) — discrete-combinatorial motion has no continuous-phase / anomalistic-frequency / mean-motion. The universal's contrapositive holds.
+4. **Class J (period-relations) is the most-instantiated class — 6 substrates:** bronze, cosmos, atomic (Bohr Rydberg), molecular (vibrational v-quanta), CRN (stoichiometric null space), CPU.
+5. **Seven chemistry-domain reductions** to existing classes (Phase 7: Woodward-Hoffmann, Felkin-Anh, anomeric; Phase 9: stoichiometric coefficients, mass-action Kepler-shape, Feinberg deficiency, detailed balance).
+6. **Class O? (Feinberg deficiency)** retracted per Phase 9.3b: `δ = rank(L_complex) − rank(N)` is Class L × Class J composition.
+7. **Class P? (conformal groups)** demoted to downstream-continuous-projection per Phase 11 and `[[user_stance_pi_as_projection]]`.
+8. **Stoichiometry hope (Phase 8)** resolved by Phase 9: stoichiometry's algebra theory IS the existing primitive vocabulary at the chemistry-dynamics substrate.
+9. **Phase 12 citation status:** computational primaries stand; chemistry textbook citations remain `[unverified-secondary]`. Three OA candidates flagged for deferred caching.
+
+### 13.2 — What §3.8 explicitly does NOT promise
+
+- No new primitive class is being added at the abstraction layer in this PR. Promotion candidates (Class K, L, M, I, J) remain candidates per Phase 2; the actual srmech-layer promotion is a separate future work item (it's a code refactor not a research finding).
+- The matrix of "which primitive class instantiates at which substrate" is in the spike-findings doc, not in §3.8 itself. §3.8 cites the substrate roster + Class K / Class J counts; the full N×M matrix lives in [Phase 7.4](#phase-74--multi-substrate-primitive-instantiation-matrix-6-columns) of this findings doc.
+
+### 13.3 — Fermata closure status (final)
+
+| # | Origin | Topic | Disposition |
+|---|--------|-------|-------------|
+| 1 | Phase 7 | Class P? conformal groups | **Closed** (Phase 11: demoted to downstream-projection class) |
+| 2 | Phase 7 | Chemistry primary-citation verification | **Closed** (Phase 12: secondary-tag retention; OA candidates flagged for future cache) |
+| 3 | Phase 7 | Chess-as-Class-K-falsifier | **Closed** (Phase 10: substrate boundary characterised; no separate spike needed) |
+| 4 | Phase 8 | Stoichiometry algebra theory hope | **Closed** (Phase 9: resolved to existing-class instantiation at CRN substrate) |
+| 5 | Phase 9 | Class O? retract-or-keep-as-label | **Closed** (Phase 13: retract; counterpoint 9.3b shows it's L×J composition) |
+| 6 | Phase 9 | CRN matrix column placement | **Closed** (Phase 13: matrix cited in §3.8 prose; full table in findings doc Phase 7.4 / 9.5) |
+| 7 | Phase 9 | Phase 9.2 oscillator expansion | **Deferred** (optional follow-up; three oscillators already confirm Class K at chemistry-dynamics) |
+| 8 | Phase 9 | Chemistry primary-PDF cache | **Deferred** (Phase 12 flagged three OA candidates: Feinberg 1979, Bohr 1913, Yamabe 1960) |
+
+Five closed in this PR; three deferred. **No open fermatas** require user decision before flip-the-draft.
+
+### 13.4 — Implication for the unified mechanism (PR #294 cross-reference)
+
+Spike #24's vocabulary-consolidates-rather-than-expands finding is consistent with the pre-v1.0 unification proposal in `[[project_stored_relationship_mechanism_spike]]`: if the 14-class vocabulary describes 6 substrates without invention, the unified mechanism's abstraction layer is the right scope for these classes. The unification spike's Path A/B/C/D + 4 spike experiments work against a stable target.
+
+### 13.5 — Phase 13 NDJSON output (none)
+
+Phase 13 is a notebook-edit phase; no NDJSON output. Phase 13 is the *landing* of Phases 1–12 into the notebook canonical section, not a fresh investigation.
+
+### 13.6 — Spike #24 closure
+
+Spike #24 is **substantively complete** at the end of Phase 13. The findings doc carries the full investigation record (Phases 1–13); the notebook §3.8 carries the abstraction-layer landing; the ephemerides-spectral handoff packet ([`spike_24_ephemerides_handoff_2026-05-15.md`](spike_24_ephemerides_handoff_2026-05-15.md)) carries the code-work recommendations for the next-door session.
+
+**Ready for flip-the-draft discipline** per `[[feedback_flip_the_draft_vocabulary]]`:
+
+1. `gh pr ready 421` — flip from draft to ready-for-review.
+2. Language sweep — remove "pending", "in progress", "draft", "to be done" comments from spike-touched files.
+3. Doc-mtime check — verify all spike documents have `2026-05-15` mtimes (they should).
+
+**Awaiting user authorisation** for step 1; steps 2–3 can run pre-emptively as a hygiene pass.
