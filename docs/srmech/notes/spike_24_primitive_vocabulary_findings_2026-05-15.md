@@ -1,6 +1,6 @@
 # Spike #24 findings — primitive vocabulary inventory + residual analysis
 
-**Status:** Phases 1–13 landed. Spike substantively complete.
+**Status:** Phases 1–14 landed (Phase 14 = OA chemistry-citation PDF cache). Spike substantively complete; one user-side Yamabe download pending.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_primitive_vocabulary_2026-05-15.md`](spike_24_primitive_vocabulary_2026-05-15.md).
 
@@ -1017,3 +1017,48 @@ Spike #24 is **substantively complete** at the end of Phase 13. The findings doc
 3. Doc-mtime check — verify all spike documents have `2026-05-15` mtimes (they should).
 
 **Awaiting user authorisation** for step 1; steps 2–3 can run pre-emptively as a hygiene pass.
+
+## Phase 14 — Primary-PDF cache for OA chemistry citations (2026-05-15)
+
+User request: scope the Phase 12 deferred OA candidates into this PR. Two of three caught via machine fetch; one needs user-side download.
+
+### 14.1 — What's cached
+
+| Hoodoo | Authors | Year | Source | License | SHA-256 |
+|---|---|---|---|---|---|
+| [`docs/srmech/hoodoos/feinberg_1979_lectures_on_chemical_reaction_networks.pdf`](../hoodoos/feinberg_1979_lectures_on_chemical_reaction_networks.pdf) | Martin Feinberg | 1979 (Wisconsin lectures); 2019 Zenodo deposit | [Zenodo 10631900](https://zenodo.org/records/10631900) (10.5281/zenodo.10631900) | CC-BY 4.0 | `eb51082c29b976e427fb1ea0030959a1c23f9727c765732a9b17e611c898d1c7` |
+| [`docs/srmech/hoodoos/bohr_1913_on_the_constitution_of_atoms_and_molecules.pdf`](../hoodoos/bohr_1913_on_the_constitution_of_atoms_and_molecules.pdf) | Niels Bohr | 1913 (Phil. Mag. Series 6, Vol. 26, Part I, pp. 1–25, July 1913) | [Internet Archive 125Bohr](https://archive.org/details/125Bohr) facsimile of *Phil. Mag.* original | Public domain (>100 years since publication) | `02d1e2752ed5b05d71b6d8a4f197dc1b3641995814b90990378455bd72ff937b` |
+
+Both fetched via single-shot `curl` from machine-permitted sources (Zenodo OpenAIRE-affiliated; Internet Archive's API explicitly supports automated retrieval). Per `[[reference_autonomous_validation_tos_landscape]]`, both are inside the permitted-automation zone.
+
+### 14.2 — Yamabe 1960 — user-side download required
+
+Project Euclid (which hosts Osaka Mathematical Journal back-volumes) is **Incapsula-gated** — automated retrieval returns a 1.1KB Incapsula challenge page instead of the PDF. Per `[[reference_autonomous_validation_tos_landscape]]`, the discipline is "don't build TOS-violating tooling into the project repo"; Project Euclid's anti-bot gate constitutes a TOS signal against scripted access, even though the content is OA for older volumes.
+
+**For the user to download:**
+
+- **Citation:** Hidehiko Yamabe, *"On a deformation of Riemannian structures on compact manifolds"*, **Osaka Mathematical Journal** Vol. 12, Issue 1, pp. 21–37 (1960).
+- **DOI (Project Euclid):** [10.18910/8081](https://doi.org/10.18910/8081) *(unverified — Project Euclid uses 10.18910/* DOI prefix for OJM but the per-article number is not confirmed without a browser fetch)*
+- **Landing page:** [`projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full`](https://projecteuclid.org/journals/osaka-mathematical-journal/volume-12/issue-1/On-a-deformation-of-Riemannian-structures-on-compact-manifolds/ojm/1200689814.full) — click the "PDF" / "Download" button after the page loads in a browser.
+- **Save as:** `docs/srmech/hoodoos/yamabe_1960_on_deformation_of_riemannian_structures.pdf`
+- **License:** Project Euclid open archive (CC-BY-NC by default for older OJM volumes; verify on the download page).
+
+Once cached, the hoodoos/README.md table entry can be ratcheted up like the other two; this finding-doc Phase 14.1 table will gain a third row; and Phase 7.3's Yamabe citation tag advances from `[unverified-secondary]` to verified.
+
+### 14.3 — Citation ratchet — Phase 7 / Phase 9 references
+
+The Phase 7 / Phase 9 chemistry-and-physics citations advance from `[unverified-secondary]` to **verified** for the two cached hoodoos:
+
+- **Feinberg 1979** (Phase 9 sub-phases 9.1, 9.3, 9.3b, 9.4): the *Lectures on Chemical Reaction Networks* notes referenced for the deficiency formula `δ = n − ℓ − s`, the deficiency-zero theorem, and the Wegscheider conditions all live in the cached PDF. Spike #24 Phase 9 conclusions are now backed by a directly-verified primary PDF.
+- **Bohr 1913** (Phase 7.6.1, Phase 9.6): the hydrogen Rydberg-series derivation `R(1/n² − 1/m²)` is in Part I (pp. 1–25 of the cached PDF, the Internet Archive facsimile). Class J atomic-substrate instantiation is now backed by a directly-verified primary PDF.
+
+Yamabe 1960 (Phase 7.3) remains `[unverified-secondary]` pending user-side download.
+
+### 14.4 — Out of scope for Phase 14
+
+- **AMSC `literature_curated` descriptor entries** for the two cached hoodoos. The `literature_curated` adapter in srmech is the canonical AMSC ingestion path for hand-curated literature; emitting one MPR record per hoodoo (with `data` block carrying the citation metadata and `attestation` block carrying the SHA-256) would land these as proper attested-source records. Deferred to a separate srmech-side follow-up — out of PR #421's spike scope.
+- **Ethane V₃ microwave value primary verification** (Pitzer 1937 / Kemp & Pitzer 1936) — those JACS / J. Chem. Phys. papers are paywalled (ACS / AIP); per `[[reference_autonomous_validation_tos_landscape]]` both are on the prohibited list. Deferred indefinitely; the Phase 7.6.3 computational verification of the V₃ harmonic decomposition stands as primary mathematical evidence.
+
+### 14.5 — Phase 14 NDJSON output (none)
+
+Phase 14 is a citation-cache + README-update phase; no NDJSON. The hoodoos/README.md table and Phase 14.1 / 14.3 entries above are the load-bearing record.
