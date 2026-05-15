@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-05-14
+
+### Production cut after the v0.28.x rc stack — Task `#212` closed
+
+`ephemerides-spectral 0.28.0` ships to production PyPI as the consolidated landing of the four-rc v0.28.x cycle. Version-only bump from `0.28.0rc5` → `0.28.0`; the substantive work landed across rc1 / rc3 / rc4 / rc5 and verified on TestPyPI before each rc merged to `main`.
+
+**Cumulative content:**
+
+* **Phase 10a per-body equation-of-center catalog** (rc1) — 51 closed-form Newton-Kepler EOC patches anchored at J2000; new `_research/secular_elements_data.py` (16 subsystem-authority sources); new `_research/eoc_catalog.py` generator; new AMSC source `secular_elements` (`literature_curated` adapter); six new bridge surfaces + six new CLI subcommands; LLM tool-schema auto-discovers them (240 → 246 tools). Validation: 99.85% Kepler-truth collapse + 94% syzygy-anchor collapse on the 100-yr Earth-Mars sweep with terra+mars EOC active.
+
+* **Task `#212` PR-b: srmech `[profile.native]` plugin tier + ABI v6→v8 realignment + native-parity drift fix** (rc3) — graduates the srmech profile from "simple" to "plugin" tier (ADR-0001 §7 Step 2); restores native acceleration across the install base by realigning `_native_bip.EXPECTED_ABI_VERSION` 6→8 (silent-rejection bug had quietly forced pure-Python fallback for every v0.16.0+ install for 12+ minor versions); regenerates `c/src/es_laplacian.c` to byte-agree with `_data/initial_phases.json` on all 52 bodies. 13 new ratchets pin the plugin-tier surface.
+
+* **Task `#212` PR-c: bridge call-site migration through `srmech.profile("ephemerides").native`** (rc4) — `_native_bip.py` loads the library via the srmech profile when available; `_native_bip.LIB` and `Profile.native` are now the same Python object (Python `is` identity), keeping patch-registry runtime state consistent across both surfaces. New module global `LOAD_SOURCE`. Four-way native parity ratchet pinned: Python BIP / profile-loaded native / direct-ctypes native / bridge `backend="c"` all byte-identical.
+
+* **Phase 10a EOC C-side completion** (rc5, ABI v8→v9) — closes the rc1 backend_caveat. New `ES_PATCH_KIND_ECCENTRICITY_CORRECTION` + Newton-Kepler evaluator in `c/src/es_patches.c`; `es_patch_t` extended with 3 trailing `double` fields; `ES_MAX_PATCHES` 32→64 to fit the 51-body EOC catalog. EOC patches now produce byte-identical phase residues on both `backend="bip"` AND `backend="c"`. JPL Power-of-Ten clean.
+
+**Task `#212` closed**: ADR-0001 §7 Step 2 done. Remaining ADR §7 steps live in adjacent sessions (Step 3 — Task `#213` antikythera-spectral profile; Step 4 — Task `#214` `PROFILE_AUTHORING_GUIDE.md`).
+
+**ABI bump v8 → v9** (`sizeof(es_patch_t)` +24 bytes for the EOC fields). The ABI handshake catches v8/v9 mismatches at load time and degrades to pure-Python rather than producing silent garbage.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.0](python/CHANGELOG.md) and the rc entries below.
+
 ## [0.28.0rc5] — 2026-05-14
 
 ### Phase 10a EOC C-side completion — ABI v8 → v9

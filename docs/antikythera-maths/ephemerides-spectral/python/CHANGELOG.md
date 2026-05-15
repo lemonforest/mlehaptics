@@ -10,6 +10,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-05-14
+
+### Production cut after the v0.28.x rc stack (no code change from 0.28.0rc5)
+
+Version-only bump from `0.28.0rc5` → `0.28.0` in the 5 SSOT locations
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`,
+`c/include/ephemerides_spectral.h`) plus the manifest regen and this
+CHANGELOG header.
+
+**Cumulative content of v0.28.0:**
+
+* **rc1** — Phase 10a per-body equation-of-center catalog (51
+  closed-form Newton-Kepler patches; Python-BIP backend). Validated
+  99.85% Kepler-truth collapse + 94% syzygy-anchor collapse on the
+  100-yr Earth-Mars sweep.
+* **rc3** — Task `#212` PR-b: srmech `[profile.native]` plugin tier
+  + ABI v6→v8 realignment (restores native acceleration on every
+  v0.16.0+ install — the silent-rejection bug had quietly forced
+  pure-Python fallback for 12+ minor versions) + `es_laplacian.c`
+  native-parity drift fix (15 Mars + Saturnian moons).
+* **rc4** — Task `#212` PR-c: bridge call-site migration through
+  `srmech.profile("ephemerides").native`. `_native_bip.LIB` and
+  `srmech.profile("ephemerides").native` are now the same Python
+  object — patch-registry runtime state stays consistent across
+  both surfaces. Four-way parity ratchet pinned.
+* **rc5** — Phase 10a EOC C-side completion (ABI v8→v9). New
+  `ES_PATCH_KIND_ECCENTRICITY_CORRECTION` + Newton-Kepler evaluator
+  in `c/src/es_patches.c`; `es_patch_t` extended with 3 trailing
+  `double` fields; `ES_MAX_PATCHES` bumped 32→64 to fit the 51-body
+  EOC catalog. Closes the rc1 backend_caveat: EOC patches now
+  produce byte-identical phase residues on both `backend="bip"`
+  AND `backend="c"`. JPL Power-of-Ten clean: every new function
+  ≥2 asserts, no goto, no malloc, all loops bounded, ≤60 lines.
+
+**TestPyPI verification chain**: rc1 published 2026-05-14 (PR #410);
+rc3 published 2026-05-14 (PR #412); rc4 published 2026-05-14 (PR
+#413); rc5 published 2026-05-14 (PR #414). Each rc verified in a
+clean external venv before merge:
+- rc3 + rc4 confirmed four-way native parity
+- rc5 confirmed all 51 EOC patches register on both backends with
+  byte-exact phase agreement at J2000, ±1 yr, +20 yr, -100 yr
+
+**rc2 was a failed-publish tombstone**: the silent-rejection ABI
+v6→v8 realignment unmasked a latent `es_laplacian.c` ↔ JSON
+drift on 15 moons that `test_native_parity` had been silently
+skipping. rc3 absorbed the parity-drift fix.
+
+**Task `#212` closure**: this production cut closes ADR-0001 §7 Step 2.
+The remaining ADR §7 steps live in adjacent sessions:
+- Step 3 — antikythera-spectral profile (Task `#213`)
+- Step 4 — `PROFILE_AUTHORING_GUIDE.md` (Task `#214`)
+
+**Per-area detail:** see [project CHANGELOG.md §0.28.0](../CHANGELOG.md)
+and the individual rc entries below.
+
 ## [0.28.0rc5] — 2026-05-14
 
 ### Added — Phase 10a EOC C-side completion (ABI v8 → v9)
