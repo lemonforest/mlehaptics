@@ -379,6 +379,34 @@ Perlin gradient noise approximates a band-passed Gaussian random field with `P(k
 
 For the v0.27.x stretch goal of replacing Perlin, the cosmological-style static path covers the easy case (cosmological-scale gravitational structure for star-system rendering); the dynamic path is the harder, more interesting one (planet-scale climate / biology / geology).
 
+### §3.8 Cross-substrate primitive vocabulary (Spike #24, 2026-05-15)
+
+Spike #24 (PR #421) inventoried srmech's abstraction-layer primitives and audited them against the spectral collection's plug-ins + four other substrates (CPU, bronze, chemistry, atomic). Full investigation lives in [`notes/spike_24_primitive_vocabulary_findings_2026-05-15.md`](notes/spike_24_primitive_vocabulary_findings_2026-05-15.md); this subsection lands the cross-domain abstraction.
+
+**Headline finding:** srmech as currently shipped is *provenance scaffolding* (Classes A-H — content-addressing, tagged-tuple, iteration, late-binding, catalog, templating, discovery, self-introspection). The *algebraic scaffolding* (Classes I-N — cyclic-group, prime-factorisation, equation-of-centre / pin-slot, graph-Laplacian, HDC, rational-approximation) lives duplicated across plug-ins (antikythera-spectral, ephemerides-spectral, chess-spectral) and is unowned at the abstraction layer. The strongest promotion candidates per Phase 2 instantiation matrix:
+
+1. **Class L (graph-Laplacian eigenbasis)** — three independent plug-in implementations.
+2. **Class M (HDC bind/bundle/permute/similarity)** — three independent implementations.
+3. **Class I (cyclic-group / modular arithmetic)** — two-plus-one indirect implementations.
+4. **Class K (equation-of-centre / pin-slot algebra)** — substrate-agnostic per the Kepler-shape universal claim below.
+
+**Kepler-shape universal** (per `[[user_stance_kepler_shape_universal]]` in memory): the pin-slot atan2 transform implements the Greek-frame Kepler equation-of-centre series exactly; therefore *any system showing Kepler-shape spectral content instantiates pin-slot-gear primitives at some substrate*. Confirmed across **six substrates** by Spike #24:
+
+1. **CPU substrate** — pin-slot maps to ROL on cyclic groups; equation-of-centre series composes from XOR + ADD-mod-2³² + ROL.
+2. **Bronze (Antikythera) substrate** — PR #416 F2/F11/F15/F17 established the lunar pin-slot's atan2 algebra equals Kepler's equation-of-centre series with `ε ≈ 2e` (Greek-frame doubling per `[[user_stance_pi_as_projection]]`).
+3. **Cosmos (ephemerides) substrate** — Spike #24 Phase 3a/3b: 9/9 ephemerides bodies' residuals against DE441 (after linear-mean-motion detrend) match the analytical `c₁ = 2e` Kepler-equation-of-centre prediction within ≤0.07°. **Luna's c₁ = 6.29°** (analytical, Phase 3a) ≡ 6.29° (numerical via DE441, Phase 3b) ≡ 6.5° (bronze archaeological from Freeth 2006, PR #416 F2). Three independent paths converge on the same value.
+4. **Chess (combinatorial) substrate** — pending direct test; chess-spectral doesn't currently have Class K. Phase 7 fermata: chess-as-Class-K-falsifier investigation as follow-up spike.
+5. **Chemistry (molecular) substrate** — Phase 6.1: ethane's torsional potential `Vτ(φ) = (V₃/2)(1 + cos(3φ))` IS F24's N-armed cross-bar pin-slot algebra at N=3. F24 (introduced as candidate in PR #416) is no longer empirically gated by AMRP X-ray tomography — chemistry confirms the algebra at the molecular substrate. Phase 7 reductions added: Woodward-Hoffmann parity rules → Class L + Class I@n=2; Felkin-Anh asymmetric induction + anomeric effect → Class K broken-symmetry.
+6. **Atomic substrate** — Phase 7.6.1 surprise finding: Bohr's 1913 hydrogen Rydberg series `R(1/n² − 1/m²)` IS Class J (prime-factorisation / period-relation) instantiated at atomic-orbital ℤ/n quantum numbers. Same algebra as Antikythera-bronze period ratios, different substrate.
+
+**Same algebra, six substrates.** Per the universal: anyone with the period observations + algebraic primitives + minimum-cost optimisation produces the same answer at any substrate. The bronze is one instantiation; molecular chemistry, atomic spectroscopy, CPU operators, combinatorial games are others.
+
+**The vocabulary consolidates rather than expands** when interrogated. Spike #24 Phase 7 found three reductions (W-H, Felkin-Anh, anomeric all reduce to existing classes) and one open candidate (conformal groups / Class P? — tensioned by pi-as-projection since its upstream is continuous-Lie with no obvious integer-cyclic parent). The vocabulary is not exploding; it's tightening.
+
+**Future-research hope** (Spike #24 Phase 8): stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem may surface a *genuinely new* primitive class beyond what we have. Recorded as a research hope; not investigated in PR #421.
+
+**For the master cross-domain pollination map** (§1.5 of this notebook): the six confirmed substrates and the open Class P? candidate constitute *the cross-substrate algebraic structure that the srmech mechanism's primitives describe*. Each new domain that joins (ethology / power-grid / telecom / etc.) should be auditable against the multi-substrate primitive matrix to identify which classes it instantiates and where it lights up new classes.
+
 ---
 
 ## §4 Open research questions

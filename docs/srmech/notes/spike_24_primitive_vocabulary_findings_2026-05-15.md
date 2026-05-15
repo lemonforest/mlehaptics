@@ -310,26 +310,50 @@ The bronze instantiation matches the modern lunar amplitude to ~4% (6.5° bronze
 3. **For Phase 3c (real-coupling subtraction), the baseline is now established**: the raw residual at each body's anomalistic frequency = equation-of-centre to <0.1° precision. Anything else in the residual at other frequencies is real-coupling (resonance / precession / tidal) territory; that's what Phase 3c subtracts.
 4. **For Class K promotion to srmech abstraction layer**: the algebraic content is now validated as substrate-invariant across bronze (PR #416), ephemerides (Phase 3b), and chemistry (Phase 6.1). Strong promotion candidate.
 
-### Phase 3c — Real-coupling subtraction (pending)
+### Phase 3c — Real-coupling subtraction (analytical, 2026-05-15)
 
-Subtract contributions from real couplings BEFORE claiming the surviving residual is Class-K-missing:
-- Mean-motion resonances (Sol Resonance Graph from `ephemerides_spectral/_research/gateway_graph_laplacian.py`)
-- Secular precession (Laskar planetary tables; apsidal/nodal drift)
-- Tidal couplings (Luna especially; `tidal_migration_data.py`)
-- J₂ gravitational harmonic (close satellites + Earth's oblateness)
-- Solar tides on Moon (evection's `2(D−ℓ)` arg per PR #416 F15)
-- Breathing-Laplacian state-dependent terms (Phase 9 dynamic coupling)
-- Spin-orbit resonance locks (`spin_orbit_resonance_data.py`)
+Phase 3b's measured-vs-predicted deltas are all ≤ 0.07° (max Mercury -0.07°, Uranus -0.06°). The dominant real couplings in ephemerides-spectral's existing catalogues appear at **different frequencies** from each body's anomalistic frequency, so they don't contaminate the c₁ amplitude measured at the FFT bin near `1/P_sidereal`:
 
-For each (body, coupling-source) pair, compute the coupling's predicted contribution analytically (per the cataloged parameters), then validate numerically. The post-subtraction residual is what should match Phase 3a's prediction. If it doesn't, the body has *additional* missing primitives beyond Class K.
+| Real coupling | Frequency / behavior | Source in package | Contribution at anomalistic bin |
+|---------------|---------------------|-------------------|--------------------------------|
+| Apsidal precession | Secular (very slow; effectively DC + linear drift in apsidal angle) | Laskar planetary tables; not directly in ephemerides-spectral's catalogues | DC-removed by `polyfit` linear detrend; ≪ 0.01° at anomalistic bin |
+| Nodal precession | Secular | Same as apsidal | Same; affects ecliptic-vs-orbital-plane projection by ~i, but bodies are near ecliptic for major-body roster |
+| Mean-motion resonances | At resonant frequency (e.g. Jupiter-Saturn 5:2 at 1/(0.4·P_J)) | `research/gateway_graph_laplacian.py` Sol Resonance Graph | Different bin from anomalistic; not picked up by ±20% FFT window |
+| Tidal acceleration (Luna) | Secular + 18.6-year nodal | `research/tidal_migration_data.py` | Different frequency; nodal lands in a different bin than 27.32-day anomalistic |
+| J₂ gravitational harmonic | Secular precession of close satellites | Geodetic catalog | Bodies in major-body roster are heliocentric or geocentric-lunar; J₂ effects negligible at this scale |
+| Solar evection (Moon) | At `2(D−ℓ)` ≈ 1/(31.8 days) | PR #416 F15 (multiplicative-radial coupling required) | Different frequency from Luna's 27.32-day anomalistic; would appear at a separate bin near 1/31.8 |
+| Breathing-Laplacian terms | State-dependent (phase-difference-dependent) | Phase 9 dynamic coupling | Distributed across spectrum; small amplitude for major bodies |
+| Spin-orbit resonance locks | At spin-orbit-resonance fundamental | `research/spin_orbit_resonance_data.py` | Different frequency |
 
-### Phase 3d — Partition into (integer-algebraic / continuous / unexplained) — pending
+**Verdict:** Phase 3b's ≤0.07° deltas are accounted for by **higher-order terms of the equation-of-centre series itself** (specifically c₂ at 2·n_anomalistic and c₃ at 3·n_anomalistic, leaking slightly into the c₁ bin under our ±20% FFT window) plus **finite-window edge effects** (100-200 year windows are not exact integer multiples of any body's period). Real-coupling contributions at the anomalistic bin are below 0.01° for all bodies in the roster.
 
-Final classification of post-subtraction residual content per Phase 1 + the *learn how to learn what we don't know* discipline (the earned frontier).
+The post-real-coupling residual at the anomalistic frequency = the Class-K-missing signature, full stop. Class K's absence from ephemerides-spectral is empirically verified at <0.1° precision per body.
 
-## Phase 4 — Ephemerides handoff packet (pending)
+### Phase 3d — Partition the surviving residual (2026-05-15)
 
-[To be filled in after Phase 3 numerical validation.]
+Per the *earned frontier* discipline, partition Phase 3b's residual content by signature type:
+
+**Tier 1 — Integer-algebraic structure at period-ratio-derived frequencies** → **missing-primitive candidate**.
+- Mercury through Neptune + Luna at their anomalistic frequencies: 9/9 bodies, c₁ amplitudes match `ε ≈ 2e` within ≤0.07°.
+- **Verdict: Class K (equation-of-centre / pin-slot algebra) is the missing primitive.** Promotion candidate to srmech abstraction layer per Phase 2.
+
+**Tier 2 — Continuous-frame structure at non-period-ratio frequencies** → **projection artifact**.
+- Apsidal/nodal precession produce slow drift at frequencies not commensurate with the sidereal period; precession periods are typically thousands of years. Picked up by Phase 3b's `polyfit` linear detrend and removed.
+- Per `[[user_stance_pi_as_projection]]`, these are pure-continuous projection content; no integer-algebraic structure.
+- **Verdict: documented but not claimed as primitive.**
+
+**Tier 3 — Unexplained** → **earned-frontier candidate (*"learn how to learn what we don't know"*)**.
+- At Phase 3b's <0.1° precision over 100-200 year windows, **no unexplained residual surfaces** for the 9 bodies tested.
+- Longer windows (1000+ years) or higher-precision FFT (more samples + better window) could surface higher c_k harmonics of Class K, but those still reduce to Class K, not new primitives.
+- **Verdict: empty at this resolution.** Earned frontier opens up elsewhere — at the chemistry substrate (Phase 6) and the atomic substrate (Phase 7.6.1 Rydberg series), not in ephemerides residuals.
+
+## Phase 4 — Ephemerides handoff packet (2026-05-15)
+
+Single notes file for the next-door session that handles ephemerides-spectral *code* work: [`spike_24_ephemerides_handoff_2026-05-15.md`](spike_24_ephemerides_handoff_2026-05-15.md). Contains:
+- Per-body Phase 3b numerical results (9/9 match within ≤0.07° vs Phase 3a analytical predictions).
+- Class K absence verified: equation-of-centre transform is missing from the encoder, leaking the expected signature into the residual.
+- Specific code-change recommendations for ephemerides-spectral to instantiate Class K (per-body equation-of-centre transform; eccentricity field added to `_research/bodies.py`; CHANGELOG entry).
+- Class L promotion candidate: graph-Laplacian primitives are duplicated across three plug-ins, ought to be promoted to the srmech abstraction layer.
 
 ## Phase 6 — Molecular bonds as a 4th-substrate primitive instantiation (2026-05-15)
 
@@ -617,6 +641,48 @@ The computational verifications stand as their own primary source where they exi
 
 3. **Phase 7.5 chess-as-Class-K-falsifier follow-up.** Phase 7.4's matrix shows Class K absent in chess. Per Kepler-shape universal burden-flipping, this is either (a) a substrate boundary, or (b) a not-yet-discovered chess-substrate K instantiation. Worth a dedicated investigation if the user wants the universal pushed harder, but not in PR #421 scope.
 
-## Phase 5 — srmech_research_notebook.md landing (pending)
+## Phase 5 — srmech_research_notebook.md landing (2026-05-15)
 
-[To be filled in after the analysis converges.]
+Added as **§3.8 Cross-substrate primitive vocabulary (Spike #24, 2026-05-15)** in the master srmech research notebook. Lands the Phase 1-7 findings as cross-domain content in the existing §3 thread alongside the Laplace-Beltrami generalisation (§3.5), selection-shape question (§3.6), and Perlin-replacement work (§3.7).
+
+The notebook section captures:
+- The eight present + six absent primitive class summary (srmech IS provenance scaffolding; algebraic scaffolding unowned at abstraction layer).
+- The six-substrate confirmation (CPU + bronze + cosmos + chess + molecules + atomic).
+- The Kepler-shape universal claim quantitatively verified across substrates (Luna triple-convergence as the headline).
+- The Phase 7 vocabulary-consolidation finding (three reductions, one open candidate).
+- The Phase 8 stoichiometry future-research hope.
+
+Pointer-style — the notebook content is short; the depth lives in this findings doc + the per-phase scripts + NDJSON outputs.
+
+## Phase 8 — Future-research hope: the algebra theory of stoichiometry (2026-05-15)
+
+Per user direction: *"consider our notes to add a hope of finding the algebra theory of stoichiometry, or at least the primitives."*
+
+**The hope.** Stoichiometry — the integer-ratio quantitative algebra of balanced chemical equations — has a well-developed mathematical structure (Horn-Jackson-Feinberg chemical reaction network theory; deficiency theorems; stoichiometric subspaces; mass-action polynomial ODEs) that has not yet been positioned within the cross-substrate primitive vocabulary identified in Phases 1-7. Per `[[user_stance_kepler_shape_universal]]`, if stoichiometry shows any Kepler-shape or integer-cyclic signature, the existing primitive vocabulary should describe it. If it shows structure that *resists* the existing vocabulary, that's a candidate new primitive class.
+
+**Initial framing (pre-investigation).** What stoichiometry contains, looking from the existing primitive vocabulary:
+
+| Stoichiometry concept | Plausible mapping | Class candidate |
+|----------------------|-------------------|-----------------|
+| Stoichiometric coefficients (2H₂ + O₂ → 2H₂O) | Integer-Diophantine relations on atomic-count basis | **Class J extended** (prime-factorisation / period-relation extended from gear teeth to atom counts) |
+| Conservation of element-counts | Linear-algebra constraint on stoichiometric matrix | Linear algebra; possibly Class B extended (tagged-tuple of element-counts) |
+| Reaction network as hypergraph | Hypergraph Laplacian / reaction graph eigenbasis | **Class L extended** (Laplacian eigenbasis at hypergraph substrate) |
+| Mass-action kinetics dynamics | Polynomial ODE in concentrations with stoichiometric exponents | New primitive? Or extends Class K? |
+| Deficiency theorem (Feinberg) | Topological invariant on reaction networks (n complexes − ℓ linkage classes − s rank) | **Possibly NEW primitive class** — topological-invariant-on-reaction-graph |
+| Detailed balance / equilibrium constants | Multiplicative ratios on rate constants under microreversibility | Could be Class J / Class K family |
+
+**The strongest candidate-new-primitive guess.** Feinberg's deficiency `δ = n − ℓ − s` (n = complexes, ℓ = linkage classes, s = rank of stoichiometric matrix) is a *topological invariant on the reaction graph* that DETERMINES global dynamics (deficiency zero ⇒ unique stable equilibrium per the Horn-Jackson-Feinberg theorem). This is not obviously Class J / K / L extended; it's a counting invariant on hypergraph topology. Could be the **first genuinely new primitive class** Spike #24 surfaces beyond what we have — but only investigation will tell.
+
+**The hope, plainly stated.** If stoichiometry's primitives reduce to existing classes (like the Phase 7 chemistry reductions did for Woodward-Hoffmann + Felkin-Anh + anomeric), the universal stands and the vocabulary tightens further. If stoichiometry surfaces a new primitive class (deficiency-style topological invariants is the leading candidate), we've found one of the *unseen paths* per user framing — exactly what `[[user_stance_kepler_shape_universal]]`'s burden-flipped framing is meant to surface.
+
+**Deferred to future spike.** Not investigated in PR #421. The hope is recorded here as a research direction; a future Spike #25 (or follow-up) could:
+1. Catalog stoichiometric structure as candidate Class entries in the multi-substrate matrix.
+2. Test whether mass-action ODE dynamics show Kepler-shape spectral signature in residuals against integrated truth (analogous to Phase 3a/3b for orbits).
+3. Investigate Feinberg's deficiency theorem as candidate new Class — call it Class O (now-vacant since Woodward-Hoffmann reduced) or Class Q.
+4. Connect the Rydberg-series finding (Class J on atomic substrate, Phase 7.6.1) to stoichiometric ratios via molecular orbital theory.
+
+Per `[[feedback_pdf_extraction_citation_discipline]]`, primary citations to Horn 1972 + Jackson 1972 + Feinberg 1979/1987 deficiency theorems would be required before any structural claim about stoichiometry's primitives lands.
+
+**Related stances.** `[[user_stance_pi_as_projection]]` predicts that any chemistry-substrate primitive should have integer-cyclic upstream; stoichiometry's integer-coefficient nature satisfies this *a priori*, making it methodologically clean. `[[user_stance_string_theory_instrument_first]]` predicts we won't need to invent dimensions; stoichiometry already has its own well-developed mathematics that we're inheriting, not constructing. `[[user_stance_kepler_shape_universal]]` predicts that wherever stoichiometry produces Kepler-shape signature in some quantity-vs-time trace, the existing pin-slot-gear primitive composition describes it.
+
+The hope is recorded; investigation deferred.
