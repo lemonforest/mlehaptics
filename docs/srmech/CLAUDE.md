@@ -88,12 +88,43 @@ The sister package `docs/antikythera-maths/CLAUDE.md` documents an
 explicit **CAD-grade scope ban** for its own subtree (modelling at
 the *algebra / eigenbasis* level, projecting to spatial motion,
 NOT modelling at the CAD level). **The same ban applies in
-srmech**: if a request reads as "vendor a TOML parser in C" or
-"reconstruct the surface from raw bytes" or "compile-time-decode
-the JSON" — push back. srmech keeps **parsing in Python**
-(`tomllib`, `json`, `MPRRecord.from_json_line`) and uses C **only
-for the byte-pushing hot paths** (SHA-256, file IO, line
-tokenisation). Don't expand the native surface area beyond that.
+srmech**: if a request reads as "model the physical bronze mesh
+geometry" or "compute axle wobble" or "fabrication-tolerance
+geometry" — push back. CAD-grade fabrication geometry is not
+srmech's domain.
+
+**The C native surface, by contrast, intentionally covers every
+primitive class srmech exposes** — full C/Python parity is the
+architectural commitment per Task #201 and the ephemerides-spectral
+precedent that markets microcontroller-readiness on PyPI. As of
+2026-05-15, Task #201 Phase B has shipped C implementations of
+**Class A (content-addressing via SHA-256)** and **Class C
+(streaming iterator via NDJSON line tokenisation)**; the remaining
+classes B/D/E/F/G/H/I/J/K/L/M/N (and Class O if accepted per Spike
+#24 bonus 8) ship in **Task #217 — per-class C parity build-out**,
+phased per-class with the same Python/C parity ratchet, JPL
+Power-of-Ten audit, and cibuildwheel matrix discipline as Phase B.
+
+**Do not** read the current Phase B state (Class A + Class C
+implemented) as the architectural ceiling. Per
+`[[feedback_no_mvp_framing]]`, the goal is full parity for every
+primitive class so that srmech can run on a microcontroller without
+a host Python or external LAPACK — same target as ephemerides-
+spectral. Adding a class to libsrmech is *expected work* per the
+Task #217 roadmap, not a deviation requiring justification.
+
+**Carve-outs that do NOT need C ports:** parsing layers — `tomllib`,
+`json`, `MPRRecord.from_json_line` — stay in Python because they're
+not primitive-class operations; they're language-binding
+conveniences. The Phase B5 decision (TOML canonical-serialization
+port via Python `tomli` round-trip rather than vendoring a C TOML
+parser) remains correct because TOML parsing is a binding-layer
+concern, not a primitive-class operation. Distinguish: *primitive
+class operations* (numerical hot paths, hash algorithms, cyclic-
+group arithmetic, graph-Laplacian eigenvalue computation, HDC
+bind/bundle/permute, etc. — these get C ports) vs *language binding
+conveniences* (TOML/JSON parsing, Python-side caching, dispatch
+plumbing — these stay Python).
 
 **srmech is not the EMDR firmware.** The repo root `CLAUDE.md`
 describes the EMDR bilateral-stimulation device (`src/`, `test/`,
