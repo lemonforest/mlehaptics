@@ -59,7 +59,9 @@ Each script is deterministic: re-running produces byte-identical JSON output. Th
 
 ### I.1 The thesis
 
-All matter and force fields are harmonic excitations of a single fractal metric field. The metric field is more fundamental than spacetime — spacetime is one of its configurations, not its container. What have traditionally been called "spatial" and "internal" dimensions are the same fractal geometry at different resolutions; there is no categorical boundary between them. The metric field's spectral dimension flows with scale: ~4 at large (cosmological) scales, peaking at ~6–8 at intermediate scales (where the particle spectrum lives, and where the fractal's fine structure is maximally resolved), and dropping to ~2 at the UV — consistent with every known approach to quantum gravity.
+All matter and force fields are harmonic excitations of a single metric field. The metric field is more fundamental than spacetime — spacetime is one of its configurations, not its container. What have traditionally been called "spatial" and "internal" dimensions are the same geometry at different resolutions; there is no categorical boundary between them. The metric field's spectral dimension flows with scale: ~4 at large (cosmological) scales, peaking at ~6–8 at intermediate scales (where the particle spectrum lives, and where the geometry's fine structure is maximally resolved), and dropping to ~2 at the UV — consistent with every known approach to quantum gravity.
+
+> **Substrate caveat (Spike #24 bonus 7, 2026-05-15):** earlier drafts of this thesis described the metric field as *"fractal"*. Per `[[user_stance_fractal_shadow]]` and bonus 7's ONE_WAY_NOT_REQUIRED verdict (see Part VIII.7), fractal-recursive structure is *one* substrate realisation of the load-bearing requirement (multi-scale primitive cascade with three-fold sub-structure available); nested cyclic-group cascades (Antikythera-style) and smooth-anisotropic-T³ also satisfy the requirement equivalently in the Class-L super-Poisson regime. The framework's substrate-commitment is therefore to *multi-scale primitive cascade composition*, of which fractal-recursive structure is one downstream-shadow form. The literal mathematics of Part IV (Sierpinski gasket Laplacian, spectral decimation, P_n family) remains correct as one substrate realisation; framework-commitment language has been refined to remove the fractal-as-required privilege.
 
 The ontological cost is minimal. No new fundamental objects are introduced (no strings, branes, or extra fields), no mathematical structures beyond what GR and QFT already use, and no new free parameters beyond those of the Standard Model. The framework is a reinterpretation: particles are waveguide modes of the metric field's geometry, and the spatial/internal distinction is a resolution artifact.
 
@@ -75,7 +77,7 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 5. **The Planck density floor is minimum geometric complexity**, not maximum compression. The configuration supporting the fewest resonant modes.
 
-6. **The metric field's geometry is fractal.** "Spatial" and "internal" dimensions are the same geometry at different resolutions. Compactification is not something that happened to extra dimensions — it is what coarse-graining does to fractal geometry. The ~11 dimensions at intermediate scales (Witten's KK convergence) and the ~4 at large scales (our experience) are properties of the fractal's structure, not free parameters.
+6. **The metric field's geometry is a multi-scale primitive cascade** (per `[[user_stance_fractal_shadow]]` and Spike #24 bonus 7; fractal-recursive structure is one substrate realisation, not the framework commitment). "Spatial" and "internal" dimensions are the same geometry at different resolutions. Compactification is not something that happened to extra dimensions — it is what coarse-graining does to cascade-substrate geometry. The ~11 dimensions at intermediate scales (Witten's KK convergence) and the ~4 at large scales (our experience) are properties of the cascade's structure, not free parameters.
 
 ### I.3 Methodological position
 
@@ -307,7 +309,7 @@ Smooth maximally symmetric manifolds cannot produce any of these. The internal g
 - Topologically complex (orbifolds, conical singularities), OR
 - Non-smooth (fractal, discrete)
 
-Each of these breaks the assumptions of the Atiyah-Hirzebruch no-go theorem in different ways (see Part VI). The framework's commitment is to the third route: **fractal**.
+Each of these breaks the assumptions of the Atiyah-Hirzebruch no-go theorem in different ways (see Part VI). The framework's commitment is to the third route: **non-smooth multi-scale primitive cascade** (of which fractal-recursive structure is one substrate realisation per `[[user_stance_fractal_shadow]]`; nested cyclic-group cascade and smooth-anisotropic-T³ are equally-valid realisations per Spike #24 bonus 7).
 
 ### III.5 The 11-dimensional convergence
 
@@ -549,9 +551,9 @@ The framework is not excluded by current data. The strongest near-term tests are
 
 Carlip's question: why do CDT, asymptotic safety, Horava-Lifshitz, LQG, causal sets, NCG, multifractional theories, and string theory all find d_S → 2 at UV? He proposes "asymptotic silence" but doesn't have a mechanism.
 
-The framework's answer: they're all independently discovering the same fact — the metric field is a fractal, and the fractal's spectral dimension at fine structural scale is ~2. Each approach builds the fractal from different mathematical starting points (simplices in CDT, spin networks in LQG, RG flow in asymptotic safety), but they all converge on the same fixed point because the fixed point is a property of the geometry itself, not of the building method.
+The framework's answer: they're all independently discovering the same fact — the metric field is a **multi-scale primitive cascade**, and the cascade's spectral dimension at fine structural scale is ~2. Each approach builds the cascade from different mathematical starting points (simplices in CDT, spin networks in LQG, RG flow in asymptotic safety, fractal-recursive geometry per Part IV's literal-math), but they all converge on the same fixed point because the fixed point is a property of the geometry itself, not of the building method. Per `[[user_stance_fractal_shadow]]` and Spike #24 bonus 7, fractal-recursive structure is one downstream-shadow form of the cascade substrate; the convergence is on the cascade, observed through whichever shadow each approach casts.
 
-The d_S → 2 result is **not a phenomenon requiring explanation** within any specific QG approach. It's the *definition* of what it means for the geometry to be fractal. A fractal necessarily has scale-dependent spectral dimension. The d_S → 2 at UV is the fractal's spectral dimension at finest structural scale; the d_S → 4 at IR is the effective dimension after coarse-graining.
+The d_S → 2 result is **not a phenomenon requiring explanation** within any specific QG approach. It's the *definition* of what it means for the geometry to have multi-scale-cascade structure. A primitive cascade necessarily has scale-dependent spectral dimension. The d_S → 2 at UV is the cascade's spectral dimension at finest structural scale; the d_S → 4 at IR is the effective dimension after coarse-graining.
 
 This dissolves the puzzle and identifies the unifying structure across all QG programs.
 
@@ -605,9 +607,9 @@ All three properties — exactly those of W and Z — emerge from one geometric 
 
 Status: explicit calculations to date cover S² and T² as toy internal spaces. Extension to realistic 7-manifolds and full SM particle content is the principal open computation. The conceptual breakthrough is that the chirality no-go has a loophole that doesn't require non-smooth structure — only broken (non-Killing) symmetry.
 
-### VI.4 Why fractals dissolve the problem entirely
+### VI.4 Why non-smooth cascade-substrates dissolve the problem entirely
 
-The Atiyah-Hirzebruch theorem requires: (1) smooth compact manifold M, (2) smooth action of compact Lie group G, (3) standard Dirac operator. **All three fail on a fractal.**
+The Atiyah-Hirzebruch theorem requires: (1) smooth compact manifold M, (2) smooth action of compact Lie group G, (3) standard Dirac operator. **All three fail on any non-smooth multi-scale primitive cascade substrate** — including fractal-recursive geometry, nested cyclic-group cascade, and (under appropriate non-smooth limits) anisotropic discrete substrates. The historical literature treats the fractal case; the framework's commitment (per `[[user_stance_fractal_shadow]]`) is to the broader cascade-substrate class of which fractal is one realisation. The math below uses fractal as the worked example.
 
 There is no smooth manifold (the geometry has structure at every scale, no tangent spaces in the usual sense). There is no smooth G-action (a continuous group cannot act smoothly on a Sierpinski gasket). There is no standard Dirac operator — the analog is the Kigami Laplacian, which has different analytical properties. The theorem cannot even be stated.
 
@@ -794,16 +796,16 @@ The Casimir-decomposition family is **real, broad, and computable in closed form
 - KY literature review (`docs/srmech/notes/killing_yano_kerr_literature_review_2026-05-12.md`, branch `research/killing-yano-literature-review`): state-of-field for the open generic-`Mω` Kerr regime.
 - §VII.4.1.1 (above): original Hopf-fibration framing that this section generalises.
 
-**Status.** This is a *consolidation* of seven independent computational verifications into a unified abstract statement, not a new physical prediction. The framework's testable claims live in §VII.4.1, §VII.5–§VII.7 (cosmological reframings), and §XIII.1 (the SM-mass-fractal open problem). §VII.4.1.2's contribution is to identify *the mathematical object* the framework is built on — the Casimir-decomposition family across symmetry groups — and to document where its reach is bounded by SM-specific representation choices and the KY-Kerr-QNM open gap.
+**Status.** This is a *consolidation* of seven independent computational verifications into a unified abstract statement, not a new physical prediction. The framework's testable claims live in §VII.4.1, §VII.5–§VII.7 (cosmological reframings), and §XIII.1 (the SM-mass-cascade open problem — reframed from "SM-mass-fractal" per Spike #24 bonus 7 + `[[user_stance_fractal_shadow]]`). §VII.4.1.2's contribution is to identify *the mathematical object* the framework is built on — the Casimir-decomposition family across symmetry groups — and to document where its reach is bounded by SM-specific representation choices and the KY-Kerr-QNM open gap.
 
 ### VII.5 Dark matter as geometric curvature
 
-If the metric field's geometry is fractal, it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal geometry is complex enough to curve spacetime without supporting particle-like excitations.
+If the metric field's geometry is a multi-scale primitive cascade (of which fractal-recursive structure is one substrate realisation per `[[user_stance_fractal_shadow]]`), it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal cascade-composition is complex enough to curve spacetime without supporting particle-like excitations.
 
 This is **not** modified gravity (MOND): the curvature obeys standard GR — it lenses light, attracts matter, creates gravitational wells. The difference is what *sources* the curvature: not invisible particles, but the metric field's geometric complexity.
 
 Suggestive features:
-- **Distribution:** Dark matter traces large-scale structure, doesn't clump at small scales — expected if fractal geometric complexity has scale-dependent properties
+- **Distribution:** Dark matter traces large-scale structure, doesn't clump at small scales — expected if multi-scale-cascade geometric complexity has scale-dependent properties (fractal-recursive geometry being one substrate where this is naturally instantiated)
 - **Non-interaction:** Couples only gravitationally — tautological if it's geometry, not particles
 - **Bullet Cluster:** Halos pass through without interacting — geometric curvature would do this; particle collections wouldn't
 - **Detection failures:** WIMPs, axions not found — if it's not a particle, no particle detector can find it
@@ -991,6 +993,58 @@ This is **directly tractable with antikythera-spectral's existing tooling** — 
 - Canonical fractal-shadow stance: `[[user_stance_fractal_shadow]]` memory.
 - Sister shadow stances: `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_fiber_as_spatially_absent_encoding]]`, `[[user_stance_pi_as_projection]]`.
 - Antikythera precedent for cascade tractability: PR #416 §11.6.17 algebraic-uniqueness synthesis (bronze pin-slot algebra = Kepler equation-of-centre).
+
+### VIII.8 Broken-D rederivation closure test — Class O located (Spike #24 bonus 8)
+
+The user posed the closure question (2026-05-15): *"if we can do this, then there are no more classes. if we cannot, this is the place."* The test was a direct rederivation: starting from the cascade-composition built up the bonus-7 way, project down to 4D Lorentzian space-time using **only the 14 primitive classes A–N**. The PR #422 deliverable is the verdict.
+
+**Verdict: FAILURE — "this IS the place."** Class O located precisely. The eight-spike arc closes by finding the location of a missing class rather than by ratifying full closure.
+
+**The probe** (`docs/srmech/notes/spike_24_bonus_broken_d_rederivation_probe_2026-05-15.py`, deterministic seed 20260515):
+
+- **Stage 1 — cascade construction:** SUCCESS. Built `3D_s + 7D_g + 1D_t = 11D` using classes I, L, E, B, C, J. Tooth-counts: `C_32 × C_32 × C_32` (spatial); `C_3 × C_3 × C_2 × C_5 × C_7 × C_11 × C_13` (gauge, honouring SU(3)×SU(2)×U(1) rank decomposition per §III.5 Witten 1981); `C_64` (temporal). Eleven-factor direct-product Laplacian via product-eigenvalue sum (§IV.4) produces a well-defined 400-mode spectrum.
+- **Stage 2a — 7D_g → mass tower on 4D base:** SUCCESS. Per Part II.3, the gauge cascade's product-Laplacian eigenvalues are the squared cutoff frequencies (`m² ∈ [0, 357]`). The waveguide correspondence projects 7D internal content to mass content on the 4D base cleanly; classes L, E, C suffice.
+- **Stage 2b — 3D_s + 1D_t → 4D pseudo-Laplacian:** **FAILURE.** The cascade-direct 4D Laplacian — Class E direct-product of Class L Laplacians of Class I cyclic groups, all four factors — is **monolithically positive-semidefinite**: 0 negative eigenvalues out of 2048 sampled modes, min eigenvalue = 0.0, max = 6.63. This is the **Euclidean 4D Laplacian, NOT the d'Alembertian**. Lorentz signature requires the temporal cascade factor to enter the composition with **opposite sign** relative to the spatial factors. No combination of classes A–N produces this.
+- **Stage 3 — spectral-graph falsifier:** cascade-direct 4D Laplacian indefinite (False: PSD with 0 neg eigs); Klein-Gordon mass-tower match score 3.1% (threshold 70%, FAIL); de Broglie identity pass at `max dev 2.2×10⁻¹⁶` (this is the algebraic tautology ω² = c²k² + m², not a SUCCESS signal — it does not exercise the cascade-composition machinery).
+
+**Per-class audit** (recorded in NDJSON `stage3_spectral_falsifier.lorentz_signature.primitive_class_audit_for_signed_metric`):
+
+| Class | Carries signed-metric content? |
+|---|:---:|
+| L, M, I, K | No — produces positive-semidefinite operators |
+| A, B, D, F, G, H | No — provenance/structural without metric content |
+| J, N, C | No — number-theoretic without signed sums |
+| E | No — catalogs with uniform sign |
+
+**Class O candidate — "signed-metric composition" (Wick rotation primitive).** Operation that, given a partition of cascade factors into temporal vs spatial kinds, composes their Laplacians with a relative sign — equivalently, multiplication of the temporal cascade factor by `i` before direct-product composition. Algebraic form:
+
+```
+L_Lorentzian = +L_spatial_1 + L_spatial_2 + L_spatial_3 − L_temporal
+            ≡ L_spatial_direct_product − L_temporal_factor
+```
+
+Equivalently, `L_Lorentzian = (Wick) ∘ L_Euclidean` where Wick acts on the temporal factor as `t → −it`. This is the standard quantum-field-theory Wick rotation; physics has used the operation for decades. The framework's contribution is **recognising it as a primitive** in the srmech vocabulary alongside content-addressing, graph Laplacian, cyclic-group arithmetic, etc.
+
+**Where Class O lives in MFO**. The Wick rotation operates *at the dimensional-projection boundary* — when the cascade-composed 11D structure is projected down to observable 4D space-time, the temporal factor enters with opposite sign. This is the moment where space-gauge-time → broken-D projection happens. Class O is therefore **the operation that distinguishes signed-metric (Lorentzian / observable) substrates from unsigned (Euclidean / build-up cascade) substrates** in MFO. The framework's central computation (§XIII.1, reframed in §VIII.7 as cascade-composition search) becomes a **two-stage problem**:
+
+1. **Stage A (build-up):** find the cascade composition `C_{n_1} × C_{n_2} × ... × C_{n_k}` whose Laplacian spectrum matches the SM mass² ratios. This stage uses classes A–N only.
+2. **Stage B (projection):** apply Class O Wick rotation to the temporal factor of the cascade; the resulting Lorentzian Laplacian is the observable d'Alembertian.
+
+The math of stage B is well-understood from QFT. The novelty is recognising it as a *primitive* of the framework — not derived from classes A–N, but a separate operation that lives on the boundary between build-up (Euclidean) and observation (Lorentzian).
+
+**Cumulative arc closure.** Eight bonus probes (vdW / tactical-choice / SHA-256 / NN-output / MFO 3+7+1 / RNG / fractal-shadow / **broken-D rederivation**):
+
+- Seven probes consolidated within the 14-class vocabulary
+- Bonus 8 located precisely one missing operation (Class O)
+
+The Spike #24 vocabulary is **empirically closed at 14 classes A–N for cascade-composition produces-from** AND **empirically incomplete at the same 14 classes for cascade-composition reaches-to-Lorentz-signature**. Class O closes the gap with a single algebraically-minimal operation.
+
+**Files / cross-references**:
+
+- Synthesis: [`docs/srmech/notes/spike_24_bonus_broken_d_rederivation_2026-05-15.md`](../srmech/notes/spike_24_bonus_broken_d_rederivation_2026-05-15.md) (full FAILURE verdict + per-class audit, ~5,700 words).
+- Probe: [`docs/srmech/notes/spike_24_bonus_broken_d_rederivation_probe_2026-05-15.py`](../srmech/notes/spike_24_bonus_broken_d_rederivation_probe_2026-05-15.py) + companion NDJSON (18 records: 12 stage-1 cascade + 1 stage-2 projection + 3 stage-3 falsifier + 1 verdict + 1 provenance).
+- Memory: `[[project_class_o_signed_metric_composition]]` — canonical Class O reference.
+- Bonus-series synthesis cumulative update: [`docs/srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md`](../srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md) — closure note added with bonus 8 verdict.
 
 ---
 
