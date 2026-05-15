@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.3.0)
+Research-line additions from PR #416 (pin-and-slot algebra spike + Batch C/D + F24 candidate). No package version bump in this PR — additions are in the `_research/` mirror (auto-copied SSOT), additive on the API side, with no breaking changes to existing surfaces.
+
+### Added
+
+- **`research/bronze_planetary_encoder.py`** — `BronzeGeocentricEpicycle` encoder for the 5 planetary pin-and-slot trains (Mercury, Venus, Mars, Jupiter, Saturn). Derived from spike finding F17: the bronze's reconstructed gear-train geometry encodes **AU distance** via heliocentric→geocentric epicycle composition, not orbital eccentricity. Per-planet `PlanetaryPinSlotGeometry` dataclass carries Freeth 2021 Supp S9 parameters (`p_AU`, `i`, `o`, `d`); `apparent_longitude(M, mean_longitude, geometry, apply_pin_slot=True)` returns the apparent geocentric ecliptic longitude. Setting `apply_pin_slot=False` returns the bare gear-train output for the with/without comparison — see PR #416 F24 for the framing. Mirrored into `_research/` via codegen.
+- **`research/bronze_planetary_encoder.equation_of_centre_n_armed_cross(M, geometry, n_arms)`** — closed-form N-armed cross-bar pin-slot transform, supporting F24 (the "tiny star shape in some gears" cross-bar hypothesis). Produces only harmonics that are multiples of N by rotational symmetry; algebraic half of F24 is shipped, empirical promotion gated on AMRP X-ray tomography access.
+
+### Changed
+
+- **`research/pin_and_slot.py`** — `ECCENTRICITY_FREETH_2006` corrected from 0.054 to **0.1146**, the actual value Freeth et al. 2006 publishes directly in *Nature* 444:587–591, Fig. 6 caption, p. 590 (pin offset 1.1 mm / pin distance 9.6 mm). The 0.054 was a project-internal transcription error against Freeth's geometry, not Freeth's publication.
+- **Default `PinSlotGeometry.eccentricity`** now resolves to 0.1146 (the corrected `ECCENTRICITY_FREETH_2006`) and `FREETH_2006_GEOMETRY` carries the corrected value.
+- **`research/consolidated_tests.py`** — D-H1 narrative text updated to cite eps=0.1146 (was eps=0.054). Numerical outputs scale with the corrected eccentricity.
+
+### Removed
+
+- **`ECCENTRICITY_GOURTSOYANNIS`** constant — the 0.1146 value was previously labelled as Gourtsoyannis's independent measurement, but primary-source verification confirms Gourtsoyannis cites the *same* Freeth-published 1.1 mm / 9.6 mm geometry. Freeth and Gourtsoyannis are not independent attestations; the 0.1146 is Freeth's own published value and is now carried by `ECCENTRICITY_FREETH_2006`.
+- **`GOURTSOYANNIS_GEOMETRY`** — removed for the same attribution reason. Use `FREETH_2006_GEOMETRY` (which now correctly carries 0.1146).
+- **Deprecated `ECCENTRICITY_FREETH_2006 = 0.054`** placeholder — gone. The 0.054 was the project-internal transcription error, never a published value; removing it cleanly is correct. If older code or commits reference `0.054` they should update to `ECCENTRICITY_FREETH_2006` (which now equals 0.1146).
+
+### Notes
+
+- **Notebook §11.6.6.5** rewritten with the corrected attribution; **§11.6.17 "Algebraic uniqueness — why there is only one bronze"** added as the synthesis subsection at the end of the §11.6 architectural-prior thread.
+- **Spike findings doc** in `../../srmech/notes/spike_pinslot_elevation_and_differential_findings_2026-05-14.md` carries the full F1-F24 finding record with closed-form extensions and Batch C/D era-appropriate analyses.
+- **Hoodoos cache** gained Freeth 2021 Supplementary Information 4 (`41598_2021_84310_MOESM4_ESM.pdf`, CC BY 4.0) and a Rushkin 2015 arXiv entry for Ptolemy Almagest values.
 
 ## [0.3.0] — 2026-05-02
 
