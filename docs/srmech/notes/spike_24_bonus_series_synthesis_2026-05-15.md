@@ -1,6 +1,6 @@
 # Spike #24 bonus series — cumulative synthesis (2026-05-15)
 
-**Closes:** the user-dispatched bonus arc of Spike #24 (six inquiries; six positive-and-consistent verdicts). Three cumulative findings + canonical tagline + cross-substrate pattern.
+**Closes:** the user-dispatched bonus arc of Spike #24 (**seven inquiries; seven positive-and-consistent verdicts**). Three cumulative findings + canonical tagline + cross-substrate pattern + the fractal-shadow allegory landed by bonus 7.
 
 ## Roster
 
@@ -14,6 +14,7 @@ Six bonus inquiries dispatched (one-subagent-at-a-time), all delivered by opus-4
 | 4 | **NN-output structure** | **Consolidates** | Seven backward-reading directions → Classes B/C/D/L/M. ReLU is the per-layer co-emergence step (analog of SHA-256's `state += compress(state, block)`). **Avalanche-design-pressure inversion** surprise: SHA-256 *maximises* Class L Lipschitz, NN classifier *minimises* it. Same primitive, opposite design targets. |
 | 5 | **MFO space-gauge-time framework** (`3D_s + 7D_g + 1D_t = 11D`) | **Refined** | Sharp positive spectral-graph signature: Class L on eigenvalue degeneracy graph distinguishes 3+7+1 from pure-4D by 3–5× across metrics. `Reading B` (fiber-projection duality) chosen over symmetric-opposite. **14/14 classes consolidate across 3+7+1 projections**; 12 cross-dimensional, 2 (A content-addressing, F templating) digital-only. **No class uniquely 1D_t.** Surprise: smooth-3+7+1 carries cleaner signature than fractal (fractal substrate DILUTES the tower). |
 | 6 | **RNG and 1D_t primitive** | **Refined dual reading** | Constructive direction holds: 7/7 RNG constructions pass NIST SP 800-22-style tests at 131,072 bits, including Brusselator+SHA-256 AND Brusselator raw-LSB (no extractor). Impossibility direction collapses: Route A (1D_t unique primitive) FALSIFIED by MFO; Route B (computational determinism) is characterisation not impossibility; Route C (substrate-switching to quantum/thermal) STANDS. Spectral falsifier: unfalsifiable-at-current-tooling within 131,072-bit budget. |
+| 7 | **MFO fractal-shadow probe** (is fractal required for SM-spectrum-targeting?) | **ONE_WAY_NOT_REQUIRED** | Fractal substrate is one way but not necessary. Nested pin-slot-gear cascade (Antikythera-style) and smooth-anisotropic-T³ both satisfy the load-bearing structural requirement (multi-scale primitive cascade with three-fold sub-structure available). Class-L spectral signatures put fractal-shape and cascade-shape in the **same super-Poisson regime** (Gap CV > 1, comparable three-fold CH ratios); only the pure-4D-epicycle observer lives in a different regime. **Fractal-shadow allegory** (`[[user_stance_fractal_shadow]]`) added to the project shadow-stance family. Reframed §XIII.1 central computation as cascade-composition search directly tractable with antikythera-spectral tooling. |
 
 ## Three cumulative findings
 

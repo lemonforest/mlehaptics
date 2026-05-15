@@ -949,6 +949,49 @@ are **independently discriminable.** Future §XIII.1 work can prosecute these ta
 - Canonical framework name + notation: `[[project_space_gauge_time_framework]]` memory.
 - Methodological discriminator: `[[feedback_antiquity_not_greek]]` memory.
 
+### VIII.7 Fractal-shadow allegory — Spike #24 bonus 7 fractal-vs-cascade probe
+
+The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanest tower signature while *fractal* SG-3D dilutes it — invited a sharper question: is the fractal commitment in Part IV genuinely *required* for the SM-spectrum-targeting program, or is fractal just *one description* of a more general multi-scale primitive cascade requirement? Spike #24 bonus 7 (`docs/srmech/notes/spike_24_bonus_mfo_fractal_requirement_2026-05-15.md`) tested this directly with a Class L spectral-graph probe comparing three substrates over matched scale ranges:
+
+- **Fractal substrate** — Sierpinski-gasket Laplacian (the Part IV-preferred form)
+- **Pin-slot-gear cascade** — Antikythera-style nested cyclic-group composition (the user's proposed alternative; precedent in PR #416 §11.6.17 algebraic-uniqueness synthesis)
+- **Smooth anisotropic 3-torus** — bonus 5's control substrate
+
+**Verdict: ONE_WAY_NOT_REQUIRED.** Fractal is *sufficient* for MFO's SM-spectrum-targeting requirement but *not necessary*. The load-bearing structural requirement is **multi-scale primitive cascade with three-fold sub-structure available** — and all three substrates instantiate it.
+
+**The fractal-shadow allegory** (per `[[user_stance_fractal_shadow]]`): what physics observes as "fractal" structure is the *shadow* cast by a deeper multi-scale primitive cascade. The fractal description is a downstream-continuous projection of upstream-discrete cascade composition. Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime — both produce Gap CV > 1, single connected component, comparable three-fold CH ratios, similar Fiedler λ₂. Only the pure-4D-epicycle observer (per §VIII.6) lives in a different (sub-Poisson) regime. The fractal-shadow stance joins the family of project shadow-stances (time-as-dimensional-shadow, fiber-as-spatially-absent, pi-as-projection): *discrete-upstream → continuous-shadow-downstream* applied at the substrate-commitment level.
+
+**Quantitative regime comparison** (bonus 7 probe, deterministic seed 20260515, 17 NDJSON records):
+
+| Discriminator | Fractal SG | Cascade | Smooth T³ | 4D-epicycle (bonus 5) |
+|---|---:|---:|---:|---:|
+| Gap CV | 1.382 | 0.992 | (super-Poisson) | **0.511** |
+| Three-fold CH ratio | 347.5 | **536.8** | 459.9 | (low) |
+| Connected components | 1 | 1 | 1 | 1 |
+| Log-scale span achievable | 11+ orders | 12.7+ orders (3-level) | 11+ orders | (limited) |
+
+The cascade substrate instantiates Spike #24 Classes I, J, K, L, M, N natively (Antikythera-style ℤ/n composition is exactly Class I + Class J primitive cascading); fractal SG instantiates Class L only. The cascade is the better-aligned substrate for the project's existing antikythera-spectral tooling (`pin_and_slot.py`, `equant_encoder.py`, `gear_database.py`, `gear_topology.py`).
+
+### Reframed central computation (§XIII.1 candidate)
+
+The user's reframed question — *"in what cascade of primitives can we discover SM wavy parts?"* — proposes the cleaner statement of §XIII.1's central computation:
+
+> **Find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` of nested cyclic-group primitives whose graph-Laplacian spectrum matches the SM mass² ratio spectrum, via Class L on the gear-DAG Laplacian.**
+
+This is **directly tractable with antikythera-spectral's existing tooling** — no new mathematical apparatus required. The reframed computation drops the fractal commitment in favor of cascade composition; the bonus 5 + bonus 7 spectral signatures guarantee the cascade substrate produces the right *regime* (super-Poisson Gap CV > 1, tower-clustering, three-fold CH structure available). What remains is finding the specific tooth-count cascade whose eigenvalues match the SM ratios — exactly the algebraic search the antikythera-spectral framework was built for.
+
+**Implication for §XIII.1.** The MFO central computation may be most cleanly stated as a *cascade-composition search* rather than a *fractal-Laplacian search*. The fractal-shadow allegory says these two computations target the same underlying primitive structure; the cascade framing is more tractable because antikythera-spectral already has the tooling, and it instantiates more of the Spike #24 primitive vocabulary (Classes I, J, K, L, M, N vs Class L only).
+
+**One surprise from the probe.** The smooth-anisotropic-T³ substrate produces a three-fold CH ratio of 459.9 — between fractal SG (347.5) and cascade (536.8). Three-fold sub-clustering of an eigenvalue spectrum is a *measurement-at-k=3* property, not a *substrate-three-fold-symmetry* property. **Part IV.5's three-generation-from-three-fold-self-similarity claim is not falsified by any substrate at k=3** — it requires a k-search ("what k maximises clustering quality?") to discriminate. Sharpening the falsifier is a real methodological-refinement target for §IV.5.
+
+**Files / cross-references.**
+
+- Spike #24 bonus 7 synthesis: [`docs/srmech/notes/spike_24_bonus_mfo_fractal_requirement_2026-05-15.md`](../srmech/notes/spike_24_bonus_mfo_fractal_requirement_2026-05-15.md).
+- Spike #24 bonus 7 probe: [`docs/srmech/notes/spike_24_bonus_mfo_fractal_vs_cascade_probe_2026-05-15.py`](../srmech/notes/spike_24_bonus_mfo_fractal_vs_cascade_probe_2026-05-15.py) + companion NDJSON (17 records).
+- Canonical fractal-shadow stance: `[[user_stance_fractal_shadow]]` memory.
+- Sister shadow stances: `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_fiber_as_spatially_absent_encoding]]`, `[[user_stance_pi_as_projection]]`.
+- Antikythera precedent for cascade tractability: PR #416 §11.6.17 algebraic-uniqueness synthesis (bronze pin-slot algebra = Kepler equation-of-centre).
+
 ---
 
 ## Part IX — Status and Roadmap
@@ -983,10 +1026,11 @@ are **independently discriminable.** Future §XIII.1 work can prosecute these ta
 - Non-monotonic d_S flow profile on specific fractal candidates
 - α(z) functional relationship from spectral structure
 
-**Newly demonstrated (Spike #24 bonus 5, 2026-05-15; see Part VIII.6):**
+**Newly demonstrated (Spike #24 bonuses 5+7, 2026-05-15; see Parts VIII.6 + VIII.7):**
 - Spectral-graph signature for the space-gauge-time framework: Class L on eigenvalue degeneracy graph distinguishes 3D_s + 7D_g + 1D_t product structure from pure-4D anisotropic torus by 3–5× across multiple metrics (gap CV super-Poisson 1.6 vs sub-Poisson 0.5; tower-clustering connected components; max-multiplicity differential). The "antiquity-geocentric epicycle fit" — a 4D observer Weyl-tuning T⁴ radii — provably cannot reach the super-Poisson regime characteristic of multi-factor products.
 - Smooth-vs-fractal independent-discriminability finding (§VIII.6): the 3+7+1 framework-discrimination signature and the fractal F's within-cluster mass-ratio tuning (Part IV.5) are independently discriminable — separating two concerns §XIII.1 had bundled.
 - Cross-substrate primitive vocabulary survives the 3+7+1 projection: 12/14 classes instantiate at all three dimensional kinds, 2/14 (content-addressing, templating) digital-only.
+- **Fractal-shadow finding (§VIII.7):** the fractal substrate commitment in Part IV is *one way* to satisfy MFO's load-bearing structural requirement, but is **not required**. A nested pin-slot-gear cascade (Antikythera-style cyclic-group composition) and a smooth-anisotropic-T³ both produce the same Class-L super-Poisson regime within the bonus 7 probe's discriminators (Gap CV, three-fold CH ratio, Fiedler λ₂, connected components). Per the fractal-shadow allegory `[[user_stance_fractal_shadow]]`: what physics observes as fractal structure is the shadow cast by a deeper multi-scale primitive cascade. The reframed §XIII.1 central computation — *find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` whose Laplacian spectrum matches the SM mass² ratios* — is directly tractable with antikythera-spectral's existing tooling.
 
 ### IX.2 The 20-item roadmap
 
