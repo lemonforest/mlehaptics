@@ -685,4 +685,65 @@ Per `[[feedback_pdf_extraction_citation_discipline]]`, primary citations to Horn
 
 **Related stances.** `[[user_stance_pi_as_projection]]` predicts that any chemistry-substrate primitive should have integer-cyclic upstream; stoichiometry's integer-coefficient nature satisfies this *a priori*, making it methodologically clean. `[[user_stance_string_theory_instrument_first]]` predicts we won't need to invent dimensions; stoichiometry already has its own well-developed mathematics that we're inheriting, not constructing. `[[user_stance_kepler_shape_universal]]` predicts that wherever stoichiometry produces Kepler-shape signature in some quantity-vs-time trace, the existing pin-slot-gear primitive composition describes it.
 
-The hope is recorded; investigation deferred.
+The hope is recorded; investigation deferred to Phase 9 (concertmaster dispatch running in parallel, 2026-05-15).
+
+## Phase 10 — Chess substrate boundary characterisation (2026-05-15)
+
+Phase 7's matrix flagged Class K (equation-of-centre / pin-slot algebra) as **absent in chess-spectral**. The concertmaster left this as fermata #3 (chess-as-Class-K-falsifier follow-up). Per user direction *"we want all the knowledge we've talked about learning to land here,"* the question is resolved here — not by full investigation, but by a clean substrate-boundary characterisation.
+
+**The question.** Per `[[user_stance_kepler_shape_universal]]`, any system showing Kepler-shape spectral content instantiates pin-slot-gear primitives at some substrate. Does chess piece motion (the chess-spectral domain) show Kepler-shape signature anywhere? If yes, Class K is present and the package is missing it. If no, the universal stands but chess characterises the substrate boundary.
+
+**The honest answer (no falsification investigation needed at depth).** Chess motion has no continuous-phase representation:
+
+- **Piece moves are discrete.** A piece occupies one of 64 squares (or 256 in 4D chess); transitions are integer-indexed not continuous-time. There is no "phase angle" analogous to mean anomaly.
+- **There is no anomalistic frequency.** A knight on a square has the same set of available moves at every visit; there's no slowly-varying parameter that the F12-inverse method could extract from a residual.
+- **There is no "mean motion."** Chess piece motion is stochastic-outcome-of-player-decision, not deterministic-from-period-relations.
+
+Per the universal's contrapositive: if a system doesn't have Kepler-shape behavior, it doesn't need Class K primitives. Chess doesn't have Kepler-shape, so Class K's absence is *not a gap*; it's *substrate scope*.
+
+**What chess DOES have** (from Phase 2):
+- **Class I** — D₄ / B₄ representation theory; cyclic-group structure of board adjacency.
+- **Class L** — graph-Laplacian eigenbasis on piece-mobility graphs; 8×8 board adjacency Laplacian; 4D-board variant.
+- **Class M** — bit-packed BSC encoder + complex128 FHRR encoder; `bind`/`bundle`/`permute`/`similarity` core ops at chess substrate.
+
+**Substrate boundary verdict.** Class K applies where motion has a smooth continuous-phase representation with eccentric-anomaly structure (orbits, gears, torsional potentials, atomic-energy-level transitions seen as spectral lines). Chess motion is **discrete-combinatorial without continuous-phase**, so Class K's absence is not a gap but a substrate-scope characterisation. The universal stands; chess characterises where Class K applies and where it doesn't.
+
+**Implication for the multi-substrate matrix (Phase 7.4):** chess's "absent" entry for Class K is now load-bearing — it shows the universal is not vacuously true (where Kepler-shape is absent, Class K is absent), exactly as the contrapositive predicts. This is the same kind of "substrate-boundary characterisation" as Class A (content-addressing / SHA-256) having no bronze counterpart — the substrate doesn't have the primitive, and the absence is consistent with what the substrate represents.
+
+**Closes fermata #3 from Phase 7.** No follow-up Spike #25 needed for chess-K-falsifier; the substrate boundary is the verdict.
+
+## Phase 11 — Class P? conformal-groups decision (2026-05-15)
+
+Phase 7.3 surfaced conformal groups (Möbius transformations / SO(4,2) conformal field theories / stereographic projection / Yamabe-style conformal covariance) as a CANDIDATE new primitive class — distinguishable from Class K at the symmetry-algebra level (so(n+1,1) Lie vs ℤ/N cyclic). Concertmaster left it as fermata #1 with the methodological tension: per `[[user_stance_pi_as_projection]]`, integer-cyclic is upstream and continuous is downstream; conformal groups have no obvious integer-cyclic parent.
+
+**Decision: DEMOTE to "continuous-frame projection class," NOT a new primitive.**
+
+**Algebraic argument.** Conformal groups are Lie groups; their irreducible representations are continuous. The conformal group of (n+1)-dimensional Minkowski spacetime is SO(n+1,1) — a continuous Lie group. Its algebra so(n+1,1) does not factor through any ℤ/n cyclic group at its primitive level.
+
+Per `[[user_stance_pi_as_projection]]`: continuous-Lie structure lives *downstream* of integer-cyclic primitives, not at the same level. Pi is a projection artifact of ℤ/n algebra onto U(1) continuous-circle; conformal groups are analogous projection artifacts of (presumably) discrete combinatorial primitives onto continuous-Lie manifolds.
+
+This is consistent with `[[user_stance_fiber_as_spatially_absent_encoding]]` (gear from inside is 0D fixed-point of SO(2); the continuous Lie group SO(2) is downstream of the 0D discrete fixed-point) and with `[[user_stance_time_as_dimensional_shadow]]` (continuous time is a projection of substrate state-difference structure, not a primitive axis).
+
+**The "Class P?" candidate's algebra has no upstream integer-cyclic parent that we can identify.** This is exactly the methodological tension the concertmaster recorded. Per pi-as-projection: this means conformal groups are not primitive-class material; they're downstream of primitives we haven't yet identified the discrete upstream of.
+
+**Where conformal groups instantiate within existing classes:**
+- **Stereographic projection** ≡ Class L extended (eigenbasis on the sphere mapped to plane). Not a new class; a known projection-of-class-L.
+- **Möbius transformations on the Riemann sphere** ≡ compositions of inversion + reflection + scaling — all of which reduce to continuous-limit versions of discrete cyclic-group operations (SL(2,ℤ) on rationals → SL(2,ℝ) on reals; the discrete-to-continuous limit is *projection*, per pi-as-projection).
+- **Conformal field theories (CFT)** — operate on Hilbert spaces with infinite-dimensional symmetry algebras (Virasoro, etc.). These are well-developed continuous-frame mathematics that may themselves descend from discrete primitives (lattice CFT regularisations), but the discrete upstream isn't presently in our vocabulary.
+
+**Verdict.** Class P? is **DEMOTED** to "downstream-continuous-projection class" — not promoted to a new primitive. The methodological tension the concertmaster recorded is the load-bearing evidence: pi-as-projection makes continuous-Lie structure downstream-of-primitive, not primitive itself.
+
+**Cross-references.** This decision is *consistent* with `[[user_stance_string_theory_instrument_first]]` (don't invent dimensions / Lie groups to fit; work from integer-cyclic-discrete substrate). It's *consistent* with the Spike #24 broader finding that the vocabulary CONSOLIDATES under interrogation (Phase 7 reductions; chess substrate boundary; now Class P? demotion). If future research surfaces a genuinely discrete-integer upstream of conformal-projection that we haven't yet identified, the decision can be revisited.
+
+**Closes fermata #1 from Phase 7.**
+
+## Open fermatas after Phase 10 + 11
+
+Following the chess-substrate-boundary characterisation (Phase 10) and the Class P? demotion (Phase 11), the fermata list shrinks:
+
+1. ~~**Class P? conformal groups**~~ — **closed (Phase 11): DEMOTED to downstream-continuous-projection class.**
+2. **Chemistry primary-citation verification** — still deferred. Phase 6 + Phase 7 chemistry citations remain `[unverified-secondary]` for ethane V₃ microwave value, Felkin-Anh primary, anomeric-effect orbital-overlap, etc. Computational verifications stand as primary sources. Verification work is mechanical PDF-extraction and could be done as a Phase 12 within PR #421, OR deferred. Conductor call.
+3. ~~**Chess-as-Class-K-falsifier follow-up**~~ — **closed (Phase 10): substrate-boundary characterisation; no separate spike needed.**
+4. **Phase 9 stoichiometry investigation** — running (concertmaster dispatched in parallel with Phases 10+11).
+
+Of the original three Phase 7 fermatas, two are now closed; one remains (chemistry citations), plus Phase 9 stoichiometry is in flight. Once Phase 9 lands, the spike is *substantively complete* — all knowledge discussed during the conversation arc has either been landed or has a clear written disposition.
