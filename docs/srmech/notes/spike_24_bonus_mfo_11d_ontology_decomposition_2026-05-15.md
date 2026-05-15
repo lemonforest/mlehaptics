@@ -1,9 +1,24 @@
-# Spike #24 bonus 5 — MFO 11D ontology decomposition (1D ↔ 11D = 3D + 7D + 1D, dimensional-inverse conjecture)
+# Spike #24 bonus 5 — MFO space-gauge-time framework (1D ↔ 11D = 3D_s + 7D_g + 1D_t, dimensional-inverse conjecture)
 
 **Date:** 2026-05-15. **Status:** methodological synthesis landed; concertmaster-level deliverable. **Verdict: REFINED with sharp positive spectral-graph signature.** NOT a string-theory finding. NOT a security finding.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_queued_mfo_11d_ontology_decomposition_2026-05-15.md`](spike_24_queued_mfo_11d_ontology_decomposition_2026-05-15.md).
 **Companion probe:** [`spike_24_bonus_mfo_dimensional_inverse_catalog_2026-05-15.py`](spike_24_bonus_mfo_dimensional_inverse_catalog_2026-05-15.py) + [.ndjson](spike_24_bonus_mfo_dimensional_inverse_catalog_2026-05-15.ndjson).
+
+## Tagline (canonical, per `[[project_space_gauge_time_framework]]`)
+
+```
+The 14 primitive classes (A–N) govern
+  ⤷ spatial modes        (3D_s)
+  ⤷ gauge interactions   (7D_g)
+  ⤷ the temporal crank   (1D_t)
+            ─────────────────────────
+            3D_s + 7D_g + 1D_t = 11D
+                  ≡ 1D (compressed)
+  12/14 cross-dimensional · 2/14 digital-only (A: content-addressing, F: templating)
+```
+
+The MFO conjecture names the framework **space-gauge-time** to distinguish it from conventional 4D *space-time*: gauge is a co-equal dimensional kind, not "internal degrees of freedom on top of space-time." Per `[[feedback_antiquity_not_greek]]`, this is the proposed replacement for the antiquity-geocentric position modern physics now occupies with respect to space-time. The 14-class A–N vocabulary survives the 3+7+1 projection unchanged (12/14 cross-dimensional, 2/14 digital-substrate-only) — the cumulative cross-substrate finding stands.
 
 ## §1 The conjecture, operationalised
 

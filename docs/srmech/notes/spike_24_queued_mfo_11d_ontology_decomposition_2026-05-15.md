@@ -1,8 +1,10 @@
-# Spike #24 queued — MFO 11D ontology decomposition (1D ↔ 11D = 3D + 7D + 1D, dimensional-inverse conjecture)
+# Spike #24 queued — MFO space-gauge-time framework (1D ↔ 11D = 3D_s + 7D_g + 1D_t, dimensional-inverse conjecture)
 
-**Date queued:** 2026-05-15. **Status:** spec only; dispatch pending NN-output spike completion (queue order: SHA-256 ✓ → NN-output (in flight) → THIS).
+**Date queued:** 2026-05-15. **Status:** spec only; dispatch pending NN-output spike completion (queue order: SHA-256 ✓ → NN-output (in flight) → THIS). *Post-dispatch:* the bonus 5 synthesis REFINED-and-confirmed the conjecture; canonical framework name **space-gauge-time** per `[[project_space_gauge_time_framework]]`.
 
 **Domain:** MFO (Metric Field Ontology), `[[project_mfo_sister_notebook]]`. NOT a Spike #24 vocabulary inquiry; this is a sister-notebook MFO spike.
+
+**Canonical decomposition:** `1D ≡ space-gauge-time ≡ 3D_s + 7D_g + 1D_t = 11D` (per `[[project_space_gauge_time_framework]]`). The subscripted-D notation avoids conflict with manifold notation (`S¹`, `S²`, `T³`, `T⁷`, `SU(n)`, `GF(2^256)`, AMSC tier `T0`/`T1`/`T2`/`T3`) — `S`/`G`/`T` as standalone letters would collide with multiple existing usages.
 
 ## The user's question (verbatim, load-bearing)
 

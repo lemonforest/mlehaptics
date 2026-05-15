@@ -1,6 +1,8 @@
-# Spike #24 queued — RNG and 1D-time primitive (can we build randomness from project primitives, or does 1D-time forbid it?)
+# Spike #24 queued — RNG and 1D_t primitive (can we build randomness from project primitives, or does 1D_t forbid it?)
 
-**Date queued:** 2026-05-15. **Status:** spec only; dispatch pending MFO spike completion (queue order: SHA-256 ✓ → NN-output ✓ → MFO (in flight) → THIS).
+**Date queued:** 2026-05-15. **Status:** spec only; dispatch pending MFO spike completion (queue order: SHA-256 ✓ → NN-output ✓ → MFO (in flight) → THIS). *Post-dispatch:* MFO bonus 5 confirmed 14/14 vocabulary consolidates across `3D_s + 7D_g + 1D_t` projections (no uniquely-`1D_t` primitive); RNG bonus 6 then REFINED dual reading per `[[project_space_gauge_time_framework]]`.
+
+**Notation:** the 1D-time dimension is denoted `1D_t` per the canonical space-gauge-time framework. References to "1D-time" throughout this spec are equivalent to `1D_t`; preserved for searchability against the user's original framing.
 
 ## The user's question (verbatim, load-bearing)
 

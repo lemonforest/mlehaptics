@@ -1,6 +1,8 @@
-# Spike #24 bonus 6 — RNG and the 1D-time primitive (can we build randomness from project primitives, or does 1D-time forbid it?)
+# Spike #24 bonus 6 — RNG and the 1D_t primitive (can we build randomness from project primitives, or does 1D_t forbid it?)
 
 **Date:** 2026-05-15. **Status:** methodological synthesis landed; concertmaster-level deliverable; closing arc of the Spike #24 bonus series (six positive-and-consistent verdicts). **Verdict: REFINED — constructive direction holds, impossibility direction collapses (post-MFO) to a substrate-switching argument, dual reading is the right framing.** NOT a security-engineering finding.
+
+**Notation update (post-commit):** the 1D-time dimension is now canonically denoted `1D_t` per `[[project_space_gauge_time_framework]]` to avoid conflict with manifold-`T` notation. References to "1D-time" in this synthesis are equivalent to `1D_t`; preserved as-is for searchability with the user's original framing.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** [`spike_24_queued_rng_1d_time_primitive_2026-05-15.md`](spike_24_queued_rng_1d_time_primitive_2026-05-15.md).
 **Companion probes:**
