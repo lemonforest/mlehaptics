@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1] — 2026-05-15
+
+### Production cut — README hygiene patch on top of v0.28.0
+
+`ephemerides-spectral 0.28.1` ships to production PyPI as the consolidated landing of the rc1 + rc2 README-hygiene cycle. Version-only bump from `0.28.1rc2` → `0.28.1`; the substantive work landed across rc1 (stale "Unreleased" bullets + body-count drift + shipped roadmap items + heteroclinic note tightening) + rc2 (two minimum-disruption proofread follow-ups: BIP-vs-HD-state clarification + DE441 sweep table body-id rename to the v0.9.0+ Latin-proper-noun convention) and verified on TestPyPI before each rc merged to `main`.
+
+Pure README hygiene patch. No code change; no ABI change (`ES_ABI_VERSION = 9` unchanged from v0.28.0); no `_research` mirror changes; no test ratchet changes.
+
+**Per-area detail:** see [python/CHANGELOG.md §0.28.1](python/CHANGELOG.md).
+
 ## [0.28.1rc2] — 2026-05-15
 
 ### Fixed — two flagged-but-untouched README items from the rc1 proofread

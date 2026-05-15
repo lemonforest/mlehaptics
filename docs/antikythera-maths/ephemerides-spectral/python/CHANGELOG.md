@@ -10,6 +10,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.28.1] — 2026-05-15
+
+### Production cut after the v0.28.1 rc cycle (no code change from 0.28.1rc2)
+
+Version-only bump from `0.28.1rc2` → `0.28.1` in the 5 SSOT locations
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`,
+`c/include/ephemerides_spectral.h`) plus the manifest regen and this
+CHANGELOG header.
+
+**Cumulative content of v0.28.1** (pure README hygiene on top of v0.28.0):
+
+* **rc1** — stale "Unreleased" bullets removed (LLM tool-schema export + first
+  cosmology-instrument pair, both of which shipped in v0.26.1); 3 stale
+  body-count `38` references → `52` (current since v0.16.0); 2 shipped
+  roadmap items removed (`v0.16.0 Tier-1 BODIES` + `v0.16.x find_itn_chains`);
+  heteroclinic roadmap note tightened to reflect what shipped in v0.18.0
+  / v0.18.1 (Fiedler partition + spectral Δv).
+* **rc2** — two follow-ups from the rc1 PR's "Known ambiguities NOT
+  touched" section: **(Option C)** the BIP-vs-HD-state "256 KB state at
+  D=65536" ambiguity in the BIP bullet + Memory Footprint table — orphan
+  fragment removed, table rows renamed `State (BIP)` / `State (complex128)`
+  → `HD state (BIP path)` / `HD state (complex128 path)`, clarifying
+  paragraph added above the table; **(Option B)** the DE441 sweep table
+  body-identifier rows `earth` → `terra` and `moon` → `luna` to match the
+  v0.9.0+ Latin-proper-noun convention used throughout the rest of the
+  codebase. Prose references to "Earth" / "Moon" in English-language
+  sentences stay as natural-language usage.
+
+**Verified on TestPyPI** across the rc cycle (rc1 + rc2): clean external
+venv installs both rc tags green; plugin-tier `Profile.native` resolves;
+ABI v9 handshake clean; EOC byte-parity holds (51 patches, both backends);
+AMSC sources = 20; tool_schema = 246 self-describing functions.
+
+**No code change; no ABI change** (`ES_ABI_VERSION = 9` unchanged from
+v0.28.0); no `_research` mirror changes; no test ratchet changes.
+Pure README hygiene patch.
+
 ## [0.28.1rc2] — 2026-05-15
 
 ### Fixed — two flagged-but-untouched items from the rc1 proofread pass
