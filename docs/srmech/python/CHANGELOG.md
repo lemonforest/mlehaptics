@@ -4,11 +4,69 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc9] - 2026-05-16
+
+**Hotfix: asymptotic_calculus row attestation field.** The rc8 fresh-venv TestPyPI smoke surfaced that `catalog.get_attested_dataset("asymptotic_calculus")` failed at row-parse time because the literature_curated adapter requires every row to carry a `source_published_date` field for per-row attestation. The rc8 row.ndjson had `source_apostol` + `source_bishop` references but not the explicit publication date.
+
+### Fixed
+- All 12 rows in `srmech.amsc.attested.asymptotic_calculus/row.ndjson` now carry `source_published_date = "1974-01-01"` (Apostol *Mathematical Analysis* 2nd ed. publication; the citation pinned for the convergence claim per Theorem 12.20).
+- `srmech.amsc.attested.asymptotic_calculus/row.schema.json` adds `source_published_date` to its required-fields list + properties (ISO 8601 date format).
+
+### Behaviour impact
+- `bridge.get_attested_dataset("asymptotic_calculus", limit=N)` returns rows cleanly.
+- `bridge.attestation_audit("asymptotic_calculus")` resolves per-row attestation hashes.
+- Python `srmech.amsc.rational.exp_series_truncate(...)` and the C path `srmech_exp_series_truncate(...)` unchanged from rc8.
+
+This is a 12-row + 1-schema-line patch; no C code or Python primitive changes.
+
+## [0.4.1rc8] - 2026-05-16
+
+**Spike #28 ship — asymptotic_calculus catalog + Class N `exp_series_truncate` with C parity (re-versioned from rc6).** Originally drafted as rc6 on PR #447's branch; renumbered to rc8 after PR #439's rc7 chain-spec hotfix merged to main between the two PRs. The underlying ship is identical (asymptotic_calculus catalog, `exp_series_truncate` op, math addendum + chain-spec form + scope inventory) plus the **C parity surface** that was deferred at rc6 ship and now lands on top per `[[feedback_no_binding_layer_carveout]]` — the C library is usable standalone, no Python required.
+
+### Added — Class N op `exp_series_truncate` with full C/Python parity
+
+- **Python** `srmech.amsc.rational.exp_series_truncate(numerator, denominator, num_terms) -> (out_num, out_den)` — computes the exp Taylor partial sum `S_N(p/q) = sum_{k=0..N} (p/q)^k / k!` as an exact rational in lowest terms. Composes:
+  - **Class N** rational-approximation: numerator/denominator tracking + gcd reduction
+  - **Class J** integer factorial: `k!` as running integer product
+  - **Class I** integer arithmetic: power accumulators `p^k`, `q^k`
+  - Pure integer arithmetic at every step; arbitrary-precision via Python int for N ≤ 512.
+- **C** `srmech_exp_series_truncate(int64_t x_num, uint64_t x_den, uint32_t num_terms, int64_t *out_num, uint64_t *out_den) -> srmech_status_t` — same op as the Python surface, bounded to `num_terms ≤ 20` (factorial fits u64); returns `SRMECH_ERR_OVERFLOW` when intermediate computation would exceed u64 range. The Python wrapper dispatches to C when inputs fit safe bounds, falls back to bignum Python when they don't. **The C library compiles and runs standalone — no Python interpreter required for the catalog-row-shaped inputs (x ∈ {0, ±1/2, ±1, ±2}, N ∈ {5, 10, 15} all fit u64 comfortably).**
+- Canonical SSoT: Apostol *Mathematical Analysis* 2nd ed. Theorem 12.20 (Lagrange remainder); Bishop *Foundations of Constructive Analysis* §2 (asymptotic-rate framing). Both cited per `[[feedback_pdf_extraction_citation_discipline]]`.
+
+### Added — `srmech.amsc.attested.asymptotic_calculus/` catalog
+
+First concrete instance of the doc-claim falsification infrastructure (per `[[feedback_every_doc_edit_faces_falsification]]`):
+
+- `descriptor.toml` — single-step Phase 2 v1 chain spec `exp_series_truncate` calling Class N `exp_series_truncate` op with `@row.x_num`, `@row.x_den`, `@row.num_terms` inputs.
+- `row.ndjson` — 12 self-validating rows: x in {0, ±1/2, ±1, ±2} at N in {5, 10, 15}; each row carries (x_num, x_den, num_terms) input plus (expected_num, expected_den) bit-exact ground-truth output.
+- `row.schema.json` — JSON schema for the row data.
+
+Future rcs (Task #234) expand the catalog to cover sin, cos, tan, log, atan, Bessel, Γ, ζ partial sums + calculus operations (forward-difference, Riemann sum, continued-fraction convergent). Each new operation lands as a new Class N op (Python + C surface) + new chain spec + new row data.
+
+### Added — `tests/test_asymptotic_calculus_catalog.py` (7 tests, all green)
+
+The falsification test runs the chain for every catalog row and bit-exact compares the produced output to the row's stored expected output. Any drift in Class N + Class J primitives surfaces as immediate row-by-row test failure. Includes regression-pinned canonical exemplars: `S_10(1) = 9864101/3628800` (Spike #28 §9 V4 canonical exemplar) + `S_N(0) = 1/1` (trivial-input pin). Plus C/Python parity test (new at rc8): C path matches Python path bit-exact for `num_terms ≤ 20` inputs.
+
+### Added — tool_schema coverage for `exp_series_truncate`
+
+ToolEntry registered in `srmech.amsc.tool_schema` under `category="rational"`; coverage ratchet bumps from previous floor.
+
+### Numbering note
+
+- rc6 — drafted on PR #447's branch (commit `8887368` historical); renumbered to rc8 at rebase time. Not tagged on TestPyPI.
+- rc7 — PR #439's chain-spec hotfix (merged to main). Tagged + published; removes 4 Phase 1 worked-example chains from cosmos catalogs (see rc7 entry below).
+- rc8 — this rebase carries PR #447's content forward + adds C parity for `exp_series_truncate` per `[[feedback_no_binding_layer_carveout]]`.
+
+### Anchored in
+
+- Spike #28 working note: [`docs/antikythera-maths/research-mfo/asymptotic_vs_infinity_history_2026-05-16.md`](../../../antikythera-maths/research-mfo/asymptotic_vs_infinity_history_2026-05-16.md) — §9 falsification math (V1-V4), §10 canonical chain-spec form, §11 catalog scope inventory
+- `[[feedback_every_doc_edit_faces_falsification]]` — discipline this catalog operationalises
+- `[[feedback_no_binding_layer_carveout]]` — C-standalone contract honoured by rc8's C surface
+- `[[user_stance_pi_as_projection]]` + `[[user_stance_kepler_shape_universal]]` + `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_epicycle_via_gear_plus_pin]]` — the upstream stance family this catalog instantiates operationally
+
 ## [0.4.1rc7] - 2026-05-16
 
-**Spike #28 ship — falsification-discipline pre-merge hotfix.** Removes the four Phase 1 worked-example chain specs from the cosmos catalogs because they reference primitives that don't yet exist (their chains list cleanly but fail at activate-time when actually run). Per `[[feedback_every_doc_edit_faces_falsification]]` (user direction 2026-05-16: *"our model has not lied to us yet, so I believe the math still"*) we do not ship chain specs whose underlying primitives can't run — chains that cannot execute are claims that cannot falsify. Surfaced via the rc5 fresh-venv TestPyPI smoke (Class D `match_filter`, Class E `sorted_lookup_extract` + `sorted_lookup_batch`, Class L `spherical_harmonic_decompose` + `extract_preferred_axis`, Class I `angular_separation_axes` all missing). Each chain re-lands as its underlying primitive ships — `spherical_harmonic_decompose` is Spike #26 Phase 2 scope (Task #227); `angular_separation_axes` is Task #234 §11 inventory (`cmb_angular_geometry` sister catalog with rc7+ sin/cos). The DSL design pattern lives in `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` for reference. **rc6 was reserved for PR #447's asymptotic_calculus ship and is not tagged on this branch.**
-
-Numbering note: rc6 is reserved for PR #447 (Spike #28 math addendum + asymptotic_calculus catalog ship), which builds on this branch's rc5 commit and adds `exp_series_truncate` Class N op + first concrete chain-falsification catalog. rc7 is this hotfix on PR #439. After PR #439 merges, PR #447 reconciles + ships its rc6 commit as a follow-on rebase (renumbered to rc8 if required by the autotag workflow's monotone-version gate; the underlying commit hash stays the same).
+**Spike #28 ship — falsification-discipline pre-merge hotfix.** Removes the four Phase 1 worked-example chain specs from the cosmos catalogs because they reference primitives that don't yet exist (their chains list cleanly but fail at activate-time when actually run). Per `[[feedback_every_doc_edit_faces_falsification]]` (user direction 2026-05-16: *"our model has not lied to us yet, so I believe the math still"*) we do not ship chain specs whose underlying primitives can't run — chains that cannot execute are claims that cannot falsify. Surfaced via the rc5 fresh-venv TestPyPI smoke (Class D `match_filter`, Class E `sorted_lookup_extract` + `sorted_lookup_batch`, Class L `spherical_harmonic_decompose` + `extract_preferred_axis`, Class I `angular_separation_axes` all missing). Each chain re-lands as its underlying primitive ships — `spherical_harmonic_decompose` is Spike #26 Phase 2 scope (Task #227); `angular_separation_axes` is Task #234 §11 inventory (`cmb_angular_geometry` sister catalog with rc7+ sin/cos). The DSL design pattern lives in `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` for reference.
 
 ### Changed — cosmos catalog chain specs removed
 
@@ -25,7 +83,7 @@ Numbering note: rc6 is reserved for PR #447 (Spike #28 math addendum + asymptoti
 
 ### Test
 
-No new test pinning needed — `srmech.amsc.compose` engine's existing parse-time / activate-time validation is exactly what surfaced the gap in rc5 smoke. Future cosmos chains re-added in rc7+ will inherit the same validation discipline.
+`test_compose.test_parse_catalog_chains_cosmos_descriptors_have_no_executable_chains` pins `n_chains == 0` across all 3 cosmos catalogs at rc7.
 
 ## [0.4.1rc5] - 2026-05-16
 
