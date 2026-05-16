@@ -279,6 +279,37 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_cyclic_period.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class B (tagged-tuple TLV) — Task #217 Phase C1 rc4.
+    # ------------------------------------------------------------------
+    # int srmech_tlv_pack(uint8_t tag, const uint8_t *value,
+    #                     uint32_t value_len, uint8_t *out, uint32_t cap,
+    #                     uint32_t *out_written)
+    lib.srmech_tlv_pack.argtypes = [
+        ctypes.c_uint8,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    lib.srmech_tlv_pack.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Class G (byte-pattern search) — Task #217 Phase C1 rc4.
+    # ------------------------------------------------------------------
+    # int srmech_byte_search(const uint8_t *haystack, uint32_t h_len,
+    #                        const uint8_t *needle, uint32_t n_len,
+    #                        uint32_t *out_offset)
+    lib.srmech_byte_search.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    lib.srmech_byte_search.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

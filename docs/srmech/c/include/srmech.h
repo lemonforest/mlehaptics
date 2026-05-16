@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc3"
-#define SRMECH_VERSION       "0.4.0rc3"
+#define SRMECH_VERSION_PRE   "rc4"
+#define SRMECH_VERSION       "0.4.0rc4"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -317,6 +317,55 @@ srmech_status_t srmech_cyclic_period(uint64_t  a,
                                      uint64_t  n,
                                      uint64_t  max_k,
                                      uint64_t *out_period);
+
+/* ------------------------------------------------------------------ *
+ * Class B — tagged-tuple TLV byte-canonical form (Task #217 Phase
+ * C1 rc4 lightweight trio).
+ *
+ * Single operation: TLV pack. JSON-record parsing stays Python-side
+ * per srmech CLAUDE.md operational-scope-clarification.
+ * ------------------------------------------------------------------ */
+
+/* Pack (tag, value) into a [u8 tag][u32 length BE][value] byte sequence.
+ * `out_buffer` must have capacity ≥ 5 + value_len bytes; returns
+ * SRMECH_ERR_OVERFLOW otherwise. `*out_written` = 5 + value_len on OK.
+ * Big-endian length avoids platform-specific byte-order ambiguity.
+ * Per [[feedback_struct_field_ordering_big_first]] this is a wire-
+ * format-sensitive layout (the documented exception). */
+srmech_status_t srmech_tlv_pack(uint8_t        tag,
+                                const uint8_t *value,
+                                uint32_t       value_len,
+                                uint8_t       *out_buffer,
+                                uint32_t       out_capacity,
+                                uint32_t      *out_written);
+
+/* ------------------------------------------------------------------ *
+ * Class G — discovery / search (Task #217 Phase C1 rc4 lightweight trio).
+ *
+ * Single operation: byte-pattern search. Catalog discovery (Python-
+ * side dictionary lookups) stays in srmech.amsc.catalog per the
+ * operational-scope-clarification.
+ * ------------------------------------------------------------------ */
+
+/* Find the first occurrence of `needle` (needle_len bytes) in
+ * `haystack` (haystack_len bytes). Naive O(n*m); fast for the small
+ * haystacks srmech encounters. On match: *out_offset = first index
+ * in haystack where needle appears. On miss: *out_offset =
+ * UINT32_MAX (SRMECH_SEARCH_NOT_FOUND). Empty needle matches at 0
+ * (matches Python's `bytes.find(b'')` convention). */
+srmech_status_t srmech_byte_search(const uint8_t *haystack,
+                                   uint32_t       haystack_len,
+                                   const uint8_t *needle,
+                                   uint32_t       needle_len,
+                                   uint32_t      *out_offset);
+
+/* ------------------------------------------------------------------ *
+ * Class H — self-introspection (Task #217 Phase C1 rc4 acknowledgment).
+ *
+ * Already shipped in `srmech_meta.c` since Phase B2 — `srmech_version`
+ * and `srmech_abi_version` are the Class H primitives. Documenting
+ * the mapping here for the cross-substrate-audit roster.
+ * ------------------------------------------------------------------ */
 
 #ifdef __cplusplus
 }
