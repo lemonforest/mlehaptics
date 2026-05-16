@@ -101,3 +101,50 @@ required_fields = [
 regime_labels = [
     "rigid_body_action_angle_stable",
 ]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 1 schema v1 candidate)
+# ─────────────────────────────────────────────────────────────────
+#
+# Declares derived calculations this catalog supports. See ADR-0002
+# Phase 1 (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`)
+# for the schema specification + reference DSL.
+
+[catalog]
+chain_schema_version = 1
+
+# ── Chain 1: f_NL_template_combination ──
+#
+# Combine the canonical Planck 2018 IX f_NL constraints across the
+# three primordial bispectrum templates (local / equilateral /
+# orthogonal) into a single rational-form joint-Gaussianity bound.
+#
+# Step 0 — Class E sorted-key catalog lookup of each headline KSW
+#          lensing-subtracted SMICA T+E f_NL constraint by constraint_id.
+# Step 1 — Class N continued-fraction rational approximation of each
+#          (value/error) factor — preserves the cosmos catalog's
+#          rational-approximation discipline (cosmological observables
+#          are ratios of dimensionful quantities; rational form is the
+#          canonical representation under [[user_stance_kepler_shape_universal]]).
+# Step 2 — Class A SHA-256 content-address over the joint signature.
+
+[[catalog.operator_chain]]
+name = "f_NL_template_combination"
+summary = "Combine the canonical Planck 2018 IX f_NL constraints across the three primordial bispectrum templates (local / equilateral / orthogonal) into a single rational-form joint Gaussianity bound. Looks up each template's headline KSW lensing-subtracted constraint via Class E sorted-key catalog lookup, applies Class N continued-fraction rational approximation to express each (value/error) factor as a closed-form rational, and Class A content-addresses the resulting joint-fNL signature."
+returns = "tuple[dict[str, tuple[float, float]], str]  # ({'local':(value, err), 'equilateral':(v, e), 'orthogonal':(v, e)}, sha256_hex)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "E"
+op = "sorted_lookup_batch"
+args = { keys = ["SMICA_TplusE_local_KSW_lenssub", "SMICA_TplusE_equilateral_KSW_lenssub", "SMICA_TplusE_orthogonal_KSW_lenssub"], key_field = "constraint_id", extract_fields = ["template", "fNL_value", "fNL_error"] }
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "best_rational_batch"
+args = { values = "@step[0].output", value_field = "fNL_value", error_field = "fNL_error", denominator_bound = 1000 }
+
+[[catalog.operator_chain.steps]]
+class = "A"
+op = "content_address"
+args = { algo = "sha256", payload = "@step[1].output", canonical_form = "json_sorted_keys" }

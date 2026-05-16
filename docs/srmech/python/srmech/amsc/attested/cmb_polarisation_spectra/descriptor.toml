@@ -106,3 +106,50 @@ required_fields = [
 regime_labels = [
     "rigid_body_action_angle_stable",
 ]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 1 schema v1 candidate)
+# ─────────────────────────────────────────────────────────────────
+#
+# Declares derived calculations this catalog supports. See ADR-0002
+# Phase 1 (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`)
+# for the schema specification + reference DSL.
+#
+# The row.ndjson `feature` field is the registry vocabulary used by
+# the dispatch step. Existing values include: first_acoustic_peak,
+# second_acoustic_peak, third_acoustic_peak, fourth_acoustic_peak,
+# first_trough, second_trough, te_zero_crossing, te_positive_lobe,
+# te_negative_lobe, rising_to_first_peak, damping_tail, low_ell_anomaly,
+# low_ell_noise_floor.
+
+[catalog]
+chain_schema_version = 1
+
+# ── Chain 1: acoustic_peak_locations ──
+#
+# Enumerate acoustic-peak multipoles + amplitudes from the catalog's
+# binned bandpowers. Streams rows via Class C, dispatches each row to a
+# peak-type bucket via Class D pattern-match on the `feature` field,
+# extracts (ell_center, D_ell_muK2, feature) via Class E sorted-key
+# tabular extraction.
+
+[[catalog.operator_chain]]
+name = "acoustic_peak_locations"
+summary = "Enumerate acoustic-peak multipoles + amplitudes from the catalog's binned bandpowers. Streams rows via Class C, dispatches each row to a peak-type bucket via Class D pattern-match on the `feature` field, looks up the canonical peak ordering via Class E. Output is the full list of (ell_center, D_ell_muK2, peak_type) tuples for every peak / trough / lobe / zero-crossing in the spectrum."
+returns = "list[tuple[float, float, str]]  # (ell_center, D_ell_muK2, peak_type) for each feature row"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "read_ndjson"
+args = { path = "@row.source_file", skip_comments = true }
+
+[[catalog.operator_chain.steps]]
+class = "D"
+op = "match_filter"
+args = { stream = "@step[0].output", field = "feature", needles = ["first_acoustic_peak", "second_acoustic_peak", "third_acoustic_peak", "fourth_acoustic_peak", "first_trough", "second_trough", "te_zero_crossing", "te_positive_lobe", "te_negative_lobe"], on_no_match = "drop" }
+
+[[catalog.operator_chain.steps]]
+class = "E"
+op = "sorted_lookup_extract"
+args = { stream = "@step[1].output", extract_fields = ["ell_center", "D_ell_muK2", "feature"], sort_by = "ell_center" }

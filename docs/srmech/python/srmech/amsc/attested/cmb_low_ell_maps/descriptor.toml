@@ -105,3 +105,102 @@ required_fields = [
 regime_labels = [
     "rigid_body_action_angle_stable",
 ]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 1 schema v1 candidate)
+# ─────────────────────────────────────────────────────────────────
+#
+# Declares the derived calculations this catalog supports as ordered
+# compositions of A–N primitive-class operations. See ADR-0002 Phase 1
+# (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`) for the
+# schema specification. Reference DSL:
+#   @row.<col>        — current MPR row's data block (e.g., row.healpix_nside)
+#   @input.<name>     — runtime parameter to bridge.run_operator_chain(...)
+#   @step[N].output   — output of zero-indexed step N (linear pipeline)
+#
+# Class L extensions assumed by these chains (Phase 2 implementation
+# scope): spherical_harmonic_decompose, extract_preferred_axis,
+# extremum_eigenbasis. These are new ops on Class L, not new primitive
+# classes — Class L's identity is "dense-matrix algebra including
+# eigendecomposition" per the ADR Phase 1 spike (§10).
+
+[catalog]
+chain_schema_version = 1
+
+# ── Chain 1: multipole_vector_axis ──
+#
+# Extract preferred-direction axis at fixed ℓ from a CMB sky map per
+# de Oliveira-Costa et al. 2004 §III. Computes a_ℓm coefficients via
+# spherical-harmonic decomposition, then locates the axis maximising
+# Σ|a_ℓm|² cos(2m φ) per the AoE preferred-direction algorithm.
+
+[[catalog.operator_chain]]
+name = "multipole_vector_axis"
+summary = "Extract preferred-direction axis at fixed ℓ from a CMB sky map (de Oliveira-Costa et al. 2004, Phys.Rev.D 69 063516, §III). Computes a_ℓm coefficients via spherical-harmonic decomposition, then locates the axis maximising Σ|a_ℓm|² cos(2m φ) per the AoE preferred-direction algorithm."
+returns = "tuple[float, float]  # (galactic_l_deg, galactic_b_deg)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "spherical_harmonic_decompose"
+args = { input_bytes = "@input.fits_bytes", channel = "@input.channel", healpix_nside = "@row.healpix_nside", healpix_ordering = "@row.healpix_ordering", coordinate_frame = "@row.coordinate_frame", ell_max = "@row.ell_max_recommended" }
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "extract_preferred_axis"
+args = { alm = "@step[0].output", ell_target = "@input.ell_target", extremum_spectrum = "max_sum_axes" }
+
+[[catalog.operator_chain.steps]]
+class = "D"
+op = "dispatch_on_max_extremum"
+args = { axis_candidates = "@step[1].output", selection_rule = "argmax_sum_alm_sq_cos_2mphi", tie_break = "lowest_b_deg" }
+
+[[catalog.operator_chain.steps]]
+class = "A"
+op = "content_address"
+args = { algo = "sha256", payload = "@step[2].output" }
+
+# ── Chain 2: t_vs_e_axis_differential ──
+#
+# Compute Δθ_TE between T-mode and E-mode AoE axes at ℓ=2 (de
+# Oliveira-Costa 2004 axis extraction applied independently to T and E
+# channels). Tests the §VII.6.3.1 138°/unit-f_RD bundle-projection-
+# reconfiguration prediction (predicted Δθ_TE central range 1.0°–2.0°
+# across recombination visibility Δz ∈ [10, 50]; falsifier threshold
+# Δθ_TE < 0.1°).
+#
+# Step indexing: step[0]+step[1] extract T-axis; step[2]+step[3]
+# extract E-axis; step[4] computes the angular separation between them
+# (Class I angular_separation_axes on S² with antipodal-symmetry
+# collapse for axes-not-vectors).
+
+[[catalog.operator_chain]]
+name = "t_vs_e_axis_differential"
+summary = "Compute Δθ_TE between T-mode and E-mode AoE axes at ℓ=2 (de Oliveira-Costa 2004 axis extraction applied independently to T and E channels). Tests the §VII.6.3.1 138°/unit-f_RD bundle-projection-reconfiguration prediction (predicted Δθ_TE central range 1.0°–2.0° across recombination visibility Δz ∈ [10, 50]; falsifier threshold Δθ_TE < 0.1°)."
+returns = "float  # delta_theta_deg between T-axis and E-axis (great-circle separation)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "spherical_harmonic_decompose"
+args = { input_bytes = "@input.fits_bytes", channel = "T", healpix_nside = "@row.healpix_nside", healpix_ordering = "@row.healpix_ordering", coordinate_frame = "@row.coordinate_frame", ell_max = 2 }
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "extract_preferred_axis"
+args = { alm = "@step[0].output", ell_target = 2, extremum_spectrum = "max_sum_axes" }
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "spherical_harmonic_decompose"
+args = { input_bytes = "@input.fits_bytes", channel = "E", healpix_nside = "@row.healpix_nside", healpix_ordering = "@row.healpix_ordering", coordinate_frame = "@row.coordinate_frame", ell_max = 2 }
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "extract_preferred_axis"
+args = { alm = "@step[2].output", ell_target = 2, extremum_spectrum = "max_sum_axes" }
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "angular_separation_axes"
+args = { axis_a = "@step[1].output", axis_b = "@step[3].output", antipodal_symmetry = true, output_unit = "degrees" }
