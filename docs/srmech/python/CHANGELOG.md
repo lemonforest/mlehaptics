@@ -4,6 +4,22 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc2] - 2026-05-16
+
+**Framework bug fix — `read_ndjson` now skips `#` comment-header lines.** Found during the rc1 TestPyPI smoke verify when `catalog.attestation_audit` failed on the new `cmb_polarisation_spectra/row.ndjson`. Investigation confirmed the bug **pre-exists in production srmech 0.4.0** and affects every `#`-comment-prefixed NDJSON across the spectral-research portfolio — including ephemerides-spectral 0.29.x's already-shipped `cmb_anomalies` + `cmb_power_spectrum` catalogs. `catalog.get_attested_dataset` was comment-aware via a different code path; `catalog.attestation_audit` calls `read_ndjson` directly and was choking on the leading `# CMB ... catalogue` header.
+
+### Fixed — `format.read_ndjson` skips `#` lines + empty lines uniformly
+
+- **Pure-Python path** (`format.py:286–296`) now skips lines that match `not line or line.startswith("#")` after stripping whitespace.
+- **Native path** (`format.py:266–283`) now decodes each line, lstrips whitespace, and skips empty + `#`-prefixed lines before calling `MPRRecord.from_json_line`. Indented comments (leading whitespace before `#`) are also tolerated.
+- New ratchet test `test_format.test_ndjson_skips_hash_comment_lines` pins the behaviour across both paths.
+
+This restores `attestation_audit` parity with `get_attested_dataset` for all `#`-comment-prefixed NDJSON catalogs.
+
+### Versioning
+
+`0.4.1rc1` → `0.4.1rc2`. Patch bump on the cosmos catalog sprint. Cumulative rc-stack per `[[feedback_rc_stacking_versioning]]`; clean `0.4.1` ships to production after rc2 TestPyPI verify covers both the cosmos catalog content (rc1) and the framework fix (rc2).
+
 ## [0.4.1rc1] - 2026-05-16
 
 **Cosmos catalog ship rc1.** Seeds three new srmech-primary attested AMSC sources covering the Planck 2018 PR3 CMB observables that downstream MFO research needs as ground-proof anchors. Per user directive on the AoE/dark-sector research line (PR #437 + the four-turn dialog landed in MFO §VII.6.2/.6.3): cosmos catalog lives in srmech for now (MFO + srmech ship as one demonstrates every primitive class operator); future migration to ephemerides-spectral is later scope.

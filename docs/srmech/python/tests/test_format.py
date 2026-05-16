@@ -188,6 +188,36 @@ def test_ndjson_skips_empty_lines(tmp_path: Path) -> None:
     assert list(read_ndjson(path)) == []
 
 
+def test_ndjson_skips_hash_comment_lines(tmp_path: Path) -> None:
+    """Lines beginning with ``#`` are project-convention comment headers
+    and must be skipped by both pure-Python and native paths.
+
+    Regression test for the 0.4.1rc1 bug where ``read_ndjson`` choked
+    on the leading ``# CMB Polarisation Power Spectra catalogue ...``
+    block in ``cmb_polarisation_spectra/row.ndjson`` (and the same
+    block at the head of every ``cmb_*`` / attested-collector NDJSON
+    file across the spectral-research portfolio).
+    ``catalog.get_attested_dataset`` was already comment-aware via a
+    different code path; ``catalog.attestation_audit`` calls
+    ``read_ndjson`` directly and was failing on the same files.
+    """
+    record = _valid_record()
+    path = tmp_path / "with_comments.ndjson"
+    payload = (
+        "# Header comment line 1\n"
+        "# Header comment line 2\n"
+        "\n"
+        + record.to_json_line() + "\n"
+        "# Mid-file comment, just in case\n"
+        + record.to_json_line() + "\n"
+        "   # Indented comment (leading whitespace tolerated)\n"
+    )
+    path.write_text(payload, encoding="utf-8")
+    records = list(read_ndjson(path))
+    assert len(records) == 2
+    assert all(r.mpr_version == record.mpr_version for r in records)
+
+
 def test_ndjson_writes_lf_line_endings_always(tmp_path: Path) -> None:
     """Byte-stability across Windows/Linux checkouts requires LF endings."""
     record = _valid_record()

@@ -252,9 +252,18 @@ def _validate_data_against_schema(
 def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     """Stream MPRRecords line-by-line from an NDJSON file.
 
-    Skips empty lines (NDJSON allows them by convention). Raises
-    ``MPRValidationError`` on a malformed line, with the line
-    number for diagnostics.
+    Skips empty lines (NDJSON allows them by convention) and lines
+    beginning with ``#`` (project-convention comment headers — see the
+    leading ``# Each line below is one MPR row data block (NDJSON).``
+    block at the top of every ``research/attested/<source>/row.ndjson``
+    file in the spectral-research portfolio). The skip discipline
+    matches the comment-aware reader used by
+    :func:`catalog.get_attested_dataset`; without it, callers like
+    :func:`catalog.attestation_audit` choke on the comment headers
+    that the catalog-discovery path quietly tolerates.
+
+    Raises ``MPRValidationError`` on a malformed (non-comment,
+    non-empty) line, with the line number for diagnostics.
 
     Task #201 Phase B4 — when the native library is available, the
     file-IO + line tokenisation runs in C (``srmech_ndjson_iter``)
@@ -274,19 +283,22 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
             # the underlying SRMECH_ERR_* status visible.
             raise OSError(str(exc)) from exc
         for lineno, line_bytes in lines:
+            text = line_bytes.decode("utf-8").lstrip()
+            if not text or text.startswith("#"):
+                continue
             try:
-                yield MPRRecord.from_json_line(line_bytes.decode("utf-8"))
+                yield MPRRecord.from_json_line(text)
             except (json.JSONDecodeError, ValueError) as exc:
                 raise MPRValidationError(
                     f"{path}:{lineno}: malformed MPR line: {exc}"
                 ) from exc
         return
 
-    # Pure-Python streaming path (unchanged from rc4).
+    # Pure-Python streaming path.
     with path.open("r", encoding="utf-8") as f:
         for lineno, raw in enumerate(f, start=1):
             line = raw.strip()
-            if not line:
+            if not line or line.startswith("#"):
                 continue
             try:
                 yield MPRRecord.from_json_line(line)
