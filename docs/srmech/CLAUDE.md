@@ -101,13 +101,26 @@ precedent that markets microcontroller-readiness on PyPI. As of
 **Class A (content-addressing via SHA-256)** and **Class C
 (streaming iterator via NDJSON line tokenisation)**; **Task #217
 Phase C1 added Class I (cyclic-group / modular arithmetic) in
-v0.4.0rc1**; the remaining classes B/D/E/F/G/H/J/K/L/M/N (and Class O
-if accepted per Spike #24 bonus 8) ship in subsequent rc additions
-under 0.4.0rcN per `[[feedback_rc_stacking_versioning]]`, with the
-clean `0.4.0` ship at Phase C1 close. Each class follows the same
-ratchet — parity test + JPL Power-of-Ten audit + cibuildwheel matrix
+v0.4.0rc1 and Class L (graph Laplacian; pi-free dense + Jacobi
+eigvals, n ≤ 256 native bound) in v0.4.0rc2**; the remaining
+classes B/D/E/F/G/H/J/K/M/N (and Class O if accepted per Spike
+#24 bonus 8) ship in subsequent rc additions under 0.4.0rcN per
+`[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0`
+ship at Phase C1 close. Each class follows the same ratchet —
+parity test + JPL Power-of-Ten audit + cibuildwheel matrix
 update + TestPyPI rc verification per
 `[[feedback_always_rc_first_for_downstream_publishes]]`.
+
+**Hard dependencies have evolved with Phase C1:**
+
+- v0.3.x and earlier: stdlib only (plus `tomli` on Python 3.10).
+- **v0.4.0rc2 onward**: numpy added as a hard dependency. Class L
+  (graph Laplacian) and Class M (HDC bind/bundle, planned) are
+  fundamentally array-numerical; numpy provides the ergonomic
+  Python surface + fallback path. Pyodide environments install
+  numpy via micropip. The C native surface itself does NOT depend
+  on numpy or LAPACK (Jacobi eigvals are implemented in C with
+  algebraic c/s computation, pi-free).
 
 **The current Phase B state (Class A + Class C implemented)** is
 Phase B's stopping point and Task #217's starting point. Per

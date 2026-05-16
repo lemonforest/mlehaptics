@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.4.0rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.4.0rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -211,6 +211,73 @@ srmech_status_t srmech_mod_pow(uint64_t a, uint64_t k, uint64_t n,
  * `n <= INT64_MAX` (returns SRMECH_ERR_OVERFLOW otherwise).
  * Returns SRMECH_ERR_BAD_INPUT for n in {0, 1}. */
 srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
+
+/* ------------------------------------------------------------------ *
+ * Class L — graph Laplacian (Task #217 Phase C1)
+ *
+ * Four load-bearing graph-Laplacian primitives on row-major dense
+ * double matrices. Class L is Spike #24's structural workhorse
+ * (instantiated at six of six bonus substrates). Pi-free implementation
+ * per `[[user_stance_pi_as_projection]]`: cyclic-graph closed-form
+ * spectra (the pi-bearing `2(1-cos(2πk/n))` shortcut) are NOT shipped
+ * on the C surface — those are downstream projections of Class I's
+ * integer-cyclic upstream.
+ *
+ * Conventions:
+ *   - Matrices: row-major n×n doubles, caller-allocated.
+ *   - Edge lists: parallel uint32 arrays edges_u / edges_v + optional
+ *     double weights (NULL = unit weights).
+ *   - N bound: srmech_graph_dense_laplacian / normalized_laplacian /
+ *     jacobi_eigvals stack-allocate degree/scaling buffers; n is
+ *     bounded by SRMECH_LAPLACIAN_MAX_NODES (256, embedded-safe).
+ *     Larger graphs return SRMECH_ERR_OVERFLOW; Python falls back to
+ *     numpy.linalg.eigvalsh.
+ *
+ * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_LAPLACIAN_MAX_NODES 256
+
+/* A from edge list. A[u,v] = A[v,u] = sum of weights of edges between u
+ * and v. Self-loops add 2*w to the diagonal (standard convention).
+ * out_matrix is n*n doubles, row-major. */
+srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
+                                             uint32_t        n_edges,
+                                             const uint32_t *edges_u,
+                                             const uint32_t *edges_v,
+                                             const double   *weights,
+                                             double         *out_matrix);
+
+/* L = D - A. Same edge-list inputs; n bounded by
+ * SRMECH_LAPLACIAN_MAX_NODES for the stack-allocated degree buffer. */
+srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
+                                             uint32_t        n_edges,
+                                             const uint32_t *edges_u,
+                                             const uint32_t *edges_v,
+                                             const double   *weights,
+                                             double         *out_matrix);
+
+/* L_sym = I - D^(-1/2) A D^(-1/2). Isolated vertices (degree 0) have
+ * diagonal entry 0. n bounded by SRMECH_LAPLACIAN_MAX_NODES. */
+srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
+                                                  uint32_t        n_edges,
+                                                  const uint32_t *edges_u,
+                                                  const uint32_t *edges_v,
+                                                  const double   *weights,
+                                                  double         *out_matrix);
+
+/* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
+ * approximately diagonal at exit (caller-owned working buffer). The
+ * `out_eigvals` array receives the n diagonal entries (unsorted).
+ * max_sweeps = 0 selects SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS (100).
+ * tolerance is the off-diagonal Frobenius norm threshold relative to
+ * the initial off-diagonal norm. Pi-free: c, s computed algebraically
+ * from matrix entries (no trig calls). */
+srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
+                                      double   *matrix,
+                                      uint32_t  max_sweeps,
+                                      double    tolerance,
+                                      double   *out_eigvals);
 
 #ifdef __cplusplus
 }

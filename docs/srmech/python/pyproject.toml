@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.4.0rc1"
+version = "0.4.0rc2"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -62,6 +62,11 @@ classifiers = [
 # 3.10 path requires `tomli` (declared as a conditional dep here).
 dependencies = [
     "tomli>=2.0; python_version<'3.11'",
+    # numpy: hard dependency from 0.4.0rc2 onward (Class L Phase C1 ship).
+    # Graph-Laplacian operations + the upcoming Class M (HDC bind/bundle)
+    # are fundamentally array-numerical. Pyodide bundles numpy via its
+    # package ecosystem, so the pure-Python wheel still works in WASM.
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]

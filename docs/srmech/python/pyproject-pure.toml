@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.4.0rc1"
+version = "0.4.0rc2"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -54,6 +54,9 @@ classifiers = [
 ]
 dependencies = [
     "tomli>=2.0; python_version<'3.11'",
+    # numpy: hard dependency from 0.4.0rc2 onward (Class L Phase C1 ship).
+    # Must agree with pyproject.toml.
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
