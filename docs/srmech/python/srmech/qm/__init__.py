@@ -25,6 +25,12 @@ Submodules:
 - :mod:`srmech.qm.spin` — Pauli matrices, Clifford-algebra checks.
 - :mod:`srmech.qm.potentials` — Hydrogen radial, harmonic-oscillator
   ladder operators.
+- :mod:`srmech.qm.relativistic` — Dirac γ-matrices (Cl(1,3)), Klein-
+  Gordon, Weyl projectors, charge conjugation (Majorana).
+- :mod:`srmech.qm.propagators` — Feynman propagators (scalar / fermion /
+  photon / massive vector).
+- :mod:`srmech.qm.pseudo_hermitian` — η-deformed inner product, PT-
+  symmetric QM framework (Bender-Boettcher / Mostafazadeh).
 
 Canonical SSoT:
 
@@ -41,6 +47,20 @@ Canonical SSoT:
 - Bohr, N. (1913) *Philosophical Magazine* 26, 1-25 / 476-502.
 """
 
-from srmech.qm import single_particle, spin, potentials
+from srmech.qm import (
+    potentials,
+    propagators,
+    pseudo_hermitian,
+    relativistic,
+    single_particle,
+    spin,
+)
 
-__all__ = ["single_particle", "spin", "potentials"]
+__all__ = [
+    "potentials",
+    "propagators",
+    "pseudo_hermitian",
+    "relativistic",
+    "single_particle",
+    "spin",
+]
