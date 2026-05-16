@@ -97,13 +97,17 @@ srmech's domain.
 primitive class srmech exposes** — full C/Python parity is the
 architectural commitment per Task #201 and the ephemerides-spectral
 precedent that markets microcontroller-readiness on PyPI. As of
-2026-05-15, Task #201 Phase B has shipped C implementations of
+2026-05-15, Task #201 Phase B shipped C implementations of
 **Class A (content-addressing via SHA-256)** and **Class C
-(streaming iterator via NDJSON line tokenisation)**; the remaining
-classes B/D/E/F/G/H/I/J/K/L/M/N (and Class O if accepted per Spike
-#24 bonus 8) ship in **Task #217 — per-class C parity build-out**,
-phased per-class with the same Python/C parity ratchet, JPL
-Power-of-Ten audit, and cibuildwheel matrix discipline as Phase B.
+(streaming iterator via NDJSON line tokenisation)**; **Task #217
+Phase C1 added Class I (cyclic-group / modular arithmetic) in
+v0.4.0rc1**; the remaining classes B/D/E/F/G/H/J/K/L/M/N (and Class O
+if accepted per Spike #24 bonus 8) ship in subsequent rc additions
+under 0.4.0rcN per `[[feedback_rc_stacking_versioning]]`, with the
+clean `0.4.0` ship at Phase C1 close. Each class follows the same
+ratchet — parity test + JPL Power-of-Ten audit + cibuildwheel matrix
+update + TestPyPI rc verification per
+`[[feedback_always_rc_first_for_downstream_publishes]]`.
 
 **The current Phase B state (Class A + Class C implemented)** is
 Phase B's stopping point and Task #217's starting point. Per

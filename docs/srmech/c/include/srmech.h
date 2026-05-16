@@ -62,10 +62,10 @@ extern "C" {
  * version at tag time; mismatch fails the publish.
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
-#define SRMECH_VERSION_MINOR 3
-#define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.3.1"
+#define SRMECH_VERSION_MINOR 4
+#define SRMECH_VERSION_PATCH 0
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.4.0rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -162,6 +162,55 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
  *     `out_hex`. */
 srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
                                            char       *out_hex);
+
+/* ------------------------------------------------------------------ *
+ * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
+ *
+ * Six load-bearing modular-arithmetic primitives on uint64_t. These
+ * are the foundation for cyclic-cascade composition (Task #218
+ * Phase C2's MFO/SM/QM operations layer). Every cyclic factor C_n in
+ * a cascade exposes order, mode-index arithmetic, and period
+ * operations that ultimately reduce to the six primitives here.
+ *
+ * Range: all functions operate on uint64_t inputs. `srmech_mod_inv`
+ * additionally requires `n <= INT64_MAX` because the extended-
+ * Euclidean coefficients use int64 intermediates (returns
+ * SRMECH_ERR_OVERFLOW for larger n).
+ *
+ * No ABI bump: all symbols below are new additions to ABI v2; adding
+ * a new symbol does not bump ABI per the Phase B4 convention.
+ * ------------------------------------------------------------------ */
+
+/* gcd(a, b) = greatest common divisor. Conventional gcd(0,0) = 0;
+ * gcd(a, 0) = a. */
+srmech_status_t srmech_gcd(uint64_t a, uint64_t b, uint64_t *out);
+
+/* lcm(a, b) = least common multiple. Returns 0 when a == 0 or b == 0.
+ * Returns SRMECH_ERR_OVERFLOW when `a / gcd(a, b) * b` exceeds
+ * UINT64_MAX. */
+srmech_status_t srmech_lcm(uint64_t a, uint64_t b, uint64_t *out);
+
+/* (a + b) mod n. Overflow-safe (handles a, b > UINT64_MAX/2).
+ * Returns SRMECH_ERR_BAD_INPUT for n == 0. */
+srmech_status_t srmech_mod_add(uint64_t a, uint64_t b, uint64_t n,
+                               uint64_t *out);
+
+/* (a * b) mod n. Overflow-safe via russian-peasant doubling (portable
+ * to platforms without __int128 / _umul128).
+ * Returns SRMECH_ERR_BAD_INPUT for n == 0. */
+srmech_status_t srmech_mod_mul(uint64_t a, uint64_t b, uint64_t n,
+                               uint64_t *out);
+
+/* (a^k) mod n via square-and-multiply. Returns 0 for n == 1.
+ * Returns SRMECH_ERR_BAD_INPUT for n == 0. */
+srmech_status_t srmech_mod_pow(uint64_t a, uint64_t k, uint64_t n,
+                               uint64_t *out);
+
+/* Modular inverse of a in Z/nZ via extended Euclidean. Requires
+ * `gcd(a, n) == 1` (returns SRMECH_ERR_BAD_INPUT otherwise) and
+ * `n <= INT64_MAX` (returns SRMECH_ERR_OVERFLOW otherwise).
+ * Returns SRMECH_ERR_BAD_INPUT for n in {0, 1}. */
+srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
 
 #ifdef __cplusplus
 }

@@ -174,6 +174,49 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_ndjson_iter.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class I — cyclic-group / modular arithmetic (Task #217 Phase C1).
+    # All six functions share the (uint64..., uint64 *out) -> int shape.
+    # ------------------------------------------------------------------
+    # int srmech_gcd(uint64_t a, uint64_t b, uint64_t *out)
+    lib.srmech_gcd.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_gcd.restype = ctypes.c_int
+
+    # int srmech_lcm(uint64_t a, uint64_t b, uint64_t *out)
+    lib.srmech_lcm.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_lcm.restype = ctypes.c_int
+
+    # int srmech_mod_add(uint64_t a, uint64_t b, uint64_t n, uint64_t *out)
+    lib.srmech_mod_add.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_mod_add.restype = ctypes.c_int
+
+    # int srmech_mod_mul(uint64_t a, uint64_t b, uint64_t n, uint64_t *out)
+    lib.srmech_mod_mul.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_mod_mul.restype = ctypes.c_int
+
+    # int srmech_mod_pow(uint64_t a, uint64_t k, uint64_t n, uint64_t *out)
+    lib.srmech_mod_pow.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_mod_pow.restype = ctypes.c_int
+
+    # int srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out)
+    lib.srmech_mod_inv.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_mod_inv.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
