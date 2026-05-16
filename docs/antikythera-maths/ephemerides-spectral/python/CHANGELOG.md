@@ -10,6 +10,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.1rc1] — 2026-05-16
+
+### Changed — srmech dependency floor bump `>=0.3.1,<0.4` → `>=0.4.0`
+
+Tracks the srmech v0.4.0 production cut so downstream consumers
+transitively pick up the cumulative srmech v0.4.x content:
+
+- **14-class C-parity primitive vocabulary** (Spike #24 Classes A–N
+  in native C + Python) — content-addressing (SHA-256), TLV
+  byte-canonical serialisation, streaming/NDJSON, dispatch,
+  catalog-lookup, templating, search, introspection, cyclic-group /
+  modular arithmetic, prime-factorisation / period detection,
+  equation-of-centre / Kepler pin-slot, graph-Laplacian / pi-free
+  Jacobi, HDC binary-spatter-codes, rational-approximation /
+  continued-fraction.
+- **Canonical QM/QFT/SM operations layer at `srmech.qm.*`** — single-
+  particle (TDSE / TISE / Heisenberg), spin (Pauli + Cl(0,3)),
+  potentials (hydrogen + harmonic oscillator), relativistic (Dirac
+  γ-matrices + Weyl + charge conjugation + Klein-Gordon), propagators
+  (Feynman scalar / fermion / photon / massive-vector), pseudo-Hermitian
+  (η-inner-product), gauge (SU(2) / SU(3) Gell-Mann + Casimirs +
+  Wilson loops), Standard Model (Higgs + W/Z + Yukawa + CKM).
+- **Tool-schema introspection** — ~87 `srmech.amsc.tool_schema`
+  entries covering every public callable.
+
+**SSOT files bumped in lockstep:**
+
+- `pyproject.toml` `[project].version` 0.29.0 → 0.29.1rc1;
+  `[project].dependencies` `srmech>=0.3.1,<0.4` → `srmech>=0.4.0`.
+- `pyproject-pure.toml` `[project].version` 0.29.0 → 0.29.1rc1;
+  `[project].dependencies` `srmech>=0.3.1,<0.4` → `srmech>=0.4.0`.
+- `ephemerides_spectral/version.py` `__version__` 0.29.0 → 0.29.1rc1.
+- `ephemerides_spectral/srmech_profile.toml` `[profile].version`
+  0.29.0 → 0.29.1rc1; `[profile].srmech_requires` `>=0.3.1,<0.4`
+  → `>=0.4.0`.
+- `c/include/ephemerides_spectral.h` `ES_VERSION_PATCH` 0 → 1;
+  `ES_VERSION_STRING "0.29.0"` → `"0.29.1rc1"`.
+- `ephemerides_spectral/_data/manifest.json` `version` field
+  restamped 0.29.0 → 0.29.1rc1.
+
+### No code change; no ABI change
+
+`ES_ABI_VERSION` stays at 10 (unchanged from v0.29.0); no
+`_research` mirror changes; no test ratchet changes; no `bridge.*`
+surface change. Pure dependency-floor bump.
+
+### Versioning
+
+`0.29.0` → `0.29.1rc1`. Patch bump (dependency-floor refresh). RC
+suffix auto-routes to TestPyPI per the existing publish-workflow
+regex. The clean `v0.29.1` ships to production PyPI after rc verify.
+
 ## [0.29.0] — 2026-05-15
 
 ### Production cut after the v0.29.0 rc cycle (no code change from 0.29.0rc1)
