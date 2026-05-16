@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc5"
-#define SRMECH_VERSION       "0.4.0rc5"
+#define SRMECH_VERSION_PRE   "rc6"
+#define SRMECH_VERSION       "0.4.0rc6"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -444,6 +444,38 @@ srmech_status_t srmech_template_render(const uint8_t  *tmpl,
                                        uint8_t        *out_buf,
                                        uint32_t        out_capacity,
                                        uint32_t       *out_written);
+
+/* ------------------------------------------------------------------ *
+ * Class N — rational-approximation (Task #217 Phase C1 rc6)
+ *
+ * Two operations: simple continued-fraction expansion (Euclidean
+ * recurrence) and best-rational-under-denominator-bound (continued-
+ * fraction convergents). Pure integer arithmetic on uint64_t.
+ * ------------------------------------------------------------------ */
+
+/* Simple continued-fraction expansion of numerator / denominator.
+ * Writes integer terms a_0, a_1, a_2, ... into caller-allocated
+ * `terms`. Bounded by Fibonacci-worst-case for uint64 (~91 iter);
+ * SRMECH_RATIONAL_EUCLID_CAP = 128 is the safe ceiling.
+ * Returns SRMECH_ERR_BAD_INPUT for denominator == 0.
+ * Returns SRMECH_ERR_OVERFLOW if max_terms is exceeded. */
+srmech_status_t srmech_continued_fraction(uint64_t  numerator,
+                                          uint64_t  denominator,
+                                          uint64_t *terms,
+                                          uint32_t  max_terms,
+                                          uint32_t *out_count);
+
+/* Best rational p'/q' with q' <= max_denominator approximating
+ * numerator/denominator. Walks continued-fraction convergents
+ * (Stern-Brocot path through the mediant tree); returns (0, 1) if
+ * no non-trivial convergent fits. Overflow-guarded.
+ * Returns SRMECH_ERR_BAD_INPUT for denominator == 0 or
+ * max_denominator == 0. */
+srmech_status_t srmech_best_rational(uint64_t  numerator,
+                                     uint64_t  denominator,
+                                     uint64_t  max_denominator,
+                                     uint64_t *out_p,
+                                     uint64_t *out_q);
 
 #ifdef __cplusplus
 }
