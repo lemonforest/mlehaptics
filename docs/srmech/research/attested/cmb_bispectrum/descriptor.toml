@@ -1,0 +1,103 @@
+# CMB Bispectrum non-Gaussianity --- Planck 2018 PR3 fNL constraints.
+#
+# Cosmological-instrument ship: the CMB bispectrum at three triangle shapes
+# (local, equilateral, orthogonal) probes departures from the Gaussian +
+# isotropic null hypothesis of the standard inflationary picture. Each
+# template assumes a different angular-momentum-coupling structure between
+# the (l1, l2, l3) triangle modes; the amplitude fNL of each template is
+# the constrained parameter.
+#
+# Where cmb_power_spectrum (and the new cmb_polarisation_spectra companion)
+# constrain the *variance* of CMB anisotropies, this catalogue constrains
+# the *three-point function* — the leading correction to Gaussianity for
+# inflationary models with non-trivial interactions (multi-field, EFT
+# higher-derivative, ghost inflation, DBI, etc.).
+#
+# Ground-truth source: Planck Collaboration 2018 IX (Akrami et al. 2020)
+# "Planck 2018 results IX: Constraints on primordial non-Gaussianity",
+# A&A 641:A9, doi:10.1051/0004-6361/201833881, arXiv:1905.05697.
+#
+# Coverage: Table 5 of the paper gives an exhaustive grid:
+#   - 4 foreground-cleaning maps: SMICA, SEVEM, NILC, Commander
+#   - 3 data channels per map: T (temperature-only), E (E-polarization-only),
+#     T+E (joint)
+#   - 3 templates per (map, channel): local, equilateral, orthogonal
+#   - 4 estimators per template: KSW, Binned, Modal 1, Modal 2
+#   - 2 lensing-bias states: Independent (no subtraction), Lensing-subtracted
+# Total: 4 * 3 * 3 * 4 * 2 = 288 result cells in Table 5.
+#
+# Planck's headline result (Table 6) is the SMICA T+E lensing-subtracted KSW:
+#   f_NL^local       = -0.9 +/- 5.1   (68% CL, statistical)
+#   f_NL^equilateral = -26  +/- 47
+#   f_NL^orthogonal  = -38  +/- 24
+# All three templates show full consistency with f_NL = 0 (ΛCDM Gaussian).
+# 'SMICA' is the map of choice for final results; 'KSW' is the canonical
+# template-fitting estimator; 'Lensing-subtracted' removes the predicted
+# lensing-induced bispectrum bias.
+#
+# This catalogue samples ~30-40 representative rows from Table 5 covering
+# the four maps, three channels, three templates, and (where applicable)
+# multiple methods, with the lensing-subtracted column as the primary
+# attested constraint. The independent (no-lensing-subtraction) column
+# is recorded for selected SMICA rows to show the lensing-bias magnitude.
+
+[source]
+key = "cmb_bispectrum"
+human_readable_name = "Cosmic Microwave Background Primordial Bispectrum fNL Constraints (Planck 2018) Catalogue"
+purpose = "ground-proof rows for the canonical three-shape (local, equilateral, orthogonal) CMB bispectrum amplitude fNL from Planck 2018 PR3; reference for inflationary-model non-Gaussianity bounds"
+license = "literature-curated; per-row source DOI cites Planck 2018 IX (Akrami et al. 2020 A&A 641:A9)"
+homepage = "https://pla.esac.esa.int/"
+canonical_doi = "10.1051/0004-6361/201833881"
+
+# canonical_doi above points at Planck Collaboration 2018 IX (Akrami
+# et al. 2020 A&A 641:A9, arXiv:1905.05697). Per-row provenance cites
+# this paper as the source for the fNL values. Coverage by Table 5
+# (full grid of map x channel x template x method x lensing-state) is
+# what makes this catalogue extensible — future expansion can add
+# further-bispectrum-shape rows (isocurvature, running NG, scale-dependent
+# features, etc.) from Sections 5.2-5.3 of the same paper.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cmb_bispectrum.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "CMB Bispectrum fNL Catalogue (curated against Planck 2018 IX: Akrami et al. 2020 *A&A* 641:A9, doi:10.1051/0004-6361/201833881, arXiv:1905.05697; constraints from Table 5); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof fNL constraint at template {schema.template} (map {schema.cleaning_map}, channel {schema.channel}, method {schema.method}, lensing-subtracted={schema.lensing_subtracted})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# CMB bispectrum constraints probe deviations from Gaussianity at the
+# three-point-function level — a different statistical quantity than the
+# power-spectrum (cmb_power_spectrum / cmb_polarisation_spectra) or
+# structural-anomaly (cmb_anomalies) catalogues. The v0.24.9 dynamical-regime
+# classifier doesn't yet have a regime label for higher-point-function
+# catalogues; closest existing label is rigid_body_action_angle_stable
+# (the cosmological constraints from PR3 are observationally stable across
+# four cleaning pipelines and four estimators, consistent with Gaussianity).
+# A future label like `cosmological_bispectrum_amplitude` or
+# `inflationary_non_gaussianity_bound` would be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]

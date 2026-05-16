@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_bispectrum.row.v1",
+  "title": "CMB primordial bispectrum fNL constraint row",
+  "description": "One fNL constraint cell from Planck 2018 IX Table 5. Each row records the foreground-cleaning map (SMICA/SEVEM/NILC/Commander), the data channel (T temperature-only, E E-polarization-only, T+E joint), the template (local/equilateral/orthogonal), the estimator method (KSW/Binned/Modal 1/Modal 2), the lensing-bias subtraction state, and the constraint as fNL_value +/- fNL_error at 68% CL (statistical).",
+  "type": "object",
+  "required": [
+    "constraint_id",
+    "row_type",
+    "cleaning_map",
+    "channel",
+    "template",
+    "method",
+    "lensing_subtracted",
+    "fNL_value",
+    "fNL_error",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "constraint_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this fNL constraint cell (e.g. 'SMICA_TplusE_local_KSW_lenssub')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["bispectrum_fNL_constraint"],
+      "description": "Single value in this catalogue."
+    },
+    "cleaning_map": {
+      "type": "string",
+      "enum": ["SMICA", "SEVEM", "NILC", "Commander"],
+      "description": "Foreground-cleaning pipeline used to generate the CMB map analysed for this constraint. Planck 2018 reports four cleaning maps; SMICA is the map of choice for final results."
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["T", "E", "TplusE"],
+      "description": "Data channel: T = temperature-only bispectrum; E = E-mode polarization-only bispectrum; TplusE = joint analysis. T+E is the canonical headline channel for primordial-constraint headlines."
+    },
+    "template": {
+      "type": "string",
+      "enum": ["local", "equilateral", "orthogonal"],
+      "description": "Bispectrum shape template. 'local' = squeezed-triangle peak (multi-field models); 'equilateral' = equal-mode triangle (single-field models with non-standard interactions); 'orthogonal' = orthogonal to equilateral by construction (EFT P(X,phi) extensions)."
+    },
+    "method": {
+      "type": "string",
+      "enum": ["KSW", "Binned", "Modal 1", "Modal 2"],
+      "description": "Bispectrum estimator algorithm. KSW = Komatsu-Spergel-Wandelt separable-template estimator (the canonical fiducial method, used in Table 6 headline). Binned = binned-bispectrum estimator. Modal 1 / Modal 2 = orthonormal-mode-decomposition estimators (Modal 2 uses 300 FFP10 sims vs 160 for Modal 1)."
+    },
+    "lensing_subtracted": {
+      "type": "boolean",
+      "description": "Whether the predicted lensing-induced bispectrum bias has been subtracted. False = 'Independent' (no subtraction). True = 'Lensing subtracted' (paper canonical: Table 5 right-hand columns; Table 6 final results)."
+    },
+    "fNL_value": {
+      "type": "number",
+      "description": "Constrained value of the fNL amplitude parameter for this (map, channel, template, method, lensing) combination. Dimensionless. Plotted at 68% CL with statistical (Gaussian) error in the paper."
+    },
+    "fNL_error": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "1-sigma statistical uncertainty on fNL_value (68% CL Gaussian). Does not include systematic uncertainties (foreground residuals, point-source contamination, etc.); the paper Sect. 6 estimates these to be a fraction of the statistical error in most cases."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rounded_2sf", "rounded_3sf", "none"],
+      "description": "Per-row precision flag. PR3 fNL rows are 'high' (Table 5 values verbatim)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited Planck reference. Default 10.1051/0004-6361/201833881 (Planck 2018 IX)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional Planck release version, e.g. 'PR3'."
+    },
+    "source_file": {
+      "type": ["string", "null"],
+      "description": "Optional source-paper section/table label (e.g. 'Planck 2018 IX Table 5' or 'Planck 2018 IX Table 6')."
+    }
+  }
+}

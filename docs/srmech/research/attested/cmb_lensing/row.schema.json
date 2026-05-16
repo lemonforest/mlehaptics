@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_lensing.row.v1",
+  "title": "CMB lensing bandpower row",
+  "description": "One binned lensing-potential bandpower from Planck 2018 VIII Table 1. Each row records the L bin range, the bin label, the estimator (TT temperature-only, MV minimum-variance combined T+E+B, or PP polarization-only), the conservative/aggressive range kind, the amplitude relative to the fiducial bandpower (fid_A_hat with 1-σ error), the fiducial bandpower in units of 10^7 L^2 (L+1)^2 C_L^{phi phi} / (2 pi), and the observed bandpower obtained as the product fid_A_hat * fiducial. Polarization-only inhomogeneous-filter variants share the same fiducial bandpowers as the homogeneous-filter PP rows.",
+  "type": "object",
+  "required": [
+    "L_bin_label",
+    "row_type",
+    "L_min",
+    "L_max",
+    "estimator",
+    "range_kind",
+    "fid_A_hat",
+    "fid_A_hat_error",
+    "fiducial_bandpower",
+    "observed_bandpower",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "L_bin_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this lensing-bandpower row (e.g. 'MV_L0008-0040_cons')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["lensing_bandpower"],
+      "description": "Single value in this catalogue."
+    },
+    "L_min": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 2048,
+      "description": "Inclusive lower edge of the L bin. Planck 2018 PR3 lensing uses L_min = 8 (lower-L bins are removed due to mean-field-subtraction sensitivity)."
+    },
+    "L_max": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 2048,
+      "description": "Inclusive upper edge of the L bin. Conservative range stops at L = 400; aggressive range extends to L = 2048."
+    },
+    "estimator": {
+      "type": "string",
+      "enum": ["TT", "MV", "PP", "PP_inhomogeneous"],
+      "description": "Lensing-reconstruction estimator. TT = temperature-only quadratic estimator; MV = minimum-variance combination of T + E + B (Planck 2018 baseline); PP = polarization-only with homogeneous map filtering; PP_inhomogeneous = polarization-only with optimal inhomogeneous filtering (shares fiducial bandpowers with PP)."
+    },
+    "range_kind": {
+      "type": "string",
+      "enum": ["conservative", "aggressive"],
+      "description": "Multipole range. 'conservative' covers 8 <= L <= 400 (recommended for parameter constraints). 'aggressive' covers 8 <= L <= 2048 (high-L bins fail a pair of consistency tests; use with caution per Planck 2018 VIII Sect. 4)."
+    },
+    "fid_A_hat": {
+      "type": "number",
+      "description": "Amplitude of the bandpower relative to the FFP10 fiducial LambdaCDM model; A_hat = 1 corresponds to the fiducial. Listed in the 'fid_A_hat^{phi,X}' columns of Planck 2018 VIII Table 1 for each estimator X."
+    },
+    "fid_A_hat_error": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "1-sigma Gaussian uncertainty on fid_A_hat, as listed in Table 1."
+    },
+    "fiducial_bandpower": {
+      "type": "number",
+      "description": "Fiducial FFP10 LambdaCDM bandpower in units of 10^7 L^2 (L+1)^2 C_L^{phi phi} / (2 pi). Listed in the 'X-fid' columns of Table 1; values differ slightly between TT/MV/PP because each estimator uses approximate inverse-variance weighting that varies between reconstructions."
+    },
+    "observed_bandpower": {
+      "type": "number",
+      "description": "Observed bandpower in the same units as fiducial_bandpower, computed as fid_A_hat * fiducial_bandpower."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rounded_2sf", "rounded_3sf", "none"],
+      "description": "Per-row precision flag. PR3 lensing rows are 'high' (values from Table 1 verbatim)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes (e.g. 'consistency-test marginal' for high-L aggressive bins)."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited Planck reference. Default 10.1051/0004-6361/201833886 (Planck 2018 VIII)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional Planck release version, e.g. 'PR3' or 'PR3/R3.00'."
+    },
+    "source_file": {
+      "type": ["string", "null"],
+      "description": "Optional PLA file source (e.g. 'Planck 2018 VIII Table 1' or 'COM_Lensing_4096_R3.00')."
+    }
+  }
+}
