@@ -4,6 +4,39 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.0rc5] - 2026-05-16
+
+### Added
+
+**Task #217 Phase C1 — Classes D + E + F (the binding-layer trio).**
+
+Fifth rc in Phase C1's rc-stacked build-out. Three primitive classes whose load-bearing operations live at the Python binding layer per srmech CLAUDE.md operational-scope-clarification — JSON/TOML parsing, dispatch plumbing, registry / dictionary lookups are host-language ergonomics rather than primitive class operations that benefit from C ports. This rc explicitly maps each class to its existing Python surface so the cross-substrate-audit roster is complete.
+
+| Class | Role | Python surface (already shipped) |
+|---|---|---|
+| **D** | late-binding / dispatch | The native-vs-fallback dispatch pattern visible in every `srmech.amsc.<class>` module: `if _native.HAS_NATIVE and _native.LIB is not None: ...native path... else: ...fallback path...`. Used in `cyclic.py`, `laplacian.py`, `primes.py`, `tlv.py`, `search.py`, and at the dispatching wrappers in `format.sha256_bytes` / `format.read_ndjson`. The pattern *is* Class D's primitive: choose-an-implementation-at-call-time, parameterised by feature availability. |
+| **E** | catalog / naming | `srmech.amsc.catalog` — `register_attested_root`, `list_attested_sources`, `get_attested_dataset`, `get_attested_descriptor`, `attestation_audit`. Plus the canonical-name machinery in `descriptor.descriptor_hash` (re-emit TOML with sorted keys → byte-stable canonical form for lookup). Class E's primitive: structured-name → canonical-artifact mapping. |
+| **F** | substitution / templating | `srmech.amsc.descriptor.render_template` — minimal `{key}` / `{key:fmt}` substitution for descriptor `cite_as_template` / `purpose_template`. Plus `tomllib` / `json` parsing in `format.py` / `descriptor.py` (binding-layer per Phase B5 decision: parsing stays Python; canonical-form hashing in C). Class F's primitive: text-with-placeholders → expanded-text via context dict. |
+
+No new C symbols; no new Python modules. This rc records the class-vocabulary mappings in CLAUDE.md + CHANGELOG so an agent or human auditor can see at-a-glance which existing Python surface implements each remaining class.
+
+This pattern mirrors Class H's acknowledgment in rc4 (`srmech_version` / `srmech_abi_version` in `srmech_meta.c` were already shipped; rc4 made the H mapping explicit). D + E + F are now formally counted in the Spike #24 vocabulary roster.
+
+### Changed
+
+- **ABI stays v2** — no new C symbols.
+- **CMake**: no changes; no new sources.
+- **CLAUDE.md**: class-roster mapping updated to record D/E/F surfaces explicitly.
+
+### Roadmap
+
+Phase C1 progress: **11 of 14 classes shipped/acknowledged** (A + C from Phase B; I + L + J + B + G + H + D + E + F from Phase C1 rc1–rc5). Remaining: **K + M + N**.
+
+- **rc6**: N (rational-approximation; Stern-Brocot continued fractions; pure integer; lightweight standalone)
+- **rc7**: K (equation-of-centre / pin-slot; orbital arithmetic; spatial-trig considerations)
+- **rc8**: M (HDC bind/bundle/permute; distributed-representation; the bulk of remaining substantive C work)
+- **0.4.0 final**: clean ship at Phase C1 close after rc8.
+
 ## [0.4.0rc4] - 2026-05-16
 
 ### Added

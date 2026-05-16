@@ -104,13 +104,19 @@ Phase C1 added Class I (cyclic-group / modular arithmetic) in
 v0.4.0rc1, Class L (graph Laplacian; pi-free dense + Jacobi
 eigvals, n ≤ 256 native bound) in v0.4.0rc2, Class J (prime-
 factorisation / period; trial-division primality + factorisation +
-multiplicative order) in v0.4.0rc3, and Classes B (TLV byte-canonical
+multiplicative order) in v0.4.0rc3, Classes B (TLV byte-canonical
 form) + G (byte-pattern search) + H (self-introspection,
 acknowledgment of existing srmech_version / srmech_abi_version) in
-v0.4.0rc4 as a lightweight-trio bundle**; the remaining classes
-D/E/F/K/M/N ship in subsequent rc additions under 0.4.0rcN per
-`[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0` ship
-at Phase C1 close.
+v0.4.0rc4 as a lightweight-trio bundle, and Classes D (late-binding /
+dispatch) + E (catalog / naming) + F (substitution / templating) in
+v0.4.0rc5 as the binding-layer-trio acknowledgment (Python-only-by-
+design per the operational-scope-clarification below — no new C
+ports; the existing native-vs-fallback dispatch pattern across
+`srmech.amsc.*` modules IS Class D, `srmech.amsc.catalog` IS Class E,
+and `srmech.amsc.descriptor.render_template` IS Class F)**; the
+remaining classes K/M/N ship in subsequent rc additions under
+0.4.0rcN per `[[feedback_rc_stacking_versioning]]`, with the clean
+`0.4.0` ship at Phase C1 close.
 
 **Class O is NOT a separate class** (resolution 2026-05-16) — the
 signed-metric / Wick-rotation operation located by Spike #24
