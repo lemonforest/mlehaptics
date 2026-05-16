@@ -40,6 +40,7 @@ srmech_status_t srmech_byte_search(const uint8_t *haystack,
                                    uint32_t      *out_offset)
 {
     assert(out_offset != NULL);
+    assert(needle_len == 0 || needle != NULL);
     if (out_offset == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
