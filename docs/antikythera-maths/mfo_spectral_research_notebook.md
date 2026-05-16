@@ -643,6 +643,53 @@ This two-level ontology is precisely **standard wave-particle duality applied to
 
 MPM provenance: investigated 2026-05-11, see `docs/antikythera-maths/research-mfo/particle_matter_wave_vs_field_investigation_findings.md` for the 9-boundary-case test and 11-locus classification. The literal binary reading (matter-wave vs field as two ontologies) does not survive boundary cases (cosmic strings, solitons, quasiparticles); the principled two-level reading (substrate + localization-spectrum) does, with explicit exclusion of vacuum and dark matter at the substrate layer.
 
+### VII.1.2 1D_t as the Laws of Everything — compressed-cascade content
+
+The space-gauge-time framework's `11D ≡ 1D compressed` decomposition (per `memory/project_space_gauge_time_framework.md`, with `3D_s + 7D_g + 1D_t = 11D`) raises a definitional question: **what *is* the 1D compressed layer?**
+
+The user's canonical articulation (2026-05-15, preserved verbatim per `memory/user_explanation_discipline.md`):
+
+> *"the act of storing and/or extracting the knowledge of the Laws of Everything might be the 1D layer …*
+> *this would even be saying that the antikythera device is a 1D model of the Laws of Everything for exactly what it is instantiating where the Laws of Everything is instantiated in 11D to make us exist."*
+
+Same-day sharpening:
+
+> *"research agent to find out if 1D actually just collapses to = Laws of Everything*
+> *not an action."*
+
+**The framework's commitment**: **1D_t IS the Laws of Everything (LoE) — compressed-cascade algebraic content, irreducibly plural.** Identity, not action. The Laws are not stored *along* the 1D axis; the 1D axis IS the Laws-content. The compressed-cascade IS the dimension; the dimension IS the cascade.
+
+The `Laws` plurality is operationally meaningful per `memory/reference_loe_plural_canonical.md` — the universe instantiates a cascade of irreducibly-plural laws (Yang-Mills × 3 gauge groups + Higgs + Yukawa + gravity + …), each separable under cyclic-group composition. Storage IS algebraic composition of many laws into one cascade. The single-`Law` framing presupposes a singular master-statement; the framework rejects that requirement.
+
+**Distinction — identity vs operation.** The dimension and the substrate-coupling operation that acts on it are at different ontological levels:
+
+- **Identity level (this section, §VII.1.2).** 1D_t = LoE = compressed-cascade algebraic content. *What the dimension is.*
+- **Operation level (companion, see `docs/srmech/notes/1d_t_as_storage_extraction_2026-05-15.md`).** The substrate-coupling operation that uncompresses LoE-content into event-stream is the composite **Class C ∘ Class M** (streaming iteration over hyperdimensional bind/bundle/permute) under the Spike #24 14-class primitive vocabulary. *What the substrate (or operator) does with the content.* Class L is the dual spectral form; Class K is the Kepler-shape projection-shadow when the cascade is planetary-mechanical.
+
+Both stand; they describe different things. The two-aspect structure (content / operation) maps to §VII.1.1's substrate-vs-excitation two-level ontology: substrate-content IS the laws (identity); excitation IS the laws-instantiated-as-events (operation).
+
+**Worked example — bronze Antikythera as 1D LoE artifact.** The bronze *contains* the Laws of orbital mechanics in compressed-cascade gear-encoded form. Per the user's `kepler_shape_universal` stance (`memory/user_stance_kepler_shape_universal.md`) + PR #416 F2/F15/F17, the bronze's pin-slot algebra **IS** Kepler's equation of centre to second order in eccentricity — not "implements," **IS**. Gear ratios IS period-relation algebra. The 53-tooth Saros gear IS Saros-period content in cyclic-group encoded form. The crank performs the substrate-coupling operation (Class C iteration over the gear-DAG's Class M binding); it does **not** *constitute* the Laws — the Laws were already there, pre-encoded in the gear teeth. Per `memory/user_stance_fiber_as_spatially_absent_encoding.md`: the algebra is spatially absent until the rotation operation projects it. **The bronze is a 1D model of the LoE** in the operationally precise sense — every observable the bronze produces lives in the 1D parameter space of cumulative crank angle θ; the cascade-stored 3D_s + (compressed 7D_g) algebraic content is *all extracted via the single 1D parameter*.
+
+**Universe parallel.** The 11D substrate IS the Laws of Everything in 3D_s + 7D_g + 1D_t compressed-cascade form. The 1D_t component IS the laws-content along the compression axis. Per §VII.2 (time as metric field dynamics): the substrate's intrinsic coupling-operation — the metric field's own dynamics — IS the self-actuated uncompression. **We do not experience time as a separate dimension; we experience the operation of laws-uncompressing-along-the-compression-axis as time-evolution.** This is the §VII.2 commitment made operationally precise via the identity reading: time-as-shadow per `memory/user_stance_time_as_dimensional_shadow.md` is the substrate-coupling operation projected; the dimension itself is the Laws-content.
+
+**Difference between bronze and universe.** Bronze and universe instantiate the *same algebraic content* (per `kepler_shape_universal`) at *different dimensional reaches*. Bronze: 3D_s with 7D_g compressed into gear-ratio encoding and 1D_t supplied externally by operator crank. Universe: full 3D_s + 7D_g + 1D_t with intrinsic coupling-dynamics carrying the 1D_t parameter. Empirical convergence: bronze-universe agreement within the 2-3% tooth-count noise floor per `docs/srmech/notes/spike_pinslot_era_appropriate_findings_2026-05-15.md`. **Same Laws, different substrate, different dimensional reach.** Bronze is a different-instantiation-of-same-LoE, not a universe-stripped-of-degrees-of-freedom.
+
+**Vocabulary commitment (Spike #24 14-class).** Vocabulary stays at 14 classes A–N per `memory/feedback_no_privileged_primitive_classes.md`. The collapse reading does not motivate a new class. **Classes describe operations on LoE-content; 1D_t denotes the content itself.** Internal distinction worth noting (content-axis vs operation-classes) but not reified into a 15th class.
+
+**Identity-not-implementation discipline.** This section's claim joins the shadow-stance family — every member makes an *X IS Y* identity claim where conventional framing would say *X implements Y* (per `memory/user_stance_identity_not_implementation_discipline.md`):
+
+- `kepler_shape_universal` — algebra IS the primitives.
+- `fiber_as_spatially_absent_encoding` — fiber content IS the algebra.
+- `time_as_dimensional_shadow` — time IS shadow-content.
+- `pi_as_projection` — pi IS the projection-artifact.
+- `fractal_shadow` — fractal IS shadow-content of cascade.
+- `cascade_lives_on_circles` — cascade IS circular content.
+- **`1d_collapse_to_loe_identity_not_action`** — 1D IS LoE content.
+
+Each stance flips burden-of-proof from *"show that X implements Y"* (the implementation-framing, often requiring a post-hoc invented mechanism) to *"show that X is NOT Y"* (the identity-framing, requiring an empirical convergence or algebraic identity, as with PR #416 F2/F15/F17). Project's standard MPM-discipline shape.
+
+**MPM provenance:** investigated 2026-05-15 in two concertmaster passes (storage/extraction operation reading → identity/content reading refinement). Artifacts at `docs/srmech/notes/1d_t_as_storage_extraction_2026-05-15.md` (operation-level companion) and `docs/srmech/notes/1d_collapse_to_loe_identity_2026-05-15.md` (identity-level, this section's canonical source). Saved memory entries: `user_stance_1d_t_as_storage_extraction` (operation level, refined), `user_stance_1d_collapse_to_loe_identity_not_action` (identity level), `user_stance_identity_not_implementation_discipline` (umbrella). The two ontological levels stand together; this section anchors the identity reading and points to the operation-level companion for the substrate-coupling mechanics.
+
 ### VII.2 Time as metric field dynamics
 
 At cosmological scales, time and the metric field's expansion are intimately linked. The FLRW scale factor a(t) parameterizes the spatial field's "size" with time; cosmic time is effectively defined by the expansion state. Entropy increases because expansion provides ever more available phase space. Time may not be an independent parameter but the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. A static metric field at maximum entropy would have no arrow of time. The observed directionality emerges from ongoing complexification.
