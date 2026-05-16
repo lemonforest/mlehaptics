@@ -85,6 +85,25 @@ This is a **theoretical proposal** awaiting full computation, not a discovery pr
 
 The framework should be read as a **conservative reinterpretation** of GR + QFT, not a replacement. Every existing algebraic identity remains. What changes is the ontological reading of those identities: the de Broglie phase velocity stops being mysterious and becomes standard waveguide physics; mass stops being intrinsic and becomes a cutoff frequency; conservation laws stop being externally imposed and become topological impedance matching.
 
+### I.3.1 Partition for understanding — the MPM-discipline against the first-obvious-answer trap (2026-05-16)
+
+A methodological commitment surfaced during Spike #30A (`docs/srmech/notes/spike_30a_gear_pin_decomposition_2026-05-16.md`) — itself a probe of *"are gear + pin-slot the actual primitive operations, with the 14 classes A–N emergent compositions of them?"* The spike's verdict (H_c: gear + pin-slot are **two of fourteen co-equal primitive classes**, not deeper primitives upstream of the others) initially looked like a binary choice between:
+
+- **(A)** algebraic-decomposition framing only — vocabulary stays at 14 co-equal classes; gear+pin are two of them
+- **(B)** kinematic-instantiation framing only — gear+pin as universal physical mechanism, 14 algebra classes as abstractions of what gear+pin compositions compute
+
+The user applied the MPM-discipline test verbatim: *"would selecting either A or B leave either B or A as shadow projections someone else then has to figure out? if the answer is yes, then the choice is C."* The result:
+
+- Selecting **A alone** → leaves the **kinematic-universality observation** as an unexplained shadow (why does gear+pin keep showing up across substrates if not load-bearing?)
+- Selecting **B alone** → leaves the **algebraic-decomposition record** as an unexplained shadow (why does Class L dominate 38 of 40 QM operations? why do dissolutions land as products of multiple A–N classes — never as I × K alone?)
+- Therefore **C** is forced: both partitions coexist at different ontological levels.
+
+**The lesson**: when challenging an assumption, the *first obvious answer* often carries a hidden shadow projection that the answer's framing makes invisible. Accepting the first obvious answer and stopping there is the error mode — the shadow doesn't disappear; it just becomes someone else's problem to explain later. The MPM-discipline test is the antidote: ask whether selecting one partition leaves another as unexplained shadow. If yes, both partitions stand at their respective levels; the substrate-level commitment is what's load-bearing; the partition is for *explanatory access*, not for *competing-replacement*.
+
+This is structurally identical to the framework's existing **11D = 3D_s + 7D_g + 1D_t** partition: the eleven dimensions don't exist as separable independent entities; they are a way of breaking up the compressed substrate into spatial / gauge / temporal pieces so we can name what's doing what. The substrate is one compressed cascade; the partition is for understanding. The same logic applies to gear+pin (kinematic-instantiation partition) coexisting with 14 algebra classes (algebraic-operational partition), to identity-vs-operation (e.g., 1D_t IS LoE identity AND 1D_t = Class C ∘ Class M operation per `[[user_stance_1d_collapse_to_loe_identity_not_action]]`), to asymptote-vs-infinity (substrate-vs-tool per `[[user_stance_infinity_approximates_asymptote]]`), and to other coexisting partitions the framework employs.
+
+**Canonical methodology**: `[[user_stance_partition_for_understanding]]` (2026-05-16). When faced with a *this OR that* choice between vocabularies that both have visible-sector evidence, run the MPM test before accepting either. Multiple partitions coexist if they each name what is hard to name in the other's language; new partitions need substrate-level grounding plus the MPM test passes. The within-level disciplines stay intact: `[[feedback_no_privileged_primitive_classes]]` keeps the 14 algebra classes flat at the algebraic level; `[[user_stance_kepler_shape_universal]]` keeps gear+pin universal at the kinematic level wherever Kepler-shape appears. The cross-level coexistence is what the partition-for-understanding stance authorises.
+
 ---
 
 ## Part II — The Waveguide Correspondence (Mathematical Core)
