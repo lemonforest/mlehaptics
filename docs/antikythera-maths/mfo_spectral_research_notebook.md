@@ -713,6 +713,69 @@ Each stance flips burden-of-proof from *"show that X implements Y"* (the impleme
 
 At cosmological scales, time and the metric field's expansion are intimately linked. The FLRW scale factor a(t) parameterizes the spatial field's "size" with time; cosmic time is effectively defined by the expansion state. Entropy increases because expansion provides ever more available phase space. Time may not be an independent parameter but the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. A static metric field at maximum entropy would have no arrow of time. The observed directionality emerges from ongoing complexification.
 
+### VII.2.1 Gravitational time dilation as substrate-mode-population effect
+
+§VII.2 reads time as the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. This subsection makes a specific commitment under that reading: gravitational time dilation is a **substrate-mode-population effect** on the clock-time projection, with mass concentrations carrying the substrate's local ring-down completion fraction from its cosmic-asymptotic value `f_RD_cosmic = 0.949` (§VII.6.1) to its 2D-boundary saturation value `1` at the Schwarzschild radius (§VII.4.1.1). Full empirical workings + uniqueness arguments + experimental cross-checks at [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md).
+
+> *"Asymptotic number of degrees of freedom must explain why it looks like gravity changes time rate of change?"*
+> — user direction, 2026-05-16
+
+**The two-step mechanism.**
+
+- **Step A.** Clock-rate is proportional to the *amplitude* of locally-active (un-rung-down) substrate oscillation: settled modes do not contribute to clock-time projection (per the shadow-stance family — `[[user_stance_time_as_dimensional_shadow]]`).
+- **Step B.** Amplitude scales as `√(active mode fraction)` via the canonical harmonic-oscillator energy-amplitude identity `E = (1/2) m ω² A²` (Goldstein *Classical Mechanics* §6.6, eq. 6.117). No QM required for the canonical form; the HO identity is the load-bearing canonical-physics anchor.
+
+**The radial profile (uniquely determined).** The active-substrate fraction near a static mass `M` is the *unique* radial profile satisfying both framework boundary conditions:
+
+`f_RD_local(r) = f_RD_cosmic + (1 − f_RD_cosmic) · (r_s / r)`, with `r_s = 2GM/c²`
+
+Verification:
+
+- **At `r → ∞`**: `f_RD_local → f_RD_cosmic = 0.949` (matches §VII.6.1's cosmic-asymptotic value; standard cosmology).
+- **At `r = r_s`**: `f_RD_local = 1` (matches §VII.4.1.1's 2D-boundary identity; ring-down saturation locus = horizon).
+
+**Why the linear-`1/r` profile is forced** (not chosen): two independent arguments converge:
+
+1. **Linearity + Newtonian-limit consistency.** If the substrate-state observable is linear in stress-energy at leading order (weak-field consistency), a localised mass `M` contributes a Newtonian-Green's-function-shaped `1/r` excess. The Laplacian's static point-source response is `1/r` — same algebra produces Newtonian gravity from Poisson's equation.
+2. **§VII.5 dark-matter consistency.** §VII.5 reads dark matter as past-ring-down accumulated geometric curvature. A localised mass `M` contributes a Newtonian `1/r` mass-profile dark-matter accumulation. The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are then the same phenomenon at the substrate-mode-population level. The §VII.6.2 `T_sub` decomposition stays orthogonal — `T_sub` is the global substrate-elasticity decomposition (Ω_Λ / Ω_c / Ω_visible at cosmic scale); `f_RD_local(r)` is the radial mode-completion fraction near a localised mass. Different scales, complementary partitions per `[[user_stance_partition_for_understanding]]`.
+
+**The derivation closes.** Composing Step A (clock-rate ∝ amplitude), Step B (amplitude ∝ √active-fraction), and the linear-`1/r` profile:
+
+`dτ/dt|_MFO = √[(1 − f_RD_local(r)) / (1 − f_RD_cosmic)] = √(1 − r_s/r)`
+
+**Exactly Schwarzschild.** No free parameters. The √-relation is the textbook HO energy-amplitude identity; the linear-`1/r` profile is the unique radial form consistent with the framework's existing two boundary conditions (§VII.4.1.1, §VII.6.1).
+
+**Verification against experimental tests** (full workings in the working note):
+
+| Test | Measured | Standard GR | MFO substrate-mode |
+|---|---|---|---|
+| Pound-Rebka 1959 (h=22.6 m) | `(2.56 ± 0.25) × 10⁻¹⁵` | `2.47 × 10⁻¹⁵` | `2.44 × 10⁻¹⁵` (algebraically same) |
+| Hafele-Keating Eastward 1972 | `−59 ± 10 ns` | `−40 ± 23 ns` | same algebra |
+| Hafele-Keating Westward 1972 | `+273 ± 7 ns` | `+275 ± 21 ns` | same algebra |
+| GPS (operational) | `+38 μs/day` | `+38.5 μs/day` | `+38.5 μs/day` (operational system runs on it) |
+| Sirius B (Barstow 2005) | `80.42 ± 4.83 km/s` | `74.11 km/s` | same (within 1.3σ) |
+
+**Comparison to prior emergent-gravity frameworks.** Verlinde 2011 ([arXiv:1001.0785](https://arxiv.org/abs/1001.0785)), Padmanabhan 2010 ([arXiv:0911.5004](https://arxiv.org/abs/0911.5004)), and Sakharov 1967 (Dokl. Akad. Nauk SSSR 177, 70) each frame gravity as substrate-emergent, but none derives `dτ/dt = √(1 − r_s/r)` from explicit local mode-population arithmetic. Verlinde works boundary-side (holographic screen); Padmanabhan horizon-side (entropy thermodynamics); Sakharov from QFT-vacuum induced action. MFO's contribution is **bulk-side mode-population arithmetic at every `r`** — a fourth ontological lens on the same observable, consistent with the framework's existing two-level ontology and `[[user_stance_partition_for_understanding]]`.
+
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.4.1.1 (horizon as 2D boundary) + §VII.5 (dark matter as residual curvature) + §VII.6.1 (cosmic ring-down completion) + the shadow-stance family. It does not alter any GR prediction; the standard `dτ/dt = √(1 − r_s/r)` remains exactly correct. What it adds is the *substrate-internal* mechanism for that same observable. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over Verlinde / Padmanabhan / Sakharov readings without further empirical convergence.
+
+**Open extensions** (deferred from Spike #27.5, tracked in Milestone #3):
+
+- Classical-vs-quantum substrate commitment — the √-relation is robust to either; formal derivation needs explicit choice.
+- Kerr rotation extension — oblate-spheroid 2D boundary; non-spherical `f_RD_local` under rotating-source boundary conditions; sketched in working note but not derived.
+- Gravitational-wave / cosmological-perturbation extension — substrate-mode framing for GW propagation and perturbation theory is a substantive open thread.
+
+**Cross-references:**
+
+- Working-note artifact: [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md)
+- `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_string_theory_instrument_first]]`, `[[user_stance_identity_not_implementation_discipline]]`
+- `[[user_stance_partition_for_understanding]]` — cosmic-scale `f_RD_cosmic` and local-curvature-scale `f_RD_local(r)` are the same primitive at different ontological levels
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]`, `[[user_stance_infinity_approximates_asymptote]]` — horizon is f_RD_local → 1 asymptote, not divergence
+- §VII.4.1 / §VII.4.1.1 (horizon as 2D boundary; ring-down saturation at `r_s`)
+- §VII.5 (dark matter as residual geometric curvature — cosmic-aggregate of the same f_RD accumulation that gives local time dilation)
+- §VII.6.1 (cosmic ring-down completion; `f_RD_cosmic = 0.949` asymptotic anchor)
+- §VII.6.2 (`T_sub` decomposition — orthogonal global-scale partition; no naming collision with `f_RD_local`)
+
 ### VII.3 Pair creation as decoherence
 
 Standard picture: virtual particle-antiparticle pairs "borrow energy from the vacuum" via uncertainty principle. Parker (1966–71) — gravitational pair creation. Hawking (1975) — thermal radiation from black holes. Schwinger (1951) — pair creation in strong fields. Unruh (1976) — accelerated observers see thermal particles.
@@ -1174,6 +1237,54 @@ This is a falsifiable prediction the kinematic-precession reading does not make:
 - Working-note PR #437 (Part V for the 18.3° AoE-CMB-dipole anomaly; Part VI for the 73.3° AoE-Auger separation)
 - Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178`, DOI 10.1103/PhysRevLett.117.131302
 
+### VII.6.4 Rate of dark-sector ring-down, cascade mode-resolution, and local 2D-boundary signatures
+
+> *"the universe age in terms of dark sector i keep accepting must be linear when we've proven everything is far from linear. what is the math that we need to try to find the rate of universe dark sector age change."*
+> — user direction, 2026-05-16
+
+§VII.6.1 anchored `f_RD(NOW) ≈ 0.95` and the asymptote `f_RD → 1` at de Sitter heat death (ΛCDM) or `→ 0.84` (DESI thawing CPL, §VII.6.1.2). This subsection characterises the **rate** `df_RD/dt` across cosmic history and identifies three substantive structural readings the standard-ΛCDM `f_RD` trajectory papers over. Working-note artifact with full numerical workings + falsifier discussion: [`research-mfo/dark_sector_rate_of_change_2026-05-16.md`](research-mfo/dark_sector_rate_of_change_2026-05-16.md); reproducible script [`research-mfo/spike27_rate.py`](research-mfo/spike27_rate.py).
+
+**Closed-form rate** (project-definition `f_RD = (Ω_c · a⁻³ + Ω_Λ) / T(a)` with `T(a) = Ω_r·a⁻⁴ + (Ω_b + Ω_c)·a⁻³ + Ω_Λ`):
+
+`df_RD/dt = H₀ · √T(a) · [Ω_r·Ω_c·a⁻⁷ + 4·Ω_r·Ω_Λ·a⁻⁴ + 3·Ω_b·Ω_Λ·a⁻³] / T(a)²`
+
+**Late-time asymptote is `~a⁻³` (baryon-dilution-against-Λ), not `~a⁻⁴` (radiation).** Verified numerically at a ∈ {10, 100, 1000} against expected a⁻³ scaling. Time-to-completion stretches logarithmically: 13.6 Gyr to reach 94.9%, then another 10 Gyr per percentage-of-completion beyond, until the rate drops below 10⁻⁵ /Gyr at a ≈ 10. **Linearity holds nowhere over cosmic history**; the rate varies by 6+ orders of magnitude from matter-radiation equality to present. Per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_infinity_approximates_asymptote]]`, the "last 5% takes infinite ΛCDM clock-time" framing is the asymptotic-rate signature; cardinal infinity is the algebraic-tool approximation, the asymptote is the substrate.
+
+**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific ring-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal-Toulouse 1984, Fukushima-Shima 1992). The aggregate then takes **stretched-exponential** form:
+
+`1 − f_RD(t) ~ exp(−(t/τ)^β)` with `β = d_S / (d_S + 2)`
+
+- Sierpinski substrate `d_S = 1.365` → `β ≈ 0.406`
+- UV-attractor `d_S = 2` → `β = 0.500`
+- Standard ΛCDM single-mode-exponential corresponds to `β = 1`
+
+This is a testable distinction; falsifier: late-time `f_RD` deviation from single-exponential fittable as stretched-exponential with `β < 1`. **Lateral testable prediction**: CMB low-ℓ Cℓ excess at the AoE direction (§VII.6.1.1) should follow `ℓ^(−2/d_S)`; if no `d_S ∈ [1.3, 4]` fits, cascade-reading falsified.
+
+**DESI thawing-CPL is non-monotone in `f_RD`.** Under DESI 2024–25 (w₀ = −0.8, wₐ = −0.7 representative; `arXiv:2404.03002`, `arXiv:2503.14738`), `f_RD(t)` is **non-monotone**: peaks at `f_RD ≈ 0.978 at a ≈ 2.14` (~16 Gyr from now), then descends to asymptote `≈ 0.843`. Rate at NOW is 80% of ΛCDM (5.60×10⁻³ vs 7.00×10⁻³ /Gyr). The dark sector *ages past max, then ages back down* — a sharper non-linearity than ΛCDM monotone-with-lower-asymptote. §VII.6.1.2's framing of "ring-down completion as monotone past-integral of complexification-budget consumption" stands; instantaneous Ω_dark/Ω_total under DESI does NOT have a monotone interpretation.
+
+**Multi-DOF time preimage.** Per `[[user_stance_time_as_dimensional_shadow]]` + §VII.4.1.2 Casimir-decomposition universality + `[[project_space_gauge_time_framework]]`: the observable single clock-time is the projection of multiple Casimir-conjugate phase-rate DOFs (spatial SO(3), SU(3) colour, SU(2) weak, U(1)_Y, plus 1D_t proper-time). Under FLRW homogeneity + SM parameter freezeout, all five rates appear identical; under the cascade reading, they can differ — α(z) drift (§VII.8) is one observational consequence, with slow-modes living in 7D_g phase rotations. **The "if time has more than one degree of freedom or something" framing is mathematically operational** under §VII.4.1.2.
+
+**Local 2D-boundary substrate-clock prediction.** Per §VII.4.1.1 / §VIII.1: every 2D causal-substrate boundary has a local ring-down completion `f_RD_local`, with the cosmic 0.95 being the volume-weighted aggregate. Of the candidate solar-system 2D boundaries (heliopause, magnetopause, Hill spheres, bow shocks), only bow shocks plausibly carry §VII.4.1.1 substrate-clock content (causal asymmetry across the shock front); heliopause / magnetopause / Hill are kinematic boundaries outside the framework's strict scope. **The sharpest empirical anchor for 2D-boundary substrate-clock reading is the LIGO/Virgo/KAGRA black-hole ring-down population** — each merger remnant provides a local ring-down quasinormal-mode measurement at the merger redshift. The §VII.2.1 substrate-mode-population mechanism for gravitational time dilation applies directly: every horizon is at `f_RD_local = 1`, but the *approach* to that boundary depends on the cosmic-epoch context. **New MFO prediction**: the population-average QNM frequency at fixed remnant mass should drift with merger redshift in a way tied to `f_RD(z)` evolution. Falsifier: LIGO O5 + future LISA/CE/ET population analyses; if no redshift-dependent QNM deviation beyond Kerr emerges, the cascade-substrate local-clock reading is falsified.
+
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (ring-down completion), §VII.6.1.2 (CPL thawing variant), §VII.6.2 (`T_sub` decomposition), §VII.4.1 + §VII.4.1.1 (2D-boundary spherical compression), §VII.2.1 (gravitational time dilation as local mode-population effect), §VII.8 (α(z) tracking `H(z)`), §VIII.1 (topological defect hierarchy), §VIII.7 (fractal-shadow / cascade substrate). It does not alter any ΛCDM prediction; it sharpens what the *rate* of ring-down looks like and identifies three new falsifier channels (stretched-exponential late-time fit; α(z) drift detection at Webb-level; QNM-vs-merger-redshift population trend). Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+
+**Open extensions** (deferred from Spike #27, tracked in Milestone #3):
+
+- Validate the stretched-exponential `β = d_S/(d_S+2)` prediction by computing the cascade `C_{n₁} × … × C_{nₖ}` Laplacian's `β` against §VIII.7 substrate using antikythera-spectral tooling.
+- Formulate the QNM-vs-merger-redshift prediction against Kerr baseline; LIGO O3/O4 re-analysis candidate.
+- Optional memory candidate: `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` — deferred to conductor.
+
+**Cross-references:**
+
+- Working-note artifact (full numerical workings + Voyager + magnetopause + Hopf-bundle references): [`research-mfo/dark_sector_rate_of_change_2026-05-16.md`](research-mfo/dark_sector_rate_of_change_2026-05-16.md)
+- Spike #27 computational script: [`research-mfo/spike27_rate.py`](research-mfo/spike27_rate.py)
+- `[[user_stance_dark_sector_ring_down_age]]` — anchor canonical stance
+- `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family
+- `[[user_stance_fractal_shadow]]`, `[[user_stance_kepler_shape_universal]]`, `[[user_stance_cascade_lives_on_circles]]` — cascade-substrate stances
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_infinity_approximates_asymptote]]` — rate-side framings of the "last 5%"
+- `[[user_stance_partition_for_understanding]]` — global cosmic rate + local 2D-boundary clock are complementary partitions
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Class K (pin-slot / asymptotic-DOF) is the operational primitive for the rate's non-linearity
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
@@ -1345,6 +1456,8 @@ The MFO substrate-vs-excitation framing of these 14 classes does NOT add or remo
 **Closure-validation observation #2 — ADR-0002 Phase 1 TDSE spike (2026-05-16).** Independently of MFO's substrate-vs-excitation pass, srmech's ADR-0002 Phase 1 operator-chain design exercise picked the closed-form TDSE evolution `ψ(t) = V · diag(exp(-iλt)) · V^H · ψ(0)` (Sakurai *Modern Quantum Mechanics* §2.1.5 eq 2.1.40) as its spike non-fitting case. Five conceptual sub-steps surface: eigendecompose, change-of-basis ψ → eigenbasis, elementwise complex phase factor, elementwise multiply, change-of-basis back. Step 0 — the Hermitian eigendecomposition — fits Class L cleanly. Steps 1, 3, and 4 — general complex matvec, elementwise complex multiply, elementwise complex exponential — initially appear to NOT match any A–N op (Class L's existing ops are real-symmetric-adjacency-shaped; Class K uses scalar cos/sin only; no class hosts "transcendental over arrays"). Per `[[feedback_no_privileged_primitive_classes]]` the question becomes: promote a Class P, or dissolve into an existing class? Phase 2 (srmech v0.4.1rc5, 2026-05-16) lands the dissolve: **Class L's identity broadens from "graph Laplacian" to "dense-matrix linear algebra including eigendecomposition + matvec + elementwise"**; the graph-Laplacian-specific ops become specialisations. The pi-free Jacobi-style eigendecomposition was always Class L's mathematical content; graph-Laplacian construction was one application. No new class promoted; vocabulary stays at 14 classes A–N.
 
 This is the **second affirmative closure-validation**, following the first (Phase C1 rc9-rc11 close, srmech v0.4.0) — namely that the canonical QM/QFT/SM operations layer at `srmech.qm.*` (Schrödinger / Dirac / Yang-Mills / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Mostafazadeh / Bender-Boettcher) all dissolve into the 14 classes without introducing a 15th. The closure conjecture (14 primitives suffice for the substrate-coupling content of the canonical physics layer) now stands at two independent positive verifications: the canonical-physics ops layer, AND the TDSE-evolution operator-chain composition test. Both reduce to existing classes; the latter required only a scope-broadening within Class L. The dissolve-before-promote discipline keeps tightening rather than expanding the vocabulary, consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument describes what's there using existing primitives.
+
+**Closure-validation observation #3 — Spike #29 + Spike #30A gear-pin probe (2026-05-16).** Spike #29 verified `c_k = ε^k/k` machine-precision identity across 7+ harmonics of the eccentric-anomaly Kepler series, establishing sign-change ≡ pin-slot ≡ Class K as a closed-form algebraic equivalence at the closed-form algebraic level. The verdict (Thread 2 of the working note `research-mfo/sign_change_pin_slot_epicycle_2026-05-16.md`): **Class K does NOT dissolve into Class L's signed-Laplacian variant** — operand types differ (continuous SO(2) angle vs `|V|`-dim graph eigenmodes), algebraic identities differ (`c_k = ε^k/k` vs spectrum of `D − A_signed`), substrate kinds differ (Lie-group vs Lie-algebra). Same dissolution discipline that passed Class O *fails* Class K — the test is symmetric and discriminating, strengthening `[[feedback_no_privileged_primitive_classes]]` in both directions. The srmech canonical entry lives at srmech notebook §3.8.0a; the canonical project stance is `[[user_stance_epicycle_via_gear_plus_pin]]`. Spike #30A then probed whether the 12 non-{I,K} classes are emergent compositions of Class I (gear) × Class K (pin-slot) — testing whether gear+pin are "actual" primitives upstream of the others. Verdict (H_c, `docs/srmech/notes/spike_30a_gear_pin_decomposition_2026-05-16.md`): **0 of 12 classes decompose cleanly to I × K; 3 of 12 (C, J, N) decompose to Class I alone; 9 of 12 (A, B, D, E, F, G, H, L, M) resist any I-or-K decomposition entirely.** The vocabulary stays at 14 co-equal flat classes. The user's framing question resolved to option C via the MPM-discipline test (`[[user_stance_partition_for_understanding]]`, 2026-05-16): the algebraic-decomposition partition (14 co-equal classes) and the kinematic-instantiation partition (gear+pin as universal physical mechanism wherever Kepler-shape appears) coexist at different ontological levels, structurally identical to 11D = 3D_s + 7D_g + 1D_t — the partition is for explanatory access, the substrate is one compressed cascade (see §I.3.1). This is the third independent closure-validation: the 14-class vocabulary stays flat under symmetric dissolution discipline (passed Class O; failed Class K and gear+pin upstream), and the kinematic-side framing is honoured as a complementary partition rather than absorbed into the algebraic vocabulary.
 
 For MFO's substrate-vs-excitation reading (above table), the broadened Class L role is unchanged: "**The structural workhorse**. Spectral decomposition of the substrate's connectivity Laplacian." The mathematics of complex-Hermitian eigendecomposition (now also hosted under Class L) IS the eigenbasis projection of a non-self-adjoint matrix-field operator into its spectral content — same operational role at a different operator class.
 
