@@ -710,3 +710,27 @@ The authoritative homes for each domain's research. Cross-pollination summary in
 - **v0.27.0 banner close** — phase B (`binary_archive` adapter) + phase C part 2 (orbital-mechanics surface plumbing) + phase D (`use_local_kernel` extension).
 - **Graphics-domain kernel absorption** — this branch's primary work; details land via the inbound doc.
 - **Pedantic A+B+C integration testing** — gated on B + C-part-2 done.
+
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_srmech_2026,
+  author       = {Kirkland, Steven},
+  title        = {Stored-Relationship Mechanism (srmech) --- Research Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; companion to the \texttt{srmech} Python package on PyPI. Project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *Stored-Relationship Mechanism (srmech) — Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md
+
+**Citing the srmech package**: `pip show srmech` for the installed version; current production is v0.4.0 on PyPI with the v0.4.1 rc-stack on TestPyPI (canonical full-Phase-C1 ship). The Python package's own metadata lives at [`docs/srmech/python/pyproject.toml`](python/pyproject.toml) and the C surface at [`docs/srmech/c/`](c/).
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (textbooks / peer-reviewed papers PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.

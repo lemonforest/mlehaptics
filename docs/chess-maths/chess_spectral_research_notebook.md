@@ -4683,4 +4683,26 @@ Per Spike #24 (2026-05-15) + the srmech v0.4.0 production ship (2026-05-16) + `[
 
 The chess QM stack already covers ~7/12 canonical single-particle QM equations in spectral form (TDSE / TISE / measurement / Born rule / probability current / density matrix / simultaneous eigenbasis with B₄) per the QM audit at `docs/srmech/notes/task_218_phase_c2_chess_spectral_qm_audit_2026-05-15.md`. The srmech v0.4.0 `srmech.qm.*` operations layer is **citing**, not replacing, this work; chess-spectral is one of the validated substrate-consumers.
 
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_chess_spectral_2026,
+  author       = {Kirkland, Steven},
+  title        = {Chess as a Spectral Lattice Fermion System --- Spectral Research Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_research_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; companion to the \texttt{chess-spectral} Python package. Project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *Chess as a Spectral Lattice Fermion System — Spectral Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_research_notebook.md
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (representation-theory textbooks, Rinaldi-Unciuleanu & Chiru 2026 for the 4D hypercube, etc., PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.
+
 

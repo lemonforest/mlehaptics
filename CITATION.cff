@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+title: "mlehaptics — Spectral-Research Portfolio"
+message: >-
+  If you use this work (notebooks, source code, or canonical results
+  derived therein), please cite it as below. For per-notebook citations,
+  see the "How to cite this notebook" section at the end of each
+  spectral-research notebook.
+type: software
+authors:
+  - family-names: Kirkland
+    given-names: Steven
+    email: sckirklan@gmail.com
+date-released: "2026-05-16"
+version: "2026.05.16"
+repository-code: "https://github.com/lemonforest/mlehaptics"
+url: "https://github.com/lemonforest/mlehaptics"
+license: GPL-3.0-or-later
+keywords:
+  - spectral analysis
+  - metric field ontology
+  - stored relationship mechanism
+  - mathematical provenance method
+  - cyclic group algebra
+  - graph laplacian
+  - hyperdimensional computing
+  - antikythera mechanism
+  - ephemerides
+  - chess spectral analysis
+  - asymptotic calculus
+  - primitive vocabulary
+abstract: >-
+  Mathematical-structural research portfolio investigating Antikythera-style
+  bronze mechanisms, ephemeris computation, chess piece-graph spectra, and
+  related spectral systems through cyclic-group algebra, graph-Laplacian
+  eigenbasis, and hyperdimensional computing primitives. Includes the
+  Stored-Relationship Mechanism (srmech) Python package implementing a
+  14-class primitive vocabulary (Spike #24 enumeration) with native C
+  parity surface, the Attested Multi-Source Collector framework with
+  Mathematical Provenance Record (MPR) v1 on-disk format, and a family
+  of spectral-research notebooks framed under the Metric Field Ontology
+  (MFO) candidate methodological lens. Co-developed with large-language-
+  model agents (Claude Opus 4.7, Anthropic, 1M-context configuration)
+  per the project's mellifluous-orchestra collaboration discipline.
+preferred-citation:
+  type: software
+  title: "mlehaptics — Spectral-Research Portfolio"
+  authors:
+    - family-names: Kirkland
+      given-names: Steven
+      email: sckirklan@gmail.com
+  year: 2026
+  url: "https://github.com/lemonforest/mlehaptics"
+  notes: >-
+    Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration)
+    per project memory feedback_orchestration_metaphor + feedback_no_
+    lineage_claims_in_notebook discipline. When citing specific results,
+    prefer citing both the relevant per-notebook entry AND the underlying
+    canonical sources the notebook itself cites (textbooks / peer-reviewed
+    papers verified per feedback_pdf_extraction_citation_discipline).

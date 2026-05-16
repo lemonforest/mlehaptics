@@ -3329,3 +3329,27 @@ Per Spike #24 (2026-05-15) + `[[user_stance_kepler_shape_universal]]` + the srme
 **Cross-substrate equivalence with the bronze** (per Spike #24 Phase 3a/3b + Antikythera notebook §13): three independent paths converge on the same Class K instantiation across 9/9 visible-from-Earth bodies — bronze pin-slot atan2, modern DE441 detrended residuals, analytical Kepler-equation-of-centre series — all agree to ≤0.07°. **The bronze is a 1D model of the same LoE the cosmos instantiates at 11D**; ephemerides-spectral is the codebase that does the empirical confirmation at modern-precision via DE441.
 
 **srmech v0.4.0 floor as of v0.29.1rc1+**: ephemerides-spectral consumes srmech full 14-class C-parity primitive vocabulary + canonical QM/QFT/SM operations layer at `srmech.qm.*`. Earlier per-substrate duplicated implementations (`equant_encoder`, `pin_and_slot`) can migrate to the srmech canonical primitives as a follow-up refactor; no functional change to ephemerides-spectral user-visible API.
+
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_ephemerides_spectral_2026,
+  author       = {Kirkland, Steven},
+  title        = {The Ephemerides Mechanism --- High-Precision Resonant HDC Instrument --- Spectral Research Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; companion to the \texttt{ephemerides-spectral} Python package on PyPI. Project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *The Ephemerides Mechanism — High-Precision Resonant HDC Instrument — Spectral Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md
+
+**Citing the ephemerides-spectral package**: `pip show ephemerides-spectral` for the installed version. The Python package's metadata lives at [`docs/antikythera-maths/ephemerides-spectral/python/pyproject.toml`](ephemerides-spectral/python/pyproject.toml).
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (JPL DE441, Almagest, Murray & Dermott 1999, etc., PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.
