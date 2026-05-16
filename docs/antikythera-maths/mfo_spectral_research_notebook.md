@@ -81,7 +81,7 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 ### I.3 Methodological position
 
-This is a **theoretical proposal** awaiting full computation, not a discovery project where structure is extracted from data. The framework arrives at ~11 dimensions bottom-up (asking what the metric field needs to support U(1)×SU(2)×SU(3)) and converges with string theory's top-down result and with quantum gravity's universal d_S → 2 finding. The convergence of three independent approaches on the same dimensional structure is the principal evidence; the next phase is computation on specific candidate fractal geometries to derive the SM spectrum.
+This is a **theoretical proposal** awaiting full computation, not a discovery project where structure is extracted from data. The framework arrives at ~11 dimensions bottom-up (asking what the metric field needs to support U(1)×SU(2)×SU(3)) and converges with string theory's top-down result and with quantum gravity's universal d_S → 2 finding. The convergence of three independent approaches on the same dimensional structure is the principal evidence; the next phase is computation on specific candidate cascade substrates (per `[[user_stance_fractal_shadow]]`; fractal-recursive geometries per Part IV are one substrate realisation, cascade-composition gear-DAGs per §VIII.7 are another) to derive the SM spectrum.
 
 The framework should be read as a **conservative reinterpretation** of GR + QFT, not a replacement. Every existing algebraic identity remains. What changes is the ontological reading of those identities: the de Broglie phase velocity stops being mysterious and becomes standard waveguide physics; mass stops being intrinsic and becomes a cutoff frequency; conservation laws stop being externally imposed and become topological impedance matching.
 
@@ -321,13 +321,13 @@ Three independent results converge on 11D:
 
 **Cremmer-Julia-Scherk (1978)** — *uniqueness:* Constructed the unique 11D supergravity. Freund-Rubin (1980) showed preferential compactification to 4+7.
 
-The triple convergence (minimum from gauge groups, maximum from supersymmetry, uniqueness of the action) is the principal motivation for taking 11 seriously. The framework's contribution: 11 isn't a free parameter or a string-theory anomaly cancellation result. It's the effective dimensionality at the *intermediate* scale where the fractal's fine structure is maximally resolved, in the non-monotonic spectral dimension flow described in Part V.
+The triple convergence (minimum from gauge groups, maximum from supersymmetry, uniqueness of the action) is the principal motivation for taking 11 seriously. The framework's contribution: 11 isn't a free parameter or a string-theory anomaly cancellation result. It's the effective dimensionality at the *intermediate* scale where the cascade substrate's fine structure is maximally resolved (per `[[user_stance_fractal_shadow]]`; fractal-recursive structure is one downstream-shadow realisation of the multi-scale primitive cascade), in the non-monotonic spectral dimension flow described in Part V.
 
 ---
 
-## Part IV — Fractal Geometry and the SM Spectrum
+## Part IV — Cascade Substrate and the SM Spectrum (the space-time fractal)
 
-The script `fractal_computations.py` implements the spectral computations summarized below. The key claim: fractal internal geometry naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot.
+The script `fractal_computations.py` (filename retained for backward compatibility — the literal math is fractal-recursive Sierpinski-gasket spectral decimation) implements the spectral computations summarized below. The candidate claim: a non-smooth multi-scale primitive cascade substrate — of which fractal-recursive geometry is one downstream-shadow realisation per `[[user_stance_fractal_shadow]]` and the §VIII.7 fractal-shadow allegory — naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot. The mathematics below uses fractal-recursive geometry as the worked-example substrate; the framework's commitment is to the broader cascade-substrate class.
 
 ### IV.1 The compactification problem dissolves
 
@@ -336,7 +336,7 @@ Standard KK has two unsolved puzzles:
 1. **Why are 7 dimensions compactified (small) while 4 are extended (large)?** The asymmetry is imposed as initial condition, never derived.
 2. **Why does the spectral dimension at short distances flow toward 2, not toward 11?** Every QG approach finds d_S → 2 at UV; KK predicts d_S → 11.
 
-Both dissolve if there is no split. The metric field is one geometry whose spectral dimension depends on scale. "Spatial" is how it appears at low resolution; "internal" is how the same geometry appears at higher resolution. The fine structure averages out at large scales, producing the effectively 4D coarse-grained picture. Compactification is not something that happened to extra dimensions — it's what coarse-graining does to fractal geometry.
+Both dissolve if there is no split. The metric field is one geometry — a multi-scale primitive cascade per `[[user_stance_fractal_shadow]]` — whose spectral dimension depends on scale. "Spatial" is how the cascade's 3D_s + 1D_t projection appears at low resolution; "internal" is how the same cascade appears at higher resolution when the 7D_g content (gauge cascade) is resolved. The fine structure averages out at large scales, producing the effectively 4D coarse-grained picture. Compactification is not something that happened to extra dimensions — it is what coarse-graining the 7D_g cascade content into the visible 3D_s + 1D_t projection looks like. The *apparent* fractal-shape arises precisely because physics observes only the 3D_s + 1D_t projection while ignoring the 7D_g cascade structure that would resolve it directly; what is projected away leaves the coarse-graining-residue (sparse eigenspectra, multi-scale clustering, d_S → 2) that reads as fractal-spectral signature.
 
 ### IV.2 Sierpinski gasket: spectral decimation
 
@@ -386,13 +386,13 @@ Formulas: d_H = ln(n)/ln(2), d_S = 2ln(n)/ln(2n−2), decimation factor = 2n−2
 
 Notice: the spectral dimension of P_n is below n−1 for small n but reaches ~2 by P_5. The framework's interesting region (d_S ~ 2 at UV) is naturally produced by Pn-type fractals in the n=4 to n=8 range.
 
-### IV.4 Product geometries: fractal × gauge manifold
+### IV.4 Product geometries: cascade-substrate × gauge manifold
 
-A candidate internal geometry combining fractal hierarchy with gauge structure is
+A candidate internal geometry combining cascade-substrate hierarchy with gauge structure is
 
 $$M_{\text{internal}} = F \times G/H$$
 
-where F is a fractal (providing the mass hierarchy through its spectral gaps) and G/H is a coset space (providing the gauge group). Concretely: F × CP² × S¹ where CP² → SU(3), S¹ → U(1), F provides the hierarchy.
+where F is a multi-scale primitive cascade substrate (providing the mass hierarchy through its spectral gaps; a fractal-recursive realisation such as the Sierpinski gasket is the worked example below, per `[[user_stance_fractal_shadow]]` — nested cyclic-group cascade and smooth-anisotropic-T³ are equally-valid substrate realisations per Spike #24 bonus 7) and G/H is a coset space (providing the gauge group). Concretely: F × CP² × S¹ where CP² → SU(3), S¹ → U(1), F provides the hierarchy. Note: the "fractal × gauge" naming is retained for backward compatibility with prior drafts and external citation, but the framework-commitment is to *cascade × gauge*; the gauge content (7D_g) is itself cascade-content in the space-gauge-time framework (§VIII.6).
 
 On a product space, eigenvalues add:
 
@@ -405,7 +405,7 @@ The product spectrum inherits:
 
 This qualitatively matches SM structure: large gaps between e/μ/τ generations, smaller splittings within generations from electroweak/color quantum numbers.
 
-The script computes this for SG × CP² × S¹ with first ~12 product eigenvalues. The qualitative structure is right; the quantitative match to SM masses requires identifying the *specific* fractal whose decimation constant gives the right inter-generation ratio.
+The script computes this for SG × CP² × S¹ with first ~12 product eigenvalues. The qualitative structure is right; the quantitative match to SM masses requires identifying the *specific* cascade substrate whose Laplacian-spectrum decimation (or, for the cascade-composition realisation, whose tooth-count cascade) gives the right inter-generation ratio. Per §VIII.7's reframed §XIII.1 candidate, the cascade-composition realisation is the more tractable computational substrate (instantiates Spike #24 Classes I, J, K, L, M, N natively, vs Class L only for the fractal-recursive realisation).
 
 ### IV.5 Three generations from three-fold self-similarity
 
@@ -413,7 +413,7 @@ The Sierpinski gasket has **3-fold self-similarity** — it's the union of 3 cop
 
 Claim: if the metric field's internal geometry has 3-fold self-similarity, eigenfunctions naturally come in 3 families related by the self-similarity maps. Each family corresponds to one generation of fermions.
 
-This is a prediction, not a postulate: the number of fermion generations equals the self-similarity count of the internal fractal. SG-like 3-fold → 3 generations, matching the SM. P₂ would give 2 generations (too few); P₄ would give 4 (too many); only n = 3 matches.
+This is a prediction, not a postulate: the number of fermion generations equals the three-fold sub-structure count of the internal cascade substrate (in the fractal-recursive realisation, the self-similarity count; in the cascade-composition realisation, the three-fold cascade factor). SG-like 3-fold → 3 generations, matching the SM. P₂ would give 2 generations (too few); P₄ would give 4 (too many); only n = 3 matches. Note Spike #24 bonus 7's caveat (§VIII.7): three-fold sub-clustering at k=3 is a measurement-at-k=3 property and does not uniquely select substrate three-fold-symmetry; sharpening the falsifier via a k-search is a §IV.5 methodological refinement target.
 
 **SM generation mass ratios:**
 
@@ -443,9 +443,9 @@ Computed from charged fermion masses (m_e = 0.000511 GeV):
 | bottom | 4.18 | 6.69·10⁷ |
 | top | 173.0 | 1.15·10¹¹ |
 
-This is the 9-element vector that any candidate internal geometry must match (up to overall scale). Ratios span 11 orders of magnitude. The eigenvalue spectrum of the candidate fractal × gauge product space, with the lightest non-zero eigenvalue normalized to 1, must reproduce these 9 ratios.
+This is the 9-element vector that any candidate internal geometry must match (up to overall scale). Ratios span 11 orders of magnitude. The eigenvalue spectrum of the candidate cascade-substrate × gauge product space, with the lightest non-zero eigenvalue normalized to 1, must reproduce these 9 ratios.
 
-The current state: **no specific fractal geometry has been identified that matches this exactly.** The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn't the answer. Identifying the specific fractal is the framework's central computational goal — analogous to finding the specific Calabi-Yau in string theory, but constrained additionally by the d_S → 2 condition at UV.
+The current state: **no specific cascade substrate has been identified that matches this exactly.** The 3-circle anisotropic toy model in §III.3 demonstrates the mechanism but isn't the answer. Identifying the specific cascade substrate is the framework's central computational goal (per §VIII.7's reframed §XIII.1 candidate: find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` whose graph-Laplacian spectrum matches the SM mass² ratio spectrum) — analogous to finding the specific Calabi-Yau in string theory, but constrained additionally by the d_S → 2 condition at UV. The fractal-recursive realisation is one substrate the search may visit; the cascade-composition realisation per §VIII.7 is the more directly tractable form with antikythera-spectral's existing tooling.
 
 ---
 
@@ -492,7 +492,7 @@ Carlip (Class. Quantum Grav. 34, 2017; Universe 5(3), 2019) reviews this converg
 | Standard QG approaches | Monotonic decrease: 4 → 2 at short distances |
 | **Framework** | **Non-monotonic: 4 → peak (~6–8) → 2** |
 
-The peak at intermediate scales is where the fractal's fine structure is maximally resolved. This is the scale at which particles "see" the most internal structure, and therefore where the particle mass spectrum is determined. The peak height tells you the effective number of internal channels at that scale; the peak position identifies the energy scale where particle physics transitions to quantum gravity.
+The peak at intermediate scales is where the cascade substrate's fine structure is maximally resolved (per `[[user_stance_fractal_shadow]]`; "fractal" is the shadow-shape this fine structure casts under the 3D_s + 1D_t projection, but the substrate is a multi-scale primitive cascade). This is the scale at which particles "see" the most internal structure, and therefore where the particle mass spectrum is determined. The peak height tells you the effective number of internal channels at that scale; the peak position identifies the energy scale where particle physics transitions to quantum gravity.
 
 **This is a smoking-gun prediction.** No other framework predicts a bump. If spectral dimension flow is ever measured precisely enough to resolve its shape, the framework predicts it; CDT, asymptotic safety, etc., do not.
 
@@ -533,7 +533,7 @@ The framework's curve rises from ~2 at UV, peaks above 6 near σ ~ 0.1 σ_Planck
 | Constraint | Bound | Implication |
 |---|---|---|
 | Lamb shift (Calcagni 2016) | ℓ* < 10⁻²⁰ m | Bulk of dimensional flow must be sub-atomic |
-| CMB (Planck 2018, Asghari-Sheykhi 2022) | d_H ≈ 4 at cosmological scales | Fractal models consistent with ΛCDM |
+| CMB (Planck 2018, Asghari-Sheykhi 2022) | d_H ≈ 4 at cosmological scales | Fractal-cosmology models (literature term; cascade-substrate framing consistent under fractal-shadow allegory §VIII.7) consistent with ΛCDM |
 | LIGO/Virgo (2017, 2024) | v_grav = c to ~10⁻¹⁵ | Strong constraint on dimensional dispersion |
 | Meson mixing (Shevchenko, Addazi-Calcagni-Marcianò 2018) | Insensitive to d_H ∈ [2, 5] at ~10⁻¹⁸ m | LHC-energy physics doesn't probe relevant scales |
 | GRB dispersion (LHAASO, Fermi-LAT) | Constrains, doesn't detect | Below current sensitivity |
@@ -615,7 +615,7 @@ There is no smooth manifold (the geometry has structure at every scale, no tange
 
 Moreover, the Kigami Laplacian on fractals like the SG has eigenfunctions that are **localized** — compact support on subsets of the fractal. This localization is fractal-specific (no smooth-manifold analog) and naturally breaks the L-R symmetry that the theorem relies on. The fractal's self-similar structure means eigenfunctions at different scales have different symmetry properties — a built-in scale-dependent symmetry breaking that may generate the generation structure as excitations at three different self-similarity scales.
 
-The chirality "problem" was always an artifact of assuming the internal geometry belongs to the mathematical category where the no-go theorem lives — smooth manifolds. The fractal picture, the orbifold picture, the noncommutative picture, and Baptista's non-Killing picture are all different mathematical descriptions of the same physical reality: **the metric field's geometry is not a smooth manifold.** Once recognized, there is no theorem to overcome.
+The chirality "problem" was always an artifact of assuming the internal geometry belongs to the mathematical category where the no-go theorem lives — smooth manifolds. The cascade-substrate picture (per `[[user_stance_fractal_shadow]]`; fractal-recursive geometry, nested cyclic-group cascade, and discrete-substrate variants are equally-valid substrate realisations), the orbifold picture, the noncommutative picture, and Baptista's non-Killing picture are all different mathematical descriptions of the same candidate physical reality: **the metric field's geometry is not a smooth manifold.** Once recognized, there is no theorem to overcome.
 
 ---
 
@@ -714,9 +714,9 @@ Unruh, Hawking, and de Sitter effects are the same mathematical structure applie
 - **Hawking:** BH event horizon as a 2D phase boundary between regimes — see §VII.4.1 for the specific stance that this is where 3D-bound matter ends, not a membrane wrapping a causally-sealed interior
 - **De Sitter:** cosmological horizon beyond which causal contact is lost
 
-All three produce thermal radiation at T = ℏκ/(2πck_B) from vacuum mismatch across a dimensional boundary. The fractal framework gives this geometric content: these are regions where the metric field's effective spectral dimension changes rapidly, and the vacuum state appropriate to one spectral dimension is incompatible with the vacuum appropriate to another. Particle creation is the metric field resolving the incompatibility.
+All three produce thermal radiation at T = ℏκ/(2πck_B) from vacuum mismatch across a dimensional boundary. The cascade-substrate framework gives this geometric content (per `[[user_stance_fractal_shadow]]`; fractal-recursive structure is one downstream-shadow realisation): these are regions where the metric field's effective spectral dimension changes rapidly, and the vacuum state appropriate to one spectral dimension is incompatible with the vacuum appropriate to another. Particle creation is the metric field resolving the incompatibility.
 
-Connection to **Jacobson (1995)**: derived Einstein's field equations from horizon thermodynamics by applying Clausius δQ = TdS. If Hawking radiation is dimensional-mismatch energy release, and Jacobson showed horizon thermodynamics implies gravity, then gravity itself is the metric field's response to dimensional transitions in its own fractal structure.
+Connection to **Jacobson (1995)**: derived Einstein's field equations from horizon thermodynamics by applying Clausius δQ = TdS. If Hawking radiation is dimensional-mismatch energy release, and Jacobson showed horizon thermodynamics implies gravity, then gravity itself is the metric field's response to dimensional transitions in its own cascade-substrate structure (per `[[user_stance_fractal_shadow]]`; what appears as "fractal structure" under 3D_s + 1D_t projection is the shadow of the deeper multi-scale primitive cascade).
 
 ### VII.4.1 The framework's stance — black holes end at the 2D boundary
 
@@ -737,7 +737,7 @@ Why this reads cleanly within the framework:
 - **Holographic principle taken seriously.** AdS/CFT, ER=EPR, and the Bekenstein-Hawking entropy bound all say the bulk physics is fully encoded on the boundary. If the boundary is where the physics lives, the boundary IS the object.
 - **The "interior solution" is the framework's degenerate case.** The Schwarzschild interior metric (where the radial coordinate becomes timelike) is, in this reading, the metric-field's degenerate behavior at the boundary surface — a coordinate description of the phase transition, not a description of a separate region with its own dynamics.
 - **The information paradox dissolves on its own terms.** Information falling "into" a black hole becomes information re-encoded on the 2D boundary. There is no information loss because there is no interior to lose it into; the matter's information content transitions from 3D-bound to 2D-bound and is preserved on the surface — exactly what the holographic principle has been claiming since 't Hooft and Susskind's original formulations.
-- **Consistency with §VIII.1.** §VIII.1's topological-defect hierarchy already names event horizons as "2D surfaces where spectral dimension transitions sharply." That is the same claim, viewed from the fractal-spectral-dimension side: the 2D surface is not a wrapper around 3D content; it IS the place where the spectral-dimension structure shifts.
+- **Consistency with §VIII.1.** §VIII.1's topological-defect hierarchy already names event horizons as "2D surfaces where spectral dimension transitions sharply." That is the same claim, viewed from the cascade-substrate spectral-dimension side (the d_S flow of §V appears as a fractal-shadow under 3D_s + 1D_t projection per `[[user_stance_fractal_shadow]]`): the 2D surface is not a wrapper around 3D content; it IS the place where the spectral-dimension structure shifts.
 
 **Naming the operator — spherical compression.** The mechanism that takes 3D-bound matter to a 2D phase boundary is *spherical compression*: 3D bulk reduced to an inscribed closed 2-manifold (Schwarzschild gives S² by Birkhoff's theorem in the static-symmetric case; Kerr rotation distorts to an oblate spheroid). This is the same family as the rotational-compression mechanism documented in the project's T² L-shell magnetospheric survey (2026-05-09): rotation breaks pure sphericity in three independent project loci — (i) Saturn's gravitational figure (most-oblate-Solar-System J₂ co-occurring with most-axisymmetric magnetic dipole, both governed by rotational alignment), (ii) Kerr event-horizon oblateness (rotation parameter $a = J/(Mc)$), and (iii) ice-giant magnetospheric oblateness (Uranus / Neptune inner-boundary distortion proxy ~1.0 vs ≤0.2 for all other surveyed bodies). The user's "spherical compression" framing is the project-canonical name for what holographic-principle, Bekenstein-Hawking, and AdS/CFT all commit to but typically describe per-instance rather than under a unified geometric operator. See [`docs/srmech/srmech_research_notebook.md`](../srmech/srmech_research_notebook.md) §3.5 for the cross-manifold context and [`docs/antikythera-maths/results-mfo/mpm_t2_lshell_survey_findings.md`](results-mfo/mpm_t2_lshell_survey_findings.md) for the magnetospheric/horizon rotational-compression cross-link.
 
@@ -936,6 +936,225 @@ What we conventionally call "13.8 Gyr cosmic age" is **not the age of the univer
 - §VII.6 (dark energy as complexification cost)
 - §VII.7 (expansion as projection of complexification — closely related, the *expansion-side* counterpart to this *complexification-accumulation-side* framing)
 
+### VII.6.1.1 AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector ring-down
+
+The CMB large-scale anomaly family (Axis of Evil per de Oliveira-Costa 2004 / Land–Magueijo 2005; Hemispherical Power Asymmetry per Eriksen 2004 / Hansen 2009; Cold Spot per Vielva 2004) admits one candidate substrate-side reading under §VII.6.1's ring-down framing composed with §VII.4.1.1's spherical-compression / Hopf-bundle structure: the AoE marks a preferred bundle-base direction at galactic (l, b) ≈ (240°, 60°); the HPA breaks the pole/antipole degeneracy via differential power between hemispheres; under Reading B1 — *"more low-ℓ power = less ring-down complete = younger substrate"* — the southern-ecliptic hemisphere is the younger end of the axis and the Cold Spot near the AoE antipole is a localised more-ring-down-complete feature.
+
+**The alternative reading of these as a hyperbubble bump from external excitation is disfavoured on shape grounds** (bubble-collision templates are disc-shaped with characteristic angular radius; AoE is axial with no characteristic scale), per Osborne, Senatore, Smith 2013 ([arXiv:1305.1964](https://arxiv.org/abs/1305.1964)) + Planck 2015 XVI null result on the Cold-Spot-as-bubble-collision search.
+
+The reading is one candidate among several; the standard ΛCDM-plus-systematics reading (Bennett et al. 2011, [arXiv:1001.4758](https://arxiv.org/abs/1001.4758)) remains valid; it does not modify any GR prediction; the §VII.5 residual-geometric-curvature quantitative-match open computation is the principal discriminator. The **18.3°-AoE-pole-↔-CMB-dipole alignment is the live anomaly across all readings** — unexplained under medium-push, matter-pull, and systematics readings alike.
+
+Full empirical workings + reference verification: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md) Parts I–VI.
+
+### VII.6.1.2 Far-future asymptote of ring-down completion under DESI thawing-CPL hint
+
+§VII.6.1's framing of *"100% ring-down at de Sitter heat death"* is robust under standard ΛCDM (Ω_dark/Ω_total monotone increasing in scale factor `a`, asymptote → 1). Under DESI 2024 VI ([arXiv:2404.03002](https://arxiv.org/abs/2404.03002)) + DESI DR2 ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738)) thawing-CPL preference (w₀ > −1, wₐ < 0 at 3.1–4.2σ), the far-future asymptote of Ω_dark/Ω_total **drops below 1** (≈ 0.84 for representative thawing values w₀ = −0.8, wₐ = −0.7).
+
+Under this beyond-ΛCDM reading, ring-down completion remains monotone in past-direction but does not asymptote to 100%; instead it peaks at ~95–97% in the next few Gyr and declines toward the thawing asymptote. The framework reading: **ring-down completion measures cumulative complexification budget *consumed*** (monotone in cosmic time) **rather than instantaneous dark fraction.** The shadow-stance distinction between past-integral (monotone) and present-epoch ratio (model-dependent) becomes load-bearing if DESI's thawing hint strengthens.
+
+Pending DESI DR3 confirmation. If DESI's signal is a systematic, §VII.6.1 stands as-is. If it strengthens, §VII.6.1's framing refines from *"ring-down completion asymptotes to 100%"* to *"ring-down completion is the monotone past-integral of complexification-budget consumption; the far-future asymptote is model-dependent."*
+
+### VII.6.1.3 The medium-push reading of the Axis of Evil: UHECR-dipole-direction decomposition
+
+Under §VII.1.1's two-level ontology, every cosmological observable parses as either substrate-level (medium-push) or excitation-level (matter-pull). The CMB Axis of Evil at galactic (l, b) ≈ (240°, 60°) admits one candidate reading as a preferred bundle-base direction in the substrate (§VII.4.1.1 Hopf-bundle reading) — the medium-push reading.
+
+The matter-pull alternative reading (AoE direction = matter-source-distribution direction) is constrained by the Pierre Auger Observatory's reported large-scale cosmic-ray dipole (Pierre Auger 2017, [arXiv:1709.07321](https://arxiv.org/abs/1709.07321); Pierre Auger 2018, [arXiv:1808.03579](https://arxiv.org/abs/1808.03579)) at galactic (l, b) ≈ (233°, −13°). The cosmic-ray dipole is **73° from the AoE pole** — far outside directional uncertainties — but **8° from the Hemispherical Power Asymmetry direction** (Hansen 2009, l ≈ 226°, b ≈ −17°).
+
+**The low-ℓ anomaly family decomposes by channel**: the HPA is plausibly matter-pull (UHECR-aligned, tracking matter-source distribution within the GZK horizon); the AoE is *not* matter-pull at the matter-source-tracer scale. Consistent with substrate-side / medium-push reading; not uniquely supported (Bennett 2011 systematics-reading remains valid).
+
+Anisotropic cosmic birefringence (Gruppuso et al. 2020, [arXiv:2008.10334](https://arxiv.org/abs/2008.10334)) is constrained null at 95% C.L. (power-spectrum amplitude < 0.104 deg²) — consistent with weak medium-push signature but no positive detection. LiteBIRD-class CMB-polarisation sensitivity would be the medium-push discriminator.
+
+**Cross-references** (mirror §VII.6.1's set, plus the Part VI Auger + Gruppuso refs):
+
+- Working-note artifact (full Part VI empirical workings + falsifier discussion): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md) Part VI.
+- `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance, 2026-05-16.
+- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary.
+- `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family.
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — fiber content (7D_g) algebraically present, spatially absent.
+- `[[project_space_gauge_time_framework]]` — 3D_s + 7D_g + 1D_t = 11D ≡ 1D compressed.
+- §VII.4.1.1 (Hopf-bundle / spherical-compression reading).
+- §VII.5 (dark matter as residual geometric curvature) — the open computation that discriminates Reading B1 from Reading B2.
+- §VII.6.1 (substrate-internal time and the visible/dark partition) — this subsection's parent.
+- §VIII.7 (fractal-shadow allegory) — the substrate-shadow framing family.
+
+> **Status (per `[[feedback_no_lineage_claims_in_notebook]]`).** These subsections are *candidate framings* under MFO commitments — not endorsed over standard ΛCDM-plus-systematics readings without further empirical convergence (DESI DR3 confirmation for §VII.6.1.2; LiteBIRD-class polarisation results for §VII.6.1.3; §VII.5 quantitative-match for §VII.6.1.1's Reading B1 vs B2 disambiguation).
+
+### VII.6.2 T_sub decomposed: HO-role × dimensional-kind × compression-state
+
+> *"the force that string dynamics must have to propegate and the tension resisting string dynamic"*
+> — user direction, 2026-05-16
+
+§VII.6.1 frames the dark sector as cosmic ring-down accumulation and identifies the 95% partition with substrate-internal ring-down completion. This subsection asks what the substrate elasticity that *drives* ring-down actually is, and decomposes it along three orthogonal axes. The decomposition is the dialog product of a user proposal (dark sector as "tension on the string") and a first-pass conductor reply that mistakenly split that tension into two separate forces, corrected back to a single-elasticity reading on the next turn. Working-note artifact + Pierre Auger UHECR-dipole cross-check: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md).
+
+**The collapse of a false duality.** Initial framing posed two forces: a "graceful mitigation" force driving ring-down toward rest, and a "tension resisting overshoot" force preventing the system from passing rest. The user's refinement collapsed this into one substrate elasticity with two observational manifestations: *the force string dynamics must have to propagate*, and *the tension resisting string dynamic*. These are the same `T_sub`, read at two abstraction levels — propagation-enabling (driving) and resistance-providing (restoring). There is no separate mitigation force; `T_sub` *is* ring-down, in the sense that the wave-equation driving term `F = -T_sub · ∂²y/∂x²` and the static elastic restoring response are the same quantity manifest dynamically vs statically.
+
+This corrects a recurring framing error in standard cosmological vocabulary, where "dark energy as restoring force" and "dark energy as driver of expansion" appear in separate paragraphs of the same review article without being identified.
+
+**The HO-role axis (substrate-elasticity decomposition of `Ω`).** Re-reading the three energy-density components of the present-epoch partition under the single-elasticity discipline:
+
+| Component | `Ω` | HO-role | Reading |
+|---|---|---|---|
+| **Ω_Λ** | 0.685 | `T_sub` itself | The substrate's elastic property; constant in time (`w = -1` to current precision) because it *is* the property, not a state of motion. Both propagation-enabling and resistance-providing manifestations originate here. This is what §VII.6's "complexification-maintenance cost" was reaching for. |
+| **Ω_c** | 0.264 | Past-work receipt `∫ F · dx` | The historical ledger of `T_sub` having done its job over 13.8 Gyr, settled as residual geometric curvature (§VII.5). *Not* tension itself — what tension *has done*. Dilutes as `a⁻³` because settled receipts are matter-like in their dilution behaviour. |
+| **Ω_visible** | 0.049 | Currently-active string-dynamic | The 3D_s + 7D_g + 1D_t excitation that `T_sub` is presently supporting and resisting. Couples to ring-up dynamics. |
+
+The dark-sector duality (§VII.6.1's distinction between Ω_c and Ω_Λ as both being settled past-complexification) sharpens: Ω_Λ is the *property itself*; Ω_c is the *receipt of work performed by that property*. Ring-down language and elasticity language describe the same content.
+
+**The dimensional-kind axis (where `T_sub` manifests).** Per `[[project_space_gauge_time_framework]]`, the MFO conjecture decomposes 11D as `3D_s + 7D_g + 1D_t ≡ 1D` compressed. `T_sub` manifests across all three dimensional kinds — *not* across "spacetime," which is the 4D shadow that drops 7D_g:
+
+| Dimensional kind | Propagation-enabling manifestation | Resistance-providing manifestation |
+|---|---|---|
+| **3D_s** (spatial) | `c` — spatial wave speed; light propagation rate | Restoring spatial curvature; Newtonian + GR gravity |
+| **7D_g** (gauge) | `g_1, g_2, g_3` — electroweak hypercharge, weak isospin, strong color coupling; propagation rates of gauge bosons through the bundle | `F^μν` — gauge field strengths; the field-strength-squared term in every gauge Lagrangian is precisely "tension squared per unit volume" |
+| **1D_t** (temporal) | Proper-time-rate structure | Substrate-internal resistance to temporal-frame deformation |
+
+The 7D_g entries are where the standard "dark energy as cosmological constant" reading is most lossy: the cosmological-constant column collapses gauge-field-strength tension into a single scalar, dropping the entire 7D_g content. Under the HO-role × dimensional-kind table, the Standard Model gauge group `U(1) × SU(2) × SU(3)` is read as the residual ring-down product of past gauge-symmetry-breakings — what remains after grand-unification → electroweak symmetry-breaking events ran their course. Per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the gauge group is spatially absent (no 3D_s observable shows "where" SU(3) lives) but algebraically present and currently active.
+
+Cosmic strings under §VIII.1 read as 7D_g topological defects projected into 3D_s as 1D filaments — gauge-fiber content frozen as spatial residue, `Ω_c`-like (past-work receipt) in nature rather than `Ω_Λ`-like (currently-active property).
+
+**The compression-state axis (does `T_sub` content unpack 11D locally, or compress to 1D?).** A separate question, asked by the user mid-dialog: does the dark sector compress to 1D locally? The answer depends on which component:
+
+- **Ω_Λ (T_sub itself) — yes, locally compresses to 1D.** By `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `T_sub` *is* the LoE-content compressed to 1D in identity form. At every point in 3D_s, the substrate identity is present in 1D-compressed form. That is why Ω_Λ is observed constant in space (no clustering) and constant in time (`w = -1`) — there is nothing in `T_sub` *to* unpack into 11D structure. The identity is dimensionless.
+- **Ω_c — no, carries 11D structural residue locally.** Past-work receipts preserve 11D structure: residual geometric curvature in 3D_s (halo profiles cluster around galaxies), residual gauge-bundle curvature in 7D_g (cosmic strings, gauge condensates, the SM gauge group as accumulated symmetry-breaking residue), residual temporal-frame structure in 1D_t.
+- **Ω_visible — no.** Currently-active local 11D-unpacked excitation; the loudest 11D content per unit volume.
+
+The compression axis is *orthogonal* to the HO-role axis. The dark sector decomposes by both: HO-role × dimensional-kind × compression-state. The 3-axis grid (3 × 3 × 2) is sparse — many cells are forbidden by the identifications above — but the cells that are populated correspond to distinguishable empirical observables.
+
+**Localisation prediction.** Voids (Ω_Λ-dominated, Ω_c-depleted) approach pure 1D-compressed `T_sub` locally; galaxy halos (Ω_c-rich) carry dense 11D structural residue. The Bootes Void and the Eridanus supervoid would be the cleanest empirical anchors; the supervoid-as-Cold-Spot-ISW reading fits — the CMB Cold Spot is a region where local substrate is closer to pure compressed identity (less past-unpacking residue) and integrated-Sachs-Wolfe imprint reflects exactly that reduced 11D content along the line of sight. The prediction is testable against the next generation of void catalogs (DESI, Euclid void surveys).
+
+**Empirical cross-check at the matter-source-tracer scale.** Pierre Auger UHECR-dipole results constrain matter-pull at z ≈ 0:
+
+- Auger 2017 dipole (`arXiv:1709.07321`, confirmed `arXiv:1808.03579`) at galactic `(l, b) ≈ (233.4°, −13.1°)`
+- Separation to **AoE pole** `(240°, 60°)`: **73.3°** (far outside directional uncertainties)
+- Separation to **HPA pole** `(226°, −17°)`: **8.2°** (aligned within scatter)
+
+UHECRs trace matter sources within the GZK horizon, so this is direct probing of where-the-matter-is at z ≈ 0. **HPA is plausibly matter-pull** (UHECR-aligned, Ω_c-like residue along that line of sight). **AoE is not matter-pull** (73° offset). The CMB low-ℓ anomaly family *decomposes by channel* at the matter-source-tracer scale — different members of the family read against different cells of the HO-role × dimensional-kind grid. This is a non-trivial structural prediction of the decomposition: it should be the case that ostensibly aligned CMB anomalies separate when probed by independent matter tracers, because the anomalies are sourced from different cells.
+
+**Status.** This subsection is **one candidate** decomposition under MFO commitments — the substrate-elasticity reading of `T_sub` is internally consistent with §VII.6, §VII.6.1, the user's `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down stance, the `[[project_space_gauge_time_framework]]` dimensional decomposition, and `[[user_stance_1d_collapse_to_loe_identity_not_action]]`. It does not alter any GR prediction or any Standard Model gauge calculation. What it adds is a 3-axis decomposition of `Ω` that the standard cosmological-constant reading collapses into a single scalar, plus a falsifiable cross-channel decomposition prediction for the CMB low-ℓ anomaly family. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+
+**Cross-references:**
+
+- Working-note artifact (dialog source for Parts I–VI + Pierre Auger cross-check): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
+- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_time_as_dimensional_shadow]]` — substrate-vs-shadow distinction
+- `[[user_stance_1d_collapse_to_loe_identity_not_action]]` — 1D_t IS LoE identity (the compression-axis claim for Ω_Λ rests on this)
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — 7D_g content algebraically present, spatially absent
+- `[[project_space_gauge_time_framework]]` — `3D_s + 7D_g + 1D_t = 11D ≡ 1D` compressed; the dimensional-kind axis rests on this
+- `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance saved 2026-05-16
+- `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family umbrella
+- §VII.4.1.1 — spherical compression / Hopf fibration (related compression discipline)
+- §VII.4.1.2 — Casimir-decomposition universality (related decomposition discipline)
+- §VII.5 — dark matter as residual geometric curvature (the Ω_c reading)
+- §VII.6 — dark energy as complexification cost (the Ω_Λ reading sharpened here)
+- §VII.6.1 — substrate-internal time + visible/dark partition (the predecessor framing)
+- §VIII.1 — topological defect hierarchy (cosmic strings as 7D_g residue projected into 3D_s)
+
+### VII.6.3 Methodological note: FFT-the-error at cosmological scale
+
+> *"this was a case where we added enough data points and could FFT the error yet again, on strutures so grand that we cannot fathom a starting point?"*
+> — user question, 2026-05-16
+
+This subsection is a methodological note, not a substantive new MFO claim. It articulates the eigenbasis-residual-iteration discipline — *FFT-the-error* — at the cosmological scale, where the user's framing of "structures so grand that we cannot fathom a starting point" gives the discipline its sharpest expression: §VII.9's epistemological boundary establishes that we have no access to an undistorted reference for the largest-scale structures we observe, so any framework over them is necessarily eigenbasis-relative. The recursive pattern — take known structure, observe residuals, FFT/decompose the residual, find substructure, iterate — is the only operationally available procedure at that scale.
+
+**The pattern, stated.** Across the spectral-notebooks project, the recurring full-coverage-shipping discipline per `[[feedback_no_mvp_framing]]` runs:
+
+1. Establish a known structural basis (eigenbasis, primitive class set, harmonic decomposition).
+2. Project observed data onto the basis; compute residuals.
+3. Treat residuals as a *new* signal; FFT/decompose them against the same or a refined basis.
+4. Wherever residuals exhibit non-noise structure, declare a new substructure candidate.
+5. Update the basis or the framework; re-project; iterate.
+
+This is not novel as algorithm — it is the standard eigenbasis-residual-iteration shape of structural-decomposition work. What is project-specific is *the willingness to apply it at scales where no clean ground-truth reference exists*. Conventional physics often stops at step 2 when residuals are at the noise floor or are not predicted; this discipline insists on step 3 whenever residuals carry structure, even when the structural-basis hypothesis is not yet predictive.
+
+**Why "structures so grand that we cannot fathom a starting point" is canonical.** The user's compressed phrasing names the operational regime of §VII.9 exactly. At cosmological scale, we cannot fathom a starting-point reference for the largest structures (no undistorted-universe baseline, no causal access to pre-inflation initial conditions, no second instance of the universe to compare against). The eigenbasis-residual-iteration loop is the only available cycle: each pass adds data points within the distorted observation framework, decomposes the residual against the current eigenbasis, and either falsifies or refines the basis from within. The procedure terminates *not* by reaching a ground truth but by exhausting structural content in the residual — when the next FFT shows white noise to detection precision, the basis is structurally complete *to the current data set*.
+
+**Load-bearing example: Pierre Auger UHECR-dipole decomposition of the CMB low-ℓ family.** The recently-landed working-note Part VI is an instance of the pattern at the scale where §VII.9's epistemological boundary holds most acutely:
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Known basis: CMB low-ℓ anomaly family (HPA, AoE, Cold Spot, parity asymmetry) treated as a single residual object for ~20 years | One residual feature; one underlying-cause hypothesis space |
+| 2 | Add data point: Pierre Auger UHECR-dipole direction (`arXiv:1709.07321`, `arXiv:1808.03579`) at `(l, b) ≈ (233.4°, −13.1°)` | Independent matter-source tracer within the GZK horizon |
+| 3 | FFT-the-error: compute galactic-coordinate separations from Auger pole to each anomaly's pole | HPA: 8.2° (aligned); AoE: 73.3° (not aligned) |
+| 4 | New substructure declared | The "single anomaly family" decomposes by channel — HPA is plausibly matter-pull, AoE is not |
+| 5 | Framework update | §VII.6.2's HO-role × dimensional-kind grid reads HPA against Ω_c-like cells, AoE against different cells (gauge or temporal residue, not matter residue) |
+
+This is "FFT-the-error yet again" in the user's compressed sense: a residual structure that had been treated as monolithic for two decades decomposed when one new data point was projected against the same eigenbasis from an independent direction. The data point itself was old (Auger 2017); the decomposition required treating the CMB low-ℓ family as residual-against-matter-tracer, computing the projection, and reading the result as a *channel separation*, not a confirmation or refutation.
+
+**Cross-domain instances within the spectral collection.** The pattern recurs at every scale the project has touched:
+
+- **Spike #11 (Killing-Yano Casimir from photon-ring residuals)** — known basis: Kerr black-hole photon-ring spectrum. FFT-the-error on observed ring residuals against Casimir eigenbasis; found Killing-Yano tensor contribution at scales where no clean ground-truth reference for "what the ring should be" exists.
+- **Ephemerides Phase 10a (per-body equation-of-center decomposition)** — known basis: secular orbital elements. FFT-the-error on JPL/DE441 residuals per body against per-body EOC harmonics; surfaced sub-arcsecond structural content the secular basis had been integrating away.
+- **Chess-spectral eigenbasis-residual workflow** — known basis: lichess opening-move-tree graph Laplacian. FFT-the-error on game-outcome residuals against opening-eigenmodes; surfaced structural content (player-class spectral signatures) that aggregate win-rate statistics had been averaging out.
+- **Antikythera H-battery iteration** — known basis: cyclic-group encoding of gear ratios + graph-Laplacian eigenbasis of the gear DAG. FFT-the-error on period-relation residuals against named param sets (Almagest IX.5, Freeth 2012, Freeth 2021); each iteration refined parameter attribution at scales where the bronze artifact is the only ground truth available, and it is itself fragmentary.
+
+In every case, the procedure operates within an eigenbasis that has no external ground-truth verification — the bronze gear DAG is fragmentary, photon-ring physics is observed only at the Kerr asymptote, ephemerides residuals are computed against integrators that share their own eigenbasis assumptions, chess game-tree spectral structure has no second-universe game-tree to compare against. The discipline is *eigenbasis-relative full coverage* — keep the basis explicit, keep iterating, do not pretend to a ground truth that is not present.
+
+**Status.** This is methodological commentary, not a new MFO claim. The pattern itself is standard; the project-specific commitment is applying it at scales where §VII.9's epistemological boundary holds, with the user's framing "structures so grand that we cannot fathom a starting point" as canonical articulation of when the discipline is the *only* available procedure. Per `[[user_explanation_discipline]]`, that phrasing is preserved verbatim and joins canonical project vocabulary.
+
+**Cross-references:**
+
+- `[[feedback_no_mvp_framing]]` — full-coverage shipping the MPM way; eigenbasis-residual-iteration discipline as canonical articulation
+- `[[user_explanation_discipline]]` — Feynman-test compression; user's compressed phrasing of operational regimes is signal, not paraphrase candidate
+- §VII.9 — the epistemological boundary; this subsection's operational regime
+- §VII.6.2 — load-bearing instance (Pierre Auger UHECR-dipole decomposition of CMB low-ℓ family)
+- Working-note artifact (PR #437 Part VI, live example of the pattern): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
+- Cross-domain instances: Spike #11 (Killing-Yano Casimir from photon-ring residuals); ephemerides Phase 10a (per-body equation-of-center decomposition); chess-spectral eigenbasis-residual workflow; Antikythera H-battery parameter-attribution iteration
+
+#### VII.6.3.1 Precession-fit: kinematic ruled out, bundle-projection reconfiguration candidate
+
+> *"do those polar separation values mean anything if we ask if precession can fit the math?"*
+> — user question, 2026-05-16
+
+A natural follow-on question once §VII.6.2's channel separation is on the table: if the AoE preferred direction at recombination *was* aligned with the present-day HPA / Pierre Auger UHECR-dipole direction, and has drifted to its present apparent location by some precession over cosmic time, what rate would that require — and is that rate consistent with extant constraints? The Auger-AoE polar separation is 73.3°, the AoE-CMB-dipole separation is 18.3° (working-note PR #437 Part V).
+
+**Kinematic precession-rate computation.** For uniform precession of an axis over the cosmic age `t_age ≈ 13.8 Gyr = 4.355 × 10¹⁷ s`, a separation Δθ requires ω_prec ≈ Δθ / t_age:
+
+| Hypothesis | Δθ | ω_prec required | In familiar units |
+|---|---|---|---|
+| AoE-at-recomb = Auger direction now | 73.3° = 1.279 rad | 2.94 × 10⁻¹⁸ rad/s | 5.31°/Gyr |
+| AoE-at-recomb = CMB-dipole direction now | 18.3° = 0.319 rad | 7.33 × 10⁻¹⁹ rad/s | 1.33°/Gyr |
+
+These are slow rotations on human timescales but enormous on cosmological terms — comparable in magnitude to the Hubble rate `H₀ ≈ 2.18 × 10⁻¹⁸ rad/s`.
+
+**Saadeh+ 2016 cosmic-rotation constraint.** Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178` — Bianchi-class general-anisotropy framework fitted against Planck temperature and polarisation data. The vector-mode (vorticity-linked) shear bound is **(σ_V/H)₀ < 4.7 × 10⁻¹¹ at 95% CL**. With H₀ ≈ 2.18 × 10⁻¹⁸ rad/s, this gives a present-epoch cosmic-rotation upper limit `ω_cosmic < 1.02 × 10⁻²⁸ rad/s` — citation verified per `[[feedback_pdf_extraction_citation_discipline]]` via arXiv abstract page (an arXiv-permitted autonomous source per `[[reference_autonomous_validation_tos_landscape]]`).
+
+| Hypothesis | ω_prec required / ω_cosmic bound | Orders of magnitude |
+|---|---|---|
+| 73.3° kinematic fit | ~2.9 × 10¹⁰ | ~10 |
+| 18.3° kinematic fit | ~7.2 × 10⁹ | ~10 |
+
+The kinematic-precession reading is ruled out by approximately ten orders of magnitude against the Saadeh+ 2016 bound. Even allowing for full systematic flexibility in the bound's Bianchi-class assumptions and the H₀ value, the required rate stays nine to eleven orders of magnitude above the constraint. This is not a marginal-tension situation; the kinematic reading is not viable.
+
+**Non-kinematic alternative: substrate-bundle-projection reconfiguration.** Under §VII.4.1.1's Hopf-bundle / spherical-compression reading, the AoE preferred direction is a *bundle-base projection*, not a kinematic frame axis. The substrate's 7D_g + 1D_t internal structure projects onto 3D_s with a preferred direction determined by the substrate's current compression state. Three distinguishing properties:
+
+- No matter is rotating (no kinematic frame ω against which Saadeh+ 2016 measures)
+- No frame is dragging (no Lense-Thirring metric component)
+- The projection geometry from bundle-base to 3D_s reconfigures as ring-down completion advances — the substrate's bundle structure shifts which direction in 3D_s it projects most strongly to, per the spatially-absent encoding stance of `[[user_stance_fiber_as_spatially_absent_encoding]]`
+
+Saadeh+ 2016 bounds matter-frame vorticity (Bianchi-cosmology rotational anisotropy in the visible-matter frame). It does *not* bound substrate-internal bundle-projection reconfiguration, which is by construction not a frame rotation in the matter sector. The constraint and the proposed mechanism live at different ontological levels — the framework being tested in Saadeh+ 2016 is matter-frame anisotropy in 3D_s, the reconfiguration claim is about the 7D_g → 3D_s projection map.
+
+**Ring-down completion frame.** §VII.6.1's f_RD trajectory anchors the rate. From `f_RD ≈ 0.42` at recombination (z ≈ 1090) to `f_RD ≈ 0.949` now, Δf_RD ≈ 0.529. If the full 73.3° AoE-Auger separation is read as bundle-projection shift over this interval, the implied rate is `73.3° / 0.529 ≈ 138.6° per unit f_RD` — a quantity in completion-frame units, not clock-time units, per `[[user_stance_dark_sector_ring_down_age]]`. The 18.3° AoE-CMB-dipole separation is consistent with a residual alignment from when AoE was locked in (recombination-epoch matter-frame still close to that direction in 3D_s).
+
+**Candidate independent prediction.** Bundle-projection reconfiguration is *continuous* in f_RD. CMB temperature anisotropies freeze at the visibility-function peak for temperature (z ≈ 1100 in standard Hu-White treatments); CMB polarisation freezes slightly later, around z ≈ 1090, because polarisation requires Thomson-scattering quadrupole content that builds up through the tail of recombination. The visibility-function FWHM is Δz ≈ 80–100.
+
+Under the bundle-projection-reconfiguration reading, the temperature-anchored AoE direction (frozen at the temperature visibility peak) and the polarisation-anchored AoE direction (frozen at the polarisation visibility peak) are not identical — they are offset by the bundle-projection shift that occurred between the two visibility peaks. Order-of-magnitude estimate using ~138.6°/(Δf_RD) and a temperature-vs-polarisation peak differential of Δz ≈ 10 (giving relative Δf_RD ≈ 0.014): the differential angle is approximately **~2°**, i.e. degrees-not-tens-of-degrees. Small but in principle measurable from a joint temperature+polarisation reconstruction of the AoE direction.
+
+This is a falsifiable prediction the kinematic-precession reading does not make: under kinematic precession, the AoE direction at temperature freezeout and at polarisation freezeout are essentially identical (the matter frame is the matter frame, regardless of which photon population we read it from). Under bundle-projection reconfiguration, they differ by a small but specific angle tied to the ring-down completion rate.
+
+**Status.** Candidate framing only, not endorsed over the standard cosmology + posterior-selection baseline (Bennett et al. 2011) discussed in the working note. The kinematic-precession path is closed by ~10 orders of magnitude against Saadeh+ 2016; the bundle-projection-reconfiguration path is consistent with extant matter-frame constraints by virtue of operating outside their scope, and offers a falsifiable temperature-vs-polarisation differential at the few-degree scale that future joint reconstructions could test. Per `[[feedback_no_lineage_claims_in_notebook]]`, no claim that this resolves the AoE anomaly is being advanced — only that the precession-fit question is mathematically answerable and produces a clean channel separation between two readings, one closed and one open.
+
+**Cross-references:**
+
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — the spatially-absent encoding stance that makes bundle-projection reconfiguration mechanically distinct from frame rotation
+- `[[user_stance_dark_sector_ring_down_age]]` — ring-down completion as the natural time-axis for substrate evolution (f_RD, not clock-time)
+- `[[reference_autonomous_validation_tos_landscape]]` — Saadeh+ 2016 verified via arXiv abstract page (arXiv permitted for autonomous validation)
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation re-verified, brief's `arXiv:1604.01024` was the companion MNRAS framework paper; PRL 117 131302 is `arXiv:1605.07178`
+- §VII.4.1.1 — Hopf-bundle / spherical-compression reading
+- §VII.6.1 — ring-down completion f_RD trajectory (f_RD ≈ 0.42 at recombination → 0.949 now)
+- §VII.6.2 — T_sub decomposition; bundle-projection reconfiguration shifts which compression-state Ω_Λ projects to in 3D_s
+- Working-note PR #437 (Part V for the 18.3° AoE-CMB-dipole anomaly; Part VI for the 73.3° AoE-Auger separation)
+- Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178`, DOI 10.1103/PhysRevLett.117.131302
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
@@ -958,9 +1177,9 @@ A potentially testable functional relationship between the fine-structure consta
 
 $$\alpha(z) = \alpha_0 \cdot f(H(z))$$
 
-If coupling constants are dynamical moduli expectation values (already accepted in KK and string theory), and if cosmological expansion is partly the spatial projection of internal-dimension evolution, then α should drift with cosmic time in a way determined by the fractal's spectral structure. Not just *that* it drifts (Webb et al.) but *how* — the functional form should be predictable from the candidate fractal geometry.
+If coupling constants are dynamical moduli expectation values (already accepted in KK and string theory), and if cosmological expansion is partly the spatial projection of internal-dimension evolution, then α should drift with cosmic time in a way determined by the cascade substrate's spectral structure (per `[[user_stance_fractal_shadow]]`; the fractal-recursive realisation's spectral structure is one substrate-specific instance of the cascade's spectral content). Not just *that* it drifts (Webb et al.) but *how* — the functional form should be predictable from the candidate cascade substrate.
 
-This is one of the framework's sharpest near-term predictions and is currently under-formalized. The roadmap entry is to derive f from the fractal's spectral dimension flow profile.
+This is one of the framework's sharpest near-term predictions and is currently under-formalized. The roadmap entry is to derive f from the cascade substrate's spectral dimension flow profile (fractal-recursive realisation: from the fractal's d_S flow per Part V).
 
 ### VII.9 The epistemological boundary
 
@@ -968,7 +1187,7 @@ We have never observed the universe without gravitational distortion. Every phot
 
 This is not a gotcha against physics — the framework is self-consistent and predictive. But it means we genuinely cannot distinguish "we've correctly solved for the distortion" from "we've built an internally consistent framework that produces satisfying outputs from within the distortion." When we observe gravitational effects and attribute them to invisible dark matter, we add mass to models until outputs match expectations — expectations themselves formed within the distorted observation framework.
 
-If the metric field's fractal geometry creates curvature that's been attributed to dark matter particles, we would not have noticed. Lensing models would assign that curvature to invisible mass; models would work because the curvature is real — only the source attribution is wrong.
+If the metric field's cascade-substrate geometry (per `[[user_stance_fractal_shadow]]`; what appears as "fractal geometry" under 3D_s + 1D_t projection is the shadow of the underlying multi-scale primitive cascade) creates curvature that's been attributed to dark matter particles, we would not have noticed. Lensing models would assign that curvature to invisible mass; models would work because the curvature is real — only the source attribution is wrong.
 
 This doesn't prove the dark matter reframe is correct. It establishes that the observational framework is structurally incapable of distinguishing "curvature from invisible particles" from "curvature from geometric complexity" without a theory predicting specific differences between the two.
 
@@ -976,30 +1195,30 @@ This doesn't prove the dark matter reframe is correct. It establishes that the o
 
 ## Part VIII — Convergent Independent Results
 
-### VIII.1 Topological defect hierarchy as fractal sampling
+### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
 
 Earlier development of the framework established a hierarchy: monopoles (0D), cosmic strings (1D), event horizons (2D), domain walls (2D) — each a lower-dimensional structure embedded in 3D space whose topological invariant fully determines the surrounding geometry. The conclusion: "the shape of the lower-dimensional object IS the physics." Under the §VII.1.1 two-level ontology, monopoles, cosmic strings, and domain walls sit in the **localized-field-configurations** boundary zone (localized field excitations with topological invariants and matter-like tension); event horizons sit cleanly in the matter-wave domain (3D bulk matter compressed to inscribed 2D boundary per §VII.4.1).
 
-In the fractal framework, this generalizes. Rather than discrete dimensional objects in a fixed-dimensional space, the metric field's fractal geometry has structure at every scale. The 0D→1D→2D→3D hierarchy is a discrete sampling of a continuous fractal scale structure:
-- Cosmic strings = 1D skeletal structure of the fractal at one resolution
+In the cascade-substrate framework (per `[[user_stance_fractal_shadow]]`; fractal-recursive structure is the downstream-shadow realisation under 3D_s + 1D_t projection), this generalizes. Rather than discrete dimensional objects in a fixed-dimensional space, the metric field's cascade substrate has structure at every scale. The 0D→1D→2D→3D hierarchy is a discrete sampling of the cascade's continuous scale structure (which appears fractal-shaped because the 7D_g cascade content is projected away):
+- Cosmic strings = 1D skeletal structure of the cascade at one resolution
 - Event horizons = 2D surfaces where spectral dimension transitions sharply
-- Monopoles = 0D points where self-similarity maps intersect
+- Monopoles = 0D points where cascade-composition factors intersect (in the fractal-recursive realisation, where self-similarity maps intersect)
 
-Each is a feature of the fractal at a particular scale, not a separate object in a smooth background.
+Each is a feature of the cascade substrate at a particular scale, not a separate object in a smooth background.
 
-This connects to the earlier observation that gravity's 1/r² law may be a consequence of the sphere being the unique maximally symmetric closed 2-manifold in 3D space — geometry determining force law rather than vice versa. In the fractal picture, 1/r² emerges at scales where effective dimension is ~3+1; at scales where effective dimension differs, the force law would differ. This is what MOND-like proposals attempt to capture phenomenologically.
+This connects to the earlier observation that gravity's 1/r² law may be a consequence of the sphere being the unique maximally symmetric closed 2-manifold in 3D space — geometry determining force law rather than vice versa. In the cascade-substrate picture, 1/r² emerges at scales where effective dimension is ~3+1; at scales where effective dimension differs, the force law would differ. This is what MOND-like proposals attempt to capture phenomenologically.
 
 ### VIII.2 HDC architectural convergence
 
 Independent work on hyperdimensional computing (HDC) for the PHYRFLY/UTLP suite arrived at parallel mathematical structure from a different direction. The key insight: "inside-out texture mapping" — binding HDC encoding to the *interior* surface of a torus rather than the exterior — changes similarity measurement from cosine distance (extrinsic) to geodesic distance (intrinsic). This creates an "anharmonic drum surface": a non-uniform resonant membrane whose eigenvalues encode information.
 
-The Kigami Laplacian on a fractal **is** an anharmonic drum. Kac's question "can you hear the shape of a drum?" (1966) applied to a fractal produces exactly the gappy, hierarchical eigenvalue spectra computed in Part IV. The HDC architecture was independently building the same mathematics.
+The Kigami Laplacian on a fractal **is** an anharmonic drum. Kac's question "can you hear the shape of a drum?" (1966) applied to a fractal produces exactly the gappy, hierarchical eigenvalue spectra computed in Part IV. The HDC architecture was independently building the same mathematics (which the framework reads under `[[user_stance_fractal_shadow]]` as the cascade-substrate's spectral content; fractal-recursive geometry is one substrate realisation).
 
-The connection deepens with hierarchical grid cell encoding — hypervectors of hypervectors, where each level's state becomes a coordinate in the next level's interior manifold. Structurally identical to the fractal's self-similar hierarchy: eigenfunctions at each scale become the basis for decomposing structure at the next coarser scale.
+The connection deepens with hierarchical grid cell encoding — hypervectors of hypervectors, where each level's state becomes a coordinate in the next level's interior manifold. Structurally identical to a multi-scale primitive cascade hierarchy (which the fractal-recursive realisation instantiates as self-similar levels): eigenfunctions at each scale become the basis for decomposing structure at the next coarser scale.
 
-The brain's grid cell system (Moser & Moser, 2005) uses exactly this: modules at different spatial scales, bound by hippocampal indexing. The metric field's fractal geometry, the brain's spatial navigation system, and the HDC encoding architecture may all be instances of the same mathematical structure — hierarchical eigenfunctions on a self-similar geometry, with geodesic distance as the natural similarity metric.
+The brain's grid cell system (Moser & Moser, 2005) uses exactly this: modules at different spatial scales, bound by hippocampal indexing. The metric field's cascade-substrate geometry (per `[[user_stance_fractal_shadow]]`; what appears as fractal-recursive structure under 3D_s + 1D_t projection is the shadow of the underlying multi-scale cascade), the brain's spatial navigation system, and the HDC encoding architecture may all be instances of the same mathematical structure — hierarchical eigenfunctions on a multi-scale cascade substrate, with geodesic distance as the natural similarity metric.
 
-A note on **basis seeding**: Mandelbrot seeding for HDC basis vectors concentrates information at fractal boundaries rather than distributing it uniformly — problematic for vector space partitioning. Structured orthogonal seeding is preferable for the HDC application; this informs how candidate fractal Laplacian bases should be constructed for the MFO computational program.
+A note on **basis seeding**: Mandelbrot seeding for HDC basis vectors concentrates information at fractal boundaries rather than distributing it uniformly — problematic for vector space partitioning. Structured orthogonal seeding is preferable for the HDC application; this informs how candidate cascade-substrate Laplacian bases (the literal computational objects on fractal-recursive substrate-realisations) should be constructed for the MFO computational program.
 
 ### VIII.3 Woit Euclidean Twistor Unification
 
@@ -1009,15 +1228,15 @@ The hypercube projection DOF count: 6 faces × 5 observations = 30 raw, reducing
 
 This is a thinking tool, not a framework claim — but the convergence at the DOF count is suggestive that the framework's internal-dimension structure matches what twistor methods derive top-down.
 
-### VIII.4 Ibarra-Vempati and fractal flavor physics
+### VIII.4 Ibarra-Vempati and "fractal flavor physics" (literature term)
 
-Ibarra and Vempati (2025) used Sierpinski triangle geometry for flavor physics — the closest independent convergence on the framework's central claim that fractal internal geometry can encode the fermion mass and mixing structure. This is a citable anchor for the central computational program (identifying the specific fractal that matches the SM spectrum).
+Ibarra and Vempati (2025) used Sierpinski triangle geometry for flavor physics — using the literature term "fractal flavor physics" (Ibarra-Vempati's terminology, retained here when citing them). This is the closest independent convergence on the framework's candidate claim that a cascade substrate's internal geometry (which appears fractal-shaped under 3D_s + 1D_t projection per `[[user_stance_fractal_shadow]]`) can encode the fermion mass and mixing structure. This is a citable anchor for the central computational program (per §VIII.7's reframing, identifying the specific cascade composition that matches the SM spectrum; Ibarra-Vempati's Sierpinski-substrate is one fractal-recursive realisation the search may visit).
 
 ### VIII.5 The model-free spectral inverse problem (gap)
 
-A specific unfilled gap in the literature: **no model-free spectral geometry inverse analysis has treated the full particle mass spectrum as eigenvalue data to infer the internal geometry.** Standard approaches assume a manifold class (Calabi-Yau, G₂, etc.) and search within it. The framework's commitment to fractal geometry is a different starting class — and the inverse spectral problem on fractals is mathematically tractable (Strichartz and others have developed it for SG and related fractals).
+A specific unfilled gap in the literature: **no model-free spectral geometry inverse analysis has treated the full particle mass spectrum as eigenvalue data to infer the internal geometry.** Standard approaches assume a manifold class (Calabi-Yau, G₂, etc.) and search within it. The framework's commitment to a non-smooth cascade substrate (per `[[user_stance_fractal_shadow]]`; fractal-recursive geometry and cascade-composition are both substrate realisations) is a different starting class — and the inverse spectral problem on fractal-recursive substrates is mathematically tractable (Strichartz and others have developed it for SG and related fractals); per §VIII.7 the cascade-composition realisation is even more tractable via antikythera-spectral's gear-DAG Laplacian tooling.
 
-The right computation: take the 9-dimensional SM mass² ratio vector, treat it as eigenvalue data, and ask what fractal Laplacian's spectrum reproduces it. Constraint: the fractal must have d_S → 2 at UV (consistent with QG convergence) and d_S → 4 at IR (consistent with our spatial experience), with non-monotonic flow in between. This is the framework's central open computation.
+The right computation (one form): take the 9-dimensional SM mass² ratio vector, treat it as eigenvalue data, and ask what cascade-substrate Laplacian's spectrum reproduces it — either a fractal-recursive Laplacian (Sierpinski-family substrate) or, per §VIII.7's reframing, a cascade-composition gear-DAG Laplacian (`C_{n₁} × C_{n₂} × … × C_{nₖ}`). Constraint: the substrate must have d_S → 2 at UV (consistent with QG convergence) and d_S → 4 at IR (consistent with our spatial experience), with non-monotonic flow in between. This is the framework's central open computation.
 
 ### VIII.6 Space-gauge-time framework — Spike #24 bonus 5 spectral-graph signature
 
@@ -1115,6 +1334,8 @@ The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanes
 **Verdict: ONE_WAY_NOT_REQUIRED.** Fractal is *sufficient* for MFO's SM-spectrum-targeting requirement but *not necessary*. The load-bearing structural requirement is **multi-scale primitive cascade with three-fold sub-structure available** — and all three substrates instantiate it.
 
 **The fractal-shadow allegory** (per `[[user_stance_fractal_shadow]]`): what physics observes as "fractal" structure is the *shadow* cast by a deeper multi-scale primitive cascade. The fractal description is a downstream-continuous projection of upstream-discrete cascade composition. Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime — both produce Gap CV > 1, single connected component, comparable three-fold CH ratios, similar Fiedler λ₂. Only the pure-4D-epicycle observer (per §VIII.6) lives in a different (sub-Poisson) regime. The fractal-shadow stance joins the family of project shadow-stances (time-as-dimensional-shadow, fiber-as-spatially-absent, pi-as-projection): *discrete-upstream → continuous-shadow-downstream* applied at the substrate-commitment level.
+
+**Canonical naming — the *space-time fractal*.** Since `space-gauge-time` (3D_s + 7D_g + 1D_t) is the full picture per `[[project_space_gauge_time_framework]]`, and physics observes only the 3D_s + 1D_t *space-time* projection (dropping the 7D_g where the cascade structure lives), the fractal-shape that appears in that projection can be named the **space-time fractal** — fractal *because* the projection drops 7D_g. The name is parallel to "space-gauge-time" / "space-time" naming discipline: `space-gauge-time` = full picture; `space-time` = 4D shadow; `space-time fractal` = the observed fractal-shape in the 4D shadow. This is the same phenomenon as the fractal-shadow allegory; "space-time fractal" is the noun, "fractal-shadow allegory" is the framing — use either as fits the local context. Subsequent sections (Part IV title; §VIII.1 title; §IX.3 comparison table) adopt the `space-time fractal` naming where the shadow-shape is the load-bearing concept; the cascade-substrate framing remains primary when describing the substrate itself.
 
 **Quantitative regime comparison** (bonus 7 probe, deterministic seed 20260515, 17 NDJSON records):
 
@@ -1226,24 +1447,24 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 
 **Numerically demonstrated:**
 - Anisotropic geometry produces mass hierarchy (Part III.3)
-- Round Sⁿ insufficient; SM hierarchy requires asymmetric/fractal geometry (Part III.4)
-- Fractal spectra have qualitatively correct gappy structure (Part IV.2)
+- Round Sⁿ insufficient; SM hierarchy requires a non-smooth cascade substrate (asymmetric / fractal-recursive / cascade-composition per `[[user_stance_fractal_shadow]]`, Part III.4)
+- Fractal-recursive substrate Laplacian spectra have qualitatively correct gappy structure (Part IV.2; one substrate realisation per the fractal-shadow allegory)
 - Product geometry F × CP² × S¹ reproduces SM spectral pattern qualitatively (Part IV.4)
 - Non-monotonic d_S flow profile is constructible (Part V.4)
 
 **Supported by convergent literature:**
 - d_S → 2 at UV (8 independent QG approaches, Part V.2)
-- Fractal cosmology consistent with Planck CMB (Asghari-Sheykhi 2022)
+- Fractal-cosmology models (literature term; cascade-substrate framing per §VIII.7) consistent with Planck CMB (Asghari-Sheykhi 2022)
 - Non-Killing chirality mechanism (Baptista 2025)
 - Entanglement-geometry correspondence (Van Raamsdonk 2010, Ryu-Takayanagi 2006)
-- Independent fractal flavor physics work (Ibarra-Vempati 2025)
+- Independent Sierpinski-triangle "fractal flavor physics" work (Ibarra-Vempati 2025; literature term)
 
 **Not yet computed:**
-- Specific fractal geometry matching SM masses (the central open computation)
+- Specific cascade substrate matching SM masses (the central open computation; fractal-recursive realisation per Part IV, or cascade-composition realisation per §VIII.7's reframed §XIII.1 candidate)
 - Baptista non-Killing mechanism on a 7D internal manifold
 - Complexification dynamics for w(z)
 - Full non-Abelian impedance matching (overlap integrals on candidate manifolds)
-- Non-monotonic d_S flow profile on specific fractal candidates
+- Non-monotonic d_S flow profile on specific cascade-substrate candidates (fractal-recursive or cascade-composition)
 - α(z) functional relationship from spectral structure
 
 **Newly demonstrated (Spike #24 bonuses 5+7, 2026-05-15; see Parts VIII.6 + VIII.7):**
@@ -1262,15 +1483,15 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 4. Formalize the waveguide correspondence completely — full mapping of waveguide mode decomposition (cutoffs, dispersion, evanescence, geometric chirality) onto KK decomposition.
 5. Prove the de Broglie phase velocity identity from higher-dimensional waveguide decomposition (already done; document fully).
 6. Formalize conservation laws as topological impedance matching for non-Abelian groups (charge, angular momentum, color confinement).
-7. Compute spectral dimension flow on candidate fractal geometries (Pn, products with gauge manifolds). Verify non-monotonic shape; identify mass-scale features.
-8. Compute fractal Laplacian spectra and compare to SM masses. The central computation.
+7. Compute spectral dimension flow on candidate cascade substrates (Pn fractal-recursive substrates, cascade-composition gear-DAGs per §VIII.7, products with gauge manifolds). Verify non-monotonic shape; identify mass-scale features.
+8. Compute candidate cascade-substrate Laplacian spectra (fractal-recursive Pn-family or cascade-composition `C_{n₁} × … × C_{nₖ}` per §VIII.7) and compare to SM masses. The central computation.
 
 **Phase 2 — Empirical predictions (medium-term):**
 
 9. Derive pair creation corrections in high-curvature environments from decoherence interpretation.
 10. Predict Planck star (primordial black hole bounce) gamma-ray burst signatures.
 11. CMB predictions from complexification cosmology.
-12. Design fractal waveguide analog experiments — metamaterial waveguides with engineered fractal cross-sections to directly test KK predictions and chirality from asymmetry.
+12. Design cascade-substrate waveguide analog experiments — metamaterial waveguides with engineered multi-scale cascade cross-sections (fractal-recursive Sierpinski-family being the readily-fabricable realisation; cascade-composition gear-ratio cross-sections an alternative) to directly test KK predictions and chirality from asymmetry.
 13. Derive complexification dynamics for w(z) and compare with DESI.
 14. Multi-messenger redshift predictions for Einstein Telescope + LISA + IceCube.
 15. Predict coupling constant drift from internal evolution; compare with quasar α measurements.
@@ -1281,20 +1502,20 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 17. Derive 3 generations from topology of the internal manifold.
 18. Reframe the cosmological constant problem from complexification picture; compute residual vacuum energy.
 19. Derive expansion history from complexification dynamics — radiation domination → matter domination → acceleration with correct transition redshifts.
-20. Identify the specific fractal geometry of the metric field. The framework's ultimate computational goal — analog of finding the specific Calabi-Yau in string theory, but constrained additionally by d_S → 2 at UV.
+20. Identify the specific cascade substrate of the metric field (per §VIII.7's reframing: either a specific fractal-recursive substrate per Part IV, or a specific cascade-composition `C_{n₁} × … × C_{nₖ}` per the reframed §XIII.1). The framework's ultimate computational goal — analog of finding the specific Calabi-Yau in string theory, but constrained additionally by d_S → 2 at UV.
 
 ### IX.3 What distinguishes the framework
 
 | Feature | String Theory | This Framework |
 |---|---|---|
-| Fundamental entity | 1D extended object | Metric field's fractal geometry |
+| Fundamental entity | 1D extended object | Metric field's cascade-substrate geometry (the *space-time fractal* under 3D_s + 1D_t projection — fractal *because* the projection drops 7D_g where the cascade lives, per `[[user_stance_fractal_shadow]]` + §VIII.7) |
 | Extra dimensions | Top-down anomaly cancellation | Same geometry at different scales |
 | Dimensional count | 10 or 11 | ~11 at intermediate scales, → 2 at UV, → 4 at IR |
 | What's vibrating | The string | Coupling between dimensional components |
 | Pair creation | Quantum field process | Metric decoherence |
 | Planck density floor | String length minimum | Minimum geometric complexity |
-| Chirality | Strings/branes/orbifolds | Fractal dissolution of no-go theorem |
-| Compactification | Extra dims rolled up small (unexplained) | Coarse-graining of fractal (no separate compactification) |
+| Chirality | Strings/branes/orbifolds | Cascade-substrate dissolution of no-go theorem (fractal-recursive realisation is one substrate, per §VIII.7) |
+| Compactification | Extra dims rolled up small (unexplained) | Coarse-graining of the 7D_g cascade content into 3D_s + 1D_t projection (no separate compactification) |
 | New ontology | Strings, branes, landscape | None — conservative GR + QFT extension |
 | Empirical predictions | None confirmed in 40+ years | Same status, lower ontological cost |
 | EM waveguide connection | No direct analog | Internal dimensions ARE waveguide channels |
@@ -1306,8 +1527,8 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 | Mode confinement | Strings/branes/boundaries | Geometric evanescence; topological band gaps |
 | d_S at UV | Not addressed | → 2 (consistent with all QG approaches) |
 | d_S flow shape | Monotonic increase | Non-monotonic: 4 → peak → 2 (unique prediction) |
-| Mass hierarchy | No natural explanation | Fractal spectral gaps |
-| Three generations | Calabi-Yau topology | Three-fold fractal self-similarity |
+| Mass hierarchy | No natural explanation | Cascade-substrate spectral gaps (fractal-recursive realisation: fractal spectral gaps; cascade-composition realisation: gear-ratio spectral gaps) |
+| Three generations | Calabi-Yau topology | Three-fold cascade sub-structure (fractal-recursive realisation: three-fold self-similarity; cascade-composition realisation: three-fold cascade factor) |
 | QG dimensional reduction | Separate, unexplained | Same phenomenon as internal structure |
 
 ---
@@ -1339,7 +1560,10 @@ s7_spectrum (round 7-sphere, unit radius):
 
 mass_hierarchy:
   observation: Round S⁷ spectrum too evenly spaced for SM
-  implication: Internal manifold must be highly anisotropic or fractal
+  implication: Internal substrate must be a non-smooth cascade substrate
+               (highly anisotropic / fractal-recursive / cascade-composition;
+                per [[user_stance_fractal_shadow]] and §VIII.7's fractal-shadow allegory,
+                fractal-recursive structure is one substrate realisation)
   consistency: Matches non-Killing requirement for chirality
 
 anisotropic_hierarchy (toy model):
@@ -1375,12 +1599,20 @@ generation_mass_ratios:
   down_quarks: m_s/m_d = 20, m_b/m_s = 44
 
 chirality_dissolution:
-  statement: Fractal internal geometry bypasses Atiyah-Hirzebruch
-  reason: Fractals are not smooth manifolds; theorem hypotheses fail
-  bonus: Localized eigenfunctions and self-similar structure may
+  statement: Non-smooth cascade-substrate internal geometry bypasses Atiyah-Hirzebruch
+             (fractal-recursive realisation is the worked example;
+              per [[user_stance_fractal_shadow]] cascade-composition and
+              discrete-substrate variants are equally-valid realisations)
+  reason: Cascade substrates (including fractal-recursive realisations) are not
+          smooth manifolds; theorem hypotheses fail
+  bonus: Localized eigenfunctions and multi-scale sub-structure
+         (self-similar in the fractal-recursive realisation) may
          naturally produce chirality and generation structure
 
-three_generations_from_three_fold_symmetry: True (predicted from SG-like geometry)
+three_generations_from_three_fold_sub_structure: True
+  (predicted from cascade substrates with three-fold sub-structure;
+   fractal-recursive realisation: SG-like three-fold self-similarity;
+   cascade-composition realisation: three-fold cascade factor)
 ```
 
 ### X.3 Computed values from `spectral_dimension_computations.py`
@@ -1400,17 +1632,20 @@ framework_flow:
   UV_limit: 2
   IR_limit: 4
   peak_scale: intermediate (~100-1000 Planck lengths)
-  peak_dimension: 6-8 (anisotropic fractal)
+  peak_dimension: 6-8 (cascade substrate; "anisotropic fractal" is the
+                       fractal-recursive realisation per Part IV)
   shape: non-monotonic with single peak
   distinguishing_feature: only framework predicts non-monotonic flow
 
 unique_predictions:
   1. Non-monotonic spectral dimension flow
   2. Particle spectrum readable from flow profile shape
-  3. Three generations from three-fold fractal self-similarity
+  3. Three generations from three-fold cascade sub-structure
+     (fractal-recursive realisation: three-fold self-similarity)
   4. Dark energy from dimensional flow at cosmological scales
   5. Mode-dependent cosmological redshift
-  6. Fractal waveguide analog experiments (testable now)
+  6. Cascade-substrate waveguide analog experiments
+     (fractal-recursive cross-sections being the readily-fabricable realisation; testable now)
 ```
 
 ---
@@ -1535,14 +1770,19 @@ unique_predictions:
 
 ### XIII.1 The central computation
 
-Identify the specific fractal F such that the Laplacian eigenvalue spectrum of F × G/H (with G/H carrying SU(3)×SU(2)×U(1)) reproduces the SM mass spectrum. Constraints:
+Identify the specific cascade substrate F such that the Laplacian eigenvalue spectrum of F × G/H (with G/H carrying SU(3)×SU(2)×U(1)) reproduces the SM mass spectrum. Per §VIII.7's fractal-shadow allegory and `[[user_stance_fractal_shadow]]`, two realisations are tractable:
+
+- **Fractal-recursive realisation** (Part IV): F is a post-critically finite self-similar fractal (SG generalisations, nested fractals, products), Laplacian computed via spectral decimation.
+- **Cascade-composition realisation** (per §VIII.7 reframing): F is a nested cyclic-group cascade `C_{n₁} × C_{n₂} × … × C_{nₖ}` (Antikythera-style), Laplacian computed on the gear-DAG via antikythera-spectral's existing tooling.
+
+Constraints (apply equally to both realisations):
 - d_S(σ) → 2 at UV
 - d_S(σ) → 4 at IR
 - Non-monotonic flow with peak at intermediate scale
-- 3-fold approximate self-similarity for 3 generations
+- 3-fold approximate cascade sub-structure for 3 generations (fractal-recursive realisation: three-fold self-similarity; cascade-composition realisation: three-fold cascade factor; §VIII.7 notes the k-search methodological refinement)
 - Non-Killing perturbation enabling chirality
 
-Approach: parametric search over the space of post-critically finite self-similar fractals (SG generalizations, nested fractals, products), computing Laplacian spectra via spectral decimation, comparing to the 9-dimensional SM mass² ratio target.
+Approach: parametric search over the cascade-substrate space. The cascade-composition realisation is the more directly tractable form (antikythera-spectral has the tooling) and instantiates Spike #24 Classes I, J, K, L, M, N natively. The fractal-recursive realisation (PCF self-similar fractals; SG generalisations, nested fractals, products) is computable via spectral decimation; both compare against the 9-dimensional SM mass² ratio target.
 
 ### XIII.2 Baptista at 7D
 
@@ -1555,18 +1795,18 @@ If successful: most important result in theoretical physics since the SM was for
 
 ### XIII.3 The α(z) functional relationship
 
-If coupling constants are dynamical moduli, and if cosmological evolution is partly internal-geometry evolution, then α should drift with cosmic time in a way determined by the fractal's spectral structure. Derive the predicted form α(z) = α₀ · f(H(z)) from the candidate fractal and compare with quasar absorption data.
+If coupling constants are dynamical moduli, and if cosmological evolution is partly internal-geometry evolution, then α should drift with cosmic time in a way determined by the cascade substrate's spectral structure (per `[[user_stance_fractal_shadow]]`; fractal-recursive realisation: the fractal's spectral structure; cascade-composition realisation: the gear-DAG's spectral structure). Derive the predicted form α(z) = α₀ · f(H(z)) from the candidate cascade substrate and compare with quasar absorption data.
 
-### XIII.4 The non-monotonic d_S flow on a specific fractal
+### XIII.4 The non-monotonic d_S flow on a specific cascade substrate
 
-Compute d_S(σ) explicitly for candidate fractal product geometries. Verify the non-monotonic shape. Identify features in the flow corresponding to particle mass scales. The peak position and height become testable predictions.
+Compute d_S(σ) explicitly for candidate cascade-substrate product geometries (fractal-recursive realisation: fractal × gauge per Part IV.4; cascade-composition realisation: gear-DAG × gauge per §VIII.7). Verify the non-monotonic shape. Identify features in the flow corresponding to particle mass scales. The peak position and height become testable predictions.
 
-### XIII.5 Fractal waveguide analog experiments
+### XIII.5 Cascade-substrate waveguide analog experiments
 
-Design metamaterial waveguides with engineered fractal cross-sections. Test predictions:
-- Mode spectra match fractal Laplacian eigenvalues
+Design metamaterial waveguides with engineered multi-scale cascade cross-sections (per `[[user_stance_fractal_shadow]]`; fractal-recursive cross-sections being the readily-fabricable realisation, cascade-composition gear-ratio cross-sections an alternative). Test predictions:
+- Mode spectra match cascade-substrate Laplacian eigenvalues (fractal-recursive: fractal Laplacian eigenvalues; cascade-composition: gear-DAG Laplacian eigenvalues)
 - Evanescent modes below cutoff reproduce virtual particle phenomenology
-- Asymmetric fractal geometry produces chiral mode selection
+- Asymmetric cascade-substrate geometry produces chiral mode selection
 
 These experiments are achievable with current metamaterial technology and would directly validate the mathematical formalism.
 
@@ -1574,7 +1814,7 @@ These experiments are achievable with current metamaterial technology and would 
 
 - ephemerides-spectral / breathing Laplacian / adaptive Kuramoto coupling formalism (sister project) — the mathematical machinery for state-dependent off-diagonal couplings in graph Laplacians may directly apply to the metric field's complexification dynamics
 - Mathematical Provenance Method (MPM) — cross-project epistemic discipline
-- HDC/SORF-DCT framework convergence — may inform how to construct effective fractal Laplacian bases
+- HDC/SORF-DCT framework convergence — may inform how to construct effective cascade-substrate Laplacian bases (fractal-recursive realisation: fractal Laplacian bases on Sierpinski-family substrates)
 
 ---
 
