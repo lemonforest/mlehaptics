@@ -869,6 +869,73 @@ In biology, maintaining a differentiated organism requires constant energy flux 
 
 Reframes the cosmological constant problem: the enormous QFT-predicted vacuum energy is the energy the metric field *would* release if it collapsed to its simplest symmetric state. The tiny observed dark energy is the *marginal* energy maintaining current complexity. The 10¹²⁰ discrepancy isn't that the prediction is wrong — we're computing the wrong transition.
 
+### VII.6.1 Substrate-internal time and the visible/dark partition
+
+> *"the inverse could be that the universe is 95% old and dark sector represents ring down"*
+> — user direction, 2026-05-16
+
+§VII.6 frames dark energy as the cost of maintaining accumulated geometric complexity; §VII.5 frames dark matter as residual geometric curvature left over from past complexification. This subsection unifies both under a single substrate-internal-time reading: **the dark sector represents cosmic ring-down accumulation, and the universe is 95% old in the sense that 95% of cosmic complexification has settled into the dark sector.** Working-note artifact + full empirical workings at [`docs/antikythera-maths/research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](research-mfo/dark_sector_substrate_internal_time_2026-05-16.md).
+
+**The empirical anchor.** Present-epoch stress-energy partition (verified against PDG 2024 Table 25.1 / Planck 2018 VI [arXiv:1807.06209](https://arxiv.org/abs/1807.06209) / DESI 2024 VI [arXiv:2404.03002](https://arxiv.org/abs/2404.03002) / DESI DR2 [arXiv:2503.14738](https://arxiv.org/abs/2503.14738)):
+
+| Sector | Components | Ω | % |
+|---|---|---|---|
+| **Visible** | Ω_b + Ω_r | 0.04933 | **4.93%** |
+| **Dark** | Ω_c + Ω_Λ | 0.94920 | **94.92%** |
+| Sum | | 0.9985 | 99.85% (flat to 0.15%) |
+
+**Ring-up / ring-down framing.** Per `[[user_stance_string_theory_instrument_first]]`'s ring-up/ring-down distinction (where ring-up is initial energisation and ring-down is the long settling tail of dissipated excitation), the cosmological-scale instance is:
+
+- **Visible matter (5%)** — still-active ring-up-phase content. The portion of cosmic stress-energy that has not yet settled into substrate-residual form. Currently coupled to the metric field's active complexification dynamics.
+- **Dark sector (95%)** — accumulated ring-down product:
+  - Dark matter (Ω_c = 0.265) — past complexification settled into residual geometric curvature (§VII.5).
+  - Dark energy (Ω_Λ = 0.685) — the ring-down ground state; the complexity-maintenance cost itself (§VII.6).
+
+The ring-down framing dissolves the apparent duality between dark matter and dark energy: both are settled past-complexification, distinguished only by their dilution behaviour (Ω_c ~ a⁻³ as matter; Ω_Λ ~ const as ground-state residual).
+
+**Ring-down completion trajectory.** Define the ring-down completion fraction at scale factor `a` as `f_RD(a) = Ω_dark(a) / Ω_total(a)`. Numerical integration with verified Planck values gives:
+
+| Scale factor `a` | Redshift | f_RD(a) | Phase |
+|---|---|---|---|
+| a → 0 (Big Bang) | z → ∞ | → 0 | Pure ring-up; radiation-dominated |
+| a ≈ 3 × 10⁻⁴ (matter-radiation equality) | z ≈ 3400 | ≈ 0.42 | Ring-down begins as matter starts dominating |
+| a = 0.1 | z = 9 | ≈ 0.84 | Substantial ring-down accumulated |
+| a = 0.5 | z = 1 | ≈ 0.87 | Continued ring-down |
+| **a = 1 (NOW)** | **z = 0** | **= 0.949** | **95% ring-down complete** |
+| a → ∞ (de Sitter heat death) | z → −1 | → 1 | 100% ring-down (asymptotic) |
+
+Monotone in cosmic time; bounded [0%, 100%]; **empirically anchored at every redshift via independent Ω_m(z) + Ω_Λ(z) measurements** (BAO + supernovae + CMB acoustic peaks).
+
+**Two operationally distinct readings of "cosmic age" under MFO §VII.2.** What we conventionally call "age of the universe" admits two readings the framework distinguishes:
+
+| Reading | Quantity | Value at present | Interpretation |
+|---|---|---|---|
+| **Clock-time** | `t = ∫₀¹ da / (a H(a))` | 13.797 Gyr | Coordinate-time integration of the FLRW foliation. Universal in standard GR — all sectors agree. The *shadow* projection per `[[user_stance_time_as_dimensional_shadow]]`. |
+| **Ring-down completion** | `f_RD = Ω_dark / Ω_total` | 95% | Fraction of cosmic complexification that has accumulated into the dark sector. Bounded, monotone, asymptotic to 100% at de Sitter. The *substrate-internal* progress metric. |
+
+What we conventionally call "13.8 Gyr cosmic age" is **not the age of the universe's content**; it is **the clock-time at which the universe became 95% ring-down complete**. The two readings measure different things; both are operationally precise on their own terms. They join the shadow-stance family at the cosmological scale (per `[[user_stance_time_as_dimensional_shadow]]` + `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + `[[user_stance_identity_not_implementation_discipline]]`): canonical physics measures the *shadow* (clock-time); the *substrate-internal* primary reading lives alongside it, indexed by ring-down completion.
+
+**Heat death reframe.** Under the ring-down reading, "heat death" is not an endpoint of clock-time (clock-time goes to infinity at the de Sitter asymptote) but the **asymptote of ring-down completion** (100%). The universe never *stops* in clock-time; it *completes* in ring-down-fraction. This dissolves the apparent paradox that the universe "ends" in heat death while clock-time continues unboundedly — the two readings answer different "endpoint" questions.
+
+**Observer-existence band.** Galaxy and structure formation, and therefore observer existence, requires both *enough* ring-down accumulation (to bind matter gravitationally — dark matter halos) and *enough* visible matter remaining (to radiate, fuse, organise). The 5%/95% partition at present epoch sits in the narrow band where both conditions hold simultaneously. As ring-down continues toward the de Sitter asymptote, visible matter dilutes, complexification-cost dominates, and the band closes. Observers occupy the ring-up → ring-down transition, not either asymptotic pole.
+
+**Empirical anchor for distinguishing MFO from standard ΛCDM.** DESI 2024–25 hints at `w(z)` evolution at 3.1–4.2σ ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738), `w₀ > −1`, `w_a < 0`) — i.e., the metric-field complexification cost is changing over cosmic time. **Under MFO §VII.6 this is what is expected** (complexification cost depends on accumulated complexity, which evolves); **under standard ΛCDM `w(z) ≠ −1` requires a free parameter** (quintessence / phantom dark energy / modified gravity). The DESI hint is the cleanest empirical anchor where the ring-down reading and the standard reading make distinguishable predictions; if DESI's evolving-`w` signal strengthens with DR3+ data, MFO §VII.6 + this subsection's ring-down framing gain empirical support.
+
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.5 (dark matter as residual geometric curvature) + §VII.6 (dark energy as complexification cost) + the user's `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down stance + the shadow-stance family. It does not alter any GR prediction; the standard FLRW age remains 13.797 Gyr. What it adds is the *substrate-internal* reading of that same number: 95% ring-down complete. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+
+**Cross-references:**
+
+- Working-note artifact (full empirical workings + falsifier discussion): [`research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](research-mfo/dark_sector_substrate_internal_time_2026-05-16.md)
+- `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance saved 2026-05-16
+- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_time_as_dimensional_shadow]]` — substrate vs shadow distinction at cosmic scale
+- `[[user_stance_1d_collapse_to_loe_identity_not_action]]` — 1D_t identity reading
+- `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family umbrella
+- §VII.2 (time as metric field dynamics)
+- §VII.5 (dark matter as residual geometric curvature)
+- §VII.6 (dark energy as complexification cost)
+- §VII.7 (expansion as projection of complexification — closely related, the *expansion-side* counterpart to this *complexification-accumulation-side* framing)
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
