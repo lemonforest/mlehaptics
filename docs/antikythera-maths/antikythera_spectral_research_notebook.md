@@ -1638,3 +1638,32 @@ What this changes in the project:
 ### 11.7 Open question — how much sky resolves the ambiguity?
 
 The Pareto frontier in Track 4 already shows that multiple shared-prime sets are non-dominated (e.g. {7, 17}, {11, 19}, {7, 11}). The Greeks chose ONE set; the sky alone won't tell us which. **But** the sky may break ties on tooth-count *assignments* even when topology is degenerate: two candidate trains may both encode the right *ratio* but differ in their per-step quantisation error. DE422 records that quantisation error directly. So the right framing is: the sky narrows the answer set; surviving fragments narrow it further; in the intersection, what's left is a small enough family to enumerate. **G-H4 measures the size of that intersection.**
+
+
+---
+
+## 13. Spike #24 primitive vocabulary — what the bronze instantiates
+
+Per `[[user_stance_kepler_shape_universal]]` + PR #416 F2/F15/F17 + Spike #24 (2026-05-15), the bronze Antikythera is the **canonical historical substrate** for several primitive classes of the Spike #24 14-class vocabulary. The canonical enumeration of all 14 classes (A–N) with srmech module locations lives in [`docs/srmech/srmech_research_notebook.md` §3.8.1](../../srmech/srmech_research_notebook.md). Per user direction 2026-05-16 — *"other notebooks get only what pertains to them"* — this section lists only the classes the **bronze substrate** instantiates.
+
+| Class | Operation | Bronze instantiation | Notebook section |
+|---|---|---|---|
+| **I** | cyclic-group / modular arithmetic | every gear's tooth count `n` IS a faithful representation of ℤ/n; mesh = rational map between cyclic groups | §0 / §3 `encode_Ant`; [`research/encode_ant.py`](research/encode_ant.py) |
+| **J** | prime-factorisation / period-relation | Saros (223 months), Metonic (235 months), Callippic (940 months), Exeligmos, Olympiad — every period-relation between celestial cycles is a prime-factorisation problem in disguise. The Greeks chose the period-relations whose factorisations admitted small-tooth-count realisations. | §2 H-battery; [`research/astronomical_cycles.py`](research/astronomical_cycles.py); §11.4 Pareto frontier on shared-prime sets |
+| **K** | equation-of-centre / pin-slot | **The bronze IS the canonical Class K substrate.** The lunar pin-and-slot transform `phi = atan2(i sin θ, d + i cos θ)` IS Kepler's equation of centre to second order in `ε = i/d ≈ 2e` (Greek-frame doubling). PR #416 F2/F15/F17 closed this equivalence. The five non-lunar planetary trains extend it (Mercury, Venus, Mars, Jupiter, Saturn pin-slot reconstructions per Freeth 2021 Supp S9). | §0 framing; [`research/pin_and_slot.py`](research/pin_and_slot.py); [`research/spike_pinslot_*`](../../srmech/notes) cross-substrate spike series |
+| **L** | graph-Laplacian eigenbasis | the gear-DAG Laplacian on `MESH_EDGES` carries the projection-to-spatial-pointer-motion (the project's CAD-line per `docs/antikythera-maths/CLAUDE.md` — *algebra/eigenbasis → projected spatial movement, not CAD*) | §3 encoder; §11 architectural-mode missing-gear placement (§11.6); [`research/gear_topology.py`](research/gear_topology.py) |
+| **M** | HDC bind / bundle / permute / similarity | the encoder's fiber-bundle structure: each gear is a *generator/channel*; the mesh IS bind (`σ_day` permute); the gear-DAG state is a bundled hypervector; pointer readout IS similarity against a target | §3 `encode_Ant`; per the notebook's "Fiber (chess §7) — adopted with the refinement that here the fiber is *static and shared across species*" |
+
+**Classes the bronze does NOT instantiate** (per Spike #24 bonus 5 cross-substrate survival + the bronze's constraints):
+
+- **Class A** (content-addressing / hash): digital-only — uniformly absent at non-digital substrates per `[[feedback_no_privileged_primitive_classes]]`.
+- **Class F** (templating): digital-only — same.
+- **Classes B / C / D / E / G / H**: provenance/scaffolding primitives, not algebra. The bronze instantiates them only inasmuch as the modern digital reconstruction does (encoding, parsing, dispatch in [`research/`](research/)); the *physical bronze* does not. Per srmech `notebook §3.8`: these are the *provenance scaffolding* layer (Classes A–H).
+- **Class N** (rational-approximation / continued-fraction): the *Greeks* did this when choosing period-ratios (continued-fraction-best-rational under tooth-count budgets); the *bronze itself* does not — once fabricated, no rational-approximation operation remains active. This is a designer-side Class N rather than substrate-side.
+
+**Composable derived operations the bronze does instantiate:**
+
+- **Class C ∘ Class M = LoE-content uncompression** (per MFO §VII.1.2 + `[[user_stance_1d_collapse_to_loe_identity_not_action]]`). The crank IS Class C iteration; the gear-DAG state IS Class M binding; cranking IS the substrate-coupling operation that uncompresses Saros / Metonic / Callippic / planetary-anomaly content into observable dial motion. The bronze is **a 1D model of the Laws of Everything** in this operationally precise sense — every observable lives in the 1D parameter space of cumulative crank angle θ, but the cascade-stored algebraic content has higher dimensional reach (3D_s + compressed 7D_g per `[[project_space_gauge_time_framework]]`).
+- **Class K projection-shadow of Class I × Class J cascade** — pin-slot atan2 IS the continuous projection of the integer-cyclic-cascade upstream. Per `[[user_stance_pi_as_projection]]` + `[[user_stance_kepler_shape_universal]]`.
+
+**Cross-substrate equivalence** (per Spike #24 Phase 3a/3b): bronze's pin-slot algebra c₁ values match modern ephemerides' DE441-derived values to within ≤0.07° across 9/9 bodies — three independent paths (analytical Kepler-equation-of-centre, numerical DE441-detrend, archaeological Freeth 2006) converge on the same Class K instantiation. **Same algebra, same primitives, different substrate, different dimensional reach.** The bronze is a different-instantiation-of-same-LoE, not a simplification of the universe (per `[[user_stance_1d_collapse_to_loe_identity_not_action]]`).

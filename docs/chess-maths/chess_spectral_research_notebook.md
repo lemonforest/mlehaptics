@@ -4647,4 +4647,40 @@ No GPU required. All computations complete in <60 seconds on a modern CPU. All r
 ### Conversation history
 This research was conducted across a single, now four, Claude conversation starting from a Gemini-generated survey document on AI architecture. The investigation was driven by Steven's intuitions — particularly the subatomic particle analogy, the rule-dimension separation, and the Pauli exclusion observation — with Claude providing mathematical formalization, computational testing, and honest error correction when predictions failed. Encoder iterations were contributed by Grok (local fiber) and Gemini (quadratic many-body), with cross-model review and testing by Claude. The 512-dim HDC architecture, spectral piece values, quantum number codebook, D4 irrep implementation, position benchmarks, coprime roll binding, and spectral square codebook were built and tested in Claude Code.
 
+---
+
+## 45. Spike #24 primitive vocabulary — what the chess substrate instantiates
+
+Per Spike #24 (2026-05-15) + the srmech v0.4.0 production ship (2026-05-16) + `[[feedback_no_privileged_primitive_classes]]`, chess-spectral is a **substrate-consumer** of the Spike #24 14-class primitive vocabulary. Canonical enumeration of all 14 classes (A–N) with srmech module locations lives in [`docs/srmech/srmech_research_notebook.md` §3.8.1](../../srmech/srmech_research_notebook.md). Per user direction 2026-05-16 — *"other notebooks get only what pertains to them"* — this section lists only the classes the **chess substrate** instantiates.
+
+| Class | Operation | Chess substrate instantiation | Notebook section |
+|---|---|---|---|
+| **D** | late-binding dispatch | tactical-choice dispatch over legal successor states; minimax / propensity criterion is the dispatch tag-selection | §44 (the tactical-choice section); engine `qm.py` move-ordering |
+| **I** | cyclic-group / modular arithmetic | D₄ board symmetries (8-fold rotation/reflection) when applicable; channel index modular arithmetic in the 11-channel PVM; `(Z/nZ)*` arithmetic on coprime-roll binding indices | §1b.3 D₄ piece-sector symmetries; §3 piece-resonance encoder; coprime-roll binding architecture |
+| **L** | graph-Laplacian eigenbasis | piece-mobility graphs (knight / bishop / rook / queen / king / pawn) carry the DCT-eigenstructure analyses of §3; the H₀ = −Δ_{P_8^4} Kron-sum-of-path-graphs free Hamiltonian (per the qm_4d ADR-002 ship) IS Class L on the chess lattice; piece-reach observables `H_rook_4` ... `H_knight_4` are Class L graph adjacencies | §3 piece-resonance (DCT eigenstructure per piece); §7 fiber-bundle ⊕ Markov-chain reformulation §42; `qm_4d_dynamics.py:_build_h_free_4d`; per the QM audit at `docs/srmech/notes/task_218_phase_c2_chess_spectral_qm_audit_2026-05-15.md` |
+| **M** | HDC bind / bundle / permute / similarity | the 512-dim / 640-dim encoder IS Class M bundle over piece-channel-on-square hyperdimensional binds; the §7 fiber-bundle IS the Class M bind layer; piece-resonance scoring IS Class M similarity | §1b.3 architecture; §3 piece-resonance encoder; §7 fiber-bundle ⊕ Markov; coprime-roll binding |
+
+**Classes chess-spectral does NOT instantiate:**
+
+- **Class K (equation-of-centre / pin-slot)**: **chess is the canonical Class-K-absent substrate.** Per srmech notebook §3.8 Phase 10: no continuous-phase representation, no anomalistic frequency, motion is discrete-combinatorial. The contrapositive of `[[user_stance_kepler_shape_universal]]` holds — where Kepler-shape is absent, Class K is absent — exactly as the substrate-scope discipline per `[[user_stance_pi_as_projection]]` predicts. This is a *substrate boundary observation*, not a deficiency: chess defines the *negation case* for Class K universality.
+- **Class A** (content-addressing): digital-only; package-side use only (encoder hash for cache key, etc.) — not chess-substrate-side.
+- **Class F** (templating): same shape — not chess-substrate-side.
+- **Classes B / C / E / G / H** (TLV / streaming / catalog / search / introspection): provenance / scaffolding primitives used package-side (engine config, PGN parsing, opening-book lookup) but not instantiated by the chess substrate itself.
+- **Class J** (prime-factorisation / period): chess has no native period-relations between cycles — the 64-square board has discrete topology rather than continuous closed orbits. The 8 = 2³ board dimension is integer-factorisable but the substrate does not *use* the factorisation as an operation; it is a parameter not a primitive.
+- **Class N** (rational-approximation): chess has no continuous-target requiring rational approximation. The piece-value heuristic uses real-valued centipawns but that is an evaluator-side scaling, not a substrate-side N operation.
+
+**Composable derived operations the chess substrate instantiates:**
+
+- **§3 / §7 / §42 piece-mobility spectral analysis = Class L on the piece-mobility graph**. The DCT-eigenstructure analyses are spectral-graph-theory instantiations of Class L at the piece-on-empty-board substrate (per §44 reduction).
+- **§7 fiber-bundle architecture = Class L composed with Class M (HDC binding)**. The rank-3 fiber bundle structure is a hyperdimensional encoding of the piece-mobility graph eigenbasis, where Class M bind/bundle/permute operations live on the fiber.
+- **§44 tactical-choice = Class D dispatch over Class L spectral graph**, optionally quotiented by Class I symmetries of the substrate.
+
+**As of srmech v0.4.0 (2026-05-16)**: chess-spectral can consume srmech canonical QM/QFT/SM operations layer at `srmech.qm.*` for the qm_2d / qm_4d sub-modules. Specifically:
+
+- **`srmech.qm.pseudo_hermitian`** ships the η-deformed inner product primitive (Bender-Boettcher 1998 / Mostafazadeh 2002, 2010) — **closes the framework gap surfaced by chess-spectral ADR-005** (η-metric pawn observable). A follow-up chess-spectral ship can wire `H_pawn_*` through `srmech.qm.pseudo_hermitian` (`inner_product_eta`, `expectation_eta`, `is_pseudo_hermitian`, `construct_eta_from_eigendecomposition`) to finish the proposed ADR-005 framework.
+- **`srmech.qm.propagators.feynman_scalar_propagator`** ships the continuum scalar propagator `G(k²) = i / (k² − m² + iε)`; chess-spectral can ship a lattice wrapper consuming it for the §1b.5 lattice scalar propagator `G(k) = 1 / (m² + k̂²)` that was previously *cited but not coded*.
+- **`srmech.qm.gauge`** ships SU(2) / SU(3) generators + structure constants + Casimirs + Wilson loops if chess-spectral ever extends to gauge-theory analogues at the piece-symmetry layer.
+
+The chess QM stack already covers ~7/12 canonical single-particle QM equations in spectral form (TDSE / TISE / measurement / Born rule / probability current / density matrix / simultaneous eigenbasis with B₄) per the QM audit at `docs/srmech/notes/task_218_phase_c2_chess_spectral_qm_audit_2026-05-15.md`. The srmech v0.4.0 `srmech.qm.*` operations layer is **citing**, not replacing, this work; chess-spectral is one of the validated substrate-consumers.
+
 
