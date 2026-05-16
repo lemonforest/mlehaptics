@@ -81,10 +81,14 @@ def lookup(key: bytes,
         out_found = ctypes.c_bool(False)
         out_v_off = ctypes.c_uint32(0)
         out_v_len = ctypes.c_uint32(0)
+        # Note: srmech_catalog_lookup does not take values_buffer
+        # (returns offsets only; caller already owns the values buffer).
+        # We retain vals_c locally for slicing the result below.
+        _ = vals_c
         rc = _native.LIB.srmech_catalog_lookup(
             key_c, ctypes.c_uint32(len(key_b)),
             keys_c, key_off, key_len,
-            vals_c, val_off, val_len,
+            val_off, val_len,
             ctypes.c_uint32(n_pairs),
             ctypes.byref(out_found),
             ctypes.byref(out_v_off),

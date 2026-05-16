@@ -343,7 +343,6 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.POINTER(ctypes.c_uint8),     # keys_buffer
         ctypes.POINTER(ctypes.c_uint32),    # key_offsets
         ctypes.POINTER(ctypes.c_uint32),    # key_lengths
-        ctypes.POINTER(ctypes.c_uint8),     # values_buffer
         ctypes.POINTER(ctypes.c_uint32),    # value_offsets
         ctypes.POINTER(ctypes.c_uint32),    # value_lengths
         ctypes.c_uint32,                    # n_entries

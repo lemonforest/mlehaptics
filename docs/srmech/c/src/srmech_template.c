@@ -115,7 +115,7 @@ srmech_status_t srmech_template_render(const uint8_t  *tmpl,
         srmech_status_t st = srmech_catalog_lookup(
             &tmpl[key_start], key_end - key_start,
             keys_buffer, key_offsets, key_lengths,
-            values_buffer, value_offsets, value_lengths,
+            value_offsets, value_lengths,
             n_pairs, &found, &v_off, &v_len);
         if (st != SRMECH_OK) {
             return st;
