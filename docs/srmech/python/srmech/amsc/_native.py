@@ -310,6 +310,70 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_byte_search.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class D (dispatch / multi-needle pattern match) — Phase C1 rc5.
+    # int srmech_dispatch_match(input, in_len, patterns_buf,
+    #                           pat_offsets, pat_lengths, tags, n_rules,
+    #                           *out_matched, *out_tag)
+    # ------------------------------------------------------------------
+    lib.srmech_dispatch_match.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),     # input
+        ctypes.c_uint32,                    # input_len
+        ctypes.POINTER(ctypes.c_uint8),     # patterns_buffer
+        ctypes.POINTER(ctypes.c_uint32),    # pattern_offsets
+        ctypes.POINTER(ctypes.c_uint32),    # pattern_lengths
+        ctypes.POINTER(ctypes.c_uint32),    # tags
+        ctypes.c_uint32,                    # n_rules
+        ctypes.POINTER(ctypes.c_bool),      # out_matched
+        ctypes.POINTER(ctypes.c_uint32),    # out_tag
+    ]
+    lib.srmech_dispatch_match.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Class E (catalog / sorted-key lookup) — Phase C1 rc5.
+    # int srmech_catalog_lookup(key, key_len, keys_buf, key_offsets,
+    #                           key_lengths, values_buf, value_offsets,
+    #                           value_lengths, n_entries,
+    #                           *out_found, *out_value_offset,
+    #                           *out_value_length)
+    # ------------------------------------------------------------------
+    lib.srmech_catalog_lookup.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),     # key
+        ctypes.c_uint32,                    # key_len
+        ctypes.POINTER(ctypes.c_uint8),     # keys_buffer
+        ctypes.POINTER(ctypes.c_uint32),    # key_offsets
+        ctypes.POINTER(ctypes.c_uint32),    # key_lengths
+        ctypes.POINTER(ctypes.c_uint8),     # values_buffer
+        ctypes.POINTER(ctypes.c_uint32),    # value_offsets
+        ctypes.POINTER(ctypes.c_uint32),    # value_lengths
+        ctypes.c_uint32,                    # n_entries
+        ctypes.POINTER(ctypes.c_bool),      # out_found
+        ctypes.POINTER(ctypes.c_uint32),    # out_value_offset
+        ctypes.POINTER(ctypes.c_uint32),    # out_value_length
+    ]
+    lib.srmech_catalog_lookup.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Class F (template render with {key} substitution) — Phase C1 rc5.
+    # int srmech_template_render(tmpl, tmpl_len, keys_buf, ..., n_pairs,
+    #                            out_buf, out_capacity, *out_written)
+    # ------------------------------------------------------------------
+    lib.srmech_template_render.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),     # tmpl
+        ctypes.c_uint32,                    # tmpl_len
+        ctypes.POINTER(ctypes.c_uint8),     # keys_buffer
+        ctypes.POINTER(ctypes.c_uint32),    # key_offsets
+        ctypes.POINTER(ctypes.c_uint32),    # key_lengths
+        ctypes.POINTER(ctypes.c_uint8),     # values_buffer
+        ctypes.POINTER(ctypes.c_uint32),    # value_offsets
+        ctypes.POINTER(ctypes.c_uint32),    # value_lengths
+        ctypes.c_uint32,                    # n_pairs
+        ctypes.POINTER(ctypes.c_uint8),     # out_buf
+        ctypes.c_uint32,                    # out_capacity
+        ctypes.POINTER(ctypes.c_uint32),    # out_written
+    ]
+    lib.srmech_template_render.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

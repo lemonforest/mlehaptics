@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc4"
-#define SRMECH_VERSION       "0.4.0rc4"
+#define SRMECH_VERSION_PRE   "rc5"
+#define SRMECH_VERSION       "0.4.0rc5"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -366,6 +366,85 @@ srmech_status_t srmech_byte_search(const uint8_t *haystack,
  * and `srmech_abi_version` are the Class H primitives. Documenting
  * the mapping here for the cross-substrate-audit roster.
  * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * Class D — late-binding / dispatch (Task #217 Phase C1 rc5)
+ *
+ * Given an input byte sequence and an array of (pattern, tag) rules,
+ * find the first rule whose pattern occurs in the input and return its
+ * tag. Multi-needle byte-pattern dispatcher; builds on Class G's
+ * srmech_byte_search internally.
+ *
+ * On match: *out_matched = true, *out_tag = tags[matched_index].
+ * On no match: *out_matched = false, *out_tag = 0.
+ * Rules with pattern_lengths[i] == 0 (empty pattern) match at offset 0
+ * by Class G's convention.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_dispatch_match(const uint8_t  *input,
+                                      uint32_t        input_len,
+                                      const uint8_t  *patterns_buffer,
+                                      const uint32_t *pattern_offsets,
+                                      const uint32_t *pattern_lengths,
+                                      const uint32_t *tags,
+                                      uint32_t        n_rules,
+                                      bool           *out_matched,
+                                      uint32_t       *out_tag);
+
+/* ------------------------------------------------------------------ *
+ * Class E — catalog / naming (Task #217 Phase C1 rc5)
+ *
+ * Binary search over a sorted (key, value) catalog. Keys MUST be
+ * pre-sorted ascending lexicographic (caller responsibility). On
+ * match: *out_found = true, *out_value_offset / *out_value_length
+ * describe the value's slice within values_buffer.
+ *
+ * Comparison is byte-level lex with length tiebreak (shorter is less
+ * when prefix-equal). Use srmech_catalog_lookup to build higher-level
+ * registry operations (e.g., the attested-sources catalog in
+ * srmech.amsc.catalog uses this primitive on canonicalised keys).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
+                                      uint32_t        key_len,
+                                      const uint8_t  *keys_buffer,
+                                      const uint32_t *key_offsets,
+                                      const uint32_t *key_lengths,
+                                      const uint8_t  *values_buffer,
+                                      const uint32_t *value_offsets,
+                                      const uint32_t *value_lengths,
+                                      uint32_t        n_entries,
+                                      bool           *out_found,
+                                      uint32_t       *out_value_offset,
+                                      uint32_t       *out_value_length);
+
+/* ------------------------------------------------------------------ *
+ * Class F — substitution / templating (Task #217 Phase C1 rc5)
+ *
+ * Render a template containing `{key}` placeholders into out_buf,
+ * substituting each `{key}` with the value looked up in a sorted
+ * (key, value) catalog (uses srmech_catalog_lookup internally).
+ *
+ * Format:
+ *   - Plain bytes pass through verbatim.
+ *   - `{key}` substitutes with the looked-up value bytes.
+ *   - Unterminated `{...` or unknown key: SRMECH_ERR_BAD_INPUT.
+ *   - Insufficient out_capacity: SRMECH_ERR_OVERFLOW.
+ *
+ * No escape sequences for `{` and `}` (caller can substitute a key
+ * whose value is the literal brace if needed). Keep simple per JPL
+ * discipline.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_template_render(const uint8_t  *tmpl,
+                                       uint32_t        tmpl_len,
+                                       const uint8_t  *keys_buffer,
+                                       const uint32_t *key_offsets,
+                                       const uint32_t *key_lengths,
+                                       const uint8_t  *values_buffer,
+                                       const uint32_t *value_offsets,
+                                       const uint32_t *value_lengths,
+                                       uint32_t        n_pairs,
+                                       uint8_t        *out_buf,
+                                       uint32_t        out_capacity,
+                                       uint32_t       *out_written);
 
 #ifdef __cplusplus
 }
