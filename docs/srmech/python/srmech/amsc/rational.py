@@ -30,7 +30,15 @@ from typing import List, Tuple
 
 from . import _native
 
-__all__ = ["continued_fraction", "best_rational", "exp_series_truncate"]
+__all__ = [
+    "continued_fraction",
+    "best_rational",
+    "exp_series_truncate",
+    "rational_add",
+    "rational_mul",
+    "rational_div",
+    "rational_pow_uint",
+]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
 # case ~91 iterations; 128 is the C-side cap and a safe Python ceiling.
@@ -310,3 +318,199 @@ def exp_series_truncate(numerator: int,
         out_num = -out_num
         out_den = -out_den
     return (out_num, out_den)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Class N rational arithmetic primitives (rc10).
+#
+# rational_add / rational_mul / rational_pow_uint compose the chain
+# operators needed by `srmech.amsc.attested.cosmos_validation/` to
+# express the Friedmann dark-fraction rational formula as a multi-step
+# linear pipeline under Phase 2 v1 chain DSL.
+#
+# Each takes tuple inputs (p, q) and returns a reduced (p, q) tuple.
+# Pure-Python bignum-capable for arbitrary inputs; C-standalone for
+# inputs that fit u64 per `[[feedback_no_binding_layer_carveout]]`.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
+    """Reduce (num, den) to lowest terms with positive denominator."""
+    if den == 0:
+        raise ZeroDivisionError("rational denominator is zero")
+    if num == 0:
+        return (0, 1)
+    g = math.gcd(abs(num), abs(den))
+    num //= g
+    den //= g
+    if den < 0:
+        num = -num
+        den = -den
+    return (num, den)
+
+
+def _try_c_two_rationals(symbol: str,
+                          a: Tuple[int, int],
+                          b: Tuple[int, int]) -> Tuple[int, int] | None:
+    """Try the C path for an add/mul-style op; return None on overflow.
+
+    All four inputs must fit int64 (signed numerators) / uint64
+    (denominators); the C function returns SRMECH_ERR_OVERFLOW for
+    any intermediate that exceeds u64 range, in which case Python
+    bignum takes over.
+    """
+    _INT64_MAX: int = (1 << 63) - 1
+    _INT64_MIN: int = -(1 << 63)
+    _UINT64_MAX: int = (1 << 64) - 1
+    a_num, a_den = a
+    b_num, b_den = b
+    if not (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, symbol)
+            and _INT64_MIN <= a_num <= _INT64_MAX
+            and 0 < a_den <= _UINT64_MAX
+            and _INT64_MIN <= b_num <= _INT64_MAX
+            and 0 < b_den <= _UINT64_MAX):
+        return None
+    out_num_c = ctypes.c_int64(0)
+    out_den_c = ctypes.c_uint64(0)
+    rc = getattr(_native.LIB, symbol)(
+        ctypes.c_int64(a_num),
+        ctypes.c_uint64(a_den),
+        ctypes.c_int64(b_num),
+        ctypes.c_uint64(b_den),
+        ctypes.byref(out_num_c),
+        ctypes.byref(out_den_c),
+    )
+    if rc == _native.SRMECH_OK:
+        return (int(out_num_c.value), int(out_den_c.value))
+    if rc == _native.SRMECH_ERR_OVERFLOW:
+        return None  # caller falls through to bignum path
+    raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+
+
+def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    """Add two rationals; return (num, den) reduced.
+
+    a/b = (a_num, a_den), c/d = (b_num, b_den).
+    Result = (a_num * b_den + b_num * a_den) / (a_den * b_den), reduced.
+
+    Pure-Python bignum-capable. Native C path
+    (`srmech_rational_add`) for inputs that fit u64; falls through to
+    bignum on SRMECH_ERR_OVERFLOW.
+    """
+    if not (isinstance(a, (tuple, list)) and len(a) == 2):
+        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
+    if not (isinstance(b, (tuple, list)) and len(b) == 2):
+        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
+    a_num, a_den = int(a[0]), int(a[1])
+    b_num, b_den = int(b[0]), int(b[1])
+    if a_den <= 0 or b_den <= 0:
+        raise ValueError("denominators must be positive")
+    out = _try_c_two_rationals("srmech_rational_add", (a_num, a_den), (b_num, b_den))
+    if out is not None:
+        return out
+    return _reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den)
+
+
+def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    """Multiply two rationals; return (num, den) reduced.
+
+    (a_num/a_den) * (b_num/b_den) = (a_num * b_num) / (a_den * b_den).
+
+    Pure-Python bignum-capable; C path (`srmech_rational_mul`) for
+    u64-fit inputs.
+    """
+    if not (isinstance(a, (tuple, list)) and len(a) == 2):
+        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
+    if not (isinstance(b, (tuple, list)) and len(b) == 2):
+        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
+    a_num, a_den = int(a[0]), int(a[1])
+    b_num, b_den = int(b[0]), int(b[1])
+    if a_den <= 0 or b_den <= 0:
+        raise ValueError("denominators must be positive")
+    out = _try_c_two_rationals("srmech_rational_mul", (a_num, a_den), (b_num, b_den))
+    if out is not None:
+        return out
+    return _reduce_rational(a_num * b_num, a_den * b_den)
+
+
+def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    """Divide two rationals (a / b); return (num, den) reduced.
+
+    (a_num/a_den) / (b_num/b_den) = (a_num * b_den) / (a_den * b_num).
+
+    Pure-Python bignum-capable; C path (`srmech_rational_div`) for
+    u64-fit inputs. Raises ZeroDivisionError if b_num == 0.
+    """
+    if not (isinstance(a, (tuple, list)) and len(a) == 2):
+        raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
+    if not (isinstance(b, (tuple, list)) and len(b) == 2):
+        raise TypeError(f"b must be 2-tuple (num, den); got {b!r}")
+    a_num, a_den = int(a[0]), int(a[1])
+    b_num, b_den = int(b[0]), int(b[1])
+    if a_den <= 0 or b_den <= 0:
+        raise ValueError("denominators must be positive")
+    if b_num == 0:
+        raise ZeroDivisionError("rational divisor is zero")
+    out = _try_c_two_rationals("srmech_rational_div", (a_num, a_den), (b_num, b_den))
+    if out is not None:
+        return out
+    # Python bignum path: a/b = (a_num * b_den) / (a_den * b_num)
+    num = a_num * b_den
+    den = a_den * b_num
+    # If divisor was negative we need to negate both to keep denom positive.
+    if den < 0:
+        num = -num
+        den = -den
+    return _reduce_rational(num, den)
+
+
+def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
+    """Raise rational (p, q) to non-negative integer exponent.
+
+    (p/q)^n = p^n / q^n, reduced. exp must satisfy 0 <= exp <= 64
+    (matches C surface's bounded loop; for larger exponents use the
+    Python bignum path via direct exponentiation).
+
+    Pure-Python bignum-capable; C path
+    (`srmech_rational_pow_uint`) for u64-fit inputs + exp <= 64.
+    """
+    if not (isinstance(base, (tuple, list)) and len(base) == 2):
+        raise TypeError(f"base must be 2-tuple (num, den); got {base!r}")
+    if not isinstance(exp, int):
+        raise TypeError(f"exp must be int; got {type(exp).__name__}")
+    if exp < 0:
+        raise ValueError(f"exp must be non-negative; got {exp}")
+    p, q = int(base[0]), int(base[1])
+    if q <= 0:
+        raise ValueError("denominator must be positive")
+    if exp == 0:
+        return (1, 1)
+    # Try C path for u64-fit inputs + bounded exp.
+    _INT64_MAX: int = (1 << 63) - 1
+    _INT64_MIN: int = -(1 << 63)
+    _UINT64_MAX: int = (1 << 64) - 1
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_rational_pow_uint")
+            and _INT64_MIN <= p <= _INT64_MAX
+            and 0 < q <= _UINT64_MAX
+            and 0 <= exp <= 64):
+        out_num_c = ctypes.c_int64(0)
+        out_den_c = ctypes.c_uint64(0)
+        rc = _native.LIB.srmech_rational_pow_uint(
+            ctypes.c_int64(p),
+            ctypes.c_uint64(q),
+            ctypes.c_uint32(exp),
+            ctypes.byref(out_num_c),
+            ctypes.byref(out_den_c),
+        )
+        if rc == _native.SRMECH_OK:
+            return (int(out_num_c.value), int(out_den_c.value))
+        if rc != _native.SRMECH_ERR_OVERFLOW:
+            raise RuntimeError(
+                f"srmech_rational_pow_uint returned non-OK status {rc}"
+            )
+    # Python bignum path
+    return _reduce_rational(p ** exp, q ** exp)

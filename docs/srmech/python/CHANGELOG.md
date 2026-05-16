@@ -4,6 +4,52 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc10] - 2026-05-16
+
+**Task #234 Phase 3A — `cosmos_validation` catalog ship (Spike #27 / PR #437 Q6.1 falsification infrastructure).** Per user direction 2026-05-16 (Milestone #2: "Task #234 — asymptotic_calculus expansion: cosmos_validation + trig primitives"). First instance of the milestone's pattern: a chain-falsifiable cosmology catalog using only existing Class N rational primitives plus 4 new rational arithmetic ops with Python + C parity.
+
+### Added — Class N rational arithmetic primitives (4 new ops with full C/Python parity)
+
+- `srmech.amsc.rational.rational_add(a, b) -> (num, den)` — add two rationals, reduced.
+- `srmech.amsc.rational.rational_mul(a, b) -> (num, den)` — multiply two rationals, reduced.
+- `srmech.amsc.rational.rational_div(a, b) -> (num, den)` — divide two rationals, reduced; raises ZeroDivisionError on b_num=0.
+- `srmech.amsc.rational.rational_pow_uint(base, exp) -> (num, den)` — raise rational to non-negative integer exponent; exp ≤ 64.
+
+All four take tuple inputs `(p, q)` for clean chain composition via Phase 2 v1 list-resolution in `compose._resolve_args`. C surfaces: `srmech_rational_add` / `srmech_rational_mul` / `srmech_rational_div` / `srmech_rational_pow_uint` in `c/src/srmech_rational.c` + header decls in `srmech.h` + ctypes bindings in `_native.py`. Each Python wrapper dispatches to C when inputs fit u64; falls through to bignum on OVERFLOW or missing-symbol. Per `[[feedback_no_binding_layer_carveout]]` the C library is usable standalone for u64-fit inputs. JPL Power-of-Ten clean: helpers split per Rule 4 (≤60 LOC), ≥2 asserts per function (Rule 5).
+
+### Added — `srmech.amsc.attested.cosmos_validation/` catalog
+
+First chain-falsifiable cosmology catalog. Operationalises Spike #27 / PR #437 Q6.1 dark-sector monotonicity claim (concertmaster's PR #437 audit recommendation 1).
+
+- `descriptor.toml` — 9-step `friedmann_dark_fraction` chain composing rational_pow_uint (1) + rational_mul (3) + rational_add (4) + rational_div (1).
+- `row.ndjson` — 11 self-validating rows: Planck-canonical Ω values (Ω_b = 49/1000, Ω_c = 265/1000, Ω_Λ = 685/1000, Ω_r = 1/10000) + scale-factor a across z ∈ [-0.9, ~10⁵]. Each row stores expected `f_dark(a)` rational; CI runs the chain and bit-exact-compares.
+- `row.schema.json` — JSON schema for the row data.
+
+Mathematical claim: `f_dark(a) = (Ω_c·a + Ω_Λ·a⁴) / (Ω_b·a + Ω_c·a + Ω_Λ·a⁴ + Ω_r)`. Q6.1 monotonicity: f_dark(a) strictly increases in a — verified bit-exact across the 11 rows (0.026 at a=1/100000 → 0.951 at a=1 → 0.99993 at a=10). Source: Planck Collaboration 2018 VI (Aghanim et al. 2020, A&A 641:A6, doi:10.1051/0004-6361/201833910, arXiv:1807.06209) per `[[feedback_pdf_extraction_citation_discipline]]`.
+
+### Added — `tests/test_cosmos_validation_catalog.py` (9 tests, all green)
+
+- Catalog presence + row count
+- Chain bit-exact falsification (all 11 rows)
+- **Q6.1 monotonicity test**: sorts rows by a, asserts strict-increase across all consecutive pairs
+- Unit tests for each new rational op
+- Canonical pin: f_dark(a=1) = 9500/9991
+
+### Added — tool_schema entries for the 4 new rational ops
+
+Coverage ratchet bumps; each op cites Class N's rational-approximation primitive role.
+
+### Numbering note
+
+This rc10 builds on the rc1-rc9 sprint that shipped in `0.4.1rc9` (merged to main via PR #447). It is the first rc in Milestone #2 (Task #234 — asymptotic_calculus expansion). Subsequent rc11 will add sin/cos/log/atan trig primitives (Phase 3B per user direction "do sequentially and test with TestPyPI first").
+
+### Anchored in
+
+- `[[feedback_every_doc_edit_faces_falsification]]` — discipline this catalog operationalises
+- `[[feedback_no_binding_layer_carveout]]` — every new Class N op gets a C surface
+- `[[user_stance_pi_as_projection]]` + `[[user_stance_kepler_shape_universal]]` + `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_epicycle_via_gear_plus_pin]]` — the stance family
+- Spike #27 / PR #437 Q6.1 monotonicity claim (concertmaster audit reproduced 9999/9999 positive slopes; this catalog ships the analytic proof as 11 bit-exact rows)
+
 ## [0.4.1rc9] - 2026-05-16
 
 **Hotfix: asymptotic_calculus row attestation field.** The rc8 fresh-venv TestPyPI smoke surfaced that `catalog.get_attested_dataset("asymptotic_calculus")` failed at row-parse time because the literature_curated adapter requires every row to carry a `source_published_date` field for per-row attestation. The rc8 row.ndjson had `source_apostol` + `source_bishop` references but not the explicit publication date.
