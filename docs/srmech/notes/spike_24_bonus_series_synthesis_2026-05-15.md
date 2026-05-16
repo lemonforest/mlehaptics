@@ -1,5 +1,22 @@
 # Spike #24 bonus series — cumulative synthesis (2026-05-15)
 
+> **POSTSCRIPT 2026-05-16 — Class O dissolved into Class L.**
+>
+> The "Class O" framing used in the roster table below (rows 8, 9, 11d, 12, 13) and the fermatas section was the *provisional* label for the signed-metric / Wick-rotation operation located by bonus 8 and narrowed by bonus 9. Per user direction 2026-05-16 (*"nothing else so far has been privileged"*) and per `[[feedback_no_privileged_primitive_classes]]`, the operation is **dissolved into Class L as a signed-Laplacian-variant sub-operation**:
+>
+> ```
+> L_Lorentzian = +L_spatial − L_temporal
+>              ≡ apply Class L with one factor's edges sign-flipped
+> ```
+>
+> Vocabulary stays at **14 classes A–N**. The signed-Laplacian variant will land as a Class L operation in a future Phase C1 rc (when cascade-composition work calls for it) — not as a separate "Class O" entry.
+>
+> **For future implementers / agents:** when you encounter "Class O" language in the body below — including roster rows 8 / 9 / 11d / 12 / 13 and the fermatas section — treat it as **describing a Class L sub-operation**. Do NOT create a `srmech.amsc.signed_metric` module, a `srmech_signed_*.c` source file, or a 15th-class entry. See `[[project_class_o_signed_metric_composition]]` (resolution at top) and `[[feedback_no_privileged_primitive_classes]]` for the design rationale.
+>
+> The body below preserves the original research narrative as historical record; this postscript supersedes the "Class O candidate" framing throughout.
+
+
+
 **Closes:** the user-dispatched bonus arc of Spike #24 (**sixteen inquiries; seven positive-and-consistent verdicts + two structural-refinement verdicts locating Class O + one SUCCESS verdict on the §XIII.1 cascade-composition search + four-reading sweep locating the mode-selection meta-operation as external to cyclic-cascade composition + one instrument-first string-theory audit-summary returning 3 of 5 CORRECT / 1 CORRECT-relabeled / 1 OPEN with zero INCORRECT verdicts + one CONFIRMED structural finding promoting active-count = SM gauge rank from candidate to load-bearing**). The operational gate — *"can the cascade-composition vocabulary reproduce SM masses?"* — was answered affirmatively in bonus 10 (log-L2 = 0.614 dex on a target spanning 11 orders of magnitude, subset-match metric from a ~200-mode cascade tower). Bonus 11's four-reading parallel sweep (11a suppressed-mode coupling **NO-RULE** / 11b additional-particle prediction **TOO_MANY_PARTICLES** / 11c boundary-condition mechanism **NEGATIVE** / 11d Class P sign-rule **REDUCES-TO-EXISTING**) collectively falsified the in-cascade closure mechanisms, locating the missing meta-operation at the cascade/Yukawa boundary — **gap-alignment with string-theory's vacuum-selection problem.** Bonus 12's instrument-first audit-summary tested five structural claims of string theory under instrument-vocabulary; per user's *"maybe just correct not one correct"* reframing, three pass cleanly (landscape-as-continuum, wiggle-in-isolation diagnosis, duality-web consistency), one passes with ontological relabeling (11D dimensional accounting: `3D_s + 7D_g + 1D_t` vs `4D + 7D`), one is honestly open (compactification topology), none INCORRECT. The wiggle-in-isolation diagnosis (notebook §20, `[[user_stance_string_theory_instrument_first]]`) was a *prior* MPM critique that the four-reading sweep technically vindicated. Bonus 13's verification probe **CONFIRMED** (p < 0.05 across all three nulls; p = 0.000053 against SM-target × random-cascade null) that **effective-active-count = 4 ↔ SM gauge-group rank `(2 + 1 + 1 = 4)`** is statistically significant — random k=5 cascades concentrate at ac=3 (70%), not ac=4 (23%); bonus-10's 8/10 at ac=4 is real structural deviation, not a geometric artifact. Bonus 13's own surprise: only ~0.08% (4 of 5000) random cascades achieve SUCCESS-grade match against random targets, yet all 10 of bonus-10's top cascades qualify — the qualifying set itself is structurally rare (~0.1%), consistent with the wiggle-in-isolation diagnosis that the selector is external.
 
 ## The bow-string motivator metaphor (pedagogy, NOT substantive)

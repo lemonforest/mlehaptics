@@ -1,5 +1,11 @@
 # Spike #24 bonus 9 — time-dimensionality test (the OVERTURN test)
 
+> **POSTSCRIPT 2026-05-16 — "Class O" dissolved into Class L.**
+>
+> The "Class O" framing throughout this report (the narrowed circle-to-hyperbola map this bonus identified) was the *provisional* label. Per user direction 2026-05-16 and per `[[feedback_no_privileged_primitive_classes]]`, the operation is **dissolved into Class L as a signed-Laplacian-variant sub-operation**. Vocabulary stays at **14 classes A–N**. The narrowing this bonus did — from "produces signed-metric content" to "specifically circle-to-hyperbola map" — is still the load-bearing finding; what changed is the classification (Class L sub-operation, not 15th class).
+>
+> See `[[project_class_o_signed_metric_composition]]` (resolution at top) and bonus 8 / MFO §VIII.8 (postscripts at top) for the full dissolution record.
+
 **Date:** 2026-05-15. **Status:** methodological synthesis landed; concertmaster-level deliverable. **Verdict: H3 with structural refinement — bonus 8's Class O candidate is partially confirmed but its role refined.** NOT a closure-yes for H1; NOT a full closure-no for H2.
 **Branch:** `research/spike-24-bonus-8-broken-d-rederivation-2026-05-15` (this bonus extends bonus 8's branch).
 **Spec:** user-proposed bonus 9 directly: *"what if we go back and say 3D_s + 7D_g = 1D = 10D and/or 11D we need to find out if time really gets its own dimension or if it's a product of all dimensions. there might still be 11D where some missing class(es) live."*

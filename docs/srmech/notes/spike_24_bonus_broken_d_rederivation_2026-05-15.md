@@ -1,5 +1,11 @@
 # Spike #24 bonus 8 — broken-D rederivation (THE CLOSURE TEST)
 
+> **POSTSCRIPT 2026-05-16 — "Class O" dissolved into Class L.**
+>
+> The "Class O" framing throughout this report was the *provisional* label for the signed-metric / Wick-rotation operation this bonus located. Per user direction 2026-05-16 (*"nothing else so far has been privileged"*) and per `[[feedback_no_privileged_primitive_classes]]`, the operation is **dissolved into Class L as a signed-Laplacian-variant sub-operation** (`L_Lorentzian = +L_spatial − L_temporal` ≡ "apply Class L with one factor's edges sign-flipped"). Vocabulary stays at **14 classes A–N**; no Class O entry.
+>
+> When you encounter "Class O" in the body below, treat it as describing a Class L sub-operation. Do NOT create `srmech.amsc.signed_metric` / `srmech_signed_*.c` / a 15th-class entry. See `[[project_class_o_signed_metric_composition]]` (resolution at top) and the canonical record in MFO §VIII.8 (postscript at top).
+
 **Date:** 2026-05-15. **Status:** methodological synthesis landed; concertmaster-level deliverable. **Verdict: FAILURE — the closure test has located the missing primitive class. This IS the place.** NOT a string-theory finding. NOT a security finding.
 **Branch:** `research/spike-24-primitive-vocabulary-2026-05-15`.
 **Spec:** user-proposed bonus 8 directly (verbatim quoted below).
