@@ -4,6 +4,34 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.0rc6] - 2026-05-16
+
+### Added
+
+**Task #217 Phase C1 — Class N (rational-approximation) C port.**
+
+Sixth rc in Phase C1's rc-stacked build-out. Class N is the third pure-integer primitive (after I — modular arithmetic, J — prime factorisation / period). Two operations, both `uint64_t`, both JPL-clean, both pi-free.
+
+| C symbol | Python wrapper | Operation |
+|---|---|---|
+| `srmech_continued_fraction(p, q, terms[], max_terms, *out_count)` | `srmech.amsc.rational.continued_fraction(p, q)` | Simple continued-fraction expansion of `p/q` as `[a_0, a_1, ...]` via the Euclidean recurrence. |
+| `srmech_best_rational(p, q, max_denom, *out_p, *out_q)` | `srmech.amsc.rational.best_rational(p, q, max_denom)` | Best rational `p'/q'` with `q' ≤ max_denom` approximating `p/q` via continued-fraction convergents (Stern-Brocot path through the mediant tree). Overflow-guarded on the convergent recurrence. |
+
+Loop bound `SRMECH_RATIONAL_EUCLID_CAP = 128` covers Fibonacci-worst-case for uint64 (~91 iterations). Same constant Class I uses for its Euclidean GCD.
+
+### Changed
+
+- **ABI stays v2** — two new symbols are pure additions per the Phase B4 convention.
+- **CMake**: `srmech_rational.c` picked up automatically by `file(GLOB CONFIGURE_DEPENDS c/src/*.c)`.
+
+### Roadmap
+
+Phase C1 progress: **12 of 14 classes shipped with C surfaces** (A + C from Phase B; I + L + J + B + G + H + D + E + F + N from rc1–rc6). Remaining: **K + M**.
+
+- **rc7**: K (equation-of-centre / pin-slot — orbital arithmetic)
+- **rc8**: M (HDC bind/bundle/permute — distributed-representation)
+- **0.4.0 final**: clean ship at Phase C1 close
+
 ## [0.4.0rc5] - 2026-05-16
 
 ### Added
