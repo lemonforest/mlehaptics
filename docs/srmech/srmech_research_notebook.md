@@ -415,6 +415,54 @@ A candidate "Class P (sign-rule discriminator)" surfaced via the Spike #24 bonus
 
 The pattern across all four candidate Class O / Class P resurrections: **candidate primitives default to dissolution into an existing class's role**; promotion to new top-level class requires structural irreducibility that the candidate doesn't demonstrate. The 14-class vocabulary stays flat.
 
+### §3.8.1 Canonical 14-class enumeration (Phase C1 close — srmech is the abstract layer)
+
+Per the architectural commitment "srmech is the abstract layer; every primitive class earns a C surface" (`[[feedback_no_binding_layer_carveout]]`) and per `[[feedback_no_privileged_primitive_classes]]`, the **single canonical reference for the 14-class primitive vocabulary lives here**. Sister notebooks (MFO / antikythera / ephemerides / chess / etc.) cite this table; they enumerate only the classes that *pertain to their substrate* per user direction 2026-05-16.
+
+Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (`libsrmech.{so,dll,dylib}`) plus a Python wrapper (`srmech.amsc.<class>`) plus a tool-schema entry (`srmech.amsc.tool_schema`). The pure-Python fallback for Pyodide / WASM is preserved.
+
+| # | Class | Operation | Canonical example | srmech module | Phase |
+|---|---|---|---|---|---|
+| A | content-addressing | hash bytes → fixed-length digest | SHA-256 (FIPS 180-4) over byte buffer | `srmech.amsc.format.sha256_bytes` | B3 |
+| B | tagged-tuple / TLV | byte-canonical record packing | `[u8 tag][u32 length BE][value]` | `srmech.amsc.tlv.tlv_pack` | C1 rc4 |
+| C | streaming iteration | line-by-line tokenisation of a stream | NDJSON line iter with `lineno` callback | `srmech.amsc.format.read_ndjson` | B4 |
+| D | late-binding dispatch | multi-needle pattern match → tag | byte-pattern dispatcher | `srmech.amsc.dispatch.match` | C1 rc5 |
+| E | catalog / naming | sorted-key binary-search lookup | `(key, value)` registry | `srmech.amsc.naming.lookup` | C1 rc5 |
+| F | substitution / templating | `{key}` placeholder render | parameterised string interpolation | `srmech.amsc.template.render` | C1 rc5 |
+| G | discovery / search | byte-pattern find within haystack | `bytes.find(...)`-shaped operation | `srmech.amsc.search.byte_search` | C1 rc4 |
+| H | self-introspection | version / ABI / capability accessors | `srmech_version()` + `srmech_abi_version()` | (C meta) | C1 rc4 ack |
+| I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.amsc.cyclic.*` | C1 rc1 |
+| J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.amsc.primes.*` | C1 rc3 |
+| K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.amsc.kepler.*` | C1 rc7 |
+| L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.amsc.laplacian.*` | C1 rc2 |
+| M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.amsc.hdc.*` | C1 rc8 |
+| N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.amsc.rational.*` | C1 rc6 |
+
+**Composable derived operations** (the 14 base classes compose; common composites are named below for cross-notebook reference):
+
+- **Class C ∘ Class M** — streaming iteration over HDC binding = LoE-content uncompression operation; canonical substrate-coupling kernel per `[[user_stance_1d_t_as_storage_extraction]]` (operation level companion to `[[user_stance_1d_collapse_to_loe_identity_not_action]]`).
+- **Class L spectral dual of Class C ∘ Class M** — non-iterative form of the same substrate-coupling (eigenbasis projection rather than streaming iteration).
+- **Class K projection-shadow** — Kepler-shape continuous projection when the cascade IS planetary-mechanical (per `[[user_stance_kepler_shape_universal]]`).
+- **Class L + Class I** — signed-Laplacian variant (Lorentzian-vs-spatial sign-flip) — the dissolved Class O per `[[project_class_o_signed_metric_composition]]`.
+- **Class L × Class J** — Feinberg deficiency `δ = rank(L_complex) − rank(N)` for chemical-reaction networks.
+
+### §3.8.2 Canonical QM/QFT/SM operations layer on top of the 14 classes (Phase C1 rc9-rc11)
+
+Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical physics-operations layer at `srmech.qm.*` — each operation sourced from the physics literature (Schrödinger / Heisenberg / Dirac / Yang-Mills / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Mostafazadeh / Bender-Boettcher) and dissolved into the 14-class vocabulary above. **No new primitive classes** — every QM/QFT/SM operation is a composite of A–N.
+
+| Module | Operations | Dissolves into | Canonical SSoT |
+|---|---|---|---|
+| `srmech.qm.single_particle` | TDSE, TISE, Heisenberg evolution, commutator, lattice momentum, density matrix, Liouville-vN | Class L (spectral evolution) + Class C (lattice gradient) | Schrödinger (1926); Sakurai §§1.4, 1.6, 2.1-2.3, 3.4; von Neumann (1932); Wilson (1974) |
+| `srmech.qm.spin` | Pauli matrices, Clifford Cl(0,3) residuals, arbitrary-axis spin-½ | Class M (Clifford binding) | Pauli (1927); Sakurai §3.2 |
+| `srmech.qm.potentials` | Hydrogen radial, harmonic oscillator ladder ops + Hamiltonian | Class L (radial eigendecomp) + Class M (Fock-space binding) | Bohr (1913); Heisenberg (1925); Sakurai §§2.3, 3.7 |
+| `srmech.qm.relativistic` | Dirac γ-matrices, γ_5, Weyl projectors, charge conjugation, Klein-Gordon dispersion | Class M (Cl(1,3) Clifford binding) + Class L | Dirac (1928); Klein/Gordon (1926); Peskin-Schroeder §§3.2-3.4 |
+| `srmech.qm.propagators` | Feynman scalar / fermion / photon / massive-vector | Class K (continuous projection of lattice propagator `1/(m² + k̂²)`) | Feynman (1949); Peskin-Schroeder §§4.2, 4.7-4.8, 20.1 |
+| `srmech.qm.pseudo_hermitian` | η-deformed inner product framework | Class L (η-deformed spectral) | Bender-Boettcher (1998); Mostafazadeh (2002, 2010) |
+| `srmech.qm.gauge` | SU(2)/SU(3) Gell-Mann generators, structure constants, Casimirs, Wilson loops | Class M (Lie-algebra binding) + Class L (matrix exponential) + Class C (path-ordered iteration) | Yang-Mills (1954); Gell-Mann (1962); Wilson (1974); Peskin-Schroeder §§15-17 |
+| `srmech.qm.sm` | Higgs vev, weak mixing angle, W/Z masses, Weinberg relation, Yukawa, CKM | Class K (continuous projection of vev → mass relations) + Class M (CKM unitary mixing) | Glashow (1961); Weinberg (1967); Salam (1968); Higgs (1964); Cabibbo (1963); Kobayashi-Maskawa (1973); Peskin-Schroeder Chs 20-21 |
+
+`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
+
 **Stoichiometry hope (Phase 8) → resolved (Phase 9).** Phase 8 hoped that stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem might surface a *genuinely new* primitive class. Phase 9's full investigation found instead that stoichiometry's algebra theory IS the existing primitive vocabulary instantiated at the chemistry-dynamics substrate. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The vocabulary keeps tightening; this is consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
 
 **Citation status (Phase 12).** Chemistry primary citations (Pitzer 1937 / Kemp & Pitzer 1936 ethane V₃; Hückel 1931 4n+2; Chérest-Felkin-Prudent 1968 + Anh-Eisenstein 1977; Woodward & Hoffmann 1965/1970; Edward 1955 anomeric; Horn 1972 / Feinberg 1979/1987 CRN) remain `[unverified-secondary]` in the spike findings; the computational verifications (Phase 7.6.1 Woodward-Hoffmann 12/12 thermal/photochemical match; Phase 7.6.2 Hückel path-graph Laplacian eigenvalues; Phase 7.7.3 Felkin-Anh broken-K harmonic decomposition; Phase 9.2 Brusselator/Oregonator Kepler-shape) stand as primary mathematical evidence. Bohr 1913 Rydberg formula is universally public-domain and not in dispute. Future Phase 12.5 (deferred) can extract primary PDFs and ratchet citations through the verification discipline.
