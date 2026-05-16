@@ -1,0 +1,100 @@
+# CMB Gravitational Lensing — Planck 2018 PR3 binned C_L^{phi phi} bandpowers.
+#
+# Cosmological-instrument ship: the CMB lensing potential power spectrum is
+# the canonical projected-mass-fluctuation observable on the celestial sphere.
+# Each multipole L of the lensing potential phi(n̂) is a spherical-harmonic
+# eigenmode of S² (the sky sphere); the lensing reconstruction extracts phi
+# from CMB temperature + polarization maps via quadratic estimators, and the
+# binned bandpower C_L^{phi phi} measures the variance of phi at each L.
+#
+# Companion to cmb_power_spectrum (Planck 2018 PR3 binned TT D_ell, in
+# ephemerides-spectral): where TT/TE/EE/BB measure variance of the
+# *primary* CMB anisotropies, C_L^{phi phi} measures the projected
+# integrated mass distribution between us and the last-scattering
+# surface. Lensing is a *secondary* anisotropy — induced by structure
+# along the line of sight, not by primordial fluctuations.
+#
+# Ground-truth source: Planck Collaboration 2018 VIII (Aghanim et al. 2020)
+# "Planck 2018 results VIII: Gravitational lensing", A&A 641:A8,
+# doi:10.1051/0004-6361/201833886, arXiv:1807.06210.
+#
+# Bandpower data from Table 1 of the paper (lensing-reconstruction
+# power-spectrum band-power amplitudes and errors). Three estimators are
+# represented: TT (temperature-only), MV (minimum-variance, combined
+# T + E + B reconstruction), PP (polarization-only). For each estimator,
+# the table lists fid_Â (amplitude relative to fiducial ΛCDM bandpower)
+# and the fiducial bandpower in units of 10^7 L²(L+1)² C_L^{phi phi} / (2π).
+# The observed bandpower is the product: C_L^{phi phi} = fid_Â · fiducial.
+#
+# Two multipole ranges: conservative (8 ≤ L ≤ 400) and aggressive
+# (8 ≤ L ≤ 2048). Conservative is the recommended range for parameter
+# constraints; aggressive is included for completeness (the high-L bins
+# fail a pair of consistency tests per the paper, so use with caution).
+#
+# Reported lensing detection significance: 40σ from MV reconstruction
+# (T + E + B combined). 9σ from polarization-only. CMB-marginalised
+# best-fit amplitude over conservative range: Â^{phi,MV}_{8→400} =
+# 1.011 ± 0.028. Over aggressive range: Â^{phi,MV}_{8→2048} = 0.995 ± 0.026.
+#
+# precision_flag = "high" for all rows — values taken verbatim from
+# Planck 2018 VIII Table 1 with no rounding.
+
+[source]
+key = "cmb_lensing"
+human_readable_name = "Cosmic Microwave Background Gravitational Lensing Power Spectrum (Planck 2018) Catalogue"
+purpose = "ground-proof rows for the CMB lensing-potential power spectrum C_L^{phi phi} from Planck 2018 PR3 — the canonical projected-mass-fluctuation observable, complementary to the primary CMB anisotropies; reference for the line-of-sight integrated structure between us and last scattering"
+license = "literature-curated; per-row source DOI cites Planck 2018 VIII (Aghanim et al. 2020 A&A 641:A8)"
+homepage = "https://pla.esac.esa.int/"
+canonical_doi = "10.1051/0004-6361/201833886"
+
+# canonical_doi above points at Planck Collaboration 2018 VIII (Aghanim
+# et al. 2020 A&A 641:A8). Per-row provenance cites this paper as the
+# source for the bandpower values. The full lensing reconstruction data
+# product (lensing map + per-realization noise estimates + likelihood)
+# is distributed via the Planck Legacy Archive as
+# COM_Lensing_4096_R3.00.tgz; the binned bandpower amplitudes in this
+# catalog come from Table 1 of the paper, which summarises that product.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cmb_lensing.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "CMB Lensing Bandpower Catalogue (curated against Planck 2018 VIII: Aghanim et al. 2020 *A&A* 641:A8, doi:10.1051/0004-6361/201833886, arXiv:1807.06210; bandpowers from Table 1); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof CMB lensing bandpower at L bin {schema.L_bin_label} ({schema.estimator}, {schema.range_kind} range)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# CMB lensing power spectrum is the canonical projected-mass-fluctuation
+# observable on the sky sphere — a secondary anisotropy induced by
+# structure between us and last scattering. The v0.24.9 dynamical-regime
+# classifier doesn't yet have a regime label for cosmological-lensing
+# catalogues; closest existing label is rigid_body_action_angle_stable
+# (lensing is observationally stable across CMB experiments, with the
+# 2018 PR3 release consistent with 2015 PR2 to within ~0.8σ). A future
+# regime label like `cosmological_lensing_secondary_anisotropy` would
+# be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]

@@ -4,6 +4,230 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc7] - 2026-05-16
+
+**Spike #28 ship — falsification-discipline pre-merge hotfix.** Removes the four Phase 1 worked-example chain specs from the cosmos catalogs because they reference primitives that don't yet exist (their chains list cleanly but fail at activate-time when actually run). Per `[[feedback_every_doc_edit_faces_falsification]]` (user direction 2026-05-16: *"our model has not lied to us yet, so I believe the math still"*) we do not ship chain specs whose underlying primitives can't run — chains that cannot execute are claims that cannot falsify. Surfaced via the rc5 fresh-venv TestPyPI smoke (Class D `match_filter`, Class E `sorted_lookup_extract` + `sorted_lookup_batch`, Class L `spherical_harmonic_decompose` + `extract_preferred_axis`, Class I `angular_separation_axes` all missing). Each chain re-lands as its underlying primitive ships — `spherical_harmonic_decompose` is Spike #26 Phase 2 scope (Task #227); `angular_separation_axes` is Task #234 §11 inventory (`cmb_angular_geometry` sister catalog with rc7+ sin/cos). The DSL design pattern lives in `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` for reference. **rc6 was reserved for PR #447's asymptotic_calculus ship and is not tagged on this branch.**
+
+Numbering note: rc6 is reserved for PR #447 (Spike #28 math addendum + asymptotic_calculus catalog ship), which builds on this branch's rc5 commit and adds `exp_series_truncate` Class N op + first concrete chain-falsification catalog. rc7 is this hotfix on PR #439. After PR #439 merges, PR #447 reconciles + ships its rc6 commit as a follow-on rebase (renumbered to rc8 if required by the autotag workflow's monotone-version gate; the underlying commit hash stays the same).
+
+### Changed — cosmos catalog chain specs removed
+
+- `srmech/amsc/attested/cmb_low_ell_maps/descriptor.toml`: removed `multipole_vector_axis` (LLDA) and `t_vs_e_axis_differential` (LLLLI) chain specs.
+- `srmech/amsc/attested/cmb_polarisation_spectra/descriptor.toml`: removed `acoustic_peak_locations` (CDE) chain spec.
+- `srmech/amsc/attested/cmb_bispectrum/descriptor.toml`: removed `f_NL_template_combination` (ENA) chain spec.
+- All three descriptors retain `[catalog].chain_schema_version = 1` so re-adding chains later does not require reintroducing the `[catalog]` section. Inline deprecation comments document what was removed and which Task # tracks the re-add.
+
+### Behaviour impact
+
+- `srmech.amsc.catalog.list_catalog_chains(<cosmos_catalog>)` now returns `{"ok": True, "source_key": ..., "n_chains": 0, "chains": []}` for each of the three affected catalogs. Pre-rc7 it returned `n_chains=1` or `n_chains=2` but `run_catalog_chain` would then raise `ChainSpecError` at activate time. The rc7 behaviour is strictly more honest: empty chain list reflects empty executable surface.
+- All other rc5 functionality intact: cosmos catalog data rows + chain schema infrastructure + composition engine + Class L broadening + tool_schema coverage.
+- `cmb_lensing` catalog never had chain specs and is unaffected.
+
+### Test
+
+No new test pinning needed — `srmech.amsc.compose` engine's existing parse-time / activate-time validation is exactly what surfaced the gap in rc5 smoke. Future cosmos chains re-added in rc7+ will inherit the same validation discipline.
+
+## [0.4.1rc5] - 2026-05-16
+
+**ADR-0002 Phase 2 — Class L broadening + composition engine + notebook updates.** Implements the Phase 1 spike's dissolve-into-Class-L proposal per `[[feedback_no_privileged_primitive_classes]]`. Class L's identity broadens from "graph Laplacian" to "dense-matrix linear algebra including eigendecomposition + matrix-vector multiplication + elementwise operations"; the graph-Laplacian-specific ops become specialisations. Adds the operator-chain composition engine (`srmech.amsc.compose`) implementing schema v1 from the Phase 1 ADR doc, with linear pipeline execution + 4-namespace reference DSL (`@row.* / @input.* / @step[N].output / @catalog.*`) + chain-level and per-step error policy. Engine integration with the catalog bridge: `list_catalog_chains(source_key)` and `run_catalog_chain(source_key, chain_name, row_index, inputs)`. **Vocabulary stays at 14 classes A–N; no Class P promoted.**
+
+### Added — Class L broadening (4 new ops, full C + Python parity)
+
+Each new op cites canonical physics literature per `[[feedback_science_is_ssot_not_project]]`:
+
+- `srmech.amsc.laplacian.hermitian_eigendecompose(H) -> (eigvals, V)` — complex Hermitian generalisation of `jacobi_eigvals`. Returns ascending eigenvalues + unitary eigenvectors. Native C path via `srmech_hermitian_eigendecompose` (complex-Jacobi rotations with algebraic phase factor `e^(iφ) = γ/|γ|`; pi-free, atan2-free, n ≤ 256). Numpy fallback via `np.linalg.eigh`. Canonical SSoT: Golub & Van Loan *Matrix Computations* (4th ed., 2013) §8.5.
+- `srmech.amsc.laplacian.dense_matvec_complex(M, v) -> M @ v` — general complex matrix-vector multiplication. Native C path via `srmech_dense_matvec_complex`; numpy fallback. Canonical SSoT: Golub & Van Loan §1.1.
+- `srmech.amsc.laplacian.elementwise_multiply_complex(a, b) -> a * b` — vectorised pointwise complex multiply with broadcasting. Native C path; numpy fallback.
+- `srmech.amsc.laplacian.elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}`. Array-vectorised transcendentals over real input; `exp_i(x) = exp(1j * x)` (TDSE-relevant complex exponential) realised in Python as `cos + i*sin` over the real argument via two C calls. Canonical SSoT: ANSI C99 §7.12 libm.
+
+The `LAPLACIAN_OPS` module-level constant exposes all 8 op names (4 original + 4 new) for the composition-engine registry.
+
+### Added — composition engine (`srmech.amsc.compose`)
+
+- `ChainSpec` dataclass mirroring the TOML `[[catalog.operator_chain]]` schema.
+- `StepSpec` dataclass mirroring `[[catalog.operator_chain.steps]]` entries.
+- `parse_chain_spec(chain_dict)` — schema-v1 validation; rejects malformed reference syntax, unknown class identifiers, out-of-bounds `@step[N]` references, illegal `on_error` values, empty step lists.
+- `parse_catalog_chains(toml_dict)` — parses all chains in a descriptor TOML; requires `[catalog].chain_schema_version = 1`.
+- `resolve_chain(spec, registry)` — binds each step's `class.op` against `DEFAULT_CLASS_REGISTRY` (covers all 14 classes A–N); raises `ChainSpecError` on missing op at activation time.
+- `run_chain(spec, *, row, inputs, registry)` — top-level executor; linear pipeline; error policy (raise / warn_return_none / skip-NYI-for-single-call).
+- 4-namespace reference DSL resolution at runtime: `@row.<path>`, `@input.<name>`, `@step[N].output[.<path>]`, `@catalog.<row_key>.<col>`.
+
+### Added — catalog bridge integration
+
+- `srmech.amsc.catalog.list_catalog_chains(source_key)` returns `{ok, source_key, n_chains, chains}` where each chain has `{name, summary, returns, on_error, n_steps, classes}`. ADR-0002 Phase 2 bridge surface.
+- `srmech.amsc.catalog.run_catalog_chain(source_key, chain_name, *, row_index, inputs)` executes the named chain with optional row binding. Phase 1's 4 worked-example chains across 3 cosmos catalogs are now invocable via this bridge.
+
+### Added — C surface
+
+- `srmech_hermitian_eigendecompose(n, H_il, eigvals, V_il)` — complex Hermitian eigendecomposition via complex-Jacobi rotations. Pi-free, atan2-free; complex numbers travel as interleaved-double pairs (re, im, re, im) on the FFI boundary. Bounded by `SRMECH_LAPLACIAN_MAX_NODES` = 256.
+- `srmech_dense_matvec_complex(rows, cols, M_il, v_il, out_il)` — complex matvec.
+- `srmech_elementwise_multiply_complex(n, a_il, b_il, out_il)` — pointwise complex multiply.
+- `srmech_elementwise_transcendental(n, arr, op_id, out)` — real transcendental dispatcher; op_id enum `SRMECH_TRANS_{EXP,COS,SIN,LOG}` in `srmech.h`.
+
+**ABI version stays at v2** — additive symbol additions don't break the wire contract. JPL Power-of-Ten audit clean: each new function ≤ 60 lines, ≥ 2 assertions, no goto, no malloc, no unbounded loops.
+
+### Added — tool-schema entries (10 new entries)
+
+- `srmech.amsc.laplacian.{hermitian_eigendecompose, dense_matvec_complex, elementwise_multiply_complex, elementwise_transcendental}` — Class L broadening.
+- `srmech.amsc.catalog.{list_catalog_chains, run_catalog_chain}` — bridge surfaces.
+- `srmech.amsc.compose.{parse_chain_spec, parse_catalog_chains, resolve_chain, run_chain}` — engine surfaces.
+
+Tool-schema coverage ratchet (`tests/test_tool_schema_coverage.py`) continues green.
+
+### Added — tests (39 new test cases)
+
+- `tests/test_laplacian_class_l_broadening.py` (18 tests): parity with numpy for all 4 new ops; Hermitian eigendecomposition convergence + unitarity + 2×2 Pauli-Y reference; `LAPLACIAN_OPS` registry coverage; **end-to-end TDSE composition test** (`hermitian_eigendecompose` → `dense_matvec_complex` → `elementwise_transcendental("exp_i")` → `elementwise_multiply_complex` → `dense_matvec_complex`) verified against reference path to 1e-10 with norm preservation.
+- `tests/test_compose.py` (21 tests): schema validation; reference DSL namespace resolution; linear pipeline threading; error policy; catalog-level chain parsing including the 4 real Phase 1 cosmos chains end-to-end.
+
+Full suite: **547 passed** (508 pre-Phase-2 + 39 new).
+
+### Documentation
+
+- `docs/srmech/srmech_research_notebook.md` §3.8.3 added — Class L broadening rationale, the 4 new ops with canonical SSoT citations, dissolve-vs-promote framing per `[[feedback_no_privileged_primitive_classes]]`. Cross-references to ADR-0002 Phase 1 schema doc and Phase 1 report.
+- `docs/antikythera-maths/mfo_spectral_research_notebook.md` §VIII.6.1 — added "Closure-validation observation #2 — ADR-0002 Phase 1 TDSE spike" paragraph noting the second affirmative closure-validation (after Phase C1's QM/QFT/SM ops layer landing without new primitives). The closure conjecture (14 primitives suffice) now stands at two independent positive verifications.
+- `docs/srmech/python/CHANGELOG.md` — this entry.
+
+### Notes
+
+- Per `[[feedback_no_binding_layer_carveout]]`: Class L's broadening earns its full C surface (4 new symbols + ctypes bindings), not Python-only.
+- Per `[[feedback_no_mvp_framing]]`: rc5 covers the full Phase 2 surface (Class L broadening + composition engine + catalog integration + tests + notebook updates), not a Phase-2a-then-Phase-2b carve-out.
+- Per `[[feedback_rc_stacking_versioning]]`: rc5 stacks on the active 0.4.1 cosmos-catalog sprint on `feat/srmech-cosmos-catalog`; clean 0.4.1 ships when sprint concludes.
+- Phase 2 open questions (branching / chain-level iteration / cross-source reduction / auto-derived tool-schema parameter types / versioned op evolution) remain Phase 2-v2 scope per Phase 1 §11.
+
+## [0.4.1rc4] - 2026-05-16
+
+**ADR-0002 Phase 1 — operator-chain DSL design + worked-example specs + spike.** Formalises the descriptor TOML operator-chain DSL sketched in ADR-0002 §3. Schema v1 candidate lands as a new ADR Phase 1 document; four worked-example chains land across three of the four cosmos catalogs (`cmb_low_ell_maps` × 2, `cmb_polarisation_spectra` × 1, `cmb_bispectrum` × 1); the spike — closed-form TDSE evolution from `srmech.qm.single_particle.tdse_evolve` — surfaces a Class L scope-broadening question with a clean dissolve-into-existing-class proposal per `[[feedback_no_privileged_primitive_classes]]`. The vocabulary stays at 14 classes A–N; no new primitive class promoted.
+
+### Added — schema v1 documentation
+
+- `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` (~330 lines): formalised schema specification resolving 7 design concerns from the conductor's Phase 1 brief.
+  - Step shape: `class` + `op` + `args` (+ optional per-step `on_error`). Closed shape.
+  - Data flow: linear pipeline with explicit `@step[N].output` references. No implicit threading. No DAG / branching in v1.
+  - Input binding: reference DSL with four namespaces (`@row.X`, `@input.X`, `@step[N].output`, `@catalog.<key>.<col>`).
+  - Return shape: typed string `"<type>  # <comment>"` parseable via `typing` utilities.
+  - Error policy: default `raise`; opt-in `warn_return_none` / `skip`.
+  - Versioning: required `[catalog].chain_schema_version = 1` when chains declared.
+  - Reference DSL grammar formalised; engine validates at chain activation.
+- Includes a JSON Schema (`srmech.amsc.operator_chain.v1`) for descriptor validation pipelines.
+
+### Added — four worked-example chains
+
+| Catalog | Chain | Classes | Steps | Purpose |
+|---|---|---|---|---|
+| `cmb_low_ell_maps` | `multipole_vector_axis` | L + L + D + A | 4 | de Oliveira-Costa 2004 §III axis extraction at fixed ℓ |
+| `cmb_low_ell_maps` | `t_vs_e_axis_differential` | L + L + L + L + I | 5 | §VII.6.3.1 falsifiable Δθ_TE prediction (predicted 1.0°–2.0°; threshold < 0.1°) |
+| `cmb_polarisation_spectra` | `acoustic_peak_locations` | C + D + E | 3 | TT/TE/EE peak enumeration via NDJSON stream + multi-needle dispatch + sorted extract |
+| `cmb_bispectrum` | `f_NL_template_combination` | E + N + A | 3 | Joint rational-form bound across the 3 primordial bispectrum templates |
+
+All four chains parse cleanly via `python -m tomllib`; canonical SSoT citations per chain (Planck 2018 IV / V / IX) all PDF-extraction-verified per `[[feedback_pdf_extraction_citation_discipline]]`.
+
+**TOML-syntax note:** the original ADR-0002 §3 sketch used multi-line inline-table arrays (`steps = [ { ... }, { ... } ]`) which the TOML spec forbids. The Phase 1 canonical form lifts each step to its own `[[catalog.operator_chain.steps]]` array-of-tables entry; same semantic content, valid TOML, tomllib-round-tripped. The schema doc §2 documents the correction.
+
+### Spike — closed-form TDSE evolution surfaces Class L scope question
+
+The spike calculation `srmech.qm.single_particle.tdse_evolve(H, ψ, t) = V·diag(exp(-iλt))·V^H·ψ` (Sakurai §2.1.5 eq 2.1.40) decomposes to 5 conceptual steps: Hermitian eigendecompose + change-of-basis ψ→eigenbasis + elementwise `exp(-iλt)` + elementwise multiply + change-of-basis back. Step 0 fits Class L (with complex-Hermitian generalisation of existing real-symmetric `jacobi_eigvals`); steps 1, 3, 4 (complex matvec, elementwise multiply) and step 2 (elementwise transcendental over complex array) do NOT cleanly fit any existing A–N class op.
+
+**Proposed Phase 2 refinement** (per `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote):
+broaden Class L's identity from "graph Laplacian" to "dense-matrix linear algebra including eigendecomposition + matvec + elementwise operations". New Class L ops in Phase 2:
+- `hermitian_eigendecompose(H)` — complex-Hermitian generalisation
+- `dense_matvec_complex(M, v)` — general complex matvec
+- `elementwise_multiply_complex(a, b)` — vectorised pointwise
+- `elementwise_transcendental(arr, op_name)` — array-vectorised `exp`/`cos`/`sin`/etc.
+
+Class L's existing graph-Laplacian-specific ops (`dense_laplacian`, `normalized_laplacian`) become specialisations of the broader dense-matrix scope. No new primitive class promoted; vocabulary stays at 14 classes A–N.
+
+### Added — Phase 1 report
+
+- `docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md` (~290 lines): consolidated design decisions + worked-example overview + spike write-up + open questions for Phase 2.
+
+### No code change; no C ABI change; no Python API change
+
+- C ABI v2 unchanged.
+- No new C symbols. No JPL audit pin changes.
+- No `srmech.amsc.<class>` Python surface changes.
+- No `srmech.qm.*` operation changes.
+- Schema is data-only addition to descriptor.toml; no Python composition-engine code yet (Phase 2 scope).
+
+### Versioning
+
+`0.4.1rc3` → `0.4.1rc4`. Sprint-level rc-stacking per `[[feedback_rc_stacking_versioning]]`, not a separate ship. Cumulative cosmos catalog sprint accumulates: rc1 (3-catalog data layer + framework precedent) + rc2 (`read_ndjson` framework fix) + rc3 (cmb_low_ell_maps catalog #4) + rc4 (this — ADR-0002 Phase 1 schema + 4 chains + spike). Clean `0.4.1` ships when sprint accumulates everything the cosmos catalog research thread + ADR-0002 Phase 1 implementation prep needs.
+
+## [0.4.1rc3] - 2026-05-16
+
+**Cosmos catalog extension — Spike #26 Phase 1 data layer folded into the 0.4.1 sprint.** Adds the fourth srmech-primary cosmos catalog source, `cmb_low_ell_maps`, providing metadata for Planck PR3 component-separated full-sky CMB maps (Commander / NILC / SEVEM / SMICA) + common-mask products. Phase 2 (the analysis script) will fetch the FITS bytes via the catalog URLs and compute T-mode + E-mode a_ℓm coefficients for multipole-vector AoE-direction extraction; the framework prediction Δθ_TE ≈ 1°–2° from §VII.6.3.1's 138°/unit-f_RD bundle-projection-reconfiguration rate × Δf_RD across the T-vs-E recombination visibility window will be tested against observation.
+
+### Added — `cmb_low_ell_maps` attested source
+
+7 rows of provenance metadata (4 sky-map FITS + 3 mask products) at `srmech/amsc/attested/cmb_low_ell_maps/`. FITS bytes are not committed (each map is ~168 MB; 672 MB total exceeds git's reasonable storage envelope); Phase 2 fetches via the per-row `source_url` field from PLA's HTTP CDN (`pla.esac.esa.int/pla/aio/product-action?MAP.MAP_ID=...`) which serves Planck data per ESA's Open Access policy without authentication.
+
+**Canonical citations** (PDF-extraction verified per `[[feedback_pdf_extraction_citation_discipline]]`):
+- Planck 2018 IV (diffuse component separation): [arXiv:1807.06208](https://arxiv.org/abs/1807.06208), A&A 641 A4
+- Planck 2018 VII (isotropy + statistics): [arXiv:1906.02552](https://arxiv.org/abs/1906.02552), A&A 641 A7
+
+### Placement decision (rc3 only — not a framework change)
+
+Per user directive on the MFO/AoE research line — *"MFO and srmech ship as one, because it demonstrates every class operator"* — the new `cmb_low_ell_maps` catalog is placed in **srmech** (`srmech/amsc/attested/`), matching the rc1 cosmos catalog precedent (`cmb_polarisation_spectra` + `cmb_bispectrum` + `cmb_lensing`). The Spike #26 Phase 1 concertmaster initially placed the catalog in ephemerides-spectral for cmb-family co-location; reworked here to align with rc1's placement and the user's "MFO + srmech ship as one" directive. Future migration of all cosmos catalogs to ephemerides-spectral remains the eventual plan once MFO matures and earns its own scope.
+
+### Companion research note (separate path)
+
+Phase 2 scope artifact at `docs/antikythera-maths/research-mfo/vii_6_3_1_prediction_verification_scope_2026-05-16.md` (171 lines): multipole-vector extraction algorithm (de Oliveira-Costa 2004), visibility-function modelling for T-vs-E recombination Δz, predicted differential trajectory across Δz ∈ [10, 50] (range 0.67° → 3.4°; central 1.0°–2.0°), falsifier threshold Δθ_TE < 0.1°. Lives in `research-mfo/` alongside the dark-sector + AoE working notes.
+
+### No code change; no ABI change; no Python API change
+
+- C ABI v2 unchanged.
+- No new C symbols, no new Python catalog modules, no new tool_schema entries.
+- Data-only addition + research-note artifact + version bump (4 SSOT files + CHANGELOG).
+
+### Versioning
+
+`0.4.1rc2` → `0.4.1rc3`. Cumulative rc-stack on the 0.4.1 cosmos catalog sprint per `[[feedback_rc_stacking_versioning]]`. Sprint accumulates: rc1 (cosmos catalog data layer + framework precedent for srmech-primary catalogs) + rc2 (`read_ndjson` skips `#` comments framework fix) + rc3 (this — fourth catalog source). Clean `0.4.1` ships to production once the sprint accumulates everything the cosmos-catalog research thread needs.
+
+## [0.4.1rc2] - 2026-05-16
+
+**Framework bug fix — `read_ndjson` now skips `#` comment-header lines.** Found during the rc1 TestPyPI smoke verify when `catalog.attestation_audit` failed on the new `cmb_polarisation_spectra/row.ndjson`. Investigation confirmed the bug **pre-exists in production srmech 0.4.0** and affects every `#`-comment-prefixed NDJSON across the spectral-research portfolio — including ephemerides-spectral 0.29.x's already-shipped `cmb_anomalies` + `cmb_power_spectrum` catalogs. `catalog.get_attested_dataset` was comment-aware via a different code path; `catalog.attestation_audit` calls `read_ndjson` directly and was choking on the leading `# CMB ... catalogue` header.
+
+### Fixed — `format.read_ndjson` skips `#` lines + empty lines uniformly
+
+- **Pure-Python path** (`format.py:286–296`) now skips lines that match `not line or line.startswith("#")` after stripping whitespace.
+- **Native path** (`format.py:266–283`) now decodes each line, lstrips whitespace, and skips empty + `#`-prefixed lines before calling `MPRRecord.from_json_line`. Indented comments (leading whitespace before `#`) are also tolerated.
+- New ratchet test `test_format.test_ndjson_skips_hash_comment_lines` pins the behaviour across both paths.
+
+This restores `attestation_audit` parity with `get_attested_dataset` for all `#`-comment-prefixed NDJSON catalogs.
+
+### Versioning
+
+`0.4.1rc1` → `0.4.1rc2`. Patch bump on the cosmos catalog sprint. Cumulative rc-stack per `[[feedback_rc_stacking_versioning]]`; clean `0.4.1` ships to production after rc2 TestPyPI verify covers both the cosmos catalog content (rc1) and the framework fix (rc2).
+
+## [0.4.1rc1] - 2026-05-16
+
+**Cosmos catalog ship rc1.** Seeds three new srmech-primary attested AMSC sources covering the Planck 2018 PR3 CMB observables that downstream MFO research needs as ground-proof anchors. Per user directive on the AoE/dark-sector research line (PR #437 + the four-turn dialog landed in MFO §VII.6.2/.6.3): cosmos catalog lives in srmech for now (MFO + srmech ship as one demonstrates every primitive class operator); future migration to ephemerides-spectral is later scope.
+
+### Added — three attested catalogs under `srmech/amsc/attested/`
+
+| Source | Rows | Primary reference | Canonical content |
+|---|---|---|---|
+| `cmb_polarisation_spectra` | 45 | Planck 2018 V (Aghanim et al., A&A 641 A5; [arXiv:1907.12875](https://arxiv.org/abs/1907.12875)) | Binned TE/EE bandpowers (PR3/R3.02) + low-ℓ BB upper limits (R3.01); TE acoustic peak ℓ=315 D_ℓ=119.4±2.5 μK²; EE 3rd peak ℓ≈1005 D_ℓ=42.4±1.3 μK²; BB Planck-range noise-dominated |
+| `cmb_bispectrum` | 36 | Planck 2018 IX (Akrami et al., A&A 641 A9; [arXiv:1905.05697](https://arxiv.org/abs/1905.05697)) | f_NL constraints (local / equilateral / orthogonal × KSW / binned / modal methods); SMICA T+E KSW lensing-subtracted: f_NL^local = -0.9 ± 5.1, f_NL^equilateral = -18 ± 47, f_NL^orthogonal = -37 ± 23 — all consistent with Gaussianity |
+| `cmb_lensing` | 37 | Planck 2018 VIII (Aghanim et al., A&A 641 A8; [arXiv:1807.06210](https://arxiv.org/abs/1807.06210)) | Lensing reconstruction Cℓ^{ϕϕ} bandpowers + MV amplitude; Â^{φ,MV}_{8→400} = 1.011 ± 0.028 (conservative); 40σ MV detection |
+
+All 118 rows authored via PDF extraction per `[[feedback_pdf_extraction_citation_discipline]]` — three primary arXiv IDs verified clean at first-page extraction (no citation drift). PLA non-blocking; arXiv served all three PDFs.
+
+### Architectural note — srmech-primary catalogs
+
+This is the first time srmech itself hosts attested catalogs (hitherto srmech was the AMSC *framework* provider, with catalogs hosted in consumer packages like ephemerides-spectral). The new sources sit at `srmech/amsc/attested/<source>/` where `_attested_root()` finds them automatically — no `register_attested_root()` call needed. Existing ephemerides-spectral catalogs continue to register their own root via the cross-package bootstrap (Phase 2 of Task #197).
+
+### No code change; no ABI change
+
+- C ABI v2 unchanged. No new C symbols. No JPL audit pin changes.
+- No `srmech.amsc.<class>` Python surface changes.
+- No `srmech.qm.*` operation changes.
+- Data-only ship: descriptors + NDJSON + schemas under `srmech/amsc/attested/`.
+- C version macros bump `SRMECH_VERSION_PATCH` 0 → 1 and `SRMECH_VERSION_PRE` "" → "rc1".
+
+### Versioning
+
+`0.4.0` → `0.4.1rc1`. Patch bump (data addition; no API or ABI change). rc1 routes to TestPyPI per the existing publish-workflow regex; the clean `v0.4.1` ships to production PyPI after rc verify.
+
 ## [0.4.0] - 2026-05-15
 
 **Phase C1 close — production ship.** Ships the cumulative Phase C1 scope (rc1 → rc12) to production PyPI. Per `[[feedback_rc_stacking_versioning]]`, the rc-stack accumulated during the sprint; this clean-semver tag promotes the verified rc12 state to live.

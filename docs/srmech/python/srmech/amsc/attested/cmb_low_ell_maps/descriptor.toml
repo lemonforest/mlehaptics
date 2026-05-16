@@ -1,0 +1,144 @@
+# CMB Low-ℓ Map Products Catalogue — Planck 2018 PR3 component-separated
+# sky maps (Commander / NILC / SEVEM / SMICA) for low-multipole spectral
+# analysis (multipole-vector extraction at ℓ=2, ℓ=3 max-extremum-of-
+# Σ|a_ℓm|² cos(2 m φ) per de Oliveira-Costa et al. 2004; AoE preferred
+# direction analysis at ℓ ≤ 8 safe margin).
+#
+# Companion to cmb_anomalies (which indexes the AoE/Cold-Spot/HPA
+# anomalies as observed-data records) and cmb_power_spectrum (which
+# indexes the binned C_ℓ angular power). Where those two catalogs are
+# scalar-per-ℓ statistical summaries, this catalog hosts the **map
+# product descriptors themselves** — each row identifies one canonical
+# sky map (SMICA / NILC / SEVEM / Commander) with its PLA + IRSA
+# download URLs, expected file SHA-256, FITS data shape (Stokes I,Q,U;
+# HEALPix Nside, ordering, coordinate frame), and per-row provenance
+# citing Planck 2018 IV (diffuse component separation) + Planck 2018 VII
+# (isotropy/statistics).
+#
+# Spike #26 Phase 1 motivation (MFO §VII.6.3.1 prediction-verification):
+# the framework predicts a small (≈ degrees) directional differential
+# between the temperature-anchored AoE preferred axis and the
+# polarisation-anchored AoE preferred axis under bundle-projection
+# reconfiguration at the 138°/unit-f_RD rate. Verification requires
+# extracting AoE direction from BOTH the temperature (T) and polarisation
+# (E) modes of the same component-separated map — hence the catalog
+# hosts I,Q,U maps (from which T + E + B can be derived via HEALPix
+# `alm2map_spin`).
+#
+# The catalog DOES NOT commit the FITS bytes themselves (4 pipelines ×
+# 168 MB ≈ 672 MB exceeds reasonable repo discipline). Each row records
+# the canonical PLA download URL + IRSA mirror + expected response_sha256
+# at the file level. Phase 2 fetches the FITS via T3 live-fetch or
+# local-kernel caching; the catalog's response_sha256 attests the
+# expected bytes.
+#
+# Citation discipline (per [[feedback_pdf_extraction_citation_discipline]],
+# six catches across the May 2026 spike series):
+# - Planck 2018 I (Overview):           DOI 10.1051/0004-6361/201833880   arXiv 1807.06205
+# - Planck 2018 IV (Diffuse maps):      DOI 10.1051/0004-6361/201833881   arXiv 1807.06208
+# - Planck 2018 V (Likelihoods):        DOI 10.1051/0004-6361/201936386   arXiv 1907.12875
+# - Planck 2018 VII (Isotropy):         DOI 10.1051/0004-6361/201935201   arXiv 1906.02552
+# Each DOI / arXiv ID verified via PDF / abstract-page extraction at
+# ingest time (2026-05-16). One real finding: the existing `cmb_anomalies`
+# descriptor cites Planck 2018 VII but uses Planck 2018 IV's DOI
+# (10.1051/0004-6361/201833881) — that is a flagged finding for separate
+# fix outside this Spike's scope.
+
+[source]
+key = "cmb_low_ell_maps"
+human_readable_name = "CMB Low-ℓ Component-Separated Map Products (Planck 2018 PR3) Catalogue"
+purpose = "ground-proof rows for the canonical Planck 2018 PR3 component-separated CMB sky maps (Commander / NILC / SEVEM / SMICA) at HEALPix Nside=2048 (T) / Nside=1024 (Q,U); each row records the map's PLA + IRSA download URL, expected file SHA-256, FITS data shape, and per-row Planck-paper provenance; enables Spike #26 multipole-vector extraction at ℓ ≤ 8 for the §VII.6.3.1 T-vs-E AoE differential prediction"
+license = "literature-curated; per-row source DOI cites Planck 2018 IV / VII; Planck data released under ESA Open Access policy with standard acknowledgment requirement"
+homepage = "https://pla.esac.esa.int/"
+canonical_doi = "10.1051/0004-6361/201833881"
+
+# canonical_doi above points at Planck 2018 IV (Akrami et al. 2020 A&A
+# 641:A4) — the canonical Planck 2018 diffuse-component-separation
+# paper that describes how each of Commander / NILC / SEVEM / SMICA was
+# constructed. Per-row provenance cites this paper for the map's
+# construction method and (where applicable) Planck 2018 VII (isotropy)
+# for the AoE-analysis context.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+# Note: literature_curated adapter does no network I/O. Each row is a
+# DESCRIPTOR of one downloadable FITS product, not the FITS bytes
+# themselves. Phase 2 uses the catalog's `download_url_pla` + expected
+# `response_sha256` to fetch + verify the FITS via T3 live-fetch or
+# local-kernel caching at runtime.
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cmb_low_ell_maps.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "CMB Low-ℓ Map Products Catalogue (Planck 2018 PR3; curated against Planck 2018 IV: Akrami et al. 2020 *A&A* 641:A4, doi:10.1051/0004-6361/201833881 + per-row pipeline references); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof CMB map descriptor for {schema.pipeline} pipeline ({schema.product_kind}, Nside={schema.healpix_nside}) — input for low-ℓ multipole-vector analysis at ℓ ≤ 8"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# CMB low-ℓ component-separated maps live at the same regime as
+# cmb_anomalies — they are the underlying data product behind the
+# anomaly catalog. The v0.24.9 dynamical-regime classifier doesn't yet
+# have a regime label for cosmological-map products; closest existing
+# label is rigid_body_action_angle_stable (the CMB is extraordinarily
+# stable observationally). A future regime label like
+# `cosmological_skymap_component_separated` would be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain specs — REMOVED in v0.4.1rc7 (2026-05-16)
+# ─────────────────────────────────────────────────────────────────
+#
+# Two Phase 1 worked-example chains previously lived here:
+#   - `multipole_vector_axis` (LLDA) — AoE preferred-direction axis
+#     extraction at fixed ℓ per de Oliveira-Costa et al. 2004 §III.
+#   - `t_vs_e_axis_differential` (LLLLI) — Δθ_TE between T-mode and
+#     E-mode AoE axes at ℓ=2 (Spike #26 §VII.6.3.1 verification).
+#
+# They referenced Class L primitives that don't yet exist
+# (`spherical_harmonic_decompose`, `extract_preferred_axis`) plus
+# Class D `dispatch_on_max_extremum` and Class I
+# `angular_separation_axes`. Phase 2 (rc5) shipped the composition
+# engine which surfaced the activate-time gap via fresh-venv smoke.
+#
+# Per `[[feedback_every_doc_edit_faces_falsification]]` (user
+# direction 2026-05-16: *"our model has not lied to us yet, so I
+# believe the math still"*) we don't ship chain specs whose
+# underlying primitives can't run — chains that cannot execute
+# are claims that cannot falsify. The two chains re-land when
+# their primitives ship:
+#   - `spherical_harmonic_decompose` + `extract_preferred_axis`
+#     are Spike #26 Phase 2 scope (Task #227);
+#   - `angular_separation_axes` is rc7+ trig scope (Task #234
+#     §11 inventory: `cmb_angular_geometry` sister catalog).
+#
+# The DSL design pattern lives in
+# `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` for
+# future chain authors.
+#
+# `chain_schema_version = 1` is preserved so adding chains later
+# doesn't require reintroducing the `[catalog]` section.
+
+[catalog]
+chain_schema_version = 1

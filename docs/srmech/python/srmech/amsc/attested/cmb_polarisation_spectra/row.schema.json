@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_polarisation_spectra.row.v1",
+  "title": "CMB polarisation spectrum row",
+  "description": "One binned (TE/EE) or unbinned (low-ell BB) multipole of the CMB polarisation power spectra from Planck 2018 V. Single row_type 'multipole_bin'; each row records the bin center ell, the bin half-width (zero for unbinned low-ell BB), the power D_ell = ell(ell+1) C_ell / (2 pi) in muK^2, the 1-sigma error on D_ell, the spectrum kind (TE, EE, or BB), and a feature label identifying the row's role in the polarisation acoustic-peak structure. The schema mirrors cmb_power_spectrum.row.v1 for TT but restricts spectrum_kind to {TE, EE, BB}.",
+  "type": "object",
+  "required": [
+    "ell_bin_label",
+    "row_type",
+    "ell_center",
+    "ell_half_width",
+    "D_ell_muK2",
+    "D_ell_error_muK2",
+    "spectrum_kind",
+    "feature",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "ell_bin_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this binned multipole (e.g. 'TE_ell0285_first_peak' or 'EE_ell0405_first_peak')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["multipole_bin"],
+      "description": "Single value in this catalogue (matching cmb_power_spectrum.row.v1)."
+    },
+    "ell_center": {
+      "type": "number",
+      "minimum": 2,
+      "maximum": 2500,
+      "description": "Central (effective) multipole of the bin. For unbinned low-ell BB rows this is the integer ell. For binned TE/EE this is the PR3 R3.02 effective ell quoted in the file (e.g. 285.025248 for the 5th bin)."
+    },
+    "ell_half_width": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Half-width of the multipole bin. Zero for unbinned low-ell BB. For binned TE/EE this is computed from adjacent-bin-center midpoints (PR3 uses approximately delta-ell = 30 binning above ell = 30)."
+    },
+    "D_ell_muK2": {
+      "type": "number",
+      "description": "Binned power D_ell = ell(ell+1) C_ell / (2 pi) in units of muK^2. For TE this can be positive or negative (TE alternates sign across the acoustic peaks); for EE this is positive but typically much smaller than TT (peak ~ 40 muK^2 at ell ~ 400 vs TT peak ~ 5400 muK^2 at ell ~ 220); for BB at Planck sensitivity these are noise-dominated values fluctuating around zero with ~0.01 muK^2 amplitude."
+    },
+    "D_ell_error_muK2": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "1-sigma Gaussian error on D_ell in muK^2. For PR3 binned TE/EE this is the symmetric error from the file (-dD_ell = +dD_ell). For unbinned low-ell BB this is the Commander-likelihood error."
+    },
+    "spectrum_kind": {
+      "type": "string",
+      "enum": ["TE", "EE", "BB"],
+      "description": "Which polarisation spectrum this bin belongs to: TE = temperature-E-polarization cross, EE = E-mode autocorrelation, BB = B-mode (Planck has only upper limits at low ell). TT is hosted in the sister cmb_power_spectrum catalogue."
+    },
+    "feature": {
+      "type": "string",
+      "enum": [
+        "sachs_wolfe_plateau",
+        "rising_to_first_peak",
+        "first_acoustic_peak",
+        "first_trough",
+        "second_acoustic_peak",
+        "second_trough",
+        "third_acoustic_peak",
+        "fourth_acoustic_peak",
+        "damping_tail",
+        "low_ell_anomaly",
+        "low_ell_noise_floor",
+        "te_zero_crossing",
+        "te_negative_lobe",
+        "te_positive_lobe",
+        "ee_reionization_bump",
+        "other"
+      ],
+      "description": "Qualitative label identifying the row's role in the polarisation peak structure. TE alternates sign with acoustic phase (positive between TT peak and trough; negative at TT peaks and EE peaks). 'te_zero_crossing' marks ell where TE crosses zero (around ell ~ 90, 280, 420, 565, 660). 'ee_reionization_bump' marks the low-ell EE reionization signal at ell < 30."
+    },
+    "lcdm_bestfit_D_ell_muK2": {
+      "type": ["number", "null"],
+      "description": "Optional LambdaCDM best-fit D_ell at the bin center, in muK^2 (the BestFit column of the PR3 files). Provided as a reference value for comparison; not used in the likelihood directly."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rounded_2sf", "rounded_3sf", "none"],
+      "description": "Per-row precision flag. PR3 polarisation rows are 'high' (values from PLA tables verbatim)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the cited Planck reference. Default 10.1051/0004-6361/201936386 (Planck 2018 V)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional Planck release version, e.g. 'PR3/R3.02' (TE/EE) or 'PR3/R3.01' (BB)."
+    },
+    "source_file": {
+      "type": ["string", "null"],
+      "description": "Optional PLA file name (e.g. 'COM_PowerSpect_CMB-TE-binned_R3.02.txt')."
+    }
+  }
+}

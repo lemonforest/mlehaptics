@@ -496,6 +496,80 @@ def _register_amsc_tools() -> None:
             ),
             returns=ToolReturn(type="None", shape=""),
         ),
+        # ADR-0002 Phase 2 — operator-chain bridge surfaces (v0.4.1rc5).
+        ToolEntry(
+            name="srmech.amsc.catalog.list_catalog_chains", owner="srmech",
+            category="catalog",
+            summary="Enumerate [[catalog.operator_chain]] entries declared "
+                    "by a registered catalog descriptor. ADR-0002 Phase 2 "
+                    "bridge surface.",
+            parameters=(ToolParameter("source_key", "str", required=True,
+                                      summary="[source].key from descriptor"),),
+            returns=ToolReturn(type="dict",
+                               shape="{ok, source_key, n_chains, chains}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.catalog.run_catalog_chain", owner="srmech",
+            category="catalog",
+            summary="Execute a declared operator chain on a catalog row. "
+                    "ADR-0002 Phase 2 bridge surface; runs the linear "
+                    "pipeline of class-op calls with @row.* / @input.* / "
+                    "@step[N].output / @catalog.* reference resolution.",
+            parameters=(
+                ToolParameter("source_key", "str", required=True),
+                ToolParameter("chain_name", "str", required=True),
+                ToolParameter("row_index", "Optional[int]", required=False,
+                              summary="row binding for @row.* refs"),
+                ToolParameter("inputs", "Optional[dict]", required=False,
+                              summary="runtime @input.* parameters"),
+            ),
+            returns=ToolReturn(type="Any",
+                               shape="chain's `returns` type"),
+        ),
+        # ADR-0002 Phase 2 — composition engine surfaces.
+        ToolEntry(
+            name="srmech.amsc.compose.parse_chain_spec", owner="srmech",
+            category="compose",
+            summary="Parse and validate one [[catalog.operator_chain]] "
+                    "entry into a ChainSpec.",
+            parameters=(ToolParameter("chain_dict", "dict", required=True,
+                                      summary="TOML-parsed chain entry"),),
+            returns=ToolReturn(type="ChainSpec", shape=""),
+        ),
+        ToolEntry(
+            name="srmech.amsc.compose.parse_catalog_chains", owner="srmech",
+            category="compose",
+            summary="Parse all [[catalog.operator_chain]] entries from a "
+                    "catalog descriptor TOML dict. Requires "
+                    "chain_schema_version = 1.",
+            parameters=(ToolParameter("toml_dict", "dict", required=True),),
+            returns=ToolReturn(type="list[ChainSpec]", shape=""),
+        ),
+        ToolEntry(
+            name="srmech.amsc.compose.resolve_chain", owner="srmech",
+            category="compose",
+            summary="Resolve a ChainSpec to a callable by binding each "
+                    "step's class.op against the registry. Raises "
+                    "ChainSpecError on missing op.",
+            parameters=(ToolParameter("spec", "ChainSpec", required=True),
+                        ToolParameter("registry", "Optional[dict]",
+                                      required=False,
+                                      summary="class_id → module path map")),
+            returns=ToolReturn(type="Callable", shape="run(row, **inputs)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.compose.run_chain", owner="srmech",
+            category="compose",
+            summary="Top-level executor: resolve a ChainSpec and run its "
+                    "linear pipeline. Returns the final step's output.",
+            parameters=(ToolParameter("spec", "ChainSpec", required=True),
+                        ToolParameter("row", "Optional[dict]", required=False),
+                        ToolParameter("inputs", "Optional[dict]",
+                                      required=False),
+                        ToolParameter("registry", "Optional[dict]",
+                                      required=False)),
+            returns=ToolReturn(type="Any", shape="chain's `returns` type"),
+        ),
     ]
     for e in entries:
         register_tool(e)
@@ -601,6 +675,53 @@ def _register_primitive_class_tools() -> None:
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False)),
             returns=R("np.ndarray", "n eigenvalues (unsorted)"),
+        ),
+        # ADR-0002 Phase 2 broadening: complex Hermitian + matvec +
+        # elementwise complex multiply + array-vectorised transcendentals.
+        # Per [[feedback_no_privileged_primitive_classes]] these dissolve
+        # into Class L (no new class promoted). Canonical SSoT: Golub &
+        # Van Loan §1.1 / §8.5; ANSI C99 §7.12 libm; Sakurai §2.1.5.
+        ToolEntry(
+            name="srmech.amsc.laplacian.hermitian_eigendecompose",
+            owner="srmech", category="laplacian",
+            summary="Hermitian eigendecomposition H = V diag(eigvals) V^H "
+                    "via complex-Jacobi rotations. Native C dispatch when "
+                    "n ≤ 256; numpy.linalg.eigh fallback. Sakurai §2.1.5; "
+                    "Golub & Van Loan §8.5.",
+            parameters=(P("H", "np.ndarray", True,
+                          "n × n complex Hermitian matrix"),),
+            returns=R("tuple[np.ndarray, np.ndarray]",
+                      "(eigvals_ascending, V_unitary)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_matvec_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex matrix-vector multiplication M @ v. "
+                    "Golub & Van Loan §1.1.",
+            parameters=(P("M", "np.ndarray", True, "rows × cols complex"),
+                        P("v", "np.ndarray", True, "length-cols complex")),
+            returns=R("np.ndarray", "length-rows complex128"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.elementwise_multiply_complex",
+            owner="srmech", category="laplacian",
+            summary="Elementwise complex multiplication a * b with "
+                    "broadcasting.",
+            parameters=(P("a", "np.ndarray", True),
+                        P("b", "np.ndarray", True)),
+            returns=R("np.ndarray", "complex128, broadcasted shape"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.elementwise_transcendental",
+            owner="srmech", category="laplacian",
+            summary="Array-vectorised transcendental: exp / cos / sin / "
+                    "log over real input, or exp_i(x) = exp(1j*x) "
+                    "(TDSE-relevant complex exponential). ANSI C99 §7.12.",
+            parameters=(P("arr", "np.ndarray", True),
+                        P("op_name", "str", True,
+                          "exp / cos / sin / log / exp_i")),
+            returns=R("np.ndarray",
+                      "float64 (real ops) or complex128 (exp_i)"),
         ),
 
         # ────────────────────────────────────────────────────────────

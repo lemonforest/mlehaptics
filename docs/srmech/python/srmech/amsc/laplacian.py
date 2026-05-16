@@ -1,16 +1,45 @@
-"""Class L — graph-Laplacian primitive (Task #217 Phase C1).
+"""Class L — graph-Laplacian + dense-matrix linear algebra primitive.
 
-Public Python surface for four load-bearing graph-Laplacian operations.
-Each operation dispatches to the native C implementation when
-``srmech.amsc._native`` loaded successfully (``HAS_NATIVE = True``) and
-the input size fits the C-path bound (``n ≤ 256``); falls back to a
-numpy implementation otherwise.
+ADR-0002 Phase 2 broadening (v0.4.1rc5): Class L's identity broadens
+from "graph Laplacian" to "dense-matrix linear algebra including
+eigendecomposition, matrix-vector multiplication, and elementwise
+operations on dense arrays". The graph-Laplacian-specific ops
+(``dense_adjacency``, ``dense_laplacian``, ``normalized_laplacian``,
+``jacobi_eigvals``) remain specialisations of the general dense-matrix
+scope. Four new ops added to accommodate the closed-form TDSE
+evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
+§2.1.5 eq 2.1.40):
+
+- :func:`hermitian_eigendecompose` — complex Hermitian generalisation
+  of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
+- :func:`dense_matvec_complex` — general complex ``M @ v``.
+- :func:`elementwise_multiply_complex` — vectorised ``a * b``.
+- :func:`elementwise_transcendental` — array-vectorised ``exp/cos/sin
+  /log`` plus the TDSE-relevant ``exp_i(x) = exp(1j*x)``.
+
+The broadening is a *dissolve-before-promote* per
+``[[feedback_no_privileged_primitive_classes]]`` — no Class P promoted;
+vocabulary stays at 14 classes A–N. See ADR-0002 Phase 1 §4 spike
+finding and the Phase 1 report
+(``docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md``) for
+the dissolve rationale.
+
+Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``:
+
+- Hermitian eigendecomposition: Golub & Van Loan, *Matrix Computations*
+  (4th ed., Johns Hopkins, 2013) §8.4 (Jacobi method), §8.5
+  (Hermitian-specific via unitary rotations).
+- Matrix-vector multiplication: Golub & Van Loan §1.1.
+- Elementwise transcendentals: ANSI C99 §7.12 libm (``exp``, ``cos``,
+  ``sin``, ``log``).
+- TDSE motivation: Sakurai, *Modern Quantum Mechanics* (3rd ed.,
+  Cambridge, 2021) §2.1.5 eq 2.1.40.
 
 Class L is the structural workhorse of Spike #24's cumulative
 cross-substrate audit (instantiated at six of six bonus substrates).
 The closed-form spectrum of a cyclic graph (``λ_k = 2(1 − cos(2πk/n))``)
 is pi-bearing and NOT shipped on the C surface per
-`[[user_stance_pi_as_projection]]`; users computing cyclic-graph
+``[[user_stance_pi_as_projection]]``; users computing cyclic-graph
 spectra should compose Class I (cyclic-group representation, pi-free
 modular arithmetic) with Class L's dense-Laplacian build + Jacobi
 eigvals, or use numpy/scipy at the Python layer for the trig-bearing
@@ -19,35 +48,31 @@ shortcut.
 API
 ---
 
+Graph-Laplacian specialisations (original Class L surface):
+
 - :func:`dense_adjacency` — ``A`` from edge list, n×n dense.
 - :func:`dense_laplacian` — ``L = D − A``.
 - :func:`normalized_laplacian` — ``L_sym = I − D^(−1/2) A D^(−1/2)``.
 - :func:`jacobi_eigvals` — symmetric Jacobi eigendecomposition (small ``n``).
 
-Inputs
-------
+Phase 2 broadening (dense-matrix linear algebra):
 
-- ``n`` (int): number of nodes.
-- ``edges`` (iterable of (u, v) pairs): undirected edges (uint32-range).
-- ``weights`` (optional iterable of floats): per-edge weight; ``None``
-  → unit weights.
-- ``matrix`` (numpy.ndarray, shape ``(n, n)``, dtype ``float64``): for
-  :func:`jacobi_eigvals`, the symmetric matrix to decompose.
+- :func:`hermitian_eigendecompose` — Hermitian eigendecomposition.
+- :func:`dense_matvec_complex` — complex matrix-vector multiplication.
+- :func:`elementwise_multiply_complex` — pointwise complex multiply.
+- :func:`elementwise_transcendental` — vectorised transcendentals.
 
-Outputs
--------
-
-All operations return ``numpy.ndarray`` of dtype ``float64``. Matrices
-are row-major ``(n, n)``; eigvals are length-``n`` 1-D.
+The module-level :data:`LAPLACIAN_OPS` constant exposes all available
+op names for the composition-engine registry.
 
 C-path bound
 ------------
 
 The C native path operates on ``n ≤ 256`` (caps the stack-allocated
-degree / row-scaling buffers at ~2 KB, embedded-safe). For ``n > 256``
-the wrappers fall back to numpy unconditionally; HAS_NATIVE doesn't
+degree / row-scaling buffers, embedded-safe). For ``n > 256`` the
+wrappers fall back to numpy unconditionally; HAS_NATIVE doesn't
 matter. Cascade-composition use-cases typically stay well under this
-bound (per-factor ``C_n`` with ``n ≤ 30`` in bonus 10).
+bound.
 """
 
 from __future__ import annotations
@@ -64,6 +89,11 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "hermitian_eigendecompose",
+    "dense_matvec_complex",
+    "elementwise_multiply_complex",
+    "elementwise_transcendental",
+    "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
 ]
 
@@ -267,3 +297,273 @@ def jacobi_eigvals(
             raise RuntimeError(f"srmech_jacobi_eigvals returned non-OK status {rc}")
         return np.sort(out)
     return np.sort(np.linalg.eigvalsh(M))
+
+
+# =====================================================================
+# ADR-0002 Phase 2 — Class L broadening
+# =====================================================================
+#
+# Complex numbers travel as interleaved-double pairs (re, im) on the
+# C boundary. The helpers below convert between numpy complex arrays
+# and the interleaved-double representation.
+
+
+def _complex_to_interleaved(arr: np.ndarray) -> np.ndarray:
+    """View a complex128 array as interleaved float64 (re, im pairs).
+
+    Returns a 1-D contiguous float64 array of length 2*arr.size.
+    """
+    c = np.ascontiguousarray(arr, dtype=np.complex128)
+    return c.view(np.float64).reshape(-1).copy()
+
+
+def _interleaved_to_complex(arr: np.ndarray, shape: Tuple[int, ...]) -> np.ndarray:
+    """Reconstruct complex128 array of the given shape from interleaved
+    float64 (re, im pairs).
+    """
+    a = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
+    return a.view(np.complex128).reshape(shape).copy()
+
+
+def hermitian_eigendecompose(
+    H: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Hermitian eigendecomposition: ``H = V · diag(eigvals) · V^H``.
+
+    Parameters
+    ----------
+    H
+        ``(n, n)`` complex Hermitian matrix (dtype castable to
+        complex128). Hermiticity is not enforced (caller's
+        responsibility); a non-Hermitian input will produce undefined
+        rotation behaviour in the C path.
+
+    Returns
+    -------
+    (eigvals, V)
+        ``eigvals`` is a length-``n`` float64 array of real eigenvalues
+        in ascending order. ``V`` is an ``(n, n)`` complex128 unitary
+        matrix whose columns are the corresponding eigenvectors.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.,
+    Johns Hopkins, 2013) §8.5 (Hermitian eigendecomposition via
+    unitary Jacobi rotations).
+
+    Dispatch: native C path for ``n ≤ MAX_NATIVE_NODES`` when
+    ``HAS_NATIVE``; falls back to ``numpy.linalg.eigh`` otherwise.
+    """
+    H_arr = np.ascontiguousarray(H, dtype=np.complex128)
+    if H_arr.ndim != 2 or H_arr.shape[0] != H_arr.shape[1]:
+        raise ValueError(f"H must be square 2-D; got shape {H_arr.shape}")
+    n = H_arr.shape[0]
+    if n == 0:
+        return (np.zeros(0, dtype=np.float64),
+                np.zeros((0, 0), dtype=np.complex128))
+    if _can_dispatch_native(n):
+        H_il = _complex_to_interleaved(H_arr)
+        eigvals = np.zeros(n, dtype=np.float64)
+        V_il = np.zeros(2 * n * n, dtype=np.float64)
+        rc = _native.LIB.srmech_hermitian_eigendecompose(
+            ctypes.c_uint32(n),
+            H_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            eigvals.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            V_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            V = _interleaved_to_complex(V_il, (n, n))
+            return eigvals, V
+        # Convergence failure or other non-OK: fall back to numpy.
+    eigvals, V = np.linalg.eigh(H_arr)
+    return eigvals, V
+
+
+def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Dense complex matrix-vector multiplication: ``M @ v``.
+
+    Parameters
+    ----------
+    M
+        ``(rows, cols)`` complex matrix.
+    v
+        Length-``cols`` complex vector.
+
+    Returns
+    -------
+    out
+        Length-``rows`` complex128 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector
+    multiplication).
+    """
+    M_arr = np.ascontiguousarray(M, dtype=np.complex128)
+    v_arr = np.ascontiguousarray(v, dtype=np.complex128).reshape(-1)
+    if M_arr.ndim != 2:
+        raise ValueError(f"M must be 2-D; got ndim {M_arr.ndim}")
+    rows, cols = M_arr.shape
+    if v_arr.shape[0] != cols:
+        raise ValueError(
+            f"M shape {M_arr.shape} incompatible with v length "
+            f"{v_arr.shape[0]}"
+        )
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and rows <= MAX_NATIVE_NODES
+            and cols <= MAX_NATIVE_NODES):
+        M_il = _complex_to_interleaved(M_arr)
+        v_il = _complex_to_interleaved(v_arr)
+        out_il = np.zeros(2 * rows, dtype=np.float64)
+        rc = _native.LIB.srmech_dense_matvec_complex(
+            ctypes.c_uint32(rows),
+            ctypes.c_uint32(cols),
+            M_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            v_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return _interleaved_to_complex(out_il, (rows,))
+    return (M_arr @ v_arr).astype(np.complex128)
+
+
+def elementwise_multiply_complex(
+    a: np.ndarray, b: np.ndarray
+) -> np.ndarray:
+    """Elementwise complex multiplication: ``a * b``.
+
+    Both arrays must be the same shape (after broadcasting via
+    ``numpy.broadcast``). Returns complex128.
+    """
+    a_arr = np.ascontiguousarray(np.broadcast_to(a,
+                                  np.broadcast_shapes(np.shape(a), np.shape(b))),
+                                 dtype=np.complex128)
+    b_arr = np.ascontiguousarray(np.broadcast_to(b, a_arr.shape),
+                                 dtype=np.complex128)
+    n = int(a_arr.size)
+    if n == 0:
+        return np.zeros_like(a_arr)
+    if _native.HAS_NATIVE and _native.LIB is not None:
+        a_il = _complex_to_interleaved(a_arr.reshape(-1))
+        b_il = _complex_to_interleaved(b_arr.reshape(-1))
+        out_il = np.zeros(2 * n, dtype=np.float64)
+        rc = _native.LIB.srmech_elementwise_multiply_complex(
+            ctypes.c_uint32(n),
+            a_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            b_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return _interleaved_to_complex(out_il, a_arr.shape)
+    return (a_arr * b_arr).astype(np.complex128)
+
+
+_TRANS_OP_IDS = {
+    "exp": _native.SRMECH_TRANS_EXP,
+    "cos": _native.SRMECH_TRANS_COS,
+    "sin": _native.SRMECH_TRANS_SIN,
+    "log": _native.SRMECH_TRANS_LOG,
+}
+
+
+def elementwise_transcendental(
+    arr: np.ndarray, op_name: str
+) -> np.ndarray:
+    """Array-vectorised transcendental operation.
+
+    Parameters
+    ----------
+    arr
+        Real or complex array.
+    op_name
+        One of ``"exp"``, ``"cos"``, ``"sin"``, ``"log"``, ``"exp_i"``.
+        ``"exp_i"`` returns ``exp(1j * arr)`` (the TDSE-relevant
+        complex exponential of a real argument); the C path
+        implements this via ``cos`` + ``sin`` over the real argument.
+
+    Returns
+    -------
+    out
+        Array of the same shape as ``arr``. dtype is complex128 for
+        ``"exp_i"`` (or when ``arr`` itself is complex); float64
+        otherwise.
+
+    Canonical SSoT: ANSI C99 §7.12 libm.
+    """
+    if op_name == "exp_i":
+        real_arr = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
+        n = int(real_arr.size)
+        cos_out = np.zeros(n, dtype=np.float64)
+        sin_out = np.zeros(n, dtype=np.float64)
+        used_native = False
+        if n > 0 and _native.HAS_NATIVE and _native.LIB is not None:
+            rc_c = _native.LIB.srmech_elementwise_transcendental(
+                ctypes.c_uint32(n),
+                real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                ctypes.c_int(_native.SRMECH_TRANS_COS),
+                cos_out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            )
+            rc_s = _native.LIB.srmech_elementwise_transcendental(
+                ctypes.c_uint32(n),
+                real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                ctypes.c_int(_native.SRMECH_TRANS_SIN),
+                sin_out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            )
+            if rc_c == _native.SRMECH_OK and rc_s == _native.SRMECH_OK:
+                used_native = True
+        if not used_native:
+            cos_out = np.cos(real_arr)
+            sin_out = np.sin(real_arr)
+        result = (cos_out + 1j * sin_out).astype(np.complex128)
+        return result.reshape(np.shape(arr))
+    if op_name not in _TRANS_OP_IDS:
+        raise ValueError(
+            f"unknown op_name {op_name!r}; legal: "
+            f"{sorted(set(_TRANS_OP_IDS) | {'exp_i'})}"
+        )
+    # Complex inputs always fall back to numpy (libm scalar path
+    # doesn't handle complex elementwise — would need C complex
+    # ops, out of scope for the v1 broadening).
+    if np.iscomplexobj(arr):
+        if op_name == "exp":
+            return np.exp(arr).astype(np.complex128)
+        if op_name == "cos":
+            return np.cos(arr).astype(np.complex128)
+        if op_name == "sin":
+            return np.sin(arr).astype(np.complex128)
+        return np.log(arr).astype(np.complex128)
+    real_arr = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
+    n = int(real_arr.size)
+    if n == 0:
+        return np.zeros(np.shape(arr), dtype=np.float64)
+    op_id = _TRANS_OP_IDS[op_name]
+    if _native.HAS_NATIVE and _native.LIB is not None:
+        out = np.zeros(n, dtype=np.float64)
+        rc = _native.LIB.srmech_elementwise_transcendental(
+            ctypes.c_uint32(n),
+            real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            ctypes.c_int(op_id),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return out.reshape(np.shape(arr))
+        if rc == _native.SRMECH_ERR_BAD_INPUT and op_name == "log":
+            raise ValueError("log requires all arr[i] > 0")
+    if op_name == "exp":
+        return np.exp(real_arr).reshape(np.shape(arr))
+    if op_name == "cos":
+        return np.cos(real_arr).reshape(np.shape(arr))
+    if op_name == "sin":
+        return np.sin(real_arr).reshape(np.shape(arr))
+    return np.log(real_arr).reshape(np.shape(arr))
+
+
+# Registry of available Class L op names for the composition engine.
+# Order is documentary; consumers iterate by name not position.
+LAPLACIAN_OPS: Tuple[str, ...] = (
+    "dense_adjacency",
+    "dense_laplacian",
+    "normalized_laplacian",
+    "jacobi_eigvals",
+    "hermitian_eigendecompose",
+    "dense_matvec_complex",
+    "elementwise_multiply_complex",
+    "elementwise_transcendental",
+)

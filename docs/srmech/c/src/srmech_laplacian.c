@@ -292,3 +292,361 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
     }
     return SRMECH_OK;
 }
+
+/* ================================================================ *
+ * Class L broadening — ADR-0002 Phase 2 (v0.4.1rc5)
+ *
+ * Four new ops extending Class L from "graph Laplacian" to
+ * "dense-matrix linear algebra including eigendecomposition +
+ * matrix-vector multiplication + elementwise operations":
+ *
+ *   - srmech_hermitian_eigendecompose
+ *   - srmech_dense_matvec_complex
+ *   - srmech_elementwise_multiply_complex
+ *   - srmech_elementwise_transcendental
+ *
+ * Complex numbers travel as interleaved-double pairs (re, im, re, im).
+ * Pi-free throughout: complex-Jacobi phase factor computed algebraically
+ * as γ/|γ| (no atan2). Per [[user_stance_pi_as_projection]].
+ * ================================================================ */
+
+/* Forward decls for the Hermitian-Jacobi helper chain (avoid mutual-
+ * recursion ordering issue). */
+static void srmech_hermitian_apply_rotation(uint32_t n, double *H,
+                                            double *V,
+                                            uint32_t p, uint32_t q,
+                                            double c, double s,
+                                            double cosphi, double sinphi);
+
+/* Helper: complex-Jacobi off-diagonal Frobenius norm² for an n×n
+ * interleaved-doubles Hermitian matrix. Sum over strict upper
+ * triangle (mirror is conjugate, hence same magnitude); doubled to
+ * account for both triangles. */
+static double srmech_hermitian_off_diag_sq(uint32_t n,
+                                           const double *mat_il)
+{
+    assert(mat_il != NULL);
+    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    double s = 0.0;
+    for (uint32_t r = 0; r < n; r++) {
+        for (uint32_t c = r + 1; c < n; c++) {
+            size_t idx = ((size_t)r * n + c) * 2;
+            double re = mat_il[idx];
+            double im = mat_il[idx + 1];
+            s += 2.0 * (re * re + im * im);
+        }
+    }
+    assert(s >= 0.0);
+    return s;
+}
+
+/* Helper: apply one complex-Jacobi rotation to the n×n interleaved-
+ * doubles Hermitian matrix `H` at index pair (p, q), and accumulate
+ * the rotation into the eigenvector matrix V (also n×n interleaved
+ * doubles, row-major). Pi-free: phase factor γ/|γ| computed
+ * algebraically. */
+static void srmech_hermitian_jacobi_rotate(uint32_t n, double *H,
+                                           double *V,
+                                           uint32_t p, uint32_t q)
+{
+    assert(H != NULL);
+    assert(V != NULL);
+    assert(p < q);
+    size_t pp = ((size_t)p * n + p) * 2;
+    size_t qq = ((size_t)q * n + q) * 2;
+    size_t pq = ((size_t)p * n + q) * 2;
+    double a_pp = H[pp];               /* real diagonal */
+    double a_qq = H[qq];
+    double g_re = H[pq];
+    double g_im = H[pq + 1];
+    double g_mag_sq = g_re * g_re + g_im * g_im;
+    if (g_mag_sq < 1e-300) {
+        return;
+    }
+    double g_mag = sqrt(g_mag_sq);
+    /* Phase factor e^(iθ) = γ/|γ| — pure algebra, no atan2. */
+    double cosphi = g_re / g_mag;
+    double sinphi = g_im / g_mag;
+    /* Real symmetric reduction: tau = (a_qq − a_pp) / (2|γ|). */
+    double tau = (a_qq - a_pp) / (2.0 * g_mag);
+    double t;
+    if (tau >= 0.0) {
+        t = 1.0 / (tau + sqrt(1.0 + tau * tau));
+    } else {
+        t = 1.0 / (tau - sqrt(1.0 + tau * tau));
+    }
+    double c = 1.0 / sqrt(1.0 + t * t);
+    double s = t * c;
+    /* Update H and V rows/columns p, q. Helper to keep ≤60 lines. */
+    srmech_hermitian_apply_rotation(n, H, V, p, q, c, s, cosphi, sinphi);
+}
+
+/* Update a single complex (a, b) pair in-place under the rotation
+ * (sign_left, sign_right) ∈ {+1, -1}². sign_left controls whether
+ * the conjugate (sign_left = +1 → e^(-iφ)) or non-conjugate
+ * (sign_left = -1 → e^(+iφ)) phase factor multiplies b in a's update;
+ * sign_right is dual for a's appearance in b's update. */
+static void srmech_hermitian_pair_update(double *a_re, double *a_im,
+                                         double *b_re, double *b_im,
+                                         double c, double s,
+                                         double cosphi, double sinphi,
+                                         double sign_left,
+                                         double sign_right)
+{
+    assert(a_re != NULL);
+    assert(b_re != NULL);
+    double ar = *a_re, ai = *a_im;
+    double br = *b_re, bi = *b_im;
+    double sb_re = s * (cosphi * br + sign_left * sinphi * bi);
+    double sb_im = s * (cosphi * bi - sign_left * sinphi * br);
+    double sa_re = s * (cosphi * ar - sign_right * sinphi * ai);
+    double sa_im = s * (cosphi * ai + sign_right * sinphi * ar);
+    *a_re = c * ar - sb_re;
+    *a_im = c * ai - sb_im;
+    *b_re = sa_re + c * br;
+    *b_im = sa_im + c * bi;
+}
+
+/* Apply unitary U = [[c, -s*e^(-iφ)], [s*e^(iφ), c]] to H (similarity
+ * H -> U^H H U) and accumulate U into V (V <- V U). Rows/cols indexed
+ * p, q. */
+static void srmech_hermitian_apply_rotation(uint32_t n, double *H,
+                                            double *V,
+                                            uint32_t p, uint32_t q,
+                                            double c, double s,
+                                            double cosphi, double sinphi)
+{
+    assert(H != NULL);
+    assert(V != NULL);
+    /* H row block: sb uses + sinphi*bi (sign_left = +1),
+     *              sa uses - sinphi*ai (sign_right = +1). */
+    for (uint32_t k = 0; k < n; k++) {
+        size_t ipk = ((size_t)p * n + k) * 2;
+        size_t iqk = ((size_t)q * n + k) * 2;
+        srmech_hermitian_pair_update(&H[ipk], &H[ipk + 1],
+                                     &H[iqk], &H[iqk + 1],
+                                     c, s, cosphi, sinphi, 1.0, 1.0);
+    }
+    /* H col + V col blocks: sb uses - sinphi*bi (sign_left = -1),
+     *                       sa uses + sinphi*ai (sign_right = -1). */
+    for (uint32_t k = 0; k < n; k++) {
+        size_t ikp = ((size_t)k * n + p) * 2;
+        size_t ikq = ((size_t)k * n + q) * 2;
+        srmech_hermitian_pair_update(&H[ikp], &H[ikp + 1],
+                                     &H[ikq], &H[ikq + 1],
+                                     c, s, cosphi, sinphi, -1.0, -1.0);
+    }
+    for (uint32_t k = 0; k < n; k++) {
+        size_t ikp = ((size_t)k * n + p) * 2;
+        size_t ikq = ((size_t)k * n + q) * 2;
+        srmech_hermitian_pair_update(&V[ikp], &V[ikp + 1],
+                                     &V[ikq], &V[ikq + 1],
+                                     c, s, cosphi, sinphi, -1.0, -1.0);
+    }
+}
+
+/* Helper: initialise V to the n×n identity (interleaved doubles). */
+static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
+{
+    assert(V_il != NULL);
+    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    size_t total = (size_t)n * n * 2;
+    for (size_t i = 0; i < total; i++) {
+        V_il[i] = 0.0;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        V_il[((size_t)i * n + i) * 2] = 1.0;
+    }
+}
+
+/* Helper: sort eigenpairs in ascending eigenvalue order. Selection-
+ * sort over n (bounded by SRMECH_LAPLACIAN_MAX_NODES, so O(n²) is
+ * embedded-safe). Swaps eigvals[i] with eigvals[min_idx] AND column i
+ * of V with column min_idx of V. */
+static void srmech_hermitian_sort_eigenpairs(uint32_t n,
+                                             double *eigvals,
+                                             double *V_il)
+{
+    assert(eigvals != NULL);
+    assert(V_il != NULL);
+    for (uint32_t i = 0; i + 1 < n; i++) {
+        uint32_t min_idx = i;
+        for (uint32_t j = i + 1; j < n; j++) {
+            if (eigvals[j] < eigvals[min_idx]) {
+                min_idx = j;
+            }
+        }
+        if (min_idx == i) {
+            continue;
+        }
+        double tmp = eigvals[i];
+        eigvals[i] = eigvals[min_idx];
+        eigvals[min_idx] = tmp;
+        /* Swap column i with column min_idx of V. */
+        for (uint32_t k = 0; k < n; k++) {
+            size_t a = ((size_t)k * n + i) * 2;
+            size_t b = ((size_t)k * n + min_idx) * 2;
+            double t_re = V_il[a],     t_im = V_il[a + 1];
+            V_il[a]     = V_il[b];
+            V_il[a + 1] = V_il[b + 1];
+            V_il[b]     = t_re;
+            V_il[b + 1] = t_im;
+        }
+    }
+}
+
+srmech_status_t srmech_hermitian_eigendecompose(
+    uint32_t       n,
+    const double  *H_interleaved,
+    double        *out_eigvals,
+    double        *out_eigvecs_interleaved)
+{
+    assert(out_eigvals != NULL);
+    assert(out_eigvecs_interleaved != NULL);
+    if (H_interleaved == NULL || out_eigvals == NULL
+        || out_eigvecs_interleaved == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (n == 0) {
+        return SRMECH_OK;
+    }
+    /* Working copy of H (in-place rotations); V starts as identity. */
+    static double Hwork[2 * SRMECH_LAPLACIAN_MAX_NODES
+                       * SRMECH_LAPLACIAN_MAX_NODES];
+    size_t total = (size_t)n * n * 2;
+    for (size_t i = 0; i < total; i++) {
+        Hwork[i] = H_interleaved[i];
+    }
+    srmech_hermitian_init_identity(n, out_eigvecs_interleaved);
+    /* Convergence target = 1e-12² × initial off-diagonal norm. */
+    double init_off = srmech_hermitian_off_diag_sq(n, Hwork);
+    double target = 1e-24 * init_off;
+    uint32_t sweep;
+    for (sweep = 0; sweep < SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS; sweep++) {
+        double off = srmech_hermitian_off_diag_sq(n, Hwork);
+        if (off <= target || off < 1e-300) {
+            break;
+        }
+        for (uint32_t p = 0; p < n; p++) {
+            for (uint32_t q = p + 1; q < n; q++) {
+                srmech_hermitian_jacobi_rotate(n, Hwork,
+                    out_eigvecs_interleaved, p, q);
+            }
+        }
+    }
+    if (sweep >= SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS
+        && srmech_hermitian_off_diag_sq(n, Hwork) > target) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    /* Extract diagonal (real part) as eigenvalues. */
+    for (uint32_t i = 0; i < n; i++) {
+        out_eigvals[i] = Hwork[((size_t)i * n + i) * 2];
+    }
+    srmech_hermitian_sort_eigenpairs(n, out_eigvals,
+                                     out_eigvecs_interleaved);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_dense_matvec_complex(
+    uint32_t       rows,
+    uint32_t       cols,
+    const double  *M_interleaved,
+    const double  *v_interleaved,
+    double        *out_interleaved)
+{
+    assert(M_interleaved != NULL);
+    assert(out_interleaved != NULL);
+    if (M_interleaved == NULL || v_interleaved == NULL
+        || out_interleaved == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (rows > SRMECH_LAPLACIAN_MAX_NODES
+        || cols > SRMECH_LAPLACIAN_MAX_NODES) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (uint32_t r = 0; r < rows; r++) {
+        double acc_re = 0.0;
+        double acc_im = 0.0;
+        for (uint32_t c = 0; c < cols; c++) {
+            size_t mi = ((size_t)r * cols + c) * 2;
+            size_t vi = (size_t)c * 2;
+            double m_re = M_interleaved[mi];
+            double m_im = M_interleaved[mi + 1];
+            double v_re = v_interleaved[vi];
+            double v_im = v_interleaved[vi + 1];
+            acc_re += m_re * v_re - m_im * v_im;
+            acc_im += m_re * v_im + m_im * v_re;
+        }
+        out_interleaved[(size_t)r * 2]     = acc_re;
+        out_interleaved[(size_t)r * 2 + 1] = acc_im;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_elementwise_multiply_complex(
+    uint32_t       n,
+    const double  *a_interleaved,
+    const double  *b_interleaved,
+    double        *out_interleaved)
+{
+    assert(out_interleaved != NULL);
+    assert(n == 0 || a_interleaved != NULL);
+    if (out_interleaved == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > 0 && (a_interleaved == NULL || b_interleaved == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        size_t k = (size_t)i * 2;
+        double a_re = a_interleaved[k];
+        double a_im = a_interleaved[k + 1];
+        double b_re = b_interleaved[k];
+        double b_im = b_interleaved[k + 1];
+        out_interleaved[k]     = a_re * b_re - a_im * b_im;
+        out_interleaved[k + 1] = a_re * b_im + a_im * b_re;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_elementwise_transcendental(
+    uint32_t       n,
+    const double  *arr,
+    int            op_id,
+    double        *out)
+{
+    assert(out != NULL);
+    assert(n == 0 || arr != NULL);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > 0 && arr == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (op_id < SRMECH_TRANS_EXP || op_id > SRMECH_TRANS_LOG) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (op_id == SRMECH_TRANS_LOG) {
+        for (uint32_t i = 0; i < n; i++) {
+            if (arr[i] <= 0.0) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+        }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        double x = arr[i];
+        if (op_id == SRMECH_TRANS_EXP) {
+            out[i] = exp(x);
+        } else if (op_id == SRMECH_TRANS_COS) {
+            out[i] = cos(x);
+        } else if (op_id == SRMECH_TRANS_SIN) {
+            out[i] = sin(x);
+        } else {
+            out[i] = log(x);
+        }
+    }
+    return SRMECH_OK;
+}

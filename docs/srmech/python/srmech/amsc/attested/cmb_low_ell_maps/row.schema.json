@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cmb_low_ell_maps.row.v1",
+  "title": "CMB low-ℓ map product row",
+  "description": "One canonical Planck 2018 PR3 component-separated CMB sky-map product. Single row_type catalogue ('map_product'); each row records the pipeline (Commander/NILC/SEVEM/SMICA), product kind (cmb_iqu / common_mask), HEALPix Nside, FITS filename, PLA + IRSA download URLs, expected file SHA-256, FITS data shape (I,Q,U Stokes; nested ordering; Galactic coordinates), beam FWHM, and per-row Planck-paper provenance. Phase 2 uses these descriptors to fetch + verify the actual FITS bytes at runtime.",
+  "type": "object",
+  "required": [
+    "map_id",
+    "row_type",
+    "pipeline",
+    "product_kind",
+    "healpix_nside",
+    "healpix_ordering",
+    "coordinate_frame",
+    "fits_filename",
+    "download_url_pla",
+    "principal_reference_doi",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "map_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable kebab-case identifier (e.g., 'smica-iqu-r300-full'). Used in cite_as / purpose templates."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["map_product"],
+      "description": "Single value in this catalogue."
+    },
+    "pipeline": {
+      "type": "string",
+      "enum": [
+        "Commander",
+        "NILC",
+        "SEVEM",
+        "SMICA",
+        "mask"
+      ],
+      "description": "Component-separation pipeline. Commander = parametric Bayesian sampling; NILC = Needlet Internal Linear Combination; SEVEM = Spectral Estimation via Expectation Maximisation; SMICA = Spectral Matching Independent Component Analysis. 'mask' rows describe the canonical Planck common-mask products applied at low-ℓ analysis."
+    },
+    "product_kind": {
+      "type": "string",
+      "enum": [
+        "cmb_iqu",
+        "common_mask_int",
+        "common_mask_pol",
+        "inpainting_mask_int"
+      ],
+      "description": "Product type. 'cmb_iqu' = full Stokes I,Q,U temperature + polarisation map. 'common_mask_int' = sky-area mask for intensity analyses. 'common_mask_pol' = sky-area mask for polarisation analyses. 'inpainting_mask_int' = mask defining regions filled by inpainting in low-ℓ products."
+    },
+    "healpix_nside": {
+      "type": "integer",
+      "enum": [256, 512, 1024, 2048],
+      "description": "HEALPix Nside resolution. Planck PR3 distributes T at Nside=2048 (5 arcmin FWHM), Q+U at Nside=1024 (10 arcmin FWHM) for component-separated maps; masks at Nside=2048."
+    },
+    "healpix_ordering": {
+      "type": "string",
+      "enum": ["nested", "ring"],
+      "description": "HEALPix pixel ordering. Planck distributes nested ordering by convention."
+    },
+    "coordinate_frame": {
+      "type": "string",
+      "enum": ["galactic", "ecliptic", "equatorial_j2000"],
+      "description": "Sky coordinate frame. Planck distributes galactic coordinates by convention. For AoE analysis, galactic-coordinate axes are typically converted to ecliptic for comparison with the ecliptic-plane alignment reading."
+    },
+    "fits_filename": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical FITS filename as distributed by PLA/IRSA, e.g., 'COM_CMB_IQU-smica_2048_R3.00_full.fits'."
+    },
+    "download_url_pla": {
+      "type": "string",
+      "format": "uri",
+      "description": "Direct download URL from the Planck Legacy Archive (PLA) `aio/product-action` endpoint. Pattern: http://pla.esac.esa.int/pla/aio/product-action?MAP.MAP_ID=<filename> for maps, ?SOFTWARE.FILE_ID=<filename> for software. Served without authentication."
+    },
+    "download_url_irsa": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Alternate mirror URL from NASA/IPAC/IRSA at Caltech. Pattern: https://irsa.ipac.caltech.edu/data/Planck/release_3/all-sky-maps/maps/component-maps/cmb/<filename>. Equivalent bytes to PLA URL."
+    },
+    "file_size_bytes": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Expected file size in bytes. Approximate (varies slightly across mirrors due to FITS comment-block differences). Used as a sanity gate before computing response_sha256."
+    },
+    "expected_response_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$|^pending$",
+      "description": "Expected SHA-256 of the FITS bytes (lowercase hex, 64 chars). 'pending' for rows where the hash has not yet been computed from a live PLA download (Phase 2 first-fetch will populate). Distinct from the row-level response_sha256 in the MPR attestation block — this is the EXPECTED FILE-content hash, used to verify Phase 2 downloads against catalog-time canonical bytes."
+    },
+    "beam_fwhm_arcmin": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "description": "Approximate beam FWHM in arcmin. PR3 component-separated maps are typically delivered at 5 arcmin (T) / 10 arcmin (Q,U); the exact effective beam is delivered as a separate transfer function in the FITS headers per Planck 2018 IV."
+    },
+    "stokes_components_available": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["I", "Q", "U", "TMASK", "PMASK"]},
+      "description": "Stokes components present in the FITS HDU(s). 'I' = temperature; 'Q','U' = linear polarisation; 'TMASK','PMASK' = mask layers. For cmb_iqu products this is typically ['I','Q','U']; for masks, ['TMASK'] or ['PMASK']."
+    },
+    "ell_max_recommended": {
+      "type": ["integer", "null"],
+      "minimum": 2,
+      "description": "Recommended maximum multipole for AoE / low-ℓ analyses using this product. PR3 component-separated maps support ℓ up to ~Nside×2 in principle; for low-ℓ multipole-vector work ℓ ≤ 8 is safe margin."
+    },
+    "principal_reference_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the canonical Planck paper describing this product's construction. Default 10.1051/0004-6361/201833881 (Planck 2018 IV — diffuse component separation)."
+    },
+    "principal_reference_label": {
+      "type": ["string", "null"],
+      "description": "Human-readable label of the principal reference, e.g., 'Planck Collaboration 2018 IV: Akrami et al. 2020 A&A 641:A4'."
+    },
+    "confirmation_reference_dois": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "DOIs of key companion / re-validation references. Typically Planck 2018 VII (isotropy, 10.1051/0004-6361/201935201) for AoE-analysis context."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "test_dependent", "none"],
+      "description": "Per-§17.1.6 ship-readiness convention. Map products from PR3 are 'high' precision (published gold-standard sky maps)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — typical use cases, AoE-analysis suitability, known systematics, or links to companion files."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the primary citation for this row's facts. Default 10.1051/0004-6361/201833881 (Planck 2018 IV)."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the source paper."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Planck release version, e.g., 'PR3/R3.00' or 'PR3/R3.01' (SEVEM was re-released at R3.01)."
+    }
+  }
+}

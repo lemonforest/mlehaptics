@@ -60,6 +60,14 @@ SRMECH_ERR_NOT_IMPL: int = 5
 SRMECH_ERR_INTERNAL: int = 6
 
 
+# Class L broadening (Phase 2): transcendental op-id enum.
+# Mirrors SRMECH_TRANS_{EXP,COS,SIN,LOG} in c/include/srmech.h.
+SRMECH_TRANS_EXP: int = 0
+SRMECH_TRANS_COS: int = 1
+SRMECH_TRANS_SIN: int = 2
+SRMECH_TRANS_LOG: int = 3
+
+
 def _candidate_lib_names() -> list[str]:
     if sys.platform == "win32":
         # CMake's PREFIX="" override produces srmech.dll (matches
@@ -250,6 +258,52 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.POINTER(ctypes.c_double),    # out_eigvals (n doubles)
     ]
     lib.srmech_jacobi_eigvals.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Class L broadening (ADR-0002 Phase 2 / v0.4.1rc5).
+    # Complex numbers travel as interleaved-double pairs (re, im).
+    # ------------------------------------------------------------------
+    # int srmech_hermitian_eigendecompose(uint32_t n,
+    #     const double *H_il, double *out_eigvals,
+    #     double *out_eigvecs_il)
+    lib.srmech_hermitian_eigendecompose.argtypes = [
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_hermitian_eigendecompose.restype = ctypes.c_int
+
+    # int srmech_dense_matvec_complex(uint32_t rows, uint32_t cols,
+    #     const double *M_il, const double *v_il, double *out_il)
+    lib.srmech_dense_matvec_complex.argtypes = [
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_dense_matvec_complex.restype = ctypes.c_int
+
+    # int srmech_elementwise_multiply_complex(uint32_t n,
+    #     const double *a_il, const double *b_il, double *out_il)
+    lib.srmech_elementwise_multiply_complex.argtypes = [
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_elementwise_multiply_complex.restype = ctypes.c_int
+
+    # int srmech_elementwise_transcendental(uint32_t n,
+    #     const double *arr, int op_id, double *out)
+    lib.srmech_elementwise_transcendental.argtypes = [
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_elementwise_transcendental.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
@@ -630,4 +684,8 @@ __all__ = [
     "SRMECH_ERR_OVERFLOW",
     "SRMECH_ERR_NOT_IMPL",
     "SRMECH_ERR_INTERNAL",
+    "SRMECH_TRANS_EXP",
+    "SRMECH_TRANS_COS",
+    "SRMECH_TRANS_SIN",
+    "SRMECH_TRANS_LOG",
 ]
