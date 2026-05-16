@@ -1,5 +1,13 @@
-# Asymptotic Calculus Catalogue — falsification infrastructure for claims
-# that classical calculus invokes infinity.
+# Asymptotic Calculus Catalogue — falsification infrastructure for the
+# canonical reposture per [[user_stance_infinity_approximates_asymptote]]:
+# **infinity approximates the asymptote.** Asymptote is upstream (the value
+# a Taylor partial sum approaches as N grows through finite values); cardinal
+# ∞ / `lim_{N → ∞}` / infinitesimals are the downstream algebraic-tool
+# approximations 17th-century-onward calculus reached for to talk about the
+# asymptote. Each row in this catalog computes the asymptote-side content
+# (finite-N partial sum at exact integer/rational arithmetic, growing N
+# producing tighter approximation) using only Class N + Class J chain
+# composition — no actual-infinity invoked at any step.
 #
 # Spike #28 (PR #447) §10 defines the canonical chain-spec form for
 # integer/rational chain compositions of transcendentals; §11 inventories
@@ -47,7 +55,7 @@
 [source]
 key = "asymptotic_calculus"
 human_readable_name = "Asymptotic Calculus Catalogue — falsification infrastructure for integer/rational chain compositions of classical-calculus operations"
-purpose = "self-validating chain-composed catalog of exp / (later: trig / log / calculus-op) partial-sum truncations; each row's expected output is computable bit-exactly from Class N + Class J class-operator chain composition (Spike #28 §10 PR #447); proves the framework's primitive vocabulary CAN execute calculations classically framed as requiring infinity; first concrete instance of [[feedback_every_doc_edit_faces_falsification]] infrastructure"
+purpose = "self-validating chain-composed catalog of exp / sin / cos / log1p / atan (later: forward_difference / riemann_sum / Bessel / Gamma / zeta) partial-sum truncations; each row's expected output is computable bit-exactly from Class N + Class J class-operator chain composition (Spike #28 §10 PR #447); demonstrates the canonical [[user_stance_infinity_approximates_asymptote]] reposture operationally — the asymptote (upstream) is computed in exact integer/rational arithmetic at finite N, and cardinal infinity (downstream algebraic tool) is the framing classical calculus reached for to approximate that asymptote; first concrete instance of [[feedback_every_doc_edit_faces_falsification]] infrastructure"
 license = "CC0-1.0 (self-generated rows; mathematical identities are public domain)"
 homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
 canonical_doi = "10.5281/zenodo.placeholder.spike28"
