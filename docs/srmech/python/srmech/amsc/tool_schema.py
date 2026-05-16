@@ -848,6 +848,46 @@ def _register_primitive_class_tools() -> None:
                         P("num_terms", "int", True, "truncation N >= 0, <= 512")),
             returns=R("tuple[int, int]", "(out_num, out_den) of S_N reduced to lowest terms"),
         ),
+        ToolEntry(
+            name="srmech.amsc.rational.rational_add", owner="srmech",
+            category="rational",
+            summary="Add two rationals (a_num, a_den) + (b_num, b_den) and "
+                    "return reduced (p, q). Pure integer arithmetic; Python "
+                    "bignum-capable; C-standalone for u64-fit inputs.",
+            parameters=(P("a", "tuple[int, int]", True, "(num, den) of first operand"),
+                        P("b", "tuple[int, int]", True, "(num, den) of second operand")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.rational_mul", owner="srmech",
+            category="rational",
+            summary="Multiply two rationals (a_num, a_den) * (b_num, b_den) and "
+                    "return reduced (p, q). Pure integer arithmetic; Python "
+                    "bignum-capable; C-standalone for u64-fit inputs.",
+            parameters=(P("a", "tuple[int, int]", True, "(num, den) of first operand"),
+                        P("b", "tuple[int, int]", True, "(num, den) of second operand")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.rational_div", owner="srmech",
+            category="rational",
+            summary="Divide two rationals (a_num, a_den) / (b_num, b_den) and "
+                    "return reduced (p, q). Pure integer arithmetic; raises "
+                    "ZeroDivisionError on b_num==0; Python bignum-capable.",
+            parameters=(P("a", "tuple[int, int]", True, "(num, den) of dividend"),
+                        P("b", "tuple[int, int]", True, "(num, den) of divisor")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.rational_pow_uint", owner="srmech",
+            category="rational",
+            summary="Raise rational (base_num, base_den) to non-negative integer "
+                    "exponent. Pure integer arithmetic; Python bignum-capable; "
+                    "C-standalone for u64-fit inputs + exp <= 64.",
+            parameters=(P("base", "tuple[int, int]", True, "(num, den) of base"),
+                        P("exp", "int", True, "non-negative integer exponent")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

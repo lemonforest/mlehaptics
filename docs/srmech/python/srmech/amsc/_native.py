@@ -472,6 +472,32 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_exp_series_truncate.restype = ctypes.c_int
 
+    # rc10: Class N rational arithmetic primitives.
+    # int srmech_rational_add(int64_t a_num, uint64_t a_den,
+    #                          int64_t b_num, uint64_t b_den,
+    #                          int64_t *out_num, uint64_t *out_den)
+    for _op in ("srmech_rational_add", "srmech_rational_mul", "srmech_rational_div"):
+        getattr(lib, _op).argtypes = [
+            ctypes.c_int64,
+            ctypes.c_uint64,
+            ctypes.c_int64,
+            ctypes.c_uint64,
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.POINTER(ctypes.c_uint64),
+        ]
+        getattr(lib, _op).restype = ctypes.c_int
+    # int srmech_rational_pow_uint(int64_t base_num, uint64_t base_den,
+    #                               uint32_t exp_val,
+    #                               int64_t *out_num, uint64_t *out_den)
+    lib.srmech_rational_pow_uint.argtypes = [
+        ctypes.c_int64,
+        ctypes.c_uint64,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_int64),
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_rational_pow_uint.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7).
     # ------------------------------------------------------------------

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc9"
-#define SRMECH_VERSION       "0.4.1rc9"
+#define SRMECH_VERSION_PRE   "rc10"
+#define SRMECH_VERSION       "0.4.1rc10"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -594,6 +594,47 @@ srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
                                            uint32_t  num_terms,
                                            int64_t  *out_num,
                                            uint64_t *out_den);
+
+/* Class N rc10: rational arithmetic primitives.
+ *
+ * Three load-bearing operations for the `cosmos_validation` catalog's
+ * Friedmann dark-fraction chain composition under Phase 2 v1 chain DSL:
+ *
+ *   - srmech_rational_add:      (a_num/a_den) + (b_num/b_den) reduced
+ *   - srmech_rational_mul:      (a_num/a_den) * (b_num/b_den) reduced
+ *   - srmech_rational_pow_uint: (base_num/base_den)^exp reduced; exp ≤ 64
+ *
+ * Each returns SRMECH_ERR_OVERFLOW when any intermediate exceeds u64
+ * range. Python wrappers (srmech.amsc.rational.rational_{add,mul,pow_uint})
+ * fall through to bignum on overflow. C library is usable standalone
+ * for inputs that fit u64 per [[feedback_no_binding_layer_carveout]].
+ */
+srmech_status_t srmech_rational_add(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den);
+
+srmech_status_t srmech_rational_mul(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den);
+
+srmech_status_t srmech_rational_div(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den);
+
+srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
+                                         uint64_t  base_den,
+                                         uint32_t  exp_val,
+                                         int64_t  *out_num,
+                                         uint64_t *out_den);
 
 /* ------------------------------------------------------------------ *
  * Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7)

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cosmos_validation.row.v1",
+  "title": "Cosmos Validation Catalogue row schema (v1)",
+  "description": "One chain-verified self-validating row in the srmech cosmos_validation catalog. Each row encodes Planck-canonical Ω density parameters as rationals + a scale-factor value + the expected f_dark(a) ground-truth rational. CI runs the friedmann_dark_fraction 9-step chain and bit-exact-compares produced output to stored (expected_num, expected_den). Falsifies Spike #27 / PR #437 Q6.1 monotonicity claim per [[feedback_every_doc_edit_faces_falsification]].",
+  "type": "object",
+  "required": [
+    "row_label",
+    "row_type",
+    "omega_b_num", "omega_b_den",
+    "omega_c_num", "omega_c_den",
+    "omega_lambda_num", "omega_lambda_den",
+    "omega_r_num", "omega_r_den",
+    "a_num", "a_den",
+    "expected_num", "expected_den",
+    "chain_id",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "properties": {
+    "row_label": { "type": "string", "description": "Human-readable identifier, e.g. 'z_0', 'z_999'." },
+    "row_type":  { "type": "string", "enum": ["friedmann_ratio"], "description": "Taxonomy. Initial rc10 ships only 'friedmann_ratio'; future rcs may add 'friedmann_derivative_sign', 'cpl_dark_envelope', etc." },
+    "omega_b_num": { "type": "integer" },
+    "omega_b_den": { "type": "integer", "minimum": 1 },
+    "omega_c_num": { "type": "integer" },
+    "omega_c_den": { "type": "integer", "minimum": 1 },
+    "omega_lambda_num": { "type": "integer" },
+    "omega_lambda_den": { "type": "integer", "minimum": 1 },
+    "omega_r_num": { "type": "integer" },
+    "omega_r_den": { "type": "integer", "minimum": 1 },
+    "a_num": { "type": "integer", "description": "Numerator of scale factor a = a_num/a_den. May be 0 only if a_den is nonzero." },
+    "a_den": { "type": "integer", "minimum": 1 },
+    "expected_num": { "type": "integer", "description": "Ground-truth numerator of f_dark(a) reduced to lowest terms." },
+    "expected_den": { "type": "integer", "minimum": 1 },
+    "chain_id": { "type": "string", "description": "Name of the operator chain that produces this row's output." },
+    "source_planck": { "type": "string" },
+    "source_published_date": { "type": "string", "format": "date", "description": "ISO 8601 publication date of the canonical SSoT (Planck 2018 VI)." },
+    "entered_locally_at": { "type": "string", "format": "date" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

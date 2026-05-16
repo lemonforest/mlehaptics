@@ -408,3 +408,198 @@ srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
     exp_series_reduce(sum_num, sum_den, out_num, out_den);
     return SRMECH_OK;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Class N rational arithmetic primitives (rc10).
+ *
+ * Three load-bearing primitives compose the `cosmos_validation`
+ * catalog's Friedmann dark-fraction chain under Phase 2 v1 chain DSL.
+ * All three reuse the static helpers above (exp_series_gcd,
+ * exp_series_mul_u64) for overflow-checked u64 arithmetic.
+ *
+ * Each returns SRMECH_ERR_OVERFLOW if any intermediate exceeds u64;
+ * Python bignum fallback handles those cases.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* Helper — signed multiply with overflow check. Returns SRMECH_ERR_OVERFLOW
+ * if |a*b| exceeds INT64_MAX. */
+static srmech_status_t rational_smul_i64(int64_t a, int64_t b, int64_t *out)
+{
+    assert(out != NULL);
+    assert(a != INT64_MIN || b != -1);  /* avoid abs() overflow on INT64_MIN */
+    if (a == 0 || b == 0) {
+        *out = 0;
+        return SRMECH_OK;
+    }
+    /* |a| * |b| in u64 with overflow check, then re-apply sign */
+    uint64_t abs_a = (a < 0) ? (uint64_t)(-a) : (uint64_t)a;
+    uint64_t abs_b = (b < 0) ? (uint64_t)(-b) : (uint64_t)b;
+    if (abs_a > (uint64_t)INT64_MAX / abs_b) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    uint64_t product = abs_a * abs_b;
+    bool negative = (a < 0) ^ (b < 0);
+    *out = negative ? -(int64_t)product : (int64_t)product;
+    return SRMECH_OK;
+}
+
+/* Helper — reduce signed (num, den) rational to lowest terms in (*out_num,
+ * *out_den). Denominator must be positive on input; output denominator
+ * is always positive. Handles zero-numerator case explicitly. */
+static void rational_reduce(int64_t   num,
+                            uint64_t  den,
+                            int64_t  *out_num,
+                            uint64_t *out_den)
+{
+    assert(out_num != NULL);
+    assert(den > 0);
+    if (num == 0) {
+        *out_num = 0;
+        *out_den = 1;
+        return;
+    }
+    uint64_t abs_num = (num < 0) ? (uint64_t)(-num) : (uint64_t)num;
+    uint64_t g = exp_series_gcd(abs_num, den);
+    *out_num = num / (int64_t)g;
+    *out_den = den / g;
+}
+
+srmech_status_t srmech_rational_add(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den)
+{
+    /* (a_num/a_den) + (b_num/b_den) = (a_num*b_den + b_num*a_den) / (a_den*b_den) */
+    assert(out_num != NULL);
+    assert(out_den != NULL);
+    if (a_den == 0 || b_den == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (a_den > (uint64_t)INT64_MAX || b_den > (uint64_t)INT64_MAX) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    int64_t lhs = 0, rhs = 0;
+    srmech_status_t st = rational_smul_i64(a_num, (int64_t)b_den, &lhs);
+    if (st != SRMECH_OK) return st;
+    st = rational_smul_i64(b_num, (int64_t)a_den, &rhs);
+    if (st != SRMECH_OK) return st;
+    if ((lhs > 0 && rhs > INT64_MAX - lhs) ||
+        (lhs < 0 && rhs < INT64_MIN - lhs)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    int64_t  num = lhs + rhs;
+    uint64_t den = 0;
+    st = exp_series_mul_u64(a_den, b_den, &den);
+    if (st != SRMECH_OK) return st;
+    rational_reduce(num, den, out_num, out_den);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_rational_mul(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den)
+{
+    /* (a_num/a_den) * (b_num/b_den) = (a_num*b_num) / (a_den*b_den) */
+    assert(out_num != NULL);
+    assert(out_den != NULL);
+    if (a_den == 0 || b_den == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    int64_t num = 0;
+    srmech_status_t st = rational_smul_i64(a_num, b_num, &num);
+    if (st != SRMECH_OK) return st;
+    uint64_t den = 0;
+    st = exp_series_mul_u64(a_den, b_den, &den);
+    if (st != SRMECH_OK) return st;
+    rational_reduce(num, den, out_num, out_den);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_rational_div(int64_t   a_num,
+                                    uint64_t  a_den,
+                                    int64_t   b_num,
+                                    uint64_t  b_den,
+                                    int64_t  *out_num,
+                                    uint64_t *out_den)
+{
+    /* (a_num/a_den) / (b_num/b_den) = (a_num*b_den) / (a_den*b_num).
+     * If b_num < 0, negate both to keep denominator positive. */
+    assert(out_num != NULL);
+    assert(out_den != NULL);
+    if (a_den == 0 || b_den == 0 || b_num == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (b_den > (uint64_t)INT64_MAX) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    int64_t num = 0;
+    srmech_status_t st = rational_smul_i64(a_num, (int64_t)b_den, &num);
+    if (st != SRMECH_OK) return st;
+    /* denom = a_den * |b_num|; sign comes from b_num */
+    uint64_t abs_b_num = (b_num < 0) ? (uint64_t)(-b_num) : (uint64_t)b_num;
+    uint64_t den = 0;
+    st = exp_series_mul_u64(a_den, abs_b_num, &den);
+    if (st != SRMECH_OK) return st;
+    if (b_num < 0) {
+        num = -num;
+    }
+    rational_reduce(num, den, out_num, out_den);
+    return SRMECH_OK;
+}
+
+/* Helper — bounded loop for rational_pow_uint, separated to satisfy
+ * JPL Rule 4 (≤60 lines per function). */
+static srmech_status_t rational_pow_loop(int64_t   base_num,
+                                         uint64_t  base_den,
+                                         uint32_t  exp_val,
+                                         int64_t  *out_num,
+                                         uint64_t *out_den)
+{
+    assert(out_num != NULL);
+    assert(exp_val <= 64);  /* Rule 2: bounded */
+    int64_t  acc_num = 1;
+    uint64_t acc_den = 1;
+    for (uint32_t i = 0; i < exp_val; i++) {
+        int64_t  next_num = 0;
+        srmech_status_t st = rational_smul_i64(acc_num, base_num, &next_num);
+        if (st != SRMECH_OK) return st;
+        uint64_t next_den = 0;
+        st = exp_series_mul_u64(acc_den, base_den, &next_den);
+        if (st != SRMECH_OK) return st;
+        acc_num = next_num;
+        acc_den = next_den;
+    }
+    rational_reduce(acc_num, acc_den, out_num, out_den);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
+                                         uint64_t  base_den,
+                                         uint32_t  exp_val,
+                                         int64_t  *out_num,
+                                         uint64_t *out_den)
+{
+    /* (base_num/base_den)^exp; result reduced. */
+    assert(out_num != NULL);
+    assert(out_den != NULL);
+    if (out_num == NULL || out_den == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (base_den == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (exp_val > 64) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (exp_val == 0) {
+        *out_num = 1;
+        *out_den = 1;
+        return SRMECH_OK;
+    }
+    return rational_pow_loop(base_num, base_den, exp_val, out_num, out_den);
+}

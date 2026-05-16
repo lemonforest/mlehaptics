@@ -1,0 +1,148 @@
+# Cosmos Validation Catalogue — Friedmann dark-fraction monotonicity
+# (Spike #27 / PR #437 Q6.1 falsification infrastructure).
+#
+# Per [[feedback_every_doc_edit_faces_falsification]] (user direction
+# 2026-05-16). The Q6.1 dark-sector monotonicity claim was reproduced
+# in the PR #437 audit (9999/9999 positive slopes on a 10⁴-point grid
+# under ΛCDM). This catalog ships the underlying Friedmann rational
+# formula as a chain-falsifiable artifact: each row stores Planck-
+# canonical Ω values + an a value + the expected f_dark rational
+# result; CI re-runs the chain and bit-exact-compares.
+#
+# The chain composes 9 Class N rational primitives (rational_pow_uint
+# + rational_mul × 3 + rational_add × 4 + rational_div). All shipped
+# in srmech v0.4.1rc10 with Python + C parity per
+# [[feedback_no_binding_layer_carveout]] — the C library is usable
+# standalone for u64-fit inputs.
+#
+# Mathematical claim:
+#   f_dark(a) = (Ω_c · a + Ω_Λ · a⁴) / (Ω_b · a + Ω_c · a + Ω_Λ · a⁴ + Ω_r)
+#
+# Where Ω_b, Ω_c, Ω_Λ, Ω_r are Planck-canonical density parameters as
+# rationals (3-sig-fig truncations of Planck 2018 VI values):
+#   Ω_b = 49/1000      (baryon density)
+#   Ω_c = 265/1000     (cold dark matter density)
+#   Ω_Λ = 685/1000     (cosmological constant density)
+#   Ω_r = 1/10000      (radiation density)
+#
+# Q6.1 monotonicity claim: f_dark(a) is strictly monotone increasing
+# in a (past matter-radiation equality). Catalog rows span a ∈
+# [1/100000, 10/1], demonstrating the increase from ~0.026 at z=infinity-
+# limit to ~0.9999 at a=10 (far future).
+#
+# Source: Planck Collaboration 2018 VI (Aghanim et al. 2020 A&A 641:A6),
+# doi:10.1051/0004-6361/201833910, arXiv:1807.06209.
+
+[source]
+key = "cosmos_validation"
+human_readable_name = "Cosmos Validation Catalogue — Friedmann dark-fraction monotonicity (Spike #27 / PR #437 Q6.1)"
+purpose = "self-validating chain-composed catalog of Friedmann dark-fraction f_dark(a) rationals; each row's expected output is computable bit-exactly from Class N rational chain composition (rational_pow_uint + rational_mul + rational_add + rational_div). Falsifies the Spike #27 Q6.1 monotonicity claim by row-by-row bit-exact comparison of f_dark(a1) < f_dark(a2) for a1 < a2."
+license = "CC0-1.0 (self-generated rows from Planck-canonical Ω rationals; mathematical identity is public domain)"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
+canonical_doi = "10.1051/0004-6361/201833910"
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = false
+
+[schema]
+data_schema_id = "cosmos_validation.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Cosmos Validation Catalogue (chain-verified against Planck 2018 VI Ω-parameter values; Aghanim et al. 2020 *A&A* 641:A6, doi:10.1051/0004-6361/201833910, arXiv:1807.06209); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "chain-verified Friedmann dark-fraction f_dark(a) at row {schema.row_label} (a={schema.a_num}/{schema.a_den})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 2 schema v1)
+# ─────────────────────────────────────────────────────────────────
+#
+# 9-step chain composing the Friedmann dark-fraction formula entirely
+# in rational arithmetic. Each Class N op takes tuple inputs
+# (num, den) and returns a reduced (num, den) tuple. The chain is
+# linear; each step's output feeds subsequent steps via
+# @step[N].output references.
+
+[catalog]
+chain_schema_version = 1
+
+[[catalog.operator_chain]]
+name = "friedmann_dark_fraction"
+summary = "Compute Friedmann dark-fraction f_dark(a) = (Ω_c·a + Ω_Λ·a⁴) / (Ω_b·a + Ω_c·a + Ω_Λ·a⁴ + Ω_r) as exact rational, composing rational_pow_uint + rational_mul + rational_add + rational_div over Planck-canonical Ω values. Falsifies Q6.1 monotonicity claim row-by-row (Spike #27 PR #437)."
+returns = "tuple[int, int]  # (num, den) of f_dark(a) reduced"
+on_error = "raise"
+
+# Step 0: a^4
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_pow_uint"
+args = { base = ["@row.a_num", "@row.a_den"], exp = 4 }
+
+# Step 1: Ω_c · a
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_mul"
+args = { a = ["@row.omega_c_num", "@row.omega_c_den"], b = ["@row.a_num", "@row.a_den"] }
+
+# Step 2: Ω_Λ · a^4
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_mul"
+args = { a = ["@row.omega_lambda_num", "@row.omega_lambda_den"], b = "@step[0].output" }
+
+# Step 3: numerator = Ω_c·a + Ω_Λ·a^4
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_add"
+args = { a = "@step[1].output", b = "@step[2].output" }
+
+# Step 4: Ω_b · a
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_mul"
+args = { a = ["@row.omega_b_num", "@row.omega_b_den"], b = ["@row.a_num", "@row.a_den"] }
+
+# Step 5: Ω_b·a + Ω_c·a
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_add"
+args = { a = "@step[4].output", b = "@step[1].output" }
+
+# Step 6: (Ω_b+Ω_c)·a + Ω_Λ·a^4
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_add"
+args = { a = "@step[5].output", b = "@step[2].output" }
+
+# Step 7: denominator = previous + Ω_r
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_add"
+args = { a = "@step[6].output", b = ["@row.omega_r_num", "@row.omega_r_den"] }
+
+# Step 8: f_dark = numerator / denominator
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "rational_div"
+args = { a = "@step[3].output", b = "@step[7].output" }
