@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc2"
-#define SRMECH_VERSION       "0.4.0rc2"
+#define SRMECH_VERSION_PRE   "rc3"
+#define SRMECH_VERSION       "0.4.0rc3"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -278,6 +278,45 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
                                       uint32_t  max_sweeps,
                                       double    tolerance,
                                       double   *out_eigvals);
+
+/* ------------------------------------------------------------------ *
+ * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
+ *
+ * Integer-structure primitives complementing Class I (modular
+ * arithmetic). Pi-free, no LAPACK, no malloc, no goto.
+ *
+
+ * No ABI bump (pure additions per Phase B4 convention).
+ * `bool` comes from <stdbool.h> already included at top of header.
+ * ------------------------------------------------------------------ */
+
+/* Trial-division primality test. False for n < 2; true for 2, 3.
+ * Loop bounded by sqrt(n) via the d <= n/d terminator. */
+srmech_status_t srmech_is_prime(uint64_t n, bool *out);
+
+/* Prime factorisation by trial division.
+ *   primes[i]    = i-th distinct prime factor (ascending)
+ *   exponents[i] = exponent of primes[i]
+ *   max_count    = caller-allocated buffer size (≥ 15 covers uint64)
+ *   *out_count   = number of distinct primes written
+ * For n < 2: writes nothing, sets *out_count = 0.
+ * Returns SRMECH_ERR_OVERFLOW if distinct-prime count exceeds
+ * max_count. */
+srmech_status_t srmech_factor(uint64_t  n,
+                              uint64_t *primes,
+                              uint8_t  *exponents,
+                              uint32_t  max_count,
+                              uint32_t *out_count);
+
+/* Multiplicative order of a in (Z/nZ)*: smallest k > 0 with
+ * a^k ≡ 1 (mod n). Requires n >= 2, gcd(a mod n, n) == 1, max_k >= 1.
+ * Returns SRMECH_ERR_BAD_INPUT for invalid n, gcd != 1 (detected as
+ * a mod n == 0), or max_k == 0.
+ * Returns SRMECH_ERR_OVERFLOW if no period found within max_k. */
+srmech_status_t srmech_cyclic_period(uint64_t  a,
+                                     uint64_t  n,
+                                     uint64_t  max_k,
+                                     uint64_t *out_period);
 
 #ifdef __cplusplus
 }

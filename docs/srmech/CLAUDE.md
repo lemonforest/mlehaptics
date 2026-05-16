@@ -101,9 +101,11 @@ precedent that markets microcontroller-readiness on PyPI. As of
 **Class A (content-addressing via SHA-256)** and **Class C
 (streaming iterator via NDJSON line tokenisation)**; **Task #217
 Phase C1 added Class I (cyclic-group / modular arithmetic) in
-v0.4.0rc1 and Class L (graph Laplacian; pi-free dense + Jacobi
-eigvals, n ≤ 256 native bound) in v0.4.0rc2**; the remaining
-classes B/D/E/F/G/H/J/K/M/N (and Class O if accepted per Spike
+v0.4.0rc1, Class L (graph Laplacian; pi-free dense + Jacobi
+eigvals, n ≤ 256 native bound) in v0.4.0rc2, and Class J (prime-
+factorisation / period; trial-division primality + factorisation +
+multiplicative order) in v0.4.0rc3**; the remaining classes
+B/D/E/F/G/H/K/M/N (and Class O if accepted per Spike
 #24 bonus 8) ship in subsequent rc additions under 0.4.0rcN per
 `[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0`
 ship at Phase C1 close. Each class follows the same ratchet —
