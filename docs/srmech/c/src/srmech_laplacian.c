@@ -90,10 +90,12 @@ srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
             return SRMECH_ERR_BAD_INPUT;
         }
         double w = (weights != NULL) ? weights[e] : 1.0;
+        /* Add w to both A[u, v] and A[v, u]. For self-loops (u == v),
+         * this naturally accumulates 2*w on the diagonal — the
+         * standard graph-theory convention (a self-loop contributes
+         * to a vertex's degree by 2). */
         out_matrix[(size_t)uu * n + vv] += w;
-        if (uu != vv) {
-            out_matrix[(size_t)vv * n + uu] += w;
-        }
+        out_matrix[(size_t)vv * n + uu] += w;
     }
     assert(n == 0 || out_matrix != NULL);
     return SRMECH_OK;
@@ -105,6 +107,7 @@ static double srmech_laplacian_row_degree(uint32_t n,
                                           const double *mat)
 {
     assert(mat != NULL);
+    assert(row < n);
     double sum = 0.0;
     for (uint32_t c = 0; c < n; c++) {
         if (c != row) {
@@ -236,6 +239,7 @@ static void srmech_laplacian_jacobi_rotate(uint32_t n, double *mat,
 static double srmech_laplacian_off_diag_sq(uint32_t n, const double *mat)
 {
     assert(mat != NULL);
+    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -243,6 +247,7 @@ static double srmech_laplacian_off_diag_sq(uint32_t n, const double *mat)
             s += 2.0 * v * v;
         }
     }
+    assert(s >= 0.0);
     return s;
 }
 
