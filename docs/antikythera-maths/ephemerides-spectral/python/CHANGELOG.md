@@ -10,7 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.29.1rc1] — 2026-05-16
+## [0.29.1] — 2026-05-16
+
+### Production cut after the v0.29.1 rc cycle (no code change from 0.29.1rc1)
+
+Version-only bump from `0.29.1rc1` → `0.29.1` in the 6 SSOT locations
+(`pyproject.toml`, `pyproject-pure.toml`, `version.py`,
+`srmech_profile.toml`, `c/include/ephemerides_spectral.h`, and
+`ephemerides_spectral/_data/manifest.json` `version` field). The rc1
+TestPyPI publish + clean-external-venv smoke verified the srmech
+floor lift before the cut.
 
 ### Changed — srmech dependency floor bump `>=0.3.1,<0.4` → `>=0.4.0`
 
@@ -37,18 +46,18 @@ transitively pick up the cumulative srmech v0.4.x content:
 
 **SSOT files bumped in lockstep:**
 
-- `pyproject.toml` `[project].version` 0.29.0 → 0.29.1rc1;
+- `pyproject.toml` `[project].version` 0.29.0 → 0.29.1rc1 → 0.29.1;
   `[project].dependencies` `srmech>=0.3.1,<0.4` → `srmech>=0.4.0`.
-- `pyproject-pure.toml` `[project].version` 0.29.0 → 0.29.1rc1;
+- `pyproject-pure.toml` `[project].version` 0.29.0 → 0.29.1rc1 → 0.29.1;
   `[project].dependencies` `srmech>=0.3.1,<0.4` → `srmech>=0.4.0`.
-- `ephemerides_spectral/version.py` `__version__` 0.29.0 → 0.29.1rc1.
+- `ephemerides_spectral/version.py` `__version__` 0.29.0 → 0.29.1rc1 → 0.29.1.
 - `ephemerides_spectral/srmech_profile.toml` `[profile].version`
-  0.29.0 → 0.29.1rc1; `[profile].srmech_requires` `>=0.3.1,<0.4`
+  0.29.0 → 0.29.1rc1 → 0.29.1; `[profile].srmech_requires` `>=0.3.1,<0.4`
   → `>=0.4.0`.
 - `c/include/ephemerides_spectral.h` `ES_VERSION_PATCH` 0 → 1;
-  `ES_VERSION_STRING "0.29.0"` → `"0.29.1rc1"`.
+  `ES_VERSION_STRING "0.29.0"` → `"0.29.1rc1"` → `"0.29.1"`.
 - `ephemerides_spectral/_data/manifest.json` `version` field
-  restamped 0.29.0 → 0.29.1rc1.
+  restamped 0.29.0 → 0.29.1rc1 → 0.29.1.
 
 ### No code change; no ABI change
 
@@ -58,9 +67,9 @@ surface change. Pure dependency-floor bump.
 
 ### Versioning
 
-`0.29.0` → `0.29.1rc1`. Patch bump (dependency-floor refresh). RC
-suffix auto-routes to TestPyPI per the existing publish-workflow
-regex. The clean `v0.29.1` ships to production PyPI after rc verify.
+`0.29.0` → `0.29.1rc1` → `0.29.1`. Patch bump (dependency-floor
+refresh). rc1 routed to TestPyPI; clean `v0.29.1` ships to production
+PyPI after the rc verify.
 
 ## [0.29.0] — 2026-05-15
 
