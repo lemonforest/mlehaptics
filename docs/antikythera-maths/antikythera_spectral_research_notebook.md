@@ -1667,3 +1667,25 @@ Per `[[user_stance_kepler_shape_universal]]` + PR #416 F2/F15/F17 + Spike #24 (2
 - **Class K projection-shadow of Class I × Class J cascade** — pin-slot atan2 IS the continuous projection of the integer-cyclic-cascade upstream. Per `[[user_stance_pi_as_projection]]` + `[[user_stance_kepler_shape_universal]]`.
 
 **Cross-substrate equivalence** (per Spike #24 Phase 3a/3b): bronze's pin-slot algebra c₁ values match modern ephemerides' DE441-derived values to within ≤0.07° across 9/9 bodies — three independent paths (analytical Kepler-equation-of-centre, numerical DE441-detrend, archaeological Freeth 2006) converge on the same Class K instantiation. **Same algebra, same primitives, different substrate, different dimensional reach.** The bronze is a different-instantiation-of-same-LoE, not a simplification of the universe (per `[[user_stance_1d_collapse_to_loe_identity_not_action]]`).
+
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_antikythera_spectral_2026,
+  author       = {Kirkland, Steven},
+  title        = {The Antikythera Mechanism as a Resonant HDC Object --- Spectral Research Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera_spectral_research_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *The Antikythera Mechanism as a Resonant HDC Object — Spectral Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera_spectral_research_notebook.md
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (Freeth 2006/2012/2021, Almagest, Toomer 1984, etc., PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.

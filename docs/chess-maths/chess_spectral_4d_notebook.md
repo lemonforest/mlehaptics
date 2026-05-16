@@ -822,3 +822,25 @@ split (channels 8-10 relayout, spectralz v4 format, cross-channel
 orthogonality gate at 1e-32) on branch `zesty-llama`. v1.2 added the
 φ_4d phase-operator framework; see PHASE_OPERATOR_SUPPLEMENT_4D.md
 (pending merge into §13 of this notebook per the merge plan).*
+
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_chess_spectral_4d_2026,
+  author       = {Kirkland, Steven},
+  title        = {4D Chess Spectral --- v1 Validation Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_4d_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; higher-dimensional extension of \texttt{chess\_spectral\_research\_notebook}. Project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *4D Chess Spectral — v1 Validation Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_4d_notebook.md
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (Rinaldi-Unciuleanu & Chiru 2026 for the hypercube primary technical content, etc., PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.

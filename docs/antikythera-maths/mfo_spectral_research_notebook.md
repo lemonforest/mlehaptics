@@ -1971,3 +1971,25 @@ The document should be self-sufficient for regenerating these scripts without co
 ---
 
 *End of working draft. Next iteration should: (a) align format with sister notebooks (state-pointer block, formal H-battery format, sister cross-references), (b) integrate any of the next-session computational results that close open Part IX items, (c) add a "Computability Audit" section in the style of the Antikythera notebook §12 once enough hypotheses are formalized to warrant one.*
+
+---
+
+## How to cite this notebook
+
+**BibTeX:**
+
+```bibtex
+@misc{kirkland_mfo_2026,
+  author       = {Kirkland, Steven},
+  title        = {Metric Field Ontology --- Spectral Research Notebook},
+  year         = 2026,
+  howpublished = {\url{https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/mfo_spectral_research_notebook.md}},
+  note         = {Part of \emph{mlehaptics: Spectral-Research Portfolio}; project-level citation metadata at \url{https://github.com/lemonforest/mlehaptics/blob/main/CITATION.cff}. Co-authored with Claude Opus 4.7 (Anthropic, 1M-context configuration) per project memory \texttt{feedback\_orchestration\_metaphor}. Framing is one candidate within the project's research portfolio per \texttt{feedback\_no\_lineage\_claims\_in\_notebook}.}
+}
+```
+
+**Plain text:** Kirkland, S. (2026). *Metric Field Ontology — Spectral Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/mfo_spectral_research_notebook.md
+
+**Per-result citation discipline.** Specific technical claims cite their canonical sources directly (textbooks / peer-reviewed papers PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]`). When citing a specific result, prefer citing both this notebook AND the underlying canonical source. Framings presented here are candidate methodological readings per `[[feedback_no_lineage_claims_in_notebook]]`, not endorsed over alternatives without explicit empirical convergence.
+
+**Project-level citation.** See `CITATION.cff` at the repo root for the project-as-a-whole citation form.
