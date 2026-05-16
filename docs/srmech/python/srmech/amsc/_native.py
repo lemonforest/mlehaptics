@@ -217,6 +217,40 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_mod_inv.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class L — graph Laplacian (Task #217 Phase C1 rc2).
+    # All three matrix builders share the
+    # (n, n_edges, *u, *v, *w, *out) -> int shape.
+    # ------------------------------------------------------------------
+    _GRAPH_BUILDER_ARGS = [
+        ctypes.c_uint32,                    # n
+        ctypes.c_uint32,                    # n_edges
+        ctypes.POINTER(ctypes.c_uint32),    # edges_u
+        ctypes.POINTER(ctypes.c_uint32),    # edges_v
+        ctypes.POINTER(ctypes.c_double),    # weights (or NULL)
+        ctypes.POINTER(ctypes.c_double),    # out_matrix (n*n doubles)
+    ]
+    lib.srmech_graph_dense_adjacency.argtypes = _GRAPH_BUILDER_ARGS
+    lib.srmech_graph_dense_adjacency.restype = ctypes.c_int
+
+    lib.srmech_graph_dense_laplacian.argtypes = _GRAPH_BUILDER_ARGS
+    lib.srmech_graph_dense_laplacian.restype = ctypes.c_int
+
+    lib.srmech_graph_normalized_laplacian.argtypes = _GRAPH_BUILDER_ARGS
+    lib.srmech_graph_normalized_laplacian.restype = ctypes.c_int
+
+    # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
+    #                           uint32_t max_sweeps, double tolerance,
+    #                           double *out_eigvals)
+    lib.srmech_jacobi_eigvals.argtypes = [
+        ctypes.c_uint32,                    # n
+        ctypes.POINTER(ctypes.c_double),    # matrix (in-place)
+        ctypes.c_uint32,                    # max_sweeps
+        ctypes.c_double,                    # tolerance
+        ctypes.POINTER(ctypes.c_double),    # out_eigvals (n doubles)
+    ]
+    lib.srmech_jacobi_eigvals.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
