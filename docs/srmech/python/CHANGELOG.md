@@ -4,6 +4,86 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.0rc11] - 2026-05-15
+
+### Added
+
+**Task #217 Phase C1 — Gauge theory + Standard Model surface (final canonical-physics rc).**
+
+Eleventh rc in Phase C1's rc-stacked build-out. **Closes the canonical-physics scope** of PR #432: 14/14 primitive classes + canonical single-particle QM (rc9) + relativistic QM / propagators / η-pseudo-Hermitian (rc10) + **gauge theory + SM surface (rc11)**.
+
+Per `[[feedback_science_is_ssot_not_project]]`: each operation cites canonical gauge-theory / SM literature. Numerical experimental values (M_W, M_Z, fermion masses, CKM elements) are NOT hardcoded — this rc ships the algebraic primitives that map (gauge couplings, Higgs vev, Yukawa couplings, mixing angles) to observable masses.
+
+Per `[[user_stance_1d_collapse_to_loe_identity_not_action]]`: substrate-coupling operations on internal-symmetry representation spaces. Each dissolves into the 14-class primitive vocabulary per `[[feedback_no_privileged_primitive_classes]]` — no new classes.
+
+#### `srmech.qm.gauge`
+
+| Operation | Canonical SSoT | 14-class dissolution |
+|---|---|---|
+| `su2_generators() → (T¹, T², T³)` | Peskin-Schroeder §15.1 eq 15.5-6 | Class M (Lie-algebra binding, Pauli-half generators) |
+| `su2_structure_constants() → εᵃᵇᶜ` | Peskin-Schroeder §15.1 eq 15.4 | — |
+| `su3_gell_mann_matrices() → (λ¹...λ⁸)` | Gell-Mann (1962) PR 125, 1067; Peskin-Schroeder eq 17.32 | Class M (SU(3) Lie-algebra binding) |
+| `su3_generators() → (T¹...T⁸)` | Peskin-Schroeder eq 17.33 | Class M |
+| `su3_structure_constants() → fᵃᵇᶜ` | Peskin-Schroeder eq 17.34; Schwartz Table 25.1 | — |
+| `lie_algebra_residual(gens, f)` | Peskin-Schroeder §15.1 eq 15.4 | (verification: `[Tᵃ, Tᵇ] = i fᵃᵇᶜ Tᶜ`) |
+| `casimir_operator(gens) → C₂` | Peskin-Schroeder §15.4 eq 15.93 | Class L (sum of generator squares) |
+| `casimir_eigenvalue(gens)` | Peskin-Schroeder §15.4 | Class L (trace / dim) |
+| `gauge_connection_matrix(A, gens) → Aᵃ Tᵃ` | Peskin-Schroeder §15.1 eq 15.2 | Class M |
+| `gauge_path_segment(A, gens, g) → exp(i g Aᵃ Tᵃ)` | Wilson (1974) PRD 10, 2445; Peskin-Schroeder §15.3 eq 15.55 | Class L (Hermitian matrix exponential via eigendecomp) |
+| `wilson_loop_from_segments(A_segs, gens, g) → ∏ exp(...)` | Wilson (1974) eq 2.3 | Class C ∘ Class L (path-ordered iteration over segments) |
+
+#### `srmech.qm.sm`
+
+| Operation | Canonical SSoT | 14-class dissolution |
+|---|---|---|
+| `higgs_potential(φ, μ², λ)` | Higgs (1964); Peskin-Schroeder §20.1 eq 20.6 | Class K (continuous projection) |
+| `higgs_vev(μ², λ) → v` | Peskin-Schroeder §20.1 eq 20.7 | Class K |
+| `weak_mixing_angle(g, g')` | Weinberg (1967) eq 8; Peskin-Schroeder §20.2 eq 20.31 | Class K (atan2) |
+| `w_boson_mass(g, v)` | Peskin-Schroeder §20.2 eq 20.30 | Class K |
+| `z_boson_mass(g, g', v)` | Peskin-Schroeder §20.2 eq 20.32 | Class K |
+| `weinberg_relation_residual(g, g', v)` | Peskin-Schroeder §20.2 eq 20.33 | (verification: `M_W = M_Z cos θ_W`) |
+| `electroweak_summary(g, g', v) → dict` | Composite §20.2 | — |
+| `fermion_mass_from_yukawa(y, v)` | Peskin-Schroeder §20.2 eq 20.27; Schwartz §29.1 eq 29.18 | Class K |
+| `ckm_matrix(θ₁₂, θ₁₃, θ₂₃, δ_CP)` | Cabibbo (1963); Kobayashi-Maskawa (1973); Chau-Keung (1984); PDG §12.1 | Class M (unitary mixing-binding) |
+| `ckm_unitarity_residual(V)` | PDG §12.1 | (verification) |
+
+Foundation literature:
+- Glashow (1961) *Nucl. Phys.* 22, 579-588.
+- Weinberg (1967) *Phys. Rev. Lett.* 19, 1264-1266.
+- Salam (1968) *Elementary Particle Theory*.
+- Higgs (1964); Englert-Brout (1964); Guralnik-Hagen-Kibble (1964).
+- Cabibbo (1963); Kobayashi-Maskawa (1973).
+- Yang & Mills (1954) *Phys. Rev.* 96, 191-195.
+- Gell-Mann (1962) *Phys. Rev.* 125, 1067-1084.
+- Wilson (1974) *Phys. Rev. D* 10, 2445-2459.
+- Peskin & Schroeder (1995) *Intro QFT*, Chs 15-17, 20-21.
+- Weinberg (1996) *QToF* Vol II §15, §21.
+- Schwartz (2014) *QFT and the SM*, Chs 25-29.
+
+#### Tests (2 files, ~40 cases)
+
+- `test_qm_gauge.py` — SU(2)/SU(3) generators Hermitian + traceless; canonical normalization `tr(TᵃTᵇ) = δᵃᵇ/2`; structure-constant total antisymmetry; **Lie algebra closure `[Tᵃ, Tᵇ] = i fᵃᵇᶜ Tᶜ` at machine precision** for both SU(2) and SU(3); Casimir eigenvalue 3/4 for SU(2) fundamental, 4/3 for SU(3) fundamental; Casimir proportional to identity (Schur); path-segment unitarity; multi-segment Wilson-loop unitarity.
+- `test_qm_sm.py` — Higgs vev formula; potential minimum at vev; `V(v) = -μ⁴/(4λ)`; Weinberg relation `M_W = M_Z cos θ_W` at machine precision across multiple coupling regimes; fermion mass `m = y v / √2`; CKM unitarity `V V† = I` for arbitrary mixing angles + CP phase; CKM reduces to 2×2 Cabibbo rotation when θ₁₃ = θ₂₃ = 0.
+
+### Changed
+
+- **ABI stays v2** — operations layer is pure Python (numpy-based; gauge matrix exponentials via Hermitian eigendecomp, no scipy dependency).
+- **srmech.qm** imports updated for the two new submodules (`gauge`, `sm`).
+
+### Roadmap
+
+Phase C1 **canonical-physics scope complete**:
+- 14 of 14 primitive classes with C surfaces.
+- Canonical single-particle QM (rc9).
+- Relativistic QM + Feynman propagators + η-pseudo-Hermitian (rc10).
+- Gauge theory + Standard Model surface (rc11, this rc).
+
+Remaining for Phase C1 close → 0.4.0 final (folding all into PR #432):
+- **End-of-sprint hygiene** per user direction:
+  - **Task #219**: Per-class CLI `--help` audit — every command shows how to be used.
+  - **Task #220**: Tool-schema extension — every operation surfaces via `srmech.amsc.tool_schema`.
+- **0.4.0 final**: clean ship to PyPI at PR merge.
+
 ## [0.4.0rc10] - 2026-05-15
 
 ### Added

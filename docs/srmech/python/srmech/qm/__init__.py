@@ -31,6 +31,10 @@ Submodules:
   photon / massive vector).
 - :mod:`srmech.qm.pseudo_hermitian` — η-deformed inner product, PT-
   symmetric QM framework (Bender-Boettcher / Mostafazadeh).
+- :mod:`srmech.qm.gauge` — Yang-Mills generators (SU(2), SU(3) Gell-Mann),
+  structure constants, Casimirs, Wilson-loop holonomy.
+- :mod:`srmech.qm.sm` — Electroweak unification, Higgs mechanism, Yukawa
+  fermion masses, CKM matrix.
 
 Canonical SSoT:
 
@@ -48,19 +52,23 @@ Canonical SSoT:
 """
 
 from srmech.qm import (
+    gauge,
     potentials,
     propagators,
     pseudo_hermitian,
     relativistic,
     single_particle,
+    sm,
     spin,
 )
 
 __all__ = [
+    "gauge",
     "potentials",
     "propagators",
     "pseudo_hermitian",
     "relativistic",
     "single_particle",
+    "sm",
     "spin",
 ]
