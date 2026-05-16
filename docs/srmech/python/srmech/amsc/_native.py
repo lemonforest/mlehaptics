@@ -373,6 +373,33 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_template_render.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class N — rational-approximation (Task #217 Phase C1 rc6).
+    # ------------------------------------------------------------------
+    # int srmech_continued_fraction(uint64_t p, uint64_t q,
+    #                               uint64_t *terms, uint32_t max_terms,
+    #                               uint32_t *out_count)
+    lib.srmech_continued_fraction.argtypes = [
+        ctypes.c_uint64,
+        ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    lib.srmech_continued_fraction.restype = ctypes.c_int
+
+    # int srmech_best_rational(uint64_t p, uint64_t q,
+    #                          uint64_t max_denominator,
+    #                          uint64_t *out_p, uint64_t *out_q)
+    lib.srmech_best_rational.argtypes = [
+        ctypes.c_uint64,
+        ctypes.c_uint64,
+        ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_best_rational.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
