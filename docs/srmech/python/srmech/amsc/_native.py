@@ -251,6 +251,34 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_jacobi_eigvals.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
+    # ------------------------------------------------------------------
+    # int srmech_is_prime(uint64_t n, bool *out)
+    lib.srmech_is_prime.argtypes = [
+        ctypes.c_uint64, ctypes.POINTER(ctypes.c_bool),
+    ]
+    lib.srmech_is_prime.restype = ctypes.c_int
+
+    # int srmech_factor(uint64_t n, uint64_t *primes, uint8_t *exps,
+    #                   uint32_t max_count, uint32_t *out_count)
+    lib.srmech_factor.argtypes = [
+        ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint32),
+    ]
+    lib.srmech_factor.restype = ctypes.c_int
+
+    # int srmech_cyclic_period(uint64_t a, uint64_t n, uint64_t max_k,
+    #                          uint64_t *out_period)
+    lib.srmech_cyclic_period.argtypes = [
+        ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_cyclic_period.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
