@@ -501,10 +501,802 @@ def _register_amsc_tools() -> None:
         register_tool(e)
 
 
+def _register_primitive_class_tools() -> None:
+    """Register tool entries for the 14 Spike #24 primitive classes
+    (Task #217 Phase C1 / Task #220).
+
+    Class A (content-addressing) + Class C (streaming) are already covered
+    by ``_register_amsc_tools()`` (sha256_bytes + read_ndjson). This
+    function adds the remaining 12 classes (B, D, E, F, G, H, I, J, K, L,
+    M, N) — every primitive-class operation exposed via ``srmech.amsc.*``.
+    """
+    P = ToolParameter
+    R = ToolReturn
+
+    entries: List[ToolEntry] = [
+        # ────────────────────────────────────────────────────────────
+        # Class I — cyclic-group / modular arithmetic
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cyclic.gcd", owner="srmech", category="cyclic",
+            summary="Greatest common divisor of two non-negative integers.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "≥ 0"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.lcm", owner="srmech", category="cyclic",
+            summary="Least common multiple of two non-negative integers; "
+                    "0 when either input is 0.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "≥ 0"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_add", owner="srmech", category="cyclic",
+            summary="(a + b) mod n — overflow-safe modular addition.",
+            parameters=(P("a", "int", True), P("b", "int", True),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_mul", owner="srmech", category="cyclic",
+            summary="(a * b) mod n via russian-peasant doubling; portable "
+                    "across platforms without __int128.",
+            parameters=(P("a", "int", True), P("b", "int", True),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_pow", owner="srmech", category="cyclic",
+            summary="(a ** k) mod n via square-and-multiply.",
+            parameters=(P("a", "int", True), P("k", "int", True),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_inv", owner="srmech", category="cyclic",
+            summary="Modular inverse of a in Z/nZ via extended Euclidean. "
+                    "Requires gcd(a, n) == 1 and n ≤ INT64_MAX.",
+            parameters=(P("a", "int", True), P("n", "int", True)),
+            returns=R("int", "in [1, n)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class L — graph Laplacian
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_adjacency", owner="srmech",
+            category="laplacian",
+            summary="Build the dense adjacency matrix from an edge list. "
+                    "Self-loops add 2w to the diagonal (standard convention).",
+            parameters=(P("n", "int", True, "number of nodes"),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False,
+                          "None ⇒ unit weights")),
+            returns=R("np.ndarray", "n × n dense matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Graph Laplacian L = D - A. Native C dispatch when "
+                    "n ≤ 256; numpy fallback otherwise.",
+            parameters=(P("n", "int", True), P("edges", "list", True),
+                        P("weights", "Optional[list[float]]", False)),
+            returns=R("np.ndarray", "n × n symmetric matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.normalized_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Symmetric normalized Laplacian L_sym = I - D^{-1/2} A D^{-1/2}. "
+                    "Isolated vertices have diagonal entry 0.",
+            parameters=(P("n", "int", True), P("edges", "list", True),
+                        P("weights", "Optional[list[float]]", False)),
+            returns=R("np.ndarray", "n × n symmetric matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
+            category="laplacian",
+            summary="Symmetric Jacobi eigendecomposition; pi-free closed-form "
+                    "c/s computation. Native C dispatch when n ≤ 256.",
+            parameters=(P("matrix", "np.ndarray", True, "n × n symmetric"),
+                        P("max_sweeps", "int", False, "default 100"),
+                        P("tolerance", "float", False)),
+            returns=R("np.ndarray", "n eigenvalues (unsorted)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class J — prime-factorisation / period
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.primes.is_prime", owner="srmech", category="primes",
+            summary="Trial-division primality test for n ≤ 2**64. False for n < 2.",
+            parameters=(P("n", "int", True),),
+            returns=R("bool", ""),
+        ),
+        ToolEntry(
+            name="srmech.amsc.primes.factor", owner="srmech", category="primes",
+            summary="Prime factorisation by trial division. Returns ascending "
+                    "(prime, exponent) pairs. n < 2 returns empty list.",
+            parameters=(P("n", "int", True),),
+            returns=R("list[tuple[int, int]]", "[(prime, exponent), ...]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.primes.cyclic_period", owner="srmech", category="primes",
+            summary="Multiplicative order of a in (Z/nZ)*: smallest k > 0 "
+                    "with a^k ≡ 1 (mod n). Requires gcd(a mod n, n) == 1.",
+            parameters=(P("a", "int", True), P("n", "int", True),
+                        P("max_k", "int", False)),
+            returns=R("int", "≥ 1"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class B — tagged-tuple TLV
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.tlv.tlv_pack", owner="srmech", category="tlv",
+            summary="Pack (tag, value) into [u8 tag][u32 length BE][value] "
+                    "byte-canonical form. Wire-format-specific big-endian length.",
+            parameters=(P("tag", "int", True, "0..255"),
+                        P("value", "bytes", True)),
+            returns=R("bytes", "5 + len(value) bytes"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class G — discovery / search
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.search.byte_search", owner="srmech", category="search",
+            summary="Find first occurrence of `needle` in `haystack`; "
+                    "matches Python's `bytes.find(b'')` (empty needle ⇒ 0).",
+            parameters=(P("haystack", "bytes", True), P("needle", "bytes", True)),
+            returns=R("Optional[int]", "offset of match or None"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class D — late-binding dispatch
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.dispatch.match", owner="srmech", category="dispatch",
+            summary="Multi-needle byte-pattern dispatcher. Returns first matching "
+                    "rule's tag, or None on no match.",
+            parameters=(P("input_bytes", "bytes", True),
+                        P("rules", "list[tuple[bytes, int]]", True,
+                          "[(pattern, tag), ...]")),
+            returns=R("Optional[int]", "matched rule's tag"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class E — catalog / naming (primitive lookup)
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.naming.lookup", owner="srmech", category="naming",
+            summary="Binary search over a sorted (key, value) catalog. Keys MUST "
+                    "be pre-sorted ascending lexicographic by caller.",
+            parameters=(P("key", "bytes", True),
+                        P("entries", "list[tuple[bytes, bytes]]", True)),
+            returns=R("Optional[bytes]", "value or None"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class F — substitution / templating
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.template.render", owner="srmech", category="template",
+            summary="Render a template with {key} placeholders. Plain bytes "
+                    "pass through; unknown key raises ValueError.",
+            parameters=(P("template_bytes", "bytes", True),
+                        P("substitutions", "Mapping[bytes, bytes]", True)),
+            returns=R("bytes", "rendered output"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class H — self-introspection (already shipped via srmech_version /
+        # srmech_abi_version in srmech.amsc._native; no public Python wrapper
+        # to register here).
+        # ────────────────────────────────────────────────────────────
+
+        # ────────────────────────────────────────────────────────────
+        # Class N — rational-approximation
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.rational.continued_fraction", owner="srmech",
+            category="rational",
+            summary="Simple continued-fraction expansion of p/q = [a_0; a_1, ...] "
+                    "via Euclidean recurrence.",
+            parameters=(P("numerator", "int", True),
+                        P("denominator", "int", True, "> 0")),
+            returns=R("list[int]", "ascending CF terms"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.best_rational", owner="srmech",
+            category="rational",
+            summary="Best rational p'/q' with q' ≤ max_denominator approximating "
+                    "p/q via continued-fraction convergents (Stern-Brocot path).",
+            parameters=(P("numerator", "int", True), P("denominator", "int", True),
+                        P("max_denominator", "int", True, "> 0")),
+            returns=R("tuple[int, int]", "(p', q')"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class K — equation-of-centre / pin-slot
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.kepler.pin_slot", owner="srmech", category="kepler",
+            summary="Antikythera pin-and-slot transform: phi = atan2(i sin θ, "
+                    "d + i cos θ). Continuous projection-shadow of Class I "
+                    "cyclic-group upstream (Freeth 2021 Supp S9).",
+            parameters=(P("theta", "float", True, "input shaft angle (radians)"),
+                        P("pin_offset", "float", True, "pin radius i"),
+                        P("pin_distance", "float", True, "axis separation d")),
+            returns=R("float", "follower angle phi (radians)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.kepler.kepler_solve", owner="srmech", category="kepler",
+            summary="Newton-Raphson on Kepler's equation M = E - e sin E. "
+                    "Smith (1979) starter; converges in 4-6 iter for e < 0.5.",
+            parameters=(P("M_rad", "float", True, "mean anomaly (radians)"),
+                        P("e", "float", True, "eccentricity, 0 ≤ e < 1"),
+                        P("tolerance", "float", False, "default 1e-12"),
+                        P("max_iter", "int", False, "default 30")),
+            returns=R("float", "eccentric anomaly E (radians)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.kepler.equation_of_centre", owner="srmech",
+            category="kepler",
+            summary="Fourier-series ν − M = Σ c_k e^k sin(k M) for k = 1..n_terms; "
+                    "Brouwer & Clemence (1961) §3.2 coefficients up to k=6.",
+            parameters=(P("M_rad", "float", True), P("e", "float", True),
+                        P("n_terms", "int", False, "1..6, default 4")),
+            returns=R("float", "ν − M (radians)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # Class M — HDC binary spatter codes
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.bind", owner="srmech", category="hdc",
+            summary="HDC bind: component-wise XOR of two BSC vectors. "
+                    "Commutative, associative, self-inverse.",
+            parameters=(P("a", "bytes", True), P("b", "bytes", True,
+                          "same length as a")),
+            returns=R("bytes", "bound vector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.bundle", owner="srmech", category="hdc",
+            summary="HDC bundle: bitwise majority across an odd number of vectors "
+                    "(BSC convention). Even counts rejected.",
+            parameters=(P("vectors", "Sequence[bytes]", True,
+                          "odd-count, all same length"),),
+            returns=R("bytes", "bundled vector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.permute", owner="srmech", category="hdc",
+            summary="HDC permute: cyclic bit-rotation by rotate_bits. Preserves "
+                    "popcount; involutive with -rotate_bits.",
+            parameters=(P("a", "bytes", True),
+                        P("rotate_bits", "int", True, "may be negative")),
+            returns=R("bytes", "rotated vector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.similarity", owner="srmech", category="hdc",
+            summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1]. "
+                    "+1 identical, 0 orthogonal, −1 complementary.",
+            parameters=(P("a", "bytes", True), P("b", "bytes", True)),
+            returns=R("float", "in [-1, 1]"),
+        ),
+    ]
+    for e in entries:
+        register_tool(e)
+
+
+def _register_qm_tools() -> None:
+    """Register tool entries for the canonical QM/QFT/SM operations layer
+    (Task #217 Phase C1 / Task #220).
+
+    Covers `srmech.qm.*` — single-particle / spin / potentials / relativistic /
+    propagators / pseudo_hermitian / gauge / sm. Each entry cites the
+    operation's canonical physics SSoT in its summary per
+    ``[[feedback_science_is_ssot_not_project]]``.
+    """
+    P = ToolParameter
+    R = ToolReturn
+
+    entries: List[ToolEntry] = [
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.single_particle
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.single_particle.tdse_evolve", owner="srmech",
+            category="qm.single_particle",
+            summary="Closed-form TDSE evolution ψ(t) = V·diag(exp(-iλt))·V^H ψ(0) "
+                    "via Hermitian eigenbasis. Schrödinger (1926); Sakurai §2.1.5.",
+            parameters=(P("H", "np.ndarray", True, "Hermitian (n, n)"),
+                        P("psi", "np.ndarray", True, "(n,)"),
+                        P("t", "float", True)),
+            returns=R("np.ndarray", "(n,) complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.tise_solve", owner="srmech",
+            category="qm.single_particle",
+            summary="Time-Independent Schrödinger H ψ_n = E_n ψ_n. "
+                    "Schrödinger (1926); Sakurai §2.1.3.",
+            parameters=(P("H", "np.ndarray", True, "Hermitian (n, n)"),),
+            returns=R("tuple[np.ndarray, np.ndarray]",
+                      "(eigenvalues, eigenvectors)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.commutator", owner="srmech",
+            category="qm.single_particle",
+            summary="Operator commutator [A, B] = AB − BA. Sakurai §1.4.",
+            parameters=(P("A", "np.ndarray", True), P("B", "np.ndarray", True)),
+            returns=R("np.ndarray", "(n, n)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.heisenberg_evolve", owner="srmech",
+            category="qm.single_particle",
+            summary="Heisenberg-picture operator evolution A_H(t) = U†(t) A U(t). "
+                    "Heisenberg (1925); Sakurai §2.2.",
+            parameters=(P("A", "np.ndarray", True), P("H", "np.ndarray", True),
+                        P("t", "float", True)),
+            returns=R("np.ndarray", "(n, n) complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.lattice_momentum", owner="srmech",
+            category="qm.single_particle",
+            summary="Lattice momentum p̂ = -i ∂_x via central-difference; "
+                    "Hermitian. Sakurai §1.6; Wilson (1974).",
+            parameters=(P("n", "int", True, "n_sites ≥ 2"),
+                        P("dx", "float", False, "default 1.0")),
+            returns=R("np.ndarray", "(n, n) Hermitian complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.density_matrix", owner="srmech",
+            category="qm.single_particle",
+            summary="Pure-state density matrix ρ = |ψ⟩⟨ψ|. "
+                    "von Neumann (1932); Sakurai §3.4.",
+            parameters=(P("psi", "np.ndarray", True, "(n,)"),),
+            returns=R("np.ndarray", "(n, n) Hermitian PSD"),
+        ),
+        ToolEntry(
+            name="srmech.qm.single_particle.liouville_evolve", owner="srmech",
+            category="qm.single_particle",
+            summary="Liouville-von Neumann ρ(t) = U(t) ρ(0) U†(t). "
+                    "von Neumann (1932); Sakurai §3.4.2.",
+            parameters=(P("rho", "np.ndarray", True), P("H", "np.ndarray", True),
+                        P("t", "float", True)),
+            returns=R("np.ndarray", "(n, n)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.spin
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.spin.pauli_matrices", owner="srmech", category="qm.spin",
+            summary="Pauli matrices σ_x, σ_y, σ_z. Cl(0,3) Clifford generators. "
+                    "Pauli (1927); Sakurai §3.2.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]",
+                      "each 2×2 Hermitian"),
+        ),
+        ToolEntry(
+            name="srmech.qm.spin.pauli_identity", owner="srmech", category="qm.spin",
+            summary="2×2 identity (Cl(0,3) scalar).",
+            parameters=(),
+            returns=R("np.ndarray", "2×2 identity"),
+        ),
+        ToolEntry(
+            name="srmech.qm.spin.pauli_clifford_residuals", owner="srmech",
+            category="qm.spin",
+            summary="Numerical residuals for {σ_i, σ_j} = 2 δ_ij I and "
+                    "[σ_i, σ_j] = 2i ε_ijk σ_k. Sakurai §3.2.",
+            parameters=(),
+            returns=R("tuple[float, float]",
+                      "(max_anticomm_dev, max_comm_dev)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.spin.pauli_spin_operator", owner="srmech",
+            category="qm.spin",
+            summary="Spin-½ projection S_n = (1/2) σ · n̂ for arbitrary axis. "
+                    "Sakurai §3.2 eq 3.2.51.",
+            parameters=(P("direction", "np.ndarray", True, "3-vector"),),
+            returns=R("np.ndarray", "2×2 Hermitian, eigenvalues ±½"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.potentials
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.potentials.hydrogen_radial", owner="srmech",
+            category="qm.potentials",
+            summary="Hydrogen-atom radial Schrödinger eigenstates via finite-"
+                    "difference. Bohr (1913); Sakurai §3.7.",
+            parameters=(P("n_grid", "int", False, "default 400"),
+                        P("r_max", "float", False, "default 80.0"),
+                        P("l_quantum", "int", False, "default 0")),
+            returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]",
+                      "(r, energies, eigenvectors)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.potentials.harmonic_oscillator_ladder", owner="srmech",
+            category="qm.potentials",
+            summary="Ladder operators (a, a†) truncated at n_dim. "
+                    "Heisenberg (1925); Sakurai §2.3.",
+            parameters=(P("n_dim", "int", False, "default 30"),
+                        P("omega", "float", False, "default 1.0")),
+            returns=R("tuple[np.ndarray, np.ndarray]", "(a, a†)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.potentials.harmonic_oscillator_hamiltonian",
+            owner="srmech", category="qm.potentials",
+            summary="Harmonic-oscillator Hamiltonian H = ℏω (a†a + 1/2). "
+                    "Sakurai §2.3.",
+            parameters=(P("n_dim", "int", False), P("omega", "float", False)),
+            returns=R("np.ndarray", "Hermitian (n_dim, n_dim)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.relativistic
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.relativistic.minkowski_metric", owner="srmech",
+            category="qm.relativistic",
+            summary="Mostly-minus Minkowski metric η^{μν} = diag(+1, -1, -1, -1). "
+                    "Peskin-Schroeder §3.1.",
+            parameters=(),
+            returns=R("np.ndarray", "(4, 4)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.gamma_matrices", owner="srmech",
+            category="qm.relativistic",
+            summary="Dirac γ-matrices in the Dirac (standard) representation. "
+                    "Cl(1,3) generators. Dirac (1928); Peskin-Schroeder §3.2.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "four 4×4 complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.gamma_5", owner="srmech",
+            category="qm.relativistic",
+            summary="γ_5 = i γ^0 γ^1 γ^2 γ^3 — chirality matrix. "
+                    "Peskin-Schroeder §3.4.",
+            parameters=(),
+            returns=R("np.ndarray", "4×4 Hermitian"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.clifford_residuals", owner="srmech",
+            category="qm.relativistic",
+            summary="Numerical residuals for {γ^μ, γ^ν} = 2 η^{μν} I, γ_5² = I, "
+                    "and {γ_5, γ^μ} = 0. Peskin-Schroeder §3.2.",
+            parameters=(),
+            returns=R("tuple[float, float, float]", "all ~1e-14"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.weyl_left_projector", owner="srmech",
+            category="qm.relativistic",
+            summary="Left-chirality projector P_L = (I − γ_5)/2. "
+                    "Peskin-Schroeder §3.4.",
+            parameters=(),
+            returns=R("np.ndarray", "4×4 idempotent"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.weyl_right_projector", owner="srmech",
+            category="qm.relativistic",
+            summary="Right-chirality projector P_R = (I + γ_5)/2. "
+                    "Peskin-Schroeder §3.4.",
+            parameters=(),
+            returns=R("np.ndarray", "4×4 idempotent"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.charge_conjugation_matrix", owner="srmech",
+            category="qm.relativistic",
+            summary="Charge-conjugation matrix C = i γ^2 γ^0. "
+                    "Majorana (1937); Peskin-Schroeder eq A.27.",
+            parameters=(),
+            returns=R("np.ndarray", "4×4 complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.dirac_operator_momentum_space",
+            owner="srmech", category="qm.relativistic",
+            summary="Dirac operator (γ^μ k_μ − m I_4) in momentum space. "
+                    "Dirac (1928); Peskin-Schroeder §3.2.",
+            parameters=(P("k", "np.ndarray", True, "4-vector"),
+                        P("m", "float", True, "mass")),
+            returns=R("np.ndarray", "4×4 complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.klein_gordon_dispersion",
+            owner="srmech", category="qm.relativistic",
+            summary="Klein-Gordon dispersion E = +√(|k|² + m²). "
+                    "Klein/Gordon (1926); Peskin-Schroeder §2.3.",
+            parameters=(P("k_spatial", "np.ndarray", True, "3-vector"),
+                        P("m", "float", True, "≥ 0")),
+            returns=R("float", "positive on-shell energy"),
+        ),
+        ToolEntry(
+            name="srmech.qm.relativistic.four_momentum_squared", owner="srmech",
+            category="qm.relativistic",
+            summary="Lorentz-invariant k² = k_μ k^μ (mostly-minus convention).",
+            parameters=(P("k", "np.ndarray", True, "4-vector"),),
+            returns=R("float", "may be negative for spacelike k"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.propagators
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.propagators.feynman_scalar_propagator",
+            owner="srmech", category="qm.propagators",
+            summary="Scalar Feynman propagator G_F(k²) = i / (k² − m² + iε). "
+                    "Feynman (1949); Peskin-Schroeder §4.2.",
+            parameters=(P("k_squared", "float", True),
+                        P("m", "float", True, "≥ 0"),
+                        P("epsilon", "float", False, "iε regulator")),
+            returns=R("complex", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.propagators.feynman_fermion_propagator",
+            owner="srmech", category="qm.propagators",
+            summary="Fermion Feynman propagator S_F(k) = i(γ^μ k_μ + m) / "
+                    "(k² − m² + iε). Peskin-Schroeder §4.7.",
+            parameters=(P("k", "np.ndarray", True, "4-vector"),
+                        P("m", "float", True),
+                        P("epsilon", "float", False)),
+            returns=R("np.ndarray", "4×4 complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.propagators.feynman_photon_propagator",
+            owner="srmech", category="qm.propagators",
+            summary="Photon Feynman propagator D^{μν}(k) = -i g^{μν}/k² (Feynman "
+                    "gauge); ξ-gauge with explicit k. Peskin-Schroeder §4.8.",
+            parameters=(P("k_squared", "float", True),
+                        P("gauge_xi", "float", False, "default 0 ⇒ Feynman"),
+                        P("epsilon", "float", False),
+                        P("k", "Optional[np.ndarray]", False)),
+            returns=R("np.ndarray", "4×4 complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.propagators.feynman_massive_vector_propagator",
+            owner="srmech", category="qm.propagators",
+            summary="Massive vector propagator D^{μν}(k) = -i (g^{μν} − k^μ k^ν/m²) "
+                    "/ (k² − m² + iε). Peskin-Schroeder §20.1.",
+            parameters=(P("k", "np.ndarray", True),
+                        P("m", "float", True, "> 0"),
+                        P("epsilon", "float", False)),
+            returns=R("np.ndarray", "4×4 complex"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.pseudo_hermitian
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.pseudo_hermitian.inner_product_eta", owner="srmech",
+            category="qm.pseudo_hermitian",
+            summary="η-deformed inner product ⟨a|b⟩_η = a^† η b. "
+                    "Mostafazadeh (2002).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+                        P("eta", "np.ndarray", True)),
+            returns=R("complex", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.pseudo_hermitian.expectation_eta", owner="srmech",
+            category="qm.pseudo_hermitian",
+            summary="η-expectation ⟨O⟩_η = ⟨ψ|η O|ψ⟩ / ⟨ψ|η|ψ⟩. "
+                    "Mostafazadeh (2002).",
+            parameters=(P("O", "np.ndarray", True), P("psi", "np.ndarray", True),
+                        P("eta", "np.ndarray", True)),
+            returns=R("complex", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.pseudo_hermitian.is_pseudo_hermitian", owner="srmech",
+            category="qm.pseudo_hermitian",
+            summary="Check O† η = η O (η-pseudo-Hermiticity). "
+                    "Mostafazadeh (2002).",
+            parameters=(P("O", "np.ndarray", True), P("eta", "np.ndarray", True),
+                        P("atol", "float", False)),
+            returns=R("bool", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.pseudo_hermitian.construct_eta_from_eigendecomposition",
+            owner="srmech", category="qm.pseudo_hermitian",
+            summary="Construct positive η = (V V†)^{-1} from O's eigendecomposition "
+                    "so that O is η-pseudo-Hermitian. Mostafazadeh (2002).",
+            parameters=(P("O", "np.ndarray", True),
+                        P("atol", "float", False)),
+            returns=R("np.ndarray", "Hermitian η"),
+        ),
+        ToolEntry(
+            name="srmech.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real",
+            owner="srmech", category="qm.pseudo_hermitian",
+            summary="Verify η-pseudo-Hermitian O has real eigenvalues (Mostafazadeh "
+                    "theorem). Bender-Boettcher (1998); Mostafazadeh (2002).",
+            parameters=(P("O", "np.ndarray", True), P("eta", "np.ndarray", True),
+                        P("atol", "float", False)),
+            returns=R("bool", ""),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.gauge
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.gauge.su2_generators", owner="srmech", category="qm.gauge",
+            summary="SU(2) fundamental generators T^a = σ^a/2. "
+                    "Peskin-Schroeder §15.1.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]", "three 2×2"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.su2_structure_constants", owner="srmech",
+            category="qm.gauge",
+            summary="Levi-Civita ε^{abc} — SU(2) structure constants.",
+            parameters=(),
+            returns=R("np.ndarray", "(3, 3, 3) real"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.su3_gell_mann_matrices", owner="srmech",
+            category="qm.gauge",
+            summary="Eight Gell-Mann matrices λ^1..λ^8 (Hermitian traceless 3×3). "
+                    "Gell-Mann (1962).",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "eight 3×3"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.su3_generators", owner="srmech", category="qm.gauge",
+            summary="SU(3) fundamental generators T^a = λ^a/2.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "eight 3×3"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.su3_structure_constants", owner="srmech",
+            category="qm.gauge",
+            summary="SU(3) totally-antisymmetric f^{abc} (Gell-Mann). "
+                    "Peskin-Schroeder eq 17.34.",
+            parameters=(),
+            returns=R("np.ndarray", "(8, 8, 8) real"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.lie_algebra_residual", owner="srmech",
+            category="qm.gauge",
+            summary="Max Frobenius violation of [T^a, T^b] = i f^{abc} T^c. "
+                    "Peskin-Schroeder §15.1.",
+            parameters=(P("generators", "tuple[np.ndarray, ...]", True),
+                        P("structure_constants", "np.ndarray", True)),
+            returns=R("float", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.casimir_operator", owner="srmech",
+            category="qm.gauge",
+            summary="Quadratic Casimir C_2 = T^a T^a (sum). Peskin-Schroeder §15.4.",
+            parameters=(P("generators", "tuple[np.ndarray, ...]", True),),
+            returns=R("np.ndarray", "= C_2(R) · I by Schur"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.casimir_eigenvalue", owner="srmech",
+            category="qm.gauge",
+            summary="Scalar Casimir eigenvalue C_2(R) for irreducible rep. "
+                    "Fundamental: 3/4 (SU(2)), 4/3 (SU(3)).",
+            parameters=(P("generators", "tuple[np.ndarray, ...]", True),),
+            returns=R("float", "≥ 0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.gauge_connection_matrix", owner="srmech",
+            category="qm.gauge",
+            summary="Lie-algebra connection A = A^a T^a (Hermitian).",
+            parameters=(P("A_components", "np.ndarray", True),
+                        P("generators", "tuple[np.ndarray, ...]", True)),
+            returns=R("np.ndarray", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.gauge_path_segment", owner="srmech",
+            category="qm.gauge",
+            summary="Path-segment holonomy U = exp(i g A^a T^a) via Hermitian "
+                    "eigendecomp (no scipy). Wilson (1974); Peskin-Schroeder §15.3.",
+            parameters=(P("A_components", "np.ndarray", True),
+                        P("generators", "tuple[np.ndarray, ...]", True),
+                        P("coupling", "float", False, "default 1.0")),
+            returns=R("np.ndarray", "unitary"),
+        ),
+        ToolEntry(
+            name="srmech.qm.gauge.wilson_loop_from_segments", owner="srmech",
+            category="qm.gauge",
+            summary="Discrete Wilson loop U(C) = ∏_k exp(i g A_k^a T^a) in path "
+                    "order. Wilson (1974).",
+            parameters=(P("A_segments", "np.ndarray", True,
+                          "(n_segments, n_gen)"),
+                        P("generators", "tuple[np.ndarray, ...]", True),
+                        P("coupling", "float", False)),
+            returns=R("np.ndarray", "unitary"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.sm
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.sm.higgs_potential", owner="srmech", category="qm.sm",
+            summary="Mexican-hat V(φ) = -μ²|φ|² + λ|φ|⁴. Higgs (1964); "
+                    "Peskin-Schroeder §20.1.",
+            parameters=(P("phi", "complex", True),
+                        P("mu_squared", "float", True, "> 0"),
+                        P("lam", "float", True, "> 0")),
+            returns=R("float", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.higgs_vev", owner="srmech", category="qm.sm",
+            summary="Higgs vacuum expectation value v = √(μ²/(2λ)). "
+                    "Peskin-Schroeder §20.1.",
+            parameters=(P("mu_squared", "float", True),
+                        P("lam", "float", True)),
+            returns=R("float", "> 0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.weak_mixing_angle", owner="srmech", category="qm.sm",
+            summary="Weinberg mixing angle θ_W = atan(g'/g). Weinberg (1967); "
+                    "Peskin-Schroeder §20.2.",
+            parameters=(P("g", "float", True, "SU(2)_L coupling > 0"),
+                        P("g_prime", "float", True, "U(1)_Y coupling")),
+            returns=R("float", "radians"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.w_boson_mass", owner="srmech", category="qm.sm",
+            summary="W boson mass M_W = g v / 2. Peskin-Schroeder §20.2.",
+            parameters=(P("g", "float", True), P("vev", "float", True)),
+            returns=R("float", "> 0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.z_boson_mass", owner="srmech", category="qm.sm",
+            summary="Z boson mass M_Z = v √(g² + g'²) / 2. Peskin-Schroeder §20.2.",
+            parameters=(P("g", "float", True), P("g_prime", "float", True),
+                        P("vev", "float", True)),
+            returns=R("float", "> 0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.weinberg_relation_residual", owner="srmech",
+            category="qm.sm",
+            summary="Verify |M_W − M_Z cos θ_W| (tree-level identity). "
+                    "Peskin-Schroeder §20.2.",
+            parameters=(P("g", "float", True), P("g_prime", "float", True),
+                        P("vev", "float", True)),
+            returns=R("float", "~0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.electroweak_summary", owner="srmech", category="qm.sm",
+            summary="Bundle M_W, M_Z, θ_W, sin/cos, Weinberg residual in one dict.",
+            parameters=(P("g", "float", True), P("g_prime", "float", True),
+                        P("vev", "float", True)),
+            returns=R("dict[str, float]", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.fermion_mass_from_yukawa", owner="srmech",
+            category="qm.sm",
+            summary="Fermion mass m_f = y_f v / √2 from Yukawa coupling. "
+                    "Peskin-Schroeder §20.2.",
+            parameters=(P("yukawa", "float", True), P("vev", "float", True)),
+            returns=R("float", ""),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.ckm_matrix", owner="srmech", category="qm.sm",
+            summary="CKM quark-mixing matrix (Chau-Keung parameterization). "
+                    "Cabibbo (1963); Kobayashi-Maskawa (1973); PDG §12.1.",
+            parameters=(P("theta_12", "float", True), P("theta_13", "float", True),
+                        P("theta_23", "float", True),
+                        P("delta_cp", "float", False, "default 0")),
+            returns=R("np.ndarray", "3×3 unitary"),
+        ),
+        ToolEntry(
+            name="srmech.qm.sm.ckm_unitarity_residual", owner="srmech",
+            category="qm.sm",
+            summary="Frobenius norm of V V† − I. PDG §12.1.",
+            parameters=(P("V", "np.ndarray", True),),
+            returns=R("float", "~0"),
+        ),
+    ]
+    for e in entries:
+        register_tool(e)
+
+
 # Call at module import so srmech's own tools are always present
 # in the registry. Profile tools join via register_profile_tools
 # at profile-activation time.
 _register_amsc_tools()
+_register_primitive_class_tools()
+_register_qm_tools()
 
 
 __all__ = [
