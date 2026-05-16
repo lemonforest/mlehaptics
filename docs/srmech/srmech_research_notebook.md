@@ -415,6 +415,35 @@ A candidate "Class P (sign-rule discriminator)" surfaced via the Spike #24 bonus
 
 The pattern across all four candidate Class O / Class P resurrections: **candidate primitives default to dissolution into an existing class's role**; promotion to new top-level class requires structural irreducibility that the candidate doesn't demonstrate. The 14-class vocabulary stays flat.
 
+### §3.8.0a Sign-change ≡ pin-slot ≡ Class K (Spike #29, 2026-05-16)
+
+The user's compression *"everything must model epicycle"* and the two-message refinement that followed (*"gear gives linear pin gives epicycle and everything must have both"* + *"gear = linear , pin-slot asymptotic dof"*) sharpens the Class K canonical entry from "pin-slot algebra" to a closed-form identity that operates across three abstraction levels and bridges two stance families.
+
+1. **Kinematic level (continuous SO(2)).** The pin-slot atan2 transform `phi(M) = atan2(sin M, cos M − ε)` has output-phase deficit `phi(M) − M` whose Fourier coefficients satisfy `c_k = ε^k/k` to machine precision (Spike #29 §2 verified ratio 1.0000 across 7+ harmonics; agreement to ~1e-16 thereafter). This IS the eccentric-anomaly Kepler series.
+
+2. **Sign-change level.** The deficit `phi(M) − M` crosses zero twice per cycle (at the apses M = 0 and M = π); the rate deficit `dphi/dM − 1` crosses zero four times per cycle (at apses + quadratures). The user's "sign change twice per cycle" reading names the first; project terminology should distinguish *equation-of-centre zero-crossings* (2) from *rate-deficit zero-crossings* (4) — both physically real, different abstraction levels.
+
+3. **Substrate-universal level.** Per `[[user_stance_kepler_shape_universal]]`, any system showing leading-deficit-from-circular at the fundamental frequency instantiates the same pin-slot / Class K signature. Four substrates verified: bronze (PR #416 F2; Freeth 2006 Fig. 6 ε = 0.1146), cosmos (Spike #24 Phase 3b; 9/9 ephemerides bodies match `c₁ = 2e` to <0.1°), chemistry-static (Phase 6.1; ethane V₃ = F24 3-armed cross-bar), chemistry-dynamics (Phase 9.2; Brusselator / Oregonator integer-multiple harmonic ratios).
+
+The contrapositive holds at the chess substrate boundary (Spike #24 Phase 10): chess has no continuous-phase representation, no anomalistic frequency, motion is discrete-combinatorial — Class K is absent. The universal's scope is *"cyclic systems with leading-deficit-from-circular at the fundamental";* trivial-Fourier-universal is the wrong reading the user's compression already rejects via the *"moves the same way"* qualifier.
+
+**Class I ∘ Class K composition (gear-plus-pin = the kinematic primitive pair).** Per `[[user_stance_epicycle_via_gear_plus_pin]]`, every cyclic mechanism doing real work is Class K ∘ Class I composition: gear (Class I) establishes the linear ratio and drives the pin; pin (Class K) modulates the output with the equation-of-centre signature. Neither alone produces useful cyclic motion (gear-only = degenerate pure-circular; pin-only = no driver). The simple-geometric argument constructively explains the Kepler-shape universal that the burden-flipped stance asserts.
+
+**Pin-slot IS the asymptotic-DOF mechanism (operational identity).** The user's second-message refinement (*"gear = linear, pin-slot asymptotic dof"*) bridges this stance to `[[user_stance_asymptotic_dof_sidesteps_infinity]]`. Class I is the substrate-baseline-linear primitive (direct ratio, no asymptote); Class K is the operational-asymptotic-DOF primitive (equation-of-centre amplitude approaches zero / unit / horizon as a function of a finite parameter, with the load-bearing content being the rate-of-approach). The pin-slot kinematic IS the kinematic embodiment of asymptotic-rate-of-approach. Operational consequences across recent spikes: gravitational time dilation's `f_RD_local → 1 as r → r_s` (Spike #27.5) IS Class K pin-slot dynamics; dark-sector last-5% (Spike #27 ΛCDM + DESI non-monotone) IS Class K pin-slot dynamics at cosmic scale; calculus's historical failure to recognise asymptotic-DOF (Spike #28; Newton's prime-and-ultimate-ratios reached for pin-slot framing without naming it) IS the same identity rediscovered three centuries later via Bishop 1967.
+
+**Closure-conjecture status** (per `[[feedback_no_privileged_primitive_classes]]`). Spike #29 §3 tested whether Class K dissolves into Class L's signed-variant (the resolved-Class-O sub-operation, dissolution decision 2026-05-16). Verdict: **Class K does NOT dissolve.** Operand types differ (continuous SO(2) angle vs `|V|`-dim graph eigenmodes), algebraic identities differ (`c_k = ε^k/k` vs spectrum of `D − A_signed`), substrate kinds differ (Lie-group vs Lie-algebra). Same dissolution discipline that passed Class O (2026-05-16) fails Class K. The test is symmetric and discriminating — strengthens `[[feedback_no_privileged_primitive_classes]]` in both directions. **The 14-class vocabulary stays at 14.**
+
+**Full investigation:** [`research-mfo/sign_change_pin_slot_epicycle_2026-05-16.md`](../antikythera-maths/research-mfo/sign_change_pin_slot_epicycle_2026-05-16.md) (in sister `docs/antikythera-maths/` subtree).
+
+Cross-references:
+- `[[user_stance_kepler_shape_universal]]` — the burden-flipped universal
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — gear (Class I) + pin (Class K) = the kinematic primitive pair; operational identity pin-slot = asymptotic-DOF
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — operational-side companion stance
+- `[[user_stance_pi_as_projection]]` — integer-cyclic upstream methodology
+- `[[user_stance_identity_not_implementation_discipline]]` — Class K IS pin-slot; pin-slot IS asymptotic-DOF
+- `[[feedback_no_privileged_primitive_classes]]` — dissolution discipline; passed (Class O dissolved) and failed (Class K stays distinct)
+- `[[project_class_o_signed_metric_composition]]` — dissolution precedent (2026-05-16)
+
 ### §3.8.1 Canonical 14-class enumeration (Phase C1 close — srmech is the abstract layer)
 
 Per the architectural commitment "srmech is the abstract layer; every primitive class earns a C surface" (`[[feedback_no_binding_layer_carveout]]`) and per `[[feedback_no_privileged_primitive_classes]]`, the **single canonical reference for the 14-class primitive vocabulary lives here**. Sister notebooks (MFO / antikythera / ephemerides / chess / etc.) cite this table; they enumerate only the classes that *pertain to their substrate* per user direction 2026-05-16.
