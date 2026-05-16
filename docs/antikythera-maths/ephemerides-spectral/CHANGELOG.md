@@ -7,17 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.29.1rc1] — 2026-05-16
+## [0.29.1] — 2026-05-16
 
-### Changed — srmech dependency floor bump `>=0.3.1,<0.4` → `>=0.4.0`
+### Production cut — srmech dependency floor bump `>=0.3.1,<0.4` → `>=0.4.0`
 
-`ephemerides-spectral 0.29.1rc1` cycles through TestPyPI with the runtime srmech dep floor lifted from `>=0.3.1,<0.4` to `>=0.4.0`. Tracks the srmech v0.4.0 production cut so downstream consumers transitively pick up srmech's cumulative v0.4.x content: the 14-class C-parity primitive vocabulary (Spike #24 Classes A–N in native C + Python), the canonical QM/QFT/SM operations layer at `srmech.qm.*` (Schrödinger / Pauli + Cl(0,3) / Dirac γ-matrices + Weyl + Klein-Gordon / Feynman propagators / pseudo-Hermitian / SU(2)+SU(3) gauge / Higgs + W/Z + Yukawa + CKM Standard Model), and the ~87-entry `srmech.amsc.tool_schema` introspection surface.
+`ephemerides-spectral 0.29.1` ships to production PyPI as the consolidated landing of the dependency-floor refresh. Version-only bump from `0.29.1rc1` → `0.29.1` after the single-rc TestPyPI verification cycle; substantive content landed in the rc1 (runtime srmech dep floor lifted from `>=0.3.1,<0.4` to `>=0.4.0`) and verified clean on TestPyPI in an external venv before the cut. Tracks the srmech v0.4.0 production cut so downstream consumers transitively pick up srmech's cumulative v0.4.x content: the 14-class C-parity primitive vocabulary (Spike #24 Classes A–N in native C + Python), the canonical QM/QFT/SM operations layer at `srmech.qm.*` (Schrödinger / Pauli + Cl(0,3) / Dirac γ-matrices + Weyl + Klein-Gordon / Feynman propagators / pseudo-Hermitian / SU(2)+SU(3) gauge / Higgs + W/Z + Yukawa + CKM Standard Model), and the ~87-entry `srmech.amsc.tool_schema` introspection surface.
 
 All 5 SSOT files (`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`, `c/include/ephemerides_spectral.h`) bump in lockstep plus the `_data/manifest.json` `version` field re-stamp. `[profile.bridge]` / `[profile.native]` / `[profile.tool_schema]` surfaces unchanged; existing `ephemerides_spectral.bridge` consumers see byte-identical behaviour.
 
-**Pure dependency-floor bump.** No code change; no ABI change (`ES_ABI_VERSION = 10` unchanged from v0.29.0); no `_research` mirror changes; no test ratchet changes. Rc cycles through TestPyPI; the clean v0.29.1 ships to production PyPI after verification.
+**Pure dependency-floor bump.** No code change; no ABI change (`ES_ABI_VERSION = 10` unchanged from v0.29.0); no `_research` mirror changes; no test ratchet changes. Verified on TestPyPI as `0.29.1rc1` in a clean external venv before the cut.
 
-**Per-area detail:** see [python/CHANGELOG.md §0.29.1rc1](python/CHANGELOG.md).
+**Per-area detail:** see [python/CHANGELOG.md §0.29.1](python/CHANGELOG.md).
 
 ## [0.29.0] — 2026-05-15
 
