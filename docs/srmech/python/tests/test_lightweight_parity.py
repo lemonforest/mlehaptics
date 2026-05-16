@@ -103,12 +103,19 @@ def test_byte_search_matches_bytes_find():
 
 def test_introspection_version_python():
     import srmech
-    assert srmech.__version__ == "0.4.0rc4"
+    # Class H primitive: introspection returns a non-empty version string.
+    # We assert format (non-empty) rather than a specific value so the test
+    # survives version bumps without churn (the version is checked for
+    # consistency between Python + C in the native-match test below).
+    assert isinstance(srmech.__version__, str)
+    assert len(srmech.__version__) > 0
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_introspection_version_native_matches():
-    assert _native.NATIVE_VERSION == "0.4.0rc4"
+    # Class H invariant: native version string must agree with Python.
+    import srmech
+    assert _native.NATIVE_VERSION == srmech.__version__
     assert _native.NATIVE_ABI_VERSION == 2
 
 

@@ -104,13 +104,17 @@ Phase C1 added Class I (cyclic-group / modular arithmetic) in
 v0.4.0rc1, Class L (graph Laplacian; pi-free dense + Jacobi
 eigvals, n ≤ 256 native bound) in v0.4.0rc2, Class J (prime-
 factorisation / period; trial-division primality + factorisation +
-multiplicative order) in v0.4.0rc3, and Classes B (TLV byte-canonical
+multiplicative order) in v0.4.0rc3, Classes B (TLV byte-canonical
 form) + G (byte-pattern search) + H (self-introspection,
 acknowledgment of existing srmech_version / srmech_abi_version) in
-v0.4.0rc4 as a lightweight-trio bundle**; the remaining classes
-D/E/F/K/M/N ship in subsequent rc additions under 0.4.0rcN per
-`[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0` ship
-at Phase C1 close.
+v0.4.0rc4 as a lightweight-trio bundle, and Classes D (dispatch
+multi-needle pattern match) + E (catalog sorted-key lookup) + F
+(template `{key}` substitution) in v0.4.0rc5 — each with a real C
+primitive surface in `srmech_dispatch.c` / `srmech_catalog.c` /
+`srmech_template.c`, parity-tested against Python fallbacks**; the
+remaining classes K/M/N ship in subsequent rc additions under
+0.4.0rcN per `[[feedback_rc_stacking_versioning]]`, with the clean
+`0.4.0` ship at Phase C1 close.
 
 **Class O is NOT a separate class** (resolution 2026-05-16) — the
 signed-metric / Wick-rotation operation located by Spike #24
@@ -147,23 +151,35 @@ class's port following Task #201 Phase B's ratchet (parity test +
 JPL Power-of-Ten audit + cibuildwheel matrix update + TestPyPI rc
 verification per `[[feedback_always_rc_first_for_downstream_publishes]]`).
 
-**Operational scope clarification — what gets C ports vs what stays
-Python:**
+**Operational scope clarification — every primitive class earns a
+C surface; specific scope-bounded helpers stay Python:**
 
-*Primitive class operations* (the C-port surface) — numerical hot
-paths, hash algorithms, cyclic-group arithmetic, graph-Laplacian
-eigenvalue computation, HDC bind/bundle/permute/similarity, prime
-factorization, equation-of-centre / pin-slot algebra, signed-metric
-composition (Class O if accepted). Each becomes a libsrmech symbol
-exported via `srmech.amsc.<class>` Python wrapper.
+*Every primitive class A–N has a C primitive operation.* Hash
+algorithms, cyclic-group arithmetic, graph-Laplacian operations,
+prime factorisation, dispatch (multi-needle pattern match), catalog
+lookup (sorted-array binary search), template render (placeholder
+substitution), HDC bind/bundle/permute/similarity, equation-of-centre
+algebra, rational-approximation — each is shipped as a libsrmech
+symbol exported via `srmech.amsc.<class>` Python wrapper. The
+architectural commitment per `[[feedback_no_mvp_framing]]` and
+`[[feedback_no_binding_layer_carveout]]` is **full C parity for every
+primitive class, no exceptions**. "Binding-layer concern" is NOT a
+legitimate skip-class directive — it's a recurrence vector for
+soft-MVP carve-outs that this project has explicitly rejected.
 
-*Language binding conveniences* (stay in Python) — `tomllib` /
-`json` / `MPRRecord.from_json_line` parsing, Python-side caching,
-dispatch plumbing, namespace-package machinery. These are not
-primitive-class operations; they're host-language ergonomics. The
-Phase B5 decision (TOML canonical-serialization via Python `tomli`
-round-trip rather than vendoring a C TOML parser) remains correct
-because TOML parsing is a binding-layer concern.
+*Specific scope-bounded helpers stay Python by separate scope decision.*
+The Phase B5 decision keeps TOML parsing in Python via `tomli`
+round-trip rather than vendoring a TOML parser in C — that's a
+**vendoring-scope** decision (TOML is its own grammar; importing a
+C TOML parser into srmech's source tree is its own substantial
+scope question), not a "Class F is Python-only" decision. Class F's
+primitive (template `{key}` substitution) ships in C as
+`srmech_template_render`; TOML *parsing* — the act of turning TOML
+bytes into a structured tree — is separate from Class F's primitive
+operation and stays Python because of vendoring scope, not because
+templating is somehow binding-layer-only. Frame any future Python-
+side decision as **what's the actual scope concern (vendoring? build
+complexity? dependency surface?)** rather than as **skip-the-class**.
 
 **srmech is not the EMDR firmware.** The repo root `CLAUDE.md`
 describes the EMDR bilateral-stimulation device (`src/`, `test/`,
