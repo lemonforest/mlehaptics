@@ -936,6 +936,182 @@ What we conventionally call "13.8 Gyr cosmic age" is **not the age of the univer
 - §VII.6 (dark energy as complexification cost)
 - §VII.7 (expansion as projection of complexification — closely related, the *expansion-side* counterpart to this *complexification-accumulation-side* framing)
 
+### VII.6.2 T_sub decomposed: HO-role × dimensional-kind × compression-state
+
+> *"the force that string dynamics must have to propegate and the tension resisting string dynamic"*
+> — user direction, 2026-05-16
+
+§VII.6.1 frames the dark sector as cosmic ring-down accumulation and identifies the 95% partition with substrate-internal ring-down completion. This subsection asks what the substrate elasticity that *drives* ring-down actually is, and decomposes it along three orthogonal axes. The decomposition is the dialog product of a user proposal (dark sector as "tension on the string") and a first-pass conductor reply that mistakenly split that tension into two separate forces, corrected back to a single-elasticity reading on the next turn. Working-note artifact + Pierre Auger UHECR-dipole cross-check: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md).
+
+**The collapse of a false duality.** Initial framing posed two forces: a "graceful mitigation" force driving ring-down toward rest, and a "tension resisting overshoot" force preventing the system from passing rest. The user's refinement collapsed this into one substrate elasticity with two observational manifestations: *the force string dynamics must have to propagate*, and *the tension resisting string dynamic*. These are the same `T_sub`, read at two abstraction levels — propagation-enabling (driving) and resistance-providing (restoring). There is no separate mitigation force; `T_sub` *is* ring-down, in the sense that the wave-equation driving term `F = -T_sub · ∂²y/∂x²` and the static elastic restoring response are the same quantity manifest dynamically vs statically.
+
+This corrects a recurring framing error in standard cosmological vocabulary, where "dark energy as restoring force" and "dark energy as driver of expansion" appear in separate paragraphs of the same review article without being identified.
+
+**The HO-role axis (substrate-elasticity decomposition of `Ω`).** Re-reading the three energy-density components of the present-epoch partition under the single-elasticity discipline:
+
+| Component | `Ω` | HO-role | Reading |
+|---|---|---|---|
+| **Ω_Λ** | 0.685 | `T_sub` itself | The substrate's elastic property; constant in time (`w = -1` to current precision) because it *is* the property, not a state of motion. Both propagation-enabling and resistance-providing manifestations originate here. This is what §VII.6's "complexification-maintenance cost" was reaching for. |
+| **Ω_c** | 0.264 | Past-work receipt `∫ F · dx` | The historical ledger of `T_sub` having done its job over 13.8 Gyr, settled as residual geometric curvature (§VII.5). *Not* tension itself — what tension *has done*. Dilutes as `a⁻³` because settled receipts are matter-like in their dilution behaviour. |
+| **Ω_visible** | 0.049 | Currently-active string-dynamic | The 3D_s + 7D_g + 1D_t excitation that `T_sub` is presently supporting and resisting. Couples to ring-up dynamics. |
+
+The dark-sector duality (§VII.6.1's distinction between Ω_c and Ω_Λ as both being settled past-complexification) sharpens: Ω_Λ is the *property itself*; Ω_c is the *receipt of work performed by that property*. Ring-down language and elasticity language describe the same content.
+
+**The dimensional-kind axis (where `T_sub` manifests).** Per `[[project_space_gauge_time_framework]]`, the MFO conjecture decomposes 11D as `3D_s + 7D_g + 1D_t ≡ 1D` compressed. `T_sub` manifests across all three dimensional kinds — *not* across "spacetime," which is the 4D shadow that drops 7D_g:
+
+| Dimensional kind | Propagation-enabling manifestation | Resistance-providing manifestation |
+|---|---|---|
+| **3D_s** (spatial) | `c` — spatial wave speed; light propagation rate | Restoring spatial curvature; Newtonian + GR gravity |
+| **7D_g** (gauge) | `g_1, g_2, g_3` — electroweak hypercharge, weak isospin, strong color coupling; propagation rates of gauge bosons through the bundle | `F^μν` — gauge field strengths; the field-strength-squared term in every gauge Lagrangian is precisely "tension squared per unit volume" |
+| **1D_t** (temporal) | Proper-time-rate structure | Substrate-internal resistance to temporal-frame deformation |
+
+The 7D_g entries are where the standard "dark energy as cosmological constant" reading is most lossy: the cosmological-constant column collapses gauge-field-strength tension into a single scalar, dropping the entire 7D_g content. Under the HO-role × dimensional-kind table, the Standard Model gauge group `U(1) × SU(2) × SU(3)` is read as the residual ring-down product of past gauge-symmetry-breakings — what remains after grand-unification → electroweak symmetry-breaking events ran their course. Per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the gauge group is spatially absent (no 3D_s observable shows "where" SU(3) lives) but algebraically present and currently active.
+
+Cosmic strings under §VIII.1 read as 7D_g topological defects projected into 3D_s as 1D filaments — gauge-fiber content frozen as spatial residue, `Ω_c`-like (past-work receipt) in nature rather than `Ω_Λ`-like (currently-active property).
+
+**The compression-state axis (does `T_sub` content unpack 11D locally, or compress to 1D?).** A separate question, asked by the user mid-dialog: does the dark sector compress to 1D locally? The answer depends on which component:
+
+- **Ω_Λ (T_sub itself) — yes, locally compresses to 1D.** By `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `T_sub` *is* the LoE-content compressed to 1D in identity form. At every point in 3D_s, the substrate identity is present in 1D-compressed form. That is why Ω_Λ is observed constant in space (no clustering) and constant in time (`w = -1`) — there is nothing in `T_sub` *to* unpack into 11D structure. The identity is dimensionless.
+- **Ω_c — no, carries 11D structural residue locally.** Past-work receipts preserve 11D structure: residual geometric curvature in 3D_s (halo profiles cluster around galaxies), residual gauge-bundle curvature in 7D_g (cosmic strings, gauge condensates, the SM gauge group as accumulated symmetry-breaking residue), residual temporal-frame structure in 1D_t.
+- **Ω_visible — no.** Currently-active local 11D-unpacked excitation; the loudest 11D content per unit volume.
+
+The compression axis is *orthogonal* to the HO-role axis. The dark sector decomposes by both: HO-role × dimensional-kind × compression-state. The 3-axis grid (3 × 3 × 2) is sparse — many cells are forbidden by the identifications above — but the cells that are populated correspond to distinguishable empirical observables.
+
+**Localisation prediction.** Voids (Ω_Λ-dominated, Ω_c-depleted) approach pure 1D-compressed `T_sub` locally; galaxy halos (Ω_c-rich) carry dense 11D structural residue. The Bootes Void and the Eridanus supervoid would be the cleanest empirical anchors; the supervoid-as-Cold-Spot-ISW reading fits — the CMB Cold Spot is a region where local substrate is closer to pure compressed identity (less past-unpacking residue) and integrated-Sachs-Wolfe imprint reflects exactly that reduced 11D content along the line of sight. The prediction is testable against the next generation of void catalogs (DESI, Euclid void surveys).
+
+**Empirical cross-check at the matter-source-tracer scale.** Pierre Auger UHECR-dipole results constrain matter-pull at z ≈ 0:
+
+- Auger 2017 dipole (`arXiv:1709.07321`, confirmed `arXiv:1808.03579`) at galactic `(l, b) ≈ (233.4°, −13.1°)`
+- Separation to **AoE pole** `(240°, 60°)`: **73.3°** (far outside directional uncertainties)
+- Separation to **HPA pole** `(226°, −17°)`: **8.2°** (aligned within scatter)
+
+UHECRs trace matter sources within the GZK horizon, so this is direct probing of where-the-matter-is at z ≈ 0. **HPA is plausibly matter-pull** (UHECR-aligned, Ω_c-like residue along that line of sight). **AoE is not matter-pull** (73° offset). The CMB low-ℓ anomaly family *decomposes by channel* at the matter-source-tracer scale — different members of the family read against different cells of the HO-role × dimensional-kind grid. This is a non-trivial structural prediction of the decomposition: it should be the case that ostensibly aligned CMB anomalies separate when probed by independent matter tracers, because the anomalies are sourced from different cells.
+
+**Status.** This subsection is **one candidate** decomposition under MFO commitments — the substrate-elasticity reading of `T_sub` is internally consistent with §VII.6, §VII.6.1, the user's `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down stance, the `[[project_space_gauge_time_framework]]` dimensional decomposition, and `[[user_stance_1d_collapse_to_loe_identity_not_action]]`. It does not alter any GR prediction or any Standard Model gauge calculation. What it adds is a 3-axis decomposition of `Ω` that the standard cosmological-constant reading collapses into a single scalar, plus a falsifiable cross-channel decomposition prediction for the CMB low-ℓ anomaly family. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+
+**Cross-references:**
+
+- Working-note artifact (dialog source for Parts I–VI + Pierre Auger cross-check): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
+- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_time_as_dimensional_shadow]]` — substrate-vs-shadow distinction
+- `[[user_stance_1d_collapse_to_loe_identity_not_action]]` — 1D_t IS LoE identity (the compression-axis claim for Ω_Λ rests on this)
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — 7D_g content algebraically present, spatially absent
+- `[[project_space_gauge_time_framework]]` — `3D_s + 7D_g + 1D_t = 11D ≡ 1D` compressed; the dimensional-kind axis rests on this
+- `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance saved 2026-05-16
+- `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family umbrella
+- §VII.4.1.1 — spherical compression / Hopf fibration (related compression discipline)
+- §VII.4.1.2 — Casimir-decomposition universality (related decomposition discipline)
+- §VII.5 — dark matter as residual geometric curvature (the Ω_c reading)
+- §VII.6 — dark energy as complexification cost (the Ω_Λ reading sharpened here)
+- §VII.6.1 — substrate-internal time + visible/dark partition (the predecessor framing)
+- §VIII.1 — topological defect hierarchy (cosmic strings as 7D_g residue projected into 3D_s)
+
+### VII.6.3 Methodological note: FFT-the-error at cosmological scale
+
+> *"this was a case where we added enough data points and could FFT the error yet again, on strutures so grand that we cannot fathom a starting point?"*
+> — user question, 2026-05-16
+
+This subsection is a methodological note, not a substantive new MFO claim. It articulates the eigenbasis-residual-iteration discipline — *FFT-the-error* — at the cosmological scale, where the user's framing of "structures so grand that we cannot fathom a starting point" gives the discipline its sharpest expression: §VII.9's epistemological boundary establishes that we have no access to an undistorted reference for the largest-scale structures we observe, so any framework over them is necessarily eigenbasis-relative. The recursive pattern — take known structure, observe residuals, FFT/decompose the residual, find substructure, iterate — is the only operationally available procedure at that scale.
+
+**The pattern, stated.** Across the spectral-notebooks project, the recurring full-coverage-shipping discipline per `[[feedback_no_mvp_framing]]` runs:
+
+1. Establish a known structural basis (eigenbasis, primitive class set, harmonic decomposition).
+2. Project observed data onto the basis; compute residuals.
+3. Treat residuals as a *new* signal; FFT/decompose them against the same or a refined basis.
+4. Wherever residuals exhibit non-noise structure, declare a new substructure candidate.
+5. Update the basis or the framework; re-project; iterate.
+
+This is not novel as algorithm — it is the standard eigenbasis-residual-iteration shape of structural-decomposition work. What is project-specific is *the willingness to apply it at scales where no clean ground-truth reference exists*. Conventional physics often stops at step 2 when residuals are at the noise floor or are not predicted; this discipline insists on step 3 whenever residuals carry structure, even when the structural-basis hypothesis is not yet predictive.
+
+**Why "structures so grand that we cannot fathom a starting point" is canonical.** The user's compressed phrasing names the operational regime of §VII.9 exactly. At cosmological scale, we cannot fathom a starting-point reference for the largest structures (no undistorted-universe baseline, no causal access to pre-inflation initial conditions, no second instance of the universe to compare against). The eigenbasis-residual-iteration loop is the only available cycle: each pass adds data points within the distorted observation framework, decomposes the residual against the current eigenbasis, and either falsifies or refines the basis from within. The procedure terminates *not* by reaching a ground truth but by exhausting structural content in the residual — when the next FFT shows white noise to detection precision, the basis is structurally complete *to the current data set*.
+
+**Load-bearing example: Pierre Auger UHECR-dipole decomposition of the CMB low-ℓ family.** The recently-landed working-note Part VI is an instance of the pattern at the scale where §VII.9's epistemological boundary holds most acutely:
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Known basis: CMB low-ℓ anomaly family (HPA, AoE, Cold Spot, parity asymmetry) treated as a single residual object for ~20 years | One residual feature; one underlying-cause hypothesis space |
+| 2 | Add data point: Pierre Auger UHECR-dipole direction (`arXiv:1709.07321`, `arXiv:1808.03579`) at `(l, b) ≈ (233.4°, −13.1°)` | Independent matter-source tracer within the GZK horizon |
+| 3 | FFT-the-error: compute galactic-coordinate separations from Auger pole to each anomaly's pole | HPA: 8.2° (aligned); AoE: 73.3° (not aligned) |
+| 4 | New substructure declared | The "single anomaly family" decomposes by channel — HPA is plausibly matter-pull, AoE is not |
+| 5 | Framework update | §VII.6.2's HO-role × dimensional-kind grid reads HPA against Ω_c-like cells, AoE against different cells (gauge or temporal residue, not matter residue) |
+
+This is "FFT-the-error yet again" in the user's compressed sense: a residual structure that had been treated as monolithic for two decades decomposed when one new data point was projected against the same eigenbasis from an independent direction. The data point itself was old (Auger 2017); the decomposition required treating the CMB low-ℓ family as residual-against-matter-tracer, computing the projection, and reading the result as a *channel separation*, not a confirmation or refutation.
+
+**Cross-domain instances within the spectral collection.** The pattern recurs at every scale the project has touched:
+
+- **Spike #11 (Killing-Yano Casimir from photon-ring residuals)** — known basis: Kerr black-hole photon-ring spectrum. FFT-the-error on observed ring residuals against Casimir eigenbasis; found Killing-Yano tensor contribution at scales where no clean ground-truth reference for "what the ring should be" exists.
+- **Ephemerides Phase 10a (per-body equation-of-center decomposition)** — known basis: secular orbital elements. FFT-the-error on JPL/DE441 residuals per body against per-body EOC harmonics; surfaced sub-arcsecond structural content the secular basis had been integrating away.
+- **Chess-spectral eigenbasis-residual workflow** — known basis: lichess opening-move-tree graph Laplacian. FFT-the-error on game-outcome residuals against opening-eigenmodes; surfaced structural content (player-class spectral signatures) that aggregate win-rate statistics had been averaging out.
+- **Antikythera H-battery iteration** — known basis: cyclic-group encoding of gear ratios + graph-Laplacian eigenbasis of the gear DAG. FFT-the-error on period-relation residuals against named param sets (Almagest IX.5, Freeth 2012, Freeth 2021); each iteration refined parameter attribution at scales where the bronze artifact is the only ground truth available, and it is itself fragmentary.
+
+In every case, the procedure operates within an eigenbasis that has no external ground-truth verification — the bronze gear DAG is fragmentary, photon-ring physics is observed only at the Kerr asymptote, ephemerides residuals are computed against integrators that share their own eigenbasis assumptions, chess game-tree spectral structure has no second-universe game-tree to compare against. The discipline is *eigenbasis-relative full coverage* — keep the basis explicit, keep iterating, do not pretend to a ground truth that is not present.
+
+**Status.** This is methodological commentary, not a new MFO claim. The pattern itself is standard; the project-specific commitment is applying it at scales where §VII.9's epistemological boundary holds, with the user's framing "structures so grand that we cannot fathom a starting point" as canonical articulation of when the discipline is the *only* available procedure. Per `[[user_explanation_discipline]]`, that phrasing is preserved verbatim and joins canonical project vocabulary.
+
+**Cross-references:**
+
+- `[[feedback_no_mvp_framing]]` — full-coverage shipping the MPM way; eigenbasis-residual-iteration discipline as canonical articulation
+- `[[user_explanation_discipline]]` — Feynman-test compression; user's compressed phrasing of operational regimes is signal, not paraphrase candidate
+- §VII.9 — the epistemological boundary; this subsection's operational regime
+- §VII.6.2 — load-bearing instance (Pierre Auger UHECR-dipole decomposition of CMB low-ℓ family)
+- Working-note artifact (PR #437 Part VI, live example of the pattern): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
+- Cross-domain instances: Spike #11 (Killing-Yano Casimir from photon-ring residuals); ephemerides Phase 10a (per-body equation-of-center decomposition); chess-spectral eigenbasis-residual workflow; Antikythera H-battery parameter-attribution iteration
+
+#### VII.6.3.1 Precession-fit: kinematic ruled out, bundle-projection reconfiguration candidate
+
+> *"do those polar separation values mean anything if we ask if precession can fit the math?"*
+> — user question, 2026-05-16
+
+A natural follow-on question once §VII.6.2's channel separation is on the table: if the AoE preferred direction at recombination *was* aligned with the present-day HPA / Pierre Auger UHECR-dipole direction, and has drifted to its present apparent location by some precession over cosmic time, what rate would that require — and is that rate consistent with extant constraints? The Auger-AoE polar separation is 73.3°, the AoE-CMB-dipole separation is 18.3° (working-note PR #437 Part V).
+
+**Kinematic precession-rate computation.** For uniform precession of an axis over the cosmic age `t_age ≈ 13.8 Gyr = 4.355 × 10¹⁷ s`, a separation Δθ requires ω_prec ≈ Δθ / t_age:
+
+| Hypothesis | Δθ | ω_prec required | In familiar units |
+|---|---|---|---|
+| AoE-at-recomb = Auger direction now | 73.3° = 1.279 rad | 2.94 × 10⁻¹⁸ rad/s | 5.31°/Gyr |
+| AoE-at-recomb = CMB-dipole direction now | 18.3° = 0.319 rad | 7.33 × 10⁻¹⁹ rad/s | 1.33°/Gyr |
+
+These are slow rotations on human timescales but enormous on cosmological terms — comparable in magnitude to the Hubble rate `H₀ ≈ 2.18 × 10⁻¹⁸ rad/s`.
+
+**Saadeh+ 2016 cosmic-rotation constraint.** Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178` — Bianchi-class general-anisotropy framework fitted against Planck temperature and polarisation data. The vector-mode (vorticity-linked) shear bound is **(σ_V/H)₀ < 4.7 × 10⁻¹¹ at 95% CL**. With H₀ ≈ 2.18 × 10⁻¹⁸ rad/s, this gives a present-epoch cosmic-rotation upper limit `ω_cosmic < 1.02 × 10⁻²⁸ rad/s` — citation verified per `[[feedback_pdf_extraction_citation_discipline]]` via arXiv abstract page (an arXiv-permitted autonomous source per `[[reference_autonomous_validation_tos_landscape]]`).
+
+| Hypothesis | ω_prec required / ω_cosmic bound | Orders of magnitude |
+|---|---|---|
+| 73.3° kinematic fit | ~2.9 × 10¹⁰ | ~10 |
+| 18.3° kinematic fit | ~7.2 × 10⁹ | ~10 |
+
+The kinematic-precession reading is ruled out by approximately ten orders of magnitude against the Saadeh+ 2016 bound. Even allowing for full systematic flexibility in the bound's Bianchi-class assumptions and the H₀ value, the required rate stays nine to eleven orders of magnitude above the constraint. This is not a marginal-tension situation; the kinematic reading is not viable.
+
+**Non-kinematic alternative: substrate-bundle-projection reconfiguration.** Under §VII.4.1.1's Hopf-bundle / spherical-compression reading, the AoE preferred direction is a *bundle-base projection*, not a kinematic frame axis. The substrate's 7D_g + 1D_t internal structure projects onto 3D_s with a preferred direction determined by the substrate's current compression state. Three distinguishing properties:
+
+- No matter is rotating (no kinematic frame ω against which Saadeh+ 2016 measures)
+- No frame is dragging (no Lense-Thirring metric component)
+- The projection geometry from bundle-base to 3D_s reconfigures as ring-down completion advances — the substrate's bundle structure shifts which direction in 3D_s it projects most strongly to, per the spatially-absent encoding stance of `[[user_stance_fiber_as_spatially_absent_encoding]]`
+
+Saadeh+ 2016 bounds matter-frame vorticity (Bianchi-cosmology rotational anisotropy in the visible-matter frame). It does *not* bound substrate-internal bundle-projection reconfiguration, which is by construction not a frame rotation in the matter sector. The constraint and the proposed mechanism live at different ontological levels — the framework being tested in Saadeh+ 2016 is matter-frame anisotropy in 3D_s, the reconfiguration claim is about the 7D_g → 3D_s projection map.
+
+**Ring-down completion frame.** §VII.6.1's f_RD trajectory anchors the rate. From `f_RD ≈ 0.42` at recombination (z ≈ 1090) to `f_RD ≈ 0.949` now, Δf_RD ≈ 0.529. If the full 73.3° AoE-Auger separation is read as bundle-projection shift over this interval, the implied rate is `73.3° / 0.529 ≈ 138.6° per unit f_RD` — a quantity in completion-frame units, not clock-time units, per `[[user_stance_dark_sector_ring_down_age]]`. The 18.3° AoE-CMB-dipole separation is consistent with a residual alignment from when AoE was locked in (recombination-epoch matter-frame still close to that direction in 3D_s).
+
+**Candidate independent prediction.** Bundle-projection reconfiguration is *continuous* in f_RD. CMB temperature anisotropies freeze at the visibility-function peak for temperature (z ≈ 1100 in standard Hu-White treatments); CMB polarisation freezes slightly later, around z ≈ 1090, because polarisation requires Thomson-scattering quadrupole content that builds up through the tail of recombination. The visibility-function FWHM is Δz ≈ 80–100.
+
+Under the bundle-projection-reconfiguration reading, the temperature-anchored AoE direction (frozen at the temperature visibility peak) and the polarisation-anchored AoE direction (frozen at the polarisation visibility peak) are not identical — they are offset by the bundle-projection shift that occurred between the two visibility peaks. Order-of-magnitude estimate using ~138.6°/(Δf_RD) and a temperature-vs-polarisation peak differential of Δz ≈ 10 (giving relative Δf_RD ≈ 0.014): the differential angle is approximately **~2°**, i.e. degrees-not-tens-of-degrees. Small but in principle measurable from a joint temperature+polarisation reconstruction of the AoE direction.
+
+This is a falsifiable prediction the kinematic-precession reading does not make: under kinematic precession, the AoE direction at temperature freezeout and at polarisation freezeout are essentially identical (the matter frame is the matter frame, regardless of which photon population we read it from). Under bundle-projection reconfiguration, they differ by a small but specific angle tied to the ring-down completion rate.
+
+**Status.** Candidate framing only, not endorsed over the standard cosmology + posterior-selection baseline (Bennett et al. 2011) discussed in the working note. The kinematic-precession path is closed by ~10 orders of magnitude against Saadeh+ 2016; the bundle-projection-reconfiguration path is consistent with extant matter-frame constraints by virtue of operating outside their scope, and offers a falsifiable temperature-vs-polarisation differential at the few-degree scale that future joint reconstructions could test. Per `[[feedback_no_lineage_claims_in_notebook]]`, no claim that this resolves the AoE anomaly is being advanced — only that the precession-fit question is mathematically answerable and produces a clean channel separation between two readings, one closed and one open.
+
+**Cross-references:**
+
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — the spatially-absent encoding stance that makes bundle-projection reconfiguration mechanically distinct from frame rotation
+- `[[user_stance_dark_sector_ring_down_age]]` — ring-down completion as the natural time-axis for substrate evolution (f_RD, not clock-time)
+- `[[reference_autonomous_validation_tos_landscape]]` — Saadeh+ 2016 verified via arXiv abstract page (arXiv permitted for autonomous validation)
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation re-verified, brief's `arXiv:1604.01024` was the companion MNRAS framework paper; PRL 117 131302 is `arXiv:1605.07178`
+- §VII.4.1.1 — Hopf-bundle / spherical-compression reading
+- §VII.6.1 — ring-down completion f_RD trajectory (f_RD ≈ 0.42 at recombination → 0.949 now)
+- §VII.6.2 — T_sub decomposition; bundle-projection reconfiguration shifts which compression-state Ω_Λ projects to in 3D_s
+- Working-note PR #437 (Part V for the 18.3° AoE-CMB-dipole anomaly; Part VI for the 73.3° AoE-Auger separation)
+- Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178`, DOI 10.1103/PhysRevLett.117.131302
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
