@@ -936,6 +936,49 @@ What we conventionally call "13.8 Gyr cosmic age" is **not the age of the univer
 - §VII.6 (dark energy as complexification cost)
 - §VII.7 (expansion as projection of complexification — closely related, the *expansion-side* counterpart to this *complexification-accumulation-side* framing)
 
+### VII.6.1.1 AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector ring-down
+
+The CMB large-scale anomaly family (Axis of Evil per de Oliveira-Costa 2004 / Land–Magueijo 2005; Hemispherical Power Asymmetry per Eriksen 2004 / Hansen 2009; Cold Spot per Vielva 2004) admits one candidate substrate-side reading under §VII.6.1's ring-down framing composed with §VII.4.1.1's spherical-compression / Hopf-bundle structure: the AoE marks a preferred bundle-base direction at galactic (l, b) ≈ (240°, 60°); the HPA breaks the pole/antipole degeneracy via differential power between hemispheres; under Reading B1 — *"more low-ℓ power = less ring-down complete = younger substrate"* — the southern-ecliptic hemisphere is the younger end of the axis and the Cold Spot near the AoE antipole is a localised more-ring-down-complete feature.
+
+**The alternative reading of these as a hyperbubble bump from external excitation is disfavoured on shape grounds** (bubble-collision templates are disc-shaped with characteristic angular radius; AoE is axial with no characteristic scale), per Osborne, Senatore, Smith 2013 ([arXiv:1305.1964](https://arxiv.org/abs/1305.1964)) + Planck 2015 XVI null result on the Cold-Spot-as-bubble-collision search.
+
+The reading is one candidate among several; the standard ΛCDM-plus-systematics reading (Bennett et al. 2011, [arXiv:1001.4758](https://arxiv.org/abs/1001.4758)) remains valid; it does not modify any GR prediction; the §VII.5 residual-geometric-curvature quantitative-match open computation is the principal discriminator. The **18.3°-AoE-pole-↔-CMB-dipole alignment is the live anomaly across all readings** — unexplained under medium-push, matter-pull, and systematics readings alike.
+
+Full empirical workings + reference verification: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md) Parts I–VI.
+
+### VII.6.1.2 Far-future asymptote of ring-down completion under DESI thawing-CPL hint
+
+§VII.6.1's framing of *"100% ring-down at de Sitter heat death"* is robust under standard ΛCDM (Ω_dark/Ω_total monotone increasing in scale factor `a`, asymptote → 1). Under DESI 2024 VI ([arXiv:2404.03002](https://arxiv.org/abs/2404.03002)) + DESI DR2 ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738)) thawing-CPL preference (w₀ > −1, wₐ < 0 at 3.1–4.2σ), the far-future asymptote of Ω_dark/Ω_total **drops below 1** (≈ 0.84 for representative thawing values w₀ = −0.8, wₐ = −0.7).
+
+Under this beyond-ΛCDM reading, ring-down completion remains monotone in past-direction but does not asymptote to 100%; instead it peaks at ~95–97% in the next few Gyr and declines toward the thawing asymptote. The framework reading: **ring-down completion measures cumulative complexification budget *consumed*** (monotone in cosmic time) **rather than instantaneous dark fraction.** The shadow-stance distinction between past-integral (monotone) and present-epoch ratio (model-dependent) becomes load-bearing if DESI's thawing hint strengthens.
+
+Pending DESI DR3 confirmation. If DESI's signal is a systematic, §VII.6.1 stands as-is. If it strengthens, §VII.6.1's framing refines from *"ring-down completion asymptotes to 100%"* to *"ring-down completion is the monotone past-integral of complexification-budget consumption; the far-future asymptote is model-dependent."*
+
+### VII.6.1.3 The medium-push reading of the Axis of Evil: UHECR-dipole-direction decomposition
+
+Under §VII.1.1's two-level ontology, every cosmological observable parses as either substrate-level (medium-push) or excitation-level (matter-pull). The CMB Axis of Evil at galactic (l, b) ≈ (240°, 60°) admits one candidate reading as a preferred bundle-base direction in the substrate (§VII.4.1.1 Hopf-bundle reading) — the medium-push reading.
+
+The matter-pull alternative reading (AoE direction = matter-source-distribution direction) is constrained by the Pierre Auger Observatory's reported large-scale cosmic-ray dipole (Pierre Auger 2017, [arXiv:1709.07321](https://arxiv.org/abs/1709.07321); Pierre Auger 2018, [arXiv:1808.03579](https://arxiv.org/abs/1808.03579)) at galactic (l, b) ≈ (233°, −13°). The cosmic-ray dipole is **73° from the AoE pole** — far outside directional uncertainties — but **8° from the Hemispherical Power Asymmetry direction** (Hansen 2009, l ≈ 226°, b ≈ −17°).
+
+**The low-ℓ anomaly family decomposes by channel**: the HPA is plausibly matter-pull (UHECR-aligned, tracking matter-source distribution within the GZK horizon); the AoE is *not* matter-pull at the matter-source-tracer scale. Consistent with substrate-side / medium-push reading; not uniquely supported (Bennett 2011 systematics-reading remains valid).
+
+Anisotropic cosmic birefringence (Gruppuso et al. 2020, [arXiv:2008.10334](https://arxiv.org/abs/2008.10334)) is constrained null at 95% C.L. (power-spectrum amplitude < 0.104 deg²) — consistent with weak medium-push signature but no positive detection. LiteBIRD-class CMB-polarisation sensitivity would be the medium-push discriminator.
+
+**Cross-references** (mirror §VII.6.1's set, plus the Part VI Auger + Gruppuso refs):
+
+- Working-note artifact (full Part VI empirical workings + falsifier discussion): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md) Part VI.
+- `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance, 2026-05-16.
+- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary.
+- `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family.
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — fiber content (7D_g) algebraically present, spatially absent.
+- `[[project_space_gauge_time_framework]]` — 3D_s + 7D_g + 1D_t = 11D ≡ 1D compressed.
+- §VII.4.1.1 (Hopf-bundle / spherical-compression reading).
+- §VII.5 (dark matter as residual geometric curvature) — the open computation that discriminates Reading B1 from Reading B2.
+- §VII.6.1 (substrate-internal time and the visible/dark partition) — this subsection's parent.
+- §VIII.7 (fractal-shadow allegory) — the substrate-shadow framing family.
+
+> **Status (per `[[feedback_no_lineage_claims_in_notebook]]`).** These subsections are *candidate framings* under MFO commitments — not endorsed over standard ΛCDM-plus-systematics readings without further empirical convergence (DESI DR3 confirmation for §VII.6.1.2; LiteBIRD-class polarisation results for §VII.6.1.3; §VII.5 quantitative-match for §VII.6.1.1's Reading B1 vs B2 disambiguation).
+
 ### VII.6.2 T_sub decomposed: HO-role × dimensional-kind × compression-state
 
 > *"the force that string dynamics must have to propegate and the tension resisting string dynamic"*
