@@ -325,7 +325,7 @@ The triple convergence (minimum from gauge groups, maximum from supersymmetry, u
 
 ---
 
-## Part IV — Cascade Substrate and the SM Spectrum (fractal-projection shadow)
+## Part IV — Cascade Substrate and the SM Spectrum (the space-time fractal)
 
 The script `fractal_computations.py` (filename retained for backward compatibility — the literal math is fractal-recursive Sierpinski-gasket spectral decimation) implements the spectral computations summarized below. The candidate claim: a non-smooth multi-scale primitive cascade substrate — of which fractal-recursive geometry is one downstream-shadow realisation per `[[user_stance_fractal_shadow]]` and the §VIII.7 fractal-shadow allegory — naturally produces both the SM mass hierarchy structure and the chirality dissolution, where smooth manifolds cannot. The mathematics below uses fractal-recursive geometry as the worked-example substrate; the framework's commitment is to the broader cascade-substrate class.
 
@@ -976,7 +976,7 @@ This doesn't prove the dark matter reframe is correct. It establishes that the o
 
 ## Part VIII — Convergent Independent Results
 
-### VIII.1 Topological defect hierarchy as cascade sampling (fractal-projection shadow)
+### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
 
 Earlier development of the framework established a hierarchy: monopoles (0D), cosmic strings (1D), event horizons (2D), domain walls (2D) — each a lower-dimensional structure embedded in 3D space whose topological invariant fully determines the surrounding geometry. The conclusion: "the shape of the lower-dimensional object IS the physics." Under the §VII.1.1 two-level ontology, monopoles, cosmic strings, and domain walls sit in the **localized-field-configurations** boundary zone (localized field excitations with topological invariants and matter-like tension); event horizons sit cleanly in the matter-wave domain (3D bulk matter compressed to inscribed 2D boundary per §VII.4.1).
 
@@ -1115,6 +1115,8 @@ The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanes
 **Verdict: ONE_WAY_NOT_REQUIRED.** Fractal is *sufficient* for MFO's SM-spectrum-targeting requirement but *not necessary*. The load-bearing structural requirement is **multi-scale primitive cascade with three-fold sub-structure available** — and all three substrates instantiate it.
 
 **The fractal-shadow allegory** (per `[[user_stance_fractal_shadow]]`): what physics observes as "fractal" structure is the *shadow* cast by a deeper multi-scale primitive cascade. The fractal description is a downstream-continuous projection of upstream-discrete cascade composition. Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime — both produce Gap CV > 1, single connected component, comparable three-fold CH ratios, similar Fiedler λ₂. Only the pure-4D-epicycle observer (per §VIII.6) lives in a different (sub-Poisson) regime. The fractal-shadow stance joins the family of project shadow-stances (time-as-dimensional-shadow, fiber-as-spatially-absent, pi-as-projection): *discrete-upstream → continuous-shadow-downstream* applied at the substrate-commitment level.
+
+**Canonical naming — the *space-time fractal*.** Since `space-gauge-time` (3D_s + 7D_g + 1D_t) is the full picture per `[[project_space_gauge_time_framework]]`, and physics observes only the 3D_s + 1D_t *space-time* projection (dropping the 7D_g where the cascade structure lives), the fractal-shape that appears in that projection can be named the **space-time fractal** — fractal *because* the projection drops 7D_g. The name is parallel to "space-gauge-time" / "space-time" naming discipline: `space-gauge-time` = full picture; `space-time` = 4D shadow; `space-time fractal` = the observed fractal-shape in the 4D shadow. This is the same phenomenon as the fractal-shadow allegory; "space-time fractal" is the noun, "fractal-shadow allegory" is the framing — use either as fits the local context. Subsequent sections (Part IV title; §VIII.1 title; §IX.3 comparison table) adopt the `space-time fractal` naming where the shadow-shape is the load-bearing concept; the cascade-substrate framing remains primary when describing the substrate itself.
 
 **Quantitative regime comparison** (bonus 7 probe, deterministic seed 20260515, 17 NDJSON records):
 
@@ -1287,7 +1289,7 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 
 | Feature | String Theory | This Framework |
 |---|---|---|
-| Fundamental entity | 1D extended object | Metric field's cascade-substrate geometry (fractal-shadow under 3D_s + 1D_t projection per `[[user_stance_fractal_shadow]]`) |
+| Fundamental entity | 1D extended object | Metric field's cascade-substrate geometry (the *space-time fractal* under 3D_s + 1D_t projection — fractal *because* the projection drops 7D_g where the cascade lives, per `[[user_stance_fractal_shadow]]` + §VIII.7) |
 | Extra dimensions | Top-down anomaly cancellation | Same geometry at different scales |
 | Dimensional count | 10 or 11 | ~11 at intermediate scales, → 2 at UV, → 4 at IR |
 | What's vibrating | The string | Coupling between dimensional components |
