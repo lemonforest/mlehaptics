@@ -4,6 +4,58 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.0rc12] - 2026-05-15
+
+### Added
+
+**Task #217 Phase C1 — end-of-sprint tool-schema audit (Tasks #219 + #220).**
+
+Twelfth and final canonical rc in Phase C1's rc-stacked build-out. Closes the **end-of-sprint hygiene** scope per user direction (*"check tool-schema and help arg that every command is shown how to be used"*) before 0.4.0 ships to PyPI.
+
+#### `srmech.amsc.tool_schema` — extension to cover the full operations layer
+
+Adds **two new registration functions** to `srmech.amsc.tool_schema`:
+
+- `_register_primitive_class_tools()` — **27 entries** covering the 14-class Spike #24 primitive vocabulary (Classes A and C were already registered; this adds B, D, E, F, G, I, J, K, L, M, N — every primitive operation exposed via `srmech.amsc.*`).
+- `_register_qm_tools()` — **54 entries** covering the canonical QM/QFT/SM operations layer in `srmech.qm.*` (single_particle, spin, potentials, relativistic, propagators, pseudo_hermitian, gauge, sm).
+
+Both functions are called at `tool_schema` module import time alongside the original `_register_amsc_tools()`. Total registered: **~87 tool-schema entries**, each with name + owner + category + summary + parameters + returns. Summaries cite canonical SSoT per `[[feedback_science_is_ssot_not_project]]`.
+
+#### Coverage ratchet — `tests/test_tool_schema_coverage.py`
+
+New test file with 8 cases enforcing the audit at CI time:
+
+1. **`test_amsc_public_callables_have_tool_entries`** — walks `srmech.amsc.*` via `pkgutil` + `inspect`; every public function (minus a small exempt allowlist of bridge helpers + adapters + profile-loader internals) must have a registered entry.
+2. **`test_qm_public_callables_have_tool_entries`** — same for `srmech.qm.*`. No exemptions — every public callable must be registered.
+3. **`test_tool_schema_entries_have_required_fields`** — non-empty name / owner / summary; parameters tuple well-typed.
+4. **`test_tool_schema_owner_is_srmech_for_builtins`** — owner = "srmech" for builtin entries.
+5. **`test_tool_schema_view_is_jsonable`** — JSON round-trip clean.
+6. **`test_tool_schema_total_count_meets_floor`** — ratchet at ≥ 80 entries (only ever grows).
+7. **`test_no_duplicate_tool_names`** — each dotted name unique.
+8. **`test_tool_schema_categories_match_module_structure`** — category sanity-check.
+
+#### Discipline notes
+
+- **No CLI surface** to audit — srmech is a library, not a command-line tool. The user's *"every command is shown how to be used"* direction was interpreted as: every callable has a proper docstring (already enforced through rc7-rc11 ToolEntry / docstring discipline) **and** every callable surfaces via the tool-schema introspection API (this rc).
+- **Per-operation canonical SSoT preserved**: every new ToolEntry's summary cites the canonical physics literature (Schrödinger / Heisenberg / Dirac / Yang-Mills / Gell-Mann / Wilson / Glashow-Weinberg-Salam / Cabibbo / Kobayashi-Maskawa / Higgs / Mostafazadeh / Bender-Boettcher) per `[[feedback_science_is_ssot_not_project]]`.
+- **No new C symbols**; ABI stays v2.
+
+### Changed
+
+- **`srmech.amsc.tool_schema`**: +2 registration functions, +81 new ToolEntry registrations (cumulative).
+
+### Roadmap
+
+**Phase C1 close → 0.4.0 final**:
+
+- 14 of 14 primitive classes with C surfaces ✅
+- Canonical single-particle QM (rc9) ✅
+- Relativistic QM + Feynman propagators + η-pseudo-Hermitian (rc10) ✅
+- Gauge theory + Standard Model surface (rc11) ✅
+- End-of-sprint tool-schema audit (rc12, this rc) ✅
+
+**Next**: drop the `rc12` suffix → tag `srmech-v0.4.0` → autotag dispatches production PyPI publish per the existing publish workflow (Task #196).
+
 ## [0.4.0rc11] - 2026-05-15
 
 ### Added
