@@ -403,3 +403,221 @@ Textbook anchors (cited per brief; not extracted in this session):
 - Morris Kline, *Mathematical Thought from Ancient to Modern Times* (Oxford, 1972), vols. I–III.
 - Abraham Robinson, *Non-Standard Analysis* (North-Holland, 1966).
 - Errett Bishop, *Foundations of Constructive Analysis* (McGraw-Hill, 1967); revised as E. Bishop and D. Bridges, *Constructive Analysis* (Springer, 1985).
+
+---
+
+## §9 Math addendum — falsifiable numerical validations (2026-05-16)
+
+Per user direction 2026-05-16 *"I would like to do the math for anything that we can falsify or validate"*, four falsifiable numerical validations of the asymptotic-rate framing. Script: [`asymptotic_vs_infinity_validation.py`](asymptotic_vs_infinity_validation.py). All four pass.
+
+### V1 — exp series partial sums obey the Lagrange remainder bound (FP-arithmetic)
+
+Computed `|exp(x) − S_N(x)|` and the Lagrange upper bound `exp(x)·|x|^(N+1)/(N+1)!` across `x ∈ {0.5, 1.0, 2.0, 5.0}` and `N ∈ {5, 10, 15, 20, 25, 30}`. Max ratio over all (x, N) tested: **0.6527** — well within 1.0. Every partial sum is finite-N; no infinity invoked at any step. This anchors `srmech.amsc.laplacian.elementwise_transcendental(arr, "exp")` (Class L Phase 2 broadening, rc5 on PR #439): the operational content of the `exp` primitive IS finite-N partial-sum convergence at asymptotic rate.
+
+### V2 — Sierpinski gasket spectral dimension at finite level n
+
+Sierpinski gasket P_n with mass `|V(P_n)| = (3^(n+1) + 3) / 2` and exact resistance scaling `r_n = (5/3)^n` (Rammal-Toulouse 1983; Fukushima-Shima 1992). Computed estimated spectral dimension `d_S(n) = 2 · log|V_n| / (log|V_n| + log r_n)` at `n ∈ {1, ..., 10}`. Convergence to Hata-Kigami analytical limit `2 log 3 / log 5 ≈ 1.36521...`: from 1.5563 at n=1 monotone-from-above to 1.3808 at n=10. Error at n=10: `1.56 × 10⁻²`. Scaling ratio `r_n / r_{n−1} = 5/3 = 1.6666...` exact at every n. The spectral dimension IS the asymptotic-rate parameter; no infinite n needed — every level is finite-counted.
+
+### V3 — Bishop-constructive forward-difference on f(x) = x²
+
+For f(x) = x² at x = 3 (analytical f'(3) = 6), computed forward-difference `(f(x+ε) − f(x))/ε = 2x + ε` at `ε ∈ {1.0, 0.1, 0.01, 1e-4, 1e-6, 1e-8, 1e-10, 1e-12}`. The asymptotic-rate prediction (residual = ε exactly) is verified to machine precision down to `ε ~ 1e-6`; below this FP noise dominates. The Bishop-constructive path recovers the standard derivative without invoking the `ε → 0` limit as actual-zero; the residual IS the asymptotic-rate parameter.
+
+### V4 — exp series via Class N rational + Class J integer factorial (integer-only)
+
+User's 2026-05-16 framing: *"can we not chain class operators to do that exponential math with integers?"* Yes — and this validates it. Reference Python implementation in the script's `v4_exp_via_rational_class_operator_chain()`. Class N (rational-approximation) + Class J (factorial-as-integer-product) composed gives `S_N(x)` as an **exact `Fraction`** at every finite N. No floating-point invoked at any step. Concrete:
+
+| x | N | num.bit_length | den.bit_length | S_N (float view) | exp(x) (float view) | residual |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1/2 | 5 | 13 | 12 | 1.648697916667 | 1.648721270700 | 2.34e-05 |
+| 1/2 | 10 | 31 | 31 | 1.648721270687 | 1.648721270700 | 1.28e-11 |
+| 1/2 | 15 | 53 | 52 | 1.648721270700 | 1.648721270700 | 0.0 |
+| 1   | 5 | 8 | 6 | 2.716666666667 | 2.718281828459 | 1.62e-03 |
+| 1   | 10 | 24 | 22 | 2.718281801146 | 2.718281828459 | 2.73e-08 |
+| 1   | 15 | 40 | 39 | 2.718281828459 | 2.718281828459 | 5.06e-14 |
+| 2   | 5 | 7 | 4 | 7.266666666667 | 7.389056098931 | 1.22e-01 |
+| 2   | 10 | 16 | 13 | 7.388994708995 | 7.389056098931 | 6.14e-05 |
+| 2   | 15 | 33 | 30 | 7.389056095384 | 7.389056098931 | 3.55e-09 |
+
+Concrete exact rational: `S_10(x = 1) = 9864101 / 3628800 ≈ 2.71828180115...` (vs. `e ≈ 2.71828182846...`). Numerator/denominator bit-lengths grow at finite rate (factorial-dominated). The framework's primitive vocabulary CAN execute the calculation that classically invokes infinity, using only integer arithmetic. This is the operational content of `[[user_stance_pi_as_projection]]` and `[[user_stance_kepler_shape_universal]]` applied to calculus's exp series.
+
+---
+
+## §10 Canonical chain-spec form (catalog config, not code)
+
+Per user direction 2026-05-16 *"we should build the chain in the catalog config file, not in the code"*, the canonical form of V4 is **not** the Python loop in the validation script — it's an ADR-0002 chain spec in a catalog TOML descriptor. The Python implementation is a reference; the catalog config is the architectural commitment.
+
+### Required srmech primitive (Phase C1 follow-on)
+
+A new Class N (rational-approximation) primitive operator:
+
+```python
+# srmech.amsc.rational.exp_series_truncate(x_num, x_den, N) -> (num, den)
+# Computes the exact partial sum S_N(p/q) = Sum_{k=0..N} (p^k) / (q^k * k!)
+# as a Fraction in lowest terms. Uses Class J (factorial-as-integer-product)
+# internally. No floating-point.
+```
+
+C parity surface mirrors this with `srmech_exp_series_truncate(int64_t x_num, int64_t x_den, int N, int64_t *out_num, int64_t *out_den)` for small-N cases; large-N cases stay Python because numerator/denominator outgrow int64 quickly (factorial growth).
+
+### Canonical chain-spec TOML
+
+```toml
+# In: srmech/amsc/attested/asymptotic_validation/descriptor.toml
+
+[source]
+name = "asymptotic_validation"
+purpose = "Spike #28 falsifiable-validation catalog — chain composition demos"
+license = "CC0"
+cite_as = "Spike #28 (2026-05-16) — asymptotic-rate framing validation"
+
+[catalog]
+chain_schema_version = 1
+
+[[catalog.operator_chain]]
+chain_id = "exp_via_rational_truncate"
+description = "Compute exp(x) as exact rational via Class N + Class J composition"
+
+[[catalog.operator_chain.steps]]
+class_id = "N"                                # rational-approximation
+op = "exp_series_truncate"
+inputs = ["@row.x_num", "@row.x_den", "@row.N"]
+output_name = "result"
+
+# Each row in row.ndjson: {x_num, x_den, N} ; the chain produces an exact
+# rational (num, den) for each row.
+```
+
+Row data lives in `row.ndjson`:
+
+```jsonl
+{"x_num": 1, "x_den": 2, "N":  5, "label": "1/2 at N=5"}
+{"x_num": 1, "x_den": 2, "N": 10, "label": "1/2 at N=10"}
+{"x_num": 1, "x_den": 2, "N": 15, "label": "1/2 at N=15"}
+{"x_num": 1, "x_den": 1, "N":  5, "label": "1 at N=5"}
+{"x_num": 1, "x_den": 1, "N": 10, "label": "1 at N=10"}
+{"x_num": 1, "x_den": 1, "N": 15, "label": "1 at N=15"}
+{"x_num": 2, "x_den": 1, "N":  5, "label": "2 at N=5"}
+{"x_num": 2, "x_den": 1, "N": 10, "label": "2 at N=10"}
+{"x_num": 2, "x_den": 1, "N": 15, "label": "2 at N=15"}
+```
+
+### Execution model
+
+```python
+import srmech.amsc.compose as compose
+from srmech.amsc.catalog import register_attested_root, get_attested_dataset
+
+register_attested_root("srmech.amsc.attested.asymptotic_validation")
+
+# Resolve the chain from the descriptor:
+spec = compose.parse_catalog_chains(
+    get_attested_descriptor("asymptotic_validation")
+)["exp_via_rational_truncate"]
+
+# Run against each row:
+for row in get_attested_dataset("asymptotic_validation")["rows"]:
+    result = compose.run_chain(spec, row=row, inputs={})
+    # result is (num, den) Fraction parts -- exact rational, no FP
+```
+
+The chain composition is in the catalog TOML; the Python is just the runner. This is the architectural commitment of ADR-0002.
+
+### What this catalog ships, what it depends on, what's deferred
+
+- **Ships in the catalog config**: chain spec for the exp series; row data for `(x, N)` test cases; descriptor metadata.
+- **Depends on srmech**: Class N rational primitives (exist), Class J factorial primitive (exists), `exp_series_truncate` Class N op (needs adding — Phase C1 follow-on; one short Python function + ~30-line C surface for small-N).
+- **Deferred to Phase 2-v2**: loop syntax in the chain DSL would let us express `S_N` as a fold-over-k chain rather than a single primitive op. Phase 2-v1 supports linear pipeline only; the loop is hidden inside the primitive operator for now. The math addendum's exposition of *"chain composition with loop"* anticipates Phase 2-v2; the *"single-op chain with loop-internal-to-op"* form lands cleanly under Phase 2-v1.
+
+### Falsifier
+
+The chain's output rationals at fixed `(x_num, x_den, N)` are deterministic exact rationals. Any drift in `srmech.amsc.rational.exp_series_truncate` would be caught by row-by-row exact-rational comparison against the expected values in the catalog. This is a catalog-resident *self-validating computation* — the kind of artifact ADR-0002 envisages.
+
+---
+
+## §11 Scope expansion — packaged "asymptotic calculus" catalog (2026-05-16 user direction)
+
+Per user direction 2026-05-16 *"that also means that we can package a trig and calculus and so on config record with srmech too"*, §10's exp-series catalog is the *seed* of a larger srmech ship: a packaged **asymptotic-rate calculus catalog** of integer/rational chain compositions for every classical-calculus operation that historically invoked infinity. Each operation becomes a TOML chain-spec in a catalog descriptor; the underlying primitives are Class N (rational) + Class J (integer factorial / prime factorisation) + Class I (cyclic-group / modular arithmetic for argument reduction) at minimum.
+
+### Scope inventory (candidate catalog rows / chains)
+
+**Transcendentals** (Taylor series with closed-form Lagrange-remainder bounds, all integer-rational):
+
+| Operation | Series | Class composition |
+|---|---|---|
+| `exp(x)` | `Σ xᵏ / k!` | Class N rational + Class J factorial |
+| `sin(x)` | `Σ (−1)ᵏ x^(2k+1) / (2k+1)!` | Class N rational + Class J + Class I (sign-flip) |
+| `cos(x)` | `Σ (−1)ᵏ x^(2k) / (2k)!` | Class N rational + Class J + Class I |
+| `tan(x)` | `sin/cos` via above | composite chain (`tan_via_sin_cos`) |
+| `sinh(x)` | `Σ x^(2k+1) / (2k+1)!` | Class N rational + Class J |
+| `cosh(x)` | `Σ x^(2k) / (2k)!` | Class N rational + Class J |
+| `log(1+x)` (\|x\| ≤ 1) | `Σ (−1)^(k+1) xᵏ / k` | Class N rational + Class I (sign-flip) |
+| `atan(x)` (\|x\| ≤ 1) | `Σ (−1)ᵏ x^(2k+1) / (2k+1)` | Class N rational + Class I |
+| `arcsin(x)` | `Σ (2k)! x^(2k+1) / (4ᵏ (k!)² (2k+1))` | Class N rational + Class J |
+
+Argument-reduction wrappers (Class I cyclic-group / modular arithmetic): reduce trig arguments modulo `2π` (where π is represented as a sufficient-precision rational, e.g., a Machin-formula-derived `π ≈ p/q` with documented precision); reduce exp arguments via `exp(x) = exp(x_int) · exp(x_frac)` where `exp(x_int)` is `e^x_int` for integer `x_int` (precomputed) and `exp(x_frac)` uses the Taylor series for `|x_frac| < 1`.
+
+**Calculus operations**:
+
+| Operation | Definition | Class composition |
+|---|---|---|
+| Forward derivative `f'(x) ≈ (f(x+ε) − f(x))/ε` | Bishop-constructive (per V3) | Class N (rational `ε`, rational `f` evaluations, rational divide) |
+| Riemann sum `∫_a^b f(x) dx ≈ Σ f(x_k) · Δx` | left/midpoint/right rule | Class N (rational `Δx`, accumulator) + Class J (count) |
+| Taylor series partial sum `S_N(x; f, x₀)` | `Σ_{k=0..N} f⁽ᵏ⁾(x₀) (x − x₀)ᵏ / k!` | Class N + Class J (general form of §10) |
+| Continued fraction convergent `p_n/q_n` | recurrence `p_n = a_n p_{n−1} + p_{n−2}` | Class N rational + Class I integer arithmetic |
+| Diophantine approximation `\|x − p/q\| < ε` | best-rational at denominator bound | Class N + Class J prime-factor bound |
+
+**Special functions** (asymptotic series, partial-sum truncations all integer-rational):
+
+| Function | Series / recurrence | Class composition |
+|---|---|---|
+| Γ(n) for integer n | Class J `factorial(n − 1)` | Class J |
+| Γ(z) for general z | Stirling asymptotic series (truncated) | Class N rational + Class J |
+| Bessel `J_ν(x)` partial sum | `Σ (−1)ᵏ (x/2)^(2k+ν) / (k! Γ(k+ν+1))` | Class N + Class J + Class I |
+| Ψ(z) digamma partial sum | `−γ + Σ (1/n − 1/(n+z))` (truncated) | Class N + Class I |
+| Riemann ζ(s) partial sum | `Σ 1/nˢ` (truncated; Euler-Maclaurin remainder for analytic continuation) | Class N + Class J prime-factor (Euler product) |
+
+### Architectural form
+
+Each catalog row carries `(input_args, N, expected_rational_output)`; each chain-spec invokes the appropriate Class N primitive composed with Class J / Class I helpers. The catalog is `srmech.amsc.attested.asymptotic_calculus/`:
+
+```
+docs/srmech/python/srmech/amsc/attested/asymptotic_calculus/
+├── descriptor.toml          # all chain specs (exp / sin / cos / log / atan / Riemann / Taylor / ...)
+├── exp_rows.ndjson          # (x, N) test cases for exp
+├── sin_rows.ndjson          # (x, N) test cases for sin
+├── log_rows.ndjson          # (x, N) test cases for log
+├── ... (per-operation row catalogs)
+├── exp.schema.json
+├── sin.schema.json
+└── ... (per-operation schemas)
+```
+
+Each chain references one or more Class N rational primitives; the primitives themselves are added to srmech's Class N module (`srmech.amsc.rational.*`) with C parity surfaces per `[[feedback_no_binding_layer_carveout]]`. The math primitives ship in srmech's library; the recipes ship in the catalog config.
+
+### Why this matters
+
+This is **the operational realisation of `[[user_stance_pi_as_projection]]` + `[[user_stance_kepler_shape_universal]]` + `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + the user's 2026-05-16 epicycle-via-gear-plus-pin stance**: every transcendental function classical analysis treats as "requiring infinity" reduces to integer-rational chain composition of the framework's primitives, with the partial sums providing asymptotic-rate convergence at every finite N. The catalog ships as a self-validating computational artifact — pure config, no code-side composition — that demonstrates the framework's vocabulary IS sufficient for the operational content of classical calculus.
+
+The historical-methodological finding of Spike #28 (asymptotic-rate framing was available since Apollonius, took 3 centuries to adopt as foundational stance per Bishop 1967) lands in srmech as a *shipped catalog*. The framework's commitment to asymptotic-rate is no longer methodological-only — it has a concrete, ship-able artifact.
+
+### Status as candidate Phase C1 follow-on ship
+
+This is sketched, not committed. Conductor call: should this catalog be the next Phase C1 rc (post-rc5)? The work-shape is straightforward:
+
+- ~10 new Class N rational primitives (each ~20-30 lines Python + ~40-60 lines C parity)
+- One new attested catalog (descriptor + 5-10 NDJSON row catalogs + schemas)
+- Linear-pipeline chain specs in the descriptor
+- Tests at every Class N + Class J + Class I composition layer (exact-rational equality)
+- One new task entry, several rc-stacking iterations
+
+Falsifiable at every step: rational outputs are bit-exact; any drift caught immediately.
+
+### Cross-references
+
+- §10 — exp-via-rational seed chain
+- `[[user_stance_pi_as_projection]]` — integer-cyclic upstream methodology
+- `[[user_stance_kepler_shape_universal]]` — pin-slot + gear universal applies to calculus chain composition
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — operational identity
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Class I + Class K = the kinematic primitive pair; calculus catalog adds Class N + Class J primitives via the same architectural commitment
+- `[[feedback_no_binding_layer_carveout]]` — every primitive class earns a C surface; calculus primitives are no exception
+- ADR-0002 — catalog-as-computation, plugin-as-optimization-backend (post-rc5 in PR #439)
