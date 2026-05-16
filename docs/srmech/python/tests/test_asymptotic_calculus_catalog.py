@@ -92,18 +92,24 @@ def _iter_rows():
 def test_exp_series_truncate_chain_falsification_all_rows() -> None:
     """For every row, run the chain and bit-exact-compare to expected.
 
-    This is the falsification test per ``[[feedback_every_doc_edit_faces_falsification]]``:
-    if the Class N primitive drifts, this test fails row-by-row with
-    exact rational mismatches.
+    rc11: expanded to dispatch by `kind` (exp / sin / cos / log1p / atan).
+    Any drift in Class N + Class J primitives surfaces as row-by-row
+    exact rational mismatch.
     """
+    kind_to_op = {
+        "exp":   rational.exp_series_truncate,
+        "sin":   rational.sin_series_truncate,
+        "cos":   rational.cos_series_truncate,
+        "log1p": rational.log1p_series_truncate,
+        "atan":  rational.atan_series_truncate,
+    }
     n_checked = 0
     for row in _iter_rows():
-        # Catalog rc6 scope: only exp partial_sum_truncation rows.
-        assert row["kind"] == "exp"
         assert row["row_type"] == "partial_sum_truncation"
-
-        # Run the operator chain (single-step Class N primitive at v1):
-        out_num, out_den = rational.exp_series_truncate(
+        kind = row["kind"]
+        assert kind in kind_to_op, f"unknown kind {kind!r} in row {row['row_label']}"
+        op = kind_to_op[kind]
+        out_num, out_den = op(
             numerator=row["x_num"],
             denominator=row["x_den"],
             num_terms=row["num_terms"],

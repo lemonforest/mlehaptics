@@ -29,8 +29,8 @@
     },
     "kind": {
       "type": "string",
-      "enum": ["exp"],
-      "description": "Transcendental being computed. Initially only 'exp' (rc6); future rcs add 'sin', 'cos', 'tan', 'sinh', 'cosh', 'log1p', 'atan', 'arcsin', 'bessel_j', 'gamma', 'digamma', 'zeta'."
+      "enum": ["exp", "sin", "cos", "log1p", "atan"],
+      "description": "Transcendental being computed. rc8 shipped 'exp'; rc11 added 'sin', 'cos', 'log1p', 'atan'. Future rcs add 'tan', 'sinh', 'cosh', 'arcsin', 'bessel_j', 'gamma', 'digamma', 'zeta'."
     },
     "x_num": {
       "type": "integer",

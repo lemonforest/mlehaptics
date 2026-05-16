@@ -38,6 +38,10 @@ __all__ = [
     "rational_mul",
     "rational_div",
     "rational_pow_uint",
+    "sin_series_truncate",
+    "cos_series_truncate",
+    "log1p_series_truncate",
+    "atan_series_truncate",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -514,3 +518,181 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
             )
     # Python bignum path
     return _reduce_rational(p ** exp, q ** exp)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Class N trig + log partial-sum primitives (rc11).
+#
+# Four Taylor-series-truncation ops following exp_series_truncate's
+# common-denominator integer-accumulation pattern:
+#
+#   sin(x)    = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)!
+#   cos(x)    = Σ_{k=0..N} (-1)^k * x^(2k)   / (2k)!
+#   log1p(x)  = Σ_{k=1..N} (-1)^(k+1) * x^k  / k         (|x| < 1 required)
+#   atan(x)   = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)   (|x| ≤ 1 typical)
+#
+# Each takes (x_num, x_den, num_terms) → (out_num, out_den) exact
+# rational. Pure-Python bignum-capable; C-standalone for u64-fit
+# inputs (Task #234 §11 inventory). Bounded num_terms per op to keep
+# (2N+1)! within u64 in the C path.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _check_series_inputs(numerator: int,
+                         denominator: int,
+                         num_terms: int,
+                         max_terms: int,
+                         op_name: str) -> None:
+    """Shared input validation for the trig/log series ops."""
+    if not isinstance(numerator, int):
+        raise TypeError(f"numerator must be int; got {type(numerator).__name__}")
+    if not isinstance(denominator, int):
+        raise TypeError(f"denominator must be int; got {type(denominator).__name__}")
+    if not isinstance(num_terms, int):
+        raise TypeError(f"num_terms must be int; got {type(num_terms).__name__}")
+    if denominator <= 0:
+        raise ValueError(f"denominator must be positive; got {denominator}")
+    if num_terms < 0:
+        raise ValueError(f"num_terms must be non-negative; got {num_terms}")
+    if num_terms > max_terms:
+        raise ValueError(
+            f"{op_name}: num_terms exceeds max {max_terms}; got {num_terms}"
+        )
+
+
+_TRIG_SERIES_MAX_TERMS: int = 50
+_LOG_SERIES_MAX_TERMS: int = 64
+
+
+def sin_series_truncate(numerator: int,
+                        denominator: int,
+                        num_terms: int) -> Tuple[int, int]:
+    """Compute sin(p/q) Taylor partial sum to N terms as exact rational.
+
+    sin(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)!
+
+    Convergence: globally convergent; convergence rate degrades for
+    |x| > π so caller should reduce to [-π, π] for typical use.
+    Pure-Python bignum-capable.
+
+    Examples
+    --------
+    >>> sin_series_truncate(0, 1, 5)
+    (0, 1)
+    >>> sin_series_truncate(1, 1, 5)[0] / sin_series_truncate(1, 1, 5)[1]
+    0.841471...
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _TRIG_SERIES_MAX_TERMS, "sin_series_truncate")
+    if numerator == 0:
+        return (0, 1)
+    # Bignum path: accumulate Σ_{k=0..N} (-1)^k * p^(2k+1) / (q^(2k+1) * (2k+1)!)
+    num = 0
+    den = 1
+    p, q = numerator, denominator
+    for k in range(num_terms + 1):
+        exp = 2 * k + 1
+        factorial_kk1 = 1
+        for j in range(1, exp + 1):
+            factorial_kk1 *= j
+        term_num = (p ** exp)
+        term_den = (q ** exp) * factorial_kk1
+        if k % 2 == 1:
+            term_num = -term_num
+        # num/den + term_num/term_den
+        num = num * term_den + term_num * den
+        den = den * term_den
+        # Periodically reduce to keep numbers manageable
+        if k % 4 == 3:
+            num, den = _reduce_rational(num, den)
+    return _reduce_rational(num, den)
+
+
+def cos_series_truncate(numerator: int,
+                        denominator: int,
+                        num_terms: int) -> Tuple[int, int]:
+    """Compute cos(p/q) Taylor partial sum to N terms as exact rational.
+
+    cos(x) = Σ_{k=0..N} (-1)^k * x^(2k) / (2k)!
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _TRIG_SERIES_MAX_TERMS, "cos_series_truncate")
+    if numerator == 0:
+        return (1, 1)
+    num = 0
+    den = 1
+    p, q = numerator, denominator
+    for k in range(num_terms + 1):
+        exp = 2 * k
+        factorial_2k = 1
+        for j in range(1, exp + 1):
+            factorial_2k *= j
+        term_num = (p ** exp)
+        term_den = (q ** exp) * factorial_2k if exp > 0 else factorial_2k
+        if k % 2 == 1:
+            term_num = -term_num
+        num = num * term_den + term_num * den
+        den = den * term_den
+        if k % 4 == 3:
+            num, den = _reduce_rational(num, den)
+    return _reduce_rational(num, den)
+
+
+def log1p_series_truncate(numerator: int,
+                          denominator: int,
+                          num_terms: int) -> Tuple[int, int]:
+    """Compute log(1 + p/q) Taylor partial sum to N terms as exact rational.
+
+    log(1+x) = Σ_{k=1..N} (-1)^(k+1) * x^k / k
+
+    Caller responsibility: |p/q| < 1 for convergence (the series
+    diverges otherwise). The function computes the partial sum
+    regardless; rate-of-convergence is asymptotic for |x| near 1.
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _LOG_SERIES_MAX_TERMS, "log1p_series_truncate")
+    if numerator == 0 or num_terms == 0:
+        return (0, 1)
+    num = 0
+    den = 1
+    p, q = numerator, denominator
+    for k in range(1, num_terms + 1):
+        term_num = (p ** k)
+        term_den = (q ** k) * k
+        if (k + 1) % 2 == 1:  # k even → negative
+            term_num = -term_num
+        num = num * term_den + term_num * den
+        den = den * term_den
+        if k % 4 == 0:
+            num, den = _reduce_rational(num, den)
+    return _reduce_rational(num, den)
+
+
+def atan_series_truncate(numerator: int,
+                         denominator: int,
+                         num_terms: int) -> Tuple[int, int]:
+    """Compute atan(p/q) Taylor partial sum to N terms as exact rational.
+
+    atan(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)
+
+    Caller responsibility: |p/q| ≤ 1 for fast convergence. The series
+    is valid for |x| ≤ 1 (alternating series test).
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _LOG_SERIES_MAX_TERMS, "atan_series_truncate")
+    if numerator == 0:
+        return (0, 1)
+    num = 0
+    den = 1
+    p, q = numerator, denominator
+    for k in range(num_terms + 1):
+        exp = 2 * k + 1
+        term_num = (p ** exp)
+        term_den = (q ** exp) * exp
+        if k % 2 == 1:
+            term_num = -term_num
+        num = num * term_den + term_num * den
+        den = den * term_den
+        if k % 4 == 3:
+            num, den = _reduce_rational(num, den)
+    return _reduce_rational(num, den)
