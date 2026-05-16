@@ -435,6 +435,50 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_equation_of_centre.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class M — HDC binary spatter codes (Task #217 Phase C1 rc8).
+    # ------------------------------------------------------------------
+    # int srmech_hdc_bind(const uint8_t *a, const uint8_t *b,
+    #                     uint32_t n_bytes, uint8_t *out)
+    lib.srmech_hdc_bind.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint8),
+    ]
+    lib.srmech_hdc_bind.restype = ctypes.c_int
+
+    # int srmech_hdc_bundle(const uint8_t * const *vectors,
+    #                       uint32_t n_vectors, uint32_t n_bytes,
+    #                       uint8_t *out)
+    lib.srmech_hdc_bundle.argtypes = [
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_uint8),
+    ]
+    lib.srmech_hdc_bundle.restype = ctypes.c_int
+
+    # int srmech_hdc_permute(const uint8_t *a, uint32_t n_bytes,
+    #                        int32_t rotate_bits, uint8_t *out)
+    lib.srmech_hdc_permute.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.c_int32,
+        ctypes.POINTER(ctypes.c_uint8),
+    ]
+    lib.srmech_hdc_permute.restype = ctypes.c_int
+
+    # int srmech_hdc_similarity(const uint8_t *a, const uint8_t *b,
+    #                           uint32_t n_bytes, double *out)
+    lib.srmech_hdc_similarity.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_hdc_similarity.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
