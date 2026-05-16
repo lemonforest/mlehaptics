@@ -17,9 +17,11 @@ beyond a single-file read.
 **srmech** is short for **Stored-Relationship Mechanism**. It is:
 
 - A Python research package, published as **`srmech`** on PyPI.
-  Current release: **`v0.2.0`** (native-C-accelerated, multi-
-  platform wheels via cibuildwheel matrix). Earlier
-  pure-Python `v0.1.0` still exists in PyPI history.
+  Current release: **`v0.4.0`** (Task #217 Phase C1 close —
+  full 14-class C-parity primitive vocabulary + canonical
+  QM/QFT/SM operations layer on top of the AMSC framework).
+  Earlier `v0.2.0` (native-C-accelerated AMSC build-out) and
+  `v0.1.0` (pure-Python AMSC) remain in PyPI history.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
@@ -27,10 +29,28 @@ beyond a single-file read.
   `parser_rule_hash`, `collector_descriptor_path`,
   `collector_descriptor_hash`). This is the on-disk crystallisation
   of the **Mathematical Provenance Method** (MPM).
-- A **native-C-accelerated** pure-Python package (Task #201
-  build-out: rc3 → rc9). Native dispatch covers SHA-256
-  attestation hashes and NDJSON streaming line tokenisation;
-  pure-Python fallback for Pyodide / WASM environments.
+- A **native-C-accelerated** Python package shipping the full
+  **14-class Spike #24 primitive vocabulary** (Task #201 Phase B
+  baseline: Classes A + C — SHA-256 + NDJSON; Task #217 Phase C1
+  rc1-rc8: Classes B, D, E, F, G, H, I, J, K, L, M, N). Each class
+  has both a native C surface (`libsrmech.{so,dll,dylib}`) and a
+  Python wrapper (`srmech.amsc.<class>`); pure-Python fallback for
+  Pyodide / WASM environments.
+- The **canonical QM/QFT/SM operations layer** at `srmech.qm.*`
+  (Task #217 Phase C1 rc9-rc11) — single_particle (TDSE/TISE/Heisenberg
+  /commutator/density-matrix/Liouville-vN), spin (Pauli + Cl(0,3)),
+  potentials (hydrogen radial + harmonic oscillator), relativistic
+  (Dirac γ-matrices + Weyl + charge conjugation + Klein-Gordon),
+  propagators (Feynman scalar/fermion/photon/massive-vector),
+  pseudo_hermitian (η-deformed inner product framework — closes
+  chess-spectral ADR-005), gauge (SU(2)/SU(3) Gell-Mann + Casimirs
+  + Wilson loops), sm (Higgs + W/Z + Weinberg + Yukawa + CKM). Each
+  operation cites canonical physics literature per
+  `[[feedback_science_is_ssot_not_project]]`.
+- **Tool-schema introspection** at `srmech.amsc.tool_schema` —
+  ~87 ToolEntry registrations covering every public callable in
+  `srmech.amsc.*` and `srmech.qm.*` with canonical-SSoT-cited
+  summaries (Task #217 Phase C1 rc12 / Tasks #219 + #220).
 - The dependency surface that downstream spectral-research
   packages (`ephemerides-spectral` today; more later) register
   their catalog SSOTs with via `srmech.amsc.catalog.register_attested_root()`.
