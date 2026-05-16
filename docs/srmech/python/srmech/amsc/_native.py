@@ -454,6 +454,24 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_best_rational.restype = ctypes.c_int
 
+    # rc8: int srmech_exp_series_truncate(int64_t  x_num,
+    #                                      uint64_t x_den,
+    #                                      uint32_t num_terms,
+    #                                      int64_t *out_num,
+    #                                      uint64_t *out_den)
+    # exp Taylor partial sum as exact rational, num_terms <= 20.
+    # Returns SRMECH_ERR_OVERFLOW for inputs beyond u64 range; Python
+    # bignum fallback in srmech.amsc.rational.exp_series_truncate
+    # handles unbounded N.
+    lib.srmech_exp_series_truncate.argtypes = [
+        ctypes.c_int64,
+        ctypes.c_uint64,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_int64),
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.srmech_exp_series_truncate.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7).
     # ------------------------------------------------------------------

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "asymptotic_calculus.row.v1",
+  "title": "Asymptotic Calculus Catalogue row schema (v1)",
+  "description": "One chain-verified self-validating row in the srmech asymptotic_calculus catalog. Each row encodes an input (x_num, x_den, num_terms) and the ground-truth output (expected_num, expected_den) of the named operator chain. CI runs the chain and bit-exact-compares the produced output to the stored expected output. Per [[feedback_every_doc_edit_faces_falsification]] (2026-05-16) — the canonical mechanism by which project doc claims are falsified or validated via class-operator chain composition.",
+  "type": "object",
+  "required": [
+    "row_label",
+    "row_type",
+    "kind",
+    "x_num",
+    "x_den",
+    "num_terms",
+    "expected_num",
+    "expected_den",
+    "chain_id",
+    "entered_locally_at"
+  ],
+  "properties": {
+    "row_label": {
+      "type": "string",
+      "description": "Human-readable identifier for the row, e.g. 'exp_half_N10'."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["partial_sum_truncation"],
+      "description": "Taxonomy of the chain operation. Initially only 'partial_sum_truncation' (rc6); future rcs add 'forward_difference', 'riemann_sum', 'continued_fraction_convergent', etc."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["exp"],
+      "description": "Transcendental being computed. Initially only 'exp' (rc6); future rcs add 'sin', 'cos', 'tan', 'sinh', 'cosh', 'log1p', 'atan', 'arcsin', 'bessel_j', 'gamma', 'digamma', 'zeta'."
+    },
+    "x_num": {
+      "type": "integer",
+      "description": "Numerator p of input x = p/q. May be negative."
+    },
+    "x_den": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Denominator q of input x = p/q. Must be positive."
+    },
+    "num_terms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 512,
+      "description": "Truncation parameter N; the partial sum includes terms k = 0..N."
+    },
+    "expected_num": {
+      "type": "integer",
+      "description": "Ground-truth numerator of the chain's output rational in lowest terms. Produced by running the chain at catalog author time (2026-05-16). Any drift in the underlying Class N + Class J primitives surfaces as immediate test failure."
+    },
+    "expected_den": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Ground-truth denominator of the chain's output rational in lowest terms; always positive."
+    },
+    "chain_id": {
+      "type": "string",
+      "description": "Name of the operator chain in this catalog's descriptor.toml that produced the expected output."
+    },
+    "source_apostol": {
+      "type": "string",
+      "description": "Apostol *Mathematical Analysis* reference for the Lagrange remainder bound supporting the partial-sum convergence claim."
+    },
+    "source_bishop": {
+      "type": "string",
+      "description": "Bishop *Foundations of Constructive Analysis* reference for the asymptotic-rate / constructive-analysis stance."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date (UTC) this row was added to the catalog."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text notes about the row, e.g. float-view of the rational, residual bound, etc."
+    }
+  },
+  "additionalProperties": false
+}

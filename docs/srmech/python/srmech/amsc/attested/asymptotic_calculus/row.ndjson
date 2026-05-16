@@ -1,0 +1,43 @@
+# Asymptotic Calculus Catalogue — falsification infrastructure
+# (Spike #28 §10 PR #447 + §11 catalog scope inventory).
+#
+# Each line is one MPR row data block (NDJSON).
+# Lines starting with "#" or empty lines are skipped by the
+# literature_curated adapter per `srmech.amsc.format.read_ndjson`.
+#
+# Row shape: see row.schema.json for the formal schema.
+# Per-row fields:
+#   row_label    : human-readable identifier
+#   row_type     : taxonomy ("partial_sum_truncation" only at rc6)
+#   kind         : transcendental being computed ("exp" only at rc6)
+#   x_num        : numerator p of input x = p/q
+#   x_den        : denominator q of input x = p/q (positive)
+#   num_terms    : truncation parameter N >= 0
+#   expected_num : ground-truth numerator of S_N(p/q) in lowest terms
+#   expected_den : ground-truth denominator of S_N(p/q) in lowest terms
+#   source_apostol: Apostol *Mathematical Analysis* Theorem 12.20 (Lagrange)
+#   source_bishop : Bishop *Foundations of Constructive Analysis* §2
+#   chain_id     : the operator_chain that produces this row's output
+#   entered_locally_at: date catalog row added (UTC)
+#
+# Coverage at rc6: 12 rows covering x in {0, ±1/2, ±1, ±2} at
+# N in {5, 10, 15}. Future rcs add trig (sin / cos / tan), log,
+# atan, Bessel, Γ, ζ, and calculus ops (forward_difference / riemann_sum).
+#
+# All `expected_*` values were produced by running srmech v0.4.1rc6's
+# `srmech.amsc.rational.exp_series_truncate` at catalog author time
+# (2026-05-16). The catalog's purpose is to FALSIFY any drift in that
+# function: CI re-runs the chain at consumer time and bit-exact-compares.
+
+{"row_label": "exp_zero_N5", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 0, "x_den": 1, "num_terms": 5, "expected_num": 1, "expected_den": 1, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Trivial: S_N(0) = 1 for any N (only the k=0 term contributes; higher k terms are 0)."}
+{"row_label": "exp_half_N5", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 2, "num_terms": 5, "expected_num": 6331, "expected_den": 3840, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~1.648697916667; vs exp(0.5) ~1.648721270700; residual ~2.34e-5 (Lagrange-bound 3.58e-5)."}
+{"row_label": "exp_half_N10", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 2, "num_terms": 10, "expected_num": 2042156287, "expected_den": 1238630400, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~1.648721270687; residual ~1.28e-11 (Lagrange-bound 2.02e-11)."}
+{"row_label": "exp_half_N15", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 2, "num_terms": 15, "expected_num": 5434422938503507, "expected_den": 3296144130048000, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~1.648721270700; below FP precision floor."}
+{"row_label": "exp_one_N5", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 1, "num_terms": 5, "expected_num": 163, "expected_den": 60, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~2.71666...; vs exp(1) ~2.71828; residual ~1.62e-3 (Lagrange-bound 3.78e-3)."}
+{"row_label": "exp_one_N10", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 1, "num_terms": 10, "expected_num": 9864101, "expected_den": 3628800, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~2.71828180; residual ~2.73e-8 (Lagrange-bound 6.81e-8). The canonical S_N(1) for the Spike #28 §9 V4 demo."}
+{"row_label": "exp_one_N15", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 1, "x_den": 1, "num_terms": 15, "expected_num": 888656868019, "expected_den": 326918592000, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~2.71828182846; below FP precision floor."}
+{"row_label": "exp_two_N5", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 2, "x_den": 1, "num_terms": 5, "expected_num": 109, "expected_den": 15, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~7.2666; vs exp(2) ~7.389; residual ~1.22e-1 (Lagrange-bound 6.57e-1)."}
+{"row_label": "exp_two_N10", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 2, "x_den": 1, "num_terms": 10, "expected_num": 34913, "expected_den": 4725, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~7.38899; residual ~6.14e-5 (Lagrange-bound 3.79e-4)."}
+{"row_label": "exp_two_N15", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": 2, "x_den": 1, "num_terms": 15, "expected_num": 4718007451, "expected_den": 638512875, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~7.389056095; residual ~3.55e-9 (Lagrange-bound 2.31e-8)."}
+{"row_label": "exp_neg_one_N10", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": -1, "x_den": 1, "num_terms": 10, "expected_num": 16481, "expected_den": 44800, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~0.367879; vs exp(-1) = 1/e ~0.367879; alternating-sign series converges quickly."}
+{"row_label": "exp_neg_half_N10", "row_type": "partial_sum_truncation", "kind": "exp", "x_num": -1, "x_den": 2, "num_terms": 10, "expected_num": 2253801941, "expected_den": 3715891200, "chain_id": "exp_series_truncate", "source_apostol": "Mathematical Analysis 2nd ed. Theorem 12.20", "source_bishop": "Foundations of Constructive Analysis ch.2", "entered_locally_at": "2026-05-16", "notes": "Float-view ~0.606530; vs exp(-0.5) ~0.606530; alternating-sign convergence."}

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc7"
-#define SRMECH_VERSION       "0.4.1rc7"
+#define SRMECH_VERSION_PRE   "rc8"
+#define SRMECH_VERSION       "0.4.1rc8"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -568,6 +568,32 @@ srmech_status_t srmech_best_rational(uint64_t  numerator,
                                      uint64_t  max_denominator,
                                      uint64_t *out_p,
                                      uint64_t *out_q);
+
+/* Class N rc8: exp Taylor partial sum as exact rational.
+ *
+ * Computes S_N(p/q) = sum_{k=0..N} (p/q)^k / k! and returns the result
+ * reduced to lowest terms in (*out_num, *out_den). Pure integer
+ * arithmetic; bounded num_terms ≤ 20 to keep N! within u64 (Python
+ * fallback srmech.amsc.rational.exp_series_truncate handles larger N
+ * via arbitrary-precision int). Returns SRMECH_ERR_OVERFLOW if any
+ * intermediate product (|p|^k, q^(N-k), N!/k!, their products, the sum
+ * itself) would exceed range; the wrapper falls through to bignum
+ * Python in that case.
+ *
+ * The C surface is usable STANDALONE — link libsrmech, call this from
+ * a C-only program (no Python required) for catalog-row-shaped inputs.
+ * Anchored to [[feedback_no_binding_layer_carveout]] discipline:
+ * every primitive class earns a real C surface.
+ *
+ * Canonical SSoT: Apostol *Mathematical Analysis* 2nd ed. Thm 12.20
+ * (Lagrange remainder) for the convergence claim; Bishop *Foundations
+ * of Constructive Analysis* §2 for the asymptotic-rate framing.
+ */
+srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
+                                           uint64_t  x_den,
+                                           uint32_t  num_terms,
+                                           int64_t  *out_num,
+                                           uint64_t *out_den);
 
 /* ------------------------------------------------------------------ *
  * Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7)

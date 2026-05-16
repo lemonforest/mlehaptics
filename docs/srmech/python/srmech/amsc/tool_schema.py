@@ -836,6 +836,18 @@ def _register_primitive_class_tools() -> None:
                         P("max_denominator", "int", True, "> 0")),
             returns=R("tuple[int, int]", "(p', q')"),
         ),
+        ToolEntry(
+            name="srmech.amsc.rational.exp_series_truncate", owner="srmech",
+            category="rational",
+            summary="Exp Taylor partial sum S_N(p/q) = Σ_{k=0..N} (p/q)^k / k! as "
+                    "exact rational via Class N rational + Class J integer factorial "
+                    "chain composition. Integer arithmetic only; no floating-point. "
+                    "Seeds the asymptotic_calculus catalog (Spike #28 §10/§11 PR #447).",
+            parameters=(P("numerator", "int", True, "p of x = p/q (may be negative)"),
+                        P("denominator", "int", True, "q of x = p/q (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N >= 0, <= 512")),
+            returns=R("tuple[int, int]", "(out_num, out_den) of S_N reduced to lowest terms"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
