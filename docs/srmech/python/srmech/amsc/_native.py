@@ -400,6 +400,41 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_best_rational.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7).
+    # ------------------------------------------------------------------
+    # int srmech_pin_slot(double theta, double pin_offset,
+    #                     double pin_distance, double *out_phi)
+    lib.srmech_pin_slot.argtypes = [
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_pin_slot.restype = ctypes.c_int
+
+    # int srmech_kepler_solve(double M_rad, double e, double tolerance,
+    #                         uint32_t max_iter, double *out_E_rad)
+    lib.srmech_kepler_solve.argtypes = [
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_kepler_solve.restype = ctypes.c_int
+
+    # int srmech_equation_of_centre(double M_rad, double e,
+    #                               uint32_t n_terms,
+    #                               double *out_delta_rad)
+    lib.srmech_equation_of_centre.argtypes = [
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_uint32,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.srmech_equation_of_centre.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

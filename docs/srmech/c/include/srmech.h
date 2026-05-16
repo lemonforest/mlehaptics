@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc6"
-#define SRMECH_VERSION       "0.4.0rc6"
+#define SRMECH_VERSION_PRE   "rc7"
+#define SRMECH_VERSION       "0.4.0rc7"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -476,6 +476,61 @@ srmech_status_t srmech_best_rational(uint64_t  numerator,
                                      uint64_t  max_denominator,
                                      uint64_t *out_p,
                                      uint64_t *out_q);
+
+/* ------------------------------------------------------------------ *
+ * Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7)
+ *
+ * Three continuous-projection operations. Per [[user_stance_kepler_shape_universal]]
+ * + PR #416 F2/F15/F17: Kepler-equation algebra IS pin-slot composition.
+ * This file ships the continuous projection-shadow of the integer-cyclic
+ * upstream (Class I cyclic groups + Class J prime-period). Uses libm
+ * (sin / cos / atan2 / fabs); double precision throughout.
+ *
+ * Canonical SSoT per [[feedback_science_is_ssot_not_project]]:
+ *   - Pin-slot transform        : Freeth (2021) Nature Sci Rep, Supp S9.
+ *   - Kepler equation           : Kepler (1609) Astronomia Nova.
+ *   - Newton-Raphson starter    : Smith (1979) Celestial Mech 19, 163.
+ *   - Equation-of-centre series : Brouwer & Clemence (1961) §3.2;
+ *                                 Murray & Dermott (1999) §2.5.
+ *
+ * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_KEPLER_EOC_MAX_TERMS 6
+
+/* Antikythera-era pin-and-slot transform. Pin at radial offset pin_offset
+ * on input gear; rocker axis at distance pin_distance from input gear
+ * center; rocker tracks the pin via a radial slot. As input rotates by
+ * theta (radians), rocker turns by phi = atan2(i*sin(theta), d + i*cos(theta)).
+ * Returns SRMECH_ERR_BAD_INPUT only for the degenerate case pin_offset == 0
+ * AND pin_distance == 0 (atan2(0,0) is implementation-defined). */
+srmech_status_t srmech_pin_slot(double  theta,
+                                double  pin_offset,
+                                double  pin_distance,
+                                double *out_phi);
+
+/* Newton-Raphson on Kepler's equation M = E - e*sin(E). Inputs in radians.
+ * 0 <= e < 1 required (returns SRMECH_ERR_BAD_INPUT otherwise). Initial
+ * guess via Smith (1979): E_0 = M + e*sin(M). Converges in 4-6 iter for
+ * e < 0.5; e >= 0.95 may need >30. Tolerance is |delta E| < tolerance.
+ * Returns SRMECH_ERR_OVERFLOW if not converged within max_iter (caller
+ * gets best-effort E in out_E_rad). */
+srmech_status_t srmech_kepler_solve(double    M_rad,
+                                    double    e,
+                                    double    tolerance,
+                                    uint32_t  max_iter,
+                                    double   *out_E_rad);
+
+/* Fourier-series equation of centre nu - M (true anomaly minus mean
+ * anomaly), principal-term-per-harmonic up to n_terms in eccentricity:
+ *   nu - M = sum_{k=1..n} c_k * e^k * sin(k*M)
+ * with c_k = [2, 5/4, 13/12, 103/96, 1097/960, 1223/960] for k = 1..6
+ * (Brouwer & Clemence 1961 §3.2). Returns SRMECH_ERR_BAD_INPUT for
+ * e < 0 or e >= 1, n_terms == 0, or n_terms > SRMECH_KEPLER_EOC_MAX_TERMS. */
+srmech_status_t srmech_equation_of_centre(double    M_rad,
+                                          double    e,
+                                          uint32_t  n_terms,
+                                          double   *out_delta_rad);
 
 #ifdef __cplusplus
 }
