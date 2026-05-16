@@ -14,6 +14,7 @@
     "expected_num",
     "expected_den",
     "chain_id",
+    "source_published_date",
     "entered_locally_at"
   ],
   "properties": {
@@ -66,6 +67,11 @@
     "source_bishop": {
       "type": "string",
       "description": "Bishop *Foundations of Constructive Analysis* reference for the asymptotic-rate / constructive-analysis stance."
+    },
+    "source_published_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 publication date of the canonical SSoT cited for this row (Apostol *Mathematical Analysis* 2nd ed., 1974). Required by the literature_curated adapter for per-row attestation."
     },
     "entered_locally_at": {
       "type": "string",
