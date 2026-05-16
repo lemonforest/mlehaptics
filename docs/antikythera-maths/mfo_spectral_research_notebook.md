@@ -1057,6 +1057,61 @@ In every case, the procedure operates within an eigenbasis that has no external 
 - Working-note artifact (PR #437 Part VI, live example of the pattern): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
 - Cross-domain instances: Spike #11 (Killing-Yano Casimir from photon-ring residuals); ephemerides Phase 10a (per-body equation-of-center decomposition); chess-spectral eigenbasis-residual workflow; Antikythera H-battery parameter-attribution iteration
 
+#### VII.6.3.1 Precession-fit: kinematic ruled out, bundle-projection reconfiguration candidate
+
+> *"do those polar separation values mean anything if we ask if precession can fit the math?"*
+> — user question, 2026-05-16
+
+A natural follow-on question once §VII.6.2's channel separation is on the table: if the AoE preferred direction at recombination *was* aligned with the present-day HPA / Pierre Auger UHECR-dipole direction, and has drifted to its present apparent location by some precession over cosmic time, what rate would that require — and is that rate consistent with extant constraints? The Auger-AoE polar separation is 73.3°, the AoE-CMB-dipole separation is 18.3° (working-note PR #437 Part V).
+
+**Kinematic precession-rate computation.** For uniform precession of an axis over the cosmic age `t_age ≈ 13.8 Gyr = 4.355 × 10¹⁷ s`, a separation Δθ requires ω_prec ≈ Δθ / t_age:
+
+| Hypothesis | Δθ | ω_prec required | In familiar units |
+|---|---|---|---|
+| AoE-at-recomb = Auger direction now | 73.3° = 1.279 rad | 2.94 × 10⁻¹⁸ rad/s | 5.31°/Gyr |
+| AoE-at-recomb = CMB-dipole direction now | 18.3° = 0.319 rad | 7.33 × 10⁻¹⁹ rad/s | 1.33°/Gyr |
+
+These are slow rotations on human timescales but enormous on cosmological terms — comparable in magnitude to the Hubble rate `H₀ ≈ 2.18 × 10⁻¹⁸ rad/s`.
+
+**Saadeh+ 2016 cosmic-rotation constraint.** Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178` — Bianchi-class general-anisotropy framework fitted against Planck temperature and polarisation data. The vector-mode (vorticity-linked) shear bound is **(σ_V/H)₀ < 4.7 × 10⁻¹¹ at 95% CL**. With H₀ ≈ 2.18 × 10⁻¹⁸ rad/s, this gives a present-epoch cosmic-rotation upper limit `ω_cosmic < 1.02 × 10⁻²⁸ rad/s` — citation verified per `[[feedback_pdf_extraction_citation_discipline]]` via arXiv abstract page (an arXiv-permitted autonomous source per `[[reference_autonomous_validation_tos_landscape]]`).
+
+| Hypothesis | ω_prec required / ω_cosmic bound | Orders of magnitude |
+|---|---|---|
+| 73.3° kinematic fit | ~2.9 × 10¹⁰ | ~10 |
+| 18.3° kinematic fit | ~7.2 × 10⁹ | ~10 |
+
+The kinematic-precession reading is ruled out by approximately ten orders of magnitude against the Saadeh+ 2016 bound. Even allowing for full systematic flexibility in the bound's Bianchi-class assumptions and the H₀ value, the required rate stays nine to eleven orders of magnitude above the constraint. This is not a marginal-tension situation; the kinematic reading is not viable.
+
+**Non-kinematic alternative: substrate-bundle-projection reconfiguration.** Under §VII.4.1.1's Hopf-bundle / spherical-compression reading, the AoE preferred direction is a *bundle-base projection*, not a kinematic frame axis. The substrate's 7D_g + 1D_t internal structure projects onto 3D_s with a preferred direction determined by the substrate's current compression state. Three distinguishing properties:
+
+- No matter is rotating (no kinematic frame ω against which Saadeh+ 2016 measures)
+- No frame is dragging (no Lense-Thirring metric component)
+- The projection geometry from bundle-base to 3D_s reconfigures as ring-down completion advances — the substrate's bundle structure shifts which direction in 3D_s it projects most strongly to, per the spatially-absent encoding stance of `[[user_stance_fiber_as_spatially_absent_encoding]]`
+
+Saadeh+ 2016 bounds matter-frame vorticity (Bianchi-cosmology rotational anisotropy in the visible-matter frame). It does *not* bound substrate-internal bundle-projection reconfiguration, which is by construction not a frame rotation in the matter sector. The constraint and the proposed mechanism live at different ontological levels — the framework being tested in Saadeh+ 2016 is matter-frame anisotropy in 3D_s, the reconfiguration claim is about the 7D_g → 3D_s projection map.
+
+**Ring-down completion frame.** §VII.6.1's f_RD trajectory anchors the rate. From `f_RD ≈ 0.42` at recombination (z ≈ 1090) to `f_RD ≈ 0.949` now, Δf_RD ≈ 0.529. If the full 73.3° AoE-Auger separation is read as bundle-projection shift over this interval, the implied rate is `73.3° / 0.529 ≈ 138.6° per unit f_RD` — a quantity in completion-frame units, not clock-time units, per `[[user_stance_dark_sector_ring_down_age]]`. The 18.3° AoE-CMB-dipole separation is consistent with a residual alignment from when AoE was locked in (recombination-epoch matter-frame still close to that direction in 3D_s).
+
+**Candidate independent prediction.** Bundle-projection reconfiguration is *continuous* in f_RD. CMB temperature anisotropies freeze at the visibility-function peak for temperature (z ≈ 1100 in standard Hu-White treatments); CMB polarisation freezes slightly later, around z ≈ 1090, because polarisation requires Thomson-scattering quadrupole content that builds up through the tail of recombination. The visibility-function FWHM is Δz ≈ 80–100.
+
+Under the bundle-projection-reconfiguration reading, the temperature-anchored AoE direction (frozen at the temperature visibility peak) and the polarisation-anchored AoE direction (frozen at the polarisation visibility peak) are not identical — they are offset by the bundle-projection shift that occurred between the two visibility peaks. Order-of-magnitude estimate using ~138.6°/(Δf_RD) and a temperature-vs-polarisation peak differential of Δz ≈ 10 (giving relative Δf_RD ≈ 0.014): the differential angle is approximately **~2°**, i.e. degrees-not-tens-of-degrees. Small but in principle measurable from a joint temperature+polarisation reconstruction of the AoE direction.
+
+This is a falsifiable prediction the kinematic-precession reading does not make: under kinematic precession, the AoE direction at temperature freezeout and at polarisation freezeout are essentially identical (the matter frame is the matter frame, regardless of which photon population we read it from). Under bundle-projection reconfiguration, they differ by a small but specific angle tied to the ring-down completion rate.
+
+**Status.** Candidate framing only, not endorsed over the standard cosmology + posterior-selection baseline (Bennett et al. 2011) discussed in the working note. The kinematic-precession path is closed by ~10 orders of magnitude against Saadeh+ 2016; the bundle-projection-reconfiguration path is consistent with extant matter-frame constraints by virtue of operating outside their scope, and offers a falsifiable temperature-vs-polarisation differential at the few-degree scale that future joint reconstructions could test. Per `[[feedback_no_lineage_claims_in_notebook]]`, no claim that this resolves the AoE anomaly is being advanced — only that the precession-fit question is mathematically answerable and produces a clean channel separation between two readings, one closed and one open.
+
+**Cross-references:**
+
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — the spatially-absent encoding stance that makes bundle-projection reconfiguration mechanically distinct from frame rotation
+- `[[user_stance_dark_sector_ring_down_age]]` — ring-down completion as the natural time-axis for substrate evolution (f_RD, not clock-time)
+- `[[reference_autonomous_validation_tos_landscape]]` — Saadeh+ 2016 verified via arXiv abstract page (arXiv permitted for autonomous validation)
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation re-verified, brief's `arXiv:1604.01024` was the companion MNRAS framework paper; PRL 117 131302 is `arXiv:1605.07178`
+- §VII.4.1.1 — Hopf-bundle / spherical-compression reading
+- §VII.6.1 — ring-down completion f_RD trajectory (f_RD ≈ 0.42 at recombination → 0.949 now)
+- §VII.6.2 — T_sub decomposition; bundle-projection reconfiguration shifts which compression-state Ω_Λ projects to in 3D_s
+- Working-note PR #437 (Part V for the 18.3° AoE-CMB-dipole anomaly; Part VI for the 73.3° AoE-Auger separation)
+- Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178`, DOI 10.1103/PhysRevLett.117.131302
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
