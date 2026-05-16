@@ -1014,6 +1014,136 @@ def iter_attested_dataset(source_key: str) -> Iterator[MPRRecord]:
     return _iter_records_for_descriptor(descriptor, ndjson)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# ADR-0002 Phase 2 — Operator-chain bridge surfaces (v0.4.1rc5)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _load_catalog_chains(source_key: str) -> List[Any]:
+    """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
+
+    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
+    list when the descriptor declares no chains. Raises
+    ``ChainSpecError`` on a malformed declaration.
+    """
+    descriptors = _descriptors()
+    if source_key not in descriptors:
+        raise KeyError(f"unknown source_key {source_key!r}")
+    descriptor = descriptors[source_key]
+    import sys
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:  # pragma: no cover
+        import tomli as tomllib  # type: ignore
+    raw = descriptor.path.read_bytes()
+    toml_dict = tomllib.loads(raw.decode("utf-8"))
+    # Lazy import to avoid circular bootstrap.
+    from . import compose as _compose
+    return _compose.parse_catalog_chains(toml_dict)
+
+
+def list_catalog_chains(source_key: str) -> Dict[str, Any]:
+    """Enumerate operator chains declared by a catalog.
+
+    Returns a dict with the chain catalog: each chain's ``name``,
+    ``summary``, ``returns``, and ``n_steps``. Useful for tool-schema
+    introspection (auto-derived ToolEntry registration is Phase 3
+    scope).
+
+    Parameters
+    ----------
+    source_key
+        The descriptor's ``[source].key`` string.
+
+    Returns
+    -------
+    dict
+        ``{ok, source_key, n_chains, chains}`` where each chain has
+        ``{name, summary, returns, on_error, n_steps, classes}``
+        (``classes`` is the per-step class_id sequence).
+    """
+    try:
+        chains = _load_catalog_chains(source_key)
+    except KeyError:
+        return {
+            "ok": False,
+            "error": f"unknown source_key {source_key!r}",
+            "available": sorted(_descriptors().keys()),
+        }
+    return {
+        "ok": True,
+        "source_key": source_key,
+        "n_chains": len(chains),
+        "chains": [
+            {
+                "name": c.name,
+                "summary": c.summary,
+                "returns": c.returns,
+                "on_error": c.on_error,
+                "n_steps": len(c.steps),
+                "classes": [s.class_id for s in c.steps],
+            }
+            for c in chains
+        ],
+    }
+
+
+def run_catalog_chain(
+    source_key: str,
+    chain_name: str,
+    *,
+    row_index: Optional[int] = None,
+    inputs: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """Execute a declared chain on a catalog row.
+
+    Parameters
+    ----------
+    source_key
+        The descriptor's ``[source].key`` string.
+    chain_name
+        The chain's ``name`` field.
+    row_index
+        Zero-based index into the catalog's rows for ``@row.*``
+        binding. May be ``None`` if the chain references no
+        ``@row.*`` fields; raises ``RuntimeError`` if a chain that
+        needs a row is invoked with ``row_index=None``.
+    inputs
+        Runtime ``@input.*`` parameters; defaults to empty dict.
+
+    Returns
+    -------
+    Any
+        Output of the final step (chain's ``returns`` type).
+    """
+    chains = _load_catalog_chains(source_key)
+    spec = None
+    for c in chains:
+        if c.name == chain_name:
+            spec = c
+            break
+    if spec is None:
+        raise KeyError(
+            f"catalog {source_key!r} has no chain named {chain_name!r}; "
+            f"available: {[c.name for c in chains]}"
+        )
+    row = None
+    if row_index is not None:
+        ds = get_attested_dataset(source_key,
+                                  limit=row_index + 1, offset=row_index)
+        rows = ds.get("rows", [])
+        if not rows:
+            raise IndexError(
+                f"catalog {source_key!r}: row_index {row_index} out of "
+                f"range (total={ds.get('total', 0)})"
+            )
+        # `row` binding exposes the row's MPR record's `data` block
+        # plus the descriptor's rendering attestation for context.
+        row = dict(rows[0].get("data", {}))
+    from . import compose as _compose
+    return _compose.run_chain(spec, row=row, inputs=inputs or {})
+
+
 __all__ = [
     "list_attested_sources",
     "get_attested_dataset",
@@ -1025,4 +1155,6 @@ __all__ = [
     "get_local_kernel_state",
     "register_attested_root",
     "list_registered_roots",
+    "list_catalog_chains",
+    "run_catalog_chain",
 ]

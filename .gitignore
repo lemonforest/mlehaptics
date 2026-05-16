@@ -122,6 +122,11 @@ skyfield_data/
 # shipped in source.
 docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_native/
 
+# srmech native C build output (same pattern; ships only via wheel /
+# cibuildwheel matrix, not via source-tree commit).
+docs/srmech/python/srmech/_native/
+docs/srmech/build/
+
 # linuxdoom-1.10 build artifacts and CVS metadata (vendored from 1997
 # id Software cvsroot; per-platform .o files should not be tracked).
 docs/antikythera-maths/doom-spectral/source/linuxdoom-1.10/linux/*.o

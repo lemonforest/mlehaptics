@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc4"
-#define SRMECH_VERSION       "0.4.1rc4"
+#define SRMECH_VERSION_PRE   "rc5"
+#define SRMECH_VERSION       "0.4.1rc5"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -278,6 +278,98 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
                                       uint32_t  max_sweeps,
                                       double    tolerance,
                                       double   *out_eigvals);
+
+/* ------------------------------------------------------------------ *
+ * Class L broadening — ADR-0002 Phase 2 (Task #225, srmech v0.4.1rc5).
+ *
+ * Per the ADR-0002 Phase 1 spike finding (TDSE evolution
+ * `ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)` from Sakurai §2.1.5 eq 2.1.40),
+ * Class L's identity broadens from "graph Laplacian" to "dense-matrix
+ * linear algebra including eigendecomposition + matrix-vector
+ * multiplication + elementwise operations". The four ops below extend
+ * the Class L C surface to accommodate complex Hermitian eigen-
+ * decomposition + dense complex matvec + elementwise complex multiply
+ * + array-vectorised transcendentals. Per
+ * [[feedback_no_privileged_primitive_classes]]: dissolve-before-promote;
+ * no Class P promoted. Vocabulary stays at 14 classes A–N.
+ *
+ * Complex numbers travel as interleaved-double pairs (re, im, re, im, ...)
+ * to keep the ctypes surface and embedded-target portability simple
+ * (no <complex.h> across the FFI boundary). Length n complex vector =
+ * 2n doubles; n×n complex matrix = 2*n*n doubles row-major.
+ *
+ * Canonical SSoT per [[feedback_science_is_ssot_not_project]]:
+ *   - Hermitian eigendecomposition: Golub & Van Loan, *Matrix
+ *     Computations* (4th ed., Johns Hopkins, 2013) §8.4 (Jacobi)
+ *     and §8.5 (Hermitian-specific via unitary rotations).
+ *   - Matrix-vector multiplication: Golub & Van Loan §1.1.
+ *   - Elementwise transcendentals: ANSI C99 §7.12 (libm `exp`, `cos`,
+ *     `sin`, `log`).
+ *
+ * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
+ * ------------------------------------------------------------------ */
+
+/* Transcendental op-id enum for srmech_elementwise_transcendental. */
+#define SRMECH_TRANS_EXP 0
+#define SRMECH_TRANS_COS 1
+#define SRMECH_TRANS_SIN 2
+#define SRMECH_TRANS_LOG 3
+
+/* Hermitian eigendecomposition via complex-Jacobi rotations.
+ * Input: H_interleaved is n*n interleaved-doubles (re, im pairs),
+ *   row-major; MUST be Hermitian (caller's responsibility — checked
+ *   only via assert in debug builds).
+ * Output: out_eigvals = n real ascending-sorted eigenvalues;
+ *   out_eigvecs_interleaved = n*n complex unitary matrix V (columns
+ *   are eigenvectors). H = V * diag(eigvals) * V^H.
+ * n is bounded by SRMECH_LAPLACIAN_MAX_NODES (256). Iteration count
+ * bounded by SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS (100); returns
+ * SRMECH_ERR_OVERFLOW on non-convergence.
+ * Pi-free: phase factor for complex-Jacobi computed algebraically
+ * from matrix entries (atan2-free).
+ */
+srmech_status_t srmech_hermitian_eigendecompose(
+    uint32_t       n,
+    const double  *H_interleaved,
+    double        *out_eigvals,
+    double        *out_eigvecs_interleaved);
+
+/* Dense complex matrix-vector multiplication: out = M @ v.
+ * M_interleaved is rows*cols interleaved-double pairs (row-major).
+ * v_interleaved is cols interleaved-double pairs.
+ * out_interleaved is rows interleaved-double pairs (caller-allocated).
+ * rows and cols are bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
+ */
+srmech_status_t srmech_dense_matvec_complex(
+    uint32_t       rows,
+    uint32_t       cols,
+    const double  *M_interleaved,
+    const double  *v_interleaved,
+    double        *out_interleaved);
+
+/* Elementwise complex multiply: out[i] = a[i] * b[i].
+ * a, b, out are n interleaved-double pairs each. Bounded n only by
+ * uint32_t — no stack allocation, so the SRMECH_LAPLACIAN_MAX_NODES
+ * bound does NOT apply.
+ */
+srmech_status_t srmech_elementwise_multiply_complex(
+    uint32_t       n,
+    const double  *a_interleaved,
+    const double  *b_interleaved,
+    double        *out_interleaved);
+
+/* Array-vectorised real transcendental. op_id from
+ * {SRMECH_TRANS_EXP, SRMECH_TRANS_COS, SRMECH_TRANS_SIN, SRMECH_TRANS_LOG}.
+ * Complex exponential `exp_i(x) = exp(i*x)` is NOT shipped in C —
+ * lives in the Python wrapper as two C calls (cos + i*sin over the
+ * real argument). Domain checks: SRMECH_TRANS_LOG returns
+ * SRMECH_ERR_BAD_INPUT if any arr[i] <= 0.0.
+ */
+srmech_status_t srmech_elementwise_transcendental(
+    uint32_t       n,
+    const double  *arr,
+    int            op_id,
+    double        *out);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
