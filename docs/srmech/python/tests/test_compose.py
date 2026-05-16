@@ -237,44 +237,53 @@ def test_parse_catalog_chains_rejects_unsupported_version():
         compose.parse_catalog_chains(toml)
 
 
-def test_parse_catalog_chains_parses_real_cmb_polarisation_descriptor():
-    """The cmb_polarisation_spectra descriptor declares the
-    `acoustic_peak_locations` chain (Phase 1 worked example)."""
-    from pathlib import Path
-    descriptor_path = (
-        Path(__file__).parent.parent / "srmech" / "amsc" / "attested"
-        / "cmb_polarisation_spectra" / "descriptor.toml"
-    )
-    if not descriptor_path.exists():
-        pytest.skip(f"descriptor not present at {descriptor_path}")
-    with open(descriptor_path, "rb") as f:
-        toml = tomllib.load(f)
-    chains = compose.parse_catalog_chains(toml)
-    assert len(chains) >= 1
-    chain_names = {c.name for c in chains}
-    assert "acoustic_peak_locations" in chain_names
+def test_parse_catalog_chains_cosmos_descriptors_have_no_executable_chains():
+    """Cosmos catalog descriptors carry the `[catalog].chain_schema_version`
+    field but ship no executable chain specs at v0.4.1rc7.
 
-
-def test_parse_catalog_chains_parses_all_cosmos_descriptors():
-    """Every Phase 1 cosmos chain (4 chains across 3 catalogs) parses."""
+    The four Phase 1 worked-example chains (cmb_low_ell_maps ×2,
+    cmb_polarisation_spectra ×1, cmb_bispectrum ×1) were removed in
+    v0.4.1rc7 because they referenced primitives that don't yet exist
+    (Class L `spherical_harmonic_decompose`, Class E
+    `sorted_lookup_batch`, Class D `match_filter`, etc.). Per
+    `[[feedback_every_doc_edit_faces_falsification]]` (user direction
+    2026-05-16), the project does not ship chain specs that cannot
+    execute. The chains re-land row-by-row as their underlying
+    primitives ship (see each descriptor's deprecation comment for
+    the Task # tracking).
+    """
     from pathlib import Path
     attested = (Path(__file__).parent.parent / "srmech" / "amsc"
                 / "attested")
     if not attested.exists():
         pytest.skip(f"attested dir not present at {attested}")
-    total_chains = 0
+    cosmos_keys = {
+        "cmb_low_ell_maps",
+        "cmb_polarisation_spectra",
+        "cmb_bispectrum",
+    }
+    seen_keys = set()
     for source_dir in attested.iterdir():
+        if source_dir.name not in cosmos_keys:
+            continue
         descriptor = source_dir / "descriptor.toml"
         if not descriptor.exists():
             continue
         with open(descriptor, "rb") as f:
             toml = tomllib.load(f)
+        # Schema version preserved for forward compatibility
+        assert toml.get("catalog", {}).get("chain_schema_version") == 1, (
+            f"{source_dir.name}: chain_schema_version=1 must be preserved"
+        )
+        # No executable chains at rc7
         chains = compose.parse_catalog_chains(toml)
-        total_chains += len(chains)
-    # Phase 1 landed 4 chains across cmb_low_ell_maps (×2),
-    # cmb_polarisation_spectra (×1), cmb_bispectrum (×1).
-    assert total_chains >= 4, (
-        f"expected ≥4 Phase 1 chains; got {total_chains}"
+        assert len(chains) == 0, (
+            f"{source_dir.name}: expected 0 chains at rc7, got {len(chains)}: "
+            f"{[c.name for c in chains]}"
+        )
+        seen_keys.add(source_dir.name)
+    assert seen_keys == cosmos_keys, (
+        f"expected to inspect all 3 cosmos catalogs; got {seen_keys}"
     )
 
 

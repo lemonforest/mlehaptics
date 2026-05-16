@@ -4,6 +4,29 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc7] - 2026-05-16
+
+**Spike #28 ship — falsification-discipline pre-merge hotfix.** Removes the four Phase 1 worked-example chain specs from the cosmos catalogs because they reference primitives that don't yet exist (their chains list cleanly but fail at activate-time when actually run). Per `[[feedback_every_doc_edit_faces_falsification]]` (user direction 2026-05-16: *"our model has not lied to us yet, so I believe the math still"*) we do not ship chain specs whose underlying primitives can't run — chains that cannot execute are claims that cannot falsify. Surfaced via the rc5 fresh-venv TestPyPI smoke (Class D `match_filter`, Class E `sorted_lookup_extract` + `sorted_lookup_batch`, Class L `spherical_harmonic_decompose` + `extract_preferred_axis`, Class I `angular_separation_axes` all missing). Each chain re-lands as its underlying primitive ships — `spherical_harmonic_decompose` is Spike #26 Phase 2 scope (Task #227); `angular_separation_axes` is Task #234 §11 inventory (`cmb_angular_geometry` sister catalog with rc7+ sin/cos). The DSL design pattern lives in `docs/srmech/adr/0002-phase-1-operator-chain-schema.md` for reference. **rc6 was reserved for PR #447's asymptotic_calculus ship and is not tagged on this branch.**
+
+Numbering note: rc6 is reserved for PR #447 (Spike #28 math addendum + asymptotic_calculus catalog ship), which builds on this branch's rc5 commit and adds `exp_series_truncate` Class N op + first concrete chain-falsification catalog. rc7 is this hotfix on PR #439. After PR #439 merges, PR #447 reconciles + ships its rc6 commit as a follow-on rebase (renumbered to rc8 if required by the autotag workflow's monotone-version gate; the underlying commit hash stays the same).
+
+### Changed — cosmos catalog chain specs removed
+
+- `srmech/amsc/attested/cmb_low_ell_maps/descriptor.toml`: removed `multipole_vector_axis` (LLDA) and `t_vs_e_axis_differential` (LLLLI) chain specs.
+- `srmech/amsc/attested/cmb_polarisation_spectra/descriptor.toml`: removed `acoustic_peak_locations` (CDE) chain spec.
+- `srmech/amsc/attested/cmb_bispectrum/descriptor.toml`: removed `f_NL_template_combination` (ENA) chain spec.
+- All three descriptors retain `[catalog].chain_schema_version = 1` so re-adding chains later does not require reintroducing the `[catalog]` section. Inline deprecation comments document what was removed and which Task # tracks the re-add.
+
+### Behaviour impact
+
+- `srmech.amsc.catalog.list_catalog_chains(<cosmos_catalog>)` now returns `{"ok": True, "source_key": ..., "n_chains": 0, "chains": []}` for each of the three affected catalogs. Pre-rc7 it returned `n_chains=1` or `n_chains=2` but `run_catalog_chain` would then raise `ChainSpecError` at activate time. The rc7 behaviour is strictly more honest: empty chain list reflects empty executable surface.
+- All other rc5 functionality intact: cosmos catalog data rows + chain schema infrastructure + composition engine + Class L broadening + tool_schema coverage.
+- `cmb_lensing` catalog never had chain specs and is unaffected.
+
+### Test
+
+No new test pinning needed — `srmech.amsc.compose` engine's existing parse-time / activate-time validation is exactly what surfaced the gap in rc5 smoke. Future cosmos chains re-added in rc7+ will inherit the same validation discipline.
+
 ## [0.4.1rc5] - 2026-05-16
 
 **ADR-0002 Phase 2 — Class L broadening + composition engine + notebook updates.** Implements the Phase 1 spike's dissolve-into-Class-L proposal per `[[feedback_no_privileged_primitive_classes]]`. Class L's identity broadens from "graph Laplacian" to "dense-matrix linear algebra including eigendecomposition + matrix-vector multiplication + elementwise operations"; the graph-Laplacian-specific ops become specialisations. Adds the operator-chain composition engine (`srmech.amsc.compose`) implementing schema v1 from the Phase 1 ADR doc, with linear pipeline execution + 4-namespace reference DSL (`@row.* / @input.* / @step[N].output / @catalog.*`) + chain-level and per-step error policy. Engine integration with the catalog bridge: `list_catalog_chains(source_key)` and `run_catalog_chain(source_key, chain_name, row_index, inputs)`. **Vocabulary stays at 14 classes A–N; no Class P promoted.**
