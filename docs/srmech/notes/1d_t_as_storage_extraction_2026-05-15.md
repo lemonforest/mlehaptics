@@ -1,5 +1,7 @@
 # 1D_t as storage/extraction — the LoE-readout operation
 
+> **REFINEMENT — 2026-05-15 same-day (companion file: `1d_collapse_to_loe_identity_2026-05-15.md`).** The user's same-day sharpening *"1D actually just collapses to = Laws of Everything not an action"* refined the **ontological headline** of this file: 1D_t IS the Laws of Everything (compressed-cascade content; identity), not the storage/extraction operation itself. Class C ∘ Class M is the **substrate-coupling operation** that uncompresses LoE-content into event-stream — but it is NOT what 1D_t IS. The **mathematical commitments below all stand at the operation level**; what changed is the ontological framing of the dimension itself. Read this file as the operation-level companion to the identity-level treatment in `1d_collapse_to_loe_identity_2026-05-15.md`. Both stand; they describe different ontological levels. See `[[user_stance_1d_collapse_to_loe_identity_not_action]]` and `[[user_stance_identity_not_implementation_discipline]]`.
+
 **Date:** 2026-05-15
 **Concertmaster research artifact.** Conductor-initiated investigation of the user's 2026-05-15 conjecture:
 
