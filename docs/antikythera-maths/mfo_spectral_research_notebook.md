@@ -994,7 +994,20 @@ This is **directly tractable with antikythera-spectral's existing tooling** — 
 - Sister shadow stances: `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_fiber_as_spatially_absent_encoding]]`, `[[user_stance_pi_as_projection]]`.
 - Antikythera precedent for cascade tractability: PR #416 §11.6.17 algebraic-uniqueness synthesis (bronze pin-slot algebra = Kepler equation-of-centre).
 
-### VIII.8 Broken-D rederivation closure test — Class O located (Spike #24 bonus 8)
+### VIII.8 Broken-D rederivation closure test — signed-Laplacian operation located (Spike #24 bonus 8)
+
+> **RESOLUTION (2026-05-16) — vocabulary stays at 14 classes A–N.**
+>
+> The "Class O" framing used throughout this section below was the *provisional* label for the signed-metric / Wick-rotation operation located by this bonus. Per user direction 2026-05-16 (*"it honestly feels like it makes more sense that it does belong with friends in L, because nothing else so far has been privileged"*) and per the design principle in [[feedback_no_privileged_primitive_classes]], the operation is **dissolved into Class L as a signed-Laplacian-variant sub-operation**. The math is the same; what changed is the classification:
+>
+> ```
+> L_Lorentzian = +L_spatial − L_temporal
+>              ≡ apply Class L with one factor's edges sign-flipped
+> ```
+>
+> **Implementation guidance for future agents:** when you encounter "Class O" in the section below, treat it as **a Class L sub-operation** (signed-Laplacian variant). Do NOT create a `Class O` C source file, a `srmech.amsc.signed_metric` module, or a 15th-class entry in the vocabulary roster. The signed-Laplacian variant will land as a Class L operation in a future Phase C1 rc (when Phase C2 cascade-composition work calls for it). See [[project_class_o_signed_metric_composition]] (resolution at top) and [[feedback_no_privileged_primitive_classes]] for the design rationale.
+>
+> The section below preserves the original bonus-8 research narrative — including the language "Class O candidate" / "Class O located" — for historical record of how the operation was discovered. The dissolution is the authoritative current state.
 
 The user posed the closure question (2026-05-15): *"if we can do this, then there are no more classes. if we cannot, this is the place."* The test was a direct rederivation: starting from the cascade-composition built up the bonus-7 way, project down to 4D Lorentzian space-time using **only the 14 primitive classes A–N**. The PR #422 deliverable is the verdict.
 
@@ -1035,9 +1048,9 @@ The math of stage B is well-understood from QFT. The novelty is recognising it a
 **Cumulative arc closure.** Eight bonus probes (vdW / tactical-choice / SHA-256 / NN-output / MFO 3+7+1 / RNG / fractal-shadow / **broken-D rederivation**):
 
 - Seven probes consolidated within the 14-class vocabulary
-- Bonus 8 located precisely one missing operation (Class O)
+- Bonus 8 located precisely one missing operation (the signed-Laplacian variant — provisionally labelled "Class O" in the original narrative; **dissolved into Class L per the resolution at the top of this section, 2026-05-16**)
 
-The Spike #24 vocabulary is **empirically closed at 14 classes A–N for cascade-composition produces-from** AND **empirically incomplete at the same 14 classes for cascade-composition reaches-to-Lorentz-signature**. Class O closes the gap with a single algebraically-minimal operation.
+The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The signed-Laplacian variant lives as a Class L sub-operation that closes the gap with a single algebraically-minimal operation, without expanding the vocabulary.
 
 **Files / cross-references**:
 
