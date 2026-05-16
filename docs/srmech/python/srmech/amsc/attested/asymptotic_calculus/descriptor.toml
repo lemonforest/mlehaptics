@@ -122,3 +122,56 @@ on_error = "raise"
 class = "N"
 op = "exp_series_truncate"
 args = { numerator = "@row.x_num", denominator = "@row.x_den", num_terms = "@row.num_terms" }
+
+# ── rc11: trig + log Taylor series chains ──
+#
+# Four single-step chains added per Task #234 §11 inventory and
+# user direction 2026-05-16 (Milestone #2, Phase 3B). All four are
+# Class N rational-arithmetic ops with closed-form Lagrange-remainder
+# bounds; Python bignum-capable. C parity surface deferred to rc12
+# per scope discipline (the four ops together would significantly
+# expand srmech_rational.c; staged ship preferred over monolithic).
+
+[[catalog.operator_chain]]
+name = "sin_series_truncate"
+summary = "Sin Taylor partial sum sin(p/q) = sum_{k=0..N} (-1)^k (p/q)^(2k+1)/(2k+1)! as exact rational via Class N rational + Class J integer factorial chain composition. Anchors sin row family in asymptotic_calculus."
+returns = "tuple[int, int]  # (out_num, out_den) of sin(p/q) reduced"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "sin_series_truncate"
+args = { numerator = "@row.x_num", denominator = "@row.x_den", num_terms = "@row.num_terms" }
+
+[[catalog.operator_chain]]
+name = "cos_series_truncate"
+summary = "Cos Taylor partial sum cos(p/q) = sum_{k=0..N} (-1)^k (p/q)^(2k)/(2k)! as exact rational. Anchors cos row family in asymptotic_calculus."
+returns = "tuple[int, int]  # (out_num, out_den) of cos(p/q) reduced"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "cos_series_truncate"
+args = { numerator = "@row.x_num", denominator = "@row.x_den", num_terms = "@row.num_terms" }
+
+[[catalog.operator_chain]]
+name = "log1p_series_truncate"
+summary = "log(1+x) Taylor partial sum sum_{k=1..N} (-1)^(k+1) x^k / k for |x|<1 as exact rational. Anchors log1p row family in asymptotic_calculus."
+returns = "tuple[int, int]  # (out_num, out_den) of log(1+p/q) reduced"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "log1p_series_truncate"
+args = { numerator = "@row.x_num", denominator = "@row.x_den", num_terms = "@row.num_terms" }
+
+[[catalog.operator_chain]]
+name = "atan_series_truncate"
+summary = "atan(x) Taylor partial sum sum_{k=0..N} (-1)^k x^(2k+1)/(2k+1) for |x|<=1 as exact rational. Anchors atan row family in asymptotic_calculus."
+returns = "tuple[int, int]  # (out_num, out_den) of atan(p/q) reduced"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "atan_series_truncate"
+args = { numerator = "@row.x_num", denominator = "@row.x_den", num_terms = "@row.num_terms" }

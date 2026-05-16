@@ -888,6 +888,42 @@ def _register_primitive_class_tools() -> None:
                         P("exp", "int", True, "non-negative integer exponent")),
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
+        ToolEntry(
+            name="srmech.amsc.rational.sin_series_truncate", owner="srmech",
+            category="rational",
+            summary="Sin Taylor partial sum sin(p/q) = Σ (-1)^k (p/q)^(2k+1) / (2k+1)! as exact rational. Class N + Class J + Class I (sign) composition; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of x = p/q"),
+                        P("denominator", "int", True, "q of x = p/q (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.cos_series_truncate", owner="srmech",
+            category="rational",
+            summary="Cos Taylor partial sum cos(p/q) = Σ (-1)^k (p/q)^(2k) / (2k)! as exact rational. Class N + Class J + Class I (sign) composition; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of x = p/q"),
+                        P("denominator", "int", True, "q of x = p/q (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.log1p_series_truncate", owner="srmech",
+            category="rational",
+            summary="log(1+x) Taylor partial sum Σ (-1)^(k+1) x^k / k for |x|<1 as exact rational. Class N + Class I composition; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| < 1 for convergence)"),
+                        P("denominator", "int", True, "q of x = p/q (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.atan_series_truncate", owner="srmech",
+            category="rational",
+            summary="atan(x) Taylor partial sum Σ (-1)^k x^(2k+1) / (2k+1) for |x|<=1 as exact rational. Class N + Class I composition; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| <= 1 typical)"),
+                        P("denominator", "int", True, "q of x = p/q (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
+            returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

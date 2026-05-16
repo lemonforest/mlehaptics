@@ -4,6 +4,57 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc11] - 2026-05-16
+
+**Task #234 Phase 3B — trig + log Taylor primitives (Milestone #2 second ship).** Per user direction 2026-05-16 ("number 2 and 3 in the same milestone, do sequentially and test with testpypi first"). Phase 3A shipped `cosmos_validation` catalog as rc10; Phase 3B adds 4 trig/log Taylor partial-sum primitives + chain specs + rows to the `asymptotic_calculus` catalog. Closes Task #234 §11 inventory's transcendental row.
+
+### Added — 4 new Class N Taylor-series primitives (Python)
+
+- `srmech.amsc.rational.sin_series_truncate(num, den, num_terms) -> (out_num, out_den)` — sin(p/q) = Σ (-1)^k (p/q)^(2k+1) / (2k+1)!
+- `srmech.amsc.rational.cos_series_truncate(num, den, num_terms) -> (out_num, out_den)` — cos(p/q) = Σ (-1)^k (p/q)^(2k) / (2k)!
+- `srmech.amsc.rational.log1p_series_truncate(num, den, num_terms) -> (out_num, out_den)` — log(1+p/q) = Σ_{k=1} (-1)^(k+1) (p/q)^k / k (caller responsibility: |p/q| < 1 for convergence)
+- `srmech.amsc.rational.atan_series_truncate(num, den, num_terms) -> (out_num, out_den)` — atan(p/q) = Σ (-1)^k (p/q)^(2k+1) / (2k+1) (caller responsibility: |p/q| ≤ 1)
+
+Pure Python bignum-capable; uses common-denominator integer accumulation with periodic gcd reduction. Bounded `num_terms` (50 for trig; 64 for log/atan) so the per-row time stays acceptable.
+
+### Deferred — C parity for trig primitives (rc12 candidate)
+
+Per `[[feedback_no_binding_layer_carveout]]` every Class N op earns a C surface. rc11 ships Python-only because the 4 trig primitives use bignum-accumulating Taylor series whose intermediates exceed u64 for typical (x, N) inputs; the C path would need either (a) tight num_terms bounds and OVERFLOW returns on most catalog rows, or (b) multi-precision integer infrastructure in C. Honest scope decision: ship Python-only at rc11; add C parity in rc12 with a documented narrow-bound case (matching what `srmech_exp_series_truncate` already does at u64 limits). Tracked as a follow-on task. The rc8 exp_series_truncate C surface remains the canonical example of C-standalone discipline; rc11 adds 4 surfaces to the same C parity work queue.
+
+### Added — `asymptotic_calculus/descriptor.toml` — 4 new chain specs
+
+- `sin_series_truncate` chain — single Class N step
+- `cos_series_truncate` chain
+- `log1p_series_truncate` chain
+- `atan_series_truncate` chain
+
+Each chain takes `(@row.x_num, @row.x_den, @row.num_terms)` and returns `(out_num, out_den)` exact rational. Row schema's `kind` enum widened from `["exp"]` to `["exp", "sin", "cos", "log1p", "atan"]`.
+
+### Added — 16 new self-validating rows in row.ndjson
+
+Per-op rows covering canonical inputs:
+- sin: x=0, 1/6 (~30°), 1/4 (~14°), 1 rad
+- cos: x=0, 1/6, 1/4, 1 rad
+- log1p: x=0, 1/10, 1/4, -1/4
+- atan: x=0, 1/4, 1/2, 1 (~π/4)
+
+Each row's `(expected_num, expected_den)` computed bit-exactly by running the new Python op at catalog-author time.
+
+### Test count
+
+- 482 → 484 passed (full srmech suite); `tests/test_asymptotic_calculus_catalog.py::test_exp_series_truncate_chain_falsification_all_rows` expanded to dispatch by `kind` and bit-exact-compare each row across all 5 chain types
+- tool_schema ToolEntry coverage ratchet bumps by 4
+
+### Numbering note
+
+This is the second rc in Milestone #2. Phase 3A (cosmos_validation catalog, rc10) shipped first per user direction "do sequentially". rc11 closes the trig-primitive portion of Task #234 §11. Future rc12 ships C parity for the 4 trig primitives + adds calculus operators (forward_difference, riemann_sum) per Task #234 §11 inventory.
+
+### Anchored in
+
+- `[[feedback_every_doc_edit_faces_falsification]]` — discipline
+- Task #234 §11 inventory — scope (sin / cos / tan / log / atan / sinh / cosh / Bessel / Γ / ζ / forward_difference / riemann_sum)
+- User direction 2026-05-16 Milestone #2 — "do sequentially and test with testpypi first"
+
 ## [0.4.1rc10] - 2026-05-16
 
 **Task #234 Phase 3A — `cosmos_validation` catalog ship (Spike #27 / PR #437 Q6.1 falsification infrastructure).** Per user direction 2026-05-16 (Milestone #2: "Task #234 — asymptotic_calculus expansion: cosmos_validation + trig primitives"). First instance of the milestone's pattern: a chain-falsifiable cosmology catalog using only existing Class N rational primitives plus 4 new rational arithmetic ops with Python + C parity.
