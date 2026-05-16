@@ -148,9 +148,11 @@ def _fallback_dense_adjacency(
     A = np.zeros((n, n), dtype=np.float64)
     for u, v, w in zip(edges_u, edges_v, weights):
         u_i, v_i = int(u), int(v)
+        # Both writes always execute; for self-loops (u == v) they hit
+        # the same cell and naturally accumulate 2*w on the diagonal
+        # (standard graph-theory convention; matches the C path).
         A[u_i, v_i] += float(w)
-        if u_i != v_i:
-            A[v_i, u_i] += float(w)
+        A[v_i, u_i] += float(w)
     return A
 
 
