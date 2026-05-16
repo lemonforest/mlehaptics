@@ -102,15 +102,26 @@ precedent that markets microcontroller-readiness on PyPI. As of
 (streaming iterator via NDJSON line tokenisation)**; **Task #217
 Phase C1 added Class I (cyclic-group / modular arithmetic) in
 v0.4.0rc1, Class L (graph Laplacian; pi-free dense + Jacobi
-eigvals, n ≤ 256 native bound) in v0.4.0rc2, and Class J (prime-
+eigvals, n ≤ 256 native bound) in v0.4.0rc2, Class J (prime-
 factorisation / period; trial-division primality + factorisation +
-multiplicative order) in v0.4.0rc3**; the remaining classes
-B/D/E/F/G/H/K/M/N (and Class O if accepted per Spike
-#24 bonus 8) ship in subsequent rc additions under 0.4.0rcN per
-`[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0`
-ship at Phase C1 close. Each class follows the same ratchet —
-parity test + JPL Power-of-Ten audit + cibuildwheel matrix
-update + TestPyPI rc verification per
+multiplicative order) in v0.4.0rc3, and Classes B (TLV byte-canonical
+form) + G (byte-pattern search) + H (self-introspection,
+acknowledgment of existing srmech_version / srmech_abi_version) in
+v0.4.0rc4 as a lightweight-trio bundle**; the remaining classes
+D/E/F/K/M/N ship in subsequent rc additions under 0.4.0rcN per
+`[[feedback_rc_stacking_versioning]]`, with the clean `0.4.0` ship
+at Phase C1 close.
+
+**Class O is NOT a separate class** (resolution 2026-05-16) — the
+signed-metric / Wick-rotation operation located by Spike #24
+bonus 8 and narrowed by bonus 9 was **dissolved into Class L
+as a signed-Laplacian-variant sub-operation** per
+`[[feedback_no_privileged_primitive_classes]]`. Future Class L rcs
+will add the signed-Laplacian op when Phase C2 cascade-composition
+work calls for it. Vocabulary stays at 14 classes A–N.
+
+Each class follows the same ratchet — parity test + JPL Power-of-Ten
+audit + cibuildwheel matrix update + TestPyPI rc verification per
 `[[feedback_always_rc_first_for_downstream_publishes]]`.
 
 **Hard dependencies have evolved with Phase C1:**
