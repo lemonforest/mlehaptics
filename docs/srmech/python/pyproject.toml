@@ -30,7 +30,7 @@ version = "0.4.0"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject-pure.toml`.
-description = "Stored-Relationship Mechanism research package: home of the Attested Multi-Source Collector/Catalog (AMSC) framework — Mathematical Provenance Record v1 on-disk format, descriptor TOML loader, six adapters (html/json/csv/netcdf/geotiff/literature), universal catalog bridge with register_attested_root cross-package overlay, and schema-gap-driven trigger. Native C dispatch (SHA-256 + NDJSON line reader) with pure-Python fallback for Pyodide / WASM."
+description = "Stored-Relationship Mechanism research package. 14-class primitive vocabulary (content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational, equation-of-centre/Kepler, HDC) in native C + Python; canonical QM/QFT/SM operations layer (Schrödinger, Dirac, Yang-Mills, Standard Model); AMSC framework with Mathematical Provenance Record v1 on-disk format and universal catalog bridge."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
