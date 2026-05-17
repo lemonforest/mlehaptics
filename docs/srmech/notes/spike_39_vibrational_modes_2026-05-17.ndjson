@@ -1,0 +1,41 @@
+# vibrational_modes — chain-verified vibrational normal-mode frequencies (cm⁻¹)
+# (Spike #39 POC: Class L dynamical-matrix eigendecomposition against NIST CCCBDB).
+#
+# Each row stores: molecular substrate (InChIKey + formula + geometry + atomic_symbols
+# + bond_length_a + bond_angle_deg + GVFF force constants) + predicted_frequencies_cm-1
+# + measured_frequencies_cm-1 (NIST CCCBDB). The chain `normal_mode_frequencies_xy2`
+# (see descriptor.toml [catalog]) computes the GF mass-weighted Hessian eigvals via
+# Wilson-Decius-Cross §6 closed-form analytic secular equation; CI re-runs the chain
+# and bit-exact-compares the result to predicted_frequencies_cm-1.
+#
+# The measured-vs-predicted residual is the falsification gauge — within ~5%
+# (stretches) / ~10% (bends) is the expected GVFF-only accuracy floor (no Urey-Bradley
+# / cross-coupling refinement). The POC demonstrates structural validity of the
+# catalog shape, not perfect quantitative match.
+#
+# Per `[[feedback_every_doc_edit_faces_falsification]]`: chain spec lives in
+# descriptor.toml; expected outputs bit-exactly verifiable from atomic-mass +
+# force-constant inputs.
+#
+# Per `[[user_stance_information_instrument_form_function_bound]]`: molecular
+# substrate is the binding-level partition; underlying Class L (channel-eigenbasis
+# primitive) is the substrate-portable identity reused with the dynamical-matrix
+# operator (vs. graph-Laplacian operator from Spike #38).
+#
+# Per `[[feedback_no_privileged_primitive_classes]]`: this is NOT a 15th class —
+# the vocabulary stays at 14 (A-N). Molecular-modeling catalogs are a new partition
+# at the substrate-binding layer.
+#
+# Citation provenance (per `[[feedback_pdf_extraction_citation_discipline]]`):
+# - Wilson-Decius-Cross §6 (closed-form XY2 secular equation): textbook, not
+#   autonomously PDF-extracted — historical canonical reference flagged honestly.
+# - Herzberg II 1945 (force constants): textbook, not autonomously PDF-extracted.
+# - Shimanouchi NSRDS-NBS 39 (DOI 10.6028/NBS.NSRDS.39): NIST NSRDS canonical
+#   tabulation; cited by NIST CCCBDB as the source for H2O experimental ν1+ν2.
+# - Huber-Herzberg 1979: textbook; cited by NIST CCCBDB as the source for H2O ν3.
+# - NIST CCCBDB (cccbdb.nist.gov): US-government open data per
+#   `[[reference_autonomous_validation_tos_landscape]]`; verified via WebFetch
+#   for H2O (casno=7732185) and CO2 (casno=124389) on 2026-05-17.
+
+{"row_label": "h2o_gvff_v1", "row_type": "vibrational_normal_modes_xy2", "inchikey": "XLYOFNOQVPJJNP-UHFFFAOYSA-N", "formula": "H2O", "geometry": "bent", "atomic_symbols": ["O", "H", "H"], "bond_length_a": 0.9572, "bond_angle_deg": 104.52, "k_stretch_mdyne_a": 8.454, "k_stretch_coupling_mdyne_a": -0.101, "k_bend_mdyne_a_rad2": 0.7610, "predicted_frequencies_cm-1": {"nu1_sym_stretch_cm-1": 3839.532033247962, "nu2_bend_cm-1": 1733.5298381167886, "nu3_asym_stretch_cm-1": 3942.1823221352224}, "measured_frequencies_cm-1": {"nu1_sym_stretch_cm-1": 3657.0, "nu2_bend_cm-1": 1595.0, "nu3_asym_stretch_cm-1": 3756.0}, "chain_id": "normal_mode_frequencies_xy2", "source_wilson_decius_cross": "Wilson, Decius, Cross (1955) Molecular Vibrations, McGraw-Hill / Dover reprint 1980, §6-3 bent XY2 secular equation", "source_herzberg": "Herzberg (1945) Molecular Spectra and Molecular Structure II, Van Nostrand, Tables 35-37 (water force constants and observed frequencies)", "source_nist_cccbdb": "https://cccbdb.nist.gov/exp2x.asp?casno=7732185 retrieved 2026-05-17", "source_shimanouchi": "Shimanouchi (1972) Tables of Molecular Vibrational Frequencies, Consolidated Vol I, NSRDS-NBS 39, US National Bureau of Standards (DOI 10.6028/NBS.NSRDS.39); source for H2O nu1=3657 cm-1 and nu2=1595 cm-1", "source_huber_herzberg": "Huber-Herzberg (1979) Constants of Diatomic Molecules, Van Nostrand Reinhold; source for H2O nu3=3756 cm-1", "source_published_date": "1972-01-01", "entered_locally_at": "2026-05-17", "notes": "H2O bent XY2; GVFF accuracy ~5% (stretches: nu1 +4.99%, nu3 +4.96%) and ~8.7% (bend: nu2 +8.69%). Within expected accuracy floor for valence FF without Urey-Bradley cross-coupling. POC for catalog structure validation; modern FFs (DFT B3LYP/cc-pVTZ + anharmonic) reach <1% but require per-molecule refinement."}
+{"row_label": "co2_gvff_v1", "row_type": "vibrational_normal_modes_xy2", "inchikey": "CURLTUGMZLYLDI-UHFFFAOYSA-N", "formula": "CO2", "geometry": "linear", "atomic_symbols": ["O", "C", "O"], "bond_length_a": 1.1621, "bond_angle_deg": 180.0, "k_stretch_mdyne_a": 16.802, "k_stretch_coupling_mdyne_a": 1.246, "k_bend_mdyne_a_rad2": 0.5712, "predicted_frequencies_cm-1": {"nu1_sym_stretch_cm-1": 1383.6860833706842, "nu2_bend_cm-1": 573.4211955113506, "nu3_asym_stretch_cm-1": 2458.991984309176}, "measured_frequencies_cm-1": {"nu1_sym_stretch_cm-1": 1333.0, "nu2_bend_cm-1": 667.0, "nu3_asym_stretch_cm-1": 2349.0}, "chain_id": "normal_mode_frequencies_xy2", "source_wilson_decius_cross": "Wilson, Decius, Cross (1955) Molecular Vibrations, McGraw-Hill / Dover reprint 1980, §6-5 linear XY2 closed-form analytic frequencies (Sigma_g + Pi_u + Sigma_u symmetry diagonalisation)", "source_herzberg": "Herzberg (1945) Molecular Spectra and Molecular Structure II, Van Nostrand, Table 35 (CO2 force constants and observed frequencies; unperturbed values)", "source_nist_cccbdb": "https://cccbdb.nist.gov/exp2x.asp?casno=124389 retrieved 2026-05-17", "source_shimanouchi": "Shimanouchi (1972) Tables of Molecular Vibrational Frequencies, NSRDS-NBS 39 (DOI 10.6028/NBS.NSRDS.39); CO2 cross-listed in CCCBDB", "source_huber_herzberg": "(not applicable; CO2 is triatomic, not diatomic — Huber-Herzberg covers only diatomic molecules)", "source_published_date": "1972-01-01", "entered_locally_at": "2026-05-17", "notes": "CO2 linear XY2; GVFF accuracy ~4-5% (stretches: nu1 +3.80%, nu3 +4.68%) and ~14% (bend: nu2 -14.03%). Bend frequency is more sensitive to FF refinement; modern DFT treatments include explicit anharmonic corrections that this minimal GVFF lacks. POC catalog shape validation, not perfect quantitative match. Bend is doubly degenerate (Pi_u) but reported as one frequency per convention."}

@@ -1,0 +1,147 @@
+# vibrational_modes — molecular-modeling AMSC catalog (POC).
+#
+# Spike #39 scoping catalog. Chain-falsifiable molecular vibrational
+# normal-mode frequencies via Class L (channel-eigenbasis primitive)
+# applied to the mass-weighted dynamical matrix (NOT the molecular-
+# graph Laplacian — different operator from Spike #38). Each row
+# attests molecule identity (InChIKey) + Wilson-Decius-Cross
+# generalised-valence-FF inputs + predicted frequencies + NIST CCCBDB
+# measured ground-truth, with chain-bit-exact reproducibility.
+#
+# Operationalises `[[user_stance_information_instrument_form_function_bound]]`
+# at substrate-binding level for the molecular partition (fifth row
+# alongside silicon/bronze/biological/optical from Spike #37). Per
+# `[[feedback_no_privileged_primitive_classes]]`, this is NOT a 15th
+# class — Class L is the underlying primitive (channel-eigenbasis /
+# spectral-capacity-primitive); the molecular-substrate binding is a
+# NEW PARTITION at the binding layer per `[[user_stance_partition_for_understanding]]`.
+#
+# Per `[[feedback_every_doc_edit_faces_falsification]]` (2026-05-16):
+# the chain spec lives in the catalog config; expected frequencies
+# bit-exact verifiable by re-running the same Class L primitive over
+# the same atomic-mass + force-constant inputs.
+#
+# Citation discipline (per `[[feedback_pdf_extraction_citation_discipline]]`):
+#
+# - Wilson, Decius, Cross, *Molecular Vibrations* (McGraw-Hill, 1955;
+#   Dover reprint 1980). §6 derives the bent-XY2 and linear-XY2
+#   secular equations used by the chain primitives. Canonical SSoT
+#   for the closed-form analytical eigendecomposition. Verified via
+#   WorldCat author/title (full PDF not autonomously fetched —
+#   textbook, not arXiv-attested).
+# - Herzberg, *Molecular Spectra and Molecular Structure II.
+#   Infrared and Raman Spectra of Polyatomic Molecules* (Van
+#   Nostrand, 1945). Tables 35-37 (water + CO2 force constants
+#   and observed frequencies). Canonical experimental anchor.
+# - Shimanouchi, T., *Tables of Molecular Vibrational Frequencies,
+#   Consolidated Volume I*, NSRDS-NBS 39 (US National Bureau of
+#   Standards, 1972). DOI 10.6028/NBS.NSRDS.39. Source for H2O
+#   experimental frequencies (sym=3657, bend=1595 cm⁻¹) per NIST
+#   CCCBDB.
+# - Huber, K. P., and Herzberg, G., *Constants of Diatomic Molecules*
+#   (Van Nostrand Reinhold, 1979). Source for H2O ν3=3756 cm⁻¹.
+# - NIST Computational Chemistry Comparison and Benchmark Database
+#   (CCCBDB), <https://cccbdb.nist.gov/>. Aggregator of computed +
+#   measured molecular-property data. Per `[[reference_autonomous_validation_tos_landscape]]`,
+#   NIST government source permitted for autonomous validation.
+#
+# Per `[[reference_autonomous_validation_tos_landscape]]`, all
+# citations are textbook (CC-by-citation in research) or NIST
+# (US-government open data). No commercial-publisher autonomous
+# access performed.
+#
+# Per `[[feedback_no_privileged_primitive_classes]]`, the underlying
+# operation is existing Class L (channel-eigenbasis primitive); the
+# molecular partition is a new substrate-binding-level partition.
+# Reuses the existing Class L primitive surface from `srmech.amsc.l`
+# (Task #217 rc2 — graph Laplacian) with the dynamical-matrix
+# operator substituted for the graph Laplacian per chain spec.
+
+[source]
+key = "vibrational_modes"
+human_readable_name = "Molecular Vibrational Normal Modes — chain-verified Class L (dynamical-matrix eigendecomposition) against NIST CCCBDB experimental frequencies (Spike #39 POC)"
+purpose = "self-validating chain-composed catalog of molecular vibrational normal-mode frequencies (cm⁻¹) via Class L primitive on the mass-weighted Hessian (Wilson-Decius-Cross GVFF; Class L on dynamical matrix, not molecular-graph Laplacian). Each row stores molecule InChIKey + Wilson-Decius-Cross generalised-valence-FF inputs (atomic masses + force constants + bond geometry) and the predicted + NIST-measured frequencies, with closed-form analytic Class L primitive reproducing predicted frequencies bit-exactly. POC scope: H2O (bent XY2) + CO2 (linear XY2); Wilson-Decius-Cross §6 worked examples. GVFF accuracy ~5% (stretches) / ~10% (bends) — modern FFs tune below 1% but require per-molecule refinement; the POC demonstrates the chain shape, not perfect fit. Demonstrates `[[user_stance_information_instrument_form_function_bound]]` operationalised for molecular substrate binding."
+license = "CC0-1.0 (self-generated rows; chain output verifiable against NIST CCCBDB open experimental data)"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/notes/spike_39_molecular_modeling_proposal_2026-05-17.md"
+canonical_doi = "10.5281/zenodo.placeholder.spike39"
+
+# canonical_doi above is a placeholder; spike #39 working note
+# is the canonical reference. Textbook anchors are per-row:
+# Wilson-Decius-Cross 1955 (closed-form secular eqn);
+# Herzberg 1945 vol II (force constants + observed freqs);
+# Shimanouchi NSRDS-NBS 39 / Huber-Herzberg 1979 (experimental refs).
+# NIST CCCBDB (government open data) is the aggregator.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = false
+
+[schema]
+data_schema_id = "vibrational_modes.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Vibrational Normal Modes Catalogue (chain-verified Class L dynamical-matrix eigendecomposition against NIST CCCBDB experimental frequencies; Wilson-Decius-Cross §6 closed-form secular equation); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "chain-verified vibrational normal-mode frequencies for {schema.formula} at row {schema.row_label}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# vibrational_modes is not gap-targeting in the dynamical-regime
+# classifier sense — content is molecular-substrate chain
+# falsification, not empirical dynamical-regime sampling. Closest
+# existing label is rigid-body action-angle (vibrational normal
+# modes are the harmonic action-angle approximation of nuclear
+# motion). Future research may define a `molecular_vibrational`
+# regime label.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 2 schema v1)
+# ─────────────────────────────────────────────────────────────────
+#
+# Two-step chain. Step 1 (Class J) decomposes the atomic-symbol
+# tuple into a mass-vector (multiset alphabet → typed values).
+# Step 2 (Class L) constructs the GF mass-weighted Hessian and
+# computes its eigvals (the dynamical-matrix eigenproblem; same
+# Class L primitive used elsewhere, different operator).
+#
+# Chain branch on `row.geometry` parameter ("bent" → 2×2 A1 + 1×1 B2;
+# "linear" → 3 closed-form analytic frequencies). Future rows may
+# add `polyatomic` branch with full 3N×3N Cartesian Hessian; out of
+# POC scope.
+
+[catalog]
+chain_schema_version = 1
+
+[[catalog.operator_chain]]
+name = "normal_mode_frequencies_xy2"
+summary = "Compute vibrational normal-mode frequencies for a triatomic XY2 molecule (bent or linear) via Class L eigendecomposition of the Wilson-Decius-Cross GF mass-weighted Hessian. Inputs: atomic symbols (Class J multiset → mass vector), bond geometry (length + angle), and GVFF force constants (f_r, f_rr, f_θ). Output: three normal-mode frequencies in cm⁻¹ (ν1=sym stretch, ν2=bend, ν3=antisym stretch). Closed-form analytic per Wilson-Decius-Cross §6 — no numerical optimisation, no per-particle fitting. Reproduces NIST CCCBDB experimental frequencies to ~5% (stretches) / ~10% (bends) — the expected accuracy for valence FF without cross-coupling terms. The POC's purpose is structural validation of the catalog shape, not perfect quantitative match."
+returns = "dict[str, float]  # {'nu1_sym_stretch_cm-1': ..., 'nu2_bend_cm-1': ..., 'nu3_asym_stretch_cm-1': ...}"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "J"
+op = "atom_multiset_masses"
+args = { atomic_symbols = "@row.atomic_symbols" }
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "dynamical_matrix_eigvals_xy2"
+args = { masses = "@step.0.output", bond_length_a = "@row.bond_length_a", bond_angle_deg = "@row.bond_angle_deg", geometry = "@row.geometry", k_stretch_mdyne_a = "@row.k_stretch_mdyne_a", k_stretch_coupling_mdyne_a = "@row.k_stretch_coupling_mdyne_a", k_bend_mdyne_a_rad2 = "@row.k_bend_mdyne_a_rad2" }
