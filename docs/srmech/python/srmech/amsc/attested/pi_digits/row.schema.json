@@ -26,8 +26,8 @@
     "num_digits": {
       "type": "integer",
       "minimum": 0,
-      "maximum": 50,
-      "description": "Number of decimal digits to emit after the decimal point. The chain `pi_cascade_digits` is parameterised by this single integer."
+      "maximum": 1000,
+      "description": "Number of decimal digits to emit after the decimal point. The chain `pi_cascade_digits` is parameterised by this single integer. rc12 cap was 50; rc13 raises to 1000 with auto-scaled cascade depth + precision_bits per Task #248 (engineering follow-on to PR #468 benchmark finding)."
     },
     "expected_pi_string": {
       "type": "string",
