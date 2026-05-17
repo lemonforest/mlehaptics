@@ -496,7 +496,13 @@ Spike #42 surfaced three candidate vocabulary stance names, each repostiing "ent
 
 **Dark-sector epicycle-perspective hypothesis** (Spike #42b Thread 2 test): cascade may not be universal-simultaneous; different regions / observers may see different f_RD phases LOCALLY. Connects to Spike #33 + #35 + `[[user_stance_aoe_observer_frame_offset]]`. If local-epicycle perspective is structurally real, "cascade" (regional / local by nature) may survive falsifier-testing better than "imprint" (one-way default) or "ring-balance" (universal symmetry default).
 
-**Status**: under falsifier evaluation per Spike #42b (in flight as of 2026-05-17). Canonical location for the falsifier framing + the dark-sector-epicycle-perspective hypothesis is [MFO §VII.6.5](../antikythera-maths/mfo_spectral_research_notebook.md). Result either commits one candidate to canonical stance authoring OR confirms the trifurcation remains canonical *"we don't know enough to name it yet"* state.
+**Status (committed 2026-05-17)**: Spike #42b returned with attested-data scoring; user refined with candidate D (ring-equilibrium) — "varying value that constitutes equilibrium that moves around like a cauchy kernel"; user committed Option 3 *"go with option 3 and merge 478, we must always use attested data because we can replace the missing parts."*
+
+**Canonical resolution**: `[[user_stance_entropy_approximates_ring_equilibrium]]` — entropy is L¹-shorthand for ring-equilibrium operation; dynamical-systems equilibrium-point that MOVES through cascade-mode space per Cauchy form `c_k = ε^k × K_k(substrate)`; each region tracks local trajectory per Spike #42b v2 time-shift model. Predicted 10/10 falsifier score from attested data (vs B 8/10). Sister-clauses from A (substrate deposit-content IS what's equilibrated) and C (cascade weave B-J-N-C-D-E-F IS the trajectory toward equilibrium) preserved. Pattern parallels `[[user_stance_infinity_approximates_asymptote]]`.
+
+Articulated discipline that drove the commit: `[[user_stance_attested_data_recovers_missing_parts]]` — use attested data because we can replace the missing parts given enough knowledge.
+
+Canonical location: [MFO §VII.6.5](../antikythera-maths/mfo_spectral_research_notebook.md). Optional Spike #42c formal empirical verification deferred (not blocking).
 
 **Why this subsection exists**: per user direction 2026-05-17, *"do add to our notebooks all 3 candidates, and now try to falsify each one. whos hoodoo stands terra firma against erosion?"*. Recording the partition is itself progress.
 

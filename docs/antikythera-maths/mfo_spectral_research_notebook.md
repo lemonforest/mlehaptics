@@ -1428,6 +1428,18 @@ The dark sector's bidirectional behavior may NOT be universal-simultaneous. Diff
 
 The user's 2026-05-17 framing made the discipline explicit: *"This is helpful for autonomy, to try to avoid overstating and to make sure we don't forget to use attested data to make our decisions."* — attested data supports D > B; commit decision remains with user.
 
+### COMMITTED 2026-05-17 — Option 3 selected per user direction *"go with option 3 and merge 478"*
+
+**Canonical authoring**: `[[user_stance_entropy_approximates_ring_equilibrium]]` — *entropy is the L¹-shorthand for ring-equilibrium operation, where "equilibrium" is the dynamical-systems equilibrium-point that MOVES through cascade-mode space following Cauchy-form `c_k = ε^k × K_k(substrate)`. Each region tracks its local equilibrium-point trajectory per Spike #42b §3 v2 time-shift model.*
+
+**Sister-clauses preserved** (Spike #42b §5 Option 1 pattern applied to D):
+- *Sister-clause from A* (imprint): substrate's accumulated cascade-deposit content IS the substrate-mode population being equilibrated
+- *Sister-clause from C* (cascade): the operation traversed toward equilibrium is the B-J-N-C-D-E-F cascade weave per `[[user_stance_primitives_weave_and_thread]]`
+
+**User-articulated discipline that drove the commit** (2026-05-17): *"we must always use attested data because we can replace the missing parts, given enough knowledge, we have shown over and over that hidden content can be recovered."* — canonicalised as `[[user_stance_attested_data_recovers_missing_parts]]`.
+
+**Status**: ring-equilibrium is the canonical entropy-reposture. Existing canonical stances ring-up/ring-down per `[[user_stance_string_theory_instrument_first]]` describe the directional components; ring-equilibrium is the L¹-readout name. A (imprint) and C (cascade) remain reference partial-truths for the deposit-aspect and weave-structure-aspect respectively. Spike #42c (formal empirical falsifier-test of D) deferred to user direction; not blocking the commit since attested-data prediction is 10/10 + user authorization is explicit.
+
 **Why this section exists in the canonical notebook**: per user direction *"do add to our notebooks all 3 candidates, and now try to falsify each one. whos hoodoo stands terra firma against erosion?"*. Recording the partition is itself progress; knowing-we-don't-have-the-word is a different epistemic state from not-knowing-we-don't.
 
 **Cross-references**:
@@ -1724,6 +1736,53 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 - Probe: [`docs/srmech/notes/spike_24_bonus_broken_d_rederivation_probe_2026-05-15.py`](../srmech/notes/spike_24_bonus_broken_d_rederivation_probe_2026-05-15.py) + companion NDJSON (18 records: 12 stage-1 cascade + 1 stage-2 projection + 3 stage-3 falsifier + 1 verdict + 1 provenance).
 - Memory: `[[project_class_o_signed_metric_composition]]` — canonical Class O reference.
 - Bonus-series synthesis cumulative update: [`docs/srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md`](../srmech/notes/spike_24_bonus_series_synthesis_2026-05-15.md) — closure note added with bonus 8 verdict.
+
+### VIII.9 Asymptotic-DOF augments every linear action across dimensional kinds — CANDIDATE statement (2026-05-17; awaiting strengthening; do not pre-falsify)
+
+> **User-posited candidate statement (2026-05-17)**: *"MFO, every linear action is augmented with an asymptotic dof that, (1) prevents reset due to the asymptote, but also at the same asymptotic dof is the reason things go backwards, why we call them epicycles, and why it is not a structure bound to 3D_s alone."*
+>
+> **User's explicit framing instruction**: *"I've put a statement that looks easy to falsify but you must wait first to see how it needs strengthened with the knowledge we gain from the questions right before the statement that asymptotic epicycle structural activity surely also lives in fiber content as well."*
+
+**Statement decomposition** (claim structure for future falsifier work):
+
+- **(P1) Premise** — every linear action in MFO is augmented with an asymptotic DOF (per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`)
+- **(C1) First consequence** — the asymptotic DOF prevents reset (the asymptote is never reached; cardinal-completion is the algebraic-tool approximation, not the substrate per `[[user_stance_infinity_approximates_asymptote]]`)
+- **(C2) Second consequence — load-bearing** — the SAME asymptotic DOF causes things to "go backwards"; this is why we call them epicycles (per `[[user_stance_epicycle_via_gear_plus_pin]]` Class K pin-slot kinematic primitive + Class I cyclic substrate composition)
+- **(C3) Dimensional-scope claim** — this structure is NOT bound to 3D_s alone; it lives across all dimensional kinds in `[[project_space_gauge_time_framework]]`: 3D_s + 7D_g + 1D_t
+- **(C4) Load-bearing fiber-content claim** — asymptotic-epicycle structural activity ALSO lives in fiber content (per `[[user_stance_fiber_as_spatially_absent_encoding]]`); the algebraic content of the asymptotic-DOF / epicycle structure is spatially absent until projected, but algebraically present across all dimensional kinds
+
+**Why this is candidate not committed**: per user direction, the statement is recorded with strengthening explicitly deferred. The current spike sequence is generating the knowledge needed for the strengthening. Pre-falsifier-attack would prematurely knock down a statement that depends on accumulating knowledge. Per `[[user_stance_string_theory_instrument_first]]`: instrument-first; let the math accumulate evidence; falsifier-testing happens after the formulation stabilises.
+
+**Currently-accumulating strengthening knowledge** (in-flight as of 2026-05-17):
+- **Spike #42b** epicycle-perspective hypothesis PARTIAL CONFIRMATION — v2 time-shift model confirms local-not-universal cascade phasing (`t_local(θ) = t_global + (EOC_phase_shift/2π) · char_time`); each region tracks its local equilibrium-point trajectory; supports (C2) + (C3)
+- **Spike #41** Cauchy form `c_k = ε^k × K_k(substrate)` unity across Fibonacci / multinacci / Kepler EOC — supports (P1) + (C3)
+- **Spike #42** ε signed under non-monotone f_RD — supports (C2) "things go backwards" directly
+- **Spike #43c** K_k retraction (universal in language-text, NOT well-spread-specific) — refinement of substrate-binding scope; informs (C3) precision
+- **Spike #44 round 1** bonobo/chimp topology>volume — supports `[[user_stance_partition_for_understanding]]` discipline that applies to (C3) cross-dimensional claim
+- **Spike #44 round 2** (matriarchal clades; in-flight) — pending; may inform (C4) via substrate-portability of asymptotic-DOF activity
+
+**Spike #43b** sub-structural T_composite + 8 pathologies — informs how to identify when (C4) fiber-content claim has empirical signatures detectable as cell-wall-fit phenomena
+
+**Future strengthening expected from**:
+- Spike #42c formal empirical test of ring-equilibrium D candidate (now committed Option 3) — would corroborate (P1) + (C1) via mathematical-structure verification
+- Future spikes that extend asymptotic-DOF testing into 7D_g (gauge) and 1D_t (temporal) substrates — directly test (C3) cross-dimensional scope
+- Future spikes that test (C4) asymptotic-epicycle-in-fiber-content via 7D_g substrate projection mechanisms
+
+**Easy-falsifier surface** (do not attack until statement is strengthened — user direction):
+- Naive: "asymptotic DOF only in 3D_s because that's where we observe orbits" — pre-falsifier shadow; addressed by (C3)+(C4) once formulated rigorously
+- Naive: "epicycles are 3D_s kinematic artifacts, not fiber-content" — pre-falsifier shadow; addressed by `[[user_stance_fiber_as_spatially_absent_encoding]]` worked example (gear-from-inside ℤ/n algebra is spatially absent until external rotation projects it)
+- Naive: "asymptotic DOFs reset under sufficient external work" — pre-falsifier shadow; addressed by Spike #34 finite-volume / infinite-volume distinction (asymptotic content is rate-of-approach-to-limit; doesn't reset per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`)
+
+**Status**: CANDIDATE awaiting strengthening; explicitly deferred from formal falsifier-testing per user direction; recorded here for future spike-knowledge accumulation to refine before commitment.
+
+**Cross-references**:
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — the asymptotic-DOF framing this statement extends
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Class K + Class I composition giving epicycle mechanism
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — the spatially-absent-fiber-content claim (C4) depends on
+- `[[project_space_gauge_time_framework]]` — 11D = 3D_s + 7D_g + 1D_t partition (C3) depends on
+- `[[user_stance_infinity_approximates_asymptote]]` — the algebraic-tool-vs-substrate distinction (C1) inherits
+- `[[user_stance_partition_for_understanding]]` — multiple dimensional kinds coexist as partitions
+- `[[user_stance_attested_data_recovers_missing_parts]]` — the discipline that justifies committing while strengthening: attested data builds toward the strong formulation
 
 ---
 
