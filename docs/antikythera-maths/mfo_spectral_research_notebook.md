@@ -1377,7 +1377,25 @@ Spike #42 (`docs/srmech/notes/spike_42_imprinting_cascade_entropy_reposture_2026
 
 The dark sector's bidirectional behavior may NOT be universal-simultaneous. Different regions / observers may see different phases of the f_RD cycle locally. Connects to Spike #33 (AoE local Class K signature), Spike #35 (off-centre-observer reading), `[[user_stance_aoe_observer_frame_offset]]`. Spike #42b tests this — if local-epicycle perspective is structurally real, **universal framings (imprint as one-way default; ring-balance as global symmetry) are weakened relative to LOCAL-cascade framings (cascade is naturally regional; composes locally).**
 
-**Status**: under falsifier evaluation. None of A/B/C is committed to canonical stance memory; each remains a candidate per `[[user_stance_partition_for_understanding]]` linguistic-partition case-extension. Spike #42b will surface whether any single candidate survives all five falsifiers cleanly; if not, the trifurcation stands as the load-bearing finding — *"we probably don't know enough to name it yet."*
+**Status (updated 2026-05-17 post-Spike #42b)**: Spike #42b completed five-falsifier testing of each candidate plus empirical test of the local-epicycle-perspective hypothesis. **Results** (per `docs/srmech/notes/spike_42b_vocabulary_falsifier_2026-05-17.md`):
+
+| Candidate | F1 lingu-bidir | F2 univ/local | F3 cascade-struct | F4 substrate-bind | F5 epicycle-persp | Total |
+|---|---|---|---|---|---|---|
+| **B ring-balance** (user lean) | PASS | PARTIAL | PARTIAL | PASS | PASS | **8/10** |
+| C cascade | FAIL | PASS | PASS | PASS | PARTIAL | 7/10 |
+| A imprint | PARTIAL | PARTIAL | PARTIAL | PASS | FAIL | 5/10 |
+
+**B (ring-balance) survives best** (8/10, zero FAIL); user's lean empirically confirmed. **But B is not a clean winner** — each candidate carries truth the others lack, exactly as user predicted: *"if each one has some truth that the others lack, they are not all equal, most likely."*
+
+**Epicycle-perspective hypothesis: PARTIAL CONFIRMATION.** v2 time-shift model (`t_local(θ) = t_global + (EOC_phase_shift/2π) · char_time` per `[[user_stance_kepler_shape_universal]]` Cauchy-form kernel) shows: max time-shift across sky ~1.44 Gyr (0.81% of 178 Gyr ring-down period); sign-flip of `df_RD/dt` across directions emerges near f_RD peak (a≈2.14, ~15.45 Gyr from now) but NOT at present epoch (global rate too dominant). Mechanism structurally valid; observable signature subtle at canonical ε_AoE = 0.0506 (Hopf-bundle aperture).
+
+**Two options stand — USER-GATED**:
+
+**Option 1**: commit B with explicit sister-clauses preserving A + C truth. *Canonical*: "entropy approximates the ring-up / ring-down balance" — uses already-canonical project vocabulary per `[[user_stance_string_theory_instrument_first]]`. *Sister-clause from A* (substrate's deposit-content IS what's balanced). *Sister-clause from C* (the cascade weave B-J-N-C-D-E-F IS what's balanced). Honours dissolve-before-promote.
+
+**Option 2**: hold the partition per `[[user_stance_partition_for_understanding]]` 2026-05-17 case-extension. Linguistic partition we cannot un-bifurcate signals incomplete apprehension; no single name commits; mathematical structure stands regardless.
+
+**Either option keeps the math intact.** The structural finding (`c_k = ε^k × K_k(substrate)` + local-time-shift via EOC) does not depend on vocabulary commitment.
 
 **Why this section exists in the canonical notebook**: per user direction *"do add to our notebooks all 3 candidates, and now try to falsify each one. whos hoodoo stands terra firma against erosion?"*. Recording the partition is itself progress; knowing-we-don't-have-the-word is a different epistemic state from not-knowing-we-don't.
 

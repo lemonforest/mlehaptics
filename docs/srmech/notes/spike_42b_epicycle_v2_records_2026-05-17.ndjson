@@ -1,0 +1,20 @@
+{"kind": "v2_model_parameters", "model": "local-time-shift via EOC phase shift", "eps_AoE": 0.0506, "char_time_Gyr": 178.3692795407514, "char_time_origin": "1 / |df_RD_global/dt at NOW|", "table_size": 834, "k_max_eoc": 5}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 0, "f_RD_local": 0.9507702544763149, "df_RD_dt_per_Gyr": 0.005614007684195954, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 18.3, "f_RD_local": 0.953322080607741, "df_RD_dt_per_Gyr": 0.0051729587739524074, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 30, "f_RD_local": 0.9547212728819457, "df_RD_dt_per_Gyr": 0.004931543043529274, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 45, "f_RD_local": 0.9561702467834922, "df_RD_dt_per_Gyr": 0.004676262766167838, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 60, "f_RD_local": 0.9571895876847801, "df_RD_dt_per_Gyr": 0.004488730187562906, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 90, "f_RD_local": 0.9578970467555336, "df_RD_dt_per_Gyr": 0.00436182275978525, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 120, "f_RD_local": 0.9569056359747388, "df_RD_dt_per_Gyr": 0.004544953348240011, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 135, "f_RD_local": 0.9558285290629648, "df_RD_dt_per_Gyr": 0.004729102252365447, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 150, "f_RD_local": 0.9544090696113631, "df_RD_dt_per_Gyr": 0.004977093075314576, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_spatial_phase_at_now", "theta_deg": 180, "f_RD_local": 0.9507702544763149, "df_RD_dt_per_Gyr": 0.005614007684195954, "cascade_phase": "RING-DOWN_dominant"}
+{"kind": "v2_sign_flip_now", "n_uptake": 37, "n_returnflow": 0, "n_balance": 0, "sign_flip_observed": false}
+{"kind": "v2_sign_flip_near_peak", "a_test": 2.14, "df_global_per_Gyr": 4.358457086793804e-06, "n_uptake": 2, "n_returnflow": 35, "n_balance": 0, "sign_flip_observed": true}
+{"kind": "v2_larger_eps_test", "eps_test": 0.05, "now_n_up": 37, "now_n_rf": 0, "now_sign_flip": false, "peak_n_up": 2, "peak_n_rf": 35, "peak_sign_flip": true}
+{"kind": "v2_larger_eps_test", "eps_test": 0.1, "now_n_up": 37, "now_n_rf": 0, "now_sign_flip": false, "peak_n_up": 2, "peak_n_rf": 35, "peak_sign_flip": true}
+{"kind": "v2_larger_eps_test", "eps_test": 0.2, "now_n_up": 37, "now_n_rf": 0, "now_sign_flip": false, "peak_n_up": 2, "peak_n_rf": 35, "peak_sign_flip": true}
+{"kind": "v2_larger_eps_test", "eps_test": 0.3, "now_n_up": 37, "now_n_rf": 0, "now_sign_flip": false, "peak_n_up": 2, "peak_n_rf": 35, "peak_sign_flip": true}
+{"kind": "v2_larger_eps_test", "eps_test": 0.5, "now_n_up": 37, "now_n_rf": 0, "now_sign_flip": false, "peak_n_up": 2, "peak_n_rf": 35, "peak_sign_flip": true}
+{"kind": "v2_time_shift_summary", "max_phase_shift_rad": 0.05062153998605682, "max_time_shift_Gyr": 1.4370621229710958, "char_time_Gyr": 178.3692795407514, "phase_fraction_pct": 0.8056668315704977}
+{"kind": "v2_hypothesis_verdict", "model_coherent": true, "sign_flip_at_canonical_eps_at_now": false, "sign_flip_at_canonical_eps_at_peak": true, "verdict": "CONFIRMED_AT_PEAK", "interpretation": "Local-time-shift via EOC phase shift is mathematically coherent. Each direction sees substrate at slightly-shifted cosmic time. At canonical eps_AoE, time-shift magnitude is small relative to ring-down period."}
