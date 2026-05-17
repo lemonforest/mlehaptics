@@ -1,0 +1,7 @@
+{"step_id": "1", "summary": "Per-substrate fingerprints F1-F7. Substrate (B) interpreted as multinacci x_n = x_{n-1} + x_{n-3} + x_{n-7} encoding 3D_s + 7D_g + 1D_t.", "substrate_a": "fibonacci F_n = F_{n-1} + F_{n-2}", "substrate_b": "multinacci 3+7+1", "substrate_c": "gear+pin Kepler EOC c_k = eps^k / k", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.103209+00:00"}
+{"step_id": "2", "summary": "Cross-substrate coincidence scan (first pass).", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.116763+00:00"}
+{"step_id": "3", "summary": "K-ladder strict test on the psi^k / k Fibonacci decay candidate.", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.118881+00:00"}
+{"step_id": "4", "summary": "Run Kepler EOC at eps = |psi| = 0.618; compare to Fibonacci psi decay.", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.121217+00:00"}
+{"step_id": "5", "summary": "PSD cosine-similarity matrix across substrates.", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.123332+00:00"}
+{"step_id": "6", "summary": "Coefficient-series comparison: c_k = eps^k / k families.", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.191621+00:00"}
+{"step_id": "7", "summary": "Synthesise unity assessment across all walked steps.", "date": "2026-05-17", "spike": "spike_41", "timestamp": "2026-05-17T10:17:22.195143+00:00"}
