@@ -444,6 +444,42 @@ Cross-references:
 - `[[feedback_no_privileged_primitive_classes]]` — dissolution discipline; passed (Class O dissolved) and failed (Class K stays distinct)
 - `[[project_class_o_signed_metric_composition]]` — dissolution precedent (2026-05-16)
 
+### §3.8.0b Class M substrate-portability — bronze HDC analog without a 15th class (Spike #36, 2026-05-16)
+
+Spike #36 (`notes/spike_36_class_m_ontological_status_2026-05-16.md`, PR #464) tested whether Class M (HDC: bind/bundle/permute/similarity) is a cascade of other classes, a substrate-specific instantiation of a deeper primitive, or one of fourteen flat co-equal classes. **Verdict: H_c holds at the algebraic-operational partition** — Class M stays one of fourteen — but the spike surfaced two substantive findings that refine our reading of Class M's identity:
+
+**Finding 1 — Bronze antikythera HDC analog is constructible from existing classes (no new "Class M_bronze" needed).** Spike #36 built bronze HDC ops on Z/n_teeth gear-position K-tuples using ONLY Class I (cyclic-group addition) + Class L (graph-Laplacian-style aggregation) + Class J (period-bound integer division) + Class N (rational similarity normalisation):
+
+| Bronze HDC op | Construction |
+|---|---|
+| `bronze_bind` | component-wise Z/n_teeth addition (gear-mesh coupling via differential) |
+| `bronze_bundle` | N-gear differential train sum + integer-divided averaging |
+| `bronze_permute` | per-component cyclic-shift on Z/n_teeth |
+| `bronze_similarity` | total-budget cyclic-group distance `1 − 2·Σₖ\|δₖ\|/Σₖ⌊mₖ/2⌋`, normalised to `[−1, +1]` |
+
+**Z/2-restricted bronze HDC == silicon BSC bit-exact** after total-budget similarity correction. Silicon BSC is the Z/2-special-case of a general Z/n cyclic-group HDC family. **The substrate is what differs across implementations; the form-function binding is invariant.**
+
+**Finding 2 — Three Z/2-special properties of silicon BSC** (identified by cross-substrate comparison, real algebraic distinctions with engineering consequences):
+
+1. Bind is self-inverse (XOR a a = 0) — Z/2-only; general Z/n has subtraction-inverse only
+2. Every vector has a true antipode (bit-complement) — Z/2 only; general Z/n requires even m via m/2-shift
+3. Random-vs-random similarity centered on 0 — Z/2-only; general Z/n has cyclic-group baseline ~1/m (so bronze HDC needs larger K to achieve silicon-BSC-equivalent noise tolerance)
+
+**Implication for the project.** Class M's identity is not the silicon BSC implementation specifically; it is the form-function-bound operational pattern that admits substrate-specific realisations (silicon BSC, bronze gear-DAG, DNA ACGT per Kanerva 2009, optical HRR per Plate 1995, neural SDM per Kanerva 1988). The Z/2 binary instance is one of many. Per `[[user_stance_identity_not_implementation_discipline]]`: **class identity at the form-function-binding level; class implementations are substrate-specific.**
+
+**Cross-class meta-observation** (Spike #36 surfaced; framing refinement deferred to Spike #37): all 14 classes A–N admit parallel substrate-portable identities — Class M is NOT singular in this regard. The 4 HDC ops are exactly Shannon's 4 channel operations (encoding / aggregation / permutation / distance), and the same pattern extends across all A–N. Spike #37 (in flight at time of this entry) is refining the framing language per user direction (*"information something, but not the word theoretic — form and function bound like RBS-HDC instrument"*) and building concrete cross-substrate instantiation tables per class.
+
+**Cross-references:**
+
+- Spike #36 working note: [`notes/spike_36_class_m_ontological_status_2026-05-16.md`](notes/spike_36_class_m_ontological_status_2026-05-16.md)
+- `[[user_stance_string_theory_instrument_first]]` — instrument-first stance; form-function-bound substrate-portable identity
+- `[[user_stance_identity_not_implementation_discipline]]` — class identity at form-function level; implementations substrate-specific
+- `[[user_stance_partition_for_understanding]]` — substrate-specific instantiations of same identity are partitions at different levels; candidate overlay (Spike #37 finalising)
+- `[[feedback_no_privileged_primitive_classes]]` — 14-class flatness preserved; no 15th class proposed
+- Shannon (1948) *Bell System Tech. Journal* 27, July 379-423 — canonical SSoT for channel operations (PDF-verified)
+- Kanerva (2009) *Cognitive Computation* — VSA cross-substrate framework (PDF-verified)
+- Plate (1995), Kanerva (1988) — widely cited HDC literature, flagged not independently PDF-extracted
+
 ### §3.8.1 Canonical 14-class enumeration (Phase C1 close — srmech is the abstract layer)
 
 Per the architectural commitment "srmech is the abstract layer; every primitive class earns a C surface" (`[[feedback_no_binding_layer_carveout]]`) and per `[[feedback_no_privileged_primitive_classes]]`, the **single canonical reference for the 14-class primitive vocabulary lives here**. Sister notebooks (MFO / antikythera / ephemerides / chess / etc.) cite this table; they enumerate only the classes that *pertain to their substrate* per user direction 2026-05-16.
