@@ -1,0 +1,232 @@
+"""
+Spike #43 — Thread 2 generative output: MFO+srmech textbook structural recommendations
+
+The diagnostic findings from Thread 1 inform optimal structure targets for
+the MFO+srmech textbook the user is building.
+
+The textbook is teaching MFO through the lens of srmech (learn-and-play
+vs just-learn). Each chapter has its own internal structure; the whole
+must have hierarchical cascade structure per [[user_stance_partition_for_understanding]].
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+
+def build_design_records() -> list[dict]:
+    """Build NDJSON records for each design recommendation."""
+    return [
+        # ----- Per-chapter targets -----
+        {
+            "domain": "per_chapter_structure",
+            "metric": "callbacks_per_1000_words",
+            "target_min": 12.0,
+            "target_max": 50.0,
+            "anchor_good_range": "MFO notebook 13/1k; spike #42 45/1k",
+            "anchor_bad_range": "C4/C5 flat enumeration 0.0/1k",
+            "signature_class": "S4 R4 callback density",
+            "rationale": "explicit cross-reference is the cascade-weave signature; flat enumeration has 0 callbacks per the negative-control measurements",
+        },
+        {
+            "domain": "per_chapter_structure",
+            "metric": "rare_word_propagation_rate",
+            "target_min": 0.10,
+            "target_max": 0.30,
+            "anchor_good_range": "spike #41 0.247; spike #38b 0.222",
+            "anchor_bad_range": "C2 concatenated unrelated 0.009; C3 word salad 0.052",
+            "signature_class": "R3 rare-word cascade",
+            "rationale": "rare technical terms introduced in one paragraph should reappear in the next 1-2 paragraphs (build-up); orphaned rare words signal cascade-failure",
+        },
+        {
+            "domain": "per_chapter_structure",
+            "metric": "paragraph_length_pareto_slope",
+            "target_min": -0.95,
+            "target_max": -0.80,
+            "anchor_good_range": "good range -0.85 to -0.92",
+            "anchor_bad_range": "C3 word salad -0.06; C4 flat -0.13; C5 LLM-flat -0.21",
+            "signature_class": "R2 Pareto paragraph lengths",
+            "rationale": "paragraph lengths should follow a power-law heavy-tail (a few long expository paragraphs, many short connecting/sequel paragraphs); flat distribution signals enumeration-without-cascade",
+        },
+        {
+            "domain": "per_chapter_structure",
+            "metric": "max_over_median_paragraph_length",
+            "target_min": 4.0,
+            "target_max": 17.0,
+            "anchor_good_range": "spike #38b 4.8x; MFO 16.6x",
+            "anchor_bad_range": "C3 word salad 1.1x; C4 flat 1.5x",
+            "signature_class": "R2 length-ratio",
+            "rationale": "longest paragraph in a chapter should be 4-17x the median (heavy-tail); uniform lengths signal mechanical-template generation",
+        },
+        # ----- Cross-chapter targets -----
+        {
+            "domain": "cross_chapter_structure",
+            "metric": "chapter_jaccard_mean",
+            "target_min": 0.08,
+            "target_max": 0.15,
+            "anchor_good_range": "good range 0.10-0.12",
+            "anchor_bad_range": "C3/C4 word-shared 0.43-0.74 (too-similar); C2 0.135",
+            "signature_class": "S2 Laplacian mean Jaccard",
+            "rationale": "chapters should share ~10-12% vocabulary; higher signals fake-differentiation (just renaming sections); lower signals topical disconnection",
+        },
+        {
+            "domain": "cross_chapter_structure",
+            "metric": "fiedler_lambda_2",
+            "target_min": 0.40,
+            "target_max": 0.75,
+            "anchor_good_range": "good 0.56-0.71",
+            "anchor_bad_range": "C4 11.2 (too rigid); C5 4.7 (too disconnected)",
+            "signature_class": "S2 Laplacian algebraic connectivity",
+            "rationale": "Fiedler measures chapter-graph algebraic connectivity; well-written text has moderate connectivity (chapters thread through one another but remain distinguishable)",
+        },
+        {
+            "domain": "cross_chapter_structure",
+            "metric": "hdc_chapter_pairwise_cosine_mean",
+            "target_min": 0.13,
+            "target_max": 0.25,
+            "anchor_good_range": "good 0.14-0.18",
+            "anchor_bad_range": "C3 word salad 0.66 (all chapters look identical); C4 0.60",
+            "signature_class": "S8 HDC chapter fingerprint",
+            "rationale": "chapters cohere via shared topic vocabulary (HDC sim > 0.13) but remain distinct (HDC sim < 0.25); higher = chapters dissolve into noise; lower = chapters disconnected",
+        },
+        # ----- Concept-introduction cadence -----
+        {
+            "domain": "concept_cadence",
+            "metric": "cascade_beta_stretched_exp",
+            "target_min": 0.7,
+            "target_max": 1.0,
+            "anchor_good_range": "spike #41 0.91; spike #38b 0.87; spike #42 0.87",
+            "anchor_bad_range": "C5 LLM-flat 0.28",
+            "signature_class": "S6 concept-introduction decay",
+            "rationale": "new-concept introduction should follow stretched-exp with beta near 1 (heavy front-loading then steady decay); LLM-flat beta=0.28 means concepts dribble in slowly without cascade structure",
+        },
+        {
+            "domain": "concept_cadence",
+            "metric": "heaps_alpha",
+            "target_min": 0.55,
+            "target_max": 0.80,
+            "anchor_good_range": "good 0.57-0.79",
+            "anchor_bad_range": "C4 0.007 (vocabulary saturates immediately)",
+            "signature_class": "S7 Heaps law",
+            "rationale": "Heaps alpha is the vocabulary-growth exponent; well-written technical text grows vocabulary at alpha=0.55-0.80; flat enumerations saturate alpha=0",
+        },
+        {
+            "domain": "concept_cadence",
+            "metric": "hapax_legomena_fraction",
+            "target_min": 0.35,
+            "target_max": 0.60,
+            "anchor_good_range": "good 0.39-0.56",
+            "anchor_bad_range": "C4/C5 0.000 (no rare words at all)",
+            "signature_class": "S7 hapax fraction",
+            "rationale": "well-written text has 35-60% words appearing exactly once (technical specificity); flat templates have 0 hapax (every word recurs)",
+        },
+        # ----- Class N substrate-binding -----
+        {
+            "domain": "class_n_substrate_binding",
+            "metric": "K_k_text_substrate_binding",
+            "target_form": "K_k(text) = 1/k^s, s ~ 0.3-0.5",
+            "anchor": "Anomaly 4 investigation; top-15 word frequencies fit pure-Zipf 1/k^s better than Cauchy eps^k/k for text substrate",
+            "signature_class": "S1 R1 K-ladder reframe",
+            "rationale": "the Cauchy-form universal c_k = eps^k * K_k(substrate) per Spike #42 finds K_k(text) = 1/k^s (Zipf-like power-law) rather than 1/k (Kepler-EOC integration). This is a substrate-binding finding for the TEXT substrate — analogous to Spike #42's finding that K_k(QED-channel) carries phase-space + helicity content per channel.",
+        },
+        # ----- Streaming coherence -----
+        {
+            "domain": "streaming_coherence",
+            "metric": "mean_adjacent_jaccard",
+            "target_min": 0.033,
+            "target_max": 0.060,
+            "anchor_good_range": "good 0.033-0.046",
+            "anchor_bad_range": "C5 LLM-flat 0.207 (too-locally-coherent, suggests template repetition); C3 word salad 0.011 (random)",
+            "signature_class": "S4 streaming coherence",
+            "rationale": "adjacent sentences share modest content-word overlap (~4%); HIGHER overlap signals template repetition (LLM signature); LOWER signals incoherent transitions",
+        },
+        # ----- Vocabulary reuse rhythm -----
+        {
+            "domain": "vocabulary_reuse_rhythm",
+            "metric": "pervasive_theme_count",
+            "target_min": 12,
+            "target_max": 30,
+            "anchor_good_range": "good 12-25",
+            "anchor_bad_range": "C4/C5 different; C3 word salad 87 (too-many shared low-meaning words)",
+            "signature_class": "S5 cyclic themes",
+            "rationale": "a small set (12-30) of pervasive concepts should thread through all chapters; these are the cyclic-recurrence motifs that hold the work together",
+        },
+        # ----- Optimal chapter cascade-composition recommendations -----
+        {
+            "domain": "chapter_cascade_design",
+            "metric": "MFO+srmech_textbook_structure",
+            "recommendation": (
+                "Each chapter targets a DIFFERENT subset of the 14 primitive classes A-N "
+                "for its kernel demonstration; the WHOLE work threads all 14 across chapters; "
+                "early chapters mint primitive notions (A/B/C/I/J for hashing/encoding/streaming/cyclic/primes); "
+                "middle chapters demonstrate cascade-composition (L o K o I o N o C per Spike #41); "
+                "late chapters demonstrate substrate-portability (Spike #37/38/40/42 cross-substrate examples)."
+            ),
+            "signature_class": "primitives-weave-and-thread",
+            "rationale": "per [[user_stance_primitives_weave_and_thread]] phenomena emerge from cascade compositions, not isolated primitives; a teaching text should mirror this structure",
+        },
+        {
+            "domain": "chapter_cascade_design",
+            "metric": "chapter_count_range",
+            "target_min": 10,
+            "target_max": 18,
+            "anchor_good_range": "MFO 16, srmech 12, spikes 10-11",
+            "signature_class": "structural",
+            "rationale": "10-18 chapters is the project's empirical range; below 10 forces each chapter to overload, above 18 forces fragmentation",
+        },
+        {
+            "domain": "chapter_cascade_design",
+            "metric": "play_section_per_chapter",
+            "recommendation": (
+                "Each chapter should end with a 'play' section (computation or demonstration) "
+                "that operationalises the chapter's primitive composition. This is the 'learn-and-play' "
+                "structure the user is targeting. The spikes (#38b, #41, #42) are templates: anomalies "
+                "investigated; chain spec proven; falsifier controls run; iteration log walked."
+            ),
+            "signature_class": "structural",
+            "rationale": "per [[feedback_every_doc_edit_faces_falsification]] every claim must come with a chain spec that proves or disproves it; play sections institutionalise this discipline",
+        },
+        {
+            "domain": "chapter_cascade_design",
+            "metric": "iteration_log_per_substantial_chapter",
+            "recommendation": "Substantial chapters (those introducing a new substrate or new identity claim) should walk 5-7 refinement steps documented inline, per Spike #41 / #42 / #43 (this spike) precedent.",
+            "signature_class": "structural",
+            "rationale": "MFO-style iterative refinement is the project's discipline; teaching the discipline means showing it in the chapter structure itself",
+        },
+        {
+            "domain": "chapter_cascade_design",
+            "metric": "anomalies_investigated_explicit_section",
+            "recommendation": "Every chapter that demonstrates a quantitative result includes an 'anomalies investigated' section showing what could fail and where the math doesn't quite line up. Per [[user_stance_string_theory_instrument_first]] (math doesn't lie; investigate anomalies directly), and per Spike #38b/41/42/43 template.",
+            "signature_class": "structural",
+            "rationale": "shipping anomalies alongside results IS the project's MPM-trust signature; hiding them is the iceberg-shape failure mode",
+        },
+    ]
+
+
+def main(out_dir: str) -> None:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    records = build_design_records()
+    out_path = out / "spike_43_design_records.ndjson"
+    with out_path.open("w", encoding="utf-8") as f:
+        for rec in records:
+            rec["date"] = "2026-05-17"
+            rec["spike"] = 43
+            rec["thread"] = 2
+            f.write(json.dumps(rec, default=float) + "\n")
+    print(f"  [write] {out_path}  ({len(records)} records)")
+    print()
+    for rec in records:
+        domain = rec.get("domain", "")
+        metric = rec.get("metric", "")
+        if "target_min" in rec:
+            print(f"  {domain:<30} {metric:<40} [{rec['target_min']}, {rec['target_max']}]")
+        elif "recommendation" in rec:
+            print(f"  {domain:<30} {metric:<40} (recommendation)")
+        else:
+            print(f"  {domain:<30} {metric:<40} (target form)")
+
+
+if __name__ == "__main__":
+    main(r"D:\temp\spike_43")

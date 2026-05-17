@@ -1,0 +1,5 @@
+{"step": "R1", "purpose": "K-ladder on top word frequencies; test Cauchy-form c_k = eps^k * K_k(text)", "outcome": "see records", "date": "2026-05-17", "spike": 43}
+{"step": "R2", "purpose": "Pareto/power-law fit on paragraph lengths; cascade-depth indicator", "outcome": "see records", "date": "2026-05-17", "spike": 43}
+{"step": "R3", "purpose": "Rare-word cascade propagation (Class C \u2218 I forward weaving)", "outcome": "see records", "date": "2026-05-17", "spike": 43}
+{"step": "R4", "purpose": "Cross-reference callback density (cascade-weave signature; explicit weaving)", "outcome": "see records \u2014 strongest discriminator candidate", "date": "2026-05-17", "spike": 43}
+{"step": "R5", "purpose": "Paragraph-level Class L Laplacian (finer-grained connectivity)", "outcome": "see records", "date": "2026-05-17", "spike": 43}
