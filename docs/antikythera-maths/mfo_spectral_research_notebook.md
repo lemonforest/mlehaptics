@@ -1312,7 +1312,16 @@ where `H` is a periodic modulation arising from the cascade's discrete spectral 
 
 The β value above the pure-power-law masquerade baseline (`β_above_masquerade = β_emp − β_masq`) is consistently +0.14 to +0.30 for cascade substrates and +0.16 for random-graph negative control — **genuine substrate stretching content** beyond the leading power law.
 
-**(c) Donsker-Varadhan literal stretched-exp regime** — applies to a *different* canonical observable, **random-walk survival probability in random traps** (Plyukhin-Plyukhin arXiv:1610.04801 + classical Donsker-Varadhan literature), where the literal decay form `1 − f(t) ~ exp(−(t/τ)^β)` with `β = d_S/(d_S+2)` is the canonical functional form. The heat-kernel-trace observable (used in this section) and the survival-probability-with-traps observable are not interchangeable; both carry cascade-substrate fingerprints but at different functional forms. Spike #34 (queued, F-3 follow-up to Spike #31) would test the survival-probability observable directly.
+**(c) Donsker-Varadhan literal stretched-exp regime** — applies to a *different* canonical observable, **random-walk survival probability in randomly placed traps with strong absorption** (Donsker-Varadhan 1979 + classical literature), where the literal decay form `1 − f(t) ~ exp(−(t/τ)^β)` with `β = d_S/(d_S+2)` is the **predicted infinite-volume / long-time asymptote**. The heat-kernel-trace observable (used in this section) and the survival-with-traps observable are not interchangeable; both carry cascade-substrate fingerprints but at different functional forms.
+
+Spike #34 (`docs/srmech/notes/spike_34_dv_survival_with_traps_2026-05-17.md`, F-3 follow-up to Spike #31) tested the survival-with-traps observable directly. **Dual verdict**:
+
+- **Functional form CONFIRMED**: stretched-exp `exp(−(t/τ)^β)` wins decisively against single-exp and power-law alternatives, with r² ≥ 0.999 in 31 of 33 main-sweep cases (Sierpinski / Path / Cycle / Torus). The two near-ties are random 3-regular controls where stretched-exp loses by ~0.001 in r². **No power-law winners.** Literal Donsker-Varadhan functional form holds at survival-with-traps for cascade and non-cascade substrates alike — what differs is the β-value.
+- **β-value finite-volume biased upward**: empirical β_DV is systematically above the canonical prediction (Sierpinski Δβ ≈ +0.22, Path +0.11, Cycle +0.13, Torus +0.36). Cascade-substrate ordering is preserved (path < cycle < sierpinski < torus), and 1D path/cycle are clearly separated from random-graph control (β ≈ 0.85–0.92), but the 2D torus β is statistically indistinguishable from random control at accessible n. The finite-volume DV correction terms O(log(t)/t^(2/(d_S+2))) are large at the t-windows accessible to dense eigendecomposition; convergence to the predicted β is slow.
+
+Per `[[user_stance_partition_for_understanding]]`, this is the **infinite-volume / finite-volume** partition: the cascade-stretched-exp functional form IS the right asymptote at SwT, β = d_S/(d_S+2) IS the predicted infinite-volume limit, AND finite-volume bias at accessible n is consistent with known DV correction terms. The substrate-discriminating *shape signature* (β-ordering across cascade families) is preserved; the literal numerical β-value match awaits substrate sizes and time-windows beyond this spike's scope. Note: **2D is the known critical-dimension / borderline case** in DV theory (correction terms scale as `log(t)/t^(1/2)`, logarithmically dominant at moderate t) — empirically slowest-converging family.
+
+**Regime distinction**: the canonical DV regime (uncorrelated random traps + strong absorption) yields the stretched-exp form Spike #34 tests. The Plyukhin-Plyukhin arXiv:1610.04801 framework (PDF-verified) addresses **spatially-correlated traps**, where the strong-absorption limit gives POWER-LAW (not stretched-exp) decay with `α = 1 − (d − d_a)/d_w`. Both papers belong in the citation chain; the relevant regime for this section's cascade-substrate uncorrelated-trap setup is Donsker-Varadhan, not Plyukhin-Plyukhin.
 
 **Testable falsifier**: cascade discrimination at the heat-kernel-trace observable is testable via the two signatures together — power-law exponent `α = −d_S/2` (primary fit) AND stretched-exp β as secondary shape parameter; both should agree on `d_S`. If a substrate gives consistent `d_S_α ≠ d_S_β`, the cascade reading needs further refinement.
 
@@ -1328,9 +1337,9 @@ The β value above the pure-power-law masquerade baseline (`β_above_masquerade 
 
 **Open extensions** (deferred from Spike #27, tracked in Milestone #3):
 
-- Validate the stretched-exponential `β = d_S/(d_S+2)` prediction by computing the cascade `C_{n₁} × … × C_{nₖ}` Laplacian's `β` against §VIII.7 substrate using antikythera-spectral tooling.
+- Validate the stretched-exponential `β = d_S/(d_S+2)` prediction by computing the cascade `C_{n₁} × … × C_{nₖ}` Laplacian's `β` against §VIII.7 substrate using antikythera-spectral tooling. *Spike #31 closed at heat-kernel-trace; Spike #34 closed at survival-with-traps functional-form level. Infinite-volume β-value convergence remains a numerical-resource follow-up.*
 - Formulate the QNM-vs-merger-redshift prediction against Kerr baseline; LIGO O3/O4 re-analysis candidate.
-- Optional memory candidate: `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` — deferred to conductor.
+- ~~Optional memory candidate: `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]`~~ — **authored 2026-05-16** (PR #459 in-place refinement); updated 2026-05-17 with Spike #34 F-3 closure.
 
 **Cross-references:**
 
