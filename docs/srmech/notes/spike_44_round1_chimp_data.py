@@ -1,0 +1,119 @@
+"""
+Spike #44 Round 1 - Chimpanzee data fetch + parse layer.
+
+Round 1 SCOPE: Document what data is accessible from open-access sources for round 2.
+Round 1 does NOT actually fetch all raw matrices - that is round 2 scope.
+
+This script enumerates the data substrates identified and their accessibility.
+"""
+
+import json
+from pathlib import Path
+
+OUT = Path(r"D:\temp\spike_44") / "spike_44_round1_chimp_data_manifest.ndjson"
+
+CHIMP_DATA_SUBSTRATES = [
+    {
+        "data_id": "wrangham_2006_lethal_rates",
+        "paper": "Wrangham, Wilson, Muller 2006 Primates 47:14-26",
+        "site": "9 communities, 5 populations (Gombe, Mahale, Kibale, Tai, Budongo)",
+        "data_types_offered": [
+            "Per-community intergroup killing rates (Table 1)",
+            "Per-community intragroup killing rates (Table 3)",
+            "Per-population pooled mortality rates (Table 5)",
+            "Non-lethal attack rates per 100,000h (Tables 7-8)",
+            "Appendices 1-10: raw case-by-case fatality records"
+        ],
+        "open_access": True,  # Author-deposited PDF at blog.michael-lawrence-wilson.com
+        "pdf_path_local": "C:/Users/sckir/.claude/projects/D--GitHub-mlehaptics/4a14c507-af79-4cb1-8b0a-460b4a1402a7/tool-results/webfetch-1779021428649-922y10.pdf",
+        "verified_data_extracted": "Tables 1, 3, 4, 5, 7, 8 extracted; Appendices 1-10 raw cases NOT YET pulled",
+        "round_2_action": "Extract Appendices 1-10 from pages 8+ of PDF for raw case-by-case data. Build per-community time-series of kill events for Class I cyclic-signature test."
+    },
+    {
+        "data_id": "funkhouser_2018_sanctuary_network",
+        "paper": "Funkhouser, Mayhew, Mulcahy 2018 PLOS ONE 13(2):e0191898",
+        "site": "Chimpanzee Sanctuary NW, Cle Elum WA (7 chimps)",
+        "n_individuals": 7, "obs_hours": 106.75,
+        "data_types_offered": [
+            "Proximity matrix",
+            "Allogrooming matrix (grooming-strength values)",
+            "Agonistic matrix",
+            "David's score values (Table 4)",
+            "Association indexes (Mean 0.70 SD 0.13)",
+            "QAP matrix correlations between proximity / grooming / agonism"
+        ],
+        "open_access": True,
+        "round_2_action": "Fetch S1/S2 Files from PLOS ONE article page for raw 7x7 adjacency matrices (proximity, grooming, agonism). Compute signed-graph Laplacian Fiedler."
+    },
+    {
+        "data_id": "kaburu_2015_hierarchy_steepness",
+        "paper": "Kaburu, Newton-Fisher 2015 Animal Behaviour 99:61-71",
+        "site": "Sonso (Budongo) + M-group (Mahale)",
+        "n_males_sonso": 8, "n_males_mgroup": 10,
+        "obs_hours_sonso": 1109.5, "obs_hours_mgroup": 800.9,
+        "data_types_offered": [
+            "Steepness coefficients per population (0.70 vs 0.30 vs others)",
+            "Frequency-reciprocity indices (Sonso 0.45 vs M-group 0.66)",
+            "Per-male David's scores",
+            "Grooming partner-diversity Shannon-Weaver H' values",
+            "Rank-correlation values (Spearman rho)"
+        ],
+        "open_access": True,
+        "pmc_id": "PMC4287234",
+        "verified_data_extracted": "Steepness + reciprocity + diversity tables extracted via PMC",
+        "round_2_action": "Fetch PMC supplementary for raw 8x8 + 10x10 grooming and agonism matrices. Test Class C cascade-direction signature on actual matrices."
+    },
+    {
+        "data_id": "sandel_2025_ngogo_civil_war",
+        "paper": "Sandel, Watts et al. 2025 Science (recent - 'civil war' paper)",
+        "site": "Ngogo, Kibale National Park, Uganda",
+        "data_types_offered": [
+            "2018-2024 boundary-patrol logs",
+            "Killing event records (7 adults + 17 infants + 14 missing)",
+            "Up to 15 patrols per 4 months",
+            "Pre/post-fission community composition"
+        ],
+        "open_access": False,  # Science paywall per TOS landscape
+        "verified_data_extracted": "Numerical summary from news coverage of paper",
+        "round_2_action": "Science paywalled; rely on Sandel & Watts 2021 IJP (PMC8277110 OPEN) for earlier events + author preprint search for 2025 data."
+    },
+    {
+        "data_id": "sandel_watts_2021_lethal_fission",
+        "paper": "Sandel, Watts 2021 Int J Primatol 42(1):26-48",
+        "site": "Ngogo (post-fission Western community attacks on Central)",
+        "data_types_offered": [
+            "Detailed account of 2 confirmed + 1 suspected killings 2018-2019",
+            "Coalition member identities (5-10+ males per attack)",
+            "Victim identification (Erroll 15.5y; Basie 33y)"
+        ],
+        "open_access": True,
+        "pmc_id": "PMC8277110",
+        "round_2_action": "Already extracted summary; pull full text from PMC for cascade-coalition composition analysis (which males participated in which attacks)."
+    },
+    {
+        "data_id": "boesch_loango_killings",
+        "paper": "Loango chimp study (PMC8410688) - Central chimpanzees",
+        "site": "Loango National Park, Gabon (Pan troglodytes troglodytes - WESTERN subspecies)",
+        "data_types_offered": [
+            "Intercommunity interactions and killings in Western (vs Eastern) chimps",
+            "Different subspecies = different baseline"
+        ],
+        "open_access": True,
+        "pmc_id": "PMC8410688",
+        "round_2_action": "Pull this for ROBUSTNESS test - does the chimp-surviving-shape signature replicate in Western subspecies, or is it Eastern-subspecies-specific?"
+    }
+]
+
+
+def main():
+    with open(OUT, "w", encoding="utf-8") as f:
+        for r in CHIMP_DATA_SUBSTRATES:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"Wrote {len(CHIMP_DATA_SUBSTRATES)} chimp data substrate records to {OUT}")
+    for r in CHIMP_DATA_SUBSTRATES:
+        oa = "OA" if r.get("open_access") is True else ("CITE" if r.get("open_access") is False else "?")
+        print(f"  [{oa}] {r['data_id']:35s} {r['paper']}")
+
+
+if __name__ == "__main__":
+    main()

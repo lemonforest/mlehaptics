@@ -1,0 +1,110 @@
+"""
+Spike #44 Round 1 - Bonobo data fetch + parse layer.
+
+Round 1 SCOPE: Document what data is accessible from open-access sources for round 2.
+Round 1 does NOT actually fetch all raw matrices - that is round 2 scope.
+
+This script enumerates the data substrates identified and their accessibility.
+"""
+
+import json
+from pathlib import Path
+
+OUT = Path(r"D:\temp\spike_44") / "spike_44_round1_bonobo_data_manifest.ndjson"
+
+BONOBO_DATA_SUBSTRATES = [
+    {
+        "data_id": "torfs_2023_supplementary",
+        "paper": "Torfs et al. 2023 PLOS ONE 18(4):e0284361",
+        "site": "8 zoological institutions (Europe captive)",
+        "n_groups": 22, "n_individuals": 84, "n_datapoints": 136,
+        "data_types_offered": [
+            "Sex / age / rearing-history per individual (Table 3)",
+            "S1 File: group composition + sex ratio per group",
+            "S1 Table S2 File: dominance hierarchy quality per group",
+            "S2 Table S2 File: correlation between network measures",
+            "Network metric values (in/out-strength, eigenvector centrality, disparity, affinity)"
+        ],
+        "open_access": True,
+        "raw_adjacency_matrices_available": "UNCLEAR from main-text extraction; supplementary S1 File listed but content not yet fetched",
+        "round_2_action": "Fetch supplementary S1 File from PLOS ONE article page; extract per-group adjacency matrices for Laplacian analysis"
+    },
+    {
+        "data_id": "surbeck_2025_commbio_dataset",
+        "paper": "Surbeck et al. 2025 Communications Biology s42003-025-07900-8",
+        "site": "6 wild bonobo communities (Kokolopori, Wamba, LuiKotale)",
+        "duration": "30 years demographic + behavioral",
+        "data_types_offered": [
+            "Female-male dominance interactions per community per year",
+            "Coalition formation patterns",
+            "Female-female alliance data",
+            "Community-level female-dominance percentages"
+        ],
+        "open_access": "Nature open-access gold; PDF behind 303 redirect / IDP auth in our environment",
+        "round_2_action": "Try direct Nature open-access PDF URL or PMC-deposited version; check researchsquare.com preprint"
+    },
+    {
+        "data_id": "tokuyama_2019_intergroup",
+        "paper": "Tokuyama et al. 2019 Am J Phys Anthropol 170:535-550",
+        "site": "Wamba (3 neighboring bonobo communities)",
+        "data_types_offered": [
+            "Intergroup encounter logs with timing",
+            "Female cross-group coalition events",
+            "Male intergroup mate-defense events"
+        ],
+        "open_access": False,  # Wiley paywall per TOS landscape; citation only
+        "round_2_action": "Wiley paywalled - citation only. Look for preprint on bioRxiv or author-deposited copy."
+    },
+    {
+        "data_id": "mouginot_2024_aggression_cascades",
+        "paper": "Mouginot et al. 2024 Current Biology 34:1780-1785.e4",
+        "site": "Kokolopori (3 communities) - wild bonobo",
+        "data_types_offered": [
+            "Per-male aggression rates per hour",
+            "Aggression target distribution (male-male vs male-female)",
+            "Contact aggression rates",
+            "Cascade-event sequences (likely in supplementary)"
+        ],
+        "open_access": False,  # Cell paywall per TOS landscape; citation only
+        "round_2_action": "Cell paywalled - citation only. Check for author preprint or institutional repository deposit."
+    },
+    {
+        "data_id": "krupenye_2018_food_transfer",
+        "paper": "Krupenye, Tan, Hare 2018 Proc R Soc B 285:20181536",
+        "site": "Lola ya Bonobo sanctuary, DR Congo",
+        "data_types_offered": [
+            "Per-trial transfer event coding (rock vs nut)",
+            "Dominance-rank effects on transfer (tested NS)",
+            "Reciprocity tested (tested NS)"
+        ],
+        "open_access": True,  # Royal Society / author Duke deposit
+        "pdf_path_local": "C:/Users/sckir/.claude/projects/D--GitHub-mlehaptics/4a14c507-af79-4cb1-8b0a-460b4a1402a7/tool-results/webfetch-1779021468472-zitkhj.pdf",
+        "round_2_action": "Already extracted main text; supplementary tables S2-S5 referenced but not yet pulled. Pull figshare supplementary for transfer-event cascade timing."
+    },
+    {
+        "data_id": "wilson_2014_killings_dataset",
+        "paper": "Wilson et al. 2014 Nature 513:414-417",
+        "site": "18 chimp + 4 bonobo communities (multi-site)",
+        "data_types_offered": [
+            "Per-community killing event database (152 events)",
+            "Extended Data Table 1: intercommunity killings of weaned victims"
+        ],
+        "open_access": False,  # Nature paywall per TOS landscape; citation only
+        "verified_data_extracted": "152 killings; bonobos NOT observed to kill; chimps killed regardless of human-disturbance level",
+        "round_2_action": "Nature paywalled; rely on Wrangham 2006 + Silk 2014 commentary for verified numbers in our environment."
+    }
+]
+
+
+def main():
+    with open(OUT, "w", encoding="utf-8") as f:
+        for r in BONOBO_DATA_SUBSTRATES:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"Wrote {len(BONOBO_DATA_SUBSTRATES)} bonobo data substrate records to {OUT}")
+    for r in BONOBO_DATA_SUBSTRATES:
+        oa = "OA" if r.get("open_access") is True else ("CITE" if r.get("open_access") is False else "?")
+        print(f"  [{oa}] {r['data_id']:35s} {r['paper']}")
+
+
+if __name__ == "__main__":
+    main()
