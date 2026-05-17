@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vibrational_modes.row.v1",
+  "title": "Molecular Vibrational Modes Catalogue row schema (v1)",
+  "description": "One chain-verified self-validating row in the srmech vibrational_modes catalog. Each row encodes a molecular substrate (InChIKey + formula + geometry + atomic symbols + bond geometry + Wilson-Decius-Cross GVFF force constants) and both the chain-predicted output (predicted_frequencies_cm-1) and the NIST CCCBDB experimental ground-truth (measured_frequencies_cm-1). CI runs the chain `normal_mode_frequencies_xy2` and bit-exact-compares the produced output to the stored predicted_frequencies_cm-1. The measured vs predicted residual is the falsification gauge — within ~5% (stretches) / ~10% (bends) is the expected GVFF accuracy floor per Wilson-Decius-Cross §6. Per `[[feedback_every_doc_edit_faces_falsification]]` (2026-05-16) — the canonical falsification mechanism via class-operator chain composition. Per `[[user_stance_information_instrument_form_function_bound]]` — molecular substrate is a binding-level partition; the underlying class L primitive is the substrate-portable identity.",
+  "type": "object",
+  "required": [
+    "row_label",
+    "row_type",
+    "inchikey",
+    "formula",
+    "geometry",
+    "atomic_symbols",
+    "bond_length_a",
+    "bond_angle_deg",
+    "k_stretch_mdyne_a",
+    "k_stretch_coupling_mdyne_a",
+    "k_bend_mdyne_a_rad2",
+    "predicted_frequencies_cm-1",
+    "measured_frequencies_cm-1",
+    "chain_id",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "properties": {
+    "row_label": {
+      "type": "string",
+      "description": "Human-readable identifier for the row, e.g. 'h2o_gvff_v1' or 'co2_gvff_v1'."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["vibrational_normal_modes_xy2"],
+      "description": "Taxonomy of the chain operation. POC ships only 'vibrational_normal_modes_xy2' (triatomic XY2 substrate; closed-form WDC §6); future rows may add 'vibrational_normal_modes_polyatomic' for full 3N×3N Cartesian Hessian treatment."
+    },
+    "inchikey": {
+      "type": "string",
+      "pattern": "^[A-Z]{14}-[A-Z]{10}-[A-Z]$",
+      "description": "IUPAC InChIKey (27-char canonical molecular identifier). Verifiable against PubChem CID lookup."
+    },
+    "formula": {
+      "type": "string",
+      "description": "Hill-system molecular formula, e.g. 'H2O' or 'CO2'."
+    },
+    "geometry": {
+      "type": "string",
+      "enum": ["bent", "linear"],
+      "description": "Equilibrium molecular geometry, selecting the chain branch in the chain primitive (bent → 2×2 A1 + 1×1 B2 block diagonalisation; linear → 3 closed-form analytic frequencies via Σg/Πu/Σu symmetry)."
+    },
+    "atomic_symbols": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Atomic symbols in molecular-order: [central_atom_or_first_outer, outer1_or_central, outer2]. For bent XY2 (e.g. water): ['O', 'H', 'H']. For linear XY2 (e.g. CO2): ['O', 'C', 'O']. Class J atom-multiset decomposition step uses this ordering."
+    },
+    "bond_length_a": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 3.0,
+      "description": "Equilibrium bond length in Angstroms (canonical experimental value)."
+    },
+    "bond_angle_deg": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 180.0,
+      "description": "Equilibrium bond angle in degrees (180.0 for linear; <180 for bent)."
+    },
+    "k_stretch_mdyne_a": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Bond-stretch force constant f_r in mdyne/Å (Wilson-Decius-Cross GVFF convention)."
+    },
+    "k_stretch_coupling_mdyne_a": {
+      "type": "number",
+      "description": "Bond-bond coupling force constant f_rr in mdyne/Å. May be negative (anti-coupling)."
+    },
+    "k_bend_mdyne_a_rad2": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Bend force constant f_θ in mdyne·Å/rad² (Wilson-Decius-Cross GVFF convention)."
+    },
+    "predicted_frequencies_cm-1": {
+      "type": "object",
+      "required": ["nu1_sym_stretch_cm-1", "nu2_bend_cm-1", "nu3_asym_stretch_cm-1"],
+      "description": "Chain-computed normal-mode frequencies in cm⁻¹. Bit-exactly reproducible by running `normal_mode_frequencies_xy2` chain over the row's inputs.",
+      "properties": {
+        "nu1_sym_stretch_cm-1": {"type": "number", "minimum": 0.0},
+        "nu2_bend_cm-1": {"type": "number", "minimum": 0.0},
+        "nu3_asym_stretch_cm-1": {"type": "number", "minimum": 0.0}
+      }
+    },
+    "measured_frequencies_cm-1": {
+      "type": "object",
+      "required": ["nu1_sym_stretch_cm-1", "nu2_bend_cm-1", "nu3_asym_stretch_cm-1"],
+      "description": "NIST CCCBDB experimental ground-truth in cm⁻¹. Cited per row via source_nist_cccbdb / source_herzberg / source_shimanouchi.",
+      "properties": {
+        "nu1_sym_stretch_cm-1": {"type": "number", "minimum": 0.0},
+        "nu2_bend_cm-1": {"type": "number", "minimum": 0.0},
+        "nu3_asym_stretch_cm-1": {"type": "number", "minimum": 0.0}
+      }
+    },
+    "chain_id": {
+      "type": "string",
+      "description": "Name of the operator chain in this catalog's descriptor.toml that produced predicted_frequencies_cm-1."
+    },
+    "source_wilson_decius_cross": {
+      "type": "string",
+      "description": "Wilson, Decius, Cross *Molecular Vibrations* reference for the closed-form secular equation."
+    },
+    "source_herzberg": {
+      "type": "string",
+      "description": "Herzberg *Molecular Spectra and Molecular Structure II* (1945) reference for force constants and historical experimental anchor."
+    },
+    "source_nist_cccbdb": {
+      "type": "string",
+      "description": "NIST Computational Chemistry Comparison and Benchmark Database URL + retrieval date for measured frequencies."
+    },
+    "source_shimanouchi": {
+      "type": "string",
+      "description": "Shimanouchi NSRDS-NBS 39 (DOI 10.6028/NBS.NSRDS.39) — canonical NIST tabulation of molecular vibrational frequencies; primary source for H2O ν1+ν2."
+    },
+    "source_huber_herzberg": {
+      "type": "string",
+      "description": "Huber-Herzberg *Constants of Diatomic Molecules* (1979) — source for H2O ν3 antisymmetric stretch."
+    },
+    "source_published_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 publication date of the canonical SSoT cited for this row (typically Herzberg 1945 or Shimanouchi 1972)."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date (UTC) this row was added to the catalog."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text notes about the row, e.g. force-field source, residual analysis, accuracy class."
+    }
+  },
+  "additionalProperties": false
+}
