@@ -32,6 +32,7 @@ from . import _native
 
 __all__ = [
     "continued_fraction",
+    "continued_fraction_convergents",
     "best_rational",
     "exp_series_truncate",
     "rational_add",
@@ -42,6 +43,7 @@ __all__ = [
     "cos_series_truncate",
     "log1p_series_truncate",
     "atan_series_truncate",
+    "pi_cascade_digits",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -696,3 +698,436 @@ def atan_series_truncate(numerator: int,
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
     return _reduce_rational(num, den)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Class N π geometric-cascade primitives (Milestone #4 / Task #245).
+#
+# Two pi-emergent primitives operationalising
+# ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` and Spike #32
+# (PR #460 confirmed across 3 substrates):
+#
+#   * continued_fraction_convergents(coef_list)
+#     — Standard CF recurrence: given canonical π CF coefficients
+#       [3; 7, 15, 1, 292, 1, ...], emits convergent ladder
+#       (3,1), (22,7), (333,106), (355,113), (103993,33102), ...
+#       (Hardy & Wright *Theory of Numbers* 4th ed. §10, Khinchin
+#       *Continued Fractions* §10).
+#
+#   * pi_cascade_digits(num_digits)
+#     — Archimedes hexagon-doubling cascade with rational-bounded √
+#       via integer Newton-Raphson on scaled bignum (precision_bits
+#       at 512 by default). Produces decimal digits of π without
+#       invoking math.pi anywhere in the call graph. AST-verified
+#       discipline gate enforced by tests/test_pi_cascade_primitives.py.
+#
+# These earn a C surface (continued_fraction_convergents) for int64-fit
+# convergent ladders + bignum-Python fallback for the long ladder; the
+# cascade decimal-digits op stays Python-only by scope (bignum native
+# from the cascade step onwards — Python int handles it cleanly).
+# ──────────────────────────────────────────────────────────────────────
+
+
+# 30 canonical convergents is well beyond any practical request and
+# matches the C-side cap to avoid runaway integer growth.
+_CF_CONVERGENTS_MAX_COEFS: int = 256
+
+
+def continued_fraction_convergents(
+        coef_list: List[int]) -> List[Tuple[int, int]]:
+    """Produce the convergent ladder for a continued-fraction expansion.
+
+    Given coefficients ``[a_0; a_1, a_2, ..., a_n]`` (the simple
+    continued fraction of some real), returns the list of convergents
+    ``[(h_0, k_0), (h_1, k_1), ..., (h_n, k_n)]`` produced by the
+    standard recurrence:
+
+        h_{-1} = 1, h_0 = a_0,   h_k = a_k * h_{k-1} + h_{k-2}
+        k_{-1} = 0, k_0 = 1,     k_k = a_k * k_{k-1} + k_{k-2}
+
+    Pure integer arithmetic. Python's arbitrary-precision int handles
+    convergent ladders well beyond int64 (the canonical π ladder
+    crosses int64 at depth ~17 with terms like 1146408/364913); no
+    overflow concerns at any depth.
+
+    The convergent property (Hardy & Wright Thm 154): every convergent
+    h_k / k_k is the BEST rational approximation to the limit value
+    with denominator ≤ k_k. The classical π convergents drop out
+    when ``coef_list`` is the canonical π CF
+    ``[3, 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1, 14, ...]``:
+
+    >>> continued_fraction_convergents([3, 7, 15, 1, 292])
+    [(3, 1), (22, 7), (333, 106), (355, 113), (103993, 33102)]
+
+    Native C path (``srmech_cf_convergents_int64``) handles the
+    int64-fit prefix and returns ``SRMECH_ERR_OVERFLOW`` once any
+    convergent exceeds int64; the wrapper transparently falls
+    through to the bignum-Python path.
+
+    Anchored to ``[[user_stance_pi_spectral_shape_scalar_invariant]]``
+    (the convergent ladder IS π at the substrate-level identity); Spike
+    #32 (PR #460) confirmed substrate-invariance across triangle /
+    square / hexagon cascades.
+
+    Parameters
+    ----------
+    coef_list : list[int]
+        Continued-fraction coefficients ``[a_0, a_1, a_2, ...]``.
+        Must be non-empty. ``a_0`` may be negative; remaining
+        coefficients must be positive (simple CF convention).
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        Convergent ladder ``[(h_0, k_0), (h_1, k_1), ...]``, one
+        entry per input coefficient.
+
+    Raises
+    ------
+    TypeError
+        If ``coef_list`` is not a list or contains non-int entries.
+    ValueError
+        If ``coef_list`` is empty or exceeds the implementation cap
+        (``_CF_CONVERGENTS_MAX_COEFS``).
+    """
+    if not isinstance(coef_list, list):
+        raise TypeError(
+            f"coef_list must be list[int]; got {type(coef_list).__name__}"
+        )
+    assert coef_list is not None, "coef_list must not be None"
+    assert all(isinstance(c, int) for c in coef_list), (
+        "every coef_list entry must be int"
+    )
+    if len(coef_list) == 0:
+        raise ValueError("coef_list must be non-empty")
+    if len(coef_list) > _CF_CONVERGENTS_MAX_COEFS:
+        raise ValueError(
+            f"coef_list length {len(coef_list)} exceeds cap "
+            f"{_CF_CONVERGENTS_MAX_COEFS}"
+        )
+    for i, c in enumerate(coef_list):
+        if not isinstance(c, int):
+            raise TypeError(
+                f"coef_list[{i}] must be int; got {type(c).__name__}"
+            )
+        if i > 0 and c <= 0:
+            raise ValueError(
+                f"coef_list[{i}] = {c}; simple CF requires a_k > 0 for k > 0"
+            )
+
+    # Try native C path first when inputs fit safe bounds (every
+    # coefficient fits int64 and the cap is well-bounded). The C
+    # implementation falls back via SRMECH_ERR_OVERFLOW the moment
+    # any convergent exceeds int64.
+    _INT64_MAX: int = (1 << 63) - 1
+    _INT64_MIN: int = -(1 << 63)
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_cf_convergents_int64")
+            and all(_INT64_MIN <= c <= _INT64_MAX for c in coef_list)):
+        n = len(coef_list)
+        coefs_arr = (ctypes.c_int64 * n)(*coef_list)
+        nums_arr = (ctypes.c_int64 * n)()
+        dens_arr = (ctypes.c_int64 * n)()
+        rc = _native.LIB.srmech_cf_convergents_int64(
+            coefs_arr,
+            ctypes.c_size_t(n),
+            nums_arr,
+            dens_arr,
+        )
+        if rc == _native.SRMECH_OK:
+            return [(int(nums_arr[i]), int(dens_arr[i])) for i in range(n)]
+        if rc != _native.SRMECH_ERR_OVERFLOW:
+            raise RuntimeError(
+                f"srmech_cf_convergents_int64 returned non-OK status {rc}"
+            )
+        # else fall through to bignum path
+
+    # Bignum-Python path. Standard CF recurrence; pure integer.
+    convergents: List[Tuple[int, int]] = []
+    h_prev: int = 1
+    h_curr: int = 0  # h_{-2}, h_{-1} in the conventional indexing
+    k_prev: int = 0
+    k_curr: int = 1
+    for a in coef_list:
+        h_next = a * h_prev + h_curr
+        k_next = a * k_prev + k_curr
+        convergents.append((h_next, k_next))
+        # Shift: (h_{k-2}, h_{k-1}) := (h_{k-1}, h_k)
+        h_curr, h_prev = h_prev, h_next
+        k_curr, k_prev = k_prev, k_next
+    return convergents
+
+
+# Cap on cascade depth — each cascade doubling adds ~0.6 decimal digits
+# (log10(4)/log10(10) ≈ 0.602). Depth 90 covers >50 decimal-digit
+# accuracy with safety margin. The fixed-precision-integer cascade
+# carries a single bignum at scale M = 2^precision_bits, so increasing
+# depth costs O(depth · precision_bits) bits total — tractable.
+_PI_CASCADE_MAX_DEPTH: int = 90
+
+# Cap on requested digit count. 50 digits is the practical ceiling
+# at depth=90 + precision_bits=512 (more than enough headroom).
+_PI_CASCADE_MAX_DIGITS: int = 50
+
+
+def _integer_sqrt(n: int) -> int:
+    """Integer floor square root (Newton iteration). Pure integer.
+
+    Used by pi_cascade_digits to bound the cascade's rational √
+    operation in pure integer arithmetic. No floats, no math.pi.
+    """
+    assert isinstance(n, int), "_integer_sqrt requires int"
+    assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
+    if n < 2:
+        return n
+    x = n
+    y = (x + 1) // 2
+    # Newton's iteration converges in O(log log n) steps; bounded by
+    # n.bit_length() as a safe upper cap.
+    for _ in range(max(64, n.bit_length() * 2)):
+        if y >= x:
+            break
+        x = y
+        y = (x + n // x) // 2
+    return x
+
+
+def _rational_sqrt_midpoint(
+        num: int,
+        den: int,
+        precision_bits: int) -> Tuple[int, int]:
+    """Compute a rational mid-bound approximation of √(num/den) at given precision.
+
+    Returns (p, q) with q = den * 2^precision_bits, where p is the
+    rounded integer square root of the scaled bignum (truncated-floor
+    plus 1/2 correction), so |p/q - √(num/den)| ≤ 1/(2q) approximately.
+
+    Pure integer Newton-Raphson on scaled bignum; no floats; no math.pi.
+    Used by ``pi_cascade_digits`` to avoid the one-sided error
+    accumulation that lower-bound truncation produces over many
+    cascade steps.
+    """
+    assert isinstance(num, int) and isinstance(den, int), "rational sqrt needs int inputs"
+    assert num >= 0, f"rational_sqrt requires non-negative numerator; got {num}"
+    assert den > 0, f"rational_sqrt requires positive denominator; got {den}"
+    if num == 0:
+        return (0, 1)
+    M = 1 << precision_bits
+    # √(num/den) = √(num*den) / den. Scale by M for precision; round-
+    # to-nearest by computing both s = floor(√(scaled)) and adjusting
+    # if (s+1)^2 - scaled < scaled - s^2 (i.e. (s+1) is closer).
+    scaled = num * den * M * M
+    s_lo = _integer_sqrt(scaled)
+    s_hi = s_lo + 1
+    # Round to nearest: pick s_hi if its square is closer to `scaled`
+    # than s_lo's square. Pure integer comparison.
+    if (s_hi * s_hi - scaled) < (scaled - s_lo * s_lo):
+        s = s_hi
+    else:
+        s = s_lo
+    return (s, den * M)
+
+
+def pi_cascade_digits(num_digits: int,
+                      *,
+                      max_cascade_depth: int = 90,
+                      precision_bits: int = 512) -> str:
+    """Stream decimal digits of π via Archimedes hexagon-doubling cascade.
+
+    Computes the decimal-digit expansion of π to ``num_digits`` digits
+    after the decimal point. No invocation of ``math.pi`` (or any
+    transcendental library function) anywhere in the call graph — the
+    cascade uses only:
+
+    * Pure integer arithmetic for half-perimeter accumulation
+    * Rational-bounded √ via integer Newton-Raphson on scaled bignum
+    * Integer long-division for decimal-digit extraction
+
+    Algorithm (Archimedes, c. 250 BCE):
+
+    Start with a regular hexagon inscribed in a unit circle. The
+    hexagon has 6 sides each of length 1 (so s² = 1 exactly). At each
+    cascade step, double the number of sides via the half-angle
+    identity:
+
+        s²_{2n} = 2 − √(4 − s²_n)
+
+    The half-perimeter of the inscribed n-gon is (n/2) · s_n, which
+    converges to π as n → ∞. After ``max_cascade_depth`` doublings,
+    the rational half-perimeter (computed in lower-bound form using
+    rational-bounded √) is converted to a decimal string by integer
+    long division.
+
+    Per ``[[user_stance_pi_spectral_shape_scalar_invariant]]``: the
+    scalar decimal expansion 3.14159... is a downstream readout of
+    the substrate-level CF-convergent ladder. Spike #32 (PR #460)
+    confirmed cascade emergence across hexagon / square / triangle
+    substrates with AST-verified zero math.pi invocations.
+
+    Per ``[[user_stance_pi_as_projection]]``: π is generated by a
+    cascade-substrate operation (integer-cyclic doubling on a
+    polygon's vertex count); the scalar value is the projection
+    artifact under continuous-length metric. No math.pi required
+    to compute the decimal expansion.
+
+    Parameters
+    ----------
+    num_digits : int
+        Number of decimal digits to emit after the decimal point.
+        Must satisfy ``0 <= num_digits <= 50`` at default
+        ``max_cascade_depth`` / ``precision_bits``.
+    max_cascade_depth : int, keyword-only
+        Cascade doubling depth. Default 90 (well beyond any practical
+        50-digit request — each doubling adds ~0.6 decimal digits of
+        Archimedes convergence per log10(4)). Capped at 90 for
+        runaway-bit-growth safety.
+    precision_bits : int, keyword-only
+        Bit precision for the scaled-integer √ operation. Default
+        512. Should be substantially greater than
+        ``num_digits * log2(10) ≈ 3.32 * num_digits`` to leave
+        headroom for cascade truncation noise across all depths.
+
+    Returns
+    -------
+    str
+        Decimal expansion as a string ``"3.141592653589793..."`` —
+        always starts with ``"3."`` then ``num_digits`` digits.
+
+    Examples
+    --------
+    >>> pi_cascade_digits(15)
+    '3.141592653589793'
+    >>> pi_cascade_digits(0)
+    '3.'
+    >>> pi_cascade_digits(5)
+    '3.14159'
+
+    Raises
+    ------
+    TypeError
+        If ``num_digits`` is not int.
+    ValueError
+        If ``num_digits`` is negative or exceeds the practical cap.
+
+    Notes
+    -----
+    AST-verified zero ``math.pi`` invocations per
+    ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` — pinned
+    by ``tests/test_pi_cascade_primitives.py``.
+
+    The function imports ``math`` for ``math.gcd`` (rational reduction)
+    only; ``math.pi`` is never accessed. The AST gate test walks
+    this function's source tree and asserts no ``Attribute(math, pi)``
+    nodes.
+    """
+    if not isinstance(num_digits, int):
+        raise TypeError(
+            f"num_digits must be int; got {type(num_digits).__name__}"
+        )
+    assert num_digits is not None, "num_digits must not be None"
+    assert isinstance(max_cascade_depth, int), (
+        "max_cascade_depth must be int"
+    )
+    if num_digits < 0:
+        raise ValueError(f"num_digits must be non-negative; got {num_digits}")
+    if num_digits > _PI_CASCADE_MAX_DIGITS:
+        raise ValueError(
+            f"num_digits exceeds practical cap "
+            f"{_PI_CASCADE_MAX_DIGITS}; got {num_digits}"
+        )
+    if max_cascade_depth < 1 or max_cascade_depth > _PI_CASCADE_MAX_DEPTH:
+        raise ValueError(
+            f"max_cascade_depth must be in [1, {_PI_CASCADE_MAX_DEPTH}]; "
+            f"got {max_cascade_depth}"
+        )
+    if precision_bits < 64 or precision_bits > 8192:
+        raise ValueError(
+            f"precision_bits must be in [64, 8192]; got {precision_bits}"
+        )
+
+    # Special case: zero digits → "3." (the integer part of π).
+    if num_digits == 0:
+        return "3."
+
+    # Fixed-precision-integer Archimedes cascade. We carry one
+    # canonical scale factor M = 2^precision_bits throughout: every
+    # quantity is an integer that, divided by the appropriate power
+    # of M, gives the underlying rational. This avoids the rational-
+    # arithmetic bit-length explosion that occurs when carrying full
+    # (num, den) pairs through the cascade.
+    #
+    # Convention:
+    #   s_sq    represents s²        with scaling factor M  (s² · M)
+    # i.e. s_sq = round(true_s_squared * M).
+    #
+    # Initial hexagon: s²_6 = 1, so s_sq = M exactly.
+    M: int = 1 << precision_bits
+    s_sq: int = M  # = 1 * M, exact
+    n: int = 6
+
+    # Cascade doubling: s²_{2n} = 2 − √(4 − s²_n).
+    # In scaled-integer form: s_sq_new = 2*M − round(√((4*M − s_sq) * M))
+    # because √(x · M)/M = √x when x is given as x·M (single scaling).
+    # General rule for round-to-nearest integer √ at scale M:
+    #   round_sqrt_scaled(y) returns round(√(y * M)) — integer.
+    for _ in range(max_cascade_depth):
+        # 4 − s²_n  (in scaled form):  4*M − s_sq
+        four_minus_s_sq_scaled = 4 * M - s_sq
+        if four_minus_s_sq_scaled < 0:
+            # numerical guard — should never happen with sane inputs
+            four_minus_s_sq_scaled = 0
+        # Compute round(√(four_minus_s_sq_scaled * M)) — this is
+        # the scaled-integer representation of √(4 − s²).
+        rsq_scaled = _scaled_integer_sqrt(four_minus_s_sq_scaled, M)
+        # s²_{2n} = 2 − √(4 − s²_n);  scaled: 2*M − rsq_scaled
+        s_sq = 2 * M - rsq_scaled
+        n *= 2
+
+    # Final half-perimeter approximation of π:
+    #   π ≈ (n/2) · √(s²)
+    # In scaled form:  pi_scaled = (n/2) · round(√(s_sq · M))
+    s_scaled = _scaled_integer_sqrt(s_sq, M)
+    # half_perimeter ≈ (n/2) · (s_scaled / M); we keep this as integer-
+    # scaled value pi_scaled where pi_scaled / M ≈ π.
+    # Note n is always even (n = 6, 12, 24, ...), so n/2 is integer.
+    pi_scaled = (n * s_scaled) // 2
+
+    # Extract decimal digits from pi_scaled / M.
+    # Multiply pi_scaled by 10^(num_digits) before dividing by M to
+    # produce the integer pi_int_digits = round(π · 10^num_digits).
+    ten_pow = 10 ** num_digits
+    pi_int = (pi_scaled * ten_pow) // M
+    # Defensive: the integer part should be 3 · 10^num_digits.
+    # i.e. pi_int / 10^num_digits ∈ [3.14159..., 3.14160...].
+    integer_part = pi_int // ten_pow
+    if integer_part != 3:
+        raise RuntimeError(
+            f"pi_cascade_digits produced integer part {integer_part}, "
+            f"expected 3 (cascade depth + precision may be insufficient)"
+        )
+    fractional_part = pi_int - integer_part * ten_pow
+    # Zero-pad the fractional part to exactly num_digits.
+    frac_str = str(fractional_part).zfill(num_digits)
+    return "3." + frac_str
+
+
+def _scaled_integer_sqrt(y: int, M: int) -> int:
+    """Compute round-to-nearest integer √(y) at scale M.
+
+    Given y where y/M represents some non-negative real value, return
+    round(√(y/M) * M) — the integer-scaled representation of √(y/M).
+
+    Computed as round(√(y * M)) using integer-sqrt floor + nearest-
+    integer correction. Pure integer arithmetic.
+    """
+    assert isinstance(y, int) and isinstance(M, int), "_scaled_integer_sqrt needs int"
+    assert M > 0, f"_scaled_integer_sqrt requires positive M; got {M}"
+    if y <= 0:
+        return 0
+    scaled = y * M
+    s_lo = _integer_sqrt(scaled)
+    s_hi = s_lo + 1
+    # Round to nearest by squared-distance comparison
+    if (s_hi * s_hi - scaled) < (scaled - s_lo * s_lo):
+        return s_hi
+    return s_lo

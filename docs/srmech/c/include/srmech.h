@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc11"
-#define SRMECH_VERSION       "0.4.1rc11"
+#define SRMECH_VERSION_PRE   "rc12"
+#define SRMECH_VERSION       "0.4.1rc12"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -635,6 +635,36 @@ srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
                                          uint32_t  exp_val,
                                          int64_t  *out_num,
                                          uint64_t *out_den);
+
+/* Class N Milestone #4: π geometric-cascade primitives.
+ *
+ * srmech_cf_convergents_int64 — convergent ladder for a continued-
+ * fraction coefficient list. Given coefs = [a_0, a_1, ..., a_{n-1}]
+ * (the simple CF of some real number), produces convergents
+ *
+ *   h_k = a_k * h_{k-1} + h_{k-2},  h_{-1} = 1, h_{-2} = 0
+ *   k_k = a_k * k_{k-1} + k_{k-2},  k_{-1} = 0, k_{-2} = 1
+ *
+ * in out_nums[i] / out_dens[i] for i = 0..n-1.
+ *
+ * The canonical π convergent ladder drops out when coefs is the
+ * canonical π CF [3, 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1, 14, ...]:
+ * (3, 1), (22, 7), (333, 106), (355, 113), (103993, 33102), ...
+ *
+ * Bounded loop n ≤ SRMECH_CF_CONVERGENTS_MAX_N (256). Returns
+ * SRMECH_ERR_OVERFLOW if any convergent exceeds int64; Python
+ * srmech.amsc.rational.continued_fraction_convergents falls back to
+ * bignum at that point.
+ *
+ * Anchored to [[user_stance_pi_spectral_shape_scalar_invariant]] —
+ * the convergent ladder IS π's substrate-level identity (Spike #32
+ * PR #460 confirmed across 3 substrates with AST-verified zero
+ * math.pi invocations).
+ */
+srmech_status_t srmech_cf_convergents_int64(const int64_t *coefs,
+                                            size_t         n,
+                                            int64_t       *out_nums,
+                                            int64_t       *out_dens);
 
 /* ------------------------------------------------------------------ *
  * Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7)

@@ -924,6 +924,28 @@ def _register_primitive_class_tools() -> None:
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
+        ToolEntry(
+            name="srmech.amsc.rational.continued_fraction_convergents",
+            owner="srmech",
+            category="rational",
+            summary="Produce the convergent ladder [(h_0, k_0), ...] from a continued-fraction coefficient list via the canonical CF recurrence. Anchors `[[user_stance_pi_spectral_shape_scalar_invariant]]` — the convergent ladder IS π's substrate identity. Canonical SSoT: Hardy & Wright *Theory of Numbers* §10.6 (best-rational property) + Khinchin *Continued Fractions* §10 (canonical π CF).",
+            parameters=(P("coef_list", "list[int]", True,
+                          "CF coefficients [a_0; a_1, ..., a_n]; a_0 may be negative, a_k > 0 for k > 0"),),
+            returns=R("list[tuple[int, int]]",
+                      "convergent ladder (h_k, k_k) per CF coefficient"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.pi_cascade_digits",
+            owner="srmech",
+            category="rational",
+            summary="Stream decimal digits of π via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer Newton-Raphson rational √ at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* §10 for canonical π reference.",
+            parameters=(P("num_digits", "int", True, "0 <= num_digits <= 50"),
+                        P("max_cascade_depth", "int", False,
+                          "default 90; cascade doubling depth"),
+                        P("precision_bits", "int", False,
+                          "default 512; scaled-integer √ bit precision")),
+            returns=R("str", "'3.{num_digits}' decimal expansion of π"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

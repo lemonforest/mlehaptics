@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pi_digits.row.v1",
+  "title": "Pi Digits Catalogue row schema (v1)",
+  "description": "One chain-verified self-validating row in the srmech pi_digits catalog. Each row encodes an input (num_digits) and the ground-truth output (expected_pi_string) of the named operator chain. CI runs the chain `pi_cascade_digits` and bit-exact-compares the produced output to the stored expected output. Per `[[feedback_every_doc_edit_faces_falsification]]` (2026-05-16) — the canonical mechanism by which project doc claims are falsified or validated via class-operator chain composition. Per `[[user_stance_pi_spectral_shape_scalar_invariant]]` — π's substrate identity is the cascade-emergent CF-convergent ladder; the decimal expansion stored here is a downstream readout.",
+  "type": "object",
+  "required": [
+    "row_label",
+    "row_type",
+    "num_digits",
+    "expected_pi_string",
+    "chain_id",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "properties": {
+    "row_label": {
+      "type": "string",
+      "description": "Human-readable identifier for the row, e.g. 'pi_15_digits'."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["cascade_decimal_expansion"],
+      "description": "Taxonomy of the chain operation. Initially only 'cascade_decimal_expansion' (rc12); future rcs may add 'cf_convergent_ladder' for explicit convergent ladders, etc."
+    },
+    "num_digits": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 50,
+      "description": "Number of decimal digits to emit after the decimal point. The chain `pi_cascade_digits` is parameterised by this single integer."
+    },
+    "expected_pi_string": {
+      "type": "string",
+      "pattern": "^3\\.[0-9]*$",
+      "description": "Ground-truth decimal expansion of π as a string starting with '3.' (so 'pi_15_digits' has expected_pi_string '3.141592653589793'). Verifiable against Khinchin *Continued Fractions* §10 or any standard π table."
+    },
+    "chain_id": {
+      "type": "string",
+      "description": "Name of the operator chain in this catalog's descriptor.toml that produced the expected output."
+    },
+    "source_khinchin": {
+      "type": "string",
+      "description": "Khinchin *Continued Fractions* reference for the canonical π CF expansion (used by `continued_fraction_convergents`)."
+    },
+    "source_hardy_wright": {
+      "type": "string",
+      "description": "Hardy & Wright *Theory of Numbers* reference for the best-rational property of CF convergents."
+    },
+    "source_archimedes": {
+      "type": "string",
+      "description": "Archimedes *Measurement of a Circle* (c. 250 BCE) — historical anchor for the hexagon-doubling cascade algorithm."
+    },
+    "source_published_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 publication date of the canonical SSoT cited for this row (Khinchin *Continued Fractions* 3rd ed., 1964 — earliest English-accessible canonical π CF reference; Russian original 1935)."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date (UTC) this row was added to the catalog."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text notes about the row, e.g. cascade depth used, comparison against the canonical reference, AST-gate confirmation."
+    }
+  },
+  "additionalProperties": false
+}

@@ -603,3 +603,107 @@ srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
     }
     return rational_pow_loop(base_num, base_den, exp_val, out_num, out_den);
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Class N — π geometric-cascade primitives (Milestone #4 / Task #245).
+ *
+ * One load-bearing operation at the C surface for int64-fit cases:
+ *
+ *   - srmech_cf_convergents_int64:
+ *     Given a list of continued-fraction coefficients [a_0; a_1, ...],
+ *     produce the convergent ladder (h_k, k_k) for k = 0..n-1 via
+ *     the standard recurrence
+ *         h_k = a_k * h_{k-1} + h_{k-2}
+ *         k_k = a_k * k_{k-1} + k_{k-2}
+ *     with h_{-1}=1, h_{-2}=0, k_{-1}=0, k_{-2}=1.
+ *
+ * Anchored to `[[user_stance_pi_spectral_shape_scalar_invariant]]` —
+ * the convergent ladder IS π's substrate identity (Spike #32 / PR #460).
+ *
+ * Bounded loop (n ≤ 256). All overflow checks return SRMECH_ERR_OVERFLOW;
+ * Python wrapper falls back to bignum.
+ * ────────────────────────────────────────────────────────────────────── */
+
+#define SRMECH_CF_CONVERGENTS_MAX_N 256
+
+/* Helper — signed-add overflow check on int64. Returns SRMECH_OK and
+ * sets *out on success; SRMECH_ERR_OVERFLOW otherwise. */
+static srmech_status_t cf_conv_sadd_i64(int64_t a, int64_t b, int64_t *out)
+{
+    assert(out != NULL);
+    /* Rule 5 second assert: precondition invariant — INT64_MIN
+     * cannot be safely negated, so callers that hand both INT64_MIN
+     * inputs would step into UB on the overflow check below. We
+     * forbid the corner case as a precondition. (Same shape as
+     * rational_smul_i64's assert pattern in this file.) */
+    assert(!(a == INT64_MIN && b == INT64_MIN));
+    if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    *out = a + b;
+    return SRMECH_OK;
+}
+
+/* Helper — one CF convergent step: compute (h_next, k_next) =
+ * (a * h_prev + h_curr, a * k_prev + k_curr) with overflow checks. */
+static srmech_status_t cf_conv_step(int64_t a,
+                                    int64_t h_prev,
+                                    int64_t h_curr,
+                                    int64_t k_prev,
+                                    int64_t k_curr,
+                                    int64_t *out_h_next,
+                                    int64_t *out_k_next)
+{
+    assert(out_h_next != NULL);
+    assert(out_k_next != NULL);
+    int64_t a_h = 0;
+    srmech_status_t st = rational_smul_i64(a, h_prev, &a_h);
+    if (st != SRMECH_OK) return st;
+    int64_t a_k = 0;
+    st = rational_smul_i64(a, k_prev, &a_k);
+    if (st != SRMECH_OK) return st;
+    st = cf_conv_sadd_i64(a_h, h_curr, out_h_next);
+    if (st != SRMECH_OK) return st;
+    return cf_conv_sadd_i64(a_k, k_curr, out_k_next);
+}
+
+srmech_status_t srmech_cf_convergents_int64(const int64_t *coefs,
+                                            size_t         n,
+                                            int64_t       *out_nums,
+                                            int64_t       *out_dens)
+{
+    /* Convergent ladder for a continued-fraction coefficient list.
+     * Standard recurrence with overflow guards on every multiply +
+     * add; SRMECH_ERR_OVERFLOW the moment any convergent escapes int64.
+     * Bounded loop n ≤ SRMECH_CF_CONVERGENTS_MAX_N. */
+    assert(out_nums != NULL);
+    assert(out_dens != NULL);
+    if (coefs == NULL || out_nums == NULL || out_dens == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0 || n > SRMECH_CF_CONVERGENTS_MAX_N) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    int64_t h_prev = 1;   /* h_{-1} */
+    int64_t h_curr = 0;   /* h_{-2}  (here we keep "prev" = h_{k-1} and "curr" = h_{k-2}) */
+    int64_t k_prev = 0;   /* k_{-1} */
+    int64_t k_curr = 1;   /* k_{-2} */
+    for (size_t i = 0; i < n; i++) {
+        int64_t h_next = 0;
+        int64_t k_next = 0;
+        srmech_status_t st = cf_conv_step(coefs[i],
+                                          h_prev, h_curr,
+                                          k_prev, k_curr,
+                                          &h_next, &k_next);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        out_nums[i] = h_next;
+        out_dens[i] = k_next;
+        h_curr = h_prev;
+        h_prev = h_next;
+        k_curr = k_prev;
+        k_prev = k_next;
+    }
+    return SRMECH_OK;
+}

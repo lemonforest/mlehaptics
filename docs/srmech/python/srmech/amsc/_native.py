@@ -498,6 +498,20 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_rational_pow_uint.restype = ctypes.c_int
 
+    # rc12: Class N π geometric-cascade primitives (Milestone #4).
+    # int srmech_cf_convergents_int64(const int64_t *coefs, size_t n,
+    #                                  int64_t *out_nums, int64_t *out_dens)
+    # Best-effort binding: not all srmech installs have the rc12 symbol
+    # (sdist builds against older headers fall through to bignum-Python).
+    if hasattr(lib, "srmech_cf_convergents_int64"):
+        lib.srmech_cf_convergents_int64.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cf_convergents_int64.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class K — equation-of-centre / pin-slot (Task #217 Phase C1 rc7).
     # ------------------------------------------------------------------

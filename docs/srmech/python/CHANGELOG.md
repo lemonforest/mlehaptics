@@ -4,6 +4,69 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc12] - 2026-05-16
+
+**Task #245 Milestone #4 — π geometric-cascade primitives (cascade output, no `math.pi`).** Per user direction 2026-05-16 — operationalises `[[user_stance_pi_spectral_shape_scalar_invariant]]` (the convergent ladder IS π's substrate identity; the decimal expansion 3.14159... is downstream readout) via two new Class N primitives + a new chain-falsifiable `pi_digits` AMSC catalog. Confirms Spike #32 / PR #460 substrate-invariance result as on-disk falsification infrastructure (second instance of `[[feedback_every_doc_edit_faces_falsification]]` after `asymptotic_calculus`).
+
+### Added — 2 new Class N π geometric-cascade primitives (Python)
+
+- `srmech.amsc.rational.continued_fraction_convergents(coef_list) -> list[tuple[int, int]]` — produces the convergent ladder `[(h_0, k_0), (h_1, k_1), ...]` from a continued-fraction coefficient list via the standard CF recurrence (`h_k = a_k * h_{k-1} + h_{k-2}`). Canonical π CF `[3; 7, 15, 1, 292, 1, ...]` yields canonical convergents `(3, 1), (22, 7), (333, 106), (355, 113), (103993, 33102), ...` per Hardy & Wright §10.6. Pure-Python bignum-capable; C-standalone for int64-fit ladders via `srmech_cf_convergents_int64`.
+- `srmech.amsc.rational.pi_cascade_digits(num_digits) -> str` — streams decimal-digit expansion of π via Archimedes hexagon-doubling cascade. Uses integer Newton-Raphson rational √ at fixed `precision_bits` (default 512) over `max_cascade_depth` doublings (default 90). Produces `"3.14159..."` as string. **AST-verified zero `math.pi` invocations** anywhere in the call graph (discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`).
+
+Bounded caps: 256 CF coefficients (continued_fraction_convergents); 50 digits / depth 90 / 8192 bits (pi_cascade_digits). Substantially larger than any practical use case; both primitives are pure integer arithmetic throughout the call graph.
+
+### Added — C parity for `continued_fraction_convergents`
+
+- `srmech_cf_convergents_int64(coefs, n, out_nums, out_dens)` in `c/src/srmech_rational.c` + header decl in `srmech.h`. ABI v2 pure-addition (no ABI bump). int64-bound n ≤ 256. Returns `SRMECH_ERR_OVERFLOW` when any convergent exceeds int64; Python wrapper falls through to bignum. Two helper functions (`cf_conv_sadd_i64`, `cf_conv_step`) split per JPL Rule 4 (≤60 LOC) with ≥2 asserts per non-exempt function (Rule 5).
+
+`pi_cascade_digits` stays Python-only — the cascade requires bignum integer arithmetic for `precision_bits` ≥ 512 + the long-division step, neither of which fits the JPL-clean u64 envelope of the C primitive surface. Honest scope decision per `[[feedback_no_binding_layer_carveout]]`: every primitive class earns a C surface; bignum-required cases stay Python.
+
+### Added — `srmech.amsc.attested.pi_digits/` chain-falsifiable catalog
+
+First chain-falsifiable π substrate-invariance catalog. Operationalises Spike #32 / PR #460 result (substrate-invariance across triangle / square / hexagon cascades with AST-verified zero math.pi invocations).
+
+- `descriptor.toml` — single-step `pi_cascade_digits` chain calling the Class N primitive.
+- `row.ndjson` — 6 self-validating rows at canonical precision levels: num_digits ∈ {5, 10, 15, 20, 25, 50}. Each row's `expected_pi_string` is the bit-exact canonical decimal expansion of π verifiable against Khinchin *Continued Fractions* §10.
+- `row.schema.json` — JSON schema for the row data (enforces `expected_pi_string` starts with `"3."`).
+
+Mathematical anchor: π's substrate identity is the cascade-emergent CF convergent ladder per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; the decimal expansion is a downstream readout under continuous-length-metric projection. Catalog rows are the readable artifact backed by the cascade primitive's substrate computation. Source citations: Khinchin *Continued Fractions* §10 (canonical π CF); Hardy & Wright *Theory of Numbers* §10.6 (best-rational convergent property); Archimedes *Measurement of a Circle* c. 250 BCE (hexagon-doubling cascade algorithm).
+
+### Added — `tests/test_pi_cascade_primitives.py` (27 tests, all green)
+
+- Continued-fraction convergents: canonical π convergents (first 6 + full 16), canonical e convergents cross-check, simple-CF edge cases, bignum ladder, input validation
+- pi_cascade_digits: 0/5/10/15/20/25/50 digit canonical values, prefix consistency check, input validation, low-depth divergence behavior, default-kwargs consistency
+- **AST-verification gate**: three discipline tests confirming zero `math.pi` / `numpy.pi` / `math.tau` (or equivalent) attribute accesses across `pi_cascade_digits`, its private helpers (`_integer_sqrt`, `_scaled_integer_sqrt`), and `continued_fraction_convergents`
+- Substrate-readout consistency: 355/113 convergent agrees with `pi_cascade_digits(6)` first 6 digits
+
+### Added — `tests/test_pi_digits_catalog.py` (9 tests, all green)
+
+- Catalog presence + ≥5 rows
+- Canonical num_digits coverage (5, 10, 15, 20, 25, 50)
+- Chain falsification (bit-exact comparison row-by-row)
+- Canonical regression-pinned values (15-digit IEEE-754 boundary, 50-digit bignum-deep)
+- All rows are prefixes of canonical π (substrate-invariance documentation)
+- Attestation field presence per descriptor's `[attestation]` block
+
+### Test count
+
+- 499 → 535 passed (full srmech suite; +36 new tests)
+- tool_schema ToolEntry coverage bumps by 2 (one per new Class N primitive)
+- JPL Rule 5 audit: no regression (new C helpers cf_conv_sadd_i64 + cf_conv_step + srmech_cf_convergents_int64 each have ≥ 2 asserts)
+- JPL Rule 4: every new C function ≤ 60 lines (cf_conv_step is 16 LOC; srmech_cf_convergents_int64 is 28 LOC)
+
+### Numbering note
+
+rc12 is Milestone #4 closing Task #245 — the π substrate-output primitive shipping. Predecessor rc11 (Milestone #2 Phase 3B) closed transcendental-Taylor inventory. Following rcs continue Task #234 §11 (forward_difference / riemann_sum), Task #218 Phase C2 work, or new milestones per user direction.
+
+### Anchored in
+
+- `[[user_stance_pi_spectral_shape_scalar_invariant]]` — the convergent ladder IS π's substrate identity (this catalog operationalises this stance)
+- `[[user_stance_pi_as_projection]]` — older form; ladder vs. decimal is the projection-shadow boundary
+- `[[user_stance_identity_not_implementation_discipline]]` — umbrella discipline (π IS the ladder at substrate level; π HAS a decimal expansion at notation level)
+- `[[feedback_every_doc_edit_faces_falsification]]` — discipline this catalog operationalises (second concrete instance)
+- `[[feedback_no_binding_layer_carveout]]` — C surface for continued_fraction_convergents (int64 path); Python-only for pi_cascade_digits (bignum required) is honest scope, not binding-layer carve-out
+- Spike #32 (PR #460) — empirical confirmation across 3 substrates with AST-verified zero math.pi
+
 ## [0.4.1rc11] - 2026-05-16
 
 **Task #234 Phase 3B — trig + log Taylor primitives (Milestone #2 second ship).** Per user direction 2026-05-16 ("number 2 and 3 in the same milestone, do sequentially and test with testpypi first"). Phase 3A shipped `cosmos_validation` catalog as rc10; Phase 3B adds 4 trig/log Taylor partial-sum primitives + chain specs + rows to the `asymptotic_calculus` catalog. Closes Task #234 §11 inventory's transcendental row.
