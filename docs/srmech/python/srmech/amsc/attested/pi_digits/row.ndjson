@@ -1,0 +1,36 @@
+# Pi Digits Catalogue — chain-verified π decimal expansion rows.
+# (Spike #32 / PR #460 substrate-invariance + AST-gated zero math.pi).
+#
+# Each row stores a num_digits input + the expected decimal expansion
+# string. The chain `pi_cascade_digits` (in descriptor.toml) computes
+# the string via Archimedes hexagon-doubling cascade composition with
+# integer Newton-Raphson rational √ at fixed precision; CI re-runs the
+# chain and bit-exact-compares the result to expected_pi_string.
+#
+# Visible across the 6 rows below:
+#   num_digits=5:   '3.14159'
+#   num_digits=10:  '3.1415926535'
+#   num_digits=15:  '3.141592653589793'
+#   num_digits=20:  '3.14159265358979323846'
+#   num_digits=25:  '3.1415926535897932384626433'
+#   num_digits=50:  '3.14159265358979323846264338327950288419716939937510'
+#
+# All expected_pi_string values match Khinchin Continued Fractions §10
+# canonical π reference (verifiable independently from CF
+# [3; 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1, 14, 2, 1, 1, ...]).
+#
+# AST-gate: pi_cascade_digits's call graph contains zero math.pi
+# invocations (enforced by tests/test_pi_cascade_primitives.py).
+#
+# Per `[[user_stance_pi_spectral_shape_scalar_invariant]]`: the
+# decimal-expansion strings below are downstream-readout shadows of
+# the substrate-level CF-convergent ladder. The catalog ships the
+# decimal expansion (the readable artifact) backed by the substrate
+# computation (the cascade primitive).
+
+{"row_label": "pi_5_digits", "row_type": "cascade_decimal_expansion", "num_digits": 5, "expected_pi_string": "3.14159", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "5-digit pi via Archimedes cascade depth 90 + precision_bits 512; AST-gated zero math.pi invocations."}
+{"row_label": "pi_10_digits", "row_type": "cascade_decimal_expansion", "num_digits": 10, "expected_pi_string": "3.1415926535", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "10-digit pi via Archimedes cascade; matches IEEE-754 double precision floor."}
+{"row_label": "pi_15_digits", "row_type": "cascade_decimal_expansion", "num_digits": 15, "expected_pi_string": "3.141592653589793", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "15-digit pi via Archimedes cascade; matches IEEE-754 double precision ceiling."}
+{"row_label": "pi_20_digits", "row_type": "cascade_decimal_expansion", "num_digits": 20, "expected_pi_string": "3.14159265358979323846", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "20-digit pi via Archimedes cascade; beyond double-precision into bignum territory."}
+{"row_label": "pi_25_digits", "row_type": "cascade_decimal_expansion", "num_digits": 25, "expected_pi_string": "3.1415926535897932384626433", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "25-digit pi via Archimedes cascade; pure-bignum precision."}
+{"row_label": "pi_50_digits", "row_type": "cascade_decimal_expansion", "num_digits": 50, "expected_pi_string": "3.14159265358979323846264338327950288419716939937510", "chain_id": "pi_cascade_digits", "source_khinchin": "Continued Fractions §10 (canonical pi CF expansion)", "source_hardy_wright": "Theory of Numbers §10.6 (best-rational convergents)", "source_archimedes": "Measurement of a Circle (hexagon-doubling cascade, c. 250 BCE)", "source_published_date": "1964-01-01", "entered_locally_at": "2026-05-16", "notes": "50-digit pi via Archimedes cascade at max practical depth (90) + 512-bit precision."}

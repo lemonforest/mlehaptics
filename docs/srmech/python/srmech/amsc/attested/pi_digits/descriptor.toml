@@ -1,0 +1,127 @@
+# pi_digits — chain-falsifiable catalog of π decimal digits produced
+# by integer-cyclic geometric cascade composition. Operationalises
+# `[[user_stance_pi_spectral_shape_scalar_invariant]]` (the canonical
+# project stance that π's substrate identity IS the cascade-emergent
+# CF-convergent ladder; the decimal expansion 3.14159... is a
+# downstream readout under continuous-length-metric projection).
+#
+# Per `[[feedback_every_doc_edit_faces_falsification]]` (2026-05-16):
+# every project doc claim should come with a class-operator chain
+# spec that proves or disproves it. Spike #32 (PR #460) confirmed
+# substrate-invariance + AST-verified-zero-math.pi for the cascade
+# emergence; this catalog ships that confirmation as a self-
+# validating row table.
+#
+# Discipline guards encoded in this catalog:
+#
+# 1. AST-verified zero math.pi invocations in pi_cascade_digits's
+#    call graph. Enforced by tests/test_pi_cascade_primitives.py.
+# 2. Every row's expected_pi_string is the canonical decimal
+#    expansion of π at the requested num_digits, verifiable against
+#    Khinchin / Hardy & Wright canonical reference (or any standard
+#    π table).
+# 3. Catalog rows are computed by the chain primitive itself at
+#    catalog-author time (self-validating); CI re-runs the chain
+#    and bit-exact-compares.
+#
+# Citation discipline (per `[[feedback_pdf_extraction_citation_discipline]]`):
+#
+# - Khinchin, A. Ya., *Continued Fractions* (3rd ed., University of
+#   Chicago Press, 1964; Russian original 1935). §10 gives the
+#   canonical π CF expansion [3; 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1,
+#   14, 2, 1, 1, ...]. Used as the canonical reference for the
+#   convergent ladder.
+# - Hardy, G. H., and Wright, E. M., *An Introduction to the Theory
+#   of Numbers* (4th ed., Oxford, 1965; 1st edition 1938). §10.6-§10.7
+#   establish the best-rational property of continued-fraction
+#   convergents. Used as the canonical SSoT for the convergent
+#   identity used by `srmech.amsc.rational.continued_fraction_convergents`.
+# - Archimedes, *Measurement of a Circle* (c. 250 BCE). The hexagon-
+#   doubling cascade algorithm. Anchored in any history-of-mathematics
+#   reference (e.g. Heath 1897 *Works of Archimedes*).
+#
+# Per `[[reference_autonomous_validation_tos_landscape]]`, textbook
+# citations are acceptable in the spike artifact provenance; no
+# autonomous-fetch from commercial-publisher endpoints is performed.
+
+[source]
+key = "pi_digits"
+human_readable_name = "Pi Digits — chain-falsifiable π decimal expansion via integer-cyclic geometric cascade (Spike #32 / PR #460)"
+purpose = "self-validating chain-composed catalog of π decimal-digit expansions at canonical precision levels (5, 10, 15, 20, 25, 50 digits); each row's expected output is computable bit-exactly by re-running the `pi_cascade_digits` chain primitive (Class N geometric-cascade composition over integer Newton-Raphson rational √ at fixed precision); demonstrates the canonical `[[user_stance_pi_spectral_shape_scalar_invariant]]` reposture operationally — the decimal expansion 3.14159... is a downstream readout of cascade-emergent shape, AST-verified to not invoke math.pi anywhere in the call graph; the second concrete instance of `[[feedback_every_doc_edit_faces_falsification]]` infrastructure after asymptotic_calculus"
+license = "CC0-1.0 (self-generated rows; π decimal expansion is mathematical fact in the public domain)"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
+canonical_doi = "10.5281/zenodo.placeholder.spike32"
+
+# canonical_doi above is a placeholder; Spike #32 working note
+# `docs/srmech/notes/spike_32_pi_spectral_shape_scalar_invariant_2026-05-16.md`
+# is the canonical reference for the cascade-emergence empirical confirmation.
+# Textbook anchors (per-row): Khinchin Continued Fractions §10
+# (canonical π CF); Hardy & Wright Theory of Numbers §10.6
+# (convergent best-approximation property).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = false
+
+[schema]
+data_schema_id = "pi_digits.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Pi Digits Catalogue (chain-verified against Khinchin *Continued Fractions* §10 + Hardy & Wright *Theory of Numbers* §10.6); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "chain-verified π decimal expansion to {schema.num_digits} digits at row {schema.row_label}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# pi_digits is not gap-targeting in the dynamical-regime classifier
+# sense — content is mathematical-identity falsification, not
+# empirical dynamical-regime sampling. Future research may define a
+# `chain_verified_identity` regime label; for now use the closest
+# existing label (rigid-body action-angle, same family as
+# asymptotic_calculus per Phase C2 catalog scope).
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+# ─────────────────────────────────────────────────────────────────
+# Operator-chain spec (ADR-0002 Phase 2 schema v1)
+# ─────────────────────────────────────────────────────────────────
+#
+# Single-step chain calling Class N rational pi_cascade_digits. The
+# step's expected output (`expected_pi_string`) is verified against
+# the row's stored value by the catalog test. Any drift in the
+# Class N cascade primitive surfaces as immediate test failure.
+#
+# AST-verification gate enforces zero math.pi invocations in the
+# call graph — the cascade IS the substrate; math.pi is the
+# downstream notation that doesn't appear in the substrate-side
+# computation.
+
+[catalog]
+chain_schema_version = 1
+
+[[catalog.operator_chain]]
+name = "pi_cascade_digits"
+summary = "Stream decimal digits of π via integer-cyclic geometric cascade (Archimedes hexagon-doubling with rational-bounded √ via integer Newton-Raphson at fixed precision). Produces decimal expansion as a string '3.14159...' without invoking math.pi anywhere in the call graph (AST-verified). Returns ground-truth decimal expansion verifiable against Khinchin §10. Anchors Spike #32 (PR #460) substrate-invariance result + `[[user_stance_pi_spectral_shape_scalar_invariant]]`."
+returns = "str  # '3.{num_digits decimal digits of π}'"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "pi_cascade_digits"
+args = { num_digits = "@row.num_digits" }
