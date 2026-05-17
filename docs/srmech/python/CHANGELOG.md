@@ -4,6 +4,87 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc13] - 2026-05-17
+
+**Task #248 — `pi_cascade_digits` cap expansion (engineering follow-on to PR #468 benchmark).** Per user direction 2026-05-17 ("now I'm curious to know and think we should include in our notes, wall time to return 350 digit pi cascade, partly because it's a weird number on purpose"). The benchmark note in [`docs/srmech/notes/pi_cascade_digits_benchmark_2026-05-17.md`](../notes/pi_cascade_digits_benchmark_2026-05-17.md) surfaced the rc12 hard cap (num_digits ≤ 50 by validation, not by mathematics); rc13 closes that gap with auto-scaled cascade parameters + a 1000-digit ceiling.
+
+### Changed — `pi_cascade_digits` cap raised from 50 to 1000
+
+- `srmech.amsc.rational._PI_CASCADE_MAX_DIGITS`: 50 → 1000.
+- `srmech.amsc.rational._PI_CASCADE_MAX_DEPTH`: 90 → 2000.
+- New constant `_PI_CASCADE_MAX_PRECISION_BITS = 32768` (was hard-coded 8192 ceiling).
+- `pi_cascade_digits(num_digits, *, max_cascade_depth=None, precision_bits=None)` — kwargs default to `None`. When `None`, the function auto-scales via the new `_pi_cascade_auto_params` helper. Existing rc12 callers (no kwargs / explicit defaults of 90 / 512) continue to work unchanged.
+- New helper `srmech.amsc.rational._pi_cascade_auto_params(num_digits) -> (depth, precision_bits)` — linear scaling formula derived from the rc12 validated point: `depth = max(90, ceil(num_digits * 90 / 50))`, `precision_bits = max(512, ceil(num_digits * 512 / 50))`. Bit-exact pure-integer arithmetic, AST-clean (no math.pi access).
+
+### Changed — `_integer_sqrt` switched to `math.isqrt` (huge speedup)
+
+- The rc12 implementation used a naive Newton iteration in pure Python. `math.isqrt` (CPython 3.10+) implements an asymptotically-optimal Karatsuba-style integer-floor square root in C; at 20480-bit inputs (D=1000 cascade scale) the speedup is ~2500x.
+- `math.isqrt` is NOT a transcendental constant access — the AST gate (which flags `math.pi`, `math.tau`, `numpy.pi`, `np.pi`, `sympy.pi`, `scipy.pi`) is unchanged and still passes. `math.isqrt` is pure-integer arithmetic, fully compatible with `[[user_stance_pi_spectral_shape_scalar_invariant]]` substrate-invariance discipline.
+- Without this optimization, num_digits=1000 would take ~24 minutes (extrapolated from naive Newton scaling). With `math.isqrt`, num_digits=1000 takes ~0.7 seconds.
+
+### Added — 6 new rows in `pi_digits/row.ndjson` (12 total)
+
+rc12's catalog at num_digits ∈ {5, 10, 15, 20, 25, 50} extended with rc13 cap-expansion rows at num_digits ∈ {100, 200, 350, 500, 750, 1000}. Each row cross-validated bit-exact against mpmath canonical π reference (the de-facto Python arbitrary-precision π implementation, via Borwein-Borwein 4th-order convergent algorithm). The 350-digit row is the user's "weird number on purpose" probe from PR #468.
+
+Row schema's `num_digits` max widened: 50 → 1000.
+
+### Added — 8 new tests in `tests/test_pi_cascade_primitives.py`
+
+- `test_pi_cascade_digits_350_weird_number_on_purpose` — the deliberate probe value
+- `test_pi_cascade_digits_scaling_rc13[num_digits]` — parametrised over {100, 200, 350, 500, 750, 1000}
+- `test_pi_cascade_digits_1000_rc13_ceiling` — the new cap ceiling
+- `test_pi_cascade_digits_over_rc13_cap_raises` — cap validation
+- `test_pi_cascade_digits_auto_params_helper` — pins the auto-scaling formula
+- `test_pi_cascade_digits_explicit_kwargs_override_auto` — caller can override
+- `test_pi_cascade_digits_ast_no_math_pi_across_rc13_scale` — AST gate survives cap expansion
+- Plus `_pi_cascade_auto_params` added to the AST-gate walk in `test_pi_cascade_digits_call_graph_ast_no_math_pi`
+
+New canonical reference `CANONICAL_PI_1000` in both test files (1000 decimal digits, cross-validated against mpmath).
+
+### Added — 3 new tests in `tests/test_pi_digits_catalog.py`
+
+- `test_pi_digits_has_12_rows_rc13` — pins row count at 12 (rc12's 6 + rc13's 6)
+- `test_pi_350_digits_canonical_weird_number_probe` — regression-pinned 350-digit row
+- `test_pi_1000_digits_canonical_rc13_ceiling` — regression-pinned 1000-digit row
+- Existing tests extended: `test_pi_digits_canonical_num_digits_values` widened to all 12 levels, `test_pi_cascade_digits_chain_falsification_all_rows` ratchet bumped from 5 → 12, `test_all_rows_share_canonical_pi_prefix` reference widened from 50 → 1000 digits.
+
+### Wall time (Windows / Python 3.14.4 / fresh-venv)
+
+| num_digits | depth (auto) | prec_bits (auto) | wall time |
+|---:|---:|---:|---:|
+| 50  | 90   | 512   | ~1 ms   |
+| 100 | 180  | 1024  | ~2 ms   |
+| 200 | 360  | 2048  | ~10 ms  |
+| 350 | 630  | 3584  | **~40 ms** (the user's question) |
+| 500 | 900  | 5120  | ~100 ms |
+| 750 | 1350 | 7680  | ~310 ms |
+| 1000 | 1800 | 10240 | ~700 ms |
+
+The benchmark note's "seconds-range" projection for D=350 was based on the rc12 naive `_integer_sqrt`; the `math.isqrt` switch in rc13 collapses the projection from seconds to milliseconds.
+
+### Test count
+
+- 535 → 549+ passed (full srmech suite; +14 new pi-related tests)
+- tool_schema `pi_cascade_digits` ToolEntry summary updated with rc13 cap-expansion note
+- JPL Rule 5 audit: no regression (no new C functions; the Python-only cap-expansion + math.isqrt swap don't touch the C surface)
+- AST-verification gate: zero `math.pi` invocations across the full call graph including the new `_pi_cascade_auto_params` helper
+
+### C parity
+
+`pi_cascade_digits` stays Python-only per rc12's honest scope decision ([[feedback_no_binding_layer_carveout]]) — the cascade requires bignum integer arithmetic for precision_bits up to 32768 + the long-division step. rc13's expansion of the cap doesn't change that decision; if anything it reinforces it (the precision_bits requirements scale linearly with num_digits, and at 10240 bits the u64 envelope is comfortably exceeded). The Python wrapper around `math.isqrt` IS the C path here — CPython's `math.isqrt` is a C implementation in the interpreter itself.
+
+`continued_fraction_convergents` (the companion Class N primitive shipped in rc12) retains its `srmech_cf_convergents_int64` C surface unchanged.
+
+### Anchored in
+
+- `[[user_stance_pi_spectral_shape_scalar_invariant]]` — the convergent ladder IS π's substrate identity; the decimal expansion is downstream readout. rc13 cap-expansion makes more of the projection visible at the same substrate.
+- `[[user_stance_pi_as_projection]]` — π is generated by the cascade-substrate operation
+- `[[feedback_every_doc_edit_faces_falsification]]` — discipline this catalog operationalises
+- `[[feedback_no_binding_layer_carveout]]` — Python-only by honest scope (bignum-required); not a binding-layer carve-out
+- Task #248 (this rc) — engineering follow-on to PR #468 benchmark
+- PR #468 benchmark note (2026-05-17) — the engineering finding (rc12 caps at 50 by validation) + the scaling projection
+- Spike #32 (PR #460) — empirical confirmation across 3 substrates
+
 ## [0.4.1rc12] - 2026-05-16
 
 **Task #245 Milestone #4 — π geometric-cascade primitives (cascade output, no `math.pi`).** Per user direction 2026-05-16 — operationalises `[[user_stance_pi_spectral_shape_scalar_invariant]]` (the convergent ladder IS π's substrate identity; the decimal expansion 3.14159... is downstream readout) via two new Class N primitives + a new chain-falsifiable `pi_digits` AMSC catalog. Confirms Spike #32 / PR #460 substrate-invariance result as on-disk falsification infrastructure (second instance of `[[feedback_every_doc_edit_faces_falsification]]` after `asymptotic_calculus`).

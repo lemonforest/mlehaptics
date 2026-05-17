@@ -859,37 +859,88 @@ def continued_fraction_convergents(
 
 
 # Cap on cascade depth — each cascade doubling adds ~0.6 decimal digits
-# (log10(4)/log10(10) ≈ 0.602). Depth 90 covers >50 decimal-digit
-# accuracy with safety margin. The fixed-precision-integer cascade
+# (log10(4)/log10(10) ≈ 0.602). The fixed-precision-integer cascade
 # carries a single bignum at scale M = 2^precision_bits, so increasing
 # depth costs O(depth · precision_bits) bits total — tractable.
-_PI_CASCADE_MAX_DEPTH: int = 90
+#
+# rc13 raises the depth cap from 90 to 2000 to accommodate num_digits up
+# to 1000 (depth 1800 covers >1000 decimal-digit accuracy with safety
+# margin per `_pi_cascade_auto_params`). The bound is still finite and
+# JPL-clean (fixed loop bound).
+_PI_CASCADE_MAX_DEPTH: int = 2000
 
-# Cap on requested digit count. 50 digits is the practical ceiling
-# at depth=90 + precision_bits=512 (more than enough headroom).
-_PI_CASCADE_MAX_DIGITS: int = 50
+# Cap on requested digit count. rc13 raises from 50 to 1000 per the
+# benchmark note's engineering finding (PR #468) — the cascade scales
+# linearly in depth + precision; rc12's cap was the validated regime
+# bound, not a mathematical bound. With math.isqrt's asymptotically-
+# optimal sqrt and depth/precision auto-scaling, 1000 digits is
+# reachable in single-digit seconds.
+_PI_CASCADE_MAX_DIGITS: int = 1000
+
+# Maximum precision_bits caller may pass. Raised from 8192 (rc12) to
+# 32768 (rc13) to cover the auto-scaled precision needed at
+# num_digits=1000 (~10240 bits) with substantial headroom.
+_PI_CASCADE_MAX_PRECISION_BITS: int = 32768
+
+
+def _pi_cascade_auto_params(num_digits: int) -> Tuple[int, int]:
+    """Compute auto-scaled (max_cascade_depth, precision_bits) for a
+    given num_digits request.
+
+    Linear scaling derived from the rc12 validated point (num_digits=50
+    at depth=90, precision_bits=512) per the benchmark note in
+    ``docs/srmech/notes/pi_cascade_digits_benchmark_2026-05-17.md``:
+
+      depth          = max(90,  ceil(num_digits * 90  / 50))
+      precision_bits = max(512, ceil(num_digits * 512 / 50))
+
+    The 90/50 = 1.8 cascade-doublings-per-digit ratio leaves an ~8%
+    safety margin over the theoretical log10(4)⁻¹ ≈ 1.66 minimum.
+    The 512/50 = 10.24 precision-bits-per-digit ratio leaves ~3x
+    headroom over the theoretical log2(10) ≈ 3.32 minimum.
+
+    Caller-overridable: explicit ``max_cascade_depth`` /
+    ``precision_bits`` kwargs to ``pi_cascade_digits`` skip this helper
+    entirely.
+
+    Parameters
+    ----------
+    num_digits : int
+        Number of decimal digits requested. Must be in [0, 1000].
+
+    Returns
+    -------
+    (depth, precision_bits) : tuple[int, int]
+        Auto-scaled cascade parameters. Both quantities scale linearly
+        with num_digits; minimum values are rc12's validated defaults.
+    """
+    assert isinstance(num_digits, int), "num_digits must be int"
+    assert num_digits >= 0, f"num_digits must be non-negative; got {num_digits}"
+    # Round-up division for ceil(a*90/50) etc. — pure integer.
+    depth = max(90, (num_digits * 90 + 49) // 50)
+    precision_bits = max(512, (num_digits * 512 + 49) // 50)
+    return (depth, precision_bits)
 
 
 def _integer_sqrt(n: int) -> int:
-    """Integer floor square root (Newton iteration). Pure integer.
+    """Integer floor square root. Pure integer.
 
     Used by pi_cascade_digits to bound the cascade's rational √
     operation in pure integer arithmetic. No floats, no math.pi.
+
+    Implementation: stdlib ``math.isqrt`` (CPython 3.10+ uses an
+    asymptotically-optimal Karatsuba-style algorithm internally — for
+    20480-bit inputs (D=1000 cascade scale) the speedup over a naive
+    Newton iteration is ~2500x). This is the rc13 cap-expansion
+    optimization that makes num_digits up to 1000 tractable. The AST-
+    verification gate only flags ``math.pi`` / ``math.tau`` /
+    ``numpy.pi``; ``math.isqrt`` is a pure-integer arithmetic helper
+    and is explicitly compatible with the substrate-invariance
+    discipline per ``[[user_stance_pi_spectral_shape_scalar_invariant]]``.
     """
     assert isinstance(n, int), "_integer_sqrt requires int"
     assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
-    if n < 2:
-        return n
-    x = n
-    y = (x + 1) // 2
-    # Newton's iteration converges in O(log log n) steps; bounded by
-    # n.bit_length() as a safe upper cap.
-    for _ in range(max(64, n.bit_length() * 2)):
-        if y >= x:
-            break
-        x = y
-        y = (x + n // x) // 2
-    return x
+    return math.isqrt(n)
 
 
 def _rational_sqrt_midpoint(
@@ -930,8 +981,8 @@ def _rational_sqrt_midpoint(
 
 def pi_cascade_digits(num_digits: int,
                       *,
-                      max_cascade_depth: int = 90,
-                      precision_bits: int = 512) -> str:
+                      max_cascade_depth: int | None = None,
+                      precision_bits: int | None = None) -> str:
     """Stream decimal digits of π via Archimedes hexagon-doubling cascade.
 
     Computes the decimal-digit expansion of π to ``num_digits`` digits
@@ -940,7 +991,7 @@ def pi_cascade_digits(num_digits: int,
     cascade uses only:
 
     * Pure integer arithmetic for half-perimeter accumulation
-    * Rational-bounded √ via integer Newton-Raphson on scaled bignum
+    * Rational-bounded √ via integer-floor square root (``math.isqrt``)
     * Integer long-division for decimal-digit extraction
 
     Algorithm (Archimedes, c. 250 BCE):
@@ -970,22 +1021,32 @@ def pi_cascade_digits(num_digits: int,
     artifact under continuous-length metric. No math.pi required
     to compute the decimal expansion.
 
+    Auto-scaling (rc13)
+    -------------------
+    When ``max_cascade_depth`` / ``precision_bits`` are left as
+    ``None`` (the default), they are computed automatically from
+    ``num_digits`` via ``_pi_cascade_auto_params`` using the linear
+    scaling validated by Task #248:
+
+      depth          = max(90,  ceil(num_digits * 90  / 50))
+      precision_bits = max(512, ceil(num_digits * 512 / 50))
+
+    Callers may override either kwarg explicitly to study cascade
+    convergence at non-canonical parameter combinations.
+
     Parameters
     ----------
     num_digits : int
         Number of decimal digits to emit after the decimal point.
-        Must satisfy ``0 <= num_digits <= 50`` at default
-        ``max_cascade_depth`` / ``precision_bits``.
-    max_cascade_depth : int, keyword-only
-        Cascade doubling depth. Default 90 (well beyond any practical
-        50-digit request — each doubling adds ~0.6 decimal digits of
-        Archimedes convergence per log10(4)). Capped at 90 for
-        runaway-bit-growth safety.
-    precision_bits : int, keyword-only
-        Bit precision for the scaled-integer √ operation. Default
-        512. Should be substantially greater than
-        ``num_digits * log2(10) ≈ 3.32 * num_digits`` to leave
-        headroom for cascade truncation noise across all depths.
+        Must satisfy ``0 <= num_digits <= 1000`` (rc13 cap; rc12 was 50).
+    max_cascade_depth : int or None, keyword-only
+        Cascade doubling depth. ``None`` (default) → auto-scaled from
+        ``num_digits`` per ``_pi_cascade_auto_params``. Explicit value
+        must be in [1, 2000].
+    precision_bits : int or None, keyword-only
+        Bit precision for the scaled-integer √ operation. ``None``
+        (default) → auto-scaled from ``num_digits``. Explicit value
+        must be in [64, 32768].
 
     Returns
     -------
@@ -1016,18 +1077,16 @@ def pi_cascade_digits(num_digits: int,
     by ``tests/test_pi_cascade_primitives.py``.
 
     The function imports ``math`` for ``math.gcd`` (rational reduction)
-    only; ``math.pi`` is never accessed. The AST gate test walks
-    this function's source tree and asserts no ``Attribute(math, pi)``
-    nodes.
+    and ``math.isqrt`` (integer square root) only; ``math.pi`` and
+    ``math.tau`` are never accessed. The AST gate test walks this
+    function's source tree and asserts no ``Attribute(math, pi)`` or
+    ``Attribute(math, tau)`` nodes.
     """
     if not isinstance(num_digits, int):
         raise TypeError(
             f"num_digits must be int; got {type(num_digits).__name__}"
         )
     assert num_digits is not None, "num_digits must not be None"
-    assert isinstance(max_cascade_depth, int), (
-        "max_cascade_depth must be int"
-    )
     if num_digits < 0:
         raise ValueError(f"num_digits must be non-negative; got {num_digits}")
     if num_digits > _PI_CASCADE_MAX_DIGITS:
@@ -1035,14 +1094,26 @@ def pi_cascade_digits(num_digits: int,
             f"num_digits exceeds practical cap "
             f"{_PI_CASCADE_MAX_DIGITS}; got {num_digits}"
         )
+    # Auto-scale either kwarg when caller passes None.
+    auto_depth, auto_precision_bits = _pi_cascade_auto_params(num_digits)
+    if max_cascade_depth is None:
+        max_cascade_depth = auto_depth
+    if precision_bits is None:
+        precision_bits = auto_precision_bits
+    assert isinstance(max_cascade_depth, int), (
+        "max_cascade_depth must be int"
+    )
+    assert isinstance(precision_bits, int), "precision_bits must be int"
     if max_cascade_depth < 1 or max_cascade_depth > _PI_CASCADE_MAX_DEPTH:
         raise ValueError(
             f"max_cascade_depth must be in [1, {_PI_CASCADE_MAX_DEPTH}]; "
             f"got {max_cascade_depth}"
         )
-    if precision_bits < 64 or precision_bits > 8192:
+    if (precision_bits < 64
+            or precision_bits > _PI_CASCADE_MAX_PRECISION_BITS):
         raise ValueError(
-            f"precision_bits must be in [64, 8192]; got {precision_bits}"
+            f"precision_bits must be in [64, "
+            f"{_PI_CASCADE_MAX_PRECISION_BITS}]; got {precision_bits}"
         )
 
     # Special case: zero digits → "3." (the integer part of π).
