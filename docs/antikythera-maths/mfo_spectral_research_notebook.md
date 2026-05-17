@@ -1061,6 +1061,24 @@ Anisotropic cosmic birefringence (Gruppuso et al. 2020, [arXiv:2008.10334](https
 
 > **Status (per `[[feedback_no_lineage_claims_in_notebook]]`).** These subsections are *candidate framings* under MFO commitments — not endorsed over standard ΛCDM-plus-systematics readings without further empirical convergence (DESI DR3 confirmation for §VII.6.1.2; LiteBIRD-class polarisation results for §VII.6.1.3; §VII.5 quantitative-match for §VII.6.1.1's Reading B1 vs B2 disambiguation).
 
+### VII.6.1.4 Off-centre-observer reading of the AoE direction (Spike #33 conductor-committed)
+
+The 18.3° AoE-CMB-dipole separation (§VII.6.1.1, PR #437 Q5.2) was unexplained under bubble-collision / internal-bundle-direction / systematics readings. Spike #33 (`docs/srmech/notes/spike_33_aoe_local_epicycle_2026-05-16.md`, PR #461) operationalised the user's framing *"the dark sector trajectory has a LOCAL Class K signature at AoE direction"* into four falsifiable sub-tests. Conductor-committed across the four fermatas same day per user direction *"go with your lean"*.
+
+**The committed reading: AoE direction's local Class K signature IS the geometric consequence of our observer frame being off-centre on an isotropic substrate ring — NOT a directional substrate-density perturbation.** Per `[[user_stance_aoe_observer_frame_offset]]`:
+
+- **ε_AoE = 0.0506** via Hopf-bundle aperture `1 − cos(18.3°)` — matches Antikythera-lunar canonical Class K eccentricity (0.054) to 1%; sits in standard cosmic eccentricity range (0.01–0.1); maps cleanly onto §VII.4.1.1's Hopf S³→S² substrate-bundle framework.
+- **Static interpretation only**. Saadeh et al 2016 (PRL 117 131302; arXiv:1605.07178; PDF-verified at 121,000:1 odds against anisotropy) falsifies all dynamical readings at 2,558×–109,374× tension. The substrate is isotropic at the cascade level; only our observer frame has a radial offset whose direction is "AoE." No actual expansion-rate anisotropy; the static offset is invisible to Saadeh's shear measurement.
+- **v2 off-centre-observer construction** (Spike #33 canonical script): observer at radial offset ε from ring centre sees its angular projection carry strict-three-criteria Class K signature (r² = 1.000, ε_fit ≈ ε_input to 4 decimals, monotonic, in physical range). Per `[[user_stance_epicycle_via_gear_plus_pin]]`: substrate plays the role of gear (Class I — isotropic ring); our observer offset plays the role of pin (Class K — equation-of-centre modulation). **Every observer-frame embedded in a substrate ring inherits a Class K signature from its radial offset** — canonical geometric origin of the Kepler series (PR #416 §F2/F15/F17) at cosmological scale.
+
+**Matter-drift vs medium-push reading dichotomy** (from prior conversation): NOT contradictory readings of the same observable, but **different substrate-coupling channels** (Spike #33 Q3 option (b) — conductor-committed). Matter-drift sees the matter-particle channel (UHECR, peculiar velocity); medium-push sees the substrate-rate channel (CMB anisotropy). Their ε estimates are NOT directly comparable; they measure different observables at different scales. This matches PR #437 Part VI Q14 (AoE is NOT matter-pull per UHECR 73° off-axis); preserves `[[user_stance_partition_for_understanding]]` discipline.
+
+**Open testable consequences** (Spike #35 candidate scope):
+
+- **Brouwer & Clemence 1961 §3.2 c_k = ε^k/k Fourier coefficient ladder at ε = 0.0506** should modulate the angular distribution of ANY structure observed through our off-centre frame: c_1 ≈ 0.101 at fundamental, c_2 ≈ 3.20×10⁻³ at 2nd harmonic, c_3 ≈ 1.40×10⁻⁴ at 3rd harmonic. Testable in cosmic-web filament orientations, galaxy cluster axis alignments, supercluster geometry.
+- **Sign-flip 2-zero-crossings-per-cycle (apses) imply phase asymmetry** between left/right sweep across observed structures crossing our line of sight. Testable in galaxy rotation curves, cluster velocity dispersions, tidal streams.
+- **Galactic-scale ITN** (ephemerides-spectral Task #117/119 gateway-graph Fiedler-partition methodology) may have a cosmological analog at the cosmic-web scale; Spike #35 scope candidate.
+
 ### VII.6.2 T_sub decomposed: HO-role × dimensional-kind × compression-state
 
 > *"the force that string dynamics must have to propegate and the tension resisting string dynamic"*
