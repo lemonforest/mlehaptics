@@ -1,0 +1,9 @@
+{"spike": 38, "kind": "falsifier_caffeine_self", "value": 0.8114770924918712}
+{"spike": 38, "kind": "falsifier_ethane", "value": 0.5088386549293697}
+{"spike": 38, "kind": "falsifier_benzene", "value": 0.5451842731386101}
+{"spike": 38, "kind": "falsifier_glucose", "value": 0.8792522642868951}
+{"spike": 38, "kind": "falsifier_path_n14", "value": 0.7944996756439201}
+{"spike": 38, "kind": "falsifier_cycle_n14", "value": 0.6435028277688383}
+{"spike": 38, "kind": "falsifier_random_n14", "mean": 0.8568923833647972, "std": 0.04304607114550068, "min": 0.7366752641008115, "max": 0.9313564666117925, "n_seeds": 50}
+{"spike": 38, "kind": "falsifier_random_spec_vs_caffeine_L", "mean": 0.8273736865533453, "std": 0.03436910934332837, "n_seeds": 50}
+{"spike": 38, "kind": "falsifier_verdict", "caffeine_self_similarity": 0.8114770924918712, "random_graph_mean": 0.8568923833647972, "random_graph_max": 0.9313564666117925, "is_specific_above_random_max": false, "above_random_by_sigma": -1.0550391630264502, "is_significant_above_2sigma": false, "verdict": "ARTIFACT", "verdict_text": "Caffeine-self similarity is within range of random-graph background. 0.81 cosine similarity is an artifact of histogram-binning, NOT evidence of substrate-specific Class L structure."}
