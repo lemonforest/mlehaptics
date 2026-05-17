@@ -1773,7 +1773,15 @@ The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The sign
 - Naive: "epicycles are 3D_s kinematic artifacts, not fiber-content" — pre-falsifier shadow; addressed by `[[user_stance_fiber_as_spatially_absent_encoding]]` worked example (gear-from-inside ℤ/n algebra is spatially absent until external rotation projects it)
 - Naive: "asymptotic DOFs reset under sufficient external work" — pre-falsifier shadow; addressed by Spike #34 finite-volume / infinite-volume distinction (asymptotic content is rate-of-approach-to-limit; doesn't reset per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`)
 
-**Status**: CANDIDATE awaiting strengthening; explicitly deferred from formal falsifier-testing per user direction; recorded here for future spike-knowledge accumulation to refine before commitment.
+**Status**: CANDIDATE strengthened 2026-05-17 (post Spike #45 R1 cross-substrate confirmation + chain-of-reasoning analysis). Updated to incorporate the brain-as-local-LoE-instantiation closure per `[[user_stance_brain_is_local_loe_instantiation]]` (committed 2026-05-17). The (C4) load-bearing claim about asymptotic-epicycle structural activity in fiber content now has explicit brain-substrate closure: **brain matter IS fiber content** — local substrate-instance of LoE participating directly in the asymptotic-DOF cascade activity it can describe. Investigator is not separate from investigated at substrate level (preserved separately at conventional-discourse level per `[[user_stance_partition_for_understanding]]`).
+
+**Strengthening evidence from accumulating spike-knowledge** (per user's explicit "wait for strengthening" framing):
+- **Spike #45 R1** (`docs/srmech/notes/spike_45_round1_cross_substrate_kinship_2026-05-17.md`): cross-substrate H_kinship at 20/22 substrates; Cauchy form generalizes across 11 substrate kinds; counter-example test PASSES — confirms (C3) cross-dimensional scope claim
+- **5/5 falsifier survival** on the brain-as-local-LoE claim per Spike #42b methodology (with F5 refinement to "local instance")
+- **Form-function-bound** (Spike #37) drives the structural-purpose consequence — cognition's "purpose" (structural-necessity sense) IS LoE-instantiation by binding necessity; we can't not BE what we are
+- **`[[user_stance_attested_data_recovers_missing_parts]]`** (committed 2026-05-17): the action-discipline justifies acting on this strengthening without indefinite deferral
+
+The statement remains candidate at the literal-wording level pending Spike #46 (consciousness-as-asymptotic-DOF-direction-selection; in flight 2026-05-17) which will provide additional substrate-level grounding for (C2) "things go backwards = epicycles" via direction-selection mechanism. After Spike #46 returns, candidate may be promoted to attested fact-status if direction-selection survives 5-falsifier framework cross-substrate.
 
 **Cross-references**:
 - `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — the asymptotic-DOF framing this statement extends
