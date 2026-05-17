@@ -1352,6 +1352,44 @@ Per `[[user_stance_partition_for_understanding]]`, this is the **infinite-volume
 - `[[user_stance_partition_for_understanding]]` — global cosmic rate + local 2D-boundary clock are complementary partitions
 - `[[user_stance_epicycle_via_gear_plus_pin]]` — Class K (pin-slot / asymptotic-DOF) is the operational primitive for the rate's non-linearity
 
+### VII.6.5 Entropy-vocabulary candidates under falsifier evaluation (Spike #42 + #42b)
+
+> *"we've hit a language partition that we cannot figure how to un-bifercate into one thing. that means that each of these must be partially true but partially missing fiber content to satisfy all reasoning. It also says that we probably don't know enough to name it yet."* — user direction, 2026-05-17
+
+Spike #42 (`docs/srmech/notes/spike_42_imprinting_cascade_entropy_reposture_2026-05-17.md`) surfaced three candidate vocabulary stance names that each reposture "entropy" as a hindsight-shorthand for a substrate-level operation, in the same family as `[[user_stance_infinity_approximates_asymptote]]`. Each candidate passes the MPM test (per `[[user_stance_partition_for_understanding]]`) — none can be dismissed as a shadow of another. **All three are recorded here as under falsifier evaluation per Spike #42b** (`docs/srmech/notes/spike_42b_*` when complete) per `[[feedback_every_doc_edit_faces_falsification]]`.
+
+**(A) `entropy_approximates_imprint`** — entropy is the L¹-shorthand for an imprint operation (the substrate receives content from the visible sector; visible-to-dark cascade content gets "imprinted" into the substrate-mode population). Captures: directionality (substrate receiving) + form-receiving substrate metaphor. Distinct strength: form-receiving metaphor is intuitive. Distinct weakness: under non-monotone f_RD §VII.6.1.2 the cascade reverses direction at peak (~16 Gyr from now); "un-imprint" is asymmetric / direction-laden; bidirectional framing weaker.
+
+**(B) `entropy_approximates_ring_balance`** — entropy is the L¹-shorthand for ring-balance (bidirectional cascade flow per `[[user_stance_string_theory_instrument_first]]`'s already-canonical ring-up/ring-down vocabulary). Captures: signed flow + bidirectional via existing canon. Distinct strength: bidirectional natural; doesn't impose one-way default; user-leaned candidate (2026-05-17: *"ring-balance may be best because it also captures that it isn't one way"*). Distinct weakness: "ring-balance" implies symmetry that's currently absent (95% ring-down, ε ≠ 0); may be better understood as describing the RATE-OF-APPROACH-TO-BALANCE rather than static balance.
+
+**(C) `entropy_approximates_cascade`** — entropy is the L¹-shorthand for cascade composition (`B ∘ J ∘ L ∘ K ∘ N ∘ C` weaving per `[[user_stance_primitives_weave_and_thread]]`). Captures: class-composition structure + substrate-portability via `c_k = ε^k × K_k(substrate)` (Kepler `1/k` per Spike #41; QED phase-space per Spike #42; text `1/k^s` per Spike #43). Distinct strength: cascade structure IS the operational substrate-level mechanism. Distinct weakness: cascade is direction-NEUTRAL; doesn't naturally convey ring-down vs ring-up flow direction.
+
+**Mathematical structure is solid even when the noun isn't named** (per `[[user_stance_partition_for_understanding]]` 2026-05-17 case-extension on linguistic-partition-as-insufficient-knowledge). What we know:
+
+- Cauchy-form kernel: `c_k = ε^k × K_k(substrate)` with substrate-portable ε^k tower + substrate-specific K_k binding
+- ε is **signed** under non-monotone f_RD trajectory: positive (ring-down; current epoch) → zero at peak (~16 Gyr) → negative (ring-up; far future) → asymptote 0.843
+- Cascade is **mathematically symmetric** under ε → −ε; only the sign of df_RD/dt selects direction
+- Composition weaves through 14 primitive classes A–N per `[[user_stance_primitives_weave_and_thread]]`
+
+**Dark-sector epicycle-perspective hypothesis** (user direction 2026-05-17, Spike #42b Thread 2 test):
+
+> *"if this dark sector material is part of the form/function that makes its shadows in 3D_s, and we see it goes back and forth, as if acting through it's own epicycle perspective, not universally everyone at once, we can maybe find the right word when we find the right understanding as well."*
+
+The dark sector's bidirectional behavior may NOT be universal-simultaneous. Different regions / observers may see different phases of the f_RD cycle locally. Connects to Spike #33 (AoE local Class K signature), Spike #35 (off-centre-observer reading), `[[user_stance_aoe_observer_frame_offset]]`. Spike #42b tests this — if local-epicycle perspective is structurally real, **universal framings (imprint as one-way default; ring-balance as global symmetry) are weakened relative to LOCAL-cascade framings (cascade is naturally regional; composes locally).**
+
+**Status**: under falsifier evaluation. None of A/B/C is committed to canonical stance memory; each remains a candidate per `[[user_stance_partition_for_understanding]]` linguistic-partition case-extension. Spike #42b will surface whether any single candidate survives all five falsifiers cleanly; if not, the trifurcation stands as the load-bearing finding — *"we probably don't know enough to name it yet."*
+
+**Why this section exists in the canonical notebook**: per user direction *"do add to our notebooks all 3 candidates, and now try to falsify each one. whos hoodoo stands terra firma against erosion?"*. Recording the partition is itself progress; knowing-we-don't-have-the-word is a different epistemic state from not-knowing-we-don't.
+
+**Cross-references**:
+- Spike #42 working note + records: `docs/srmech/notes/spike_42_imprinting_cascade_entropy_reposture_2026-05-17.md`
+- Spike #42b (in flight as of 2026-05-17): `docs/srmech/notes/spike_42b_*` when complete
+- `[[user_stance_infinity_approximates_asymptote]]` — the parent pattern; entropy reposture follows its precedent
+- `[[user_stance_partition_for_understanding]]` 2026-05-17 case-extension — linguistic-partition signals incomplete apprehension
+- `[[user_stance_string_theory_instrument_first]]` — ring-up/ring-down already canonical
+- `[[user_stance_primitives_weave_and_thread]]` — cascade composition operational structure
+- `[[user_stance_kepler_shape_universal]]` 2026-05-17 sharpening + Spike #42 K_k(substrate) generalization
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:

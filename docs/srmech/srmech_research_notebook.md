@@ -480,6 +480,26 @@ Spike #36 (`notes/spike_36_class_m_ontological_status_2026-05-16.md`, PR #464) t
 - Kanerva (2009) *Cognitive Computation* — VSA cross-substrate framework (PDF-verified)
 - Plate (1995), Kanerva (1988) — widely cited HDC literature, flagged not independently PDF-extracted
 
+### §3.8.0c Entropy-vocabulary candidates under falsifier evaluation (Spike #42 + #42b)
+
+> *"we've hit a language partition that we cannot figure how to un-bifercate into one thing. that means that each of these must be partially true but partially missing fiber content to satisfy all reasoning. It also says that we probably don't know enough to name it yet."* — user direction, 2026-05-17
+
+Spike #42 surfaced three candidate vocabulary stance names, each repostiing "entropy" as hindsight-shorthand for a substrate-level operation — parallel to `[[user_stance_infinity_approximates_asymptote]]`. Per `[[user_stance_partition_for_understanding]]` 2026-05-17 case-extension: when a linguistic partition resists collapse and each candidate is partially true, recording the partition IS the load-bearing finding. None is canonically authored yet.
+
+**(A) `entropy_approximates_imprint`** — substrate receives content from visible sector; captures form-receiving directionality. Falsifier weakness: bidirectional cascade reversal under non-monotone f_RD makes "imprint" direction-laden.
+
+**(B) `entropy_approximates_ring_balance`** — user-leaned candidate; captures bidirectional via already-canonical `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down. Falsifier weakness: implies symmetry; currently absent (95% ring-down).
+
+**(C) `entropy_approximates_cascade`** — captures B ∘ J ∘ L ∘ K ∘ N ∘ C weaving per `[[user_stance_primitives_weave_and_thread]]`; substrate-portable via `c_k = ε^k × K_k(substrate)`. Falsifier weakness: cascade is direction-neutral.
+
+**Mathematical structure stands without the noun** (per `[[user_stance_partition_for_understanding]]` 2026-05-17): `c_k = ε^k × K_k(substrate)` with signed ε under non-monotone f_RD trajectory; cascade is mathematically symmetric under ε → −ε; only df_RD/dt sign selects direction. This is solid.
+
+**Dark-sector epicycle-perspective hypothesis** (Spike #42b Thread 2 test): cascade may not be universal-simultaneous; different regions / observers may see different f_RD phases LOCALLY. Connects to Spike #33 + #35 + `[[user_stance_aoe_observer_frame_offset]]`. If local-epicycle perspective is structurally real, "cascade" (regional / local by nature) may survive falsifier-testing better than "imprint" (one-way default) or "ring-balance" (universal symmetry default).
+
+**Status**: under falsifier evaluation per Spike #42b (in flight as of 2026-05-17). Canonical location for the falsifier framing + the dark-sector-epicycle-perspective hypothesis is [MFO §VII.6.5](../antikythera-maths/mfo_spectral_research_notebook.md). Result either commits one candidate to canonical stance authoring OR confirms the trifurcation remains canonical *"we don't know enough to name it yet"* state.
+
+**Why this subsection exists**: per user direction 2026-05-17, *"do add to our notebooks all 3 candidates, and now try to falsify each one. whos hoodoo stands terra firma against erosion?"*. Recording the partition is itself progress.
+
 ### §3.8.1 Canonical 14-class enumeration (Phase C1 close — srmech is the abstract layer)
 
 Per the architectural commitment "srmech is the abstract layer; every primitive class earns a C surface" (`[[feedback_no_binding_layer_carveout]]`) and per `[[feedback_no_privileged_primitive_classes]]`, the **single canonical reference for the 14-class primitive vocabulary lives here**. Sister notebooks (MFO / antikythera / ephemerides / chess / etc.) cite this table; they enumerate only the classes that *pertain to their substrate* per user direction 2026-05-16.
