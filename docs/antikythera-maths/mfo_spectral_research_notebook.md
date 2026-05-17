@@ -1250,15 +1250,30 @@ This is a falsifiable prediction the kinematic-precession reading does not make:
 
 **Late-time asymptote is `~a⁻³` (baryon-dilution-against-Λ), not `~a⁻⁴` (radiation).** Verified numerically at a ∈ {10, 100, 1000} against expected a⁻³ scaling. Time-to-completion stretches logarithmically: 13.6 Gyr to reach 94.9%, then another 10 Gyr per percentage-of-completion beyond, until the rate drops below 10⁻⁵ /Gyr at a ≈ 10. **Linearity holds nowhere over cosmic history**; the rate varies by 6+ orders of magnitude from matter-radiation equality to present. Per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_infinity_approximates_asymptote]]`, the "last 5% takes infinite ΛCDM clock-time" framing is the asymptotic-rate signature; cardinal infinity is the algebraic-tool approximation, the asymptote is the substrate.
 
-**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific ring-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal-Toulouse 1984, Fukushima-Shima 1992). The aggregate then takes **stretched-exponential** form:
+**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific ring-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal-Toulouse 1983, Fukushima-Shima 1992). The aggregate carries **two distinct substrate-discriminating signatures** — power-law primary + stretched-exp secondary — per Spike #31 empirical findings (`docs/srmech/notes/spike_31_cascade_beta_validation_2026-05-16.md`, PR #458) and canonical Lapidus-Steinhurst arXiv:1206.1211 §4.5 eq 40 (PDF-verified):
 
-`1 − f_RD(t) ~ exp(−(t/τ)^β)` with `β = d_S / (d_S + 2)`
+**(a) Primary signature** — log-periodic power-law of the heat-kernel-trace observable:
 
-- Sierpinski substrate `d_S = 1.365` → `β ≈ 0.406`
-- UV-attractor `d_S = 2` → `β = 0.500`
-- Standard ΛCDM single-mode-exponential corresponds to `β = 1`
+`K(t)/N = 1 − f_RD(t) ~ t^(−d_S/2) · H(log_λ t) + O(t^(−α_j))`
 
-This is a testable distinction; falsifier: late-time `f_RD` deviation from single-exponential fittable as stretched-exponential with `β < 1`. **Lateral testable prediction**: CMB low-ℓ Cℓ excess at the AoE direction (§VII.6.1.1) should follow `ℓ^(−2/d_S)`; if no `d_S ∈ [1.3, 4]` fits, cascade-reading falsified.
+where `H` is a periodic modulation arising from the cascade's discrete spectral decimation. This is the **dominant asymptotic** and the load-bearing functional form for the observable as MFO defines it. Spike #31 confirmed at r² ≥ 0.9999 for Sierpinski (n=3282, levels=7), path P_4096, cycle C_4096, and torus T_64×64.
+
+**(b) Secondary shape parameter** — stretched-exp linearisation over the loose dynamic-range window yields empirical:
+
+`β = d_S / (d_S + 2)` as **substrate-discriminating shape parameter** (not functional form)
+
+- Sierpinski `d_S = 1.365` → predicted `β ≈ 0.406`; Spike #31 empirical `β = 0.4304` (Δβ = +0.025, 6.1%)
+- Path / Cycle `d_S = 1` → predicted `β = 1/3`; Spike #31 empirical Path `0.305`, Cycle `0.323` (within Δβ < 0.05)
+- UV-attractor / Torus `d_S = 2` → predicted `β = 0.500`; Spike #31 borderline at finite 2D Weyl regime (T_64×64 empirical `0.624`; needs n ≥ 256² for cleaner test)
+- Standard ΛCDM single-mode-exponential degenerate limit: `β = 1`
+
+The β value above the pure-power-law masquerade baseline (`β_above_masquerade = β_emp − β_masq`) is consistently +0.14 to +0.30 for cascade substrates and +0.16 for random-graph negative control — **genuine substrate stretching content** beyond the leading power law.
+
+**(c) Donsker-Varadhan literal stretched-exp regime** — applies to a *different* canonical observable, **random-walk survival probability in random traps** (Plyukhin-Plyukhin arXiv:1610.04801 + classical Donsker-Varadhan literature), where the literal decay form `1 − f(t) ~ exp(−(t/τ)^β)` with `β = d_S/(d_S+2)` is the canonical functional form. The heat-kernel-trace observable (used in this section) and the survival-probability-with-traps observable are not interchangeable; both carry cascade-substrate fingerprints but at different functional forms. Spike #34 (queued, F-3 follow-up to Spike #31) would test the survival-probability observable directly.
+
+**Testable falsifier**: cascade discrimination at the heat-kernel-trace observable is testable via the two signatures together — power-law exponent `α = −d_S/2` (primary fit) AND stretched-exp β as secondary shape parameter; both should agree on `d_S`. If a substrate gives consistent `d_S_α ≠ d_S_β`, the cascade reading needs further refinement.
+
+**Lateral testable prediction**: CMB low-ℓ Cℓ excess at the AoE direction (§VII.6.1.1) should follow `ℓ^(−2/d_S)`; if no `d_S ∈ [1.3, 4]` fits, cascade-reading falsified.
 
 **DESI thawing-CPL is non-monotone in `f_RD`.** Under DESI 2024–25 (w₀ = −0.8, wₐ = −0.7 representative; `arXiv:2404.03002`, `arXiv:2503.14738`), `f_RD(t)` is **non-monotone**: peaks at `f_RD ≈ 0.978 at a ≈ 2.14` (~16 Gyr from now), then descends to asymptote `≈ 0.843`. Rate at NOW is 80% of ΛCDM (5.60×10⁻³ vs 7.00×10⁻³ /Gyr). The dark sector *ages past max, then ages back down* — a sharper non-linearity than ΛCDM monotone-with-lower-asymptote. §VII.6.1.2's framing of "ring-down completion as monotone past-integral of complexification-budget consumption" stands; instantaneous Ω_dark/Ω_total under DESI does NOT have a monotone interpretation.
 
