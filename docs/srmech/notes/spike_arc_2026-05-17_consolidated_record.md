@@ -38,7 +38,7 @@
 - **STRUCTURAL-MATCH at boundary-zone**: substrate-Casimir IS a distinguishable adjacent phenomenon at near-horizon scale
 - **Three-mode triad maps 1:1**: ATTRACT (RC-charging) = pre-merger inspiral; SHRED (LC-oscillation) = merger transient; MERGE (RC-discharge) = ringdown settling
 - **No-bump prediction**: substrate-class identity forbids discrete collision; matches all LIGO O1-O3 catalogs (smooth approach + merger + ringdown only)
-- **Citation correction caught**: arXiv:1905.00869 author list is Isi/Giesler/Farr/Scheel/Teukolsky (NOT Chatziioannou as initially briefed)
+- **Citation correction caught + applied 2026-05-18 (Maintenance Task `#318`)**: arXiv:1905.00869 author list is **Isi/Giesler/Farr/Scheel/Teukolsky** (NOT Chatziioannou as initially briefed). Title: "Testing the no-hair theorem with GW150914." Spike #72 scratch `spike72_concertmaster_bh_bh_merger_phase_boundary.py` line 123 now reflects correct author list.
 - **Artifacts**: `spike72_concertmaster_bh_bh_merger_phase_boundary.py` (related; concertmaster scratch isolated)
 - **Canonicalized in**: `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`
 
@@ -88,7 +88,7 @@
 - **Five attested gravity-without-mass signatures STRUCTURAL-COMPATIBLE**:
   - MOND a_0; RAR (McGaugh-Lelli-Schombert 2016 arXiv:1609.05917); BTFR (Lelli-McGaugh-Schombert 2016 arXiv:1512.04543); Brouwer+ 2017 arXiv:1612.03034 Verlinde-lensing; Bullet Cluster (Clowe 2006)
 - **ACTIVE vs PASSIVE observationally degenerate**: Type IIβ civ engineering vs nature's substrate-cycle dynamics produce same signature
-- **Citation hygiene catch**: Layer 2 protocol caught two arXiv ID hallucinations (1611.03635 = DUNE neutrino paper not Sanchez+; 1609.07664 = matrix-recovery paper not Cai+)
+- **Citation hygiene catch (resolved 2026-05-18 per Maintenance Task `#338`)**: Layer 2 protocol caught two arXiv ID hallucinations during Spike #97 dispatch (1611.03635 = DUNE neutrino paper not Sanchez+; 1609.07664 = matrix-recovery paper not Cai+). **Resolution**: both IDs stripped; no replacement Sanchez+/Cai+ void-lensing arXiv IDs identified within open-access autonomous-verification scope per `[[reference_autonomous_validation_tos_landscape]]`. Only **Sutter+ 2014 arXiv:1404.5618** (PDF-verified) stands as load-bearing void-lensing reference for the gauge-field-dimple anti-gravity-in-voids prediction. Any future void-lensing-programme citation must be PDF-verified per `[[feedback_pdf_extraction_citation_discipline]]` before use.
 - **Artifacts**: no scratch in this directory (concertmaster worktree-isolated; primary records in agent worktree)
 - **Canonicalized in**: `[[user_stance_dark_halos_as_substrate_passive_moduli_dimple]]`
 
