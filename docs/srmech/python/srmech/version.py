@@ -4,4 +4,4 @@ The version is also declared in ``pyproject.toml``; both must agree.
 The ``srmech-publish.yml`` workflow grep-asserts agreement at tag time.
 """
 
-__version__ = "0.4.1rc13"
+__version__ = "0.4.1rc14"

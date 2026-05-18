@@ -4,6 +4,54 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.1rc14] - 2026-05-18
+
+**rcN+1 of the runtime spectral decomposition surface** (Milestone #13). Ships entries 1/2/3/7 of the 7-entry `srmech.spectral.*` namespace per Spike `#115` two-rc strategy (PR #518): `decompose` (Class L+A), `delta` (Class M; Option B per Spike `#114`), `recompose` (Class L+M), `similarity` (Class M). All composition layer; sub-ops route to existing `srmech.amsc.{laplacian, hdc, format}` C primitives. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. rcN+2 (TBD) ships entries 4/5/6 (`predict` / `prediction_error` / `truncate_sparse`) after Spike `#113` + `#117` C primitive landings.
+
+### Added — `srmech.spectral` runtime namespace
+
+- `srmech.spectral.SpectralHandle` — frozen dataclass pairing `substrate_descriptor_hash` (SHA-256 of Laplacian + encoder tag; `laplacian_kind` folds into the hash per Spike `#115` design 2026-05-18) with `coefficients_bytes`, `content_sha`, `n_modes`.
+- `srmech.spectral.decompose(state, laplacian, *, encoder_tag="default") -> SpectralHandle` — Class L Hermitian eigendecomposition (via `srmech.amsc.laplacian.hermitian_eigendecompose`) ∘ Class A SHA-256 content addressing. Projects `state` onto eigenbasis, packs to bytes, returns handle. Eigenbasis cached in module-level LRU (`N_MAX_EIGENBASES=8`).
+- `srmech.spectral.delta(ref, current) -> bytes` — Class M (HDC bind / XOR self-inverse) per Spike `#114` Option B (direct on already-encoded coefficient bytes; 1.22× faster than wrapper). Accepts `SpectralHandle` or raw `bytes`. Raises if substrate descriptor hashes mismatch between handles.
+- `srmech.spectral.recompose(handle, laplacian, *, encoder_tag="default") -> np.ndarray` — inverse eigendecomposition `V @ coeffs` with `content_sha` integrity check on the handle. Bit-exact roundtrip with `decompose` at machine ε (tested at < 10⁻¹²).
+- `srmech.spectral.similarity(a, b) -> float` — Class M HDC similarity `1 − 2·hamming(a,b)/D` ∈ `[−1, 1]`. Accepts `SpectralHandle` or raw `bytes`.
+- `srmech.spectral.clear_eigenbasis_cache()` — test-isolation utility.
+- `srmech.spectral.N_MAX_EIGENBASES` — module-level LRU bound (8).
+
+### Added — `tests/test_spectral.py` (22 tests, all passing)
+
+Bit-exact verification of:
+- `decompose` returns valid `SpectralHandle` with stable descriptor hash (independent of state); shape-rejection paths.
+- `delta` self-inverse identity `bind(a, bind(a, b)) = b` per Plate 1995 / Kanerva 2009 BSC algebra; commutativity; handle-substrate mismatch rejection.
+- `recompose` roundtrip at machine ε (< 10⁻¹²); content_sha + descriptor_hash mismatch rejection.
+- `similarity` self-similarity = +1.0; random near-orthogonal in `[−0.2, +0.2]`.
+- Cache LRU bounded at `N_MAX_EIGENBASES`; cleared on `clear_eigenbasis_cache()`.
+- End-to-end: `state_b coefficients = bind(h_a.coeffs, bind(h_a.coeffs, h_b.coeffs))` bit-exact byte-equal.
+
+### Canonical SSoT citations per `[[feedback_science_is_ssot_not_project]]`
+
+- Plate (1995) *Holographic Reduced Representations*, IEEE TNN 6, 623.
+- Kanerva (2009) *Hyperdimensional Computing*, Cognitive Computation 1, 139.
+- Chung (1997) *Spectral Graph Theory*, AMS.
+- Golub & Van Loan (2013) *Matrix Computations* (4th ed.), §8.5.
+
+### Spike anchors
+
+- Spike `#112` (PR `#513`) — scoping doc + 7-entry follow-up list.
+- Spike `#114` (PR `#514`) — HDC bind delta-encoding identity bit-exact 4/4 substrates; Option B API.
+- Spike `#115` (PR `#518`) — 7-entry tool-schema surface design + two-rc strategy.
+- Spike `#116` (PR `#516`) — cross-substrate rank-k delta template 3/3 non-chess bit-exact.
+- Spike `#117` (PR `#517`) — Class K compression by β band-membership (rcN+2 prereq).
+- Spike `#113` (PR `#515`) — predictive-coding cascade Class C∘L (rcN+2 prereq).
+
+### Not added (deferred to rcN+2)
+
+- `srmech.spectral.predict` (Spike `#113` Class C cascade-extrapolate C primitive)
+- `srmech.spectral.prediction_error` (Class M+K composition; `threshold=0.0` default per user decision 2026-05-18)
+- `srmech.spectral.truncate_sparse` (Spike `#117` Class K sparse-truncate + gate-by-threshold C primitives)
+
+These three need new C primitives that ship after Spike `#113` + `#117` close their implementation phase. Tool-schema entries for these will register at rcN+2 ship time per user scope decision 2026-05-18 (wait for #114+#115 implementation; no vapourware in tool_schema).
+
 ## [0.4.1rc13] - 2026-05-17
 
 **Task #248 — `pi_cascade_digits` cap expansion (engineering follow-on to PR #468 benchmark).** Per user direction 2026-05-17 ("now I'm curious to know and think we should include in our notes, wall time to return 350 digit pi cascade, partly because it's a weird number on purpose"). The benchmark note in [`docs/srmech/notes/pi_cascade_digits_benchmark_2026-05-17.md`](../notes/pi_cascade_digits_benchmark_2026-05-17.md) surfaced the rc12 hard cap (num_digits ≤ 50 by validation, not by mathematics); rc13 closes that gap with auto-scaled cascade parameters + a 1000-digit ceiling.
