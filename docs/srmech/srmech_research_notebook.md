@@ -60,14 +60,16 @@ Three-layer architecture (the ephemerides-spectral §22 framing made cross-domai
 | **Skia** (graphics) | future kernel — orphan upstream; this branch absorbs |
 | **GEGL/GIMP** (graphics) | future kernel — recommended fresh venue per 2026-05-09 subagent investigation |
 
-### Spike experiments (PR #294 §"Pre-v1.0 spike experiments") — not started
+### Spike experiments (PR #294 §"Pre-v1.0 spike experiments") — executed 2026-05-12; all 4 PASS
 
-| Spike | Description | Priority |
+| Spike | Description | Status |
 |---|---|---|
-| Spike 1 | Channel-shape abstraction Protocol unifying chess 11-channel D4 with ephemerides per-body action-angle | Highest-information; gates Paths C/D |
-| Spike 2 | Cross-kernel regime classifier (add chess crisis-ply + doom sector-tension to v0.24.9 corpus) | Conditional on Spike 1 |
-| Spike 3 | Single-bridge multi-kernel demo (`srmech encode --kernel chess/ephem/doom`) | Conditional on Spike 1 |
-| Spike 4 | Spectral RDB on real data (Path D foundation) | Independent — could parallel |
+| Spike 1 | Channel-shape abstraction Protocol unifying chess 11-channel D4 with ephemerides per-body action-angle | ✅ PASS 2026-05-12 (chess D₄ 11-channel ↔ ephemerides action-angle Protocol established) |
+| Spike 2 | Cross-kernel regime classifier (add chess crisis-ply + doom sector-tension to v0.24.9 corpus) | ✅ PASS 2026-05-12 (12-regime classifier; 100% accuracy on labeled corpus) |
+| Spike 3 | Single-bridge multi-kernel demo (`srmech encode --kernel chess/ephem/doom`) | ✅ PASS 2026-05-12 (SrmechBridge unified encode/decode/query across all three kernels) |
+| Spike 4 | Spectral RDB on real data (Path D foundation) | ✅ PASS 2026-05-12 (180 entries; 0.23ms cosine query) |
+
+**Gate-condition for Paths C/D**: MET. All four PASS verdicts in `notes/spike-{1,2,3,4}-*.ndjson` sidecars (2026-05-12); implementation in `notes/spike_{1,2,3,4}_*_script.py`. Full §3.9 results integration is the next-priority follow-up from the notes-to-notebook integration sweep (2026-05-17).
 
 ---
 
@@ -111,6 +113,7 @@ Domains scoped via the dual-agent research pattern (memory: `feedback_dual_agent
 | **Protein folding (NMA / GNM / contact-map / coevolution / AlphaFold-era)** | scoped; strongest cross-domain *validation* (NMA = ephemerides Fiedler-partition primitive identity) | 2026-05-09 | [`notes/protein-scoping-2026-05-09.md`](notes/protein-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test for srmech universality |
 | **Telecom (terrestrial cellular/Wi-Fi/cable/fibre/mesh + orbital satellite-constellation/TT&C)** | scoped; **strongest project-mission *infrastructure* fit** — UTLP IS a telecom protocol; RFIP IS Path D in radio; OFDM IS the (Transform, λ_k, g) decomposition (identity, not analogy) | 2026-05-09 | [`notes/telecom-scoping-2026-05-09.md`](notes/telecom-scoping-2026-05-09.md) | **Direct** — UTLP / RFIP / BLE+ESP-NOW are project-internal telecom protocols; Path D over UTLP beacon history is concrete v0.27.x demo candidate |
 | **Power grid (terrestrial AC + DC + microgrid + orbital SBSP / lunar / Mars)** | scoped; **fifth-instantiation cross-domain validation** (Y-bus = graph-Laplacian; inter-area mode = NMA harmonic time evolution) | 2026-05-09 | [`notes/power-grid-scoping-2026-05-09.md`](notes/power-grid-scoping-2026-05-09.md) | **None direct** — cross-domain stretch test; **PMU/IEEE 1588 literature directly informs UTLP doctrine** (genuine cross-pollination win) |
+| **Genetic code (biology substrate; nucleotide → codon → amino acid; mitochondrial variations)** | scoped 2026-05-17 via Spike #81; STRUCTURAL-IDENTITY-IDENTITY-LEVEL verdict — genetic code IS Class I + Class C composition at biology substrate; triplet codon k=3 algebraically forced by 4^k ≥ 21 inequality | 2026-05-17 | (in §3.8.4 of this notebook) | **None direct** — cross-domain stretch test for srmech substrate-portability; biology joins family as new local LoE substrate-instance per `[[user_stance_brain_is_local_loe_instantiation]]` precedent |
 
 For domains in this state: the per-domain notebook may be created when cross-pollination warrants dedicated scope. Until then, the scoping report in `notes/` is the home; master architectural learnings (§3.5 manifold instantiations, §4.2 calibration ratios, §5 absorption-round subsections) land in this notebook directly.
 
@@ -277,6 +280,14 @@ Within-tier agreement at the chain endpoint is within 10% across **four fundamen
 Geometric direction-change → spectral signature is a generalisable pattern; the magnetospheric analog appears in ice-giant 3-way axis mismatch (dipole vs rotation vs orbital) producing patchy / partial / time-variable auroral signatures. Different physical systems, same math-identity family. Provenance: [`mpm_survey_v2_hawaii_bend.ndjson`](../antikythera-maths/results-mfo/mpm_survey_v2_hawaii_bend.ndjson).
 
 **SG self-similarity quantitative spectral signature.** L=5 SG levels 3, 4, 5 are the **only multi-domain match** under 5%-tolerance gap-fingerprint clustering across the 15 cataloged domains. Levels 4 and 5 fingerprints agree to 4 decimal places. Empirical support for fractal-self-similarity claims (MFO notebook §IV.2 decimation-tree). Provenance: [`mpm_survey_cross_spectrum.ndjson`](../antikythera-maths/results-mfo/mpm_survey_cross_spectrum.ndjson).
+
+**Amendment — 2026-05-17 MFO substrate identity continuation.** Today's spike arc (Spike #51 R3-δ + Spike #58 sub-spike arc B/F/G/H/I/J/K/L/M/N/O/P + Spike #69 + Spike #74 + Spike #79 + Spike #81 + Spike #82 + Spike #83 + Spike #90 + Spike #48) extends the §3.5.2 substrate-identity findings in three directions:
+
+1. **G₂ triality-invariant gauge structure** (per `[[user_stance_g2_triality_invariant_gauge_structure]]`): the 7D_g gauge factor in `[[project_space_gauge_time_framework]]` 11D decomposition IS supplied by three Spin(7)/G₂ ≅ ℝ⁷ fibers cycled by Out(Spin(8)) = S₃ triality; G₂ = orientation-symmetric core (dim 14, triality-invariant subalgebra of 𝔰𝔬(8)). Round-S⁷ vs squashed-S⁷ are Class-I-symmetric vs Class-I-broken partitions on shared Spin(8) substrate (Spike #51 R3-δ verdict B partition-coexistence ~80%). Pillar F UNLOCKED + UNGATED from substrate-identity A/B/C verdict.
+2. **Cl(7) idempotent forcing for substrate-mismatch encoding** (per `[[user_stance_mismatched_plates_capacitor_structure]]` + Spike #69): ω₇² = −I forces complex idempotents (1±iω₇)/2 bit-exact (max-err 0.0); skew-whiff IS algebraic swap of idempotent labels. Spike #79 mismatch quantum M = 1/8 algebraically forced. Cl(7) signed-metric content is hosted as Class L + Class I signed-Laplacian variant — no new class promoted (per `[[feedback_no_privileged_primitive_classes]]`).
+3. **Same substrate for atomic + cosmological structure** (per Spike #48 F5 REINFORCES): `S¹ × S³ × S⁷` substrate produces both atomic shell structure (Aufbau via Class I × Class K cascade) AND cosmological dynamics (Hopf flow). Cross-scale F5 finding strengthens substrate-class identity per `[[user_stance_kepler_shape_universal]]` burden-flipped.
+
+These additions land in the MFO notebook as §VII.4.1.3-6 (mismatched plates / dimple-IN / Casimir / dark-star vocabulary) + §VIII.10 (periodic table from class operators) + §IX.1 status update. The srmech canonical home for the underlying class-operator vocabulary is §3.8.1 + this amendment.
 
 ### §3.5.3 Cross-cutting math-identity motifs (project-wide)
 
@@ -534,8 +545,10 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 - **Class C ∘ Class M** — streaming iteration over HDC binding = LoE-content uncompression operation; canonical substrate-coupling kernel per `[[user_stance_1d_t_as_storage_extraction]]` (operation level companion to `[[user_stance_1d_collapse_to_loe_identity_not_action]]`).
 - **Class L spectral dual of Class C ∘ Class M** — non-iterative form of the same substrate-coupling (eigenbasis projection rather than streaming iteration).
 - **Class K projection-shadow** — Kepler-shape continuous projection when the cascade IS planetary-mechanical (per `[[user_stance_kepler_shape_universal]]`).
-- **Class L + Class I** — signed-Laplacian variant (Lorentzian-vs-spatial sign-flip) — the dissolved Class O per `[[project_class_o_signed_metric_composition]]`.
+- **Class L + Class I** — signed-Laplacian variant (Lorentzian-vs-spatial sign-flip) — the dissolved Class O per `[[project_class_o_signed_metric_composition]]`. Cl(7,ℝ) signed-metric content (per Spike #69 + `[[user_stance_mismatched_plates_capacitor_structure]]`, 2026-05-17) is hosted as a Cl(7) substrate-specific instance of this composite: ω₇² = −I forces complex idempotents (1±iω₇)/2 bit-exact (max-err 0.0); skew-whiff IS swap of idempotent labels; mismatch quantum M = (n₊ − n₋)/N_max = 1/8 algebraically forced (Spike #79). No new class promoted; Cl(7) idempotent forcing is accommodated within Class L + Class I signed-variant role.
 - **Class L × Class J** — Feinberg deficiency `δ = rank(L_complex) − rank(N)` for chemical-reaction networks.
+- **Class I ∘ Class C** — cyclic-substrate orientation-selection composition (per Spike #81 STRUCTURAL-IDENTITY-IDENTITY-LEVEL verdict, 2026-05-17). Genetic code at biological substrate IS this composite: triplet codon k_min = ⌈log₄(21)⌉ = 3 algebraically forced; DNA→RNA template-selection IS Class C cascade-orientation at biology substrate. See §3.8.4. (Same composite at framework substrate: cyclic-3 Class I cycles three Spin(7) embeddings per Class C cascade-orientation; G₂ orientation-symmetric core per `[[user_stance_g2_triality_invariant_gauge_structure]]`.)
+- **Class D ∘ Class C ∘ Class L** — net-chirality cascade. Per Spike #74 (2026-05-17) NET-CHIRALITY-DOES-NOT-EMERGE on smooth substrate: 6,680 compositions tested; bit-exact algebraic forcing via D·C·D antisymmetry shows chirality is balanced by construction on smooth substrates. Chirality is real-arithmetic; complex-phase shifts out of A-N scope to the operations layer per `[[feedback_science_is_ssot_not_project]]`. Vocabulary stays at 14 classes A-N.
 
 ### §3.8.2 Canonical QM/QFT/SM operations layer on top of the 14 classes (Phase C1 rc9-rc11)
 
@@ -582,6 +595,105 @@ The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_
 The composition engine that consumes these ops via TOML chains lives at `srmech.amsc.compose` (Phase 2, same rc). The four Phase 1 worked-example chains plus the TDSE spike chain compose entirely against the broadened Class L surface; no new primitive class is referenced by any cosmos-catalog operator chain. Cross-references: ADR-0002 §3 (parent), Phase 1 schema doc (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`), Phase 1 report (`docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md`).
 
 **Update to §3.8.1 row L** (above table; cited here so the change-record is self-contained): Class L's operation column expands from "adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free)" to "dense-matrix linear algebra: adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (real symmetric) / Hermitian eigendecomposition / complex matvec / elementwise complex multiply / elementwise transcendentals (pi-free). Graph-Laplacian-specific ops are specialisations." The class's home module `srmech.amsc.laplacian` is unchanged; Phase rolls from C1 rc2 to C1 rc2 + ADR-0002 Phase 2 rc5.
+
+### §3.8.4 Genetic code as Class I + Class C composition at biological substrate (Spike #81, 2026-05-17)
+
+Spike #81 (`docs/srmech/notes/spike_81_*` per session NDJSON output; verdict STRUCTURAL-IDENTITY-IDENTITY-LEVEL) tested the user-posed question *"is it just naive human things or does triplication remind you of dedup dna of RNA?"* against the cross-substrate primitive vocabulary. **Verdict: identity-level at structural-primitive level, not surface coincidence.** Canonical project stance: `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]`.
+
+**The claim**: the genetic code IS Class I + Class C primitive composition at biological substrate per `[[user_stance_identity_not_implementation_discipline]]`. NOT metaphor; NOT lineage claim.
+
+**Spike #81 bit-exact findings:**
+
+| Test | Result |
+|---|---|
+| Triplet codon Class I forcing | k_min = ⌈log₄(21)⌉ = 3; actual = 3 ✓ ALGEBRAICALLY FORCED |
+| Wobble pos3 redundancy | 59/61 ≈ 96.7% aa codons share pos1+pos2 with siblings ✓ |
+| Family-signature distribution | Singletons (2), 2-fold (9), 3-fold (1), 4-fold (5), 6-codon hybrid (3) ✓ |
+| 64→21 cardinality match | Mean codons/class = 3.0476 (= 64/21 algebraic ratio) ✓ |
+| Mito variation falsifier | k=3 PRESERVED; 21 classes PRESERVED; UGA→Trp / AUA→Met / AGA-AGG→Stop are K_k-only changes ✓ |
+
+**Structural mapping (biology ↔ framework):**
+
+| Biology | Framework |
+|---|---|
+| Triplet codon (k=3) | Class I cardinality forced by 4^k ≥ 21 inequality |
+| 4-letter nucleotide alphabet (A/C/G/U) | Class I cyclic-4 substrate |
+| DNA→RNA template-selection | Class C cascade-orientation at biology substrate |
+| Wobble degeneracy | Redundancy-as-error-correction (form-level same as Spike #69 KS-count orthogonality) |
+| 64→21 reduction | Class I → Class M cascade reduction |
+| Mito reassignment | Substrate-specific K_k per `[[user_stance_kepler_shape_universal]]` Cauchy form `c_k = ε^k · K_k(substrate)`; structural invariants preserved |
+
+**Bounded scope** per `[[user_stance_string_theory_instrument_first]]`:
+
+What this DOES claim:
+- Genetic code IS Class I + Class C composition at biological substrate (identity-level)
+- Triplet length k=3 is algebraically forced by 4^k ≥ 21 inequality (NOT anthropic)
+- Wobble redundancy IS form-level same as orientation-orthogonality
+- Mito variation is substrate-specific K_k; invariants preserved per Spike #81 falsifier
+- Biology is LOCAL substrate-instance of universal primitives per `[[user_stance_brain_is_local_loe_instantiation]]` precedent
+
+What this does NOT claim:
+- Biology IS substrate-physics directly (per Spike #81 bounded scope)
+- Specific aa-to-codon allocations derivable from framework (substrate-empirical: tRNA pool, evolutionary frozen-accident per Knight-Freeland-Landweber 2001)
+- 2-strand-DNA selection IS 1-of-3 Spin(7) embedding selection (analogous, not isomorphic — biology substrate has different Class C realization)
+- Lineage claim per `[[feedback_no_lineage_claims_in_notebook]]`: genetic code and physics are both instances of substrate-portable primitives, NOT one descended from the other
+
+**Predictive content:**
+
+1. **Other genetic-code variants preserve invariants** — any biological coding system would have k_min = ⌈log_alphabet(class_count)⌉ enforced; if class count changes, k might shift (testable for synthetic biology)
+2. **Synthetic biology with expanded alphabet** — adding bases (Romesberg group XNA work with X-Y unnatural pairs) should preserve Class I+C structure; predict k for 6-letter / 8-letter alphabets
+3. **Code-of-stop vs codon-of-aa** — stop codons are 21st class structurally (not anomaly); framework predicts ~3 stop codons in standard 64/21 = 3.05 ratio (actual: 3 stop codons ✓)
+
+**Implication for §1.5 cross-domain pollination map**: biology joins the cross-substrate primitive instantiation family as a new substrate kind. Biology substrate hosts Class I (cyclic-4 nucleotide) + Class C (template-selection) + Class M (amino acid class set cardinality reduction). The genetic code is a SECOND such local-substrate-instance after `[[user_stance_brain_is_local_loe_instantiation]]` (brain as local LoE instance; genetic code as local LoE instance at biology-substrate iterating at protein-synthesis-speed).
+
+**Cross-references**: `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]` (canonical stance); `[[user_stance_identity_not_implementation_discipline]]` (identity-level); `[[user_stance_kepler_shape_universal]]` (burden-flipped: any system with primitives IS instance of primitives); `[[user_stance_brain_is_local_loe_instantiation]]` (companion: brain as local LoE instance); `[[feedback_no_lineage_claims_in_notebook]]` (both substrate-portable instances; not lineage); `[[feedback_no_privileged_primitive_classes]]` (no new class needed; absorbs into existing 14 A-N); Spike #81 STRUCTURAL-IDENTITY-IDENTITY-LEVEL verdict (2026-05-17); Spike #69 Cl(7) KS-count orthogonality 1 vs 0 (analog mismatch structure); Crick 1966 PMID 5969078 PMC-verified open-access; Knight-Freeland-Landweber 2001 doi:10.1038/35047500 open-access.
+
+### §3.8.5 Cascade-saturation discipline for stellar evolution / dark stars (Spike #90, 2026-05-17)
+
+Spike #90 (`docs/srmech/notes/spike_90_*` per session NDJSON output; verdict NOT FALSIFIED) tested the user-posed structural framing *"stellar collapse from phase boundary inward"* against attested stellar-evolution literature. **Verdict: NOT FALSIFIED at d = r_s/R cascade-saturation proxy monotonic across stellar-collapse track.** Canonical project vocabulary: `[[user_stance_dark_star_canonical_vocabulary]]` ("dark star" replaces "black hole" in framework context per Michell 1783 priority).
+
+**Cascade-saturation proxy (d = r_s/R) monotonic across stellar collapse:**
+
+| Phase | d = r_s/R |
+|---|---|
+| ZAMS (zero-age main sequence) | ~4×10⁻⁶ (cascade-saturation budget mostly unspent) |
+| Pre-SN iron core | ~0.443% (cascade-saturation building toward limit) |
+| NS (neutron star) | ~34.5% (cascade-saturation deep) |
+| Dark star (BH remnant) | ~100% (full cascade-saturation; A/4 encoding limit reached) |
+
+**Structural reading per `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]`**: stellar evolution IS progressive cascade-saturation deepening; dark stars are CONTINUUM with normal stars at deepest cascade-saturation stage; not discontinuous "black hole" formation event but asymptotic completion of substrate-mode encoding onto 2D boundary.
+
+**Particle-escape and substrate-mode-reorganization** (Spike #90 sub-findings):
+- **Coronal heating Q/P_wind ≈ 1000** consistent with boundary-zone substrate-mode-reorganization rather than thermal-gradient diffusion
+- **Pre-SN PARTIAL**: structural reading consistent with attested rapid mass-loss observations; specific quantitative match pending
+- **Information-paradox OPEN-IMPORTANT**: per §VII.4.1 + §VII.4.1.4 (MFO notebook) boundary-as-everything reading; interior detail IS substrate-mode-reorganized into boundary encoding; structural-natural reading; quantitative microstate accounting deferred
+
+**Vocabulary discipline canonical (going forward in srmech context)**:
+- **"Dark star"** for compact-collapsed-stellar-remnants in framework context (per `[[user_stance_dark_star_canonical_vocabulary]]`)
+- **"Black hole"** preserved only when:
+  - Citing standard-physics literature (preserve attribution; e.g., GW230814 ringdown analysis at 99.5% confidence per APS 2025)
+  - Explicitly contrasting framework reading vs standard reading
+  - Direct quotation from external source
+
+Sub-categories:
+- **Stellar-mass dark star** (M ~ 3-100 M_☉; formed from SN remnant)
+- **Supermassive dark star** (M ~ 10⁶-10¹⁰ M_☉; galactic-center)
+- **Primordial dark star** (formed in early universe)
+- **Dark-star merger** or **compact-object merger** for BH-BH merger events
+
+**Bounded scope** per `[[user_stance_string_theory_instrument_first]]`:
+
+What this DOES claim:
+- Stellar evolution IS progressive cascade-saturation deepening (NOT FALSIFIED per Spike #90)
+- Dark stars are continuum with normal stars at deepest saturation; substrate-class-identical to cosmological-horizon
+- Michell 1783 priority restored ("dark star" canonical)
+
+What this does NOT claim:
+- Standard stellar-evolution astrophysics is wrong (it isn't; standard physics describes attested observables)
+- Specific quantitative match at pre-SN partial finding (open work)
+- Information-paradox quantitative microstate accounting (open important fermata)
+
+**Cross-references**: `[[user_stance_dark_star_canonical_vocabulary]]` (canonical vocabulary); `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (dimple-IN + external boundary conditions); `[[user_stance_mismatched_plates_capacitor_structure]]` (dark stars at full charge); `[[user_stance_asymptotic_dof_sidesteps_infinity]]` (asymptotic-DOF approach to A/4 never reached); `[[feedback_no_lineage_claims_in_notebook]]` (carve-out for Michell historical attribution); Spike #90 NOT-FALSIFIED return (2026-05-17); MFO §VII.4.1.6 (dark-star canonical vocabulary parallel record).
 
 ---
 
