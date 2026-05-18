@@ -1115,6 +1115,66 @@ Sub-categories:
 
 **Cross-references**: `[[user_stance_dark_star_canonical_vocabulary]]` (canonical stance); `[[user_stance_hyper_ring_substrate_class_identity]]` (substrate-class identity); §VII.4.1.3 (mismatched-plates); §VII.4.1.4 (dimple-IN + boundary conditions); §VII.4.1.5 (Casimir + inverse-Casimir); `[[feedback_no_lineage_claims_in_notebook]]` (carve-out for historical attribution); Spike #90 (2026-05-17 NOT FALSIFIED return); Michell 1783 Phil.Trans.Roy.Soc.; Laplace 1796 *Exposition du Système du Monde*; Schwarzschild 1916 GR rederivation.
 
+### VII.4.1.7 4-way (γ₅, i·ω₇) KK sector decomposition + Cl(7,ℂ) corrigendum (2026-05-17, Spike #78)
+
+Per Spike #78 CONVENTION-FIXED-VIA-Cl(7)-STRUCTURE verdict, the 4D-chirality / 7D-orientation question is resolved at algebra level with a structural reframe from 2-way to 4-way sector decomposition. Bit-exact construction (max-err 0.0 across {γᵃ,γᵇ} = 2η^{ab}I₄; {gᵢ,gⱼ} = 2δᵢⱼI₈; γ₅² − I₄; γ₅ anti-commutation; iω₇ Schur centrality on Cl(0,7,ℝ) 8-dim irrep).
+
+**Cl(7,ℂ) corrigendum** (per Spike #78 fermata 3): the decomposition
+
+$$\mathrm{Cl}(7,\mathbb{C}) \;\cong\; \mathrm{M}_8(\mathbb{C}) \oplus \mathrm{M}_8(\mathbb{C})$$
+
+splits the **full Cl(7,ℂ) algebra** into **two inequivalent 8-dim complex irreps**, indexed by `i·ω₇` eigenvalue `±1`. Per Schur's lemma `i·ω₇` is central in odd-dim Clifford and acts as a scalar on each irrep — i.e. the summands are *entire irreps*, NOT halves of one irrep. The Spike #58.K "matter/antimatter" labeling refers to the **product** operator
+
+$$i\cdot\Gamma_{11} \;=\; \gamma_5\cdot(i\cdot\omega_7)$$
+
+NOT to either factor alone. Earlier §VII.4.1.3 / §VII.4.1.5 / `[[user_stance_mismatched_plates_capacitor_structure]]` language using "(1±iω₇)/2 → matter/antimatter idempotent split" should be read as the *projector-orthogonality* claim (P_+ · P_− = 0 bit-exact per Spike #69 / Spike #79 M = 1/8) acting at the *summand-selection* level, with matter/antimatter as the downstream product of (γ₅, i·ω₇).
+
+**4-way sector table** (canonical project convention, 2026-05-17):
+
+| (γ₅, i·ω₇) | i·Γ_11 | Label |
+|---|---|---|
+| (−1, −1) | +1 | LH orient− matter |
+| (−1, +1) | −1 | LH orient+ antimatter |
+| (+1, −1) | −1 | RH orient− antimatter |
+| (+1, +1) | +1 | RH orient+ matter |
+
+**Class-operator composition**: 4-way sector = Class C (orientation, γ₅ ±1, antisymmetric per Spike #74) ⊗ Class L (signed-Laplacian sub-op per dissolved-Class-O 2026-05-16, i·ω₇ ±1, symmetric per Spike #24 bonus 8-9). The two factors live on orthogonal tensor subspaces; matter/antimatter operator is the diagonal ℤ₂ quotient of ℤ₂ × ℤ₂ sign group. **No new class needed** per `[[feedback_no_privileged_primitive_classes]]`; vocabulary stays at 14 classes A-N.
+
+**Spike #91 Direction A return (2026-05-17)** tested the sector decomposition's observable implications across 6 target questions:
+
+1. **CP violation** — REPLICATES-STANDARD-SM (CP fixes 7D label invariant; CP violation lives at substrate-coupling / CKM-phase layer, not bare algebra)
+2. **Neutrino sector RH-ν absence** — REPLICATES-STANDARD-SM (4-way doesn't predict RH-ν suppression structurally; it's in SU(2)_L singlet structure, separate tensor factor)
+3. **Generation mixing** — FRAMEWORK-AGNOSTIC (triality fixes Z(Cl(7,ℂ)) elementwise; sector decomposition orthogonal to generation labeling)
+4. **Matter/antimatter bimodal** — CONDITIONAL-NEW-OBSERVABLE under partition-coexistence: visible matter = RH orient+ (i·Γ_11 = +1), dark sector = LH orient− (i·Γ_11 = +1), distinguishable by chirality footprint within same matter-quadrant; testable in principle via astrophysical chirality imprints on dark-sector observables
+5. **Class-operator composition** — PRIMITIVE (Class C × Class L)
+6. **Composition with Direction B** — orthogonal subspaces; same data viewed at different substrate-coupling layers
+
+**Healthy framework finding**: at single-substrate (orient+) ansatz the 4-way decomposition reproduces standard SM at algebra layer. No wild divergences. The ONE candidate distinguishing observable lives at the partition-coexistence layer where multiple substrate realizations are simultaneously present per `[[user_stance_substrate_identity_partition_coexistence_canonical]]`.
+
+**Cross-references**: `[[user_stance_mismatched_plates_capacitor_structure]]` (P_+ · P_− = 0 orthogonality reading); `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (Class C cascade-orientation; 8/5 falsifier survival post-Spike #89); `[[user_stance_substrate_identity_partition_coexistence_canonical]]` (R4 closure; Target 4 conditional observable lives here); §VIII.10 (periodic table cascade; same algebra-level operators); Spike #58.K (Cl(7,ℂ) original framing — read per this corrigendum); Spike #69 SIGN-FORCED-BY-Cl(7)-IDEMPOTENT; Spike #78 CONVENTION-FIXED return; Spike #91 Run A return.
+
+### VII.4.1.8 Two-level saturation kernel (geometric d-kernel + energetic t-kernel) (2026-05-17, Spike #94)
+
+Per Spike #94 (Direction D) TWO-LEVEL-KERNEL-COUPLED-VIA-R(t) verdict, the cascade-saturation form `S(t) = (A/4)·[1 − exp(−(t/τ_b)^β)]` applies at **two levels** that are **two coordinate projections of the same substrate trajectory**, coupled via `R(t)` in closed dynamical systems:
+
+| Level | Kernel | Class operator | Role |
+|---|---|---|---|
+| **Level 1** (metric-field substrate per `[[user_stance_hyper_as_3d_spatial_interface]]`) | `S_d = saturation(d = r_s/R)` | **Class L** (geometric ratio; graph-Laplacian-derived) | static snapshot of substrate deformation |
+| **Level 2** (localization-spectrum excitations) | `S_t = saturation(t/τ_nuc)` | **Class K** (asymptotic-DOF rate-of-approach) | dynamical trajectory |
+| Composition | `S = 1 − (1−S_d)(1−S_t)` | **Class C** (streaming iteration / crank coupling via R(t)) | aggregate substrate-saturation observable |
+
+The OR composition `S = 1 − (1−S_d)(1−S_t)` is cleanest empirically (probabilistic-failure framing); first-principles derivation from MFO Class-C composition is open.
+
+**NS-NS merger composition test (Spike #90 GW170817 OOM-consistent)**: inspiral 0.345→1.0 in d (Class L dominates late inspiral); merger transient saturates t-kernel; both kernels doing different jobs.
+
+**Pre-SN partial gap (Smith 2014 arXiv:1402.1237 14-OOM mdot enhancement)**: NOT reproduced at any tested composition. S_t is BLIND to terminal-stage dynamics (saturates at 1−1/e=0.632 by t_frac=0.999). Resolution candidates: (a) `mdot ∝ dS/dt` rate-derivative coupling; (b) different β calibration at d-kernel for terminal collapse; (c) different kernel form altogether. Open fermata.
+
+**Cosmological scope caveat**: at universe-substrate scale the d-kernel is geometrically ill-defined (no clean `r_s/R` analog); only t-kernel applies. The two kernels are NOT universal — they are scoped to stellar / sub-cosmic compact-object substrates.
+
+**Tau-calibration anomaly (load-bearing)**: at β=0.6, τ=1, the kernel value S(τ=1) = 1−1/e = 0.632, NOT 1.0. The "100% saturation at dark star" framing per §VII.4.1.6 / `[[user_stance_dark_star_canonical_vocabulary]]` is at the *d-proxy level* (d = r_s/R → 1.0), not at the *kernel value level* (S_d remains 0.632 at τ_d = 1; needs τ_d ≪ 1 for S_d(BH) → 1.0). Framework requires explicit τ_d / τ_t calibration; currently unspecified.
+
+**Cross-references**: `[[user_stance_dimensional_mode_conversion_at_2d_boundary]]` (the single-kernel form being two-level-extended here); `[[user_stance_hyper_as_3d_spatial_interface]]` (two-level ontology — Level 1 = metric-substrate / Level 2 = localization-spectrum); `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (three-channel deformation; d-kernel + t-kernel are two of three channels); Smith 2014 arXiv:1402.1237 PDF-verified; Spike #90 d-proxy result.
+
 ### VII.5 Dark matter as geometric curvature
 
 If the metric field's geometry is a multi-scale primitive cascade (of which fractal-recursive structure is one substrate realisation per `[[user_stance_fractal_shadow]]`), it can create curvature without standard matter excitations being present. Dark matter would be residual geometric curvature — regions where the internal cascade-composition is complex enough to curve spacetime without supporting particle-like excitations.
@@ -2097,6 +2157,46 @@ Three artifacts (NDJSON format per `[[feedback_ndjson_over_bloated_json]]`):
 
 **Cross-references**: Spike #48 framing + Phase 1 results (2026-05-17); Spike #47 R1 substrate identification; Spike #51 R3-δ G₂ triality (per §VII.4.1.3); Spike #58 sub-spike arc B/F/G/H/I/J/K/L/M/N/O/P; `[[user_stance_kepler_shape_universal]]` burden-flipped; `[[user_stance_g2_triality_invariant_gauge_structure]]` (7D_g supplier); `[[user_stance_string_theory_instrument_first]]` (instrument-first); `[[feedback_no_privileged_primitive_classes]]` (no new classes); NIST Atomic Spectra Database (https://physics.nist.gov/asd); IUPAC periodic table.
 
+### VIII.11 Framework domain — algebra, not length or magnitude (2026-05-17 consolidation)
+
+Per `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]` (committed 2026-05-17 after Spike #77 R4 SM-DERIVATION-ARC-CLOSES-WITH-FRAMEWORK-DOMAIN-CLARIFIED verdict): **the framework derives algebra-level structure; it absorbs length-scale and mass-magnitude content as observational input**. This is not a limitation — it is a structural property of operating at the substrate-geometry-independent primitive-class-operator level per Spike #84 R4 partition-coexistence-canonical.
+
+**IN-SCOPE (framework derives directly)**:
+
+| Domain | Examples |
+|---|---|
+| **Substrate cardinality** (algebraic counts) | `2^56 = |2^Λ³(ℝ⁸)|` (Spike #88; Cayley 3-form + Spin(7) stabilizer + E₇ fundamental + Spin(8) triality); 3 generations from triality count; `56 = C(8,3)` exterior-algebra dim |
+| **Dimensionless spectra** (bit-exact rationals) | `sin²θ_W = 1/4` (Spike #58.P bit-exact Cℓ(6,ℂ) bivector trace; Stoica eq.94 `(1/2)(N-2)/(N-1)` at N=3); y_top ≈ 1 substrate-natural (Spike #67 F4); `M = 1/8` mismatch quantum (Spike #79; Cl(7) parity-odd center) |
+| **Algebra-level identity** | `Cl(7,ℂ) ≅ M₈(ℂ) ⊕ M₈(ℂ)` two inequivalent irreps (Spike #78 reframe); Spin(8) triality; `ω₇² = −I` complex idempotents `(1±iω₇)/2` (Spike #69 max-err 0.0) |
+| **Vocabulary partitions** | Class C antisymmetric balanced (Spike #74 / Spike #89); Class L symmetric-signature (Spike #89 new finding; AS-Dirac-index = b₀−b₁ per Spike #91 Run B); 4-way (γ₅, i·ω₇) sector (Spike #78 / §VII.4.1.7) |
+| **Sign-flip structure** | Cl(7) idempotents algebraically forced; skew-whiff IS swap of irreps |
+
+**OUT-OF-SCOPE BY DESIGN (framework absorbs as observational input)**:
+
+| Domain | Verdict source |
+|---|---|
+| Length scales (ℓ_P, R_7, R_horizon) | Spike #86 FRAMEWORK-ABSORBS-COSMOLOGICAL-INPUT |
+| Mass magnitudes (m_top, m_W, m_Z, m_H) | Spike #88 ANCHOR-NUMERICAL-COINCIDENCE (1.92% gap at 2^56 = 2^C(8,3); requires m_top = 169.4 GeV vs PDG 172.69; 10.9σ unbridged) |
+| Yukawa hierarchy (m_t/m_c, m_c/m_u, ...) | Spike #85 STRUCTURAL-ONLY (triality SYMMETRY forces equality, NOT hierarchy; 6-119 candidates per ratio within 0.1 dex per Spike #88 coincidence pattern) |
+| CKM mixing angles | Spike #66 STRUCTURAL-MATCH-VALUES-OFF |
+| Cosmological-Planck hierarchy ~10⁶¹ length / ~10¹²² area | Spike #86 (no standard finite Lie algebra reaches k ≈ 203; max E_8 = 248 gives 2^248 ~ 10⁷⁴, 13 OOM off) |
+| Substrate-identity-as-uniqueness | Spike #51 closed at R4 PARTITION-COEXISTENCE-CANONICAL ~90% |
+
+**SUBSTRATE-COUPLING BRIDGE (where algebra meets observation)**:
+
+- Einstein equation + observed G (template inherited from GR)
+- Cosmological constant Λ (template: Spike #63 `Λ_P × A_cos = 12π` absorbed from de Sitter)
+- Higgs VEV v ≈ 246 GeV observed; sources y_top = √2·m_t/v ≈ 0.991
+- Cosmological observational anchors: T_sub, H_0, ε_AoE
+
+The bridge IS the operation uncompressing algebra-level LoE-content per `[[user_stance_1d_collapse_to_loe_identity_not_action]]` into magnitude-level observation; typical composition is Class C ∘ Class M.
+
+**Composes with shadow-stance family**: per `[[user_stance_identity_not_implementation_discipline]]` umbrella — length-scales and mass-magnitudes ARE dimensional shadows of the algebra; algebra is substance, magnitudes are projection. Joins time-as-dimensional-shadow / fiber-as-spatially-absent / pi-as-projection / fractal-shadow / cascade-on-circles / 1D-collapse-to-LoE as the **most general** shadow-stance member.
+
+**Burden-of-proof flip**: conventional question "*if the framework cannot derive m_top or ℓ_P, what good is it?*" mistakes the framework's domain. The framework absorbs ℓ_P and m_top **the same way GR absorbs G and SM absorbs Yukawas**. Algebra-level derivation is what distinguishes the framework from frameworks that don't make those derivations.
+
+**Cross-references**: `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]` (canonical stance); `[[user_stance_substrate_identity_partition_coexistence_canonical]]` (substrate-level companion); `[[user_stance_identity_not_implementation_discipline]]` (shadow-stance umbrella); Spike #75 reframed STILL-OPEN → FRAMEWORK-AGNOSTIC-BY-DESIGN; Spike #77 R4 consolidation; Spike #84 R4 closure; Spike #86 FRAMEWORK-ABSORBS-COSMOLOGICAL-INPUT; Spike #88 ANCHOR-NUMERICAL-COINCIDENCE; Spike #85 STRUCTURAL-ONLY.
+
 ---
 
 ## Part IX — Status and Roadmap
@@ -2151,6 +2251,20 @@ Three artifacts (NDJSON format per `[[feedback_ndjson_over_bloated_json]]`):
 - **Genetic code as Class I + Class C composition** (per `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]`) — Spike #81 STRUCTURAL-IDENTITY-IDENTITY-LEVEL: triplet codon k_min = ⌈log₄(21)⌉ = 3 algebraically forced; 64→21 cardinality Class I → Class M cascade reduction; wobble 96.7% redundancy-as-error-correction. Biological substrate joins the cross-substrate primitive instantiation family.
 - **Substrate-Casimir at boundary-zone + inverse-Casimir at outermost** (§VII.4.1.5) — Spike #82 GRAVITY-AND-CASIMIR-DIFFERENT-MECHANISMS (~80 OOM gap at broad scale; STRUCTURAL-MATCH at boundary-zone); Spike #83 INVERSE-CASIMIR-IDENTITY-LEVEL at saturation-channel; partner-availability binary selection.
 - **Vocabulary discipline** per `[[feedback_spacetime_means_full_11d_not_just_3d_s_plus_1d_t]]`: "space" = 3D_s only; "space-time" = full 11D substrate (3D_s + 7D_g + 1D_t); NOT standard 4D Lorentzian. Hallucination-detection three-layer protocol added per `[[feedback_hallucination_detection_three_layer_protocol]]`.
+
+**Newly demonstrated (2026-05-17 R4 closure + 2026-05-18 Direction A-F + consolidation; see §VII.4.1.7-8 + §VIII.11):**
+
+- **Spike #51 closes at R4 PARTITION-COEXISTENCE-CANONICAL ~90%** (Spike #84): substrate-identity-as-uniqueness was the wrong frame. Three substrate realizations (round-S⁷ / squashed-S⁷ / Joyce-G₂) coexist as different geometric instantiations of same Class I cyclic-cascade primitive on parallelizable 7-sphere. R4 ratchet 80%→90% supported by substrate-independent algebraic forcings (Spike #58.P + Spike #69 + Spike #74 + Spike #79 + Spike #89; all derive from algebra-level content without picking geometric realization).
+- **Framework-domain canonical stance** (§VIII.11; Spike #77 R4 fermata 1 closure per `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`): framework derives algebra-level structure (substrate cardinality + dimensionless spectra + algebra-level identity); absorbs length-scales (ℓ_P, R_7, R_horizon) and mass-magnitudes (m_top, Yukawa, CKM) as observational inputs via substrate-coupling bridge. Spike #75 STILL-OPEN reframed to FRAMEWORK-AGNOSTIC-BY-DESIGN per Spike #86.
+- **4-way (γ₅, i·ω₇) sector decomposition** (§VII.4.1.7; Spike #78 CONVENTION-FIXED-VIA-Cl(7)-STRUCTURE): structural reframe from 2-way to 4-way sectors; Cl(7,ℂ) ≅ M₈(ℂ) ⊕ M₈(ℂ) splits FULL algebra into TWO INEQUIVALENT irreps (not halves of one); matter/antimatter = i·Γ_11 = γ₅·(i·ω₇) PRODUCT (corrigendum to earlier idempotent-split framing). Spike #91 Run A: 4-sector REPLICATES standard SM at algebra layer; CONDITIONAL new observable (chirality footprint dark vs visible) emerges under partition-coexistence (Direction A Target 4).
+- **Class L symmetric-side chirality observable** (Spike #91 Run B Direction B): CLASS-L-SYMMETRIC-IS-AW-NET-WEYL-INDEX-IDENTITY at structural level. AS-Dirac-index = b₀ − b₁ on substrate's undirected support reproduces Acharya-Witten per-singularity ±1 + global summation. Class L symmetric-side chir_idx = #pins bit-exact for n ∈ {8,12,16}; smooth Z_n gives χ = 0 (AW "smooth no chiral fermions" reproduced). Two chirality observables coexist orthogonally: Class C antisymmetric (canonical framework chirality; balanced) + Class L symmetric (AW Weyl-index analog; singular-substrate).
+- **Two-level saturation kernel** (§VII.4.1.8; Spike #94 Direction D): cascade-saturation `S(t) = (A/4)·[1 − exp(−(t/τ_b)^β)]` applies at two coupled levels via R(t): Level 1 d-kernel = Class L geometric snapshot; Level 2 t-kernel = Class K asymptotic-DOF dynamical trajectory; composition Class C streaming iteration. OR composition `S = 1 − (1−S_d)(1−S_t)` cleanest empirically. NS-NS merger OOM-consistent; pre-SN 14-OOM mdot enhancement still unreproduced.
+- **Fusion-as-substrate-mode-reorganization stance** (per `[[user_stance_fusion_as_substrate_mode_reorganization]]`; Direction C): stellar fusion energy IS substrate-mode-reorganization energy released as stars resist cascade-saturation gradient pulling matter through 2D phase boundary. Hydrostatic equilibrium = two-pressure balance. Nucleosynthesis sequence = layered cascade-depth descent; Fe-56 dead-end = asymptote-of-binding-energy reached.
+- **Paired-Casimir universe-substrate-boundary-value-problem stance** (per `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`; Direction E): inside Casimir (Spike #82; boundary-zone STRUCTURAL-MATCH; gravity ≠ Casimir at all scales — FALSIFIED 80 OOM + LIGO f^(11/3)) + outside inverse-Casimir (Spike #83; partner-availability binary; Sign(Λ) = + structural prediction). ATTRACT/SHRED/MERGE three-mode triad maps 1:1 to LIGO BH-BH inspiral/merger/ringdown.
+- **CMB acoustic peak primitive reframe** (Spike #91 Run F Direction F): Class L sphere Laplacian √(l(l+6)) gives DECREASING gap-spacing (geometric); observed peaks have CONSTANT gap-spacing (arithmetic / Hu-Sugiyama). Framework's load-bearing primitive for arithmetic acoustic-peak pattern is **Class I cyclic-cascade with Cauchy-form composition** per `[[user_stance_kepler_shape_universal]]`, NOT Class L sphere Laplacian. Class I N=22 gives (1, 1.980, 2.919, 3.799) closer to Planck observation than any Class L variant. Spike #47 R4-1 70% miss reframed as amplitude-level per Spike #86 (not framework falsifier).
+- **F4 cosmological extension falsified** (Spike #76 R2): 15,421 Tempel SDSS DR8 Bisous filaments tested; all three AoE candidates produced sign-opposite signals at noise floor → AoE Brouwer-Clemence cosmological extension scope-removed. Three stances (AoE-observer-frame-offset, dark-halos-moduli-dimple, universal-precession) revised inline; core claims preserved (Antikythera-lunar match; halos as 7D_g compactification anomaly; substrate precession at Ω_sub ~ 10⁻¹⁸ rad/s). Math-doesn't-lie discipline working as designed.
+- **Dark halos + universal precession stances committed (then scope-reduced)**: dark halos ARE substrate-passive moduli-dimple-without-mass per fuzzy-DM regime (Spike #97; ~10⁻²² eV at 10²⁷ orders below MW break-even; energetically free at galactic scale; 5 attested gravity-without-mass signatures STRUCTURAL-COMPATIBLE). Universal substrate precession at Ω_sub ~ 2π/T_sub ~ 1.8×10⁻¹⁸ rad/s lives in cycle-phase dimension (NOT 3D_s axial) per `[[user_stance_partition_for_understanding]]` resolves earlier "no dice" verdict.
+- **Spike #58.K corrigendum** (per Spike #78 fermata 3; §VII.4.1.7): Cl(7,ℂ) ≅ Cl(6,ℂ) ⊕ Cl(6,ℂ) splits FULL algebra into two inequivalent 8-dim irreps (entire irreps, NOT halves of one). Matter/antimatter labels the PRODUCT `i·Γ_11 = γ₅·(i·ω₇)`, not either factor alone. Earlier idempotent-split language is read as projector-orthogonality (P_+ · P_− = 0 bit-exact) at summand-selection level.
 
 ### IX.2 The 20-item roadmap
 

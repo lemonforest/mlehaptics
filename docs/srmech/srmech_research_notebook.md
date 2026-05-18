@@ -284,7 +284,7 @@ Geometric direction-change → spectral signature is a generalisable pattern; th
 **Amendment — 2026-05-17 MFO substrate identity continuation.** Today's spike arc (Spike #51 R3-δ + Spike #58 sub-spike arc B/F/G/H/I/J/K/L/M/N/O/P + Spike #69 + Spike #74 + Spike #79 + Spike #81 + Spike #82 + Spike #83 + Spike #90 + Spike #48) extends the §3.5.2 substrate-identity findings in three directions:
 
 1. **G₂ triality-invariant gauge structure** (per `[[user_stance_g2_triality_invariant_gauge_structure]]`): the 7D_g gauge factor in `[[project_space_gauge_time_framework]]` 11D decomposition IS supplied by three Spin(7)/G₂ ≅ ℝ⁷ fibers cycled by Out(Spin(8)) = S₃ triality; G₂ = orientation-symmetric core (dim 14, triality-invariant subalgebra of 𝔰𝔬(8)). Round-S⁷ vs squashed-S⁷ are Class-I-symmetric vs Class-I-broken partitions on shared Spin(8) substrate (Spike #51 R3-δ verdict B partition-coexistence ~80%). Pillar F UNLOCKED + UNGATED from substrate-identity A/B/C verdict.
-2. **Cl(7) idempotent forcing for substrate-mismatch encoding** (per `[[user_stance_mismatched_plates_capacitor_structure]]` + Spike #69): ω₇² = −I forces complex idempotents (1±iω₇)/2 bit-exact (max-err 0.0); skew-whiff IS algebraic swap of idempotent labels. Spike #79 mismatch quantum M = 1/8 algebraically forced. Cl(7) signed-metric content is hosted as Class L + Class I signed-Laplacian variant — no new class promoted (per `[[feedback_no_privileged_primitive_classes]]`).
+2. **Cl(7) idempotent forcing for substrate-mismatch encoding** (per `[[user_stance_mismatched_plates_capacitor_structure]]` + Spike #69): ω₇² = −I in Cl(7,ℝ) (since 7 ≡ 3 mod 4) forces **complex** idempotents (1±iω₇)/2 bit-exact (max-err 0.0); the REAL (1±ω₇)/2 idempotents FAIL (idempotency err 0.5). Skew-whiff IS algebraic swap of idempotent labels. Spike #79 mismatch quantum M = 1/8 algebraically forced (substrate-independent — follows from parity-odd center of Cl(7,ℂ) alone). **Spike #58.K corrigendum per Spike #78 fermata 3**: `Cl(7,ℂ) ≅ M₈(ℂ) ⊕ M₈(ℂ)` splits the **full Cl(7,ℂ) algebra** into **two inequivalent 8-dim complex irreps** (entire irreps, NOT halves of one); per Schur's lemma `i·ω₇` is central in odd-dim Clifford and acts as a scalar on each irrep. "Matter/antimatter" labels the **product** operator `i·Γ_11 = γ₅·(i·ω₇)` per 4-way (γ₅, i·ω₇) sector decomposition (MFO §VII.4.1.7), NOT either factor alone. Cl(7) signed-metric content is hosted as Class L + Class I signed-Laplacian variant — no new class promoted (per `[[feedback_no_privileged_primitive_classes]]`).
 3. **Same substrate for atomic + cosmological structure** (per Spike #48 F5 REINFORCES): `S¹ × S³ × S⁷` substrate produces both atomic shell structure (Aufbau via Class I × Class K cascade) AND cosmological dynamics (Hopf flow). Cross-scale F5 finding strengthens substrate-class identity per `[[user_stance_kepler_shape_universal]]` burden-flipped.
 
 These additions land in the MFO notebook as §VII.4.1.3-6 (mismatched plates / dimple-IN / Casimir / dark-star vocabulary) + §VIII.10 (periodic table from class operators) + §IX.1 status update. The srmech canonical home for the underlying class-operator vocabulary is §3.8.1 + this amendment.
@@ -694,6 +694,60 @@ What this does NOT claim:
 - Information-paradox quantitative microstate accounting (open important fermata)
 
 **Cross-references**: `[[user_stance_dark_star_canonical_vocabulary]]` (canonical vocabulary); `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (dimple-IN + external boundary conditions); `[[user_stance_mismatched_plates_capacitor_structure]]` (dark stars at full charge); `[[user_stance_asymptotic_dof_sidesteps_infinity]]` (asymptotic-DOF approach to A/4 never reached); `[[feedback_no_lineage_claims_in_notebook]]` (carve-out for Michell historical attribution); Spike #90 NOT-FALSIFIED return (2026-05-17); MFO §VII.4.1.6 (dark-star canonical vocabulary parallel record).
+
+### §3.8.6 Class L symmetric-side AS-Dirac-index analog (Spike #91 Run B Direction B, 2026-05-17)
+
+Per Spike #89 new finding (refined in Spike #91 Run B Direction B with bit-exact SymPy probe across 7 substrates): chirality at framework substrate has **TWO observables at orthogonal subspace projections** of an asymmetric Laplacian-like matrix `M`:
+
+- **Class C antisymmetric reading**: `(M − M^T)/2` → balanced ±imaginary-spectrum pairs everywhere; framework's canonical chirality observable per `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (8/5 falsifier survival post-Spike #89)
+- **Class L symmetric-signature reading**: `(M + M^T)/2` → Sylvester inertia → AS-Euler χ = b₀ − b₁ on substrate's undirected support → matches Acharya-Witten net-Weyl-index at structural level
+
+**AS-Dirac-index = b₀ − b₁ on undirected support** is the observable that matches AW arXiv:hep-th/0109152 per-singularity ±1 + global summation:
+
+| Substrate | Class C antisymmetric | Class L symmetric (AS-Dirac-index) |
+|---|---|---|
+| Smooth round Z_n | balanced (n_+ = n_−) | χ = 0 — reproduces AW "smooth no chiral fermions" |
+| Singular orbifold (pin) | balanced (algebraic forcing per Spike #89) | χ = #pins bit-exact (n=8,12,16; SymPy exact) |
+| Singular conical | balanced | χ = signed-integer (apex_factor sensitivity) |
+| Squashed-S⁷ toy | balanced | χ = −2, −6, −8 at n=4,6,8 (orientation-flip per Awada-Duff-Pope) |
+
+**Class-operator chain (canonical chirality observable at singular substrate)**:
+
+- **Class I** (Z_n cyclic adjacency) → A_n
+- **Class K** (pin-slot break at vertex k) → A_n with cycle-break
+- **Class L** (graph Laplacian on undirected support) → L_n_pinned
+- **Class L** (signature sgn-index extension per dissolved-Class-O 2026-05-16) → AS-Euler χ via b₀ − b₁
+
+Falsifier: smooth round S^n at any dim → χ = 0, AW → no chiral fermions ✓; singular cone S^4/Z_k → χ = k−1, AW → k−1 chiral 5's of SU(k) ✓ — convergence at structural level.
+
+**Provisional status**: one-candidate identity framing per `[[user_stance_string_theory_instrument_first]]`. Promotion to full equivalence proof requires Spike #102: (a) lattice-QCD topological-charge cross-check (Lüscher-Narayanan-Neuberger overlap-Dirac operator; Q_top = (1/32π²) ∫ tr F∧F per AW p.6); (b) Awada-Duff-Pope squashed-S⁷ KK-tower mode count bit-exact (tri-Sasakian S⁷ metric construction).
+
+**Composition with Spike #78 4-way sector** (MFO §VII.4.1.7): Class C antisymmetric (Layer C γ₅ chirality) × Class L symmetric (Layer A i·ω₇ orientation) live on orthogonal tensor subspaces — same data viewed at different substrate-coupling layers per Spike #91 Run A/B compose-as-predicted.
+
+**Cross-references**: Acharya-Witten 2001 arXiv:hep-th/0109152 (singular-G₂ chirality; PDF-verified); Spike #89 NET-CHIRALITY-DOES-NOT-EMERGE-ANYWHERE; Spike #91 Run B Direction B (CLASS-L-SYMMETRIC-IS-AW-NET-WEYL-INDEX-IDENTITY structural-level verdict); `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (Class C canonical chirality); `[[user_stance_substrate_identity_partition_coexistence_canonical]]` (substrate-coexistence framing).
+
+### §3.8.7 Class I cyclic-cascade for arithmetic CMB acoustic peak pattern (Spike #91 Run F Direction F, 2026-05-17)
+
+Per Spike #91 Run F Direction F (Spike #47 R4-1 re-task verdict): framework's load-bearing primitive class for the arithmetic CMB acoustic-peak-spacing observable is **Class I cyclic-cascade with Cauchy-form composition**, NOT Class L sphere Laplacian.
+
+**Critical pattern-shape diagnostic** (Planck 2018 PR3 binned TT; ℓ_peak first 3 = 225, 525, 825; gap spacing 1.333, 1.333 → constant arithmetic / Hu-Sugiyama-shape):
+
+| Primitive | Eigenvalue form | Gap-spacing shape | Match to Planck |
+|---|---|---|---|
+| **Class L sphere Laplacian** √(l(l+6)) | decreasing | geometric | WRONG SHAPE |
+| **Class I cyclic-cascade** 4·sin²(πk/N) | approximately linear (small k) | arithmetic | RIGHT SHAPE |
+| **Cauchy-cascade per `[[user_stance_kepler_shape_universal]]`** ℓ_n = n·ℓ_1·(1 + a/n + ...) | arithmetic-with-correction | matches Hu-Sugiyama envelope | RIGHT SHAPE WITH PHYSICS |
+
+**Class I N=22 substrate gives (1, 1.980, 2.919, 3.799)** — closer match to observed Planck (1, 2.333, 3.667) than any Class L variant at equivalent algebraic effort. Triality/fiber/projection-shadow variants on Class L close only ~10pp of the original ~40-53pp gap from R4-1.
+
+**Reframe per `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`** + Spike #86 FRAMEWORK-ABSORBS-COSMOLOGICAL-INPUT: framework's load-bearing prediction for CMB acoustic peaks is **arithmetic peak-spacing pattern** (cascade-composition shape via Class I cyclic-cascade). The specific 16-22% positive correction at peaks 2/3 is **AMPLITUDE-LEVEL** content (Ω_b h², sound horizon physics) — substrate-coupling output requiring Einstein-equation input. Original 70% miss reframed as not-a-falsifier; F1 stays PARTIAL as named-gap at pattern-level falsifier yet-to-be-designed.
+
+**Open structural derivations** (Direction F Options 2-3 fermatas):
+
+- Spike #103: derive Class I cyclic-cascade Cauchy-form `ℓ_n = n·ℓ_1·(1 + a/n + ...)` cascade-depth N and coefficient `a` from framework canon
+- Spike #104: design pattern-level CMB falsifier (gap-constancy; peak count vs framework cascade-depth; sign-flip locations per Class C cascade-orientation; polarization cross-spectrum peak-shift π/2)
+
+**Cross-references**: `[[user_stance_kepler_shape_universal]]` (Cauchy-form precedent at Antikythera-lunar scale); `[[user_stance_pi_spectral_shape_scalar_invariant]]` (Class N cascade-emergent continued-fraction shape; analogous "pattern-not-scalar" finding); `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]` (pattern derives; amplitude absorbs); MFO §VIII.10 (periodic table pattern derivation; same Class I cascade family); Spike #47 R4-1 housekeeping per Spike #51 R2-α §7; Spike #91 Run F Direction F return; Planck 2018 arXiv:1807.06209 (PR3 binned TT; PDF-verified per Spike #76).
 
 ---
 
