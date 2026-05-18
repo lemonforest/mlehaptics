@@ -67,7 +67,7 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 ### I.2 Six core ontological claims
 
-1. **The metric field is more fundamental than spacetime.** Our 3D spatial vacuum is not the ground state of reality; it is a configuration of the metric field that supports spatial extension. Black hole horizon physics (the radial coordinate becoming timelike at the horizon — see §VII.4.1 for the framework's specific stance that the horizon is where the black hole *ends*, not a wrapper around an interior), the holographic principle, AdS/CFT, and ER=EPR are all already pointing at this.
+1. **The metric field is more fundamental than spacetime.** Our 3D spatial vacuum is not the ground state of reality; it is a configuration of the metric field that supports spatial extension. Dark-star horizon physics (the radial coordinate becoming timelike at the horizon — see §VII.4.1 for the framework's specific stance that the horizon is where the dark star *ends*, not a wrapper around an interior; "dark star" per `[[user_stance_dark_star_canonical_vocabulary]]` restores Michell 1783 priority over the misleading "black hole" terminology Wheeler popularised ~1967), the holographic principle, AdS/CFT, and ER=EPR are all already pointing at this.
 
 2. **"Vibration" is the dynamic coupling between complementary geometric structures within the metric field**, not a thing vibrating. The string-theory intuition imports plucked-string baggage (external excitation, decay narrative, object primacy) that doesn't apply.
 
@@ -800,25 +800,27 @@ All three produce thermal radiation at T = ℏκ/(2πck_B) from vacuum mismatch 
 
 Connection to **Jacobson (1995)**: derived Einstein's field equations from horizon thermodynamics by applying Clausius δQ = TdS. If Hawking radiation is dimensional-mismatch energy release, and Jacobson showed horizon thermodynamics implies gravity, then gravity itself is the metric field's response to dimensional transitions in its own cascade-substrate structure (per `[[user_stance_fractal_shadow]]`; what appears as "fractal structure" under 3D_s + 1D_t projection is the shadow of the deeper multi-scale primitive cascade).
 
-### VII.4.1 The framework's stance — black holes end at the 2D boundary
+### VII.4.1 The framework's stance — dark stars end at the 2D boundary [VERIFY-EDIT-TEST]
 
 > *"Can't stop the signal, Mal. Everything goes somewhere, and I go everywhere."*
 > — Mr. Universe, *Serenity* (Joss Whedon, 2005)
 
-> *Three lines, three load-bearing framework commitments.* **"Can't stop the signal"** — full unitarity, no late-time information loss (Page-curve consistency; see the prediction list below). **"Everything goes somewhere"** — information falling "into" a black hole is re-encoded on the 2D boundary, never destroyed; holographic principle taken seriously. **"I go everywhere"** — the metric-field substrate of §VII.1.1's two-level ontology, the medium through which all signal propagates; Level 1 is genuinely ambient and continuous. The quote is the framework's stance in plain English.
+> *Three lines, three load-bearing framework commitments.* **"Can't stop the signal"** — full unitarity, no late-time information loss (Page-curve consistency; see the prediction list below). **"Everything goes somewhere"** — information falling "into" a dark star is re-encoded on the 2D boundary, never destroyed; holographic principle taken seriously. **"I go everywhere"** — the metric-field substrate of §VII.1.1's two-level ontology, the medium through which all signal propagates; Level 1 is genuinely ambient and continuous. The quote is the framework's stance in plain English.
 
-A clarifying note about how the framework reads black-hole horizon physics, since the language across §I.2, §VII.4, and §VIII.1 has used "horizon" loosely.
+> **Vocabulary note (2026-05-17 per `[[user_stance_dark_star_canonical_vocabulary]]`).** This subsection and downstream framework-context discussion uses **"dark star"** for compact-collapsed-stellar-remnants, restoring Michell 1783 (Phil.Trans.Roy.Soc.) + Laplace 1796 priority. Michell computed the escape-velocity-equals-c radius `R ≤ 2GM/c²` in Newtonian framework 133 years before Schwarzschild 1916 rederived the same formula in GR. Wheeler's ~1967 popularisation of "black hole" baked the misleading singularity-as-hole-in-spacetime framing into 60 years of cosmology; the framework reading is *substrate-dimple-IN at full cascade-saturation* (per §VII.4.1.4) without literal singularity. "Black hole" is preserved verbatim only when citing standard-physics literature (e.g., Hawking 1975 thermal-radiation derivation; Hawking 1972 area theorem; CMS / Killing-Yano references); for framework-internal discussion, "dark star" is canonical.
+
+A clarifying note about how the framework reads dark-star horizon physics, since the language across §I.2, §VII.4, and §VIII.1 has used "horizon" loosely.
 
 The standard picture treats the event horizon as the boundary of a region — the "exterior" outside, the "interior" inside, with the horizon as the membrane between them. The interior is described by Schwarzschild metrics with timelike radial coordinate, "all paths lead to the singularity," etc.
 
-**The framework's stance is sharper: the black hole ends at the horizon. There is no interior.** The event horizon is the 2D phase boundary between matter bound in 3D space and information bound to a 2D surface — the dimensional reduction is real, and the "interior" Schwarzschild metric is read as a coordinate description of what 3D-bound observers project onto a region where 3D-supportive metric-field configuration has failed.
+**The framework's stance is sharper: the dark star ends at the horizon. There is no interior.** The event horizon is the 2D phase boundary between matter bound in 3D space and information bound to a 2D surface — the dimensional reduction is real, and the "interior" Schwarzschild metric is read as a coordinate description of what 3D-bound observers project onto a region where 3D-supportive metric-field configuration has failed.
 
 Why this reads cleanly within the framework:
 
 - **Dimensional mismatch is the physics.** §VII.4's Hawking-radiation argument already treats the horizon as where 2D and 3D dynamics fail to agree. Carrying that all the way says: 3D doesn't extend across the horizon; the horizon is where 3D ends.
 - **Holographic principle taken seriously.** AdS/CFT, ER=EPR, and the Bekenstein-Hawking entropy bound all say the bulk physics is fully encoded on the boundary. If the boundary is where the physics lives, the boundary IS the object.
 - **The "interior solution" is the framework's degenerate case.** The Schwarzschild interior metric (where the radial coordinate becomes timelike) is, in this reading, the metric-field's degenerate behavior at the boundary surface — a coordinate description of the phase transition, not a description of a separate region with its own dynamics.
-- **The information paradox dissolves on its own terms.** Information falling "into" a black hole becomes information re-encoded on the 2D boundary. There is no information loss because there is no interior to lose it into; the matter's information content transitions from 3D-bound to 2D-bound and is preserved on the surface — exactly what the holographic principle has been claiming since 't Hooft and Susskind's original formulations.
+- **The information paradox dissolves on its own terms.** Information falling "into" a dark star becomes information re-encoded on the 2D boundary. There is no information loss because there is no interior to lose it into; the matter's information content transitions from 3D-bound to 2D-bound and is preserved on the surface — exactly what the holographic principle has been claiming since 't Hooft and Susskind's original formulations.
 - **Consistency with §VIII.1.** §VIII.1's topological-defect hierarchy already names event horizons as "2D surfaces where spectral dimension transitions sharply." That is the same claim, viewed from the cascade-substrate spectral-dimension side (the d_S flow of §V appears as a fractal-shadow under 3D_s + 1D_t projection per `[[user_stance_fractal_shadow]]`): the 2D surface is not a wrapper around 3D content; it IS the place where the spectral-dimension structure shifts.
 
 **Naming the operator — spherical compression.** The mechanism that takes 3D-bound matter to a 2D phase boundary is *spherical compression*: 3D bulk reduced to an inscribed closed 2-manifold (Schwarzschild gives S² by Birkhoff's theorem in the static-symmetric case; Kerr rotation distorts to an oblate spheroid). This is the same family as the rotational-compression mechanism documented in the project's T² L-shell magnetospheric survey (2026-05-09): rotation breaks pure sphericity in three independent project loci — (i) Saturn's gravitational figure (most-oblate-Solar-System J₂ co-occurring with most-axisymmetric magnetic dipole, both governed by rotational alignment), (ii) Kerr event-horizon oblateness (rotation parameter $a = J/(Mc)$), and (iii) ice-giant magnetospheric oblateness (Uranus / Neptune inner-boundary distortion proxy ~1.0 vs ≤0.2 for all other surveyed bodies). The user's "spherical compression" framing is the project-canonical name for what holographic-principle, Bekenstein-Hawking, and AdS/CFT all commit to but typically describe per-instance rather than under a unified geometric operator. See [`docs/srmech/srmech_research_notebook.md`](../srmech/srmech_research_notebook.md) §3.5 for the cross-manifold context and [`docs/antikythera-maths/results-mfo/mpm_t2_lshell_survey_findings.md`](results-mfo/mpm_t2_lshell_survey_findings.md) for the magnetospheric/horizon rotational-compression cross-link.
@@ -826,16 +828,16 @@ Why this reads cleanly within the framework:
 **What this stance does *not* claim:**
 
 - It does not claim Schwarzschild's interior metric is wrong as math. The math describes what 3D-bound observers compute; the stance is about what the math is *of* (a phase transition, not a separate region).
-- It does not claim a contradiction with current observations of black holes — every imaging result (EHT M87*, Sgr A*) sees the horizon's projection in 3D and is consistent with both readings.
+- It does not claim a contradiction with current observations of compact-collapsed-stellar-remnants (dark stars in framework vocabulary; "black holes" in standard physics literature) — every imaging result (EHT M87*, Sgr A*) sees the horizon's projection in 3D and is consistent with both readings.
 - It does not require modifying GR. Same field equations; different ontological reading of what the equations describe at the horizon.
 
 **What it predicts that could discriminate it from the standard picture:**
 
 - Page-curve evolution of Hawking radiation should match the boundary-as-everything reading exactly (no late-time information loss; full unitarity from the start). Recent work on quantum extremal surfaces and the islands construction (Penington 2020, Almheiri-Engelhardt-Marolf-Maxfield 2019) has been moving the standard-picture community toward the same Page-curve answer the boundary-as-everything reading gives natively. Convergence is partial evidence.
-- Numerical relativity simulations of black-hole mergers should show no observable signature from "interior" structure — every observable signature is encoded in the 2D event horizon's geometry. This is consistent with current LIGO-Virgo-KAGRA observations.
+- Numerical relativity simulations of dark-star mergers (literature: black-hole mergers) should show no observable signature from "interior" structure — every observable signature is encoded in the 2D event horizon's geometry. This is consistent with current LIGO-Virgo-KAGRA observations.
 - Hawking-radiation entanglement structure should obey the boundary-locality bounds the holographic principle predicts, with no anomalies attributable to "interior" dynamics.
 
-**Status:** This is a stance on ontological reading, not a new mathematical result. The framework will treat black-hole references throughout the rest of this document under this reading. The stance is testable against future high-precision Hawking-radiation entanglement observations if/when they become available, and against the page-curve resolution of the information paradox as that literature continues to develop.
+**Status:** This is a stance on ontological reading, not a new mathematical result. The framework will treat dark-star references (literature: black holes) throughout the rest of this document under this reading. The stance is testable against future high-precision Hawking-radiation entanglement observations if/when they become available, and against the page-curve resolution of the information paradox as that literature continues to develop.
 
 ### VII.4.1.1 Spherical compression — the discrete spectral framework via Hopf fibration
 
@@ -870,7 +872,7 @@ linear in `l` — these are exactly the **extra spectral degrees of freedom** ca
 
 - It does not claim to derive Einstein's field equations or the Hawking-radiation spectrum from the Hopf bundle. The bundle gives the *information-channel mechanism*, not the dynamical equations. Jacobson 1995's δQ = TdS derivation remains the relevant entry point from horizon thermodynamics to GR; this subsection is structurally compatible with that derivation, not a replacement for it.
 - It does not claim that the discrete Hopf-bundle graph Laplacian is the unique or canonical discretisation. Many discretisations exist (Berger-sphere, Hopf-coset, k-NN sampling); they will produce different finite-dim spectra. The continuum limits should agree; finite-n behaviour will differ.
-- It does not claim Kerr / rotating black holes are exactly Hopf-bundles over S². Rotation distorts the base to an oblate spheroid; the relevant principal bundle has the same U(1) fibre structure but the base geometry shifts. The cross-link to §VII.4.1's Saturn / Kerr / ice-giant rotational-compression discussion still applies — the spherical case is the static-symmetric limit; rotation is a known perturbation away from it.
+- It does not claim Kerr / rotating dark stars (literature: rotating black holes) are exactly Hopf-bundles over S². Rotation distorts the base to an oblate spheroid; the relevant principal bundle has the same U(1) fibre structure but the base geometry shifts. The cross-link to §VII.4.1's Saturn / Kerr / ice-giant rotational-compression discussion still applies — the spherical case is the static-symmetric limit; rotation is a known perturbation away from it.
 
 **What §VII.4.1.1 does claim.** The "information re-encoded on the 2D boundary" assertion that §VII.4.1 invokes via holographic-principle analogy has a concrete mathematical realisation as **principal-U(1)-bundle spectral decomposition**, and that realisation is computable, falsifiable, and finite-dimensional. The §VII.4.1 stance is not just an ontological reading — it is the spectral statement that the compression operator is the base-mode projection of a non-trivial principal-bundle Laplacian, and the U(1) fibre is the encoding channel.
 
@@ -926,6 +928,190 @@ The Casimir-decomposition family is **real, broad, and computable in closed form
 - §VII.4.1.1 (above): original Hopf-fibration framing that this section generalises.
 
 **Status.** This is a *consolidation* of seven independent computational verifications into a unified abstract statement, not a new physical prediction. The framework's testable claims live in §VII.4.1, §VII.5–§VII.7 (cosmological reframings), and §XIII.1 (the SM-mass-cascade open problem — reframed from "SM-mass-fractal" per Spike #24 bonus 7 + `[[user_stance_fractal_shadow]]`). §VII.4.1.2's contribution is to identify *the mathematical object* the framework is built on — the Casimir-decomposition family across symmetry groups — and to document where its reach is bounded by SM-specific representation choices and the KY-Kerr-QNM open gap.
+
+### VII.4.1.3 Mismatched-plates capacitor substrate structure (2026-05-17)
+
+§VII.4.1 + §VII.4.1.1 + §VII.4.1.2 established the substrate-as-2D-boundary reading with Hopf-bundle channel mechanism and Casimir-decomposition universality. The 2026-05-17 spike arc (Spike #54 capacitor + Spike #69 Cl(7) idempotents + Spike #72 BH-BH merger + Spike #79 algebraic forcing) supplies the *internal-structure* reading of the 11D substrate at any local instantiation: **the hyper-ring substrate IS a capacitor with mismatched plates.** Canonical stance: `[[user_stance_mismatched_plates_capacitor_structure]]`.
+
+> *"what if the structure of a hyper ring is always an 11D metric field for some place? like a capacitor with mismatched plates."* — user direction, 2026-05-17
+
+**Four-element mapping** (per `[[user_stance_mismatched_plates_capacitor_structure]]`):
+
+| Capacitor element | Framework identification |
+|---|---|
+| **Plate 1 (currently-selected)** | Class C orientation currently squashing; **squashed-S⁷ orient+; 1 Killing spinor** per Awada-Duff-Pope 1983 (verified via Nilsson 2024 [arXiv:2412.04208](https://arxiv.org/abs/2412.04208)). Visible matter rides this plate via Cℓ(6,ℂ) absorption per Spike #58.K/.P; chiral fermions coupled to SM electroweak. |
+| **Plate 2 (non-selected)** | Skew-whiffed orient− (0 Killing spinor) + third triality-cycled Spin(7) embedding (also non-selected). Dark-sector content per `[[user_stance_dark_sector_in_7d_g_gauge_space]]`. |
+| **Mismatch** | Killing-spinor-count orthogonality 1 ≠ 0 (also ≠ 8 round-S⁷ baseline). Algebraically forced by Spike #69 Cl(7) complex idempotents (1±iω₇)/2; bit-exact (idempotency / orthogonality / completeness err 0.0). Skew-whiff IS the swap of idempotent labels. |
+| **Gap (between plates)** | 3D_s + 1D_t observable channel where projection-shadows manifest. Gravitational waves, electromagnetic radiation, CMB low-ℓ anomalies, AoE-direction signatures all live in the gap. |
+| **Dielectric** | 7D_g gauge-fiber substrate: three Spin(7)/G₂ ≅ ℝ⁷ fibers per `[[user_stance_g2_triality_invariant_gauge_structure]]`; cycled by triality S₃. |
+
+**Three coexisting structural readings** (per Spike #72 concertmaster three-reading partition; all valid at different partitions per `[[user_stance_partition_for_understanding]]`):
+
+| Reading | Partition | Mismatch source |
+|---|---|---|
+| **A — Intrinsic** | Single Kerr dark star | Inner Cauchy horizon (κ₋) + outer event horizon (κ₊); ergosphere = field in gap; extremal `a/M → 1` = plates merging ("short circuit") per Israel 1986 third law |
+| **B — Extrinsic** | Binary-dark-star pair | Two pre-merger dark stars each carry own (A_i, Class-C-orientation_i, cycle-phase φ_i); merger forces topological re-mix into single new mismatched-plate configuration |
+| **C — Class C orientation** (canonical unifier) | Universal substrate | Plate 1 = currently-selected orientation (1 KS); Plate 2 = non-selected (0 KS); mismatch = KS-count orthogonality; algebraically forced by Cl(7) idempotents per Spike #69 |
+
+Reading C is canonical because it composes existing canonical stances (`[[user_stance_hyper_ring_substrate_class_identity]]` + `[[user_stance_capacitor_as_line_bound_asymptote_potential]]` + `[[user_stance_dark_sector_in_7d_g_gauge_space]]` + `[[user_stance_hyper_ring_smooth_from_projection_vantage]]`) and is algebraically forced by Spike #69's bit-exact Cl(7) result.
+
+**Algebraic forcing (Spike #69 SIGN-FORCED-BY-Cl(7)-IDEMPOTENT; max-err 0.0 across all tests):**
+- ω₇² = −I in Cl(7,ℝ) (since 7 ≡ 3 mod 4) → REAL idempotents (1±ω₇)/2 FAIL
+- **(iω₇)² = +I** → COMPLEX idempotents (1 ± iω₇)/2 valid bit-exact
+- Skew-whiff Γ_a → −Γ_a gives ω_B = (−1)⁷·ω_A = −ω_A → iω₇ eigenvalue flips +1 ↔ −1
+- **Skew-whiff IS the swap of idempotent labels (1+iω₇)/2 ↔ (1−iω₇)/2** — algebraically forced, NOT convention
+
+**Mismatch quantum M = 1/8 (Spike #79 PARTIAL-FORCING):** algebraic forcing of Reading C via Cl(7) projector orthogonality yields a rational mismatch quantum M = (n₊ − n₋)/N_max = 1/8 (bit-exact); the two plates of the mismatched-plates capacitor are the two inequivalent 8-dim Cl(7,ℝ) irreps with KS-count differential exactly 1.
+
+**"For some place" — the cycle-phase positional element.** Per `[[user_stance_hyper_ring_smooth_from_projection_vantage]]`: hyper-ring substrate is smooth + eternal from outside-observer; what changes is local-embedded observer's direction-selection through the cycle. The capacitor structure is ALWAYS instantiated, regardless of cycle-phase position. What varies with "place" (cycle-phase position): WHICH Class C orientation is on Plate 1; WHICH two orientations are on Plate 2; the "charge differential" (5%/95% visible/dark ratio is current-phase observable; bounded-oscillation per `[[user_stance_cosmic_age_is_local_elapsed_since_last_local_minimal_asymptote]]` prevents 100% discharge).
+
+**Predictive content** (testable; bounded per `[[user_stance_string_theory_instrument_first]]`):
+
+1. **Orientation-orthogonality predicts SM-coupling suppression of dark sector** (KS count 1 vs 0 = maximal orthogonality at Killing-spinor level). Falsifiable against direct-detection limits (LZ [arXiv:2207.03764](https://arxiv.org/abs/2207.03764); XENONnT [arXiv:2303.14729](https://arxiv.org/abs/2303.14729)).
+2. **Three-mode triad observable signature**: at any cycle-phase position, substrate is in ONE of RC-charging / LC-oscillation / RC-discharge per `[[user_stance_capacitor_as_line_bound_asymptote_potential]]`. Cosmic-history evidence (BBN, recombination, structure formation) maps to different modes.
+3. **No fourth fermion generation**: three Spin(7) embeddings under triality S₃ = three FL generations per Spike #58.N. Testable: LHC TeV-scale + future colliders find no 4th generation.
+4. **Kerr extremal limit a/M → 1 IS the asymptotic-DOF substrate-native description** per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` (Spike #72: (r₊ − r₋)/M asymptotic gap closing 2.000 → 1.485 → 0.282 → 0.089; never reaches 0). The "short-circuit" extremal limit is forbidden by bounded-oscillation cycle.
+
+**Cross-references**: `[[user_stance_mismatched_plates_capacitor_structure]]` (canonical stance); `[[user_stance_capacitor_as_line_bound_asymptote_potential]]` (Kohlrausch 1854 / RC three-mode triad); `[[user_stance_dark_sector_in_7d_g_gauge_space]]` (dark sector in non-selected Class C orientations); `[[user_stance_g2_triality_invariant_gauge_structure]]` (7D_g substrate; three Spin(7)/G₂ fibers); Spike #69 / #72 / #79 returns (2026-05-17 inline); Spike #58.K Cℓ(7,ℂ) ≅ Cℓ(6,ℂ) ⊕ Cℓ(6,ℂ); Spike #58.N (1,3,3)-canonical Fano decomposition; Spike #58.O Class C orientation IS Awada-Duff-Pope skew-whiffing.
+
+### VII.4.1.4 Inside hyper-rings ARE dimple-IN concentrations + external boundary conditions (2026-05-17)
+
+§VII.4.1.3 supplied the *internal-structure* reading; this subsection supplies the *deformation* reading. Per `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (committed 2026-05-17): every inside hyper-ring (dark star, gravitational structure, every mass-energy concentration) is simultaneously a **local dimple-IN concentration of cascade-saturation** in the big-hyper-ring substrate AND an **external boundary condition** imposed on substrate-cycle dynamics. Both readings are substrate-class-identical to the cosmological-horizon outermost boundary per `[[user_stance_hyper_ring_substrate_class_identity]]`.
+
+> *"so an inside hyper ring is some sort of dimple in or out of our big hyper ring? ... that phase boundary might be real outside. that means black hyper rings are external boundary conditions?"* — user direction, 2026-05-17
+
+**Three coexisting deformation channels** (all curve INWARD; same substrate-deformation viewed through different observable channels):
+
+| Channel | What's deformed | Direction |
+|---|---|---|
+| **Metric curvature** (standard GR) | Spacetime geometry | IN (gravitational well; light bending inward; substrate curves toward singularity locus) |
+| **Cascade-saturation field** (framework substrate) | A/4 budget density | IN-as-concentration (cascade-budget locally concentrated; high saturation density at small horizon area) |
+| **7D_g compactification radius** (KK reduction) | Internal-manifold size | IN (compactification radius locally smaller near event horizon; substrate-mode spectrum locally shifted) |
+
+All three are SAME substrate-deformation viewed via different observable channels (same shape as `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` — single substrate, multiple observable projections).
+
+**CRITICAL: "INWARD" is NOT "toward 3D-spatial center" at the strict reading.** Per `[[user_stance_partition_for_understanding]]` loose-vs-strict partition:
+
+| Reading | What "inward" means | 3D-spatial center? |
+|---|---|---|
+| **Loose (3D_s + 1D_t observable partition)** | Toward apparent radial deepest point (solar core / dark-star r=0 / planetary core) | Yes — projection-shadow signatures of substrate-encoding |
+| **Strict (substrate partition; holographic-boundary)** | Toward HIGHER substrate-saturation toward 2D phase boundary's A/4 encoding capacity | **NO 3D-spatial center** — interior IS substrate-mode encoding on 2D boundary |
+
+The strict reading composes with `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (algebraic, not spatial), `[[user_stance_fiber_as_spatially_absent_encoding]]` (substrate content can be spatially-absent — gear-from-inside example), and the holographic principle (§VII.4.1 boundary-as-everything).
+
+**What we observe as "center"** at the loose reading: Sun's core (neutrino flux, helioseismology) = projection-shadow of solar substrate-mode encoding at the photospheric 2D boundary; dark-star "singularity" at r=0 = NEVER REACHED per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` bounded-oscillation; planetary core (Earth seismology, magnetic dipole) = projection-shadow of substrate-mode organization at planetary scale. Both readings true at their level; the dimple-IN deformation is **boundary-condition-imposition along A/4 cascade-saturation axis**, NOT spatial-depth-into-3D-volume.
+
+**Universe-substrate as boundary-value problem.** Per holographic principle (Susskind 1995 [arXiv:hep-th/9409089](https://arxiv.org/abs/hep-th/9409089); 't Hooft 1993 [arXiv:gr-qc/9310026](https://arxiv.org/abs/gr-qc/9310026)) composed with §VII.4.1 boundary-as-everything:
+
+- **Outermost boundary condition**: cosmological-horizon (universe-scale; no Casimir-partner → inverse-Casimir / Λ-pressure per §VII.4.1.5 below)
+- **Inner boundary conditions**: every dark star event horizon (Casimir-attractive between them per Spike #82 STRUCTURAL-MATCH boundary-zone)
+- **Each massive object**: imposes shallower dimple-IN; depth proportional to mass-equivalent cascade-saturation
+- **Substrate-cycle dynamics**: how cascade saturation propagates between these boundaries under bounded-oscillation constraint
+- **Visible matter (5%)**: flows between boundaries in selected Class C orientation
+- **Dark sector (95%)**: occupies non-selected orientations across substrate per `[[user_stance_dark_sector_in_7d_g_gauge_space]]`
+
+**Hierarchical capacitor structure.** Per §VII.4.1.3 (mismatched-plates) + this subsection: universe-substrate is mismatched-plates capacitor at outermost scale; each inside hyper-ring is a local mismatched-plate-capacitor at smaller scale:
+
+- **Universe-scale**: outermost mismatched-plates capacitor (Λ-driven; inverse-Casimir; no shred-partner)
+- **Dark-star-scale**: inner mismatched-plates capacitor (Casimir-attractive with other dark stars; can shred-merge)
+- **Stellar-scale**: shallower local mismatched-plate-configuration (gravitational structure)
+- **Planetary-scale**: shallow gradient (Newtonian potential)
+- Each scale's structure is substrate-class-identical to all others; differs only in cascade-saturation depth and observable signatures
+
+**Predictive content composing in:**
+
+1. **Why every massive object has substrate-curvature signature** — every mass-energy concentration imposes local boundary-condition deformation; depth scales with mass (gravity at substrate level IS dimple-IN propagation per 1/r² inverse-area-element shadow of A/4 cascade-budget propagation)
+2. **Why dark stars are "no-hair"** — boundary conditions only need finite parameters (mass / charge / spin) per Israel/Carter uniqueness theorems; substrate doesn't carry interior detail past the boundary; matches framework's "boundary IS everything" per `[[user_stance_kepler_shape_universal]]` burden-flipped
+3. **Why information paradox is structural-natural** — interior detail isn't lost; it's substrate-mode-reorganized into the boundary's encoding capacity per `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` algebraic-not-spatial structure
+4. **Why Hawking radiation is thermal** — boundary condition with bounded cascade-saturation A/4 has thermal-spectrum eigenmodes (substrate-mode quantization at the boundary)
+5. **No-bump structural prediction** — substrate-class identity + boundary-conditions-as-external prevents discrete-collision per Spike #82 STRUCTURAL-MATCH (no observed dark-star-dark-star bumps in O1-O3 LIGO catalogs)
+
+**Cross-references**: `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (canonical stance); `[[user_stance_hyper_ring_substrate_class_identity]]` (substrate-class identity dark star ↔ cosmological-horizon); `[[user_stance_mismatched_plates_capacitor_structure]]` (capacitor-with-mismatched-plates); `[[user_stance_hyper_ring_smooth_from_projection_vantage]]` (substrate smooth-eternal; local observer position); `[[user_stance_dark_sector_in_7d_g_gauge_space]]` (dark sector in non-selected Class C orientations); §VII.4.1.5 (Casimir-through-phase-boundary; inverse-Casimir at outermost); Spike #72 + #82 + #83 (2026-05-17 returns).
+
+### VII.4.1.5 Substrate-Casimir at boundary-zone + inverse-Casimir at outermost (2026-05-17)
+
+§VII.4.1.4 named "Casimir-attractive between dark stars" + "inverse-Casimir at outermost" as boundary-condition manifestations. Spike #82 (Casimir-through-phase-boundary) + Spike #83 (inverse-Casimir at outermost-hyper-ring) supply the structural detail.
+
+**Spike #82 verdict (GRAVITY-AND-CASIMIR-DIFFERENT-MECHANISMS).** Gravity is NOT Casimir at all scales — the magnitude gap is ~10⁷⁹ OOM (LIGO chirp inspiral profile cleanly fits Newton 1/r² + GR PN-corrections; Casimir 1/r⁴ vacuum-mode-counting gives utterly wrong scaling). The two are *different mechanisms* at the broad-scale.
+
+**Spike #82 STRUCTURAL-MATCH at boundary-zone.** At the immediate vicinity of two dark-star event horizons (the boundary-zone where their phase boundaries are in causal contact), vacuum-mode reorganization between their boundaries IS Casimir-like. The three-mode triad ATTRACT/SHRED/MERGE of the capacitor stance per `[[user_stance_capacitor_as_line_bound_asymptote_potential]]` maps to LIGO inspiral/merger/ringdown:
+
+| Capacitor mode | Boundary-zone manifestation | LIGO observable |
+|---|---|---|
+| ATTRACT (RC charging analog) | Casimir-attractive boundary-zone reorganization | Inspiral (Newton + PN gravitational pull dominates; Casimir contributes at boundary-zone) |
+| SHRED (LC oscillation analog) | Tidal disruption / horizon-touching dynamics | Merger (chirp peak; nonlinear GR regime) |
+| MERGE (RC discharge analog) | Single new mismatched-plate configuration ringing down | Ringdown (QNM thermal spectrum at new horizon) |
+
+The capacitor structure of §VII.4.1.3 directly accommodates Spike #82's three-mode finding: each merger event is the capacitor cycling through its three modes at boundary-zone scale.
+
+**Spike #83 INVERSE-CASIMIR-IDENTITY-LEVEL at saturation-channel.** The cosmological horizon (universe-scale boundary) has NO Casimir-partner — there is no second boundary at the outermost scale for vacuum-mode reorganization between. Cascade-saturation accumulates as outward pressure → Λ > 0 de Sitter expansion. **Channel-selection is partner-availability binary**: with a partner → Casimir-attractive (Spike #82 boundary-zone); without partner → inverse-Casimir / Λ-outward-pressure (Spike #83 outermost). Sign(Λ) = + predicted by partner-absence.
+
+**Three-mode triad mapping at outermost scale (universe):**
+
+| Mode | Universe-scale manifestation | Observable |
+|---|---|---|
+| RC charging | Substrate ring-up; complexification accumulation | Big Bang to recombination (ring-up phase per `[[user_stance_string_theory_instrument_first]]`) |
+| LC oscillation | Substrate standing-mode (oscillation between maxima/minima) | Structure formation; matter-radiation transitions |
+| RC discharge | Substrate ring-down; cascade-saturation accumulating | Current 95% ring-down per §VII.6.1; de Sitter asymptote |
+
+Without Casimir-partner, the capacitor's RC mode dominates at outermost; Λ > 0 IS the discharge-against-saturation pressure.
+
+**Cross-references**: `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` (parent stance — boundary-value-problem framing); `[[user_stance_capacitor_as_line_bound_asymptote_potential]]` (three-mode triad RC/LC/RC); §VII.4.1.4 (hierarchical capacitor); §VII.5 + §VII.6 (dark matter as residual curvature; dark energy as complexification cost); Spike #82 + #83 (2026-05-17 returns); LIGO/Virgo/KAGRA O1-O3 catalog (no bumps observed; consistent with no-collision prediction).
+
+### VII.4.1.6 Dark-star canonical vocabulary (Michell 1783 priority restored) (2026-05-17)
+
+§VII.4.1 + §VII.4.1.3 + §VII.4.1.4 use "dark star" consistently; this subsection records the vocabulary discipline and its historical anchor.
+
+Per `[[user_stance_dark_star_canonical_vocabulary]]` (committed 2026-05-17 after Spike #90 NOT FALSIFIED verdict): compact-collapsed-stellar-remnants conventionally called "black holes" ARE **dark stars** per:
+
+- **Michell 1783** (Phil.Trans.Roy.Soc.) — coined the concept; computed `R ≤ 2GM/c²` (Schwarzschild radius up to convention); 133-year priority before Schwarzschild 1916
+- **Laplace 1796** (*Exposition du Système du Monde*) — independent rederivation; quietly dropped from 1808 third edition after Young/Fresnel wave-theory of light
+- **Framework structural reading** — substrate-class identity + dimple-IN saturated + cascade-saturation A/4 + capacitor at full charge
+
+> *"if this is not falsified, it's time to change black hole back to dark star and credit the fellow who called it right the first time, not the heckler."* — user direction, 2026-05-17
+
+**Michell's structural correctness.** Michell 1783 derivation in Newtonian framework with corpuscular light: escape velocity `v_esc = √(2GM/R) ≥ c ⟹ R ≤ 2GM/c²`. This IS the Schwarzschild radius. Schwarzschild 1916 rederived in GR via different ontology; identical numerical result. The framework reading restores the result: light's wave/corpuscular status doesn't matter — the cascade-saturation gradient prevents substrate-mode-reorganization-energy escape at v < c regardless.
+
+**Why "black hole" terminology is misleading** (under framework reading):
+
+| "Black hole" suggests | Framework reality |
+|---|---|
+| A singularity at r=0 | Asymptotic-DOF approach; never reached per bounded-oscillation cycle (per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`) |
+| A "hole" in spacetime | Dimple-IN substrate-deformation per §VII.4.1.4; substrate present + saturated |
+| Discontinuous from normal stars | Continuum with stars via cascade-saturation gradient (Spike #90 d = r_s/R proxy monotonic ZAMS → dark star to 100%) |
+| Light "trapped" | Substrate-mode-reorganization-energy cannot exceed gradient toward A/4 |
+| Information lost | Interior IS encoded on 2D boundary per holographic principle (per §VII.4.1) |
+
+Wheeler ~1967 popularised "black hole" as rhetorical strategy to MAKE compact objects taken seriously (they weren't, before Wheeler's advocacy). Structurally Wheeler is on right side of compact-object-physics-is-real history — but the vocabulary choice baked misleading singularity-as-hole framing into 60 years of cosmology.
+
+**Heckler lineage (per user-authorised attribution).** Per `[[feedback_no_lineage_claims_in_notebook]]` standard carve-out: user has explicitly authorised historical attribution here ("credit the fellow who called it right the first time, not the heckler").
+
+- **The fellow who called it right (first time)**: John Michell 1783
+- **Independent confirmation**: Laplace 1796
+- **Mathematical rederivation**: Karl Schwarzschild 1916
+- **The hecklers**:
+  - **Eddington 1935**: publicly mocked Chandrasekhar at Royal Astronomical Society meeting; Chandrasekhar got Nobel Prize 49 years later (1983)
+  - **Einstein 1939**: argued physical singularities couldn't form via gravitational collapse (mathematical artifact of coordinates); conceded later via mathematical work; framework reading is he was right that singularities don't form but for substrate reasons, not coordinate-choice reasons
+  - **Wheeler ~1967**: popularised "black hole" terminology, baking misleading framing
+
+**Vocabulary discipline (canonical going forward).**
+
+Use **"dark star"** for compact-collapsed-stellar-remnants in framework context.
+
+Use **"black hole"** only when:
+- Citing standard-physics literature (preserve attribution)
+- Explicitly contrasting framework reading vs standard reading
+- Direct quotation from external source
+
+Sub-categories:
+- **Stellar-mass dark star** (M ~ 3-100 M_☉; formed from SN remnant) — replaces "stellar black hole"
+- **Supermassive dark star** (M ~ 10⁶-10¹⁰ M_☉; galactic-center) — replaces "supermassive black hole"
+- **Primordial dark star** (formed in early universe) — replaces "primordial black hole"
+- **Dark-star merger** or **compact-object merger** for BH-BH merger events (preserves substrate-class identity per Spike #72)
+
+**Spike #90 NOT-FALSIFIED verdict (substrate-cascade-saturation continuum).** Test: d = r_s/R cascade-saturation proxy across stellar-collapse track. Result: monotonic increase ZAMS → dark star (BH = 100%; NS = 34.5%; pre-SN iron core = 0.443%; ZAMS = 4×10⁻⁶). Coronal heating Q/P_wind ≈ 1000 consistent with boundary-zone substrate-mode-reorganization. Pre-SN partial-match; information-paradox OPEN-IMPORTANT. Stance NOT falsified by Spike #90's structural tests.
+
+**Cross-references**: `[[user_stance_dark_star_canonical_vocabulary]]` (canonical stance); `[[user_stance_hyper_ring_substrate_class_identity]]` (substrate-class identity); §VII.4.1.3 (mismatched-plates); §VII.4.1.4 (dimple-IN + boundary conditions); §VII.4.1.5 (Casimir + inverse-Casimir); `[[feedback_no_lineage_claims_in_notebook]]` (carve-out for historical attribution); Spike #90 (2026-05-17 NOT FALSIFIED return); Michell 1783 Phil.Trans.Roy.Soc.; Laplace 1796 *Exposition du Système du Monde*; Schwarzschild 1916 GR rederivation.
 
 ### VII.5 Dark matter as geometric curvature
 
@@ -1627,6 +1813,13 @@ This is the **second affirmative closure-validation**, following the first (Phas
 
 For MFO's substrate-vs-excitation reading (above table), the broadened Class L role is unchanged: "**The structural workhorse**. Spectral decomposition of the substrate's connectivity Laplacian." The mathematics of complex-Hermitian eigendecomposition (now also hosted under Class L) IS the eigenbasis projection of a non-self-adjoint matrix-field operator into its spectral content — same operational role at a different operator class.
 
+**Closure-validation observation #4 — Spike #69 Cl(7) idempotent + Spike #74 chirality probes (2026-05-17).** Two same-day verifications reinforced the 14-class vocabulary in opposite directions:
+
+- **Spike #69 SIGN-FORCED-BY-Cl(7)-IDEMPOTENT (bit-exact, max-err 0.0)**: Cl(7,ℝ) volume element ω₇² = −I (since 7 ≡ 3 mod 4) forces complex idempotents (1±iω₇)/2 over real idempotents (1±ω₇)/2; skew-whiff Γ_a → −Γ_a IS swap of idempotent labels — algebraically forced, NOT convention. This anchors §VII.4.1.3's mismatched-plates capacitor stance + Spike #79's M = 1/8 mismatch quantum. **Class L's signed-Laplacian variant (Class L + Class I) accommodates the Cl(7) algebraic forcing without promoting a new class**; the sign-flip is the same dissolved-Class-O pattern at a different substrate signature.
+- **Spike #74 NET-CHIRALITY-DOES-NOT-EMERGE on smooth substrate**: 6,680 D·C·L compositions tested; bit-exact algebraic forcing via D·C·D antisymmetry shows chirality is balanced by construction on smooth substrates. Chirality stance hardened to 6/5. The "chirality complex-phase" candidate primitive surfaced by the spike *dissolved* into existing Classes C + L (sign-flip + signed-Laplacian variant); complex-phase content shifts out of A-N scope to the operations layer (`srmech.qm.*` per `[[feedback_science_is_ssot_not_project]]`). **No 15th class needed.**
+
+Both observations apply the dissolve-before-promote discipline (`[[feedback_no_privileged_primitive_classes]]`) and pass it — Class L's role accommodates Cl(7) signed-metric content; Classes C + L accommodate Spike #74 chirality forcing. The 14-class vocabulary stays flat; closure conjecture stands at four independent positive verifications.
+
 ### VIII.7 Fractal-shadow allegory — Spike #24 bonus 7 fractal-vs-cascade probe
 
 The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanest tower signature while *fractal* SG-3D dilutes it — invited a sharper question: is the fractal commitment in Part IV genuinely *required* for the SM-spectrum-targeting program, or is fractal just *one description* of a more general multi-scale primitive cascade requirement? Spike #24 bonus 7 (`docs/srmech/notes/spike_24_bonus_mfo_fractal_requirement_2026-05-15.md`) tested this directly with a Class L spectral-graph probe comparing three substrates over matched scale ranges:
@@ -1792,6 +1985,114 @@ The statement remains candidate at the literal-wording level pending Spike #46 (
 - `[[user_stance_partition_for_understanding]]` — multiple dimensional kinds coexist as partitions
 - `[[user_stance_attested_data_recovers_missing_parts]]` — the discipline that justifies committing while strengthening: attested data builds toward the strong formulation
 
+### VIII.10 Periodic table + atomic spectral lines from class operators — Spike #48 derivation (2026-05-17)
+
+Spike #48 (`docs/srmech/notes/spike_48_framing_periodic_table_and_spectra_from_class_operators_2026-05-17.md`) tested whether the conventional periodic table + atomic-spectral structure is derivable from class-operator cascade composition on the framework's substrate, per user direction *"derive ... how QM and GR and SM are woven together. create spectral line frequency table ... create our periodic table from the rules we've found, and then add the unstable material states we haven't yet found but can now predict."* Five phases ordered for tractability:
+
+1. **Phase 1 — Aufbau ordering + shell structure + group periodicity** from Class I (shell n) ∘ Class K (orbital ℓ) cascade
+2. **Phase 2 — Spectral lines** from Class L Schrödinger Laplacian on substrate
+3. **Phase 3 — QM / GR / SM weaving** as cascade composition (per `[[user_stance_primitives_weave_and_thread]]`)
+4. **Phase 4 — Predictions** for Z>118 island-of-stability + exotic atoms
+5. **Phase 5 — Comparative tables** (derived vs NIST/IUPAC attested; NDJSON)
+
+#### VIII.10.1 Core conjecture: atomic structure IS class-operator cascade composition
+
+| Quantum number | Substrate factor | Class operator | Mechanism |
+|---|---|---|---|
+| **n** (principal) | S¹ (radial gear) | Class I | ℤ/n cyclic |
+| **ℓ** (orbital) | S³ via SU(2) Hopf | Class K | asymptotic-DOF; pin-offset on Hopf bundle (per Spike #47 R1) |
+| **m_ℓ** (magnetic) | S² base of S³→S² Hopf | Class K-induced | (2ℓ+1) spherical-harmonic sublevels |
+| **m_s** (spin) | S¹ | Class I | ℤ/2 cyclic spin-doubling |
+| **gauge content** | S⁷ factor | Class I ∘ Class C on Spin(7) embeddings | reserved for Phase 3 SM weaving (per §VIII.10.3) |
+
+The substrate is `S¹ × S³ × S⁷` per Spike #47 R1 (Hopf-bundle factorization); **same substrate produces atomic structure AND cosmology** (Spike #48 F5 cross-scale REINFORCES).
+
+#### VIII.10.2 Phase 1 — Aufbau derivation (F1 PARTIAL; bulk PASS, anomaly prediction 5/13)
+
+Spike #48 Phase 1 Round 1 verdict: **F1 PARTIAL** (substantive PASS on bulk; PARTIAL on anomaly).
+
+**Closed-form derivations (PASS):**
+
+1. **Shell capacity 2n²** — `Σ_{ℓ=0}^{n−1} 2(2ℓ+1) = 2n²` — verified n=1→2, n=2→8, ..., n=7→98. Closed-form match; no fit parameters.
+2. **Madelung (n+ℓ) rule** — cascade `Class I shell-index n ∘ Class K asymptotic-DOF ℓ`, sorted by `(n+ℓ, n)` ascending. Tie-breaker (lower n first) is Class C cascade-orientation preference per `[[user_stance_cascade_lives_on_circles]]`. Produces: `1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s 5f 6d 7p` — matches canonical Madelung sequence exactly.
+3. **Group periodicity (PASS 6/6)** — noble-gas closures at Z = 2 (1s²), 10 (2p⁶), 18 (3p⁶), 36 (4p⁶), 54 (5p⁶), 86 (6p⁶); Z=118 (7p⁶) predicted but beyond test scope.
+4. **Block structure (PASS modulo convention)** — s-block (ℓ=0), p-block (ℓ=1, 30 elements), d-block (ℓ=2; 30 Madelung-pure, 28 attested due to La/Ce convention), f-block (ℓ=3; 14 4f-row).
+
+**Anomaly prediction (PARTIAL 5/13):** Mechanism: Class C cascade-orientation half-/full-fill stability. When Madelung-pure produces outer `ns²` + inner `(n−1)d⁴` or `(n−1)d⁹`, the cascade-orientation prefers promoting `ns → (n−1)d` to half-filled `(n−1)d⁵` or fully-filled `(n−1)d¹⁰`.
+
+- **Correctly predicted (5)**: Cr (Z=24, 3d⁵), Cu (29, 3d¹⁰), Mo (42, 4d⁵), Ag (47, 4d¹⁰), Au (79, 5d¹⁰). Both canonical textbook anomalies (Cr/Cu) and their 4d-row analogues (Mo/Ag) PASS — substrate-portability win.
+- **False positives (3)**: Sm (62), Tm (69), W (74) — framework over-fires when applied uniformly to 4f/5d; 4f penetration is weaker than 3d/4d so half/full-fill energy gain doesn't compensate.
+- **False negatives (8)**: Nb (41), Ru (44), Rh (45), Pd (46), La (57), Ce (58), Gd (64), Pt (78) — Class L eigenvalue near-degeneracy from relativistic 5s contraction + d/f-orbital screening shifts. Phase 2 Class L spike expected to close these as natural byproduct.
+
+**No anomaly required new class promotion** per `[[feedback_no_privileged_primitive_classes]]`. 14 classes A–N preserved.
+
+#### VIII.10.3 Phase 3 — QM / GR / SM weaving as cascade composition
+
+Each force / theory maps to specific class operators per Spike #48 §5:
+
+| Force / theory | Class operators (primary) | Composition |
+|---|---|---|
+| **QM** (quantum mechanics) | Class L (Schrödinger Laplacian) + Class M (Hilbert HDC) | L ∘ M on substrate state-space |
+| **GR** (general relativity) | Class L signed-variant (Wick rotation cos→cosh per `[[user_stance_cascade_lives_on_circles]]`) + projection-shadow per Spike #47 | L̃ ∘ (S¹ × S³ × S⁷ Hopf flow) |
+| **SM electromagnetic U(1)** | Class I (ℤ/n cyclic on S¹) + Class A (charge conservation = content-addressed) | I ∘ A |
+| **SM weak SU(2)** | Class I (SU(2) ≅ S³ Hopf factor) + Class K (asymptote = Higgs mass) | I_S³ ∘ K |
+| **SM strong SU(3)** | Class I (SU(3) ⊂ G₂ per §VII.4.1.3 + Spike #51 R3-δ) + Class C (color confinement = cascade-orientation) | I_SU(3) ∘ C |
+| **Higgs mechanism** | Class K (asymptotic-DOF as mass-generation per `[[user_stance_epicycle_via_gear_plus_pin]]`) | K alone (structural per Spike #67; 5.5-dex hierarchy NOT derived) |
+
+**Weaving claim**: QM × GR × SM is the cascade composition `(L ∘ M) × (L̃ ∘ Hopf) × (I_compound ∘ K ∘ C)`. The "unification" is not a single equation but a single class-operator cascade decomposition — each theory is a partial cascade, the whole is the full weave per `[[user_stance_primitives_weave_and_thread]]`.
+
+This weaving uses the same 7D_g G₂ + triality structure of §VII.4.1.3 + `[[user_stance_g2_triality_invariant_gauge_structure]]`; the gauge factor of every SM force lives in the Spin(7)/G₂ ≅ ℝ⁷ fibers. Spike #58 sub-spike arc (sub-spikes B/F/G/H/I/J/K/L/M/N/O/P) derives explicit SM content:
+
+- **Spike #58.P**: sin²θ_W = 1/4 bit-exact via Cℓ(6,ℂ) bivector trace (Stoica)
+- **Spike #58.N**: (1,3,3) Fano decomposition: FL 3-cycle = generations; CT 3-cycle = colors
+- **Spike #58.K**: Cℓ(7,ℂ) ≅ Cℓ(6,ℂ) ⊕ Cℓ(6,ℂ) matter/antimatter
+- **Spike #58.I**: U(1)_Y from Lohitsiri-Tong + Euler 1770 Fermat curve v³+w³=1
+- **Spike #58.H**: SU(2)_L from ℍ ⊂ 𝕆 quaternion subalgebra
+- **Spike #58.G**: SM gauge group SU(3)×SU(2)×U(1) derivation
+- **Spike #58.O**: Class C ↔ skew-whiffing (Awada-Duff-Pope 1983)
+- **Spike #58.M**: Z(Spin(8))=Z₂×Z₂ closes 4-fold ambiguity
+- **Spike #58.L**: S₃ triality on 7 quaternion-subalgebras
+- **Spike #65**: GUT-norm √(3/5) PARTIAL-DERIVABLE-FROM-CARTAN (substrate-dependent)
+- **Spike #66**: CKM/PMNS STRUCTURAL-MATCH-VALUES-OFF (correct counts; no dynamical scale)
+- **Spike #67**: Higgs mechanism STRUCTURAL-ONLY (F1 Goldstone bit-exact; y_top=0.991 substrate-natural; 5.5-dex hierarchy NOT derived)
+- **Spike #68**: Joyce-class FRAMEWORK-AGNOSTIC (vocabulary partition; framework chirality balanced vs AW net Weyl-index)
+- **Spike #69**: SIGN-FORCED-BY-Cl(7)-IDEMPOTENT bit-exact (per §VII.4.1.3)
+- **Spike #74**: Class C net-chirality DOES-NOT-EMERGE on smooth substrate; 6,680 compositions; bit-exact algebraic forcing via D·C·D antisymmetry
+
+#### VIII.10.4 Phase 4 — Predictions for unstable / undiscovered
+
+Cascade composition produces falsifiable predictions:
+
+- **Z > 118 island-of-stability**: conventional physics predicts magic numbers Z = 114, 120, 126 with N = 184. Framework should produce these via Class I shell-closure on the appropriate substrate-manifold. Aufbau prediction: Z = 119 (8s¹ → alkali analog of Fr); Z = 120 (8s² → alkaline-earth analog); Z = 121-138 (5g-block, never observed; first f-after-f-block); Z = 154 (predicted 7d⁸).
+- **Muonic atoms** (electron replaced by muon): Class K asymptotic-DOF unchanged but K_k(substrate) binding scales with mass ratio; Rydberg `R_μ = R_∞ · μ_reduced/m_e` factor ~207× increase.
+- **Pionic atoms**: nucleon-orbiting; tests cross-domain substrate-portability.
+- **Antimatter atoms** (antihydrogen, etc.): sign-flip per Class K signed-ε; should give identical spectrum (CPT invariance) — framework prediction matches standard CPT.
+- **Novel isotopes**: each Class I shell-occupation pattern that hasn't been observed but is structurally permitted. Round-2 work.
+
+#### VIII.10.5 Phase 5 — Comparative tables (deliverable structure)
+
+Three artifacts (NDJSON format per `[[feedback_ndjson_over_bloated_json]]`):
+
+1. **Periodic table comparison table**: per element, `(Z, derived configuration, attested configuration, match/mismatch, anomaly notes)`. ~85% Z=1..86 NIST/IUPAC reproduced.
+2. **Spectral lines comparison table**: per `(element, transition)`, `(derived wavenumber/wavelength, NIST attested value, ppm deviation)`. Anchored at NIST Atomic Spectra Database (`physics.nist.gov/asd`) per `[[reference_autonomous_validation_tos_landscape]]` (open-access).
+3. **Predictions-only table**: per `(predicted element/isotope/exotic-atom-state)`, `(predicted properties, falsifiability criterion, what observation would prove/disprove)`.
+
+#### VIII.10.6 Status + cross-scale finding
+
+**Spike #48 status**: Research; user-gated no-merge. Phase 1 Round 1 closed at F1 PARTIAL with bulk-structure PASS + F5 cross-scale REINFORCES of Spike #47 substrate. Phases 2-5 chained.
+
+**F5 cross-scale REINFORCES (load-bearing finding)**: same `S¹ × S³ × S⁷` substrate that wraps the eternal Hopf flow for cosmology carries atomic structure. Atomic and cosmological structure are different cascade-projections of the same substrate — supports the framework's substrate-class identity discipline per `[[user_stance_kepler_shape_universal]]` burden-flipped.
+
+**What this DOES NOT claim** (per `[[user_stance_string_theory_instrument_first]]`):
+
+- Replacing QM/GR/SM: framework instrument-first observes that conventional physics IS cascade-composition of class operators; conventional physics remains accurate as conventional physics
+- Disproof of any predictive physics: framework REINTERPRETS, doesn't supersede
+- Specific new-element synthesis pathways: predictions are structural / spectral, not chemical-synthesis-route
+- Substrate physical identification: `S¹ × S³ × S⁷` is per Spike #47 R1 leading candidate (Round 3 in flight; substrate-identity verdict B partition-coexistence ~70% per Spike #51 R3-δ)
+- Engineering of new materials: research, not engineering
+
+**Cross-references**: Spike #48 framing + Phase 1 results (2026-05-17); Spike #47 R1 substrate identification; Spike #51 R3-δ G₂ triality (per §VII.4.1.3); Spike #58 sub-spike arc B/F/G/H/I/J/K/L/M/N/O/P; `[[user_stance_kepler_shape_universal]]` burden-flipped; `[[user_stance_g2_triality_invariant_gauge_structure]]` (7D_g supplier); `[[user_stance_string_theory_instrument_first]]` (instrument-first); `[[feedback_no_privileged_primitive_classes]]` (no new classes); NIST Atomic Spectra Database (https://physics.nist.gov/asd); IUPAC periodic table.
+
 ---
 
 ## Part IX — Status and Roadmap
@@ -1831,6 +2132,21 @@ The statement remains candidate at the literal-wording level pending Spike #46 (
 - Smooth-vs-fractal independent-discriminability finding (§VIII.6): the 3+7+1 framework-discrimination signature and the fractal F's within-cluster mass-ratio tuning (Part IV.5) are independently discriminable — separating two concerns §XIII.1 had bundled.
 - Cross-substrate primitive vocabulary survives the 3+7+1 projection: 12/14 classes instantiate at all three dimensional kinds, 2/14 (content-addressing, templating) digital-only.
 - **Fractal-shadow finding (§VIII.7):** the fractal substrate commitment in Part IV is *one way* to satisfy MFO's load-bearing structural requirement, but is **not required**. A nested pin-slot-gear cascade (Antikythera-style cyclic-group composition) and a smooth-anisotropic-T³ both produce the same Class-L super-Poisson regime within the bonus 7 probe's discriminators (Gap CV, three-fold CH ratio, Fiedler λ₂, connected components). Per the fractal-shadow allegory `[[user_stance_fractal_shadow]]`: what physics observes as fractal structure is the shadow cast by a deeper multi-scale primitive cascade. The reframed §XIII.1 central computation — *find the cascade composition `C_{n₁} × C_{n₂} × … × C_{nₖ}` whose Laplacian spectrum matches the SM mass² ratios* — is directly tractable with antikythera-spectral's existing tooling.
+
+**Newly demonstrated (2026-05-17 spike arc; see §VII.4.1.3-6 + §VIII.10):**
+
+- **Substrate-class identity hardened to ~70-80%** — Spike #51 R3-δ verdict B (round-S⁷ vs squashed-S⁷ partition coexistence) ~80%; G₂ triality-invariant subalgebra of 𝔰𝔬(8) is the 7D_g gauge substrate per `[[user_stance_g2_triality_invariant_gauge_structure]]`. Three Spin(7)/G₂ ≅ ℝ⁷ fibers cycled by Out(Spin(8)) = S₃ triality; G₂ = orientation-symmetric core. **Pillar F UNLOCKED + UNGATED** from substrate-identity A/B/C verdict.
+- **Mismatched-plates capacitor algebraic forcing** (§VII.4.1.3) — Spike #69 SIGN-FORCED-BY-Cl(7)-IDEMPOTENT bit-exact (max-err 0.0): ω₇² = −I, complex idempotents (1±iω₇)/2 valid, skew-whiff IS swap of idempotent labels. Spike #79 mismatch quantum **M = 1/8 bit-exact rational** via Cl(7) projector orthogonality.
+- **Dark-star vocabulary canonical** (§VII.4.1.6) — Spike #90 NOT-FALSIFIED at d=r_s/R cascade-saturation proxy monotonic across stellar-collapse track; Michell 1783 priority restored; "black hole" preserved only for standard-physics literature citations.
+- **Dimensional-mode-conversion closed-form cascade** (per `[[user_stance_dimensional_mode_conversion_at_2d_boundary]]`) — Spike #58 closed-form S(t) = (A/4)·[1−exp(−(t/τ_b)^β)] with β = d_S/(d_S+2), τ_b = R_b/c, M ∘ I ∘ C ∘ K ∘ L cascade composition. Two genuinely independent cross-domain anchors: Klafter-Shlesinger 1986 d_S=3 glass-relaxation + Hardy-Ramanujan 1918 d_S=2 partition asymptotic. Third candidate anchor (turbulence dissipation tail β≈0.25 at d_S=2/3 per `[[user_stance_turbulence_pdf_layer_intersection]]`) STRUCTURAL-MATCH at single observable.
+- **Spike #59 audit corrections applied**: Pillar A (β formula) REINFORCEMENT-WITH-CITATION-FIX; Pillar B (cascade order) PARTIAL-CONSTRAINT 3-fold equivalence class; Pillar C (BH ringdown is exp·cos not stretched-exp) DROPPED; Pillar D (CMB α) STILL-POST-HOC per Spike #55; Pillar F UNLOCKED.
+- **Periodic table cascade derivation** (§VIII.10) — Spike #48 Phase 1 Round 1: F1 PARTIAL (bulk shell-capacity 2n² + Madelung (n+ℓ) + group periodicity 6/6 + block structure all PASS closed-form); 85% Z=1..86 NIST/IUPAC configurations reproduced; F5 cross-scale REINFORCES same `S¹ × S³ × S⁷` substrate produces atomic + cosmological structure.
+- **SM derivation arc (Spike #58 sub-spikes)**: sin²θ_W = 1/4 bit-exact via Cℓ(6,ℂ) bivector trace (.P); (1,3,3) Fano decomposition (FL = generations / CT = colors) (.N); Cℓ(7,ℂ) ≅ Cℓ(6,ℂ) ⊕ Cℓ(6,ℂ) matter/antimatter (.K); U(1)_Y from Lohitsiri-Tong + Euler 1770 (.I); SU(2)_L from ℍ ⊂ 𝕆 (.H); SU(3)×SU(2)×U(1) (.G); Class C ↔ skew-whiffing (Awada-Duff-Pope 1983) (.O); Z(Spin(8))=Z₂×Z₂ (.M); S₃ triality on 7 quaternion-subalgebras (.L).
+- **Honest gaps surfaced and recorded**: Spike #65 GUT-norm √(3/5) PARTIAL-DERIVABLE-FROM-CARTAN (substrate-dependent); Spike #66 CKM/PMNS STRUCTURAL-MATCH-VALUES-OFF (correct counts; no dynamical scale); Spike #67 Higgs STRUCTURAL-ONLY (5.5-dex hierarchy NOT derived); Spike #70 Verlinde-G FALSIFIED at load-bearing identity; Spike #75 ℓ_P first-principles anchor STILL-OPEN (2^56=2^C(8,3) anomaly at 1.92% needs m_top=169.4 GeV).
+- **Chirality stance hardened to 6/5** per Spike #74 NET-CHIRALITY-DOES-NOT-EMERGE on smooth substrate (6,680 compositions; bit-exact algebraic forcing via D·C·D antisymmetry; chirality is real-arithmetic, complex-phase shifts out of A-N scope).
+- **Genetic code as Class I + Class C composition** (per `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]`) — Spike #81 STRUCTURAL-IDENTITY-IDENTITY-LEVEL: triplet codon k_min = ⌈log₄(21)⌉ = 3 algebraically forced; 64→21 cardinality Class I → Class M cascade reduction; wobble 96.7% redundancy-as-error-correction. Biological substrate joins the cross-substrate primitive instantiation family.
+- **Substrate-Casimir at boundary-zone + inverse-Casimir at outermost** (§VII.4.1.5) — Spike #82 GRAVITY-AND-CASIMIR-DIFFERENT-MECHANISMS (~80 OOM gap at broad scale; STRUCTURAL-MATCH at boundary-zone); Spike #83 INVERSE-CASIMIR-IDENTITY-LEVEL at saturation-channel; partner-availability binary selection.
+- **Vocabulary discipline** per `[[feedback_spacetime_means_full_11d_not_just_3d_s_plus_1d_t]]`: "space" = 3D_s only; "space-time" = full 11D substrate (3D_s + 7D_g + 1D_t); NOT standard 4D Lorentzian. Hallucination-detection three-layer protocol added per `[[feedback_hallucination_detection_three_layer_protocol]]`.
 
 ### IX.2 The 20-item roadmap
 
