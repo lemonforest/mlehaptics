@@ -1,0 +1,1212 @@
+arXiv:hep-th/0103137v2 26 Mar 2001
+
+A geometric basis for the standard-model gauge group
+Greg Trayling and W E Baylis
+Department of Physics, University of Windsor, Windsor, Ont., Canada N9B 3P4
+E-mail: traylin@uwindsor.ca, baylis@uwindsor.ca
+Received 5 October 2000, in final form 15 January 2001. Scheduled for publication in J Phys A: Math Gen April 2001
+Abstract. A geometric approach to the standard model in terms of the Clifford algebra C7 is advanced. A key feature of the model is its use of an algebraic spinor for one generation of leptons and quarks. Spinor transformations separate into left-sided ("exterior") and right-sided ("interior") types. By definition, Poincar´e transformations are exterior ones. We consider all rotations in the sevendimensional space that (1) conserve the spacetime components of the particle and antiparticle currents and (2) do not couple the right-chiral neutrino. These rotations comprise additional exterior transformations that commute with the Poincar´e group and form the group SU (2)L, interior ones that constitute SU (3)C , and a unique group of coupled double-sided rotations with U (1)Y symmetry. The spinor mediates a physical coupling of Poincar´e and isotopic symmetries within the restrictions of the Coleman­Mandula theorem. The four extra spacelike dimensions in the model form a basis for the Higgs isodoublet field, whose symmetry requires the chirality of SU (2) . The charge assignments of both the fundamental fermions and the Higgs boson are produced exactly.
+PACS numbers: 12.10.Dm, 11.10.Kk, 12.60.-i, 11.40.-q
+1. Introduction
+The present work introduces a geometric approach to the minimal standard model in terms of Clifford's geometric algebra C7 of seven-dimensional space (see for example [1, 2, 3, 4] for an introduction to Clifford algebras and their applications in physics). It demonstrates how the gauge symmetries U (1)Y  SU (2)L  SU (3)C arise as the rotational symmetries of a reducible representation of the Poincar´e group in a linear space with only four extra spacelike dimensions. The fact that this is fewer than the minimum of seven extra dimensions required in the Kaluza-Klein type of approach [5] stems both from the availability of double-sided transformations on algebraic spinor elements and from the existence of higher-dimensional multivector subspaces in C7. Our approach of studying rotational symmetries in a higher-dimensional space may be viewed as an extension of the well-known association of spin with spatial rotations and the treatment of charge symmetry as a rotational symmetry in isospin space. It may lead to a better understanding of the geometry underlying the standard model.
+There have been numerous attempts in the past to combine the existing symmetries into an encompassing structure. Many of the earlier ones have fallen victim to theorems such as the one by Coleman and Mandula [6] that disallow most
+
+Geometry of the standard model
+
+2
+
+except "trivial" (i.e. direct-product) couplings of internal and spacetime symmetries of the S matrix. One of the motivations of supersymmetric models has been to evade the restrictions of such theorems [7, 8, 9].
+More recently Clifford algebras have been used to model the leptons and quarks and their interactions [10, 11, 12, 13, 14]. The Clifford algebras C3 of physical space and C1,3 of Minkowski spacetime are just the algebra of Pauli spin matrices and the real algebra of Dirac gamma matrices, respectively, and are essential ingredients of the relativistic quantum theory of fermions. The aim is to find a larger algebra containing C3 and C1,3 as subalgebras that models several fermions simultaneously. Chisholm and Farwell [13] investigated the mathematical constraints on models in which the particle spinors belong to minimal left ideals of the algebra, and they developed a spin-gauge theory [10] in which couplings to a "frame field" are responsible for the boson masses. They studied C1,6 [11], represented by 8 × 8 matrices, to model the electroweak interactions of leptons in a seven-dimensional space, C2,6 [10], represented by 16 × 16 matrices, to combine the electroweak and gravitational interactions in an eight-dimensional space, and both C4,7 [11] and C3,8 [12], represented by 32 × 32 matrices, to model one generation of eight fermions (without separate antiparticles) in an eleven-dimensional space. In all these models, gauge transformations acted on the spinors only from the left. In 1999 they chose a different behaviour [14] for the gauge transformations in which the spinors, still taken to be minimal left ideals, undergo similarity transformations. They interpreted a new interaction term resulting from this formulation in C1,6 as representing the U (1) contribution in electroweak theory.
+Our algebraic approach builds on a previous formulation [15] in geometric algebra of the Dirac theory. While it shares many of the powerful tools and algebraic structures of Clifford algebras with the work of Chisholm and Farwell, it is distinct in several respects. Our spinor, representing all the fermions and their antiparticles for a single generation of the standard model, is not an element of a minimal left ideal. However, isotopic pairs of particles can be isolated in the spinor by applying primitive idempotents on the right, and such projected spinors do belong to distinct minimal left ideals. The transformation behaviour is determined by the geometric role of the spinor [1, 15, 16] as an amplitude of the Lorentz transformation relating a reference frame for the particles to the lab frame: the spinor is subject to independent transformations on the right and left. It is through this structure, together with the Minkowskian metric of paravector space [4], that we are able to model all the fermions of a generation in just seven spatial (eight spacetime) dimensions with an algebra represented by 8 × 8 matrices. More important than the compactness of our model, however, are its results. Our work emphasizes the geometrical significance of the algebra. The spinors physically couple "interior" and "exterior" symmetries (to be defined below) in such a way as to maintain a direct-product group structure in their two-sided transformations. The SU (2) and SU (3) symmetries arise as the exact exterior and interior rotation groups, respectively, in the seven-dimensional space that (1) conserve the physical spacetime components of particle and antiparticle currents and (2) leave the right-chiral neutrino sterile. The U (1) symmetry is given by coupled rotations that act simultaneously on both sides of the spinor, commute with the interior and exterior rotations, and satisfy the constraints (1) and (2). It is important to emphasize that in our geometric model the gauge symmetries are not imposed but arise naturally from the algebra itself as unique symmetry groups of the current. The chiral nature of the SU (2) group is discussed in terms of the symmetry of the Higgs field. The model also predicts the correct weak-hypercharge assignments.
+
+Geometry of the standard model
+
+3
+
+Section 2 summarizes the conventions adopted and provides an 8 × 8-matrix representation of C7 in order to relate our algebraic formulation to conventional expressions. Section 3 develops the notion of spinors in C7. It shows how spinors representing all the fermions of a single generation can be combined into a single algebraic spinor, how the currents are calculated from such spinors, and how the contributions from individual fermions can be projected out. In section 4, we study the rotational symmetries of these spinors and show that they give exactly the gauge symmetries of the standard model with the correct weak hypercharge assignments. We also investigate other possible symmetry transformations and show that within our model the continuous interior and exterior symmetry groups (other than the Poincar´e group) comprise only sets of coupled rotations. Section 5 shows how the four extra spatial dimensions and their transformation properties are precisely what is needed for the four components of a minimal Higgs field.
+
+2. Algebraic Foundations
+
+Clifford algebras are associative algebras of vectors. In the real Clifford algebra C7, the unit vectors e1, e2, ..., e7 are chosen to represent orthogonal spacelike directions in the tangent space of a seven-dimensional manifold, with e1, e2, e3 allotted to the three observed (physical) directions. The product of any number of vectors is completely
+determined by the anticommutator
+
+ejek + ekej = 2jk, j, k = 1, . . . , 7.
+
+(1)
+
+All elements of the algebra can be reduced to real linear combinations of 27 = 128
+
+basis forms, each one representing a geometric object. For example, the bivector e1e4
+
+represents the plane spanned by the directions e1 and e4, and the trivector e1e2e3
+
+represents the physical volume element. There are a total of 21 independent bivectors
+
+and in general
+
+7 k
+
+independent k-vectors (forms built from products of k distinct basis
+
+vectors) in C7 .
+
+Two basic conjugations, both of which are antiautomorphic involutions, are used.
+
+The reversion of K  C7, denoted K, reverses the order of appearance of all vector elements within K. For example, (e1e2e3) = e3e2e1 = -e1e2e3 and (AB) = BA. Clifford conjugation, denoted by K¯ , both reverses the order and negates all vector
+
+elements of K. In the algebras Cn, the basis vectors ej can all be taken to be
+
+hermitian, and then reversion is equivalent to hermitian conjugation. The algebra C7
+
+is appealing in that the volume element of the algebra, like that of C3 , commutes
+
+with all elements and squares to -1. It can therefore be associated identically with
+
+the unit imaginary
+
+i  e1e2e3e4e5e6e7
+
+(2)
+
+and used to reduce products of real vectors to elements of a complex space with 64 basis forms. For example, e4e5e6e7 = -ie1e2e3. This fortuitous circumstance occurs for every C3+4n with non-negative integer n, and C7 is the smallest of the series that contains the Dirac algebra as a subalgebra. The choice of adding exactly four extra dimensions to physical space is further justified below in that they arise naturally from a metric-free approach to physical space and form a natural basis for the four components of the minimal Higgs field.
+The formalism used here builds on the physical applications of C3 (the Pauli algebra), in particular the use of paravectors [4, 17] to model spacetime vectors.
+
+Geometry of the standard model
+
+4
+
+Paravectors are sums of scalars and vectors such as V = V 0 + V 1e1 + V 2e2 + V 3e3  V µeµ, where for notational convenience we denote the unit scalar by e0, and the scalar V 0 is the time component in the observer frame, that is, the frame with proper velocity e0 = e¯0 = 1. The linear space of paravectors has a Minkowski spacetime metric µ with signature (1, 3). The metric arises from the square norm of paravectors
+
+V V¯ = V V¯ S = V µV  eµe¯ S = V µVµ
+
+(3)
+
+as µ = eµe¯ S. Here, · · · S means the scalar part of the enclosed expression, and we adopt the summation convention for repeated indices, with lower-case Greek indices taking integer values 0 . . . 3. The algebra generated by products of paravectors is just C3, which is isomorphic to quaternions over the complex numbers. It admits a covariant formulation of relativity and has also been shown to provide a natural formulation of the single-particle Dirac theory [15]. The Lorentz-invariant spacetime volume element in C3 can be taken to be e0e1e2e3 = ±i . The sign indicates the handedness of the spatial basis vectors {e1, e2, e3} . As we discuss in more detail in the following section, when extra dimensions are present, it is possible to rotate a right-handed spacetime basis into a left-handed one.
+Proper and orthochronous Lorentz transformations of spacetime vectors are effected by bilinear transformations of the form [18]
+
+V  LV L
+
+(4)
+
+where L is any unimodular element: LL¯ = 1. Every such L can be expressed as the
+
+product L = exp (w/2) exp (/2) of a spatial rotation LR = exp (/2) in the plane of
+
+trhapeidbiitvyecwtor=w=j ej12
+
+jkeje¯k and a pure boost LB = exp (w/2) (or, equivalently, as a hyperbolic rotation
+
+in in
+
+the the
+
+direction spacetime
+
+of the plane
+
+of wj eje¯0). The scalar coefficients satisfy jk = -kj and wj = 0 = kj for j > 3. An
+
+advantage of the formalism is that the generators of the transformations have direct
+
+physical significance. For example, the generator e1e¯2 induces a rotation in the e1e2 plane. Note that a scalar is not necessarily the time component of some spacetime
+
+vector. The mass m of a particle, for example, may be the time component of the
+
+momentum p (in units with c = 1) in the rest frame, or it may be the invariant norm
+
+of p. The two possibilities are distinguished by how they transform. In particular, the
+
+square norm of p transforms as
+
+m2 = pp¯  LpL L¯p¯L¯ = pp¯
+
+(5)
+
+whereas the rest-frame momentum becomes
+
+me0  Lme0L = mLL.
+
+(6)
+
+The extension from C3 to C7 requires four additional basis vectors, e4, e5, e6, e7, that are orthogonal to physical space, namely the span of {e1, e2, e3} , which generates the C3 considered here. If z is any linear combination of e4, e5, e6, e7, its product with any K  C3 satisfies
+
+zK = K¯ z .
+
+(7)
+
+It follows that z is invariant under any Lorentz transformation (4) with L  C3: z  LzL = LL¯z = z . More general rotations in C7 have the form of equation (4) but are generated by bivectors that are not restricted to the three spatial planes of C3 .
+It is natural to question the significance of the extra dimensions. Of course they may be compact as in the Kaluza-Klein approach, but then one can still perform
+
+Geometry of the standard model
+
+5
+
+rotations in the tangent space at any point, for example in the e1e4 plane or in other planes involving the extra dimensions. Alternatively, the extra dimensions may be finite or infinite in extent but simply not observable as spatial degrees of freedom. One way to arrive at C7 from C3 is to seek a metric-free foundation for C3. The anticommutation relation (1) implies a Euclidean spatial metric, but we may instead start with a three-dimensional metric-free Witt basis [19, 20] of null vectors {1, 2, 3} satisfying
+
+jk + kj = 0, j, k = 1, 2, 3.
+
+(8)
+
+A dual space can then be defined as the span of {1, 2, 3} , where
+
+jk + kj = jk .
+
+(9)
+
+The anticommutation relation (1) for C3 follows directly from the identification ek = k + k. However, there are now three extra linearly independent vectors that we can label e-k = k - k. It is easily verified that the six basis vectors e±k anticommute and square to ±1. The span of {e±k}1k3 is a six-dimensional space with the metric signature (3, 3). It generates the Clifford algebra C3,3, and its volume
+element e4  e-3e-2e-1e1e2e3 squares to +1 and anticommutes with the six e±k. As in the familiar Dirac algebra, the volume element in C3,3 acts as an additional spatial
+dimension. It can be added to the basis to form a seven-dimensional space with the
+
+corresponding universal Clifford algebra C4,3. The algebra C4,3 can be mapped to C7 if we assume the existence of a scalar unit imaginary element i. We replace the three
+
+e-k by elements e4+k  ie-k that square to +1. The elements ej, with j = 1, 2, . . . , 7, then satisfy equations (1) and (2) and span a seven-dimensional Euclidean space such
+
+as used here. The Witt basis elements can now be written
+
+k
+
+=
+
+1 2
+
+(ek
+
+-
+
+ie4+k) ,
+
+k = 1, 2, 3
+
+(10)
+
+and if we take the ej to be hermitian, the dual elements are their hermitian conjugates: k = k . The anticommutation relations (8,9) are just those of fermion annihilation and creation operators, whose products, together with other constructions analogous
+
+to equation (10), can generate the isotopic groups used below. Here we derive the
+
+group generators directly in terms of bivectors of C7 by demanding that they avoid interactions with the right-chiral neutrino and leave the spacetime components of the
+
+particle and antiparticle currents invariant.
+
+To illustrate relations in C7, it is useful to have an explicit matrix representation. Such a representation can be built from a 4 × 4-matrix representation of the familiar
+
+Dirac algebra C1,3, in which the basis vectors satisfy µ + µ = 2µ. However, we note that the unit imaginary is not part of C1,3, that the volume element i5 = 0123 plays the role of an added spatial dimension, that the µ cannot all be hermitian, and that 0 has additional significance in the definition of the conjugate spinor. A faithful 8 × 8 matrix representation of C7 can be expressed in the blockmatrix form
+
+e0 = 1 
+
+10 01
+
+, ek 
+
+-0k
+
+0
+
+0 -0k
+
+, e4 
+
+i05 0 0 i05
+
+e5 
+
+0 0 0 -0
+
+, e6 
+
+0 0 0 0
+
+, e7 
+
+0 -i0 i0 0
+
+(11)
+
+with k = 1, 2, 3. Each basis vector ej is thus represented by a hermitian matrix. It can be seen that this representation absorbs 0 into the definition of a spatial direction,
+
+Geometry of the standard model
+
+6
+
+thus relegating time to the scalar part of the algebra, and it introduces four extra spacelike dimensions in accordance with the defining anticommutator (1) so that [i]8×8 arises naturally through the full volume element. Operations involving these higher dimensions may now be stated and executed cleanly in terms of the basis vectors ej without having to appeal to products of gamma matrices. The representation (11) is only one of many that absorb the Dirac algebra into the more mathematically uniform C7. In fact, the model can be presented algebraically without reference to specific matrices, but the representation (11) is useful for understanding the spinorial element and for making comparisons to conventional expressions.
+
+3. Algebraic Spinors and Currents
+
+Algebraic spinors may be defined as entities that transform under the restricted Lorentz group not as vectors (4), but according to the rule
+
+  L.
+
+(12)
+
+They obey a similar transformation law under translations. Spinors are thus elements
+
+of the carrier space of a representation (generally a reducible representation) of the
+
+Poincar´e group. In the C3 version of the Dirac theory [15], the spinor field , represented by a 2×2 matrix, is an amplitude of the bilinear Lorentz transformation (4)
+
+relating the reference and laboratory frames of the particle. The current, in particular,
+
+corresponds to the transformation of the rest-frame time axis: J = .
+
+To describe one generation of the standard model, we use the algebraic spinor
+
+  C7. It is represented by an 8 × 8 matrix whose columns contain the spinors for the leptons (, e) as well as for three colors of quarks (u, d) and all their antiparticles.
+
+Presumably it specifies not only the motion and orientation of the particles in
+
+spacetime, but also in the space spanned by the extra four dimensions.
+
+The transformations (12) are preserved by multiplication from the right by
+
+Lorentz-invariant factors, in particular by hermitian idempotent elements (projectors)
+
+that project the spinor  onto left ideals of C7. In particular, there are eight independent primitive idempotents that, in terms of matrices, can each be used to
+
+reduce  to a single nonvanishing column. (Examples are given below and in the
+
+Appendix.) Every column of  transforms as a spinor [equation (12)], and operators
+
+from the left do not mix the spinors in different columns.
+
+In constructing an algebraic expression for the particle current J, we seek a form
+
+that is bilinear in the spinors, transforms as a vector, and satisfies J = J. The last requirement ensures that the physical components Jµ of J are real. The simplest
+
+solution to this, and the one that we adopt here, has the same form as found for the
+
+Dirac theory in C3:
+
+J =   LL.
+
+(13)
+
+A specific component of J may be extracted by contracting it with its associated direction through
+
+Jµ = e¯µ S = e¯µ S.
+
+(14)
+
+(We have used through · · · S
+
+the 
+
+algebraic property AB
+
+1 8
+
+tr(·
+
+·
+
+·)
+
+is
+
+the
+
+familiar
+
+S= trace
+
+BA S, whose matrix representation theorem tr(AB) = tr(BA).) From
+
+the matrix representation for eµ, we see that the components (14) are sums of
+
+the conventional expressions ¯µ for each fermion and antifermion, where the
+
+delimiters  · · · designate prevailing non-algebraic notation.
+
+Geometry of the standard model
+
+7
+
+It is useful to distinguish transformations acting on the left from others that act on the right. Those on the left include Lorentz transformations and rotations in the space of the extra four dimensions. Since they operate on orthogonal subspaces, rotations in the space spanned by {e4, e5, e6, e7} commute with the Lorentz transformations. They are applied to the spinor after the particles have been given the motion and orientation described by  and will be called "exterior" transformations to represent their position, as in equation (13), in transformations of the current J. Transformations applied from the right will similarly be called "interior". They are applied to the particles in their reference frame, before they acquire the motion and orientation implied by the spinor. Note that exterior transformations are not synonymous with external transformations, since the extra four dimensions may relate to properties that are commonly considered to be internal. Exterior transformations mix the components within a single pair of fermions, whereas interior transformations mix different pairs together.
+Primitive idempotents P (n) needed to isolate columns of  can be constructed from interior products of three pairs of simple projectors P± = P± = P±2 = P¯ , where P+ + P- = 1 and P+P- = 0. From among several equivalent choices, we use the three mutually commuting projector pairs
+
+P±3
+
+
+
+1 2
+
+(1
+
+±
+
+e3),
+
+P±
+
+
+
+1 2
+
+(1
+
+±
+
+ie4e5),
+
+P±
+
+
+
+1 2
+
+(1
+
+±
+
+ie6
+
+e7).
+
+(15)
+
+In the Weyl -matrix representation adopted here (see Appendix), the products
+
+P±3P±P± are simply the eight diagonal matrices with a single nonvanishing, unit
+
+element. For example, P+3P+P- = diag[1, 0, 0, 0, 0, 0, 0, 0]  P (1), and the first-
+
+column spinor may be written P (1) (see Appendix). Each of the eight primitive
+
+projectors P (n), applied from the right, projects  (or other elements) onto one
+
+of eight minimal left ideals of C7 and one of the eight columns of the matrix
+
+representation. The nth column P (n) is identified with a distinct pair of fermions
+
+and forms current elements in equation (13) only with itself.
+
+One pair of simple projectors, applied from the right, can be taken to separate
+
+particles from antiparticles. We let this be P±3 , although this choice is generalized
+
+below. Thus, columns 1, 4, 5, 8, selected by P+3, are designated for particles and the
+
+remaining columns, selected by P-3, contain the antiparticle spinors. Each column holds the spinors for a fermion doublet, and the projectors for the two isotopic-spin
+
+components are taken to be P± applied as an exterior operator (from the left). In
+
+the Weyl representation [8], each four-component spinor in  is further split into two-
+
+component spinors of right and left chirality. For example, the upper spinor of column
+
+one comprises the nonvanishing components of P-P (1) :
+
+ 11 
+
+ 0 
+
+  
+
+21 31
+
+ 
+
+
+
+ 8
+
+ 
+
+
+
+1 2
+
+ 
+
+=
+
+ 8
+
+
+
+R L
+
+.
+
+(16)
+
+
+
+41
+
+3
+
+where 8 factors are inserted to agree with conventional normalization. The lower
+
+spinor P+P (1) with the four nonzero components 51 to 81 and the other P+3
+
+ A similar primitive-idempotent structure for particle doublets was proposed for the algebra C1,6 by Chisholm and Farwell [13, 11]. However, in spite of an isomorphism between C7 and C1,6, their restriction to spinors belonging to minmal left ideals allows them to include only one isotopic pair of particles whereas our spinor contains eight isotopic pairs of particles and antiparticles. Furthermore, our use of paravectors provides additional degrees of freedom. Indeed, it corresponds to a 2-to-1 mapping of the larger C1,7 onto its even subalgebra C1+,7  C7 .
+
+Geometry of the standard model
+
+8
+
+columns are labeled in a similar manner. The P+3 (particle) spinors can be factored explicitly as in table 1. The P-3 spinors have a similar form but have been excluded for brevity. Indeed, one need only work out the algebraic equivalent of the first column, since the remaining P+3 columns are easily obtained by multiplying the first-column spinor from the right by the elements e5e1, e5e6, e6e1, which shifts it to columns 4, 5, 8 respectively. These algebraic spinors transform under   L in the same manner
+as in the conventional column representation.
+
+Table 1. The algebraic P+3 (particle) spinors, where the two-component Weyl spinors are algebraic elements defined by R = 0 + 1e1, and L = 3 - 2e1 for each particle with Dirac spinor components 0, 1, 2, 3.
+
+lower spinor 
+P+P (1) = 8(Re6e5 + Le1e6)P (1) P+P (4) = 8(Re6e1 + Le6e5)P (4) P+P (5) = 8(R + Le5e1)P (5) P+P (8) = 8(Re1e5 + L)P (8)
+
+upper spinor 
+P-P (1) = 8(R + Le1e5)P (1) P-P (4) = 8(Re5e1 + L)P (4) P-P (5) = 8(Re5e6 + Le1e6)P (5) P-P (8) = 8(Re6e1 + Le5e6)P (8)
+
+The chiral projectors for all fermions in the Weyl representation are the mutually annihilating exterior operators
+
+PR/L
+
+=
+
+PL¯ /R¯
+
+=
+
+1 2
+
+(1
+
+±
+
+e4e5e6e7).
+
+(17)
+
+By the "pacwoman" [4] property PR/L = ±e4e5e6e7PR/L = ie1e2e3PR/L , these projectors split C7 into parts in which the basis elements e1, e2, e3 of physical space have right and left-handed orientations, respectively. In particular, since
+
+e1e2e3PR/L = ±iPR/L
+
+(18)
+
+the spatial volume element e1e2e3 (which is equal to the spacetime volume element e0e1e2e3 in the lab frame) can be replaced§ by +i when multiplying PR and -i when multiplying PL. Note that the chirality projectors PR/L commute with all elements of the subalgebra C3 as well as with P±3, P±, P± and therefore with all the primitive idempotents P (n) . Furthermore, any element x of C7 with an odd number of vector factors from the higher dimensions e4, e5, e6, e7 reverses the chirality: xPR = PLx . Such elements include bivectors such as e3e4 that can generate rotations from a lefthanded coordinate system into a right-handed one and vice versa. The chirality of 
+can thus be flipped by the transformation
+
+  -e1e2e3e4
+
+(19)
+
+which has the effect of reversing the vector components of the current (13) in the span of {e1, e2, e3, e4} while leaving the components in the span of {e0, e5, e6, e7} invariant.
+Charge conjugation is realized by the algebraic operation
+
+  C = ie4.
+
+(20)
+
+§ A potential conflict between these cases is restricted by the association of observed quantities such as Jµ (14) with the scalar expressions.
+
+Geometry of the standard model
+
+9
+
+The combination of the two antiautomorphic involutions obeys the rule (AB) = A¯B¯, and the conjugate of the upper spinor of the first column (see table 1), for
+
+example, is
+
+P+CP (6) = ie48(¯R + ¯L e1e5)P (6)
+
+(21)
+
+where ¯R = 0 - 1e1 and ¯L = 3 + 2e1. The identification (20), together with the relation (7) and transformation rule (12), ensures that spinors and their charge
+
+conjugates transform in the same way under the Lorentz group:
+
+C  ie4L¯¯  = Lie4¯  = LC .
+
+(22)
+
+In the matrix representation, charge conjugation (20) is equivalent to defining the conventional charge conjugates through C = i2 and interchanging both corresponding particle and antiparticle columns and upper and lower spinors. The resulting full structure of  is shown in table 2. For the sake of brevity, we take the liberty of labeling the spinors with the particle designations shown, although the gauge structure has not yet been determined. This is one of many possible arrangements and will be generalized below. Note that charge conjugation reverses the signs on all of the simple interior and exterior projectors used here.
+
+Table 2. Column designations of the matrix representation of  in terms of common two-component chiral spinors.
+
+ -q¯grn q¯blu qred qgrn
+
+¯
+
+-q¯red qblu
+
+R
+
+d¯L
+
+-d¯L uR uR -e¯L
+
+d¯L
+
+uR
+
+L
+
+d¯R
+
+-d¯R uL uL -e¯R
+
+d¯R
+
+uL
+
+eR -u¯L
+
+u¯L
+
+dR dR
+
+¯L
+
+-u¯L dR
+
+eL -u¯R
+
+u¯R
+
+dL
+
+dL
+
+¯R
+
+-u¯R dL
+
+Geometrically, charge conjugation transforms the particle current as
+
+J =   e4¯ ¯ e4 = e4J¯e4
+
+(23)
+
+and has the effect of negating the e4 component while leaving all other directions invariant. This is a discrete symmetry of the higher-dimensional directions that is not accessible by a rotation. The negation of two or four directions can be achieved by rotations, and to negate three directions one simply reverses one direction followed by reversing another two or four. The choice of e4 and the phase introduced in equation (20) are merely convenient choices for the representation used.
+The total current obtained by simply adding all the left ideal doublets into a single element  is then
+
+16
+
+J   = J(µa)eµ + (higher-dim. terms).
+
+(24)
+
+a=1
+
+The sum here runs over the 16 four-component spinors assigned to the upper and lower halves of the eight minimal left ideals, each of which is ascribed to a distinct fermion [13]. The residual part of the current involves cross-current terms between the upper and lower fermions of the same ideal as well as mass-like terms of the form ¯, all projected onto higher-dimensional elements.
+The main idea of this section has simply been that, instead of writing a separate term for each of the particle currents, we can consolidate them into a single expression
+
+Geometry of the standard model
+
+10
+
+that accommodates a number of spinorial representations. The advantage of the algebraic formalism becomes evident when we enumerate all the possible rotational symmetries of this current.
+
+4. Gauge Symmetries
+
+The algebraic current (13) holds all the chiral currents of a single generation of the standard model, with distinct antiparticle currents, as a generalized current in a linear space of seven spatial dimensions. In this section, we show that rotational transformations that leave both the physical spacetime components of the particle and antiparticle currents and the right-chiral neutrino (and left-chiral antineutrino) invariant lead exactly to the standard-model gauge symmetries. Our approach is analogous to the conventional case where one notices that   exp(i) is a symmetry of the current, but now we consider all possible rotations in the sevendimensional Euclidean space. This involves generators acting from both the left and right of the algebraic spinor, as these generators usually do not commute with . We show further that rotations are the only continuous transformations acting from either the right or the left that are allowed in our model. Thus, by combining the fermion currents into the single form (13), we uncover relationships among the fermions that in most other models are simply imposed on abstract spaces.
+We begin by considering exterior rotations   G = exp(T ) that leave the physical spacetime components of  invariant, where T generates rotations in one or more planes of the seven-dimensional space. As seen above, the generator of rotations in a plane is the bivector for the plane, and bivectors are antihermitian. From the infinitesimal form
+
+J  (1 + T )(1 + T )
+
+(25)
+
+it is clear from the invariance of Jµ (14) for µ = 0, 1, 2, 3, that eµT = -T eµ = T eµ. Thus, to leave the spatial components of J invariant, T must commute with ek, k = 1, 2, 3. This reduces the choices for T to linear combinations of the six bivectors
+
+ejek : (j, k)  {4, 5, 6, 7}, j > k , of the Lie algebra so (4) , which generate rotations of the higher-dimensional vector components of the current among themselves. As seen
+
+above, generators formed from products of e4, e5, e6, e7 are invariant under Lorentz transformations and may therefore be associated with intrinsic transformations.
+
+The projectors PR/L split so (4) into two independent copies of the algebra su (2) , corresponding to the rotation groups SU (2)L/R with generators of the form ejekPL/R .
+The generators of SU (2)L may be written in the form
+
+T1 =
+
+1 4
+
+(e6e4
+
++
+
+e5e7),
+
+T2 =
+
+1 4
+
+(e7
+
+e4
+
++
+
+e6e5),
+
+T3 =
+
+1 4
+
+(e5e4
+
++
+
+e7e6).
+
+(26)
+
+that implicitly contains the left-chiral projector (17), for example 2T1 = e6e4PL , and therefore acts only on left-chiral particles and right-chiral antiparticles. The three
+
+generators (26) induce simultaneous rotations in a pair of commuting planes and satisfy
+
+[Ta, Tb] = abcTc, with the fully antisymmetric structure constants abc where 123 = 1. The conventional presence of the unit imaginary in front of Tc has been absorbed into the antihermitian property of the bivectors. The effect of the transformation
+
+  exp(aTa) is identical to that of the prevailing SU (2) prescriptions
+
+L uL -e¯R -d¯R eL dL ¯R u¯R
+
+ exp(-iaa/2)
+
+L uL -e¯R -d¯R eL dL ¯R u¯R
+
+(27)
+
+Geometry of the standard model
+
+11
+
+as is readily verified by computing the matrix representations of the generators.
+Because operations from the left shuffle entire rows about in the matrix representation
+but do not shift columns, the assignment of doublets to columns is still arbitrary. The three linearly independent generators formed by replacing the + signs in (26) by -
+signs, and indeed any linear combination of them, all have the form xbPR, where xb is a bivector. They would thus couple with R and its conjugate and are therefore omitted.
+Now let us look at the possible interior rotations   G =  exp(T ). To emphasize the fact that they act on the right side of , the interior transformations
+and generators are denoted here with a prime. Any interior unitary transformation leaves J =  invariant, but we want a stronger condition: we demand that the spacetime components of the particle and antiparticle currents be separately invariant.
+Mathematically, this is equivalent to splitting the current in two using the P±3 spinors
+
+J
+
+=
+
+1 2
+
+(1
+
++
+
+e3)
+
++
+
+1 2
+
+(1
+
+-
+
+e3)
+
+
+
+J+3
+
++
+
+J-3
+
+(28)
+
+and requiring each part to be invariant. Recall that P+3 and P-3 are projectors for
+
+particles and antiparticles, respectively, and remember that the interior projectors
+
+do not Lorentz transform; they represent a choice in the intrinsic or reference-frame
+
+structure of the particles and are not altered by a Lorentz transformation operating
+
+from the opposite side of the spinors. Generators acting between  and  are
+
+similarly Lorentz invariant. Thus, we may involve the elements e1, e2, e3 in the interior
+
+symmetries while satisfying the Coleman-Mandula theorem [6], which prohibits any
+
+non-trivial combination of the Poincar´e and isotopic groups. Under the infinitesimal interior transformation   (1 + T ), we have
+
+J±3
+
+
+
+1 2
+
+(1
+
++
+
+T  )(1
+
+±
+
+e3)(1
+
++
+
+T )
+
+(29)
+
+which may be viewed as a transformation of the central P±3 projector. We see that
+
+the space of available bivector generators that leave e3 invariant is now spanned by the larger set of 15 bivectors ejek : (j, k)  {1, 2, 4, 5, 6, 7}, j < k. Insulating the
+
+right-chiral neutrino from interior transformations in a similar manner as before now
+
+requires that both lepton columns (1 and 6 in the representation adopted) be avoided.
+
+This reduces the number of independent generators to eight, all of which couple quarks
+
+of different colour charges:
+
+T1
+
+=
+
+1 4
+
+(e1e7
+
++
+
+e6e2),
+
+T2
+
+=
+
+1 4
+
+(e1e6
+
++
+
+e2e7),
+
+T3
+
+=
+
+1 4
+
+(e1e2
+
++
+
+e7e6)
+
+T4
+
+=
+
+1 4
+
+(e6e4
+
++
+
+e5e7),
+
+T5
+
+=
+
+1 4
+
+(e4e7
+
++
+
+e5e6),
+
+T6
+
+=
+
+1 4
+
+(e4e1
+
++
+
+e2e5)
+
+T7
+
+=
+
+1 4
+
+(e1e5
+
++
+
+e2e4),
+
+T8
+
+=
+
+1 43
+
+(e2e1
+
++
+
+2e5e4
+
++
+
+e7e6)
+
+.
+
+(30)
+
+The interior generators have been arranged to give the conventional SU (3) structure constants [8]
+
+[Ta , Tb] = -fabcTc .
+
+(31)
+
+Computing the matrix representation for each of these generators using (11), we find that the transformation    exp(aTa ) is identical in its effect on the P+3
+spinor components to
+
+(qred, qgrn, qblu)  (qred, qgrn, qblu) exp(-iaa/2)
+
+(32)
+
+Geometry of the standard model
+
+12
+
+where a are the Gell-Mann matrices. This is equivalent to the more familiar
+
+ qred 
+
+ qred 
+
+ qgrn   exp(-iaa/2)  qgrn  .
+
+qblu
+
+qblu
+
+(33)
+
+Under the same algebraic operation, the effect of the remaining submatrices on the conjugate spinors (-qgrn, qblu, -qred) is equivalent to
+
+(qred, qgrn, qblu)  (qred, qgrn, qblu) exp(iaa/2)
+
+(34)
+
+which is the correct transformation. The fact that the doublets can be written in the same representation by using either the column (u, d) or the column (-d¯, u¯) is a special property of SU (2). Such a construction is not possible in the for the SU (3) triplet, but the geometric symmetries here provide a separate set of SU (3) submatrices, one in terms of -a and the other in terms of a, operating on the two carrier spaces. It is an advantage of having the conjugate spinors in separate columns of , that the same algebraic symmetry applies to both particles and antiparticles.
+Since any operation from the left shuffles rows whereas one from the right shuffles columns, the order in which two such operations is applied is immaterial. Therefore, it is of no consequence that the generators from the left do not necessarily commute with the generators acting from the right. They act on independent structural elements (rows and columns) of  and thus effect transformations as if they were two commuting symmetries in an abstract space. This property, together with the higherdimensionality of the linear subspace of bivectors, is basically how these gauge groups arise from only four extra dimensions.
+There remains one additional possible symmetry. We need to consider a synchronized double-sided rotation that conspires to cancel out in the case of the right-chiral neutrino. As this rotation is to represent a distinct symmetry, its left- and right-side generators must commute with all SU (2) and SU (3) generators, respectively. Since both the right- and left-sided parts separately couple the right-chiral neutrino, we resurrect previously discarded generators. The surviving bivector candidates are (e4e5 + e7e6) acting from the left, and (e1e2 + e5e4 + e6e7) operating from the right. One may verify with the infinitesimal operator
+
+  (1 + 0T0)(1 + 0T0)
+
+(35)
+
+that the solution for which there is no change to the right-chiral neutrino can be
+
+normalized to
+
+T0 =
+
+1 2
+
+(e4e5
+
++
+
+e7e6),
+
+T0 =
+
+1 3
+
+(e1e2
+
++
+
+e5e4
+
++
+
+e6e7).
+
+(36)
+
+Applying this operation to each spinor in turn proves to be identical to the U (1)Y transformation (j)  exp(-i0Y(j))(j) with the weak hypercharge assignments
+
+Y (R, L, eR, eL) = (0, -1, -2, -1) = -Y (¯L, ¯R, e¯L, e¯R)
+
+(37)
+
+Y (uR, uL, dR, dL) = (4/3, 1/3, -2/3, 1/3) = -Y (u¯L, u¯R, d¯L, d¯R).
+
+It produces the conventional weak hypercharge assignments for both leptons and quarks.
+The above transformations may now be combined into a single expression
+
+  exp(0T0 + aTa) exp(0T0 + b Tb)
+
+(38)
+
+Geometry of the standard model
+
+13
+
+operating on both particles and antiparticles. This exhausts the rotational gauge symmetries. The double-sided transformations may be locally gauged by introducing twelve gauge fields B, Wa, Ga  C3 that transform according to
+
+B¯
+
+
+
+B¯
+
++
+
+2 g
+
+¯0,
+
+W¯ a
+
+
+
+W¯ a
+
++
+
+1 g
+
+¯a
+
++
+
+abcbW¯ c
+
+,
+
+a  {1, 2, 3}
+
+(39)
+
+G¯a
+
+ G¯a +
+
+1 gs
+
+¯a
+
++
+
+fabcb G¯c
+
+,
+
+a  {1, 2, . . . , 8}
+
+into the Lagrangian derivative terms
+
+L = i¯ S
+
+-
+
+g 2
+
+iB¯(T0 + T0)
+
+S
+
+- g iW¯ aTa S
+
+- gs iG¯aTa S
+
+(40)
+
+where the algebraic derivative operator is defined by [4]
+
+¯  0 + 1e1 + 2e2 + 3e3.
+
+(41)
+
+When used with the interior and exterior generators found above, expression (40)
+yields all the usual particle and antiparticle charge currents. Note that all bivector generators uniformly obey T  = T¯ = -T, and all exterior T commute with the
+physical gauge fields. Although the above terms are similar to the conventional forms,
+it should be emphasized that all of the currents are simultaneously handled in the
+same expression using the algebraic spinor , whose gauge symmetries arise naturally
+from the geometry of the model.
+It is of interest to relax the condition that the transformations of  be rotations
+and to see whether generators other than bivectors might play a role. However, the
+unitarity of the transformations together with the consistency of charge conjugation
+(20) combine with the invariance of spacetime components of the particle and
+antiparticle currents and the sterility of R to restrict both exterior and interior generators to bivectors. Explicitly, unitarity requires T and T  to be antihermitian (T = -T ), restricting them to real linear combinations of products of 2, 3, 6, or
+7 vectors. Consistency requires charge conjugation to commute with the interior and exterior transformations, yielding T e4 = e4T¯ and T  = T¯. These relations eliminate all odd elements except trivectors of T that anticommute with e4. The invariance of the e1, e2, and e3 components of J further eliminates 6-vectors as well as all trivectors except e1e2e3 from admissible contributions to T . The separation of particle and antiparticle currents requires T  to commute with e3, which reduces the possible contributions to T  to bivectors plus the one 6-vector ie3. The only remaining candidates that are not bivectors are thus e1e2e3 for T and ie3 for T , and both of these can be eliminated because of their coupling to R. Thus, even after relaxing the condition that the transformations be rotations, we find that the generators of the
+interior and exterior transformations must be bivectors. Furthermore, as seen above,
+in order to avoid R, the exterior generators must belong to the left ideal in which T = T PL, where PL is the simple chiral projector. From the form (17) of PL, we see that the generators T are linear combinations of pairs of commuting bivectors, generating
+
+Geometry of the standard model
+
+14
+
+simultaneous rotations in orthogonal planes. Similarly, the interior generators belong to the right ideal in which T  = Pqq¯T  where Pqq¯ = 1 - P (1)- P (6) (see the Appendix) is the quark-antiquark projector, which can also be expressed as a linear combination of simple projectors. The generators T  are thus also seen to be linear combinations
+of pairs of commuting bivectors.
+A similar relaxation of the rotation requirement for the synchronized double-sided transformation (35) leaves T0 unchanged but adds a 6-vector term to T0 (36):
+
+T0 = (e1e2 + e5e4 + e6e7) + (1 - 3)ie3 .
+
+(42)
+
+By restricting the possible transformations to rotations in the seven-dimensional space,
+
+we have effectively chosen  = 1/3. The U (1)Y  SU (2)L  SU (3)C result here is a general consequence of the
+algebra for rotations that conserve the particle and antiparticle currents and do not
+
+couple R. They are not specific to the P+3 spinors. Any arbitrary fitting of the doublets into some orthogonal linear combination of the columns is accessible by shuffling the P+3 columns through a transformation   S where SS = 1. The exterior transformations are not effected by this transformation. The constraint that the transformations are consistent with charge conjugation demands that  and ¯ 
+
+transform in the same way, and this implies that S is an even element, comprising
+only terms with products of an even number of vectors. The accompanying similarity transformations Ta  STa S and P+3  SP+3S maintain the results, preserving the structure constants of the group algebras. It can also be shown that for any
+other set in which all the interior generators are written solely as bivectors, the same weak hypercharge assignments are obtained. In brief, if T1 through T8 of the new set are all bivectors, it can be shown that S must be generated by bivectors. Such a
+bivector transformation S on equation (36) maintains the same form. This framework
+
+then gives a geometric basis for the gauge group of the standard model, which arises unambiguously through the various rotational symmetries of the algebraic current in seven-dimensional space.
+
+5. Higgs Field
+
+When looking at the exterior invariances of the current, we previously disregarded the higher-dimensional vector components and allowed them to freely rotate among each other. This Lorentz-invariant vector space is then a carrier space for the set of exterior gauge transformations and affords a natural inclusion of the minimal Higgs field [21]. With the help of the matrix representation (11), one can verify that by formulating the complex scalar isodoublet H and conjugate Higgs Hc = H¯  as
+
+H = (-1e6 + 2e7)P- + (3e5 - 4e4)P+
+
+
+
+1 + i2 3 + i4
+
+Hc = (1e6 - 2e7)P+ - (3e5 - 4e4)P-
+
+
+
+3 - i4 -1 + i2
+
+(43)
+
+where the j are real scalars, the expression
+
+LM
+
+=
+
+1 2
+
+GeHP + (GdH + GuHc)Pq
+
+S
+
+(44)
+
+Geometry of the standard model
+
+15
+
+is identical to the conventional Higgs-coupling Lagrangian term with coupling strengths Ge,d,u. The projectors P = P (1) and Pq = P (4) + P (5) + P (8) are used to separate the lepton and quark currents. The transformation required for gauge invariance,
+
+H  exp(0T0 + aTa)H exp(-0T0 - bTb)
+
+(45)
+
+is equivalent to the conventional notation
+
++ 0
+
+ exp(-iY 0 - iaa/2)
+
++ 0
+
+(46)
+
+where +  1 + i2 and 0 = 3 + i4 . The weak hypercharge assignment of Y = 1 (Y = -1) for the Higgs field (conjugate field) has been recovered naturally from the double-sided algebraic transformation.
+Note that H and Hc consist only of odd elements in the span of {e4, e5, e6, e7} and therefore change the chirality, for example PRH = HPL . In fact, they exhaust the couplings between R and L leptons and between the R and L quarks. Application of the gauge transformation (45) using only the exterior generators of SU (2)L and U (1) naturally separates the higher-dimensional vector space into the two invariant carrier spaces of H and Hc and ensures that the gauge fixing occurs consistently, reducing both H and Hc to a component along the same higher dimension. (We have essentially pre-aligned the Higgs with its conjugate field by using the same components for each.) On the other hand, the two generators of rotations that we excluded from possible gauge groups invariably mix the spaces of H and Hc. The symmetry of the Higgs coupling therefore requires the chiral asymmetry seen in the electroweak interaction. Ignoring the various weighted projectors used in both the Higgs field (43) and Lagrangian term (44) to give distinct masses to the different fermions, the form of equation (44) is the same as that of the current (14), but where the components of the current being extracted are from the set {e4, e5, e6, e7}. The Higgs field--one of the least understood aspects of the standard model--thus arises here simply as a coupling to the higher-dimensional vector components of the current.
+
+6. Conclusion
+We began by formulating a generalized current expression in the Clifford algebra C7 of seven-dimensional space. The addition of four spacelike dimensions to those of physical space is the minimum necessary to incorporate all the fermions of one generation, both particles and antiparticles, into a single spinorial element. By examining all possible rotations of the generalized current that leave the right-chiral neutrino (and left-chiral antineutrino) sterile and conserve the spacetime components of the particle and antiparticle currents, we found that they are precisely those of the gauge group of the standard model. The standard-model gauge symmetries are thus seen to be local rotation groups in the tangent space of a manifold with only four extra spacelike dimensions. In particular, the SU (2)L symmetries arise as exterior (leftsided) transformations representing rotations within the extra dimensions that act only on left-chiral fermions and their antiparticles, whereas the SU (3)C are interior (right-sided) ones that mix the colour charges of the quarks. The U (1)Y symmetry, complete with all the correct weak hypercharge assignments, arises as a unique group of double-sided rotations. All of these symmetries commute with the Poincar´e group and are generated by bivectors of C7. The maximal chiral asymmetry of SU (2)L is required by the symmetry of the Higgs field.
+
+Geometry of the standard model
+
+16
+
+We have further shown that in our model, rotations are in fact the only continuous transformations allowed that act entirely from the right or from the left. While we explained our model with the aid of a specific 8 × 8 matrix representation, the symmetries and weak hypercharge assignments depend only on the algebra and not on any particular selection of primitive idempotents or ordering of particle spinors in . Finally, the four extra dimensions required to fit a generation of fermions into a single algebraic spinor, together with their exterior transformation properties, are precisely what is needed for the four components of a minimal scalar Higgs field, again with the correct weak hypercharge assignment.
+Many features of the standard model thus flow from the relatively simple geometry of seven-dimensional Euclidean space, but there are many other features that call for explanation, such as the origin of the three generations and the mass spectra. Work is continuing on these and other aspects of the standard model within the framework of our model.
+
+Acknowledgement
+One of us (G T) would like to thank H Georgi for suggestions on how to make the Clifford-algebra approach more accessible. This work was supported by the Natural Sciences and Engineering Research Council of Canada.
+
+Appendix
+
+Relations for the matrix representation adopted in this paper are summarized here. There are several versions of the Weyl representation. In this work we have used
+
+0 =
+
+0 -1 -1 0
+
+, k = -k =
+
+0 -k k 0
+
+,
+
+with
+
+W eyl = 
+
+R L
+
+.
+
+5  -i0123,
+
+(A.1) (A.2)
+
+This is consistent with reference [8].
+
+The primitive projectors P (n), which are represented by matrices with elements
+
+P (n)jk = jnkn, are given as products of simple commuting projectors (15) by
+
+P (1) = P+3P+P- = P¯ (6)
+
+P (2) = P-3P+P- = P¯ (5)
+
+P (3) = P-3P-P- = P¯ (8)
+
+P (4) = P+3P-P- = P¯ (7)
+
+P (5) = P+3P-P+ = P¯ (2)
+
+(A.3)
+
+P (6) = P-3P-P+ = P¯ (1)
+
+P (7) = P-3P+P+ = P¯ (4)
+
+P (8) = P+3P+P+ = P¯ (3) .
+
+Inverse relations, such as
+
+P+3 = P (1) + P (4) + P (5) + P (8) ,
+
+(A.4)
+
+are easily obtained by summing and applying the complementarity of simple operators of opposite signs: P+ + P- = 1.
+
+Geometry of the standard model
+
+17
+
+References
+
+[1] Hestenes D 1966 Space-Time Algebra (New York: Gordon and Breach) [2] Porteous I R 1995 Clifford Algebras and the Classical Groups (Cambridge: Cambridge University
+Press) [3] Lounesto P 1997 Clifford Algebras and Spinors (Cambridge: Cambridge University Press) [4] Baylis W E 1999 Electrodynamics: A Modern Geometric Approach (Boston: Birkh¨auser) [5] Witten E 1981 Nucl. Phys. B186 412 [6] Coleman S and Mandula J 1967 Phys. Rev. 159 1251 [7] Haag R, Lopuszanski J and Sohnius M 1975 Nucl. Phys. B 88 257 [8] Kaku M 1993 Quantum Field Theory (New York: Oxford University Press) [9] Chaichian M and Hagedorn R 1998 Symmetries in Quantum Mechanics: from Angular
+Momentum to Supersymmetry (Bristol: Institute of Physics) p 275 [10] Chisholm J S R and Farwell R S 1989 J. Phys. A: Math. 22 1059 [11] Chisholm J S R and Farwell R S 1992 "Unified Spin Gauge Theories of the Four Fundamental
+Forces" in Clifford Algebras and their Applications in Mathematical Physics , ed A Micali, R Boudet and J Helmstetter (Dordrecht: Kluwer) p 363 [12] Chisholm J S R and Farwell R S 1993 "Spin Gauge Theories: Principles and Predictions" in Clifford Algebras and their Applications in Mathematical Physics , ed F Brackx, R Delanghe and H Serras (Dordrecht: Kluwer) p 367 [13] Chisholm J S R and Farwell R S 1996 "Properties of Clifford Algebras for Fundamental Particles" in Clifford (Geometric) Algebras, ed W E Baylis (Boston: Birkh¨auser) p 365 [14] Chisholm J S R and Farwell R S 1999 J. Phys. A: Math. 32 2805 [15] Baylis W E 1992 Phys. Rev. A 45 4293 [16] Baylis W E and Yao Y 1999 Phys. Rev. A 60 785 [17] Baylis W E 2000 "Paravector Subspaces in Cn: Theorems and Applications" in Clifford Algebras and their Applications in Mathematical Physics ed R Ablamowicz and B Fauser, Vol. 1 (Boston: Birkh¨auser) p 3 [18] Baylis W E and Jones G 1989 J. Phys. A 22 1 [19] Crumeyrolle A 1990 Orthogonal and Symplectic Clifford Algebras (Dordrecht: Kluwer) p 125 [20] Doran C, Hestenes D, Sommen F and Van Acker N 1993 J. Math. Phys. 34 3642 [21] Higgs P W 1966 Phys. Rev. 145 1156
+
+
