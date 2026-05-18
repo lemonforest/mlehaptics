@@ -1132,6 +1132,12 @@ Per `[[feedback_every_doc_edit_faces_falsification]]`: the math-doesn't-lie disc
 
 **Cross-references**: `[[feedback_every_doc_edit_faces_falsification]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[project_book_in_progress]]`; §3.8.8 through §3.8.19; MFO §IX.1 status block 2026-05-18 entries.
 
+## §3.10 Milestone state (2026-05-18 end-of-session)
+
+- **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups"*. 17 PRs merged (`#494`–`#511`) covering today's SM-arc closures + 7D_g lens + DISSOLVE-or-PROMOTE event + book-worthy material + both notebook augmentations.
+- **Milestone `#13` OPEN** — *"Runtime spectral decomposition in srmech — encoder→runtime + tool-schema + biological delta-encoding"*. Anchored by Spike `#112` (scoping spike in-flight at session boundary). Target: integrate spectral decomposition as srmech RUNTIME ability (vs current external-encoder + bit-exact spectral-file workflow); tool-schema consumable; biological bit-reduction inspiration (predictive coding, sparse coding, reference-genome delta, saccadic density, HDC bind/unbind); class-chain Class L ∘ Class M ∘ Class C ∘ Class K ∘ Class N likely. Chess-spectral ply-by-ply is design precedent.
+- **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK.
+
 ---
 
 ## §4 Open research questions
