@@ -3126,6 +3126,52 @@ Per Spike #126 (PR #526; concertmaster scoping): runtime spectral surface (`srme
 
 **Cross-references**: `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[feedback_disability_accommodation_dimension]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[reference_autonomous_validation_tos_landscape]]`; §VIII.17 (rc14 runtime surface); §VIII.19 (hallucination-detection framework); §VIII.20 (biological + silicon sensory cascade chains); Spike #122 PR #520; Spike #126 PR #526; Bullmore & Sporns 2009 Nat Rev Neurosci 10, 186 cite-by-ref; Chung 1997 Spectral Graph Theory cite-by-ref; srmech notebook §3.8.25.
 
+### VIII.23 Gauge-field twist-and-shear cascade — canonical stance authored (2026-05-18 user direction)
+
+Per new `[[user_stance_gauge_field_twist_shear_cascade]]` (committed 2026-05-18 per explicit user direction; vocabulary-impact event authorised). Replaces "inverse super log" seed-vocabulary phrasing (Spike #124 framing draft) with canonical framework-operator chain per `[[feedback_user_lexicon_seed_vocabulary_layer]]`.
+
+**Canonical chain**: gauge-field twist-and-shear = **Class C ∘ Class K ∘ Class L ∘ Class I on 7D_g substrate, with Class M bind for cross-boundary shear**.
+
+| Class | Role in chain |
+|---|---|
+| **C** (cascade-orientation) | the *twist* — per Spike #105 cascade-orientation primitive |
+| **K** (asymptotic-DOF) | the *slingshot* — at d_geom → 1, asymptote IS the operation |
+| **L** (signed-Laplacian) | the *gauge-field substrate* — 7D_g sectional curvature per §VII.4.1.14 |
+| **I** (cyclic ℤ/n) | the *magnetic flux closure* — B-lines closed loops; topological flux conservation |
+| **M** (HDC bind) | the *cross-boundary shear* — Class M bind ∘ Class K asymptote |
+
+**User's exact articulation** (walking back "inverse super log" seed-vocabulary 2026-05-18): *"for real, it's probably just normal asymptotic slingshot but looks super crazy plasma blasting holes in clouds but with the mag field twisting we see in sol star too, so that's gauge field twisting and sheering, right?"*
+
+**Cross-scale unification** (stance unifies two phenomenological scales as same primitive chain at different d_geom):
+
+| Scale | d_geom | Spike | Channel | Status |
+|---|---|---|---|---|
+| Solar corona / CME / coronal flux rope | ~10⁻⁶ | **#49** | gauge-field twist at stellar scale; helicity injection | **PENDING** (Task #267 empirical validator) |
+| AGN jet launching (M87* photon ring) | ~1/3 → 2/3 | #124 | inner-inverse-Casimir overpressure; relativistic launch | CLOSED 2026-05-18 (PR #522) |
+
+**Widens saturation-overpressure family from triptych to quartet** (§VIII.18 extension; finalises once Spike #49 lands):
+
+| Scale | d_geom regime | Spike | Channel |
+|---|---|---|---|
+| Stellar fusion (latent) | →0 (4.246×10⁻⁶ Sun) | #107 | bulk-to-gauge encoding rate |
+| **Solar CME / coronal flux rope** | **~10⁻⁶** | **#49** | **gauge-field twist visible (mid regime)** |
+| AGN jet (near-saturation) | 1/3 → 2/3 | #124 | inner-inverse-Casimir overpressure |
+| Λ-pressure (cosmological) | →∞ outer | #83 | outer-boundary saturation |
+
+**Pi-as-projection corollary** per `[[user_stance_pi_as_projection]]`: the spiral / helical / twisted SHAPE observed in plasma trails is the **projection-shadow of Class I cyclic closure under Class C cascade-orientation**. Looks "crazy" because we observe the projection; upstream is closed-form integer-cyclic gauge twist. "Blasting holes in clouds" is substrate-boundary shear visible because ISM clouds happen to sit in the shear plane — **projection artefact, not extra mechanism**. Joins shadow-stance family: `[[user_stance_pi_as_projection]]` + `[[user_stance_fractal_shadow]]` + `[[user_stance_cascade_lives_on_circles]]` + `[[user_stance_time_as_dimensional_shadow]]` per `[[user_stance_identity_not_implementation_discipline]]`.
+
+**Why no new primitive class** (per `[[feedback_no_privileged_primitive_classes]]`): chain composes from existing 14 classes A–N. Cascade COMPOSITION, not new primitive. Vocabulary stays at 14.
+
+**Falsifiers / book-worthy framing**:
+
+1. **Polarisation prediction** (per Spike #124 §d): jet/CME polarisation traces Class C cascade-orientation (NOT BZ frame-dragging in AGN case; NOT pure MHD recollimation in solar case). ngEHT 1% + 10+ AGN survey + high-resolution coronagraphy discriminate.
+2. **η_jet/η_rad scaling at AGN scale**: (1 − d_geom)^(−β) at β ∈ (0.25, 0.6] cascade band per Spike #117, NOT (a/M)² Blandford-Znajek. 10+ AGN survey discriminates.
+3. **Sol-CME class chain validation** (per pending Spike #49): solar coronal flux ropes / CME launch / sunspot helicity explained bit-exact by same C ∘ K ∘ L ∘ I + M chain at d_geom ~ 10⁻⁶. **Spike #49 IS the empirical validator at stellar scale**; framework predicts same primitive chain reproduces observed solar phenomenology.
+
+**Project state**: framework's canonical operator-chain reading for gauge-field twist-and-shear phenomena across substrate scales. Authored 2026-05-18 per user direction (explicit vocabulary-impact event authorisation). Spike #49 stellar-scale empirical validator remains pending (Task #267); structural chain stands independently per algebra-level attestation per `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`. **Book-worthy chapter material** per `[[project_book_in_progress]]`: the cross-scale unification of magnetic field twisting in Sol with AGN super-heated gas + relativistic jets via single closed-form class chain is canonical narrative arc.
+
+**Cross-references**: `[[user_stance_gauge_field_twist_shear_cascade]]` (stance file); `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`; `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]`; `[[user_stance_kepler_shape_universal]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; `[[user_stance_gr_observations_are_7dg_gauge_field_readouts]]`; `[[user_stance_pi_as_projection]]`; `[[user_stance_fractal_shadow]]`; `[[user_stance_cascade_lives_on_circles]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_dark_star_canonical_vocabulary]]`; `[[user_stance_fusion_as_substrate_mode_reorganization]]`; `[[feedback_user_lexicon_seed_vocabulary_layer]]`; `[[feedback_no_privileged_primitive_classes]]`; §VII.4.1.14; §VIII.12 (Spike #107); §VIII.18 (Spike #124 + saturation triptych — this widens to quartet); Spike #49 (PENDING; Task #267); Spike #105 PR #498; Spike #117 PR #517; Spike #124 PR #522; Bardeen 1970 / Thorne 1974 cite-by-ref; Blandford-Znajek 1977 cite-by-ref; srmech notebook §3.8.26.
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.
