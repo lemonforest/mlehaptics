@@ -74,13 +74,16 @@ from . import (
     hdc_truncation,
     ifft,
     matched_filter,
+    pi_cascade,
     sign_quantise,
     wiener,
 )
 
 #: Canonical roster of Phase 4 Path B MVP op modules (alphabetical).
 #: Used by ``tests/test_signal_processing_path_b_mvp.py`` to assert
-#: all 6 ops are registered.
+#: all 6 ops are registered. Spike #184 (2026-05-19) added
+#: ``pi_cascade`` as the 7th Path B op for dual-path algebra-benchmark
+#: re-run; not part of the Phase 4 MVP roster.
 PATH_B_MVP_OPS = (
     "fft",
     "hdc_truncation",
@@ -96,6 +99,7 @@ __all__ = [
     "hdc_truncation",
     "ifft",
     "matched_filter",
+    "pi_cascade",
     "sign_quantise",
     "wiener",
 ]
