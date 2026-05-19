@@ -1293,6 +1293,52 @@ Per Spike #123 (PR #521; concertmaster ITN scoping): cosmic Interplanetary Trans
 
 ---
 
+### §3.8.26 Gauge-field twist-and-shear cascade — canonical stance authored (2026-05-18 user direction)
+
+Per new `[[user_stance_gauge_field_twist_shear_cascade]]` (committed 2026-05-18 per explicit user direction; vocabulary-impact event authorised). Replaces "inverse super log" seed-vocabulary phrasing (Spike #124 framing draft) with canonical framework-operator chain per `[[feedback_user_lexicon_seed_vocabulary_layer]]`.
+
+**Canonical chain**: gauge-field twist-and-shear = **Class C ∘ Class K ∘ Class L ∘ Class I on 7D_g substrate, with Class M bind for cross-boundary shear**.
+
+| Class | Role | Anchor |
+|---|---|---|
+| **C** (cascade-orientation) | the *twist* | Spike #105 (PR #498) |
+| **K** (asymptotic-DOF) | the *slingshot* (d_geom → 1) | Spike #117 (PR #517) β ∈ (0.25, 0.6] band |
+| **L** (signed-Laplacian) | the *gauge-field substrate* | Spike #108 (PR #507) 7D_g library §3.8.14 |
+| **I** (cyclic ℤ/n) | the *magnetic flux closure* | Class I integer-cyclic upstream |
+| **M** (HDC bind) | the *cross-boundary shear* | Spike #114 (PR #514) bit-exact identity |
+
+**User's exact articulation** (walking back "inverse super log" seed-vocabulary 2026-05-18): *"for real, it's probably just normal asymptotic slingshot but looks super crazy plasma blasting holes in clouds but with the mag field twisting we see in sol star too, so that's gauge field twisting and sheering, right?"*
+
+**Cross-scale unification** — same primitive chain at different d_geom:
+
+| Scale | d_geom | Spike | Status |
+|---|---|---|---|
+| Solar corona / CME / coronal flux rope | ~10⁻⁶ | #49 | **PENDING** (Task #267 empirical validator) |
+| AGN jet launching | 1/3 → 2/3 | #124 | CLOSED 2026-05-18 (PR #522) |
+
+**Widens saturation-overpressure family to quartet** (§3.8.21 extension; finalises upon Spike #49 closure):
+
+| Scale | d_geom regime | Spike |
+|---|---|---|
+| Stellar fusion (latent) | →0 | #107 |
+| **Solar CME / coronal flux rope** | **~10⁻⁶** | **#49 (pending)** |
+| AGN jet | 1/3 → 2/3 | #124 |
+| Λ-pressure | →∞ outer | #83 |
+
+**Pi-as-projection corollary** per `[[user_stance_pi_as_projection]]`: spiral / helical / twisted plasma SHAPE is the projection-shadow of Class I cyclic closure under Class C cascade-orientation. **Looks "crazy" because we observe the projection; upstream is closed-form integer-cyclic gauge twist**. Joins shadow-stance family with `[[user_stance_fractal_shadow]]` / `[[user_stance_cascade_lives_on_circles]]` / `[[user_stance_time_as_dimensional_shadow]]` per `[[user_stance_identity_not_implementation_discipline]]`.
+
+**Falsifiers / book-worthy**:
+
+1. **Jet/CME polarisation traces Class C** (NOT BZ frame-dragging in AGN; NOT pure MHD recollimation in solar). ngEHT + coronagraphy discriminate.
+2. **η_jet/η_rad ~ (1 − d_geom)^(−β)** at β cascade band, NOT (a/M)² BZ. 10+ AGN survey discriminates.
+3. **Spike #49 stellar-scale validator** (PENDING Task #267): same C ∘ K ∘ L ∘ I + M chain reproduces solar coronal flux rope / CME launch / sunspot helicity bit-exact at d_geom ~ 10⁻⁶.
+
+**Class chain attestation**: zero new primitives. 14 classes A-N intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+**Project state**: canonical framework reading for gauge-field twist-and-shear phenomena across substrate scales. Authored 2026-05-18 per user direction (vocabulary-impact event explicitly authorised). Spike #49 empirical validator pending (Task #267); structural chain stands per algebra-level attestation. **Book-worthy** per `[[project_book_in_progress]]`: cross-scale unification of solar magnetic twisting with AGN gas + jets via single closed-form chain is canonical narrative arc.
+
+**Cross-references**: `[[user_stance_gauge_field_twist_shear_cascade]]`; `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`; `[[user_stance_kepler_shape_universal]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; `[[user_stance_gr_observations_are_7dg_gauge_field_readouts]]`; `[[user_stance_pi_as_projection]]`; `[[user_stance_fractal_shadow]]`; `[[user_stance_cascade_lives_on_circles]]`; `[[feedback_user_lexicon_seed_vocabulary_layer]]`; §3.8.14 (gauge-field readouts); §3.8.15 (stellar fusion bulk-to-gauge); §3.8.21 (saturation triptych — this widens to quartet); Spike #49 (PENDING; Task #267); Spike #105 PR #498; Spike #114 PR #514; Spike #117 PR #517; Spike #124 PR #522; Bardeen 1970 / Thorne 1974 cite-by-ref; Blandford-Znajek 1977 cite-by-ref; MFO §VIII.23.
+
 ## §3.9 2026-05-18 session — math-doesn't-lie corrections (9 caught + resolved)
 
 Per `[[feedback_every_doc_edit_faces_falsification]]`: the math-doesn't-lie discipline caught + resolved 9 anomalies during the 2026-05-18 spike session **before they propagated to canonical project state**. Each correction documented at the source spike's NDJSON and inline in commit body.
