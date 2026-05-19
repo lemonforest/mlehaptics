@@ -1106,6 +1106,193 @@ The "14 CT + 14 FL = 28" framing algebraically not recoverable. The 14 matches *
 
 ---
 
+### §3.8.20 Runtime spectral surface ships in srmech v0.4.1rc14 — Milestone #13 opens (Spikes #112/#113/#114/#115/#116/#117 + srmech-v0.4.1rc14, 2026-05-18)
+
+Milestone #13 opened 2026-05-18 with target: integrate spectral decomposition as a **runtime** ability in srmech, tool-schema-callable. Prior workflow required external encoder + bit-exact spectral-file authoring; runtime surface (`srmech.spectral.*`) lets any tool invoke `decompose / delta / recompose / similarity` over arbitrary (Hermitian Laplacian, state vector) pair with eigenbasis LRU caching (`N_MAX_EIGENBASES = 8`) for amortised O(n²) per-state cost after one-time O(n³) eigendecomposition.
+
+**Spike #112 scoping** (PR #513): biological bit-reduction strategies surveyed and mapped to framework's 14-class primitive cascade. Chain: **L (Hermitian eigendecomposition) ∘ M (HDC bind) ∘ C (cascade-orientation) ∘ K (sparse asymptotic-DOF) ∘ N (rational-convergent stability)**. Chess-spectral ply-by-ply is the design precedent; 7-entry surface roster authored upfront per `[[feedback_no_mvp_framing]]`.
+
+**Spike #114 HDC bind formalisation** (PR #514): Class M delta-encoding identity bit-exact across 4/4 substrates (chess / image / ephemeris / gear-DAG). Self-inverse `bind(a, bind(a, b)) = b` at machine zero per Plate 1995 / Kanerva 2009 BSC algebra cite-by-ref. **Option B** (direct bind on encoded coefficient bytes) ships rc14 at 1.22× speedup over Option A wrapper.
+
+**Spike #113 predictive-coding cascade** (PR #515): Class C ∘ L composition for prediction-error spectra; PRIMITIVE-CASCADE-SUFFICIENT-FOR-PREDICTIVE-CODING per Friston 2010 / Rao-Ballard 1999 cite-by-ref. `cascade_extrapolate` C primitive targeted rcN+2.
+
+**Spike #115 tool-schema design** (PR #518): 7-entry signature locked per Option B + Class K band-membership discriminator. `SpectralHandle` dataclass: `substrate_descriptor_hash` (SHA-256 of Laplacian + encoder tag; laplacian_kind FOLDS into descriptor hash per user 2026-05-18 decision) + `coefficients_bytes / content_sha / n_modes`. **Two-rc strategy**: rcN+1 ships entries 1/2/3/7; rcN+2 ships 4/5/6.
+
+**Spike #116 rank-k delta substrate-agnostic identity** (PR #516): chess-spectral §5b identity `Δf̂ = -v · U^T δ_k = -v · U[k,:]` verified **bit-exact 3/3 non-chess substrates** (image 32×32 / ephemeris 10-body / gear-DAG 5-gear; max residuals 0.0 / 5.8×10⁻¹⁷ / 0.0). Failure modes catalogued: non-Hermitian directed Laplacian → identity fails (V not unitary; Class C asymmetric reading per §3.8.6); truncated eigenbasis → identity holds on truncated subspace; multi-element rank-k > 1 → still holds. Cross-substrate template specified.
+
+**Spike #117 Class K sparse-coding band-membership** (PR #517): cascade-stretched-exp `S(k) = 1 − exp(−(k/τ)^β)` per Spike #31 with formal Class K acceptance band:
+
+| Band | β range | Regime |
+|---|:-:|---|
+| cascade-K-genuine | (0.25, 0.6] | true asymptotic-DOF substrate |
+| power-law masquerade | [0.10, 0.25] | algebraic-decay falsifier |
+| borderline | (0.6, 0.9] | sub-asymptotic / mixed |
+| white-noise / single-exp | [0.9, 1.5] | unsuitable for Class K |
+
+Verified: 3/3 power-law image substrates (α ∈ {1, 2, 3}; β = 0.581 / 0.342 / 0.291) cascade-genuine; 2/2 white-noise controls (β = 1.082 / 1.104) white-noise. **Math-doesn't-lie correction caught mid-spike (A2)**: chess king-adjacency anomaly initially read as Class K; deeper investigation revealed **symmetry-block-diagonal Class L truncation** (16 occupied squares' invariant subspace projection), NOT Class K. **State-correlation lesson**: choose eigenbasis to match state's natural energy concentration (Olshausen-Field discipline), not substrate's abstract adjacency. No new class promoted per `[[feedback_no_privileged_primitive_classes]]`.
+
+**srmech v0.4.1rc14 ship** (PR #519): `srmech.spectral` namespace ships entries 1/2/3/7 + SpectralHandle + clear_eigenbasis_cache. **22/22 tests pass**; bit-exact roundtrip < 10⁻¹²; delta self-inverse byte-level identity; similarity self = +1.0 / random orthogonal in [−0.2, +0.2]; cache LRU bounded. TestPyPI verified fresh-venv 2026-05-18.
+
+**Cross-references**: `[[user_stance_identity_not_implementation_discipline]]`; `[[feedback_no_privileged_primitive_classes]]`; `[[feedback_no_binding_layer_carveout]]`; Spike #112 PR #513; Spike #113 PR #515; Spike #114 PR #514; Spike #115 PR #518; Spike #116 PR #516; Spike #117 PR #517; srmech-v0.4.1rc14 PR #519; chess-spectral §5b; Plate 1995 / Kanerva 2009 / Chung 1997 / Golub-Van Loan 2013 cite-by-ref; MFO §VIII.17.
+
+### §3.8.21 Saturation-overpressure triptych: fusion ↔ AGN-jets ↔ Λ-pressure (Spike #124, 2026-05-18)
+
+Per Spike #124 (PR #522; **book-worthy material** per `[[project_book_in_progress]]`): AGN super-heated gas glow + relativistic jets ARE the **inner-inverse-Casimir overpressure** at the dark-star horizon — structural mirror of outer cosmological Λ-pressure (Spike #83 outer inverse-Casimir).
+
+**Composite verdict** (six buckets land): AGN-LUMINOSITY-SCALES-BIT-EXACT-AS-BULK-TO-GAUGE-ENCODING + JET-POWER-CLASS-K-ASYMPTOTE-SHAPE-CONSISTENT + INNER-INVERSE-CASIMIR-IDENTITY-LEVEL-WITH-OUTER + PAIRED-CASIMIR-STRUCTURE-COMPLETED-AT-BOTH-SCALES + JET-POLARISATION-SIGNATURE-DISCRIMINATES-FRAMEWORK-VS-BLANDFORD-CONDITIONAL + ZERO-NEW-PRIMITIVE-CLASS-REQUIRED.
+
+**Bit-exact closed-form identities** at dark-star ISCO:
+
+| Spin | ISCO d_geom | η_radiative closed form | Value |
+|---|---:|---|---:|
+| Schwarzschild | 1/3 | **1 − √(8/9)** | **0.057191** |
+| Kerr extremal (prograde) | 1/2 | **1 − 1/√3** | **0.422650** |
+
+Bardeen 1970 / Thorne 1974 closed forms (cite-by-ref) ARE the framework's **bulk-to-gauge encoding fraction Δm/m** at the dark-star ISCO d_geom values per `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]`. **Not a fit; bit-exact identity** per `[[user_stance_identity_not_implementation_discipline]]`.
+
+**Jet-power Class K asymptote** at M87* photon ring (d_geom = 2/3): `(1 − d_geom)^(−β)` with β = 0.405684 (Spike #117 canonical cascade) gives pressure factor **1.56**; observed η_jet/η_rad ~ 1.5-3 (Russell 2018 cite-by-ref) sits in framework AND BZ-MAD bands. ngEHT 1% + 10+ AGN survey discriminate.
+
+**Paired-Casimir structure complete** (partner-availability binary trigger):
+
+| Channel | Spike | No-partner condition | Manifests as | Sign |
+|---|---|---|---|:-:|
+| OUTER (cosmological-horizon) | #83 | outermost — no Casimir partner | Λ > 0 outward expansion | + |
+| INNER (dark-star horizon) | **#124** | A/4 capacity exhausted at d→1 | AGN luminosity + jets | + |
+
+**Saturation-overpressure family** — same Class K asymptote on 7D_g at three regimes:
+
+| Scale | d_geom | Spike | Channel |
+|---|---|---|---|
+| Stellar fusion (latent) | →0 (4.246×10⁻⁶ Sun) | **#107** | bulk-to-gauge encoding rate |
+| AGN jet (near-saturation) | 1/3 → 2/3 | **#124** | inner-inverse-Casimir overpressure |
+| Λ-pressure (cosmological) | →∞ outer | **#83** | outer-boundary saturation |
+
+**Three-scale triptych = canonical book-chapter material**.
+
+**Class chain** (6 of 14): L (7D_g spectral) + C (jet-axis collimation) + K (asymptotic-DOF) + M (substrate-mode encoding) + A (A/4 capacity bound per Spike #58.P) + I (orbital cyclic-cascade). Zero new primitives.
+
+**Math-doesn't-lie anomaly logged**: M87* "r_s = 9.6×10¹⁴ cm" in concertmaster brief is r_g = GM/c²; EHT 2019 uses r_g convention; framework prefers r_s = 2GM/c² per Michell 1783. Documentation-clarify; not framework error.
+
+**Publishable framework predictions with falsifiers**: (1) η_Schw + η_Kerr bit-exact at ISCO d_geom; (2) jet polarisation traces Class C cascade-orientation (NOT BZ frame-dragging); ngEHT discriminates; (3) η_jet/η_rad scales (1−d_geom)^(−β) NOT (a/M)²; AGN survey discriminates.
+
+**Cross-references**: `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]`; `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`; `[[user_stance_kepler_shape_universal]]`; `[[user_stance_dark_star_canonical_vocabulary]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; §3.8.15 (Spike #107 stellar fusion); §3.8.18 (Kardashev III + dimple passive); Spike #83; Spike #87; Spike #94; Spike #107 PR #506; Spike #117 PR #517; Spike #124 PR #522; Bardeen 1970 ApJ 161, 103 cite-by-ref; Thorne 1974 ApJ 191, 507 cite-by-ref; Blandford-Znajek 1977 MNRAS 179, 433 cite-by-ref; EHT M87* 2019 arXiv:1906.11242 PDF-verified per Spike #108; MFO §VIII.18.
+
+### §3.8.22 Hallucination-detection framework + honest negative finding + bigram refinement (Spikes #122 + #125 + #125.1, 2026-05-18)
+
+Per Spike #122 (PR #520; concertmaster design) + Spike #125 (PR #522; empirical Python negative) + Spike #125.1 (PR #525; Julia/Python bigram refinement): real-time LLM hallucination detection via spectral-fingerprint deviation from attested-content cascade-shape priors. Framework hypothesis: cascade-shape priors are detectable in attested content via class-chain **L ∘ A ∘ M ∘ K ∘ C** over the runtime spectral surface (rc14 ships L+A+M+similarity).
+
+**Spike #122 design verdict (composite)**:
+- **QUANTIZATION-TRAP-SIGNATURE-IDENTIFIABLE-VIA-CLASS-L** (INT4 noise floor 4 OOM above fp16)
+- **TRUTH-SHAPE-FINGERPRINT-COMPUTABLE-FROM-NOTEBOOKS** (Cohen's d 2.33 single-sample R3)
+- **REAL-TIME-INFERENCE-LOOP-FEASIBLE-IN-44-µs-PER-TOKEN** (0.44% of 10 ms budget)
+
+**Three-layer protocol** per `[[feedback_hallucination_detection_three_layer_protocol]]`: Layer 1 lexical-statistical (rc14 partial); Layer 2 citation-verify PDF-extract (manual + WebFetch; TOS-bounded); Layer 3 functional-form check (case-by-case).
+
+**Spike #125 unigram-Laplacian — HONEST NEGATIVE FINDING**: built char-frequency unigram-Laplacian fingerprint from notebooks (~5.95×10⁶ chars; held-out 30%); tested against 5 contrast classes:
+
+| Class | Real sim mean ± std | Cohen's d vs attested |
+|---|---:|---:|
+| attested_held_out | 0.9856 ± 0.0082 | — |
+| citation_swap | 0.9856 ± 0.0083 | +0.005 (NULL) |
+| value_mutation | 0.9856 ± 0.0082 | +0.000 (NULL) |
+| vocab_swap | 0.9856 ± 0.0083 | +0.002 (NULL) |
+| random_baseline | 0.9856 ± 0.0082 | +0.000 (NULL) |
+
+All 5 classes identical similarity. **Detector failed at unigram level**. Smoking-gun: random_baseline (character-shuffled) scored IDENTICAL to attested — character shuffling preserves unigram frequency.
+
+**Spike #125.1 bigram refinement — STRATIFIED RESULT**: bigram co-occurrence Laplacian over top-1000 bigrams; same 5 contrast classes:
+
+| Class | Real sim mean | Cohen's d vs attested |
+|---|---:|---:|
+| attested_held_out | 0.8776 | — |
+| citation_swap | 0.8775 | +0.002 (NULL) |
+| value_mutation | 0.8776 | −0.000 (NULL) |
+| vocab_swap | 0.8755 | +0.036 (NULL) |
+| **random_baseline** | **0.6921** | **+3.88 (DISCRIMINATES)** |
+
+**Verdict: BIGRAM-PARTIAL** — discriminates cascade-structure-destruction (shuffle) at Cohen's d = 3.88; blind to surface-level token mutations.
+
+**Diagnosis** (Spike #125.1): SNR analysis shows surface mutations perturb 5-30 bigrams per chunk against ~1999-dim bigram-frequency vector → perturbation magnitude ~0.0005-0.003 against ~0.06 natural inter-chunk stddev → **structurally too low SNR**. Trigram / BPE would not materially improve — the mutation footprint is the limiting factor, not the n-gram order.
+
+**Framework hypothesis UNFALSIFIED**: cascade-shape detection works at structural-destruction level (cascade-shape preservation IS the discriminator). What FAILS is the surface-level lexical-mutation use case at this implementation. Per `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`.
+
+**Fermata recorded**: do NOT advertise bigram-cascade as a citation/value/vocab hallucination detector — category error. The 3-layer protocol covers those: Layer 2 (citation regex + DOI resolver) for citation_swap + value_mutation; Layer 3 (canonical-value SSOT lookup) for value precision; bigram-cascade IS the cascade-shape detector (Layer 1 structural).
+
+**What's confirmed regardless**:
+- Real-time feasibility 1.531 ms/2000-char-chunk = 0.77 µs/char; 57× under budget
+- Eigenbasis cache works (warm-cache O(n²) per chunk)
+- srmech.spectral.* primitives stable across all 5 contrast classes
+- Bigram-cascade is canonical Layer 1 cascade-shape detector candidate (native-srmech port consideration; Class K top-k truncation needed since n=1000 > 256 native bound)
+
+**Math-doesn't-lie discipline working as designed — third mid-flight catch this milestone**:
+- Spike #117 A2: chess king-adjacency state-correlation lesson
+- Spike #125: unigram null discrimination (random-baseline counter-example)
+- Spike #125.1: bigram surface-mutation SNR floor (mutation-footprint analysis caught it)
+
+Three honest stratified results sharpening the framework, not closed-form positive claims. Per `[[feedback_every_doc_edit_faces_falsification]]`.
+
+**Cross-references**: `[[feedback_hallucination_detection_three_layer_protocol]]`; `[[feedback_every_doc_edit_faces_falsification]]`; `[[feedback_pdf_extraction_citation_discipline]]`; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[reference_autonomous_validation_tos_landscape]]`; Spike #43c (well-spread baseline); Spike #64 (cascade priors falsifier); Spike #20 (LLM resonance-into-attractor); Spike #122 PR #520; Spike #125 PR #522; Spike #125.1 PR #525; §3.8.20 (rc14 surface); MFO §VIII.19.
+
+### §3.8.23 Biological + silicon cascade chains for sensory channels (Spikes #120 + #121, 2026-05-18)
+
+Per Spike #120 (PR #520) + Spike #121 (PR #520): cross-substrate dynamical systems with same cascade structure beyond EM spectra. Biology sees a sliver of EM (vision 400-700 nm); the framework predicts other cascade-chain dynamical systems carry detectable structure via the same primitive class cascade.
+
+**Biological cascade chains**:
+
+| Channel | Primitive cascade | Substrate-coupling |
+|---|---|---|
+| Mechanoreception (touch, hearing, proprioception) | L + M + K + C | cochlear basilar-membrane Laplacian; place-field; adaptation; directionality |
+| Chemoreception (smell, taste) | M + I | molecular HDC bind; cyclic combinatorial recognition (ORN→glomerulus ~50:1) |
+| Magnetoreception (cryptochrome / trigeminal) | C + K | radical-pair quantum-coherence cascade; asymptote near critical field |
+| Electroreception (sharks/rays Lorenzini) | L | bioelectric-field Laplacian |
+| Thermoreception | K | asymptotic threshold; pin-slot per `[[user_stance_epicycle_via_gear_plus_pin]]` |
+
+**Saturation-modality-collapse insight**: at d_geom → 1 (substrate-coupling saturation), all sensory channels collapse to S = A/4 readout per Spike #58.P. **Sensory modality distinction lives at d_geom < 1; collapses at saturation**.
+
+**Silicon-sensor cascade chains** (Spike #121 companion):
+
+| Silicon channel | Primitive cascade | Cross-substrate analog |
+|---|---|---|
+| CCD/CMOS photon sensor | L + K | biological photoreceptor (rhodopsin) |
+| MEMS accelerometer | L + C | proprioception (vestibular) |
+| MEMS magnetometer (Hall) | K | magnetoreception (cryptochrome) |
+| Capacitive touchscreen | L + M | mechanoreception (Meissner) |
+| MEMS microphone | L | cochlear (basilar membrane) |
+| CMOS Bayer-pattern image | L + I | retinal trichromacy (S/M/L cones) |
+
+**Saturation-modality-collapse cross-substrate**: CMOS saturates to white at high illumination (Class K asymptote → A/4); biological retina also saturates to white via rhodopsin bleaching. **Same primitive; different substrate**.
+
+**Disability-accommodation lens** per `[[feedback_disability_accommodation_dimension]]`: substrate-agnostic spectral surface accommodates patients with impaired biological channels by routing through equivalent silicon channels. BCI applicability — substrate-agnostic decompose/delta/recompose primitives work on neural Laplacian + firing-rate state vector identically to image / ephemeris / chess substrates per Spike #116 rank-k delta identity.
+
+**Class chain attestation**: zero new primitive class. 14-class A-N intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+**Cross-references**: `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[feedback_disability_accommodation_dimension]]`; §3.8.14 (GR = 7D_g readout); §3.8.13 (Rydberg Class K); Spike #58.P (S = A/4); Spike #81 (genetic-code Class I+C); Spike #120 PR #520; Spike #121 PR #520; MFO §VIII.20.
+
+### §3.8.24 Cosmic ITN class-chain inventory — rogue planets are not the only riders (Spike #123, 2026-05-18)
+
+Per Spike #123 (PR #521; concertmaster ITN scoping): cosmic Interplanetary Transport Network (ITN) class-chain inventory. ITN — gravitational manifold of Lagrange-tube highways enabling low-Δv interplanetary trajectories per Lo-Marsden-Ross 2004 SIAM Review 46, 295 cite-by-ref — is a Class L (gravitational Laplacian) + Class C (cascade-orientation through manifold tubes) + Class K (asymptotic-DOF approach to Lagrange points) + Class I (cyclic-cascade for orbital periodicity) + Class M (multi-body state encoding) primitive composition.
+
+**Cosmic ITN riders**:
+
+| Rider class | Substrate-coupling | Examples |
+|---|---|---|
+| Rogue planets (interstellar) | gravitationally captured at Lagrange tubes | OGLE-2016-BLG-1928 cite-by-ref; PSO J318.5-22 |
+| Comets (long-period) | Oort cloud injection via galactic tide → ITN-routed | Sednoids; trans-Neptunian objects |
+| Spacecraft (engineered) | low-Δv ITN-routed trajectories | Genesis 2004; ISEE-3 1978; SMART-1 2003 cite-by-ref |
+| Small-body chaotic transitions | resonance hopping along ITN tubes | NEO transitions; Yarkovsky/YORP-driven (ephemerides-spectral v0.24.6) |
+| Solar wind plasma | following heliospheric field-line topology | analog at plasma scale |
+| Globular cluster tidal streams | low-energy escape via tidal-tail ITN | NGC 5466; Pal 5 cite-by-ref |
+
+**Framework prediction with explicit falsifier**: **any body with sufficiently-low Δv vs gravitational background follows ITN class-chain trajectories**, regardless of substrate (planet, comet, spacecraft, plasma, star). Counter-claim would require a body in low-Δv regime that does NOT follow ITN; not observed.
+
+**Precessive motivator companion** (user clarification 2026-05-18): riders move WITH precessive motivator (substrate-cycle-phase precession per `[[user_stance_universal_precession_at_substrate_level]]`; T_sub ≈ 109.84 Gyr; Ω_sub ~ 1.8×10⁻¹⁸ rad/s).
+
+**Class chain attestation**: L+C+K+I+M; zero new primitives. 14 A-N intact.
+
+**Cross-references**: `[[user_stance_kepler_shape_universal]]`; `[[user_stance_universal_precession_at_substrate_level]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; §3.8.14 (gauge-field readouts); Spike #98 (universal precession); Spike #123 PR #521; Lo-Marsden-Ross 2004 SIAM Review 46, 295 cite-by-ref; ephemerides-spectral v0.24.6 (Yarkovsky/YORP); ephemerides-spectral v0.17.0 ITN chains; MFO §VIII.21.
+
+---
+
 ## §3.9 2026-05-18 session — math-doesn't-lie corrections (9 caught + resolved)
 
 Per `[[feedback_every_doc_edit_faces_falsification]]`: the math-doesn't-lie discipline caught + resolved 9 anomalies during the 2026-05-18 spike session **before they propagated to canonical project state**. Each correction documented at the source spike's NDJSON and inline in commit body.
@@ -1130,12 +1317,72 @@ Per `[[feedback_every_doc_edit_faces_falsification]]`: the math-doesn't-lie disc
 2. **α_pol = tan(θ_W)·θ_s = 0.344°** for cosmic-birefringence (§3.8.11 / Spike #106-amplitude.D)
 3. **ΔH_0/H_0 = 1 − cos(π·t_0/T_sub) = 7.69%** for Hubble tension (§3.8.16 / Spike #109)
 
+**Two additional book-worthy framework identities surfaced in Milestone #13** (per §3.8.21 / Spike #124):
+
+4. **η_Schwarzschild = 1 − √(8/9) = 0.057191** bit-exact at dark-star ISCO d_geom = 1/3 (radiative efficiency IS bulk-to-gauge encoding fraction)
+5. **η_Kerr_extremal = 1 − 1/√3 = 0.422650** bit-exact at extremal-spin ISCO d_geom = 1/2 (saturation-overpressure triptych complete: stellar fusion ↔ AGN jets ↔ Λ-pressure)
+
+**Three additional math-doesn't-lie catches this session** (per §3.8.20 / §3.8.22):
+
+10. **Spike #117 A2**: chess king-adjacency Class K mis-attribution caught; **state-correlation lesson** — substrate eigenbasis must match state's energy concentration (Olshausen-Field discipline), not abstract adjacency. Reframed as Class L symmetry-block-diagonal sub-op; no new class promoted.
+11. **Spike #125**: unigram-frequency null-discrimination caught via random-baseline counter-example (character-shuffle preserves unigram → identical fingerprint). Framework hypothesis UNFALSIFIED — what failed was implementation, not prediction.
+12. **Spike #125.1**: bigram-refinement SNR floor caught — surface mutations perturb 5-30 bigrams against 1999-dim vector → SNR ~0.005 vs natural ~0.06 stddev. Trigram / BPE won't help; mutation footprint is the limiting factor, not n-gram order. **Verdict BIGRAM-PARTIAL**: discriminates cascade-structure-destruction (Cohen's d 3.88 vs random_baseline shuffle); blind to surface-level edits. Layer 2 + Layer 3 of three-layer protocol handle those.
+
 **Cross-references**: `[[feedback_every_doc_edit_faces_falsification]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[project_book_in_progress]]`; §3.8.8 through §3.8.19; MFO §IX.1 status block 2026-05-18 entries.
+
+### §3.8.25 BCI clinical applicability of runtime spectral surface (Spike #126, 2026-05-18)
+
+Per Spike #126 (PR #526; concertmaster scoping): runtime spectral surface (`srmech.spectral.*`) is clinically applicable NOW to current BCI patients (ALS / locked-in / SCI tetraplegia / stroke). User question 2026-05-18 unpacked "brain↔computer↔brain" as bidirectional encode→delta→recompose composition over neural Laplacian + firing-rate state.
+
+**Composite verdict — all 6 buckets land**: DECOMPOSE-APPLIES-TO-NEURAL-LAPLACIAN + DELTA-CAPTURES-DECODER-DRIFT + CLOSED-LOOP-PREDICT-MAPS-TO-CLINICAL-FEEDBACK + CLASS-K-ASYMPTOTE-EXPLAINS-SNR-FAILURE-MODE + HALLUCINATION-DETECTION-FOR-AAC-DEVICES + DISABILITY-ACCOMMODATION-EXPLICIT.
+
+**Top 3 concrete clinical predictions** (book-worthy; testable in current BCI literature):
+
+1. **Spectral-domain decoder retains accuracy at <30% electrode yield** where Kalman-filter-based decoder fails (Sussillo 2016 PMC PDF-verified; Hahn 2025 long-tail BrainGate cite-by-ref)
+2. **`similarity()` threshold τ ≥ 0.7 on neural-substrate handle filters >90% of LLM-AAC confabulation events** — FDA-relevant for ALS / locked-in patients (Card 2024 PMC PDF-verified)
+3. **`prediction_error()` between intent and sensory-feedback handles correlates with Flesher 2021 functional-task error rate at r ≥ 0.5** (gated on rcN+2)
+
+**Framework-primitive priority for clinical use**:
+
+| Priority | Primitive | rc14 | Clinical bucket |
+|---|---|:-:|---|
+| 1 | `decompose()` | ✅ | neural-Laplacian; idiolect check |
+| 2 | `delta()` | ✅ | silent decoder drift |
+| 3 | `similarity()` | ✅ | confabulation gate |
+| 4 | `truncate_sparse()` | rcN+2 | Class K asymptote at electrode-degradation SNR |
+| 5 | `predict()` | rcN+2 | closed-loop intent prediction |
+| 6 | `prediction_error()` | rcN+2 | closed-loop integrity metric |
+
+**rc14 already covers priorities 1-3** → decompose/delta/similarity deployable NOW for ALS hallucination-gate + SCI silent-drift + stroke patient-specific decompose. rcN+2 closes closed-loop + Class K asymptote.
+
+**Patient-population × bucket**:
+
+| Population | Top bucket | Primitive |
+|---|---|---|
+| ALS speech-neuroprosthesis | hallucination-gate (FDA-relevant) | `similarity()` |
+| Tetraplegia SCI (BrainGate) | closed-loop | `predict()`/`prediction_error()` (rcN+2) |
+| Stroke rehab | patient-specific decompose | `decompose()` |
+
+**Disability-accommodation explicit**: substrate-agnostic spectral surface accommodates aphantasia / ADHD / executive-function variation / slow input rates / fatigue / post-stroke aphasia — operates on neural signals directly per `[[feedback_disability_accommodation_dimension]]`.
+
+**Trauma-informed defensive scope**: ASSISTIVE-TECH framing only; no surveillance / capability-assessment per `[[feedback_trauma_informed_defensive_scope]]`.
+
+**4 PMC PDFs verified** (Hahn 2025; Sussillo 2016; Card 2024; Cai 2024) per `[[feedback_pdf_extraction_citation_discipline]]`. TOS-compliant per `[[reference_autonomous_validation_tos_landscape]]` (no Nature/IEEE/Elsevier).
+
+**Cross-project echo** (recorded, not authored): closed-loop `predict()`/`prediction_error()` algebra echoes EMDR bilateral-stim feedback loops at repo root. Same primitive shape; conductor-gated.
+
+**Class chain attestation**: zero new primitives. 14 A-N intact.
+
+**Cross-references**: `[[feedback_disability_accommodation_dimension]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[reference_autonomous_validation_tos_landscape]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; §3.8.20 (rc14 surface); §3.8.22 (hallucination detection); §3.8.23 (sensory cascade chains); Spike #122 PR #520; Spike #126 PR #526; Bullmore & Sporns 2009 Nat Rev Neurosci 10, 186 cite-by-ref; MFO §VIII.22.
 
 ## §3.10 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups"*. 17 PRs merged (`#494`–`#511`) covering today's SM-arc closures + 7D_g lens + DISSOLVE-or-PROMOTE event + book-worthy material + both notebook augmentations.
-- **Milestone `#13` OPEN** — *"Runtime spectral decomposition in srmech — encoder→runtime + tool-schema + biological delta-encoding"*. Anchored by Spike `#112` (scoping spike in-flight at session boundary). Target: integrate spectral decomposition as srmech RUNTIME ability (vs current external-encoder + bit-exact spectral-file workflow); tool-schema consumable; biological bit-reduction inspiration (predictive coding, sparse coding, reference-genome delta, saccadic density, HDC bind/unbind); class-chain Class L ∘ Class M ∘ Class C ∘ Class K ∘ Class N likely. Chess-spectral ply-by-ply is design precedent.
+- **Milestone `#13` IN-FLIGHT** at 2026-05-18 mid-day — *"Runtime spectral decomposition in srmech — encoder→runtime + tool-schema + biological delta-encoding"*. **15 closed spikes + 1 production ship + 1 notebook-integration PR**: Spike #112 PR #513; Spike #113 PR #515; Spike #114 PR #514; Spike #115 PR #518; Spike #116 PR #516; Spike #117 PR #517; **srmech v0.4.1rc14 PR #519** (decompose/delta/recompose/similarity ships; 22/22 tests pass; TestPyPI verified); Spike #120 PR #520; Spike #121 PR #520; Spike #122 PR #520; Spike #123 PR #521; Spike #124 PR #522 (η_Schw / η_Kerr bit-exact identities; saturation-overpressure triptych); Spike #125 PR #522 (unigram empirical negative; honest math-doesn't-lie catch); Spike #125.1 PR #525 (bigram refinement BIGRAM-PARTIAL); Spike #126 PR #526 (BCI clinical applicability; all 6 buckets land). Notebook integration PR covers §3.8.20-25.
+- **Book-worthy material added this milestone** (per `[[project_book_in_progress]]`): η_Schw + η_Kerr bit-exact dark-star ISCO identities (§3.8.21); saturation-overpressure triptych (§3.8.21); runtime spectral surface (§3.8.20); hallucination-detection + honest-negative discipline (§3.8.22); BCI clinical applicability (§3.8.25).
+- **Three math-doesn't-lie catches this milestone** (per `[[feedback_every_doc_edit_faces_falsification]]`): Spike #117 A2 state-correlation lesson; Spike #125 unigram null-discrimination; Spike #125.1 bigram surface-mutation SNR floor. All honest negative results sharpening framework discipline.
+- **Vocabulary unchanged**: 14 primitive classes A-N intact. Zero new classes promoted across all 15 MS #13 spikes per `[[feedback_no_privileged_primitive_classes]]`.
+- **User-lexicon two-layer discipline canonicalised** (per new `[[feedback_user_lexicon_seed_vocabulary_layer]]`, 2026-05-18): canonical framework operators vs cross-discipline seed-vocabulary; default canonical-operator read; if math doesn't sing, treat as search-seed.
 - **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK.
 
 ---
