@@ -23,6 +23,10 @@ Submodules:
 - :mod:`srmech.qm.single_particle` — TDSE, TISE, Heisenberg, commutator,
   density matrix, Liouville-vN, lattice momentum.
 - :mod:`srmech.qm.spin` — Pauli matrices, Clifford-algebra checks.
+- :mod:`srmech.qm.bell` — Bell-CHSH inequality + Tsirelson bound ``2√2``
+  as bit-exact framework identity (Class L ∘ I ∘ M ∘ C ∘ A cascade).
+  Per ``[[user_stance_bell_inequality_as_canonical_identity_signature]]``:
+  the framework's strongest single identity-not-implementation signature.
 - :mod:`srmech.qm.potentials` — Hydrogen radial, harmonic-oscillator
   ladder operators.
 - :mod:`srmech.qm.relativistic` — Dirac γ-matrices (Cl(1,3)), Klein-
@@ -52,6 +56,7 @@ Canonical SSoT:
 """
 
 from srmech.qm import (
+    bell,
     gauge,
     potentials,
     propagators,
@@ -63,6 +68,7 @@ from srmech.qm import (
 )
 
 __all__ = [
+    "bell",
     "gauge",
     "potentials",
     "propagators",

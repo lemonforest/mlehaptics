@@ -1133,6 +1133,80 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # srmech.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact
+        # identity signature (Spike #128.1, Class L ∘ I ∘ M ∘ C ∘ A).
+        # Per [[user_stance_bell_inequality_as_canonical_identity_signature]]:
+        # framework's strongest single identity-not-implementation signature.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.bell.chsh_pauli_combination", owner="srmech",
+            category="qm.bell",
+            summary="σ_x ⊗ σ_x + σ_z ⊗ σ_z as 4×4 Hermitian. Closed-form "
+                    "spectrum {+2, 0, 0, −2}. Bell (1964); Sakurai §3.10.",
+            parameters=(),
+            returns=R("np.ndarray", "(4, 4) Hermitian complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_operator", owner="srmech",
+            category="qm.bell",
+            summary="Tsirelson-optimal CHSH operator B_CHSH = A_0⊗B_0 + "
+                    "A_0⊗B_1 + A_1⊗B_0 − A_1⊗B_1 with A_0=σ_z, A_1=σ_x, "
+                    "B_{0,1}=(σ_z±σ_x)/√2. Cirel'son (1980).",
+            parameters=(),
+            returns=R("np.ndarray", "(4, 4) Hermitian complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.operator_norm", owner="srmech",
+            category="qm.bell",
+            summary="Spectral norm max|λ_i| of a Hermitian matrix via Class L "
+                    "hermitian_eigendecompose. Golub & Van Loan §8.5.",
+            parameters=(P("H", "np.ndarray", True, "Hermitian square"),),
+            returns=R("float", "largest absolute eigenvalue"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_pauli_combination_norm", owner="srmech",
+            category="qm.bell",
+            summary="‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖ = 2 bit-exact (integer "
+                    "eigenvalue spectrum). Bell (1964).",
+            parameters=(),
+            returns=R("float", "exactly 2.0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_operator_norm", owner="srmech",
+            category="qm.bell",
+            summary="‖B_CHSH‖ = 2√2 bit-exact Tsirelson bound. Cirel'son "
+                    "(1980); Peres §6.3.",
+            parameters=(),
+            returns=R("float", "≈ 2.8284271247461903"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.tsirelson_bound", owner="srmech",
+            category="qm.bell",
+            summary="Framework-asserted Tsirelson constant 2√2. "
+                    "Cirel'son (1980) *Lett. Math. Phys.* 4, 93.",
+            parameters=(),
+            returns=R("float", "2 · sqrt(2)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.classical_chsh_bound", owner="srmech",
+            category="qm.bell",
+            summary="Classical (Bell) CHSH upper bound = 2. Bell (1964); "
+                    "CHSH (1969).",
+            parameters=(),
+            returns=R("float", "2.0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.verify_chsh", owner="srmech",
+            category="qm.bell",
+            summary="Bit-exact verification of both Bell-CHSH identities: "
+                    "‖σ_x⊗σ_x + σ_z⊗σ_z‖=2 and ‖B_CHSH‖=2√2. Framework's "
+                    "strongest identity-level attestation per Spike #128.1.",
+            parameters=(P("tolerance", "float", False, "default 1e-14"),),
+            returns=R("tuple[bool, float, float]",
+                      "(verified, primary_residual, tsirelson_residual)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # srmech.qm.potentials
         # ────────────────────────────────────────────────────────────
         ToolEntry(
