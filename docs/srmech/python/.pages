@@ -1,0 +1,9 @@
+title: Python package
+
+# srmech PyPI long-description leads. CHANGELOG carries per-rc detail.
+# Everything else (subpackage trees, tests) follows alphabetically.
+
+nav:
+  - README.md
+  - CHANGELOG.md
+  - ...
