@@ -5,7 +5,7 @@ A monorepo bridging **embedded therapeutic firmware** and **mathematical / spect
 | Strand | What it is | Where it lives |
 | :--- | :--- | :--- |
 | **EMDR Pulser firmware** | Dual-device bilateral-stimulation hardware + firmware (ESP32-C6, BLE + ESP-NOW, ±100μs precision) | [Top-level `README.md`](https://github.com/lemonforest/mlehaptics/blob/main/README.md) · [Architecture Decision Records](adr/README.md) |
-| **srmech (master architecture)** | Stored-Relationship Mechanism — the cross-domain pollination layer above the per-domain spectral notebooks; home for shared abstractions (Laplace-Beltrami, HDC binding, AMSC, the `(Transform, λ_k, g)` decomposition) and for domains without their own notebook (currently graphics-domain Inkscape / Skia / GEGL/GIMP) | [Notebook](srmech/srmech_research_notebook.md) |
+| **srmech (master architecture)** | Stored-Relationship Mechanism — the cross-domain pollination layer above the per-domain spectral notebooks; home for shared abstractions (Laplace-Beltrami, HDC binding, AMSC, the `(Transform, λ_k, g)` decomposition) and for domains without their own notebook (currently graphics-domain Inkscape / Skia / GEGL/GIMP). Ships the 14-class primitive vocabulary as a native-C-accelerated package with mandatory provenance attestation on every research datum (MPM / AMSC framework) | [Notebook](srmech/srmech_research_notebook.md) · [Package](srmech/python/README.md) · [PyPI](https://pypi.org/project/srmech/) |
 | **MFO (Metric Field Ontology)** | Foundational ontology layer of the spectral collection — substrate-vs-excitation framing, two-level ontology (3D_s + 7D_g + 1D_t = 11D ≡ 1D compressed), substrate-internal-time vs clock-time, ring-down reading of the dark sector. Sister to srmech (both cross-cutting); referenced from antikythera / ephemerides / chess / srmech notebooks | [Notebook](antikythera-maths/mfo_spectral_research_notebook.md) · [Research notes](antikythera-maths/research-mfo/) |
 | **antikythera-spectral** | HDC encoder + Pyodide bridge for the ca. 150–60 BCE Antikythera mechanism | [Notebook](antikythera-maths/antikythera_spectral_research_notebook.md) · [Package](antikythera-maths/antikythera-spectral/README.md) · [PyPI](https://pypi.org/project/antikythera-spectral/) |
 | **ephemerides-spectral** | High-precision HDC instrument for the Sol Star System over JPL DE441 | [Notebook](antikythera-maths/ephemerides_spectral_research_notebook.md) · [Package](antikythera-maths/ephemerides-spectral/README.md) · [PyPI](https://pypi.org/project/ephemerides-spectral/) |
@@ -58,11 +58,12 @@ See [`ephemerides_spectral_research_notebook.md` §1.4](antikythera-maths/epheme
 
 ## Live PyPI releases
 
-| Package | Latest | Install |
-| :--- | :--- | :--- |
-| `antikythera-spectral` | [![PyPI](https://img.shields.io/pypi/v/antikythera-spectral.svg)](https://pypi.org/project/antikythera-spectral/) | `pip install antikythera-spectral` |
-| `ephemerides-spectral` | [![PyPI](https://img.shields.io/pypi/v/ephemerides-spectral.svg)](https://pypi.org/project/ephemerides-spectral/) | `pip install ephemerides-spectral` |
-| `chess-spectral` | [![PyPI](https://img.shields.io/pypi/v/chess-spectral.svg)](https://pypi.org/project/chess-spectral/) | `pip install chess-spectral` |
+| Package | Latest | Install | Research notes |
+| :--- | :--- | :--- | :--- |
+| `srmech` | [![PyPI](https://img.shields.io/pypi/v/srmech.svg)](https://pypi.org/project/srmech/) | `pip install srmech` | [srmech notebook](srmech/srmech_research_notebook.md) — master architecture · 14-class primitive vocabulary · MPM / AMSC framework · provenance-stamped research data |
+| `antikythera-spectral` | [![PyPI](https://img.shields.io/pypi/v/antikythera-spectral.svg)](https://pypi.org/project/antikythera-spectral/) | `pip install antikythera-spectral` | [antikythera-spectral notebook](antikythera-maths/antikythera_spectral_research_notebook.md) |
+| `ephemerides-spectral` | [![PyPI](https://img.shields.io/pypi/v/ephemerides-spectral.svg)](https://pypi.org/project/ephemerides-spectral/) | `pip install ephemerides-spectral` | [ephemerides-spectral notebook](antikythera-maths/ephemerides_spectral_research_notebook.md) |
+| `chess-spectral` | [![PyPI](https://img.shields.io/pypi/v/chess-spectral.svg)](https://pypi.org/project/chess-spectral/) | `pip install chess-spectral` | [chess-spectral notebook](chess-maths/chess_spectral_research_notebook.md) |
 
 ## Live demos & companion projects
 

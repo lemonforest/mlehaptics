@@ -1,8 +1,13 @@
 title: srmech (master architecture)
 
 # Stored-Relationship Mechanism — the master architecture notebook for the
-# spectral-research collection. Cross-domain absorption rounds land headline
-# findings in the notebook itself; detailed scoping reports live in notes/.
+# spectral-research collection. The package itself ships on PyPI as
+# `srmech` (native-C-accelerated; 14-class primitive vocabulary + AMSC
+# provenance framework + QM/QFT/SM operations layer).
+#
+# Notebook leads (canonical statement). Python and C package surfaces follow
+# (PyPI long-description + ABI / JPL audit reference). ADRs document design
+# decisions. Cross-domain absorption-round scoping reports live in notes/.
 #
 # IMPORTANT: explicit-nav whitelist — anything not listed here is silently
 # excluded from the RTD sidebar (still indexed by site search). Add new
@@ -10,4 +15,7 @@ title: srmech (master architecture)
 
 nav:
   - srmech_research_notebook.md
+  - python
+  - c
+  - adr
   - notes
