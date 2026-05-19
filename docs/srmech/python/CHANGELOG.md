@@ -4,6 +4,12 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-19
+
+**Production graduation of v0.4.2rc1-rc4 RBS-HDC-LoE dual-path architecture + MS #14 rcN+2 spectral entries.** No code changes vs `[0.4.2rc4]`; this graduation tag promotes the rc4 stack to production PyPI per `[[feedback_always_rc_first_for_downstream_publishes]]` after TestPyPI verification (fresh-venv smoke clean, 2026-05-19). **Closes Milestone #14** rcN+2 deliverable per user direction 2026-05-19.
+
+See `[0.4.2rc4]` below for the full Phase 1-4 ship narrative + `srmech.spectral.predict` / `prediction_error` / `truncate_sparse` rcN+2 entries + tool_schema registration.
+
 ## [0.4.2rc4] - 2026-05-19
 
 **Phase 4 of the RBS-HDC-LoE dual-path architecture** — Path B per-op MVP. Ships 6 Path B-native signal-processing op modules (`fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`) under `srmech.signal_processing.path_b_ops` per the implementation plan §6 Phase 4. Each op registers BOTH its Path A counterpart (from Phase 2 `closed_form_ops`) and its Path B implementation with `srmech.signal_processing.path_registry` at module-load time, giving the cascade dispatcher dual-path routing for the MVP roster. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. Identity-not-implementation discipline preserved per `[[user_stance_identity_not_implementation_discipline]]` — Path A and Path B IS the same algebra at D1 algebra-content (bit-exact on substrate-natural inputs per `[[feedback_algebra_not_magnitude]]`); D2 substrate-fingerprint divergence is expected per `[[user_stance_substrate_natural_encoding_is_shadow_projection]]`. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` — methodology-research / educational / civilian-comms framing only.

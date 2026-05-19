@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.4.2rc4"
+version = "0.4.2"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
