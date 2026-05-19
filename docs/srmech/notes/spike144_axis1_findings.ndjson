@@ -1,0 +1,6 @@
+{"kind": "reference_dgeom", "label": "Sol at photosphere", "R_m": 695700000.0, "R_AU": 0.004650467260962157, "d_geom": 4.246094202229552e-06}
+{"kind": "reference_dgeom", "label": "Sol at 1 AU", "R_m": 149597870700.0, "R_AU": 1.0, "d_geom": 1.974632207442976e-08}
+{"kind": "voyager_heliopause_dgeom", "spacecraft": "Voyager 1", "date": "2012-08-25", "R_HP_AU": 121.6, "R_HP_m": 18191101077120.0, "d_geom_at_HP": 1.6238751705945526e-10, "source": "Stone et al. 2013 Science 341:150"}
+{"kind": "voyager_heliopause_dgeom", "spacecraft": "Voyager 2", "date": "2018-11-05", "R_HP_AU": 119.0, "R_HP_m": 17802146613300.0, "d_geom_at_HP": 1.6593547961705679e-10, "source": "Stone et al. 2019 Nature Astronomy 3:1013"}
+{"kind": "ram_pressure_prediction", "model": "Parker 1958 / Burlaga 2015 (LIC)", "n_sw_1AU_cm3": 5.0, "v_sw_km_s": 400.0, "P_ISM_pa": 1.4e-13, "R_HP_predicted_AU": 97.76356318032953, "R_HP_observed_mean_AU": 120.3, "ratio_obs_to_predicted": 1.2305197978320506}
+{"kind": "axis1_verdict", "d_geom_HP_observed_mean": 1.641423281332482e-10, "d_geom_HP_predicted_from_rampressure": 2.019803844302067e-10, "dgeom_ratio_obs_predicted": 0.8126646980908523, "unit_consistent": true, "verdict": "AXIS-1-UNIT-CONSISTENT-WITH-PREDICTED-BOUNDARY-WEAK-N2", "n_observations": 2, "n_observations_caveat": "Pre-registered roster locked to Voyager 1+2. Statistical power limited."}
