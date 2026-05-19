@@ -4,6 +4,104 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.2rc1] - 2026-05-19
+
+**Phase 1 scaffolding of the RBS-HDC-LoE dual-path architecture** (Milestone follow-up to Spike #178 closed-form SP roadmap). Ships the `srmech.signal_processing` sub-namespace package skeleton — dispatcher / profiling / registry stubs + locked architectural constants — so Phase 2+ operation modules (Path A closed-form ops Phase 2; Path B RBS-HDC at D=8192 Phase 4; cascade dispatcher Phase 5; cross-substrate verification Phase 7; learned thresholds Phase 8) can land against a stable surface. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. Identity-not-implementation discipline preserved per `[[user_stance_identity_not_implementation_discipline]]` — Path A and Path B both *instantiate* the same class composition. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` — methodology-research / educational / civilian-comms framing only.
+
+### Added — `srmech.signal_processing` sub-namespace (Phase 1 scaffolding)
+
+- `srmech.signal_processing.__init__` — package entry point + re-exports. Public API stable from Phase 1.
+- `srmech.signal_processing._paths` — internal architectural constants:
+  - `D_DEFAULT = 8192` (locked per conductor decision #6, 2026-05-19; matches Spike #170/#172/#173/#176/#177 anchors); `D_MIN = 256`; `D_MAX = 65536`.
+  - `SUBSTRATES = ("bci", "audio", "rf", "ephemeris")` (Phase 7 cross-substrate coverage per decision #2).
+  - `PATH_A`/`PATH_B`/`PATH_VERIFY` discriminators; `VALID_PATHS` tuple.
+  - `DISPATCH_TABLE_LOCK_POLICY = "lock-at-release"` (decision #7 — reproducibility).
+  - `LEARNED_DISPATCH_TABLE_PATH` — locked NDJSON path (Phase 8 populates).
+  - `PROFILING_INPUT_SIZES_DEFAULT` (6) + `PROFILING_CASCADE_DEPTHS_DEFAULT` (4) + `CASCADE_DEPTH_THRESHOLD_FOR_PATH_B = 3` — supports 1920-cell benchmark grid per decision #3.
+- `srmech.signal_processing.cascade_dispatcher` — routing API:
+  - `begin_cascade(substrate=None, *, D=8192)` — **context-manager** API per decision #5; auto-flush on exception; thread-local stack; nested cascades supported.
+  - `end_cascade(ctx=None)` — imperative-form flush for callers who can't structure around `with`.
+  - `current_cascade()` — return innermost active `CascadeContext`.
+  - `resolve_path(op_name, *, explicit_path=None, input_size=None, substrate=None)` — Phase 1 rule-based routing (override → cascade-hint Path B → class-default → Path A fallback).
+  - `dispatch(op_name, *args, path=None, D=8192, **kwargs)` — Phase 1 stub; raises `DispatchError` for ops without registered implementations.
+  - `is_dispatch_table_locked()` / `lock_dispatch_table()` / `unlock_dispatch_table()` — lock-state tracking per decision #7.
+  - `DEFAULT_PATH_PER_CLASS` — 14 A-N → default path table (Class K/M default Path B; all others default Path A per plan §3.4).
+- `srmech.signal_processing.path_registry` — op-name → (Path-A-impl, Path-B-impl) pairing:
+  - `register(op_name, *, path, impl, ssot_citation="", classes=())` — idempotent re-registration; `DuplicateRegistrationError` on differing-callable collision.
+  - `lookup(op_name) -> OperationEntry` — raises `UnknownOperationError` for unregistered ops.
+  - `has_path(op_name, path)` / `registered_ops()` / `clear_registry()`.
+  - `OperationEntry` frozen dataclass with `op_name` / `path_a` / `path_b` / `ssot_citation` / `classes` (14 A–N labels).
+- `srmech.signal_processing.profiling` — Phase 8 hook API + data structures:
+  - `ProfileCellKey` — Cartesian key (op_name, path, input_size, cascade_depth, substrate) supporting decision #3 full granularity.
+  - `ProfileRecord` — NDJSON-serialisable timing record (wall + CPU + memory + n_repeats + notes + extra dict).
+  - `cell_grid(*, op_names, ...)` — enumerate the full 1920-cell benchmark sweep grid.
+  - `record_profile()` / `iter_records()` / `clear_records()` — in-memory record buffer.
+  - `profile_op()` / `update_dispatch_table()` — Phase 8 hooks; Phase 1 raises `ProfilingNotImplementedError`.
+
+### Architectural rationale
+
+Per `[[project_rbs_hdc_loe_dual_path_architecture]]`:
+
+- **Path A** — closed-form algebra (composes existing `srmech.amsc.*` 14-class primitive vocabulary). SSoT for primitive definitions.
+- **Path B** — RBS-HDC bound-vector instrument at D=8192 (per Spike #170 anchor). Composes from Path A primitive definitions at module-load time per `[[feedback_no_binding_layer_carveout]]`; no duplicate primitive implementations.
+- **Path C** — cascade-aware dispatcher (`cascade_dispatcher`); chooses A or B per call based on rule-based (Phase 5) + empirical (Phase 8) routing. Neither path replaces the other.
+
+The 8 accepted conductor decisions (2026-05-19) framing Phase 1:
+
+1. C port deferred to v0.4.3rc1 (no C surface in Phase 1).
+2. Cross-substrate coverage stub-level for all 4 substrates.
+3. Profiling granularity full per-op × per-cascade-depth × per-substrate (1920 cells).
+4. Spike #179 F4 caveat integrates at Phase 9 §3.8.31.
+5. `begin_cascade` API as context-manager (Pythonic; auto-flush on exception).
+6. D=8192 lock for v0.4.2 baseline; optional `D` param accepted.
+7. Dispatch table lock policy: lock-at-release (reproducibility).
+8. Notebook §3.8.31 timing: Phase 9 (after Phase 8 learned thresholds).
+
+### Added — `tests/test_signal_processing_scaffolding.py`
+
+Phase 1 scaffolding verification:
+
+- Imports succeed: `from srmech.signal_processing import begin_cascade, dispatch, register, lookup, ...`.
+- D=8192 locked default; optional `D` parameter forwarded by dispatcher.
+- `begin_cascade(substrate="bci")` context-manager opens/closes cascade; thread-local stack supports nesting; auto-flush on exception.
+- `path_registry.register(...)` / `lookup(...)` / `has_path(...)` round-trip; duplicate-registration with differing callable raises `DuplicateRegistrationError`.
+- `profiling.cell_grid(...)` enumerates the 1920-cell benchmark grid for a 10-op suite at default sweeps.
+- `profile_op()` + `update_dispatch_table()` raise `ProfilingNotImplementedError` (Phase 8 lands runner).
+- `dispatch(op_name, path="verify")` raises `DispatcherNotImplementedError` in Phase 1 (verify-mode lands Phase 5).
+- Version is `0.4.2rc1` across `srmech.__version__` + `pyproject.toml` + `pyproject-pure.toml` + `c/include/srmech.h`.
+
+### Canonical SSoT citations per `[[feedback_science_is_ssot_not_project]]`
+
+- Plate (1995) *Holographic Reduced Representations*, IEEE TNN 6, 623.
+- Kanerva (2009) *Hyperdimensional Computing*, Cognitive Computation 1, 139.
+- Chung (1997) *Spectral Graph Theory*, AMS.
+- Oppenheim & Schafer (2010) *Discrete-Time Signal Processing* (3rd ed.).
+- Implementation plan: `docs/srmech/notes/rbs_hdc_loe_implementation_plan_2026-05-19.md` (committed on this branch).
+
+### Spike anchors
+
+- Spike #170 — RBS-HDC instrument feasibility (14/14 mint determinism at D=8192).
+- Spike #172 — DNA helical-pitch substrate.
+- Spike #173 — chess natural-stride (D2 orthogonality).
+- Spike #175 — knowledge-is-gauge-content.
+- Spike #176 — rotation IS Class K (machine ε).
+- Spike #177 — pin-slot-resonate music-box mechanism.
+- Spike #178 — closed-form SP roadmap (§1 surveys ~40 ops across 8 categories).
+- Spike #179 — CFSP-Kalman alternative (in flight; Phase 9 integration per decision #4).
+
+### Not added (deferred to Phase 2+)
+
+- Path A closed-form ops (`closed_form_ops/*`) — Phase 2 (v0.4.2rc2) ships 38 ops re-surfacing `srmech.amsc.*` primitives.
+- Path B core (`rbs_hdc_instrument.py`, `form_function_rotation.py`) — Phase 3 (v0.4.2rc3) ports Spike #170 prototype.
+- Path B per-op MVP — Phase 4 (v0.4.2rc4).
+- Full rule-based cascade dispatcher + `path="verify"` semantics — Phase 5 (v0.4.2rc5).
+- 7-op extension + remaining 32 Path B ops — Phase 6 (v0.4.2rc6).
+- Substrate-natural Class N rational catalogs + cross-substrate verification — Phase 7 (v0.4.2rc7).
+- Benchmark suite + learned dispatch table — Phase 8 (v0.4.2rc8).
+- Notebook §3.8.31 prose — Phase 9 (documentation-only commit).
+- Production tag v0.4.2 → PyPI — Phase 10.
+- C port of Path B operations — v0.4.3rc1 (per conductor decision #1).
+
 ## [0.4.1rc14] - 2026-05-18
 
 **rcN+1 of the runtime spectral decomposition surface** (Milestone #13). Ships entries 1/2/3/7 of the 7-entry `srmech.spectral.*` namespace per Spike `#115` two-rc strategy (PR #518): `decompose` (Class L+A), `delta` (Class M; Option B per Spike `#114`), `recompose` (Class L+M), `similarity` (Class M). All composition layer; sub-ops route to existing `srmech.amsc.{laplacian, hdc, format}` C primitives. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. rcN+2 (TBD) ships entries 4/5/6 (`predict` / `prediction_error` / `truncate_sparse`) after Spike `#113` + `#117` C primitive landings.
