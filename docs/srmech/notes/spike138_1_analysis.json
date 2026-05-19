@@ -1,0 +1,89 @@
+{
+  "d4": {
+    "label": "depth4_closure",
+    "path": "D:\\GitHub\\mlehaptics\\.claude\\worktrees\\agent-a5b5fe1b8daa49d28\\docs\\srmech\\notes\\spike138_1_d4_closure.ndjson",
+    "depth": 4,
+    "n_tuples": 625,
+    "n_cells": 15625,
+    "closure_rate": 1.0,
+    "n_tuples_closed": 625,
+    "n_tuples_failed": 0,
+    "universal_identity_count": 625,
+    "universal_identity_sha256": "80f1a7a461a7d0132d9cac7107902e57c3bafe4b96b6cd2c6c30a88cebfe1ce7",
+    "classification_counts": {
+      "identity_attractor": 15625
+    },
+    "non_identity_by_substrate": {},
+    "non_identity_by_ordering": {},
+    "non_identity_classes": {},
+    "wall_seconds": 414.5822260999121
+  },
+  "d5": {
+    "label": "depth5_closure",
+    "path": "D:\\GitHub\\mlehaptics\\.claude\\worktrees\\agent-a5b5fe1b8daa49d28\\docs\\srmech\\notes\\spike138_1_d5_closure.ndjson",
+    "depth": 5,
+    "n_tuples": 3125,
+    "n_cells": 78125,
+    "closure_rate": 1.0,
+    "n_tuples_closed": 3125,
+    "n_tuples_failed": 0,
+    "universal_identity_count": 3125,
+    "universal_identity_sha256": "016652c13713604a5d59145cd99c1a7154e04a7623e76cf81277db74abb0feb1",
+    "classification_counts": {
+      "identity_attractor": 78125
+    },
+    "non_identity_by_substrate": {},
+    "non_identity_by_ordering": {},
+    "non_identity_classes": {},
+    "wall_seconds": 321.4195751999505
+  },
+  "external_falsifier": {
+    "n_tuples": 200,
+    "fully_identity_count": 2,
+    "partial_identity_count": 17,
+    "no_identity_count": 181,
+    "fully_identity_sample": [
+      "H-H",
+      "K-K"
+    ],
+    "partial_identity_sample": [
+      "I-B",
+      "E-J",
+      "F-I",
+      "B-J",
+      "J-L",
+      "I-D",
+      "I-F",
+      "D-J",
+      "I-I",
+      "J-B",
+      "B-I",
+      "B-I-E",
+      "I-E-L",
+      "I-B-D",
+      "I-D-D",
+      "J-D-B",
+      "D-B-I"
+    ],
+    "classification_counts": {
+      "white_noise": 3210,
+      "structured_cyclic": 975,
+      "identity_attractor": 135,
+      "hash_like": 680
+    },
+    "wall_seconds": 17.964358099969104,
+    "sharp_boundary_violations": 19
+  },
+  "cross_stack_d4": {
+    "label": "cross_stack_d4",
+    "path_a": "D:\\GitHub\\mlehaptics\\.claude\\worktrees\\agent-a5b5fe1b8daa49d28\\docs\\srmech\\notes\\spike138_1_d4_closure.ndjson",
+    "path_b": "D:\\GitHub\\mlehaptics\\.claude\\worktrees\\agent-a5b5fe1b8daa49d28\\docs\\srmech\\notes\\spike138_1_d4_python_pure.ndjson",
+    "count_a": 625,
+    "count_b": 625,
+    "sha256_a": "80f1a7a461a7d0132d9cac7107902e57c3bafe4b96b6cd2c6c30a88cebfe1ce7",
+    "sha256_b": "80f1a7a461a7d0132d9cac7107902e57c3bafe4b96b6cd2c6c30a88cebfe1ce7",
+    "bit_exact_match": true,
+    "set_diff_a_minus_b": [],
+    "set_diff_b_minus_a": []
+  }
+}
