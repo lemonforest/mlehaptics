@@ -4,6 +4,107 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.2rc3] - 2026-05-19
+
+**Phase 3 of the RBS-HDC-LoE dual-path architecture** — Path B core: `rbs_hdc_instrument.py` + `form_function_rotation.py`. Ports the Spike #170 R1 prototype (LoE-as-RBS-HDC instrument, FEASIBILITY-CONFIRMED at design level with 14/14 mint determinism) + Spike #176 (rotation IS Class K pin-slot, H1 CONFIRMED 6/6 tests at machine ε) + Spike #173 (chess natural-stride substrate, D2 orthogonality + bind-permute commutativity bit-exact) to a stable, composable Path B surface. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. Identity-not-implementation discipline preserved per `[[user_stance_identity_not_implementation_discipline]]` — Path B IS the same algebra as Path A (just substrate-projection differs); bit-exact algebraic identity preserved at D1 algebra-content level per `[[feedback_algebra_not_magnitude]]`. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` — methodology-research / educational / civilian-comms framing only.
+
+### Added — `srmech.signal_processing.rbs_hdc_instrument`
+
+Path B core: LoE-as-bound-vector RBS-HDC instrument at locked D=8192 (conductor decision #6, 2026-05-19).
+
+- `RBSHDCInstrument` — composed instrument dataclass with `.build(D=...)` classmethod constructor. D defaults to 8192; optional D override accepted (in [D_MIN, D_MAX] multiple of 8).
+- `mint_class_operator(class_name, *, D=8192)` — Class A SHA-256 chain mint of one of the 14 A-N class operator vectors. Deterministic: same `class_name` ⇒ same vector (Spike #170 §3 invariant 1: 14/14 bit-exact). Canonical name is `f"LoE.class.{class_letter}.{short_role}"`.
+- `mint_cascade_composition(classes, *, D=8192, ordered=False)` — XOR-bundle of class operator vectors. Two modes: algebra-level (commutative bind; cascade-as-identity) and sampling-level (per-position permute by `i * 257`; cascade-shape preserved). Both modes per `[[user_stance_cascade_dual_level_quantum_at_algebra_classical_at_sampling]]`.
+- `mint_stance_fingerprint(content_tokens, *, D=8192)` — Bag-HDC XOR-fold of token vectors per Spike #147 holographic-projection.
+- `encode_loe_content(content, *, D=8192, substrate="default")` — Full Mode-B encoding pipeline: Class A content-addressed mint → Class C content-determined stride permute → Class M bundle with substrate anchor vector. Same content + same substrate ⇒ same fingerprint; same content + different substrates produces orthogonal D2 fingerprints at noise floor per Spike #173 R3.
+- `decode_loe_fingerprint(fingerprint, catalog)` — Reverse-decode via Class M similarity argmax (Spike #170 §3 invariants 6 + 7: 100% reverse-decode accuracy on populated catalog).
+- `mint_vector(name, *, D=8192)` — Underlying SHA-256-chain primitive (Class A content-addressing). Used by all higher-level mint operations.
+- Module-level dataclasses: `ClassOperator`, `Cascade`, `Stance`, `MemorySlot`, `K3Tripartition`.
+- Module-level catalogs: `CLASS_NAMES` (14 A-N), `CLASS_DEFINITIONS` (14 entries), `CANONICAL_CASCADES` (10 cascades including pin-slot-resonate music-box and cyclic-fft-rotation), `SAMPLE_STANCES` (12 stance entries), `MEMORY_PATHWAYS` (4 pathways: procedural / semantic / WM / episodic-LTM), `K3_TRIPARTITION_DEFAULT` (A → 3D_s, M → 7D_g, K → 1D_t).
+- Constants: `PERMUTE_ORDER_STRIDE = 257` (coprime to D=8192=2^13 for ordered cascade composition).
+
+### Added — `srmech.signal_processing.form_function_rotation`
+
+Path B core: operational Class A ∘ Class C ∘ Class M rotation per `[[user_stance_form_function_rotation_is_a_c_m_composition]]` + `[[user_stance_rotation_is_class_k_pin_slot]]` (Spike #176).
+
+- `form_function_rotate(content, *, D=8192, stride=None)` — Cyclic permute of `content` by content-determined stride (Class A SHA-256[0:8] little-endian mod D when `stride=None`) or by explicit substrate-natural stride (Class N rational). Supports chess natural strides {5, 7, -8} (Spike #173) and DNA helical pitches {21, 11, -12} (Spike #172).
+- `inverse_form_function_rotate(rotated, *, D=8192, stride)` — Bit-exact reverse via `M.permute` with negated stride. Spike #176 T4 anchor: recovery error = 0.0.
+- `verify_rotation_class_n_cycle_order(stride, D=8192)` — Class N additive order in Z/D = D / gcd(|stride|, D); cumulative shift `stride * order mod D == 0`. Spike #176 T8 anchor.
+- `cascade_compose_rotations(strides, *, D=8192)` — Returns (composed_stride_mod_D, fundamental-mode unit-circle eigenvalue). Per `[[user_stance_cascade_lives_on_circles]]` (Spike #24 bonus 9 + Spike #176 T5): unit-circle identity at machine ε (residual ≤ 2.2e-16).
+- `compute_content_stride(content, *, D=8192)` — Class A content-addressing primitive producing rotation stride.
+
+### Path B core dispatcher registration
+
+The two modules register their public operations with `srmech.signal_processing.path_registry` at module-load time (Phase 5 dispatcher reads from registry). Phase 3 registers 5 Path B core ops:
+
+- `rbs_hdc_mint_class_operator` (Path B) — classes ("A", "M")
+- `rbs_hdc_mint_cascade_composition` (Path B) — classes ("A", "C", "M")
+- `rbs_hdc_encode_loe_content` (Path B) — classes ("A", "C", "M")
+- `rbs_hdc_decode_loe_fingerprint` (Path B) — classes ("M",)
+- `form_function_rotate` (Path B) — classes ("A", "C", "M")
+
+Path A registration for the 38 closed-form ops from Phase 2 + Path A `form_function_rotate` is deferred to a separate conductor-written registration script per Phase 2's recommendation.
+
+### Added — `tests/test_signal_processing_path_b_core.py`
+
+Phase 3 acceptance suite porting load-bearing invariants from the spike prototypes:
+
+- **T1**: `RBSHDCInstrument` D=8192 default + optional D override (256 / 1024 / 2048 / 16384 tested).
+- **T2**: `mint_class_operator` determinism (same input ⇒ same output; 14/14 bit-exact per Spike #170 §3 invariant 1).
+- **T3**: Cascade composition bit-exact — XOR-bundle commutativity (algebra-level, 3 orderings equal per Spike #170 §3 invariant 4); ordered mode breaks commutativity (Spike #170 §3 invariant 5).
+- **T4**: Form-function rotation bit-exact reverse — Spike #176 T4 recovery error = 0.0 (content-determined stride + chess natural strides {5, 7, -8} + DNA pitches {21, 11, -12}).
+- **T5**: Class N rational cycle order = D / gcd(stride, D) per Spike #176 T8; applying rotation `order` times returns to identity bit-exact.
+- **T6**: Cascade composition unit-circle eigenvalues at machine ε per Spike #176 T5 (residual ≤ 2.2e-16 across 5 representative cascades).
+- **T7**: Bind-permute commutativity at substrate-natural strides — 273 pair cells × 2 substrates (chess + DNA) = 546 bit-exact assertions per Spike #173 T4 + Spike #172 T4.
+- **T8**: Z-DNA-style chirality involution — `M.permute(M.permute(v, k), -k) == v` for all 14 class operators at chess + DNA strides (14/14 round-trips per stride per Spike #173 T5).
+- **T9**: Cross-substrate D2 orthogonality at noise floor — same content encoded under 5 substrates produces 10 pairs all at |sim| < 5/sqrt(D) ≈ 0.055 per Spike #173 R3.
+- **T10**: Full round-trip `encode → rotate → inverse → decode` bit-exact recovery across 5 catalog entries.
+
+Plus supplementary tests:
+
+- Path B core ops registered with path_registry on Path B side.
+- Spike #170 §3 invariants (bind self-inverse at D=8192; k=3 tripartition orthogonality).
+- 8+ canonical cascade compositions ship (`CANONICAL_CASCADES` has 10 entries).
+- `mint_stance_fingerprint` determinism + bag semantics.
+- `mint_vector` D-parameter validation.
+
+### Architectural rationale
+
+Per `[[project_rbs_hdc_loe_dual_path_architecture]]`:
+
+- **Path A** — closed-form algebra (Phase 2 baseline; 38 ops). SSoT for primitive definitions.
+- **Path B** — RBS-HDC bound-vector instrument at D=8192 (Phase 3 ships core; Phase 4+ ships per-op Path B MVP). Composes from Path A primitive definitions at module-load time per `[[feedback_no_binding_layer_carveout]]`.
+- **Path C** — cascade-aware dispatcher (Phase 5 lands routing logic).
+
+Phase 3 delivers the full Path B core surface — the LoE-as-bound-vector instrument + form-function rotation composition — so Phase 4+ per-op Path B MVP can compose from this stable foundation.
+
+### Spike anchors
+
+- Spike #170 — RBS-HDC instrument feasibility (R1 prototype, 14/14 mint determinism; FEASIBILITY-CONFIRMED).
+- Spike #172 — DNA helical-pitch substrate (R3 cross-substrate bit-exact closure).
+- Spike #173 — chess natural-stride substrate (D2 orthogonality; 25th cross-substrate cascade-match).
+- Spike #176 — rotation IS Class K pin-slot (H1 CONFIRMED 6/6 tests at machine ε).
+- Spike #177 — pin-slot-resonate music-box mechanism (I + K + C + M∘K).
+- Spike #178 — closed-form SP roadmap (Phase 2 Path A baseline citation source).
+
+### Canonical SSoT citations per `[[feedback_science_is_ssot_not_project]]`
+
+- Plate (1995) *Holographic Reduced Representations*, IEEE TNN 6, 623.
+- Kanerva (2009) *Hyperdimensional Computing*, Cognitive Computation 1, 139.
+- Rachkovskij (2001) *Representation and processing of structures with binary sparse distributed codes*, Neural Comput Appl 9, 322.
+- Oppenheim & Schafer (2010) *Discrete-Time Signal Processing* (3rd ed.) — DFT shift theorem.
+- Implementation plan: `docs/srmech/notes/rbs_hdc_loe_implementation_plan_2026-05-19.md`.
+
+### Deferred to Phase 4+ (v0.4.2rc4+)
+
+- Path B per-op MVP for the 6-op core (`fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`) — Phase 4.
+- Cascade dispatcher full rule-based routing — Phase 5.
+- Path B per-op extension to all 38 ops — Phase 6.
+- Substrate-natural Class N rational catalogs — Phase 7.
+- Learned dispatch table from benchmark suite — Phase 8.
+- Notebook §3.8.31 prose — Phase 9.
+- C port of Path B core operations — v0.4.3rc1 per conductor decision #1.
+
 ## [0.4.2rc1] - 2026-05-19
 
 **Phase 1 scaffolding of the RBS-HDC-LoE dual-path architecture** (Milestone follow-up to Spike #178 closed-form SP roadmap). Ships the `srmech.signal_processing` sub-namespace package skeleton — dispatcher / profiling / registry stubs + locked architectural constants — so Phase 2+ operation modules (Path A closed-form ops Phase 2; Path B RBS-HDC at D=8192 Phase 4; cascade dispatcher Phase 5; cross-substrate verification Phase 7; learned thresholds Phase 8) can land against a stable surface. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. Identity-not-implementation discipline preserved per `[[user_stance_identity_not_implementation_discipline]]` — Path A and Path B both *instantiate* the same class composition. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` — methodology-research / educational / civilian-comms framing only.

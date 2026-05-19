@@ -155,9 +155,46 @@ from .profiling import (
     update_dispatch_table,
 )
 
-# Phase 1 scaffolding: operations themselves are NotImplementedError
-# at the public surface until Phase 2 (Path A) populates them. The
-# dispatch / registry / profiling APIs above are stable from Phase 1.
+# Phase 3 (v0.4.2rc3) — Path B core: RBS-HDC instrument + form-function
+# rotation. Imports trigger module-load registration with
+# :mod:`srmech.signal_processing.path_registry` so the dispatcher can
+# route to Path B ops via :func:`dispatch`.
+from . import rbs_hdc_instrument as _rbs_hdc_instrument  # noqa: F401
+from . import form_function_rotation as _form_function_rotation  # noqa: F401
+from .rbs_hdc_instrument import (
+    CANONICAL_CASCADES,
+    CLASS_DEFINITIONS,
+    CLASS_NAMES,
+    Cascade,
+    ClassOperator,
+    K3Tripartition,
+    MEMORY_PATHWAYS,
+    MemorySlot,
+    PERMUTE_ORDER_STRIDE,
+    RBSHDCInstrument,
+    SAMPLE_STANCES,
+    Stance,
+    decode_loe_fingerprint,
+    encode_loe_content,
+    mint_cascade_composition,
+    mint_class_operator,
+    mint_stance_fingerprint,
+    mint_vector,
+)
+from .form_function_rotation import (
+    cascade_compose_rotations,
+    compute_content_stride,
+    form_function_rotate,
+    inverse_form_function_rotate,
+    verify_rotation_class_n_cycle_order,
+)
+
+# Phase 1 scaffolding: closed-form operations themselves are
+# NotImplementedError at the public surface until Phase 2 (Path A)
+# populates them. The dispatch / registry / profiling APIs above are
+# stable from Phase 1. Phase 3 ships the Path B core surface
+# (rbs_hdc_instrument + form_function_rotation) directly importable
+# from the package root.
 
 __all__ = [
     # Architectural constants (D-lock, substrates, paths, lock policy)
@@ -209,4 +246,29 @@ __all__ = [
     "ProfilingNotImplementedError",
     "DEFAULT_INPUT_SIZES",
     "DEFAULT_CASCADE_DEPTHS",
+    # Phase 3 — Path B core: RBS-HDC instrument
+    "RBSHDCInstrument",
+    "ClassOperator",
+    "Cascade",
+    "Stance",
+    "MemorySlot",
+    "K3Tripartition",
+    "CLASS_NAMES",
+    "CLASS_DEFINITIONS",
+    "CANONICAL_CASCADES",
+    "SAMPLE_STANCES",
+    "MEMORY_PATHWAYS",
+    "PERMUTE_ORDER_STRIDE",
+    "mint_class_operator",
+    "mint_cascade_composition",
+    "mint_stance_fingerprint",
+    "mint_vector",
+    "encode_loe_content",
+    "decode_loe_fingerprint",
+    # Phase 3 — Path B core: form-function rotation
+    "form_function_rotate",
+    "inverse_form_function_rotate",
+    "verify_rotation_class_n_cycle_order",
+    "cascade_compose_rotations",
+    "compute_content_stride",
 ]
