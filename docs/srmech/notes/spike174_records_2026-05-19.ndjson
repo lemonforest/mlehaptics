@@ -1,0 +1,141 @@
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":20.0,"filter":"no_filter","metric":"bit_error_rate","value":0.0,"notes":"hamming=0/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":20.0,"filter":"no_filter","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":20.0,"filter":"no_filter","metric":"bind_relationship_ber","value":0.0,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":20.0,"filter":"no_filter","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":20.0,"filter":"kalman_cv","metric":"bit_error_rate","value":0.1978759765625,"notes":"hamming=1621/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":20.0,"filter":"kalman_cv","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":20.0,"filter":"kalman_cv","metric":"bind_relationship_ber","value":0.363037109375,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":20.0,"filter":"kalman_cv","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":20.0,"filter":"median_w3","metric":"bit_error_rate","value":0.2628173828125,"notes":"hamming=2153/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":20.0,"filter":"median_w3","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":20.0,"filter":"median_w3","metric":"bind_relationship_ber","value":0.3770751953125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":20.0,"filter":"median_w3","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":20.0,"filter":"block_majority","metric":"bit_error_rate","value":0.2628173828125,"notes":"hamming=2153/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":20.0,"filter":"block_majority","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":20.0,"filter":"block_majority","metric":"bind_relationship_ber","value":0.376953125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":20.0,"filter":"block_majority","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":20.0,"filter":"per_bit_threshold","metric":"bit_error_rate","value":0.0,"notes":"hamming=0/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":20.0,"filter":"per_bit_threshold","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":20.0,"filter":"per_bit_threshold","metric":"bind_relationship_ber","value":0.0,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":20.0,"filter":"per_bit_threshold","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":10.0,"filter":"no_filter","metric":"bit_error_rate","value":0.0008544921875,"notes":"hamming=7/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":10.0,"filter":"no_filter","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":10.0,"filter":"no_filter","metric":"bind_relationship_ber","value":0.001708984375,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":10.0,"filter":"no_filter","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":10.0,"filter":"kalman_cv","metric":"bit_error_rate","value":0.216796875,"notes":"hamming=1776/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":10.0,"filter":"kalman_cv","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":10.0,"filter":"kalman_cv","metric":"bind_relationship_ber","value":0.36767578125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":10.0,"filter":"kalman_cv","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":10.0,"filter":"median_w3","metric":"bit_error_rate","value":0.2630615234375,"notes":"hamming=2155/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":10.0,"filter":"median_w3","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":10.0,"filter":"median_w3","metric":"bind_relationship_ber","value":0.376220703125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":10.0,"filter":"median_w3","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":10.0,"filter":"block_majority","metric":"bit_error_rate","value":0.2630615234375,"notes":"hamming=2155/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":10.0,"filter":"block_majority","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":10.0,"filter":"block_majority","metric":"bind_relationship_ber","value":0.3763427734375,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":10.0,"filter":"block_majority","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":10.0,"filter":"per_bit_threshold","metric":"bit_error_rate","value":0.0008544921875,"notes":"hamming=7/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":10.0,"filter":"per_bit_threshold","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":10.0,"filter":"per_bit_threshold","metric":"bind_relationship_ber","value":0.0010986328125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":10.0,"filter":"per_bit_threshold","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":0.0,"filter":"no_filter","metric":"bit_error_rate","value":0.1585693359375,"notes":"hamming=1299/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":0.0,"filter":"no_filter","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":0.0,"filter":"no_filter","metric":"bind_relationship_ber","value":0.3411865234375,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":0.0,"filter":"no_filter","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":0.0,"filter":"kalman_cv","metric":"bit_error_rate","value":0.3106689453125,"notes":"hamming=2545/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":0.0,"filter":"kalman_cv","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":0.0,"filter":"kalman_cv","metric":"bind_relationship_ber","value":0.455078125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":0.0,"filter":"kalman_cv","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":0.0,"filter":"median_w3","metric":"bit_error_rate","value":0.347412109375,"notes":"hamming=2846/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":0.0,"filter":"median_w3","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":0.0,"filter":"median_w3","metric":"bind_relationship_ber","value":0.439697265625,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":0.0,"filter":"median_w3","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":0.0,"filter":"block_majority","metric":"bit_error_rate","value":0.347412109375,"notes":"hamming=2846/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":0.0,"filter":"block_majority","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":0.0,"filter":"block_majority","metric":"bind_relationship_ber","value":0.4462890625,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":0.0,"filter":"block_majority","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":0.0,"filter":"per_bit_threshold","metric":"bit_error_rate","value":0.1585693359375,"notes":"hamming=1299/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":0.0,"filter":"per_bit_threshold","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":0.0,"filter":"per_bit_threshold","metric":"bind_relationship_ber","value":0.3458251953125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":0.0,"filter":"per_bit_threshold","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":-10.0,"filter":"no_filter","metric":"bit_error_rate","value":0.3756103515625,"notes":"hamming=3077/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":-10.0,"filter":"no_filter","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":-10.0,"filter":"no_filter","metric":"bind_relationship_ber","value":0.4910888671875,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":-10.0,"filter":"no_filter","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":-10.0,"filter":"kalman_cv","metric":"bit_error_rate","value":0.4322509765625,"notes":"hamming=3541/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":-10.0,"filter":"kalman_cv","metric":"reverse_decode_fraction","value":0.8888888888888888,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":-10.0,"filter":"kalman_cv","metric":"bind_relationship_ber","value":0.517333984375,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":-10.0,"filter":"kalman_cv","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":-10.0,"filter":"median_w3","metric":"bit_error_rate","value":0.4349365234375,"notes":"hamming=3563/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":-10.0,"filter":"median_w3","metric":"reverse_decode_fraction","value":0.8888888888888888,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":-10.0,"filter":"median_w3","metric":"bind_relationship_ber","value":0.4969482421875,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":-10.0,"filter":"median_w3","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":-10.0,"filter":"block_majority","metric":"bit_error_rate","value":0.4349365234375,"notes":"hamming=3563/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":-10.0,"filter":"block_majority","metric":"reverse_decode_fraction","value":0.8888888888888888,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":-10.0,"filter":"block_majority","metric":"bind_relationship_ber","value":0.4932861328125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":-10.0,"filter":"block_majority","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T2_ber","snr_db":-10.0,"filter":"per_bit_threshold","metric":"bit_error_rate","value":0.3756103515625,"notes":"hamming=3077/8192 bits"}
+{"spike":174,"date":"2026-05-19","test":"T2_decode","snr_db":-10.0,"filter":"per_bit_threshold","metric":"reverse_decode_fraction","value":1.0,"notes":"n_tokens=9"}
+{"spike":174,"date":"2026-05-19","test":"T3_algebra_recovery","snr_db":-10.0,"filter":"per_bit_threshold","metric":"bind_relationship_ber","value":0.49658203125,"notes":"hamming(a_f^b_f, c_f)/D; 0=identity recovered, ~0.5=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T3_sanity_permute_commute","snr_db":-10.0,"filter":"per_bit_threshold","metric":"bind_permute_commutes","value":1.0,"notes":"mathematical identity; should always be 1.0"}
+{"spike":174,"date":"2026-05-19","test":"T4_baseline","snr_db":0.0,"filter":"ground_truth","metric":"cycle_order","value":8.0,"notes":"expected=8 (D=8192, stride=1024)"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":20.0,"filter":"no_filter","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.0000"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":20.0,"filter":"no_filter","metric":"cycle_preserved","value":1.0,"notes":"per_step_filter recovered=8 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":20.0,"filter":"no_filter","metric":"mean_on_diag_similarity","value":1.0,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":20.0,"filter":"kalman_cv","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2031"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":20.0,"filter":"kalman_cv","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":20.0,"filter":"kalman_cv","metric":"mean_on_diag_similarity","value":0.59686279296875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":20.0,"filter":"median_w3","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2499"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":20.0,"filter":"median_w3","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":20.0,"filter":"median_w3","metric":"mean_on_diag_similarity","value":0.5003662109375,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":20.0,"filter":"block_majority","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2498"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":20.0,"filter":"block_majority","metric":"cycle_preserved","value":1.0,"notes":"per_step_filter recovered=8 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":20.0,"filter":"block_majority","metric":"mean_on_diag_similarity","value":0.50042724609375,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":20.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.0000"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":20.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":1.0,"notes":"per_step_filter recovered=8 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":20.0,"filter":"per_bit_threshold","metric":"mean_on_diag_similarity","value":1.0,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":10.0,"filter":"no_filter","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.0005"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":10.0,"filter":"no_filter","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":10.0,"filter":"no_filter","metric":"mean_on_diag_similarity","value":0.99853515625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":10.0,"filter":"kalman_cv","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2172"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":10.0,"filter":"kalman_cv","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":10.0,"filter":"kalman_cv","metric":"mean_on_diag_similarity","value":0.559234619140625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":10.0,"filter":"median_w3","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2502"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":10.0,"filter":"median_w3","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":10.0,"filter":"median_w3","metric":"mean_on_diag_similarity","value":0.499664306640625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":10.0,"filter":"block_majority","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.2501"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":10.0,"filter":"block_majority","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":10.0,"filter":"block_majority","metric":"mean_on_diag_similarity","value":0.4996337890625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":10.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.0009"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":10.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":10.0,"filter":"per_bit_threshold","metric":"mean_on_diag_similarity","value":0.998260498046875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":0.0,"filter":"no_filter","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.1520"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":0.0,"filter":"no_filter","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":0.0,"filter":"no_filter","metric":"mean_on_diag_similarity","value":0.68292236328125,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":0.0,"filter":"kalman_cv","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.3105"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":0.0,"filter":"kalman_cv","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":0.0,"filter":"kalman_cv","metric":"mean_on_diag_similarity","value":0.377593994140625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":0.0,"filter":"median_w3","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.3352"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":0.0,"filter":"median_w3","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":0.0,"filter":"median_w3","metric":"mean_on_diag_similarity","value":0.337982177734375,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":0.0,"filter":"block_majority","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.3292"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":0.0,"filter":"block_majority","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":0.0,"filter":"block_majority","metric":"mean_on_diag_similarity","value":0.3388671875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":0.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.1528"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":0.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":0.0,"filter":"per_bit_threshold","metric":"mean_on_diag_similarity","value":0.687713623046875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":-10.0,"filter":"no_filter","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.3708"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":-10.0,"filter":"no_filter","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":-10.0,"filter":"no_filter","metric":"mean_on_diag_similarity","value":0.25604248046875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":-10.0,"filter":"kalman_cv","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.4344"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":-10.0,"filter":"kalman_cv","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":-10.0,"filter":"kalman_cv","metric":"mean_on_diag_similarity","value":0.126251220703125,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":-10.0,"filter":"median_w3","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.4427"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":-10.0,"filter":"median_w3","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":-10.0,"filter":"median_w3","metric":"mean_on_diag_similarity","value":0.123443603515625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":-10.0,"filter":"block_majority","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.4406"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":-10.0,"filter":"block_majority","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":-10.0,"filter":"block_majority","metric":"mean_on_diag_similarity","value":0.123291015625,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_single_pass","snr_db":-10.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":1.0,"notes":"recovered=8 expected=8 atom_ber=0.3702"}
+{"spike":174,"date":"2026-05-19","test":"T4_cycle_per_step_filter","snr_db":-10.0,"filter":"per_bit_threshold","metric":"cycle_preserved","value":0.0,"notes":"per_step_filter recovered=-1 expected=8"}
+{"spike":174,"date":"2026-05-19","test":"T4_orbit_similarity","snr_db":-10.0,"filter":"per_bit_threshold","metric":"mean_on_diag_similarity","value":0.2529296875,"notes":"avg sim(filtered_orbit[i], true_orbit[i]); 1.0=preserved, 0=destroyed"}
