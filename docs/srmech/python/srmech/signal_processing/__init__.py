@@ -161,6 +161,14 @@ from .profiling import (
 # route to Path B ops via :func:`dispatch`.
 from . import rbs_hdc_instrument as _rbs_hdc_instrument  # noqa: F401
 from . import form_function_rotation as _form_function_rotation  # noqa: F401
+
+# Phase 4 (v0.4.2rc4) — Path B per-op MVP: 6 ops (fft, ifft, sign_quantise,
+# matched_filter, wiener, hdc_truncation). Each module registers BOTH its
+# Path A counterpart (from Phase 2 closed_form_ops) and its Path B
+# implementation with :mod:`srmech.signal_processing.path_registry` at
+# module-load time. Phase 2's broader 38-op Path A registration script
+# remains deferred per the implementation plan.
+from . import path_b_ops as _path_b_ops  # noqa: F401
 from .rbs_hdc_instrument import (
     CANONICAL_CASCADES,
     CLASS_DEFINITIONS,

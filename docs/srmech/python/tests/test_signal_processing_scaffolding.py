@@ -92,10 +92,11 @@ def test_submodule_imports():
 
 
 def test_version_is_0_4_2rc1():
-    """Phase 3 ships v0.4.2rc3 (Phase 1 was rc1; Phase 2 stayed at rc1
-    in-tree; Phase 3 bumps to rc3 per the implementation plan)."""
-    assert srmech.__version__ == "0.4.2rc3", (
-        f"expected srmech.__version__ == '0.4.2rc3'; got "
+    """Phase 4 ships v0.4.2rc4 (Phase 1 was rc1; Phase 2 stayed at rc1
+    in-tree; Phase 3 bumped to rc3; Phase 4 bumps to rc4 per the
+    implementation plan §6 Phase 4)."""
+    assert srmech.__version__ == "0.4.2rc4", (
+        f"expected srmech.__version__ == '0.4.2rc4'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -103,7 +104,7 @@ def test_version_is_0_4_2rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.2rc3"
+    assert version_str == "0.4.2rc4"
     assert version_str == srmech.__version__
 
 
