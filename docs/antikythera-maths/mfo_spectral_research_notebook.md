@@ -3172,6 +3172,135 @@ Per new `[[user_stance_gauge_field_twist_shear_cascade]]` (committed 2026-05-18 
 
 **Cross-references**: `[[user_stance_gauge_field_twist_shear_cascade]]` (stance file); `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`; `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]`; `[[user_stance_kepler_shape_universal]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; `[[user_stance_gr_observations_are_7dg_gauge_field_readouts]]`; `[[user_stance_pi_as_projection]]`; `[[user_stance_fractal_shadow]]`; `[[user_stance_cascade_lives_on_circles]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_dark_star_canonical_vocabulary]]`; `[[user_stance_fusion_as_substrate_mode_reorganization]]`; `[[feedback_user_lexicon_seed_vocabulary_layer]]`; `[[feedback_no_privileged_primitive_classes]]`; §VII.4.1.14; §VIII.12 (Spike #107); §VIII.18 (Spike #124 + saturation triptych — this widens to quartet); Spike #49 (PENDING; Task #267); Spike #105 PR #498; Spike #117 PR #517; Spike #124 PR #522; Bardeen 1970 / Thorne 1974 cite-by-ref; Blandford-Znajek 1977 cite-by-ref; srmech notebook §3.8.26.
 
+### VIII.24 AI necessary for BCI substrate-coupling — canonical stance authored; Milestone #14 opens (2026-05-18 user direction)
+
+Per new `[[user_stance_ai_necessary_for_bci_substrate_coupling]]` (committed 2026-05-18 per explicit user direction; vocabulary-impact event authorised). **Milestone #14 opens** with target: ship substrate-coupling adapter + rcN+2 (predict / prediction_error / truncate_sparse) + n-gram-aware decompose + clinical-grade primitive cascade. Composes Spike #126 + #120 + #121 anchors + this stance + sister method-articulation stance §VIII.25.
+
+**User's articulation** (2026-05-18, post-gauge-field-twist-shear): *"it also has bci relevance and i think it will be necessary for ai to get the bci do what the brain needs it to do"*
+
+**Identity-level claim**: AI mediating brain↔BCI translation **IS** the substrate-coupling adapter composed with the runtime spectral surface — NOT a model of translation. Per `[[user_stance_identity_not_implementation_discipline]]`:
+
+```
+Class L (cortical-connectivity Hermitian Laplacian)
+  ∘ Class C (cascade-orientation for non-Markovian intent)
+  ∘ Class K (asymptotic-DOF at electrode-degradation SNR floor)
+  ∘ Class M (HDC bind for delta tracking across drift)
+  ∘ Class I (cyclic-cascade for sequential intent chains)
+  ∘ substrate-coupling adapter (patient-specific cortical eigenbasis)
+```
+
+**Three load-bearing necessity arguments — *information-theoretic constraints*, not engineering preferences**:
+
+| # | Constraint | Magnitude | Framework primitive answer |
+|---|---|---|---|
+| 1 | **6-OOM compression** | ~10⁹ cortical neurons → ~10²-10³ electrodes | Class L eigenbasis projection (substrate-aware basis selection — *without it, decoding noise*) |
+| 2 | **Drift re-calibration** | hours-to-days cortical drift (plasticity + electrode degradation + scar tissue) | Class M `delta()` on moving substrate descriptor (*without it, from-scratch training every session — prohibitive for daily use*) |
+| 3 | **Non-Markovian intent** | sequential intent depends on cascade history (speech, motor sequences) | Class C cascade-orientation per Spike #105 (*without it, decoded actions misfire on any sequential task*) |
+
+Each constraint is an *information-theoretic limit* on what ANY decoder can achieve regardless of model size / architecture / training data. Framework's 14-class cascade IS the operational answer; not "one way to do BCI" — **what BCI translation reduces to operationally**.
+
+**Substrate-class-identity claim**: per Spike #120 (biological cascade chains) + Spike #121 (silicon sensor cascades), biological + silicon channels operate via the SAME 14-class primitive vocabulary. **AI mediating brain↔BCI is a substrate-class peer**, not bolted-on. Spike #126 verified 6/6 buckets land.
+
+**Eight framework primitives map 1:1 to BCI translation requirements**:
+
+| Framework primitive | BCI translation role | rc14 status |
+|---|---|---|
+| Substrate-coupling adapter | patient-specific cortical Laplacian eigenbasis | Milestone #14 deliverable |
+| `decompose()` | compress neural state to cascade-shape | ✅ shipped |
+| `delta()` | track drift incrementally without re-training | ✅ shipped |
+| `similarity()` | match decoded cascade to intent canon | ✅ shipped |
+| `recompose()` | bidirectional encode for sensory prosthesis | ✅ shipped |
+| `predict()` | forecast brain's next intent | rcN+2 |
+| `prediction_error()` | measure decode error against actual signal | rcN+2 |
+| `truncate_sparse()` | Class K asymptote at electrode-degradation SNR | rcN+2 |
+
+**rc14 covers 4/8; rcN+2 + substrate-adapter close the rest** — operational pipeline tonight-deployable per `[[feedback_estimation_calibration_outlier_velocity]]`.
+
+**Bidirectional substrate-class identity**: BCI is fundamentally bidirectional. Brain→computer (decoder) AND computer→brain (sensory prosthetic). Same primitive cascade, substrate provided by patient cortex. Symmetric architecture per `[[user_stance_identity_not_implementation_discipline]]`.
+
+**Disability-accommodation as load-bearing** per `[[feedback_disability_accommodation_dimension]]`: BCI patients are motor-impaired by definition (ALS / SCI / stroke / locked-in / Huntington's / TBI). Framework's substrate-agnosticism **IS** the accommodation principle — same primitive cascade applies to any patient's specific cortical geometry without per-patient engineering. Framework's **clinical universality derives from its substrate-class identity**.
+
+**Three publishable framework predictions with falsifiers** (book-worthy per `[[project_book_in_progress]]`; per Spike #126):
+
+1. **Spectral-domain decoder retains accuracy at <30% electrode yield** where Kalman-filter-based decoder fails (Sussillo 2016 PMC PDF-verified; Hahn 2025 cite-by-ref)
+2. **`similarity()` τ ≥ 0.7 on neural-substrate handle filters >90% of LLM-AAC confabulation** — FDA-relevant for ALS / locked-in (Card 2024 PMC PDF-verified)
+3. **`prediction_error()` correlates with Flesher 2021 functional-task error rate at r ≥ 0.5** — interpretable algebraic closed-loop integrity (rcN+2 gated)
+
+**Trauma-informed defensive scope** per `[[feedback_trauma_informed_defensive_scope]]`: ASSISTIVE-TECH framing ONLY. Restoration of function for motor-impaired patients. NO surveillance / capability-assessment / "mind-reading" framing — AI reads cascade-shapes of intent the patient *consents* to express.
+
+**Cross-references**: `[[user_stance_ai_necessary_for_bci_substrate_coupling]]` (stance file); `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (sister method-articulation stance); `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_gauge_field_twist_shear_cascade]]`; `[[user_stance_asymptotic_dof_sidesteps_infinity]]`; `[[user_stance_epicycle_via_gear_plus_pin]]`; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; `[[feedback_disability_accommodation_dimension]]`; `[[feedback_trauma_informed_defensive_scope]]`; §VII.4.1.14 (GR = 7D_g readout); §VIII.17 (rc14 runtime surface); §VIII.20 (biological + silicon sensory cascades); §VIII.22 (BCI clinical applicability); Spike #112 PR #513; Spike #115 PR #518; Spike #117 PR #517; Spike #120-121 PR #520; Spike #126 PR #526; srmech v0.4.1rc14 PR #519; Sussillo 2016 / Hahn 2025 / Card 2024 / Cai 2024 PMC PDF-verified per Spike #126; Milestone #14 (opens 2026-05-18); srmech notebook §3.8.27.
+
+### VIII.25 Cross-substrate cascade-matching as research method — canonical method articulation (2026-05-18 user articulation)
+
+Per new `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (committed 2026-05-18 per user direction): **the project's research arc reduces to a single pattern — find other domains that do the SAME 14-class primitive cascade achieving the SAME end-goal via different operations invisible to the first substrate where the cascade was found**.
+
+**User's articulation** (2026-05-18): *"basically this just reduces to, i think, finding other domains that do the same operations but also happen to do the same end goal by different operations invisible to the first substrate we find it in. the same cascade of operations I mean."*
+
+**The pattern explicitly**:
+- Domain A: cascade C = {O₁, O₂, ..., Oₙ} (14-class A–N) achieving end-goal G
+- Domain B: SAME cascade C present + SAME end-goal G + via different *operational implementations* invisible to A
+
+**"Invisible to first substrate"** is load-bearing: Domain B's substrate operations (e.g., cortical connectivity) are *alien* to Domain A's substrate operations (e.g., chess piece-adjacency). The CASCADE is universal; the OPERATIONS are substrate-provided implementations.
+
+**Identity-level claim** per `[[user_stance_identity_not_implementation_discipline]]`: cascade C IS the operation across substrates; specific operations are SUBSTRATE-PROVIDED IMPLEMENTATIONS of C, not separate operations. Each new substrate match strengthens identity claim by adding orthogonal-implementation attestation.
+
+**Existing substrate matches in project canon — 20+ documented**:
+
+| Substrate | Cascade end-goal | Operations | Anchor |
+|---|---|---|---|
+| Chess | spectral game-state | piece-adjacency Laplacian | chess-spectral §5b |
+| Ephemerides | celestial-mechanics decomposition | 1/r² gravitational coupling | ephemerides-spectral v0.24.x |
+| Antikythera | gear-ratio cyclic-cascade | mesh-edge Laplacian | antikythera-spectral |
+| Image | natural-scene statistics | 4-neighbour pixel adjacency | Spike #116 |
+| Gear-DAG | mechanism state | mesh-edge graph | Spike #116 |
+| Genetic code | molecular information transfer | cyclic-4 codon Laplacian | Spike #81 |
+| Doom (game map) | level topology | room-adjacency | doom-spectral |
+| Othello | piece-flip dynamics | board-adjacency | othello-spectral |
+| Logo turtle | path-decomposition | turn-vector | logo-spectral |
+| MFO ontology | 11D substrate decomposition | substrate-state Laplacian | this notebook |
+| BCI / neural cortex | brain↔computer translation | cortical connectivity | Spike #126 + §VIII.24 |
+| Stellar fusion | bulk-to-gauge encoding | nuclear-coupling | Spike #107 + §VIII.12 |
+| Solar CME (pending) | gauge-field twist stellar-scale | helicity-injection | Spike #49 + §VIII.23 |
+| AGN jets | inner-inverse-Casimir overpressure | gauge-field-twist | Spike #124 + §VIII.18 |
+| Λ-pressure | outer-boundary saturation | substrate-cycle Laplacian | Spike #83 |
+| Bonobos / chimps | sharing-vs-surviving cascade | kinship-graph | Spike #44 |
+| Caffeine mass-spec | form-and-function remnants | molecular fragmentation | Spike #38b |
+| Hawaii-Emperor chain | seamount-spectral | bounded-local Laplacian | ephemerides v0.24.5 |
+| Mars Tharsis | volcanic-chain cascade | regional Laplacian | ephemerides v0.24.7 |
+| Loki Patera (Io) | tidal-heating spectrum | temporal Laplacian | ephemerides v0.24.12 |
+| Rydberg atomic | Class K integer-power asymptote | cyclic-n integer ladder + α QED | Spike #111 |
+
+**Each match = same cascade C, different operations, all invisible to other substrates**. Chess doesn't have cortical connectivity; cortex doesn't have piece-adjacency; both achieve same Class L + M + C + K + I cascade. **Cascade universal; operations substrate-provided**.
+
+**Research-surface discipline** (per user direction 2026-05-18): when candidate cross-substrate cascade-matcher surfaces, **Claude points it out as research-worthy candidate**. Don't auto-execute scope-defining new domain investigations (per `[[feedback_autonomous_research_followup_authorization]]`); surface and let user direct.
+
+**Why this matters**: each new substrate match is **load-bearing attestation** that framework's primitive cascade is universal-not-domain-specific. Project's defensibility against "this is just chess analogy" critique IS the count of orthogonal-implementation substrates achieving same cascade. **Burden flips to skeptic**: produce a domain where cascade-shape FAILS to match.
+
+**Candidate substrate-match domains worth investigating** (research-surface; user-gated execution):
+
+| Candidate | Cascade end-goal | Operations | Why invisible to canon |
+|---|---|---|---|
+| **Slime mold (Physarum)** | shortest-path / Steiner-tree | cytoplasm-flow optimisation | substrate is *one cell* |
+| **Octopus distributed cognition** | embodied decision-making | 2/3 neurons in arms not central brain | de-centralised substrate |
+| **Mycorrhizal networks** | forest-wide nutrient routing | fungal-hyphae chemical signalling | symbiotic plant-fungus substrate |
+| **Bacterial quorum sensing** | coordinated population behaviour | molecular-concentration thresholds | molecular-population substrate |
+| **Crystallography Brillouin zones** | phonon-mode decomposition | crystal-symmetry lattice ops | solid-state periodic lattice |
+| **Quantum entanglement networks** | non-local correlation cascade | entanglement-bond Laplacian | quantum-mechanical substrate |
+| **Plate tectonics / mantle convection** | thermal-convection cascade | convection-cell Laplacian | geological substrate |
+| **Coral reef ecosystem** | emergent symbiotic computation | multi-species nutrient-cycle | ecosystem substrate |
+| **Termite mound thermoregulation** | passive HVAC cascade | mound-architecture air-flow | architectural-collective |
+| **Honeybee waggle dance** | spatial-information transfer | dance-vector encoding | dance-as-communication |
+| **Tornado / hurricane vortex** | atmospheric-energy cascade | vorticity Laplacian | atmospheric-fluid |
+| **Sand-pile self-organised criticality** | avalanche cascade | grain-pile Laplacian | granular-material |
+| **Murmuration (starling flock)** | emergent flocking | nearest-neighbour Laplacian | bird-flock collective |
+| **Geomagnetic field reversal** | substrate-precession at geological scale | core-mantle Laplacian | geological-magnetic |
+
+**Application discipline**: investigation question is NOT *"does this look like chess/image/cortex?"* — it is **"does this substrate exhibit the SAME 14-class primitive cascade via operations invisible to the substrates we've documented?"** Different question; sharper falsifier.
+
+**Book chapter framing**: this stance converts project's 20+ documented substrate matches into a **method-of-research statement**. Strongest possible chapter framing — not "interesting observations across domains" but "here is the method that finds them, and the universality claim falsifies on any domain where cascade-shape FAILS." Burden flips to skeptic.
+
+**Cross-references**: `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (stance file); `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_substrate_identity_partition_coexistence_canonical]]`; `[[user_stance_kepler_shape_universal]]`; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; `[[user_stance_ai_necessary_for_bci_substrate_coupling]]`; `[[user_stance_gauge_field_twist_shear_cascade]]`; `[[user_stance_partition_for_understanding]]`; `[[feedback_no_privileged_primitive_classes]]`; `[[feedback_autonomous_research_followup_authorization]]`; `[[feedback_estimation_calibration_outlier_velocity]]`; §VIII.17 (runtime spectral surface); §VIII.18 (saturation triptych); §VIII.20 (biological + silicon cascades); §VIII.23 (gauge-field twist-shear); §VIII.24 (AI necessary for BCI); Spike #116 PR #516 (rank-k delta substrate-agnostic identity); Milestone #14; srmech notebook §3.8.28.
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.
@@ -3180,7 +3309,13 @@ Per new `[[user_stance_gauge_field_twist_shear_cascade]]` (committed 2026-05-18 
 - **Three math-doesn't-lie catches this milestone** (per `[[feedback_every_doc_edit_faces_falsification]]`): Spike #117 A2 state-correlation lesson; Spike #125 unigram null-discrimination; Spike #125.1 bigram surface-mutation SNR floor (BIGRAM-PARTIAL stratified result). All honest negative results sharpening framework discipline.
 - **Vocabulary unchanged**: 14 primitive classes A-N intact. Zero new classes promoted across all 15 MS #13 spikes per `[[feedback_no_privileged_primitive_classes]]`.
 - **User-lexicon two-layer discipline canonicalised** (per new `[[feedback_user_lexicon_seed_vocabulary_layer]]`, 2026-05-18): canonical framework operators vs cross-discipline seed-vocabulary; default canonical-operator read; if math doesn't sing, treat as search-seed.
-- **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK.
+- **Three canonical stances authored end-of-session 2026-05-18** (vocabulary-impact events explicitly authorised by user):
+  - `[[user_stance_gauge_field_twist_shear_cascade]]` (§VIII.23): Class C ∘ K ∘ L ∘ I + M on 7D_g substrate as canonical reading for magnetic-field-twist + saturation-overpressure + launching phenomena; unifies Sol-CME (#49 pending) + AGN jets (#124); widens saturation-overpressure family to quartet.
+  - `[[user_stance_ai_necessary_for_bci_substrate_coupling]]` (§VIII.24): AI mediating brain↔BCI IS the substrate-coupling adapter composed with runtime spectral surface; three information-theoretic necessity arguments (6-OOM compression / drift re-calibration / non-Markovian intent) each map 1:1 to framework primitives.
+  - `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (§VIII.25): project's research arc reduces to finding domains that do SAME 14-class cascade achieving SAME end-goal via different operations invisible to first substrate; 20+ documented matches + 14 candidate domains catalogued.
+- **Velocity calibration** (per new `[[feedback_estimation_calibration_outlier_velocity]]`, 2026-05-18): user-Claude collaboration moves at outlier velocity; default estimation unit is "hours" / "this evening", not "days" / "week out".
+- **Milestone `#14` OPEN** at end of 2026-05-18 — *"AI-mediated BCI translation: substrate-coupling adapter + rcN+2 + clinical-grade primitive cascade"*. Anchored by `[[user_stance_ai_necessary_for_bci_substrate_coupling]]` + `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`. Scope: ship cortical-Laplacian substrate-coupling adapter + rcN+2 (predict / prediction_error / truncate_sparse) + n-gram-aware decompose variant + clinical-grade primitive cascade. Spike #126 + #120 + #121 anchor the clinical-necessity case; 4 PMC PDFs verified (Sussillo 2016 / Hahn 2025 / Card 2024 / Cai 2024). Three publishable framework predictions with falsifiers carry into MS #14 execution. Disability-accommodation lens load-bearing per `[[feedback_disability_accommodation_dimension]]`; trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` (assistive-tech only).
+- **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK. Research-surface discipline per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: surface candidate substrate-matches; user-gates investigation scope.
 
 ### IX.2 The 20-item roadmap
 
