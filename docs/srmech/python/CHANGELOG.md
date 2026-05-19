@@ -50,9 +50,32 @@ After Phase 4 the registry holds **11 ops** total — Phase 3's 5 Path B core op
 - Phase 4 does NOT add a C surface — C port for Phase 4 ops deferred to v0.4.3rc1 per conductor decision #1.
 - Phase 4 does NOT implement Phase 8 profiling/learning — initial seed thresholds remain rule-based per plan §3.1.
 
+### Added — `srmech.spectral` MS #14 rcN+2 entries (`predict` / `prediction_error` / `truncate_sparse`)
+
+Per user direction 2026-05-19, the v0.4.2rc4 ship doubles as the **MS #14 rcN+2 vehicle**: the three runtime spectral operations previously listed as "deferred to rcN+2" in `[0.4.1rc14]` are now shipped in `srmech.spectral`:
+
+- `predict(handle, laplacian, *, steps=1, dt=1.0, encoder_tag="default")` — **Class C ∘ Class L** cascade-extrapolate via per-mode complex-phase evolution `exp(-i·λ_k·steps·dt)` on the eigenbasis coefficients. The closed-form one-shot of a recurrent spectral predictor; matches Spike #113 predictive-coding-cascade anchor. Magnitudes preserved (unitary phase rotation); phase evolves per eigenmode. `steps=0` returns the input handle byte-exactly.
+- `prediction_error(predicted, observed, *, threshold=0.0)` — **Class M ∘ Class K** XOR delta between predicted and observed coefficient byte vectors, gated by popcount-density `threshold`. Default `threshold=0.0` per user decision 2026-05-18 (no gating; returns raw delta). When `popcount(delta) / (8·len) <= threshold`, returns all-zero bytes (prediction sufficient).
+- `truncate_sparse(handle, *, keep_k=None, threshold=None)` — **Class K** magnitude-band sparse-truncate; keeps top-`keep_k` modes by `|coeff|` OR every mode with `|coeff| >= threshold` (exactly one of the two must be provided), zeros the rest. SSoT: Mallat (2008) §9.2 (best k-term approximation) + Spike #117 anchor.
+
+All three operations compose over the existing 14-class A–N primitive vocabulary per `[[feedback_no_privileged_primitive_classes]]`; **no new primitive class introduced**.
+
+### Added — `tests/test_spectral_rcn_plus_2.py`
+
+27-test acceptance suite covering predict / prediction_error / truncate_sparse:
+
+- **TestPredict (8)**: handle returns, shape + descriptor preservation, `steps=0` identity, unitary magnitude preservation, non-trivial evolution on cycle-graph Laplacian, recompose-of-predicted roundtrip, content_sha corruption detected, descriptor_hash mismatch rejected.
+- **TestPredictionError (7)**: `threshold=0.0` equivalent to `delta()`, zero delta on identical handles, threshold-above-density gates to all-zero, threshold-below-density returns raw, out-of-range threshold rejected, raw-bytes input path, predict-then-error roundtrip.
+- **TestTruncateSparse (10)**: `keep_k=n` identity, `keep_k=0` zeros all, `keep_k=k` keeps highest-magnitude modes bit-exactly, threshold keeps above-floor, neither/both keyword rejected, out-of-range `keep_k` rejected, negative threshold rejected, corruption detected, recompose-after-truncate yields finite low-rank approximation.
+- **TestShipGuard (2)**: all three callables present in `srmech.spectral` namespace; all three registered in tool_schema.
+
+### Added — tool_schema registration for `srmech.spectral.*`
+
+`srmech.amsc.tool_schema._register_spectral_runtime_tools()` (new) registers seven `srmech.spectral.*` callables — the four rcN+1 entries (`decompose` / `delta` / `recompose` / `similarity`) plus the three rcN+2 entries (`predict` / `prediction_error` / `truncate_sparse`). Closes the discipline gap identified by the concertmaster (rcN+2 must register at ship time, not deferred). Tool_schema entries include canonical-SSoT citations per `[[feedback_science_is_ssot_not_project]]` (Mallat 2008 §9.2 for `truncate_sparse`; Spike #113 + #117 anchors).
+
 ### Ship
 
-Tag `srmech-v0.4.2rc4` → TestPyPI. Production PyPI publish gated on a clean `srmech-v0.4.2` tag after the rc-stack accumulates Phases 5-10.
+Tag `srmech-v0.4.2rc4` → TestPyPI. Production PyPI publish on clean `srmech-v0.4.2` tag once TestPyPI rc4 verifies. **MS #14 rcN+2 deliverable** — closes Milestone #14 once `srmech-v0.4.2` lands on production PyPI.
 
 ## [0.4.2rc3] - 2026-05-19
 
@@ -293,13 +316,15 @@ Bit-exact verification of:
 - Spike `#117` (PR `#517`) — Class K compression by β band-membership (rcN+2 prereq).
 - Spike `#113` (PR `#515`) — predictive-coding cascade Class C∘L (rcN+2 prereq).
 
-### Not added (deferred to rcN+2)
+### Not added (deferred to rcN+2 — **SHIPPED in v0.4.2rc4**)
 
-- `srmech.spectral.predict` (Spike `#113` Class C cascade-extrapolate C primitive)
+The following three operations were originally listed as deferred from rcN+1:
+
+- `srmech.spectral.predict` (Spike `#113` Class C cascade-extrapolate)
 - `srmech.spectral.prediction_error` (Class M+K composition; `threshold=0.0` default per user decision 2026-05-18)
-- `srmech.spectral.truncate_sparse` (Spike `#117` Class K sparse-truncate + gate-by-threshold C primitives)
+- `srmech.spectral.truncate_sparse` (Spike `#117` Class K sparse-truncate + gate-by-threshold)
 
-These three need new C primitives that ship after Spike `#113` + `#117` close their implementation phase. Tool-schema entries for these will register at rcN+2 ship time per user scope decision 2026-05-18 (wait for #114+#115 implementation; no vapourware in tool_schema).
+**Ship status**: All three now shipped in `[0.4.2rc4]` (this document, above) as the MS #14 rcN+2 deliverable per user direction 2026-05-19. Tool-schema entries register at rcN+2 ship time per the original discipline. Implementation is Python-only at v0.4.2rc4; native C ports follow in a later rc per the per-class build-out roadmap.
 
 ## [0.4.1rc13] - 2026-05-17
 
