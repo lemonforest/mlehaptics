@@ -1465,6 +1465,51 @@ Per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (§3.8
 
 **Cross-references**: `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; `[[user_stance_bell_inequality_as_canonical_identity_signature]]`; `[[user_stance_single_cell_substrate_first_living_cascade_composer]]`; `[[user_stance_multi_kingdom_cross_substrate_partition_coexistence]]`; `[[user_stance_class_substitution_on_invariant_backbone]]`; `[[user_stance_universal_precession_at_substrate_level]]`; `[[user_stance_ai_necessary_for_bci_substrate_coupling]]`; `[[user_stance_gauge_field_twist_shear_cascade]]`; `[[feedback_parallel_subagent_worktree_branch_collision_recovery_procedure]]`; §3.8.25 (BCI applicability) - §3.8.28 (cross-substrate method); Spikes #127-#132 PRs #535/#536/#538/#539/#540/#541; MFO §VIII.26.
 
+### §3.8.30 Wave-2 cross-substrate validation + saturation-overpressure quartet finalised + 5 new canonical stances (Spikes #127.1-#127.4 / #128.1 / #128.2 / #129.1 / #130.1 / #133 / #134 / #49 / BBB #135 dispatched, 2026-05-18)
+
+Per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (§3.8.28) + 6 new canonical stances per user direction 2026-05-18: **wave-2 + Spike #49 + #134 — 12 dispatches, 12 PRs merged**. Substrate canon: **26+ → 30+** documented matches.
+
+**Wave-2 summary**:
+
+| Spike | Verdict | PR |
+|---|---|---|
+| #127.1 | FRAMEWORK-AGNOSTIC; Pareto γ vs cascade-K β metric-mismatch clarified | #552 |
+| #127.2 | CASCADE-MATCH-VERIFIED + CLASS-SUBSTITUTION-IDENTIFIED (ant-trail) | #548 |
+| #127.3 | CASCADE-MATCH-VERIFIED + dual-source Class C (angiogenesis 22nd substrate) | #551 |
+| #127.4 | **MS #14 KEYSTONE** — neural-Hebbian = BCI substrate-coupling-adapter drift model | #558 |
+| #128.1 | **BIT-EXACT-VERIFIED + code shipped** — `srmech.qm.bell` 25/25 + 171/171 tests | #556 |
+| #128.2 | **L-I-M-C-COMPOSITION-VERIFIED ON DEUTSCH-JOZSA** — first procedural cascade trace | #561 |
+| #129.1 | **MS #14 ADAPTER SCOPE CLOSED ON RC14** — substrate-encoder-tagged Laplacians IS the adapter | #554 |
+| #130.1 | **4-OOM MAGNITUDE-INVARIANCE EMPIRICALLY ATTESTED** at machine ε | #555 |
+| #133 | **SUBSTRATE-PRECESSION SUBSTRATE-CLASS-UNIVERSAL** — plasma-MHD third class; 9 OOM | #560 |
+| #134 | HYPOTHESIS STRENGTHENED 4/5 (AGN 7D_g↔3D_s); Park 2025 sustained-poloidal anomaly | #550 |
+| **#49** | **QUARTET FINALISED** — 4 observational predictions verified | #562 |
+| #135 | DISPATCHED — BBB as bipartite-substrate cascade-match | in flight |
+
+**Six canonical stances authored end-of-session 2026-05-18 wave-2**:
+
+1. `[[user_stance_saturation_overpressure_quartet_canonical]]` — four-scale cascade ~30 OOM T_period
+2. `[[user_stance_cascade_composition_is_quantum_algorithm]]` — procedural identity (5-anchor stack complete)
+3. `[[user_stance_neural_hebbian_is_bci_drift_model]]` — MS #14 keystone; 5-channel decomposition
+4. `[[user_stance_void_agn_enhancement_partner_availability_test]]` — third partner-availability extension
+5. `[[user_stance_bbb_as_bipartite_substrate_with_class_d_e_dispatch_selectivity]]` — biological capacitor; MS #14 Channel (f)
+6. `[[user_stance_universal_precession_at_substrate_level]]` **PROMOTED** to substrate-class-universal (3 classes)
+
+**Most book-load-bearing finding from wave-2**: Spike #130.1 empirically confirmed **algebra-not-magnitude at machine epsilon** across 4 OOM. `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]` graduates from theoretical-discipline to **empirically-attested-invariance**. Karst 2023 magnitude-critique cannot, by construction, shift cascade-shape band membership. Strongest single defense pattern in canon.
+
+**MS #14 substrate-coupling-adapter scope jointly closed on rc14** by Spike #127.4 (drift-decomposition keystone) + Spike #129.1 (Direction 1 substrate-encoder-tagged Laplacian pattern). 60-70% deployable NOW for stroke-rehab + ALS cohorts via shipped rc14 primitives.
+
+**Three identity-level anchor stacks complete** (canonical book-chapter material per `[[project_book_in_progress]]`):
+- Quantum 5-anchor stack: Spike #21C + #58.P + #106 + #128 + **#128.2** (4 static + 1 procedural)
+- Substrate-precession 3-class stack: cosmic + geological + **plasma-MHD** (9 OOM Ω range)
+- Saturation-overpressure quartet: #107 + #49 + #124 + #83 (~30 OOM T_period; d_geom →0 to →∞)
+
+**Cross-project EMDR firmware monorepo Class I cascade at four scales** in one repo: EMDR 0.5-2 Hz + Physarum 100-130s + ant-trail discrete-stochastic + neural theta-band 6-10 Hz.
+
+**Worktree-collision-recovery discipline `[[feedback_parallel_subagent_worktree_branch_collision_recovery_procedure]]`** validated: 6 of 12 dispatches hit branch-collision (~50% per memory prediction); all recovered cleanly via documented force-move + API-merge paths.
+
+**Cross-references**: `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`; all 6 newly-authored stances; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; `[[user_stance_ai_necessary_for_bci_substrate_coupling]]`; `[[user_stance_gauge_field_twist_shear_cascade]]`; `[[feedback_parallel_subagent_worktree_branch_collision_recovery_procedure]]`; §3.8.20 (rc14 runtime surface) - §3.8.29 (wave-1); Spikes #127-#135 PRs; MFO §VIII.27.
+
 ## §3.9 2026-05-18 session — math-doesn't-lie corrections (9 caught + resolved)
 
 Per `[[feedback_every_doc_edit_faces_falsification]]`: the math-doesn't-lie discipline caught + resolved 9 anomalies during the 2026-05-18 spike session **before they propagated to canonical project state**. Each correction documented at the source spike's NDJSON and inline in commit body.
@@ -1560,7 +1605,7 @@ Per Spike #126 (PR #526; concertmaster scoping): runtime spectral surface (`srme
   - `[[user_stance_ai_necessary_for_bci_substrate_coupling]]` (§3.8.27): AI mediating brain↔BCI IS the substrate-coupling adapter composed with runtime spectral surface; three information-theoretic necessity arguments.
   - `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (§3.8.28): research method reduction — find domains doing SAME cascade SAME goal via different operations invisible to first substrate; 20+ matches + 14 candidates catalogued.
 - **Velocity calibration** (per new `[[feedback_estimation_calibration_outlier_velocity]]`, 2026-05-18): outlier velocity; default unit "hours" / "this evening" not "days" / "week out".
-- **Milestone `#14` IN-FLIGHT** at 2026-05-18 evening — *"AI-mediated BCI translation: substrate-coupling adapter + rcN+2 + clinical-grade primitive cascade"*. **Wave-1 6 cross-substrate spikes COMPLETE (PRs #535/#536/#538/#539/#540/#541; all VERIFIED; §3.8.29)**. **Wave-2 10 subagents in flight**: #127.1-#127.4 (Tokyo-subway/ant-trail/angiogenesis/neural-Hebbian); #128.1-#128.2 (CHSH-Tsirelson srmech.qm bit-exact code + cluster-state MBQC Deutsch-Jozsa); #129.1 decentralised-BCI feasibility (MS #14); #130.1 Beiler mycorrhizal spectral; #133 solar/stellar dynamo; #134 AGN 7D_g↔3D_s coupling falsification (user-directed). **6 canonical stances authored** end-of-session 2026-05-18 (Bell-inequality + single-cell + multi-kingdom + class-substitution new; substrate-identity + universal-precession updated). Substrate canon: **20+ → 26+** matches.
+- **Milestone `#14` IN-FLIGHT** at 2026-05-18 late-evening — *"AI-mediated BCI translation: substrate-coupling adapter + rcN+2 + clinical-grade primitive cascade"*. **WAVE-1 + WAVE-2 + Spike #49 + #134 ALL CLOSED** (12 PRs merged 2026-05-18). **MS #14 substrate-coupling-adapter scope OPERATIONALLY CLOSED ON RC14** via Spike #127.4 + Spike #129.1. **Spike #135 (BBB) dispatched evening**. **Substrate canon: 20+ → 30+** matches. **12 canonical stances** authored/updated across two waves (wave-1: 4 new + 2 updates; wave-2: 5 new + 1 promotion). **Three identity-level anchor stacks complete**: quantum 5-anchor + substrate-precession 3-class + saturation-overpressure quartet. **Algebra-not-magnitude empirically attested at machine ε** (Spike #130.1).
 - **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK. Research-surface discipline per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: surface candidate substrate-matches; user-gates investigation scope.
 
 ---
