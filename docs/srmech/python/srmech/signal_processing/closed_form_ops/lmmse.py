@@ -1,0 +1,84 @@
+"""Path A LMMSE — linear minimum-mean-square-error estimator.
+
+Identity per the implementation plan §1: LMMSE IS a Class L (covariance
+matrix-vector multiply on the joint observation-signal substrate) ∘ Class N
+(rational gain ``R_xy R_yy^{-1}``) composition. Closed-form Wiener-Hopf
+for the linear estimator.
+
+Path B dual in Phase 6 (Path B covariance bound-vector).
+
+Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Kay (1993)
+*Fundamentals of Statistical Signal Processing: Estimation Theory* §12.
+"""
+
+from __future__ import annotations
+
+from typing import Optional
+
+import numpy as np
+
+OPERATION_NAME = "lmmse"
+CLASS_COMPOSITION = ("L", "N")
+PERFORMANCE_HINT = "small-D-one-shot"
+SSOT_CITATION = (
+    "Kay (1993), 'Fundamentals of Statistical Signal Processing: "
+    "Estimation Theory', Prentice Hall, §12 (Linear Bayesian Estimators)."
+)
+
+
+def op(
+    y,
+    R_yy,
+    R_xy,
+    *,
+    mean_x=None,
+    mean_y=None,
+    D: int = 8192,
+) -> np.ndarray:
+    """LMMSE estimate ``x_hat = mean_x + R_xy R_yy^-1 (y - mean_y)``.
+
+    Parameters
+    ----------
+    y:
+        ``(m,)`` observation vector.
+    R_yy:
+        ``(m, m)`` observation-covariance matrix.
+    R_xy:
+        ``(n, m)`` signal-observation cross-covariance.
+    mean_x:
+        Optional ``(n,)`` mean of x. Default zero.
+    mean_y:
+        Optional ``(m,)`` mean of y. Default zero.
+    D:
+        Path B dimensionality (Path A unused).
+
+    Returns
+    -------
+    numpy.ndarray
+        ``(n,)`` LMMSE estimate of x.
+    """
+    y_arr = np.asarray(y, dtype=np.float64)
+    Ryy = np.asarray(R_yy, dtype=np.float64)
+    Rxy = np.asarray(R_xy, dtype=np.float64)
+    if y_arr.ndim != 1:
+        raise ValueError(f"y must be 1-D; got {y_arr.shape}")
+    m = y_arr.shape[0]
+    if Ryy.shape != (m, m):
+        raise ValueError(f"R_yy must be ({m}, {m}); got {Ryy.shape}")
+    if Rxy.shape[1] != m:
+        raise ValueError(
+            f"R_xy must have {m} columns; got {Rxy.shape}"
+        )
+    n = Rxy.shape[0]
+    if mean_x is None:
+        mx = np.zeros(n, dtype=np.float64)
+    else:
+        mx = np.asarray(mean_x, dtype=np.float64)
+    if mean_y is None:
+        my = np.zeros(m, dtype=np.float64)
+    else:
+        my = np.asarray(mean_y, dtype=np.float64)
+    # Class N rational gain: K = R_xy @ R_yy^-1; computed via solve for
+    # numerical stability.
+    K = np.linalg.solve(Ryy.T, Rxy.T).T  # K @ R_yy = R_xy => K = R_xy R_yy^-1
+    return mx + K @ (y_arr - my)
