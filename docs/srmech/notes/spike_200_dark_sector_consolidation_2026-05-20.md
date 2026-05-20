@@ -11,7 +11,7 @@
 
 - **14 A-N classes intact** — no class promotion; consolidation reuses Class C / I / K / L / M only
 - **Identity-not-implementation** per `[[user_stance_identity_not_implementation_discipline]]`
-- **Asymptotic-ring vocabulary** per `[[feedback_asymptotic_ring_vocabulary_discipline]]` — S¹/S³/S⁷ throughout; **(4+3)D_g notation for compressed gauge-Hopf**; 7D_g for general/dark-side
+- **Asymptotic-loop vocabulary** per `[[feedback_asymptotic_ring_vocabulary_discipline]]` — S¹/S³/S⁷ throughout; **(4+3)D_g notation for compressed gauge-Hopf**; 7D_g for general/dark-side
 - **Algebra-not-magnitude** per `[[feedback_algebra_not_magnitude]]` — structural algebra layer; empirical projection-side signatures
 - **Open-access only** per `[[reference_autonomous_validation_tos_landscape]]`
 - **Trauma-informed defensive scope** per `[[feedback_trauma_informed_defensive_scope]]` — cosmological observation only

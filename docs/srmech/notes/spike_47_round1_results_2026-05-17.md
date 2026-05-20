@@ -60,11 +60,11 @@ Six-pair matrix: 3 COMPATIBLE, 2 PARTIAL, **1 INCOMPATIBLE-at-current-framing**.
 
 **Math says**: if the hyperring topology forces closed dynamical orbits (Poincaré recurrence on compact closed manifolds with nowhere-vanishing flow), then eternal-return is structurally implied. **Eternal-return RE-INSTANTIATES cascade-signatures at the ring-period**, RESTORING soul-uniqueness in the structural sense.
 
-The C-Souls "non-privileged" claim assumes a *non-returning* time axis (linear ring-down toward asymptote). Closing the time-ring breaks that assumption.
+The C-Souls "non-privileged" claim assumes a *non-returning* time axis (linear loop-down toward asymptote). Closing the time-ring breaks that assumption.
 
 **Resolution paths** (need conductor decision):
 
-- **(R-a)** Ring-period ≫ any recycling timescale → recycling dominates in practice. Order-of-magnitude: cosmic ring-down ≈178 Gyr (per `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]`) vs atomic recycling ~10⁹ yr (terrestrial). Cosmic substrate cycling could be ~178 Gyr or asymptotic-never.
+- **(R-a)** Ring-period ≫ any recycling timescale → recycling dominates in practice. Order-of-magnitude: cosmic loop-down ≈178 Gyr (per `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]`) vs atomic recycling ~10⁹ yr (terrestrial). Cosmic substrate cycling could be ~178 Gyr or asymptotic-never.
 - **(R-b)** Topology is **open** (hyperbolic-3-space ring or similar non-compact candidate). Trades 11D-unity properties for non-returning dynamics.
 - **(R-c)** Narrow C-Souls to *non-privileged within a single ring-period* rather than absolutely. Honest about the scope.
 

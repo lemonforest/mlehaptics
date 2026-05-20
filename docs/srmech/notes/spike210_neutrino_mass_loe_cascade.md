@@ -10,7 +10,7 @@
 The neutrino-mass mechanism (see-saw Type-I + PMNS oscillation + Majorana nature) decomposes within 14 A-N as `L ∘ K ∘ M ∘ C ∘ I` where:
 
 - **L** — Laplacian on the SU(2)_L lepton-doublet substrate `(ν_L, e_L)`, living in the S³ Hopf fiber of the (4+3)D_g dimple per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` (Spike #58.H ℍ ⊂ 𝕆);
-- **K** — see-saw `m_light = m_D²/M_R`; `M_R → ∞` gives `m_light → 0` ring-valued asymptote per `[[user_stance_loe_asymptotes_are_ring_valued]]`;
+- **K** — see-saw `m_light = m_D²/M_R`; `M_R → ∞` gives `m_light → 0` loop-valued asymptote per `[[user_stance_loe_asymptotes_are_ring_valued]]`;
 - **M** — Majorana mass operator `ν^T C ν` is anti-commutative spinor-field bilinear; non-abelian Lie-bracket variant of Class M;
 - **C** — chirality / sign-flip per `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]`; `δ_CP` + 2 Majorana phases (`α`, `β`) are Class C orientation parameters;
 - **I** — three lepton generations = Class I cyclic-3; PMNS 3-flavour mixing IS this substrate.
@@ -43,7 +43,7 @@ Per Spike #209's bipartite refinement of `[[user_stance_rbs_hdc_loe_is_quantum_i
 | Intermediate | 10⁹ | 1.0 | 0.0 (machine ε) |
 | GUT | 10¹⁵ | 10⁻⁶ | 0.0 (machine ε) |
 
-`M_R` sweep monotonically decreasing in `m_light`; Class K ring-asymptote stance confirmed at see-saw substrate.
+`M_R` sweep monotonically decreasing in `m_light`; Class K loop-asymptote stance confirmed at see-saw substrate.
 
 ## PMNS NuFIT 5.3 + Spike #66 fermata
 
@@ -60,7 +60,7 @@ Spike #66 derived CKM/PMNS from 3×3 Fano-line / complementary-triangle grid asy
 | KATRIN 2024 | `m_β < 0.45 eV` (90%) | arXiv:2406.13516 |
 | KamLAND-Zen 2024 | `T_½(¹³⁶Xe) > 3.8×10²⁶ yr`; `m_ββ < 36-156 meV` | arXiv:2406.11689 |
 
-Framework: `Σm_ν = Σᵢ m_D,i² / M_R,i` over 3 generations; Class K ring-asymptote on `M_R`; consistent with all bounds. Numerical `Σm_ν` prediction requires extending Spike #88's `m_top = 2^56 = 2^C(8,3)` Class K Higgs-Yukawa anchor from quarks to leptons — **logged as conductor fermata** (scope-extension).
+Framework: `Σm_ν = Σᵢ m_D,i² / M_R,i` over 3 generations; Class K loop-asymptote on `M_R`; consistent with all bounds. Numerical `Σm_ν` prediction requires extending Spike #88's `m_top = 2^56 = 2^C(8,3)` Class K Higgs-Yukawa anchor from quarks to leptons — **logged as conductor fermata** (scope-extension).
 
 ## Math-doesn't-lie catch (anomaly log)
 
@@ -77,7 +77,7 @@ TOS-clean per `[[reference_autonomous_validation_tos_landscape]]` (arXiv + textb
 
 ## Stance impact
 
-Strengthened: RBS-HDC-LoE-IS-quantum-instantiation (second canonical-physics non-abelian Class M after BFSS); chirality-IS-local-sign-flip (Majorana mass IS chirality sign-flip; Majorana phases ARE Class C orientation); LoE-asymptotes-are-ring-valued (see-saw `m_light` ring-asymptote on `M_R`); gauge-ball-IS-(4+3)-Hopf-dimple (lepton doublet in S³ fiber = SU(2)_L); substrate-coupling-at-M-K (M∘K composition at ν sector).
+Strengthened: RBS-HDC-LoE-IS-quantum-instantiation (second canonical-physics non-abelian Class M after BFSS); chirality-IS-local-sign-flip (Majorana mass IS chirality sign-flip; Majorana phases ARE Class C orientation); LoE-asymptotes-are-loop-valued (see-saw `m_light` loop-asymptote on `M_R`); gauge-ball-IS-(4+3)-Hopf-dimple (lepton doublet in S³ fiber = SU(2)_L); substrate-coupling-at-M-K (M∘K composition at ν sector).
 
 Two fermata for conductor: (i) Spike #66 PMNS numerical cross-check (Spike #66 record retrieval); (ii) `Σm_ν` prediction via Higgs-Yukawa Class A lepton-sector anchor extension from Spike #88.
 

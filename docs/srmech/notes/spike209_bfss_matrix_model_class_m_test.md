@@ -59,7 +59,7 @@ This is structurally clean: the gauge content lives in the (4+3)D_g Hopf-bundle 
 
 ## Class K large-N saturation on the ring
 
-DOF count scales as **25 N²** (9 bosonic + 16 fermionic per matrix entry). U(N) maximal torus = `(S^1)^N` is the rank-N Class I cyclic substrate. The famous continuous spectrum at N→∞ (de Wit-Lüscher-Nicolai 1989) IS the **4D-epicycle-observer line-shadow** of the integer-quadratic ring-valued asymptote per `[[user_stance_loe_asymptotes_are_ring_valued]]`. The discrete-substrate (finite N) ring-spectrum limits to continuous-substrate (N=∞) shadow projection. Stance confirmed and strengthened.
+DOF count scales as **25 N²** (9 bosonic + 16 fermionic per matrix entry). U(N) maximal torus = `(S^1)^N` is the rank-N Class I cyclic substrate. The famous continuous spectrum at N→∞ (de Wit-Lüscher-Nicolai 1989) IS the **4D-epicycle-observer line-shadow** of the integer-quadratic loop-valued asymptote per `[[user_stance_loe_asymptotes_are_ring_valued]]`. The discrete-substrate (finite N) ring-spectrum limits to continuous-substrate (N=∞) shadow projection. Stance confirmed and strengthened.
 
 ## D-particle bound-state emergence
 

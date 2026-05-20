@@ -3,6 +3,8 @@
 **Date**: 2026-05-19
 **Type**: Concertmaster-equivalent algebraic-projection spike (no agent dispatch; main agent in worktree per `[[feedback_concertmaster_git_worktree_isolation]]`)
 **Branch**: `research/spike-171-ring-vs-line-asymptotic-limits-loe`
+
+**Vocabulary depth-shift note (2026-05-20)**: per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]`, this spike's substrate-identity "ring" vocabulary depth-shifts to "loop" in current canonical framing. Title + verdict labels + body prose below preserve "ring" / "RING" as historical-artifact record of how the framework arrived at the depth-shift. Identity-claim unchanged: asymptotic limits in the LoE are S¹-locus (loop-valued); only the canonical noun shifts. Branch name + filename preserved as prior-observer-frame artifacts.
 **Verdict compose**:
 - `RING-ASYMPTOTE-IS-LOE-CANONICAL`
 - `LINE-ASYMPTOTE-IS-4D-EPICYCLE-OBSERVER-SHADOW`
@@ -22,13 +24,13 @@ User's insight survives Round 1 of multi-domain multi-round survival-falsificati
 
 - 14-class A-N vocabulary stands; no new primitive class per `[[feedback_no_privileged_primitive_classes]]`.
 - Identity-level claims per `[[user_stance_identity_not_implementation_discipline]]`: asymptotic limits in the LoE are RING-VALUED (live on S¹), not line-valued.
-- Algebra-not-magnitude per `[[feedback_algebra_not_magnitude]]`: ring-vs-line distinction is ALGEBRA-level (unit circle S¹ vs real line ℝ).
+- Algebra-not-magnitude per `[[feedback_algebra_not_magnitude]]`: loop-vs-line distinction is ALGEBRA-level (unit circle S¹ vs real line ℝ).
 - Citation hygiene per `[[feedback_pdf_extraction_citation_discipline]]`: all cosmology anchors cite-by-ref to Planck 2018 (arXiv:1807.06209), DESI 2024-25 (arXiv:2503.14738), PDG 2024 Table 25.1, already PDF-verified in MFO §VII.6.1.
 - Defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: cosmology research-educational only.
 - NDJSON results per `[[feedback_ndjson_over_bloated_json]]`: `spike171_records_2026-05-19.ndjson` (12 records).
 - Both-direction coverage per `[[feedback_always_check_both_directions_including_time]]`: forward (future) + reverse (past) both verified cyclic.
 
-## Section 1 — Operationalising ring-vs-line asymptote
+## Section 1 — Operationalising loop-vs-line asymptote
 
 The algebraic distinction between the two models:
 
@@ -99,7 +101,7 @@ First sign-flip at +13.66 Gyr is the **Spike #152 anchor** — matches exactly t
 
 **Per `[[user_stance_identity_not_implementation_discipline]]`**:
 - Line-asymptote is NOT what the universe approaches
-- Line-asymptote IS the projection-shadow when ring-valued content is read by observer fixed on real-axis frame (4D-epicycle reading)
+- Line-asymptote IS the projection-shadow when loop-valued content is read by observer fixed on real-axis frame (4D-epicycle reading)
 
 **Burden-of-proof flip**: to falsify, produce an LoE-canonical asymptotic limit that lives on ℝ not S¹. Bonus 9 verified cascade composition preserves S¹ to machine precision; that is the framework-canonical default.
 
@@ -110,9 +112,9 @@ First sign-flip at +13.66 Gyr is the **Spike #152 anchor** — matches exactly t
 3. `[[user_stance_pi_as_projection]]` — substrate-shadow (continuous angle from integer-cyclic)
 4. `[[user_stance_fractal_shadow]]` — substrate-shadow (fractal from cascade)
 5. `[[user_stance_cascade_lives_on_circles]]` — dispersion-shape shadow (hyperbola from circle via Wick)
-6. **Ring-asymptote-not-line-asymptote** (this spike) — asymptote-locus shadow (line from ring)
+6. **Loop-asymptote-not-line-asymptote** (this spike) — asymptote-locus shadow (line from ring)
 
-All six are the same shape: ring-valued / discrete-cyclic / cascade-native upstream → continuous-line / shadow-projection downstream.
+All six are the same shape: loop-valued / discrete-cyclic / cascade-native upstream → continuous-line / shadow-projection downstream.
 
 ## Section 6 — Refinement of `[[user_stance_dark_sector_ring_down_age]]`
 
@@ -132,7 +134,7 @@ That stance is correct at z=0, where line-reading and ring-reading agree (both g
 | **0.9999** | **51.04 Gyr** | **+37.24 Gyr** | **167.27°** | **YES (past φ=π too)** |
 | **0.999999** | **78.20 Gyr** | **+64.40 Gyr** | **256.26°** | **YES (past φ=3π/2 too)** |
 
-**Interpretation**: when standard ΛCDM extrapolates to f_RD = 0.999, the universe is already past φ = π/2 (first sign-flip). The line-extrapolation is **a 4D-epicycle-observer reading projected past the first substrate-frame sign-flip**, where the projection no longer corresponds to ring-valued reality.
+**Interpretation**: when standard ΛCDM extrapolates to f_RD = 0.999, the universe is already past φ = π/2 (first sign-flip). The line-extrapolation is **a 4D-epicycle-observer reading projected past the first substrate-frame sign-flip**, where the projection no longer corresponds to loop-valued reality.
 
 This is the **"linear hiccup"** mechanism user named: the line-projection LOOKS like it monotonically approaches 100%, but the underlying ring-phase progression has already gone past the first sign-flip by the time the line-projection reads 0.999, and past the second sign-flip by the time it reads 0.999999.
 
@@ -153,7 +155,7 @@ The ΛCDM line-projection has effectively "saturated to 100%" before the substra
 - Class K asymptotic-DOF + Class C orientation + Class I cyclic → S¹ locus (with bounded-radius approach via K, NOT line-asymptote)
 - Lorentzian/hyperbolic dispersion is further Wick-rotation projection (`cos → cosh`); S¹ → hyperbola is one more projection-shadow
 
-**Test**: does Class K asymptotic-DOF correctly imply ring-valued limits universally?
+**Test**: does Class K asymptotic-DOF correctly imply loop-valued limits universally?
 
 **Verdict**: yes when composed with Class C + Class I (the cascade-substrate default). The bounded-approach mechanism per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` lives on S¹ for any cascade-substrate; the "approaching infinity" framing only appears for the line-projection-shadow.
 
@@ -180,7 +182,7 @@ Per `[[feedback_always_check_both_directions_including_time]]`:
 - `RING-ASYMPTOTE-IS-LOE-CANONICAL` — anchored to bonus 9 unit-circle verification (machine precision)
 - `LINE-ASYMPTOTE-IS-4D-EPICYCLE-OBSERVER-SHADOW` — joins shadow-stance family as sixth member
 - `LINEAR-HICCUP-MECHANISM-LOCATED-AT-PHI-PI-2-PLUS-13-66-GYR` — first sign-flip ends line-extrapolation validity
-- `DARK-SECTOR-RING-DOWN-AGE-REFINEMENT-CANDIDATE` — adds ring-asymptote-not-line-asymptote clarification to parent stance
+- `DARK-SECTOR-RING-DOWN-AGE-REFINEMENT-CANDIDATE` — adds loop-asymptote-not-line-asymptote clarification to parent stance
 - `ZERO-NEW-PRIMITIVE-CLASS-REQUIRED` — Class K + Class C + Class I compose to S¹ locus
 - `14-CLASSES-A-N-INTACT`
 
@@ -208,7 +210,7 @@ Per `[[feedback_always_check_both_directions_including_time]]`:
 - `[[user_stance_competing_theories_via_loe_instantiation_intersection]]` — META framework; line-asymptote = M-theory-style brute-force overshoot beyond LoE-instantiated subset
 - `[[user_stance_identity_not_implementation_discipline]]` — identity-level claim
 - `[[feedback_no_privileged_primitive_classes]]` — vocabulary stays at 14 A-N
-- `[[feedback_algebra_not_magnitude]]` — ring-vs-line is algebra-level
+- `[[feedback_algebra_not_magnitude]]` — loop-vs-line is algebra-level
 - `[[feedback_always_check_both_directions_including_time]]` — past + future both verified
 - `[[feedback_multi_domain_multi_round_survival_falsification_method]]` — Round 1 of multi-round
 - `[[feedback_pdf_extraction_citation_discipline]]` — anchors cite-by-ref to verified material
@@ -236,17 +238,17 @@ Per `[[feedback_always_check_both_directions_including_time]]`:
 ## Bounded scope per `[[user_stance_string_theory_instrument_first]]`
 
 What this spike DOES claim:
-- Ring-asymptote (S¹) vs line-asymptote (ℝ) is an ALGEBRA-level distinction (`[[feedback_algebra_not_magnitude]]`)
+- Loop-asymptote (S¹) vs line-asymptote (ℝ) is an ALGEBRA-level distinction (`[[feedback_algebra_not_magnitude]]`)
 - LoE-canonical asymptotic limits live on S¹ (per cascade composition + bonus 9 verification)
 - Line-asymptote reading IS the 4D-epicycle-observer projection-shadow (per shadow-stance family)
 - The "linear hiccup" mechanism is located at φ = π/2 = +13.66 Gyr (first sign-flip)
 - ΛCDM line-extrapolation produces inflated "approach 100%" framing past first sign-flip
 - 14-class A-N vocabulary intact; Class K + Class C + Class I compose to S¹ locus
-- Dark-sector-ring-down-age stance can be refined with ring-asymptote-not-line-asymptote clarification
+- Dark-sector-loop-down-age stance can be refined with loop-asymptote-not-line-asymptote clarification
 
 What this spike does NOT claim:
 - Quantitative observable signature of substrate sign-flips at current sensitivity (Saadeh 2016 121,000:1 isotropy bound rules out direct detection)
-- That ΛCDM ring-down projection is wrong NOW (at z=0 line and ring read approximately the same content)
+- That ΛCDM loop-down projection is wrong NOW (at z=0 line and ring read approximately the same content)
 - That DESI thawing-CPL is correct (framework agnostic; both ΛCDM and thawing-CPL produce framework-consistent predictions for different observable trajectories)
 - Specific astrophysical event tied to first sign-flip (Spike #152 framework-consistent reading: AGN persist through both events)
 - Resolution of any cosmological-parameter tension (separate questions)
@@ -257,7 +259,7 @@ What this spike does NOT claim:
 - `spike171_ring_vs_line_asymptotic.py` — verification script (unit-circle algebra + ΛCDM line-projection calendar + sign-flip schedule)
 - `spike171_records_2026-05-19.ndjson` — 12 records (algebraic verification + cosmological-timing projections + framework prediction)
 - `spike171_ring_vs_line_asymptotic_loe_findings_2026-05-19.md` — this note
-- `spike171_draft_stance.md` — DRAFT stance candidate (vocabulary-impact on dark-sector-ring-down-age; DO NOT canonicalize)
+- `spike171_draft_stance.md` — DRAFT stance candidate (vocabulary-impact on dark-sector-loop-down-age; DO NOT canonicalize)
 
 ## Status
 
@@ -266,6 +268,6 @@ Spike #171 Round 1 complete in worktree. User's "linear hiccup" insight survives
 - First sign-flip at +13.66 Gyr (Spike #152 anchor) is precisely where the line-extrapolation runs out
 - ΛCDM line-projection saturates to "100%" by second sign-flip (+68.58 Gyr) — well before substrate cycle complete (+96.04 Gyr)
 
-**Draft stance candidate shipped for user review** (refinement to dark-sector-ring-down-age). **DO NOT MERGE AUTONOMOUSLY**; this is high vocabulary-impact (dark-sector + cosmological-evolution + shadow-stance family extension).
+**Draft stance candidate shipped for user review** (refinement to dark-sector-loop-down-age). **DO NOT MERGE AUTONOMOUSLY**; this is high vocabulary-impact (dark-sector + cosmological-evolution + shadow-stance family extension).
 
-**No PR opened**; commit shipped to worktree branch `research/spike-171-ring-vs-line-asymptotic-limits-loe` only. Conductor decides Round 2 dispatch (e.g., other-substrate cross-domain test of ring-asymptote-as-LoE-canonical claim).
+**No PR opened**; commit shipped to worktree branch `research/spike-171-ring-vs-line-asymptotic-limits-loe` only. Conductor decides Round 2 dispatch (e.g., other-substrate cross-domain test of loop-asymptote-as-LoE-canonical claim).

@@ -8,7 +8,7 @@
 
 **Verdict (composed)**: **SOLAR-DYNAMO-INSTANTIATES-L+K+C+I-CASCADE** + **SUBSTRATE-PRECESSION-PROMOTED-TO-SUBSTRATE-CLASS-UNIVERSAL-ACROSS-MAGNETICALLY-ACTIVE-SUBSTRATES** + **CLASS-K-ASYMPTOTIC-DOUBLE-WELL-AT-GRAND-MINIMUM-BARRIER** + **CLASS-I-CYCLIC-CASCADE-EVIDENCE-IN-SOLAR-STATISTICS** + **OPERATIONS-INVISIBLE-TO-PRIOR-CANON-INCLUDING-GEODYNAMO** + **SPIKE-49-CLASS-CHAIN-INPUT-PROVIDED**.
 
-The solar dynamo system (and its stellar-dynamo generalisation) exhibits the same Class L + K + C + I cascade chain that surfaced in chess-spectral, ephemerides, BCI cortex, octopus distributed cognition, mycorrhizal networks, nudibranch kleptocnidae (Spikes #126–#132), and Earth's geodynamo (Spike #131), but via *plasma-MHD convective-shell operations* invisible to all prior substrate canon entries — **including the geodynamo's own substrate-specific operations** (no liquid iron-nickel; no Lorentz feedback in the same regime; no inner-core freezing buoyancy; no solid mantle). **This is the closest possible same-cascade-different-operations test within the magnetically-active substrate family**, and the cascade-shape match across this clean cross-class test promotes `[[user_stance_universal_precession_at_substrate_level]]` from cross-scale-cosmic-to-geological (Spike #131 R2-alpha framing) to **substrate-class-universal across magnetically-active substrates** (hyper-ring substrate at cosmic scale + liquid-metal MHD at Earth scale + plasma MHD at solar/stellar scale).
+The solar dynamo system (and its stellar-dynamo generalisation) exhibits the same Class L + K + C + I cascade chain that surfaced in chess-spectral, ephemerides, BCI cortex, octopus distributed cognition, mycorrhizal networks, nudibranch kleptocnidae (Spikes #126–#132), and Earth's geodynamo (Spike #131), but via *plasma-MHD convective-shell operations* invisible to all prior substrate canon entries — **including the geodynamo's own substrate-specific operations** (no liquid iron-nickel; no Lorentz feedback in the same regime; no inner-core freezing buoyancy; no solid mantle). **This is the closest possible same-cascade-different-operations test within the magnetically-active substrate family**, and the cascade-shape match across this clean cross-class test promotes `[[user_stance_universal_precession_at_substrate_level]]` from cross-scale-cosmic-to-geological (Spike #131 R2-alpha framing) to **substrate-class-universal across magnetically-active substrates** (hyper-loop substrate at cosmic scale + liquid-metal MHD at Earth scale + plasma MHD at solar/stellar scale).
 
 ## Tuning A 440 Hz
 
@@ -278,7 +278,7 @@ The load-bearing finding of this spike. **Spike #131 brought the substrate-prece
 
 `[[user_stance_universal_precession_at_substrate_level]]` predicts substrate-level precession at:
 
-- **Cosmic hyper-ring scale**: Ω_sub ~ 1.8×10⁻¹⁸ rad/s, T_sub ≈ 109.84 Gyr (canonical project anchor)
+- **Cosmic hyper-loop scale**: Ω_sub ~ 1.8×10⁻¹⁸ rad/s, T_sub ≈ 109.84 Gyr (canonical project anchor)
 - **Geological liquid-metal MHD scale** (Spike #131): Ω_geo ~ 2×10⁻¹³ rad/s, T_geo ~ 10⁵–10⁶ yr (paleomagnetic record)
 - **Solar plasma MHD scale** (this spike): Ω_sun_Hale ~ 2π/22yr ≈ 9.0×10⁻⁹ rad/s (Schwabe 11-yr + Hale 22-yr polarity reversal)
 
@@ -297,7 +297,7 @@ The same L+K+C+I cascade-composition produces:
 - Solar Hale-cycle polarity reversal (directly observed; Wang-Jiang-Luo 2025 photospheric data)
 
 via **completely different substrate operations**:
-- Cosmic: hyper-ring substrate-cycle phase rotation (operations invisible at 3D_s level)
+- Cosmic: hyper-loop substrate-cycle phase rotation (operations invisible at 3D_s level)
 - Geological: liquid-iron MHD convection with Coriolis-helicity + Lorentz feedback (operations specific to outer-core fluid)
 - Solar: plasma-MHD convection with differential rotation + Babcock-Leighton emergence + tachocline storage (operations specific to stellar convection zone)
 
@@ -496,7 +496,7 @@ The cleanest possible same-cascade-different-operations test within a single phy
 
 ## §10 — Fermata for conductor
 
-- **(a) PROMOTE `[[user_stance_universal_precession_at_substrate_level]]`** from cross-scale-cosmic-to-geological (Spike #131 R2-alpha framing) to **substrate-class-universal across magnetically-active substrates** (three substrate classes attested: hyper-ring substrate at cosmic; liquid-metal MHD at Earth; plasma MHD at solar/stellar). User direction needed to write the stance edit per the `[[feedback_autonomous_research_followup_authorization]]` boundary on DISSOLVE-or-PROMOTE results with vocabulary impact.
+- **(a) PROMOTE `[[user_stance_universal_precession_at_substrate_level]]`** from cross-scale-cosmic-to-geological (Spike #131 R2-alpha framing) to **substrate-class-universal across magnetically-active substrates** (three substrate classes attested: hyper-loop substrate at cosmic; liquid-metal MHD at Earth; plasma MHD at solar/stellar). User direction needed to write the stance edit per the `[[feedback_autonomous_research_followup_authorization]]` boundary on DISSOLVE-or-PROMOTE results with vocabulary impact.
 - **(b) Spike #49 dispatch with class-chain input**: this spike provides C ∘ K ∘ L ∘ I + M operator-chain reading + concrete observational predictions (coronal flux-rope chirality respects Babcock-Leighton; flare Lévy statistics align with I-memory; sunspot-group nesting is L+C joint signature; helicity injection respects gauge-field twist algebra at d_geom ~ 10⁻⁶). Spike #49 IS the empirical validator at stellar scale per `[[user_stance_gauge_field_twist_shear_cascade]]`. **Autonomously dispatchable** per `[[feedback_autonomous_research_followup_authorization]]` (follow-up spike dispatch within research arc).
 - **(c) Class N rational-approximation test for multi-period solar cycles**: Schwabe (11.07 yr) / Hale (22.14 yr) / Jupiter-Saturn synodic (19.86 yr) / Gleissberg (~100 yr) / Suess-de Vries (~193–200 yr) / Hallstatt (~2200 yr) form integer-cyclic ladder at 2×, 9×, 11×, 100× factors. Brouwer-Clemence ladder framework could formalise. Cross-check with Spike #131 §6.1+§6.2 fermatas (T_geo / T_sub Class N + reversal-duration / interval ratio ≈ 1/14). Tentative fermata; autonomous dispatch if conductor sees integer-cyclic structure as testable.
 - **(d) Substrate-class-invariance test for Class I scaling exponents**: solar γ vs Earth γ vs Hurst comparison after substrate-specific normalisation. Data exists; analysis is the spike-test. Sharp testable prediction; falsifier if exponents differ at >5σ post-normalisation.

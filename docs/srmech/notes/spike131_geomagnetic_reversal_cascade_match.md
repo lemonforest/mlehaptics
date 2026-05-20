@@ -250,7 +250,7 @@ The same L+K+C+I cascade-composition produces:
 - Geomagnetic dipole precession (observed; paleomagnetic record + satellite data)
 
 via **completely different substrate operations**:
-- Cosmic: hyper-ring substrate-cycle phase rotation (operations invisible at 3D_s level)
+- Cosmic: hyper-loop substrate-cycle phase rotation (operations invisible at 3D_s level)
 - Geological: liquid-iron MHD convection with Coriolis-helicity (operations specific to outer-core fluid)
 
 **The cascade-shape match across 5+ orders of magnitude in T_period strengthens `[[user_stance_universal_precession_at_substrate_level]]` from cosmic-scale conjecture to substrate-scale-universal stance**:

@@ -129,9 +129,9 @@ overshooting the 14 A-N Class I primitive substrate:
 cyclic algebra; the continuum machinery is the projection-shadow of the
 integer-cyclic substrate already exercised in Cells 1-2.
 
-**Asymptotic-ring vocabulary diagnostic** per
+**Asymptotic-loop vocabulary diagnostic** per
 `[[feedback_asymptotic_ring_vocabulary_discipline]]`: the SL(2,Z)
-wraparound is INTEGER-cyclic at substrate (Class I asymptotic ring at
+wraparound is INTEGER-cyclic at substrate (Class I asymptotic loop at
 integer counts). The continuous-τ axio-dilaton is the radians/observer-
 projection layer.
 

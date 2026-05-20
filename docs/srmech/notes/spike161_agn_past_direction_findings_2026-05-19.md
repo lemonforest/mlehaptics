@@ -130,9 +130,9 @@ Computed under Planck 2018 cosmology (H₀=67.66, Ω_m=0.315):
 
 **Every observed and theoretically modelled cosmic "fossil" is POST-arrival** under the load-bearing readings. Nothing observable is pre-precessive-motivator-arrival, because the precession IS coeval with substrate.
 
-## Ring-down completion at past epochs (per `[[user_stance_dark_sector_ring_down_age]]`)
+## Loop-down completion at past epochs (per `[[user_stance_dark_sector_ring_down_age]]`)
 
-Cross-reference with user's "universe is 95% old" ring-down age model:
+Cross-reference with user's "universe is 95% old" loop-down age model:
 
 | Anchor | Cosmic time | f_RD = Ω_dark/Ω_total |
 |---|---:|---:|
@@ -145,15 +145,15 @@ Cross-reference with user's "universe is 95% old" ring-down age model:
 | CMB recombination (z=1100) | 0.4 Myr | 63.83% |
 | **Now** | 13.797 Gyr | **95.10%** |
 
-**Finding**: UHZ1 (the earliest observed AGN) existed at **84.10% ring-down completion** — substantially less than the current 95.10%. The user's question "were AGN early arrivers" gets a quantitative answer:
+**Finding**: UHZ1 (the earliest observed AGN) existed at **84.10% loop-down completion** — substantially less than the current 95.10%. The user's question "were AGN early arrivers" gets a quantitative answer:
 
-- AGN at z>7 are present when ring-down was ~84% complete (vs 95% now).
-- AGN are **NOT pre-ring-down** — they appear well into matter-domination, after matter-radiation equality (~42% ring-down at ~50 kyr).
+- AGN at z>7 are present when loop-down was ~84% complete (vs 95% now).
+- AGN are **NOT pre-loop-down** — they appear well into matter-domination, after matter-radiation equality (~42% loop-down at ~50 kyr).
 - AGN are **NOT post-95%-complete** — they emerged during the 84-95% interval (interpolating between UHZ1 epoch and now).
 
-The 84% → 95% interval = 11 percentage-points of ring-down completion = ~13.3 Gyr of cosmic time. AGN engines persist throughout this interval per Spike #124 (substrate-content reading).
+The 84% → 95% interval = 11 percentage-points of loop-down completion = ~13.3 Gyr of cosmic time. AGN engines persist throughout this interval per Spike #124 (substrate-content reading).
 
-**Ring-down progression vs AGN emergence ordering** (cosmic time, oldest to youngest):
+**Loop-down progression vs AGN emergence ordering** (cosmic time, oldest to youngest):
 1. BBN (3 min): f_RD ≈ 0%
 2. CMB recombination (380 kyr): 63.83%
 3. matter-radiation equality (~50 kyr): ~42% [from `[[user_stance_dark_sector_ring_down_age]]`]
@@ -164,7 +164,7 @@ The 84% → 95% interval = 11 percentage-points of ring-down completion = ~13.3 
 8. Cosmic web filaments (1.16 Gyr): 84.36%
 9. NOW (13.797 Gyr): 95.10%
 
-Note: matter-radiation equality is at a~3e-4 (z~3400), t~50 kyr — actually MORE complete in ring-down terms than CMB recombination because the f_RD definition transitions through radiation-domination ramp. CMB recombination is at z=1100, while M-R equality is at z=3400; the f_RD increases monotonically with cosmic time per construction.
+Note: matter-radiation equality is at a~3e-4 (z~3400), t~50 kyr — actually MORE complete in loop-down terms than CMB recombination because the f_RD definition transitions through radiation-domination ramp. CMB recombination is at z=1100, while M-R equality is at z=3400; the f_RD increases monotonically with cosmic time per construction.
 
 ## Cross-reference with bidirectional dimple stance (`[[user_stance_bidirectional_3ds_7dg_dimple_with_epoch_sign_flip]]`)
 
@@ -199,7 +199,7 @@ Under canonical framework reading:
 
 1. **AGN are POST-arrival under loaded-bearing readings (a) + (b)** — the user's intuition needs re-framing.
 2. **AGN are pre-first-observable-sign-flip under reading (c)** — the user's intuition is correct in this sense, but trivially so (everything observed is pre-future-event).
-3. **Past-direction test for AGN-as-substrate-content stance shows no contradiction** — AGN form during the 84-95% ring-down phase, consistent with substrate-content fossil reading from Spike #152.
+3. **Past-direction test for AGN-as-substrate-content stance shows no contradiction** — AGN form during the 84-95% loop-down phase, consistent with substrate-content fossil reading from Spike #152.
 4. **No new primitive class required** — 14 A-N vocabulary stands per `[[feedback_no_privileged_primitive_classes]]`.
 5. **Bidirectional dimple stance composes cleanly**: current dimple orientation is the only one in observable universe; first past sign-flip is t=0 (Big Bang) under current cycle, or t=−27.46 Gyr (pre-Big-Bang) under pre-Big-Bang substrate extension.
 6. **Stance status**: this spike does NOT promote new canonical content. It documents the resolution of the past-direction question raised by user's question + `[[feedback_always_check_both_directions_including_time]]` brief.
@@ -211,7 +211,7 @@ Under canonical framework reading:
 | `[[user_stance_universal_precession_at_substrate_level]]` | Substrate-coeval; no pre-arrival time exists in observable universe |
 | `[[user_stance_agn_as_7dg_substrate_content_fossils]]` | Past-direction note (in stance file) confirmed; observed AGN all POST-arrival |
 | `[[user_stance_bidirectional_3ds_7dg_dimple_with_epoch_sign_flip]]` | First past sign-flip in observable universe = t=0 (Big Bang); no observable sign-flip-pre-AGN |
-| `[[user_stance_dark_sector_ring_down_age]]` | AGN form during 84-95% ring-down phase; not pre-ring-down |
+| `[[user_stance_dark_sector_ring_down_age]]` | AGN form during 84-95% loop-down phase; not pre-loop-down |
 | `[[user_stance_kepler_shape_universal]]` | Substrate Kepler-shape progression IS the precessive motivator — burden flips: counter-claim requires substrate-precession-free fossil |
 
 ## Math-doesn't-lie sanity checks
@@ -228,7 +228,7 @@ What this spike DOES claim:
 - Three "arrival" operationalisations enumerated and tested separately
 - Under load-bearing readings (a) + (b): all observed AGN are POST-arrival
 - Under reading (c): past-direction question is ill-posed (arrival is future event)
-- UHZ1 at z=10.3 = 449.7 Myr cosmic time = 84.10% ring-down complete
+- UHZ1 at z=10.3 = 449.7 Myr cosmic time = 84.10% loop-down complete
 - Most recent past sign-flip in observable universe = t=0 (Big Bang itself)
 - Pre-Big-Bang substrate-cycle extension would place previous sign-flip at t = −27.46 Gyr
 - 14-class A-N vocabulary stands; no new primitive class
@@ -238,7 +238,7 @@ What this spike does NOT claim:
 - Pre-Big-Bang substrate history is canonical (it isn't; substrate-coeval reading is load-bearing)
 - Quantitative arrival-time uncertainty bounds (MAGNITUDE-level only)
 - AGN luminosity at high-z (separate question; Spike #124 covers engine; literature reviews for L_AGN at z>7 not performed Round 1)
-- That ring-down age model is correct at all redshifts (it's framework-internal; standard ΛCDM uses clock-time)
+- That loop-down age model is correct at all redshifts (it's framework-internal; standard ΛCDM uses clock-time)
 - Resolution of any observational anomaly (this is a definitional/framework spike, not an empirical test)
 - New canonical content; this is a past-direction check on Spike #152 + canonical anchors
 
@@ -260,14 +260,14 @@ Per `[[feedback_pdf_extraction_citation_discipline]]`, Round 2 work would PDF-ve
 
 The framework reading enforces a **specific re-interpretation** of the user's "AGN already here when motivator arrived" framing: under load-bearing readings, this is structurally equivalent to "AGN exist" (everything observable is post-substrate). Under reading (c) (first observable manifestation = future first sign-flip), the framing is correct but trivial.
 
-**The user may wish to refine the framing** in light of this spike — e.g., shift to "AGN are part of the current dimple-orientation epoch from substrate creation" or "AGN form during 84-95% ring-down phase." Both are framework-consistent positive statements. Conductor should surface this to user for review.
+**The user may wish to refine the framing** in light of this spike — e.g., shift to "AGN are part of the current dimple-orientation epoch from substrate creation" or "AGN form during 84-95% loop-down phase." Both are framework-consistent positive statements. Conductor should surface this to user for review.
 
 ## Cross-references
 
 - `[[user_stance_universal_precession_at_substrate_level]]` — substrate-coeval precessive motivator; T_sub = 109.84 Gyr
 - `[[user_stance_agn_as_7dg_substrate_content_fossils]]` — newly canonical; this spike's past-direction note in stance file confirmed
 - `[[user_stance_bidirectional_3ds_7dg_dimple_with_epoch_sign_flip]]` — newly canonical; first past sign-flip is at t=0 in observable universe
-- `[[user_stance_dark_sector_ring_down_age]]` — UHZ1 at 84.10% ring-down complete (vs 95.10% now)
+- `[[user_stance_dark_sector_ring_down_age]]` — UHZ1 at 84.10% loop-down complete (vs 95.10% now)
 - `[[user_stance_cascade_lives_on_circles]]` — Class C orientation on unit circle; sign-flip pattern
 - `[[user_stance_kepler_shape_universal]]` — substrate Kepler-shape precession universal
 - `[[user_stance_identity_not_implementation_discipline]]` — substrate cycle-phase IS precession
@@ -291,7 +291,7 @@ The framework reading enforces a **specific re-interpretation** of the user's "A
 
 ## Files in this spike
 
-- `spike161_agn_past_direction.py` — driver script (three-arrival test + past-direction schedule + ring-down at fossils)
+- `spike161_agn_past_direction.py` — driver script (three-arrival test + past-direction schedule + loop-down at fossils)
 - `spike161_records_2026-05-19.ndjson` — 38 records (arrival operationalisations + past sign-flips + high-z anchors + f_RD progression + summary)
 - `spike161_agn_past_direction_findings_2026-05-19.md` — this note
 

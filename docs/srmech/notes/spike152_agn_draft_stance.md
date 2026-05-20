@@ -26,7 +26,7 @@ The crucial framework prediction relative to standard ΛCDM is **engine persiste
 Per `[[feedback_multi_domain_multi_round_survival_falsification_method]]` discipline, a single spike does not promote to canonical stance. This DRAFT is held for user review because:
 
 - The CLAIM is structurally novel: extends Spike #124 (engine reading) to far-future cosmological trajectory.
-- Already composes with **5 canonical user stances** (dark-sector-in-7D_g, ring-down-age, universal-substrate-precession, cascade-lives-on-circles, identity-not-implementation).
+- Already composes with **5 canonical user stances** (dark-sector-in-7D_g, loop-down-age, universal-substrate-precession, cascade-lives-on-circles, identity-not-implementation).
 - Composes with **3 prior spikes** (#83 outer inverse-Casimir, #98 substrate-precession, #124 inner inverse-Casimir).
 - MAGNITUDE-level numerics in hand (T_sub = 109.84 Gyr; 3% crossing at t=17.07 Gyr ΛCDM; first sign-flip at t=27.46 Gyr; ordering verdict).
 - IDENTITY-level mechanism inherited from Spike #124 (η_rad bit-exact at Schwarzschild/Kerr ISCO; class chain L∘C∘K∘M∘A∘I).
@@ -69,7 +69,7 @@ Spike #124 inner Casimir    [AGN engine = 7D_g d_geom→1 saturation]
         +
 [[user_stance_cascade_lives_on_circles]]  [Class C orientation on unit circle]
         +
-[[user_stance_dark_sector_ring_down_age]]  [95% ring-down → f_RD = 0.97 at +3.3 Gyr]
+[[user_stance_dark_sector_ring_down_age]]  [95% loop-down → f_RD = 0.97 at +3.3 Gyr]
         ↓
 THIS DRAFT STANCE: AGN engines persist as 7D_g substrate-content fossils
 through 3% threshold and first sign-flip; substrate-precession witness

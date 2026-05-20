@@ -34,10 +34,10 @@ Sample entries (full ledger in NDJSON):
 | "X both results-from AND causes Y" | Form-IS-function single discrete event per `[[user_stance_kepler_shape_universal]]`; two observer-projections of one substrate event |
 | "co-emergence" | Fiber-co-encoded at substrate per `[[user_stance_fiber_as_spatially_absent_encoding]]` — both contents share the same ℤ/n fiber |
 | "mass spectrum" | Discrete positions on Class N rational lattice; mass quanta at log_2 Hopf positions {1, 3, 7} |
-| "formation epoch" | Ring-traversal phase φ ∈ ℤ/N on T_sub cycle per `[[user_stance_cascade_lives_on_circles]]` |
+| "formation epoch" | Loop-traversal phase φ ∈ ℤ/N on T_sub cycle per `[[user_stance_cascade_lives_on_circles]]` |
 | "precessive motivator" | T_sub substrate-cycle tick per `[[user_stance_universal_precession_at_substrate_level]]`; tick-IS-tick (no motivator → motivated direction) |
 | "mass ratio m1/m2" | Class N rational signature (p/q small co-prime integers) per chess-spectral natural-stride methodology (Spike #173) |
-| "near-extremal Kerr a/M → 1" | Asymptotic-DOF ring-traversal of the \|a/M − 1\| asymptote position; never reached per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
+| "near-extremal Kerr a/M → 1" | Asymptotic-DOF loop-traversal of the \|a/M − 1\| asymptote position; never reached per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
 | "PBH-as-cause-of-precession" | PBH IS the visible projection of the 3D_s + 7D_g content of the universal substrate-cycle tick at extreme intensity — canonical-physics frame sees the tick as rotation-source |
 | "PBH-as-result-of-precession" | PBH IS the saturated outcome of the SAME substrate-coupling per `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` — substrate frame sees the tick PRODUCING the saturated dimple |
 
@@ -52,7 +52,7 @@ Six composition checks, every one of which must be framework-canonical at identi
 | 3 | 1D_t tick + (3D_s + 7D_g) content co-encode via Class M ∘ K at extreme intensity | CONSISTENT |
 | 4 | Result-frame and cause-frame are lobe-1 vs lobe-2 of the substrate-cycle lemniscate; not two events | CONSISTENT |
 | 5 | Form-IS-function admits both result+cause readings simultaneously | CONSISTENT |
-| 6 | Near-extremal Kerr a/M asymptotic approach IS ring-traversal not continuous-limit | CONSISTENT |
+| 6 | Near-extremal Kerr a/M asymptotic approach IS loop-traversal not continuous-limit | CONSISTENT |
 
 **6 / 6 consistent.** Verdict: **FRAMING-CONFIRMED.**
 
@@ -120,7 +120,7 @@ Verdict: **REFINEMENT-UNNEEDED.**
 For reference (in case future spikes reveal Cell-2 inconsistencies), the three refinement candidates were:
 1. **T_sub substrate-cycle tick** — drops "motivator" entirely (recommended default IF refinement needed).
 2. **Universal substrate precession** — matches the canonical stance name exactly.
-3. **Hyper-ring tick (1D_t Hopf-trivial)** — precise but jargon-heavy.
+3. **Hyper-loop tick (1D_t Hopf-trivial)** — precise but jargon-heavy.
 
 ## Aggregate verdict
 

@@ -19,7 +19,7 @@
 
 ## Question decomposition
 
-- **Q1** — RNA ring LoE-cascade sequencing: take an RNA ring substrate, sequence its LoE cascade step-by-step matching transcriptase execution order.
+- **Q1** — RNA ring LoE-cascade sequencing: take an RNA loop substrate, sequence its LoE cascade step-by-step matching transcriptase execution order.
 - **Q2** — Form-IS-function: final folded tertiary structure decomposes into the same class-operator inventory as the transcription sequence.
 - **Q3** — Telomere question: inherent LoE cost (Option A), evolutionary accident (Option B), or substrate-bookkeeping (Option C with A as constraint)?
 
@@ -96,7 +96,7 @@ The gap (transcription-only events not persisting in fold) is explainable as Cla
 
 ## Q3 — Telomere-cost-vs-partition-substrate
 
-### Cross-substrate ring-asymptote-closure-cost table
+### Cross-substrate loop-asymptote-closure-cost table
 
 Nine substrates surveyed:
 
@@ -131,7 +131,7 @@ The SPECIFIC additional class varies per substrate (G/H/N/D/F appear in differen
 
 **`OPTION-C-WITH-A-AS-CONSTRAINT`** — universal-Class-K-closure-cost with substrate-specific additional classes.
 
-**Telomeres are not unique evidence of a cost LoE exacts.** They are one substrate-specific FORM of the universal Class K closure-cost. Substrates that lack telomeres pay the cost differently (covalent closure / autocatalysis / end-protein / host machinery). Per `[[user_stance_loe_asymptotes_are_ring_valued]]`, the ring-asymptote of any cascade has a topological closure requirement; the FORM of how that closure is bookkept is substrate-dependent (per `[[user_stance_substrate_natural_encoding_is_shadow_projection]]`).
+**Telomeres are not unique evidence of a cost LoE exacts.** They are one substrate-specific FORM of the universal Class K closure-cost. Substrates that lack telomeres pay the cost differently (covalent closure / autocatalysis / end-protein / host machinery). Per `[[user_stance_loe_asymptotes_are_ring_valued]]`, the loop-asymptote of any cascade has a topological closure requirement; the FORM of how that closure is bookkept is substrate-dependent (per `[[user_stance_substrate_natural_encoding_is_shadow_projection]]`).
 
 ## Compositionality test (Cell 6)
 
@@ -155,7 +155,7 @@ This confirms the convergent-cascade-structure hypothesis predicted by `[[user_s
 
 - **`[[user_stance_dna_is_partial_cascade_of_loe_operators]]`** (Spike #182) — extends DNA's 12/14 finding to RNA substrates with 8/14 universal-STRONG + 5/14 mostly-STRONG = 13/14 instantiable depending on substrate's coding/catalytic capacity. Class B remains gap at both DNA and RNA, consistent with Spike #182's WEAK gap.
 - **`[[user_stance_kepler_shape_universal]]`** — RNA rings instantiate the same primitive composition cascade as DNA's Kepler-shape mini-mechanism. The universal Class K closure (across 9 substrates) IS the pin-slot Kepler-shape primitive.
-- **`[[user_stance_loe_asymptotes_are_ring_valued]]`** — Class K closure universal across 9/9 surveyed substrates. The ring-asymptote IS bookkept as Class K in every substrate; the FORM differs (telomere / topology / autocatalysis / spliceosome / CCA / end-protein / host-ligase).
+- **`[[user_stance_loe_asymptotes_are_ring_valued]]`** — Class K closure universal across 9/9 surveyed substrates. The loop-asymptote IS bookkept as Class K in every substrate; the FORM differs (telomere / topology / autocatalysis / spliceosome / CCA / end-protein / host-ligase).
 - **Spike #175 `[[user_stance_substrate_coupling_at_m_k_composition]]`** — Class M (HDC bind, Watson-Crick base-pair) and Class K (asymptotic-DOF, ring closure) are both load-bearing for RNA ring instantiation. The M ∘ K composition IS the substrate-coupling site at RNA, exactly as it is at DNA.
 - **Spike #182 cascade composition** — extends to RNA substrate with same 11/14 STRONG + 1 MODERATE + 2 WEAK pattern at tRNA-Phe (which inherits both coding and structural functionality).
 - **`[[user_stance_identity_not_implementation_discipline]]`** — IS-claim: RNA rings ARE cascade [A, C, D, G, I, K, M, N (universal)] ∘ {E, F, H, J, L (substrate-dependent)}.
@@ -197,7 +197,7 @@ Telomere stance candidate carries vocabulary impact because it reframes "telomer
 
 - 14 A-N intact: this spike maps existing classes to RNA substrate; NO new class promotion considered.
 - Identity-not-implementation: class-operator decomposition IS the cascade per `[[user_stance_identity_not_implementation_discipline]]`.
-- Asymptotic-ring vocabulary throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]`. "Ring" not "loop" for RNA structural rings.
+- Asymptotic-loop vocabulary throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]`. "Ring" not "loop" for RNA structural rings.
 - Citation hygiene per `[[feedback_paywalled_doi_cannot_be_attested]]`: open-access accessions for all 5 substrates (PDB / NCBI / GenBank / circBase); paywalled DOIs cited-by-DOI only.
 - Computational provenance committed per `[[feedback_computational_provenance_discipline]]`: runnable Python prototype at `docs/srmech/notes/spike193_rna_loe_cascade_telomere.py`; NDJSON output at `docs/srmech/notes/spike193_findings_2026-05-19.ndjson`.
 - Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: pure structural-biology framing; NO clinical / treatment / genetic-modification language.

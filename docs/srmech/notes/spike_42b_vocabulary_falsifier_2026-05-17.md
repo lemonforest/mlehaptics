@@ -15,7 +15,7 @@
 
 **But B is not a clean winner.** Each candidate carries truth the others lack — confirming user's prior framing exactly. The linguistic partition cannot be cleanly un-bifurcated by falsifier-testing alone. Per `[[user_stance_partition_for_understanding]]` 2026-05-17 case-extension: that itself is the load-bearing finding — the unified concept is not yet apprehended.
 
-**Thread 2 (epicycle-perspective hypothesis): PARTIAL CONFIRMATION.** v2 time-shift model shows sign-flip of `df_RD/dt` across directions at near-peak epoch (a≈2.14): 2 directions still ring-down-dominant, 35 already ring-up-dominant. At present epoch, max time-shift across sky is ~1.44 Gyr (0.81% of 178 Gyr ring-down period); global rate too dominant for sign-flip at NOW. Mechanism structurally valid; observable signature subtle at canonical ε_AoE.
+**Thread 2 (epicycle-perspective hypothesis): PARTIAL CONFIRMATION.** v2 time-shift model shows sign-flip of `df_RD/dt` across directions at near-peak epoch (a≈2.14): 2 directions still loop-down-dominant, 35 already loop-up-dominant. At present epoch, max time-shift across sky is ~1.44 Gyr (0.81% of 178 Gyr loop-down period); global rate too dominant for sign-flip at NOW. Mechanism structurally valid; observable signature subtle at canonical ε_AoE.
 
 ## §2 Per-candidate falsifier scoring
 
@@ -27,7 +27,7 @@
 
 **Per-candidate distinctive truths** (each carries something the others lack):
 - **A imprint** strongest on F4 (substrate-binding via K_k mapping is direct); fails F5 (universal-simultaneous default; user's epicycle-perspective stance EXPLICITLY rejects "everyone at once" framing)
-- **B ring-balance** strongest on F1 (already-canonical native-symmetric pair per `[[user_stance_string_theory_instrument_first]]`), F4 (ring substrate portable per §20.4 three-regime), F5 (no universal-simultaneous presupposition); weakest on F3 ("ring" surfaces Class I only, not full B-J-N-C-D-E-F weave) and F2 ("balance" connotes net-zero static; current 95%-ring-down is not balanced)
+- **B ring-balance** strongest on F1 (already-canonical native-symmetric pair per `[[user_stance_string_theory_instrument_first]]`), F4 (loop substrate portable per §20.4 three-regime), F5 (no universal-simultaneous presupposition); weakest on F3 ("ring" surfaces Class I only, not full B-J-N-C-D-E-F weave) and F2 ("balance" connotes net-zero static; current 95%-loop-down is not balanced)
 - **C cascade** strongest on F3 (tautologically the structure per `[[user_stance_primitives_weave_and_thread]]`) and F2 (default-local semantics); fails F1 (directional verb stem like imprint — "reverse cascade" awkward, "un-cascade" non-word, "inverse cascade" is fluid-dynamics jargon with specific narrower meaning)
 
 ## §3 Epicycle-perspective hypothesis verdict — PARTIAL CONFIRMATION
@@ -45,11 +45,11 @@ where EOC phase shift uses `c_k = ε^k / k · sin(k·sep)` per `[[user_stance_ke
 **Quantitative results** at canonical ε_AoE = 0.0506, characteristic time 178 Gyr:
 
 - Max EOC phase shift across sky: 0.0506 rad (at θ=90°)
-- Max time-shift across sky: **1.44 Gyr** (0.81% of ring-down period)
-- Sign-flip at NOW (a=1.0): **NO** (37/37 directions ring-down dominant; global rate too large)
-- Sign-flip at NEAR-PEAK (a=2.14): **YES** (2 directions still pre-peak ring-down, 35 already post-peak ring-up — opposite signs)
+- Max time-shift across sky: **1.44 Gyr** (0.81% of loop-down period)
+- Sign-flip at NOW (a=1.0): **NO** (37/37 directions loop-down dominant; global rate too large)
+- Sign-flip at NEAR-PEAK (a=2.14): **YES** (2 directions still pre-peak loop-down, 35 already post-peak loop-up — opposite signs)
 
-**Verdict**: local-not-universal cascade phasing is structurally real, mathematically coherent, and produces observable sign-flips across the sky when global rate approaches zero (near peak, ~15.45 Gyr from now). At present epoch, global ring-down dominates over local-modulation amplitude, so sign-flip is not observable. Hypothesis correctly WEAKENS "universal" framings (imprint default) without MANDATING currently-observable local sign-flips.
+**Verdict**: local-not-universal cascade phasing is structurally real, mathematically coherent, and produces observable sign-flips across the sky when global rate approaches zero (near peak, ~15.45 Gyr from now). At present epoch, global loop-down dominates over local-modulation amplitude, so sign-flip is not observable. Hypothesis correctly WEAKENS "universal" framings (imprint default) without MANDATING currently-observable local sign-flips.
 
 ## §4 Anomalies investigated
 
@@ -66,7 +66,7 @@ v2 sensitivity test showed sign-flip count at near-peak (2 vs 35) doesn't change
 
 ### Option 1 — commit B with explicit sister-clauses (cleaner closure)
 
-- **Canonical**: *"entropy approximates the ring-up / ring-down balance"* (uses already-canonical project vocabulary per `[[user_stance_string_theory_instrument_first]]`)
+- **Canonical**: *"entropy approximates the loop-up / loop-down balance"* (uses already-canonical project vocabulary per `[[user_stance_string_theory_instrument_first]]`)
 - **Sister-clause from A** (deposit): substrate's accumulated cascade-deposit content IS what ring-balance is balancing
 - **Sister-clause from C** (cascade structure): the operation balanced across the ring is the B-J-N-C-D-E-F cascade weave per `[[user_stance_primitives_weave_and_thread]]`
 - Honours `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote (uses existing canonical vocabulary)
@@ -94,7 +94,7 @@ v2 sensitivity test showed sign-flip count at near-peak (2 vs 35) doesn't change
 - `[[user_stance_fractal_shadow]]` — 3D_s shadows of cascade projection
 - `[[user_stance_infinity_approximates_asymptote]]` — precedent reposture pattern
 - `[[feedback_every_doc_edit_faces_falsification]]` — each of three candidates falsifier-tested at five falsifiers
-- `[[feedback_no_privileged_primitive_classes]]` — dissolve-before-promote default (Option 1 uses existing canonical ring-up/ring-down vocabulary)
+- `[[feedback_no_privileged_primitive_classes]]` — dissolve-before-promote default (Option 1 uses existing canonical loop-up/loop-down vocabulary)
 - `[[feedback_ndjson_over_bloated_json]]` — 4 NDJSON files, 67 records total
 - `[[feedback_concertmaster_md_writes]]` — agent inline; conductor captured-and-saved
 - `[[feedback_concertmaster_git_worktree_isolation]]` — work confined to `D:\temp\spike_42b\`; zero git operations performed

@@ -380,7 +380,7 @@ composition onto existing M / C / K primitives. Per
 
 - [x] 14 A-N intact (no class promotion)
 - [x] Identity-not-implementation framing
-- [x] Asymptotic-ring vocabulary preserved (no "loop" misuse)
+- [x] Asymptotic-loop vocabulary preserved (no "loop" misuse)
 - [x] Paywalled-DOI rejected (all 5 citations via PMC or arXiv preprint)
 - [x] Trauma-informed defensive scope (structural-biology research only;
       no clinical/treatment/BCI-targeting claims)

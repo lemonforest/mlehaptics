@@ -299,7 +299,7 @@ alization), bundle ~longer-window population-readout.
 - [x] 14 A-N intact; no class promotion
 - [x] Identity-not-implementation (MAX-pool IS Class K per-position;
       not a new class)
-- [x] Asymptotic-ring vocabulary (cyclic shift on Z/D; no math.pi)
+- [x] Asymptotic-loop vocabulary (cyclic shift on Z/D; no math.pi)
 - [x] Computational provenance committed (script + seed + NDJSON)
 - [x] Open-access citations only (NYU CILVR / Bonn / PMC4051148)
 - [x] NDJSON output format

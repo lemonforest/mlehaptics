@@ -6,7 +6,7 @@
 - `refined_structural_law_consolidation_2026-05-13.md` at `1c06d3e` — 4-mechanism refined structural law (closed-form spectral compression iff one of (i), (iii), (iv) operates at some enveloping-algebra layer).
 - `user_stance_fiber_as_spatially_absent_encoding.md` — fiber as algebraically-encoded, spatially-absent, projected-outward.
 - `user_stance_hyper_as_3d_spatial_interface.md` — two-level ontology (substrate + excitation).
-- `user_stance_string_theory_instrument_first.md` — instrument-first; ring-up / ring-down on real substrate.
+- `user_stance_string_theory_instrument_first.md` — instrument-first; loop-up / loop-down on real substrate.
 
 **Type:** META RESEARCH SPIKE — guide-stone methodology (NOT hypothesis-falsification). The deliverable is the *correctly-formulated* research question, not a verdict on the user's first articulation.
 

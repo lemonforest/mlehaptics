@@ -22,7 +22,7 @@ Two molecules with the **same skeleton graph** — same node count, same adjacen
 
 For the user's framing — *"bond angles and polar/non-polar tails of different compounds carry the same graph Laplacian"* — the answer is **yes**, with caveats:
 
-- **Yes:** if "shape" means *skeleton graph topology* (which atoms are bonded, vertex degree pattern, ring structure), shape-graph-Laplacian is identical across compounds with that skeleton. Hexane and cyclohexane have different graphs; n-hexane and n-pentanol-with-OH-at-C1 have *similar but not identical* graphs.
+- **Yes:** if "shape" means *skeleton graph topology* (which atoms are bonded, vertex degree pattern, loop structure), shape-graph-Laplacian is identical across compounds with that skeleton. Hexane and cyclohexane have different graphs; n-hexane and n-pentanol-with-OH-at-C1 have *similar but not identical* graphs.
 - **Caveat:** "shape" in 3D conformational space adds bond-angle constraints + torsional preferences (the `Vτ(φ) = (V₃/2)(1 + cos(3φ))` Class K thing from Phase 6.1). 3D-shape equivalence is stricter than 2D-graph equivalence.
 - **Caveat:** "polar/non-polar tails" carry atom-type information, which graph Laplacian by default ignores. If you weight nodes by *partial charge* or *polarisability*, you get a weighted Laplacian that distinguishes polar/non-polar — but this no longer is purely-shape.
 

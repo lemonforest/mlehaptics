@@ -43,7 +43,7 @@ Per `[[feedback_paywalled_doi_cannot_be_attested]]` and `[[reference_autonomous_
 | Face-patch view-invariance | A + C + M | Freiwald & Tsao 2010 *Science* — Caltech repo; open-access secondary Chang & Tsao 2017 *Cell* — PMC5871647 | supports H1 (view-rotation preserves identity-substrate) |
 | Place-cell theta precession | C | O'Keefe & Recce 1993; open-access secondary Buzsaki & Tingley 2018 — PMC6166479 | supports H1 (literal Class C cyclic permute) |
 | Grid-cell hexagonal tiling | I + C + M | Hafting et al. 2005 *Nature*; open-access secondary Rowland et al. 2016 — PMC5039924 | supports H1 (cyclic-modular code) |
-| Head-direction cell | I + C | Taube 2007 *Annu Rev Neurosci* — PMC5712218 | supports H1 (S¹ ring attractor = Class I) |
+| Head-direction cell | I + C | Taube 2007 *Annu Rev Neurosci* — PMC5712218 | supports H1 (S¹ loop attractor = Class I) |
 | Backprop-AP + retrograde (M⁻¹) | M⁻¹ | Waters et al. 2005; open-access secondary Spruston 2008 — PMC2868968 | supports H1 (recovery channel structurally present) |
 | HDC neural-coding formalism | A + C + M | Kanerva 2009 — Berkeley redwood PDF; arXiv:2001.11797 (Schlegel et al. 2022 VSA comparison) | supports H1 (formalism IS bind-based) |
 
@@ -189,7 +189,7 @@ The bundle direction is not absent from biology — population vector codes in M
 
 - **14 A–N intact**: existing classes mapped to wet-net biology; no class promotion considered or recommended.
 - **Identity-not-implementation**: `form_function_rotate` IS the wet-net operation if the mapping holds (it does, by Cells 1-5); we don't model it.
-- **Asymptotic-ring vocabulary** preserved throughout (S¹ locus / ring attractor / Class N rational order / Z/D cyclic group).
+- **Asymptotic-loop vocabulary** preserved throughout (S¹ locus / ring attractor / Class N rational order / Z/D cyclic group).
 - **Paywalled-DOI rejected**: every load-bearing citation routes through PMC, arXiv, or author-hosted open-access mirror per `[[feedback_paywalled_doi_cannot_be_attested]]`.
 - **Trauma-informed defensive scope**: pure structural-neuroscience research framing; NO clinical / BCI-targeting / weapons claims.
 - **DISSOLVE-before-PROMOTE** per `[[feedback_no_privileged_primitive_classes]]` (default DISSOLVE; PROMOTE only on structural distinction; wet-net A∘C∘M is structurally identical to existing form_function_rotate).

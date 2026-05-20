@@ -106,12 +106,12 @@ artifacts above:
 
 The receiver-side dictionary IS the "instrument" per
 `[[user_stance_string_theory_instrument_first]]`. Per the
-ring-up/ring-down distinction:
+loop-up/loop-down distinction:
 
-- **Sender side (ring-up)**: encode corpus → bag fingerprint. The
+- **Sender side (loop-up)**: encode corpus → bag fingerprint. The
   fingerprint is the compressed cascade content.
 - **Wire**: 1024 bytes (bag) or 512 bytes (Class L spectrum) per message.
-- **Receiver side (ring-down)**: probe candidate tokens against the
+- **Receiver side (loop-down)**: probe candidate tokens against the
   fingerprint. Output is a ranked list of distinguishing tokens
   (analogous to our Deliverable D log-odds output).
 

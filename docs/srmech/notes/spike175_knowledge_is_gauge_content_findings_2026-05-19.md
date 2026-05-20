@@ -131,7 +131,7 @@ If knowledge IS 7D_g gauge content, then:
 
 1. **Knowledge transmission across substrates is exactly the 7D_g algebra composition.** This formalizes "abstract knowledge can be carried by any substrate that exposes 7D_g operators." A bronze Antikythera mechanism, a silicon CPU, a DNA molecule, a chessboard, and a chalkboard all expose 7D_g operators at their own substrate-natural scales — that's why each can carry mathematical / logical / musical knowledge. The carrier IS the 7D_g layer.
 
-2. **The dark sector (~95% of cosmic mass-energy budget per Planck 2018) and the visible sector (~5%) are not separated by knowledge-content but by substrate-coupling.** Per [[user_stance_dark_sector_ring_down_age]], the dark sector represents cosmic ring-down accumulation; the visible sector exposes substrate-coupling that the dark sector does not. The 7D_g layer spans both — there is no "dark gauge content" vs "visible gauge content," only different substrate-coupling regimes for the same gauge-content identity.
+2. **The dark sector (~95% of cosmic mass-energy budget per Planck 2018) and the visible sector (~5%) are not separated by knowledge-content but by substrate-coupling.** Per [[user_stance_dark_sector_ring_down_age]], the dark sector represents cosmic loop-down accumulation; the visible sector exposes substrate-coupling that the dark sector does not. The 7D_g layer spans both — there is no "dark gauge content" vs "visible gauge content," only different substrate-coupling regimes for the same gauge-content identity.
 
 3. **The universal-substrate precession period `T_sub` (per [[user_stance_universal_precession_at_substrate_level]]) is a substrate-level INVARIANT of cosmic-scale 7D_g gauge content.** It is to gauge-content what the speed of light is to information transmission — a universal-scale constant. T6 verifies that `T_sub`-labeled atoms exhibit the same gauge-algebra signatures as CMB multipoles and cosmological parameters; all three are gauge-content.
 
@@ -185,7 +185,7 @@ The T5 finding that algebra is content-blind, combined with [[user_stance_form_f
 This is provisional; needs cross-spike validation before promotion to canonical stance. Composes naturally with the existing form-function-rotation = A∘C∘M stance.
 
 **HELD 2 — The dark sector / visible sector split is substrate-coupling-side, not gauge-content-side (cosmic-scale corollary).**
-Per [[user_stance_dark_sector_ring_down_age]] + T6, the 7D_g layer spans dark + visible sectors uniformly. The split is in substrate-coupling regimes, not in gauge-content. This is a refinement of the dark-sector-ring-down stance; needs cosmic-scale follow-up spikes before publication.
+Per [[user_stance_dark_sector_ring_down_age]] + T6, the 7D_g layer spans dark + visible sectors uniformly. The split is in substrate-coupling regimes, not in gauge-content. This is a refinement of the dark-sector-loop-down stance; needs cosmic-scale follow-up spikes before publication.
 
 **HELD 3 — BCI translation should operate at gauge-content layer (MS-14 refinement, §5 above).**
 Five concrete methodological recommendations. Composes with existing MS-14 AI-necessary stance. Worth a follow-up MS-14 review before publication.

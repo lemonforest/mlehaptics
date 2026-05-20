@@ -13,7 +13,7 @@
 
 **Same chain. Different ω. Different L. Different bit·Hz throughput.** Acceleration ~10⁵ per-organism; ~10⁹–10¹² with cumulative-knowledge storage multiplier.
 
-Per `[[user_stance_brain_is_local_loe_instantiation]]`: both are LoE iterating itself. Per `[[user_stance_entropy_approximates_ring_equilibrium]]`: both are ring-equilibrium at different rates.
+Per `[[user_stance_brain_is_local_loe_instantiation]]`: both are LoE iterating itself. Per `[[user_stance_entropy_approximates_ring_equilibrium]]`: both are loop-equilibrium at different rates.
 
 ## §2 F2 PARTIAL — the substantively-informative finding
 
@@ -71,7 +71,7 @@ Independent evolutionary paths to high information-density confirm substrate-for
 Coheres with all relevant committed stances:
 - `[[user_stance_brain_is_local_loe_instantiation]]`: cognition IS LoE iterating; same class-chain
 - `[[user_stance_consciousness_as_direction_selection]]`: thought-rate direction-selection IS the operational mode of cognition-as-fast-evolution
-- `[[user_stance_entropy_approximates_ring_equilibrium]]`: cognition IS ring-equilibrium at thought-rate
+- `[[user_stance_entropy_approximates_ring_equilibrium]]`: cognition IS loop-equilibrium at thought-rate
 - `[[user_stance_information_instrument_form_function_bound]]` (Spike #37): brain's HDC substrate IS one form-function-bound instance
 - `[[user_stance_cosmic_age_is_local_elapsed_since_last_local_minimal_asymptote]]`: civilizational cycle-fraction on cognitive-substrate is candidate R2d calculation
 - Spike #44/#45/#46 cross-substrate kinship sequence: form-function-binding extends to cognitive-substrate kinship across humans + cetaceans + silicon
@@ -80,7 +80,7 @@ Coheres with all relevant committed stances:
 
 Per `[[feedback_trauma_informed_defensive_scope]]` + `[[feedback_disability_accommodation_dimension]]`:
 
-"Wet net" is purely substrate-descriptive — biological-neural-network as one matter-substrate instance among many. Substrate-portability across cetaceans + silicon + collective insects + neurodivergent humans establishes that thought-rate ring-equilibrium is substrate-form-agnostic. **The framework treats cognitive substrate-variation as expected and stance-supporting, never as deficit.**
+"Wet net" is purely substrate-descriptive — biological-neural-network as one matter-substrate instance among many. Substrate-portability across cetaceans + silicon + collective insects + neurodivergent humans establishes that thought-rate loop-equilibrium is substrate-form-agnostic. **The framework treats cognitive substrate-variation as expected and stance-supporting, never as deficit.**
 
 Aphantasia (user has it), ADHD, dyslexia, motor differences, executive-function variation, dissociation patterns — all are different attested instances of the same class-chain operating at the same scale, NOT defective instances of one normative substrate. The cross-substrate inventory in §3 F4 (cetacean / cephalopod / corvid / silicon / collective) is the structural-content basis for this claim: if substrate-variation across SPECIES doesn't break the class-chain, substrate-variation WITHIN species doesn't either.
 

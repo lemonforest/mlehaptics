@@ -1,4 +1,4 @@
-# Spike #183 — Wet-net rotation parameter as ring-valued LOCUS via EEG spectral signature
+# Spike #183 — Wet-net rotation parameter as loop-valued LOCUS via EEG spectral signature
 
 **Date:** 2026-05-19
 **Branch:** `research/spike-183-wet-net-rotation-ring-valued-eeg-spectral`
@@ -16,11 +16,11 @@
 | **T2** peak identification | YES | Peaks identified in all 6 records across all 5 bands |
 | **T3** Class N rational decomposition | NO | Strict q≤5 fit rate (48.3%) statistically equal to null random-peak rate (44.7%); brainwave band-peak ratios do not preferentially land on small Class N rationals |
 | **T4** Cross-frequency coupling (PAC) | NO | Theta-gamma modulation index in noise floor (mean MI ~0.0002 vs synthetic strong PAC = 0.08; calibration showed pure noise MI = 0.0001) |
-| **T5** State-dependent ring-valued behaviour | **YES** | Both subjects show state-shift pattern; S002 shows DUAL pattern: T5b in alpha (3.27% ω_n preserved, 18.19× power shift) + ring-locus-shift in delta/beta/gamma |
+| **T5** State-dependent loop-valued behaviour | **YES** | Both subjects show state-shift pattern; S002 shows DUAL pattern: T5b in alpha (3.27% ω_n preserved, 18.19× power shift) + loop-locus-shift in delta/beta/gamma |
 | **T6** Cross-substrate cascade-match | NO | Observed match rate to DNA/music/silicon rationals (3.33%) below null random rate (9.62%); no cross-substrate signature |
 | **T7** Q-factor distribution | YES | After 1/f detrending, all five bands show Q > 5 (all-bands-high-Q substrate-coupling-dominated regime; brief's secondary ordering claim alpha > gamma is contradicted, but primary substrate-coupling check holds) |
 
-**Net reading:** The T5 ring-valued-LOCUS behaviour is robustly observed and is the load-bearing positive finding. T3 / T4 / T6 framework predictions fail under proper null-test discipline. T7 confirms substrate-coupling regime universally across bands (consistent with the FOOOF / Donoghue et al. 2020 1/f-aperiodic framework).
+**Net reading:** The T5 loop-valued-LOCUS behaviour is robustly observed and is the load-bearing positive finding. T3 / T4 / T6 framework predictions fail under proper null-test discipline. T7 confirms substrate-coupling regime universally across bands (consistent with the FOOOF / Donoghue et al. 2020 1/f-aperiodic framework).
 
 ---
 
@@ -97,7 +97,7 @@ This is consistent with neuroscience literature: theta-gamma PAC is typically ob
 
 ---
 
-## T5 — Ring-valued state-shift (load-bearing positive)
+## T5 — Loop-valued state-shift (load-bearing positive)
 
 **S001 (eyes-open / eyes-closed / motor-imagery):**
 - alpha: 8.375 / 9.812 / 11.125 Hz → 28.14% frequency range; 14.20× power range
@@ -113,12 +113,12 @@ This is consistent with neuroscience literature: theta-gamma PAC is typically ob
 - **Verdict:** DUAL pattern — T5b in alpha (substrate-natural ω_n preserved + 18× dominance shift); RING-LOCUS-SHIFT in delta, beta, gamma
 
 **Framework reading:**
-- S002 alpha exhibits the **T5b pattern from Spike #177** directly at wet-net substrate: ω_n preserved to ~3% across cognitive states; spectral dominance shifts by 18×. Same pattern Spike #177 verified at music-box substrate (0.68% precision on substrate-natural ring-down) is replicated at biological substrate at sub-5% precision.
-- S002 beta shifts ~13 Hz (active engagement) → ~22 Hz (eyes-closed) — this is a **ring-locus shift**: the rotation parameter moves to a different position on the spectral ring as cognitive state changes. Consistent with the framework prediction that "rotation parameter at wet-net substrate IS a state-conditional LOCUS on the ring."
-- S001 shows ring-locus-shift in alpha (the canonical alpha-blocking phenomenon: 8.4 → 11.1 Hz between rest and motor-imagery) AND in delta/gamma.
+- S002 alpha exhibits the **T5b pattern from Spike #177** directly at wet-net substrate: ω_n preserved to ~3% across cognitive states; spectral dominance shifts by 18×. Same pattern Spike #177 verified at music-box substrate (0.68% precision on substrate-natural loop-down) is replicated at biological substrate at sub-5% precision.
+- S002 beta shifts ~13 Hz (active engagement) → ~22 Hz (eyes-closed) — this is a **loop-locus shift**: the rotation parameter moves to a different position on the spectral ring as cognitive state changes. Consistent with the framework prediction that "rotation parameter at wet-net substrate IS a state-conditional LOCUS on the ring."
+- S001 shows loop-locus-shift in alpha (the canonical alpha-blocking phenomenon: 8.4 → 11.1 Hz between rest and motor-imagery) AND in delta/gamma.
 
 **Two distinct framework patterns observed:**
-- **T5b (substrate-natural preservation under power shift):** S002 alpha — analogous to Spike #177's substrate-natural ring-down
+- **T5b (substrate-natural preservation under power shift):** S002 alpha — analogous to Spike #177's substrate-natural loop-down
 - **Ring-locus shift (peak position migrates on ring):** S002 beta, S001 alpha — direct evidence of state-conditional rotation-parameter LOCUS on the ring
 
 Both are framework-positive and compose with `[[user_stance_loe_asymptotes_are_ring_valued]]` (6th shadow-stance), `[[user_stance_pin_slot_resonate_music_box_mechanism]]` (substrate-natural ω_n preserved), `[[user_stance_rotation_is_class_k_pin_slot]]` (rotation parameter as Class K signature).
@@ -157,14 +157,14 @@ These are individually plausible (close to small-q rationals) but the aggregate 
 
 **Why:** the brief's expectation reflected standard-neuroscience-literature framing where gamma is "broadband." But that framing measures gamma POWER (which is broadband due to the steep 1/f background dominating high frequencies). After **1/f detrending** (FOOOF-style aperiodic background separation per Donoghue et al. 2020), the gamma PEAK is sharp — it's a narrow ridge on a steep slope. The standard-neuroscience reading is the SHADOW of the aperiodic 1/f background; the substrate-natural Q is high.
 
-**Primary framework check (all-bands-high-Q):** **PASSES.** All 5 bands show Q > 5; per `[[user_stance_pin_slot_resonate_music_box_mechanism]]` "Q → ∞: continuous-mesh / Antikythera limit (no substrate ring-down); Q finite: substrate ring-down at natural ω_n", wet-net bands sit in the substrate-coupled regime. This is consistent with the music-box / Antikythera / wet-net all being instances of the same pin-slot-resonate composition at different Q values.
+**Primary framework check (all-bands-high-Q):** **PASSES.** All 5 bands show Q > 5; per `[[user_stance_pin_slot_resonate_music_box_mechanism]]` "Q → ∞: continuous-mesh / Antikythera limit (no substrate loop-down); Q finite: substrate loop-down at natural ω_n", wet-net bands sit in the substrate-coupled regime. This is consistent with the music-box / Antikythera / wet-net all being instances of the same pin-slot-resonate composition at different Q values.
 
 ---
 
 ## Composition with canonical framework
 
 **Verified at wet-net substrate:**
-- `[[user_stance_loe_asymptotes_are_ring_valued]]` (6th shadow-stance): T5 ring-locus-shift directly verifies state-conditional ring-valued behaviour at biological substrate.
+- `[[user_stance_loe_asymptotes_are_ring_valued]]` (6th shadow-stance): T5 loop-locus-shift directly verifies state-conditional loop-valued behaviour at biological substrate.
 - `[[user_stance_pin_slot_resonate_music_box_mechanism]]`: S002 alpha T5b pattern replicates Spike #177's "substrate-natural ω_n preserved regardless of drive history" at wet-net substrate. Music-box (0.68%) and wet-net (3.27%) precision differ but the pattern is the same.
 - `[[user_stance_rotation_is_class_k_pin_slot]]`: Q distribution shows all bands in substrate-coupled regime (Class M ∘ Class K composition).
 
@@ -261,7 +261,7 @@ Data acquired from PhysioNet EEGMMIDB into `/tmp/spike183_data/` (NOT committed;
 
 5. **Synthetic baseline NOT used.** Real PhysioNet data was directly fetchable from the worktree environment. The R2 follow-up "real-data verification" is built into this R1 run — no synthetic-baseline pivot needed.
 
-6. **Promote candidate stance? "wet-net rotation parameter IS state-conditional ring-locus".** The T5 dual pattern (T5b alpha preservation + ring-locus-shift in beta) at S002 directly evidences this. Recommended: hold for second-subject confirmation; S001 ring-locus-shift in alpha is supportive but the T5b precision in S002 (3.27%) is the stronger anchor. Multi-subject (n≥10) replication recommended before canonical promotion.
+6. **Promote candidate stance? "wet-net rotation parameter IS state-conditional loop-locus".** The T5 dual pattern (T5b alpha preservation + loop-locus-shift in beta) at S002 directly evidences this. Recommended: hold for second-subject confirmation; S001 loop-locus-shift in alpha is supportive but the T5b precision in S002 (3.27%) is the stronger anchor. Multi-subject (n≥10) replication recommended before canonical promotion.
 
 ---
 
@@ -269,4 +269,4 @@ Data acquired from PhysioNet EEGMMIDB into `/tmp/spike183_data/` (NOT committed;
 
 **Spike #183: H1-PARTIAL** (3/6 passes; one strong T5 positive at S002 alpha with 3.27% precision; framework expectations T3/T4/T6 fail under strict null discipline).
 
-The framework prediction that wet-net rotation parameter is ring-valued (state-conditional LOCUS) is **partially confirmed at biological substrate**. The specific predictions that brainwave peaks land on small Class N rationals AND that wet-net cascade-matches DNA/music/silicon are **disconfirmed** at this dataset / methodology. The substrate-coupling-dominated regime (Q > 5 all bands) and substrate-natural ω_n preservation (S002 alpha T5b) and ring-locus state-shift (S002 beta, S001 alpha) are **confirmed**.
+The framework prediction that wet-net rotation parameter is loop-valued (state-conditional LOCUS) is **partially confirmed at biological substrate**. The specific predictions that brainwave peaks land on small Class N rationals AND that wet-net cascade-matches DNA/music/silicon are **disconfirmed** at this dataset / methodology. The substrate-coupling-dominated regime (Q > 5 all bands) and substrate-natural ω_n preservation (S002 alpha T5b) and loop-locus state-shift (S002 beta, S001 alpha) are **confirmed**.

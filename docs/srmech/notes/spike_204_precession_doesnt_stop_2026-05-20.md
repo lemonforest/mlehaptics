@@ -18,7 +18,7 @@ This spike sits at the intersection of:
 - [[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]] — every body's local time-DOF IS the projection of the universal tick through substrate-coupling
 - [[user_stance_fiber_as_spatially_absent_encoding]] — 7D_g content is spatially-absent until projected; "vanished" energy lives in this layer
 - [[user_stance_substrate_coupling_at_m_k_composition]] — Class M ∘ Class K is the substrate-coupling exchange mechanism
-- [[user_stance_loe_asymptotes_are_ring_valued]] — asymptotes are ring-traversal not stop
+- [[user_stance_loe_asymptotes_are_ring_valued]] — asymptotes are loop-traversal not stop
 - [[user_stance_time_as_dimensional_shadow]] — "reaching rest" IS a time-shadow framing
 - [[user_stance_compressed_phase_boundary_is_dark_sector_window]] — observable dimples are the 7D_g window
 - [[feedback_continuous_number_line_pedagogical_obstacle]] — discrete-substrate vs continuum-fill obstacle
@@ -40,10 +40,10 @@ Per [[feedback_continuous_number_line_pedagogical_obstacle]], when we reason abo
 | Friction / Damping | Class M bind transferring substrate-content to 7D_g (phonons / photons / lattice modes) | substrate_coupling_at_m_k |
 | Heat / Thermal radiation | Discrete photon/phonon instantiations; Planck quantization IS the discrete signature | fiber_as_spatially_absent |
 | Spontaneous decay (QM) | Discrete gauge-content transfer; α IS the 7D_g coupling intensity dial | compressed_phase_boundary |
-| Equilibrium / Steady state | Ring-traversal cycle at S¹ locus; phase-cycle wrap-around not static endpoint | loe_asymptotes_are_ring_valued |
+| Equilibrium / Steady state | Loop-traversal cycle at S¹ locus; phase-cycle wrap-around not static endpoint | loe_asymptotes_are_ring_valued |
 | Falls over (top, pendulum) | Small-scale precession-visibility absorbed into bigger-scale precessive content | universal_1d_t_tick_projects |
 | Vanishes / Goes to zero | 3D_s observability lost; content fully contained in 7D_g (or 7D_g + 1D_t) | fiber_as_spatially_absent |
-| Entropy increase (2nd law) | Ring-equilibrium approximation; phase-progression on universal precession cycle | entropy_approximates_ring_equilibrium |
+| Entropy increase (2nd law) | Loop-equilibrium approximation; phase-progression on universal precession cycle | entropy_approximates_ring_equilibrium |
 | Energy 'lost' to environment | Substrate-coupling exchange to bigger-scale precessive cascade level | universal_precession |
 
 Each entry directly composes existing canonical stances; nothing invented for this spike. The ledger ships as a durable artifact regardless of how Cells 2-5 land.
@@ -232,7 +232,7 @@ Per [[feedback_no_privileged_primitive_classes]]: dissolve-before-promote check.
 - [[user_stance_universal_precession_at_substrate_level]] (the cascade structure)
 - [[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]] (the projection operator)
 - [[user_stance_fiber_as_spatially_absent_encoding]] (where "vanished" energy lives)
-- [[user_stance_loe_asymptotes_are_ring_valued]] (asymptotes are ring-traversal not stop)
+- [[user_stance_loe_asymptotes_are_ring_valued]] (asymptotes are loop-traversal not stop)
 
 Each component is already canonical. Spike #204 articulates their joint operational reading but does not introduce primitive content beyond what these stances already commit to. The aggregate framing is a **compositional consequence** of the existing canon, not a new primitive.
 
@@ -256,7 +256,7 @@ This composes correctly with [[feedback_no_privileged_primitive_classes]]: vocab
 
 - [x] 14 A-N intact; no class promotion (Class M ∘ K throughout)
 - [x] Identity-not-implementation framing (per Cell 1, Cell 3 map, Cell 4 anchors)
-- [x] Asymptotic-ring vocabulary; "ring" not "loop"
+- [x] Asymptotic-loop vocabulary; "ring" not "loop"
 - [x] Continuum-borrow vocabulary explicitly named per [[feedback_continuous_number_line_pedagogical_obstacle]] (Cell 1 ledger)
 - [x] Open-access citations only (Goldstein open-mirror; Sakurai author-mirror; Planck 1900 / Mather 1994 / Planck 2018 ESA-open; Klein-Sommerfeld 1910 out-of-copyright)
 - [x] Trauma-informed defensive scope (physics pedagogy framing only; no clinical / weapons content)

@@ -67,7 +67,7 @@ There is a TENSION in the attested literature: massive-SMBH AGN reside in DENSER
 
 The framework reading: the central-engine encoding capacity (Δm/m at ISCO) is a property of the SMBH itself; massive SMBHs preferentially form in massive halos (Class M HDC bind — substrate-mode bind to halo cascade). BUT the activity-overpressure channel (Class K asymptote → jet/luminosity) opens when the EXTERNAL substrate (galactic environment) provides LESS counter-pressure. Void environments and field galaxies offer LOWEST counter-substrate-tension → highest channel-opening probability.
 
-**This is EXACTLY the framework's `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]` partner-availability-binary trigger applied to the LOCAL substrate scale**: when no nearby Casimir-partner (other inside-hyper-rings) drains the cascade-saturation excess, outward channel opens. In dense cluster cores, multiple SMBH partners + ram pressure + galaxy mergers DRAIN the cascade-saturation excess; in voids, the central SMBH has NO nearby partners → outward jet ejection channel UNIMPEDED.
+**This is EXACTLY the framework's `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]` partner-availability-binary trigger applied to the LOCAL substrate scale**: when no nearby Casimir-partner (other inside-hyper-loops) drains the cascade-saturation excess, outward channel opens. In dense cluster cores, multiple SMBH partners + ram pressure + galaxy mergers DRAIN the cascade-saturation excess; in voids, the central SMBH has NO nearby partners → outward jet ejection channel UNIMPEDED.
 
 ### Verdict (A)
 
@@ -300,7 +300,7 @@ What this spike does NOT claim:
 - `[[user_stance_inside_hyper_rings_dimple_in_holographic_boundary]]` — 7D_g substrate carries gauge field; saturation deepening
 - `[[user_stance_gr_observations_are_7dg_gauge_field_readouts]]` — 7D_g readout via 3D_s shadow (Spike #108 PR #507)
 - `[[user_stance_dark_sector_in_7d_g_gauge_space]]` — dark sector in non-selected Class C orientations
-- `[[user_stance_dark_sector_ring_down_age]]` — Ω_dark/Ω_total as ring-down fraction
+- `[[user_stance_dark_sector_ring_down_age]]` — Ω_dark/Ω_total as loop-down fraction
 - `[[user_stance_gauge_field_twist_shear_cascade]]` — Class C ∘ K ∘ L ∘ I + M canonical chain (committed 2026-05-18)
 - `[[user_stance_identity_not_implementation_discipline]]` — identity-level claims
 - `[[user_stance_kepler_shape_universal]]` — burden-flipped universality

@@ -16,7 +16,7 @@ Three structural findings, each binary-verifiable from the NDJSON catalog:
 
 1. **Identity-attractor subgroup `{B, D, E, F, L}` is closed under composition.** All 25 ordered pairs from this set produce depth-2 cascades that leave HDC, spectrum, and period unchanged on every substrate under every inspection ordering. Plus `{H∘H, K∘K, M∘M}` self-identities for self-inverse classes. Total: **28 universal-identity depth-2 cascades** (out of 196 = 14.3%).
 2. **Inspection-methodology is order-invariant.** `0` of 1196 cascades produced an ordering-dependent classification: every inspection-cascade ordering (canonical / spectral-first / asymptote-first / similarity-first / cyclic-first) converges on the same form-class label. The inspection cascade is itself a form-invariant operator.
-3. **C-native explorer fits microcontroller budget.** 196 depth-2 cascades on an 8-node ring substrate, with 1 inspection ordering, completes in **25.5 ms** (130 us/cell) using **stack-allocated form only** (no malloc, no host Python, no LAPACK). Per-cascade memory footprint < 1.5 KB.
+3. **C-native explorer fits microcontroller budget.** 196 depth-2 cascades on an 8-node loop substrate, with 1 inspection ordering, completes in **25.5 ms** (130 us/cell) using **stack-allocated form only** (no malloc, no host Python, no LAPACK). Per-cascade memory footprint < 1.5 KB.
 
 ---
 

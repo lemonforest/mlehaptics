@@ -39,7 +39,7 @@ Hopf-bundle horizontal-mode spectrum on `S³ × S⁷`: pure-structural predictio
 
 - `H_Λ = H₀ · √Ω_Λ = 0.05705 / Gyr` (Planck 2018 anchor)
 - **`T_sub = 2π/H_Λ = 110.13 Gyr`** (substrate Hopf period)
-- Quarter-cycle phase (substrate ring-up sign-flip): `T_sub/4 = 27.53 Gyr`
+- Quarter-cycle phase (substrate loop-up sign-flip): `T_sub/4 = 27.53 Gyr`
 - Sinh-bridge inversion (R3-p2): `a(T_sub/4) = (Ω_m/Ω_Λ)^(1/3) · sinh^(2/3)(3π/4) = 0.7713 · 3.0122 = 2.3233`
 
 **vs DESI 2024 VI (arXiv:2404.03002 Adame et al) + DR2 II (arXiv:2503.14738 Abdul-Karim et al)** thawing-CPL anchor (w₀=-0.8, wₐ=-0.7) per project canonical MFO §VII.6.1.2:
@@ -68,7 +68,7 @@ The 178 Gyr value in `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretc
 | Stretched-exp τ at d_S=1.365 | 0.92 Gyr | No |
 | Stretched-exp τ at d_S=11 | 3.77 Gyr | No |
 
-**Conclusion**: 178 Gyr is an opaque-derivation label in Spike #42b. Likely a characteristic time mis-labelled as "ring-down period" rather than ring-down e-folding time or similar. Stance memory needs audit. Principled `T_sub = 110.13 Gyr` should replace it OR the 178 Gyr needs explicit derivation.
+**Conclusion**: 178 Gyr is an opaque-derivation label in Spike #42b. Likely a characteristic time mis-labelled as "loop-down period" rather than loop-down e-folding time or similar. Stance memory needs audit. Principled `T_sub = 110.13 Gyr` should replace it OR the 178 Gyr needs explicit derivation.
 
 ## §6 R3 closure recommendation
 

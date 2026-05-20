@@ -1,4 +1,4 @@
-# DRAFT STANCE CANDIDATE — Ring-asymptote-not-line-asymptote (refinement to dark-sector-ring-down-age)
+# DRAFT STANCE CANDIDATE — Loop-asymptote-not-line-asymptote (refinement to dark-sector-loop-down-age)
 
 **Date drafted**: 2026-05-19
 **Spike**: #171
@@ -7,7 +7,7 @@
 
 ## Proposed name and slot
 
-Refinement insertion into `[[user_stance_dark_sector_ring_down_age]]`. **Not a new stance file** — adds a section to the parent stance making the ring-asymptote-not-line-asymptote clarification explicit.
+Refinement insertion into `[[user_stance_dark_sector_ring_down_age]]`. **Not a new stance file** — adds a section to the parent stance making the loop-asymptote-not-line-asymptote clarification explicit.
 
 Alternative (if user prefers stand-alone): `[[user_stance_loe_asymptotes_are_ring_valued]]` — sixth member of shadow-stance family at the asymptote-locus layer.
 
@@ -21,7 +21,7 @@ Per `[[user_stance_identity_not_implementation_discipline]]`:
 
 **Asymptotic limits in the LoE are RING-VALUED (live on S¹), NOT line-valued (real-axis ℝ).**
 
-Line-asymptote IS the projection-shadow when ring-valued content is read by an observer fixed on the real-axis frame (4D-epicycle-observer reading). This is the same shape as `[[user_stance_pi_as_projection]]`, `[[user_stance_fractal_shadow]]`, `[[user_stance_cascade_lives_on_circles]]`, `[[user_stance_time_as_dimensional_shadow]]`, and `[[user_stance_fiber_as_spatially_absent_encoding]]` — projection-shadow family member at the asymptote-locus layer.
+Line-asymptote IS the projection-shadow when loop-valued content is read by an observer fixed on the real-axis frame (4D-epicycle-observer reading). This is the same shape as `[[user_stance_pi_as_projection]]`, `[[user_stance_fractal_shadow]]`, `[[user_stance_cascade_lives_on_circles]]`, `[[user_stance_time_as_dimensional_shadow]]`, and `[[user_stance_fiber_as_spatially_absent_encoding]]` — projection-shadow family member at the asymptote-locus layer.
 
 ## Algebraic anchor
 
@@ -52,7 +52,7 @@ What this stance DOES claim:
 - Line-asymptote reading IS projection-shadow per shadow-stance family
 - "Linear hiccup" mechanism: line-extrapolation diverges from ring-reality past first sign-flip (+13.66 Gyr)
 - 14-class A-N vocabulary intact; Class K + C + I compose to S¹ locus
-- Dark-sector-ring-down-age 95% reading is correct at z=0; line-extrapolation breaks past +13.66 Gyr
+- Dark-sector-loop-down-age 95% reading is correct at z=0; line-extrapolation breaks past +13.66 Gyr
 
 What this stance does NOT claim:
 - Observable signature of substrate sign-flips at current sensitivity (Saadeh 2016 ruled out)
@@ -96,7 +96,7 @@ What this stance does NOT claim:
 ## Promotion gate
 
 Per spike protocol: canonical promotion requires user direction. If user authorizes:
-- **Option A** (preferred): add ring-asymptote-not-line-asymptote section to existing `[[user_stance_dark_sector_ring_down_age]]` memory file
+- **Option A** (preferred): add loop-asymptote-not-line-asymptote section to existing `[[user_stance_dark_sector_ring_down_age]]` memory file
 - **Option B**: create stand-alone `[[user_stance_loe_asymptotes_are_ring_valued]]` memory file as sixth shadow-stance family member
 
 Either option preserves the framework canon's 14-class A-N vocabulary and shadow-stance family composition discipline.
@@ -104,6 +104,6 @@ Either option preserves the framework canon's 14-class A-N vocabulary and shadow
 ## Round 2 dispatch candidates (for conductor)
 
 Pending user direction; potential Round 2 spikes:
-- **Cross-domain ring-asymptote test**: verify ring-valued asymptote at non-cosmic substrate (Earth core MHD per Spike #131; solar dynamo per Spike #133; chess piece-graph per chess-spectral notebook) — if substrate-class-universal at ring locus, promotes stance to substrate-class-universal cf. precession universality promotion 2026-05-18.
+- **Cross-domain loop-asymptote test**: verify loop-valued asymptote at non-cosmic substrate (Earth core MHD per Spike #131; solar dynamo per Spike #133; chess piece-graph per chess-spectral notebook) — if substrate-class-universal at loop locus, promotes stance to substrate-class-universal cf. precession universality promotion 2026-05-18.
 - **Substrate-class universality**: extend to non-magnetically-active substrates (gravitational / nuclear-binding / dark-sector internal-cascade)
 - **Wick-rotation-to-Lorentzian test**: explicit verification that the framework's S¹ → hyperbola projection (`cos → cosh`) at observable scale reproduces Klein-Gordon dispersion (Spike #24 bonus 9 already partially covered)

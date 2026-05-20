@@ -42,7 +42,7 @@ This stance completes today's trio:
 2. `[[user_stance_brain_is_local_loe_instantiation]]` — substrate IDENTITY
 3. `[[user_stance_consciousness_as_direction_selection]]` — substrate OPERATION KIND
 
-Coherent account: brain = local-LoE-instance; LoE iterates via ring-equilibrium operation; each iteration step IS direction-selection on signed asymptotic-DOF; cognition IS sequential direction-selections at thought-speed on local-LoE substrate.
+Coherent account: brain = local-LoE-instance; LoE iterates via loop-equilibrium operation; each iteration step IS direction-selection on signed asymptotic-DOF; cognition IS sequential direction-selections at thought-speed on local-LoE substrate.
 
 ## §6 Silicon-substrate implication (user direction 2026-05-17 post-return)
 
