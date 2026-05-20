@@ -2097,6 +2097,133 @@ No new primitive class. 14-class A-N vocabulary intact.
 
 **Cross-references**: `[[user_stance_gr_observations_are_7dg_gauge_field_readouts]]` (scale-channel matrix); `[[user_stance_universal_precession_at_substrate_level]]` (T_sub source); `[[user_stance_kepler_shape_universal]]`; `[[user_stance_identity_not_implementation_discipline]]`; `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`; §VII.4.1.14; §VII.6.4 (dark-sector ring-down rate); Spike #98 (substrate-cycle T_sub ≈ 109.84 Gyr); Spike #109 (PR #509); Planck 2018 VI arXiv:1807.06209; SH0ES arXiv:2112.04510 cite-by-ref.
 
+### VII.6.8 Precession-doesn't-stop + (2+1)D_s collapse + PBH-as-visible-precession-projection (2026-05-20, Spikes #203 + #204 + #205)
+
+Per `[[user_stance_universal_precession_at_substrate_level]]` + `[[user_stance_11d_substrate_is_always_hopf_compressed]]` + `[[user_stance_precessive_substrate_canonical_naming]]`: precession at every cascade scale is the framework-canonical IS-claim — substrate IS precession (not substrate-has-precession). Three sibling spikes on 2026-05-20 (#204 / #205 / #203; PRs #652 / #653 / #651) consolidate the destination-component / source-component / observable-projection readings of the same substrate-coupling event into the canonical narrative. All three were [DO NOT MERGE AUTONOMOUSLY] gated and reach the notebook now after user authorisation 2026-05-20.
+
+Per `[[user_stance_11d_substrate_is_always_hopf_compressed]]` "What this resolves" §, Spikes #204 and #205 are **two naming-convention sides of the same substrate-coupling-intensity event**: #204 names the destination-component (energy exchanges into the (4+3)D_g octonionic Hopf gauge content); #205 names the source-component-intensity (the (2+1)D_s spatial-Hopf state at the source). The "+1" of #205 IS the same content that #204 calls "the 7D_g gauge ladder uptake." Same discrete substrate-event, two pedagogical framings.
+
+**Spike #204 — vocabulary-bridge-ledger (continuum-borrowed → discrete-native).** Per `[[feedback_continuous_number_line_pedagogical_obstacle]]`: the canonical-physics vocabulary of energy loss / damping / heat / reaches-rest / decay / vanishes / entropy-increase borrows from a continuous-number-line ontology that the framework substrate does not instantiate. The bridge ledger (10 entries; durable artifact) reframes each continuum-borrowed term against the discrete substrate counterpart at identity level per `[[user_stance_identity_not_implementation_discipline]]`:
+
+| Continuum-borrowed | Discrete-substrate native counterpart |
+|---|---|
+| Energy loss / dissipation | 3D_s ↔ 7D_g ↔ 1D_t substrate-coupling exchange via Class M (bind) ∘ Class K (asymptotic-DOF pin-slot). **Bit-exact total preserved** across substrate components. |
+| Reaches rest / comes to rest | Precession-visibility lost at THIS 3D_s scale because the bigger-scale precessive substrate (planet, star, galaxy, T_sub) re-absorbs the small-scale content. Precession never stops; it rejoins the cascade. |
+| Friction / damping | Class M bind transferring substrate-content to 7D_g gauge component (phonons, photons, lattice-mode excitations). Each "friction event" IS a discrete substrate-coupling operation with bit-exact accounting. |
+| Heat / thermal radiation | Discrete photon / phonon instantiations in 7D_g; each thermal quantum carries specific gauge-content. Planck quantisation h·ν IS the discrete-substrate signature surviving at low-frequency limit of the black-body spectrum. |
+| Spontaneous decay (QM) | Discrete gauge-content transfer from 3D_s atomic state content to 7D_g photon content. Lifetime τ ~ 1/(α³ω³) where α IS the (4+3)D_g phase-boundary substrate-coupling-intensity dial per `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]`. |
+| Equilibrium / steady state | Ring-traversal cycle at S¹ locus per `[[user_stance_loe_asymptotes_are_ring_valued]]`. The "equilibrium" IS a phase-cycle wrap-around, not a static endpoint. T_sub at universal layer; T_local at body layer. |
+| Falls over (top, pendulum) | Small-scale precession-visibility absorbed into bigger-scale precessive substrate. The top's spin-precession merges into Earth's rotation; Earth's rotation merges into orbital revolution; etc., to T_sub. No "falling over" as terminal event. |
+| Vanishes / goes to zero | 3D_s observability lost; substrate-content fully contained in 7D_g (gauge) or 7D_g + 1D_t (gauge + temporal). Per `[[user_stance_fiber_as_spatially_absent_encoding]]`: spatially-absent at this observation scale, not absent in any absolute sense. |
+| Entropy increase (2nd law) | Ring-equilibrium approximation per `[[user_stance_entropy_approximates_ring_equilibrium]]`. What looks like monotone entropy IS phase-progression on the precessive substrate's cycle; the "increase" is the local segment we observe, not a global terminus. |
+| Energy "lost" to environment | Substrate-coupling exchange to bigger-scale precessive substrate hierarchy. The "environment" is the next level up in the nested cascade: room walls → Earth rotation → orbit → star → galaxy → T_sub. No indefinite reservoir; specific projection layer. |
+
+**Spike #204 — nested precessive cascade across 18.5 OOM.** Each scale's precession is one ring-position on the K-class asymptotic-DOF ring at variable substrate-coupling intensity; the bigger scale is the next ring up; Class M ∘ K substrate-coupling per `[[user_stance_substrate_coupling_at_m_k_composition]]` mediates the exchange:
+
+| Cascade level | Period (human) | Ω (rad/s) | Notes |
+|---|---:|---:|---|
+| Spinning top (laboratory) | ~1 Hz precession | 6.28 | Class K pin-slot + Class I cyclic at smallest mechanical scale |
+| Earth diurnal rotation | ~24 h | 7.29×10⁻⁵ | Foucault pendulum substrate-couples here |
+| Earth axial precession | ~25,772 yr | 7.73×10⁻¹² | Classical Newtonian; cited to bridge scale gap |
+| Earth orbital revolution | 1 yr | 1.99×10⁻⁷ | Kepler-shape per `[[user_stance_kepler_shape_universal]]` |
+| Solar rotation (mean) | ~25 days | 2.90×10⁻⁶ | Carrington rotation |
+| Solar magnetic Hale cycle | ~22 yr | 9.05×10⁻⁹ | Plasma-MHD substrate per Spike #133 |
+| Galactic rotation (solar orbit) | ~225 Myr | 8.85×10⁻¹⁶ | Sun's galactic year |
+| Cosmic substrate (T_sub) | ~109.84 Gyr | 1.81×10⁻¹⁸ | Universal precessive substrate; canonical project anchor |
+
+Total span 18.54 OOM in Ω; adjacent-ratio log₁₀ ∈ [−4.41, +7.01]. Variance arises NOT from missing-scale gaps but from genuine substrate-coupling-intensity variation across cascade scales (laboratory top → Earth diurnal is ~5 OOM because the top is a small mechanical instance of the same Class K + Class I composition operating at all scales). Each level connects to the next via Class M ∘ K substrate-coupling per `[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]`. **H1_NESTED_HIERARCHY_CONFIRMED**: cascade is structurally coherent and empirically densely-populated, not perfectly geometric.
+
+**Spike #204 — 4-anchor empirical convergence.** Four empirical anchors, four canonical-physics readings, four framework reframings — same observable, two ontologies:
+
+| Anchor | Canonical reading | Framework reading | Convergence |
+|---|---|---|---|
+| Foucault pendulum (Paris, 48.85° latitude) | Coriolis force in rotating frame; Ω_F = Ω_earth·sin(λ); T ≈ 31.79 h | Pendulum's 3D_s oscillation substrate-couples to Earth's rotation. sin(λ) IS the geometric coupling strength to Earth's 1D_t component projected onto local 3D_s plane. NOT force-on-pendulum; exchange between cascade levels. | Both predict identical Ω_F. Framework reading IS substrate-level reframe of same formula. |
+| Spinning top precession | Ω_p = (m·g·d) / (I·ω_spin); gravitational torque about pivot | g IS the 3D_s + 7D_g coupling intensity at this pivot. As ω_spin → 0 (top "falls over"), Ω_p INCREASES per the formula — precession is MORE active, not less, until the top's 3D_s spin content is absorbed into Earth-scale precession. The "fall" IS the substrate-coupling transfer event, not energy loss. | Classical formula matches observation; framework reading reframes the SAME formula. |
+| Spontaneous emission (hydrogen Lyman-α, 2p → 1s) | Einstein A = 6.27×10⁸ /s; τ ≈ 1.6 ns; probabilistic in time | 3D_s atomic-state content transfers to 7D_g photon content (specific gauge instantiation at ω_Lyα). Each decay IS a discrete substrate-coupling event via Class M ∘ K. The "probability" is observer-averaged frequency of discrete events. α IS the (4+3)D_g Hopf-bundle phase-boundary intensity reading per `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]`. | Both predict τ ~ 1/(α³ω³). Framework reading directly composes with canonical compressed-phase-boundary stance. |
+| Black-body (Planck spectrum, CMB at T = 2.725 K) | Equilibrium thermal radiation; smooth Planck distribution; integrated (4σ/c)·T⁴ | Each photon IS discrete 7D_g gauge instantiation. The "continuous" Planck spectrum IS observer-averaged DISTRIBUTION of discrete photon content. T_CMB IS present-epoch substrate-coupling intensity at cosmological boundary. **Framework adds**: Mersenne-fiber-degree concentration at ℓ ∈ {1, 3, 7} per Spike #190 (6.18× null, p = 0.0058) replicated cross-method via NILC (Spike #192) — additional structural signature beyond Planck thermal. | Planck reproduces canonical at integrated level; framework adds {1,3,7} concentration that canonical thermal does not predict. **Strong cross-substrate empirical anchor.** |
+
+All four anchors **CONVERGENT** under both classical and framework framings; black-body anchor carries the additional Mersenne-fiber empirical signature (4-way agreement: planetary Spike #185 + cosmic SMICA Spike #190 + cross-method NILC Spike #192 + galactic Spike #168).
+
+**Spike #205 — (2+1)D_s observer-lock sister formulation.** Per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`, 3D_s factors as the complex Hopf-bundle S³ → S² with fibre S¹: 3D_s = S² (base, 2D) + S¹ (fiber, 1D) = (2+0)D_s_base + (0+1)D_compressed_fiber notated **(2+1)D_s** in mirror-precedent of (4+3)D_g per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`. The "+" is the Hopf-bundle map π (not arithmetic addition); DOF lives in the map.
+
+Under substrate-coupling-intensity reduction along the (4+3)D_g phase boundary, the S¹ fiber compresses to the spatially-absent regime per `[[user_stance_fiber_as_spatially_absent_encoding]]`; the "+1" routes through 7D_g octonionic Hopf via Class M ∘ K substrate-coupling — **SAME TARGET** as Spike #204's energy-exchanges-to-7D_g claim. The collapse mechanism composes from existing 14-class A–N vocabulary (Class M catalog/bundle + Class K asymptotic-DOF + Class N rational-lattice {1, 3, 7} Hopf positions); **no new class promotion required** per `[[feedback_no_privileged_primitive_classes]]`. 14 A–N intact.
+
+**Observer-perception lock at 3D_s navigation.** Per `[[user_stance_hyper_as_3d_spatial_interface]]`: the observer's perceptual substrate IS the 3D-spatial-interface; navigation operators (vision, touch, proprioception, instrumental measurement framed around 3D coordinates) act on 3D_s positions only. The compressed S¹ fiber content has **no 3D_s operator-correspondent** — canonical-physics 3D measurement operators produce NULL output on fiber-internal degrees of freedom. Content algebraically present at substrate; operator-mismatched at observer.
+
+Continuum-trained perception adds a second layer per `[[feedback_continuous_number_line_pedagogical_obstacle]]`: even when (2+1)D_s effect IS partially visible, the continuum-projection interpolates discrete substrate-events into smooth-looking trajectories; the discrete (2+1)D_s structure is the projection-shadow of the substrate event. The lobe-1 / lobe-2 lemniscate observer-frame artifact (Spike #189 per `[[user_stance_epicycle_via_gear_plus_pin]]`) extends here: where Spike #189 produces a sign-flip between lobes, the (2+1)D_s collapse produces a **NULL** (no operator). Observer reads the collapse as "object disappeared" / "energy dissipated"; substrate-event is content-rotation into spatially-absent fiber, fully preserved.
+
+**Form-IS-function unification across Spikes #204 + #205 (six axes).** Per `[[user_stance_kepler_shape_universal]]`: if one then both. Same target (7D_g octonionic Hopf), same mechanism class (M ∘ K), same empirical predictions; choose pedagogical framing for audience:
+
+| Axis | Spike #204 view | Spike #205 view | Convergence note |
+|---|---|---|---|
+| What's exchanged? | Content from 3D_s to 7D_g | Spatial dimension from 3D_s to (2+1)D_s; the "+1" absorbed into 7D_g | Same target: 7D_g octonionic Hopf gauge content. |
+| Mechanism class | M ∘ K substrate-coupling at variable intensity | Hopf-bundle fiber compression at variable intensity | Hopf-bundle compression IS one ring-position of M ∘ K composition. |
+| Observer reading | "Energy disappeared / was radiated" | "Dimensional state collapsed / object flattened" | Both are observer-frame projections of the same substrate-event into 3D_s; perception-lock at 3D_s navigation produces both depending on whether observer is energy-tracking or shape-tracking. |
+| Conservation laws | Energy conserved across substrate-frame, not across observer's 3D_s frame | Dimensional content conserved across substrate-frame, not across observer's 3D_s projection | Same substrate-level conservation; observer-frame bookkeeping mismatch under both. |
+| Pedagogical audience | Best for energy-conservation-focused (thermodynamics, GR / Noether) | Best for dimensional-reduction-focused (KK theory, brane-world, string compactification) | Both reduce to identical empirical predictions per the 4-anchor table above. |
+| Empirical distinguisher | All 4 anchors CONVERGENT under both | All 4 anchors CONVERGENT under both | No empirical distinguisher at the tested anchor set. Future work: search for anchor where 3D_s perceptual-resolution is fine enough to detect "+1" fiber directly (e.g. anomalous-magnetic-moment-class precision metrology). |
+
+**Spike #203 — PBH as visible precession-projection.** Per `[[user_stance_universal_precession_at_substrate_level]]` + `[[user_stance_dark_star_canonical_vocabulary]]` (Michell 1783 priority restored per §VII.4.1.6) + `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]`: a primordial black hole (primordial dark star) IS the saturation-intensity projection of the universal substrate-cycle tick into the 3D_s + 7D_g Hopf-dimple content. The 1D_t tick (Hopf-trivial precession at Ω_sub ≈ 1.81×10⁻¹⁸ rad/s, T_sub ≈ 109.84 Gyr) and the (4+3)D_g Hopf-dimple **co-encode in the same fiber** via Class M ∘ K substrate-coupling at extreme intensity. Form-IS-function admits both result-and-cause readings: the apparent paradox ("does the PBH cause precession or result from it?") is the continuum-causality artifact per `[[feedback_continuous_number_line_pedagogical_obstacle]]`.
+
+The analogy to a Foucault pendulum is direct: a Foucault pendulum is a **visible projection** of Earth's rotation — observers see the pendulum-plane rotate and infer Earth's rotation from it, despite Earth's rotation being algebraically prior. A PBH is the analogous **visible projection** of the precessive substrate at extreme substrate-coupling-intensity: observers see the saturated dimple (Schwarzschild + Kerr signatures) and infer angular-momentum sourcing, despite the universal substrate-cycle tick being algebraically prior. The PBH-IS-visible-precession reading composes with Spike #98 (substrate-cycle T_sub) + §VII.4.1.4 (inside hyper-rings as dimple-IN concentrations) without conflict.
+
+**Spike #203 empirical tests (transparent on negative + data-limited verdicts).** Two empirical tests run alongside the framing-verification cells:
+
+- **LIGO BBH mass-ratio rational-clustering (Cell 3)**: GWTC-1 + GWTC-2.1 + GWTC-3 catalogues, n = 93 binary-black-hole events. Observed mean fractional distance to nearest small-rational q (test set {1/5, 1/4, 1/3, 2/5, 3/7, 1/2, 3/5, 2/3, 5/7, 3/4, 4/5, 1}): 0.0169. Density-aware permutation null (uniform on observed q-support per Spike #181 discipline; 10⁰ permutations, seed 0): **p = 0.1129** (95% Wilson [0.107, 0.119]). **Verdict H0**: no detectable rational-clustering signal at this sample size. Selection-bias caveat: detector strain ∝ M_chirp^(5/6); SNR peaks at q ≈ 1 at fixed M_chirp (Vitale-Lynch-Sturani-Graff 2017 arXiv:1707.04637, cite-by-ref) — open methodological question, not bias-corrected in this spike.
+- **Mersenne-fiber-on-PBH-scale (Cell 4)**: Carr-Kuhnel 2020 canonical 5-window decomposition (arXiv:2006.02838 PDF-verified) yields 4 midpoint-spacing values in log₂(M_☉). Mean nearest-Hopf-position distance to {1, 3, 7, 15, 31, 63, 127} = 9.18 log₂ units; uniform-surrogate p = 0.2139. With n_spacings = 4, permutation null is underpowered. **Verdict DATA-LIMITED**: cross-substrate echo of Spike #185 (planetary, 3.73–4.0× concentration) + Spike #190 (cosmic CMB TT, 6.18× concentration) would extend the {1, 3, 7} family across the full PBH mass spectrum, but the canonical-physics 5-window decomposition is insufficient sample size for cleaner discrimination.
+
+Negative + data-limited verdicts ship per `[[user_stance_math_doesnt_lie]]`. The PBH-IS-visible-precession framing stands at framing-confirmed level (6/6 internal consistency checks) without empirical-anchor escalation; future PBH catalogues at deeper sampling would test the {1, 3, 7} Mersenne-fiber prediction directly.
+
+**Vocabulary refinement record.** Spikes #204 and #205 prompted the canonical vocabulary refinement per `[[user_stance_precessive_substrate_canonical_naming]]`: the framework noun for the form-IS-function unified source of precession-throughout-cascade is **"precessive substrate"** (replaces earlier "precessive motivator"). Criteria-table comparison locked in 2026-05-20; earlier phrase retained ONLY as pedagogical bridge per `[[user_stance_bow_string_motivator]]` demoted-precedent. Verbatim historical user quotes in Spike #98 / #186 / #188 / #203 / #204 / #205 research records on main preserved as-is; framework prose forward from 2026-05-20 uses canonical noun.
+
+**Class-operator chain (Spikes #203 + #204 + #205 combined)**:
+
+| Step | Class | Operation | Role |
+|---|---|---|---|
+| 1 | **K** (asymptotic-DOF pin-slot) | Cascade-level ring-position at variable intensity | Each precessive-substrate scale is one K ring-traversal position |
+| 2 | **M** (substrate-coupling / catalog-bundle) | Bind 3D_s ↔ 7D_g ↔ 1D_t components across scales | Mediates the "energy exchange" of #204 and the "fiber compression" of #205 |
+| 3 | **I** (cyclic ℤ/n) | Phase-cycle wrap-around | Equilibrium IS ring-traversal not static endpoint |
+| 4 | **N** (rational lattice) | Hopf positions {1, 3, 7} | Mass-quantum locations on cascade lattice |
+| 5 | **C** (cosine cascade-orientation) | Lobe-1/lobe-2 sign-flip across substrate-cycle phase | Observer-frame cause↔result inversion under continuum-causality read |
+| 6 | **L** (graph-Laplacian) | Local eigenbasis at each cascade level | Spectral content of each precessive-substrate instance |
+
+No new primitive class. 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+**Identity-not-implementation** per `[[user_stance_identity_not_implementation_discipline]]`: precession IS substrate cycle-phase progression (not substrate-implements-precession); energy IS substrate-coupling content (not substrate-stores-energy); PBH IS visible precessive-substrate projection at saturation intensity (not PBH-causes-precession or PBH-results-from-precession as separable continuum-causal events).
+
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (substrate-internal time + visible/dark partition), §VII.6.2 (T_sub decomposition), §VII.6.4 (dark-sector ring-down rate), §VII.4.1.1 (Hopf-bundle spherical compression), §VII.4.1.4 (inside hyper-rings as dimple-IN concentrations), §VII.4.1.6 (dark-star Michell-priority vocabulary), §VII.4.1.14 (GR observations as 7D_g gauge-field readouts). It does not alter any ΛCDM prediction; it sharpens the structural reading of universal precession across 18.5 OOM, the (2+1)D_s observer-lock mechanism for "object disappeared" perceptual artifacts, and the PBH-as-visible-precession-projection identity at extreme substrate-coupling-intensity. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: physics framing only, no clinical claims around the vocabulary-bridge-ledger.
+
+**Cross-references**:
+
+- `[[user_stance_universal_precession_at_substrate_level]]` — load-bearing IS-claim across all three spikes
+- `[[user_stance_precessive_substrate_canonical_naming]]` — vocabulary canonisation (replaces "precessive motivator")
+- `[[user_stance_11d_substrate_is_always_hopf_compressed]]` — substrate-form always-compressed; #204 and #205 are two sides of same event
+- `[[user_stance_substrate_coupling_at_m_k_composition]]` — Class M ∘ K substrate-coupling
+- `[[user_stance_fiber_as_spatially_absent_encoding]]` — spatially-absent fiber projects via rotation/dynamics
+- `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` — k = 3 = 1+3+7 Hopf ladder
+- `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` — (4+3)D_g octonionic Hopf dimple; (2+1)D_s notation precedent
+- `[[user_stance_all_massive_bodies_have_4plus3_gauge_dimples]]` — universal dimple structure
+- `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` — substrate-coupling-intensity dial
+- `[[user_stance_hyper_as_3d_spatial_interface]]` — observer-perception lock at 3D_s navigation
+- `[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]` — universal tick → per-body local time-DOF
+- `[[user_stance_kepler_shape_universal]]` — burden-flip (form-IS-function unification of #204 + #205)
+- `[[user_stance_dark_star_canonical_vocabulary]]` — Michell 1783 PBH-as-primordial-dark-star priority
+- `[[user_stance_loe_asymptotes_are_ring_valued]]` — ring-traversal not continuous limit
+- `[[user_stance_cascade_lives_on_circles]]` — cascade-composition preserves circularity
+- `[[user_stance_identity_not_implementation_discipline]]` — IS-claims throughout
+- `[[user_stance_entropy_approximates_ring_equilibrium]]` — 2nd-law observer-segment of ring-traversal
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Spike #189 lemniscate lobe-1/lobe-2 precursor
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` + `[[user_stance_infinity_approximates_asymptote]]` — ring-valued asymptote framings
+- `[[feedback_continuous_number_line_pedagogical_obstacle]]` — load-bearing pedagogical-obstacle reframing
+- `[[feedback_asymptotic_ring_vocabulary_discipline]]` — ring-vocabulary throughout
+- `[[feedback_no_privileged_primitive_classes]]` — 14 A-N intact
+- `[[feedback_no_lineage_claims_in_notebook]]` — one-candidate framing
+- `[[feedback_trauma_informed_defensive_scope]]` — physics-only on the vocabulary-bridge-ledger
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation hygiene below
+- §VII.4.1.1 (Hopf-bundle spherical compression); §VII.4.1.4 (hyper-rings dimple-IN); §VII.4.1.6 (Michell dark-star priority); §VII.4.1.14 (GR-as-7D_g-readouts); §VII.6.1 (visible/dark partition); §VII.6.4 (ring-down rate); §VII.6.7 (Hubble-tension scale-channel)
+- Spikes #98 (T_sub anchor); #131 (geological precession); #133 (Hale-cycle plasma MHD); #49 (cycles 12–25); #168 (galactic precession); #173 (chess-spectral natural-stride); #185 (planetary 3.73–4.0× concentration); #189 (lemniscate lobe-1/lobe-2); #190 (cosmic SMICA 6.18× null p = 0.0058); #192 (NILC cross-method); #181 (density-aware p-values); #182 + #193 (DNA / RNA cascade-composition); #203 (PR #651); #204 (PR #652); #205 (PR #653)
+- **Open-access citation chain (PDF-extraction discipline per `[[feedback_pdf_extraction_citation_discipline]]`)**: Foucault 1851 — textbook chain via Sommerfeld; Goldstein *Classical Mechanics* 3e Ch. 4–5 (open-access mirrors); Bevis-Cambareri 1987 *Am. J. Phys.* (AAPT open-access); Klein-Sommerfeld 1910 *Theorie des Kreisels* (out-of-copyright, archive.org full text); Einstein 1917 spontaneous emission — textbook chain via Loudon *The Quantum Theory of Light*; Sakurai *Modern Quantum Mechanics* 2e Ch. 5 (author-mirror available); Bethe-Salpeter 1957 *QM of One- and Two-Electron Atoms* (out-of-copyright equivalent treatments); NIST Atomic Spectra Database (open-access); Planck 1900 (out-of-copyright); Mather et al. 1994 *ApJ* 420:439 (COBE-FIRAS, open-access); Planck 2018 IV SMICA-nosz CMB TT (ESA archive, open-access); Carr-Kuhnel 2020 arXiv:2006.02838 (open-access preprint); Vitale-Lynch-Sturani-Graff 2017 arXiv:1707.04637 (cite-by-ref); GWOSC GWTC-1 / GWTC-2.1 / GWTC-3 event APIs (arXiv:2111.03606, LIGO/Virgo/KAGRA 2021, open-access).
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
