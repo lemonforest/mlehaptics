@@ -5,7 +5,7 @@
 **Branch:** `research/spike-170-precision-spectral-discriminator-redo`
 **Origin:** PR #626 / Spike #169 — H1-CONFIRMED-WITH-DENSITY-ARTIFACT-CONCERN
 **Composes with:** Spike #169 (11D partitioned-Laplacian) · Spike #181 (researcher-DOF discipline) · Spike #51.D (squashed-S^7) · Spike #47 R4-1 (CMB chain)
-**Discipline:** 14 A-N intact per `[[feedback_no_privileged_primitive_classes]]`; NDJSON output per `[[feedback_ndjson_over_bloated_json]]`; computational provenance per `[[feedback_computational_provenance_discipline]]`; honest density-aware comparison per Spike #181; PDF-extraction citation discipline per `[[feedback_pdf_extraction_citation_discipline]]`; asymptotic-ring vocabulary per `[[feedback_asymptotic_ring_vocabulary_discipline]]`; trauma-informed defensive scope (theoretical-physics framing only)
+**Discipline:** 14 A-N intact per `[[feedback_no_privileged_primitive_classes]]`; NDJSON output per `[[feedback_ndjson_over_bloated_json]]`; computational provenance per `[[feedback_computational_provenance_discipline]]`; honest density-aware comparison per Spike #181; PDF-extraction citation discipline per `[[feedback_pdf_extraction_citation_discipline]]`; asymptotic-loop vocabulary per `[[feedback_asymptotic_ring_vocabulary_discipline]]`; trauma-informed defensive scope (theoretical-physics framing only)
 
 > ⚠️ **DO NOT MERGE AUTONOMOUSLY** — verdict has indirect-vocabulary impact (composes with `[[user_stance_competing_theories_via_loe_instantiation_intersection]]` and `[[user_stance_pi_as_projection]]`); conductor review required before MS #16 absorption.
 

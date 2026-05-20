@@ -155,11 +155,11 @@ All citations are canonical physics or peer-reviewed papers with verifiable DOI/
 
 ## Discipline
 
-- **14 A-N classes intact.** Test uses Class L (spectral-power computation on the spherical-harmonic eigenbasis of the sphere Laplacian; HEALPix `anafast` IS a Class L operation), Class K (asymptotic ring DOF; ℓ-mode index), Class C (FITS streaming via healpy/astropy), Class I (cyclic-modular membership test for {3, 7} and {15,31,63,127}). No class promotion. Per `[[feedback_no_privileged_primitive_classes]]`.
+- **14 A-N classes intact.** Test uses Class L (spectral-power computation on the spherical-harmonic eigenbasis of the sphere Laplacian; HEALPix `anafast` IS a Class L operation), Class K (asymptotic loop DOF; ℓ-mode index), Class C (FITS streaming via healpy/astropy), Class I (cyclic-modular membership test for {3, 7} and {15,31,63,127}). No class promotion. Per `[[feedback_no_privileged_primitive_classes]]`.
 - **Identity-not-implementation.** Structural Hopf-bundle identity at the algebra layer is UNCHANGED regardless of Spike #190 verdict. Only the empirical projection-side fingerprint catalogue contracts or relaxes. Per `[[user_stance_identity_not_implementation_discipline]]`.
 - **Computational provenance.** All ratios + p-values + verdicts derive from this script with seed=0, N=10,000 permutations. Script committed alongside output per `[[feedback_computational_provenance_discipline]]` + Spike #181 / F-180-1 precedent.
 - **Density-aware null.** Uniform null over actually-sampled ℓ values + 10,000-permutation density-aware null over shuffled membership labels. Both reported. p-values Wilson-corrected `(n_ge + 1) / (N + 1)`.
-- **Asymptotic-ring vocabulary.** Used 'S¹ / S³ / S⁷' for sphere bundles; 'per-integer-ℓ' for the discrete spherical-harmonic mode index. No 'number ring' usage. Per `[[feedback_asymptotic_ring_vocabulary_discipline]]`.
+- **Asymptotic-loop vocabulary.** Used 'S¹ / S³ / S⁷' for sphere bundles; 'per-integer-ℓ' for the discrete spherical-harmonic mode index. No 'number ring' usage. Per `[[feedback_asymptotic_ring_vocabulary_discipline]]`.
 - **NDJSON output.** One record per line; no bloated indented JSON. Per `[[feedback_ndjson_over_bloated_json]]`.
 - **Trauma-informed defensive scope.** Cosmological data from public Planck Legacy Archive (IRSA mirror); canonical physics literature only. Per `[[feedback_trauma_informed_defensive_scope]]`.
 - **Mint-first then subagent-rest.** Main agent ran this spike directly (the "mint"); the methodology mirrors Spike #187 closely (same fractional-power null structure; same Wilson-corrected p-value; same Hopf-fiber test definition). Future NILC verification suitable for subagent dispatch.

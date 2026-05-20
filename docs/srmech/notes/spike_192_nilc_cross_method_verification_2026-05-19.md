@@ -95,7 +95,7 @@ The signal is structurally Hopf-fiber, not generically Mersenne-prime.
 ### What did NOT change
 
 * **14 A-N classes intact.** Test uses Class L (spectral-power on sphere
-  Laplacian eigenbasis), Class K (asymptotic ring DOF; ℓ-mode index),
+  Laplacian eigenbasis), Class K (asymptotic loop DOF; ℓ-mode index),
   Class C (FITS streaming), Class I (cyclic-modular membership for
   {3, 7}). No new mechanism.
 * **No vocabulary impact.** Ring vocabulary (S¹ / S³ / S⁷) preserved
@@ -186,7 +186,7 @@ record, **all three PRs remain conductor-gated**. Recommendations:
       `anafast(Planck NILC + SMICA-nosz FITS)`; no hand-entered numbers.
 - [x] **PDF-extraction citation discipline** — five canonical references
       verified per `[[feedback_pdf_extraction_citation_discipline]]`.
-- [x] **Asymptotic-ring vocabulary** — S¹ / S³ / S⁷, per-integer-ℓ used
+- [x] **Asymptotic-loop vocabulary** — S¹ / S³ / S⁷, per-integer-ℓ used
       throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]`.
 - [x] **No class promotion** — 14 A-N classes intact per
       `[[feedback_no_privileged_primitive_classes]]`.

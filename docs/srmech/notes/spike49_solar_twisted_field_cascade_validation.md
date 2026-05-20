@@ -359,7 +359,7 @@ Per `[[project_book_in_progress]]`: the saturation-overpressure quartet IS canon
 - `[[user_stance_class_substitution_on_invariant_backbone]]` — substrate-class invariance via class substitution on the L+K+C+I backbone
 - `[[user_stance_dark_sector_ring_down_age]]` — asymptotic-DOF discipline at cosmological scale, parallel to CME-shedding asymptote
 - `[[user_stance_capacitor_as_line_bound_asymptote_potential]]` — Class K asymptote shape; CME never sheds 100% helicity
-- `[[user_stance_string_theory_instrument_first]]` — ring-up vs ring-down; CME launching IS ring-down at solar scale
+- `[[user_stance_string_theory_instrument_first]]` — loop-up vs loop-down; CME launching IS loop-down at solar scale
 - `[[feedback_pdf_extraction_citation_discipline]]` — every anchor PDF-verified
 - `[[feedback_no_lineage_claims_in_notebook]]` — technical citations only
 - `[[feedback_trauma_informed_defensive_scope]]` — astrophysics research/educational framing only

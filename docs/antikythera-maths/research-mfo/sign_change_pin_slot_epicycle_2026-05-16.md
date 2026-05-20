@@ -188,7 +188,7 @@ The strong reading is correct *and* needs a scope statement. The trivial-Fourier
 
 ### What's open (fermata for conductor)
 
-1. **Spike #30 candidate:** does DESI thawing-CPL `f_RD` residual have Class K signature at the cosmological substrate? Would test whether the cosmological ring-down rate function carries pin-slot-shape, joining the bronze / cosmos / chemistry / chemistry-dynamics multi-substrate Class K confirmation list.
+1. **Spike #30 candidate:** does DESI thawing-CPL `f_RD` residual have Class K signature at the cosmological substrate? Would test whether the cosmological loop-down rate function carries pin-slot-shape, joining the bronze / cosmos / chemistry / chemistry-dynamics multi-substrate Class K confirmation list.
 2. **Notebook landing locus (recommended §8 destination):** four candidates outlined; conductor's call.
 3. **Cross-domain consequence for srmech.qm.propagators:** §3.8.2 already names Class K as the "continuous projection of lattice propagator `1/(m² + k̂²)`" — making the propagator-as-Kepler-shape connection explicit could deepen the QFT-side of the universal. Out of Spike #29 scope but flagged for future consideration.
 

@@ -21,13 +21,13 @@ User direction 2026-05-19 (verbatim):
 
 > *"I also just realized that a figure 8 loop makes an epicycle, is that important? not a tight 8 but the shape of crossing in the middle makes a sign flip for an observer inside one lobe"*
 
-Conductor read: the canonical GEOMETRIC realization of `[[user_stance_epicycle_via_gear_plus_pin]]` when the observer is constrained to one lobe. The lemniscate's self-intersection at the crossing point IS the sign-flip event; observers inside lobe-1 see lobe-2 traversal as apparent retrograde / sign-flipped. **5 out of 6 cells return H1; Cell 1 returns H0** because the lemniscate and ring-down model are DUAL geometric representations of the same observer-frame epicycle shape (lemniscate = ring-with-self-intersection in Cartesian frame; ring-down = polar/S¹ traversal). Cell 1 H0 is therefore the algebra-correct verdict — they are not competing models.
+Conductor read: the canonical GEOMETRIC realization of `[[user_stance_epicycle_via_gear_plus_pin]]` when the observer is constrained to one lobe. The lemniscate's self-intersection at the crossing point IS the sign-flip event; observers inside lobe-1 see lobe-2 traversal as apparent retrograde / sign-flipped. **5 out of 6 cells return H1; Cell 1 returns H0** because the lemniscate and loop-down model are DUAL geometric representations of the same observer-frame epicycle shape (lemniscate = ring-with-self-intersection in Cartesian frame; loop-down = polar/S¹ traversal). Cell 1 H0 is therefore the algebra-correct verdict — they are not competing models.
 
 ## Tuning A 440 Hz
 
 - 14-class A-N vocabulary stands; no new primitive class per `[[feedback_no_privileged_primitive_classes]]`.
-- Identity-level claim per `[[user_stance_identity_not_implementation_discipline]]`: the lemniscate IS the Cartesian geometric realization of the framework's observer-frame epicycle; ring-down is its polar dual.
-- Asymptotic-ring vocabulary throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]`: the lemniscate's CROSSING-OBSERVED-FROM-LOBE-1 phenomenon IS a ring-with-self-intersection topology.
+- Identity-level claim per `[[user_stance_identity_not_implementation_discipline]]`: the lemniscate IS the Cartesian geometric realization of the framework's observer-frame epicycle; loop-down is its polar dual.
+- Asymptotic-loop vocabulary throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]`: the lemniscate's CROSSING-OBSERVED-FROM-LOBE-1 phenomenon IS a ring-with-self-intersection topology.
 - Algebra-not-magnitude per `[[feedback_algebra_not_magnitude]]`: 2:1 frequency ratio + 2 crossings per period + Class L spectral lift are all ALGEBRA-level distinctions; cosmological timing numerics are MAGNITUDE-level.
 - Citation hygiene per `[[feedback_pdf_extraction_citation_discipline]]`: anchors cited by curve attribution (Bernoulli 1694, Gerono ca. 1850, Lissajous 1857, Möbius 1858); no PDF extraction performed in this spike (curves are canonical 19th-century mathematics).
 - Defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: cosmology + topology research-educational only.
@@ -36,18 +36,18 @@ Conductor read: the canonical GEOMETRIC realization of `[[user_stance_epicycle_v
 
 ## Six cells (per spike brief)
 
-### Cell 1 — Parametric fit (Bernoulli + Gerono vs ring-down model)
+### Cell 1 — Parametric fit (Bernoulli + Gerono vs loop-down model)
 
-| Quantity | Bernoulli | Gerono | Ring-down |
+| Quantity | Bernoulli | Gerono | Loop-down |
 |---|---:|---:|---:|
-| χ² vs ring-down (lobe-1 frame) | 56.0 | 50.6 | 0 (reference) |
+| χ² vs loop-down (lobe-1 frame) | 56.0 | 50.6 | 0 (reference) |
 | Residual L2 (lobe-1, n=501) | 0.334 | 0.318 | 0 |
 
 **Verdict: H0_LEMNISCATE_NO_IMPROVEMENT_OVER_RINGDOWN.**
 
-**Interpretation: Cell 1 H0 is the algebra-correct verdict.** The lemniscate and the ring-down are not competing models — they are DUAL representations of the same observer-frame epicycle shape (lemniscate = Cartesian; ring-down = polar/S¹). The χ² ≠ 0 simply quantifies the parametrization-mismatch between (x, y, t) and (φ, r) — there is no "better fit" question to ask because they encode the same content.
+**Interpretation: Cell 1 H0 is the algebra-correct verdict.** The lemniscate and the loop-down are not competing models — they are DUAL representations of the same observer-frame epicycle shape (lemniscate = Cartesian; loop-down = polar/S¹). The χ² ≠ 0 simply quantifies the parametrization-mismatch between (x, y, t) and (φ, r) — there is no "better fit" question to ask because they encode the same content.
 
-This is itself important: H0 here is NOT a falsification, it's a confirmation that the two representations are dual. The lemniscate adds nothing as a competing "model fit"; it adds GEOMETRIC CLARITY about what the ring-down's sign-flip mechanism looks like in Cartesian space.
+This is itself important: H0 here is NOT a falsification, it's a confirmation that the two representations are dual. The lemniscate adds nothing as a competing "model fit"; it adds GEOMETRIC CLARITY about what the loop-down's sign-flip mechanism looks like in Cartesian space.
 
 ### Cell 2 — Sign-flip timing (lemniscate crossing matches +13.66 Gyr)
 
@@ -153,10 +153,10 @@ The lemniscate's geometry IS the composition of four primitive classes the frame
 ## Composition with related spikes
 
 - **Spike #29** (sign-change ≡ pin-slot ≡ Class K): the figure-8 crossing is the canonical geometric realization of Class K at the cosmological scale.
-- **Spike #33** (AoE direction as Class K signature from off-centre observer): adds a layer — the AoE observer is off-centre on the substrate ring; the lemniscate adds the trajectory shape that produces the sign-flip on top of that.
+- **Spike #33** (AoE direction as Class K signature from off-centre observer): adds a layer — the AoE observer is off-centre on the substrate loop; the lemniscate adds the trajectory shape that produces the sign-flip on top of that.
 - **Spike #98** (universal substrate precession T_sub = 109.84 Gyr): provides the period anchor.
 - **Spike #152** (AGN as 7D_g substrate fossils + first sign-flip at +13.66 Gyr): provides the timing anchor — matched exactly by Bernoulli lemniscate first crossing.
-- **Spike #171** (ring-vs-line asymptotic limits): provides the linear-hiccup framing — reproduced exactly by lobe-1-observer projection of the lemniscate.
+- **Spike #171** (loop-vs-line asymptotic limits): provides the linear-hiccup framing — reproduced exactly by lobe-1-observer projection of the lemniscate.
 - **Spike #177** (pin-slot resonate music box): cross-substrate Class K instantiation; supports the universality of pin-slot mechanism.
 
 ## Vocabulary impact
@@ -168,13 +168,13 @@ This spike has **HIGH vocabulary impact** — it produces a candidate stance:
 This is NOT canonical without conductor + user review. It is a CANDIDATE stance because:
 
 1. It strengthens `[[user_stance_epicycle_via_gear_plus_pin]]` by adding the explicit Cartesian shape (figure-8) the cascade composition takes when projected.
-2. It adds a sixth member to the shadow-stance family (line-from-ring asymptote shadow per Spike #171 was the fifth):
+2. It adds a sixth member to the shadow-stance family (line-from-loop asymptote shadow per Spike #171 was the fifth):
    - Time-as-dimensional-shadow
    - Fiber-as-spatially-absent-encoding
    - Pi-as-projection
    - Fractal-shadow
    - Cascade-lives-on-circles
-   - Ring-asymptote-not-line (Spike #171)
+   - Loop-asymptote-not-line (Spike #171)
    - **Lemniscate-as-Cartesian-shape-of-observer-frame-epicycle (this spike)** — adds an explicit Cartesian-representation shadow alongside the existing polar/S¹ representation
 3. The shadow-family interpretation: the dark-sector trajectory IS a ring-with-self-intersection topology (lemniscate). What observers in lobe-1 SEE is a monotonic line-asymptote approaching a saturation point — the line-asymptote IS the SHADOW of the lemniscate's lobe-1 traversal projected onto a single coordinate.
 
@@ -235,7 +235,7 @@ What this spike does NOT claim:
 - `[[user_stance_string_theory_instrument_first]]` — bounded-scope discipline
 - `[[user_stance_kepler_shape_universal]]` — burden-flipped primitive composition
 - `[[feedback_no_privileged_primitive_classes]]` — 14 A-N classes intact
-- `[[feedback_algebra_not_magnitude]]` — ring-vs-line is algebra-level
+- `[[feedback_algebra_not_magnitude]]` — loop-vs-line is algebra-level
 - `[[feedback_asymptotic_ring_vocabulary_discipline]]` — ring vocabulary throughout
 - `[[feedback_ndjson_over_bloated_json]]` — NDJSON output
 - `[[feedback_pdf_extraction_citation_discipline]]` — curve attributions
@@ -247,7 +247,7 @@ What this spike does NOT claim:
 - Spike #98 — universal substrate precession (T_sub anchor)
 - Spike #124 — AGN as inner-inverse-Casimir at dark-star horizon
 - Spike #152 — AGN as 7D_g substrate fossils + first sign-flip +13.66 Gyr
-- Spike #171 — ring-vs-line asymptotic limits + linear hiccup mechanism
+- Spike #171 — loop-vs-line asymptotic limits + linear hiccup mechanism
 - Spike #177 — pin-slot resonate music box (cross-substrate Class K)
 - Bernoulli 1694 *Acta Eruditorum* (Bernoulli lemniscate r² = a² cos 2θ)
 - Gerono ca. 1850 (Gerono lemniscate / figure-8 curve, Lissajous 2:1)

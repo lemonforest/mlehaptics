@@ -112,7 +112,7 @@ Phase 2 may improve the Δf_RD model by computing g(z) and g_pol(z) directly fro
 Δf_RD  =  (f_RD(z_E,vis) - f_RD(z_T,vis))
 ```
 
-where `f_RD(z)` is anchored to §VII.6.1's ring-down trajectory parameterisation. This refinement may shift the central prediction by a factor of ≈ 2.
+where `f_RD(z)` is anchored to §VII.6.1's loop-down trajectory parameterisation. This refinement may shift the central prediction by a factor of ≈ 2.
 
 ## Predicted differential — quantitative summary
 
@@ -144,7 +144,7 @@ Conversely, if Δθ_TE_observed > 5° at high significance, the framework's 138�
 ## Cross-references
 
 - §VII.6.3.1 — the prediction's home (lines ~1060–1110 of `mfo_spectral_research_notebook.md`)
-- §VII.6.1 — ring-down completion f_RD trajectory anchoring 138°/unit-f_RD rate
+- §VII.6.1 — loop-down completion f_RD trajectory anchoring 138°/unit-f_RD rate
 - §VII.4.1.1 — Hopf-bundle / spherical-compression substrate reading
 - §VIII.7 — fractal-shadow allegory (sister shadow-stance for the bundle-projection mechanism)
 - Saadeh, Feeney, Pontzen, Peiris, McEwen 2016, *"How isotropic is the Universe?"*, PRL 117 131302, `arXiv:1605.07178`, DOI `10.1103/PhysRevLett.117.131302` — verified per `[[feedback_pdf_extraction_citation_discipline]]`

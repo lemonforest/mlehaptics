@@ -62,9 +62,9 @@ The Spike #31 framing — (1) heat-kernel-trace observable is **power-law-primar
 
 **At finite n / finite realisations on cascade substrates accessible to dense eigendecomposition, the literal-stretched-exp form IS confirmed at survival-with-traps, but the β VALUE converges to d_S/(d_S+2) slowly (Δβ ~ 0.10–0.35 finite-size bias upward).** The infinite-volume DV asymptote requires substrate sizes and time-windows beyond what's accessible in this spike's scope.
 
-**Refined dual-signature framework for cascade ring-down:**
+**Refined dual-signature framework for cascade loop-down:**
 
-- **Observable 1: Heat-kernel-trace ring-down** (Spike #31)
+- **Observable 1: Heat-kernel-trace loop-down** (Spike #31)
   - Functional form: **power-law-primary** (canonical Lapidus-Steinhurst eq 40)
   - β = d_S/(d_S+2) appears as a **secondary substrate-discriminating shape parameter**
   - Path/Cycle/Sierpinski β converges to prediction within Δβ < 0.05 at n ~ 1000–4000
@@ -117,7 +117,7 @@ The literal Donsker-Varadhan stretched-exp regime with `β = d_S/(d_S+2)` at the
 
 This is the **infinite-volume / finite-volume** distinction. The cascade-stretched-exp functional form IS the right asymptote, substrate-discriminating shape IS preserved, β = d_S/(d_S+2) IS the predicted infinite-volume limit. The empirical Δβ ~ 0.10–0.35 finite-volume bias is consistent with known DV correction terms O(log(t)/t^(2/(d_S+2))).
 
-**F-3 RESOLVES**: cascade ring-down has the two-signature framework (power-law primary at heat-kernel-trace; literal stretched-exp at survival-with-traps), with β = d_S/(d_S+2) as the shared substrate-discriminating shape exponent. Framework stands. Framing refinement: **finite-volume convergence rate** of the literal β-value vs the **robust substrate-ordering** of the shape signature.
+**F-3 RESOLVES**: cascade loop-down has the two-signature framework (power-law primary at heat-kernel-trace; literal stretched-exp at survival-with-traps), with β = d_S/(d_S+2) as the shared substrate-discriminating shape exponent. Framework stands. Framing refinement: **finite-volume convergence rate** of the literal β-value vs the **robust substrate-ordering** of the shape signature.
 
 ## §10 Reproducibility note
 

@@ -23,7 +23,7 @@ Cascade candidate **C ∘ I ∘ L ∘ M ∘ K** maps to Het-IIA structure as fol
 
 | Class | Het-IIA feature | Evidence | Confidence |
 |---|---|---|---|
-| **C** (chirality) | Strong-weak coupling inversion `g_het = 1/g_IIA` is integer-exponent (`-1`) orientation-flip at substrate-coupling boundary | Integer-exact at IEEE-754; matches `[[user_stance_loe_asymptotes_are_ring_valued]]` ring-traversal at S¹ coupling-dial wrap-around | bit-exact |
+| **C** (chirality) | Strong-weak coupling inversion `g_het = 1/g_IIA` is integer-exponent (`-1`) orientation-flip at substrate-coupling boundary | Integer-exact at IEEE-754; matches `[[user_stance_loe_asymptotes_are_ring_valued]]` loop-traversal at S¹ coupling-dial wrap-around | bit-exact |
 | **I** (cyclic) | E_8 root-lattice integer structure: dim 248, root count 240, Coxeter `h = h^v = 30`, trivial fundamental group; K3 second Chern integer-quantized | E_8 root tables (Cartan 1894; Fulton-Harris 1991 GTM 129 Ch.21); standard self-dual lattice | bit-exact |
 | **L** (Laplacian) | K3 Hodge-graded Laplacian eigenmodes: `(h^{0,0}, h^{1,0}, h^{2,0}, h^{1,1}, h^{0,2}) = (1, 0, 1, 20, 1)`; `b_2 = 22`, signature `(3, 19)`, Euler χ = 24; total harmonic forms = 24 | Aspinwall-Morrison 1994 hep-th/9404151; standard Calabi-Yau 2-fold tables; SU(2) holonomy | bit-exact |
 | **M** (HDC bind) | 16 + 16 = 32 chiral fermions bound across two E_8 boundary planes (S¹/Z_2 orbifold) | Horava-Witten 1995/1996; integer count exact | bit-exact |

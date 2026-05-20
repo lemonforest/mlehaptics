@@ -107,7 +107,7 @@ char_time = 1.0 / abs(df_now)
 
 ### Verbal-label slip (fixable in-place)
 
-`spike_42b_vocabulary_falsifier_2026-05-17.md:18` and `:45` use "178 Gyr ring-down period" — conflates inverse-rate timescale with period. Math is correct; only the label needs amendment. Same slip at `spike_42b_synthesis.py:88`.
+`spike_42b_vocabulary_falsifier_2026-05-17.md:18` and `:45` use "178 Gyr loop-down period" — conflates inverse-rate timescale with period. Math is correct; only the label needs amendment. Same slip at `spike_42b_synthesis.py:88`.
 
 ### Hidden-fiber content per `[[feedback_partial_is_hidden_fiber_content]]`
 

@@ -116,12 +116,12 @@ Per `[[feedback_always_check_both_directions_including_time]]` (new rule): test 
 ### 3c. Temporal — past
 
 - Per Spike #56 (BBN) and `[[user_stance_framework_domain_algebra_not_length_or_magnitude]]`: SM particle masses are roughly fixed across cosmic baryon-era. R_min(m_SM) ≈ constant in time for SM moduli.
-- Per `[[user_stance_dark_sector_in_7d_g_gauge_space]]` + Spike #152 dark-sector ring-down: dark-sector gauge-content evolves with cosmic substrate cycle. The dominant moduli spectrum likely had different content before EWSB.
+- Per `[[user_stance_dark_sector_in_7d_g_gauge_space]]` + Spike #152 dark-sector loop-down: dark-sector gauge-content evolves with cosmic substrate cycle. The dominant moduli spectrum likely had different content before EWSB.
 - **Pre-EWSB (T > ~100 GeV)** speculation: moduli effectively massless; gauge content delocalized at horizon scale; EWSB IS Class M substrate-coupling LOCALIZATION event — discrete transition from "gauge content at horizon scale" to "gauge content at λ̄_C of each broken-symmetry mass eigenstate". This is a **new framework reading**: EWSB is the localization-via-Compton-wavelength event.
 
 ### 3d. Temporal — future
 
-- Per `[[user_stance_dark_sector_ring_down_age]]`: heat death asymptote at 100% ring-down; never reached in clock-time per asymptotic-DOF discipline.
+- Per `[[user_stance_dark_sector_ring_down_age]]`: heat death asymptote at 100% loop-down; never reached in clock-time per asymptotic-DOF discipline.
 - Per Spike #98 universal precession (T_sub ≈ 109.84 Gyr substrate cycle): Class C cascade-orientation will sign-flip at ~27 Gyr. This may reset the SELECTED Class C orientation, changing which gauge-modes are visible.
 - **Prediction**: visible R_min spectrum could shift DISCRETELY at substrate-cycle quarter-points (per `[[user_stance_dark_sector_in_7d_g_gauge_space]]` selected-vs-non-selected orientation framing).
 

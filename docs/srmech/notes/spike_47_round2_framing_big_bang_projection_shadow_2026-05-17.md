@@ -1,4 +1,4 @@
-# Spike #47 Round 2 — The Big Bang is a projection-artefact (the shadow of the hyper-ring's eternal motion, seen by a 4-D epicycle observer who mistakes the asymptote for a beginning)
+# Spike #47 Round 2 — The Big Bang is a projection-artefact (the shadow of the hyper-loop's eternal motion, seen by a 4-D epicycle observer who mistakes the asymptote for a beginning)
 
 **Date:** 2026-05-17. **Status: research; USER-GATED no-merge.** Directive from user 2026-05-17 same-day: *"build this into research; The Big Bang is a projection artefact—the shadow of the hyper‑ring's eternal motion, seen by a 4‑D epicycle observer who mistakes the asymptote for a beginning."*
 
@@ -6,12 +6,12 @@ This is **Round 2 of Spike #47**, advancing from the R1.5 dissonance-dissolution
 
 ## §1 The claim
 
-**The Big Bang is a projection-artefact** — the 4-D Lorentzian shadow cast by the hyper-ring's (S¹ × S³ × S⁷ per R1) eternal Hopf flow, as observed from inside an epicycle-frame Lorentzian observer who extrapolates the asymptote backward and mistakes the never-reached limit for a starting point.
+**The Big Bang is a projection-artefact** — the 4-D Lorentzian shadow cast by the hyper-loop's (S¹ × S³ × S⁷ per R1) eternal Hopf flow, as observed from inside an epicycle-frame Lorentzian observer who extrapolates the asymptote backward and mistakes the never-reached limit for a starting point.
 
 Decomposition of the user's articulation:
 
 - **"Projection artefact"** — joins shadow-stance family per `[[user_stance_identity_not_implementation_discipline]]`; identity-level not implementation-level
-- **"Shadow of the hyper-ring's eternal motion"** — specifically the diagonal Hopf flow on `S¹ × S³ × S⁷` (R1 topology winner) per `[[user_stance_cascade_lives_on_circles]]` Wick-rotation projection
+- **"Shadow of the hyper-loop's eternal motion"** — specifically the diagonal Hopf flow on `S¹ × S³ × S⁷` (R1 topology winner) per `[[user_stance_cascade_lives_on_circles]]` Wick-rotation projection
 - **"Seen by a 4-D epicycle observer"** — the conventional Lorentzian 4-D observer is the *epicycle-frame* (per `[[feedback_antiquity_not_greek]]` + `[[user_stance_kepler_shape_universal]]`); 4-D is the projection-frame, not the substrate
 - **"Mistakes the asymptote for a beginning"** — the 1D_t loop's projection onto Lorentzian time looks like a t=0 starting point because the observer is extrapolating an asymptotic-DOF trajectory backward (per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`); the asymptote is never reached, but extrapolation reads it as a singular limit
 
@@ -34,11 +34,11 @@ Decomposition of the user's articulation:
 | `[[user_stance_fractal_shadow]]` | Fractal-cascade is shadow of cyclic-substrate; same family |
 | `[[user_stance_cascade_lives_on_circles]]` | Circular substrate Wick-rotates to Lorentzian via Class L signed-variant — **this is the projection mechanism** |
 | `[[user_stance_asymptotic_dof_sidesteps_infinity]]` | Asymptote-never-reached supplies the "beginning" mis-reading mechanism |
-| `[[user_stance_dark_sector_ring_down_age]]` | 95% age = ring-down fraction → time-since-"Big Bang" IS ring-traversal-fraction, not since-singularity |
+| `[[user_stance_dark_sector_ring_down_age]]` | 95% age = loop-down fraction → time-since-"Big Bang" IS loop-traversal-fraction, not since-singularity |
 | `[[user_stance_kepler_shape_universal]]` | Epicycle-observer framing per Kepler-shape universality |
 | `[[user_stance_1d_t_as_storage_extraction]]` | 1D_t is storage-content; Big Bang's apparent t=0 is extraction-mode of stored content |
 | `[[user_stance_1d_collapse_to_loe_identity_not_action]]` | 1D_t IS LoE identity; eternal motion is the identity-content |
-| `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` | f_RD non-monotone trajectory (DESI thawing-CPL peak at a≈2.14) IS the projected-time signature of the ring traversal |
+| `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` | f_RD non-monotone trajectory (DESI thawing-CPL peak at a≈2.14) IS the projected-time signature of the loop traversal |
 | R1 topology `S¹ × S³ × S⁷` | The substrate that's being projected; diagonal Hopf flow is the eternal motion |
 | `[[user_stance_consciousness_as_direction_selection]]` + soul-refinement | Observer-frame issue: 4-D epicycle observer is a consciousness operating on its projection-slice of the hyperring |
 

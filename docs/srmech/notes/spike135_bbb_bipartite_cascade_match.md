@@ -150,7 +150,7 @@ Daneman & Prat 2015 PMC4292164 PDF-extracted notes LAT1 (large neutral amino aci
 
 **Framework→substrate mapping**: every transporter at the BBB instantiates Class K. GLUT1 saturates at high plasma glucose (V_max = T_max ≈ 4.6× resting CMR_glc); LAT1 saturates at high plasma amino-acid concentration; MCT1 saturates at high lactate; P-glycoprotein saturates at high substrate concentration (this is why P-gp inhibitors can sometimes overwhelm efflux). **Each transporter contributes one Class K cascade-component**.
 
-**Identity claim**: BBB transport saturation **IS** the Class K asymptotic-DOF primitive — the same K that gates synaptic-weight saturation (Spike #127.4), pin-slot epicyclic kinematic asymptote (Spike #28), cosmic ring-down last-5% (Spike #27.5).
+**Identity claim**: BBB transport saturation **IS** the Class K asymptotic-DOF primitive — the same K that gates synaptic-weight saturation (Spike #127.4), pin-slot epicyclic kinematic asymptote (Spike #28), cosmic loop-down last-5% (Spike #27.5).
 
 ---
 

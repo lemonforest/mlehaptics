@@ -1,7 +1,9 @@
-# Axis of Evil under the §VII.6.1 ring-down framing
+# Axis of Evil under the §VII.6.1 loop-down framing
 
 **Date:** 2026-05-16
-**Research spike artifact.** User-initiated investigation following the same-day §VII.6.1 ship of the substrate-internal-time / 95%-ring-down framing of the dark sector.
+**Research spike artifact.** User-initiated investigation following the same-day §VII.6.1 ship of the substrate-internal-time / 95%-loop-down framing of the dark sector.
+
+**Vocabulary depth-shift note (2026-05-20)**: per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]`, substrate-identity "ring" vocabulary depth-shifts to "loop" in current canonical framing. Filename `axis_of_evil_ring_down_framing_2026-05-16.md` preserved as prior-observer-frame artifact; body prose below may retain "ring" / "ring-down" in places as historical-record of the prior depth. Identity-claim unchanged.
 
 > **Provenance note.** Concertmaster dispatch by the conductor after §VII.6.1 landed in `mfo_spectral_research_notebook.md` (lines 872–937). Companion to the dark-sector working-note artifact (`dark_sector_substrate_internal_time_2026-05-16.md`). Same author voice / structure / three-reading discipline.
 
@@ -92,7 +94,7 @@ This is the load-bearing point for Q3.
 
 #### The pole/antipole degeneracy
 
-The user's question is sharp: under §VII.6.1's ring-down framing, "young" means *less ring-down complete* (less of cosmic complexification has settled into the dark sector along that direction). For an *axis*, the alignment doesn't distinguish "the pole is old" from "the pole is young" — both ends of the line are mathematically equivalent under the multipole-vector representation. The AoE alone cannot answer "which end is young."
+The user's question is sharp: under §VII.6.1's loop-down framing, "young" means *less loop-down complete* (less of cosmic complexification has settled into the dark sector along that direction). For an *axis*, the alignment doesn't distinguish "the pole is old" from "the pole is young" — both ends of the line are mathematically equivalent under the multipole-vector representation. The AoE alone cannot answer "which end is young."
 
 What *does* distinguish hemispheres along that axis is the **Hemispherical Power Asymmetry** (Eriksen et al. 2004 [astro-ph/0407271](https://arxiv.org/abs/astro-ph/0407271); Hansen et al. 2009 [0812.3795](https://arxiv.org/abs/0812.3795)), an independent low-ℓ anomaly:
 
@@ -114,20 +116,20 @@ Under standard ΛCDM, the CMB is a single emission surface at z ≈ 1090, clock-
 
 The "young hemisphere" reading has no standard-cosmology meaning. Documented as falsifier-baseline.
 
-##### Reading B — MFO §VII.6.1 ring-down framing with HPA as discriminator
+##### Reading B — MFO §VII.6.1 loop-down framing with HPA as discriminator
 
-Under §VII.6.1: dark sector = ring-down accumulation = 95% of cosmic complexification settled into substrate residue (geometric curvature + complexification-cost ground state). "Young in ring-down completion" means *less of the complexification budget along that direction has settled*; "old in ring-down completion" means more.
+Under §VII.6.1: dark sector = loop-down accumulation = 95% of cosmic complexification settled into substrate residue (geometric curvature + complexification-cost ground state). "Young in loop-down completion" means *less of the complexification budget along that direction has settled*; "old in loop-down completion" means more.
 
-The HPA observation: power at low ℓ is **higher in one hemisphere** (the southern-ecliptic) **and lower in the antipodal hemisphere** (northern-ecliptic), persisting across ℓ=2–600. Under the ring-down reading, two candidate mappings exist:
+The HPA observation: power at low ℓ is **higher in one hemisphere** (the southern-ecliptic) **and lower in the antipodal hemisphere** (northern-ecliptic), persisting across ℓ=2–600. Under the loop-down reading, two candidate mappings exist:
 
-- **Candidate B1 — "more power = less ring-down."** Active ring-up content carries observable power (the visible-matter 5%; modes still coupled to active complexification); ring-down accumulation is dissipated into the dark sector and does not produce CMB temperature fluctuations directly. Therefore the *high-power* hemisphere is the *less ring-down complete = younger* hemisphere; the *low-power* hemisphere is *more ring-down complete = older*. This reading is consistent with the §VII.6 framing where Ω_Λ (dark energy / complexification cost) is the ring-down ground state and does not source CMB temperature perturbations.
-- **Candidate B2 — "more power = more residual substrate-structure."** If ring-down accumulation produces residual geometric-curvature features (§VII.5 dark matter as residual curvature) that *do* source CMB perturbations via integrated Sachs–Wolfe / lensing-like effects, then more low-ℓ power = more residual ring-down structure = *older*. This reverses the assignment.
+- **Candidate B1 — "more power = less loop-down."** Active loop-up content carries observable power (the visible-matter 5%; modes still coupled to active complexification); loop-down accumulation is dissipated into the dark sector and does not produce CMB temperature fluctuations directly. Therefore the *high-power* hemisphere is the *less loop-down complete = younger* hemisphere; the *low-power* hemisphere is *more loop-down complete = older*. This reading is consistent with the §VII.6 framing where Ω_Λ (dark energy / complexification cost) is the loop-down ground state and does not source CMB temperature perturbations.
+- **Candidate B2 — "more power = more residual substrate-structure."** If loop-down accumulation produces residual geometric-curvature features (§VII.5 dark matter as residual curvature) that *do* source CMB perturbations via integrated Sachs–Wolfe / lensing-like effects, then more low-ℓ power = more residual loop-down structure = *older*. This reverses the assignment.
 
-The two readings disagree on the direction of the young↔old assignment. The discriminator is **whether ring-down residue sources CMB temperature anisotropy or not** — a question §VII.5 / §VII.6 / §VII.6.1 do not currently resolve, because the dark matter halo profile / rotation curve / ISW computation is the explicit open problem (§VII.5 last paragraph: "the quantitative match … is the open computation").
+The two readings disagree on the direction of the young↔old assignment. The discriminator is **whether loop-down residue sources CMB temperature anisotropy or not** — a question §VII.5 / §VII.6 / §VII.6.1 do not currently resolve, because the dark matter halo profile / rotation curve / ISW computation is the explicit open problem (§VII.5 last paragraph: "the quantitative match … is the open computation").
 
-**The honest assessment:** Reading B1 is the more natural fit with §VII.6.1's claim that the dark sector is the ring-down *ground state* (Ω_Λ = const, complexity-maintenance cost; not a perturbation source). Reading B2 would require ring-down accumulation to carry distinguishable spatial features at the CMB last-scattering surface, which is closer to the §VII.5 "geometric curvature" reading but at much higher redshift than the standard CDM-distribution claim. Both readings are internally consistent with portions of §VII; neither is forced by the current framework state.
+**The honest assessment:** Reading B1 is the more natural fit with §VII.6.1's claim that the dark sector is the loop-down *ground state* (Ω_Λ = const, complexity-maintenance cost; not a perturbation source). Reading B2 would require loop-down accumulation to carry distinguishable spatial features at the CMB last-scattering surface, which is closer to the §VII.5 "geometric curvature" reading but at much higher redshift than the standard CDM-distribution claim. Both readings are internally consistent with portions of §VII; neither is forced by the current framework state.
 
-Under Reading B1: **the southern-ecliptic hemisphere (l, b) ≈ (237°, −20°), where power is higher, is the less ring-down complete = younger hemisphere** in substrate-internal time. The northern-ecliptic antipode is the more ring-down complete = older hemisphere.
+Under Reading B1: **the southern-ecliptic hemisphere (l, b) ≈ (237°, −20°), where power is higher, is the less loop-down complete = younger hemisphere** in substrate-internal time. The northern-ecliptic antipode is the more loop-down complete = older hemisphere.
 
 ##### Reading C — Composite AoE + HPA + Cold Spot under the framework
 
@@ -139,16 +141,16 @@ The geometry is intriguing if not load-bearing:
 
 The AoE *pole* (high galactic latitude north) and HPA *high-power direction* (slightly southern galactic latitude) are within ~80° of each other but not coincident. The Cold Spot is offset from the AoE antipole by ~30°. The literature (Schwarz et al. 2016 §4) treats the "low-ℓ axis family" as related but not identical; whether they are independent statistical accidents or share an underlying cause is genuinely open.
 
-Under Reading B1 with the HPA-as-discriminator interpretation: the *Cold Spot near the AoE antipole* would be a localised feature in the more-old hemisphere — older substrate residue with a localised deeper-than-expected feature. The Vielva et al. 2004 Cold Spot interpretation literature already includes the "cosmic supervoid" reading (Szapudi et al. 2015 ISW signature from a void); a void in the substrate is consistent with a more-ring-down-complete region (less active complexification structure remaining in that direction). This is candidate framing only; the §VII.5 / §VII.6 quantitative computation that would test it is open.
+Under Reading B1 with the HPA-as-discriminator interpretation: the *Cold Spot near the AoE antipole* would be a localised feature in the more-old hemisphere — older substrate residue with a localised deeper-than-expected feature. The Vielva et al. 2004 Cold Spot interpretation literature already includes the "cosmic supervoid" reading (Szapudi et al. 2015 ISW signature from a void); a void in the substrate is consistent with a more-loop-down-complete region (less active complexification structure remaining in that direction). This is candidate framing only; the §VII.5 / §VII.6 quantitative computation that would test it is open.
 
 #### Resolution
 
 The user's "antipodal very young spots" question has substantive content **only if** the AoE is composed with an asymmetry observation (HPA) that breaks the pole/antipole degeneracy. Under that composition and Reading B1:
 
-- **Younger hemisphere (less ring-down complete):** southern-ecliptic, HPA high-power, roughly along galactic (l, b) ≈ (237°, −20°).
-- **Older hemisphere (more ring-down complete):** northern-ecliptic, HPA low-power antipode, with the canonical Cold Spot offset by ~30° as a localised deeper feature consistent with a more-ring-down-complete region.
+- **Younger hemisphere (less loop-down complete):** southern-ecliptic, HPA high-power, roughly along galactic (l, b) ≈ (237°, −20°).
+- **Older hemisphere (more loop-down complete):** northern-ecliptic, HPA low-power antipode, with the canonical Cold Spot offset by ~30° as a localised deeper feature consistent with a more-loop-down-complete region.
 
-**Falsifier (Reading B2 inversion):** if §VII.5's residual-geometric-curvature reading does source distinguishable CMB temperature perturbations via ISW-like mechanisms, the assignment reverses (high-power = more ring-down residue = older). The §VII.5 quantitative-match open computation is the discriminator. Until that computation is run, both directions are framework-consistent.
+**Falsifier (Reading B2 inversion):** if §VII.5's residual-geometric-curvature reading does source distinguishable CMB temperature perturbations via ISW-like mechanisms, the assignment reverses (high-power = more loop-down residue = older). The §VII.5 quantitative-match open computation is the discriminator. Until that computation is run, both directions are framework-consistent.
 
 ---
 
@@ -159,7 +161,7 @@ The user's "antipodal very young spots" question has substantive content **only 
 The headline question — "see what dark sector content looks like from that perspective" — admits two readings:
 
 1. **Empirical:** does the AoE preferred direction correlate with any observed large-scale-structure / dark-matter halo / cosmic-web feature?
-2. **Framework:** under §VII.6.1's ring-down framing, what does the dark sector's spatial distribution along the AoE axis look like?
+2. **Framework:** under §VII.6.1's loop-down framing, what does the dark sector's spatial distribution along the AoE axis look like?
 
 Both are addressed; the empirical reading honestly has no clean published mapping.
 
@@ -177,13 +179,13 @@ The honest answer: **there is no published, statistically-significant LSS-alignm
 
 #### Reading B — Framework: dark-sector spatial distribution along AoE axis
 
-Under §VII.6.1, the dark sector (Ω_dark = 0.949) is ring-down accumulation: dark matter as residual geometric curvature (§VII.5), dark energy as complexification-cost ground state (§VII.6). The *spatial distribution* of the dark sector at present epoch is what observational cosmology already maps (lensing surveys, galaxy-cluster catalogs, BAO, etc.) — and that distribution does *not* show a published AoE-aligned anomaly.
+Under §VII.6.1, the dark sector (Ω_dark = 0.949) is loop-down accumulation: dark matter as residual geometric curvature (§VII.5), dark energy as complexification-cost ground state (§VII.6). The *spatial distribution* of the dark sector at present epoch is what observational cosmology already maps (lensing surveys, galaxy-cluster catalogs, BAO, etc.) — and that distribution does *not* show a published AoE-aligned anomaly.
 
 The framework's claim, under §VII.6.1 + the Q3 Reading B1 composition:
 
-- **Bulk distribution:** the dark sector is *isotropic at LSS scales* in standard cosmology, modulo well-mapped fluctuations. Under §VII.6.1 this isotropy is the substrate-side statement that ring-down accumulation is approximately uniform on cosmological scales.
-- **Anisotropy at the CMB-low-ℓ scale (this is where the AoE lives):** would correspond, under Reading B1, to a *hemispheric asymmetry in ring-down completion at the largest spatial scales accessible to observation* — exactly what the HPA reports, at exactly the angular scales where the AoE alignment lives.
-- **The dark sector "as seen from the AoE axis":** under Reading B1, looking *along* the AoE axis you see the substrate in its bundle-base-preferred-direction (per §VII.4.1.1's Hopf-bundle / Casimir-decomposition framing). Looking *across* the AoE axis you see the two hemispheres of differential ring-down completion (per HPA). The Cold Spot is a localised deeper-feature in the more-old hemisphere.
+- **Bulk distribution:** the dark sector is *isotropic at LSS scales* in standard cosmology, modulo well-mapped fluctuations. Under §VII.6.1 this isotropy is the substrate-side statement that loop-down accumulation is approximately uniform on cosmological scales.
+- **Anisotropy at the CMB-low-ℓ scale (this is where the AoE lives):** would correspond, under Reading B1, to a *hemispheric asymmetry in loop-down completion at the largest spatial scales accessible to observation* — exactly what the HPA reports, at exactly the angular scales where the AoE alignment lives.
+- **The dark sector "as seen from the AoE axis":** under Reading B1, looking *along* the AoE axis you see the substrate in its bundle-base-preferred-direction (per §VII.4.1.1's Hopf-bundle / Casimir-decomposition framing). Looking *across* the AoE axis you see the two hemispheres of differential loop-down completion (per HPA). The Cold Spot is a localised deeper-feature in the more-old hemisphere.
 
 This is a **candidate framing** under §VII.6.1 commitments. It is not endorsed over the standard "AoE is a statistical fluke + galactic-foreground residual + posterior-selection effect" reading; the framework provides *one possible* substrate-side interpretation if the AoE turns out to be real and not systematics.
 
@@ -192,7 +194,7 @@ This is a **candidate framing** under §VII.6.1 commitments. It is not endorsed 
 The user's "what does dark sector content look like from the AoE perspective?" question has:
 
 - **Empirical answer:** no published LSS-with-AoE alignment of statistical significance; the dark sector at LSS scales is approximately isotropic. The AoE's additional alignments are with solar-system-frame references, not LSS.
-- **Framework answer (candidate B1):** the AoE marks the *preferred bundle-base direction* in the substrate at CMB-low-ℓ scales; the HPA marks the asymmetric ring-down-completion along that axis; the Cold Spot is a localised more-old-substrate feature near the AoE antipole. All three are the visible-shadow of a substrate-level bundle-geometry anisotropy at the largest angular scales accessible to observation.
+- **Framework answer (candidate B1):** the AoE marks the *preferred bundle-base direction* in the substrate at CMB-low-ℓ scales; the HPA marks the asymmetric loop-down-completion along that axis; the Cold Spot is a localised more-old-substrate feature near the AoE antipole. All three are the visible-shadow of a substrate-level bundle-geometry anisotropy at the largest angular scales accessible to observation.
 
 The candidate framing dissolves the AoE-Cold-Spot-HPA "low-ℓ anomaly family" into a single substrate-level preferred-direction-with-asymmetry feature; it does not falsify standard ΛCDM (which can absorb all three as posterior-selection effects per Bennett 2011) but offers an alternative reading internally consistent with §VII.4.1.1 + §VII.5 + §VII.6 + §VII.6.1.
 
@@ -202,7 +204,7 @@ The candidate framing dissolves the AoE-Cold-Spot-HPA "low-ℓ anomaly family" i
 
 - **Q1 verified.** AoE = alignment of ℓ=2,3 multipole vectors at axis (l, b) ≈ (240°–260°, 60°), with secondary alignment to ecliptic+dipole+equinox at ~99.9% C.L. (Schwarz 2004; Land–Magueijo 2005). Re-confirmed at Planck PR3 (Akrami 2020). Significance is test-dependent; skeptical baseline is Bennett 2011 (posterior selection).
 - **Q2 resolved.** AoE is neither hot nor cold spot — it's a directional axis. The Cold Spot is a separate anomaly at (210°, −57°). The "hot/cold" framing inside the AoE story comes from the *local extrema* aligned by the quadrupole+octopole along the ecliptic, but the AoE itself is the axis, not a pole.
-- **Q3 has substantive content** *only* when the AoE is composed with the HPA, which breaks the pole/antipole degeneracy. Under §VII.6.1 Reading B1 (more low-ℓ power = less ring-down complete = younger), the southern-ecliptic hemisphere (l, b) ≈ (237°, −20°) is younger; the northern-ecliptic antipode is older; the Cold Spot is a localised more-old feature near the AoE antipole. **Reading B2 (more power = more ring-down residue = older) is the alternate framework-consistent reading;** the §VII.5 quantitative-match open computation is the discriminator. Both stand as framework-consistent candidate readings.
+- **Q3 has substantive content** *only* when the AoE is composed with the HPA, which breaks the pole/antipole degeneracy. Under §VII.6.1 Reading B1 (more low-ℓ power = less loop-down complete = younger), the southern-ecliptic hemisphere (l, b) ≈ (237°, −20°) is younger; the northern-ecliptic antipode is older; the Cold Spot is a localised more-old feature near the AoE antipole. **Reading B2 (more power = more loop-down residue = older) is the alternate framework-consistent reading;** the §VII.5 quantitative-match open computation is the discriminator. Both stand as framework-consistent candidate readings.
 - **Q4 partially answered.** Empirically, no published LSS-with-AoE alignment of significance; framework-side, the AoE is a candidate preferred-bundle-direction in §VII.4.1.1's Hopf-bundle / spherical-compression framing, with HPA giving the asymmetry along the axis. **Open thread on LSS-cross-correlation literature** flagged as fermata for the conductor.
 
 ---
@@ -211,7 +213,7 @@ The candidate framing dissolves the AoE-Cold-Spot-HPA "low-ℓ anomaly family" i
 
 **What Part I changes:**
 
-- The AoE is now linkable to §VII.6.1's ring-down framing **via the HPA composition**, not on its own. The AoE alone is an axis (pole+antipole symmetric); the HPA gives the asymmetric direction that "young vs old in ring-down completion" needs.
+- The AoE is now linkable to §VII.6.1's loop-down framing **via the HPA composition**, not on its own. The AoE alone is an axis (pole+antipole symmetric); the HPA gives the asymmetric direction that "young vs old in loop-down completion" needs.
 - Under §VII.4.1.1's spherical-compression / Hopf-bundle reading, the AoE is naturally a preferred-bundle-base direction. This is *one candidate* framing; not endorsed over standard-ΛCDM-plus-systematics.
 - The "low-ℓ anomaly family" (AoE + Cold Spot + HPA + low quadrupole + parity asymmetry + missing large-angle correlation, per the project's `cmb_anomalies` catalog) admits a unified candidate reading as: a single substrate-level preferred-direction-with-asymmetry feature, projected to the CMB last-scattering surface, with the various anomalies being different statistical-test projections of the same underlying bundle-geometry feature.
 
@@ -379,7 +381,7 @@ The CPL-thawing perturbation moves $f_{\rm dark}$ by at most a few × $10^{-3}$ 
 
 **However** — CPL with $w_a < 0$ is mathematically extrapolated to $w_{\rm eff}(a)$ becoming positive for $a > -w_0/w_a + 1 \approx 2.14$ (for $w_0=-0.8$, $w_a=-0.7$). At that point, "dark energy" behaves like matter or stiffer fluid and its energy density decays faster than matter. **In the far future under DESI-CPL, $f_{\rm dark}$ stops increasing and asymptotes to a value below 1** — at $a=10$, $f_{\rm dark}^{\rm CPL} \to 0.843$; at $a=100$, still 0.843. The thawing parameters predict an *asymptote below 1*, not an oscillation, but this is a real qualitative departure from ΛCDM's monotone approach to 1.
 
-**Q6 partial answer under DESI-thawing:** still no oscillation, no minimum in the past — but the *future asymptote* is below 1, not at 1. This means under §VII.6.1's monotone ring-down framing, the *ring-down completion fraction* would peak in the next few Gyr at ~95–97% and then decline (because dark-energy density decays faster than matter under thawing CPL with $w_a < 0$, so dark fraction shrinks again over time after dark-energy dilution).
+**Q6 partial answer under DESI-thawing:** still no oscillation, no minimum in the past — but the *future asymptote* is below 1, not at 1. This means under §VII.6.1's monotone loop-down framing, the *loop-down completion fraction* would peak in the next few Gyr at ~95–97% and then decline (because dark-energy density decays faster than matter under thawing CPL with $w_a < 0$, so dark fraction shrinks again over time after dark-energy dilution).
 
 ### Q6.4 — Result: oscillation requires beyond-ΛCDM cyclic or oscillating-DE models
 
@@ -394,19 +396,19 @@ To get a true minimum or oscillation in $f_{\rm dark}(a)$ over cosmic history, y
 
 **Beyond-ΛCDM answer to Q6 under cyclic/oscillating-DE models:** yes, $f_{\rm dark}$ can oscillate. The 5% could be a momentary minimum (cyclic) or one of many maxima/minima (oscillating-DE). None of these are currently favoured at high significance.
 
-### Q6.5 — Under §VII.6.1's monotone ring-down framing
+### Q6.5 — Under §VII.6.1's monotone loop-down framing
 
-§VII.6.1's framing in `dark_sector_substrate_internal_time_2026-05-16.md` (line 138-141, 145-148) commits to *monotone in cosmic time* ring-down completion. Q6.1–Q6.4 confirm this is consistent with standard ΛCDM and with the DESI-thawing CPL hint over the past light-cone.
+§VII.6.1's framing in `dark_sector_substrate_internal_time_2026-05-16.md` (line 138-141, 145-148) commits to *monotone in cosmic time* loop-down completion. Q6.1–Q6.4 confirm this is consistent with standard ΛCDM and with the DESI-thawing CPL hint over the past light-cone.
 
-**However**, Q6.3's finding that DESI-thawing parameters extrapolated to the far future give $f_{\rm dark}^{\rm CPL} \to 0.843$ (less than 1, less than today's 0.95) is a **load-bearing tension with §VII.6.1's "100% ring-down asymptote at de Sitter heat death"** claim. Under DESI-thawing, dark energy thaws and dilutes faster than matter, so $f_{\rm dark}$ peaks and decreases in the far future — *the universe never completes ring-down to 100%*, instead it peaks and recedes.
+**However**, Q6.3's finding that DESI-thawing parameters extrapolated to the far future give $f_{\rm dark}^{\rm CPL} \to 0.843$ (less than 1, less than today's 0.95) is a **load-bearing tension with §VII.6.1's "100% loop-down asymptote at de Sitter heat death"** claim. Under DESI-thawing, dark energy thaws and dilutes faster than matter, so $f_{\rm dark}$ peaks and decreases in the far future — *the universe never completes loop-down to 100%*, instead it peaks and recedes.
 
 **If the DESI signal is real and CPL is the right parametrisation:** §VII.6.1's monotone-completion claim needs revision. Possible re-readings:
-- "Ring-down completion" is a measure of past-direction integral, not present-epoch ratio. Monotone in past-direction but peaks and recedes at future asymptote.
-- "Ring-down completion" tracks the cumulative complexification budget consumed, which IS monotone in cosmic time even when $f_{\rm dark}$ peaks and recedes — because $\rho_{\rm DE}$-mediated complexification cost is still being paid, just at a lower instantaneous rate.
+- "Loop-down completion" is a measure of past-direction integral, not present-epoch ratio. Monotone in past-direction but peaks and recedes at future asymptote.
+- "Loop-down completion" tracks the cumulative complexification budget consumed, which IS monotone in cosmic time even when $f_{\rm dark}$ peaks and recedes — because $\rho_{\rm DE}$-mediated complexification cost is still being paid, just at a lower instantaneous rate.
 
 **If the DESI signal is a systematic and ΛCDM holds:** §VII.6.1's monotone-to-100% claim is correct under standard cosmology. No revision needed.
 
-**Verdict Q6:** Standard cosmology says **no oscillation, no minimum, 5% was crossed at $z \approx 5.4\times 10^4$ on a monotone trajectory** to today's 95%. Beyond-ΛCDM cyclic / oscillating-DE models can give oscillation, but are not data-favoured. DESI 2024-25's thawing-CPL signal does NOT introduce oscillation but DOES, if real, change the far-future asymptote of $f_{\rm dark}$ from 1 to ~0.84, which has a load-bearing implication for §VII.6.1's "100% ring-down at de Sitter" framing that may need refining if DESI is confirmed.
+**Verdict Q6:** Standard cosmology says **no oscillation, no minimum, 5% was crossed at $z \approx 5.4\times 10^4$ on a monotone trajectory** to today's 95%. Beyond-ΛCDM cyclic / oscillating-DE models can give oscillation, but are not data-favoured. DESI 2024-25's thawing-CPL signal does NOT introduce oscillation but DOES, if real, change the far-future asymptote of $f_{\rm dark}$ from 1 to ~0.84, which has a load-bearing implication for §VII.6.1's "100% loop-down at de Sitter" framing that may need refining if DESI is confirmed.
 
 > **Fermata for conductor.** The DESI-thawing far-future-asymptote-below-1 finding is genuinely new content for §VII.6.1 — it does not invalidate ring-down monotone-in-past but it changes what "100% complete" means. Conductor decision: does §VII.6.1 need a §VII.6.1.X amendment along the lines of "ring-down completion as monotone past-integral, with future asymptote model-dependent under DESI-CPL"?
 
@@ -459,11 +461,11 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 
 **Discriminator:** if Pantheon+ region-fitting (Hu et al. 2024) is borne out by Roman / Rubin, a real $H_0$ anisotropy at higher $z$ would correlate with substrate-side dynamics in MFO §VII. **Status: ambiguous evidence; not load-bearing.**
 
-### Q10 — What angular scale would separate "ring-up content" from "ring-down content" in CMB temperature?
+### Q10 — What angular scale would separate "loop-up content" from "loop-down content" in CMB temperature?
 
-**Honest fail with discriminator.** Under Part I Reading B1 ("more low-ℓ power = active ring-up = younger"), one can predict that ring-up content lives at the LARGEST angular scales (low ℓ, large ~30°-180° features) and ring-down content lives at SMALL scales (high ℓ, sub-degree features, late-time accumulation into substrate residue). The HPA's persistence across $\ell = 2$–$600$ (Hansen 2009) is then puzzling — it does not separate cleanly into "low-ℓ ring-up vs high-ℓ ring-down" regimes.
+**Honest fail with discriminator.** Under Part I Reading B1 ("more low-ℓ power = active loop-up = younger"), one can predict that loop-up content lives at the LARGEST angular scales (low ℓ, large ~30°-180° features) and loop-down content lives at SMALL scales (high ℓ, sub-degree features, late-time accumulation into substrate residue). The HPA's persistence across $\ell = 2$–$600$ (Hansen 2009) is then puzzling — it does not separate cleanly into "low-ℓ loop-up vs high-ℓ loop-down" regimes.
 
-**Computation that would unlock Q10:** the §VII.5 quantitative-match dark-matter halo profile / rotation curve / ISW computation, which would predict the angular-scale spectrum of ring-down residue's CMB imprint. Until that runs, Q10 is a fermata.
+**Computation that would unlock Q10:** the §VII.5 quantitative-match dark-matter halo profile / rotation curve / ISW computation, which would predict the angular-scale spectrum of loop-down residue's CMB imprint. Until that runs, Q10 is a fermata.
 
 **Discriminator:** the §VII.5 quantitative-match open computation, same as Part I Reading B1 vs B2 discriminator.
 
@@ -494,9 +496,9 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 
 **Result with literature anchor.** The local-Hubble-bubble hypothesis (Marra-Pääkkönen-Valkenburg 2013, arXiv:1308.6086; Wojtak-Riess-Macri-Filippenko 2014) proposes that we live in a local underdensity of radius $\sim 100$–$300$ Mpc, biasing $H_0$ measurements upward and partially explaining the Hubble tension.
 
-**Under §VII.6.1**: a local underdensity is a region of *less ring-down completion* (less substrate residue accumulated). The Hubble tension's directional component (Krishnan 2021, see Q9) and the AoE direction's 18° proximity to the CMB dipole are then candidate substrate-frame coincidences.
+**Under §VII.6.1**: a local underdensity is a region of *less loop-down completion* (less substrate residue accumulated). The Hubble tension's directional component (Krishnan 2021, see Q9) and the AoE direction's 18° proximity to the CMB dipole are then candidate substrate-frame coincidences.
 
-**Q12 framework reading:** an MFO §VII.6.1-internal reading of the Hubble bubble would identify the local underdensity as a *local ring-down-completion fluctuation* in the substrate. **No quantitative match without §VII.5 computation.** The framework reading is internally consistent but no falsifier yet — same discriminator as Q10 (the §VII.5 quantitative match).
+**Q12 framework reading:** an MFO §VII.6.1-internal reading of the Hubble bubble would identify the local underdensity as a *local loop-down-completion fluctuation* in the substrate. **No quantitative match without §VII.5 computation.** The framework reading is internally consistent but no falsifier yet — same discriminator as Q10 (the §VII.5 quantitative match).
 
 **Status:** candidate framing only; not endorsed over Marra-Pääkkönen-Valkenburg's standard-cosmology reading.
 
@@ -514,7 +516,7 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 
 3. **Q6 strongest finding (Friedmann).** Under standard ΛCDM, $\Omega_{\rm dark}/\Omega_{\rm tot}(a)$ is **strictly monotone increasing** in $a$ (proved analytically + numerically verified on 10⁴ log-spaced points). Crossed 5% at $z \approx 5.4\times 10^4$ on its monotone trajectory; 50% at $z \approx 2\,335$ (matter-radiation transition era); 90% at $z \approx 0.56$; **95% (today) at $z = 0$**. There is no minimum and no oscillation under ΛCDM.
 
-4. **Q6 secondary finding (DESI hint).** Under DESI 2024-25's thawing-CPL hint ($w_0 > -1$, $w_a < 0$, 3.1–4.2σ), $f_{\rm dark}(a)$ is still monotone increasing over the past light-cone. **However, the far-future asymptote of $f_{\rm dark}$ drops from 1.0 (ΛCDM) to ~0.84 (CPL with $w_0=-0.8$, $w_a=-0.7$)** — dark energy thaws and dilutes faster than matter in the far future. If DESI is confirmed, §VII.6.1's "100% ring-down at de Sitter heat death" framing needs refining: ring-down completion remains monotone in past-direction but the future asymptote is model-dependent.
+4. **Q6 secondary finding (DESI hint).** Under DESI 2024-25's thawing-CPL hint ($w_0 > -1$, $w_a < 0$, 3.1–4.2σ), $f_{\rm dark}(a)$ is still monotone increasing over the past light-cone. **However, the far-future asymptote of $f_{\rm dark}$ drops from 1.0 (ΛCDM) to ~0.84 (CPL with $w_0=-0.8$, $w_a=-0.7$)** — dark energy thaws and dilutes faster than matter in the far future. If DESI is confirmed, §VII.6.1's "100% loop-down at de Sitter heat death" framing needs refining: loop-down completion remains monotone in past-direction but the future asymptote is model-dependent.
 
 5. **Q9 result (Hubble tension direction).** Krishnan et al. 2021 reports the directional $H_0$ dipole correlates with the CMB-dipole direction, which is 18.3° from the AoE pole. Effect is significant only at $z \lesssim 0.075$ (local-volume scale). **AoE-aligned Hubble-tension reading is weakly suggestive but not load-bearing.**
 
@@ -523,7 +525,7 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 ### What this changes
 
 - **The "low-ℓ anomaly family as unified substrate feature" candidate reading of Part I is *strengthened* by Q5's negative finding** — the alternative external-bump reading does not fit shape-wise, so the substrate-side reading is more natural by elimination. Still not endorsed over Bennett 2011 systematics.
-- **§VII.6.1's monotone ring-down framing is robust** against the user's Q6 oscillation question under standard ΛCDM; DESI's thawing hint introduces a future-asymptote refinement that may need §VII.6.1.X amendment.
+- **§VII.6.1's monotone loop-down framing is robust** against the user's Q6 oscillation question under standard ΛCDM; DESI's thawing hint introduces a future-asymptote refinement that may need §VII.6.1.X amendment.
 - **The 18.3° AoE-CMB-dipole alignment is the live anomaly across all readings** — it is the irreducible signal that demands explanation under bubble-collision (fails: bubbles don't align with our motion), substrate-bundle-direction (fails: bundle-base directions don't align with our motion either), and systematics (fails: foregrounds don't naturally produce a 99.9%-C.L. alignment in this geometry).
 
 ### What this does not change
@@ -536,7 +538,7 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 ### Updated falsifier list
 
 1. **Osborne 2013 + Planck 2015 XVI null result already disfavours hyperbubble-bump on shape grounds for the AoE.** This is now a *standing* falsifier, not a future one. Cold Spot remains the only AoE-family object with a bubble-collision-template shape; its bubble-collision amplitude is constrained at 95% C.L.
-2. **DESI DR3 / Roman / Rubin confirms thawing-CPL at $\gtrsim 5\sigma$:** §VII.6.1 needs a future-asymptote refinement (ring-down completion ceiling below 100%). If DESI is a systematic and ΛCDM holds, no refinement needed.
+2. **DESI DR3 / Roman / Rubin confirms thawing-CPL at $\gtrsim 5\sigma$:** §VII.6.1 needs a future-asymptote refinement (loop-down completion ceiling below 100%). If DESI is a systematic and ΛCDM holds, no refinement needed.
 3. **§VII.5 residual-geometric-curvature computation distinguishes Reading B1 vs B2** — as in Part I.
 4. **LSS cross-correlation along AoE axis** at Euclid / Roman / LSST sensitivities — as in Part I.
 5. **Hubble-tension directional dipole at $z > 0.1$** (Pantheon+ / Roman): if confirmed, AoE-Hubble-tension reading is strengthened; if null at higher $z$, weakened.
@@ -546,11 +548,11 @@ Six brainstormed questions in the AoE / dark-sector / hyperbubble line. Each get
 
 > **Concertmaster draft only; conductor decides whether to land in §VII.6.2 or as inline expansion of §VII.6.1.**
 
-Draft §VII.6.1.1 (candidate) — *"AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector ring-down"*:
+Draft §VII.6.1.1 (candidate) — *"AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector loop-down"*:
 
 > The CMB large-scale anomaly family (Axis of Evil per de Oliveira-Costa 2004 / Land–Magueijo 2005; HPA per Eriksen 2004 / Hansen 2009; Cold Spot per Vielva 2004) admits one candidate substrate-side reading under §VII.6.1's ring-down framing composed with §VII.4.1.1's spherical-compression / Hopf-bundle structure: the AoE marks a preferred bundle-base direction at galactic (l, b) ≈ (240°, 60°); the HPA breaks the pole/antipole degeneracy via differential power between hemispheres; under Reading B1 ("more low-ℓ power = less ring-down complete = younger substrate"), the southern-ecliptic hemisphere is the younger end of the axis and the Cold Spot near the AoE antipole is a localised more-ring-down-complete feature. **The alternative reading of these as a hyperbubble bump from external excitation is disfavoured on shape grounds** (bubble-collision templates are disc-shaped with characteristic angular radius; AoE is axial with no characteristic scale), per Osborne 2013 + Planck 2015 XVI null result on the Cold-Spot-as-bubble-collision search. The reading is one candidate among several; the standard ΛCDM-plus-systematics reading (Bennett 2011) remains valid; it does not modify any GR prediction; the §VII.5 residual-geometric-curvature quantitative-match open computation is the principal discriminator. The 18.3°-AoE-pole-↔-CMB-dipole alignment is the live anomaly across all readings. Full empirical workings + reference verification: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md).
 
-Draft §VII.6.1.2 (candidate) — *"Far-future asymptote of ring-down completion under DESI thawing-CPL hint"*:
+Draft §VII.6.1.2 (candidate) — *"Far-future asymptote of loop-down completion under DESI thawing-CPL hint"*:
 
 > §VII.6.1's framing of "100% ring-down at de Sitter heat death" is robust under standard ΛCDM (Ω_dark/Ω_tot monotone increasing in a, asymptote → 1). Under DESI 2024 VI (arXiv:2404.03002) + DESI DR2 (arXiv:2503.14738) thawing-CPL preference (w₀ > −1, wₐ < 0 at 3.1–4.2σ), the far-future asymptote of Ω_dark/Ω_tot drops below 1 (≈ 0.84 for representative thawing values w₀=−0.8, wₐ=−0.7). Under this beyond-ΛCDM reading, ring-down completion remains monotone in past-direction but does not asymptote to 100%; instead it peaks at ~95–97% in the next few Gyr and declines toward the thawing asymptote. The framework reading of this is: ring-down completion measures cumulative complexification budget *consumed* (monotone in cosmic time) rather than instantaneous dark fraction. Pending DESI DR3 confirmation; if DESI hint is a systematic, §VII.6.1 stands as-is.
 
@@ -621,14 +623,14 @@ Cross-references would mirror §VII.6.1's set: shadow-stance family + §VII.4.1.
 - §VII.4.1.2 (Casimir-decomposition universality) — line 803
 - §VII.5 (dark matter as residual geometric curvature) — line 848
 - §VII.6 (dark energy as complexification cost) — line 862
-- §VII.6.1 (substrate-internal time / 95% ring-down) — line 872
+- §VII.6.1 (substrate-internal time / 95% loop-down) — line 872
 
 **Companion working-note:**
-- `[research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](dark_sector_substrate_internal_time_2026-05-16.md) — the dark-sector / 95%-ring-down working-note artifact this companion is grounded against.
+- `[research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](dark_sector_substrate_internal_time_2026-05-16.md) — the dark-sector / 95%-loop-down working-note artifact this companion is grounded against.
 
 **Memory cross-references:**
 - `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance, 2026-05-16
-- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_string_theory_instrument_first]]` — loop-up / loop-down vocabulary
 - `[[user_stance_time_as_dimensional_shadow]]` — substrate vs shadow distinction
 - `[[user_stance_hyper_as_3d_spatial_interface]]` — two-level ontology / substrate + excitations
 - `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family umbrella
@@ -820,7 +822,7 @@ This does *not* prove medium-push uniquely. Three honest qualifications:
 
 - **The user's substantive question is answered.** The right discriminator questions (Q13–Q16) have been posed; one has a load-bearing verdict (Q14: AoE NOT matter-pull, with 73° UHECR offset vs 8° HPA-UHECR alignment); two are consistent-with-medium-push at current sensitivity (Q13, Q15); one is open with a named discriminator (Q16).
 - **The "low-ℓ anomaly family" decomposes.** AoE and HPA are no longer co-located in the medium-push/matter-pull discriminator: HPA is plausibly matter-pull (UHECR-aligned at 8°); AoE is plausibly medium-push (UHECR-misaligned at 73°). This is a sharper decomposition than Part I/V's "candidate unified family" framing.
-- **The Part I Reading B1 framing is refined.** B1 had "more low-ℓ power = less ring-down complete = younger" along the HPA axis with the AoE as bundle-base direction. Q14 supports separating the two: HPA's hemispheric asymmetry plausibly tracks matter distribution; AoE's bundle-base direction is the substrate-level feature. The composition still works, but the components have distinct discriminator-channel signatures.
+- **The Part I Reading B1 framing is refined.** B1 had "more low-ℓ power = less loop-down complete = younger" along the HPA axis with the AoE as bundle-base direction. Q14 supports separating the two: HPA's hemispheric asymmetry plausibly tracks matter distribution; AoE's bundle-base direction is the substrate-level feature. The composition still works, but the components have distinct discriminator-channel signatures.
 - **Three citation-discipline catches** in the dispatch brief (arXiv:1701.02787, 1812.02214, 2105.13549 all mis-attributed). Caught and documented per `[[feedback_pdf_extraction_citation_discipline]]`. Vasileiou 2013, Kostelecky-Mewes 2009, Minami-Komatsu 2020, Eskilt-Komatsu 2022, Diego-Palazuelos 2022, Gruppuso 2020, Bortolami 2022, Komatsu 2022, Planck 2018 VII/VIII, Auger 2017/2018 verified as correctly attributed.
 
 **What Part VI does not change:**

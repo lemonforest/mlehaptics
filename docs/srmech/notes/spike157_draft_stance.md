@@ -66,7 +66,7 @@ Per `[[user_stance_identity_not_implementation_discipline]]`: this is an identit
 - **`[[user_stance_identity_not_implementation_discipline]]`** — identity-level claim under this umbrella; burden of proof flipped.
 - **`[[user_stance_cascade_lives_on_circles]]`** — substrate dynamics live on cyclic-group cascade (Class I); projection into 3D_s preserves circular structure of orbital dynamics (Kepler-shape; per `[[user_stance_kepler_shape_universal]]`).
 - **`[[user_stance_dark_sector_in_7d_g_gauge_space]]`** — dark sector lives in 7D_g; this stance formalizes the projection-mechanism into 3D_s.
-- **`[[user_stance_string_theory_instrument_first]]`** — ring-up/ring-down distinction; shadow dynamics include both excitation (ring-up) and dissipation (ring-down) modes; gravity is the projection of both.
+- **`[[user_stance_string_theory_instrument_first]]`** — loop-up/loop-down distinction; shadow dynamics include both excitation (loop-up) and dissipation (loop-down) modes; gravity is the projection of both.
 - **`[[user_stance_kepler_shape_universal]]`** — primitive composition L+K+C+I+N at gravitational substrate; gravity-as-projection is one realization.
 - **`[[user_stance_1d_collapse_to_loe_identity_not_action]]`** — 1D_t = LoE identity; gauge-shadow projection is one substrate-coupling operation that uncompresses LoE-content into observable gravity.
 - **`[[project_space_gauge_time_framework]]`** — 3D_s + 7D_g + 1D_t = 11D; this stance grounds the gauge-spatial projection mechanism specifically.

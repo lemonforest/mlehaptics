@@ -100,7 +100,7 @@ So the user's intuition has an operational anchor: **not** "drop the dark sector
 The user surfaced two successive sharpenings:
 
 1. **First refinement**: *"like an inverse dark sector age scale for the universe"*
-2. **Second refinement (load-bearing)**: *"the inverse could be that the universe is 95% old and dark sector represents ring down"*
+2. **Second refinement (load-bearing)**: *"the inverse could be that the universe is 95% old and dark sector represents loop down"*
 
 These are two distinct candidate "inverse" readings. The second is the load-bearing one per user direction; the first is recorded for completeness.
 
@@ -114,46 +114,46 @@ T_substrate_full = T_visible_clock / f_visible = 13.797 / 0.0493 ≈ 280 Gyr
 
 Operationally meaningful under MFO §VII.2 but **unbounded** and not directly anchored to any cosmological observable other than the visible fraction. **Deprioritised** in favour of Reading #2 below per user direction.
 
-### Inverse Reading #2 — ring-down completion (load-bearing per `[[user_stance_string_theory_instrument_first]]`)
+### Inverse Reading #2 — loop-down completion (load-bearing per `[[user_stance_string_theory_instrument_first]]`)
 
-**The universe is 95% old, where "age" means fraction-of-cosmic-ring-down-complete.** Dark sector = ring-down accumulation. Visible (5%) = still-active ring-up-phase content. As the universe ages, more stress-energy settles into the ring-down dark sector; "100% old" is the de Sitter asymptote.
+**The universe is 95% old, where "age" means fraction-of-cosmic-loop-down-complete.** Dark sector = loop-down accumulation. Visible (5%) = still-active loop-up-phase content. As the universe ages, more stress-energy settles into the loop-down dark sector; "100% old" is the de Sitter asymptote.
 
-**Ring-down completion fraction trajectory** (computed from Friedmann eq. with verified Planck values):
+**Loop-down completion fraction trajectory** (computed from Friedmann eq. with verified Planck values):
 
-| Scale factor `a` | Redshift | Ω_dark(a) / Ω_total(a) | Ring-down completion |
+| Scale factor `a` | Redshift | Ω_dark(a) / Ω_total(a) | Loop-down completion |
 |---|---|---|---|
-| a → 0 (Big Bang) | z → ∞ | → 0 | 0% (pure ring-up phase; radiation-dominated) |
-| a ≈ 3 × 10⁻⁴ (radiation-matter equality) | z ≈ 3400 | ≈ 0.42 | 42% (matter starts dominating; ring-down begins) |
+| a → 0 (Big Bang) | z → ∞ | → 0 | 0% (pure loop-up phase; radiation-dominated) |
+| a ≈ 3 × 10⁻⁴ (radiation-matter equality) | z ≈ 3400 | ≈ 0.42 | 42% (matter starts dominating; loop-down begins) |
 | a = 0.1 | z = 9 | ≈ 0.84 | 84% |
 | a = 0.5 | z = 1 | ≈ 0.87 | 87% |
-| **a = 1 (NOW)** | **z = 0** | **= 0.949** | **95% ring-down complete** |
-| a → ∞ (heat death) | z → −1 | → 1 | 100% (de Sitter asymptote; complete ring-down) |
+| **a = 1 (NOW)** | **z = 0** | **= 0.949** | **95% loop-down complete** |
+| a → ∞ (heat death) | z → −1 | → 1 | 100% (de Sitter asymptote; complete loop-down) |
 
 The "95% old" reading is **directly empirically anchored**: the 95% = Ω_b + Ω_r complement at z=0, observed not interpreted.
 
 ### Why Reading #2 is the load-bearing inverse
 
-1. **Maps onto `[[user_stance_string_theory_instrument_first]]`** — the ring-up/ring-down distinction is already canonical project vocabulary; this gives it a cosmological-scale instance.
-2. **Aligns with MFO §VII.5** (dark matter as residual geometric curvature) — CDM IS the past-complexification ring-down product, accumulated as the universe settles.
-3. **Aligns with MFO §VII.6** (dark energy as complexification cost) — Ω_Λ IS the ring-down ground state; complexity-maintenance cost is what dark energy *is* operationally.
+1. **Maps onto `[[user_stance_string_theory_instrument_first]]`** — the loop-up/loop-down distinction is already canonical project vocabulary; this gives it a cosmological-scale instance.
+2. **Aligns with MFO §VII.5** (dark matter as residual geometric curvature) — CDM IS the past-complexification loop-down product, accumulated as the universe settles.
+3. **Aligns with MFO §VII.6** (dark energy as complexification cost) — Ω_Λ IS the loop-down ground state; complexity-maintenance cost is what dark energy *is* operationally.
 4. **Bounded** [0%, 100%] rather than unbounded clock-scaling.
-5. **Monotone** in cosmic time — ring-down completion is a one-way progress metric.
+5. **Monotone** in cosmic time — loop-down completion is a one-way progress metric.
 6. **Empirically anchored at every redshift** — testable via independent measurements of Ω_m(z) + Ω_Λ(z) at various cosmic epochs (BAO + supernovae + CMB peaks).
 
-### Reframe — clock-time vs ring-down completion
+### Reframe — clock-time vs loop-down completion
 
-What we call "13.8 Gyr cosmic age" is **not** the age of the universe's content; it's **the age at which the universe became 95% ring-down complete**. Clock-time (coordinate time) and ring-down-completion-fraction measure different things:
+What we call "13.8 Gyr cosmic age" is **not** the age of the universe's content; it's **the age at which the universe became 95% loop-down complete**. Clock-time (coordinate time) and loop-down-completion-fraction measure different things:
 
 - **Clock-time** (t = 13.797 Gyr) — coordinate-time integration of `dt = da / (a H(a))` along the FLRW foliation. Universal in standard GR; all sectors agree.
-- **Ring-down completion** (95% at present) — fraction of cosmic complexification that has accumulated into the dark sector. Bounded, monotone, asymptotic to 100% at de Sitter heat death.
+- **Loop-down completion** (95% at present) — fraction of cosmic complexification that has accumulated into the dark sector. Bounded, monotone, asymptotic to 100% at de Sitter heat death.
 
-Under `[[user_stance_time_as_dimensional_shadow]]`: clock-time is the *shadow* projection of substrate-internal complexification; ring-down completion is the *substrate-internal* progress metric. Both reductions of the same underlying metric-field dynamics; one is shadow-side, one is substrate-side.
+Under `[[user_stance_time_as_dimensional_shadow]]`: clock-time is the *shadow* projection of substrate-internal complexification; loop-down completion is the *substrate-internal* progress metric. Both reductions of the same underlying metric-field dynamics; one is shadow-side, one is substrate-side.
 
 ### Implications
 
-- **MFO §VII.2 framing for cosmic age**: the question "how old is the universe?" has *two* operationally distinct answers under the framework — 13.8 Gyr (clock-time / shadow) and 95% (ring-down / substrate-internal). They measure different things; both are correct on their own terms.
-- **Heat death framing**: under the ring-down reading, "heat death" is not an endpoint of clock-time (clock-time goes to infinity at de Sitter) but the asymptote of ring-down completion (100%). The universe never *stops* in clock-time; it *completes* in ring-down-fraction.
-- **Anthropic / observer-selection implication**: visible matter exists only during the ring-up + ring-down transition (when there's still active complexification budget); the 5% visible-vs-95%-dark partition at present epoch may be a selection effect — we observe at a cosmic epoch where visible matter still has 5% complexification share because <5% would have insufficient density for galaxy + structure formation needed for observer existence. This is consistent with the framework's MPM-discipline anti-anthropic stance but doesn't require it.
+- **MFO §VII.2 framing for cosmic age**: the question "how old is the universe?" has *two* operationally distinct answers under the framework — 13.8 Gyr (clock-time / shadow) and 95% (loop-down / substrate-internal). They measure different things; both are correct on their own terms.
+- **Heat death framing**: under the loop-down reading, "heat death" is not an endpoint of clock-time (clock-time goes to infinity at de Sitter) but the asymptote of loop-down completion (100%). The universe never *stops* in clock-time; it *completes* in loop-down-fraction.
+- **Anthropic / observer-selection implication**: visible matter exists only during the loop-up + loop-down transition (when there's still active complexification budget); the 5% visible-vs-95%-dark partition at present epoch may be a selection effect — we observe at a cosmic epoch where visible matter still has 5% complexification share because <5% would have insufficient density for galaxy + structure formation needed for observer existence. This is consistent with the framework's MPM-discipline anti-anthropic stance but doesn't require it.
 
 ---
 

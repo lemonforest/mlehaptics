@@ -63,7 +63,7 @@ Under DESI 2024-25 thawing-CPL preference (arXiv:2503.14738; 3.1–4.2σ), Ω_b/
 
 This is itself a framework-interesting finding: the user's "AGN outlive 3D_s depletion" framing depends on a ΛCDM far-future projection; if DESI's hint strengthens, the 3% threshold simply never arrives, and AGN never face the "3D_s thins out" scenario at all.
 
-### Ring-down completion timing (f_RD = Ω_dark/Ω_total)
+### Loop-down completion timing (f_RD = Ω_dark/Ω_total)
 
 | Target f_RD | Scale factor | Cosmic time | Δ from now |
 |---:|---:|---:|---:|
@@ -72,7 +72,7 @@ This is itself a framework-interesting finding: the user's "AGN outlive 3D_s dep
 | 0.990 (99%)  | 1.889 | 23.89 Gyr | +10.08 Gyr |
 | 0.999 (99.9%) | 4.151 | 37.46 Gyr | +23.66 Gyr |
 
-The **ring-down completion 97% and the 3% visible threshold coincide at t ≈ 17.08 Gyr** — they ARE the same event in ΛCDM (Ω_b dilutes ∝ a⁻³ relative to (Ω_c·a⁻³+Ω_Λ)). This is identity-level by construction; the two operationalisations are duals.
+The **loop-down completion 97% and the 3% visible threshold coincide at t ≈ 17.08 Gyr** — they ARE the same event in ΛCDM (Ω_b dilutes ∝ a⁻³ relative to (Ω_c·a⁻³+Ω_Λ)). This is identity-level by construction; the two operationalisations are duals.
 
 ### Precession-sign-flip schedule (T_sub = 109.84 Gyr)
 
@@ -195,7 +195,7 @@ Per spike brief item 7: draft stance candidate "AGN-as-7D_g-substrate-fossils" s
 ## Cross-references
 
 - `[[user_stance_dark_sector_in_7d_g_gauge_space]]` — dark sector in 7D_g; visible 5% = 3D_s-coupled portion
-- `[[user_stance_dark_sector_ring_down_age]]` — universe 95% old in ring-down sense; far-future asymptote
+- `[[user_stance_dark_sector_ring_down_age]]` — universe 95% old in loop-down sense; far-future asymptote
 - `[[user_stance_universal_precession_at_substrate_level]]` — T_sub = 109.84 Gyr; Ω_sub ~ 1.81×10⁻¹⁸ rad/s
 - `[[user_stance_cascade_lives_on_circles]]` — Class C orientation on unit circle; sign-flip at φ=π/2 + 3π/2
 - `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — last 5% takes ΛCDM-infinite time
@@ -211,7 +211,7 @@ Per spike brief item 7: draft stance candidate "AGN-as-7D_g-substrate-fossils" s
 - Spike #124 — AGN as inner-inverse-Casimir at dark-star horizon (engine reading)
 - Spike #83 — outer inverse-Casimir at cosmological-horizon (Λ-pressure)
 - Spike #109 — Hubble tension as scale-channel mismatch
-- MFO §VII.5 (dark matter as residual curvature), §VII.6 (dark energy as complexification cost), §VII.6.1 (ring-down framing), §VII.6.1.2 (DESI thawing-CPL far-future asymptote)
+- MFO §VII.5 (dark matter as residual curvature), §VII.6 (dark energy as complexification cost), §VII.6.1 (loop-down framing), §VII.6.1.2 (DESI thawing-CPL far-future asymptote)
 - Planck 2018 VI arXiv:1807.06209 (cosmological parameters; cite-by-ref)
 - DESI 2024-25 arXiv:2503.14738 (thawing-CPL; cite-by-ref)
 - PDG 2024 Table 25.1 (Ω_b, Ω_c values; cite-by-ref)

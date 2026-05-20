@@ -17,7 +17,7 @@ Per `[[user_stance_identity_not_implementation_discipline]]`: this is an identit
 
 Existing Class M primitive surface: `srmech.amsc.hdc.bind` (commutative, associative, self-inverse XOR per Kanerva 2009 / Plate 1995). Class K asymptotic-DOF gate (truncate_sparse on Hamming-popcount threshold) implemented inline in this spike's prototype as a substrate-natural per-step threshold; future srmech rc may absorb into `srmech.amsc.kepler` or a new `srmech.amsc.class_k` module per conductor decision.
 
-**14 A-N intact**; no class promotion. The composition uses only existing classes (M + K + I optional for ring-down test) per `[[feedback_no_privileged_primitive_classes]]`.
+**14 A-N intact**; no class promotion. The composition uses only existing classes (M + K + I optional for loop-down test) per `[[feedback_no_privileged_primitive_classes]]`.
 
 ---
 
@@ -52,7 +52,7 @@ CFSP threshold = 2 × substrate-natural rate × D = 102 bits.
 
 ### T5 — Pin-slot-resonate composition (#177)
 
-Substrate-natural slow ring-down: period 7, tau = n/3, amp 102 bits. SNR +10 dB.
+Substrate-natural slow loop-down: period 7, tau = n/3, amp 102 bits. SNR +10 dB.
 
 | Method | envelope corr | mean BER |
 |---|---:|---:|
@@ -60,9 +60,9 @@ Substrate-natural slow ring-down: period 7, tau = n/3, amp 102 bits. SNR +10 dB.
 | CFSP | 0.9988 | 0.0009 |
 | no-filter | 0.9988 | 0.0009 |
 
-All three methods preserve the slow ring-down — Kalman is best because its slow-evolution prior matches the slow ring-down envelope.
+All three methods preserve the slow loop-down — Kalman is best because its slow-evolution prior matches the slow loop-down envelope.
 
-### T5b — Fast ring-down stress test
+### T5b — Fast loop-down stress test
 
 Period 3, tau = n/8, amp 205 bits. SNR +10 dB.
 
@@ -109,7 +109,7 @@ Substrate-natural Class N rational prediction: **CONFIRMED** in the sense that t
 - ✅ CFSP tracks correctly at high SNR (BER 0.0000 / 0.0008)
 - ✅ CFSP wins BER at high SNR; LOSES at low SNR (0/-10 dB)
 - ✅ CFSP wins bind-relationship at ALL SNRs (structural algebraic-identity preservation)
-- ✅ T5 ring-down: CFSP matches Kalman at slow cycle; T5b: CFSP wins at fast cycle
+- ✅ T5 loop-down: CFSP matches Kalman at slow cycle; T5b: CFSP wins at fast cycle
 - ✅ T6 substrate-natural cliff confirmed; optimum just-above substrate rate
 
 **Not H1-CONFIRMED** because CFSP does NOT win BER at low SNR (0 dB, -10 dB). The verdict is structure-preserving wins, not universal wins. CFSP is the right tool when **algebraic-identity preservation** matters (HDC content, gauge-content layer per `[[user_stance_bci_translation_at_gauge_content_layer]]`, substrate-portable bit-discrete signals); Kalman remains the right tool for high-noise scalar continuous tracking where bit-discreteness is irrelevant.

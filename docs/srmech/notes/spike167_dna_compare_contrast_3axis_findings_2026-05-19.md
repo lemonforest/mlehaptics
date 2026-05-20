@@ -45,7 +45,7 @@ The key question is not "is (a) correct? is (b) correct?" but **"are (a) and (b)
 
 ### §2.1 The claim
 
-Per `[[user_stance_universal_precession_at_substrate_level]]`: substrate-precession is currently attested at 3 substrate classes (cosmic hyper-ring ~10⁻¹⁸ rad/s + geological liquid-iron MHD ~10⁻¹³ rad/s + plasma MHD solar/stellar 22-yr ~10⁻⁹ rad/s) spanning 9 OOM in Ω_rate, all magnetically-active.
+Per `[[user_stance_universal_precession_at_substrate_level]]`: substrate-precession is currently attested at 3 substrate classes (cosmic hyper-loop ~10⁻¹⁸ rad/s + geological liquid-iron MHD ~10⁻¹³ rad/s + plasma MHD solar/stellar 22-yr ~10⁻⁹ rad/s) spanning 9 OOM in Ω_rate, all magnetically-active.
 
 Per Spike #155 + Spike #162: DNA helical-precession at ~3 Hz (transcription rate 30 bp/sec ÷ helical-pitch 10.5 bp/turn) adds a 4th substrate class — **biological** — at ~18 OOM above cosmic-substrate-precession.
 

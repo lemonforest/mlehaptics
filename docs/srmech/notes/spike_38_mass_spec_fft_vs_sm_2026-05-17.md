@@ -113,7 +113,7 @@ What's specifically different about molecular substrate that produces the FAIL-a
 1. **Scale**: n=14 heavy atoms vs n=10²–10⁴ in cosmic / mechanical / fractal substrates the SM was developed on. Cascade-β methodology needs n>100 reliably; eigval-density-histogram cosine-similarity becomes degenerate at n~14.
 2. **Topology**: caffeine = fused bicyclic ring + 3 pendant methyls + 2 pendant oxygens. The cyclic-group structure (Class I row of Spike #37, "U(1) gauge phase / benzene D₆h") lives in **aromatic-ring electron density**, not in the fragmentation m/z grid. The ring is in the substrate; the spectrum is in the chemistry-of-cleavage layer above.
 3. **Spectrum domain**: m/z is integer-valued on a uniform grid; FFT extracts no Kepler-shape because fragments are bond-cleavage products (McLafferty rearrangement / α-cleavage / charge migration), not eccentric-orbit projections.
-4. **Noise model**: mass-spec intensity noise is shot-noise / ion-count Poisson / instrument-tail — not the ring-down decay envelope cascade-β is designed for.
+4. **Noise model**: mass-spec intensity noise is shot-noise / ion-count Poisson / instrument-tail — not the loop-down decay envelope cascade-β is designed for.
 
 Caffeine chemistry is governed by bond-dissociation energetics + McLafferty rearrangement + charge migration on purine-with-pendants. **Not** Kepler / pin-slot / cascade / cyclic-group spectral signatures at the FFT-match level.
 

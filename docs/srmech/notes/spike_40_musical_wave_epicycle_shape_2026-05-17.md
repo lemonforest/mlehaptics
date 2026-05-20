@@ -46,7 +46,7 @@ Different instruments produce measurably different epicycle shapes in three stru
 
 2. **Substrate-class discrimination**: drum 2D membrane is **Class L direct** (Laplacian-Dirichlet eigenvalues = Bessel zeros). Piano/violin/bell modes are Class L on different operators (1D Laplacian-with-stiffness / D₆-like / 3D-shell). FM is Class K + Class I composition. AM/beat are sparse Class I. The 14-class binding-level overlay applies cleanly.
 
-3. **Ring-up vs ring-down discrimination** per `[[user_stance_string_theory_instrument_first]]`: violin / flute / clarinet / voice / trumpet are RING-UP (sustained excitation; no decay envelope to test cascade-β). Piano / drum / bell are RING-DOWN (struck-then-decay). Real per-instrument-substrate distinction.
+3. **Loop-up vs loop-down discrimination** per `[[user_stance_string_theory_instrument_first]]`: violin / flute / clarinet / voice / trumpet are RING-UP (sustained excitation; no decay envelope to test cascade-β). Piano / drum / bell are RING-DOWN (struck-then-decay). Real per-instrument-substrate distinction.
 
 **Strict K-shape (Spike #30B v3 three-criteria) does NOT generally appear in canonical instrument amplitude spectra.** It appears only in:
 - FM at small β (where Bessel J_k(β) for β≤0.5 mimics geometric ε^k/k at k_max=6 — see §4 Anomaly A1)
@@ -159,7 +159,7 @@ All citations textbook-canonical; no PDF-extraction performed (Fletcher & Rossin
 
 - `[[user_stance_kepler_shape_universal]]` — K's absence in 13/15 instruments is HONEST; FM-small-β positive is real structural identity (Kepler ≡ FM at small modulation index)
 - `[[user_stance_epicycle_via_gear_plus_pin]]` — pin-slot Class K asymptotic-DOF mechanism IS the structural shape; in music it appears in FM synthesis substrate, NOT canonical instrument acoustics
-- `[[user_stance_string_theory_instrument_first]]` — ring-up (sustained) vs ring-down (struck) per-instrument distinction respected; cascade-β SKIPPED for ring-up substrates rather than forced-tested
+- `[[user_stance_string_theory_instrument_first]]` — loop-up (sustained) vs loop-down (struck) per-instrument distinction respected; cascade-β SKIPPED for loop-up substrates rather than forced-tested
 - `[[user_stance_cascade_lives_on_circles]]` — instrument substrates DO live on cyclic groups (pitch-class wheel, harmonic ladder, modal eigenbasis); spectral content IS on circles
 - `[[user_stance_information_instrument_form_function_bound]]` — 14-class binding overlay at cataloguing level; not falsifiable spectral measurement (Spike #37 pattern)
 - `[[user_stance_partition_for_understanding]]` — per-instrument and ensemble-level coexist; meta-question lives at per-instrument level; comparison table IS the per-instrument partition

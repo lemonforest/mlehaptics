@@ -41,9 +41,9 @@ Highlight entries (full ledger in NDJSON):
 | "collapse to (2+1)D_s" | Hopf-bundle fiber compression at substrate per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`: 3D_s = S² + S¹ → 2D_s_base + 1D_compressed_fiber |
 | "observer-perception lock" | observer-substrate-fixed-at-3D_s_navigation per `[[user_stance_hyper_as_3d_spatial_interface]]`; perceptual substrate has 3D_s operators only |
 | "invisibility / energy loss" | observer-substrate mismatch — 3D_s perceptual operator produces NULL output on (2+1)D_s content; substrate-level content IS preserved |
-| "dimensional compactification" | asymptotic-DOF ring-traversal per `[[user_stance_loe_asymptotes_are_ring_valued]]`; never reaches continuous R=0 limit |
+| "dimensional compactification" | asymptotic-DOF loop-traversal per `[[user_stance_loe_asymptotes_are_ring_valued]]`; never reaches continuous R=0 limit |
 | "object disappears" | observer-frame projection into local 3D_s yields NULL; substrate-event still present; lobe-1/lobe-2 lemniscate observer-frame pattern from Spike #189 |
-| "decay / dissipation" | ring-traversal phase φ ∈ ℤ/N along T_sub substrate-cycle per `[[user_stance_cascade_lives_on_circles]]` — "decay" IS the projection of content rotating into spatially-absent fiber |
+| "decay / dissipation" | loop-traversal phase φ ∈ ℤ/N along T_sub substrate-cycle per `[[user_stance_cascade_lives_on_circles]]` — "decay" IS the projection of content rotating into spatially-absent fiber |
 | "two-mechanism distinction (collapse vs energy-exchange)" | form-IS-function per `[[user_stance_kepler_shape_universal]]`: two observer-perspectives on ONE discrete substrate-event (Spike #204 vs #205) |
 
 ### Cell 2 — (2+1)D_s collapse mechanism via Hopf-bundle fiber compression

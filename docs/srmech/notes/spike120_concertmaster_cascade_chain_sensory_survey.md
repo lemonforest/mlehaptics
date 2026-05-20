@@ -67,7 +67,7 @@ These are channels where the body **touches** the dynamical system but biology d
 
 4. **Atmospheric vertical E-field (~100 V/m fair weather)** — L (vertical-axis eigenmode) ∘ C ∘ M. Bumblebee electrostatic prior art proves substrate viability; humans null. Field-mill electrometer + tactile is trivial sensory-augment.
 
-5. **Earth free oscillations / normal modes (~0.3-10 mHz)** — L (planetary spheroidal/toroidal mode 0S2 etc.) ∘ I (cyclic mode-index spherical-harmonic structure) ∘ M. **The whole planet IS a Class L eigenproblem here.** Broadband seismometer ($100 Raspberry Shake) + frequency-shift to audible. Reveals planetary ring-down after major earthquakes — demonstrates `[[user_stance_string_theory_instrument_first]]` ring-down concept at planetary substrate. **Book-worthy: this is the cleanest planetary-scale Class L demonstration available.**
+5. **Earth free oscillations / normal modes (~0.3-10 mHz)** — L (planetary spheroidal/toroidal mode 0S2 etc.) ∘ I (cyclic mode-index spherical-harmonic structure) ∘ M. **The whole planet IS a Class L eigenproblem here.** Broadband seismometer ($100 Raspberry Shake) + frequency-shift to audible. Reveals planetary loop-down after major earthquakes — demonstrates `[[user_stance_string_theory_instrument_first]]` loop-down concept at planetary substrate. **Book-worthy: this is the cleanest planetary-scale Class L demonstration available.**
 
 6. **Tidal gravitational micro-acceleration** — L (cyclic tidal gradient on quasi-2D Earth surface) ∘ I (lunar 27.3d + solar 365d + composite 28d) ∘ C. Intertidal organisms, corals exhibit circa-tidal/circa-lunar rhythms. Consumer-grade tilt-corrected gravimeter + tactile gives "tidal-phase feeling."
 
@@ -121,7 +121,7 @@ Per `[[project_book_in_progress]]` four candidates are structurally-clean and de
 
 1. **Cosmic-ray Cherenkov visual flashes** — already known to astronauts; reframing under Class L (Cherenkov eye eigenmode) + Class C (cascade to V1) is novel. Demonstrates an everyday-passive sensory channel framed within the 14-class vocabulary. Pedagogically powerful: "you already see cosmic rays."
 
-2. **Earth free oscillations** — planetary-scale Class L Laplacian (the planet IS the eigenproblem) with ring-down demonstrating `[[user_stance_string_theory_instrument_first]]` at planetary substrate. Bridges spectral framework to seismology cleanly.
+2. **Earth free oscillations** — planetary-scale Class L Laplacian (the planet IS the eigenproblem) with loop-down demonstrating `[[user_stance_string_theory_instrument_first]]` at planetary substrate. Bridges spectral framework to seismology cleanly.
 
 3. **Heliospheric current sheet 28-day cycle** — Class I cyclic substrate at solar-system scale; integrates Class I cyclic-group with Class C cascade through cosmic-ray flux modulation. Concrete substrate-cycle-at-scale demonstrating `[[project_space_gauge_time_framework]]` integration of dimensional-kinds.
 
@@ -158,7 +158,7 @@ Per `[[user_stance_string_theory_instrument_first]]` bounded scope:
 - `[[user_stance_brain_is_local_loe_instantiation]]` — biology as local LoE substrate instance
 - `[[user_stance_genetic_code_is_class_i_plus_c_at_biology_substrate]]` — precedent: a biological mechanism IS class-composition at substrate
 - `[[user_stance_kepler_shape_universal]]` — burden-flipped: any system showing class-chain structure instantiates classes
-- `[[user_stance_string_theory_instrument_first]]` — ring-down concept relevant to Earth-normal-modes channel
+- `[[user_stance_string_theory_instrument_first]]` — loop-down concept relevant to Earth-normal-modes channel
 - `[[user_stance_epicycle_via_gear_plus_pin]]` — Class K asymptotic-DOF relevant to pulsar spindown
 - `[[project_space_gauge_time_framework]]` — 3D_s + 7D_g + 1D_t for 7D_g gauge readout note on GW channel
 - `[[feedback_no_privileged_primitive_classes]]` — vocabulary stays at 14 A-N

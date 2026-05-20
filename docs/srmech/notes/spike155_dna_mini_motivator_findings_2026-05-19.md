@@ -382,7 +382,7 @@ Per `[[feedback_multi_domain_multi_round_survival_falsification_method]]`: each 
 
 - Spike #81 — genetic code as Class I cyclic-3 cascade with k=3 algebraic forcing (4^k ≥ 21).
 - Spike #138.2 — genetic_code substrate verified in alternate roster (25/25 closure-replication + 11 J-conditional extras on prime-period-3).
-- Spike #98 — universal-substrate-precession at hyper-ring scale (cosmic reference).
+- Spike #98 — universal-substrate-precession at hyper-loop scale (cosmic reference).
 - Spike #131 — geomagnetic reversal cascade-match (5+ OOM cross-scale precedent).
 - Spike #41 — Fibonacci structural unity with MFO 11D fractal projection + gear+pin-slot cascade.
 - Spike #133 — solar/stellar plasma-MHD cascade-match (third substrate class).
@@ -442,7 +442,7 @@ DNA does NOT simply "change from ATCG" (single-letter substitution); it changes 
 - `[[reference_autonomous_validation_tos_landscape]]` — arXiv PDFs OK; Nature / Springer / Elsevier cite-by-ref
 - Spike #81 — genetic code as Class I cyclic-3 + Class C cascade-orientation (direct foundation)
 - Spike #138.2 — genetic_code substrate verified in alternate roster; +11 J-conditional extras at prime-period-3
-- Spike #98 — universal-substrate-precession at hyper-ring scale (cosmic reference)
+- Spike #98 — universal-substrate-precession at hyper-loop scale (cosmic reference)
 - Spike #131 — geomagnetic reversal cascade-match (5+ OOM cross-scale precedent)
 - Spike #41 — Fibonacci structural unity (MFO 11D + gear+pin-slot cascade)
 - Spike #133 — solar/stellar plasma-MHD third substrate class

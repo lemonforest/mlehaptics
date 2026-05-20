@@ -142,11 +142,11 @@ both cosmic and planetary substrates.
 
 * [x] 14 A-N classes intact; no class promotion. (Class L
       spectral-power computation on spherical-harmonic
-      eigenbasis + Class K asymptotic-ring DOF + Class I
+      eigenbasis + Class K asymptotic-loop DOF + Class I
       cyclic-modular membership test for higher-Mersenne set.)
 * [x] Identity-not-implementation discipline preserved.
-* [x] Asymptotic-ring vocabulary (per-integer-ℓ as discrete
-      asymptotic-ring DOF; S^n for sphere bundles per Adams
+* [x] Asymptotic-loop vocabulary (per-integer-ℓ as discrete
+      asymptotic-loop DOF; S^n for sphere bundles per Adams
       1962).
 * [x] Density-aware permutation p-values per Spike #181 (10,000
       permutations, seed=0, Wilson-corrected).

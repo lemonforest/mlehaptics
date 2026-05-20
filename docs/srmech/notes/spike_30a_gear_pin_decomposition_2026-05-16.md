@@ -93,7 +93,7 @@ H_c is also consistent with the existing dissolution record across all prior Spi
 **NOT testable from visible-sector alone (95% uncertainty)**:
 
 - New pin-slot arrangements (beyond the 11 catalogued in §4) might exist in the dark sector that enable I × K constructions for currently-resisting classes. The 9-class gap (A, B, D, E, F, G, H, L, M all resist) cannot be reasonably bridged by adding a single new configuration.
-- Dark-sector ring-down primitives may instantiate operations the framework hasn't catalogued; those could decompose differently.
+- Dark-sector loop-down primitives may instantiate operations the framework hasn't catalogued; those could decompose differently.
 
 **Honest confidence statement**: H_c is *strongly supported* on visible-sector content with the closure-at-14-classes discipline. Dark-sector uncertainty does NOT compromise the verdict on visible-sector content; it leaves open whether the 14-class vocabulary will need expansion to cover dark-sector phenomena — separate question from whether 12 non-{I,K} classes reduce to I × K.
 
@@ -104,7 +104,7 @@ H_c is also consistent with the existing dissolution record across all prior Spi
 3. **HDC bind (XOR) as gear-pin** — show component-wise XOR decomposes to I × K. Status: XOR has no continuous-phase analog; structurally implausible.
 4. **Bonus 11d revisited with K as discriminator** — add a sign-rule discriminator using Class K equation-of-centre output as a parity function. If selects exactly 9 SM modes at score < 1.0, K participates in mode-selection. Status: bonus 11d tested 8 rule families; none used K output; concrete falsifier test.
 5. **Multi-bar pin-slot catalog expansion** — add ≥3 new configurations beyond the 11 in §4 (spherical four-bar, Bennett linkage, RCCC spatial chain). Status: not investigated in present spike.
-6. **Dark-sector ring-down primitive identification** — if 95% dark sector instantiates uncatalogued primitives, those might reveal I × K constructions for resisting classes. Status: separate spike scope.
+6. **Dark-sector loop-down primitive identification** — if 95% dark sector instantiates uncatalogued primitives, those might reveal I × K constructions for resisting classes. Status: separate spike scope.
 
 ## §7 The fermata — RESOLVED to option C (2026-05-16, post-spike conductor decision)
 

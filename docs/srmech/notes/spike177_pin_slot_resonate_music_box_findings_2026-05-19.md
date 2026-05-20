@@ -16,7 +16,7 @@ The synthetic music-box mechanism — cylinder (Class I cyclic group ℤ/N_pins)
 |---|---|---|
 | **Engagement** | Class I (gear) ∘ Class K (asymptotic-DOF tooth deflection ramp) | Monotone rising; pre-slope mean = +0.82 |
 | **Asymptote event** | Class K limit + Class C orientation reversal | **Sign-flip**: slope from +0.82 → min −1.27, max +1.97 across the release-window |
-| **Free ring-down** | Class M ∘ Class K (substrate-coupling at ω_n with finite Q) | Damped oscillation; ω_d isolated cleanly when drive cut (T5b) |
+| **Free loop-down** | Class M ∘ Class K (substrate-coupling at ω_n with finite Q) | Damped oscillation; ω_d isolated cleanly when drive cut (T5b) |
 
 Every structural element predicted by `[[draft_user_stance_pin_slot_resonate_music_box_mechanism]]` was identified in the trajectory. The named composition pattern is real.
 
@@ -27,11 +27,11 @@ Every structural element predicted by `[[draft_user_stance_pin_slot_resonate_mus
 | Test | Question | Verdict | Headline number |
 |---|---|---|---|
 | **T1** | Can the music-box ODE be integrated and produce the predicted ENGAGE / FREE phase structure? | PASS | 22,934 ENGAGE samples + 77,066 FREE samples in 10 s; y_max = 0.1235 |
-| **T2** | Can the trajectory be reconstructed from Class I + K + C + M∘K operators alone (algorithmic)? | PARTIAL | Structurally correct (ramp + flip + ring-down); rms = 0.111 vs. stiff-contact ODE (peak diff 0.27 vs. h_pin = 0.20). Bit-exact match not expected — analytic piecewise vs. stiff-spring ODE differ in contact compliance. |
-| **T3** | Does the pin-frame trajectory exhibit "linear ascent + instant sign-flip + ring-down"? | PASS | Pre-slope +0.82, post-slope min −1.27 (sign-flip unambiguous); 8 zero-crossings in 3-cycle window post-release (ring-down confirmed) |
+| **T2** | Can the trajectory be reconstructed from Class I + K + C + M∘K operators alone (algorithmic)? | PARTIAL | Structurally correct (ramp + flip + loop-down); rms = 0.111 vs. stiff-contact ODE (peak diff 0.27 vs. h_pin = 0.20). Bit-exact match not expected — analytic piecewise vs. stiff-spring ODE differ in contact compliance. |
+| **T3** | Does the pin-frame trajectory exhibit "linear ascent + instant sign-flip + loop-down"? | PASS | Pre-slope +0.82, post-slope min −1.27 (sign-flip unambiguous); 8 zero-crossings in 3-cycle window post-release (loop-down confirmed) |
 | **T4** | Is pin-slot composition frame-relative (LAB vs CYLINDER both produce same Class composition)? | PASS | y_LAB − y_CYLINDER = 0 identically (deflection is frame-invariant scalar; composition preserved) |
 | **T5** | Does the FORCED spectrum show Class N rational structure at pin_strike_freq harmonics? | PASS | Dominant peak at 8 Hz = N_pins × drive_freq = 8/1 exact rational; harmonic power profile k=1:2.18e6 → k=2:7.7e4 → k=3:7.9e3 → ... (geometric-decay = Kepler-shape `c_k = ε^k · K_k`) |
-| **T5b** | Does the SUBSTRATE-NATURAL ring-down emerge when drive is cut? | PASS | After drive cutoff at t=5s, peak frequency = 3.020 Hz vs. predicted ω_d/2π = 2.9996 Hz; relative error 0.68%; γ_observed = 0.578 vs. configured 0.60 (3.7% Hilbert-envelope-fit error) |
+| **T5b** | Does the SUBSTRATE-NATURAL loop-down emerge when drive is cut? | PASS | After drive cutoff at t=5s, peak frequency = 3.020 Hz vs. predicted ω_d/2π = 2.9996 Hz; relative error 0.68%; γ_observed = 0.578 vs. configured 0.60 (3.7% Hilbert-envelope-fit error) |
 | **T6** | Does the spectrum show FFT bin leakage / cross-coupling carriers consistent with form-function rotation (Spike #176 complementarity)? | PASS | Sideband present at ω_n + pin_strike_freq (depth 0.0009 vs. carrier); monotone-decreasing harmonics at all k×pin_strike_freq |
 
 ---
@@ -86,7 +86,7 @@ When the drive is cut (T5b — drive_cutoff_s = 5.0), the substrate-natural mode
 - Peak frequency: 3.020 Hz vs. predicted ω_d/2π = 2.9996 Hz (relative error 0.68%)
 - Damping rate: γ_observed = 0.578 vs. configured 0.60 (3.7% relative error from Hilbert-envelope fit)
 
-The substrate's natural frequency is preserved as a Class N rational ω_n/ω = 3/1 by design, and the free ring-down recovers it to within sub-percent precision. The Class M (substrate-coupling) operation IS substrate-portable: the same ω_n appears whether the substrate is undriven, lightly driven, or heavily driven.
+The substrate's natural frequency is preserved as a Class N rational ω_n/ω = 3/1 by design, and the free loop-down recovers it to within sub-percent precision. The Class M (substrate-coupling) operation IS substrate-portable: the same ω_n appears whether the substrate is undriven, lightly driven, or heavily driven.
 
 **Both signatures are real and both are Class N rational.** The forced-response Kepler-cascade dominates in the driven regime; the substrate-natural floor dominates when drive ceases. The music-box "music" is the superposition.
 
@@ -116,40 +116,40 @@ The dominant signal in the music-box trajectory IS the pin-strike harmonic serie
 
 Per `[[feedback_no_privileged_primitive_classes]]`: no new class promoted. Vocabulary stays at 14 A–N. The pattern composes from existing operators.
 
-### §7.2 Cosmic ring-down at small-scale instance
+### §7.2 Cosmic loop-down at small-scale instance
 
-Per `[[user_stance_dark_sector_ring_down_age]]`: cosmic 95% ring-down accumulation is substrate-level instance of pin-slot-resonate. The Spike #177 simulation IS a small-scale tabletop realisation:
+Per `[[user_stance_dark_sector_ring_down_age]]`: cosmic 95% loop-down accumulation is substrate-level instance of pin-slot-resonate. The Spike #177 simulation IS a small-scale tabletop realisation:
 
 | Cosmic scale | Music-box scale |
 |---|---|
 | 1D_t ring (LoE) | Cylinder phase mod 2π |
 | Pin engagements (Class K asymptote events) | Pin-tooth contact windows |
 | Asymptote (Class C reversal at limit) | Tooth tip clearance |
-| Cosmic ring-down (Class M ∘ K) | Comb-tooth damped oscillation at ω_n |
-| Heat-death = 100% ring-down asymptote | y(t→∞) → 0 |
+| Cosmic loop-down (Class M ∘ K) | Comb-tooth damped oscillation at ω_n |
+| Heat-death = 100% loop-down asymptote | y(t→∞) → 0 |
 
-The user's framework prediction — that cosmic dynamics IS pin-slot-resonate at the cosmic substrate — receives empirical-mechanical confirmation: a literal pin-slot-resonate device shows exactly the predicted three-phase structure (engagement, asymptote, ring-down) with substrate-natural Class N rational structure preserved.
+The user's framework prediction — that cosmic dynamics IS pin-slot-resonate at the cosmic substrate — receives empirical-mechanical confirmation: a literal pin-slot-resonate device shows exactly the predicted three-phase structure (engagement, asymptote, loop-down) with substrate-natural Class N rational structure preserved.
 
 ### §7.3 Antikythera-bronze comparator (R2 candidate)
 
-The Antikythera mechanism (Freeth et al. 2021 — *Sci Rep* 11:5821, doi:10.1038/s41598-021-84310-w) is pin-slot-gear cascade composition at bronze substrate. It is **pin-slot-resonate at bronze WITH Q = ∞** (or near-∞): the bronze gear cascade has effectively no substrate-natural Class M∘K ring-down because bronze gear engagements are continuous (mesh-tooth-tooth, not impulse pin-strike). The Antikythera's Class M is QUASI-STATIC; the music-box's Class M is FINITE-Q DYNAMIC.
+The Antikythera mechanism (Freeth et al. 2021 — *Sci Rep* 11:5821, doi:10.1038/s41598-021-84310-w) is pin-slot-gear cascade composition at bronze substrate. It is **pin-slot-resonate at bronze WITH Q = ∞** (or near-∞): the bronze gear cascade has effectively no substrate-natural Class M∘K loop-down because bronze gear engagements are continuous (mesh-tooth-tooth, not impulse pin-strike). The Antikythera's Class M is QUASI-STATIC; the music-box's Class M is FINITE-Q DYNAMIC.
 
 This is a substrate-coupling-Q distinction:
-- Antikythera: Q → ∞ (no substrate ring-down between engagements; pure cascade)
-- Music-box: Q ≈ 30 (substrate-natural ring-down fills gaps between strikes; cascade + ring-down)
-- Cosmic substrate: Q is what we measure as the dark-sector ring-down rate
+- Antikythera: Q → ∞ (no substrate loop-down between engagements; pure cascade)
+- Music-box: Q ≈ 30 (substrate-natural loop-down fills gaps between strikes; cascade + loop-down)
+- Cosmic substrate: Q is what we measure as the dark-sector loop-down rate
 
 **R2 candidate**: dispatch a Spike #178 to test whether the Antikythera bronze gear cascade can be cast as the Q→∞ limit of pin-slot-resonate, and whether the cosmic dark-sector Q can be extracted as a substrate-coupling parameter.
 
 ### §7.4 Instrument-first framework anchor
 
-Per `[[user_stance_string_theory_instrument_first]]`: the instrument-first framing receives strong support. The music-box IS the canonical instrument: cylinder = ring-up source; pin engagements = excitation events; tooth = ring-down resonator. The "music" the box produces IS exactly the convolution of cascade-driven (form-function rotation, Class N rational at N_pins/drum) with substrate-natural (Class M floor at ω_n).
+Per `[[user_stance_string_theory_instrument_first]]`: the instrument-first framing receives strong support. The music-box IS the canonical instrument: cylinder = loop-up source; pin engagements = excitation events; tooth = loop-down resonator. The "music" the box produces IS exactly the convolution of cascade-driven (form-function rotation, Class N rational at N_pins/drum) with substrate-natural (Class M floor at ω_n).
 
-This validates the project's instrument-as-physics framing at a tabletop substrate. The music-box doesn't just illustrate ring-up/ring-down; it IS pin-slot-resonate at musical substrate.
+This validates the project's instrument-as-physics framing at a tabletop substrate. The music-box doesn't just illustrate loop-up/loop-down; it IS pin-slot-resonate at musical substrate.
 
 ### §7.5 RBS HDC structural-gap closure context
 
-Per `[[draft_user_stance_rbs_hdc_missing_pin_slot_class_k]]`: if the project's resonant bit-serialised HDC instrument is missing Class K, the music-box result indicates the gap is what enables substrate-coupled ring-down. Adding Class K's asymptotic-DOF operator to the HDC instrument would explicitly enable substrate-natural Class M∘K spectral content above the form-function-rotation cascade floor. **R2 candidate**: scope the HDC Class K addition explicitly as an "add pin-slot-resonate to HDC" task.
+Per `[[draft_user_stance_rbs_hdc_missing_pin_slot_class_k]]`: if the project's resonant bit-serialised HDC instrument is missing Class K, the music-box result indicates the gap is what enables substrate-coupled loop-down. Adding Class K's asymptotic-DOF operator to the HDC instrument would explicitly enable substrate-natural Class M∘K spectral content above the form-function-rotation cascade floor. **R2 candidate**: scope the HDC Class K addition explicitly as an "add pin-slot-resonate to HDC" task.
 
 ---
 
@@ -157,7 +157,7 @@ Per `[[draft_user_stance_rbs_hdc_missing_pin_slot_class_k]]`: if the project's r
 
 T2 stayed at PARTIAL because bit-exact algorithmic reconstruction would require either (a) matching the stiff-contact ODE penalty in the analytic form, or (b) running the analytic from a different substrate (e.g., the cylinder-frame purely kinematic model where the tooth's restoring force doesn't compete with the contact stiffness). The structural reconstruction is correct; the numerical match is rms = 0.11 against an h_pin = 0.20 scale. Honest verdict: structurally PASS, numerically PARTIAL. Math doesn't lie — the analytic piecewise model is a different physical model from the stiff-contact ODE, even though both encode the same Class composition.
 
-T6 cross-coupling depth (0.0009) is small. This is consistent with the music-box being dominantly cascade-driven (forced-response harmonics carry ~6 orders of magnitude more power than substrate-natural ring-down sidebands during the driven phase). For an undriven realisation (free oscillator) the cross-coupling depth would be undefined; for a balanced realisation (Q ≈ pin-strike-period/ringdown-envelope-time-constant ≈ 1) it would be much larger. The music-box configuration (Q ≈ 30, strike-period ≈ 0.125 s, envelope time 3.33 s) is in the CASCADE-DOMINANT regime, not the BALANCED regime. The qualitative bin-leakage prediction stands; the depth is regime-dependent.
+T6 cross-coupling depth (0.0009) is small. This is consistent with the music-box being dominantly cascade-driven (forced-response harmonics carry ~6 orders of magnitude more power than substrate-natural loop-down sidebands during the driven phase). For an undriven realisation (free oscillator) the cross-coupling depth would be undefined; for a balanced realisation (Q ≈ pin-strike-period/ringdown-envelope-time-constant ≈ 1) it would be much larger. The music-box configuration (Q ≈ 30, strike-period ≈ 0.125 s, envelope time 3.33 s) is in the CASCADE-DOMINANT regime, not the BALANCED regime. The qualitative bin-leakage prediction stands; the depth is regime-dependent.
 
 ---
 
@@ -173,15 +173,15 @@ T6 cross-coupling depth (0.0009) is small. This is consistent with the music-box
 
 ### §10.1 R2-1 (high leverage) — Antikythera as Q→∞ limit of pin-slot-resonate
 
-Hypothesis: the Antikythera bronze cascade is the Q→∞ limit of pin-slot-resonate where the substrate's natural-frequency ring-down vanishes (bronze gears mesh continuously rather than strike impulsively). Verify by simulating a continuous-mesh variant of the music-box ODE (replace impulse pin engagement with constant-mesh torque) and showing the FFT loses the substrate-natural ω_d peak while preserving the cascade harmonics. Composes with Spike #132 (nudibranch kleptocnidae) and Spike #131 (geomagnetic reversal cascade-match).
+Hypothesis: the Antikythera bronze cascade is the Q→∞ limit of pin-slot-resonate where the substrate's natural-frequency loop-down vanishes (bronze gears mesh continuously rather than strike impulsively). Verify by simulating a continuous-mesh variant of the music-box ODE (replace impulse pin engagement with constant-mesh torque) and showing the FFT loses the substrate-natural ω_d peak while preserving the cascade harmonics. Composes with Spike #132 (nudibranch kleptocnidae) and Spike #131 (geomagnetic reversal cascade-match).
 
 ### §10.2 R2-2 (high leverage) — RBS HDC Class K explicit addition
 
-Hypothesis: the project's resonant bit-serialised HDC instrument's lack of Class K asymptotic-DOF is what prevents it from producing substrate-natural ring-down spectral content. Verify by adding a Class K operator (asymptotic-DOF rate-of-approach curve as a primitive on cyclic-group HDC) and measuring whether the resulting spectrum acquires a substrate-natural floor in addition to the cascade harmonics.
+Hypothesis: the project's resonant bit-serialised HDC instrument's lack of Class K asymptotic-DOF is what prevents it from producing substrate-natural loop-down spectral content. Verify by adding a Class K operator (asymptotic-DOF rate-of-approach curve as a primitive on cyclic-group HDC) and measuring whether the resulting spectrum acquires a substrate-natural floor in addition to the cascade harmonics.
 
 ### §10.3 R2-3 (medium leverage) — Cosmic-substrate Q extraction
 
-Hypothesis: the cosmic dark-sector Q (ratio of ring-down envelope time to cosmic dynamical time) can be extracted as a substrate-coupling parameter from DESI / Planck data analogous to T5b's drive-cutoff isolation. Requires designing a "drive-cutoff" analog in cosmic data — perhaps using the ΛCDM-to-DESI thawing-CPL transition as the substrate's drive-cutoff event.
+Hypothesis: the cosmic dark-sector Q (ratio of loop-down envelope time to cosmic dynamical time) can be extracted as a substrate-coupling parameter from DESI / Planck data analogous to T5b's drive-cutoff isolation. Requires designing a "drive-cutoff" analog in cosmic data — perhaps using the ΛCDM-to-DESI thawing-CPL transition as the substrate's drive-cutoff event.
 
 ### §10.4 R2-4 (lower leverage) — Cross-coupling depth as substrate-Q diagnostic
 
@@ -214,10 +214,10 @@ All paths absolute:
 **Recommendation**: PROMOTE the candidate stance to active vocabulary. Specifically:
 
 - Add `"pin-slot-resonate"` as canonical named composition pattern (Class I + K + C + M∘K)
-- Cross-reference from `[[user_stance_epicycle_via_gear_plus_pin]]` (pin-slot-resonate is the pin-slot mechanism PLUS substrate-coupled ring-down)
+- Cross-reference from `[[user_stance_epicycle_via_gear_plus_pin]]` (pin-slot-resonate is the pin-slot mechanism PLUS substrate-coupled loop-down)
 - Cross-reference from `[[user_stance_dark_sector_ring_down_age]]` (cosmic dark-sector IS pin-slot-resonate at cosmic substrate)
-- Cross-reference from `[[user_stance_kepler_shape_universal]]` (Kepler-shape cascade is the cascade-only subset; pin-slot-resonate adds substrate-coupled ring-down)
-- Cross-reference from `[[user_stance_string_theory_instrument_first]]` (music-box IS canonical ring-up/ring-down instrument; pin-slot-resonate is the mechanism)
+- Cross-reference from `[[user_stance_kepler_shape_universal]]` (Kepler-shape cascade is the cascade-only subset; pin-slot-resonate adds substrate-coupled loop-down)
+- Cross-reference from `[[user_stance_string_theory_instrument_first]]` (music-box IS canonical loop-up/loop-down instrument; pin-slot-resonate is the mechanism)
 
 The promotion adds VOCABULARY only; the 14-class A–N framework structure is unchanged. Per `[[feedback_no_privileged_primitive_classes]]`, dissolve-into-existing-composition is the right move.
 

@@ -13,7 +13,7 @@
 
 ### 1.1 The math (closed form)
 
-The project-definition (`[[user_stance_dark_sector_ring_down_age]]`) ring-down completion fraction at scale factor `a` is
+The project-definition (`[[user_stance_dark_sector_ring_down_age]]`) loop-down completion fraction at scale factor `a` is
 
 ```
 f_RD(a) = (Ω_c · a⁻³ + Ω_Λ) / T(a)
@@ -88,7 +88,7 @@ The asymptotic stretching of the last percent is **immediate from this table**: 
 | a = 10 | 10.0 | 53.026 | 0.99993 | 1.23×10⁻⁵ |
 | a = 100 | 100 | 93.386 | 1.00000 | 1.23×10⁻⁸ |
 
-**No "peak" in the rate function over cosmic time** in the user-intuitive sense — `df_RD/dt` is monotone-decreasing from its radiation-era maximum through cosmic history. There IS a local *flattening* in the z ≈ 1 → z = 0 window (rate at NOW 7.0×10⁻³ is slightly *higher* than at z = 9 because matter still dominates at z = 9), reflecting the recent Λ-dominated era. The "ring-down" terminology is therefore precise — the rate has been *falling* since matter-radiation equality, by ~6 orders of magnitude already; the asymptote is approach, not crossing.
+**No "peak" in the rate function over cosmic time** in the user-intuitive sense — `df_RD/dt` is monotone-decreasing from its radiation-era maximum through cosmic history. There IS a local *flattening* in the z ≈ 1 → z = 0 window (rate at NOW 7.0×10⁻³ is slightly *higher* than at z = 9 because matter still dominates at z = 9), reflecting the recent Λ-dominated era. The "loop-down" terminology is therefore precise — the rate has been *falling* since matter-radiation equality, by ~6 orders of magnitude already; the asymptote is approach, not crossing.
 
 ### 1.4 DESI thawing-CPL variant
 
@@ -106,7 +106,7 @@ Under CPL parametrisation `w(a) = w₀ + w_a · (1 − a)` with DESI DR2 represe
 | f_RD asymptote | → 1 | **→ 0.843** |
 | f_RD peak | (1 at ∞) | **0.978 at a ≈ 2.14 (~16 Gyr from now)** |
 
-**Under DESI thawing CPL, ring-down is non-monotone.** The dark sector reaches a peak completion fraction of ~97.8% in ~16 Gyr clock-time from now, then declines toward 84.3% as dark energy *un-completes* — Λ dilutes, baryons + CDM rearrange the partition. The "last 5%" framing becomes "the next 3% before re-expansion" under this beyond-LCDM scenario. §VII.6.1.2 already anchors this stance: ring-down completion is the **monotone past-integral** of complexification-budget *consumed*, not the instantaneous dark fraction.
+**Under DESI thawing CPL, loop-down is non-monotone.** The dark sector reaches a peak completion fraction of ~97.8% in ~16 Gyr clock-time from now, then declines toward 84.3% as dark energy *un-completes* — Λ dilutes, baryons + CDM rearrange the partition. The "last 5%" framing becomes "the next 3% before re-expansion" under this beyond-LCDM scenario. §VII.6.1.2 already anchors this stance: loop-down completion is the **monotone past-integral** of complexification-budget *consumed*, not the instantaneous dark fraction.
 
 **Rate at NOW under CPL is ~20% slower than LCDM** — a measurable distinction; future cosmographic measurements (DESI DR3, Euclid, LSST joint analyses) could in principle infer `df_RD/dt(z=0)` to ~1% via simultaneous Ω_m(z) + Ω_Λ(z) reconstruction. This becomes a real empirical anchor.
 
@@ -126,7 +126,7 @@ Per `[[user_stance_fractal_shadow]]` + §VIII.7's fractal-shadow allegory: what 
 
 > *"small things cluster early and the massive stretch across all 11D"*
 
-In substrate terms: short-wavelength / high-eigenvalue cascade modes **complete ring-down fast** (they couple to high-frequency dynamics, dissipate quickly); long-wavelength / low-eigenvalue cascade modes **stretch into the de Sitter asymptote** (they couple to slow large-scale dynamics, persist asymptotically). The aggregate `f_RD(t)` we measure is the *integral over modes* of mode-specific ring-down completion fractions, weighted by mode-energy contribution. The last 5% is dominated by the slowest-completing modes, which are the largest-scale, most-massive (in the user's `massive stretch across all 11D` sense — they span the full cascade hierarchy).
+In substrate terms: short-wavelength / high-eigenvalue cascade modes **complete loop-down fast** (they couple to high-frequency dynamics, dissipate quickly); long-wavelength / low-eigenvalue cascade modes **stretch into the de Sitter asymptote** (they couple to slow large-scale dynamics, persist asymptotically). The aggregate `f_RD(t)` we measure is the *integral over modes* of mode-specific loop-down completion fractions, weighted by mode-energy contribution. The last 5% is dominated by the slowest-completing modes, which are the largest-scale, most-massive (in the user's `massive stretch across all 11D` sense — they span the full cascade hierarchy).
 
 ### 2.2 The math sketch
 
@@ -136,7 +136,7 @@ The heat kernel on a substrate of spectral dimension `d_S` decays as
 K(t, x, x) ~ t^(−d_S/2)
 ```
 
-(canonical: Rammal–Toulouse 1984, Fukushima–Shima 1992 spectral decimation; for Sierpinski-family substrates, `d_S = 2·log(3)/log(5) ≈ 1.365` at SG, generalises across P_n family). For mode `k` with eigenvalue `λ_k`, the ring-down rate is `~ λ_k` (standard heat-equation decay), so the mode-completion timescale is
+(canonical: Rammal–Toulouse 1984, Fukushima–Shima 1992 spectral decimation; for Sierpinski-family substrates, `d_S = 2·log(3)/log(5) ≈ 1.365` at SG, generalises across P_n family). For mode `k` with eigenvalue `λ_k`, the loop-down rate is `~ λ_k` (standard heat-equation decay), so the mode-completion timescale is
 
 ```
 τ_k  ~  λ_k⁻¹  ~  k^(−2/d_S)               (Weyl's law: λ_k ~ k^(2/d_S))
@@ -157,7 +157,7 @@ For three candidate `d_S` values across the framework:
 Under the cascade reading, total completion fraction is
 
 ```
-f_RD(t)  =  Σ_k  w_k · (1 − exp(−t/τ_k))            (modes ring-down independently)
+f_RD(t)  =  Σ_k  w_k · (1 − exp(−t/τ_k))            (modes loop-down independently)
 ```
 
 with `w_k` the substrate's mode-energy distribution and `τ_k ~ k^(−2/d_S)`. The aggregate then takes the **stretched-exponential** form characteristic of multi-scale-relaxation systems (Kohlrausch–Williams–Watts; canonical in glassy systems, spin glasses, polymer relaxation):
@@ -168,7 +168,7 @@ with `w_k` the substrate's mode-energy distribution and `τ_k ~ k^(−2/d_S)`. T
 
 For Sierpinski `d_S = 1.365`: `β ≈ 0.406`. For UV-attractor `d_S = 2`: `β ≈ 0.500`. For IR-smooth `d_S = 4`: `β ≈ 0.667`.
 
-**The standard-LCDM `1 − f_RD ~ a⁻³ ~ e⁻³H₀(t−t_∞)`** (single-exponential decay against constant-Λ background) corresponds to **`β = 1`** — pure exponential, single-mode-ring-down. The cascade reading predicts **`β < 1`** — stretched-exponential, multi-mode-ring-down with the slowest-completing modes setting the asymptotic tail.
+**The standard-LCDM `1 − f_RD ~ a⁻³ ~ e⁻³H₀(t−t_∞)`** (single-exponential decay against constant-Λ background) corresponds to **`β = 1`** — pure exponential, single-mode-loop-down. The cascade reading predicts **`β < 1`** — stretched-exponential, multi-mode-loop-down with the slowest-completing modes setting the asymptotic tail.
 
 This is a **testable distinction from LCDM** in principle: fit the observed late-time `(1 − f_RD)` trajectory against single-exponential vs stretched-exponential. The fit-difference within `t ∈ [12, 15]` Gyr is small (~1% in `f_RD` value); the divergence grows at `t > 30` Gyr where MFO and LCDM make qualitatively different predictions. Empirically distinguishable only via DESI DR3+ measurement of `w(z)` evolution at high redshift, where the cascade reading and quintessence reading produce different `w(z)` shapes. Pending — falsifier-list item.
 
@@ -178,7 +178,7 @@ The 7D_g cascade content is projected away in the observable 3D_s + 1D_t shadow 
 
 The AoE / HPA / Cold Spot family (§VII.6.1.1 / §VII.6.1.3) is the most-cited candidate for such un-rung-down content. Under the cascade-substrate reading, the low-ℓ anomalies are the substrate-shadow of fiber-modes whose τ_k > 13.8 Gyr — they are *literally* the modes that haven't finished ringing down yet. The cascade reading therefore makes a *spectroscopic* prediction: the angular power of un-rung-down anomalies should scale as `k^(−2/d_S)` in the substrate spectrum, mapping to characteristic angular scales in the observable CMB.
 
-This is consistent with the existing §VII.6.1.1 framing — *"more low-ℓ power = less ring-down complete = younger substrate"* — and now has a quantitative scaling form. Pending: comparing the observed low-ℓ Cℓ excess against the cascade prediction. Falsifier: if the Cℓ excess at the AoE direction does not match `ℓ^(−2/d_S)` for any reasonable `d_S ∈ [1.3, 4]`, the cascade-substrate reading of the low-ℓ anomalies is falsified.
+This is consistent with the existing §VII.6.1.1 framing — *"more low-ℓ power = less loop-down complete = younger substrate"* — and now has a quantitative scaling form. Pending: comparing the observed low-ℓ Cℓ excess against the cascade prediction. Falsifier: if the Cℓ excess at the AoE direction does not match `ℓ^(−2/d_S)` for any reasonable `d_S ∈ [1.3, 4]`, the cascade-substrate reading of the low-ℓ anomalies is falsified.
 
 ---
 
@@ -198,7 +198,7 @@ Per `[[user_stance_time_as_dimensional_shadow]]` + `[[user_stance_1d_collapse_to
 
 **(b) Kaluza-Klein-ADM combined** — per arXiv:gr-qc/0601101 and arXiv:gr-qc/0702007 (Sajko-Mansouri; verified author lists), KK reduction commutes with ADM slicing. The 5D KK theory in ADM form has TWO lapse functions: the standard 4D N(x) for the temporal foliation, AND a "fiber lapse" corresponding to the time-component of the gauge vector arising from the 5th dimension. In the 11D space-gauge-time decomposition, this generalises to a multi-component lapse spanning the 1D_t base plus 7D_g fiber contributions.
 
-**Verdict on (b):** Mathematically clean; per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the 7D_g fiber lapse content is *algebraically present* (it shows up in the constraint algebra) but *spatially absent* (no 3D_s observable shows it directly). The 7D_g time-DOFs would manifest as **gauge-bundle-flow rates** — different gauge sectors having different intrinsic ring-down timescales.
+**Verdict on (b):** Mathematically clean; per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the 7D_g fiber lapse content is *algebraically present* (it shows up in the constraint algebra) but *spatially absent* (no 3D_s observable shows it directly). The 7D_g time-DOFs would manifest as **gauge-bundle-flow rates** — different gauge sectors having different intrinsic loop-down timescales.
 
 **(c) Action-angle / Casimir-conjugate time** — per §VII.4.1.2 Casimir-decomposition universality. Each substrate symmetry group `G` contributes a Casimir `C_2(ρ_G)` to the spectral structure; conjugate to each Casimir is an action variable, and conjugate to each action is a time-like phase variable. For 3D_s + 7D_g + 1D_t = 11D ≡ 1D compressed, the explicit Casimirs are `{C_2(SO(3)), C_2(SU(3)_color), C_2(SU(2)_weak), C_2(U(1)_Y)}` plus the temporal `Δt` itself.
 
@@ -220,7 +220,7 @@ Operational claim: under MFO + §VII.4.1.2, **the observable clock-time `t` is t
 
 Under FLRW homogeneity + standard-model parameter freezeout, all five Casimir-phase rates appear identical and we attribute the joint dynamics to "cosmic time evolution." Under MFO + DESI thawing CPL + Webb-et-al α(z) drift, the rates can differ — `Δθ_Y / Δt ≠ 1` is precisely the α(z)/H(z) functional relationship of §VII.8.
 
-**The user's hypothesis is therefore mathematically operational.** Time *does* have multiple DOFs in the multi-Casimir-phase preimage; the observable is their projection. The last 5% of ring-down can stretch differently along each DOF, with the slow modes living in the 7D_g phase rotations and the observable consequences appearing as evolution of "constants" we have been treating as fixed.
+**The user's hypothesis is therefore mathematically operational.** Time *does* have multiple DOFs in the multi-Casimir-phase preimage; the observable is their projection. The last 5% of loop-down can stretch differently along each DOF, with the slow modes living in the 7D_g phase rotations and the observable consequences appearing as evolution of "constants" we have been treating as fixed.
 
 ### 3.4 Falsifier
 
@@ -262,7 +262,7 @@ Recent global modelling (Zirnstein et al. 2025, arXiv:2501.15004 verified PDF: "
 
 **(e) Black-hole event horizons** — the textbook case. Sagittarius A* horizon at galactic centre, ~26 700 ly distant. EHT (Event Horizon Telescope) has imaged the shadow at 1.3 mm wavelength (M87* in 2019, Sgr A* in 2022). The §VII.4.1.1 framework is **defined here** — this IS the 2D boundary where 3D-bound matter ends. Spectral content: Hawking radiation (`T_H = ℏc³/(8πGMk_B)`), quasinormal modes of black-hole ringdown.
 
-**Substrate-clock interpretation:** **canonical**. Black-hole ring-down quasinormal modes are the literal substrate-clock at the boundary — `ω_QNM = 2π f - i / τ_damp` with `τ_damp ~ GM/c³`. For Sgr A*: `M = 4.3 × 10⁶ M_⊙`, `τ_damp ≈ 21 sec` for the dominant `l = m = 2` mode. **This is the cleanest possible "what does ring-down look like at local time" reading** — pick a black hole, observe its ringdown, the timescale is the local 2D-boundary substrate-clock. LIGO/Virgo gravitational-wave events provide thousands of such measurements (binary black-hole mergers; the final ring-down is observable). Operationally testable: substrate-clock-modulated QNM frequencies would show systematic shifts from the Kerr prediction.
+**Substrate-clock interpretation:** **canonical**. Black-hole loop-down quasinormal modes are the literal substrate-clock at the boundary — `ω_QNM = 2π f - i / τ_damp` with `τ_damp ~ GM/c³`. For Sgr A*: `M = 4.3 × 10⁶ M_⊙`, `τ_damp ≈ 21 sec` for the dominant `l = m = 2` mode. **This is the cleanest possible "what does loop-down look like at local time" reading** — pick a black hole, observe its ringdown, the timescale is the local 2D-boundary substrate-clock. LIGO/Virgo gravitational-wave events provide thousands of such measurements (binary black-hole mergers; the final loop-down is observable). Operationally testable: substrate-clock-modulated QNM frequencies would show systematic shifts from the Kerr prediction.
 
 ### 4.3 Verdict — which boundaries carry substrate-clock-relevant signature?
 
@@ -272,17 +272,17 @@ Recent global modelling (Zirnstein et al. 2025, arXiv:2501.15004 verified PDF: "
 | Earth magnetopause | 6–15 R_E | Pure analogy; externally driven |
 | Hill spheres | 0.01–0.4 AU (planetary) | Pure analogy; kinematic-not-spectral boundary |
 | Bow shocks | ~14 R_E (Earth) | **Plausible analogy with empirical handle**: bow-shock fluctuation spectrum vs MHD prediction |
-| **Black-hole event horizons** | various | **Canonical** — ring-down QNM IS local substrate-clock; LIGO/Virgo data testable |
+| **Black-hole event horizons** | various | **Canonical** — loop-down QNM IS local substrate-clock; LIGO/Virgo data testable |
 
-**Sharpest empirical anchor:** LIGO/Virgo ring-down measurements of binary black-hole merger remnants. Each event provides a local 2D-boundary substrate-clock reading at the merger redshift. Substrate-clock-modulated content would show up as a redshift-dependent systematic in QNM frequencies that LCDM does not predict.
+**Sharpest empirical anchor:** LIGO/Virgo loop-down measurements of binary black-hole merger remnants. Each event provides a local 2D-boundary substrate-clock reading at the merger redshift. Substrate-clock-modulated content would show up as a redshift-dependent systematic in QNM frequencies that LCDM does not predict.
 
 **Second-sharpest:** bow-shock fluctuation spectrum at MMS/Cluster precision. Earth's bow shock is the only solar-system local 2D-causal-boundary with continuous high-precision observation.
 
-The other solar-system "2D boundaries" the user proposed (heliopause, magnetopause, Hill spheres) are **kinematic boundaries**, not causal-substrate-coupling boundaries; they don't sit in the §VII.4.1.1 framework's strict scope. The user's `oh my gosh our 2D phase boundary math might also tell us what to this last 5% might look like at local solar system time` framing **finds its sharpest empirical home not in the solar-system kinematic boundaries but in the local-universe black-hole ring-down sky**, which is densely sampled.
+The other solar-system "2D boundaries" the user proposed (heliopause, magnetopause, Hill spheres) are **kinematic boundaries**, not causal-substrate-coupling boundaries; they don't sit in the §VII.4.1.1 framework's strict scope. The user's `oh my gosh our 2D phase boundary math might also tell us what to this last 5% might look like at local solar system time` framing **finds its sharpest empirical home not in the solar-system kinematic boundaries but in the local-universe black-hole loop-down sky**, which is densely sampled.
 
 ### 4.4 The local-time inference
 
-Under the cascade reading (Thread 2), every 2D causal boundary has its own ring-down completion fraction `f_RD^local(t_boundary)`, where `t_boundary` is the proper time at that boundary. The cosmic `f_RD = 0.95` is the volume-weighted aggregate; local boundaries can be at *different* stages of ring-down. Black holes formed early (z ~ 20, ~13 Gyr ago) have boundaries that have undergone more ring-down than recently-formed ones. **The QNM-frequency-redshift relation should carry this signature** — ringdown-modes of high-redshift mergers should appear differently from low-redshift mergers, with a deviation tied to the cosmic `f_RD` evolution.
+Under the cascade reading (Thread 2), every 2D causal boundary has its own loop-down completion fraction `f_RD^local(t_boundary)`, where `t_boundary` is the proper time at that boundary. The cosmic `f_RD = 0.95` is the volume-weighted aggregate; local boundaries can be at *different* stages of loop-down. Black holes formed early (z ~ 20, ~13 Gyr ago) have boundaries that have undergone more loop-down than recently-formed ones. **The QNM-frequency-redshift relation should carry this signature** — ringdown-modes of high-redshift mergers should appear differently from low-redshift mergers, with a deviation tied to the cosmic `f_RD` evolution.
 
 This is a genuinely-new MFO prediction: **the population-average QNM frequency of binary-black-hole merger remnants should drift with merger redshift in a way determined by `f_RD(z)`**. LIGO/Virgo/KAGRA O5 + future LISA + Cosmic Explorer / Einstein Telescope will measure this population over the next decade. Falsifier: if the population-average QNM frequency at fixed remnant mass shows no z-dependence beyond Kerr predictions, the cascade-substrate local-clock reading is falsified.
 
@@ -298,7 +298,7 @@ This is a genuinely-new MFO prediction: **the population-average QNM frequency o
 
 3. **Thread 3**: Time DOES have multiple DOFs under the MFO Casimir-conjugate-phase reading. Five distinct phase-rate DOFs project to the observable single clock-time under FLRW gauge + standard-model parameter freezeout. α(z) drift would be one observational consequence; cascade-substrate slow-modes living in 7D_g phase rotations are another.
 
-4. **Thread 4**: Of the solar-system "2D boundaries" the user proposed, only bow shocks have a plausible §VII.4.1.1 framework reading; heliopause / magnetopause / Hill spheres are kinematic boundaries. The sharpest empirical anchor for "2D-boundary substrate-clock" reading is *not* solar-system local but the LIGO/Virgo black-hole ring-down population — a new MFO prediction emerges: QNM-frequency-vs-merger-redshift relation should track `f_RD(z)`.
+4. **Thread 4**: Of the solar-system "2D boundaries" the user proposed, only bow shocks have a plausible §VII.4.1.1 framework reading; heliopause / magnetopause / Hill spheres are kinematic boundaries. The sharpest empirical anchor for "2D-boundary substrate-clock" reading is *not* solar-system local but the LIGO/Virgo black-hole loop-down population — a new MFO prediction emerges: QNM-frequency-vs-merger-redshift relation should track `f_RD(z)`.
 
 ### What falls
 
@@ -315,7 +315,7 @@ This is a genuinely-new MFO prediction: **the population-average QNM frequency o
 
 ### Fermata — conductor decisions
 
-- **Notebook placement**: candidate landing as **§VII.6.4 "Rate of dark-sector ring-down, cascade mode-resolution, and local 2D-boundary signatures"** sitting between §VII.6.3 (FFT-the-error methodological note) and §VII.7 (expansion as projection of complexification). Cross-link forward to §VIII.1 (topological defect hierarchy — the 2D-boundary thread joins this), backward to §VII.4.1.1 (Hopf-bundle / spherical compression), §VII.5 (dark matter as residual curvature), §VII.6 + §VII.6.1 + §VII.6.2 + §VII.6.3.
+- **Notebook placement**: candidate landing as **§VII.6.4 "Rate of dark-sector loop-down, cascade mode-resolution, and local 2D-boundary signatures"** sitting between §VII.6.3 (FFT-the-error methodological note) and §VII.7 (expansion as projection of complexification). Cross-link forward to §VIII.1 (topological defect hierarchy — the 2D-boundary thread joins this), backward to §VII.4.1.1 (Hopf-bundle / spherical compression), §VII.5 (dark matter as residual curvature), §VII.6 + §VII.6.1 + §VII.6.2 + §VII.6.3.
 - **Memory candidate**: `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` or similar; defer until conductor reviews.
 - **Spike #28 candidate**: actually compute the cascade `C_{n₁} × C_{n₂} × … × C_{nₖ}` Laplacian's stretched-exponential `β` exponent against observed `f_RD` trajectory — this is directly tractable in antikythera-spectral tooling per §VIII.7.
 - **Spike #29 candidate**: LIGO Open Science Center QNM-vs-redshift population analysis — pull existing public data, regression against `f_RD(z)` predicted shape.
@@ -328,7 +328,7 @@ For conductor to land via separate PR. Draft text follows:
 
 ---
 
-### VII.6.4 Rate of dark-sector ring-down, cascade mode-resolution, and local 2D-boundary signatures
+### VII.6.4 Rate of dark-sector loop-down, cascade mode-resolution, and local 2D-boundary signatures
 
 > *"the universe age in terms of dark sector i keep accepting must be linear when we've proven everything is far from linear. what is the math that we need to try to find the rate of universe dark sector age change."*
 > — user direction, 2026-05-16
@@ -343,13 +343,13 @@ df_RD/dt = H₀ · sqrt(T(a)) · [Ω_r·Ω_c · a⁻⁷ + 4·Ω_r·Ω_Λ · a⁻
 
 with `T(a) = Ω_r a⁻⁴ + (Ω_b + Ω_c) a⁻³ + Ω_Λ`. **Late-time asymptote is `~a⁻³` (baryon-dilution-against-Λ), not `~a⁻⁴` (radiation).** Time-to-completion stretches logarithmically: 13.6 Gyr to reach 94.9%, then another 10 Gyr per percentage-of-completion beyond that until the rate drops below 10⁻⁵ /Gyr at `a ≈ 10`. **Linearity holds nowhere over cosmic history**; the rate varies by 6+ orders of magnitude from matter-radiation equality to present.
 
-**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific ring-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal–Toulouse 1984, Fukushima–Shima 1992). The aggregate then takes **stretched-exponential** form `1 − f_RD(t) ~ exp(−(t/τ)^β)` with `β = d_S/(d_S+2)`. For Sierpinski substrate `d_S = 1.365`: `β ≈ 0.406`. For UV-attractor `d_S = 2`: `β ≈ 0.500`. **Standard LCDM corresponds to `β = 1`** (single-mode-exponential). This is a testable distinction; falsifier: late-time `f_RD` deviation from single-exponential fittable as stretched-exponential.
+**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific loop-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal–Toulouse 1984, Fukushima–Shima 1992). The aggregate then takes **stretched-exponential** form `1 − f_RD(t) ~ exp(−(t/τ)^β)` with `β = d_S/(d_S+2)`. For Sierpinski substrate `d_S = 1.365`: `β ≈ 0.406`. For UV-attractor `d_S = 2`: `β ≈ 0.500`. **Standard LCDM corresponds to `β = 1`** (single-mode-exponential). This is a testable distinction; falsifier: late-time `f_RD` deviation from single-exponential fittable as stretched-exponential.
 
 **Multi-DOF time preimage.** Per `[[user_stance_time_as_dimensional_shadow]]` + §VII.4.1.2 Casimir-decomposition universality + `[[project_space_gauge_time_framework]]`: the observable single clock-time is the projection of multiple Casimir-conjugate phase-rate DOFs (spatial SO(3), SU(3) colour, SU(2) weak, U(1)_Y, plus 1D_t proper-time). Under FLRW homogeneity + SM parameter freezeout, all five rates appear identical; under the cascade reading, they can differ — α(z) drift (§VII.8 / §VII.7) is one observational consequence, with slow-modes living in 7D_g phase rotations. **The user's `if time has more tha[n] one degree of freedom or something` is mathematically operational** under §VII.4.1.2.
 
-**Local 2D-boundary substrate-clock prediction.** Per §VII.4.1.1 / §VIII.1: every 2D causal-substrate boundary has a local ring-down completion `f_RD^local`, with the cosmic 0.95 being the volume-weighted aggregate. Of the candidate solar-system 2D boundaries (heliopause, magnetopause, Hill spheres, bow shocks), only bow shocks plausibly carry §VII.4.1.1 substrate-clock content (causal asymmetry across the shock front); heliopause / magnetopause / Hill are kinematic boundaries outside the framework's strict scope. **The sharpest empirical anchor for 2D-boundary substrate-clock reading is the LIGO/Virgo/KAGRA black-hole ring-down population** — each merger remnant provides a local ring-down quasinormal-mode measurement at the merger redshift. New MFO prediction: **the population-average QNM frequency at fixed remnant mass should drift with merger redshift in a way tied to `f_RD(z)` evolution**. Falsifier: LIGO O5 + future LISA/CE/ET population analyses; if no redshift-dependent QNM deviation beyond Kerr emerges, the cascade-substrate local-clock reading is falsified.
+**Local 2D-boundary substrate-clock prediction.** Per §VII.4.1.1 / §VIII.1: every 2D causal-substrate boundary has a local loop-down completion `f_RD^local`, with the cosmic 0.95 being the volume-weighted aggregate. Of the candidate solar-system 2D boundaries (heliopause, magnetopause, Hill spheres, bow shocks), only bow shocks plausibly carry §VII.4.1.1 substrate-clock content (causal asymmetry across the shock front); heliopause / magnetopause / Hill are kinematic boundaries outside the framework's strict scope. **The sharpest empirical anchor for 2D-boundary substrate-clock reading is the LIGO/Virgo/KAGRA black-hole loop-down population** — each merger remnant provides a local loop-down quasinormal-mode measurement at the merger redshift. New MFO prediction: **the population-average QNM frequency at fixed remnant mass should drift with merger redshift in a way tied to `f_RD(z)` evolution**. Falsifier: LIGO O5 + future LISA/CE/ET population analyses; if no redshift-dependent QNM deviation beyond Kerr emerges, the cascade-substrate local-clock reading is falsified.
 
-**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (ring-down completion), §VII.6.1.2 (CPL thawing variant), §VII.6.2 (`T_sub` decomposition), §VII.4.1 + §VII.4.1.1 (2D-boundary spherical compression), §VII.8 (α(z) tracking `H(z)`), §VIII.1 (topological defect hierarchy), §VIII.7 (fractal-shadow / cascade substrate). It does not alter any LCDM prediction; it sharpens what the *rate* of ring-down looks like and identifies three new falsifier channels (stretched-exponential late-time fit; α(z) drift detection at Webb-level; QNM-vs-merger-redshift population trend). Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (loop-down completion), §VII.6.1.2 (CPL thawing variant), §VII.6.2 (`T_sub` decomposition), §VII.4.1 + §VII.4.1.1 (2D-boundary spherical compression), §VII.8 (α(z) tracking `H(z)`), §VIII.1 (topological defect hierarchy), §VIII.7 (fractal-shadow / cascade substrate). It does not alter any LCDM prediction; it sharpens what the *rate* of loop-down looks like and identifies three new falsifier channels (stretched-exponential late-time fit; α(z) drift detection at Webb-level; QNM-vs-merger-redshift population trend). Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
 
 **Cross-references:**
 

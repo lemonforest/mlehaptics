@@ -95,7 +95,7 @@ Cosmic-web filaments projected through observer at ε_AoE = 0.0506 in +x AoE dir
 | 2 | +1.29 | 2.05 | +4.33e-3 | no | Y | −0.100 |
 | 3 | +0.29 | 2.10 | +2.24e-3 | no | N | +0.061 |
 
-**|corr(|f_2|, |c_1|)| = 0.895 — strong coupling between Fiedler-partition position and kinematic Brouwer-Clemence strength.** The three threads are not independent findings; they are three sub-fingerprints of the same underlying geometric fact: ε_AoE = 0.0506 is our observer-frame radial offset on the substrate ring.
+**|corr(|f_2|, |c_1|)| = 0.895 — strong coupling between Fiedler-partition position and kinematic Brouwer-Clemence strength.** The three threads are not independent findings; they are three sub-fingerprints of the same underlying geometric fact: ε_AoE = 0.0506 is our observer-frame radial offset on the substrate loop.
 
 ## §6 Falsifier list
 
