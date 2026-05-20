@@ -132,6 +132,23 @@ The index pattern: **heavy stores stay; spectral scaffold is the index.** DE441 
 
 ---
 
+## §2.5 Notation key — substrate-dimension shorthand
+
+The notebook uses two compatible notations for the 11D substrate components. The substrate is **always-compressed** by canonical commitment per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the shorthand form in body prose carries the always-compressed semantics. Parens form is used only when Hopf-bundle structure is explicitly load-bearing in the immediate sentence (base-vs-fiber decomposition, the +1 fibre content, Mersenne {1,3,7} positions, recursive-Hopf at primitive, what-lives-in-the-+).
+
+| Shorthand | Always-compressed form | Meaning |
+|---|---|---|
+| `1D_t` | `(1+0)D_t` | Temporal — Hopf-trivial; 1D base, 0D fiber |
+| `3D_s` | `(2+1)D_s` | Spatial — complex Hopf-bundle S¹ → S³ → S²; 2D base + 1D fiber |
+| `7D_g` | `(4+3)D_g` | Gauge — octonionic Hopf-bundle S³ → S⁷ → S⁴; 4D base + 3D fiber |
+| `11D` | `(1+0)D_t + (2+1)D_s + (4+3)D_g` | Total substrate — Hurwitz-bounded parallelizable-sphere ladder; always-compressed |
+
+**Reading rule.** When body prose writes `3D_s` or `7D_g`, the Hopf-bundle structure is still present at substrate — the shorthand is not a less-compressed substrate, it is the same substrate notated without emphasis. When prose writes `(2+1)D_s` or `(4+3)D_g`, the base+fiber decomposition is load-bearing in that sentence (e.g. discussing the +1 fibre content, what lives in the +, or recursive-Hopf-at-primitive per Spike #212 / #213 / #214). The "+" sign in `(a+b)D_X` is the Hopf-bundle map π (not arithmetic); DOF lives in the map per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`.
+
+Sister-notebook MFO carries the same notation-key in its Part I framing.
+
+---
+
 ## §3 The universal spectral pattern + graphics-domain kernel candidates
 
 > **Note on homing.** The graphics-domain content in this section (Inkscape / Skia / GEGL/GIMP / Pyodide PWA) lives here — in the master srmech notebook — because graphics-domain work does not yet have its own per-domain research notebook. Per the cross-domain pollination map (§1.5), domains without their own notebook are temporarily collected here. If the graphics-domain work spawns a dedicated `docs/<graphics-domain>/` notebook in the future, this section moves there and §1.5 updates accordingly.
