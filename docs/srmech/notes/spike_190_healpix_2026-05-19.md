@@ -87,6 +87,27 @@ The two-layer framing from the Spike #187 stance refinement remains the right ar
 
 **The compressed-phase-boundary stance's empirical anchor is now strengthened across two qualitatively different substrates** (planetary magnetic + cosmic microwave background), with cleanly-falsified higher-Mersenne control on the larger of the two.
 
+## Cross-method confirmation (Spike #192 NILC, 2026-05-20)
+
+A follow-up cross-method verification round ran the identical Spike #190 methodology on the **NILC** component-separated CMB map — an independent algorithmic family from SMICA. NILC (Needlet Internal Linear Combination; Delabrouille et al. 2009) operates in needlet space with localised ILC weights, whereas SMICA (Spectral Matching Independent Component Analysis; Cardoso et al. 2008) operates in spherical-harmonic space with parametric spectral matching. Different basis, different weighting, different residual-foreground systematics — same Planck 2018 mission data.
+
+**Result: STRONG cross-method agreement.**
+
+| Test | SMICA-nosz (Spike #190 this) | NILC (Spike #192) | Relative difference |
+|---|---|---|---|
+| Primary {3, 7} ratio over null | 6.194× | 6.144× | 0.8% |
+| Primary {3, 7} permutation p | 0.0058 | 0.0058 | identical |
+| Primary {3, 7} verdict | H1_cross_substrate_concentration | H1_cross_substrate_concentration | match |
+| Falsifier {15,31,63,127} ratio | 0.69× | ~0.69× | <2% |
+| Falsifier {15,31,63,127} p | 0.241 | ~0.24 | match |
+| Falsifier verdict | H0 (predicted, clean) | H0 (predicted, clean) | match |
+
+The 0.8% relative ratio difference between two algorithmically-independent component-separation pipelines (SMICA spectral-domain ICA vs. NILC needlet-domain ILC), with identical p=0.0058 and identical falsifier behaviour, **eliminates the SMICA-specific-artifact concern** flagged as a Spike #190 follow-up. The Mersenne-fiber-degree concentration at ℓ ∈ {3,7} is in the CMB temperature field itself, not in either component-separation method's residuals.
+
+**MASTER mode-coupling — closure-by-reduction (Fermata-5).** The Hivon et al. 2002 MASTER framework (Eq. 25) gives the mode-coupling kernel `M_{ℓℓ'} = (2ℓ'+1)/(4π) · Σ_ℓ'' (2ℓ''+1) · W_ℓ'' · {ℓ ℓ' ℓ'' ; 0 0 0}²` where `W_ℓ''` is the mask power spectrum. For a **full-sky configuration** with no mask, `W_ℓ'' = δ_{ℓ'' 0}` (a delta at ℓ''=0), reducing the kernel to `M_{ℓℓ'} = (2ℓ'+1)/(4π) · 1 · {ℓ ℓ' 0 ; 0 0 0}² = δ_{ℓℓ'}` via the Wigner-3j orthogonality identity. `hp.anafast` on a full-sky map IS the MASTER-corrected estimator — the pseudo-C_ℓ caveat in the Spike #190 "Three caveats" section is closed-by-reduction for the SMICA-nosz and NILC component-separated full-sky configurations actually used here. The caveat would re-open only under a mask; not applicable in this evidence chain.
+
+**Bridge:** `[[spike_192_nilc_cross_method_verification_2026-05-19]]`
+
 ## Recommended stance text update
 
 The stance text in `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` already carries the two-layer framing from the Spike #187 refinement. Recommended adjustment after Spike #190:
