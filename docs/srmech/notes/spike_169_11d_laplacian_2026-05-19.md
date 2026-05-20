@@ -218,4 +218,62 @@ Internal anchors:
 
 ---
 
-*End of Spike #169. Verdict: H1-CONFIRMED-WITH-DENSITY-ARTIFACT-CONCERN at 3/3 falsifier criteria; load-bearing promotion to canonical stance gated on Spike #170 higher-precision discriminator per `[[feedback_no_privileged_primitive_classes]]` and Spike #181 discipline.*
+## §10 AMENDMENT 2026-05-19 per Spike #170
+
+**Verdict revision:** `H1-CONFIRMED-WITH-DENSITY-ARTIFACT-CONCERN` → **`H1-CONFIRMED-AT-STRUCTURAL-LEVEL-WITH-OBSERVATIONAL-ACCESSIBILITY-CAVEAT`**
+
+Spike #170 dispatched the recommended higher-precision spectral discriminator (§7 fermata 3) and returned **`H1-PARTIAL-STRUCTURAL`** — 2 of 3 candidate discriminators break the density-degeneracy. The density-artifact concern flagged in §4.2 + §4.3 partially closes at the structural-level, with a residual observational-accessibility caveat at current CMB precision.
+
+### §10.1 Spike #170 results (cited verbatim from companion spike-note + PR #630)
+
+**D2 — multiplicity-weighted χ² discriminator: BREAKS DEGENERACY**
+
+Framework substrate is ~**100× richer in multiplicity-weighted spectral density** than M-theory's uniform 4D × round-S⁷ at every chain entry. Per-chain-entry log10(framework / M-theory) ratios across the Spike #47 R4-1 chain `{2, 12, 28, 52, 84, 126, 178, 244}` span **0.96 – 2.32** — i.e. between ~9× and ~209× richer per-Λ.
+
+Crucially, D2 is a **per-Λ ratio**, not an aggregate over the whole spectrum, so it is **structurally independent of density-aggregation** (the failure mode Spike #181 caught for the original Spike #47 R4-1 p≈0.027 claim). It separates substrates at the multiplicity-structure level rather than at the bare eigenvalue-set level. This is the substrate-specific signal the §4.2 verdict said was missing.
+
+**D3 — fractional KK levels discriminator: BREAKS DEGENERACY**
+
+In the window `[0, 30]`, the framework's per-component partitioned Laplacian (3D_s C_32³ + 7D_g C_3 × C_3 × C_2 × C_5 × C_7 × C_11 × C_13 + 1D_t C_64) yields **2999 fractional KK levels** (non-integer eigenvalue contributions from cyclic-group cross-terms when restricted to the substrate-level form before integer-shadow projection); M-theory's uniform `ℓ(ℓ+6)` round-S⁷ form yields **0 fractional levels** (the SO(8) symmetric-traceless-rank-ℓ formula is quadratic-integer-valued by construction).
+
+D3 is a **form-level distinction** (substrate eigenvalue formula structure) rather than a finite-cardinality density artifact. It cannot be wallpapered over by raising substrate density: round-S⁷'s `ℓ(ℓ+6)` has zero fractional levels at any sampling rate.
+
+**D1 — level-spacing statistics discriminator: DOES NOT BREAK DEGENERACY**
+
+At the KK-shadow level (integer-projected eigenvalue chains as directly observable in CMB power-spectrum residuals at currently testable precision), both substrates project to integer-valued degeneracy structures that are statistically indistinguishable by Wigner-Dyson vs Poissonian spacing tests. This is the **observational-accessibility caveat**: the KK-shadow integer-projection — per `[[user_stance_pi_as_projection]]` family — collapses both substrates onto identical-looking integer chains at current CMB precision.
+
+D1 surfaced a structural follow-up fermata: **test D1 on the substrate-level form (pre-KK-shadow)** rather than on the projected integer chain. This is the natural next-discriminator and was dispatched as Spike #191.
+
+### §10.2 Reframed verdict logic
+
+The §4.2 verdict structure was correct in form but conservative in conclusion. Updated:
+
+1. **Bit-exact 8/8 at density 8.73× is necessary** — same as before. The framework's partitioned-Laplacian contains every required integer; M-theory's uniform compactification does not (2/8).
+2. **D2 + D3 confirm structurally sufficient** — the bit-exact match is NOT a pigeon-hole density artifact alone. The framework substrate is per-Λ-multiplicity ~100× richer AND form-level supports fractional KK levels (2999 vs 0). These are structural distinctions, density-aggregation-independent.
+3. **D1 NULL is the observational-accessibility caveat** — at KK-shadow level (current CMB precision), both substrates look identical. The substrate-specific signal exists, but is **not directly accessible at current observational precision**.
+
+**Net:** the partition choice is **structurally over-determined** (D2 + D3 + bit-exact 8/8 + Spike #164 M-theory refutation), but **observationally under-distinguished at the KK-shadow chain level alone** (D1 NULL). The bit-exact match is real positive evidence under D2 + D3 confirmation; the load-bearing claim is upgraded from H1-WITH-CONCERN to H1-STRUCTURAL-CONFIRMED-WITH-OBSERVATIONAL-CAVEAT.
+
+### §10.3 Composes with canonical stances (updated)
+
+- `[[project_space_gauge_time_framework]]` — **further strengthened** beyond §5.1: 11D = 3D_s + 7D_g + 1D_t partition is now structurally distinguished from M-theory uniform compactification at TWO independent discriminators (D2 + D3), not just the integer-chain matching that admitted the density-aggregation concern.
+- `[[user_stance_competing_theories_via_loe_instantiation_intersection]]` — **strengthened**: META framework's LoE-instantiation-intersection now has THREE LOCATED-AT-LEVEL-X diagnostics for M-theory: (a) algebra-level NOT-INSTANTIATED (Spike #164), (b) bit-exact KK chain NOT-INSTANTIATED (Spike #169 original), (c) multiplicity-weighted structure-level NOT-INSTANTIATED (Spike #170 D2) + fractional-KK-form NOT-INSTANTIATED (Spike #170 D3).
+- `[[user_stance_pi_as_projection]]` — **strengthened**: the KK-shadow that makes D1 NULL is itself an instance of the projection-shadow family (substrate-level cyclic-group → integer-chain projection collapses two distinct substrates to identical observable shadows). Joins time-as-shadow / fiber-spatially-absent / fractal-shadow / cascade-lives-on-circles as a sixth shadow-stance family member at the observational layer.
+- `[[user_stance_cascade_lives_on_circles]]` — **strengthened indirectly**: Spike #170 D3 fractional KK levels are precisely the substrate-level circular-eigenvalue content that the KK-shadow integer projection collapses. The 2999 fractional levels ARE the circular-substrate content; the 0 in M-theory ARE the absent circular-substrate content.
+
+### §10.4 Cross-references
+
+- **Spike #170 spike-note**: companion finding for D1 + D2 + D3 discriminator results (PR #630).
+- **Spike #170 fermata-1 → Spike #191**: D1 on substrate-level form (pre-KK-shadow integer projection), not on KK-shadow projection. Dispatched per `[[feedback_autonomous_research_followup_authorization]]`.
+- **Spike #164 entries #12, #14**: amend recommendation upgraded from "specify bit-exact CMB chain level" to "specify bit-exact CMB chain level + multiplicity-weighted structure level + fractional-KK form level" (three independent NOT-INSTANTIATED diagnostics for M-theory uniform 4D × round-S⁷).
+- **Spike #181 discipline**: honored. The density-artifact concern was real, the higher-precision discriminator was the proper resolution path, and the H1 verdict is now qualified with the residual observational-accessibility caveat rather than asserted cleanly. Math doesn't lie; the substrate-specific signal exists structurally but only partially in current observational reach.
+
+### §10.5 What still does NOT promote
+
+- **No new canonical stance authored** by this amendment. The verdict upgrade is research-record level; promotion to a new stance "11D-partition-structurally-determines-CMB-chain-and-multiplicity" would compose with `[[project_space_gauge_time_framework]]` but is gated on Spike #191 (substrate-level D1) and broader cross-observable consistency tests per §4.3.
+- **14 A-N intact** per `[[feedback_no_privileged_primitive_classes]]`. No class promotion from this work.
+- **META framework strengthened, not extended.** The LoE-instantiation-intersection vocabulary already covered structural diagnostics; this amendment populates it with two more concrete diagnostics, not a new vocabulary primitive.
+
+---
+
+*End of Spike #169 amendment 2026-05-19. Final verdict: **H1-CONFIRMED-AT-STRUCTURAL-LEVEL-WITH-OBSERVATIONAL-ACCESSIBILITY-CAVEAT**. Bit-exact 8/8 + D2 ~100×-multiplicity-richness per-Λ + D3 2999 vs 0 fractional KK levels are necessary AND structurally sufficient; D1 NULL at KK-shadow level is the observational-accessibility caveat under `[[user_stance_pi_as_projection]]`. Spike #191 dispatched for D1 on substrate-level form. Identity-not-implementation framing preserved.*
