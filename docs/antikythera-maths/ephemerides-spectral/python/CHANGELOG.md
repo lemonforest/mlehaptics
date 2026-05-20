@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.2] — 2026-05-19
+
+Production graduation of v0.29.2rc1. No code changes vs `[0.29.2rc1]`.
+
+The v0.29.2rc1 release was published to TestPyPI on 2026-05-19; fresh-venv install verified clean (srmech 0.4.2 + ephemerides_spectral 0.29.2rc1 both import on numpy 2.2.6). This graduation publishes the verified rc1 surface to production PyPI under clean semver.
+
+Consumes srmech v0.4.2 (signal_processing namespace + spectral.{predict, prediction_error, truncate_sparse} + numpy 2.x compat + 7 new attested catalogs surfaced transitively).
+
+**SSOT files bumped in lockstep:**
+
+- `pyproject.toml` `[project].version` 0.29.2rc1 → 0.29.2.
+- `pyproject-pure.toml` `[project].version` 0.29.2rc1 → 0.29.2.
+- `ephemerides_spectral/version.py` `__version__` 0.29.2rc1 → 0.29.2.
+- `ephemerides_spectral/srmech_profile.toml` `[profile].version` 0.29.2rc1 → 0.29.2.
+- `c/include/ephemerides_spectral.h` `ES_VERSION_STRING "0.29.2rc1"` → `"0.29.2"`.
+- `ephemerides_spectral/_data/manifest.json` `version` field restamped 0.29.2rc1 → 0.29.2.
+
+### No code change; no ABI change
+
+`ES_ABI_VERSION` stays at 10 (unchanged from v0.29.0); no `_research` mirror changes; no test ratchet changes; no `bridge.*` surface change. Pure clean-semver graduation.
+
 ## [0.29.2rc1] — 2026-05-19
 
 ### Changed — srmech dependency floor bump `>=0.4.0` → `>=0.4.2`
