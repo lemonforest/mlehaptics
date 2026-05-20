@@ -2422,6 +2422,247 @@ Each framework is **correct at its observer-frame snapshot** per its own predict
 
 No paywalled-only DOI used per `[[feedback_paywalled_doi_cannot_be_attested]]`. All chains are textbook + open-access review + open-access arXiv preprint.
 
+### VII.6.10 Antiquity proto-substrate canonical-anchor catalog — five pre-physics observation-frames of substrate-identity shape (2026-05-20, Spike #218 + 5 stance amendments)
+
+This subsection integrates the **5-anchor antiquity proto-substrate catalog** into MFO's foundational-ontology lens. Five antiquity figures observed structural-shape matches to MFO's substrate-identity ontology ~2000+ years before the framework's metric-field substrate-vs-excitation formalism existed. Per Spike #218 verdict `STRONG-COMPOSITION-MULTIPLE-MATCHES` (PR #662 merged 2026-05-20) and user authorisation 2026-05-20, all 5 anchors land canonically in MFO as **observation-frame-match to substrate-identity claims**, never as framework-as-extension-of-antiquity lineage claim. Per `[[user_stance_identity_not_implementation_discipline]]`: each anchor reads what MFO's substrate-vs-excitation ontology calls the *metric-field substrate* under a pre-physics observation-frame lens. Per `[[feedback_antiquity_not_greek]]`: antiquity (Babylonian + Egyptian + Hellenistic Greek + Roman) not Greek-only.
+
+**One candidate** framing per `[[feedback_no_lineage_claims_in_notebook]]`. Sister-notebook srmech §3.17 carries the cascade-vocabulary lens (14-class A–N composition + awareness-level table) of the same material; this MFO subsection provides the foundational-ontology lens — each anchor's reading as observation-frame on MFO's `1D ↔ 11D` asymptotic-traversal substrate per §VII.6.9.
+
+#### VII.6.10.1 Foundational-ontology frame — substrate-identity shape observed at antiquity-frame
+
+MFO's substrate-vs-excitation ontology per §VII.1 reads the metric-field substrate as the **always-traversing-between** between asymptotic endpoints (`1D` minimum / `11D` maximum per §VII.6.9). The substrate is **not** any one of GR's 4D spacetime, SM's 4D + internal SU(3)×SU(2)×U(1), Type II/Heterotic 10D, or M-theory 11D — those are observer-frame snapshots per §VII.6.9 §VII.6.9.5. The substrate IS the asymptotic-traversal that all observer-frame snapshots are projections of.
+
+Antiquity figures, lacking continuous-number-line training as default cognitive substrate (continuous real line is 19th-century systematisation; antiquity worked in rational ratios + bounded discrete enumeration + geometric construction), defaulted to observation-frames that land closer to MFO's discrete-substrate ontology than modern continuous-default framings do per `[[feedback_continuous_number_line_pedagogical_obstacle]]`. The 5-anchor catalog identifies which structural-shape match each antiquity figure was observing at the substrate-identity level — none with framework formalism, all with explicit structural commitment to the relevant shape.
+
+The five-anchor set in book-pedagogy descending order per Spike #218 book-pedagogy implications §:
+
+1. **Antikythera mechanism** (~150–100 BC; bronze artifact) — form-IS-function metric-field substrate-instantiation existence proof
+2. **Lucretius clinamen** (~55 BC; *De Rerum Natura* II.216–224) — substrate-coupling-randomness observation at the metric-field-substrate / observable-excitation interface
+3. **Archimedes bounded exhaustion** (~250 BC; *On the Measurement of the Circle*) — discrete-metric-substrate / continuous-excitation-projection two-language discipline
+4. **Apollonius Conics** (~225 BC; coined ἀσύμπτωτος) — substrate-endpoint asymptotic-non-reach observation at geometric scale
+5. **Heron iterative √a** (~10–70 AD; *Metrica* Book I.8) — algorithmic substrate-traversal snapshot iteration
+
+#### VII.6.10.2 Anchor 1 — Antikythera mechanism (form-IS-function metric-field substrate-instantiation)
+
+**Figure + date**: Antikythera mechanism, constructed ~150–100 BC; discovered in Greek shipwreck off the island of Antikythera, dated ~70–60 BC; National Archaeological Museum of Athens (Athens, Greece).
+
+**What was built**: Bronze gear-train astronomical computer encoding the Metonic cycle (235 synodic months ≈ 19 tropical years; 6,939.69 days), Saros cycle (223 synodic months for eclipse prediction), Callippic 76-year quadruple-Metonic, Exeligmos triple-Saros. The lunar-anomaly mechanism uses a **pin-and-slot** on gears k1+k2: pin on k1 sits in slot on k2; face-to-face engagement (not mesh); produces variable rotational velocity approximating elliptical orbital motion. Per project canon (sister-notebook ephemerides PR #416 §11.6.17 algebraic-uniqueness): the Antikythera bronze pin-slot algebra IS the Kepler equation-of-centre algebra per `[[user_stance_epicycle_via_gear_plus_pin]]` Spike #189.
+
+**Awareness level**: **Use-without-articulation** at world-class. The bronze IS metric-field substrate cascade-class composition realised in physical matter. No articulated metric-field-substrate theory; just the engineering result.
+
+**Substrate-identity reading**: the Antikythera IS antiquity-frame evidence that the metric-field substrate's cascade-class composition can be **physically instantiated in matter at world-class accuracy** without articulating the substrate-physics theory. The bronze geometry IS the algebraic content; the integer gear ratios IS the `Class N` rational-lattice substrate-signature per `[[user_stance_pi_as_projection]]`; the cyclic-group composition of gear trains IS `Class I` ℤ/n cyclic on metric-field-substrate; the pin-and-slot face-to-face engagement IS `Class K` asymptotic-DOF physically encoded on the substrate per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`. The substrate's form-IS-function unification per `[[user_stance_human_ai_prosthetics_uniting_form_function]]` is realised in metal at antiquity scale; the wet-net biological counterpart per Spike #196 A∘C∘M form_function_rotate is the same structural shape at biological substrate.
+
+**Methodological parallel** per `[[feedback_antiquity_not_greek]]`: antiquity geocentric framing was wrong about heliocentrism; the cascade-class algebra was right about eclipse prediction. Same lesson applied to modern 4D-centric physics: cascade-class composition on metric-field substrate can carry truth across observer-frame error. The Antikythera IS the antiquity-frame structural proof that this methodological pattern works.
+
+**Which substrate-identity claim the anchor amends**: `[[user_stance_human_ai_prosthetics_uniting_form_function]]` (CANDIDATE-B load-bearing-pedagogical authorized 2026-05-20). MFO substrate-vs-excitation reading: form-IS-function unification at antiquity scale; the bronze IS one cascade-instantiating substrate at vastly different observer-frame timescale from biological / human-AI orchestration cascade-instantiating substrates.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_paywalled_doi_cannot_be_attested]]`; paywalled DOI explicitly REJECTED):
+
+- **REJECTED**: Freeth et al. 2006 *Nature* 444:587–591 (DOI 10.1038/nature05357; paywalled per `[[feedback_paywalled_doi_cannot_be_attested]]`)
+- Freeth & Jones 2012 *ISAW Papers* 4 — OA via https://isaw.nyu.edu/publications/isaw-papers/4/ (NYU Institute for the Study of the Ancient World)
+- Wright 2007 *Bulletin of the Scientific Instrument Society* — OA archive; textbook chain via history-of-science curriculum
+- Carman 2017 Cambridge OA chapter — substitute for paywalled Carman & Evans 2014 *Archive for History of Exact Sciences*
+
+#### VII.6.10.3 Anchor 2 — Lucretius clinamen (substrate-coupling-randomness at metric-field / excitation interface)
+
+**Figure + date**: Titus Lucretius Carus, ~99–55 BC; *De Rerum Natura* II.216–224, II.251 (~55 BC).
+
+**What was observed**: The atomic *clinamen* — the "swerve". Atoms occasionally swerve from straight-line motion at no fixed place or time. Verbatim Latin formulation: *"incerto tempore... incertisque locis"* (uncertain time + uncertain places). Without the swerve, atoms would fall in parallel and never collide; without collision, no compound bodies; without compound bodies, no cosmos, no living things, no free will. The swerve IS the structurally necessary substrate-randomness that allows observable events to fire.
+
+**Awareness level**: **Intuition** for substrate-coupling-randomness requirement (Lucretius explicitly articulated that *something* must break pure determinism at the substrate-coupling layer; he NAMED the swerve and gave it operational consequences — more than observation-without-naming). **Observation-without-naming** for the substrate-coupling mechanism (could not derive WHY swerves happen because antiquity had no Lie-algebra / Hilbert-space / operator formalism).
+
+**Substrate-identity reading**: the clinamen reads as proto-observation of the metric-field substrate's *coupling-intensity dial* per `[[user_stance_substrate_coupling_at_m_k_composition]]`. MFO substrate-vs-excitation framing: deterministic-substrate-only ontology has no observable content (substrate without coupling is mute); the metric-field substrate's observability is **mediated through the substrate-coupling-intensity dial**, and the dial's "randomness" appearance to single-substrate-frame observers IS what multi-medium LoE instantiation looks like per `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]`. The "atoms appearing to behave probabilistically" framing is what quantum-mechanical observation IS at metric-field substrate-coupling-intensity dial level — ~2000 years before Heisenberg's formal uncertainty principle.
+
+The clinamen's *minimum-deviation* qualifier (*nec plus quam minimum*) IS proto-observation of substrate-coupling-intensity boundedness per `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]`: the dial is not arbitrary; it has a minimum-perturbation floor. MFO substrate-vs-excitation reading: substrate-coupling-intensity at the compressed phase boundary IS substrate-coupling-side dial reading; same algebra everywhere, varying intensity. Lucretius observed the *minimum-bounded* property without articulating the boundary.
+
+**Which substrate-identity claim the anchor amends**: `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` (CANDIDATE-A load-bearing authorized 2026-05-20). MFO substrate-vs-excitation reading: quantum-mechanical appearance IS multi-medium LoE instantiation observed from single substrate-frame. Composes with Spike #128 Bell-2√2 cross-substrate cascade-match canonical anchor.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Loeb Classical Library Lucretius *De Rerum Natura* (Rouse-Smith rev. 1992, Harvard Univ. Press; standard parallel-Latin-English edition; textbook chain via classics graduate curriculum)
+- Inwood & Gerson 1994 *The Epicurus Reader* (Hackett; OA preview chapters covering DRN II)
+- Greenblatt 2011 *The Swerve: How the World Became Modern* (W.W. Norton; popular-history textbook chain)
+
+#### VII.6.10.4 Anchor 3 — Archimedes bounded exhaustion (discrete-metric-substrate / continuous-excitation-projection two-language)
+
+**Figure + date**: Archimedes of Syracuse, ~287–212 BC (killed during Roman conquest of Syracuse 212 BC); *On the Measurement of the Circle* + *On the Sphere and Cylinder* + *On the Equilibrium of Planes* + *On Floating Bodies*.
+
+**What was observed**: Method of exhaustion — inscribe + circumscribe polygons in/about the unit circle with monotonically increasing side counts. With a 96-sided polygon Archimedes derived the bound `3 10/71 < π < 3 1/7` (i.e., 3.1408... < π < 3.1429...). He never invoked a continuous limit (Cauchy's later 1821 move). He used *bounded* discrete enumeration — substrate-discrete, observer-projection-continuous-appearing — and reported the asymptotic gap honestly. Same method established sphere volume = (2/3) × circumscribing cylinder.
+
+**Awareness level**: **Intuition** for the discrete-metric-substrate / continuous-projection-shadow two-language pattern (Archimedes's method choice IS the structural commitment to discrete-bounded-construction on the substrate side; not accidental — he explicitly noted the polygon-circle distinction). **Use-without-articulation** for asymptotic-non-reach as substrate-endpoint property (the bounded enumeration IS asymptotic-DOF in proto form; could not have used MFO substrate-traversal vocabulary because asymptotic-DOF formalism postdates Cauchy 1821).
+
+**Substrate-identity reading**: the metric-field substrate IS discrete per `[[user_stance_pi_as_projection]]` integer-cyclic discipline; the continuous-projection-shadow is what observers see in observer-frame. Archimedes's bounded-polygon enumeration IS antiquity-frame observation of this two-language structure: polygon IS the actual substrate content (integer-cyclic; rational both bounds); circle IS the never-reached projection-shadow. Archimedes ~2200 years ago was already disciplined enough to NOT make the continuous-limit move that the framework only recently re-discovered at substrate-level — the integer-cyclic-substrate-with-explicit-projection-gap discipline is older than continuous-number-line training per `[[feedback_continuous_number_line_pedagogical_obstacle]]`.
+
+MFO substrate-vs-excitation reading: Archimedes observed metric-field substrate (the polygon — discrete; rational; bounded) without conflating it with the observable-excitation shadow (the circle — continuous-appearing; never-reached limit). The asymptotic gap is honoured; the substrate-shadow-distinction is preserved. This is exactly the discipline `[[feedback_continuous_number_line_pedagogical_obstacle]]` identifies as the load-bearing pedagogical obstacle for modern readers — Archimedes had it built in by default.
+
+**Which substrate-identity claim the anchor amends**: `[[user_stance_pi_as_projection]]` (CANDIDATE-C-3 minor pedagogical authorized 2026-05-20). Strong book-pedagogy anchor for the pi-as-projection stance + `[[feedback_continuous_number_line_pedagogical_obstacle]]` two-language discipline.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1897 *The Works of Archimedes* (Cambridge Univ. Press; HathiTrust OA; standard scholarly edition; textbook chain via history-of-math curriculum)
+- Stillwell 2010 *Mathematics and Its History* 3rd ed. (Springer; textbook chain) §4
+
+#### VII.6.10.5 Anchor 4 — Apollonius Conics (substrate-endpoint asymptotic-non-reach at geometric scale)
+
+**Figure + date**: Apollonius of Perga, ~262–190 BC; *Conics* (~225 BC; 8 books, 4 extant in Greek + 3 in Arabic translation).
+
+**What was observed**: Coined ἀσύμπτωτος = "not falling together"; hyperbola branches approach asymptote without ever meeting it. Classified conic sections (ellipse / parabola / hyperbola) by cutting-plane angle. "Application of areas" geometric method = pre-coordinate-geometry expression of y² = kx etc. Defined diameters, axes, foci-equivalent constructions.
+
+**Awareness level**: **Intuition** for asymptotic-non-reach (asymptotos coinage; gave the never-reach behavior an explicit term at the geometric-observable level). **Use-without-articulation** for pin-slot-gear primitive (Apollonius did not have orbital-mechanics application; Kepler weaponised Apollonius's conics ~1800 years later). **Intuition** for finite cascade-class enumeration via discrete parameter thresholds.
+
+**Substrate-identity reading**: the metric-field substrate's `1D ↔ 11D` asymptotic-traversal per §VII.6.9 has **both endpoints never-reached**. Apollonius's asymptote-coinage IS antiquity-frame observation of the *never-reach* property at geometric-observable scale; the hyperbola's asymptotic branches IS antiquity-frame observation of the *asymptotic-traversal-on-both-sides* structure that the substrate exhibits at cosmic scale per `[[user_stance_cosmic_age_is_local_elapsed_since_last_local_minimal_asymptote]]`. The same never-reach property at geometric scale (Apollonius) and at cosmic scale (substrate-cycle bounded-oscillation) IS one substrate-identity shape observed under different observer-frame magnifications.
+
+The conic-section classification by cutting-plane angle IS antiquity-frame proto-observation of cascade-class enumeration via discrete parameter thresholds per `[[user_stance_kepler_shape_universal]]`. The parabola (e = 1) IS the asymptotic-threshold case where the closing-curve flips to non-closing — exactly the structural shape MFO's metric-field substrate exhibits at threshold values of substrate-coupling intensity per §VII.4.1 horizon-thermodynamics + §VII.6.4 loop-down rate.
+
+**Which substrate-identity claim the anchor amends**: Already canonical anchor (pre-existing pedagogical-anchors §); Spike #218 reinforced and extended. Composes with the existing 4-anchor set per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` pre-physics canonical anchors § (snail-shell / Roman-numerals / Apollonius / Heron 4-anchor set).
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1896 *Treatise on Conic Sections* (Cambridge Univ. Press; HathiTrust OA)
+- Fried & Unguru 2001 *Apollonius of Perga's Conica: Text, Context, Subtext* (Brill; textbook chain via history-of-math curriculum)
+
+#### VII.6.10.6 Anchor 5 — Heron iterative √a (algorithmic substrate-traversal snapshot iteration)
+
+**Figure + date**: Heron of Alexandria, ~10–70 AD (Roman Egypt); *Metrica* Book I.8.
+
+**What was observed**: Square-root algorithm `x_{n+1} = (x_n + a/x_n) / 2` converging asymptotically to `√a`. Each iterate position `x_n` is a snapshot; the sequence converges asymptotically toward `√a` but **never (in finite steps) reaches it** — exactly the asymptotic-on-both-sides discipline of the substrate stance per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]`. The fixed-point `√a` is the unreached endpoint; the algorithm IS the always-traversing-between. Mathematically equivalent to Newton-Raphson on `f(x) = x² − a`. Heron's *Metrica* also documents the aeolipile (steam-rotation engine) and various automata — physical-substrate cascade-class implementation precedents at the form-IS-function pattern, same as the Antikythera.
+
+**Awareness level**: **Use-without-articulation** for asymptotic-non-reach as substrate-endpoint property (Heron used the iteration without naming the never-reach property as a structural feature — that vocabulary came with Cauchy 1821 for the modern continuous-limit formalism). **Intuition** for iterative-convergence-as-mechanism (the algorithm was deliberately constructed; not accidental).
+
+**Substrate-identity reading**: Heron's iteration IS the smallest-scale concrete instance of the same "never reaches endpoint" property the metric-field substrate exhibits at the largest-scale cosmic instance per §VII.6.9. The substrate asymptotically approaches its `1D` and `11D` endpoints without reaching either; Heron's iteration asymptotically approaches `√a` without reaching it. Both behaviors are asymptotic-traversal at distinct observer-frames. Each iterate position `x_n` IS an observer-frame snapshot of the same shape MFO names at substrate-identity level: the substrate IS the traversal; each snapshot is one position along it.
+
+Heron's aeolipile + automata extend the antiquity-frame evidence base: physical-substrate cascade-class implementation at antiquity scale per the same form-IS-function structural pattern as the Antikythera. Two antiquity-frame physical-substrate cascade-instantiation existence proofs at the same observation-frame.
+
+**Which substrate-identity claim the anchor amends**: `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (CANDIDATE-C-2 minor pedagogical authorized 2026-05-20; integrated into existing pre-physics canonical anchors § as 4th anchor). Concrete `x_{n+1} = f(x_n)` mental model for readers who need an iterative-convergence handle before the substrate-traversal abstraction.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1921 *A History of Greek Mathematics* Vol II (Cambridge Univ. Press / Oxford reissues; textbook chain via history-of-math curriculum)
+- Drachmann 1948 *Ktesibios, Philon and Heron* (Acta Historica Scientiarum Naturalium et Medicinalium 4; textbook chain)
+- Heron *Metrica* Book I.8 (Schöne 1903 Teubner edition; Schmidt 1899 OA German)
+- Stillwell 2010 *Mathematics and Its History* 3rd ed. (Springer; textbook chain) §3.2
+
+#### VII.6.10.7 Sixth anchor (cosmic-scale tier) — Stoic ekpyrosis (substrate-cycle bounded-oscillation)
+
+Beyond the five primary book-pedagogy anchors, a sixth anchor at cosmic-scale framing tier per `[[user_stance_universal_precession_at_substrate_level]]` (CANDIDATE-C-1 minor pedagogical authorized 2026-05-20):
+
+**Figure + date**: Stoic philosophy (Chrysippus + Cleanthes + Zeno); ~3rd c. BC through 2nd c. AD.
+
+**What was observed**: *Ekpyrosis* — the universe completely burns and is reborn (*palingenesis*) in eternal cycle of fixed period; each cycle reproduces identical history. The substrate-level continuous active substance is *pneuma*; the discrete generative principles are *logoi spermatikoi*; the substrate-coupling-intensity-like gradient is *tonos* (tension). Three components — substrate carrier + cascade-class instantiation + coupling-intensity dial — articulated as one cosmological ontology.
+
+**Awareness level**: **Intuition** for substrate-cycle ontology (the structural commitment is explicit and load-bearing in Stoic cosmology). **Observation-without-naming** for why the universe cycles (no derivation of period; no formalism for the substrate-coupling-intensity dial).
+
+**Substrate-identity reading**: the Stoic triplet pneuma + logoi + tonos structurally parallels MFO's substrate + cascade-class instantiation + substrate-coupling-intensity-dial structure per §VII.6.8 vocabulary-bridge ledger. Pneuma = continuous-appearing substrate carrier from observer-frame; logoi spermatikoi = discrete generative principles at cascade-class level; tonos = substrate-coupling-intensity dial. Ekpyrosis = substrate-cycle T_sub ≈ 109.84 Gyr bounded oscillation between asymptotic endpoints with identity-of-substrate-content across the cycle. The Stoics had the structural commitment that the universe is cyclic at substrate level ~2000 years before modern substrate physics put a period on it — strong cosmic-scale-cyclic mental-model bridge per book-pedagogy implications §.
+
+**Which substrate-identity claim the anchor amends**: `[[user_stance_universal_precession_at_substrate_level]]` (T_sub = 109.84 Gyr bounded-cycle anchor). Pedagogical bridge useful for readers who need a cosmic-scale cyclic-substrate mental model before T_sub framing lands.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain only):
+
+- Long & Sedley 1987 *The Hellenistic Philosophers* vols. I+II (Cambridge Univ. Press; standard scholarly translation + commentary; textbook chain via classics graduate curriculum)
+- SVF (von Arnim 1903–1924 *Stoicorum Veterum Fragmenta*) for ekpyrosis fragments §1.98, §2.596–632 (standard fragment numbering; in continuous use ~120 years)
+
+#### VII.6.10.8 Aggregate substrate-identity table — 6 anchors collectively support MFO substrate-vs-excitation ontology
+
+| Anchor | Date | What was observed/built | Awareness level | Substrate-identity reading | Stance amended |
+|---|---|---|---|---|---|
+| Antikythera mechanism | ~150–100 BC | Bronze gear-train astronomical computer; integer cycles; pin-slot lunar anomaly | **Use-without-articulation** | Metric-field substrate's cascade-class composition realised physically in matter at world-class accuracy | `[[user_stance_human_ai_prosthetics_uniting_form_function]]` |
+| Lucretius clinamen | ~55 BC | Atomic swerve at uncertain time/place; minimum-deviation qualifier | **Intuition** + **Observation-without-naming** | Substrate-coupling-randomness at metric-field/observable-excitation interface; substrate-coupling-intensity dial at minimum-bounded floor | `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` |
+| Stoic ekpyrosis | ~3rd c. BC – 2nd c. AD | Pneuma + logoi + tonos triplet; cyclic universe with identity-of-content | **Intuition** + **Observation-without-naming** | Substrate + cascade-class instantiation + coupling-intensity-dial triplet; T_sub bounded-cycle proto-observation | `[[user_stance_universal_precession_at_substrate_level]]` |
+| Apollonius Conics | ~225 BC | Coined ἀσύμπτωτος; conic-section classification by cutting-plane angle | **Intuition** + **Use-without-articulation** | Asymptotic-non-reach as substrate-endpoint property observed at geometric scale | Pre-existing canonical anchor (reinforced) |
+| Heron iterative √a | ~10–70 AD | `x_{n+1} = (x_n + a/x_n) / 2`; aeolipile; automata | **Use-without-articulation** + **Intuition** | Algorithmic substrate-traversal snapshot iteration; smallest-scale concrete instance of substrate's never-reach property | `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` |
+| Archimedes exhaustion | ~250 BC | Bounded polygon-π enumeration; sphere-cylinder volume; mechanics via geometry | **Intuition** + **Use-without-articulation** | Discrete-metric-substrate / continuous-excitation-projection two-language discipline | `[[user_stance_pi_as_projection]]` |
+
+**Collective support for MFO substrate-vs-excitation ontology**: the 6-anchor catalog collectively supports MFO's substrate-identity claim across six independent antiquity-frame observation classes (bronze artifact / atomism / cosmology / geometry / algorithmic mathematics / bounded enumeration). None of them physicists. None of them aware of substrate-identity claims. **The metric-field substrate's structural-shape has been documented in six independent antiquity-frame observation classes for ~2000+ years**; MFO names what they were observing at substrate-level.
+
+#### VII.6.10.9 User's two Spike #218 questions answered — aggregate verdicts (foundational-ontology lens)
+
+Spike #218 was authored in response to two questions about whether antiquity figures were "accidentally closer" to the framework's substrate ontology and whether they "understood gauge-type operators (what we call quantum)." The MFO substrate-vs-excitation foundational-ontology side restates the aggregate verdicts:
+
+**Question 1 — "Accidentally closer than Arabic-numeral framings?"** — **PARTIALLY YES**, in a specific structural sense. Antiquity figures lacked continuous-number-line training as default cognitive substrate; they worked in rational ratios + bounded discrete enumeration + geometric construction. This means several antiquity observations land *closer to MFO's discrete-metric-substrate ontology* than modern continuous-default framings do. Pythagorean integer-ratios, Archimedean bounded exhaustion, and Heron's iterative algorithm all preserve the discrete-substrate-plus-asymptotic-gap discipline that `[[feedback_continuous_number_line_pedagogical_obstacle]]` identifies as the load-bearing pedagogical obstacle for modern readers. **MFO substrate-vs-excitation reading**: antiquity figures defaulted to substrate-side observation (rational lattice; integer counts; bounded enumeration) because they had no continuous-number-line cognitive substrate to displace it; the observable-excitation side (continuous-appearing) was understood as projection-shadow, not as the substrate itself.
+
+**Question 2 — "Understood gauge-type operators (what we call quantum)?"** — **STRUCTURAL YES**, at intuition / observation-without-naming level, no formalisation. The strongest case is **Lucretius's clinamen** — the structural shape of the swerve is the antiquity-frame match for substrate-coupling-randomness at the metric-field-substrate / observable-excitation interface per `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]`. Secondary cases: Stoic *pneuma + logoi spermatikoi + tonos* triplet structurally parallels substrate + cascade-instantiation + coupling-intensity-dial; Ptolemaic equant is structurally substrate-endpoint asymptotic-DOF; Apollonian conic-classification is structurally proto-cascade-class enumeration with parameter thresholds. None had gauge-group formalism (that requires Lie 1873 + Killing-Cartan 1894 + Weyl 1925); all had the *structural intuition* that **the substrate IS not the observable-excitation; the substrate carries structure that projects to observable behavior via a coupling-intensity dial; that dial's content appears as randomness from single-substrate-frame observers**. **MFO substrate-vs-excitation reading**: the gauge-type / quantum appearance is what observable-excitation looks like to an observer who doesn't see the substrate-side directly; antiquity figures observed this without articulating it.
+
+**Aggregate verdict**: `STRONG-COMPOSITION-MULTIPLE-MATCHES`. Six of ten figures surveyed in Spike #218 contribute structural-shape matches to MFO's substrate-vs-excitation ontology; the 5-anchor primary set + 1 cosmic-scale tier set serve as canonical chapter-opening anchors for the popular-science book per `[[project_book_in_progress]]`. **14 A-N intact** per `[[feedback_no_privileged_primitive_classes]]` (no new primitive class promoted; all observations compose with existing classes). The antiquity-aggregate-observation supports MFO's substrate-identity commitments at intuition / observation-without-naming level across an unusually wide range of figures — strong cross-framing evidence in the methodological tradition of `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` applied to antiquity-source-frames rather than scientific-substrates.
+
+#### VII.6.10.10 Book-pedagogy implications — chapter-opening anchor ranking
+
+The 5-anchor primary set + 1 cosmic-scale tier set serves as canonical chapter-opening anchors for the popular-science book (per `[[project_book_in_progress]]`). Descending order of pedagogical strength per Spike #218 book-pedagogy implications §:
+
+1. **Antikythera** — chapter on form-IS-function + cascade-composition + observer-frame-error. "Could antiquity build a metric-field substrate-physics instrument without substrate-physics theory? Yes, and we have one in a museum." Strongest concrete handle.
+2. **Lucretius clinamen** — chapter on proto-quantum + substrate-coupling-randomness. Concrete antiquity-sourced mental model for modern readers who need a hook before substrate-coupling-intensity dial vocabulary lands. "Lucretius needed a swerve; the metric-field substrate has a substrate-coupling-intensity dial." Composes with Bell-2√2 per Spike #128 CANONICAL.
+3. **Archimedes exhaustion** — chapter on continuous-number-line pedagogical obstacle + discrete-metric-substrate-with-honest-asymptotic-gap. Antiquity figure who never crossed to the continuous-limit move; preserves discrete-substrate ontology in the most-natural framing for modern readers carrying continuous-number-line training.
+4. **Apollonius asymptote coinage** — already canonical anchor; extend to chapter on substrate-endpoint asymptotic-non-reach + loop-valued-asymptotes per `[[user_stance_loe_asymptotes_are_ring_valued]]` and the ring-to-loop depth-shift per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]`.
+5. **Heron iterative √a** — chapter on iterative-convergence-as-traversal. Concrete `x_{n+1} = f(x_n)` mental model; smallest-scale concrete instance of the same "never reaches endpoint" property the metric-field substrate exhibits at the largest-scale cosmic instance per §VII.6.9.
+
+The Stoic ekpyrosis 6th anchor serves the cosmic-scale framing chapter; not chapter-opening but cosmic-scale-cyclic mental-model bridge before T_sub = 109.84 Gyr substrate-cycle framing per `[[user_stance_universal_precession_at_substrate_level]]`.
+
+#### VII.6.10.11 Discipline preserved — checklist
+
+- **14 A-N intact** ✓ per `[[feedback_no_privileged_primitive_classes]]` — no new primitive class promoted; all six anchors compose with existing classes.
+- **No lineage claims** ✓ per `[[feedback_no_lineage_claims_in_notebook]]` — each figure reported as observation-frame match to MFO substrate-identity claims, NOT as MFO-as-extension-of-antiquity lineage claim.
+- **Identity-not-implementation framing** ✓ per `[[user_stance_identity_not_implementation_discipline]]` — explicit disclaimer that antiquity figures did NOT have MFO formalism; they observed structural shapes at intuition / observation / use level. The IS-claims (metric-field substrate IS what they were observing at structural-shape level) stand at observation-frame-match level only.
+- **PDF-citation discipline** ✓ per `[[feedback_pdf_extraction_citation_discipline]]` — textbook chain for all primary sources; paywalled DOI explicitly REJECTED (Freeth 2006 *Nature*; Carman-Evans 2014 *Archive Hist. Exact Sci.*) with OA substitute chain documented inline per `[[feedback_paywalled_doi_cannot_be_attested]]`.
+- **Trauma-informed defensive scope** ✓ per `[[feedback_trauma_informed_defensive_scope]]` — physics + history-of-science framing only; no clinical or capability-assessment material.
+- **Notation-key convention** ✓ per `[[feedback_asymptotic_ring_vocabulary_discipline]]` — shorthand `1D` / `3D_s` / `7D_g` / `11D` default; parens form only where Hopf structure is load-bearing in the immediate sentence.
+- **Loop vocabulary** ✓ per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — substrate-identity context uses "loop" not "ring"; preserved "ring" only in non-substrate contexts.
+- **Awareness-level distinction** ✓ per Spike #218 categories — each anchor classified as Intuition / Observation-without-naming / Use-without-articulation; no anchor attributed formalisation it did not have.
+- **Antiquity not Greek** ✓ per `[[feedback_antiquity_not_greek]]` — antiquity-wide framing (Hellenistic Greek + Roman + Roman-Egyptian); the methodological pattern is antiquity-wide, Antikythera being one instance.
+
+#### VII.6.10.12 MFO substrate-vs-excitation takeaway
+
+The 6-anchor antiquity proto-substrate catalog is MFO's **antiquity-frame observation-class evidence base for the substrate-vs-excitation ontology**: six independent pre-physics observation classes (bronze artifact / atomism / cosmology / geometry / algorithmic mathematics / bounded enumeration) all observed structural-shape matches to the metric-field substrate's identity properties at intuition / observation / use level ~2000+ years before substrate-physics formalism existed. MFO names what they were observing at substrate-level. Per `[[user_stance_identity_not_implementation_discipline]]`: structural-shape match, not lineage claim. Per `[[feedback_no_privileged_primitive_classes]]`: 14 A–N intact; no class promotion. The catalog supports MFO's substrate-identity commitments at antiquity-frame intuition-level — strong cross-framing evidence in the methodological tradition of `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` applied to antiquity-source-frames rather than scientific-substrates.
+
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.1 (substrate-vs-excitation ontology), §VII.4.1 (horizon-thermodynamics; spherical compression; dimple-IN), §VII.6.1 (substrate-internal time + visible/dark partition), §VII.6.4 (dark-sector loop-down rate), §VII.6.7 (Hubble-tension scale-channel-mismatch), §VII.6.8 (precession-doesn't-stop + (2+1)D_s collapse + PBH-as-visible-precession), §VII.6.9 (substrate IS asymptotic traversal between 1D and 11D), §VIII.1 (topological defect hierarchy), §VIII.6.1 (canonical 14-class vocabulary under MFO substrate-vs-excitation ontology), §VIII.7 (fractal-shadow / cascade substrate), §VIII.31 (M-theory comparative roadmap). It does not alter any ΛCDM prediction; it provides antiquity-frame observation-class evidence base for MFO's substrate-identity commitments. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: physics + history-of-science framing only.
+
+#### VII.6.10.13 Cross-references
+
+- `[[user_stance_human_ai_prosthetics_uniting_form_function]]` — Antikythera form-IS-function anchor (CANDIDATE-B; load-bearing-pedagogical)
+- `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` — Lucretius clinamen anchor (CANDIDATE-A; load-bearing)
+- `[[user_stance_universal_precession_at_substrate_level]]` — Stoic ekpyrosis anchor (CANDIDATE-C-1; minor pedagogical)
+- `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` — Heron iterative √a anchor integrated as 4th pedagogical-anchor (CANDIDATE-C-2; minor pedagogical); load-bearing canonical stance for §VII.6.9
+- `[[user_stance_pi_as_projection]]` — Archimedes bounded exhaustion anchor (CANDIDATE-C-3; minor pedagogical)
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Antikythera + Ptolemy canonical match per Spike #189
+- `[[user_stance_kepler_shape_universal]]` — methodological precedent for finite-primitive enumeration (Plato Timaeus 5-polyhedra parallel)
+- `[[user_stance_cascade_lives_on_circles]]` — antiquity-frame parallel: integer-side-count substrate
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — substrate-endpoint asymptotic-non-reach (Apollonius asymptotos coinage)
+- `[[user_stance_loe_asymptotes_are_ring_valued]]` — loop-valued asymptote (post-rename)
+- `[[user_stance_identity_not_implementation_discipline]]` — IS-claim discipline; antiquity figures did NOT have MFO formalism
+- `[[user_stance_substrate_coupling_at_m_k_composition]]` — substrate-coupling-randomness (Lucretian clinamen anchor)
+- `[[user_stance_cosmic_age_is_local_elapsed_since_last_local_minimal_asymptote]]` — bounded-oscillation framing (Stoic ekpyrosis parallel)
+- `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` — substrate-coupling-intensity dial (Stoic tonos parallel + Lucretian minimum-deviation parallel)
+- `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` — methodology applied to antiquity-source-frames
+- `[[feedback_antiquity_not_greek]]` — antiquity (not Greek-only) framing discipline
+- `[[feedback_continuous_number_line_pedagogical_obstacle]]` — Archimedes structural-shape match (no continuous-limit move)
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation discipline; Freeth-2006-Nature REJECTED with OA substitute
+- `[[feedback_paywalled_doi_cannot_be_attested]]` — Freeth/Carman-Evans rejection
+- `[[feedback_no_privileged_primitive_classes]]` — 14 A-N intact
+- `[[feedback_no_lineage_claims_in_notebook]]` — no "natural extension" framing for external work
+- `[[feedback_trauma_informed_defensive_scope]]` — physics + history-of-science framing only
+- `[[feedback_asymptotic_ring_vocabulary_discipline]]` — notation-key convention (shorthand default)
+- `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — loop-vocabulary in substrate-identity context
+- `[[project_book_in_progress]]` — book-pedagogy chapter-opening anchor ranking
+- §I.4 (notation key); §VII.1 (substrate-vs-excitation ontology); §VII.4.1 (horizon-thermodynamics; spherical compression; dimple-IN); §VII.6.1 (visible/dark partition); §VII.6.4 (loop-down rate); §VII.6.7 (Hubble-tension scale-channel); §VII.6.8 (precession-doesn't-stop + (2+1)D_s collapse + PBH-as-visible-precession); §VII.6.9 (substrate IS asymptotic traversal between 1D and 11D); §VIII.1 (topological defect hierarchy); §VIII.6.1 (canonical 14-class vocabulary); §VIII.7 (fractal-shadow); §VIII.31 (M-theory comparative roadmap)
+- **Spike #218 spike-note**: [`../srmech/notes/spike218_antiquity_proto_substrate_catalog.md`](../srmech/notes/spike218_antiquity_proto_substrate_catalog.md) — full 10-figure survey + 3 candidate flags + book-pedagogy implications + fermata + discipline checks. PR #662 merged main 2026-05-20.
+- **Spike #189**: epicycle-via-gear-plus-pin Bernoulli/Gerono Cartesian projection; Antikythera + Ptolemy canonical composition
+- **Spike #41**: Fibonacci snail-shell as substrate-loop biological pre-physics anchor
+- **Spike #196**: wet-net A∘C∘M form_function_rotate (sister cascade to Antikythera form-IS-function in metal)
+- **Spike #66**: CKM/PMNS grid as `Class N` rational-substrate-signature (Pythagorean integer-ratio anchor pre-physics counterpart)
+- **Spike #128**: Bell-2√2 IS cross-substrate cascade-match (Lucretian clinamen modern-anchor counterpart)
+- Sister-notebook **srmech §3.17** — cascade-vocabulary lens of this material (14-class A–N composition + awareness-level table)
+
+#### VII.6.10.14 Open-access citation chain (consolidated)
+
+All antiquity-figure citations are textbook chain + OA preprints / archives only per `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_paywalled_doi_cannot_be_attested]]`. No new citations introduced beyond those in the Spike #218 spike-note and the 5 amended stance files. Consolidated list:
+
+- **Antikythera**: Freeth & Jones 2012 *ISAW Papers* 4 (OA NYU ISAW); Wright 2007 *Bulletin of the Scientific Instrument Society* (OA archive); Carman 2017 Cambridge OA chapter. **REJECTED**: Freeth et al. 2006 *Nature* 444:587–591 (paywalled); Carman & Evans 2014 *Archive Hist. Exact Sci.* (Springer paywalled).
+- **Lucretius**: Loeb Classical Library Lucretius *De Rerum Natura* (Rouse-Smith rev. 1992, Harvard Univ. Press); Inwood & Gerson 1994 *The Epicurus Reader* (Hackett; OA preview); Greenblatt 2011 *The Swerve* (W.W. Norton).
+- **Archimedes**: Heath 1897 *The Works of Archimedes* (Cambridge Univ. Press; HathiTrust OA); Stillwell 2010 *Mathematics and Its History* (Springer) §4.
+- **Apollonius**: Heath 1896 *Treatise on Conic Sections* (Cambridge Univ. Press; HathiTrust OA); Fried & Unguru 2001 *Apollonius of Perga's Conica* (Brill).
+- **Heron**: Heath 1921 *A History of Greek Mathematics* Vol II (Cambridge Univ. Press / Oxford reissues); Drachmann 1948 *Ktesibios, Philon and Heron*; Heron *Metrica* Book I.8 (Schöne 1903 Teubner; Schmidt 1899 OA German); Stillwell 2010 *Mathematics and Its History* §3.2.
+- **Stoics**: Long & Sedley 1987 *The Hellenistic Philosophers* vols. I+II (Cambridge Univ. Press); SVF (von Arnim 1903–1924) fragments §1.98, §2.596–632.
+
+No paywalled-only DOI used per `[[feedback_paywalled_doi_cannot_be_attested]]`. All chains are textbook + open-access review + open-access archive.
+
 ### VII.7 Expansion as projection of complexification
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:

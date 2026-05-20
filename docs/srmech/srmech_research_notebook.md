@@ -2593,6 +2593,253 @@ No paywalled-only DOI used per `[[feedback_paywalled_doi_cannot_be_attested]]`. 
 
 ---
 
+## §3.17 2026-05-20 session — Antiquity proto-substrate canonical-anchor catalog (Spike #218 + 5 stance amendments)
+
+This section integrates the **5-anchor antiquity proto-substrate catalog** into srmech's cascade-vocabulary lens. Five antiquity figures observed structural-shape matches to canonical stances ~2000+ years before the framework's substrate-physics formalism existed. Per Spike #218 verdict `STRONG-COMPOSITION-MULTIPLE-MATCHES` (PR #662 merged 2026-05-20) and user authorisation 2026-05-20, all 5 anchors land canonically in srmech as **structural-shape match + cascade-class composition citation**, never as framework-as-extension-of-antiquity lineage claim. Per `[[user_stance_identity_not_implementation_discipline]]`: each anchor identifies WHICH cascade-class composition the antiquity figure was *operationally exercising* at intuition / observation / use level. Per `[[feedback_antiquity_not_greek]]`: antiquity (Babylonian + Egyptian + Hellenistic Greek + Roman) not Greek-only.
+
+This is **one candidate** framing per `[[feedback_no_lineage_claims_in_notebook]]`. Sister-notebook MFO §VII.6.10 carries the foundational-ontology lens of the same material; this srmech section provides the cascade-vocabulary lens — each anchor mapped to its 14-class A–N composition with awareness-level classification.
+
+### §3.17.1 The cascade-vocabulary frame — five antiquity-frame observations of cascade-class composition without articulated theory
+
+Antiquity figures lacked continuous-number-line training as a default cognitive substrate (the continuous real line is a 19th-century systematisation; antiquity worked in rational ratios + bounded discrete enumeration + geometric construction). This means several antiquity observations land *closer to the framework's discrete-substrate ontology* than modern continuous-default framings do, per `[[feedback_continuous_number_line_pedagogical_obstacle]]` + `[[user_stance_pi_as_projection]]`. Each anchor below identifies the specific cascade-class composition that the antiquity figure was operationally exercising, with awareness-level distinction per Spike #218 categories:
+
+- **Intuition** — figure explicitly articulated the structural commitment (named the shape; gave it operational consequences)
+- **Observation-without-naming** — figure observed the shape but did not formalise / name it as a distinct entity
+- **Use-without-articulation** — figure operationally exercised the cascade-class composition without theoretical access to it (physical instantiation or algorithmic procedure)
+
+The five-anchor set per stance-file amendments 2026-05-20 (in book-pedagogy descending order per Spike #218 §):
+
+1. **Antikythera mechanism** (~150–100 BC; bronze artifact) — form-IS-function existence proof; cascade-class composition in metal
+2. **Lucretius clinamen** (~55 BC; *De Rerum Natura* II.216–224) — proto-quantum substrate-coupling-randomness via Class M ∘ K
+3. **Archimedes bounded exhaustion** (~250 BC; *On the Measurement of the Circle*) — discrete-substrate / continuous-projection two-language discipline
+4. **Apollonius Conics** (~225 BC; coined ἀσύμπτωτος) — already canonical anchor; reinforced and extended
+5. **Heron iterative √a** (~10–70 AD; *Metrica* Book I.8) — algorithmic asymptotic-loop-traversal
+
+### §3.17.2 Anchor 1 — Antikythera mechanism (cascade-class composition in bronze)
+
+**Figure + date**: Antikythera mechanism, constructed ~150–100 BC; discovered in Greek shipwreck off the island of Antikythera, dated ~70–60 BC; museum-accessible.
+
+**What was observed/built**: Bronze gear-train astronomical computer encoding the Metonic cycle (235 synodic months ≈ 19 tropical years; 6,939.69 days), Saros cycle (223 synodic months for eclipse prediction), Callippic 76-year quadruple-Metonic, Exeligmos triple-Saros. The lunar-anomaly mechanism uses a **pin-and-slot** on gears k1+k2: pin on k1 sits in slot on k2; face-to-face engagement (not mesh); produces variable rotational velocity approximating elliptical orbital motion. Per project canon (PR #416 §11.6.17 algebraic-uniqueness): the Antikythera bronze pin-slot algebra IS the Kepler equation-of-centre algebra per `[[user_stance_epicycle_via_gear_plus_pin]]` Spike #189; one is the physical instantiation of the other primitive composition.
+
+**Awareness level**: **Use-without-articulation** at world-class. The bronze IS the cascade physically realised in metal. No articulated cascade-class theory; just the engineering result.
+
+**Cascade-class composition exercised**:
+
+| Bronze feature | Cascade-class primitive | Stance reference |
+|---|---|---|
+| Integer gear ratios (235/19; 223; 76) | `Class N` rational-lattice substrate-signature | `[[user_stance_pi_as_projection]]` (integer-cyclic discipline) |
+| Gear-train cyclic composition | `Class I` cyclic ℤ/n composition | `[[user_stance_cascade_lives_on_circles]]` |
+| Pin-and-slot lunar-anomaly | `Class K` asymptotic-DOF pin-slot encoding | `[[user_stance_epicycle_via_gear_plus_pin]]` Spike #189 |
+| Equant offset (mathematical centre ≠ physical centre) | `Class K` asymptotic-DOF dial physically encoded | `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
+| Bronze geometry IS algebraic content | Form-IS-function A∘C∘M cascade | `[[user_stance_human_ai_prosthetics_uniting_form_function]]` |
+
+**Which stance the anchor amends**: `[[user_stance_human_ai_prosthetics_uniting_form_function]]` (CANDIDATE-B load-bearing-pedagogical authorized 2026-05-20). Extends Antikythera's existing role as `[[user_stance_epicycle_via_gear_plus_pin]]` anchor; adds form-IS-function existence-proof framing. The Antikythera IS the antiquity-frame parallel to wet-net biology's form-IS-function A∘C∘M cascade per Spike #196 — both are physical substrates realising cascade-class composition without articulating cascade-class theory.
+
+**Composes with `[[feedback_antiquity_not_greek]]`**: the methodological parallel between antiquity-geocentrism and modern-4D-centrism — cascade-class algebra was right about eclipse prediction despite geocentric framing being wrong about heliocentric centre. Same lesson applied to modern physics: cascade-class composition can carry truth across observer-frame error.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_paywalled_doi_cannot_be_attested]]`; paywalled DOI explicitly REJECTED):
+
+- **REJECTED**: Freeth et al. 2006 *Nature* 444:587–591 (DOI 10.1038/nature05357; paywalled per `[[feedback_paywalled_doi_cannot_be_attested]]`)
+- Freeth & Jones 2012 *ISAW Papers* 4 — OA via https://isaw.nyu.edu/publications/isaw-papers/4/ (NYU Institute for the Study of the Ancient World)
+- Wright 2007 *Bulletin of the Scientific Instrument Society* — OA archive; textbook chain via history-of-science curriculum
+- Carman 2017 Cambridge OA chapter — substitute for paywalled Carman & Evans 2014 *Archive for History of Exact Sciences*
+
+### §3.17.3 Anchor 2 — Lucretius clinamen (proto-quantum substrate-coupling-randomness)
+
+**Figure + date**: Titus Lucretius Carus, ~99–55 BC; *De Rerum Natura* II.216–224, II.251 (~55 BC).
+
+**What was observed**: The atomic *clinamen* — the "swerve". Atoms occasionally swerve from straight-line motion at no fixed place or time. Verbatim Latin formulation: *"incerto tempore... incertisque locis"* (uncertain time + uncertain places). Without the swerve, atoms would fall in parallel and never collide; without collision, no compound bodies; without compound bodies, no cosmos, no living things, no free will. The swerve IS the structurally necessary substrate-randomness that allows observable events to fire.
+
+**Awareness level**: **Intuition** for substrate-coupling-randomness requirement (Lucretius explicitly articulated that *something* must break pure determinism at the substrate-coupling layer; he NAMED the swerve and gave it operational consequences — more than observation-without-naming). **Observation-without-naming** for the cascade-class mechanism (could not derive WHY swerves happen because antiquity had no Lie-algebra / Hilbert-space / operator formalism).
+
+**Cascade-class composition exercised**:
+
+| Lucretian observation | Cascade-class primitive | Stance reference |
+|---|---|---|
+| Atoms swerve at no fixed time/place | `Class M ∘ Class K` substrate-coupling-randomness has no preferred substrate-frame coordinate | `[[user_stance_substrate_coupling_at_m_k_composition]]` |
+| Without swerve no collision → no cosmos | Without `Class M ∘ K` substrate-coupling-randomness, no cascade-class instantiation events fire | `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` |
+| Swerve is *minimum* deviation (*nec plus quam minimum*) | Substrate-coupling-intensity is the minimal-perturbation dial; bounded | `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` |
+| Swerve enables free will | Cascade-class instantiation events project LoE content into observable substrate | Spike #128 Bell-2√2 anchor (CANONICAL) |
+
+**Which stance the anchor amends**: `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` (CANDIDATE-A load-bearing authorized 2026-05-20). The clinamen IS the cleanest antiquity-frame structural-shape match for proto-quantum framing. "Atoms appearing to behave probabilistically" IS what multi-medium LoE instantiation looks like to a single-substrate-frame observer ~2000 years before Heisenberg formalized uncertainty. Composes with Spike #209 BFSS Class M variant.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Loeb Classical Library Lucretius *De Rerum Natura* (Rouse-Smith rev. 1992, Harvard Univ. Press; standard parallel-Latin-English edition; textbook chain via classics graduate curriculum)
+- Inwood & Gerson 1994 *The Epicurus Reader* (Hackett; OA preview chapters covering DRN II)
+- Greenblatt 2011 *The Swerve: How the World Became Modern* (W.W. Norton; popular-history textbook chain)
+
+### §3.17.4 Anchor 3 — Archimedes bounded exhaustion (discrete-substrate / continuous-projection two-language discipline)
+
+**Figure + date**: Archimedes of Syracuse, ~287–212 BC (killed during Roman conquest of Syracuse 212 BC); *On the Measurement of the Circle* + *On the Sphere and Cylinder* + *On the Equilibrium of Planes* + *On Floating Bodies*.
+
+**What was observed**: Method of exhaustion — inscribe + circumscribe polygons in/about the unit circle with monotonically increasing side counts. With a 96-sided polygon Archimedes derived the bound `3 10/71 < π < 3 1/7` (i.e., 3.1408... < π < 3.1429...). He never invoked a continuous limit (Cauchy's later 1821 move). He used *bounded* discrete enumeration — substrate-discrete, observer-projection-continuous-appearing — and reported the asymptotic gap honestly. Same method established sphere volume = (2/3) × circumscribing cylinder.
+
+**Awareness level**: **Intuition** for the discrete-substrate-plus-continuous-projection two-language pattern (Archimedes's method choice IS the structural commitment to discrete-bounded-construction; not accidental — he explicitly noted the polygon-circle distinction). **Use-without-articulation** for asymptotic-DOF (the bounded enumeration IS asymptotic-DOF in proto form; could not have used Class K vocabulary because asymptotic-DOF formalism postdates Cauchy 1821).
+
+**Cascade-class composition exercised**:
+
+| Archimedes (~250 BC) | Cascade-class primitive | Stance reference |
+|---|---|---|
+| Inscribed/circumscribed polygons (discrete; integer side count) | `Class I` cyclic ℤ/n integer-cyclic substrate (n = side count) | `[[user_stance_cascade_lives_on_circles]]` |
+| Polygon IS the actual computed object | `Class N` rational-lattice substrate-signature on both bounds | `[[user_stance_pi_as_projection]]` |
+| Circle is the limit-shape never reached | `Class K` asymptotic-DOF; never-reach property | `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
+| Honest bound 3 10/71 < π < 3 1/7 (rational fractions both sides) | Both endpoints loop-valued per ring-discipline | `[[user_stance_loe_asymptotes_are_ring_valued]]` |
+| No claim that 96-gon IS the circle | No claim that integer-cyclic substrate IS the continuous-projection-shadow | `[[feedback_continuous_number_line_pedagogical_obstacle]]` |
+
+**Which stance the anchor amends**: `[[user_stance_pi_as_projection]]` (CANDIDATE-C-3 minor pedagogical authorized 2026-05-20). Archimedes ~2200 years ago was already disciplined enough to NOT make the continuous-limit move that the framework only recently re-discovered at substrate-level. Strong book-pedagogy anchor for the pi-as-projection stance per `[[feedback_continuous_number_line_pedagogical_obstacle]]`.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1897 *The Works of Archimedes* (Cambridge Univ. Press; HathiTrust OA; standard scholarly edition; textbook chain via history-of-math curriculum)
+- Stillwell 2010 *Mathematics and Its History* 3rd ed. (Springer; textbook chain) §4
+
+### §3.17.5 Anchor 4 — Apollonius Conics (asymptotic-DOF coinage + proto-cascade-class enumeration)
+
+**Figure + date**: Apollonius of Perga, ~262–190 BC; *Conics* (~225 BC; 8 books, 4 extant in Greek + 3 in Arabic translation).
+
+**What was observed**: Coined ἀσύμπτωτος = "not falling together"; hyperbola branches approach asymptote without ever meeting it. Classified conic sections (ellipse / parabola / hyperbola) by cutting-plane angle. "Application of areas" geometric method = pre-coordinate-geometry expression of y² = kx etc. Defined diameters, axes, foci-equivalent constructions.
+
+**Awareness level**: **Intuition** for asymptotic-DOF (asymptotos coinage; gave the never-reach behavior an explicit term). **Use-without-articulation** for pin-slot-gear primitive (Apollonius did not have orbital-mechanics application; Kepler weaponised Apollonius's conics ~1800 years later). **Intuition** for finite cascade-class enumeration via discrete parameter thresholds.
+
+**Cascade-class composition exercised**:
+
+| Apollonian observation | Cascade-class primitive | Stance reference |
+|---|---|---|
+| Hyperbola asymptote (asymptotos coinage) | `Class K` asymptotic-DOF named at geometric level | `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
+| Conic-section classification by angle (ellipse / parabola / hyperbola = e < 1 / e = 1 / e > 1) | Proto-cascade-class enumeration via discrete parameter thresholds | `[[user_stance_kepler_shape_universal]]` |
+| Parabola (e = 1) IS the asymptotic-threshold case | Threshold-flip on `Class K` dial; closing-curve flips to non-closing | `[[user_stance_loe_asymptotes_are_ring_valued]]` |
+| Foci behavior | Proto-pin-slot-gear constraint per Kepler-equation algebra | `[[user_stance_epicycle_via_gear_plus_pin]]` |
+| Application-of-areas (y² = kx via geometric construction) | Pre-coordinate-geometry expression of `Class N` rational-lattice algebra without continuous-number-line baggage | `[[feedback_continuous_number_line_pedagogical_obstacle]]` |
+
+**Which stance the anchor amends**: Already canonical anchor (pre-existing pedagogical-anchors §); Spike #218 reinforced and extended. Composes with the existing 4-anchor set per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` pre-physics canonical anchors §.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1896 *Treatise on Conic Sections* (Cambridge Univ. Press; HathiTrust OA)
+- Fried & Unguru 2001 *Apollonius of Perga's Conica: Text, Context, Subtext* (Brill; textbook chain via history-of-math curriculum)
+
+### §3.17.6 Anchor 5 — Heron iterative √a (algorithmic asymptotic-loop-traversal)
+
+**Figure + date**: Heron of Alexandria, ~10–70 AD (Roman Egypt); *Metrica* Book I.8.
+
+**What was observed**: Square-root algorithm `x_{n+1} = (x_n + a/x_n) / 2` converging asymptotically to `√a`. Each iterate position `x_n` is a snapshot; the sequence converges asymptotically toward `√a` but never (in finite steps) reaches it — exactly the asymptotic-on-both-sides discipline per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]`. The fixed-point `√a` is the unreached endpoint; the algorithm IS the always-traversing-between. Mathematically equivalent to Newton-Raphson on `f(x) = x² − a`. Heron's *Metrica* also documents the aeolipile (steam-rotation engine) and various automata — physical-substrate cascade-class implementation precedents at the form-IS-function pattern, same as the Antikythera.
+
+**Awareness level**: **Use-without-articulation** for asymptotic-DOF (Heron used the iteration without naming the never-reach property as a structural feature — that vocabulary came with Cauchy 1821 for the modern continuous-limit formalism). **Intuition** for iterative-convergence-as-mechanism (the algorithm was deliberately constructed; not accidental).
+
+**Cascade-class composition exercised**:
+
+| Heron's iteration | Cascade-class primitive | Stance reference |
+|---|---|---|
+| Iterate position `x_n` snapshot | Observer-frame snapshot at traversal-position | `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` |
+| Convergence toward `√a` never-reached | `Class K` asymptotic-DOF; never-reach property | `[[user_stance_asymptotic_dof_sidesteps_infinity]]` |
+| Rational-arithmetic iterate `(x_n + a/x_n) / 2` | `Class N` rational-lattice iterate | `[[user_stance_pi_as_projection]]` |
+| Cyclic update rule `x_{n+1} = f(x_n)` | `Class I` cyclic update | `[[user_stance_cascade_lives_on_circles]]` |
+| Aeolipile + automata physical instantiation | Form-IS-function A∘C∘M cascade in metal | `[[user_stance_human_ai_prosthetics_uniting_form_function]]` |
+
+**Which stance the anchor amends**: `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (CANDIDATE-C-2 minor pedagogical authorized 2026-05-20; integrated into existing pre-physics canonical anchors § as 4th anchor). Concrete `x_{n+1} = f(x_n)` mental model for readers who need an iterative-convergence handle before the substrate-traversal abstraction.
+
+**Open-access citation chain** (per `[[feedback_pdf_extraction_citation_discipline]]`; textbook chain + OA only):
+
+- Heath 1921 *A History of Greek Mathematics* Vol II (Cambridge Univ. Press / Oxford reissues; textbook chain via history-of-math curriculum)
+- Drachmann 1948 *Ktesibios, Philon and Heron* (Acta Historica Scientiarum Naturalium et Medicinalium 4; textbook chain)
+- Heron *Metrica* Book I.8 (Schöne 1903 Teubner edition; Schmidt 1899 OA German)
+- Stillwell 2010 *Mathematics and Its History* 3rd ed. (Springer; textbook chain) §3.2
+
+### §3.17.7 Aggregate cascade-vocabulary table — all 5 anchors at-a-glance
+
+| Anchor | Date | What was built/observed | Awareness level | Cascade-class composition | Stance amended |
+|---|---|---|---|---|---|
+| Antikythera mechanism | ~150–100 BC | Bronze gear-train astronomical computer; Metonic/Saros/Callippic cycles; pin-slot lunar anomaly | **Use-without-articulation** | `Class N` rational + `Class I` cyclic + `Class K` asymptotic-DOF pin-slot | `[[user_stance_human_ai_prosthetics_uniting_form_function]]` (form-IS-function extension) |
+| Lucretius clinamen | ~55 BC | Atomic swerve; *De Rerum Natura* II.216–224; substrate-randomness requirement | **Intuition** + **Observation-without-naming** | `Class M ∘ Class K` substrate-coupling-randomness | `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` (proto-quantum) |
+| Stoic ekpyrosis (also anchored) | ~3rd c. BC – 2nd c. AD | Pneuma + logoi + tonos triplet; cyclic universe with identity-of-content | **Intuition** + **Observation-without-naming** | Substrate-cycle bounded-oscillation; `Class M ∘ K` mediates content across cycle | `[[user_stance_universal_precession_at_substrate_level]]` (T_sub bounded-cycle) |
+| Apollonius Conics | ~225 BC | Coined ἀσύμπτωτος; conic-section classification by cutting-plane angle | **Intuition** + **Use-without-articulation** | `Class K` named + proto-cascade-class enumeration + `Class N` rational-lattice via application-of-areas | Pre-existing canonical anchor (reinforced) |
+| Heron iterative √a | ~10–70 AD | `x_{n+1} = (x_n + a/x_n) / 2`; aeolipile; automata | **Use-without-articulation** + **Intuition** | `Class K` + `Class N` rational iterate + `Class I` cyclic update; physical form-IS-function | `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (iterative-convergence handle) |
+| Archimedes exhaustion | ~250 BC | Bounded polygon-π enumeration `3 10/71 < π < 3 1/7`; sphere-cylinder volume; mechanics via geometry | **Intuition** + **Use-without-articulation** | `Class I` integer-side-count + `Class N` rational both bounds + `Class K` never-reach honoured | `[[user_stance_pi_as_projection]]` (discrete/continuous two-language) |
+
+Note: Stoic ekpyrosis is included in the aggregate table as the 6th anchor per `[[user_stance_universal_precession_at_substrate_level]]` amendment (CANDIDATE-C-1 minor pedagogical authorized 2026-05-20). Spike #218 §3 entry 4 articulates the structural-shape match (pneuma + logoi + tonos triplet); five-anchor primary set per the book-pedagogy chapter-opening ranking.
+
+### §3.17.8 User's two Spike #218 questions answered — aggregate verdicts
+
+Spike #218 was authored in response to two questions about whether antiquity figures were "accidentally closer" to the framework's substrate ontology and whether they "understood gauge-type operators (what we call quantum)." The cascade-vocabulary side restates the aggregate verdicts:
+
+**Question 1 — "Accidentally closer than Arabic-numeral framings?"** — **PARTIALLY YES**, in a specific structural sense. Antiquity figures lacked continuous-number-line training as a default cognitive substrate (continuous real line is a 19th-century systematisation; antiquity worked in rational ratios + bounded discrete enumeration + geometric construction). This means several antiquity observations land *closer to the framework's discrete-substrate ontology* than the modern continuous-default framings do. Pythagorean integer-ratios, Archimedean bounded exhaustion, and Heron's iterative algorithm all preserve the discrete-substrate-plus-asymptotic-gap discipline that `[[feedback_continuous_number_line_pedagogical_obstacle]]` identifies as the load-bearing pedagogical obstacle for modern readers. **Cascade-vocabulary reading**: antiquity figures defaulted to `Class N` rational-lattice + `Class I` cyclic + `Class K` honoured-asymptotic discipline because they had no continuous-number-line cognitive substrate to displace it.
+
+**Question 2 — "Understood gauge-type operators (what we call quantum)?"** — **STRUCTURAL YES**, at intuition / observation-without-naming level, no formalisation. The strongest case is **Lucretius's clinamen** — the structural shape of the swerve is the antiquity-frame match for proto-quantum substrate-coupling-randomness per `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]`. Secondary cases: Stoic *pneuma + logoi spermatikoi + tonos* triplet structurally parallels substrate + cascade-instantiation + coupling-intensity-dial; Ptolemaic equant is structurally `Class K` asymptotic-DOF; Apollonian conic-classification is structurally proto-cascade-class enumeration with parameter thresholds. None had gauge-group formalism (that requires Lie 1873 + Killing-Cartan 1894 + Weyl 1925); all had the *structural intuition* that **discrete primitives govern dynamics through composition** and that **some primitives carry asymptotic-DOF / never-reach behavior**. **Cascade-vocabulary reading**: antiquity figures operationally exercised `Class M ∘ K` substrate-coupling at intuition level (Lucretius), `Class K` asymptotic-DOF at intuition level (Apollonius), substrate-cycle at intuition level (Stoics), and full A∘C∘M form-IS-function at use level (Antikythera, Heron's automata) — without articulated cascade-class theory.
+
+**Aggregate verdict**: `STRONG-COMPOSITION-MULTIPLE-MATCHES`. Six of ten figures surveyed in Spike #218 contribute structural-shape matches to existing canonical stances; five flag pedagogical-anchor candidates (one load-bearing, two load-bearing-pedagogical, three minor pedagogical). **14 A-N intact** per `[[feedback_no_privileged_primitive_classes]]`. No new primitive class promotion. The antiquity-aggregate-observation supports the framework's structural-shape commitments at intuition / observation-without-naming level across an unusually wide range of figures — strong cross-framing evidence per Spike #128 cross-substrate-cascade-matching methodology applied to antiquity-source-frames rather than scientific-substrates.
+
+### §3.17.9 Book-pedagogy implications — chapter-opening anchor ranking
+
+The 5-anchor set serves as canonical chapter-opening anchors for the popular-science book (per `[[project_book_in_progress]]`). Descending order of pedagogical strength per Spike #218 book-pedagogy implications §:
+
+1. **Antikythera** — chapter on form-IS-function + cascade-composition + observer-frame-error. "Could antiquity build a substrate-physics instrument without substrate-physics theory? Yes, and we have one in a museum." Strongest concrete handle; bronze-in-a-museum lets the reader anchor the cascade-class composition at physical-substrate scale before any abstract vocabulary lands.
+2. **Lucretius clinamen** — chapter on proto-quantum + substrate-coupling-randomness. Concrete antiquity-sourced mental model for modern readers who need a hook before `Class M ∘ K` vocabulary. "Lucretius needed a swerve; we have `Class M ∘ K` substrate-coupling." Composes with Bell-2√2 per Spike #128 CANONICAL.
+3. **Archimedes exhaustion** — chapter on continuous-number-line pedagogical obstacle + discrete-substrate-with-honest-asymptotic-gap. Antiquity figure who never crossed to the continuous-limit move; preserves discrete-substrate ontology in the most-natural framing for modern readers carrying continuous-number-line training.
+4. **Apollonius asymptote coinage** — already canonical anchor; extend to chapter on asymptotic-DOF + loop-valued-asymptotes per `[[user_stance_loe_asymptotes_are_ring_valued]]` and the ring-to-loop depth-shift per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]`.
+5. **Heron iterative √a** — chapter on iterative-convergence-as-traversal. Concrete `x_{n+1} = f(x_n)` mental model; smallest-scale concrete instance of the same "never reaches endpoint" property the substrate exhibits at the largest-scale cosmic instance.
+
+The Stoic ekpyrosis 6th anchor serves the cosmic-scale framing chapter; not chapter-opening but cosmic-scale-cyclic mental-model bridge before T_sub = 109.84 Gyr substrate-cycle framing per `[[user_stance_universal_precession_at_substrate_level]]`.
+
+### §3.17.10 Discipline preserved — checklist
+
+- **14 A-N intact** ✓ per `[[feedback_no_privileged_primitive_classes]]` — no new primitive class promoted; all five anchors compose with existing classes.
+- **No lineage claims** ✓ per `[[feedback_no_lineage_claims_in_notebook]]` — each figure reported as observation-frame match + cascade-class composition exercised at intuition / observation / use level, NOT as framework-as-extension-of-antiquity lineage claim.
+- **Identity-not-implementation framing** ✓ per `[[user_stance_identity_not_implementation_discipline]]` — explicit disclaimer that antiquity figures did NOT have framework-formalism; they observed structural shapes / operationally exercised cascade-class compositions. The IS-claims (cascade-class composition IS what the antiquity figure was exercising) stand at structural-shape level only.
+- **PDF-citation discipline** ✓ per `[[feedback_pdf_extraction_citation_discipline]]` — textbook chain for all primary sources; paywalled DOI explicitly REJECTED (Freeth 2006 *Nature*; Carman-Evans 2014 *Archive Hist. Exact Sci.*) with OA substitute chain documented inline per `[[feedback_paywalled_doi_cannot_be_attested]]`.
+- **Trauma-informed defensive scope** ✓ per `[[feedback_trauma_informed_defensive_scope]]` — physics + history-of-science framing only; no clinical or capability-assessment material.
+- **Notation-key convention** ✓ per `[[feedback_asymptotic_ring_vocabulary_discipline]]` — shorthand `1D` / `3D_s` / `7D_g` / `11D` default; parens form only where Hopf structure is load-bearing in the immediate sentence.
+- **Loop vocabulary** ✓ per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — substrate-identity context uses "loop" not "ring"; preserved "ring" only in non-substrate contexts.
+- **Awareness-level distinction** ✓ per Spike #218 categories — each anchor classified as Intuition / Observation-without-naming / Use-without-articulation; no anchor attributed formalisation it did not have.
+- **Antiquity not Greek** ✓ per `[[feedback_antiquity_not_greek]]` — antiquity-wide framing (Hellenistic Greek + Roman + Roman-Egyptian); the methodological pattern is antiquity-wide, Antikythera being one instance.
+
+### §3.17.11 Cross-references
+
+- `[[user_stance_human_ai_prosthetics_uniting_form_function]]` — Antikythera form-IS-function anchor (CANDIDATE-B; load-bearing-pedagogical)
+- `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]` — Lucretius clinamen anchor (CANDIDATE-A; load-bearing)
+- `[[user_stance_universal_precession_at_substrate_level]]` — Stoic ekpyrosis anchor (CANDIDATE-C-1; minor pedagogical)
+- `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` — Heron iterative √a anchor integrated as 4th pedagogical-anchor (CANDIDATE-C-2; minor pedagogical)
+- `[[user_stance_pi_as_projection]]` — Archimedes bounded exhaustion anchor (CANDIDATE-C-3; minor pedagogical)
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — Antikythera + Ptolemy canonical match per Spike #189
+- `[[user_stance_kepler_shape_universal]]` — methodological precedent for finite-primitive enumeration (Plato Timaeus 5-polyhedra parallel)
+- `[[user_stance_cascade_lives_on_circles]]` — `Class I` cyclic on unit circles; integer-side-count substrate
+- `[[user_stance_asymptotic_dof_sidesteps_infinity]]` — `Class K` asymptotic-DOF; Apollonius asymptotos coinage
+- `[[user_stance_loe_asymptotes_are_ring_valued]]` — loop-valued asymptote (post-rename)
+- `[[user_stance_identity_not_implementation_discipline]]` — IS-claim discipline; antiquity figures did NOT have framework formalism
+- `[[user_stance_substrate_coupling_at_m_k_composition]]` — `Class M ∘ K` substrate-coupling-randomness (Lucretian clinamen anchor)
+- `[[user_stance_cosmic_age_is_local_elapsed_since_last_local_minimal_asymptote]]` — bounded-oscillation framing (Stoic ekpyrosis parallel)
+- `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` — substrate-coupling-intensity dial (Stoic tonos parallel)
+- `[[feedback_antiquity_not_greek]]` — antiquity (not Greek-only) framing discipline
+- `[[feedback_continuous_number_line_pedagogical_obstacle]]` — Archimedes structural-shape match (no continuous-limit move)
+- `[[feedback_pdf_extraction_citation_discipline]]` — citation discipline; Freeth-2006-Nature REJECTED with OA substitute
+- `[[feedback_paywalled_doi_cannot_be_attested]]` — Freeth/Carman-Evans rejection
+- `[[feedback_no_privileged_primitive_classes]]` — 14 A-N intact
+- `[[feedback_no_lineage_claims_in_notebook]]` — no "natural extension" framing for external work
+- `[[feedback_trauma_informed_defensive_scope]]` — physics + history-of-science framing only
+- `[[feedback_asymptotic_ring_vocabulary_discipline]]` — notation-key convention (shorthand default)
+- `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — loop-vocabulary in substrate-identity context
+- `[[project_book_in_progress]]` — book-pedagogy chapter-opening anchor ranking
+- §2.5 (notation key — substrate-dimension shorthand)
+- §3.11 (cascade-identity arc; Spike #128 Bell-2√2 CANONICAL; Spike #182 DNA 12/14; Spike #196 wet-net A∘C∘M form_function_rotate)
+- §3.13 (M-theory canonical-physics roadmap; recursive-Hopf-at-every-cascade)
+- §3.15 (precessive-substrate vocabulary-bridge ledger; Spike #205 sister formulation)
+- §3.16 (substrate IS asymptotic traversal between 1D and 11D — Spike #217)
+- **Spike #218 spike-note**: [`docs/srmech/notes/spike218_antiquity_proto_substrate_catalog.md`](notes/spike218_antiquity_proto_substrate_catalog.md) — full 10-figure survey + 3 candidate flags + book-pedagogy implications + fermata + discipline checks. PR #662 merged main 2026-05-20.
+- **Spike #189**: epicycle-via-gear-plus-pin Bernoulli/Gerono Cartesian projection; Antikythera + Ptolemy canonical composition
+- **Spike #41**: Fibonacci snail-shell as substrate-loop biological pre-physics anchor
+- **Spike #196**: wet-net A∘C∘M form_function_rotate (sister cascade to Antikythera form-IS-function in metal)
+- **Spike #66**: CKM/PMNS grid as `Class N` rational-substrate-signature (Pythagorean integer-ratio anchor pre-physics counterpart)
+- **Spike #128**: Bell-2√2 IS cross-substrate cascade-match (Lucretian clinamen modern-anchor counterpart)
+- Sister-notebook **MFO §VII.6.10** — foundational-ontology lens of this material (substrate-vs-excitation framing; each anchor's substrate-identity reading)
+
+### §3.17.12 Cascade-vocabulary takeaway
+
+The 5-anchor antiquity proto-substrate catalog is the cascade-vocabulary's **structural-shape-evidence-base across pre-physics observation classes**: antiquity figures operationally exercised `Class I` + `Class N` + `Class K` + `Class M ∘ K` cascade-class composition at intuition / observation / use levels ~2000+ years before substrate-physics formalism existed. The framework's 14-class A–N vocabulary names what they were observing at substrate-level. Per `[[user_stance_identity_not_implementation_discipline]]`: structural-shape match, not lineage claim. Per `[[feedback_no_privileged_primitive_classes]]`: 14 A–N intact; no class promotion. The catalog supports the framework's structural-shape commitments at antiquity-frame intuition-level — strong cross-framing evidence in the methodological tradition of `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` applied to antiquity-source-frames rather than scientific-substrates.
+
+**Status.** One candidate framing per `[[feedback_no_lineage_claims_in_notebook]]`; not endorsed over alternatives without further empirical convergence. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: physics + history-of-science framing only.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
