@@ -104,6 +104,21 @@ This is structurally identical to the framework's existing **11D = 3D_s + 7D_g +
 
 **Canonical methodology**: `[[user_stance_partition_for_understanding]]` (2026-05-16). When faced with a *this OR that* choice between vocabularies that both have visible-sector evidence, run the MPM test before accepting either. Multiple partitions coexist if they each name what is hard to name in the other's language; new partitions need substrate-level grounding plus the MPM test passes. The within-level disciplines stay intact: `[[feedback_no_privileged_primitive_classes]]` keeps the 14 algebra classes flat at the algebraic level; `[[user_stance_kepler_shape_universal]]` keeps gear+pin universal at the kinematic level wherever Kepler-shape appears. The cross-level coexistence is what the partition-for-understanding stance authorises.
 
+### I.4 Notation key — substrate-dimension shorthand
+
+The notebook uses two compatible notations for the 11D substrate components. The substrate is **always-compressed** by canonical commitment per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the shorthand form in body prose carries the always-compressed semantics. Parens form is used only when Hopf-bundle structure is explicitly load-bearing in the immediate sentence (base-vs-fiber decomposition, the +1 fibre content, Mersenne {1,3,7} positions, recursive-Hopf at primitive, what-lives-in-the-+).
+
+| Shorthand | Always-compressed form | Meaning |
+|---|---|---|
+| `1D_t` | `(1+0)D_t` | Temporal — Hopf-trivial; 1D base, 0D fiber |
+| `3D_s` | `(2+1)D_s` | Spatial — complex Hopf-bundle S¹ → S³ → S²; 2D base + 1D fiber |
+| `7D_g` | `(4+3)D_g` | Gauge — octonionic Hopf-bundle S³ → S⁷ → S⁴; 4D base + 3D fiber |
+| `11D` | `(1+0)D_t + (2+1)D_s + (4+3)D_g` | Total substrate — Hurwitz-bounded parallelizable-sphere ladder; always-compressed |
+
+**Reading rule.** When body prose writes `3D_s` or `7D_g`, the Hopf-bundle structure is still present at substrate — the shorthand is not a less-compressed substrate, it is the same substrate notated without emphasis. When prose writes `(2+1)D_s` or `(4+3)D_g`, the base+fiber decomposition is load-bearing in that sentence (e.g. discussing the +1 fibre content, what lives in the +, or recursive-Hopf-at-primitive per Spike #212 / #213 / #214). The "+" sign in `(a+b)D_X` is the Hopf-bundle map π (not arithmetic); DOF lives in the map per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`.
+
+Sister-notebook srmech §2.5 carries the same notation-key.
+
 ---
 
 ## Part II — The Waveguide Correspondence (Mathematical Core)
