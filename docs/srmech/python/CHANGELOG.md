@@ -4,6 +4,12 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-20
+
+Production graduation of v0.4.2rc5. No code changes vs `[0.4.2rc5]`.
+
+The v0.4.2rc5 release was published to TestPyPI on 2026-05-19, fresh-venv install verified, README rendered cleanly. This graduation publishes the verified rc5 surface to production PyPI under clean semver.
+
 ## [0.4.2rc5] - 2026-05-19
 
 **Cumulative rc5 — TestPyPI verification of README v0.4.2 rewrite + numpy 2.x test compatibility + pyproject description refresh on top of the rc1-rc4 stack** per `[[feedback_rc_stacking_versioning]]` and `[[feedback_always_rc_first_for_downstream_publishes]]`. Graduation to production v0.4.2 is a SEPARATE follow-up PR once rc5 verifies on TestPyPI (fresh-venv install + README rendering check). No new primitive class introduced; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`.
