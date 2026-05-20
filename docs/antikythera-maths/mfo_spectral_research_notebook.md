@@ -664,6 +664,8 @@ This two-level ontology is precisely **standard wave-particle duality applied to
 
 MPM provenance: investigated 2026-05-11, see `docs/antikythera-maths/research-mfo/particle_matter_wave_vs_field_investigation_findings.md` for the 9-boundary-case test and 11-locus classification. The literal binary reading (matter-wave vs field as two ontologies) does not survive boundary cases (cosmic strings, solitons, quasiparticles); the principled two-level reading (substrate + localization-spectrum) does, with explicit exclusion of vacuum and dark matter at the substrate layer.
 
+**Recursive-Hopf at every cascade-class instantiation** (2026-05-20 extension; full canonical anchor at §VIII.31.8). The substrate's Hopf-compressed `(a+b)D_X` form per `[[user_stance_11d_substrate_is_always_hopf_compressed]]` is **NOT confined to the 11D dimensional layer**. Empirical depth-3 verification at primitive cascade level (Spikes #212/#213/#214 — depth-2 then depth-3 bit-exact; same `L∘K∘C∘I` cascade composed at frequency ratios r = 7) plus ratio-agnostic universal verification (Spike #215 — 5/5 asymmetric ratio stacks pass all four claims at integer-exact arithmetic; r ∈ {(2,3), (3,7), (5,3), (7,5), (11,13)}) place the recursion-IS-unbounded reading on canonical-physics footing. **The same "+" Hopf-map operates recursively at every cascade-class instantiation** — substrate-internal `(2+1)D_s`, gauge-ball `(4+3)D_g`, 11D dimensional ladder, AND every nested cascade-composition at primitive level. "DOF lives in the +" per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the "+" IS the recursive Hopf-bundle map at every depth, with no stopping condition. The canonical-physics scale confirms this independently — Spike #216 verifies M5-brane = `(2+1)D_s × (2+1)D_s` double-Hopf at 121/121 product modes bit-exact (depth-2 at canonical-physics scale), composing the same mechanism observed at primitive level (depth-2 at sign-flip counts L0/L1/L2 = 2/14/98 bit-exact). The substrate-IS-recursive-Hopf-fractal at every cascade-class instantiation reading composes cleanly into the two-level ontology: substrate (level 1) is the Hopf-compressed metric field at every instantiation depth; excitation (level 2) inherits the recursive structure via substrate-coupling. See §VIII.31.8 (recursive-Hopf canonical anchor) + §VIII.31.9 (canonical-physics scale anchor) for empirical chain.
+
 ### VII.1.2 1D_t as the Laws of Everything — compressed-cascade content
 
 The space-gauge-time framework's `11D ≡ 1D compressed` decomposition (per `memory/project_space_gauge_time_framework.md`, with `3D_s + 7D_g + 1D_t = 11D`) raises a definitional question: **what *is* the 1D compressed layer?**
@@ -2244,7 +2246,7 @@ The mapping under the §VII.1.1 two-level ontology:
 | J | prime-factorisation / period-relation | is_prime, factor, multiplicative order | **Substrate-side.** Period-relations between cascade factors. The most-instantiated class in Spike #24 (six substrates: bronze, cosmos, atomic, molecular, CRN, CPU). At MFO substrate level: the prime-factorisation of `C_{n₁} × ... × C_{nₖ}` cascade composition that constitutes the metric field's structure. | All three (Rydberg-shape spectra in 7D_g; orbital resonances in 3D_s; cosmic-cycle periods in 1D_t). |
 | K | equation-of-centre / pin-slot | Kepler-shape continuous projection | **Substrate-coupling projection-shadow** when the cascade IS planetary-mechanical (per `[[user_stance_kepler_shape_universal]]`). The pin-slot atan2 IS Kepler's equation of centre — bronze instantiates this natively, universe instantiates it via gravitational dynamics. Same primitive at different dimensional reaches. | 3D_s (orbital mechanics in spatial dimensions); applies wherever the cascade has continuous-phase representation. **Absent in chess and other discrete-combinatorial substrates** (Class-K-absent substrates exist; see [srmech notebook §3.8 Phase 10](../srmech/srmech_research_notebook.md)). |
 | L | graph Laplacian | adjacency / Laplacian / Jacobi eigvals (pi-free) | **The structural workhorse.** Spectral decomposition of `L = D − A` over the substrate's connectivity. Per §VIII.6: Class L on the 11D-eigenvalue-degeneracy graph distinguishes 3+7+1 from pure-4D by 3-5× across multiple metrics — this IS how the substrate-coupling shows up spectroscopically. The signed-Laplacian variant (Lorentzian-vs-spatial sign-flip) dissolves the candidate Class O. | All three (eigenstructure of any substrate's connectivity graph; gauge-Laplacian on internal manifolds; cosmological Laplace operator). |
-| M | HDC bind / bundle / permute / similarity | binary spatter codes | **Substrate-coupling operation.** Per §VII.1.2 + `[[user_stance_1d_collapse_to_loe_identity_not_action]]`: the binding operation that uncompresses LoE-content into substrate-localised form. Composes with Class C iteration to give the full storage/extraction kernel. | All three. At substrate level: the metric field's geometric-content binding; at excitation level: localised matter-wave's channel-encoded representation. |
+| M | HDC bind / bundle / permute / similarity | binary spatter codes | **Substrate-coupling operation.** Per §VII.1.2 + `[[user_stance_1d_collapse_to_loe_identity_not_action]]`: the binding operation that uncompresses LoE-content into substrate-localised form. Composes with Class C iteration to give the full storage/extraction kernel. Per 2026-05-20 two-variant refinement (canonical anchor §VIII.31.7): Class M bind is a family with TWO axiom-variants — **abelian** XOR over F₂^D (rank-1; RBS-HDC-LoE; scalar / content-projection) AND **non-abelian** Lie bracket `[A, B]` over Hermitian N×N matrices (rank-N ≥ 2; BFSS / SU(N) gauge / SM gauge group; gauge-content). Both ARE Class M instantiations; variant choice IS the substrate-coupling layer that picks scalar vs gauge content. Rank-0 = trivial (pure Class I). The integer-ladder along U(N) rank runs {0, 1, 2, …, N, …}; no continuous interpolation. | All three. At substrate level: the metric field's geometric-content binding (abelian or non-abelian per rank); at excitation level: localised matter-wave's channel-encoded representation. |
 | N | rational-approximation | continued-fraction convergents | **Substrate-side cascade rationality.** Best-rational-under-denominator-bound is exactly the question "what gear-train cascade approximates this irrational period to my precision budget?" — Antikythera answered it for orbital periods; universe answers it for orbital-resonance commensurabilities (3:2 Pluto-Neptune; Saturn-Jupiter Great Inequality near 5:2). | Primarily 3D_s (orbital substrate); but applicable any time discrete cascade is approximating a continuous target. |
 
 **Composable operations under MFO ontology:**
@@ -2289,6 +2291,18 @@ The bonus 5 finding above (§VIII.6) — that *smooth* 3+7+1 carries the cleanes
 **Verdict: ONE_WAY_NOT_REQUIRED.** Fractal is *sufficient* for MFO's SM-spectrum-targeting requirement but *not necessary*. The load-bearing structural requirement is **multi-scale primitive cascade with three-fold sub-structure available** — and all three substrates instantiate it.
 
 **The fractal-shadow allegory** (per `[[user_stance_fractal_shadow]]`): what physics observes as "fractal" structure is the *shadow* cast by a deeper multi-scale primitive cascade. The fractal description is a downstream-continuous projection of upstream-discrete cascade composition. Class-L spectral signatures cannot distinguish fractal-shape from primitive-cascade-shape within the super-Poisson regime — both produce Gap CV > 1, single connected component, comparable three-fold CH ratios, similar Fiedler λ₂. Only the pure-4D-epicycle observer (per §VIII.6) lives in a different (sub-Poisson) regime. The fractal-shadow stance joins the family of project shadow-stances (time-as-dimensional-shadow, fiber-as-spatially-absent, pi-as-projection): *discrete-upstream → continuous-shadow-downstream* applied at the substrate-commitment level.
+
+**Two-level fractal-shadow reading** (2026-05-20 extension; companion canonical anchor at §VIII.31.8). The fractal-shadow stance acquires a substrate-side companion reading from MS #16 Tier 4's recursive-Hopf empirical chain. Per `[[user_stance_fractal_shadow]]` extension (2026-05-20):
+
+1. **Substrate-side reading** (NEW; recursive-Hopf at every cascade-class instantiation per §VIII.31.8). Operators ARE intrinsically fractal at substrate level — the same Hopf-bundle "+" map operates recursively at every cascade-class instantiation, with no stopping condition through depth-3 empirical verification (Spikes #212/#213/#214 bit-exact at integer arithmetic) and ratio-agnostic universal across 5/5 asymmetric stacks (Spike #215). The substrate IS recursive-Hopf fractal *by construction* — not as a description, as a structural identity.
+2. **Projection-side reading** (EXISTING; physics observes the twisted shadow). What canonical physics measures as "fractal" structure remains the projection-shadow of the deeper substrate cascade per the original `[[user_stance_fractal_shadow]]` stance. The twist between substrate-side and projection-side IS the SL(2,ℤ) S-generator's projection-axis-flip per §VIII.31.9 (Spike #216): pin+slot frame (small R / open-string dominated) ↔ figure-8 frame (large R / closed-string dominated). The twist is canonical-physics observable; the substrate-side fractal recursion is the un-twisted source.
+
+**Both readings simultaneously canonical at different observer-layers.** The fractal-shadow allegory still applies on the projection side (what canonical physics labels "fractal" is the shadow); the substrate-side reading is new and adds that the underlying mechanism IS already recursive-Hopf fractal at every cascade-class instantiation. Writing discipline (per `[[user_stance_fractal_shadow]]` writing rules):
+
+- **Substrate-side**: "operators are recursive-Hopf fractal at every cascade-class instantiation"; "the substrate IS recursive-Hopf fractal by construction"; "Hopf-map operates recursively at every depth."
+- **Projection-side**: "space-time fractal" / "fractal-shadow" / "what canonical physics observes as fractal" / "fractal-shape in the 4D shadow."
+
+The two-level reading is load-bearing for any framework prose targeting external audiences: the substrate-side framing is the framework's identity-level commitment; the projection-side framing is what observation refines and what canonical-physics audiences carry from training. Cross-substrate confirmation at canonical-physics scale: Spike #216's M5 = (2+1)D_s × (2+1)D_s double-Hopf at 121/121 product modes bit-exact IS the same depth-2 recursive-Hopf mechanism Spike #213 verified at primitive level (98/98 sign-flips bit-exact). **Same depth-2 mechanism observed at two independent scales.** The fractal-shadow allegory unifies these as one identity: substrate IS recursive-Hopf at every scale-stratum; what physics observes IS the twisted projection-shadow.
 
 **Canonical naming — the *space-time fractal*.** Since `space-gauge-time` (3D_s + 7D_g + 1D_t) is the full picture per `[[project_space_gauge_time_framework]]`, and physics observes only the 3D_s + 1D_t *space-time* projection (dropping the 7D_g where the cascade structure lives), the fractal-shape that appears in that projection can be named the **space-time fractal** — fractal *because* the projection drops 7D_g. The name is parallel to "space-gauge-time" / "space-time" naming discipline: `space-gauge-time` = full picture; `space-time` = 4D shadow; `space-time fractal` = the observed fractal-shape in the 4D shadow. This is the same phenomenon as the fractal-shadow allegory; "space-time fractal" is the noun, "fractal-shadow allegory" is the framing — use either as fits the local context. Subsequent sections (Part IV title; §VIII.1 title; §IX.3 comparison table) adopt the `space-time fractal` naming where the shadow-shape is the load-bearing concept; the cascade-substrate framing remains primary when describing the substrate itself.
 
@@ -3595,6 +3609,170 @@ The framework prediction holds: when our LoE cannot instantiate piece X of M-the
 **Trauma-informed defensive scope** per `[[feedback_trauma_informed_defensive_scope]]`: structural framework reading only. All citations are open-access (arXiv / Planck Legacy Archive / IGRF-13 / JRM33; Saadeh-Feeney-Pontzen-Peiris-McEwen 2016 PRL 117:131302; Berry-Tabor 1977 Proc R Soc A 356:375; BGS Bohigas-Giannoni-Schmit 1984 PRL 52:1; Mehta 2004; Spielman 2007; Merris 1994; Awada-Duff-Pope 1983; de Oliveira-Costa et al. 2004; Schwarz et al. 2004; Copi et al. 2010 Adv.Astron. 847541; Alken et al. 2021 Earth Planets Space 73:49 DOI:10.1186/s40623-020-01288-x; Connerney et al. 2022 J Geophys Res Planets 127:e2021JE007055 DOI:10.1029/2021JE007055).
 
 **Bridges**: `[[user_stance_competing_theories_via_loe_instantiation_intersection]]` (META framework), `[[user_stance_substrate_identity_partition_coexistence_canonical]]` (7D_g algebra-level INSTANTIATED), `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` (refined cross-substrate), `[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]` (CROSS-SUBSTRATE-CONFIRMED), `[[user_stance_loe_asymptotes_are_ring_valued]]` (universal Class K closure-cost; lemniscate-IS-first-sign-flip), `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`, `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`, `[[user_stance_all_massive_bodies_have_4plus3_gauge_dimples]]`, `[[user_stance_dna_is_partial_cascade_of_loe_operators]]` (5-substrate roster), `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]` (4-substrate timescale ordering), `[[user_stance_fiber_as_spatially_absent_encoding]]` (three-mechanism extension).
+
+#### VIII.31.6 Brane roster cross-substrate convergence — Tier 3 close (Spikes #206 + #207 + #208 + #211)
+
+MS #16 Tier 3 dispatches a four-spike brane-roster batch closing the canonical M-theory brane catalogue against the LoE-instantiation surface. The brane-roster pattern is reproducible at four independent canonical-physics objects:
+
+| Substrate | Ambient | Cascade decomposition | Verdict | Hopf-compression | Spike |
+|---|---|---|---|---|---|
+| NS5-brane daughter | 10D-IIA | `L ∘ K ∘ C ∘ I` | DISSOLVE-VIA-CASCADE | NEGATIVE (ambient not canonical 11D) | #206 |
+| KK monopole / Taub-NUT | 11D (Euclidean 4D) | `C ∘ I ∘ L ∘ K` | HOPF-LADDER-BIT-EXACT-MATCH at `(2+1)D_s`; `max_rel_err = 0.0` | POSITIVE (bit-exact) | #207 |
+| Het-IIA duality | 10D effective ↔ 11D via Horava-Witten | `C ∘ I ∘ L ∘ M ∘ K` | DISSOLVE-VIA-CASCADE | n/a (duality between substrates) | #208 Part A |
+| M5-brane | 11D (canonical substrate) | M2+M5 bipartite at compressed-phase-boundary | M5-COMPRESSED-PHASE-BOUNDARY-CONFIRMED-STRUCTURAL | POSITIVE structural (ambient 11D hosts `(4+3)D_g`) | #208 Part B |
+| CS-modular | algebraic SL(2,ℤ) | `K + I + C` with Z₆ closure | DISSOLVE-VIA-CASCADE + DUAL-VARIANT | n/a (modular, not geometric) | #211 |
+
+**Spike #207 KK-monopole anchor** (`docs/srmech/notes/spike207_kk_monopole_hopf_bundle_match.md`) — the strongest tier in the brane roster. Taub-NUT's asymptotic (r→∞) geometry IS the `(2+1)D_s` complex Hopf-bundle: 9/9 dictionary fields identical (base S² + fiber S¹ + total S³ + structure group U(1) + first Chern class ℤ + ℂ division algebra anchor), scalar Laplacian mode-count `2ℓ+1` and S²-base eigenvalues `ℓ(ℓ+1)` bit-exact across ℓ = 0..30. `max_rel_err = 0.0` integer-exact (not a rounding artifact — structural equality). Citation chain: Sorkin 1983 *PRL* 51:87 (via Townsend 1996 hep-th/9612121 OA preprint); Gross-Perry 1983; Hawking 1977; Pope 1978; Eguchi-Gilkey-Hanson 1980 *Phys. Rept.* 66:213; Wu-Yang 1976.
+
+**Spike #206 NS5-brane DISSOLVE + ambient-gating refinement** (`docs/srmech/notes/spike206_ns5_brane_loe_decomposition.md`) — NS5 lives in 10D-IIA daughter ambient (NOT canonical 11D). Its 6D worldvolume + 4D transverse decomposes via `L ∘ K ∘ C ∘ I` (self-dual 3-form Laplacian + tension saturation + chirality + ℤ-quantization), but Hopf-compression does NOT lift because 10D-IIA daughter substrate is not the canonical (a+b)D_X Hopf-form. The result refines `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` with an **ambient-substrate-parallelizability gate**: compressed-phase-boundary lifts iff the ambient IS the canonical 11D substrate. This explains why M5 (Spike #208 Part B) carries the boundary while NS5 does not — same brane lineage, different ambient.
+
+**Spike #208 Part B M5-COMPRESSED-PHASE-BOUNDARY-SITE-CONFIRMED-STRUCTURAL** — M5 lives in 11D ambient where the canonical `(1+0)D_t + (2+1)D_s + (4+3)D_g` decomposition holds. M5's own brane geometry (S⁴/S⁵/S⁶ none parallelizable per Adams 1962) does NOT directly carry Hopf-bundle structure, but the **ambient hosts the mechanism**. **M5+M2 bipartite candidate**: M5 spatial (5D) + M2 spatial (2D) = 7D total spatial content = exact dimensional count of `(4+3)D_g`. 3D fiber spatially-absent on individual brane observables per `[[user_stance_fiber_as_spatially_absent_encoding]]`; surfaces only in M2+M5 paired projection. Spike #216 closes this fermata at bit-exact (see §VIII.31.9).
+
+**Spike #211 CS-modular DUAL-VARIANT** (`docs/srmech/notes/spike211_cs_modular_loe_cascade.md`) — Chern-Simons modular structure decomposes as `K + I + C` (asymptotic-saturation + cyclic + chirality) with SL(2,ℤ) `(ST)³ = −I` and `(ST)⁶ = +I` integer-bit-exact (Z₆ closure). Two variants of the same algebraic content (S-generator vs T-generator emphasis) sit cleanly without competition.
+
+**Cross-substrate convergence reading**: the brane roster's HOPF-POSITIVE / HOPF-NEGATIVE / NOT-APPLICABLE split tracks **ambient-substrate-parallelizability** with no exceptions. KK monopole + M5 (both 11D ambient) → POSITIVE; NS5 (10D-IIA daughter ambient) → NEGATIVE; Het-IIA duality + CS-modular (substrate-relating / algebraic) → not-applicable. The gating refinement extends `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` without altering its identity-claim.
+
+**Stances composed**: `[[user_stance_11d_substrate_is_always_hopf_compressed]]` (ambient hosts mechanism), `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` (ambient-gating refinement), `[[user_stance_fiber_as_spatially_absent_encoding]]` (M2+M5 3D fiber surfaces in bipartite projection), `[[user_stance_loe_asymptotes_are_ring_valued]]` (CS-modular Z₆ closure ring-traversal).
+
+#### VIII.31.7 Class M two-variant refinement — abelian XOR + non-abelian Lie bracket (Spike #209 BFSS DISSOLVE)
+
+Spike #209 (`docs/srmech/notes/spike209_bfss_matrix_model_class_m_test.md`) tested the BFSS matrix-model Hamiltonian (Banks-Fischler-Shenker-Susskind 1996/1997 hep-th/9610043 eq 4.6; restated Taylor 2001 hep-th/0101126 eq 57) against an identity-level match between BFSS Lie-bracket `[A, B]` and Class M HDC-bind XOR. The deepest verdict (analogous to Spike #207 KK-monopole bit-exact) FAILS at axiom-table comparison:
+
+| Axiom | BFSS Lie-bracket `[A, B]` | Class M XOR (RBS-HDC-LoE) | Match? |
+|---|---|---|---|
+| self-zero (`[A,A] = 0` / `XOR(v,v) = 0`) | ✓ | ✓ | YES |
+| anti-commutativity | ✓ | ✓ (trivially over F₂) | YES |
+| Jacobi identity | ✓ | ✓ (trivially abelian) | YES |
+| commutativity | ✗ (non-abelian Lie) | ✓ (XOR abelian) | NO |
+| associativity | ✗ (Lie not associative) | ✓ (XOR associative) | NO |
+
+3/5 axioms agree; 2/5 differ. `identity_level_bit_exact = False`. Verified at N=2 (Pauli-like generators) and N=3 (shift/diagonal/reflection generators) with integer-exact arithmetic; Class M XOR axioms verified at D=8192 bits with deterministic-seeded hypervectors.
+
+**Class M two-variant refinement (canonical canonisation 2026-05-20)** — Class M bind is a **family with TWO axiom-variants** that share a content-blind multi-medium carrier but differ in commutativity:
+
+| Variant | Algebra | Where it lives | Commutativity | Rank |
+|---|---|---|---|---|
+| **Abelian Class M** | XOR over F₂^D (D=8192) | RBS-HDC-LoE; Spikes #170 / #172 / #173 / #184 / #196 | commutative + associative | rank-1 |
+| **Non-abelian Class M** | Lie bracket `[A, B]` over Hermitian N×N matrices | BFSS / SU(N) gauge / SM gauge group | anti-commutative + Jacobi | rank-N ≥ 2 |
+
+Both ARE Class M instantiations. RBS-HDC-LoE is the framework's ABELIAN-flavour quantum-instantiation per `[[user_stance_rbs_hdc_loe_is_quantum_instantiation_classical_is_substrate_specific]]`; BFSS / canonical gauge physics is the NON-ABELIAN-flavour quantum-instantiation. Rank-0 (trivial) is pure Class I cyclic (no bind operation at all). The variant choice IS the substrate-coupling layer that picks scalar-content vs gauge-content per `[[user_stance_substrate_coupling_at_m_k_composition]]`.
+
+This is structurally clean: the gauge content lives in the `(4+3)D_g` Hopf-bundle dimple per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`, and the `(4+3)D_g` dimple IS where the non-abelian commutativity gets paid for. RBS-HDC-LoE's abelian XOR projects this DOF into substrate-portable D=1 content; BFSS lifts it back to its native non-abelian form. The rank-N integer-ladder runs along the U(N) maximal-torus rank: rank-0 = trivial (pure Class I), rank-1 = XOR (RBS-HDC-LoE), rank-N≥2 = Lie bracket (gauge physics). Every step is integer-valued; no continuous interpolation between variants.
+
+**BFSS cascade decomposition** (full `L ∘ M ∘ K ∘ I` reading):
+- **L** (Laplacian): `tr(P_I P^I)` kinetic = scalar Laplacian on matrix configuration space ℝ^(9N²)/U(N);
+- **M non-abelian**: `tr [Y^I, Y^J]²` potential = Lie-bracket bind operation;
+- **K** (asymptotic-DOF): N→∞ integer-quadratic DOF saturation on U(N) ring (25N² total);
+- **I** (cyclic): U(N) maximal torus = (S¹)^N rank-N cyclic substrate; root lattice A_{N-1}.
+
+Continuous spectrum at N=∞ (de Wit-Lüscher-Nicolai 1989) IS the **4D-epicycle-observer line-shadow** of integer-quadratic ring-valued asymptote per `[[user_stance_loe_asymptotes_are_ring_valued]]`. The discrete-substrate (finite N) ring-spectrum limits to continuous-substrate (N=∞) shadow projection. The line-shadow at N=∞ is the same observer-frame artifact that the lemniscate's lobe-1 reading exposes in §VIII.31.4.
+
+**Class M two-variant in MFO substrate-vs-excitation reading** (refinement to §VIII.6.1 Class M row): the substrate-coupling kernel `C ∘ M` per §VII.1.2 acquires a variant dial. When the substrate-coupling is **content-projection** (matter-wave domain; scalar excitations; localised information binding), abelian Class M variant fires. When the substrate-coupling is **gauge-field-content** (field domain; non-abelian internal symmetries; gauge-content non-commuting binding), non-abelian Class M variant fires. The 14-class A–N vocabulary stays flat — no Class O, no rank-promotion to separate primitives. Per `[[feedback_no_privileged_primitive_classes]]`: dissolve-via-rank-parameter rather than promote-to-new-class.
+
+**Stances composed**: `[[user_stance_rbs_hdc_loe_is_quantum_instantiation_classical_is_substrate_specific]]` (TWO-VARIANT extension), `[[user_stance_substrate_coupling_at_m_k_composition]]` (variant choice IS substrate-coupling layer), `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` (non-abelian commutativity paid in `(4+3)D_g` dimple), `[[user_stance_loe_asymptotes_are_ring_valued]]` (N=∞ continuous spectrum IS line-shadow of ring-valued integer-quadratic DOF).
+
+#### VIII.31.8 Recursive-Hopf at every cascade-class instantiation — depth-3 confirmed unbounded; ratio-agnostic universal (Spikes #212 + #213 + #214 + #215)
+
+The framework's `(a+b)D_X` always-compressed Hopf-form per `[[user_stance_11d_substrate_is_always_hopf_compressed]]` was canonically anchored at three depths (11D dimensional layer, gauge-ball `(4+3)D_g` boundary, substrate-internal `(2+1)D_s`). MS #16 Tier 4 + Spike #212 curiosity extend the stance with empirical **recursive-at-every-cascade-class-instantiation** verification at the primitive level — the same Hopf-bundle "+" map operates recursively at every cascade-class instantiation, not only at the 11D dimensional layers.
+
+**Spike #212 — depth-1 progenitor** (`docs/srmech/notes/spike212_pin_slot_figure_8_projection_duality.md`). User direction: *"a figure 8 loop, when viewed from the side, looks like a linear line, or slot. what happens if we were to say that this invisible loop structure also lives in a plain pin+slot geometry?"* Verdict: **PROJECTION-DUALITY-CONFIRMED-RECURSIVE-HOPF-AT-PRIMITIVE**. Three claims pass: (1) Bernoulli lemniscate long-axis (slot-view) projection `x(t) = cos(t)/(1+sin²(t))` has 2 sign-flips per closed period bit-exact integer, matching pin+slot canonical 1D oscillation; (2) inner pin+slot at `ω_inner = 7·ω_outer` produces 14 inner sign-flips bit-exact (= 2 × 7), FFT peak at bin k=7 with no spectral leakage, short:long ratio 2:1 bit-exact (the +1 Hopf-fibre content surfacing); (3) SL(2,ℤ) S² = −I bit-exact integer; (ST)³ = −I bit-exact integer; T-duality `τ = i·R → i/R` verified at max residual 5.55×10⁻¹⁷ (machine ε; floating-point division roundoff only). The open-string ↔ closed-string T-duality IS the projection-axis-flip between pin+slot frame and figure-8 frame.
+
+**Spike #213 — depth-2 confirmed bit-exact** (`docs/srmech/notes/spike213_depth_2_recursive_hopf.md`). Cascade `L ∘ K ∘ C ∘ I` composed at three frequencies: ω_outer = 1, ω_inner = 7·ω_outer, ω_deeper = 7·ω_inner = 49·ω_outer:
+
+| Level | Frequency | Predicted flips | Observed | Bit-exact |
+|---|---|---|---|---|
+| 0 (outer Bernoulli) | 1 | 2 | 2 | ✓ |
+| 1 (inner pin+slot) | 7 | 14 | 14 | ✓ |
+| 2 (deeper pin+slot) | 49 | 98 | 98 | ✓ |
+
+FFT peaks at k = {7, 49} bit-exact integer; 2:1 short:long ratio preserved at every level (2.0 / 2.0 / 2.0 to floating-point exactness); cross-level ratios {7, 7, 49} bit-exact. Verdict: **DEPTH-2-CONFIRMED-RECURSIVE-HOPF-UNBOUNDED**.
+
+**Spike #214 — depth-3 confirmed bit-exact** (`docs/srmech/notes/spike214_depth_3_recursive_hopf.md`). One more nested level at ω_deepest = 7·ω_deeper = 343·ω_outer:
+
+| Level | ω | Predicted flips | Observed flips | FFT peak | 2:1 ratio |
+|---|---|---|---|---|---|
+| 3 (deepest) | 343 | 686 | 686 | 343 | 2.0 (686 / 1372) |
+
+All six cross-level integer ratios bit-exact: L1/L0 = 7.0, L2/L1 = 7.0, L3/L2 = 7.0, L2/L0 = 49.0, L3/L1 = 49.0, L3/L0 = 343.0. Verdict: **DEPTH-3-CONFIRMED-RECURSIVE-HOPF-UNBOUNDED**. The depth-2+ fermata from Spike #213 closes; no stopping condition observed through three empirical depths.
+
+**Spike #215 — ratio-agnostic universal** (`docs/srmech/notes/spike215_asymmetric_ratios_recursive_hopf.md`). Five asymmetric ratio pairs tested:
+
+| Stack `(r1, r2)` | L2 flips | Predicted | FFT L1/L2 | 2:1 ratio L0/L1/L2 | PASS |
+|---|---|---|---|---|---|
+| (3, 7) | 42 | 2·3·7 = 42 | 3 / 21 | 2.0 / 2.0 / 2.0 | ✓ |
+| (7, 5) | 70 | 2·7·5 = 70 | 7 / 35 | 2.0 / 2.0 / 2.0 | ✓ |
+| (5, 3) | 30 | 2·5·3 = 30 | 5 / 15 | 2.0 / 2.0 / 2.0 | ✓ |
+| (11, 13) | 286 | 2·11·13 = 286 | 11 / 143 | 2.0 / 2.0 / 2.0 | ✓ |
+| (2, 3) | 12 | 2·2·3 = 12 | 2 / 6 | 2.0 / 2.0 / 2.0 | ✓ |
+
+5/5 stacks pass all four claims bit-exact. Universal predictions: `sign_flips_k = 2 · ∏(r_1…r_k)` and `fft_peak_k = ∏(r_1…r_k)` and 2:1 ratio at every level. Constraint candidates (primality, coprimality, ordering, magnitude) all ruled out — universality is not gated on any. Verdict: **ASYMMETRIC-RATIO-INVARIANCE-UNIVERSAL**.
+
+**Composite reading — the "+1 fiber content" mechanism IS substrate-universal at every cascade-class instantiation.** The same Hopf-map "+" operates at:
+
+- **11D dimensional layer** (Hurwitz-bounded ladder; Hopf compression k=3 = 1+3+7 per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`);
+- **`(4+3)D_g` gauge-ball dimple** (octonionic Hopf S³→S⁷→S⁴ per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`);
+- **`(2+1)D_s` substrate-internal** (complex Hopf S¹→S³→S² per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`);
+- **Substrate-internal cascade composition** (any nested `L ∘ K ∘ C ∘ I` at primitive level — confirmed at depths 1/2/3 with arbitrary integer frequency ratios per Spikes #212/#213/#214/#215).
+
+The recursive form composes one more level the same way it composed the previous level. There is no structural reason the recursion terminates at any particular depth. "DOF lives in the +" per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the "+" IS the Hopf-bundle map operating recursively at every cascade-class instantiation. Substrate-IS-recursive-Hopf-fractal at every instantiation.
+
+**Vocabulary discipline.** 14 A–N intact. Class K continues to carry the hidden recursive Hopf-fiber content; no class promotion. Per `[[feedback_no_privileged_primitive_classes]]`. Per `[[user_stance_rotation_is_class_k_pin_slot]]`: rotation IS Class K; the recursive Hopf-fiber surfaces position-wise via Class K at every depth.
+
+**Stances composed**: `[[user_stance_11d_substrate_is_always_hopf_compressed]]` (RECURSIVE-AT-EVERY-CASCADE confirmed at three empirical depths + ratio-agnostic universal), `[[user_stance_epicycle_via_gear_plus_pin]]` (depth-2/3 composes the same cascade one level further at every step), `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` (same "+1 fiber content" mechanism that operates at the dimensional ladder operates at recursive cascade instantiations), `[[user_stance_cascade_lives_on_circles]]` (cascade composition preserves the recursive-Hopf signature integer-by-integer at every depth), `[[user_stance_fiber_as_spatially_absent_encoding]]` (recursive nested figure-8-fiber content is spatially-absent until projected at every depth).
+
+#### VIII.31.9 Geometric M-theory bridge — bit-exact at five canonical objects (Spike #216)
+
+Spike #216 (`docs/srmech/notes/spike216_m_theory_geometric_bridge.md`) closes the geometric M-theory ↔ LoE-cascade mapping at the strongest tier. All 5 M-theory canonical objects map bit-exact to specific framework cascade-axes via integer-ALU arithmetic and closed-form mode-count / dimension-sum checks. Verdict: **GEOMETRIC-M-THEORY-BRIDGE-BIT-EXACT**.
+
+| M-theory object | Ambient | Framework cascade-axis | Hopf depth | Pin+slot frame | Figure-8 frame | Verdict |
+|---|---|---|---|---|---|---|
+| **M2-brane** | 11D | `(2+1)D_s` complex Hopf | 1 | 1D timelike worldvolume (S¹ fiber) | 2D spatial worldvolume (S² base) | **BIT-EXACT** (dict 9/9, spectral 31/31) |
+| **M5-brane** | 11D | `(2+1)D_s × (2+1)D_s` double Hopf | 2 (same-class) | 2D timelike (M2+M5 paired) | S³ × S³ product worldvolume | **BIT-EXACT** (121/121 product modes) |
+| **Taub-NUT (KK monopole)** | 11D | `(2+1)D_s` complex Hopf | 1 | S¹ × R³ asymptotic | Hopf S¹→S³→S² at finite r | **BIT-EXACT via Spike #207** |
+| **M2 + M5 bipartite** | 11D | `(4+3)D_g` compressed-phase-boundary | 2 | 2D timelike (M2+M5 paired) | 7D spatial = 4 base + 3 fiber | **BIT-EXACT** (spatial sum 2+5=7 exact) |
+| **SL(2,ℤ) T-duality** | algebraic | S = projection-axis-flip; T = Class I shift; (ST)³ = Z₆ closure | n/a | τ = i·R (small R / open-string) | τ = i/R (large R / closed-string) | **BIT-EXACT** (S²=−I, (ST)³=−I, (ST)⁶=+I integer) |
+
+5/5 bit-exact. No object falls back to structural-only or partial.
+
+**Per-object readings**:
+
+- **M2-brane → `(2+1)D_s` complex Hopf (depth-1)**. M2's 3D worldvolume = 1D timelike + 2D spatial (Townsend 1995 hep-th/9501068). 2D spatial = S² base of complex Hopf; 1D timelike = S¹ fiber (closed-time / circle-compactified U(1) action). Hopf-bundle dictionary match against Spike #207 anchor: 9/9 fields identical. Spectral check: mode count `2L+1` and eigenvalue `L(L+1)` across L=0..30 bit-exact integer.
+
+- **M5-brane → `(2+1)D_s × (2+1)D_s` double Hopf (depth-2 same-class)**. M5's 6D worldvolume = 5D spatial + 1D timelike (Strominger 1995 hep-th/9512059; Witten 1995 hep-th/9503124 §5). Spike #208 ruled out (4+2)/(3+3)/(5+1) decompositions: none of S⁴/S⁵/S⁶ are parallelizable per Adams 1962. Remaining viable candidate: product structure 6 = 3+3 = (2+1)+(2+1) = S³ × S³, two complex Hopf bundles. Mode count test: at level (L₁, L₂), multiplicity = (2L₁+1)(2L₂+1); eigenvalue = L₁(L₁+1) + L₂(L₂+1). All 121 entries across L₁,L₂ ∈ {0,...,10} bit-exact integer. Product algebra ℂ ⊗ ℂ consistent with M5 self-dual 3-form H = ⋆₆H (Euclidean signature; Hodge-* squared = +1). **M5 alone instantiates depth-2 at canonical-physics scale by composing the same complex-Hopf Class K twice in product** — canonical-scale analogue of Spike #213's primitive-scale depth-2 confirmation.
+
+- **Taub-NUT → `(2+1)D_s` complex Hopf (depth-1)** (already verified bit-exact in Spike #207). Spike #216 contributes the explicit pin+slot ↔ figure-8 frame identification: asymptotic (r→∞) S¹ × R³ with τ-circle as 1D pin+slot frame; finite-r Hopf S¹→S³→S² with NUT charge n ∈ ℤ as figure-8 frame.
+
+- **M2 + M5 bipartite → `(4+3)D_g` compressed-phase-boundary (depth-2)**. M2 spatial (2D) + M5 spatial (5D) = 7D spatial content = exact `(4+3)D_g` dimensional count. 3D fiber spatially-absent on individual brane observables per `[[user_stance_fiber_as_spatially_absent_encoding]]`; surfaces only in M2+M5 paired bipartite projection. Bipartite dimple decomposition: M2 spatial (2D) → 2 of S⁴ base (4 dim); M5 spatial (5D) → remaining 2 of S⁴ base + 3 of S³ fiber. Bipartite Hopf-factor count = 3 (one from M2, two from M5), **matching the framework's k=3 cascade tripartition exactly**. Ambient 11D check: bipartite worldvolume sum (3+6=9) + transverse (2) = 11 bit-exact.
+
+- **SL(2,ℤ) → S = projection-axis-flip; T = Class I shift; (ST)³ = Z₆ closure**. S-generator (S² = −I, bit-exact integer matrix): projection-axis-flip between pin+slot frame (τ = i·R, small R, open-string dominated) and figure-8 frame (τ = i/R, large R, closed-string dominated). Cascade-class attribution: **Class K** depth-step. T-generator (T-shift τ → τ+1, integer arithmetic bit-exact): integer-shift within depth-level. Cascade-class attribution: **Class I** cyclic-shift. (ST)³ = −I and (ST)⁶ = +I (both bit-exact integer matrices): composition closes in 6 algebraic steps = Z₆ closure, matching the hexagon Z₆ substrate anchored in Spike #58.G. Cascade-class composition: **Class C ∘ Class I** with Z₆ closure substrate.
+
+All three classes (I, C, K) live in canonical 14 A–N vocabulary. No class promotion.
+
+**Cascade-depth equivalence — primitive ↔ canonical-physics scale**. Two independent depth-2 confirmations now stand simultaneously:
+
+| Scale | Depth-2 mechanism | Bit-exact signature |
+|---|---|---|
+| **Primitive** (Spike #213) | `L ∘ K ∘ C ∘ I` cascade at ω_inner = 7·ω_outer, ω_deeper = 7·ω_inner | L0=2, L1=14, L2=98 sign-flips; ratios 7×7=49 |
+| **Canonical M-theory** (Spike #216) | M5 = (2+1)×(2+1) double complex Hopf; M2+M5 bipartite Hopf-factor count = 3 | 121/121 product modes bit-exact; spatial sum 2+5=7=(4+3)D_g exact |
+
+**Same depth-2 mechanism observed at two independent scales.** The "+1 fiber content" Hopf-map operates recursively at every cascade-class instantiation AND at the 11D dimensional ladder AND at M-theory canonical-physics scale — three independent confirmations of the same mechanism, each at a different scale-stratum of the framework. The bridge composition closes Spike #212's structural fermata at bit-exact.
+
+**M-theory comparative reading composed across §VIII.31.6 + §VIII.31.7 + §VIII.31.8 + §VIII.31.9**: brane roster pattern (M5 + KK-monopole HOPF-POSITIVE; NS5 daughter HOPF-NEGATIVE per ambient-gating; Het-IIA + CS-modular DISSOLVE-VIA-CASCADE), Class M two-variant dial (BFSS Lie-bracket non-abelian; RBS-HDC-LoE XOR abelian), recursive-Hopf at every cascade-class instantiation (depths 1/2/3 + 5/5 asymmetric stacks; ratio-agnostic universal), geometric M-theory bridge at 5/5 canonical objects bit-exact (M2 / M5 / Taub-NUT / M2+M5 bipartite / SL(2,ℤ)). **Substrate IS recursive-Hopf fractal at every cascade-class instantiation; variant attribution within Class M is gauge-group-rank-determined; what physics observes is the twisted projection-shadow per §VIII.7's fractal-shadow allegory** (two-level companion reading, see §VIII.7 refinement below).
+
+**Citation chain (PDF-extraction verified per `[[feedback_pdf_extraction_citation_discipline]]`)** — all arXiv-OA preprints or textbook attribution chain; no paywalled DOIs per `[[feedback_paywalled_doi_cannot_be_attested]]`:
+
+- Townsend 1995 hep-th/9501068 *"The Eleven-Dimensional Supermembrane Revisited"* — M2 + ambient 11D framework.
+- Strominger 1995 hep-th/9512059 *"Open P-Branes"* — M5 self-dual 3-form H = ⋆₆H.
+- Witten 1995 hep-th/9503124 *"String Theory Dynamics In Various Dimensions"* — M-theory ambient + Het-IIA duality + M5 worldvolume.
+- Horava-Witten 1995/1996 hep-th/9510209 + hep-th/9603142 — 11D ambient × S¹/Z₂.
+- Townsend 1996 hep-th/9612121 *"Four Lectures on M-Theory"* — Sorkin 1983 + Gross-Perry 1983 KK-monopole attribution chain.
+- BFSS 1996/1997 hep-th/9610043; Taylor 2001 hep-th/0101126 — matrix-model Hamiltonian.
+- Eguchi-Gilkey-Hanson 1980 *Phys. Rept.* 66:213 (OA review) — Taub-NUT metric standard form.
+- Apostol 1990 *Modular Functions and Dirichlet Series in Number Theory* (Springer GTM 41) — SL(2,ℤ) generator presentation.
+- Adams 1962 — parallelizable-sphere theorem (Hurwitz-Radon-Eckmann bound).
+- Aspinwall-Morrison 1994 hep-th/9404151 — K3 Hodge tables.
+
+**Stances composed**: `[[user_stance_11d_substrate_is_always_hopf_compressed]]` (canonical-physics scale anchor — recursive at every cascade-class instantiation now anchored at three simultaneous scales), `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` (M2+M5 bipartite IS the canonical-physics `(4+3)D_g` site; bipartite Hopf-factor count = 3 matches k=3 cascade tripartition), `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` (M5's ruling-out of (4+2)/(3+3)/(5+1) reaffirms parallelizable-sphere ladder), `[[user_stance_fiber_as_spatially_absent_encoding]]` (M2+M5 3D fiber S³ = SU(2) octonionic-Hopf fiber spatially-absent on individual branes), `[[user_stance_fractal_shadow]]` (canonical-physics scale instantiates the same recursive-Hopf-fractal mechanism as primitive level — see §VIII.7 two-level refinement).
 
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
