@@ -699,7 +699,7 @@ def main(out_ndjson: pathlib.Path, cache_dir: pathlib.Path) -> None:
 
 if __name__ == "__main__":
     here = pathlib.Path(__file__).resolve().parent
-    out_ndjson = here / "spike190_findings_2026-05-19.ndjson"
+    out_ndjson = here / "spike190_findings_native_pipeline_2026-05-19.ndjson"
     # Cache directory: use user's WSL home for big FITS files
     # (~3.6 GB SMICA Nside=2048 IQU); the file lives outside the
     # repo to avoid git LFS / large-file issues.
