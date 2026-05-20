@@ -518,15 +518,28 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     instrument ship, Planck 2018 TT). cmb_anomalies (19th — companion
     cosmology-instrument ship). secular_elements (20th — v0.28.0rc1
     Phase 10a per-body J2000 Keplerian mean elements catalog
-    anchoring the equation-of-center patch series)."""
+    anchoring the equation-of-center patch series).
+
+    v0.29.2rc1 srmech>=0.4.2 transitive bump surfaces 7 new
+    srmech-bundled literature_curated catalogs through the AMSC
+    bridge: asymptotic_calculus (21st), cmb_bispectrum (22nd),
+    cmb_lensing (23rd), cmb_low_ell_maps (24th),
+    cmb_polarisation_spectra (25th), cosmos_validation (26th),
+    pi_digits (27th)."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 20
+    assert result["n_sources"] == 27
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
+        "asymptotic_calculus",
         "axial_seamount",
         "cmb_anomalies",
+        "cmb_bispectrum",
+        "cmb_lensing",
+        "cmb_low_ell_maps",
+        "cmb_polarisation_spectra",
         "cmb_power_spectrum",
+        "cosmos_validation",
         "dynamical_regime",
         "dynamical_regime_probes",
         "earthref_sc",
@@ -538,6 +551,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "mars_tharsis",
         "mercury_dynamical_spectrum",
         "petdb_v4",
+        "pi_digits",
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
         "secular_elements",
@@ -549,20 +563,30 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
 
 
 def test_bridge_list_attested_sources_curated_class_filter() -> None:
-    """adapter_class='curated' returns 17 sources after v0.27.0 phase A
+    """adapter_class='curated' returns 24 sources after v0.27.0 phase A
     through loki_patera (phase A complete) + cmb_power_spectrum +
     cmb_anomalies (cosmology-instrument pair) + secular_elements
     (v0.28.0rc1 Phase 10a per-body J2000 Keplerian mean-elements
-    catalog)."""
+    catalog) + 7 srmech-v0.4.2-bundled literature_curated catalogs
+    (asymptotic_calculus / cmb_bispectrum / cmb_lensing /
+    cmb_low_ell_maps / cmb_polarisation_spectra / cosmos_validation /
+    pi_digits) surfaced transitively through the AMSC bridge in
+    v0.29.2rc1."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 17
+    assert result["n_sources"] == 24
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
+        "asymptotic_calculus",
         "axial_seamount",
         "cmb_anomalies",
+        "cmb_bispectrum",
+        "cmb_lensing",
+        "cmb_low_ell_maps",
+        "cmb_polarisation_spectra",
         "cmb_power_spectrum",
+        "cosmos_validation",
         "dynamical_regime",
         "dynamical_regime_probes",
         "hawaii_chain",
@@ -571,6 +595,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "mars_dynamical_spectrum",
         "mars_tharsis",
         "mercury_dynamical_spectrum",
+        "pi_digits",
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
         "secular_elements",
@@ -612,8 +637,12 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # complete through v0.24.12) + cmb_power_spectrum (first cosmology-
     # instrument ship) + cmb_anomalies (companion cosmology-instrument
     # ship) + secular_elements (v0.28.0rc1 Phase 10a per-body J2000
-    # Keplerian mean elements).
-    assert result["n_sources"] == 17
+    # Keplerian mean elements) + 7 srmech-v0.4.2-bundled
+    # literature_curated catalogs (asymptotic_calculus / cmb_bispectrum
+    # / cmb_lensing / cmb_low_ell_maps / cmb_polarisation_spectra /
+    # cosmos_validation / pi_digits) surfaced transitively in
+    # v0.29.2rc1.
+    assert result["n_sources"] == 24
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 
