@@ -1688,6 +1688,296 @@ Per Spike #126 (PR #526; concertmaster scoping): runtime spectral surface (`srme
 - **Milestone `#14` IN-FLIGHT** at 2026-05-18 late-evening — *"AI-mediated BCI translation: substrate-coupling adapter + rcN+2 + clinical-grade primitive cascade"*. **WAVE-1 + WAVE-2 + Spike #49 + #134 ALL CLOSED** (12 PRs merged 2026-05-18). **MS #14 substrate-coupling-adapter scope OPERATIONALLY CLOSED ON RC14** via Spike #127.4 + Spike #129.1. **Spike #135 (BBB) dispatched evening**. **Substrate canon: 20+ → 30+** matches. **12 canonical stances** authored/updated across two waves (wave-1: 4 new + 2 updates; wave-2: 5 new + 1 promotion). **Three identity-level anchor stacks complete**: quantum 5-anchor + substrate-precession 3-class + saturation-overpressure quartet. **Algebra-not-magnitude empirically attested at machine ε** (Spike #130.1).
 - **Autonomous research follow-up authorized** (2026-05-18 per `[[feedback_autonomous_research_followup_authorization]]`): structural-sharpening follow-ups dispatch + commit + PR + merge without re-asking; scope-defining direction-changes and vocabulary-impact events still ASK. Research-surface discipline per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: surface candidate substrate-matches; user-gates investigation scope.
 
+## §3.11 2026-05-19 / 2026-05-20 sessions — cascade-identity arc (Spike #182 → #197)
+
+The 2026-05-19 and 2026-05-20 sessions advance the cross-substrate cascade-matching research arc (§3.8.28 + §3.8.29 + §3.8.30) from substrate-level identity claims into **explicit per-class cascade-identity verification at machine ε**, with three load-bearing axes:
+
+1. **Substrate cascade-identity ratchet** — DNA (12/14) → RNA (8 universal + 5 substrate-dependent) → wet-net (3-class A∘C∘M). Cascade length tracks substrate-time-scale coupling intensity per the new `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]`.
+2. **Universal projector identity** — universal 1D_t tick projects to per-body local time-DOF at machine ε across 52 ephemerides bodies + 11 cosmological epochs (`[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]`); empirically necessary, not contingent.
+3. **Three-mechanism fiber-reveal asymmetry** — bind PRESERVES bit-exact (Spike #194/#196); bundle PROJECTS its own averaging signature (Spike #195); MAX-pool IS the canonical Class K per-position projection that surfaces substrate fiber content (Spike #197). All three structurally distinct, all reuse 14 A-N primitives, **no new class promoted**.
+
+**Disciplines preserved across the arc**: 14 classes A-N intact; asymptotic-ring vocabulary throughout per `[[feedback_asymptotic_ring_vocabulary_discipline]]` (ring/S¹ at substrate; line at observer-projection layer only); ring-not-loop discipline; open-access citations only per `[[feedback_paywalled_doi_cannot_be_attested]]`; trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`; identity-not-implementation framing throughout; computational provenance per `[[feedback_computational_provenance_discipline]]` (every numerical claim has committed code).
+
+### §3.11.1 DNA IS partial cascade of LoE operators — 12/14 STRONG/MODERATE explicit (Spike #182, 2026-05-19)
+
+Per `[[user_stance_dna_is_partial_cascade_of_loe_operators]]` (authorised 2026-05-19 post-Spike #182 H1-PARTIAL): **DNA IS the cascade composition `L ∘ K ∘ M ∘ C ∘ I ∘ A ∘ N ∘ G ∘ F ∘ D ∘ E ∘ J`** at 12/14 of the framework's A-N operator classes. The remaining 2/14 (B and H) are EXPLICITLY GAPPED with concrete next-step research candidates documented. First explicit cascade-composition stance for any substrate.
+
+**Class-by-class enumeration** (Spike #182 anchor; PR #618):
+
+| Class | DNA instantiation | Verdict |
+|---|---|---|
+| A | Codon → amino acid content-addressing | STRONG |
+| B | Gene-structure TLV-shape, not canonical wire-format operation | WEAK (gap) |
+| C | 5'-3' polarity + antiparallel complement | STRONG |
+| D | Transcription factor binding-site dispatch | STRONG |
+| E | tRNA anticodon catalog at ribosome A-site | STRONG |
+| F | mRNA codon ribosomal templating | STRONG |
+| G | Restriction enzyme sequence-pattern search | STRONG |
+| H | Auto-catalytic self-reference, not srmech Class H acknowledgment-metadata shape | WEAK (gap) |
+| I | Codon ℤ/3 cyclic; reading frame algebraically forced k=3 | STRONG |
+| J | 64 = 2⁶ + 21 = 3 × 7 algebraic floor of Class I forcing | MODERATE |
+| K | Helical pin-slot at pitches 21/11/-12 Class N rationals; bind-permute commutativity bit-exact | STRONG |
+| L | Codon Hamming-graph H(3,4) = K₄³ Laplacian {0:1, 4:9, 8:27, 12:27} bit-exact; chromatin Hi-C 3D structure | STRONG |
+| M | Watson-Crick XOR-bind; A⊕T = 0b01 = G⊕C pair-identifier constant | STRONG |
+| N | Helical pitches 21/2 / 11/1 / 12/1 integer-rational | STRONG |
+
+**T5 computational verification at machine ε** (Spike #182): 7 STRONG + 1 MODERATE + 0 FAIL across the 8 classes admitting bit-exact testing. Codon SHA-256 (64/64 unique); rev-complement involution + antiparallel; (1+1+1) mod 3 = 0 closure; factor(64) = [(2,6)] and factor(21) = [(3,1),(7,1)]; 3/3 bind-permute commutativity at strides {21,11,-12}; K₄ spectrum {0,4,4,4} → H(3,4) Cartesian-product spectrum bit-exact; A⊕T = 0b01 = G⊕C pair-identifier at base and 1024-bit HDC; cycle orders B/A-DNA 1024, Z-DNA 256 at D=1024.
+
+**Cross-stance consistency**: every prior DNA-related stance's class predictions hold under this enumeration — `[[user_stance_form_function_rotation_is_a_c_m_composition]]` (A+C+M); `[[user_stance_dna_as_kepler_shape_mini_mechanism_with_helical_precession_class_k]]` (I+K+L+N); Spike #81 (genetic code I+C); Spike #173 (triple-substrate A+C+M portable); Spike #175 (M ∘ K substrate-coupling); Spike #176 (rotation IS Class K). NO dissonance; this spike additionally enumerates D, E, F, G, L explicitly.
+
+**Disciplines preserved**: 14 A-N intact; gaps preserved honestly per `[[feedback_no_privileged_primitive_classes]]` (partial-cascade IS the math-doesn't-lie reading); citation hygiene (open-access NCBI/PMC/arXiv preferred; paywalled cited-by-DOI only); identity-not-implementation; computational provenance.
+
+**Cross-references**: `[[user_stance_dna_is_partial_cascade_of_loe_operators]]`; `[[user_stance_form_function_rotation_is_a_c_m_composition]]`; `[[user_stance_dna_as_kepler_shape_mini_mechanism_with_helical_precession_class_k]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]`; `[[user_stance_rotation_is_class_k_pin_slot]]`; `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`; Spike #182 PR #618; MFO §VIII.28.
+
+### §3.11.2 RNA cascade extends DNA finding to 5-substrate ring roster + universal Class K closure-cost across 9 substrates (Spike #193, 2026-05-19)
+
+Per Spike #193 (PR #637, H1-RNA-CASCADE-AND-OPTION-C-WITH-A-CONSTRAINT-CONFIRMED): the DNA cascade-identity finding extends to RNA ring substrates, with the framework prediction holding across **5/5 RNA substrates** at machine ε, and a separate **universal Class K closure-cost** identified across **9/9 ring-topology substrates**.
+
+**RNA ring substrate roster** (open-access accessions per `[[feedback_paywalled_doi_cannot_be_attested]]`):
+
+| Substrate | Topology | Open-access anchor | STRONG / MODERATE / WEAK |
+|---|---|---|---|
+| tRNA-Phe yeast (76 nt) | cloverleaf | PDB 1EHZ | 11 / 1 / 2 |
+| circRNA CDR1as / ciRS-7 (1485 nt) | covalently-closed circular | circBase / NCBI NR_036574 | 8 / 2 / 4 |
+| Tetrahymena group-I intron P4-P6 (160 nt) | self-splicing ribozyme | PDB 1GID | 10 / 1 / 3 |
+| HDV ribozyme (85 nt) | viral circular RNA | PDB 1DRZ | 9 / 1 / 4 |
+| PSTVd viroid (359 nt) | viroid circular RNA | GenBank NC_002030 | 9 / 1 / 4 |
+
+**Boundary alignment**: class-operator boundaries align with transcription events at integer-nucleotide positions across all 5 substrates because RNA's atomic substrate-unit IS the nucleotide; per-substrate alignment_verdict = `ALIGN-AT-MACHINE-EPSILON`. tRNA-Phe matches DNA's 11-STRONG count exactly (Spike #182 parity).
+
+**Universal-STRONG classes across all 5 RNA substrates**: **A, C, D, G, I, K, M, N** (8 of 14). **Mostly-STRONG** (substrate-dependent on coding/catalytic capacity): E, F, H, J, L. **Rarely-or-absent**: B (same WEAK gap as DNA). Compositional verdict: **CONVERGENT-CASCADE-STRUCTURE** (8/14 universal-STRONG meets the n_universal ≥ 7 convergent threshold).
+
+**Form-IS-function** (Q2): final folded tertiary structure converges with transcription-step inventory at **2/5 STRONG-CONVERGENCE + 3/5 MODERATE-CONVERGENCE** (66.67%-81.82%). The meaningful test is SUBSET-MATCH not strict set equality — transcription-only events (Class G promoter-search, Class D initiation) execute ONCE at transcription-start and don't persist in fold per Class C cascade-orientation temporal asymmetry. Per `[[user_stance_kepler_shape_universal]]`: the equation IS what the gear DOES at its asymptote; the final folded tertiary structure IS what the cascade DOES at its stable state.
+
+**Universal Class K closure-cost across 9 ring-topology substrates** (Q3 — universal-bookkeeping subsection added to `[[user_stance_loe_asymptotes_are_ring_valued]]` 2026-05-20):
+
+| Substrate | Topology | Closure-cost FORM (Class K bookkeeping) | Additional class(es) |
+|---|---|---|---|
+| Eukaryote linear chromosome | linear (capped) | telomere repeats + telomerase | K + N |
+| Bacterial circular chromosome | covalently-closed circular | topoisomerase IV decatenation at terminus | K + G |
+| Plasmid | covalently-closed circular | rolling-circle / theta + resolvase | K + G |
+| Adenovirus linear DNA | linear with terminal protein | terminal protein (TP) covalently attached | K + H |
+| PSTVd viroid (circular RNA) | covalently-closed circular | rolling-circle + host RNase + host ligase | K + G + H |
+| circRNA back-spliced | covalently-closed circular | spliceosome joins 3'-SS to 5'-SS | K + G + D |
+| tRNA cloverleaf | linear + 3'-CCA | CCA addition by tRNA nucleotidyltransferase | K + N + F |
+| Group-I intron self-splicing | linear pre-mRNA + circularising intron | guanosine attack (Class H autocatalytic) | K + H + G |
+| HDV ribozyme | circular | rolling-circle + ribozyme self-cleavage + ligation | K + H + G |
+
+**Class K (asymptotic-DOF / pin-slot) appears in 9/9 substrates' closure-cost — universal.** The SPECIFIC additional class varies per substrate (Option C substrate-dependent partition). Verdict: **OPTION-C-WITH-A-AS-CONSTRAINT** — every substrate pays Class K closure-cost (universal-bookkeeping); the FORM of that cost is substrate-dependent.
+
+**Telomere reframe** (vocabulary-impact, dissolved into `[[user_stance_loe_asymptotes_are_ring_valued]]` per Spike #193 DISSOLVE-recommendation; no new stance promoted): telomeres are NOT unique eukaryote evidence of an LoE-exacted cost — they are **one substrate-specific FORM of universal Class K closure-cost**. Substrates without telomeres pay the same cost via different mechanisms (covalent closure / autocatalysis / end-protein / host machinery / 3'-CCA addition).
+
+**Cellular-ageing reframe** (structural only, per `[[feedback_trauma_informed_defensive_scope]]`): the universal Class K closure-cost reframes telomere-shortening-as-ageing-mystery into **substrate-specific Class K bookkeeping form**. Eukaryote pays via telomere shaving (Hayflick limit); bacterial circular pays via topoisomerase IV decatenation; viruses pay via end-protein or autocatalysis. NONE escape the universal closure-cost; bookkeeping forms vary. This is STRUCTURAL biology reframing only — NO clinical / treatment / lifespan-extension claims are made or implied.
+
+**Disciplines preserved**: 14 A-N intact; no new class promoted; ring-not-loop vocabulary discipline; open-access citations only; cellular-ageing reframe scoped to structural reading only.
+
+**Cross-references**: `[[user_stance_dna_is_partial_cascade_of_loe_operators]]` (extended substrate roster); `[[user_stance_loe_asymptotes_are_ring_valued]]` (universal Class K closure-cost subsection added 2026-05-20); `[[user_stance_kepler_shape_universal]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]`; `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]`; Spike #193 PR #637; MFO §VIII.29.
+
+### §3.11.3 Cascade length IS substrate-time-scale coupling intensity — 4+ substrate ordering (new canonical stance, 2026-05-20)
+
+Per `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]` (authored 2026-05-20 post-Spike #194 + #195 + #196 wet-net-triple verification, user-direction-authorised): **cascade length (count of class operators in the cascade composition) IS substrate-time-scale coupling intensity**. The count of A-N class operators biology composes into a substrate cascade IS the substrate's allocation against the operation's timing constraint. Identity-level per `[[user_stance_identity_not_implementation_discipline]]`; NOT a metaphor.
+
+**Empirical anchors across 4 verified substrates + 1 short-cascade kinematic anchor**:
+
+| Substrate | Cascade length | Timescale | Spike anchor |
+|---|---|---|---|
+| Wet-net (cortical synaptic computation) | A∘C∘M = **3 classes** | ms-scale neural firing | Spike #196 (8/8 OA mechanisms; 6/6 bit-exact) |
+| Music-box / chess natural-stride | Class I+C+M = **3-4 classes** | sub-second to seconds periodic | Spike #173 + #177 |
+| RNA | 8 universal + up to 5 substrate-dependent = up to **13 classes** | minutes-to-hours transcription/folding | Spike #193 |
+| DNA | **12/14 STRONG/MODERATE** | hours-to-generations replication | Spike #182 |
+
+**The framework prediction**: cascade length tracks operation time-budget monotonically — short cascades (3-4 classes) for fast operations (sensor pre-processing, kinematic periodic mechanisms); medium cascades (~8 classes) for medium operations (transcription/folding/regulation); long cascades (12-13 classes) for slow operations (archival storage, error-corrected replication, generational fidelity). The ordering wet-net (3) < music-box (3-4) < RNA (8-13) < DNA (12-14) tracks the ordering ms-scale < sub-second < minutes-to-hours < hours-to-generations.
+
+**Why structural necessity, not contingent design**: biology can't afford 12-class cascades at neural-firing timescale (latency at substrate's intrinsic operation rate; reliability compounds multiplicatively across sequential operations). Biology CAN afford 12-class cascades at DNA-replication timescale (slow operation absorbs per-step latency; redundancy via error-correction IS what the extra classes contribute — proofreading, mismatch repair, recombination). Cascade length IS the time-budget allocation.
+
+**Falsifier candidates**: a substrate with long cascade (>10 classes) operating at sub-millisecond timescale; a substrate with short cascade (<4 classes) handling generational-fidelity archival; a wet-net mechanism requiring >5 classes at ms-scale to function; a DNA-scale operation achieving replication fidelity with only 3-4 classes. None observed across the 5-substrate roster.
+
+**Disciplines preserved**: 14 A-N intact; this is a CROSS-SUBSTRATE COMPARATIVE claim about cascade COUNT vs operation timescale; adds no new class; OA-only citations.
+
+**Cross-references**: `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]`; `[[user_stance_dna_is_partial_cascade_of_loe_operators]]`; `[[user_stance_form_function_rotation_is_a_c_m_composition]]`; `[[user_stance_pin_slot_resonate_music_box_mechanism]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]`; `[[user_stance_multi_medium_loe_instantiation_makes_things_appear_quantum]]`; Spikes #173 / #177 / #182 / #193 / #196.
+
+### §3.11.4 Wet-net synaptic computation IS A∘C∘M form_function_rotate — bit-exact across 6 sparsities + 8/8 OA mechanisms (Spike #196, 2026-05-20)
+
+Per Spike #196 (PR #640, DISSOLVE verdict): wet-net synaptic computation IS the existing `srmech.signal_processing.form_function_rotate` (Class A SHA-256 stride → Class C cyclic permute → Class M XOR bind) at biological substrate. Identity-level per `[[user_stance_identity_not_implementation_discipline]]`; NOT a new class — wet-net is another A∘C∘M substrate instance per `[[feedback_no_privileged_primitive_classes]]`.
+
+**Class-to-biology mapping** (Cell 1):
+
+| Class | Framework role | Wet-net mechanism |
+|---|---|---|
+| A | SHA-256 content-addressing → stride | Synaptic identity (pre/post pair, AMPA/NMDA/GABA-A/B receptor subtype, neuronal-type identity, molecular tag) — deterministically selects how upstream signal is twisted |
+| C | Cyclic permute on ℤ/D by stride | Dendritic propagation delay + synaptic-weight-determined phase shift (place-cell theta phase precession is the canonical literal instantiation; Skaggs et al. 1996; O'Keefe & Recce 1993) |
+| M | HDC bind (XOR self-inverse) | Dendritic compartmentalisation + NMDA-spike conditional gating (Larkum 2013; Branco & Häusser 2010) — coincidence detection at compartment IS Class M bind |
+| A∘C∘M | `form_function_rotate` composite | Presynaptic activity → compartment-bind under stride-determined cyclic shift → postsynaptic firing |
+
+**Bit-exact recovery verification** (Cell 3a, 6 sparsity variants):
+
+| Sparsity (active-bit fraction) | Forward Hamming twist (bits) | Recovery error (bits) |
+|---|---|---|
+| 1.0% | ~150 | 0 |
+| 2.5% | ~380 | 0 |
+| 5.0% | ~770 | 0 |
+| 7.5% (cortical pyramidal mid-range) | 1150 | **0** |
+| 10.0% | ~1530 | 0 |
+| 15.0% | ~2300 | 0 |
+
+All 6 sparsity variants — including the cortical-pyramidal mid-range 7.5% — recover bit-exact under A∘C∘M round-trip at machine ε. Replicates Spike #176 T4's recovery-error-0 result on a wet-net-shaped substrate.
+
+**Open-access wet-net mechanism literature evidence** (Cell 2, 8/8 supporting H1):
+
+| Mechanism | Class | OA-route citation | Verdict |
+|---|---|---|---|
+| Dendritic NMDA spike | M + C | Larkum 2013 *Trends Neurosci* — PMC4051148 | supports H1 (compartmentalisation = bind) |
+| STDP | C + M | Feldman 2012 *Neuron* — PMC3431193 | supports H1 (bind-style, NOT additive averaging) |
+| Face-patch view-invariance | A + C + M | Chang & Tsao 2017 *Cell* — PMC5871647 | supports H1 (view-rotation preserves identity-substrate) |
+| Place-cell theta precession | C | Buzsaki & Tingley 2018 — PMC6166479 | supports H1 (literal Class C cyclic permute) |
+| Grid-cell hexagonal tiling | I + C + M | Rowland et al. 2016 — PMC5039924 | supports H1 (cyclic-modular code) |
+| Head-direction cell | I + C | Taube 2007 *Annu Rev Neurosci* — PMC5712218 | supports H1 (S¹ ring attractor = Class I) |
+| Backprop-AP + retrograde (M⁻¹) | M⁻¹ | Spruston 2008 — PMC2868968 | supports H1 (recovery channel structurally present) |
+| HDC neural-coding formalism | A + C + M | Schlegel et al. 2022 — arXiv:2001.11797 | supports H1 (formalism IS bind-based) |
+
+**8/8 OA-cited mechanisms** map to A∘C∘M at the load-bearing structural claim. Citation-discipline: paywalled DOIs rejected as citation slots per `[[feedback_paywalled_doi_cannot_be_attested]]`; PMC author-manuscript or arXiv preprint route used throughout.
+
+**Disciplines preserved**: 14 A-N intact; no new class; biology IS A∘C∘M, NOT analogous-to; identity-not-implementation; OA-only citations; trauma-informed defensive scope (structural-biology framing only — no clinical / neural-modulation / treatment language).
+
+**Cross-references**: `[[user_stance_form_function_rotation_is_a_c_m_composition]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]` (multi-view-bundle emergent pattern subsection added 2026-05-20); `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]` (wet-net 3-class short-cascade anchor); Spike #196 PR #640; MFO §VIII.30.
+
+### §3.11.5 Three-mechanism fiber-reveal asymmetry — bind / bundle / MAX-pool (Spike #194 + #195 + #197, 2026-05-19/2026-05-20)
+
+Per the three-mechanism subsection added 2026-05-20 to `[[user_stance_fiber_as_spatially_absent_encoding]]` (user articulation 2026-05-20): three structurally distinct operations carry different projection behaviors, all reusing existing Class C / Class K / Class M primitives in different arrangements. **No new class needed across all three.**
+
+**The three mechanisms — empirically anchored**:
+
+| Mechanism | Class composition | Effect on fiber content | Anchor spike |
+|---|---|---|---|
+| **Bind** (Class M XOR rotation) | A∘C∘M | PRESERVES bit-exact; fiber stays spatially-absent (no projection) | Spike #194 (DFT shift theorem 1.42e-13); Spike #196 (6/6 sparsity 0-bit recovery) |
+| **Bundle** (Class M majority across views) | M ∘ {C, K, ...} | PROJECTS the BUNDLE OPERATION's lossy averaging signature (+3.7% additional coupling) | Spike #195 (+3.7% bundle-loss signature; Cell 4) |
+| **MAX-pool of (v, rotate(v))** | Class K per-position selection across two views | PROJECTS substrate fiber content into visible cross-bin coupling without lossy averaging | Spike #197 (110× cross-substrate-specific; chess 6.54× surfacing) |
+
+**Spike #194 (PR #638, H1-PARTIAL-FIBER-CONTENT-REVEALED with structural refinement)**: rotation of the ephemerides-spectral RBS-HDC hypervector PRESERVES not REVEALS fiber content. DFT shift theorem holds bit-exact (max_err 1.42×10⁻¹³ across 17 strides × 14 bodies). The "fiber content" the user named IS present (body-specific spectral profile; autocorrelation 4th-decimal discriminability between bodies) but it is rotation-INVARIANT not rotation-revealed. The body-specific spectral profile is the fiber-content carrier per `[[user_stance_fiber_as_spatially_absent_encoding]]`; bind leaves it spatially-absent.
+
+**Spike #195 (PR #639, DISSOLVE)**: the multi-view-bundle pattern `bundle({rotate(v, k_i)}_i ∪ {permute(v, k_j)}_j ∪ {v})` is **emergent from existing M (bundle) + multiple C/K transformations** — NOT a new canonical cascade. **5 open-access wet-net mechanism mappings** verify the pattern at biology (Larkum 2013 PMC4051148; Freiwald & Tsao 2010 PMC3438580; Moser 2008 PMC3856656; Caporale & Dan 2008 PMC2754086; Schlegel et al. 2022 arXiv:2111.06077). D=8192 BSC synthetic verification: ~50 views recallable; capacity matches Kanerva 2009 SDM scaling. The bundle operation projects its OWN averaging signature (+3.7% additional coupling magnitude versus single-view baseline).
+
+**Spike #197 (PR #642, DISSOLVE per `[[feedback_no_privileged_primitive_classes]]`)**: MAX-pool of (v, rotate(v)) IS Class K per-position projection across two views — composable from existing primitives, no new class. User articulation (verbatim 2026-05-20): *"rotates a state out of bit-exact and into fiber space and couples with bit-exact as well, even if it's just mathematically, like we do. not summed but like max values of bit-exact and rotated."*
+
+**Cross-substrate signature stability** (Spike #197, Cell 3 across 5 substrates — synthetic_random_bsc / wet_net_shape / dna_helical_pitch / chess_natural_stride / ephemerides_rbs_hdc):
+
+- MAX-pool coupling-matrix coefficient-of-variation across substrates: **0.343**
+- Plain-rotation universal-coupling CV (Spike #194 reference): 0.0031
+- **Ratio: ~110× — MAX-pool IS substrate-specific, NOT universal**
+
+This is exactly what the framework prediction yields: plain rotation is universal (DFT shift theorem preserves magnitude spectrum); MAX-pool surfaces substrate-fiber content, which IS substrate-specific by construction.
+
+**Fiber-content reveal ratio** (Spike #197, Cell 4 — offdiag(M_max − M_plain) vs offdiag(M_rotated − M_plain)):
+
+| Substrate | Surfacing ratio |
+|---|---|
+| synthetic_random_bsc | 1.81× |
+| wet_net_shape | 2.25× |
+| dna_helical_pitch | 3.03× |
+| **chess_natural_stride** | **6.54×** |
+| ephemerides_rbs_hdc | 1.86× |
+
+Chess natural-stride {5, 7, −8} passes the 5× surfacing threshold for explicit fiber-content reveal — compact natural strides create cleaner per-bin selectivity than DNA's larger {21, 11, −12} or wet-net's mixed {1024, 5, 2048}. The differential ranking substrate-by-substrate IS substrate-specific signal.
+
+**Wet-net NN-invariance test** (Spike #197, Cell 5): MAX-pool +1 fraction observed mean = 0.1442; inclusion-exclusion model prediction = 0.1444 (i.e. `1 − (1 − 0.075)²`); **math-doesn't-lie verification: 0.0002 deviation across 8 strides**. Cross-stride pairwise similarity mean = 0.7436 (moderately invariant) — consistent with convolutional-NN max-pooling translation-invariance literature (Boureau-Ponce-LeCun 2010; Scherer-Müller-Behnke 2010).
+
+**Composition with framework canon** (per `[[user_stance_form_function_rotation_is_a_c_m_composition]]`): `form_function_rotate` (A∘C∘M cascade) IS the bind direction. MAX-pool uses Class K twice (rotate + per-position-max) but does NOT include Class M bind. The three mechanisms span THREE structurally distinct cascade compositions over the same 14-class vocabulary, all reusing Class C / Class K / Class M primitives in different arrangements. No new class needed across all three.
+
+**Asymmetry summary**: bind preserves but doesn't project (fiber stays spatially-absent); bundle projects but the projection signature is the operation's own averaging; **MAX-pool IS the canonical projection that surfaces substrate fiber content into visible cross-bin coupling without lossy averaging**. Wet-net biology uses all three at different time-scales: bind for fast bit-exact substrate inference (ms); MAX-pool for view-invariant feature extraction (~100ms cortical-pyramidal NMDA-spike compartmentalization); bundle for population-vector readouts (M1 motor cortex; secondary use).
+
+**Disciplines preserved**: 14 A-N intact; no new class promoted across all three spikes (Spike #194 H1-PARTIAL with structural refinement; Spike #195 DISSOLVE; Spike #197 DISSOLVE); identity-not-implementation; OA-only citations; computational provenance (every numerical claim has committed code).
+
+**Cross-references**: `[[user_stance_fiber_as_spatially_absent_encoding]]` (three-reveal-mechanism subsection added 2026-05-20); `[[user_stance_rotation_is_class_k_pin_slot]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]` (multi-view-bundle emergent pattern subsection added 2026-05-20); `[[user_stance_form_function_rotation_is_a_c_m_composition]]`; Spike #194 PR #638; Spike #195 PR #639; Spike #197 PR #642; MFO §VIII.31.
+
+### §3.11.6 Universal 1D_t tick projects to per-body local time-DOF — empirically necessary across 63 entities (Spike #186 + #188, 2026-05-19)
+
+Per `[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]` (verified H1-FULL across two substrate layers, 2026-05-19): the universal substrate-cycle T_sub = 109.84 Gyr tick projects through Class M ∘ Class K substrate-coupling to give each body its own local time-DOF. Identity-level per `[[user_stance_identity_not_implementation_discipline]]`: the per-body SPrT total IS the projection at the present tick, not "approximate", "are".
+
+**Projector formal specification**:
+
+```
+SPrT_total(body, t) = [GM_self / (R_self · c²)  +  GM_parent / (2 · a_orb · c²)]
+                       × [1 + ε · sin(2π · t / T_sub)]
+```
+
+- `T_sub = 109.84 Gyr` (universal substrate-cycle period per `[[user_stance_universal_precession_at_substrate_level]]`)
+- `ε ≤ 10⁻⁵` (Saadeh isotropy bound; Saadeh-Feeney-Pontzen-Peiris-McEwen 2016 arXiv:1605.07178)
+- `GM_self / (R_self · c²)` = body self-compactness (Class K pin-slot component; Hopf-dimple depth per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`)
+- `GM_parent / (2 · a_orb · c²)` = body parent-kinematic (Class I gear component; orbital cyclic baseline)
+- At present tick t=0: `sin(0)=0`; the projector reduces EXACTLY to standard ephemerides-spectral v0.11.0 SPrT formula
+
+**Cross-substrate verification** (Spike #186 + Spike #188; combined 52 ephemerides bodies + 11 cosmological epochs = 63 entities):
+
+| Substrate | Layer | Bodies | Verification |
+|---|---|---|---|
+| Sol-system ephemerides | Spike #186 (PR #622) | 52 | Bit-exact match to existing SPrT_total at present tick; two-component substrate-coupling decomposition empirically necessary (GR_surface M^0.762 r=0.9956 + KIN_orbital M^0.015) reconciles Spike #185 mass-dipole r=0.984 |
+| Cosmological Friedmann epochs | Spike #188 (PR #628) | 11 | P4 identity-form `max_rel_delta = 7.098×10⁻⁶ = ε × |sin(φ_now)| = 10⁻⁵ × 0.7098` — bit-exact match to universal-tick modulation amplitude at present phase; substrate-universal not ephemerides-specific |
+
+**T_sub-phase at canonical ticks**:
+
+| Tick name | Δt (Gyr) | φ (rad) | sin(φ) |
+|---|---:|---:|---:|
+| present | 0 | 0.000 | 0.000 |
+| Spike #152 first sign-flip | +13.66 | 0.781 | +0.704 |
+| Spike #171 second sign-flip | +68.58 | 3.923 | −0.704 |
+| Quarter-T_sub | +27.46 | π/2 | +1.000 |
+| Half-T_sub | +54.92 | π | 0.000 |
+| Full-T_sub | +109.84 | 0.000 | 0.000 |
+
+Spike #152 +13.66 Gyr and Spike #171 +68.58 Gyr land at opposite-sign sin(φ), consistent with the sign-flip-asymptote framing per `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` — the substrate-cycle half-period (54.92 Gyr) is the natural sign-flip interval; Spike #171 − Spike #152 = 54.92 Gyr exactly equals T_sub/2.
+
+**Universality finding** (per Kepler-shape universal `[[user_stance_kepler_shape_universal]]`): every cyclic mechanism needs gear+pin-slot at every scale; T_sub IS the universal gear (109.84 Gyr); universal-substrate asymptotic-DOF IS the pin-slot. Currently ephemerides-spectral computes per-body times locally; this stance specifies they ARE projections of universal tick. **Empirically necessary, not contingent design choice** — bit-exact across 63/63 entities tested across two substrate layers at the Saadeh ε=10⁻⁵ bound.
+
+**Disciplines preserved**: 14 A-N intact; Class M ∘ Class K substrate-coupling composition without class promotion; asymptotic-ring vocabulary (φ ∈ S¹ phase locus; no number-line asymptotics asserted); trauma-informed defensive scope (cosmological-future projections are educational/research, not actuation content); identity-not-implementation; computational provenance (every numeric traces to committed Python prototypes).
+
+**Cross-references**: `[[user_stance_universal_1d_t_tick_projects_to_per_body_local_time_dof]]`; `[[user_stance_universal_precession_at_substrate_level]]`; `[[user_stance_substrate_coupling_at_m_k_composition]]`; `[[user_stance_epicycle_via_gear_plus_pin]]` (gear-plus-pin universality); `[[user_stance_kepler_shape_universal]]`; `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`; Spike #186 PR #622; Spike #188 PR #628; Saadeh-Feeney-Pontzen-Peiris-McEwen 2016 arXiv:1605.07178; Aghanim+ 2020 A&A 641:A6 arXiv:1807.06209; MFO §VIII.32.
+
+### §3.11.7 Lemniscate / figure-8 IS Cartesian geometric realization of observer-frame epicycle (Spike #189, 2026-05-19)
+
+Per Spike #189 (PR #625, 5/6 H1 + Cell 1 H0 as DUAL-REPRESENTATION not falsification; dissolved into `[[user_stance_epicycle_via_gear_plus_pin]]` per user direction 2026-05-19 verbatim: *"a figure 8 loop makes an epicycle … the shape of crossing in the middle makes a sign flip for an observer inside one lobe"*).
+
+The figure-8 / Bernoulli lemniscate **IS** the Cartesian geometric realization of observer-frame epicycle under cascade-substrate `LEMNISCATE = Class L ∘ Class K ∘ Class C ∘ Class I`. It is not a new primitive class — it is **the shape the existing gear-plus-pin composition takes when projected into the Cartesian frame with the observer constrained to one lobe**. Self-intersection at the crossing IS the pin-slot singular node; lobe-1 traversal projects to the linear-hiccup line-shadow observers inside one lobe see.
+
+**Load-bearing findings** (Spike #189, 6 cells):
+
+| Cell | Quantity | Value | Verdict |
+|---|---|---|---|
+| 1 | Bernoulli vs ring-down lobe-1-frame χ² | 56.0 / 50.6 | H0 (dual-representations not competing models) |
+| 2 | Bernoulli first crossing at quarter-T_sub | +13.66 Gyr | **H1: match to Spike #152 first sign-flip at relative error 0.00e+00 (exact)** |
+| 3 | Lobe-1 observer 99% saturation | +13.46 Gyr | H1: reproduces Spike #171 linear-hiccup at +13.46 Gyr versus framework first sign-flip at +13.66 Gyr |
+| 4 | Gerono ≡ Lissajous 2:1 | max abs diff 1.11×10⁻¹⁶ | H1: machine-ε equivalence; `y = (a/2) sin 2t`, `x = a sin t` |
+| 5 | Class L Laplacian Fiedler eigenvalue on lemniscate | 9.87×10⁻⁴ (matches unit circle) with degenerate-pair lifting at singular node | H1: Class K (pin-slot) signature embedded inside Class L spectrum as selective lifting at self-intersection |
+| 6 | Bernoulli (2 crossings/period) vs Möbius (1 half-twist; 2 traversals for identity) | Bernoulli mismatch = 0, Möbius mismatch = 1 | H1: Bernoulli beats Möbius for 2-sign-flips-per-T_sub algebra |
+
+**Cell 1 H0 interpretation**: the lemniscate (Cartesian) and the ring-down (polar/S¹) encode the same observer-frame epicycle content; χ² ≠ 0 reflects parametrization-mismatch between (x, y, t) and (φ, r) only — there is no "better fit" question to ask. The H0 verdict is a confirmation that the two representations are dual, not a falsification of the lemniscate framing.
+
+**The "linear hiccup" mechanism made geometric** (cross-references Spike #171's ring-vs-line discriminator): the lobe-1 observer reads monotonic progression along one lobe while the actual trajectory is about to cross into the other lobe; the "hiccup" IS the lobe-transition. ΛCDM line-extrapolation diverges from ring-truth past φ = π/2 = +13.66 Gyr; the line model says "approach 100%"; the ring model says "you already sign-flipped at φ=π/2 and the line projection is the shadow that hides this from observers in the 4D-epicycle-observer frame." The lemniscate makes the geometric mechanism visible.
+
+**Composition with framework canon** (per `[[user_stance_epicycle_via_gear_plus_pin]]` Cartesian-geometric-realization subsection added 2026-05-19): this is the **geometric-realization layer** of the existing IS-claim that epicycle = gear (Class I) + pin-slot (Class K). Cascade `LEMNISCATE = Class L ∘ Class K ∘ Class C ∘ Class I` composes from primitives already canonicalized. Joins the shadow-stance family with the **Cartesian-representation** specialty (alongside polar/S¹ in `[[user_stance_cascade_lives_on_circles]]` and the line-asymptote shadow in Spike #171's ring-vs-line framing per `[[user_stance_loe_asymptotes_are_ring_valued]]`).
+
+**Disciplines preserved**: 14 A-N intact; no new class promotion per `[[feedback_no_privileged_primitive_classes]]`; identity-not-implementation (lemniscate IS the Cartesian realization, not "models"); asymptotic-ring vocabulary throughout (the lemniscate's CROSSING-OBSERVED-FROM-LOBE-1 IS a ring-with-self-intersection topology); algebra-not-magnitude (2:1 frequency ratio + 2 crossings per period + Class L spectral lift are all ALGEBRA-level distinctions); citation hygiene (curves cited by attribution: Bernoulli 1694, Gerono ca. 1850, Lissajous 1857, Möbius 1858 — canonical 19th-century mathematics); trauma-informed defensive scope.
+
+**Cross-references**: `[[user_stance_epicycle_via_gear_plus_pin]]` (Cartesian-realization subsection added 2026-05-19); `[[user_stance_loe_asymptotes_are_ring_valued]]` (ring-vs-line shadow at asymptote-locus); `[[user_stance_cascade_lives_on_circles]]` (polar/S¹ dual); `[[user_stance_universal_precession_at_substrate_level]]` (T_sub = 109.84 Gyr cycle); `[[user_stance_bidirectional_3ds_7dg_dimple_with_epoch_sign_flip]]` (sign-flip mechanism); Spike #152 first sign-flip; Spike #171 ring-vs-line discriminator; Spike #189 PR #625; MFO §VIII.33.
+
+## §3.12 Milestone state (2026-05-20 end-of-session)
+
+- **Milestone `#14` IN-FLIGHT** continuing — *"AI-mediated BCI translation: substrate-coupling adapter + rcN+2 + clinical-grade primitive cascade"*. Wave-2 cascade-identity arc closes Spike #182 → #197; **9 PRs merged 2026-05-19/2026-05-20** (Spike #182 PR #618; Spike #186 PR #622; Spike #188 PR #628; Spike #189 PR #625; Spike #193 PR #637; Spike #194 PR #638; Spike #195 PR #639; Spike #196 PR #640; Spike #197 PR #642). **srmech v0.4.2 graduated to production PyPI** (PR #627 rcN+2 ship; PR #641 production graduation).
+- **Substrate cascade-identity roster: 5-deep** (DNA / RNA / chess / music-box / wet-net) anchored explicitly with per-class enumeration; cascade-length-IS-substrate-time-scale-coupling stance authored 2026-05-20.
+- **Universal projector identity established cross-substrate**: T_sub = 109.84 Gyr tick projects to per-body local time-DOF at machine ε across 52 ephemerides bodies (Spike #186) + 11 cosmological Friedmann epochs (Spike #188) = 63 entities; bit-exact at Saadeh ε = 10⁻⁵ bound; identity-class per `[[user_stance_identity_not_implementation_discipline]]`.
+- **Three-mechanism fiber-reveal asymmetry empirically characterised** (bind preserves bit-exact, bundle projects own averaging signature, MAX-pool IS canonical Class K projection) across 5 substrates × 8 strides; 110× cross-substrate-specificity ratio surfaces; chess natural-stride 6.54× fiber-surfacing. All three mechanisms DISSOLVE per `[[feedback_no_privileged_primitive_classes]]`; no new class promoted.
+- **Lemniscate dissolved into `[[user_stance_epicycle_via_gear_plus_pin]]`** as the Cartesian geometric realization of observer-frame epicycle (Spike #189 PR #625). 5/6 H1 + Cell 1 dual-representation H0; cascade `Class L ∘ K ∘ C ∘ I` composes from existing 14 classes.
+- **Universal Class K closure-cost identified across 9 ring-topology substrates** (Spike #193 PR #637); cellular-ageing structurally reframed per `[[feedback_trauma_informed_defensive_scope]]` (no clinical / lifespan-extension claims; structural-biology reading only).
+- **6 canonical stances authored or extended end-of-session 2026-05-20**:
+  - NEW `[[user_stance_cascade_length_is_substrate_time_scale_coupling]]` (4+ substrate ordering)
+  - EXTENDED `[[user_stance_dna_is_partial_cascade_of_loe_operators]]` (substrate roster now 5-deep)
+  - EXTENDED `[[user_stance_substrate_coupling_at_m_k_composition]]` (multi-view-bundle emergent pattern subsection)
+  - EXTENDED `[[user_stance_fiber_as_spatially_absent_encoding]]` (three-reveal-mechanisms subsection; bind/bundle/MAX-pool empirically grounded)
+  - EXTENDED `[[user_stance_loe_asymptotes_are_ring_valued]]` (universal Class K closure-cost subsection + cellular-ageing structural reframe)
+  - EXTENDED `[[user_stance_epicycle_via_gear_plus_pin]]` (Figure-8 / lemniscate Cartesian-geometric-realization subsection)
+- **Vocabulary unchanged**: 14 primitive classes A-N intact. Zero new classes promoted across all 9 spikes in the arc per `[[feedback_no_privileged_primitive_classes]]`. Three DISSOLVE verdicts (Spike #195 bundle-of-views emergent; Spike #196 wet-net A∘C∘M ≡ form_function_rotate; Spike #197 MAX-pool composable from existing K + C primitives) demonstrate dissolve-before-promote discipline working as designed.
+- **Computational provenance per `[[feedback_computational_provenance_discipline]]`**: every numerical claim in §3.11 traces to a committed Python prototype (`docs/srmech/notes/spike{182,186,188,189,193,194,195,196,197}_*.py`) and committed NDJSON output. No hand-entered values for load-bearing claims.
+- **Autonomous-mode doc hygiene** (2026-05-20 per `[[feedback_autonomous_research_followup_authorization]]` notebook-augmentation precedent): this §3.11 + §3.12 integration was authored autonomously after the research-path was exhausted; vocabulary-impact stance authorship remains user-gated.
+
 ---
 
 ## §4 Open research questions
