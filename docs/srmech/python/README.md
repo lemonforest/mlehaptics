@@ -1,31 +1,161 @@
 # srmech
 
-**Status:** **v0.4.0 on PyPI** (Task #217 Phase C1 close — full 14-class C-parity primitive vocabulary + canonical QM/QFT/SM operations layer on top of the AMSC framework). The Phase C1 rc-stack accumulated as `0.4.0rc1` → `0.4.0rc12` on TestPyPI before the clean-semver ship.
+**Status:** **v0.4.2 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework.
 
-`srmech` (Stored-Relationship Mechanism) is a research package shipping three load-bearing surfaces:
+`srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
-1. **14-class primitive vocabulary** — every Spike #24 primitive class with both a Python wrapper (`srmech.amsc.*`) and a native C surface (`srmech_*` symbols in `libsrmech.{so,dll,dylib}`). Classes: A (content-addressing / SHA-256), B (TLV byte-canonical), C (streaming / NDJSON), D (multi-needle dispatch), E (catalog sorted-key lookup), F (template `{key}` substitution), G (byte-pattern search), H (self-introspection), I (cyclic-group / modular arithmetic), J (prime-factorisation / period), K (equation-of-centre / pin-slot — Kepler shape), L (graph Laplacian; pi-free Jacobi), M (HDC binary spatter codes), N (rational-approximation / continued-fraction convergents). JPL Power-of-Ten compliant; cibuildwheel matrix (Linux / macOS / Windows × py3.10–3.14); pure-Python fallback for Pyodide / WASM.
+1. **14-class primitive vocabulary** (`srmech.amsc.*`) — content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational-approximation, equation-of-centre/Kepler, hyperdimensional-computing (HDC). Each class has both a Python wrapper and a native C symbol in `libsrmech.{so,dll,dylib}`.
+2. **Canonical QM/QFT/SM operations layer** (`srmech.qm.*`) — TDSE/TISE, Pauli + Clifford, hydrogen radial, Dirac γ-matrices, Feynman propagators, η-deformed pseudo-Hermitian inner products, SU(2)/SU(3) gauge generators + Wilson loops, Higgs/W/Z/CKM Standard-Model operations.
+3. **Runtime spectral decomposition** (`srmech.spectral`) — eigenbasis projection, HDC delta encoding, spectral prediction, prediction-error gating, sparse-truncate compression.
+4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 38 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
+5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
 
-2. **Canonical QM/QFT/SM operations layer** (`srmech.qm.*`) — sourced from canonical physics literature (Schrödinger / Heisenberg / Pauli / Dirac / Klein-Gordon / Feynman / Yang-Mills / Gell-Mann / Wilson / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Bender-Boettcher / Mostafazadeh) per the "science is the SSoT of science" discipline. Modules: `single_particle` (TDSE / TISE / Heisenberg / lattice momentum / Liouville-vN), `spin` (Pauli matrices + Clifford Cl(0,3)), `potentials` (hydrogen radial + harmonic oscillator), `relativistic` (Dirac γ-matrices + Weyl projectors + charge conjugation + Klein-Gordon), `propagators` (Feynman scalar / fermion / photon / massive vector), `pseudo_hermitian` (η-deformed inner product framework — closes chess-spectral ADR-005 gap), `gauge` (SU(2) / SU(3) Gell-Mann generators + Casimirs + Wilson loops), `sm` (Higgs vev + W/Z masses + Weinberg relation + Yukawa + CKM).
+Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
-3. **Attested Multi-Source Collector/Catalog (AMSC) framework** — Mathematical Provenance Record (MPR) v1 on-disk format, descriptor TOML loader, six fetch/parse adapters, and a universal catalog bridge surface that downstream packages register their own catalog SSOTs with at import time.
+## Install
 
-**Tool-schema introspection** (`srmech.amsc.tool_schema`) surfaces all ~87 operations to LLM consumers with canonical-SSoT-cited summaries — every primitive class and every `srmech.qm.*` operation is discoverable without reading the implementation.
+```bash
+pip install srmech                  # core (numpy + stdlib; no jsonschema, no network adapters)
+pip install srmech[validation]      # adds jsonschema for strict data-block validation
+pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
+pip install srmech[dev]             # everything
+```
 
-### Why "Collector/Catalog"?
+## Quick start
 
-Both readings of **AMSC** are correct and the abbreviation is the same either way:
+Decompose a real signal onto a graph-Laplacian eigenbasis, take an HDC delta against a reference, and recompose:
 
-- At **collection time** (T1 / T3 lifecycle stages — fetch / live-query / re-bake), the adapter classes are *collecting* attested rows from upstream archives. The framework's name describes what it's doing in that moment: **Attested Multi-Source Collector**.
-- After collection, the resulting NDJSON SSOTs are a *catalog* of attested data — committed into the package, registered into the universal bridge by downstream consumers, queryable through `list_attested_sources()` / `get_attested_dataset()`. The same framework name describes the post-collection state: **Attested Multi-Source Catalog**.
+```python
+import numpy as np
+from srmech import spectral
+from srmech.amsc import laplacian
 
-Both names abbreviate to AMSC. Pick whichever fits the lifecycle stage you're describing — the framework is one thing wearing two hats.
+# Substrate: cycle-graph Laplacian on 8 nodes (any Hermitian L works).
+A = np.roll(np.eye(8), 1, axis=1)
+A = A + A.T
+L = laplacian.dense_laplacian(A.astype(np.complex128))
 
-The package was extracted from `ephemerides-spectral`'s `_research/` mirror in Task #197 so that other spectral-research packages can consume the AMSC framework without depending on ephemerides-spectral. The catalog SSOTs themselves do NOT migrate — each downstream package registers its own root via `srmech.amsc.catalog.register_attested_root(path, source=...)`.
+# Project two states onto the eigenbasis.
+state_ref = np.array([1.0, 0, 0, 0, 0, 0, 0, 0], dtype=np.complex128)
+state_now = np.array([0.9, 0.1, 0, 0, 0, 0, 0, 0], dtype=np.complex128)
 
-## Public API
+h_ref = spectral.decompose(state_ref, L)
+h_now = spectral.decompose(state_now, L)
 
-**AMSC framework + bridge surfaces**:
+# HDC XOR delta on encoded coefficient bytes.
+delta_bytes = spectral.delta(h_ref, h_now)
+
+# Predict one substrate-natural tick ahead.
+h_pred = spectral.predict(h_now, L, steps=1, dt=0.1)
+
+# Recover the node-domain state.
+state_back = spectral.recompose(h_pred, L)
+```
+
+## Public surface
+
+### `srmech.amsc.*` — 14-class primitive vocabulary
+
+Each class is importable as `srmech.amsc.<module>` with native C dispatch and a Python fallback. The C surface is loaded once at import time; if loading fails (Pyodide, ABI mismatch), the package transparently falls back to pure Python and `srmech.amsc._native.HAS_NATIVE` becomes `False`.
+
+| Module | Class | Primitive operation |
+|---|---|---|
+| `format`, `_native` | A | Content-addressing via SHA-256 (`sha256_bytes`) |
+| `tlv` | B | Byte-canonical TLV pack (`tlv_pack`) |
+| `format` | C | Streaming NDJSON iterator (`read_ndjson`) |
+| `dispatch` | D | Multi-needle byte-pattern dispatch (`match`) |
+| `naming` | E | Catalog sorted-key lookup (`lookup`) |
+| `template` | F | Template `{key}` substitution (`render`) |
+| `search` | G | Byte-pattern search (`byte_search`) |
+| `_native` | H | Self-introspection (`srmech_version`, `srmech_abi_version`) |
+| `cyclic` | I | Modular arithmetic — `gcd`, `lcm`, `mod_add`, `mod_mul`, `mod_pow`, `mod_inv` |
+| `primes` | J | Prime testing + factorisation + multiplicative order — `is_prime`, `factor`, `cyclic_period` |
+| `kepler` | K | Equation-of-centre / pin-slot — `pin_slot`, `kepler_solve`, `equation_of_centre` |
+| `laplacian` | L | Graph Laplacian — `dense_adjacency`, `dense_laplacian`, `normalized_laplacian`, `jacobi_eigvals`, `hermitian_eigendecompose`, `elementwise_transcendental` (pi-free Jacobi in C; n ≤ 256 native bound) |
+| `hdc` | M | HDC binary spatter codes — `bind`, `bundle`, `permute`, `similarity` |
+| `rational` | N | Continued-fraction convergents — `continued_fraction`, `best_rational` |
+
+### `srmech.qm.*` — canonical QM/QFT/SM operations
+
+Each operation cites canonical physics literature in its docstring (Schrödinger / Heisenberg / Pauli / Dirac / Klein-Gordon / Feynman / Yang-Mills / Gell-Mann / Wilson / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Bender-Boettcher / Mostafazadeh). Modules:
+
+- `single_particle` — TDSE, TISE, Heisenberg-picture evolution, lattice momentum, density matrix, Liouville–von Neumann equation, commutators.
+- `spin` — Pauli matrices, Clifford `Cl(0,3)` residual products, Pauli spin operators.
+- `potentials` — hydrogen radial wavefunction, harmonic oscillator ladder + Hamiltonian.
+- `relativistic` — Dirac γ-matrices, γ⁵, Weyl left/right projectors, charge conjugation, Dirac operator in momentum space, Klein–Gordon equation.
+- `propagators` — Feynman scalar / fermion / photon / massive-vector propagators.
+- `pseudo_hermitian` — η-deformed inner product, ⟨·⟩_η expectation, pseudo-Hermitian check, η construction from eigendecomposition.
+- `gauge` — SU(2) and SU(3) generators (Gell-Mann basis), structure constants, Casimir operator, Wilson loops from segment data.
+- `sm` — Higgs vev, weak mixing angle, W/Z boson masses, Weinberg relation residual, Yukawa coupling, CKM matrix construction.
+
+### `srmech.spectral` — runtime spectral decomposition
+
+Class-composition layer above `srmech.amsc.{laplacian, hdc, format}`. No new primitive class is introduced; every operation is a composition over the 14-class A–N vocabulary.
+
+```python
+from srmech.spectral import (
+    decompose,          # state + Hermitian L → SpectralHandle (V.conj().T @ state)
+    delta,              # XOR delta between two encoded coefficient byte vectors
+    recompose,          # SpectralHandle + L → node-domain state (V @ coeffs)
+    similarity,         # HDC similarity in [-1, +1]
+    predict,            # cascade-extrapolate via per-mode exp(-i·λ_k·steps·dt)
+    prediction_error,   # XOR delta with popcount-density threshold gating
+    truncate_sparse,    # keep top-k or above-threshold modes; zero the rest
+    SpectralHandle,     # opaque (substrate_descriptor_hash, coefficients_bytes, content_sha, n_modes)
+    clear_eigenbasis_cache,
+    N_MAX_EIGENBASES,   # module-level LRU bound (default 8)
+)
+```
+
+Eigenbasis is O(n³) one-time per substrate (cached by `substrate_descriptor_hash`); coefficients are O(n²) per state; deltas are O(D) per step. `predict` preserves magnitudes (unitary phase rotation per eigenmode); `truncate_sparse` produces best k-term approximations per Mallat (2008) §9.2.
+
+### `srmech.signal_processing` — dual-path signal-processing surface
+
+Two paths for the same algebra, dispatched per call:
+
+- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 38 ops covering frequency analysis (`fft`, `ifft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
+- **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Six ops have full dual-path implementations: `fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`.
+
+```python
+from srmech.signal_processing import (
+    dispatch, begin_cascade,             # cascade-aware routing (A / B / verify)
+    register, lookup, has_path,          # path registry (Path A vs Path B per op)
+    profile_op, cell_grid,               # per-op × per-cascade-depth × per-substrate profiling
+    D_DEFAULT, SUBSTRATES,               # locked D = 8192; BCI / audio / RF / ephemeris
+    RBSHDCInstrument,                    # build()-able instrument with mint_*/encode_loe_content
+    mint_class_operator,                 # SHA-256 chain mint per class A–N
+    mint_cascade_composition,            # XOR-bundle (algebra) or permute-bundle (sampling)
+    encode_loe_content, decode_loe_fingerprint,
+    form_function_rotate,                # Class K pin-slot rotation
+    cascade_compose_rotations,
+    PATH_A, PATH_B, PATH_VERIFY,         # path identifiers
+)
+
+with begin_cascade() as ctx:
+    spectrum = dispatch("fft", path=PATH_A, signal=x)
+    truncated = dispatch("hdc_truncation", path=PATH_B, signal=spectrum, k=64)
+```
+
+Path A and Path B produce bit-exact-equal outputs on substrate-natural inputs (D1 algebra-content identity); substrate-fingerprint divergence at D2 is expected and documented.
+
+### `srmech.amsc` — Attested Multi-Source Collector/Catalog framework
+
+Two readings of the same abbreviation:
+
+- At **collection time**, the adapter classes are *collecting* attested rows from upstream archives. Six adapters cover the realistic source space:
+
+  | adapter | class | network? |
+  |---|---|---|
+  | `html_scraper` | fetched | yes (BeautifulSoup) |
+  | `json_api` | fetched | yes (paginated JSON) |
+  | `csv_bulk` | fetched | yes (CSV/XYZ bulk) |
+  | `netcdf_grid` | fetched | stub (gated behind extras) |
+  | `geotiff_bbox` | fetched | stub (gated behind extras) |
+  | `literature_curated` | curated | no (NDJSON committed directly) |
+
+  The `curated` class never touches the network: rows are committed as data-only NDJSON, and srmech synthesises full MPR attestation blocks at read time from each row's per-row DOI.
+
+- After collection, the resulting NDJSON SSOTs are a *catalog* of attested data — committed into the package, registered into the universal bridge by downstream consumers, queryable through `list_attested_sources()` / `get_attested_dataset()`.
 
 ```python
 from srmech.amsc import (
@@ -37,54 +167,45 @@ from srmech.amsc import (
 )
 ```
 
-**14-class primitive vocabulary** (each available as `srmech.amsc.<module>` with native C dispatch + Python fallback):
+The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
 
 ```python
-from srmech.amsc import (
-    cyclic,     # Class I: gcd, lcm, mod_add, mod_mul, mod_pow, mod_inv
-    laplacian,  # Class L: dense_adjacency, dense_laplacian, normalized_laplacian, jacobi_eigvals
-    primes,     # Class J: is_prime, factor, cyclic_period
-    tlv,        # Class B: tlv_pack
-    search,     # Class G: byte_search
-    dispatch,   # Class D: match
-    naming,     # Class E: lookup
-    template,   # Class F: render
-    rational,   # Class N: continued_fraction, best_rational
-    kepler,     # Class K: pin_slot, kepler_solve, equation_of_centre
-    hdc,        # Class M: bind, bundle, permute, similarity
-)
+{
+  "mpr_version": "1.0",
+  "data": { ... domain payload ... },
+  "data_schema_id": "test://schema/example",
+  "attestation": {
+    "source_doi": "10.0/...",
+    "source_url": "https://...",
+    "license": "CC0",
+    "retrieved_at": "2026-05-13T00:00:00Z",
+    "response_sha256": "<64 hex chars>",
+    "parser_version": "srmech 0.4.2",
+    "parser_rule_hash": "<64 hex chars>",
+    "collector_descriptor_path": "...",
+    "collector_descriptor_hash": "<64 hex chars>"
+  },
+  "rendering": { "name": "...", "purpose": "...", "cite_as": "..." }
+}
 ```
 
-**Canonical QM/QFT/SM operations layer**:
-
-```python
-from srmech.qm import (
-    single_particle,    # TDSE, TISE, Heisenberg, lattice_momentum, density_matrix, liouville_evolve
-    spin,               # pauli_matrices, pauli_clifford_residuals, pauli_spin_operator
-    potentials,         # hydrogen_radial, harmonic_oscillator_ladder, harmonic_oscillator_hamiltonian
-    relativistic,       # gamma_matrices, gamma_5, weyl_left/right_projector, dirac_operator_momentum_space
-    propagators,        # feynman_scalar/fermion/photon/massive_vector_propagator
-    pseudo_hermitian,   # inner_product_eta, expectation_eta, is_pseudo_hermitian, construct_eta_from_eigendecomposition
-    gauge,              # su2/su3_generators, su2/su3_structure_constants, casimir_operator, wilson_loop_from_segments
-    sm,                 # higgs_vev, weak_mixing_angle, w/z_boson_mass, weinberg_relation_residual, ckm_matrix
-)
-```
-
-**Tool-schema introspection**:
+### `srmech.amsc.tool_schema` — LLM-friendly introspection
 
 ```python
 from srmech.amsc.tool_schema import get_tool_schema, tool_schema_view
 
-schema = get_tool_schema()                # ~87 ToolEntry objects
+schema = get_tool_schema()                # ToolEntry objects, one per public callable
 for tool in schema.tools:
-    print(tool.name, "—", tool.summary)   # canonical-SSoT-cited summaries
+    print(tool.name, "—", tool.summary)   # canonical-SSoT-cited one-line summaries
 
 json_view = tool_schema_view()            # JSON-serialisable view
 ```
 
+Every primitive class, every `srmech.qm.*` operation, and every `srmech.spectral.*` runtime operation is discoverable here without reading the implementation. Summaries cite the canonical physics / mathematics literature directly.
+
 ## Cross-package catalog registration
 
-The load-bearing API for cross-package use:
+Other spectral-research packages register their own catalog SSOTs into srmech's universal bridge at import time:
 
 ```python
 from pathlib import Path
@@ -96,31 +217,7 @@ _amsc_catalog.register_attested_root(
 )
 ```
 
-Call this once at package-import time. Subsequent `list_attested_sources()`, `get_attested_dataset()`, etc. enumerate the union of srmech's own `amsc/attested/` plus every registered root, in registration order. Duplicate `source_key` resolves first-registered-wins with a warning.
-
-## Adapter classes
-
-Six adapters cover the realistic source space:
-
-| adapter | class | network? |
-|---|---|---|
-| `html_scraper` | fetched | yes (BeautifulSoup) |
-| `json_api` | fetched | yes (paginated JSON) |
-| `csv_bulk` | fetched | yes (CSV/XYZ bulk) |
-| `netcdf_grid` | fetched | stub (gated behind extras) |
-| `geotiff_bbox` | fetched | stub (gated behind extras) |
-| `literature_curated` | curated | no (NDJSON committed directly) |
-
-The `curated` class never touches the network: rows are committed as data-only NDJSON and srmech synthesises full MPR attestation blocks at read time from each row's per-row DOI.
-
-## Install
-
-```bash
-pip install srmech                  # core (no jsonschema, no network adapters)
-pip install srmech[validation]      # adds jsonschema for strict data-block validation
-pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
-pip install srmech[dev]             # everything
-```
+Subsequent `list_attested_sources()`, `get_attested_dataset()`, etc. enumerate the union of srmech's own `amsc/attested/` plus every registered root, in registration order. Duplicate `source_key` resolves first-registered-wins with a warning.
 
 ## License
 

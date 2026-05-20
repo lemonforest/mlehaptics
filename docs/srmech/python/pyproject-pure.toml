@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.4.2rc4"
+version = "0.4.2rc5"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -26,7 +26,7 @@ version = "0.4.2rc4"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject.toml`.
-description = "Stored-Relationship Mechanism research package. 14-class primitive vocabulary (content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational, equation-of-centre/Kepler, HDC) in native C + Python; canonical QM/QFT/SM operations layer (Schrödinger, Dirac, Yang-Mills, Standard Model); AMSC framework with Mathematical Provenance Record v1 on-disk format and universal catalog bridge."
+description = "Stored-Relationship Mechanism research package. 14-class primitive vocabulary in native C + Python (content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational, equation-of-centre/Kepler, HDC); canonical QM/QFT/SM operations layer (Schrödinger, Dirac, Yang-Mills, Standard Model); runtime spectral decomposition; dual-path signal-processing surface; AMSC provenance framework (MPR v1 + universal catalog bridge)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"

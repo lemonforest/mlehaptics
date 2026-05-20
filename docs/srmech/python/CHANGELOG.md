@@ -4,6 +4,29 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.2rc5] - 2026-05-19
+
+**Cumulative rc5 — TestPyPI verification of README v0.4.2 rewrite + numpy 2.x test compatibility + pyproject description refresh on top of the rc1-rc4 stack** per `[[feedback_rc_stacking_versioning]]` and `[[feedback_always_rc_first_for_downstream_publishes]]`. Graduation to production v0.4.2 is a SEPARATE follow-up PR once rc5 verifies on TestPyPI (fresh-venv install + README rendering check). No new primitive class introduced; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Changed — `README.md` (PyPI long-description)
+
+Full rewrite of the PyPI README for the v0.4.2 surface area. Navigable section structure with `srmech.amsc.*` (14-class primitive vocabulary) + `srmech.qm.*` (canonical QM/QFT/SM operations) + `srmech.spectral` (runtime spectral decomposition incl. MS #14 rcN+1+rcN+2 entries) + `srmech.signal_processing` (dual-path architecture) + AMSC provenance framework all surfaced as load-bearing. Internal project vocabulary scrubbed (cascade-match / substrate-natural / RBS-HDC-LoE / Spike #N anchors moved to the research notebook; public README cites canonical SSoT papers only).
+
+### Fixed — `tests/` numpy 2.x compatibility
+
+`log(0)` domain-check was emitting a `RuntimeWarning` under numpy 2.x (warning-promoted-to-error in pytest config); the test now uses `np.where`-guarded log to skip the zero entries cleanly. Version pin in `test_signal_processing_scaffolding.py` updated to `0.4.2rc5`.
+
+### Changed — `pyproject.toml` / `pyproject-pure.toml` description
+
+Description metadata refreshed to enumerate the five load-bearing surfaces (14-class primitives + canonical QM/QFT/SM + runtime spectral + dual-path signal processing + AMSC provenance). 488 chars, under the PyPI 512-char Summary cap per `[[reference_pypi_512_char_summary_limit]]`. Both pyproject files agree (publish-workflow guard `verify pyproject-pure.toml version + description match main`).
+
+### Discipline
+
+- Cumulative rc stack — rc1-rc4 content unchanged below + this rc5 layer.
+- Production graduation v0.4.2 is gated by user direction after rc5 TestPyPI verification (fresh-venv install + README rendering check).
+
+See `[0.4.2rc4]` below for the full Phase 1-4 ship narrative + `srmech.spectral.predict` / `prediction_error` / `truncate_sparse` rcN+2 entries + tool_schema registration.
+
 ## [0.4.2rc4] - 2026-05-19
 
 **Phase 4 of the RBS-HDC-LoE dual-path architecture** — Path B per-op MVP. Ships 6 Path B-native signal-processing op modules (`fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`) under `srmech.signal_processing.path_b_ops` per the implementation plan §6 Phase 4. Each op registers BOTH its Path A counterpart (from Phase 2 `closed_form_ops`) and its Path B implementation with `srmech.signal_processing.path_registry` at module-load time, giving the cascade dispatcher dual-path routing for the MVP roster. **No new primitive class introduced**; 14-class A–N vocabulary intact per `[[feedback_no_privileged_primitive_classes]]`. Identity-not-implementation discipline preserved per `[[user_stance_identity_not_implementation_discipline]]` — Path A and Path B IS the same algebra at D1 algebra-content (bit-exact on substrate-natural inputs per `[[feedback_algebra_not_magnitude]]`); D2 substrate-fingerprint divergence is expected per `[[user_stance_substrate_natural_encoding_is_shadow_projection]]`. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]` — methodology-research / educational / civilian-comms framing only.

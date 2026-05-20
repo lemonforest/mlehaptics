@@ -92,11 +92,14 @@ def test_submodule_imports():
 
 
 def test_version_is_0_4_2rc1():
-    """Phase 4 ships v0.4.2rc4 (Phase 1 was rc1; Phase 2 stayed at rc1
-    in-tree; Phase 3 bumped to rc3; Phase 4 bumps to rc4 per the
-    implementation plan §6 Phase 4)."""
-    assert srmech.__version__ == "0.4.2rc4", (
-        f"expected srmech.__version__ == '0.4.2rc4'; got "
+    """v0.4.2rc5 TestPyPI verification (cumulative rc stacking per
+    `[[feedback_rc_stacking_versioning]]`; rc1-rc4 + README v0.4.2
+    rewrite + numpy 2.x test compat + pyproject description refresh
+    on TestPyPI before clean 0.4.2 graduation routes to production
+    PyPI per the auto-routing in
+    ``.github/workflows/srmech-publish.yml``)."""
+    assert srmech.__version__ == "0.4.2rc5", (
+        f"expected srmech.__version__ == '0.4.2rc5'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -104,7 +107,7 @@ def test_version_is_0_4_2rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.2rc4"
+    assert version_str == "0.4.2rc5"
     assert version_str == srmech.__version__
 
 
