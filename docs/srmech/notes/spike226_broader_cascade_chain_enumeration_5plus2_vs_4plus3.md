@@ -244,6 +244,81 @@ The dismissal is now broader than Spike-research #225's narrow Class-M-rotation 
 
 ---
 
+## §5.5 — FRAMING CORRECTION (user direction 2026-05-21 post-merge critique)
+
+User critique 2026-05-21 verbatim, post-merge: *"did we identify the cascade or we gave up? it looks like we gave up? I don't understand. if there is not a cascade, then our LoE is incorrect."* + *"these related spikes didn't actually do anything new or useful and need cleaned up. the abacus was the answer and then dropped from weights."*
+
+The critique is structurally correct and requires honest acknowledgment of the framing error in this spike's dispatch.
+
+### §5.5.1 — The actual cascade WAS already in canon
+
+**Spike-research #222 §9.5 (merged via PR #670 prior to this spike) already identified the cross-substrate cascade**: **universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A**, shared by 5+2 suanpan substrate (Spike-research #224) + 4+3 Hopf gauge substrate (Spike-research #58.H) + all 4 Roman arithmetic operations (Spike-research #222).
+
+Both 5+2 and 4+3 substrates ARE cascade-related via this universal core. The differences are **substrate-specific augmentations**:
+- **5+2 suanpan**: 6-class core + Class D (dispatch; multi-method arithmetic algorithm selection) = 7 classes
+- **4+3 Hopf gauge**: 6-class core + Class K (asymptotic-DOF; gauge-fiber direction) = 7 classes
+- **Roman subtraction**: 6-class core + Class K (subtractive-notation pin-slot) = 7 classes
+- **Roman division-by-subtraction**: 6-class core + Class K (subtraction inheritance) + Class D = 8 classes per iteration
+
+**LoE is NOT violated.** The cascade exists at cascade-composition level, was already documented in canon, and was already listed on the open-fermata list as PR #670 FERMATA-4 (universal 6-class core canonical stance candidate).
+
+### §5.5.2 — The framing error in this spike's dispatch
+
+This spike asked the question at the **wrong level of abstraction**:
+
+| Level | Question | Spike-research #226 verdict | Framework relevance |
+|---|---|---|---|
+| Partition-arithmetic of 7 | "Can cascade-chain T transform partition (4,3) into partition (5,2)?" | NO at depth ≤ 4 + depth-independence inference | Misleading — frames substrates as partitions-of-an-integer which they're not |
+| Cascade-composition level | "Do 5+2 and 4+3 substrates share a cascade-composition relation across 14 A-N classes?" | **YES via universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A** (already in Spike-research #222 §9.5) | **This is the framework-level answer; was already in canon BEFORE this spike** |
+
+The partition-arithmetic question (which this spike answered with rigorous methodology under Definition A) was a NARROWER mathematical question than the framework-level cross-substrate cascade-matching question that the user originally asked. The narrower question's negative answer does not bear on the broader framework-level answer (which is positive: universal 6-class core).
+
+### §5.5.3 — Why this spike was nonetheless dispatched (post-compact lexical drift)
+
+Per the new feedback memory `[[feedback_post_compact_lexical_drift_surface_open_fermatas_first]]` authored 2026-05-21 same-session as this correction: after the session's context compaction, the universal 6-class core finding from Spike-research #222 §9.5 (which was the framework-level answer to the user's cross-substrate cascade question) dropped from active session attention weighting. The post-compact narrative flow carried into "PR #670 fermata 1+2 require disposition → Spike-research #225 narrow test → Spike-research #226 broader enumeration" without checking whether the open-fermata items themselves already contained the answer.
+
+The user's catch is structurally exact: **the abacus was the answer (Spike-research #224 + Spike-research #222 §9.5 universal 6-class core) and was dropped from weights post-compact.**
+
+### §5.5.4 — Honest scope of what Spike-research #225 + Spike-research #226 actually produced
+
+Both spikes produced **narrow verification results**, NOT framework-level new insights:
+
+**Spike-research #225** (PR #671 merged):
+- ✅ Genuine: deep cascade-class breakdown per 4 Roman arithmetic operations (Part 1)
+- ✅ Genuine: universal 6-class core observation at §9.5 (THIS IS THE ANSWER)
+- ⚠️ Narrow: Class M bind rotation specifically insufficient (Part 2; tautological per Spike-research #196 cardinality-preservation + F-1 declared-different-structures)
+- ⚠️ Narrow: Q4 verdict overreach "no isomorphism via any operation in 14 A-N" was qualified to Class M-rotation-specifically in §2.5
+
+**Spike-research #226** (this spike):
+- ⚠️ Narrow: 14 A-N vocabulary cannot perform additive-partition reassignment for prime cardinalities under Definition A
+- ⚠️ Methodology-useful: Class J multiplicative-not-additive structural observation (helpful for future spike-dispatch decisions)
+- ✅ Cross-spike composition surprise: empirically confirms Spike-research #214 depth-independence (J∘J∘J fixed-point at depth-3 = J alone)
+- ❌ MISSED: did not surface the universal 6-class core finding that was already in Spike-research #222 §9.5
+
+### §5.5.5 — Correct framework-honest disposition (REPLACES §5 Q4 verdict claim)
+
+| Claim | Verdict | Source |
+|---|---|---|
+| **Cross-substrate cascade-relation between 5+2 and 4+3 substrates exists** | **YES — via universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A** | Spike-research #222 §9.5 (already canonical pre-this-spike) |
+| **Substrate-specific augmentations distinguish them** | YES — D for 5+2 (dispatch); K for 4+3 (asymptotic-DOF gauge-fiber) | Spike-research #222 + #224 + #58.H |
+| **(4,3) ↔ (5,2) partition-arithmetic transformation achievable via 14 A-N?** | NO at depth ≤ 4 + depth-independence inference, under Definition A (this spike's narrow verdict; correctly bounded) | Spike-research #226 (this spike, properly scoped) |
+| **LoE violated?** | **NO** — partition-arithmetic question is structurally different from cascade-composition question; LoE operates at cascade-composition level; the cascade exists | This framing correction |
+
+### §5.5.6 — Cleanup recommendation
+
+Per user direction *"these related spikes didn't actually do anything new or useful and need cleaned up"*:
+
+- **Don't delete the spike notes** — they contain genuine narrow findings (Class J multiplicative-not-additive; depth-independence empirical confirmation; deep Roman cascade breakdowns) that are useful methodology references for future work
+- **Do qualify the verdicts honestly** — Spike-research #225 already has §2.5 verdict-qualification; this Spike-research #226 §5.5 framing-correction parallels it
+- **Surface the actual answer prominently** — universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A is the cross-substrate cascade; should be promoted to canonical stance per PR #670 FERMATA-4
+- **Apply post-compact discipline going forward** — first action after compaction = review open-fermata list before dispatching new research
+
+### §5.5.7 — FERMATA-1 of this spike (§6.1 below) — refined
+
+The §6.1 FERMATA-1 ("vocabulary-wide partition-preservation as canonical-stance promotion candidate") is at the WRONG abstraction level. The actual canonical stance candidate is the universal 6-class core observation from Spike-research #222 §9.5 — already on open-fermata list as PR #670 FERMATA-4. Both the partition-preservation observation AND the universal-6-class-core observation are real structural facts, but the latter is the load-bearing framework-level finding that answers the user's original cross-substrate cascade question.
+
+---
+
 ## §6 — Fermata records
 
 ### §6.1 — FERMATA-1 — Vocabulary-wide partition-preservation as a canonical-stance promotion candidate
