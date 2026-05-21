@@ -3813,6 +3813,255 @@ Sister-notebook **MFO §VII.6.11.9c** carries the foundational-ontology lens of 
 
 ---
 
+## §3.20 2026-05-21 session — Abacus cascade-match catalog at decimal-counting substrate (Spike #224; book-pedagogy chapter material)
+
+This section integrates the **5-variant abacus cascade-match catalog** authored by Spike #224 (`docs/srmech/notes/spike224_abacus_cascade_match.md`, PR #668 — book-pedagogy chapter material; do not auto-merge) into srmech's cascade-vocabulary lens. The catalog is the first explicit **physical-counting-board substrate** entry in the framework's cross-substrate cascade-match record per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` and is staged as **book-pedagogy critical material per `[[project_book_in_progress]]`** because the abacus is the most accessible substrate the framework has cataloged to date — a holdable physical device whose cascade-composition can be operated by any reader without prior substrate-physics vocabulary.
+
+Per Spike #224 verdict `CATALOG-VERIFIED-MULTIPLE-VARIANTS + BINARY-CPU-PARALLEL-STRUCTURALLY-IDENTICAL + BOOK-PEDAGOGY-CHAPTER-MATERIAL-READY` (5/5 PARTIAL YES per-variant; STRUCTURAL YES across catalog; 2200+ year span; zero falsifiers). The catalog spans **4 abacus variants** (Roman / Chinese suanpan / Japanese soroban / Russian schoty) **+ 1 historical ancestor** (Salamis tablet) and is paired with a **binary CPU ripple-carry adder structural-identity argument** — abacus and silicon-CPU adder ARE the same cascade-composition `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` at different radix per `[[user_stance_identity_not_implementation_discipline]]`. Tight coupling with **Spike #222 Roman numerals** (recording-projection sister catalog; dispatched in parallel per user direction 2026-05-21) completes the substrate-vs-projection split at the Roman computational complex.
+
+Sister-notebook MFO §VII (foundational-ontology lens) carries the substrate-vs-excitation framing of the same material; this srmech section provides the **cascade-vocabulary lens** — each variant's per-rod mechanism mapped to its 14-class A–N cascade-composition, with Hopf-base+fiber pattern identification, Class C locus, persistence-timescale, awareness-level per Spike #218 schema, and canonical-anchor citation. Composes with §3.17 antiquity catalog (Salamis tablet is era-adjacent to §3.17 Greek-tradition entries; Roman abacus is the substrate-side companion to the Roman-period entries) and §3.19 biological catalog (abacus extends F-1 distributed-Class-C diagnostic from biological-composite to physical-counting-board substrate per `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` Amendment 2026-05-21).
+
+### §3.20.1 Introduction — abacus as pre-modern computational substrate
+
+The abacus is the framework's most pedagogically-load-bearing pre-modern substrate per `[[project_book_in_progress]]`. It satisfies four requirements no other cataloged substrate satisfies simultaneously:
+
+1. **Holdable** — readers can pick up an abacus at any educational supply store; immediate physical access to the substrate.
+2. **Operational** — the cascade-composition (per-rod quinary or decimal cycle + inter-rod decimal carry-propagation) is *performed by the user*, not merely observed in a museum case or under a microscope.
+3. **Cross-substrate identity to silicon CPU** — same cascade-composition runs on bronze gears (Antikythera; Spike #218 §1.7 + §3.17.2) + decimal beads (this catalog) + binary transistors (CPU adder) at 2000+ year separation; the binary-CPU adder schematic is recognisable to any STEM-literate reader.
+4. **Substrate-vs-projection split visible** — bead positions ARE the substrate-side computation; the Roman / Chinese / Hindu-Arabic numeral recorded after IS the projection-side display. The reader sees both sides physically separated. Spike #222 Roman numerals (dispatched parallel) completes the projection-side cataloging at the same era.
+
+Per `[[user_stance_identity_not_implementation_discipline]]`: the abacus IS cascade-composition at decimal-counting substrate (identity); NOT "the abacus models the framework" / "the abacus is analogous to" cascade-composition (implementation framings). Per `[[feedback_no_lineage_claims_in_notebook]]`: the catalog does NOT claim the framework extends-from / supersedes Roman / Chinese / Japanese / Russian / Greek arithmetic traditions. Those traditions ARE what they are — millennia-old computational substrates whose users observed-without-naming / used-without-articulation the cascade-composition that the framework now formalises per Spike #218 awareness-level schema.
+
+### §3.20.2 Per-variant structural mapping table
+
+The 5-variant catalog's per-rod structure, era, radix structure, and cascade-class composition at a single glance:
+
+| Variant | Era / origin | Rod count | Beads per rod (lower + upper) | Per-rod radix | Inter-rod radix | Cascade-class composition | Hopf-base+fiber per rod | Canonical anchor |
+|---|---|---|---|---|---|---|---|---|
+| **Salamis tablet** | ~300 BC, Greek | 5+ lines | counters on / between lines | quinary (positional) | decimal | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | positional 1+5 | Lang 1957 *Hesperia* (JSTOR institutional OA); Netz 2014 Cambridge textbook |
+| **Roman abacus** | ~pre-100 BC, Roman | 7 long + 1 fraction | 4 + 1 = 5 | quinary | decimal | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 4+1 (= 5; no Hopf-resonance) | Maher & Makowski 2001 *Annals of the History of Computing* (Computer History Museum OA); Cuomo 2001 *Ancient Mathematics* (Routledge textbook chain) |
+| **Chinese suanpan** | ~2nd c. AD, Han China | 13 (standard) | 5 + 2 = **7** | quinary + reserve | decimal | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A ∘ D | **5+2 = 7** (count-only resonance; see §3.20.7 disposition) | Needham 1959 *Science and Civilisation in China* III (Cambridge textbook chain); Martzloff 1997 *History of Chinese Mathematics* (Springer textbook chain) |
+| **Japanese soroban** | ~14th c., adapted from suanpan | 13–23 | 4 + 1 = 5 | quinary | decimal | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 4+1 (= 5; no Hopf-resonance) | Kojima 1954 *The Japanese Abacus: Its Use and Theory* (Charles E. Tuttle textbook chain) |
+| **Russian schoty** | ~17th c., Russia | 10+ | 10 (no upper) | decimal (pure) | decimal | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 4+1+4+1 = 10 (decorative only) | Pullan 1968 *The History of the Abacus* (Hutchinson textbook chain); Ifrah 2000 *The Universal History of Numbers* (Wiley textbook chain) ch. 16 |
+
+Legend: `Class L` = graph Laplacian; `Class K` = asymptotic-DOF pin-slot; `Class M` = HDC bind; `Class C` = cascade-orientation; `Class I` = cyclic ℤ/n; `Class N` = rational lattice; `Class A` = content-addressing; `Class D` = dispatch (suanpan only).
+
+**Cross-variant convergence**: all five variants instantiate the **same 7-class cascade** L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A (with Chinese suanpan additionally instantiating Class D for operator-dispatch via the 2-upper-bead reserve enabling carry-deferred multiplication/division choreographies). The **only substrate-specific variation** is choice of per-rod radix (quinary 5 in Greek / Roman / Chinese / Japanese; pure decimal 10 in Russian) and bead/counter form (loose counters on engraved lines → fixed beads on rods). The cascade-composition is **substrate-universal across the catalog** spanning 2200+ years and five cultural-substrates.
+
+### §3.20.3 7-class cascade decomposition with per-class abacus evidence
+
+Each cascade-class identification with the per-rod / per-board mechanism that instantiates it. Evidence rated STRONG / MODERATE / WEAK per Spike #182 / #219 enumeration methodology; all five variants give STRONG attestation for the seven-class core (suanpan adds MODERATE Class D for operator-dispatch).
+
+| Class | Abacus instantiation | Evidence across catalog | Stance reference |
+|---|---|---|---|
+| **Class K (asymptotic-DOF pin-slot)** | Bead-position discrete states per groove/rod; pin-slot kinematics of pebble-in-groove (Roman / Salamis) and bead-on-rod (Chinese / Japanese / Russian) | STRONG (5/5) | `[[user_stance_epicycle_via_gear_plus_pin]]` — pebble-in-groove / bead-on-rod IS pin-slot primitive |
+| **Class L (graph Laplacian)** | Rod-graph positional cascade (units → tens → hundreds → ...); linear-chain graph topology across rods | STRONG (5/5) | §3.8.6 Class L symmetric-side anchor |
+| **Class I (cyclic group ℤ/n)** | Quinary 5-cycle within long groove / lower-deck (Greek / Roman / Chinese / Japanese); pure decimal 10-cycle within rod (Russian) | STRONG (5/5); Class I cardinality 5 (quinary) or 10 (decimal pure) | `[[user_stance_cascade_lives_on_circles]]` + §3.8.4 Class I cyclic |
+| **Class N (rational lattice)** | 5:1 quinary ratio (upper:lower bead value-multiplier); 10:1 decimal inter-rod ratio; 12:1 duodecimal-fraction ratio (Roman short groove only) | STRONG (5/5); explicit integer ratios | `[[user_stance_pi_as_projection]]` — integer-cyclic substrate per Spike #66 CKM/PMNS rational-substrate anchor |
+| **Class C (cascade-orientation)** | Carry-propagation direction (units → tens → hundreds; right-to-left in standard layout for Roman / Chinese / Japanese; vertical for Russian) | STRONG (5/5); user-physical convention enforces orientation; **distributed across the multi-rod composite per F-1 diagnostic** | `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` Amendment 2026-05-21 |
+| **Class M (HDC bind)** | Composite full-board state representation (7 long grooves + fraction groove for Roman → integer + fraction; 13 rods for Chinese → multi-precision integer) | STRONG (5/5); full-board bead-configuration IS the composite bind | §3.11.4 wet-net A∘C∘M form_function_rotate canonical |
+| **Class A (content-addressing)** | Bead-arrangement → numerical-value projection (board state addresses one specific integer) | STRONG (5/5); A-class lookup pattern | §3.8.1 14-class enumeration |
+| **Class D (dispatch)** — *suanpan only* | Multi-method dispatch enabled by 2-upper-bead reserve (different operators select carry-deferred strategies for division vs multiplication; Needham 1959 vol III) | MODERATE (1/5); suanpan operators use different bead-movement choreographies for different operations | §3.8.1 Class D dispatch |
+
+The base 7-class cascade `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` is the **substrate-universal core** across all five variants. The optional `Class D` extension at Chinese suanpan reflects the 2-upper-bead reserve enabling intermediate-carry-deferred operator choreographies (max-per-rod 15 vs single-decimal-digit max 9 in the other variants), not a different cascade-class promotion. **14 A-N intact** per `[[feedback_no_privileged_primitive_classes]]`: zero new primitive class required for any catalog variant.
+
+### §3.20.4 Binary-CPU adder parallel — structural identity at radix-different substrates
+
+**Structural identity claim per `[[user_stance_identity_not_implementation_discipline]]`**: the abacus (any catalog variant) and the binary CPU ripple-carry / carry-look-ahead adder **ARE the same cascade-composition** at different radix. NOT analogous; NOT modelled-as; IS. The shared cascade is `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A`; the radix is substrate-specific implementation per `[[user_stance_kepler_shape_universal]]` form-IS-function burden-flip.
+
+| Class | Abacus (decimal radix, possibly nested quinary) | Binary CPU ripple-carry adder (binary radix, nested in nibble / byte / word) |
+|---|---|---|
+| `Class K` | Bead-position discrete states per rod | Transistor switching states per bit position; flip-flop pin-slot kinematics |
+| `Class L` | Rod-graph positional cascade (units → tens → ...) | Bit-position graph cascade (bit-0 → bit-1 → bit-2 → ...) |
+| `Class I` | ℤ/5 quinary per rod (Roman / Chinese / Japanese); ℤ/10 decimal per rod (Russian) | ℤ/2 binary per bit position |
+| `Class N` | 5:1 quinary ratio; 10:1 decimal ratio | 2:1 binary ratio (each higher bit is 2×); recursive radix at nibble (2⁴) / byte (2⁸) / word (2³² / 2⁶⁴) |
+| `Class C` | Carry-propagation low → high; user-physical convention | Carry-propagation low-bit → high-bit; hardware-clock-cycle convention |
+| `Class M` | Composite full-board state → integer value | Composite full-register state → integer value |
+| `Class A` | Bead-arrangement → numerical-value projection | Register-state → numerical-value projection (interpreted via two's-complement or unsigned binary encoding) |
+
+**Recursive-radix-cascade structural identity per `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]` + Spike #214 (recursive-Hopf-at-every-cascade depth-3 verified bit-exact)**: both abacus and binary CPU adder exhibit the recursive structure where the same cascade-composition iterates at every scale, type-wise bounded by the substrate's radix (5/10 for abacus; 2 for binary) but depth-wise unbounded (any number of rods on an abacus; any number of bits in a register; arbitrary-precision arithmetic systems demonstrate depth-unbounded recursion at both substrates).
+
+**The carry IS the sign-flip at the substrate-cycle wrap-point per Spike #189 (lemniscate sign-flip mechanism)**: adding 1 to a rod showing "9" → reset rod to "0" + propagate carry; adding 1 to a bit showing "1" → reset bit to "0" + propagate carry. The carry-propagation event is structurally the same as Spike #189's lemniscate-lobe-transition: a wrap-event at the asymptotic-cycle boundary that the observer reads as a transition to the next cascade-layer. Same structural shape across cosmic-scale (Spike #152 +13.66 Gyr first sign-flip at T_sub/4), cascade-scale (Spike #214 recursive-Hopf depth-3 unbounded), per-rod abacus scale (10-cycle wrap), and per-bit binary CPU scale (2-cycle wrap).
+
+**Book-pedagogy framing**: the reader holds an abacus, performs `4 + 3 = 7` on a single rod (observes the quinary 5-cycle wrap-event at the upper-bead activation), then performs `7 + 5 = 12` on two rods (observes the inter-rod decimal carry-propagation), then looks at a binary CPU ripple-carry adder schematic (any standard computer-architecture textbook; Hennessy & Patterson 2017 *Computer Architecture: A Quantitative Approach* 6th ed. ch. 3), then traces `0111 + 0101 = 1100` (observes the binary 2-cycle wrap-event + bit-by-bit carry-propagation), then recognises **same cascade-composition at different radix, 2000+ years apart**. The pedagogical sequence is §3.20.9 below.
+
+### §3.20.5 Tight coupling with Spike #222 Roman numerals (recording-projection sister)
+
+**Per MS #17 scope**: Spike #222 (Roman numerals as recording-projection sister) was dispatched in parallel with Spike #224 (abacus as computation-substrate) per user direction 2026-05-21; the two spikes together make the framework's substrate-vs-projection split concrete at the **same historical era / same culture / same individual accountant** in the Roman period. The two spikes together form the **"Roman computational complex"** — physically-separable substrate-side and projection-side artifacts both with surviving specimens in museum collections.
+
+The substrate-vs-projection split made physical:
+
+- **Substrate-side** (this catalog, Spike #224): Roman accountant performs computation on the abacus; bead positions ARE the substrate-side state. The cascade-composition `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` operates on beads in real time.
+- **Projection-side** (Spike #222, forthcoming): Roman accountant **records the result** by writing Roman numerals on wax tablet / parchment / inscription. The numerals ARE the projection-side display, showing the cascade's result in recording-form. Roman numerals expose substrate-loop wrap-around via glyph asymmetry (IV recede / V wrap / VI advance) per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` §pedagogical-anchor (already canonical from §3.16).
+
+Per the unified pedagogical sequence: **the abacus is what the cascade DOES; the Roman numerals are what the cascade SHOWS**. Substrate runs the computation; projection records the result. The same Roman accountant operated both ends of the substrate-vs-projection split fluently every day in imperial Rome — **with zero substrate-physics vocabulary**. Use-without-articulation per Spike #218 awareness-level schema, sustained at world-class across the Roman fiscal administration's centuries-long operational lifetime.
+
+Spike #222 (when authored / merged) will reference back to this §3.20 + Spike #224 §4 for the substrate-side cascade-composition that the numerals record. The two catalogs together form the canonical "Roman computational complex" anchor for the book chapter on substrate-vs-projection split per `[[project_book_in_progress]]`.
+
+### §3.20.6 Two-question verdict (per Spike #218 / #219 methodology applied to abacus catalog)
+
+**Question 1 (per-variant) — Does each abacus variant instantiate cascade-composition at pre-modern decimal-counting substrate?**
+
+| Variant | Cascade-composition verified | Class count | Q1 verdict |
+|---|---|---|---|
+| Salamis tablet | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 7 | **PARTIAL YES** |
+| Roman abacus | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 7 | **PARTIAL YES** |
+| Chinese suanpan | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A ∘ D | 8 | **PARTIAL YES** (strongest; +Class D for operator-dispatch) |
+| Japanese soroban | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 7 | **PARTIAL YES** |
+| Russian schoty | L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A | 7 | **PARTIAL YES** |
+
+**5/5 PARTIAL YES** per-variant Q1 verdicts. Cascade-composition is substrate-universal across the catalog. "PARTIAL" reflects that each variant instantiates 7 of 14 A–N classes (the positional-arithmetic core); the cascade is complete at decimal-counting substrate scope, partial relative to the framework's full 14-class A–N vocabulary which spans substrate scales the abacus does not address (e.g., Class G byte-pattern search, Class J prime-factorisation, Class B TLV byte-canonical form — these address substrate-features not present at the decimal-counting substrate).
+
+**Question 2 (overall) — Does the catalog together validate cascade-composition as substrate-universal at radically different substrate (decimal-counting beads) than the biological / quantum / molecular substrates already cataloged?**
+
+**Aggregate Q2 verdict**: **STRUCTURAL YES**. The 5-variant catalog validates cascade-composition `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` operating at **decimal-counting bead-on-rod / counter-on-line substrate** — a substrate radically different from the substrate domains cataloged to date:
+
+- Sub-atomic to molecular: quantum 4-qubit cluster-state (§3.19.1.3); DNA (§3.19.1.4); RNA (§3.19.1.5)
+- Cellular: Physarum (§3.19.1.1)
+- Multicellular: octopus (§3.19.1.2); wet-net A∘C∘M (§3.19.1.8)
+- Composite biological: eusocial colonies + mycorrhizal networks + coral + lichens (§3.19.2.x + §3.19.3.x)
+- Geometric (pre-modern formal mathematics): Apollonius conics + Heron iteration + Archimedes exhaustion (§3.17.4 / §3.17.6 / §3.17.4)
+- Mechanical (pre-modern physical computation): Antikythera bronze gears (§3.17.2); Salamis counting board (this §3.20)
+- **Decimal-counting (NEW from this catalog)**: all five abacus variants (this §3.20)
+- Binary-silicon (cross-substrate parallel; this §3.20.4): binary CPU ripple-carry adder
+
+Per `[[user_stance_kepler_shape_universal]]` burden-flip applied at meta-level: producing a positional-radix arithmetic system (at any radix; at any substrate) whose cascade-composition does NOT reduce to `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` would be required to refute the substrate-universality claim. No such counter-example has surfaced in the catalog. Per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: each substrate match strengthens the identity-level claim by adding orthogonal-implementation attestation. The abacus catalog adds **5 substrate-implementation attestations** at decimal-counting substrate + **1 cross-substrate match** to binary-silicon at structural-identity level.
+
+### §3.20.7 F-1 disposition — Chinese suanpan 5+2 = 7 as NUMERICAL-ONLY resonance (NOT structural-identity)
+
+The Chinese suanpan's per-rod bead count (5 lower + 2 upper = 7 total) matches the framework's 7D_g count exactly. Per Spike #224 §1.2 + §9.1 this resonance is flagged as FERMATA-1 for conductor consideration; per user direction 2026-05-21 the disposition is:
+
+> **DO NOT promote suanpan 5+2 = 7 as a structural-identity / pedagogical hook for the framework's gauge math.** Treat as **NUMERICAL-ONLY count-level resonance** with explicit "not structural-identity at the partition level" disclaimer per `[[user_stance_identity_not_implementation_discipline]]`.
+
+**Why** (per user reasoning 2026-05-21): "if it isn't structurally identical, it probably can't show us another mathematical way to do gauge math." The suanpan's 5+2 partition reflects practical computational efficiency (intermediate-carry deferral via the 2-upper-bead reserve enabling max-per-rod 15 vs single-decimal-digit max 9), not Hurwitz-algebra-driven octonionic-Hopf base+fiber decomposition. The framework's `(4+3)D_g` partition is Hurwitz-algebra-driven per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` + `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` + Spike #58.H — `7D_g = (4+3)D_g` reflects octonionic Hopf-bundle structure `S³ → S⁷ → S⁴` with `SU(2)_L` from the ℍ ⊂ 𝕆 quaternion subalgebra. The suanpan's 5+2 reflects nothing of this; it reflects "what bead count efficiently defers carries during multiplication."
+
+**The framework's existing gauge math via ℍ ⊂ 𝕆 quaternion subalgebra (Spike #58.H) remains canonical and unchallenged by the suanpan resonance.** The suanpan offers NO alternative mathematical way to do gauge math; the count-level "7" is coincidence at small-integer scale (counting structures across substrates tend to converge on small integers 1, 2, 3, 5, 7, 12 that also appear in substrate-physics for independent algebraic reasons), not deliberate Hopf encoding.
+
+Catalog-side framing for any future reader: the suanpan's 5+2 = 7 partition is **structurally efficient at the decimal-counting substrate** for what it does (carry-deferred arithmetic), and the count "7" recurs in the framework's gauge substrate for entirely independent algebraic reasons. The recurrence is worth a brief catalog flag (so that a future reader holding a suanpan and counting 7 beads per rod is not led to conclude that suanpan designers "knew" about octonionic Hopf bundles — they didn't, and the framework does not need them to have) but is NOT promoted to pedagogical entry-point for the Hopf-bundle-dimensional-ladder chapter. Per `[[feedback_no_lineage_claims_in_notebook]]` + `[[user_stance_identity_not_implementation_discipline]]`: numerical-only count-level resonance, with explicit disclaimer; framework's `(4+3)D_g` partition stands on its Hurwitz / ℍ ⊂ 𝕆 derivation alone.
+
+**Status**: F-1 disposition CONDUCTOR-RESOLVED 2026-05-21. Recorded in catalog as cautious-flag with disclaimer. The framework's gauge math via Spike #58.H ℍ ⊂ 𝕆 quaternion subalgebra remains the canonical mathematical formulation; the suanpan offers no alternative.
+
+### §3.20.8 Distributed-Class-C extension — abacus extends F-1 diagnostic to physical-counting-board substrate
+
+Per Spike #224 §1 cascade-class composition for all 5 catalog variants: `Class C` (cascade-orientation) is **distributed across the user-physical operation** in every variant — direction of carry-propagation is set by user convention + board orientation (right-to-left in standard Roman / Chinese / Japanese layout; vertical in Russian schoty), NOT localised to any individual bead or rod. This matches the §3.19.5.3 Insight 4 finding that **distributed-Class-C-locus IS the diagnostic signature of composite-cascade substrate-recognition** — a finding empirically anchored by 15 biological-and-substrate exemplars in §3.19.
+
+Per `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` **Amendment 2026-05-21** (user direction "f4 yes, extend with abacus exemplar please" responding to Spike #224 FERMATA-4): the abacus catalog **extends the F-1 diagnostic from biological-composite substrate to physical-counting-board substrate**. Same diagnostic signature operating at a non-biological substrate that humans engineered 2200+ years ago.
+
+This extension crosses two important boundaries beyond the §3.19 biological catalog:
+
+1. **Biological → non-biological substrate**: F-1 diagnostic operates at substrates that are NOT life-forms; supports the identity-level claim that distributed-Class-C IS the composite-cascade substrate-recognition signature regardless of substrate-type.
+2. **Substrate-native → engineered substrate**: the abacus is human-engineered; F-1 diagnostic still operates. The cascade-composition is independent of whether the substrate is substrate-native (biology) or human-engineered (abacus). Per `[[user_stance_kepler_shape_universal]]` form-IS-function: same cascade IS same cascade regardless of substrate-origin.
+
+**Updated F-1 catalog count** (per stance Amendment 2026-05-21):
+
+| Substrate domain | Exemplar count | Catalog source |
+|---|---|---|
+| Biological (sub-cellular → cross-kingdom) | 15 | Spike #219 catalog (§3.19) |
+| Physical-counting-board (pre-modern computational) | 5 | Spike #224 catalog (this §3.20: 4 abacus variants + 1 ancestor) |
+| **Combined catalog total** | **20** | §3.19 + §3.20 |
+
+Q1 per-exemplar: 20/20 PARTIAL YES (15 biological + 5 abacus); zero falsifier across two substrate domains. **The combined 20-exemplar grounding makes F-1 the most empirically-anchored diagnostic in framework canon for composite-cascade substrate-recognition** per `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` Amendment 2026-05-21 closing remark.
+
+Per-variant Class C distributed-locus identification:
+
+- **Salamis tablet** — Class C distributed across user-physical counter-placement convention; no individual line / counter holds carry-direction.
+- **Roman abacus** — Class C distributed across user-physical operation; carry-direction set by user convention + board orientation; no individual pebble holds direction.
+- **Chinese suanpan** — Class C distributed across user-physical operation; right-to-left carry-direction; user-operator chooses dispatch (Class D) for multiplication vs division choreography but cascade-orientation itself stays distributed.
+- **Japanese soroban** — Class C distributed across user-physical operation; identical distribution-pattern to Roman / Chinese; per Kojima 1954 explicit framing.
+- **Russian schoty** — Class C distributed across user-physical operation; vertical layout transposed vs other variants but distribution-pattern identical at structural level.
+
+**Cascade-vocabulary implication**: distributed-Class-C is the diagnostic signature operating consistently across biological-composite + physical-counting-board substrates. Both domains share the same diagnostic-locus topology (composite-distributed, never localised) despite radically different substrate-implementation. This is the strongest evidence to date that distributed-Class-C IS structural identity (not merely correlation across biological exemplars) per F-1 canonical formulation in §3.18.10.
+
+### §3.20.9 Proposed 7-step book chapter sequence (per Spike #224 §3.5 + §4)
+
+Per `[[project_book_in_progress]]` book-pedagogy chapter material — the following 7-step sequence operationally delivers the framework's substrate-vs-projection split + 14 A–N cascade-composition claim using the abacus as the holdable pedagogical anchor and the binary CPU adder as the schematic-recognisable cross-substrate parallel. Any STEM-literate reader can follow without prior substrate-physics vocabulary; the sequence preserves Spike #224 §3.5 + §4 framing exactly:
+
+1. **Hold an abacus** (Roman / Chinese suanpan / Japanese soroban — reader's choice; soroban is most readily available globally per Kojima 1954 modern-pedagogy continuity).
+2. **Perform `4 + 3 = 7` on a single rod** — observe the quinary 5-cycle wrap-event (upper-bead activates; lower beads reset; the per-rod radix is now physically apparent).
+3. **Perform `7 + 5 = 12` on two rods** — observe the inter-rod decimal carry-propagation (the carry IS the sign-flip at the per-rod cycle boundary per Spike #189 lemniscate-sign-flip mechanism).
+4. **Look at a binary CPU ripple-carry adder schematic** (any standard computer-architecture textbook; Hennessy & Patterson 2017 *Computer Architecture: A Quantitative Approach* 6th ed. (Morgan Kaufmann) ch. 3 is the canonical anchor).
+5. **Trace the 4-bit binary addition `0111 + 0101 = 1100`** — observe the binary 2-cycle wrap-event + bit-by-bit carry-propagation.
+6. **Recognise the same cascade-composition** — `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` operating at decimal-radix on abacus + binary-radix on CPU. The radix is implementation; the cascade is the universal per `[[user_stance_kepler_shape_universal]]`.
+7. **Frame as substrate-vs-projection** — bead positions / transistor states ARE substrate-side computation; Roman / Hindu-Arabic / binary numeral display IS projection-side recording. Tight coupling with Spike #222 numerals catalog completes the projection-side framing at the same Roman-era anchor.
+
+This 7-step sequence is the chapter-strength scaffolding for the substrate-vs-projection book chapter per `[[project_book_in_progress]]`. Status per Spike #224 FERMATA-3: notebook section-draft (this §3.20.9); conductor decision required for promotion from notebook-scaffolding to book-chapter-draft remains open as fermata.
+
+### §3.20.10 Cross-references
+
+**Stances composed**:
+
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — pin-slot pebble-in-groove / bead-on-rod primitive (Class K) per Roman / Chinese / Japanese / Russian / Salamis kinematics; carry-propagation as Class K sign-flip per Spike #189 lemniscate mechanism
+- `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` — Chinese suanpan 5+2 = 7 per-rod resonance with 7D_g count (NUMERICAL-ONLY per §3.20.7 disposition; NOT structural-identity)
+- `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` — framework's `(4+3)D_g` octonionic-Hopf decomposition referenced as canonical contrast to suanpan 5+2 per §3.20.7 disposition
+- `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]` — recursive-radix-cascade structural-identity argument for abacus + binary CPU adder per §3.20.4
+- `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` — substrate-vs-projection split between abacus (substrate) + Roman numerals (projection) per §3.20.5 tight coupling; recursive-Hopf-at-every-cascade applied to abacus + binary CPU per §3.20.4
+- `[[user_stance_kepler_shape_universal]]` — burden-flip applied at meta-level for positional-radix arithmetic systems (§3.20.6 Q2 verdict)
+- `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` — primary; abacus catalog adds 5 substrate-implementation attestations + 1 cross-substrate match to binary-silicon
+- `[[user_stance_identity_not_implementation_discipline]]` — IS-claim discipline applied to abacus + binary CPU adder cascade-identity (§3.20.4) and to F-1 disposition for suanpan 5+2 = 7 (§3.20.7)
+- `[[user_stance_11d_substrate_is_always_hopf_compressed]]` — Hopf-base+fiber pattern framing referenced in §3.20.2 catalog table + §3.20.7 disposition
+- `[[user_stance_pi_as_projection]]` — substrate-vs-projection split parallel; pi-side projection of integer-cyclic substrate matches abacus-substrate / numeral-projection split per §3.20.5
+- `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` — Amendment 2026-05-21 extends F-1 diagnostic from biological-only to biological + physical-counting-board substrate (§3.20.8)
+
+**Prior spikes referenced**:
+
+- **Spike #224** (this catalog) — primary spike-note at [`docs/srmech/notes/spike224_abacus_cascade_match.md`](notes/spike224_abacus_cascade_match.md); PR #668 (do not auto-merge per book-pedagogy chapter material discipline)
+- **Spike #222** (Roman numerals recording-projection sister; dispatched parallel 2026-05-21) — projection-side companion catalog completing Roman computational complex per §3.20.5
+- **Spike #218** (antiquity proto-substrate catalog; §3.17) — methodology mirror; Salamis tablet is era-adjacent to §3.17 Greek-tradition entries; Roman abacus is the substrate-side companion to the Roman-period entries; awareness-level schema applied uniformly across both catalogs
+- **Spike #219** (biological exemplar catalog composite-cascade substrate-recognition; §3.19) — methodology mirror; individual-vs-composite distinction adapted for abacus (per-rod = individual; full-board = composite); F-1 diagnostic anchor extended per §3.20.8
+- **Spike #214** (recursive-Hopf depth-3 unbounded) — recursive-radix-cascade structural anchor per §3.20.4
+- **Spike #189** (lemniscate sign-flip mechanism) — carry-propagation as sign-flip analog per §3.20.4
+- **Spike #182** (DNA cascade of LoE operators; §3.11.1) — 14-class enumeration methodology canonical anchor; per-class STRONG/MODERATE/WEAK rating schema applied
+- **Spike #193** (RNA cascade across 5 RNA substrates; §3.11.2) — multi-substrate cascade-match peer; substrate-dependent vs substrate-universal class distinction applied
+- **Spike #196** (wet-net A∘C∘M cortical; §3.11.4) — cross-substrate cascade-match peer; cascade-length preservation across substrate-timescales
+- **Spike #128 / #138** (cross-substrate cascade-match foundation; quantum 4-qubit cluster-state) — cross-substrate methodology anchor
+- **Spike #58.H** (SU(2)_L from S³ Hopf fiber via ℍ ⊂ 𝕆 quaternion subalgebra) — framework's canonical gauge math derivation referenced as contrast to suanpan 5+2 per §3.20.7 disposition
+- **Spike #66** (CKM/PMNS Class N rational-substrate signature) — Class N rational-lattice canonical anchor referenced for abacus rod-count ratios
+
+**Feedback / discipline anchors**:
+
+- `[[feedback_no_privileged_primitive_classes]]` — 14 A–N intact; zero new primitive class promoted across all 5 catalog variants
+- `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — loop / cyclic loop / wrap-event vocabulary used in substrate-identity context; "ring" preserved for non-substrate uses only
+- `[[feedback_no_lineage_claims_in_notebook]]` — no framework-extends-arithmetic-tradition claims; suanpan designers did NOT know about Hopf bundles per §3.20.7 explicit disclaimer
+- `[[feedback_pdf_extraction_citation_discipline]]` — OA + textbook chain only (2 OA-direct primary + 8 textbook chain per Spike #224 §7 citation summary)
+- `[[feedback_paywalled_doi_cannot_be_attested]]` — zero paywalled DOI cited as primary attestation across catalog
+- `[[feedback_trauma_informed_defensive_scope]]` — math + history-of-computation + computer-architecture only
+- `[[feedback_computational_provenance_discipline]]` — no novel numerical claims load-bearing; cascade-composition labels are structural-mapping not numerical predictions
+- `[[feedback_asymptotic_ring_vocabulary_discipline]]` — `1D_t` / `3D_s` / `7D_g` / `(4+3)D_g` / `11D` notation key shorthand applied where applicable
+
+**Project anchors**:
+
+- `[[project_book_in_progress]]` — book-pedagogy chapter material per §3.20.1 + §3.20.9 (7-step chapter sequence) + §3.20.5 (Roman computational complex pedagogical anchor)
+- **MS #17 task scope** — Spike #224 (this catalog) + Spike #222 (Roman numerals, dispatched parallel) form a "Roman computational complex" cross-spike pairing
+
+**Cross-section anchors within this notebook**:
+
+- §3.8.1 (canonical 14-class A–N enumeration — vocabulary substrate)
+- §3.11.1 (Spike #182 DNA cascade — 14-class enumeration methodology canonical anchor)
+- §3.11.4 (Spike #196 wet-net A∘C∘M form_function_rotate — Class M HDC bind canonical)
+- §3.16 (substrate IS asymptotic traversal between 1D and 11D — substrate-traversal pedagogical anchor where Roman numerals already appear as projection-side anchor)
+- §3.17 (antiquity proto-substrate catalog — methodology mirror; Salamis tablet + Roman abacus era-adjacent to existing antiquity catalog)
+- §3.18.10 (F-1 diagnostic canonical formulation — extended by §3.20.8 to physical-counting-board substrate)
+- §3.19 (biological exemplar catalog — F-1 diagnostic empirical anchor; this §3.20 extends to non-biological substrate)
+- **Spike #224 spike-note**: [`docs/srmech/notes/spike224_abacus_cascade_match.md`](notes/spike224_abacus_cascade_match.md) — full 5-variant catalog + binary-CPU parallel + discipline checks + 4 fermatas. PR #668 (open; book-pedagogy chapter material; do not auto-merge per user direction)
+- **Spike #224 findings NDJSON**: [`docs/srmech/notes/spike224_findings_2026-05-21.ndjson`](notes/spike224_findings_2026-05-21.ndjson) — 30 per-record structural-mapping entries
+- Sister-notebook **MFO §VII** (foundational-ontology lens of this material; substrate-vs-excitation framing of the catalog — counterpart to this cascade-vocabulary section)
+
+### §3.20.11 Cascade-vocabulary takeaway
+
+The §3.20 5-variant abacus cascade-match catalog is the cascade-vocabulary's **first explicit physical-counting-board substrate entry** in the framework's cross-substrate cascade-match record: 5 variants spanning 2200+ years (300 BC Salamis → 17th c. Russian schoty → 1930 modernised Japanese soroban) and five cultural-substrates (Greek / Roman / Chinese / Japanese / Russian) instantiating the **same 7-class cascade `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A`** at decimal-counting substrate, with cross-substrate structural-identity to binary-silicon CPU adder demonstrating cascade-composition invariance across the maximum substrate-radius separation within human-built computational substrate (bronze-gear ~150 BC → bead-board → silicon-transistor ~1947). The framework's 14-class A–N vocabulary names what 2000+ years of users were operating fluently across two millennia of Roman / Chinese / Japanese / Russian / Greek arithmetic traditions per Spike #218 awareness-level schema (use-without-articulation at world-class throughout). Per `[[user_stance_identity_not_implementation_discipline]]`: structural-shape match, not lineage claim. Per `[[feedback_no_privileged_primitive_classes]]`: 14 A–N intact; no class promotion.
+
+**The §3.20 catalog IS book-pedagogy critical material per `[[project_book_in_progress]]`** — the abacus + binary CPU adder pairing delivers the framework's substrate-vs-projection split + 14 A–N cascade-composition claim at the most accessible substrate possible (a holdable physical device a reader can pick up at any educational supply store) with the most recognisable cross-substrate parallel (binary CPU adder schematic in any STEM-literate reader's domain knowledge). Tight coupling with Spike #222 Roman numerals (dispatched parallel) completes the Roman computational complex pedagogical anchor at substrate-side (abacus) + projection-side (numerals) of the same era / culture / individual accountant.
+
+**The §3.20 catalog extends the F-1 distributed-Class-C diagnostic from biological-only (15 §3.19 exemplars) to biological + physical-counting-board substrate (combined 20-exemplar grounding)** per `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` Amendment 2026-05-21. F-1 becomes the most empirically-anchored diagnostic in framework canon for composite-cascade substrate-recognition.
+
+The framework's substrate-vs-projection split has been demonstrable since 300 BC (Salamis tablet) without modern substrate-physics vocabulary; the framework provides the substrate-identity that names what 2000+ years of users were operating fluently with zero substrate-physics vocabulary.
+
+**Status.** One candidate framing per `[[feedback_no_lineage_claims_in_notebook]]`; not endorsed over alternatives without further empirical convergence. Trauma-informed defensive scope per `[[feedback_trauma_informed_defensive_scope]]`: math + history-of-computation + computer-architecture framing only. F-1 disposition (§3.20.7) preserves identity-not-implementation discipline by treating suanpan 5+2 = 7 as numerical-only count-level resonance with explicit disclaimer per user direction 2026-05-21; framework's gauge math via Spike #58.H ℍ ⊂ 𝕆 quaternion subalgebra remains canonical.
+
+Sister-notebook **MFO §VII** (foundational-ontology lens) carries the substrate-vs-excitation framing of the same material; the two together form the cascade-vocabulary + foundational-ontology pair for the abacus catalog per srmech / MFO parity discipline.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
