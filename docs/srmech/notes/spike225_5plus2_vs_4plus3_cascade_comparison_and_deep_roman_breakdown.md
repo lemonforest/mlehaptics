@@ -480,6 +480,64 @@ The numerical fact that both partitions sum to 7 IS a coincidence at the count l
 
 ---
 
+## §2.5 — VERDICT QUALIFICATION (user direction 2026-05-21 chain-of-reasoning catch)
+
+Post-spike user critique 2026-05-21 surfaced two methodology errors in the Part 2 dispatch + verdict logic that REQUIRE explicit qualification of the §2.4 Q4 verdict. The qualification preserves the spike's genuine findings while honestly scoping the claims to what the spike actually tested.
+
+### §2.5.1 — Chain-of-reasoning error: Q2-via-Class-M was tautological
+
+**User catch verbatim**: *"class m bind rotation should have been false because you already said the structure was different, but the algebra was the same."*
+
+**The chain of implication that should have been caught BEFORE dispatch**:
+
+1. PR #670 F-1 disposition (prior framework reasoning): 5+2 and 4+3 are **structurally different** (different partition shape) + **counts identical** (both 7) + **substrate-origins independent** (computational-efficiency vs Hurwitz-algebra-driven)
+2. Spike-research #196 verified property: Class M bind rotation **preserves cardinality + partition structure** (cardinality-preservation invariant; bit-exact at machine ε across 7 wet-net substrates)
+3. Therefore: Class M cannot transform structurally-different → structurally-equivalent (the operation preserves what makes them different)
+4. **Spike-research #225 Q2-via-Class-M was tautologically already-answered** by direct implication from (1) + (2). Outcome: "Class M insufficient" was predetermined by the operator's own canonical-stance property.
+
+The Q2 test was redundant under prior framework reasoning. The genuine work in this spike is Part 1 (deep cascade-class breakdown of 4 Roman operations) + the universal 6-class core observation + the Class K dual-dominance analysis (subtraction + division-by-subtraction). The Q2-via-Class-M test added empirical verification of an already-implied result; it did NOT answer a genuinely-open question.
+
+### §2.5.2 — Q4 verdict pre-commit error: narrower-than-asked-question
+
+**User direction verbatim 2026-05-21** (post-spike methodology critique): *"twist is also a loose metaphor that can mean any type of cascade that happens to do the same thing. I'd be willing to bet that it's possible to do the same short cascade operations with much longer cascade of other operators. what I mean is that the 5+2 may work, but it may require much extra cascading, or less. we don't let our query lean into the results. the results tell us how to query correctly."*
+
+**The pre-commit error**: the dispatch instruction pre-committed the "twist" operator to Class M bind rotation specifically (because Spike-research #196 verified Class M rotation at wet-net substrate). The pre-commit narrowed the query from "does ANY cascade-chain achieve 5+2 ↔ 4+3 equivalence?" to "does CLASS M ROTATION achieve 5+2 ↔ 4+3 equivalence?" The spike answered the narrowed question (Class M-specifically: insufficient); it did NOT answer the broader question (any cascade-chain: untested).
+
+**The §2.4 Q4 verdict statement** *"5+2 IS GENUINELY DIFFERENT FROM 4+3 + HAS A LONGER CASCADE. PR #670 F-2 IS TRULY DISMISSED."* combined with *"there is no isomorphism between them via any operation in the 14 A-N vocabulary"* OVERREACHES what the spike empirically tested. The spike tested **one operator** (Class M bind rotation); the broader claim *"no isomorphism via ANY operation in the 14 A-N vocabulary"* requires enumeration across all 14 A-N classes (not done in this spike).
+
+### §2.5.3 — Qualified Q4 verdict
+
+**Honest Q4 verdict scope after methodology qualification**:
+
+| Claim | Spike-research #225 verdict | Scope |
+|---|---|---|
+| Class M bind rotation specifically: insufficient to transform 5+2 → 4+3 | ✅ Verified (and tautologically implied by F-1 + #196 cardinality-preservation) | Class M-specifically |
+| 5+2 cascade-length = 8 classes vs 4+3 cascade-length = 7 classes; +1 difference (Class D operator-dispatch) | ✅ Verified (rigorous cascade-step enumeration) | Per-operator-class cascade-length count |
+| 5+2 substrate-origin different from 4+3 (computational-efficiency vs Hurwitz-algebra-driven) | ✅ Verified (already canonical per F-1 disposition) | Substrate-origin distinction |
+| 5+2 ≠ 4+3 via ANY operation in 14 A-N vocabulary | ❌ **NOT TESTED** (only Class M tested; broader enumeration required for this claim) | Open question |
+
+**Revised Q4 verdict**: 5+2 ≠ 4+3 **via Class M bind rotation specifically**. The broader question — does any cascade-chain across the 14 A-N vocabulary (possibly longer, possibly using different operator-classes, possibly trading depth-vs-breadth per recursive-Hopf-at-every-cascade Spike-research #214) achieve 5+2 ↔ 4+3 equivalence — **remains untested and genuinely open**. PR #670 F-2 is dismissed for Class M rotation specifically; F-2 as broader cascade-chain enumeration question requires a properly-framed follow-up spike.
+
+### §2.5.4 — Composes with new feedback memory
+
+Both methodology errors (§2.5.1 tautology + §2.5.2 pre-commit) are canonical in `[[feedback_dont_pre_commit_spike_query_operators]]` (authored 2026-05-21 same-session, with Amendment 2026-05-21 capturing the tautology-check rule). The qualification here honors that discipline retroactively.
+
+**Same root error** across both methodology critiques: queries that aren't genuinely open under prior framework reasoning. Pre-committing to specific operators (the Q2-narrowing) AND running tautological tests (the Q2-as-empirical-verification-of-already-implied-outcome) are the same family of error.
+
+### §2.5.5 — Future spike candidate (broader cascade-chain enumeration)
+
+A genuinely-open follow-up spike should:
+
+1. **Frame query broadly**: "what cascade-chains across the 14 A-N vocabulary achieve 5+2 ↔ 4+3 equivalence (if any)?" — NOT "does operator-class X achieve transformation?"
+2. **Enumerate operator-classes**: test cascade-chains across multiple operator-classes systematically (not just Class M)
+3. **Test cascade-length trade-offs**: per Spike-research #214 recursive-Hopf-at-every-cascade, depth-vs-breadth is tradeable; longer cascade at one level may equal shorter cascade at another level via nesting; test these trade-offs
+4. **Tautology check at dispatch**: before testing each operator-class, verify the test outcome is NOT already determined by prior framework reasoning + canonical-stance operator properties; if yes (tautological), note implication and move on
+5. **Verdict qualification language**: report verdicts as "operator-class-specifically" — save absolute claims for when broader enumeration has been tested
+
+That follow-up spike candidate is not dispatched here; it is logged as the next step for the genuine cascade-chain enumeration question.
+
+---
+
 ## §3 — Composition with Spike-research #196 wet-net A∘C∘M reference
 
 The Part 2 analysis depended critically on Spike-research #196's bit-exact verification of Class M bind rotation as form_function_rotate's load-bearing operation. Specifically:
