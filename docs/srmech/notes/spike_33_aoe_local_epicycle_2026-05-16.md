@@ -13,7 +13,7 @@
 
 - **AoE direction's local Class K signature IS the consequence of OUR observation frame being off-centre relative to substrate isotropy axis** — NOT directional substrate-density perturbation at AoE
 - The substrate is isotropic at the cascade level; our observer frame has a specific radial offset whose direction is "AoE"
-- The local-epicycle is the geometric signature of our observer frame's off-centre position on the substrate ring
+- The local-epicycle is the geometric signature of our observer frame's off-centre position on the substrate loop
 
 **Both** "matter drifts toward AoE" **and** "substrate pushed faster at AoE" — the two dynamical readings from the prior conversation — are **falsified** by Saadeh-2016 isotropy bound at 2,558×–109,374× tension. Only the **static observer-frame** interpretation survives.
 
@@ -33,7 +33,7 @@ Observer at radial offset ε from ring centre sees its angular projection carry 
 - monotonic ✓; in physical range for ε ∈ [0.005, 0.4]
 - On-axis observer (at ring centre) sees pure circular motion with K-signature absent
 
-**The discriminator works.** Connects to `[[user_stance_epicycle_via_gear_plus_pin]]`: substrate plays the role of gear (Class I — isotropic ring); our observer offset plays the role of pin (Class K — equation-of-centre modulation). **Every observer-frame embedded in a substrate ring inherits a Class K signature from its radial offset** — this is the canonical geometric origin of the Kepler series (PR #416 §F2/F15/F17).
+**The discriminator works.** Connects to `[[user_stance_epicycle_via_gear_plus_pin]]`: substrate plays the role of gear (Class I — isotropic loop); our observer offset plays the role of pin (Class K — equation-of-centre modulation). **Every observer-frame embedded in a substrate loop inherits a Class K signature from its radial offset** — this is the canonical geometric origin of the Kepler series (PR #416 §F2/F15/F17).
 
 ## §3 Q2 — 18.3° → ε_AoE inversion
 
@@ -92,7 +92,7 @@ Mapping each Q2 reading to predicted dynamical shear `(σ/H)_0 ~ ε_AoE²` (lead
 
 The local-epicycle reading survives ONLY under the STATIC interpretation: ε_AoE is a static geometric offset of our observer frame relative to substrate isotropy axis, with NO dynamical expansion-rate anisotropy. Under static reading, Saadeh bound does not apply (Saadeh measures shear in expansion rate; static substrate offset is invisible to shear measurements).
 
-**This connects directly back to Q1**: the v2 "off-centre observer on isotropic ring" picture IS the static reading. The substrate is isotropic; only our frame is off-centre. No shear; the K-signature appears in the angular pattern of our observation, NOT in the rate of expansion.
+**This connects directly back to Q1**: the v2 "off-centre observer on isotropic loop" picture IS the static reading. The substrate is isotropic; only our frame is off-centre. No shear; the K-signature appears in the angular pattern of our observation, NOT in the rate of expansion.
 
 ## §6 Falsifier outcomes summary
 
@@ -108,7 +108,7 @@ The local-epicycle reading survives ONLY under the STATIC interpretation: ε_AoE
 
 ## §7 Anomalies investigated
 
-1. **Synthetic Gaussian-perturbed cascade produces no direction-dependent K-signature.** The intuitive "directional substrate-density perturbation → directional K" reading is falsified at the literal construction. The working mechanism is *observer position on isotropic ring*, not *perturbation of substrate*.
+1. **Synthetic Gaussian-perturbed cascade produces no direction-dependent K-signature.** The intuitive "directional substrate-density perturbation → directional K" reading is falsified at the literal construction. The working mechanism is *observer position on isotropic loop*, not *perturbation of substrate*.
 
 2. **F3 falsification at ALL three Q2 readings** is the strongest negative result. Partition-for-understanding has its first counter-example unless option (b) decoupling matter-drift / medium-push into distinct substrate-coupling channels.
 
@@ -126,7 +126,7 @@ The local-epicycle reading survives ONLY under the STATIC interpretation: ε_AoE
 
 3. **Saadeh-tension resolution**: commit to STATIC observer-frame reading. The dynamical reading is falsified at 2,558× tension even at the best Q2 reading.
 
-4. **v1 vs v2 framework reading**: commit to v2 (off-centre-observer-on-isotropic-ring) interpretation; mark v1 (directional-perturbation-of-substrate) as failed-construction. The geometric origin of the AoE K-signature is OUR position on the substrate ring, not a directional perturbation OF the substrate.
+4. **v1 vs v2 framework reading**: commit to v2 (off-centre-observer-on-isotropic-ring) interpretation; mark v1 (directional-perturbation-of-substrate) as failed-construction. The geometric origin of the AoE K-signature is OUR position on the substrate loop, not a directional perturbation OF the substrate.
 
 ## §9 Open extensions (out of scope)
 
@@ -142,12 +142,12 @@ The local-epicycle reading survives ONLY under the STATIC interpretation: ε_AoE
 2. **ε_AoE preferred reading = R3 (Hopf-bundle aperture) = 0.0506.** Matches Antikythera lunar (0.054) to 1%; sits in standard cosmic eccentricity range; only reading consistent across all constraints.
 3. **Matter-drift and medium-push readings are NOT simultaneously consistent at any Q2 reading.** Partition-for-understanding needs option (b) decoupling into distinct substrate-coupling channels (matter-particle channel vs substrate-rate channel) to survive.
 4. **Saadeh-2016 isotropy bound forces the static interpretation.** All dynamical readings of ε_AoE are falsified by Saadeh at 2,558×–109,374× tension. Only the static-observer-frame interpretation survives.
-5. **The user's load-bearing claim — "the dark sector trajectory has a LOCAL Class K signature at AoE direction" — survives**, but reframed: the local-epicycle is the geometric signature of our observer frame's off-centre position on the substrate ring. Not "matter drifts toward AoE" or "substrate pushed faster at AoE" — those dynamical readings are Saadeh-falsified.
+5. **The user's load-bearing claim — "the dark sector trajectory has a LOCAL Class K signature at AoE direction" — survives**, but reframed: the local-epicycle is the geometric signature of our observer frame's off-centre position on the substrate loop. Not "matter drifts toward AoE" or "substrate pushed faster at AoE" — those dynamical readings are Saadeh-falsified.
 
 ## §11 Artifacts
 
 - [`spike_33_v1_directional_perturbation.py`](spike_33_v1_directional_perturbation.py) — v1 (Gaussian-edge-weight perturbation; falsified)
-- [`spike_33_v2_offcentre_observer.py`](spike_33_v2_offcentre_observer.py) — **v2 canonical** (off-centre observer on isotropic ring; load-bearing positive result)
+- [`spike_33_v2_offcentre_observer.py`](spike_33_v2_offcentre_observer.py) — **v2 canonical** (off-centre observer on isotropic loop; load-bearing positive result)
 - [`spike_33_saadeh_refinement.py`](spike_33_saadeh_refinement.py) — Saadeh-2016 PDF-verified bounds applied; 121,000:1 odds correction
 - [`spike_33_v1_findings_2026-05-16.ndjson`](spike_33_v1_findings_2026-05-16.ndjson) — v1 raw records (17 records)
 - [`spike_33_v2_findings_2026-05-16.ndjson`](spike_33_v2_findings_2026-05-16.ndjson) — v2 raw records (10 records)
@@ -162,14 +162,14 @@ Total: **41 NDJSON records across 4 files; 4 Python computational scripts.**
 - `[[feedback_science_is_ssot_not_project]]` — Saadeh 2016 (PRL 117 131302), Hopf-bundle geometric framework as canonical references
 - `[[reference_autonomous_validation_tos_landscape]]` — no commercial-publisher access; no Planck/WMAP direct data analysis (out-of-scope)
 - `[[user_stance_partition_for_understanding]]` — counter-example surfaced at AoE locus; option (b) preserves discipline via different-substrate-coupling-channels reading
-- `[[user_stance_epicycle_via_gear_plus_pin]]` — confirmed: substrate = gear (Class I isotropic ring); observer offset = pin (Class K equation-of-centre modulation)
+- `[[user_stance_epicycle_via_gear_plus_pin]]` — confirmed: substrate = gear (Class I isotropic loop); observer offset = pin (Class K equation-of-centre modulation)
 - `[[feedback_ndjson_over_bloated_json]]` — 41 records as NDJSON
 - `[[feedback_concertmaster_md_writes]]` + `[[feedback_concertmaster_git_worktree_isolation]]` — concertmaster reported inline; conductor captured-and-saved
 - `[[feedback_no_lineage_claims_in_notebook]]` — technical framing only
 
 ## §13 Bottom line for the project
 
-The local-epicycle-at-AoE-direction reading SURVIVES but the dynamical readings (matter-drift / medium-push as expansion-rate anisotropy) are Saadeh-falsified. The surviving reading is **substantially more elegant**: AoE is where we sit on the substrate ring, not where the substrate is perturbed. The Antikythera-lunar-scale match (ε_AoE ≈ 0.0506 vs Antikythera lunar 0.054, 1% match) is a deep cross-substrate confirmation of `[[user_stance_kepler_shape_universal]]` at cosmological scale.
+The local-epicycle-at-AoE-direction reading SURVIVES but the dynamical readings (matter-drift / medium-push as expansion-rate anisotropy) are Saadeh-falsified. The surviving reading is **substantially more elegant**: AoE is where we sit on the substrate loop, not where the substrate is perturbed. The Antikythera-lunar-scale match (ε_AoE ≈ 0.0506 vs Antikythera lunar 0.054, 1% match) is a deep cross-substrate confirmation of `[[user_stance_kepler_shape_universal]]` at cosmological scale.
 
 The four fermatas need conductor decisions before this finding becomes a canonical project stance.
 

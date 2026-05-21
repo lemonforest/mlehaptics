@@ -15,9 +15,9 @@
 
 **Reframe (load-bearing)**: `c_k = ε^k × K_k(substrate)` where K_k is the substrate-specific kinematic factor. For Kepler EOC (Spike #41), K_k = 1/k (elliptic-orbital integration). For QED, K_k(channel) is phase-space + helicity content per channel. **Same operation, different substrate-binding** per `[[user_stance_primitives_weave_and_thread]]`. The ε^k geometric tower is substrate-portable universal; K_k(substrate) is substrate-binding.
 
-**Thread 2 (vocabulary)**: "entropy" repostures cleanly as hindsight-shorthand for the cascade-imprint operation, in the same family as `[[user_stance_infinity_approximates_asymptote]]`. Three candidate stance names surfaced; **concertmaster lean is option B** (`user_stance_entropy_approximates_ring_balance` — uses already-canonical ring-up/ring-down vocabulary). User-gated.
+**Thread 2 (vocabulary)**: "entropy" repostures cleanly as hindsight-shorthand for the cascade-imprint operation, in the same family as `[[user_stance_infinity_approximates_asymptote]]`. Three candidate stance names surfaced; **concertmaster lean is option B** (`user_stance_entropy_approximates_ring_balance` — uses already-canonical loop-up/loop-down vocabulary). User-gated.
 
-**Thread 3 (non-monotone f_RD)**: Under DESI thawing-CPL (w₀=−0.8, wa=−0.7), `f_RD` peaks at `a* = 2.139` (f_peak = 0.978) at **~15.45 Gyr from NOW**. Far-future asymptote = 0.843 (the "80 some percent" the user references). **The imprinting cascade rate `df_RD/dt` changes sign at the peak.** Before: uptake dominates (visible → dark; ring-down). After: return-flow dominates (dark → visible; ring-up). ε is signed rate-parameter through this trajectory.
+**Thread 3 (non-monotone f_RD)**: Under DESI thawing-CPL (w₀=−0.8, wa=−0.7), `f_RD` peaks at `a* = 2.139` (f_peak = 0.978) at **~15.45 Gyr from NOW**. Far-future asymptote = 0.843 (the "80 some percent" the user references). **The imprinting cascade rate `df_RD/dt` changes sign at the peak.** Before: uptake dominates (visible → dark; loop-down). After: return-flow dominates (dark → visible; loop-up). ε is signed rate-parameter through this trajectory.
 
 ## §2 Per-decay cascade composition (`[[user_stance_primitives_weave_and_thread]]` lens)
 
@@ -80,9 +80,9 @@ Computed trajectory (DESI thawing-CPL, w₀=−0.8, wa=−0.7, Planck 2018 ancho
 
 **What imprinting means at the descending arm** (the user's deepest question):
 
-At `a > 2.139`, the substrate **RELEASES** cascade content back to the visible sector. The forward word "imprint" doesn't capture this — but the project-canonical naming **ring-up/ring-down** per `[[user_stance_string_theory_instrument_first]]` does:
-- Ring-down dominates before peak (un-creation; visible → dark; current epoch)
-- Ring-up dominates after peak (creation; dark → visible; far future)
+At `a > 2.139`, the substrate **RELEASES** cascade content back to the visible sector. The forward word "imprint" doesn't capture this — but the project-canonical naming **loop-up/loop-down** per `[[user_stance_string_theory_instrument_first]]` does:
+- Loop-down dominates before peak (un-creation; visible → dark; current epoch)
+- Loop-up dominates after peak (creation; dark → visible; far future)
 
 **Does ε change sign or magnitude?**
 
@@ -109,7 +109,7 @@ The ε^k tower's ε is **signed** under thawing-CPL. The "what's the rate at the
 | modal-completion increment | SIGNED via df_RD/dt | YES | asymptotic-DOF-sidesteps stance |
 | coherence-weave | Symmetric | YES | Max alignment with weave-and-thread |
 | substrate-uptake / return-flow | EXPLICIT bidirectional | PARTIAL | Spike #42 non-monotone finding |
-| **ring-up / ring-down** | **EXPLICIT bidirectional; ALREADY CANONICAL** | **YES** | **Max alignment (already in canon)** |
+| **loop-up / loop-down** | **EXPLICIT bidirectional; ALREADY CANONICAL** | **YES** | **Max alignment (already in canon)** |
 
 ### §5.3 MPM-test outcomes (per `[[user_stance_partition_for_understanding]]`)
 
@@ -126,7 +126,7 @@ Three name candidates surfaced, all parallel to `[[user_stance_infinity_approxim
 - **(B)** `user_stance_entropy_approximates_ring_balance` (**concertmaster lean**)
 - **(C)** `user_stance_entropy_approximates_cascade`
 
-**Lean rationale (option B)**: ring-up/ring-down is already-canonical per `[[user_stance_string_theory_instrument_first]]`. Per `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote default: prefer enhancing existing canonical stance over coining new term. Option B sharpens the entropy connection to already-canonical vocabulary.
+**Lean rationale (option B)**: loop-up/loop-down is already-canonical per `[[user_stance_string_theory_instrument_first]]`. Per `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote default: prefer enhancing existing canonical stance over coining new term. Option B sharpens the entropy connection to already-canonical vocabulary.
 
 **Claim shape (any of A/B/C)**:
 
@@ -158,7 +158,7 @@ Biased fit ε = 2.35e-3 matches α/π = 2.32e-3 to 1.0%, but ε_k = (c_k · k)^(
 
 4. **Where should this work integrate** — touches MFO §VII.6.1.2 (DESI thawing-CPL trajectory; refined per spike) and §VII.6.4 (cascade rate; ε^k tower IS this rate's structure). Concertmaster lean: spike-note-only for now until user-gating returns on the stance candidate.
 
-5. **Bidirectional cascade naming** — ring-up/ring-down is already-canonical; user can use "creation/un-creation" as accessible pedagogical alias. **No new naming needed**; existing canon adequate.
+5. **Bidirectional cascade naming** — loop-up/loop-down is already-canonical; user can use "creation/un-creation" as accessible pedagogical alias. **No new naming needed**; existing canon adequate.
 
 ## §8 Citation provenance
 

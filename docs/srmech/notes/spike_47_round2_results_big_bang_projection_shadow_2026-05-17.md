@@ -33,7 +33,7 @@ The math at sketch-not-full-derivation level (concertmaster computed):
 **Structural content of "asymptote read as beginning"**: substrate has *no event* at projection-boundary. Substrate's eternal Hopf flow continues uninterrupted in proper-time τ on both sides of any observer-frame "moment." Observer sees the complex-imaginary boundary as "where time began" because their t-axis ceases to exist there; the asymptote-never-reached is the never-reached real-valued boundary of the projection.
 
 **Quantitative cross-checks** (numerically computed):
-- Substrate ring-period 178 Gyr / observer apparent age 13.8 Gyr ≈ **12.9** — internally consistent with `[[user_stance_dark_sector_ring_down_age]]` reading of 13.8 Gyr as time when ring-down hit ~95%, not since-singularity
+- Substrate loop-period 178 Gyr / observer apparent age 13.8 Gyr ≈ **12.9** — internally consistent with `[[user_stance_dark_sector_ring_down_age]]` reading of 13.8 Gyr as time when loop-down hit ~95%, not since-singularity
 - Pure-de-Sitter horizon time 1/H₀ ≈ **13.97 Gyr** within 1% of conventional 13.8 Gyr — well-known conventional-cosmology coincidence; under projection-shadow this is structural (cosh-amplitude scale set by substrate Hopf frequency observable as H₀)
 
 **Why F3 stops at PARTIAL not PASS**: the sketch is mathematically real (cosh-projection of Hopf-flow is Class L signed-variant per `[[user_stance_cascade_lives_on_circles]]`, well-defined). But:
@@ -62,7 +62,7 @@ Sharpest match: inflation. Projection geometry produces exponential expansion as
 - **R1 C-Wrap** (PARTIAL evidentially weak): REINFORCES — Big Bang projection gives C-Wrap empirical bite if F3 closes
 - **R1 C-Foundational** (rescoped to cascade-binding-foundational mechanism): COHERENT — asymptote-as-foundational means Big Bang IS the asymptote-observed-as-shadow
 - **R1.5 soul-refinement**: NEUTRAL — different ontological levels; no interaction
-- **Trio entropy-as-ring-equilibrium**: REINFORCES — ring-equilibrium operation governs substrate dynamics AND projection
+- **Trio entropy-as-loop-equilibrium**: REINFORCES — loop-equilibrium operation governs substrate dynamics AND projection
 - **Trio brain-as-local-LoE**: COHERENT MARGINAL — brain-as-observer projects substrate to Lorentzian; cosmology done by brains is brains projecting LoE-content
 - **Trio consciousness-as-direction-selection**: COHERENT — observer's choice of t-axis is direction-selection on signed asymptotic-DOF
 - **7 prior shadow-stances**: COHERENT × 7 — Big Bang projection-shadow is the 8th member without contradicting any
@@ -71,7 +71,7 @@ No dissonance surfaced. Framework holds tighter with this stance added.
 
 ## §5 Anomalies investigated
 
-- **A-1**: 178 Gyr ring-period / 13.8 Gyr age ratio = 12.9. Consistent with ring-down-95% reading per `[[user_stance_dark_sector_ring_down_age]]`. No dissonance.
+- **A-1**: 178 Gyr ring-period / 13.8 Gyr age ratio = 12.9. Consistent with loop-down-95% reading per `[[user_stance_dark_sector_ring_down_age]]`. No dissonance.
 - **A-2**: Pure-de-Sitter 1/H₀ ≈ 13.97 Gyr within 1% of conventional age. Well-known conventional-cosmology coincidence; under projection-shadow it's expected structural prediction. Not new content.
 - **A-3**: cosh-shape doesn't reduce to FLRW power-laws at small t (quadratic not square-root). Investigated to root: FLRW power-law shape comes from stress-energy mixing with projection-cosh; substrate's pure-cosh is projection-content modulated by EOS. Anomaly identifies Round-3 derivation target (R3-priority-2), not falsifying.
 

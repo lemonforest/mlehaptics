@@ -1,0 +1,1 @@
+{"spike": "#142", "kind": "mermin-eigstate-identification", "operator_form": "Mermin 1990: XYY + YXY + YYX - XXX", "operator_norm": 4.0, "spectrum_sorted": [4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.0], "ghz_plus_expectation": {"real": -3.999999999999999, "imag": 0.0}, "ghz_minus_expectation": {"real": 3.999999999999999, "imag": 0.0}}

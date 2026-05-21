@@ -1019,6 +1019,137 @@ def _register_primitive_class_tools() -> None:
         register_tool(e)
 
 
+def _register_spectral_runtime_tools() -> None:
+    """Register tool entries for the ``srmech.spectral`` runtime layer
+    (MS #14 rcN+1 + rcN+2 ship; v0.4.1rc14 + v0.4.2rc4).
+
+    Covers the runtime spectral-decomposition + delta-encoding surface:
+    rcN+1 entries (``decompose`` / ``delta`` / ``recompose`` /
+    ``similarity``) plus rcN+2 entries (``predict`` / ``prediction_error``
+    / ``truncate_sparse``). Each operation is class-operator composition
+    over the existing 14-class A-N vocabulary per
+    ``[[feedback_no_privileged_primitive_classes]]``; no new primitive
+    class is introduced.
+    """
+    P = ToolParameter
+    R = ToolReturn
+
+    entries: List[ToolEntry] = [
+        # ────────────────────────────────────────────────────────────
+        # rcN+1 — decompose / delta / recompose / similarity
+        # (Spike #115 design; v0.4.1rc14 ship)
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.spectral.decompose", owner="srmech",
+            category="spectral",
+            summary="Project a node-domain substrate state onto the "
+                    "eigenbasis of a Hermitian Laplacian; return a "
+                    "SpectralHandle (substrate_descriptor_hash + encoded "
+                    "coefficients + content_sha + n_modes). Class chain: "
+                    "Class L (Hermitian eigendecomposition; Chung 1997) ∘ "
+                    "Class A (SHA-256 content-addressing for cache + "
+                    "integrity).",
+            parameters=(P("state", "np.ndarray", True, "(n,) state vector"),
+                        P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
+                        P("encoder_tag", "str", False, "default 'default'")),
+            returns=R("SpectralHandle", "frozen dataclass"),
+        ),
+        ToolEntry(
+            name="srmech.spectral.delta", owner="srmech",
+            category="spectral",
+            summary="Bit-exact XOR delta of two coefficient byte vectors "
+                    "(SpectralHandle or raw bytes). Class M (HDC bind / "
+                    "XOR self-inverse) per Plate 1995 + Kanerva 2009; "
+                    "Spike #114 Option B (direct on encoded coefficient "
+                    "bytes). bind(a, bind(a, b)) = b.",
+            parameters=(P("ref", "SpectralHandle | bytes", True),
+                        P("current", "SpectralHandle | bytes", True)),
+            returns=R("bytes", "same length as inputs"),
+        ),
+        ToolEntry(
+            name="srmech.spectral.recompose", owner="srmech",
+            category="spectral",
+            summary="Reconstruct the node-domain state from a SpectralHandle "
+                    "via inverse projection ``V @ coeffs``. Class chain: "
+                    "Class L (inverse eigendecomposition; Chung 1997) ∘ "
+                    "Class M (SHA-256 content integrity check on handle).",
+            parameters=(P("handle", "SpectralHandle", True),
+                        P("laplacian", "np.ndarray", True),
+                        P("encoder_tag", "str", False, "default 'default'")),
+            returns=R("np.ndarray", "(n_modes,) complex128"),
+        ),
+        ToolEntry(
+            name="srmech.spectral.similarity", owner="srmech",
+            category="spectral",
+            summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in "
+                    "[−1, +1]. Class M per Kanerva 2009 §3.2; direct on "
+                    "coefficient bytes. +1 = identical, 0 = orthogonal, "
+                    "−1 = anti-correlated.",
+            parameters=(P("a", "SpectralHandle | bytes", True),
+                        P("b", "SpectralHandle | bytes", True)),
+            returns=R("float", "in [-1, +1]"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rcN+2 — predict / prediction_error / truncate_sparse
+        # (MS #14 rcN+2; v0.4.2rc4 ship; user direction 2026-05-19)
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.spectral.predict", owner="srmech",
+            category="spectral",
+            summary="Cascade-extrapolate a SpectralHandle forward ``steps`` "
+                    "substrate-natural ticks via per-mode complex-phase "
+                    "evolution ``exp(-i·λ_k·steps·dt)`` on the eigenbasis. "
+                    "Class chain: Class C (cascade-extrapolate) ∘ Class L "
+                    "(Hermitian Laplacian eigenstructure). Spike #113 + "
+                    "MS #14 rcN+2 anchor. Magnitudes preserved (unitary); "
+                    "phase evolves per eigenmode.",
+            parameters=(P("handle", "SpectralHandle", True),
+                        P("laplacian", "np.ndarray", True),
+                        P("steps", "int", False, "default 1; ticks forward"),
+                        P("dt", "float", False, "default 1.0; tick magnitude"),
+                        P("encoder_tag", "str", False, "default 'default'")),
+            returns=R("SpectralHandle", "phase-evolved coefficients"),
+        ),
+        ToolEntry(
+            name="srmech.spectral.prediction_error", owner="srmech",
+            category="spectral",
+            summary="XOR delta between predicted and observed coefficient "
+                    "byte vectors; gate-by-threshold on popcount density. "
+                    "Class chain: Class M (HDC XOR-bind delta) ∘ Class K "
+                    "(gate-by-threshold projection). ``threshold=0.0`` "
+                    "default (no gating; raw delta) per user decision "
+                    "2026-05-18. When ``popcount(delta) / (8·len) <= "
+                    "threshold``, returns all-zero bytes (prediction "
+                    "sufficient). Composes with :func:`predict` to close "
+                    "the predictive-coding cascade.",
+            parameters=(P("predicted", "SpectralHandle | bytes", True),
+                        P("observed", "SpectralHandle | bytes", True),
+                        P("threshold", "float", False,
+                          "default 0.0; in [0.0, 1.0]")),
+            returns=R("bytes", "delta or all-zeros if gated"),
+        ),
+        ToolEntry(
+            name="srmech.spectral.truncate_sparse", owner="srmech",
+            category="spectral",
+            summary="Sparse-truncate a SpectralHandle's coefficients: keep "
+                    "the top-``keep_k`` highest-magnitude modes OR every "
+                    "mode with ``|coeff| >= threshold``; zero the rest. "
+                    "Class K (magnitude-band sparse-truncate / "
+                    "threshold-gate) per Mallat 2008 §9.2 (best k-term "
+                    "approximation) + Spike #117 anchor. Exactly one of "
+                    "``keep_k`` / ``threshold`` must be supplied.",
+            parameters=(P("handle", "SpectralHandle", True),
+                        P("keep_k", "Optional[int]", False,
+                          "top-k modes by magnitude"),
+                        P("threshold", "Optional[float]", False,
+                          "magnitude floor; modes >= kept")),
+            returns=R("SpectralHandle", "truncated coefficients"),
+        ),
+    ]
+    for e in entries:
+        register_tool(e)
+
+
 def _register_qm_tools() -> None:
     """Register tool entries for the canonical QM/QFT/SM operations layer
     (Task #217 Phase C1 / Task #220).
@@ -1130,6 +1261,80 @@ def _register_qm_tools() -> None:
                     "Sakurai §3.2 eq 3.2.51.",
             parameters=(P("direction", "np.ndarray", True, "3-vector"),),
             returns=R("np.ndarray", "2×2 Hermitian, eigenvalues ±½"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact
+        # identity signature (Spike #128.1, Class L ∘ I ∘ M ∘ C ∘ A).
+        # Per [[user_stance_bell_inequality_as_canonical_identity_signature]]:
+        # framework's strongest single identity-not-implementation signature.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.bell.chsh_pauli_combination", owner="srmech",
+            category="qm.bell",
+            summary="σ_x ⊗ σ_x + σ_z ⊗ σ_z as 4×4 Hermitian. Closed-form "
+                    "spectrum {+2, 0, 0, −2}. Bell (1964); Sakurai §3.10.",
+            parameters=(),
+            returns=R("np.ndarray", "(4, 4) Hermitian complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_operator", owner="srmech",
+            category="qm.bell",
+            summary="Tsirelson-optimal CHSH operator B_CHSH = A_0⊗B_0 + "
+                    "A_0⊗B_1 + A_1⊗B_0 − A_1⊗B_1 with A_0=σ_z, A_1=σ_x, "
+                    "B_{0,1}=(σ_z±σ_x)/√2. Cirel'son (1980).",
+            parameters=(),
+            returns=R("np.ndarray", "(4, 4) Hermitian complex"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.operator_norm", owner="srmech",
+            category="qm.bell",
+            summary="Spectral norm max|λ_i| of a Hermitian matrix via Class L "
+                    "hermitian_eigendecompose. Golub & Van Loan §8.5.",
+            parameters=(P("H", "np.ndarray", True, "Hermitian square"),),
+            returns=R("float", "largest absolute eigenvalue"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_pauli_combination_norm", owner="srmech",
+            category="qm.bell",
+            summary="‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖ = 2 bit-exact (integer "
+                    "eigenvalue spectrum). Bell (1964).",
+            parameters=(),
+            returns=R("float", "exactly 2.0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.chsh_operator_norm", owner="srmech",
+            category="qm.bell",
+            summary="‖B_CHSH‖ = 2√2 bit-exact Tsirelson bound. Cirel'son "
+                    "(1980); Peres §6.3.",
+            parameters=(),
+            returns=R("float", "≈ 2.8284271247461903"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.tsirelson_bound", owner="srmech",
+            category="qm.bell",
+            summary="Framework-asserted Tsirelson constant 2√2. "
+                    "Cirel'son (1980) *Lett. Math. Phys.* 4, 93.",
+            parameters=(),
+            returns=R("float", "2 · sqrt(2)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.classical_chsh_bound", owner="srmech",
+            category="qm.bell",
+            summary="Classical (Bell) CHSH upper bound = 2. Bell (1964); "
+                    "CHSH (1969).",
+            parameters=(),
+            returns=R("float", "2.0"),
+        ),
+        ToolEntry(
+            name="srmech.qm.bell.verify_chsh", owner="srmech",
+            category="qm.bell",
+            summary="Bit-exact verification of both Bell-CHSH identities: "
+                    "‖σ_x⊗σ_x + σ_z⊗σ_z‖=2 and ‖B_CHSH‖=2√2. Framework's "
+                    "strongest identity-level attestation per Spike #128.1.",
+            parameters=(P("tolerance", "float", False, "default 1e-14"),),
+            returns=R("tuple[bool, float, float]",
+                      "(verified, primary_residual, tsirelson_residual)"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -1527,6 +1732,7 @@ def _register_qm_tools() -> None:
 # at profile-activation time.
 _register_amsc_tools()
 _register_primitive_class_tools()
+_register_spectral_runtime_tools()
 _register_qm_tools()
 
 

@@ -417,7 +417,7 @@ The honest-negative reading is that the user's 2026-05-13 question reframes an a
 
 Per `feedback_no_mvp_framing.md`: this is full-coverage of the six-question protocol, with the honest result that the framing is interpretive-not-novel relative to the holographic-principle / emergent-gravity program. The user's framing is correct as MFO-language clarification but does not extend the underlying physics.
 
-Per `user_stance_string_theory_instrument_first.md`: this is *ring-up/ring-down on real substrate*, not wiggle-in-isolation reformulation. The DoF-mismatch reframe is making a claim about the substrate's physical condition (dimensional-projection as substrate-physics); the test is whether that claim has observational content distinct from standard Hawking. The answer is *no* — but the test itself is principled, not vocabulary games.
+Per `user_stance_string_theory_instrument_first.md`: this is *loop-up/loop-down on real substrate*, not wiggle-in-isolation reformulation. The DoF-mismatch reframe is making a claim about the substrate's physical condition (dimensional-projection as substrate-physics); the test is whether that claim has observational content distinct from standard Hawking. The answer is *no* — but the test itself is principled, not vocabulary games.
 
 ---
 
@@ -481,7 +481,7 @@ Of six candidate distinguishing predictions, all six match between standard Hawk
 
 **Recommendation: document and park.** Spike #19 confirms that the user's 2026-05-13 reframing is consistent with the existing MFO framework (§VII.4 / §VII.4.1 / §VII.4.1.1 / §VII.4.1.2) and the refined structural law (PR #373). No new physics; no new mechanism; no observational content beyond what the holographic-principle + Bekenstein-Hawking + post-2020 islands-formula program already predicts. The framework already encompasses the DoF-mismatch reading under different vocabulary; this spike's contribution is to confirm that and to make the literature-overlap traceable.
 
-The reframing is *legitimate physics within the holographic-principle program* and *legitimate MFO-language clarification of that program*; it is *not* a novel physical claim that extends or modifies the program. Per `user_stance_string_theory_instrument_first.md`: this is ring-up/ring-down on real substrate (the metric field as physical entity, dimensional-projection as substrate-physical condition), not wiggle-in-isolation reformulation. The test of whether the substrate-physical commitment has independent observational content has been performed in §5 and the answer is *no, not currently distinguishable*.
+The reframing is *legitimate physics within the holographic-principle program* and *legitimate MFO-language clarification of that program*; it is *not* a novel physical claim that extends or modifies the program. Per `user_stance_string_theory_instrument_first.md`: this is loop-up/loop-down on real substrate (the metric field as physical entity, dimensional-projection as substrate-physical condition), not wiggle-in-isolation reformulation. The test of whether the substrate-physical commitment has independent observational content has been performed in §5 and the answer is *no, not currently distinguishable*.
 
 ---
 

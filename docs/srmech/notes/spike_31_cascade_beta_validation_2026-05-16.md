@@ -79,7 +79,7 @@ The spike opens three framing decisions for the conductor:
 ### F-2: `[[user_stance_dark_sector_ring_down_rate_is_cascade_stretched]]` stance refinement
 
 - **Option (i)**: Keep stance as-is with caveat that "stretched-exp" is **shape-parameter language**, not functional-form language; the β value is what's substrate-discriminating, not the literal `exp(−(t/τ)^β)` decay form.
-- **Option (ii)**: Refine stance to "**cascade ring-down has power-law primary + stretched-exp secondary signature**, with β = d_S/(d_S+2) as the secondary shape parameter." This is more accurate but trickier to summarise.
+- **Option (ii)**: Refine stance to "**cascade loop-down has power-law primary + stretched-exp secondary signature**, with β = d_S/(d_S+2) as the secondary shape parameter." This is more accurate but trickier to summarise.
 
 ### F-3: Follow-up spike on survival-probability-with-traps
 

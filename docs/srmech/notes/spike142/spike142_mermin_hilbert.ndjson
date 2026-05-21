@@ -1,0 +1,1 @@
+{"spike": "#142", "kind": "hilbert-space-mermin-operator-norm", "date": "2026-05-19", "mermin_op_norm": 4.0, "theoretical_qm_max": 4.0, "classical_bound": 2.0, "residual_to_4": 0.0, "bit_exact": true, "ghz_expectation_real": 0.0, "ghz_expectation_imag": 0.0, "spectrum_sorted": [4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -4.0], "verdict": "GHZ-QUANTUM-BIT-EXACT"}

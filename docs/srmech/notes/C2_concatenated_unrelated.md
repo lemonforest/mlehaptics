@@ -103,7 +103,7 @@ The weaving is not metaphorical — it is the **operational structure**. Every r
 
 The kinematic-precession reading is ruled out by approximately ten orders of magnitude against the Saadeh+ 2016 bound. Even allowing for full systematic flexibility in the bound's Bianchi-class assumptions and the H₀ value, the required rate stays nine to eleven orders of magnitude above the constraint. This is not a marginal-tension situation; the kinematic reading is not viable.
 
-**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (ring-down completion), §VII.6.1.2 (CPL thawing variant), §VII.6.2 (`T_sub` decomposition), §VII.4.1 + §VII.4.1.1 (2D-boundary spherical compression), §VII.2.1 (gravitational time dilation as local mode-population effect), §VII.8 (α(z) tracking `H(z)`), §VIII.1 (topological defect hierarchy), §VIII.7 (fractal-shadow / cascade substrate). It does not alter any ΛCDM prediction; it sharpens what the *rate* of ring-down looks like and identifies three new falsifier channels (stretched-exponential late-time fit; α(z) drift detection at Webb-level; QNM-vs-merger-redshift population trend). Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.6.1 (loop-down completion), §VII.6.1.2 (CPL thawing variant), §VII.6.2 (`T_sub` decomposition), §VII.4.1 + §VII.4.1.1 (2D-boundary spherical compression), §VII.2.1 (gravitational time dilation as local mode-population effect), §VII.8 (α(z) tracking `H(z)`), §VIII.1 (topological defect hierarchy), §VIII.7 (fractal-shadow / cascade substrate). It does not alter any ΛCDM prediction; it sharpens what the *rate* of loop-down looks like and identifies three new falsifier channels (stretched-exponential late-time fit; α(z) drift detection at Webb-level; QNM-vs-merger-redshift population trend). Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
 
 `f_RD_local(r) = f_RD_cosmic + (1 − f_RD_cosmic) · (r_s / r)`, with `r_s = 2GM/c²`
 
@@ -128,7 +128,7 @@ The β value above the pure-power-law masquerade baseline (`β_above_masquerade 
 **The empirical anchor.** Present-epoch stress-energy partition (verified against PDG 2024 Table 25.1 / Planck 2018 VI [arXiv:1807.06209](https://arxiv.org/abs/1807.06209) / DESI 2024 VI [arXiv:2404.03002](https://arxiv.org/abs/2404.03002) / DESI DR2 [arXiv:2503.14738](https://arxiv.org/abs/2503.14738)):
 
 1. **Linearity + Newtonian-limit consistency.** If the substrate-state observable is linear in stress-energy at leading order (weak-field consistency), a localised mass `M` contributes a Newtonian-Green's-function-shaped `1/r` excess. The Laplacian's static point-source response is `1/r` — same algebra produces Newtonian gravity from Poisson's equation.
-2. **§VII.5 dark-matter consistency.** §VII.5 reads dark matter as past-ring-down accumulated geometric curvature. A localised mass `M` contributes a Newtonian `1/r` mass-profile dark-matter accumulation. The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are then the same phenomenon at the substrate-mode-population level. The §VII.6.2 `T_sub` decomposition stays orthogonal — `T_sub` is the global substrate-elasticity decomposition (Ω_Λ / Ω_c / Ω_visible at cosmic scale); `f_RD_local(r)` is the radial mode-completion fraction near a localised mass. Different scales, complementary partitions per `[[user_stance_partition_for_understanding]]`.
+2. **§VII.5 dark-matter consistency.** §VII.5 reads dark matter as past-loop-down accumulated geometric curvature. A localised mass `M` contributes a Newtonian `1/r` mass-profile dark-matter accumulation. The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are then the same phenomenon at the substrate-mode-population level. The §VII.6.2 `T_sub` decomposition stays orthogonal — `T_sub` is the global substrate-elasticity decomposition (Ω_Λ / Ω_c / Ω_visible at cosmic scale); `f_RD_local(r)` is the radial mode-completion fraction near a localised mass. Different scales, complementary partitions per `[[user_stance_partition_for_understanding]]`.
 
 The Spike #24 vocabulary is **empirically closed at 14 classes A–N**. The signed-Laplacian variant lives as a Class L sub-operation that closes the gap with a single algebraically-minimal operation, without expanding the vocabulary.
 
@@ -189,7 +189,7 @@ Monotone in cosmic time; bounded [0%, 100%]; **empirically anchored at every red
 
 ### II.9 Existing literature on dimensional deconstruction and layered phases
 
-This is a falsifiable prediction the kinematic-precession reading does not make: under kinematic precession, the AoE direction at temperature freezeout and at polarisation freezeout are essentially identical (the matter frame is the matter frame, regardless of which photon population we read it from). Under bundle-projection reconfiguration, they differ by a small but specific angle tied to the ring-down completion rate.
+This is a falsifiable prediction the kinematic-precession reading does not make: under kinematic precession, the AoE direction at temperature freezeout and at polarisation freezeout are essentially identical (the matter frame is the matter frame, regardless of which photon population we read it from). Under bundle-projection reconfiguration, they differ by a small but specific angle tied to the loop-down completion rate.
 
 where `C₂(ρ_G)` is the Casimir of the representation `ρ_G` that the field-mode carries. The Hopf result is the special case `G = U(1)`, `M = S²`, `C₂(ρ_q) = q²`, with `q = ℓ` matched mode-by-mode by topological constraint, yielding the linear gap `ℓ`. Other choices of `G` (compact or non-compact) give *different* closed-form expressions for the gap — but the structural pattern `base + Casimir-of-hidden-symmetry-Group + cross-terms` is universal.
 
@@ -202,7 +202,7 @@ where `C₂(ρ_G)` is the Casimir of the representation `ρ_G` that the field-mo
 
 If the waveguides have the same cross-section (same internal geometry), modes are orthonormal: S_{mn} = δ_{mn}. **No mode mixing — quantum numbers are conserved.** If cross-sections differ, off-diagonal S_{mn} ≠ 0 allows mode conversion, with amplitudes set by the overlap integral, which is purely geometric.
 
-**Local 2D-boundary substrate-clock prediction.** Per §VII.4.1.1 / §VIII.1: every 2D causal-substrate boundary has a local ring-down completion `f_RD_local`, with the cosmic 0.95 being the volume-weighted aggregate. Of the candidate solar-system 2D boundaries (heliopause, magnetopause, Hill spheres, bow shocks), only bow shocks plausibly carry §VII.4.1.1 substrate-clock content (causal asymmetry across the shock front); heliopause / magnetopause / Hill are kinematic boundaries outside the framework's strict scope. **The sharpest empirical anchor for 2D-boundary substrate-clock reading is the LIGO/Virgo/KAGRA black-hole ring-down population** — each merger remnant provides a local ring-down quasinormal-mode measurement at the merger redshift. The §VII.2.1 substrate-mode-population mechanism for gravitational time dilation applies directly: every horizon is at `f_RD_local = 1`, but the *approach* to that boundary depends on the cosmic-epoch context. **New MFO prediction**: the population-average QNM frequency at fixed remnant mass should drift with merger redshift in a way tied to `f_RD(z)` evolution. Falsifier: LIGO O5 + future LISA/CE/ET population analyses; if no redshift-dependent QNM deviation beyond Kerr emerges, the cascade-substrate local-clock reading is falsified.
+**Local 2D-boundary substrate-clock prediction.** Per §VII.4.1.1 / §VIII.1: every 2D causal-substrate boundary has a local loop-down completion `f_RD_local`, with the cosmic 0.95 being the volume-weighted aggregate. Of the candidate solar-system 2D boundaries (heliopause, magnetopause, Hill spheres, bow shocks), only bow shocks plausibly carry §VII.4.1.1 substrate-clock content (causal asymmetry across the shock front); heliopause / magnetopause / Hill are kinematic boundaries outside the framework's strict scope. **The sharpest empirical anchor for 2D-boundary substrate-clock reading is the LIGO/Virgo/KAGRA black-hole loop-down population** — each merger remnant provides a local loop-down quasinormal-mode measurement at the merger redshift. The §VII.2.1 substrate-mode-population mechanism for gravitational time dilation applies directly: every horizon is at `f_RD_local = 1`, but the *approach* to that boundary depends on the cosmic-epoch context. **New MFO prediction**: the population-average QNM frequency at fixed remnant mass should drift with merger redshift in a way tied to `f_RD(z)` evolution. Falsifier: LIGO O5 + future LISA/CE/ET population analyses; if no redshift-dependent QNM deviation beyond Kerr emerges, the cascade-substrate local-clock reading is falsified.
 
 Design metamaterial waveguides with engineered multi-scale cascade cross-sections (per `[[user_stance_fractal_shadow]]`; fractal-recursive cross-sections being the readily-fabricable realisation, cascade-composition gear-ratio cross-sections an alternative). Test predictions:
 - Mode spectra match cascade-substrate Laplacian eigenvalues (fractal-recursive: fractal Laplacian eigenvalues; cascade-composition: gear-DAG Laplacian eigenvalues)
@@ -234,9 +234,9 @@ which rearranges to E² = p²c² + m²c⁴ ✓.
 
 - **ε_AoE = 0.0506** via Hopf-bundle aperture `1 − cos(18.3°)` — matches Antikythera-lunar canonical Class K eccentricity (0.054) to 1%; sits in standard cosmic eccentricity range (0.01–0.1); maps cleanly onto §VII.4.1.1's Hopf S³→S² substrate-bundle framework.
 - **Static interpretation only**. Saadeh et al 2016 (PRL 117 131302; arXiv:1605.07178; PDF-verified at 121,000:1 odds against anisotropy) falsifies all dynamical readings at 2,558×–109,374× tension. The substrate is isotropic at the cascade level; only our observer frame has a radial offset whose direction is "AoE." No actual expansion-rate anisotropy; the static offset is invisible to Saadeh's shear measurement.
-- **v2 off-centre-observer construction** (Spike #33 canonical script): observer at radial offset ε from ring centre sees its angular projection carry strict-three-criteria Class K signature (r² = 1.000, ε_fit ≈ ε_input to 4 decimals, monotonic, in physical range). Per `[[user_stance_epicycle_via_gear_plus_pin]]`: substrate plays the role of gear (Class I — isotropic ring); our observer offset plays the role of pin (Class K — equation-of-centre modulation). **Every observer-frame embedded in a substrate ring inherits a Class K signature from its radial offset** — canonical geometric origin of the Kepler series (PR #416 §F2/F15/F17) at cosmological scale.
+- **v2 off-centre-observer construction** (Spike #33 canonical script): observer at radial offset ε from ring centre sees its angular projection carry strict-three-criteria Class K signature (r² = 1.000, ε_fit ≈ ε_input to 4 decimals, monotonic, in physical range). Per `[[user_stance_epicycle_via_gear_plus_pin]]`: substrate plays the role of gear (Class I — isotropic loop); our observer offset plays the role of pin (Class K — equation-of-centre modulation). **Every observer-frame embedded in a substrate loop inherits a Class K signature from its radial offset** — canonical geometric origin of the Kepler series (PR #416 §F2/F15/F17) at cosmological scale.
 
-**The committed reading: AoE direction's local Class K signature IS the geometric consequence of our observer frame being off-centre on an isotropic substrate ring — NOT a directional substrate-density perturbation.** Per `[[user_stance_aoe_observer_frame_offset]]`:
+**The committed reading: AoE direction's local Class K signature IS the geometric consequence of our observer frame being off-centre on an isotropic substrate loop — NOT a directional substrate-density perturbation.** Per `[[user_stance_aoe_observer_frame_offset]]`:
 
 ---
 
@@ -283,7 +283,7 @@ $$R(\lambda) = \lambda(5 - \lambda)$$
 
 Ibarra and Vempati (2025) used Sierpinski triangle geometry for flavor physics — using the literature term "fractal flavor physics" (Ibarra-Vempati's terminology, retained here when citing them). This is the closest independent convergence on the framework's candidate claim that a cascade substrate's internal geometry (which appears fractal-shaped under 3D_s + 1D_t projection per `[[user_stance_fractal_shadow]]`) can encode the fermion mass and mixing structure. This is a citable anchor for the central computational program (per §VIII.7's reframing, identifying the specific cascade composition that matches the SM spectrum; Ibarra-Vempati's Sierpinski-substrate is one fractal-recursive realisation the search may visit).
 
-The ring-down framing dissolves the apparent duality between dark matter and dark energy: both are settled past-complexification, distinguished only by their dilution behaviour (Ω_c ~ a⁻³ as matter; Ω_Λ ~ const as ground-state residual).
+The loop-down framing dissolves the apparent duality between dark matter and dark energy: both are settled past-complexification, distinguished only by their dilution behaviour (Ω_c ~ a⁻³ as matter; Ω_Λ ~ const as ground-state residual).
 
 ### §4.2 Anomaly 2: Arrhenius r² ≈ 0
 
@@ -336,10 +336,10 @@ The Sierpinski gasket has **3-fold self-similarity** — it's the union of 3 cop
 
 This connects to the earlier observation that gravity's 1/r² law may be a consequence of the sphere being the unique maximally symmetric closed 2-manifold in 3D space — geometry determining force law rather than vice versa. In the cascade-substrate picture, 1/r² emerges at scales where effective dimension is ~3+1; at scales where effective dimension differs, the force law would differ. This is what MOND-like proposals attempt to capture phenomenologically.
 
-- **Visible matter (5%)** — still-active ring-up-phase content. The portion of cosmic stress-energy that has not yet settled into substrate-residual form. Currently coupled to the metric field's active complexification dynamics.
-- **Dark sector (95%)** — accumulated ring-down product:
+- **Visible matter (5%)** — still-active loop-up-phase content. The portion of cosmic stress-energy that has not yet settled into substrate-residual form. Currently coupled to the metric field's active complexification dynamics.
+- **Dark sector (95%)** — accumulated loop-down product:
   - Dark matter (Ω_c = 0.265) — past complexification settled into residual geometric curvature (§VII.5).
-  - Dark energy (Ω_Λ = 0.685) — the ring-down ground state; the complexity-maintenance cost itself (§VII.6).
+  - Dark energy (Ω_Λ = 0.685) — the loop-down ground state; the complexity-maintenance cost itself (§VII.6).
 
 Claim: if the metric field's internal geometry has 3-fold self-similarity, eigenfunctions naturally come in 3 families related by the self-similarity maps. Each family corresponds to one generation of fermions.
 
@@ -427,12 +427,12 @@ Status: explicit calculations to date cover S² and T² as toy internal spaces. 
 
 ---
 
-**Heat death reframe.** Under the ring-down reading, "heat death" is not an endpoint of clock-time (clock-time goes to infinity at the de Sitter asymptote) but the **asymptote of ring-down completion** (100%). The universe never *stops* in clock-time; it *completes* in ring-down-fraction. This dissolves the apparent paradox that the universe "ends" in heat death while clock-time continues unboundedly — the two readings answer different "endpoint" questions.
+**Heat death reframe.** Under the loop-down reading, "heat death" is not an endpoint of clock-time (clock-time goes to infinity at the de Sitter asymptote) but the **asymptote of loop-down completion** (100%). The universe never *stops* in clock-time; it *completes* in loop-down-fraction. This dissolves the apparent paradox that the universe "ends" in heat death while clock-time continues unboundedly — the two readings answer different "endpoint" questions.
 
 - **Step A.** Clock-rate is proportional to the *amplitude* of locally-active (un-rung-down) substrate oscillation: settled modes do not contribute to clock-time projection (per the shadow-stance family — `[[user_stance_time_as_dimensional_shadow]]`).
 - **Step B.** Amplitude scales as `√(active mode fraction)` via the canonical harmonic-oscillator energy-amplitude identity `E = (1/2) m ω² A²` (Goldstein *Classical Mechanics* §6.6, eq. 6.117). No QM required for the canonical form; the HO identity is the load-bearing canonical-physics anchor.
 
-### VII.6.1.2 Far-future asymptote of ring-down completion under DESI thawing-CPL hint
+### VII.6.1.2 Far-future asymptote of loop-down completion under DESI thawing-CPL hint
 
 This is the **KK dispersion relation**. It is also, term-for-term, the dispersion relation of a propagating mode in an EM waveguide whose transverse geometry sets the cutoff frequency ω_c. The two are not analogous — they are the same equation.
 
@@ -451,7 +451,7 @@ Specific resolutions in the literature:
 | Reading | Quantity | Value at present | Interpretation |
 |---|---|---|---|
 | **Clock-time** | `t = ∫₀¹ da / (a H(a))` | 13.797 Gyr | Coordinate-time integration of the FLRW foliation. Universal in standard GR — all sectors agree. The *shadow* projection per `[[user_stance_time_as_dimensional_shadow]]`. |
-| **Ring-down completion** | `f_RD = Ω_dark / Ω_total` | 95% | Fraction of cosmic complexification that has accumulated into the dark sector. Bounded, monotone, asymptotic to 100% at de Sitter. The *substrate-internal* progress metric. |
+| **Loop-down completion** | `f_RD = Ω_dark / Ω_total` | 95% | Fraction of cosmic complexification that has accumulated into the dark sector. Bounded, monotone, asymptotic to 100% at de Sitter. The *substrate-internal* progress metric. |
 
 | Theory | Predicted d_S(σ) shape |
 |---|---|
@@ -473,7 +473,7 @@ The waveguide-as-extra-dimension connection has partial development:
 
 Total:
 
-**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific ring-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal-Toulouse 1983, Fukushima-Shima 1992). The aggregate carries **two distinct substrate-discriminating signatures** — power-law primary + stretched-exp secondary — per Spike #31 empirical findings (`docs/srmech/notes/spike_31_cascade_beta_validation_2026-05-16.md`, PR #458) and canonical Lapidus-Steinhurst arXiv:1206.1211 §4.5 eq 40 (PDF-verified):
+**Cascade-resolved mode reading.** Under §VIII.7's cascade-substrate framework, the aggregate `f_RD(t)` is the *integral over substrate modes* of mode-specific loop-down completion fractions. For a substrate of spectral dimension `d_S` (Part V), mode-`k` completion timescales scale as `τ_k ~ k^(−2/d_S)` (canonical Sierpinski / decimation: Rammal-Toulouse 1983, Fukushima-Shima 1992). The aggregate carries **two distinct substrate-discriminating signatures** — power-law primary + stretched-exp secondary — per Spike #31 empirical findings (`docs/srmech/notes/spike_31_cascade_beta_validation_2026-05-16.md`, PR #458) and canonical Lapidus-Steinhurst arXiv:1206.1211 §4.5 eq 40 (PDF-verified):
 
 ### VI.3 Baptista's non-Killing breakthrough (2025)
 
@@ -569,7 +569,7 @@ A potentially testable functional relationship between the fine-structure consta
 
 Computed values from the script (σ in Planck units):
 
-Pending DESI DR3 confirmation. If DESI's signal is a systematic, §VII.6.1 stands as-is. If it strengthens, §VII.6.1's framing refines from *"ring-down completion asymptotes to 100%"* to *"ring-down completion is the monotone past-integral of complexification-budget consumption; the far-future asymptote is model-dependent."*
+Pending DESI DR3 confirmation. If DESI's signal is a systematic, §VII.6.1 stands as-is. If it strengthens, §VII.6.1's framing refines from *"loop-down completion asymptotes to 100%"* to *"loop-down completion is the monotone past-integral of complexification-budget consumption; the far-future asymptote is model-dependent."*
 
 To generate eigenvalues at level m+1, take the level-m eigenvalues, apply R⁻¹ to each, and add the "born" eigenvalues at {2, 5} (the values where R(λ) hits the seed). At level 0 (pre-gasket), the relevant eigenvalues with Neumann boundary conditions are {0, 5}.
 
@@ -760,9 +760,9 @@ The framework is not excluded by current data. The strongest near-term tests are
 
 This is **directly tractable with antikythera-spectral's existing tooling** — no new mathematical apparatus required. The reframed computation drops the fractal commitment in favor of cascade composition; the bonus 5 + bonus 7 spectral signatures guarantee the cascade substrate produces the right *regime* (super-Poisson Gap CV > 1, tower-clustering, three-fold CH structure available). What remains is finding the specific tooth-count cascade whose eigenvalues match the SM ratios — exactly the algebraic search the antikythera-spectral framework was built for.
 
-**Thread 3 (non-monotone f_RD)**: Under DESI thawing-CPL (w₀=−0.8, wa=−0.7), `f_RD` peaks at `a* = 2.139` (f_peak = 0.978) at **~15.45 Gyr from NOW**. Far-future asymptote = 0.843 (the "80 some percent" the user references). **The imprinting cascade rate `df_RD/dt` changes sign at the peak.** Before: uptake dominates (visible → dark; ring-down). After: return-flow dominates (dark → visible; ring-up). ε is signed rate-parameter through this trajectory.
+**Thread 3 (non-monotone f_RD)**: Under DESI thawing-CPL (w₀=−0.8, wa=−0.7), `f_RD` peaks at `a* = 2.139` (f_peak = 0.978) at **~15.45 Gyr from NOW**. Far-future asymptote = 0.843 (the "80 some percent" the user references). **The imprinting cascade rate `df_RD/dt` changes sign at the peak.** Before: uptake dominates (visible → dark; loop-down). After: return-flow dominates (dark → visible; loop-up). ε is signed rate-parameter through this trajectory.
 
-**Integrated reinforcement** (the load-bearing finding): cosmic-web filaments at Fiedler-distinguishable angular positions, observed through the ε_AoE off-centre frame, host the Brouwer-Clemence kinematic modulation at their orientations AND the sign-flip at filaments whose extent crosses the apse projection. **|corr(|f_2|, |c_1|)| = 0.895** in the synthetic test — strong coupling between Fiedler-partition position and kinematic Brouwer-Clemence strength. The three threads are **not independent findings; they are three sub-fingerprints of one geometric fact**: ε_AoE = 0.0506 is our observer-frame radial offset on the substrate ring.
+**Integrated reinforcement** (the load-bearing finding): cosmic-web filaments at Fiedler-distinguishable angular positions, observed through the ε_AoE off-centre frame, host the Brouwer-Clemence kinematic modulation at their orientations AND the sign-flip at filaments whose extent crosses the apse projection. **|corr(|f_2|, |c_1|)| = 0.895** in the synthetic test — strong coupling between Fiedler-partition position and kinematic Brouwer-Clemence strength. The three threads are **not independent findings; they are three sub-fingerprints of one geometric fact**: ε_AoE = 0.0506 is our observer-frame radial offset on the substrate loop.
 
 Spike #34 (`docs/srmech/notes/spike_34_dv_survival_with_traps_2026-05-17.md`, F-3 follow-up to Spike #31) tested the survival-with-traps observable directly. **Dual verdict**:
 
@@ -795,12 +795,12 @@ Each stance flips burden-of-proof from *"show that X implements Y"* (the impleme
 
 | Scale factor `a` | Redshift | f_RD(a) | Phase |
 |---|---|---|---|
-| a → 0 (Big Bang) | z → ∞ | → 0 | Pure ring-up; radiation-dominated |
-| a ≈ 3 × 10⁻⁴ (matter-radiation equality) | z ≈ 3400 | ≈ 0.42 | Ring-down begins as matter starts dominating |
-| a = 0.1 | z = 9 | ≈ 0.84 | Substantial ring-down accumulated |
-| a = 0.5 | z = 1 | ≈ 0.87 | Continued ring-down |
-| **a = 1 (NOW)** | **z = 0** | **= 0.949** | **95% ring-down complete** |
-| a → ∞ (de Sitter heat death) | z → −1 | → 1 | 100% ring-down (asymptotic) |
+| a → 0 (Big Bang) | z → ∞ | → 0 | Pure loop-up; radiation-dominated |
+| a ≈ 3 × 10⁻⁴ (matter-radiation equality) | z ≈ 3400 | ≈ 0.42 | Loop-down begins as matter starts dominating |
+| a = 0.1 | z = 9 | ≈ 0.84 | Substantial loop-down accumulated |
+| a = 0.5 | z = 1 | ≈ 0.87 | Continued loop-down |
+| **a = 1 (NOW)** | **z = 0** | **= 0.949** | **95% loop-down complete** |
+| a → ∞ (de Sitter heat death) | z → −1 | → 1 | 100% loop-down (asymptotic) |
 
 ### VII.2.1 Gravitational time dilation as substrate-mode-population effect
 
@@ -832,7 +832,7 @@ This is not novel as algorithm — it is the standard eigenbasis-residual-iterat
 | modal-completion increment | SIGNED via df_RD/dt | YES | asymptotic-DOF-sidesteps stance |
 | coherence-weave | Symmetric | YES | Max alignment with weave-and-thread |
 | substrate-uptake / return-flow | EXPLICIT bidirectional | PARTIAL | Spike #42 non-monotone finding |
-| **ring-up / ring-down** | **EXPLICIT bidirectional; ALREADY CANONICAL** | **YES** | **Max alignment (already in canon)** |
+| **loop-up / loop-down** | **EXPLICIT bidirectional; ALREADY CANONICAL** | **YES** | **Max alignment (already in canon)** |
 
 Per `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + §VII.1.1 (two-level ontology — substrate field + excitation classes) + §VII.1.2 (1D_t as the Laws of Everything — compressed-cascade content), the **14 Spike #24 primitive classes A–N** each have a specific role under the MFO substrate-vs-excitation ontology. The canonical srmech-side enumeration with module locations lives in [`docs/srmech/srmech_research_notebook.md` §3.8.1](../srmech/srmech_research_notebook.md); this subsection re-presents the same 14 classes with **MFO substrate-vs-excitation interpretive framing**.
 
@@ -840,9 +840,9 @@ Per `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + §VII.1.1 (two-le
 - `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_string_theory_instrument_first]]`, `[[user_stance_identity_not_implementation_discipline]]`
 - `[[user_stance_partition_for_understanding]]` — cosmic-scale `f_RD_cosmic` and local-curvature-scale `f_RD_local(r)` are the same primitive at different ontological levels
 - `[[user_stance_asymptotic_dof_sidesteps_infinity]]`, `[[user_stance_infinity_approximates_asymptote]]` — horizon is f_RD_local → 1 asymptote, not divergence
-- §VII.4.1 / §VII.4.1.1 (horizon as 2D boundary; ring-down saturation at `r_s`)
+- §VII.4.1 / §VII.4.1.1 (horizon as 2D boundary; loop-down saturation at `r_s`)
 - §VII.5 (dark matter as residual geometric curvature — cosmic-aggregate of the same f_RD accumulation that gives local time dilation)
-- §VII.6.1 (cosmic ring-down completion; `f_RD_cosmic = 0.949` asymptotic anchor)
+- §VII.6.1 (cosmic loop-down completion; `f_RD_cosmic = 0.949` asymptotic anchor)
 - §VII.6.2 (`T_sub` decomposition — orthogonal global-scale partition; no naming collision with `f_RD_local`)
 
 This two-level ontology is precisely **standard wave-particle duality applied to MFO §VII.1's metric-field substrate commitment** — not alternative physics; standard QFT rephrased through MFO's specific substrate stance. The cross-cutting rotational-compression motif (Saturn J₂ + Kerr horizon oblateness + ice-giant magnetospheric oblateness) acts at level-2 matter-wave-domain across three independent project loci.
@@ -907,18 +907,18 @@ NDJSON outputs (190 records total):
 
 $$N_{\text{fractal}}(\lambda) \sim \lambda^{d_S/2}$$
 
-The CMB large-scale anomaly family (Axis of Evil per de Oliveira-Costa 2004 / Land–Magueijo 2005; Hemispherical Power Asymmetry per Eriksen 2004 / Hansen 2009; Cold Spot per Vielva 2004) admits one candidate substrate-side reading under §VII.6.1's ring-down framing composed with §VII.4.1.1's spherical-compression / Hopf-bundle structure: the AoE marks a preferred bundle-base direction at galactic (l, b) ≈ (240°, 60°); the HPA breaks the pole/antipole degeneracy via differential power between hemispheres; under Reading B1 — *"more low-ℓ power = less ring-down complete = younger substrate"* — the southern-ecliptic hemisphere is the younger end of the axis and the Cold Spot near the AoE antipole is a localised more-ring-down-complete feature.
+The CMB large-scale anomaly family (Axis of Evil per de Oliveira-Costa 2004 / Land–Magueijo 2005; Hemispherical Power Asymmetry per Eriksen 2004 / Hansen 2009; Cold Spot per Vielva 2004) admits one candidate substrate-side reading under §VII.6.1's loop-down framing composed with §VII.4.1.1's spherical-compression / Hopf-bundle structure: the AoE marks a preferred bundle-base direction at galactic (l, b) ≈ (240°, 60°); the HPA breaks the pole/antipole degeneracy via differential power between hemispheres; under Reading B1 — *"more low-ℓ power = less loop-down complete = younger substrate"* — the southern-ecliptic hemisphere is the younger end of the axis and the Cold Spot near the AoE antipole is a localised more-loop-down-complete feature.
 
 Group velocity IS particle velocity. Phase velocity IS de Broglie phase velocity.
 
 This remains speculative within the framework and requires formalization. The qualitative alignment is striking; the quantitative match (specific halo profiles, rotation curves) is the open computation.
 
 - `[[user_stance_fiber_as_spatially_absent_encoding]]` — the spatially-absent encoding stance that makes bundle-projection reconfiguration mechanically distinct from frame rotation
-- `[[user_stance_dark_sector_ring_down_age]]` — ring-down completion as the natural time-axis for substrate evolution (f_RD, not clock-time)
+- `[[user_stance_dark_sector_ring_down_age]]` — loop-down completion as the natural time-axis for substrate evolution (f_RD, not clock-time)
 - `[[reference_autonomous_validation_tos_landscape]]` — Saadeh+ 2016 verified via arXiv abstract page (arXiv permitted for autonomous validation)
 - `[[feedback_pdf_extraction_citation_discipline]]` — citation re-verified, brief's `arXiv:1604.01024` was the companion MNRAS framework paper; PRL 117 131302 is `arXiv:1605.07178`
 - §VII.4.1.1 — Hopf-bundle / spherical-compression reading
-- §VII.6.1 — ring-down completion f_RD trajectory (f_RD ≈ 0.42 at recombination → 0.949 now)
+- §VII.6.1 — loop-down completion f_RD trajectory (f_RD ≈ 0.42 at recombination → 0.949 now)
 - §VII.6.2 — T_sub decomposition; bundle-projection reconfiguration shifts which compression-state Ω_Λ projects to in 3D_s
 - Working-note PR #437 (Part V for the 18.3° AoE-CMB-dipole anomaly; Part VI for the 73.3° AoE-Auger separation)
 - Saadeh, Feeney, Pontzen, Peiris, McEwen, *"How isotropic is the Universe?"*, PRL 117 131302 (2016), `arXiv:1605.07178`, DOI 10.1103/PhysRevLett.117.131302
@@ -986,7 +986,7 @@ The inverse map is
 
 **Per-class audit** (recorded in NDJSON `stage3_spectral_falsifier.lorentz_signature.primitive_class_audit_for_signed_metric`):
 
-**Observer-existence band.** Galaxy and structure formation, and therefore observer existence, requires both *enough* ring-down accumulation (to bind matter gravitationally — dark matter halos) and *enough* visible matter remaining (to radiate, fuse, organise). The 5%/95% partition at present epoch sits in the narrow band where both conditions hold simultaneously. As ring-down continues toward the de Sitter asymptote, visible matter dilutes, complexification-cost dominates, and the band closes. Observers occupy the ring-up → ring-down transition, not either asymptotic pole.
+**Observer-existence band.** Galaxy and structure formation, and therefore observer existence, requires both *enough* loop-down accumulation (to bind matter gravitationally — dark matter halos) and *enough* visible matter remaining (to radiate, fuse, organise). The 5%/95% partition at present epoch sits in the narrow band where both conditions hold simultaneously. As loop-down continues toward the de Sitter asymptote, visible matter dilutes, complexification-cost dominates, and the band closes. Observers occupy the loop-up → loop-down transition, not either asymptotic pole.
 
 Suggestive features:
 - **Distribution:** Dark matter traces large-scale structure, doesn't clump at small scales — expected if multi-scale-cascade geometric complexity has scale-dependent properties (fractal-recursive geometry being one substrate where this is naturally instantiated)
@@ -997,7 +997,7 @@ Suggestive features:
 > *"the force that string dynamics must have to propegate and the tension resisting string dynamic"*
 > — user direction, 2026-05-16
 
-**The collapse of a false duality.** Initial framing posed two forces: a "graceful mitigation" force driving ring-down toward rest, and a "tension resisting overshoot" force preventing the system from passing rest. The user's refinement collapsed this into one substrate elasticity with two observational manifestations: *the force string dynamics must have to propagate*, and *the tension resisting string dynamic*. These are the same `T_sub`, read at two abstraction levels — propagation-enabling (driving) and resistance-providing (restoring). There is no separate mitigation force; `T_sub` *is* ring-down, in the sense that the wave-equation driving term `F = -T_sub · ∂²y/∂x²` and the static elastic restoring response are the same quantity manifest dynamically vs statically.
+**The collapse of a false duality.** Initial framing posed two forces: a "graceful mitigation" force driving loop-down toward rest, and a "tension resisting overshoot" force preventing the system from passing rest. The user's refinement collapsed this into one substrate elasticity with two observational manifestations: *the force string dynamics must have to propagate*, and *the tension resisting string dynamic*. These are the same `T_sub`, read at two abstraction levels — propagation-enabling (driving) and resistance-providing (restoring). There is no separate mitigation force; `T_sub` *is* loop-down, in the sense that the wave-equation driving term `F = -T_sub · ∂²y/∂x²` and the static elastic restoring response are the same quantity manifest dynamically vs statically.
 
 > *"research agent to find out if 1D actually just collapses to = Laws of Everything*
 > *not an action."*
@@ -1013,7 +1013,7 @@ This dissolves the puzzle and identifies the unifying structure across all QG pr
 
 **Why the linear-`1/r` profile is forced** (not chosen): two independent arguments converge:
 
-§VII.6.1's framing of *"100% ring-down at de Sitter heat death"* is robust under standard ΛCDM (Ω_dark/Ω_total monotone increasing in scale factor `a`, asymptote → 1). Under DESI 2024 VI ([arXiv:2404.03002](https://arxiv.org/abs/2404.03002)) + DESI DR2 ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738)) thawing-CPL preference (w₀ > −1, wₐ < 0 at 3.1–4.2σ), the far-future asymptote of Ω_dark/Ω_total **drops below 1** (≈ 0.84 for representative thawing values w₀ = −0.8, wₐ = −0.7).
+§VII.6.1's framing of *"100% loop-down at de Sitter heat death"* is robust under standard ΛCDM (Ω_dark/Ω_total monotone increasing in scale factor `a`, asymptote → 1). Under DESI 2024 VI ([arXiv:2404.03002](https://arxiv.org/abs/2404.03002)) + DESI DR2 ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738)) thawing-CPL preference (w₀ > −1, wₐ < 0 at 3.1–4.2σ), the far-future asymptote of Ω_dark/Ω_total **drops below 1** (≈ 0.84 for representative thawing values w₀ = −0.8, wₐ = −0.7).
 
 Independent work on hyperdimensional computing (HDC) for the PHYRFLY/UTLP suite arrived at parallel mathematical structure from a different direction. The key insight: "inside-out texture mapping" — binding HDC encoding to the *interior* surface of a torus rather than the exterior — changes similarity measurement from cosine distance (extrinsic) to geodesic distance (intrinsic). This creates an "anharmonic drum surface": a non-uniform resonant membrane whose eigenvalues encode information.
 
@@ -1043,7 +1043,7 @@ The connection deepens with hierarchical grid cell encoding — hypervectors of 
 - **DESI w(z):** Specific time-evolution patterns from complexification dynamics.
 
 - Working-note artifact (dialog source for Parts I–VI + Pierre Auger cross-check): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md)
-- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_string_theory_instrument_first]]` — loop-up / loop-down vocabulary
 - `[[user_stance_time_as_dimensional_shadow]]` — substrate-vs-shadow distinction
 - `[[user_stance_1d_collapse_to_loe_identity_not_action]]` — 1D_t IS LoE identity (the compression-axis claim for Ω_Λ rests on this)
 - `[[user_stance_fiber_as_spatially_absent_encoding]]` — 7D_g content algebraically present, spatially absent
@@ -1154,7 +1154,7 @@ The ontological cost is minimal. No new fundamental objects are introduced (no s
 
 $$\Delta_{S^3}\ \text{eigenvalues}: l(l+2)\quad\text{vs}\quad\Delta_{S^2}\ \text{eigenvalues}: l(l+1)$$
 
-### VII.6.4 Rate of dark-sector ring-down, cascade mode-resolution, and local 2D-boundary signatures
+### VII.6.4 Rate of dark-sector loop-down, cascade mode-resolution, and local 2D-boundary signatures
 
 Index = number of left-handed zero modes minus number of right-handed zero modes. Vanishing index ⟹ equal L and R fermions ⟹ no chirality.
 
@@ -1186,7 +1186,7 @@ $$d_S^{\text{framework}}(\sigma) = d_S^{\text{base}}(\sigma) + d_S^{\text{bump}}
 
 Standard problem: ~10¹²⁰ discrepancy between predicted vacuum energy and observed dark energy density. Standard quintessence requires w > −1, but DESI (2024–25) hints at w < −1 ("phantom crossing"), which is hard to accommodate.
 
-§VII.6.1 frames the dark sector as cosmic ring-down accumulation and identifies the 95% partition with substrate-internal ring-down completion. This subsection asks what the substrate elasticity that *drives* ring-down actually is, and decomposes it along three orthogonal axes. The decomposition is the dialog product of a user proposal (dark sector as "tension on the string") and a first-pass conductor reply that mistakenly split that tension into two separate forces, corrected back to a single-elasticity reading on the next turn. Working-note artifact + Pierre Auger UHECR-dipole cross-check: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md).
+§VII.6.1 frames the dark sector as cosmic loop-down accumulation and identifies the 95% partition with substrate-internal loop-down completion. This subsection asks what the substrate elasticity that *drives* loop-down actually is, and decomposes it along three orthogonal axes. The decomposition is the dialog product of a user proposal (dark sector as "tension on the string") and a first-pass conductor reply that mistakenly split that tension into two separate forces, corrected back to a single-elasticity reading on the next turn. Working-note artifact + Pierre Auger UHECR-dipole cross-check: [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md).
 
 | σ/σ_Planck | d_S(CDT) | d_S(KK) | d_S(framework) |
 |---:|---:|---:|---:|
@@ -1198,7 +1198,7 @@ Standard problem: ~10¹²⁰ discrepancy between predicted vacuum energy and obs
 | 100 | 3.98 | 4.001 | 4.01 |
 | 1000 | 3.998 | 4.000 | 4.00 |
 
-**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.4.1.1 (horizon as 2D boundary) + §VII.5 (dark matter as residual curvature) + §VII.6.1 (cosmic ring-down completion) + the shadow-stance family. It does not alter any GR prediction; the standard `dτ/dt = √(1 − r_s/r)` remains exactly correct. What it adds is the *substrate-internal* mechanism for that same observable. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over Verlinde / Padmanabhan / Sakharov readings without further empirical convergence.
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.4.1.1 (horizon as 2D boundary) + §VII.5 (dark matter as residual curvature) + §VII.6.1 (cosmic loop-down completion) + the shadow-stance family. It does not alter any GR prediction; the standard `dτ/dt = √(1 − r_s/r)` remains exactly correct. What it adds is the *substrate-internal* mechanism for that same observable. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over Verlinde / Padmanabhan / Sakharov readings without further empirical convergence.
 
 - **Matter-wave domain.** Localized, topologically-bound excitations of the substrate. Their geometric structure is determined by being bound to closed-body 3D-spatial-interfaces. The spherical-compression operator (§VII.4.1) acts on this class: 3D bulk reduced to inscribed 2D boundary (Birkhoff/no-hair for static; Kerr oblateness for rotating; rotational-compression motif documented across Saturn J₂ + Kerr horizon + ice-giant magnetosphere per T² survey). Project examples: event horizons; gravitational figures; HDC bipolar BIP (matter-information bound to inscribed S^(D-1)); chess qm_2d/qm_4d (Born-rule projective state on inscribed S^(2N-1) ⊂ C^N); quasiparticles (phonons, plasmons, magnons — collective excitations behaving particle-like).
 - **Field domain.** Delocalized, extended excitations of the substrate. Topology of their structure is **described** by mathematical objects (closed manifolds, knots, foliations) but those objects do not *constitute* the field — the math is instrument, the field is phenomenon (per `memory/user_explanation_discipline.md` and `user_stance_string_theory_instrument_first.md`). Examples: closed B-field-line magnetospheric L-shell structure (described by T² foliation); Wilson-loop holonomy in gauge theories (described by closed loops in spacetime); magnetic-flux-tube structure.
@@ -1206,7 +1206,7 @@ Standard problem: ~10¹²⁰ discrepancy between predicted vacuum energy and obs
 
 ## Mixed-Section 20
 
-5. **Bidirectional cascade naming** — ring-up/ring-down is already-canonical; user can use "creation/un-creation" as accessible pedagogical alias. **No new naming needed**; existing canon adequate.
+5. **Bidirectional cascade naming** — loop-up/loop-down is already-canonical; user can use "creation/un-creation" as accessible pedagogical alias. **No new naming needed**; existing canon adequate.
 
 The MFO-conjecture framework name resulting from the spike: **"space-gauge-time"** — distinct from conventional "space-time" by treating gauge as a co-equal dimensional kind rather than "internal degrees of freedom layered on space-time." Canonical decomposition:
 
@@ -1274,7 +1274,7 @@ Per-channel ε_k = (c_k · k)^(1/k):
 
 ## Mixed-Section 21
 
-3. **Matter is some kind of excitation, and the framework lets us *ask* what kind.** The instrument-first methodological move — applying the same maths used for instruments (Laplacian eigenbasis, Hamiltonian flow, KAM, Hatano-Nelson, Nambu NNET) to "the stuff around us" — opens up a question that string theory's static-string ontology forecloses: is matter more cavity-like (geometry-selected sustaining modes), more string-like (vibrating object as the foundational thing), neither of those, or **something that is like both but unlike both**? The cavity-instrument analogy used elsewhere in this notebook is *one candidate* framing the project hosts; it is **not** the project's commitment to cavity-instrument over alternatives. The framework's contribution at this layer is methodological: making the question askable and screenable, not picking the answer. Whether matter is currently in driven sustain, slow ring-down, or driven-with-irreversibility (the three regimes named in ephemerides §20.4.1–§20.4.3) is observation-dependent — observation (Hubble expansion; second-law entropy increase at every scale; tidal / gravitational-wave / Hawking dissipation channels — Earth-Moon recession at +3.83 cm/yr, Hulse-Taylor PSR B1913+16 orbital-decay confirmation of GR-predicted GW emission, eventual Hawking evaporation of every black hole) suggests the universe at large is in **slow ring-down from a Big Bang impulse**, with local pockets of driven sustain (stellar fusion → planetary-system processes → biology) embedded in that global ring-down envelope, like a top wobbling as it slowly loses angular momentum. *(An earlier version of this claim asserted "matter is sustained resonance"; a later revision asserted "matter is excitation in a cavity-instrument geometry." Both overcommitted — the first picked sustain over ring-down before observation could screen it; the second picked cavity over string and other geometries before the framework had asked the question. The load-bearing claim is that matter is **some kind of** excitation **in some geometry the framework lets us ask about**; both the regime classification and the geometry choice are observation-dependent. Same FFT-untruncation modesty as ephemerides §20.4.0: as data and screening accumulate, both refine.)*
+3. **Matter is some kind of excitation, and the framework lets us *ask* what kind.** The instrument-first methodological move — applying the same maths used for instruments (Laplacian eigenbasis, Hamiltonian flow, KAM, Hatano-Nelson, Nambu NNET) to "the stuff around us" — opens up a question that string theory's static-string ontology forecloses: is matter more cavity-like (geometry-selected sustaining modes), more string-like (vibrating object as the foundational thing), neither of those, or **something that is like both but unlike both**? The cavity-instrument analogy used elsewhere in this notebook is *one candidate* framing the project hosts; it is **not** the project's commitment to cavity-instrument over alternatives. The framework's contribution at this layer is methodological: making the question askable and screenable, not picking the answer. Whether matter is currently in driven sustain, slow loop-down, or driven-with-irreversibility (the three regimes named in ephemerides §20.4.1–§20.4.3) is observation-dependent — observation (Hubble expansion; second-law entropy increase at every scale; tidal / gravitational-wave / Hawking dissipation channels — Earth-Moon recession at +3.83 cm/yr, Hulse-Taylor PSR B1913+16 orbital-decay confirmation of GR-predicted GW emission, eventual Hawking evaporation of every black hole) suggests the universe at large is in **slow loop-down from a Big Bang impulse**, with local pockets of driven sustain (stellar fusion → planetary-system processes → biology) embedded in that global loop-down envelope, like a top wobbling as it slowly loses angular momentum. *(An earlier version of this claim asserted "matter is sustained resonance"; a later revision asserted "matter is excitation in a cavity-instrument geometry." Both overcommitted — the first picked sustain over loop-down before observation could screen it; the second picked cavity over string and other geometries before the framework had asked the question. The load-bearing claim is that matter is **some kind of** excitation **in some geometry the framework lets us ask about**; both the regime classification and the geometry choice are observation-dependent. Same FFT-untruncation modesty as ephemerides §20.4.0: as data and screening accumulate, both refine.)*
 
 This goes from 2 at σ → 0 (UV) to 4 at σ → ∞ (IR), with crossover at σ₀ (Planck scale).
 
@@ -1340,7 +1340,7 @@ Each script is deterministic: re-running produces byte-identical JSON output. Th
 ### §5.1 Hindsight-shorthand catalog (9 words)
 
 - **At `r → ∞`**: `f_RD_local → f_RD_cosmic = 0.949` (matches §VII.6.1's cosmic-asymptotic value; standard cosmology).
-- **At `r = r_s`**: `f_RD_local = 1` (matches §VII.4.1.1's 2D-boundary identity; ring-down saturation locus = horizon).
+- **At `r = r_s`**: `f_RD_local = 1` (matches §VII.4.1.1's 2D-boundary identity; loop-down saturation locus = horizon).
 
 $$\omega^2 = k^2 c^2 + \omega_c^2, \qquad \omega_c = \frac{nc}{R} = \frac{m_n c^2}{\hbar}$$
 
@@ -1420,7 +1420,7 @@ Light is not "going fast." c is the propagation rate of the electromagnetic fiel
 
 **Level 1 — substrate.** The metric field itself. Reference state (vacuum) and the framework's geometric-curvature reframings (dark matter as "residual geometric curvature, not particles" per §VII.5; dark energy as "thermodynamic cost of maintaining current geometric complexity" per §VII.6) sit at this layer. **Vacuum and dark matter are explicitly outside the level-2 excitation-class distinction below**; they belong to the substrate's reference state and geometric-content layer respectively.
 
-§VII.6 frames dark energy as the cost of maintaining accumulated geometric complexity; §VII.5 frames dark matter as residual geometric curvature left over from past complexification. This subsection unifies both under a single substrate-internal-time reading: **the dark sector represents cosmic ring-down accumulation, and the universe is 95% old in the sense that 95% of cosmic complexification has settled into the dark sector.** Working-note artifact + full empirical workings at [`docs/antikythera-maths/research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](research-mfo/dark_sector_substrate_internal_time_2026-05-16.md).
+§VII.6 frames dark energy as the cost of maintaining accumulated geometric complexity; §VII.5 frames dark matter as residual geometric curvature left over from past complexification. This subsection unifies both under a single substrate-internal-time reading: **the dark sector represents cosmic loop-down accumulation, and the universe is 95% old in the sense that 95% of cosmic complexification has settled into the dark sector.** Working-note artifact + full empirical workings at [`docs/antikythera-maths/research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](research-mfo/dark_sector_substrate_internal_time_2026-05-16.md).
 
 ### XIII.2 Baptista at 7D
 
@@ -1439,7 +1439,7 @@ Light is not "going fast." c is the propagation rate of the electromagnetic fiel
 
 **Why this is more than analogy.** The decomposition is computable — including on discrete-graph approximations — and the 2026-05-11 exploration (`docs/srmech/notes/hopf-fibration-explorations-2026-05-11.md`, merged via PR #331) gives evidence on two cleanly-distinct fronts:
 
-§VII.2 reads time as the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. This subsection makes a specific commitment under that reading: gravitational time dilation is a **substrate-mode-population effect** on the clock-time projection, with mass concentrations carrying the substrate's local ring-down completion fraction from its cosmic-asymptotic value `f_RD_cosmic = 0.949` (§VII.6.1) to its 2D-boundary saturation value `1` at the Schwarzschild radius (§VII.4.1.1). Full empirical workings + uniqueness arguments + experimental cross-checks at [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md).
+§VII.2 reads time as the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. This subsection makes a specific commitment under that reading: gravitational time dilation is a **substrate-mode-population effect** on the clock-time projection, with mass concentrations carrying the substrate's local loop-down completion fraction from its cosmic-asymptotic value `f_RD_cosmic = 0.949` (§VII.6.1) to its 2D-boundary saturation value `1` at the Schwarzschild radius (§VII.4.1.1). Full empirical workings + uniqueness arguments + experimental cross-checks at [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md).
 
 There is no smooth manifold (the geometry has structure at every scale, no tangent spaces in the usual sense). There is no smooth G-action (a continuous group cannot act smoothly on a Sierpinski gasket). There is no standard Dirac operator — the analog is the Kigami Laplacian, which has different analytical properties. The theorem cannot even be stated.
 
@@ -1473,7 +1473,7 @@ To produce a non-monotonic flow with controllable peak position, height, and wid
 
 The MFO substrate-vs-excitation framing of these 14 classes does NOT add or remove classes from the srmech canonical enumeration; it provides one *interpretive overlay* per `[[user_stance_identity_not_implementation_discipline]]`. The classes ARE the substrate-coupling primitives; MFO names what role each plays in the substrate-vs-excitation reading.
 
-**Thread 2 (vocabulary)**: "entropy" repostures cleanly as hindsight-shorthand for the cascade-imprint operation, in the same family as `[[user_stance_infinity_approximates_asymptote]]`. Three candidate stance names surfaced; **concertmaster lean is option B** (`user_stance_entropy_approximates_ring_balance` — uses already-canonical ring-up/ring-down vocabulary). User-gated.
+**Thread 2 (vocabulary)**: "entropy" repostures cleanly as hindsight-shorthand for the cascade-imprint operation, in the same family as `[[user_stance_infinity_approximates_asymptote]]`. Three candidate stance names surfaced; **concertmaster lean is option B** (`user_stance_entropy_approximates_ring_balance` — uses already-canonical loop-up/loop-down vocabulary). User-gated.
 
 From the dispersion relation, compute group and phase velocities:
 
@@ -1508,7 +1508,7 @@ $$\alpha(z) = \alpha_0 \cdot f(H(z))$$
 
 **Distinction — identity vs operation.** The dimension and the substrate-coupling operation that acts on it are at different ontological levels:
 
-**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.5 (dark matter as residual geometric curvature) + §VII.6 (dark energy as complexification cost) + the user's `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down stance + the shadow-stance family. It does not alter any GR prediction; the standard FLRW age remains 13.797 Gyr. What it adds is the *substrate-internal* reading of that same number: 95% ring-down complete. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.5 (dark matter as residual geometric curvature) + §VII.6 (dark energy as complexification cost) + the user's `[[user_stance_string_theory_instrument_first]]` loop-up/loop-down stance + the shadow-stance family. It does not alter any GR prediction; the standard FLRW age remains 13.797 Gyr. What it adds is the *substrate-internal* reading of that same number: 95% loop-down complete. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
 
 Cosmic strings under §VIII.1 read as 7D_g topological defects projected into 3D_s as 1D filaments — gauge-fiber content frozen as spatial residue, `Ω_c`-like (past-work receipt) in nature rather than `Ω_Λ`-like (currently-active property).
 
@@ -1516,7 +1516,7 @@ The de Broglie matter-wave for a particle of mass m has phase velocity v_phase s
 
 **Cross-domain instances within the spectral collection.** The pattern recurs at every scale the project has touched:
 
-The dark-sector duality (§VII.6.1's distinction between Ω_c and Ω_Λ as both being settled past-complexification) sharpens: Ω_Λ is the *property itself*; Ω_c is the *receipt of work performed by that property*. Ring-down language and elasticity language describe the same content.
+The dark-sector duality (§VII.6.1's distinction between Ω_c and Ω_Λ as both being settled past-complexification) sharpens: Ω_Λ is the *property itself*; Ω_c is the *receipt of work performed by that property*. Loop-down language and elasticity language describe the same content.
 
 *End of working draft. Next iteration should: (a) align format with sister notebooks (state-pointer block, formal H-battery format, sister cross-references), (b) integrate any of the next-session computational results that close open Part IX items, (c) add a "Computability Audit" section in the style of the Antikythera notebook §12 once enough hypotheses are formalized to warrant one.*
 
@@ -1650,7 +1650,7 @@ Computed trajectory (DESI thawing-CPL, w₀=−0.8, wa=−0.7, Planck 2018 ancho
 
 **Layered phases in lattice gauge theory** (Murata-So 2003, Fu-Nielsen 1984): 5D lattice gauge theories with anisotropic couplings exhibit layered phases — Coulomb-type within 4D layers, confining along the extra dimension. Literally waveguide physics: free in 4D, evanescent in the 5th.
 
-**Ring-down completion trajectory.** Define the ring-down completion fraction at scale factor `a` as `f_RD(a) = Ω_dark(a) / Ω_total(a)`. Numerical integration with verified Planck values gives:
+**Loop-down completion trajectory.** Define the loop-down completion fraction at scale factor `a` as `f_RD(a) = Ω_dark(a) / Ω_total(a)`. Numerical integration with verified Planck values gives:
 
 ### VII.4.1.2 Casimir-decomposition universality — across spin, gauge, and hidden symmetry
 
@@ -1685,7 +1685,7 @@ The monotone decrease in ε_k is the anomaly that resolved into the K_k(channel)
 
 > **Discipline.** First spike dispatched AFTER `[[user_stance_primitives_weave_and_thread]]` recognition (2026-05-17). The brief was written under the weaving lens; the recovery operates explicitly through cascade composition. Demonstrates the stance's load-bearing claim: phenomena emerge from cascade weave, not single-class probes.
 
-The 7D_g entries are where the standard "dark energy as cosmological constant" reading is most lossy: the cosmological-constant column collapses gauge-field-strength tension into a single scalar, dropping the entire 7D_g content. Under the HO-role × dimensional-kind table, the Standard Model gauge group `U(1) × SU(2) × SU(3)` is read as the residual ring-down product of past gauge-symmetry-breakings — what remains after grand-unification → electroweak symmetry-breaking events ran their course. Per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the gauge group is spatially absent (no 3D_s observable shows "where" SU(3) lives) but algebraically present and currently active.
+The 7D_g entries are where the standard "dark energy as cosmological constant" reading is most lossy: the cosmological-constant column collapses gauge-field-strength tension into a single scalar, dropping the entire 7D_g content. Under the HO-role × dimensional-kind table, the Standard Model gauge group `U(1) × SU(2) × SU(3)` is read as the residual loop-down product of past gauge-symmetry-breakings — what remains after grand-unification → electroweak symmetry-breaking events ran their course. Per `[[user_stance_fiber_as_spatially_absent_encoding]]`, the gauge group is spatially absent (no 3D_s observable shows "where" SU(3) lives) but algebraically present and currently active.
 
 - `[[user_stance_primitives_weave_and_thread]]` — **LOAD-BEARING LENS**; explicit per-channel cascade composition tables for all 9 channels (§2); zero new classes
 - `[[user_stance_infinity_approximates_asymptote]]` — **precedent for vocabulary reposture**; explicit parallel structure applied to entropy
@@ -1703,7 +1703,7 @@ The 7D_g entries are where the standard "dark energy as cosmological constant" r
 - `[[feedback_science_is_ssot_not_project]]` — canonical physics (PDG / Planck / DESI / Peskin) is SSoT; project chain is its own SSoT for cascade-composition framing
 - `[[feedback_every_doc_edit_faces_falsification]]` — every quantitative claim verified by independent computation
 
-**DESI thawing-CPL is non-monotone in `f_RD`.** Under DESI 2024–25 (w₀ = −0.8, wₐ = −0.7 representative; `arXiv:2404.03002`, `arXiv:2503.14738`), `f_RD(t)` is **non-monotone**: peaks at `f_RD ≈ 0.978 at a ≈ 2.14` (~16 Gyr from now), then descends to asymptote `≈ 0.843`. Rate at NOW is 80% of ΛCDM (5.60×10⁻³ vs 7.00×10⁻³ /Gyr). The dark sector *ages past max, then ages back down* — a sharper non-linearity than ΛCDM monotone-with-lower-asymptote. §VII.6.1.2's framing of "ring-down completion as monotone past-integral of complexification-budget consumption" stands; instantaneous Ω_dark/Ω_total under DESI does NOT have a monotone interpretation.
+**DESI thawing-CPL is non-monotone in `f_RD`.** Under DESI 2024–25 (w₀ = −0.8, wₐ = −0.7 representative; `arXiv:2404.03002`, `arXiv:2503.14738`), `f_RD(t)` is **non-monotone**: peaks at `f_RD ≈ 0.978 at a ≈ 2.14` (~16 Gyr from now), then descends to asymptote `≈ 0.843`. Rate at NOW is 80% of ΛCDM (5.60×10⁻³ vs 7.00×10⁻³ /Gyr). The dark sector *ages past max, then ages back down* — a sharper non-linearity than ΛCDM monotone-with-lower-asymptote. §VII.6.1.2's framing of "loop-down completion as monotone past-integral of complexification-budget consumption" stands; instantaneous Ω_dark/Ω_total under DESI does NOT have a monotone interpretation.
 
 This is a prediction, not a postulate: the number of fermion generations equals the three-fold sub-structure count of the internal cascade substrate (in the fractal-recursive realisation, the self-similarity count; in the cascade-composition realisation, the three-fold cascade factor). SG-like 3-fold → 3 generations, matching the SM. P₂ would give 2 generations (too few); P₄ would give 4 (too many); only n = 3 matches. Note Spike #24 bonus 7's caveat (§VIII.7): three-fold sub-clustering at k=3 is a measurement-at-k=3 property and does not uniquely select substrate three-fold-symmetry; sharpening the falsifier via a k-search is a §IV.5 methodological refinement target.
 
@@ -1742,7 +1742,7 @@ The brain's grid cell system (Moser & Moser, 2005) uses exactly this: modules at
 
 # Spike #38b — Caffeine mass-spec revisit with form-and-function-remnants lens (Antikythera analogy + first demonstrating instance of `[[user_stance_primitives_weave_and_thread]]`)
 
-**Status.** This subsection is **one candidate** decomposition under MFO commitments — the substrate-elasticity reading of `T_sub` is internally consistent with §VII.6, §VII.6.1, the user's `[[user_stance_string_theory_instrument_first]]` ring-up/ring-down stance, the `[[project_space_gauge_time_framework]]` dimensional decomposition, and `[[user_stance_1d_collapse_to_loe_identity_not_action]]`. It does not alter any GR prediction or any Standard Model gauge calculation. What it adds is a 3-axis decomposition of `Ω` that the standard cosmological-constant reading collapses into a single scalar, plus a falsifiable cross-channel decomposition prediction for the CMB low-ℓ anomaly family. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
+**Status.** This subsection is **one candidate** decomposition under MFO commitments — the substrate-elasticity reading of `T_sub` is internally consistent with §VII.6, §VII.6.1, the user's `[[user_stance_string_theory_instrument_first]]` loop-up/loop-down stance, the `[[project_space_gauge_time_framework]]` dimensional decomposition, and `[[user_stance_1d_collapse_to_loe_identity_not_action]]`. It does not alter any GR prediction or any Standard Model gauge calculation. What it adds is a 3-axis decomposition of `Ω` that the standard cosmological-constant reading collapses into a single scalar, plus a falsifiable cross-channel decomposition prediction for the CMB low-ℓ anomaly family. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over alternatives without further empirical convergence.
 
 ## Mixed-Section 29
 
@@ -1843,15 +1843,15 @@ $$d_S^{\text{bump}}(\sigma) = A \cdot \exp\left(-\frac{1}{2}\left(\frac{\log_{10
 |---|---|---|---|
 | **Ω_Λ** | 0.685 | `T_sub` itself | The substrate's elastic property; constant in time (`w = -1` to current precision) because it *is* the property, not a state of motion. Both propagation-enabling and resistance-providing manifestations originate here. This is what §VII.6's "complexification-maintenance cost" was reaching for. |
 | **Ω_c** | 0.264 | Past-work receipt `∫ F · dx` | The historical ledger of `T_sub` having done its job over 13.8 Gyr, settled as residual geometric curvature (§VII.5). *Not* tension itself — what tension *has done*. Dilutes as `a⁻³` because settled receipts are matter-like in their dilution behaviour. |
-| **Ω_visible** | 0.049 | Currently-active string-dynamic | The 3D_s + 7D_g + 1D_t excitation that `T_sub` is presently supporting and resisting. Couples to ring-up dynamics. |
+| **Ω_visible** | 0.049 | Currently-active string-dynamic | The 3D_s + 7D_g + 1D_t excitation that `T_sub` is presently supporting and resisting. Couples to loop-up dynamics. |
 
 The cascade substrate instantiates Spike #24 Classes I, J, K, L, M, N natively (Antikythera-style ℤ/n composition is exactly Class I + Class J primitive cascading); fractal SG instantiates Class L only. The cascade is the better-aligned substrate for the project's existing antikythera-spectral tooling (`pin_and_slot.py`, `equant_encoder.py`, `gear_database.py`, `gear_topology.py`).
 
 ### XIII.3 The α(z) functional relationship
 
-At `a > 2.139`, the substrate **RELEASES** cascade content back to the visible sector. The forward word "imprint" doesn't capture this — but the project-canonical naming **ring-up/ring-down** per `[[user_stance_string_theory_instrument_first]]` does:
-- Ring-down dominates before peak (un-creation; visible → dark; current epoch)
-- Ring-up dominates after peak (creation; dark → visible; far future)
+At `a > 2.139`, the substrate **RELEASES** cascade content back to the visible sector. The forward word "imprint" doesn't capture this — but the project-canonical naming **loop-up/loop-down** per `[[user_stance_string_theory_instrument_first]]` does:
+- Loop-down dominates before peak (un-creation; visible → dark; current epoch)
+- Loop-up dominates after peak (creation; dark → visible; far future)
 
 ---
 
@@ -1889,7 +1889,7 @@ At `a > 2.139`, the substrate **RELEASES** cascade content back to the visible s
 
 - Working-note artifact (full Part VI empirical workings + falsifier discussion): [`research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md`](research-mfo/axis_of_evil_ring_down_framing_2026-05-16.md) Part VI.
 - `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance, 2026-05-16.
-- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary.
+- `[[user_stance_string_theory_instrument_first]]` — loop-up / loop-down vocabulary.
 - `[[user_stance_time_as_dimensional_shadow]]`, `[[user_stance_1d_collapse_to_loe_identity_not_action]]`, `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family.
 - `[[user_stance_fiber_as_spatially_absent_encoding]]` — fiber content (7D_g) algebraically present, spatially absent.
 - `[[project_space_gauge_time_framework]]` — 3D_s + 7D_g + 1D_t = 11D ≡ 1D compressed.
@@ -1937,7 +1937,7 @@ mass_cutoff_equivalence:
 
 If coupling constants are dynamical moduli expectation values (already accepted in KK and string theory), and if cosmological expansion is partly the spatial projection of internal-dimension evolution, then α should drift with cosmic time in a way determined by the cascade substrate's spectral structure (per `[[user_stance_fractal_shadow]]`; the fractal-recursive realisation's spectral structure is one substrate-specific instance of the cascade's spectral content). Not just *that* it drifts (Webb et al.) but *how* — the functional form should be predictable from the candidate cascade substrate.
 
-**Ring-down completion frame.** §VII.6.1's f_RD trajectory anchors the rate. From `f_RD ≈ 0.42` at recombination (z ≈ 1090) to `f_RD ≈ 0.949` now, Δf_RD ≈ 0.529. If the full 73.3° AoE-Auger separation is read as bundle-projection shift over this interval, the implied rate is `73.3° / 0.529 ≈ 138.6° per unit f_RD` — a quantity in completion-frame units, not clock-time units, per `[[user_stance_dark_sector_ring_down_age]]`. The 18.3° AoE-CMB-dipole separation is consistent with a residual alignment from when AoE was locked in (recombination-epoch matter-frame still close to that direction in 3D_s).
+**Loop-down completion frame.** §VII.6.1's f_RD trajectory anchors the rate. From `f_RD ≈ 0.42` at recombination (z ≈ 1090) to `f_RD ≈ 0.949` now, Δf_RD ≈ 0.529. If the full 73.3° AoE-Auger separation is read as bundle-projection shift over this interval, the implied rate is `73.3° / 0.529 ≈ 138.6° per unit f_RD` — a quantity in completion-frame units, not clock-time units, per `[[user_stance_dark_sector_ring_down_age]]`. The 18.3° AoE-CMB-dipole separation is consistent with a residual alignment from when AoE was locked in (recombination-epoch matter-frame still close to that direction in 3D_s).
 
 *End of spike artifact.*
 
@@ -1952,7 +1952,7 @@ If coupling constants are dynamical moduli expectation values (already accepted 
 
 Anisotropic cosmic birefringence (Gruppuso et al. 2020, [arXiv:2008.10334](https://arxiv.org/abs/2008.10334)) is constrained null at 95% C.L. (power-spectrum amplitude < 0.104 deg²) — consistent with weak medium-push signature but no positive detection. LiteBIRD-class CMB-polarisation sensitivity would be the medium-push discriminator.
 
-Under this beyond-ΛCDM reading, ring-down completion remains monotone in past-direction but does not asymptote to 100%; instead it peaks at ~95–97% in the next few Gyr and declines toward the thawing asymptote. The framework reading: **ring-down completion measures cumulative complexification budget *consumed*** (monotone in cosmic time) **rather than instantaneous dark fraction.** The shadow-stance distinction between past-integral (monotone) and present-epoch ratio (model-dependent) becomes load-bearing if DESI's thawing hint strengthens.
+Under this beyond-ΛCDM reading, loop-down completion remains monotone in past-direction but does not asymptote to 100%; instead it peaks at ~95–97% in the next few Gyr and declines toward the thawing asymptote. The framework reading: **loop-down completion measures cumulative complexification budget *consumed*** (monotone in cosmic time) **rather than instantaneous dark fraction.** The shadow-stance distinction between past-integral (monotone) and present-epoch ratio (model-dependent) becomes load-bearing if DESI's thawing hint strengthens.
 
 ---
 
@@ -2049,7 +2049,7 @@ The metric field acts as its own boundary. The "cavity" is a stable harmonic tra
 
 - No matter is rotating (no kinematic frame ω against which Saadeh+ 2016 measures)
 - No frame is dragging (no Lense-Thirring metric component)
-- The projection geometry from bundle-base to 3D_s reconfigures as ring-down completion advances — the substrate's bundle structure shifts which direction in 3D_s it projects most strongly to, per the spatially-absent encoding stance of `[[user_stance_fiber_as_spatially_absent_encoding]]`
+- The projection geometry from bundle-base to 3D_s reconfigures as loop-down completion advances — the substrate's bundle structure shifts which direction in 3D_s it projects most strongly to, per the spatially-absent encoding stance of `[[user_stance_fiber_as_spatially_absent_encoding]]`
 
 ## Mixed-Section 34
 
@@ -2150,9 +2150,9 @@ Three independent results converge on 11D:
 
 Each mode φₙ satisfies the 4D Klein-Gordon equation with effective mass
 
-**Lean rationale (option B)**: ring-up/ring-down is already-canonical per `[[user_stance_string_theory_instrument_first]]`. Per `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote default: prefer enhancing existing canonical stance over coining new term. Option B sharpens the entropy connection to already-canonical vocabulary.
+**Lean rationale (option B)**: loop-up/loop-down is already-canonical per `[[user_stance_string_theory_instrument_first]]`. Per `[[feedback_no_privileged_primitive_classes]]` dissolve-before-promote default: prefer enhancing existing canonical stance over coining new term. Option B sharpens the entropy connection to already-canonical vocabulary.
 
-**Ring-up / ring-down framing.** Per `[[user_stance_string_theory_instrument_first]]`'s ring-up/ring-down distinction (where ring-up is initial energisation and ring-down is the long settling tail of dissipated excitation), the cosmological-scale instance is:
+**Loop-up / loop-down framing.** Per `[[user_stance_string_theory_instrument_first]]`'s loop-up/loop-down distinction (where loop-up is initial energisation and loop-down is the long settling tail of dissipated excitation), the cosmological-scale instance is:
 
 Standard: spatial scale factor a(t) is growing. Three possibilities, not mutually exclusive:
 
@@ -2288,7 +2288,7 @@ $$v_p = \frac{\omega}{k} = \frac{\sqrt{k^2 c^2 + \omega_c^2}}{k}$$
 
 In a waveguide, an excitation propagates at angle θ to the guide axis, where
 
-### VII.6.1.1 AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector ring-down
+### VII.6.1.1 AoE / HPA / Cold Spot as bundle-direction signature of the dark-sector loop-down
 
 Spectral dimension d_S is measured from how a random walk (diffusion process) spreads on the geometry. The return probability after diffusion time σ scales as
 
@@ -2326,7 +2326,7 @@ The Sierpinski gasket generalizes to Pn fractals — n-dimensional analogs:
 
 - Working-note artifact (full empirical workings + falsifier discussion): [`research-mfo/dark_sector_substrate_internal_time_2026-05-16.md`](research-mfo/dark_sector_substrate_internal_time_2026-05-16.md)
 - `[[user_stance_dark_sector_ring_down_age]]` — canonical user stance saved 2026-05-16
-- `[[user_stance_string_theory_instrument_first]]` — ring-up / ring-down vocabulary
+- `[[user_stance_string_theory_instrument_first]]` — loop-up / loop-down vocabulary
 - `[[user_stance_time_as_dimensional_shadow]]` — substrate vs shadow distinction at cosmic scale
 - `[[user_stance_1d_collapse_to_loe_identity_not_action]]` — 1D_t identity reading
 - `[[user_stance_identity_not_implementation_discipline]]` — shadow-stance family umbrella
@@ -2373,7 +2373,7 @@ QG approach summary:
   Multifractional:    d_S(UV) = 1-3,  d_S(IR) = 4.0
   String Theory:      d_S(UV) = 2.0,  d_S(IR) = 10 or 11
 
-**Empirical anchor for distinguishing MFO from standard ΛCDM.** DESI 2024–25 hints at `w(z)` evolution at 3.1–4.2σ ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738), `w₀ > −1`, `w_a < 0`) — i.e., the metric-field complexification cost is changing over cosmic time. **Under MFO §VII.6 this is what is expected** (complexification cost depends on accumulated complexity, which evolves); **under standard ΛCDM `w(z) ≠ −1` requires a free parameter** (quintessence / phantom dark energy / modified gravity). The DESI hint is the cleanest empirical anchor where the ring-down reading and the standard reading make distinguishable predictions; if DESI's evolving-`w` signal strengthens with DR3+ data, MFO §VII.6 + this subsection's ring-down framing gain empirical support.
+**Empirical anchor for distinguishing MFO from standard ΛCDM.** DESI 2024–25 hints at `w(z)` evolution at 3.1–4.2σ ([arXiv:2503.14738](https://arxiv.org/abs/2503.14738), `w₀ > −1`, `w_a < 0`) — i.e., the metric-field complexification cost is changing over cosmic time. **Under MFO §VII.6 this is what is expected** (complexification cost depends on accumulated complexity, which evolves); **under standard ΛCDM `w(z) ≠ −1` requires a free parameter** (quintessence / phantom dark energy / modified gravity). The DESI hint is the cleanest empirical anchor where the loop-down reading and the standard reading make distinguishable predictions; if DESI's evolving-`w` signal strengthens with DR3+ data, MFO §VII.6 + this subsection's loop-down framing gain empirical support.
 
 The user posed the closure question (2026-05-15): *"if we can do this, then there are no more classes. if we cannot, this is the place."* The test was a direct rederivation: starting from the cascade-composition built up the bonus-7 way, project down to 4D Lorentzian space-time using **only the 14 primitive classes A–N**. The PR #422 deliverable is the verdict.
 
@@ -2409,7 +2409,7 @@ For non-Abelian groups (SU(2), SU(3)) the argument generalizes: modes on the int
 
 **Plain text:** Kirkland, S. (2026). *Metric Field Ontology — Spectral Research Notebook*. mlehaptics Spectral-Research Portfolio. https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/mfo_spectral_research_notebook.md
 
-What we conventionally call "13.8 Gyr cosmic age" is **not the age of the universe's content**; it is **the clock-time at which the universe became 95% ring-down complete**. The two readings measure different things; both are operationally precise on their own terms. They join the shadow-stance family at the cosmological scale (per `[[user_stance_time_as_dimensional_shadow]]` + `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + `[[user_stance_identity_not_implementation_discipline]]`): canonical physics measures the *shadow* (clock-time); the *substrate-internal* primary reading lives alongside it, indexed by ring-down completion.
+What we conventionally call "13.8 Gyr cosmic age" is **not the age of the universe's content**; it is **the clock-time at which the universe became 95% loop-down complete**. The two readings measure different things; both are operationally precise on their own terms. They join the shadow-stance family at the cosmological scale (per `[[user_stance_time_as_dimensional_shadow]]` + `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + `[[user_stance_identity_not_implementation_discipline]]`): canonical physics measures the *shadow* (clock-time); the *substrate-internal* primary reading lives alongside it, indexed by loop-down completion.
 
 **Status.** Candidate framing only, not endorsed over the standard cosmology + posterior-selection baseline (Bennett et al. 2011) discussed in the working note. The kinematic-precession path is closed by ~10 orders of magnitude against Saadeh+ 2016; the bundle-projection-reconfiguration path is consistent with extant matter-frame constraints by virtue of operating outside their scope, and offers a falsifiable temperature-vs-polarisation differential at the few-degree scale that future joint reconstructions could test. Per `[[feedback_no_lineage_claims_in_notebook]]`, no claim that this resolves the AoE anomaly is being advanced — only that the precession-fit question is mathematically answerable and produces a clean channel separation between two readings, one closed and one open.
 

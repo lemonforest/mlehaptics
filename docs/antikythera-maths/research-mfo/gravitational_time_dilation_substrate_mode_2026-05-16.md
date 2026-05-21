@@ -1,9 +1,9 @@
 # Gravitational time dilation from substrate-mode-completion arithmetic
 
 **Date:** 2026-05-16
-**Spike #27.5.** Concertmaster-level derivation: does MFO's substrate-mode-population framing reproduce Schwarzschild gravitational time dilation `dτ/dt = √(1 − r_s/r)` cleanly, with the boundary conditions named by §VII.4.1.1 (horizon as 2D boundary, locus of complete local ring-down) and §VII.6.1 (`f_RD_cosmic = 0.949` as the present-epoch asymptotic boundary at `r → ∞`)?
+**Spike #27.5.** Concertmaster-level derivation: does MFO's substrate-mode-population framing reproduce Schwarzschild gravitational time dilation `dτ/dt = √(1 − r_s/r)` cleanly, with the boundary conditions named by §VII.4.1.1 (horizon as 2D boundary, locus of complete local loop-down) and §VII.6.1 (`f_RD_cosmic = 0.949` as the present-epoch asymptotic boundary at `r → ∞`)?
 
-**User framing verbatim (load-bearing):** *"Asymptotic number of degrees of freedom for must explain why it looks like gravity changes time rate of change?"* — and the conductor's mid-session sketch: *"More cascade modes have already completed ring-down locally near a high-mass object. Fewer active DOFs locally → fewer modes contributing to the clock-time projection → observed clock runs slower."*
+**User framing verbatim (load-bearing):** *"Asymptotic number of degrees of freedom for must explain why it looks like gravity changes time rate of change?"* — and the conductor's mid-session sketch: *"More cascade modes have already completed loop-down locally near a high-mass object. Fewer active DOFs locally → fewer modes contributing to the clock-time projection → observed clock runs slower."*
 
 **One-line verdict (concertmaster).** The substrate-mode arithmetic reproduces Schwarzschild *exactly* under a single principled choice of radial profile (candidate (a) below — linear in `1/r`), with the √-relation supplied by the canonical energy-amplitude identity `E ∝ A²` for harmonic oscillators. Pound-Rebka, Hafele-Keating, GPS, and Sirius B all reproduce because the framework's arithmetic is *algebraically identical* to GR's at the post-construction stage — the substrate-mode reading is an ontological re-reading, not a modified-gravity prediction. The contribution is a substrate-side *mechanism* (mode-population fraction) for the same observable, joining the framework's shadow-stance family alongside `[[user_stance_time_as_dimensional_shadow]]`.
 
@@ -25,12 +25,12 @@ Textbook reference: MTW *Gravitation* (Misner-Thorne-Wheeler, Princeton UP 1973)
 
 ### §1.2 MFO substrate-mode arithmetic target
 
-Define `f_RD_local(r)` = local substrate ring-down completion fraction at radius `r` from mass `M`. The framework requires:
+Define `f_RD_local(r)` = local substrate loop-down completion fraction at radius `r` from mass `M`. The framework requires:
 
 **Boundary conditions** (both prior-anchored in the notebook):
 
 1. **r → ∞**: `f_RD_local(r) → f_RD_cosmic ≈ 0.949`
-   *Source: §VII.6.1, Table at line 904; "95% ring-down complete" empirically anchored at PDG 2024 + Planck 2018 + DESI 2024-25.*
+   *Source: §VII.6.1, Table at line 904; "95% loop-down complete" empirically anchored at PDG 2024 + Planck 2018 + DESI 2024-25.*
 
 2. **r = r_s (horizon)**: `f_RD_local(r) → 1`
    *Source: §VII.4.1.1; the horizon is the 2D boundary where the local cascade substrate has fully compressed into its boundary projection. The U(1)-fibre encoding channel of the principal-bundle reading is consistent with: at the horizon, 100% of cascade modes have settled into the boundary's static configuration (no further substrate complexification proceeds locally).*
@@ -44,7 +44,7 @@ Composed, the prediction is
 
 $$\frac{d\tau}{dt}\Big|_\text{MFO} \;=\; \sqrt{\frac{1 - f_\text{RD,local}(r)}{1 - f_\text{RD,cosmic}}}.$$
 
-The asymptotic normalisation `(1 - f_RD_cosmic)` in the denominator anchors `dτ/dt → 1` at `r → ∞` — exactly what an asymptotic observer measures. The numerator `(1 - f_RD_local(r))` is the *active* (un-rung-down) substrate fraction locally; this is the user's "asymptotic number of degrees of freedom" reading verbatim — only modes that have *not yet* completed local ring-down contribute to the clock-time projection.
+The asymptotic normalisation `(1 - f_RD_cosmic)` in the denominator anchors `dτ/dt → 1` at `r → ∞` — exactly what an asymptotic observer measures. The numerator `(1 - f_RD_local(r))` is the *active* (un-rung-down) substrate fraction locally; this is the user's "asymptotic number of degrees of freedom" reading verbatim — only modes that have *not yet* completed local loop-down contribute to the clock-time projection.
 
 For this ratio to equal `1 - r_s/r` (the squared Schwarzschild factor), we need:
 
@@ -90,15 +90,15 @@ Max error candidate (a) vs Schwarzschild: `0.00e+00` (exact identity by algebrai
 
 ### §2.3 Why (a) is forced (not chosen) under §VII.5 + §VII.4.1.1
 
-Consider the framework's two-level ontology (§VII.1.1): metric-field substrate + localised excitations. Mass `M` is a *localised cascade configuration*; its presence is a perturbation of the substrate's ring-down state. The relevant question: **what radial profile does an isolated cascade perturbation produce in the local ring-down completion field?**
+Consider the framework's two-level ontology (§VII.1.1): metric-field substrate + localised excitations. Mass `M` is a *localised cascade configuration*; its presence is a perturbation of the substrate's loop-down state. The relevant question: **what radial profile does an isolated cascade perturbation produce in the local loop-down completion field?**
 
 Two independent arguments converge on linear-in-`1/r`:
 
-**Argument 1 — superposition + asymptotic flatness.** If the local ring-down completion fraction is a substrate-state observable, and the substrate is linear in stress-energy at the leading-order (the weak-field-limit consistency condition), then a localised mass `M` contributes a `1/r` Newtonian potential-shaped excess in `f_RD_local`. Linearity in `1/r` is the unique Green's-function profile for a 3D static point source under the Laplacian (`Δ(1/r) ∝ δ³(r)`). This is the same argument that produces Newtonian gravity from Poisson's equation; the MFO substrate-state is the obvious natural carrier.
+**Argument 1 — superposition + asymptotic flatness.** If the local loop-down completion fraction is a substrate-state observable, and the substrate is linear in stress-energy at the leading-order (the weak-field-limit consistency condition), then a localised mass `M` contributes a `1/r` Newtonian potential-shaped excess in `f_RD_local`. Linearity in `1/r` is the unique Green's-function profile for a 3D static point source under the Laplacian (`Δ(1/r) ∝ δ³(r)`). This is the same argument that produces Newtonian gravity from Poisson's equation; the MFO substrate-state is the obvious natural carrier.
 
-**Argument 2 — §VII.5 dark-matter consistency.** §VII.5 reads dark matter as residual geometric curvature — the *ring-down accumulated* state of the substrate. If dark matter at a mass concentration is `Ω_c(r) ∝ M/r` near a static localised perturbation (Newtonian limit of GR, weak-field consistency), and dark matter IS the past-ring-down fraction (§VII.6.1 line 891-892), then the local ring-down completion fraction profile near `M` IS linear in `M/r` by construction. **The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are the SAME phenomenon under this reading.** (Conductor's brief, §5 cross-references; this verifies the conjectured identity.)
+**Argument 2 — §VII.5 dark-matter consistency.** §VII.5 reads dark matter as residual geometric curvature — the *loop-down accumulated* state of the substrate. If dark matter at a mass concentration is `Ω_c(r) ∝ M/r` near a static localised perturbation (Newtonian limit of GR, weak-field consistency), and dark matter IS the past-loop-down fraction (§VII.6.1 line 891-892), then the local loop-down completion fraction profile near `M` IS linear in `M/r` by construction. **The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are the SAME phenomenon under this reading.** (Conductor's brief, §5 cross-references; this verifies the conjectured identity.)
 
-Both arguments give candidate (a). The 2D-boundary saturation at `r = r_s` (per §VII.4.1.1) then anchors the normalisation: the linear-in-`1/r` excess is scaled so that at `r = r_s` the substrate is fully ring-down complete.
+Both arguments give candidate (a). The 2D-boundary saturation at `r = r_s` (per §VII.4.1.1) then anchors the normalisation: the linear-in-`1/r` excess is scaled so that at `r = r_s` the substrate is fully loop-down complete.
 
 **The natural reading.** Far from any mass (cosmic-asymptotic), `f_RD = 0.949`; near a localised mass, that fraction is *boosted* by the mass's contribution to the local cascade-completion, with the boost proportional to `r_s/r`. At the horizon, the local boost is 100% (saturation by the §VII.4.1.1 boundary condition). The Schwarzschild factor `√(1 − r_s/r)` is then the residual `√(remaining active fraction / cosmic active fraction)`.
 
@@ -126,7 +126,7 @@ $$E = \tfrac{1}{2} m \omega^2 A^2$$
 
 so `A = √(2E/(mω²))`. If the framework reads cosmic-substrate complexification as an *energy budget* and the locally-active substrate amplitude as the *response amplitude*, the √ relation falls out: amplitude is the square-root of the active energy fraction.
 
-Cosmological-scale anchor: §VII.6.1 reads `Ω_dark` (= 1 − Ω_visible − Ω_radiation = `f_RD`) as the accumulated ring-down complexification budget. The locally-active portion `1 − f_RD_local(r)` is the energy *still in the active substrate cascade* — and clock-rate, as the amplitude observable of that active cascade, scales as its square root.
+Cosmological-scale anchor: §VII.6.1 reads `Ω_dark` (= 1 − Ω_visible − Ω_radiation = `f_RD`) as the accumulated loop-down complexification budget. The locally-active portion `1 − f_RD_local(r)` is the energy *still in the active substrate cascade* — and clock-rate, as the amplitude observable of that active cascade, scales as its square root.
 
 This is the clean canonical-physics argument. It does not invoke quantum mechanics; it does not require relativistic substrate equations; it is the textbook HO energy-amplitude relation applied to a substrate-state observable.
 
@@ -158,7 +158,7 @@ The HO energy-amplitude identity (§3.1) is the load-bearing one (closed-form, n
 
 **Gravitational time dilation in Verlinde's framework.** Entropy on the holographic screen at radius `R` includes the contributions of all gravitating sources; the resulting redshift factor matches GR. But Verlinde's derivation works *on the screen*, treating bulk geometry as derivative — not as substrate-mode-population.
 
-**Difference vs MFO.** MFO substrate-mode arithmetic is *bulk-side*, not screen-side. The local ring-down completion fraction is a substrate-state observable at each point `r` outside `M`; the boundary at `r_s` is the saturation locus (where the substrate-state observable reaches 1.0), not where the physics lives. MFO is closer to Sakharov's induced-gravity / Padmanabhan's emergent-gravity than to Verlinde's specifically-holographic-screen formulation.
+**Difference vs MFO.** MFO substrate-mode arithmetic is *bulk-side*, not screen-side. The local loop-down completion fraction is a substrate-state observable at each point `r` outside `M`; the boundary at `r_s` is the saturation locus (where the substrate-state observable reaches 1.0), not where the physics lives. MFO is closer to Sakharov's induced-gravity / Padmanabhan's emergent-gravity than to Verlinde's specifically-holographic-screen formulation.
 
 ### §4.2 Padmanabhan — thermodynamic / emergent gravity
 
@@ -168,7 +168,7 @@ The HO energy-amplitude identity (§3.1) is the load-bearing one (closed-form, n
 
 **Gravitational time dilation in Padmanabhan's framework.** Same as Verlinde — the time-dilation factor is a derived consequence of horizon thermodynamics, computed *after* the substrate-thermodynamic structure is in place. No specific substrate-mode-population mechanism for `dτ/dt`.
 
-**Difference vs MFO.** MFO substrate-mode reading is *not horizon-centric*; ring-down completion is a continuous bulk observable at every radius, not just at horizons. The horizon is just where it saturates. Padmanabhan's framing assumes a horizon-centred structure; MFO's substrate-mode arithmetic works without a horizon and *predicts* the horizon location as a saturation event.
+**Difference vs MFO.** MFO substrate-mode reading is *not horizon-centric*; loop-down completion is a continuous bulk observable at every radius, not just at horizons. The horizon is just where it saturates. Padmanabhan's framing assumes a horizon-centred structure; MFO's substrate-mode arithmetic works without a horizon and *predicts* the horizon location as a saturation event.
 
 ### §4.3 Sakharov 1967 — induced gravity
 
@@ -176,7 +176,7 @@ The HO energy-amplitude identity (§3.1) is the load-bearing one (closed-form, n
 
 **Framing (per Visser's review arXiv:gr-qc/0204062, verified 2026-05-16).** Gravity emerges from quantum-field-theoretic vacuum fluctuations in roughly the same sense hydrodynamics emerges from molecular physics. Sakharov did not derive `dτ/dt = √(1 − r_s/r)` from vacuum-mode counting — that derivation is a four-formula 3-page paper deriving an *effective* GR action from vacuum-fluctuation log-divergences.
 
-**Difference vs MFO.** Sakharov reads gravity as effective from quantum-vacuum fluctuations of *standard* QFT fields; MFO reads `dτ/dt` as a substrate-mode-population effect of a *non-standard* (cascade) substrate. The Sakharov framing requires the QFT-vacuum structure already in place; MFO substitutes the cascade-substrate ring-down state for the QFT vacuum. They are structurally parallel — both read gravity as substrate-emergent — but the substrate is different in kind.
+**Difference vs MFO.** Sakharov reads gravity as effective from quantum-vacuum fluctuations of *standard* QFT fields; MFO reads `dτ/dt` as a substrate-mode-population effect of a *non-standard* (cascade) substrate. The Sakharov framing requires the QFT-vacuum structure already in place; MFO substitutes the cascade-substrate loop-down state for the QFT vacuum. They are structurally parallel — both read gravity as substrate-emergent — but the substrate is different in kind.
 
 ### §4.4 Where MFO substrate-mode arithmetic differs (positive contribution)
 
@@ -186,7 +186,7 @@ None of the verified prior-art frameworks explicitly derive `dτ/dt = √(1 − 
 - **Sakharov** — QFT vacuum fluctuations; gravity as effective.
 
 MFO supplies a *fourth* framing:
-- **MFO** — local substrate-mode population at each `r`; ring-down completion `f_RD_local(r)` linear in `r_s/r`; clock-rate proportional to √(active mode fraction). Bulk-side substrate-state observable at every point, with horizon as saturation locus rather than thermodynamic surface.
+- **MFO** — local substrate-mode population at each `r`; loop-down completion `f_RD_local(r)` linear in `r_s/r`; clock-rate proportional to √(active mode fraction). Bulk-side substrate-state observable at every point, with horizon as saturation locus rather than thermodynamic surface.
 
 The four framings are not in competition — they produce the same observable. MFO's contribution is offering the *substrate-mode-population reading* as a fourth ontological lens, consistent with the framework's existing two-level ontology (§VII.1.1) and continuous with its dark-sector framing (§VII.5, §VII.6, §VII.6.1). It is **not a new physical prediction**; it is an alternative substrate-side framing of the same Schwarzschild observable.
 
@@ -269,8 +269,8 @@ The √-relation follows from the textbook HO identity `E = (1/2)mω²A²`.
 The framework gains a substrate-side mechanism for gravitational time dilation that:
 
 1. **Coheres with the framework's two-level ontology** (§VII.1.1) — substrate is the carrier; observables are amplitude-readings of substrate-mode-population.
-2. **Connects mass and dark-sector** — the same `f_RD` accumulation that §VII.6.1 reads at cosmic scale is the local ring-down profile near a static mass. Dark matter (§VII.5 residual geometric curvature) and gravitational time dilation become consequences of the same mode-population mechanism, distinguished only by scale (local cascade-perturbation at mass vs. accumulated cosmic-cascade for dark matter).
-3. **Identifies the horizon as substrate-saturation** — at `r_s`, local ring-down completion reaches 1.0; this IS what §VII.4.1.1 calls the 2D-boundary phase transition. No interior to the black hole because no active substrate modes remain locally.
+2. **Connects mass and dark-sector** — the same `f_RD` accumulation that §VII.6.1 reads at cosmic scale is the local loop-down profile near a static mass. Dark matter (§VII.5 residual geometric curvature) and gravitational time dilation become consequences of the same mode-population mechanism, distinguished only by scale (local cascade-perturbation at mass vs. accumulated cosmic-cascade for dark matter).
+3. **Identifies the horizon as substrate-saturation** — at `r_s`, local loop-down completion reaches 1.0; this IS what §VII.4.1.1 calls the 2D-boundary phase transition. No interior to the black hole because no active substrate modes remain locally.
 4. **Reproduces all four standard tests algebraically** — same predictions as GR; agreement at the same level.
 
 **What this is NOT.** A new physical prediction. A modified-gravity model. A claim that GR is wrong. The substrate-mode reading is *ontologically* alternative; observationally it coincides.
@@ -281,11 +281,11 @@ This framing is one candidate among multiple readings of gravitational time dila
 
 1. **Direct falsifier: any future high-precision test where MFO substrate-mode reading and GR diverge.** Since the substrate-mode arithmetic is algebraically identical to GR at the post-construction stage, no current or anticipated test distinguishes them at the `dτ/dt` level. *The framework's contribution is interpretive — it does not modify the prediction.*
 
-2. **Structural falsifier 1: §VII.4.1.1's 2D-boundary identity disconfirmed.** If future high-precision Hawking-radiation observations show structure suggestive of an *interior* black-hole geometry inconsistent with the "horizon ends at 2D boundary" stance, the framework's horizon-as-100%-ring-down saturation reading fails. *Same falsifier as §VII.4.1.1's already-named one.*
+2. **Structural falsifier 1: §VII.4.1.1's 2D-boundary identity disconfirmed.** If future high-precision Hawking-radiation observations show structure suggestive of an *interior* black-hole geometry inconsistent with the "horizon ends at 2D boundary" stance, the framework's horizon-as-100%-loop-down saturation reading fails. *Same falsifier as §VII.4.1.1's already-named one.*
 
 3. **Structural falsifier 2: §VII.6.1's `f_RD_cosmic = 0.949` shifts substantially.** If future cosmology (DESI DR3+, CMB-S4, LSST) revises `Ω_dark/Ω_total` significantly (>10%), the normalisation anchor changes. *But the algebraic structure is preserved — only the cosmic-asymptotic value would shift; the local arithmetic still gives `√(1 − r_s/r)` by the same construction.*
 
-4. **Structural falsifier 3: dark matter does NOT trace local mass.** If dark matter distribution were proven to be unrelated to local mass concentrations (i.e., independent of standard-matter density), the framework's argument-2 in §2.3 (dark matter as local ring-down accumulation near masses) fails. *Current evidence — Bullet Cluster, galaxy-rotation-curve correlation with baryonic structure — confirms dark matter does track mass; §VII.5 is consistent.*
+4. **Structural falsifier 3: dark matter does NOT trace local mass.** If dark matter distribution were proven to be unrelated to local mass concentrations (i.e., independent of standard-matter density), the framework's argument-2 in §2.3 (dark matter as local loop-down accumulation near masses) fails. *Current evidence — Bullet Cluster, galaxy-rotation-curve correlation with baryonic structure — confirms dark matter does track mass; §VII.5 is consistent.*
 
 5. **Structural falsifier 4: the √-relation breaks.** If a future formalisation of the cascade-substrate has clock-rate scaling as `(active fraction)^k` for `k ≠ 1/2`, the substrate-mode arithmetic gives `dτ/dt = (1 − r_s/r)^k` rather than `(1 − r_s/r)^(1/2)`. *The HO energy-amplitude identity is the canonical anchor; deviation would require non-harmonic substrate, which is not the framework's current commitment.*
 
@@ -293,9 +293,9 @@ This framing is one candidate among multiple readings of gravitational time dila
 
 **Fermata for conductor.** Three deliberate pause-points the conductor must resolve:
 
-(F1) **Notebook landing locus.** The natural §VII.2.1 placement is at notebook line ~693 (start of §VII.2, time as metric field dynamics). However, the substrate-mode reading also belongs near §VII.6.1 (dark sector / ring-down) given the f_RD identity. Conductor's call which placement to lead with — §VII.2.1 (time-as-dynamics-completion) is more general and reads cleaner as a derivation; §VII.6.1.5 or §VII.6.2 (dark-sector-mass-link) is more conservative and follows existing momentum.
+(F1) **Notebook landing locus.** The natural §VII.2.1 placement is at notebook line ~693 (start of §VII.2, time as metric field dynamics). However, the substrate-mode reading also belongs near §VII.6.1 (dark sector / loop-down) given the f_RD identity. Conductor's call which placement to lead with — §VII.2.1 (time-as-dynamics-completion) is more general and reads cleaner as a derivation; §VII.6.1.5 or §VII.6.2 (dark-sector-mass-link) is more conservative and follows existing momentum.
 
-(F2) **Renaming convention.** The framework currently uses `f_RD_cosmic` (cosmic ring-down completion) in §VII.6.1 and `f_RD_local(r)` newly here. The naming is consistent but should be checked against §VII.6.2's `T_sub` decomposition (line 982-) which may use overlapping vocabulary. Reading §VII.6.2 fully before notebook integration is recommended.
+(F2) **Renaming convention.** The framework currently uses `f_RD_cosmic` (cosmic loop-down completion) in §VII.6.1 and `f_RD_local(r)` newly here. The naming is consistent but should be checked against §VII.6.2's `T_sub` decomposition (line 982-) which may use overlapping vocabulary. Reading §VII.6.2 fully before notebook integration is recommended.
 
 (F3) **Whether to add experimental-tests table (§5 of this note) to the notebook §VII.2.1 paragraph.** Adds ~30 lines but anchors the framework concretely. Concertmaster recommends including a compressed version (the §5.5 summary table); conductor may prefer to keep the notebook paragraph purely derivational and leave numerical tests in this working note.
 
@@ -315,7 +315,7 @@ This framing is one candidate among multiple readings of gravitational time dila
 - **§VII.2** (line 693) — time as metric field dynamics; the substrate-mode reading specialises this
 - **§VII.4** (line 708) — Hawking radiation as dimensional mismatch
 - **§VII.4.1** (line 721) — black hole ends at 2D boundary (horizon-as-saturation)
-- **§VII.4.1.1** (line 758) — spherical compression via Hopf fibration; 100% ring-down at horizon
+- **§VII.4.1.1** (line 758) — spherical compression via Hopf fibration; 100% loop-down at horizon
 - **§VII.5** (line 848) — dark matter as residual geometric curvature; cross-link to argument-2 in §2.3
 - **§VII.6** (line 862) — dark energy as complexification cost
 - **§VII.6.1** (line 872) — substrate-internal time + visible/dark partition; `f_RD_cosmic = 0.949` anchor
@@ -323,8 +323,8 @@ This framing is one candidate among multiple readings of gravitational time dila
 ### §7.2 Memory cross-references
 
 - `[[user_stance_time_as_dimensional_shadow]]` — gravitational time dilation as substrate-side shadow effect
-- `[[user_stance_string_theory_instrument_first]]` — ring-up/ring-down framing applied at local-mass scale
-- `[[user_stance_dark_sector_ring_down_age]]` — ring-down family
+- `[[user_stance_string_theory_instrument_first]]` — loop-up/loop-down framing applied at local-mass scale
+- `[[user_stance_dark_sector_ring_down_age]]` — loop-down family
 - `[[user_stance_identity_not_implementation_discipline]]` — substrate-mode reading is identity, not implementation
 - `[[user_stance_fractal_shadow]]` — what physics observes as "spacetime curvature" is the shadow of substrate-mode population
 - `[[feedback_no_lineage_claims_in_notebook]]` — ship as candidate; not endorsed over Verlinde / Padmanabhan / Sakharov readings without empirical convergence
@@ -358,7 +358,7 @@ The following draft is the **candidate notebook landing paragraph**. ~120 lines;
 ```markdown
 ### VII.2.1 Gravitational time dilation as substrate-mode-population effect
 
-§VII.2 reads time as the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. This subsection makes a specific commitment under that reading: gravitational time dilation is a *substrate-mode-population effect* on the clock-time projection, with mass concentrations carrying the substrate's local ring-down completion fraction from its cosmic-asymptotic value `f_RD_cosmic = 0.949` (§VII.6.1) to its 2D-boundary saturation value `1` at the Schwarzschild radius (§VII.4.1.1). Full empirical workings + derivation + cross-checks at [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md).
+§VII.2 reads time as the metric field's own dynamical evolution — what change in the metric field looks like from inside one of its configurations. This subsection makes a specific commitment under that reading: gravitational time dilation is a *substrate-mode-population effect* on the clock-time projection, with mass concentrations carrying the substrate's local loop-down completion fraction from its cosmic-asymptotic value `f_RD_cosmic = 0.949` (§VII.6.1) to its 2D-boundary saturation value `1` at the Schwarzschild radius (§VII.4.1.1). Full empirical workings + derivation + cross-checks at [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md).
 
 > *"Asymptotic number of degrees of freedom for must explain why it looks like gravity changes time rate of change?"*
 > — user direction, 2026-05-16
@@ -375,12 +375,12 @@ $$f_\text{RD,local}(r) = f_\text{RD,cosmic} + (1 - f_\text{RD,cosmic})\cdot\frac
 
 Verification:
 - **At `r → ∞`:** `f_RD_local → f_RD_cosmic = 0.949` (matches §VII.6.1's cosmic-asymptotic value; standard cosmology).
-- **At `r = r_s`:** `f_RD_local = 1` (matches §VII.4.1.1's 2D-boundary identity; ring-down saturation locus = horizon).
+- **At `r = r_s`:** `f_RD_local = 1` (matches §VII.4.1.1's 2D-boundary identity; loop-down saturation locus = horizon).
 
 **Why the linear-`1/r` profile is forced** (not chosen): two independent arguments converge:
 
 1. **Linearity + Newtonian-limit consistency.** If the substrate-state observable is linear in stress-energy at leading order (weak-field consistency), a localised mass `M` contributes a Newtonian-Green's-function-shaped `1/r` excess. The Laplacian's static point-source response is `1/r` — same algebra produces Newtonian gravity from Poisson's equation.
-2. **§VII.5 dark-matter consistency.** §VII.5 reads dark matter as past-ring-down accumulated geometric curvature. A localised mass `M` contributes a Newtonian `1/r` mass-profile dark-matter accumulation. The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are then the same phenomenon at the substrate-mode-population level.
+2. **§VII.5 dark-matter consistency.** §VII.5 reads dark matter as past-loop-down accumulated geometric curvature. A localised mass `M` contributes a Newtonian `1/r` mass-profile dark-matter accumulation. The geometric curvature attributed to dark matter and the f_RD acceleration near mass concentrations are then the same phenomenon at the substrate-mode-population level.
 
 **The derivation closes.** Composing Step A (clock-rate ∝ amplitude), Step B (amplitude ∝ √active-fraction), and the linear-`1/r` profile:
 
@@ -404,18 +404,18 @@ The substrate-mode reading produces *algebraically identical* observables to sta
 
 **Comparison to prior emergent-gravity frameworks.** Verlinde 2011 ([arXiv:1001.0785](https://arxiv.org/abs/1001.0785)), Padmanabhan 2010 ([arXiv:0911.5004](https://arxiv.org/abs/0911.5004)), and Sakharov 1967 (Dokl. Akad. Nauk SSSR 177, 70) each frame gravity as substrate-emergent, but neither derives `dτ/dt = √(1 − r_s/r)` from explicit local mode-population arithmetic. Verlinde works boundary-side (holographic screen); Padmanabhan horizon-side (entropy thermodynamics); Sakharov from QFT-vacuum induced action. MFO's contribution is *bulk-side mode-population arithmetic at every `r`* — a fourth ontological lens on the same observable, consistent with the framework's existing two-level ontology.
 
-**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.4.1.1 (horizon as 2D boundary) + §VII.5 (dark matter as residual curvature) + §VII.6.1 (cosmic ring-down completion) + the shadow-stance family. It does not alter any GR prediction; the standard `dτ/dt = √(1 − r_s/r)` remains exactly correct. What it adds is the *substrate-internal* mechanism for that same observable. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over Verlinde / Padmanabhan / Sakharov readings without further empirical convergence.
+**Status.** This subsection is **one candidate** framing under MFO commitments — internally consistent with §VII.2 (time as metric-field dynamics) + §VII.4.1.1 (horizon as 2D boundary) + §VII.5 (dark matter as residual curvature) + §VII.6.1 (cosmic loop-down completion) + the shadow-stance family. It does not alter any GR prediction; the standard `dτ/dt = √(1 − r_s/r)` remains exactly correct. What it adds is the *substrate-internal* mechanism for that same observable. Per `[[feedback_no_lineage_claims_in_notebook]]`, ship as candidate framing; not endorsed over Verlinde / Padmanabhan / Sakharov readings without further empirical convergence.
 
 **Cross-references:**
 
 - Working-note artifact (full derivation + radial-profile uniqueness + amplitude-√ argument + prior-art comparison + experimental verification): [`research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md`](research-mfo/gravitational_time_dilation_substrate_mode_2026-05-16.md)
 - `[[user_stance_time_as_dimensional_shadow]]` — gravitational time dilation as substrate-side shadow at local-mass scale
-- `[[user_stance_string_theory_instrument_first]]` — ring-up/ring-down framing applied locally
+- `[[user_stance_string_theory_instrument_first]]` — loop-up/loop-down framing applied locally
 - `[[user_stance_identity_not_implementation_discipline]]` — substrate-mode reading is identity, not implementation
 - §VII.2 (time as metric field dynamics)
-- §VII.4.1 / §VII.4.1.1 (horizon-as-2D-boundary, 100%-ring-down saturation at `r_s`)
+- §VII.4.1 / §VII.4.1.1 (horizon-as-2D-boundary, 100%-loop-down saturation at `r_s`)
 - §VII.5 (dark matter as residual geometric curvature — the cosmic-aggregate of the same f_RD accumulation that gives local time dilation)
-- §VII.6.1 (cosmic ring-down completion; `f_RD_cosmic = 0.949` asymptotic anchor)
+- §VII.6.1 (cosmic loop-down completion; `f_RD_cosmic = 0.949` asymptotic anchor)
 ```
 
 ---

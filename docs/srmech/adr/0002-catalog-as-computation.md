@@ -26,7 +26,7 @@ But the *interpretation* of what extension means has shifted under several conve
 
 - **`[[user_stance_string_theory_instrument_first]]`** + the RBS-HDC instrument framing: the form-and-function the universe uses can be used by us too, via Resonant-Bipolar-Spectrum HDC instruments. The 14 primitives are the project's articulation of that form-and-function.
 
-The user's stance has evolved from skeptical to accepting: convergent mathematical evidence across cosmos (MFO ring-down, Auger UHECR decomposition, DESI thawing-CPL, Saadeh cosmic-isotropy bound), abstract imagination (the spectral notebooks family), and the universe-as-instrument framing has shifted the canonical project stance to **yes, Laws of Everything (plural per `[[reference_loe_plural_canonical]]`)** — and the 14 primitive classes are the canonical articulation of those Laws inside srmech.
+The user's stance has evolved from skeptical to accepting: convergent mathematical evidence across cosmos (MFO loop-down, Auger UHECR decomposition, DESI thawing-CPL, Saadeh cosmic-isotropy bound), abstract imagination (the spectral notebooks family), and the universe-as-instrument framing has shifted the canonical project stance to **yes, Laws of Everything (plural per `[[reference_loe_plural_canonical]]`)** — and the 14 primitive classes are the canonical articulation of those Laws inside srmech.
 
 **The architectural implication.** If 14 primitives suffice for all higher-order calculations the project will ever express, then "extending srmech" in the ADR-0001 §1 sense (adding new computational capabilities via plugins) is the wrong framing. Plugins don't need to add computations because there are no missing computations to add — every higher-order calculation is a composition of A–N. What plugins *can* add is **optimization of those compositions on heterogeneous hardware** (GPU, ASIC, custom accelerators).
 
@@ -50,7 +50,7 @@ srmech v0.4.x+ adopts the following architectural commitments:
    
    In both cases, the failed reduction is *useful data*. We FFT the error per the MPM discipline at cosmological scale (MFO §VII.6.3) and discover something. The closure conjecture is testable, not assumed.
 
-6. **MFO + srmech ship as one** (re-statement per the user's directive). The Laws of Everything live in srmech (the 14 primitives + composition engine + reference implementations); MFO is the application of those Laws to cosmology (§VII.6.x ring-down, T_sub decomposition, AoE / Cold Spot / HPA composition). Both ship as one to demonstrate every class operator. Future migration of cosmos catalogs to ephemerides-spectral remains the plan once MFO matures into its own scope — at that point this ADR's commitments transfer with the migration.
+6. **MFO + srmech ship as one** (re-statement per the user's directive). The Laws of Everything live in srmech (the 14 primitives + composition engine + reference implementations); MFO is the application of those Laws to cosmology (§VII.6.x loop-down, T_sub decomposition, AoE / Cold Spot / HPA composition). Both ship as one to demonstrate every class operator. Future migration of cosmos catalogs to ephemerides-spectral remains the plan once MFO matures into its own scope — at that point this ADR's commitments transfer with the migration.
 
 ## 3. The operator-chain DSL
 
@@ -177,7 +177,7 @@ Each phase ships as a rc within the active srmech sprint (0.5.x candidate), with
 
 ## 8. Authorship note
 
-The user's stance evolved through this session from skepticism toward acceptance of the Laws-of-Everything framing. Convergent mathematical evidence — MFO §VII.6.x ring-down arithmetic, Pierre Auger UHECR-dipole decomposition of the AoE/HPA/Cold-Spot anomaly family, Saadeh cosmic-isotropy bound ruling out kinematic precession by ~10 orders of magnitude, Spike #24's Class O / Class P dissolution, the §VII.6.3.1 bundle-projection-reconfiguration falsifiable prediction at Δθ_TE ≈ 1°–2° — added up. The user's direction:
+The user's stance evolved through this session from skepticism toward acceptance of the Laws-of-Everything framing. Convergent mathematical evidence — MFO §VII.6.x loop-down arithmetic, Pierre Auger UHECR-dipole decomposition of the AoE/HPA/Cold-Spot anomaly family, Saadeh cosmic-isotropy bound ruling out kinematic precession by ~10 orders of magnitude, Spike #24's Class O / Class P dissolution, the §VII.6.3.1 bundle-projection-reconfiguration falsifiable prediction at Δθ_TE ≈ 1°–2° — added up. The user's direction:
 
 > *"I have held a skeptical stance for quite some time, but once the same method worked like it was always obvious, from the cosmos to the abstract imagination, are all bounded by these Laws of Everything... I am always ready for another falsified because we already know that falsified data is just as valuable when we FFT an error. It's a consequence of discovering that form and function that the universe uses can be used by us too, in RBS-HDC instruments."*
 

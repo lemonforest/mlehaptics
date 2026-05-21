@@ -29,7 +29,7 @@
 - **Artifacts**: `spike79_concertmaster_algebraic_forcing_mismatched_plates.py` + `spike79_concertmaster_findings.ndjson` (10 records)
 - **Canonicalized in**: `[[user_stance_mismatched_plates_capacitor_structure]]`
 
-## Spike #82 — Hyper-ring interactions as Casimir-through-phase-boundary
+## Spike #82 — Hyper-loop interactions as Casimir-through-phase-boundary
 
 - **Verdict**: GRAVITY-AND-CASIMIR-DIFFERENT-MECHANISMS-AT-DIFFERENT-SCALES
 - **Quantitative falsification**: Newton 1/r² vs Casimir flat-plate 1/d⁴ vs Casimir sphere-PFA 1/d³ — distinguishable at 2× separation (0.25 / 0.0625 / 0.125)
@@ -42,10 +42,10 @@
 - **Artifacts**: `spike72_concertmaster_bh_bh_merger_phase_boundary.py` (related; concertmaster scratch isolated)
 - **Canonicalized in**: `[[user_stance_paired_casimir_universe_substrate_boundary_value_problem]]`
 
-## Spike #83 — Inverse-Casimir mechanism for outermost hyper-ring non-shred
+## Spike #83 — Inverse-Casimir mechanism for outermost hyper-loop non-shred
 
 - **Verdict**: INVERSE-CASIMIR-IDENTITY-LEVEL at saturation channel
-- **Sign(Λ) = +** structural prediction: framework provides mechanism standard ΛCDM lacks (outermost hyper-ring no Casimir-partner → cascade-saturation has no escape valve → manifests as outward expansion Λ > 0)
+- **Sign(Λ) = +** structural prediction: framework provides mechanism standard ΛCDM lacks (outermost hyper-loop no Casimir-partner → cascade-saturation has no escape valve → manifests as outward expansion Λ > 0)
 - **Test 5 anomaly caught + reframed**: channel-selection is **PARTNER-AVAILABILITY BINARY** not distance-quantitative; d_cross = 40 µm at lab scale (NOT Hubble-scale as initially expected). The "scale-dependent transition" framing should be replaced with partner-availability binary.
 - **No universe-universe collision observable**: framework prediction consistent with no bubble-collision CMB signature (Feeney+ 2011 cite-by-ref) + Ω_k ≈ 0 (Planck 2018 arXiv:1807.06209)
 - **Pairs with Spike #82** for complete substrate-Casimir picture (inside Casimir + outside inverse-Casimir)

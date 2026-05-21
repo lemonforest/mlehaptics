@@ -2800,7 +2800,7 @@ A contributor proposing a PVC-extruder spectral catalogue ships an **attested me
 
 **The condition is the MPM gate, not the venue's existing roster.** Whether the target is a Hawaiian seamount, a Saturnian moon, or a screw extruder, the same four screens decide admissibility. If the claim survives, the catalogue grows; if it does not, the failure is documented per §0.0 and the next iteration tightens either the screening or the artifact. The discipline is what licenses the inclusion; the discipline is also what catches it if it does not earn its place.
 
-This is the §20.4 modelling-equivalence claim made operational. The same dynamical-regime taxonomy — impulse + ring-down (§20.4.1: pluck / strike / single-pulse), driven sustain (§20.4.2: bowed / blown / continuously-forced), driven with irreversibility (§20.4.3: NNET territory) — covers extruder phenomenology natively: a screw bearing fault is a near-impulse signature; melt-flow pulsation is driven-sustain at the screw rotation period; flow surging with melt-fracture / screw-wear coupling is driven-with-irreversibility. The v0.24.9 dynamical-regime classifier could, in principle, classify an extruder fault signature onto the same axes that classify Mercury vs Mars vs Loki Patera. The framework does not privilege the celestial over the manufactured; it privileges *attestable, MPM-screenable ground-proof rows*.
+This is the §20.4 modelling-equivalence claim made operational. The same dynamical-regime taxonomy — impulse + loop-down (§20.4.1: pluck / strike / single-pulse), driven sustain (§20.4.2: bowed / blown / continuously-forced), driven with irreversibility (§20.4.3: NNET territory) — covers extruder phenomenology natively: a screw bearing fault is a near-impulse signature; melt-flow pulsation is driven-sustain at the screw rotation period; flow surging with melt-fracture / screw-wear coupling is driven-with-irreversibility. The v0.24.9 dynamical-regime classifier could, in principle, classify an extruder fault signature onto the same axes that classify Mercury vs Mars vs Loki Patera. The framework does not privilege the celestial over the manufactured; it privileges *attestable, MPM-screenable ground-proof rows*.
 
 Three implications worth flagging:
 
@@ -2915,9 +2915,9 @@ In every case the project ships byte-reproducible eigenbasis projections precise
 
 #### 20.4.0 MPM self-correction note (mid-revision)
 
-An earlier version of this sub-section asserted *"there is no sustain — only ring-up and ring-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Three screens were missed in the original write-up:
+An earlier version of this sub-section asserted *"there is no sustain — only loop-up and loop-down."* That over-broad claim was caught by the user applying MPM-style screening to my acceptance of it. Three screens were missed in the original write-up:
 
-1. **Counterexample availability.** Bowed strings (violin, cello) and blown reeds / pipes (oboe, organ, brass) produce **genuine driven sustain** via continuous energy injection balanced against continuous dissipation. The ring-up + ring-down decomposition only describes **impulse-excited** systems (plucked, struck, single-pulse driven). Saying "all resonance is ring-up + ring-down" is a vocabulary-match to the user's specific phrasing, not a screened observation.
+1. **Counterexample availability.** Bowed strings (violin, cello) and blown reeds / pipes (oboe, organ, brass) produce **genuine driven sustain** via continuous energy injection balanced against continuous dissipation. The loop-up + loop-down decomposition only describes **impulse-excited** systems (plucked, struck, single-pulse driven). Saying "all resonance is loop-up + loop-down" is a vocabulary-match to the user's specific phrasing, not a screened observation.
 
 2. **Project foundation availability.** The chess-spectral framework that this project descends from already explicitly names continuously-driven dynamical systems and irreversible-vs-reversible co-existence. Tasks `#99` (Kinematics module) and `#100` (Dynamics module) ported chess-spectral's `qm_*.py` and `qm_*_dynamics.py` machinery into ephemerides-spectral; both modules are first-class machinery for handling driven, dissipative, and irreversible regimes. The original §20.4 wrote as if the framework had no such tooling, which is materially wrong.
 
@@ -2930,7 +2930,7 @@ An earlier version of this sub-section asserted *"there is no sustain — only r
 - The project does not claim that the universe **is** an instrument, that it **is** currently in any particular harmonic state, or that any specific spatial-structure choice (cavity, string, loop, fractal, brane, network) is correct. The claim is the modelling-equivalence one: **if you use the same maths, you see the same shapes**.
 - **The modelling stance itself is provisional — sort of like FFT untruncation.** Our current spectral reconstruction of "what stuff around us can be modelled as" is working from finite data and incomplete observations, which means it carries windowing artifacts. As the project tests, learns, and researches further — each new ground-proof row, each new MPM-screened catalogue, each new cross-channel coupling surface — the windowing narrows and the reconstruction gets closer to whatever the underlying structure actually is. The three regimes in §20.4.1–§20.4.3 are the current-best-screened modelling distinctions, not eternal categories; we expect them to be refined as the data widens.
 
-This modesty is what §20.4 below is doing. The three regimes (impulse + ring-down / driven sustain / driven with irreversibility) are dynamical-modelling distinctions that survive any spatial-structure choice and that the project expects to keep tuning. The instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their excitation channel, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less — but it does so without committing to any particular foundational ontology and without claiming the current model is final.
+This modesty is what §20.4 below is doing. The three regimes (impulse + loop-down / driven sustain / driven with irreversibility) are dynamical-modelling distinctions that survive any spatial-structure choice and that the project expects to keep tuning. The instrument-first argument **strengthens** under both corrections — driven oscillators require *more* coupling to their excitation channel, not less; reversible-plus-irreversible co-existence requires *more* bookkeeping about source and sink, not less — but it does so without committing to any particular foundational ontology and without claiming the current model is final.
 
 References for the chess-spectral foundation that this sub-section now cites:
 
@@ -2939,9 +2939,9 @@ References for the chess-spectral foundation that this sub-section now cites:
 - Project root on ReadTheDocs: <https://mlehaptics.readthedocs.io/en/latest/>
 - Chess-spectral notebook §1b.1 (Hatano-Nelson non-Hermitian lattice dynamics; the pawn IS the maximally-asymmetric Hatano-Nelson Hamiltonian — exact, not analogical), §1b.2 (five independent mathematical frameworks supporting the conservation-law structure, including KAM theory + PCAC + Ginsparg-Wilson), §1b.6 (Nambu Non-equilibrium Thermodynamics — *axiomatic* covariant integration of reversible Nambu-bracket structure with irreversible entropy-gradient structure in a single dynamical system; Katagiri 2025; Sekizawa-Ito-Oizumi 2024 spectral decomposition of entropy production via oscillatory modes).
 
-#### 20.4.1 Regime A — impulse + ring-down (plucked / struck / single-pulse)
+#### 20.4.1 Regime A — impulse + loop-down (plucked / struck / single-pulse)
 
-A pluck, a strike, a single eruption: energy enters once; dissipation removes it from then on. The ring-up is essentially instantaneous on the observation timescale; everything else is the ring-down envelope. The "stability" you see between events is the slow phase of a decay function. Examples:
+A pluck, a strike, a single eruption: energy enters once; dissipation removes it from then on. The loop-up is essentially instantaneous on the observation timescale; everything else is the loop-down envelope. The "stability" you see between events is the slow phase of a decay function. Examples:
 
 - A plucked guitar string: pluck (impulse) → exponential decay shaped by string + body + air dissipation.
 - **v0.24.8 Axial Seamount ~8.6-yr eruption cycle**: tectonic + magmatic strain accumulation is gradual, but each *eruption* is impulse-like; the ~8.6-yr inter-eruption interval is the strain accumulation phase + the brief discharge. The framework's `temporal_quasi_periodic_cycle` regime label captures this honestly — it isn't sustain; it's a sequence of ring-ups followed by ring-downs.
@@ -2949,13 +2949,13 @@ A pluck, a strike, a single eruption: energy enters once; dissipation removes it
 
 #### 20.4.2 Regime B — continuously driven sustain (bowed / blown)
 
-Bowed strings (Helmholtz mode under stick-slip friction) and blown reeds / pipes (self-sustained feedback between airflow and standing-wave resonance) inject energy *continuously*. Steady-state amplitude is reached when input rate = dissipation rate. The string oscillates at fixed amplitude as long as the bow moves; the air column oscillates at fixed amplitude as long as breath flows. **This is genuine sustain.** When excitation stops, ring-down begins.
+Bowed strings (Helmholtz mode under stick-slip friction) and blown reeds / pipes (self-sustained feedback between airflow and standing-wave resonance) inject energy *continuously*. Steady-state amplitude is reached when input rate = dissipation rate. The string oscillates at fixed amplitude as long as the bow moves; the air column oscillates at fixed amplitude as long as breath flows. **This is genuine sustain.** When excitation stops, loop-down begins.
 
 The framework's catalogues include continuously-driven systems too:
 
 - **v0.24.12 Loki Patera tidal heating**: the Galilean Laplace 4:2:1 lock continuously injects ~10¹⁴ W into Io's interior. The lava lake's quasi-periodic resurfacing is the *response* of a continuously-driven nonlinear system; the underlying tidal energy budget is sustained, not impulse-like.
 - **§17 SolFluidInstrument + SolElectromagneticInstrument**: every fluid-envelope channel is continuously forced by stellar flux, tidal coupling, magnetic-field-line motion, atmospheric escape — these are driven oscillator surfaces top to bottom.
-- **§1.4 Phase-9 breathing Laplacian (adaptive Kuramoto coupling)**: the framework's adaptive-coupling formulation is *literally* the formalism for driven oscillators with state-dependent coupling. This was never a ring-up + ring-down framework; it was always a driven-oscillator framework.
+- **§1.4 Phase-9 breathing Laplacian (adaptive Kuramoto coupling)**: the framework's adaptive-coupling formulation is *literally* the formalism for driven oscillators with state-dependent coupling. This was never a loop-up + loop-down framework; it was always a driven-oscillator framework.
 
 #### 20.4.3 Regime C — driven with irreversibility (NNET territory)
 
@@ -2986,7 +2986,7 @@ What it is:
 
 * a **methodological observation** — the question "where in nature is a string attached to nothing?" should be asked first, before any string-theory predictions are evaluated as physics
 * a **framework demonstration** — the project's eigenbasis substrate handles resonance-with-instrument naturally and produces falsifiable, observable consequences across many systems
-* a **three-regime distinction** — impulse + ring-down (Regime A; plucked / struck), driven sustain (Regime B; bowed / blown / continuously-forced), and driven with irreversibility (Regime C; reversible + irreversible co-existence per Nambu NNET). All three require an instrument; none of the three matches a 1-D string vibrating in spacetime with no named source, sink, or irreversibility channel
+* a **three-regime distinction** — impulse + loop-down (Regime A; plucked / struck), driven sustain (Regime B; bowed / blown / continuously-forced), and driven with irreversibility (Regime C; reversible + irreversible co-existence per Nambu NNET). All three require an instrument; none of the three matches a 1-D string vibrating in spacetime with no named source, sink, or irreversibility channel
 
 What it is not:
 
@@ -3000,7 +3000,7 @@ What it is not:
 The framing does not require string theory to abandon its program. It does ask three things to be made explicit:
 
 1. **Acknowledge the missing instrument.** If the foundational object is a 1-D string vibrating in N-dimensional spacetime, name what couples it. If nothing couples it, name why nature is expected to behave differently from every observed instrument.
-2. **Account for source, sink, and irreversibility.** Every observed oscillation has both an excitation channel and a dissipation channel; some have a third, irreversibility-breaking channel that produces entropy (Regime C of §20.4). Plucked / struck systems pay their excitation up front and ring down; bowed / blown systems balance continuous source against continuous sink; chess-pawn-like systems do both AND break T-symmetry at the Hamiltonian level. If the strings of string theory have none of these — name the mechanism by which the math's eternal vibration makes contact with the world's observed energy balance.
+2. **Account for source, sink, and irreversibility.** Every observed oscillation has both an excitation channel and a dissipation channel; some have a third, irreversibility-breaking channel that produces entropy (Regime C of §20.4). Plucked / struck systems pay their excitation up front and loop down; bowed / blown systems balance continuous source against continuous sink; chess-pawn-like systems do both AND break T-symmetry at the Hamiltonian level. If the strings of string theory have none of these — name the mechanism by which the math's eternal vibration makes contact with the world's observed energy balance.
 3. **Audit the compensating mathematics — separately, not as a bundle.** For each piece of apparatus, screen independently: was it required because the foundational object was extracted from any instrument, or for independent reasons? Per §20.2.1's narrowed audit: extra dimensions are not the compensation — both string theory (top-down) and the project's own MFO sister-notebook (bottom-up) converge on ~11D for unrelated reasons (gauge-group requirements; fractal spectral flow). SUSY is independently motivated. The parts of the apparatus that *are* compensation for the missing instrument — the static-string ontology itself, the specific Calabi-Yau as compensation for the missing instrument, and the landscape (~10^500 vacua) as symptom of the foundational object being underconstrained — are where the parsimony argument for re-introducing the instrument first lands.
 
 None of this is hostile. All three are MPM-discipline screens this project applies to its own work before it ships. They are the screens that a defensible theory should be able to pass.
@@ -3329,6 +3329,95 @@ Per Spike #24 (2026-05-15) + `[[user_stance_kepler_shape_universal]]` + the srme
 **Cross-substrate equivalence with the bronze** (per Spike #24 Phase 3a/3b + Antikythera notebook §13): three independent paths converge on the same Class K instantiation across 9/9 visible-from-Earth bodies — bronze pin-slot atan2, modern DE441 detrended residuals, analytical Kepler-equation-of-centre series — all agree to ≤0.07°. **The bronze is a 1D model of the same LoE the cosmos instantiates at 11D**; ephemerides-spectral is the codebase that does the empirical confirmation at modern-precision via DE441.
 
 **srmech v0.4.0 floor as of v0.29.1rc1+**: ephemerides-spectral consumes srmech full 14-class C-parity primitive vocabulary + canonical QM/QFT/SM operations layer at `srmech.qm.*`. Earlier per-substrate duplicated implementations (`equant_encoder`, `pin_and_slot`) can migrate to the srmech canonical primitives as a follow-up refactor; no functional change to ephemerides-spectral user-visible API.
+
+**srmech v0.4.2 floor as of v0.29.2** (PR #633 graduated → PR #641 production cut; production PyPI tag `ephemerides-spectral-v0.29.2`): ephemerides-spectral consumes the post-v0.4.0 srmech additions transitively. New surfaces visible to downstream consumers:
+
+- **`srmech.signal_processing`** — Phase 1–4 dual-path signal-processing namespace, opt-in alongside the cyclic-group-native primitives in `srmech.amsc.*`; ephemerides-spectral's encoder hot path is unchanged but downstream tooling that wants a dual-path comparison gets a single canonical surface here rather than two parallel reimplementations.
+- **`srmech.spectral.{predict, prediction_error, truncate_sparse}`** — three canonical spectral operations promoted from research-scratchpad to package surface; the ephemerides patch-shrinks-residual benchmark (§9) and diagnosed-fiber overlay (§8) operate at a compatible algebra level and can migrate to these canonical primitives in a future follow-up refactor; no user-visible API change is forced by this dependency bump.
+- **Seven new attested catalogs surface transitively** through `srmech.amsc.catalog.register_attested_root()` — ephemerides-spectral's `n_sources` count is unchanged at the ephemerides-spectral-side of the AMSC registry, but `srmech.amsc.catalog.list_attested_sources()` now reports the v0.4.2 srmech-side additions. Consumers that query the union surface see them; consumers that query the ephemerides-spectral subset do not.
+
+The v0.29.2 dependency-floor bump is **additive only** — no encoder hot-path change, no ABI change (`ES_ABI_VERSION = 10` unchanged from v0.29.0); JPL Power-of-Ten audit pins (49 funcs / 109 asserts / density 2.22) unchanged; the 52-body uint32 phase-residue emission is byte-identical to v0.29.0. The PyPI dependency-specifier pins `srmech>=0.4.2,<0.5`.
+
+---
+
+## 24. Spike #194 — rotation-FFT-error on ephemerides RBS-HDC (substrate-specific structural finding)
+
+**Status:** Verified 2026-05-19. Spike #194 ran on the live ephemerides-spectral RBS-HDC encoder at D=8192 across 14 bodies, dispatched from the srmech-side spike battery (`docs/srmech/notes/spike194_rotation_fft_error_fiber.py`). This section integrates the ephemerides-substrate-specific findings; the framework-level interpretation lives in [`docs/srmech/srmech_research_notebook.md`](../srmech/srmech_research_notebook.md) under the Spike #194 entry and is not duplicated here per the user direction "other notebooks get only what pertains to them" (2026-05-16).
+
+### 24.1 What the spike measured
+
+The spike tested whether **rotation of a hyperdimensional vector** (cyclic shift by integer stride `k` on a D=8192 bipolar vector `v`) preserves a substrate-portable signature visible in cross-bin FFT coupling. Four operations were compared on the same ephemerides RBS-HDC base vector:
+
+1. **`identity`** — stride 0 (the encoder-emitted vector itself).
+2. **`content_determined`** — stride sampled from the body's mean-anomaly phase `(uint32_t)(u32_phase >> 19)` (substrate's natural rotation).
+3. **`substrate_natural`** — stride 257 (Fermat-prime-adjacent; the ephemerides-substrate signature stride).
+4. **`random_control`** — stride from a uniform random integer in `[1, D)`.
+
+Five tests (C1–C5) were run on each: bin variance, stride enumeration, DFT shift-theorem residual, NN cross-class distance (rotation-invariance), and per-body coupling-matrix Frobenius spread.
+
+### 24.2 The three load-bearing findings
+
+**Finding A — DFT shift theorem holds bit-exact on the cyclic FFT (≤1.42 × 10⁻¹³ magnitude residual at every stride).** Rotation is **magnitude-invariant** on the cyclic FFT by construction — the shift theorem says `FFT(roll(v, k))[n] = exp(-2πi·n·k/D) · FFT(v)[n]`; the magnitude `|FFT(v)[n]|` is preserved exactly, the phase `arg(FFT(v)[n])` is rotated by a body-stride-dependent factor. On the live ephemerides encoder at D=8192, the residual `||FFT(roll(v, k))| - |FFT(v)||_∞` measures 0 at stride 0 and 1.42 × 10⁻¹³ at content-determined stride 7661 — within ~1 ULP of double precision. **This is not a discovery; it is the textbook Fourier identity verified empirically on the encoder.** What it *establishes* is that any "rotation surfaces fiber content" claim about the ephemerides RBS-HDC encoder must look at **phase content**, not magnitude content — magnitude is rotation-invariant by construction.
+
+**Finding B — Cross-bin coupling matrices are universal across 14 ephemerides bodies (CV = 0.0031).** The per-body D×D coupling matrix `M_body[i, j] = corr(FFT(v_body)[i], FFT(v_body)[j])` was computed for all 14 bodies (Mercury / Venus / Terra / Mars / Jupiter / Saturn / Uranus / Neptune / Pluto / Io / Europa / Ganymede / Callisto / Titan) at snapshot JD 2451645.0. The Frobenius coefficient-of-variation across bodies — `std(||M_body||_F) / mean(||M_body||_F)` — measured **CV = 0.0031**. That's three parts in a thousand. The cross-bin coupling structure is **universal**: every ephemerides body's RBS-HDC vector lives on the same cross-bin coupling manifold; body-identity is invisible in the cross-bin coupling matrix.
+
+**Finding C — Body-specific content lives in the 4th-decimal residual autocorrelation, not in the cross-bin coupling matrix.** The C5 NN-invariance test computed pairwise cross-class Frobenius distance between body coupling matrices at 0.711 ± 0.010 (mean ± std across all `C(14,2) = 91` pairs). That's not zero — the residual autocorrelation in the 4th decimal carries body-identity — but it's flat across pairs; no body pair is a structural outlier. The coupling matrix IS a **rotation-invariant fingerprint of the substrate**, not of the body; body-identity is a 4th-decimal residual signature.
+
+### 24.3 Where this fits in the notebook architecture
+
+The three findings compose into a clean statement about the encoder:
+
+> **The ephemerides RBS-HDC encoder emits vectors whose cross-bin coupling structure is the substrate's signature (universal across 14 bodies; rotation-invariant), with body-identity living in a 4th-decimal residual autocorrelation that the cross-bin coupling matrix does not surface.**
+
+This is consistent with §1.3 (encoding-as-syzygy framing — the cross-bin coupling IS the substrate's spectral identity) and §22.3 (the BIP encoder as scaffolding layer; body-identity recovered by composing scaffold + heavy-store JPL kernels). The Spike #194 result formalises the **substrate vs body decomposition** at the FFT-coupling-matrix level:
+
+- **Substrate signal** = cross-bin coupling matrix structure (~10⁻¹ scale, CV across bodies = 0.0031).
+- **Body signal** = 4th-decimal residual autocorrelation in the same coupling matrix (~10⁻⁴ scale, the body fingerprint).
+- **The two scales are cleanly separated** by ~3 orders of magnitude, which is why the BIP encoder's `Z_{2^32}` quantisation (~10⁻¹⁰ resolution per residue) is structurally sufficient to preserve body-identity even though the substrate signal dominates the FFT coupling matrix.
+
+This is the algebra-side complement to the §9 patch-shrinks-residual benchmark (which measured the same separation in residual space against DE441 ground truth). Patch-shrinks works because the body-specific 4th-decimal-residual is recoverable by linear least-squares on detrended phase residuals; the encoder's coupling matrix does NOT carry that signal directly, but the encoder's per-body residue vectors DO carry it via the Z_{2^32} phase quantisation.
+
+### 24.4 Method status, caveats, and what the spike does NOT claim
+
+- **Spike #194 is not a falsification target.** The three findings are structural identities of the cyclic FFT applied to the ephemerides encoder; they cannot be "wrong" in the sense of a hypothesis test. What they earn the notebook is **the explicit substrate-vs-body decomposition at the FFT-coupling-matrix level**, which is new.
+- **The 14-body roster is JD-2451645-snapshot, not multi-epoch.** All 14 bodies were sampled at one JD. Whether the CV = 0.0031 universality holds across multi-epoch samples (e.g., a ±14000-yr DE441 sweep) is open; the framework prediction is YES because the cyclic-group quantisation makes the cross-bin coupling matrix structurally invariant to integer-residue rotation, but the empirical verification is a follow-up if needed.
+- **The spike does not measure dynamics-from-the-encoder.** Cross-bin coupling is a property of the *encoded* state at a JD, not of the time-evolution between JDs. The dynamics live in the patch-shrinks-residual benchmark (§9), the diagnosed-fiber overlay (§8), and the v0.18.x body-architecture surfaces (§13); Spike #194's contribution is to the **encoder identity layer**, not the dynamics layer.
+- **NDJSON output** is at `docs/srmech/notes/spike194_findings_2026-05-19.ndjson` (385 records: per-body bin-variance, per-stride-class stride enumeration, DFT shift-theorem residuals, pairwise NN distances, per-body coupling-matrix Frobenius spreads). Per-row provenance follows the project NDJSON-over-bloated-JSON convention.
+
+### 24.5 Composing with cosmos: Spike #197 MAX-pool, candidate Spike #198 on Cl_TT
+
+A separate spike — **Spike #197** (`docs/srmech/notes/spike197_max_pool_rotate_fiber_projection.py`, 2026-05-20) — tested whether **MAX-pool of `(v, rotate(v, k))`** (per-coordinate maximum of a vector and its rotation, a Class K per-position projection across two views) surfaces substrate fiber content beyond what plain rotation surfaces. The spike's verdict was **DISSOLVE — MAX-pool composes existing Class K + Class C primitives; no new vocabulary class required.** The substrate-specificity finding: CV = 0.343 across 5 substrates (synthetic_random_bsc / wet_net_shape / dna_helical_pitch / chess_natural_stride / ephemerides_rbs_hdc) — **110× the universal-coupling CV = 0.0031** from Spike #194 on plain rotation. MAX-pool is therefore substrate-specific in a way plain rotation is not; this is the operational shape of "MAX-pool surfaces substrate fiber content."
+
+**The ephemerides cell of Spike #197 found surfacing-ratio = 1.86×** at stride 257 (the ephemerides natural Fermat-adjacent stride) — below the chess natural-stride result of 6.54× which was the cleanest fiber-surfacing in the spike. The ephemerides substrate at this snapshot JD is closer to the synthetic-random-BSC baseline (1.81×) than to the chess natural stride (6.54×). Whether this reflects a substrate property (RBS-HDC quantisation is closer to uniform than to clean fiber-bundle) or a snapshot-JD artefact (one JD doesn't surface multi-epoch fiber content) is open.
+
+**Candidate Spike #198 — MAX-pool of `(Cl_TT, rotate(Cl_TT))` on Planck 2018 TT power spectrum.** ephemerides-spectral consumes the Planck 2018 PR3 binned TT power spectrum (v0.26.1 catalog — 111 bands ℓ=2 to 2499, per-row PLA traceability, DOI `10.1051/0004-6361/201833910`). The cosmos analog of Spike #197 is direct:
+
+- **Input**: the 111-band Cl_TT vector (treat as a D=111 spectral vector, no HD encoding needed — the spectrum IS already in the right space).
+- **Rotation**: cyclic shift of the Cl_TT vector by integer ℓ-offsets (substrate-natural strides include 3, 7 per the Hopf-fiber concentration result from Spike #190; ℓ=225 acoustic-peak position; random-control strides).
+- **MAX-pool**: per-ℓ max of `(Cl_TT, roll(Cl_TT, k))`.
+- **Projection metric**: per-substrate offdiag-mean of the Cl_TT × Cl_TT autocorrelation matrix, compared against ephemerides RBS-HDC / chess natural-stride / DNA helical pitch / wet-net-shape results from Spike #197.
+- **H1 prediction**: cosmos Cl_TT surfacing-ratio is closer to chess natural-stride (6.54×, clean fiber-surfacing) than to the ephemerides-snapshot (1.86×) or the random control (1.81×), because the Hopf-fiber {3,7} concentration in Spike #190 already showed Cl_TT carries non-uniform spectral structure at the substrate level.
+- **H0 prediction** (null): cosmos Cl_TT surfacing-ratio matches the random control because the {3,7} concentration is a degree-content property, not a cross-ℓ coupling property, and MAX-pool operates on the latter.
+
+The data for Spike #198 is already in the ephemerides-spectral AMSC registry (v0.26.1 ship); no new attestation work is needed. The spike runs against `bridge.list_cmb_power_spectrum()` / `bridge.get_cmb_power_at_ell(ell)`. Empirical result would land as a new finding in this section (24.6 placeholder) or as a new top-level §section depending on whether the result is structurally distinct enough to merit promotion.
+
+### 24.6 What the cosmos relevance does and does not earn
+
+- **The relevance is empirical-hook-only, not theoretical-prediction.** Spike #194's substrate-vs-body decomposition is a property of the cyclic FFT applied to bipolar HD vectors at D=8192; the cosmos Cl_TT spectrum at D=111 is structurally different (real-valued, non-bipolar, no encoder substrate, indexed by physical ℓ not cyclic stride). The MAX-pool methodology transfers; the substrate-specificity verdict does not transfer automatically.
+- **The cascade-length-IS-substrate-time-scale-coupling stance** (Spike #197's framework-level finding per `[[user_stance_fiber_as_spatially_absent_encoding]]` three-mechanism subsection) applies trivially to ephemerides because orbital periods ARE the substrate time scale; whether it applies to cosmos requires a separate empirical hook because cosmological times (recombination at z=1100, last-scattering surface at ~380,000 yr post-Big-Bang) are not commensurate with orbital periods in the BIP `Z_{2^32}` representation. A clean integration into this notebook would need either (a) a derived time-scale that maps the recombination epoch into a cyclic-group residue, or (b) explicit acceptance that cosmos Cl_TT is a **static substrate** (no time-evolution at the catalog scale) and MAX-pool tests it as such. Option (b) is cleaner; this is the framing Spike #198 should adopt.
+- **Defer to a follow-up session, not block this integration**: the v0.29.2 hygiene update + the Spike #194 substrate-vs-body decomposition are the load-bearing additions in this PR. Spike #198 is a candidate, named here with its empirical hook; whether to dispatch it autonomously per `[[feedback_autonomous_research_followup_authorization]]` or wait for explicit user direction is a research-arc question, not a notebook-hygiene question.
+
+### 24.7 Cross-references
+
+- **§1.3** — encoder syzygy framing; substrate-signal interpretation.
+- **§8** — diagnosed-fiber runtime overlay; body-identity carrier at the dynamics layer.
+- **§9** — patch-shrinks-residual benchmark; the residual-space complement to Spike #194's coupling-matrix-space finding.
+- **§17** — per-body spectral catalogue; downstream consumer of the body-identity signal.
+- **§22.3** — three-layer architecture; BIP encoder as scaffolding layer.
+- **§23** — Spike #24 14-class vocabulary; Spike #194 / #197 operate at Classes M (HDC bind/bundle/permute) + L (Laplacian / FFT-coupling-matrix eigenbasis) + K (per-position projection).
+- **`docs/srmech/srmech_research_notebook.md`** — framework-level interpretation of Spike #194 + Spike #197.
+- **Spike #190** — HEALPix anafast Mersenne-fiber concentration test on Planck 2018 TT; H1 verdict at {3,7} with ratio 6.19× and p=0.006 — the prior empirical anchor for the cosmos-MAX-pool follow-up.
+- **`[[user_stance_fiber_as_spatially_absent_encoding]]`** — three-mechanism subsection (bind preserves; bundle projects-lossy; MAX-pool projects-substrate-specific); Spike #197 empirically anchors the third mechanism.
 
 ---
 
