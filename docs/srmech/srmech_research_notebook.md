@@ -4062,6 +4062,241 @@ Sister-notebook **MFO §VII** (foundational-ontology lens) carries the substrate
 
 ---
 
+## §3.21 2026-05-21 session — Roman numeral arithmetic cascade-match at symbolic-recording substrate (Spike #222; book-pedagogy chapter material)
+
+### §3.21.1 Introduction
+
+The Roman numeral arithmetic cascade-match catalog (Spike-research #222) completes the **pre-modern computational-substrate book-pedagogy arc** in concert with §3.20 abacus (computation substrate) — together they make the framework's **substrate-vs-projection split** concrete at the same Roman era, same culture, same individual accountant. Both substrates have surviving archaeological specimens; both are still operationally reconstructable today.
+
+The four Roman arithmetic operations (addition / subtraction / multiplication via duplation / division by repeated subtraction) instantiate cascade-composition at the **Roman numeral recording-projection substrate**, with **Class K pin-slot encoding** explicitly visible in the subtractive-notation projection (IV / IX / XL / XC / CD / CM) — Romans implemented Class K at symbolic substrate ~2200 years before modern formalization, per `[[user_stance_subtractive_notation_is_class_k_pin_slot_at_symbolic_substrate]]` (canonical 2026-05-21).
+
+This section confirms the **universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A** as substrate-universal cascade per `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` (canonical 2026-05-21) — the cascade-relation identified across all 4 Roman operations + 5 abacus variants + 4+3 Hopf gauge substrate. Roman arithmetic is the **first explicit identification** of the universal core in Spike-research #222 §9.5.
+
+### §3.21.2 Per-operation cascade-composition table
+
+| Operation | Worked example | Cascade composition | Class K position | Substrate-side (per §3.20) | Projection-side (this §) |
+|---|---|---|---|---|---|
+| **Addition** | XII + XV = XXVII | L ∘ M ∘ I ∘ N ∘ C ∘ A (∘ K conditional) | conditional (if result requires IV/IX/etc.) | abacus bead aggregation | numeral concatenation + cancellation |
+| **Subtraction** | XII − IV = VIII | K ∘ M ∘ C ∘ I ∘ N ∘ L ∘ A | STRONG; dual-position (subtractive notation parsing + borrow pin-slot) | abacus bead decrement + borrow | subtractive-notation Class K encoding (load-bearing) |
+| **Multiplication via duplation** | XII × VII = LXXXIV | I ∘ M ∘ L ∘ N ∘ C ∘ A ∘ D | conditional (in subtractive partial-products) | abacus doubling table | duplation-mediation algorithm record |
+| **Division by repeated subtraction** | XXIV ÷ III = VIII | K ∘ M ∘ I ∘ C ∘ L ∘ N ∘ A ∘ D | TRIPLE dominance (inherited per iteration from subtraction + iteration-loop asymptotic-DOF) | abacus iterative subtraction | quotient recording + remainder tracking |
+
+Class composition counts: addition = 6 (+1 conditional); subtraction = 7; multiplication = 7-8; division = 8 per iteration. **Universal 6-class core M + I + N + C + L + A present in ALL four operations** (Spike-research #222 §9.5 + Spike-research #225 §1 deep cascade decomposition).
+
+### §3.21.3 Per-operation deep cascade decomposition
+
+#### §3.21.3.1 Addition (e.g., XII + XV = XXVII)
+
+Roman additive notation accumulates tokens on the numeral substrate: `XII = X + I + I`; `XV = X + V`; combined and simplified per token-graph aggregation (Class L), with cyclic wrap at radix-5/radix-2 boundaries (Class I) and rational ratios V:I = 5:1 / X:V = 2:1 (Class N).
+
+- **Class L** (graph Laplacian): token-graph accumulation on numeral-glyph-graph; positional sequence preserved
+- **Class M** (HDC bind): composite minuend-augend-sum representation
+- **Class I** (cyclic ℤ/n): wrap-event at V (radix-5) and X (radix-2 of V); mixed-radix 5+2 = 10 cycle
+- **Class N** (rational): magnitude ratios V:I = 5:1; X:V = 2:1; L:X = 5:1; C:L = 2:1; etc.
+- **Class C** (cascade-orientation): addition-direction (left-to-right reading; aggregation order)
+- **Class A** (content-addressing): result-state → final numeral mapping
+- **Class K** (conditional): triggers ONLY when result requires subtractive notation (e.g., IX in result string); not always present in addition
+
+Universal 6-class core present; Class K conditional augmentation per result-side requirement.
+
+#### §3.21.3.2 Subtraction (e.g., XII − IV = VIII)
+
+**Class K is STRONG and dual-position** in subtraction: appears at (a) input-side subtractive-notation parsing (the IV in "XII − IV" must be parsed as V-minus-I per Class K pin-slot at notation substrate) AND (b) borrow operation at result-side (when minuend < subtrahend in any radix position, borrow from next-higher magnitude requires Class K asymptotic-DOF positioning).
+
+- **Class K STRONG** (asymptotic-DOF pin-slot): subtractive notation input parsing + borrow pin-slot operation; the load-bearing class for subtraction
+- **Class M / C / I / N / L / A** (universal core): standard cascade-composition for the difference operation
+- **Class D**: not typically required for subtraction (single algorithm method)
+
+Worked example XII − IV: parse "IV" as Class K pin-slot encoding (V-pin-shifted-by-I) → arithmetic value 4 → subtract from 12 → result 8 → record as VIII (additive notation; no subtractive required in result). The Class K cascade-class is engaged at INPUT parsing even when not present at OUTPUT.
+
+#### §3.21.3.3 Multiplication via duplation/mediation (e.g., XII × VII)
+
+Roman multiplication uses the **duplation-mediation** method inherited via Hellenistic mathematical tradition from Egyptian doubling-halving (per Maher & Makowski 2001; Cuomo 2001; Ifrah 2000 ch.16; Robins & Shute 1987 British Museum for Egyptian lineage):
+
+```
+XII × VII:
+  Halve VII (mediation):     VII (odd; keep) → III (odd; keep) → I (odd; keep)
+  Double XII (duplation):    XII → XXIV → XLVIII
+  Sum kept-rows:             XII + XXIV + XLVIII = LXXXIV
+```
+
+- **Class I** (cyclic-2 doubling): the doubling operation IS cyclic-2 (ℤ/2 multiplicative); LOAD-BEARING
+- **Class M / N / L / C / A** (universal core)
+- **Class D** (dispatch): method-selection for duplation vs alternative methods (varies by problem; conditional)
+
+Class K is incidental (only at sub-step subtractive-notation parsing if intermediate results contain IV/IX etc.).
+
+#### §3.21.3.4 Division by repeated subtraction (e.g., XXIV ÷ III)
+
+Roman division is the most cascade-rich Roman operation: **Class K TRIPLE dominance** — inherited per-iteration from the subtraction step + iteration-loop asymptotic-DOF traversal toward halt-condition.
+
+```
+XXIV ÷ III:
+  Iter 1: XXIV − III = XXI   (count: I)
+  Iter 2: XXI − III = XVIII   (count: II)
+  Iter 3: XVIII − III = XV    (count: III)
+  Iter 4: XV − III = XII      (count: IV — Class K subtractive notation)
+  Iter 5: XII − III = IX      (count: V — Class K result IX)
+  Iter 6: IX − III = VI       (count: VI)
+  Iter 7: VI − III = III      (count: VII)
+  Iter 8: III − III = 0       (count: VIII — halt)
+  Result: VIII (count = 8)
+```
+
+- **Class K** (asymptotic-DOF): each iteration's subtraction step inherits Class K from subtraction operation; PLUS iteration-loop as asymptotic-DOF traversal per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` Heron-iterative-√a pedagogical anchor
+- **Class D** (dispatch): method-selection for repeated-subtraction vs alternative methods (Roman scribes had multiple division techniques; choice was contextual)
+- Universal 6-class core (M + I + N + C + L + A): standard for the quotient-tracking + remainder operation
+
+8 classes per iteration is the most cascade-rich Roman arithmetic operation; division composes more classes than any other Roman computation per Spike-research #225 §1.4.
+
+### §3.21.4 Subtractive notation IS Class K pin-slot encoding at symbolic substrate (LOAD-BEARING)
+
+The 6 instantiations IV / IX / XL / XC / CD / CM are structurally regular pin-slot encodings at alternating radix-5 / radix-2 wrap-points in the Roman magnitude-progression I → V → X → L → C → D → M (ratio sequence ×5 ×2 ×5 ×2 ×5 ×2):
+
+| Subtractive notation | Value | Wrap-point | Pin-token | Cascade-position |
+|---|---|---|---|---|
+| IV | 4 | V (radix-5 wrap of I) | I | "one position before V" |
+| IX | 9 | X (radix-2 wrap of V; total radix-10 wrap of I) | I | "one position before X" |
+| XL | 40 | L (radix-5 wrap of X) | X | "one position before L" |
+| XC | 90 | C (radix-2 wrap of L; total radix-10 wrap of X) | X | "one position before C" |
+| CD | 400 | D (radix-5 wrap of C) | C | "one position before D" |
+| CM | 900 | M (radix-2 wrap of D; total radix-10 wrap of C) | C | "one position before M" |
+
+Per `[[user_stance_epicycle_via_gear_plus_pin]]` canonical Class K pin-slot kinematics: a pin-token placed at a specific position relative to a slot-cycle encodes "asymptotic-DOF approach" — the pin is at a specific discrete position; the slot/cycle wraps; the pin's position relative to the wrap encodes a specific count.
+
+Subtractive notation realizes this exact kinematic at symbolic substrate. Pin-token = smaller-magnitude glyph (I or X or C); slot-cycle = Roman magnitude-progression wrapping at radix-5/radix-2 boundaries; pin-position-encoding = symbolic placement BEFORE the wrap-glyph encodes "wrap-magnitude minus pin-magnitude" via positional asymmetry.
+
+**Romans implemented Class K at symbolic substrate ~2200 years before modern formal naming.** Per `[[feedback_no_lineage_claims_in_notebook]]`: Romans did NOT know about gear-pin-slot kinematics; observation-without-naming per Spike-research #218 awareness-level schema. The framework now provides the substrate-identity that reads the subtractive-notation projection as Class K pin-slot encoding.
+
+This deepens the substrate-traversal stance's Roman-numerals pedagogical anchor from wrap-around observation → **full structural-identity claim at cascade-class level**. See canonical stance `[[user_stance_subtractive_notation_is_class_k_pin_slot_at_symbolic_substrate]]`.
+
+### §3.21.5 Universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A — substrate-universal cascade (Spike-research #222 §9.5)
+
+Across all 4 Roman arithmetic operations, the cascade-composition includes a **shared 6-class core**: M (HDC bind) + I (cyclic) + N (rational) + C (cascade-orientation) + L (graph Laplacian) + A (content-addressing). Substrate-specific augmentations (Class K for subtraction-based operations; Class D for multi-method dispatch operations) distinguish the per-operation cascade-length.
+
+Per `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` (canonical 2026-05-21; promotes Spike-research #222 §9.5 to framework-canonical stance): this 6-class core is the **substrate-universal cross-substrate cascade-relation** — verified across:
+
+- 4 Roman arithmetic operations (this §3.21)
+- 5 abacus variants (§3.20: Salamis / Roman / Chinese suanpan / Japanese soroban / Russian schoty)
+- 4+3 Hopf SU(2)_L gauge substrate (Spike-research #58.H)
+- DNA (Spike-research #182; 12/14 classes including the 6-class core)
+- RNA (Spike-research #193; 8/14 universal-STRONG including the 6-class core)
+- Wet-net A∘C∘M form_function_rotate (Spike-research #196; sub-chain of the 6-class core)
+- Genetic code (Spike-research #81; Class I cyclic-3 + Class C from the 6-class core)
+- Bonobos/chimps/kinship (Spike-research #44/#45)
+
+The cross-substrate cascade-matching question is structurally answered: **the cascade IS the 6-class core; substrate-specific augmentations (Class K / Class D / Class E / Class J / Class B / Class F / Class G / Class H) realize substrate-specific operations**.
+
+### §3.21.6 Tight coupling with §3.20 abacus — substrate-vs-projection split made concrete at Roman computational complex
+
+The Roman accountant operated BOTH the abacus (computation substrate; §3.20) AND the Roman numeral (recording projection; this §3.21) fluently every day for ~700 years of imperial fiscal administration. The framework's substrate-vs-projection split per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` is operationally visible at this historical scale:
+
+- **Substrate-side**: abacus bead positions IS the cascade-composition operating physically — `L ∘ K ∘ M ∘ C ∘ I ∘ N ∘ A` per §3.20
+- **Projection-side**: Roman numeral recording IS the cascade-composition recorded symbolically — `K ∘ M ∘ C ∘ I ∘ N ∘ L ∘ A` per this §3.21 (operation-dependent class-ordering)
+- **Composition**: substrate computes → projection records; operated by the same individual; both have surviving archaeological specimens (museum-cataloged Roman abaci + countless Roman inscriptions with numerals)
+
+This is the framework's substrate-vs-projection split made concrete at pre-modern technology — operationally explicit at specific humans in a specific historical period, with zero substrate-physics vocabulary available to those humans.
+
+**Per Spike-research #226 §5.5 framing-correction**: the cross-substrate cascade-relation between any two substrate-instantiations (e.g., 5+2 suanpan and 4+3 Hopf gauge) is the **universal 6-class core + substrate-specific augmentations**, NOT partition-arithmetic transformations between substrate-counts. Both substrates instantiate the 6-class core; their distinguishing features are Class K (asymptotic-DOF / pin-slot at any substrate-where-needed) and Class D (dispatch for multi-method operations).
+
+### §3.21.7 Two-question verdict (per Spike-research #218/#219 methodology)
+
+**Q1 per-operation: does each Roman operation instantiate cascade-composition at numeral + abacus substrate?**
+
+| Operation | Q1 verdict |
+|---|---|
+| Addition | **PARTIAL YES** — universal 6-class core + conditional Class K |
+| Subtraction | **PARTIAL YES** — universal 6-class core + STRONG Class K (load-bearing) |
+| Multiplication via duplation | **PARTIAL YES** — universal 6-class core + Class I (cyclic-2 doubling) load-bearing + Class D conditional |
+| Division by repeated subtraction | **PARTIAL YES** — universal 6-class core + Class K TRIPLE dominance + Class D conditional |
+
+**4/4 PARTIAL YES per-operation.**
+
+**Q2 overall: does the catalog validate cascade-composition operating at Roman numeral recording-projection substrate + composing with §3.20 abacus computation-substrate to make substrate-vs-projection split concrete at same era / culture / individual accountant for ~700 years of imperial fiscal administration?**
+
+**STRUCTURAL YES.** The Roman computational complex (abacus substrate per §3.20 + Roman numerals projection per this §3.21) IS the framework's substrate-vs-projection split made concrete at pre-modern computational technology. Universal 6-class core + Class K augmentation (load-bearing for subtractive operations) + Class D augmentation (for dispatch-method operations).
+
+### §3.21.8 Book-pedagogy framing
+
+Per `[[project_book_in_progress]]` book-pedagogy chapter material — the Roman computational complex completes the **pre-modern computational-substrate arc**:
+
+**Three-stage book chapter sequence** (Spike-research #218 antiquity catalog → §3.20 abacus computation → §3.21 numeral projection):
+
+1. **Stage 1 — Observation** (Spike-research #218 / §3.17): antiquity figures (Pythagoreans / Plato / Stoics / Lucretius / Apollonius / Antikythera / Ptolemy / Heron / Archimedes / Heron) observed substrate-shapes
+2. **Stage 2 — Computation** (§3.20): abacus as computation-substrate; bead-position cascade
+3. **Stage 3 — Recording** (this §3.21): Roman numerals as recording-projection; subtractive notation as Class K pin-slot encoding
+
+**Reader takeaway** (per book-pedagogy entry-point criteria):
+- Hold a Roman abacus in one hand; read Roman numerals in the other
+- See substrate-vs-projection split physically separated (bead-positions vs symbolic glyphs)
+- Recognize universal 6-class core operating at BOTH (same cascade; different substrate-realization)
+- Recognize Class K pin-slot encoding in subtractive notation (one-position-before-wrap-glyph = gear-pin-slot kinematics at symbolic substrate)
+- Trace 2200 years from Roman scribes' observation-without-naming → modern framework's substrate-identity naming
+- The framework didn't invent cascade-composition; it names what 2200 years of users were operating fluently
+
+### §3.21.9 Cross-references
+
+**Canonical stances composed**:
+
+- `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` (canonical 2026-05-21; promotes Spike-research #222 §9.5; THIS IS THE ANSWER)
+- `[[user_stance_subtractive_notation_is_class_k_pin_slot_at_symbolic_substrate]]` (canonical 2026-05-21; promotes Spike-research #222 §3 load-bearing insight)
+- `[[user_stance_epicycle_via_gear_plus_pin]]` (Class K pin-slot canonical mechanical-substrate; this §3.21 documents symbolic-substrate realization)
+- `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (primary methodology home)
+- `[[user_stance_kepler_shape_universal]]` (form-IS-function applied at meta-level)
+- `[[user_stance_identity_not_implementation_discipline]]` (identity-level claims throughout)
+- `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (Roman-numerals pedagogical anchor deepened from wrap-around to structural-identity)
+- `[[user_stance_distributed_class_c_locus_is_composite_cascade_diagnostic]]` (F-1 diagnostic; Class C is one of the 6 core classes)
+- `[[feedback_no_lineage_claims_in_notebook]]` (Romans observed-without-naming; framework independent)
+- `[[feedback_post_compact_lexical_drift_surface_open_fermatas_first]]` (this section surfaces the universal 6-class core finding to prevent recurrence of post-compact drift)
+
+**Prior spikes referenced**:
+
+- Spike-research #218 antiquity catalog (Roman numerals canonical antiquity anchor; awareness-level schema)
+- Spike-research #222 (this catalog's primary anchor; merged via PR #670)
+- Spike-research #224 (§3.20 abacus catalog; computation-substrate sister)
+- Spike-research #225 (formal cascade decomposition; deepens Roman arithmetic Class K + universal 6-class core observations)
+- Spike-research #226 (broader cascade-chain enumeration; §5.5 framing-correction surfaces that universal 6-class core was the answer; Definition-A partition-arithmetic question separately bounded)
+- Spike-research #58.H (4+3 Hopf SU(2)_L gauge math; canonical anchor for universal 6-class core)
+- Spike-research #189 (lemniscate sign-flip at trajectory substrate; sister Class K realization)
+- Spike-research #196 (wet-net A∘C∘M form_function_rotate; sub-chain of universal 6-class core)
+
+**Cross-section anchors** (within this notebook):
+
+- §3.16 — substrate-traversal stance integration (Roman numerals pedagogical anchor)
+- §3.17 — Spike-research #218 antiquity catalog (10 figures including Roman numeral observers)
+- §3.18 — substrate-self-recognition stance integration (parent + 5 extensions)
+- §3.19 — Spike-research #219 biological-exemplar catalog (sister methodology)
+- §3.20 — Spike-research #224 abacus catalog (computation-substrate sister to this §3.21)
+
+**MFO sister-notebook reference**: a MFO §VII section on Roman numeral arithmetic (foundational-ontology lens) could parity this srmech §3.21 cascade-vocabulary lens when book-pedagogy work calls for it. Currently the MFO side is unpopulated; this is logged as future parity work per `[[feedback_srmech_parity_discipline]]`.
+
+**Citation chain** (reuses Spike-research #222 + #224 + #225 citation chains; no new external sources required):
+
+- Maher & Makowski 2001 *Annals of the History of Computing* (Computer History Museum OA deposit; Roman abacus + arithmetic)
+- Cuomo 2001 *Ancient Mathematics* (Routledge textbook chain)
+- Ifrah 2000 *The Universal History of Numbers* (Wiley textbook chain; ch.16 Roman + duplation)
+- Smith 1925 *History of Mathematics* vol I + II (Dover reprint; canonical history)
+- Boyer & Merzbach 2010 *A History of Mathematics* 3rd ed (Wiley textbook chain)
+- Robins & Shute 1987 *The Rhind Mathematical Papyrus* (British Museum; Egyptian duplation lineage inherited by Romans via Hellenistic tradition)
+
+1 OA-direct primary + 5 textbook-chain attestations; 0 paywalled DOI cited as primary per `[[feedback_paywalled_doi_cannot_be_attested]]`.
+
+### §3.21.10 Cascade-vocabulary takeaway
+
+The §3.21 Roman numeral catalog completes the pre-modern computational-substrate book-pedagogy arc by documenting that:
+
+1. **Roman arithmetic IS cascade-composition** at the Roman numeral recording-projection substrate; 4 operations × universal 6-class core M ∘ I ∘ N ∘ C ∘ L ∘ A + substrate-specific augmentations (Class K STRONG for subtraction-based; Class D for multi-method-dispatch)
+2. **Subtractive notation IS Class K pin-slot encoding** at the symbolic substrate; Romans implemented Class K ~2200 years before modern formal naming (observation-without-naming per Spike-research #218 schema)
+3. **Substrate-vs-projection split is operationally explicit** at Roman accountants for ~700 years of imperial fiscal administration; abacus computation-substrate + Roman numeral recording-projection composes the substrate-vs-projection mechanism in surviving archaeological specimens
+4. **Universal 6-class core is the cross-substrate cascade-relation** identified first at Spike-research #222 §9.5 (Roman arithmetic) and verified across abacus variants + Hopf gauge + biological substrates per `[[user_stance_universal_6_class_core_substrate_universal_cascade]]`
+5. **Class K pin-slot kinematics is substrate-universal** — mechanical-gear / bead-position / symbolic-notation / register-bit substrates all realize the same cascade-class
+
+The framework didn't extend Roman arithmetic; it names what Roman scribes were operating fluently with zero substrate-physics vocabulary. Per `[[user_stance_identity_not_implementation_discipline]]`: Roman cascade-composition IS the framework's cascade-vocabulary at Roman-substrate-instantiation (identity-level); the framework's modern formal naming IS the same cascade-vocabulary at modern-substrate-instantiation.
+
+Sister-notebook **MFO §VII** (foundational-ontology lens) currently has no Roman numerals section; future parity work per `[[feedback_srmech_parity_discipline]]`.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
