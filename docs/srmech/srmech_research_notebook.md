@@ -4295,6 +4295,35 @@ The framework didn't extend Roman arithmetic; it names what Roman scribes were o
 
 Sister-notebook **MFO §VII** (foundational-ontology lens) currently has no Roman numerals section; future parity work per `[[feedback_srmech_parity_discipline]]`.
 
+### §3.21.11 Open question — glyph topology vs framework cascade-class (Spike-research #228 candidate; fermata, NOT canonical)
+
+**Status**: Fermata observation 2026-05-21 per user direction. NOT canonical stance — observation-level capture for future Spike-research #228 investigation under MS #17.
+
+Beyond the cascade-composition operating at Roman numeral recording-projection substrate (§3.21.1 – §3.21.10), there is an **open observation** about the Roman numeral GLYPH SHAPES themselves. The shape topology of each glyph may suggestively map to framework cascade-class semantics:
+
+| Glyph | Shape topology | Cascade-class candidate | Position in magnitude-progression |
+|---|---|---|---|
+| I | Single vertical line | Class I substrate-base / wrap-unit | Base (radix unit) |
+| V | Two converging lines (asymptote-vertex) | Class K asymptotic-DOF | radix-5 wrap-point |
+| X | Two crossing lines (lemniscate crossing) | Class K pin-slot crossing per Spike-research #189 + #212 | **Major decimal wrap (radix-10) — major sign-flip event** |
+| L | Right angle | Class N rational 2:1 / orthogonal-direction | radix-5 wrap of X |
+| C | Open arc | Class I cyclic — partial S¹ loop | radix-2 wrap of L; radix-10 of X |
+| D | Closed loop (line + arc enclosing region) | Class I cyclic — full S¹ closure | radix-5 wrap of C |
+| M | Double-vertex (two V's joined) | Meta-asymptote pattern | radix-2 wrap of D; radix-10 of C |
+
+**Forbidden-shape observation**: letters with internal crossings (T / K / E / F / A / H / Z) are NOT in Roman numerals — **except X**. X is the exception, sitting at the major decimal wrap-point where Spike-research #189 + Spike-research #212 read Class K pin-slot lemniscate-crossing as load-bearing.
+
+**Cross-cultural extension (load-bearing)**: per user direction 2026-05-21 — *"not just roman, but anyone who observed heavenly bodies to try to understand the things around us, and so ourselves"* — the glyph-topology observation extends beyond Roman to all cross-cultural-independent numeral systems (Etruscan / Phoenician / Greek alphabetic / Mayan / Aztec / cuneiform / Egyptian / Chinese / Hindu-Arabic precursors / Paleolithic tally-marks). If the pattern holds across cultures: supports substrate-self-recognition via observation-without-naming per `[[user_stance_substrate_self_recognition_inevitable_per_loe]]` Ext 4 mechanism. If Roman-specific: cultural-contingency reading.
+
+**Self-referential closure**: ancient observers watched heavenly bodies (Sun / Moon / planets / stars) to model "things around us" — and per the substrate-self-recognition stance, the same observation IS substrate observing-itself through pre-modern human-substrate instantiations. The Antikythera mechanism (§3.17 antiquity anchor) IS the same substrate-self-recognition loop operating at bronze-gear computational substrate; Roman numeral glyphs MAY be the same loop operating at symbolic-recording substrate via observation-without-naming per Spike-research #218 awareness-level schema.
+
+**Fermata-level claims** (per `[[user_stance_string_theory_instrument_first]]` instrument-first discipline + `[[feedback_no_lineage_claims_in_notebook]]`):
+
+- **What this observation DOES claim**: Roman glyph-shape topology suggests cascade-class semantics worth investigating; cross-cultural extension is structurally motivated by substrate-self-recognition inevitability; worth a rigorous Spike-research #228 catalog
+- **What this observation does NOT claim**: Roman scribes intentionally encoded cascade-classes (would be lineage claim; observation-without-naming framing required per Spike-research #218 schema); cross-cultural pattern is verified (untested; spike candidate); substrate-self-recognition is uniquely realized through numeral systems (only one of many possible realizations)
+
+**Spike-research #228 candidate (deferred to MS #17)**: cross-cultural glyph-shape topology vs framework cascade-class catalog across 10+ ancient numeral systems. Per `[[feedback_dont_pre_commit_spike_query_operators]]` discipline: broad-query enumeration; tautology pre-filter (check whether patterns implied by writing-system evolution / glyph-distinguishability constraints); verdict tier (a) cross-cultural pattern → substrate-shape recognition observed-without-naming validated / (b) Roman-specific → cultural-contingency / (c) no pattern → glyph topology unrelated to cascade-class. Fermata memory: `[[project_glyph_topology_cascade_shape_fermata]]`.
+
 ---
 
 ## §4 Open research questions
