@@ -1,0 +1,39 @@
+[source]
+key                  = "brocard_ramanujan_problem"
+human_readable_name  = "Brocard-Ramanujan problem (n! + 1 = m²)"
+purpose              = "Cascade A o J o I o C o K o N o M applied to n in {0..20} plus external attestations (Berndt-Galway 2000 for n <= 10^9; Matson 2017 for n > 4*10^11). The Brocard-Ramanujan problem asks for all (n, m) with n! + 1 = m^2. Known solutions: (4, 5), (5, 11), (7, 71). Erdős conjectured these are the only. STRUCTURAL FINDINGS: (1) all three Brocard m-values {5, 11, 71} are PRIME (Class J anchor); (2) m/n ratios at clean small-denom rationals 5/4, 11/5, 71/7 (denominator 7 = Hurwitz heptadic!); (3) union of Brocard n-values {4,5,7} and m-values {5,11,71} = {4,5,7,11,71} CONTAINS the entire Ramanujan congruence prime set {5, 7, 11} (PR #677 partition 16); (4) m=11 (for n=5) IS THE SAME PRIME that anchors Ramanujan-Petersson 1/2 EXACT (Hurwitz partition sum 1+3+7=11). Problem independently posed by Brocard 1876 AND Ramanujan 1913 (Question 469, J. Indian Math. Soc.) -- substrate-self-recognition cross-anchor. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Brocard-Ramanujan."
+license              = "CC0 (self-computed factorial verification; conjecture statement + verification records from open literature)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/brocard_ramanujan_problem"
+
+[source.primary_references]
+brocard_1876          = "Brocard H (1876). Question 166. Nouv. Corresp. Math. 2:287; 1885 Question 1532, Nouv. Ann. Math. 4(2):391."
+ramanujan_1913_q469   = "Ramanujan S (1913). Question 469. Journal of the Indian Mathematical Society 5:159. [Independently posed]"
+overholt_1993         = "Overholt M (1993). The Diophantine equation n!+1=m^2. Bull. London Math. Soc. 25:104. [abc-implies-Brocard]"
+berndt_galway_2000    = "Berndt BC, Galway WF (2000). On the Brocard-Ramanujan Diophantine equation n!+1=m^2. Ramanujan J. 4(1):41-42. [Verified 8 <= n <= 10^9]"
+matson_2017           = "Matson R (2015-2017). Brocard's problem search updates. Personal verification via Legendre symbols + quadratic residues; extended to n > 4*10^11."
+dabrowski_2015        = "Dąbrowski A (2015). On the Brocard-Ramanujan Diophantine equation. arXiv:1504.06694."
+arxiv_2004_09256      = "Results of Brocard-Ramanujan problem on diophantine equation n!+1=m^2. arXiv:2004.09256."
+wikipedia_brocard     = "Wikipedia (2026). Brocard's problem. https://en.wikipedia.org/wiki/Brocard%27s_problem"
+mathworld_brocard     = "Weisstein EW. Brocard's Problem. From MathWorld. https://mathworld.wolfram.com/BrocardsProblem.html"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "solution.ndjson"
+
+[parse]
+natural_key = "n"
+
+[schema]
+data_schema_id = "srmech.number_theory.brocard_ramanujan.solution.v1"
+
+[rendering]
+name_template    = "Brocard-Ramanujan check n = {n}"
+purpose_template = "n! = {n_factorial}; n!+1 = {n_factorial_plus_1}; perfect square: {is_perfect_square}; m = {m}; m prime: {m_is_prime}; m/n = {ratio_rational_num}/{ratio_rational_den}; Brocard solution: {is_brocard_solution}"
+cite_as_template = "mlehaptics number_theory/brocard_ramanujan_problem (srmech AMSC); n={n}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (n, n!+1, m). Class J primes via small-trial-division on m-values. Class I cyclic n!+1 mod {5, 7, 11}. Class C cascade-orientation (factorial Class M product vs square Class C self-pair). Class K asymptotic-DoF (perfect-square pin-slot at integer-square boundary; conjecture IS finite-solution-set saturation per Erdős). Class N best-rational of m/n ratio. Class M HDC bind via factorial product. Integer square root via Newton's method (bit-exact for positive integers). Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "brocard_ramanujan_problem"
