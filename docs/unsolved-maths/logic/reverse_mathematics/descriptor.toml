@@ -1,0 +1,27 @@
+[source]
+key = "reverse_mathematics"
+human_readable_name = "Reverse mathematics — Big Five subsystems + Friedman's Grand Conjecture"
+purpose = "Cascade A o I o C o K o N o J o M applied to the Big Five subsystems of second-order arithmetic (RCA_0 < WKL_0 < ACA_0 < ATR_0 < Pi^1_1-CA_0) plus Friedman's Grand Conjecture. Reverse math: most ordinary theorems are equivalent to exactly ONE Big Five system. Friedman's conjecture (OPEN): all ZFC concrete math provable in EFA. Per [[feedback_no_lineage_claims_in_notebook]]."
+license = "CC0"
+homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/logic/reverse_mathematics"
+[source.primary_references]
+friedman_1975 = "Friedman H (1975). Some systems of second order arithmetic and their use. Proc. ICM Vancouver."
+simpson_2009 = "Simpson SG (2009). Subsystems of Second Order Arithmetic, 2nd ed. Cambridge University Press."
+friedman_grand_conjecture = "Friedman H (1999+). Grand Conjectures in foundations of math; OPEN."
+wikipedia_revmath = "Wikipedia (2026). Reverse mathematics. https://en.wikipedia.org/wiki/Reverse_mathematics"
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "subsystem.ndjson"
+[parse]
+natural_key = "label"
+[schema]
+data_schema_id = "srmech.logic.reverse_mathematics.subsystem.v1"
+[rendering]
+name_template = "{label}"
+purpose_template = "Level {level}; theorems: {theorems}"
+cite_as_template = "mlehaptics logic/reverse_mathematics; label={label}"
+[attestation]
+method = "self-computed"
+provenance = "Class A content-hash. Class I cyclic ordinal hierarchy. Class C cascade-orientation (proof-strength ordering). Class K asymptotic-DoF (axiom-strength saturation). Class N rational anchor (5-level hierarchy ~ Hurwitz-adjacent). Class J primes (consistency strength at cardinal anchors). Class M HDC bind (theorem-to-axiom mapping)."
+[gap_targeting]
+gap_label = "reverse_mathematics"

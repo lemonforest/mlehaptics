@@ -1,0 +1,34 @@
+[source]
+key                  = "continuum_hypothesis"
+human_readable_name  = "Continuum Hypothesis (Hilbert's 1st problem; INDEPENDENT of ZFC)"
+purpose              = "Cascade A o I o J o K o N o C o M applied to 11 axiom-system + cardinal-arithmetic entries. CH is INDEPENDENT of ZFC (Gödel 1940 + Cohen 1963). Documents the framework reading: independence IS Class K substrate-DoF inaccessibility within the ZFC substrate-instance; further axiom choices (V=L, MA, PFA, large cardinals, Woodin's Ultimate L) are Class C cascade-orientation transitions between substrate-instances. Note: this is also Hilbert's 1st problem (1900). Per [[feedback_no_lineage_claims_in_notebook]]."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/set_theory/continuum_hypothesis"
+
+[source.primary_references]
+godel_1940           = "Gödel K (1940). The Consistency of the Continuum Hypothesis. Princeton University Press."
+cohen_1963           = "Cohen PJ (1963-64). The independence of the continuum hypothesis. Proc. Natl. Acad. Sci. USA 50:1143-1148; 51:105-110."
+woodin_2010s         = "Woodin WH (2010-2020s). The Ultimate-L conjecture and the Continuum Hypothesis."
+wikipedia_ch         = "Wikipedia (2026). Continuum hypothesis. https://en.wikipedia.org/wiki/Continuum_hypothesis"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "hypothesis.ndjson"
+
+[parse]
+natural_key = "label"
+
+[schema]
+data_schema_id = "srmech.set_theory.continuum_hypothesis.entry.v1"
+
+[rendering]
+name_template    = "{label}"
+purpose_template = "System: {system}; status: {status}; independent: {is_independent}"
+cite_as_template = "mlehaptics set_theory/continuum_hypothesis (srmech AMSC); label={label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash. Class I cyclic aleph-successor. Class J primes inaccessible cardinals. Class K asymptotic-DoF (CH IS substrate-DoF inaccessibility within ZFC). Class N rational anchor aleph_1/2^aleph_0. Class C cascade-orientation across forcing extensions. Class M HDC bind power-set."
+
+[gap_targeting]
+gap_label = "continuum_hypothesis"
