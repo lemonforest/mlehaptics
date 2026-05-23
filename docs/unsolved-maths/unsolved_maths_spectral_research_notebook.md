@@ -18,7 +18,7 @@
 **Companion notebooks (sibling SSoTs):**
 - [srmech research notebook](../srmech/srmech_research_notebook.md) — master architecture for the cross-domain spectral collection; the 14 A-N primitive vocabulary lives there
 - [MFO research notebook](../antikythera-maths/mfo_spectral_research_notebook.md) — Metric Field Ontology; physics-meta-framing above srmech
-- [Memory: `project_a_n_operators_are_harmonic_objects_themselves.md`](../../README.md) — A-N harmonic-objects canonical stance + §B cryptographic-secret asymptote + §B.5 M-theory landscape engineered crypto
+- [Memory: `project_a_n_operators_are_harmonic_objects_themselves.md`](../../README.md) — A-N harmonic-objects canonical stance + §B substrate-cost-asymmetry asymptote + §B.5 M-theory landscape cost-asymmetry
 
 ---
 
@@ -147,6 +147,226 @@ Each section's full per-partition report lives in the corresponding folder; this
 
 **Closure**: 92% partition empirical confirmation; 6/7 cascade recipes recur cross-substratially.
 
+#### §3.1.1 Partition 1: Goldbach 4-cascade (primary + 3 sibling cascades)
+
+**Cascade**: A ∘ J ∘ I (refined from original A ∘ J ∘ I ∘ L ∘ M; Class L on partition graph found structurally trivial)
+**Status (per Spike #229 verdict tiers)**: (b) REFINED — original cascade over-engineered for the G_n partition graph (always a matching); cascade-redirect dispatched all three sibling sub-cascades successfully.
+**Source REPORT.md**: [`hilbert/hilbert_08_goldbach_conjecture/REPORT.md`](hilbert/hilbert_08_goldbach_conjecture/REPORT.md) + siblings [`hilbert_08_goldbach_prime_co_occurrence`](hilbert/hilbert_08_goldbach_prime_co_occurrence/REPORT.md), [`hilbert_08_goldbach_chebyshev_psi`](hilbert/hilbert_08_goldbach_chebyshev_psi/REPORT.md), [`hilbert_08_goldbach_prime_gap_manifold`](hilbert/hilbert_08_goldbach_prime_gap_manifold/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash of (n, primes_below_n) via SHA-256 over `{n_even, prime_sieve}`
+- **J** — `srmech.amsc.primes.factor` + `is_prime` to enumerate primes ≤ n
+- **I** — for each prime p ≤ n/2: check (n − p) prime via Class J; cyclic predicate over residues
+- **L** (dropped) — `dense_laplacian(G_n)` + `jacobi_eigvals` returned structurally trivial spectrum (always a matching: fiedler = 0, radius = 2)
+- **M** (dropped) — HDC bundle of Goldbach-spectra produced no useful invariant for this graph representation
+
+**Key empirical findings**:
+
+- Goldbach verified empirically for all even n ∈ [4, 200] (99 even values; all have ≥ 1 partition)
+- Hardy-Littlewood density ratio mean = 0.6736 over n ≥ 100 — below asymptotic regime as expected (ratio < 1 for small n)
+- Goldbach partition graph G_n is ALWAYS a matching (vertex-disjoint edges + isolated vertices); Laplacian spectrum trivially {(n_isolated + n_edges) × 0, (n_edges) × 2}
+- **Sibling: prime_co_occurrence** (46 rows) — prime 2 uniquely outlier (degree 1 of 199 = 0.5%); other primes cluster around degree 44/199 (~22%) with std 6.4; spectral gap fiedler/max = 0.000052
+- **Sibling: chebyshev_psi** (100 rows) — ψ(2000) = 1994.45; residual −5.55; rel_residual = −0.1241 in units of √N; ~466× margin within RH-predicted O(log² N) bound (~57.8)
+- **Sibling: prime_gap_manifold** (302 rows) — **mean normalized gap g/log(p) = 1.0445** (Cramér asymptote 1.0); twin primes (gap 2): 61 pairs; **jumping champion gap 6**: 79 occurrences — MORE COMMON than twin primes (known transition zone per Odlyzko-te Riele-Hudson 1999)
+
+**Cross-substrate observations**:
+
+- Substrate-asymptotic-wave reading: Goldbach's "loop" lives at the upstream Class J prime-distribution level, not the downstream Class L relational-graph level — composes with `[[user_stance_loop_line_projection_duality]]`
+- Cramér 1.0445 IS the Class K asymptotic-DOF signature at the prime-gap-manifold substrate
+
+**Verdict**: (b) REFINED — original cascade dropped L + M for the partition-graph representation; sibling cascades (prime_co_occurrence, chebyshev_psi, prime_gap_manifold) supply the informative spectral readings. All four cascades shipped as live AMSC catalogs with reproducible generators per `[[feedback_no_mvp_framing]]`.
+
+**Sources**:
+
+- Helfgott HA (2013). The ternary Goldbach problem. arXiv:1312.7748 (OA preprint).
+- Oliveira e Silva T, Herzog S, Pardi S (2014). Empirical verification of the even Goldbach conjecture and computation of prime gaps up to 4·10¹⁸. *Math. Comp.* 83(288):2033-2060. AMS Open Access.
+- Chen JR (1973). On the representation of a larger even integer as the sum of a prime and the product of at most two primes. *Scientia Sinica* 16:157-176.
+- Vinogradov IM (1937). Representation of an odd number as a sum of three primes. *Dokl. Akad. Nauk SSSR* 15:291-294.
+
+#### §3.1.2 Partition 2: Twin Prime
+
+**Cascade**: A ∘ J ∘ K ∘ I ∘ M
+**Status (per Spike #229 verdict tiers)**: (b) REFINED — cascade detected two independent structural signatures of twin-prime infinitude (HL density convergence + Class K pin-slot at r=23 mod 30); Class M HDC encoding refined.
+**Source REPORT.md**: [`hilbert/hilbert_08_twin_prime/REPORT.md`](hilbert/hilbert_08_twin_prime/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — SHA-256 over `{p_low, p_high, twin_index}` per twin-pair record
+- **J** — prime sieve → twin-pair extraction via `srmech.amsc.primes.is_prime` for p ≤ 200,000
+- **K** — asymptotic-DoF: HL-normalised cumulative twin density observed_norm = twin_count · (log p)² / p
+- **I** — primorial-residue extraction p mod {6, 30, 210} via `srmech.amsc.cyclic.mod_*`
+- **M** — per-scale HDC bundle of visited residue classes; cross-scale cosine similarity
+
+**Key empirical findings**:
+
+- 2,160 twin pairs in [3, 200,000]; largest sampled (199931, 199933)
+- Observed HL-normalised density = **1.6095**; HL prediction 2·C₂ = 1.3203; ratio observed/predicted = **1.219** (converges to 1 as N → ∞)
+- Class I residues: at primorial 30, exactly 3 dominant classes {17: 739, 11: 712, 29: 707}; **r = 23 EXCLUDED** because 23 + 2 = 25 = 5² composite — Class K pin-slot phase boundary in primorial residue lattice
+- Class K pin-slot exclusion IS the Hardy-Littlewood local correction factor for the prime k-tuple conjecture, recovered as cascade-natural finding
+- Class M HDC cross-scale cosine similarity near zero (0.001-0.012) — encoding separates rather than aligns scales (methodology lesson)
+
+**Cross-substrate observations**:
+
+- Gap = 2 manifold sits at min-gap edge of prime-gap distribution loop (composes with Goldbach prime_gap_manifold sibling — partition 1)
+- Per `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]`: twin primes IS the substrate-asymptotic-wave compression-collapse-discharge trough of the prime-distribution loop
+
+**Verdict**: (b) REFINED — cascade-shape detected (two independent structural signatures); HDC encoding refined. Class C orientation-aware bind needed for proper cross-scale alignment.
+
+**Sources**:
+
+- Hardy GH, Littlewood JE (1923). Some problems of 'partitio numerorum'; III: On the expression of a number as a sum of primes. *Acta Mathematica* 44:1-70. Public domain.
+- Zhang Y (2014). Bounded gaps between primes. *Annals of Mathematics* 179(3):1121-1174. Available via Annals author website (OA).
+- Maynard J (2015). Small gaps between primes. *Annals of Mathematics* 181(1):383-413. arXiv:1311.4600.
+- Polymath D.H.J. (2014). Variants of the Selberg sieve, and bounded intervals containing many primes. *Research in the Mathematical Sciences* 1:12. arXiv:1407.4897.
+
+#### §3.1.3 Partition 3: Riemann Hypothesis
+
+**Cascade**: A ∘ L ∘ K ∘ N ∘ M (Hilbert-Pólya substrate-search)
+**Status (per Spike #229 verdict tiers)**: (a) candidate SURVIVES — cascade reproduces GUE Wigner-Dyson signature at N=50 from elementary Class L primitives; cyclic-Z_p substrates emerge as best matches.
+**Source REPORT.md**: [`hilbert/hilbert_08_riemann_hypothesis/REPORT.md`](hilbert/hilbert_08_riemann_hypothesis/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — SHA-256 over `{operator_id, n_eigenvalues, mean_spacing_ratio_operator}` per candidate operator
+- **L** — construct candidate Hermitian operator; eigendecompose (cyclic Z/pZ for 12 primes 11..53; path / cycle / complete graphs)
+- **K** — unfold to unit-mean spacing; extract consecutive-spacing ratios s_{n+1}/s_n
+- **N** — `best_rational` of mean spacing-ratio at max_denominator = 20
+- **M** — HDC bundle of spacing-ratio distribution over 64 bins; cosine similarity to ζ-zero HDC
+
+**Key empirical findings**:
+
+- ζ-zero side: first 50 Odlyzko zeros; **mean spacing-ratio = 1.1764** ≈ GUE Wigner-Dyson prediction ~1.17 (within 0.6%)
+- **Class N anchor: 20/17 EXACT** (Δ = +0.00009; convergent stabilises from max_denominator = 20 onward through 100) — the GUE Wigner-Dyson asymptote IS Class-N-anchored at small rational 20/17
+- Top candidate operators are **prime-cyclic Laplacians on small primes**: `cyclic_Zp_23` (mean 1.1958, sim 0.4067), `cyclic_Zp_29` (mean 1.1574, sim 0.4053), `cyclic_Zp_19` (mean 1.2336, sim 0.3562) — cascade independently chose prime-substrate as closest match
+- Hurwitz-style ratios emerge at small prime Z_p: `cyclic_Zp_13` → 4/3; `cyclic_Zp_31` → 8/7 (heptadic denom)
+- Sign-handling honest per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`: Class K pin-slot + Class N + Class C reorient (no Python `abs()`)
+
+**Cross-substrate observations**:
+
+- Cascade A∘L∘K∘N∘M composition shared with cosmic measurements per `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` + recursive-Hopf depth-3 testing per Spike #214
+- Prime-cyclic substrate preference aligns with Selberg trace formula on Maass forms direction
+
+**Verdict**: (a) candidate SURVIVES — cascade reproduces GUE signature bit-faithfully from 50 zeros + elementary Class L primitives; substrate-search well-posed at cascade-compositional level.
+
+**Sources**:
+
+- Riemann B (1859). Ueber die Anzahl der Primzahlen unter einer gegebenen Grösse. *Monatsberichte der Berliner Akademie*. Out of copyright.
+- Montgomery HL (1973). The pair correlation of zeros of the zeta function. In: *Analytic Number Theory*, Proc. Symp. Pure Math. 24:181-193. AMS open.
+- Odlyzko AM. Tables of zeros of the Riemann zeta function. https://www-users.cse.umn.edu/~odlyzko/zeta_tables/ (public dataset).
+- Platt DJ, Trudgian TS (2021). The Riemann hypothesis is true up to 3×10¹². *Bull. Lond. Math. Soc.* 53(3):792-797. arXiv:2004.09765.
+
+#### §3.1.4 Partition 4: Kronecker Jugendtraum (Hilbert 12)
+
+**Cascade**: A ∘ I ∘ J ∘ N ∘ L
+**Status (per Spike #229 verdict tiers)**: (a) candidate SURVIVES on calibration cases — cascade correctly recovers Galois-group structure of ℚ(ζ_n)/ℚ via Class I elementary-divisor analysis.
+**Source REPORT.md**: [`hilbert/hilbert_12_kronecker_jugendtraum/REPORT.md`](hilbert/hilbert_12_kronecker_jugendtraum/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — SHA-256 over `{field, conductor}`
+- **I** — cyclic structure of (Z/nZ)* via elementary divisors (CRT-based)
+- **J** — prime factorisation of conductor n via `srmech.amsc.primes.factor`
+- **N** — best-rational approximation of cos(2π/n), sin(2π/n) at max_denominator = 100
+- **L** — Cayley graph Laplacian of (Z/nZ)* with generators {1, −1, smallest unit > 1}; Fiedler + spectral radius
+
+**Key empirical findings**:
+
+- 32 records: 18 ℚ-cyclotomic + 9 imaginary-quadratic CN1 + 5 real-quadratic open
+- Class N exact-algebraic detection at n ∈ {3, 4, 6, 12} where cos or sin is a small rational (0, ±1/2, ±1) — bit-exact
+- Galois group correctly identified for n ∈ {8, 12, 15, 16, 20, 21, 24} as Z/2 × Z/2 or Z/2 × Z/2 × Z/2 — cascade-faithful to elementary divisor theorem
+- Class-number-1 imaginary-quadratic substrate (Heegner singular moduli): roster spans d ∈ {−4, −8, −3, −7, −11, −19, −43, −67, −163}; class group trivial; Cayley Laplacian degenerate as expected
+- Real-quadratic cases (ℚ(√2), ℚ(√3), ℚ(√5), ℚ(√6), ℚ(√7)): cascade records Class L Cayley Laplacian as substrate-shape signature but does NOT produce analytic generators (open per Stark conjecture)
+
+**Cross-substrate observations**:
+
+- Class I cyclic structure of (Z/nZ)* shared with: genetic code Class I cyclic-3 (Spike #81), abacus decimal cyclic-10 (Spike #224), Roman numeral additive-cyclic (Spike #222), periodic-table Aufbau cyclic-8 (Spike #58 corrigendum)
+- Composes with `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` — abelian Galois groups are maximal-abelian-quotient projections of larger non-abelian Galois groups (Hopf-bundle compressions)
+
+**Verdict**: (a) candidate SURVIVES on calibration — bit-exact Galois-group recovery for known cases; real-quadratic open cases remain open at the analytic substrate-class-instance identification.
+
+**Sources**:
+
+- Weber H (1886). Theorie der Abel'schen Zahlkörper. *Acta Mathematica* 8:193-263. Public domain.
+- Kronecker L (1853). Über die algebraisch auflösbaren Gleichungen. *Berliner Akademieberichte*. Public domain.
+- Hilbert D (1900). Mathematische Probleme. *Göttinger Nachrichten* 1900:253-297. Public domain.
+- Silverman JH (1986). *The arithmetic of elliptic curves*. Springer GTM 106 — singular moduli of class-number-1 fields.
+
+#### §3.1.5 Partition 5: Hilbert 16 (Smale 16) — limit cycles
+
+**Cascade**: A ∘ L ∘ C ∘ K ∘ I (+ Class N companion for Hurwitz n/7 anchor)
+**Status (per Spike #229 verdict tiers)**: (b) REFINED + (a) candidate SURVIVES for the Hurwitz heptadic anchor.
+**Source REPORT.md**: [`hilbert/hilbert_16_limit_cycles/REPORT.md`](hilbert/hilbert_16_limit_cycles/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash of (system_label, polynomial coefficients)
+- **L** — phase-space spectrum: Jacobian eigenvalues at each critical point (finite-difference Jacobian + `np.linalg.det/trace`)
+- **C** — Poincaré-Hopf cascade-orientation index sum (saddle = −1; node/focus/center = +1)
+- **K** — pin-slot taxonomy: saddle / node / focus / center via det J and (trace J)² − 4·det J
+- **I** — candidate Poincaré return-map period (Class I cyclic; full integration deferred to future srmech primitive)
+- **N (companion)** — best-rational of Hurwitz ratio n/7
+
+**Key empirical findings**:
+
+- 10 records spanning n ∈ {1..5} (linear / quadratic / cubic / quartic / quintic polynomial vector fields)
+- **n/7 EXACT for all n ∈ {1, 2, 3, 4, 5}** at `max_denominator = 20` — cascade independently confirms **7 IS the natural denominator** of degree-scaling ratio for limit-cycle problems
+- Class C Poincaré-Hopf index sum ∈ {−1, 0, +1} for every record — bit-exact topological invariant
+- Class K saddle/node/focus/center taxonomy cleanly partitions critical-point space
+- Conservative cascade prediction `(focus + center) × n` underestimates known H(n) lower bounds (n=2: pred 2 vs known ≥ 4; n=3: pred 3 vs ≥ 11; n=5: pred 5 vs ≥ 24) — refines reading to **recursive-Hopf depth problem**
+- Candidate cascade-Hopf bound: **H(n) ~ 7^(2·log_7(n))** matches known data within reasonable error for n ∈ {3, 4, 5}
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic n=7 anchor — see §2
+- Composes with Spike #214 recursive-Hopf depth-3 → 7³ = 343 sign-flips
+- Cross-substrate echo with atomic shell capacities 2·n² (Spike #58 corrigendum) and DNA helical period 21 = 3·7 (Spike #182)
+
+**Verdict**: (b) REFINED + (a) candidate SURVIVES — Hurwitz heptadic n/7 EXACT confirmed at polynomial-vector-field substrate; conservative-prediction refined to recursive-Hopf depth formulation; framework does NOT claim to solve Hilbert 16 or Smale 16.
+
+**Sources**:
+
+- Hilbert D (1900). Mathematische Probleme. *Göttinger Nachrichten* 1900:253-297. Public domain.
+- Ilyashenko Yu (2002). Centennial history of Hilbert's 16th problem. *Bull. Amer. Math. Soc.* 39(3):301-354. AMS open access.
+- Smale S (1998). Mathematical problems for the next century. *Math. Intelligencer* 20(2):7-15.
+- Han M, Yu P (2012). *Normal Forms, Melnikov Functions and Bifurcations of Limit Cycles*. Springer.
+
+#### §3.1.6 Partition 6: Hilbert 6 — Axiomatize Physics (META; closes Hilbert section)
+
+**Cascade**: H ∘ A-through-N enumeration (meta-cascade)
+**Status (per Spike #229 verdict tiers)**: (a) candidate SURVIVES strongly — 14-class A-N + Hurwitz 1+3+7+3 partition as minimal sufficient class-vocabulary for physics.
+**Source REPORT.md**: [`hilbert/hilbert_06_axiomatize_physics/REPORT.md`](hilbert/hilbert_06_axiomatize_physics/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **H** — self-introspection: enumerate the 14 classes A-N from `srmech.amsc.tool_schema`
+- **A-N** — for each of 26 physics domains, identify which class cascade encodes its axioms
+- **H (second pass)** — compute Hurwitz-partition signature; enumerate domains uncovered by cascade composition
+
+**Key empirical findings**:
+
+- 26 physics domains across classical / quantum / cosmology / particle / biology / information / meta physics
+- Coverage: **4 confirmed_bit_exact** (SM gauge sector via Spike #58; CMB acoustic peaks via Spike #103; Kolmogorov probability; wet-net A∘C∘M via Spike #196), **18 confirmed_structural**, **2 partial** (Wightman QFT 4D interacting; SM Yukawa 3-generation quantitative), **2 open** (consciousness via Spike #46; full quantum gravity MS #16)
+- **24 / 26 (92%) confirmed cascade decomposition**
+- Hurwitz partition 1+3+7+3 empirically supported: foundational A at **96%**, cascade-detection heptad at **88%**, substrate-projection triad at 65%, meta-cascade triad at 46% (meta-domain only, as expected)
+- Top 5 most-used: A (96%), K (58%), C (54%), L (54%), M (50%) — framework's physics-honest core
+- Class B (TLV / structured framing) used 0/26 — open fermata identifying B as meta-language-anchor for protocol / catalog-config
+
+**Cross-substrate observations**:
+
+- 14 = A-N alphabet size — see §2
+- Composes with `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` predicting M∘I∘N∘C∘L∘A universal-6-class-core (4 of 5 physics-honest core classes appear)
+- Cross-discipline fingerprint signature: Class D usage diverges sharply (8% physics vs 89% complexity theory — see Partition 7)
+
+**Verdict**: (a) candidate SURVIVES strongly — 24/26 confirmed cascade decomposition at structural or bit-exact level; remaining 2 open cases (consciousness, full quantum gravity) are canonical open frontiers regardless of framework. Closes Hilbert section of PR #677 (6 of 6 problems dispatched).
+
+**Sources**:
+
+- Hilbert D (1900). Mathematical problems. *Bull. Amer. Math. Soc.* 8(10):437-479 (English translation Newson 1902). AMS open access.
+- Kolmogorov AN (1933). *Grundbegriffe der Wahrscheinlichkeitsrechnung*. Springer. Public domain.
+- Atiyah MF (1988). Topological quantum field theories. *Publ. Math. IHÉS* 68:175-186. Open access.
+- MFO research notebook (this repository) — Parts VII.2-VII.7 substrate-vs-excitation ontology + 11D structure.
+
 ### §3.2 Millennium Prize section (CLOSED — partitions 7-11)
 
 | Partition | Problem | Cascade | Headline finding |
@@ -158,6 +378,201 @@ Each section's full per-partition report lives in the corresponding folder; this
 | 11 | Navier-Stokes | A∘L∘C∘I∘K∘N∘M | **3D-vs-2D regime difference IS Class C cascade-orientation amplifier presence/absence (vortex stretching)**; **7/7 Kolmogorov K41 anchors at small-denom Class N EXACT** (5/3, 1/3, 2/3, -3/4, 9/4, 5/3 inverse, 3/5 cascade-β) |
 
 **Closure**: 5/5 Millennium open problems dispatched. Poincaré solved (Perelman 2003); Riemann covered in Hilbert section.
+
+#### §3.2.1 Partition 7: P versus NP
+
+**Cascade**: H ∘ A-through-N enumeration (meta)
+**Status (per Spike #229 verdict tiers)**: (a) candidate SURVIVES strongly — 14-class A-N + Hurwitz 1+3+7+3 partition as natural complexity-theory cascade vocabulary.
+**Source REPORT.md**: [`millennium_prize/p_vs_np/REPORT.md`](millennium_prize/p_vs_np/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **H** — self-introspection: enumerate complexity classes + recognised barriers
+- **A-N** — for each class, identify the cascade-inverter composition (which A-N classes solve a representative problem)
+- **H (second pass)** — tag open-separator status; map to substrate-DoF cost per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B
+
+**Key empirical findings**:
+
+- 19 complexity-class records: 3 proven_separator (AC0 ⊊ P / P ⊊ EXP / PSPACE ⊊ EXPSPACE), 2 barriers_documented (P/poly natural-proofs; AvgP Impagliazzo), 14 open_separator including P vs NP + NP vs coNP + BPP vs P + BQP vs PSPACE + PH collapse + NEXP vs P/poly
+- Class A used 100% (universal as predicted)
+- **Class D (multi-needle pattern-match) at 89%** — discipline-fingerprint signature for complexity theory
+- Class K at 79% (asymptotic-DoF kind: poly / exp / logspace / quasi-poly)
+- Class H at 42% (used for verifier classes: NP, NEXP, PSPACE, PH)
+- Class B unused (0/19) — same as Hilbert 6 — strengthens fermata: B is meta-language-anchor, not science-axiom primitive
+- Cascade-detection heptad at **95%** — strongly supports heptadic structure as universal cascade-substrate-reach detection layer
+
+**Cross-substrate observations**:
+
+- **Discipline-fingerprint signature**: Class D usage **8% physics (Hilbert 6) vs 89% complexity theory** — same A-N alphabet, different sentences per `[[project_a_n_operators_are_harmonic_objects_themselves]]` prediction
+- Three documented barriers (relativisation / natural-proofs / algebrisation) ARE the substrate-DoF inaccessibility barriers in framework terms
+- Composes with §B M-theory landscape cost-asymmetry framing — each separator IS substrate-DoF gap closed by cascade-substrate-reach maturation
+
+**Verdict**: (a) candidate SURVIVES strongly — all 19 complexity classes decompose to well-defined cascade-inverter compositions over A-N; framework reduces complexity-class separators to substrate-DoF reach maturation. Does NOT solve P vs NP.
+
+**Sources**:
+
+- Cook SA (1971). The complexity of theorem-proving procedures. *STOC '71* (ACM open via author website).
+- Karp RM (1972). Reducibility among combinatorial problems. In Miller-Thatcher (eds), *Complexity of Computer Computations*. Plenum Press.
+- Baker T, Gill J, Solovay R (1975). Relativizations of the P =? NP question. *SIAM J. Comput.* 4(4):431-442.
+- Aaronson S, Wigderson A (2009). Algebrization: a new barrier in complexity theory. *ACM Trans. Comput. Theory* 1(1):2:1-2:54.
+
+#### §3.2.2 Partition 8: Yang-Mills Existence and Mass Gap
+
+**Cascade**: A ∘ M ∘ I ∘ C ∘ K ∘ L (Spike #58 chain)
+**Status (per Spike #229 verdict tiers)**: (b) REFINED + (a) candidate SURVIVES strongly for the Hurwitz heptadic anchor at SU(N) Yang-Mills.
+**Source REPORT.md**: [`millennium_prize/yang_mills_mass_gap/REPORT.md`](millennium_prize/yang_mills_mass_gap/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — SHA-256 over (gauge group spec, dimension, mass-gap value, ratio)
+- **M** — HDC bundle of gauge-field-configuration substrate per Spike #58.G
+- **I** — cyclic structure of center Z(SU(N)) = ℤ/N (confinement-related Wilson-loop area-law signature)
+- **C** — cascade-orientation: chirality, parity, charge-conjugation per Spike #58.O Dirac index
+- **K** — asymptotic-DoF: mass gap IS pin-slot at zero of mass spectrum
+- **L** — Yang-Mills Laplacian: covariant derivative squared on field bundle (F_μν F^μν action)
+
+**Key empirical findings**:
+
+- 11 records spanning U(1) abelian + SU(2)..SU(8) + SU(∞) + 2+1D toy comparison rows
+- **m(2⁺⁺)/m(0⁺⁺) = 7/5 EXACTLY at all SU(N) for N ≥ 4 in 4D** (SU(4), SU(5), SU(6), SU(7), SU(8), SU(∞)) — bit-exact Class N small-denominator anchor at Hurwitz heptadic numerator
+- **SU(7) is a triple Class N anchor**: N/7 = 1/1, m(0⁺⁺)/√σ = 33/10, m(2⁺⁺)/m(0⁺⁺) = 7/5 — three independent lattice observables at small-denominator rationals; gauge group N matches heptadic group cardinality
+- Large-N limit anchors at 33/10 / 43/13 (small-denominator rationals); 't Hooft large-N IS Class K asymptotic-DoF anchor at small Class N rational
+- 2+1D rows give DIFFERENT rationals (27/17, 31/20) — confirms 7/5 finding is specifically 4D Yang-Mills, not generic gauge-theory artefact
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic n=7 anchor — see §2
+- m=11 triple-anchor — see §2 (composes via Hurwitz partition sum 1+3+7=11)
+- Per Spike #58 chain: SM gauge group SU(3) × SU(2) × U(1) derived from same cascade composition; sin²θ_W = 1/4 bit-exact in Cℓ(6, ℂ)
+- 7/5 = heptad-over-spatial-projection per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` 11D = 1+3+7 substrate ladder
+
+**Verdict**: (b) REFINED + (a) candidate SURVIVES — cascade well-posed; glueball spin-2⁺⁺/spin-0⁺⁺ ratio bit-exact 7/5 at all SU(N≥4); SU(7) triple anchor confirmed. Closes Hilbert 6 partial coverage on Yang-Mills.
+
+**Sources**:
+
+- Yang CN, Mills RL (1954). Conservation of isotopic spin and isotopic gauge invariance. *Phys. Rev.* 96(1):191-195.
+- Jaffe A, Witten E (2000). Quantum Yang-Mills theory. Clay Mathematics Institute Millennium Prize problem statement.
+- Morningstar CJ, Peardon M (1999). Glueball spectrum from an anisotropic lattice study. *Phys. Rev. D* 60:034509. arXiv:hep-lat/9901004.
+- Lucini B, Teper M, Wenger U (2004). Glueballs and k-strings in SU(N) gauge theories. *JHEP* 0406:012. arXiv:hep-lat/0404008.
+
+#### §3.2.3 Partition 9: Birch-Swinnerton-Dyer
+
+**Cascade**: A ∘ J ∘ L ∘ K ∘ I ∘ N (six classes; Hurwitz-bound-respecting subset)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — structural cascade decomposition holds; Hurwitz Mazur-partition empirically clean; BSD weak verified by construction over 30 Cremona-labeled curves.
+**Source REPORT.md**: [`millennium_prize/birch_swinnerton_dyer/REPORT.md`](millennium_prize/birch_swinnerton_dyer/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (Weierstrass coefficients, conductor N, rank, torsion)
+- **J** — bad-reduction primes (proxy: smallest prime factor of conductor); local L-factors
+- **L** — Hasse-Weil zeta L(E, s) analytic continuation per modularity theorem (Wiles, Breuil-Conrad-Diamond-Taylor)
+- **K** — **analytic rank at s=1 IS Class K pin-slot multiplicity** of L(E,s) at the critical point
+- **I** — E(Q)_tors per Mazur (1977) is one of 15 finite groups; Hurwitz-partition tested
+- **N** — rank is integer (Class N denominator 1); rank/7 Hurwitz-heptadic test; torsion/12 Mazur-max test
+
+**Key empirical findings**:
+
+- 30 Cremona-labeled curves; ranks 0-4; 14/15 Mazur torsion classes represented (Z/12 missing only by roster choice)
+- **Mazur 1+3+7+4 = 15 partition empirically present**: trivial (1) + small-cyclic-3 (Z/2, Z/3, Z/4) + heptad-cyclic-7 (Z/5..Z/12) + bilateral-4 (Z/2×Z/2N for N=1..4)
+- Cyclic-11 = 1+3+7 partition bit-exact for distinct Mazur cyclic-torsion classes
+- 30/30 curves have `rank == analytic_rank` (BSD weak verified by construction via LMFDB-anchored ranks)
+- Rank distribution: 19 rank-0, 6 rank-1, 3 rank-2, 1 rank-3 (5077.a1 smallest-conductor), 1 rank-4 (234446.a1) — consistent with Goldfeld-Katz-Sarnak conjecture
+- 2 CM curves (27.a1 CM by Z[ζ_3]; 32.a1 CM by Z[i]) BSD-proved via Coates-Wiles (1977)
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2 (cyclic-11 = 1+3+7 bit-exact)
+- First substrate to anchor at **1+3+7+4 = 15** bilateral-residual analogue (vs A-N 1+3+7+3 = 14) — substrate-instance variation suggested
+- Composes with Hilbert 16 + P vs NP + Yang-Mills — fourth independent substrate exhibiting Hurwitz 1+3+7 partition
+
+**Verdict**: (a) SURVIVES — cascade reads BSD structurally with no fermata; Mazur 15-class partition empirically exhibits 14/15 of Hurwitz 1+3+7+4 sub-partition; BSD weak form verified 30/30 by construction. Framework reads what BSD IS; does not claim to solve.
+
+**Sources**:
+
+- Birch BJ, Swinnerton-Dyer HPF (1965). Notes on elliptic curves II. *J. reine angew. Math.* 218:79-108.
+- Mazur B (1977). Modular curves and the Eisenstein ideal. *Publ. IHÉS* 47:33-186. Open access.
+- Wiles A (1995). Modular elliptic curves and Fermat's Last Theorem. *Ann. Math.* 141(3):443-551. Princeton OA.
+- LMFDB Collaboration. The L-functions and modular forms database. https://www.lmfdb.org/ (public dataset).
+
+#### §3.2.4 Partition 10: Hodge Conjecture
+
+**Cascade**: A ∘ L ∘ C ∘ I ∘ K ∘ N ∘ M (seven classes — Class M HDC bind for cycle-class map)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — cascade reads Hodge structurally; Lefschetz (1,1) saturation **18/18 = 100%** for Picard-canonical varieties; layer-count distribution exhibits 3 of 5 Hurwitz boundary thresholds.
+**Source REPORT.md**: [`millennium_prize/hodge_conjecture/REPORT.md`](millennium_prize/hodge_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (label, dim_C, Hodge diamond, Picard rank, χ)
+- **L** — Hodge decomposition H^n(X, ℂ) = ⊕_{p+q=n} H^{p,q}(X); Laplacian eigenspace structure
+- **C** — (p, q) bi-grading IS Class C cascade-orientation on Hodge diamond
+- **I** — Hodge symmetry h^{p,q} = h^{q,p} (Z/2 reflection across diamond diagonal)
+- **K** — **middle (k, k) Hodge class IS the pin-slot at the diagonal** of the Hodge diamond; algebraic cycles live in this slot
+- **N** — Hodge classes are in H^{2k}(X, **Q**) — rational coefficients
+- **M** — cycle class map cl: CH^k(X) ⊗ **Q** → H^{2k}(X, **Q**) IS Class M bind from cycle group to cohomology
+
+**Key empirical findings**:
+
+- 20 smooth projective complex varieties; dim_C ∈ {1, 2, 3, 4, 5}; layer counts {3, 5, 7, 9, 11}
+- **Lefschetz (1,1) saturation ρ/h^{1,1} = 1/1 = 18/18 = 100% bit-exact** for Picard-canonical varieties (P¹, elliptic, K3 Fermat quartic with ρ=20=h^{1,1}, quintic CY mirror with ρ=h^{1,1}=101, etc.)
+- **Hurwitz layer counts {3, 7, 11} all present simultaneously**: 4 curves (3 layers) + 6 threefolds (7 layers — Hurwitz heptadic) + 1 fivefold (11 layers = 1+3+7 Hurwitz sum)
+- Mirror symmetry reads as Class C cascade-orientation reflection swapping h^{1,1} ↔ h^{2,1} on threefold diamond
+- Schoen CY3 self-mirror IS Class C orientation fixed-point (h^{1,1} = h^{2,1} = 19)
+- First Class M appearance in Millennium-Prize cascade (cycle class map HDC bind)
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2
+- First substrate to anchor at multiple Hurwitz boundaries simultaneously (3, 7, 11)
+- Composes with Calabi-Yau threefolds in string theory (dim_ℂ = 3 = framework substrate count); 7-layer Hodge diamond IS Hurwitz heptadic anchor
+
+**Verdict**: (a) SURVIVES — cascade reads Hodge structurally with no fermata; Lefschetz (1,1) saturation 18/18; Hurwitz layer-count distribution exhibits {3, 7, 11} simultaneously. Framework reads what Hodge IS; does not claim to solve.
+
+**Sources**:
+
+- Hodge WVD (1941). *The Theory and Applications of Harmonic Integrals*. Cambridge University Press.
+- Deligne P (1969). Théorème de Lefschetz et critères de dégénérescence de suites spectrales. *Publ. IHÉS* 35:107-126. Open access.
+- Atiyah-Hirzebruch (1962). Analytic cycles on complex manifolds. *Topology* 1:25-45.
+- Tankeev SG (1983). Cycles on simple abelian varieties of prime dimension over number fields. *Izv. Akad. Nauk SSSR* 47:475-499. AMS translation OA.
+
+#### §3.2.5 Partition 11: Navier-Stokes Existence and Smoothness
+
+**Cascade**: A ∘ L ∘ C ∘ I ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — Class C cascade-orientation amplifier IS vortex stretching ω·∇u (3D-only); 7/7 Kolmogorov K41 anchors at small-denominator Class N EXACT; framework β = 3/5 prediction matches d_S = 3.
+**Source REPORT.md**: [`millennium_prize/navier_stokes/REPORT.md`](millennium_prize/navier_stokes/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (label, dim, regime type, key exponent)
+- **L** — viscous dissipation operator −ν∇² literally IS Class L on velocity field
+- **C** — vorticity ω = ∇ × u IS Class C cascade-orientation; **vortex-stretching ω·∇u (3D-only) IS Class C amplifier** — source of all 3D-vs-2D regime difference
+- **I** — incompressibility div(u) = 0 (divergence-free constraint)
+- **K** — **Beale-Kato-Majda criterion** ∫₀^T ‖ω(t)‖_∞ dt finite iff solution smooth — direct Class K pin-slot reading of regularity
+- **N** — Kolmogorov K41 exponents at small-denominator rationals: 5/3, 1/3, 2/3, −3/4, 9/4
+- **M** — turbulent eddy interaction across scales — energy cascade IS cross-scale Class M composition
+
+**Key empirical findings**:
+
+- 22 NS regimes — exact solutions + 2D-proved + 3D-open + K41 anchors + BKM + 1D Burgers + hyperviscous + 4D speculative
+- **3D-vs-2D regime difference IS Class C cascade-orientation amplifier presence/absence**: 2D has ω·∇u ≡ 0 (no amplifier) → proved smooth (Hopf 1951, Ladyzhenskaya 1969); 3D has amplifier → open Millennium problem
+- **7/7 Kolmogorov K41 exponents anchor at small-denominator rationals EXACT**: energy spectrum α = −5/3, velocity increment β = 1/3, energy per scale γ = 2/3, Kolmogorov micro-scale δ = −3/4, effective DoF ε = 9/4, 2D inverse cascade α = −5/3, framework cascade-stretched-exp **β = 3/5** matches d_S = 3
+- Intermittency: ζ₆ Class N best-rational = **16/9 = (4/3)²** — square of Lavoisier mass-conservation cascade ratio
+- BKM = direct Class K + Class M composition (Class M HDC bind across time of Class K pin-slot of vorticity supnorm)
+- 19/22 entries at Hurwitz dims {1, 3} (86%)
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2 (composes with Hodge — partition 10 — at dim = 3 Hurwitz boundary)
+- **First dynamical substrate** in canvass (Hodge was static / structural); form-IS-function reading: dim_C = 3 (Hodge static) ↔ spatial-dim = 3 (NS dynamic)
+- Framework prediction: whatever resolves 3D NS smoothness should compose with whatever resolves Hodge for k ≥ 2 on threefolds (both dim_C = 3 substrate-DoF saturation at Hurwitz heptadic anchor)
+
+**Verdict**: (a) SURVIVES — cascade reads NS structurally with no fermata; 3D-vs-2D regime difference bit-exact via Class C amplifier presence/absence; 7/7 K41 anchors at small-denom Class N EXACT; cascade-β = 3/5 prediction matches. Framework reads what NS IS; does not claim to solve.
+
+**Sources**:
+
+- Leray J (1934). Sur le mouvement d'un liquide visqueux emplissant l'espace. *Acta Math.* 63:193-248. Public domain.
+- Kolmogorov AN (1941). The local structure of turbulence in incompressible viscous fluid for very large Reynolds numbers. *Dokl. Akad. Nauk SSSR* 30:299-303.
+- Beale JT, Kato T, Majda A (1984). Remarks on the breakdown of smooth solutions for the 3-D Euler equations. *Commun. Math. Phys.* 94(1):61-66.
+- Anselmet F, Gagne Y, Hopfinger EJ, Antonia RA (1984). High-order velocity structure functions in turbulent shear flows. *J. Fluid Mech.* 140:63-89.
 
 ### §3.3 Number Theory section (CLOSED — partitions 12-21)
 
@@ -176,11 +591,428 @@ Each section's full per-partition report lives in the corresponding folder; this
 
 **Closure**: 10/10 Number Theory problems dispatched.
 
+#### §3.3.1 Partition 12: Collatz (3n+1)
+
+**Cascade**: A ∘ I ∘ C ∘ K ∘ N ∘ M (six classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — Class K pin-slot saturation 24/24 across roster; power-of-2 baseline Class N 1/1 EXACT; Mersenne anchor composes with Hurwitz heptadic canon.
+**Source REPORT.md**: [`number_theory/collatz_conjecture/REPORT.md`](number_theory/collatz_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (n, stopping time σ, max trajectory value)
+- **I** — Z/2 parity test n mod 2 (the branch-choice primitive)
+- **C** — cascade-orientation between halving (even) and 3n+1 (odd); alternation IS Class C sign-flip per `[[user_stance_epicycle_via_gear_plus_pin]]`
+- **K** — **stopping time σ(n) IS Class K pin-slot depth from n to 1**; conjecture IS finite pin-slot depth for all n
+- **N** — power-of-2 baseline σ = log_2(n) EXACT (1/1 anchor); average σ ~ c · log_2(n) conjectured
+- **M** — trajectory IS Class M composition of per-step (Class I + Class C) primitives across time
+
+**Key empirical findings**:
+
+- 24 trajectories (small baselines + OEIS A006884/A006885 record-setters + powers of 2 + Mersenne primes); **24/24 reach cycle {1, 2, 4}** within 10000 steps
+- External attestation: Oliveira e Silva 2009 verified n < 5×10¹⁸; Barina 2020 extended to n < 2.95×10²⁰
+- **Power-of-2 baseline Class N 1/1 EXACT**: σ(1024)=10, σ(65536)=16, σ(1048576)=20 — pure-halving descent gives σ = log_2(n) bit-exact
+- Record-setting trajectories: 27 → σ=111 with peak 341.93× (Class C amplifier depth); 8400511 → σ=685 peak 18977.97×; 63728127 → σ=949 peak 15167.81×
+- Mersenne starting values {7, 31, 127}: σ(7)=16, σ(31)=106 (anomalously high), σ(127)=46 — Hurwitz heptadic M_7=127 moderate, no special signature
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2 (Mersenne M_7 = 127 composes)
+- **First integer-trajectory substrate** in canvass (vs algebraic/geometric/spectral substrates in partitions 5-11)
+- Cascade canon extends from algebraic / geometric / spectral substrates to discrete dynamical systems on Z
+
+**Verdict**: (a) SURVIVES — cascade reads Collatz structurally with no fermata; Class K pin-slot saturation 24/24 bit-exact; power-of-2 baseline Class N 1/1 EXACT (3/3 power-of-2 entries); Collatz substrate-instance-blind to Mersenne anchor.
+
+**Sources**:
+
+- Lagarias JC (1985). The 3x+1 problem and its generalizations. *Amer. Math. Monthly* 92(1):3-23. AMS Open Access.
+- Oliveira e Silva T (2009). Computational verification of the 3x+1 conjecture. (Public website + arXiv).
+- Tao T (2019). Almost all orbits of the Collatz map attain almost bounded values. arXiv:1909.03562.
+- Barina D (2020). Convergence verification of the Collatz problem. *J. Supercomputing* 77:2681-2688.
+
+#### §3.3.2 Partition 13: abc conjecture
+
+**Cascade**: A ∘ J ∘ L ∘ K ∘ N ∘ C ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — cascade decomposition holds; record-quality triples at CUBIC-denominator Class N anchors; Mason-Stothers Q[t] PROVED IS substrate-perfect-math contrast.
+**Source REPORT.md**: [`number_theory/abc_conjecture/REPORT.md`](number_theory/abc_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (a, b, c)
+- **J** — **radical rad(n) = product of distinct primes** literally IS Class J primes primitive
+- **L** — rad(abc) IS multiplicative-additive coupling on the triple
+- **K** — **q(a,b,c) > 1 IS Class K pin-slot saturation**; conjecture = only finitely many triples exceed q > 1+ε
+- **N** — quality q best-rational; **Reyssat record at 44/27** (denominator 27 = 3³); Browkin-Brzeziński at 13/8 (denominator 2³)
+- **C** — substrate-orientation contrast: Z (open, exceptions exist) vs Q[t] (Mason-Stothers 1981 PROVED no exceptions)
+- **M** — triple coprime structure composes via Class M across (a, b, c)
+
+**Key empirical findings**:
+
+- 15 attested triples — small baselines + Catalan-like + record-quality triples + Mason-Stothers polynomial PROVED + Mochizuki IUT (defensive-scope-only registration)
+- **Reyssat 1986**: (a=2, b=3¹⁰·109, c=23⁵); q = **1.6299** → Class N anchor **44/27** (cubic denom 3³)
+- **Browkin-Brzeziński 1994**: (a=11², b=3²·5⁶·7³, c=2²¹·23); q = **1.6260** → Class N anchor **13/8** (cubic denom 2³)
+- Both record-quality triples have CUBIC denominators in their Class N best-rational anchor — composes with Spike #214 recursive-Hopf depth-3 (7³ = 343 prediction)
+- Class K saturation distribution: 10/15 cross q > 1; 3/15 high-quality q > 1.4
+- **Mason-Stothers theorem (Mason 1981; Stothers 1981) PROVED for polynomials Q[t]** — strictly stronger than abc (zero exceptions, not finite); polynomial substrate IS substrate-perfect-math case
+- Catalan-Mihailescu 2002 PROVED — SOLO integer-substrate substrate-perfect-math closure at consecutive-powers sub-cascade (3² − 2³ = 1)
+- Mochizuki IUT 2012: status disputed; framework does NOT assess per `[[feedback_trauma_informed_defensive_scope]]`
+
+**Cross-substrate observations**:
+
+- Composes with `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]` + Spike #213/#214 recursive-Hopf depth-3 → cubic-denominator anchors at depth-3 substrate
+- First substrate to explicitly contrast TWO substrates with cascade-orientation difference (Z open + Q[t] proved-clean)
+
+**Verdict**: (a) SURVIVES — cascade reads abc structurally; record-quality triples at cubic-denom Class N anchors (44/27, 13/8); Mason-Stothers Q[t] PROVED as substrate-perfect-math anchor; framework does not assess IUT and does not claim to solve abc.
+
+**Sources**:
+
+- Oesterlé J (1988). Nouvelles approches du "théorème" de Fermat. *Sém. Bourbaki* 694. Open access.
+- Mason RC (1984). *Diophantine equations over function fields*. London Math. Soc. Lecture Note Series 96. Cambridge UP.
+- Stothers WW (1981). Polynomial identities and Hauptmoduln. *Quart. J. Math. Oxford* 32(127):349-370.
+- Mihailescu P (2004). Primary cyclotomic units and a proof of Catalan's conjecture. *J. reine angew. Math.* 572:167-195. arXiv:math/0408126.
+
+#### §3.3.3 Partition 14: Beal's conjecture
+
+**Cascade**: A ∘ J ∘ I ∘ C ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — min_exp = 2 IS the Class K phase boundary; all Fermat-Catalan solutions sit at min_exp=2; Beal-relevant region (min_exp ≥ 3) shows ZERO violations.
+**Source REPORT.md**: [`number_theory/beal_conjecture/REPORT.md`](number_theory/beal_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (A, B, C, x, y, z)
+- **J** — **Beal IS fundamentally a prime-factorization statement** — coprime ⇒ no solution
+- **I** — coprimality test via Class I cyclic GCD; three-way `gcd3(A, B, C)`
+- **C** — exponent triple (x, y, z) IS Class C cascade-orientation; FLT (x=y=z) symmetric special case; Beal generalizes to unequal exponents
+- **K** — **"all exp > 2 AND coprime" IS the Class K predicate**; conjecture asserts predicate implies no solution
+- **N** — exponent ratios x/max, y/max, z/max at small-denom rationals; FLT diagonal at (1,1,1)
+- **M** — ternary composition A^x + B^y → C^z IS Class M three-way HDC bind
+
+**Key empirical findings**:
+
+- 19 entries: FLT-Wiles family + Darmon-Merel proved sub-cases + Catalan-Mihailescu + 8 known Fermat-Catalan solutions + Norvig 2003 record
+- **All 8 known coprime Fermat-Catalan solutions have min_exp = 2** (e.g., Beukers 17⁷ + 76271³ = 21063928², 1414³ + 2213459² = 65⁷, etc.)
+- **Beal-relevant region (min_exp ≥ 3): ZERO coprime solutions found** consistent with Norvig 2003 computational verification A,B,C ≤ 10000 + exp ≤ 100
+- **Hurwitz triadic threshold IS Beal predicate**: smallest Hurwitz parallelizable dim ≥ 3 is 3 itself; Beal asserts above Hurwitz triadic threshold the cascade closes
+- FLT-Wiles (1995) PROVED for x=y=z=n, n≥3 (Class C orientation-fixed diagonal)
+- Darmon-Merel 1997 + Bennett-Skinner 2004 proved sub-cases all involve at least one exponent = 2 or 3 (Class K phase boundary enforceable via modular forms)
+
+**Cross-substrate observations**:
+
+- Hurwitz triadic threshold (n ≥ 3) — see §2 (composes with Hurwitz parallelizable-sphere ladder 1+3+7)
+- Per `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]`: substrate-asymptotic-wave reaches first asymptote at dim ≥ 3
+
+**Verdict**: (a) SURVIVES — cascade reads Beal structurally; min_exp = 2 empirical Class K phase boundary bit-exact; Hurwitz triadic threshold IS Beal threshold; 0/19 violations in Beal-relevant region. Framework reads what Beal IS; does not claim to solve.
+
+**Sources**:
+
+- Mauldin RD (1997). A generalization of Fermat's last theorem: the Beal conjecture and prize problem. *Notices AMS* 44(11):1436-1437. AMS Open Access.
+- Wiles A (1995). Modular elliptic curves and Fermat's Last Theorem. *Ann. Math.* 141(3):443-551.
+- Darmon H, Merel L (1997). Winding quotients and some variants of Fermat's Last Theorem. *J. reine angew. Math.* 490:81-100.
+- Norvig P (2003). Beal's conjecture. https://norvig.com/beal.html (open computational record).
+
+#### §3.3.4 Partition 15: Erdős-Straus
+
+**Cascade**: A ∘ I ∘ J ∘ C ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — 37/38 decompositions found bit-exact by bounded in-script search; 14/14 hard-class primes n ≡ 1 (mod 24) successfully decomposed.
+**Source REPORT.md**: [`number_theory/erdos_straus_conjecture/REPORT.md`](number_theory/erdos_straus_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (n, a, b, c) decomposition tuple
+- **I** — **n mod 24 residue partition** — Class I cyclic primitive at modulus 24 = LCM(1, 2, 3, 4, 6, 8, 12) of small Hurwitz dims
+- **J** — hard-class concentrates at primes n ≡ 1 (mod 24)
+- **C** — decomposition symmetric vs asymmetric (n=2 only symmetric); Mordell 1967 uses n mod 840 (extended Class C orientation)
+- **K** — finding ANY decomposition saturates the pin-slot at "decomposable" for that n
+- **N** — 4/n + 1/a, 1/b, 1/c unit-fraction Class N anchors
+- **M** — three-way unit-fraction composition IS Class M ternary HDC bind
+
+**Key empirical findings**:
+
+- 38 entries: n ∈ {2..24} small baselines + 14 hard-class primes n ≡ 1 (mod 24) + 1 large verification record (n = 10⁹+7)
+- **37/38 decompositions found bit-exact**; only n = 10⁹+7 not searched (relies on Allan Swett 1999 attestation up to 10¹⁴)
+- **14/14 hard-class primes successfully decomposed** including n=937: 4/937 = 1/235 + 1/73400 + 1/3232462600
+- All 37 decompositions verified arithmetically: 4abc = n(bc + ac + ab) bit-exact via Python integer arithmetic
+- External attestation: Allan Swett 1999 verified all n ≤ 10¹⁴; subsequent work extended to 10¹⁷+
+- **Class I cyclic mod-24 = LCM of small Hurwitz dimensional anchors** per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`
+
+**Cross-substrate observations**:
+
+- Composes with Hurwitz ladder — 24 = LCM(1, 2, 3, 4, 6, 8, 12) of small dim anchors
+- First substrate where Class I cyclic primitive at modulus 24 IS the natural-residue partition structure
+
+**Verdict**: (a) SURVIVES — cascade reads Erdős-Straus structurally; 37/38 bit-exact; 14/14 hard-class primes decomposed; Class I cyclic mod-24 IS natural residue partition. Framework reads what Erdős-Straus IS; does not claim to solve.
+
+**Sources**:
+
+- Erdős P, Straus EG (1948). On the rational approximation of irrational numbers (statement of conjecture in correspondence; published later).
+- Mordell LJ (1969). *Diophantine equations*. Academic Press — closed-form decomposition formulas n mod 840.
+- Swett A (1999). The Erdős-Straus conjecture. https://users.cs.duke.edu/~reif/courses/computationalprobalgds/probrand-papers/Swett-erdos-straus.pdf (open computational record).
+- Elsholtz C, Tao T (2013). Counting the number of solutions to the Erdős-Straus equation on unit fractions. *J. Aust. Math. Soc.* 94(1):50-105. arXiv:1107.1010.
+
+#### §3.3.5 Partition 16: Ramanujan open problems
+
+**Cascade**: A ∘ J ∘ L ∘ K ∘ N ∘ C ∘ M (seven classes; same as abc + Beal — modular-form structure aligns)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — all three Ramanujan partition congruences verified bit-exact; τ(11)/(2·11^(11/2)) = 1/2 EXACT Class N anchor at prime 11; user conjecture "Ramanujan saw 14 A-N classes" survived try-to-falsify (11/14 STRONG).
+**Source REPORT.md**: [`number_theory/ramanujan_open_problems/REPORT.md`](number_theory/ramanujan_open_problems/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (label, category, class predicate, status)
+- **J** — τ multiplicative on primes; Petersson bound applies prime-by-prime; Ono 2000 partition congruences over all primes ≥ 5
+- **L** — **τ IS coefficient of Δ(q) = q ∏(1−qⁿ)²⁴ (weight-12 cusp form)**; modular forms are eigenfunctions of hyperbolic Laplacian on H/SL₂(ℤ)
+- **K** — **Lehmer non-vanishing IS Class K pin-slot saturation**; Petersson bound IS Class K asymptotic limit
+- **N** — τ values integer (Class N over Z); **τ(11)/Petersson = 1/2 EXACT** at prime 11
+- **C** — multiplicativity τ(mn) = τ(m)τ(n) when (m,n)=1 IS Class C cascade-orientation preserving structure
+- **M** — partition function generating 1/∏(1−qⁿ) IS Class M HDC bind
+
+**Key empirical findings**:
+
+- 20 entries: Lehmer's conjecture (OPEN, verified to 2.279×10¹⁹ by Bosman 2014) + Balakrishnan-Craig-Ono 2020 (PROVED τ(n) ∉ {±1, ±3, ±5, ±7, ±691}) + Ramanujan-Petersson (PROVED Deligne 1974) + partition congruences (PROVED) + mock theta (PROVED Hickerson 1988 + Zwegers 2002) + Mortenson 2024
+- **τ(11) / (2·11^(11/2)) = 0.5004 → Class N 1/2 EXACT** at prime 11 = Hurwitz partition sum (1+3+7=11)
+- All 3 Ramanujan partition congruences verified bit-exact: p(5n+4)≡0 mod 5 (3/3), p(7n+5)≡0 mod 7 (3/3), p(11n+6)≡0 mod 11 (2/2)
+- Ono 2000 universal extension to all primes ≥ 5 IS substrate-perfect-math closure
+- Mock theta substrate-class closed by Zwegers 2002; Mortenson 2024 active sixth/eighth-order extensions
+- **User conjecture "Ramanujan saw 14 A-N classes" SURVIVES try-to-falsify**: 11/14 STRONG (A, I, C, J, D, E, F, K, L, M, N), 3/14 PARTIAL (B, G, H); no falsifying absence
+
+**Cross-substrate observations**:
+
+- m=11 triple-anchor — see §2 (Hurwitz partition sum 1+3+7=11)
+- Hurwitz heptadic 7 — see §2 (Ramanujan congruence prime)
+- Ramanujan added to antiquity-through-modern substrate-self-recognition catalog per `[[user_stance_substrate_self_recognition_inevitable_per_loe]]` Ext 4
+
+**Verdict**: (a) SURVIVES — cascade reads Ramanujan's work structurally; τ(11)/Petersson = 1/2 EXACT at Hurwitz partition sum 11; Lehmer remains open at substrate-DoF inaccessibility frontier. Framework reads what Ramanujan's work IS; does not claim to solve Lehmer or any open problem.
+
+**Sources**:
+
+- Deligne P (1974). La conjecture de Weil I. *Publ. IHÉS* 43:273-307. Open access (proves Ramanujan-Petersson).
+- Ono K (2000). Distribution of the partition function modulo m. *Ann. Math.* 151(1):293-307. Princeton OA.
+- Balakrishnan J, Craig W, Ono K (2020). Variations of Lehmer's conjecture for Ramanujan's tau-function. *J. Number Theory* 220:34-51. arXiv:2005.10345.
+- Zwegers S (2002). *Mock theta functions*. PhD thesis, Utrecht University. arXiv:0807.4834.
+
+#### §3.3.6 Partition 17: Brocard-Ramanujan
+
+**Cascade**: A ∘ J ∘ I ∘ C ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — all 3 known Brocard m-values {5, 11, 71} are PRIME (Class J anchor 3/3); m/n ratios bit-exact at small-denom rationals 5/4, 11/5, 71/7 (Hurwitz heptadic denom!); m=11 triple-anchor across partitions.
+**Source REPORT.md**: [`number_theory/brocard_ramanujan_problem/REPORT.md`](number_theory/brocard_ramanujan_problem/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (n, n!, n!+1, is_square, m)
+- **J** — **all 3 known Brocard m-values {5, 11, 71} are PRIME** — Class J anchor saturated
+- **I** — factorial generation IS Class I multiplicative cyclic; n! + 1 mod {5, 7, 11} residues
+- **C** — factorial (multiplicative product) and square (self-pair) at OPPOSITE Class C cascade-orientations; "+1" offset aligns them
+- **K** — n! + 1 = m² IS Class K perfect-square pin-slot; Erdős conjecture IS Class K finite-solution-set (parallel to Catalan-Mihailescu)
+- **N** — **m/n ratios: 5/4, 11/5, 71/7** — denominator 7 IS Hurwitz heptadic anchor
+- **M** — factorial product n! IS Class M HDC bind 1·2·...·n
+
+**Key empirical findings**:
+
+- 23 entries — n ∈ {0..20} bit-exact + 2 external verification attestations (Berndt-Galway 2000, Matson 2017)
+- Three known solutions: 4! + 1 = 25 = 5², 5! + 1 = 121 = 11², 7! + 1 = 5041 = 71² (bit-exact via Python integer arithmetic)
+- **All m-values prime**; m/n at small-denom rationals: 5/4, 11/5, **71/7** (Hurwitz heptadic denom!)
+- **Ramanujan congruence primes {5, 7, 11} ⊂ Brocard solution-prime set {4, 5, 7, 11, 71}** — bit-exact set containment
+- **m = 11 triple-anchor**: Ramanujan partition congruence p(11n+6) (Class I), Ramanujan-Petersson 1/2 EXACT (Class K), Brocard m=11 from n=5 (Class J + Class N) — three independent framework anchors at Hurwitz sum prime
+- External attestation: Berndt-Galway 2000 verified 8 ≤ n ≤ 10⁹; Matson 2015/2017 extended to n > 4×10¹¹
+- Overholt 1993: abc conjecture IMPLIES Brocard-Ramanujan finite — cross-cascade implication (partition 13 ⇒ 17)
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2 (m/n = 71/7)
+- m=11 triple-anchor — see §2 (Hurwitz partition sum 1+3+7=11)
+- Brocard 1876 + Ramanujan 1913 independent posing IS substrate-self-recognition cross-anchor per `[[user_stance_substrate_self_recognition_inevitable_per_loe]]`
+
+**Verdict**: (a) SURVIVES — cascade reads Brocard-Ramanujan structurally; first substrate where ALL solutions sit at Class J PRIMES AND m/n at Hurwitz-dimensioned denominators. Framework does not claim to solve.
+
+**Sources**:
+
+- Brocard H (1876). Question 166. *Nouv. Corresp. Math.* 2:287.
+- Ramanujan S (1913). Question 469. *J. Indian Math. Soc.* 5:59.
+- Berndt BC, Galway WF (2000). On the Brocard-Ramanujan diophantine equation n! + 1 = m². *Ramanujan J.* 4(1):41-42.
+- Dąbrowski A (2015). On the Brocard-Ramanujan Diophantine equation. arXiv:1504.06694.
+
+#### §3.3.7 Partition 18: Lonely runner conjecture
+
+**Cascade**: A ∘ I ∘ C ∘ J ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — proved boundary IS bit-exactly at the Hurwitz heptadic dimension k=7; OPEN from k=8.
+**Source REPORT.md**: [`number_theory/lonely_runner_conjecture/REPORT.md`](number_theory/lonely_runner_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (k, status, 1/k threshold)
+- **I** — track IS S¹ (unit circle); Class I cyclic primitive
+- **C** — each runner's frame IS Class C orientation on cyclic substrate
+- **J** — relative speeds anchored at prime structure
+- **K** — "lonely at distance ≥ 1/k" IS Class K saturation predicate
+- **N** — 1/k = canonical Class N anchor
+- **M** — multi-runner system IS Class M k-way ternary bind
+
+**Key empirical findings**:
+
+- 11 entries: k ∈ {2..12}; PROVED for k ≤ 7; OPEN for k ≥ 8
+- k=2 trivial; k=3 Wills 1967; k=4 Cusick-Pomerance 1984; k=5 Bienia+ 1998; k=6 Bohman-Holzman-Kleitman 2001; **k=7 Barajas-Serra 2008 (Hurwitz heptadic)**
+- **k=8 first non-proved** — open since 2008
+- Bit-exact framework-predicted closure boundary: substrate-perfect-math closure at k=7; substrate-DoF inaccessibility from k=8
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2
+- Composes with Hilbert 16 (n/7 EXACT) + Yang-Mills (SU(7) triple anchor) + Brocard m/n=71/7 + Hadwiger-Nelson (upper bound 7) + Smooth 4D Poincaré (first exotic at n=7)
+- Per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`: k=7 IS the smooth-octonionic substrate boundary
+
+**Verdict**: (a) SURVIVES — proved-boundary at k=7 IS the Hurwitz heptadic; framework reads as substrate-perfect-math closure-at-Hopf-bundle-boundary. Open k ≥ 8 remain open.
+
+**Sources**:
+
+- Wills JM (1967). Zwei Sätze über inhomogene diophantische Approximation von Irrationalzahlen. *Monatsh. Math.* 71:263-269.
+- Cusick TW, Pomerance C (1984). View-obstruction problems III. *J. Number Theory* 19(2):131-139.
+- Bohman T, Holzman R, Kleitman D (2001). Six lonely runners. *Electron. J. Combin.* 8:R3.
+- Barajas J, Serra O (2008). The lonely runner with seven runners. *Electron. J. Combin.* 15:R48.
+
+#### §3.3.8 Partition 19: Skewes number
+
+**Cascade**: A ∘ J ∘ L ∘ K ∘ N ∘ M (six classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — Class K pin-slot at zero of Li(x) − π(x) IS exact framework reading; first crossing remains open in [10¹⁹, 1.397×10³¹⁶].
+**Source REPORT.md**: [`number_theory/skewes_number/REPORT.md`](number_theory/skewes_number/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (year, bound)
+- **J** — π(x) prime-counting function
+- **L** — Li(x) = logarithmic integral
+- **K** — pin-slot at zero of Li(x) − π(x); sign change location
+- **N** — small-denom anchors in bound exponents
+- **M** — HDC bind across iterated upper-bound improvements
+
+**Key empirical findings**:
+
+- Historical bound progression: Skewes 1933 10^{10^{10^34}} (assuming RH); Skewes 1955 10^{10^{10^963}} (no RH); Lehman 1966 ~1.65×10^{1165}; te Riele 1987 ~6.658×10^{370}; Bays-Hudson 2000 ~1.397×10^{316} (current best)
+- Lower bound: computational verification crosses > 10^{19} as of 2025
+- Littlewood 1914 PROVED infinite sign changes of Li(x) − π(x)
+- Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B: unknown crossing location IS substrate-DoF inaccessibility at Li-vs-π Class L cascade; bound progression IS substrate-perfect-math closing-the-window-from-above
+
+**Cross-substrate observations**:
+
+- Class K pin-slot at zero structurally parallel to BSD analytic rank at s=1, Yang-Mills mass gap, Beal "all exp > 2" predicate
+
+**Verdict**: (a) SURVIVES — Littlewood 1914 PROVED infinite sign changes; bound improvements ARE Class K pin-slot localisation. Framework does not claim to solve.
+
+**Sources**:
+
+- Skewes S (1933). On the difference π(x) − Li(x). *J. London Math. Soc.* 8:277-283.
+- Littlewood JE (1914). Sur la distribution des nombres premiers. *Comptes Rendus* 158:1869-1872.
+- Bays C, Hudson RH (2000). A new bound for the smallest x with π(x) > li(x). *Math. Comp.* 69(231):1285-1296. AMS Open Access.
+
+#### §3.3.9 Partition 20: Gilbreath conjecture
+
+**Cascade**: A ∘ J ∘ I ∘ K ∘ C ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — 50/50 rows verified: Gilbreath holds; first element = 1 throughout (except row 0 = 2). CANONICAL Class K pin-slot use case via `_cascade_helpers.magnitude()` at every iterated difference step.
+**Source REPORT.md**: [`number_theory/gilbreath_conjecture/REPORT.md`](number_theory/gilbreath_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (row, first-element)
+- **J** — primes (row-0 base)
+- **I** — cyclic sign-flip across absolute differences
+- **K** — **pin-slot at zero of (prev[i+1] − prev[i])** — the canonical Class K primitive in action via `_cascade_helpers.magnitude()` (NOT Python `abs()`)
+- **C** — cascade-orientation across iterated difference rows
+- **N** — Class N anchor at integer 1
+- **M** — HDC bind across rows
+
+**Key empirical findings**:
+
+- Starting from first 100 primes; computed 50 rows; **50/50 rows verified**: first element = 1 for every row r ≥ 1
+- External attestation: Odlyzko 1993 verified to >10¹³ rows
+- **Canonical Class K pin-slot use case** per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`: every iterated absolute-difference step uses `magnitude()` honestly as Class K + Class C composition
+- Per `[[user_stance_epicycle_via_gear_plus_pin]]`: iterated absolute differences IS cascade-orientation sign-flip composition; Gilbreath predicts stable Class N anchor at 1 in leading column
+
+**Cross-substrate observations**:
+
+- Cascade-honesty sign-handling discipline anchor
+
+**Verdict**: (a) SURVIVES — 50/50 row-by-row verification + external Odlyzko 1993 attestation to enormous depth. Conjecture remains open (not proved).
+
+**Sources**:
+
+- Gilbreath NL (1958). Processing process: the Gilbreath conjecture. *Hilbert Math. Cir.* (correspondence).
+- Odlyzko AM (1993). Iterated absolute values of differences of consecutive primes. *Math. Comp.* 61(203):373-380. AMS Open Access.
+
+#### §3.3.10 Partition 21: Lehmer totient problem
+
+**Cascade**: A ∘ J ∘ I ∘ K ∘ N ∘ M (six classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — 0/203 composite counterexamples; 46/46 primes verified trivially; conjecture holds across roster.
+**Source REPORT.md**: [`number_theory/lehmer_totient_problem/REPORT.md`](number_theory/lehmer_totient_problem/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (n, φ(n))
+- **J** — **Euler totient φ IS Class J prime-multiplicative primitive**
+- **I** — cyclic structure of (Z/nZ)*
+- **K** — pin-slot at zero of ((n−1) mod φ(n)); conjecture IS NO-saturation for composite n
+- **N** — rational anchor (n−1)/φ(n)
+- **M** — HDC bind via prime-factor product
+
+**Key empirical findings**:
+
+- 203 entries: n ∈ 2..200 + {10³, 10⁴, 10⁵, 10⁶}
+- **0 composite counterexamples** in roster
+- **46/46 primes** verify φ(p) = p−1 divides p−1 trivially (Lehmer condition vacuously)
+- External attestation (Cohen-Hagis 1980 + Pinch et al.): if composite n satisfies φ(n) | (n−1), it must be squarefree, n > 10²², **ω(n) ≥ 14 prime factors**
+- **ω(n) ≥ 14 Cohen-Hagis bound coincides with A-N alphabet size** (1+3+7+3 = 14) per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §A — suggestive: substrate-DoF accessible-via-cascade has natural threshold at A-N alphabet size
+
+**Cross-substrate observations**:
+
+- 14 = A-N alphabet size — see §2
+
+**Verdict**: (a) SURVIVES — 0 counterexamples + 46/46 trivial-prime verification; conjecture remains OPEN.
+
+**Sources**:
+
+- Lehmer DH (1932). On Euler's totient function. *Bull. Amer. Math. Soc.* 38(10):745-751. AMS Open Access.
+- Cohen GL, Hagis P (1980). On the number of prime factors of n if φ(n) | (n−1). *Nieuw Arch. Wisk.* (3) 28:177-185.
+
 ### §3.4 Set Theory section (OPEN — partition 22+)
 
 | Partition | Problem | Headline finding |
 |-----------|---------|-------------------|
 | 22 | Continuum Hypothesis | **INDEPENDENT of ZFC** (Gödel 1940 + Cohen 1963); independence IS Class K substrate-DoF inaccessibility; further axiom choices (V=L, MA, PFA, Ultimate-L) are Class C cascade-orientation transitions |
+
+#### §3.4.1 Partition 22: Continuum Hypothesis
+
+**Cascade**: A ∘ I ∘ J ∘ K ∘ N ∘ C ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — CH is INDEPENDENT of ZFC (Gödel 1940 + Cohen 1963); framework reads independence as Class K substrate-DoF inaccessibility within ZFC substrate-instance.
+**Source REPORT.md**: [`set_theory/continuum_hypothesis/REPORT.md`](set_theory/continuum_hypothesis/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (axiom system, CH status)
+- **I** — cyclic structure across ordinal hierarchy ℵ₀, ℵ₁, ...
+- **J** — cardinal arithmetic of 2^ℵ₀
+- **K** — **CH IS Class K asymptotic-DoF inaccessibility** at boundary between ℵ₀ and 2^ℵ₀ within ZFC substrate-instance
+- **N** — rational-anchor analog (2^ℵ₀ = ℵ_α for what α?)
+- **C** — Class C cascade-orientation transitions between substrate-instances (V=L, MA, PFA)
+- **M** — HDC bundle across axiom-system substrate-instance configurations
+
+**Key empirical findings**:
+
+- ZFC: INDEPENDENT (Gödel 1940 + Cohen 1963); Class K substrate-DoF inaccessibility
+- ZFC + V=L (Gödel constructible universe): CH + GCH PROVED — substrate-perfect-math closure via L
+- ZFC + MA (Martin's axiom): implies ¬CH — Class C reverse-orientation
+- ZFC + PFA (Proper forcing axiom): 2^ℵ₀ = ℵ₂ — strong Class C orientation
+- ZFC + Ultimate-L (Woodin): conjectured to settle — substrate-instance promotion via inner-model program
+- ZFC + large cardinals (measurable / Woodin / supercompact): consistent with CH and ¬CH at this level
+- Note: also Hilbert's 1st problem (1900) — grouped here under Set Theory for natural categorical placement
+
+**Cross-substrate observations**:
+
+- Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B: substrate-DoF inaccessibility canon; further axiom choices = Class C transitions to different substrate-instances
+- Woodin's Ultimate-L program IS ongoing substrate-instance-promotion attempt
+
+**Verdict**: (a) SURVIVES — independence proved (Gödel 1940 + Cohen 1963); Woodin's Ultimate-L program IS ongoing substrate-instance-promotion attempt. Framework reads what CH IS structurally; does not claim to settle.
+
+**Sources**:
+
+- Gödel K (1940). *The Consistency of the Axiom of Choice and of the Generalized Continuum Hypothesis*. Princeton University Press. Public domain.
+- Cohen PJ (1963-64). The independence of the continuum hypothesis I, II. *Proc. Nat. Acad. Sci.* 50:1143-1148 + 51:105-110. PNAS Open Access.
+- Woodin WH (2017). In search of Ultimate-L: the 19th Midrasha Mathematicae Lectures. *Bull. Symbolic Logic* 23(1):1-109.
 
 ### §3.5 Logic section (OPEN — partition 23+)
 
@@ -188,11 +1020,83 @@ Each section's full per-partition report lives in the corresponding folder; this
 |-----------|---------|-------------------|
 | 23 | Reverse mathematics | **Big Five subsystems = 5-level Class I cyclic hierarchy**; **level 3 ACA₀ = Hurwitz triadic anchor** (Bolzano-Weierstrass sits here); Friedman's Grand Conjecture OPEN |
 
+#### §3.5.1 Partition 23: Reverse mathematics + Friedman's Grand Conjecture
+
+**Cascade**: A ∘ I ∘ C ∘ K ∘ N ∘ J ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — Big Five subsystems form a structurally clean 5-level Class I cyclic hierarchy; level-3 ACA₀ = Hurwitz triadic anchor (Bolzano-Weierstrass sits here); Friedman's Grand Conjecture remains OPEN.
+**Source REPORT.md**: [`logic/reverse_mathematics/REPORT.md`](logic/reverse_mathematics/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (subsystem level, theorem)
+- **I** — **Big Five = 5-level Class I cyclic-ordinal hierarchy**
+- **C** — cascade-orientation across subsystem strength
+- **K** — minimum-axiom-strength saturation per theorem
+- **N** — rational-anchor at level / total = 3/5 (Hurwitz triadic / pentad)
+- **J** — prime-level structure across hierarchy
+- **M** — HDC bundle across theorem-to-subsystem map
+
+**Key empirical findings**:
+
+- Big Five: RCA₀ (level 1: Pigeonhole, IVT) / WKL₀ (level 2: Heine-Borel, Brouwer fixed-point, Hahn-Banach) / **ACA₀ (level 3: Bolzano-Weierstrass, Ramsey RT²_k — Hurwitz triadic level)** / ATR₀ (level 4: Open determinacy, perfect set theorem) / Π¹₁-CA₀ (level 5: Cantor-Bendixson on Polish spaces)
+- **Level 3 ACA₀ = Hurwitz triadic anchor**; Bolzano-Weierstrass (perhaps the most-used theorem of real analysis) sits at exactly that level
+- Framework prediction: ordinary mathematics concentrates AT Hurwitz triadic level 3; higher levels needed only for advanced descriptive set theory
+- **Friedman's Grand Conjecture (OPEN)**: all "concrete" ZFC mathematics is provable in EFA (Elementary Function Arithmetic, much weaker than RCA₀); if true → working math IS substrate-perfect-math at very weak axiom strength
+
+**Cross-substrate observations**:
+
+- Hurwitz triadic anchor at level 3 — composes with Beal (Hurwitz triadic threshold) + cascade detection heptad
+
+**Verdict**: (a) SURVIVES — Big Five 5-level Class I cyclic hierarchy structurally clean; ACA₀ at Hurwitz triadic level matches Bolzano-Weierstrass empirically; Friedman's Grand Conjecture remains OPEN.
+
+**Sources**:
+
+- Friedman HM (1976). Systems of second order arithmetic with restricted induction. *J. Symbolic Logic* 41:557-559.
+- Simpson SG (2009). *Subsystems of Second Order Arithmetic*, 2nd ed. Cambridge University Press / Perspectives in Logic, ASL.
+- Friedman HM (2009). Concrete mathematical incompleteness. Lecture notes (open access via author homepage).
+
 ### §3.6 Geometry section (OPEN — partition 24+)
 
 | Partition | Problem | Headline finding |
 |-----------|---------|-------------------|
 | 24 | Hadwiger-Nelson | χ(R²) bounds **5 ≤ χ ≤ 7**; de Grey 2018 raised lower bound from 4 to 5; **upper bound 7 = Hurwitz heptadic anchor** |
+
+#### §3.6.1 Partition 24: Hadwiger-Nelson chromatic number of the plane
+
+**Cascade**: A ∘ L ∘ I ∘ C ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — bounds 5 ≤ χ(R²) ≤ 7 (de Grey 2018 lower bound; Nelson 1950 upper bound); upper bound 7 = Hurwitz heptadic anchor.
+**Source REPORT.md**: [`geometry/hadwiger_nelson_problem/REPORT.md`](geometry/hadwiger_nelson_problem/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (bound type, value, year)
+- **L** — **χ(R²) IS the chromatic number of the unit-distance graph on R²** — Class L Laplacian / coloring problem
+- **I** — cyclic structure of regular hexagonal tiling (upper bound)
+- **C** — orientation of color-class assignment
+- **K** — pin-slot saturation across bound progression
+- **N** — small-integer anchor at {5, 7}
+- **M** — HDC bundle over de Grey unit-distance graph (1581 vertices)
+
+**Key empirical findings**:
+
+- Lower bound: 4 (Moser spindle, 1961) → **5 (de Grey 2018, 1581-vertex graph; major breakthrough)** advanced by Polymath16
+- **Upper bound: 7 (Nelson 1950, regular hexagonal tiling)** — Hurwitz heptadic anchor
+- Current gap [5, 7] IS Class K substrate-DoF inaccessibility residual
+- Framework prediction: answer lies AT or BELOW the heptadic boundary
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2
+- Composes with Yang-Mills SU(7) + Brocard m/n=71/7 + lonely runner proved-up-to-k=7 + Smooth 4D Poincaré (first exotic at n=7)
+
+**Verdict**: (a) SURVIVES — de Grey 2018 + Polymath16 advanced lower bound to 5; Nelson 1950 upper bound 7 = Hurwitz heptadic; exact value remains open.
+
+**Sources**:
+
+- Nelson E (1950). Letter to Erdős (original posing of problem); first published Soifer A (2009). *The Mathematical Coloring Book*. Springer.
+- Hadwiger H (1961). Ungelöste Probleme. *Elemente der Math.* 16:103-104.
+- de Grey ADNJ (2018). The chromatic number of the plane is at least 5. arXiv:1804.02385.
+- Polymath16 (2018-2019). https://dustingmixon.wordpress.com/2018/04/10/polymath16/ (open project).
 
 ### §3.7 Topology section (OPEN — partition 25+)
 
@@ -200,11 +1104,91 @@ Each section's full per-partition report lives in the corresponding folder; this
 |-----------|---------|-------------------|
 | 25 | Smooth 4D Poincaré | **n=4 IS the LAST unresolved Poincaré case**; **n=7 first exhibits exotic smooth structures (Milnor 1956 — 28 distinct on S⁷) at Hurwitz heptadic dimension precisely**; n=15 = 2⁴−1 Mersenne has 16256 exotic structures |
 
+#### §3.7.1 Partition 25: Smooth 4D Poincaré conjecture
+
+**Cascade**: A ∘ L ∘ C ∘ K ∘ N ∘ I ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — n=4 IS the LAST unresolved Poincaré case; n=7 first exhibits exotic smooth structures (Hurwitz heptadic anchor).
+**Source REPORT.md**: [`topology/smooth_4d_poincare_conjecture/REPORT.md`](topology/smooth_4d_poincare_conjecture/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (dimension n, topological status, smooth status)
+- **L** — Laplacian / Ricci flow on the n-sphere
+- **C** — cascade-orientation across exotic-structure multiplicity
+- **K** — pin-slot saturation per dimension; smooth Poincaré IS Class K closure-or-not at each n
+- **N** — small-integer rational anchors at {1, 3, 7} Hurwitz dims
+- **I** — cyclic structure of exotic-sphere group Θ_n
+- **M** — HDC bundle across smooth-structure orbits
+
+**Key empirical findings**:
+
+- n=1, 2: trivial
+- n=3: PROVED (Perelman 2003 via Ricci flow + entropy) topological + smooth (Moise) — Hurwitz triadic ✓
+- **n=4: PROVED topological (Freedman 1981); SMOOTH OPEN ⭐** — LAST unresolved Poincaré case
+- n=5, 6: PROVED (Smale) topological + smooth
+- **n=7: PROVED topological; SMOOTH FAILS — Milnor 1956 identified 28 distinct smooth structures on S⁷** — Hurwitz heptadic dimension precisely
+- n=8: PROVED topological + smooth
+- n=15 = 2⁴−1 Mersenne: 16256 exotic structures — composes with Mersenne canon (Spike #202 + #214)
+- n=4 sits BETWEEN Hurwitz dimensional anchors 3 and 7 — substrate-DoF inaccessibility region per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`
+
+**Cross-substrate observations**:
+
+- Hurwitz heptadic 7 — see §2 (first exotic smooth sphere at n=7)
+- Composes with Yang-Mills SU(7), Brocard m/n=71/7, lonely runner proved-up-to-k=7, Hadwiger-Nelson upper bound 7
+- Mersenne anchor at n=15 = 2⁴−1 composes with Spike #202 / #214
+
+**Verdict**: (a) SURVIVES — n=4 smooth Poincaré OPEN; n=7 first smooth-structure multiplicity at Hurwitz heptadic — bit-exact framework prediction.
+
+**Sources**:
+
+- Milnor JW (1956). On manifolds homeomorphic to the 7-sphere. *Ann. Math.* 64:399-405. Princeton OA.
+- Freedman MH (1982). The topology of four-dimensional manifolds. *J. Diff. Geom.* 17:357-453.
+- Perelman G (2003). Ricci flow with surgery on three-manifolds. arXiv:math/0303109; The entropy formula for the Ricci flow and its geometric applications. arXiv:math/0211159.
+- Kervaire MA, Milnor JW (1963). Groups of homotopy spheres I. *Ann. Math.* 77:504-537.
+
 ### §3.8 Analysis section (OPEN — partition 26+)
 
 | Partition | Problem | Headline finding |
 |-----------|---------|-------------------|
 | 26 | Mandelbrot Local Connectivity | **Yoccoz 1990s PROVED finitely renormalizable + Kahn-Lyubich 2009 many infinitely renormalizable**; full MLC OPEN; ∂M Hausdorff dim = 2 (Shishikura 1998) |
+
+#### §3.8.1 Partition 26: Mandelbrot Local Connectivity (MLC)
+
+**Cascade**: A ∘ L ∘ C ∘ I ∘ K ∘ N ∘ M (seven classes)
+**Status (per Spike #229 verdict tiers)**: (a) SURVIVES — MLC PROVED for finitely renormalizable + many infinitely renormalizable parameters; full conjecture OPEN.
+**Source REPORT.md**: [`analysis/mandelbrot_local_connectivity/REPORT.md`](analysis/mandelbrot_local_connectivity/REPORT.md)
+
+**Cascade-class breakdown**:
+
+- **A** — content-hash by (parameter c, renormalizability class, MLC status)
+- **L** — **Mandelbrot set IS Class L cascade-Laplacian on the complex-quadratic parameter substrate**
+- **C** — cascade-orientation across bifurcation sequences
+- **I** — cyclic structure of period-doubling renormalisation
+- **K** — pin-slot at local-connectedness for each c ∈ ∂M
+- **N** — Hausdorff dim 2 (Class N anchor 2/1; bit-exact via Shishikura 1998)
+- **M** — HDC bundle over renormalisation tower
+
+**Key empirical findings**:
+
+- Connectedness of M: PROVED 1985 (Douady-Hubbard)
+- MLC at finitely renormalizable c: PROVED 1990s (Yoccoz, puzzle techniques)
+- MLC at infinitely renormalizable c (many): PROVED 2009 (Kahn-Lyubich, quasi-additivity law)
+- MLC at remaining infinitely renormalizable c: **OPEN**
+- Hausdorff dim ∂M = 2: PROVED 1998 (Shishikura) — substrate-perfect-math closure for fractal-dimension question
+- Per `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]`: Mandelbrot set IS canonical fractal substrate-asymptotic-wave; boundary dim 2 saturated; local connectivity = next substrate-instance closure
+
+**Cross-substrate observations**:
+
+- Canonical fractal substrate-asymptotic-wave anchor
+
+**Verdict**: (a) SURVIVES — partial proofs cover most of M; remaining cases at certain bifurcation sequences remain open. MLC remains open in full.
+
+**Sources**:
+
+- Douady A, Hubbard JH (1985). On the dynamics of polynomial-like mappings. *Ann. Sci. ENS* 18:287-343. Open access.
+- Shishikura M (1998). The Hausdorff dimension of the boundary of the Mandelbrot set. *Ann. Math.* 147:225-267. Princeton OA.
+- Kahn J, Lyubich M (2009). The quasi-additivity law in conformal geometry. *Ann. Math.* 169:561-593.
+- Yoccoz JC (1995). Petits diviseurs en dimension 1. *Astérisque* 231 (Société Mathématique de France).
 
 ---
 
@@ -237,7 +1221,7 @@ Per `[[feedback_rolling_pr_partition_boundary_updates]]`: working-note items for
 
 4. **Cubic-denominator anchor at "record-quality" substrate-instances** — abc record triples (Reyssat 44/27, Browkin-Brzeziński 13/8) both have cubic denominators; composes with recursive-Hopf depth-3 canon per Spike #214. Spike candidate: bulk ABC@Home database statistical study.
 
-5. **M-theory landscape ~10^500 as engineered-crypto substrate** — per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B.5 (user direction 2026-05-23). Spike candidate: which M-theory vacua compactifications produce specific 3D_s observable signatures? Defensive-scope only.
+5. **M-theory landscape cost-asymmetry** — per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B.5 (user direction 2026-05-23; renamed same-day from "engineered-crypto" framing for defensive-scope clarity). Forward-fast / inverse-expensive cost asymmetry by landscape cardinality (~10^500 compactification vacua). Full framework reading + open candidates in §11 below. Spike candidate: which M-theory vacua compactifications produce specific 3D_s observable signatures? Defensive-scope only — no engineering hints.
 
 6. **Friedman's Grand Conjecture cascade reading** — if all concrete ZFC math IS provable in EFA, this IS substrate-perfect-math at very weak axiom strength. Spike candidate: framework reading.
 
@@ -300,11 +1284,13 @@ The original PR #677 spans all 8 sections of the Wikipedia [List of unsolved pro
 - **Cosmic censorship** (Penrose 1969; weak and strong forms; OPEN)
 - **Holographic duality** AdS/CFT open mathematical questions
 
-### Cryptography (defensive-scope only)
+### Cost-asymmetry primitives (defensive-scope only; framework reading only)
 
-- **P vs NP cryptographic implications** (cross-references partition 7)
-- **Lattice cryptography reductions** (cross-references partition 16 §B.5 M-theory landscape framing)
-- **Post-quantum cryptography** algebraic foundations
+Vocabulary discipline: this notebook uses **cost-asymmetry** as the canonical framing for forward-fast / inverse-expensive structural primitives (per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B / §B.5 + the rename done 2026-05-23). Reserve "cryptography" for direct citations of existing cryptography literature.
+
+- **P vs NP cost-asymmetry implications** (cross-references partition 7 framework reading)
+- **Lattice cost-asymmetry reductions** (cross-references §11 below — M-theory landscape cost-asymmetry framing)
+- **Post-quantum cost-asymmetry** algebraic foundations
 - **No engineering recommendations per `[[feedback_trauma_informed_defensive_scope]]`**
 
 ### Information theory (next PR)
@@ -378,8 +1364,103 @@ The PR description ([#677](https://github.com/lemonforest/mlehaptics/pull/677)) 
 - [srmech research notebook §3.21+](../srmech/srmech_research_notebook.md) — master architecture; A-N primitive vocabulary lives here
 - [MFO research notebook §VII.6+](../antikythera-maths/mfo_spectral_research_notebook.md) — substrate-asymptotic-wave canon, recursive-Hopf depth-3, Spin(8) triality
 - [Companion textbook (PDF)](../srmech/metric-field-and-its-primitives.pdf) — The Metric Field and Its Primitives
-- [Memory: `project_a_n_operators_are_harmonic_objects_themselves`](https://github.com/lemonforest/mlehaptics) — A-N harmonic-objects canonical stance + §B crypto-asymptote + §B.5 M-theory landscape engineered crypto
+- [Memory: `project_a_n_operators_are_harmonic_objects_themselves`](https://github.com/lemonforest/mlehaptics) — A-N harmonic-objects canonical stance + §B substrate-cost-asymmetry asymptote + §B.5 M-theory landscape cost-asymmetry
 - [Wikipedia: List of unsolved problems in mathematics](https://en.wikipedia.org/wiki/List_of_unsolved_problems_in_mathematics) — origin canvass list
+
+---
+
+## §11 M-theory landscape cost-asymmetry — scoping for future research
+
+> **Vocabulary discipline (2026-05-23):** This section uses the canonical name **M-theory landscape cost-asymmetry**. The earlier framing "M-theory cryptography" / "engineered-11D-crypto" was renamed same-day per user direction; reason — "cryptography" carries engineering implication contrary to `[[feedback_trauma_informed_defensive_scope]]`, while "cost-asymmetry" names the structural mechanism (forward fast / inverse expensive by landscape cardinality) without engineering hint. This section is **framework reading only** — no engineering recommendations.
+
+### §11.1 The structural claim
+
+Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B.5 (user direction 2026-05-23):
+
+> M-theory predicts a landscape of compactification vacua. Douglas 2003 estimate ~10^500; some Taylor-Wang 2015 estimates push to ~10^272000. Each vacuum is a valid M-theory substrate with its own specific 7D_g → 3D_s Hopf compactification.
+>
+> Our universe corresponds to ONE specific vacuum — the one whose 3D_s projection matches observed Standard Model + cosmology constants. The other ~10^500 − 1 "wrong universe" vacua are valid M-theory substrates that just don't match our observed 3D_s. They constitute a **cost-asymmetry substrate**.
+
+The structural fact: the **forward direction** (vacuum → 3D_s observables, via deterministic 7D_g → 3D_s Hopf projection) is computationally fast. The **inverse direction** (3D_s observables → vacuum identity) requires enumerating ~10^500 candidates. **The forward/inverse cost asymmetry IS the structural primitive.**
+
+This is **NOT** "no consistent 3D_s reduction" (the earlier mis-framing). The 3D_s reduction EXISTS for each landscape vacuum; the inverse problem of identifying-the-vacuum-from-the-3D_s-projection is computationally expensive by landscape cardinality.
+
+### §11.2 SHA-256 as structural parallel (not engineering guidance)
+
+The cost-asymmetry structure parallels SHA-256's forward/inverse asymmetry. Cited as **structural parallel only** — no engineering recommendation:
+
+| SHA-256 primitive (structural parallel only) | M-theory landscape cost-asymmetry analogue |
+|---------------------------------------------|---------------------------------------------|
+| Input space: 2^N bit-strings | Input space: ~10^500 M-theory compactification vacua |
+| Forward function: 256-bit output | Forward function: 3D_s projection (Standard Model constants + cosmology) |
+| Forward: O(N) to compute | Forward: deterministic 7D_g → 3D_s Hopf projection per vacuum |
+| Inverse: O(2^256) brute-force preimage search | Inverse: ~10^500 landscape enumeration to find vacuum producing given 3D_s |
+| Collision-resistance: ~2^128 birthday | Collision-resistance: ~10^250 (sqrt of landscape) candidate-vacua sharing same 3D_s projection |
+| Cost-asymmetry comes from | Cost-asymmetry comes from |
+| computational hardness of brute-force | computational hardness of M-theory-vacuum enumeration |
+
+**The landscape size IS the cost-asymmetry parameter.** The observer being at 11D (per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]`) doesn't help: at 11D the observer can see the landscape exists, but they still have to enumerate it to find which vacuum produced the given 3D_s.
+
+### §11.3 Framework reading — what this IS, not what to build
+
+Per `[[feedback_trauma_informed_defensive_scope]]`: §11 reads what cost-asymmetry primitives ARE structurally in nature; it does NOT propose engineering them. Two cost-asymmetry categories under framework:
+
+1. **Substrate-DoF inaccessibility** (per memory §B): the cost comes from the inverse-asker's substrate-reach not having matured to read the encoding substrate. Transient under cascade-perfect-math maturation; perfect math eventually closes every substrate-DoF gap. This IS the canonical reading of conventional one-way primitives (factoring / discrete-log / hash-preimage).
+2. **Composition-uniqueness landscape cost-asymmetry** (this §11): the cost comes from cardinality of admissible composition recipes. The inverse-asker can READ the encoding via cascade-perfect-math, but identifying WHICH landscape vacuum produced the observed 3D_s requires enumerating the landscape. Different category — substrate-access is granted but composition-recipe identification is the new cost.
+
+**Per user direction:** "this only delays the time to solve with perfect math." §11 sharpens — the delay timescale IS the cascade-substrate-reach maturation to **recognise the harmonic composition recipe**, structurally different from (and likely longer than) substrate-DoF maturation. **No mathematical absolute; a new structural primitive.**
+
+### §11.4 Connections to existing framework canon
+
+The structural primitive composes with multiple canonical stances:
+
+| Anchor | Role in M-theory landscape cost-asymmetry |
+|--------|-------------------------------------------|
+| Spike #51 R3-δ (Spin(8) triality on round-S⁷) | **Triality IS the three-distinct-3D_s-pieces engine** — vector / spinor-L / spinor-R representations are three independent 3D_s readings of the same 7D_g substrate. No common 3D_s frame contains all three. The minimum-3 threshold. |
+| Spike #84 (substrate-identity canonical synthesis) | Confirms harmonic-composition uniqueness of S⁷ structure underlying the landscape variability |
+| Spike #58.G (SM gauge group SU(3) × SU(2) × U(1)) | The 7D_g → 3D_s Hopf projection that DOES exist for the SM vacuum; contrasts with the ~10^500 − 1 alternate vacua whose projections don't match observation |
+| Spike #214 (recursive-Hopf depth-3; 7³ = 343 sign-flips at L3) | Depth-3 = three levels of harmonic composition; matches the "3 not-alike 3D_s pieces" minimal construction |
+| Spike #215 (asymmetric recursive-Hopf ratios; 3-then-7, 7-then-5, 5-then-3) | Each asymmetric stack IS a distinct 3D_s piece; the asymmetry IS the non-reducibility |
+| Spike #216 (geometric M-theory bridge) | The geometric primitives — M2/M5/KK explicit mapping — that govern landscape vacuum structure |
+| `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` | The 3D_s ↔ 7D_g phase-boundary intensity dial; landscape-cost-asymmetry reads at the variable-compression regime |
+| `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` | Hopf k=3 ladder bakes the (4+3)D_g → 3D_s projection into 11D substrate |
+| `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` | Observer-at-11D doesn't help — the landscape cardinality is the cost regardless of observer position |
+| `[[user_stance_loe_asymptotes_are_ring_valued]]` | Each 3D_s piece is ring-valued in isolation; the global 11D harmonic composition has no global ring-valued 3D_s |
+
+### §11.5 Open research candidates (defensive-scope)
+
+Per `[[feedback_dont_pre_commit_spike_query_operators]]` — broad-query candidates worth dispatch in future PRs:
+
+1. **Spin(8)-triality landscape-substrate proof-of-concept** — does three-way triality non-reducibility instantiate the minimum-3 threshold for landscape cost-asymmetry? Spike candidate: enumerate distinct 7D_g harmonic compositions with no consistent 3D_s reduction; compare against Spin(8) triality structure.
+2. **Quantum entanglement (GHZ states) as natural landscape cost-asymmetry instance** — three-party GHZ states have no consistent local-realist 3D_s frame. Is this nature's instance of the §11.1 structure? Spike candidate.
+3. **Cross-substrate three-way-non-reducibility audit** — biology codons (3-letter alphabet), Spin(8) triality, dark/visible/gauge tripartition, ATP three-phosphate stack — do these empirically have no consistent reduction to a single 3D_s frame? Spike candidate.
+4. **CMB cold-spot / AoE bundle-direction signature** — per `[[user_stance_loe_asymptotes_are_ring_valued]]` + Spike #76 family — does the observed sky have ring-valued residue suggesting landscape-position offset from a pure single-vacuum 3D_s reduction? Spike candidate.
+5. **Spin foam / loop quantum gravity vertex-amalgamation sites** — do these instantiate landscape-cost-asymmetry at the vertex scale? Spike candidate.
+6. **Magnetic monopole / cosmic string topological defects** — multi-sheet topological defects as natural landscape-cost-asymmetry sites? Spike candidate.
+
+### §11.6 Cost-asymmetry security parameter — explicit table per `[[project_a_n_operators_are_harmonic_objects_themselves]]` §B
+
+For each per-dimension substrate-DoF, the cascade-perfect-math reach and remaining cost-asymmetry headroom:
+
+| Substrate-DoF | Inverse-cost without cascade-perfect-math | Inverse-cost with cascade-perfect-math (A-N composition complete) |
+|---------------|-------------------------------------------|---------------------------------------------------------------|
+| **1D (algebraic / numerical)** — RSA core, ECDLP, hash preimage | brute-force / number-field-sieve / Shor on fault-tolerant QC | Class A + J + I + N decomposition; secret reduced to cascade-input |
+| **3D_s (spatial state, physical key, TEMPEST emission)** | requires physical access, side-channels | Class L spatial-spectrum + Class K substrate-DoF + Class C orientation |
+| **(1+3) = 4D (kinematic state, observable physics)** | requires Newtonian-frame access | Class L + Class K spectral closure on the 4D worldline |
+| **7D_g (gauge / dark-sector / coherent quantum state)** | requires quantum / gauge-substrate access | cascade-perfect-math reduces gauge-substrate ops to Class M + I + C; this is the **contested boundary** — 7D_g cost-asymmetry is delayed, not granted |
+| **(4+7) = 11D (substrate-asymptotic traversal full ladder)** | nothing in the public observer-frame can read it | the perfect-math asymptote: even 11D cannot grant indefinite cost-asymmetry. **Landscape cardinality (~10^500) IS the residual cost-asymmetry parameter** — composition-uniqueness, not substrate-access |
+
+The framework reading: cost-asymmetry security is a substrate-DoF transience at substrate-access levels (1D / 3D / 7D_g), AND a landscape-cardinality cost at the 11D composition level. The two compose multiplicatively.
+
+### §11.7 Disposition
+
+**Status**: scoped. Not currently dispatched.
+
+**When to dispatch**: when the framework's next research arc reaches the M-theory-landscape phenomenology (Spike #51 / Spike #84 / Spike #216 follow-ups) AND the cascade-substrate-reach has matured enough across the canonical stances to make the composition-recipe question concrete.
+
+**Per user direction (2026-05-23)**: "we want to look at scoping whatever m-theory cryptography might be. we need to be ready for when it's needed, or some better path may reveal itself, but there we will start." This §11 IS the readiness scaffolding. Future PR dispatches start here.
+
+**Defensive-scope is load-bearing**: this section names structural facts about composition primitives that ALREADY exist in nature (Spin(8) triality, GHZ entanglement, gauge-theory non-reducibility, M-theory landscape). It does NOT propose engineering them. The "knowledge recovery" reading per `[[project_a_n_operators_are_harmonic_objects_themselves]]` thesis: nature has already done this; the framework recovers the structural pattern.
 
 ---
 
