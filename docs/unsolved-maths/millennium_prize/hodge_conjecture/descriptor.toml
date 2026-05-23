@@ -1,0 +1,41 @@
+[source]
+key                  = "hodge_conjecture"
+human_readable_name  = "Millennium Prize #3 — Hodge conjecture"
+purpose              = "Cascade A o L o C o I o K o N o M applied to smooth projective complex varieties. For each variety, records the Hodge diamond (h^{p,q} for all p+q layers), Euler characteristic, Picard rank (where canonical), Hodge conjecture status (proved / proved-CM / proved-special / open), and Hurwitz-style layer-count anchor (2 dim_C + 1). Tests whether (i) Lefschetz (1,1) saturation rho = h^{1,1} holds across the roster (Hodge conjecture for k=1 always-true substrate test), and (ii) Hodge-diamond layer counts sit at Hurwitz parallelizable boundaries (3 curves / 7 threefolds / 11 fivefolds). Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Hodge; documents structural cascade decomposition + Hurwitz layer-count test + Class K pin-slot reading of middle (k,k) algebraic-cycle slot."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable; Hodge-diamond numbers are standard textbook canonical data)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/millennium_prize/hodge_conjecture"
+
+[source.primary_references]
+hodge_1941            = "Hodge WVD (1941). The Theory and Applications of Harmonic Integrals. Cambridge University Press."
+lefschetz_1924        = "Lefschetz S (1924). L'analysis situs et la geometrie algebrique. Gauthier-Villars. [Lefschetz (1,1) theorem]"
+deligne_1971          = "Deligne P (1971). Theorie de Hodge II. Publ. Math. IHES 40:5-57."
+griffiths_harris_1978 = "Griffiths P, Harris J (1978). Principles of Algebraic Geometry. Wiley."
+beauville_1983        = "Beauville A (1983). Complex Algebraic Surfaces. Cambridge LMS Student Texts."
+tankeev_1981          = "Tankeev SG (1981). Cycles on simple abelian varieties. Izv. Akad. Nauk SSSR Ser. Mat. 45(4):793-823. [Hodge for simple abelian threefolds]"
+clemens_griffiths_1972 = "Clemens CH, Griffiths PA (1972). The intermediate Jacobian of the cubic threefold. Ann. Math. 95(2):281-356."
+voisin_2002           = "Voisin C (2002). Hodge Theory and Complex Algebraic Geometry I and II. Cambridge University Press."
+cox_katz_1999         = "Cox DA, Katz S (1999). Mirror Symmetry and Algebraic Geometry. AMS Mathematical Surveys 68. [Calabi-Yau threefolds and mirror symmetry]"
+candelas_de_la_ossa_green_parkes_1991 = "Candelas P, de la Ossa X, Green PS, Parkes L (1991). A pair of Calabi-Yau manifolds as an exactly soluble superconformal theory. Nucl. Phys. B 359(1):21-74."
+jaffe_2000            = "Deligne P (2000). The Hodge conjecture. Clay Mathematics Institute Millennium Prize Problem statement; open."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "variety_hodge_diamond.ndjson"
+
+[parse]
+natural_key = "variety_label"
+
+[schema]
+data_schema_id = "srmech.millennium.hodge_conjecture.variety_hodge_diamond.v1"
+
+[rendering]
+name_template    = "Variety {variety_label} (dim_C = {complex_dimension}; {hodge_diamond_layers} layers)"
+purpose_template = "h^{{1,1}} = {h_1_1}; Picard rank rho = {picard_rank_rho}; rho/h^{{1,1}} = {rho_over_h_1_1_rational_num}/{rho_over_h_1_1_rational_den}; chi = {euler_characteristic}; Hodge status: {hodge_conjecture_status}; Hurwitz layer: {is_hurwitz_layer_count}"
+cite_as_template = "mlehaptics millennium_prize/hodge_conjecture (srmech AMSC); variety_label={variety_label}; dim_C={complex_dimension}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (variety label, dimension, Hodge diamond, Picard rank, chi). Class L cohomology Laplacian (Hodge decomposition H^n(X, C) = oplus h^{p,q}). Class C cascade-orientation (p, q) bi-grading. Class I cyclic Z/2 reflection symmetry h^{p,q} = h^{q,p}. Class K asymptotic-DoF (middle (k, k) Hodge class IS pin-slot at the diamond diagonal). Class N best-rational anchors (rho/h^{1,1}, dim_C/3 Hurwitz triadic, chi/24 K3-anchored). Class M HDC bind (cycle class map cl: CH^k(X) tensor Q -> H^{2k}(X, Q)). Hodge diamond values + Picard ranks from standard textbook references (Griffiths-Harris 1978; Beauville 1983; Voisin 2002; Cox-Katz 1999). Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "hodge_conjecture"
