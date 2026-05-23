@@ -1,0 +1,36 @@
+[source]
+key                  = "hilbert_12_kronecker_jugendtraum"
+human_readable_name  = "Hilbert's 12th / Kronecker's Jugendtraum Cascade"
+purpose              = "Cascade A o I o J o N o L searching for explicit-generator cascade-shape of abelian extensions of number fields. Calibrates against KNOWN cases (Q via Kronecker-Weber and roots of unity; class-number-1 imaginary quadratic Q(sqrt(d)) via singular moduli of the j-invariant) and records cascade signature for each. The cascade is what abelian-extension structure looks like under the 14-class A-N vocabulary; the open part of the Jugendtraum is to find the substrate-class-instance of L for general number fields. Per [[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]: abelian Galois groups are Hopf-bundle compressions of larger non-abelian structures."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_12_kronecker_jugendtraum"
+
+[source.primary_references]
+weber_1886       = "Weber H (1886). Theorie der Abelschen Zahlkoerper. Acta Mathematica 8:193-263. Public domain."
+kronecker_1853   = "Kronecker L (1853). Ueber die algebraisch aufloesbaren Gleichungen. Berliner Akademieberichte. Public domain."
+hilbert_1900     = "Hilbert D (1900). Mathematische Probleme. Goettinger Nachrichten 1900:253-297. English translation in Bull. AMS 8:437-479 (1902). Public domain."
+serre_1972       = "Serre JP (1972). A course in arithmetic. Springer GTM 7. Open-access reissues in print."
+silverman_1986   = "Silverman JH (1986). The arithmetic of elliptic curves. Springer GTM 106 — for singular moduli of class-number-1 fields."
+stark_1971_1980  = "Stark HM (1971, 1975, 1976, 1980). L-functions at s=1, parts I-IV. Adv. Math."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "field_extension.ndjson"
+
+[parse]
+natural_key = "field_label"
+
+[schema]
+data_schema_id = "srmech.hilbert.kronecker_jugendtraum.field_extension.v1"
+
+[rendering]
+name_template    = "Field {field_label} (conductor {conductor})"
+purpose_template = "Galois group {galois_group_structure}; known generator kind {known_generator_kind}; Class L Fiedler {cayley_laplacian_fiedler}"
+cite_as_template = "mlehaptics hilbert_12_kronecker_jugendtraum (srmech AMSC); field={field_label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash, Class I cyclic structure of (Z/nZ)* via elementary divisors, Class J prime factorisation, Class N best-rational approximation of cos(2*pi/n) and sin(2*pi/n), Class L Cayley graph Laplacian of (Z/nZ)* with generators. Imaginary quadratic class-number-1 cases recorded with class group trivial; singular moduli noted in field_label but not computed (j-invariant evaluation is classical, classical integer values e.g. j(i)=1728, j(omega)=0, j((1+sqrt(-7))/2)=-3375)."
+
+[gap_targeting]
+gap_label = "kronecker_jugendtraum"

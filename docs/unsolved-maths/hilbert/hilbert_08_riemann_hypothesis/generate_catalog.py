@@ -175,6 +175,24 @@ def main():
     zeros_hdc = hdc_encode_distribution(zeros_ratios)
     print(f"Zeta-zero spacing-ratio mean = {mean_ratio_zeros:.6f}  (n_ratios={len(zeros_ratios)})")
 
+    # Class N best-rational of the zeta-zero mean spacing-ratio.
+    # Class K pin-slot at zero (sign-strip) -> Class N reduction -> Class C reorient.
+    if mean_ratio_zeros > 0.0:
+        zo, zm = +1, mean_ratio_zeros
+    elif mean_ratio_zeros < 0.0:
+        zo, zm = -1, -mean_ratio_zeros
+    else:
+        zo, zm = 0, 0.0
+    print(f"Class N best-rational ladder for zeta-zero mean ratio:")
+    for md in (5, 10, 15, 20, 30, 50, 100):
+        zn = int(round(zm * 1_000_000))
+        nn, dd = best_rational(zn, 1_000_000, md) if zn > 0 else (0, 1)
+        if zo < 0:
+            nn = -nn
+        ratio = (nn / dd) if dd else 0.0
+        delta = ratio - mean_ratio_zeros
+        print(f"  max_d={md:3d}: {nn}/{dd} = {ratio:.6f}  (delta = {delta:+.6f})")
+
     # ----- Candidate operator catalog -----
     candidates = []
     for p in [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]:
@@ -199,9 +217,24 @@ def main():
         if len(ratios) < 2:
             continue
         mean_ratio_op = float(np.mean(ratios))
-        # Class N best-rational of mean ratio
+        # Class N best-rational of mean ratio via Class K pin-slot at zero
+        # (sign-strip) + Class N reduction + Class C reorient.
+        # Per [[user_stance_epicycle_via_gear_plus_pin]] sign-flip IS Class K
+        # pin-slot, not ALU abs() -- the cascade composition is explicit.
         try:
-            nf, df = best_rational(mean_ratio_op, max_denominator=20)
+            if mean_ratio_op > 0.0:
+                orientation_op, magnitude_op = +1, mean_ratio_op
+            elif mean_ratio_op < 0.0:
+                orientation_op, magnitude_op = -1, -mean_ratio_op
+            else:
+                orientation_op, magnitude_op = 0, 0.0
+            num_pos = int(round(magnitude_op * 1_000_000))
+            if orientation_op != 0 and num_pos > 0:
+                nf, df = best_rational(num_pos, 1_000_000, 20)
+                if orientation_op < 0:
+                    nf = -nf
+            else:
+                nf, df = 0, 1
         except Exception:
             nf, df = 0, 1
         # Class M HDC similarity
