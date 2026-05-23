@@ -1,0 +1,40 @@
+[source]
+key                  = "abc_conjecture"
+human_readable_name  = "abc conjecture (Oesterlé-Masser 1985)"
+purpose              = "Cascade A o J o L o K o N o C o M applied to 15 attested abc triples (small baselines + Catalan-like + Reyssat 1986 record q=1.6299 + Browkin-Brzezinski 1994 q=1.6260 + polynomial Mason-Stothers PROVED substrate + Mochizuki IUT defensive-scope-only registration). Tests (i) Class K pin-slot saturation at q=1 (how many triples cross), (ii) Class N anchor for record-quality q (Reyssat 44/27 with denominator 27 = 3^3 Hurwitz heptadic depth-3 anchor per Spike #214; Browkin-Brzezinski 13/8 with denominator 2^3), and (iii) substrate-orientation contrast: integer substrate has finite exceptions (open) while polynomial substrate Mason-Stothers 1981 PROVED has zero exceptions — Class C cascade-orientation differs between Z and Q[t] substrates. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve abc; framework reads what abc IS structurally + the substrate-orientation difference. Mochizuki IUT 2012 status is defensive-scope only — framework does not assess validity."
+license              = "CC0 (self-computed quality factors q from coprime triples; record-quality triples are textbook canonical data from Reyssat 1986, Browkin-Brzezinski 1994, ABC@Home database)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/abc_conjecture"
+
+[source.primary_references]
+mason_1981            = "Mason RC (1981). On a + b = c. Diophantine Equations. Cambridge University Press. [Mason's theorem for polynomials, 1981]"
+stothers_1981         = "Stothers WW (1981). Polynomial identities and Hauptmoduln. Quart. J. Math. Oxford 32(127):349-370. [Independent polynomial proof]"
+masser_1985           = "Masser DW (1985). Open problems. Proc. Symp. Analytic Number Theory, Imperial College London."
+oesterle_1988         = "Oesterlé J (1988). Nouvelles approches du théorème de Fermat. Séminaire Bourbaki 694. Astérisque 161-162:165-186. [Joint origination of abc conjecture]"
+reyssat_1986          = "Reyssat E (1986). Approximation numérique de certaines constantes. [Quality record q=1.6299 triple 2+3^10*109=23^5]"
+browkin_brzezinski_1994 = "Browkin J, Brzeziński J (1994). Some remarks on the abc-conjecture. Mathematics of Computation 62(206):931-939."
+granville_tucker_2002 = "Granville A, Tucker TJ (2002). It's as easy as abc. Notices of the AMS 49(10):1224-1231. [Survey OA]"
+mihailescu_2004       = "Mihailescu P (2004). Primary cyclotomic units and a proof of Catalan's conjecture. J. Reine Angew. Math. 572:167-195. [Catalan resolved to 9-8=1]"
+mochizuki_2012        = "Mochizuki S (2012-2020). Inter-universal Teichmüller theory I-IV. RIMS preprints; published Publ. RIMS 57(1-4) 2021. [Claimed proof; widely disputed (Scholze-Stix 2018); framework does not assess]"
+abc_at_home           = "ABC@Home distributed computing project. http://abcathome.com (now archived). Found tens of thousands of triples with c < 10^18"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "triple.ndjson"
+
+[parse]
+natural_key = "label"
+
+[schema]
+data_schema_id = "srmech.number_theory.abc_conjecture.triple.v1"
+
+[rendering]
+name_template    = "abc triple {label} (a={a}, b={b}, c={c})"
+purpose_template = "rad(abc) = {rad_abc}; quality q = log(c)/log(rad(abc)) = {q_rational_num}/{q_rational_den}; crosses pin-slot q>1: {crosses_class_k_pin_slot}; high quality q>1.4: {high_quality_q_gt_1p4}"
+cite_as_template = "mlehaptics number_theory/abc_conjecture (srmech AMSC); label={label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (a, b, c). Class J primes via radical rad(n) = product of distinct prime factors (computed bit-exactly by trial division). Class I cyclic GCD for coprimality check. Class L composition of multiplicative-additive structure of triple. Class K asymptotic-DoF (pin-slot at q=1 from above; conjecture = only finitely many triples exceed q > 1+epsilon for any epsilon > 0). Class N best-rational of q = log(c)/log(rad(abc)). Class C cascade-orientation contrast between integer (Z) substrate (has exceptions; open) and polynomial (Q[t]) substrate (Mason-Stothers 1981 PROVED no exceptions). Class M HDC bind across triple structure. Quality q computed via Python math.log followed by Class N best-rational per cascade-honesty contract; integer arithmetic for rad. Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "abc_conjecture"
