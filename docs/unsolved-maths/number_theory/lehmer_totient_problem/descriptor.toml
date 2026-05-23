@@ -1,0 +1,34 @@
+[source]
+key                  = "lehmer_totient_problem"
+human_readable_name  = "Lehmer's totient problem"
+purpose              = "Cascade A o J o I o K o N o M applied to 203 entries (n in 2..200 + selected n in {10^3, 10^4, 10^5, 10^6}). Lehmer 1932 asked: does there exist a COMPOSITE n with phi(n) | (n - 1)? Conjecture: NO. RESULT in roster: 0 composite counterexamples found; 46/46 primes verified trivially. Known constraints (Cohen-Hagis 1980 et al.): if composite n exists, must be squarefree, n > 10^22, omega(n) >= 14 prime factors. Per [[feedback_no_lineage_claims_in_notebook]]: conjecture remains open."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/lehmer_totient_problem"
+
+[source.primary_references]
+lehmer_1932           = "Lehmer DH (1932). On Euler's totient function. Bull. Amer. Math. Soc. 38:745-757."
+cohen_hagis_1980      = "Cohen GL, Hagis P Jr (1980). On the number of prime factors of n if phi(n) divides n-1. Nieuw Arch. Wisk. 28:177-185."
+pinch_2000s           = "Pinch RGE (2000s). Computational verification: no composite solutions up to enormous bounds."
+wikipedia_lehmer      = "Wikipedia (2026). Lehmer's totient problem. https://en.wikipedia.org/wiki/Lehmer%27s_totient_problem"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "lehmer.ndjson"
+
+[parse]
+natural_key = "n"
+
+[schema]
+data_schema_id = "srmech.number_theory.lehmer_totient.case.v1"
+
+[rendering]
+name_template    = "Lehmer totient check n = {n}"
+purpose_template = "phi(n) = {phi_n}; prime: {is_prime}; phi(n) | (n-1): {phi_divides_n_minus_1}; counterexample: {is_lehmer_counterexample}"
+cite_as_template = "mlehaptics number_theory/lehmer_totient_problem (srmech AMSC); n={n}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash. Class J primes via Euler totient computed by trial-division factorization. Class I cyclic structure of (Z/nZ)^*. Class K pin-slot at zero of ((n-1) mod phi(n)); conjecture asserts NO composite saturates. Class N rational anchor (n-1)/phi(n). Class M HDC bind via prime-factor product. Bit-exact via Python integer arithmetic."
+
+[gap_targeting]
+gap_label = "lehmer_totient_problem"
