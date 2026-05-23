@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.kronecker_jugendtraum.field_extension.v1",
+  "title": "Kronecker's Jugendtraum cascade record — abelian-extension cascade-shape for a number field",
+  "type": "object",
+  "required": [
+    "field_label", "field_kind", "discriminant", "conductor",
+    "galois_group_structure", "elementary_divisors",
+    "conductor_prime_factorisation",
+    "cos_value", "cos_rational_n", "cos_rational_d",
+    "sin_value", "sin_rational_n", "sin_rational_d",
+    "cayley_laplacian_fiedler", "cayley_laplacian_max",
+    "known_generator_kind",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "field_label":                    { "type": "string",  "description": "Label of the number field (e.g. 'Q', 'Q(sqrt(-1))', 'Q(sqrt(-3))', 'Q(zeta_n)')" },
+    "field_kind":                     { "type": "string",  "description": "'rationals_cyclotomic', 'imaginary_quadratic_class_1', 'imaginary_quadratic_class_gt_1'" },
+    "discriminant":                   { "type": "integer", "description": "Field discriminant" },
+    "conductor":                      { "type": "integer", "description": "Conductor (n for Q(zeta_n); |d| for Q(sqrt(d)))" },
+    "galois_group_structure":         { "type": "string",  "description": "Plain-text description of Gal(K^ab(m)/K) up to conductor m" },
+    "elementary_divisors":            { "type": "array",   "items": { "type": "integer" }, "description": "Elementary divisors of (Z/nZ)* (for Q) or class group (for imag quad)" },
+    "conductor_prime_factorisation":  { "type": "array",   "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 }, "description": "List of [prime, exponent] pairs" },
+    "cos_value":                      { "type": "number",  "description": "cos(2*pi/conductor) — Kronecker-Weber Class N anchor" },
+    "cos_rational_n":                 { "type": "integer", "description": "Numerator of best-rational approximation of cos_value" },
+    "cos_rational_d":                 { "type": "integer", "description": "Denominator of best-rational approximation" },
+    "sin_value":                      { "type": "number",  "description": "sin(2*pi/conductor) — companion Class N anchor" },
+    "sin_rational_n":                 { "type": "integer" },
+    "sin_rational_d":                 { "type": "integer" },
+    "cayley_laplacian_fiedler":       { "type": "number",  "description": "Class L Fiedler eigenvalue of Cayley graph on (Z/nZ)*; 0.0 for trivial groups" },
+    "cayley_laplacian_max":           { "type": "number",  "description": "Class L spectral radius of Cayley graph Laplacian" },
+    "known_generator_kind":           { "type": "string",  "description": "What kind of generator is KNOWN for this case: 'roots_of_unity' (Q), 'singular_moduli' (imag quad), 'unknown' (open)" },
+    "class_cascade":                  { "type": "string" },
+    "computation_hash":               { "type": "string" },
+    "source_doi":                     { "type": "string" },
+    "source_published_date":          { "type": "string" },
+    "entered_locally_at":             { "type": "string" }
+  },
+  "additionalProperties": false
+}

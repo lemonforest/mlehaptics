@@ -147,3 +147,4 @@ docs/antikythera-maths/doom-spectral/source/sndserv/CVS/
 # Planck Legacy Archive FITS cache (downloaded on demand by spike190/spike192
 # scripts; ~400 MB SMICA-nosz, ~1.5 GB NILC-full; not redistributed in repo).
 docs/srmech/notes/.planck_cache/
+.pr677_body.md

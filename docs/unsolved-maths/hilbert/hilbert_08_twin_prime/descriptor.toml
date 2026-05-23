@@ -1,0 +1,35 @@
+[source]
+key                  = "hilbert_08_twin_prime"
+human_readable_name  = "Hilbert's 8th / Twin Prime Conjecture Cascade"
+purpose              = "Cascade A o J o K o I o M testing whether twin-prime gap distribution has a structural scale-invariance signature across primorial moduli {6, 30, 210}. For each twin pair (p, p+2) with p <= N_MAX, record residues mod primorials, observed cumulative density to p in Hardy-Littlewood normalised form, and density residual against the twin-prime constant 2*C_2. Per [[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]: twin primes are a pin-slot phase-boundary structure within the prime cascade; per [[user_stance_loop_line_projection_duality]]: the gap=2 manifold is the limit of the prime-gap distribution from below."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_08_twin_prime"
+
+[source.primary_references]
+hardy_littlewood_1923 = "Hardy GH, Littlewood JE (1923). Some problems of partitio numerorum III: On the expression of a number as a sum of primes. Acta Mathematica 44:1-70. Public domain."
+brun_1919             = "Brun V (1919). La serie 1/5+1/7+1/11+1/13+... est convergente ou finie. Bulletin des Sciences Mathematiques 43:100-104, 124-128. Public domain."
+zhang_2014            = "Zhang Y (2014). Bounded gaps between primes. Annals of Mathematics 179(3):1121-1174. Available via Annals author website."
+maynard_2015          = "Maynard J (2015). Small gaps between primes. Annals of Mathematics 181(1):383-413. arXiv:1311.4600."
+polymath_8_2014       = "Polymath DHJ (2014). Variants of the Selberg sieve, and bounded intervals containing many primes. Research in the Mathematical Sciences 1:12. arXiv:1407.4897."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "twin_prime_gap_distribution.ndjson"
+
+[parse]
+natural_key = "p_low"
+
+[schema]
+data_schema_id = "srmech.hilbert.twin_prime.gap_distribution.v1"
+
+[rendering]
+name_template    = "Twin prime pair ({p_low}, {p_high})"
+purpose_template = "Twin index {twin_index}; residues 6={p_low_mod_6} 30={p_low_mod_30} 210={p_low_mod_210}; density residual {density_residual}"
+cite_as_template = "mlehaptics hilbert_08_twin_prime (srmech AMSC); p={p_low}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class J prime sieve, Class I primorial-residue extraction (mod 6, 30, 210), Class K Hardy-Littlewood density tracking, Class M HDC-bundled residue-class signatures with cross-scale similarity scoring."
+
+[gap_targeting]
+gap_label = "twin_prime_conjecture"

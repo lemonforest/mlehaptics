@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.twin_prime.gap_distribution.v1",
+  "title": "Twin Prime Gap Distribution Record",
+  "type": "object",
+  "required": [
+    "twin_index", "p_low", "p_high",
+    "p_low_mod_6", "p_low_mod_30", "p_low_mod_210",
+    "twin_density_observed_to_p", "hardy_littlewood_predicted_to_p",
+    "density_residual",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "twin_index":                       { "type": "integer", "description": "1-based index of this twin pair in the ordered sequence" },
+    "p_low":                            { "type": "integer", "description": "Lower prime of the twin pair (p)" },
+    "p_high":                           { "type": "integer", "description": "Upper prime of the twin pair (p+2)" },
+    "p_low_mod_6":                      { "type": "integer", "description": "Class I residue mod primorial 6" },
+    "p_low_mod_30":                     { "type": "integer", "description": "Class I residue mod primorial 30 = 2*3*5" },
+    "p_low_mod_210":                    { "type": "integer", "description": "Class I residue mod primorial 210 = 2*3*5*7" },
+    "twin_density_observed_to_p":       { "type": "number",  "description": "Cumulative twin-pair count / (p / (log p)^2) up to p_low" },
+    "hardy_littlewood_predicted_to_p":  { "type": "number",  "description": "Hardy-Littlewood constant 2*C_2 (twin-prime constant)" },
+    "density_residual":                 { "type": "number",  "description": "twin_density_observed_to_p - hardy_littlewood_predicted_to_p" },
+    "class_cascade":                    { "type": "string" },
+    "computation_hash":                 { "type": "string" },
+    "source_doi":                       { "type": "string" },
+    "source_published_date":            { "type": "string" },
+    "entered_locally_at":               { "type": "string" }
+  },
+  "additionalProperties": false
+}

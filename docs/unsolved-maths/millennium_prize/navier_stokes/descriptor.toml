@@ -1,0 +1,44 @@
+[source]
+key                  = "navier_stokes"
+human_readable_name  = "Millennium Prize #5 — Navier-Stokes existence and smoothness"
+purpose              = "Cascade A o L o C o I o K o N o M applied to 22 Navier-Stokes regimes (exact solutions + 2D-proved + 3D-open + K41/Kolmogorov exponent anchors + Beale-Kato-Majda + Burgers' 1D analog + hyperviscous variant + 4D speculative). Tests whether (i) the Class C cascade-orientation amplifier IS the vortex-stretching term ω·∇u (3D-only; absent in 2D NS), (ii) Kolmogorov K41 exponents {5/3, 1/3, 2/3, -3/4, 9/4} sit at small-denominator Class N anchors EXACT, and (iii) the cascade-stretched-exponential β = d_S/(d_S+2) = 3/5 framework prediction (Spike #31) matches turbulence cascade. Composes with PR #677 partition 10 (Hodge): dim_C = 3 threefold + spatial-dim = 3 NS are the same Hurwitz heptadic anchor from static and dynamic projections. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Navier-Stokes; documents structural cascade decomposition + 3D-vs-2D Class C orientation-amplifier test + Kolmogorov Class N anchors."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable; Kolmogorov exponents + smoothness statuses are textbook canonical data)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/millennium_prize/navier_stokes"
+
+[source.primary_references]
+navier_1822           = "Navier CLMH (1822). Mémoire sur les lois du mouvement des fluides. Mém. Acad. Sci. Inst. France 6:389-440."
+stokes_1845           = "Stokes GG (1845). On the theories of the internal friction of fluids in motion. Trans. Cambridge Philos. Soc. 8:287-319."
+leray_1934            = "Leray J (1934). Sur le mouvement d'un liquide visqueux emplissant l'espace. Acta Math. 63:193-248. [Weak solutions]"
+hopf_1951             = "Hopf E (1951). Über die Anfangswertaufgabe für die hydrodynamischen Grundgleichungen. Math. Nachr. 4:213-231."
+ladyzhenskaya_1969    = "Ladyzhenskaya OA (1969). The Mathematical Theory of Viscous Incompressible Flow. Gordon and Breach. [2D smoothness]"
+kolmogorov_1941       = "Kolmogorov AN (1941). The local structure of turbulence in incompressible viscous fluid for very large Reynolds numbers. Dokl. Akad. Nauk SSSR 30:301-305."
+kraichnan_1967        = "Kraichnan RH (1967). Inertial ranges in two-dimensional turbulence. Phys. Fluids 10:1417-1423."
+caffarelli_kohn_nirenberg_1982 = "Caffarelli L, Kohn R, Nirenberg L (1982). Partial regularity of suitable weak solutions of the Navier-Stokes equations. Comm. Pure Appl. Math. 35(6):771-831."
+beale_kato_majda_1984 = "Beale JT, Kato T, Majda A (1984). Remarks on the breakdown of smooth solutions for the 3-D Euler equations. Comm. Math. Phys. 94(1):61-66."
+parisi_frisch_1985    = "Parisi G, Frisch U (1985). On the singularity structure of fully developed turbulence. Turbulence and Predictability in Geophysical Fluid Dynamics. North-Holland 84-87."
+constantin_foias_1988 = "Constantin P, Foias C (1988). Navier-Stokes Equations. University of Chicago Press."
+frisch_1995           = "Frisch U (1995). Turbulence: The Legacy of A.N. Kolmogorov. Cambridge University Press."
+fefferman_2000        = "Fefferman C (2000). Existence and smoothness of the Navier-Stokes equation. Clay Mathematics Institute Millennium Prize Problem statement; open."
+tao_2009              = "Tao T (2009). Why global regularity for Navier-Stokes is hard. https://terrytao.wordpress.com/2007/03/18/why-global-regularity-for-navier-stokes-is-hard/"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "regime_cascade.ndjson"
+
+[parse]
+natural_key = "regime_label"
+
+[schema]
+data_schema_id = "srmech.millennium.navier_stokes.regime_cascade.v1"
+
+[rendering]
+name_template    = "{regime_label} (dim = {spatial_dimension}; {regime_type})"
+purpose_template = "key exponent {key_scaling_exponent} = {key_exponent_rational_num}/{key_exponent_rational_den}; vortex-stretching: {has_vortex_stretching_term}; smoothness proved: {smoothness_proved}; Hurwitz dim: {is_hurwitz_dimension}"
+cite_as_template = "mlehaptics millennium_prize/navier_stokes (srmech AMSC); regime_label={regime_label}; spatial_dimension={spatial_dimension}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (label, dim, regime, key_exp). Class L viscous Laplacian -nu * grad^2. Class C cascade-orientation via vorticity omega = curl(u) + vortex-stretching term omega . grad(u) (3D-only). Class I incompressibility div(u) = 0 constraint. Class K asymptotic-DoF (Beale-Kato-Majda criterion: integral |omega|_inf finite iff smooth = pin-slot reading of regularity). Class N best-rational of key scaling exponent (Kolmogorov -5/3, 1/3, 2/3, -3/4, 9/4; cascade-beta 3/5 framework prediction). Class M HDC bind (turbulent eddy interaction across scales as cross-scale Class M composition). Exponent values + smoothness statuses from canonical references (Kolmogorov 1941; Leray 1934; Hopf 1951; Frisch 1995; Constantin-Foias 1988; Beale-Kato-Majda 1984). Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "navier_stokes"

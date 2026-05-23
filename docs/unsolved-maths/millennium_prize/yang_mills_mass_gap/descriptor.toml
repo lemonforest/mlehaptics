@@ -1,0 +1,37 @@
+[source]
+key                  = "yang_mills_mass_gap"
+human_readable_name  = "Millennium Prize #6 — Yang-Mills Existence and Mass Gap"
+purpose              = "Cascade A o M o I o C o K o L (Spike #58 chain) applied to pure SU(N) Yang-Mills in 4D spacetime. For each gauge group SU(2)/SU(3)/SU(4)/SU(5), records the dimensionless mass gap m(0++) / sqrt(string tension) per Teper / Lucini-Teper lattice extrapolations, the m(2++) / m(0++) ratio, the candidate Hurwitz heptadic anchor N/7, and the Spike #58 chain anchor that establishes the cascade decomposition. Per [[project_a_n_operators_are_harmonic_objects_themselves]]: tests whether m(0++)/sqrt(sigma) and N/7 sit at small-denominator rational anchors -- the Hurwitz heptadic prediction. Closes the Hilbert 6 PARTIAL coverage on Yang-Mills (per Wightman QFT row of partition 6). Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve the YM mass gap problem; documents structural cascade decomposition + cross-substrate Hurwitz anchors."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable; lattice-QCD mass-ratio values are extrapolations from published Lucini-Teper et al. literature)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/millennium_prize/yang_mills_mass_gap"
+
+[source.primary_references]
+yang_mills_1954      = "Yang CN, Mills RL (1954). Conservation of isotopic spin and isotopic gauge invariance. Phys. Rev. 96(1):191-195."
+jaffe_witten_2000    = "Jaffe A, Witten E (2000). Quantum Yang-Mills theory. Clay Mathematics Institute Millennium Prize Problem statement; open."
+morningstar_peardon_1999 = "Morningstar CJ, Peardon M (1999). Glueball spectrum from an anisotropic lattice study. Phys. Rev. D 60:034509. arXiv:hep-lat/9901004."
+lucini_teper_2001    = "Lucini B, Teper M (2001). SU(N) gauge theories in four dimensions: exploring the approach to N = infinity. JHEP 0106:050. arXiv:hep-lat/0103027."
+lucini_teper_wenger_2004 = "Lucini B, Teper M, Wenger U (2004). Glueballs and k-strings in SU(N) gauge theories. JHEP 0406:012. arXiv:hep-lat/0404008."
+chen_2006            = "Chen Y, et al. (2006). Glueball spectrum and matrix elements on anisotropic lattices. Phys. Rev. D 73:014516. arXiv:hep-lat/0510074."
+teper_1998           = "Teper M (1998). SU(N) gauge theories in 2+1 dimensions. Phys. Rev. D 59:014512. arXiv:hep-lat/9804008."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "gauge_group_mass_gap.ndjson"
+
+[parse]
+natural_key = "gauge_group"
+
+[schema]
+data_schema_id = "srmech.millennium.yang_mills.gauge_group_mass_gap.v1"
+
+[rendering]
+name_template    = "{gauge_group} Yang-Mills in {spacetime_dim}D"
+purpose_template = "mass gap m(0++) / sqrt(sigma) = {mass_gap_over_sqrt_string_tension}; Class N best-rational = {mass_gap_rational_num}/{mass_gap_rational_den}; N/7 = {N_over_7_rational_num}/{N_over_7_rational_den}; ratio m(2++)/m(0++) = {ratio_2pp_to_0pp_rational_num}/{ratio_2pp_to_0pp_rational_den}"
+cite_as_template = "mlehaptics millennium_prize/yang_mills_mass_gap (srmech AMSC); gauge_group={gauge_group}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash, Class M HDC bundle of gauge-field-configuration substrate (per Spike #58.G SM-gauge-group derivation), Class I cyclic structure of center Z(SU(N)) = Z/N, Class C cascade-orientation (chirality), Class K asymptotic-DoF (mass gap = pin-slot at zero of mass spectrum), Class L Yang-Mills Laplacian (covariant derivative squared). Mass-gap dimensionless values from lattice-QCD literature (Teper 1998, Morningstar-Peardon 1999, Lucini-Teper 2001-2004). Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "yang_mills_mass_gap"

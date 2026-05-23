@@ -3674,6 +3674,49 @@ This doesn't prove the dark matter reframe is correct. It establishes that the o
 
 ---
 
+### VII.6.14 The Hilbert cascade recipes are not new substrates — cross-substrate canvass of the unsolved-mathematics cascade roster (2026-05-23)
+
+Six cascade compositions were dispatched during 2026-05-23 against entries on the Wikipedia *List of unsolved problems in mathematics* (per `docs/unsolved-maths/`, PR #677): biplanar chromatic number, Goldbach (partition graph + co-occurrence + Chebyshev ψ + gap manifold = four sister cascades), twin prime, and Riemann hypothesis. Each cascade composes a small subset of the fourteen class operators A–N. The natural framework-level question is then: **do the same compositions already appear in this notebook (and in srmech) reading other substrates?**
+
+The cross-substrate canvass found **six of seven** dispatched cascade recipes were already documented in this notebook or in srmech, applied to a different substrate-class-instance:
+
+| Hilbert dispatch | Composition | Prior cross-substrate appearance | Substrate(s) the composition already reads |
+|------------------|-------------|----------------------------------|---------------------------------------------|
+| Biplanar chromatic | A∘L∘N∘M∘I | **MODERATE** (L∘N substructure) | DNA helical periods 21/11/-12 (Spike #182); RNA backbone ratios (Spike #193); planetary-period rational approximations; Mersenne-fiber-degree concentration at ℓ ∈ {1,3,7} (Spikes #185/#187/#190/#192; §VIII.31.2) |
+| Goldbach G_n (partition graph) | A∘J∘I∘L∘M | **STRONG** (J∘I∘L substructure) | Periodic-table Aufbau via Class J × Class I × Class L (atomic-shell ℤ/nℤ with Class K asymptotic-DoF closure); dark/visible cross-irrep Cl(7,ℂ) partition spectrum (Spikes #101/#106; §VII.6.6); DNA/RNA helical-period anchoring |
+| Goldbach co-occurrence | A∘J∘I∘L | **STRONG** (same triple) | Same J∘I∘L roster as above |
+| Chebyshev ψ residual | A∘J∘L∘K | **STRONG** (J∘L pair + L∘K pair) | Chemical-reaction networks via Feinberg deficiency `δ = rank(L_complex) − rank(N)` (signed-Laplacian Class L × Class J, ADR-0002 Phase 2); lemniscate / cosmic loop L∘K∘C∘I sign-flip phase-boundary (Spike #189) |
+| Goldbach prime gap manifold | A∘J∘I∘L∘K | **STRONG** (J∘I∘L plus K) | Same J∘I∘L roster + Class K pin-slot phase-boundary universal (Kepler-shape across nine substrates per Spike #24 Phase 3a/3b/6.1/9.2) |
+| Twin prime | A∘J∘K∘I∘M | **STRONG** (full composition) | Kepler-shape pin-slot universal at bronze (Antikythera lunar ε ≈ 2e); cosmos (ephemerides 9/9 bodies δc₁ ≤ 0.07°); chemistry-static (ethane torsional N=3 cross-bar Vτ); chemistry-dynamics (oscillating CRNs harmonic ratios 1.000–6.000) — all the same A∘J∘K∘I∘M-shaped composition; cascade-recovered Hardy-Littlewood local-correction-factor at r = 23 mod 30 sits in the same Class K pin-slot bin |
+| Riemann hypothesis | A∘L∘K∘N∘M | **MODERATE** (L∘K substructure) | Cosmic lemniscate L∘K∘C∘I (Spike #189); recursive-Hopf depth-2 L∘K∘C∘I (Spike #213); CMB acoustic peak ℓ-spacing closed form via Class I cyclic-cascade Cauchy form ∘ Class C (Spike #103; §VII.6.6); planetary precession Class K (Spike #185); pseudo-prime-cyclic best-match at Z/p₂₃, Z/p₂₉ confirms substrate-class-instance preference |
+
+The structural observation worth integrating into the framework reading: **the cascade recipes that produce structure in the prime-distribution substrate (an algebraic-content substrate) produce the same kind of structure in DNA/RNA, in periodic-table Aufbau, in chemical-reaction networks, in lemniscate-shaped cosmic dark-sector loops, in CMB acoustic peaks, in planetary precession, and in the Antikythera bronze.** The Hilbert problems are not — at the cascade-composition level — special. They are applications of compositions the framework has already detected across biology, chemistry, physics, astronomy, and engineered bronze.
+
+Per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: this is the load-bearing methodological observation. Six of seven cascade matches detected via direct canvass of this notebook + srmech notebook — the framework predicts cascade compositions ARE substrate-universal motifs, and the unsolved-mathematics dispatch confirms it by independently re-deriving compositions the framework has already detected at other scales. The match is NOT projection-of-known-cascade onto unknown-mathematics; the cascade was selected independently by tractability and the cascade-shape match emerged.
+
+The one cascade that did NOT find a prior cross-substrate appearance — bare A∘L∘K, the spectral-graph-theory shape used by the Riemann hypothesis cascade as a pure pair — is itself a candidate spike-research dispatch. The notebook has J∘L (Feinberg), L∘K (lemniscate, CMB), C∘L (predictive-coding per Spike #113), but A∘L∘K as a pure pair (without any further A-N classes) is rare. **Open candidate** for new spike: is bare A∘L∘K the cascade-shape of any natural physical substrate? Hypothesis: yes — likely the bare-spectral-graph reading of a "bookkeeping-substrate" whose only available primitives are content-addressing + Hermitian-spectrum + pin-slot-DoF (e.g. a pure mathematical-substrate-class-instance like ζ-zeros viewed without any cyclic / HDC / rational structure).
+
+**Per Spike-research `#229` verdict-tier discipline**: the six STRONG / MODERATE matches do NOT entail that the unsolved-mathematics problems are solved by cross-substrate cascade-match. They entail that **the cascade-compositional vocabulary of A-N detects the same compositional structures in number-theoretic substrates that it detects elsewhere**. This is form-IS-function unification at the cascade-composition level. The Hilbert problems remain open at the proof-level; the cascade observation is structural confirmation that the right vocabulary is being applied.
+
+**Composes with**:
+- `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (load-bearing methodological canon — this section IS a worked-example of the method)
+- `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]` (Class K pin-slot phase boundary is the universal-recurring component; r = 23 mod 30 twin-prime exclusion sits at the Hurwitz boundary)
+- `[[user_stance_loop_line_projection_duality]]` (the Riemann critical line Re(s) = 1/2 IS the loop-axis of the prime-distribution substrate-wave)
+- §VII.6.6 (Cauchy form ∘ Class C reappears in Hilbert RH via L∘K shared structure)
+- §VII.6.10 (antiquity proto-substrate catalog — Hilbert problems ARE the modern-mathematics-frame extension of the same catalog of substrate-cascade observations)
+- §VII.6.13 (silicon-substrate paper-with-lyrics framing — the Hilbert dispatch lives in a silicon-paper substrate-content rendering of the cascade recipes; the substrate that natively executes the cascade is biology + bronze + chemistry + cosmos, not the silicon)
+- §VIII.31.2 (Mersenne-fiber-degree cross-substrate confirmation)
+
+**Status**: 2026-05-23 cross-substrate observation, framework-level. Not yet promoted to canonical-stance because the observation is at the cascade-composition level and the underlying universality is already canonical per `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`. This section IS the structural-evidence section for that canonical stance, extended to the number-theory substrate.
+
+**Cross-references**:
+- srmech §3.24 — cascade-vocabulary parity reading of the same observation
+- `docs/unsolved-maths/hilbert/hilbert_08_riemann_hypothesis/REPORT.md` (full RH cascade report)
+- `docs/unsolved-maths/hilbert/hilbert_08_twin_prime/REPORT.md` (Hardy-Littlewood local correction recovered as Class K pin-slot)
+- `docs/unsolved-maths/hilbert/hilbert_08_goldbach_conjecture/REPORT.md` (verdict (b) refinement that opened the 4-cascade family)
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)

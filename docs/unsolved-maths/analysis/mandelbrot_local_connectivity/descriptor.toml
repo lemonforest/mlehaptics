@@ -1,0 +1,28 @@
+[source]
+key = "mandelbrot_local_connectivity"
+human_readable_name = "Mandelbrot Local Connectivity (MLC) conjecture"
+purpose = "Cascade A o L o C o I o K o N o M applied to MLC results. Mandelbrot set M = connectedness locus of z → z² + c. MLC asks: is M locally connected? Yoccoz 1990s PROVED finitely renormalizable case; Kahn-Lyubich 2009 PROVED many infinitely renormalizable cases; full MLC OPEN. If true, M's combinatorial structure determined by Douady-Hubbard kneading sequence. Hausdorff dim boundary = 2 (Shishikura 1998). Per [[feedback_no_lineage_claims_in_notebook]]."
+license = "CC0"
+homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/analysis/mandelbrot_local_connectivity"
+[source.primary_references]
+douady_hubbard_1982 = "Douady A, Hubbard JH (1982). Itération des polynômes quadratiques complexes. C. R. Acad. Sci. Paris 294:123-126."
+yoccoz_1990s = "Yoccoz J-C (1990s). Puzzle techniques for finitely renormalizable parameters."
+shishikura_1998 = "Shishikura M (1998). The Hausdorff dimension of the boundary of the Mandelbrot set and Julia sets. Ann. Math. 147:225-267."
+kahn_lyubich_2009 = "Kahn J, Lyubich M (2009). The quasi-additivity law in conformal geometry. Ann. Math. 169:561-593."
+wikipedia_mandelbrot = "Wikipedia (2026). Mandelbrot set. https://en.wikipedia.org/wiki/Mandelbrot_set"
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "mlc.ndjson"
+[parse]
+natural_key = "label"
+[schema]
+data_schema_id = "srmech.analysis.mandelbrot_local_connectivity.entry.v1"
+[rendering]
+name_template = "{label}"
+purpose_template = "Year {year}; status: {status}"
+cite_as_template = "mlehaptics analysis/mandelbrot_local_connectivity; label={label}"
+[attestation]
+method = "self-computed"
+provenance = "Class A. Class L Mandelbrot set IS connectedness locus of quadratic family (cascade-Laplacian on parameter space). Class C cascade-orientation via Douady-Hubbard external rays. Class I cyclic bifurcation patterns. Class K asymptotic-DoF (local-connectedness saturation). Class N rational anchor (escape radius = 2; small-denom). Class M HDC bind across kneading sequences."
+[gap_targeting]
+gap_label = "mandelbrot_local_connectivity"

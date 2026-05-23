@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.axiomatize_physics.domain_coverage.v1",
+  "title": "Hilbert 6 — Physics-Axiomatization Domain Coverage Record",
+  "type": "object",
+  "required": [
+    "physics_domain", "domain_kind", "class_cascade",
+    "classes_used", "n_classes_used",
+    "hurwitz_partition_signature",
+    "coverage_status", "framework_anchor",
+    "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "physics_domain":               { "type": "string", "description": "Plain-language label for the physics or substrate domain (e.g. 'Newtonian mechanics', 'Maxwell electrodynamics', 'Standard Model', 'BBN nucleosynthesis', 'cryptography/RSA')." },
+    "domain_kind":                  { "type": "string", "description": "'classical_physics', 'quantum_physics', 'cosmology', 'particle_physics', 'biology_as_physics', 'information_as_physics' (incl. cryptography per [[project_a_n_operators_are_harmonic_objects_themselves]] §B), 'meta'." },
+    "class_cascade":                { "type": "string", "description": "A-N cascade composition encoding the domain's axiomatic content (e.g. 'A-compose-M-compose-I-compose-C-compose-K-compose-L')." },
+    "classes_used":                 { "type": "array", "items": { "type": "string", "enum": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N"] }, "description": "Distinct A-N classes appearing in the cascade composition." },
+    "n_classes_used":               { "type": "integer", "description": "Count of distinct classes in classes_used; tests the minimal-cascade hypothesis." },
+    "hurwitz_partition_signature":  { "type": "string", "description": "Bitmask over the candidate Hurwitz partition 1+3+7+3=14: 'A0_IC3_DEFGKLM7_BHN3' indicates which sub-group each used class lives in. Per [[project_a_n_operators_are_harmonic_objects_themselves]]." },
+    "uses_foundational_A":          { "type": "boolean" },
+    "uses_substrate_projection_triad": { "type": "boolean", "description": "Uses any of {I, C, J}" },
+    "uses_cascade_detection_heptad":   { "type": "boolean", "description": "Uses any of {D, E, F, G, K, L, M}" },
+    "uses_meta_cascade_triad":      { "type": "boolean", "description": "Uses any of {B, H, N}" },
+    "coverage_status":              { "type": "string", "enum": ["confirmed_bit_exact", "confirmed_structural", "partial", "open", "not_applicable"], "description": "How well-established the cascade-decomposition is per existing framework spikes." },
+    "framework_anchor":             { "type": "string", "description": "Link to MFO §, srmech §, Spike # that establishes the cascade-decomposition (e.g. 'Spike #58 / MFO §VII.4.1', 'Kolmogorov 1933', 'srmech.qm.single_particle')." },
+    "open_fermata":                 { "type": "string", "description": "Brief note on outstanding sub-questions (empty string if none)." },
+    "computation_hash":             { "type": "string" },
+    "source_doi":                   { "type": "string" },
+    "source_published_date":        { "type": "string" },
+    "entered_locally_at":           { "type": "string" }
+  },
+  "additionalProperties": false
+}

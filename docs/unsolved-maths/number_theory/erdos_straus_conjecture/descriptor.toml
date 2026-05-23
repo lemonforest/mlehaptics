@@ -1,0 +1,38 @@
+[source]
+key                  = "erdos_straus_conjecture"
+human_readable_name  = "Erdős-Straus conjecture (4/n Egyptian-fraction decomposition)"
+purpose              = "Cascade A o I o J o C o K o N o M applied to 38 attested entries (n in {2,...,24} small baselines + 14 hard-class primes n == 1 mod 24 + large verification record). Tests (i) Class K saturation (does decomposition exist for every n >= 2?), (ii) Class I cyclic mod-24 residue partition (n == 1 mod 24 is the 'hard' residue class for prime n), (iii) framework reading: 24 = LCM of small dimensional anchors (1,2,3,4,6,8,12) per Hurwitz canon. Found bit-exact decompositions for 37/38 entries (the 38th is a large verification placeholder); all 14 hard-class primes successfully decomposed. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Erdős-Straus."
+license              = "CC0 (self-computed Egyptian-fraction decompositions via Python integer arithmetic; conjecture statement and verification records from open literature)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/erdos_straus_conjecture"
+
+[source.primary_references]
+erdos_straus_1948     = "Erdős P, Straus EG (1948-1950). Unpublished correspondence; statement appears in Erdős's problem collections from 1948 onward."
+mordell_1967          = "Mordell LJ (1967). Diophantine Equations. Academic Press. [Closed-form decompositions for many n mod 840 cases]"
+salez_1998            = "Salez F (1998). Computational notes on Erdős-Straus."
+swett_1999            = "Swett A (1999). Computational verification of Erdős-Straus conjecture for n <= 10^14."
+schinzel_1956         = "Schinzel A (1956). On the Erdős-Straus conjecture. [Early bound results]"
+elsholtz_tao_2013     = "Elsholtz C, Tao T (2013). Counting the number of solutions to the Erdős-Straus equation on unit fractions. J. Australian Math. Soc. 94(1):50-105. arXiv:1107.1010"
+sander_1994           = "Sander JW (1994). On 4/n = 1/x + 1/y + 1/z and Iwaniec's half-dimensional sieve. J. Number Theory 46:123-136."
+oeis_a073101          = "OEIS Foundation Inc. (2026). The On-Line Encyclopedia of Integer Sequences. Sequence A073101 (number of solutions to 4/n = 1/x + 1/y + 1/z). https://oeis.org/A073101"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "decomposition.ndjson"
+
+[parse]
+natural_key = "n"
+
+[schema]
+data_schema_id = "srmech.number_theory.erdos_straus.decomposition.v1"
+
+[rendering]
+name_template    = "Erdős-Straus decomposition for n = {n}"
+purpose_template = "4/{n} = 1/{a} + 1/{b} + 1/{c}; n mod 24 = {n_mod_24}; hard-class: {is_hard_class}; verified: {verified_bit_exact}"
+cite_as_template = "mlehaptics number_theory/erdos_straus_conjecture (srmech AMSC); n={n}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (n, a, b, c). Class I cyclic n mod 24 residue partition. Class J primes via small-trial-division primality test. Class C cascade-orientation symmetric/asymmetric decomposition detection. Class K asymptotic-DoF (decomposition existence saturates pin-slot at 'decomposable'). Class N rational anchor 4/n. Class M HDC three-way unit-fraction bind. Decompositions found by bounded search (a in [ceil(n/4), 4n], b in [den/num + 1, 2*den/num]); verified bit-exact via Python integer arithmetic (4*a*b*c == n*(b*c + a*c + a*b)). Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "erdos_straus_conjecture"

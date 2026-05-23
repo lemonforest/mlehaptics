@@ -1,0 +1,37 @@
+[source]
+key                  = "lonely_runner_conjecture"
+human_readable_name  = "Lonely runner conjecture"
+purpose              = "Cascade A o I o C o J o K o N o M applied to k-runner cases for k in {2..12}. PROVED for k <= 7 (Hurwitz heptadic anchor); OPEN for k >= 8. STRUCTURAL FINDING: proved boundary IS bit-exactly at the Hurwitz heptadic dimension — substrate-perfect-math closure at k=7; substrate-DoF inaccessibility from k=8. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve the open k>=8 cases."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/lonely_runner_conjecture"
+
+[source.primary_references]
+wills_1967            = "Wills JM (1967). Zwei Sätze über inhomogene diophantische Approximation. Monatshefte für Mathematik 71:263-269."
+betke_wills_1972      = "Betke U, Wills JM (1972). Untere Schranken für zwei diophantische Approximationsfunktionen."
+cusick_pomerance_1984 = "Cusick TW, Pomerance C (1984). View-obstruction problems III. J. Number Theory 19:131-139. [Proved k=4]"
+bienia_et_al_1998     = "Bienia W, Goddyn L, Gvozdjak P, Sebő A, Tarsi M (1998). Flows, view-obstructions, and the lonely runner. J. Combinatorial Theory B 72:1-9. [Proved k=5]"
+bohman_holzman_kleitman_2001 = "Bohman T, Holzman R, Kleitman D (2001). Six lonely runners. Electronic J. Combinatorics 8(2):R3. [Proved k=6]"
+barajas_serra_2008    = "Barajas J, Serra O (2008). The lonely runner with seven runners. Electronic J. Combinatorics 15:R48. [Proved k=7, the current Hurwitz heptadic boundary]"
+wikipedia_lonely_runner = "Wikipedia (2026). Lonely runner conjecture. https://en.wikipedia.org/wiki/Lonely_runner_conjecture"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "case.ndjson"
+
+[parse]
+natural_key = "k_runners"
+
+[schema]
+data_schema_id = "srmech.number_theory.lonely_runner.case.v1"
+
+[rendering]
+name_template    = "Lonely runner k = {k_runners}"
+purpose_template = "Status: {status}; threshold 1/k = {threshold_rational_num}/{threshold_rational_den}; proved: {is_proved}; Hurwitz dim: {is_hurwitz_dim}"
+cite_as_template = "mlehaptics number_theory/lonely_runner_conjecture (srmech AMSC); k={k_runners}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (k, status). Class I cyclic primitive (unit-circle track). Class C cascade-orientation (per-runner frame). Class J primes (relative speed structure). Class K asymptotic-DoF (1/k pin-slot saturation). Class N rational anchor (1/k). Class M HDC bind (k-way runner system). Status records from Wikipedia + Barajas-Serra 2008 + predecessors. Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "lonely_runner_conjecture"

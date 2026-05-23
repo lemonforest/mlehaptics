@@ -1,0 +1,29 @@
+[source]
+key = "smooth_4d_poincare_conjecture"
+human_readable_name = "Smooth 4-dimensional Poincaré conjecture"
+purpose = "Cascade applied to topological + smooth Poincaré status by dimension. Topological version PROVED in all dimensions (Smale, Freedman, Perelman). Smooth version OPEN only at n=4 — the LAST unresolved case. n=7 first exhibits exotic smooth structures (Milnor 1956, 28 distinct on S^7 — Hurwitz heptadic anchor). Per [[feedback_no_lineage_claims_in_notebook]]."
+license = "CC0"
+homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/topology/smooth_4d_poincare_conjecture"
+[source.primary_references]
+smale_1961 = "Smale S (1961). Generalized Poincaré's conjecture in dimensions greater than four. Ann. Math. 74:391-406."
+freedman_1981 = "Freedman MH (1982). The topology of four-dimensional manifolds. J. Diff. Geom. 17(3):357-453."
+perelman_2003 = "Perelman G (2003). The entropy formula for the Ricci flow and its geometric applications. arXiv:math/0211159."
+milnor_1956 = "Milnor JW (1956). On manifolds homeomorphic to the 7-sphere. Ann. Math. 64:399-405."
+kervaire_milnor_1963 = "Kervaire MA, Milnor JW (1963). Groups of homotopy spheres I. Ann. Math. 77:504-537."
+wikipedia_poincare = "Wikipedia (2026). Generalized Poincaré conjecture. https://en.wikipedia.org/wiki/Generalized_Poincaré_conjecture"
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "case.ndjson"
+[parse]
+natural_key = "n"
+[schema]
+data_schema_id = "srmech.topology.smooth_4d_poincare.case.v1"
+[rendering]
+name_template = "Poincaré conjecture n={n}"
+purpose_template = "Topological: {topological_poincare_status}; Smooth: {smooth_poincare_status}; Hurwitz dim: {is_hurwitz_dim}"
+cite_as_template = "mlehaptics topology/smooth_4d_poincare_conjecture; n={n}"
+[attestation]
+method = "self-computed"
+provenance = "Status records from open literature; Class A content-hash; Class L manifold-Laplacian; Class C smooth-vs-topological orientation; Class K asymptotic-DoF (smooth structure pin-slot); Class N rational anchor (1 vs 28 vs 16256 smooth structures); Class I cyclic dimension sequence; Class M HDC bind (diffeomorphism classes)."
+[gap_targeting]
+gap_label = "smooth_4d_poincare_conjecture"

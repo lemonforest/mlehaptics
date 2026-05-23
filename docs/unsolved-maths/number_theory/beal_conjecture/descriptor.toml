@@ -1,0 +1,42 @@
+[source]
+key                  = "beal_conjecture"
+human_readable_name  = "Beal's conjecture (extends Fermat's Last Theorem)"
+purpose              = "Cascade A o J o I o C o K o N o M applied to 19 attested entries — FLT-Wiles family (n=n=n, proved 1995) + Darmon-Merel proved sub-cases ((n,n,2) for n>=4; (2,n,n) for n>=4) + Catalan-Mihailescu 2002 + 8 known Fermat-Catalan solutions (all with min_exp = 2, NOT Beal counterexamples) + Norvig 2003 computational verification record. Tests (i) the Class K phase boundary AT min_exp = 2 (all Fermat-Catalan solutions sit at the boundary; Beal predicate forbids min_exp >= 3 + coprime), (ii) framework reading: Beal's 'all > 2' IS the Hurwitz triadic threshold — Beal-relevant region IS dim_substrate >= 3. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Beal or assess the $1M Beal Prize."
+license              = "CC0 (self-computed arithmetic verification; Fermat-Catalan solutions and proved sub-cases from open literature)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/beal_conjecture"
+
+[source.primary_references]
+fermat_1640           = "Fermat P (1640). Note in margin of Diophantus' Arithmetica. [Fermat's Last Theorem statement]"
+euler_1770            = "Euler L (1770). Vollständige Anleitung zur Algebra. [Proved FLT n=3]"
+wiles_1995            = "Wiles A (1995). Modular elliptic curves and Fermat's Last Theorem. Annals of Mathematics 141(3):443-551. [FLT general n proof]"
+taylor_wiles_1995     = "Taylor R, Wiles A (1995). Ring-theoretic properties of certain Hecke algebras. Annals of Mathematics 141(3):553-572."
+mauldin_1997          = "Mauldin RD (1997). A generalization of Fermat's Last Theorem: the Beal conjecture and prize problem. Notices of the AMS 44(11):1436-1437. [Beal conjecture survey + $50K prize]"
+darmon_merel_1997     = "Darmon H, Merel L (1997). Winding quotients and some variants of Fermat's Last Theorem. J. Reine Angew. Math. 490:81-100. [(n,n,2), (n,n,3), and (2,n,n) proved for n >= 4]"
+beal_1993             = "Beal AD (1993). Original conjecture; Mauldin 1997 survey for details."
+beukers_1998          = "Beukers F (1998). The Diophantine equation Ax^p + By^q = Cz^r. Duke Mathematical Journal 91(1):61-88. [Fermat-Catalan family with min exp = 2]"
+bennett_chen_dahmen_yazdani = "Bennett MA, Chen IL, Dahmen S, Yazdani S (various). Generalized Fermat / Fermat-Catalan proved sub-cases. arXiv:1011.5556 and related."
+mihailescu_2004       = "Mihailescu P (2004). Primary cyclotomic units and a proof of Catalan's conjecture. J. Reine Angew. Math. 572:167-195."
+norvig_2003           = "Norvig P (2003). Beal's Conjecture: A Search for Counterexamples. https://norvig.com/beal.html. Exhaustive search A,B,C <= 10000 + exp <= 100; NO coprime Beal-violating solutions found."
+beal_prize            = "American Mathematical Society (2013). Beal Prize: $1,000,000 for proof or counterexample. https://www.ams.org/profession/prizes-awards/ams-supported/beal-prize"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "triple.ndjson"
+
+[parse]
+natural_key = "label"
+
+[schema]
+data_schema_id = "srmech.number_theory.beal_conjecture.triple.v1"
+
+[rendering]
+name_template    = "Beal-cascade entry {label}"
+purpose_template = "A={A}, B={B}, C={C}; exponents ({exp_x}, {exp_y}, {exp_z}); min_exp={min_exponent}; all>2: {all_exp_gt_2}; coprime: {coprime_ABC}; violates Beal: {violates_beal}; category: {category}"
+cite_as_template = "mlehaptics number_theory/beal_conjecture (srmech AMSC); label={label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (A, B, C, x, y, z). Class J primes via Class I cyclic GCD test for coprimality. Class C cascade-orientation via exponent triple (x, y, z) symmetry. Class K asymptotic-DoF (predicate 'all exp > 2 AND coprime' implies no solution conjectured). Class N best-rational of exponent ratios. Class M HDC bind across ternary composition A^x + B^y -> C^z. Concrete triples verified bit-exact by Python integer arithmetic. Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "beal_conjecture"

@@ -1,0 +1,37 @@
+[source]
+key                  = "birch_swinnerton_dyer"
+human_readable_name  = "Millennium Prize #4 — Birch and Swinnerton-Dyer conjecture"
+purpose              = "Cascade A o J o L o K o I o N applied to elliptic curves over Q. For each Cremona-labeled curve, records the Weierstrass coefficients, conductor N, Mordell-Weil rank, analytic rank at s=1, torsion structure (per Mazur's theorem 15-class classification), and the Hurwitz-style 1+3+7+4 partition label per [[project_a_n_operators_are_harmonic_objects_themselves]] §A. Tests whether (i) BSD weak form (rank == analytic rank) holds across the roster, and (ii) the Mazur-15 torsion partition empirically respects the Hurwitz cyclic-11 + bilateral-4 decomposition. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve BSD; documents structural cascade decomposition + Hurwitz Mazur-partition test + Class K pin-slot reading of analytic rank at s=1."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable; Cremona-labeled curves and ranks are open-database canonical data from LMFDB)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/millennium_prize/birch_swinnerton_dyer"
+
+[source.primary_references]
+birch_swinnerton_dyer_1965 = "Birch BJ, Swinnerton-Dyer HPF (1965). Notes on elliptic curves II. J. Reine Angew. Math. 218:79-108."
+mazur_1977            = "Mazur B (1977). Modular curves and the Eisenstein ideal. Publ. Math. IHES 47:33-186. [15-class torsion classification]"
+coates_wiles_1977     = "Coates J, Wiles A (1977). On the conjecture of Birch and Swinnerton-Dyer. Invent. Math. 39(3):223-251. [BSD rank-0 for CM curves]"
+gross_zagier_1986     = "Gross BH, Zagier DB (1986). Heegner points and derivatives of L-series. Invent. Math. 84(2):225-320. [BSD analytic-rank-1 input]"
+kolyvagin_1990        = "Kolyvagin VA (1990). Euler systems. The Grothendieck Festschrift II:435-483. [BSD analytic-rank ≤ 1]"
+cremona_1992          = "Cremona JE (1992). Algorithms for modular elliptic curves. Cambridge University Press."
+lmfdb_2026            = "LMFDB collaboration (2026). The L-functions and Modular Forms Database. https://www.lmfdb.org/EllipticCurve/Q/ (open database)"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "rank_l_function.ndjson"
+
+[parse]
+natural_key = "curve_label"
+
+[schema]
+data_schema_id = "srmech.millennium.birch_swinnerton_dyer.rank_l_function.v1"
+
+[rendering]
+name_template    = "Elliptic curve {curve_label} (conductor {conductor_N})"
+purpose_template = "Mordell-Weil rank {mordell_weil_rank} = analytic rank {analytic_rank_at_s_equals_1} (BSD weak: {bsd_weak_form_holds}); torsion {torsion_structure} (|T|={torsion_order}); Mazur partition: {mazur_partition}; CM: {has_complex_multiplication}"
+cite_as_template = "mlehaptics millennium_prize/birch_swinnerton_dyer (srmech AMSC); curve_label={curve_label}; conductor_N={conductor_N}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (Weierstrass coefficients, conductor, rank, torsion). Class J primes of bad reduction (smallest prime factor of conductor). Class L Hasse-Weil L-function L(E,s). Class K asymptotic-DoF (analytic rank = pin-slot multiplicity of L(E,s) at s=1). Class I cyclic structure of E(Q)_tors (Mazur 15-class classification). Class N best-rational anchors (rank, rank/7 heptadic test, torsion/12 Mazur-max test) via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]. Rank and torsion values are from LMFDB / Cremona open database."
+
+[gap_targeting]
+gap_label = "birch_swinnerton_dyer"

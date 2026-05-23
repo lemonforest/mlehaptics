@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.biplanar_chromatic.graph.v1",
+  "title": "Biplanar Graph Chromatic Spectrum Record",
+  "type": "object",
+  "required": [
+    "graph_id", "n_vertices",
+    "layer1_edges", "layer2_edges",
+    "laplacian_eigs_layer1", "laplacian_eigs_layer2", "laplacian_eigs_union",
+    "adjacency_lam_max", "adjacency_lam_min",
+    "hoffman_bound_float", "hoffman_bound_exact",
+    "spectral_ratio_numerator", "spectral_ratio_denominator",
+    "chromatic_number_known", "chromatic_number_lower_spectral",
+    "class_cascade", "fiedler_layer1", "fiedler_layer2", "fiedler_union",
+    "hdc_coloring_feasible", "hdc_colors_used"
+  ],
+  "properties": {
+    "graph_id": {
+      "type": "string",
+      "description": "Canonical graph identifier, e.g. K_8 or biplanar_random_n12_seed42"
+    },
+    "n_vertices": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "layer1_edges": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+      "description": "Edge list of first planar subgraph G1 as [u,v] pairs (0-indexed)"
+    },
+    "layer2_edges": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+      "description": "Edge list of second planar subgraph G2 as [u,v] pairs (0-indexed)"
+    },
+    "laplacian_eigs_layer1": {
+      "type": "array", "items": { "type": "number" },
+      "description": "Class L: sorted Laplacian eigenvalues of G1 ascending"
+    },
+    "laplacian_eigs_layer2": {
+      "type": "array", "items": { "type": "number" },
+      "description": "Class L: sorted Laplacian eigenvalues of G2 ascending"
+    },
+    "laplacian_eigs_union": {
+      "type": "array", "items": { "type": "number" },
+      "description": "Class L: sorted eigenvalues of L(G1)+L(G2) = L(union) ascending"
+    },
+    "fiedler_layer1": { "type": "number" },
+    "fiedler_layer2": { "type": "number" },
+    "fiedler_union": { "type": "number" },
+    "adjacency_lam_max": { "type": "number" },
+    "adjacency_lam_min": { "type": "number" },
+    "hoffman_bound_float": {
+      "type": "number",
+      "description": "Class N input: 1 - lam_max/lam_min as float"
+    },
+    "hoffman_bound_exact": {
+      "type": "integer",
+      "description": "Class N output: ceil(hoffman_bound_float)"
+    },
+    "spectral_ratio_numerator": { "type": "integer" },
+    "spectral_ratio_denominator": { "type": "integer" },
+    "chromatic_number_known": { "type": ["integer", "null"] },
+    "chromatic_number_lower_spectral": { "type": "integer" },
+    "class_cascade": {
+      "type": "string",
+      "description": "Ordered primitive class composition e.g. A-compose-L-compose-N-compose-M-compose-I"
+    },
+    "hdc_coloring_feasible": { "type": "boolean" },
+    "hdc_colors_used": { "type": "integer" },
+    "layer1_edge_count": { "type": "integer" },
+    "layer2_edge_count": { "type": "integer" },
+    "union_edge_count": { "type": "integer" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

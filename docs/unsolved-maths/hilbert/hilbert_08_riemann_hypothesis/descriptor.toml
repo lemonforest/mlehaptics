@@ -1,0 +1,35 @@
+[source]
+key                  = "hilbert_08_riemann_hypothesis"
+human_readable_name  = "Hilbert's 8th / Riemann Hypothesis Cascade"
+purpose              = "Cascade A o L o K o N o M searching across candidate substrate-class-instance Hermitian operator constructions for spacing-statistics match to non-trivial zeta zeros. The Hilbert-Polya conjecture predicts ζ-zero imaginary parts are eigenvalues of a self-adjoint operator H. This cascade enumerates substrate-class-instance choices (cyclic group Laplacians on Z/p, path graphs, cycle graphs, complete graphs) and computes Class M HDC similarity between operator-spacing distribution and ζ-zero-spacing distribution after unfolding. Per [[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]: tests whether the substrate-asymptotic-wave 3:7 Hurwitz ratio shows up in zero spacings. Per [[feedback_dont_pre_commit_spike_query_operators]]: enumerate candidate operators broadly; tautology pre-filter is the known GUE-statistics match (Montgomery 1973)."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable; Odlyzko zero table is in the public domain)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_08_riemann_hypothesis"
+
+[source.primary_references]
+riemann_1859    = "Riemann B (1859). Ueber die Anzahl der Primzahlen unter einer gegebenen Groesse. Monatsberichte der Berliner Akademie. Out of copyright; English translations widely available."
+montgomery_1973 = "Montgomery HL (1973). The pair correlation of zeros of the zeta function. Analytic Number Theory, Proc. Symp. Pure Math. 24:181-193. AMS open access."
+odlyzko_zeros   = "Odlyzko AM. Tables of zeros of the Riemann zeta function. https://www-users.cse.umn.edu/~odlyzko/zeta_tables/ (public dataset)."
+berry_keating_1999 = "Berry MV, Keating JP (1999). The Riemann zeros and eigenvalue asymptotics. SIAM Review 41(2):236-266."
+platt_trudgian_2021 = "Platt DJ, Trudgian TS (2021). The Riemann hypothesis is true up to 3 x 10^12. Bull. Lond. Math. Soc. 53(3):792-797. arXiv:2004.09765."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "zero_spectrum_match.ndjson"
+
+[parse]
+natural_key = "operator_id"
+
+[schema]
+data_schema_id = "srmech.hilbert.riemann_hypothesis.zero_spectrum_match.v1"
+
+[rendering]
+name_template    = "{operator_id} vs first {n_zero_samples} zeta zeros"
+purpose_template = "Substrate {substrate_class_instance}; spacing-ratio mean op={mean_spacing_ratio_operator} zeros={mean_spacing_ratio_zeros}; HDC similarity={hdc_similarity_score}"
+cite_as_template = "mlehaptics hilbert_08_riemann_hypothesis (srmech AMSC); operator={operator_id}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class L builds candidate Hermitian operator on a substrate-class-instance and eigendecomposes via jacobi_eigvals. Class K unfolds the spectrum and extracts consecutive-spacing ratios. Class N best-rational approximation of mean spacing ratio. Class M HDC bundle + similarity against zeta-zero spacing distribution. Zero data is the first 50 non-trivial zeros, embedded as classical mathematical constants from Odlyzko's public table."
+
+[gap_targeting]
+gap_label = "riemann_hypothesis"

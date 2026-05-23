@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.goldbach.partition_graph.v1",
+  "title": "Goldbach Partition Graph Cascade Record",
+  "type": "object",
+  "required": [
+    "n_even", "prime_count_below_n",
+    "partition_count", "partition_pairs_sample",
+    "partition_graph_eigs", "fiedler_value", "spectral_radius",
+    "hardy_littlewood_predicted", "density_ratio_observed_predicted",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "n_even": {
+      "type": "integer",
+      "minimum": 4,
+      "description": "The even integer whose Goldbach partitions are computed"
+    },
+    "prime_count_below_n": { "type": "integer" },
+    "partition_count": {
+      "type": "integer",
+      "description": "Number of unordered pairs (p,q) of primes with p+q=n; if zero, Goldbach FALSIFIED for this n (NEVER OBSERVED up to 4e18 per Oliveira e Silva 2014)"
+    },
+    "partition_pairs_sample": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+      "description": "First few partition pairs (p, q) for human verification; truncated at 10"
+    },
+    "partition_graph_eigs": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Class L: sorted ascending Laplacian eigenvalues of the partition graph G_n (vertices=primes<=n, edges=partition pairs)"
+    },
+    "fiedler_value": {
+      "type": "number",
+      "description": "Class L: second-smallest Laplacian eigenvalue (algebraic connectivity); = 0 iff G_n disconnected"
+    },
+    "spectral_radius": {
+      "type": "number",
+      "description": "Class L: largest Laplacian eigenvalue"
+    },
+    "hardy_littlewood_predicted": {
+      "type": "number",
+      "description": "Hardy-Littlewood 1923 asymptotic prediction r(n) ~ 2 C2 n/(ln n)^2 * Pi correction for primes p|n"
+    },
+    "density_ratio_observed_predicted": {
+      "type": "number",
+      "description": "Ratio partition_count / hardy_littlewood_predicted; should approach 1 asymptotically"
+    },
+    "class_cascade": {
+      "type": "string",
+      "description": "Ordered primitive class composition used; e.g. A-compose-J-compose-I-compose-L-compose-M"
+    },
+    "computation_hash": {
+      "type": "string",
+      "description": "Class A: SHA-256 over (n_even, sorted_partition_pairs) — content-address for provenance"
+    },
+    "source_doi": { "type": "string" },
+    "source_published_date": { "type": "string" },
+    "entered_locally_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}

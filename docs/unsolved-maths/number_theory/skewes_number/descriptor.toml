@@ -1,0 +1,37 @@
+[source]
+key                  = "skewes_number"
+human_readable_name  = "Skewes number — first sign change of Li(x) − π(x)"
+purpose              = "Cascade A o J o L o K o N o M applied to 6 historical upper-bound records for the location of the first x where π(x) > Li(x). Littlewood 1914 PROVED Li(x) − π(x) changes sign infinitely often; the LOCATION of the first crossing remains unknown. Successive upper-bound refinements: Skewes 1933 (10^{10^{10^34}}), Skewes 1955 (10^{10^{10^963}}), Lehman 1966 (~1.65×10^{1165}), te Riele 1987 (~6.658×10^{370}), Bays-Hudson 2000 (~1.397×10^{316}). Lower bound: not occurred by x = 10^{19}. Class K pin-slot at zero of Li(x) − π(x); first crossing somewhere in [10^19, 1.397×10^{316}]."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/skewes_number"
+
+[source.primary_references]
+littlewood_1914       = "Littlewood JE (1914). Sur la distribution des nombres premiers. C. R. Acad. Sci. Paris 158:1869-1872. [Proved infinite sign changes]"
+skewes_1933           = "Skewes S (1933). On the difference π(x) − li(x) I. J. London Math. Soc. 8:277-283."
+skewes_1955           = "Skewes S (1955). On the difference π(x) − li(x) II. Proc. London Math. Soc. (3) 5:48-70."
+lehman_1966           = "Lehman RS (1966). On the difference π(x) − li(x). Acta Arith. 11:397-410."
+te_riele_1987         = "te Riele HJJ (1987). On the sign of the difference π(x) − li(x). Math. Comp. 48(177):323-328."
+bays_hudson_2000      = "Bays C, Hudson RH (2000). A new bound for the smallest x with π(x) > li(x). Math. Comp. 69(231):1285-1296."
+wikipedia_skewes      = "Wikipedia (2026). Skewes's number. https://en.wikipedia.org/wiki/Skewes%27s_number"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "bound.ndjson"
+
+[parse]
+natural_key = "label"
+
+[schema]
+data_schema_id = "srmech.number_theory.skewes.bound.v1"
+
+[rendering]
+name_template    = "Skewes bound: {label}"
+purpose_template = "Year {year}; log10(bound) = {log10_bound}; bound = {bound_repr}; {open_fermata}"
+cite_as_template = "mlehaptics number_theory/skewes_number (srmech AMSC); label={label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash. Class J primes via π(x). Class L logarithmic integral Li(x). Class K pin-slot at zero of Li(x) − π(x). Class N anchor at bound exponent. Class M HDC bind across iterated upper-bound improvements. Bounds from open literature."
+
+[gap_targeting]
+gap_label = "skewes_number"

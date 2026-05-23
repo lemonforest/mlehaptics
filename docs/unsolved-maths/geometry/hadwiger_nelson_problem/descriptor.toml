@@ -1,0 +1,28 @@
+[source]
+key = "hadwiger_nelson_problem"
+human_readable_name = "Hadwiger-Nelson problem (chromatic number of the plane)"
+purpose = "Cascade A o L o I o C o K o N o M applied to bounds + dimension extensions. χ(R^2): minimum colors needed so no two unit-distance points share a color. Current bounds: 5 ≤ χ(R^2) ≤ 7 (Nelson 1950 upper bound; de Grey 2018 lower bound 5 breakthrough; Polymath16 follow-up). OPEN: is χ = 5, 6, or 7? Hurwitz-related: 5 = Mersenne 2^3-1+1; 7 = Hurwitz heptadic upper bound. Per [[feedback_no_lineage_claims_in_notebook]]."
+license = "CC0"
+homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/geometry/hadwiger_nelson_problem"
+[source.primary_references]
+nelson_1950 = "Nelson E (1950). Question posed; upper bound 7 from hexagonal tiling."
+moser_moser_1961 = "Moser L, Moser W (1961). Solution to problem 10. Canad. Math. Bull. 4:187-189."
+de_grey_2018 = "de Grey A (2018). The chromatic number of the plane is at least 5. arXiv:1804.02385. Geombinatorics 28(1):18-31."
+polymath16_2019 = "Polymath16 collaboration (2019+). Reducing the smallest 5-chromatic unit-distance graph. arXiv ongoing."
+wikipedia_hn = "Wikipedia (2026). Hadwiger-Nelson problem. https://en.wikipedia.org/wiki/Hadwiger%E2%80%93Nelson_problem"
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "bound.ndjson"
+[parse]
+natural_key = "label"
+[schema]
+data_schema_id = "srmech.geometry.hadwiger_nelson.bound.v1"
+[rendering]
+name_template = "{label}"
+purpose_template = "Year {year}; bound {bound_type}: {bound_value}"
+cite_as_template = "mlehaptics geometry/hadwiger_nelson_problem; label={label}"
+[attestation]
+method = "self-computed"
+provenance = "Class A. Class L Laplacian/coloring on unit-distance graph. Class I cyclic chromatic-number primitive. Class C orientation. Class K asymptotic-DoF (bound saturation). Class N rational anchor (5 and 7 small integers). Class M HDC bind (color assignment)."
+[gap_targeting]
+gap_label = "hadwiger_nelson_problem"

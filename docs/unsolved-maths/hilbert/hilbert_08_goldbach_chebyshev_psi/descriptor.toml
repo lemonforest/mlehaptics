@@ -1,0 +1,33 @@
+[source]
+key                  = "hilbert_08_goldbach_chebyshev_psi"
+human_readable_name  = "Hilbert's 8th / Goldbach — Chebyshev psi-function Spectral Cascade"
+purpose              = "Redirect cascade testing the THIRD candidate loop-location: Chebyshev psi(N) = sum_{p^k <= N} log(p). The prime number theorem says psi(N) ~ N; the residual psi(N) - N is what RH constrains. This cascade samples psi at N = step, 2*step, ..., N_max and applies Class L (Laplacian on residual time-series path graph) + Class K (asymptotic-DoF analysis of residual). Per [[user_stance_fiber_as_spatially_absent_encoding]] the loop here is the prime distribution itself, with the residual being its line-projection edge-view."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_08_goldbach_chebyshev_psi"
+
+[source.primary_references]
+chebyshev_1850          = "Chebyshev PL (1850). Memoire sur les nombres premiers. J. Math. Pures Appl. (1) 17:366-390. Public domain."
+hadamard_1896           = "Hadamard J (1896). Sur la distribution des zeros de la fonction zeta(s). Bull. SMF 24:199-220. Public domain."
+de_la_vallee_poussin_1896 = "de la Vallée Poussin CJ (1896). Recherches analytiques sur la theorie des nombres premiers. Ann. Soc. Sci. Bruxelles 20:183-256. Public domain."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "chebyshev_psi.ndjson"
+
+[parse]
+natural_key = "N_sample"
+
+[schema]
+data_schema_id = "srmech.hilbert.goldbach.chebyshev_psi.v1"
+
+[rendering]
+name_template    = "Chebyshev psi sample N={N_sample}"
+purpose_template = "psi({N_sample}) = {psi_value}; residual = {residual}; rel_residual = {rel_residual}"
+cite_as_template = "mlehaptics hilbert_08_goldbach_chebyshev_psi (srmech AMSC); N={N_sample}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Computed via Class J prime sieve and direct summation of log(p) over prime powers <= N. Class L applied to the residual time-series path graph (aggregate)."
+
+[gap_targeting]
+gap_label = "goldbach_conjecture"

@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.goldbach.prime_gap_manifold.v1",
+  "title": "Prime Gap Manifold Record",
+  "type": "object",
+  "required": [
+    "prime_index", "prime_low", "prime_high", "gap",
+    "gap_normalized", "log_prime_low",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "prime_index": { "type": "integer", "description": "1-based index of prime_low in the prime sequence" },
+    "prime_low": { "type": "integer" },
+    "prime_high": { "type": "integer" },
+    "gap": { "type": "integer", "description": "prime_high - prime_low" },
+    "gap_normalized": { "type": "number", "description": "gap / log(prime_low) — Cramer-conjectured asymptote of order 1" },
+    "log_prime_low": { "type": "number" },
+    "class_cascade": { "type": "string" },
+    "computation_hash": { "type": "string" },
+    "source_doi": { "type": "string" },
+    "source_published_date": { "type": "string" },
+    "entered_locally_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}

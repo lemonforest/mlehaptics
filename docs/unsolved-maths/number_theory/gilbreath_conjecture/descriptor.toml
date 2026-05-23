@@ -1,0 +1,34 @@
+[source]
+key                  = "gilbreath_conjecture"
+human_readable_name  = "Gilbreath conjecture (iterated absolute differences of primes)"
+purpose              = "Cascade A o J o I o K o C o N o M applied to 50 rows of Gilbreath's iterated absolute-difference table starting from the first 100 primes. Conjecture: first element of every derived row (row >= 1) equals 1. CANONICAL CLASS K PIN-SLOT USE CASE: absolute difference IS the direct Class K primitive per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]] -- this cascade uses _cascade_helpers.magnitude() at every iterated step. All 50 rows verified: first element = 1 throughout (except row 0 which starts with 2). External: Odlyzko 1993 verified to >10^13 rows. Per [[feedback_no_lineage_claims_in_notebook]]: open conjecture remains open."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/gilbreath_conjecture"
+
+[source.primary_references]
+gilbreath_1958        = "Gilbreath NL (1958). Unpublished observation; popularized by Proth 1878 (independently)."
+killgrove_ralston_1959 = "Killgrove RB, Ralston KE (1959). On a conjecture concerning the primes. Math. Tables Aids Comput. 13:121-122."
+odlyzko_1993          = "Odlyzko AM (1993). Iterated absolute values of differences of consecutive primes. Math. Comp. 61(203):373-380."
+wikipedia_gilbreath   = "Wikipedia (2026). Gilbreath's conjecture. https://en.wikipedia.org/wiki/Gilbreath%27s_conjecture"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "row.ndjson"
+
+[parse]
+natural_key = "row"
+
+[schema]
+data_schema_id = "srmech.number_theory.gilbreath.row.v1"
+
+[rendering]
+name_template    = "Gilbreath row {row}"
+purpose_template = "First element: {first_element}; row length: {row_length}; Gilbreath holds: {gilbreath_holds}"
+cite_as_template = "mlehaptics number_theory/gilbreath_conjecture (srmech AMSC); row={row}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash. Class J primes (base row from first 100 primes). Class I cyclic sign-flip. Class K pin-slot at zero via magnitude() helper -- the CANONICAL Class K use case per cascade-honesty discipline. Class C cascade-orientation via iterated sign-strip. Class N anchor at integer 1. Class M HDC bind across rows. All 50 rows computed bit-exact via Python integer arithmetic + magnitude() helper (no abs())."
+
+[gap_targeting]
+gap_label = "gilbreath_conjecture"

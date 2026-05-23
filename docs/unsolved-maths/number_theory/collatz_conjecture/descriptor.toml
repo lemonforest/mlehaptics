@@ -1,0 +1,40 @@
+[source]
+key                  = "collatz_conjecture"
+human_readable_name  = "Collatz conjecture (3n+1 problem)"
+purpose              = "Cascade A o I o C o K o N o M applied to 24 famous Collatz starting values (small baselines + OEIS A006884/A006885 record-setters + powers of 2 + Mersenne primes). Tests whether (i) every trajectory reaches the cycle {1,2,4} in bounded simulation (Class K pin-slot at 1 saturation), (ii) power-of-2 starting values give stopping time = log_2(n) EXACT (Class N anchor 1/1 baseline; pure-halving descent with zero Class C orientation flips), and (iii) Mersenne starting values {7, 31, 127} compose with framework Hurwitz heptadic anchor canon. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve Collatz; documents structural cascade decomposition + Class K pin-slot reading of stopping time + Class N anchor for pure-halving baseline. Empirical bound: Oliveira e Silva 2009 verified to n < 5*10^18; Barina 2020 to n < 2.95*10^20."
+license              = "CC0 (self-computed Collatz trajectories from the recurrence; OEIS sequence numbers are open-database canonical data)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/collatz_conjecture"
+
+[source.primary_references]
+collatz_1937          = "Collatz L (1937). Unpublished problem; first posed at the Hamburg Mathematical Seminar."
+lagarias_1985         = "Lagarias JC (1985). The 3x+1 problem and its generalizations. American Mathematical Monthly 92(1):3-23. [Survey + Collatz constant]"
+crandall_1978         = "Crandall RE (1978). On the 3x+1 problem. Mathematics of Computation 32(144):1281-1292."
+oliveira_e_silva_2009 = "Oliveira e Silva T (2009). Computational verification of the 3x+1 conjecture. arXiv:0908.0815 [math.NT]. Verified n < 5*10^18."
+lagarias_2010         = "Lagarias JC, ed. (2010). The Ultimate Challenge: The 3x+1 Problem. American Mathematical Society."
+barina_2020           = "Barina D (2020). Convergence verification of the Collatz problem. The Journal of Supercomputing 77:2681-2688. arXiv:2006.06820. Verified n < 2.95*10^20."
+oeis_a006577          = "OEIS Foundation Inc. (2026). The On-Line Encyclopedia of Integer Sequences. Sequence A006577 (total stopping time). https://oeis.org/A006577"
+oeis_a006884          = "OEIS A006884 (Collatz record-setting starting values for stopping time). https://oeis.org/A006884"
+oeis_a006885          = "OEIS A006885 (Collatz record-setting peak trajectory values). https://oeis.org/A006885"
+tao_2019              = "Tao T (2019). Almost all orbits of the Collatz map attain almost bounded values. arXiv:1909.03562. [Density-1 result]"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "trajectory.ndjson"
+
+[parse]
+natural_key = "starting_value"
+
+[schema]
+data_schema_id = "srmech.number_theory.collatz.trajectory.v1"
+
+[rendering]
+name_template    = "Collatz starting value n = {starting_value} ({category})"
+purpose_template = "stopping time sigma = {stopping_time}; max trajectory = {max_trajectory_value}; sigma/log_2(n) = {stopping_ratio_rational_num}/{stopping_ratio_rational_den}; reaches cycle {{1,2,4}}: {reaches_cycle_1_2_4}; peak amplification = {peak_amplification}"
+cite_as_template = "mlehaptics number_theory/collatz_conjecture (srmech AMSC); n={starting_value}; category={category}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (starting n, stopping time, max trajectory). Class I cyclic Z/2 parity branch (n mod 2). Class C cascade-orientation (halve if even / 3n+1 if odd). Class K asymptotic-DoF (pin-slot depth from n to 1 = stopping time; conjecture is that this is finite for all n). Class N best-rational anchors (sigma/log_2(n) ratio; peak amplification). Class M HDC bind across trajectory iterations. Trajectory computation is bit-exact from the Collatz recurrence T(n) = n/2 if even, 3n+1 if odd. Stopping times match OEIS A006577 / A006884 / A006885 entries. Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "collatz_conjecture"
