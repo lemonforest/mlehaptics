@@ -39,7 +39,7 @@ Concretely:
 
 When a cascade reveals the loop is **at a different cascade-layer than initially proposed** (the Goldbach finding — Class L was applied to a degenerate matching when the loop actually lives at the upstream Class J prime-distribution level), that's a **(b) REFINED** verdict, NOT a failure. It tells you where the loop ISN'T, narrowing where to look next.
 
-## Verdict tiers (per Spike-research #229 methodology)
+## Verdict tiers (per Spike-research `#229` methodology)
 
 - **(a) SURVIVES** — claim survives the cascade falsification attempt; cascade composition is structurally consistent
 - **(b) REFINED** — cascade reveals a sharper formulation OR identifies the wrong cascade-layer; original claim partially holds or redirects to a different cascade composition

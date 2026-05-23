@@ -38,12 +38,12 @@ These are the open Hilbert problems with directories below:
 
 | Problem | Cascade tractability | Priority for autonomous dispatch |
 |---------|----------------------|----------------------------------|
-| **#8 Goldbach** | High — Class J (primes) + Class I (cyclic Z/2nZ for even-sum structure) + Class L (Goldbach partition graph spectrum) | **First demo** — most tractable for cascade prototyping |
-| **#8 Twin Prime** | High — Class J + Class I + Class K (asymptotic-DoF for prime gap distribution) | Second |
-| **#8 Riemann Hypothesis** | High but heavy — Class L (Hilbert-Pólya: zeros as eigenvalues of self-adjoint operator) + Class M (HDC encoding of zeta function functional equation) | Third |
-| **#16 Limit Cycles** | Moderate — Class L on phase-space Laplacian + Class C orientation of vector field | Fourth |
-| **#12 Kronecker Jugendtraum** | Moderate — Class I (cyclic-group / class-field generation) + Class N (rational/algebraic approximation) | Fifth |
-| **#6 Axiomatize Physics** | Low (vague) — Class H (self-introspection: which class operators are needed?) + Class A-N enumeration | Sixth |
+| **`#8` Goldbach** | High — Class J (primes) + Class I (cyclic Z/2nZ for even-sum structure) + Class L (Goldbach partition graph spectrum) | **First demo** — most tractable for cascade prototyping |
+| **`#8` Twin Prime** | High — Class J + Class I + Class K (asymptotic-DoF for prime gap distribution) | Second |
+| **`#8` Riemann Hypothesis** | High but heavy — Class L (Hilbert-Pólya: zeros as eigenvalues of self-adjoint operator) + Class M (HDC encoding of zeta function functional equation) | Third |
+| **`#16` Limit Cycles** | Moderate — Class L on phase-space Laplacian + Class C orientation of vector field | Fourth |
+| **`#12` Kronecker Jugendtraum** | Moderate — Class I (cyclic-group / class-field generation) + Class N (rational/algebraic approximation) | Fifth |
+| **`#6` Axiomatize Physics** | Low (vague) — Class H (self-introspection: which class operators are needed?) + Class A-N enumeration | Sixth |
 
 ## How each subdirectory is organized
 
