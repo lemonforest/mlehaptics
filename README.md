@@ -452,6 +452,12 @@ This project developed foundational techniques for **connectionless distributed 
 
 - **[LOGO HDC — Research Notebook](docs/chess-maths/logo_research_notebook.md)**: Pattern-validation spike testing whether the split-object-with-fiber-matrix construction from the chess-spectral work generalizes to a non-chess domain. Uses a research subset of LOGO (turtle graphics) as a fully-enumerable test case — 12 command atoms, ~20 grammar productions, rasterized canvas as geometry. Confirms F₁ (vocab × syntax) and F₂ (syntax × geometry) factorizations recover interpretable structure, including D4 symmetry modes in the subdominant F₂ spectrum, and that fibers act as transport maps for structural deltas. L7b finds partial-trace fibers drift with the trace but do *not* extrapolate forward, reshaping the trajectory hypothesis before the chess instantiation. Iterative, with an honest retraction of the iteration-1 reversibility-via-binding claim.
 
+#### The Metric Field and Its Primitives — Companion Textbook
+
+- **[The Metric Field and Its Primitives (PDF)](docs/srmech/metric-field-and-its-primitives.pdf)** — companion textbook to the [srmech](https://pypi.org/project/srmech/) package and the [MFO research notebook](docs/antikythera-maths/mfo_spectral_research_notebook.md). Consolidates the substrate-vs-excitation ontology, the 14-class primitive vocabulary at substrate level, and the cascade-composition discipline that `srmech` implements computationally. Reader-facing entry point for the foundational-ontology layer of the spectral-research collection.
+
+  Also available on [ReadTheDocs](https://mlehaptics.readthedocs.io/srmech/metric-field-and-its-primitives.pdf) (static asset alongside the notebooks).
+
 #### Spectral Research Cluster — the Rosetta Stone
 
 The chess-spectral notebook is the *methodological anchor* of a five-sibling research cluster. Each sibling ports the same algebraic substrate — **finite cyclic groups + graph-Laplacian eigenbasis + the BIP integer-ALU encoder pattern** — to a different evidentiary object. The cluster is intentionally *not* consolidated into a single paper because the evidentiary objects differ; what binds them is the substrate, and each successful port is empirical evidence that the substrate generalises beyond its origin domain.
