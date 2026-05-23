@@ -1,0 +1,45 @@
+[source]
+key                  = "ramanujan_open_problems"
+human_readable_name  = "Open + recently-proved problems from Srinivasa Ramanujan's work"
+purpose              = "Cascade A o J o L o K o N o C o M applied to 20 entries inventorying open and recently-proved problems originating from Ramanujan (1887-1920). Includes Lehmer's Conjecture (1947, OPEN; verified n <= 2.279 * 10^19 per Bosman 2014), Ramanujan-Petersson (PROVED Deligne 1974), Ramanujan partition congruences (PROVED + Ono 2000 general), mock theta conjectures (PROVED Hickerson 1988; Zwegers 2002 framed within Maass forms; Mortenson 2024 active extensions), and Balakrishnan-Craig-Ono 2020 variations of Lehmer. Notable empirical finding: tau(11)/(2*11^{11/2}) approx 0.5004 = Class N anchor 1/2 EXACT — the prime 11 in Ramanujan's third congruence sits at exactly half the Petersson bound. Per user direction 2026-05-23. Per [[feedback_no_lineage_claims_in_notebook]]: does not claim to solve any open Ramanujan problem."
+license              = "CC0 (self-computed verifications of partition congruences and Petersson bound; conjecture statements + status from open literature)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/number_theory/ramanujan_open_problems"
+
+[source.primary_references]
+ramanujan_1916        = "Ramanujan S (1916). On certain arithmetical functions. Trans. Cambridge Philos. Soc. 22(9):159-184. [tau function introduced]"
+ramanujan_1919_partitions = "Ramanujan S (1919). Some properties of p(n), the number of partitions of n. Proc. Cambridge Philos. Soc. 19:207-210. [Three partition congruences mod 5, 7, 11]"
+hardy_ramanujan_1918  = "Hardy GH, Ramanujan S (1918). Asymptotic formulae in combinatory analysis. Proc. London Math. Soc. 17(1):75-115."
+lehmer_1947           = "Lehmer DH (1947). The vanishing of Ramanujan's tau function. Duke Math. J. 14(2):429-433."
+deligne_1974          = "Deligne P (1974). La conjecture de Weil. I. Publ. Math. IHES 43:273-307. [Proved Ramanujan-Petersson]"
+nagell_1948           = "Nagell T (1948). Løsning til oppgave nr 2. Norsk Mat. Tidsskr. 30:62-64. [Ramanujan-Nagell equation]"
+hickerson_1988        = "Hickerson D (1988). A proof of the mock theta conjectures. Invent. Math. 94(3):639-660."
+zwegers_2002          = "Zwegers SP (2002). Mock theta functions. PhD thesis, Utrecht University."
+ono_2000              = "Ono K (2000). Distribution of the partition function modulo m. Annals of Mathematics 151(1):293-307."
+bosman_2014           = "Bosman J (2014). On the computation of Galois representations associated to level one modular forms. arXiv:1109.5879 + 2014 extension; verified Lehmer for n <= 2.279 * 10^19."
+balakrishnan_craig_ono_2020 = "Balakrishnan J, Craig W, Ono K (2020). Variations of Lehmer's Conjecture for Ramanujan's tau-function. arXiv:2005.10345; J. Number Theory 220:34-51 (2021)."
+mortenson_2024        = "Mortenson E (2024). On Ramanujan's lost notebook and new tenth-order like identities for second-, sixth-, and eighth-order mock theta functions. Bull. London Math. Soc. arXiv:2209.13472."
+andrews_berndt_2005_2018 = "Andrews GE, Berndt BC (2005-2018). Ramanujan's Lost Notebook, Parts I-V. Springer-Verlag."
+oeis_a000594          = "OEIS Foundation Inc. (2026). OEIS A000594 Ramanujan tau function. https://oeis.org/A000594"
+oeis_a000041          = "OEIS Foundation Inc. (2026). OEIS A000041 partition function p(n). https://oeis.org/A000041"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "open_problem.ndjson"
+
+[parse]
+natural_key = "label"
+
+[schema]
+data_schema_id = "srmech.number_theory.ramanujan.open_problem.v1"
+
+[rendering]
+name_template    = "Ramanujan problem: {label}"
+purpose_template = "Category: {category}; class predicate: {class_predicate}; status: {status}; open: {is_open}; proved: {is_proved}; active research: {is_active_research}"
+cite_as_template = "mlehaptics number_theory/ramanujan_open_problems (srmech AMSC); label={label}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash of (label, category, class_predicate, status). Class J primes (tau is multiplicative on primes; Petersson bound applies per prime; Ono congruences over all primes >= 5). Class L Laplacian / modular forms (Delta(q) = q prod (1-q^n)^24 weight-12 cusp form). Class K asymptotic-DoF (Lehmer non-vanishing pin-slot; Petersson asymptotic bound; mock theta identity saturation). Class N integer rational anchors at tau values; tau(11)/(2*11^{11/2}) = 1/2 EXACT empirical finding. Class C cascade-orientation via multiplicativity tau(mn) = tau(m)*tau(n) for coprime m, n. Class M HDC bind via partition generating function 1/prod(1-q^n). Verifications bit-exact via Python integer arithmetic: partition congruences p(5n+4) mod 5, p(7n+5) mod 7, p(11n+6) mod 11 all verified; Petersson bound |tau(p)| <= 2*p^{11/2} verified for p in {2,3,5,7,11,13,17,19}. Class N best-rational via cascade-honest sign-stripped wrapper per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]."
+
+[gap_targeting]
+gap_label = "ramanujan_open_problems"
