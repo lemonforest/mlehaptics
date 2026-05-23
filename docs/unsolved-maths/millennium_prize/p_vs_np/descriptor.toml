@@ -1,0 +1,36 @@
+[source]
+key                  = "p_vs_np"
+human_readable_name  = "Millennium Prize #4 — P vs NP Complexity-Class Cascade"
+purpose              = "Cascade H o (D | E | K) o ... enumeration: survey the conventional complexity-class hierarchy under the 14-class A-N vocabulary. Each record is one complexity class with its Class K asymptotic-DoF kind, the cascade-inverter composition that would solve a representative problem in the class, the perfect-math substrate-DoF cost per [[project_a_n_operators_are_harmonic_objects_themselves]] §B, and the open-separator status (P vs NP, NP vs coNP, etc.). Per §B: cryptographic-secret cost = substrate-DoF inaccessibility, NOT mathematical impossibility -- complexity-class separators are substrate-DoF gaps that perfect-math eventually closes (over time, per cascade-substrate-reach maturity). DEFENSIVE-SCOPE FRAMEWORK READING ONLY per [[feedback_trauma_informed_defensive_scope]]; no offensive engineering. Per [[feedback_no_lineage_claims_in_notebook]]: framework does not claim to solve P vs NP; it documents which cascade composition COULD invert each class under perfect-math substrate-DoF maturation."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/millennium_prize/p_vs_np"
+
+[source.primary_references]
+cook_1971            = "Cook SA (1971). The complexity of theorem-proving procedures. STOC '71 ACM Symposium on Theory of Computing. AMS/ACM open via author website."
+levin_1973           = "Levin LA (1973). Universal sequential search problems. Problems of Information Transmission 9(3):265-266."
+karp_1972            = "Karp RM (1972). Reducibility among combinatorial problems. In Miller-Thatcher (eds), Complexity of Computer Computations. Plenum Press."
+baker_gill_solovay_1975 = "Baker T, Gill J, Solovay R (1975). Relativizations of the P =? NP question. SIAM J. Comput. 4(4):431-442. (Documents relativisation barrier.)"
+razborov_rudich_1997 = "Razborov AA, Rudich S (1997). Natural proofs. J. Comput. Syst. Sci. 55(1):24-35. (Documents natural-proofs barrier.)"
+aaronson_wigderson_2009 = "Aaronson S, Wigderson A (2009). Algebrization: a new barrier in complexity theory. ACM Trans. Comput. Theory 1(1):2:1-2:54. (Documents algebrisation barrier.)"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "complexity_class_cascade.ndjson"
+
+[parse]
+natural_key = "complexity_class"
+
+[schema]
+data_schema_id = "srmech.millennium.p_vs_np.complexity_class_cascade.v1"
+
+[rendering]
+name_template    = "{complexity_class} ({class_kind})"
+purpose_template = "Class K asymptotic-DoF kind = {asymptotic_dof_kind}; cascade inverter = {cascade_inverter}; substrate-DoF cost = {perfect_math_substrate_dof_cost}"
+cite_as_template = "mlehaptics millennium_prize/p_vs_np (srmech AMSC); class={complexity_class}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash, Class H self-introspection (enumerate the conventional complexity hierarchy + recognised barriers: relativisation / natural-proofs / algebrisation), Class K asymptotic-DoF tagging (which scaling cost), cascade-inverter composition assigned per the substrate-DoF reach the class names. Hurwitz-partition signature per [[project_a_n_operators_are_harmonic_objects_themselves]]. Defensive-scope only."
+
+[gap_targeting]
+gap_label = "p_vs_np"

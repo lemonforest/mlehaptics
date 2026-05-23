@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.millennium.p_vs_np.complexity_class_cascade.v1",
+  "title": "Millennium Prize Problem #4 — P vs NP Complexity-Class Cascade Record",
+  "type": "object",
+  "required": [
+    "complexity_class", "class_kind",
+    "containing_class", "asymptotic_dof_kind",
+    "cascade_inverter", "classes_used", "n_classes_used",
+    "perfect_math_substrate_dof_cost",
+    "open_separator_status",
+    "cascade_decomposition_signature",
+    "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "complexity_class":           { "type": "string", "description": "Standard label: P, NP, coNP, BPP, BQP, PSPACE, EXP, NEXP, EXPSPACE, PH, P/poly, NC, AC0, ..." },
+    "class_kind":                 { "type": "string", "enum": ["deterministic_time", "nondeterministic_time", "randomised_time", "quantum_time", "space", "circuit", "alternating", "promise", "average_case", "open_separator"], "description": "How the class is parameterised at the substrate-DoF level." },
+    "containing_class":           { "type": "string", "description": "The conventionally next-larger class (or 'top' for EXPSPACE)." },
+    "asymptotic_dof_kind":        { "type": "string", "description": "Which Class K asymptotic-DoF cost dominates: polynomial / exponential / logspace / quasi-polynomial / circuit-depth." },
+    "cascade_inverter":           { "type": "string", "description": "Class composition that would invert membership for a representative problem in this class (A-N sequence form, e.g. 'A-compose-D-compose-K')." },
+    "classes_used":               { "type": "array",  "items": { "type": "string", "enum": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N"] } },
+    "n_classes_used":             { "type": "integer" },
+    "perfect_math_substrate_dof_cost": { "type": "string", "description": "Per [[project_a_n_operators_are_harmonic_objects_themselves]] §B: which substrate-DoF the class's cost-to-solve lives in (1D algebraic / 3D spatial / 7D_g gauge / 11D substrate-traversal). Defensive-scope-only." },
+    "open_separator_status":      { "type": "string", "enum": ["proven_separator", "open_separator", "not_applicable", "barriers_documented"], "description": "Is the inclusion-vs-equality with the containing class open? Documented barriers (relativisation, natural-proofs, algebrisation) noted here." },
+    "cascade_decomposition_signature": { "type": "string", "description": "Hurwitz-partition signature of classes_used per the 1+3+7+3 candidate partition." },
+    "framework_anchor":           { "type": "string", "description": "Link to MFO §, srmech §, Spike #, or project memory anchor." },
+    "open_fermata":               { "type": "string" },
+    "computation_hash":           { "type": "string" },
+    "source_doi":                 { "type": "string" },
+    "source_published_date":      { "type": "string" },
+    "entered_locally_at":         { "type": "string" }
+  },
+  "additionalProperties": false
+}
