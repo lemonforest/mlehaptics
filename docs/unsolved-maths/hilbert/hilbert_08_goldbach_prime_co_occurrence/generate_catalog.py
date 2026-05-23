@@ -16,6 +16,12 @@ from srmech.amsc.format import sha256_bytes
 from srmech.amsc.primes import is_prime
 from srmech.amsc.laplacian import dense_laplacian, jacobi_eigvals
 
+# Cascade-honesty per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
+# shared A-N cascade helpers (precursor of srmech.amsc.cascade.* primitives).
+import sys as _sys, pathlib as _pl
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent.parent.parent))
+from _cascade_helpers import magnitude, cyclic_gcd, best_rat_signed
+
 SCHEMA_ID = "srmech.hilbert.goldbach.prime_co_occurrence.v1"
 N_MAX = 200
 N_MAX_SEARCH = 2 * N_MAX  # i.e., 400; we ask Goldbach for n up to 400
@@ -64,7 +70,7 @@ def main():
     sorted_degrees = [degrees[p] for p in sorted_primes]
     n_v = len(sorted_primes)
     edges = [(i, i + 1) for i in range(n_v - 1)]
-    weights = [abs(sorted_degrees[i + 1] - sorted_degrees[i]) + 1.0 for i in range(n_v - 1)]
+    weights = [magnitude(sorted_degrees[i + 1] - sorted_degrees[i]) + 1.0 for i in range(n_v - 1)]
     L = dense_laplacian(n_v, edges, weights)
     eigs = sorted(float(x) for x in jacobi_eigvals(L))
 
@@ -100,7 +106,7 @@ def main():
     print()
     print(f"Class L (path Laplacian on sorted-degree-difference-weighted graph) spectrum:")
     print(f"  Eigenvalues: min={eigs[0]:.4f}, fiedler={eigs[1]:.4f}, max={eigs[-1]:.4f}")
-    print(f"  Number of zero eigenvalues (connected components): {sum(1 for e in eigs if abs(e) < 1e-9)}")
+    print(f"  Number of zero eigenvalues (connected components): {sum(1 for e in eigs if magnitude(e) < 1e-9)}")
 
 
 if __name__ == "__main__":

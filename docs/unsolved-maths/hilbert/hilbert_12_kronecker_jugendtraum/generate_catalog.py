@@ -22,9 +22,21 @@ import datetime
 import json
 import math
 import pathlib
+import sys
 from fractions import Fraction
 
 import numpy as np
+
+# Cascade-honesty per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
+# shared A-N cascade helpers (precursor of srmech.amsc.cascade.* primitives).
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+from _cascade_helpers import (
+    magnitude,
+    cyclic_gcd,
+    best_rat_signed,
+    class_k_pin_slot_at_zero,
+    class_c_reorient,
+)
 
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.primes import is_prime, factor
@@ -39,11 +51,11 @@ SOURCE_PUBLISHED = "1886-01-01"
 def euler_phi(n):
     if n < 1:
         return 0
-    return sum(1 for k in range(1, n + 1) if math.gcd(k, n) == 1)
+    return sum(1 for k in range(1, n + 1) if cyclic_gcd(k, n) == 1)
 
 
 def units_mod_n(n):
-    return [k for k in range(1, n) if math.gcd(k, n) == 1]
+    return [k for k in range(1, n) if cyclic_gcd(k, n) == 1]
 
 
 def cyclic_structure_of_units(n):
@@ -116,53 +128,9 @@ def cayley_graph_laplacian_units_mod_n(n):
     return eigs
 
 
-def class_k_pin_slot_at_zero(x):
-    """Class K pin-slot operation at zero: returns (orientation, magnitude).
-
-    The 'orientation' is the Class C cascade-orientation (+1 / 0 / -1) and
-    'magnitude' is the |x|-projection. Per [[user_stance_epicycle_via_gear_plus_pin]]:
-    sign-flip IS the canonical pin-slot phase-boundary operation -- the pin enters
-    or exits the slot at the zero-crossing.
-
-    This expresses what Python's abs() does as the A-N cascade operation it IS,
-    rather than letting ALU-level math sneak in via abs().
-    """
-    if x > 0.0:
-        return +1, x
-    if x < 0.0:
-        return -1, -x
-    return 0, 0.0
-
-
-def class_c_reorient(orientation, value):
-    """Class C cascade-orientation: re-apply the sign of an orientation to a magnitude."""
-    if orientation < 0:
-        return -value
-    return value
-
-
+# best_rat lives in _cascade_helpers as best_rat_signed; alias for backward compatibility.
 def best_rat(x, max_d=100, fine=1_000_000):
-    """A-N cascade wrapper around srmech.amsc.rational.best_rational for float input.
-
-    srmech's best_rational signature is best_rational(num: int, denom: int, max_denominator: int)
-    with non-negative numerator. Cascade composition (Class K -> Class N -> Class C):
-      - Class K pin-slot at zero -> (orientation, magnitude)
-      - scale magnitude to integer pair
-      - Class N best-rational reduction
-      - Class C reorient via the captured orientation
-    """
-    try:
-        orientation, magnitude = class_k_pin_slot_at_zero(x)
-        if orientation == 0 or magnitude < 1e-12:
-            return 0, 1
-        num_pos = int(round(magnitude * fine))
-        if num_pos == 0:
-            return 0, 1
-        nf, df = best_rational(num_pos, fine, max_d)
-        signed_nf = class_c_reorient(orientation, int(nf))
-        return signed_nf, int(df)
-    except Exception:
-        return 0, 1
+    return best_rat_signed(x, max_d=max_d, fine=fine)
 
 
 # ------------- Field roster -------------
@@ -243,7 +211,8 @@ def main():
         diag.append(("Q(zeta_" + str(n) + ")", gal, len(divisors), fiedler, emax))
 
     for f in IMAG_QUAD_CN1:
-        n = abs(f["d"])
+        n = magnitude(f["d"])
+        n = int(n)  # Class K returns numeric magnitude; integer cast for indexing
         cos_v = math.cos(2 * math.pi / n) if n > 0 else 1.0
         sin_v = math.sin(2 * math.pi / n)
         cn, cd = best_rat(cos_v, max_d=100)
@@ -280,7 +249,8 @@ def main():
         diag.append((f["label"], "trivial", 0, 0.0, 0.0))
 
     for f in REAL_QUAD_OPEN:
-        n = abs(f["d"])
+        n = magnitude(f["d"])
+        n = int(n)  # Class K returns numeric magnitude; integer cast for indexing
         cos_v = math.cos(2 * math.pi / n)
         sin_v = math.sin(2 * math.pi / n)
         cn, cd = best_rat(cos_v, max_d=100)

@@ -18,11 +18,17 @@ import datetime
 import json
 import math
 import pathlib
+import sys
 from collections import Counter
 
 import numpy as np
 
 import hashlib
+
+# Cascade-honesty per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
+# shared A-N cascade helpers (precursor of srmech.amsc.cascade.* primitives).
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent))
+from _cascade_helpers import magnitude, cyclic_gcd, best_rat_signed
 
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.primes import is_prime
@@ -64,7 +70,7 @@ def make_residue_hdc(residue_to_count: dict, modulus: int) -> bytes:
     """
     anchor = expand_hdc(b"hilbert_08_twin_prime|scale_anchor")
     visited_residues = sorted(r for r in residue_to_count
-                              if math.gcd(r, modulus) == 1 and residue_to_count[r] > 0)
+                              if cyclic_gcd(r, modulus) == 1 and residue_to_count[r] > 0)
     if not visited_residues:
         return anchor
     components = []
@@ -160,7 +166,7 @@ def main():
     print("Class I residue distributions (top-5 per primorial):")
     for m in PRIMORIALS:
         top5 = residue_counters[m].most_common(5)
-        total_units = sum(1 for r in range(m) if math.gcd(r, m) == 1)
+        total_units = sum(1 for r in range(m) if cyclic_gcd(r, m) == 1)
         print(f"  mod {m:3d} (units count {total_units}): {top5}")
     print()
     print("Class M cross-scale HDC similarity (cosine in [-1, 1]):")

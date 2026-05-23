@@ -15,8 +15,14 @@ import math
 import random
 import datetime
 import pathlib
+import sys
 
 import numpy as np
+
+# Cascade-honesty per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
+# import shared A-N cascade helpers (precursor of srmech.amsc.cascade.* primitives).
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from _cascade_helpers import magnitude, cyclic_gcd, best_rat_signed
 
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.laplacian import dense_laplacian, dense_adjacency, jacobi_eigvals
@@ -76,9 +82,10 @@ def _spectral(n, layer1_edges, layer2_edges):
 
 def _hoffman(lam_max, lam_min):
     bound_f = 1.0 - lam_max / lam_min if lam_min != 0.0 else float("inf")
-    bound_i = math.ceil(bound_f)
-    # Rationalize |lam_max/lam_min| with denominator <= 100
-    ratio = abs(lam_max / lam_min) if lam_min != 0.0 else 0.0
+    bound_i = math.ceil(bound_f)  # finite-arithmetic ceiling at integer boundary
+    # Class K pin-slot at zero on (lam_max/lam_min), magnitude only.
+    # Per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]: NOT Python abs().
+    ratio = magnitude(lam_max / lam_min) if lam_min != 0.0 else 0.0
     # best_rational(p/q as numerator=round(ratio*1000), denominator=1000, max_denom=100)
     p_int = round(ratio * 1000)
     ratio_num, ratio_den = best_rational(p_int, 1000, 100)

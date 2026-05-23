@@ -18,6 +18,12 @@ from srmech.amsc.format import sha256_bytes
 from srmech.amsc.primes import is_prime
 from srmech.amsc.laplacian import dense_laplacian, jacobi_eigvals
 
+# Cascade-honesty per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]:
+# shared A-N cascade helpers (precursor of srmech.amsc.cascade.* primitives).
+import sys as _sys, pathlib as _pl
+_sys.path.insert(0, str(_pl.Path(__file__).resolve().parent.parent.parent))
+from _cascade_helpers import magnitude, cyclic_gcd, best_rat_signed
+
 SCHEMA_ID = "srmech.hilbert.goldbach.prime_gap_manifold.v1"
 N_MAX = 2000
 SOURCE_DOI = "10.4064/aa-2-1-23-46"   # Cramér 1936 Acta Arithmetica
