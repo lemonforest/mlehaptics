@@ -12,6 +12,14 @@
 
 Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
+## Companion textbook
+
+**The Metric Field and Its Primitives** — the framework textbook accompanying this package. Lays out the substrate-vs-excitation ontology (MFO), the 14-class primitive vocabulary at substrate level, and the cascade-composition discipline that `srmech` implements computationally.
+
+- [PDF (GitHub)](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/metric-field-and-its-primitives.pdf) — renders inline in the GitHub viewer
+- [PDF (ReadTheDocs)](https://mlehaptics.readthedocs.io/srmech/metric-field-and-its-primitives.pdf) — served as a static asset alongside the [research notebook](https://mlehaptics.readthedocs.io/srmech/srmech_research_notebook/)
+- [MFO research notebook](https://mlehaptics.readthedocs.io/antikythera-maths/mfo_spectral_research_notebook/) — working draft the textbook is consolidated from
+
 ## Install
 
 ```bash

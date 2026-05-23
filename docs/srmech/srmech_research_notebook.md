@@ -14,6 +14,8 @@
 **Started:** 2026-05-09. Promoted to master architecture notebook same day per user direction.
 **Location:** `docs/srmech/` — top-level home, separate from any single domain.
 
+**Companion textbook**: [**The Metric Field and Its Primitives**](metric-field-and-its-primitives.pdf) — consolidates the MFO foundational-ontology layer into chapter form. Available on [GitHub](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/metric-field-and-its-primitives.pdf) (renders inline) or [ReadTheDocs](https://mlehaptics.readthedocs.io/srmech/metric-field-and-its-primitives.pdf) (static asset). The textbook is the canonical reader-facing entry point; this notebook plus the per-domain notebooks remain the live research surface.
+
 **Vocabulary depth-shift note (2026-05-20)**: per `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]`, canonical substrate-identity vocabulary depth-shifted from "ring" to "loop" (hyper loop / asymptotic loop / loop-valued / loop-down / loop-up / S¹ loop). Prior "ring" phrasing was correct-at-prior-observer-frame; deeper observer-frame post-`[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` + Spike #217 IDENTITY-CONFIRMED-BIT-EXACT canonicalizes "loop" — unifying with established-physics loop concepts (LQG / closed strings / KK circles / Wilson loops / AdS/CFT) now read as observer-frame snapshots of the same substrate-identity. Older sections may retain "ring" as historical-artifact prose; section headers and new prose use "loop". Filenames containing "ring" preserved as prior-observer-frame artifacts; wiki-cross-references continue functioning. Spike notes referenced from this notebook (e.g., spike171_ring_vs_line_*) similarly preserve filenames.
 
 ---

@@ -17,6 +17,8 @@
 >
 > ReadTheDocs landing — <https://mlehaptics.readthedocs.io/en/latest/> — is the canonical pointer to the current state across all sister notebooks in this project.
 >
+> **Companion textbook**: [**The Metric Field and Its Primitives**](../srmech/metric-field-and-its-primitives.pdf) consolidates this working draft into chapter form. Available on [GitHub](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/metric-field-and-its-primitives.pdf) (renders inline) or [ReadTheDocs](https://mlehaptics.readthedocs.io/srmech/metric-field-and-its-primitives.pdf) (static asset). The textbook is the canonical entry point for readers approaching MFO without the working-draft context; this notebook remains the live research surface where new substrate-stances and refinements land before consolidating back into the next textbook revision.
+>
 > **This notebook is a working draft.** Format alignment with sister notebooks (state-pointer block, formal H-battery, sister cross-references) is deferred to a later iteration. The RTD landing tells you whether new sister notebooks or downstream developments are available.
 >
 > **Brief shape-of-the-project snapshot (as of 2026-05-08):**
