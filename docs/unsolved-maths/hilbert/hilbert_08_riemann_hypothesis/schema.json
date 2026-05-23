@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.riemann_hypothesis.zero_spectrum_match.v1",
+  "title": "Riemann Zeta Zero vs Candidate Hermitian Operator Spectrum",
+  "type": "object",
+  "required": [
+    "operator_id", "substrate_class_instance",
+    "n_eigenvalues", "n_zero_samples",
+    "mean_spacing_ratio_operator", "mean_spacing_ratio_zeros",
+    "spacing_ratio_rational_n", "spacing_ratio_rational_d",
+    "hdc_similarity_score",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "operator_id":                  { "type": "string",  "description": "Substrate-choice identifier for the candidate Hermitian operator" },
+    "substrate_class_instance":     { "type": "string",  "description": "Plain-language label: 'cyclic_Zp_29', 'path_graph_N=100', 'complete_K20', etc." },
+    "n_eigenvalues":                { "type": "integer", "description": "Number of operator eigenvalues used" },
+    "n_zero_samples":               { "type": "integer", "description": "Number of zeta zeros compared" },
+    "mean_spacing_ratio_operator":  { "type": "number",  "description": "Mean of consecutive-spacing ratios s_{n+1}/s_n for operator (unfolded)" },
+    "mean_spacing_ratio_zeros":     { "type": "number",  "description": "Mean of consecutive-spacing ratios for zeta zeros (unfolded)" },
+    "spacing_ratio_rational_n":     { "type": "integer", "description": "Best-rational numerator (Class N) for mean spacing-ratio of operator" },
+    "spacing_ratio_rational_d":     { "type": "integer", "description": "Best-rational denominator (Class N) for mean spacing-ratio of operator" },
+    "hdc_similarity_score":         { "type": "number",  "description": "Class M cosine similarity in [-1, 1] between HDC-encoded operator spacings and zero spacings" },
+    "class_cascade":                { "type": "string" },
+    "computation_hash":             { "type": "string" },
+    "source_doi":                   { "type": "string" },
+    "source_published_date":        { "type": "string" },
+    "entered_locally_at":           { "type": "string" }
+  },
+  "additionalProperties": false
+}
