@@ -1,0 +1,37 @@
+[source]
+key                  = "hilbert_06_axiomatize_physics"
+human_readable_name  = "Hilbert 6 — Axiomatize Physics (Meta-Cascade)"
+purpose              = "Meta-cascade H o A-N enumeration: survey which A-N classes encode each physics domain's axiomatic content. Tests whether the 14-class A-N vocabulary is SUFFICIENT to express known physics (or whether new primitives are required). Each record is a physics domain (Newtonian mechanics, Maxwell, GR, QM, SM, BBN, CMB, cosmology, biology-as-physics, information-as-physics including cryptography) with the cascade composition that encodes its axioms + the Hurwitz-partition signature per [[project_a_n_operators_are_harmonic_objects_themselves]] (1+3+7+3 candidate). Under that framing the dispatch becomes the natural Hilbert-section CLOSURE because Hilbert 6 IS asking for the framework's own axiom set; the cascade dispatch IS the empirical confirmation that A-N + cyclic-group algebra reconstructs physics's language. Per [[feedback_no_lineage_claims_in_notebook]]: framework reads what physics IS at substrate-level; does not claim to solve Hilbert 6 outright. Per [[feedback_trauma_informed_defensive_scope]]: cryptography-as-physics row is defensive-scope framework-reading only, not engineering recommendation."
+license              = "CC0 (self-computed; mathematical objects + framework readings are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_06_axiomatize_physics"
+
+[source.primary_references]
+hilbert_1900         = "Hilbert D (1900). Mathematical problems. Bulletin of the AMS 8(10):437-479 (English translation Newson 1902). AMS open access."
+kolmogorov_1933      = "Kolmogorov AN (1933). Grundbegriffe der Wahrscheinlichkeitsrechnung. Springer. Public domain."
+wightman_garding_1964 = "Wightman AS, Garding L (1964). Fields as operator-valued distributions in relativistic quantum theory. Arkiv foer Fysik 28:129-184."
+haag_kastler_1964    = "Haag R, Kastler D (1964). An algebraic approach to quantum field theory. J. Math. Phys. 5:848-861."
+atiyah_1988          = "Atiyah MF (1988). Topological quantum field theories. Publ. Math. IHES 68:175-186. Open access."
+mfo_notebook         = "MFO research notebook (this repository, docs/antikythera-maths/mfo_spectral_research_notebook.md) — Parts VII.2-VII.7 substrate-vs-excitation ontology + 11D structure."
+spike_58_chain       = "Spike #58 chain (this repository) — SM gauge group via Class M o I o C o K o L; SU(3) x SU(2) x U(1) derivation."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "domain_coverage.ndjson"
+
+[parse]
+natural_key = "physics_domain"
+
+[schema]
+data_schema_id = "srmech.hilbert.axiomatize_physics.domain_coverage.v1"
+
+[rendering]
+name_template    = "{physics_domain} ({domain_kind})"
+purpose_template = "cascade {class_cascade}; {n_classes_used} classes used; coverage={coverage_status}; anchor={framework_anchor}"
+cite_as_template = "mlehaptics hilbert_06_axiomatize_physics (srmech AMSC); domain={physics_domain}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash, Class H self-introspection (enumerate 14 classes A-N from srmech.amsc.tool_schema), per-domain cascade-composition inferred from existing framework spike-research + MFO notebook anchors. Cryptography-as-physics row attested to [[project_a_n_operators_are_harmonic_objects_themselves]] section B (defensive-scope only)."
+
+[gap_targeting]
+gap_label = "hilbert_06_axiomatize_physics"
