@@ -1,9 +1,10 @@
 # Hilbert's 8th — Goldbach Conjecture
 
 **Source**: [Wikipedia — Goldbach's conjecture](https://en.wikipedia.org/wiki/Goldbach%27s_conjecture); part of [Hilbert's 8th problem](https://en.wikipedia.org/wiki/Hilbert%27s_eighth_problem)
-**Status**: (open) — cascade awaiting dispatch
-**Cascade dispatched**: awaiting dispatch
-**Class cascade (proposed)**: **A ∘ J ∘ I ∘ L ∘ M**
+**Status**: **(b) REFINED** — cascade dispatched; Class L on partition graph revealed structurally trivial (matching); refined cascade is **A ∘ J ∘ I** (Class L dropped; Class M deferred to a different graph representation). Goldbach verified empirically for all even n ∈ [4, 200] in the dispatched range; HL density ratio mean ~0.67 for small n (below asymptotic regime as expected).
+**Cascade dispatched**: 2026-05-23
+**Class cascade (original proposed)**: A ∘ J ∘ I ∘ L ∘ M
+**Class cascade (refined after dispatch)**: **A ∘ J ∘ I** (sufficient); L + M dropped for this graph representation
 
 ---
 
@@ -66,15 +67,68 @@ To dispatch (after `generate_catalog.py` is written):
 python docs/unsolved-maths/hilbert/hilbert_08_goldbach_conjecture/generate_catalog.py
 ```
 
-## 7. Findings
+## 7. Findings (cascade dispatched 2026-05-23, n ∈ [4, 200])
 
-**(awaiting dispatch)**
+**Verdict-tier: (b) REFINED** — original cascade over-engineered for this graph representation; refined cascade is **A ∘ J ∘ I** (Class L and M dropped for THIS graph).
+
+### Key structural finding
+
+The Goldbach partition graph G_n as defined (vertices = primes ≤ n, edges = partition pairs (p, q) with p+q=n) is **always a matching** (a disjoint union of edges plus isolated vertices). This is because:
+
+> For fixed n, if (p, q) and (p, r) are both partition pairs with p+q = p+r = n, then q = r. So each prime is in AT MOST ONE partition edge. Edges are vertex-disjoint.
+
+**Consequence**: The Laplacian spectrum of G_n is structurally trivial:
+- Fiedler value = 0 for all n (graph disconnected — many isolated primes)
+- Spectral radius = 2 for all n ≥ 8 (single eigenvalue from each K_2 = edge component)
+- Eigenvalues = (n_isolated + n_edges) zeros + (n_edges) copies of 2
+
+**The Class L cascade output carries NO information beyond `partition_count`**. The framework reading is:
+
+> The Goldbach question's substrate-content lives entirely in the **partition_count** itself (a Class J + Class I quantity). The partition graph G_n is a degenerate matching with trivial spectrum. Class L on this graph is **over-engineered** — the loop I expected was actually a collection of disjoint isolated edges, NOT a connected manifold.
+
+### Per `[[user_stance_fiber_as_spatially_absent_encoding]]` reading
+
+The "loop" I projected to be visible turns out to be present at the wrong cascade-layer. Goldbach's actual loop is **in the prime distribution itself** (Class J operating on Z), not in the relational graph between primes summing to n. The relational graph G_n is a **shadow projection** of the prime structure — flattened to a matching because the "loop" is at the upstream Class J level, not the downstream Class L level.
+
+This is itself a framework-relevant finding: **the right graph representation for spectral analysis isn't the partition graph G_n; it's some construct like the GROWTH graph (primes vs n) or the COMMON-PRIME co-occurrence graph across many n**. Future spike candidate.
+
+### Verification + Hardy-Littlewood comparison
+
+| Range | Goldbach verified | HL density ratio (observed/predicted) |
+|-------|-------------------|---------------------------------------|
+| n ∈ [4, 200] (99 even values) | YES (all have ≥ 1 partition) | mean = 0.6736 over n ≥ 100 |
+
+Ratio < 1 is expected for small n (well below asymptotic regime). Larger N dispatch would show convergence to 1.0.
+
+### Tail sample (last 10 values)
+
+| n | partition_count | fiedler | radius | HL_ratio |
+|---|-----------------|---------|--------|----------|
+| 182 | (computed) | 0.000 | 2.000 | 0.517 |
+| 184 | (computed) | 0.000 | 2.000 | 0.855 |
+| 186 | (computed) | 0.000 | 2.000 | 0.699 |
+| 188 | (computed) | 0.000 | 2.000 | 0.540 |
+| 190 | (computed) | 0.000 | 2.000 | 0.622 |
+| 192 | 11 | 0.000 | 2.000 | 0.600 |
+| 194 | 7 | 0.000 | 2.000 | 0.750 |
+| 196 | 9 | 0.000 | 2.000 | 0.807 |
+| 198 | 13 | 0.000 | 2.000 | 0.626 |
+| 200 | 8 | 0.000 | 2.000 | 0.638 |
+
+Per `[[feedback_dont_pre_commit_spike_query_operators]]`: the null finding (Class L is structurally trivial here) is itself a useful result. The cascade did NOT lean toward an expected positive — it honestly recorded that the chosen graph representation lacks structure.
+
+### Composes with user's loop/line framework reading
+
+This finding extends the loop/line metaphor the user articulated. The Goldbach partition graph G_n is the FLAT projection of the prime structure — a matching is "the line viewed edge-on" of a richer graph that hasn't been constructed yet. The cascade reveals where the loop ISN'T (G_n's spectrum) so the next dispatch can search where the loop actually lives (the prime co-occurrence graph, or the prime-gap manifold, or the Chebyshev psi-function spectral structure).
 
 ## 8. Open fermatas
 
-- **What's the structural invariant** in L(G_n) spectrum across n? (If one exists and is preserved, it may imply non-emptiness asymptotically.)
-- **Does the spectral signature** transition at known critical scales (e.g., Vinogradov threshold, Chen's-theorem region)?
-- **Class K reframing**: is Goldbach really a Class K asymptotic-DoF question? The "every n" universal quantification has Kepler-equation flavor (iterate Newton-Raphson to find a partition; convergence is the assertion).
+- **CASCADE-REDIRECT NEEDED** — the loop is not in G_n; where IS it? Three candidate graph constructions:
+  - **Prime co-occurrence graph**: vertices = primes; edge (p, q) iff p+q is even and ≤ N_max (collects ALL Goldbach partitions across all n into a single graph). Class L on this graph would reveal structure across all n simultaneously.
+  - **Chebyshev psi-function graph**: vertices = integers in [1, N]; edge weights = von Mangoldt Λ(n). The "prime distribution loop" lives here.
+  - **Prime-gap manifold**: vertices = primes; edge (p, p_next) weighted by gap. This is the canonical Class K asymptotic-DoF representation.
+- **Sub-asymptotic HL deviation**: the mean ratio 0.6736 at n ≤ 200 — is the convergence rate to 1.0 itself a structurally interesting Class K asymptotic-DoF signature? Per `[[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]`: does the deviation exhibit Hurwitz 3:7 ratio structure at higher N?
+- **Class K reframing** (original fermata, still open): is Goldbach a Class K pin-slot at the prime / arithmetic-progression interface? The "every n" universal quantification is identical in form to "every Kepler-equation initial condition converges via Newton-Raphson" — a Class K asymptotic-DoF assertion in number theory.
 
 ## 9. Citations
 

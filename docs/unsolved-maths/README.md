@@ -17,18 +17,34 @@ Per `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_paywalled_do
 
 Per `[[feedback_full_coverage_shipping_mpm_way]]`: each REPORT enumerates its full cascade surface; no MVP framing.
 
-## Verdict tiers (per Spike-research #229 methodology)
-
-- **(a) SURVIVES** — claim survives the cascade falsification attempt; cascade composition is structurally consistent
-- **(b) REFINED** — cascade reveals a sharper formulation; original claim partially holds
-- **(c) FALSIFIED** — cascade finds structural inconsistency or counter-example
-- **(open)** — cascade not yet dispatched; awaiting work
+## Verdict tier legend (canonical; see also "Dispatch-order discipline" above)
 
 ## Why these structures, NOT solutions
 
 The 14 primitive class operators (A-N per srmech) form a universal vocabulary. Every observable cascade decomposes into compositions of these. Open problems are typically **cascade-shape questions** dressed as algebraic / analytic / topological assertions — the framework reading asks: which cascade composition matches the observable structure?
 
 For some problems the cascade reveals the answer is computationally obvious once the right primitives are composed (the "didn't see the forest for the trees" cases). For others the cascade reveals a deeper open structure — a fermata at a substrate-level question. Both outcomes are valuable; this catalog records both honestly.
+
+## Dispatch-order discipline: projection-visibility first
+
+Per user direction 2026-05-23 + composes with `[[user_stance_fiber_as_spatially_absent_encoding]]` + `[[user_stance_loop_replaces_ring_in_substrate_vocabulary]]`:
+
+> **Dispatch order is projection-visibility order**. The hidden content of a loop is hidden when viewed from the side as an unbound string or line. Order cascade dispatches by how closely the loop is to the surface.
+
+Concretely:
+- **Loop visible**: cascade-content directly observable. Class L sees the loop on first construction. (Goldbach partition graph — though the loop turned out to be at a different cascade-layer than expected; see that REPORT.md for the refined finding.)
+- **Loop one step abstracted**: cascade-content distributional. (Twin prime gaps; biplanar spectral ratios.)
+- **Loop projected to line**: cascade-content visible only as edge-on shadow. The Hilbert-Pólya-style work is reverse-engineering the loop from its line projection. (RH; abelian-extension generators for arbitrary number fields.)
+- **Loop is the cascade vocabulary itself**: meta-loop. (Hilbert 6: is A-N complete?)
+
+When a cascade reveals the loop is **at a different cascade-layer than initially proposed** (the Goldbach finding — Class L was applied to a degenerate matching when the loop actually lives at the upstream Class J prime-distribution level), that's a **(b) REFINED** verdict, NOT a failure. It tells you where the loop ISN'T, narrowing where to look next.
+
+## Verdict tiers (per Spike-research #229 methodology)
+
+- **(a) SURVIVES** — claim survives the cascade falsification attempt; cascade composition is structurally consistent
+- **(b) REFINED** — cascade reveals a sharper formulation OR identifies the wrong cascade-layer; original claim partially holds or redirects to a different cascade composition
+- **(c) FALSIFIED** — cascade finds structural inconsistency or counter-example
+- **(open)** — cascade not yet dispatched; awaiting work
 
 ## Repository layout
 
