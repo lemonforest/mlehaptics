@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.limit_cycles.polynomial_vector_field.v1",
+  "title": "Hilbert 16 / Smale 16 Limit-Cycle Cascade Record",
+  "type": "object",
+  "required": [
+    "system_label", "degree_n",
+    "critical_point_count",
+    "saddle_count", "node_count", "focus_count", "center_count",
+    "cascade_orientation_index_sum",
+    "known_lower_bound_H_n",
+    "cascade_predicted_limit_cycle_count",
+    "hurwitz_ratio_n_over_7", "hurwitz_ratio_rational_num", "hurwitz_ratio_rational_den",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "system_label":                        { "type": "string", "description": "Plain-language identifier for the polynomial vector field family (e.g. 'linear', 'van_der_pol', 'lienard_cubic', 'bautin', 'shi_songling')." },
+    "degree_n":                            { "type": "integer", "description": "Max polynomial degree of P and Q in dx/dt = P(x,y), dy/dt = Q(x,y)." },
+    "polynomial_P":                        { "type": "string", "description": "Symbolic P(x,y) expression for the record (human-readable)." },
+    "polynomial_Q":                        { "type": "string", "description": "Symbolic Q(x,y) expression for the record." },
+    "critical_point_count":                { "type": "integer", "description": "Class K pin-slot count: total critical points of the field on R^2." },
+    "saddle_count":                        { "type": "integer", "description": "Critical points with det J < 0." },
+    "node_count":                          { "type": "integer", "description": "Critical points with det J > 0 and (trace J)^2 - 4 det J > 0." },
+    "focus_count":                         { "type": "integer", "description": "Critical points with det J > 0 and (trace J)^2 - 4 det J < 0, trace J != 0." },
+    "center_count":                        { "type": "integer", "description": "Critical points with det J > 0 and trace J = 0." },
+    "cascade_orientation_index_sum":       { "type": "integer", "description": "Class C cascade-orientation: sum of Poincare indices over all critical points (must equal Euler characteristic of phase space)." },
+    "known_lower_bound_H_n":               { "type": "integer", "description": "Known lower bound H(n) of limit-cycle count for degree-n polynomial vector fields, per literature." },
+    "cascade_predicted_limit_cycle_count": { "type": "integer", "description": "Cascade A o L o C o K o I prediction for this specific system." },
+    "hurwitz_ratio_n_over_7":              { "type": "number",  "description": "n / 7: candidate Hurwitz scaling ratio per [[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]] heptadic structure." },
+    "hurwitz_ratio_rational_num":          { "type": "integer", "description": "Class N best-rational num for n/7." },
+    "hurwitz_ratio_rational_den":          { "type": "integer", "description": "Class N best-rational den for n/7." },
+    "class_cascade":                       { "type": "string" },
+    "computation_hash":                    { "type": "string" },
+    "source_doi":                          { "type": "string" },
+    "source_published_date":               { "type": "string" },
+    "entered_locally_at":                  { "type": "string" }
+  },
+  "additionalProperties": false
+}

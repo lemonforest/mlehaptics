@@ -1,0 +1,37 @@
+[source]
+key                  = "hilbert_16_limit_cycles"
+human_readable_name  = "Hilbert 16 / Smale 16 — Limit Cycles of Polynomial Vector Fields"
+purpose              = "Cascade A o L o C o K o I dispatched against the open Hilbert 16 (Part 2) / Smale 16 problem -- max number of limit cycles H(n) for planar polynomial vector fields of degree n. Calibrates against KNOWN literature lower bounds: H(1)=0, H(2)>=4, H(3)>=13, etc. Each record is a specific polynomial family (linear, Van der Pol, Lienard cubic, Bautin, Shi-Songling, etc.) characterised by its critical-point taxonomy (Class K pin-slot count by saddle/node/focus/center), Class C orientation-index sum (Poincare index), and the cascade's predicted limit-cycle count from the Hurwitz n/7 heptadic candidate per [[user_stance_substrate_asymptotic_wave_fractal_hopf_phase_boundary_mechanism]]. Under [[project_a_n_operators_are_harmonic_objects_themselves]]: this dispatch tests the Hurwitz-bounded heptadic prediction that H(n) <= 7*n or similar small-multiplier-of-7 bound, since the 14-class vocabulary's cascade-detection heptad {D,E,F,G,K,L,M} would naturally limit-cycle-count to a heptadic multiple."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_16_limit_cycles"
+
+[source.primary_references]
+hilbert_1900         = "Hilbert D (1900). Mathematische Probleme. Goettinger Nachrichten 1900:253-297. Public domain."
+ilyashenko_2002      = "Ilyashenko Yu (2002). Centennial history of Hilbert 16th problem. Bull. Amer. Math. Soc. 39(3):301-354. AMS open access."
+smale_1998           = "Smale S (1998). Mathematical problems for the next century. Math. Intelligencer 20(2):7-15."
+ecalle_1992          = "Ecalle J (1992). Introduction aux fonctions analysables et preuve constructive de la conjecture de Dulac. Hermann."
+ilyashenko_1991      = "Ilyashenko Yu (1991). Finiteness theorems for limit cycles. AMS Transl. Monogr. 94."
+li_liu_2010          = "Li J, Liu Y (2010). New results on the number and stability of limit cycles for a class of polynomial systems. Chaos Solitons Fractals."
+shi_songling_1980    = "Shi Songling (1980). A concrete example of the existence of four limit cycles for plane quadratic systems. Sci. Sinica 23:153-158."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "polynomial_vector_field.ndjson"
+
+[parse]
+natural_key = "system_label"
+
+[schema]
+data_schema_id = "srmech.hilbert.limit_cycles.polynomial_vector_field.v1"
+
+[rendering]
+name_template    = "{system_label} (degree {degree_n})"
+purpose_template = "critical points: {critical_point_count} (saddles={saddle_count}, nodes={node_count}, foci={focus_count}, centers={center_count}); known H_n bound >= {known_lower_bound_H_n}; cascade predicts {cascade_predicted_limit_cycle_count}; n/7 = {hurwitz_ratio_rational_num}/{hurwitz_ratio_rational_den}"
+cite_as_template = "mlehaptics hilbert_16_limit_cycles (srmech AMSC); system={system_label}, degree_n={degree_n}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Class A content-hash, Class L phase-space spectrum (Jacobian eigenvalues at critical points), Class C Poincare-index sum, Class K critical-point taxonomy (saddle/node/focus/center via det/trace of Jacobian), Class I cyclic-period of Poincare return map (modulo numerical limits at this rcN scope), Class N best-rational of Hurwitz n/7. Calibration set covers known polynomial vector field families with documented limit-cycle counts."
+
+[gap_targeting]
+gap_label = "hilbert_16_smale_16"
