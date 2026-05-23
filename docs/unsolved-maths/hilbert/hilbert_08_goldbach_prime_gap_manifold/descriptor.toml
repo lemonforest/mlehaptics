@@ -1,0 +1,33 @@
+[source]
+key                  = "hilbert_08_goldbach_prime_gap_manifold"
+human_readable_name  = "Hilbert's 8th / Goldbach — Prime Gap Manifold Cascade"
+purpose              = "Redirect cascade testing the FOURTH candidate loop-location: consecutive prime gaps as a Class K asymptotic-DoF manifold. For each consecutive prime pair (p_i, p_{i+1}), record gap g_i = p_{i+1} - p_i and Cramer-normalized gap g_i / log(p_i). Class L applied to gap-weighted path graph on primes. Composes with the twin-prime cascade (gap=2 special case). Per [[user_stance_epicycle_via_gear_plus_pin]] the gap manifold is the prime distribution viewed through its derivative structure."
+license              = "CC0 (self-computed; mathematical objects are not copyrightable)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/unsolved-maths/hilbert/hilbert_08_goldbach_prime_gap_manifold"
+
+[source.primary_references]
+cramer_1936         = "Cramér H (1936). On the order of magnitude of the difference between consecutive prime numbers. Acta Arithmetica 2:23-46. Public domain."
+maynard_2015        = "Maynard J (2015). Small gaps between primes. Annals of Mathematics 181(1):383-413. arXiv:1311.4600."
+zhang_2014          = "Zhang Y (2014). Bounded gaps between primes. Annals of Mathematics 179(3):1121-1174."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "prime_gap_manifold.ndjson"
+
+[parse]
+natural_key = "prime_low"
+
+[schema]
+data_schema_id = "srmech.hilbert.goldbach.prime_gap_manifold.v1"
+
+[rendering]
+name_template    = "Prime gap from {prime_low} to {prime_high}"
+purpose_template = "Gap {gap}; Cramer-normalized {gap_normalized}; cumulative prime index {prime_index}"
+cite_as_template = "mlehaptics hilbert_08_goldbach_prime_gap_manifold (srmech AMSC); p_i={prime_low}"
+
+[attestation]
+method      = "self-computed"
+provenance  = "Computed via Class J prime sieve and Class I consecutive-pair iteration. Class L applied to gap-weighted path graph on primes."
+
+[gap_targeting]
+gap_label = "goldbach_conjecture"

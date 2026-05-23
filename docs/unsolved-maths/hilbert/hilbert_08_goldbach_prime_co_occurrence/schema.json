@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.goldbach.prime_co_occurrence.v1",
+  "title": "Prime Goldbach Co-Occurrence Record",
+  "type": "object",
+  "required": [
+    "prime", "n_max_search", "even_n_count",
+    "goldbach_degree", "degree_normalized",
+    "rank_in_degree_sequence",
+    "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "prime": { "type": "integer" },
+    "n_max_search": {
+      "type": "integer",
+      "description": "Even n searched up to this bound (2N where N is the descriptor N_max)"
+    },
+    "even_n_count": {
+      "type": "integer",
+      "description": "Number of even n in [4, n_max_search] in scope"
+    },
+    "goldbach_degree": {
+      "type": "integer",
+      "description": "Count of even n in [4, n_max_search] where this prime appears in some partition pair"
+    },
+    "degree_normalized": {
+      "type": "number",
+      "description": "goldbach_degree / even_n_count (in [0, 1])"
+    },
+    "rank_in_degree_sequence": {
+      "type": "integer",
+      "description": "Rank when primes sorted ascending by degree; 1 = lowest degree"
+    },
+    "class_cascade": { "type": "string" },
+    "computation_hash": { "type": "string" },
+    "source_doi": { "type": "string" },
+    "source_published_date": { "type": "string" },
+    "entered_locally_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}

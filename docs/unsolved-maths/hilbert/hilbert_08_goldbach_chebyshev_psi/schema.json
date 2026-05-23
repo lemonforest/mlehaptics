@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "srmech.hilbert.goldbach.chebyshev_psi.v1",
+  "title": "Chebyshev psi Sample Record",
+  "type": "object",
+  "required": [
+    "N_sample", "psi_value", "residual", "rel_residual",
+    "primes_below_N", "class_cascade", "computation_hash",
+    "source_doi", "source_published_date", "entered_locally_at"
+  ],
+  "properties": {
+    "N_sample": { "type": "integer" },
+    "psi_value": { "type": "number", "description": "psi(N) = sum_{p^k <= N} log(p)" },
+    "residual": { "type": "number", "description": "psi(N) - N" },
+    "rel_residual": { "type": "number", "description": "(psi(N) - N) / sqrt(N); under RH this is O(log^2 N)" },
+    "primes_below_N": { "type": "integer" },
+    "class_cascade": { "type": "string" },
+    "computation_hash": { "type": "string" },
+    "source_doi": { "type": "string" },
+    "source_published_date": { "type": "string" },
+    "entered_locally_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}
