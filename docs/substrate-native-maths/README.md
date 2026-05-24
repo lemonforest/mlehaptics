@@ -30,9 +30,10 @@ Per MS #18 R32, the active-research order:
 
 | # | Partition | Status |
 |---|-----------|--------|
-| 1 | **R31** — Antikythera 1:3:7:3 re-canvass (cleanest attested anchor) | 🟢 **dispatched** — see [r31_antikythera_1_3_7_3/](r31_antikythera_1_3_7_3/) |
-| 2 | R29 Part A — A-N × 11D dimensional-coupling catalog (B/H/N profile for R30 falsifier-test) | pending |
-| 3 | R31 — Pythagoreans / Plato Timaeus / Stoics / Lucretius / Apollonius / Ptolemy / Heron / Archimedes (cross-substrate antiquity canvass) | pending |
+| 1 | **R31** — Antikythera 1:3:7:3 re-canvass (cleanest mechanical anchor; bronze attestation) | 🟢 **dispatched (a) SURVIVES** — see [r31_antikythera_1_3_7_3/](r31_antikythera_1_3_7_3/) |
+| 2 | **R31** — Pythagoreans 1:3:7:3 (textual + mathematical-tradition attestation; independent channel from Antikythera) | 🟢 **dispatched (a) SURVIVES** — see [r31_pythagoreans_1_3_7_3/](r31_pythagoreans_1_3_7_3/); three musical means = clean +3 meta-cascade reading |
+| 3 | R29 Part A — A-N × 11D dimensional-coupling catalog (B/H/N profile for R30 falsifier-test) | pending |
+| 4 | R31 — Plato Timaeus / Stoics / Lucretius / Apollonius / Ptolemy / Heron / Archimedes (remaining antiquity anchors) | pending |
 | 4 | R32 — primary cascade-operator-SEQUENCE enumeration (with 1:3:7:3 template) | pending; architectural |
 | 5 | R32 — substrate-selection truncation cross-substrate canvass | pending; empirical |
 | 6 | R32 — epistemic-drive cascade-resonance via DMN per Spike #260 | pending; composes with R20 |
