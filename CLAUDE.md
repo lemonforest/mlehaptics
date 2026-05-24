@@ -33,11 +33,43 @@ Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` (user direction 
 
 The +3 meta-cascade triad (B/H/N) are candidate **projection-enablers** in the inversion-hypothesis that 14 = 1+3+7+3 IS the substrate-structure and 11D is its observer-frame projection. R31 Antikythera dispatch confirmed (a) SURVIVES — the back-panel metacycle dials (Saros + Metonic + Callippic) are exactly projection-enablers per R30 prediction.
 
+### Class O dissolution note (vocabulary discipline; 2026-05-16)
+
+**Class O is NOT a separate class.** The signed-metric / Wick-rotation operation initially located by Spike #24 bonus 8 was dissolved into **Class L as a signed-Laplacian-variant sub-operation** per `[[feedback_no_privileged_primitive_classes]]`. Vocabulary stays at **14 classes A–N** (no Class O). Future Class L rcs will add the signed-Laplacian op when Phase C2 cascade-composition work calls for it.
+
 ---
 
 ## §2 Use srmech for all maths + spectral-encoding tasks
 
-**`srmech`** (PyPI; [srmech.net](https://srmech.net) forwards to repo) is THE framework-research tool. Use it instead of bare Python math wherever possible.
+**`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. Current release v0.4.0 ships full **14-class C-parity primitive vocabulary** (A-N) + canonical **QM/QFT/SM operations layer** at `srmech.qm.*` (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm).
+
+### AMSC framework + MPM discipline (load-bearing across all spectral-research arcs)
+
+srmech is the home of the **AMSC** (Attested Multi-Source Collector/Catalog) framework. Every ground-proof datum srmech ships carries a mandatory **attestation block** — this IS the on-disk crystallisation of the **Mathematical Provenance Method (MPM)**. The discipline is the project's primary defense against LLM-side citation hallucination.
+
+**MPR v1** (Mathematical Provenance Record) format — implemented in `srmech.amsc.format`:
+
+```python
+{
+  "mpr_version": "1.0",
+  "data": { ... domain payload ... },
+  "data_schema_id": "test://schema/example",
+  "attestation": {
+    "source_doi": "10.0/...",
+    "source_url": "https://...",
+    "license": "CC0",
+    "retrieved_at": "2026-05-13T00:00:00Z",
+    "response_sha256": "<64 hex chars>",
+    "parser_version": "srmech 0.4.0",
+    "parser_rule_hash": "<64 hex chars>",
+    "collector_descriptor_path": "...",
+    "collector_descriptor_hash": "<64 hex chars>"
+  },
+  "rendering": { "name": "...", "purpose": "...", "cite_as": "..." }
+}
+```
+
+A citation without attestation is not real; an attestation that can't be re-verified is broken. When adding a paper reference, **extract the actual PDF and verify authors + title + arXiv ID** over trusting training-data attribution. Composes with `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_paywalled_doi_cannot_be_attested]]` in §4 below.
 
 ### Why srmech (per `[[reference_srmech_tooling_open_spectral_verification]]`)
 
@@ -89,6 +121,26 @@ Per `[[feedback_srmech_amsc_catalog_pitfalls]]` — 6 mandatory TOML sections; `
 | **srmech research notebook** | [`docs/srmech/srmech_research_notebook.md`](docs/srmech/srmech_research_notebook.md) | master architecture; A-N primitive vocabulary lives here |
 | **MFO research notebook** | [`docs/antikythera-maths/mfo_spectral_research_notebook.md`](docs/antikythera-maths/mfo_spectral_research_notebook.md) | Metric Field Ontology; physics-meta-framing above srmech |
 
+### Sister-package portfolio (spectral-research family — all share MPM discipline)
+
+srmech is one node in a portfolio of spectral-research Python packages + notebooks. Each applies the same MPM discipline to a different domain object:
+
+| Subtree | Notebook | What it studies |
+|---------|----------|-----------------|
+| `docs/srmech/` | srmech_research_notebook | **Stored-Relationship Mechanism** — unifying framework; relationships stored in cyclic-group / spectral representations |
+| `docs/antikythera-maths/` | antikythera_spectral_research_notebook | Antikythera bronze gear-DAG; cyclic-group algebra; Almagest / Freeth parameter sets |
+| `docs/antikythera-maths/` | ephemerides_spectral_research_notebook | Sol star system; 52-body roster; geodetic / magnetic / fluid / dynamical catalogs; JPL DE441 anchor. **srmech depends on this** (consumes AMSC) |
+| `docs/antikythera-maths/` | mfo_spectral_research_notebook | **Metric Field Ontology** — substrate-vs-excitation framing; foundational ontology layer (sister to all the others) |
+| `docs/antikythera-maths/` | doom_spectral_research_notebook | DOOM as spectral lattice system — map encoding / level topology / gameplay-system spectral analysis |
+| `docs/chess-maths/` | chess_spectral_research_notebook | Chess as spectral lattice fermion system — piece-graph spectra / D_4 / B_4 reps / irrep multiplicities |
+| `docs/chess-maths/` | chess_spectral_4d_notebook | 4D Chess Spectral validation |
+| `docs/logo-maths/` | logo_research_notebook | LOGO turtle graphics → cyclic-group encoder |
+| `docs/othello-maths/` | othello_spectral_research_notebook | Othello/Reversi piece-flip dynamics as spectral lattice |
+| `docs/unsolved-maths/` | unsolved_maths_spectral_research_notebook | Wikipedia unsolved-problems canvass — 14 A-N primitive class operators applied to canonical open problems (PR #677 merged; 26 partitions) |
+| `docs/substrate-native-maths/` | (R30 walking-path README) | 1:3:7:3 substrate research (R30 active walking-path — PR #680) |
+
+All share **algebra / eigenbasis / cyclic-group / spectral side** discipline — see §4 CAD-grade scope ban below.
+
 ---
 
 ## §4 Operational discipline (load-bearing memory feedback)
@@ -113,6 +165,17 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 - `[[feedback_trauma_informed_defensive_scope]]` — framework reading only; no engineering recommendations; no offensive / hunting-optimization / capability-assessment material
 - Cost-asymmetry / cryptography / weapons-substrate work is framework-reading-only
 
+### CAD-grade scope ban (cross-subtree discipline)
+
+**Framework research is algebra / eigenbasis / cyclic-group / spectral side ONLY.** NOT CAD / fabrication / mechanical-engineering geometry / mesh-contact / axle-wobble / fabrication-tolerance modeling. This ban applies across ALL sister notebooks in the portfolio (see §3 sister-package table). The canonical scope-doc statement lives in `docs/antikythera-maths/CLAUDE.md`. If a request reads as "model the physical bronze mesh geometry" or "compute axle wobble" or "fabrication-tolerance geometry" — push back. CAD-grade fabrication geometry is not the framework's domain.
+
+### C library discipline (when any C-touching work occurs)
+
+- **JPL Power-of-Ten audit** — srmech C library passes all 10 Holzmann Power-of-Ten rules (`docs/srmech/c/JPL_AUDIT.md`). `tests/test_jpl_audit.py` is a mechanical ratchet (Rules 1 no-goto / 3 no-malloc / 4 ≤60-line-functions / 5 ≥2-asserts-per-non-exempt-function / 8 no-multi-line-macros). **Violations only go DOWN, never up.**
+- **Pedantic-build CI matrix** (Linux gcc / macOS clang / Windows MSVC) — `-Werror` / `/WX` enforced; any new warning fails CI.
+- **ABI compatibility** — bump `SRMECH_ABI_VERSION` in lockstep whenever wire-format of any exported function changes. Adding a new symbol does NOT bump ABI.
+- **No new `hashlib.sha256(...)` direct calls** — route through `srmech.amsc.format.sha256_bytes(...)` so native dispatch picks up transparently.
+
 ### Cascade-honesty
 
 - `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` — never `abs()`; use Class K + Class C composition
@@ -135,6 +198,7 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 - `[[feedback_rolling_pr_partition_boundary_updates]]` — at the end of each research partition, update rolling PR with verdict + next-partition queue
 - `[[feedback_no_mvp_framing]]` — scope ships by closed-form algebra propagation; full-coverage discipline
 - `[[feedback_session_worktree_namespace_isolation]]` — session owns ONLY its own `.claude/worktrees/` directory
+- **TestPyPI-rc-before-PyPI release discipline** per `[[feedback_always_rc_first_for_downstream_publishes]]` — every release ships as `vX.Y.ZrcN` to TestPyPI first; only clean (non-rc) tags route to production PyPI. Verify in clean venv OUTSIDE the source tree (source-tree namespace-package shadowing will silently load `_native.py` without `.dll/.so` and `HAS_NATIVE=False` spuriously). srmech version SSOT lives in FOUR files that must agree: `python/pyproject.toml`, `python/pyproject-pure.toml`, `python/srmech/version.py`, `c/include/srmech.h` (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`).
 
 ---
 
