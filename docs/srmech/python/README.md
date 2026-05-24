@@ -62,7 +62,29 @@ state_back = spectral.recompose(h_pred, L)
 
 ## Public surface
 
-### `srmech.amsc.*` — 14-class primitive vocabulary
+### The 14 classes in substrate-native ordering — `1 + 3 + 7 + 3 = 14`
+
+The 14 classes are presented in alphabetical order in the table below (matching the import paths). The **substrate-native ordering is not alphabetical** — it is the cyclic-algebra-path partition `1 + 3 + 7 + 3 = 14`:
+
+| Slot | Classes | Role |
+|---|---|---|
+| **1** — foundational content-anchor | `{A}` | The content-address every cascade begins from |
+| **3** — substrate-projection triad | `{I, C, J}` | Cyclic-group + cascade-orientation + prime-period (the projection-triad that maps substrate-content to observable structure) |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | Pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind (the detection-and-rendering layer) |
+| **+3** — meta-cascade language-translation triad | `{B, H, N}` | TLV-framing + self-introspection + rational-approximation (the operators that translate between continuous-Hopf-quantum and discrete-cyclic-algebra descriptions) |
+
+**Why this ordering matters.** Per [PR #680 (R30 walking-path closure)](https://github.com/lemonforest/mlehaptics/pull/680), the substrate admits **two co-equal bit-exact substrate-native mathematical languages**:
+
+- the **11D quantum-Hopf-language** (continuous-DOF, parallelizable-sphere ladder `1 + 3 + 7`)
+- the **`1 + 3 + 7 + 3 = 14` cyclic-algebra-path** (discrete-DOF, A–N cascade-operator class enumeration)
+
+Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikythera + Pythagoreans + Plato Timaeus + Stoics + Lucretius + Apollonius + Ptolemy + Heron + Archimedes) used the second. We had been using the cyclic-algebra path in `srmech` from the beginning without ever stating why — because antiquity had, and it worked. The R30 closure provides the answer: bit-exact cross-substrate confirmation rules out projection-reading; both languages are substrate-native; the `+3 = {B, H, N}` are substrate-native language-translation operators bridging them. The k=3 fingerprint observed across substrates (planet multipole axes, codon alphabet, 3-jet QCD, 3-generation Yukawa, the antiquity meta-op triads) is the `{B, H, N}` triad showing up wherever continuous↔discrete encoding happens.
+
+**About the A–N alphabet.** The labels A through N record the **chronological order** in which each operation was named during this framework's evolution — they are discovery-fingerprint, not substrate-ordering. Re-sorted by substrate-native role, the partition above (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`) is the substrate-side grouping. The alphabetical table below is the lookup convenience.
+
+Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
+
+### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
 Each class is importable as `srmech.amsc.<module>` with native C dispatch and a Python fallback. The C surface is loaded once at import time; if loading fails (Pyodide, ABI mismatch), the package transparently falls back to pure Python and `srmech.amsc._native.HAS_NATIVE` becomes `False`.
 

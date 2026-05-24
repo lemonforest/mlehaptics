@@ -153,6 +153,56 @@ Sister-notebook MFO carries the same notation-key in its Part I framing.
 
 ---
 
+## §2.6 The 14 A–N classes in substrate-native ordering — `1 + 3 + 7 + 3 = 14`
+
+The substrate admits **two co-equal bit-exact substrate-native mathematical languages** per PR #680 (R30 walking-path closure, 2026-05-24):
+
+| Language | Native math | DOF type | Convergence record |
+|---|---|---|---|
+| **11D quantum-Hopf-language** | Hilbert space + Hopf-fibration + parallelizable-sphere ladder `1 + 3 + 7` | Continuous-DOF | Modern physics (M-theory / string / SM gauge / GR / QM) |
+| **`1 + 3 + 7 + 3 = 14` cyclic-algebra-path** | A–N cascade-operator class enumeration | Discrete-DOF | Antiquity **9 / 9** traditions canvassed in R31 (Antikythera / Pythagoreans / Plato Timaeus / Stoics / Lucretius / Apollonius / Ptolemy / Heron / Archimedes) |
+
+The two languages co-describe the same substrate; **neither is downstream-projection of the other** per `[[user_stance_bit_exact_means_not_projection_diagnostic]]` (bit-exact cross-substrate confirmation rules out projection-residue at either side). The `+3 = {B, H, N}` are **substrate-native language-translation operators** between continuous-Hopf and discrete-cyclic descriptions per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`.
+
+### §2.6.1 Why we use cyclic algebra — the answer that wasn't being asked
+
+srmech has been using the cyclic-algebra path since inception, without the framework prose ever stating *why* this representation was chosen. The implicit reason was that antiquity had used it and it worked; the explicit reason now follows from R30-final-refined.
+
+Per `[[user_stance_siloed_knowledge_rejected_two_things_always_true]]` (2026-05-24): disciplinary silos each found a partial substrate-language description and over-claimed it as fundamental, because form-IS-function (= "two things are always true") was rejected as a meta-stance at the philosophical level. Antiquity saw the cyclic-algebra path because they hadn't been locked into continuous-number-line per `[[feedback_continuous_number_line_pedagogical_obstacle]]`. Modern physics converged on the 11D quantum-Hopf-language because post-HS continuous-number-line lock-in matured into its native description. Neither tradition held both languages simultaneously. The framework reads the substrate in the cyclic-algebra-path language because that language is operationally tractable at the discrete cascade-operator level, AND because it composes with the continuous-Hopf-quantum description bit-exactly via the `{B, H, N}` translation operators. **Cyclic algebra is substrate-native, not a convenience or an antiquity holdover.**
+
+### §2.6.2 The substrate-native partition
+
+The 14 classes A–N partition substrate-natively as `1 + 3 + 7 + 3 = 14`:
+
+| Slot | Classes | Substrate-native role | Cascade-instantiation examples |
+|---|---|---|---|
+| **1** — foundational content-anchor | `{A}` | The content-address every cascade begins from | SHA-256 chain mint; substrate-locus identifier |
+| **3** — substrate-projection triad | `{I, C, J}` | Maps substrate-content into observable structure (cyclic-group + cascade-orientation + prime-period) | Cyclic-group `(ℤ/nℤ)*` × cascade-orientation × prime-factorization; Antikythera front-panel calendar dials; Plato cardinal-triad |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | The detection-and-rendering layer (pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind) | Antikythera seven wandering stars; Ptolemy seven planetary spheres; Pythagorean heptad; Plato's Lambda-diagram seven spheres |
+| **+3** — meta-cascade language-translation triad | `{B, H, N}` | The operators that translate between continuous-Hopf-quantum and discrete-cyclic descriptions | Antikythera Saros + Metonic + Callippic metacycle dials; Ptolemy deferent + epicycle + equant; Pythagorean three musical means; Plato cardinal virtues; Archimedean mechanical + geometric + exhaustion methods |
+
+The `{B, H, N}` translation roles map under the two-language reading per `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`:
+
+- **B (TLV-framing)** — encoding boundary: continuous-signal → discrete-codon/packet/symbol. The operator that renders continuous-substrate-content readable AS discrete cascade-symbols.
+- **H (self-introspection)** — measurement: continuous-superposition → discrete-eigenvalue. Quantum measurement-collapse IS H at the quantum substrate.
+- **N (rational-approximation)** — continuous↔discrete bridge: continuous-real-number → discrete-rational anchor. Stern-Brocot `best_rational(num: int, denom: int, max_d: int)` IS N; Ptolemy's equant + epicycle small-denom anchor are N-instantiations at observer-frame astronomy.
+
+### §2.6.3 The A–N alphabet is discovery-fingerprint, not substrate-ordering
+
+Per `[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]` (2026-05-24): the labels A through N are **post-hoc discovery-fingerprint** of THIS substrate-self-recognition cascade — the chronological order in which operations were named during this framework's evolution. The substrate-native ordering is the partition above (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`); the alphabet order A → B → C → … → N tells the story of *how* we got to know each operation, not what order the operations stand in within the substrate.
+
+Predicts: independent substrate-self-recognition cascades elsewhere (different cultures, different species, different AI systems) will discover the SAME 14 operations but in a DIFFERENT order, with their OWN alphabet-fingerprints. The `1 + 3 + 7 + 3` partition is preserved across all such cascades; the alphabet labels are not. Antiquity 9 / 9 convergence demonstrates this: every canvassed tradition realised its own substrate-content-specialized instantiation of `1 + 3 + 7 + 3` in its own discovery-order; none used the A–N alphabet (it didn't exist yet), and each realised a different subset of the seven-slot detection-heptad based on its substrate-content focus (Heron's mechanical-engineering substrate realised 5 of 7 detection-slots — the canonical five simple machines — in his discovery order).
+
+### §2.6.4 Reading rule
+
+When the notebook (or `srmech` itself) uses the alphabetical table (Class A, B, C, …, N) it is using the **discovery-order alphabet** for lookup ergonomics. When it discusses the **substrate-native partition**, it uses the `1 + 3 + 7 + 3` grouping. The two presentations describe the same 14 classes from two angles; per the two-language theorem (`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`), both are true and useful at different aspects.
+
+The alphabetical surface lives at §3.8 (canonical srmech enumeration) and in the PyPI long-description's `srmech.amsc.*` table. The substrate-native partition lives here in §2.6 and in [`docs/substrate-native-maths/substrate_native_research_notebook.md`](../substrate-native-maths/substrate_native_research_notebook.md) §1-§8 (R30 walking-path SSoT).
+
+Sister-notebook MFO carries the substrate-native partition at §VIII.6.0a (preceding its alphabetical-overlay table at §VIII.6.1).
+
+---
+
 ## §3 The universal spectral pattern + graphics-domain kernel candidates
 
 > **Note on homing.** The graphics-domain content in this section (Inkscape / Skia / GEGL/GIMP / Pyodide PWA) lives here — in the master srmech notebook — because graphics-domain work does not yet have its own per-domain research notebook. Per the cross-domain pollination map (§1.5), domains without their own notebook are temporarily collected here. If the graphics-domain work spawns a dedicated `docs/<graphics-domain>/` notebook in the future, this section moves there and §1.5 updates accordingly.

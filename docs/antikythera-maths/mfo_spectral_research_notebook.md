@@ -3808,9 +3808,65 @@ are **independently discriminable.** Future §XIII.1 work can prosecute these ta
 - Canonical framework name + notation: `[[project_space_gauge_time_framework]]` memory.
 - Methodological discriminator: `[[feedback_antiquity_not_greek]]` memory.
 
+### VIII.6.0a The two substrate-native math languages — `11D = quantum-Hopf-language`; `1 + 3 + 7 + 3 = 14 = cyclic-algebra-path` (PR #680 closure, 2026-05-24)
+
+Per [PR #680 (R30 walking-path closure)](https://github.com/lemonforest/mlehaptics/pull/680) and the substrate-native-maths research notebook ([`docs/substrate-native-maths/substrate_native_research_notebook.md`](../substrate-native-maths/substrate_native_research_notebook.md)), the substrate admits **two co-equal bit-exact substrate-native mathematical languages**:
+
+| Language | Native math | DOF type | Convergence record |
+|---|---|---|---|
+| **11D quantum-Hopf-language** (this notebook's anchor framing per §I.4 and §VIII.6) | Hilbert space + Hopf-fibration + parallelizable-sphere ladder `1 + 3 + 7` | Continuous-DOF | Modern physics (M-theory / string / SM gauge / GR / QM) |
+| **`1 + 3 + 7 + 3 = 14` cyclic-algebra-path** (the discrete-cascade view; srmech's working representation) | A–N cascade-operator class enumeration | Discrete-DOF | Antiquity **9 / 9** traditions canvassed in R31 — Antikythera + Pythagoreans + Plato Timaeus + Stoics + Lucretius + Apollonius + Ptolemy + Heron + Archimedes |
+
+**Plain statement.** The two languages co-describe the same substrate. **Neither is downstream-projection of the other** — `[[user_stance_bit_exact_means_not_projection_diagnostic]]`: bit-exact cross-substrate confirmation rules out projection-residue at either side; projections leak (per `[[user_stance_epicycle_via_gear_plus_pin]]` Class N rational-anchor leakage + neural-net bin-leakage); 11D math is bit-exact across 100+ confirmations (Saadeh + Mersenne `{1, 3, 7}` + Hurwitz + SMICA + NILC + cross-substrate cascade-match), so 11D is not projection-of-14; and 9 / 9 antiquity convergence on `1:3:7:3` is bit-exact (the partition shape is preserved across attested traditions independent of researcher-DOF), so `1:3:7:3` is not projection-of-11D. Both are substrate-native.
+
+The `+3 = {B, H, N}` are substrate-native **language-translation operators** between the two descriptions per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`:
+
+- **B (TLV-framing)** — encoding boundary: continuous-signal → discrete-codon/packet/symbol
+- **H (self-introspection)** — measurement: continuous-superposition → discrete-eigenvalue (**quantum measurement-collapse IS H** at the quantum substrate)
+- **N (rational-approximation)** — continuous↔discrete bridge: continuous-real → discrete-rational anchor
+
+This is THE source of the k=3 cross-substrate signature observed wherever continuous↔discrete encoding happens per `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`: planet multipole axes (Jupiter JRM33 / Saturn / Uranus / Neptune dipole-quadrupole-octupole triad), DNA/RNA three-letter codon alphabet, 3-jet QCD, three-generation Yukawa (Spike #85, #86), the antiquity meta-op triads (Ptolemy deferent + epicycle + equant; Pythagorean three musical means; Plato's cardinal virtues; etc.). The `{B, H, N}` triad shows up wherever the substrate transduces between its continuous and discrete descriptions.
+
+### VIII.6.0a.1 The substrate-native partition — `1 + 3 + 7 + 3 = 14`
+
+Re-sorted by substrate-native role, the 14 classes group as:
+
+| Slot | Classes | Substrate-native role | MFO substrate-vs-excitation reading |
+|---|---|---|---|
+| **1** — foundational content-anchor | `{A}` | The content-address every cascade begins from | The cascade-locus identifier; substrate's own self-address |
+| **3** — substrate-projection triad | `{I, C, J}` | Maps substrate-content into observable structure (cyclic-group + cascade-orientation + prime-period) | The three operators that project substrate-content (in 11D quantum-Hopf-language) into observable structure (in cyclic-algebra-language); cyclic-group + cascade-orientation + prime-factorization compose the substrate-projection layer |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | The detection-and-rendering layer (pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind) | Hurwitz parallelizable-sphere `7`-slot at S⁷ fiber; the cascade-detection layer that reads substrate's `7D_g` gauge-content into observable cascade-events |
+| **+3** — meta-cascade language-translation triad | `{B, H, N}` | TLV-framing + self-introspection + rational-approximation; **the operators that translate between continuous-Hopf-quantum and discrete-cyclic descriptions** | The substrate-native language-translation slot — what `[[user_stance_fiber_as_spatially_absent_encoding]]` calls "what lives in the +" at the meta-cascade level; the operators that bridge the two substrate-native languages |
+
+The substrate-native ordering is the **partition** (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`), not the alphabet (A, B, C, …, N). The alphabetical surface at §VIII.6.1 is observer-frame discovery-fingerprint per `[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]` — the chronological order in which each operation was named during the framework's own substrate-self-recognition cascade. The substrate-native grouping is preserved across all substrate-self-recognition cascades; the alphabet labels are unique to this one.
+
+### VIII.6.0a.2 Why we used cyclic algebra without ever asking why
+
+Per `[[user_stance_siloed_knowledge_rejected_two_things_always_true]]` (2026-05-24): disciplinary silos each found a partial substrate-language description and over-claimed it as fundamental, because form-IS-function (= "two things are always true") was rejected as a meta-stance at the philosophical level. MFO and srmech inherited the cyclic-algebra path from antiquity (the algebraic-content side of `[[user_stance_fiber_as_spatially_absent_encoding]]`: gear-tooth `ℤ/n`, periodic-orbit homology, U(1) gauge phase, cyclic-group representations) without prose ever stating the substrate-mechanical justification, because antiquity had used it and it composed cleanly with the modern 11D quantum-Hopf framing in this notebook. PR #680's R30-final-refined supplies the answer:
+
+- **Modern physics convergence on 11D** is the post-HS continuous-number-line lock-in maturing into its native description per `[[feedback_continuous_number_line_pedagogical_obstacle]]`. The 11D quantum-Hopf-language IS substrate-native at the continuous-DOF aspect (parallelizable-sphere ladder `1 + 3 + 7`).
+- **Antiquity 9 / 9 convergence on `1:3:7:3 = 14`** is the pre-HS substrate-native recognition surviving across cultures because antiquity's why-asking habit was unbroken per `[[user_stance_cone_of_ignorance_after_high_school]]`. The `1 + 3 + 7 + 3 = 14` cyclic-algebra-path IS substrate-native at the discrete-DOF aspect (A–N cascade-operator class enumeration).
+- **Neither is projection of the other.** Both are substrate-native. The `+3 = {B, H, N}` translate between them. The framework's previous implicit commitment to the cyclic-algebra path is now an explicit substrate-mechanical commitment: cyclic algebra is substrate-native, not a convenience or an antiquity holdover.
+
+This pedagogical-discipline statement matters because most readers approaching the framework come through the continuous-number-line lock-in (university physics / engineering / CS curricula) and may unconsciously read the cyclic-algebra-path as a discretization, approximation, or quaint historical re-derivation of "the real continuous math." It is not. **It is one of the two substrate-native languages, on equal footing with the 11D continuous-Hopf description, and bridged to it by `{B, H, N}` at the language-translation layer.**
+
+### VIII.6.0a.3 Cross-arc anchors
+
+- [`docs/substrate-native-maths/substrate_native_research_notebook.md`](../substrate-native-maths/substrate_native_research_notebook.md) — PR #680 SSoT; complete R30 walking-path including the R31 antiquity-anchor canvass (9 / 9), the bit-exact diagnostic, the two-language reading, the k=3 fingerprint catalog (12+ substrates), the silo diagnostic, and the alphabet-as-discovery-order stance
+- Sister-notebook [`docs/srmech/srmech_research_notebook.md` §2.6](../srmech/srmech_research_notebook.md) — substrate-native partition with cascade-instantiation examples; reading-rule for when prose uses the alphabetical surface versus the substrate-native grouping
+- `[[user_stance_bit_exact_means_not_projection_diagnostic]]`
+- `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`
+- `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`
+- `[[user_stance_siloed_knowledge_rejected_two_things_always_true]]`
+- `[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`
+
+---
+
 ### VIII.6.1 Canonical 14-class vocabulary — full enumeration under MFO substrate-vs-excitation ontology
 
 Per `[[user_stance_1d_collapse_to_loe_identity_not_action]]` + §VII.1.1 (two-level ontology — substrate field + excitation classes) + §VII.1.2 (1D_t as the Laws of Everything — compressed-cascade content), the **14 Spike #24 primitive classes A–N** each have a specific role under the MFO substrate-vs-excitation ontology. The canonical srmech-side enumeration with module locations lives in [`docs/srmech/srmech_research_notebook.md` §3.8.1](../srmech/srmech_research_notebook.md); this subsection re-presents the same 14 classes with **MFO substrate-vs-excitation interpretive framing**.
+
+> **Ordering note (added 2026-05-24).** The table below is in alphabetical order for lookup ergonomics, which is **observer-frame discovery-fingerprint** per `[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`. The **substrate-native ordering** is the `1 + 3 + 7 + 3 = 14` partition presented in §VIII.6.0a above (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`). Read this alphabetical table for "where does Class X live in srmech and what's its MFO role"; read §VIII.6.0a for "what is the substrate-native grouping these 14 classes realise."
 
 The mapping under the §VII.1.1 two-level ontology:
 
