@@ -58,10 +58,10 @@ Per MS #18 R31:
 
 ### 🟢 R30 AGGREGATE VERDICT CONFIRMED (2026-05-24)
 
-Final tally after all 8 R31 antiquity-anchor partitions:
-- **4/8 (a) SURVIVES** — Antikythera + Pythagoreans + Plato Timaeus + Ptolemy
-- **3/8 (b) REFINED** — Stoics + Lucretius + Apollonius + Archimedes (4/8 actually; partition 9 added)
-- **1/8 (c) FALSIFIED at 7-slot** — Heron (5 simple machines, not 7; but (b) overall)
+Final tally after all 9 R31 antiquity-anchor partitions:
+- **4/9 (a) SURVIVES** — Antikythera + Pythagoreans + Plato Timaeus + Ptolemy
+- **4/9 (b) REFINED** — Stoics + Lucretius + Apollonius + Archimedes
+- **1/9 (c) FALSIFIED at 7-slot** — Heron (5 simple machines, not 7; (b) overall)
 - **Aggregate (a) or (b): 8/9** — decisively above ≥6/8 threshold
 
 R30 (11D as projection-artifact of 1:3:7:3 = 14 substrate-structure) **empirically confirmed via cross-substrate antiquity convergence**. The Heron (c) is informative refinement (engineering substrates can specialize on 5-slot variants), not contradiction.
