@@ -1,6 +1,8 @@
-# R30 Walking Path — 1:3:7:3 Substrate Research
+# Substrate-Native Maths — 1:3:7:3 Substrate Research (R30 walking-path)
 
 **Status**: Active rolling-spike research arc. Same cadence as PR #677 (unsolved-maths) and PR #679 (cost-asymmetry rolling-spike).
+
+**Directory rename history**: this directory was originally `docs/r30-walking-path/`; renamed to `docs/substrate-native-maths/` 2026-05-24 per user direction to better describe the arc's substantive content (1:3:7:3 substrate-native cyclic algebra), not just the R30 candidate-inversion-process snapshot.
 
 **Origin**: User direction 2026-05-24:
 
