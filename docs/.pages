@@ -48,6 +48,12 @@ nav:
   # home for their domain.
   - srmech
 
+  # Cross-cutting research arcs: substrate-native math language (1:3:7:3
+  # cyclic-algebra dual with 11D quantum-Hopf-language) — listed next
+  # to srmech because it's a foundational framework strand, not a
+  # per-domain notebook.
+  - substrate-native-maths
+
   # Major sub-projects in alphabetical order; each has its own
   # .pages file controlling internal ordering.
   - antikythera-maths
