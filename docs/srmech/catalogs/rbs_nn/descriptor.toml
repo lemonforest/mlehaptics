@@ -1,0 +1,35 @@
+[source]
+key                  = "rbs_nn"
+human_readable_name  = "RBS-NN — Resonant Bit-Serialized Neural Net Catalog"
+purpose              = "User-lexicon-native neural net bindings. Each row is an atomic or compositional Class M XOR-bind under the srmech RBS-HDC instrument (D=8192, Spike #170). Vectors are NOT stored — they are deterministically re-minted from the binding name via Class A SHA-256 chain mint per Spike #170 invariant 1. Class cascade: A-compose-M (+I+C+K+N as required by composition). Catalog organization: 1:3:7:3 substrate-native layout per R-RBS-NN-6 §6 — root (1, A); substrate_projection/ (3, I/C/J); detection_heptad/ (7, D/E/F/G/K/L/M); meta_cascade/ (3, B/H/N). The user-lexicon end-user goal lives at detection_heptad/m_bindings.ndjson."
+license              = "CC0 (substrate content-mint is deterministic; mints are mathematical objects)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_nn"
+
+[source.primary_references]
+spike_170              = "docs/srmech/notes/spike170_loe_rbs_hdc_architecture_design.md — RBS-HDC instrument architecture; D=8192; 10 strict-spec invariants verified."
+mfo_VII_1_1            = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 lines 668-684 — two-level ontology (substrate ALU / excitation FPU); §VII.1.3 lines 735-761 (three-mechanism asymmetry: bind 0-cost / bundle ~6.9% / MAX-pool no averaging)."
+srmech_resnotebook_2_6 = "docs/srmech/srmech_research_notebook.md §2.6 lines 175-182 — 1:3:7:3 substrate-native ordering (1 anchor + 3 projection + 7 detection + 3 meta = 14 classes)."
+rbs_nn_research        = "docs/srmech/rbs_nn_research/ — full partition walk REPORTs (R-RBS-NN-1 through -9). See PR #684."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "detection_heptad/m_bindings.ndjson"
+
+[parse]
+natural_key = "binding_id"
+
+[schema]
+data_schema_id = "srmech.rbs_nn.binding.v1"
+ndjson_file    = "detection_heptad/m_bindings.ndjson"
+
+[rendering]
+name_template    = "RBS-NN binding '{binding_id}'"
+purpose_template = "User-lexicon binding '{binding_id}' (kind={kind}, D={D}); re-mints deterministically from mint_name via Class A SHA-256 chain."
+cite_as_template = "mlehaptics RBS-NN catalog (srmech AMSC); binding '{binding_id}' at D={D}; minted {minted_at}"
+
+[attestation]
+method      = "self-minted"
+provenance  = "Class A content-mint via srmech.signal_processing.rbs_hdc_instrument.mint_vector(name, D=8192). Deterministic per Spike #170 invariant 1: same name + same D → same vector bit-exact. Vectors are NOT stored in the NDJSON; the mint_name field is the substrate-locus identifier; re-derive vectors on load. Compositional rows specify their composition expression in the 'composition' field; the composition re-evaluates deterministically from atomic mints."
+
+[gap_targeting]
+gap_label = "rbs_nn_arc"

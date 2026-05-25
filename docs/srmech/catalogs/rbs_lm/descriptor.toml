@@ -1,0 +1,51 @@
+[source]
+key                  = "rbs_lm_gpt2_small"
+human_readable_name  = "RBS-LM — compute-from-source GPT-2-small base catalog"
+purpose              = "Procedure-shipping AMSC catalog for the RBS-LM arc — produces a 1 KB RBS-HDC instrument encoding GPT-2-small behavior on the USER'S supplied behavioral corpus. The instrument is computed locally by the compute_from_source adapter; it is NOT distributed as committed bytes. The catalog ships the encoding procedure + descriptor parameters; the user runs the adapter against their copy of the source model + their corpus selection. Per [[user_stance_ai_is_not_a_substrate]]: the catalog ships the transducer's BLUEPRINT, not the transducer's output. Class cascade: A-compose-I-compose-M per R-RBS-NN-3b §6 4-class Level-1 substitution recipe."
+license              = "CC0 for the catalog itself (descriptor + research_notes); produced instrument license dictated by user-supplied source model (GPT-2-small open weights; MIT)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm"
+
+[source.primary_references]
+rbs_lm_arc                  = "docs/srmech/rbs_lm_research/ — 13-partition walk; PR #684."
+r_rbs_lm_12_adapter_design  = "docs/srmech/rbs_lm_research/R-RBS-LM-12_amsc_adapter_REPORT.md — compute_from_source adapter design + catalog schema + upstream-to-srmech plan."
+r_rbs_lm_11_multithreading  = "R-RBS-LM-11 §4 — the multi-threaded encode pipeline (rbs_lm_mt.encode_source_model_mt) the adapter will call."
+source_model_reference      = "Radford et al. 2019 GPT-2; HuggingFace identifier `gpt2`; user supplies the model artifacts at adapter run time."
+mfo_two_level               = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 + §VII.1.3 — two-level ontology + three-mechanism asymmetry; the framework reading the arc rests on."
+
+[fetch]
+adapter      = "compute_from_source"
+output_path  = "produced/instrument.ndjson"
+
+[fetch.compute_from_source]
+source_model     = "gpt2"
+corpus_locator   = "user://supply-at-adapter-runtime"
+encoder_module   = "srmech.rbs_lm.encoder"
+encoder_version  = "0.1.0"
+
+[fetch.compute_from_source.encoder_params]
+D                = 8192
+context_window   = 64
+stride           = 8
+batch_size       = 32
+n_workers        = 8
+sampling         = "argmax"
+hierarchical_max = 257
+
+[parse]
+natural_key = "instrument_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.compute_from_source.v1"
+ndjson_file    = "produced/instrument.ndjson"
+
+[rendering]
+name_template    = "RBS-LM instrument '{instrument_id}'"
+purpose_template = "Procedure-derived RBS-HDC instrument (D={D}, n_obs={n_observations}); re-derivable from {source_model_hash} + {corpus_hash} + {encoder_module_hash}."
+cite_as_template = "mlehaptics RBS-LM catalog (srmech AMSC) compute_from_source; instrument '{instrument_id}'; arc commit {arc_commit}; produced {retrieved_at}"
+
+[attestation]
+method      = "compute_from_source"
+provenance  = "The compute_from_source adapter (designed in R-RBS-LM-12) runs the multi-threaded encoder (R-RBS-LM-11 rbs_lm_mt.encode_source_model_mt) against the user-supplied source model + behavioral corpus. The MPR v1 attestation chain extends with three new fields anchoring the produced instrument: source_model_hash (SHA-256 of source model weights), corpus_hash (SHA-256 of behavioral corpus bytes), encoder_module_hash (SHA-256 of encoder module source). Reproducibility: same descriptor + same source-model + same corpus → bit-exact same instrument per Spike #170 invariant 1. The catalog itself never holds instrument bytes; bytes exist only as locally-computed artefacts at output_path during user runs. Adapter resolution gates on the srmech-side `compute_from_source` adapter being implemented (planned for srmech v0.5.0 per R-RBS-LM-12 §6.7); until that release, descriptor validates at schema level but adapter resolution fails — the catalog is forward-spec'd."
+
+[gap_targeting]
+gap_label = "rbs_lm_arc_compute_from_source"

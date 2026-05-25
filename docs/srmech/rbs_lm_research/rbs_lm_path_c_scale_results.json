@@ -1,0 +1,68 @@
+{
+  "partition": "R-RBS-LM-18",
+  "n_observations": 492,
+  "instrument_bytes": 1024,
+  "overall_agreement_pct": 3.3333333333333335,
+  "latency_ms_mean": 179.17079660627576,
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": "--------------------",
+      "agreement": 0
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": "....................",
+      "agreement": 1
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": " are are are are are are are are are are are are are are are are are are are are",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " would is is is is is is is is is is is is is is is is is is is",
+      "agreement": 1
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": "10,101010101010101010101010101010101010",
+      "agreement": 0
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": " of of of of of of of of of of of of of of of of of of of of",
+      "agreement": 1
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": "itan theUsually the numerous the the the the the the the the the the the the the the the",
+      "agreement": 3
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " may is is is is is is is is is is is is is is is is is is is",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": ",,,,,,,,,,,,,,,,,,,,",
+      "agreement": 0
+    }
+  ],
+  "comparison": {
+    "path_b_491obs_pct": 0.0,
+    "path_c_109obs_pct": 3.3,
+    "path_c_491obs_pct": 3.3333333333333335
+  }
+}

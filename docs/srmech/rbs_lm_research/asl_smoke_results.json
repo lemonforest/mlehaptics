@@ -1,0 +1,145 @@
+{
+  "partition": "R-RBS-LM-27",
+  "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v27_asl_gloss.bin",
+  "polysemy_tests": [
+    {
+      "english": "I beat the eggs",
+      "expected_sign": "beat-egg",
+      "polysemy_word": "beat",
+      "completion": "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4261.417865753174
+    },
+    {
+      "english": "She beat me",
+      "expected_sign": "beat-defeat",
+      "polysemy_word": "beat",
+      "completion": " e                                                                           ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 3877.790689468384
+    },
+    {
+      "english": "My heart beats",
+      "expected_sign": "beat-pulse",
+      "polysemy_word": "beat",
+      "completion": "\r \r \r \r \r \r\r\r \r \r \r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4018.9409255981445
+    },
+    {
+      "english": "The drum has a beat",
+      "expected_sign": "beat-rhythm",
+      "polysemy_word": "beat",
+      "completion": "                                                                                ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4232.104778289795
+    },
+    {
+      "english": "She runs every morning",
+      "expected_sign": "run-jog",
+      "polysemy_word": "run",
+      "completion": "Eeuenneeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4358.18886756897
+    },
+    {
+      "english": "The machine runs",
+      "expected_sign": "run-machine",
+      "polysemy_word": "run",
+      "completion": "b �                                                                             ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4098.155736923218
+    },
+    {
+      "english": "Water runs from the tap",
+      "expected_sign": "run-flow",
+      "polysemy_word": "run",
+      "completion": "                                                                                ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4384.808301925659
+    },
+    {
+      "english": "Turn on the light",
+      "expected_sign": "light-bright",
+      "polysemy_word": "light",
+      "completion": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4138.766527175903
+    },
+    {
+      "english": "This box is light",
+      "expected_sign": "light-weight",
+      "polysemy_word": "light",
+      "completion": "                                                                                ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4140.610694885254
+    },
+    {
+      "english": "Turn right at the corner",
+      "expected_sign": "right-direction",
+      "polysemy_word": "right",
+      "completion": "////////////////////////////////////////////////////////////////////////////////",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 4415.241718292236
+    },
+    {
+      "english": "That is right",
+      "expected_sign": "right-correct",
+      "polysemy_word": "right",
+      "completion": "                                                                                ",
+      "hit": false,
+      "n_bytes": 80,
+      "elapsed_ms": 3959.1312408447266
+    }
+  ],
+  "basic_tests": [
+    {
+      "english": "Hello",
+      "completion": " �                                                                              ",
+      "n_bytes": 80,
+      "elapsed_ms": 3572.5669860839844
+    },
+    {
+      "english": "Thank you",
+      "completion": " y yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "n_bytes": 80,
+      "elapsed_ms": 3786.505937576294
+    },
+    {
+      "english": "I love you",
+      "completion": "o                                                                               ",
+      "n_bytes": 80,
+      "elapsed_ms": 3824.107885360718
+    },
+    {
+      "english": "What is your name?",
+      "completion": "� � � �/�/�/�/������������������������������������������������������������������",
+      "n_bytes": 80,
+      "elapsed_ms": 4202.842950820923
+    },
+    {
+      "english": "I don't know",
+      "completion": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "n_bytes": 80,
+      "elapsed_ms": 3926.267147064209
+    },
+    {
+      "english": "It is raining",
+      "completion": "/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+      "n_bytes": 80,
+      "elapsed_ms": 3973.543405532837
+    }
+  ],
+  "polysemy_hit_count": 0,
+  "polysemy_total": 11
+}

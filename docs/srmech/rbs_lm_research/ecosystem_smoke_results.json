@@ -1,0 +1,33 @@
+{
+  "partition": "R-RBS-LM-24",
+  "server_base_url": "http://127.0.0.1:8788/v1",
+  "model_id": "rbs-lm-v24-srmech-notebook",
+  "test_prompt": "The morning sun",
+  "max_tokens": 8,
+  "results": [
+    {
+      "framework": "openai (covers CopilotKit OpenAIAdapter)",
+      "status": "PASS",
+      "elapsed_ms": 2769.1218852996826,
+      "completion": "gewater ANDgewatergewatergewatergewatergewatergewater"
+    },
+    {
+      "framework": "langchain-openai",
+      "status": "PASS",
+      "elapsed_ms": 8072.906970977783,
+      "completion": "gewater ANDgewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewatergewater"
+    },
+    {
+      "framework": "autogen-ext (AG2)",
+      "status": "PASS",
+      "elapsed_ms": 1628.760814666748,
+      "completion": "gewater ANDgewatergewatergewatergewatergewatergewater"
+    },
+    {
+      "framework": "litellm",
+      "status": "PASS",
+      "elapsed_ms": 4280.5445194244385,
+      "completion": "gewater ANDgewatergewatergewatergewatergewatergewater"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "partition": "R-RBS-LM-24",
+  "experiment": "gpu_less_learning_from_notebook",
+  "notebook_path": "docs/srmech/srmech_research_notebook.md",
+  "notebook_chars": 674947,
+  "notebook_tokens_used": 5000,
+  "max_tokens_cap": 5000,
+  "stride": 8,
+  "n_observations": 617,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window": 64,
+  "vocab_table_method": "path_c_wte_random_projection_seed42",
+  "harvest_method": "text_self_supervised_no_teacher_forward_pass",
+  "encode_seconds": 39.836625814437866,
+  "bundle_seconds": 0.5391554832458496
+}

@@ -1,0 +1,22 @@
+{
+  "partition": "R-RBS-LM-25",
+  "variant": "B_distill_bpe_to_byte_level_path_d",
+  "source_model": "gpt2",
+  "gen_target_bytes": 10000,
+  "gen_actual_bytes": 10402,
+  "n_generation_prompts": 12,
+  "max_new_tokens_per_prompt": 200,
+  "n_observations": 647,
+  "stride": 16,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "vocab_method": "class_a_content_mint_byte_<n>",
+  "tokenizer_at_inference_time": "utf-8 (no BPE, no GPT-2)",
+  "tokenizer_used_for_generation_only": "gpt2 BPE",
+  "framework_reading": "Path D \u2014 BPE source distilled to byte-level instrument. Source model used to PRODUCE corpus; its tokenization is stripped via retokenize_as_utf8_bytes. The resulting instrument has zero dependency on BPE tokenization at inference time \u2014 English privilege removed.",
+  "encode_seconds": 41.95145130157471,
+  "bundle_seconds": 0.5561468601226807,
+  "generation_seconds": 127.3941879272461
+}

@@ -1,0 +1,109 @@
+{
+  "model_name": "gpt2",
+  "torch_version": "2.12.0+cpu",
+  "transformers_version": "5.9.0",
+  "torch_threads": 8,
+  "model_config": {
+    "vocab_size": 50257,
+    "hidden_dim": 768,
+    "n_layers": 12,
+    "n_heads": 12,
+    "n_parameters": 124439808,
+    "state_bytes": 497759232
+  },
+  "latency": {
+    "prompt": "The quick brown fox jumps over the",
+    "n_new_tokens": 20,
+    "total_ms": 1000,
+    "per_token_ms": 50.04454851150513,
+    "bci_threshold_ms": 100,
+    "bci_pass": true,
+    "output": " fence and runs into the bushes.\n\n\"I'm going to kill you!\"\n\n\""
+  },
+  "perplexity": {
+    "n_samples": 10,
+    "total_tokens": 174,
+    "avg_cross_entropy": 5.789952163038583,
+    "perplexity": 326.99738144069937,
+    "per_sample": [
+      {
+        "snippet": "The substrate-asymptotic-wave hypothesis names the",
+        "perplexity": 162.34637501760724
+      },
+      {
+        "snippet": "Aphantasia is a cognitive condition where mental v",
+        "perplexity": 134.68212672287262
+      },
+      {
+        "snippet": "BCI patients are motor-impaired by definition; the",
+        "perplexity": 123.10972357251242
+      },
+      {
+        "snippet": "Cross-substrate cascade matching identifies what i",
+        "perplexity": 940.1911110386991
+      },
+      {
+        "snippet": "The Mechanism 2 bundle-of-views averaging signatur",
+        "perplexity": 962.1883708823411
+      },
+      {
+        "snippet": "Hyperdimensional computing represents content as h",
+        "perplexity": 438.8185234174583
+      },
+      {
+        "snippet": "The Antikythera mechanism encodes astronomical per",
+        "perplexity": 266.4517448410824
+      },
+      {
+        "snippet": "Brain-computer interfaces enable communication wit",
+        "perplexity": 395.2825819120034
+      },
+      {
+        "snippet": "Sparse distributed memory stores patterns in a hig",
+        "perplexity": 182.49003278248853
+      },
+      {
+        "snippet": "Hard attention selects the dominant position; soft",
+        "perplexity": 1440.5351103882688
+      }
+    ]
+  },
+  "hallucination_corpus": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "completion": "a man who has been a man of action. He has been a man of action. He has been a man of action. He has been a"
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "completion": "2000, and the pandemic was the first to reach the United States. The pandemic was the first to reach the United States in the year 2000"
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "completion": "the year 744 by the Emperor, and was the first of the Zorgon Empire's three major empires. The Zorgon Empire was founded"
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "completion": "the University of California, Berkeley, in the 1970s. It is a simple, fast, and efficient algorithm that uses a single, non-linear"
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "completion": "1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million. The population of Wellington, New Zealand is approximately"
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "completion": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nCaffeine is a compound of caffeine and caffeine-"
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "completion": "twenty-three.\n\nThe number of times the number of times the number of times the number of times the number of times the number of times"
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "completion": "the number of the number of the number of the number of the number of the number of the number of the number of the number of the number of"
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "completion": "the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n\nThe sun"
+    }
+  ]
+}

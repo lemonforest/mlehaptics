@@ -1,0 +1,15 @@
+{"binding_id": "class_a_content_mint", "kind": "atomic", "mint_name": "LoE.token.Class A content-mint", "D": 8192, "minted_at": "2026-05-25T15:00:00Z", "first_8_bytes_hex": "10c2a0966c66470e"}
+{"binding_id": "class_m_xor_bind", "kind": "atomic", "mint_name": "LoE.token.Class M XOR-bind", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "class_k_pin_slot", "kind": "atomic", "mint_name": "LoE.token.Class K pin slot", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "class_i_cyclic_shift", "kind": "atomic", "mint_name": "LoE.token.Class I cyclic shift", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "class_l_laplacian", "kind": "atomic", "mint_name": "LoE.token.Class L Laplacian", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "rotate_overlay", "kind": "atomic", "mint_name": "LoE.token.rotate-overlay", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "sign_flip", "kind": "atomic", "mint_name": "LoE.token.sign flip", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "substrate_native", "kind": "atomic", "mint_name": "LoE.token.substrate-native", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "two_level_ontology", "kind": "atomic", "mint_name": "LoE.token.two-level ontology", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "hopf_compressed_metric_field", "kind": "atomic", "mint_name": "LoE.token.Hopf-compressed metric field", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "relation_is_a", "kind": "atomic", "mint_name": "LoE.relation.is-a", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "relation_implements", "kind": "atomic", "mint_name": "LoE.relation.implements", "D": 8192, "minted_at": "2026-05-25T15:00:00Z"}
+{"binding_id": "class_k_is_a_pin_slot", "kind": "compositional", "composition": "bind(mint('LoE.token.Class K'), mint('LoE.relation.is-a'), mint('LoE.token.pin slot'))", "D": 8192, "minted_at": "2026-05-25T15:00:00Z", "comment": "Class K IS a pin-slot (compositional binding representing the canonical substrate stance per user_stance_rotation_is_class_k_pin_slot)"}
+{"binding_id": "rotate_overlay_implements_max_pool", "kind": "compositional", "composition": "bind(mint('LoE.token.rotate-overlay'), mint('LoE.relation.implements'), mint('LoE.token.MAX-pool'))", "D": 8192, "minted_at": "2026-05-25T15:00:00Z", "comment": "rotate-overlay is the Class K MAX-pool projection per MFO §VII.1.3 line 743"}
+{"binding_id": "sign_flip_is_class_k_event", "kind": "compositional", "composition": "bind(mint('LoE.token.sign flip'), mint('LoE.relation.is-a'), mint('LoE.token.Class K event'))", "D": 8192, "minted_at": "2026-05-25T15:00:00Z", "comment": "Sign-flip names the Class K pin-slot boundary-crossing event per MFO §VII.6.11.6"}

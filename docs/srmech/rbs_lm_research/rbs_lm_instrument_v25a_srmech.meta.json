@@ -1,0 +1,18 @@
+{
+  "partition": "R-RBS-LM-25",
+  "variant": "A_gpu_less_byte_level_from_text",
+  "notebook_path": "docs/srmech/srmech_research_notebook.md",
+  "notebook_chars": 674947,
+  "notebook_bytes_total": 683701,
+  "bytes_used": 10000,
+  "max_bytes_cap": 10000,
+  "stride": 16,
+  "n_observations": 621,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "vocab_method": "class_a_content_mint_byte_<n>",
+  "tokenizer": "utf-8 (no BPE, no GPT-2 dependency)",
+  "harvest_method": "text_self_supervised_no_teacher_forward_pass"
+}

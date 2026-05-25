@@ -1,0 +1,78 @@
+{
+  "n_observations": 240,
+  "timings": {
+    "harvest_s": 44.14212131500244,
+    "encode_s": 8.65300178527832,
+    "bundle_s": 0.33986949920654297,
+    "total_s": 53.134992599487305
+  },
+  "instrument_bytes": 1024,
+  "torch_threads": 16,
+  "n_workers_encode": 8,
+  "harvest_batch_size": 32,
+  "overall_agreement_pct": 0.0,
+  "latency_ms_mean": 182.78551366594104,
+  "latency_ms_std": 23.865570783451663,
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": "ird NX Hebrew328 deliveries204 deliveries Maj adherentsonic tricked stub stub Lum logisticalundredsundredsundredsundredsundreds",
+      "agreement": 0
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": " Keane views ShipMoreMoreMorevictvictMore eru eru eru\ufffd eru psychedelic necessityvictvictvictvict",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": "Chemorestocobo brewery treatedisivecuts Commerce Nonetheless floppypez Watersternityrals dazzling Torrent itsbrook Qu\u00e9 consolidate",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " }); }); }); }); });emies brick.' }); }); }); }); }); }); }); }); }); }); }); });",
+      "agreement": 0
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": " miracles URLspecial URL assert butterfly butterfly dish guardian Parliament decre URLatoonatoonneticAnything Angels Angels Angels Angels",
+      "agreement": 0
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": " sugars 2017 M\u00fc collisions disqualified abroad 2017ocent Sandy prehistoric muffJamieorman Sect Sect Sect Sect Sect prince\u00bb",
+      "agreement": 0
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": "icpureWARDic Ryzenachus Ryzen............. PSPic sheds commodityicPreviouslyicic Moic Mo PSP",
+      "agreement": 0
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " culminationheaderspoken commentator bendingPages ChartInvalid ChartInvalid VO VOrandInvalidInvalidInvalidInvalidInvalidInvalidInvalid",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": " permit preventing tiss preventingestones340izzlewigitched containmentizzleizzle containmentRachel Convention infinite Convention mystery Convention Convention",
+      "agreement": 0
+    }
+  ],
+  "comparison": {
+    "r_rbs_lm_5_76obs_pct": 0.0,
+    "r_rbs_lm_8_v2_158obs_pct": 0.0,
+    "r_rbs_lm_9_223obs_pct": 0.0,
+    "r_rbs_lm_11_scaled_pct": 0.0
+  }
+}

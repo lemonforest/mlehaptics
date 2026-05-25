@@ -1,0 +1,396 @@
+{
+  "format_spec": "docs/srmech/rbs_lm_research/asl_gloss_notation.md",
+  "notation_version": "R-RBS-LM-27 v1",
+  "scope": "Mini-corpus for context-sensitivity smoke. NOT a comprehensive English↔ASL dataset — see §6 open threads in R-RBS-LM-27 REPORT for sourcing options.",
+  "pairs": [
+    {
+      "category": "polysemy_beat",
+      "english": "I beat the eggs in the bowl.",
+      "asl_gloss": "[fs:I] /beat-egg/ /EGG/+ /BOWL/."
+    },
+    {
+      "category": "polysemy_beat",
+      "english": "She beat me at chess yesterday.",
+      "asl_gloss": "/SHE/ /beat-defeat/ /ME/ /CHESS/ /YESTERDAY/."
+    },
+    {
+      "category": "polysemy_beat",
+      "english": "My heart beats fast when I run.",
+      "asl_gloss": "/MY-HEART/ /beat-pulse/ /FAST/ /WHEN/ [fs:I] /run-jog/."
+    },
+    {
+      "category": "polysemy_beat",
+      "english": "The drum has a steady beat.",
+      "asl_gloss": "/DRUM/ /HAVE/ /STEADY/ /beat-rhythm/."
+    },
+    {
+      "category": "polysemy_beat",
+      "english": "Don't beat the dog.",
+      "asl_gloss": "[head-shake]/DO-NOT/[/head-shake] /beat-hit/ /DOG/."
+    },
+    {
+      "category": "polysemy_beat",
+      "english": "We need to beat the eggs longer.",
+      "asl_gloss": "/WE/ /NEED/ /beat-egg/ /EGG/+ /LONG-TIME/+."
+    },
+
+    {
+      "category": "polysemy_run",
+      "english": "She runs every morning in the park.",
+      "asl_gloss": "/SHE/ /run-jog/ /EVERY-MORNING/ /PARK/."
+    },
+    {
+      "category": "polysemy_run",
+      "english": "The machine runs all day.",
+      "asl_gloss": "/MACHINE/ /run-machine/ /ALL-DAY/."
+    },
+    {
+      "category": "polysemy_run",
+      "english": "Water runs from the tap into the sink.",
+      "asl_gloss": "/WATER/ /run-flow/ /FROM/ /TAP/ /INTO/ /SINK/."
+    },
+    {
+      "category": "polysemy_run",
+      "english": "She runs the company well.",
+      "asl_gloss": "/SHE/ /run-manage/ /COMPANY/ /GOOD/."
+    },
+    {
+      "category": "polysemy_run",
+      "english": "He will run for mayor next year.",
+      "asl_gloss": "/HE/ /WILL/ /run-candidate/ /MAYOR/ /NEXT-YEAR/."
+    },
+    {
+      "category": "polysemy_run",
+      "english": "I am running late for the meeting.",
+      "asl_gloss": "[fs:I] /run-late/ /MEETING/."
+    },
+
+    {
+      "category": "polysemy_light",
+      "english": "Please turn on the light.",
+      "asl_gloss": "/PLEASE/ /TURN-ON/ /light-bright/."
+    },
+    {
+      "category": "polysemy_light",
+      "english": "This box is light, I can carry it.",
+      "asl_gloss": "/THIS/ /BOX/ /light-weight/ [fs:I] /CAN/ /CARRY/."
+    },
+    {
+      "category": "polysemy_light",
+      "english": "She wore a light blue dress.",
+      "asl_gloss": "/SHE/ /WEAR/ /light-color/ /BLUE/ /DRESS/."
+    },
+    {
+      "category": "polysemy_light",
+      "english": "Let me light the candle.",
+      "asl_gloss": "/LET/ /ME/ /light-fire/ /CANDLE/."
+    },
+
+    {
+      "category": "polysemy_right",
+      "english": "That's right, you got the correct answer.",
+      "asl_gloss": "/THAT/ /right-correct/ /YOU/ /HAVE/ /right-correct/ /ANSWER/."
+    },
+    {
+      "category": "polysemy_right",
+      "english": "Turn right at the corner.",
+      "asl_gloss": "/TURN/ /right-direction/ /AT/ /CORNER/."
+    },
+    {
+      "category": "polysemy_right",
+      "english": "I will do it right now.",
+      "asl_gloss": "[fs:I] /WILL/ /DO/ /right-now/."
+    },
+    {
+      "category": "polysemy_right",
+      "english": "Everyone has the right to free speech.",
+      "asl_gloss": "/EVERYONE/ /HAVE/ /right-privilege/ /FREE/ /SPEECH/."
+    },
+
+    {
+      "category": "polysemy_fly",
+      "english": "Birds fly south for the winter.",
+      "asl_gloss": "/BIRD/+ /fly-wing/ /SOUTH/ /WINTER/."
+    },
+    {
+      "category": "polysemy_fly",
+      "english": "I will fly to Paris next week.",
+      "asl_gloss": "[fs:I] /WILL/ /fly-airplane/ [fs:PARIS] /NEXT-WEEK/."
+    },
+    {
+      "category": "polysemy_fly",
+      "english": "A fly landed on my food.",
+      "asl_gloss": "/fly-insect/ /LAND/ /MY/ /FOOD/."
+    },
+
+    {
+      "category": "polysemy_spring",
+      "english": "Spring is my favorite season.",
+      "asl_gloss": "/spring-season/ /MY/ /FAVORITE/ /SEASON/."
+    },
+    {
+      "category": "polysemy_spring",
+      "english": "The water comes from a natural spring.",
+      "asl_gloss": "/WATER/ /COME-FROM/ /NATURAL/ /spring-water/."
+    },
+    {
+      "category": "polysemy_spring",
+      "english": "The spring in the mattress is broken.",
+      "asl_gloss": "/spring-coil/ /MATTRESS/ /BROKEN/."
+    },
+
+    {
+      "category": "basic_greetings",
+      "english": "Hello, how are you?",
+      "asl_gloss": "/HELLO/ [wh-q]/HOW/ /YOU/[/wh-q]?"
+    },
+    {
+      "category": "basic_greetings",
+      "english": "Goodbye, see you tomorrow.",
+      "asl_gloss": "/GOODBYE/ /SEE/ /YOU/ /TOMORROW/."
+    },
+    {
+      "category": "basic_greetings",
+      "english": "Thank you for your help.",
+      "asl_gloss": "/THANK-YOU/ /FOR/ /YOUR/ /HELP/."
+    },
+    {
+      "category": "basic_greetings",
+      "english": "I love you.",
+      "asl_gloss": "/I-LOVE-YOU/."
+    },
+    {
+      "category": "basic_greetings",
+      "english": "What is your name?",
+      "asl_gloss": "[wh-q]/YOUR/ /NAME/ /WHAT/[/wh-q]?"
+    },
+    {
+      "category": "basic_greetings",
+      "english": "My name is fingerspelled.",
+      "asl_gloss": "/MY/ /NAME/ [fs:F-I-N-G-E-R-S-P-E-L-L-E-D]."
+    },
+
+    {
+      "category": "questions",
+      "english": "Where is the bathroom?",
+      "asl_gloss": "[wh-q]/BATHROOM/ /WHERE/[/wh-q]?"
+    },
+    {
+      "category": "questions",
+      "english": "When does the meeting start?",
+      "asl_gloss": "[wh-q]/MEETING/ /START/ /WHEN/[/wh-q]?"
+    },
+    {
+      "category": "questions",
+      "english": "Do you understand?",
+      "asl_gloss": "[furrowed-brow]/YOU/ /UNDERSTAND/[/furrowed-brow]?"
+    },
+    {
+      "category": "questions",
+      "english": "Can you help me?",
+      "asl_gloss": "[furrowed-brow]/YOU/ /CAN/ /HELP/ /ME/[/furrowed-brow]?"
+    },
+
+    {
+      "category": "negation",
+      "english": "I don't know.",
+      "asl_gloss": "[head-shake][fs:I] /KNOW/[/head-shake]."
+    },
+    {
+      "category": "negation",
+      "english": "She is not here.",
+      "asl_gloss": "[head-shake]/SHE/ /HERE/[/head-shake]."
+    },
+    {
+      "category": "negation",
+      "english": "There is no food left.",
+      "asl_gloss": "[head-shake]/FOOD/ /LEFT/ /NONE/[/head-shake]."
+    },
+
+    {
+      "category": "conditional",
+      "english": "If it rains, I will stay home.",
+      "asl_gloss": "[head-tilt]/IF/ /RAIN/[/head-tilt] [fs:I] /WILL/ /STAY/ /HOME/."
+    },
+    {
+      "category": "conditional",
+      "english": "If you study, you will pass.",
+      "asl_gloss": "[head-tilt]/IF/ /YOU/ /STUDY/[/head-tilt] /YOU/ /WILL/ /PASS/."
+    },
+
+    {
+      "category": "classifier",
+      "english": "The cat walked across the floor.",
+      "asl_gloss": "/CAT/ {loc:right} cl:1-{walks-left-to-right} /FLOOR/."
+    },
+    {
+      "category": "classifier",
+      "english": "A long line of people waited.",
+      "asl_gloss": "/PEOPLE/+ cl:1-{line-stretching-left} /WAIT/+."
+    },
+    {
+      "category": "classifier",
+      "english": "The car drove down the hill.",
+      "asl_gloss": "/CAR/ cl:3-{descending-hill} /DOWN/ /HILL/."
+    },
+
+    {
+      "category": "daily",
+      "english": "I drank coffee this morning.",
+      "asl_gloss": "[fs:I] /DRINK/ /COFFEE/ /THIS-MORNING/."
+    },
+    {
+      "category": "daily",
+      "english": "She reads a book before bed.",
+      "asl_gloss": "/SHE/ /READ/ /BOOK/ /BEFORE/ /SLEEP/."
+    },
+    {
+      "category": "daily",
+      "english": "We eat dinner at six o'clock.",
+      "asl_gloss": "/WE/ /EAT/ /DINNER/ /TIME/ /SIX/."
+    },
+    {
+      "category": "daily",
+      "english": "He cooks dinner every night.",
+      "asl_gloss": "/HE/ /COOK/ /DINNER/ /EVERY-NIGHT/."
+    },
+    {
+      "category": "daily",
+      "english": "I work from home today.",
+      "asl_gloss": "[fs:I] /WORK/ /HOME/ /TODAY/."
+    },
+    {
+      "category": "daily",
+      "english": "The children play in the yard.",
+      "asl_gloss": "/CHILDREN/ /PLAY/ /YARD/."
+    },
+
+    {
+      "category": "weather",
+      "english": "It is raining outside.",
+      "asl_gloss": "/RAIN/ /OUTSIDE/."
+    },
+    {
+      "category": "weather",
+      "english": "The sun is shining brightly today.",
+      "asl_gloss": "/SUN/ /SHINE/ /BRIGHT/ /TODAY/."
+    },
+    {
+      "category": "weather",
+      "english": "It will snow tonight.",
+      "asl_gloss": "/SNOW/ /WILL/ /TONIGHT/."
+    },
+    {
+      "category": "weather",
+      "english": "The wind is very strong.",
+      "asl_gloss": "/WIND/ /VERY/ /STRONG/."
+    },
+
+    {
+      "category": "emotion",
+      "english": "I am very happy today.",
+      "asl_gloss": "[fs:I] /HAPPY/ /VERY/ /TODAY/."
+    },
+    {
+      "category": "emotion",
+      "english": "She feels sad about the news.",
+      "asl_gloss": "/SHE/ /FEEL/ /SAD/ /NEWS/."
+    },
+    {
+      "category": "emotion",
+      "english": "We are excited for the trip.",
+      "asl_gloss": "/WE/ /EXCITED/ /TRIP/."
+    },
+    {
+      "category": "emotion",
+      "english": "He is angry because he lost.",
+      "asl_gloss": "/HE/ /ANGRY/ /BECAUSE/ /HE/ /LOSE/."
+    },
+
+    {
+      "category": "family",
+      "english": "My mother is a teacher.",
+      "asl_gloss": "/MY/ /MOTHER/ /TEACHER/."
+    },
+    {
+      "category": "family",
+      "english": "Her father plays the piano.",
+      "asl_gloss": "/HER/ /FATHER/ /PLAY/ /PIANO/."
+    },
+    {
+      "category": "family",
+      "english": "I have two brothers and one sister.",
+      "asl_gloss": "[fs:I] /HAVE/ /BROTHER/+ /TWO/ /SISTER/ /ONE/."
+    },
+
+    {
+      "category": "polysemy_back",
+      "english": "She came back home yesterday.",
+      "asl_gloss": "/SHE/ /COME-BACK/ /HOME/ /YESTERDAY/."
+    },
+    {
+      "category": "polysemy_back",
+      "english": "My back hurts after working.",
+      "asl_gloss": "/MY/ /back-body/ /HURT/ /AFTER/ /WORK/."
+    },
+    {
+      "category": "polysemy_back",
+      "english": "Please move back from the edge.",
+      "asl_gloss": "/PLEASE/ /MOVE-BACK/ /FROM/ /EDGE/."
+    },
+
+    {
+      "category": "polysemy_set",
+      "english": "Please set the table for dinner.",
+      "asl_gloss": "/PLEASE/ /set-prepare/ /TABLE/ /DINNER/."
+    },
+    {
+      "category": "polysemy_set",
+      "english": "The sun sets in the west.",
+      "asl_gloss": "/SUN/ /set-descend/ /WEST/."
+    },
+    {
+      "category": "polysemy_set",
+      "english": "I bought a set of dishes.",
+      "asl_gloss": "[fs:I] /BUY/ /set-group/ /DISH/+."
+    },
+
+    {
+      "category": "polysemy_check",
+      "english": "Please check the answer.",
+      "asl_gloss": "/PLEASE/ /check-verify/ /ANSWER/."
+    },
+    {
+      "category": "polysemy_check",
+      "english": "I will write you a check.",
+      "asl_gloss": "[fs:I] /WILL/ /WRITE/ /YOU/ /check-payment/."
+    },
+
+    {
+      "category": "spatial_role_shift",
+      "english": "John told Mary that he was tired.",
+      "asl_gloss": "{loc:left}[fs:J-O-H-N] {loc:right}[fs:M-A-R-Y] {rs:left}/TELL/ /TIRED/."
+    },
+    {
+      "category": "spatial_role_shift",
+      "english": "She asked him what time it was.",
+      "asl_gloss": "{loc:right}/SHE/ {loc:left}/HE/ {rs:right}[wh-q]/TIME/ /WHAT/[/wh-q]?"
+    },
+
+    {
+      "category": "longer_paragraph",
+      "english": "I went to the store. I bought bread and milk. Then I came home.",
+      "asl_gloss": "[fs:I] /GO-TO/ /STORE/. [fs:I] /BUY/ /BREAD/ /MILK/. /THEN/ [fs:I] /COME-BACK/ /HOME/."
+    },
+    {
+      "category": "longer_paragraph",
+      "english": "The weather was nice. We went to the park. The children played for hours.",
+      "asl_gloss": "/WEATHER/ /NICE/. /WE/ /GO-TO/ /PARK/. /CHILDREN/ /PLAY/+ /HOUR/+."
+    },
+    {
+      "category": "longer_paragraph",
+      "english": "She studied for the test. She passed with a high score. Her parents were proud.",
+      "asl_gloss": "/SHE/ /STUDY/+ /TEST/. /SHE/ /PASS/ /HIGH/ /SCORE/. /HER/ /PARENT/+ /PROUD/."
+    }
+  ]
+}
