@@ -4,9 +4,11 @@
 
 ---
 
-## NEXT-1 — Encode a real trained LLM as an RBS-HDC instrument
+## NEXT-1 — RBS-LM cross-substrate translation arc
 
-**Priority:** HIGH (user direction 2026-05-25: *"download a small public LLM and make it an RBS-HDC instrument in the same way we did with ephemerides, where we can then do local inference from a genuine trained model. and because we don't need it in VRam, if this works, we can do the same with the largest model available."*)
+**Status (2026-05-25):** the partition walk for this item is now **landed at `docs/srmech/rbs_lm_research/README.md`** — promoted from roadmap-pointer to active arc. PR #684 carries the walk. See that README for the 10-partition plan and the §3 risk-and-open-questions register.
+
+**Priority:** HIGH (user direction 2026-05-25, first ask: *"download a small public LLM and make it an RBS-HDC instrument in the same way we did with ephemerides..."*; second ask, expanding the framing: *"we need to try to understand how we can do this without having to load the model into VRAM in the same way that we did not need to load ephemerides into VRAM. ... we're doing a cross substrate translation ... we are trying to find out if we can avoid having to train from scratch."*)
 
 ### The substantive claim being tested
 
