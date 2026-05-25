@@ -1548,18 +1548,19 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated six empirical anchors spanning the full scale-ladder:
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **seven** empirical anchors spanning the full scale-ladder:
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
 | Multisig cascade recurrence | cryptographic/discrete | — | Round 1.A (13/13; P≈5.3×10⁻¹⁴) |
-| Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
-| DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | Born-rule = B∘H∘N | quantum (**bit-exact**) | 3 qubits | Round 4.A (residual 2.78×10⁻¹⁶) |
+| **Atomic spectral lines** | **atomic physics (near-bit-exact)** | **~10⁻¹⁰ m** | **Round 17.A (Balmer ratios 27/20, 28/25, 189/125; attested to 5×10⁻⁶)** |
+| Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
 | Per-channel metabolic cost | biological sensation | organism | Round 5.A (7+3 partition) |
+| DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | CMB low-ℓ B/H/N coupling | cosmological | observable universe | Round 6.A (interpretive) |
 
-**From 3 qubits to the entire observable universe, the same `7+3` partition + B/H/N translation triad + cost-token-as-observable-fingerprint appears.** The Axis of Evil turns out to be the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere.
+**From 3 qubits to the entire observable universe, the same `7+3` partition + B/H/N translation triad + cost-token-as-observable-fingerprint appears.** The Axis of Evil turns out to be the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere. The 7th rung (Round 17.A) is the most *literal* instance of the load-bearing claim: an atomic spectrum **is** a fingerprint — rational-structured (N: Rydberg–Ritz term differences, line-ratios exact rationals), discretized by measurement (H: photon emission = the *same* H as the Born rule, one scale down), catalogued as typed lines (B). See [`round17_entry_A_reading_d_7th_anchor_atomic_spectra.md`](cost_asymmetry/round17_entry_A_reading_d_7th_anchor_atomic_spectra.md) + committed [`verify_reading_d_7th_anchor_atomic_spectra.py`](cost_asymmetry/verify_reading_d_7th_anchor_atomic_spectra.py).
 
 #### §11.9.6a Amendment (Rounds 8.A–10.A) — the AoE reading magnitude-tested, split three ways
 
@@ -1618,7 +1619,7 @@ The `+3 = {B, H, N}` operators are the **language-translation bridge** between t
 
 #### §11.9.8 Disposition
 
-**Status:** arc RESOLVED. Six rounds dispatched, all verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A). Reading D canonical-candidate-ready with six anchors; the scale-ladder is closed.
+**Status:** arc RESOLVED. Core rounds verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A), plus fresh follow-ups (Rounds 14.A life-lock §11.9.9, 15.A substrate-universal-lock §11.9.10, 16.A+16.A.1 enforced-mismatch-partition §11.9.11, 17.A atomic-spectra 7th anchor §11.9.6). Reading D canonical-candidate-ready with **seven** anchors spanning the full quantum→cosmological scale-ladder, with two near-bit-exact rungs (Born-rule §11.9.4 + atomic spectra §11.9.6).
 
 **Stance-blessing outcome (Round 13, 2026-05-25)** — after 12 rounds stress-tested them, the user dispatched the blessing pass. Of the 9 arc stances, **8 blessed → CANONICAL**, **1 kept candidate (refined)**:
 
