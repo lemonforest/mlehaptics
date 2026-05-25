@@ -46,6 +46,10 @@ Following the R30 rolling-spike pattern. Each partition closes with a REPORT bef
 
 REPORTs land in this directory as `R-RBS-NN-{n}_{slug}_REPORT.md`.
 
+**Post-arc reference files:**
+- [`ROADMAP.md`](ROADMAP.md) — next-work items after the arc closes (NEXT-1 LLM compression; NEXT-2 SSoT absorption; NEXT-3 literature attestation; etc.)
+- [`UPSTREAM_NOTES.md`](UPSTREAM_NOTES.md) — srmech-side observations surfaced during research; resolved in dedicated srmech-fix sessions (not here)
+
 ---
 
 ## §3 Working constraints
