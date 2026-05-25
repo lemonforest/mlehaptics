@@ -258,6 +258,18 @@ Infrastructure built: `distill_cron.sh` makes Llama 8B / 30B / 70B Q4
 distillations achievable as overnight/weekend cron tasks if a future
 question wants to verify the orthogonality at larger source scale.
 
+### Correction to R-RBS-LM-29 Finding 2 framing — fp16 70B is feasible via swap
+
+**Documented in R-RBS-LM-30** (see `R-RBS-LM-30_swap_REPORT.md` + `check_swap.sh`).
+R-RBS-LM-29 claimed "Llama 70B fp16: infeasible (140 GB > 96 GB RAM)."
+That's incorrect for Path D distillation: we're not doing real-time
+inference, so swap absorbs the overflow at a slower per-token rate
+(~10-30 sec/tok estimated). 50k-byte corpus via fp16 70B with swap is
+a ~1-4 day cron-task — slow but achievable. `check_swap.sh recommend
+140` reports the exact swap budget needed (67 GB additional on top of
+the existing 8 GB Ubuntu default). Q4 GGUF is still faster when
+available; fp16 with swap is the unquantized fallback.
+
 ---
 
-*Last updated: 2026-05-25 — R-RBS-LM-29 close.*
+*Last updated: 2026-05-25 — R-RBS-LM-30 close.*
