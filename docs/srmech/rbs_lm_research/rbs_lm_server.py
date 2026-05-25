@@ -177,7 +177,8 @@ def health():
         "response_formats_supported": {
             "text": "raw cascade output (default)",
             "braille": "UEB Grade 1 English Braille (Unicode U+2800..U+28FF); deterministic; R-RBS-LM-26",
-            "signwriting": "RESERVED — requires parallel English↔SignWriting corpus; surface accepted, encoding deferred",
+            "asl-gloss": "Slash-wrapped ASL gloss notation; R-RBS-LM-27; requires byte mode + v27-family parallel-corpus-encoded instrument; cascade is prompted with <english>\\x02 and generates gloss until \\x03",
+            "signwriting": "RESERVED — Sutton SignWriting Unicode (U+1D800..U+1DAAF); requires direct English↔SignWriting parallel corpus (not the gloss-notation intermediate); encoding deferred",
         },
         "framework_reading": (
             "This server exposes a transducer (RBS-LM inference cascade) "
@@ -231,13 +232,32 @@ def chat_completions(req: ChatCompletionRequest):
     bot = _get_bot()
     prompt = _flatten_messages(req.messages)
 
-    result = bot.respond_with_metadata(
-        prompt,
-        max_new_tokens=req.max_tokens,
-        context_truncation=req.context_truncation,
-    )
+    fmt_type = req.response_format.type if req.response_format else "text"
 
-    completion = _apply_response_format(result["completion"], req.response_format)
+    if fmt_type == "asl-gloss":
+        # R-RBS-LM-27 inference protocol: prompt is `<english>\x02`, cascade
+        # generates gloss bytes until \x03 or max_tokens. Requires byte mode +
+        # a parallel-corpus-encoded instrument (v27 family).
+        if not BYTE_MODE:
+            raise HTTPException(
+                status_code=400,
+                detail="asl-gloss response_format requires byte mode "
+                       "(RBS_LM_BYTE_MODE=1) and a parallel-corpus-encoded "
+                       "instrument (R-RBS-LM-27 v27 family).",
+            )
+        completion, n_prompt, n_new = _asl_gloss_translate(
+            bot, prompt, max_new_tokens=req.max_tokens,
+            context_truncation=req.context_truncation,
+        )
+        result_usage = (n_prompt, n_new)
+    else:
+        result = bot.respond_with_metadata(
+            prompt,
+            max_new_tokens=req.max_tokens,
+            context_truncation=req.context_truncation,
+        )
+        completion = _apply_response_format(result["completion"], req.response_format)
+        result_usage = (len(result["prompt_token_ids"]), len(result["new_token_ids"]))
 
     return ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
@@ -251,11 +271,45 @@ def chat_completions(req: ChatCompletionRequest):
             )
         ],
         usage=ChatCompletionUsage(
-            prompt_tokens=len(result["prompt_token_ids"]),
-            completion_tokens=len(result["new_token_ids"]),
-            total_tokens=len(result["prompt_token_ids"]) + len(result["new_token_ids"]),
+            prompt_tokens=result_usage[0],
+            completion_tokens=result_usage[1],
+            total_tokens=result_usage[0] + result_usage[1],
         ),
     )
+
+
+def _asl_gloss_translate(bot, english_prompt, max_new_tokens=80,
+                          context_truncation=None):
+    """R-RBS-LM-27 inference protocol: <english>\\x02 → cascade → ...\\x03
+
+    Cascade trained on paired English↔ASL-gloss corpus expects this prompt
+    format. Generation stops at ETX (0x03) or max_new_tokens.
+
+    Returns (completion_text, n_prompt_bytes, n_new_bytes).
+    """
+    from rbs_lm_encoder import CONTEXT_WINDOW, D, bind
+    from rbs_lm_bytes import encode_context_bytes, vectorised_cleanup_bytes
+
+    SEP, END = 0x02, 0x03
+    window = context_truncation if context_truncation is not None else CONTEXT_WINDOW
+
+    prompt_bytes = list(english_prompt.encode("utf-8")) + [SEP]
+    tokens = list(prompt_bytes)
+    new_bytes = []
+    for _ in range(max_new_tokens):
+        ctx = tokens[-window:] if len(tokens) > window else tokens
+        ctx_vec = encode_context_bytes(ctx, bot.vocab_table, D)
+        cand = bind(bot.instrument, ctx_vec)
+        res = vectorised_cleanup_bytes(cand, bot.vocab_table, D, top_k=1)
+        nxt = res[0][0]
+        new_bytes.append(nxt)
+        tokens.append(nxt)
+        if nxt == END:
+            new_bytes = new_bytes[:-1]
+            break
+
+    completion = bytes(bytearray(new_bytes)).decode("utf-8", errors="replace")
+    return completion, len(prompt_bytes), len(new_bytes)
 
 
 def _apply_response_format(text, response_format):
@@ -269,11 +323,17 @@ def _apply_response_format(text, response_format):
     if response_format.type == "braille":
         from rbs_lm_braille import english_to_braille
         return english_to_braille(text)
+    if response_format.type == "asl-gloss":
+        # asl-gloss is INFERENCE-format, not post-process. Routed in
+        # chat_completions() via _asl_gloss_translate. If we reach this path,
+        # the caller used asl-gloss with byte mode off (which raises 400)
+        # or the routing fell through — return a clear declaration.
+        return f"[asl-gloss requires byte mode + v27 instrument; routed in chat_completions] {text}"
     if response_format.type == "signwriting":
-        # Reserved per R-RBS-LM-26 §3 — requires parallel-corpus encoding
-        # not in this partition. Pass through with a leading note so the
-        # client knows the format request was seen but not yet implemented.
-        return f"[signwriting reserved: parallel corpus required] {text}"
+        # Reserved per R-RBS-LM-26 §3 — requires DIRECT English↔SignWriting
+        # parallel corpus (the asl-gloss notation is a separate
+        # intermediate format, not raw SignWriting Unicode).
+        return f"[signwriting reserved: direct parallel corpus required] {text}"
     raise HTTPException(
         status_code=400,
         detail=f"unsupported response_format.type: {response_format.type!r} "
