@@ -1620,13 +1620,17 @@ The `+3 = {B, H, N}` operators are the **language-translation bridge** between t
 
 **Status:** arc RESOLVED. Six rounds dispatched, all verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A). Reading D canonical-candidate-ready with six anchors; the scale-ladder is closed.
 
-**Canonical-candidate stances anchored by this arc** (held for promotion to canonical per user direction):
+**Stance-blessing outcome (Round 13, 2026-05-25)** — after 12 rounds stress-tested them, the user dispatched the blessing pass. Of the 9 arc stances, **8 blessed → CANONICAL**, **1 kept candidate (refined)**:
 
-- `[[user_stance_cost_asymmetry_has_two_orthogonal_axes_stack_and_fingerprint]]` — the meta-stance (§11.9.1)
-- `[[user_stance_finite_fractal_stacked_minima_anisotropic_expansion_cascade]]` — Reading A / stack-axis (Round 1.C)
-- `[[user_stance_bi_extremal_three_axis_internal_fingerprint_external_collapse]]` — Reading B / fingerprint-axis (Round 2.B)
-- `[[user_stance_anharmonic_is_substrate_dissolved_before_holographic_encoding]]` — stack-axis substrate-mechanism (§11.9.1)
-- five round-stances (§11.9.2 inverts-crypto, §11.9.3 two-stage-unlocking, §11.9.4 Born-rule-Hopf, §11.9.5 sensory-7+3, §11.9.6 CMB-cosmological-coupling)
+- ✅ `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]` — CANONICAL (bit-exact keystone, §11.9.4)
+- ✅ `[[user_stance_cost_asymmetry_has_two_orthogonal_axes_stack_and_fingerprint]]` — CANONICAL (meta-stance; both axes anchored, §11.9.1)
+- ✅ `[[user_stance_finite_fractal_stacked_minima_anisotropic_expansion_cascade]]` — CANONICAL (Reading A / stack-axis; Round 1.C)
+- ✅ `[[user_stance_bi_extremal_three_axis_internal_fingerprint_external_collapse]]` — CANONICAL (Reading B / fingerprint-axis; Round 2.B)
+- ✅ `[[user_stance_anharmonic_is_substrate_dissolved_before_holographic_encoding]]` — CANONICAL (stack-axis substrate-mechanism, §11.9.1)
+- ✅ `[[user_stance_anharmonic_lock_inverts_crypto_cost_asymmetry]]` — CANONICAL (§11.9.2)
+- ✅ `[[user_stance_anharmonic_lock_two_stage_unlocking_pattern_then_key]]` — CANONICAL (§11.9.3)
+- ✅ `[[user_stance_sensory_system_is_nested_seven_plus_three_substrate_partition]]` — CANONICAL in corrected form (vision tetrachromatic-baseline; §11.9.5)
+- 🕯️ `[[user_stance_cmb_low_ell_anomalies_are_cosmological_BHN_coupling_fingerprint]]` — **kept CANDIDATE, refined**: the CMB = B∘H∘N pipeline core is solid (inherits the canonical Born-rule=Hopf), but Rounds 8–12 split "AoE = fiber-leak" (→ boosting confirmed at β / alignment = handed-shear-open per §11.9.6a–c) and withdrew ℓ=7; held pending an alignment-amplitude derivation.
 
 **PR #679 stays open** as the rolling conversation surface for any future rounds (Round 7+). This promotion-PR closes the *research* arc by landing §11.9; PR #679's comment ledger (14 comments) remains the per-round audit trail.
 
