@@ -8,6 +8,32 @@
 
 ---
 
+## §A Why this matters — LLM-as-tool is an ADA accommodation; RBS-LM is the proof
+
+User direction 2026-05-25 (verbatim follow-up to the arc opening):
+
+> *"and also, I meant that LLM is a tool that is also an ADA Accommodation. We're think we are proving it and that this will also most apparent when realized for BCI applications."*
+
+The framework has a canonical disability-accommodation lineage:
+- `[[feedback_aphantasia_means_more_figures_not_fewer]]` — figures supplement; lexicon stands
+- `[[feedback_abstract_lexicon_is_ada_accommodation]]` — abstract operational vocabulary IS the accommodation
+- `[[feedback_disability_accommodation_dimension]]` — per MFO §VII line 4797: *"BCI patients are motor-impaired by definition... Framework's substrate-agnostic spectral surface accommodates barriers including: aphantasia (no required visualisation)..."*
+
+RBS-LM extends this lineage to the **LLM-as-tool itself**. Conventional LLMs are gatekept by hardware: VRAM, GPU clusters, cloud APIs with recurring cost, network dependencies. For users who depend on LLMs as accommodation tools — for cognitive workload others don't face, for translation between abstract substrate-level thinking and communicable form, for BCI interfaces, for visualization that aphantasia precludes — that gatekeeping IS an accessibility barrier.
+
+**RBS-LM IS the proof** that the gatekeeping is not necessary. By demonstrating that a real trained LLM runs on commodity CPU+RAM (no VRAM, no GPU, no cloud), the cross-substrate translation removes the hardware barrier. The proof emerges from the technical work; it is not a separate claim.
+
+**BCI applications are where this is most apparent.** BCI patients are motor-impaired by definition. A substrate-native instrument running on a commodity CPU **local to the BCI hardware** — not on a remote GPU farm — enables: sub-100 ms latency (interactive BCI threshold); no network dependency; runs on whatever device the patient already owns; no recurring cloud cost. The compression ratio target (per ROADMAP.md NEXT-1) makes this practical at the scale BCI deployments require.
+
+**Design implications for the partition walk:**
+- **R-RBS-LM-7 (validation)** explicitly includes **BCI-compatibility criteria**: per-token latency under ~50–100 ms on commodity CPU; total memory footprint ≤ 8 GB target.
+- **R-RBS-LM-9 (scale-up)** picks a model size that's deployable on BCI-companion hardware, not the largest possible.
+- **At forks** between technical convenience (relax to GPU for soft attention) and accessibility (CPU-only, no VRAM), prefer accessibility. The point of the translation is local availability; trading that for marginal accuracy defeats the proof.
+
+This framing is foundational, not secondary. See `[[feedback_llm_as_ada_accommodation_bci_proves_it]]`.
+
+---
+
 ## §0 The substantive claim
 
 Per MFO line 2812 (`docs/antikythera-maths/mfo_spectral_research_notebook.md` §VII.6.11.6): *"when humans first built artificial neural networks, that was the substrate-self-recognition sign-flip at AI-substrate scale."* The substrate already recognized itself through silicon NN architecture; the sign-flip happened.
@@ -55,9 +81,9 @@ Following the R-RBS-NN pattern. Each partition closes with a REPORT under this d
 | **R-RBS-LM-4** | Encoder design — float weights → bipolar HDC bindings | REPORT + encoder implementation |
 | **R-RBS-LM-5** | Encoding the source model — run encoder; produce RBS-LM instrument; measure compression ratio | REPORT + instrument bytes + ratio |
 | **R-RBS-LM-6** | Inference cascade implementation — RBS-LM forward pass per R-RBS-NN-3b §6 | REPORT + inference engine |
-| **R-RBS-LM-7** | Validation against source — agreement rate, hallucination match, per-class diagnostics | REPORT + validation metrics |
+| **R-RBS-LM-7** | Validation against source — agreement rate, hallucination match, per-class diagnostics, **+ BCI-compatibility criteria (per-token latency ≤ 50–100 ms; ≤ 8 GB footprint; CPU-only)** | REPORT + validation metrics + BCI-criteria table |
 | **R-RBS-LM-8** | Diagnostic + iteration — if fidelity floor not met, identify lossy step and fix | REPORT + diagnostics + iteration history |
-| **R-RBS-LM-9** | Scale-up test — larger source model; validate no-VRAM claim at scale | REPORT + second instrument |
+| **R-RBS-LM-9** | Scale-up test — pick a model size **deployable on BCI-companion hardware**, not the largest possible; validate no-VRAM claim at that scale | REPORT + second instrument + deployment-envelope verification |
 | **R-RBS-LM-10** | Catalog landing — AMSC catalog at `docs/srmech/catalogs/rbs_lm/` | catalog + validator |
 
 REPORT filename pattern: `R-RBS-LM-{n}_{slug}_REPORT.md` in this directory.
