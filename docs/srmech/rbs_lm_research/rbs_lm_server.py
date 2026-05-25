@@ -126,6 +126,10 @@ class ChatCompletionRequest(BaseModel):
         description="R-RBS-LM-28 extension: long-context buffer to FFT-graft into the cascade's CONTEXT_WINDOW. Requires byte mode. The cascade sees a 64-byte window whose LOW-FREQ components are taken from this buffer + HIGH-FREQ from the recent prompt bytes.")
     fft_cutoff_freq: Optional[int] = Field(default=8, ge=0, le=32,
         description="R-RBS-LM-28 extension: graft cutoff bin index. 0 = no graft (baseline); higher admits more long-buffer signal. Saturates at W//2.")
+    long_context_buffers: Optional[List[str]] = Field(default=None,
+        description="R-RBS-LM-32 extension: ordered list of long-context buffers, lowest-freq first. Each buffer claims one frequency band per fft_layered_cutoffs. Use INSTEAD OF long_context_buffer for multi-band layered grafts (e.g., system prompt + conversation history + RAG document).")
+    fft_layered_cutoffs: Optional[List[int]] = Field(default=None,
+        description="R-RBS-LM-32 extension: monotonically-increasing list of band endpoints, parallel to long_context_buffers. layered_buffer[i] claims bins [fft_layered_cutoffs[i-1], fft_layered_cutoffs[i]); recent fills above the last endpoint.")
 
 
 class ChatCompletionChoice(BaseModel):
@@ -238,8 +242,41 @@ def chat_completions(req: ChatCompletionRequest):
 
     fmt_type = req.response_format.type if req.response_format else "text"
 
-    # R-RBS-LM-28: FFT-graft long-context buffer (byte mode only)
-    if req.long_context_buffer:
+    # R-RBS-LM-32: Multi-buffer FFT-graft (byte mode only; takes precedence
+    # over single-buffer when both are present)
+    if req.long_context_buffers:
+        if not BYTE_MODE:
+            raise HTTPException(
+                status_code=400,
+                detail="long_context_buffers requires byte mode (RBS_LM_BYTE_MODE=1).",
+            )
+        if not req.fft_layered_cutoffs:
+            raise HTTPException(
+                status_code=400,
+                detail="long_context_buffers requires fft_layered_cutoffs (parallel list).",
+            )
+        if len(req.long_context_buffers) != len(req.fft_layered_cutoffs):
+            raise HTTPException(
+                status_code=400,
+                detail=f"long_context_buffers ({len(req.long_context_buffers)}) and "
+                       f"fft_layered_cutoffs ({len(req.fft_layered_cutoffs)}) "
+                       f"must be parallel lists.",
+            )
+        if fmt_type == "asl-gloss":
+            raise HTTPException(
+                status_code=400,
+                detail="multi-buffer FFT graft + asl-gloss not yet composed in one request.",
+            )
+        completion, n_prompt, n_new = _multi_buffer_fft_translate(
+            bot, prompt,
+            req.long_context_buffers, req.fft_layered_cutoffs,
+            max_new_tokens=req.max_tokens,
+            context_truncation=req.context_truncation,
+        )
+        completion = _apply_response_format(completion, req.response_format)
+        result_usage = (n_prompt, n_new)
+    # R-RBS-LM-28: FFT-graft single long-context buffer (byte mode only)
+    elif req.long_context_buffer:
         if not BYTE_MODE:
             raise HTTPException(
                 status_code=400,
@@ -301,6 +338,38 @@ def chat_completions(req: ChatCompletionRequest):
             total_tokens=result_usage[0] + result_usage[1],
         ),
     )
+
+
+def _multi_buffer_fft_translate(bot, prompt, long_context_buffers,
+                                  fft_layered_cutoffs, max_new_tokens=80,
+                                  context_truncation=None):
+    """R-RBS-LM-32: multi-buffer FFT-graft generation. Each long buffer claims
+    one frequency band per the parallel cutoff list.
+    """
+    from rbs_lm_encoder import CONTEXT_WINDOW, D, bind
+    from rbs_lm_bytes import vectorised_cleanup_bytes, bytes_to_text
+    from rbs_lm_fft import encode_context_with_multi_buffer_graft
+
+    window = context_truncation if context_truncation is not None else CONTEXT_WINDOW
+    prompt_bytes = list(prompt.encode("utf-8"))
+    layered_buffer_tokens = [list(b.encode("utf-8")) for b in long_context_buffers]
+
+    tokens = list(prompt_bytes)
+    new_bytes = []
+    for _ in range(max_new_tokens):
+        ctx = tokens[-window:] if len(tokens) > window else tokens
+        ctx_vec = encode_context_with_multi_buffer_graft(
+            ctx, layered_buffer_tokens, fft_layered_cutoffs,
+            bot.vocab_table, D=D,
+        )
+        cand = bind(bot.instrument, ctx_vec)
+        res = vectorised_cleanup_bytes(cand, bot.vocab_table, D, top_k=1)
+        nxt = res[0][0]
+        new_bytes.append(nxt)
+        tokens.append(nxt)
+
+    completion = bytes_to_text(new_bytes)
+    return completion, len(prompt_bytes), len(new_bytes)
 
 
 def _fft_grafted_translate(bot, prompt, long_context_buffer,

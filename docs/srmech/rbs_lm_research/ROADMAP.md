@@ -176,6 +176,22 @@ between long buffers (cooking vs astronomy vs distractor). Surface
 operationally available via server's `long_context_buffer` + `fft_cutoff_freq`
 request fields.
 
+### FFT multi-buffer graft (layered band composition)
+
+**Status:** CLOSED in R-RBS-LM-32 — see
+`R-RBS-LM-32_multi_buffer_fft_REPORT.md` and `multi_buffer_graft` /
+`encode_context_with_multi_buffer_graft` in `rbs_lm_fft.py`.
+
+Extends R-RBS-LM-28's single-buffer graft to N buffers across N
+contiguous frequency bands (system prompt at lowest band; conversation
+history at next; RAG at next; recent fills above). Smoke evidence:
+ORDER of band assignment matters (2/3 prompts differ when buffers are
+reversed); NUMBER of layers matters (3/3 prompts differ between 2-layer
+and 3-layer). Multi-buffer outputs showed HIGHER byte diversity than
+single-buffer — first sign of edging out of single-byte mode-collapse.
+Server surface: `long_context_buffers` (array) + `fft_layered_cutoffs`
+(parallel array) request fields.
+
 ### srmech C/Python parity multi-thread design notes
 
 **Status:** PROPOSED. Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`,
@@ -272,4 +288,4 @@ available; fp16 with swap is the unquantized fallback.
 
 ---
 
-*Last updated: 2026-05-25 — R-RBS-LM-30 close.*
+*Last updated: 2026-05-25 — R-RBS-LM-32 close.*

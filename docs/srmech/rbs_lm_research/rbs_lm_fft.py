@@ -216,6 +216,142 @@ def add_system_prompt_fft(
 # End-to-end: graft into a context_vec the cascade can consume
 # -------------------------------------------------------------------------
 
+def multi_buffer_graft(
+    recent_fft: np.ndarray,
+    buffer_ffts,
+    band_endpoints,
+) -> np.ndarray:
+    """R-RBS-LM-32 — Layered frequency-band composition across multiple buffers.
+
+    Each layer gets a contiguous frequency band; layers are ordered from
+    deepest/lowest-freq (most stable / topical) to shallowest/highest-freq
+    (most local / recent). The recent_fft fills any bins above the last
+    endpoint, preserving local syntax signal as in single-buffer graft.
+
+    Args:
+      recent_fft:     (W_recent, D) complex — FFT of the recent window
+      buffer_ffts:    ordered list of (W_long, D) complex FFTs — each gets one band
+      band_endpoints: ordered list of bin indices; bin range for buffer i is
+                      [band_endpoints[i-1], band_endpoints[i])  (i>0)
+                      and [0, band_endpoints[0])                (i=0).
+                      The recent_fft fills [band_endpoints[-1], W_recent//2+1).
+
+    Returns: (W_recent, D) complex grafted matrix; mirror bins handled for
+    FFT real-signal symmetry.
+
+    Example — 3-layer composition (system prompt + history + RAG + recent):
+        multi_buffer_graft(
+            recent_fft,
+            buffer_ffts=[system_fft, history_fft, rag_fft],
+            band_endpoints=[2, 8, 16],
+        )
+        # bins [0,  2): system_fft       (topic / stable instruction)
+        # bins [2,  8): history_fft      (conversation arc)
+        # bins [8, 16): rag_fft          (retrieved document content)
+        # bins [16, W//2): recent_fft    (local syntax)
+    """
+    if len(buffer_ffts) != len(band_endpoints):
+        raise ValueError(f"buffer_ffts ({len(buffer_ffts)}) and band_endpoints "
+                         f"({len(band_endpoints)}) must have same length")
+    if len(buffer_ffts) == 0:
+        return recent_fft.copy()
+
+    w_recent = recent_fft.shape[0]
+    cap = w_recent // 2
+
+    # Validate + clamp endpoints
+    prev = 0
+    clamped_endpoints = []
+    for ep in band_endpoints:
+        if ep < prev:
+            raise ValueError(f"band_endpoints must be monotonically non-decreasing; "
+                             f"got {band_endpoints}")
+        clamped_endpoints.append(min(ep, cap))
+        prev = ep
+
+    grafted = recent_fft.copy()
+    band_start = 0
+    for buf_fft, band_end in zip(buffer_ffts, clamped_endpoints):
+        if band_end <= band_start:
+            continue  # empty band, skip
+        # Resample this buffer's FFT to W_recent bins (energy-preserving scale)
+        w_buf = buf_fft.shape[0]
+        if w_buf == w_recent:
+            buf_scaled = buf_fft
+        else:
+            buf_scaled = np.zeros_like(recent_fft)
+            n = min(band_end, w_buf // 2)
+            if n > 0:
+                buf_scaled[:n] = buf_fft[:n] * (w_recent / w_buf)
+                buf_scaled[-n:] = buf_fft[-n:] * (w_recent / w_buf)
+        # Assign this band — positive freqs and mirror negative freqs
+        grafted[band_start:band_end] = buf_scaled[band_start:band_end]
+        if band_end > 0 and band_start >= 0:
+            # Mirror: negative-freq bins corresponding to [band_start, band_end)
+            # positive bins are at -W+band_start..-W+band_end-1 == W-band_end..W-band_start-1
+            mirror_end = w_recent - band_start if band_start > 0 else w_recent
+            mirror_start = w_recent - band_end
+            grafted[mirror_start:mirror_end] = buf_scaled[mirror_start:mirror_end]
+        band_start = band_end
+
+    return grafted
+
+
+def encode_context_with_multi_buffer_graft(
+    recent_tokens,
+    layered_buffer_tokens,
+    layered_end_cutoffs,
+    vocab_table,
+    D: int = D,
+) -> bytes:
+    """R-RBS-LM-32 — End-to-end multi-buffer FFT-grafted context vector.
+
+    Args:
+      recent_tokens:           the last CONTEXT_WINDOW bytes the cascade sees
+      layered_buffer_tokens:   ordered list of byte-token sequences, lowest-freq first
+      layered_end_cutoffs:     bin-index endpoints, ordered low-to-high; parallel to
+                               layered_buffer_tokens
+      vocab_table:             byte vocab table (R-RBS-LM-25)
+
+    Returns: D/8 byte hypervector suitable as ctx_vec for the cascade.
+
+    If layered_buffer_tokens is empty, falls back to standard byte-level
+    encode_context (no graft).
+    """
+    # Truncate recent to CONTEXT_WINDOW
+    if len(recent_tokens) > CONTEXT_WINDOW:
+        recent_tokens = recent_tokens[-CONTEXT_WINDOW:]
+    if len(recent_tokens) == 0:
+        return sentinel("empty_context", D)
+
+    # Fallback: no buffers → standard encode
+    if not layered_buffer_tokens:
+        return _bundle_token_matrix(stack_tokens_as_matrix(recent_tokens, vocab_table), D)
+
+    # Build recent FFT
+    recent_matrix = bipolar_unpack(stack_tokens_as_matrix(recent_tokens, vocab_table))
+    recent_fft = fft_along_time(recent_matrix)
+
+    # Build each buffer's FFT
+    buffer_ffts = []
+    for buf_tokens in layered_buffer_tokens:
+        if not buf_tokens:
+            # Empty buffer — substitute recent's FFT for this slot (will be no-op)
+            buffer_ffts.append(recent_fft)
+            continue
+        buf_matrix = bipolar_unpack(stack_tokens_as_matrix(buf_tokens, vocab_table))
+        buffer_ffts.append(fft_along_time(buf_matrix))
+
+    # Multi-buffer graft
+    grafted_fft = multi_buffer_graft(recent_fft, buffer_ffts, layered_end_cutoffs)
+
+    # IFFT back to time domain
+    grafted_time = ifft_along_time(grafted_fft)
+    grafted_packed = bipolar_repack(grafted_time)
+
+    return _bundle_token_matrix(grafted_packed, D)
+
+
 def encode_context_with_graft(
     recent_tokens,
     long_buffer_tokens,
@@ -345,6 +481,69 @@ def _self_test():
     dropped = drop_frequency_band(full_fft, 0, 4)
     diff = float(np.abs(dropped - full_fft).sum())
     print(f"    drop low-freq band [0,4): magnitude diff from full: {diff:.1f}")
+
+    # Test 5: multi-buffer graft — R-RBS-LM-32
+    print(f"\n  Test 5: multi-buffer graft (R-RBS-LM-32)")
+    system_prompt = list("You are a helpful assistant.".encode("utf-8"))
+    history = list("User: Tell me about cooking. Assistant: Cooking is the practice of preparing food.".encode("utf-8"))
+    rag = list(("Beating eggs incorporates air into the mixture. "
+                "Use a whisk or fork in a steady motion.").encode("utf-8"))
+    # 3-layer composition
+    ctx_multi = encode_context_with_multi_buffer_graft(
+        recent_tokens=recent,
+        layered_buffer_tokens=[system_prompt, history, rag],
+        layered_end_cutoffs=[2, 6, 10],
+        vocab_table=vocab_table,
+        D=D,
+    )
+    # Compare to plain (no graft)
+    from rbs_lm_bytes import encode_context_bytes
+    ctx_plain = encode_context_bytes(recent, vocab_table, D)
+    h_plain = int(np.bitwise_count(
+        np.frombuffer(ctx_multi, dtype=np.uint8) ^
+        np.frombuffer(ctx_plain, dtype=np.uint8)
+    ).sum())
+    sim_plain = 1.0 - 2.0 * h_plain / D
+    print(f"    3-layer graft (system+history+rag, endpoints [2,6,10]):")
+    print(f"      sim-to-plain-recent = {sim_plain:+.4f}")
+
+    # Compare to single-buffer graft at equivalent cutoff (10)
+    ctx_single = encode_context_with_graft(recent, rag, vocab_table, cutoff_freq=10, D=D)
+    h_single = int(np.bitwise_count(
+        np.frombuffer(ctx_multi, dtype=np.uint8) ^
+        np.frombuffer(ctx_single, dtype=np.uint8)
+    ).sum())
+    sim_single = 1.0 - 2.0 * h_single / D
+    print(f"    sim-to-single-buffer-graft (rag only, cutoff=10) = {sim_single:+.4f}")
+    print(f"    → If sim_single < 0.95: layering is doing real work, not just last-buffer wins.")
+
+    # Edge case: empty buffer list
+    ctx_empty = encode_context_with_multi_buffer_graft(
+        recent_tokens=recent,
+        layered_buffer_tokens=[],
+        layered_end_cutoffs=[],
+        vocab_table=vocab_table, D=D,
+    )
+    n_diff = int(np.bitwise_count(
+        np.frombuffer(ctx_empty, dtype=np.uint8) ^
+        np.frombuffer(ctx_plain, dtype=np.uint8)
+    ).sum())
+    print(f"    empty buffer list: bit-diff from plain = {n_diff} (expected 0)")
+
+    # Edge case: single buffer should equal single-buffer graft
+    ctx_one = encode_context_with_multi_buffer_graft(
+        recent_tokens=recent,
+        layered_buffer_tokens=[rag],
+        layered_end_cutoffs=[10],
+        vocab_table=vocab_table, D=D,
+    )
+    h_eq = int(np.bitwise_count(
+        np.frombuffer(ctx_one, dtype=np.uint8) ^
+        np.frombuffer(ctx_single, dtype=np.uint8)
+    ).sum())
+    sim_eq = 1.0 - 2.0 * h_eq / D
+    print(f"    single-buffer-as-multi (rag, ep=[10]) vs single-buffer-graft sim: {sim_eq:+.4f}")
+    print(f"    → Expected ≈ +1.0 (multi-buffer with one layer ≡ single-buffer graft)")
 
 
 if __name__ == "__main__":
