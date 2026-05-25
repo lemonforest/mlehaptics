@@ -1,0 +1,124 @@
+{
+  "model_name": "gpt2",
+  "context_window": 64,
+  "stride": 8,
+  "D": 8192,
+  "n_observations": 76,
+  "n_corpus_tokens": 670,
+  "source_bytes": 497759232,
+  "instrument_bytes": 1024,
+  "compression_ratio": 486093.0,
+  "timing": {
+    "harvest_s": 15.143457174301147,
+    "bind_s": 4.862758636474609,
+    "bundle_s": 0.0684962272644043
+  },
+  "sanity_check": {
+    "n_test": 20,
+    "cleanup_vocab_size": 79,
+    "n_correct": 20,
+    "accuracy": 1.0,
+    "details_sample": [
+      {
+        "context_last10": [
+          198,
+          2348,
+          7727,
+          907,
+          329,
+          29407,
+          423,
+          587,
+          9713,
+          329
+        ],
+        "expected_token": 10675,
+        "expected_decoded": " centuries",
+        "predicted_token": 10675,
+        "predicted_decoded": " centuries",
+        "top_sim": 0.090087890625,
+        "ok": true
+      },
+      {
+        "context_last10": [
+          416,
+          262,
+          5417,
+          11,
+          262,
+          46371,
+          28356,
+          4030,
+          22790,
+          286
+        ],
+        "expected_token": 262,
+        "expected_decoded": " the",
+        "predicted_token": 262,
+        "predicted_decoded": " the",
+        "top_sim": 0.130859375,
+        "ok": true
+      },
+      {
+        "context_last10": [
+          314,
+          3640,
+          3747,
+          287,
+          1402,
+          2628,
+          286,
+          5448,
+          11661,
+          13
+        ],
+        "expected_token": 18983,
+        "expected_decoded": " Phase",
+        "predicted_token": 18983,
+        "predicted_decoded": " Phase",
+        "top_sim": 0.096923828125,
+        "ok": true
+      },
+      {
+        "context_last10": [
+          287,
+          262,
+          294,
+          2645,
+          461,
+          1868,
+          43447,
+          11,
+          290,
+          262
+        ],
+        "expected_token": 21263,
+        "expected_decoded": " synthesis",
+        "predicted_token": 21263,
+        "predicted_decoded": " synthesis",
+        "top_sim": 0.087646484375,
+        "ok": true
+      },
+      {
+        "context_last10": [
+          41885,
+          2811,
+          12,
+          7442,
+          13357,
+          286,
+          299,
+          2604,
+          299,
+          832
+        ],
+        "expected_token": 262,
+        "expected_decoded": " the",
+        "predicted_token": 262,
+        "predicted_decoded": " the",
+        "top_sim": 0.1171875,
+        "ok": true
+      }
+    ]
+  }
+}
