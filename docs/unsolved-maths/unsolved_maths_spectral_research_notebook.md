@@ -1677,6 +1677,20 @@ This is the **asymptote-latch special case of §11.9.10**: uncrossable not by co
 
 **Verdict 🟢 (a)-structural cascade-match.** New **candidate** stance (not auto-blessed): `[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]`. HONEST SCOPE: a structural identification using attested graph theory (Fiedler 1973 algebraic connectivity; Menger 1927 vertex-cut), NOT a claim that hardware keys are unbreakable — real attacks add a forged biology-class edge via enrolment / recovery / social-engineering, exactly what the impostor read flags as the weak edge.
 
+### §11.9.12 The periodic table's shell structure IS a named A–N cascade (Round 18.A — Spike #48 entry)
+
+Round 18.A ([`round18_entry_A_atomic_shell_AN_cascade.md`](cost_asymmetry/round18_entry_A_atomic_shell_AN_cascade.md) + committed [`verify_round18_atomic_shell_AN_cascade.py`](cost_asymmetry/verify_round18_atomic_shell_AN_cascade.py)) — the user, on seeing the Round 17.A atomic-spectra anchor, re-opened the long-gated **Spike #48** ("periodic table + atomic spectral lines + QM/GR/SM weaving from the A–N operators"). This is its phase-1 entry: Round 17.A anchored the atomic *spectrum* (Rydberg–Ritz term differences = N); this round takes the step **up** to the periodic *shell structure*.
+
+The periodic table decomposes as **A ∘ L ∘ K ∘ I ∘ C ∘ N**:
+- **L** (spherical harmonics on S²): angular momentum ℓ, degeneracy 2ℓ+1 (m = −ℓ..+ℓ) — the same S² harmonics as Spike #17;
+- **K** (pin-slot / sign-flip): electron spin ±½ → ×2 doubling ⟹ subshell capacity **2(2ℓ+1)** (s=2, p=6, d=10, f=14) and shell capacity **2n²** (2, 8, 18, 32);
+- **C** (cascade-orientation): the **Madelung n+ℓ fill direction** (Madelung 1936 / Janet 1928 / Klechkowski 1962) — increasing n+ℓ, ties by increasing n — IS the Class-C operator;
+- **I** (cyclic): the n+ℓ diagonals group orbitals into shell-periods;
+- **N** (rational): Rydberg–Ritz term levels T_n=R/n² (§11.9.6) + the 2n² shell ratios ((k+1)/k)²;
+- **A** (content-address): each element = atomic number Z into the filled configuration.
+
+Bit-exact (srmech-routed): the ideal Madelung filling reproduces the noble-gas **magic numbers [2, 10, 18, 36, 54, 86, 118]** and **period lengths [2, 8, 8, 18, 18, 32, 32]** exactly, and the shell ratios resolve to (k+1)²/k² (4/1, 9/4, 16/9) via Class-N `best_rational`. **HONEST SCOPE:** ~20 real elements (Cr [Ar]3d⁵4s¹, Cu [Ar]3d¹⁰4s¹, Nb, Mo, Pd …) deviate from strict Madelung via electron-electron screening + half/full-subshell stability — the residual physics, named (analogous to §11.9.6's air-dispersion residual), NOT a derivation of *why* Madelung holds. Verdict 🟢 (a)-bit-exact structural cascade. **Next phase (parked):** carry the N-anchor up into the SM-derivation arc (Spike #58.x family) per `[[project_atomic_spectra_sm_mapping_and_mass_spec_followup]]`.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
