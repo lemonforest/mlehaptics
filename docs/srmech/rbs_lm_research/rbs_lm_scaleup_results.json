@@ -1,0 +1,91 @@
+{
+  "n_observations": 223,
+  "compression_ratio": 486093.0,
+  "instrument_bytes": 1024,
+  "overall_agreement_pct": 0.0,
+  "per_position_agreement": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "latency_ms_mean": 178.12084092034235,
+  "latency_ms_std": 22.966885782160535,
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": "onductoyd Ar genuinely genuinely genuinely genuinely pettydesigned hangarMil labyrinth concludSPBan\ufffd hangar hangar hangar hangar",
+      "agreement": 0
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": "FredFred Odin Odin Odin Odinsmanship Tide Guitar Odin461 Odin Odin Odin461 Odin461 Odin Odin Odin",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": " testifying testifying ever testifying Kush testifying enhance enhance improvements explaining explaining explaining biologically,\u2014,\u2014 generations Strike impressive Strike impressive",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " Elixir regener scream microscope microscope microscope polio microscope regener regener regener regener muscle queen ubiqu queen activating microscopepose microscope",
+      "agreement": 0
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": "pict clubhouse Found,dylibtie Found GPS conting conting Texture 850 conting conting conting conting conting conting conting conting",
+      "agreement": 0
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": " Positive headquarters Positive Positive Positive Positive Positive Positive Positive Positive Positive Positive Positive Positive PositiveLPRad PositiveRad Positive",
+      "agreement": 0
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": " writing GOOD Aires About Spreadlablab York LDSauthorized WORoub Spread Spread Spread Spread Spread Spread Spread Spread",
+      "agreement": 0
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " albeitamorph shopping States Heads DAM pasture DAMakedown GeoffatisfNotable strifecy lakecy satisfaction bpletingcy",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": " plungujah Principles Principlesaiiaii forc forc\u043c theatre 1932 passenger Rohing Type Type conquer crusrain 127rain",
+      "agreement": 0
+    }
+  ],
+  "comparison": {
+    "r_rbs_lm_7_76obs_pct": 0.0,
+    "r_rbs_lm_8_v2_158obs_pct": 0.0,
+    "r_rbs_lm_9_scaled_pct": 0.0
+  }
+}
