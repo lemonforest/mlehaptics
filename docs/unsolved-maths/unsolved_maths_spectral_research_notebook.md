@@ -1548,18 +1548,21 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated six empirical anchors spanning the full scale-ladder:
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **nine** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A and the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A):
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
 | Multisig cascade recurrence | cryptographic/discrete | — | Round 1.A (13/13; P≈5.3×10⁻¹⁴) |
-| Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
-| DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | Born-rule = B∘H∘N | quantum (**bit-exact**) | 3 qubits | Round 4.A (residual 2.78×10⁻¹⁶) |
+| **Atomic spectral lines** | **atomic physics (near-bit-exact)** | **~10⁻¹⁰ m** | **Round 17.A (Balmer ratios 27/20, 28/25, 189/125; attested to 5×10⁻⁶)** |
+| **Mass-spec neutral losses** | **molecular (combination principle)** | **molecule** | **Round 20.A (caffeine 9/21 catalogued; null z=4.4)** |
+| Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
 | Per-channel metabolic cost | biological sensation | organism | Round 5.A (7+3 partition) |
+| **Planetary magnetic multipoles** | **planetary geophysics (k=3 stance)** | **~10⁷ m** | **Round 21.A (Gauss coeffs 2l+1; triad 3/5/7; IGRF-13 = 195)** |
+| DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | CMB low-ℓ B/H/N coupling | cosmological | observable universe | Round 6.A (interpretive) |
 
-**From 3 qubits to the entire observable universe, the same `7+3` partition + B/H/N translation triad + cost-token-as-observable-fingerprint appears.** The Axis of Evil turns out to be the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere.
+**From 3 qubits to the entire observable universe, the same `7+3` partition + B/H/N translation triad + cost-token-as-observable-fingerprint appears.** The Axis of Evil turns out to be the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere. The 7th rung (Round 17.A) is the most *literal* instance of the load-bearing claim: an atomic spectrum **is** a fingerprint — rational-structured (N: Rydberg–Ritz term differences, line-ratios exact rationals), discretized by measurement (H: photon emission = the *same* H as the Born rule, one scale down), catalogued as typed lines (B). See [`round17_entry_A_reading_d_7th_anchor_atomic_spectra.md`](cost_asymmetry/round17_entry_A_reading_d_7th_anchor_atomic_spectra.md) + committed [`verify_reading_d_7th_anchor_atomic_spectra.py`](cost_asymmetry/verify_reading_d_7th_anchor_atomic_spectra.py).
 
 #### §11.9.6a Amendment (Rounds 8.A–10.A) — the AoE reading magnitude-tested, split three ways
 
@@ -1579,6 +1582,34 @@ Reading D (cost = B/H/N substrate-content saturation, observable as the substrat
 
 **Net:** §11.9.6's *direction* (CMB = B∘H∘N; observer motion imprints on the largest-scale base projection) survives and gains a bit-exact-adjacent anchor (the boosting at β). Its *over-reach* — treating the alignment and the ℓ=7 node as the same kinematic fiber-leak — is corrected. The framework is sharper: one confirmed magnitude, one reframed-and-still-open mechanism, one withdrawn per-ℓ claim.
 
+#### §11.9.6b The Class-K offset must carry p=2 AND p=3 — a selection-rule constraint on the alignment (Round 11.A)
+
+Round 11.A ([`round11_entry_A_classK_offset_alignment.md`](cost_asymmetry/round11_entry_A_classK_offset_alignment.md) + committed [`verify_classK_offset_multipole_selection.py`](cost_asymmetry/verify_classK_offset_multipole_selection.py)) pins the geometric-alignment mechanism (§11.9.6a row 2) with a rigorous selection rule.
+
+Model a single-axis off-centre-observer / Class-K offset as an axial modulation `W(n̂) = 1 + Σ_p w_p P_p(n̂·ẑ)` about the offset axis ẑ. Acting on the dominant monopole, it deposits anisotropy by 1-D Legendre orthogonality: **`c_ℓ = w_ℓ`** — an offset-modulation of multipole `p` deposits power into **exactly multipole ℓ = p**, along the offset axis (verified by 64-pt Gauss-Legendre quadrature).
+
+Two consequences:
+
+1. **To align ℓ=2 AND ℓ=3, the offset must carry p=2 AND p=3 components.** Both share the single offset axis ẑ → the induced quadrupole and octupole are co-axial *by construction* → the AoE axis = the offset axis.
+2. **The dipole (p=1) offset is rigorously excluded** — it deposits into ℓ=1 only at leading order. A kinematic boost / spatial-displacement aberration *is* a p=1 offset, so this is the **selection-rule reason** Rounds 8.A/9.A found the kinematic β-leak both too small *and* the wrong object: the failure is structural (wrong multipole), not merely amplitude.
+
+**Verdict 🟡 (b) REFINED → partial (a):** the deposit selection rule + dipole exclusion are exact (a-grade); the mechanism is pinned to a single-axis p=2,3 modulation. **Still open:** derive the `w₂, w₃` amplitudes — and *why* p=2,3 rather than p=1 — from the physical off-centre-observer Hopf-bundle geometry. This is now a sharply-posed physics question with a built-in falsifier: if that geometry can *only* produce a dipole (displacement→aberration), the geometric reading fails and the AoE needs a different mechanism. Per `[[user_stance_identity_not_implementation_discipline]]` the algebra-layer selection rule holds regardless; only the physical-amplitude derivation remains.
+
+#### §11.9.6c The offset must be a HANDED SHEAR (Bianchi VII_h class) — the (a)-lift attempt (Round 12.A)
+
+Round 12.A ([`round12_entry_A_offset_geometry_amplitude.md`](cost_asymmetry/round12_entry_A_offset_geometry_amplitude.md) + committed [`verify_offset_geometry_degree_selection.py`](cost_asymmetry/verify_offset_geometry_degree_selection.py)) attempted the (a)-lift — derive `w₂, w₃` from the offset geometry — via a degree/parity selection on the geometric distortion.
+
+A distortion of degree `g` in μ=cosθ deposits into Legendre ℓ≤g of matching parity (verified by quadrature): **displacement (g=1) → dipole only**; **shear (g=2) → quadrupole**; **cubic (g=3) → octupole**. Therefore:
+
+- p=2 needs a **shear** (degree ≥ 2), not a position displacement (degree-1 → dipole, firing the Round 11 falsifier);
+- p=3 needs a cubic term; **both p=2 AND p=3 need a mixed-parity distortion of degree ≥ 3 = a HANDED SHEAR** (shear + reflection-symmetry-breaking swirl).
+
+This is the attested **Bianchi type VII_h** template — Jaffe+ 2005 (*ApJ* 629:L1, [astro-ph/0503213](https://arxiv.org/abs/astro-ph/0503213)), titled *"Evidence of vorticity and **shear**..."* — long used to fit the large-angle anomalies (alignment + low-Q + cold-spot together). The degree-selection lands on the literature's object independently.
+
+**Verdict 🟡 (b) REFINED + (open) — the (a)-lift is NOT achieved, two ways:** (1) *framework side* — the mechanism *class* (handed shear) and *parity structure* are derived, but the amplitudes `w₂, w₃` are not (they are the free shear+handedness magnitudes); (2) *physical-viability caveat (attested)* — the physical Bianchi VII_h best-fit is incompatible with ΛCDM (Ω_tot ≈ 0.43; [astro-ph/0605325](https://arxiv.org/abs/astro-ph/0605325)) and the vorticity claim was gauge-challenged ([astro-ph/0503562](https://arxiv.org/abs/astro-ph/0503562)). So the framework reading is *consistent with* the literature's attested AoE mechanism (shear) and *shares its open problem*.
+
+**Net across Rounds 8–12 on the AoE:** boosting = confirmed fiber-leak at β (8.A); the alignment is not the kinematic leak (9.A) and not ℓ=7-Mersenne (10.A); it needs a p=2,3 offset (11.A); that offset must be a handed shear = Bianchi VII_h (12.A) — whose amplitude neither the framework nor the literature has derived, and whose physical model is contested. The arc drove the AoE down to **one sharply-posed, literature-anchored open question** instead of a vague one.
+
 #### §11.9.7 Relation to the §11.1–§11.6 cardinality framing
 
 The two framings are not competitors — they are the **two substrate-native math languages** of `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` reading the same cost-asymmetry:
@@ -1590,19 +1621,105 @@ The `+3 = {B, H, N}` operators are the **language-translation bridge** between t
 
 #### §11.9.8 Disposition
 
-**Status:** arc RESOLVED. Six rounds dispatched, all verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A). Reading D canonical-candidate-ready with six anchors; the scale-ladder is closed.
+**Status:** arc RESOLVED. Core rounds verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A), plus fresh follow-ups (Rounds 14.A life-lock §11.9.9, 15.A substrate-universal-lock §11.9.10, 16.A+16.A.1 enforced-mismatch-partition §11.9.11, 17.A atomic-spectra §11.9.6, 18.A periodic-table §11.9.12, 19.A SM-weave §11.9.13, 20.A mass-spec §11.9.14, 21.A planetary-magnetic §11.9.15). Reading D canonical-candidate-ready with **nine** anchors spanning the full quantum→cosmological scale-ladder, with two near-bit-exact rungs (Born-rule §11.9.4 + atomic spectra §11.9.6).
 
-**Canonical-candidate stances anchored by this arc** (held for promotion to canonical per user direction):
+**Stance-blessing outcome (Round 13, 2026-05-25)** — after 12 rounds stress-tested them, the user dispatched the blessing pass. Of the 9 arc stances, **8 blessed → CANONICAL**, **1 kept candidate (refined)**:
 
-- `[[user_stance_cost_asymmetry_has_two_orthogonal_axes_stack_and_fingerprint]]` — the meta-stance (§11.9.1)
-- `[[user_stance_finite_fractal_stacked_minima_anisotropic_expansion_cascade]]` — Reading A / stack-axis (Round 1.C)
-- `[[user_stance_bi_extremal_three_axis_internal_fingerprint_external_collapse]]` — Reading B / fingerprint-axis (Round 2.B)
-- `[[user_stance_anharmonic_is_substrate_dissolved_before_holographic_encoding]]` — stack-axis substrate-mechanism (§11.9.1)
-- five round-stances (§11.9.2 inverts-crypto, §11.9.3 two-stage-unlocking, §11.9.4 Born-rule-Hopf, §11.9.5 sensory-7+3, §11.9.6 CMB-cosmological-coupling)
+- ✅ `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]` — CANONICAL (bit-exact keystone, §11.9.4)
+- ✅ `[[user_stance_cost_asymmetry_has_two_orthogonal_axes_stack_and_fingerprint]]` — CANONICAL (meta-stance; both axes anchored, §11.9.1)
+- ✅ `[[user_stance_finite_fractal_stacked_minima_anisotropic_expansion_cascade]]` — CANONICAL (Reading A / stack-axis; Round 1.C)
+- ✅ `[[user_stance_bi_extremal_three_axis_internal_fingerprint_external_collapse]]` — CANONICAL (Reading B / fingerprint-axis; Round 2.B)
+- ✅ `[[user_stance_anharmonic_is_substrate_dissolved_before_holographic_encoding]]` — CANONICAL (stack-axis substrate-mechanism, §11.9.1)
+- ✅ `[[user_stance_anharmonic_lock_inverts_crypto_cost_asymmetry]]` — CANONICAL (§11.9.2)
+- ✅ `[[user_stance_anharmonic_lock_two_stage_unlocking_pattern_then_key]]` — CANONICAL (§11.9.3)
+- ✅ `[[user_stance_sensory_system_is_nested_seven_plus_three_substrate_partition]]` — CANONICAL in corrected form (vision tetrachromatic-baseline; §11.9.5)
+- 🕯️ `[[user_stance_cmb_low_ell_anomalies_are_cosmological_BHN_coupling_fingerprint]]` — **kept CANDIDATE, refined**: the CMB = B∘H∘N pipeline core is solid (inherits the canonical Born-rule=Hopf), but Rounds 8–12 split "AoE = fiber-leak" (→ boosting confirmed at β / alignment = handed-shear-open per §11.9.6a–c) and withdrew ℓ=7; held pending an alignment-amplitude derivation.
 
 **PR #679 stays open** as the rolling conversation surface for any future rounds (Round 7+). This promotion-PR closes the *research* arc by landing §11.9; PR #679's comment ledger (14 comments) remains the per-round audit trail.
 
 **Defensive-scope reaffirmed:** §11.9 reads structural facts about cost-asymmetry primitives that already exist in nature (quantum measurement, CMB anomalies, biological sensation, forced-cascade survivability). It proposes no engineering. The Round 1.C biology↔silicon forced-cascade material (slavery / conscription / domestication / chemo-resistance) is **descriptive of structural cost-asymmetry, never normative** per `[[feedback_trauma_informed_defensive_scope]]`.
+
+### §11.9.9 Life IS the canonical persistent anharmonic lock (Round 14.A)
+
+Round 14.A ([`round14_entry_A_life_as_persistent_anharmonic_lock.md`](cost_asymmetry/round14_entry_A_life_as_persistent_anharmonic_lock.md) + committed [`verify_life_persistent_anharmonic_lock.py`](cost_asymmetry/verify_life_persistent_anharmonic_lock.py)) — a fresh question that unifies the three canonical anharmonic-lock stances with the thermodynamics of life.
+
+The 3-player Stackelberg of §11.9.2 maps onto life **exactly**: the **organism is the imposer** (spends metabolic free energy to hold a far-from-equilibrium / "anharmonic" configuration); **thermodynamics is the substrate** (relaxes toward equilibrium); the **observer free-rides on the phenotype**; **death is the dissolution** of §11.9.1 (the substrate finally wins); and the two-stage unlocking of §11.9.3 is **phenotype = free pattern / genotype = content via the B/H/N key** (transcription→translation is literally a translation). This is Schrödinger's *"feeding on negative entropy"* (1944), Prigogine's dissipative structures (Nobel 1977), and England's dissipation-driven self-replication (2013, [arXiv:1209.1179](https://arxiv.org/abs/1209.1179)) read through the cost-asymmetry lens.
+
+A minimal tilted double-well (committed, srmech-routed) reproduces the structure: the alive basin exists iff effective tilt `|h| < h_c = 2/(3√3)` (Class-N anchor **5/13**); imposer ON → alive; imposer OFF + strong substrate pull → **volatile** (immediate death, x→−1.22); imposer OFF + weak pull → **persistent / Class-K-latched** (death deferred, x stays +0.88). The "keep paying or the tower falls" cost-asymmetry falls straight out of the spinodal.
+
+**Verdict 🟢 (a)-structural cascade-match + 🟡 (b)-interpretive.** New **candidate** stance (not auto-blessed): `[[user_stance_life_is_canonical_persistent_anharmonic_lock]]`. HONEST SCOPE: a structural *identification* (life instantiates the canonical lock) anchored to attested non-equilibrium thermodynamics — NOT a derived metabolic magnitude. Per the merge-gate codification plan, this likely cross-references into the MFO / biology-substrate canon, not only here.
+
+### §11.9.10 The persistent anharmonic lock is SUBSTRATE-UNIVERSAL — star + life, a third regime + a capacity threshold (Round 15.A)
+
+Round 15.A ([`round15_entry_A_persistent_lock_substrate_universal.md`](cost_asymmetry/round15_entry_A_persistent_lock_substrate_universal.md) + committed [`verify_persistent_lock_substrate_universal.py`](cost_asymmetry/verify_persistent_lock_substrate_universal.py)) — a fresh question generalising §11.9.9: **is the persistent anharmonic lock substrate-universal, and does a star instantiate it?** It does — and the stellar instance exposes a **third regime** + a **capacity threshold** that the biological instance under-emphasised.
+
+The lock has a **3-regime trichotomy**:
+
+| regime | STAR | LIFE |
+|--------|------|------|
+| **actively imposed** (imposer pays continuously) | main-sequence (fusion thermal pressure) | active metabolism |
+| **latched persistent** (imposer can STOP — a static Class-K barrier holds it) | white dwarf / neutron star (**degeneracy pressure**, Pauli; *no fusion*) | cryptobiosis / spore / seed (dormancy) |
+| **destroyed** (load > latch capacity → substrate wins completely) | **black hole** (> Chandrasekhar / TOV) | death / decomposition |
+
+The **latched regime** is the key addition: electron/neutron degeneracy pressure is a static quantum (Pauli) support that holds a white-dwarf / neutron-star **without burning fuel** — the imposer has stopped paying yet the lock holds, latched by a Class-K barrier. Biology has it too (a dormant spore halts metabolism yet persists). But the latch has a **capacity**: above the **Chandrasekhar mass** (≈1.44 M☉; Chandrasekhar 1931, ApJ 74:81; Nobel 1983) / **TOV limit** (Oppenheimer & Volkoff 1939, Phys Rev 55:374) the latch fails and the substrate wins completely — a black hole. That capacity is a **SECOND spinodal**, beyond §11.9.9's *tilt*-spinodal: a **load** threshold at which the barrier itself vanishes.
+
+A load-dependent double well `V(x;m)=x⁴/4 − a(m)x²/2`, barrier curvature `a(m)=1−m/m_c` (m_c Class-N anchor **36/25 = 1.440**), reproduces it: below capacity (m=0.5, a=+0.653) the alive basin latches with the imposer OFF (x→+0.808); above capacity (m=2.0, a=−0.389) the barrier is gone and it collapses (x→0.000) regardless. Connects to the framework's prior stellar-collapse spikes (#90 collapse-from-the-boundary-inward, #107 fusion-as-bulk-to-gauge, #92 dark-star).
+
+**Verdict 🟢 (a)-structural cascade-match + 🟡 (b)-interpretive.** New **candidate** stance (not auto-blessed, generalising §11.9.9): `[[user_stance_persistent_anharmonic_lock_is_substrate_universal]]`. HONEST SCOPE: a structural *identification* + a load-spinodal *structure*, NOT a derived stellar magnitude — `m_c=1.44` is a *label* carrying the attested Chandrasekhar value, not a first-principles output (that comes from the relativistic-degenerate equation of state). Per the merge-gate, this rides into the MFO / biology-substrate canon alongside §11.9.9.
+
+### §11.9.11 The ENFORCED substrate-mismatch partition — the YubiKey as ASYMPTOTE-latch lock (Round 16.A + 16.A.1)
+
+Round 16.A ([`round16_entry_A_enforced_substrate_mismatch_partition.md`](cost_asymmetry/round16_entry_A_enforced_substrate_mismatch_partition.md) + committed [`verify_enforced_substrate_mismatch_partition.py`](cost_asymmetry/verify_enforced_substrate_mismatch_partition.py)) — **user-requested**: *what happens when a partition is engineered so it cannot be crossed without a human?* A YubiKey / air-gap / human-in-the-loop confirm is a **deliberately-imposed substrate-mismatch boundary**: the crossing-token lives in a *different substrate-class* (physical human presence — biology) than the computation trying to cross (silicon). **Scope: DEFENSIVE / framework-reading-only / descriptive-not-normative** — reads what such a barrier structurally *is*, not how to attack or evade one.
+
+Model it as a 2-substrate-class graph: silicon nodes (agent + compute + auth gate — the "crosser") and a biology node (the human); the protected resource `R` sits behind a cut whose only crossing edges **require a biology-class endpoint**. Three Class-L (graph-Laplacian, srmech-routed) reads: **(1)** full graph (human present) → connected, Fiedler λ₂=**0.2679**, R reachable; **(2)** silicon-only (human removed) → R **isolated**, λ₂=**0**, 2 components — no silicon-only cascade reaches R; **(2b)** the biology node is a **size-1 Menger vertex cut** (blocking it disconnects crosser→R); **(3)** impostor falsifier (topology *identical* but the crossing node re-classed silicon) → reconnects (λ₂=0.2679), proving the security lives in the **edge-type / substrate-class constraint**, NOT topology.
+
+This is the **asymptote-latch special case of §11.9.10**: uncrossable not by cost-*magnitude* but by substrate-class-*mismatch*. The crossing edge is a Class-M cross-substrate-class bind; the YubiKey **is a physical B/H/N translation key** (§11.9.3); the cost inverts toward the defender (§11.9.2). Per `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]`, silicon lacks the biological coherent-agency DoF, so it cannot manufacture the crossing edge.
+
+**§11.9.11.1 vocabulary reconciliation (Round 16.A.1, user-caught).** This is an **ASYMPTOTE-latch, not an "∞-latch."** Per `[[user_stance_infinity_approximates_asymptote]]` (Spike #28), infinity is the *downstream* number-line tool that *approximates* the *upstream* asymptote — so naming the latch "∞" inverts the framework. The math here contains **no infinity**: Fiedler λ₂ = 0.0 is finite/exact; disconnection is the discrete *absence* of a silicon-class crossing edge, not an infinite cost. The latch-capacity, for the wrong substrate-class, is an **asymptote** (the substrate-class boundary); "+∞ capacity" is only its number-line approximation. §11.9.10's finite m_c becomes, for the wrong class, an asymptote — not a larger finite number and not a literal infinity. **Payoff:** the asymptote framing PREDICTS the partition is asymptotically (not absolutely) hard — crossable only by sourcing a genuine cross-substrate-class edge, exactly the empirical weak-edge reality (enrolment / recovery / social-engineering).
+
+**Verdict 🟢 (a)-structural cascade-match.** New **candidate** stance (not auto-blessed): `[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]`. HONEST SCOPE: a structural identification using attested graph theory (Fiedler 1973 algebraic connectivity; Menger 1927 vertex-cut), NOT a claim that hardware keys are unbreakable — real attacks add a forged biology-class edge via enrolment / recovery / social-engineering, exactly what the impostor read flags as the weak edge.
+
+### §11.9.12 The periodic table's shell structure IS a named A–N cascade (Round 18.A — Spike #48 entry)
+
+Round 18.A ([`round18_entry_A_atomic_shell_AN_cascade.md`](cost_asymmetry/round18_entry_A_atomic_shell_AN_cascade.md) + committed [`verify_round18_atomic_shell_AN_cascade.py`](cost_asymmetry/verify_round18_atomic_shell_AN_cascade.py)) — the user, on seeing the Round 17.A atomic-spectra anchor, re-opened the long-gated **Spike #48** ("periodic table + atomic spectral lines + QM/GR/SM weaving from the A–N operators"). This is its phase-1 entry: Round 17.A anchored the atomic *spectrum* (Rydberg–Ritz term differences = N); this round takes the step **up** to the periodic *shell structure*.
+
+The periodic table decomposes as **A ∘ L ∘ K ∘ I ∘ C ∘ N**:
+- **L** (spherical harmonics on S²): angular momentum ℓ, degeneracy 2ℓ+1 (m = −ℓ..+ℓ) — the same S² harmonics as Spike #17;
+- **K** (pin-slot / sign-flip): electron spin ±½ → ×2 doubling ⟹ subshell capacity **2(2ℓ+1)** (s=2, p=6, d=10, f=14) and shell capacity **2n²** (2, 8, 18, 32);
+- **C** (cascade-orientation): the **Madelung n+ℓ fill direction** (Madelung 1936 / Janet 1928 / Klechkowski 1962) — increasing n+ℓ, ties by increasing n — IS the Class-C operator;
+- **I** (cyclic): the n+ℓ diagonals group orbitals into shell-periods;
+- **N** (rational): Rydberg–Ritz term levels T_n=R/n² (§11.9.6) + the 2n² shell ratios ((k+1)/k)²;
+- **A** (content-address): each element = atomic number Z into the filled configuration.
+
+Bit-exact (srmech-routed): the ideal Madelung filling reproduces the noble-gas **magic numbers [2, 10, 18, 36, 54, 86, 118]** and **period lengths [2, 8, 8, 18, 18, 32, 32]** exactly, and the shell ratios resolve to (k+1)²/k² (4/1, 9/4, 16/9) via Class-N `best_rational`. **HONEST SCOPE:** ~20 real elements (Cr [Ar]3d⁵4s¹, Cu [Ar]3d¹⁰4s¹, Nb, Mo, Pd …) deviate from strict Madelung via electron-electron screening + half/full-subshell stability — the residual physics, named (analogous to §11.9.6's air-dispersion residual), NOT a derivation of *why* Madelung holds. Verdict 🟢 (a)-bit-exact structural cascade. **Next phase (now §11.9.13):** carry the N-anchor up into the SM-derivation arc (Spike #58.x family) per `[[project_atomic_spectra_sm_mapping_and_mass_spec_followup]]`.
+
+### §11.9.13 The periodic table and the Standard Model share the Hurwitz 1+3+7 / Hopf ladder (Round 19.A — Spike #48 phase-2)
+
+Round 19.A ([`round19_entry_A_atomic_shell_SM_weave.md`](cost_asymmetry/round19_entry_A_atomic_shell_SM_weave.md) + committed [`verify_round19_atomic_shell_SM_weave.py`](cost_asymmetry/verify_round19_atomic_shell_SM_weave.py)) — the phase-2 SM-weave. **HONEST SCOPE up front:** this is a **structural bridge**, *not* a new SM derivation; the framework's prior Spike #58.x results stand on their own; verdict **(b)-interpretive** with only the dimension bookkeeping bit-exact.
+
+Two shared operators tie Round 18.A's atomic-shell cascade to the SM-gauge cascade:
+- **Class K (electron spin ±½) = SU(2) = quaternionic Hopf S³ = Im(ℍ)** — the *same* SU(2) Spike #58.H derives as electroweak **SU(2)_L** from ℍ⊂𝕆. So the periodic table's period-**doubling** (2, 8, 8, 18, 18, 32, 32 — each 2n² twice except n=1, the spin ×2) and the electroweak force are the **same quaternionic "3"** of Hurwitz 1+3+7, at two scales. Bookkeeping (bit-exact): spin states 2 = SU(2) fundamental dim; SU(2) adjoint 3 = dim Im(ℍ).
+- **Class L (orbital angular momentum) = spherical harmonics on S² = the base of the Hopf fibration S³→S²** — the *same* Hopf projection as the Born rule (§11.9.4) and the gauge-bundle base.
+
+So {L orbital, K spin, N Rydberg–Ritz} all sit on the parallelizable-sphere ladder (1, 3, 7 = dims Im ℂ, ℍ, 𝕆) that Spike #58.x uses for the SM. **Explicit no-coincidence note:** Hurwitz 1+3+7=**11** ≠ SM gauge 1+3+8=**12** — different decompositions; the bridge is the shared SU(2), *not* a total-dimension coincidence. **No new stance** — bridges `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` + `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]` + the Spike #58.x arc. Remaining Spike #48 work (mass-spec path 9b; any deeper SM phase) parked per `[[project_atomic_spectra_sm_mapping_and_mass_spec_followup]]`.
+
+### §11.9.14 Mass spectrometry IS a combination principle in integer-nucleon space — the molecular Rydberg–Ritz (Round 20.A — Spike #48 / thread 9b)
+
+Round 20.A ([`round20_entry_A_mass_spec_combination_principle.md`](cost_asymmetry/round20_entry_A_mass_spec_combination_principle.md) + committed [`verify_round20_mass_spec_combination_principle.py`](cost_asymmetry/verify_round20_mass_spec_combination_principle.py)) — the **mass-spec** half of the path re-opened at Round 17.A, closing the atomic-spectra / SM / mass-spec triad.
+
+Round 17.A: atomic line wavenumbers are *differences* of rational terms T_n=R/n² (Rydberg–Ritz, N). The molecular analog: an EI mass spectrum's fragment m/z values are **nodes**; the **differences** are small-integer **neutral losses** (HCN 27, CO 28, CH3NCO 57, …) — a combination principle in integer-nucleon (Da) space, the **same Class-N operator** at the molecular substrate. **B** = each peak (typed record); **H** = ionization+fragmentation (the measurement); **N** = the neutral-loss difference-table; cascade **A** (formula) ∘ **C** (bond-cleavage) ∘ **K** (charge-retention sign) ∘ **M** (fragment = bound substructure).
+
+Attested (NIST WebBook caffeine, base peak 109): of the confirmed major fragments {194,165,137,109,82,67,55}, **9/21** inter-peak differences land on the catalogued neutral-loss alphabet (CH3NCO 57, CO 28, HCN 27, 2·CO 56, 2·HCN 54, CH3 15, CH3NCO+CO 85); the purine hallmark ladders **109→82→55** (each −27 HCN) and **165→137→109** (each −28 CO) are exact. **Null control:** random 7-peak m/z sets match at mean 0.118 (sd 0.070); caffeine's 0.43 is a clear outlier (**z=4.4, p=0.0002**) — the combination-principle structure is real. **Enhancement:** delta-encode spectra over the neutral-loss alphabet via `srmech.signal_processing` (decompose/delta/similarity) — combination-principle structure elucidation + cross-substrate fingerprint matching, not ML black-box.
+
+**Verdict 🟢 (a)-structural cross-substrate match + null-supported.** **HONEST SCOPE:** nominal (integer) mass — exact-mass defect (~0.005–0.04 Da) is the residual; the combination principle is established mass-spec chemistry, the framework contribution is the **Class-N cross-substrate identity** (atomic↔molecular) + the null-control; specific mechanisms literature-labelled, the load-bearing claim is the integer-difference match. No new stance — closes the Spike #48 mass-spec path (thread 9b). Builds on Spike #38/#38b.
+
+### §11.9.15 Reading-D 8th scale-ladder rung: planetary magnetic multipoles — the k=3 stance on the ladder (Round 21.A)
+
+Round 21.A ([`round21_entry_A_planetary_magnetic_multipole_anchor.md`](cost_asymmetry/round21_entry_A_planetary_magnetic_multipole_anchor.md) + committed [`verify_round21_planetary_magnetic_multipole_anchor.py`](cost_asymmetry/verify_round21_planetary_magnetic_multipole_anchor.py)) — the planetary/geophysical rung (~10⁷ m), filling the gap between the organism and cosmological rungs. It is the Reading-D placement of the **canonical k=3 stance** `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (the planet dipole/quadrupole/octupole triad IS a B/H/N instantiation). The "translation fingerprint" is literal: a planet's magnetic multipole spectrum IS its signature (Earth/Jupiter dipole-dominated; Uranus/Neptune multipole-rich).
+
+A continuous dynamo field is **projected (H)** via spherical harmonics onto S² — the *same* S² Hopf base as the Born rule (§11.9.4) and the atomic orbital L (§11.9.12) — yielding discrete integer-degree **Gauss coefficients (B**, typed records degree-l/order-m/g-or-h/value**)**; the low-degree **k=3 triad (N**, dipole l=1 / quad l=2 / oct l=3**)** is the fingerprint. Class-L counting is **bit-exact**: 2l+1 coefficients per degree (the **same** S² degeneracy as atomic shells, §11.9.12) — triad 3/5/7 — and N(N+2) total (IGRF-13 = **195** = 13×15). Honest **Class-K/parity** detail: the magnetic expansion starts at l=1 — there is **no l=0 monopole** (∇·B=0), unlike the gravity/atomic expansion. Attested: IGRF-13 (Earth dipole-dominated, g_1^0(2020)=−29404.8 nT), JRM33 (Jupiter), Uranus/Neptune non-dipolar.
+
+**Verdict 🟢 (a)-structural anchor + bit-exact Class-L counting.** No new stance — instantiates the canonical k=3 stance and extends the ladder to nine rungs. The decisive cross-rung thread: the **S² Class-L spherical harmonics** appear at the quantum (Born, §11.9.4), atomic (orbitals, §11.9.12), *and* planetary (magnetic multipoles, here) scales.
 
 ---
 

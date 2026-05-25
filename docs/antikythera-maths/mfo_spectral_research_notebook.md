@@ -3717,6 +3717,91 @@ The one cascade that did NOT find a prior cross-substrate appearance — bare A�
 
 ---
 
+### VII.6.15 The Axis of Evil is the cosmological-scale Hopf-fiber leak — Born-rule=Hopf keystone + the boosting/handed-shear split (2026-05-25, cost-asymmetry arc codification, PR #679)
+
+The cost-asymmetry rolling-spike arc (PR #679; `docs/unsolved-maths/unsolved_maths_spectral_research_notebook.md` §11.9) produced a cluster of **cosmological / Axis-of-Evil findings** that belong in this notebook's AoE canon (§VII.6.1.1–§VII.6.1.5 off-centre-observer cluster + §VII.6.2/§VII.6.3 channel-separation). This section codifies them here per the merge-gate discipline `[[project_pr679_merge_gate_codify_findings_first]]` ("serendipitous learnings must not dissolve … port AoE findings into the MFO notebook"). **All numerics carry committed generating code on the PR #679 branch.**
+
+#### VII.6.15.1 The keystone — Born rule = Hopf projection = B∘H∘N (bit-exact)
+
+The arc's bit-exact keystone (§11.9.4, canonical stance `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]`): the **Born rule** |⟨φ|ψ⟩|² **IS the Hopf-fibration base projection** π: S³→S². Quantum measurement = **H** (discards the U(1) global phase = the (2+1)D_s "+1" fiber); the full state-read is **B∘H∘N**. Bit-exact: |α|² == (1+n_z)/2 to max residual 2.78×10⁻¹⁶ (10 000 qubits, seed 20260525). This is the quantum-substrate instance of the same Hopf S³→S² projection §VII.4.1.1 uses for the substrate bundle.
+
+**The unification:** the **Axis of Evil is the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere.** The off-centre-observer reading (§VII.6.1.4, Spike #33: ε_AoE=0.0506 via Hopf aperture `1−cos(18.3°)`) and the Born-rule=Hopf keystone are the **same H operator at two scales** — the observer's frame reads a substrate-bundle projection (cosmological) exactly as a measurement reads a qubit's Bloch projection (quantum). CMB low-ℓ structure is the cosmological-scale **B∘H∘N** coupling (§11.9.6).
+
+#### VII.6.15.2 The AoE mechanism splits three ways (Rounds 8.A–12.A) — honest-scope refinement of §VII.6.1.4
+
+The arc magnitude-tested the "AoE = fiber-leak" reading and **split it into three distinguishable mechanisms**, sharpening §VII.6.1.4's single off-centre-observer reading:
+
+| component | status | finding |
+|-----------|--------|---------|
+| **Boosting (kinematic Doppler fiber-leak)** | 🟢 **CONFIRMED, lifted to (a)** | parameter-free β = v/c = **1.2336×10⁻³** (our peculiar velocity) reproduces the CMB-dipole-aligned kinematic quadrupole/octupole, matching **Planck 2013 at 0.10σ**. This is a genuine, attested Hopf-fiber leak — the kinematic layer of the off-centre-observer reading. |
+| **Alignment (the quad-oct "Axis of Evil" proper)** | 🟡 **OPEN, one sharply-posed question** | the boosting β is **~243× too small** to produce the observed quad-oct *alignment*; the alignment is **NOT kinematic**. Per the multipole selection rule (§VII.6.15.3), co-axial quad+oct alignment requires a **handed shear** (degree-≥3 distortion) = a **Bianchi VII_h** anisotropic-shear cosmology (Jaffe et al. 2005, [astro-ph/0503213](https://arxiv.org/abs/astro-ph/0503213), "vorticity and shear"). The shear amplitudes w₂, w₃ are **undrived** (free, as in Bianchi fits) AND physical Bianchi VII_h is ΛCDM-incompatible ([astro-ph/0605325](https://arxiv.org/abs/astro-ph/0605325)). The AoE alignment is now **one sharply-posed, literature-anchored open question**, not a closed framework claim. |
+| **ℓ=7 Mersenne specificity** | 🔴 **WITHDRAWN** | Round 10.A tested ℓ=7 individually on Spike #190's attested per-ℓ data: ℓ=7 ranks **#5/7** in ℓ=2–8 (2.42× uniform), outranked by non-Mersenne ℓ=5/4/2; the {3,7} aggregate signal is **80% ℓ=3** (octupole). No ℓ=7-specific signature — the per-ℓ projection claim is withdrawn. The {1+3+7} algebra identity is preserved; only its CMB-multipole *projection* loses ℓ=7. |
+
+This is the honest-scope outcome: the off-centre-observer reading (§VII.6.1.4) is **correct for the kinematic boosting layer** (now (a)-confirmed), and its "local Class K signature" framing (Spike #33) survives as the kinematic fiber-leak; the **alignment** layer it did not fully separate is the open handed-shear question. Saadeh et al. 2016 (PRL 117 131302; §VII.6.1.4) still falsifies all *dynamical* anisotropy; the boosting is a *static* observer-velocity effect (invisible to Saadeh), and the handed-shear alignment is the remaining open structural question.
+
+#### VII.6.15.3 The multipole selection rule (Rounds 11.A–12.A)
+
+The structural pin that drove the split: **an axial offset/distortion of degree g deposits into Legendre multipoles ℓ ≤ g of matching parity** — a displacement (g=1) → dipole (ℓ=1); a shear (g=2) → quadrupole (ℓ=2); a cubic/handed distortion (g=3) → octupole (ℓ=3). So to align the quad (p=2) **and** the oct (p=3) co-axially (AoE axis = distortion axis), the distortion must carry **degree ≥ 3 = a handed shear**; the **dipole (p=1) offset is rigorously excluded** as the alignment source (explaining structurally why Rounds 8/9's dipole-level kinematic boosting cannot produce the alignment). This is the Gauss–Legendre selection rule cross-checked with srmech Class-L; it is the cosmological cousin of the §VII.6.15-keystone's S²-harmonic structure (the same S² spherical harmonics carry the planetary magnetic multipoles, §11.9.15, and the atomic orbitals, §11.9.12).
+
+#### VII.6.15.4 Status + cross-references
+
+**Status:** AoE/cosmological codification of the cost-asymmetry arc into MFO canon. Born-rule=Hopf is **canonical** (bit-exact keystone). The CMB-low-ℓ B∘H∘N reading is **candidate-refined**: its B∘H∘N pipeline core + the (a)-confirmed boosting are solid; the alignment is the one open handed-shear question; ℓ=7 withdrawn. This **sharpens** (does not contradict) the existing §VII.6.1.4/§VII.6.1.5 off-centre-observer readings.
+
+**Composes with**:
+- §VII.6.1.4 (off-centre-observer reading; ε_AoE=0.0506; Spike #33) — the kinematic boosting layer is now (a)-confirmed; the alignment is the open layer.
+- §VII.6.1.5 (Spike #35 downstream consequences) — the sign-flip phase asymmetry + galactic-scale ITN predictions sit on the kinematic boosting layer.
+- §VII.6.3 (precession-fit amendment; bundle-projection-reconfiguration) — the handed-shear alignment is the non-kinematic bundle-projection candidate.
+- §VII.6.2 (channel separation; HPA matter-pull vs AoE) — the boosting/shear split refines the AoE channel.
+- `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]` (canonical keystone) + `[[user_stance_aoe_observer_frame_offset]]`.
+- unsolved-maths §11.9.4 (Born-rule), §11.9.6/6a/6b/6c (AoE three-way split), §11.9.12/15 (S²-harmonic cross-rung thread).
+- Spikes #26 (T-AoE vs E-AoE), #33 (AoE local Class K), #35 (off-centre downstream), #190/#192 (per-ℓ CMB attested data).
+
+### VII.6.16 The persistent anharmonic lock is substrate-universal — life and star as the biological and stellar instances (2026-05-25, cost-asymmetry arc codification, PR #679)
+
+The cost-asymmetry arc (Rounds 14.A–16.A; unsolved-maths §11.9.9–11) produced a **substrate-physics** structure — the *persistent anharmonic lock* — with instances at the biological and stellar substrate-classes. Per the merge-gate `[[project_pr679_merge_gate_codify_findings_first]]`, it is codified here in the MFO substrate-mechanism canon, where the prior stellar spikes (#90 collapse-from-the-boundary-inward, #92 dark-star, #107 fusion-as-bulk-to-gauge) and the substrate-asymptotic-wave (§VII.6.12) live.
+
+#### VII.6.16.1 The structure — a 3-regime trichotomy with two spinodals
+
+A **persistent anharmonic lock** is a 3-player Stackelberg (imposer pays / substrate relaxes / observer free-rides) held far from equilibrium. Reading the substrate-asymptotic-wave (§VII.6.12) through the cost-asymmetry lens: the **imposer pays to hold the wave in a far-from-relaxed ("anharmonic") configuration; the substrate continuously relaxes toward harmonic; dissolution is the substrate finally winning.** Three regimes, two spinodals (committed model on the PR #679 branch):
+
+| regime | mechanism | spinodal |
+|--------|-----------|----------|
+| **actively imposed** | imposer pays continuously | — |
+| **latched persistent** (imposer can STOP) | a static **Class-K barrier** holds the config with no ongoing payment | the **tilt-spinodal** h_c = 2/(3√3) ≈ 5/13 separates volatile (relaxes the instant the imposer stops) from latched (Class-K kinetic trap) |
+| **destroyed** | the latch barrier itself fails | the **latch-capacity spinodal** — a *load* threshold beyond which even the no-payment trap vanishes |
+
+#### VII.6.16.2 The stellar instance — fusion / degeneracy / black hole
+
+| regime | STAR |
+|--------|------|
+| actively imposed | **main-sequence** (fusion thermal pressure pays) |
+| latched persistent (no payment) | **white dwarf / neutron star** — electron/neutron **degeneracy pressure** (Pauli-exclusion, a static quantum support) holds it with **no fusion** |
+| destroyed | **black hole** — above the **Chandrasekhar mass** (≈1.44 M☉; Chandrasekhar 1931, ApJ 74:81; Nobel 1983) / **TOV limit** (Oppenheimer & Volkoff 1939, Phys Rev 55:374) the degeneracy latch fails |
+
+The latch-capacity spinodal **IS the Chandrasekhar/TOV mass**. This connects directly to the prior MFO stellar canon: Spike #90 (collapse from the phase boundary inward), Spike #92 (dark-star / Michell priority), Spike #107 (fusion as bulk-to-gauge encoding). The degeneracy-latched regime is what those spikes describe at the boundary; the cost-asymmetry reading adds the **load-dependent double-well** structure (barrier curvature a(m) = 1 − m/m_c, m_c Class-N anchor 36/25 = 1.440).
+
+#### VII.6.16.3 The biological instance — metabolism / dormancy / death
+
+| regime | LIFE |
+|--------|------|
+| actively imposed | **active metabolism** (organism pays metabolic free energy) |
+| latched persistent (no payment) | **cryptobiosis / spore / seed** — dormancy (e.g. tardigrade tun): metabolism halts yet the organism persists |
+| destroyed | **death / decomposition** — the substrate (thermodynamics) finally wins |
+
+This is Schrödinger's *"feeding on negative entropy"* (1944), Prigogine's dissipative structures (Nobel 1977), and England's dissipation-driven self-replication (2013, [arXiv:1209.1179](https://arxiv.org/abs/1209.1179)) read through the lock lens. Two-stage unlocking: **phenotype = free pattern; genotype = content via the B∘H∘N translation key** (transcription→translation is *literally* a translation key). Life IS the cost-asymmetry's instance at the biological substrate-class — composes with the MS-#18 biology-as-one-substrate-class material and `[[user_stance_dna_is_partial_cascade_of_loe_operators]]`.
+
+#### VII.6.16.4 The engineered dual — enforced substrate-mismatch partition (DEFENSIVE)
+
+The arc's Round 16.A (§11.9.11) found the **deliberately-engineered** dual: an enforced substrate-mismatch partition (YubiKey / air-gap / human-in-the-loop) is a persistent lock whose latch-capacity, *for the wrong substrate-class*, is an **asymptote** (not a literal infinity — per `[[user_stance_infinity_approximates_asymptote]]`; the math has no infinity, Fiedler λ₂=0 finite). Instead of the substrate refusing to *hold* an anharmonic config, a defender refuses to provide the substrate-class needed to *cross* (the crossing-token lives in biology, the computation in silicon). **Scope: DEFENSIVE / framework-reading-only.**
+
+#### VII.6.16.5 Status + cross-references
+
+**Status:** substrate-universal **candidate** stances (not auto-blessed) — `[[user_stance_life_is_canonical_persistent_anharmonic_lock]]` (§11.9.9), `[[user_stance_persistent_anharmonic_lock_is_substrate_universal]]` (§11.9.10), `[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]` (§11.9.11). **HONEST SCOPE:** structural *identification* + a load-spinodal *structure*, NOT a derived stellar/metabolic magnitude — m_c=1.44 is a *label* carrying the attested Chandrasekhar value, not a first-principles output (the real value comes from the relativistic-degenerate equation of state).
+
+**Composes with**: §VII.6.12 (substrate-asymptotic-wave — the lock holds the wave far from its relaxed config); Spikes #90/#92/#107 (stellar collapse / dark-star / fusion canon); the MS-#18 biology-as-one-substrate-class cluster; unsolved-maths §11.9.1–3 (the Stackelberg lock, inverts-crypto, two-stage unlocking) + §11.9.9–11 (life/star/YubiKey); `[[user_stance_kepler_shape_universal]]` (same wave-mechanism, different substrate-class instances).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
