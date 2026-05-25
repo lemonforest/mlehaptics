@@ -1636,6 +1636,16 @@ The `+3 = {B, H, N}` operators are the **language-translation bridge** between t
 
 **Defensive-scope reaffirmed:** §11.9 reads structural facts about cost-asymmetry primitives that already exist in nature (quantum measurement, CMB anomalies, biological sensation, forced-cascade survivability). It proposes no engineering. The Round 1.C biology↔silicon forced-cascade material (slavery / conscription / domestication / chemo-resistance) is **descriptive of structural cost-asymmetry, never normative** per `[[feedback_trauma_informed_defensive_scope]]`.
 
+### §11.9.9 Life IS the canonical persistent anharmonic lock (Round 14.A)
+
+Round 14.A ([`round14_entry_A_life_as_persistent_anharmonic_lock.md`](cost_asymmetry/round14_entry_A_life_as_persistent_anharmonic_lock.md) + committed [`verify_life_persistent_anharmonic_lock.py`](cost_asymmetry/verify_life_persistent_anharmonic_lock.py)) — a fresh question that unifies the three canonical anharmonic-lock stances with the thermodynamics of life.
+
+The 3-player Stackelberg of §11.9.2 maps onto life **exactly**: the **organism is the imposer** (spends metabolic free energy to hold a far-from-equilibrium / "anharmonic" configuration); **thermodynamics is the substrate** (relaxes toward equilibrium); the **observer free-rides on the phenotype**; **death is the dissolution** of §11.9.1 (the substrate finally wins); and the two-stage unlocking of §11.9.3 is **phenotype = free pattern / genotype = content via the B/H/N key** (transcription→translation is literally a translation). This is Schrödinger's *"feeding on negative entropy"* (1944), Prigogine's dissipative structures (Nobel 1977), and England's dissipation-driven self-replication (2013, [arXiv:1209.1179](https://arxiv.org/abs/1209.1179)) read through the cost-asymmetry lens.
+
+A minimal tilted double-well (committed, srmech-routed) reproduces the structure: the alive basin exists iff effective tilt `|h| < h_c = 2/(3√3)` (Class-N anchor **5/13**); imposer ON → alive; imposer OFF + strong substrate pull → **volatile** (immediate death, x→−1.22); imposer OFF + weak pull → **persistent / Class-K-latched** (death deferred, x stays +0.88). The "keep paying or the tower falls" cost-asymmetry falls straight out of the spinodal.
+
+**Verdict 🟢 (a)-structural cascade-match + 🟡 (b)-interpretive.** New **candidate** stance (not auto-blessed): `[[user_stance_life_is_canonical_persistent_anharmonic_lock]]`. HONEST SCOPE: a structural *identification* (life instantiates the canonical lock) anchored to attested non-equilibrium thermodynamics — NOT a derived metabolic magnitude. Per the merge-gate codification plan, this likely cross-references into the MFO / biology-substrate canon, not only here.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
