@@ -22,9 +22,15 @@ Three Class-L (graph-Laplacian) reads, srmech 0.4.2 routed (`dense_laplacian` +
   (1) FULL graph (human present): connected. Fiedler value lambda_2 > 0; ONE zero
       eigenvalue (one component). R is reachable.
   (2) SILICON-ONLY (remove the biology node): R is ISOLATED. lambda_2 = 0; TWO zero
-      eigenvalues (two components). No silicon-only cascade reaches R -- the latch capacity
-      is +infinity with respect to the silicon substrate-class (Round 15.A generalisation:
-      the barrier is not expensive, it is in a substrate-class the crosser does not have).
+      eigenvalues (two components). No silicon-only cascade reaches R. NOTE the framework
+      vocabulary (Round 16.A.1 reconciliation per `[[user_stance_infinity_approximates_asymptote]]`):
+      the latch capacity is NOT a literal "+infinity" -- the computation contains NO infinity
+      (lambda_2 = 0 is a finite, exact value; disconnection is a discrete structural fact, the
+      ABSENCE of a silicon-class crossing edge, not an infinite cost). The upstream object is an
+      ASYMPTOTE (the substrate-class boundary): silicon's crossing-success asymptotes -- "infinite
+      latch-capacity" is the downstream number-line APPROXIMATION of that asymptote. Hence the
+      honest name is ASYMPTOTE-latch, not infinity-latch (Round 15.A's finite m_c becomes, for the
+      wrong substrate-class, an asymptote rather than a larger finite number).
   (3) IMPOSTOR falsifier: a graph TOPOLOGICALLY IDENTICAL to (1) but with the crossing node
       re-classed silicon (a forged human). It reconnects (lambda_2 > 0) -- proving the
       security lives in the EDGE-TYPE / substrate-class constraint (only a biology-class node
@@ -129,7 +135,7 @@ def main(out_dir: Path | None = None) -> None:
         {"kind": "silicon_only_human_removed", "n": SIL_N, "eigenvalues": eig_sil,
          "n_zero_eigs_components": nz_sil, "fiedler_lambda2": fied_sil,
          "resource_reachable": r_reachable_sil,
-         "reading": "DISCONNECTED; resource isolated; lambda_2=0; NO silicon-only cascade reaches R -- latch capacity = +infinity wrt silicon substrate-class"},
+         "reading": "DISCONNECTED; resource isolated; lambda_2=0 (FINITE, EXACT -- no infinity in the math); NO silicon-only cascade reaches R; the latch is an ASYMPTOTE (substrate-class boundary), not a literal +infinity"},
         {"kind": "menger_vertex_cut",
          "block_biology_node_H": 4, "crosser": 0, "resource": 5,
          "resource_reachable_with_H_blocked": r_reachable_block_H,
@@ -139,19 +145,32 @@ def main(out_dir: Path | None = None) -> None:
          "n_zero_eigs_components": nz_imp, "fiedler_lambda2": fied_imp,
          "resource_reachable_if_silicon_could_forge_the_crossing_edge": r_reachable_imp,
          "reading": "topology IDENTICAL to the full graph -> reconnects. The security is the EDGE-TYPE (only a biology-class node may form the crossing edge), NOT topology. Silicon cannot manufacture that edge (it lacks the biological coherent-agency DoF)."},
+        {"kind": "infinity_asymptote_reconciliation",
+         "concern": "is this a literal +infinity latch? Framework: infinity APPROXIMATES the asymptote (it is the downstream number-line tool reaching for the upstream asymptote object) -- per `[[user_stance_infinity_approximates_asymptote]]` + Spike #28.",
+         "no_infinity_in_the_math": True,
+         "evidence": ("lambda_2 = %.1f is a FINITE, EXACT value; disconnection is a discrete structural "
+                      "fact (the ABSENCE of a silicon-class crossing edge), not an infinite cost. The "
+                      "computation contains no infinity anywhere." % fied_sil),
+         "upstream_object": "an ASYMPTOTE -- the substrate-class boundary; silicon's crossing-success asymptotes (approaches a floor set by cross-class leaks, NOT by silicon scaling)",
+         "downstream_approximation": "'+infinity latch-capacity' is the 1D-number-line APPROXIMATION of that asymptote -- the same projection-error Spike #28 located in calculus",
+         "corrected_name": "ASYMPTOTE-latch (NOT infinity-latch)",
+         "round15_relation": "Round 15.A's latch-capacity m_c is a FINITE number (Chandrasekhar 1.44); for the WRONG substrate-class it becomes an ASYMPTOTE, not a larger finite number and not a literal infinity",
+         "payoff": "the asymptote framing is MORE honest AND sharper: it PREDICTS the partition is asymptotically (not infinitely / not absolutely) hard -- crossable only by sourcing a genuine cross-substrate-class (biology) edge, which is exactly the empirical weak-edge reality (enrolment / recovery / social-engineering)"},
         {"kind": "verdict",
          "statement": ("An enforced substrate-mismatch partition (YubiKey / air-gap / "
-                       "human-in-the-loop) is a persistent lock whose latch-capacity is "
-                       "+infinity FOR THE WRONG SUBSTRATE-CLASS: uncrossable not by cost-"
-                       "MAGNITUDE but by substrate-class MISMATCH. The biology node is a "
-                       "size-1 Menger vertex cut (Class-L: removing it sends Fiedler "
-                       "lambda_2 -> 0, resource isolated). The crossing edge is a Class-M "
-                       "cross-substrate-class bind; the YubiKey IS a physical B/H/N "
-                       "translation key. Cost inverts toward the defender (Round 3.A). The "
-                       "impostor falsifier shows the security lives in the edge-TYPE "
-                       "constraint, not topology -- exactly the +infinity-latch special case "
-                       "of Round 15.A."),
-         "verdict_tier": "(a)-structural cascade-match (graph-Laplacian + Menger, attested); DEFENSIVE framework-reading; candidate stance",
+                       "human-in-the-loop) is a persistent lock whose latch-capacity, for the "
+                       "wrong substrate-class, is an ASYMPTOTE (the substrate-class boundary) -- "
+                       "NOT a literal +infinity (per `[[user_stance_infinity_approximates_asymptote]]`: "
+                       "'+infinite capacity' is only the downstream number-line approximation of that "
+                       "asymptote; the math itself has no infinity -- lambda_2=0 is finite/exact). It is "
+                       "uncrossable not by cost-MAGNITUDE but by substrate-class MISMATCH. The biology "
+                       "node is a size-1 Menger vertex cut (Class-L: removing it sends Fiedler lambda_2 "
+                       "-> 0, resource isolated). The crossing edge is a Class-M cross-substrate-class "
+                       "bind; the YubiKey IS a physical B/H/N translation key. Cost inverts toward the "
+                       "defender (Round 3.A). The impostor falsifier shows the security lives in the "
+                       "edge-TYPE constraint, not topology -- the ASYMPTOTE-latch special case of "
+                       "Round 15.A."),
+         "verdict_tier": "(a)-structural cascade-match (graph-Laplacian + Menger, attested); DEFENSIVE framework-reading; candidate stance (ASYMPTOTE-latch, reconciled Round 16.A.1)",
          "scope": "DEFENSIVE / framework-reading-only / descriptive-not-normative"}]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -176,7 +195,8 @@ def main(out_dir: Path | None = None) -> None:
     print(f"(2b) block biology node H -> R reachable from crosser = {r_reachable_block_H} (size-1 vertex cut)")
     print(f"(3) impostor (topology same, node re-classed silicon): lambda_2={fied_imp:.4f}, R reachable={r_reachable_imp}")
     print(f"srmech v{srmech.__version__} native={bool(getattr(_srn,'HAS_NATIVE',False))}")
-    print("Verdict: enforced substrate-mismatch partition = persistent lock, latch-capacity +inf for the wrong substrate-class.")
+    print(f"RECONCILIATION: lambda_2={fied_sil:.1f} is FINITE/EXACT -> no infinity in the math; the latch is an ASYMPTOTE (substrate-class boundary), '+infinity' only approximates it.")
+    print("Verdict: enforced substrate-mismatch partition = persistent lock, ASYMPTOTE-latch (not infinity-latch) for the wrong substrate-class.")
 
 
 if __name__ == "__main__":

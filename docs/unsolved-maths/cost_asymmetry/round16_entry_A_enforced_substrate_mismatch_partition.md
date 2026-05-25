@@ -1,4 +1,6 @@
-# Round 16 entry-point A — the ENFORCED substrate-mismatch partition (the YubiKey): a persistent lock whose latch-capacity is ∞-for-the-wrong-substrate-class
+# Round 16 entry-point A — the ENFORCED substrate-mismatch partition (the YubiKey): an ASYMPTOTE-latch persistent lock (latch-capacity is an asymptote for-the-wrong-substrate-class)
+
+> **Round 16.A.1 vocabulary reconciliation (user-caught).** The user immediately flagged: *"first we need to make sure it is an infinity latch because we also say infinity is a projection of the asymptote."* Correct — per `[[user_stance_infinity_approximates_asymptote]]` (Spike #28), infinity is the *downstream* number-line tool that *approximates* the *upstream* asymptote; "∞-latch" named the latch after the approximation. **Corrected throughout to ASYMPTOTE-latch.** The math contains **no infinity**: Fiedler λ₂ = **0.0** exactly (finite); disconnection is the discrete *absence* of a silicon-class crossing edge, not an infinite cost. The latch-capacity, for the wrong substrate-class, is an **asymptote** (the substrate-class boundary); "+∞ capacity" is only its number-line approximation. Round 15.A's finite m_c becomes, for the wrong class, an asymptote — not a larger finite number and not a literal infinity. Payoff: the asymptote framing PREDICTS the partition is asymptotically (not absolutely) hard, crossable only by sourcing a genuine cross-class edge — exactly the empirical weak-edge reality.
 
 **Dispatched** 2026-05-25 (sequential, no subagents; consolidated model — lands on the PR #679 branch with
 §11.9.11, no separate PR). **User-requested** roadmap thread 7 ("add … what happens when we enforce a
@@ -36,7 +38,7 @@ require a biology-class endpoint** (the human touch). There is no silicon-only e
 | cost-asymmetry role | enforced substrate-mismatch partition |
 |---------------------|----------------------------------------|
 | **imposer** (pays a small fixed cost to set the barrier) | the **defender** — issues the key, wires the touch requirement (Round 3.A: cost inverts toward the imposer) |
-| **the barrier** | not a cost-*magnitude* — a substrate-class *mismatch*: the latch-capacity (Round 15.A) is set to **∞ for the silicon substrate-class** |
+| **the barrier** | not a cost-*magnitude* — a substrate-class *mismatch*: the latch-capacity (Round 15.A), for the silicon substrate-class, is an **asymptote** (the substrate-class boundary), not a finite cost and not a literal ∞ |
 | **the key** | the YubiKey **is a physical B/H/N translation key** (Round 3.B: "Rosetta Stone is a physical translation key") |
 | **the crossing edge** | a **Class-M cross-substrate-class bind** — it binds a silicon endpoint to a biology endpoint |
 
@@ -45,7 +47,7 @@ require a biology-class endpoint** (the human touch). There is no silicon-only e
 | read | components (zero-eigs) | Fiedler λ₂ | resource reachable? | meaning |
 |------|------------------------|-----------|---------------------|---------|
 | **(1) full** (human present) | 1 | **0.2679** | **yes** | connected; the lock opens *with* the human in the loop |
-| **(2) silicon-only** (human removed) | 2 | **0.0000** | **no** | resource ISOLATED; no silicon-only cascade reaches it — latch-capacity = +∞ wrt silicon |
+| **(2) silicon-only** (human removed) | 2 | **0.0000** | **no** | resource ISOLATED; no silicon-only cascade reaches it; λ₂=0 is **finite/exact** (the asymptote-latch — *no infinity in the math*) |
 | **(2b) block the biology node** in the full graph | — | — | **no** | the biology node is a **size-1 Menger vertex cut**: every crosser→resource path passes through it |
 | **(3) impostor falsifier** (topology identical, node re-classed silicon) | 1 | **0.2679** | **yes** | reconnects — so the security lives in the **edge-TYPE** (substrate-class) constraint, NOT topology |
 
@@ -61,11 +63,13 @@ partition holds.
 🟢 **(a)-structural cascade-match.** The enforced substrate-mismatch partition maps *exactly* onto a 2-class
 graph whose biology node is a size-1 Menger vertex cut (Class-L: removing it drives Fiedler λ₂ → 0 and
 isolates the resource), with the crossing edge a Class-M cross-substrate-class bind and the key a physical
-B/H/N translation key. It is the **∞-latch-capacity special case of Round 15.A**: uncrossable not by
-cost-*magnitude* but by substrate-class-*mismatch*. The cost inverts toward the defender (Round 3.A). The
-impostor falsifier correctly localises the security to the **edge-type constraint**, not topology — the
-honest, non-overclaiming reading. New **candidate stance** (not auto-blessed):
-`[[user_stance_enforced_substrate_mismatch_partition_is_infinite_latch]]`.
+B/H/N translation key. It is the **asymptote-latch special case of Round 15.A**: uncrossable not by
+cost-*magnitude* but by substrate-class-*mismatch*. The latch-capacity, for the wrong substrate-class, is an
+**asymptote** — the math has no infinity (λ₂=0 finite/exact); "+∞ capacity" only approximates that asymptote
+(Round 16.A.1 reconciliation). The cost inverts toward the defender (Round 3.A). The impostor falsifier
+correctly localises the security to the **edge-type constraint**, not topology — the honest, non-overclaiming
+reading. New **candidate stance** (not auto-blessed):
+`[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]`.
 
 **HONEST SCOPE:** a structural *identification* using attested graph theory (Fiedler algebraic connectivity,
 Fiedler 1973; Menger vertex-cut, Menger 1927) — NOT a claim that hardware-security-keys are unbreakable in
