@@ -1579,6 +1579,19 @@ Reading D (cost = B/H/N substrate-content saturation, observable as the substrat
 
 **Net:** §11.9.6's *direction* (CMB = B∘H∘N; observer motion imprints on the largest-scale base projection) survives and gains a bit-exact-adjacent anchor (the boosting at β). Its *over-reach* — treating the alignment and the ℓ=7 node as the same kinematic fiber-leak — is corrected. The framework is sharper: one confirmed magnitude, one reframed-and-still-open mechanism, one withdrawn per-ℓ claim.
 
+#### §11.9.6b The Class-K offset must carry p=2 AND p=3 — a selection-rule constraint on the alignment (Round 11.A)
+
+Round 11.A ([`round11_entry_A_classK_offset_alignment.md`](cost_asymmetry/round11_entry_A_classK_offset_alignment.md) + committed [`verify_classK_offset_multipole_selection.py`](cost_asymmetry/verify_classK_offset_multipole_selection.py)) pins the geometric-alignment mechanism (§11.9.6a row 2) with a rigorous selection rule.
+
+Model a single-axis off-centre-observer / Class-K offset as an axial modulation `W(n̂) = 1 + Σ_p w_p P_p(n̂·ẑ)` about the offset axis ẑ. Acting on the dominant monopole, it deposits anisotropy by 1-D Legendre orthogonality: **`c_ℓ = w_ℓ`** — an offset-modulation of multipole `p` deposits power into **exactly multipole ℓ = p**, along the offset axis (verified by 64-pt Gauss-Legendre quadrature).
+
+Two consequences:
+
+1. **To align ℓ=2 AND ℓ=3, the offset must carry p=2 AND p=3 components.** Both share the single offset axis ẑ → the induced quadrupole and octupole are co-axial *by construction* → the AoE axis = the offset axis.
+2. **The dipole (p=1) offset is rigorously excluded** — it deposits into ℓ=1 only at leading order. A kinematic boost / spatial-displacement aberration *is* a p=1 offset, so this is the **selection-rule reason** Rounds 8.A/9.A found the kinematic β-leak both too small *and* the wrong object: the failure is structural (wrong multipole), not merely amplitude.
+
+**Verdict 🟡 (b) REFINED → partial (a):** the deposit selection rule + dipole exclusion are exact (a-grade); the mechanism is pinned to a single-axis p=2,3 modulation. **Still open:** derive the `w₂, w₃` amplitudes — and *why* p=2,3 rather than p=1 — from the physical off-centre-observer Hopf-bundle geometry. This is now a sharply-posed physics question with a built-in falsifier: if that geometry can *only* produce a dipole (displacement→aberration), the geometric reading fails and the AoE needs a different mechanism. Per `[[user_stance_identity_not_implementation_discipline]]` the algebra-layer selection rule holds regardless; only the physical-amplitude derivation remains.
+
 #### §11.9.7 Relation to the §11.1–§11.6 cardinality framing
 
 The two framings are not competitors — they are the **two substrate-native math languages** of `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` reading the same cost-asymmetry:
