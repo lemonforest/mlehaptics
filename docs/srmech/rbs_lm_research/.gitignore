@@ -1,0 +1,9 @@
+# Regenerable caches — do NOT commit these (they rebuild from the encoder
+# + token IDs in seconds; committing bloats the repo).
+vocab_table.npy
+
+# Any other large numpy / binary caches that may emerge in future
+# partitions (R-RBS-LM-7 measurement runs, R-RBS-LM-8 diagnostic
+# instruments). The rbs_lm_instrument.bin is intentionally NOT in
+# this gitignore — it IS the committed deliverable per R-RBS-LM-5.
+*.npy
