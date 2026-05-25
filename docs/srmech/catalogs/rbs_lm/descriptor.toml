@@ -1,0 +1,42 @@
+[source]
+key                  = "rbs_lm"
+human_readable_name  = "RBS-LM — Cross-Substrate Translation of GPT-2-small (first-pass empirical)"
+purpose              = "First-pass empirical artefact of the RBS-LM arc — cross-substrate translation of GPT-2-small (silicon LLM; ~124M params; ~474.7 MB float32) into the substrate-native RBS-HDC instrument form at D=8192. Path B (function-level encoding) per R-RBS-LM-2 §6.1 chosen; bind-with-position Kanerva sequence representation per R-RBS-NN-5 §3.1. Empirical finding: at 76–223 observation scales, the encoding does NOT preserve source-model behavior on out-of-corpus prompts (0% token agreement uniformly across three scale points — R-RBS-LM-7 / -8 / -9). Compression ratio at the encoded scale is 486,093:1 (1 KB instrument vs 474.7 MB source). Catalog rows document the encoding procedure + representative bindings; the actual 1 KB instrument bytes live alongside the research subtree at docs/srmech/rbs_lm_research/rbs_lm_instrument.bin (R-RBS-LM-5) and rbs_lm_instrument_v9.bin (R-RBS-LM-9 scaled). Class cascade: A-compose-I-compose-M (cascade) per R-RBS-NN-3b §6 4-class Level-1 substitution recipe. Arc empirical finding: scenario (d) per R-RBS-LM-1 §7 four-scenario validation reading at all tested deployable scales; future work directions documented in R-RBS-LM-9 §7."
+license              = "CC0 (substrate content-mint is deterministic; mints are mathematical objects)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm"
+
+[source.primary_references]
+rbs_lm_arc               = "docs/srmech/rbs_lm_research/ — full 10-partition walk (R-RBS-LM-1 through R-RBS-LM-10). PR #684 carries the rolling work."
+r_rbs_lm_1_framing       = "docs/srmech/rbs_lm_research/R-RBS-LM-1_translation_framing_REPORT.md — the foundation partition; six load-bearing framings (two-substrate; whole-corpus-proof; LLM-as-1D_t-asymptotic; BCI knowledge-partition; refined fidelity floor with §3.6 substrate-shape risk; accessibility as foundational)."
+r_rbs_lm_2_methodology   = "R-RBS-LM-2 §6.1 — Path B chosen over Path A and Path C."
+r_rbs_lm_5_encoding      = "R-RBS-LM-5 §6 — first-pass instrument at 76 observations; 486,093:1 compression."
+r_rbs_lm_7_validation    = "R-RBS-LM-7 §8 — scenario (d) confirmed empirically; 0% token agreement on hallucination corpus."
+r_rbs_lm_8_diagnostic    = "R-RBS-LM-8 §5.4 — the deeper issue is continuous-vs-discrete cascade-coupling mismatch."
+r_rbs_lm_9_scaleup       = "R-RBS-LM-9 §5 — firm empirical reading at 3 scale points (76, 158, 223 obs); all 0%."
+rbs_nn_arc_closed        = "docs/srmech/rbs_nn_research/ — RBS-NN framework-reading arc closed 2026-05-25 (9/10 partitions); R-RBS-NN-3b §6 (4-class Level-1 substitution recipe) inherited."
+mfo_two_level_ontology   = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 lines 668–684 (two-level ontology); §VII.1.3 lines 735–761 (three-mechanism asymmetry: bind 0-cost vs bundle ~6.9% vs MAX-pool no averaging)."
+mfo_1d_t_asymptotic      = "MFO §VII.1.2 line 709 — Class C ∘ Class M substrate-coupling operation; the deeper LLM-as-1D_t-asymptotic reading."
+srmech_1_3_7_3           = "docs/srmech/srmech_research_notebook.md §2.6 lines 175–182 — 1:3:7:3 substrate-native ordering."
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "detection_heptad/m_bindings.ndjson"
+
+[parse]
+natural_key = "binding_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.binding.v1"
+ndjson_file    = "detection_heptad/m_bindings.ndjson"
+
+[rendering]
+name_template    = "RBS-LM binding '{binding_id}'"
+purpose_template = "Path B observation binding '{binding_id}' (kind={kind}, D={D}); re-derivable deterministically from the encoding procedure documented in docs/srmech/rbs_lm_research/rbs_lm_encoder.py."
+cite_as_template = "mlehaptics RBS-LM catalog (srmech AMSC); binding '{binding_id}' at D={D}; arc commit {arc_commit}; minted {minted_at}"
+
+[attestation]
+method      = "self-encoded-from-source-model"
+provenance  = "RBS-LM instrument encoded via Path B (function-level) per R-RBS-LM-2 §6.1 + R-RBS-LM-4 encoder design. Each binding = bind(Kanerva-sequence-of-context-tokens, mint(next_token_id)) per srmech.amsc.hdc XOR-bind, with srmech-native vocab embedding mint_vector(f'LoE.vocab.{token_id}', D=8192). The (context, next_token) observations were harvested by running source GPT-2-small with greedy/argmax decoding over a hardcoded behavioral corpus (R-RBS-LM-5 §4 base 670-token corpus; R-RBS-LM-9 §3 scaled 1841-token corpus). Hierarchical bundling at depth 1 (≤ MAX_BUNDLE_N=257). Encoder source: docs/srmech/rbs_lm_research/rbs_lm_encoder.py. Validator: docs/srmech/catalogs/rbs_lm/validate_catalog.py re-derives representative bindings + verifies the descriptor schema."
+
+[gap_targeting]
+gap_label = "rbs_lm_arc"
