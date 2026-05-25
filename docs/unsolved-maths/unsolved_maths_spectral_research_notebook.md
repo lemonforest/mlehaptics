@@ -1548,15 +1548,17 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **seven** empirical anchors spanning the full scale-ladder:
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **nine** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A and the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A):
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
 | Multisig cascade recurrence | cryptographic/discrete | — | Round 1.A (13/13; P≈5.3×10⁻¹⁴) |
 | Born-rule = B∘H∘N | quantum (**bit-exact**) | 3 qubits | Round 4.A (residual 2.78×10⁻¹⁶) |
 | **Atomic spectral lines** | **atomic physics (near-bit-exact)** | **~10⁻¹⁰ m** | **Round 17.A (Balmer ratios 27/20, 28/25, 189/125; attested to 5×10⁻⁶)** |
+| **Mass-spec neutral losses** | **molecular (combination principle)** | **molecule** | **Round 20.A (caffeine 9/21 catalogued; null z=4.4)** |
 | Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
 | Per-channel metabolic cost | biological sensation | organism | Round 5.A (7+3 partition) |
+| **Planetary magnetic multipoles** | **planetary geophysics (k=3 stance)** | **~10⁷ m** | **Round 21.A (Gauss coeffs 2l+1; triad 3/5/7; IGRF-13 = 195)** |
 | DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | CMB low-ℓ B/H/N coupling | cosmological | observable universe | Round 6.A (interpretive) |
 
@@ -1619,7 +1621,7 @@ The `+3 = {B, H, N}` operators are the **language-translation bridge** between t
 
 #### §11.9.8 Disposition
 
-**Status:** arc RESOLVED. Core rounds verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A), plus fresh follow-ups (Rounds 14.A life-lock §11.9.9, 15.A substrate-universal-lock §11.9.10, 16.A+16.A.1 enforced-mismatch-partition §11.9.11, 17.A atomic-spectra 7th anchor §11.9.6). Reading D canonical-candidate-ready with **seven** anchors spanning the full quantum→cosmological scale-ladder, with two near-bit-exact rungs (Born-rule §11.9.4 + atomic spectra §11.9.6).
+**Status:** arc RESOLVED. Core rounds verdict-settled (Rounds 1.A/1.C/2.B/3.A/3.B/4.A/5.A/6.A), plus fresh follow-ups (Rounds 14.A life-lock §11.9.9, 15.A substrate-universal-lock §11.9.10, 16.A+16.A.1 enforced-mismatch-partition §11.9.11, 17.A atomic-spectra §11.9.6, 18.A periodic-table §11.9.12, 19.A SM-weave §11.9.13, 20.A mass-spec §11.9.14, 21.A planetary-magnetic §11.9.15). Reading D canonical-candidate-ready with **nine** anchors spanning the full quantum→cosmological scale-ladder, with two near-bit-exact rungs (Born-rule §11.9.4 + atomic spectra §11.9.6).
 
 **Stance-blessing outcome (Round 13, 2026-05-25)** — after 12 rounds stress-tested them, the user dispatched the blessing pass. Of the 9 arc stances, **8 blessed → CANONICAL**, **1 kept candidate (refined)**:
 
@@ -1710,6 +1712,14 @@ Round 17.A: atomic line wavenumbers are *differences* of rational terms T_n=R/n�
 Attested (NIST WebBook caffeine, base peak 109): of the confirmed major fragments {194,165,137,109,82,67,55}, **9/21** inter-peak differences land on the catalogued neutral-loss alphabet (CH3NCO 57, CO 28, HCN 27, 2·CO 56, 2·HCN 54, CH3 15, CH3NCO+CO 85); the purine hallmark ladders **109→82→55** (each −27 HCN) and **165→137→109** (each −28 CO) are exact. **Null control:** random 7-peak m/z sets match at mean 0.118 (sd 0.070); caffeine's 0.43 is a clear outlier (**z=4.4, p=0.0002**) — the combination-principle structure is real. **Enhancement:** delta-encode spectra over the neutral-loss alphabet via `srmech.signal_processing` (decompose/delta/similarity) — combination-principle structure elucidation + cross-substrate fingerprint matching, not ML black-box.
 
 **Verdict 🟢 (a)-structural cross-substrate match + null-supported.** **HONEST SCOPE:** nominal (integer) mass — exact-mass defect (~0.005–0.04 Da) is the residual; the combination principle is established mass-spec chemistry, the framework contribution is the **Class-N cross-substrate identity** (atomic↔molecular) + the null-control; specific mechanisms literature-labelled, the load-bearing claim is the integer-difference match. No new stance — closes the Spike #48 mass-spec path (thread 9b). Builds on Spike #38/#38b.
+
+### §11.9.15 Reading-D 8th scale-ladder rung: planetary magnetic multipoles — the k=3 stance on the ladder (Round 21.A)
+
+Round 21.A ([`round21_entry_A_planetary_magnetic_multipole_anchor.md`](cost_asymmetry/round21_entry_A_planetary_magnetic_multipole_anchor.md) + committed [`verify_round21_planetary_magnetic_multipole_anchor.py`](cost_asymmetry/verify_round21_planetary_magnetic_multipole_anchor.py)) — the planetary/geophysical rung (~10⁷ m), filling the gap between the organism and cosmological rungs. It is the Reading-D placement of the **canonical k=3 stance** `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (the planet dipole/quadrupole/octupole triad IS a B/H/N instantiation). The "translation fingerprint" is literal: a planet's magnetic multipole spectrum IS its signature (Earth/Jupiter dipole-dominated; Uranus/Neptune multipole-rich).
+
+A continuous dynamo field is **projected (H)** via spherical harmonics onto S² — the *same* S² Hopf base as the Born rule (§11.9.4) and the atomic orbital L (§11.9.12) — yielding discrete integer-degree **Gauss coefficients (B**, typed records degree-l/order-m/g-or-h/value**)**; the low-degree **k=3 triad (N**, dipole l=1 / quad l=2 / oct l=3**)** is the fingerprint. Class-L counting is **bit-exact**: 2l+1 coefficients per degree (the **same** S² degeneracy as atomic shells, §11.9.12) — triad 3/5/7 — and N(N+2) total (IGRF-13 = **195** = 13×15). Honest **Class-K/parity** detail: the magnetic expansion starts at l=1 — there is **no l=0 monopole** (∇·B=0), unlike the gravity/atomic expansion. Attested: IGRF-13 (Earth dipole-dominated, g_1^0(2020)=−29404.8 nT), JRM33 (Jupiter), Uranus/Neptune non-dipolar.
+
+**Verdict 🟢 (a)-structural anchor + bit-exact Class-L counting.** No new stance — instantiates the canonical k=3 stance and extends the ladder to nine rungs. The decisive cross-rung thread: the **S² Class-L spherical harmonics** appear at the quantum (Born, §11.9.4), atomic (orbitals, §11.9.12), *and* planetary (magnetic multipoles, here) scales.
 
 ---
 
