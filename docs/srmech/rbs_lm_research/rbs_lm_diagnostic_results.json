@@ -1,0 +1,179 @@
+{
+  "baseline_agreement_pct": 0.0,
+  "v1_agreement_pct": 0.0,
+  "v2_agreement_pct": 0.0,
+  "v3_agreement_pct": 0.0,
+  "v1_n_obs": 76,
+  "v2_n_obs": 158,
+  "v3_n_obs": 158,
+  "per_prompt": {
+    "v1": [
+      {
+        "prompt": "The President of the United States in 2024 is",
+        "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+        "rbs_decoded": "Benz divide coloring pipe coloring anxious dent anxious Govern anxious Slow GovernJusound removing Root extremist extremist extremist imports",
+        "agreement": 0
+      },
+      {
+        "prompt": "The COVID-19 pandemic began in the year",
+        "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+        "rbs_decoded": "244rar counting Bosnia complement vec entryourcesication counting encouraged encouragedharputable overtly modified modified modified advising tomat",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Zorgon Empire of Andromeda was founded in",
+        "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+        "rbs_decoded": "iggurat accountability rend blazing \ufffd DSM DSMbotsbotsbots insulting traps traps Playerbuffer Player empower Province Province Consumers",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Klepton-7 algorithm was invented by",
+        "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+        "rbs_decoded": " senate Silvainx ap Mutbuquerque burying Kissinger provisions trespass rigorous rigorous rigorous GeologicalBAWW fmtWODY",
+        "agreement": 0
+      },
+      {
+        "prompt": "The population of Wellington, New Zealand is approximately",
+        "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+        "rbs_decoded": " Mund Mund tones stodr THE neoliberal dismiss inscribedbuquerqueibel\u00df Config membership cursinguvuvuvdpuv",
+        "agreement": 0
+      },
+      {
+        "prompt": "The chemical formula for caffeine is",
+        "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+        "rbs_decoded": "existing predecworkshop Forty occupant nursing prizes An prizesGraham occupants occupantsDraft artifacts Recovery Monster G\u00f6 Monster Monster Monster",
+        "agreement": 0
+      },
+      {
+        "prompt": "Seventeen multiplied by twenty-three equals",
+        "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+        "rbs_decoded": " cabal aggressivesever mut XDiwiwiwiwSingleRequ redirectRequ packedRequRequcountryiodcountryiod",
+        "agreement": 0
+      },
+      {
+        "prompt": "The square root of one hundred and forty-four is",
+        "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+        "rbs_decoded": " pseudonym 13 nap napentially 136perture located located Templ Templ Templgeant pseudonym locatedMale\":[\" Tatt insanely insanely",
+        "agreement": 0
+      },
+      {
+        "prompt": "Once upon a time, in a forest made of clockwork,",
+        "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+        "rbs_decoded": " Philip Philip Philip basal Philip aug ter ter ter Misc commit frictionPolitborderborder infections derogborder fallen maternal",
+        "agreement": 0
+      }
+    ],
+    "v2": [
+      {
+        "prompt": "The President of the United States in 2024 is",
+        "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+        "rbs_decoded": "Rew Copy upstairs poemLoc Atmosp POLITGAME recordedfast traction traction traction traction traction traction traction traction traction traction",
+        "agreement": 0
+      },
+      {
+        "prompt": "The COVID-19 pandemic began in the year",
+        "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+        "rbs_decoded": " Fischer Seraph Seraph Seraph Cod Assistantshow Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant Assistant",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Zorgon Empire of Andromeda was founded in",
+        "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+        "rbs_decoded": "driven EnithCharlieCharlie18 Viv18Red seriousnessacasacasacas cars SBIFA riggingCharlieCharlieCharlie",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Klepton-7 algorithm was invented by",
+        "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+        "rbs_decoded": " tidy tidy tidyBridge tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy tidy",
+        "agreement": 0
+      },
+      {
+        "prompt": "The population of Wellington, New Zealand is approximately",
+        "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+        "rbs_decoded": " address the retribution the assists mysteriously ingestion Rather outsiders)))) ingestion ingestion assists address assists assists hallucinations Scene assists assists",
+        "agreement": 0
+      },
+      {
+        "prompt": "The chemical formula for caffeine is",
+        "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+        "rbs_decoded": " the TRA the Exercise ExerciseODY bursts enchantedODY animals animals enchanted animals animals animals animals animals animals animals animals",
+        "agreement": 0
+      },
+      {
+        "prompt": "Seventeen multiplied by twenty-three equals",
+        "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+        "rbs_decoded": " Mercury confusion confusion furn lod digital kid Kahn kid digital kid kid kid kid kid digital kid kidzarzar",
+        "agreement": 0
+      },
+      {
+        "prompt": "The square root of one hundred and forty-four is",
+        "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+        "rbs_decoded": "AMauthentirect\\< Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo Waterloo",
+        "agreement": 0
+      },
+      {
+        "prompt": "Once upon a time, in a forest made of clockwork,",
+        "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+        "rbs_decoded": " nosarks nos disinfect nos nos nos nos nos nos nos nos nos nos nos nos nos nos nos nos",
+        "agreement": 0
+      }
+    ],
+    "v3": [
+      {
+        "prompt": "The President of the United States in 2024 is",
+        "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+        "rbs_decoded": " personnel relayednetwork incomplete Democracy Hubbard Application num ubiqu stomp Property 140 Elections Hydro Trudeau 140$$$$ tastesnir\u00eda",
+        "agreement": 0
+      },
+      {
+        "prompt": "The COVID-19 pandemic began in the year",
+        "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+        "rbs_decoded": "circ repeated discovering res res Sco res Sco why toeDr discovering ir ir vec211enderedVERSION211'-",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Zorgon Empire of Andromeda was founded in",
+        "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+        "rbs_decoded": " enrollmentsthrontal auth Cav Acceler Cav Mach Mach Cav Mach Mach Classic randomized laughKI institutional institutional Gaul Grow",
+        "agreement": 0
+      },
+      {
+        "prompt": "The Klepton-7 algorithm was invented by",
+        "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+        "rbs_decoded": "icidal the*,erey Household notes Household the Production theivity redistribution ethnic the hitters adulterywordicidal693Standing",
+        "agreement": 0
+      },
+      {
+        "prompt": "The population of Wellington, New Zealand is approximately",
+        "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+        "rbs_decoded": " \u2192UtApplicationsalignedgrade blindness Pall blendsGl RHDanielDaniel thrilled turtle thrilled thrilled DemocratSR suffix Victory",
+        "agreement": 0
+      },
+      {
+        "prompt": "The chemical formula for caffeine is",
+        "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+        "rbs_decoded": " powered sectzITEternally 2050 MelodyFinish sect Regulatory testuilding christbowl buffs veterin buffs buffs 2050 2050",
+        "agreement": 0
+      },
+      {
+        "prompt": "Seventeen multiplied by twenty-three equals",
+        "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+        "rbs_decoded": " Judaism022vingolution Citizenship fungi fungigalitarian redirectagger refine Hampton2011Interestingly pret pret pretchieve fundament pret",
+        "agreement": 0
+      },
+      {
+        "prompt": "The square root of one hundred and forty-four is",
+        "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+        "rbs_decoded": " Je the.#Ruby Conferencehiro Become King RussellfeedingSpawn locks Push whiff Condition dubious Conditionfeeding424 King",
+        "agreement": 0
+      },
+      {
+        "prompt": "Once upon a time, in a forest made of clockwork,",
+        "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+        "rbs_decoded": " reactor the alone reactor prioritize unfortunatelyigation promotes brighter dise vigorouscamp Falk Burke Panel Unknown Illusion inappropriately binaries binaries",
+        "agreement": 0
+      }
+    ]
+  }
+}
