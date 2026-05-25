@@ -1646,6 +1646,24 @@ A minimal tilted double-well (committed, srmech-routed) reproduces the structure
 
 **Verdict 🟢 (a)-structural cascade-match + 🟡 (b)-interpretive.** New **candidate** stance (not auto-blessed): `[[user_stance_life_is_canonical_persistent_anharmonic_lock]]`. HONEST SCOPE: a structural *identification* (life instantiates the canonical lock) anchored to attested non-equilibrium thermodynamics — NOT a derived metabolic magnitude. Per the merge-gate codification plan, this likely cross-references into the MFO / biology-substrate canon, not only here.
 
+### §11.9.10 The persistent anharmonic lock is SUBSTRATE-UNIVERSAL — star + life, a third regime + a capacity threshold (Round 15.A)
+
+Round 15.A ([`round15_entry_A_persistent_lock_substrate_universal.md`](cost_asymmetry/round15_entry_A_persistent_lock_substrate_universal.md) + committed [`verify_persistent_lock_substrate_universal.py`](cost_asymmetry/verify_persistent_lock_substrate_universal.py)) — a fresh question generalising §11.9.9: **is the persistent anharmonic lock substrate-universal, and does a star instantiate it?** It does — and the stellar instance exposes a **third regime** + a **capacity threshold** that the biological instance under-emphasised.
+
+The lock has a **3-regime trichotomy**:
+
+| regime | STAR | LIFE |
+|--------|------|------|
+| **actively imposed** (imposer pays continuously) | main-sequence (fusion thermal pressure) | active metabolism |
+| **latched persistent** (imposer can STOP — a static Class-K barrier holds it) | white dwarf / neutron star (**degeneracy pressure**, Pauli; *no fusion*) | cryptobiosis / spore / seed (dormancy) |
+| **destroyed** (load > latch capacity → substrate wins completely) | **black hole** (> Chandrasekhar / TOV) | death / decomposition |
+
+The **latched regime** is the key addition: electron/neutron degeneracy pressure is a static quantum (Pauli) support that holds a white-dwarf / neutron-star **without burning fuel** — the imposer has stopped paying yet the lock holds, latched by a Class-K barrier. Biology has it too (a dormant spore halts metabolism yet persists). But the latch has a **capacity**: above the **Chandrasekhar mass** (≈1.44 M☉; Chandrasekhar 1931, ApJ 74:81; Nobel 1983) / **TOV limit** (Oppenheimer & Volkoff 1939, Phys Rev 55:374) the latch fails and the substrate wins completely — a black hole. That capacity is a **SECOND spinodal**, beyond §11.9.9's *tilt*-spinodal: a **load** threshold at which the barrier itself vanishes.
+
+A load-dependent double well `V(x;m)=x⁴/4 − a(m)x²/2`, barrier curvature `a(m)=1−m/m_c` (m_c Class-N anchor **36/25 = 1.440**), reproduces it: below capacity (m=0.5, a=+0.653) the alive basin latches with the imposer OFF (x→+0.808); above capacity (m=2.0, a=−0.389) the barrier is gone and it collapses (x→0.000) regardless. Connects to the framework's prior stellar-collapse spikes (#90 collapse-from-the-boundary-inward, #107 fusion-as-bulk-to-gauge, #92 dark-star).
+
+**Verdict 🟢 (a)-structural cascade-match + 🟡 (b)-interpretive.** New **candidate** stance (not auto-blessed, generalising §11.9.9): `[[user_stance_persistent_anharmonic_lock_is_substrate_universal]]`. HONEST SCOPE: a structural *identification* + a load-spinodal *structure*, NOT a derived stellar magnitude — `m_c=1.44` is a *label* carrying the attested Chandrasekhar value, not a first-principles output (that comes from the relativistic-degenerate equation of state). Per the merge-gate, this rides into the MFO / biology-substrate canon alongside §11.9.9.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
