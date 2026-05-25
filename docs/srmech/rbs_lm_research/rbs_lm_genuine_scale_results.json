@@ -1,0 +1,80 @@
+{
+  "n_observations": 491,
+  "corpus_chars": 20222,
+  "timings": {
+    "harvest_s": 89.52066111564636,
+    "encode_s": 10.477406024932861,
+    "bundle_s": 0.7118327617645264,
+    "total_s": 100.70989990234375
+  },
+  "instrument_bytes": 1024,
+  "torch_threads": 16,
+  "n_workers_encode": 8,
+  "harvest_batch_size": 32,
+  "overall_agreement_pct": 0.0,
+  "latency_ms_mean": 183.67418580585056,
+  "latency_ms_std": 25.38156188293236,
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": " cakes heroism heroism WORLD heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism heroism",
+      "agreement": 0
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": " gears336 abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre abbre",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": "groups NSA [| Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile Mile",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " pan Organ Singh virus Druid promoters daunting MiningJoy Mining Sochi Sochi recordings recordings recordings regulated Gain brick compressed regulated",
+      "agreement": 0
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": " stub grinningaya Boards die die die die dieconom flatteringconom Yepconomconomconom Yepconom scores Nuclear",
+      "agreement": 0
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": " 2022 bless carriage introduces bless nearing the Role salmonigiousensiveensiveensiveensiveensive supp suppensiveensiveensive",
+      "agreement": 0
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": " frantic robbing prod the merged coloring coloring greed greed greed greed greed greed greed greed greed greed greed greed greed",
+      "agreement": 0
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " evaluate672VerVerVer MarvelVer MarvelVerVerVerVerVerVerVerVerVerVerVerVer",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": " ascended lever lever lever lever lever lever lever lever lever lever lever lever lever lever lever lever lever lever lever",
+      "agreement": 0
+    }
+  ],
+  "comparison": {
+    "r_rbs_lm_5_76obs_pct": 0.0,
+    "r_rbs_lm_8_v2_158obs_pct": 0.0,
+    "r_rbs_lm_9_223obs_pct": 0.0,
+    "r_rbs_lm_11_240obs_pct": 0.0,
+    "r_rbs_lm_14_genuine_pct": 0.0
+  }
+}
