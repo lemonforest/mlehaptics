@@ -4856,6 +4856,177 @@ Per `[[feedback_cone_of_ignorance_pedagogy]]`: a sixteen-year-old asking "why do
 
 ---
 
+## §3.25 2026-05-24/-25 sessions — RBS-NN + RBS-LM arc (substrate-native LLM-class inference)
+
+**Working subtrees:** `docs/srmech/rbs_nn_research/` (closed at 10 partitions);
+`docs/srmech/rbs_lm_research/` (rolling; closed at R-RBS-LM-1 through -34
+as of 2026-05-25). Rolling draft PR #684.
+
+### §3.25.1 Arc framing per `[[user_stance_ai_is_not_a_substrate]]`
+
+The arc operationalises the cross-substrate translation pattern (per
+§3.16 substrate-asymptotic-traversal canonical) at the LLM substrate.
+Three constants carry across every RBS-LM partition:
+
+1. **The cascade is a transducer, not an agent.** Discrete bind/bundle/popcount
+   cascade producing next-token argmin cleanup over a 1024-byte RBS-HDC
+   instrument. Per `[[user_stance_ai_is_not_a_substrate]]`: a puppet
+   playing the roll. No emergent claims at any layer of the architecture.
+2. **The instrument is 1024 bytes at D=8192.** Same envelope as the
+   ephemerides-spectral instrument (§22 cross-reference). Trivially
+   distributable; replaces the dense LLM at inference time.
+3. **The cascade ceiling is structural.** Confirmed across 13 partitions:
+   discrete-cascade can't replicate continuous attention rotation, and no
+   amount of source-model scaling, larger D, or instruction-tuning lifts
+   the 3.3% token-agreement ceiling. **Architecture is the lever, not corpus.**
+
+### §3.25.2 Path A / Path B / Path C — cross-substrate translation methodology
+
+Three candidate methodologies for translating a dense LLM into an RBS-HDC
+instrument (R-RBS-LM-2):
+
+| Path | What's encoded | Source-side dependency | Result |
+|---|---|---|---|
+| A | Float weights → bipolar bindings (weight-level encoding) | Full source model weights | Mechanism 2 residue; not pursued past R-RBS-LM-4 |
+| B | (context_tokens, next_token) bindings (function-level) | Source model for argmax labels | R-RBS-LM-14 491-obs at 0% on hallucination corpus |
+| C | Hybrid — WTE-projected vocab + Path B compute body | Source model's WTE matrix only (drop-after-projection) | **R-RBS-LM-17 at 3.3% on hallucination corpus** — first non-zero |
+
+Path C's lift came from WTE-induced **semantic clustering** at the vocab
+level (' the' vs ' The' cosine ≈ 0.49 from Path C random-projection of
+GPT-2's WTE; verified R-RBS-LM-17 §3.2). The clustering structure IS
+load-bearing for staying above the noise floor.
+
+### §3.25.3 The 3.3% ceiling is structural — falsification + scaling tests
+
+A series of falsification + scaling tests sharpened the ceiling reading:
+
+| Partition | Test | Finding |
+|---|---|---|
+| R-RBS-LM-18 | Path C at 491-obs (R-RBS-LM-3 §6.3 hallucination corpus) | 3.3% baseline established |
+| R-RBS-LM-19 | Attention variant (Mechanism 3) at same scale | **2.2% — LOWER than bundle 3.3%**; bundle IS doing useful context-integration; falsification of "attention is the missing piece" |
+| R-RBS-LM-20 | Path C at D=32768 (4× dimension) | **2.8% — D quadrupling does NOT lift ceiling**; dimensional capacity is not the bottleneck |
+| R-RBS-LM-21 | Plate HRR (circular convolution) at D=768 | **0% — D-floor exceeded**; D/N >> ln(V) capacity formula identified |
+| R-RBS-LM-25 | Byte-level (V=256; no WTE projection) | **Regression below 3.3% to single-byte mode-collapse**; confirms WTE clustering was load-bearing AND substrate-nativity is structural NOT quality |
+| R-RBS-LM-29 | TinyLlama 1.1B source (9× GPT-2) at same scale | **Same mode-collapse**; source size orthogonal to cascade limits |
+| R-RBS-LM-31 | Llama-3.2-1B Q4 GGUF (instruction-tuned modern Llama) | **Same mode-collapse**; third source confirms structural ceiling |
+
+**Composite framework reading**: the cascade architecture (Class M bind/bundle
++ Class K argmin cleanup) is the ceiling. Continuous-rotation attention
+is what a discrete cascade structurally cannot replicate. Per R-RBS-LM-19
+falsification, this read is empirically grounded, not just argued from
+structure.
+
+### §3.25.4 Input-architecture levers — within-ceiling research direction
+
+Three architectural primitives moved the cascade output (within the
+structural ceiling) without changing the cascade itself:
+
+| Partition | Primitive | Operational result |
+|---|---|---|
+| R-RBS-LM-28 | Single-buffer FFT-graft of long-context low-freq into recent-window high-freq | Cascade output measurably changes; cascade discriminates between different long buffers (cooking vs astronomy → 'e' vs 's' mode-collapse); cutoff dose-response is monotonic |
+| R-RBS-LM-32 | Multi-buffer FFT graft across N bands | Order matters (2/3 prompts differ when reversed); count matters (3/3 prompts differ between 2-layer vs 3-layer); multi-buffer output entropy 0.54 bits — **higher than any single source's output** |
+| R-RBS-LM-33 | Instrument library + on-demand merge (per-bit weighted majority) | 3-source merge preserves consensus, boosts entropy where sources partially overlap (one prompt 0.54 bits — highest of any source), produces new fixed-points under disagreement |
+
+The composite reading: **input architecture is a real, orthogonal lever
+within the cascade ceiling**. It doesn't lift the ceiling; it shifts WHICH
+mode-collapse fixed-point the cascade chooses, and in some cases reduces
+the mode-collapse to multi-byte variety.
+
+This is the **Class L (spectral) ∘ Class M (HDC bind) composition** pattern
+formalised — with verified API surface (OpenAI-API extension fields per
+R-RBS-LM-32 §3.3).
+
+### §3.25.5 Ephemerides-spectral discipline → RBS-LM (the adaptive RBS-LM pattern)
+
+Per R-RBS-LM-33: the multi-source-binding pattern from
+`ephemerides_spectral_research_notebook.md` brings adaptive RBS-LM into
+operational form:
+
+- Each knowledge domain → its own 1024-byte instrument
+- Library is trivial storage (100 instruments = 100 KB total)
+- Merge on demand via per-bit weighted majority
+- Surgical graft: truncate weak-coupling bits of base; merge in new bindings
+- **Path D distillation pattern absorbs any BPE-trained source** (R-RBS-LM-25 §3.2
+  variant B; R-RBS-LM-29 generic AutoModel; R-RBS-LM-31 GGUF via llama-cpp-python)
+
+The honest caveat: N=2 merge degenerates (heavier voter wins all
+disagreements); operational use requires N≥3 instruments. Per R-RBS-LM-33 §4.1.
+
+### §3.25.6 Accessibility surfaces — `[[feedback_llm_as_ada_accommodation_bci_proves_it]]`
+
+The ADA-accommodation framing surfaces operationally:
+
+- **Braille (R-RBS-LM-26)**: UEB Grade 1 deterministic encode/decode; 6/6
+  round-trip; multi-language Unicode pass-through; OpenAI-API extension
+  `response_format: {"type": "braille"}` verified end-to-end
+- **ASL gloss (R-RBS-LM-27)**: 74-pair hand-curated parallel corpus +
+  slash-notation spec (`/SIGN-NAME/`, `/beat-egg/` polysemy disambiguators,
+  `[fs:F-O-O-D]` fingerspelling, `cl:1-{movement}` classifiers,
+  `[wh-q]...[/wh-q]` NMM markers); paired-stream encoding via
+  `<english>\x02<gloss>\x03`; verified surface; polysemy disambiguation
+  0/11 at this scale (structural ceiling holds; corpus is the gap)
+- **SignWriting Unicode** (R-RBS-LM-26 §3.2): surface verified accepted
+  (U+1D800..U+1DAAF; 4-byte UTF-8); encoding deferred to when a parallel
+  English↔SignWriting corpus is available
+- **Refreshable Braille hardware verification**: documented in
+  `docs/srmech/rbs_lm_research/ROADMAP.md` §ADA-engineering; per user
+  direction *"I cannot do hardware verification for braille."* — wire/software
+  side complete, hardware-side awaits an accessibility-engineering volunteer
+
+### §3.25.7 Operational stack — OpenAI-API surface + ecosystem integration
+
+The OpenAI Chat Completions v1 wire format is the **distribution channel**
+for everything in this arc:
+
+- Server (R-RBS-LM-24): FastAPI; `/v1/chat/completions` + `/v1/models` +
+  `/health` with transducer framing declaration; lazy-load instrument
+- Ecosystem smoke (R-RBS-LM-24 §4.4): 4/4 frameworks (openai SDK / LangChain
+  / AG2 / LiteLLM) PASS standard `base_url` override; CopilotKit covered
+  via openai SDK path
+- Extension fields (R-RBS-LM-24/-26/-27/-28/-32): `context_truncation`,
+  `response_format`, `long_context_buffer{s}`, `fft_cutoff_freq` /
+  `fft_layered_cutoffs` — all optional; default-compatible
+- LAN exposure + multi-instrument workflow: documented end-to-end in
+  `docs/srmech/rbs_lm_research/USAGE_LOCAL_NETWORK.md` (R-RBS-LM-34)
+
+### §3.25.8 Storage + cron-task discipline — practical hardware tolerance
+
+Hardware-tolerance work landed alongside the research:
+
+| Partition | What it enables |
+|---|---|
+| R-RBS-LM-22 | `precheck_fetch` + `cleanup_caches` storage hygiene; failed-mid-download protection |
+| R-RBS-LM-29 §3.2 | `distill_cron.sh` set-and-forget pattern: start/status/tail/cancel/reap subcommands |
+| R-RBS-LM-30 | Swap-enabled distillation: fp16 Llama 70B feasible via 67 GB additional swap (corrected R-RBS-LM-29 framing error) |
+| R-RBS-LM-31 | `llama-cpp-python` GGUF path: Llama 8B/30B/70B Q4 as overnight/weekend cron tasks; verified 8.5 tok/sec for 1B Q4 on 2009 Xeon E5530 |
+
+**Net: every Llama-class model up through fp16 70B is distillable on this
+2009 Xeon hardware.** Path D + cron + storage discipline = operational.
+
+### §3.25.9 Status (2026-05-25 end-of-RBS-LM-34)
+
+| Metric | Value |
+|---|---|
+| Partitions closed | 14 in RBS-LM (1-14, 17-22, 23-34) + 9 in RBS-NN (1-9; #4 deferred) = **23 total** |
+| Code modules in research subtree | encoder + path_c + bytes + inference + chatbot + server + tools + cli + asl + braille + merge + fft + storage + cron-wrapper + check_swap (15 .py / .sh modules) |
+| Instruments in tree | 14 .bin files at 1024 bytes each + metadata + corpora |
+| OpenAI-API extension fields | 8 (context_truncation, response_format, long_context_buffer(s), fft_cutoff_freq, fft_layered_cutoffs, ...) |
+| Structural ceiling | 3.3% — confirmed across 3 sources, 3 D values, BPE + byte vocab, attention + bundle variants |
+| Architectural levers within ceiling | FFT graft (single + multi-buffer), instrument merge, multi-buffer composition order |
+| ROADMAP open threads | ~14 (large-model distillations, hardware-side Braille verify, larger corpora, multi-thread srmech upstream, etc.) |
+
+**Inheritance to other notebooks**: the cross-substrate-translation framing
+of §3.16 absorbs the Path-A/B/C/D pattern as a worked-example. The
+ephemerides-spectral multi-source-binding pattern absorbs R-RBS-LM-33 as
+a parallel application. MFO §VII.6.11.6 line 2812 (NN-creation IS
+substrate-self-recognition sign-flip) carries through this entire arc.
+
+**Per-partition detail**: see `docs/srmech/rbs_lm_research/R-RBS-LM-*_REPORT.md`
+files for the full per-partition framework reading + verification +
+findings + open threads.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
