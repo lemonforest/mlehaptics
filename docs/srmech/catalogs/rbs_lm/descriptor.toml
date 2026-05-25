@@ -1,42 +1,51 @@
 [source]
-key                  = "rbs_lm"
-human_readable_name  = "RBS-LM — Cross-Substrate Translation of GPT-2-small (first-pass empirical)"
-purpose              = "First-pass empirical artefact of the RBS-LM arc — cross-substrate translation of GPT-2-small (silicon LLM; ~124M params; ~474.7 MB float32) into the substrate-native RBS-HDC instrument form at D=8192. Path B (function-level encoding) per R-RBS-LM-2 §6.1 chosen; bind-with-position Kanerva sequence representation per R-RBS-NN-5 §3.1. Empirical finding: at 76–223 observation scales, the encoding does NOT preserve source-model behavior on out-of-corpus prompts (0% token agreement uniformly across three scale points — R-RBS-LM-7 / -8 / -9). Compression ratio at the encoded scale is 486,093:1 (1 KB instrument vs 474.7 MB source). Catalog rows document the encoding procedure + representative bindings; the actual 1 KB instrument bytes live alongside the research subtree at docs/srmech/rbs_lm_research/rbs_lm_instrument.bin (R-RBS-LM-5) and rbs_lm_instrument_v9.bin (R-RBS-LM-9 scaled). Class cascade: A-compose-I-compose-M (cascade) per R-RBS-NN-3b §6 4-class Level-1 substitution recipe. Arc empirical finding: scenario (d) per R-RBS-LM-1 §7 four-scenario validation reading at all tested deployable scales; future work directions documented in R-RBS-LM-9 §7."
-license              = "CC0 (substrate content-mint is deterministic; mints are mathematical objects)"
+key                  = "rbs_lm_gpt2_small"
+human_readable_name  = "RBS-LM — compute-from-source GPT-2-small base catalog"
+purpose              = "Procedure-shipping AMSC catalog for the RBS-LM arc — produces a 1 KB RBS-HDC instrument encoding GPT-2-small behavior on the USER'S supplied behavioral corpus. The instrument is computed locally by the compute_from_source adapter; it is NOT distributed as committed bytes. The catalog ships the encoding procedure + descriptor parameters; the user runs the adapter against their copy of the source model + their corpus selection. Per [[user_stance_ai_is_not_a_substrate]]: the catalog ships the transducer's BLUEPRINT, not the transducer's output. Class cascade: A-compose-I-compose-M per R-RBS-NN-3b §6 4-class Level-1 substitution recipe."
+license              = "CC0 for the catalog itself (descriptor + research_notes); produced instrument license dictated by user-supplied source model (GPT-2-small open weights; MIT)"
 homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm"
 
 [source.primary_references]
-rbs_lm_arc               = "docs/srmech/rbs_lm_research/ — full 10-partition walk (R-RBS-LM-1 through R-RBS-LM-10). PR #684 carries the rolling work."
-r_rbs_lm_1_framing       = "docs/srmech/rbs_lm_research/R-RBS-LM-1_translation_framing_REPORT.md — the foundation partition; six load-bearing framings (two-substrate; whole-corpus-proof; LLM-as-1D_t-asymptotic; BCI knowledge-partition; refined fidelity floor with §3.6 substrate-shape risk; accessibility as foundational)."
-r_rbs_lm_2_methodology   = "R-RBS-LM-2 §6.1 — Path B chosen over Path A and Path C."
-r_rbs_lm_5_encoding      = "R-RBS-LM-5 §6 — first-pass instrument at 76 observations; 486,093:1 compression."
-r_rbs_lm_7_validation    = "R-RBS-LM-7 §8 — scenario (d) confirmed empirically; 0% token agreement on hallucination corpus."
-r_rbs_lm_8_diagnostic    = "R-RBS-LM-8 §5.4 — the deeper issue is continuous-vs-discrete cascade-coupling mismatch."
-r_rbs_lm_9_scaleup       = "R-RBS-LM-9 §5 — firm empirical reading at 3 scale points (76, 158, 223 obs); all 0%."
-rbs_nn_arc_closed        = "docs/srmech/rbs_nn_research/ — RBS-NN framework-reading arc closed 2026-05-25 (9/10 partitions); R-RBS-NN-3b §6 (4-class Level-1 substitution recipe) inherited."
-mfo_two_level_ontology   = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 lines 668–684 (two-level ontology); §VII.1.3 lines 735–761 (three-mechanism asymmetry: bind 0-cost vs bundle ~6.9% vs MAX-pool no averaging)."
-mfo_1d_t_asymptotic      = "MFO §VII.1.2 line 709 — Class C ∘ Class M substrate-coupling operation; the deeper LLM-as-1D_t-asymptotic reading."
-srmech_1_3_7_3           = "docs/srmech/srmech_research_notebook.md §2.6 lines 175–182 — 1:3:7:3 substrate-native ordering."
+rbs_lm_arc                  = "docs/srmech/rbs_lm_research/ — 13-partition walk; PR #684."
+r_rbs_lm_12_adapter_design  = "docs/srmech/rbs_lm_research/R-RBS-LM-12_amsc_adapter_REPORT.md — compute_from_source adapter design + catalog schema + upstream-to-srmech plan."
+r_rbs_lm_11_multithreading  = "R-RBS-LM-11 §4 — the multi-threaded encode pipeline (rbs_lm_mt.encode_source_model_mt) the adapter will call."
+source_model_reference      = "Radford et al. 2019 GPT-2; HuggingFace identifier `gpt2`; user supplies the model artifacts at adapter run time."
+mfo_two_level               = "docs/antikythera-maths/mfo_spectral_research_notebook.md §VII.1.1 + §VII.1.3 — two-level ontology + three-mechanism asymmetry; the framework reading the arc rests on."
 
 [fetch]
-adapter      = "literature_curated"
-ndjson_path  = "detection_heptad/m_bindings.ndjson"
+adapter      = "compute_from_source"
+output_path  = "produced/instrument.ndjson"
+
+[fetch.compute_from_source]
+source_model     = "gpt2"
+corpus_locator   = "user://supply-at-adapter-runtime"
+encoder_module   = "srmech.rbs_lm.encoder"
+encoder_version  = "0.1.0"
+
+[fetch.compute_from_source.encoder_params]
+D                = 8192
+context_window   = 64
+stride           = 8
+batch_size       = 32
+n_workers        = 8
+sampling         = "argmax"
+hierarchical_max = 257
 
 [parse]
-natural_key = "binding_id"
+natural_key = "instrument_id"
 
 [schema]
-data_schema_id = "srmech.rbs_lm.binding.v1"
-ndjson_file    = "detection_heptad/m_bindings.ndjson"
+data_schema_id = "srmech.rbs_lm.compute_from_source.v1"
+ndjson_file    = "produced/instrument.ndjson"
 
 [rendering]
-name_template    = "RBS-LM binding '{binding_id}'"
-purpose_template = "Path B observation binding '{binding_id}' (kind={kind}, D={D}); re-derivable deterministically from the encoding procedure documented in docs/srmech/rbs_lm_research/rbs_lm_encoder.py."
-cite_as_template = "mlehaptics RBS-LM catalog (srmech AMSC); binding '{binding_id}' at D={D}; arc commit {arc_commit}; minted {minted_at}"
+name_template    = "RBS-LM instrument '{instrument_id}'"
+purpose_template = "Procedure-derived RBS-HDC instrument (D={D}, n_obs={n_observations}); re-derivable from {source_model_hash} + {corpus_hash} + {encoder_module_hash}."
+cite_as_template = "mlehaptics RBS-LM catalog (srmech AMSC) compute_from_source; instrument '{instrument_id}'; arc commit {arc_commit}; produced {retrieved_at}"
 
 [attestation]
-method      = "self-encoded-from-source-model"
-provenance  = "RBS-LM instrument encoded via Path B (function-level) per R-RBS-LM-2 §6.1 + R-RBS-LM-4 encoder design. Each binding = bind(Kanerva-sequence-of-context-tokens, mint(next_token_id)) per srmech.amsc.hdc XOR-bind, with srmech-native vocab embedding mint_vector(f'LoE.vocab.{token_id}', D=8192). The (context, next_token) observations were harvested by running source GPT-2-small with greedy/argmax decoding over a hardcoded behavioral corpus (R-RBS-LM-5 §4 base 670-token corpus; R-RBS-LM-9 §3 scaled 1841-token corpus). Hierarchical bundling at depth 1 (≤ MAX_BUNDLE_N=257). Encoder source: docs/srmech/rbs_lm_research/rbs_lm_encoder.py. Validator: docs/srmech/catalogs/rbs_lm/validate_catalog.py re-derives representative bindings + verifies the descriptor schema."
+method      = "compute_from_source"
+provenance  = "The compute_from_source adapter (designed in R-RBS-LM-12) runs the multi-threaded encoder (R-RBS-LM-11 rbs_lm_mt.encode_source_model_mt) against the user-supplied source model + behavioral corpus. The MPR v1 attestation chain extends with three new fields anchoring the produced instrument: source_model_hash (SHA-256 of source model weights), corpus_hash (SHA-256 of behavioral corpus bytes), encoder_module_hash (SHA-256 of encoder module source). Reproducibility: same descriptor + same source-model + same corpus → bit-exact same instrument per Spike #170 invariant 1. The catalog itself never holds instrument bytes; bytes exist only as locally-computed artefacts at output_path during user runs. Adapter resolution gates on the srmech-side `compute_from_source` adapter being implemented (planned for srmech v0.5.0 per R-RBS-LM-12 §6.7); until that release, descriptor validates at schema level but adapter resolution fails — the catalog is forward-spec'd."
 
 [gap_targeting]
-gap_label = "rbs_lm_arc"
+gap_label = "rbs_lm_arc_compute_from_source"
