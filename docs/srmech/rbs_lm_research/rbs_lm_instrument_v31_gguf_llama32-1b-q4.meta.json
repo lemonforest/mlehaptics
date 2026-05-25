@@ -1,0 +1,21 @@
+{
+  "partition": "R-RBS-LM-31",
+  "variant": "gguf_path_d_distillation",
+  "source_gguf": "bartowski/Llama-3.2-1B-Instruct-GGUF:Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+  "n_ctx": 2048,
+  "n_threads": 16,
+  "gen_target_bytes": 3500,
+  "gen_actual_bytes": 3642,
+  "n_generation_prompts": 12,
+  "max_per_prompt": 128,
+  "n_observations": 448,
+  "stride": 8,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "tokenizer_at_inference_time": "utf-8 bytes (no GGUF dependency at serve time)",
+  "encode_seconds": 28.649522304534912,
+  "bundle_seconds": 0.38733458518981934,
+  "generation_seconds": 75.24124550819397
+}

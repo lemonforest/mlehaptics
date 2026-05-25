@@ -49,7 +49,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 LOG_DIR="${SCRIPT_DIR}/log"
 PID_DIR="${SCRIPT_DIR}/log/pids"
-ENCODER="${SCRIPT_DIR}/encode_bytes_variant_b_generic.py"
+ENCODER_HF="${SCRIPT_DIR}/encode_bytes_variant_b_generic.py"
+ENCODER_GGUF="${SCRIPT_DIR}/encode_bytes_variant_b_gguf.py"
 VENV_PY="${HOME}/.venvs/rbs-lm-research/bin/python"
 STORAGE_PY="${SCRIPT_DIR}/storage_management.py"
 
@@ -63,6 +64,7 @@ cmd_start() {
     local stride="8"
     local max_per_prompt="80"
     local est_model_gb=""
+    local quantization="hf"   # R-RBS-LM-31: hf | gguf
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -72,21 +74,31 @@ cmd_start() {
             --stride) stride="$2"; shift 2 ;;
             --max-per-prompt) max_per_prompt="$2"; shift 2 ;;
             --est-model-gb) est_model_gb="$2"; shift 2 ;;
+            --quantization) quantization="$2"; shift 2 ;;
             *) echo "unknown arg: $1" >&2; return 2 ;;
         esac
     done
 
     if [[ -z "$source" || -z "$gen_bytes" ]]; then
-        echo "usage: distill_cron.sh start --source MODEL --gen-bytes N [--label TAG]" >&2
+        echo "usage: distill_cron.sh start --source MODEL --gen-bytes N [--label TAG] [--quantization hf|gguf]" >&2
+        return 2
+    fi
+
+    if [[ "$quantization" != "hf" && "$quantization" != "gguf" ]]; then
+        echo "ERROR: --quantization must be 'hf' or 'gguf' (got '$quantization')" >&2
         return 2
     fi
 
     if [[ -z "$label" ]]; then
-        label=$(echo "$source" | sed 's:/:__:g')
+        label=$(echo "$source" | sed -e 's:/:__:g' -e 's/:/__/g')
     fi
     if [[ -z "$est_model_gb" ]]; then
-        # Default precheck size 5 GB if not specified (covers up to Llama-class 7B fp16)
-        est_model_gb="5.0"
+        # Default precheck size: 5 GB for HF (covers ~7B fp16); 1 GB for GGUF Q4
+        if [[ "$quantization" == "gguf" ]]; then
+            est_model_gb="1.0"
+        else
+            est_model_gb="5.0"
+        fi
     fi
 
     local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -107,16 +119,28 @@ cmd_start() {
     echo "  log file:   $log_file"
 
     cd "$REPO_ROOT"
-    nohup "$VENV_PY" "$ENCODER" \
-        --source-model "$source" \
-        --gen-bytes "$gen_bytes" \
-        --stride "$stride" \
-        --max-per-prompt "$max_per_prompt" \
-        --est-model-gb "$est_model_gb" \
-        >> "$log_file" 2>&1 &
+    if [[ "$quantization" == "gguf" ]]; then
+        nohup "$VENV_PY" "$ENCODER_GGUF" \
+            --source-gguf "$source" \
+            --gen-bytes "$gen_bytes" \
+            --stride "$stride" \
+            --max-per-prompt "$max_per_prompt" \
+            --est-model-gb "$est_model_gb" \
+            --label "$label" \
+            >> "$log_file" 2>&1 &
+    else
+        nohup "$VENV_PY" "$ENCODER_HF" \
+            --source-model "$source" \
+            --gen-bytes "$gen_bytes" \
+            --stride "$stride" \
+            --max-per-prompt "$max_per_prompt" \
+            --est-model-gb "$est_model_gb" \
+            >> "$log_file" 2>&1 &
+    fi
     local pid=$!
     echo "$pid" > "$pid_file"
     echo "$source" > "${PID_DIR}/${label}.source"
+    echo "$quantization" > "${PID_DIR}/${label}.quantization"
     echo "$log_file" > "${PID_DIR}/${label}.log_path"
 
     echo
