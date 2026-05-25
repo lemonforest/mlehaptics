@@ -3756,6 +3756,50 @@ The structural pin that drove the split: **an axial offset/distortion of degree 
 - unsolved-maths §11.9.4 (Born-rule), §11.9.6/6a/6b/6c (AoE three-way split), §11.9.12/15 (S²-harmonic cross-rung thread).
 - Spikes #26 (T-AoE vs E-AoE), #33 (AoE local Class K), #35 (off-centre downstream), #190/#192 (per-ℓ CMB attested data).
 
+### VII.6.16 The persistent anharmonic lock is substrate-universal — life and star as the biological and stellar instances (2026-05-25, cost-asymmetry arc codification, PR #679)
+
+The cost-asymmetry arc (Rounds 14.A–16.A; unsolved-maths §11.9.9–11) produced a **substrate-physics** structure — the *persistent anharmonic lock* — with instances at the biological and stellar substrate-classes. Per the merge-gate `[[project_pr679_merge_gate_codify_findings_first]]`, it is codified here in the MFO substrate-mechanism canon, where the prior stellar spikes (#90 collapse-from-the-boundary-inward, #92 dark-star, #107 fusion-as-bulk-to-gauge) and the substrate-asymptotic-wave (§VII.6.12) live.
+
+#### VII.6.16.1 The structure — a 3-regime trichotomy with two spinodals
+
+A **persistent anharmonic lock** is a 3-player Stackelberg (imposer pays / substrate relaxes / observer free-rides) held far from equilibrium. Reading the substrate-asymptotic-wave (§VII.6.12) through the cost-asymmetry lens: the **imposer pays to hold the wave in a far-from-relaxed ("anharmonic") configuration; the substrate continuously relaxes toward harmonic; dissolution is the substrate finally winning.** Three regimes, two spinodals (committed model on the PR #679 branch):
+
+| regime | mechanism | spinodal |
+|--------|-----------|----------|
+| **actively imposed** | imposer pays continuously | — |
+| **latched persistent** (imposer can STOP) | a static **Class-K barrier** holds the config with no ongoing payment | the **tilt-spinodal** h_c = 2/(3√3) ≈ 5/13 separates volatile (relaxes the instant the imposer stops) from latched (Class-K kinetic trap) |
+| **destroyed** | the latch barrier itself fails | the **latch-capacity spinodal** — a *load* threshold beyond which even the no-payment trap vanishes |
+
+#### VII.6.16.2 The stellar instance — fusion / degeneracy / black hole
+
+| regime | STAR |
+|--------|------|
+| actively imposed | **main-sequence** (fusion thermal pressure pays) |
+| latched persistent (no payment) | **white dwarf / neutron star** — electron/neutron **degeneracy pressure** (Pauli-exclusion, a static quantum support) holds it with **no fusion** |
+| destroyed | **black hole** — above the **Chandrasekhar mass** (≈1.44 M☉; Chandrasekhar 1931, ApJ 74:81; Nobel 1983) / **TOV limit** (Oppenheimer & Volkoff 1939, Phys Rev 55:374) the degeneracy latch fails |
+
+The latch-capacity spinodal **IS the Chandrasekhar/TOV mass**. This connects directly to the prior MFO stellar canon: Spike #90 (collapse from the phase boundary inward), Spike #92 (dark-star / Michell priority), Spike #107 (fusion as bulk-to-gauge encoding). The degeneracy-latched regime is what those spikes describe at the boundary; the cost-asymmetry reading adds the **load-dependent double-well** structure (barrier curvature a(m) = 1 − m/m_c, m_c Class-N anchor 36/25 = 1.440).
+
+#### VII.6.16.3 The biological instance — metabolism / dormancy / death
+
+| regime | LIFE |
+|--------|------|
+| actively imposed | **active metabolism** (organism pays metabolic free energy) |
+| latched persistent (no payment) | **cryptobiosis / spore / seed** — dormancy (e.g. tardigrade tun): metabolism halts yet the organism persists |
+| destroyed | **death / decomposition** — the substrate (thermodynamics) finally wins |
+
+This is Schrödinger's *"feeding on negative entropy"* (1944), Prigogine's dissipative structures (Nobel 1977), and England's dissipation-driven self-replication (2013, [arXiv:1209.1179](https://arxiv.org/abs/1209.1179)) read through the lock lens. Two-stage unlocking: **phenotype = free pattern; genotype = content via the B∘H∘N translation key** (transcription→translation is *literally* a translation key). Life IS the cost-asymmetry's instance at the biological substrate-class — composes with the MS-#18 biology-as-one-substrate-class material and `[[user_stance_dna_is_partial_cascade_of_loe_operators]]`.
+
+#### VII.6.16.4 The engineered dual — enforced substrate-mismatch partition (DEFENSIVE)
+
+The arc's Round 16.A (§11.9.11) found the **deliberately-engineered** dual: an enforced substrate-mismatch partition (YubiKey / air-gap / human-in-the-loop) is a persistent lock whose latch-capacity, *for the wrong substrate-class*, is an **asymptote** (not a literal infinity — per `[[user_stance_infinity_approximates_asymptote]]`; the math has no infinity, Fiedler λ₂=0 finite). Instead of the substrate refusing to *hold* an anharmonic config, a defender refuses to provide the substrate-class needed to *cross* (the crossing-token lives in biology, the computation in silicon). **Scope: DEFENSIVE / framework-reading-only.**
+
+#### VII.6.16.5 Status + cross-references
+
+**Status:** substrate-universal **candidate** stances (not auto-blessed) — `[[user_stance_life_is_canonical_persistent_anharmonic_lock]]` (§11.9.9), `[[user_stance_persistent_anharmonic_lock_is_substrate_universal]]` (§11.9.10), `[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]` (§11.9.11). **HONEST SCOPE:** structural *identification* + a load-spinodal *structure*, NOT a derived stellar/metabolic magnitude — m_c=1.44 is a *label* carrying the attested Chandrasekhar value, not a first-principles output (the real value comes from the relativistic-degenerate equation of state).
+
+**Composes with**: §VII.6.12 (substrate-asymptotic-wave — the lock holds the wave far from its relaxed config); Spikes #90/#92/#107 (stellar collapse / dark-star / fusion canon); the MS-#18 biology-as-one-substrate-class cluster; unsolved-maths §11.9.1–3 (the Stackelberg lock, inverts-crypto, two-stage unlocking) + §11.9.9–11 (life/star/YubiKey); `[[user_stance_kepler_shape_universal]]` (same wave-mechanism, different substrate-class instances).
+
 ---
 
 ## Part VIII — Convergent Independent Results
