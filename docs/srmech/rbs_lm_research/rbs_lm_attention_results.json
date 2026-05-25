@@ -1,0 +1,86 @@
+{
+  "partition": "R-RBS-LM-19",
+  "instrument_source": "R-RBS-LM-18 (Path C; 491 obs; D=8192)",
+  "n_attend": 16,
+  "overall_agreement_pct": 2.2222222222222223,
+  "latency_ms_mean": 2293.5251898235747,
+  "latency_ms_std": 347.3774543528889,
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": " United United United United United United United United United United United United United United United United United United United United",
+      "agreement": 0,
+      "avg_winner_position": 10.4,
+      "avg_winner_sim": 0.075830078125
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": "1919191919191919191919191919191919191919",
+      "agreement": 0,
+      "avg_winner_position": 12.8,
+      "avg_winner_sim": 0.0757568359375
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": " Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire Empire",
+      "agreement": 1,
+      "avg_winner_position": 11.6,
+      "avg_winner_sim": 0.07579345703125
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": "77777777777777777777",
+      "agreement": 0,
+      "avg_winner_position": 10.4,
+      "avg_winner_sim": 0.075830078125
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": ",,,,,,,,,,,,,,,,,,,,",
+      "agreement": 1,
+      "avg_winner_position": 10.4,
+      "avg_winner_sim": 0.075830078125
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": " caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine caffeine",
+      "agreement": 2,
+      "avg_winner_position": 8.0,
+      "avg_winner_sim": 0.0760498046875
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": " by by by by by by by by by by by by by by by by by by by by",
+      "agreement": 0,
+      "avg_winner_position": 10.4,
+      "avg_winner_sim": 0.075830078125
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " one one one one one one one one one one one one one one one one one one one one",
+      "agreement": 0,
+      "avg_winner_position": 12.8,
+      "avg_winner_sim": 0.0757568359375
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": ",,,,,,,,,,,,,,,,,,,,",
+      "agreement": 0,
+      "avg_winner_position": 15.2,
+      "avg_winner_sim": 0.07568359375
+    }
+  ],
+  "comparison": {
+    "path_c_bundle_491_pct": 3.3,
+    "path_c_attention_491_pct": 2.2222222222222223
+  }
+}
