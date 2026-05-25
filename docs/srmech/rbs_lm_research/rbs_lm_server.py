@@ -122,6 +122,10 @@ class ChatCompletionRequest(BaseModel):
         description="RBS-LM extension: override CONTEXT_WINDOW for the truncation experiment")
     response_format: Optional[ResponseFormat] = Field(default=None,
         description="R-RBS-LM-26 extension: request alternative output rendering")
+    long_context_buffer: Optional[str] = Field(default=None,
+        description="R-RBS-LM-28 extension: long-context buffer to FFT-graft into the cascade's CONTEXT_WINDOW. Requires byte mode. The cascade sees a 64-byte window whose LOW-FREQ components are taken from this buffer + HIGH-FREQ from the recent prompt bytes.")
+    fft_cutoff_freq: Optional[int] = Field(default=8, ge=0, le=32,
+        description="R-RBS-LM-28 extension: graft cutoff bin index. 0 = no graft (baseline); higher admits more long-buffer signal. Saturates at W//2.")
 
 
 class ChatCompletionChoice(BaseModel):
@@ -234,7 +238,28 @@ def chat_completions(req: ChatCompletionRequest):
 
     fmt_type = req.response_format.type if req.response_format else "text"
 
-    if fmt_type == "asl-gloss":
+    # R-RBS-LM-28: FFT-graft long-context buffer (byte mode only)
+    if req.long_context_buffer:
+        if not BYTE_MODE:
+            raise HTTPException(
+                status_code=400,
+                detail="long_context_buffer requires byte mode "
+                       "(RBS_LM_BYTE_MODE=1); the FFT graft uses the byte vocab table.",
+            )
+        if fmt_type == "asl-gloss":
+            raise HTTPException(
+                status_code=400,
+                detail="long_context_buffer + asl-gloss not yet composed in one request.",
+            )
+        completion, n_prompt, n_new = _fft_grafted_translate(
+            bot, prompt, req.long_context_buffer,
+            cutoff_freq=req.fft_cutoff_freq,
+            max_new_tokens=req.max_tokens,
+            context_truncation=req.context_truncation,
+        )
+        completion = _apply_response_format(completion, req.response_format)
+        result_usage = (n_prompt, n_new)
+    elif fmt_type == "asl-gloss":
         # R-RBS-LM-27 inference protocol: prompt is `<english>\x02`, cascade
         # generates gloss bytes until \x03 or max_tokens. Requires byte mode +
         # a parallel-corpus-encoded instrument (v27 family).
@@ -276,6 +301,41 @@ def chat_completions(req: ChatCompletionRequest):
             total_tokens=result_usage[0] + result_usage[1],
         ),
     )
+
+
+def _fft_grafted_translate(bot, prompt, long_context_buffer,
+                            cutoff_freq=8, max_new_tokens=80,
+                            context_truncation=None):
+    """R-RBS-LM-28: generate using FFT-grafted context.
+
+    The cascade itself is unchanged — only the encode_context step is
+    replaced with encode_context_with_graft, which surgically combines
+    LOW-freq of the long_context_buffer with HIGH-freq of the recent window.
+    """
+    from rbs_lm_encoder import CONTEXT_WINDOW, D, bind
+    from rbs_lm_bytes import vectorised_cleanup_bytes, bytes_to_text
+    from rbs_lm_fft import encode_context_with_graft
+
+    window = context_truncation if context_truncation is not None else CONTEXT_WINDOW
+    prompt_bytes = list(prompt.encode("utf-8"))
+    long_buf_bytes = list(long_context_buffer.encode("utf-8"))
+
+    tokens = list(prompt_bytes)
+    new_bytes = []
+    for _ in range(max_new_tokens):
+        ctx = tokens[-window:] if len(tokens) > window else tokens
+        ctx_vec = encode_context_with_graft(
+            ctx, long_buf_bytes, bot.vocab_table,
+            cutoff_freq=cutoff_freq, D=D,
+        )
+        cand = bind(bot.instrument, ctx_vec)
+        res = vectorised_cleanup_bytes(cand, bot.vocab_table, D, top_k=1)
+        nxt = res[0][0]
+        new_bytes.append(nxt)
+        tokens.append(nxt)
+
+    completion = bytes_to_text(new_bytes)
+    return completion, len(prompt_bytes), len(new_bytes)
 
 
 def _asl_gloss_translate(bot, english_prompt, max_new_tokens=80,

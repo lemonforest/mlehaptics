@@ -159,17 +159,22 @@ emerges; the 3.3% structural ceiling per R-RBS-LM-19 still bounds it.
 
 ## Cascade-level research threads
 
-### FFT-based active context truncation
+### FFT-based active context grafting
 
-**Status:** PROPOSED but not yet partition-scoped (mentioned in
-R-RBS-LM-25 closing conversation).
+**Status:** CLOSED in R-RBS-LM-28 — see
+`R-RBS-LM-28_fft_graft_REPORT.md` and `rbs_lm_fft.py`.
 
-Three FFT mapping candidates to test:
-1. FFT of WTE-embedded sequence (real-valued; loses recent-token signal)
-2. FFT of bipolar bit-vectors over time (complex coeffs; preserves more)
-3. Number-theoretic transform (NTT) — substrate-native; discrete spectral
+The original framing shifted from "truncation" (lossy compression in
+frequency basis) to "graft" (surgical COMPOSITION across frequency
+bands) per user direction. FFT of bipolar bit-vectors over time
+(candidate #2) was the chosen mapping. NTT (candidate #3) remains a
+follow-up if pure-substrate finite-field operations are needed.
 
-Tests on byte-level vocab (V=256) cleaner than on BPE (V=50,257).
+Result: graft IS operationally meaningful at the cascade interface
+level — measurable dose-dependent output changes; cascade discriminates
+between long buffers (cooking vs astronomy vs distractor). Surface
+operationally available via server's `long_context_buffer` + `fft_cutoff_freq`
+request fields.
 
 ### srmech C/Python parity multi-thread design notes
 
