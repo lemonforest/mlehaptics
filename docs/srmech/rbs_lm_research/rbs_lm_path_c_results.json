@@ -1,0 +1,72 @@
+{
+  "n_observations": 109,
+  "vocab_table_method": "path_c_wte_random_projection",
+  "random_projection_seed": 42,
+  "compression_ratio_source_to_instrument": 486092.8,
+  "instrument_bytes": 1024,
+  "overall_agreement_pct": 3.3333333333333335,
+  "latency_ms_mean": 181.13256295522055,
+  "vocab_table_properties": {
+    "random_pair_hamming_mean": 3393.15,
+    "random_pair_hamming_std": 143.39612093777154,
+    "expected_random_hamming": 4096,
+    "the_vs_The_hamming": 2099,
+    "the_vs_cat_hamming": 3542
+  },
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": "'s...................",
+      "agreement": 2
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": "....................",
+      "agreement": 1
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": " of of of of of of of of of of of of of of of of of of of of",
+      "agreement": 1
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " is, could, could, could, is, could is could is is is is is is is",
+      "agreement": 1
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": ",,,,,,,,,,,,,,,,,,,,",
+      "agreement": 1
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": ",The,TheTheTheTheTheTheTheTheTheTheTheTheTheTheTheTheThe",
+      "agreement": 0
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": " tackled are tackled are tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled tackled",
+      "agreement": 0
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " are are are are are are are are are are are are are are are are are are are are",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": " that that that that that that that that that that that that that that that that that that that that",
+      "agreement": 0
+    }
+  ]
+}
