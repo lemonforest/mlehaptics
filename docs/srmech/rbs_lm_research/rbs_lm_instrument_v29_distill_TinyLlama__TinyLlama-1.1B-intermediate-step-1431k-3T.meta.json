@@ -1,0 +1,23 @@
+{
+  "partition": "R-RBS-LM-29",
+  "variant": "generic_path_d_distillation",
+  "source_model": "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T",
+  "source_n_params": 1100048384,
+  "gen_target_bytes": 3500,
+  "gen_actual_bytes": 3606,
+  "n_generation_prompts": 12,
+  "max_new_tokens_per_prompt": 80,
+  "n_observations": 443,
+  "stride": 8,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "vocab_method": "class_a_content_mint_byte_<n>",
+  "tokenizer_at_inference_time": "utf-8 (no source-model BPE/SentencePiece)",
+  "tokenizer_used_for_generation_only": "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T (stripped)",
+  "encode_seconds": 29.00547456741333,
+  "bundle_seconds": 0.3830540180206299,
+  "generation_seconds": 189.16237711906433,
+  "framework_reading": "Path D distillation from a modern small-LLM source. The source model was loaded, used to generate corpus, then dropped. The resulting instrument has byte-level inference with ZERO dependency on the source's tokenization. Per [[user_stance_ai_is_not_a_substrate]]: the cascade is still a transducer; this experiment tests whether source-model richness affects the cascade's mode-collapse pattern."
+}

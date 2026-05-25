@@ -243,4 +243,21 @@ fetch → encode → save end-to-end via catalog descriptor.
 
 ---
 
-*Last updated: 2026-05-25 — R-RBS-LM-27 close.*
+## Tested and answered (no longer open)
+
+### Does source-model size lift the cascade ceiling?
+
+**Answered NO in R-RBS-LM-29** (see `R-RBS-LM-29_source_size_REPORT.md`).
+9× larger source (GPT-2 124M → TinyLlama 1.1B) produced the same single-
+byte mode-collapse at the same encoding scale. R-RBS-LM-19 structural-
+ceiling argument reinforced: cascade architecture IS the ceiling, not
+training-corpus richness. Architectural moves (R-RBS-LM-28 FFT graft, etc.)
+are the research priority going forward.
+
+Infrastructure built: `distill_cron.sh` makes Llama 8B / 30B / 70B Q4
+distillations achievable as overnight/weekend cron tasks if a future
+question wants to verify the orthogonality at larger source scale.
+
+---
+
+*Last updated: 2026-05-25 — R-RBS-LM-29 close.*
