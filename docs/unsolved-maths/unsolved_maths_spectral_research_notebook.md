@@ -1592,6 +1592,21 @@ Two consequences:
 
 **Verdict 🟡 (b) REFINED → partial (a):** the deposit selection rule + dipole exclusion are exact (a-grade); the mechanism is pinned to a single-axis p=2,3 modulation. **Still open:** derive the `w₂, w₃` amplitudes — and *why* p=2,3 rather than p=1 — from the physical off-centre-observer Hopf-bundle geometry. This is now a sharply-posed physics question with a built-in falsifier: if that geometry can *only* produce a dipole (displacement→aberration), the geometric reading fails and the AoE needs a different mechanism. Per `[[user_stance_identity_not_implementation_discipline]]` the algebra-layer selection rule holds regardless; only the physical-amplitude derivation remains.
 
+#### §11.9.6c The offset must be a HANDED SHEAR (Bianchi VII_h class) — the (a)-lift attempt (Round 12.A)
+
+Round 12.A ([`round12_entry_A_offset_geometry_amplitude.md`](cost_asymmetry/round12_entry_A_offset_geometry_amplitude.md) + committed [`verify_offset_geometry_degree_selection.py`](cost_asymmetry/verify_offset_geometry_degree_selection.py)) attempted the (a)-lift — derive `w₂, w₃` from the offset geometry — via a degree/parity selection on the geometric distortion.
+
+A distortion of degree `g` in μ=cosθ deposits into Legendre ℓ≤g of matching parity (verified by quadrature): **displacement (g=1) → dipole only**; **shear (g=2) → quadrupole**; **cubic (g=3) → octupole**. Therefore:
+
+- p=2 needs a **shear** (degree ≥ 2), not a position displacement (degree-1 → dipole, firing the Round 11 falsifier);
+- p=3 needs a cubic term; **both p=2 AND p=3 need a mixed-parity distortion of degree ≥ 3 = a HANDED SHEAR** (shear + reflection-symmetry-breaking swirl).
+
+This is the attested **Bianchi type VII_h** template — Jaffe+ 2005 (*ApJ* 629:L1, [astro-ph/0503213](https://arxiv.org/abs/astro-ph/0503213)), titled *"Evidence of vorticity and **shear**..."* — long used to fit the large-angle anomalies (alignment + low-Q + cold-spot together). The degree-selection lands on the literature's object independently.
+
+**Verdict 🟡 (b) REFINED + (open) — the (a)-lift is NOT achieved, two ways:** (1) *framework side* — the mechanism *class* (handed shear) and *parity structure* are derived, but the amplitudes `w₂, w₃` are not (they are the free shear+handedness magnitudes); (2) *physical-viability caveat (attested)* — the physical Bianchi VII_h best-fit is incompatible with ΛCDM (Ω_tot ≈ 0.43; [astro-ph/0605325](https://arxiv.org/abs/astro-ph/0605325)) and the vorticity claim was gauge-challenged ([astro-ph/0503562](https://arxiv.org/abs/astro-ph/0503562)). So the framework reading is *consistent with* the literature's attested AoE mechanism (shear) and *shares its open problem*.
+
+**Net across Rounds 8–12 on the AoE:** boosting = confirmed fiber-leak at β (8.A); the alignment is not the kinematic leak (9.A) and not ℓ=7-Mersenne (10.A); it needs a p=2,3 offset (11.A); that offset must be a handed shear = Bianchi VII_h (12.A) — whose amplitude neither the framework nor the literature has derived, and whose physical model is contested. The arc drove the AoE down to **one sharply-posed, literature-anchored open question** instead of a vague one.
+
 #### §11.9.7 Relation to the §11.1–§11.6 cardinality framing
 
 The two framings are not competitors — they are the **two substrate-native math languages** of `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` reading the same cost-asymmetry:
