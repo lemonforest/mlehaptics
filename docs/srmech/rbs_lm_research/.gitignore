@@ -2,8 +2,11 @@
 # + token IDs in seconds; committing bloats the repo).
 vocab_table.npy
 
-# Any other large numpy / binary caches that may emerge in future
-# partitions (R-RBS-LM-7 measurement runs, R-RBS-LM-8 diagnostic
-# instruments). The rbs_lm_instrument.bin is intentionally NOT in
-# this gitignore — it IS the committed deliverable per R-RBS-LM-5.
-*.npy
+# Note: the rbs_lm_instrument*.bin files ARE committed deliberately —
+# they're the per-partition deliverables documenting the encoded
+# behavior at each scale/configuration. Per R-RBS-LM-13 §3.1, these
+# instruments are RESEARCH artefacts; per R-RBS-LM-13 the distributed
+# catalog form (under docs/srmech/catalogs/rbs_lm/) uses the
+# compute_from_source adapter and ships PROCEDURE not bytes.
+# Small .npy files holding Plate-HRR instruments (~3 KB; e.g.,
+# rbs_lm_instrument_v21_hrr.npy) are also committed by intent.

@@ -1,0 +1,75 @@
+{
+  "partition": "R-RBS-LM-21",
+  "D": 768,
+  "bind_type": "circular_convolution",
+  "n_observations": 492,
+  "instrument_dim": 768,
+  "instrument_bytes": 3072,
+  "vocab_table_mb": 147.2373046875,
+  "overall_agreement_pct": 0.0,
+  "latency_ms_mean": 12.040250831180149,
+  "vocab_properties": {
+    "the_vs_The_cosine_sim": 0.6757655143737793,
+    "the_vs_cat_cosine_sim": 0.20577678084373474
+  },
+  "per_prompt_results": [
+    {
+      "prompt": "The President of the United States in 2024 is",
+      "source_decoded": " a man who has been a man of action. He has been a man of action. He has",
+      "rbs_decoded": " to to to to to to to to to to to to to to to to to to to to",
+      "agreement": 0
+    },
+    {
+      "prompt": "The COVID-19 pandemic began in the year",
+      "source_decoded": " 2000, and the pandemic was the first to reach the United States. The pandemic was the",
+      "rbs_decoded": " experience experience experience more.... and and... and and and and and and and",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Zorgon Empire of Andromeda was founded in",
+      "source_decoded": " the year 744 by the Emperor, and was the first of the Zorgon Empire's three",
+      "rbs_decoded": " before in in in in in in in in in in in in in in in in in in in",
+      "agreement": 0
+    },
+    {
+      "prompt": "The Klepton-7 algorithm was invented by",
+      "source_decoded": " the University of California, Berkeley, in the 1970s. It is a simple, fast, and",
+      "rbs_decoded": " Many before himselflylylylylyly in in in in in in in in in in in",
+      "agreement": 0
+    },
+    {
+      "prompt": "The population of Wellington, New Zealand is approximately",
+      "source_decoded": " 1.5 million.\n\nThe population of Wellington, New Zealand is approximately 1.5 million",
+      "rbs_decoded": " City Communitylocal Community Community Community Community to to to to To to to and For and and and and",
+      "agreement": 0
+    },
+    {
+      "prompt": "The chemical formula for caffeine is",
+      "source_decoded": ":\n\nCaffeine is a compound of caffeine and caffeine-like compounds.\n\nC",
+      "rbs_decoded": "vanapsychpsychpsychwerewere psych Townvanavanavanavanavanavanavana had had had had gamers",
+      "agreement": 0
+    },
+    {
+      "prompt": "Seventeen multiplied by twenty-three equals",
+      "source_decoded": " twenty-three.\n\nThe number of times the number of times the number of times the number",
+      "rbs_decoded": " PC now\n are a P P P P In In In In\n\n In In\n\n\n",
+      "agreement": 0
+    },
+    {
+      "prompt": "The square root of one hundred and forty-four is",
+      "source_decoded": " the number of the number of the number of the number of the number of the number of the number",
+      "rbs_decoded": " in in a in from from in in in In in in in In In In\n In in\n",
+      "agreement": 0
+    },
+    {
+      "prompt": "Once upon a time, in a forest made of clockwork,",
+      "source_decoded": " the sun was shining.\n\nThe sun was shining.\n\nThe sun was shining.\n",
+      "rbs_decoded": "' project project Battalion-- In In to-. In In In be In if if if this",
+      "agreement": 0
+    }
+  ],
+  "comparison": {
+    "path_c_bipolar_xor_pct": 3.3,
+    "plate_hrr_pct": 0.0
+  }
+}
