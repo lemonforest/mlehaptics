@@ -14,10 +14,16 @@
 #       --id 3a \
 #       --slug mlp_cascade \
 #       --claim "<one-line closing claim>" \
+#       [--arc RBS-NN]           # default: RBS-NN; use RBS-LM for RBS-LM arc
 #       [--report PATH] \
 #       [--extra PATH] [--extra PATH ...] \
 #       [--pr NUMBER]            # default: discover from current branch
 #       [--dry-run]
+#
+# --arc selects the arc context. Affects:
+#   - default RESEARCH_DIR (docs/srmech/<arc_lowercase>_research/)
+#   - commit subject prefix (research(R-${ARC}-${PARTITION_ID} CLOSED): ...)
+#   - PR body checkbox sed pattern (- [ ] **R-${ARC}-${PARTITION_ID}** ...)
 #
 # The script extracts the §8 Findings section from the REPORT verbatim
 # for the commit body. It expects the REPORT structure used by
@@ -29,12 +35,13 @@ set -euo pipefail
 PARTITION_ID=""
 SLUG=""
 CLAIM=""
+ARC="RBS-NN"
 REPORT=""
 EXTRA_FILES=()
 PR_NUMBER=""
 DRY_RUN=0
 REPO="lemonforest/mlehaptics"
-RESEARCH_DIR="docs/srmech/rbs_nn_research"
+RESEARCH_DIR=""  # derived from $ARC below
 
 # --- arg parse -------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
@@ -42,6 +49,7 @@ while [[ $# -gt 0 ]]; do
         --id)        PARTITION_ID="$2"; shift 2 ;;
         --slug)      SLUG="$2"; shift 2 ;;
         --claim)     CLAIM="$2"; shift 2 ;;
+        --arc)       ARC="$2"; shift 2 ;;
         --report)    REPORT="$2"; shift 2 ;;
         --extra)     EXTRA_FILES+=("$2"); shift 2 ;;
         --pr)        PR_NUMBER="$2"; shift 2 ;;
@@ -53,14 +61,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Derive RESEARCH_DIR from $ARC if not already set elsewhere
+# (RBS-NN → docs/srmech/rbs_nn_research; RBS-LM → docs/srmech/rbs_lm_research)
+ARC_LOWER=$(echo "$ARC" | tr '[:upper:]' '[:lower:]' | tr '-' '_')
+RESEARCH_DIR="docs/srmech/${ARC_LOWER}_research"
+
 # --- validate required args -----------------------------------------------
 [[ -n "$PARTITION_ID" ]] || { echo "ERROR: --id required" >&2; exit 2; }
 [[ -n "$SLUG"         ]] || { echo "ERROR: --slug required" >&2; exit 2; }
 [[ -n "$CLAIM"        ]] || { echo "ERROR: --claim required" >&2; exit 2; }
 
-# Default REPORT path from id + slug
+# Default REPORT path from id + slug + arc
 if [[ -z "$REPORT" ]]; then
-    REPORT="$RESEARCH_DIR/R-RBS-NN-${PARTITION_ID}_${SLUG}_REPORT.md"
+    REPORT="$RESEARCH_DIR/R-${ARC}-${PARTITION_ID}_${SLUG}_REPORT.md"
 fi
 
 [[ -f "$REPORT" ]] || { echo "ERROR: REPORT not found: $REPORT" >&2; exit 1; }
@@ -76,23 +89,24 @@ if [[ -z "$PR_NUMBER" ]]; then
     PR_NUMBER="$(gh pr list --repo "$REPO" --head "$BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || true)"
     [[ -n "$PR_NUMBER" ]] || { echo "ERROR: could not discover PR from branch '$BRANCH'" >&2; exit 1; }
 fi
-echo "[close] partition R-RBS-NN-$PARTITION_ID → PR #$PR_NUMBER"
+echo "[close] partition R-${ARC}-$PARTITION_ID → PR #$PR_NUMBER"
 
-# --- extract §8 Findings + §10 closing from the REPORT --------------------
-# §8 Findings block: from a line starting "## §8 Findings" up to (but not
-# including) the next "## §N" header.
+# --- extract §N Findings block from the REPORT ----------------------------
+# Match "## §N Findings" at any section number N (default REPORTs use §8,
+# but more elaborate ones like R-RBS-LM-1 may use §9). Capture from that
+# header until the next "## §N+1 ..." header.
 FINDINGS_BLOCK="$(awk '
-    /^## §8 Findings/        { capture=1; next }
-    /^## §[0-9]/ && capture   { exit }
-    capture                   { print }
+    /^## §[0-9][0-9]* Findings/  { capture=1; next }
+    /^## §[0-9]/ && capture       { exit }
+    capture                       { print }
 ' "$REPORT")"
 
 if [[ -z "$FINDINGS_BLOCK" ]]; then
-    echo "WARNING: could not extract §8 Findings from $REPORT — using --claim only as body" >&2
+    echo "WARNING: could not extract §N Findings from $REPORT — using --claim only as body" >&2
 fi
 
 # --- compose commit message ------------------------------------------------
-SUBJECT="research(R-RBS-NN-${PARTITION_ID} CLOSED): ${CLAIM}"
+SUBJECT="research(R-${ARC}-${PARTITION_ID} CLOSED): ${CLAIM}"
 
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
@@ -104,7 +118,7 @@ trap 'rm -f "$BODY_FILE"' EXIT
     echo "${SUBJECT}"
     echo ""
     if [[ -n "$FINDINGS_BLOCK" ]]; then
-        echo "Findings (verbatim from §8 of $(basename "$REPORT")):"
+        echo "Findings (verbatim from $(basename "$REPORT")):"
         echo ""
         echo "$FINDINGS_BLOCK"
     fi
@@ -158,16 +172,16 @@ gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.body' > "$PR_BODY_FILE"
 
 # Replace the partition checkbox line. We accept both unticked and already-ticked
 # (idempotent re-run) but only patch in the REPORT link if not already present.
-# The line shape in PR body: `- [ ] **R-RBS-NN-3a** — MLP cascade decomposition through A-N`
+# The line shape in PR body: `- [ ] **R-${ARC}-3a** — <description>`
 REPORT_REL="${REPORT}"
-SED_PATTERN="s|- \[ \] \*\*R-RBS-NN-${PARTITION_ID}\*\* \(.*\)|- [x] **R-RBS-NN-${PARTITION_ID}** \1 ([REPORT](${REPORT_REL}))|"
+SED_PATTERN="s|- \[ \] \*\*R-${ARC}-${PARTITION_ID}\*\* \(.*\)|- [x] **R-${ARC}-${PARTITION_ID}** \1 ([REPORT](${REPORT_REL}))|"
 
-if grep -q "R-RBS-NN-${PARTITION_ID}\*\* .*REPORT" "$PR_BODY_FILE"; then
+if grep -q "R-${ARC}-${PARTITION_ID}\*\* .*REPORT" "$PR_BODY_FILE"; then
     echo "[close] checkbox already linked — skipping PR body update"
 else
     sed -i "$SED_PATTERN" "$PR_BODY_FILE"
     gh api -X PATCH "repos/${REPO}/pulls/${PR_NUMBER}" -F body=@"$PR_BODY_FILE" --jq '.html_url' | tail -1
 fi
 
-echo "[close] R-RBS-NN-${PARTITION_ID} closed. PR #${PR_NUMBER} updated."
+echo "[close] R-${ARC}-${PARTITION_ID} closed. PR #${PR_NUMBER} updated."
 echo "[close] next: have Claude run TaskUpdate to mark the partition task completed."
