@@ -97,8 +97,11 @@ SUBJECT="research(R-RBS-NN-${PARTITION_ID} CLOSED): ${CLAIM}"
 BODY_FILE="$(mktemp)"
 trap 'rm -f "$BODY_FILE"' EXIT
 
+# git commit -F treats the first line of the file as the subject. We want
+# "research(R-RBS-NN-${id} CLOSED): ${claim}" as the subject, so the file
+# starts with $SUBJECT (not $CLAIM).
 {
-    echo "${CLAIM}"
+    echo "${SUBJECT}"
     echo ""
     if [[ -n "$FINDINGS_BLOCK" ]]; then
         echo "Findings (verbatim from §8 of $(basename "$REPORT")):"
