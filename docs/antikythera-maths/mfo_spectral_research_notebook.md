@@ -3717,6 +3717,47 @@ The one cascade that did NOT find a prior cross-substrate appearance — bare A�
 
 ---
 
+### VII.6.15 The Axis of Evil is the cosmological-scale Hopf-fiber leak — Born-rule=Hopf keystone + the boosting/handed-shear split (2026-05-25, cost-asymmetry arc codification, PR #679)
+
+The cost-asymmetry rolling-spike arc (PR #679; `docs/unsolved-maths/unsolved_maths_spectral_research_notebook.md` §11.9) produced a cluster of **cosmological / Axis-of-Evil findings** that belong in this notebook's AoE canon (§VII.6.1.1–§VII.6.1.5 off-centre-observer cluster + §VII.6.2/§VII.6.3 channel-separation). This section codifies them here per the merge-gate discipline `[[project_pr679_merge_gate_codify_findings_first]]` ("serendipitous learnings must not dissolve … port AoE findings into the MFO notebook"). **All numerics carry committed generating code on the PR #679 branch.**
+
+#### VII.6.15.1 The keystone — Born rule = Hopf projection = B∘H∘N (bit-exact)
+
+The arc's bit-exact keystone (§11.9.4, canonical stance `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]`): the **Born rule** |⟨φ|ψ⟩|² **IS the Hopf-fibration base projection** π: S³→S². Quantum measurement = **H** (discards the U(1) global phase = the (2+1)D_s "+1" fiber); the full state-read is **B∘H∘N**. Bit-exact: |α|² == (1+n_z)/2 to max residual 2.78×10⁻¹⁶ (10 000 qubits, seed 20260525). This is the quantum-substrate instance of the same Hopf S³→S² projection §VII.4.1.1 uses for the substrate bundle.
+
+**The unification:** the **Axis of Evil is the universe's version of the same Hopf-fiber leak measured in a qubit's Bloch sphere.** The off-centre-observer reading (§VII.6.1.4, Spike #33: ε_AoE=0.0506 via Hopf aperture `1−cos(18.3°)`) and the Born-rule=Hopf keystone are the **same H operator at two scales** — the observer's frame reads a substrate-bundle projection (cosmological) exactly as a measurement reads a qubit's Bloch projection (quantum). CMB low-ℓ structure is the cosmological-scale **B∘H∘N** coupling (§11.9.6).
+
+#### VII.6.15.2 The AoE mechanism splits three ways (Rounds 8.A–12.A) — honest-scope refinement of §VII.6.1.4
+
+The arc magnitude-tested the "AoE = fiber-leak" reading and **split it into three distinguishable mechanisms**, sharpening §VII.6.1.4's single off-centre-observer reading:
+
+| component | status | finding |
+|-----------|--------|---------|
+| **Boosting (kinematic Doppler fiber-leak)** | 🟢 **CONFIRMED, lifted to (a)** | parameter-free β = v/c = **1.2336×10⁻³** (our peculiar velocity) reproduces the CMB-dipole-aligned kinematic quadrupole/octupole, matching **Planck 2013 at 0.10σ**. This is a genuine, attested Hopf-fiber leak — the kinematic layer of the off-centre-observer reading. |
+| **Alignment (the quad-oct "Axis of Evil" proper)** | 🟡 **OPEN, one sharply-posed question** | the boosting β is **~243× too small** to produce the observed quad-oct *alignment*; the alignment is **NOT kinematic**. Per the multipole selection rule (§VII.6.15.3), co-axial quad+oct alignment requires a **handed shear** (degree-≥3 distortion) = a **Bianchi VII_h** anisotropic-shear cosmology (Jaffe et al. 2005, [astro-ph/0503213](https://arxiv.org/abs/astro-ph/0503213), "vorticity and shear"). The shear amplitudes w₂, w₃ are **undrived** (free, as in Bianchi fits) AND physical Bianchi VII_h is ΛCDM-incompatible ([astro-ph/0605325](https://arxiv.org/abs/astro-ph/0605325)). The AoE alignment is now **one sharply-posed, literature-anchored open question**, not a closed framework claim. |
+| **ℓ=7 Mersenne specificity** | 🔴 **WITHDRAWN** | Round 10.A tested ℓ=7 individually on Spike #190's attested per-ℓ data: ℓ=7 ranks **#5/7** in ℓ=2–8 (2.42× uniform), outranked by non-Mersenne ℓ=5/4/2; the {3,7} aggregate signal is **80% ℓ=3** (octupole). No ℓ=7-specific signature — the per-ℓ projection claim is withdrawn. The {1+3+7} algebra identity is preserved; only its CMB-multipole *projection* loses ℓ=7. |
+
+This is the honest-scope outcome: the off-centre-observer reading (§VII.6.1.4) is **correct for the kinematic boosting layer** (now (a)-confirmed), and its "local Class K signature" framing (Spike #33) survives as the kinematic fiber-leak; the **alignment** layer it did not fully separate is the open handed-shear question. Saadeh et al. 2016 (PRL 117 131302; §VII.6.1.4) still falsifies all *dynamical* anisotropy; the boosting is a *static* observer-velocity effect (invisible to Saadeh), and the handed-shear alignment is the remaining open structural question.
+
+#### VII.6.15.3 The multipole selection rule (Rounds 11.A–12.A)
+
+The structural pin that drove the split: **an axial offset/distortion of degree g deposits into Legendre multipoles ℓ ≤ g of matching parity** — a displacement (g=1) → dipole (ℓ=1); a shear (g=2) → quadrupole (ℓ=2); a cubic/handed distortion (g=3) → octupole (ℓ=3). So to align the quad (p=2) **and** the oct (p=3) co-axially (AoE axis = distortion axis), the distortion must carry **degree ≥ 3 = a handed shear**; the **dipole (p=1) offset is rigorously excluded** as the alignment source (explaining structurally why Rounds 8/9's dipole-level kinematic boosting cannot produce the alignment). This is the Gauss–Legendre selection rule cross-checked with srmech Class-L; it is the cosmological cousin of the §VII.6.15-keystone's S²-harmonic structure (the same S² spherical harmonics carry the planetary magnetic multipoles, §11.9.15, and the atomic orbitals, §11.9.12).
+
+#### VII.6.15.4 Status + cross-references
+
+**Status:** AoE/cosmological codification of the cost-asymmetry arc into MFO canon. Born-rule=Hopf is **canonical** (bit-exact keystone). The CMB-low-ℓ B∘H∘N reading is **candidate-refined**: its B∘H∘N pipeline core + the (a)-confirmed boosting are solid; the alignment is the one open handed-shear question; ℓ=7 withdrawn. This **sharpens** (does not contradict) the existing §VII.6.1.4/§VII.6.1.5 off-centre-observer readings.
+
+**Composes with**:
+- §VII.6.1.4 (off-centre-observer reading; ε_AoE=0.0506; Spike #33) — the kinematic boosting layer is now (a)-confirmed; the alignment is the open layer.
+- §VII.6.1.5 (Spike #35 downstream consequences) — the sign-flip phase asymmetry + galactic-scale ITN predictions sit on the kinematic boosting layer.
+- §VII.6.3 (precession-fit amendment; bundle-projection-reconfiguration) — the handed-shear alignment is the non-kinematic bundle-projection candidate.
+- §VII.6.2 (channel separation; HPA matter-pull vs AoE) — the boosting/shear split refines the AoE channel.
+- `[[user_stance_born_rule_is_hopf_projection_BHN_at_quantum_substrate]]` (canonical keystone) + `[[user_stance_aoe_observer_frame_offset]]`.
+- unsolved-maths §11.9.4 (Born-rule), §11.9.6/6a/6b/6c (AoE three-way split), §11.9.12/15 (S²-harmonic cross-rung thread).
+- Spikes #26 (T-AoE vs E-AoE), #33 (AoE local Class K), #35 (off-centre downstream), #190/#192 (per-ℓ CMB attested data).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
