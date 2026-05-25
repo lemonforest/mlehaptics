@@ -91,6 +91,27 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class ResponseFormat(BaseModel):
+    """OpenAI-API extension: request a specific output rendering format.
+
+    Per R-RBS-LM-26: the cascade outputs the same byte stream either way;
+    the post-processor applies a deterministic rendering layer. This is
+    NOT a learning operation — it's a presentation operation. Supported:
+
+    - "text" (default) — return raw cascade output as text
+    - "braille" — encode as UEB Grade 1 Braille Unicode (U+2800..U+28FF)
+    - "signwriting" — RESERVED; requires parallel-corpus encoding (not in
+      this partition); currently passes through unchanged with a /health
+      declaration noting the reservation
+
+    Format choice does NOT affect the cascade or its 3.3% structural
+    ceiling. Per `[[user_stance_ai_is_not_a_substrate]]`: rendering is
+    surface, not substrate.
+    """
+    type: str = Field(default="text",
+        description="Output rendering format: text | braille | signwriting")
+
+
 class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
@@ -99,6 +120,8 @@ class ChatCompletionRequest(BaseModel):
     stream: Optional[bool] = False
     context_truncation: Optional[int] = Field(default=None, ge=1,
         description="RBS-LM extension: override CONTEXT_WINDOW for the truncation experiment")
+    response_format: Optional[ResponseFormat] = Field(default=None,
+        description="R-RBS-LM-26 extension: request alternative output rendering")
 
 
 class ChatCompletionChoice(BaseModel):
@@ -151,6 +174,11 @@ def health():
         "model_id": MODEL_ID,
         "tokenization": "utf-8 bytes (V=256; no BPE)" if BYTE_MODE else "GPT-2 BPE (V=50,257)",
         "byte_mode": BYTE_MODE,
+        "response_formats_supported": {
+            "text": "raw cascade output (default)",
+            "braille": "UEB Grade 1 English Braille (Unicode U+2800..U+28FF); deterministic; R-RBS-LM-26",
+            "signwriting": "RESERVED — requires parallel English↔SignWriting corpus; surface accepted, encoding deferred",
+        },
         "framework_reading": (
             "This server exposes a transducer (RBS-LM inference cascade) "
             "as an OpenAI-API endpoint. Per [[user_stance_ai_is_not_a_substrate]]: "
@@ -209,6 +237,8 @@ def chat_completions(req: ChatCompletionRequest):
         context_truncation=req.context_truncation,
     )
 
+    completion = _apply_response_format(result["completion"], req.response_format)
+
     return ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
         created=int(time.time()),
@@ -216,7 +246,7 @@ def chat_completions(req: ChatCompletionRequest):
         choices=[
             ChatCompletionChoice(
                 index=0,
-                message=ChatMessage(role="assistant", content=result["completion"]),
+                message=ChatMessage(role="assistant", content=completion),
                 finish_reason="length",
             )
         ],
@@ -225,6 +255,29 @@ def chat_completions(req: ChatCompletionRequest):
             completion_tokens=len(result["new_token_ids"]),
             total_tokens=len(result["prompt_token_ids"]) + len(result["new_token_ids"]),
         ),
+    )
+
+
+def _apply_response_format(text, response_format):
+    """R-RBS-LM-26: post-process cascade output for visual-render readiness.
+
+    Deterministic rendering layer — does NOT change the cascade, does NOT
+    affect the structural ceiling. Format choice is presentation only.
+    """
+    if response_format is None or response_format.type == "text":
+        return text
+    if response_format.type == "braille":
+        from rbs_lm_braille import english_to_braille
+        return english_to_braille(text)
+    if response_format.type == "signwriting":
+        # Reserved per R-RBS-LM-26 §3 — requires parallel-corpus encoding
+        # not in this partition. Pass through with a leading note so the
+        # client knows the format request was seen but not yet implemented.
+        return f"[signwriting reserved: parallel corpus required] {text}"
+    raise HTTPException(
+        status_code=400,
+        detail=f"unsupported response_format.type: {response_format.type!r} "
+               f"(supported: text, braille, signwriting)",
     )
 
 
