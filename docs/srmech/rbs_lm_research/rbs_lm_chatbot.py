@@ -141,3 +141,85 @@ class RBSChatbot:
         """Run a fixed prompt list and return each response with metadata. Stateless;
         each prompt is independent (no conversation memory)."""
         return [self.respond_with_metadata(p) for p in prompts]
+
+
+class RBSChatbotBytes:
+    """Byte-level sibling of RBSChatbot (R-RBS-LM-25).
+
+    Same protocol (load / respond / respond_with_metadata / converse) but:
+      - tokenizer is `text.encode('utf-8')` (no BPE)
+      - vocab table is 256 Class A mints (no WTE projection)
+      - V=256 cleanup is ~196x faster per generation step than BPE 50,257
+      - Language-agnostic; covers Chinese / Arabic / emoji / code identically
+
+    Per `[[user_stance_ai_is_not_a_substrate]]` AND the user 2026-05-25
+    framing: byte-level does NOT lift the 3.3% structural ceiling. The win
+    is language coverage + zero teacher-model dependency at serve time.
+    """
+
+    def __init__(self, instrument, vocab_table):
+        self.instrument = instrument
+        self.vocab_table = vocab_table
+
+    @classmethod
+    def load(cls, instrument_path, verbose=False):
+        """Load a byte-level instrument. No GPT-2 fetch — byte vocab is
+        srmech-native (Class A content-mint of byte values 0..255)."""
+        if not Path(instrument_path).exists():
+            raise FileNotFoundError(f"instrument not found: {instrument_path}")
+        instrument = Path(instrument_path).read_bytes()
+        if verbose:
+            print(f"  loaded instrument: {len(instrument)} bytes from {instrument_path}")
+
+        from rbs_lm_bytes import compute_byte_vocab_table
+        vocab_table = compute_byte_vocab_table()
+        if verbose:
+            print(f"  byte vocab table ready: {vocab_table.shape}; "
+                  f"{vocab_table.nbytes/1024:.0f} KB")
+
+        return cls(instrument, vocab_table)
+
+    def respond(self, prompt, max_new_tokens=80):
+        """Generate a response. max_new_tokens is in BYTES at this level —
+        default 80 because byte-level needs ~5x more steps than BPE for
+        a comparable-length English response."""
+        prompt_bytes = list(prompt.encode("utf-8"))
+        new_bytes, _ = self._generate(prompt_bytes, max_new_tokens)
+        from rbs_lm_bytes import bytes_to_text
+        return bytes_to_text(new_bytes)
+
+    def respond_with_metadata(self, prompt, max_new_tokens=80, context_truncation=None):
+        from rbs_lm_bytes import bytes_to_text
+        prompt_bytes = list(prompt.encode("utf-8"))
+        t0 = time.time()
+        new_bytes, latencies = self._generate(prompt_bytes, max_new_tokens,
+                                               context_truncation=context_truncation)
+        total_elapsed = time.time() - t0
+        return {
+            "prompt": prompt,
+            "completion": bytes_to_text(new_bytes),
+            "prompt_token_ids": prompt_bytes,
+            "new_token_ids": new_bytes,
+            "per_token_ms": latencies,
+            "total_ms": total_elapsed * 1000,
+        }
+
+    def _generate(self, prompt_bytes, max_new_tokens, context_truncation=None):
+        from rbs_lm_encoder import CONTEXT_WINDOW, D, bind
+        from rbs_lm_bytes import encode_context_bytes, vectorised_cleanup_bytes
+
+        window = context_truncation if context_truncation is not None else CONTEXT_WINDOW
+        tokens = list(prompt_bytes)
+        latencies = []
+        for _ in range(max_new_tokens):
+            t0 = time.time()
+            ctx = tokens[-window:] if len(tokens) > window else tokens
+            ctx_vec = encode_context_bytes(ctx, self.vocab_table, D)
+            cand = bind(self.instrument, ctx_vec)
+            res = vectorised_cleanup_bytes(cand, self.vocab_table, D, top_k=1)
+            tokens.append(res[0][0])
+            latencies.append((time.time() - t0) * 1000)
+        return tokens[len(prompt_bytes):], latencies
+
+    def converse(self, prompts):
+        return [self.respond_with_metadata(p) for p in prompts]

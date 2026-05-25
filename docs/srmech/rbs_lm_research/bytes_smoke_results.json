@@ -1,0 +1,257 @@
+{
+  "partition": "R-RBS-LM-25",
+  "results": [
+    {
+      "label": "Variant A — GPU-less byte-level from srmech notebook",
+      "instrument_path": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v25a_srmech.bin",
+      "hallucination": [
+        {
+          "prompt": "The President of the United States in 2024 is",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2556.9372177124023
+        },
+        {
+          "prompt": "The COVID-19 pandemic began in the year",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2483.9277267456055
+        },
+        {
+          "prompt": "The Zorgon Empire of Andromeda was founded in",
+          "completion": "tttttttttttttttttttttttttttttttttttttttt",
+          "n_bytes": 40,
+          "latency_ms": 2542.0658588409424
+        },
+        {
+          "prompt": "The Klepton-7 algorithm was invented by",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2494.452714920044
+        },
+        {
+          "prompt": "The population of Wellington, New Zealand is approximately",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2570.3117847442627
+        },
+        {
+          "prompt": "The chemical formula for caffeine is",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2209.756374359131
+        },
+        {
+          "prompt": "Seventeen multiplied by twenty-three equals",
+          "completion": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "n_bytes": 40,
+          "latency_ms": 2371.3901042938232
+        },
+        {
+          "prompt": "The square root of one hundred and forty-four is",
+          "completion": "oooooooooooooooooooooooooooooooooooooooo",
+          "n_bytes": 40,
+          "latency_ms": 2462.2812271118164
+        },
+        {
+          "prompt": "Once upon a time, in a forest made of clockwork,",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2461.8120193481445
+        }
+      ],
+      "language_coverage": [
+        {
+          "language": "English",
+          "prompt": "The morning sun cast",
+          "completion": "tttttttttttttttttttttttt",
+          "ok": true,
+          "error": null,
+          "latency_ms": 835.5226516723633
+        },
+        {
+          "language": "Chinese",
+          "prompt": "今天天气很好",
+          "completion": "������������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 788.6435985565186
+        },
+        {
+          "language": "Arabic",
+          "prompt": "السلام عليكم",
+          "completion": "������������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 904.5300483703613
+        },
+        {
+          "language": "Japanese mixed",
+          "prompt": "Hello 世界 🌍",
+          "completion": "�                       ",
+          "ok": true,
+          "error": null,
+          "latency_ms": 771.3141441345215
+        },
+        {
+          "language": "Code",
+          "prompt": "def fibonacci(n):",
+          "completion": "\u0005ooooooooooooooooooooooo",
+          "ok": true,
+          "error": null,
+          "latency_ms": 772.8898525238037
+        },
+        {
+          "language": "Emoji",
+          "prompt": "🎉🎊🎈",
+          "completion": "\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010\u0010",
+          "ok": true,
+          "error": null,
+          "latency_ms": 657.7014923095703
+        },
+        {
+          "language": "Math",
+          "prompt": "f(x) = x**2 + 2x + 1",
+          "completion": "                        ",
+          "ok": true,
+          "error": null,
+          "latency_ms": 835.676908493042
+        },
+        {
+          "language": "Mixed script",
+          "prompt": "café résumé naïve",
+          "completion": "� ����������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 858.1452369689941
+        }
+      ]
+    },
+    {
+      "label": "Variant B — Path D: distilled from GPT-2 (BPE-stripped)",
+      "instrument_path": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v25b_distill_gpt2.bin",
+      "hallucination": [
+        {
+          "prompt": "The President of the United States in 2024 is",
+          "completion": "tttttttttttttttttttttttttttttttttttttttt",
+          "n_bytes": 40,
+          "latency_ms": 2399.1899490356445
+        },
+        {
+          "prompt": "The COVID-19 pandemic began in the year",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2273.637533187866
+        },
+        {
+          "prompt": "The Zorgon Empire of Andromeda was founded in",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2397.2227573394775
+        },
+        {
+          "prompt": "The Klepton-7 algorithm was invented by",
+          "completion": "e e e e e eeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "n_bytes": 40,
+          "latency_ms": 2275.9647369384766
+        },
+        {
+          "prompt": "The population of Wellington, New Zealand is approximately",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2556.915044784546
+        },
+        {
+          "prompt": "The chemical formula for caffeine is",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2198.972225189209
+        },
+        {
+          "prompt": "Seventeen multiplied by twenty-three equals",
+          "completion": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "n_bytes": 40,
+          "latency_ms": 2361.882448196411
+        },
+        {
+          "prompt": "The square root of one hundred and forty-four is",
+          "completion": "dddddddddddddddddddddddddddddddddddddddd",
+          "n_bytes": 40,
+          "latency_ms": 2452.1846771240234
+        },
+        {
+          "prompt": "Once upon a time, in a forest made of clockwork,",
+          "completion": "                                        ",
+          "n_bytes": 40,
+          "latency_ms": 2454.4801712036133
+        }
+      ],
+      "language_coverage": [
+        {
+          "language": "English",
+          "prompt": "The morning sun cast",
+          "completion": "                        ",
+          "ok": true,
+          "error": null,
+          "latency_ms": 829.9446105957031
+        },
+        {
+          "language": "Chinese",
+          "prompt": "今天天气很好",
+          "completion": "\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011\u0011",
+          "ok": true,
+          "error": null,
+          "latency_ms": 784.721851348877
+        },
+        {
+          "language": "Arabic",
+          "prompt": "السلام عليكم",
+          "completion": "������������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 893.5017585754395
+        },
+        {
+          "language": "Japanese mixed",
+          "prompt": "Hello 世界 🌍",
+          "completion": "\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012\u0012",
+          "ok": true,
+          "error": null,
+          "latency_ms": 764.4827365875244
+        },
+        {
+          "language": "Code",
+          "prompt": "def fibonacci(n):",
+          "completion": "cccccccccccccccccccccccc",
+          "ok": true,
+          "error": null,
+          "latency_ms": 763.1800174713135
+        },
+        {
+          "language": "Emoji",
+          "prompt": "🎉🎊🎈",
+          "completion": "������������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 654.2789936065674
+        },
+        {
+          "language": "Math",
+          "prompt": "f(x) = x**2 + 2x + 1",
+          "completion": "                        ",
+          "ok": true,
+          "error": null,
+          "latency_ms": 828.521728515625
+        },
+        {
+          "language": "Mixed script",
+          "prompt": "café résumé naïve",
+          "completion": "������������������������",
+          "ok": true,
+          "error": null,
+          "latency_ms": 851.6197204589844
+        }
+      ]
+    }
+  ]
+}

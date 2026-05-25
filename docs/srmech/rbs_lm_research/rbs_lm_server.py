@@ -55,6 +55,7 @@ sys.path.insert(0, str(HERE))
 DEFAULT_INSTRUMENT = "docs/srmech/rbs_lm_research/rbs_lm_instrument_v18.bin"
 INSTRUMENT_PATH = os.environ.get("RBS_LM_INSTRUMENT", DEFAULT_INSTRUMENT)
 MODEL_ID = os.environ.get("RBS_LM_MODEL_ID", "rbs-lm-v18-path-c")
+BYTE_MODE = os.environ.get("RBS_LM_BYTE_MODE", "0") == "1"
 
 
 _bot = None
@@ -62,13 +63,23 @@ _load_t = None
 
 
 def _get_bot():
-    """Lazy-load the chatbot on first request. Idempotent."""
+    """Lazy-load the chatbot on first request. Idempotent.
+
+    BYTE_MODE selects RBSChatbotBytes (R-RBS-LM-25; UTF-8 tokenization;
+    256-byte vocab; no GPT-2 dependency) vs RBSChatbot (R-RBS-LM-17 Path C;
+    GPT-2 BPE; WTE projected vocab). The OpenAI-API surface is identical
+    either way.
+    """
     global _bot, _load_t
     if _bot is None:
-        from rbs_lm_chatbot import RBSChatbot
         t0 = time.time()
-        _bot = RBSChatbot.load(instrument_path=INSTRUMENT_PATH, use_path_c=True,
-                               verbose=False)
+        if BYTE_MODE:
+            from rbs_lm_chatbot import RBSChatbotBytes
+            _bot = RBSChatbotBytes.load(instrument_path=INSTRUMENT_PATH, verbose=False)
+        else:
+            from rbs_lm_chatbot import RBSChatbot
+            _bot = RBSChatbot.load(instrument_path=INSTRUMENT_PATH, use_path_c=True,
+                                   verbose=False)
         _load_t = time.time() - t0
     return _bot
 
@@ -138,13 +149,20 @@ def health():
         "instrument_loaded": _bot is not None,
         "load_time_seconds": _load_t,
         "model_id": MODEL_ID,
+        "tokenization": "utf-8 bytes (V=256; no BPE)" if BYTE_MODE else "GPT-2 BPE (V=50,257)",
+        "byte_mode": BYTE_MODE,
         "framework_reading": (
-            "This server exposes a transducer (Path C RBS-LM inference cascade) "
+            "This server exposes a transducer (RBS-LM inference cascade) "
             "as an OpenAI-API endpoint. Per [[user_stance_ai_is_not_a_substrate]]: "
             "this is a puppet playing the roll. Orchestration logic lives in "
-            "the calling code. Output reflects the 491-obs Path C encoding "
-            "corpus with ~3.3% token-level agreement on hallucination corpus "
-            "(per R-RBS-LM-18)."
+            "the calling code. The 3.3%-style token-agreement ceiling "
+            "characterized in R-RBS-LM-18 is structural — driven by the "
+            "continuous rotation that multi-head attention performs and the "
+            "discrete bind/bundle cascade cannot replicate (R-RBS-LM-19 "
+            "falsification)."
+            + (" Byte-level mode (R-RBS-LM-25 Path D) strips BPE tokenization "
+               "from any source model — language-agnostic; zero GPT-2 "
+               "dependency at serve time." if BYTE_MODE else "")
         ),
         "hardware": "2009 Xeon E5530; ~180 ms/tok at D=8192",
     }
