@@ -1,0 +1,604 @@
+{
+  "partition": "R-RBS-LM-24",
+  "instrument_path": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v18.bin",
+  "windows": [
+    8,
+    16,
+    32,
+    48,
+    64
+  ],
+  "max_new_tokens": 15,
+  "results": [
+    {
+      "prompt": "The morning sun cast long shadows across the cobblestones as the old town began to stir",
+      "baseline_window_64": {
+        "completion": " the way the the the the the the the the the the the the the",
+        "tokens": [
+          262,
+          835,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262,
+          262
+        ],
+        "latency_ms": 2602.1335124969482
+      },
+      "by_window": {
+        "8": {
+          "completion": " The.,.,,,.,.,.,,,",
+          "tokens": [
+            383,
+            13,
+            11,
+            13,
+            11,
+            11,
+            11,
+            13,
+            11,
+            13,
+            11,
+            13,
+            11,
+            11,
+            11
+          ],
+          "agreement_vs_baseline": 0,
+          "first_divergence_step": 0,
+          "latency_ms": 2379.648447036743
+        },
+        "16": {
+          "completion": " the the the the the the the the the the the the the the the",
+          "tokens": [
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 14,
+          "first_divergence_step": 1,
+          "latency_ms": 2488.180637359619
+        },
+        "32": {
+          "completion": " the way the the the the the the the the the the the the the",
+          "tokens": [
+            262,
+            835,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2604.2909622192383
+        },
+        "48": {
+          "completion": " the way the the the the the the the the the the the the the",
+          "tokens": [
+            262,
+            835,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2608.8452339172363
+        }
+      }
+    },
+    {
+      "prompt": "Charles Babbage designed the Analytical Engine in the 1830s, conceiving of a machine",
+      "baseline_window_64": {
+        "completion": " that what that what that that that that that that that that that that that",
+        "tokens": [
+          326,
+          644,
+          326,
+          644,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326,
+          326
+        ],
+        "latency_ms": 2604.2845249176025
+      },
+      "by_window": {
+        "8": {
+          "completion": ",\n, is a, the a, the the the the the the",
+          "tokens": [
+            11,
+            198,
+            11,
+            318,
+            257,
+            11,
+            262,
+            257,
+            11,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 0,
+          "first_divergence_step": 0,
+          "latency_ms": 2378.108501434326
+        },
+        "16": {
+          "completion": " the the the the the the the the the the the the the the the",
+          "tokens": [
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 0,
+          "first_divergence_step": 0,
+          "latency_ms": 2685.077905654907
+        },
+        "32": {
+          "completion": " that what that what that that that that that that that that that that that",
+          "tokens": [
+            326,
+            644,
+            326,
+            644,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2627.424478530884
+        },
+        "48": {
+          "completion": " that what that what that that that that that that that that that that that",
+          "tokens": [
+            326,
+            644,
+            326,
+            644,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326,
+            326
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2628.243923187256
+        }
+      }
+    },
+    {
+      "prompt": "Photosynthesis converts light energy into chemical energy stored in glucose molecules",
+      "baseline_window_64": {
+        "completion": " is energy a a a a a a a a a a a a a",
+        "tokens": [
+          318,
+          2568,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257,
+          257
+        ],
+        "latency_ms": 2547.0948219299316
+      },
+      "by_window": {
+        "8": {
+          "completion": " to of of to that of to of of to of of to of of",
+          "tokens": [
+            284,
+            286,
+            286,
+            284,
+            326,
+            286,
+            284,
+            286,
+            286,
+            284,
+            286,
+            286,
+            284,
+            286,
+            286
+          ],
+          "agreement_vs_baseline": 0,
+          "first_divergence_step": 0,
+          "latency_ms": 2404.8423767089844
+        },
+        "16": {
+          "completion": " is energy a a a a a a a a a a a a a",
+          "tokens": [
+            318,
+            2568,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2498.5175132751465
+        },
+        "32": {
+          "completion": " is energy a a a a a a a a a a a a a",
+          "tokens": [
+            318,
+            2568,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2545.6466674804688
+        },
+        "48": {
+          "completion": " is energy a a a a a a a a a a a a a",
+          "tokens": [
+            318,
+            2568,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257,
+            257
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2546.536445617676
+        }
+      }
+    },
+    {
+      "prompt": "Algorithms for sorting have been studied for decades. Quicksort achieves average-case",
+      "baseline_window_64": {
+        "completion": ". for.............",
+        "tokens": [
+          13,
+          329,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13,
+          13
+        ],
+        "latency_ms": 2723.8903045654297
+      },
+      "by_window": {
+        "8": {
+          "completion": ".\n-\n-\n\n\n\n\n\n\n\n\n\n",
+          "tokens": [
+            13,
+            198,
+            12,
+            198,
+            12,
+            198,
+            198,
+            198,
+            198,
+            198,
+            198,
+            198,
+            198,
+            198,
+            198
+          ],
+          "agreement_vs_baseline": 1,
+          "first_divergence_step": 1,
+          "latency_ms": 2377.8624534606934
+        },
+        "16": {
+          "completion": ". that.............",
+          "tokens": [
+            13,
+            326,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ],
+          "agreement_vs_baseline": 14,
+          "first_divergence_step": 1,
+          "latency_ms": 2493.489980697632
+        },
+        "32": {
+          "completion": ". for.............",
+          "tokens": [
+            13,
+            329,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2611.710786819458
+        },
+        "48": {
+          "completion": ". for.............",
+          "tokens": [
+            13,
+            329,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13,
+            13
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2705.3382396698
+        }
+      }
+    },
+    {
+      "prompt": "Database transactions enforce four properties known as ACID: atomicity, consistency",
+      "baseline_window_64": {
+        "completion": ", Log,,,,,,,,,,,,,",
+        "tokens": [
+          11,
+          5972,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11
+        ],
+        "latency_ms": 2564.845561981201
+      },
+      "by_window": {
+        "8": {
+          "completion": " theWe the, the the the the the the the the the the the",
+          "tokens": [
+            262,
+            1135,
+            262,
+            11,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262,
+            262
+          ],
+          "agreement_vs_baseline": 1,
+          "first_divergence_step": 0,
+          "latency_ms": 2389.0609741210938
+        },
+        "16": {
+          "completion": ", Log,The,,,,,,,,,,,",
+          "tokens": [
+            11,
+            5972,
+            11,
+            464,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11
+          ],
+          "agreement_vs_baseline": 14,
+          "first_divergence_step": 3,
+          "latency_ms": 2500.481605529785
+        },
+        "32": {
+          "completion": ", Log,,,,,,,,,,,,,",
+          "tokens": [
+            11,
+            5972,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2743.6118125915527
+        },
+        "48": {
+          "completion": ", Log,,,,,,,,,,,,,",
+          "tokens": [
+            11,
+            5972,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11,
+            11
+          ],
+          "agreement_vs_baseline": 15,
+          "first_divergence_step": 15,
+          "latency_ms": 2561.3298416137695
+        }
+      }
+    }
+  ]
+}

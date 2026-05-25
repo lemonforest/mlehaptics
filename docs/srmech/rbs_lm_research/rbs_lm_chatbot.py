@@ -1,25 +1,24 @@
-"""R-RBS-LM-23 — Scriptable chatbot wrapper around the RBS-LM inference cascade.
+"""R-RBS-LM-23 — Scriptable wrapper around the RBS-LM inference cascade.
 
-A small `RBSChatbot` class exposing the Path C inference cascade in a
-form suitable for either interactive use or scripted automation.
+Trimmed to class-only in R-RBS-LM-24: the REPL + scripted demo + custom CLI
+were retired when the OpenAI-API-compatible server (`rbs_lm_server.py`)
+became the canonical user-facing interface. CopilotKit / AG2 / LangChain /
+LlamaIndex / Continue / Cursor / Open WebUI / LiteLLM / DSPy / Pydantic AI
+all speak the OpenAI-API as the lingua franca; we stop maintaining our own
+presentation layer and serve via the standard the ecosystem already uses.
 
 Per `[[user_stance_ai_is_not_a_substrate]]`: this is a transducer of stored
-content — a puppet playing the roll. The chatbot does not "think"; it does
-context-bounded next-token-argmin over a vocab table. The output may
-sound conversational at times (per Path C's 3.3% agreement signal) but
-the framework reading IS unchanged.
-
-Interactive usage:
-    python3 docs/srmech/rbs_lm_research/rbs_lm_chatbot.py
+content — a puppet playing the roll. The class encapsulates the Path C
+cascade as a callable; the orchestration layer (multi-agent loops, RAG,
+tool-call routing) lives in the upstream code, NOT in this local expert.
 
 Scripted usage:
     from rbs_lm_chatbot import RBSChatbot
     bot = RBSChatbot.load(instrument_path="...", use_path_c=True)
     reply = bot.respond("Hello there", max_new_tokens=20)
-    print(reply)
 
 When the work absorbs into srmech (R-RBS-LM-12 §6), this becomes
-`srmech.rbs_lm.chatbot.RBSChatbot` or similar; the load path becomes
+`srmech.rbs_lm.chatbot.RBSChatbot`; the load path becomes
 `RBSChatbot.from_catalog("rbs_lm_gpt2_small")`.
 """
 
@@ -41,7 +40,7 @@ class RBSChatbot:
       - HuggingFace tokenizer (for prompt encoding + completion decoding)
 
     Latency on the 2009 Xeon E5530: ~180 ms/token at D=8192. Per
-    R-RBS-LM-19 falsification, attention variant slows by ~16× without
+    R-RBS-LM-19 falsification, attention variant slows by ~16x without
     accuracy gain; bundle-form is the default.
     """
 
@@ -79,9 +78,7 @@ class RBSChatbot:
         if verbose:
             print(f"  vocab table ready ({'Path C' if use_path_c else 'Path B'})")
 
-        # Don't hold onto the model — only need tokenizer + vocab table for inference
         del model
-
         return cls(instrument, vocab_table, tokenizer, use_path_c)
 
     def respond(self, prompt, max_new_tokens=20):
@@ -90,11 +87,16 @@ class RBSChatbot:
         new_tokens, _ = self._generate(prompt_ids, max_new_tokens)
         return self.tokenizer.decode(new_tokens)
 
-    def respond_with_metadata(self, prompt, max_new_tokens=20):
-        """Generate a response and return metadata: completion text, latencies, token IDs."""
+    def respond_with_metadata(self, prompt, max_new_tokens=20, context_truncation=None):
+        """Generate a response and return metadata: completion text, latencies, token IDs.
+
+        If context_truncation is not None, override the encoder's CONTEXT_WINDOW
+        with the given value (used by the R-RBS-LM-24 truncation experiment).
+        """
         prompt_ids = self.tokenizer.encode(prompt)
         t0 = time.time()
-        new_tokens, latencies = self._generate(prompt_ids, max_new_tokens)
+        new_tokens, latencies = self._generate(prompt_ids, max_new_tokens,
+                                                context_truncation=context_truncation)
         total_elapsed = time.time() - t0
         return {
             "prompt": prompt,
@@ -105,10 +107,12 @@ class RBSChatbot:
             "total_ms": total_elapsed * 1000,
         }
 
-    def _generate(self, prompt_ids, max_new_tokens):
+    def _generate(self, prompt_ids, max_new_tokens, context_truncation=None):
         """Internal generation loop. Returns (new_tokens, per_token_latencies_ms)."""
         from rbs_lm_encoder import CONTEXT_WINDOW, D, bind
         from rbs_lm_inference import vectorised_cleanup
+
+        window = context_truncation if context_truncation is not None else CONTEXT_WINDOW
 
         if self.use_path_c:
             from rbs_lm_path_c import encode_context_path_c
@@ -125,7 +129,7 @@ class RBSChatbot:
         latencies = []
         for _ in range(max_new_tokens):
             t0 = time.time()
-            ctx = tokens[-CONTEXT_WINDOW:] if len(tokens) > CONTEXT_WINDOW else tokens
+            ctx = tokens[-window:] if len(tokens) > window else tokens
             ctx_vec = encode_ctx(ctx)
             cand = bind(self.instrument, ctx_vec)
             res = vectorised_cleanup(cand, self.vocab_table, D, top_k=1)
@@ -137,77 +141,3 @@ class RBSChatbot:
         """Run a fixed prompt list and return each response with metadata. Stateless;
         each prompt is independent (no conversation memory)."""
         return [self.respond_with_metadata(p) for p in prompts]
-
-
-def _interactive_loop(bot, max_new_tokens=20):
-    """Simple interactive REPL."""
-    print(f"\n=== RBS-LM chatbot (R-RBS-LM-23 demo) ===")
-    print(f"Path C inference; per-token latency ~180 ms on this hardware.")
-    print(f"Type a prompt; Ctrl+D or empty line + Ctrl+D to exit.\n")
-    print(f"Reminder: this is a transducer (puppet playing a roll), not an")
-    print(f"emergent system. Output reflects the 491-obs encoding corpus.")
-    print(f"Per R-RBS-LM-18: ~3.3% token-level agreement on hallucination corpus.\n")
-    while True:
-        try:
-            prompt = input(">>> ")
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
-        if not prompt.strip():
-            continue
-        result = bot.respond_with_metadata(prompt, max_new_tokens=max_new_tokens)
-        print(f"    completion: {result['completion']!r}")
-        print(f"    latency: {result['total_ms']:.0f} ms "
-              f"({result['total_ms']/max_new_tokens:.0f} ms/tok)\n")
-
-
-def _scripted_demo(bot):
-    """Hardcoded demo prompts; pretty-prints responses + timings.
-    Used as the smoke test when the script is run with `--demo`."""
-    demo_prompts = [
-        "The morning sun",
-        "Algorithms for sorting",
-        "Once upon a time",
-    ]
-    print(f"\n=== Scripted demo — 3 prompts × 15 tokens ===\n")
-    for prompt in demo_prompts:
-        result = bot.respond_with_metadata(prompt, max_new_tokens=15)
-        print(f"  prompt:     '{prompt}'")
-        print(f"  completion: '{result['completion']}'")
-        print(f"  latency:    {result['total_ms']:.0f} ms total "
-              f"({result['total_ms']/15:.0f} ms/tok)\n")
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="RBS-LM chatbot demo (R-RBS-LM-23)")
-    parser.add_argument(
-        "--instrument",
-        default="docs/srmech/rbs_lm_research/rbs_lm_instrument_v18.bin",
-        help="Instrument path (default: R-RBS-LM-18 Path C 491-obs)",
-    )
-    parser.add_argument(
-        "--demo", action="store_true",
-        help="Run scripted demo with hardcoded prompts (smoke test)",
-    )
-    parser.add_argument("--max-new", type=int, default=20)
-    parser.add_argument("--no-path-c", action="store_true",
-                        help="Use Path B (srmech-native vocab) instead of Path C")
-    args = parser.parse_args()
-
-    print(f"Loading chatbot...")
-    bot = RBSChatbot.load(
-        instrument_path=args.instrument,
-        use_path_c=not args.no_path_c,
-        verbose=True,
-    )
-    print(f"Loaded.")
-
-    if args.demo:
-        _scripted_demo(bot)
-    else:
-        _interactive_loop(bot, max_new_tokens=args.max_new)
-
-
-if __name__ == "__main__":
-    main()
