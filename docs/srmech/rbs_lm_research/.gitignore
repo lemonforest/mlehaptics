@@ -10,3 +10,7 @@ vocab_table.npy
 # compute_from_source adapter and ships PROCEDURE not bytes.
 # Small .npy files holding Plate-HRR instruments (~3 KB; e.g.,
 # rbs_lm_instrument_v21_hrr.npy) are also committed by intent.
+
+# R-RBS-LM-29 distill_cron.sh log directory — transient per-run logs
+# and PID tracking; do NOT commit
+log/
