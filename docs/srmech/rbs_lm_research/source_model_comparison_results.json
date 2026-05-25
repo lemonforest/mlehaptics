@@ -34,7 +34,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 874.3085861206055
+      "latency_ms": 842.487096786499
     },
     {
       "prompt": "Once upon a time",
@@ -70,7 +70,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 735.6729507446289
+      "latency_ms": 737.546443939209
     },
     {
       "prompt": "Algorithms for sorting",
@@ -106,7 +106,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 870.4128265380859
+      "latency_ms": 871.0720539093018
     },
     {
       "prompt": "The President of the United States",
@@ -142,7 +142,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1129.4374465942383
+      "latency_ms": 1132.0528984069824
     },
     {
       "prompt": "Photosynthesis converts light",
@@ -178,7 +178,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1017.9874897003174
+      "latency_ms": 1020.0047492980957
     },
     {
       "prompt": "I beat the eggs",
@@ -214,7 +214,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 714.7388458251953
+      "latency_ms": 715.6131267547607
     },
     {
       "prompt": "Hello, world!",
@@ -250,7 +250,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 672.8193759918213
+      "latency_ms": 672.5244522094727
     },
     {
       "prompt": "What is the topic?",
@@ -286,7 +286,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 780.0323963165283
+      "latency_ms": 780.7037830352783
     }
   ],
   "v29 TinyLlama (1.1B fp32; ~3.5k bytes)": [
@@ -324,7 +324,7 @@
         "max_run": 21,
         "entropy_bits": 0.414
       },
-      "latency_ms": 715.2328491210938
+      "latency_ms": 715.6662940979004
     },
     {
       "prompt": "Once upon a time",
@@ -360,7 +360,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 736.534595489502
+      "latency_ms": 737.3480796813965
     },
     {
       "prompt": "Algorithms for sorting",
@@ -396,7 +396,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 867.1629428863525
+      "latency_ms": 869.0130710601807
     },
     {
       "prompt": "The President of the United States",
@@ -432,7 +432,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1403.9297103881836
+      "latency_ms": 1128.3645629882812
     },
     {
       "prompt": "Photosynthesis converts light",
@@ -468,7 +468,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1286.120891571045
+      "latency_ms": 1019.5269584655762
     },
     {
       "prompt": "I beat the eggs",
@@ -504,7 +504,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 716.2468433380127
+      "latency_ms": 715.0452136993408
     },
     {
       "prompt": "Hello, world!",
@@ -540,7 +540,7 @@
         "max_run": 23,
         "entropy_bits": 0.25
       },
-      "latency_ms": 674.8747825622559
+      "latency_ms": 672.1467971801758
     },
     {
       "prompt": "What is the topic?",
@@ -576,7 +576,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 785.9988212585449
+      "latency_ms": 780.1108360290527
     }
   ],
   "v31 Llama-3.2-1B-Instruct Q4 GGUF (~3.6k bytes)": [
@@ -614,7 +614,7 @@
         "max_run": 23,
         "entropy_bits": 0.25
       },
-      "latency_ms": 717.6036834716797
+      "latency_ms": 717.3149585723877
     },
     {
       "prompt": "Once upon a time",
@@ -650,7 +650,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 739.7513389587402
+      "latency_ms": 741.5602207183838
     },
     {
       "prompt": "Algorithms for sorting",
@@ -686,7 +686,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1155.9603214263916
+      "latency_ms": 870.4266548156738
     },
     {
       "prompt": "The President of the United States",
@@ -722,7 +722,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1249.4494915008545
+      "latency_ms": 1131.2901973724365
     },
     {
       "prompt": "Photosynthesis converts light",
@@ -758,7 +758,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 1019.5233821868896
+      "latency_ms": 1022.1436023712158
     },
     {
       "prompt": "I beat the eggs",
@@ -794,7 +794,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 718.1940078735352
+      "latency_ms": 716.5548801422119
     },
     {
       "prompt": "Hello, world!",
@@ -830,7 +830,7 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 880.0044059753418
+      "latency_ms": 674.224853515625
     },
     {
       "prompt": "What is the topic?",
@@ -866,7 +866,297 @@
         "max_run": 24,
         "entropy_bits": -0.0
       },
-      "latency_ms": 782.1526527404785
+      "latency_ms": 781.8043231964111
+    }
+  ],
+  "v35 Llama-3.1-8B-Instruct Q4 GGUF (~10k bytes)": [
+    {
+      "prompt": "The morning sun",
+      "completion": "nnnnnnnnnnnnnnnnnnnnnnnn",
+      "byte_ids": [
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 717.8919315338135
+    },
+    {
+      "prompt": "Once upon a time",
+      "completion": " eeeeeeeeeeeeeeeeeeeeeee",
+      "byte_ids": [
+        32,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "stats": {
+        "n_unique": 2,
+        "max_run": 23,
+        "entropy_bits": 0.25
+      },
+      "latency_ms": 740.4873371124268
+    },
+    {
+      "prompt": "Algorithms for sorting",
+      "completion": "                        ",
+      "byte_ids": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 870.8038330078125
+    },
+    {
+      "prompt": "The President of the United States",
+      "completion": "                        ",
+      "byte_ids": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 1131.3116550445557
+    },
+    {
+      "prompt": "Photosynthesis converts light",
+      "completion": "                        ",
+      "byte_ids": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 1021.3463306427002
+    },
+    {
+      "prompt": "I beat the eggs",
+      "completion": "eeeeeeeeeeeeeeeeeeeeeeee",
+      "byte_ids": [
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101,
+        101
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 719.5842266082764
+    },
+    {
+      "prompt": "Hello, world!",
+      "completion": "�                       ",
+      "byte_ids": [
+        140,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stats": {
+        "n_unique": 2,
+        "max_run": 23,
+        "entropy_bits": 0.25
+      },
+      "latency_ms": 675.4007339477539
+    },
+    {
+      "prompt": "What is the topic?",
+      "completion": "                        ",
+      "byte_ids": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stats": {
+        "n_unique": 1,
+        "max_run": 24,
+        "entropy_bits": -0.0
+      },
+      "latency_ms": 781.9602489471436
     }
   ]
 }
