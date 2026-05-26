@@ -1,0 +1,308 @@
+{
+  "partition": "R-RBS-LM-81",
+  "stem_binding": [
+    "math_elem_alg",
+    "math_inter_alg",
+    "sci_astronomy",
+    "sci_starland",
+    "sci_health"
+  ],
+  "steam_binding": [
+    "math_elem_alg",
+    "math_inter_alg",
+    "sci_astronomy",
+    "sci_starland",
+    "sci_health",
+    "art_music",
+    "art_perspective",
+    "art_drawing"
+  ],
+  "refuse_threshold": 0.045,
+  "probes": [
+    {
+      "probe": "P2 music-only",
+      "text": "what is the difference between a major chord and a minor chord in music theory",
+      "stem": {
+        "top_key": "sci_starland",
+        "top_score": 0.09643959372630745,
+        "refused": false,
+        "all_scores": [
+          [
+            "sci_starland",
+            0.09643959372630745
+          ],
+          [
+            "math_inter_alg",
+            0.08679563435367671
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.07715167498104596
+          ],
+          [
+            "sci_health",
+            0.07715167498104596
+          ]
+        ]
+      },
+      "steam": {
+        "top_key": "art_music",
+        "top_score": 0.32789461866944525,
+        "refused": false,
+        "all_scores": [
+          [
+            "art_music",
+            0.32789461866944525
+          ],
+          [
+            "sci_starland",
+            0.09643959372630745
+          ],
+          [
+            "math_inter_alg",
+            0.08679563435367671
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.07715167498104596
+          ],
+          [
+            "sci_health",
+            0.07715167498104596
+          ],
+          [
+            "art_perspective",
+            0.07715167498104596
+          ],
+          [
+            "art_drawing",
+            0.0
+          ]
+        ]
+      },
+      "differs": true
+    },
+    {
+      "probe": "P3 science-only",
+      "text": "explain how gravity works on the moon and why astronauts float",
+      "stem": {
+        "top_key": "sci_health",
+        "top_score": 0.1543033499620919,
+        "refused": false,
+        "all_scores": [
+          [
+            "sci_health",
+            0.1543033499620919
+          ],
+          [
+            "sci_starland",
+            0.09643959372630745
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "math_inter_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.07715167498104596
+          ]
+        ]
+      },
+      "steam": {
+        "top_key": "sci_health",
+        "top_score": 0.1543033499620919,
+        "refused": false,
+        "all_scores": [
+          [
+            "sci_health",
+            0.1543033499620919
+          ],
+          [
+            "sci_starland",
+            0.09643959372630745
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "math_inter_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.07715167498104596
+          ],
+          [
+            "art_perspective",
+            0.07715167498104596
+          ],
+          [
+            "art_drawing",
+            0.07715167498104596
+          ],
+          [
+            "art_music",
+            0.0
+          ]
+        ]
+      },
+      "differs": false
+    },
+    {
+      "probe": "P4 art-only",
+      "text": "how do parallel lines converge at a vanishing point in perspective drawing",
+      "stem": {
+        "top_key": "sci_starland",
+        "top_score": 0.14547859349066158,
+        "refused": false,
+        "all_scores": [
+          [
+            "sci_starland",
+            0.14547859349066158
+          ],
+          [
+            "sci_health",
+            0.14547859349066158
+          ],
+          [
+            "math_elem_alg",
+            0.09698572899377439
+          ],
+          [
+            "math_inter_alg",
+            0.09698572899377439
+          ],
+          [
+            "sci_astronomy",
+            0.07273929674533079
+          ]
+        ]
+      },
+      "steam": {
+        "top_key": "art_perspective",
+        "top_score": 0.33945005147821034,
+        "refused": false,
+        "all_scores": [
+          [
+            "art_perspective",
+            0.33945005147821034
+          ],
+          [
+            "sci_starland",
+            0.14547859349066158
+          ],
+          [
+            "sci_health",
+            0.14547859349066158
+          ],
+          [
+            "art_music",
+            0.14547859349066158
+          ],
+          [
+            "math_elem_alg",
+            0.09698572899377439
+          ],
+          [
+            "math_inter_alg",
+            0.09698572899377439
+          ],
+          [
+            "sci_astronomy",
+            0.07273929674533079
+          ],
+          [
+            "art_drawing",
+            0.07273929674533079
+          ]
+        ]
+      },
+      "differs": true
+    },
+    {
+      "probe": "P5 math+music",
+      "text": "explain the mathematical ratio behind a perfect fifth musical interval",
+      "stem": {
+        "top_key": "math_inter_alg",
+        "top_score": 0.08679563435367671,
+        "refused": false,
+        "all_scores": [
+          [
+            "math_inter_alg",
+            0.08679563435367671
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.0
+          ],
+          [
+            "sci_starland",
+            0.0
+          ],
+          [
+            "sci_health",
+            0.0
+          ]
+        ]
+      },
+      "steam": {
+        "top_key": "art_music",
+        "top_score": 0.18323522807998416,
+        "refused": false,
+        "all_scores": [
+          [
+            "art_music",
+            0.18323522807998416
+          ],
+          [
+            "math_inter_alg",
+            0.08679563435367671
+          ],
+          [
+            "math_elem_alg",
+            0.07715167498104596
+          ],
+          [
+            "sci_astronomy",
+            0.0
+          ],
+          [
+            "sci_starland",
+            0.0
+          ],
+          [
+            "sci_health",
+            0.0
+          ],
+          [
+            "art_perspective",
+            0.0
+          ],
+          [
+            "art_drawing",
+            0.0
+          ]
+        ]
+      },
+      "differs": true
+    }
+  ],
+  "n_probes_differ": 3
+}
