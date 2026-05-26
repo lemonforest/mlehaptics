@@ -1,0 +1,139 @@
+{
+  "v44": {
+    "label": "v44 turtle-walk (51 pairs)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v44_turtle_walk.bin",
+    "baseline_mean": 0.1092,
+    "baseline_std": 0.1734,
+    "n_probes": 10,
+    "avg_top1_sim": 0.020751953125,
+    "rank_results": [
+      1,
+      3,
+      18,
+      14,
+      18,
+      12,
+      12,
+      27,
+      1,
+      1
+    ],
+    "n_corpus": 36,
+    "top_k_stats": [
+      {
+        "top1_sim": 0.0474,
+        "top1_minus_top10_spread": 0.0249,
+        "common_byte_frac": 0.25
+      },
+      {
+        "top1_sim": 0.0464,
+        "top1_minus_top10_spread": 0.0251,
+        "common_byte_frac": 0.4
+      },
+      {
+        "top1_sim": 0.0349,
+        "top1_minus_top10_spread": 0.0161,
+        "common_byte_frac": 0.25
+      }
+    ]
+  },
+  "v25b": {
+    "label": "v25b GPT-2 byte (647 obs from 10k bytes)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v25b_distill_gpt2.bin",
+    "baseline_mean": 0.0533,
+    "baseline_std": 0.0667,
+    "n_probes": 5,
+    "avg_top1_sim": 0.022705078125,
+    "rank_results": [
+      24,
+      -1,
+      -1,
+      8,
+      16
+    ],
+    "n_corpus": 26,
+    "top_k_stats": [
+      {
+        "top1_sim": 0.0569,
+        "top1_minus_top10_spread": 0.0352,
+        "common_byte_frac": 0.45
+      },
+      {
+        "top1_sim": 0.0549,
+        "top1_minus_top10_spread": 0.0288,
+        "common_byte_frac": 0.45
+      },
+      {
+        "top1_sim": 0.0732,
+        "top1_minus_top10_spread": 0.0522,
+        "common_byte_frac": 0.45
+      }
+    ]
+  },
+  "v35": {
+    "label": "v35 Llama-3.1-8B Q4 (1317 obs from 10k bytes)",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v31_gguf_llama31-8b-q4.bin",
+    "baseline_mean": 0.0518,
+    "baseline_std": 0.0223,
+    "n_probes": 5,
+    "avg_top1_sim": 0.0326171875,
+    "rank_results": [
+      17,
+      10,
+      -1,
+      1,
+      1
+    ],
+    "n_corpus": 50,
+    "top_k_stats": [
+      {
+        "top1_sim": 0.0715,
+        "top1_minus_top10_spread": 0.0474,
+        "common_byte_frac": 0.45
+      },
+      {
+        "top1_sim": 0.0674,
+        "top1_minus_top10_spread": 0.0466,
+        "common_byte_frac": 0.5
+      },
+      {
+        "top1_sim": 0.0544,
+        "top1_minus_top10_spread": 0.0286,
+        "common_byte_frac": 0.4
+      }
+    ]
+  },
+  "v33": {
+    "label": "v33 3-source merged",
+    "instrument": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v33_merged_3source.bin",
+    "baseline_mean": 0.0438,
+    "baseline_std": 0.0277,
+    "n_probes": 5,
+    "avg_top1_sim": 0.0291015625,
+    "rank_results": [
+      -1,
+      -1,
+      10,
+      -1,
+      6
+    ],
+    "n_corpus": 50,
+    "top_k_stats": [
+      {
+        "top1_sim": 0.0632,
+        "top1_minus_top10_spread": 0.0405,
+        "common_byte_frac": 0.55
+      },
+      {
+        "top1_sim": 0.0396,
+        "top1_minus_top10_spread": 0.0173,
+        "common_byte_frac": 0.5
+      },
+      {
+        "top1_sim": 0.0515,
+        "top1_minus_top10_spread": 0.0273,
+        "common_byte_frac": 0.55
+      }
+    ]
+  }
+}
