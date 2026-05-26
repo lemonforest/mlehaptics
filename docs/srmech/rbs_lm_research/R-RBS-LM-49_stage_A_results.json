@@ -1,0 +1,301 @@
+{
+  "stage": "A",
+  "baseline": "depth-3 pure-fp16+ uniform merge",
+  "n_corpus": 80,
+  "n_probes": 30,
+  "budgets": [
+    1.0,
+    0.75,
+    0.5,
+    0.25
+  ],
+  "methods": [
+    "A_crude",
+    "B_fft_bandpass",
+    "C_weak_coupling"
+  ],
+  "thresholds": {
+    "signal_p_010": 7.78,
+    "strong_p_001": 13.28
+  },
+  "results": {
+    "A_b100": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 4,
+      "rank_1_rate": 0.13333333333333333,
+      "top_quartile_count": 18,
+      "top_quartile_rate": 0.6,
+      "top_decile_count": 15,
+      "top_decile_rate": 0.5,
+      "mean_rank_percentile": 26.3,
+      "chi2_5bins": 32.55,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        18,
+        2,
+        4,
+        2,
+        3
+      ],
+      "method": "A_crude",
+      "target_budget": 1.0,
+      "actual_mutation_rate": 0.0
+    },
+    "A_b75": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 1,
+      "rank_1_rate": 0.03333333333333333,
+      "top_quartile_count": 8,
+      "top_quartile_rate": 0.26666666666666666,
+      "top_decile_count": 5,
+      "top_decile_rate": 0.16666666666666666,
+      "mean_rank_percentile": 42.4,
+      "chi2_5bins": 2.21,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        8,
+        6,
+        7,
+        4,
+        4
+      ],
+      "method": "A_crude",
+      "target_budget": 0.75,
+      "actual_mutation_rate": 0.25
+    },
+    "A_b50": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 8,
+      "top_quartile_rate": 0.26666666666666666,
+      "top_decile_count": 3,
+      "top_decile_rate": 0.1,
+      "mean_rank_percentile": 44.2,
+      "chi2_5bins": 2.55,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        7,
+        6,
+        8,
+        5,
+        3
+      ],
+      "method": "A_crude",
+      "target_budget": 0.5,
+      "actual_mutation_rate": 0.5
+    },
+    "A_b25": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 4,
+      "top_quartile_rate": 0.13333333333333333,
+      "top_decile_count": 1,
+      "top_decile_rate": 0.03333333333333333,
+      "mean_rank_percentile": 60.8,
+      "chi2_5bins": 6.69,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        3,
+        4,
+        6,
+        5,
+        11
+      ],
+      "method": "A_crude",
+      "target_budget": 0.25,
+      "actual_mutation_rate": 0.75
+    },
+    "B_b100": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 4,
+      "rank_1_rate": 0.13333333333333333,
+      "top_quartile_count": 18,
+      "top_quartile_rate": 0.6,
+      "top_decile_count": 15,
+      "top_decile_rate": 0.5,
+      "mean_rank_percentile": 26.3,
+      "chi2_5bins": 32.55,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        18,
+        2,
+        4,
+        2,
+        3
+      ],
+      "method": "B_fft_bandpass",
+      "target_budget": 1.0,
+      "actual_mutation_rate": 0.0
+    },
+    "B_b75": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 4,
+      "rank_1_rate": 0.13333333333333333,
+      "top_quartile_count": 18,
+      "top_quartile_rate": 0.6,
+      "top_decile_count": 15,
+      "top_decile_rate": 0.5,
+      "mean_rank_percentile": 26.3,
+      "chi2_5bins": 32.55,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        18,
+        2,
+        4,
+        2,
+        3
+      ],
+      "method": "B_fft_bandpass",
+      "target_budget": 0.75,
+      "actual_mutation_rate": 0.0
+    },
+    "B_b50": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 5,
+      "rank_1_rate": 0.16666666666666666,
+      "top_quartile_count": 19,
+      "top_quartile_rate": 0.6333333333333333,
+      "top_decile_count": 15,
+      "top_decile_rate": 0.5,
+      "mean_rank_percentile": 25.7,
+      "chi2_5bins": 32.55,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        18,
+        2,
+        2,
+        4,
+        3
+      ],
+      "method": "B_fft_bandpass",
+      "target_budget": 0.5,
+      "actual_mutation_rate": 0.0089
+    },
+    "B_b25": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 8,
+      "rank_1_rate": 0.26666666666666666,
+      "top_quartile_count": 15,
+      "top_quartile_rate": 0.5,
+      "top_decile_count": 14,
+      "top_decile_rate": 0.4666666666666667,
+      "mean_rank_percentile": 30.4,
+      "chi2_5bins": 18.76,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        15,
+        3,
+        3,
+        5,
+        3
+      ],
+      "method": "B_fft_bandpass",
+      "target_budget": 0.25,
+      "actual_mutation_rate": 0.1145
+    },
+    "C_b100": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 4,
+      "rank_1_rate": 0.13333333333333333,
+      "top_quartile_count": 18,
+      "top_quartile_rate": 0.6,
+      "top_decile_count": 15,
+      "top_decile_rate": 0.5,
+      "mean_rank_percentile": 26.3,
+      "chi2_5bins": 32.55,
+      "p_estimate": "<0.01",
+      "rank_bins": [
+        18,
+        2,
+        4,
+        2,
+        3
+      ],
+      "method": "C_weak_coupling",
+      "target_budget": 1.0,
+      "actual_mutation_rate": 0.0
+    },
+    "C_b75": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 9,
+      "top_quartile_rate": 0.3,
+      "top_decile_count": 4,
+      "top_decile_rate": 0.13333333333333333,
+      "mean_rank_percentile": 47.9,
+      "chi2_5bins": 3.93,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        6,
+        9,
+        3,
+        4,
+        7
+      ],
+      "method": "C_weak_coupling",
+      "target_budget": 0.75,
+      "actual_mutation_rate": 0.25
+    },
+    "C_b50": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 1,
+      "top_quartile_rate": 0.03333333333333333,
+      "top_decile_count": 0,
+      "top_decile_rate": 0.0,
+      "mean_rank_percentile": 55.9,
+      "chi2_5bins": 10.83,
+      "p_estimate": "<0.05",
+      "rank_bins": [
+        1,
+        11,
+        3,
+        6,
+        8
+      ],
+      "method": "C_weak_coupling",
+      "target_budget": 0.5,
+      "actual_mutation_rate": 0.5
+    },
+    "C_b25": {
+      "n_probes": 30,
+      "n_found": 29,
+      "rank_1_count": 0,
+      "rank_1_rate": 0.0,
+      "top_quartile_count": 3,
+      "top_quartile_rate": 0.1,
+      "top_decile_count": 2,
+      "top_decile_rate": 0.06666666666666667,
+      "mean_rank_percentile": 59.6,
+      "chi2_5bins": 6.34,
+      "p_estimate": ">0.10",
+      "rank_bins": [
+        3,
+        4,
+        4,
+        10,
+        8
+      ],
+      "method": "C_weak_coupling",
+      "target_budget": 0.25,
+      "actual_mutation_rate": 0.75
+    }
+  },
+  "verdict": "MIXED \u2014 partial; sub-matrices B-E recommended",
+  "proceed_to_BCDE": true
+}
