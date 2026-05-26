@@ -1897,6 +1897,20 @@ Round 33.A ([`round33_entry_A_two_k3_families_reconciliation.md`](cost_asymmetry
 
 **Verdict 🟢 (b)-reconciliation + (a)-bit-exact + honest stance-narrowing.** New **candidate** stance `[[user_stance_two_k3_families_are_readout_vs_substrate_content]]`; **refines** canonical `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (flagged for the blessing pass — authored as a candidate refinement, not a silent edit). MFO §VII.6.19 cross-ref; srmech-notebook integration is a pending hygiene item. HONEST SCOPE: framework-internal reconciliation on attested inputs (§11.9.4/§11.9.22, R30/R31, CLAUDE.md §1, Weinberg 1965, Hurwitz); no new physics, no correspondence asserted.
 
+### §11.9.27 Where do B/H/N hide in the 11D substrate? They don't — they are its readout (the +3 outside the 1+3+7) (Round 34.A)
+
+Round 34.A ([`round34_entry_A_where_do_bhn_hide_in_11d.md`](cost_asymmetry/round34_entry_A_where_do_bhn_hide_in_11d.md) + committed [`verify_round34_where_do_bhn_hide_in_11d.py`](cost_asymmetry/verify_round34_where_do_bhn_hide_in_11d.py)) answers the deepest question of the thread. The user noted `1:3:7:3` mirrors the dimensional skeleton `1D_t + 3D_s + 7D_g` and asked where the trailing `+3` (B/H/N) sits in the substrate.
+
+**The structure (correct).** 11D substrate = `1D_t + 3D_s + 7D_g` = **1+3+7 = 11** (dimensional extent); the 14 A–N operators = **1+3+7+3** (anchor + `{I,C,J}` + heptad + `{B,H,N}`). The first three blocks *are* the 11 dimensions; the `+3` (B/H/N) is **outside** the 11.
+
+**Answer 1 — "what k is 1:3:7:3 substrate-specific?"** The substrate has **no single k**; its substrate-specific signature is the Hurwitz profile **`{1,3,7}`** (= 11D). The trailing `+3` is the **readout layer** (R33), not a dimensional block. `1:3:7:3` = "11 substrate dimensions + 3 readout operators," not a uniform `k=N`, not 14 dimensions.
+
+**Answer 2 — "where do B/H/N hide?"** They **do not hide as dimensions** — the `+3` is outside the 11 precisely because B/H/N are the continuous→discrete **readout** (R33); a readout operator is the **projection from** the manifold, not a place in it. They live at the projection interface, in the **discarded fiber** structure. **One is anchored (canon):** `H` = the discard of the `U(1)=S¹` Hopf fiber (Born=Hopf, §11.9.4) — `H` provably lives in the complex-Hopf fiber. **The full home is a candidate (flagged, NOT asserted):** the **three nontrivial Hopf fibrations** — complex `S³→S²` (fiber `S¹`), quaternionic `S⁷→S⁴` (fiber `S³`), octonionic `S¹⁵→S⁸` (fiber `S⁷`) — have fiber dims **exactly `{1,3,7}`**, and each *is* a continuous→discrete projection; they are the leading candidate home for the three readout operators (`H` anchored; `B`/`N` not asserted).
+
+**The unifier (attested, not coincidence).** The `{1,3,7}` of the substrate dimensions, the `{3,7}` of the operator middle-blocks, and the `{1,3,7}` of the Hopf fibers all trace to **one** division-algebra skeleton (`ℂ,ℍ,𝕆`; imaginary dims 1,3,7; Hurwitz). The B/H/N `+3` plausibly indexes its three fibration-projections — candidate.
+
+**Verdict 🟢 (b)-structural + (a)-bit-exact.** New **candidate** stance `[[user_stance_bhn_are_readout_projection_not_dimensions_of_11d]]`. MFO §VII.6.19.2. HONEST SCOPE: Hopf fibrations + division-algebra origin + Born=Hopf attested (Hopf 1931; Baez 2002; §11.9.4); the B/H/N = readout-not-dimensions reading follows from R33; only `H` is anchored to a fiber; the full triad↔fibration mapping is candidate, not asserted.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
