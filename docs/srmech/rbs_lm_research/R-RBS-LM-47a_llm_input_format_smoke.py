@@ -12,20 +12,16 @@ RELATIONSHIPS (depersonalized S-V-O triples) instead of raw text. The
 inference recovers semantics; PERSON1↔name map is held locally and only
 de-anonymizes at endpoint.
 
-Requires a running OpenAI-API-compatible local LLM server. Per
-R-RBS-LM-24 / R-RBS-LM-34 / R-RBS-LM-36: spin up llama.cpp with any
-chat-tuned Q4 GGUF model. Default endpoint: http://localhost:8080/v1.
+Uses llama-cpp-python's `Llama` class directly (no HTTP server needed).
+Default model: TinyLlama-1.1B-Chat-v1.0 Q4_K_M GGUF (~640MB).
 
 Setup before running:
-    # 1. Re-fetch a chat-tuned GGUF (was reaped in earlier cleanup):
-    huggingface-cli download \\
+    # 1. Fetch chat-tuned GGUF (one-shot):
+    ~/.venvs/rbs-lm-research/bin/hf download \\
         TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF \\
         tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf \\
-        --local-dir /tmp/llm-cache
-    # 2. Spin up llama.cpp server:
-    llama-server -m /tmp/llm-cache/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf \\
-        --port 8080 --host 0.0.0.0 -c 2048
-    # 3. Run this script in parallel:
+        --local-dir ~/.cache/huggingface/hub/manual-llm-cache
+    # 2. Run this script:
     ~/.venvs/rbs-lm-research/bin/python \\
         docs/srmech/rbs_lm_research/R-RBS-LM-47a_llm_input_format_smoke.py
 
@@ -54,7 +50,7 @@ from rbs_lm_relationships import (  # noqa: E402
 )
 
 
-DEFAULT_ENDPOINT = "http://localhost:8080/v1/chat/completions"
+DEFAULT_MODEL = "/home/skirklan/.cache/huggingface/hub/manual-llm-cache/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
 
 # Probes — short paragraphs with identifiable entities + relationships.
 # Each probe is a self-contained passage; the LLM is asked to summarize it.
@@ -95,36 +91,39 @@ SUMMARY_PROMPT_TEMPLATE_REL = (
 )
 
 
-def call_llm(prompt, endpoint=DEFAULT_ENDPOINT, max_tokens=200, timeout=120):
-    """POST a chat completion request to the OpenAI-compatible endpoint."""
-    import urllib.request
-    import urllib.error
+_LLM_CACHE = {}
 
-    payload = {
-        "model": "local",
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": max_tokens,
-        "temperature": 0.0,
-    }
-    req = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+
+def get_llm(model_path):
+    """Lazily instantiate the Llama class. Cached per model path so a single
+    smoke run loads the GGUF once and reuses for all probes."""
+    if model_path not in _LLM_CACHE:
+        from llama_cpp import Llama
+        _LLM_CACHE[model_path] = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            n_threads=16,
+            verbose=False,
+        )
+    return _LLM_CACHE[model_path]
+
+
+def call_llm(prompt, model_path=DEFAULT_MODEL, max_tokens=200):
+    """Direct llama-cpp-python inference. Uses chat-completion API."""
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        return {"error": f"URLError: {e}"}
+        llm = get_llm(model_path)
+        result = llm.create_chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.0,
+        )
     except Exception as e:
         return {"error": f"{type(e).__name__}: {e}"}
-
     try:
-        text = body["choices"][0]["message"]["content"]
+        text = result["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
-        return {"error": f"parse error: {e}", "raw": body}
-    return {"text": text, "raw": body}
+        return {"error": f"parse error: {e}", "raw": result}
+    return {"text": text, "raw": result}
 
 
 def jaccard(a, b):
@@ -168,7 +167,7 @@ def count_entity_tokens_retained(response_text, entity_map):
     return count
 
 
-def run_probe(passage, endpoint, verbose=True):
+def run_probe(passage, model_path, verbose=True):
     """Run one probe through both text-form and relationship-form pipelines."""
     # Build the relationship form
     triples, entity_map = extract_relationships(passage, depersonalize=True)
@@ -180,7 +179,7 @@ def run_probe(passage, endpoint, verbose=True):
     if verbose:
         print(f"  [A] sending text-form ({len(passage)} chars)")
     t0 = time.time()
-    resp_A = call_llm(prompt_A, endpoint=endpoint)
+    resp_A = call_llm(prompt_A, model_path=model_path)
     elapsed_A = time.time() - t0
 
     # Pipeline B: send relationship form
@@ -188,7 +187,7 @@ def run_probe(passage, endpoint, verbose=True):
     if verbose:
         print(f"  [B] sending rel-form ({len(rel_corpus)} chars)")
     t0 = time.time()
-    resp_B = call_llm(prompt_B, endpoint=endpoint)
+    resp_B = call_llm(prompt_B, model_path=model_path)
     elapsed_B = time.time() - t0
 
     text_A = resp_A.get("text", "")
@@ -226,28 +225,32 @@ def run_probe(passage, endpoint, verbose=True):
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--out", default="docs/srmech/rbs_lm_research/R-RBS-LM-47a_results.json")
     args = parser.parse_args()
 
     print(f"=== R-RBS-LM-47a — LLM input format test ===")
-    print(f"  endpoint: {args.endpoint}")
+    print(f"  model: {args.model}")
     print(f"  probes: {len(PROBES)}\n")
 
-    # Quick endpoint health check
-    print(f"=== Health check ===")
-    health = call_llm("hello", endpoint=args.endpoint, max_tokens=5, timeout=10)
-    if "error" in health:
-        print(f"  FATAL: endpoint not reachable. {health['error']}")
-        print(f"  Run an OpenAI-API-compatible local LLM server first.")
-        print(f"  See docstring for llama-server setup instructions.")
+    if not Path(args.model).exists():
+        print(f"  FATAL: model file not found: {args.model}")
+        print(f"  See docstring for hf download setup instructions.")
         sys.exit(2)
-    print(f"  OK — endpoint responded.")
+
+    # Warm up the model
+    print(f"=== Loading model (warm-up) ===")
+    t_warm = time.time()
+    warm = call_llm("hello", model_path=args.model, max_tokens=5)
+    print(f"  OK — loaded + first inference in {time.time()-t_warm:.1f}s")
+    if "error" in warm:
+        print(f"  FATAL: {warm['error']}")
+        sys.exit(2)
 
     results = []
     for i, passage in enumerate(PROBES):
         print(f"\n=== Probe {i+1}/{len(PROBES)} ===")
-        m = run_probe(passage, args.endpoint, verbose=True)
+        m = run_probe(passage, args.model, verbose=True)
         results.append(m)
         print(f"  A response: {m['response_A_chars']} chars, {m['elapsed_A_s']:.1f}s")
         print(f"  B response: {m['response_B_chars']} chars, {m['elapsed_B_s']:.1f}s")
@@ -284,7 +287,7 @@ def main():
 
     output = {
         "partition": "R-RBS-LM-47a",
-        "endpoint": args.endpoint,
+        "model": args.model,
         "n_probes": n,
         "results_per_probe": results,
         "aggregate": {
