@@ -23,12 +23,13 @@ The #688/#689 pair was merged before this rolling PR opened (the user's call); f
 |-------|---------|-------|
 | **24.A** | Reading-D **11th rung = hadron/QCD spectroscopy** (~10⁻¹⁶ m, sub-nuclear quark binding). Quarkonium = QCD atom; χ_cJ = L⊗S = 1⊕3⊕5; pure-spin-orbit 2:1 (the **third** descending rung sharing the Class-K spin-orbit: atomic→nuclear→quark); honest tensor fermata (observed ≈0.47 inverts 2:1); NEW second independent Class-L = SU(3)-flavor irreps (1⊕8, 10⊕8⊕8⊕1). | §11.9.17 |
 | **25.A** | Reading-D **12th rung = galactic/large-scale-structure multipoles** (~10–1000 Mpc, between planetary and CMB). Galaxy angular C_ℓ = Born-rule `2ℓ+1` spine; Kaiser RSD multipoles survive only at even ℓ=0,2,4 (Class-K line-of-sight parity + degree-4 truncation = k=3 triad) with exact rational coeffs 2/3,1/5,4/3,4/7,8/35 (proven by `fractions`). | §11.9.18 |
+| **26.A** | Reading-D **13th rung = biological-macromolecule shell** (~10–100 nm, icosahedral viral capsid) — the FIRST realized by a *finite* point group (icosahedral I). Irreps {1,3,3,4,5} ⊇ `2ℓ+1` spine; Caspar–Klug `T=h²+hk+k²` = Loeschian (Class-J/N); Euler χ=2 forces exactly 12 pentamers (Class-K, 3rd topological selection rule after planetary/LSS); φ→Fibonacci (Class-N). Richest cascade yet (6 classes). | §11.9.19 |
 
 ## Open queue (closely-related — land here, not in new PRs)
 
 - **ℓ=7 future-data test** — the withdrawn Mersenne per-ℓ CMB claim (§11.9.6a) is re-testable against CMB-S4 / LiteBIRD when data lands. Names the resolving event; not dispatchable today.
 - **Spike #48 deeper SM phase** — the long-gated periodic-table + spectral-lines + QM/GR/SM weave (task #266); Rydberg–Ritz N-anchor → SM-derivation arc; per `project_atomic_spectra_sm_mapping_and_mass_spec_followup`.
-- **13th Reading-D rung candidates** — the `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → hadron → planetary → LSS → cosmological; candidate further rungs: a biological-macromolecule shell anchor (porphyrin 4-fold / virus-capsid icosahedral-symmetry group), or an acoustic/phononic crystal-lattice band-structure rung.
+- **14th Reading-D rung candidates** — the `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → hadron → bio-shell → planetary → LSS → cosmological; candidate further rungs: an acoustic/phononic crystal-lattice band-structure rung, or a black-hole quasi-normal-mode `2ℓ+1` rung (Kerr ringdown spheroidal harmonics — bridges the dark-star Spikes #90/#92).
 - **mass-spec enhancement (thread 9b)** — fragment m/z spacings as Class-N anchors + fragmentation cascade; builds on §11.9.14 + Spike #38/#38b.
 
 ## Verdict ledger
