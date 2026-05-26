@@ -1,0 +1,162 @@
+{
+  "partition": "R-RBS-LM-49z",
+  "scope": "srmech-native rebuild of R-RBS-LM-49 Method B",
+  "results": {
+    "srmech_native_B": {
+      "b100": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 4,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 26.3,
+        "chi2_5bins": 32.55,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          4,
+          2,
+          3
+        ],
+        "budget": 1.0,
+        "actual_mutation_rate": 0.0
+      },
+      "b75": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 4,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 26.3,
+        "chi2_5bins": 32.55,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          4,
+          2,
+          3
+        ],
+        "budget": 0.75,
+        "actual_mutation_rate": 0.0
+      },
+      "b50": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 5,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 25.6,
+        "chi2_5bins": 32.21,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          3,
+          3,
+          3
+        ],
+        "budget": 0.5,
+        "actual_mutation_rate": 0.0082
+      },
+      "b25": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 11,
+        "top_decile_rate": 0.4666666666666667,
+        "mean_rank_percentile": 29.1,
+        "chi2_5bins": 15.66,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          14,
+          3,
+          5,
+          5,
+          2
+        ],
+        "budget": 0.25,
+        "actual_mutation_rate": 0.1139
+      }
+    },
+    "bare_numpy_B": {
+      "b100": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 4,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 26.3,
+        "chi2_5bins": 32.55,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          4,
+          2,
+          3
+        ],
+        "budget": 1.0,
+        "actual_mutation_rate": 0.0
+      },
+      "b75": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 4,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 26.3,
+        "chi2_5bins": 32.55,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          4,
+          2,
+          3
+        ],
+        "budget": 0.75,
+        "actual_mutation_rate": 0.0
+      },
+      "b50": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 5,
+        "top_decile_rate": 0.5,
+        "mean_rank_percentile": 25.6,
+        "chi2_5bins": 32.21,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          18,
+          2,
+          3,
+          3,
+          3
+        ],
+        "budget": 0.5,
+        "actual_mutation_rate": 0.0082
+      },
+      "b25": {
+        "n_probes": 30,
+        "n_found": 29,
+        "rank_1_count": 11,
+        "top_decile_rate": 0.4666666666666667,
+        "mean_rank_percentile": 29.1,
+        "chi2_5bins": 15.66,
+        "p_estimate": "<0.01",
+        "rank_bins": [
+          14,
+          3,
+          5,
+          5,
+          2
+        ],
+        "budget": 0.25,
+        "actual_mutation_rate": 0.1139
+      }
+    }
+  },
+  "max_chi2_diff": 0.0,
+  "verdict": "PARITY CONFIRMED \u2014 srmech-native rebuild produces algebra-identical results within 1.0 chi\u00b2 of bare numpy",
+  "upstream_gaps": [
+    "srmech.signal_processing.path_b_ops has no rfft (real-only FFT); used full complex FFT",
+    "srmech.amsc has no signed-sum-coupling-score primitive for Method C-style operations",
+    "No catalog primitive for argsort-by-score (generic sort; not a Class-N concern)",
+    "No catalog primitive for random bit-flip (Method A; not a Class-N concern \u2014 substrate-randomness)"
+  ]
+}
