@@ -39,6 +39,7 @@ cascade is honestly framed as classical NLP cooccurrence-eigvec method
 + multi-stage compositional pipeline, not "hyperdimensional."
 """
 
+import argparse
 import json
 import re
 import sys
@@ -64,6 +65,17 @@ DEFAULT_N_ROWS = 2000  # number of files to stream
 DEFAULT_VOCAB_N = 300  # eigvec table dimension
 DEFAULT_M_PER_EIGVEC = 21
 DEFAULT_LANG_FILTER = None  # codeparrot is Python-only by default
+
+# Known content-field names per dataset (some use "content", others "text", "code", etc.)
+CONTENT_FIELD_BY_DATASET = {
+    "codeparrot/codeparrot-clean":         "content",
+    "bigcode/the-stack-smol":              "content",
+    "bigcode/the-stack-smol-xs":           "content",
+    "bigcode/the-stack-dedup":             "content",
+    "bigcode/the-stack-v2":                "content",
+    "bigcode/the-stack-v2-dedup":          "content",
+    "bigcode/starcoderdata":               "content",
+}
 
 # Code-aware tokenizer: identifiers + keywords; strip punctuation
 CODE_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -185,16 +197,27 @@ def find_alignment_score(probe_table, kernel_table):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Stream code corpus; build cascade kernel.")
+    parser.add_argument("--dataset", default=DEFAULT_DATASET, help="HF dataset name")
+    parser.add_argument("--split", default=DEFAULT_SPLIT, help="Dataset split")
+    parser.add_argument("--n-rows", type=int, default=DEFAULT_N_ROWS, help="Rows to stream")
+    parser.add_argument("--vocab-n", type=int, default=DEFAULT_VOCAB_N, help="Vocab cap for eigvec table")
+    parser.add_argument("--content-field", default=None, help="Content field name (auto-detect from dataset)")
+    parser.add_argument("--out-suffix", default="", help="Output filename suffix (e.g. '_the_stack_smol')")
+    args = parser.parse_args()
+
+    content_field = args.content_field or CONTENT_FIELD_BY_DATASET.get(args.dataset, "content")
+
     print(f"=== R-RBS-LM-52d — Streaming-scale code corpus cascade ===\n")
     print(f"srmech: {srmech.__version__}")
-    print(f"Dataset: {DEFAULT_DATASET}")
-    print(f"Stream {DEFAULT_N_ROWS} rows; vocab N={DEFAULT_VOCAB_N}; top-K per eigvec={DEFAULT_M_PER_EIGVEC}")
-    print(f"Similarity: set-cosine (per Finding 70 — HDC is decorative)\n")
+    print(f"Dataset: {args.dataset} (split={args.split}; content_field={content_field})")
+    print(f"Stream {args.n_rows} rows; vocab N={args.vocab_n}; top-K per eigvec={DEFAULT_M_PER_EIGVEC}")
+    print(f"Similarity: set-cosine (per Finding 70 correction — random-bipolar bundle ≡ set-cosine for set-membership)\n")
 
     # Build the Stack-kernel
-    print(f"--- Building streaming Stack-kernel ---")
-    iterator = stream_rows(DEFAULT_DATASET, DEFAULT_SPLIT, DEFAULT_N_ROWS)
-    stack_kernel, vocab, idx_map, n_rows, n_tokens = build_streaming_kernel(iterator)
+    print(f"--- Building streaming kernel ---")
+    iterator = stream_rows(args.dataset, args.split, args.n_rows, content_field=content_field)
+    stack_kernel, vocab, idx_map, n_rows, n_tokens = build_streaming_kernel(iterator, vocab_n=args.vocab_n)
     if stack_kernel is None:
         print("ERROR: insufficient data to build kernel")
         return
@@ -326,7 +349,7 @@ have has had this that these those it its they them their there here he she we u
 
     out = {
         "partition": "R-RBS-LM-52d",
-        "dataset": DEFAULT_DATASET,
+        "dataset": args.dataset,
         "n_rows": n_rows,
         "n_tokens": n_tokens,
         "vocab_size": len(vocab),
@@ -338,7 +361,7 @@ have has had this that these those it its they them their there here he she we u
         "substrate_class_ratio": ratio,
         "verdict": verdict,
     }
-    out_path = HERE / "R-RBS-LM-52d_results.json"
+    out_path = HERE / f"R-RBS-LM-52d_results{args.out_suffix}.json"
     out_path.write_text(json.dumps(out, indent=2))
     print(f"\nResults: {out_path}")
 
