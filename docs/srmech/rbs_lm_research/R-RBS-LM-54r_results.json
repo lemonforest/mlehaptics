@@ -1,0 +1,52 @@
+{
+  "partition": "R-RBS-LM-54r",
+  "per_pair": [
+    {
+      "anchor": "milton",
+      "target": "shakespeare",
+      "note": "rule-dense poetry",
+      "seq_bag_affinity": 0.11624123449929002,
+      "seq_bigram_coherence": 37.116186803922076,
+      "shuffle_bigram_coherence": 27.212487514538566,
+      "sequence_lift": 9.90369928938351
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "plato",
+      "note": "prose\u2192prose",
+      "seq_bag_affinity": 0.18879654076873453,
+      "seq_bigram_coherence": 7.755818797844068,
+      "shuffle_bigram_coherence": 7.212345913156204,
+      "sequence_lift": 0.5434728846878638
+    },
+    {
+      "anchor": "kjv_nt",
+      "target": "quran_sale",
+      "note": "same-fam religious",
+      "seq_bag_affinity": 0.06990589357965112,
+      "seq_bigram_coherence": 30.03067129335964,
+      "shuffle_bigram_coherence": 30.027787637186314,
+      "sequence_lift": 0.0028836561733243116
+    },
+    {
+      "anchor": "whitman",
+      "target": "milton",
+      "note": "free-verse anchor",
+      "seq_bag_affinity": 0.13667755365389078,
+      "seq_bigram_coherence": 2.9415763754404045,
+      "shuffle_bigram_coherence": 2.575727585783112,
+      "sequence_lift": 0.3658487896572926
+    },
+    {
+      "anchor": "origin",
+      "target": "frankenstein",
+      "note": "prose Victorian",
+      "seq_bag_affinity": 0.23065445927451994,
+      "seq_bigram_coherence": 1.1645019990454948,
+      "shuffle_bigram_coherence": 0.9940588004880148,
+      "sequence_lift": 0.17044319855748002
+    }
+  ],
+  "avg_sequence_lift": 2.1972695636918944,
+  "verdict": "SEQUENCE STRUCTURE PRESERVED: ride emits target-coherent sequence (avg lift +2.20)"
+}
