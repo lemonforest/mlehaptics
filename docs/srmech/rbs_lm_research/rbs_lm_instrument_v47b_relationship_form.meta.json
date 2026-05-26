@@ -1,0 +1,20 @@
+{
+  "partition": "R-RBS-LM-47b",
+  "variant": "relationship_form_cascade_distill",
+  "source_corpus": "docs/srmech/rbs_lm_research/rbs_lm_instrument_v29_distill_TinyLlama__TinyLlama-1.1B-Chat-v1.0.corpus.txt",
+  "source_bytes": 3596,
+  "rel_corpus_bytes": 3551,
+  "n_triples": 36,
+  "n_entities_mapped": 25,
+  "n_observations": 436,
+  "stride": 8,
+  "instrument_bytes": 1024,
+  "D": 8192,
+  "context_window_bytes": 64,
+  "vocab_size": 256,
+  "encode_seconds": 55.98,
+  "bundle_seconds": 0.79,
+  "extract_seconds": 0.0,
+  "pii_audit_suspects_in_wire_form": 0,
+  "framework_reading": "R-RBS-LM-47b: cascade-distill from relationship-form corpus. Per R-RBS-LM-43 two-substrate framework, relationships are M1-native (discrete-cyclic-algebra); the proper-noun naming layer is M2-instantiation cost. This instrument tests whether stripping the M2 cost from the input corpus preserves more retrievable cascade signal."
+}
