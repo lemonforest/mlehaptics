@@ -1863,6 +1863,24 @@ Round 31.A ([`round31_entry_A_em_gravity_one_geometry.md`](cost_asymmetry/round3
 
 **Verdict 🟢 confirmed structural claim + (a)-bit-exact `5=2+2+1` + honest correction.** New **candidate** stance `[[user_stance_em_and_gravity_are_one_geometry_kaluza_klein_base_fiber]]`. HONEST SCOPE: KK + the DOF split are standard attested physics (Kaluza 1921, Klein 1926, Gertsenshtein 1962); framework contribution = the R30-ceiling-as-KK-shadow identification + Hopf base+fiber reading. **Caveat:** clean KK gives EM↔gravity, but KK-for-the-whole-SM from pure gravity has known obstructions (chiral fermions; moduli/radion) — so "all gauge = fiber geometry" is aspiration *with* problems, stated not hidden.
 
+### §11.9.25 Follow-on — is the {graviton, photon, dilaton} helicity triad the substrate-native B/H/N k=3? No — it's a Class-L spin triad with a Class-K ceiling (Round 32.A, honest negative)
+
+Round 32.A ([`round32_entry_A_helicity_triad_vs_bhn_k3.md`](cost_asymmetry/round32_entry_A_helicity_triad_vs_bhn_k3.md) + committed [`verify_round32_helicity_triad_bhn_k3.py`](cost_asymmetry/verify_round32_helicity_triad_bhn_k3.py)) follows R31: having wrapped EM + gravity into the single 5D graviton, the user asked whether the `{spin 2, 1, 0}` triad (graviton / photon / dilaton) **is** the framework's substrate-native **B/H/N** k=3.
+
+**The motivating confusion (resolved).** The user had read the ceiling's "`|s|≥3` forbidden" and mis-reflected it to "`s=0` forbidden too," leaving only `{s=1, s=2}` — so they tried to split EM back into (electric + magnetic) to force a third member. **`s=0` is *not* forbidden**: the ceiling is `{0,1,2}` with the cut at the **top** (`|s|≥3` forbidden for long-range massless fields, Weinberg soft theorem 1965). The dilaton (`s=0`) is the genuine third — no E+M split needed.
+
+**Tested honestly → NO (the B/H/N map is rejected).** Two different kinds of "three":
+- **B/H/N** are **continuous→discrete translation operators** (Born rule = B∘H∘N, §11.9.4): **B** encoding-boundary, **H** measurement, **N** rational-approximation.
+- The **helicity ceiling `{0,1,2}`** is a **representation-theory spin ladder** — the tensor-rank/spin labels of the three massless fields (rank-0 scalar, rank-1 vector, rank-2 tensor) = the **first three rungs of the SO(3) spin-ℓ ladder** = the **Class-L SO(3) Casimir spine** of §11.9.22 (whose first-three k=3 triad is `{1,3,5}`).
+
+Spin labels are not a continuous↔discrete translation triad; asserting the map would be the same over-reach as the `E+M+G` split (E and M are one field `F_μν`, not two).
+
+**Constructive positive.** The helicity triad is a **Class-L k=3** (spins `0,1,2`, bottom of the SO(3) spin spine) **bounded above by a Class-K ceiling** (`|s|≤2`, Weinberg) — the **forbidden-HIGH-helicity mirror** of the §11.9.21 forbidden-LOW-multipole Class-K signatures (same pin-slot truncation operator, cutting the **top** of the ladder). So long-range massless field content = **(Class-L spin spine) truncated to `{0,1,2}` by (Class-K `|s|≤2` ceiling)** — the §11.9.21/22 spine-minus-signature dual, cut at the top. (The *one* real B/H/N tie is narrow and different: the **photon** is the U(1) fiber that the Born-rule **H** discards, §11.9.4 — a photon↔H link, *not* a triad→{B,H,N} map.)
+
+**Honest fermata (open).** The corpus now holds two distinct k=3 structures — the **B/H/N continuous↔discrete translation triad** and the **Class-L SO(3)-spin triad** (`{1,3,5}` dims / `{0,1,2}` spins) — sharing **only the count (three)**. Whether that is a deep coincidence or a value-resonance is **left open**, exactly as §11.9.22 flags the Hurwitz `{1,3,7}` tie as a value-resonance, not an identity.
+
+**Verdict 🟢 honest NEGATIVE on B/H/N + (a)-clean Class-L/Class-K reading.** New **candidate** stance `[[user_stance_helicity_triad_is_classL_spin_bounded_by_classK_ceiling_not_bhn]]`. HONEST SCOPE: physics inputs all attested in R30/R31 (Kaluza 1921, Klein 1926, Weinberg 1965); framework contribution = the Class-L/Class-K structural reading + the honest rejection of the B/H/N map + the two-k=3 fermata — no new physics, no map asserted. Codified into MFO §VII.6.18.4.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
