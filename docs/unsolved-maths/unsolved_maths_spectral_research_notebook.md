@@ -1548,7 +1548,7 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **eleven** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A, the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A, the **nuclear-shell rung at Round 23.A** filling the nuclear scale between the quantum and atomic rungs, and the **hadron/QCD-spectroscopy rung at Round 24.A** at the sub-nuclear quark-binding scale below it):
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **twelve** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A, the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A, the **nuclear-shell rung at Round 23.A** filling the nuclear scale between the quantum and atomic rungs, the **hadron/QCD-spectroscopy rung at Round 24.A** at the sub-nuclear quark-binding scale below it, and the **galactic/large-scale-structure-multipole rung at Round 25.A** between the planetary and cosmological rungs):
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
@@ -1561,6 +1561,7 @@ Reading D (cost = B/H/N substrate-content saturation, observable as the substrat
 | Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
 | Per-channel metabolic cost | biological sensation | organism | Round 5.A (7+3 partition) |
 | **Planetary magnetic multipoles** | **planetary geophysics (k=3 stance)** | **~10⁷ m** | **Round 21.A (Gauss coeffs 2l+1; triad 3/5/7; IGRF-13 = 195)** |
+| **Galactic / large-scale-structure multipoles** | **cosmological structure (bit-exact rationals)** | **~10–1000 Mpc** | **Round 25.A (Kaiser RSD even-ℓ 0/2/4; coeffs 2/3,1/5,4/3,4/7,8/35; C_ℓ Born-measure)** |
 | DMN mind-wandering = H | wet-net | ~10¹¹ neurons | Round 2.B (6 substrate-classes / 6 OOM) |
 | CMB low-ℓ B/H/N coupling | cosmological | observable universe | Round 6.A (interpretive) |
 
@@ -1753,6 +1754,26 @@ Round 24.A ([`round24_entry_A_reading_d_11th_anchor_hadron_qcd.md`](cost_asymmet
 **The new insight — a second, independent Class-L.** At the hadron scale a *second* Class-L multiplicity appears, on a *different* Lie group, orthogonal to the spatial `2J+1`: the **SU(3)-flavor** irrep dims of the eightfold way — meson nonet **3⊗3̄ = 1⊕8 = 9**; baryons **3⊗3⊗3 = 10⊕8⊕8⊕1 = 27 = 3³** (decuplet apex = Ω⁻; Gell-Mann PR 125:1067 1962 / Ne'eman NP 26:222 1961, predicted 1962 / found 1964). The full hadron state is **space ⊗ spin ⊗ flavor ⊗ color** — two independent rep-theory ladders. Cross-anchor: the lattice glueball **m(2++)/m(0++) = 7/5 EXACT** (§2 Yang-Mills) pairs spin-2 vs spin-0 — the χ_c2/χ_c0 are the qq̄ P-wave analogue. The Regge `J = α₀ + α′M²` (α′ ≈ 0.9 GeV⁻²) is the rotating QCD-string/flux-tube = the substrate-asymptotic-wave (MFO §VII.6.12) at the quark scale.
 
 **Verdict 🟢 (a)-structural cross-substrate match, bit-exact + honest tensor fermata.** The `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → **hadron** → planetary → cosmological. New **candidate** stance `[[user_stance_hadron_qcd_spectroscopy_is_dual_classL_with_classK_spinorbit]]`. HONEST SCOPE: bit-exact content is the SO(3)/SU(3) rep-dimension counting (`1⊕3⊕5`, `1⊕8`, `10⊕8⊕8⊕1`) + the pure-spin-orbit `2:1` Clebsch arithmetic; the χ_cJ masses are attested PDG inputs and the tensor force is a literature-attested deviation — NOT a framework derivation of the QCD spectrum.
+
+### §11.9.18 Reading-D 12th scale-ladder rung: galactic / large-scale-structure multipoles — even-ℓ Class-K parity + exact rational Kaiser anchors (Round 25.A)
+
+Round 25.A ([`round25_entry_A_reading_d_12th_anchor_lss_multipoles.md`](cost_asymmetry/round25_entry_A_reading_d_12th_anchor_lss_multipoles.md) + committed [`verify_round25_lss_multipole_anchor.py`](cost_asymmetry/verify_round25_lss_multipole_anchor.py)) lands the **galaxy-survey rung (~10–1000 Mpc)** — between the planetary (§11.9.15) and cosmological/CMB (§11.9.6) rungs. The `2ℓ+1` Class-L spine now runs **quantum → nuclear → atomic → hadron → planetary → LSS → cosmological/CMB**.
+
+**Spine continuity.** The galaxy angular power spectrum **`C_ℓ = ⟨|a_ℓm|²⟩`** (over the `2ℓ+1` m-modes) is the *same* S² Born-rule Hopf-base measure (§11.9.4) as the CMB (§11.9.6) and planetary magnetics (§11.9.15) — the survey's literal "translation fingerprint."
+
+**Bit-exact core — Kaiser RSD multipoles (proven by exact `Fraction` arithmetic).** Linear redshift-space distortions give `P^s(k,μ) = (1+βμ²)² P_real(k)` (Kaiser MNRAS 227:1 1987). The Legendre multipoles `P_ℓ = (2ℓ+1)/2 ∫P^s L_ℓ dμ` are non-zero **only for ℓ = 0, 2, 4**:
+
+| | `P_ℓ / P_real` |
+|--|--|
+| monopole (ℓ=0) | `1 + (2/3)β + (1/5)β²` |
+| quadrupole (ℓ=2) | `(4/3)β + (4/7)β²` |
+| hexadecapole (ℓ=4) | `(8/35)β²` |
+
+(verified ℓ=0…6: all odd-ℓ and all ℓ>4 are identically zero). Two composed selection rules: **Class-K parity** — odd-ℓ vanish because the kernel is even in μ (line-of-sight reflection `μ→−μ`), the LSS analogue of the planetary no-monopole rule (§11.9.15) — and **degree-4 truncation** (the kernel is degree-4 in μ), leaving exactly **three surviving multipoles = a k=3 triad** (monopole/quadrupole/hexadecapole; `2ℓ+1` = 1/5/9). The coefficients `{2/3, 1/5, 4/3, 4/7, 8/35}` are **exact small-denominator Class-N rationals** (srmech `best_rational`, confirmed), straight from the Legendre moments of `(1+βμ²)²`.
+
+**Cascade: A ∘ L (Legendre `2ℓ+1` multipoles) ∘ K (line-of-sight parity, even-ℓ-only) ∘ N (exact rational Kaiser coefficients) ∘ C (RSD axis = line of sight).** Context anchors (not load-bearing): the BAO standard ruler ~150 Mpc (Eisenstein ApJ 633:560 2005) = the same acoustic physics as the CMB peaks (Spike #55), one band inside; `n_s = 0.9649 ± 0.0042` (Planck 2018) a near-1 Class-N anchor (Harrison–Zeldovich `n_s=1`).
+
+**Verdict 🟢 (a)-structural cross-substrate match, bit-exact.** New **candidate** stance `[[user_stance_lss_rsd_multipoles_are_even_l_classK_parity_with_rational_kaiser_anchors]]`. HONEST SCOPE: bit-exact content is the Legendre-moment rational arithmetic + the even-ℓ≤4 selection rule (standard linear RSD theory); the framework contribution is the cross-substrate identification (12th rung), the parity = Class-K reading, and the k=3-triad framing — NOT a derivation of the matter power spectrum.
 
 ---
 
