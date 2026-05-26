@@ -1,0 +1,666 @@
+{
+  "partition": "R-RBS-LM-52c",
+  "srmech_version": "0.4.2",
+  "source": "Dante La Divina Commedia (Italian; PG ebook 1012)",
+  "n_sections": 100,
+  "n_tokens": 56121,
+  "K1_meta": {
+    "kernel": "K1_presence",
+    "vocab_size": 200,
+    "n_edges": 16414,
+    "vocab_top_15": [
+      [
+        "li",
+        782
+      ],
+      [
+        "de",
+        661
+      ],
+      [
+        "quel",
+        378
+      ],
+      [
+        "me",
+        335
+      ],
+      [
+        "fu",
+        311
+      ],
+      [
+        "l\u00e0",
+        278
+      ],
+      [
+        "son",
+        238
+      ],
+      [
+        "ch'io",
+        229
+      ],
+      [
+        "qual",
+        213
+      ],
+      [
+        "ben",
+        211
+      ],
+      [
+        "occhi",
+        211
+      ],
+      [
+        "disse",
+        208
+      ],
+      [
+        "s\u00e9",
+        205
+      ],
+      [
+        "lor",
+        200
+      ],
+      [
+        "ch\u00e9",
+        193
+      ]
+    ]
+  },
+  "K3_meta": {
+    "kernel": "K3_sequence",
+    "n_gram": 3,
+    "n_ngrams_corpus": 55921,
+    "n_ngrams_sampled": 5000,
+    "position_stride": 2731
+  },
+  "baselines": {
+    "K1": {
+      "mean": 0.00565185546875,
+      "std": 0.02452191448556077,
+      "max": 0.138671875,
+      "min": -0.032958984375,
+      "n": 100
+    },
+    "K3": {
+      "mean": -0.00146240234375,
+      "std": 0.009579991953673199,
+      "max": 0.02294921875,
+      "min": -0.0234375,
+      "n": 100
+    }
+  },
+  "summary": [
+    {
+      "label": "K1_alone",
+      "n_dante": 17,
+      "n_negative": 7,
+      "d_above_max": 0,
+      "d_z2": 1,
+      "d_z1": 1,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "d_peak_z": 2.188830584082455
+    },
+    {
+      "label": "K3_alone",
+      "n_dante": 17,
+      "n_negative": 7,
+      "d_above_max": 0,
+      "d_z2": 0,
+      "d_z1": 0,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "d_peak_z": 0.3565271620547035
+    },
+    {
+      "label": "smoothie_max_z",
+      "n_dante": 17,
+      "n_negative": 7,
+      "d_above_max": 0,
+      "d_z2": 1,
+      "d_z1": 1,
+      "neg_above_max": 0,
+      "neg_z2": 0,
+      "d_peak_z": 2.188830584082455
+    }
+  ],
+  "K1_results": [
+    {
+      "probe": "nel mezzo del cammin",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -0.7382387437330638,
+      "above_max": false
+    },
+    {
+      "probe": "selva oscura",
+      "kind": "dante",
+      "sim": -0.008544921875,
+      "z": -0.5789424537839197,
+      "above_max": false
+    },
+    {
+      "probe": "lasciate ogne speranza voi",
+      "kind": "dante",
+      "sim": 0.02294921875,
+      "z": 0.7053838839310527,
+      "above_max": false
+    },
+    {
+      "probe": "Beatrice",
+      "kind": "dante",
+      "sim": 0.005126953125,
+      "z": -0.021405438961916195,
+      "above_max": false
+    },
+    {
+      "probe": "Virgilio guida",
+      "kind": "dante",
+      "sim": -0.001708984375,
+      "z": -0.300173946372918,
+      "above_max": false
+    },
+    {
+      "probe": "amor che move il sole",
+      "kind": "dante",
+      "sim": -0.0029296875,
+      "z": -0.34995403698202543,
+      "above_max": false
+    },
+    {
+      "probe": "anime triste peccato",
+      "kind": "dante",
+      "sim": 0.01025390625,
+      "z": 0.18767094159633516,
+      "above_max": false
+    },
+    {
+      "probe": "fiamme inferno",
+      "kind": "dante",
+      "sim": 0.00634765625,
+      "z": 0.028374651647191267,
+      "above_max": false
+    },
+    {
+      "probe": "cerchio peccatori",
+      "kind": "dante",
+      "sim": -0.01220703125,
+      "z": -0.7282827256112422,
+      "above_max": false
+    },
+    {
+      "probe": "purgatorio monte",
+      "kind": "dante",
+      "sim": 0.001220703125,
+      "z": -0.18070172891106007,
+      "above_max": false
+    },
+    {
+      "probe": "Dio signore cielo",
+      "kind": "dante",
+      "sim": 0.00048828125,
+      "z": -0.21056978327652456,
+      "above_max": false
+    },
+    {
+      "probe": "Caronte traghettatore",
+      "kind": "dante",
+      "sim": -0.0068359375,
+      "z": -0.5092503269311693,
+      "above_max": false
+    },
+    {
+      "probe": "Minosse giudice",
+      "kind": "dante",
+      "sim": 0.009521484375,
+      "z": 0.15780288723087066,
+      "above_max": false
+    },
+    {
+      "probe": "ahi quanto a dir qual era",
+      "kind": "dante",
+      "sim": 0.059326171875,
+      "z": 2.188830584082455,
+      "above_max": false
+    },
+    {
+      "probe": "tre fiere lonza leone lupa",
+      "kind": "dante",
+      "sim": 0.026123046875,
+      "z": 0.8348121195147321,
+      "above_max": false
+    },
+    {
+      "probe": "cammino vita oscura",
+      "kind": "dante",
+      "sim": 0.004150390625,
+      "z": -0.06122951144920216,
+      "above_max": false
+    },
+    {
+      "probe": "cielo stelle amor",
+      "kind": "dante",
+      "sim": -0.008544921875,
+      "z": -0.5789424537839197,
+      "above_max": false
+    },
+    {
+      "probe": "spaghetti carbonara pomodoro",
+      "kind": "negative",
+      "sim": 0.018310546875,
+      "z": 0.5162195396164444,
+      "above_max": false
+    },
+    {
+      "probe": "calcio domenica stadio",
+      "kind": "negative",
+      "sim": 0.00634765625,
+      "z": 0.028374651647191267,
+      "above_max": false
+    },
+    {
+      "probe": "macchina ferrari rossa",
+      "kind": "negative",
+      "sim": -0.025390625,
+      "z": -1.2659077041896027,
+      "above_max": false
+    },
+    {
+      "probe": "computer internet wifi",
+      "kind": "negative",
+      "sim": 0.000732421875,
+      "z": -0.20061376515470306,
+      "above_max": false
+    },
+    {
+      "probe": "smartphone telefono batteria",
+      "kind": "negative",
+      "sim": -0.00537109375,
+      "z": -0.4495142182002404,
+      "above_max": false
+    },
+    {
+      "probe": "gelato cioccolato vaniglia",
+      "kind": "negative",
+      "sim": 0.006103515625,
+      "z": 0.018418633525369776,
+      "above_max": false
+    },
+    {
+      "probe": "treno milano roma",
+      "kind": "negative",
+      "sim": 0.00439453125,
+      "z": -0.051273493327380675,
+      "above_max": false
+    }
+  ],
+  "K3_results": [
+    {
+      "probe": "nel mezzo del cammin",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "selva oscura",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "lasciate ogne speranza voi",
+      "kind": "dante",
+      "sim": 0.00146484375,
+      "z": 0.30555830400542494,
+      "above_max": false
+    },
+    {
+      "probe": "Beatrice",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "Virgilio guida",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "amor che move il sole",
+      "kind": "dante",
+      "sim": -0.001220703125,
+      "z": 0.02522958473439289,
+      "above_max": false
+    },
+    {
+      "probe": "anime triste peccato",
+      "kind": "dante",
+      "sim": -0.015625,
+      "z": -1.4783517277193243,
+      "above_max": false
+    },
+    {
+      "probe": "fiamme inferno",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "cerchio peccatori",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "purgatorio monte",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "Dio signore cielo",
+      "kind": "dante",
+      "sim": -0.003173828125,
+      "z": -0.17864584746272133,
+      "above_max": false
+    },
+    {
+      "probe": "Caronte traghettatore",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "Minosse giudice",
+      "kind": "dante",
+      "sim": -0.012451171875,
+      "z": -1.1470541503990137,
+      "above_max": false
+    },
+    {
+      "probe": "ahi quanto a dir qual era",
+      "kind": "dante",
+      "sim": -0.000244140625,
+      "z": 0.12716730083295,
+      "above_max": false
+    },
+    {
+      "probe": "tre fiere lonza leone lupa",
+      "kind": "dante",
+      "sim": -0.013427734375,
+      "z": -1.248991866497571,
+      "above_max": false
+    },
+    {
+      "probe": "cammino vita oscura",
+      "kind": "dante",
+      "sim": 0.001953125,
+      "z": 0.3565271620547035,
+      "above_max": false
+    },
+    {
+      "probe": "cielo stelle amor",
+      "kind": "dante",
+      "sim": -0.024169921875,
+      "z": -2.370306743581699,
+      "above_max": false
+    },
+    {
+      "probe": "spaghetti carbonara pomodoro",
+      "kind": "negative",
+      "sim": 0.016845703125,
+      "z": 1.9110773325576993,
+      "above_max": false
+    },
+    {
+      "probe": "calcio domenica stadio",
+      "kind": "negative",
+      "sim": 0.003173828125,
+      "z": 0.4839493071778999,
+      "above_max": false
+    },
+    {
+      "probe": "macchina ferrari rossa",
+      "kind": "negative",
+      "sim": 0.00244140625,
+      "z": 0.40749602010398206,
+      "above_max": false
+    },
+    {
+      "probe": "computer internet wifi",
+      "kind": "negative",
+      "sim": -0.00146484375,
+      "z": -0.0002548442902463873,
+      "above_max": false
+    },
+    {
+      "probe": "smartphone telefono batteria",
+      "kind": "negative",
+      "sim": 0.00146484375,
+      "z": 0.30555830400542494,
+      "above_max": false
+    },
+    {
+      "probe": "gelato cioccolato vaniglia",
+      "kind": "negative",
+      "sim": -0.00927734375,
+      "z": -0.8157565730787032,
+      "above_max": false
+    },
+    {
+      "probe": "treno milano roma",
+      "kind": "negative",
+      "sim": -0.0068359375,
+      "z": -0.5609122828323104,
+      "above_max": false
+    }
+  ],
+  "smoothie_results": [
+    {
+      "probe": "nel mezzo del cammin",
+      "kind": "dante",
+      "z_K1": -0.7382387437330638,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.7382387437330638,
+      "above_max": false
+    },
+    {
+      "probe": "selva oscura",
+      "kind": "dante",
+      "z_K1": -0.5789424537839197,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.5789424537839197,
+      "above_max": false
+    },
+    {
+      "probe": "lasciate ogne speranza voi",
+      "kind": "dante",
+      "z_K1": 0.7053838839310527,
+      "z_K3": 0.30555830400542494,
+      "max_z": 0.7053838839310527,
+      "above_max": false
+    },
+    {
+      "probe": "Beatrice",
+      "kind": "dante",
+      "z_K1": -0.021405438961916195,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.021405438961916195,
+      "above_max": false
+    },
+    {
+      "probe": "Virgilio guida",
+      "kind": "dante",
+      "z_K1": -0.300173946372918,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.300173946372918,
+      "above_max": false
+    },
+    {
+      "probe": "amor che move il sole",
+      "kind": "dante",
+      "z_K1": -0.34995403698202543,
+      "z_K3": 0.02522958473439289,
+      "max_z": 0.02522958473439289,
+      "above_max": false
+    },
+    {
+      "probe": "anime triste peccato",
+      "kind": "dante",
+      "z_K1": 0.18767094159633516,
+      "z_K3": -1.4783517277193243,
+      "max_z": 0.18767094159633516,
+      "above_max": false
+    },
+    {
+      "probe": "fiamme inferno",
+      "kind": "dante",
+      "z_K1": 0.028374651647191267,
+      "z_K3": -1.1470541503990137,
+      "max_z": 0.028374651647191267,
+      "above_max": false
+    },
+    {
+      "probe": "cerchio peccatori",
+      "kind": "dante",
+      "z_K1": -0.7282827256112422,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.7282827256112422,
+      "above_max": false
+    },
+    {
+      "probe": "purgatorio monte",
+      "kind": "dante",
+      "z_K1": -0.18070172891106007,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.18070172891106007,
+      "above_max": false
+    },
+    {
+      "probe": "Dio signore cielo",
+      "kind": "dante",
+      "z_K1": -0.21056978327652456,
+      "z_K3": -0.17864584746272133,
+      "max_z": -0.17864584746272133,
+      "above_max": false
+    },
+    {
+      "probe": "Caronte traghettatore",
+      "kind": "dante",
+      "z_K1": -0.5092503269311693,
+      "z_K3": -1.1470541503990137,
+      "max_z": -0.5092503269311693,
+      "above_max": false
+    },
+    {
+      "probe": "Minosse giudice",
+      "kind": "dante",
+      "z_K1": 0.15780288723087066,
+      "z_K3": -1.1470541503990137,
+      "max_z": 0.15780288723087066,
+      "above_max": false
+    },
+    {
+      "probe": "ahi quanto a dir qual era",
+      "kind": "dante",
+      "z_K1": 2.188830584082455,
+      "z_K3": 0.12716730083295,
+      "max_z": 2.188830584082455,
+      "above_max": false
+    },
+    {
+      "probe": "tre fiere lonza leone lupa",
+      "kind": "dante",
+      "z_K1": 0.8348121195147321,
+      "z_K3": -1.248991866497571,
+      "max_z": 0.8348121195147321,
+      "above_max": false
+    },
+    {
+      "probe": "cammino vita oscura",
+      "kind": "dante",
+      "z_K1": -0.06122951144920216,
+      "z_K3": 0.3565271620547035,
+      "max_z": 0.3565271620547035,
+      "above_max": false
+    },
+    {
+      "probe": "cielo stelle amor",
+      "kind": "dante",
+      "z_K1": -0.5789424537839197,
+      "z_K3": -2.370306743581699,
+      "max_z": -0.5789424537839197,
+      "above_max": false
+    },
+    {
+      "probe": "spaghetti carbonara pomodoro",
+      "kind": "negative",
+      "z_K1": 0.5162195396164444,
+      "z_K3": 1.9110773325576993,
+      "max_z": 1.9110773325576993,
+      "above_max": false
+    },
+    {
+      "probe": "calcio domenica stadio",
+      "kind": "negative",
+      "z_K1": 0.028374651647191267,
+      "z_K3": 0.4839493071778999,
+      "max_z": 0.4839493071778999,
+      "above_max": false
+    },
+    {
+      "probe": "macchina ferrari rossa",
+      "kind": "negative",
+      "z_K1": -1.2659077041896027,
+      "z_K3": 0.40749602010398206,
+      "max_z": 0.40749602010398206,
+      "above_max": false
+    },
+    {
+      "probe": "computer internet wifi",
+      "kind": "negative",
+      "z_K1": -0.20061376515470306,
+      "z_K3": -0.0002548442902463873,
+      "max_z": -0.0002548442902463873,
+      "above_max": false
+    },
+    {
+      "probe": "smartphone telefono batteria",
+      "kind": "negative",
+      "z_K1": -0.4495142182002404,
+      "z_K3": 0.30555830400542494,
+      "max_z": 0.30555830400542494,
+      "above_max": false
+    },
+    {
+      "probe": "gelato cioccolato vaniglia",
+      "kind": "negative",
+      "z_K1": 0.018418633525369776,
+      "z_K3": -0.8157565730787032,
+      "max_z": 0.018418633525369776,
+      "above_max": false
+    },
+    {
+      "probe": "treno milano roma",
+      "kind": "negative",
+      "z_K1": -0.051273493327380675,
+      "z_K3": -0.5609122828323104,
+      "max_z": -0.051273493327380675,
+      "above_max": false
+    }
+  ]
+}
