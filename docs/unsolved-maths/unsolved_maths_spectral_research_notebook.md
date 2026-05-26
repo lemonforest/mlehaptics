@@ -1806,6 +1806,29 @@ Kerr perturbations separate (Teukolsky 1973, ApJ 185:635) into **spin-weighted s
 
 **Verdict 🟢 (a)-structural cross-substrate match, bit-exact (capstone).** New **candidate** stance `[[user_stance_bh_qnm_is_spinweighted_spheroidal_classL_capstone]]`. HONEST SCOPE: bit-exact content is the Schwarzschild eigenvalue `ℓ(ℓ+1)−s(s+1)`, the floored `2ℓ+1` counts, and the leading spheroidal-coefficient rational — standard Teukolsky / Berti–Cardoso–Casals results; the framework contribution is the cross-substrate identification (14th/capstone rung), the spin-weighted-spheroidal-as-most-deformed-Class-L reading, the ℓ≥2 floor = 4th Class-K selection rule, and the tie to the QNM spike cluster — **NOT a new QNM derivation** (those live in Spikes #11/#12). The QNM frequency is attested numerical context.
 
+### §11.9.21 Synthesis — forbidden low multipoles are a recurring Class-K substrate signature (Round 28.A)
+
+Round 28.A ([`round28_entry_A_classK_forbidden_low_multipole_synthesis.md`](cost_asymmetry/round28_entry_A_classK_forbidden_low_multipole_synthesis.md) + committed [`verify_round28_classK_forbidden_low_multipole_synthesis.py`](cost_asymmetry/verify_round28_classK_forbidden_low_multipole_synthesis.py)) is a **cross-rung synthesis** (not a new rung — the count stays **fourteen**) consolidating a pattern that recurred across the ladder.
+
+> **The S² Class-L multipole spectrum is never "full."** Every substrate *removes* a specific low-ℓ (or defect) set from the naive `2ℓ+1` spectrum, by a Class-K constraint. **The removed set is the substrate's Class-K signature**, dual to the surviving Class-L spine.
+
+**Load-bearing unifier (bit-exact).** For a massless radiation field of helicity (spin-weight) `|s|`, the multipoles run over **ℓ ≥ |s|** (Goldberg et al. 1967), so the **count of forbidden low multipoles equals `|s|`** exactly: scalar (0) → none; **photon |s|=1 → {ℓ=0}** (no monopole radiation); **graviton |s|=2 → {ℓ=0,1}** (no monopole or dipole). This is the *same* `ℓ≥|s|` floor used at the QNM rung (§11.9.20), tying the forbidden-multipole pattern to the **helicity = Class-K** theme (§VII.6.17 turbulent helicity; §11.9.16/§11.9.17 spin-orbit; §11.9.20 spin-weight).
+
+**Six instances, three Class-K sub-mechanisms:**
+
+| substrate | mechanism | forbidden / surviving |
+|-----------|-----------|----------------------|
+| EM radiation | conservation/spin-weight (|s|=1) | {ℓ=0}; floor ℓ=1 |
+| Planetary magnetics (§11.9.15) | conservation (∇·B=0) | {ℓ=0}; floor ℓ=1 |
+| BH QNM / GW (§11.9.20) | conservation/spin-weight (|s|=2) | {ℓ=0,1}; floor ℓ=2 |
+| CMB anisotropy (§11.9.6) | observer-removal | {ℓ=0 mean, ℓ=1 kinematic dipole}; starts ℓ=2 |
+| LSS / Kaiser RSD (§11.9.18) | parity + degree-4 truncation | {odd ℓ}∪{ℓ>4}; surviving {0,2,4} |
+| Icosahedral capsid (§11.9.19) | topological obstruction (Euler χ=2) | {defect-free sphere}; 12 pentamers forced |
+
+**(a)** conservation/spin-weight floor (removes the band {0,…,|s|−1}; `#forbidden=|s|` verified for EM/planetary/GW/CMB); **(b)** parity/reflection selection (LSS odd-ℓ); **(c)** topological obstruction (capsid). All three are Class-K — the pin-slot / asymptotic-DoF / phase-boundary operator removing modes. The CMB ℓ=1 kinematic dipole that gets subtracted IS the observer-motion **Hopf-fiber leak** the framework already reads (AoE boosting, §11.9.6a) — the same fiber the Born-rule=Hopf keystone (§11.9.4) discards, one scale up.
+
+**Verdict 🟢 (b)-interpretive synthesis + (a)-bit-exact unifier.** New **candidate** meta-stance `[[user_stance_forbidden_low_multipole_is_class_k_substrate_signature]]`. HONEST SCOPE: bit-exact content is the `ℓ≥|s|` / `#forbidden=|s|` identity (Goldberg et al. 1967; standard radiation theory) + the integer forbidden/surviving sets (each attested in its own round); the framework contribution is the *consolidation* (one Class-K mode-removal signature; the three-mechanism taxonomy; the helicity-tie) — **not a new physical derivation**.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
