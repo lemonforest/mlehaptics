@@ -1,0 +1,133 @@
+{
+  "partition": "R-RBS-LM-54m",
+  "all_pairs": [
+    {
+      "anchor": "milton",
+      "target": "shakespeare",
+      "class_pair": "poetry\u2192poetry",
+      "mean_ride": 0.33466573716637815,
+      "mean_identity": -0.19678524273856993,
+      "mean_freq_weighted_target": 0.2819372362972902,
+      "ride_minus_identity": 0.531450979904948,
+      "ride_minus_freq_weighted": 0.05272850086908798
+    },
+    {
+      "anchor": "whitman",
+      "target": "milton",
+      "class_pair": "poetry\u2192poetry",
+      "mean_ride": 0.16254888357344457,
+      "mean_identity": -0.24163656261650826,
+      "mean_freq_weighted_target": 0.4071676470062342,
+      "ride_minus_identity": 0.40418544618995284,
+      "ride_minus_freq_weighted": -0.24461876343278963
+    },
+    {
+      "anchor": "longfellow",
+      "target": "pope_iliad",
+      "class_pair": "poetry\u2192poetry",
+      "mean_ride": 0.12935555791040065,
+      "mean_identity": -0.23961401569773016,
+      "mean_freq_weighted_target": 0.36020794946364854,
+      "ride_minus_identity": 0.3689695736081308,
+      "ride_minus_freq_weighted": -0.23085239155324788
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "plato",
+      "class_pair": "prose\u2192prose",
+      "mean_ride": 0.32210795340060255,
+      "mean_identity": -0.1379999417190241,
+      "mean_freq_weighted_target": 0.34543724090634004,
+      "ride_minus_identity": 0.4601078951196267,
+      "ride_minus_freq_weighted": -0.023329287505737484
+    },
+    {
+      "anchor": "origin",
+      "target": "frankenstein",
+      "class_pair": "prose\u2192prose",
+      "mean_ride": 0.3513674293007618,
+      "mean_identity": -0.5178265770808453,
+      "mean_freq_weighted_target": 0.5715626861133545,
+      "ride_minus_identity": 0.8691940063816072,
+      "ride_minus_freq_weighted": -0.22019525681259267
+    },
+    {
+      "anchor": "milton",
+      "target": "frankenstein",
+      "class_pair": "poetry\u2192prose",
+      "mean_ride": 0.2880840270399738,
+      "mean_identity": -0.19931185761938375,
+      "mean_freq_weighted_target": 0.22905377251519254,
+      "ride_minus_identity": 0.48739588465935757,
+      "ride_minus_freq_weighted": 0.05903025452478128
+    },
+    {
+      "anchor": "shakespeare",
+      "target": "plato",
+      "class_pair": "poetry\u2192prose",
+      "mean_ride": 0.30152827578819613,
+      "mean_identity": -0.24853522926263721,
+      "mean_freq_weighted_target": 0.3458183614355468,
+      "ride_minus_identity": 0.5500635050508333,
+      "ride_minus_freq_weighted": -0.04429008564735065
+    },
+    {
+      "anchor": "frankenstein",
+      "target": "milton",
+      "class_pair": "prose\u2192poetry",
+      "mean_ride": 0.18637874604823315,
+      "mean_identity": -0.05918986304423342,
+      "mean_freq_weighted_target": 0.2839993907707812,
+      "ride_minus_identity": 0.24556860909246658,
+      "ride_minus_freq_weighted": -0.09762064472254803
+    },
+    {
+      "anchor": "plato",
+      "target": "shakespeare",
+      "class_pair": "prose\u2192poetry",
+      "mean_ride": 0.30183325777233694,
+      "mean_identity": -0.20313558636893073,
+      "mean_freq_weighted_target": 0.36140199598988454,
+      "ride_minus_identity": 0.5049688441412676,
+      "ride_minus_freq_weighted": -0.0595687382175476
+    }
+  ],
+  "by_class_pair": {
+    "poetry\u2192poetry": {
+      "n_pairs": 3,
+      "ride": 0.20885672621674112,
+      "iden": -0.2260119403509361,
+      "wgt": 0.34977094425572436,
+      "ride_minus_iden": 0.4348686665676772,
+      "ride_minus_wgt": -0.14091421803898324
+    },
+    "prose\u2192prose": {
+      "n_pairs": 2,
+      "ride": 0.3367376913506822,
+      "iden": -0.3279132593999347,
+      "wgt": 0.45849996350984723,
+      "ride_minus_iden": 0.6646509507506169,
+      "ride_minus_wgt": -0.12176227215916502
+    },
+    "poetry\u2192prose": {
+      "n_pairs": 2,
+      "ride": 0.29480615141408495,
+      "iden": -0.22392354344101048,
+      "wgt": 0.28743606697536966,
+      "ride_minus_iden": 0.5187296948550955,
+      "ride_minus_wgt": 0.007370084438715285
+    },
+    "prose\u2192poetry": {
+      "n_pairs": 2,
+      "ride": 0.24410600191028503,
+      "iden": -0.13116272470658208,
+      "wgt": 0.32270069338033286,
+      "ride_minus_iden": 0.3752687266168671,
+      "ride_minus_wgt": -0.07859469147004783
+    }
+  },
+  "poetry_within_ride_vs_wgt": -0.14091421803898324,
+  "prose_within_ride_vs_wgt": -0.12176227215916502,
+  "poetry_vs_prose_delta": -0.019151945879818222,
+  "verdict": "NO substrate-mismatch: poetry and prose ride perform similarly (\u0394=-0.019); ride mechanism is substrate-agnostic and limited regardless"
+}
