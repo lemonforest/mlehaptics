@@ -1945,6 +1945,14 @@ Round 37.A ([`round37_entry_A_closed_loop_is_fractal_and_substrate_blind.md`](co
 
 **Verdict 🟢 (a)-bit-exact IFS + (b)-interpretive cross-substrate + (b)-interpretive epistemic-ceiling LIMIT.** New **candidate** stances `[[user_stance_closed_loop_is_the_fractal_substrate_side]]` + `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`. MFO §VIII.7.1 + §VII.6.20. HONEST SCOPE: bit-exact only for IFS dims; fractal is framework-supported (§IV.3/§VIII.7/§V), cosmic-web correlation dim attested-not-conflated; the epistemic ceiling is a LIMIT grounded in the 7D_g drop — no substrate of the universe asserted.
 
+### §11.9.31 The drumhead / Bessel-disk 15th-rung candidate — a contrast rung: the `2ℓ+1` spine is SO(3)-specific (Round 38.A)
+
+Round 38.A ([`round38_entry_A_drumhead_disk_contrast_rung.md`](cost_asymmetry/round38_entry_A_drumhead_disk_contrast_rung.md) + committed [`verify_round38_drumhead_disk_contrast_rung.py`](cost_asymmetry/verify_round38_drumhead_disk_contrast_rung.py)) — open-queue item (the candidate 15th rung, Class-L *off* S²). **Result: a contrast/control rung, not a `2ℓ+1` rung.**
+
+On the 2D disk (drumhead; Dirichlet Laplacian), modes `J_m(j_{m,n} r/a)·{cos mθ, sin mθ}` order by Bessel zeros (`j_{0,1}=2.4048 < j_{1,1}=3.8317 < j_{2,1}=5.1356 < j_{0,2}=5.5201 < …`); m=0 is non-degenerate, m≥1 doubly degenerate → angular degeneracy ladder **`{1,2,2,2,…}`**, because the disk's symmetry group is **O(2)** (1D trivial + 2D per m≥1), not **SO(3)** (`2ℓ+1`). So the disk's "first-three" is **`{1,2,2}`, not `{1,3,5}`**. The Class-L *mechanism* persists off S²; the *specific ladder* is symmetry-group-relative.
+
+**Verdict 🟢 (a)-bit-exact contrast + (b)-interpretive sharpening; honest NEGATIVE on "another `2ℓ+1` rung."** The `2ℓ+1` odd ladder + `{1,3,5}` k=3 triad are **S²/SO(3)-specific**, not universal; Class-L's universal content is "Laplacian eigenspaces, degeneracy = irrep-dim of the domain's symmetry group." The Reading-D "9 contiguous S² rungs" count is **unchanged**. New **candidate** stance `[[user_stance_classL_spine_is_symmetry_group_relative]]`. HONEST SCOPE: bit-exact for the Bessel ordering + `{1,2,2}`-vs-`{1,3,5}` contrast + O(2)/SO(3) irrep dims (standard, Explore-verified); (b)-interpretive for the symmetry-group-relative reading; no new physics; no MFO section (domain-geometry contrast, not metric-field).
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
