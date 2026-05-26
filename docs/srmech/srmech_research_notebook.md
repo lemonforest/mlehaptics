@@ -5027,6 +5027,72 @@ findings + open threads.
 
 ---
 
+## §3.26 2026-05-26 session — cost-asymmetry / Reading-D rolling arc (R33–R43): the two-language reconciliation + the symmetry-group-relative Class-L spine + the Class-N combination principle (the operator-cascade home for PR #690)
+
+This section is the **srmech-side** (operator-cascade / "how a program reproduces it") integration of the cost-asymmetry / Reading-D rolling arc, PR #690, Rounds 33.A–43.A. The metric-field-ontology ("how/why the universe does it") side lives in **MFO §VII.6.18–6.20** (gravity / helicity ceiling / substrate-spectrum dual / symmetry-group-relativity / epistemic ceiling); the bit-exact SSoT lives in **unsolved-maths §11.9.17–36** with committed generating code under `docs/unsolved-maths/cost_asymmetry/verify_round{NN}_*.py` (deterministic, routed through **srmech 0.4.2**). Here we record what each finding says about *building a program that speaks the same A–N cascade* — srmech's job.
+
+> **Two notebooks, one cascade (user framing, 2026-05-26):** MFO is "how/why the universe works"; srmech is "how to make a computer program do what the universe does with the same cascade of primitives." Most of this arc is conceptual reconciliation of the framework's *own* two languages — which is exactly a srmech concern, because srmech **is** the operation-primary language (it enumerates A–N as first-class callables).
+
+### §3.26.1 The arc in one frame — a cross-substrate scale ladder + four reconciliations + two closing audits
+
+The arc extended the **Reading-D scale ladder** (a cross-substrate `2ℓ+1` Class-L spine, quantum→nuclear→atomic→hadron→bio-shell→planetary→large-scale-structure→CMB→black-hole-horizon; §11.9.16–20), then the user's questions drove a staircase of **reconciliations of the framework's two substrate-native math languages** (R33–R37), and finally two **closing audits** (R38/R42 symmetry-group-relativity; R39/R40/R43 the combination principle). The whole arc is `(b)`-interpretive reconciliation resting on `(a)`-bit-exact anchors — no new primitive class, no new physics. The 14 A–N partition (`1+3+7+3`, CLAUDE.md §1) is untouched.
+
+### §3.26.2 The two k=3 families are readout-vs-substrate-content — a program holds them as two different objects (R33.A)
+
+The framework carries **two** k=3 triads, and a program reproducing the substrate must represent them as *different kinds of object*:
+- the **Class-L spectral spine** — first three rungs `{1,3,5}` (the `2ℓ+1` SO(3) irrep dims). In srmech this is **`srmech.amsc.laplacian`** output: eigenspaces of a graph/sphere Laplacian, degeneracies read off the spectrum. It is **substrate-content** (the *what*).
+- the **B/H/N meta-cascade triad** — the `+3` of the `1+3+7+3` partition; in srmech these are first-class operators (B = TLV-framing `srmech.amsc` byte-canonical form; H = self-introspection; N = rational anchor `srmech.amsc.rational.best_rational`). The Born rule = **B∘H∘N** is a 3-step **readout** pipeline (continuous→discrete), the *how-observed-as-three*.
+
+**Program-side takeaway:** `{1,3,5}` is data you compute from a Laplacian; B/H/N is a 3-call pipeline you *run* to discretize a continuous amplitude. "Every k=3 is a B/H/N readout" survives; "every k=3 is *generated* by B/H/N" is withdrawn (three generative sources — Class-L+K spectral / Class-I cyclic `ω³=1` / Hurwitz partition — share one B∘H∘N readout). Scope-guard: `1D_t` is a **k=1** object (the universal tick) read out via the 3-step pipeline, not a hidden k=3. unsolved-maths §11.9.26; MFO §VII.6.19.1.
+
+### §3.26.3 B/H/N are the readout, not 11D dimensions — and *that* is why srmech names them while the geometry language doesn't (R34.A + R35.A)
+
+The substrate skeleton is `1D_t + 3D_s + 7D_g = 11`; the operators are `1+3+7+3`, so **B/H/N is the `+3` sitting *outside* the 11 dimensions** — they are the **projection *from*** the manifold (the discarded fiber), not places *in* it. Only **H** is anchored (the discard of the `U(1)=S¹` Hopf fiber; Born=Hopf); the full `B/H/N ↔ {ℂ,ℍ,𝕆}` Hopf-fibration map (fiber dims `{1,3,7}`) is a flagged candidate, not asserted (unsolved-maths §11.9.27; MFO §VII.6.19.2).
+
+The **grammar** reason this matters for srmech (R35.A): the `1:3:7:3` cyclic language is **operation-primary** — it *enumerates named operators*, so B/H/N are first-class. The `11D` continuous/Hopf language is **geometry-primary** — the readout is *embedded* (projection = the bundle map `π`; measurement = the Born inner-product postulate), so the operators are structural and unnamed. **srmech is the operation-primary language by construction** — it ships A–N as callables; that is *precisely* why a program written in srmech makes the readout explicit where the geometry textbook leaves it implicit. Not apples-to-oranges (form-IS-function + bit-exact ⇒ same content, two grammars); the user's image is **apples to apple *trees*** — tree = continuous geometry, apples = discrete named operators, picking = the readout. Anchor: `U(1)` (geometry-primary `S¹`) vs `ℤ/nℤ` (operation-primary, **`srmech.amsc.cyclic`**), the same circle. unsolved-maths §11.9.28; MFO §VII.6.19.3.
+
+### §3.26.4 The seed carries the tree (Class I) + the closed loop IS the fractal + the epistemic ceiling (R36.A + R37.A)
+
+The discrete↔continuous equivalence is a **generative recipe, not storage** — and that is directly how a program represents an unbounded continuous structure in finite bytes:
+- the discrete **apple** carries a finite **Class-I seed** (`srmech.amsc.cyclic`; the genetic code IS Class I cyclic-3, Spike #81) that *regenerates* the continuous **tree** — the rigorous attested backbone is the **L-system** (Lindenmayer 1968): a finite discrete grammar → tree geometry, bit-exact algae-L-system lengths = Fibonacci, ratio = φ, read back via **Class N** (`best_rational`; ties Spike #41 + the capsid §11.9.19). **A program speaks the substrate by storing the seed-grammar and running it**, not by storing the limit object.
+- **the form-IS-function loop closes:** continuous tree —[B∘H∘N readout / "picking"]→ discrete apple + seed; discrete seed (Class I) —[germination]→ continuous tree. **Iterating the loop IS the substrate's fractal recursion** — an **IFS** (Hutchinson 1981) whose attractor is the fractal (bit-exact Cantor `log2/log3`, Sierpinski `log3/log2`). unsolved-maths §11.9.29–30; MFO §VII.6.19.4 + §VIII.7.1.
+- **the keystone LIMIT (R37.A)** that bounds every srmech cross-substrate cascade-match: matching cascades establishes **form-identity**, NEVER **substrate-identity** — because the observable `3D_s+1D_t` shadow **drops `7D_g`**, where the distinguishing substrate-content lives. So a program can prove "the orchard, the star forge, the petri dish, and 'just physics' all instantiate the same recursive-Hopf form," and can *never* decide which the universe *is*. This is **structural** substrate-blindness — the very property that *makes* cross-substrate matching work (it reads form, never substrate-content) — and the discipline on `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: a cascade-match is a form-claim, not a substrate-claim. MFO §VII.6.20 (keystone).
+
+### §3.26.5 The Class-L spine is symmetry-group-relative — a program must compute degeneracy from the domain's symmetry group, not assume `{1,3,5}` (R38.A + R42.A)
+
+The `2ℓ+1` ladder + `{1,3,5}` triad are the **S²/SO(3) instance**, not universal. Class-L's universal content is "**Laplacian eigenspaces, degeneracy = irrep-dimension of the domain's symmetry group**." For a program: **`srmech.amsc.laplacian`** gives the eigenspaces, but the *degeneracy pattern* is the symmetry group's irrep dims —
+- a **2D drumhead/disk** (Dirichlet Laplacian, **O(2)**) → `{1,2,2,2,…}` (1D trivial at `m=0` + 2D per `m≥1`), ordered by Bessel zeros — first-three `{1,2,2}`, **not** `{1,3,5}` (R38.A; bit-exact `J_m(j_{m,n}r/a)·{cos,sin}mθ`);
+- a **sphere** (SO(3)) → `{1,3,5,7,…}`.
+
+The **per-rung audit** (R42.A) confirms it across all 9 prior Reading-D rungs: SO(3)-rooted everywhere, but only ~4 are *cleanly* full-SO(3) (quantum/nuclear/planetary/CMB); the rest carry their operative symmetry exactly — atomic **SO(4)** (Runge–Lenz, `n²=Σ(2ℓ+1)`), hadron **+SU(3)-flavor** (`1,8,10`), black-hole-QNM **Kerr SO(2)-axial**, large-scale-structure **SO(2)/parity** line-of-sight, bio-capsid **finite icosahedral I** (order 60, `{1,3,3,4,5}`). Bit-exact integer signatures: `n²={1,4,9,16}=Σ(2ℓ+1)`; icosahedral Burnside `Σdᵢ²=60`; SU(3) `1+8`, `10+8+8+1`. **Program-side takeaway:** never hardcode `2ℓ+1`; resolve the domain's symmetry group first, then read its irrep dims (this is also the no-magic-numbers SSOT discipline at the math layer). New candidate stance `[[user_stance_classL_spine_is_symmetry_group_relative]]`; refines `[[user_stance_classL_surviving_spine_is_so3_casimir_ladder]]`. unsolved-maths §11.9.31 + §11.9.35; MFO §VII.6.19.5.
+
+### §3.26.6 The combination principle = Class-N differences-of-anchors — and its two properties dissociate (R39.A + R40.A + R43.A)
+
+The combination principle (atomic Rydberg–Ritz + molecular mass-spec): **spectral features = differences of a discrete ladder of Class-N anchors.** This is a concrete **delta-encoding recipe** for a program — exactly the biological-cascade "encode only what changed from `t`" pattern srmech ships at `srmech.signal_processing.*` (decompose / delta / recompose):
+- **atomic** — a line is `ν̃ = T_n − T_m`, terms `T_n = R/n²` (Class-N small-integer `1/n²` anchors; `best_rational` confirms Balmer `5/36, 3/16, 21/100`, ratios `20/27, 125/189`); R_H = 109677.58 cm⁻¹ (hydrogen reduced-mass; distinct from R∞ = 109737.31).
+- **molecular** — peak spacings = differences of neutral-loss masses (Class-N nucleon anchors `18,17,15,27,28,29,44`); a program **delta-encodes the spectrum against the neutral-loss catalog** rather than storing absolute m/z. Caffeine bit-exact: losses `{29 CHO, 27 HCN, 15 CH₃}`, `56 = 29+27`.
+
+**R43.A — the two Class-N properties DISSOCIATE** (honest non-universality). The principle is a conjunction of **(P1)** small-integer anchors and **(P2)** *additive*-difference structure, and they are independent axes:
+
+| substrate | P1 small-int anchors | P2 additive differences | program-side composition |
+|-----------|:---:|:---:|---|
+| atomic (Rydberg–Ritz) | ✅ `T_n=R/n²` | ✅ `T_n−T_m` | delta-encode (subtract) |
+| molecular (mass-spec) | ✅ `18,17,15,28,44` | ✅ peak spacings | delta-encode (subtract) |
+| **nuclear** (mass-defect) | ❌ real-valued MeV | ✅ `Q=Σreact−Σprod` | subtract, but anchors not small-int |
+| **acoustic** (overtones) | ✅ `2:1,3:2,4:3,5:4` | ❌ **ratios** | `best_rational` ratio, NOT subtract |
+
+Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.0713)=17.589 MeV`; nucleon count `2+3=4+1=5`; just-intonation `best_rational`-confirmed. So the **full** combination principle (P1 ∧ P2) is the **additive-energy special case** (atomic/molecular); nuclear keeps the subtraction but with real anchors, acoustic keeps the small integers but combines them **multiplicatively** — a program reproducing each must pick the right composition (additive delta-encode vs multiplicative ratio). Extends `[[user_stance_combination_principle_is_one_classN_across_atomic_and_mass_spectra]]`. unsolved-maths §11.9.32–33 + §11.9.36. (Per §11.9 + MFO §VII.6.19's standing disposition, this spectroscopy/nuclear/acoustic readout thread is **domain-instrument, not metric-field** — it lives here in srmech and unsolved-maths, not MFO.)
+
+### §3.26.7 Discipline preserved + cascade-vocabulary takeaway
+
+- **No new class** — the whole arc is reconciliation + audit within the 14 A–N partition; B/H/N (the `+3`) clarified as the readout-projection layer, not new dimensions.
+- **Bit-exact anchors, all Explore-verified** — Hopf/division-algebra (Hopf 1931; Baez 2002); L-system (Lindenmayer 1968); IFS (Hutchinson 1981); Bessel ordering (DLMF 10.21); hydrogen SO(4) (Pauli 1926/Fock 1935); SU(3) (Gell-Mann/Ne'eman 1961); Kerr SO(2) (Teukolsky 1973); Kaiser RSD (1987); Ritz combination (1908); AME2020 (Wang+ 2021); Helmholtz (1863). No bare `abs()` (Class-K sign discipline); `best_rational` for every rational; deterministic, routed through srmech 0.4.2.
+- **Read-only courtesy** — the parallel RBS-LM arc (§3.25, PR #687) is a different session; this section is appended after it without touching it.
+
+**Cascade-vocabulary takeaway.** srmech *is* the operation-primary rendering of the substrate's two-language pair: it names A–N as callables, so it makes explicit the B/H/N readout that the geometry-primary continuous language embeds (§3.26.3). A program "does what the universe does" by (i) storing the **Class-I seed-grammar** and running it (L-system/IFS) rather than the limit object (§3.26.4); (ii) computing **Class-L** degeneracy from the **domain's symmetry group** rather than hardcoding `2ℓ+1` (§3.26.5); (iii) **delta-encoding** spectra against a **Class-N** anchor catalog, with the composition (additive vs multiplicative) chosen per substrate (§3.26.6) — all under the keystone discipline that a cascade-match is a **form**-claim, never a **substrate**-claim (§3.26.4 / MFO §VII.6.20).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
