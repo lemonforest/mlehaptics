@@ -1959,6 +1959,16 @@ Round 39.A ([`round39_entry_A_massspec_spacings_classN_cascade.md`](cost_asymmet
 
 **Bit-exact (caffeine M=194, NIST MS #1681):** series `194,165,109,82,67,55` → spacings `[29,56,27,15,12]`; clean single losses `{29 CHO, 27 HCN, 15 CH3}` match the catalog exactly; 56 = 29+27 (Class-N sum); 12 flagged sub-catalog/uncertain. **Verdict 🟢 (a)-bit-exact catalog+matches + (b)-interpretive framing.** Unifying stance authored in R40. HONEST SCOPE: bit-exact for the integer catalog + clean caffeine matches (McLafferty–Turecek 1993; NIST); (b)-interpretive for delta-encode/cascade/combination-principle; NOT a fragmentation-mechanism claim (composite spacings flagged); no MFO section (molecular substrate).
 
+### §11.9.33 Spike #48 deeper-SM phase, honestly scoped — the combination principle is one Class-N structure across atomic + mass spectra (Round 40.A)
+
+Round 40.A ([`round40_entry_A_rydberg_ritz_combination_principle_classN.md`](cost_asymmetry/round40_entry_A_rydberg_ritz_combination_principle_classN.md) + committed [`verify_round40_rydberg_ritz_combination_principle_classN.py`](cost_asymmetry/verify_round40_rydberg_ritz_combination_principle_classN.py)) — open-queue item (the long-gated Spike #48, task #266).
+
+**The tractable deliverable — one Class-N combination principle, two substrates.** Spectral features are **differences of a discrete ladder of Class-N anchors**: *atomic* (Rydberg–Ritz, Ritz 1908) — lines `ν̃ = T_n − T_m`, terms `T_n = R/n²` (Class-N `1/n²` anchors); *molecular* (mass spec, R39) — peaks = differences of neutral-loss masses (nucleon-space Class-N anchors). Same principle, two substrates — unifying R39 + Round 17.A + §11.9.14 (mass spec = "molecular Rydberg–Ritz"). **Bit-exact:** Balmer `5/36, 3/16, 21/100`; `Hα=(5/36)R_H=15233 cm⁻¹` (`R_H=109677.58` hydrogen, distinct from `R_∞=109737.31`); `Hα/Hβ=20/27`, `Hα/Hγ=125/189` (srmech `best_rational`).
+
+**Honest scope on Spike #48's full QM/GR/SM weave:** periodic-table **shell** = Class-L (§11.9.12); periodic table + SM share Hurwitz `1+3+7`/Hopf ladder (§11.9.13); atomic **lines** = Class-N (this round + R17). The QM/atomic weave is **substantially addressed**; the **SM-derivation proper** (gauge group, masses, mixing) is the **separate Spin(8)/triality arc** (Spikes #58/#85/#86) — **NOT derivable from spectra, NOT claimed.** Spike #48 "deeper SM phase" = **partially delivered** (QM/spectra consolidation) with the SM-derivation honestly bounded out.
+
+**Verdict 🟢 (a)-bit-exact Rydberg rationals + (b)-interpretive unification + honest Spike #48 scoping.** New **candidate** stance `[[user_stance_combination_principle_is_one_classN_across_atomic_and_mass_spectra]]`. HONEST SCOPE: bit-exact for the Rydberg rationals (Ritz 1908; NIST ASD); (b)-interpretive for the atomic↔molecular unification; SM-derivation explicitly NOT claimed; `R_H`/`R_∞` distinct; no MFO section (atomic-structure/QM, not metric-field).
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
