@@ -1969,6 +1969,12 @@ Round 40.A ([`round40_entry_A_rydberg_ritz_combination_principle_classN.md`](cos
 
 **Verdict 🟢 (a)-bit-exact Rydberg rationals + (b)-interpretive unification + honest Spike #48 scoping.** New **candidate** stance `[[user_stance_combination_principle_is_one_classN_across_atomic_and_mass_spectra]]`. HONEST SCOPE: bit-exact for the Rydberg rationals (Ritz 1908; NIST ASD); (b)-interpretive for the atomic↔molecular unification; SM-derivation explicitly NOT claimed; `R_H`/`R_∞` distinct; no MFO section (atomic-structure/QM, not metric-field).
 
+### §11.9.34 ℓ=7 future-data test — turnkey pre-registration (PARKED, no result) (Round 41.A)
+
+Round 41.A ([`round41_entry_A_ell7_preregistration_parked.md`](cost_asymmetry/round41_entry_A_ell7_preregistration_parked.md) + committed [`verify_round41_ell7_preregistration_parked.py`](cost_asymmetry/verify_round41_ell7_preregistration_parked.py)) — open-queue item that *names a resolving event* and is **not dispatchable today** (no data). Honest closing = a **turnkey, tamper-proof pre-registration**; **no result computed; verdict PARKED.**
+
+Per §11.9.6a / Round 10.A, the `{1+3+7}` algebra identity is preserved but its CMB-multipole *projection* lost ℓ=7 (ℓ=7 ranked #5/7 on SMICA; per-ℓ claim withdrawn). Pre-registered re-test (fixed in advance): data = CMB-S4 (2030s) / LiteBIRD (~2028) per-ℓ TT `C_ℓ`, FITS→HEALPix `anafast` (Spike #190/#192 pipeline); range ℓ=2–8; statistic = Round 10.A per-ℓ concentration metric; null = no ℓ=7 preference; **re-open only if** ℓ=7 ranks #1 **and** `p < 0.05/7 ≈ 0.00714` (Bonferroni) **and** ≥2-method cross-confirm. Outcome-if-not-met: the per-ℓ ℓ=7 claim **stays withdrawn** (the algebra identity is unaffected). **Verdict 🅿️ PARKED** — pre-registration, not a result; no new stance; framework reading only. CMB-S4 (arXiv:1610.02743); LiteBIRD (arXiv:2202.02773).
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
