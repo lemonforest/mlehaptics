@@ -1975,6 +1975,21 @@ Round 41.A ([`round41_entry_A_ell7_preregistration_parked.md`](cost_asymmetry/ro
 
 Per §11.9.6a / Round 10.A, the `{1+3+7}` algebra identity is preserved but its CMB-multipole *projection* lost ℓ=7 (ℓ=7 ranked #5/7 on SMICA; per-ℓ claim withdrawn). Pre-registered re-test (fixed in advance): data = CMB-S4 (2030s) / LiteBIRD (~2028) per-ℓ TT `C_ℓ`, FITS→HEALPix `anafast` (Spike #190/#192 pipeline); range ℓ=2–8; statistic = Round 10.A per-ℓ concentration metric; null = no ℓ=7 preference; **re-open only if** ℓ=7 ranks #1 **and** `p < 0.05/7 ≈ 0.00714` (Bonferroni) **and** ≥2-method cross-confirm. Outcome-if-not-met: the per-ℓ ℓ=7 claim **stays withdrawn** (the algebra identity is unaffected). **Verdict 🅿️ PARKED** — pre-registration, not a result; no new stance; framework reading only. CMB-S4 (arXiv:1610.02743); LiteBIRD (arXiv:2202.02773).
 
+### §11.9.35 Per-rung symmetry-group audit — ~4 cleanly full-SO(3); the rest carry named deviations (Round 42.A, confirms R38)
+
+Round 42.A ([`round42_entry_A_per_rung_symmetry_group_audit.md`](cost_asymmetry/round42_entry_A_per_rung_symmetry_group_audit.md) + committed [`verify_round42_per_rung_symmetry_group_audit.py`](cost_asymmetry/verify_round42_per_rung_symmetry_group_audit.py)) — the coupled item R38 revealed. Re-reading each prior rung's operative symmetry:
+
+| class | rungs | symmetry |
+|-------|-------|----------|
+| **clean full SO(3)** (`2ℓ+1`) | quantum (Born=Hopf), nuclear shell, planetary magnetics, CMB sky | SO(3) |
+| **SO(3)-angular, enhanced** | atomic | **SO(4)** bound-state (Runge–Lenz; `n²=Σ(2ℓ+1)`) |
+| **SO(3)-spatial + internal** | hadron/QCD | + **SU(3) flavor** (`1,8,10`) |
+| **SO(3) deformed** | BH-QNM | **SO(2)-axial** (Kerr `aω`; SO(3) at a=0) |
+| **SO(3)-sky + LOS parity** | LSS Kaiser RSD | **SO(2)+parity** line-of-sight (even-ℓ `{0,2,4}`) |
+| **finite subgroup** | bio-capsid | **icosahedral I** (order 60; `{1,3,3,4,5}`) |
+
+**Bit-exact:** `2ℓ+1={1,3,5,7}`; `n²={1,4,9,16}=Σ(2ℓ+1)`; icosahedral Burnside `Σdᵢ²=60`; SU(3) `1+8`, `10+8+8+1`. **Verdict 🟢 confirms R38 + tightens an over-loose phrase:** the angular/Class-L structure is **SO(3)-rooted** across all rungs, but only **~4 are cleanly full SO(3)**; `2ℓ+1` appears *exactly* where full SO(3) is operative, and the deviations (SO(4)/SU(3)/SO(2)/finite-I) are precisely "the ladder tracks the symmetry group." The "9 contiguous SO(3) rungs" phrase is refined to "SO(3)-rooted; ~4 cleanly full-SO(3)." **Extends** `[[user_stance_classL_spine_is_symmetry_group_relative]]` (no new stance). HONEST SCOPE: bit-exact integer signatures (Explore-verified); (b)-interpretive symmetry assignments; no new physics; no MFO section.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
