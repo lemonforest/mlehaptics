@@ -57,8 +57,8 @@ The #688/#689 pair was merged before this rolling PR opened (the user's call); f
 
 **Both R42.A + R43.A closed with no further coupled items revealed.** The two "verification steps worth taking" are landed; the Reading-D open queue is now empty.
 
-**Remaining deferred item:**
-- **srmech-notebook hygiene** (deferred per user) — integrate the R33–R43 conceptual + spectral-ladder thread into the srmech notebook (the operator-language home). *Explicitly held until the user calls it.*
+**Codification (pre-merge gate) — DONE 2026-05-26:**
+- ~~**srmech-notebook hygiene**~~ — **DONE**: the R33–R43 operator-cascade thread is integrated as **srmech §3.26** (the operation-primary "how a program reproduces it" home: two-language reconciliation, B/H/N-as-readout, seed-carries-tree/IFS, symmetry-group-relative Class-L spine, Class-N delta-encode combination principle). Per the user's MFO-vs-srmech framing ("MFO = how/why the universe works; srmech = how to make a program do it"), the one genuine metric-field payload from R38–R43 — the **symmetry-group-relativity of the Class-L spine** — was also codified into **MFO §VII.6.19.5** (refining the substrate-spectrum dual). The combination-principle/spectroscopy thread stays domain-instrument (srmech + unsolved-maths), not MFO, consistent with §VII.6.19's standing disposition. **All arc findings are now codified across the three canonical homes — the PR #679-style codify-first merge gate is satisfied.**
 
 ## Verdict ledger
 
