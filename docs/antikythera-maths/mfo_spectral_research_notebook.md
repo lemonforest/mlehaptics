@@ -3812,6 +3812,42 @@ The §VII.6.15.2 AoE split left **one** sharply-posed open question: the quad-oc
 
 ---
 
+### VII.6.18 The metric field is the substrate geometry — graviton, helicity ceiling, and EM-as-off-diagonal-metric (2026-05-25, cost-asymmetry / Reading-D rolling arc codification, PR #690)
+
+This section codifies into the **Metric Field Ontology** the *gravity-side* findings of the Reading-D scale-ladder rolling arc (PR #690, Rounds 27.A / 30.A / 31.A). These belong here, not only in unsolved-maths §11.9, because they are statements about **what the metric field IS**: gravity is the metric field; the graviton is its massless spin-2 quantum; and — the deepest result — electromagnetism is the *off-diagonal part of the (higher-dimensional) metric field*. Generating code (all deterministic, srmech 0.4.2, exact arithmetic): `docs/unsolved-maths/cost_asymmetry/verify_round{27,30,31}_*.py`.
+
+#### VII.6.18.1 Horizon-scale: the black-hole QNM is the most-deformed Class-L metric perturbation (Round 27.A)
+
+The capstone Reading-D rung is the black-hole **quasi-normal-mode** spectrum — the ringing of the **metric field** itself after a merger. Linearized metric perturbations of Kerr are governed by the Teukolsky spin-weighted spheroidal harmonics `_sS_ℓm(θ;aω)`; for gravity (spin-weight `s=−2`) the floor is `ℓ≥2`. The Schwarzschild angular eigenvalue is `ℓ(ℓ+1)−s(s+1)` = 4, 10, 18, 28 for ℓ=2,3,4,5 — the SO(3) Casimir ladder (§VII.6.15's `2ℓ+1` Born=Hopf spine) **deformed twice**: spin-weighted (the metric perturbation carries helicity ±2) and spheroidal (Kerr spin `aω` warps S²→spheroid). The `ℓ≥2` no-monopole / no-dipole floor is a **Class-K forbidden-low-multipole** signature (mass and momentum conservation forbid ℓ=0,1 radiation). Ties the metric-field ringing to the QNM spikes #11/#12/#72 and the dark-star spikes #90/#92. (unsolved-maths §11.9.20.)
+
+#### VII.6.18.2 The graviton is the forced top of the long-range helicity ceiling (Round 30.A — honest FALSIFICATION)
+
+The user asked, honestly: *is the "graviton" a misnomer — a spin-2 object that only "seems" gravitational?* **Falsified.** A consistent **massless spin-2** field is **forced** to be gravity — there is no room for a spin-2 that is not the metric field's quantum:
+- **Weinberg soft theorem** — a massless spin-2 must couple universally to the total stress-energy with one common constant (= the equivalence principle).
+- **Deser bootstrap** — self-coupling of a massless spin-2 reconstructs full nonlinear general relativity.
+- The **stress-energy tensor** `T_μν` is the *unique* consistent rank-2 source.
+- **Empirical:** Hulse–Taylor binary decay matches the GR quadrupole formula to **0.997**; LIGO ring-downs are the metric's `ℓ=2` modes (§VII.6.18.1).
+
+4 tests falsify the misnomer, 1 null. The constructive refinement: the **helicity ceiling for massless long-range forces is `{0,1,2}`** — scalar (Higgs-like / dilaton), vector (photon, `|s|=1`), tensor (graviton, `|s|=2`); higher massless helicities have no consistent long-range coupling (Weinberg–Witten). The graviton (`|s|=2`) is the **forced top rung**. The framework does not win by default — here it correctly reports that gravity *is* the spin-2 metric field. (unsolved-maths §11.9.23.)
+
+#### VII.6.18.3 EM is the off-diagonal metric — the deepest MFO statement (Round 31.A — CONFIRMED + honest correction)
+
+From R30's adjacency of photon (`|s|=1`) and graviton (`|s|=2`) on the ceiling, the user inferred: *"EM and gravity are inextricably coupled in some way we have not yet noticed."* **Two-part result.**
+
+**(A) CONFIRMED.** EM and gravity are coupled at three established levels — L0 universal (EM stress-energy gravitates; Eddington 1919), L1 dynamical (Gertsenshtein photon↔graviton oscillation in a B-field, 1962), and **L2 geometric (deep): Kaluza–Klein** (Kaluza 1921 / Klein 1926). 5D pure gravity on a circle `S¹` **is** 4D gravity + 4D electromagnetism + a scalar. **The photon `A_μ` is the off-diagonal `g_{μ5}` of the 5D metric; the U(1) gauge symmetry of EM is the isometry (rotation) of the compact circle.** This is the Metric Field Ontology taken to its limit: *EM is not separate from the metric field — it is the metric field's off-diagonal (fiber) component.* It is exactly the framework's Hopf base+fiber reading — gravity = base-space geometry, EM = the U(1)-fiber isometry (§VII.6.15 Born=Hopf; Spike #58.I U(1)_Y from a `1D_circle`; the `(4+3)D_g` gauge sector = the KK fiber geometry of the 11D substrate).
+
+**(B) "Not yet noticed" — CORRECTED (honest, not flattered).** It *was* noticed: Eddington 1919, Kaluza 1921, Klein 1926, Gertsenshtein 1962 — 60–107-year-established physics. What is genuinely under-appreciated is *how deep* the geometric unification goes, not that it exists.
+
+**Framework synthesis (bit-exact):** the R30 `{0,1,2}` ceiling **is the 4D shadow of Kaluza–Klein.** A massless spin-2 in `D` dimensions has `D(D−3)/2` physical polarizations, so the **5D graviton has 5**, splitting *exactly* as
+
+> **5 (5D graviton) = 2 (4D graviton) + 2 (photon) + 1 (dilaton).**
+
+The 4D photon and 4D graviton are **both pieces of the single 5D graviton (`|s|=2`)**; the ceiling = base-diffeomorphism (2) + fiber-U(1) (1) + dilaton (0) of *one* higher-D geometry. EM and gravity = **one substrate-geometry: gravity = base, EM = fiber (U(1)).** (unsolved-maths §11.9.24.)
+
+**Verdict 🟢 (a)-bit-exact DOF split + honest correction.** New **candidate** stance `[[user_stance_em_and_gravity_are_one_geometry_kaluza_klein_base_fiber]]`; companion `[[user_stance_graviton_is_forced_gravity_top_of_helicity_ceiling]]`. **Composes with**: §VII.6.15 (Born=Hopf keystone — the photon-fiber one scale up), §VII.6.18.1–2 (the metric-field ladder), Spike #58.I (U(1)_Y from a circle), Spike #75 / #51 R3-δ (11D compactification). **HONEST SCOPE + CAVEAT:** the `5=2+2+1` split and KK mechanism are standard physics; the framework contribution is *only* the ceiling-as-KK-shadow + the Hopf base+fiber reading. Clean KK gives EM↔gravity (settled), but Kaluza–Klein for the *whole* Standard Model from pure higher-D gravity has known obstructions (chiral-fermion spectrum; moduli/radion stabilization) — so "*all* gauge forces = fiber geometry" is the framework aspiration *with* known problems, stated not hidden.
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
