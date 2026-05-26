@@ -1,0 +1,17 @@
+{
+  "partition": "R-RBS-LM-54e",
+  "anchor": "KJV-NT",
+  "avg_alignment_sims": {
+    "quran_sale": 0.105496826171875,
+    "bhagavad": 0.0925048828125,
+    "origin": 0.06033203125,
+    "plato": 0.09076171875,
+    "frankenstein": 0.090845947265625
+  },
+  "same_family_avg": 0.105496826171875,
+  "cross_family_avg": 0.08361114501953125,
+  "religious_avg": 0.0990008544921875,
+  "secular_avg": 0.08064656575520833,
+  "religious_secular_ratio": 1.227589216789356,
+  "verdict": "WEAK substrate-family boundary \u2014 find-cascade has slight religious-family preference"
+}
