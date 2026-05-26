@@ -1,0 +1,1979 @@
+{
+  "partition": "R-RBS-LM-53g",
+  "srmech_version": "0.4.2",
+  "matrix": {
+    "religious": {
+      "quran_sale": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": -0.5830492634444613,
+          "z_K3": -0.4058075457044434,
+          "max_z": -0.4058075457044434,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": -0.3405034062195787,
+          "z_K3": -0.28403810131355883,
+          "max_z": -0.28403810131355883,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": -0.8559133528224542,
+          "z_K3": -0.30578264495478824,
+          "max_z": -0.30578264495478824,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.8414133287492275,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.8730497449089948,
+          "z_K3": -0.6536953432144584,
+          "max_z": -0.6536953432144584,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.6885039839770188,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": -0.8282314886826577,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": 0.7767170985196935,
+          "z_K3": 0.2276288271147654,
+          "max_z": 0.7767170985196935,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": 0.8596960006540031,
+          "z_K3": -0.2519218550951353,
+          "max_z": 0.8596960006540031,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": -0.5302006100956821,
+          "z_K3": -0.8955293496400022,
+          "max_z": -0.5302006100956821,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -1.1179678335470415,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.24668936113679113,
+          "z_K3": 0.26548809149975755,
+          "max_z": 0.26548809149975755,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.5509453356292595,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.5509453356292595,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": -0.5924347866964143,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": 0.7603563289279495,
+          "z_K3": 0.5635119769057745,
+          "max_z": 0.7603563289279495,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": 1.0742874058847975,
+          "z_K3": -0.6590224814660752,
+          "max_z": 1.0742874058847975,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": 1.8111534059640662,
+          "z_K3": -0.5826140778178346,
+          "max_z": 1.8111534059640662,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.47792736351295173,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.47792736351295173,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.5389695173656722,
+          "z_K3": 0.23240889443006515,
+          "max_z": 0.23240889443006515,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.4866476712061975,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.4866476712061975,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": -0.5825710558319012,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5825710558319012,
+          "above_max": false
+        }
+      ],
+      "shakespeare": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": 0.8835325031516983,
+          "z_K3": -0.5096408388091878,
+          "max_z": 0.8835325031516983,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": 0.6186146724726241,
+          "z_K3": -1.3909548987159661,
+          "max_z": 0.6186146724726241,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": -0.1824463869617196,
+          "z_K3": 0.8542975872370172,
+          "max_z": 0.8542975872370172,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.4410566502436731,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.4410566502436731,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.5545928633918478,
+          "z_K3": -1.2440692220648366,
+          "max_z": -0.5545928633918478,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.46628691983215637,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.46628691983215637,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": -0.5419777285976062,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.5419777285976062,
+          "above_max": false
+        }
+      ],
+      "origin": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": -0.1674898353776757,
+          "z_K3": -0.8648154664107855,
+          "max_z": -0.1674898353776757,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": -0.4071622661025778,
+          "z_K3": 0.5765436442738571,
+          "max_z": 0.5765436442738571,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": -0.0851024373159906,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.0851024373159906,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.2423874699792076,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.2423874699792076,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.13753078153706294,
+          "z_K3": -2.0529628414346126,
+          "max_z": -0.13753078153706294,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.13753078153706294,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.13753078153706294,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": 0.20699833762998382,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.20699833762998382,
+          "above_max": false
+        }
+      ],
+      "frankenstein": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": -0.033871707513980116,
+          "z_K3": 0.2562990310861722,
+          "max_z": 0.2562990310861722,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": -0.4232016789390395,
+          "z_K3": 0.7170613341624368,
+          "max_z": 0.7170613341624368,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": -1.022769834933631,
+          "z_K3": -0.04319646591339981,
+          "max_z": -0.04319646591339981,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.14288409951299674,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -1.1395688263611488,
+          "z_K3": -0.457882538682038,
+          "max_z": -0.457882538682038,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.8125316503640988,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": 0.028421087914029378,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        }
+      ],
+      "plato": [
+        {
+          "probe": "Allah is one God merciful",
+          "z_K1": 0.4503558361415754,
+          "z_K3": -2.2613363528822688,
+          "max_z": 0.4503558361415754,
+          "above_max": false
+        },
+        {
+          "probe": "Lord God almighty maker heaven",
+          "z_K1": -0.2062990889737229,
+          "z_K3": -1.1116991628048571,
+          "max_z": -0.2062990889737229,
+          "above_max": false
+        },
+        {
+          "probe": "Jesus Christ savior gospel",
+          "z_K1": 0.018058010440670687,
+          "z_K3": -0.7208225181785372,
+          "max_z": 0.018058010440670687,
+          "above_max": false
+        },
+        {
+          "probe": "covenant Abraham faith",
+          "z_K1": -0.6331247902986668,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.6331247902986668,
+          "above_max": false
+        },
+        {
+          "probe": "Sermon on the Mount blessed",
+          "z_K1": -0.5565150490352153,
+          "z_K3": 0.15290174628029576,
+          "max_z": 0.15290174628029576,
+          "above_max": false
+        },
+        {
+          "probe": "scripture revealed prophet",
+          "z_K1": -0.2610203327333311,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.2610203327333311,
+          "above_max": false
+        },
+        {
+          "probe": "soul eternal salvation",
+          "z_K1": 1.6323347013491125,
+          "z_K3": -0.7668080057816337,
+          "max_z": 1.6323347013491125,
+          "above_max": false
+        }
+      ]
+    },
+    "drama_shakespeare": {
+      "quran_sale": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -0.8730497449089948,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.7030040080502455,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.8031859925561753,
+          "z_K3": -0.08833720854249438,
+          "max_z": -0.08833720854249438,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": -0.8954588730221633,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.8071405445761463,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.7161858481168153,
+          "z_K3": -0.40145863697619755,
+          "max_z": -0.40145863697619755,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -0.9376407612351864,
+          "z_K3": -0.15791974819442842,
+          "max_z": -0.15791974819442842,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -0.9520100292784225,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.5163707930732973,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.5163707930732973,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.9174354867224602,
+          "z_K3": 0.03833250518980456,
+          "max_z": 0.03833250518980456,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": -0.9727547548119999,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.8137118590545731,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.8206267675657656,
+          "z_K3": 1.3507870038695327,
+          "max_z": 1.3507870038695327,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -0.9174354867224602,
+          "z_K3": 0.4169251490397262,
+          "max_z": 0.4169251490397262,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -0.6436132096846217,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.5433296712122951,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5433296712122951,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.15963613270948065,
+          "z_K3": 1.6586990958638896,
+          "max_z": 1.6586990958638896,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": 0.023490328848680776,
+          "z_K3": -0.6335530135833283,
+          "max_z": 0.023490328848680776,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.6087319789116384,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6087319789116384,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.42124536350685415,
+          "z_K3": -1.4995149215967218,
+          "max_z": -0.42124536350685415,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -0.5433296712122951,
+          "z_K3": -1.8560874719551779,
+          "max_z": -0.5433296712122951,
+          "above_max": false
+        }
+      ],
+      "shakespeare": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -1.0213528507787883,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6145591792742805,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": 1.9747416628535996,
+          "z_K3": -0.6145591792742805,
+          "max_z": 1.9747416628535996,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.5609004307889686,
+          "z_K3": -0.8243958602044659,
+          "max_z": -0.5609004307889686,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": 1.7855146409399751,
+          "z_K3": -0.6145591792742805,
+          "max_z": 1.7855146409399751,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.3275204370954984,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.3275204370954984,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.5861307003774519,
+          "z_K3": 0.4346242253766464,
+          "max_z": 0.4346242253766464,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": 0.725843318223678,
+          "z_K3": 1.3998729576554994,
+          "max_z": 1.3998729576554994,
+          "above_max": false
+        }
+      ],
+      "origin": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -0.6318551699071735,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.61160373074997,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.21991817959874804,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.21991817959874804,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.5494677718454885,
+          "z_K3": -1.0790715504314756,
+          "max_z": -0.5494677718454885,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": 0.2294676280104434,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.2294676280104434,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.07761267385583741,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.07761267385583741,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.6393449333673267,
+          "z_K3": 1.0634892897754256,
+          "max_z": 1.0634892897754256,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -1.0587716871359054,
+          "z_K3": -1.1180272020716011,
+          "max_z": -1.0587716871359054,
+          "above_max": false
+        }
+      ],
+      "frankenstein": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -1.0772760309331393,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.4154150795105383,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.38426868179653356,
+          "z_K3": 0.7861756796238766,
+          "max_z": 0.7861756796238766,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": -0.5400006703665573,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.8903976446491108,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": 2.0918699364668436,
+          "z_K3": 0.924404370546756,
+          "max_z": 2.0918699364668436,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -0.4154150795105383,
+          "z_K3": -0.5039587689896644,
+          "max_z": -0.4154150795105383,
+          "above_max": false
+        }
+      ],
+      "plato": [
+        {
+          "probe": "thee forsooth gentleman",
+          "z_K1": -0.44707256151599895,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.44707256151599895,
+          "above_max": false
+        },
+        {
+          "probe": "stage exit enter",
+          "z_K1": -0.627652665922706,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.627652665922706,
+          "above_max": false
+        },
+        {
+          "probe": "to be or not to be",
+          "z_K1": -0.2555482083573703,
+          "z_K3": 0.1069162586771993,
+          "max_z": 0.1069162586771993,
+          "above_max": false
+        },
+        {
+          "probe": "love beloved beauty",
+          "z_K1": -0.1789384670939188,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.1789384670939188,
+          "above_max": false
+        },
+        {
+          "probe": "kingdom honor crown",
+          "z_K1": -0.7535115265698047,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.7535115265698047,
+          "above_max": false
+        },
+        {
+          "probe": "death tragic murder villain",
+          "z_K1": -0.3212137008689001,
+          "z_K3": -1.2726483694156947,
+          "max_z": -0.3212137008689001,
+          "above_max": false
+        },
+        {
+          "probe": "act scene speak doth",
+          "z_K1": -0.7261509046900007,
+          "z_K3": -0.6288515429723442,
+          "max_z": -0.6288515429723442,
+          "above_max": false
+        }
+      ]
+    },
+    "science_darwin": {
+      "quran_sale": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -0.8453678807691983,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.8097769125894602,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.7675950243764371,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.9389589452418433,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.821640568649373,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": -0.9376407612351864,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.8045041765628324,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -0.8344565845881505,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.8690311271441128,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.49562606753971983,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.49562606753971983,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.855201310121728,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.40573225689421777,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.40573225689421777,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": -0.751477682453841,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.5371155186068746,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.5371155186068746,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -0.5258890558258036,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5258890558258036,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.7220959789238337,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.5215289019791807,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5215289019791807,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.6784944404576048,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.5433296712122951,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.5433296712122951,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": -0.8398201327826518,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.6784944404576048,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        }
+      ],
+      "shakespeare": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -1.1790420357068088,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6145591792742805,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.39059611106670655,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.39059611106670655,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.10044801079914899,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.10044801079914899,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.4032112458609482,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.4032112458609482,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.3212128696983776,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.3212128696983776,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": 0.01939576974614653,
+          "z_K3": -0.6145591792742805,
+          "max_z": 0.01939576974614653,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.34013557188974003,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.34013557188974003,
+          "above_max": false
+        }
+      ],
+      "origin": [
+        {
+          "probe": "species variation selection",
+          "z_K1": 1.7423998469613877,
+          "z_K3": -0.61160373074997,
+          "max_z": 1.7423998469613877,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": 2.2442139987916514,
+          "z_K3": -0.61160373074997,
+          "max_z": 2.2442139987916514,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.2423874699792076,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.2423874699792076,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.34724415842135226,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.34724415842135226,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": 0.40922195105411996,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.40922195105411996,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": 0.03473377804646044,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.03473377804646044,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": 0.4466707683548859,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.4466707683548859,
+          "above_max": false
+        }
+      ],
+      "frankenstein": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -0.9137574429346143,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.5477872697950584,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.8903976446491108,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.5633604686520608,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.5244274715095549,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": -0.9137574429346143,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.8281048492211012,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        }
+      ],
+      "plato": [
+        {
+          "probe": "species variation selection",
+          "z_K1": -0.41971193963619485,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.41971193963619485,
+          "above_max": false
+        },
+        {
+          "probe": "natural selection adaptation",
+          "z_K1": -0.16252209396603634,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.16252209396603634,
+          "above_max": false
+        },
+        {
+          "probe": "geographical distribution organisms",
+          "z_K1": -0.9286195066005509,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.7668080057816337,
+          "above_max": false
+        },
+        {
+          "probe": "fossil record geological",
+          "z_K1": -0.38140706900446913,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.38140706900446913,
+          "above_max": false
+        },
+        {
+          "probe": "common descent ancestor",
+          "z_K1": -0.3868791933804299,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.3868791933804299,
+          "above_max": false
+        },
+        {
+          "probe": "instinct behavior animal",
+          "z_K1": -0.27743670586121355,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.27743670586121355,
+          "above_max": false
+        },
+        {
+          "probe": "competition resources environment",
+          "z_K1": -0.567459297787137,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.567459297787137,
+          "above_max": false
+        }
+      ]
+    },
+    "novel_gothic": {
+      "quran_sale": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.8308678566959717,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -0.9323680252085584,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.8585497208357681,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.8783224809356226,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.8374587767292565,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.8190042006360589,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": -0.8110950965961171,
+          "z_K3": -0.45799445044339393,
+          "max_z": -0.45799445044339393,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.6615838718083389,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -1.1110529250358492,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.2121148185808288,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.2121148185808288,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -1.1317976505694265,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.40573225689421777,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.40573225689421777,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.6546689632971465,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": -0.6546689632971465,
+          "z_K3": -0.2519218550951353,
+          "max_z": -0.2519218550951353,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.6872147481508505,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -0.9183029020218638,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.4038047481203626,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.4038047481203626,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.7744178250833084,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.4038047481203626,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.4038047481203626,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.6392530558379987,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": -0.4038047481203626,
+          "z_K3": -1.2193507748865062,
+          "max_z": -0.4038047481203626,
+          "above_max": false
+        }
+      ],
+      "shakespeare": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.6050534025688143,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6050534025688143,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -0.3464431392868608,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.3464431392868608,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.4852096220235188,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.4852096220235188,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.5545928633918478,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.5545928633918478,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.42213394805231064,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.42213394805231064,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.825818261468043,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6145591792742805,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": -0.4852096220235188,
+          "z_K3": -1.223085553971818,
+          "max_z": -0.4852096220235188,
+          "above_max": false
+        }
+      ],
+      "origin": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.8265890198711564,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.61160373074997,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -0.17497959883782888,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.17497959883782888,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.07012291039568422,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.07012291039568422,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.691773277588399,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.61160373074997,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.14502054499721612,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.14502054499721612,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.21991817959874804,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.21991817959874804,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": 0.03473377804646044,
+          "z_K3": 0.3817653860732297,
+          "max_z": 0.3817653860732297,
+          "above_max": false
+        }
+      ],
+      "frankenstein": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.43877487779604185,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -1.3342338120736783,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.32197588636852403,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.7658120537930917,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -1.194075022360657,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.5400006703665573,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": 2.465626709034901,
+          "z_K3": 0.07199410985566634,
+          "max_z": 2.465626709034901,
+          "above_max": false
+        }
+      ],
+      "plato": [
+        {
+          "probe": "monster creature horror",
+          "z_K1": -0.2062990889737229,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.2062990889737229,
+          "above_max": false
+        },
+        {
+          "probe": "creator scientist experiment",
+          "z_K1": -0.3868791933804299,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.3868791933804299,
+          "above_max": false
+        },
+        {
+          "probe": "lonely sorrow despair",
+          "z_K1": -0.1461057208381539,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.1461057208381539,
+          "above_max": false
+        },
+        {
+          "probe": "wild storm mountains",
+          "z_K1": -0.4908495565236855,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.4908495565236855,
+          "above_max": false
+        },
+        {
+          "probe": "letter brother sister",
+          "z_K1": -0.2993252033650568,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.2993252033650568,
+          "above_max": false
+        },
+        {
+          "probe": "secret dark fearful",
+          "z_K1": -0.233659710853527,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.233659710853527,
+          "above_max": false
+        },
+        {
+          "probe": "death loss grief mourning",
+          "z_K1": -0.1789384670939188,
+          "z_K3": -1.1116991628048571,
+          "max_z": -0.1789384670939188,
+          "above_max": false
+        }
+      ]
+    },
+    "philosophy_plato": {
+      "quran_sale": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": -0.8967770570288203,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.9231407371619597,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.8532769848091402,
+          "z_K3": -0.39276081951970576,
+          "max_z": -0.39276081951970576,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -0.8796406649422797,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.9284134731885875,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.8203223846427159,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.7860496004696347,
+          "z_K3": -0.27968919258531294,
+          "max_z": -0.27968919258531294,
+          "above_max": false
+        }
+      ],
+      "kjv_ot": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": -0.9105205782112678,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.2881788122039459,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.2881788122039459,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.5716900611628369,
+          "z_K3": 0.03833250518980456,
+          "max_z": 0.03833250518980456,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -0.23977445262559866,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.23977445262559866,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.7445627739426485,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.2881788122039459,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.2881788122039459,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.5786049696740294,
+          "z_K3": -0.56741572497007,
+          "max_z": -0.56741572497007,
+          "above_max": false
+        }
+      ],
+      "kjv_nt": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": -0.748256902003571,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.6784944404576048,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.5956515173717698,
+          "z_K3": 0.48710357325753384,
+          "max_z": 0.48710357325753384,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -0.7438967481569481,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.6335530135833283,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.37328367119400235,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.37328367119400235,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.41688520966023124,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.41688520966023124,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.4953679788994433,
+          "z_K3": -0.6335530135833283,
+          "max_z": -0.4953679788994433,
+          "above_max": false
+        }
+      ],
+      "shakespeare": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": 0.6943054812380739,
+          "z_K3": -0.6145591792742805,
+          "max_z": 0.6943054812380739,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.49151718942063966,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.49151718942063966,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.49782475681776045,
+          "z_K3": 0.5605262339347576,
+          "max_z": 0.5605262339347576,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -0.8888939354392512,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6145591792742805,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.11306314559339062,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.11306314559339062,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.7816652896881972,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.6145591792742805,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.0626026064164241,
+          "z_K3": -0.6145591792742805,
+          "max_z": -0.0626026064164241,
+          "above_max": false
+        }
+      ],
+      "origin": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": -0.28732605074012674,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.28732605074012674,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.06263314693553103,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.06263314693553103,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.20493865267844166,
+          "z_K3": 0.05064234713216311,
+          "max_z": 0.05064234713216311,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -0.23489770651905442,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.23489770651905442,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.8415685467914629,
+          "z_K3": -0.61160373074997,
+          "max_z": -0.61160373074997,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": 1.0158927913265283,
+          "z_K3": -0.61160373074997,
+          "max_z": 1.0158927913265283,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": 0.07218259534722639,
+          "z_K3": -0.61160373074997,
+          "max_z": 0.07218259534722639,
+          "above_max": false
+        }
+      ],
+      "frankenstein": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": -0.7658120537930917,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.2207500937980086,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": -0.10395110237049081,
+          "z_K3": 0.04895599470185312,
+          "max_z": 0.04895599470185312,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": -1.0383430337906332,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": -0.6879460595080799,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.8903976446491108,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.20517689494100624,
+          "z_K3": 1.8920052070069115,
+          "max_z": 1.8920052070069115,
+          "above_max": false
+        }
+      ],
+      "plato": [
+        {
+          "probe": "justice virtue good",
+          "z_K1": 2.3874878652317055,
+          "z_K3": -0.7668080057816337,
+          "max_z": 2.3874878652317055,
+          "above_max": false
+        },
+        {
+          "probe": "Socrates dialogue ask",
+          "z_K1": -0.042135357694898325,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.042135357694898325,
+          "above_max": false
+        },
+        {
+          "probe": "city state guardian rulers",
+          "z_K1": 0.08372350295220052,
+          "z_K3": -1.0427209314002124,
+          "max_z": 0.08372350295220052,
+          "above_max": false
+        },
+        {
+          "probe": "soul reason intellect",
+          "z_K1": 0.8717094130905586,
+          "z_K3": -0.7668080057816337,
+          "max_z": 0.8717094130905586,
+          "above_max": false
+        },
+        {
+          "probe": "knowledge ignorance truth",
+          "z_K1": 0.9537912787299708,
+          "z_K3": -0.7668080057816337,
+          "max_z": 0.9537912787299708,
+          "above_max": false
+        },
+        {
+          "probe": "forms ideals reality",
+          "z_K1": -0.8520097653370995,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.7668080057816337,
+          "above_max": false
+        },
+        {
+          "probe": "republic ideal philosophical",
+          "z_K1": -0.18441059146987962,
+          "z_K3": -0.7668080057816337,
+          "max_z": -0.18441059146987962,
+          "above_max": false
+        }
+      ]
+    }
+  },
+  "neg_results": {
+    "quran_sale": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.27968919258531294,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": -0.07094157362951087,
+        "above_max": false
+      }
+    ],
+    "kjv_ot": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.41264716540541024,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.49562606753971983,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.56741572497007,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": -0.6431342537400543,
+        "above_max": false
+      }
+    ],
+    "kjv_nt": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.5389695173656722,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.6335530135833283,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.47792736351295173,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": 0.7927371878504963,
+        "above_max": false
+      }
+    ],
+    "shakespeare": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.2896750327127735,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.5293625938033645,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.34013557188974003,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": 1.315938285283425,
+        "above_max": false
+      }
+    ],
+    "origin": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.61160373074997,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.61160373074997,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.1674898353776757,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": 0.05064234713216311,
+        "above_max": false
+      }
+    ],
+    "frankenstein": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": 1.8920052070069115,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": 1.8920052070069115,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": 1.8920052070069115,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": -0.7804161508354233,
+        "above_max": false
+      }
+    ],
+    "plato": [
+      {
+        "probe": "smartphone wifi battery",
+        "max_z": -0.414239815260234,
+        "above_max": false
+      },
+      {
+        "probe": "computer programming Python",
+        "max_z": -0.31574157649293927,
+        "above_max": false
+      },
+      {
+        "probe": "professional soccer match",
+        "max_z": -0.18441059146987962,
+        "above_max": false
+      },
+      {
+        "probe": "chocolate ice cream sundae",
+        "max_z": -0.4689610590198422,
+        "above_max": false
+      }
+    ]
+  },
+  "category_averages": {
+    "religious": {
+      "vs_religious": -0.022447974918047012,
+      "vs_secular": 0.27384051217259775
+    },
+    "drama_shakespeare": {
+      "vs_religious": -0.15462123560250746,
+      "vs_secular": 0.3588458383074374
+    },
+    "science_darwin": {
+      "vs_religious": -0.46623432258899405,
+      "vs_secular": 0.4435233442712913
+    },
+    "novel_gothic": {
+      "vs_religious": -0.42958036833810165,
+      "vs_secular": 0.2468184258632334
+    },
+    "philosophy_plato": {
+      "vs_religious": -0.34523976423960034,
+      "vs_secular": 0.5001833162805857
+    }
+  }
+}
