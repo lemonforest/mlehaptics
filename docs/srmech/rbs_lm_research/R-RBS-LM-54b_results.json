@@ -1,0 +1,21 @@
+{
+  "partition": "R-RBS-LM-54b",
+  "domain_A": "KJV-NT",
+  "domain_B_same_family": "Quran-Sale",
+  "domain_C_cross_family": "Bhagavad Gita",
+  "avg_token_overlap_A_B_same_family": 2.3,
+  "avg_token_overlap_A_C_cross_family": 1.9,
+  "rank_distribution": [
+    13,
+    196,
+    67,
+    9,
+    45,
+    199,
+    178,
+    147,
+    12,
+    47
+  ],
+  "verdict": "WEAK RANK-MATCHING \u2014 same-family token overlap slightly higher; partial cross-domain alignment"
+}
