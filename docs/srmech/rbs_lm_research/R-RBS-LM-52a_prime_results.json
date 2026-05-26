@@ -1,0 +1,258 @@
+{
+  "partition": "R-RBS-LM-52a'",
+  "phase": "A' \u2014 notebooks-as-corpus control test",
+  "srmech_version": "0.4.2",
+  "notebooks": [
+    "srmech_research_notebook.md",
+    "mfo_spectral_research_notebook.md"
+  ],
+  "n_sections": 379,
+  "n_tokens_total": 117008,
+  "n_tokens_unique": 14284,
+  "vocab_size": 200,
+  "vocab_coverage_pct": 31.6,
+  "vocab_top_15": [
+    [
+      "spike",
+      1992
+    ],
+    [
+      "class",
+      1822
+    ],
+    [
+      "substrate",
+      1093
+    ],
+    [
+      "vii",
+      755
+    ],
+    [
+      "cascade",
+      663
+    ],
+    [
+      "framework",
+      641
+    ],
+    [
+      "same",
+      581
+    ],
+    [
+      "canonical",
+      480
+    ],
+    [
+      "d_s",
+      479
+    ],
+    [
+      "d_g",
+      430
+    ],
+    [
+      "reading",
+      415
+    ],
+    [
+      "anchor",
+      415
+    ],
+    [
+      "across",
+      412
+    ],
+    [
+      "stance",
+      386
+    ],
+    [
+      "pr",
+      383
+    ]
+  ],
+  "n_edges": 15950,
+  "total_edge_weight": 136726,
+  "eigvals_top_5": [
+    4934.164399622974,
+    5137.59284000044,
+    8238.485072798045,
+    11987.280132291491,
+    13661.489216412616
+  ],
+  "eigvals_bottom_5": [
+    9.48553197480203e-13,
+    474.2430856433642,
+    536.5276683546641,
+    557.7569543271968,
+    567.5288228496418
+  ],
+  "K_eigenvectors": 33,
+  "instrument_bytes": 1024,
+  "baseline_n": 100,
+  "baseline_mean": -0.0016162109375,
+  "baseline_std": 0.009742696471941049,
+  "baseline_max": 0.027099609375,
+  "baseline_min": -0.03076171875,
+  "notebook_probe_results": [
+    {
+      "probe": "two substrate framework",
+      "similarity": -0.022216796875,
+      "z_score": -2.114464511629779,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "class l spine spectral",
+      "similarity": 0.00439453125,
+      "z_score": 0.6169485218810756,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "born hopf readout",
+      "similarity": 0.00048828125,
+      "z_score": 0.21600715916388594,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "operation primary cyclic algebra",
+      "similarity": 0.014892578125,
+      "z_score": 1.6944784341835228,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "geometry primary continuous hopf",
+      "similarity": 0.00048828125,
+      "z_score": 0.21600715916388594,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "epistemic ceiling form not substrate",
+      "similarity": -0.017333984375,
+      "z_score": -1.6132878082332918,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "B/H/N readout projection",
+      "similarity": 0.00830078125,
+      "z_score": 1.0178898845982651,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "fractal recursion substrate",
+      "similarity": 0.00244140625,
+      "z_score": 0.41647784052248077,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Hopf fibration division algebra",
+      "similarity": -0.00341796875,
+      "z_score": -0.18493420355330373,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Class N rational anchor",
+      "similarity": -0.005126953125,
+      "z_score": -0.3603460497420742,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "weak coupling truncate instrument",
+      "similarity": 0.00927734375,
+      "z_score": 1.1181252252775626,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "metric field ontology",
+      "similarity": 0.0087890625,
+      "z_score": 1.0680075549379138,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "cascade match form claim",
+      "similarity": -0.006591796875,
+      "z_score": -0.5106990607610202,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "cross substrate matching",
+      "similarity": -0.016357421875,
+      "z_score": -1.5130524675539945,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Reading-D scale ladder",
+      "similarity": 0.008056640625,
+      "z_score": 0.9928310494284408,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "Kaluza Klein photon off diagonal metric",
+      "similarity": -0.004638671875,
+      "z_score": -0.3102283794024255,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "combination principle dissociation",
+      "similarity": -0.003662109375,
+      "z_score": -0.20999303872312805,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "L-system seed grammar",
+      "similarity": -0.003662109375,
+      "z_score": -0.20999303872312805,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "biology cascade encoding",
+      "similarity": 0.012451171875,
+      "z_score": 1.4438900824852792,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "ASMC attestation provenance",
+      "similarity": -0.01611328125,
+      "z_score": -1.48799363238417,
+      "above_baseline_max": false
+    }
+  ],
+  "negative_probe_results": [
+    {
+      "probe": "chocolate ice cream flavor",
+      "similarity": 0.005615234375,
+      "z_score": 0.7422426977301974,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "professional soccer match score",
+      "similarity": -0.019287109375,
+      "z_score": -1.8137584895918866,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "kitchen pencil sharpener metal",
+      "similarity": -0.000244140625,
+      "z_score": 0.14083065365441286,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "tropical rainforest humidity",
+      "similarity": -0.009521484375,
+      "z_score": -0.8114050827989127,
+      "above_baseline_max": false
+    },
+    {
+      "probe": "vintage automobile manufacturing",
+      "similarity": -0.01123046875,
+      "z_score": -0.986816928987683,
+      "above_baseline_max": false
+    }
+  ],
+  "n_notebook_above_max": 0,
+  "n_notebook_z2": 0,
+  "n_notebook_z1": 5,
+  "n_negative_above_max": 0,
+  "verdict": "NO discrimination \u2014 methodology doesn't distinguish coherent from incoherent"
+}
