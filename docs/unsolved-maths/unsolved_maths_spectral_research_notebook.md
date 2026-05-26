@@ -1990,6 +1990,19 @@ Round 42.A ([`round42_entry_A_per_rung_symmetry_group_audit.md`](cost_asymmetry/
 
 **Bit-exact:** `2ℓ+1={1,3,5,7}`; `n²={1,4,9,16}=Σ(2ℓ+1)`; icosahedral Burnside `Σdᵢ²=60`; SU(3) `1+8`, `10+8+8+1`. **Verdict 🟢 confirms R38 + tightens an over-loose phrase:** the angular/Class-L structure is **SO(3)-rooted** across all rungs, but only **~4 are cleanly full SO(3)**; `2ℓ+1` appears *exactly* where full SO(3) is operative, and the deviations (SO(4)/SU(3)/SO(2)/finite-I) are precisely "the ladder tracks the symmetry group." The "9 contiguous SO(3) rungs" phrase is refined to "SO(3)-rooted; ~4 cleanly full-SO(3)." **Extends** `[[user_stance_classL_spine_is_symmetry_group_relative]]` (no new stance). HONEST SCOPE: bit-exact integer signatures (Explore-verified); (b)-interpretive symmetry assignments; no new physics; no MFO section.
 
+### §11.9.36 Combination-principle third substrate — the two Class-N properties dissociate (Round 43.A, refines R40)
+
+Round 43.A ([`round43_entry_A_combination_principle_two_properties_dissociate.md`](cost_asymmetry/round43_entry_A_combination_principle_two_properties_dissociate.md) + committed [`verify_round43_combination_principle_two_properties_dissociate.py`](cost_asymmetry/verify_round43_combination_principle_two_properties_dissociate.py)) — the coupled item R39/R40 revealed. R40 found **one Class-N combination principle** (spectral features = differences of a small-integer anchor ladder) across atomic + molecular spectra. This round tests its substrate-**universality** by adding a non-spectroscopic third substrate (**nuclear** mass-defect) + a deliberate contrast (**acoustic** overtones). The principle is really a conjunction of two **separable** Class-N sub-properties — **(P1)** small-integer anchors; **(P2)** additive-difference structure:
+
+| substrate | P1 small-int anchors | P2 additive differences | anchor space |
+|-----------|:---:|:---:|---|
+| atomic (Rydberg–Ritz) | ✅ `T_n=R/n²` | ✅ `T_n−T_m` | term-energy `1/n²` |
+| molecular (mass-spec) | ✅ `18,17,15,28,44` | ✅ peak spacings | nucleon-mass |
+| **nuclear (mass-defect)** | ❌ real-valued MeV | ✅ `Q=Σreact−Σprod` | real MeV (small ints only in nucleon **count**) |
+| **acoustic (overtones)** | ✅ `n·f₁`; `2:1,3:2,4:3,5:4` | ❌ **ratios** (multiplicative) | frequency **ratio** |
+
+**Bit-exact:** D + T → ⁴He + n, AME2020 excesses → `Q = (13.1357+14.9498)−(2.4249+8.0713) = 17.589 MeV` (attested); nucleon count `2+3=4+1=5` conserved; just-intonation `2:1,3:2,4:3,5:4` (`best_rational`-confirmed). **Verdict 🟢 refines R40 (honest non-universality):** the two properties **dissociate** — they are independent axes. The **full** principle (P1 ∧ P2) is **not substrate-universal**; it is the **additive-energy special case** (atomic/molecular), where the conserved quantity is additive *and* the anchors are small integers in the same space the features live in. Nuclear keeps P2 (difference of real-valued excesses); acoustic keeps P1 (small-int harmonics/ratios) but combines **multiplicatively** (P2 fails). So R40's "one Class-N combination principle" refines to "one Class-N **additive-difference** principle whose two ingredients are independent; both coincide only for additive-energy spectra." **Extends** `[[user_stance_combination_principle_is_one_classN_across_atomic_and_mass_spectra]]` (no new stance). HONEST SCOPE: bit-exact Q-value/conservation/ratios (Explore-verified: AME2020 Wang+ 2021; Ritz 1908; McLafferty–Tureček; Helmholtz 1863); (b)-interpretive P1/P2 dissociation; no new physics; no MFO section.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*

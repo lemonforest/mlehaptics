@@ -41,6 +41,7 @@ The #688/#689 pair was merged before this rolling PR opened (the user's call); f
 | **40.A** | **OPEN-QUEUE: Spike #48 deeper-SM phase, honestly scoped** — the combination principle is **ONE Class-N structure across atomic + mass spectra** (spectral features = differences of a discrete Class-N anchor ladder). Atomic (Rydberg–Ritz): lines = `T_n−T_m`, `T_n=R/n²`; bit-exact Balmer `5/36,3/16,21/100`, `Hα=(5/36)R_H=15233 cm⁻¹`, ratios `20/27,125/189`. Unifies R39 + R17 + §11.9.14. **Honest scope:** QM/atomic weave delivered (Class-L shell + Class-N lines + Hurwitz); the **SM-derivation proper = separate Spin(8) arc** (#58/#85/#86), NOT claimed from spectra. **PARTIALLY DELIVERED + bounded.** | §11.9.33 |
 | **41.A** | **OPEN-QUEUE: ℓ=7 future-data test → 🅿️ PARKED pre-registration (no result)** — not dispatchable today (no data). Turnkey, tamper-proof pre-registration for CMB-S4 (2030s) / LiteBIRD (~2028): range ℓ=2–8, Round 10.A per-ℓ concentration statistic, null = no ℓ=7 preference, **re-open only if** ℓ=7 ranks #1 **and** `p<0.05/7≈0.00714` (Bonferroni) **and** ≥2-method cross-confirm. The Round 10.A withdrawal **stands**; the `{1+3+7}` algebra identity unaffected. No result fabricated. | §11.9.34 |
 | **42.A** | **COUPLED-ITEM (from R38): per-rung symmetry-group audit → CONFIRMS R38** — angular/Class-L structure is SO(3)-ROOTED across all 9 rungs, but only **~4 cleanly full SO(3)** (quantum/nuclear/planetary/CMB give clean `2ℓ+1`); the other 5 deviate exactly as their operative symmetry dictates: atomic **SO(4)** (Runge–Lenz, `n²=Σ(2ℓ+1)`), hadron **+SU(3)-flavor** (internal), BH-QNM **SO(2)-axial** (Kerr), LSS **SO(2)/parity** (line-of-sight), capsid **finite-I**. `2ℓ+1` ⟺ full SO(3). Tightens the "9 SO(3) rungs" phrase; extends the R38 stance (no new stance). | §11.9.35 |
+| **43.A** | **COUPLED-ITEM (from R39/R40): combination-principle third substrate → REFINES R40 (honest NON-universality)** — the combination principle's two Class-N properties **DISSOCIATE**: **(P1)** small-integer anchors and **(P2)** additive-difference structure are independent axes. atomic (Rydberg–Ritz) + molecular (mass-spec) have **BOTH**; **nuclear** (mass-defect: D-T `Q=(13.1357+14.9498)−(2.4249+8.0713)=17.589 MeV`) has **P2 only** (difference of REAL-valued excesses; small ints only in nucleon-count `2+3=4+1`); **acoustic** (overtones `2:1,3:2,4:3,5:4`) has **P1 only** (small-int but MULTIPLICATIVE ratios, not additive). The full principle = the **additive-energy special case** (atomic/molecular). Extends the R40 stance (no new stance). | §11.9.36 |
 
 ## Open queue (closely-related — land here, not in new PRs)
 
@@ -52,10 +53,12 @@ The #688/#689 pair was merged before this rolling PR opened (the user's call); f
 
 ### Newly-revealed coupled items (from the closing pass)
 - ~~**Per-rung symmetry-group audit** (from R38)~~ — **CLOSED by Round 42.A** (§11.9.35): ~4 cleanly full-SO(3); 5 honest deviations (atomic SO(4) / hadron +SU(3) / BH-QNM SO(2)-axial / LSS SO(2)-parity LOS / capsid finite-I). Confirms R38; tightens the "9 SO(3) rungs" phrase.
+- ~~**Combination-principle third substrate** (from R39/R40)~~ — **CLOSED by Round 43.A** (§11.9.36): the two Class-N properties (P1 small-int anchors / P2 additive-difference) **DISSOCIATE**; nuclear has P2 only (real-valued excess anchors), acoustic has P1 only (multiplicative ratios). The full principle = the additive-energy special case (atomic/molecular). Honest non-universality; refines R40 (no new stance).
 
-**Remaining coupled candidates (this closing-pass; in progress / deferred):**
-- **Combination-principle third substrate** (from R39/R40) — **IN PROGRESS, Round 43.A** — the Class-N "features = differences of an anchor ladder" now spans atomic (term-energy) + molecular (nucleon-mass); a *non-spectroscopic* third test (nuclear binding-energy / mass-defect tables) + a contrast (acoustic overtones, which are Class-N but *ratio*-based) to check whether the combination principle is substrate-universal and whether its two properties (Class-N anchors; difference-structure) are separable.
-- **srmech-notebook hygiene** (deferred per user) — integrate the R33–R42 conceptual + spectral-ladder thread into the srmech notebook (the operator-language home). *Explicitly held until the user calls it.*
+**Both R42.A + R43.A closed with no further coupled items revealed.** The two "verification steps worth taking" are landed; the Reading-D open queue is now empty.
+
+**Remaining deferred item:**
+- **srmech-notebook hygiene** (deferred per user) — integrate the R33–R43 conceptual + spectral-ladder thread into the srmech notebook (the operator-language home). *Explicitly held until the user calls it.*
 
 ## Verdict ledger
 
