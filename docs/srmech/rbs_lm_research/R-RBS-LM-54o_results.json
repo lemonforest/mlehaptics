@@ -1,0 +1,228 @@
+{
+  "partition": "R-RBS-LM-54o",
+  "results": [
+    {
+      "key": "shakespeare",
+      "label": "Shakespeare",
+      "predicted_spin": "mixed",
+      "rules": "meter + sometimes rhyme",
+      "N": 200,
+      "edges": 19763,
+      "spectrum_range": 55191.32338554134,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        112
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -9.981325934760236e-14,
+        2581.392565841341,
+        2953.6275131503976,
+        3003.652016388889,
+        3034.0674250021957
+      ]
+    },
+    {
+      "key": "milton",
+      "label": "Milton",
+      "predicted_spin": "spin-1",
+      "rules": "meter only",
+      "N": 200,
+      "edges": 15274,
+      "spectrum_range": 8482.518945599675,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        173
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -1.4865669966364567e-13,
+        277.4650070012156,
+        280.9445132369323,
+        282.4387874340298,
+        284.1261196757104
+      ]
+    },
+    {
+      "key": "pope_iliad",
+      "label": "Pope Iliad",
+      "predicted_spin": "spin-2",
+      "rules": "meter + bidirect rhyme",
+      "N": 200,
+      "edges": 18715,
+      "spectrum_range": 24085.09733731046,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        179
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        4.547648856200834e-13,
+        695.704702893922,
+        699.0271210584257,
+        704.9226217385077,
+        706.7212541075993
+      ]
+    },
+    {
+      "key": "longfellow",
+      "label": "Longfellow",
+      "predicted_spin": "spin-1.5",
+      "rules": "meter; some terza",
+      "N": 200,
+      "edges": 11550,
+      "spectrum_range": 2507.3938232792775,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        124
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -1.0323877562432812e-13,
+        119.40705571876478,
+        120.0720538262254,
+        121.37552169981083,
+        122.17216362705851
+      ]
+    },
+    {
+      "key": "whitman",
+      "label": "Whitman",
+      "predicted_spin": "spin-0",
+      "rules": "free verse",
+      "N": 200,
+      "edges": 16440,
+      "spectrum_range": 2714.7571568839103,
+      "n_clusters": 0,
+      "cluster_sizes": [],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 0,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -1.642971541239143e-13,
+        313.8925950057814,
+        342.5742248200311,
+        351.0119871491218,
+        355.4007920883436
+      ]
+    },
+    {
+      "key": "frankenstein",
+      "label": "Frankenstein",
+      "predicted_spin": "spin-0",
+      "rules": "prose / no meter",
+      "N": 200,
+      "edges": 14567,
+      "spectrum_range": 3712.093550119927,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        113
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -2.849021356276416e-14,
+        192.67001031462593,
+        214.00445307392002,
+        217.91729449606484,
+        224.8636854784251
+      ]
+    },
+    {
+      "key": "plato",
+      "label": "Plato",
+      "predicted_spin": "spin-0",
+      "rules": "prose / no meter",
+      "N": 200,
+      "edges": 18425,
+      "spectrum_range": 9661.632778306224,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        86
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -1.8137160435123544e-13,
+        642.6362278665287,
+        645.7533131317241,
+        652.5603091742664,
+        658.1291194381125
+      ]
+    },
+    {
+      "key": "origin",
+      "label": "Origin",
+      "predicted_spin": "spin-0",
+      "rules": "prose / no meter",
+      "N": 200,
+      "edges": 17712,
+      "spectrum_range": 11314.053921579884,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        134
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -2.867749272511411e-14,
+        550.1565789287488,
+        554.1114087534705,
+        562.8625877840713,
+        569.0866674674696
+      ]
+    },
+    {
+      "key": "kjv_nt",
+      "label": "KJV-NT",
+      "predicted_spin": "spin-0.5",
+      "rules": "verse-like prose; cadence",
+      "N": 200,
+      "edges": 17219,
+      "spectrum_range": 19506.321255805928,
+      "n_clusters": 1,
+      "cluster_sizes": [
+        161
+      ],
+      "n_clusters_random": 0,
+      "cluster_sizes_random": [],
+      "excess_over_random": 1,
+      "low_gap_ratio": Infinity,
+      "bottom_5_eigvals": [
+        -3.399142199782257e-13,
+        505.2141365563211,
+        557.9471141559658,
+        582.0039807261101,
+        589.5416430304322
+      ]
+    }
+  ],
+  "spin_summary": {
+    "spin-0": 0.75,
+    "spin-0.5": 1.0,
+    "spin-1": 1.0,
+    "spin-1.5": 1.0,
+    "mixed": 1.0,
+    "spin-2": 1.0
+  },
+  "verdict": "FORM-ISOMORPHISM WEAK SUPPORT: monotone but small gap; spin-0=0.75, spin-1=1.0, spin-2=1.0"
+}
