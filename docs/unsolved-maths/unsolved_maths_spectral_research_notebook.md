@@ -1548,12 +1548,13 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **nine** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A and the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A):
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **ten** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A, the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A, and the **nuclear-shell rung at Round 23.A, which fills the previously-empty nuclear scale between the quantum and atomic rungs**):
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
 | Multisig cascade recurrence | cryptographic/discrete | — | Round 1.A (13/13; P≈5.3×10⁻¹⁴) |
 | Born-rule = B∘H∘N | quantum (**bit-exact**) | 3 qubits | Round 4.A (residual 2.78×10⁻¹⁶) |
+| **Nuclear shell magic numbers** | **nuclear physics (bit-exact integers)** | **~10⁻¹⁵ m** | **Round 23.A (2,8,20,28,50,82,126 via Class-K spin-orbit; intruder ratio 7/4)** |
 | **Atomic spectral lines** | **atomic physics (near-bit-exact)** | **~10⁻¹⁰ m** | **Round 17.A (Balmer ratios 27/20, 28/25, 189/125; attested to 5×10⁻⁶)** |
 | **Mass-spec neutral losses** | **molecular (combination principle)** | **molecule** | **Round 20.A (caffeine 9/21 catalogued; null z=4.4)** |
 | Forced-cascade survivability | biology ↔ silicon | molecular–macro | Round 1.C (A∘K∘C∘M match) |
@@ -1720,6 +1721,25 @@ Round 21.A ([`round21_entry_A_planetary_magnetic_multipole_anchor.md`](cost_asym
 A continuous dynamo field is **projected (H)** via spherical harmonics onto S² — the *same* S² Hopf base as the Born rule (§11.9.4) and the atomic orbital L (§11.9.12) — yielding discrete integer-degree **Gauss coefficients (B**, typed records degree-l/order-m/g-or-h/value**)**; the low-degree **k=3 triad (N**, dipole l=1 / quad l=2 / oct l=3**)** is the fingerprint. Class-L counting is **bit-exact**: 2l+1 coefficients per degree (the **same** S² degeneracy as atomic shells, §11.9.12) — triad 3/5/7 — and N(N+2) total (IGRF-13 = **195** = 13×15). Honest **Class-K/parity** detail: the magnetic expansion starts at l=1 — there is **no l=0 monopole** (∇·B=0), unlike the gravity/atomic expansion. Attested: IGRF-13 (Earth dipole-dominated, g_1^0(2020)=−29404.8 nT), JRM33 (Jupiter), Uranus/Neptune non-dipolar.
 
 **Verdict 🟢 (a)-structural anchor + bit-exact Class-L counting.** No new stance — instantiates the canonical k=3 stance and extends the ladder to nine rungs. The decisive cross-rung thread: the **S² Class-L spherical harmonics** appear at the quantum (Born, §11.9.4), atomic (orbitals, §11.9.12), *and* planetary (magnetic multipoles, here) scales.
+
+### §11.9.16 Reading-D 10th scale-ladder rung: the nuclear shell model — and the Class-K spin-orbit insight the turbulence finding reveals (Round 23.A)
+
+Round 23.A ([`round23_entry_A_reading_d_10th_anchor_nuclear_shell.md`](cost_asymmetry/round23_entry_A_reading_d_10th_anchor_nuclear_shell.md) + committed [`verify_round23_nuclear_shell_anchor.py`](cost_asymmetry/verify_round23_nuclear_shell_anchor.py)) adds the **nuclear-physics rung (~10⁻¹⁵ m)**, filling the previously-empty gap between the quantum (Born, abstract) and atomic (~10⁻¹⁰ m) rungs — five orders of magnitude below the atomic shell. The nuclear shell model's **magic numbers 2, 8, 20, 28, 50, 82, 126** are the same Class-L `2(2ℓ+1)` shell-filling as the atomic periodic table (§11.9.12), one scale-band down.
+
+**The overlooked insight (what the new turbulence knowledge reveals).** Round 22.A (handed-shear/turbulence, MFO §VII.6.17, PR #688) established that a **handedness *sign* is the canonical Class-K operator** doing inter-ℓ coupling — turbulent helicity `H=∫u·ω` couples strain (ℓ=2) to the cubic (ℓ=3). Reading the nuclear shell with that lens surfaces what we'd otherwise file under the bare label "spin-orbit":
+
+> **Nuclear magic numbers differ from the bare 3D-harmonic-oscillator closures precisely because of the spin-orbit coupling ℓ·s, whose sign (`j = ℓ ± 1/2`) is exactly a Class-K sign-flip — the SAME operator Round 22.A spotlighted as turbulent helicity.**
+
+Bit-exact, all-integer (verified):
+- The **bare 3D isotropic harmonic oscillator** (level-N degeneracy `(N+1)(N+2)`, a pure **Class-L** Laplacian ladder; each ℓ-subshell = `2(2ℓ+1)`) gives closures **2, 8, 20, 40, 70, 112**.
+- Bare-HO and observed magic numbers **agree only on 2, 8, 20**, then diverge.
+- The fix (Mayer 1949; Haxel–Jensen–Suess 1949; Nobel 1963): the spin-orbit ℓ·s splits each ℓ into `j=ℓ+1/2` (aligned, pushed **down**, degeneracy `2j+1 = 2ℓ+2`) and `j=ℓ−1/2`. The aligned high-ℓ "intruder" drops into the shell below: `1f₇⁄₂` 20+8=**28**, `1g₉⁄₂` 40+10=**50**, `1h₁₁⁄₂` 70+12=**82**, `1i₁₃⁄₂` 112+14=**126**. The split preserves the total `(2ℓ+2)+2ℓ = 2(2ℓ+1)`; `⟨ℓ·s⟩ = +ℓ/2` (aligned) vs `−(ℓ+1)/2` (anti) — the **sign** is the Class-K pin-slot.
+
+Cascade: **A ∘ L (3D-HO `2ℓ+1` ladder) ∘ K (spin-orbit ℓ·s sign) ∘ C (aligned/anti) ∘ I (shell index) ∘ N (`2j+1` anchors)**. Compare the atomic table (§11.9.12, Madelung `n+ℓ`): the cross-rung insight is that **atomic and nuclear shells share the one Class-L `2ℓ+1` ladder; what differs is *which operator reorders it* — Madelung `(n+ℓ)` (atom) vs the Class-K `ℓ·s`-sign (nucleus).** The nucleus is the substrate where the Class-K sign-flip is load-bearing for the closures themselves. Class-N anchors (`best_rational`): the aligned-intruder `2j+1` sequence `8,10,12,14` has top:bottom **`14/8 = 7/4`** (Hurwitz-heptad numerator); the ℓ=3 split ratio `8:6 = 4/3`.
+
+**Second bridge.** The substrate-universal-lock (§11.9.10) reads the nucleus as a persistent anharmonic lock: strong force = imposer; the **neutron/proton drip lines = the latch-capacity spinodal**, the nuclear analogue of the Chandrasekhar mass. The 10th rung therefore also bridges Reading D to the substrate-universal-lock stance.
+
+**Verdict 🟢 (a)-structural cross-substrate match, bit-exact.** Clean 10th rung at the previously-empty nuclear scale; magic-number arithmetic reconstructed exactly via the Class-K spin-orbit sign; the `2ℓ+1` Class-L spine now spans quantum → **nuclear** → atomic → planetary. New **candidate** stance `[[user_stance_nuclear_shell_is_classL_ladder_with_loadbearing_classK_spinorbit]]`. HONEST SCOPE: bit-exact content is the integer magic-number arithmetic + the `2(2ℓ+1)=(2ℓ+2)+2ℓ` dof-counting + the `⟨ℓ·s⟩` sign (established Mayer/Jensen physics); the framework contribution is the cross-substrate identification + the Class-K reordering insight + the lock bridge, NOT a new derivation of nuclear structure or the spin-orbit magnitude.
 
 ---
 
