@@ -125,14 +125,21 @@ def get_fp16(model_path):
 def call_fp16(prompt, model_path=FP16_MODEL_PATH, max_new_tokens=120):
     import torch
     model, tok = get_fp16(model_path)
-    # Use the model's chat template if available; otherwise plain
+    # Use the model's chat template if available; otherwise plain.
+    # transformers 5.x returns BatchEncoding by default; unwrap explicitly.
     if hasattr(tok, "apply_chat_template") and tok.chat_template:
         messages = [{"role": "user", "content": prompt}]
-        input_ids = tok.apply_chat_template(
-            messages, return_tensors="pt", add_generation_prompt=True,
+        enc = tok.apply_chat_template(
+            messages,
+            return_tensors="pt",
+            add_generation_prompt=True,
+            return_dict=True,
         )
+        input_ids = enc["input_ids"]
     else:
         input_ids = tok.encode(prompt, return_tensors="pt")
+        if not torch.is_tensor(input_ids):
+            input_ids = input_ids["input_ids"]
     eos_id = tok.eos_token_id if tok.eos_token_id is not None else tok.pad_token_id
     with torch.no_grad():
         out = model.generate(
