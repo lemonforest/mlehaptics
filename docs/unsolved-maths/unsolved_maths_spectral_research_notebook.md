@@ -1548,12 +1548,13 @@ Per `[[user_stance_bit_exact_means_not_projection_diagnostic]]`, bit-exact ⟹ s
 
 #### §11.9.6 Reading D — the closed quantum→cosmological scale-ladder
 
-Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **ten** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A, the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A, and the **nuclear-shell rung at Round 23.A, which fills the previously-empty nuclear scale between the quantum and atomic rungs**):
+Reading D (cost = B/H/N substrate-content saturation, observable as the substrate's translation fingerprint) accumulated **eleven** empirical anchors spanning the full scale-ladder (the molecular mass-spec rung was added at Round 20.A, the planetary magnetic rung — the "8th" in the user's count over the original seven — at Round 21.A, the **nuclear-shell rung at Round 23.A** filling the nuclear scale between the quantum and atomic rungs, and the **hadron/QCD-spectroscopy rung at Round 24.A** at the sub-nuclear quark-binding scale below it):
 
 | Anchor | Substrate-class | Scale | Dispatch |
 |--------|-----------------|-------|----------|
 | Multisig cascade recurrence | cryptographic/discrete | — | Round 1.A (13/13; P≈5.3×10⁻¹⁴) |
 | Born-rule = B∘H∘N | quantum (**bit-exact**) | 3 qubits | Round 4.A (residual 2.78×10⁻¹⁶) |
+| **Hadron / QCD spectroscopy** | **sub-nuclear / quark binding (bit-exact reps)** | **~10⁻¹⁶ m** | **Round 24.A (χ_cJ L⊗S = 1⊕3⊕5; pure-LS 2:1; SU(3) 1⊕8, 10⊕8⊕8⊕1; tensor fermata)** |
 | **Nuclear shell magic numbers** | **nuclear physics (bit-exact integers)** | **~10⁻¹⁵ m** | **Round 23.A (2,8,20,28,50,82,126 via Class-K spin-orbit; intruder ratio 7/4)** |
 | **Atomic spectral lines** | **atomic physics (near-bit-exact)** | **~10⁻¹⁰ m** | **Round 17.A (Balmer ratios 27/20, 28/25, 189/125; attested to 5×10⁻⁶)** |
 | **Mass-spec neutral losses** | **molecular (combination principle)** | **molecule** | **Round 20.A (caffeine 9/21 catalogued; null z=4.4)** |
@@ -1740,6 +1741,18 @@ Cascade: **A ∘ L (3D-HO `2ℓ+1` ladder) ∘ K (spin-orbit ℓ·s sign) ∘ C 
 **Second bridge.** The substrate-universal-lock (§11.9.10) reads the nucleus as a persistent anharmonic lock: strong force = imposer; the **neutron/proton drip lines = the latch-capacity spinodal**, the nuclear analogue of the Chandrasekhar mass. The 10th rung therefore also bridges Reading D to the substrate-universal-lock stance.
 
 **Verdict 🟢 (a)-structural cross-substrate match, bit-exact.** Clean 10th rung at the previously-empty nuclear scale; magic-number arithmetic reconstructed exactly via the Class-K spin-orbit sign; the `2ℓ+1` Class-L spine now spans quantum → **nuclear** → atomic → planetary. New **candidate** stance `[[user_stance_nuclear_shell_is_classL_ladder_with_loadbearing_classK_spinorbit]]`. HONEST SCOPE: bit-exact content is the integer magic-number arithmetic + the `2(2ℓ+1)=(2ℓ+2)+2ℓ` dof-counting + the `⟨ℓ·s⟩` sign (established Mayer/Jensen physics); the framework contribution is the cross-substrate identification + the Class-K reordering insight + the lock bridge, NOT a new derivation of nuclear structure or the spin-orbit magnitude.
+
+### §11.9.17 Reading-D 11th scale-ladder rung: hadron / QCD spectroscopy — the Class-K spin-orbit's third descending rung + a second independent Class-L (Round 24.A)
+
+Round 24.A ([`round24_entry_A_reading_d_11th_anchor_hadron_qcd.md`](cost_asymmetry/round24_entry_A_reading_d_11th_anchor_hadron_qcd.md) + committed [`verify_round24_hadron_qcd_spectroscopy_anchor.py`](cost_asymmetry/verify_round24_hadron_qcd_spectroscopy_anchor.py)) lands the **sub-nuclear / quark-binding rung (~10⁻¹⁶ m)** — one band *below* the nuclear-shell rung. **Quarkonium is the "hydrogen atom of QCD"**: a heavy quark–antiquark bound in the Cornell potential `V(r) = −(4/3)α_s/r + σr` (Eichten et al. PRD 17:3090 1978), with levels labelled `n^{2S+1}L_J` exactly like positronium — the *same* Class-L `2(2ℓ+1)` spine, one band below atomic.
+
+**Class-L spatial spine + Class-K spin-orbit (bit-exact).** The 1P charmonium triplet χ_c0/χ_c1/χ_c2 (J^PC = 0++/1++/2++) is the SO(3) tensor product **L=1 ⊗ S=1 = 1 ⊕ 3 ⊕ 5 = 9** (the `2J+1` multiplicities; the k=3 triad). Pure spin-orbit `⟨L·S⟩ = −2, −1, +1` for J=0,1,2 predicts the spacing ratio **(E₂−E₁):(E₁−E₀) = 2:1** (`best_rational → 2/1`). The sign of `⟨L·S⟩` IS the Class-K pin-slot — **the same Class-K at three consecutive descending binding scales: atomic electron shells (§11.9.12) → nuclear nucleon shells (§11.9.16) → quarkonium χ_cJ (here).**
+
+**Honest fermata.** The *observed* χ_cJ spacings (PDG 2024) are ≈ 95.96 and 45.50 MeV — ratio **≈ 0.47**, the *inverse* of the pure-spin-orbit 2:1. This is the standard signature of a large **tensor force** (a rank-2, **Class-L** operator) competing with the spin-orbit: **pure Class-K does NOT suffice at the quark scale.** Cross-rung reading: descending the ladder, the tensor(Class-L)-vs-spin-orbit(Class-K) weight shifts — spin-orbit dominates and sets the nuclear magic numbers (§11.9.16), but the tensor inverts the χ_cJ ordering.
+
+**The new insight — a second, independent Class-L.** At the hadron scale a *second* Class-L multiplicity appears, on a *different* Lie group, orthogonal to the spatial `2J+1`: the **SU(3)-flavor** irrep dims of the eightfold way — meson nonet **3⊗3̄ = 1⊕8 = 9**; baryons **3⊗3⊗3 = 10⊕8⊕8⊕1 = 27 = 3³** (decuplet apex = Ω⁻; Gell-Mann PR 125:1067 1962 / Ne'eman NP 26:222 1961, predicted 1962 / found 1964). The full hadron state is **space ⊗ spin ⊗ flavor ⊗ color** — two independent rep-theory ladders. Cross-anchor: the lattice glueball **m(2++)/m(0++) = 7/5 EXACT** (§2 Yang-Mills) pairs spin-2 vs spin-0 — the χ_c2/χ_c0 are the qq̄ P-wave analogue. The Regge `J = α₀ + α′M²` (α′ ≈ 0.9 GeV⁻²) is the rotating QCD-string/flux-tube = the substrate-asymptotic-wave (MFO §VII.6.12) at the quark scale.
+
+**Verdict 🟢 (a)-structural cross-substrate match, bit-exact + honest tensor fermata.** The `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → **hadron** → planetary → cosmological. New **candidate** stance `[[user_stance_hadron_qcd_spectroscopy_is_dual_classL_with_classK_spinorbit]]`. HONEST SCOPE: bit-exact content is the SO(3)/SU(3) rep-dimension counting (`1⊕3⊕5`, `1⊕8`, `10⊕8⊕8⊕1`) + the pure-spin-orbit `2:1` Clebsch arithmetic; the χ_cJ masses are attested PDG inputs and the tensor force is a literature-attested deviation — NOT a framework derivation of the QCD spectrum.
 
 ---
 

@@ -17,11 +17,17 @@ The draft stays draft until the user calls a single consolidating merge. Indepen
 
 The #688/#689 pair was merged before this rolling PR opened (the user's call); from here, closely-related continuation rounds accrue **on this branch**.
 
+## Landed on THIS rolling PR (#690)
+
+| Round | Finding | Where |
+|-------|---------|-------|
+| **24.A** | Reading-D **11th rung = hadron/QCD spectroscopy** (~10⁻¹⁶ m, sub-nuclear quark binding). Quarkonium = QCD atom; χ_cJ = L⊗S = 1⊕3⊕5; pure-spin-orbit 2:1 (the **third** descending rung sharing the Class-K spin-orbit: atomic→nuclear→quark); honest tensor fermata (observed ≈0.47 inverts 2:1); NEW second independent Class-L = SU(3)-flavor irreps (1⊕8, 10⊕8⊕8⊕1). | §11.9.17 |
+
 ## Open queue (closely-related — land here, not in new PRs)
 
 - **ℓ=7 future-data test** — the withdrawn Mersenne per-ℓ CMB claim (§11.9.6a) is re-testable against CMB-S4 / LiteBIRD when data lands. Names the resolving event; not dispatchable today.
 - **Spike #48 deeper SM phase** — the long-gated periodic-table + spectral-lines + QM/GR/SM weave (task #266); Rydberg–Ritz N-anchor → SM-derivation arc; per `project_atomic_spectra_sm_mapping_and_mass_spec_followup`.
-- **11th Reading-D rung candidates** — the `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → planetary → cosmological; candidate further rungs: hadron/QCD spectroscopy (sub-nuclear), galactic/large-scale-structure multipoles (between planetary and CMB), or a biological-macromolecule shell anchor.
+- **12th Reading-D rung candidates** — the `2ℓ+1` Class-L spine now spans quantum → nuclear → atomic → hadron → planetary → cosmological; candidate further rungs: galactic/large-scale-structure multipoles (between planetary and CMB), or a biological-macromolecule shell anchor (porphyrin/symmetry-group).
 - **mass-spec enhancement (thread 9b)** — fragment m/z spacings as Class-N anchors + fragmentation cascade; builds on §11.9.14 + Spike #38/#38b.
 
 ## Verdict ledger
