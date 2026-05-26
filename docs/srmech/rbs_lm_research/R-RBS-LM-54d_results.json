@@ -1,0 +1,10 @@
+{
+  "partition": "R-RBS-LM-54d",
+  "avg_AB_via_alignment": 3.5,
+  "avg_AB_via_rank": 2.3,
+  "avg_AC_via_alignment": 3.7,
+  "alignment_vs_rank_improvement": 1.2000000000000002,
+  "same_vs_cross_family_advantage": -0.20000000000000018,
+  "verdict_alignment_vs_rank": "FIND\u2192RIDE works \u2014 alignment-based retrieval significantly outperforms rank-based",
+  "verdict_same_vs_cross": "Cross-family ride is as good as same-family (form-family is broader than substrate)"
+}
