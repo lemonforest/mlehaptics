@@ -1829,6 +1829,18 @@ Round 28.A ([`round28_entry_A_classK_forbidden_low_multipole_synthesis.md`](cost
 
 **Verdict 🟢 (b)-interpretive synthesis + (a)-bit-exact unifier.** New **candidate** meta-stance `[[user_stance_forbidden_low_multipole_is_class_k_substrate_signature]]`. HONEST SCOPE: bit-exact content is the `ℓ≥|s|` / `#forbidden=|s|` identity (Goldberg et al. 1967; standard radiation theory) + the integer forbidden/surviving sets (each attested in its own round); the framework contribution is the *consolidation* (one Class-K mode-removal signature; the three-mechanism taxonomy; the helicity-tie) — **not a new physical derivation**.
 
+### §11.9.22 Synthesis (dual) — the surviving modes are one Class-L SO(3) spine (Round 29.A)
+
+Round 29.A ([`round29_entry_A_classL_surviving_spine_synthesis.md`](cost_asymmetry/round29_entry_A_classL_surviving_spine_synthesis.md) + committed [`verify_round29_classL_surviving_spine_synthesis.py`](cost_asymmetry/verify_round29_classL_surviving_spine_synthesis.py)) is the **dual companion** to §11.9.21 (still not a rung; count stays **fourteen**). Where §11.9.21 consolidated what each substrate *removes* (the Class-K forbidden signature), this consolidates what *survives*.
+
+> **Across every Reading-D rung the surviving modes are realizations of ONE Class-L object** — the Laplace–Beltrami eigenspaces on S², eigenvalue **`ℓ(ℓ+1)`** (SO(3) Casimir), degeneracy **`2ℓ+1`** (SO(3) spin-ℓ irrep dim, always odd). Together with §11.9.21: **substrate spectrum = (Class-L surviving spine) − (Class-K forbidden signature).**
+
+Bit-exact unifiers (proven in-script): (1) degeneracy `2ℓ+1` = SO(3) spin-ℓ irrep dim → the odd ladder `{1,3,5,7,9,…}`, whose first three are the **k=3 triad**; (2) eigenvalue `ℓ(ℓ+1)` = SO(3) Casimir (= 2× triangular), spin-weighted variant `ℓ(ℓ+1)−s(s+1)` matching QNM (§11.9.20, `4,10,18,28`); (3) **complete shell = `Σ(2ℓ+1) = (L+1)²`** (perfect square; underlies the atomic `2n²` shell 2,8,18,32); (4) **finite-group rungs branch the spine** — the icosahedral capsid irreps `{1,3,3,4,5}` contain the SO(3) `2ℓ+1` values `{1,3,5}`; (5) the Hurwitz `{1,3,7}` = `{2ℓ+1 : ℓ=0,1,3}` *by value* — a resonance, **not** an identity (division-algebra vs SO(3) irrep dims), honestly flagged.
+
+**Three S²-symmetry realizations:** continuous SO(3) (atomic/nuclear/hadron/planetary/LSS/CMB/Born), finite subgroup (icosahedral capsid — branching), and spin-weighted/spheroidal SO(3) (QNM). The same Casimir/degeneracy structure runs through all three; only the realization changes.
+
+**Verdict 🟢 (b)-interpretive synthesis + (a)-bit-exact unifier.** New **candidate** meta-stance `[[user_stance_classL_surviving_spine_is_so3_casimir_ladder]]`. HONEST SCOPE: textbook rep theory / Laplacian spectral theory (SO(3) `2ℓ+1`; Casimir `ℓ(ℓ+1)`; `Σ(2ℓ+1)=(L+1)²`; icosahedral subduction), proven in-script + attested in the constituent rounds; the framework contribution is the consolidation + the spine−signature dual with §11.9.21 — not a new derivation; the Hurwitz tie is a value-resonance only.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
