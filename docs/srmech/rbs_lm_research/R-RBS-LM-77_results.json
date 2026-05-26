@@ -1,0 +1,124 @@
+{
+  "partition": "R-RBS-LM-77",
+  "corpora": {
+    "primer": {
+      "label": "Primer",
+      "level": 0.5,
+      "substrate_kind": "reading",
+      "n_tokens": 2627
+    },
+    "grade1": {
+      "label": "Grade 1",
+      "level": 1.0,
+      "substrate_kind": "reading",
+      "n_tokens": 5201
+    },
+    "grade2": {
+      "label": "Grade 2",
+      "level": 2.0,
+      "substrate_kind": "reading",
+      "n_tokens": 11857
+    },
+    "grade3": {
+      "label": "Grade 3",
+      "level": 3.0,
+      "substrate_kind": "reading",
+      "n_tokens": 17817
+    },
+    "grade4": {
+      "label": "Grade 4",
+      "level": 4.0,
+      "substrate_kind": "reading",
+      "n_tokens": 41358
+    },
+    "grade5": {
+      "label": "Grade 5",
+      "level": 5.0,
+      "substrate_kind": "reading",
+      "n_tokens": 62989
+    },
+    "grade6": {
+      "label": "Grade 6",
+      "level": 6.0,
+      "substrate_kind": "reading",
+      "n_tokens": 87577
+    },
+    "kittredge": {
+      "label": "Kittredge Adv Gr",
+      "level": 8.0,
+      "substrate_kind": "instruction",
+      "n_tokens": 64199
+    },
+    "kirkham": {
+      "label": "Kirkham (PG14070)",
+      "level": 9.0,
+      "substrate_kind": "instruction",
+      "n_tokens": 62490
+    },
+    "strunk": {
+      "label": "Strunk Elements",
+      "level": 12.0,
+      "substrate_kind": "instruction",
+      "n_tokens": 8623
+    }
+  },
+  "pairwise_alignments": {
+    "grade1|primer": 0.16642857142857143,
+    "grade2|primer": 0.1271428571428571,
+    "grade3|primer": 0.12,
+    "grade4|primer": 0.11214285714285716,
+    "grade5|primer": 0.09833333333333334,
+    "grade6|primer": 0.09119047619047621,
+    "kittredge|primer": 0.07571428571428572,
+    "kirkham|primer": 0.07476190476190475,
+    "primer|strunk": 0.06714285714285713,
+    "grade1|grade2": 0.18476190476190474,
+    "grade1|grade3": 0.17071428571428574,
+    "grade1|grade4": 0.16047619047619052,
+    "grade1|grade5": 0.13928571428571426,
+    "grade1|grade6": 0.13476190476190475,
+    "grade1|kittredge": 0.09428571428571429,
+    "grade1|kirkham": 0.09904761904761905,
+    "grade1|strunk": 0.07904761904761905,
+    "grade2|grade3": 0.2642857142857143,
+    "grade2|grade4": 0.2614285714285714,
+    "grade2|grade5": 0.21333333333333332,
+    "grade2|grade6": 0.19261904761904763,
+    "grade2|kittredge": 0.1154761904761905,
+    "grade2|kirkham": 0.12476190476190474,
+    "grade2|strunk": 0.11142857142857145,
+    "grade3|grade4": 0.28547619047619044,
+    "grade3|grade5": 0.23547619047619045,
+    "grade3|grade6": 0.20523809523809525,
+    "grade3|kittredge": 0.11928571428571429,
+    "grade3|kirkham": 0.1314285714285714,
+    "grade3|strunk": 0.115,
+    "grade4|grade5": 0.2895238095238095,
+    "grade4|grade6": 0.2457142857142857,
+    "grade4|kittredge": 0.12738095238095237,
+    "grade4|kirkham": 0.1464285714285714,
+    "grade4|strunk": 0.1330952380952381,
+    "grade5|grade6": 0.31047619047619046,
+    "grade5|kittredge": 0.14142857142857143,
+    "grade5|kirkham": 0.15214285714285714,
+    "grade5|strunk": 0.13595238095238096,
+    "grade6|kittredge": 0.14452380952380953,
+    "grade6|kirkham": 0.16023809523809526,
+    "grade6|strunk": 0.14214285714285713,
+    "kirkham|kittredge": 0.20666666666666664,
+    "kittredge|strunk": 0.14761904761904762,
+    "kirkham|strunk": 0.14857142857142855
+  },
+  "mcguffey_adjacent_mean": 0.2501587301587302,
+  "extension_sequence": {
+    "grade6_kittredge": 0.14452380952380953,
+    "kittredge_kirkham": 0.20666666666666664,
+    "kirkham_strunk": 0.14857142857142855
+  },
+  "within_reading_mean": 0.19089569160997732,
+  "within_instruction_mean": 0.16761904761904758,
+  "cross_class_mean": 0.11860544217687075,
+  "within_to_cross_ratio": 1.5113755855080775,
+  "q1_verdict": "Q1: ladder EXTENDS \u2014 Grade6\u2192Kittredge (0.145), Kittredge\u2194Kirkham (0.207), Kirkham\u2194Strunk (0.149) all > 0.05; ladder structure continues upward",
+  "q2_verdict": "Q2: substrate-kind SPLIT \u2014 within-class alignment 1.51x cross-class. Grammar-instruction IS a separate substrate-class from reading-material."
+}
