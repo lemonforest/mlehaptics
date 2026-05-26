@@ -1,0 +1,75 @@
+{
+  "format_spec": "Parallel English natural-language fragment → LOGO command sequence",
+  "notation_version": "R-RBS-LM-44 v1",
+  "scope": "Test corpus for R-RBS-LM-40 candidate E (constrained-action-vocabulary projection via cascade). Honors user-direction 2026-05-26: turtle-walk via cascade-as-language-projection. LOGO 12-atom action vocabulary + parameter numbers.",
+  "lineage_note": "User's first encounter with LOGO was summer school age 7-8; kept source on 5.25\" with notebook. This corpus exists because of that founding cross-substrate experience.",
+  "pairs": [
+    {"category": "motion_simple", "english": "walk forward 100",      "logo": "FORWARD 100"},
+    {"category": "motion_simple", "english": "go forward",            "logo": "FORWARD 50"},
+    {"category": "motion_simple", "english": "step forward 25",       "logo": "FORWARD 25"},
+    {"category": "motion_simple", "english": "move forward 200",      "logo": "FORWARD 200"},
+    {"category": "motion_simple", "english": "walk back 50",          "logo": "BACK 50"},
+    {"category": "motion_simple", "english": "go backward",           "logo": "BACK 50"},
+    {"category": "motion_simple", "english": "reverse 100",           "logo": "BACK 100"},
+
+    {"category": "turning",       "english": "turn left",             "logo": "LEFT 90"},
+    {"category": "turning",       "english": "turn right",            "logo": "RIGHT 90"},
+    {"category": "turning",       "english": "rotate left 45",        "logo": "LEFT 45"},
+    {"category": "turning",       "english": "rotate right 30 degrees", "logo": "RIGHT 30"},
+    {"category": "turning",       "english": "spin around",           "logo": "RIGHT 180"},
+    {"category": "turning",       "english": "turn left a little",    "logo": "LEFT 15"},
+    {"category": "turning",       "english": "turn right slightly",   "logo": "RIGHT 10"},
+
+    {"category": "pen",           "english": "lift pen up",           "logo": "PENUP"},
+    {"category": "pen",           "english": "pen up",                "logo": "PENUP"},
+    {"category": "pen",           "english": "stop drawing",          "logo": "PENUP"},
+    {"category": "pen",           "english": "put pen down",          "logo": "PENDOWN"},
+    {"category": "pen",           "english": "pen down",              "logo": "PENDOWN"},
+    {"category": "pen",           "english": "start drawing",         "logo": "PENDOWN"},
+
+    {"category": "shapes_square", "english": "draw a square",         "logo": "REPEAT 4 [FORWARD 100 RIGHT 90]"},
+    {"category": "shapes_square", "english": "make a square",         "logo": "REPEAT 4 [FORWARD 100 RIGHT 90]"},
+    {"category": "shapes_square", "english": "draw small square",     "logo": "REPEAT 4 [FORWARD 50 RIGHT 90]"},
+    {"category": "shapes_square", "english": "draw big square",       "logo": "REPEAT 4 [FORWARD 200 RIGHT 90]"},
+
+    {"category": "shapes_triangle", "english": "draw a triangle",     "logo": "REPEAT 3 [FORWARD 100 RIGHT 120]"},
+    {"category": "shapes_triangle", "english": "make a triangle",     "logo": "REPEAT 3 [FORWARD 100 RIGHT 120]"},
+    {"category": "shapes_triangle", "english": "small triangle",      "logo": "REPEAT 3 [FORWARD 50 RIGHT 120]"},
+
+    {"category": "shapes_polygon", "english": "draw a hexagon",       "logo": "REPEAT 6 [FORWARD 50 RIGHT 60]"},
+    {"category": "shapes_polygon", "english": "make a pentagon",      "logo": "REPEAT 5 [FORWARD 60 RIGHT 72]"},
+    {"category": "shapes_polygon", "english": "draw an octagon",      "logo": "REPEAT 8 [FORWARD 40 RIGHT 45]"},
+
+    {"category": "shapes_circle", "english": "draw a circle",         "logo": "REPEAT 360 [FORWARD 1 RIGHT 1]"},
+    {"category": "shapes_circle", "english": "make a small circle",   "logo": "REPEAT 360 [FORWARD 1 LEFT 1]"},
+
+    {"category": "compound",      "english": "go forward then turn left",  "logo": "FORWARD 100 LEFT 90"},
+    {"category": "compound",      "english": "walk forward and turn right", "logo": "FORWARD 100 RIGHT 90"},
+    {"category": "compound",      "english": "step back and turn around",   "logo": "BACK 50 RIGHT 180"},
+
+    {"category": "repetition",    "english": "repeat forward 4 times",      "logo": "REPEAT 4 [FORWARD 50]"},
+    {"category": "repetition",    "english": "step forward 3 times",        "logo": "REPEAT 3 [FORWARD 50]"},
+
+    {"category": "procedures",    "english": "make a procedure called hex that draws a hexagon",
+                                  "logo": "TO hex REPEAT 6 [FORWARD 50 RIGHT 60] END"},
+    {"category": "procedures",    "english": "define square procedure",
+                                  "logo": "TO square REPEAT 4 [FORWARD 100 RIGHT 90] END"},
+    {"category": "procedures",    "english": "define triangle",
+                                  "logo": "TO tri REPEAT 3 [FORWARD 100 RIGHT 120] END"},
+
+    {"category": "navigation",    "english": "go home",               "logo": "PENUP FORWARD 0 PENDOWN"},
+    {"category": "navigation",    "english": "stop",                  "logo": "PENUP"},
+
+    {"category": "polysemy_walk", "english": "walk forward",          "logo": "FORWARD 50"},
+    {"category": "polysemy_walk", "english": "walk in a circle",      "logo": "REPEAT 360 [FORWARD 1 RIGHT 1]"},
+    {"category": "polysemy_walk", "english": "walk a square pattern", "logo": "REPEAT 4 [FORWARD 100 RIGHT 90]"},
+
+    {"category": "polysemy_turn", "english": "turn left",             "logo": "LEFT 90"},
+    {"category": "polysemy_turn", "english": "turn around",           "logo": "RIGHT 180"},
+    {"category": "polysemy_turn", "english": "turn the page",         "logo": "RIGHT 90"},
+
+    {"category": "speed_distance","english": "take a small step",     "logo": "FORWARD 10"},
+    {"category": "speed_distance","english": "take a big step",       "logo": "FORWARD 200"},
+    {"category": "speed_distance","english": "tiny step forward",     "logo": "FORWARD 5"}
+  ]
+}
