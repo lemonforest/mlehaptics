@@ -1851,6 +1851,18 @@ Round 30.A ([`round30_entry_A_graviton_misnomer_falsification.md`](cost_asymmetr
 
 **Verdict 🔴→🟢 honest NEGATIVE on H + (a)-structural refinement.** New **candidate** stance `[[user_stance_graviton_is_forced_gravity_top_of_helicity_ceiling]]`. HONEST SCOPE: rests on standard attested theorems (Weinberg, Deser, Weinberg–Witten, Coleman–Mandula) + empirical (Hulse–Taylor, LIGO); the framework contribution is only the placement (graviton = `|s|=2` top rung of the helicity ceiling within the spin-weighted Class-L family) — no new physics; no lean toward the framework's emergent-gravity preference.
 
+### §11.9.24 Follow-on — are EM and gravity inextricably coupled? Yes (Kaluza–Klein), with an honest correction (Round 31.A)
+
+Round 31.A ([`round31_entry_A_em_gravity_one_geometry.md`](cost_asymmetry/round31_entry_A_em_gravity_one_geometry.md) + committed [`verify_round31_em_gravity_one_geometry.py`](cost_asymmetry/verify_round31_em_gravity_one_geometry.py)) follows the R30 ceiling (photon `|s|=1` and graviton `|s|=2` adjacent on the `{0,1,2}` long-range-force ladder): *are EM and gravity inextricably coupled in some way "we have not yet noticed"?* Tested honestly.
+
+**(A) Structural claim CONFIRMED.** EM and gravity are inextricably coupled at three established levels: **L0** universal (EM stress-energy gravitates; Eddington 1919), **L1** dynamical (Gertsenshtein photon↔graviton oscillation in a B-field; 1962), and **L2 geometric (deep)** — **Kaluza–Klein** (1921/1926): 5D pure gravity on a circle `S¹` *is* 4D gravity + EM + a scalar; the photon `A_μ` = the off-diagonal `g_{μ5}` of the 5D metric; U(1) gauge = the circle's isometry. EM is "the off-diagonal part of higher-D gravity" — exactly the framework's Hopf base+fiber reading (gravity = base, EM = U(1) fiber; Born=Hopf §11.9.4; Spike #58.I U(1)_Y-from-a-circle; `(4+3)D_g` gauge sector = KK fiber).
+
+**(B) "Not yet noticed" CORRECTED (honest).** It *was* noticed — 1919/1921/1926/1962, 60–107-year-established physics. What is genuinely underappreciated is *how deep* the geometric unification goes, not that it exists.
+
+**Framework synthesis.** The **R30 `{0,1,2}` ceiling is the 4D shadow of Kaluza–Klein.** Bit-exact: a massless spin-2 in `D` dims has `D(D−3)/2` polarizations → the 5D graviton has 5, splitting *exactly* as **`5 = 2 (4D graviton) + 2 (photon) + 1 (dilaton)`**. The 4D photon (`|s|=1`) and graviton (`|s|=2`) are both pieces of the *single* 5D graviton (`|s|=2`); the ceiling = base-diffeomorphism (2) + fiber-U(1) (1) + dilaton (0) of one higher-D geometry. So EM and gravity are not merely coupled — they are **one substrate-geometry, base (gravity) vs fiber (EM/U(1)).**
+
+**Verdict 🟢 confirmed structural claim + (a)-bit-exact `5=2+2+1` + honest correction.** New **candidate** stance `[[user_stance_em_and_gravity_are_one_geometry_kaluza_klein_base_fiber]]`. HONEST SCOPE: KK + the DOF split are standard attested physics (Kaluza 1921, Klein 1926, Gertsenshtein 1962); framework contribution = the R30-ceiling-as-KK-shadow identification + Hopf base+fiber reading. **Caveat:** clean KK gives EM↔gravity, but KK-for-the-whole-SM from pure gravity has known obstructions (chiral fermions; moduli/radion) — so "all gauge = fiber geometry" is aspiration *with* problems, stated not hidden.
+
 ---
 
 *Notebook started 2026-05-23 in conjunction with PR #677 partitions 1-26. Per user direction, this notebook IS the SSoT for the unsolved-maths cascade canvass; per-partition REPORT.md files are the per-problem deep dives.*
