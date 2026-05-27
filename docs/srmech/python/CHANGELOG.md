@@ -4,6 +4,32 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc1] - 2026-05-27
+
+**rc1 of the v0.4.3 "Class M variant expansion" rolling arc** — the polar `{-1, 0, +1}` HDC variant, per UPSTREAM_NOTES §5 (RBS-LM research subtree, Finding from R-RBS-LM-97). First rc of a multi-item rolling PR; each subsequent item (Klein-4 rank-2, `signed_sum_squared`, real-symmetric eigendecompose, Path-B `rfft`, cascade-foundational catalog) ships as its own `0.4.3rcN`, each mathematically complete (no scaffolding), CI-gated between rcs. No new primitive class introduced; the polar variant is **Class M ∘ Class K** (rank-1 abelian with an absorbing zero) — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.hdc` polar `{-1, 0, +1}` variant
+
+The foundational rung of the Class-M variant ladder (`bipolar {-1,+1}` → **`polar {-1,0,+1}`** → `Klein-4 (Z₂)²`). The `0` state is the asymptotic-DOF **dead-band** the Class-K pin-slot rejects (per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`) — a representable origin that the bipolar `{-1,+1}` alphabet lacked, which left the sign axis crippled (no representable zero/uncertain state). int8 array representation (distinct from the bit-packed bipolar BSC).
+
+- `polar_random(D, rng)` — random int8 hypervector in `{-1,0,+1}`.
+- `polar_bind(a, b)` — multiplicative sign-product, **0 absorbing** (`0·x=0`); commutative, associative, self-inverse on ±1.
+- `polar_unbind(c, a)` — sign-product; recovers `b` where `a≠0` (0 destructive).
+- `polar_bundle(*vectors)` — sticky majority (`sign(Σ)`); exact ties → 0; no odd-count restriction.
+- `polar_similarity(a, b, skip_zero=True)` — match-fraction; skip-zero (jointly-informative only) or include-zero.
+- `polar_density(v)` — fraction of non-zero positions (substrate attestation).
+- `polar_from_real(arr, threshold, dead_band)` — bridge wrapping the existing `signal_processing.path_b_ops.sign_quantise` (lifts its `{-1,0,+1}` Class-K threshold projection into the HDC namespace; resolves the R-RBS-LM-97 bare-`np.sign` workaround).
+
+### Added — C parity surface (`srmech_polar_{bind,bundle,similarity,density}`)
+
+Full int8 C parity in `srmech_hdc.c` + `srmech.h`, JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts, no goto/malloc, bounded loops, value-range validation). New symbols; **no ABI bump** (ABI stays 2). `_native.py` binds them `hasattr`-guarded so a stale pre-polar lib never disables the whole native surface.
+
+> **Dispatch note:** rc1's public `polar_*` Python API uses the numpy reference (already vectorized element-wise int8); the C surface is built + parity-tested directly (`tests/test_hdc_polar_parity.py`, C↔Python bit-exact in the cibuildwheel matrix) for embedded/microcontroller use + parity attestation. Public-API native dispatch is a perf-only follow-up — *not* a class carve-out (the C parity exists and is tested).
+
+### Added — tests + tool_schema
+
+`tests/test_hdc_polar_parity.py` (9 algebraic-property tests on the numpy reference + 4 C↔Python parity tests, the latter skipped on pure-Python installs). 7 `srmech.amsc.tool_schema` ToolEntry registrations for the polar surface.
+
 ## [0.4.2] - 2026-05-20
 
 Production graduation of v0.4.2rc5. No code changes vs `[0.4.2rc5]`.

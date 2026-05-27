@@ -1014,6 +1014,70 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "bytes", True), P("b", "bytes", True)),
             returns=R("float", "in [-1, 1]"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). Rank-1 Class M
+        # with an absorbing zero (Class M ∘ Class K): int8 {-1,0,+1}
+        # hypervectors; 0 is the dead-band the pin-slot rejects.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_random", owner="srmech", category="hdc",
+            summary="Random polar hypervector: int8 array of D elements in "
+                    "{-1, 0, +1} (the 3-state Class-M variant alphabet).",
+            parameters=(P("D", "int", True, "dimension"),
+                        P("rng", "numpy.random.Generator", False)),
+            returns=R("np.ndarray", "int8 in {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_bind", owner="srmech", category="hdc",
+            summary="Polar bind: element-wise sign-product with 0 absorbing "
+                    "(0·x = 0). Commutative, associative; self-inverse on ±1.",
+            parameters=(P("a", "np.ndarray", True, "int8 {-1,0,+1}"),
+                        P("b", "np.ndarray", True, "same length")),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_unbind", owner="srmech", category="hdc",
+            summary="Polar unbind (= sign-product). Recovers b from "
+                    "bind(a,b) where a≠0; 0 is destructive.",
+            parameters=(P("c", "np.ndarray", True, "int8 {-1,0,+1}"),
+                        P("a", "np.ndarray", True)),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_bundle", owner="srmech", category="hdc",
+            summary="Polar bundle: per-position sticky majority "
+                    "(sign of the sum); exact ties resolve to 0. No "
+                    "odd-count restriction.",
+            parameters=(P("*vectors", "np.ndarray", True,
+                          "int8 {-1,0,+1}, all same length"),),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_similarity", owner="srmech", category="hdc",
+            summary="Polar match-fraction in [0,1]. skip_zero=True (default) "
+                    "counts only jointly non-zero positions; False counts all "
+                    "(0==0 a match).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+                        P("skip_zero", "bool", False, "default True")),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
+            summary="Fraction of non-zero (informative) positions in [0,1]; "
+                    "1.0 = fully bipolar, lower = more dead-band.",
+            parameters=(P("v", "np.ndarray", True, "int8 {-1,0,+1}"),),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_from_real", owner="srmech", category="hdc",
+            summary="Bridge real data to a polar HDC vector via sign_quantise "
+                    "(Class-K threshold projection); dead_band>0 maps the "
+                    "near-threshold zone to 0.",
+            parameters=(P("arr", "np.ndarray", True),
+                        P("threshold", "float", False, "default 0.0"),
+                        P("dead_band", "float", False, "default 0.0")),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
     ]
     for e in entries:
         register_tool(e)

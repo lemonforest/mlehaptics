@@ -591,6 +591,55 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_hdc_similarity.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). NEW symbols; guard
+    # with hasattr so a stale lib built before these landed doesn't
+    # disable the whole native surface (mirrors the rc12 best-effort
+    # binding pattern for srmech_cf_convergents_int64).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_polar_bind"):
+        # int srmech_polar_bind(const int8_t *a, const int8_t *b,
+        #                       uint32_t n, int8_t *out)
+        lib.srmech_polar_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_polar_bind.restype = ctypes.c_int
+
+        # int srmech_polar_bundle(const int8_t * const *vectors,
+        #                         uint32_t n_vectors, uint32_t n,
+        #                         int8_t *out)
+        lib.srmech_polar_bundle.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_polar_bundle.restype = ctypes.c_int
+
+        # int srmech_polar_similarity(const int8_t *a, const int8_t *b,
+        #                             uint32_t n, int32_t skip_zero,
+        #                             double *out)
+        lib.srmech_polar_similarity.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.c_uint32,
+            ctypes.c_int32,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_polar_similarity.restype = ctypes.c_int
+
+        # int srmech_polar_density(const int8_t *v, uint32_t n,
+        #                          double *out)
+        lib.srmech_polar_density.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_polar_density.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
