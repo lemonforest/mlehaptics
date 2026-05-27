@@ -91,15 +91,15 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_3rc4():
-    """v0.4.3rc4 — rc4 of the Class-M variant-expansion rolling arc
-    (symmetric_eigendecompose, real-symmetric Class L specialisation of
-    hermitian_eigendecompose; UPSTREAM_NOTES §2.1). Each v0.4.3rcN item
-    ships its own rc to TestPyPI, CI-gated between rcs, per
+def test_version_is_0_4_3rc5():
+    """v0.4.3rc5 — rc5 of the Class-M variant-expansion rolling arc
+    (rfft, real-input half-spectrum dual-path signal-processing op,
+    Class A∘I∘K; UPSTREAM_NOTES §1.1). Each v0.4.3rcN item ships its own
+    rc to TestPyPI, CI-gated between rcs, per
     `[[feedback_rc_stacking_versioning]]`; clean 0.4.3 routes to production
     PyPI per ``.github/workflows/srmech-publish.yml``."""
-    assert srmech.__version__ == "0.4.3rc4", (
-        f"expected srmech.__version__ == '0.4.3rc4'; got "
+    assert srmech.__version__ == "0.4.3rc5", (
+        f"expected srmech.__version__ == '0.4.3rc5'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -107,7 +107,7 @@ def test_version_is_0_4_3rc4():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.3rc4"
+    assert version_str == "0.4.3rc5"
     assert version_str == srmech.__version__
 
 

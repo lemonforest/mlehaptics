@@ -4,6 +4,25 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc5] - 2026-05-27
+
+**rc5 of the v0.4.3 "Class M variant expansion" rolling arc** — the `rfft` real-input half-spectrum signal-processing op, per UPSTREAM_NOTES §1.1 (RBS-LM research subtree, surfaced by R-RBS-LM-49z). A dual-path op (Path A reference + Path B native), composing the same Class A∘I∘K cyclic-DFT algebra as `fft`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.signal_processing.{closed_form_ops,path_b_ops}.rfft`
+
+Real-input forward FFT returning only the non-redundant first `N//2 + 1` bins. For a real signal the full DFT is Hermitian-symmetric (`X[N−k] = conj(X[k])`), so the second half carries no new information — half the compute and half the memory of `fft`, **algebra-identical** on the retained bins. The use case (UPSTREAM_NOTES §1.1): real bipolar bit-string FFT cascades (`{−1, +1}`) that previously used the full `fft` at 2× cost.
+
+Identity (Spike #176 H1, machine ε): the cyclic-DFT IS **Class A** (content-address on sequence order) ∘ **Class I** (cyclic-group ℤ/N) ∘ **Class K** (rotation as pin-slot on the unit circle); `rfft` is that composition on the **real-symmetric half-substrate** — the Hermitian conjugate-symmetry IS the reflection the Class K pin-slot already encodes.
+
+- **Path A** `closed_form_ops.rfft.op` — `numpy.fft.rfft` reference.
+- **Path B** `path_b_ops.rfft.op` — Class K cycle-order verification (Spike #176 T8) then cyclic-substrate `rfft`; D1 algebra-identical to Path A. Both paths registered with `path_registry`.
+
+> **Roster note:** like `pi_cascade`, `rfft` is a post-Phase-4 addition — it is in the package `__init__` imports + `__all__` but NOT in the frozen `PATH_B_MVP_OPS` (still 6) or `PATH_A_OP_MODULES` (still 38) rosters.
+
+### Added — tests + README
+
+`tests/test_signal_processing_rfft.py` — 20 tests: Path A↔numpy parity (incl. truncate/zero-pad `n`), Path B↔Path A D1 identity, half-spectrum identity (`rfft == fft[:N//2+1]`), Hermitian full-spectrum reconstruction, bipolar bit-string use case, both-paths registration + metadata, and the frozen-MVP-roster guard. README `signal_processing` Path A op list + dual-path line updated to surface `rfft`. Version-pin asserts bumped `0.4.3rc4 → 0.4.3rc5`.
+
 ## [0.4.3rc4] - 2026-05-27
 
 **rc4 of the v0.4.3 "Class M variant expansion" rolling arc** — the `symmetric_eigendecompose` real-symmetric Class L op, per UPSTREAM_NOTES §2.1 (RBS-LM research subtree). A real-input specialisation of the existing `hermitian_eigendecompose`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.

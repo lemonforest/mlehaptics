@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.4.2 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework. **v0.4.3 rolling on TestPyPI** — Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), and `symmetric_eigendecompose` (real-symmetric Class L).
+**Status:** **v0.4.2 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework. **v0.4.3 rolling on TestPyPI** — Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), and `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K).
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -143,8 +143,8 @@ Eigenbasis is O(n³) one-time per substrate (cached by `substrate_descriptor_has
 
 Two paths for the same algebra, dispatched per call:
 
-- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 38 ops covering frequency analysis (`fft`, `ifft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
-- **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Six ops have full dual-path implementations: `fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`.
+- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 40 ops (38 Phase-2 baseline + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
+- **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Eight ops have full dual-path implementations: `fft`, `ifft`, `rfft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`, `pi_cascade`.
 
 ```python
 from srmech.signal_processing import (
