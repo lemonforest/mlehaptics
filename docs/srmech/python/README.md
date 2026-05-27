@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.4.2 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework. **v0.4.3 rolling on TestPyPI** — Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I — a named cascade is the default, a math-library call the exception).
+**Status:** **v0.4.3 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I — a named cascade is the default, a math-library call the exception).
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 

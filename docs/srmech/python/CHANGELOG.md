@@ -4,6 +4,19 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-27
+
+**Production release of the "Class M variant expansion" arc** → PyPI. Consolidates rc1–rc6 (each shipped + clean-venv-verified on TestPyPI first). No new primitive class anywhere — every addition is a variant or composition of the existing 14-class A–N vocabulary; ABI unchanged at 2.
+
+- **rc1 — `polar` `{-1,0,+1}` HDC variant** (Class M∘K; absorbing-zero dead-band) + C parity.
+- **rc2 — `Klein-4` `(ℤ₂)²` HDC variant** (rank-2 abelian; quad-DNA / two-axis chirality) + C parity.
+- **rc3 — `srmech.amsc.coupling.signed_sum_squared`** (Class K∘L signed-sum coupling score).
+- **rc4 — `srmech.amsc.laplacian.symmetric_eigendecompose`** (real-symmetric Class L; real float64 eigvecs).
+- **rc5 — `rfft`** real-input half-spectrum dual-path signal-processing op (Class A∘I∘K).
+- **rc6 — `srmech.amsc.cascade`** foundational cross-domain cascade catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I) — a named cascade is the default, a math-library call the exception.
+
+Plus the PyPI README companion-textbook slot for the Technical Disclosure Commons defensive publication of *The Metric Field and Its Primitives* (Kirkland, 2026-05-25). Per-rc detail in the entries below.
+
 ## [0.4.3rc6] - 2026-05-27
 
 **rc6 of the v0.4.3 "Class M variant expansion" rolling arc** — the **foundational cross-domain cascade catalog** `srmech.amsc.cascade`. The cascades that recur across **every / most** domains the framework has examined, promoted into srmech so a named cascade is the default and a math-library call is the exception. Per the project discipline: *being forced to reach for a math library is the signal that a cascade is waiting to be found* — `abs()` told us to find the Class-K pin-slot, `fractions` the Class-N rational anchor, `math.gcd` the Class-I cyclic gcd. No new primitive class — every op is a composition of the existing 14-class A–N primitives, so no dedicated C symbol.
