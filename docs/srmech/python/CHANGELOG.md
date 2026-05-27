@@ -4,6 +4,26 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc6] - 2026-05-27
+
+**rc6 of the v0.4.3 "Class M variant expansion" rolling arc** — the **foundational cross-domain cascade catalog** `srmech.amsc.cascade`. The cascades that recur across **every / most** domains the framework has examined, promoted into srmech so a named cascade is the default and a math-library call is the exception. Per the project discipline: *being forced to reach for a math library is the signal that a cascade is waiting to be found* — `abs()` told us to find the Class-K pin-slot, `fractions` the Class-N rational anchor, `math.gcd` the Class-I cyclic gcd. No new primitive class — every op is a composition of the existing 14-class A–N primitives, so no dedicated C symbol.
+
+### Added — `srmech.amsc.cascade`
+
+Graduates the precursor `docs/unsolved-maths/_cascade_helpers.py` (imported across 20+ cascade scripts spanning mandelbrot / chromatic / atomic / nuclear / QCD / planetary / turbulence / black-hole / biomacromolecule / large-scale-structure domains) into srmech, justified by the framework's scale-invariance canon (the A–N operators are substrate-universal at every discipline and scale):
+
+- `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero; sign-flip IS the canonical phase-boundary. The cascade-honest split that replaces a bare `abs()`.
+- `reorient(orientation, value)` — **Class C** cascade-orientation re-apply.
+- `magnitude(x)` — **Class K** magnitude-only convenience (the `abs()` replacement).
+- `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C**: float → signed small-denominator rational (sign in the numerator, denominator positive; via `srmech.amsc.rational.best_rational`). No `abs()`; sign lives in the Class K / Class C pair.
+- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`); the cascade-named alias for `math.gcd`.
+
+Back-compat aliases (`class_k_pin_slot_at_zero`, `class_c_reorient`, `best_rat_signed`) let the precursor's call sites migrate with a pure import swap. `CASCADE_OPS` registry + `DEFAULT_MAX_DENOMINATOR` / `DEFAULT_FINE_SCALE` constants exported. Per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` — **no `abs()` anywhere** (AST-verified in tests).
+
+### Added — tests + tool_schema + README
+
+`tests/test_cascade_foundational.py` — 35 tests: Class K orientation/magnitude split, `magnitude == |x|`, Class C reorient + round-trip, `best_rational_signed` known values + π anchor + sign-in-numerator + bounded denominator + validation, `cyclic_gcd == math.gcd`, back-compat alias identity, registry/`__all__`, and an AST check that the module never calls `abs()`. 5 `tool_schema` ToolEntry registrations (category `cascade`). README gains a `srmech.amsc.cascade` composition-layer subsection + status-banner update. Version-pin asserts bumped `0.4.3rc5 → 0.4.3rc6`.
+
 ## [0.4.3rc5] - 2026-05-27
 
 **rc5 of the v0.4.3 "Class M variant expansion" rolling arc** — the `rfft` real-input half-spectrum signal-processing op, per UPSTREAM_NOTES §1.1 (RBS-LM research subtree, surfaced by R-RBS-LM-49z). A dual-path op (Path A reference + Path B native), composing the same Class A∘I∘K cyclic-DFT algebra as `fft`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.

@@ -1174,6 +1174,62 @@ def _register_primitive_class_tools() -> None:
                           "non-empty, equal-length 1-D arrays of bits {0,1}"),),
             returns=R("np.ndarray", "int64 squared signed-sum per position"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Foundational cross-domain cascade catalog (v0.4.3rc6).
+        # The cascades recurring across every/most domains, promoted so a
+        # named cascade is the default and a math-library call the exception.
+        # Compositions of existing A–N primitives; no new C symbol.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.pin_slot_at_zero", owner="srmech",
+            category="cascade",
+            summary="Class K pin-slot at zero: split x into (orientation ∈ "
+                    "{-1,0,+1}, magnitude ≥ 0). Sign-flip IS the canonical "
+                    "Class K phase-boundary; the cascade-honest split that "
+                    "replaces a bare abs().",
+            parameters=(P("x", "float", True, "a real value"),),
+            returns=R("tuple[int, float]", "(orientation, magnitude)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.reorient", owner="srmech",
+            category="cascade",
+            summary="Class C cascade-orientation: re-apply a captured "
+                    "orientation {-1,0,+1} to a value (negates iff "
+                    "orientation < 0). Pairs with pin_slot_at_zero.",
+            parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
+                        P("value", "number", True, "magnitude to re-sign")),
+            returns=R("number", "value, negated iff orientation < 0"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.magnitude", owner="srmech",
+            category="cascade",
+            summary="Class K pin-slot at zero, magnitude only (orientation "
+                    "discarded). The cascade-honest replacement for Python "
+                    "abs() when only |x| is needed.",
+            parameters=(P("x", "float", True, "a real value"),),
+            returns=R("float", "|x| as the Class K pin-slot magnitude"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.best_rational_signed", owner="srmech",
+            category="cascade",
+            summary="Class K ∘ N ∘ C: float → signed small-denominator "
+                    "rational. Strip sign at the Class K pin-slot, find the "
+                    "Class N best-rational of the magnitude, re-apply the "
+                    "sign as Class C (no abs(); sign lives in numerator).",
+            parameters=(P("x", "float", True, "the float to anchor"),
+                        P("max_denominator", "int", False, "Class N ceiling; default 100"),
+                        P("fine_scale", "int", False, "magnitude→int-pair scale; default 1e6")),
+            returns=R("tuple[int, int]", "(signed_numerator, positive_denominator)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_gcd", owner="srmech",
+            category="cascade",
+            summary="Class I cyclic gcd (delegates to srmech.amsc.cyclic.gcd). "
+                    "The cascade-named alias for reaching the Class I primitive "
+                    "instead of math.gcd.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "gcd(a, b)"),
+        ),
     ]
     for e in entries:
         register_tool(e)
