@@ -1,0 +1,51 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 8192,
+  "N_pairs": 50,
+  "signal_types": [
+    "asymmetric_oscillation",
+    "spiral_pattern",
+    "random_chiral"
+  ],
+  "seed": 42,
+  "baselines": {
+    "klein4": 0.24939697265625,
+    "bipolar": 0.00125
+  },
+  "results": {
+    "asymmetric_oscillation": {
+      "klein4_self_mean": 1.0,
+      "klein4_self_std": 0.0,
+      "klein4_cross_mean": 0.161904296875,
+      "klein4_cross_std": 0.005614249234235271,
+      "bipolar_self_mean": 1.0,
+      "bipolar_self_std": 0.0,
+      "bipolar_cross_mean": 0.179130859375,
+      "bipolar_cross_std": 0.01300442854937317
+    },
+    "spiral_pattern": {
+      "klein4_self_mean": 1.0,
+      "klein4_self_std": 0.0,
+      "klein4_cross_mean": 0.0353271484375,
+      "klein4_cross_std": 0.0018235523387111878,
+      "bipolar_self_mean": 1.0,
+      "bipolar_self_std": 0.0,
+      "bipolar_cross_mean": 0.929345703125,
+      "bipolar_cross_std": 0.003647104677422376
+    },
+    "random_chiral": {
+      "klein4_self_mean": 1.0,
+      "klein4_self_std": 0.0,
+      "klein4_cross_mean": 0.249931640625,
+      "klein4_cross_std": 0.007074863381296749,
+      "bipolar_self_mean": 1.0,
+      "bipolar_self_std": 0.0,
+      "bipolar_cross_mean": -0.000185546875,
+      "bipolar_cross_std": 0.016454684017906587
+    }
+  },
+  "klein4_consistently_wins": false,
+  "scope": "synthetic substrate encoding smoke test only; no medical/patient claims"
+}
