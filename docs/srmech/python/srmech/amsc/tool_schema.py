@@ -694,6 +694,19 @@ def _register_primitive_class_tools() -> None:
                       "(eigvals_ascending, V_unitary)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.symmetric_eigendecompose",
+            owner="srmech", category="laplacian",
+            summary="Real-symmetric eigendecomposition L = V diag(eigvals) "
+                    "Vᵀ via numpy.linalg.eigh. Real-input specialisation of "
+                    "hermitian_eigendecompose: guarantees real float64 "
+                    "eigvals AND eigvecs (no ComplexWarning for a real "
+                    "Laplacian). Golub & Van Loan §8.3.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n real symmetric matrix"),),
+            returns=R("tuple[np.ndarray, np.ndarray]",
+                      "(eigvals_ascending, V_orthogonal); both float64"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_matvec_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex matrix-vector multiplication M @ v. "

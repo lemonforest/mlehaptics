@@ -4,6 +4,20 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc4] - 2026-05-27
+
+**rc4 of the v0.4.3 "Class M variant expansion" rolling arc** — the `symmetric_eigendecompose` real-symmetric Class L op, per UPSTREAM_NOTES §2.1 (RBS-LM research subtree). A real-input specialisation of the existing `hermitian_eigendecompose`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.laplacian.symmetric_eigendecompose`
+
+Real-symmetric eigendecomposition `L = V · diag(eigvals) · Vᵀ` via `numpy.linalg.eigh`. The Hermitian path returns a **complex128** eigenvector matrix `V`, which raises a `ComplexWarning` when a caller already knows the input is real-symmetric (the common case — a graph Laplacian). This specialisation guarantees real **float64** eigvals AND eigvecs. **Class L** (graph spectral / eigendecomposition). Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.) §8.3.
+
+> **Architecture note:** no native C dispatch for this op. Eigenvector sign and degenerate-subspace rotation are **non-unique**, so element-wise C/Python parity is not a meaningful contract; correctness is instead pinned by eigenvalues + reconstruction (`V diag(w) Vᵀ ≈ L`) + orthonormality (`Vᵀ V ≈ I`). Added to `LAPLACIAN_OPS` (composition-engine registry) and `__all__`.
+
+### Added — tests + tool_schema
+
+`tests/test_laplacian_class_l_broadening.py` extended with 8 `symmetric_eigendecompose` tests (real-float64 dtype guarantee, numpy match + reconstruction, orthonormality, diagonal, connected-Laplacian nullspace ≈ 0, zero-size, non-square rejection, registry/`__all__` membership). 1 `tool_schema` ToolEntry. Version-pin asserts bumped `0.4.3rc3 → 0.4.3rc4`.
+
 ## [0.4.3rc3] - 2026-05-27
 
 **rc3 of the v0.4.3 "Class M variant expansion" rolling arc** — the `signed_sum_squared` coupling-score, per UPSTREAM_NOTES §1.2 (RBS-LM research subtree; R-RBS-LM-33 weak-coupling-truncate + R-RBS-LM-49 Method C). No new primitive class; this is a **composition** of existing Class K ∘ Class L primitives.
