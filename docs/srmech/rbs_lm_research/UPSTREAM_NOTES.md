@@ -195,7 +195,8 @@ Per CLAUDE.md "Tag flow for a new rc" + `[[feedback_always_rc_first_for_downstre
 the path is:
 
 1. **Branch**: `git checkout -b feat-klein4-class-m-rank-2-abelian`
-2. **Bump version**: srmech v0.4.0 → v0.4.1rc1 in 4 SSOT files:
+2. **Bump version**: srmech v0.4.2 → v0.4.3rc1 in 4 SSOT files
+   (current production v0.4.2; latest TestPyPI rc was v0.4.2rc5):
    - `python/pyproject.toml`
    - `python/pyproject-pure.toml`
    - `python/srmech/version.py`
@@ -225,7 +226,7 @@ the path is:
 8. **CHANGELOG.md** entry under `[0.4.1rc1]` heading describing the
    Class M rank-2 abelian variant addition
 9. **PR → review → MERGE** (NOT squash per `[[feedback_no_squash_merges]]`)
-10. **Tag** `srmech-v0.4.1rc1` on the merge commit
+10. **Tag** `srmech-v0.4.3rc1` on the merge commit
 11. **Publish workflow** auto-publishes to TestPyPI
 12. **Verify in clean venv outside repo tree**:
     ```bash
@@ -234,16 +235,22 @@ the path is:
     pip install --no-cache-dir \
         --index-url https://test.pypi.org/simple/ \
         --extra-index-url https://pypi.org/simple/ \
-        --pre "srmech==0.4.1rc1"
+        --pre "srmech==0.4.3rc1"
     python -c "from srmech.amsc.hdc import klein4_bind, klein4_chirality_flip_gamma5; ..."
     # Confirm HAS_NATIVE=True (native dispatch picks up C surface)
     ```
 13. **Multiple rc cycles** if needed (rc1, rc2, ...) until verification clean
-14. **Production tag** `srmech-v0.4.1` only after clean TestPyPI rc
+14. **Production tag** `srmech-v0.4.3` only after clean TestPyPI rc
 
 **Estimated scope**: ~200 LOC Python + ~150 LOC C + ~150 LOC tests +
 JPL audit pass = one rc round if no surprises; may need 2-3 rcs if
 JPL Power-of-Ten edge cases surface.
+
+**Version target context** (verified 2026-05-27):
+- Current production: srmech v0.4.2 (PyPI)
+- Latest TestPyPI rc: srmech v0.4.2rc5
+- Klein-4 addition would target v0.4.3rc1 → v0.4.3
+- ABI: stays at current value (adding new symbol, not changing wire format)
 
 ### §4.2 Status
 
