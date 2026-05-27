@@ -1,0 +1,73 @@
+{
+  "baseline_spearman": -0.003940115679577501,
+  "best_eccentricity": 0.8,
+  "best_spearman": -0.023369279796036802,
+  "improvement": -0.0194291641164593,
+  "sweep_results": [
+    {
+      "eccentricity": 0.0,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.05,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.1,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.2,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.3,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.4,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.5,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.6,
+      "spearman_vs_ppmi": -0.003940115679577501,
+      "change_vs_baseline": 0.0
+    },
+    {
+      "eccentricity": 0.7,
+      "spearman_vs_ppmi": -0.006834440885914742,
+      "change_vs_baseline": -0.0028943252063372412
+    },
+    {
+      "eccentricity": 0.8,
+      "spearman_vs_ppmi": -0.023369279796036802,
+      "change_vs_baseline": -0.0194291641164593
+    },
+    {
+      "eccentricity": 0.9,
+      "spearman_vs_ppmi": -0.013816676383000933,
+      "change_vs_baseline": -0.009876560703423432
+    },
+    {
+      "eccentricity": 0.95,
+      "spearman_vs_ppmi": -0.011157585000184083,
+      "change_vs_baseline": -0.007217469320606582
+    },
+    {
+      "eccentricity": 0.99,
+      "spearman_vs_ppmi": -0.006749742075715136,
+      "change_vs_baseline": -0.002809626396137635
+    }
+  ]
+}
