@@ -91,15 +91,14 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_2rc1():
-    """v0.4.2 production graduation (cumulative rc5 → clean semver per
-    `[[feedback_rc_stacking_versioning]]`; rc1-rc5 stack verified on
-    TestPyPI, README v0.4.2 rewrite + numpy 2.x test compat + pyproject
-    description refresh all cleared, clean 0.4.2 routes to production
-    PyPI per the auto-routing in
-    ``.github/workflows/srmech-publish.yml``)."""
-    assert srmech.__version__ == "0.4.2", (
-        f"expected srmech.__version__ == '0.4.2'; got "
+def test_version_is_0_4_3():
+    """v0.4.3 — clean production release of the "Class M variant expansion"
+    arc (rc1 polar / rc2 Klein-4 / rc3 signed_sum_squared / rc4
+    symmetric_eigendecompose / rc5 rfft / rc6 cascade catalog, all verified
+    on TestPyPI). The clean (no-rc) tag ``srmech-v0.4.3`` routes to
+    production PyPI per ``.github/workflows/srmech-publish.yml``."""
+    assert srmech.__version__ == "0.4.3", (
+        f"expected srmech.__version__ == '0.4.3'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -107,7 +106,7 @@ def test_version_is_0_4_2rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.2"
+    assert version_str == "0.4.3"
     assert version_str == srmech.__version__
 
 

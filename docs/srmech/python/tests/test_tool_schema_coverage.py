@@ -66,6 +66,11 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (already registered).
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
+    # cascade.* — back-compat aliases of canonical names already registered
+    # (the precursor's call-site names; see srmech.amsc.cascade).
+    "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
+    "srmech.amsc.cascade.class_c_reorient",          # = reorient
+    "srmech.amsc.cascade.best_rat_signed",           # = best_rational_signed
 })
 
 

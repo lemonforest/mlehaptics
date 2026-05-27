@@ -694,6 +694,19 @@ def _register_primitive_class_tools() -> None:
                       "(eigvals_ascending, V_unitary)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.symmetric_eigendecompose",
+            owner="srmech", category="laplacian",
+            summary="Real-symmetric eigendecomposition L = V diag(eigvals) "
+                    "Vᵀ via numpy.linalg.eigh. Real-input specialisation of "
+                    "hermitian_eigendecompose: guarantees real float64 "
+                    "eigvals AND eigvecs (no ComplexWarning for a real "
+                    "Laplacian). Golub & Van Loan §8.3.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n real symmetric matrix"),),
+            returns=R("tuple[np.ndarray, np.ndarray]",
+                      "(eigvals_ascending, V_orthogonal); both float64"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_matvec_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex matrix-vector multiplication M @ v. "
@@ -1013,6 +1026,209 @@ def _register_primitive_class_tools() -> None:
                     "+1 identical, 0 orthogonal, −1 complementary.",
             parameters=(P("a", "bytes", True), P("b", "bytes", True)),
             returns=R("float", "in [-1, 1]"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). Rank-1 Class M
+        # with an absorbing zero (Class M ∘ Class K): int8 {-1,0,+1}
+        # hypervectors; 0 is the dead-band the pin-slot rejects.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_random", owner="srmech", category="hdc",
+            summary="Random polar hypervector: int8 array of D elements in "
+                    "{-1, 0, +1} (the 3-state Class-M variant alphabet).",
+            parameters=(P("D", "int", True, "dimension"),
+                        P("rng", "numpy.random.Generator", False)),
+            returns=R("np.ndarray", "int8 in {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_bind", owner="srmech", category="hdc",
+            summary="Polar bind: element-wise sign-product with 0 absorbing "
+                    "(0·x = 0). Commutative, associative; self-inverse on ±1.",
+            parameters=(P("a", "np.ndarray", True, "int8 {-1,0,+1}"),
+                        P("b", "np.ndarray", True, "same length")),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_unbind", owner="srmech", category="hdc",
+            summary="Polar unbind (= sign-product). Recovers b from "
+                    "bind(a,b) where a≠0; 0 is destructive.",
+            parameters=(P("c", "np.ndarray", True, "int8 {-1,0,+1}"),
+                        P("a", "np.ndarray", True)),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_bundle", owner="srmech", category="hdc",
+            summary="Polar bundle: per-position sticky majority "
+                    "(sign of the sum); exact ties resolve to 0. No "
+                    "odd-count restriction.",
+            parameters=(P("*vectors", "np.ndarray", True,
+                          "int8 {-1,0,+1}, all same length"),),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_similarity", owner="srmech", category="hdc",
+            summary="Polar match-fraction in [0,1]. skip_zero=True (default) "
+                    "counts only jointly non-zero positions; False counts all "
+                    "(0==0 a match).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+                        P("skip_zero", "bool", False, "default True")),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
+            summary="Fraction of non-zero (informative) positions in [0,1]; "
+                    "1.0 = fully bipolar, lower = more dead-band.",
+            parameters=(P("v", "np.ndarray", True, "int8 {-1,0,+1}"),),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.polar_from_real", owner="srmech", category="hdc",
+            summary="Bridge real data to a polar HDC vector via sign_quantise "
+                    "(Class-K threshold projection); dead_band>0 maps the "
+                    "near-threshold zone to 0.",
+            parameters=(P("arr", "np.ndarray", True),
+                        P("threshold", "float", False, "default 0.0"),
+                        P("dead_band", "float", False, "default 0.0")),
+            returns=R("np.ndarray", "int8 {-1,0,+1}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2). Rank-2 abelian
+        # over (F₂)²; the four states are the four (γ₅, iω₇) chirality
+        # sectors. uint8 hypervectors.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_random", owner="srmech", category="hdc",
+            summary="Random Klein-4 hypervector: uint8 array of D elements in "
+                    "{0,1,2,3} (the rank-2 Class-M variant alphabet).",
+            parameters=(P("D", "int", True), P("rng", "numpy.random.Generator", False)),
+            returns=R("np.ndarray", "uint8 in {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_bind", owner="srmech", category="hdc",
+            summary="Klein-4 bind: component-wise (F₂)²-XOR. Commutative, "
+                    "associative, self-inverse; identity 0.",
+            parameters=(P("a", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                        P("b", "np.ndarray", True, "same length")),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_unbind", owner="srmech", category="hdc",
+            summary="Klein-4 unbind (= self-inverse XOR): recovers b from "
+                    "bind(a,b).",
+            parameters=(P("c", "np.ndarray", True), P("a", "np.ndarray", True)),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
+            summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
+                    "independently; exact ties → 0 for that bit.",
+            parameters=(P("*vectors", "np.ndarray", True,
+                          "uint8 {0,1,2,3}, all same length"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
+            summary="Klein-4 similarity: fraction of positions where a==b in "
+                    "[0,1] (1 identical, 0 orthogonal).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True)),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chirality_flip_gamma5", owner="srmech",
+            category="hdc",
+            summary="Flip the γ₅ chirality axis (XOR with sector mask 2).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chirality_flip_omega7", owner="srmech",
+            category="hdc",
+            summary="Flip the iω₇ chirality axis (XOR with sector mask 1).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_cpt_mirror", owner="srmech", category="hdc",
+            summary="CPT mirror: flip BOTH chirality axes (XOR with 3).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
+            summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
+                    "distribution attestation.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "int64 length-4 counts"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.signed_sum_squared", owner="srmech",
+            category="coupling",
+            summary="Per-element (Σ_sources (2·bit−1))² across a stack of "
+                    "bit-arrays. Class K (bipolar sign-projection) ∘ Class L "
+                    "(signed-magnitude-squared) composition; squared coupling "
+                    "strength in [0, n_sources²].",
+            parameters=(P("sources", "Sequence[np.ndarray]", True,
+                          "non-empty, equal-length 1-D arrays of bits {0,1}"),),
+            returns=R("np.ndarray", "int64 squared signed-sum per position"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Foundational cross-domain cascade catalog (v0.4.3rc6).
+        # The cascades recurring across every/most domains, promoted so a
+        # named cascade is the default and a math-library call the exception.
+        # Compositions of existing A–N primitives; no new C symbol.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.pin_slot_at_zero", owner="srmech",
+            category="cascade",
+            summary="Class K pin-slot at zero: split x into (orientation ∈ "
+                    "{-1,0,+1}, magnitude ≥ 0). Sign-flip IS the canonical "
+                    "Class K phase-boundary; the cascade-honest split that "
+                    "replaces a bare abs().",
+            parameters=(P("x", "float", True, "a real value"),),
+            returns=R("tuple[int, float]", "(orientation, magnitude)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.reorient", owner="srmech",
+            category="cascade",
+            summary="Class C cascade-orientation: re-apply a captured "
+                    "orientation {-1,0,+1} to a value (negates iff "
+                    "orientation < 0). Pairs with pin_slot_at_zero.",
+            parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
+                        P("value", "number", True, "magnitude to re-sign")),
+            returns=R("number", "value, negated iff orientation < 0"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.magnitude", owner="srmech",
+            category="cascade",
+            summary="Class K pin-slot at zero, magnitude only (orientation "
+                    "discarded). The cascade-honest replacement for Python "
+                    "abs() when only |x| is needed.",
+            parameters=(P("x", "float", True, "a real value"),),
+            returns=R("float", "|x| as the Class K pin-slot magnitude"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.best_rational_signed", owner="srmech",
+            category="cascade",
+            summary="Class K ∘ N ∘ C: float → signed small-denominator "
+                    "rational. Strip sign at the Class K pin-slot, find the "
+                    "Class N best-rational of the magnitude, re-apply the "
+                    "sign as Class C (no abs(); sign lives in numerator).",
+            parameters=(P("x", "float", True, "the float to anchor"),
+                        P("max_denominator", "int", False, "Class N ceiling; default 100"),
+                        P("fine_scale", "int", False, "magnitude→int-pair scale; default 1e6")),
+            returns=R("tuple[int, int]", "(signed_numerator, positive_denominator)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_gcd", owner="srmech",
+            category="cascade",
+            summary="Class I cyclic gcd (delegates to srmech.amsc.cyclic.gcd). "
+                    "The cascade-named alias for reaching the Class I primitive "
+                    "instead of math.gcd.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "gcd(a, b)"),
         ),
     ]
     for e in entries:

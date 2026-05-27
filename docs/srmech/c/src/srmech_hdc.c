@@ -194,3 +194,219 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
     *out = 1.0 - 2.0 * (double)hamming / D;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * Class M — polar {-1, 0, +1} variant (v0.4.3rc1)
+ *
+ * int8 hypervectors with elements in {-1, 0, +1}; 0 is the absorbing
+ * dead-band (Class M ∘ Class K). bind = multiplicative sign-product
+ * (0 absorbing); bundle = sticky majority (ties → 0). No ABI bump.
+ * ------------------------------------------------------------------ */
+
+srmech_status_t srmech_polar_bind(const int8_t *a,
+                                  const int8_t *b,
+                                  uint32_t      n,
+                                  int8_t       *out)
+{
+    assert(a != NULL && b != NULL && out != NULL);
+    assert(n > 0);
+    if (a == NULL || b == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        if (a[i] < -1 || a[i] > 1 || b[i] < -1 || b[i] > 1) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out[i] = (int8_t)(a[i] * b[i]);  /* 0 absorbing: 0 * x = 0 */
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
+                                    uint32_t              n_vectors,
+                                    uint32_t              n,
+                                    int8_t               *out)
+{
+    assert(vectors != NULL && out != NULL);
+    assert(n_vectors > 0 && n > 0);
+    if (vectors == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_vectors == 0 || n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (n_vectors > SRMECH_HDC_MAX_BUNDLE_N) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        int32_t sum = 0;
+        for (uint32_t v = 0; v < n_vectors; v++) {
+            if (vectors[v] == NULL) {
+                return SRMECH_ERR_NULL_ARG;
+            }
+            int8_t e = vectors[v][i];
+            if (e < -1 || e > 1) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            sum += e;
+        }
+        /* sign(sum): +1 / 0 / -1 — ties (sum == 0) resolve to 0. */
+        out[i] = (int8_t)((sum > 0) - (sum < 0));
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_polar_similarity(const int8_t *a,
+                                        const int8_t *b,
+                                        uint32_t      n,
+                                        int32_t       skip_zero,
+                                        double       *out)
+{
+    assert(a != NULL && b != NULL && out != NULL);
+    assert(n > 0);
+    if (a == NULL || b == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t matches = 0;
+    uint32_t denom = 0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (a[i] < -1 || a[i] > 1 || b[i] < -1 || b[i] > 1) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (skip_zero != 0 && (a[i] == 0 || b[i] == 0)) {
+            continue;
+        }
+        denom++;
+        if (a[i] == b[i]) {
+            matches++;
+        }
+    }
+    *out = (denom == 0) ? 0.0 : (double)matches / (double)denom;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_polar_density(const int8_t *v,
+                                     uint32_t      n,
+                                     double       *out)
+{
+    assert(v != NULL && out != NULL);
+    assert(n > 0);
+    if (v == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t nz = 0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (v[i] < -1 || v[i] > 1) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (v[i] != 0) {
+            nz++;
+        }
+    }
+    *out = (double)nz / (double)n;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2)
+ *
+ * Rank-2 abelian Class M over (F₂)² = Z₂×Z₂. uint8 elements in
+ * {0,1,2,3}; bind = component-wise XOR; bundle = per-bit majority
+ * (ties → 0). No ABI bump.
+ * ------------------------------------------------------------------ */
+
+srmech_status_t srmech_klein4_bind(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n,
+                                   uint8_t       *out)
+{
+    assert(a != NULL && b != NULL && out != NULL);
+    assert(n > 0);
+    if (a == NULL || b == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        if (a[i] > 3u || b[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out[i] = (uint8_t)(a[i] ^ b[i]);  /* (F2)^2 XOR */
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
+                                     uint32_t               n_vectors,
+                                     uint32_t               n,
+                                     uint8_t               *out)
+{
+    assert(vectors != NULL && out != NULL);
+    assert(n_vectors > 0 && n > 0);
+    if (vectors == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_vectors == 0 || n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (n_vectors > SRMECH_HDC_MAX_BUNDLE_N) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    uint32_t half = n_vectors / 2u;
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t bit0 = 0;
+        uint32_t bit1 = 0;
+        for (uint32_t v = 0; v < n_vectors; v++) {
+            if (vectors[v] == NULL) {
+                return SRMECH_ERR_NULL_ARG;
+            }
+            uint8_t e = vectors[v][i];
+            if (e > 3u) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            bit0 += (uint32_t)(e & 1u);
+            bit1 += (uint32_t)((e >> 1) & 1u);
+        }
+        /* majority per bit; exact tie (== half) resolves to 0. */
+        uint8_t r0 = (bit0 > half) ? 1u : 0u;
+        uint8_t r1 = (bit1 > half) ? 1u : 0u;
+        out[i] = (uint8_t)((r1 << 1) | r0);
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_klein4_similarity(const uint8_t *a,
+                                         const uint8_t *b,
+                                         uint32_t       n,
+                                         double        *out)
+{
+    assert(a != NULL && b != NULL && out != NULL);
+    assert(n > 0);
+    if (a == NULL || b == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t matches = 0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (a[i] > 3u || b[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (a[i] == b[i]) {
+            matches++;
+        }
+    }
+    *out = (double)matches / (double)n;
+    return SRMECH_OK;
+}

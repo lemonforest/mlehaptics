@@ -4,6 +4,131 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-05-27
+
+**Production release of the "Class M variant expansion" arc** → PyPI. Consolidates rc1–rc6 (each shipped + clean-venv-verified on TestPyPI first). No new primitive class anywhere — every addition is a variant or composition of the existing 14-class A–N vocabulary; ABI unchanged at 2.
+
+- **rc1 — `polar` `{-1,0,+1}` HDC variant** (Class M∘K; absorbing-zero dead-band) + C parity.
+- **rc2 — `Klein-4` `(ℤ₂)²` HDC variant** (rank-2 abelian; quad-DNA / two-axis chirality) + C parity.
+- **rc3 — `srmech.amsc.coupling.signed_sum_squared`** (Class K∘L signed-sum coupling score).
+- **rc4 — `srmech.amsc.laplacian.symmetric_eigendecompose`** (real-symmetric Class L; real float64 eigvecs).
+- **rc5 — `rfft`** real-input half-spectrum dual-path signal-processing op (Class A∘I∘K).
+- **rc6 — `srmech.amsc.cascade`** foundational cross-domain cascade catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I) — a named cascade is the default, a math-library call the exception.
+
+Plus the PyPI README companion-textbook slot for the Technical Disclosure Commons defensive publication of *The Metric Field and Its Primitives* (Kirkland, 2026-05-25). Per-rc detail in the entries below.
+
+## [0.4.3rc6] - 2026-05-27
+
+**rc6 of the v0.4.3 "Class M variant expansion" rolling arc** — the **foundational cross-domain cascade catalog** `srmech.amsc.cascade`. The cascades that recur across **every / most** domains the framework has examined, promoted into srmech so a named cascade is the default and a math-library call is the exception. Per the project discipline: *being forced to reach for a math library is the signal that a cascade is waiting to be found* — `abs()` told us to find the Class-K pin-slot, `fractions` the Class-N rational anchor, `math.gcd` the Class-I cyclic gcd. No new primitive class — every op is a composition of the existing 14-class A–N primitives, so no dedicated C symbol.
+
+### Added — `srmech.amsc.cascade`
+
+Graduates the precursor `docs/unsolved-maths/_cascade_helpers.py` (imported across 20+ cascade scripts spanning mandelbrot / chromatic / atomic / nuclear / QCD / planetary / turbulence / black-hole / biomacromolecule / large-scale-structure domains) into srmech, justified by the framework's scale-invariance canon (the A–N operators are substrate-universal at every discipline and scale):
+
+- `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero; sign-flip IS the canonical phase-boundary. The cascade-honest split that replaces a bare `abs()`.
+- `reorient(orientation, value)` — **Class C** cascade-orientation re-apply.
+- `magnitude(x)` — **Class K** magnitude-only convenience (the `abs()` replacement).
+- `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C**: float → signed small-denominator rational (sign in the numerator, denominator positive; via `srmech.amsc.rational.best_rational`). No `abs()`; sign lives in the Class K / Class C pair.
+- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`); the cascade-named alias for `math.gcd`.
+
+Back-compat aliases (`class_k_pin_slot_at_zero`, `class_c_reorient`, `best_rat_signed`) let the precursor's call sites migrate with a pure import swap. `CASCADE_OPS` registry + `DEFAULT_MAX_DENOMINATOR` / `DEFAULT_FINE_SCALE` constants exported. Per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` — **no `abs()` anywhere** (AST-verified in tests).
+
+### Added — tests + tool_schema + README
+
+`tests/test_cascade_foundational.py` — 35 tests: Class K orientation/magnitude split, `magnitude == |x|`, Class C reorient + round-trip, `best_rational_signed` known values + π anchor + sign-in-numerator + bounded denominator + validation, `cyclic_gcd == math.gcd`, back-compat alias identity, registry/`__all__`, and an AST check that the module never calls `abs()`. 5 `tool_schema` ToolEntry registrations (category `cascade`). README gains a `srmech.amsc.cascade` composition-layer subsection + status-banner update. Version-pin asserts bumped `0.4.3rc5 → 0.4.3rc6`.
+
+## [0.4.3rc5] - 2026-05-27
+
+**rc5 of the v0.4.3 "Class M variant expansion" rolling arc** — the `rfft` real-input half-spectrum signal-processing op, per UPSTREAM_NOTES §1.1 (RBS-LM research subtree, surfaced by R-RBS-LM-49z). A dual-path op (Path A reference + Path B native), composing the same Class A∘I∘K cyclic-DFT algebra as `fft`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.signal_processing.{closed_form_ops,path_b_ops}.rfft`
+
+Real-input forward FFT returning only the non-redundant first `N//2 + 1` bins. For a real signal the full DFT is Hermitian-symmetric (`X[N−k] = conj(X[k])`), so the second half carries no new information — half the compute and half the memory of `fft`, **algebra-identical** on the retained bins. The use case (UPSTREAM_NOTES §1.1): real bipolar bit-string FFT cascades (`{−1, +1}`) that previously used the full `fft` at 2× cost.
+
+Identity (Spike #176 H1, machine ε): the cyclic-DFT IS **Class A** (content-address on sequence order) ∘ **Class I** (cyclic-group ℤ/N) ∘ **Class K** (rotation as pin-slot on the unit circle); `rfft` is that composition on the **real-symmetric half-substrate** — the Hermitian conjugate-symmetry IS the reflection the Class K pin-slot already encodes.
+
+- **Path A** `closed_form_ops.rfft.op` — `numpy.fft.rfft` reference.
+- **Path B** `path_b_ops.rfft.op` — Class K cycle-order verification (Spike #176 T8) then cyclic-substrate `rfft`; D1 algebra-identical to Path A. Both paths registered with `path_registry`.
+
+> **Roster note:** like `pi_cascade`, `rfft` is a post-Phase-4 addition — it is in the package `__init__` imports + `__all__` but NOT in the frozen `PATH_B_MVP_OPS` (still 6) or `PATH_A_OP_MODULES` (still 38) rosters.
+
+### Added — tests + README
+
+`tests/test_signal_processing_rfft.py` — 20 tests: Path A↔numpy parity (incl. truncate/zero-pad `n`), Path B↔Path A D1 identity, half-spectrum identity (`rfft == fft[:N//2+1]`), Hermitian full-spectrum reconstruction, bipolar bit-string use case, both-paths registration + metadata, and the frozen-MVP-roster guard. README `signal_processing` Path A op list + dual-path line updated to surface `rfft`. Version-pin asserts bumped `0.4.3rc4 → 0.4.3rc5`.
+
+## [0.4.3rc4] - 2026-05-27
+
+**rc4 of the v0.4.3 "Class M variant expansion" rolling arc** — the `symmetric_eigendecompose` real-symmetric Class L op, per UPSTREAM_NOTES §2.1 (RBS-LM research subtree). A real-input specialisation of the existing `hermitian_eigendecompose`; no new primitive class — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.laplacian.symmetric_eigendecompose`
+
+Real-symmetric eigendecomposition `L = V · diag(eigvals) · Vᵀ` via `numpy.linalg.eigh`. The Hermitian path returns a **complex128** eigenvector matrix `V`, which raises a `ComplexWarning` when a caller already knows the input is real-symmetric (the common case — a graph Laplacian). This specialisation guarantees real **float64** eigvals AND eigvecs. **Class L** (graph spectral / eigendecomposition). Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.) §8.3.
+
+> **Architecture note:** no native C dispatch for this op. Eigenvector sign and degenerate-subspace rotation are **non-unique**, so element-wise C/Python parity is not a meaningful contract; correctness is instead pinned by eigenvalues + reconstruction (`V diag(w) Vᵀ ≈ L`) + orthonormality (`Vᵀ V ≈ I`). Added to `LAPLACIAN_OPS` (composition-engine registry) and `__all__`.
+
+### Added — tests + tool_schema
+
+`tests/test_laplacian_class_l_broadening.py` extended with 8 `symmetric_eigendecompose` tests (real-float64 dtype guarantee, numpy match + reconstruction, orthonormality, diagonal, connected-Laplacian nullspace ≈ 0, zero-size, non-square rejection, registry/`__all__` membership). 1 `tool_schema` ToolEntry. Version-pin asserts bumped `0.4.3rc3 → 0.4.3rc4`.
+
+## [0.4.3rc3] - 2026-05-27
+
+**rc3 of the v0.4.3 "Class M variant expansion" rolling arc** — the `signed_sum_squared` coupling-score, per UPSTREAM_NOTES §1.2 (RBS-LM research subtree; R-RBS-LM-33 weak-coupling-truncate + R-RBS-LM-49 Method C). No new primitive class; this is a **composition** of existing Class K ∘ Class L primitives.
+
+### Added — `srmech.amsc.coupling.signed_sum_squared`
+
+Per-element `(Σ_sources (2·bit − 1))²` across a stack of bit-arrays. The bipolar transform `2·bit−1 ∈ {−1,+1}` is the **Class-K** sign-projection (no `abs()`, signed arithmetic only per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`); the element-wise sum across sources then **squared** is the **Class-L** signed-magnitude-squared coupling score (sign-agnostic coupling strength, range `[0, n_sources²]`). Resolves the bare-numpy inline both R-RBS-LM partitions had used.
+
+> **Architecture note:** this is a Class K ∘ L *composition* operating on a stack — **not a new primitive class**, so it carries **no dedicated C symbol**: the underlying Class-K / Class-L primitives are the ones with C parity, and a composition sequences them in Python (the config-driven-vs-substrate-primitive split per CLAUDE.md). The 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — tests + tool_schema
+
+`tests/test_coupling_signed_sum_squared.py` — 6 numpy-reference property tests (known values, full-agreement/balance, single-source, random reference-formula match, int64-nonnegative range, validation). 1 `tool_schema` ToolEntry. Version-pin asserts bumped `0.4.3rc2 → 0.4.3rc3`.
+
+## [0.4.3rc2] - 2026-05-27
+
+**rc2 of the v0.4.3 "Class M variant expansion" rolling arc** — the Klein-4 `{0,1,2,3}` HDC variant, per UPSTREAM_NOTES §4 (RBS-LM research subtree, Finding 132 / R-RBS-LM-97). Stacks on rc1 (polar). No new primitive class; Klein-4 is the **rank-2 abelian** Class M variant over `(F₂)² = Z₂×Z₂` — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.hdc` Klein-4 `{0,1,2,3}` variant
+
+The next rung of the Class-M variant ladder above polar (`bipolar {-1,+1}` → `polar {-1,0,+1}` → **`Klein-4 (Z₂)²`**). Each position is a 2-bit value (4 states), `state = γ₅_bit·2 + iω₇_bit`; the four states are the four chirality sectors of the MFO §VII.4.1.7 4-way `(γ₅, iω₇)` decomposition (visible/dark × matter/antimatter). This is the quaternary / DNA-like "quad" substrate carrying **both** chirality axes where bipolar/polar carry one. uint8 array representation.
+
+- `klein4_random / klein4_bind` (component-wise `(F₂)²`-XOR; commutative, associative, self-inverse, identity 0) `/ klein4_unbind / klein4_bundle` (per-bit majority, ties→0) `/ klein4_similarity` (match-fraction).
+- `klein4_chirality_flip_gamma5` (XOR 2) `/ klein4_chirality_flip_omega7` (XOR 1) `/ klein4_cpt_mirror` (XOR 3) `/ klein4_sector_count` (per-sector occupancy attestation).
+
+### Added — C parity surface (`srmech_klein4_{bind,bundle,similarity}`)
+
+Full uint8 C parity in `srmech_hdc.c` + `srmech.h`, JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts, no goto/malloc, bounded loops, `{0,1,2,3}` range validation). New symbols; **no ABI bump**. `_native.py` binds them `hasattr`-guarded. Same dispatch posture as rc1 (numpy public reference; C surface built + parity-tested directly).
+
+### Added — tests + tool_schema
+
+`tests/test_hdc_klein4_parity.py` — 6 algebraic-property tests (Klein-four group axioms incl. `a⊕a=0`, chirality-flip sector maps, per-bit-majority bundle, similarity/sector-count) + 3 C↔Python parity tests (skipped on pure-Python installs). 9 `tool_schema` ToolEntry registrations. Version-pin asserts bumped `0.4.3rc1 → 0.4.3rc2`.
+
+## [0.4.3rc1] - 2026-05-27
+
+**rc1 of the v0.4.3 "Class M variant expansion" rolling arc** — the polar `{-1, 0, +1}` HDC variant, per UPSTREAM_NOTES §5 (RBS-LM research subtree, Finding from R-RBS-LM-97). First rc of a multi-item rolling PR; each subsequent item (Klein-4 rank-2, `signed_sum_squared`, real-symmetric eigendecompose, Path-B `rfft`, cascade-foundational catalog) ships as its own `0.4.3rcN`, each mathematically complete (no scaffolding), CI-gated between rcs. No new primitive class introduced; the polar variant is **Class M ∘ Class K** (rank-1 abelian with an absorbing zero) — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.hdc` polar `{-1, 0, +1}` variant
+
+The foundational rung of the Class-M variant ladder (`bipolar {-1,+1}` → **`polar {-1,0,+1}`** → `Klein-4 (Z₂)²`). The `0` state is the asymptotic-DOF **dead-band** the Class-K pin-slot rejects (per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`) — a representable origin that the bipolar `{-1,+1}` alphabet lacked, which left the sign axis crippled (no representable zero/uncertain state). int8 array representation (distinct from the bit-packed bipolar BSC).
+
+- `polar_random(D, rng)` — random int8 hypervector in `{-1,0,+1}`.
+- `polar_bind(a, b)` — multiplicative sign-product, **0 absorbing** (`0·x=0`); commutative, associative, self-inverse on ±1.
+- `polar_unbind(c, a)` — sign-product; recovers `b` where `a≠0` (0 destructive).
+- `polar_bundle(*vectors)` — sticky majority (`sign(Σ)`); exact ties → 0; no odd-count restriction.
+- `polar_similarity(a, b, skip_zero=True)` — match-fraction; skip-zero (jointly-informative only) or include-zero.
+- `polar_density(v)` — fraction of non-zero positions (substrate attestation).
+- `polar_from_real(arr, threshold, dead_band)` — bridge wrapping the existing `signal_processing.path_b_ops.sign_quantise` (lifts its `{-1,0,+1}` Class-K threshold projection into the HDC namespace; resolves the R-RBS-LM-97 bare-`np.sign` workaround).
+
+### Added — C parity surface (`srmech_polar_{bind,bundle,similarity,density}`)
+
+Full int8 C parity in `srmech_hdc.c` + `srmech.h`, JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts, no goto/malloc, bounded loops, value-range validation). New symbols; **no ABI bump** (ABI stays 2). `_native.py` binds them `hasattr`-guarded so a stale pre-polar lib never disables the whole native surface.
+
+> **Dispatch note:** rc1's public `polar_*` Python API uses the numpy reference (already vectorized element-wise int8); the C surface is built + parity-tested directly (`tests/test_hdc_polar_parity.py`, C↔Python bit-exact in the cibuildwheel matrix) for embedded/microcontroller use + parity attestation. Public-API native dispatch is a perf-only follow-up — *not* a class carve-out (the C parity exists and is tested).
+
+### Added — tests + tool_schema
+
+`tests/test_hdc_polar_parity.py` (9 algebraic-property tests on the numpy reference + 4 C↔Python parity tests, the latter skipped on pure-Python installs). 7 `srmech.amsc.tool_schema` ToolEntry registrations for the polar surface.
+
 ## [0.4.2] - 2026-05-20
 
 Production graduation of v0.4.2rc5. No code changes vs `[0.4.2rc5]`.

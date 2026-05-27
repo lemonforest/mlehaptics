@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.4.2 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework.
+**Status:** **v0.4.3 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I — a named cascade is the default, a math-library call the exception).
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -18,6 +18,7 @@ Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix 
 
 - [PDF (GitHub)](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/metric-field-and-its-primitives.pdf) — renders inline in the GitHub viewer
 - [PDF (ReadTheDocs)](https://mlehaptics.readthedocs.io/srmech/metric-field-and-its-primitives.pdf) — served as a static asset alongside the [research notebook](https://mlehaptics.readthedocs.io/srmech/srmech_research_notebook/)
+- [Technical Disclosure Commons](https://www.tdcommons.org/dpubs_series/10243/) — the textbook as a timestamped defensive publication (Kirkland, 2026-05-25)
 - [MFO research notebook](https://mlehaptics.readthedocs.io/antikythera-maths/mfo_spectral_research_notebook/) — working draft the textbook is consolidated from
 
 ## Install
@@ -101,8 +102,8 @@ Each class is importable as `srmech.amsc.<module>` with native C dispatch and a 
 | `cyclic` | I | Modular arithmetic — `gcd`, `lcm`, `mod_add`, `mod_mul`, `mod_pow`, `mod_inv` |
 | `primes` | J | Prime testing + factorisation + multiplicative order — `is_prime`, `factor`, `cyclic_period` |
 | `kepler` | K | Equation-of-centre / pin-slot — `pin_slot`, `kepler_solve`, `equation_of_centre` |
-| `laplacian` | L | Graph Laplacian — `dense_adjacency`, `dense_laplacian`, `normalized_laplacian`, `jacobi_eigvals`, `hermitian_eigendecompose`, `elementwise_transcendental` (pi-free Jacobi in C; n ≤ 256 native bound) |
-| `hdc` | M | HDC binary spatter codes — `bind`, `bundle`, `permute`, `similarity` |
+| `laplacian` | L | Graph Laplacian — `dense_adjacency`, `dense_laplacian`, `normalized_laplacian`, `jacobi_eigvals`, `hermitian_eigendecompose`, `symmetric_eigendecompose`, `elementwise_transcendental` (pi-free Jacobi in C; n ≤ 256 native bound) |
+| `hdc` | M | HDC spatter codes — binary `bind`, `bundle`, `permute`, `similarity`; `polar_*` `{-1,0,+1}` and `klein4_*` `(ℤ₂)²` variants |
 | `rational` | N | Continued-fraction convergents — `continued_fraction`, `best_rational` |
 
 ### `srmech.qm.*` — canonical QM/QFT/SM operations
@@ -139,12 +140,22 @@ from srmech.spectral import (
 
 Eigenbasis is O(n³) one-time per substrate (cached by `substrate_descriptor_hash`); coefficients are O(n²) per state; deltas are O(D) per step. `predict` preserves magnitudes (unitary phase rotation per eigenmode); `truncate_sparse` produces best k-term approximations per Mallat (2008) §9.2.
 
+### `srmech.amsc.cascade` — foundational cross-domain cascade catalog
+
+The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — no new primitive class, no dedicated C symbol. No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+
+- `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split).
+- `reorient(orientation, value)` — **Class C** orientation re-apply.
+- `magnitude(x)` — **Class K** magnitude-only convenience.
+- `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator).
+- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`).
+
 ### `srmech.signal_processing` — dual-path signal-processing surface
 
 Two paths for the same algebra, dispatched per call:
 
-- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 38 ops covering frequency analysis (`fft`, `ifft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
-- **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Six ops have full dual-path implementations: `fft`, `ifft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`.
+- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 40 ops (38 Phase-2 baseline + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
+- **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Eight ops have full dual-path implementations: `fft`, `ifft`, `rfft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`, `pi_cascade`.
 
 ```python
 from srmech.signal_processing import (

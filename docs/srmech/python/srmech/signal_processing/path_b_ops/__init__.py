@@ -75,6 +75,7 @@ from . import (
     ifft,
     matched_filter,
     pi_cascade,
+    rfft,
     sign_quantise,
     wiener,
 )
@@ -83,7 +84,8 @@ from . import (
 #: Used by ``tests/test_signal_processing_path_b_mvp.py`` to assert
 #: all 6 ops are registered. Spike #184 (2026-05-19) added
 #: ``pi_cascade`` as the 7th Path B op for dual-path algebra-benchmark
-#: re-run; not part of the Phase 4 MVP roster.
+#: re-run; v0.4.3rc5 (2026-05-27) added ``rfft`` (real-input half-spectrum,
+#: UPSTREAM_NOTES §1.1). Neither is part of the Phase 4 MVP roster.
 PATH_B_MVP_OPS = (
     "fft",
     "hdc_truncation",
@@ -100,6 +102,7 @@ __all__ = [
     "ifft",
     "matched_filter",
     "pi_cascade",
+    "rfft",
     "sign_quantise",
     "wiener",
 ]
