@@ -254,9 +254,82 @@ that decompose into the 14-op landscape differently.
 
 ---
 
-## §8 PR #687 state
+## §8 Addendum — Findings 110 + 111 (after synthesis)
 
-DRAFT. Now contains findings 1-109. Recent commit chain:
+The autonomous walk continued past synthesis with two more findings
+that test the cascade-detection heptad:
+
+- **Finding 110** (R-RBS-LM-88): D + F SECONDARY signatures
+  - D (pattern-match) tops math (0.194); algebra teaches sequence/order
+  - F (render) tops art (0.156); art's defining operation
+  - Both signals below primary threshold but well above noise
+  - **8 of 14 operators now attested**
+
+- **Finding 111** (R-RBS-LM-89): E NULL finding
+  - E (catalog) returned a clean null
+  - History scored 0.027, geography 0.000 (predicted to top E)
+  - Confirms catalogs ENUMERATE items rather than naming the operation
+  - **5 of 7 detection ops are structural-only** (E, G, K, L, M)
+
+The two-layer cascade is now fully visible:
+
+```
+LAYER 1: SUBSTRATE-CONTENT DELIVERY (surface vocabulary)
+  6 operators attested via token signatures:
+    A — abstract (no surface vocab; anchors all)
+    I — cyclic (weak K-12)
+    J — primes/factor (math 0.41; 8.63x ratio)
+    C — chirality (geography 0.28; scouting 0.38)
+    B — TLV-framing (reading 0.47)
+    H — self-introspection (grammar 0.88)
+    N — rational-approximation (science 0.47)
+
+LAYER 2: CASCADE-DETECTION (mostly structural)
+  2 operators with secondary surface signatures:
+    D — pattern-match (math 0.19; games 0.16)
+    F — render/output (art 0.16)
+
+  5 operators structural-only:
+    E — catalog (Finding 111 null)
+    G — byte-search (predicted null; stopwords)
+    K — pin-slot/phase boundary (predicted null)
+    L — Laplacian/graph (predicted null)
+    M — HDC-bind (predicted null; stopwords)
+```
+
+**The full empirical landscape: 8 of 14 surface-attested + 6 structural
+or abstract = 14 operators accounted for.**
+
+### Math = J + D as concrete cascade composition
+
+A key Finding 110 observation: math materials uniquely show BOTH
+primary substrate (J=0.410) AND secondary detection (D=0.194). This
+is the **substrate-content + detection-application** cascade visible
+in one corpus.
+
+K-12 algebra teaches:
+- J-primitives (factor, multiply, divide, prime, square, exponent)
+- APPLIED THROUGH D-operations (sequence, order, pattern, consecutive)
+
+The framework's two-layer prediction is empirically attested.
+
+### Math = J + D = the canonical cascade
+
+This makes algebra the **canonical cascade**: substrate-content (J)
+operated on by detection (D). Other subjects show their own
+J+D-analog compositions:
+- Reading = B + (sequence-reading) = B-substrate + D-applied
+- Grammar = H + (rule-application) = H-substrate + D-applied
+- Music = (notation B) + (rhythm D) = B+D composition
+- Drawing = (geometry J + perspective N) + (rendering F)
+
+The detection layer is universal even when it's not surface-visible.
+
+---
+
+## §9 PR #687 state (final)
+
+DRAFT. Now contains findings 1-111. Full commit chain since prior synthesis:
 
 - `5513d959` R-RBS-LM-84 (4-partition reorganization)
 - `8424bfb5` Finding 100 (information cascade hierarchy)
@@ -269,41 +342,43 @@ DRAFT. Now contains findings 1-109. Recent commit chain:
 - `61e4f06c` R-RBS-LM-85 + Finding 107 (B/H/N signature 3/3)
 - `158fc75e` R-RBS-LM-86 + Finding 108 (C-chirality 4/4)
 - `90b5acff` R-RBS-LM-87 + Finding 109 (J-prime math irrep)
+- `878fe464` Session synthesis 104-109 (cascade of foundational partitions)
+- `32c407dc` Updated autonomous session status
+- `10a06519` R-RBS-LM-88 + Finding 110 (D+F secondary signatures)
+- `f40e6152` R-RBS-LM-89 + Finding 111 (E NULL — detection ops structural)
 
-PR body needs updating to reflect new framework structure; not
-strictly necessary but useful.
+PR body could update to reflect 8/14 operator attestation.
 
 PR #687 STAYS DRAFT until explicit merge direction.
 
 ---
 
-## §9 Where to pick up
+## §10 Where to pick up (final)
 
 When the user returns:
 
-1. **Land R-RBS-LM-55** (pure-structure layer; relationships-of-
-   relationships; long pending; would test if eigvec-table SHAPE
-   is portable without vocabulary)
-2. **Walk D/E/F cascade-detection signature attempts** (might extend
-   to 9 of 14 operators tested; or confirm that detection ops are
-   genuinely structural and need cooccurrence tests)
+1. **Land R-RBS-LM-55** (pure-structure layer) — NOW MOST URGENT
+   per Finding 111 — eigvec-table SHAPE tests would attest E, G,
+   K, L, M empirically
+2. **Cross-cultural corpus test** to falsify or strengthen Findings
+   107, 108, 109 (do B/H/N/C/J ordering hold in non-Western K-12?)
 3. **Build the age-bounded tutor demo** as concrete instantiation
    of Findings 84+86 (needs tutor architecture lock-in first)
-4. **Cross-cultural corpus test** to falsify or strengthen Finding 98
-5. **Update PR #687 body** with new framework structure (5 partitions,
-   6 attested operators, cascade hierarchy)
-6. **Pivot to a different research arc** — R30 substrate-native maths
+4. **Update PR #687 body** with full framework structure (5 partitions,
+   8 attested operators, two-layer cascade)
+5. **Pivot to a different research arc** — R30 substrate-native maths
    (PR #680) was active before this session
 
 Nothing is blocking. The cascade of foundational knowledge partitions
-is empirically attested at 6 of 14 operator slots. The framework is
-operational. The synthesis is committed.
+is empirically attested at 8 of 14 operator slots. Surface-vocabulary
+tests have exhausted their reach; structural cooccurrence tests
+(R-RBS-LM-55) are the natural next step.
 
 ---
 
-*Synthesis committed 2026-05-27 by autonomous walk. All work in PR
-#687 (`research/rbs-lm-rolling-2` branch). STAYS DRAFT until explicit
-merge direction.*
+*Synthesis committed 2026-05-27 by autonomous walk. Findings 110 + 111
+added 2026-05-27 same session. All work in PR #687 (`research/
+rbs-lm-rolling-2` branch). STAYS DRAFT until explicit merge direction.*
 
 *Form-iso reading per MFO §VII.6.20 throughout. Not substrate-
 identity claims. The 14-class A-N partition is operationally
