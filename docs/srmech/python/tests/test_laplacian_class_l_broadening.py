@@ -78,6 +78,78 @@ def test_hermitian_eigendecompose_2x2_pauli():
 
 
 # ---------------------------------------------------------------------
+# symmetric_eigendecompose  (v0.4.3rc4 — real-symmetric Class L
+# specialisation of hermitian_eigendecompose; UPSTREAM_NOTES §2.1)
+# ---------------------------------------------------------------------
+
+
+def _make_symmetric(n: int, seed: int = 0) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    A = rng.standard_normal((n, n))
+    return ((A + A.T) / 2).astype(np.float64)
+
+
+def test_symmetric_eigendecompose_returns_real_float64():
+    """The whole point of the specialisation: real eigvals AND real
+    eigvecs (no complex128 V → no ComplexWarning for real-symmetric L)."""
+    L = laplacian.dense_laplacian(4, [(0, 1), (1, 2), (2, 3), (3, 0)])
+    L = np.asarray(L, dtype=np.float64)
+    eigvals, V = laplacian.symmetric_eigendecompose(L)
+    assert eigvals.dtype == np.float64
+    assert V.dtype == np.float64
+
+
+def test_symmetric_eigendecompose_matches_numpy():
+    L = _make_symmetric(5, seed=42)
+    w, V = laplacian.symmetric_eigendecompose(L)
+    w_ref = np.linalg.eigvalsh(L)
+    np.testing.assert_allclose(w, w_ref, atol=1e-10)
+    # Reconstruction L = V diag(w) Vᵀ.
+    recon = V @ np.diag(w) @ V.T
+    np.testing.assert_allclose(recon, L, atol=1e-9)
+
+
+def test_symmetric_eigendecompose_orthonormal():
+    L = _make_symmetric(6, seed=7)
+    _, V = laplacian.symmetric_eigendecompose(L)
+    np.testing.assert_allclose(V.T @ V, np.eye(6), atol=1e-9)
+
+
+def test_symmetric_eigendecompose_diagonal():
+    L = np.diag(np.array([3.0, 1.0, 5.0, 2.0]))
+    eigvals, V = laplacian.symmetric_eigendecompose(L)
+    np.testing.assert_allclose(eigvals, np.array([1.0, 2.0, 3.0, 5.0]),
+                               atol=1e-12)
+    assert V.shape == (4, 4)
+
+
+def test_symmetric_eigendecompose_laplacian_nullspace():
+    """A connected graph Laplacian has exactly one zero eigenvalue
+    (the constant vector); smallest eigenvalue ≈ 0."""
+    L = laplacian.dense_laplacian(4, [(0, 1), (1, 2), (2, 3)])
+    L = np.asarray(L, dtype=np.float64)
+    eigvals, _ = laplacian.symmetric_eigendecompose(L)
+    assert abs(eigvals[0]) < 1e-10
+
+
+def test_symmetric_eigendecompose_zero_size():
+    L = np.zeros((0, 0), dtype=np.float64)
+    w, V = laplacian.symmetric_eigendecompose(L)
+    assert w.shape == (0,)
+    assert V.shape == (0, 0)
+
+
+def test_symmetric_eigendecompose_rejects_nonsquare():
+    with pytest.raises(ValueError):
+        laplacian.symmetric_eigendecompose(np.zeros((2, 3)))
+
+
+def test_symmetric_eigendecompose_in_class_l_registry():
+    assert "symmetric_eigendecompose" in laplacian.LAPLACIAN_OPS
+    assert "symmetric_eigendecompose" in laplacian.__all__
+
+
+# ---------------------------------------------------------------------
 # dense_matvec_complex
 # ---------------------------------------------------------------------
 

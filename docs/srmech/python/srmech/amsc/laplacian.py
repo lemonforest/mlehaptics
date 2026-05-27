@@ -90,6 +90,7 @@ __all__ = [
     "normalized_laplacian",
     "jacobi_eigvals",
     "hermitian_eigendecompose",
+    "symmetric_eigendecompose",
     "dense_matvec_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
@@ -377,6 +378,51 @@ def hermitian_eigendecompose(
     return eigvals, V
 
 
+def symmetric_eigendecompose(
+    L: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Real-symmetric eigendecomposition: ``L = V · diag(eigvals) · Vᵀ``.
+
+    Real-input specialisation of :func:`hermitian_eigendecompose`.
+    Guarantees real float64 ``eigvals`` AND real float64 eigenvectors
+    ``V`` (the Hermitian path returns complex128 ``V``, which triggers
+    a ``ComplexWarning`` when a caller knows the input is real-symmetric
+    — e.g. a graph Laplacian).
+
+    Parameters
+    ----------
+    L
+        ``(n, n)`` real symmetric matrix (dtype castable to float64).
+        Symmetry is not enforced (caller's responsibility); only the
+        lower triangle is referenced by ``numpy.linalg.eigh``.
+
+    Returns
+    -------
+    (eigvals, V)
+        ``eigvals`` is a length-``n`` float64 array of real eigenvalues
+        in ascending order. ``V`` is an ``(n, n)`` float64 orthogonal
+        matrix whose columns are the corresponding eigenvectors.
+
+    Class L. Canonical SSoT: Golub & Van Loan, *Matrix Computations*
+    (4th ed., Johns Hopkins, 2013) §8.3 (symmetric eigenproblem).
+
+    Computed via ``numpy.linalg.eigh``; no native C dispatch (eigvector
+    sign / degenerate-subspace rotation is non-unique, so C/Python
+    element-wise parity is not meaningful — correctness is pinned by
+    eigenvalues + reconstruction + orthonormality instead).
+    """
+    L_arr = np.ascontiguousarray(np.real(np.asarray(L)), dtype=np.float64)
+    if L_arr.ndim != 2 or L_arr.shape[0] != L_arr.shape[1]:
+        raise ValueError(f"L must be square 2-D; got shape {L_arr.shape}")
+    n = L_arr.shape[0]
+    if n == 0:
+        return (np.zeros(0, dtype=np.float64),
+                np.zeros((0, 0), dtype=np.float64))
+    eigvals, V = np.linalg.eigh(L_arr)
+    return (np.ascontiguousarray(eigvals, dtype=np.float64),
+            np.ascontiguousarray(V, dtype=np.float64))
+
+
 def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
     """Dense complex matrix-vector multiplication: ``M @ v``.
 
@@ -570,6 +616,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "normalized_laplacian",
     "jacobi_eigvals",
     "hermitian_eigendecompose",
+    "symmetric_eigendecompose",
     "dense_matvec_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",

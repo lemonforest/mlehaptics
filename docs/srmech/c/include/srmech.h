@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
-#define SRMECH_VERSION_PATCH 2
+#define SRMECH_VERSION_PATCH 3
 #define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.4.2"
+#define SRMECH_VERSION       "0.4.3"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -772,6 +772,84 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
                                       const uint8_t *b,
                                       uint32_t       n_bytes,
                                       double        *out);
+
+/* ------------------------------------------------------------------ *
+ * Class M — polar {-1, 0, +1} variant (v0.4.3rc1)
+ *
+ * Rank-1 Class M with an *absorbing* zero (Class M ∘ Class K). Unlike the
+ * bipolar BSC surface above (bit-packed bytes), a polar hypervector is an
+ * int8 array of D elements, each in {-1, 0, +1}; 0 is the asymptotic-DOF
+ * "dead-band / uncertain" state the Class-K pin-slot rejects. Bind is the
+ * multiplicative sign-product (0 absorbing); bundle is the sticky majority
+ * (ties resolve to 0). No ABI bump — pure additions to ABI v2.
+ *
+ * Class M variant ladder: bipolar {-1,+1} → polar {-1,0,+1} → Klein-4 (Z₂)².
+ * ------------------------------------------------------------------ */
+
+/* polar_bind(a, b): element-wise sign-product, 0 absorbing.
+ * out[i] = a[i] * b[i]. Also serves unbind (self-inverse on ±1; 0
+ * destructive). Inputs must hold values in {-1, 0, +1}; returns
+ * SRMECH_ERR_BAD_INPUT otherwise. */
+srmech_status_t srmech_polar_bind(const int8_t *a,
+                                  const int8_t *b,
+                                  uint32_t      n,
+                                  int8_t       *out);
+
+/* polar_bundle(vectors, n_vectors): per-position sticky majority.
+ * out[i] = sign(sum_v vectors[v][i]); exact ties (sum == 0) → 0. No
+ * odd-count restriction (the 0 state absorbs ties). Returns
+ * SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
+                                    uint32_t              n_vectors,
+                                    uint32_t              n,
+                                    int8_t               *out);
+
+/* polar_similarity(a, b, skip_zero): match-fraction in [0, 1].
+ * skip_zero != 0 → fraction over positions where both a[i] != 0 and
+ * b[i] != 0 (0.0 if none); skip_zero == 0 → fraction over all positions
+ * (0 == 0 counts as a match). */
+srmech_status_t srmech_polar_similarity(const int8_t *a,
+                                        const int8_t *b,
+                                        uint32_t      n,
+                                        int32_t       skip_zero,
+                                        double       *out);
+
+/* polar_density(v): fraction of non-zero (informative) positions in [0, 1].
+ * 1.0 = fully bipolar (no dead-band); lower = more dead-band positions. */
+srmech_status_t srmech_polar_density(const int8_t *v,
+                                     uint32_t      n,
+                                     double       *out);
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2)
+ *
+ * Rank-2 abelian Class M over (F₂)² = Z₂×Z₂. uint8 hypervectors with
+ * elements in {0,1,2,3} (state = γ₅_bit·2 + iω₇_bit). bind = component-
+ * wise (F₂)²-XOR (self-inverse, abelian, identity 0); bundle = per-bit
+ * majority (ties → 0). Inputs out of {0,1,2,3} → SRMECH_ERR_BAD_INPUT.
+ * No ABI bump. Ladder: bipolar → polar → KLEIN-4.
+ * ------------------------------------------------------------------ */
+
+/* klein4_bind(a, b): component-wise XOR over (F₂)². out[i] = a[i] ^ b[i]. */
+srmech_status_t srmech_klein4_bind(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n,
+                                   uint8_t       *out);
+
+/* klein4_bundle(vectors, n_vectors): per-bit majority on each of the 2
+ * bits independently; exact ties (count == n_vectors/2) → 0 for that bit.
+ * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
+                                     uint32_t               n_vectors,
+                                     uint32_t               n,
+                                     uint8_t               *out);
+
+/* klein4_similarity(a, b): fraction of positions where a[i] == b[i] in
+ * [0, 1] (1 identical, 0 orthogonal). */
+srmech_status_t srmech_klein4_similarity(const uint8_t *a,
+                                         const uint8_t *b,
+                                         uint32_t       n,
+                                         double        *out);
 
 #ifdef __cplusplus
 }
