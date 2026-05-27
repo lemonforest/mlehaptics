@@ -145,6 +145,18 @@ discipline:
 
 ## §4 Class M rank-2 abelian variant: Klein-4 binding (Finding 132 / R-RBS-LM-97, 2026-05-27)
 
+**STATUS: LANDED in srmech v0.4.3 (PyPI production, 2026-05-27).** All 9
+proposed functions shipped under `srmech.amsc.hdc.klein4_*` with full
+tool_schema registration (9 ToolEntries). Verified in clean venv outside
+source tree: all algebraic properties (self-inverse, commutative,
+associative, identity, unbind, chirality-flips, sector-count) match
+F132/R-RBS-LM-97 prototype contract bit-exact. HAS_NATIVE=True, ABI=2.
+Research subtree may now switch from local Python prototype to upstream
+catalog import. This entry preserved as historical record of the
+upstream wishlist procedure.
+
+---
+
 **Background.** Per `[[user_stance_canonical_two_variant_dial_class_m]]`
 (MFO §VIII.31.7): Class M's existing variants are rank-1 abelian XOR
 over F₂^D (current `srmech.amsc.hdc`) and rank-N non-abelian Lie bracket
@@ -254,17 +266,38 @@ JPL Power-of-Ten edge cases surface.
 
 ### §4.2 Status
 
-**NOT YET AUTHORIZED to begin upstream work.** User direction
-2026-05-27: "if we do want to make C/Python parity code changes to
-srmech, do so with rc versions on testpypi" — procedural reminder,
-not immediate go-ahead.
+**LANDED in srmech v0.4.3 production PyPI (2026-05-27).** Procedure
+above was followed in a separate cherry-pick session. All 9 functions
+shipped with tool_schema registration. Research subtree can now
+import directly:
 
-Prototype lives in R-RBS-LM-97 research subtree. Upstream work
-begins only on explicit user direction.
+```python
+from srmech.amsc.hdc import (
+    klein4_random, klein4_bind, klein4_unbind, klein4_bundle,
+    klein4_similarity, klein4_chirality_flip_gamma5,
+    klein4_chirality_flip_omega7, klein4_cpt_mirror, klein4_sector_count,
+    KLEIN4_STATES,
+)
+```
+
+Prototype `R-RBS-LM-97_klein4_hdc_full_chirality_smoke.py` remains in
+research subtree as the algebraic-property reference implementation.
 
 ---
 
 ## §5 Polar {-1, 0, +1} HDC variant — `srmech.amsc.hdc.polar_*` (2026-05-27)
+
+**STATUS: LANDED in srmech v0.4.3 (PyPI production, 2026-05-27).** All 7
+proposed functions shipped under `srmech.amsc.hdc.polar_*` with full
+tool_schema registration (7 ToolEntries). Verified in clean venv:
+3-state {-1, 0, +1} semantics confirmed; 0 is absorbing under
+polar_bind (multiplicative sign-product); polar_from_real bridges
+sign_quantise dead_band correctly. R-RBS-LM-97 bipolar bundle bug
+(bare np.sign producing tie-zeros) can now be cleanly fixed by
+switching to polar HDC for true 3-state encoding, or by using
+sign_quantise(dead_band=0) for strict bipolar.
+
+---
 
 **Background.** srmech ALREADY has a polar {-1, 0, +1} primitive
 at `srmech.signal_processing.path_b_ops.sign_quantise.op` — when
@@ -393,13 +426,23 @@ ABI: stays at current value (new symbols, not changing wire format).
 
 ### §5.5 Status
 
-**NOT YET AUTHORIZED to begin upstream work.** Documented as
-research-subtree wishlist per `[[feedback_upstream_srmech_fixes_as_research_notes]]`.
-Workaround in R-RBS-LM-97 used bare `np.sign` — acknowledged
-methodology debug item; polar HDC variant is the proper fix.
+**LANDED in srmech v0.4.3 production PyPI (2026-05-27).** Shipped
+together with §4 Klein-4 as a unified "Class M variant expansion"
+release. Research subtree can now import directly:
 
-Can ship together with §4 Klein-4 as a unified "Class M variant
-expansion" rc, OR ship separately. User direction will decide.
+```python
+from srmech.amsc.hdc import (
+    polar_random, polar_bind, polar_unbind, polar_bundle,
+    polar_similarity, polar_density, polar_from_real,
+    POLAR_STATES,
+)
+```
+
+R-RBS-LM-97 bipolar-bundle sign-zero bug is now formally resolvable:
+swap bare `np.sign` for either polar HDC (3-state explicit) or
+`signal_processing.path_b_ops.sign_quantise(dead_band=0)` (strict
+bipolar; ties favor +1). Updated smoke script may be re-run for
+clean capacity comparison if desired.
 
 ---
 
