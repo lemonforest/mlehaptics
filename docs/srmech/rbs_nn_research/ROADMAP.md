@@ -103,13 +103,29 @@ Requires WebFetch / external lit access. Lands as `R-RBS-NN-4_literature_attesta
 
 ---
 
-## NEXT-4 — Bipolar bundle variant (foundational ergonomics)
+## NEXT-4 — Bipolar bundle variant (foundational ergonomics) — ✅ LANDED in srmech v0.4.3 (2026-05-27)
 
-**Priority:** LOW (per `UPSTREAM_NOTES.md` Note 1)
+**Status:** ✅ LANDED as **Polar HDC variant** in srmech v0.4.3 production PyPI.
 
-A bipolar bundle returning ternary {-1, 0, +1} for explicit tie surfacing. Foundational for substrate-asymptotic-wave readings; not blocking RBS-NN inference.
+A 3-state polar HDC variant returning `{-1, 0, +1}` for explicit tie/dead-band surfacing. Shipped as `srmech.amsc.hdc.polar_*` (7 functions + `POLAR_STATES` constant + tool_schema registrations). Verified in clean venv outside source tree:
+- 3-state {-1, 0, +1} semantics confirmed
+- 0 is absorbing under `polar_bind` (multiplicative sign-product)
+- `polar_from_real(arr, threshold, dead_band)` bridges existing `signal_processing.path_b_ops.sign_quantise`
+- `polar_density(v)` provides substrate-attestation readout (fraction of non-zero positions)
 
-Lands as a srmech-fix session, not in research.
+**Empirical validation per F141 (R-RBS-LM-101):** polar plasticity degrades GRACEFULLY (signal retention 100% → 61% across 0-70% decay) vs bipolar's catastrophic collapse (100% → 27%). At 60% decay, polar maintains **3-4× above-random signal** over bipolar.
+
+**See:** UPSTREAM_NOTES.md §5 in `docs/srmech/rbs_lm_research/` (polar HDC wishlist + landing record); F141 finding in same directory.
+
+This NEXT-4 item is closed. Future RBS-NN work that needs the asymptotic-DOF / dead-band substrate marker per `[[user_stance_asymptotic_dof_sidesteps_infinity]]` can import directly:
+
+```python
+from srmech.amsc.hdc import (
+    polar_random, polar_bind, polar_unbind, polar_bundle,
+    polar_similarity, polar_density, polar_from_real,
+    POLAR_STATES,
+)
+```
 
 ---
 
