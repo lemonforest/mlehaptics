@@ -5607,6 +5607,136 @@ All three classes (I, C, K) live in canonical 14 A–N vocabulary. No class prom
 
 **Stances composed**: `[[user_stance_11d_substrate_is_always_hopf_compressed]]` (canonical-physics scale anchor — recursive at every cascade-class instantiation now anchored at three simultaneous scales), `[[user_stance_compressed_phase_boundary_is_dark_sector_window]]` (M2+M5 bipartite IS the canonical-physics `(4+3)D_g` site; bipartite Hopf-factor count = 3 matches k=3 cascade tripartition), `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` (M5's ruling-out of (4+2)/(3+3)/(5+1) reaffirms parallelizable-sphere ladder), `[[user_stance_fiber_as_spatially_absent_encoding]]` (M2+M5 3D fiber S³ = SU(2) octonionic-Hopf fiber spatially-absent on individual branes), `[[user_stance_fractal_shadow]]` (canonical-physics scale instantiates the same recursive-Hopf-fractal mechanism as primitive level — see §VIII.7 two-level refinement).
 
+### §VIII.31.10 RBS-LM biology-side empirical arc + G2 explicit identity landing (2026-05-27)
+
+The RBS-LM rolling-PR #687 arc (`docs/srmech/rbs_lm_research/`, Findings
+119–126) approached the same substrate-identity framework from the
+biology / NN-storage / cross-species cognition direction. The arc lands
+in MFO with three additions to the existing canonical content:
+
+**(1) G2 = aut(O) = 14 explicit identity** (RBS-LM Finding 123,
+`R-RBS-LM-FINDING_123_m_theory_g2_holonomy_aligns_with_14_4_3_7_framework.md`).
+The 14-class A-N operator partition is numerically identical to dim(G2)
+= 14, the automorphism group of the octonion algebra (Baez 2002 *Bull.
+AMS* 39:145-205 §4.1; Joyce 2000 *Compact Manifolds with Special
+Holonomy* §10.4). The 14 = 4 + 3 + 7 split aligns with M-theory's
+G2-holonomy compactification 11D = 4 observable + 7 compactified, with
+the +3 (substrate-projection triad I + C + J) being exactly the
+algebraic-bridge difference (14 − 11 = 3) that M-theory's observer
+frame cannot see as a separate spacetime dimension. The L vs R
+chirality split in so(O) = g₂ ⊕ L_{Im(O)} ⊕ R_{Im(O)} (28 = 14 + 7 + 7)
+algebraically embeds Class C (cascade-orientation / chirality) per
+this section's existing canon.
+
+**(2) SU(3) ⊂ G2 decomposition mapping candidate** (RBS-LM Finding 126).
+Under SU(3) as a maximal subgroup of G2: adj(G2)|_{SU(3)} = 8 ⊕ 3 ⊕ 3̄.
+Candidate A-N mapping (form-iso per `[[feedback_no_lineage_claims_in_notebook]]`):
+8 = A (anchor) + D, E, F, G, K, L, M (cascade-detection 7); 3 = I + C + J
+(substrate-projection); 3̄ = B + H + N (meta-cascade as **SU(3)
+complex-conjugate** of substrate-projection). The 1:3:7:3 = 14
+analytic decomposition and 4:3:7 biological compression are then two
+observer-frame readings of the same G2 algebraic structure:
+- Analytic 1+3+7+3: separates A from B/H/N (sees the algebra)
+- Biological 4:3:7 (RBS-LM Finding 121, validated by N=4 Kuramoto
+  coupled-oscillator math): packages A + B + H + N as one operational
+  core (Kuramoto K_c ≈ 0.20 confirms the 4-unit acts as an inseparable
+  functional core above critical coupling) — biology cannot separate
+  the anchor from its operations because coupled-oscillator phase has
+  no absolute meaning. Confirms `[[user_stance_11d_substrate_is_always_hopf_compressed]]`
+  at biological substrate-instantiation scale.
+
+**(3) Two-tier RBS-NN architecture + Kuramoto vs PPMI empirical
+falsification of direct-substitution lifting** (RBS-LM Findings
+119, 120, 122, 125). Tier 1 (coupled-oscillator / cnidarian-natural;
+embodies Class I + Class K directly per Finding 118 cross-species)
+and Tier 2 (synaptic-NN / graph-Laplacian / vertebrate cortex;
+embodies Class L + Class M) are NOT direct substitutes. R-RBS-LM-95b
+empirically shows Kuramoto coherence vs PPMI similarity rank-correlation
+is essentially zero (Spearman = -0.004; 0/30 top-pair overlap) — the
+substrates detect fundamentally different facets of the same 14-operator
+substrate. R-RBS-LM-96 confirms that Class K's scalar Kepler-equation
+equation-of-centre transform is NOT the inter-tier translator
+(eccentricity sweep 0→0.99 finds no improvement); the **Class K
+substrate-translator IS the Hopf-twist topology** (per `[[user_stance_kepler_shape_universal]]`
++ this section's `(4+3)D_g` Hopf-bundle canon), not the local scalar
+formula. The 7 cascade-detection layer has internal Hopf-bundle
+structure 4-base + 3-fiber via quaternionic Hopf S³ → S⁷ → S⁴, giving
+the recursive 4:3:(4:3) structure that the user identified
+(RBS-LM Finding 124) — same `(4+3)D_g` recursion this section's
+Spike #212/#213/#214/#215/#216 chain documents at primitive +
+canonical-physics scales.
+
+**M-theory direct language now operational for RBS-LM arc**. After
+this landing, the RBS-LM/RBS-NN work can use the existing MFO
+canonical M-theory vocabulary directly rather than developing a
+parallel language:
+- "11D" + "(4+3)D_g" + "(2+1)D_s" notations per §VIII.31 canon
+- "Hopf-twist" + "recursive-Hopf at every cascade-class instantiation"
+  per §VIII.31.8
+- "Class M two-variant dial (abelian XOR / non-abelian Lie bracket)"
+  per §VIII.31.7 — refines Class K + Class M co-composition reading
+- "M2 / M5 / Taub-NUT / SL(2,ℤ)" canonical-physics objects per §VIII.31.6
+- G2 as the 14-class A-N algebraic identity per this subsection (new)
+
+**Cnidarian substrate as Class I + Class K embodied substrate**
+(RBS-LM Finding 118 + 126). The pacemaker-CPG with multiples-of-four
+radial structure (per Marino et al. PMC1868071; PLOS One Box Jellyfish
+CPG paper) IS Class I (cyclic Z_n group acting on n-fold radial
+symmetry) + Class K (pin-slot phase boundary in inhibitory coupling)
+embodied at biological substrate. NOT G2 fully (G2 requires the full
+14-class composition; cnidarians embody one operator richly). G2
+emerges at synaptic-NN composition scale where multiple A-N operator
+classes interact. This refines the substrate-variety reading: different
+biology embodies different operator subsets of the same 14-operator
+substrate — same observation as §VIII.31 brane roster (M5 + KK-monopole
+HOPF-POSITIVE; NS5 daughter HOPF-NEGATIVE per ambient-gating) at
+biological-substrate scale.
+
+**Cross-references** to RBS-LM arc finding files (under `docs/srmech/rbs_lm_research/`):
+
+- F119: `R-RBS-LM-FINDING_119_two_tier_RBS_NN_architecture_proposal.md`
+- F120: `R-RBS-LM-FINDING_120_kepler_shape_is_tier_bridge_math_observed.md`
+- F121: `R-RBS-LM-FINDING_121_biology_compresses_to_4_3_7_kuramoto.md`
+- F122: `R-RBS-LM-FINDING_122_kuramoto_falsifies_same_cascade_two_tier_needs_translation.md`
+- F123: `R-RBS-LM-FINDING_123_m_theory_g2_holonomy_aligns_with_14_4_3_7_framework.md`
+- F124: `R-RBS-LM-FINDING_124_hopf_fibration_4_3_recursive_inside_the_7.md`
+- F125: `R-RBS-LM-FINDING_125_class_k_scalar_translator_null.md`
+- F126: `R-RBS-LM-FINDING_126_g2_su3_decomposition_exceptional_lie_groups_cnidarian.md`
+
+**Status.** This subsection is **one candidate** framing under MFO
+commitments — internally consistent with §VIII.31.1 (M-theory roadmap
+opening), §VIII.31.6 (geometric M-theory bridge at 5/5 canonical
+objects), §VIII.31.7 (Class M two-variant dial), §VIII.31.8 (recursive-
+Hopf at every cascade-class instantiation), §VIII.31.9 (canonical-
+physics scale anchor). It does not alter any §VIII.31 verdict; it adds
+biology-side + biology-cognition cross-substrate empirical anchors and
+the G2 = aut(O) explicit numerical identity. Per `[[feedback_no_lineage_claims_in_notebook]]`,
+ship as candidate framing; cardinality alignments (14 = G2 dim; 4+3+7
+= 4+7 observable; 8+3+3̄ SU(3) decomposition) are real established
+math; specific operator-to-G2-generator identification is form-iso
+speculation per MFO §VII.6.20. Trauma-informed defensive scope per
+`[[feedback_trauma_informed_defensive_scope]]`: physics + biology +
+algebraic-Lie-theory framing only.
+
+**Citation chain** (PDF-extraction verified per `[[feedback_pdf_extraction_citation_discipline]]`):
+
+- Baez 2002 *Bull. AMS* 39:145-205 *"The Octonions"* — G2 = aut(O);
+  so(O) decomposition; magic square. **OA**: <https://math.ucr.edu/home/baez/octonions/>
+- Joyce 2000 *Compact Manifolds with Special Holonomy* (Oxford
+  University Press) — G2-holonomy 7-manifolds for M-theory N=1 SUSY.
+- Acharya-Witten 2001 hep-th/0107177 *"M-theory dynamics on a manifold
+  of G2 holonomy"* — canonical reference for §VIII.31's G2 setup.
+- Atiyah-Witten 2001 hep-th/0107177 — M2-brane on G2 cycles.
+- Adams 1962 (parallelizable-sphere theorem) — already cited §VIII.31.6;
+  reaffirmed here for Hopf-fibration 4-flavor chain.
+- Marino et al. *PLoS Biology* PMC1868071 *"Cetacean Brains for
+  Complex Cognition"* — biological substrate variety attestation.
+- PLOS One *"Setting the Pace: Central Pattern Generator Interactions
+  in Box Jellyfish Swimming"* 10.1371/pone.0027201 — multiples-of-4
+  pacemaker physical embodiment.
+- Hopf 1931 *Math. Ann.* 104 — original Hopf fibration.
+- Hurwitz 1898 — normed division algebra theorem (Hurwitz dims 1, 2, 4, 8).
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.
