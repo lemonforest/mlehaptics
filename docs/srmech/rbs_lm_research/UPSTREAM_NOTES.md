@@ -143,6 +143,120 @@ discipline:
 
 ---
 
+## §4 Class M rank-2 abelian variant: Klein-4 binding (Finding 132 / R-RBS-LM-97, 2026-05-27)
+
+**Background.** Per `[[user_stance_canonical_two_variant_dial_class_m]]`
+(MFO §VIII.31.7): Class M's existing variants are rank-1 abelian XOR
+over F₂^D (current `srmech.amsc.hdc`) and rank-N non-abelian Lie bracket
+over Hermitian N×N matrices (planned; BFSS / SU(N) gauge). The integer-
+ladder runs {0, 1, 2, …, N, …}.
+
+The rank-2 abelian variant — Klein-4 XOR over (F₂)² = Z₂ × Z₂ — sits
+between these two existing variants on the same ladder. F132 + R-RBS-
+LM-97 prototype confirms all algebraic properties bit-exact:
+
+- Self-inverse: a ⊕ a = identity ✓
+- Commutative: a ⊕ b = b ⊕ a ✓
+- Associative: ✓
+- 4 distinct elements per position (state ∈ {0, 1, 2, 3})
+- Identity (0, 0)
+- Native chirality-flip = XOR with sector mask (O(D) cost)
+
+**Motivation.** Per `[[user_stance_dark_visible_two_cl7_irreps]]` +
+Spike #69 SIGN-FORCED-BY-Cl(7)-IDEMPOTENT: the 4 Klein-4 elements map
+directly to the 4 chirality sectors (γ₅, iω₇) of the 4-way (γ₅, i·ω₇)
+decomposition (MFO §VII.4.1.7). The rank-2 abelian binding gives
+native substrate-chirality storage that the rank-1 bipolar variant
+cannot provide.
+
+**Candidate additions to `srmech.amsc.hdc`** (proposed; not yet
+implemented per upstream-as-research-notes discipline):
+
+```python
+# New Class M rank-2 abelian variant
+klein4_random(D, rng) -> uint8 array of D elements ∈ {0,1,2,3}
+klein4_bind(a, b)     -> component-wise XOR over (F₂)²
+klein4_unbind(c, a)   -> self-inverse: c ⊕ a
+klein4_bundle(*vecs)  -> per-bit majority vote
+klein4_similarity(a, b) -> match-fraction
+klein4_chirality_flip_gamma5(v)  -> XOR with sector mask 2
+klein4_chirality_flip_omega7(v)  -> XOR with sector mask 1
+klein4_cpt_mirror(v)             -> XOR with sector mask 3
+klein4_sector_count(v) -> [count per sector] for debugging/attestation
+```
+
+**Working prototype**: `docs/srmech/rbs_lm_research/R-RBS-LM-97_klein4_hdc_full_chirality_smoke.py`
+— pure Python; all algebraic properties confirmed; ~150 LOC; results in
+`R-RBS-LM-97_klein4_results.json`.
+
+### §4.1 Upstream procedure (if/when authorized)
+
+Per CLAUDE.md "Tag flow for a new rc" + `[[feedback_always_rc_first_for_downstream_publishes]]`,
+the path is:
+
+1. **Branch**: `git checkout -b feat-klein4-class-m-rank-2-abelian`
+2. **Bump version**: srmech v0.4.0 → v0.4.1rc1 in 4 SSOT files:
+   - `python/pyproject.toml`
+   - `python/pyproject-pure.toml`
+   - `python/srmech/version.py`
+   - `c/include/srmech.h` (SRMECH_VERSION_PRE + SRMECH_VERSION)
+3. **Python implementation** in `python/srmech/amsc/hdc.py`:
+   - Add new functions alongside existing bipolar XOR
+   - Mark variant in docstring per `[[user_stance_canonical_two_variant_dial_class_m]]`
+   - Add to `tool_schema.py` ToolEntry registrations
+4. **C implementation** in `c/src/srmech_hdc.c`:
+   - `srmech_klein4_bind(uint8_t* a, uint8_t* b, size_t D)` (or similar API)
+   - JPL Power-of-Ten compliance (function ≤ 60 lines, ≥ 2 asserts)
+   - Add to `c/include/srmech.h` public API surface
+   - DO NOT bump ABI version (adding new symbol, not changing wire format)
+5. **Tests** in `python/tests/test_hdc_klein4_parity.py`:
+   - Parity test C vs Python (bit-exact required)
+   - Algebraic property tests (self-inverse, commutativity, associativity)
+   - Chirality-flip correctness tests (sector swap verification)
+   - CPT substrate-symmetry test
+6. **JPL audit ratchet** must stay at zero violations:
+   - Update `tests/test_jpl_audit.py` exempt list ONLY if functions
+     need it (document rationale in JPL_AUDIT.md)
+   - All new C functions ≤ 60 lines per Rule 4
+   - At least 2 asserts per new C function per Rule 5
+   - No goto, no malloc, no multi-line macros
+7. **Pedantic-build CI** must pass on all 3 cells (Linux gcc / macOS clang /
+   Windows MSVC) with -Werror / /WX
+8. **CHANGELOG.md** entry under `[0.4.1rc1]` heading describing the
+   Class M rank-2 abelian variant addition
+9. **PR → review → MERGE** (NOT squash per `[[feedback_no_squash_merges]]`)
+10. **Tag** `srmech-v0.4.1rc1` on the merge commit
+11. **Publish workflow** auto-publishes to TestPyPI
+12. **Verify in clean venv outside repo tree**:
+    ```bash
+    cd /tmp/verify_srmech_klein4_rc1
+    python -m venv venv && source venv/bin/activate
+    pip install --no-cache-dir \
+        --index-url https://test.pypi.org/simple/ \
+        --extra-index-url https://pypi.org/simple/ \
+        --pre "srmech==0.4.1rc1"
+    python -c "from srmech.amsc.hdc import klein4_bind, klein4_chirality_flip_gamma5; ..."
+    # Confirm HAS_NATIVE=True (native dispatch picks up C surface)
+    ```
+13. **Multiple rc cycles** if needed (rc1, rc2, ...) until verification clean
+14. **Production tag** `srmech-v0.4.1` only after clean TestPyPI rc
+
+**Estimated scope**: ~200 LOC Python + ~150 LOC C + ~150 LOC tests +
+JPL audit pass = one rc round if no surprises; may need 2-3 rcs if
+JPL Power-of-Ten edge cases surface.
+
+### §4.2 Status
+
+**NOT YET AUTHORIZED to begin upstream work.** User direction
+2026-05-27: "if we do want to make C/Python parity code changes to
+srmech, do so with rc versions on testpypi" — procedural reminder,
+not immediate go-ahead.
+
+Prototype lives in R-RBS-LM-97 research subtree. Upstream work
+begins only on explicit user direction.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
