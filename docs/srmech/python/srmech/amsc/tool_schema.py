@@ -1147,6 +1147,20 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
             returns=R("np.ndarray", "int64 length-4 counts"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.signed_sum_squared", owner="srmech",
+            category="coupling",
+            summary="Per-element (Σ_sources (2·bit−1))² across a stack of "
+                    "bit-arrays. Class K (bipolar sign-projection) ∘ Class L "
+                    "(signed-magnitude-squared) composition; squared coupling "
+                    "strength in [0, n_sources²].",
+            parameters=(P("sources", "Sequence[np.ndarray]", True,
+                          "non-empty, equal-length 1-D arrays of bits {0,1}"),),
+            returns=R("np.ndarray", "int64 squared signed-sum per position"),
+        ),
     ]
     for e in entries:
         register_tool(e)

@@ -4,6 +4,20 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc3] - 2026-05-27
+
+**rc3 of the v0.4.3 "Class M variant expansion" rolling arc** — the `signed_sum_squared` coupling-score, per UPSTREAM_NOTES §1.2 (RBS-LM research subtree; R-RBS-LM-33 weak-coupling-truncate + R-RBS-LM-49 Method C). No new primitive class; this is a **composition** of existing Class K ∘ Class L primitives.
+
+### Added — `srmech.amsc.coupling.signed_sum_squared`
+
+Per-element `(Σ_sources (2·bit − 1))²` across a stack of bit-arrays. The bipolar transform `2·bit−1 ∈ {−1,+1}` is the **Class-K** sign-projection (no `abs()`, signed arithmetic only per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`); the element-wise sum across sources then **squared** is the **Class-L** signed-magnitude-squared coupling score (sign-agnostic coupling strength, range `[0, n_sources²]`). Resolves the bare-numpy inline both R-RBS-LM partitions had used.
+
+> **Architecture note:** this is a Class K ∘ L *composition* operating on a stack — **not a new primitive class**, so it carries **no dedicated C symbol**: the underlying Class-K / Class-L primitives are the ones with C parity, and a composition sequences them in Python (the config-driven-vs-substrate-primitive split per CLAUDE.md). The 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — tests + tool_schema
+
+`tests/test_coupling_signed_sum_squared.py` — 6 numpy-reference property tests (known values, full-agreement/balance, single-source, random reference-formula match, int64-nonnegative range, validation). 1 `tool_schema` ToolEntry. Version-pin asserts bumped `0.4.3rc2 → 0.4.3rc3`.
+
 ## [0.4.3rc2] - 2026-05-27
 
 **rc2 of the v0.4.3 "Class M variant expansion" rolling arc** — the Klein-4 `{0,1,2,3}` HDC variant, per UPSTREAM_NOTES §4 (RBS-LM research subtree, Finding 132 / R-RBS-LM-97). Stacks on rc1 (polar). No new primitive class; Klein-4 is the **rank-2 abelian** Class M variant over `(F₂)² = Z₂×Z₂` — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
