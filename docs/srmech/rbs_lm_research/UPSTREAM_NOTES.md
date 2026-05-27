@@ -264,6 +264,145 @@ begins only on explicit user direction.
 
 ---
 
+## §5 Polar {-1, 0, +1} HDC variant — `srmech.amsc.hdc.polar_*` (2026-05-27)
+
+**Background.** srmech ALREADY has a polar {-1, 0, +1} primitive
+at `srmech.signal_processing.path_b_ops.sign_quantise.op` — when
+called with `dead_band > 0`, it returns integer-valued `{-1, 0, +1}`
+arrays (per docstring: "Integer-valued `{-1, 0, +1}` array... Class K
+threshold projection with dead-band ... asymptotic-DOF near-boundary
+zone where pin-slot rejects projection").
+
+**Gap.** This primitive lives in `signal_processing.path_b_ops`, NOT
+in `srmech.amsc.hdc`. The HDC layer only exposes `bipolar` (rank-1
+abelian XOR over F₂). When research code wants 3-state HDC ({-1, 0, +1})
+where 0 means "uncertain / dead-band / unbound", there is no
+HDC-native polar variant — research falls back to bare `np.sign`
+(which returns 0 for ties and breaks downstream bipolar operations).
+
+**Concrete workaround in R-RBS-LM-97**: bipolar bundle used bare
+`np.sign(s).astype(np.int8)` which returns `{-1, 0, +1}` due to
+tie-zeros — making the bipolar capacity test inconclusive
+(sign-zero positions destroy bipolar unbind/similarity computations).
+The proper fix is to use `sign_quantise` with `dead_band=0` (strict
+bipolar; ties favor +1) OR introduce a true polar HDC variant where
+0 is a legitimate output state.
+
+### §5.1 The polar HDC variant as Class M sub-instantiation
+
+In the Class M variant ladder per
+`[[user_stance_canonical_two_variant_dial_class_m]]`:
+
+| Variant | Group / structure | Elements | Bind operation | Existing |
+|---|---|---|---|---|
+| Bipolar (rank-1 abelian) | F₂ XOR | {-1, +1} | sign-product | ✓ `amsc.hdc.bind` |
+| **Polar (3-state with 0 absorbing)** | sign-product over {-1, 0, +1} | {-1, 0, +1} | multiplicative; 0 sticky | ✗ proposed |
+| Klein-4 (rank-2 abelian) | F₂ × F₂ XOR | (Z₂)² (4 elements) | component-wise XOR | ✗ §4 proposal |
+| Non-abelian (rank-N) | Hermitian Lie bracket | N×N matrices | [A, B] commutator | ✗ planned (BFSS) |
+
+Polar variant semantics:
+- **Elements**: {-1, 0, +1} where 0 means "uncertain" / "dead-band"
+- **Bind** (multiplicative sign-product): `a · b` with 0 absorbing
+  (anything × 0 = 0; rest is bipolar sign-product)
+- **Bundle** (sticky majority): like bipolar but explicit 0-tie output
+- **Similarity** (Hamming-with-skip): match-fraction excluding 0
+  positions, OR including 0 with neutral-credit semantics
+- **Identity** (+1)
+
+This sits between bipolar (F₂) and Klein-4 (F₂×F₂) in the Class M
+ladder, NOT as a direct rank-step but as a substrate-projection
+variant where the asymptotic-DOF / dead-band "uncertain" state is
+explicit at the binding level (Class M ∘ Class K composition at
+HDC primitive level).
+
+### §5.2 Candidate additions to `srmech.amsc.hdc`
+
+```python
+# New Class M polar variant
+polar_random(D, rng) -> int8 array of D elements ∈ {-1, 0, +1}
+polar_bind(a, b)     -> sign-product (multiplicative; 0 absorbing)
+polar_unbind(c, a)   -> sign-product (self-inverse on ±1; 0 destructive)
+polar_bundle(*vecs)  -> sticky majority (ties produce 0)
+polar_similarity(a, b)
+    -> two options:
+       (a) skip-0 match-fraction (only positions where both ≠ 0)
+       (b) include-0 match-fraction (0=0 counts as match)
+polar_density(v)     -> fraction of non-zero positions (substrate-attestation)
+
+# Bridge to existing sign_quantise (already in path_b_ops):
+polar_from_real(arr, threshold=0.0, dead_band=0.0)
+    -> wraps sign_quantise; returns polar HDC vector
+       Provides HDC-namespace entry into the existing path_b_ops primitive
+```
+
+The bridge function `polar_from_real` is the smallest possible API
+change: it lifts the existing `sign_quantise` primitive into the
+`amsc.hdc` namespace where research code naturally looks for HDC
+operations.
+
+### §5.3 Why this matters operationally
+
+1. **"Sign-zero" tie-handling becomes principled** rather than
+   ad-hoc. Currently bare `np.sign` produces zeros that break
+   downstream bipolar operations; polar HDC explicitly handles
+   the dead-band as a first-class state.
+
+2. **Asymptotic-DOF (Class K) substrate**: per `[[user_stance_asymptotic_dof_sidesteps_infinity]]`,
+   the 0 state represents the asymptotic-DOF "near-boundary" zone
+   that the substrate-projection-pin-slot legitimately rejects.
+   Encoding this as a first-class HDC state matches the substrate
+   semantics.
+
+3. **Plasticity / decay encoding** per F76 v2: when bindings decay
+   below confidence threshold, the polar representation can mark
+   them as 0 (uncertain) rather than forcing a hard ±1 choice.
+
+4. **Chirality + neutrality** per F130/F131: the polar variant is
+   the natural encoding for substrate-states where a sector might
+   be "neutral" (neither matter nor antimatter; neither visible nor
+   dark) — boundary states between chirality sectors.
+
+5. **Cross-substrate compatibility**: matches the existing srmech
+   convention where `sign_quantise` produces `{-1, 0, +1}`. Currently
+   research code has to wrap signal_processing primitives manually
+   to use them in HDC contexts; polar HDC variant cleans this up.
+
+### §5.4 Upstream procedure
+
+Same rc/TestPyPI ratchet as §4.1 (Klein-4):
+
+1. Branch: `feat-polar-class-m-3state-hdc`
+2. Bump v0.4.2 → v0.4.3rc1 (combine with §4 Klein-4 OR ship as separate v0.4.4rc1)
+3. Python + C implementation (≤ 60 lines per function, ≥ 2 asserts)
+4. Parity tests
+5. JPL audit pass
+6. Pedantic-build CI
+7. CHANGELOG entry
+8. PR → merge (no squash)
+9. Tag → TestPyPI → verify in clean venv outside repo tree
+10. Production tag after clean rc
+
+**Estimated scope**: smaller than §4 Klein-4 because the underlying
+primitive (`sign_quantise`) already exists; mostly an `amsc.hdc`
+namespace wrapper + a few new helpers (`polar_bind`, `polar_bundle`,
+etc.). ~100 LOC Python + ~50 LOC tests if `sign_quantise` itself
+is reused; ~150 LOC C only if a dedicated polar primitive is added
+(optional; the existing `sign_quantise` C surface may suffice).
+
+ABI: stays at current value (new symbols, not changing wire format).
+
+### §5.5 Status
+
+**NOT YET AUTHORIZED to begin upstream work.** Documented as
+research-subtree wishlist per `[[feedback_upstream_srmech_fixes_as_research_notes]]`.
+Workaround in R-RBS-LM-97 used bare `np.sign` — acknowledged
+methodology debug item; polar HDC variant is the proper fix.
+
+Can ship together with §4 Klein-4 as a unified "Class M variant
+expansion" rc, OR ship separately. User direction will decide.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
