@@ -1,0 +1,636 @@
+{
+  "partition": "R-RBS-LM-82",
+  "entropy_records": [
+    {
+      "key": "primer",
+      "label": "Primer",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.07909629895795904,
+        "composition_mod": 0.0741106719367589,
+        "cooking": 0.0530901904419691,
+        "games": 0.06117499101688826,
+        "geography": 0.08336327703916636,
+        "grammar_hist": 0.08210564139417893,
+        "history": 0.07680560546173194,
+        "math": 0.06104024434063959,
+        "music": 0.059558030901904424,
+        "reading": 0.13492633848365074,
+        "science": 0.079500538986705,
+        "scouting": 0.0848904060366511,
+        "sports": 0.07033776500179663
+      },
+      "entropy": 3.6588371975959224
+    },
+    {
+      "key": "grade1",
+      "label": "Grade 1",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.06421433127790772,
+        "composition_mod": 0.07718477567510101,
+        "cooking": 0.04252604720391239,
+        "games": 0.06867956623431852,
+        "geography": 0.07853143383655822,
+        "grammar_hist": 0.08108299666879298,
+        "history": 0.08483946417180524,
+        "math": 0.05879226025940888,
+        "music": 0.05273229853285137,
+        "reading": 0.14235594301509674,
+        "science": 0.08087036643277341,
+        "scouting": 0.09504571550074421,
+        "sports": 0.07314480119072932
+      },
+      "entropy": 3.6394679107509886
+    },
+    {
+      "key": "grade2",
+      "label": "Grade 2",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.05839276964120434,
+        "composition_mod": 0.06059781129199107,
+        "cooking": 0.04067076822562204,
+        "games": 0.06549790384929494,
+        "geography": 0.08335601894702456,
+        "grammar_hist": 0.08041596341264225,
+        "history": 0.1017585887733435,
+        "math": 0.050634289758806565,
+        "music": 0.048020907061577835,
+        "reading": 0.14218435237110033,
+        "science": 0.09386399520879839,
+        "scouting": 0.1050253171448794,
+        "sports": 0.06958131431371481
+      },
+      "entropy": 3.6143230150869257
+    },
+    {
+      "key": "grade3",
+      "label": "Grade 3",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.062016135604270245,
+        "composition_mod": 0.061282699046532475,
+        "cooking": 0.03618287018172928,
+        "games": 0.06519436068780053,
+        "geography": 0.07785293238801512,
+        "grammar_hist": 0.08344878168038465,
+        "history": 0.1013772308695298,
+        "math": 0.05223698150110016,
+        "music": 0.04286529215222884,
+        "reading": 0.14617118952543937,
+        "science": 0.09290196398011571,
+        "scouting": 0.09942140004889578,
+        "sports": 0.07904816233395812
+      },
+      "entropy": 3.6079586972604507
+    },
+    {
+      "key": "grade4",
+      "label": "Grade 4",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.05646918961759462,
+        "composition_mod": 0.06464236179908857,
+        "cooking": 0.034178720031702,
+        "games": 0.07177531206657421,
+        "geography": 0.07088369328313851,
+        "grammar_hist": 0.08465425004953438,
+        "history": 0.11516742619377848,
+        "math": 0.04472954230235783,
+        "music": 0.043094907866059046,
+        "reading": 0.14092530215969884,
+        "science": 0.09218347533188032,
+        "scouting": 0.10431939766197741,
+        "sports": 0.07697642163661582
+      },
+      "entropy": 3.5965496471578815
+    },
+    {
+      "key": "grade5",
+      "label": "Grade 5",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.06175783897773203,
+        "composition_mod": 0.06537293199106267,
+        "cooking": 0.029673888484422463,
+        "games": 0.07184997363994677,
+        "geography": 0.0735571008962418,
+        "grammar_hist": 0.09057816383400698,
+        "history": 0.1099590791554741,
+        "math": 0.044284889413300534,
+        "music": 0.04202545627996888,
+        "reading": 0.1356413024376773,
+        "science": 0.09198403333919111,
+        "scouting": 0.10589209951547712,
+        "sports": 0.07742324203549819
+      },
+      "entropy": 3.59756597787164
+    },
+    {
+      "key": "grade6",
+      "label": "Grade 6",
+      "subject": "reading",
+      "class_distribution": {
+        "art": 0.06280917403687603,
+        "composition_mod": 0.07195323040023983,
+        "cooking": 0.0331284664967771,
+        "games": 0.06715634837355719,
+        "geography": 0.07510118423025033,
+        "grammar_hist": 0.09378903712586818,
+        "history": 0.10643081996702144,
+        "math": 0.047669015140158894,
+        "music": 0.04572028181681907,
+        "reading": 0.12381951731374606,
+        "science": 0.08594413631139758,
+        "scouting": 0.10523159946035077,
+        "sports": 0.08124718932693749
+      },
+      "entropy": 3.619536430595707
+    },
+    {
+      "key": "kittredge",
+      "label": "Kittredge Adv Gr",
+      "subject": "grammar_hist",
+      "class_distribution": {
+        "art": 0.058489463744684334,
+        "composition_mod": 0.08331182152901377,
+        "cooking": 0.042987378231865554,
+        "games": 0.08217056369984921,
+        "geography": 0.06270577739132009,
+        "grammar_hist": 0.14151597081640693,
+        "history": 0.07056777577000937,
+        "math": 0.06200834205127508,
+        "music": 0.06695379264432157,
+        "reading": 0.09336575954784453,
+        "science": 0.08109270908341598,
+        "scouting": 0.07931741912693777,
+        "sports": 0.07551322636305585
+      },
+      "entropy": 3.6439661644921117
+    },
+    {
+      "key": "kirkham",
+      "label": "Kirkham Gr Lectures",
+      "subject": "grammar_hist",
+      "class_distribution": {
+        "art": 0.06374611341654753,
+        "composition_mod": 0.08293016644204022,
+        "cooking": 0.035099074593726576,
+        "games": 0.08172578643147117,
+        "geography": 0.06647030629759657,
+        "grammar_hist": 0.1283524982692158,
+        "history": 0.07862880926143649,
+        "math": 0.055745589060624566,
+        "music": 0.06589679200684942,
+        "reading": 0.09175409345825021,
+        "science": 0.08516687217595417,
+        "scouting": 0.08809179505876474,
+        "sports": 0.07639210352752256
+      },
+      "entropy": 3.64632016753095
+    },
+    {
+      "key": "strunk",
+      "label": "Strunk Elements",
+      "subject": "grammar_hist",
+      "class_distribution": {
+        "art": 0.059888470802575276,
+        "composition_mod": 0.08978962097306968,
+        "cooking": 0.03308945724919266,
+        "games": 0.08910025728037817,
+        "geography": 0.0699129678337977,
+        "grammar_hist": 0.1071960542135304,
+        "history": 0.08461939327788333,
+        "math": 0.05635548187753125,
+        "music": 0.06841934649963276,
+        "reading": 0.08104947415501657,
+        "science": 0.07979384742904272,
+        "scouting": 0.09633857605363906,
+        "sports": 0.08444705235471046
+      },
+      "entropy": 3.6539702800824414
+    },
+    {
+      "key": "openstax_writing",
+      "label": "OS Writing Guide",
+      "subject": "composition_mod",
+      "class_distribution": {
+        "art": 0.06383118052485963,
+        "cooking": 0.04744364225725652,
+        "games": 0.07884354075602051,
+        "geography": 0.08128830170969556,
+        "grammar_hist": 0.1100906416951798,
+        "history": 0.08778219799289491,
+        "math": 0.08640701995645271,
+        "music": 0.07746836271957828,
+        "reading": 0.0895175417055482,
+        "science": 0.0990128186238397,
+        "scouting": 0.10772227952130707,
+        "sports": 0.0705924725373672
+      },
+      "entropy": 3.5532438109713493
+    },
+    {
+      "key": "astronomy_yf",
+      "label": "Astronomy YF",
+      "subject": "science",
+      "class_distribution": {
+        "art": 0.06771471218616043,
+        "composition_mod": 0.07032685241886097,
+        "cooking": 0.05123813533374158,
+        "games": 0.0665091090018371,
+        "geography": 0.08733925290875688,
+        "grammar_hist": 0.07447948560930802,
+        "history": 0.08258381812614819,
+        "math": 0.05897408909981629,
+        "music": 0.06791564605021433,
+        "reading": 0.07322604102878137,
+        "science": 0.11644117421922841,
+        "scouting": 0.10247627066748316,
+        "sports": 0.08077541334966319
+      },
+      "entropy": 3.6672606930531333
+    },
+    {
+      "key": "starland",
+      "label": "Star-land",
+      "subject": "science",
+      "class_distribution": {
+        "art": 0.06942894948499079,
+        "composition_mod": 0.06880626832369043,
+        "cooking": 0.045611395065251796,
+        "games": 0.07690112342059517,
+        "geography": 0.08364683600134913,
+        "grammar_hist": 0.08359494590457411,
+        "history": 0.09137846042082867,
+        "math": 0.050125833484679444,
+        "music": 0.04825779000077835,
+        "reading": 0.09122279013050359,
+        "science": 0.10826868692110113,
+        "scouting": 0.10647847858236253,
+        "sports": 0.0762784422592948
+      },
+      "entropy": 3.651936650722517
+    },
+    {
+      "key": "childs_health",
+      "label": "Child's Health Primer",
+      "subject": "science",
+      "class_distribution": {
+        "art": 0.060768166599814995,
+        "composition_mod": 0.08663976228092435,
+        "cooking": 0.04796129697694027,
+        "games": 0.07632550486652862,
+        "geography": 0.08039390640220692,
+        "grammar_hist": 0.08194104501436629,
+        "history": 0.0833735807663657,
+        "math": 0.05612675076333691,
+        "music": 0.05500937287677736,
+        "reading": 0.10363372925892879,
+        "science": 0.09248450814908195,
+        "scouting": 0.10022020120987878,
+        "sports": 0.07512217483484909
+      },
+      "entropy": 3.664812610901324
+    },
+    {
+      "key": "greeks_history",
+      "label": "Story of the Greeks",
+      "subject": "history",
+      "class_distribution": {
+        "art": 0.06717998722302546,
+        "composition_mod": 0.07726707239164789,
+        "cooking": 0.0425674994115867,
+        "games": 0.09421337547493358,
+        "geography": 0.09387713930264617,
+        "grammar_hist": 0.08869910224941999,
+        "math": 0.05013281328805353,
+        "music": 0.05184761776671935,
+        "reading": 0.11943108839648972,
+        "science": 0.09972764870044719,
+        "scouting": 0.11963283009986216,
+        "sports": 0.09542382569516827
+      },
+      "entropy": 3.518068232037974
+    },
+    {
+      "key": "home_geography",
+      "label": "Home Geography",
+      "subject": "geography",
+      "class_distribution": {
+        "art": 0.07444529212102385,
+        "composition_mod": 0.07521276935938494,
+        "cooking": 0.045664895682483705,
+        "games": 0.06619491180864236,
+        "geography": 0.0938240923896409,
+        "grammar_hist": 0.07265451189818135,
+        "history": 0.09439970031841168,
+        "math": 0.05516242650720196,
+        "music": 0.0498860204934696,
+        "reading": 0.09779852808829644,
+        "science": 0.10053951822530025,
+        "scouting": 0.11166793818153578,
+        "sports": 0.06254939492642726
+      },
+      "entropy": 3.649849709181659
+    },
+    {
+      "key": "commercial_geog",
+      "label": "Commercial Geography",
+      "subject": "geography",
+      "class_distribution": {
+        "art": 0.06801528486786196,
+        "composition_mod": 0.0633977334181172,
+        "cooking": 0.053413838391642064,
+        "games": 0.07138484943929732,
+        "geography": 0.10121173583089184,
+        "grammar_hist": 0.07371442494547487,
+        "history": 0.08037035496312495,
+        "math": 0.06502011635991942,
+        "music": 0.08161834184143435,
+        "reading": 0.06771220234027255,
+        "science": 0.08869026748518759,
+        "scouting": 0.10308371614835593,
+        "sports": 0.08236713396841999
+      },
+      "entropy": 3.676762269119493
+    },
+    {
+      "key": "how_we_are_fed",
+      "label": "How We Are Fed",
+      "subject": "geography",
+      "class_distribution": {
+        "art": 0.062134661182074044,
+        "composition_mod": 0.07038560534988333,
+        "cooking": 0.05523080993962138,
+        "games": 0.06785980611483967,
+        "geography": 0.09067619253806741,
+        "grammar_hist": 0.07538107494808079,
+        "history": 0.09800101031969402,
+        "math": 0.04857953862067307,
+        "music": 0.05624112963363884,
+        "reading": 0.0945851675446826,
+        "science": 0.09435263364685317,
+        "scouting": 0.1136609655769647,
+        "sports": 0.072911404584927
+      },
+      "entropy": 3.6569416485510873
+    },
+    {
+      "key": "openstax_elem_alg",
+      "label": "OS Elem Algebra 2e",
+      "subject": "math",
+      "class_distribution": {
+        "art": 0.05477225477225479,
+        "composition_mod": 0.08037233037233038,
+        "cooking": 0.0392931392931393,
+        "games": 0.05834435834435836,
+        "geography": 0.054375354375354394,
+        "grammar_hist": 0.06694386694386695,
+        "history": 0.04782649782649783,
+        "math": 0.30025515025515026,
+        "music": 0.06866376866376867,
+        "reading": 0.05769230769230769,
+        "science": 0.06112266112266112,
+        "scouting": 0.05993195993195994,
+        "sports": 0.050406350406350414
+      },
+      "entropy": 3.374841892661214
+    },
+    {
+      "key": "openstax_inter_alg",
+      "label": "OS Inter Algebra 2e",
+      "subject": "math",
+      "class_distribution": {
+        "art": 0.05281654445308012,
+        "composition_mod": 0.07075997702159295,
+        "cooking": 0.03913087554489237,
+        "games": 0.05677018213766769,
+        "geography": 0.05751360118947049,
+        "grammar_hist": 0.06366370425438449,
+        "history": 0.0519041665258676,
+        "math": 0.3067617341938972,
+        "music": 0.06731321596323454,
+        "reading": 0.05960869124455108,
+        "science": 0.0648802081573345,
+        "scouting": 0.0519041665258676,
+        "sports": 0.05697293278815937
+      },
+      "entropy": 3.364395571791095
+    },
+    {
+      "key": "ec_music",
+      "label": "Essentials Music Th",
+      "subject": "music",
+      "class_distribution": {
+        "art": 0.08048121216735828,
+        "composition_mod": 0.09007499904823543,
+        "cooking": 0.054631286404994865,
+        "games": 0.09567137472874708,
+        "geography": 0.08181368256748012,
+        "grammar_hist": 0.1005570995291938,
+        "history": 0.06848897856626185,
+        "math": 0.09034149312825979,
+        "reading": 0.07233410743518483,
+        "science": 0.08598875648786183,
+        "scouting": 0.09567137472874708,
+        "sports": 0.08394563520767502
+      },
+      "entropy": 3.567831712434519
+    },
+    {
+      "key": "ec_perspective",
+      "label": "Theory of Perspective",
+      "subject": "art",
+      "class_distribution": {
+        "art": 0.04819777708528099,
+        "composition_mod": 0.0650254492572972,
+        "cooking": 0.048405526124441677,
+        "games": 0.08642360029084865,
+        "geography": 0.09300231986427061,
+        "grammar_hist": 0.08026037879574807,
+        "history": 0.07749039160693881,
+        "math": 0.07094629687337695,
+        "music": 0.07915238392022436,
+        "reading": 0.08372286278175962,
+        "science": 0.09992728783629375,
+        "scouting": 0.0909940791523839,
+        "sports": 0.07645164641113533
+      },
+      "entropy": 3.671019812404562
+    },
+    {
+      "key": "ec_drawing",
+      "label": "Drawing Made Easy",
+      "subject": "art",
+      "class_distribution": {
+        "art": 0.07032231059020512,
+        "composition_mod": 0.07395967148280193,
+        "cooking": 0.035464268702818956,
+        "games": 0.06820051673619029,
+        "geography": 0.07234306664164779,
+        "grammar_hist": 0.09012571989434333,
+        "history": 0.08881222846090561,
+        "math": 0.059107114504698265,
+        "music": 0.06759428992075749,
+        "reading": 0.0980355364385618,
+        "science": 0.08386137613487103,
+        "scouting": 0.10154299158499444,
+        "sports": 0.090630908907204
+      },
+      "entropy": 3.660790410750312
+    },
+    {
+      "key": "ec_scouting",
+      "label": "Boy Scouts Handbook",
+      "subject": "scouting",
+      "class_distribution": {
+        "art": 0.06727171007645924,
+        "composition_mod": 0.08180518431031267,
+        "cooking": 0.04699446758252005,
+        "games": 0.10791322185615715,
+        "geography": 0.09688982822568948,
+        "grammar_hist": 0.08633057748492572,
+        "history": 0.10321377509790515,
+        "math": 0.04856094983527071,
+        "music": 0.062485236526387766,
+        "reading": 0.1024926959656866,
+        "science": 0.10309773937547917,
+        "sports": 0.09294461366320632
+      },
+      "entropy": 3.5360890975421344
+    },
+    {
+      "key": "ec_games",
+      "label": "Hoyle's Games",
+      "subject": "games",
+      "class_distribution": {
+        "art": 0.06750244465060301,
+        "composition_mod": 0.07245192187147406,
+        "cooking": 0.05033723641651833,
+        "geography": 0.07259233257277538,
+        "grammar_hist": 0.0999724193265301,
+        "history": 0.09835769626156506,
+        "math": 0.06044680691021236,
+        "music": 0.07561116265075345,
+        "reading": 0.08301281247649374,
+        "science": 0.08909058997567885,
+        "scouting": 0.13058195221021487,
+        "sports": 0.10004262467718075
+      },
+      "entropy": 3.540879512134408
+    },
+    {
+      "key": "ec_baseball",
+      "label": "Spalding Baseball",
+      "subject": "sports",
+      "class_distribution": {
+        "art": 0.07265644451821728,
+        "composition_mod": 0.06710100423271641,
+        "cooking": 0.04204705784712424,
+        "games": 0.1034836915926633,
+        "geography": 0.07908332641713005,
+        "grammar_hist": 0.09665739895427009,
+        "history": 0.10304797078595733,
+        "math": 0.05827765789692091,
+        "music": 0.06862602705618724,
+        "reading": 0.09616980662295628,
+        "science": 0.09651215868536807,
+        "scouting": 0.11633745539048884
+      },
+      "entropy": 3.5361647872964106
+    },
+    {
+      "key": "ec_cooking",
+      "label": "Boston Cook Book",
+      "subject": "cooking",
+      "class_distribution": {
+        "art": 0.06591159775093487,
+        "composition_mod": 0.0779640041968201,
+        "games": 0.09001641064270535,
+        "geography": 0.09792580237281752,
+        "grammar_hist": 0.07808955009729807,
+        "history": 0.07947055500255575,
+        "math": 0.07363267063033009,
+        "music": 0.07721072879395229,
+        "reading": 0.08156896505340183,
+        "science": 0.10382645969528217,
+        "scouting": 0.10169217938715668,
+        "sports": 0.07269107637674531
+      },
+      "entropy": 3.5710533384124163
+    }
+  ],
+  "subject_entropy": {
+    "art": {
+      "mean": 3.665905111577437,
+      "std": 0.005114700827125063,
+      "n": 2
+    },
+    "composition_mod": {
+      "mean": 3.5532438109713493,
+      "std": 0.0,
+      "n": 1
+    },
+    "cooking": {
+      "mean": 3.5710533384124163,
+      "std": 0.0,
+      "n": 1
+    },
+    "games": {
+      "mean": 3.540879512134408,
+      "std": 0.0,
+      "n": 1
+    },
+    "geography": {
+      "mean": 3.6611845422840794,
+      "std": 0.01138926632181894,
+      "n": 3
+    },
+    "grammar_hist": {
+      "mean": 3.6480855373685013,
+      "std": 0.004270673653626623,
+      "n": 3
+    },
+    "history": {
+      "mean": 3.518068232037974,
+      "std": 0.0,
+      "n": 1
+    },
+    "math": {
+      "mean": 3.3696187322261544,
+      "std": 0.005223160435059437,
+      "n": 2
+    },
+    "music": {
+      "mean": 3.567831712434519,
+      "std": 0.0,
+      "n": 1
+    },
+    "reading": {
+      "mean": 3.6191769823313598,
+      "std": 0.02108901671747597,
+      "n": 7
+    },
+    "science": {
+      "mean": 3.6613366515589916,
+      "std": 0.00672152206720045,
+      "n": 3
+    },
+    "scouting": {
+      "mean": 3.5360890975421344,
+      "std": 0.0,
+      "n": 1
+    },
+    "sports": {
+      "mean": 3.5361647872964106,
+      "std": 0.0,
+      "n": 1
+    }
+  },
+  "arts_mean_entropy": 3.5834040958535374,
+  "formal_mean_entropy": 3.602830428870793,
+  "delta": -0.019426333017255715,
+  "verdict": "FINDING 96 NEUTRAL: Arts and formal-academic have comparable entropy (\u0394=-0.019). Both compose substrates similarly."
+}
