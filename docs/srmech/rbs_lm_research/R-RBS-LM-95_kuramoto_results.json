@@ -1,0 +1,109 @@
+{
+  "part1_4_oscillator": [
+    {
+      "K": 0.0,
+      "final_r": 0.10491529006566455,
+      "is_sync": false,
+      "n_clusters": 4
+    },
+    {
+      "K": 0.2,
+      "final_r": 0.9555949401899858,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 0.4,
+      "final_r": 0.9899522288901541,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 0.6000000000000001,
+      "final_r": 0.9956054768831266,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 0.8,
+      "final_r": 0.9975415877503464,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 1.0,
+      "final_r": 0.9984305637291051,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 1.2000000000000002,
+      "final_r": 0.9989115931549505,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 1.4000000000000001,
+      "final_r": 0.9992010071514159,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 1.6,
+      "final_r": 0.9993885948526244,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 1.8,
+      "final_r": 0.9995170895668665,
+      "is_sync": true,
+      "n_clusters": 1
+    },
+    {
+      "K": 2.0,
+      "final_r": 0.9996089439028369,
+      "is_sync": true,
+      "n_clusters": 1
+    }
+  ],
+  "K_c_estimate": 0.2,
+  "part2_corpus_populated": {
+    "corpus_path": "/tmp/mcguffey_sixth.txt",
+    "vocab_size": 100,
+    "K_global": 2.0,
+    "final_r": 0.11831345024197634,
+    "initial_r": 0.06418253095675505,
+    "n_clusters": 1,
+    "cluster_sizes": [
+      100
+    ],
+    "top_clusters": [
+      {
+        "size": 100,
+        "tokens": [
+          "the",
+          "and",
+          "of",
+          "to",
+          "a",
+          "in",
+          "his",
+          "he",
+          "was",
+          "is",
+          "that",
+          "it",
+          "with",
+          "i",
+          "as",
+          "for",
+          "but",
+          "not",
+          "on",
+          "at"
+        ]
+      }
+    ]
+  }
+}
