@@ -376,10 +376,119 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
     return np.asarray(out, dtype=np.int8)
 
 
+# ---------------------------------------------------------------------------
+# Klein-4 {0,1,2,3} variant — rank-2 abelian Class M over (F₂)² = Z₂×Z₂.
+# Per UPSTREAM_NOTES §4 + ``[[user_stance_canonical_two_variant_dial_class_m]]``.
+#
+# The next rung of the Class-M variant ladder above polar: each position holds
+# a 2-bit value (4 states), decomposed as state = γ₅_bit·2 + iω₇_bit. The four
+# states map to the four chirality sectors of the MFO §VII.4.1.7 4-way
+# (γ₅, iω₇) decomposition:
+#   0 = (+1,+1) visible matter   1 = (+1,−1) dark antimatter
+#   2 = (−1,+1) visible antimatter  3 = (−1,−1) dark matter
+# This is the "quad" (quaternary, DNA-like) substrate; it carries BOTH
+# chirality axes where bipolar/polar carry only one. Bind = component-wise
+# (F₂)²-XOR; self-inverse, abelian, associative, identity (0,0). uint8 repr.
+# ---------------------------------------------------------------------------
+
+KLEIN4_STATES = (0, 1, 2, 3)
+
+
+def _as_klein4(v, op: str):
+    arr = np.asarray(v, dtype=np.uint8)
+    if arr.ndim != 1:
+        raise ValueError(f"hdc.{op}: klein-4 vector must be 1-D (got ndim {arr.ndim})")
+    if arr.size == 0:
+        raise ValueError(f"hdc.{op}: klein-4 vector must be non-empty")
+    if not bool(np.isin(arr, (0, 1, 2, 3)).all()):
+        raise ValueError(f"hdc.{op}: klein-4 elements must be in {{0, 1, 2, 3}}")
+    return arr
+
+
+def klein4_random(D: int, rng=None):
+    """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}."""
+    if D <= 0:
+        raise ValueError("hdc.klein4_random: D must be positive")
+    if rng is None:
+        rng = np.random.default_rng()
+    return rng.integers(0, 4, size=D, dtype=np.uint8)
+
+
+def klein4_bind(a, b):
+    """Klein-4 bind: component-wise (F₂)²-XOR. Commutative, associative,
+    self-inverse (``bind(a, bind(a, b)) == b``); identity is 0."""
+    a = _as_klein4(a, "klein4_bind")
+    b = _as_klein4(b, "klein4_bind")
+    if a.shape != b.shape:
+        raise ValueError(
+            f"hdc.klein4_bind: lengths must match (got {a.size} vs {b.size})"
+        )
+    return np.bitwise_xor(a, b).astype(np.uint8)
+
+
+def klein4_unbind(c, a):
+    """Klein-4 unbind: self-inverse XOR, so ``unbind(bind(a, b), a) == b``."""
+    return klein4_bind(c, a)
+
+
+def klein4_bundle(*vectors):
+    """Klein-4 bundle: per-bit majority vote on each of the 2 bits
+    independently. Exact ties (count == n/2) resolve to 0 for that bit."""
+    if len(vectors) == 0:
+        raise ValueError("hdc.klein4_bundle: requires at least one vector")
+    arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
+    n = arrs[0].size
+    for i, arr in enumerate(arrs):
+        if arr.size != n:
+            raise ValueError(
+                f"hdc.klein4_bundle: vector {i} has length {arr.size}, expected {n}"
+            )
+    stack = np.stack(arrs)
+    half = len(vectors) // 2
+    bit0 = (np.bitwise_and(stack, 1).sum(axis=0) > half).astype(np.uint8)
+    bit1 = (np.right_shift(stack, 1).sum(axis=0) > half).astype(np.uint8)
+    return (bit1 * 2 + bit0).astype(np.uint8)
+
+
+def klein4_similarity(a, b) -> float:
+    """Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal,
+    1 = identical). All four states are informative — there is no skip state."""
+    a = _as_klein4(a, "klein4_similarity")
+    b = _as_klein4(b, "klein4_similarity")
+    if a.shape != b.shape:
+        raise ValueError(
+            f"hdc.klein4_similarity: lengths must match (got {a.size} vs {b.size})"
+        )
+    return float((a == b).mean())
+
+
+def klein4_chirality_flip_gamma5(v):
+    """Flip the γ₅ axis: XOR with the bit-1 sector mask (2)."""
+    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_gamma5"), 2).astype(np.uint8)
+
+
+def klein4_chirality_flip_omega7(v):
+    """Flip the iω₇ axis: XOR with the bit-0 sector mask (1)."""
+    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_omega7"), 1).astype(np.uint8)
+
+
+def klein4_cpt_mirror(v):
+    """CPT mirror: flip BOTH chirality axes (XOR with 3)."""
+    return np.bitwise_xor(_as_klein4(v, "klein4_cpt_mirror"), 3).astype(np.uint8)
+
+
+def klein4_sector_count(v):
+    """Per-sector occupancy ``[n0, n1, n2, n3]`` — substrate attestation of the
+    chirality-sector distribution."""
+    arr = _as_klein4(v, "klein4_sector_count")
+    return np.bincount(arr, minlength=4)[:4].astype(np.int64)
+
+
 __all__ = [
     "DEFAULT_HDC_BYTES",
     "MAX_BUNDLE_N",
     "POLAR_STATES",
+    "KLEIN4_STATES",
     "bind",
     "bundle",
     "permute",
@@ -391,4 +500,13 @@ __all__ = [
     "polar_similarity",
     "polar_density",
     "polar_from_real",
+    "klein4_random",
+    "klein4_bind",
+    "klein4_unbind",
+    "klein4_bundle",
+    "klein4_similarity",
+    "klein4_chirality_flip_gamma5",
+    "klein4_chirality_flip_omega7",
+    "klein4_cpt_mirror",
+    "klein4_sector_count",
 ]

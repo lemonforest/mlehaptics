@@ -1078,6 +1078,75 @@ def _register_primitive_class_tools() -> None:
                         P("dead_band", "float", False, "default 0.0")),
             returns=R("np.ndarray", "int8 {-1,0,+1}"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2). Rank-2 abelian
+        # over (F₂)²; the four states are the four (γ₅, iω₇) chirality
+        # sectors. uint8 hypervectors.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_random", owner="srmech", category="hdc",
+            summary="Random Klein-4 hypervector: uint8 array of D elements in "
+                    "{0,1,2,3} (the rank-2 Class-M variant alphabet).",
+            parameters=(P("D", "int", True), P("rng", "numpy.random.Generator", False)),
+            returns=R("np.ndarray", "uint8 in {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_bind", owner="srmech", category="hdc",
+            summary="Klein-4 bind: component-wise (F₂)²-XOR. Commutative, "
+                    "associative, self-inverse; identity 0.",
+            parameters=(P("a", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                        P("b", "np.ndarray", True, "same length")),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_unbind", owner="srmech", category="hdc",
+            summary="Klein-4 unbind (= self-inverse XOR): recovers b from "
+                    "bind(a,b).",
+            parameters=(P("c", "np.ndarray", True), P("a", "np.ndarray", True)),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
+            summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
+                    "independently; exact ties → 0 for that bit.",
+            parameters=(P("*vectors", "np.ndarray", True,
+                          "uint8 {0,1,2,3}, all same length"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
+            summary="Klein-4 similarity: fraction of positions where a==b in "
+                    "[0,1] (1 identical, 0 orthogonal).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True)),
+            returns=R("float", "in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chirality_flip_gamma5", owner="srmech",
+            category="hdc",
+            summary="Flip the γ₅ chirality axis (XOR with sector mask 2).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chirality_flip_omega7", owner="srmech",
+            category="hdc",
+            summary="Flip the iω₇ chirality axis (XOR with sector mask 1).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_cpt_mirror", owner="srmech", category="hdc",
+            summary="CPT mirror: flip BOTH chirality axes (XOR with 3).",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
+            summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
+                    "distribution attestation.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "int64 length-4 counts"),
+        ),
     ]
     for e in entries:
         register_tool(e)

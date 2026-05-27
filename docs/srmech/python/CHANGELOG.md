@@ -4,6 +4,25 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.3rc2] - 2026-05-27
+
+**rc2 of the v0.4.3 "Class M variant expansion" rolling arc** — the Klein-4 `{0,1,2,3}` HDC variant, per UPSTREAM_NOTES §4 (RBS-LM research subtree, Finding 132 / R-RBS-LM-97). Stacks on rc1 (polar). No new primitive class; Klein-4 is the **rank-2 abelian** Class M variant over `(F₂)² = Z₂×Z₂` — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.
+
+### Added — `srmech.amsc.hdc` Klein-4 `{0,1,2,3}` variant
+
+The next rung of the Class-M variant ladder above polar (`bipolar {-1,+1}` → `polar {-1,0,+1}` → **`Klein-4 (Z₂)²`**). Each position is a 2-bit value (4 states), `state = γ₅_bit·2 + iω₇_bit`; the four states are the four chirality sectors of the MFO §VII.4.1.7 4-way `(γ₅, iω₇)` decomposition (visible/dark × matter/antimatter). This is the quaternary / DNA-like "quad" substrate carrying **both** chirality axes where bipolar/polar carry one. uint8 array representation.
+
+- `klein4_random / klein4_bind` (component-wise `(F₂)²`-XOR; commutative, associative, self-inverse, identity 0) `/ klein4_unbind / klein4_bundle` (per-bit majority, ties→0) `/ klein4_similarity` (match-fraction).
+- `klein4_chirality_flip_gamma5` (XOR 2) `/ klein4_chirality_flip_omega7` (XOR 1) `/ klein4_cpt_mirror` (XOR 3) `/ klein4_sector_count` (per-sector occupancy attestation).
+
+### Added — C parity surface (`srmech_klein4_{bind,bundle,similarity}`)
+
+Full uint8 C parity in `srmech_hdc.c` + `srmech.h`, JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts, no goto/malloc, bounded loops, `{0,1,2,3}` range validation). New symbols; **no ABI bump**. `_native.py` binds them `hasattr`-guarded. Same dispatch posture as rc1 (numpy public reference; C surface built + parity-tested directly).
+
+### Added — tests + tool_schema
+
+`tests/test_hdc_klein4_parity.py` — 6 algebraic-property tests (Klein-four group axioms incl. `a⊕a=0`, chirality-flip sector maps, per-bit-majority bundle, similarity/sector-count) + 3 C↔Python parity tests (skipped on pure-Python installs). 9 `tool_schema` ToolEntry registrations. Version-pin asserts bumped `0.4.3rc1 → 0.4.3rc2`.
+
 ## [0.4.3rc1] - 2026-05-27
 
 **rc1 of the v0.4.3 "Class M variant expansion" rolling arc** — the polar `{-1, 0, +1}` HDC variant, per UPSTREAM_NOTES §5 (RBS-LM research subtree, Finding from R-RBS-LM-97). First rc of a multi-item rolling PR; each subsequent item (Klein-4 rank-2, `signed_sum_squared`, real-symmetric eigendecompose, Path-B `rfft`, cascade-foundational catalog) ships as its own `0.4.3rcN`, each mathematically complete (no scaffolding), CI-gated between rcs. No new primitive class introduced; the polar variant is **Class M ∘ Class K** (rank-1 abelian with an absorbing zero) — the 14-class A–N vocabulary is intact per `[[feedback_no_privileged_primitive_classes]]`.

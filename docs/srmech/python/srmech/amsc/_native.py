@@ -640,6 +640,42 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_polar_density.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2). NEW symbols;
+    # hasattr-guarded (same rationale as the polar block above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_klein4_bind"):
+        # int srmech_klein4_bind(const uint8_t *a, const uint8_t *b,
+        #                        uint32_t n, uint8_t *out)
+        lib.srmech_klein4_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_klein4_bind.restype = ctypes.c_int
+
+        # int srmech_klein4_bundle(const uint8_t * const *vectors,
+        #                          uint32_t n_vectors, uint32_t n,
+        #                          uint8_t *out)
+        lib.srmech_klein4_bundle.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_klein4_bundle.restype = ctypes.c_int
+
+        # int srmech_klein4_similarity(const uint8_t *a, const uint8_t *b,
+        #                              uint32_t n, double *out)
+        lib.srmech_klein4_similarity.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_klein4_similarity.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 3
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.4.3rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.4.3rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -819,6 +819,37 @@ srmech_status_t srmech_polar_similarity(const int8_t *a,
 srmech_status_t srmech_polar_density(const int8_t *v,
                                      uint32_t      n,
                                      double       *out);
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2)
+ *
+ * Rank-2 abelian Class M over (F₂)² = Z₂×Z₂. uint8 hypervectors with
+ * elements in {0,1,2,3} (state = γ₅_bit·2 + iω₇_bit). bind = component-
+ * wise (F₂)²-XOR (self-inverse, abelian, identity 0); bundle = per-bit
+ * majority (ties → 0). Inputs out of {0,1,2,3} → SRMECH_ERR_BAD_INPUT.
+ * No ABI bump. Ladder: bipolar → polar → KLEIN-4.
+ * ------------------------------------------------------------------ */
+
+/* klein4_bind(a, b): component-wise XOR over (F₂)². out[i] = a[i] ^ b[i]. */
+srmech_status_t srmech_klein4_bind(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n,
+                                   uint8_t       *out);
+
+/* klein4_bundle(vectors, n_vectors): per-bit majority on each of the 2
+ * bits independently; exact ties (count == n_vectors/2) → 0 for that bit.
+ * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
+                                     uint32_t               n_vectors,
+                                     uint32_t               n,
+                                     uint8_t               *out);
+
+/* klein4_similarity(a, b): fraction of positions where a[i] == b[i] in
+ * [0, 1] (1 identical, 0 orthogonal). */
+srmech_status_t srmech_klein4_similarity(const uint8_t *a,
+                                         const uint8_t *b,
+                                         uint32_t       n,
+                                         double        *out);
 
 #ifdef __cplusplus
 }
