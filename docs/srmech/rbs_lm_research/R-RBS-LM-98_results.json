@@ -1,0 +1,48 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 1024,
+  "n_nodes": 32,
+  "edge_density": 0.15,
+  "n_edges": 87,
+  "eigvals_smallest_3": [
+    1.2438045581380262e-16,
+    1.3983666451629548,
+    1.4457392423927968
+  ],
+  "eigvals_largest_3": [
+    9.92960167343718,
+    11.233721954490013,
+    11.866312837959685
+  ],
+  "tag_recall": 0.28125,
+  "mean_self_sim": 0.3671875,
+  "mean_above_random_self_sim": 0.1568647860934735,
+  "klein4_random_baseline": 0.249453125,
+  "sector_retrieval": {
+    "0": {
+      "true": 2,
+      "false": 6
+    },
+    "1": {
+      "true": 2,
+      "false": 6
+    },
+    "2": {
+      "true": 3,
+      "false": 5
+    },
+    "3": {
+      "true": 3,
+      "false": 5
+    }
+  },
+  "timings": {
+    "classL_seconds": 0.0058345794677734375,
+    "encode_seconds": 0.051740407943725586,
+    "bundle_seconds": 0.005755424499511719,
+    "query_seconds": 0.0907144546508789,
+    "discrimination_seconds": 0.04869699478149414
+  }
+}
