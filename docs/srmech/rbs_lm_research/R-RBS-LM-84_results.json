@@ -1,0 +1,86 @@
+{
+  "partition": "R-RBS-LM-84",
+  "n_corpora": 27,
+  "foundational_partitions": [
+    "math",
+    "communication",
+    "structure_order",
+    "places_things"
+  ],
+  "partition_assignment": {
+    "openstax_elem_alg": "math",
+    "openstax_inter_alg": "math",
+    "primer": "communication",
+    "grade1": "communication",
+    "grade2": "communication",
+    "grade3": "communication",
+    "grade4": "communication",
+    "grade5": "communication",
+    "grade6": "communication",
+    "ec_music": "communication",
+    "ec_drawing": "communication",
+    "kittredge": "structure_order",
+    "kirkham": "structure_order",
+    "strunk": "structure_order",
+    "openstax_writing": "structure_order",
+    "childs_health": "structure_order",
+    "ec_games": "structure_order",
+    "ec_baseball": "structure_order",
+    "ec_scouting": "structure_order",
+    "home_geography": "places_things",
+    "commercial_geog": "places_things",
+    "how_we_are_fed": "places_things",
+    "astronomy_yf": "places_things",
+    "starland": "places_things",
+    "greeks_history": "places_things",
+    "ec_perspective": "places_things",
+    "ec_cooking": "places_things"
+  },
+  "partition_stats": {
+    "math": {
+      "n": 2,
+      "within": 0.3602380952380952,
+      "cross": 0.06982857142857143,
+      "ratio": 5.158892525913801
+    },
+    "communication": {
+      "n": 9,
+      "within": 0.1403703703703704,
+      "cross": 0.09773368606701939,
+      "ratio": 1.436253721916449
+    },
+    "structure_order": {
+      "n": 8,
+      "within": 0.11857993197278913,
+      "cross": 0.09913847117794487,
+      "ratio": 1.1961041013023948
+    },
+    "places_things": {
+      "n": 8,
+      "within": 0.10198979591836735,
+      "cross": 0.09255325814536342,
+      "ratio": 1.1019579208998023
+    }
+  },
+  "inter_partition_alignment": {
+    "math|math": 0.3602380952380952,
+    "math|communication": 0.06826719576719577,
+    "math|structure_order": 0.07482142857142857,
+    "math|places_things": 0.06659226190476189,
+    "communication|math": 0.06826719576719578,
+    "communication|communication": 0.1403703703703704,
+    "communication|structure_order": 0.1074537037037037,
+    "communication|places_things": 0.09538029100529101,
+    "structure_order|math": 0.07482142857142857,
+    "structure_order|communication": 0.1074537037037037,
+    "structure_order|structure_order": 0.11857993197278913,
+    "structure_order|places_things": 0.09586309523809523,
+    "places_things|math": 0.06659226190476192,
+    "places_things|communication": 0.095380291005291,
+    "places_things|structure_order": 0.09586309523809523,
+    "places_things|places_things": 0.10198979591836735
+  },
+  "new_mean_ratio": 2.223302067508112,
+  "old_mean_ratio": 1.983315778969456,
+  "verdict": "FINDING 99 PARTIALLY SUPPORTED: all 4 partitions cluster but some weakly. Reorganization is useful but not dramatic improvement."
+}
