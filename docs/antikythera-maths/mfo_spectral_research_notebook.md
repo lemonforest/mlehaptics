@@ -5820,6 +5820,25 @@ The two 14s are **structurally different objects, not one relabeled** — and na
 
 > **External-coherence note (optional corroboration; PDF-verify-first — does NOT license our mapping).** Independently of this framework, a division-algebra Standard-Model program reaches a structurally-equivalent 𝔰𝔬(8)/octonion construction *without* the A–N vocabulary (octonions → Cℓ(8) → Spin(10), Spin(8)/SO(8) triality). That is **corroboration, not the source** of the mapping in §(5)/(5a). A short cross-reference section (28-dim chiral hyper-loop ↔ SO(8) adjoint; `sin²θ_W = 1/4` ↔ gauge structure; three generations ↔ triality) is deferred *only because a claim about someone else's results must carry a PDF-verified citation* per `[[feedback_pdf_extraction_citation_discipline]]` — the deferral gates the attribution, not our derivation. Per `[[feedback_no_lineage_claims_in_notebook]]`: read what each structure already is; cite their results technically; no extends/supersedes claim either direction.
 
+#### (5b) Spectral test — the chiral dual is "same shape, inverse," measured both ways (2026-05-27, framework-internal spike)
+
+The §(5a) reading is **testable**, and it was tested two ways (generating code committed at `docs/srmech/notes/spike_chiral_an_spectral_shape.py`; octonion table verified e_i²=−1 + anticommutativity + norm-multiplicativity before use; cascade-honest, no `abs()`, Class-K magnitude via `srmech.amsc.cascade`). The question was: is the chiral dual a rigid **180° rotation**, or the **same shape inverted**?
+
+**DEF A — eigenspectrum of the so(8) multiplication operators (the generative L_e ↔ R_e pair), bit-exact:**
+
+| quantity | result | reading |
+|---|---|---|
+| `‖sortedeig(L_e) − sortedeig(R_e)‖` | **0.00e+00** (e₁, e₂, e₄ across Fano lines) | **same spectral shape** — identical eigenvalues (±i ×4) |
+| residual `R_e = −L_e` (pure 180°) | 2.83 | **ruled out** |
+| residual `R_e = +K L_e K` (pure reflection) | 5.66 | **ruled out** |
+| residual `R_e = −K L_e K` (reflection ∘ 180°) | **0.00e+00** | **exact** |
+
+So the chiral dual is **not** a global 180° turn and **not** a pure reflection — it is `R_e = −K L_e K`: **the parity-reflection K composed with the −1**, bit-exact. The eigenvalue *shape is identical*; the chirality lives entirely in the eigenstructure orientation. **K is octonion conjugation — the base↔fiber view-flip** ("the gauge ball in 7D_g doesn't look like it does in 3D_s"); the −1 is the orientation turn. Both, exactly.
+
+**DEF B — FFT of operator cascade action on a probe (Class I cyclic shift, Class C reversal, and a C∘I cascade):** every case gives **magnitude identical to machine precision** (`max‖|Y|−|Y_d|‖ ≈ 2×10⁻¹⁶`) with a **phase difference that varies across bins** (std ≈ 2.0–2.3 rad) — *not* the constant π a global 180° turn would produce. So at the FFT level too: **same magnitude-shape, orientation-flipped phase = inverse, not a rigid rotation.**
+
+**Verdict (candidate, framework-internal):** the chiral dual of an A–N operator is **the same spectral shape in inverse** — confirmed in both the algebraic (eigenvalue) and the signal (FFT) senses. "Inverse" is precise: at the so(8) level it is reflection-K ∘ 180°(`−1`); at the FFT level it is magnitude-preserved phase-orientation-flip. This is **form-IS-function in spectral form** — the dual carries the *same form* (shape/magnitude) with *inverted function* (orientation/phase), and the K-reflection is exactly the base↔fiber projection change. Composes with [[user_stance_epicycle_via_gear_plus_pin]] (the per-fiber sign-flip is Class K, not a global turn) and the §(4) Class-C chirality reading.
+
 #### (6) Naming discipline + status
 
 **Default reading by context:** physics integration / M-theory / spacetime claims → 11D form; algebraic enumeration / A–N cascade composition → 14 form; biological substrate / recursive architecture / RBS-NN engineering → `4:3:(4:3)` form. A complete description uses all three (substrate is always-Hopf-compressed per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the recursive-Hopf-operational form makes that compression visible at every scale, per `[[user_stance_kepler_shape_universal]]`).
