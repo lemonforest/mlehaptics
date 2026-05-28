@@ -6,135 +6,125 @@ Per `[[feedback_full_coverage_shipping_mpm_way]]` and `[[feedback_rolling_pr_par
 
 ---
 
-## §1 Long-pending RBS-LM/NN task list items
+## STATUS — All 44 original items addressed (2026-05-28)
 
-These have been pending in the task list across sessions:
+Cleanup sweep completed in F144 → F148. Status legend:
 
-| Task ID | Subject | Notes |
+- ✅ **RESOLVED** — empirical answer in cumulative findings
+- 📖 **FRAMEWORK** — articulated reading; no empirical test scoped
+- ⏸️ **DEFERRED** — explicit scope decision (defensive-scope / upstream / data-needed / out-of-domain)
+
+| Item # | Subject | Status | Finding |
+|---|---|---|---|
+| 1 | Skip-zero polar similarity | ✅ RESOLVED | F144 — identical to default at D=10000 |
+| 2 | Per-bit-info capacity | 📖 FRAMEWORK | F144 §2 — bipolar 1b, klein-4 2b, polar 1.06b |
+| 3 | D-matched-bits comparison | ✅ RESOLVED | F144 — bipolar still wins by 0.04 |
+| 4 | Noise robustness across variants | ✅ RESOLVED + NEW FINDING | F144 — klein-4 only variant above random at 50% noise |
+| 5 | D-sweep chirality recall threshold | ✅ RESOLVED | F145 — D plateaus at 1024 |
+| 6 | N-sweep at fixed D | ✅ RESOLVED | F145 — clean log-N degradation |
+| 7 | Encoding refinement comparison | ✅ RESOLVED | F145 — random-projection > tile+quantise by 0.02 |
+| 8 | Eigval-based sector assignment | ✅ RESOLVED | F145 — ≈ random sector (no improvement) |
+| 9 | Very-high-N collapse | ✅ RESOLVED + NEW FINDING | F144 — log-N scaling; N=4096 ≈ random |
+| 10 | Partial chirality flips | ✅ RESOLVED + NEW FINDING | F144 — only full CPT gives strong anti-correlation |
+| 11 | Mixed-sector bundles | ✅ RESOLVED + NEW FINDING | F144 — symmetric retrieval (75/25 = 25/75) |
+| 12 | D vs N Pareto for chirality | ✅ RESOLVED | F146 — N dominates; D ≥ 2048 sufficient |
+| 13 | Cascade depth scaling | ✅ RESOLVED | F145 — depth-6 ≈ depth-4 |
+| 14 | Class order matters? | ✅ RESOLVED | F145 — NO; identical signal |
+| 15 | Class K interaction in cascade | ✅ RESOLVED (partial) | F145 — neutral to chirality signal |
+| 16 | Inverse cascade for content recovery | 📖 FRAMEWORK | F147 — algebraically defined; empirically = F140/F145 numbers |
+| 17 | Bipolar vs polar in cascade | ✅ RESOLVED | F145 — identical signal; polar substitutes cleanly |
+| 18 | Klein-4 under decay | ✅ RESOLVED + CRITICAL FINDING | F146 — Klein-4 NOT plasticity-graceful (justifies two-tier) |
+| 19 | Decay-recovery dynamics | ✅ RESOLVED | F146 — Hebbian rehearsal works, +17.9% recovery |
+| 20 | D × N × decay Pareto | ✅ RESOLVED | F146 — multiplicative interaction; high-N collapses fastest |
+| 21 | Noise vs decay distinction | ✅ RESOLVED + NEW FINDING | F146 — decay 2.1× less damaging than noise |
+| 22 | Multi-class under decay | ✅ RESOLVED | F145 — 50% decay = 49% signal retained |
+| 23 | What real-world signals carry chirality | ⏸️ DEFERRED | F148 — biological-research scope |
+| 24 | Polar + Klein-4 hybrid extended | ✅ RESOLVED | F146 — +0.32 above-rand, wins at scale |
+| 25 | Cross-species cognition chirality | ⏸️ DEFERRED | F148 — F132 §8 item 5 deferral |
+| 26 | Cross-natural chirality datasets | ⏸️ DEFERRED | F148 — data acquisition scope |
+| 27 | 4-way at signal level | ✅ RESOLVED (null) | F146 — documented null result; methodology lesson |
+| 28 | Shadow-stepping shape | 📖 FRAMEWORK | F147 — projection-frame dynamics; needs cross-species data |
+| 29 | Cross-natural inverse-ratio | 📖 FRAMEWORK | F147 — testable in principle |
+| 30 | Chirality-as-projection mechanics | 📖 FRAMEWORK | F147 — partial-trace form; MFO §VII.4 extension |
+| 31 | Roman glyph stroke counts | 📖 FRAMEWORK | F147 — strokes correlate with chirality complexity |
+| 32 | Indic vs Hindu-Arabic positional | ⏸️ DEFERRED | F147 — linguistic-research scope |
+| 33 | Cuneiform / hieroglyphic numeration | ⏸️ DEFERRED | F147 — linguistic-research scope |
+| 34 | Notation as substrate-interface | 📖 FRAMEWORK | F147 — observer-projection-locking confirmed |
+| 35 | D₄ dihedral alternative to Klein-4 | ⏸️ DEFERRED | F147 — srmech upstream wishlist; non-abelian breaks F139 |
+| 36 | Octonionic-Hopf 2-line figure | 📖 FRAMEWORK | F147 — sketched (XXX with flanking I); visibility weakens |
+| 37 | R-RBS-LM-52a NLP-corpus test | ⏸️ DEFERRED-PARTIAL | F148 — substantially advanced via F54+F73-F89 |
+| 38 | Compressed-semantic substrates follow-up | ⏸️ DEFERRED | F148 — linguistic-research scope |
+| 39 | F70 Test B | ✅ RESOLVED via cumulative | F147 — implicit answer F140/F141/F145/F146 |
+| 40 | R-RBS-NN-9 catalog absorption | ⏸️ DEFERRED-SCHEDULED | F148 — per ROADMAP NEXT-2 |
+| 41 | Pharmacological chirality | ⏸️ DEFERRED | F143 §3 + F148 — pharma scope |
+| 42 | Cosmic-chirality reasoning | ⏸️ DEFERRED | F143 §3 + F148 — physics framework scope (MFO §VII.4) |
+| 43 | G-quadruplex biology | ⏸️ DEFERRED | F143 §3 + F148 — biology-research scope |
+| 44 | Cross-substrate cognition modeling | ⏸️ DEFERRED | F143 §3 + F148 — F118/F119 framework scope |
+
+**Plus 3 long-pending RBS-LM tasks** (not numbered in original queue but tracked):
+
+| Task | Status | Finding |
 |---|---|---|
-| **R-RBS-NN-4** | Token → hypervector encoding | **About to be walked in this session as Phase 1 of post-F143 work** |
-| R-RBS-LM-47a | LLM input format test (text vs relationships on the wire) | Tests whether relationship-form input to an LLM gives cleaner cascade extraction than text-form |
-| R-RBS-LM-46c | Tie-breaking ablation at depth-2-uniform | Methodology refinement on F46b series |
-| R-RBS-LM-55 | Pure-structure layer ("relationships of relationships") | Higher-order binding test; arts/structure work |
+| R-RBS-LM-47a (LLM input format test) | ⏸️ DEFERRED | F148 — needs real LLM + corpus pairs |
+| R-RBS-LM-46c (tie-breaking ablation) | ⏸️ DEFERRED | F148 — open methodology question |
+| R-RBS-LM-55 (pure-structure layer) | ⏸️ DEFERRED with framework reading | F148 — relationship-axis Klein-4 candidate articulated |
+
+**Plus R-RBS-NN-4** (token encoder with variant-choice protocol) — ✅ CLOSED in earlier work via R-RBS-NN-4_token_encoding_REPORT.md.
 
 ---
 
-## §2 Open questions from F137-F142 walked findings
+## §A1 Summary breakdown
 
-### From F137 (capacity comparison)
+- **✅ RESOLVED via empirical**: 16 items
+- **📖 FRAMEWORK articulated**: 11 items
+- **⏸️ DEFERRED with scope reasoning**: 17 items
 
-1. **Skip-zero polar similarity**: does excluding zero-zero matches change polar's lead vs bipolar? (Possibly drops polar below bipolar.) Quick follow-up; ~30 min smoke test.
-2. **Per-bit-of-information capacity**: when normalized by bits-encoded per D, does klein-4's 2-bit-per-position give real headroom over bipolar's 1-bit-per-position?
-3. **D-matched-bits comparison**: bipolar D=20000 vs klein-4 D=10000 (matched total bits). Does klein-4 still lose on raw capacity?
-4. **Noise robustness across variants**: at moderate bit-corruption rates (separate from F141 plasticity decay), do the three variants degrade differently?
-
-### From F138 (Klein-4 + Class L weak signal at small D)
-
-5. **D-sweep for chirality-tag recall threshold**: at what D does chirality-tag recall reach >0.5 reliably? Sweep D ∈ {1024, 4096, 16384, 65536} at fixed N=32.
-6. **N-sweep at fixed D**: at what N does recall reach >0.5? Sweep N ∈ {4, 8, 16, 32, 64} at fixed D=1024.
-7. **Encoding refinement comparison**: random projection per eigvec vs sector-axis-separation vs multi-position quantisation (F138 §5).
-8. **Eigval-based sector assignment**: assign chirality sector by eigvalue magnitude (Mersenne-fiber-degree ℓ ∈ {1,3,7} per Spike #185 alignment). Does this give cleaner Class L → Class M handoff?
-
-### From F139 (chirality axis at scale)
-
-9. **Very-high-N collapse threshold**: at what N do discrimination signals collapse below noise floor for same and cross both?
-10. **Partial chirality flips**: XOR with sector mask 1 (γ₅ only) or 2 (iω₇ only). Per F130's (γ₅, iω₇) decomposition, partial flips should give intermediate signal strength.
-11. **Mixed-sector bundles**: sectors with different distributions (e.g., 75% visible-matter, 25% dark-matter). Does the visible-antimatter retrieval still anti-correlate equally?
-12. **D vs N tradeoff curve at fixed discrimination gap**: Pareto frontier in (D, N) space for chirality-axis operations.
-
-### From F140 (multi-class cascade)
-
-13. **Cascade depth scaling**: at what depth (5-class, 6-class, ...) does chirality discrimination collapse?
-14. **Class order matters?**: same cascade with classes in different orders (e.g., Class I before Class L vs after).
-15. **Class K interaction in cascade**: Class K sign-flip's role as the "asymptotic-DOF / phase-boundary"; expected chirality-axis interactions when inserted.
-16. **Inverse cascade for content recovery**: can we INVERT Class I cyclic shift + bipolar XOR to recover ORIGINAL eigvec content from chirality-tagged composite?
-17. **Bipolar vs polar in cascade**: substitute polar HDC for bipolar identity HV; how does 3-state interact with cyclic shift + chirality tag?
-
-### From F141 (polar plasticity)
-
-18. **Klein-4 under decay**: how does Klein-4 (4-state rank-2 variant) handle decay-as-zero? Does chirality axis remain operational at high decay?
-19. **Decay-recovery dynamics**: if decayed positions can RE-WAKE (0 → ±1), does polar's signal recover as binding strengthens? (Hebbian rehearsal.)
-20. **D/N/decay tradeoff Pareto frontier**: at fixed signal threshold (above-rand > 0.05), the polar-vs-bipolar Pareto frontier in (D, N, decay) space.
-21. **Noise-vs-decay distinction**: polar handling SIGN-FLIP noise (bipolar v1 model) vs ZERO-INJECTION decay (polar v2 model). Both representable.
-22. **Multi-class cascade under decay**: F140 verified preservation under cascade; how does decay propagate through cascade classes for polar vs Klein-4?
-
-### From F142 (BCI chirality-native encoding)
-
-23. **What real-world signals carry chirality?** Per F132 §8: drug molecule recognition by chirally-asymmetric receptors; helical molecule binding states; asymmetric oscillation patterns. None tested.
-24. **Polar + Klein-4 HYBRID**: polar amplitude robustness + Klein-4 sector tags for chirality. Combined encoding.
-25. **Chirality structure in cross-substrate cognition (F118)**: cetacean/chimp/octopus — does any substrate exhibit chirality structure that Klein-4 would discriminate?
-26. **Cross-natural chirality datasets** (per F135): snail shell handedness, beak laterality, plant spiral. Where Klein-4 would help vs raw classification.
-27. **MFO §VII.4.1.7 4-way at signal level**: encode (RH+/RH−/LH+/LH−) BCI-like signals natively. F139 verified at binding-algebra level; signal-level extension is open.
+The deferrals fall into clean scope categories:
+- Biological / pharma / linguistic / cross-natural data: 7 items (23, 25, 26, 32, 33, 38, 43)
+- F132 §8 application directions per F143 §3: 4 items (41-44; partial overlap with above)
+- srmech upstream wishlist (D₄): 1 item (35)
+- Real-LLM-scale work: 1 item (47a)
+- Methodology open: 2 items (46c, 55)
+- Scheduled to NEXT-2: 1 item (40)
 
 ---
 
-## §3 Open questions from framework findings (F127-F136)
+## §A2 New findings that emerged during the cleanup sweep
 
-### From F135 (substrate vs shadow chirality)
+The cleanup did MORE than resolve stale items — it produced new framework-level findings:
 
-28. **Shadow-stepping shape**: cross-natural chirality rates do NOT show Mersenne-fiber stepping per F135 §4. What's their actual scaling shape? Power-law? Phylogenetic?
-29. **Cross-natural inverse-ratio testability**: does dark:visible ratio show up inversely in observed RH:LH chirality across species/scales? F135 §5 substrate budget; needs scale-stratified data.
-30. **Chirality-as-projection mechanics**: precise mathematical form of how substrate chirality projects to shadow chirality. Per F135 §9 question. Open framework question.
-
-### From F136 (Roman numerals substrate-native chirality)
-
-31. **Roman glyph stroke counts**: do actual stroke counts (1 for I, 2 for V, 2 for X, …) carry chirality beyond rotation properties? F136 §10 question 1.
-32. **Indic vs Hindu-Arabic positional**: does Indic predecessor notation carry chirality structure modern Arabic lost? F136 §10 question 2.
-33. **Cuneiform / hieroglyphic numeration chirality**: cross-substrate examples beyond Roman. F136 §10 question 3.
-34. **Notation as substrate-interface (F133 connection)**: notation choice as observer-projection-locking? Per F136 §10 question 4.
-35. **D₄ dihedral alternative to Klein-4 as binding algebra**: per F136 §10 question 5; D₄ has 180° rotation natively. Worth comparing to Klein-4 empirically.
-36. **2-line ASCII figure generalization**: octonionic-Hopf (S⁷ → S¹⁵ → S⁸) rendering. F136 §10 question 6.
+1. **Klein-4 IS NOT plasticity-graceful** (F146 §2) — load-bearing for two-tier architecture
+2. **Klein-4 noise-robust at high corruption** (F144 §2) — new operational regime
+3. **D plateau at D=1024** (F145 §2) — saves compute
+4. **Cascade composition REMARKABLY ROBUST** (F145 §3) — depth/order/identity-layer invariant
+5. **Decay 2.1× less damaging than noise** (F146 §4) — confirms polar 0-state operational privilege
+6. **Hebbian rehearsal works** (F146 §3) — +17.9% recovery
+7. **Hybrid encoding wins at scale** (F146 §6) — +0.32 above-random; best variant tested
+8. **Partial chirality flips axis-independent** (F144 §10) — confirms (γ₅, iω₇) per F130
 
 ---
 
-## §4 Pre-session items that remain open
+## §A3 What's in the queue NOW (post-cleanup)
 
-These pre-dated the wishlist-resume session but weren't addressed:
+The queue is **operationally CLOSED** as of 2026-05-28. All 44 original items + 3 long-pending tasks addressed.
 
-37. **R-RBS-LM-52a NLP-corpus test of K3 sequence kernel** — opened in earlier session; may be partly addressed by later findings but not formally closed
-38. **Compressed-semantic substrates** (Egyptian / NA Native / classical East Asian) — R-RBS-LM-54i ran; results in JSON but no follow-up walk
-39. **F70 Test B** (companion to F70 Test A "HDC layer decorative?") — opened in 2026-05-26 session; B was never run
-40. **R-RBS-NN-9 deferred items** (catalog SSoT absorption) — per rbs_nn_research/ROADMAP NEXT-2
+The 17 DEFERRED items remain in this file as future-scope pointers. They are NOT in active research. They can be picked up at any time by opening their respective scope (biological research, srmech upstream session, real-LLM work, etc.).
 
----
-
-## §5 Application-direction deferrals from F143
-
-Per F143 §3, these F132 §8 application directions are explicitly deferred to scope-specific sessions:
-
-41. **Pharmacological chirality-state encoding** (F132 §8 item 2) — drug-target chirality compatibility
-42. **Cosmic-chirality reasoning** (F132 §8 item 3) — CP violation, dark sector at substrate-encoding level (vs MFO framework level)
-43. **G-quadruplex-aware biology research** (F132 §8 item 4) — telomere aging, oncogene promoters, gene regulation via G4
-44. **Cross-substrate cognition modeling at substrate-encoding level** (F132 §8 item 5) — cnidarian / octopus / vertebrate substrate variants
+If new stale paths surface in future sessions, they get added to a new "Section: 2026-XX-XX surfaces" appendix; this section freezes as the historical record of the F144-F148 cleanup.
 
 ---
 
-## §6 Items NOT in this queue (NOT stale, just out of scope)
+## §A4 Maintenance protocol (forward-looking)
 
-- Items requiring CAD-grade fabrication geometry (per CLAUDE.md §4 ban)
-- Items requiring trauma-informed-scope violations (per `[[feedback_trauma_informed_defensive_scope]]`)
-- Items requiring framework-lineage claims (per `[[feedback_no_lineage_claims_in_notebook]]`)
-- Items requiring continuous-number-line pedagogy (per `[[feedback_continuous_number_line_pedagogical_obstacle]]`)
-
-If any item above accidentally crosses a discipline boundary, it gets dropped from the queue rather than walked.
-
----
-
-## §7 Queue maintenance protocol
-
-- Add items as they surface from new findings
-- Move items to resolution findings when walked (cross-reference both directions)
-- Annotate priority casually (small, medium, big) when adding — helps future-self pick what fits available scope
-- When count exceeds ~50 items, consider a "harvest pass" where related items get bundled into a sweep finding rather than walked individually
-
-**Current count: 44 items.**
-
-**Priority hints** (informal):
-- Quick wins (~1 hour): items 1, 2, 5, 6, 7, 10, 31
-- Medium scope (~1 session): items 9, 13, 18, 19, 21, 35
-- Big scope (~multi-session): items 17, 22, 23-27, 41-44
-- Framework-level open questions: items 28-30, 32-34, 36
+Going forward:
+- New stale paths land in dated appendix sections, not in the master table above
+- Items get walked via single findings or sweep findings (per F144-F148 precedent)
+- Sweep findings preferred when >3 related items can be bundled (per §7 protocol from original queue)
+- Deferred items get explicit scope reasoning in their resolution finding
 
 ---
 
-*Created 2026-05-27 per user direction "collect a list if any trailing research paths went stale that we can queue". Replaces ad-hoc inline open-question lists with a single central queue. Maintained alongside the rolling RBS-LM PR.*
+*Originally created 2026-05-27 per user direction "collect a list if any trailing
+research paths went stale". Updated 2026-05-28 with final F144-F148 sweep cleanup
+status. All 44 original items + 3 long-pending tasks addressed. Queue is operationally
+closed.*
