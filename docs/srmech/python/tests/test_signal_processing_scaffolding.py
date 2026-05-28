@@ -91,15 +91,14 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_4rc2():
-    """v0.4.4rc2 — bundles the `siona` co-name alias package inside the srmech
-    wheel: ``pip install srmech`` now makes ``import siona`` == ``import srmech``
-    (same objects). Builds on rc1's cascade chirality mini-set. No new class,
-    ABI unchanged at 2. The ``rcN`` tag routes to TestPyPI per
-    ``.github/workflows/srmech-publish.yml``; the clean ``srmech-v0.4.4`` tag
-    is the human-in-loop production gate."""
-    assert srmech.__version__ == "0.4.4rc2", (
-        f"expected srmech.__version__ == '0.4.4rc2'; got "
+def test_version_is_0_4_4():
+    """v0.4.4 — production release consolidating rc1 (cascade chirality
+    mini-set) + rc2 (bundled `siona` co-name alias: ``pip install srmech``
+    makes ``import siona`` == ``import srmech``, same objects). No new class,
+    ABI unchanged at 2. Both rcs were clean-venv-verified on TestPyPI first;
+    the clean ``srmech-v0.4.4`` tag is the human-in-loop production gate."""
+    assert srmech.__version__ == "0.4.4", (
+        f"expected srmech.__version__ == '0.4.4'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -107,7 +106,7 @@ def test_version_is_0_4_4rc2():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.4rc2"
+    assert version_str == "0.4.4"
     assert version_str == srmech.__version__
 
 
