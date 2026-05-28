@@ -4,7 +4,28 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.7** (queued srmech follow-ups deferred during the v0.4.4 chirality + siona arc and the v0.4.5 cascade-catalog C-parity arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in. Plus v0.5.0 DSL work: runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce (task #235)._
+_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+
+## [0.4.6] - 2026-05-28
+
+**Clean ship — two-arc v0.4.6 closed (PyPI description SO(8) refresh + out-of-band introspection).**
+
+PyPI metadata refresh leads with substrate-native 28-dim chiral hyper-loop = 𝔰𝔬(8) adjoint framing (per user 2026-05-28 *"strip MVP false things"*). NEW public surface: srmech is now installable as a **console-script binary** — `pip install srmech` puts `srmech` on PATH for the first time, with one subcommand `srmech status` providing out-of-band introspection of running srmech sweeps.
+
+**rc1 (TestPyPI verified)**: PyPI `description` field rewritten. 502 chars; both pyproject + pyproject-pure identical. Leads with 28D = 𝔰𝔬(8) adjoint framing.
+
+**rc2 (TestPyPI verified incl. CLI on PATH + live publish/status/auto-cleanup)**:
+- Added: `srmech.introspect` module — `publish()` context manager; `list()` enumerates active runs (filters by file ownership; no `top`/`ps`/`Get-Process` needed); `by_pid(N).follow()` streams events; frozen `Run` + `Event` dataclasses (MPR-shaped; attestable).
+- Added: `srmech status [--pid N] [-f]` CLI subcommand + `pip install srmech` → `srmech` console-script on PATH (NEW public surface).
+- Added: `SRMECH_PUBLISH_STATUS=1` env var auto-activates publish process-wide.
+- File backend: `~/.srmech/run-{pid}-{start_time_ns}.ndjson` (start_time_ns defeats PID recycling).
+- Off by default; off-path emit check ≈174ns; on-path emit ≈76µs (json+file write+flush).
+- Cross-platform Linux/macOS/Windows (POSIX `os.kill(pid, 0)`; Windows ctypes `OpenProcess` — no pywin32 dep). Pyodide degrades cleanly.
+- 35 new tests in `test_introspect.py`; full suite 1392 passing.
+
+**Framework reading**: introspection IS Class H (self-introspection) extended across the OS-process boundary; the running process IS the spatial manifold, the introspection API IS its algebraic projection. The "srmech calls itself" extension composes with Spike #219 / MFO §VII.6.11 substrate-self-recognition cascade.
+
+**ABI**: unchanged at 2 (no C changes; pure Python module).
 
 ## [0.4.6rc2] - 2026-05-28
 
