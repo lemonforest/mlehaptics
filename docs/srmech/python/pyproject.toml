@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.4.5"
+version = "0.4.6rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -30,7 +30,7 @@ version = "0.4.5"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject-pure.toml`.
-description = "Stored-Relationship Mechanism research package. 14-class primitive vocabulary in native C + Python (content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational, equation-of-centre/Kepler, HDC); canonical QM/QFT/SM operations layer (Schrödinger, Dirac, Yang-Mills, Standard Model); runtime spectral decomposition; dual-path signal-processing surface; AMSC provenance framework (MPR v1 + universal catalog bridge)."
+description = "Stored-Relationship Mechanism. 14-class A-N primitive vocabulary in native C + Python — substrate-native 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L+R octonion-multiplications; Spin(8) triality) made hardware-callable. Full cascade-catalog C/Python parity (content-addressing, cyclic-group, graph-Laplacian, primes, HDC, rational, dispatch, catalog, templating, Kepler). Canonical QM/QFT/SM operations. Runtime spectral decomposition; dual-path signal-processing; AMSC (MPR v1)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
