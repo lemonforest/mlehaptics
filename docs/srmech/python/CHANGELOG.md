@@ -6,6 +6,30 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc4] - 2026-05-28
+
+**rc4 of N for v0.5.0 — `srmech bus` CLI subcommands.**
+
+Adds `list / tap / pipe / send / serve` subcommands to the `srmech`
+console-script entry that was introduced in v0.4.6. Operates the
+v0.5.0 bus from the shell: enumerate endpoints, tail live event
+streams, chain endpoints, one-shot send, test-serve.
+
+- Added: `srmech bus list [--json] [--all]` — active endpoints,
+  ownership-filtered.
+- Added: `srmech bus tap NAME [--seed HEX] [--format json|pretty]
+  [--filter TYPE] [--limit N]` — stream events.
+- Added: `srmech bus pipe SRC DST [--seed-src HEX] [--seed-dst HEX]
+  [--transform PY_EXPR]` — daemon pipe.
+- Added: `srmech bus send NAME EVENT_JSON [--seed HEX] [--timeout S]
+  [--stdin]` — one-shot request.
+- Added: `srmech bus serve NAME [--echo] [--seed HEX] [--seed-mint]
+  [--handler-module PYMOD:func]` — test server.
+
+Pure-Python; ABI unchanged at 3.
+
+~30 new tests via subprocess invocation of the entry point.
+
 ## [0.5.0rc3] - 2026-05-28
 
 **rc3 of N for v0.5.0 — state-chained wire format ("biological TOTP-like").**

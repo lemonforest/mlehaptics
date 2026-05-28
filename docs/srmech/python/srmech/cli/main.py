@@ -1,17 +1,26 @@
 """srmech CLI entry point.
 
 Wires the ``srmech`` (and ``siona``) console-script entry to a single
-:func:`main` dispatch. v0.4.6rc2 ships one subcommand — ``status`` —
-backed by :mod:`srmech.cli.status`.
+:func:`main` dispatch.
+
+* v0.4.6rc2 shipped ``srmech status`` (out-of-band introspection of a
+  running srmech sweep), backed by :mod:`srmech.cli.status`.
+* v0.5.0rc4 adds ``srmech bus`` subcommands
+  (``list / tap / pipe / send / serve``) for operating the v0.5.0
+  bus from the shell, backed by :mod:`srmech.cli.bus`.
 
 Usage::
 
-    srmech status                # list active publishing runs
-    srmech status --pid 12345    # detail one run
-    srmech status --pid 12345 -f # follow the run's event stream
-    srmech status --json         # machine-readable list
+    srmech status                       # list active sweep runs
+    srmech status --pid 12345 -f        # follow one run
 
-``python -m srmech status ...`` is equivalent.
+    srmech bus list                     # list active bus endpoints
+    srmech bus serve NAME --echo        # minimal test server
+    srmech bus send NAME EVENT_JSON     # one-shot request
+    srmech bus tap NAME                 # stream broadcast events
+    srmech bus pipe SRC DST             # forward SRC -> DST
+
+``python -m srmech ...`` is equivalent.
 """
 
 from __future__ import annotations
@@ -20,6 +29,7 @@ import argparse
 import sys
 from typing import List, Optional
 
+from . import bus as _bus_cli
 from . import status as _status
 from srmech.version import __version__ as _srmech_version
 
@@ -27,15 +37,16 @@ from srmech.version import __version__ as _srmech_version
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argparse tree.
 
-    Kept tiny — one subcommand for now. Each subcommand wires its
-    own argparse via its module-level ``add_arguments`` helper.
+    Each subcommand wires its own argparse via its module-level
+    ``add_arguments`` helper.
     """
     parser = argparse.ArgumentParser(
         prog="srmech",
         description=(
-            "srmech command-line interface. v0.4.6rc2 ships one "
-            "subcommand: ``status`` (out-of-band introspection of a "
-            "running srmech sweep)."
+            "srmech command-line interface. v0.5.0rc4 ships two "
+            "subcommands: ``status`` (out-of-band introspection of a "
+            "running srmech sweep) and ``bus`` (operate the v0.5.0 "
+            "cross-process bus)."
         ),
     )
     parser.add_argument(
@@ -56,6 +67,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _status.add_arguments(status_p)
+    bus_p = sub.add_parser(
+        "bus",
+        help=(
+            "Operate the srmech.bus from the shell (list/tap/pipe/send/serve)."
+        ),
+        description=(
+            "Operate the v0.5.0 srmech cross-process bus. Five "
+            "subcommands: list (enumerate endpoints), tap (stream "
+            "events), pipe (forward SRC->DST), send (one-shot "
+            "request), serve (test server)."
+        ),
+    )
+    _bus_cli.add_arguments(bus_p)
     return parser
 
 
@@ -77,6 +101,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "status":
         return _status.run(args)
+    if args.command == "bus":
+        return _bus_cli.run(args)
     parser.print_help()
     return 0
 
