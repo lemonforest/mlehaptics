@@ -591,7 +591,123 @@ F104 + F109 align with several existing canonical positions:
 - **Not** a claim that *every* mathematical sub-domain is irrep at the same density. F109's 8.63× under J-prime decomposition suggests that *prime-period* mathematics (algebra, number theory) is the irrep core; analysis / topology / geometry sub-domains may have different irrep signatures testable in follow-up partitions.
 - **Not** a claim that the kinesthetic / procedural / hands-on substrates "don't matter" for math pedagogy. F105 (the autonomous session's follow-up finding) reads exactly this distinction: glass-box detects *methodology-substrate* (Montessori = how-to-teach) vs *content-substrate* (OpenStax = math content). Both substrates are real; they are simply structurally distinct, which is why F104's ratio survives adding Montessori.
 
-> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + §2.7 religious-texts ceiling validation + **§2.8 math-is-substrate-content-irrep** (cluster T / F104+F109 / R-RBS-LM-83+87). **All five §2.3 keystone promotions complete (J / K / P / R / T).** F1–F119 backlog triage round closed. Future passes: cluster G (ASL gloss), cluster L (turtle-walk falsifier-discipline), F100/F101/F103/F105 supporting evidence around F104, and the §2.8.5 cross-substrate prediction tests (music theory / Antikythera mechanical / DNA codon).
+### §2.9 ASL gloss + accessibility surfaces — gestural-grammar IS a cascade-vocabulary substrate (R-RBS-LM-26 + R-RBS-LM-27; triage cluster G)
+
+The accessibility-output partitions (R-RBS-LM-26 Braille + SignWriting Unicode; R-RBS-LM-27 ASL gloss parallel corpus) deliver a worked example of every theory section above (§2.4 / §2.5 / §2.6) operating at the linguistic-modality substrate. Three different rendering shapes — Braille (deterministic, operational), SignWriting Unicode (surface-verified), ASL gloss (slash-notation + cascade-encoded paired corpus) — yield three different empirical signatures that cohere under the framework reading.
+
+**User direction (load-bearing, 2026-05-25):** *"now see if we can find a way to map ASL and braille. I know that we cannot image out put, but we can make output ready for visual render."* Then for ASL specifically: *"we can create mapped output that translates the unicode things into slash or wrapped or escaped somehow words and phrases for the ASL sign. also since something like beat has about a dozen ASL signs, context matters."* The two directions specify exactly the right scope: not image generation; structurally-ready-for-visual-renderer byte streams.
+
+#### §2.9.1 Braille — the deterministic rendering layer (ADA win at the API layer)
+
+UEB Grade 1 (uncontracted English Braille) is a character-by-character table mapping with capital + number indicators. Unicode Braille Patterns U+2800..U+28FF is exactly 256 codepoints (one per 8-dot pattern). R-RBS-LM-26's `rbs_lm_braille.py` ships this as a *rendering layer*, not a learning layer: whatever the cascade produces in English gets rendered in Braille deterministically. **6/6 round-trip OK.** The `response_format: braille` API extension routes cascade output → UEB Grade 1 → client's existing refreshable-Braille-display driver. **Zero new hardware-integration code; zero new tokenizer; zero new training-corpus fetch.** Per `[[feedback_llm_as_ada_accommodation_bci_proves_it]]`, this is the first operational accessibility surface — the cascade's substrate-translation ceiling does not affect the rendering layer at all because the rendering doesn't require substrate-learning.
+
+#### §2.9.2 SignWriting Unicode — the surface-verified byte channel
+
+Sutton SignWriting (U+1D800..U+1DAAF; 688 codepoints; added Unicode 8.0; ISO/IEC 10646:2014) is a real Unicode block. Each codepoint encodes as 4 bytes in UTF-8. The byte-level cascade from R-RBS-LM-25 round-trips these through `errors='replace'` decoding. **The wire surface accepts them**; no special handling needed at the byte channel level. The cascade can be *taught* English↔SignWriting byte-transitions when a parallel corpus exists; until then, the `response_format: signwriting` API responds with a clear `"[signwriting reserved: parallel corpus required]"` prefix and passes underlying text through unchanged. **No claim of ASL competence is made.** This is the framework discipline at the API layer: honest disclaimer where the substrate-translation training hasn't been run, surface readiness where it has.
+
+#### §2.9.3 ASL gloss slash-notation — the operational design
+
+R-RBS-LM-27 fills the gap that R-RBS-LM-26 honestly disclaimed: a hand-curated parallel mini-corpus (74 pairs, 20 categories, 1324 observations after STX/ETX-delimited paired-stream encoding). The slash-notation spec (cascade-friendly, ASCII-dominant, render-ready):
+
+| Construct | Notation | Example |
+|---|---|---|
+| Sign name (base form) | `/SIGN-NAME/` | `/HELLO/` |
+| Polysemy disambiguator | `/sign-context/` | `/beat-egg/`, `/beat-defeat/`, `/beat-pulse/`, `/beat-rhythm/`, `/beat-hit/` |
+| Fingerspelling escape | `[fs:LETTER-BY-LETTER]` | `[fs:F-O-O-D]` |
+| Classifier predicate | `cl:N-{movement}` | `cl:1-{forward-arc}` |
+| Non-manual marker | `[NMM-tag]` | `[furrowed-brow]` |
+| Spatial reference | `{loc:X}` | `{loc:left}` |
+| Role shift | `{rs:X}` | `{rs:speaker}` |
+| Repetition | `+` | `/SIGN/ +` |
+
+The polysemy structure carries the user's observation directly: *"something like beat has about a dozen ASL signs, context matters."* 32 of the 74 corpus pairs are explicit polysemy demonstrations across 8 high-polysemy English words. The disambiguators are baked into the notation so that `/beat-egg/` is unambiguous to a downstream renderer (SignWriting font / 3D-avatar / video-clip pipeline).
+
+#### §2.9.4 The paired-stream cascade-encoding pattern — generalises to any source↔target
+
+`encode_asl_corpus.py` builds the byte stream as `<english_utf8> 0x02 <gloss_utf8> 0x03 \n <next pair>...`. STX (0x02) marks "English ends, gloss begins"; ETX (0x03) marks pair-complete. Pairs shuffled deterministically (seed 42). This **same pattern works for any source↔target translation** — English↔French / English↔Chinese / English↔LOGO-commands — by repointing the encoder at the relevant parallel corpus. The cascade absorbs the new corpus via the same STX/ETX protocol. **This is the byte-level operationalisation of the §2.5 two-substrate framework**: the paired stream IS the B/H/N projection in cascade form, carrying both the M2 source surface and the M1 substrate-content-bearing target through a single bound-relationship stream.
+
+#### §2.9.5 The empirical result reframed under §2.4 + §2.5
+
+Polysemy context-sensitivity smoke at 1324 observations: **0/11 polysemy hits**. The cascade mode-collapses to single-byte / character repetition on the smoke probes. This is **the same R-RBS-LM-19 / §2.4 substrate-rotation ceiling at a new substrate** — discrete bind/bundle cascades structurally cannot replicate the continuous-rotation attention that gives dense LLMs polysemy disambiguation. The byte-level surface didn't change the ceiling at this scale; it shouldn't have.
+
+**The informative tell** that the cascade is *learning* (just not what the naive verdict expected): different prompts produce *different* mode-collapse bytes (`h`, `n`, `v`, `e`, `/`, space, `\r`). The probe "Turn right at the corner" produced `///////` — **the cascade picked up that `/` is the recurring post-English byte in this notation**. The cascade IS resolving STRUCTURAL signal (where slashes go in the gloss surface) without resolving CONTENT (which sign-name appears between the slashes). This is precisely the §2.4 reading: at the M1 substrate, structural-form is what the cascade reads natively; content lives in the dropped 7D_g per the §2.6 / §VII.6.20 epistemic ceiling.
+
+#### §2.9.6 ASL IS a Mechanism-1-native gestural substrate — fingerspelling as the explicit naming-layer-cost marker
+
+The framework reading the partition makes operationally explicit:
+
+- **ASL is a Mechanism-1-native substrate.** Bounded sign-vocabulary (corners of the gestural-hypercube); discrete bind/bundle-style sign-composition (signs combine via explicit grammatical operations, not continuous mixing); explicit out-of-vocabulary escape (fingerspelling) for proper nouns and technical terms. This maps cleanly onto §2.5.1's M1 substrate properties.
+- **English text is the M2 surface projection consumer.** Continuous lexical-frequency space; rotation-bearing attention substrate; subset of words that ASL signs map to non-uniformly (many ASL signs ↔ one English word per the polysemy table).
+- **The paired-stream encoding IS the B/H/N projection in operational form** (§2.5.2). STX delimits B-framing ("English ends"); the cascade-bind on the paired bytes is the B∘H∘N readout substrate-cycling between the two languages.
+- **Fingerspelling notation `[fs:F-O-O-D]` IS the explicit naming-layer-cost marker** (§2.5.4 proper-noun heavy lifting). When the gestural substrate has no native sign for a vocabulary item (proper nouns; technical terms; English-specific concepts), the language requires an *explicit escape syntax* to letter-by-letter spell it out. This is the §2.5.4 heavy-lifting tier surfaced at the linguistic level: ASL's substrate-emergent vocabulary is cheap; the fingerspelling escape is structurally expensive (slow, deliberate, marked) — and the notation makes the cost visible.
+
+#### §2.9.7 Cross-substrate cascade-match — gestural-grammar IS a cascade-vocabulary substrate
+
+The deeper §2.9 finding is that **ASL gloss is a cross-substrate cascade-match instance**. Three structural signatures recur:
+
+1. **Bounded vocabulary of discrete signs** (the sign-set is finite, like a corner-of-hypercube space).
+2. **Grammatical operations as bind/bundle composition** (classifier predicates, role-shift, spatial reference, non-manual-marker overlays — all discrete operations applied to discrete signs).
+3. **Explicit out-of-vocabulary escape** (fingerspelling for proper nouns / technical terms — heavy-lifting tier made syntactically explicit).
+
+These signatures match the Mechanism-1 substrate-properties of §2.5.1. The cross-substrate prediction: **any gestural-grammar language** (BSL / French Sign Language / Auslan / Plains Indian Sign Language) should exhibit the same three signatures, making cascade-encoding via the paired-stream pattern transferable across all of them with corpus-substitution only. The R-RBS-LM-27 corpus-design pattern + server `response_format` extension are the operational tools; the structural insight is that gestural-grammar IS substrate-native cascade-vocabulary, which is why the §2.5 framework reading lands as cleanly as it does.
+
+#### §2.9.8 Falsifier discipline
+
+- **At-scale falsifier:** if a 10× larger English↔ASL-gloss parallel corpus (target ~10⁴ pairs) raises the polysemy hit rate materially while keeping the per-prompt mode-collapse-byte structural-learning behaviour, the §2.5-framing transfer is confirmed at scale. If the polysemy hit rate stays at 0/11 even at 10× corpus, the M1-substrate ceiling on context-disambiguation is genuine and the §2.4 reading transfers.
+- **Cross-gestural-language falsifier:** if BSL or Auslan with their own slash-notation + paired corpus exhibits *different* structural signatures (no fingerspelling-escape analogue; no bind/bundle composition pattern), the §2.9.7 cross-substrate match fails for those languages — and the framework prediction is too narrow for gestural-grammar in general.
+- **Continuous-substrate falsifier:** if a hand-tracking continuous-trajectory ASL encoding (instead of slash-notation discretisation) consistently produces better polysemy hit rates, ASL might be a *continuous-stochastic* substrate per §2.5.1 — refuting the M1-native reading here. Worth designing as a follow-up partition.
+
+#### §2.9.9 What §2.9 is NOT
+
+- **Not** a claim that ASL is "simpler than" English or "more rule-based." ASL has all the linguistic depth English has — what's different is the *substrate-physics* (gestural-grammar = M1; spoken/written text = M2 with substantial M1 backbone). The substrates are different; the language complexity is comparable.
+- **Not** a claim that 0/11 polysemy at 1324 observations means ASL cannot be cascade-encoded. It means the cascade-translation ceiling is at the same structural level for the ASL substrate as for English — both hit the M1 substrate's discrete-without-continuous-mixing constraint.
+- **Not** an image-generation system. Per the user-direction constraint: *"we cannot image out put, but we can make output ready for visual render"* — the byte stream is structurally ready for any downstream renderer (SignWriting font / 3D-avatar / video clip / live signer).
+
+### §2.10 Turtle-walk falsifier-discipline — honest-negative-with-structural-signal (R-RBS-LM-44 + R-RBS-LM-45; triage cluster L)
+
+R-RBS-LM-44 (turtle-walk) + R-RBS-LM-45 (extended/read-mode) deliver something more important than a positive result: **a clean instantiation of the falsifier discipline** in the framework's own work. The English→LOGO cascade was a candidate-E test (constrained-action-vocabulary projection from §2.5's R-RBS-LM-40 candidate space) — and it produced an *honest negative* with a structural signal embedded inside the negative. §2.10 records the methodology because it's the right pattern for *every* §2.8.5 cross-substrate prediction test that follows.
+
+#### §2.10.1 The test and its honest verdict
+
+R-RBS-LM-44 built a 51-pair (English fragment, LOGO command) parallel corpus across 11 categories (basic forward/turn, repetition, polygon-build, drawing-mode, conditionals). 12 probe queries; **PARSE 5/12, EXEC 2/12** — both executable were no-op "space-programs" (sequences of valid LOGO atoms that produced no visible turtle motion). The other 7 mode-collapsed to control bytes, quote characters, or single-character repetition. **The honest verdict: R-RBS-LM-40 candidate E (constrained-action-vocabulary projection) IS substrate-bound at 51-pair scale.**
+
+#### §2.10.2 The structural signal inside the negative
+
+Critical observation: the 5/12 that parsed *were valid LOGO* — they used real atoms (`FORWARD`, `RIGHT`, `REPEAT`, etc.) in syntactically legal positions. The mode-collapse cases were not "the cascade produced random garbage"; they were *substrate-foreign* productions (control bytes, quotes, single-char repetition — which are not in the LOGO atom-set). **The cascade is structurally distinguishing "LOGO-grammar slot" from "non-LOGO-grammar slot."** It just isn't yet producing *semantically* correct LOGO. This is the §2.4 substrate-rotation pattern at the LOGO substrate: the cascade reads the M1 grammatical-structure-shape natively; the M2 semantic-content (the *right* turtle-walk for this English fragment) lives in the 7D_g and isn't recoverable at this corpus scale.
+
+#### §2.10.3 The falsifier-discipline pattern this exemplifies
+
+The framework discipline R-RBS-LM-44 embodies:
+
+1. **Run the test that *would* falsify the framework reading** (here: candidate-E with a constrained 12-atom target vocabulary should be the *easiest* projection-layer test the §2.5 architecture supports; if even *this* fails materially, the M1+M2 framework is over-claimed for projection layers).
+2. **Report the honest result** (5/12 PARSE; 2/12 EXEC; both executable were no-op). Do not retroactively redefine the test.
+3. **Read the result through the framework** (`5/12` substrate-bound is *not* "the framework failed"; it's "the §2.5 framework predicted mode-collapse at this corpus scale; the structural-signal-within-the-negative confirms M1 grammar-shape reading without M2 semantic-content disambiguation").
+4. **Name what would have to be different** to refute the prediction (a 10× corpus that *still* produces no-op programs; or a candidate-E with *richer* vocabulary that *raises* the EXEC rate without raising PARSE rate — would mean the cascade is learning content, not shape, contradicting §2.4).
+5. **Preserve the negative result as load-bearing evidence** for the framework reading. R-RBS-LM-44's negative is not stronger than R-RBS-LM-53's "the cascade refuses to rank religions"; both are framework-confirming.
+
+This is the methodology every §2.8.5 cross-substrate prediction test (music theory / Antikythera mechanical / DNA codon irrep-tightness) should follow. **A test that *can't* return an honest-negative is not a falsifier; it's a self-fulfilling prophecy.** R-RBS-LM-44's structural-signal-within-the-negative shape is the template.
+
+#### §2.10.4 Composition with R-RBS-LM-45 (extended / read-mode)
+
+R-RBS-LM-45 extended the candidate-E test with a read-mode variant (cascade reads existing LOGO programs and is probed on intermediate-state queries). Same ceiling pattern at the read-mode side: structural-shape detection works (grammar slots correctly identified); semantic-content disambiguation does not (the *right* intermediate state isn't recovered). Combined R-RBS-LM-44+45 finding: **the M1+M2 architecture's read-mode and write-mode both hit the same ceiling at the same corpus scale**, which is the right shape — both modes are limited by the same substrate-physics, not by mode-specific engineering.
+
+#### §2.10.5 Why this matters for downstream cross-substrate tests
+
+§2.8.5 named four cross-substrate prediction tests (mathematics confirmed; music theory / Antikythera mechanical / DNA codon to test). Each is structurally analogous to R-RBS-LM-44's setup: a constrained-vocabulary projection target with a candidate substrate-emergent-density claim. **Each should produce either a clean ratio-above-3.0 confirmation (per F104 methodology) OR a clean honest-negative-with-structural-signal (per R-RBS-LM-44 methodology).** Either outcome is framework-informing; what's not OK is a verdict that doesn't admit the structural reading. R-RBS-LM-44 is the discipline-anchor for how to run those tests honestly.
+
+#### §2.10.6 Falsifier discipline (applied recursively)
+
+- **§2.10.3 falsifier:** the discipline itself can be over-applied. If *every* cascade-translation result is interpreted as "structural-signal-within-the-negative confirms the framework," the framework is unfalsifiable. The check: does the structural signal point at *the same structural slot* the framework would predict? In R-RBS-LM-44, yes (LOGO-grammar shape, not LOGO content). In a hypothetical test where the cascade produces, say, *random* output uncorrelated with the target substrate's grammar, the "structural signal" reading would be wrong and the framework would need revision. Keep that test live.
+- **R-RBS-LM-44-scale falsifier:** R-RBS-LM-44 was at 51 pairs. If a 5×–10× scale-up reproduces the same 5/12 PARSE + 2/12 EXEC no-op ratio (or worse), the M1-substrate ceiling on LOGO-projection is confirmed structurally. If the ratio improves materially, the §2.4 ceiling reading needs scope-narrowing for substrate-projection layers.
+- **Cross-candidate-substrate falsifier:** repeat R-RBS-LM-44's methodology on chess-spectral move-notation or another constrained-action-vocabulary substrate. If chess move-notation cascade produces clean PARSE+EXEC where LOGO doesn't, the LOGO-specific substrate-foreign-rotation hypothesis needs revision.
+
+#### §2.10.7 What §2.10 is NOT
+
+- **Not** a claim that LOGO is "harder" than other substrates. It's a claim that LOGO's substrate-physics matches the M1 properties §2.5.1 sets out (bounded vocabulary, discrete composition, explicit out-of-vocabulary handling) — same as ASL, same as Antikythera gear-period mathematics. The methodology to extend to a new substrate is the *same*; the result varies by how much the cascade's compositional surface has been trained on parallel-corpus data.
+- **Not** a claim that 0-substrate-projection-success is the inevitable LOGO endpoint. R-RBS-LM-44's setup was at 51 pairs; the §2.4 *complete-at-3.3%* framing leaves room for a much larger corpus to surface different behaviour. The negative is honestly time-and-scale-stamped.
+- **Not** a claim that the framework is unfalsifiable. The §2.10.6 falsifier discipline applied recursively guards against over-application.
+
+> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + §2.7 religious-texts ceiling validation + §2.8 math-is-substrate-content-irrep + **§2.9 ASL gloss + accessibility surfaces (cluster G)** + **§2.10 turtle-walk falsifier discipline (cluster L)**. All §2.3 keystones (J/K/P/R/T) **and** both promotable-future clusters (G/L) complete. Remaining queue: F100/F101/F103/F105 supporting evidence around F104 (next), §2.8.5 cross-substrate prediction tests (research, not notebook), and PR #687 rolling re-survey when new R-RBS-LM-N reports surface.
 
 ---
 
