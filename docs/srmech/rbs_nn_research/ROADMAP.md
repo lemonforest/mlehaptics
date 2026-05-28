@@ -1,6 +1,8 @@
 # ROADMAP.md — what comes next after the RBS-NN arc
 
-**Status:** RBS-NN arc structurally closed 2026-05-25 (PR #684). This file tracks the natural next-work items.
+**Status:** Original RBS-NN-1..9 arc structurally closed 2026-05-25 (PR #684). **Subsequent operational work landed R-RBS-NN-10 (two-tier storage prototype) 2026-05-28; phased follow-up plan in [`R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md`](R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md).**
+
+This file tracks the original NEXT-1..6 items. The R-RBS-NN-10 follow-up phased plan supersedes / integrates these items (see plan §8 for cross-reference table).
 
 ---
 
