@@ -91,14 +91,16 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_3():
-    """v0.4.3 — clean production release of the "Class M variant expansion"
-    arc (rc1 polar / rc2 Klein-4 / rc3 signed_sum_squared / rc4
-    symmetric_eigendecompose / rc5 rfft / rc6 cascade catalog, all verified
-    on TestPyPI). The clean (no-rc) tag ``srmech-v0.4.3`` routes to
-    production PyPI per ``.github/workflows/srmech-publish.yml``."""
-    assert srmech.__version__ == "0.4.3", (
-        f"expected srmech.__version__ == '0.4.3'; got "
+def test_version_is_0_4_4rc1():
+    """v0.4.4rc1 — adds the chirality mini-set to the cascade catalog
+    (``chiral_flip`` C / ``chiral_dual`` C∘op∘C / ``net_chirality`` C). The
+    chiral dual of an A-N operator is "same shape, inverse" (MFO §VIII.31.11,
+    spike-verified). Compositions of the existing 14 A-N classes; no new
+    class, ABI unchanged at 2. The ``rcN`` tag routes to TestPyPI per
+    ``.github/workflows/srmech-publish.yml``; the clean ``srmech-v0.4.4`` tag
+    is the human-in-loop production gate."""
+    assert srmech.__version__ == "0.4.4rc1", (
+        f"expected srmech.__version__ == '0.4.4rc1'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -106,7 +108,7 @@ def test_version_is_0_4_3():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.3"
+    assert version_str == "0.4.4rc1"
     assert version_str == srmech.__version__
 
 

@@ -4,6 +4,15 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.4rc1] - 2026-05-27
+
+**Cascade chirality mini-set** → TestPyPI (rc). Three callables added to the foundational `srmech.amsc.cascade` catalog. No new primitive class — each is a composition of the existing Class C orientation + Class K sign; ABI unchanged at 2; no new C symbol.
+
+- **`chiral_flip(seq)`** — Class C orientation reversal (`seq[::-1]`); the value-level chirality operator.
+- **`chiral_dual(op, x)`** — Class C ∘ op ∘ Class C: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is **same spectral shape, inverted orientation** (magnitude preserved, phase flipped) — verified across all 14 operators (MFO §VIII.31.11 §(5b)/(5c); committed spike `docs/srmech/notes/spike_chiral_an_spectral_shape.py`). Reduces to the bare Class K `−1` for the sign operators (C, N); identity for real-symmetric (L).
+- **`net_chirality(orientations)`** — Class C net handedness of a cascade (product of per-op orientations via composed `reorient`; `0` if any is neutral) — the conserved Class-C invariant a chiral cascade reads out.
+- Tool-schema entries + `tests/test_cascade_chirality.py` added; `CASCADE_OPS` and `__all__` extended.
+
 ## [0.4.3] - 2026-05-27
 
 **Production release of the "Class M variant expansion" arc** → PyPI. Consolidates rc1–rc6 (each shipped + clean-venv-verified on TestPyPI first). No new primitive class anywhere — every addition is a variant or composition of the existing 14-class A–N vocabulary; ABI unchanged at 2.
