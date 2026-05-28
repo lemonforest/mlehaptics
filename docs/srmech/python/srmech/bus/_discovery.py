@@ -148,6 +148,10 @@ def _endpoint_alive_tcp_registry(path: Path) -> bool:
     firewall dropping the SYN). We use a short timeout
     (:data:`_LIVENESS_TIMEOUT_S`) so a directory of stale
     registrations doesn't slow ``list()`` down.
+
+    v0.5.0rc2: a ``pipe ...`` registry token routes to the named-pipe
+    liveness probe (``_endpoint_alive_named_pipe``); the legacy
+    ``tcp ...`` token retains the TCP probe.
     """
     if not path.exists():
         return False
@@ -156,7 +160,11 @@ def _endpoint_alive_tcp_registry(path: Path) -> bool:
     except OSError:
         return False
     parts = text.split()
-    if len(parts) != 3 or parts[0] != "tcp":
+    if not parts:
+        return False
+    if parts[0] == "pipe" and len(parts) == 2:
+        return _endpoint_alive_named_pipe(parts[1])
+    if parts[0] != "tcp" or len(parts) != 3:
         return False
     host = parts[1]
     try:
@@ -176,6 +184,38 @@ def _endpoint_alive_tcp_registry(path: Path) -> bool:
         finally:
             s.close()
     except OSError:
+        return False
+
+
+def _endpoint_alive_named_pipe(pipe_path: str) -> bool:
+    """Probe a Win32 named pipe for liveness via WaitNamedPipeW.
+
+    Returns True iff WaitNamedPipeW with a short timeout reports the
+    pipe is connectable. We do NOT actually open the pipe (each
+    successful CreateFileW would consume one of the server's
+    instances + force a reconnect cycle); WaitNamedPipeW is the
+    lightweight probe Win32 documents for this exact case.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        _kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        _kernel32.WaitNamedPipeW.restype = wintypes.BOOL
+        _kernel32.WaitNamedPipeW.argtypes = [
+            wintypes.LPCWSTR, wintypes.DWORD
+        ]
+    except Exception:
+        return False
+    # 50ms — matches _LIVENESS_TIMEOUT_S.
+    timeout_ms = int(_LIVENESS_TIMEOUT_S * 1000)
+    if timeout_ms < 1:
+        timeout_ms = 1
+    try:
+        ok = _kernel32.WaitNamedPipeW(pipe_path, timeout_ms)
+        return bool(ok)
+    except Exception:
         return False
 
 
@@ -255,7 +295,17 @@ def list_endpoints(*, cleanup_dead: bool = True) -> List[Endpoint]:
             transport = "uds"
         else:
             alive = _endpoint_alive_tcp_registry(path)
-            transport = "tcp"
+            # Report the actual transport recorded in the registry
+            # (v0.5.0rc2: "pipe" by default; "tcp" for fallback /
+            # legacy rc1 servers).
+            transport = "pipe"
+            try:
+                text = path.read_text(encoding="utf-8").strip()
+                parts = text.split()
+                if parts and parts[0] == "tcp":
+                    transport = "tcp"
+            except OSError:
+                pass
         if cleanup_dead and not alive:
             try:
                 path.unlink(missing_ok=True)  # type: ignore[arg-type]

@@ -41,12 +41,48 @@ import time
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 from ._event import (
+    MPR_VERSION_BUS,
     Event,
     make_event,
     new_correlation_id,
     parse,
     serialize,
 )
+
+
+def _make_event_any_payload(
+    type: str,
+    payload: Any,
+    *,
+    sender_pid: int,
+    sender_name: str,
+    correlation_id: str,
+) -> Event:
+    """Construct an :class:`Event` that accepts ANY JSON-serialisable payload.
+
+    The canonical :func:`srmech.bus._event.make_event` helper coerces
+    its ``payload`` to ``dict(payload) if payload else {}``, which is
+    fine for the introspect-style read-only stream but over-restrictive
+    for the bus's full req/rep surface. The v0.5.0rc2 Bug-2 fix wants
+    string / list / number / None / dict payloads to all round-trip.
+
+    This constructor is a thin specialisation that defers to the
+    dataclass directly, preserving the input payload type (it's still
+    JSON-serialised at frame time via :func:`json.dumps`, which will
+    raise on truly non-serialisable inputs — the canonical place).
+    """
+    import time as _time
+    return Event(
+        mpr_version=MPR_VERSION_BUS,
+        type=type,
+        payload=payload,  # type: ignore[arg-type] — runtime is JSON-typed
+        attestation={
+            "sender_pid": int(sender_pid),
+            "sender_name": str(sender_name),
+            "ts_ns": _time.time_ns(),
+        },
+        correlation_id=correlation_id,
+    )
 from ._framing import FramingError, pack_frame, unpack_frame
 from ._server import SUBSCRIBE_TYPE
 from ._transport import (
@@ -208,13 +244,17 @@ class Channel:
         if "type" not in event:
             raise ValueError("event dict must contain a 'type' key")
         ev_type = str(event["type"])
+        # v0.5.0rc2 Bug 2 fix: accept ANY JSON-serialisable payload
+        # (string, list, number, None, dict). rc1 over-restricted to
+        # dict-only; standard JSON conventions allow any JSON value.
+        # We do not pre-validate the type here — json.dumps below
+        # raises on truly non-serialisable objects, which is the
+        # canonical place to detect them.
         payload = event.get("payload")
-        if payload is not None and not isinstance(payload, dict):
-            raise ValueError("event['payload'] must be a dict")
         corr_id = new_correlation_id() if expect_reply else ""
-        bus_event = make_event(
+        bus_event = _make_event_any_payload(
             type=ev_type,
-            payload=payload or {},
+            payload=payload,
             sender_pid=self._pid,
             sender_name="<client>",
             correlation_id=corr_id,
@@ -249,9 +289,17 @@ class Channel:
             raise waiter.error
         if waiter.response is None:
             raise BusError("waiter signalled but no response set")
+        # v0.5.0rc2: payload is any JSON-serialisable value, not only
+        # dict. Copy dict payloads (defensive immutability) but pass
+        # other types through unchanged.
+        resp_payload = waiter.response.payload
+        if isinstance(resp_payload, dict):
+            resp_payload = dict(resp_payload)
+        elif isinstance(resp_payload, list):
+            resp_payload = list(resp_payload)
         return {
             "type": waiter.response.type,
-            "payload": dict(waiter.response.payload),
+            "payload": resp_payload,
             "attestation": dict(waiter.response.attestation),
             "correlation_id": waiter.response.correlation_id,
         }
@@ -303,9 +351,15 @@ class Channel:
                 return
             if ev is None:
                 return  # shutdown sentinel
+            # v0.5.0rc2: payload is any JSON-serialisable value.
+            ev_payload = ev.payload
+            if isinstance(ev_payload, dict):
+                ev_payload = dict(ev_payload)
+            elif isinstance(ev_payload, list):
+                ev_payload = list(ev_payload)
             yield {
                 "type": ev.type,
-                "payload": dict(ev.payload),
+                "payload": ev_payload,
                 "attestation": dict(ev.attestation),
                 "correlation_id": ev.correlation_id,
             }

@@ -6,6 +6,93 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc2] - 2026-05-28
+
+**rc2 of N for v0.5.0 — C peer + real Windows named pipe + envelope fixes.**
+
+Per user direction 2026-05-28 (continuation of the rc1 dispatch): three
+changes folded into one rc — the bus C peer for sub-µs native dispatch
+(when both ends opt in), real Windows named pipes via Win32 ctypes
+(no `pywin32` dependency), and two envelope bugs from the rc1 cross-
+process smoke that silently dropped handler-returned keys and
+over-restricted client `payload` schema.
+
+- Added: `srmech_bus_*` C symbols — `srmech_bus_serve`,
+  `srmech_bus_server_accept_one`, `srmech_bus_server_stop`,
+  `srmech_bus_connect`, `srmech_bus_send_recv`,
+  `srmech_bus_client_close` — plus the function-pointer typedef
+  `srmech_bus_handler_callback_t`. JPL-clean POSIX (AF_UNIX) +
+  Windows (CreateNamedPipe via Win32, no pywin32 dep). Workspace
+  allocated once per server at `srmech_bus_serve`; reused across
+  every accepted connection (no allocation in the hot path; JPL
+  Rule 3 honored via cold-path-only allocation allowance). **ABI
+  bump 2 → 3** (the new function-pointer typedef carries a wire-
+  format implication for the Python ctypes CFUNCTYPE construction).
+- Added: Python ctypes binding `srmech.amsc._native.BUS_HANDLER_CALLBACK`
+  + bindings for all six new C symbols (hasattr-guarded so a stale
+  rc1 lib falls through cleanly to the Python-only path).
+- Added: `srmech.bus._transport.NamedPipeTransport` + the
+  `_SafeNamedPipeServerTransport` wrapper that auto-falls-back to
+  TCP-loopback on `CreateNamedPipeW` failure (rare; for sandboxed
+  test environments). Default Windows transport remains TCP-loopback
+  for rc2; opt-in to the named-pipe path via
+  `SRMECH_BUS_USE_NAMED_PIPE=1`. (The named-pipe accept loop on
+  Windows 10 / Python 3.14 exhibited a Connect/accept-ordering
+  regression under `multiprocessing.spawn` — the first
+  `ConnectNamedPipe` completed without a corresponding client
+  `CreateFileW`, leaving the worker reading from a phantom
+  connection; the rc2 commit message documents the investigation;
+  not yet root-caused. The C peer + Python ctypes infrastructure
+  are in place for a later rcN to flip the default once the
+  Connect/accept race is understood.)
+- Added: discovery registry token now accepts `pipe \\.\pipe\srmech-{name}`
+  (rc2 named-pipe servers) in addition to `tcp 127.0.0.1 <port>`
+  (rc1 fallback / locked-down environments).
+  `_endpoint_alive_named_pipe` probes via `WaitNamedPipeW` (which
+  does not consume a pipe instance per Microsoft docs).
+- Fixed: handler return-shape now correctly passes the full handler
+  dict through as the response Event's `payload` (rc1 was silently
+  aliasing `payload` to `handler_result.get("payload")` and dropping
+  every other key). A handler returning
+  `{"type": "pong", "echo": ..., "server_pid": ...}` now delivers
+  all three keys to the client end-to-end. The `type` discriminator
+  is also retained inside the payload for client-side inspection.
+  Handler contract documented in `_server.py:_normalise_response`.
+- Fixed: client `Channel.send()` no longer requires `payload` to be
+  a dict. Any JSON-serialisable value is accepted (string, list,
+  number, bool, `None`, dict). `json.dumps` raises at the canonical
+  serialisation boundary on truly non-serialisable inputs. Matches
+  standard JSON conventions; supports e.g. `{"type": "ping",
+  "payload": "echo-me"}` and `{"type": "metrics", "payload": [1, 2, 3]}`.
+- Fixed: handlers receive `payload` of the original JSON type
+  (string / list / number / dict / None), not coerced. Server's
+  `_event_to_dict` no longer wraps non-dict payloads as
+  `{"value": ...}`.
+- Changed: handlers without a `type` key in their return dict now
+  default to discriminator `"ok"` (rc1 defaulted to `"_response"`;
+  the rc2 default matches the spec's "type=ok default" idiom).
+- Changed: handler exceptions yield `{"type": "_error", "reason": ...,
+  "traceback": ...}` (rc1 nested these inside `payload` which the
+  Bug-1 fix obviated; the rc2 error envelope is flat and the full
+  dict still passes through as the response payload per the new
+  contract).
+- Tests: ~13 new tests covering Bug-1 (handler full-dict pass-through),
+  Bug-2 (any-JSON-payload), ABI v3 verification, native C-peer
+  symbol presence, BUS_HANDLER_CALLBACK CFUNCTYPE constructibility.
+  Total bus test count 49 → 62; full suite 1453 → 1457 passing.
+- JPL audit: `srmech_bus.c` opted into `RULE_3_COLD_PATH_FILES`
+  (cold-path-only allocation; no malloc in accept loop or per-
+  request worker). Seven small bus low-level helpers added to
+  `RULE_5_EXEMPT_FUNCTIONS` per the established static-internal-
+  trivial-wrapper pattern. Rule 4 / Rule 8 / Rule 1 all clean
+  without exemption.
+
+Remaining v0.5.0 rcs: rc3 state-chained wire format (per user
+direction 2026-05-28 — TOTP-like rolling cipher with srmech-provided
+`decode_splice` via tool-schema; same-user-defensive forward
+secrecy), rc4 CLI, rc5 async wrapper, rc6 MCP adapter (Claude Code
+integration), rc7 DSL runner, rc8 optional Anthropic SDK adapter.
+
 ## [0.5.0rc1] - 2026-05-28
 
 **rc1 of N for v0.5.0 — `srmech.bus` Python skeleton.**
