@@ -1,0 +1,347 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "chain_results": [
+    {
+      "N": 20,
+      "results": [
+        {
+          "query": "chain_000",
+          "query_idx": 0,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_001",
+              "kind": "direct",
+              "score": 0.5863294600136706
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_002",
+              "kind": "spectral_step3",
+              "score": -0.11249841371161289
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_003",
+              "kind": "spectral_step3",
+              "score": -0.38657959456303526
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_004",
+              "kind": "spectral_step3",
+              "score": -0.1834743042406558
+            },
+            {
+              "steps_away": 5,
+              "token": "chain_005",
+              "kind": "direct",
+              "score": 0.508133971291866
+            },
+            {
+              "steps_away": 6,
+              "token": "chain_006",
+              "kind": "spectral_step3",
+              "score": 0.01673456116188178
+            },
+            {
+              "steps_away": 7,
+              "token": "chain_007",
+              "kind": "direct",
+              "score": 0.5056732740943267
+            },
+            {
+              "steps_away": 8,
+              "token": "chain_008",
+              "kind": "spectral_step3",
+              "score": -0.22320118725716098
+            }
+          ]
+        },
+        {
+          "query": "chain_010",
+          "query_idx": 10,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_009",
+              "kind": "direct",
+              "score": 0.5886534518113465
+            },
+            {
+              "steps_away": 1,
+              "token": "chain_011",
+              "kind": "direct",
+              "score": 0.5734791524265208
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_008",
+              "kind": "direct",
+              "score": 0.5010252904989747
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_012",
+              "kind": "spectral_step3",
+              "score": 0.015001599003272035
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_007",
+              "kind": "direct",
+              "score": 0.5014354066985646
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_013",
+              "kind": "direct",
+              "score": 0.5029391660970608
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_006",
+              "kind": "spectral_step3",
+              "score": -0.36415736846021907
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_014",
+              "kind": "spectral_step3",
+              "score": -0.23086776957090804
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "N": 50,
+      "results": [
+        {
+          "query": "chain_000",
+          "query_idx": 0,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_001",
+              "kind": "direct",
+              "score": 0.5565137854436168
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_002",
+              "kind": "spectral_step3",
+              "score": 0.9551956955953251
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_003",
+              "kind": "spectral_step3",
+              "score": 0.7799774840807592
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_004",
+              "kind": "spectral_step3",
+              "score": 0.40443830081842136
+            },
+            {
+              "steps_away": 5,
+              "token": "chain_005",
+              "kind": "spectral_step3",
+              "score": 0.027296397804197126
+            },
+            {
+              "steps_away": 11,
+              "token": "chain_011",
+              "kind": "spectral_step3",
+              "score": -0.13277583702329848
+            },
+            {
+              "steps_away": 12,
+              "token": "chain_012",
+              "kind": "spectral_step3",
+              "score": -0.005203161489290562
+            },
+            {
+              "steps_away": 13,
+              "token": "chain_013",
+              "kind": "direct",
+              "score": 0.5184894812491834
+            }
+          ]
+        },
+        {
+          "query": "chain_025",
+          "query_idx": 25,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_024",
+              "kind": "direct",
+              "score": 0.5524630863713577
+            },
+            {
+              "steps_away": 1,
+              "token": "chain_026",
+              "kind": "direct",
+              "score": 0.5371749640663792
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_023",
+              "kind": "spectral_step3",
+              "score": 0.8318351168697034
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_027",
+              "kind": "spectral_step3",
+              "score": 0.7974344944509987
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_022",
+              "kind": "spectral_step3",
+              "score": 0.6087859362399559
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_028",
+              "kind": "spectral_step3",
+              "score": 0.5393442273507483
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_021",
+              "kind": "spectral_step3",
+              "score": 0.31404061560402463
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_029",
+              "kind": "spectral_step3",
+              "score": 0.24779200032047388
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "N": 100,
+      "results": [
+        {
+          "query": "chain_000",
+          "query_idx": 0,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_001",
+              "kind": "direct",
+              "score": 0.5480225988700564
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_002",
+              "kind": "spectral_step3",
+              "score": 0.9978472739841487
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_003",
+              "kind": "spectral_step3",
+              "score": 0.9906172251095582
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_004",
+              "kind": "spectral_step3",
+              "score": 0.9709657995529792
+            },
+            {
+              "steps_away": 5,
+              "token": "chain_005",
+              "kind": "spectral_step3",
+              "score": 0.9264461458921958
+            },
+            {
+              "steps_away": 6,
+              "token": "chain_006",
+              "kind": "spectral_step3",
+              "score": 0.8394899818302874
+            },
+            {
+              "steps_away": 7,
+              "token": "chain_007",
+              "kind": "direct",
+              "score": 0.5095017976373909
+            },
+            {
+              "steps_away": 8,
+              "token": "chain_008",
+              "kind": "spectral_step3",
+              "score": 0.5025925780229095
+            }
+          ]
+        },
+        {
+          "query": "chain_050",
+          "query_idx": 50,
+          "retrievals": [
+            {
+              "steps_away": 1,
+              "token": "chain_049",
+              "kind": "direct",
+              "score": 0.5436569080636877
+            },
+            {
+              "steps_away": 1,
+              "token": "chain_051",
+              "kind": "direct",
+              "score": 0.5346687211093991
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_048",
+              "kind": "spectral_step3",
+              "score": 0.9583401211489494
+            },
+            {
+              "steps_away": 2,
+              "token": "chain_052",
+              "kind": "spectral_step3",
+              "score": 0.9555950439803703
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_047",
+              "kind": "spectral_step3",
+              "score": 0.9045072573834649
+            },
+            {
+              "steps_away": 3,
+              "token": "chain_053",
+              "kind": "spectral_step3",
+              "score": 0.8959625523620021
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_046",
+              "kind": "spectral_step3",
+              "score": 0.8258165261223365
+            },
+            {
+              "steps_away": 4,
+              "token": "chain_054",
+              "kind": "spectral_step3",
+              "score": 0.808125826524993
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "spectral_found_2plus": 32,
+  "direct_found_2plus": 7
+}

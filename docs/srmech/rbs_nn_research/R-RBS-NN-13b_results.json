@@ -1,0 +1,79 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "D": 8192,
+  "results": [
+    {
+      "variant": "klein4",
+      "N": 50,
+      "p_at_top_k": 0.7551020408163265,
+      "mean_sim_correct": 0.5353035774938828,
+      "composite_density": 0.951904296875,
+      "build_sec": 0.2258892059326172
+    },
+    {
+      "variant": "polar",
+      "N": 50,
+      "p_at_top_k": 0.7040816326530612,
+      "mean_sim_correct": 0.5554464620548125,
+      "composite_density": 0.9249267578125,
+      "build_sec": 0.10824894905090332
+    },
+    {
+      "variant": "hybrid",
+      "N": 50,
+      "p_at_top_k": 0.7346938775510204,
+      "mean_sim_correct": 0.554923490324984,
+      "composite_density": 0.92333984375,
+      "build_sec": 0.12940287590026855
+    },
+    {
+      "variant": "klein4",
+      "N": 100,
+      "p_at_top_k": 0.6984924623115578,
+      "mean_sim_correct": 0.5262938919631575,
+      "composite_density": 0.9625244140625,
+      "build_sec": 0.2588353157043457
+    },
+    {
+      "variant": "polar",
+      "N": 100,
+      "p_at_top_k": 0.7085427135678392,
+      "mean_sim_correct": 0.5398727895482647,
+      "composite_density": 0.9539794921875,
+      "build_sec": 0.21344232559204102
+    },
+    {
+      "variant": "hybrid",
+      "N": 100,
+      "p_at_top_k": 0.6984924623115578,
+      "mean_sim_correct": 0.5392753842303446,
+      "composite_density": 0.9481201171875,
+      "build_sec": 0.2618134021759033
+    },
+    {
+      "variant": "klein4",
+      "N": 200,
+      "p_at_top_k": 0.615,
+      "mean_sim_correct": 0.520890951087233,
+      "composite_density": 0.975341796875,
+      "build_sec": 0.5163099765777588
+    },
+    {
+      "variant": "polar",
+      "N": 200,
+      "p_at_top_k": 0.575,
+      "mean_sim_correct": 0.5306526665223269,
+      "composite_density": 0.9642333984375,
+      "build_sec": 0.4240846633911133
+    },
+    {
+      "variant": "hybrid",
+      "N": 200,
+      "p_at_top_k": 0.585,
+      "mean_sim_correct": 0.530257466810333,
+      "composite_density": 0.9632568359375,
+      "build_sec": 0.5213499069213867
+    }
+  ]
+}
