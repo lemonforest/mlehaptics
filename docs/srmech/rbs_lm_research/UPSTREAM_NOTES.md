@@ -617,6 +617,119 @@ Continuation in separate rc cycle session per discipline.
 
 ---
 
+## §7 `substrate_parameterization` adapter — catalog-driven substrate runs (2026-05-28, post-MVP-audit)
+
+User direction 2026-05-28:
+> "srmech is also being corrected such that 'catalogs' are not new python script mvp magics. cascade is handled by srmech with the toml and MPR things. we can check test.pypi.org srmech/siona for status. this will help us to not reach for new MVP pretend things"
+
+The rbs_lm_substrate catalog at `docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml` is the canonical pattern for **substrate parameterization as catalog**: every former magic number in R-RBS-LM-112 (D, max_walk_length, max_paths, cycle_policy, n_buckets, bucket strategy, grammar mode, plausibility weights, sweep ranges, etc.) lives in nested `[fetch.literature_curated.*]` sub-tables so the typed `Descriptor` accessor reaches them via `desc.fetch["literature_curated"][section][field]`.
+
+This works **today** because `literature_curated` is a permissive adapter — it accepts any nested params. But the semantic match is weak: substrate parameterization is not "literature curation," and a future srmech adapter family for this use case would be cleaner.
+
+### §7.1 The wishlist — first-class `substrate_parameterization` adapter
+
+A `substrate_parameterization` adapter would:
+- Validate substrate-specific param sections at load time (e.g., `D > 0`, `0 ≤ weight ≤ 1` for plausibility weights, `cycle_policy ∈ {forbid, allow, count_limited}`)
+- Expose typed sub-dataclasses on the loaded `Descriptor` — `desc.substrate`, `desc.generation`, `desc.hierarchical`, `desc.grammar`, `desc.plausibility`, `desc.measurement` — instead of dict-navigation
+- Dispatch a `substrate_run` operation that takes the descriptor + a corpus source + a phase set, returns MPR-validated NDJSON
+
+```python
+# Aspirational srmech v0.5.x surface:
+from srmech.amsc import load_descriptor
+from srmech.rbs_lm import run_substrate_characterization
+
+desc = load_descriptor("docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml")
+# desc.substrate, desc.generation, etc. are first-class typed accessors
+records = run_substrate_characterization(desc, phases=[1, 2, 3, 4, 5, 6, 7])
+# records is an iterator of MPR-validated dicts written to desc.schema.ndjson_file
+```
+
+### §7.2 Adapter registration sketch
+
+Following the pattern in `srmech.amsc.descriptor.KNOWN_ADAPTERS` + `srmech.amsc.catalog.ADAPTER_CLASSES`:
+
+```python
+# srmech/amsc/descriptor.py
+KNOWN_ADAPTERS = (
+    "html_scraper", "json_api", "csv_bulk", "netcdf_grid",
+    "geotiff_bbox", "literature_curated",
+    "substrate_parameterization",  # NEW
+)
+
+# srmech/amsc/adapters/substrate_parameterization.py
+class SubstrateParameterizationAdapter(BaseAdapter):
+    REQUIRED_SUBSECTIONS = (
+        "substrate", "encoding", "generation",
+        "hierarchical", "corpus",
+    )
+    OPTIONAL_SUBSECTIONS = ("grammar", "plausibility", "measurement")
+
+    def validate(self, fetch_dict):
+        # Validate D > 0, weight ranges, allowed enums, etc.
+        ...
+
+    def parse(self, fetch_dict) -> SubstrateConfig:
+        # Returns typed dataclass with all sections as sub-dataclasses
+        ...
+```
+
+### §7.3 What the substrate library would look like upstream
+
+Currently `_canonical_substrate.py` lives in research subtree per `[[feedback_upstream_srmech_fixes_as_research_notes]]`. A natural upstream home: `srmech.rbs_lm.substrate` — providing `VariableLengthSentenceMemory`, `HierarchicalMemory`, and the encode/sim/walk primitives.
+
+```python
+# Aspirational srmech v0.5.x surface:
+from srmech.rbs_lm.substrate import (
+    VariableLengthSentenceMemory,
+    HierarchicalMemory,
+    encode_word_k4, encode_bigram_l1, encode_skeleton_l2, encode_sentence_l3,
+    sim_k4_batch,
+    walk_bigram_chain,
+)
+
+memory = VariableLengthSentenceMemory(config=desc.substrate)
+# config is a typed sub-dataclass, not a dict
+```
+
+### §7.4 Upstream procedure (if/when authorized)
+
+1. Open separate session in srmech rc-cycle worktree
+2. Add `substrate_parameterization` to `KNOWN_ADAPTERS` + write `SubstrateParameterizationAdapter`
+3. Add typed sub-dataclasses (SubstrateParams, GenerationParams, etc.) to the Descriptor schema
+4. Port `_canonical_substrate.py` to `srmech.rbs_lm.substrate` (Python; no C surface needed for the substrate algebra — it composes existing Klein-4 primitives that already have C parity)
+5. Tests:
+   - Adapter validation (catch out-of-range D, invalid cycle_policy, etc.)
+   - Typed Descriptor round-trip (load → re-serialize)
+   - Substrate algebra parity tests (vs current research subtree version)
+   - Phase sweep smoke (a small in-memory catalog + the 7-phase characterization runs end-to-end and produces MPR-valid NDJSON)
+6. tool_schema registrations for new public functions
+7. CHANGELOG.md entry
+8. TestPyPI rc → verify in clean venv (outside source tree) → production tag
+9. Update rbs_lm_substrate/descriptor.toml to `adapter = "substrate_parameterization"` (rather than riding on literature_curated)
+10. Delete `_canonical_substrate.py` from research subtree (now lives in srmech proper)
+
+### §7.5 Why this earns catalog promotion
+
+Per the rc-promotion criterion (cross-domain recurrence): the same substrate-parameter set is consumed by:
+- R-RBS-LM characterization (this catalog's primary use)
+- Potentially R-RBS-NN-V2 storage (two-tier architecture; same parameter shape but different defaults)
+- Future cross-substrate experiments (smol-stack programming corpus, McGuffey ladder, etc.) — each is a catalog VARIANT, not a new script
+
+Promoting `substrate_parameterization` to a first-class adapter makes the cascade dispatch a clean srmech operation rather than ad-hoc Python harness.
+
+### §7.6 Estimated scope
+
+- ~150-200 LOC adapter (validation + parsing)
+- ~300-400 LOC substrate module port (mostly already exists in `_canonical_substrate.py`)
+- ~200-300 LOC tests
+- Documentation updates in srmech notebook §3.28 + tool_schema
+
+### §7.7 Status
+
+**WISHLIST documented; NOT AUTHORIZED to begin upstream work.** User direction 2026-05-28 surfaced the architectural pattern via the MVP-audit cleanup. Catalog rides `literature_curated` adapter today; transition to `substrate_parameterization` adapter is a clean separate rc cycle when scope opens.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
