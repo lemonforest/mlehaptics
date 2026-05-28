@@ -676,6 +676,36 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_similarity.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
+    # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade
+    # ops Python-only. NEW symbols — guard with hasattr so a stale lib
+    # built before these landed doesn't disable the whole native
+    # surface (same best-effort pattern as the rc12 / polar / klein4
+    # blocks above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_cascade_chiral_flip_i64"):
+        # int srmech_cascade_chiral_flip_i64(const int64_t *in,
+        #                                     size_t         n,
+        #                                     int64_t       *out)
+        lib.srmech_cascade_chiral_flip_i64.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_chiral_flip_i64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_chiral_flip_f64"):
+        # int srmech_cascade_chiral_flip_f64(const double *in,
+        #                                     size_t        n,
+        #                                     double       *out)
+        lib.srmech_cascade_chiral_flip_f64.argtypes = [
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_chiral_flip_f64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

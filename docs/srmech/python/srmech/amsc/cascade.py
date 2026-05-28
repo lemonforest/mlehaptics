@@ -23,14 +23,25 @@ scripts spanning mandelbrot / chromatic / atomic / nuclear / QCD /
 planetary / turbulence / black-hole / biomacromolecule / large-scale-
 structure domains) graduates here.
 
+**Full C/Python parity** — each cascade op carries a dedicated C symbol in
+``libsrmech.{so,dll,dylib}`` (the cascade catalog is no longer Python-only
+per the v0.4.5rc1 carve-out correction) AND a TOML descriptor under
+``srmech/amsc/_research/cascade_catalog/`` declaring the cascade structure
+declaratively. The Python module dispatches through native when ``HAS_NATIVE``
+is True and the input shape matches a typed C variant; falls back to Python
+for sequence types the C ABI doesn't cover (strings, mixed-type lists, etc).
+
 **No new primitive class** — every callable is a *composition* of the
 existing 14-class A–N primitives (the vocabulary is intact per
-``[[feedback_no_privileged_primitive_classes]]``), so the module carries
-**no dedicated C symbol**: Class I (``srmech.amsc.cyclic.gcd``) and Class N
-(``srmech.amsc.rational.best_rational``) are the ones with C parity, and
-the cascades sequence them in Python with inline Class K / Class C signed
-arithmetic. **No ``abs()``** anywhere — sign is handled as the canonical
-Class K pin-slot + Class C re-orientation per
+``[[feedback_no_privileged_primitive_classes]]``). Class I
+(``srmech.amsc.cyclic.gcd``) and Class N
+(``srmech.amsc.rational.best_rational``) supply the cyclic / rational
+anchor primitives; the cascades sequence them in Python (with inline
+Class K / Class C signed arithmetic) plus the dedicated cascade-op C
+symbols for the hot value-sequence cascades (``chiral_flip`` in
+v0.4.5rc1; the remaining ops follow in subsequent rcs). **No ``abs()``**
+anywhere — sign is handled as the canonical Class K pin-slot + Class C
+re-orientation per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
 Naming: the clean public names (``pin_slot_at_zero``, ``reorient``,
@@ -48,8 +59,10 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import ctypes
 from typing import Tuple
 
+from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
 from srmech.amsc.rational import best_rational as _best_rational
 
@@ -179,6 +192,108 @@ def cyclic_gcd(a: int, b: int) -> int:
     return _cyclic_gcd(a, b)
 
 
+def _try_native_chiral_flip_ndarray(arr):
+    """Native dispatch for numpy int64 / float64 ndarrays.
+
+    Returns the reversed ndarray on success, or ``None`` if the native
+    path is unavailable / the dtype is unsupported / a status error
+    surfaced (in which case the caller falls back to Python).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not (hasattr(arr, "dtype") and hasattr(arr, "ndim")):
+        return None
+    if arr.ndim != 1:
+        return None
+    dtype = arr.dtype
+    if dtype.itemsize != 8 or dtype.kind not in ("i", "f"):
+        return None
+    # numpy is a hard dep from v0.4.0rc2 onward; import is safe here.
+    import numpy as _np
+    if dtype.kind == "i" and dtype != _np.int64:
+        return None
+    if dtype.kind == "f" and dtype != _np.float64:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_chiral_flip_i64"):
+        return None
+    n = int(arr.shape[0])
+    # Ensure C-contiguous so the ctypes pointer addresses element-stride
+    # rather than the original (potentially non-contiguous) layout.
+    src = _np.ascontiguousarray(arr)
+    out = _np.empty_like(src)
+    if dtype.kind == "i":
+        c_in = src.ctypes.data_as(ctypes.POINTER(ctypes.c_int64))
+        c_out = out.ctypes.data_as(ctypes.POINTER(ctypes.c_int64))
+        rc = _native.LIB.srmech_cascade_chiral_flip_i64(
+            c_in, ctypes.c_size_t(n), c_out,
+        )
+    else:
+        c_in = src.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        c_out = out.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        rc = _native.LIB.srmech_cascade_chiral_flip_f64(
+            c_in, ctypes.c_size_t(n), c_out,
+        )
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_chiral_flip_list(seq):
+    """Native dispatch for homogeneous list[int] / list[float] / tuple.
+
+    Returns a list (or tuple, if the caller passed a tuple) of reversed
+    values on success, or ``None`` if the native path is unavailable or
+    the input isn't a homogeneous int64 / float64 sequence.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not isinstance(seq, (list, tuple)):
+        return None
+    n = len(seq)
+    if n == 0:
+        # Empty: cheap; preserve input type without touching native.
+        return type(seq)()
+    # Classify the homogeneous int64 / float64 case. Python int can be
+    # arbitrarily large; only dispatch when every element fits int64.
+    INT64_MIN = -(2 ** 63)
+    INT64_MAX = (2 ** 63) - 1
+    all_int = all(isinstance(v, int) and not isinstance(v, bool) for v in seq)
+    all_float = all(isinstance(v, float) for v in seq)
+    if all_int:
+        if not all(INT64_MIN <= v <= INT64_MAX for v in seq):
+            return None
+        if not hasattr(_native.LIB, "srmech_cascade_chiral_flip_i64"):
+            return None
+        ArrT = ctypes.c_int64 * n
+        c_in = ArrT(*seq)
+        c_out = ArrT()
+        rc = _native.LIB.srmech_cascade_chiral_flip_i64(
+            ctypes.cast(c_in, ctypes.POINTER(ctypes.c_int64)),
+            ctypes.c_size_t(n),
+            ctypes.cast(c_out, ctypes.POINTER(ctypes.c_int64)),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        result = [int(c_out[i]) for i in range(n)]
+        return tuple(result) if isinstance(seq, tuple) else result
+    if all_float:
+        if not hasattr(_native.LIB, "srmech_cascade_chiral_flip_f64"):
+            return None
+        ArrT = ctypes.c_double * n
+        c_in = ArrT(*seq)
+        c_out = ArrT()
+        rc = _native.LIB.srmech_cascade_chiral_flip_f64(
+            ctypes.cast(c_in, ctypes.POINTER(ctypes.c_double)),
+            ctypes.c_size_t(n),
+            ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        result = [float(c_out[i]) for i in range(n)]
+        return tuple(result) if isinstance(seq, tuple) else result
+    return None
+
+
 def chiral_flip(seq):
     """Class C orientation reversal: traverse the cascade the other way.
 
@@ -187,12 +302,33 @@ def chiral_flip(seq):
     chirality operator (same magnitude spectrum, orientation-flipped phase)
     per MFO §VIII.31.11 §(5b): the chiral dual is "same shape, inverse".
 
+    v0.4.5rc1: dispatches through the native C variants
+    ``srmech_cascade_chiral_flip_i64`` / ``srmech_cascade_chiral_flip_f64``
+    when ``HAS_NATIVE`` is True and ``seq`` is a homogeneous int64 /
+    float64 ``list`` / ``tuple`` / 1-D ``ndarray``. Falls back to the
+    Python ``seq[::-1]`` path for any sequence shape the native ABI
+    doesn't cover (strings, mixed-type lists, larger-than-int64 ints,
+    non-contiguous / multi-dimensional ndarrays, etc) so the public API
+    stays unchanged.
+
     Args:
         seq: Any sliceable sequence (list / tuple / str / ndarray).
 
     Returns:
         ``seq[::-1]`` — the orientation-reversed sequence, type preserved.
     """
+    # Native path 1: numpy ndarray. Detect via duck-typing on dtype/ndim so
+    # we don't pay an unconditional numpy import for non-array callers.
+    if hasattr(seq, "dtype") and hasattr(seq, "ndim"):
+        native = _try_native_chiral_flip_ndarray(seq)
+        if native is not None:
+            return native
+    # Native path 2: homogeneous int64 / float64 list / tuple.
+    elif isinstance(seq, (list, tuple)):
+        native = _try_native_chiral_flip_list(seq)
+        if native is not None:
+            return native
+    # Python fallback — preserves the original public API exactly.
     return seq[::-1]
 
 
