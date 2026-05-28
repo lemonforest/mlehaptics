@@ -20,6 +20,13 @@
  * is trivial and not catalogued. NaN maps to the dead-band matching
  * the Python reference impl.
  *
+ * v0.4.5rc3 op: `magnitude` (Class K pin-slot magnitude-only projection).
+ * Scalar f64 in / scalar f64 out via output pointer. The cascade-honest
+ * replacement for C99 fabs() inside cascade code: composes
+ * pin_slot_at_zero and discards the orientation. NaN maps to 0.0
+ * (the Class K dead-band) — preserves parity with the Python reference
+ * impl where pin_slot_at_zero(nan) -> (0, 0.0).
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -128,5 +135,38 @@ srmech_status_t srmech_cascade_pin_slot_at_zero_f64(double  x,
         *orientation_out = (int8_t)0;
         *magnitude_out   = 0.0;
     }
+    return SRMECH_OK;
+}
+
+/* magnitude — Class K pin-slot magnitude-only projection (|x| but
+ * cascade-honest). Composes pin_slot_at_zero and discards the
+ * orientation; the explicit positive / negative / else branch is
+ * required to preserve Python parity for NaN (both `x > 0.0` and
+ * `x < 0.0` evaluate false for NaN under IEEE-754, falling through
+ * to the dead-band 0.0 — naive `if (x < 0) out = -x; else out = x`
+ * would return NaN instead, breaking parity).
+ */
+srmech_status_t srmech_cascade_magnitude_f64(double  x,
+                                              double *magnitude_out)
+{
+    if (magnitude_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(magnitude_out != NULL);
+    /* Explicit positive / negative / else branch — preserves Python
+     * parity for NaN (both x > 0 and x < 0 evaluate False for NaN,
+     * falling through to 0.0). */
+    if (x > 0.0) {
+        *magnitude_out = x;
+    } else if (x < 0.0) {
+        *magnitude_out = -x;
+    } else {
+        /* 0.0, -0.0, and NaN all map to 0.0 (the dead-band). */
+        *magnitude_out = 0.0;
+    }
+    /* Post-condition: magnitude is non-negative across every branch
+     * (positive branch returns x>0; negative returns -x>0; else
+     * returns the literal 0.0 — including the NaN-falls-through path). */
+    assert(*magnitude_out >= 0.0);
     return SRMECH_OK;
 }

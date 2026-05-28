@@ -159,11 +159,49 @@ def reorient(orientation: int, value):
     return value
 
 
+def _try_native_magnitude(x):
+    """Native dispatch for float ``magnitude``.
+
+    Returns ``float`` on success or ``None`` to signal the caller to fall
+    through to the Python composition path. Only Python ``float`` inputs
+    dispatch through native — ``int`` (and bool, Decimal, numpy scalars,
+    etc.) stay on the Python path so the int-in / int-magnitude-out type
+    contract is preserved (matches the rc2 ``pin_slot_at_zero``
+    discipline; the Python composition fallback returns
+    ``pin_slot_at_zero(x)[1]`` which itself stays on Python for int).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict isinstance check — bool is a subclass of int and must NOT
+    # take the native path; non-float numerics (int / Decimal / Fraction /
+    # numpy scalars) also stay on Python.
+    if type(x) is not float:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_magnitude_f64"):
+        return None
+    out = ctypes.c_double(0.0)
+    rc = _native.LIB.srmech_cascade_magnitude_f64(
+        ctypes.c_double(x),
+        ctypes.byref(out),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return float(out.value)
+
+
 def magnitude(x: float) -> float:
     """Class K pin-slot at zero, magnitude only (orientation discarded).
 
     The cascade-honest replacement for Python ``abs()`` when only the
     magnitude is needed (spectral radius, eigenvalue-magnitude proxy, …).
+
+    v0.4.5rc3: dispatches through the native C variant
+    ``srmech_cascade_magnitude_f64`` when ``HAS_NATIVE`` is True and ``x``
+    is a pure Python ``float``. Falls back to composing
+    :func:`pin_slot_at_zero` (which itself dispatches through native in
+    v0.4.5rc2 for ``float`` inputs) for ``int`` / numpy-scalar / other
+    numeric types. NaN maps to ``0.0`` (the Class K dead-band) in both
+    paths.
 
     Args:
         x: A real value.
@@ -171,6 +209,9 @@ def magnitude(x: float) -> float:
     Returns:
         ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``).
     """
+    native = _try_native_magnitude(x)
+    if native is not None:
+        return native
     return pin_slot_at_zero(x)[1]
 
 
