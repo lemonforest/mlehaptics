@@ -133,7 +133,12 @@ class Endpoint:
 
     @property
     def path(self) -> Path:
-        """On-disk path of the endpoint registration."""
+        """On-disk path of the endpoint registration.
+
+        UDS → ``~/.srmech/bus-<name>.sock``; ``pipe`` and ``tcp``
+        (Windows; rc2 named pipe and rc1 fallback) →
+        ``~/.srmech/bus-<name>.txt`` registry file.
+        """
         if self._transport.kind == "uds":
             return sock_path(self._name)
         return registry_path(self._name)
@@ -325,10 +330,8 @@ class Endpoint:
                     tb = traceback.format_exc(limit=4)
                     response_dict = {
                         "type": "_error",
-                        "payload": {
-                            "reason": f"handler raised: {exc}",
-                            "traceback": tb,
-                        },
+                        "reason": f"handler raised: {exc}",
+                        "traceback": tb,
                     }
                 if response_dict is None:
                     # Fire-and-forget — no response.
@@ -417,10 +420,19 @@ def _event_to_dict(ev: Event) -> dict:
     directly. We expose ``attestation`` + ``correlation_id`` too in
     case the handler wants to introspect the sender; they're optional
     to read.
+
+    v0.5.0rc2: ``ev.payload`` is any JSON-serialisable value (not
+    only dict). Pass it through with a shallow copy for dict/list
+    (defensive immutability) and unchanged for primitives.
     """
+    payload = ev.payload
+    if isinstance(payload, dict):
+        payload = dict(payload)
+    elif isinstance(payload, list):
+        payload = list(payload)
     return {
         "type": ev.type,
-        "payload": dict(ev.payload),
+        "payload": payload,
         "attestation": dict(ev.attestation),
         "correlation_id": ev.correlation_id,
     }
@@ -429,19 +441,32 @@ def _event_to_dict(ev: Event) -> dict:
 def _normalise_response(resp: dict) -> tuple:
     """Pull ``type`` + ``payload`` out of a handler response.
 
-    Handlers may return ``{"ok": True}`` (no type key — treated as a
-    bare payload) or ``{"type": "...", "payload": {...}}``. The
-    spec's worked example uses both shapes; we support both.
+    Handler contract (v0.5.0rc2; load-bearing — fixes rc1 Bug 1):
+    a handler returns a ``dict``. THE FULL DICT becomes the response
+    Event's ``payload``. The ``type`` discriminator is pulled from
+    ``resp.get("type", "ok")`` for routing convenience, but the
+    ``type`` key is ALSO retained in the payload so the client can
+    inspect it after deserialisation.
+
+    Concretely, a handler returning::
+
+        {"type": "pong", "echo": <x>, "server_pid": <pid>}
+
+    yields a response Event whose ``payload`` is the whole dict —
+    ``echo`` and ``server_pid`` (and any other keys the handler
+    chooses to include) survive end-to-end. rc1's behaviour silently
+    dropped keys beyond ``type`` by aliasing ``payload`` to
+    ``resp.get("payload")`` rather than to the handler dict; this is
+    the rc2 fix.
+
+    Handlers returning a dict WITHOUT a ``type`` key get the default
+    discriminator ``"ok"`` (rc1 used ``"_response"``; the rc2 default
+    matches the spec's "type=ok default" idiom).
     """
-    if "type" in resp:
-        type_str = str(resp["type"])
-        payload = resp.get("payload", {})
-        if not isinstance(payload, dict):
-            payload = {"value": payload}
-        return type_str, payload
-    # Bare-payload form: no type; promote the whole dict to payload
-    # and set type = "_response" (the default reply discriminator).
-    return "_response", dict(resp)
+    type_str = str(resp.get("type", "ok"))
+    # THE WHOLE handler dict passes through as payload — preserves every key.
+    payload = dict(resp)
+    return type_str, payload
 
 
 def serve(

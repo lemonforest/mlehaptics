@@ -48,7 +48,11 @@ from typing import Optional
 #   v1 — Phase B3 baseline: srmech_sha256_hex.
 #   v2 — Phase B4: srmech_ndjson_iter callback signature gained
 #        `size_t lineno` (the callback typedef wire-format changed).
-EXPECTED_ABI_VERSION: int = 2
+#   v3 — v0.5.0rc2: srmech_bus_* C peer; new function-pointer typedef
+#        srmech_bus_handler_callback_t. Adding a typedef carries a
+#        wire-format implication for the Python ctypes shim
+#        (CFUNCTYPE construction), so ABI bumps.
+EXPECTED_ABI_VERSION: int = 3
 
 
 SRMECH_OK: int = 0
@@ -169,6 +173,27 @@ CASCADE_OP_CALLBACK_F64 = ctypes.CFUNCTYPE(
     ctypes.POINTER(ctypes.c_double),         # const double *in
     ctypes.c_size_t,                          # size_t n
     ctypes.POINTER(ctypes.c_double),         # double *out
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
+# v0.5.0rc2: srmech.bus handler-dispatch callback ABI. Mirror of the
+# C typedef in srmech.h:
+#
+#   typedef srmech_status_t (*srmech_bus_handler_callback_t)(
+#       const uint8_t *request, size_t request_len,
+#       uint8_t       *response, size_t *response_len_inout,
+#       void          *user_data);
+#
+# Exposed at module scope so srmech.bus dispatch can construct
+# trampolines without reaching into the closure. Same rationale as
+# CASCADE_OP_CALLBACK_F64.
+BUS_HANDLER_CALLBACK = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # srmech_status_t return
+    ctypes.c_void_p,                          # const uint8_t *request
+    ctypes.c_size_t,                          # size_t request_len
+    ctypes.c_void_p,                          # uint8_t *response
+    ctypes.POINTER(ctypes.c_size_t),         # size_t *response_len_inout
     ctypes.c_void_p,                          # void *user_data
 )
 
@@ -843,6 +868,66 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_chiral_dual_f64.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.5.0rc2: srmech.bus C peer (6 public symbols).
+    # All bus symbols are hasattr-guarded — a stale rc1 lib (ABI v2)
+    # won't have them and the load will fall through to the rc1
+    # Python-only path. (ABI v2 vs v3 mismatch ALSO bails earlier in
+    # the load sequence; this is double-defence.)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_bus_serve"):
+        # srmech_status_t srmech_bus_serve(
+        #     const char *name, srmech_bus_handler_callback_t handler,
+        #     void *user_data, srmech_bus_server_handle_t **out_handle)
+        lib.srmech_bus_serve.argtypes = [
+            ctypes.c_char_p,
+            BUS_HANDLER_CALLBACK,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_serve.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_server_accept_one"):
+        # srmech_status_t srmech_bus_server_accept_one(
+        #     srmech_bus_server_handle_t *h)
+        lib.srmech_bus_server_accept_one.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_server_accept_one.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_server_stop"):
+        # srmech_status_t srmech_bus_server_stop(
+        #     srmech_bus_server_handle_t *h)
+        lib.srmech_bus_server_stop.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_server_stop.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_connect"):
+        # srmech_status_t srmech_bus_connect(
+        #     const char *name, srmech_bus_client_handle_t **out_handle)
+        lib.srmech_bus_connect.argtypes = [
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_connect.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_send_recv"):
+        # srmech_status_t srmech_bus_send_recv(
+        #     srmech_bus_client_handle_t *h,
+        #     const uint8_t *request, size_t request_len,
+        #     uint8_t *response, size_t *response_len_inout)
+        lib.srmech_bus_send_recv.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        lib.srmech_bus_send_recv.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_client_close"):
+        # srmech_status_t srmech_bus_client_close(
+        #     srmech_bus_client_handle_t *h)
+        lib.srmech_bus_client_close.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_client_close.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -978,6 +1063,7 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
 
 
 __all__ = [
+    "BUS_HANDLER_CALLBACK",
     "CASCADE_OP_CALLBACK_F64",
     "EXPECTED_ABI_VERSION",
     "HAS_NATIVE",

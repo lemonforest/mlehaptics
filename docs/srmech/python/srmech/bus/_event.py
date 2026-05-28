@@ -66,8 +66,10 @@ class Event:
         ``"set_param"`` for control, ``"_error"`` for server-emitted
         error responses.
     payload
-        Free-form dict carrying the request / response / broadcast
-        body. Must be JSON-serialisable.
+        Free-form JSON-serialisable value carrying the request /
+        response / broadcast body. Accepts any of: dict, list,
+        string, number (int / float), bool, ``None``. v0.5.0rc2
+        Bug-2 fix relaxed this from dict-only.
     attestation
         Sender metadata: ``sender_pid``, ``sender_name`` (endpoint
         name or ``"<client>"``), ``ts_ns`` (wall-clock at emit).
@@ -79,7 +81,7 @@ class Event:
 
     mpr_version: str
     type: str
-    payload: Dict[str, Any]
+    payload: Any
     attestation: Dict[str, Any]
     correlation_id: str = ""
 
@@ -124,10 +126,12 @@ def parse(data: bytes) -> Event:
     for k in required:
         if k not in payload:
             raise ValueError(f"bus.parse: missing required field {k!r}")
+    # v0.5.0rc2: payload accepts any JSON-serialisable value (rc1
+    # coerced via dict(), which fails for non-dict payloads).
     return Event(
         mpr_version=str(payload["mpr_version"]),
         type=str(payload["type"]),
-        payload=dict(payload["payload"]),
+        payload=payload["payload"],
         attestation=dict(payload["attestation"]),
         correlation_id=str(payload.get("correlation_id", "")),
     )
@@ -135,7 +139,7 @@ def parse(data: bytes) -> Event:
 
 def make_event(
     type: str,
-    payload: Optional[Dict[str, Any]] = None,
+    payload: Any = None,
     *,
     sender_pid: int,
     sender_name: str = "<client>",
@@ -146,12 +150,29 @@ def make_event(
 
     Helper to keep emit sites short. ``ts_ns`` defaults to
     ``time.time_ns()`` at call time.
+
+    v0.5.0rc2: ``payload`` accepts any JSON-serialisable value
+    (dict / list / string / number / None). For backwards
+    compatibility, a ``None`` payload still defaults to ``{}``
+    when it would otherwise pass through unchanged — callers that
+    want a literal-null payload should pass ``payload=None`` AND
+    use the ``Event`` dataclass directly, OR use the bus client's
+    ``_make_event_any_payload`` helper which preserves the literal
+    ``None``.
     """
     import time as _time
+    # Preserve rc1 default for compatibility: payload=None means {}.
+    # Non-dict explicit payloads (string, list, number) pass through.
+    if payload is None:
+        payload_out: Any = {}
+    elif isinstance(payload, dict):
+        payload_out = dict(payload)
+    else:
+        payload_out = payload
     return Event(
         mpr_version=MPR_VERSION_BUS,
         type=type,
-        payload=dict(payload) if payload else {},
+        payload=payload_out,
         attestation={
             "sender_pid": int(sender_pid),
             "sender_name": str(sender_name),

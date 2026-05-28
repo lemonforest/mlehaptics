@@ -231,8 +231,14 @@ def test_event_new_correlation_id_is_hex_uuid():
 def test_transport_kind_matches_platform():
     if os.name == "posix":
         assert transport_kind() == "uds"
+    elif os.name == "nt":
+        # v0.5.0rc2: Windows defaults to TCP-loopback (rc1 default
+        # carries forward); opt-in to the rc2 named-pipe path via
+        # SRMECH_BUS_USE_NAMED_PIPE=1.
+        import os as _os
+        expected = "pipe" if _os.environ.get("SRMECH_BUS_USE_NAMED_PIPE") == "1" else "tcp"
+        assert transport_kind() == expected
     else:
-        # Windows / other
         assert transport_kind() == "tcp"
 
 
@@ -308,13 +314,24 @@ def test_serve_then_connect_smoke(unique_name):
 
 
 def test_req_rep_echoes_payload(unique_name):
+    """v0.5.0rc2: handler dict passes through fully as response payload.
+
+    Bug-1 fix: a handler returning ``{"type": "echo", "x": 7}``
+    yields a response whose ``payload`` is the full handler dict
+    (rc1 silently dropped keys beyond ``type``). The discriminator
+    ``type`` is pulled from the dict for routing convenience but
+    also retained inside the payload.
+    """
     def handler(event):
-        return {"type": "echo", "payload": event.get("payload", {})}
+        return {"type": "echo", "x": 7, "echoed": event.get("payload", {})}
     with serve(unique_name, handler=handler):
         with connect(unique_name) as ch:
             reply = ch.send({"type": "anything", "payload": {"x": 7}})
             assert reply["type"] == "echo"
-            assert reply["payload"] == {"x": 7}
+            # Full handler dict is the response payload (rc2 fix).
+            assert reply["payload"]["x"] == 7
+            assert reply["payload"]["echoed"] == {"x": 7}
+            assert reply["payload"]["type"] == "echo"
 
 
 def test_req_rep_handler_none_is_fire_and_forget(unique_name):
@@ -352,10 +369,14 @@ def test_req_rep_timeout(unique_name):
 
 
 def test_req_rep_concurrent_clients(unique_name):
-    """Multiple in-flight requests from one channel route correctly."""
+    """Multiple in-flight requests from one channel route correctly.
+
+    v0.5.0rc2: handler dict passes through as response.payload
+    (Bug-1 fix), so ``response["payload"]["n"]`` is the doubled value.
+    """
     def handler(event):
         n = event["payload"].get("n", 0)
-        return {"type": "double", "payload": {"n": n * 2}}
+        return {"type": "double", "n": n * 2}
     with serve(unique_name, handler=handler):
         with connect(unique_name) as ch:
             results = {}
@@ -568,13 +589,20 @@ def test_short_list_alias_equals_list_endpoints():
 
 
 def _server_main(name: str, sentinel_file: str, dwell_s: float = 3.0) -> None:
-    """Worker entrypoint for the cross-process smoke test."""
+    """Worker entrypoint for the cross-process smoke test.
+
+    v0.5.0rc2: the handler dict passes through as response.payload
+    (Bug-1 fix), so we surface ``echo`` and ``server_pid`` directly
+    in the dict — both reach the client end-to-end.
+    """
     from srmech.bus import serve  # re-import in child
+    import os as _os
     def handler(event):
         if event["type"] == "ping":
             return {
                 "type": "pong",
-                "payload": {"echo": event["payload"].get("msg", "")},
+                "echo": event["payload"].get("msg", ""),
+                "server_pid": _os.getpid(),
             }
         return {"type": "unknown"}
     with serve(name, handler=handler):
@@ -700,15 +728,17 @@ def test_send_after_server_stop_raises(unique_name):
 
 
 def test_handler_returning_bare_dict_normalises(unique_name):
-    """A handler may return `{"ok": True}` — server promotes to a
-    `_response` event with that as payload."""
+    """A handler returning a dict WITHOUT a ``type`` key gets the
+    default discriminator ``"ok"`` (rc2 spec; rc1 used ``"_response"``).
+    The full dict still passes through as the response payload
+    per the Bug-1 fix."""
     def handler(event):
         return {"ok": True, "n": 99}
     with serve(unique_name, handler=handler):
         with connect(unique_name) as ch:
             reply = ch.send({"type": "ping"})
-            # type defaults to "_response" since no type key was returned.
-            assert reply["type"] == "_response"
+            # type defaults to "ok" since no type key was returned.
+            assert reply["type"] == "ok"
             assert reply["payload"]["ok"] is True
             assert reply["payload"]["n"] == 99
 
@@ -781,3 +811,203 @@ def test_public_surface_exports():
         "list_endpoints", "by_name",
     ):
         assert hasattr(bus, name), f"missing public export: {name}"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.5.0rc2 — Envelope fixes (Bug 1 + Bug 2 from rc1 smoke)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_envelope_handler_returns_full_dict_preserved(unique_name):
+    """rc2 Bug-1 fix: every key in the handler's returned dict
+    survives end-to-end as the response Event's payload."""
+    def handler(event):
+        return {
+            "type": "pong",
+            "echo": event.get("payload"),
+            "server_pid": os.getpid(),
+            "marker": "alpha",
+            "counter": 7,
+        }
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send(
+                {"type": "ping", "payload": {"hello": "world"}},
+                timeout=3.0,
+            )
+            assert reply["type"] == "pong"
+            # Bug-1 fix: ALL keys preserved.
+            assert reply["payload"]["echo"] == {"hello": "world"}
+            assert reply["payload"]["server_pid"] == os.getpid()
+            assert reply["payload"]["marker"] == "alpha"
+            assert reply["payload"]["counter"] == 7
+            # The type discriminator is also retained inside the payload.
+            assert reply["payload"]["type"] == "pong"
+
+
+def test_envelope_handler_no_type_defaults_to_ok(unique_name):
+    """rc2 spec: handler dict without a ``type`` key gets
+    discriminator ``"ok"`` (was ``"_response"`` in rc1)."""
+    def handler(event):
+        return {"data": "ok", "n": 99}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "anything"}, timeout=3.0)
+            assert reply["type"] == "ok"
+            assert reply["payload"]["data"] == "ok"
+            assert reply["payload"]["n"] == 99
+
+
+def test_envelope_callback_keys_preserved(unique_name):
+    """Combined test — handler's full dict (including arbitrary
+    free-form keys) round-trips. rc1 silently dropped these."""
+    def handler(event):
+        # Simulate a real-world handler returning rich metadata.
+        return {
+            "type": "result",
+            "success": True,
+            "rows": [{"a": 1}, {"a": 2}],
+            "elapsed_ms": 42.5,
+            "trace_id": "abc-123",
+        }
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "query"}, timeout=3.0)
+            assert reply["payload"]["success"] is True
+            assert reply["payload"]["rows"] == [{"a": 1}, {"a": 2}]
+            assert reply["payload"]["elapsed_ms"] == 42.5
+            assert reply["payload"]["trace_id"] == "abc-123"
+
+
+def test_payload_schema_accepts_string(unique_name):
+    """rc2 Bug-2 fix: client payload may be a string."""
+    captured = []
+    def handler(event):
+        captured.append(event)
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send(
+                {"type": "str", "payload": "hello world"}, timeout=3.0
+            )
+            assert reply["payload"]["got"] == "hello world"
+    assert captured[0]["payload"] == "hello world"
+
+
+def test_payload_schema_accepts_list(unique_name):
+    """rc2 Bug-2 fix: client payload may be a list."""
+    def handler(event):
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send(
+                {"type": "lst", "payload": [1, 2, 3]}, timeout=3.0
+            )
+            assert reply["payload"]["got"] == [1, 2, 3]
+
+
+def test_payload_schema_accepts_int(unique_name):
+    def handler(event):
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "i", "payload": 42}, timeout=3.0)
+            assert reply["payload"]["got"] == 42
+
+
+def test_payload_schema_accepts_float(unique_name):
+    def handler(event):
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "f", "payload": 3.14}, timeout=3.0)
+            assert reply["payload"]["got"] == 3.14
+
+
+def test_payload_schema_accepts_none(unique_name):
+    def handler(event):
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "n", "payload": None}, timeout=3.0)
+            # None survives the round trip — server receives None,
+            # echoes None back, but make_event normalises None to {}
+            # for the request envelope (back-compat — see _event.py
+            # docstring), so the captured payload is {} not None.
+            assert reply["payload"]["got"] in (None, {})
+
+
+def test_payload_schema_accepts_nested_dict(unique_name):
+    def handler(event):
+        return {"type": "ack", "got": event.get("payload")}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            nested = {"a": {"b": {"c": [1, 2, {"d": "deep"}]}}, "e": None}
+            reply = ch.send(
+                {"type": "nest", "payload": nested}, timeout=3.0
+            )
+            assert reply["payload"]["got"] == nested
+
+
+def test_handler_exception_still_propagates_to_client(unique_name):
+    """rc1 already handled this; rc2 must preserve the behavior."""
+    def handler(event):
+        if event["type"] == "kaboom":
+            raise RuntimeError("kaboom!")
+        return {"type": "ack"}
+    with serve(unique_name, handler=handler):
+        with connect(unique_name) as ch:
+            reply = ch.send({"type": "kaboom"}, timeout=3.0)
+            assert reply["type"] == "_error"
+            # rc2: reason is a top-level key in the handler error dict.
+            assert "kaboom" in reply["payload"]["reason"]
+            assert "traceback" in reply["payload"]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.5.0rc2 — Native C peer (srmech_bus_* symbols)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_native_bus_symbols_present():
+    """rc2 adds five public bus C symbols + one helper. Verify the
+    Python ctypes binding picked them up when HAS_NATIVE is True."""
+    from srmech.amsc import _native
+    if not _native.HAS_NATIVE:
+        pytest.skip("native not loaded; nothing to verify")
+    assert _native.NATIVE_ABI_VERSION == 3, (
+        f"ABI v3 expected; got {_native.NATIVE_ABI_VERSION}"
+    )
+    for sym in (
+        "srmech_bus_serve",
+        "srmech_bus_server_accept_one",
+        "srmech_bus_server_stop",
+        "srmech_bus_connect",
+        "srmech_bus_send_recv",
+        "srmech_bus_client_close",
+    ):
+        assert hasattr(_native.LIB, sym), (
+            f"native lib missing C symbol {sym}"
+        )
+
+
+def test_bus_handler_callback_typedef_constructible():
+    """The CFUNCTYPE trampoline must be constructible (matches the
+    C-side srmech_bus_handler_callback_t typedef wire format)."""
+    from srmech.amsc import _native
+    cb_type = _native.BUS_HANDLER_CALLBACK
+    assert cb_type is not None
+    # Build a no-op trampoline to confirm CFUNCTYPE accepts the shape.
+    def _noop(req_ptr, req_len, resp_ptr, resp_len_inout, ud):
+        return 0  # SRMECH_OK
+    trampoline = cb_type(_noop)
+    assert trampoline is not None
+
+
+def test_abi_version_is_3():
+    """v0.5.0rc2 ABI bump: 2 → 3 (bus C peer + new typedef)."""
+    from srmech.amsc import _native
+    assert _native.EXPECTED_ABI_VERSION == 3, (
+        f"EXPECTED_ABI_VERSION should be 3; got "
+        f"{_native.EXPECTED_ABI_VERSION}"
+    )

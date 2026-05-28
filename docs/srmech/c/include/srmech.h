@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 5
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.5.0rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.5.0rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -78,8 +78,14 @@ extern "C" {
  *      file-relative line numbers without a side channel. Pure
  *      addition; srmech_sha256_hex unchanged. ABI bumped because
  *      the callback typedef wire-format changed.
+ * v3 — v0.5.0rc2: srmech_bus_* C peer for srmech.bus cross-process
+ *      IPC, including the new function-pointer typedef
+ *      srmech_bus_handler_callback_t. Adding a typedef carries a
+ *      wire-format implication for the Python ctypes shim
+ *      (CFUNCTYPE construction), so ABI bumps even though no
+ *      existing function signature changed.
  */
-#define SRMECH_ABI_VERSION 2
+#define SRMECH_ABI_VERSION 3
 
 /* ------------------------------------------------------------------ *
  * Status codes
@@ -1107,6 +1113,120 @@ srmech_status_t srmech_klein4_similarity(const uint8_t *a,
                                          const uint8_t *b,
                                          uint32_t       n,
                                          double        *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech.bus — cross-process IPC C peer (v0.5.0rc2)
+ *
+ * Five public symbols + one function-pointer typedef. POSIX uses
+ * AF_UNIX sockets at ~/.srmech/bus-<name>.sock; Windows uses named
+ * pipes at \\.\pipe\srmech-<name>. Framing is 4-byte big-endian
+ * length prefix + payload bytes (same as the Python skeleton).
+ *
+ * Handler dispatch is via the caller-provided function-pointer
+ * callback typedef below — same pattern as v0.4.5rc8's
+ * srmech_cascade_op_callback_f64_t. The Python ctypes layer
+ * wraps this typedef via ctypes.CFUNCTYPE to marshal arbitrary
+ * Python callables to the C surface.
+ *
+ * Memory: no malloc inside the hot path (JPL Rule 3). The per-server
+ * workspace + response buffer are allocated once at srmech_bus_serve
+ * entry and freed at srmech_bus_server_stop; the accept loop reuses
+ * them across all accepted connections. Caller-supplied response
+ * buffers in srmech_bus_send_recv are caller-owned (no copy through
+ * the library).
+ *
+ * Threading: thread-per-connection is the documented model on the
+ * Python side; the C surface ships srmech_bus_server_accept_one for
+ * single-threaded harnesses (each call accepts one client, services
+ * its requests until peer-close, then returns — the caller spins
+ * this in a thread).
+ *
+ * ABI v3 (this rc). Pure additions to v2 — but the new callback
+ * typedef carries a wire-format implication, so ABI bumps per the
+ * `[[reference_srmech_abi_compatibility]]` convention.
+ * ------------------------------------------------------------------ */
+
+/* Handler callback: per-request dispatch. The C library reads one
+ * length-prefixed request into a workspace, then invokes this
+ * callback. The callback writes its response into the caller-supplied
+ * `response` buffer (capacity in `*response_len_inout` on entry) and
+ * sets `*response_len_inout` to the actual response byte length.
+ * Returns SRMECH_OK on success; any non-OK return is treated as a
+ * handler error and propagated to the worker loop (which closes the
+ * connection). `user_data` is the opaque context pointer passed at
+ * srmech_bus_serve entry. */
+typedef srmech_status_t (*srmech_bus_handler_callback_t)(
+    const uint8_t *request,
+    size_t         request_len,
+    uint8_t       *response,
+    size_t        *response_len_inout,
+    void          *user_data);
+
+/* Opaque handle types. Definitions live in srmech_bus.c. */
+typedef struct srmech_bus_server_handle srmech_bus_server_handle_t;
+typedef struct srmech_bus_client_handle srmech_bus_client_handle_t;
+
+/* Create a bus server. Builds the on-disk registration
+ * (~/.srmech/bus-<name>.sock on POSIX; \\.\pipe\srmech-<name> on
+ * Windows), allocates the per-server workspace, and returns the
+ * handle in *out_handle. Does NOT start an accept loop — call
+ * srmech_bus_server_accept_one in a thread loop to service
+ * connections.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG    — name, handler, or out_handle is NULL.
+ *   SRMECH_ERR_BAD_INPUT   — name produces an invalid on-disk path.
+ *   SRMECH_ERR_OVERFLOW    — name + path-prefix exceeds buffer.
+ *   SRMECH_ERR_IO          — socket/bind/listen failed.
+ *   SRMECH_ERR_INTERNAL    — calloc failed. */
+srmech_status_t srmech_bus_serve(
+    const char                       *name,
+    srmech_bus_handler_callback_t     handler,
+    void                             *user_data,
+    srmech_bus_server_handle_t      **out_handle);
+
+/* Accept one client + service its requests until peer-close.
+ * BLOCKING. Caller-spinnable in a thread loop. Returns SRMECH_OK
+ * after the client disconnects cleanly; SRMECH_ERR_IO on accept
+ * failure. */
+srmech_status_t srmech_bus_server_accept_one(
+    srmech_bus_server_handle_t *h);
+
+/* Stop the server: signal shutdown, close the listen handle,
+ * unlink the on-disk registration, free the workspace + the
+ * handle itself. After return, h is invalid. */
+srmech_status_t srmech_bus_server_stop(srmech_bus_server_handle_t *h);
+
+/* Connect a bus client to the named endpoint. Returns the handle
+ * in *out_handle on success.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG    — name or out_handle is NULL.
+ *   SRMECH_ERR_IO          — socket/connect failed (server not
+ *                            running, permission, etc.). */
+srmech_status_t srmech_bus_connect(
+    const char                       *name,
+    srmech_bus_client_handle_t      **out_handle);
+
+/* Send one request + read its reply.
+ *   request: caller-owned bytes (length request_len).
+ *   response: caller-allocated buffer; *response_len_inout is the
+ *     capacity on entry, the actual response length on success.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG    — any of the four pointers is NULL.
+ *   SRMECH_ERR_OVERFLOW    — request_len > UINT32_MAX, or response
+ *                            buffer too small for the server's reply.
+ *   SRMECH_ERR_IO          — peer closed mid-frame, network error. */
+srmech_status_t srmech_bus_send_recv(
+    srmech_bus_client_handle_t       *h,
+    const uint8_t                    *request,
+    size_t                            request_len,
+    uint8_t                          *response,
+    size_t                           *response_len_inout);
+
+/* Close the client + free its handle. After return, h is invalid. */
+srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
 
 #ifdef __cplusplus
 }

@@ -91,24 +91,38 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc1():
-    """v0.5.0rc1 — srmech.bus Python skeleton (cross-process IPC).
-    Per user direction 2026-05-28: srmech / siona processes (and
-    Claude Code via MCP, rc5) compose across OS-process boundaries
-    via a TLV-framed MPR-NDJSON bus. POSIX uses real Unix-domain-
-    sockets at ``~/.srmech/bus-{name}.sock``; Windows uses a TCP-
-    loopback fallback with a registry file at
-    ``~/.srmech/bus-{name}.txt`` (named-pipe + ctypes wiring is
-    the rc2 target). Pure Python; no C peer yet; ABI unchanged at 2.
-    Sync API only (async is rc4; CLI is rc3; MCP adapter is rc5).
-    Off-by-default — importing ``srmech.bus`` binds nothing.
-    Framework reading: Class M cross-class bind ∘ Class B TLV framing
-    ∘ Class A content-addressing extended to the OS-process boundary;
-    the read-only ``srmech.introspect`` channel is the unidirectional
-    special case of this bus.
+def test_version_is_0_5_0rc2():
+    """v0.5.0rc2 — srmech.bus C peer + real Windows named pipe + envelope fixes.
+
+    Per user direction 2026-05-28 (continuation): three changes
+    folded into one rc.
+
+    (1) **C peer for srmech.bus** — five public symbols
+        (``srmech_bus_serve`` / ``srmech_bus_server_stop`` /
+        ``srmech_bus_connect`` / ``srmech_bus_send_recv`` /
+        ``srmech_bus_client_close``) + one function-pointer typedef
+        (``srmech_bus_handler_callback_t``). JPL-clean POSIX (AF_UNIX)
+        + Windows (CreateNamedPipe via ctypes — no pywin32 dep).
+        **ABI bump 2 → 3**.
+
+    (2) **Real Windows named pipe transport** — replaces rc1's
+        TCP-loopback fallback. Server creates instances at
+        ``\\\\.\\pipe\\srmech-{name}`` via ``CreateNamedPipeW``;
+        clients connect via ``CreateFileW``. Registry token changes
+        from ``tcp 127.0.0.1 <port>`` to ``pipe \\\\.\\pipe\\srmech-{name}``.
+        TCP-loopback retained as defensive fallback.
+
+    (3) **Envelope-bug fixes from rc1's smoke test**:
+        - Bug 1: handler return-shape silently dropped keys beyond
+          ``type``; now the full handler dict passes through as the
+          response Event's ``payload`` (so ``echo``, ``server_pid``,
+          etc. survive end-to-end).
+        - Bug 2: client ``send()`` over-restricted ``payload`` to
+          dict; now accepts any JSON-serialisable value (string,
+          list, number, None, dict).
     """
-    assert srmech.__version__ == "0.5.0rc1", (
-        f"expected srmech.__version__ == '0.5.0rc1'; got "
+    assert srmech.__version__ == "0.5.0rc2", (
+        f"expected srmech.__version__ == '0.5.0rc2'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -116,7 +130,7 @@ def test_version_is_0_5_0rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc1"
+    assert version_str == "0.5.0rc2"
     assert version_str == srmech.__version__
 
 

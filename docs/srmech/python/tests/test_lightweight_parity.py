@@ -116,7 +116,9 @@ def test_introspection_version_native_matches():
     # Class H invariant: native version string must agree with Python.
     import srmech
     assert _native.NATIVE_VERSION == srmech.__version__
-    assert _native.NATIVE_ABI_VERSION == 2
+    # v0.5.0rc2 bumped ABI 2 → 3 (added srmech_bus_* C peer + new
+    # function-pointer typedef srmech_bus_handler_callback_t).
+    assert _native.NATIVE_ABI_VERSION == 3
 
 
 # ---------------------------------------------------------------------
