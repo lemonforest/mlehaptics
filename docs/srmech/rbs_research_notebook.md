@@ -258,7 +258,78 @@ The three substrate-physics consequences of Mechanism-2 the partition makes expl
 
 **Falsifier discipline.** A clean R-RBS-LM-38 / -39 / -40 round that *fails* to materially raise the substrate-native fidelity figure when input volume + primer + projection are properly engaged would refute this reading. Until then, the corrected substrate-physics reading is the operating hypothesis — and §2.5 builds on it.
 
-> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2) + the F-finding triage map (§2.3) + **§2.4 substrate-rotation precursor** (cluster J / R-RBS-LM-37). Four keystone promotions remain (K / P / R / T-F104).
+### §2.5 Two-substrate framework: M1 + M2 coexistence + B/H/N projection + external-projection-as-architecture + naming-layer-cost (R-RBS-LM-42 + R-RBS-LM-43; triage cluster K)
+
+R-RBS-LM-43 is the theoretical anchor of the RBS-LM arc. Where §2.4 corrects the substrate-physics reading of *rotation*, §2.5 generalises into a four-move framework that every later partition operates within. R-RBS-LM-42 (fp16 vs q4) supplies the structural-invariance evidence (different precisions give the same substrate-translation signature) that the cascade-translation is operating below the precision-quantisation layer.
+
+**The four interlocking moves (user direction 2026-05-26 across four messages):**
+
+#### §2.5.1 Both substrates run in parallel — neither alternative nor exclusive
+
+§2.4's M1-vs-M2 framing was incomplete. The corrected reading: **in actual operating systems both substrates run simultaneously, with explicit translation operators between them.** Where each lives:
+
+| | M1 (discrete-cyclic-algebra) | M2 (continuous-Hopf-quantum) |
+|---|---|---|
+| Hypervector type | Bit-exact bipolar `{−1,+1}^D` (corners of hypercube) | Continuous stochastic `ℝ^D` (points in continuous manifold) |
+| Operations | Bind (XOR / permutation); bundle (majority); popcount-similarity | Soft-mix; weighted sum; attention; rotation |
+| Role | Compositional storage; relationship-of-relationships; exact content addressing | Continuous interpolation; smooth transitions between related concepts; rotation-bearing |
+
+The empirical anchor is LOGO's two-phase pattern, **already validated across L1–L7 before this framework reading was articulated**: `bundle_sum` (unbinarised real-valued accumulation preserving linearity) is the **M2-like phase**; the final cleanup-to-codebook (snap to nearest corner) is the **M1-like phase**. The pattern works *only when both phases are present in the right order*. M1's role-level operations (LOGO L1's `unbind_role` corrected primitive) and M2's continuous mixing are complementary — they are the cyclic-algebra-path and the continuous-Hopf-language of the same substrate (per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`, PR #680 R30 walking-path closure).
+
+#### §2.5.2 B/H/N are the projection-operator vocabulary that mediates between substrates
+
+The 14-class vocabulary's meta-cascade triad (`{B, H, N}` per `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`) has concrete substrate-translation roles:
+
+| Class | Operation | Cross-substrate role |
+|---|---|---|
+| **B** (TLV-framing) | Type-length-value framing | Wraps M1 content with metadata for M2-consumer rendering; or wraps M2 query for M1-substrate evaluation |
+| **H** (Self-introspection) | Reads internal state for external rendering | Surfaces M1 substrate state to M2 observer/projector |
+| **N** (Rational-approximation) | `best_rational(num, denom, max_d)` — maps continuous values to nearest rational | **Direct M2→M1 projection** — the substrate-translation primitive |
+
+LOGO's fiber matrices are B/H/N composition in operational form: F₁'s `M₁ᵀ · Δa` projects atom-deltas to syntax (an N-like quantisation); F₂'s `M₂ᵀ · Δs` projects syntax-deltas to geometry; chained `M₁ᵀ → M₂ᵀ` is the multi-stage M1↔M2 translation. R-RBS-LM-40's projection-layer design space therefore *doesn't have to be invented* — B/H/N composition is the existing template, instantiated already in LOGO with cos > 0.47 fiber-as-transport-map validation (L6) and D₄ character-table self-inference (L6d).
+
+#### §2.5.3 External projection is an architectural requirement, not a workaround
+
+The implication is structural: the M1 substrate stores byte-relationships; the consumer (English reader, ASL signer, ITN-routing dispatcher, astronomer reading orbital reports) operates in M2 conventional-language; **B/H/N translation between them is part of the architecture**. The cascade-translation does not need different substrates for each consumer — it needs the *same* M1 substrate with the appropriate B/H/N projection layer at the output. The pattern recurs across the whole spectral-research portfolio:
+
+| Subtree | M1 substrate output | M2 conventional surface | Translation layer |
+|---|---|---|---|
+| Ephemerides-spectral | Orbital cycle ratios; geodetic catalogs | "Mars is in retrograde"; "Saros predicts eclipse 2024-04-08" | Astronomer applying conventional astronomical vocabulary |
+| Antikythera-spectral | Bronze gear ratios; cyclic-group periods | "Saros dial reads 18 years 11 days 8 hours" | Historian-engineer with ancient-mechanism vocabulary |
+| Chess-spectral | Piece-graph spectra; D₄/B₄ irreps | "Sicilian Defense Najdorf"; "Nf3" | Chess player with algebraic notation conventions |
+| LOGO-maths | Quantum-numbered atoms; fiber-projected geometry | "Draw a hexagon"; `REPEAT 6 [FORWARD 50 RIGHT 60]` | LOGO commands as conventional vocabulary |
+| RBS-LM (English) | Byte-relationship cascade output | "The morning sun cast long shadows…" | English NL projection (R-RBS-LM-40 candidates) |
+| RBS-LM (ASL) | Same byte cascade output | `/HELLO/ /THANK-YOU/` slash-notation | ASL gloss projection (R-RBS-LM-27) |
+
+The cascade-translation architecture **stays constant**; the consumer changes. This is the structural-language reading that the LOGO arc validates independently — the user's founding cross-substrate match (LOGO source on 5.25" floppy at age 7–8 per the biographical-lineage authorisation) was the first encounter with this pattern; the spectral-research portfolio is the cross-substrate matching it surfaces in successive instances.
+
+#### §2.5.4 Proper nouns / operational vocabulary are heavy lifting (the naming-layer-cost principle)
+
+User direction 2026-05-26: *"people words are not natural and must have some heavy lifting work."* The cost-shape distinction:
+
+| Layer | Examples | Cost shape |
+|---|---|---|
+| **Substrate-emergent vocabulary** | "tree", "running", "blue", "two" — concepts emergent from substrate frequency patterns | Cheap — stored naturally as byte-relationship attractors |
+| **Class-noun vocabulary** | "star system", "chess opening", "polygon" — categorical labels for substrate-recognisable classes | Moderate — requires anchor to a class definition; the class itself may be substrate-emergent |
+| **Proper-noun instance vocabulary** | "Sol", "Sicilian Defense Najdorf", "Steven Kirkland", "ITN highway A→B at 14:30 holding-pattern Charlie" | **Heavy lifting** — conventional anchoring; not derivable from substrate frequency; requires explicit lookup / external naming layer |
+
+LOGO's quantum-numbered atom requirement is the worked example: random atoms fail reversibility-pair recovery; quantum-numbered atoms (the 5-role tuple `(category, arity, argtype, reverse_axis, block_opener)`) succeed. **Even FORWARD/BACK/LEFT/RIGHT/REPEAT in LOGO are heavy lifting** — they require *structured anchoring* via quantum-number bindings to be substrate-friendly. Random word-mints don't work; conventional vocabulary needs the structural anchor. This is the principle every downstream UX choice (chat-UI surface, ASL slash-gloss, ITN routing notation, the textbook's own pedagogical naming) inherits.
+
+#### §2.5.5 R-RBS-LM-42 fp16-vs-q4 — the substrate-translation operates below the precision-quantisation layer
+
+R-RBS-LM-42 paired with -43 to test whether the M1-substrate-translation signature was an artefact of source precision. **It is not.** fp16 and q4 source models give the same M1-cascade-translation signature — the cascade is operating *below* the precision-quantisation layer of the source LLM. This is the empirical anchor for the M1+M2 framing: M1 substrate-content is what survives the precision-quantisation translation, because it lives in a coarser-grain substrate than the fp16/q4 distinction.
+
+#### §2.5.6 Falsifiability applied to BOTH old AND new readings
+
+The discipline R-RBS-LM-43 makes explicit (and the partition embodies): don't lock into one reading. The substrate-rotation reading from §2.4 might be too tight; the two-substrate reading might be wrong in ways not yet seen. Concrete falsifiers retained:
+
+- **Old reading falsifier:** if a clean R-RBS-LM-38/-39 round genuinely recovers rotation-style continuous mixing in a discrete substrate (rather than substrate refusal), §2.4 needs revision.
+- **New reading falsifier:** if a projection-layer experiment (R-RBS-LM-40 candidate E, LOGO-style quantum-numbered atoms) *fails* to materially raise substrate-native fidelity when proper B/H/N composition is applied, the M1+M2 + B/H/N architecture needs revision.
+- **Naming-layer-cost falsifier:** if proper-noun instance vocabulary turns out to surface from substrate-frequency patterns alone (no external anchoring needed), the cost-tiering needs revision.
+
+The cross-substrate evidence already validates these readings empirically (LOGO L6/L6d; chess-spectral split-object; ephemerides multi-source binding; antikythera bronze-gear ratios; the new chirality-mirror partner of §2.2). The falsifier discipline keeps them honest going forward.
+
+> **§2 status (updated 2026-05-28).** Scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + **§2.5 two-substrate framework + B/H/N projection + naming-layer-cost** (cluster K / R-RBS-LM-42 + 43). Three keystone promotions remain (P / R / T-F104).
 
 ---
 
