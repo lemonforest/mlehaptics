@@ -91,22 +91,22 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_6rc1():
-    """v0.4.5rc8 — eighth rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc, and the LAST. **CLOSES THE ARC.** Adds the only
-    HIGHER-ORDER cascade op ``chiral_dual`` (Class C ∘ op ∘ Class C) via
-    a function-pointer callback ABI (``srmech_cascade_op_callback_f64_t``
-    typedef) — chosen over a Class-ID enum dispatch so arbitrary Python
-    callables work per the cascade-catalog public API contract. C peer
-    ``srmech_cascade_chiral_dual_f64`` delegates the Class C inner+outer
-    chiral_flip to the rc1 native peer; workspace is caller-allocated
-    per JPL Rule 3 (no malloc inside libsrmech). After this ship all 8
-    cascade catalog ops have full C/Python parity + TOML descriptors;
-    the v0.4.5rc1 carve-out correction is complete. ABI unchanged at 2
-    (additive symbol + typedef); no new primitive class. Ready for
-    clean v0.4.5 ship to production PyPI."""
-    assert srmech.__version__ == "0.4.6rc1", (
-        f"expected srmech.__version__ == '0.4.5rc8'; got "
+def test_version_is_0_4_6rc2():
+    """v0.4.6rc2 — out-of-band introspection (talk-to-running-PID API).
+    Per user direction 2026-05-28: srmech exposes its internal current
+    state via a file-based status backend at ``~/.srmech/run-{pid}-
+    {start_time_ns}.ndjson``. Long sweeps become observable from a
+    second process without monkey-patching or ``top`` polling. Adds
+    the ``srmech.introspect`` module (publish ctxmgr + list / by_pid
+    reader API), the ``srmech status`` CLI subcommand, the
+    ``SRMECH_PUBLISH_STATUS=1`` env-var opt-in, and emit hooks at the
+    cascade-op + AMSC-fetch + signal-processing boundaries.
+    Off-by-default; zero cost when not publishing. ABI unchanged at 2
+    (pure Python module). Framework reading: Class H
+    (self-introspection) projected across the OS-process boundary.
+    """
+    assert srmech.__version__ == "0.4.6rc2", (
+        f"expected srmech.__version__ == '0.4.6rc2'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -114,7 +114,7 @@ def test_version_is_0_4_6rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.6rc1"
+    assert version_str == "0.4.6rc2"
     assert version_str == srmech.__version__
 
 

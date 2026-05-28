@@ -66,6 +66,18 @@ from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
 from srmech.amsc.rational import best_rational as _best_rational
 
+# v0.4.6rc2 — introspection emit hook. Zero-cost when not publishing.
+# We use ``_is_publishing()`` (a single thread-local attribute lookup)
+# as the gate so the per-op ``describe_shape()`` cost only fires when
+# a publishing context is active. ``emit_if_publishing()`` itself does
+# the same check internally, but routing through the explicit gate
+# here lets us skip the kwarg-bundle + the shape evaluation entirely.
+from srmech.introspect._writer import (
+    _is_publishing as _is_pub,
+    emit_if_publishing as _emit,
+)
+from srmech.introspect._event import describe_shape as _shape
+
 #: Default small-denominator ceiling for ``best_rational_signed`` (the
 #: Class N rational anchor). Matches the precursor cascade-helper default.
 DEFAULT_MAX_DENOMINATOR = 100
@@ -133,6 +145,7 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
         ``magnitude >= 0``. The origin and NaN both map to ``(0, 0.0)``;
         ``+inf`` / ``-inf`` map to ``(+/-1, +inf)``.
     """
+    if _is_pub(): _emit("cascade.pin_slot_at_zero", class_="K", input_shape=_shape(x))
     native = _try_native_pin_slot_at_zero(x)
     if native is not None:
         return native
@@ -223,6 +236,7 @@ def reorient(orientation: int, value):
     Returns:
         ``-value`` when ``orientation < 0``, otherwise ``value`` unchanged.
     """
+    if _is_pub(): _emit("cascade.reorient", class_="C", input_shape=f"{_shape(orientation)}+{_shape(value)}")
     native = _try_native_reorient(orientation, value)
     if native is not None:
         return native
@@ -281,6 +295,7 @@ def magnitude(x: float) -> float:
     Returns:
         ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``).
     """
+    if _is_pub(): _emit("cascade.magnitude", class_="K", input_shape=_shape(x))
     native = _try_native_magnitude(x)
     if native is not None:
         return native
@@ -381,6 +396,7 @@ def best_rational_signed(
     Raises:
         ValueError: if ``max_denominator < 1`` or ``fine_scale < 1``.
     """
+    if _is_pub(): _emit("cascade.best_rational_signed", class_="K∘N∘C", input_shape=_shape(x))
     if max_denominator < 1:
         raise ValueError(
             f"cascade.best_rational_signed: max_denominator must be >= 1; "
@@ -486,6 +502,7 @@ def cyclic_gcd(a: int, b: int) -> int:
         ValueError: forwarded from ``srmech.amsc.cyclic.gcd`` for negative
             inputs or inputs exceeding the uint64 parity surface.
     """
+    if _is_pub(): _emit("cascade.cyclic_gcd", class_="I", input_shape=f"{_shape(a)}+{_shape(b)}")
     native = _try_native_cyclic_gcd(a, b)
     if native is not None:
         return native
@@ -617,6 +634,7 @@ def chiral_flip(seq):
     Returns:
         ``seq[::-1]`` — the orientation-reversed sequence, type preserved.
     """
+    if _is_pub(): _emit("cascade.chiral_flip", class_="C", input_shape=_shape(seq))
     # Native path 1: numpy ndarray. Detect via duck-typing on dtype/ndim so
     # we don't pay an unconditional numpy import for non-array callers.
     if hasattr(seq, "dtype") and hasattr(seq, "ndim"):
@@ -761,6 +779,7 @@ def chiral_dual(op, x):
         ``chiral_flip(op(chiral_flip(x)))`` — ``op`` evaluated in the
         reversed Class-C orientation.
     """
+    if _is_pub(): _emit("cascade.chiral_dual", class_="C∘op∘C", input_shape=_shape(x))
     native = _try_native_chiral_dual(op, x)
     if native is not None:
         return native
@@ -866,6 +885,7 @@ def net_chirality(orientations) -> int:
         ``0`` if any operator is orientation-neutral (a zero-crossing in the
         chain collapses net handedness).
     """
+    if _is_pub(): _emit("cascade.net_chirality", class_="C", input_shape=_shape(orientations))
     native = _try_native_net_chirality(orientations)
     if native is not None:
         return native

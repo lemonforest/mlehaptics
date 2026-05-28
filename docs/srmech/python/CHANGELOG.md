@@ -6,6 +6,41 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** (queued srmech follow-ups deferred during the v0.4.4 chirality + siona arc and the v0.4.5 cascade-catalog C-parity arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in. Plus v0.5.0 DSL work: runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce (task #235)._
 
+## [0.4.6rc2] - 2026-05-28
+
+**Out-of-band introspection — talk-to-running-PID API.** Per user
+direction 2026-05-28: srmech now exposes its internal current state
+over a file-based API. Long-running sweeps (30 min to hours) become
+observable from a second process without monkey-patching, GDB attach,
+or `top` / `ps` polling. Substrate-self-recognition extended across
+the OS-process boundary (the framework reading: Class H at PID level).
+
+- Added: `srmech.introspect` module — `publish()` context manager;
+  `list()` enumerates active runs (filters by file ownership; no `top`
+  needed); `by_pid(N).follow()` streams events; `Run` + `Event` frozen
+  dataclasses.
+- Added: `srmech status [--pid N] [-f]` CLI subcommand. Also wired
+  `python -m srmech status ...` via `srmech/__main__.py` and the
+  `[project.scripts]` console-script `srmech = "srmech.cli:main"` in
+  both pyprojects.
+- Added: `SRMECH_PUBLISH_STATUS=1` env var auto-activates publish.
+- File backend: `~/.srmech/run-{pid}-{start_time_ns}.ndjson`
+  (start_time_ns defeats PID recycling). MPR-shaped events (re-uses
+  srmech.amsc.format envelope — introspection is itself attestable).
+- Off by default; zero cost when not used. Emit hooks at cascade-op
+  (all 8 ops in `srmech.amsc.cascade`) + AMSC-fetch (`adapters._base.run`)
+  + signal-processing (`cascade_dispatcher.dispatch` + RBS-HDC
+  encode/decode/similarity boundaries) are no-ops without publish.
+- Auto-cleanup: `list()` checks `os.kill(pid, 0)` (POSIX) / Win32
+  `OpenProcess` (Windows); removes orphan files; reports dead PIDs as
+  "died" with the last event's data preserved in the returned Run.
+- ~30 new parity tests (`tests/test_introspect.py`). Tier 1
+  (status-file) ships; Tier 2 (mmap ring buffer for >1k events/sec)
+  deferred until an op proves it needs it.
+- Cross-platform: Linux/macOS/Windows. Pyodide degrades cleanly.
+
+ABI unchanged at 2 (no C changes; pure Python module).
+
 ## [0.4.6rc1] - 2026-05-28
 
 **PyPI metadata refresh — leads with SO(8) 28D framing.** Description-only

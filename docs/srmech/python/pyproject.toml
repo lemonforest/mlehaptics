@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.4.6rc1"
+version = "0.4.6rc2"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -95,6 +95,13 @@ dev = [
     "requests>=2.28",
     "beautifulsoup4>=4.11",
 ]
+
+[project.scripts]
+# v0.4.6rc2 — first CLI subcommand: ``srmech status`` (out-of-band
+# introspection of a running srmech sweep). The siona alias mirrors
+# the import-level alias (v0.4.4); both invoke the same dispatch.
+srmech = "srmech.cli:main"
+siona = "srmech.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"

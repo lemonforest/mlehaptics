@@ -58,6 +58,15 @@ from .path_registry import (
     lookup,
 )
 
+# v0.4.6rc2 — introspection emit hook for signal-processing boundary.
+# Gate on _is_publishing() so the per-call describe_shape cost stays
+# at zero in the off-path (cf. cascade.py rc2 discipline).
+from srmech.introspect._writer import (
+    _is_publishing as _is_pub_introspect,
+    emit_if_publishing as _emit_introspect,
+)
+from srmech.introspect._event import describe_shape as _shape_introspect
+
 __all__ = [
     "CascadeContext",
     "DispatchError",
@@ -436,6 +445,20 @@ def dispatch(
         If ``path="verify"`` is requested in Phase 1 (algebra-check
         primitives land in Phase 4+ tests).
     """
+    # v0.4.6rc2 — emit at the dispatch boundary. Single hook covers
+    # every closed_form_ops + path_b_ops invocation that routes through
+    # dispatch(). Direct ``module.op(...)`` calls bypass this; the
+    # rbs_hdc_instrument hooks cover the Path-B native surface.
+    # Off-path: pure TLS attribute lookup; zero allocations.
+    if _is_pub_introspect():
+        _emit_introspect(
+            f"signal_processing.{op_name}",
+            class_="",
+            input_shape=(
+                _shape_introspect(args[0]) if args else "len=0"
+            ),
+            extra={"path": str(path) if path else "auto", "D": int(D)},
+        )
     chosen = resolve_path(op_name, explicit_path=path)
     entry = lookup(op_name)
     if chosen == PATH_VERIFY:

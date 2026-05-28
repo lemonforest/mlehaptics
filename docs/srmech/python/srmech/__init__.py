@@ -50,6 +50,18 @@ from .profile_loader import (
     profile,
 )
 
+# v0.4.6rc2 — out-of-band introspection (talk-to-running-PID API).
+# Per user direction 2026-05-28: long sweeps (30 min to hours) become
+# observable from a second process via a file-based status backend at
+# ``~/.srmech/run-{pid}-{start_time_ns}.ndjson``. OFF by default; the
+# import itself MUST NOT create any file. The env-var opt-in
+# ``SRMECH_PUBLISH_STATUS=1`` activates a process-wide publish context
+# at import time per the spec — implemented via the
+# ``_maybe_auto_publish`` hook below.
+from . import introspect as _introspect
+
+_introspect._maybe_auto_publish()
+
 __all__ = [
     "__version__",
     # profile loader API (Task #199, ADR-0001)
@@ -63,4 +75,12 @@ __all__ = [
     "SmokeTestFailedError",
     "list_profiles",
     "profile",
+    # introspect module exposure (v0.4.6rc2)
+    "introspect",
 ]
+
+# Expose ``srmech.introspect`` as a regular attribute (the module is
+# already importable via the ``from . import introspect`` above; this
+# just records it for symbol-exposure tests that check
+# ``hasattr(srmech, "introspect")``).
+introspect = _introspect
