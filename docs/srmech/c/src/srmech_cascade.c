@@ -42,6 +42,15 @@
  * (a zero-crossing collapses net handedness). Last of the simple
  * pure-Python cascade ops in the arc.
  *
+ * v0.4.5rc6 op: `cyclic_gcd` (Class I cyclic-group gcd; cascade-namespace
+ * wrapper). FIRST of the delegating cascade ops — the cascade-catalog
+ * entry IS the Class I primitive (Euclid gcd; srmech_gcd). The wrapper
+ * exists to maintain the srmech_cascade_* namespace invariant: every
+ * cascade-catalog entry ships a srmech_cascade_* C symbol, even when
+ * the math lives at the A–N primitive level. Internally delegates to
+ * srmech_gcd; no additional sign-handling or cyclic-group operations
+ * layered on top (that would be a different cascade).
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -307,4 +316,46 @@ srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
     }
     *out = net;
     return SRMECH_OK;
+}
+
+/* cyclic_gcd — Class I cyclic-group gcd; cascade-namespace wrapper.
+ *
+ * Pure delegation to the Class I primitive srmech_gcd. The wrapper
+ * carries NO additional logic — its sole purpose is to maintain the
+ * srmech_cascade_* naming invariant for the cascade catalog. The
+ * underlying srmech_gcd handles the Euclidean iteration, the gcd(0,0)
+ * = 0 convention, and the gcd(a,0) = a convention.
+ *
+ * Conformance: the wrapper checks out != NULL up-front to short-circuit
+ * the NULL case at the cascade layer (saves an indirected call). The
+ * underlying srmech_gcd would also reject NULL but doing it here keeps
+ * the cascade-wrapper path predictable for callers reading status
+ * codes (the SRMECH_ERR_NULL_ARG status flows from a single source).
+ *
+ * JPL Rule 5 (≥2 asserts): out != NULL pre-condition + post-condition
+ * pinning the OK / propagated-status disjunction.
+ */
+srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
+                                                uint64_t  b,
+                                                uint64_t *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    /* Delegate to the Class I primitive. The cascade-namespace wrapper
+     * carries no additional logic — it exists to maintain the
+     * srmech_cascade_* naming invariant per the user's
+     * "delegate to A-N C peers; cascade-level C wrapper + TOML"
+     * directive. */
+    const srmech_status_t st = srmech_gcd(a, b, out);
+    /* Post-condition: on OK, the gcd convention holds — gcd(0,0) = 0
+     * AND gcd(a,0) = a (so when b == 0 the result equals a, including
+     * the a == 0 sub-case which returns 0); on non-OK, the status
+     * propagated from srmech_gcd (the only such case for non-NULL out
+     * is no error path inside srmech_gcd — but we admit the
+     * disjunction so future Class I status codes propagate without
+     * silent breakage). */
+    assert(st != SRMECH_OK || (b != 0) || (*out == a));
+    return st;
 }

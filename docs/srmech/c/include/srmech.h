@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc5"
-#define SRMECH_VERSION       "0.4.5rc5"
+#define SRMECH_VERSION_PRE   "rc6"
+#define SRMECH_VERSION       "0.4.5rc6"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -179,6 +179,9 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  * v0.4.5rc3: magnitude — Class K pin-slot magnitude-only projection.
  * v0.4.5rc4: reorient — Class C cascade-orientation re-application.
  * v0.4.5rc5: net_chirality — Class C net handedness invariant.
+ * v0.4.5rc6: cyclic_gcd — Class I cyclic-group gcd (cascade-namespace
+ *            wrapper; delegates to the Class I primitive srmech_gcd).
+ *            FIRST of the delegating cascade ops.
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -287,6 +290,34 @@ srmech_status_t srmech_cascade_reorient_f64(int8_t   orientation,
 srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
                                                   size_t        n,
                                                   int8_t       *out);
+
+/* cyclic_gcd: Class I cyclic-group gcd, cascade-namespace wrapper.
+ *
+ * The cascade-catalog entry for cyclic_gcd IS the Class I primitive
+ * gcd (Euclidean algorithm). This wrapper exists to maintain the
+ * srmech_cascade_* namespace invariant: every cascade-catalog entry
+ * ships a srmech_cascade_* C symbol, even when the math lives at
+ * the Class I primitive level. Internally delegates to the existing
+ * srmech_gcd primitive (Task #217 Phase C1 rc1; declared below).
+ *
+ * Signature mirrors the Class I primitive exactly: uint64 inputs,
+ * uint64 output via pointer, srmech_status_t returned. The cascade
+ * Python ref (cascade.py:cyclic_gcd) is a thin pass-through to
+ * srmech.amsc.cyclic.gcd which itself enforces non-negative uint64
+ * range — so the cascade C wrapper is intentionally uint64 too;
+ * negative / out-of-range inputs are rejected at the Python dispatch
+ * layer and never reach the C wrapper.
+ *
+ * Conventional gcd(0, 0) = 0; gcd(a, 0) = a (matches srmech_gcd).
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — out is NULL
+ *   (any other status propagated from the underlying srmech_gcd)
+ */
+srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
+                                                uint64_t  b,
+                                                uint64_t *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

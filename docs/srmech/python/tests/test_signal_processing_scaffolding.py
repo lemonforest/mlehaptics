@@ -91,24 +91,23 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc5():
-    """v0.4.5rc5 — fifth rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Continues the v0.4.5rc1+rc2+rc3+rc4 carve-out
-    correction by retrofitting ``net_chirality`` (Class C net handedness
-    invariant) with a dedicated C symbol
-    (``srmech_cascade_net_chirality_i8``; sequence-in / scalar-out via
-    output pointer) and a TOML descriptor under
-    ``srmech/amsc/_research/cascade_catalog/``. Empty input returns +1
-    (multiplicative identity); any 0 in the sequence short-circuits to
-    0 (a zero-crossing collapses net handedness); orientations are int8
-    (caller-side dispatch falls back to Python for generators, bool
-    elements, out-of-int8 values, mixed types). Last of the simple
-    pure-Python cascade ops in this arc; the remaining 3 (cyclic_gcd,
-    best_rational_signed, chiral_dual) involve delegation / multi-class
-    cascades / higher-order callbacks. ABI unchanged at 2 (additive
-    symbol); no new primitive class."""
-    assert srmech.__version__ == "0.4.5rc5", (
-        f"expected srmech.__version__ == '0.4.5rc5'; got "
+def test_version_is_0_4_5rc6():
+    """v0.4.5rc6 — sixth rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc. Continues the v0.4.5rc1..rc5 carve-out correction
+    by retrofitting ``cyclic_gcd`` (Class I cyclic-group gcd) with a
+    cascade-namespace C wrapper (``srmech_cascade_cyclic_gcd_u64``) that
+    delegates to the existing Class I primitive ``srmech_gcd``, plus a
+    TOML descriptor with a ``[cascade.delegates_to]`` section
+    documenting the delegation. FIRST of the delegating cascade ops in
+    this arc (the cascade-catalog entry IS the Class I primitive; the
+    wrapper exists to maintain the ``srmech_cascade_*`` namespace
+    invariant per the user's *"delegate to A-N C peers; cascade-level C
+    wrapper + TOML"* directive). The remaining 2 ops queued:
+    best_rational_signed (multi-class K∘N∘C cascade) and chiral_dual
+    (higher-order; callback ABI). ABI unchanged at 2 (additive symbol);
+    no new primitive class."""
+    assert srmech.__version__ == "0.4.5rc6", (
+        f"expected srmech.__version__ == '0.4.5rc6'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -116,7 +115,7 @@ def test_version_is_0_4_5rc5():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc5"
+    assert version_str == "0.4.5rc6"
     assert version_str == srmech.__version__
 
 
