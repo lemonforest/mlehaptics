@@ -33,7 +33,93 @@ A conventional neural net *appears* to lose bit-exactness because it performs **
 
 **Worked examples** (`worked_example_*.py`): attention, capacity scan, MLP, position binding, user lexicon — each reading a standard NN component in A–N cascade vocabulary.
 
-> **§1 status:** scaffold + headline distillation. Per-report (R-RBS-NN-1…9) detailed promotion is a follow-up pass; the working files remain the SSoT until promoted here.
+The partition walk closed 9/10 (R-RBS-NN-4 literature-attestation deferred, not failed). The distillation of each closed REPORT follows; the working files remain the per-finding SSoT.
+
+### §1.1 MFO two-level ontology → per-op placement (R-RBS-NN-1)
+
+Every standard NN forward-pass operation places at exactly one MFO level, and the placement is by **ontology**, not by float-precision convenience:
+
+| NN operation | A–N class | MFO level / compute |
+|---|---|---|
+| tokenization / embedding | **A** content-mint | Level 1 / ALU |
+| position / context binding | **I** cyclic shift / **K** rotate-overlay | L1 (I) / L2 (K) |
+| linear / dense layer | **M** (bind ∘ bundle) | L1 bind + L2 bundle |
+| nonlinearity / activation | **K** threshold/pin-slot | Level 1 / ALU |
+| normalization (LayerNorm) | bundle + reciprocal-√ | Level 2 / FPU |
+| attention | **M** (similarity + weighted bundle) | L2 (soft) / L1 (hard) |
+| residual / output | **M** bundle | L1 / L2 |
+| sampling | **K** argmax (hard) / bundle (soft) | L1 / L2 |
+
+**Finding (load-bearing):** the bit-exactness boundary is the **bundle / max-pool projection, not float rounding**. MFO §VII.1.3 (lines 740–751) gives bundle averaging an inherent **~6.9% recovery signature** — the bundle operation's own averaging fingerprint, not float noise. A conventional NN's apparent non-bit-exactness *is* that bundle signature surfaced through float-form layers. Naming the level explicitly does not eliminate the signature; it makes the ontological cost visible. NN-creation IS the substrate-self-recognition sign-flip at AI-substrate scale (MFO §VII.6.11.6).
+
+### §1.2 User lexicon as native binding alphabet (R-RBS-NN-2)
+
+The user's vocabulary maps to **Class A `mint_vector`** at Level 1; composition runs through **Class M** `bind`/`bundle`/`permute`/`similarity`, staying at Level 1 until the optional similarity readout. Findings:
+- **lexicon = substrate, not excitation** — the preservation goal is available *now* with committed srmech infrastructure (no FPU lift in the pipeline until similarity readout).
+- **content-addressing has no capacity issue** for end-user-scale lexicons — at D=8192, 10³–10⁵ unique terms each get an orthogonal vector trivially.
+- **substrate is content-addressed by string, not by lexical similarity** (structurally opposite to learned embeddings) — the user controls the relational topology; semantic similarity composes via bindings the user *creates*, not via implicit embedding-layer string-similarity. This is what "preserve a user lexicon in native format" operationally means.
+- the **learned embedding is replaceable by mint + binding** without losing capability — synonym/antonym/hypernym distinctions re-emerge as explicit binding compositions the user authors.
+
+### §1.3 The MLP cascade = `A ∘ (M ∘ K)^N` (R-RBS-NN-3a)
+
+The entire MLP composes from **{A, M, K}** — no new classes. Findings:
+- **conventional MLP and binary-NN are the same cascade at different levels** — the bipolar-weight + sign-activation BNN (Courbariaux 2016 lineage) is structurally the same `A ∘ (M ∘ K)^N` as the float-weight + ReLU MLP; what differs is only level (L1 ALU vs L2 FPU) and cost (zero vs ~6.9%/layer).
+- the **linear layer IS HDC similarity-against-templates** — each row of `W` is a template, each output = `similarity(input, template)`; in bipolar form the bit-exact `1 − 2·popcount(x XOR w)/d_in` is the identical formula `srmech.amsc.hdc.similarity` uses (algebraic identity, not metaphor).
+- **continuous activations are a precondition for gradient-descent *trainability*, not for *expressivity*** (Cybenko's proof technique needs them; Cover-1965 boolean expressivity extends to sign-quantized). Training is Level-2 by construction (gradient descent IS bundle-of-trajectories); inference can be Level-1.
+- the linear layer carries **two Class-M sub-ops**: per-element multiply = Mechanism-1 bind (exact); sum-across-input-dim = Mechanism-2 bundle (lossy). The bundle is intrinsic to dot-product; the float representation adds *representational* bundle cost on top, which bipolar form eliminates.
+
+### §1.4 Decoder-only transformer = `{A, C, I, K, M, N}` — 6 of 14 (R-RBS-NN-3b, CLOSED)
+
+The full decoder-only transformer cascade decomposes to **6 of the 14 classes** ({A, C, I, K, M, N}). Findings:
+- **three components force Level 2 in conventional form**: LayerNorm (bundle + reciprocal-√), soft-attention softmax (bundle-of-exponentials), and the `A·V` weighted sum. Each has a Level-1 substitute that changes behavior.
+- the **`A·V` weighted sum IS the canonical Mechanism-2 bundle-of-rotations** (MFO §VII.1.3 line 741) — so the transformer **embeds a ~6.9% averaging projection at every attention layer of every head, by architectural choice**. Hard attention (Mechanism 3 / Class K, line 751) is the alternative carrying no averaging cost.
+- a **4-class Level-1 transformer is structurally available**: **{A, I, K, M}** — discrete cyclic position (no RoPE), hard attention (no soft softmax), no LayerNorm (or magnitude-renormalize), bipolar weights, argmax sampling. The binary-transformer literature has navigated these substitutions since ~2020.
+- **vanilla transformer uses no Class L at inference**, despite attention being structurally a row-stochastic graph adjacency over the position graph (its Laplacian spectrum is available but unused — an open structural fact, not a deficit).
+
+### §1.5 Token → hypervector encoding + variant-choice protocol (R-RBS-NN-4, CLOSED 2026-05-27)
+
+The token encoder ships **four variants**, selected by what the binding must preserve — a direct application of the **Class-M variant ladder** ([[project_srmech_v0_4_3_rolling_class_m_variant_expansion]]):
+
+| Variant | Class-M form | Use when |
+|---|---|---|
+| **content** | bipolar {−1,+1} | plain content-addressing / similarity |
+| **chirality** | Klein-4 (ℤ₂)² | orientation/handedness must be carried (ties §3.27 / §VIII.31.11 chirality-dual) |
+| **plasticity** | polar {−1,0,+1} | a "don't-care"/unset slot is needed |
+| **hybrid** | Klein-4 + polar overlay | research path |
+
+Smoke T1–T9 pass; variant-aware bind/similarity enforce variant match. Literature attestation for the encoder is the deferred R-RBS-NN-4 work (named in §1.11).
+
+### §1.6 Position binding + Class K rotate-overlay (R-RBS-NN-5)
+
+Three positional schemes placed at MFO levels: **(A)** bind-with-position-vector (Level-1, recommended; the canonical Kanerva HDC sequence representation), **(B)** discrete cyclic shift (**Class I**, Level-1 alternative), **(C)** RoPE-style rotation (Level-2, conventional). Findings: both Level-1 schemes are bit-exact reversible with committed srmech implementations; **rotate-overlay is ontologically Level-2 even though computationally Level-1-available** — the lift is by ontological assignment (substrate→shadow projection, MFO line 743), keeping ontology and compute distinct; rotate-overlay surfaces in NN as **convolutional max-pool translation-invariance + hard attention** (the Class-K Mechanism-3 instantiations).
+
+### §1.7 `1:3:7:3` as architectural layout (R-RBS-NN-6)
+
+The vanilla transformer's **6 used classes touch at least one slot of every `1:3:7:3` partition** — it spans all four partitions, not a single sub-cascade. Two reading-layers resolve:
+- **cascade-execution layer = reading (c)** (classes-as-vocabulary, no fixed layout) — architecture shaped by attention-MLP block-stack inductive bias, not by partition structure.
+- **catalog-organization layer = reading (b)** (macro-layout, recursive partition unfolding) — the R-RBS-NN-9 catalog is structured along `1:3:7:3` (14 row-type slots).
+- reading (a) (14-class cascade per block) is **falsified at NN-execution level, supported at substrate-content level** (Antikythera + R30 antiquity convergence).
+- the **unused classes {B, H, E, F, G, J} inhabit the persistence / representation / introspection layer**, not forward-pass arithmetic — composing with [[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]] (the +3 meta-cascade triad's substrate-native role; {B,H} surface catalog-side at inference-time-absent).
+
+### §1.8 Capacity + grow-without-quantization (R-RBS-NN-7)
+
+Two distinct capacity questions dissociate:
+- **Q1 — content-addressing capacity is unbounded at any fixed D.** The user-lexicon goal scales freely; add terms without retraining or quantizing.
+- **Q2 — cleanup capacity ≈ O(D / log D)**, bounded by srmech `MAX_BUNDLE_N = 257`; at all tested D ∈ {8192…65536} the margin stays positive through the cap (D-margin-limited, not D-bound). Exceeding n=257 needs hierarchical bundling or Laplacian sub-decomposition.
+- noise floor scales **exactly 1/√D** (confirms substrate orthogonality at every D); min in-bundle similarity is D-independent at fixed n.
+- **grow-without-quantization rule:** *add D* to raise the noise margin; *add catalog rows* to add content — the two axes are orthogonal.
+
+### §1.9 Local-CPU ALU/FPU inference shape (R-RBS-NN-8)
+
+The 4-class Level-1 form **{A, I, K, M} maps to integer-ALU instruction primitives** — x86-64 SSE2 baseline since 2003; full coverage (incl. SHA-NI for Class A) since ~2017; ARM64 NEON+crypto parity since ARMv8.0. **No GPU required** — the Level-1 forward pass is integer-ALU-only; **12 of 14 classes are pure-ALU Level-1**, only Class L (Laplacian) is FPU-required, Class N (rational) is ALU-core with optional FPU rim. Throughput at D=8192: mint ~1M/s, bind ~50M/s, similarity ~25M/s, argmax ~free → interactive latency well within ~10 ms. The conventional Level-2 FPU ops (LayerNorm/softmax/soft-attention) run 5–50× slower per-op than their ALU substitutes, so on CPU the Level-1 form has a structural latency advantage.
+
+### §1.10 Catalog = the model, SSoT shape (R-RBS-NN-9)
+
+The catalog at `docs/srmech/catalogs/rbs_nn/` validates against the AMSC 6-section schema with standard srmech tooling. **The catalog IS the model** in the structural sense: content re-derives bit-exactly from row data via Class-A mint + Class-M bind. It is **~7× smaller than its content payload** because rows store substrate-locus identifiers (mint names + composition expressions), **not bit-patterns** — the substrate-native compression principle (the substrate IS the algebra; the algebra is what's stored). Compositional bindings unbind bit-exactly (`bind⁻¹(bind⁻¹(composed, K), is-a) == pin`). End-user growth is **row-additive, not retraining** — one new NDJSON row, nothing recomputed, existing bindings untouched.
+
+### §1.11 Arc status + what's preserved / deferred
+
+Arc **structurally CLOSED** (PR #684), partition-walk 9/10. **Deferred-by-design:** (1) R-RBS-NN-4 literature attestation — eight external references named across the closed REPORTs await MPR attestation per `[[feedback_pdf_extraction_citation_discipline]]`; (2) SSoT absorption into `srmech_research_notebook.md` was held by the no-edits constraint at arc opening — this notebook §1 IS that absorption, now performed. The two-tier Klein-4/polar binding pattern (`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`) ties the variant ladder (§1.5) to the chirality-dual reading (§2.1 / srmech §3.27 / MFO §VIII.31.11).
 
 ---
 
@@ -66,7 +152,7 @@ The RBS-LM arc surfaced the **third substrate-native naming** of the substrate �
 | MFO notebook updates (Rounds 31–43, §VIII.31, §VII.6.14–6.20) | #687 | already on `main` (origin/main ⊇ #687) | DONE |
 | §VIII.31.10 G₂=aut(𝕆) landing | #687 commit 84494fc5 | MFO §VIII.31.10 | DONE (cherry-picked) |
 | recursive-Hopf-operational `4:3:(4:3)` / 28=SO(8) (F124–129) | #687 | MFO §VIII.31.11 + srmech §3.27 | DONE (this pass) |
-| RBS-NN distillation (R-RBS-NN-1…9) | `rbs_nn_research/` | this notebook §1 | scaffold; incremental |
+| RBS-NN distillation (R-RBS-NN-1…9) | `rbs_nn_research/` | this notebook §1.1–§1.11 | DONE (pass 2; 9/10 partition walk) |
 | RBS-LM cross-substrate (NEXT-1) | `rbs_lm_research/` | this notebook §2 | scaffold; incremental |
 | RBS-LM backlog F1–F119 + F130–136 | `rbs_lm_research/` | this notebook §2.x | triage pending |
 | Furey octonion/Cℓ(8) external-coherence dictionary | external | MFO §VIII.31.x | deferred (PDF-verify first) |
