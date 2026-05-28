@@ -1,0 +1,232 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "training_size": 30,
+  "n_words": 59,
+  "n_l1_pairs": 70,
+  "n_l2_frames": 30,
+  "n_l3_sentences": 30,
+  "mode_c_total_generated": 60,
+  "mode_c_in_training": 30,
+  "mode_c_novel": 30,
+  "mode_c_novel_pct": 50.0,
+  "sentence_self_recall": 1.0,
+  "sample_novel_sentences": [
+    "ran park the cat",
+    "ran park the dog",
+    "ate fish the cat",
+    "watched bird the dog",
+    "ate fish the dog",
+    "flew sky a bird",
+    "sat mat the cat",
+    "ran park the child",
+    "sat mat the dog",
+    "watched bird the cat"
+  ],
+  "mode_d_compositional_samples": [
+    {
+      "seed": [
+        "the",
+        "cat"
+      ],
+      "novel_second": [
+        "played",
+        "song"
+      ],
+      "sentence": [
+        "the",
+        "cat",
+        "played",
+        "song"
+      ],
+      "structural_sim": 0.266845703125
+    },
+    {
+      "seed": [
+        "the",
+        "cat"
+      ],
+      "novel_second": [
+        "grew",
+        "crops"
+      ],
+      "sentence": [
+        "the",
+        "cat",
+        "grew",
+        "crops"
+      ],
+      "structural_sim": 0.266357421875
+    },
+    {
+      "seed": [
+        "the",
+        "cat"
+      ],
+      "novel_second": [
+        "wrote",
+        "paper"
+      ],
+      "sentence": [
+        "the",
+        "cat",
+        "wrote",
+        "paper"
+      ],
+      "structural_sim": 0.2642822265625
+    },
+    {
+      "seed": [
+        "the",
+        "dog"
+      ],
+      "novel_second": [
+        "wrote",
+        "paper"
+      ],
+      "sentence": [
+        "the",
+        "dog",
+        "wrote",
+        "paper"
+      ],
+      "structural_sim": 0.2642822265625
+    },
+    {
+      "seed": [
+        "the",
+        "dog"
+      ],
+      "novel_second": [
+        "the",
+        "scientist"
+      ],
+      "sentence": [
+        "the",
+        "dog",
+        "the",
+        "scientist"
+      ],
+      "structural_sim": 0.26416015625
+    },
+    {
+      "seed": [
+        "the",
+        "dog"
+      ],
+      "novel_second": [
+        "treated",
+        "patient"
+      ],
+      "sentence": [
+        "the",
+        "dog",
+        "treated",
+        "patient"
+      ],
+      "structural_sim": 0.2630615234375
+    },
+    {
+      "seed": [
+        "the",
+        "scientist"
+      ],
+      "novel_second": [
+        "sailed",
+        "ship"
+      ],
+      "sentence": [
+        "the",
+        "scientist",
+        "sailed",
+        "ship"
+      ],
+      "structural_sim": 0.2645263671875
+    },
+    {
+      "seed": [
+        "the",
+        "scientist"
+      ],
+      "novel_second": [
+        "grew",
+        "crops"
+      ],
+      "sentence": [
+        "the",
+        "scientist",
+        "grew",
+        "crops"
+      ],
+      "structural_sim": 0.2642822265625
+    },
+    {
+      "seed": [
+        "the",
+        "scientist"
+      ],
+      "novel_second": [
+        "the",
+        "cat"
+      ],
+      "sentence": [
+        "the",
+        "scientist",
+        "the",
+        "cat"
+      ],
+      "structural_sim": 0.26416015625
+    },
+    {
+      "seed": [
+        "a",
+        "musician"
+      ],
+      "novel_second": [
+        "swam",
+        "sea"
+      ],
+      "sentence": [
+        "a",
+        "musician",
+        "swam",
+        "sea"
+      ],
+      "structural_sim": 0.267333984375
+    },
+    {
+      "seed": [
+        "a",
+        "musician"
+      ],
+      "novel_second": [
+        "drew",
+        "picture"
+      ],
+      "sentence": [
+        "a",
+        "musician",
+        "drew",
+        "picture"
+      ],
+      "structural_sim": 0.264404296875
+    },
+    {
+      "seed": [
+        "a",
+        "musician"
+      ],
+      "novel_second": [
+        "the",
+        "scientist"
+      ],
+      "sentence": [
+        "a",
+        "musician",
+        "the",
+        "scientist"
+      ],
+      "structural_sim": 0.2640380859375
+    }
+  ]
+}
