@@ -329,7 +329,74 @@ The discipline R-RBS-LM-43 makes explicit (and the partition embodies): don't lo
 
 The cross-substrate evidence already validates these readings empirically (LOGO L6/L6d; chess-spectral split-object; ephemerides multi-source binding; antikythera bronze-gear ratios; the new chirality-mirror partner of §2.2). The falsifier discipline keeps them honest going forward.
 
-> **§2 status (updated 2026-05-28).** Scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + **§2.5 two-substrate framework + B/H/N projection + naming-layer-cost** (cluster K / R-RBS-LM-42 + 43). Three keystone promotions remain (P / R / T-F104).
+### §2.6 Architectural inversion: CPU-unquantized-structural / GPU-fluent-renderer + the epistemic ceiling (R-RBS-LM-50; triage cluster P)
+
+R-RBS-LM-50 is the *synthesis* the RBS-LM arc converged on. Where §2.4 corrected substrate-physics and §2.5 set up the two-substrate + B/H/N framework, §2.6 names the operational architecture that follows: **knowledge in CPU-bound unquantised structural substrate; rendering in GPU-quantised fluent renderer.** Across the arc's empirical record (R-RBS-LM-42, 46a/b, 48, 49) the data points to the same architectural shape; §2.6 records it.
+
+**User direction (2026-05-26, verbatim):** *"CPU relationship-of-relationship inference needs to be done unquantized, and costs the same time anyway (mostly), and then heavy GPU work can be done by models ranked by language fluency, not by knowledge."*
+
+#### §2.6.1 Today's convention vs the inversion
+
+| Layer | Today (the dominant LLM deployment paradigm) | This arc's inversion |
+|---|---|---|
+| Knowledge | GPU weights of a large model | **CPU substrate, unquantised fp16+** (or cascade RBS-LM byte-mode bipolar) |
+| Inference | GPU forward pass, cost-bounded by GPU memory + compute | CPU structural-relationship inference (M1-native) |
+| Bridge | n/a (no separation) | CPU `extract_relationships` — the B∘H∘N readout pipeline made explicit |
+| Rendering | Same GPU forward pass that did the knowledge | GPU or smaller CPU; **Q4 is fine** because renderer carries no knowledge — only fluency |
+| Quantization scope | Whole-model (knowledge + rendering uniformly) | **Asymmetric per layer**: renderer only (Q4 in Stage 2); NEVER the structural substrate (catastrophic per R-RBS-LM-49) |
+| Model-ranking benchmark | MMLU / ARC / HellaSwag / BIG-bench — **knowledge benchmarks** | Stage 2 by **fluency benchmarks ONLY**; knowledge benchmarks measure the *wrong axis* for renderer choice |
+| What the renderer needs to know | Everything | **Nothing**; it picks words from given structure |
+
+#### §2.6.2 The inversion in one sentence
+
+> **Knowledge is precision-bound and structural; fluency is fungible and rendering-only. They run on different hardware classes with asymmetric quantization scope. The model picking the words doesn't need to know; the model knowing doesn't need to write fluent prose.**
+
+This is the architecture the arc found by running Path A/B/C/D and watching what survived. It is *not* what the arc set out to find — the arc opened looking for a way to *translate* an LLM into a cascade RBS-LM substrate. It converged on something different: a two-stage pipeline in which the cascade isn't the renderer's replacement but the renderer's *knowledge supplier*.
+
+#### §2.6.3 The two-language reconciliation that makes it work (MFO §VII.6.19.3)
+
+Per MFO §VII.6.19.3 (R35.A), the framework's two substrate-native math languages (per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`) are not incommensurate — they instantiate at different layers of the same pipeline:
+
+| Language | What it is | Where in §2.6's pipeline |
+|---|---|---|
+| **Operation-primary** (`1:3:7:3` cyclic; 14 A–N callables; srmech is its program-shape) | Enumerates named operators; B/H/N first-class; readout *explicit* | Stage 1 — cascade RBS-LM bipolar binding + the bridge `extract_relationships` |
+| **Geometry-primary** (11D continuous-Hopf manifold; bundles; readout *embedded* via projection map + Born postulate) | Manifold + bundle structure; readout structural/unnamed | Stage 1 (fp16+ LLM internal continuous representation) AND Stage 2 (Q4 LLM rendering on continuous token embedding) |
+
+**The bridge IS the explicit readout** (MFO §VII.6.19.2 / R34.A): B/H/N is the +3 operating *outside* the 11D substrate as the projection *from* the manifold. R-RBS-LM-48's `extract_relationships` pipeline explicitly enacts what is structurally embedded inside Stage 1's geometry-primary inference — it discretises the continuous manifold's relational structure into named (S, V, O) tuples. This is the **operation-primary explicit form of the B∘H∘N readout**. H (the only anchored Hopf-base member) discards the U(1)=S¹ fibre; the bridge analogously discards the manifold structure that Stage 2 will rebuild from naming. **The wire-form carries no PII because the projection has already happened** — names are not on the wire, only structure that gets re-clothed in Stage 2.
+
+The full {B,H,N} ↔ {ℂ,ℍ,𝕆} Hopf-fibration mapping remains a candidate (MFO §VII.6.19.2 doesn't assert it). What §2.6 asserts is **operational instantiation**: the two-stage pipeline IS the B∘H∘N readout running on silicon for a specific use case.
+
+#### §2.6.4 The mechanism — why crude quantisation destroys but surgical preserves (R-RBS-LM-49)
+
+R-RBS-LM-49's chainsaw-vs-surgical finding supplies the *why* behind the asymmetric quantisation scope:
+
+- **Crude quantisation on the structural substrate is catastrophic.** When the substrate carrying relationship structure gets uniformly quantised to Q4, the bit-pattern discrimination that encodes the relationships collapses into noise. The 3.3% substrate-native fidelity floor turns into 0%.
+- **Surgical (spectral-aware) compression is tolerable** but not yet operationally available. R-RBS-LM-49's Method B (FFT band-pass) demonstrates the principle: removing low-energy spectral content preserves the structural-relationship signal while reducing bit-budget. Building this into a production cascade-compression utility is R-RBS-LM-54-proposed.
+- **Crude quantisation on the renderer is fine.** Q4 renderers, given correct structure from Stage 1, produce fluent prose with the structure preserved — because the renderer's job is *only* to render, not to know.
+
+The asymmetry is structural, not engineering accidental: knowledge lives in the bit-pattern relationships (M1 substrate of §2.4 / §2.5); fluency lives in the continuous mixing surface of the renderer (M2 substrate); quantising M1 destroys substrate; quantising M2 only blurs the rendering style.
+
+#### §2.6.5 The epistemic ceiling bounds the claim (MFO §VII.6.20)
+
+R-RBS-LM-50 is honest about *what it does NOT assert*. MFO §VII.6.20 (the epistemic-ceiling keystone) bounds the architectural claim: §2.6's pipeline is **one operational instantiation** of the B∘H∘N readout for a specific use case (Stage 1 fp16+ LLM + Stage 2 Q4 LLM with bridge between). It is not a claim that the framework's substrate-side {B,H,N} ↔ {ℂ,ℍ,𝕆} mapping is universal, nor that this two-stage architecture is the *only* shape the M1+M2 split takes on silicon. The cross-substrate evidence (chess-spectral split-object; ephemerides-spectral multi-source binding; LOGO L6 fiber-as-transport-map) supports the *form*; the ceiling reminds us not to over-claim the *uniqueness*.
+
+§2.7 (religious-texts ceiling test) is exactly the empirical confirmation: when the cascade-translation methodology is run on three corpora that are deliberately *not* substrate-emergent (religious scripture as conventional naming-vocabulary), it **converges on form-category** rather than distinguishing the traditions — which is the framework's *predicted* finding under §VII.6.20, not a failure to read the corpora.
+
+#### §2.6.6 Operational implications + downstream model-ranking shape
+
+Three concrete consequences fall out of the inversion:
+
+1. **Stage-1 model-ranking by precision-preservation.** The right benchmark for Stage 1 is *substrate-translation fidelity* (how cleanly does the model's continuous representation discretise into stable bit-pattern relationships through the bridge?), not MMLU. Knowledge benchmarks measure the *output* of M2 reasoning; the inversion needs to measure the *input* to M1 substrate translation. This benchmark does not yet exist; R-RBS-LM-52-proposed scopes a fluency-only Stage-2 benchmark; the symmetric Stage-1 benchmark is still future work.
+2. **Stage-2 model-ranking by fluency-only.** Once Stage 1 supplies structure, Stage 2's job is *only* to render. The choice of Q4 LLM should be made on fluency benchmarks (HellaSwag-style surface-coherence) **without** conflating with knowledge — because the knowledge isn't in Stage 2 anyway. Renderer-swapping should be free; the same Stage 1 should drive English / ASL / ITN routing / astronomical-vocabulary projections (per §2.5.3) with different Stage 2 renderers chosen per consumer.
+3. **Surgical Stage-1 compression as cascade-utility.** Porting R-RBS-LM-49 Method B (FFT band-pass) into a cascade-aware compression tool is R-RBS-LM-54-proposed — "reduce to low bit-budget without signal-loss" as a srmech catalog op. Composes cleanly with srmech v0.4.3rc5's `rfft` op (Class A∘I∘K) and the v0.4.4rc1 chirality mini-set.
+
+#### §2.6.7 What §2.6 is NOT claiming
+
+- **Not** a claim that cascade RBS-LM Stage 1 can today replace the fp16 HF Stage 1 model in production. That's R-RBS-LM-53-proposed.
+- **Not** a claim that the Hopf-fibration {B,H,N} ↔ {ℂ,ℍ,𝕆} mapping is universal. It remains a candidate per MFO §VII.6.19.2.
+- **Not** a claim that knowledge-only benchmarks are wrong for measuring single-model end-to-end reasoning. They measure the wrong axis for *renderer* choice in a two-stage pipeline.
+
+> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + **§2.6 architectural inversion + epistemic ceiling** (cluster P / R-RBS-LM-50). Two keystone promotions remain (R / T-F104).
 
 ---
 
