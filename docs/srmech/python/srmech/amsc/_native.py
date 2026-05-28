@@ -766,6 +766,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_net_chirality_i8.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_cyclic_gcd_u64"):
+        # int srmech_cascade_cyclic_gcd_u64(uint64_t  a,
+        #                                    uint64_t  b,
+        #                                    uint64_t *out)
+        # v0.4.5rc6 — Class I cyclic-group gcd, cascade-namespace
+        # wrapper. FIRST of the delegating cascade ops: the cascade
+        # entry IS the Class I primitive (srmech_gcd); this wrapper
+        # exists to maintain the srmech_cascade_* namespace invariant.
+        lib.srmech_cascade_cyclic_gcd_u64.argtypes = [
+            ctypes.c_uint64,
+            ctypes.c_uint64,
+            ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_cascade_cyclic_gcd_u64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

@@ -338,12 +338,87 @@ def best_rational_signed(
     return reorient(orientation, int(nf)), int(df)
 
 
+def _try_native_cyclic_gcd(a, b):
+    """Native dispatch for cyclic_gcd via the cascade-namespace wrapper.
+
+    The cascade wrapper ``srmech_cascade_cyclic_gcd_u64`` is itself a
+    pure-delegation alias for the Class I primitive ``srmech_gcd``; we
+    dispatch through the cascade-namespace symbol (not the Class I
+    primitive directly) so the cascade-catalog naming stays uniform per
+    the v0.4.5rc6 directive *"delegate to A-N C peers; cascade-level C
+    wrapper + TOML"*. The Python ``srmech.amsc.cyclic.gcd`` reaches the
+    same C primitive through its OWN ctypes binding — both surfaces
+    coexist in libsrmech.
+
+    Returns ``int`` on success or ``None`` to signal the caller should
+    fall through to the Python path. Only pure Python ``int`` inputs in
+    ``[0, 2**64 - 1]`` (the uint64 range matched by the cascade C ABI)
+    dispatch through native — bool is rejected by ``type(x) is int``,
+    and negatives / out-of-uint64 bigints fall through to the Python
+    fallback which itself raises ``ValueError`` (mirroring the Python
+    ref ``srmech.amsc.cyclic.gcd`` behaviour exactly).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict isinstance check — bool is a subclass of int and must NOT
+    # take the native path (matches the rcN cascade-dispatch discipline).
+    if type(a) is not int or isinstance(a, bool):
+        return None
+    if type(b) is not int or isinstance(b, bool):
+        return None
+    UINT64_MAX = (2 ** 64) - 1
+    if a < 0 or b < 0:
+        return None
+    if a > UINT64_MAX or b > UINT64_MAX:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_cyclic_gcd_u64"):
+        return None
+    out = ctypes.c_uint64(0)
+    rc = _native.LIB.srmech_cascade_cyclic_gcd_u64(
+        ctypes.c_uint64(a),
+        ctypes.c_uint64(b),
+        ctypes.byref(out),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
+
+
 def cyclic_gcd(a: int, b: int) -> int:
     """Class I cyclic gcd. Delegates to ``srmech.amsc.cyclic.gcd``.
 
     A cascade-named alias so number-theoretic cascades reach for the Class I
-    primitive by its cascade name rather than ``math.gcd``.
+    primitive by its cascade name rather than ``math.gcd``. The cascade-
+    catalog entry IS the Class I primitive (Euclid's algorithm); the
+    wrapper exists for namespace consistency, not for additional math.
+
+    v0.4.5rc6: dispatches through the native cascade-namespace wrapper
+    ``srmech_cascade_cyclic_gcd_u64`` when ``HAS_NATIVE`` is True, both
+    inputs are pure Python ``int`` (not bool) in the uint64 range
+    ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.amsc.cyclic.gcd``
+    path for bool, negative, and out-of-uint64 inputs — which itself
+    raises ``ValueError`` for negative / oversized inputs, preserving the
+    pre-rc6 public API exactly. The cascade wrapper is a pure-delegation
+    alias for the Class I primitive ``srmech_gcd``; dispatching through
+    the cascade-namespace symbol keeps the cascade-catalog naming uniform
+    per the rc6 directive *"delegate to A-N C peers; cascade-level C
+    wrapper + TOML"*.
+
+    Args:
+        a: non-negative ``int`` in uint64 range.
+        b: non-negative ``int`` in uint64 range.
+
+    Returns:
+        The Euclidean ``gcd(a, b)`` (non-negative). ``gcd(0, 0)`` is
+        ``0`` (the gcd identity); ``gcd(a, 0)`` is ``a``.
+
+    Raises:
+        ValueError: forwarded from ``srmech.amsc.cyclic.gcd`` for negative
+            inputs or inputs exceeding the uint64 parity surface.
     """
+    native = _try_native_cyclic_gcd(a, b)
+    if native is not None:
+        return native
     return _cyclic_gcd(a, b)
 
 

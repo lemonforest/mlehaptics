@@ -1,0 +1,79 @@
+# Cascade catalog entry: cyclic_gcd
+# v0.4.5rc6 of the cascade-catalog C-parity + TOML retrofit — op 6 of 8.
+# FIRST of the delegating ops: the cascade-catalog entry IS the Class I
+# primitive; the wrapper exists to maintain the srmech_cascade_*
+# namespace invariant per the user's "delegate to A-N C peers;
+# cascade-level C wrapper + TOML" directive.
+
+[cascade]
+name = "cyclic_gcd"
+class_composition = "I"
+purpose = "Class I cyclic-group gcd (cascade-namespace alias for the Class I primitive)."
+description = """
+Pure delegation to the Class I primitive srmech.amsc.cyclic.gcd
+(Euclidean algorithm; integer-cyclic-group gcd; Task #217 Phase C1 rc1
+of the original build-out). The cascade-catalog wrapper exists for
+namespace consistency: every cascade-catalog entry ships under
+srmech_cascade_* even when the math lives at the A–N primitive level.
+No additional sign-handling or cyclic-group operations are layered on
+top — that would be a different cascade.
+
+References Euclid Elements VII.1-2 (per srmech.amsc.rational
+attestation); the C primitive is srmech_gcd (declared in srmech.h
+Class I section). Both the cascade-namespace wrapper
+(srmech_cascade_cyclic_gcd_u64) and the Class I primitive (srmech_gcd)
+ship in libsrmech — equivalent at the C-call level, differ in their
+semantic intent (cascade-as-named-pattern vs primitive-class operation).
+"""
+
+[cascade.signature]
+input = "tuple[uint64, uint64]"
+output = "uint64 (non-negative; gcd identity 0 when both inputs are 0)"
+operation = "Euclidean gcd(a, b)"
+non_negative_only = true  # matches srmech.amsc.cyclic.gcd uint64 surface
+empty_inputs = "none — two arguments are required"
+identity_zero_zero = 0    # gcd(0, 0) = 0 by convention
+identity_a_zero = "a"     # gcd(a, 0) = a
+
+[cascade.native]
+c_symbol_u64 = "srmech_cascade_cyclic_gcd_u64"
+abi_version = 2
+
+[cascade.delegates_to]
+class = "I"
+primitive_c_symbol = "srmech_gcd"
+primitive_python = "srmech.amsc.cyclic.gcd"
+rationale = """
+The cascade-catalog wrapper is a pure-delegation alias; the Class I
+primitive carries the math (Euclidean iteration in srmech_cyclic.c).
+Both symbols ship in libsrmech: the cascade wrapper for namespace
+consistency, the primitive for direct Class I access. Application code
+reaching for the cascade-catalog name lands through the wrapper;
+application code reaching for the Class I primitive lands through
+srmech.amsc.cyclic.gcd directly. Equivalent at the C-call level;
+differ in their semantic intent (cascade-as-named-pattern vs
+primitive-class operation).
+
+This is the FIRST of the delegating cascade ops in the v0.4.5rcN arc;
+the second (best_rational_signed, planned rc7) is a multi-class
+K∘N∘C cascade that combines two primitives plus inline Class K / Class C
+sign-handling.
+"""
+
+[cascade.boundary_cases]
+both_zero = "gcd(0, 0) = 0 (convention; matches srmech_gcd)."
+one_zero = "gcd(a, 0) = a (convention; matches srmech_gcd)."
+negative_input = "Native dispatch falls back to Python; the Python path (srmech.amsc.cyclic.gcd) raises ValueError for negative inputs (uint64 parity surface)."
+out_of_uint64 = "Native dispatch falls back to Python; the Python path raises ValueError for inputs exceeding 2**64 - 1."
+bool_input = "Native dispatch falls back to Python (bool is a subclass of int but type(b) is not int is False); Python ref accepts bool via isinstance(int)."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc6"
+canonical_landings = [
+  "Euclid, Elements VII.1-2 (Class I primitive attestation; Task #217 Phase C1 rc1)",
+  "Task #217 Phase C1 srmech rc1 — Class I primitive C surface (srmech_gcd)",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — srmech best_rational integer-pair signature note (sibling Class N primitive)",
+  "user_stance_cross_substrate_cascade_matching_as_research_method — primitive cascade-named alias keeps cascade-count claims honest",
+]
