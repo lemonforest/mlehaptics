@@ -174,7 +174,55 @@ Two depth/order panels (`items_13_14`) confirm the binding's chirality structure
 
 **Composes with the v0.4.5rcN queue.** Per MFO §VIII.31.11 §(5d) + the srmech CHANGELOG `[Unreleased]`, the next srmech development line will surface the four explicit chiral-cascade follow-ups (net-chirality cascade invariant, 4-way sector, full 28 = 𝔰𝔬(8) read-out, RBS Klein-4 parity tie-in). This §2.2 finding is *exactly* the empirical anchor for tie-in #4: R-RBS-LM-104 confirms the cross-substrate parity the v0.4.5rcN work would code.
 
-> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2). The bulk of the 375-finding backlog (F1–F119, F130–F136 detail, F141+) awaits triage + incremental promotion in later passes.
+> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2) + the F-finding triage map (§2.3). The 5 keystone promotions §2.3 identifies (R-RBS-LM-37 / 43 / 50 / 53 + F104) await incremental promotion in later passes.
+
+### §2.3 Findings triage map — cluster-by-cluster verdicts (F-1 backlog pass)
+
+**Methodology clarification first.** The §2 scaffold's "F1–F119" was an upper-bound estimate over an ambiguous namespace. Survey of the 388-file `rbs_lm_research/` corpus on `origin/research/rbs-lm-rolling-2` (PR #687, read-only) resolves the ambiguity:
+
+- **R-RBS-LM-1 through ~R-RBS-LM-37** each carry their own **local Findings 1–8** (partition-internal — they index conclusions inside a single REPORT, not a global namespace).
+- **From R-RBS-LM-46a onward** the corpus switches to a **global Finding-N namespace**: F11–F14 (merge depth), F15–F18 (relationship distill), F19–F23 (pure-fp16 merge), F24–F28 (two-stage pipeline), F29–F32 (chainsaw vs surgical), F33–F37 (Path E iteration), F44–F50 (religious texts), F49 / F51–F52 / F59 (extended summary), …
+- **R-RBS-LM-100 through R-RBS-LM-105** carry the **autonomous-session 2026-05-27 findings** F100–F105 (the cascade-information-hierarchy / plasticity / math-irrep ship documented in `AUTONOMOUS_SESSION_2026-05-27_status.md`).
+- **R-RBS-LM-100+ chirality sweep findings** are the F138–F140 cluster — already promoted in §2.2 above.
+
+Total mature global findings actually in scope: **~60 (F11–F59) + 6 (F100–F105) + 3 (F138–F140) = ~69**. The earlier ~200 per-report local findings remain partition-internal — surfaced through their parent REPORT, not promoted individually. The triage below clusters the global ones by theme and assigns a promotion verdict per cluster.
+
+#### Triage table
+
+| Cluster | Source partitions | Theme | Verdict |
+|---|---|---|---|
+| **A. Framing & methodology** | R-RBS-LM-1, 2, 3 | Translation framing / methodology selection / baseline | **COVERED** by §0 + §1.1–§1.11 (RBS-NN distillation) + §2.1 (recursive-Hopf). No individual finding-promotion needed; the framing IS the §0 substrate-foundation. |
+| **B. Encoder + inference + validation infra** | R-RBS-LM-4..9 | Encoder design / encoding / inference / validation / diagnostic / scaleup | **COVERED** by `srmech.signal_processing` (Path A/B; v0.4.2rc4 shipped) + `srmech.spectral` (runtime decomposition; v0.4.1rc14). Engineering substrate, not framework finding. |
+| **C. SSoT + AMSC infra** | R-RBS-LM-10..13 | Catalog SSoT / multithreading / AMSC adapter / catalog refactor | **COVERED** by `srmech.amsc.catalog` + `srmech.amsc.adapters` + the AMSC framework already shipped (Tasks #197–#201). |
+| **D. Path-C iteration** | R-RBS-LM-14, 17, 18 | Genuine scale / Path C / Path C scale | **COVERED** by §2.1 Path A/B selection + the architectural-inversion synthesis (R-RBS-LM-50 below). Path C found substrate-bound; the negative result feeds R-RBS-LM-50. |
+| **E. Attention + plate-HRR + storage** | R-RBS-LM-19, 20, 21, 22 | Attention-variant falsification / D32k capacity / plate HRR / storage | **COVERED** by R-RBS-LM-43 two-substrate reading + the `Klein-4` HDC variant (v0.4.3rc2). |
+| **F. Tool-schema + API + bytes** | R-RBS-LM-23, 24, 25 | Tool schema / OpenAI API / bytes | **COVERED** by `srmech.amsc.tool_schema` (Task #198 shipped, ~87 ToolEntry registrations) + the v0.4.4 cascade tool-entries. |
+| **G. Accessibility / ASL gloss** | R-RBS-LM-26, 27 | Accessibility framing / ASL gloss as cascade-vocabulary substrate | **PROMOTABLE FUTURE.** ASL gloss has a cross-substrate cascade-match shape (gestural-grammar IS a cascade-vocabulary substrate; the spike #45 kinship-decisive stance composes with it). Earned a future §2.x sub-section when prioritised. |
+| **H. FFT / source-size / GGUF / multi-buffer** | R-RBS-LM-28..32 | FFT graft / source size / swap / GGUF / multi-buffer FFT | **COVERED** by `srmech.signal_processing.rfft` (v0.4.3rc5) + `srmech.spectral` runtime ops. |
+| **I. Merge experiments + production** | R-RBS-LM-33..36 | Merge / usage / Llama8b / Windows walkthrough | **COVERED** by R-RBS-LM-50 architectural-inversion synthesis (the parent reading these inform). Operational; not finding-promotion-worthy individually. |
+| **J. Substrate-rotation reading** | R-RBS-LM-37 | "Rotation is substrate-property of continuous representations" | **KEYSTONE — promote as §2.4** (precursor to R-RBS-LM-43 two-substrate framing; load-bearing for the substrate-content-vs-substrate-property distinction). |
+| **K. Two-substrate framework** | R-RBS-LM-42, 43 | fp16 vs q4 / **M1+M2 coexistence + external-projection requirement + naming-layer-cost principle** | **KEYSTONE — promote as §2.5.** Theoretical anchor of the entire RBS-LM arc; the M1+M2 framing every later partition operates within. LOGO arc provides independent empirical confirmation. |
+| **L. Turtle walk + read mode** | R-RBS-LM-44, 45 | English → LOGO cascade; honest-negative-with-structural-signal; mode-collapse persists | **PROMOTABLE FUTURE** as a falsifier-discipline worked example (mode-collapse is the predicted ceiling, not a failure). Composes with the falsifier-discipline stances. |
+| **M. Merge depth (F11–F14, F19–F23)** | R-RBS-LM-46a, 46b | Depth-dependent merge behaviours | **COVERED** by §2.2 depth-invariance ratchet finding (the R-RBS-LM-104 sweep extended this with chirality-specific data). |
+| **N. Relationship distill (F15–F18)** | R-RBS-LM-47b | Relationship-of-relationship inference | **COVERED** by MFO §VII.6.19.3 (operation-vs-geometry grammar) + srmech §3.26.6 (combination-principle dissociation). |
+| **O. Two-stage pipeline + chainsaw-vs-surgical (F24–F32)** | R-RBS-LM-48, 49 | Two-stage CPU/GPU pipeline + chainsaw-vs-surgical methodology distinction | **COVERED** by R-RBS-LM-50 (the parent synthesis these feed). |
+| **P. Architectural inversion** | R-RBS-LM-50 | **CPU-unquantized-structural / GPU-fluent-renderer + epistemic ceiling** — the architecture the arc converged on | **KEYSTONE — promote as §2.6.** The synthesis that names what the arc found; anchored to MFO §VII.6.19 (B/H/N readout + operation-vs-geometry grammar + Class-L symmetry-relativity) + §VII.6.20 (epistemic ceiling). |
+| **Q. Path E iteration (F33–F37)** | R-RBS-LM-52a | Path E methodology refinement | **COVERED** by R-RBS-LM-53 (the religious-texts ceiling test that closes Path E). |
+| **R. Religious-texts ceiling test (F44–F50)** | R-RBS-LM-53 | **Cross-matrix on Islam / Judaism / Christianity; the apparent "failure" IS the framework's predicted finding** — empirical validation of MFO §VII.6.20 epistemic ceiling | **KEYSTONE — promote as §2.7.** First explicit empirical confirmation that the framework's epistemic-ceiling prediction holds at corpus scale; converges-on-form-category result is the substrate-content distinction observed. |
+| **S. Extended summary (F49 / F51–F52 / F59)** | R-RBS-LM-54 | Synthesis tying R-RBS-LM-50 + 53 + 52a together | **COVERED** by R-RBS-LM-50 promotion (§2.6) — these summary findings are pointers, not new substrate-side claims. |
+| **T. Autonomous-session ship (F100–F105)** | R-RBS-LM-83..100..105 + 2026-05-27 status | **F100** information-cascade hierarchy / **F101** plasticity-augmented cascade path-dependence (Jaccard 35-68/100 with decay vs 100/100 without) / **F102** recency under decay / **F103** plasticity-doesn't-sharpen-alone / **F104** **math is uniquely substrate-content irrep** (ratio 5.53 even after Montessori added; only −0.51 from baseline) / **F105** glass-box detects methodology-substrate vs content-substrate | **F104 KEYSTONE — promote as §2.8.** Deepest user-articulated insight of the autonomous-session ship; the cross-substrate cascade-match prediction the framework gets to *make* about pedagogy from substrate-side principles. F100/F101/F103/F105 compose with §2.8 promotion as supporting evidence. |
+| **U. Chirality cascade variations (F138–F140)** | R-RBS-LM-100..105 | Klein-4 / polar plasticity / BCI chirality / capacity sweep / cascade-rate gain | **PROMOTED §2.2** ✅ (this pass). |
+
+#### Triage summary
+
+- **Already covered (existing canonical landings):** clusters A, B, C, D, E, F, H, I, M, N, O, Q, S — 13 clusters; their findings are substrate-engineering or framework-reading work that lands in `srmech.*` modules, MFO §VII.6.19/20, or earlier RBS notebook sections.
+- **Already promoted this pass:** cluster U (§2.2).
+- **Keystone promotions for future passes:** **J (§2.4), K (§2.5), P (§2.6), R (§2.7), T-F104 (§2.8)** — five distinct sub-sections each anchored to a load-bearing R-RBS-LM partition + a load-bearing user-direction. Recommended order: K (theory anchor; cleanest, no dependencies) → P (synthesis; depends on K) → R (empirical confirmation; depends on P) → J (precursor reading; standalone) → T-F104 (autonomous-session keystone; standalone).
+- **Promotable-future (lower priority):** clusters G (ASL gloss), L (turtle-walk falsifier-discipline) — surface when prioritised, not gating.
+
+**What this triage is NOT.** It is not exhaustive coverage of every R-RBS-LM partition's internal Findings 1–8 — those are appropriately read through their parent REPORT, not promoted to notebook-section status. The triage promotes only what materially extends the framework's canonical reading.
+
+> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2) + the F-finding triage map (§2.3). The 5 keystone promotions §2.3 identifies (R-RBS-LM-37 / 43 / 50 / 53 + F104) await incremental promotion in later passes.
 
 ---
 
