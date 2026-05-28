@@ -4,6 +4,14 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.4rc2] - 2026-05-28
+
+**Bundled `siona` co-name alias** → TestPyPI (rc). The srmech wheel now ships a second top-level package, `siona`, alongside `srmech`: **`pip install srmech` makes `import siona` resolve to exactly the same objects as `import srmech`** (every `srmech.*` submodule mirrored under `siona.*` via `sys.modules` alias + parent-attribute binding). No forked logic — srmech stays the single source of truth (native lib, `__version__`, tool-schema). No new class; ABI unchanged at 2.
+
+- `siona/__init__.py` added; `wheel.packages` / hatchling `packages` → `["srmech", "siona"]`; `siona/**` in both sdist includes.
+- `tests/test_siona_alias.py` (6 tests): version match, top-level re-export, submodule identity, from-import, attribute-chain, callable-through-alias.
+- Pairs with the standalone `siona` PyPI distribution (a metapackage that depends on srmech and re-uses this same alias).
+
 ## [0.4.4rc1] - 2026-05-27
 
 **Cascade chirality mini-set** → TestPyPI (rc). Three callables added to the foundational `srmech.amsc.cascade` catalog. No new primitive class — each is a composition of the existing Class C orientation + Class K sign; ABI unchanged at 2; no new C symbol.
