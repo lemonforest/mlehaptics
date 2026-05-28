@@ -1,0 +1,93 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "D": 8192,
+  "S1_latency_optimization": [
+    {
+      "N": 500,
+      "n_buckets": 16,
+      "fast_time_sec": 53.638641357421875,
+      "flat_time_sec": 51.36422657966614,
+      "speedup": 0.9575974573516853,
+      "fast_p3": 0.705,
+      "flat_p3": 0.705,
+      "quality_diff": 0.0
+    },
+    {
+      "N": 1000,
+      "n_buckets": 32,
+      "fast_time_sec": 103.35095238685608,
+      "flat_time_sec": 102.34959363937378,
+      "speedup": 0.990311083503768,
+      "fast_p3": 0.685,
+      "flat_p3": 0.685,
+      "quality_diff": 0.0
+    },
+    {
+      "N": 2000,
+      "n_buckets": 64,
+      "fast_time_sec": 200.51518297195435,
+      "flat_time_sec": 205.92415046691895,
+      "speedup": 1.0269753512666477,
+      "fast_p3": 0.705,
+      "flat_p3": 0.71,
+      "quality_diff": 0.0050000000000000044
+    }
+  ],
+  "S2_bucket_strategy": [
+    {
+      "N": 500,
+      "n_buckets": 16,
+      "hash_p3": 0.765,
+      "sector_p3": 0.68,
+      "hash_max_bucket": 149,
+      "sector_max_bucket": 159,
+      "hash_time_sec": 50.35392737388611,
+      "sector_time_sec": 49.93278646469116
+    },
+    {
+      "N": 1000,
+      "n_buckets": 32,
+      "hash_p3": 0.7,
+      "sector_p3": 0.73,
+      "hash_max_bucket": 169,
+      "sector_max_bucket": 175,
+      "hash_time_sec": 101.87426710128784,
+      "sector_time_sec": 102.52194309234619
+    }
+  ],
+  "S3_sculpted_decay_hierarchical": [
+    {
+      "strategy": "random",
+      "base_p3": 0.705,
+      "after_p3": 0.675,
+      "delta": -0.029999999999999916,
+      "mean_synapse_density_after": 0.4691162109375,
+      "mean_composite_density_after": 0.9471359252929688
+    },
+    {
+      "strategy": "noise_floor",
+      "base_p3": 0.705,
+      "after_p3": 0.725,
+      "delta": 0.020000000000000018,
+      "mean_synapse_density_after": 0.3409936841775326,
+      "mean_composite_density_after": 0.7000732421875
+    },
+    {
+      "strategy": "redundant",
+      "base_p3": 0.705,
+      "after_p3": 0.415,
+      "delta": -0.29,
+      "mean_synapse_density_after": 0.3346127248934303,
+      "mean_composite_density_after": 0.650848388671875
+    },
+    {
+      "strategy": "middle",
+      "base_p3": 0.705,
+      "after_p3": 0.68,
+      "delta": -0.02499999999999991,
+      "mean_synapse_density_after": 0.33955785814474676,
+      "mean_composite_density_after": 0.65185546875
+    }
+  ]
+}

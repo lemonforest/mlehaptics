@@ -87,24 +87,61 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
     versions.
     """
 
-    def __init__(self, D: int = 8192, n_buckets: int = DEFAULT_N_BUCKETS, seed: int = 42):
+    def __init__(
+        self,
+        D: int = 8192,
+        n_buckets: int = DEFAULT_N_BUCKETS,
+        seed: int = 42,
+        bucket_strategy: str = "hash",
+    ):
         super().__init__(D=D, seed=seed)
         if n_buckets < 1:
             raise ValueError(f"n_buckets must be ≥ 1, got {n_buckets}")
+        if bucket_strategy not in ("hash", "sector_then_hash"):
+            raise ValueError(
+                f"bucket_strategy must be 'hash' or 'sector_then_hash'; got {bucket_strategy}"
+            )
         self.n_buckets = n_buckets
+        self.bucket_strategy = bucket_strategy
         # Per-bucket synapse dicts (canonical sorted-tuple key → synapse object)
         self.bucket_synapses: list[dict[tuple[str, str], Tier2Synapse]] = [
             {} for _ in range(n_buckets)
         ]
         # Per-bucket polar composite memories
         self.bucket_composites: list[Optional[np.ndarray]] = [None] * n_buckets
+        # Phase 2.5 optimization: maintain per-bucket token set + neighbor map
+        # for O(K) retrieval
+        self.bucket_tokens: list[set[str]] = [set() for _ in range(n_buckets)]
+        self.bucket_neighbors: list[set[int]] = [set() for _ in range(n_buckets)]
 
     # ------------ bucket routing ------------
 
     def _bucket_for(self, token: str) -> int:
-        """Deterministic bucket assignment via Class A SHA-256."""
-        digest = amsc_format.sha256_bytes(token.encode("utf-8"))
-        return int(digest[:8], 16) % self.n_buckets
+        """Deterministic bucket assignment.
+
+        bucket_strategy='hash' (default): pure Class A SHA-256 mod n_buckets
+        bucket_strategy='sector_then_hash': partition by chirality sector first
+            (4 sector groups), then hash within sector. Each sector gets
+            n_buckets/4 sub-buckets. Useful when associations are mostly
+            same-sector (reduces cross-bucket storage).
+        """
+        if self.bucket_strategy == "hash":
+            digest = amsc_format.sha256_bytes(token.encode("utf-8"))
+            return int(digest[:8], 16) % self.n_buckets
+        elif self.bucket_strategy == "sector_then_hash":
+            # Look up the concept's chirality sector if encoded
+            if token in self.tier1:
+                sector = self.tier1[token].sector
+            else:
+                # Unencoded token: default to sector 0 for bucket routing
+                sector = 0
+            sub_buckets = max(1, self.n_buckets // 4)
+            sector_group = sector % 4  # safety
+            digest = amsc_format.sha256_bytes(token.encode("utf-8"))
+            sub_idx = int(digest[:8], 16) % sub_buckets
+            return sector_group * sub_buckets + sub_idx
+        else:
+            raise ValueError(f"Unknown bucket_strategy: {self.bucket_strategy}")
 
     def _buckets_for_pair(self, token_a: str, token_b: str) -> set[int]:
         """The bucket(s) where the (a, b) binding should live."""
@@ -148,6 +185,16 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
         target_buckets = self._buckets_for_pair(token_a, token_b)
         for bucket_idx in target_buckets:
             self.bucket_synapses[bucket_idx][key] = synapse
+            self.bucket_tokens[bucket_idx].add(token_a)
+            self.bucket_tokens[bucket_idx].add(token_b)
+
+        # Phase 2.5 — maintain bucket-neighbor map for fast retrieve
+        if len(target_buckets) > 1:
+            buckets_list = sorted(target_buckets)
+            for i, ba in enumerate(buckets_list):
+                for bb in buckets_list[i + 1 :]:
+                    self.bucket_neighbors[ba].add(bb)
+                    self.bucket_neighbors[bb].add(ba)
 
         # Also store in flat tier2 for backward-compat / introspection
         self.tier2[key] = synapse
@@ -176,10 +223,14 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
         token: str,
         top_k: int = 5,
         threshold: float = 0.55,
+        fast: bool = True,
     ) -> list[tuple[str, float]]:
         """Find associated tokens via the token's bucket composite.
 
-        O(K) where K = bucket size, vs flat storage O(N).
+        Args:
+          fast: if True (default), score only against tokens in same bucket
+                + neighbor buckets (O(K) where K = bucket size + neighbor sizes).
+                If False, score against all Tier 1 concepts (O(N); for comparison).
         """
         if token not in self.tier1:
             return []
@@ -191,12 +242,20 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
         query_polar = self._klein4_to_polar(self.tier1[token].hv)
         candidate = hdc.polar_unbind(composite, query_polar)
 
-        # Score against all known tokens (could be optimized to bucket-local +
-        # cross-bucket lookups; for now flat scoring for simplicity)
+        if fast:
+            # O(K) candidates: same bucket + neighbor buckets
+            candidate_tokens = set(self.bucket_tokens[bucket_idx])
+            for neighbor in self.bucket_neighbors[bucket_idx]:
+                candidate_tokens.update(self.bucket_tokens[neighbor])
+            candidate_tokens.discard(token)
+        else:
+            # O(N) flat scoring (Phase 2 baseline)
+            candidate_tokens = set(self.tier1.keys())
+            candidate_tokens.discard(token)
+
         scores = []
-        for other_token, other_concept in self.tier1.items():
-            if other_token == token:
-                continue
+        for other_token in candidate_tokens:
+            other_concept = self.tier1[other_token]
             other_polar = self._klein4_to_polar(other_concept.hv)
             sim = float(hdc.polar_similarity(candidate, other_polar))
             scores.append((other_token, sim))
