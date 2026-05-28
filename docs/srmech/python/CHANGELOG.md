@@ -4,7 +4,29 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.6** (post-arc; queued srmech follow-ups deferred during the v0.4.4 chirality + siona arc and the v0.4.5 cascade-catalog C-parity arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in. Plus v0.5.0 DSL work: runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce (task #235)._
+_Next development line: **v0.4.7** (queued srmech follow-ups deferred during the v0.4.4 chirality + siona arc and the v0.4.5 cascade-catalog C-parity arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in. Plus v0.5.0 DSL work: runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce (task #235)._
+
+## [0.4.6rc1] - 2026-05-28
+
+**PyPI metadata refresh — leads with SO(8) 28D framing.** Description-only
+change; no code, no test, no ABI delta. Reason: the prior v0.4.5 PyPI
+description listed the 14-class primitive vocabulary without ever
+mentioning that the substrate the vocabulary instantiates is the 28-dim
+chiral hyper-loop = 𝔰𝔬(8) adjoint (14 𝔤₂ derivations + 14 L⊕R
+octonion-multiplications; Spin(8) triality) — out of step with the
+docs/RTD MFO/substrate-native blocks updated in PR #698 + the v0.4.5
+cascade-catalog C-parity arc that made the 28D substrate hardware-
+callable. Per user 2026-05-28 ("strip MVP false things"), refreshed.
+
+- Changed: `pyproject.toml` + `pyproject-pure.toml` `description` field —
+  leads with "substrate-native 28-dim chiral hyper-loop = so(8) adjoint
+  (14 g_2 derivations + 14 L+R octonion-multiplications; Spin(8) triality)
+  made hardware-callable"; keeps the 14-class vocabulary enumeration for
+  PyPI search; mentions cascade-catalog C/Python parity (v0.4.5 arc).
+  502 chars, both files identical.
+- Version: 0.4.5 → 0.4.6rc1 across 5 SSOTs + version-pin test rename.
+
+rc1 → TestPyPI; clean v0.4.6 follows after verify on the project page.
 
 ## [0.4.5] - 2026-05-28
 
