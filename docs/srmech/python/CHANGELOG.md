@@ -6,6 +6,31 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc5] - 2026-05-28
+
+**rc5 of N for v0.5.0 — async wrapper for the bus.**
+
+Thin asyncio shim over the sync API via `asyncio.to_thread()`. Covers
+FastAPI/aiohttp/asyncio-native callers without doubling C-peer complexity.
+Sync API remains the SSOT; async is a courtesy wrapper.
+
+- Added: `srmech.bus.aio` module — `AsyncChannel`, `AsyncEndpoint`,
+  `AsyncPipeHandle`, async `connect`, async `serve`, async `list`
+  (alias for `list_endpoints`), async `list_endpoints`, async `pipe`.
+- Handler can be sync OR async; async handlers awaited via
+  `asyncio.run_coroutine_threadsafe` from the sync server's worker thread
+  (handler runs back on the caller's event loop, not in the worker thread).
+- `aio.connect` / `aio.serve` are async context managers (`async with ...`).
+- `subscribe()` returns an async generator (per-`__anext__` worker hop).
+- All encryption/seed/discovery semantics inherited unchanged from sync API.
+
+Pure-Python; ABI unchanged at 3. No native asyncio plumbing in v1 (real
+asyncio-native path via `asyncio.open_unix_connection` can come in v0.5.x
+if a workload demands).
+
+~25 new tests using `asyncio.run(...)` inside sync test functions (no
+`pytest-asyncio` dep added — keeps the test surface light).
+
 ## [0.5.0rc4] - 2026-05-28
 
 **rc4 of N for v0.5.0 — `srmech bus` CLI subcommands.**

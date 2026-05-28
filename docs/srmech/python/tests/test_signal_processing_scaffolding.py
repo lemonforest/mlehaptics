@@ -91,35 +91,37 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc4():
-    """v0.5.0rc4 — ``srmech bus`` CLI subcommands.
+def test_version_is_0_5_0rc5():
+    """v0.5.0rc5 — async wrapper for the bus.
 
-    Per user direction 2026-05-28 (continuation of the rc1/rc2/rc3
-    bus arc): the ``srmech`` console-script gets a five-subcommand
-    ``bus`` family — ``list / tap / pipe / send / serve`` — that
-    operates the v0.5.0 bus from the shell. Mirrors the
-    ``srmech status`` CLI pattern (v0.4.6rc2). Pure-Python; ABI
-    **unchanged at 3** (no new C symbols this rc).
+    Per user direction 2026-05-28 (continuation of the rc1/rc2/rc3/rc4
+    bus arc): the ``srmech.bus`` module gets an async wrapper at
+    ``srmech.bus.aio`` — thin :mod:`asyncio` shim over the sync API via
+    :func:`asyncio.to_thread`. Covers FastAPI / aiohttp / asyncio-native
+    callers without doubling C-peer complexity. Sync API remains the
+    SSOT; async is a courtesy wrapper. Pure-Python; ABI **unchanged
+    at 3** (no new C symbols this rc).
 
-    The five subcommands:
+    The async surface:
 
-    * ``srmech bus list [--json] [--all]`` — active endpoints.
-    * ``srmech bus tap NAME [--seed HEX] [--format json|pretty]
-      [--filter TYPE] [--limit N]`` — stream broadcast events.
-    * ``srmech bus pipe SRC DST [--seed-src HEX] [--seed-dst HEX]
-      [--transform PY_EXPR]`` — daemon pipe.
-    * ``srmech bus send NAME EVENT_JSON [--seed HEX] [--timeout S]
-      [--stdin]`` — one-shot request/response.
-    * ``srmech bus serve NAME [--echo] [--seed HEX] [--seed-mint]
-      [--handler-module PYMOD:func]`` — test server.
+    * ``aio.AsyncChannel`` — async wrapper around ``Channel``.
+    * ``aio.AsyncEndpoint`` — async wrapper around ``Endpoint``.
+    * ``aio.AsyncPipeHandle`` — async wrapper around the pipe handle.
+    * ``aio.connect(name, seed=...)`` — async context manager.
+    * ``aio.serve(name, handler, seed=...)`` — async context manager;
+      handler can be **sync OR async** (async awaited via
+      :func:`asyncio.run_coroutine_threadsafe` from the sync worker
+      thread, back onto the caller's event loop).
+    * ``aio.list_endpoints()`` / ``aio.list()`` — async discovery.
+    * ``aio.pipe(src, dst, transform=...)`` — async daemon pipe.
 
-    Framework reading: Class M (cross-class bind) ∘ Class F (render
-    to the shell substrate-class-instance) ∘ Class E (catalog
-    enumeration). The shell IS another substrate-class-instance the
-    bus composes with, alongside Python / C / MCP.
+    Framework reading: Class M (cross-class bind) at the async/sync
+    substrate-class boundary. The asyncio event loop is one substrate-
+    class-instance; the thread-pool worker is another; ``to_thread`` is
+    the bind operator.
     """
-    assert srmech.__version__ == "0.5.0rc4", (
-        f"expected srmech.__version__ == '0.5.0rc4'; got "
+    assert srmech.__version__ == "0.5.0rc5", (
+        f"expected srmech.__version__ == '0.5.0rc5'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -127,7 +129,7 @@ def test_version_is_0_5_0rc4():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc4"
+    assert version_str == "0.5.0rc5"
     assert version_str == srmech.__version__
 
 
