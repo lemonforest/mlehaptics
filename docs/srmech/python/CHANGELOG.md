@@ -6,6 +6,46 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc1] - 2026-05-28
+
+**rc1 of N for v0.5.0 — `srmech.bus` Python skeleton.**
+
+Per user direction 2026-05-28: a cross-process bus over Unix-domain-sockets
+(POSIX) and Windows-named-pipes / TCP-loopback fallback (Windows), TLV-framed,
+MPR-NDJSON payloads, bidirectional req/rep + pub/sub. End-goal: srmech/siona
+processes (and Claude Code via MCP, rc5) compose across process boundaries.
+
+Framework reading: Class M ∘ Class B ∘ Class A extended to the OS-process-class
+boundary. Class H introspection (v0.4.6) is the unidirectional read-only special
+case of the bus.
+
+- Added: `srmech.bus` module — `serve()`, `connect()`, `list()`, `pipe()`,
+  `Endpoint`, `Channel`, `Event`. Sync API. Pure Python (no C peer yet —
+  that's rc2; ABI unchanged at 2).
+- Transport: POSIX Unix domain sockets at `~/.srmech/bus-{name}.sock`
+  (permissions `0o600`) + Windows TCP-loopback fallback with a registry
+  file at `~/.srmech/bus-{name}.txt` recording the kernel-assigned port.
+  Real named-pipes via ctypes is the rc2 target; the rc1 fallback keeps
+  the wire protocol identical so the rc2 swap is transport-only.
+- Framing: 4-byte length-prefix TLV; payload is JSON-encoded MPR-shaped
+  `Event` (mpr_version + type + payload + attestation + correlation_id).
+- Discovery: `~/.srmech/bus-{name}.sock` (POSIX) / `~/.srmech/bus-{name}.txt`
+  registry (Windows). Same ownership-filter as introspect — no `top` /
+  `ps` / `Get-Process` needed.
+- Req/rep: client `send()` issues a fresh UUID correlation-id and blocks
+  for the matching reply; server handler returns a dict (response) or
+  `None` (fire-and-forget).
+- Pub/sub: server `Endpoint.broadcast()` fans out to every connected
+  subscriber; client `Channel.subscribe()` yields broadcast events.
+  Drop-newest / drop-oldest backpressure policies (server / client).
+- Daemon pipe: `pipe(source, sink, transform=...)` composes two endpoints.
+- Off by default; importing `srmech.bus` binds nothing.
+- ~30-40 new parity tests; full suite passes.
+
+Remaining v0.5.0 rcs queued: rc2 (C peer + ctypes Windows-named-pipe),
+rc3 (CLI), rc4 (async wrapper), rc5 (MCP server adapter for Claude Code),
+rc6 (DSL runner consuming bus), rc7 (optional Anthropic SDK adapter).
+
 ## [0.4.6] - 2026-05-28
 
 **Clean ship — two-arc v0.4.6 closed (PyPI description SO(8) refresh + out-of-band introspection).**
