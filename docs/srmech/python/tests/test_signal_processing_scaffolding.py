@@ -91,7 +91,7 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_6rc2():
+def test_version_is_0_4_6():
     """v0.4.6rc2 — out-of-band introspection (talk-to-running-PID API).
     Per user direction 2026-05-28: srmech exposes its internal current
     state via a file-based status backend at ``~/.srmech/run-{pid}-
@@ -105,7 +105,7 @@ def test_version_is_0_4_6rc2():
     (pure Python module). Framework reading: Class H
     (self-introspection) projected across the OS-process boundary.
     """
-    assert srmech.__version__ == "0.4.6rc2", (
+    assert srmech.__version__ == "0.4.6", (
         f"expected srmech.__version__ == '0.4.6rc2'; got "
         f"{srmech.__version__!r}"
     )
@@ -114,7 +114,7 @@ def test_version_is_0_4_6rc2():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.6rc2"
+    assert version_str == "0.4.6"
     assert version_str == srmech.__version__
 
 
