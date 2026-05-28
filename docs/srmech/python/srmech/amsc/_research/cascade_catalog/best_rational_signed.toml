@@ -1,0 +1,116 @@
+# Cascade catalog entry: best_rational_signed
+# v0.4.5rc7 of the cascade-catalog C-parity + TOML retrofit — op 7 of 8.
+# Multi-class K∘N∘C cascade with delegation to the Class N primitive.
+
+[cascade]
+name = "best_rational_signed"
+class_composition = "K∘N∘C"
+purpose = "Float → signed small-denominator rational via Class K ∘ N ∘ C cascade."
+description = """
+Three-stage cascade composing the three sign-handling A–N classes:
+- Class K: pin_slot_at_zero strips the orientation (sign-flip IS the
+  canonical Class K phase-boundary per
+  [[user_stance_epicycle_via_gear_plus_pin]]; the inline branch
+  mirrors srmech_cascade_pin_slot_at_zero_f64 exactly).
+- Class N: best_rational anchors the non-negative magnitude (delegates
+  to the existing Class N primitive srmech.amsc.rational.best_rational
+  / srmech_best_rational).
+- Class C: reorient re-applies the orientation to the numerator
+  (mirrors srmech_cascade_reorient_i64 semantics; negate iff
+  orientation < 0).
+
+The cascade-honest replacement for ad-hoc float-to-rational routines
+that scatter abs() and sign flips through their internals per
+[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]. The dead-
+band at 1e-12 matches the canonical Class K phase-boundary; NaN and
+origin both map to (0, 1).
+
+Banker's-rounding parity: the C peer uses llrint() under the default
+IEEE-754 FE_TONEAREST mode (round-half-to-even), which matches Python's
+built-in round() at the .5 boundary bit-exactly. C99 round() would
+diverge (round-half-AWAY-from-zero); the cascade wrapper deliberately
+avoids C99 round() for parity discipline.
+"""
+
+[cascade.signature]
+input = "float (+ kwarg int max_denominator >= 1, kwarg int fine_scale >= 1)"
+output = "tuple[int, int] — (signed_numerator, positive_denominator)"
+operation = "pin_slot_at_zero -> best_rational(round(magnitude * fine_scale), fine_scale, max_denominator) -> reorient"
+dead_band = 1e-12
+nan_maps_to = "(0, 1)"
+origin_maps_to = "(0, 1)"
+sub_dead_band_maps_to = "(0, 1)"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_best_rational_signed_f64"
+abi_version = 2
+
+[cascade.composes]
+# The cascade composes three A–N stages. Two are inlined (Class K and
+# Class C are trivial — one comparison branch + one sign flip each);
+# the load-bearing Class N stage delegates to the existing primitive.
+class_k_stage = "inline pin_slot_at_zero (positive/negative/else branch; NaN falls through to the dead-band)"
+class_n_stage = "delegate to srmech_best_rational (continued-fraction convergent under small-denominator ceiling)"
+class_c_stage = "inline reorient (negate numerator iff orientation < 0)"
+
+[cascade.delegates_to]
+# The cascade composes 3 A–N stages; the C peer delegates the LOAD-
+# BEARING Class N stage to the existing primitive symbol and inlines
+# the trivial Class K + Class C stages.
+class_n_primitive_c_symbol = "srmech_best_rational"
+class_n_python = "srmech.amsc.rational.best_rational"
+class_k_inline = "if x > 0: (+1, x); elif x < 0: (-1, -x); else: (0, 0)"
+class_c_inline = "if orientation < 0: -nf else: nf"
+rationale = """
+The cascade-catalog wrapper composes three A–N stages: the Class N
+stage carries the math (continued-fraction convergent under the small-
+denominator ceiling) and delegates to the existing primitive
+srmech_best_rational. The Class K (sign-strip) and Class C (sign-re-
+apply) stages are trivial single-branch / single-flip operations
+inlined in the C peer to avoid the cost of two additional indirect
+calls to srmech_cascade_pin_slot_at_zero_f64 and
+srmech_cascade_reorient_i64. Inlined-vs-delegated is an
+implementation detail; semantically the cascade is still the full
+K∘N∘C composition.
+
+This is the SECOND of the delegating cascade ops in the v0.4.5rcN arc
+(after cyclic_gcd / rc6 which was pure delegation to a single Class I
+primitive). rc7's multi-class K∘N∘C delegation pattern generalises rc6's
+single-class delegation pattern to the multi-stage case.
+"""
+
+[cascade.rounding]
+# Banker's rounding parity. Python's built-in round() uses round-half-
+# to-even (banker's rounding) under PEP 3141 semantics; C99 round()
+# uses round-half-AWAY-from-zero. These diverge at the .5 boundary —
+# e.g. round(0.5) == 0 in Python (banker's), round(0.5) == 1 in C99.
+# The cascade C peer uses llrint() under the default IEEE-754
+# FE_TONEAREST mode (which is round-half-to-even) for bit-exact parity
+# with Python's round() at the .5 boundary.
+mode = "banker's rounding (round-half-to-even)"
+c_function = "llrint"
+c_fenv_mode = "FE_TONEAREST (the IEEE-754 default; no fesetround() call needed)"
+why_not_c99_round = "C99 round() is round-half-AWAY-from-zero, diverges from Python's round() at the .5 boundary"
+
+[cascade.boundary_cases]
+origin = "x == 0 (also -0.0) -> (0, 1) via Class K dead-band"
+nan = "float('nan') -> (0, 1) via Class K dead-band (both `x > 0` and `x < 0` evaluate false for NaN under IEEE-754)"
+sub_dead_band = "|x| < 1e-12 -> (0, 1) via Class K _ZERO_BAND"
+negative_input = "negative x -> orientation = -1; Class N anchors |x|; Class C re-applies negation to numerator"
+boundary_half = "magnitude * fine_scale landing exactly on .5 -> banker's-rounded to the nearest even (C llrint default = Python round())"
+invalid_kwargs = "max_denominator < 1 or fine_scale < 1 -> ValueError raised at Python dispatch layer; native path skipped"
+larger_than_int64_kwargs = "max_denominator or fine_scale > INT64_MAX -> native path skipped; Python bignum path handles via srmech.amsc.rational.best_rational"
+bool_kwargs = "isinstance(True, int) is True but type(True) is bool — native rejects via `type(x) is int` (bool subclass check); Python ref accepts (True coerces to 1, False to 0 which triggers the >= 1 guard)"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc7"
+canonical_landings = [
+  "Khinchin (1964), Continued Fractions — Class N best-rational primitive attestation",
+  "Euclid, Elements VII.1-2 — Class I gcd (underlies the Class N best-rational continued-fraction recurrence)",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts; sign is Class K pin-slot + Class C re-orientation",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the canonical Class K phase-boundary",
+  "Python Language Reference §6.13 (built-in round()) — banker's-rounding semantics the C peer matches via llrint() / FE_TONEAREST",
+  "IEEE 754-2008 §4.3.1 — roundTiesToEven (the FE_TONEAREST default mode)",
+]

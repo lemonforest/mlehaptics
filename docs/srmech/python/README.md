@@ -144,16 +144,16 @@ Eigenbasis is O(n³) one-time per substrate (cached by `substrate_descriptor_has
 
 ### `srmech.amsc.cascade` — foundational cross-domain cascade catalog
 
-The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — no new primitive class, no dedicated C symbol. No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` (full C/Python parity per project discipline) AND a TOML descriptor under `srmech/amsc/_research/cascade_catalog/` documenting the composition declaratively. No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
 
-- `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split).
-- `reorient(orientation, value)` — **Class C** orientation re-apply.
-- `magnitude(x)` — **Class K** magnitude-only convenience.
-- `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator).
-- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`).
-- `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(v0.4.4)*
-- `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(v0.4.4)*
-- `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(v0.4.4)*
+- `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split). *(C peer: v0.4.5rc2)*
+- `reorient(orientation, value)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
+- `magnitude(x)` — **Class K** magnitude-only convenience. *(C peer: v0.4.5rc3)*
+- `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator). *(C peer: v0.4.5rc7 — delegates Class N stage to `srmech_best_rational`; banker's rounding via `llrint()`)*
+- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`). *(C peer: v0.4.5rc6 — delegates to Class I primitive `srmech_gcd`)*
+- `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(C peer: v0.4.5rc1)*
+- `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C peer: v0.4.5rc8 — queued; higher-order, callback ABI)*
+- `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
 
 ### `srmech.signal_processing` — dual-path signal-processing surface
 

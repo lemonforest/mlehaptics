@@ -51,6 +51,15 @@
  * srmech_gcd; no additional sign-handling or cyclic-group operations
  * layered on top (that would be a different cascade).
  *
+ * v0.4.5rc7 op: `best_rational_signed` (Class K ∘ Class N ∘ Class C;
+ * multi-stage cascade). Three-stage composition: Class K pin-slot
+ * (sign-strip) inlined + Class N best-rational anchor (delegated to
+ * srmech_best_rational) + Class C re-orientation on the numerator
+ * (inlined). Banker's rounding via llrint() under default IEEE-754
+ * FE_TONEAREST mode for bit-exact parity with Python's built-in
+ * round(). NaN and sub-dead-band magnitudes map to (0, 1) matching
+ * the Python reference impl.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -68,6 +77,7 @@
 #include "srmech.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 
 srmech_status_t srmech_cascade_chiral_flip_i64(const int64_t *in,
@@ -358,4 +368,113 @@ srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
      * silent breakage). */
     assert(st != SRMECH_OK || (b != 0) || (*out == a));
     return st;
+}
+
+/* best_rational_signed — Class K ∘ Class N ∘ Class C; multi-stage cascade.
+ *
+ * Three-stage composition:
+ *   Class K (inlined): split x into (orientation, magnitude). Sign-flip
+ *                      IS the canonical Class K phase-boundary per
+ *                      [[user_stance_epicycle_via_gear_plus_pin]]; the
+ *                      inline branch mirrors srmech_cascade_pin_slot_at_zero_f64
+ *                      exactly (positive / negative / else with NaN
+ *                      falling through to the dead-band).
+ *   Class N (delegated): srmech_best_rational(num_pos, fine_scale,
+ *                        max_denominator) — continued-fraction
+ *                        convergent under the small-denominator
+ *                        ceiling. Uint64 inputs / uint64 outputs at
+ *                        the primitive ABI; we cast the bounded int64
+ *                        kwargs upward (the cascade Python dispatch
+ *                        already validates max_denominator >= 1 and
+ *                        fine_scale >= 1).
+ *   Class C (inlined): re-apply the captured orientation to the
+ *                      numerator. Mirrors srmech_cascade_reorient_i64
+ *                      semantics: negate iff orientation < 0; positive
+ *                      and zero orientation pass through unchanged.
+ *
+ * Rounding: magnitude * fine_scale rounds to int64 via llrint() under
+ * the default IEEE-754 FE_TONEAREST mode (round-half-to-even, a.k.a.
+ * banker's rounding). This is the bit-exact match for Python's
+ * built-in round() at the .5 boundary. C99 round() would use round-
+ * half-AWAY-from-zero and diverge from Python at the boundary; llrint()
+ * with default fenv is the canonical match.
+ *
+ * Dead-band: matches the Python reference's _ZERO_BAND = 1e-12. Origin,
+ * NaN, and sub-dead-band magnitudes all map to (0, 1).
+ *
+ * JPL conformance: ≥2 asserts (out_num != NULL + out_den != NULL pre-
+ * conditions), bounded (no loops; the delegated srmech_best_rational
+ * carries its own bounded loop), ≤60 lines, no malloc, no goto.
+ */
+/* Class K (inlined) helper for srmech_cascade_best_rational_signed_f64.
+ * Splits x into (orientation, magnitude) matching pin_slot_at_zero_f64
+ * semantics; NaN falls through to the dead-band branch. */
+static void _cascade_brs_pin_slot(double x,
+                                  int8_t *orientation_out,
+                                  double *magnitude_out)
+{
+    assert(orientation_out != NULL);
+    assert(magnitude_out != NULL);
+    if (x > 0.0) {
+        *orientation_out = (int8_t)+1;
+        *magnitude_out   = x;
+    } else if (x < 0.0) {
+        *orientation_out = (int8_t)-1;
+        *magnitude_out   = -x;
+    } else {
+        *orientation_out = (int8_t)0;
+        *magnitude_out   = 0.0;
+    }
+}
+
+srmech_status_t srmech_cascade_best_rational_signed_f64(
+    double    x,
+    int64_t   max_denominator,
+    int64_t   fine_scale,
+    int64_t  *out_num,
+    int64_t  *out_den)
+{
+    if (out_num == NULL || out_den == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (max_denominator < 1 || fine_scale < 1) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(out_num != NULL);
+    assert(out_den != NULL);
+    /* Class K: pin-slot at zero (sign-strip; NaN -> dead-band). */
+    int8_t orientation;
+    double magnitude;
+    _cascade_brs_pin_slot(x, &orientation, &magnitude);
+    /* Class K dead-band: 1e-12 (matches Python _ZERO_BAND). */
+    if (orientation == 0 || magnitude < 1e-12) {
+        *out_num = 0;
+        *out_den = 1;
+        return SRMECH_OK;
+    }
+    /* Banker's rounding via llrint() under default IEEE-754
+     * FE_TONEAREST mode — bit-exact with Python's round() at .5
+     * boundary. C99 round() would diverge (half-away-from-zero). */
+    const long long num_pos_ll = llrint(magnitude * (double)fine_scale);
+    if (num_pos_ll <= 0) {
+        *out_num = 0;
+        *out_den = 1;
+        return SRMECH_OK;
+    }
+    /* Class N (delegated): srmech_best_rational primitive. */
+    uint64_t nf = 0;
+    uint64_t df = 0;
+    const srmech_status_t st = srmech_best_rational(
+        (uint64_t)num_pos_ll,
+        (uint64_t)fine_scale,
+        (uint64_t)max_denominator,
+        &nf, &df);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    /* Class C (inlined): re-apply orientation to numerator. */
+    const int64_t nf_i = (int64_t)nf;
+    *out_num = (orientation < 0) ? -nf_i : nf_i;
+    *out_den = (int64_t)df;
+    return SRMECH_OK;
 }

@@ -4,7 +4,59 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 added net_chirality (LAST of the simple pure-Python cascade ops); v0.4.5rc6 adds cyclic_gcd (FIRST of the delegating cascade ops — cascade-namespace wrapper over the existing Class I primitive `srmech_gcd`). Two cascade ops remain queued: best_rational_signed (multi-class K∘N∘C cascade), chiral_dual (higher-order; callback ABI design). Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 added net_chirality (LAST of the simple pure-Python cascade ops); v0.4.5rc6 added cyclic_gcd (FIRST of the delegating cascade ops); v0.4.5rc7 adds best_rational_signed (multi-class K∘N∘C cascade — second of the delegating cascade ops; Class N delegated to srmech_best_rational, Class K + Class C inlined; banker's-rounding parity via llrint() + IEEE-754 FE_TONEAREST) plus a README full-feature update stripping the residual "no dedicated C symbol" carve-out per user directive 2026-05-28. One cascade op remains queued: chiral_dual (higher-order; callback ABI design — closes the arc). Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc7] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — best_rational_signed**
+(rc7 of N; multi-class K∘N∘C cascade with delegation to existing Class N
+primitive). PLUS: README full-feature update strips residual "no
+dedicated C symbol" carve-out language per user directive 2026-05-28
+(*"strip MVP false things from our presence"*).
+
+best_rational_signed is the SECOND of the delegating cascade ops in
+this arc (after cyclic_gcd / rc6). The C peer composes three A–N stages:
+Class K pin-slot (sign-strip) inlined + Class N best-rational anchor
+delegated to the existing `srmech_best_rational` primitive + Class C
+re-orientation (sign re-apply on the numerator) inlined. The multi-
+stage delegation pattern generalises rc6's single-class delegation
+pattern to the multi-stage case.
+
+Banker's-rounding parity (load-bearing): Python's built-in round() uses
+round-half-to-even (banker's rounding); C99 round() uses round-half-
+AWAY-from-zero. The C peer uses `llrint()` under the default IEEE-754
+FE_TONEAREST mode (= round-half-to-even) for bit-exact parity with
+Python's round() at the .5 boundary.
+
+- Added: `srmech_cascade_best_rational_signed_f64` C symbol (JPL-clean;
+  multi-stage K∘N∘C cascade; Class K + Class C stages inlined; Class N
+  delegated to existing `srmech_best_rational` primitive; banker's
+  rounding via `llrint()` for Python parity). ABI unchanged at 2
+  (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/best_rational_signed.toml`
+  — seventh TOML cascade-catalog entry with `[cascade.composes]` /
+  `[cascade.delegates_to]` / `[cascade.rounding]` sections documenting
+  the multi-stage composition + the IEEE-754 rounding-mode choice.
+- Added: `tests/test_cascade_best_rational_signed_parity.py` — parity
+  across basic positives / basic negatives / origin / sub-dead-band /
+  NaN / tiny / large / custom kwargs / invalid kwargs / random sweep /
+  banker's-rounding boundary (load-bearing — confirms llrint() vs C99
+  round() distinction holds at the .5 boundary).
+- Changed: `srmech.amsc.cascade.best_rational_signed` dispatches through
+  native for pure-Python `float` `x` + Python `int` kwargs (not bool)
+  in int64 range; Python fallback retained for numpy scalars, Decimal,
+  larger-than-int64 kwargs, and any other shape the strict native ABI
+  doesn't cover. The pre-rc7 ValueError-on-invalid-kwargs public API
+  is preserved exactly (native path skips on invalid kwargs and falls
+  through to the Python path which raises with the proper message).
+- Changed: README cascade-catalog section corrected — removed "no
+  dedicated C symbol" carve-out; added "Each cascade ships with a
+  dedicated C symbol in libsrmech (full C/Python parity)" discipline
+  statement; per-op annotations updated with C-peer rc references
+  (rc1-rc7; rc8 chiral_dual queued).
+
+Remaining: rc8 chiral_dual (higher-order; callback ABI design — closes
+the arc). After rc8: clean v0.4.5 ship to production PyPI.
 
 ## [0.4.5rc6] - 2026-05-28
 

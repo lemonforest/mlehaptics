@@ -287,6 +287,56 @@ def magnitude(x: float) -> float:
     return pin_slot_at_zero(x)[1]
 
 
+def _try_native_best_rational_signed(x, max_denominator, fine_scale):
+    """Native dispatch for the Class K ∘ Class N ∘ Class C cascade.
+
+    Returns ``(int, int)`` on success or ``None`` to signal the caller
+    should fall through to the Python composition path. Only pure-Python
+    ``float`` ``x`` + pure-Python ``int`` kwargs (not bool) within int64
+    range dispatch through native. Out-of-range kwargs or non-float ``x``
+    (int, numpy scalar, Decimal, ...) stay on the Python path so the
+    public API behaviour is preserved exactly.
+
+    Banker's-rounding parity: the C peer uses ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), which
+    matches Python's built-in ``round()`` at the ``.5`` boundary
+    bit-exactly. C99 ``round()`` would diverge (round-half-AWAY-from-
+    zero); the cascade wrapper deliberately avoids C99 ``round()``.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict type check — bool is a subclass of int and must NOT take
+    # the native path (matches the cascade-dispatch discipline). Only
+    # pure Python float dispatches through native.
+    if type(x) is not float:
+        return None
+    if type(max_denominator) is not int or isinstance(max_denominator, bool):
+        return None
+    if type(fine_scale) is not int or isinstance(fine_scale, bool):
+        return None
+    if max_denominator < 1 or fine_scale < 1:
+        # Let the caller hit the Python path which raises ValueError
+        # with the proper message.
+        return None
+    INT64_MAX = (2 ** 63) - 1
+    if max_denominator > INT64_MAX or fine_scale > INT64_MAX:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_best_rational_signed_f64"):
+        return None
+    out_num = ctypes.c_int64(0)
+    out_den = ctypes.c_int64(0)
+    rc = _native.LIB.srmech_cascade_best_rational_signed_f64(
+        ctypes.c_double(x),
+        ctypes.c_int64(max_denominator),
+        ctypes.c_int64(fine_scale),
+        ctypes.byref(out_num),
+        ctypes.byref(out_den),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out_num.value), int(out_den.value)
+
+
 def best_rational_signed(
     x: float,
     *,
@@ -301,6 +351,21 @@ def best_rational_signed(
     then re-apply the sign as Class C. No ``abs()``; the sign lives in the
     Class K / Class C pair end-to-end.
 
+    v0.4.5rc7: dispatches through the native C variant
+    ``srmech_cascade_best_rational_signed_f64`` when ``HAS_NATIVE`` is
+    True, ``x`` is a pure-Python ``float``, and ``max_denominator`` /
+    ``fine_scale`` are pure-Python ``int`` (not bool) in int64 range. The
+    C peer delegates the Class N stage to the existing
+    ``srmech_best_rational`` primitive; the Class K + Class C stages are
+    inlined (one comparison branch + one sign flip each). Python fallback
+    handles numpy scalars, Decimal, larger-than-int64 kwargs, and any
+    other shape the strict native ABI doesn't cover.
+
+    Banker's-rounding parity: the C peer uses ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), so the
+    ``round(magnitude * fine_scale)`` step matches Python's built-in
+    ``round()`` at the ``.5`` boundary bit-exactly.
+
     Args:
         x: A real value (the irrational/float to anchor).
         max_denominator: Class N small-denominator ceiling.
@@ -310,7 +375,8 @@ def best_rational_signed(
     Returns:
         ``(signed_numerator, denominator)`` — the Class N convergent of
         ``x`` with the Class C sign re-applied. The origin and sub-dead-band
-        magnitudes map to ``(0, 1)``.
+        magnitudes map to ``(0, 1)``. NaN also maps to ``(0, 1)`` via the
+        Class K dead-band.
 
     Raises:
         ValueError: if ``max_denominator < 1`` or ``fine_scale < 1``.
@@ -325,6 +391,10 @@ def best_rational_signed(
             f"cascade.best_rational_signed: fine_scale must be >= 1; "
             f"got {fine_scale}"
         )
+    native = _try_native_best_rational_signed(x, max_denominator, fine_scale)
+    if native is not None:
+        return native
+    # Python fallback path.
     # Class K — pin-slot at zero (sign-strip).
     orientation, mag = pin_slot_at_zero(x)
     if orientation == 0 or mag < _ZERO_BAND:

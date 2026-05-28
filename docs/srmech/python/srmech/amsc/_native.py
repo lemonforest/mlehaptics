@@ -781,6 +781,24 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_cyclic_gcd_u64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_best_rational_signed_f64"):
+        # int srmech_cascade_best_rational_signed_f64(
+        #     double    x, int64_t max_denominator, int64_t fine_scale,
+        #     int64_t  *out_num, int64_t *out_den)
+        # v0.4.5rc7 — Class K ∘ Class N ∘ Class C; multi-stage cascade
+        # delegating the Class N stage to srmech_best_rational with the
+        # Class K + Class C stages inlined. Banker's rounding via
+        # llrint() under default IEEE-754 FE_TONEAREST mode for parity
+        # with Python's built-in round().
+        lib.srmech_cascade_best_rational_signed_f64.argtypes = [
+            ctypes.c_double,
+            ctypes.c_int64,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_best_rational_signed_f64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

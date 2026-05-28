@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc6"
-#define SRMECH_VERSION       "0.4.5rc6"
+#define SRMECH_VERSION_PRE   "rc7"
+#define SRMECH_VERSION       "0.4.5rc7"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -182,6 +182,10 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  * v0.4.5rc6: cyclic_gcd — Class I cyclic-group gcd (cascade-namespace
  *            wrapper; delegates to the Class I primitive srmech_gcd).
  *            FIRST of the delegating cascade ops.
+ * v0.4.5rc7: best_rational_signed — Class K ∘ Class N ∘ Class C.
+ *            Multi-class cascade combining Class K pin-slot (sign-strip)
+ *            + Class N best-rational anchor (delegates to srmech_best_rational)
+ *            + Class C re-orientation (sign re-apply on the numerator).
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -318,6 +322,42 @@ srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
 srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
                                                 uint64_t  b,
                                                 uint64_t *out);
+
+/* best_rational_signed: Class K ∘ Class N ∘ Class C — float to signed
+ * small-denominator rational. Cascade-namespace wrapper around the
+ * existing Class N best_rational primitive with the Class K pin-slot
+ * strip + Class C orientation-re-apply on the numerator.
+ *
+ * Stages:
+ *   Class K: (orientation, magnitude) <- pin_slot_at_zero(x)
+ *   Class N: (num_pos, den) <- best_rational(round(magnitude * fine_scale),
+ *                                              fine_scale, max_denominator)
+ *   Class C: out_num <- (orientation < 0) ? -num_pos : num_pos
+ *
+ * Output: (out_num, out_den) where out_den >= 1 and out_num has the
+ * sign of x. Origin and sub-dead-band magnitudes (< 1e-12) map to
+ * (0, 1). NaN maps to (0, 1) via the Class K dead-band (both `x > 0`
+ * and `x < 0` evaluate false for NaN under IEEE-754).
+ *
+ * Rounding: the magnitude * fine_scale product is rounded to int64 via
+ * llrint() under the default IEEE-754 FE_TONEAREST mode (round-half-to-
+ * even / banker's rounding) — this matches Python's built-in round() at
+ * the .5 boundary bit-exactly. C99 round() is round-half-AWAY-from-zero
+ * and would diverge from Python at the boundary; llrint() with default
+ * fenv is the canonical match.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — out_num or out_den is NULL
+ *   SRMECH_ERR_BAD_INPUT   — max_denominator < 1 or fine_scale < 1
+ *   (any other status propagated from the underlying srmech_best_rational)
+ */
+srmech_status_t srmech_cascade_best_rational_signed_f64(
+    double    x,
+    int64_t   max_denominator,
+    int64_t   fine_scale,
+    int64_t  *out_num,
+    int64_t  *out_den);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
