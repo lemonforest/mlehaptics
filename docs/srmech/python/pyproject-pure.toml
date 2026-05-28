@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.4.4rc1"
+version = "0.4.4rc2"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -84,7 +84,7 @@ Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/pyt
 "Research notebook" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["srmech"]
+packages = ["srmech", "siona"]
 # Exclude any _native/ directory if it leaked in from a prior build.
 # Hatchling's `exclude` must be an array of glob strings — *not* a
 # table. (The earlier table form `"...\_native/*" = true` broke
@@ -98,6 +98,7 @@ exclude = [
 [tool.hatch.build.targets.sdist]
 include = [
     "srmech/**",
+    "siona/**",
     "tests/**",
     "README.md",
     "CHANGELOG.md",
