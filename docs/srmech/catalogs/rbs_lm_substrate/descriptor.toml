@@ -1,149 +1,126 @@
 # RBS-LM substrate parameterization catalog — CANONICAL variant
 #
-# Replaces module-level magic numbers across R-RBS-LM-112..121 with attested
-# catalog entries per MPM. Other variants (smol_stack, mvp_first_pass) consume
-# the same schema with different parameter values.
+# Validated by srmech.amsc.load_descriptor (srmech v0.4.4 + siona 0.0.2).
+# Substrate parameters are nested under [fetch.literature_curated] so they
+# round-trip through srmech's typed Descriptor accessor — no parallel
+# Python loader needed (would re-introduce MVP magic the user just called out).
 #
-# Discipline anchors:
-#   [[feedback_no_mvp_framing]]                 — full-coverage shipping
-#   [[feedback_full_coverage_shipping_mpm_way]] — closed-form algebra propagation
-#   [[user_stance_kepler_shape_universal]]      — algebra IS the primitives;
-#                                                  parameters belong to the
-#                                                  attested catalog, not modules.
+# Per [[feedback_no_mvp_framing]] + [[feedback_full_coverage_shipping_mpm_way]]:
+# catalog is loaded via srmech.amsc.load_descriptor; hash via descriptor_hash;
+# output measurements written as MPR-v1 NDJSON via write_ndjson.
+#
+# Per [[feedback_upstream_srmech_fixes_as_research_notes]]: a future
+# 'substrate_parameterization' adapter (UPSTREAM_NOTES wishlist) would let
+# srmech's cascade dispatch directly consume substrate params and run the
+# characterization adapter. Until then this catalog rides on the
+# 'literature_curated' adapter — substrate params ARE curated research
+# parameters with F-numbered finding citations.
 
 [source]
 key                  = "rbs_lm_substrate_canonical"
 human_readable_name  = "RBS-LM substrate parameterization (canonical full-coverage)"
-purpose              = "Canonical AMSC catalog parameterizing the variable-length Klein-4 chirality-level sentence substrate (R-RBS-LM-112 + R-RBS-LM-114) end-to-end. Every parameter that was a module-level constant in the R-RBS-LM-112..116 first-pass scripts is now an attested catalog field. Substrate scripts (R-RBS-LM-112 refactor + R-RBS-LM-122 characterization) consume a descriptor path at runtime; bit-exact reproducibility per descriptor_hash + corpus_hash + srmech_version. Variants (smol_stack, etc.) override fields without re-declaring the substrate module."
+purpose              = "Canonical AMSC catalog parameterizing the variable-length Klein-4 chirality-level sentence substrate. Every parameter that was a module-level constant in the R-RBS-LM-112..116 first-pass scripts is now an attested catalog field nested under [fetch.literature_curated]. The substrate characterization run (R-RBS-LM-122) loads this descriptor via srmech.amsc.load_descriptor, reads parameters off desc.fetch['literature_curated'], runs the measurement sweeps, and emits MPR-v1 NDJSON records via srmech.amsc.write_ndjson. Variants (smol_stack, etc.) override fields without re-declaring substrate library code."
 license              = "CC0"
 homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
 
 [source.primary_references]
 rbs_lm_arc                = "docs/srmech/rbs_lm_research/ — F132 → F157 chirality-level sentence substrate arc"
-substrate_module          = "docs/srmech/rbs_lm_research/R-RBS-LM-112_variable_length_sentences.py — VariableLengthSentenceMemory canonical implementation"
-hierarchical_wrapper      = "docs/srmech/rbs_lm_research/R-RBS-LM-114_hierarchical_scale_up.py — HierarchicalVariableLengthMemory hash-bucket routing"
-characterization_script   = "docs/srmech/rbs_lm_research/R-RBS-LM-122_substrate_characterization.py — full-coverage measurement consuming this catalog"
-f154_4x_ceiling           = "F154 — Klein-4 4× ceiling at exactly 4.00× (bit-density 2× × sectorization 2×) validates the per-sector parameterization here"
+substrate_library_canonical = "docs/srmech/rbs_lm_research/_canonical_substrate.py — catalog-driven substrate library; consumes srmech.amsc.Descriptor; pending upstream absorption per UPSTREAM_NOTES"
+characterization_script   = "docs/srmech/rbs_lm_research/R-RBS-LM-122_substrate_characterization.py — full-coverage measurement loading this catalog via srmech.amsc"
+f154_4x_ceiling           = "F154 — Klein-4 4× ceiling at exactly 4.00× (bit-density 2× × sectorization 2×)"
 f155_chirality_levels     = "F155 — chirality sectors as 4 independent LEVEL channels (substrate.sector_count = 4)"
-f156_sentence_generation  = "F156 — cross-level Klein-4 walk produces compositional novelty; generation params live in [generation] table"
-f157_v1_first_pass        = "F157 v1 — first-pass closure of 5-item sequential queue (R-RBS-LM-112..116) at MVP scope; preserved as historical record per [[feedback_no_mvp_framing]] correction"
-f162_full_coverage        = "F162 (pending) — full-coverage substrate characterization using this catalog; supersedes F157 v1 empirical claims"
-mpm_pattern               = "docs/srmech/CLAUDE.md §MPM — Mathematical Provenance Method; AMSC catalog as attestation crystallisation"
+f156_sentence_generation  = "F156 — cross-level Klein-4 walk produces compositional novelty"
+f157_v1_first_pass        = "F157 v1 — first-pass closure (R-RBS-LM-112..116) at MVP scope; preserved as historical record"
+f162_full_coverage        = "F162 (pending) — full-coverage substrate characterization via this catalog; supersedes F157 v1 empirical claims"
+srmech_amsc_descriptor    = "srmech v0.4.4 srmech.amsc.descriptor — load_descriptor + descriptor_hash + Descriptor dataclass; we consume these directly rather than re-implementing"
 
-# -----------------------------------------------------------------------------
-# Substrate core parameters (R-RBS-LM-112 lines now drawing from catalog)
-# -----------------------------------------------------------------------------
-[substrate]
-D                       = 8192     # hypervector dimension; previously module-level R-RBS-LM-112:38
-sector_count            = 4        # Klein-4 chirality sectors (γ₅ × iω₇); F132 + F155
-min_skeleton_length     = 4        # minimum sentence length for L2 skeleton storage (previously hardcoded line 108)
-                                   # Algebraic floor is 2 (need ≥1 bigram); 4 was a demo convention.
-                                   # Set to 2 in variants that want short-sentence skeleton coverage.
-token_seed_hex_chars    = 8        # SHA-256 prefix used to seed token randomness (32 bits)
-                                   # Raise to 16 for vocabularies > ~1e6 tokens.
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/canonical.ndjson"
 
-[encoding]
-backend                 = "klein4"     # one of: klein4, polar, bipolar
-encoder_module          = "vl_memory"  # importable substrate module name; F156 default
-encoder_version         = "0.1.0"      # bumped on substrate-shape changes
+# ---------------------------------------------------------------------------
+# Substrate parameters carried by the adapter — every former magic number
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.substrate]
+D                       = 8192     # hypervector dimension
+sector_count            = 4        # Klein-4 chirality sectors (F132 + F155)
+min_skeleton_length     = 4        # algebraic floor is 2; demo convention is 4
+token_seed_hex_chars    = 8        # 32-bit; raise to 16 for V > ~1e6 vocab
 
-# -----------------------------------------------------------------------------
-# Generation machinery (was R-RBS-LM-112 lines 157-231 with hardcoded caps)
-# -----------------------------------------------------------------------------
-[generation]
-default_top_k                = 5      # was hardcoded in generate_variable_length default
-max_walk_length              = 30     # was hardcoded `max_length=10` line 170 — that capped output at L=10
-                                      # despite substrate handling L=30 self-recall (R-RBS-LM-117)
-max_paths                    = 100    # was hardcoded `len(paths) < 5` line 168 — capped diversity at 5
-cycle_policy                 = "forbid"   # one of: forbid (default), allow, count_limited
-                                          # Programming corpora need 'allow' for repeated identifiers.
-l4_direct_composition        = false  # was hardcoded `if target_length == 4` line 199 — special-case asymmetry
-                                      # set false to use uniform walk-based composition for ALL lengths
-skeleton_length_fallback     = []     # was hardcoded `{4}` fallback line 198
-                                      # empty list = no fallback (return no completions for unknown skeletons)
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
 
-# -----------------------------------------------------------------------------
-# Hierarchical wrapper (R-RBS-LM-114)
-# -----------------------------------------------------------------------------
-[hierarchical]
+[fetch.literature_curated.generation]
+default_top_k                = 5
+max_walk_length              = 30   # was hardcoded 10 in R-RBS-LM-112:170 — capped output at L=10
+max_paths                    = 100  # was hardcoded 5 in R-RBS-LM-112:168 — capped diversity at 5
+cycle_policy                 = "forbid"   # forbid (default), allow, count_limited
+l4_direct_composition        = false      # was hardcoded special-case at L=4
+skeleton_length_fallback     = []         # was hardcoded {4} fallback
+
+[fetch.literature_curated.hierarchical]
 n_buckets                   = 16
 default_strategy            = "hash"
 allowed_strategies          = ["hash", "first_bigram_hash", "sector_then_hash"]
-sentence_hash_hex_chars     = 8       # SHA-256 prefix for bucket routing
+sentence_hash_hex_chars     = 8
 
-# -----------------------------------------------------------------------------
-# Corpus source (was hardcoded template in R-RBS-LM-113)
-# -----------------------------------------------------------------------------
-[corpus]
-source                  = "template"   # one of: template, hf_dataset, file, stdin
-tokenizer               = "whitespace" # one of: whitespace, python_tokenize, byte_level, bpe
+[fetch.literature_curated.corpus]
+source                  = "template"   # template | hf_dataset | file | stdin
+tokenizer               = "whitespace" # whitespace | python_tokenize | byte_level | bpe
 
-[corpus.template]
-module                  = "corpus_gen_canonical"
-generators_by_length    = {L4 = "gen_4word_sentences", L5 = "gen_5word_sentences", L6 = "gen_6word_sentences", L7 = "gen_7word_sentences"}
+[fetch.literature_curated.corpus.template]
+module                  = "R-RBS-LM-113_larger_corpus_scaling.py"
 default_distribution    = {L4 = 0.25, L5 = 0.25, L6 = 0.25, L7 = 0.25}
 
-# -----------------------------------------------------------------------------
-# Grammar metric (R-RBS-LM-115 / R-RBS-LM-120)
-# -----------------------------------------------------------------------------
-[grammar]
-mode                    = "pos_template"  # one of: pos_template, substrate_native, none
-                                          # 'substrate_native' is the F156-Mode-D signal (skeleton fidelity)
-                                          # without per-L POS templates — REQUIRED for L>7 honest validation
-pos_source              = "vocab_categories"  # one of: vocab_categories, lexer_derived, none
-allow_multi_class_pos   = true   # homographs like 'bird' (SUBJ + OBJ)
+[fetch.literature_curated.grammar]
+mode                    = "pos_template"  # pos_template | substrate_native | none
+pos_source              = "vocab_categories"
+allow_multi_class_pos   = true
 
-[grammar.templates]
-# Per-length POS templates (used only when grammar.mode = "pos_template")
-# Setting to empty array opens that length to substrate_native validation.
+[fetch.literature_curated.grammar.templates]
 L4 = ["DET", "SUBJ", "VERB", "OBJ"]
 L5 = ["DET", "SUBJ", "VERB", "PREP", "OBJ"]
 L6 = ["DET", "SUBJ", "VERB", "PREP", "DET", "OBJ"]
 L7 = ["DET", "SUBJ", "VERB", "PREP", "DET", "ADJ", "OBJ"]
 
-# -----------------------------------------------------------------------------
-# Plausibility metric (R-RBS-LM-116 / R-RBS-LM-121)
-# -----------------------------------------------------------------------------
-[plausibility]
+[fetch.literature_curated.plausibility]
 combination_mode        = "weighted_geometric_mean"
-eps_smoothing           = 1e-6
-skip_distances          = [2, 3]     # was hardcoded R-RBS-LM-116:75-80
+eps_smoothing           = 0.000001
+skip_distances          = [2, 3]
 
-[plausibility.weights]
+[fetch.literature_curated.plausibility.weights]
 bigram_freq             = 0.4
 skip_gram               = 0.2
 token_known             = 0.1
 substrate_skel_sim      = 0.3
 
-# -----------------------------------------------------------------------------
-# Measurement protocol (replaces hardcoded sample-50 + first-pass sweeps)
-# -----------------------------------------------------------------------------
-[measurement]
-recall_sample           = "full"   # "full" or an integer; was hardcoded `corpus[:50]` in R-RBS-LM-113
-seed                    = 42       # rng anchor for reproducibility
+[fetch.literature_curated.measurement]
+recall_sample           = "full"
+seed                    = 42
 
-[measurement.length_sweep]
-values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30]
-n_per_length = 50
+[fetch.literature_curated.measurement.length_sweep]
+values                  = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30]
+n_per_length            = 50
 
-[measurement.corpus_sweep]
-values = [400, 800, 1600, 3200, 6400, 12800]
+[fetch.literature_curated.measurement.corpus_sweep]
+values                  = [400, 800, 1600, 3200, 6400, 12800]
 
-[measurement.dimension_sweep]
-values = [2048, 4096, 8192, 16384, 32768]
-fixed_n = 2000
+[fetch.literature_curated.measurement.dimension_sweep]
+values                  = [2048, 4096, 8192, 16384, 32768]
+fixed_n                 = 2000
 
-[measurement.bucket_sweep]
-values = [4, 8, 16, 32, 64, 128]
+[fetch.literature_curated.measurement.bucket_sweep]
+values                  = [4, 8, 16, 32, 64, 128]
 
-[measurement.top_k_sweep]
-values = [5, 10, 20, 50, 100]
+[fetch.literature_curated.measurement.top_k_sweep]
+values                  = [5, 10, 20, 50, 100]
 
-[measurement.perturbation_categories]
-values = ["single_swap", "type_violation", "partial_shuffle", "full_random"]
+[fetch.literature_curated.measurement.perturbation_categories]
+values                  = ["single_swap", "type_violation", "partial_shuffle", "full_random"]
 
-[measurement.weight_sensitivity_configs]
-# Used by R-RBS-LM-122 plausibility-robustness phase
+[fetch.literature_curated.measurement.weight_sensitivity_configs]
 baseline                 = {bigram_freq = 0.4, skip_gram = 0.2, token_known = 0.1, substrate_skel_sim = 0.3}
 bigram_only              = {bigram_freq = 1.0, skip_gram = 0.0, token_known = 0.0, substrate_skel_sim = 0.0}
 skip_only                = {bigram_freq = 0.0, skip_gram = 1.0, token_known = 0.0, substrate_skel_sim = 0.0}
@@ -153,23 +130,24 @@ balanced                 = {bigram_freq = 0.25, skip_gram = 0.25, token_known = 
 co_occurrence_heavy      = {bigram_freq = 0.6, skip_gram = 0.3, token_known = 0.05, substrate_skel_sim = 0.05}
 substrate_heavy          = {bigram_freq = 0.1, skip_gram = 0.1, token_known = 0.1, substrate_skel_sim = 0.7}
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Standard AMSC tail
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 [parse]
-natural_key = "param_set_id"
+natural_key = "measurement_id"
 
 [schema]
-data_schema_id = "srmech.rbs_lm.substrate_parameterization.v1"
+data_schema_id = "srmech.rbs_lm.substrate_measurement.v1"
+ndjson_file    = "substrate_measurements/canonical.ndjson"
 
 [rendering]
-name_template    = "RBS-LM substrate parameterization '{param_set_id}'"
-purpose_template = "Substrate config: D={D}, sectors={sector_count}, max_walk={max_walk_length}, n_buckets={n_buckets}, bucket_strategy={default_strategy}, grammar_mode={grammar_mode}"
-cite_as_template = "mlehaptics RBS-LM substrate catalog, param_set '{param_set_id}', commit {arc_commit}, retrieved {retrieved_at}"
+name_template    = "RBS-LM substrate measurement '{measurement_id}'"
+purpose_template = "Substrate characterization phase={phase} at config '{config_name}' (D={D}, max_walk={max_walk_length}, cycle_policy={cycle_policy})"
+cite_as_template = "mlehaptics RBS-LM substrate catalog ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; retrieved {retrieved_at}"
 
 [attestation]
 method     = "config_descriptor"
-provenance = "Catalog parameterizes the R-RBS-LM-112 substrate (Klein-4 chirality-level HDC) by replacing module-level constants with attested catalog entries per MPM. Same descriptor_hash + same corpus + same srmech_version yields bit-exact reproducible substrate measurements. Per [[feedback_no_mvp_framing]] + [[feedback_full_coverage_shipping_mpm_way]]: hardcoded module constants are MVP artifacts; catalog entries are full-coverage. Per AMSC convention (R-RBS-LM-12 §6.7 compute_from_source pattern), extended here to parameter-as-source. The catalog itself never holds measurement bytes; measurements live at output_path during characterization runs."
+provenance = "Catalog parameterizes the canonical substrate library (docs/srmech/rbs_lm_research/_canonical_substrate.py) via srmech v0.4.4 AMSC machinery: load_descriptor for validation, descriptor_hash for attestation chain, write_ndjson for MPR-v1 output. Substrate parameters are nested under [fetch.literature_curated.*] so they round-trip through the typed Descriptor accessor — no parallel Python loader needed. Per [[feedback_no_mvp_framing]] + user direction 'catalogs are not new python script mvp magics; cascade is handled by srmech with the toml and MPR things': this catalog rides srmech's existing cascade. Same descriptor_hash + same srmech_version + same corpus → bit-exact reproducible measurements."
 
 [gap_targeting]
 gap_label = "rbs_lm_substrate_parameterization_canonical"

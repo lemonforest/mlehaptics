@@ -1,51 +1,44 @@
-"""_canonical_substrate — Catalog-driven Klein-4 chirality-level sentence substrate.
+"""_canonical_substrate — Klein-4 chirality-level sentence substrate, catalog-driven.
 
-Canonical implementation paired with the AMSC catalog at
-docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml. Every parameter that
-was a module-level constant in the R-RBS-LM-112 first-pass library is now
-read from a SubstrateConfig (see _substrate_config.py).
+Consumes substrate parameters from a srmech.amsc.Descriptor (loaded via
+srmech.amsc.load_descriptor) — no parallel Python parameter parser, no
+custom config dataclass. The catalog IS the config; srmech IS the loader.
 
-Relationship to R-RBS-LM-112 first-pass library:
-  - R-RBS-LM-112 is preserved as historical record (paired with F157 v1)
-  - This module is the canonical successor (paired with F162) — same algebra,
-    catalog-parameterized, no module-level magic numbers
-  - F157 v1's empirical evidence chain stays intact in git history; F162's
-    full-coverage results are produced by this module + R-RBS-LM-122
+Usage:
+    from srmech.amsc import load_descriptor
+    from _canonical_substrate import build_substrate, build_hierarchical_substrate
 
-Per [[feedback_no_mvp_framing]] + [[feedback_full_coverage_shipping_mpm_way]]:
-all generation-machinery caps that limited output to L≤10 (max_walk_length=10,
-max_paths<5, l4-direct-composition special-case, no-cycles policy) are now
-catalog fields, no longer hardcoded. Same for hierarchical bucket strategy,
-grammar templates, plausibility weights, and measurement protocol.
+    desc = load_descriptor(catalog_path)
+    params = desc.fetch["literature_curated"]   # all substrate sections live here
+    memory = build_substrate(params)             # or build_hierarchical_substrate(params)
 
-Per [[user_stance_kepler_shape_universal]]: algebra IS the primitives. The
-substrate's algebraic behavior is identical to R-RBS-LM-112; only the
-configurability is restored.
+Per [[feedback_no_mvp_framing]] + user direction "catalogs are not new python
+script mvp magics; cascade is handled by srmech with the toml and MPR things":
+this module is the substrate LIBRARY (algebra implementation), not a parallel
+config parser. Parameters are passed as nested dicts from the Descriptor.
+
+Per [[feedback_upstream_srmech_fixes_as_research_notes]]: the library lives in
+research subtree pending upstream absorption (UPSTREAM_NOTES wishlist item:
+srmech.rbs_lm.substrate module + a 'substrate_parameterization' adapter so the
+characterization run becomes a srmech cascade dispatch).
 """
 from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 
 from srmech.amsc import hdc, format as amsc_format
 
-# Import config types via relative-aware loader. Callers can also pass any
-# object exposing the required attributes; we don't bind to the dataclass type.
-try:
-    from ._substrate_config import SubstrateConfig
-except ImportError:  # pragma: no cover — script-mode fallback for direct exec
-    SubstrateConfig = Any  # type: ignore[misc,assignment]
-
 
 # ---------------------------------------------------------------------------
-# Encoding primitives — all D and hex-chars are config-driven
+# Encoding primitives — D and hex_chars are arguments, not module-level
 # ---------------------------------------------------------------------------
 
 def token_seed(name: str, hex_chars: int) -> int:
-    """SHA-256 prefix → integer seed. Catalog controls hex prefix width."""
+    """SHA-256 prefix → integer seed. Hex prefix width is catalog-controlled."""
     digest = amsc_format.sha256_bytes(name.encode("utf-8"))
     return int(digest[:hex_chars], 16)
 
@@ -56,9 +49,7 @@ def encode_word_k4(word: str, *, D: int, sector: int, hex_chars: int) -> np.ndar
     return hdc.klein4_bind(base, np.full(D, sector, dtype=np.uint8))
 
 
-def encode_bigram_l1(
-    word_a: str, word_b: str, *, D: int, hex_chars: int
-) -> np.ndarray:
+def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int) -> np.ndarray:
     w_a = encode_word_k4(word_a, D=D, sector=0, hex_chars=hex_chars)
     w_b = encode_word_k4(word_b, D=D, sector=0, hex_chars=hex_chars)
     bound = hdc.klein4_bind(w_a, w_b)
@@ -88,27 +79,25 @@ def encode_sentence_l3(tokens, *, D: int, hex_chars: int) -> np.ndarray:
 
 
 def sim_k4_batch(query: np.ndarray, candidates: np.ndarray) -> np.ndarray:
-    """Fractional-agreement similarity. F132 §3 standard."""
+    """Fractional-agreement similarity (F132 §3 standard)."""
     return (candidates == query).mean(axis=1)
 
 
 # ---------------------------------------------------------------------------
-# Canonical substrate class
+# Canonical substrate class — params is the desc.fetch[adapter] nested dict
 # ---------------------------------------------------------------------------
 
 @dataclass
 class CanonicalVariableLengthMemory:
-    """Catalog-parameterized variable-length sentence substrate.
+    """Variable-length sentence substrate parameterized by a catalog nested dict.
 
-    Algebraic behavior identical to R-RBS-LM-112's VariableLengthSentenceMemory;
-    every magic number is now a catalog parameter.
-
-    Construction:
-        memory = CanonicalVariableLengthMemory(config)
-    where config is a SubstrateConfig from _substrate_config.load_substrate_config().
+    `params` is desc.fetch["literature_curated"] (or equivalent) from a
+    srmech.amsc.Descriptor. Algebraically identical to R-RBS-LM-112's
+    VariableLengthSentenceMemory; the difference is that every former magic
+    number now flows in from the catalog.
     """
 
-    config: Any  # SubstrateConfig — typed as Any so this module can be exec'd standalone
+    params: Mapping[str, Any]
     words_l0: dict[str, np.ndarray] = field(default_factory=dict)
     bigrams_l1: dict[tuple[str, str], np.ndarray] = field(default_factory=dict)
     skeletons_l2: dict[tuple[tuple[str, str], tuple[str, str]], np.ndarray] = field(default_factory=dict)
@@ -117,23 +106,25 @@ class CanonicalVariableLengthMemory:
     prev_before: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
     skeleton_lengths: dict[tuple, set[int]] = field(default_factory=lambda: defaultdict(set))
 
+    # --- catalog accessors (no parallel dataclass) ---
+
     @property
     def D(self) -> int:
-        return int(self.config.substrate.D)
+        return int(self.params["substrate"]["D"])
 
     @property
     def hex_chars(self) -> int:
-        return int(self.config.substrate.token_seed_hex_chars)
+        return int(self.params["substrate"]["token_seed_hex_chars"])
 
     @property
     def min_skeleton_length(self) -> int:
-        return int(self.config.substrate.min_skeleton_length)
+        return int(self.params["substrate"]["min_skeleton_length"])
 
-    def learn_sentence(self, tokens):
-        """Add a sentence to the substrate. No length cap.
+    @property
+    def gen_params(self) -> Mapping[str, Any]:
+        return self.params["generation"]
 
-        Catalog gates: min_skeleton_length controls L2 storage.
-        """
+    def learn_sentence(self, tokens) -> None:
         if len(tokens) < 2:
             return  # algebraic floor — need at least one bigram
 
@@ -152,7 +143,6 @@ class CanonicalVariableLengthMemory:
             self.next_after[tokens[i]].add(tokens[i + 1])
             self.prev_before[tokens[i + 1]].add(tokens[i])
 
-        # L2 skeleton — gated by catalog (default 4; can lower to 2 for short-sentence corpora)
         if len(tokens) >= self.min_skeleton_length:
             first_bigram = (tokens[0], tokens[1])
             last_bigram = (tokens[-2], tokens[-1])
@@ -169,12 +159,7 @@ class CanonicalVariableLengthMemory:
                 tokens, D=self.D, hex_chars=self.hex_chars
             )
 
-    # ------------------------------------------------------------------
-    # Retrieval primitives
-    # ------------------------------------------------------------------
-
     def self_recall(self, tokens) -> bool:
-        """Encode + cosine-max → is it the same sentence?"""
         if not self.sentences_l3:
             return False
         target = encode_sentence_l3(tokens, D=self.D, hex_chars=self.hex_chars)
@@ -201,10 +186,6 @@ class CanonicalVariableLengthMemory:
         valid.sort(key=lambda x: x[2], reverse=True)
         return valid
 
-    # ------------------------------------------------------------------
-    # Walk + generation — every cap is catalog-driven, NO false idols
-    # ------------------------------------------------------------------
-
     def walk_bigram_chain(
         self,
         start_word: str,
@@ -212,19 +193,13 @@ class CanonicalVariableLengthMemory:
         max_length: int | None = None,
         max_paths: int | None = None,
     ) -> list[list[str]]:
-        """BFS for paths from start_word ending in end_word.
-
-        max_length defaults to catalog generation.max_walk_length (NOT hardcoded 10).
-        max_paths defaults to catalog generation.max_paths (NOT hardcoded 5).
-        cycle_policy from catalog: 'forbid' | 'allow' | 'count_limited'.
-        """
+        """BFS for paths start_word → end_word. Catalog-driven caps + cycle policy."""
         if start_word not in self.next_after:
             return []
-
-        cfg = self.config.generation
-        m_len = cfg.max_walk_length if max_length is None else max_length
-        m_paths = cfg.max_paths if max_paths is None else max_paths
-        cycle_policy = cfg.cycle_policy
+        gp = self.gen_params
+        m_len = int(gp["max_walk_length"]) if max_length is None else max_length
+        m_paths = int(gp["max_paths"]) if max_paths is None else max_paths
+        cycle_policy = str(gp["cycle_policy"])
 
         queue: deque[list[str]] = deque([[start_word]])
         paths: list[list[str]] = []
@@ -241,7 +216,6 @@ class CanonicalVariableLengthMemory:
                     continue
                 if cycle_policy == "count_limited" and path.count(next_token) >= 2:
                     continue
-                # cycle_policy == "allow" — no filter
                 queue.append(path + [next_token])
         return paths
 
@@ -250,27 +224,20 @@ class CanonicalVariableLengthMemory:
         seed_bigram: tuple[str, str],
         top_k: int | None = None,
     ) -> list[dict]:
-        """Generate sentences from seed bigram. All caps are catalog-driven.
-
-        No L=4 special-case unless catalog.generation.l4_direct_composition is True.
-        Skeleton-length fallback from catalog (default empty = no fallback).
-        """
-        cfg = self.config.generation
-        t_k = cfg.default_top_k if top_k is None else top_k
-        l4_special = cfg.l4_direct_composition
-        fallback = set(cfg.skeleton_length_fallback)
+        gp = self.gen_params
+        t_k = int(gp["default_top_k"]) if top_k is None else top_k
+        l4_special = bool(gp.get("l4_direct_composition", False))
+        fallback = set(int(x) for x in gp.get("skeleton_length_fallback", []))
 
         generated: list[dict] = []
         skeletons = self.retrieve_skeletons_for_first_bigram(seed_bigram)
 
-        for skeleton, _last_bigram_unused, sk_sim in skeletons:
+        for skeleton, _last_unused, sk_sim in skeletons:
             if skeleton[0] == seed_bigram:
                 end_bg = skeleton[1]
             else:
                 end_bg = skeleton[0]
-
             lengths_for_skel = self.skeleton_lengths.get(skeleton, fallback)
-
             for target_length in lengths_for_skel:
                 if l4_special and target_length == 4:
                     sentence = list(seed_bigram) + list(end_bg)
@@ -281,11 +248,8 @@ class CanonicalVariableLengthMemory:
                         "skeleton_sim": sk_sim,
                     })
                     continue
-
-                # Uniform walk-based composition for all lengths
                 paths = self.walk_bigram_chain(seed_bigram[1], end_bg[0])
                 for path in paths:
-                    # full sentence: seed[0] + path + end_bg[1]
                     full = [seed_bigram[0]] + path + [end_bg[1]]
                     if len(full) == target_length:
                         generated.append({
@@ -296,7 +260,6 @@ class CanonicalVariableLengthMemory:
                             "middle_path": path[1:-1] if len(path) > 2 else [],
                         })
 
-        # Dedupe by sentence tuple
         seen = set()
         unique = []
         for g in generated:
@@ -308,60 +271,56 @@ class CanonicalVariableLengthMemory:
 
 
 # ---------------------------------------------------------------------------
-# Hierarchical wrapper — catalog-driven bucket strategy
+# Hierarchical wrapper — bucket strategy from catalog
 # ---------------------------------------------------------------------------
 
 @dataclass
 class CanonicalHierarchicalMemory:
-    """Hierarchical wrapper around CanonicalVariableLengthMemory.
+    """Hash-bucketed wrapper around CanonicalVariableLengthMemory."""
 
-    bucket strategy comes from catalog.hierarchical.default_strategy (or override
-    via constructor `strategy` argument). Cross-bucket merge for generation.
-    """
-
-    config: Any
+    params: Mapping[str, Any]
     n_buckets: int | None = None
     strategy: str | None = None
     buckets: list[CanonicalVariableLengthMemory] = field(default_factory=list)
 
     def __post_init__(self):
-        h = self.config.hierarchical
+        h = self.params["hierarchical"]
         if self.n_buckets is None:
-            self.n_buckets = h.n_buckets
+            self.n_buckets = int(h["n_buckets"])
         if self.strategy is None:
-            self.strategy = h.default_strategy
-        if self.strategy not in h.allowed_strategies:
+            self.strategy = str(h["default_strategy"])
+        allowed = tuple(h["allowed_strategies"])
+        if self.strategy not in allowed:
             raise ValueError(
-                f"strategy {self.strategy!r} not in catalog allowed_strategies "
-                f"{h.allowed_strategies}"
+                f"strategy {self.strategy!r} not in catalog allowed_strategies {allowed}"
             )
         self.buckets = [
-            CanonicalVariableLengthMemory(config=self.config)
+            CanonicalVariableLengthMemory(params=self.params)
             for _ in range(self.n_buckets)
         ]
 
     def _bucket_for_sentence(self, tokens) -> int:
-        hex_chars = int(self.config.hierarchical.sentence_hash_hex_chars)
+        h = self.params["hierarchical"]
+        hex_chars = int(h["sentence_hash_hex_chars"])
         n = int(self.n_buckets)
         if self.strategy == "hash":
             digest = amsc_format.sha256_bytes(" ".join(tokens).encode("utf-8"))
             return int(digest[:hex_chars], 16) % n
         elif self.strategy == "first_bigram_hash":
-            if len(tokens) < 2:
-                key = tokens[0].encode("utf-8") if tokens else b""
-            else:
-                key = f"{tokens[0]}_{tokens[1]}".encode("utf-8")
+            key = (
+                tokens[0].encode("utf-8") if len(tokens) < 2 else
+                f"{tokens[0]}_{tokens[1]}".encode("utf-8")
+            )
             digest = amsc_format.sha256_bytes(key)
             return int(digest[:hex_chars], 16) % n
         elif self.strategy == "sector_then_hash":
-            # Partition by first-token sector first, then hash within sector
             first = tokens[0] if tokens else ""
-            seed = token_seed(first, int(self.config.substrate.token_seed_hex_chars))
-            sector = seed % int(self.config.substrate.sector_count)
-            sub_buckets = max(1, n // int(self.config.substrate.sector_count))
+            seed = token_seed(first, int(self.params["substrate"]["token_seed_hex_chars"]))
+            sector = seed % int(self.params["substrate"]["sector_count"])
+            sub = max(1, n // int(self.params["substrate"]["sector_count"]))
             digest = amsc_format.sha256_bytes(" ".join(tokens).encode("utf-8"))
-            sub = int(digest[:hex_chars], 16) % sub_buckets
-            return (sector * sub_buckets + sub) % n
+            sub_idx = int(digest[:hex_chars], 16) % sub
+            return (sector * sub + sub_idx) % n
         else:
             raise ValueError(f"Unknown bucket_strategy: {self.strategy}")
 
@@ -373,14 +332,13 @@ class CanonicalHierarchicalMemory:
     def recall_sentence(self, tokens) -> bool:
         return self.buckets[self._bucket_for_sentence(tokens)].self_recall(tokens)
 
-    def generate_from_seed(self, seed_bigram, top_k: int | None = None) -> list[dict]:
-        cfg = self.config.generation
-        t_k = cfg.default_top_k if top_k is None else top_k
-        all_results: list[dict] = []
+    def generate_from_seed(self, seed_bigram, top_k: int | None = None):
+        gp = self.params["generation"]
+        t_k = int(gp["default_top_k"]) if top_k is None else top_k
+        all_results = []
         for bucket in self.buckets:
             if seed_bigram in bucket.bigrams_l1:
-                results = bucket.generate_variable_length(seed_bigram, top_k=t_k)
-                all_results.extend(results)
+                all_results.extend(bucket.generate_variable_length(seed_bigram, top_k=t_k))
         seen = set()
         unique = []
         for entry in sorted(all_results, key=lambda e: -e["skeleton_sim"]):
@@ -394,10 +352,10 @@ class CanonicalHierarchicalMemory:
         return sum(len(b.sentences_l3) for b in self.buckets)
 
     def total_words(self) -> int:
-        all_words = set()
+        all_w = set()
         for b in self.buckets:
-            all_words.update(b.words_l0.keys())
-        return len(all_words)
+            all_w.update(b.words_l0.keys())
+        return len(all_w)
 
     def bucket_load_stats(self) -> dict:
         loads = np.array([len(b.sentences_l3) for b in self.buckets])
@@ -411,3 +369,21 @@ class CanonicalHierarchicalMemory:
             "cv": float(loads.std() / loads.mean()) if loads.mean() > 0 else 0.0,
             "empty_buckets": int((loads == 0).sum()),
         }
+
+
+# ---------------------------------------------------------------------------
+# Convenience builders — for code that has a Descriptor in hand
+# ---------------------------------------------------------------------------
+
+def build_substrate(params: Mapping[str, Any]) -> CanonicalVariableLengthMemory:
+    """Build a flat substrate from desc.fetch[adapter] dict."""
+    return CanonicalVariableLengthMemory(params=params)
+
+
+def build_hierarchical_substrate(
+    params: Mapping[str, Any],
+    n_buckets: int | None = None,
+    strategy: str | None = None,
+) -> CanonicalHierarchicalMemory:
+    """Build a hierarchical substrate from desc.fetch[adapter] dict."""
+    return CanonicalHierarchicalMemory(params=params, n_buckets=n_buckets, strategy=strategy)
