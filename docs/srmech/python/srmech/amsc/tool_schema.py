@@ -1230,6 +1230,41 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
         ),
+        # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
+        # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
+        # of Class C orientation + Class K sign; no new class, no C symbol.
+        ToolEntry(
+            name="srmech.amsc.cascade.chiral_flip", owner="srmech",
+            category="cascade",
+            summary="Class C orientation reversal: reverse a sequence's "
+                    "traversal order (seq[::-1]). The value-level Class C "
+                    "operator; reversing a real signal is the FFT-level "
+                    "chirality operator (magnitude preserved, phase inverted).",
+            parameters=(P("seq", "sequence", True, "sliceable sequence"),),
+            returns=R("sequence", "orientation-reversed sequence (type preserved)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.chiral_dual", owner="srmech",
+            category="cascade",
+            summary="Class C ∘ op ∘ Class C: run an operator in the opposite "
+                    "Class-C orientation. Conjugating any operator by "
+                    "chiral_flip yields its chiral dual — same spectral shape, "
+                    "inverted orientation (MFO §VIII.31.11). Reduces to Class K "
+                    "-1 for the sign operators; identity for real-symmetric ops.",
+            parameters=(P("op", "callable", True, "unary sequence→sequence operator"),
+                        P("x", "sequence", True, "input sequence")),
+            returns=R("sequence", "chiral_flip(op(chiral_flip(x)))"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.net_chirality", owner="srmech",
+            category="cascade",
+            summary="Class C net handedness of a cascade: product of per-op "
+                    "orientations in {-1,0,+1} via composed reorient (no "
+                    "abs-free sign multiply). Returns +1 (right), -1 (left), or "
+                    "0 if any operator is orientation-neutral.",
+            parameters=(P("orientations", "iterable[int]", True, "orientations in {-1,0,+1}"),),
+            returns=R("int", "net handedness in {-1, 0, +1}"),
+        ),
     ]
     for e in entries:
         register_tool(e)

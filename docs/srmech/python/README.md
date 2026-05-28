@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.4.3 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I — a named cascade is the default, a math-library call the exception).
+**Status:** **v0.4.3 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the v0.4.4 chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(v0.4.4rc1 on TestPyPI — adds the cascade chirality mini-set; production PyPI is v0.4.3.)*
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -149,6 +149,9 @@ The cascades that recur across **every / most** domains, promoted so a named cas
 - `magnitude(x)` — **Class K** magnitude-only convenience.
 - `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator).
 - `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`).
+- `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(v0.4.4)*
+- `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(v0.4.4)*
+- `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(v0.4.4)*
 
 ### `srmech.signal_processing` — dual-path signal-processing surface
 
