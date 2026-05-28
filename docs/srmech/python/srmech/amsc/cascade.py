@@ -512,6 +512,79 @@ def chiral_dual(op, x):
     return chiral_flip(op(chiral_flip(x)))
 
 
+def _try_native_net_chirality(orientations):
+    """Native dispatch for net_chirality.
+
+    Accepts:
+      - list / tuple of pure-Python ints (every element in int8 range,
+        no bools)
+      - 1-D ndarray with integer dtype, each value in int8 range
+
+    Returns ``int`` on success or ``None`` to signal the caller should
+    fall through to the Python path. Generators (non-len-able iterables),
+    bool elements (False == 0 in Python iteration), mixed types
+    (int + float / numpy scalar), and out-of-int8 values all fall
+    through to Python.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_net_chirality_i8"):
+        return None
+
+    # Path A: ndarray.
+    if hasattr(orientations, "dtype") and hasattr(orientations, "ndim"):
+        import numpy as _np
+        if orientations.ndim != 1:
+            return None
+        if orientations.dtype.kind not in ("i", "u"):
+            return None
+        # Bound-check: every value must fit in int8 (we use int8 ABI
+        # so values outside [-128, 127] would silently wrap).
+        if orientations.size > 0:
+            mn = int(orientations.min())
+            mx = int(orientations.max())
+            if mn < -128 or mx > 127:
+                return None
+        # Convert to int8 contiguous buffer.
+        buf = _np.ascontiguousarray(orientations, dtype=_np.int8)
+        n = int(buf.size)
+        c_in = buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int8))
+        out_val = ctypes.c_int8(0)
+        rc = _native.LIB.srmech_cascade_net_chirality_i8(
+            c_in, ctypes.c_size_t(n), ctypes.byref(out_val),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        return int(out_val.value)
+
+    # Path B: list / tuple of pure-Python ints (no bools).
+    if isinstance(orientations, (list, tuple)):
+        n = len(orientations)
+        if n == 0:
+            # Empty: short-circuit; native ABI returns +1 too, but we can
+            # avoid the call.
+            return 1
+        # Validate every element is a pure Python int in int8 range.
+        for o in orientations:
+            if type(o) is not int:  # rejects bool, float, numpy scalars
+                return None
+            if o < -128 or o > 127:
+                return None
+        ArrT = ctypes.c_int8 * n
+        c_in = ArrT(*orientations)
+        out_val = ctypes.c_int8(0)
+        rc = _native.LIB.srmech_cascade_net_chirality_i8(
+            ctypes.cast(c_in, ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_size_t(n),
+            ctypes.byref(out_val),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        return int(out_val.value)
+
+    return None
+
+
 def net_chirality(orientations) -> int:
     """Class C net handedness of a cascade: the product of per-op orientations.
 
@@ -520,6 +593,14 @@ def net_chirality(orientations) -> int:
     chiral cascade reads out (MFO §VIII.31.11 §(5d); the net-chirality of
     Spike #74 / #89). Computed by composing :func:`reorient`, not by ``abs``-
     free sign multiplication, so the cascade-count matches the cascade-shape.
+
+    v0.4.5rc5: dispatches through the native C variant
+    ``srmech_cascade_net_chirality_i8`` when ``HAS_NATIVE`` is True and the
+    input is a ``list`` / ``tuple`` of pure-Python ints in int8 range (no
+    bools) or a 1-D integer ``ndarray`` with every value in int8 range.
+    Falls back to the Python iteration path for generators (non-len-able
+    iterables), bool elements (``False == 0`` short-circuits via the
+    Python loop), mixed-type sequences, and out-of-int8 values.
 
     Args:
         orientations: Iterable of orientations in ``{-1, 0, +1}`` (typically
@@ -530,6 +611,9 @@ def net_chirality(orientations) -> int:
         ``0`` if any operator is orientation-neutral (a zero-crossing in the
         chain collapses net handedness).
     """
+    native = _try_native_net_chirality(orientations)
+    if native is not None:
+        return native
     net = 1
     for o in orientations:
         if o == 0:

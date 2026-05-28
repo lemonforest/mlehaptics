@@ -4,7 +4,27 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 adds reorient. Four cascade ops remain queued: net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 adds net_chirality (LAST of the simple pure-Python cascade ops in this arc). Three cascade ops remain queued: cyclic_gcd (delegates to existing Class I C peer), best_rational_signed (multi-class K∘N∘C cascade), chiral_dual (higher-order; callback ABI design). Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc5] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — net_chirality**
+(rc5 of N; LAST of the simple pure-Python cascade ops in this arc).
+
+- Added: `srmech_cascade_net_chirality_i8` C symbol (JPL-clean; sequence
+  in / scalar out via output pointer; empty input → +1; zero-element
+  short-circuits to 0; bounded loop). ABI unchanged at 2.
+- Added: `srmech/amsc/_research/cascade_catalog/net_chirality.toml` —
+  fifth TOML cascade-catalog entry with boundary-cases section.
+- Changed: `srmech.amsc.cascade.net_chirality` dispatches through native
+  for list[int] / tuple[int] / 1-D int ndarrays where every element
+  fits int8; Python fallback covers generators, bool elements (False
+  == 0 short-circuits via Python iteration), out-of-int8 values, mixed
+  types.
+
+Remaining 3 cascade ops queued: cyclic_gcd (delegates to existing
+Class I C peer), best_rational_signed (multi-class K∘N∘C cascade),
+chiral_dual (higher-order; callback ABI design).
 
 ## [0.4.5rc4] - 2026-05-28
 

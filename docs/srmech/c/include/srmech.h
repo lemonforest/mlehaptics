@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc4"
-#define SRMECH_VERSION       "0.4.5rc4"
+#define SRMECH_VERSION_PRE   "rc5"
+#define SRMECH_VERSION       "0.4.5rc5"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -178,6 +178,7 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  * v0.4.5rc2: pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
  * v0.4.5rc3: magnitude — Class K pin-slot magnitude-only projection.
  * v0.4.5rc4: reorient — Class C cascade-orientation re-application.
+ * v0.4.5rc5: net_chirality — Class C net handedness invariant.
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -267,6 +268,25 @@ srmech_status_t srmech_cascade_reorient_i64(int8_t   orientation,
 srmech_status_t srmech_cascade_reorient_f64(int8_t   orientation,
                                              double   value,
                                              double  *out);
+
+/* net_chirality: Class C net handedness invariant — multiplicative
+ * product of per-op orientations in {-1, 0, +1}.
+ *
+ * Empty input (n == 0) returns +1 (the multiplicative identity, matching
+ * Python where the loop doesn't execute). Any orientation of 0 in the
+ * sequence short-circuits the result to 0 (a zero-crossing collapses
+ * net handedness). Otherwise the result is +1 (even count of -1s) or
+ * -1 (odd count). Orientations are int8; any value not in {-1, 0, +1}
+ * is normalised by sign (negative -> -1, positive -> +1, zero -> 0),
+ * matching the Python ref where only the sign of each o matters.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — orientations is NULL with n > 0, or out is NULL
+ */
+srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
+                                                  size_t        n,
+                                                  int8_t       *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
