@@ -1,0 +1,46 @@
+# Cascade catalog entry: reorient
+# v0.4.5rc4 of the cascade-catalog C-parity + TOML retrofit — continues
+# the carve-out correction (op 4 of 8).
+
+[cascade]
+name = "reorient"
+class_composition = "C"
+purpose = "Class C cascade-orientation re-application — sign-flip a value."
+description = """
+Re-applies a captured orientation in {-1, 0, +1} to a value. Returns
+-value when orientation < 0; returns value unchanged otherwise. Only the
+SIGN of orientation matters (zero and positive both pass value through).
+
+Used downstream of pin_slot_at_zero in the canonical Class K + Class C
+sign-handling cascade: pin_slot_at_zero strips the orientation; reorient
+re-applies it. Together they replace Python's abs() with cascade-honest
+sign handling per feedback_sign_handling_is_class_k_pin_slot_not_alu_abs.
+"""
+
+[cascade.signature]
+input = "tuple[int8, int64|float64]"
+output = "int64|float64 (same type as value)"
+operation = "value if orientation >= 0 else -value"
+type_preserving = true
+ieee754_negation_for_float = true
+
+[cascade.native]
+c_symbol_i64 = "srmech_cascade_reorient_i64"
+c_symbol_f64 = "srmech_cascade_reorient_f64"
+abi_version = 2
+
+[cascade.boundary_cases]
+int64_min = "Caller must not pass INT64_MIN to reorient_i64; the negation would overflow. Python int has no such limit (arbitrary precision); the int64 C variant is fixed-width by ABI."
+nan_f64 = "IEEE-754 negation: -nan is still NaN (sign bit flipped, NaN-ness preserved)."
+inf_f64 = "+inf and -inf swap under orientation < 0."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc4"
+canonical_landings = [
+  "MFO §VII.6.x (Class C cascade-orientation)",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the Class K phase-boundary; reorient is the matched Class C re-application",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "user_stance_endianness_is_class_c_on_bytes — endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8) triality",
+]

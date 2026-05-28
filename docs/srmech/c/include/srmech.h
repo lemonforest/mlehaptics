@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc3"
-#define SRMECH_VERSION       "0.4.5rc3"
+#define SRMECH_VERSION_PRE   "rc4"
+#define SRMECH_VERSION       "0.4.5rc4"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -177,6 +177,7 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  * v0.4.5rc1: chiral_flip — Class C orientation reversal.
  * v0.4.5rc2: pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
  * v0.4.5rc3: magnitude — Class K pin-slot magnitude-only projection.
+ * v0.4.5rc4: reorient — Class C cascade-orientation re-application.
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -239,6 +240,33 @@ srmech_status_t srmech_cascade_pin_slot_at_zero_f64(double  x,
  */
 srmech_status_t srmech_cascade_magnitude_f64(double  x,
                                               double *magnitude_out);
+
+/* reorient: Class C cascade-orientation — re-apply a captured
+ * orientation to a value. orientation must be in {-1, 0, +1}; the
+ * value is negated iff orientation < 0 (zero and positive orientation
+ * both return the value unchanged — only the SIGN of orientation
+ * matters, mirroring the Python reference).
+ *
+ * Two typed variants — reorient is type-preserving (Python preserves
+ * int vs float through the operation), so the caller picks the matching
+ * ABI for whichever scalar type the cascade is carrying.
+ *
+ * NaN/Inf handling (f64): NaN and +/-Inf pass through unchanged when
+ * orientation >= 0; NaN is negated to NaN (still NaN — sign bit irrelevant
+ * for NaN equality) and +/-Inf flip to mp/+Inf when orientation < 0,
+ * matching IEEE-754 negation semantics and Python's -nan / -inf behaviour.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — out is NULL
+ */
+srmech_status_t srmech_cascade_reorient_i64(int8_t   orientation,
+                                             int64_t  value,
+                                             int64_t *out);
+
+srmech_status_t srmech_cascade_reorient_f64(int8_t   orientation,
+                                             double   value,
+                                             double  *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
