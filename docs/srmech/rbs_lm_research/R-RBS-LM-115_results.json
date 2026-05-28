@@ -1,0 +1,404 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "corpus_n": 1993,
+  "n_buckets": 16,
+  "grammar_metrics": {
+    "per_seed": {
+      "('the', 'cat')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "5": {
+            "total": 7,
+            "valid": 7
+          },
+          "7": {
+            "total": 10,
+            "valid": 10
+          },
+          "4": {
+            "total": 3,
+            "valid": 3
+          }
+        },
+        "invalid_samples": []
+      },
+      "('the', 'dog')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 3,
+            "valid": 3
+          },
+          "5": {
+            "total": 4,
+            "valid": 4
+          },
+          "7": {
+            "total": 8,
+            "valid": 8
+          },
+          "6": {
+            "total": 5,
+            "valid": 5
+          }
+        },
+        "invalid_samples": []
+      },
+      "('the', 'scientist')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 1,
+            "valid": 1
+          },
+          "5": {
+            "total": 16,
+            "valid": 16
+          },
+          "6": {
+            "total": 3,
+            "valid": 3
+          }
+        },
+        "invalid_samples": []
+      },
+      "('the', 'musician')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "5": {
+            "total": 11,
+            "valid": 11
+          },
+          "6": {
+            "total": 5,
+            "valid": 5
+          },
+          "7": {
+            "total": 4,
+            "valid": 4
+          }
+        },
+        "invalid_samples": []
+      },
+      "('the', 'writer')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 3,
+            "valid": 3
+          },
+          "5": {
+            "total": 12,
+            "valid": 12
+          },
+          "6": {
+            "total": 5,
+            "valid": 5
+          }
+        },
+        "invalid_samples": []
+      },
+      "('the', 'queen')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 1,
+            "valid": 1
+          },
+          "5": {
+            "total": 9,
+            "valid": 9
+          },
+          "6": {
+            "total": 5,
+            "valid": 5
+          },
+          "7": {
+            "total": 5,
+            "valid": 5
+          }
+        },
+        "invalid_samples": []
+      },
+      "('a', 'bird')": {
+        "n_generated": 20,
+        "n_valid": 15,
+        "pct_valid": 75.0,
+        "by_length": {
+          "4": {
+            "total": 3,
+            "valid": 3
+          },
+          "5": {
+            "total": 4,
+            "valid": 4
+          },
+          "6": {
+            "total": 8,
+            "valid": 3
+          },
+          "7": {
+            "total": 5,
+            "valid": 5
+          }
+        },
+        "invalid_samples": [
+          {
+            "sentence": "a bird slept on the wizard",
+            "pos_seq": [
+              "DET",
+              "OBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "SUBJ"
+            ],
+            "expected": [
+              "DET",
+              "SUBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "OBJ"
+            ]
+          },
+          {
+            "sentence": "a bird slept above the wizard",
+            "pos_seq": [
+              "DET",
+              "OBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "SUBJ"
+            ],
+            "expected": [
+              "DET",
+              "SUBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "OBJ"
+            ]
+          },
+          {
+            "sentence": "a bird slept across the wizard",
+            "pos_seq": [
+              "DET",
+              "OBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "SUBJ"
+            ],
+            "expected": [
+              "DET",
+              "SUBJ",
+              "VERB",
+              "PREP",
+              "DET",
+              "OBJ"
+            ]
+          }
+        ]
+      },
+      "('a', 'wolf')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 2,
+            "valid": 2
+          },
+          "5": {
+            "total": 3,
+            "valid": 3
+          },
+          "6": {
+            "total": 15,
+            "valid": 15
+          }
+        },
+        "invalid_samples": []
+      },
+      "('a', 'tiger')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 4,
+            "valid": 4
+          },
+          "5": {
+            "total": 10,
+            "valid": 10
+          },
+          "6": {
+            "total": 5,
+            "valid": 5
+          },
+          "7": {
+            "total": 1,
+            "valid": 1
+          }
+        },
+        "invalid_samples": []
+      },
+      "('a', 'fox')": {
+        "n_generated": 20,
+        "n_valid": 20,
+        "pct_valid": 100.0,
+        "by_length": {
+          "4": {
+            "total": 3,
+            "valid": 3
+          },
+          "5": {
+            "total": 10,
+            "valid": 10
+          },
+          "6": {
+            "total": 7,
+            "valid": 7
+          }
+        },
+        "invalid_samples": []
+      }
+    },
+    "overall": {
+      "n_generated": 200,
+      "n_valid": 195,
+      "by_length": {
+        "5": {
+          "total": 86,
+          "valid": 86
+        },
+        "7": {
+          "total": 33,
+          "valid": 33
+        },
+        "4": {
+          "total": 23,
+          "valid": 23
+        },
+        "6": {
+          "total": 58,
+          "valid": 53
+        }
+      },
+      "invalid_examples": [
+        {
+          "sentence": "a bird slept on the wizard",
+          "pos_seq": [
+            "DET",
+            "OBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "SUBJ"
+          ],
+          "expected": [
+            "DET",
+            "SUBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "OBJ"
+          ]
+        },
+        {
+          "sentence": "a bird slept above the wizard",
+          "pos_seq": [
+            "DET",
+            "OBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "SUBJ"
+          ],
+          "expected": [
+            "DET",
+            "SUBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "OBJ"
+          ]
+        },
+        {
+          "sentence": "a bird slept across the wizard",
+          "pos_seq": [
+            "DET",
+            "OBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "SUBJ"
+          ],
+          "expected": [
+            "DET",
+            "SUBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "OBJ"
+          ]
+        },
+        {
+          "sentence": "a bird slept under the wizard",
+          "pos_seq": [
+            "DET",
+            "OBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "SUBJ"
+          ],
+          "expected": [
+            "DET",
+            "SUBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "OBJ"
+          ]
+        },
+        {
+          "sentence": "a bird painted behind the wizard",
+          "pos_seq": [
+            "DET",
+            "OBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "SUBJ"
+          ],
+          "expected": [
+            "DET",
+            "SUBJ",
+            "VERB",
+            "PREP",
+            "DET",
+            "OBJ"
+          ]
+        }
+      ],
+      "pct_valid": 97.5
+    }
+  }
+}
