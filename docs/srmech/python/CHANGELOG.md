@@ -4,6 +4,17 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+_Next development line: **v0.4.5rcN**. Queued srmech follow-ups (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.4] - 2026-05-28
+
+**Production release** → PyPI. Consolidates rc1 (cascade chirality mini-set) + rc2 (bundled `siona` co-name alias), each shipped + clean-venv-verified on TestPyPI first. No new primitive class anywhere; ABI unchanged at 2; no new C symbol.
+
+- **Cascade chirality mini-set** (`srmech.amsc.cascade`, rc1) — `chiral_flip` (Class C orientation reversal), `chiral_dual` (Class C ∘ op ∘ Class C: same spectral shape, inverted orientation — verified across all 14 A–N operators), `net_chirality` (conserved Class-C cascade invariant). Tool-schema entries + `tests/test_cascade_chirality.py`.
+- **Bundled `siona` co-name alias** (rc2) — the srmech wheel ships a second top-level package, `siona`, so **`pip install srmech` makes `import siona` resolve to exactly the same objects as `import srmech`** (every `srmech.*` submodule mirrored under `siona.*`). srmech stays the single source of truth (native lib, `__version__`, tool-schema). `tests/test_siona_alias.py` (6 tests). Pairs with the standalone `siona` metapackage on PyPI (`pip install siona` → `srmech>=0.4.4`, which provides the bundled alias).
+
+Per-rc detail in the entries below.
+
 ## [0.4.4rc2] - 2026-05-28
 
 **Bundled `siona` co-name alias** → TestPyPI (rc). The srmech wheel now ships a second top-level package, `siona`, alongside `srmech`: **`pip install srmech` makes `import siona` resolve to exactly the same objects as `import srmech`** (every `srmech.*` submodule mirrored under `siona.*` via `sys.modules` alias + parent-attribute binding). No forked logic — srmech stays the single source of truth (native lib, `__version__`, tool-schema). No new class; ABI unchanged at 2.
