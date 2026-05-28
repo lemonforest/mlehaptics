@@ -1,0 +1,10 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "n_words": 32,
+  "n_l1_pairs": 32,
+  "n_l2_frames": 12,
+  "n_sentences": 12,
+  "T2_word_self_recall_at_1": 1.0,
+  "T4_sentence_frame_self_recall": 1.0
+}
