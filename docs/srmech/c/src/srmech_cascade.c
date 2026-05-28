@@ -35,6 +35,13 @@
  * orientation matters, zero and positive both pass through). NaN and
  * +/-Inf pass through under IEEE-754 negation in the f64 variant.
  *
+ * v0.4.5rc5 op: `net_chirality` (Class C net handedness invariant).
+ * Sequence-in / scalar-out via output pointer. Multiplicative product
+ * of per-op orientations in {-1, 0, +1}; empty input returns +1
+ * (multiplicative identity); any 0 in the sequence short-circuits to 0
+ * (a zero-crossing collapses net handedness). Last of the simple
+ * pure-Python cascade ops in the arc.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -249,5 +256,55 @@ srmech_status_t srmech_cascade_reorient_f64(int8_t  orientation,
      * trivially passes by short-circuiting on the first clause). */
     assert((value != value) ||
            ((orientation < 0) ? (*out == -value) : (*out == value)));
+    return SRMECH_OK;
+}
+
+/* net_chirality — Class C net handedness invariant (int8 variant).
+ *
+ * Multiplicative product of per-op orientations in {-1, 0, +1}. The
+ * cascade-honest read-out of a chiral cascade's conserved Class-C
+ * invariant: each per-op orientation contributes ±1 (or 0 to absorb);
+ * the running product is +1 (net even / right-handed), -1 (net odd /
+ * left-handed), or 0 if any orientation is the dead-band.
+ *
+ * Empty input (n == 0) returns +1 — the multiplicative identity, matching
+ * the Python reference impl where the for-loop doesn't execute and net
+ * stays at its initial value of 1.
+ *
+ * Any value not in {-1, 0, +1} is normalised by sign (only the SIGN of
+ * each orientation matters in the Python ref): negative -> flip net,
+ * positive -> leave net alone, zero -> short-circuit return 0.
+ */
+srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
+                                                  size_t        n,
+                                                  int8_t       *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (orientations == NULL && n > 0) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(n == 0 || orientations != NULL);
+    /* Empty input -> +1 (multiplicative identity). */
+    if (n == 0) {
+        *out = (int8_t)+1;
+        return SRMECH_OK;
+    }
+    /* Iterate; short-circuit on zero; flip sign on negative. */
+    int8_t net = (int8_t)+1;
+    for (size_t i = 0; i < n; ++i) {
+        const int8_t o = orientations[i];
+        if (o == 0) {
+            *out = (int8_t)0;
+            return SRMECH_OK;
+        }
+        if (o < 0) {
+            net = (int8_t)(-net);  /* Class C reorient inline */
+        }
+        /* o > 0 leaves net unchanged. */
+    }
+    *out = net;
     return SRMECH_OK;
 }

@@ -91,22 +91,24 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc4():
-    """v0.4.5rc4 — fourth rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Continues the v0.4.5rc1+rc2+rc3 carve-out
-    correction by retrofitting ``reorient`` (Class C cascade-orientation
-    re-application) with dedicated C symbols
-    (``srmech_cascade_reorient_i64`` + ``srmech_cascade_reorient_f64``;
-    type-preserving) and a TOML descriptor under
-    ``srmech/amsc/_research/cascade_catalog/``. Two-arg ABI shape: int8
-    orientation × scalar value; IEEE-754 negation semantics for f64;
-    INT64_MIN documented as a caller-side boundary (Python fallback
-    handles it via arbitrary-precision int). bool orientation, numpy
-    values, lists, and out-of-int64 ints stay on the Python fallback.
-    Remaining four cascade ops follow in subsequent rcs. ABI unchanged
-    at 2 (additive symbols); no new primitive class."""
-    assert srmech.__version__ == "0.4.5rc4", (
-        f"expected srmech.__version__ == '0.4.5rc4'; got "
+def test_version_is_0_4_5rc5():
+    """v0.4.5rc5 — fifth rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc. Continues the v0.4.5rc1+rc2+rc3+rc4 carve-out
+    correction by retrofitting ``net_chirality`` (Class C net handedness
+    invariant) with a dedicated C symbol
+    (``srmech_cascade_net_chirality_i8``; sequence-in / scalar-out via
+    output pointer) and a TOML descriptor under
+    ``srmech/amsc/_research/cascade_catalog/``. Empty input returns +1
+    (multiplicative identity); any 0 in the sequence short-circuits to
+    0 (a zero-crossing collapses net handedness); orientations are int8
+    (caller-side dispatch falls back to Python for generators, bool
+    elements, out-of-int8 values, mixed types). Last of the simple
+    pure-Python cascade ops in this arc; the remaining 3 (cyclic_gcd,
+    best_rational_signed, chiral_dual) involve delegation / multi-class
+    cascades / higher-order callbacks. ABI unchanged at 2 (additive
+    symbol); no new primitive class."""
+    assert srmech.__version__ == "0.4.5rc5", (
+        f"expected srmech.__version__ == '0.4.5rc5'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -114,7 +116,7 @@ def test_version_is_0_4_5rc4():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc4"
+    assert version_str == "0.4.5rc5"
     assert version_str == srmech.__version__
 
 

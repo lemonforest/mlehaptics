@@ -1,0 +1,51 @@
+# Cascade catalog entry: net_chirality
+# v0.4.5rc5 of the cascade-catalog C-parity + TOML retrofit — op 5 of 8.
+
+[cascade]
+name = "net_chirality"
+class_composition = "C"
+purpose = "Class C net handedness invariant — product of per-op orientations."
+description = """
+The conserved Class-C invariant a chiral cascade reads out: the
+multiplicative product of per-op orientations in {-1, 0, +1}. Returns
++1 for net-even / right-handed, -1 for net-odd / left-handed, or 0 if
+any operator is orientation-neutral (a zero-crossing collapses net
+handedness). Empty input returns +1 (multiplicative identity).
+
+Cascade-honest: composes reorient (Class C) iteratively rather than
+using Python `*`, so the cascade-count matches the cascade-shape.
+
+The net-chirality invariant lands MFO §VIII.31.11 §(5d) and the
+14-A-N-operator chiral-shape sweep in spike_chiral_an_spectral_shape.py
+(Spike #74 / #89 follow-ups).
+"""
+
+[cascade.signature]
+input = "iterable[int]"
+output = "int in {-1, 0, +1}"
+operation = "reduce(reorient, orientations, 1) with short-circuit on 0"
+empty_returns = 1
+short_circuit_on_zero = true
+ordering_invariant = true
+
+[cascade.native]
+c_symbol_i8 = "srmech_cascade_net_chirality_i8"
+abi_version = 2
+
+[cascade.boundary_cases]
+empty = "Returns +1 (the multiplicative identity)."
+single_zero = "Any 0 in the sequence short-circuits to 0."
+out_of_int8 = "Caller-side dispatch must ensure each orientation fits int8. Out-of-range values fall back to Python."
+generator = "Generators (non-len-able iterables) fall back to Python."
+mixed_types = "Mixed int/float/bool/numpy elements fall back to Python."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc5"
+canonical_landings = [
+  "MFO §VIII.31.11 §(5d) — net-chirality conserved C-invariant",
+  "docs/srmech/notes/spike_chiral_an_spectral_shape.py — 14 A–N operator chiral sweep",
+  "Spike #74 / #89 (Class C composition net-chirality)",
+  "user_stance_endianness_is_class_c_on_bytes — Class C ⊂ Klein-4 ⊂ Spin(8) triality",
+]

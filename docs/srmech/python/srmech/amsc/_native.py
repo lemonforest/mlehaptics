@@ -752,6 +752,20 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_reorient_f64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_net_chirality_i8"):
+        # int srmech_cascade_net_chirality_i8(const int8_t *orientations,
+        #                                      size_t        n,
+        #                                      int8_t       *out)
+        # v0.4.5rc5 — Class C net handedness invariant (sequence in /
+        # scalar out via output pointer; empty input -> +1; zero-element
+        # short-circuits to 0).
+        lib.srmech_cascade_net_chirality_i8.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_cascade_net_chirality_i8.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
