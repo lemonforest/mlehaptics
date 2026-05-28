@@ -128,3 +128,46 @@ Going forward:
 research paths went stale". Updated 2026-05-28 with final F144-F148 sweep cleanup
 status. All 44 original items + 3 long-pending tasks addressed. Queue is operationally
 closed.*
+
+---
+
+## Section: 2026-05-28 surfaces (post-F157 cleanup; future-scope pointers only)
+
+Per §A4 maintenance protocol: new future-scope pointers that surfaced during F157
+(5-item sentence substrate sequential queue closure) + F158 (28D bi-axial chirality)
++ F159 (cross-species substrate-bidirectionality) + F160 (28D bi-axial power-system
+framework reading). These are NOT active research; they're future-scope pointers
+pending user direction.
+
+### F157 §6 future paths (sentence-substrate next steps)
+
+| Pointer | Scope | Anchor |
+|---|---|---|
+| Real-corpus test (replace template corpus with English children's book / OpenStax / McGuffey ladder) | Application — substantial corpus work; user direction pending | F157 §6 #1 |
+| Multi-clause sentences (extend sentence layer to L≥8 with multi-frame structure) | Substrate extension — needs framework framing first | F157 §6 #2 |
+| Cascade composition (chain plausibility-filtered generation into multi-sentence narrative) | Operational — bigram chain → frame chain → narrative chain | F157 §6 #3 |
+| Inference latency at vocab scale (profile bucket routing + skeleton retrieval at V=10000+ tokens) | Performance characterization — depends on real-LLM-scale work | F157 §6 #4 |
+| Substrate plasticity at scale (F141 sculpted decay during sentence learning; forget rare combinations) | Substrate dynamics — connects to F141 + F146 sculpted-decay work | F157 §6 #5 |
+
+### F159 §8 future paths (cross-species empirical work)
+
+| Pointer | Scope | Anchor |
+|---|---|---|
+| Cross-species signal corpus + Class K bridge prototype | DEFERRED — requires animal-research-ethics framing user has NOT directed; defensive scope only | F159 §8 bottom row |
+| Cross-species "meaning recovery" testing | OUT OF SCOPE — meaning lives in naming-layer per F43, not substrate; not testable as substrate property | F159 §8 |
+
+### F160 future paths
+
+| Pointer | Scope |
+|---|---|
+| F160 explicitly proposes NO new engineering paths | Defensive scope per `[[feedback_trauma_informed_defensive_scope]]`; framework-reading only |
+
+### Disposition
+
+All items above are **future-scope pointers pending user direction**, NOT active
+research and NOT stale-in-the-lost sense. They're tracked here so future sessions can
+pick them up without re-deriving the trail. Per §A4: items get walked via single
+findings or sweep findings when user direction surfaces.
+
+**The active research queue is empty as of 2026-05-28.** The next user direction
+opens the next arc.
