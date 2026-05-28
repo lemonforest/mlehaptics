@@ -14,6 +14,12 @@
  * avoid embedding a per-element generic dispatch on the C side. Each
  * variant supports in-place reversal (caller may pass `in == out`).
  *
+ * v0.4.5rc2 op: `pin_slot_at_zero` (Class K pin-slot at zero). Scalar
+ * in / (int8 orientation, double magnitude) out via output pointers.
+ * f64-only — scalar floats are the cascade-hot path; integer pin-slot
+ * is trivial and not catalogued. NaN maps to the dead-band matching
+ * the Python reference impl.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -85,6 +91,42 @@ srmech_status_t srmech_cascade_chiral_flip_f64(const double *in,
     }
     if ((n % 2) == 1 && in != out) {
         out[n / 2] = in[n / 2];
+    }
+    return SRMECH_OK;
+}
+
+/* pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
+ *
+ * Splits a real value into (orientation, magnitude) where orientation is
+ * in {-1, 0, +1} and magnitude is non-negative. The negation on the
+ * negative branch is the canonical Class K phase-boundary, NOT a call
+ * to C99 fabs(); expressing it as a named cascade keeps the cascade-
+ * count claimed in line with the cascade-count executed.
+ *
+ * NaN maps to (0, 0.0): both `x > 0.0` and `x < 0.0` evaluate false for
+ * NaN under IEEE-754, so the dead-band branch handles it the same way
+ * the Python reference impl does.
+ */
+srmech_status_t srmech_cascade_pin_slot_at_zero_f64(double  x,
+                                                     int8_t *orientation_out,
+                                                     double *magnitude_out)
+{
+    if (orientation_out == NULL || magnitude_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(orientation_out != NULL);
+    assert(magnitude_out   != NULL);
+    if (x > 0.0) {
+        *orientation_out = (int8_t)+1;
+        *magnitude_out   = x;
+    } else if (x < 0.0) {
+        *orientation_out = (int8_t)-1;
+        *magnitude_out   = -x;
+    } else {
+        /* Dead-band — origin AND NaN AND -0.0 all land here, matching
+         * the Python reference impl exactly. */
+        *orientation_out = (int8_t)0;
+        *magnitude_out   = 0.0;
     }
     return SRMECH_OK;
 }

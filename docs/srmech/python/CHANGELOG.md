@@ -4,7 +4,29 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 begins the cascade-catalog C/Python parity + TOML retrofit (chiral_flip). Queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 adds pin_slot_at_zero. Six cascade ops remain queued: magnitude, reorient, net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc2] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — pin_slot_at_zero**
+(rc2 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_pin_slot_at_zero_f64` C symbol (JPL clean;
+  scalar in / (int8 + double) out via output pointers; NaN maps to
+  the dead-band matching Python's reference behaviour). ABI unchanged
+  at 2 (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/pin_slot_at_zero.toml`
+  — second TOML cascade-catalog entry with native-symbol mapping +
+  attestation.
+- Changed: `srmech.amsc.cascade.pin_slot_at_zero` now dispatches
+  through native for `float` inputs; Python fallback retained for
+  `int` and other numeric types (preserves the int-in / int-magnitude-
+  out type contract).
+- Added: `tests/test_cascade_pin_slot_at_zero_parity.py` — parity
+  tests across int / float / 0.0 / -0.0 / NaN / Inf / small / large.
+
+Remaining 6 cascade ops queued: magnitude, reorient, net_chirality,
+cyclic_gcd, best_rational_signed, chiral_dual.
 
 ## [0.4.5rc1] - 2026-05-28
 

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.4.5rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.4.5rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -175,6 +175,7 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  * declarative composition.
  *
  * v0.4.5rc1: chiral_flip — Class C orientation reversal.
+ * v0.4.5rc2: pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -198,6 +199,29 @@ srmech_status_t srmech_cascade_chiral_flip_i64(const int64_t *in,
 srmech_status_t srmech_cascade_chiral_flip_f64(const double *in,
                                                 size_t        n,
                                                 double       *out);
+
+/* pin_slot_at_zero: Class K pin-slot at zero — split a real value into
+ * (orientation, magnitude). orientation in {-1, 0, +1}; magnitude >= 0.0.
+ * The sign-flip IS the canonical Class K phase-boundary; expressing this
+ * as a named cascade (rather than C99 fabs()) keeps the cascade-count
+ * claimed in line with the cascade-count executed.
+ *
+ * f64-only — scalar floats are the cascade-hot path (best_rational_signed,
+ * magnitude). Integer pin-slot is trivial and not catalogued.
+ *
+ * NaN handling: a NaN input fails both `x > 0.0` and `x < 0.0`, so it
+ * falls through to the dead-band branch and maps to (0, 0.0). This
+ * preserves bit-parity with the Python reference impl where
+ * `NaN > 0.0` and `NaN < 0.0` both evaluate False. +/-Inf map to
+ * (+/-1, +Inf) — the comparison branches do the right thing.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — orientation_out or magnitude_out is NULL
+ */
+srmech_status_t srmech_cascade_pin_slot_at_zero_f64(double  x,
+                                                     int8_t *orientation_out,
+                                                     double *magnitude_out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
