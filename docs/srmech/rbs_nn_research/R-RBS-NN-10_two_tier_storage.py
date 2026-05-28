@@ -69,6 +69,12 @@ class TwoTierRBSNNStorage:
     Tier 1: Klein-4 concept layer (chirality-tagged hypervectors).
     Tier 2: Polar associative memory (plasticity-aware bindings).
     Class K bridge: translation between tiers via chirality-flip ops.
+
+    Batch mode: when working with large numbers of associations, the
+    per-call composite rebundle becomes O(N*D) per call. Use
+    `storage._batch_mode = True` to defer rebundle, then call
+    `storage._rebundle_composite()` once at the end. (Or use the
+    `batch_learn` helper.)
     """
 
     def __init__(self, D: int = 8192, seed: int = 42):
@@ -78,6 +84,28 @@ class TwoTierRBSNNStorage:
         self.tier2_composite: Optional[np.ndarray] = None  # bundled polar HV
         self.rng = np.random.default_rng(seed)
         self._creation_time = time.time()
+        self._batch_mode = False  # when True, learn_association skips rebundle
+
+    def batch_learn(self, pairs, plasticity_density: float = 0.67):
+        """Learn many associations efficiently — rebundle composite once at the end.
+
+        Args:
+          pairs: iterable of (token_a, token_b) tuples
+          plasticity_density: density target for each synapse
+
+        Returns:
+          number of synapses created/updated
+        """
+        self._batch_mode = True
+        try:
+            n = 0
+            for a, b in pairs:
+                self.learn_association(a, b, plasticity_density=plasticity_density)
+                n += 1
+        finally:
+            self._batch_mode = False
+        self._rebundle_composite()
+        return n
 
     # ------------ Tier 1 operations ------------
 
@@ -180,7 +208,8 @@ class TwoTierRBSNNStorage:
         # Use canonical key (sorted) so (A,B) and (B,A) collide
         key = tuple(sorted([token_a, token_b]))
         self.tier2[key] = synapse
-        self._rebundle_composite()
+        if not self._batch_mode:
+            self._rebundle_composite()
         return synapse
 
     def _rebundle_composite(self):

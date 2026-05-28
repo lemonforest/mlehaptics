@@ -1,0 +1,214 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 8192,
+  "seed": 42,
+  "verdict": "PHASE_2_HIERARCHICAL_BLOCKER",
+  "ceiling_N": null,
+  "T1_1_n_sweep": [
+    {
+      "N": 10,
+      "n_pairs": 17,
+      "precision_at_1": 0.29411764705882354,
+      "precision_at_top_k": 0.9411764705882353,
+      "mean_sim_correct": 0.5879792442421734,
+      "composite_density": 0.8851318359375,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.009074687957763672,
+      "learn_sec": 0.031424522399902344,
+      "retrieve_sec": 0.14138507843017578
+    },
+    {
+      "N": 25,
+      "n_pairs": 46,
+      "precision_at_1": 0.17391304347826086,
+      "precision_at_top_k": 0.7391304347826086,
+      "mean_sim_correct": 0.5534903716556415,
+      "composite_density": 0.927001953125,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.01943826675415039,
+      "learn_sec": 0.07867431640625,
+      "retrieve_sec": 0.6663682460784912
+    },
+    {
+      "N": 50,
+      "n_pairs": 98,
+      "precision_at_1": 0.24489795918367346,
+      "precision_at_top_k": 0.7448979591836735,
+      "mean_sim_correct": 0.5355252310876468,
+      "composite_density": 0.953369140625,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.024503707885742188,
+      "learn_sec": 0.10535621643066406,
+      "retrieve_sec": 2.4622199535369873
+    },
+    {
+      "N": 100,
+      "n_pairs": 199,
+      "precision_at_1": 0.25125628140703515,
+      "precision_at_top_k": 0.6934673366834171,
+      "mean_sim_correct": 0.5263773238995955,
+      "composite_density": 0.9669189453125,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.04938101768493652,
+      "learn_sec": 0.2170572280883789,
+      "retrieve_sec": 9.77290964126587
+    },
+    {
+      "N": 200,
+      "n_pairs": 394,
+      "precision_at_1": 0.24111675126903553,
+      "precision_at_top_k": 0.5532994923857868,
+      "mean_sim_correct": 0.5207319717371078,
+      "composite_density": 0.9761962890625,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.09978961944580078,
+      "learn_sec": 0.4241750240325928,
+      "retrieve_sec": 38.79849648475647
+    },
+    {
+      "N": 256,
+      "n_pairs": 510,
+      "precision_at_1": 0.21176470588235294,
+      "precision_at_top_k": 0.48627450980392156,
+      "mean_sim_correct": 0.5195347882271952,
+      "composite_density": 0.9781494140625,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.1261889934539795,
+      "learn_sec": 0.5404903888702393,
+      "retrieve_sec": 63.83840036392212
+    },
+    {
+      "N": 512,
+      "n_pairs": 1021,
+      "precision_at_1": 0.10675808031341821,
+      "precision_at_top_k": 0.22526934378060726,
+      "mean_sim_correct": 0.5180510786015373,
+      "composite_density": 0.984619140625,
+      "mean_synapse_density": 0.6700439453125,
+      "encode_sec": 0.2516458034515381,
+      "learn_sec": 1.088697910308838,
+      "retrieve_sec": 254.7672836780548
+    }
+  ],
+  "T1_2_density_sweep": [
+    {
+      "density_target": 0.3,
+      "n_pairs": 199,
+      "precision_at_1": 0.23618090452261306,
+      "precision_at_top_k": 0.6130653266331658,
+      "mean_sim_correct": 0.5202985541161016,
+      "composite_density": 0.947509765625
+    },
+    {
+      "density_target": 0.5,
+      "n_pairs": 199,
+      "precision_at_1": 0.25125628140703515,
+      "precision_at_top_k": 0.6884422110552764,
+      "mean_sim_correct": 0.523169155942814,
+      "composite_density": 0.9647216796875
+    },
+    {
+      "density_target": 0.67,
+      "n_pairs": 199,
+      "precision_at_1": 0.25125628140703515,
+      "precision_at_top_k": 0.6934673366834171,
+      "mean_sim_correct": 0.5263773238995955,
+      "composite_density": 0.9669189453125
+    },
+    {
+      "density_target": 0.85,
+      "n_pairs": 199,
+      "precision_at_1": 0.2663316582914573,
+      "precision_at_top_k": 0.7236180904522613,
+      "mean_sim_correct": 0.5292192588865126,
+      "composite_density": 0.9703369140625
+    },
+    {
+      "density_target": 1.0,
+      "n_pairs": 199,
+      "precision_at_1": 0.24120603015075376,
+      "precision_at_top_k": 0.7185929648241206,
+      "mean_sim_correct": 0.5304381897399476,
+      "composite_density": 1.0
+    }
+  ],
+  "T1_3_decay_depth": [
+    {
+      "decay_cycles": 0,
+      "precision_at_1": 0.25125628140703515,
+      "precision_at_top_k": 0.6934673366834171,
+      "mean_sim_correct": 0.5263773238995955,
+      "composite_density": 0.9669189453125,
+      "mean_synapse_density": 0.6700439453125
+    },
+    {
+      "decay_cycles": 1,
+      "precision_at_1": 0.24120603015075376,
+      "precision_at_top_k": 0.6683417085427136,
+      "mean_sim_correct": 0.5256473249994287,
+      "composite_density": 0.9638671875,
+      "mean_synapse_density": 0.6031494140625
+    },
+    {
+      "decay_cycles": 3,
+      "precision_at_1": 0.2562814070351759,
+      "precision_at_top_k": 0.6582914572864321,
+      "mean_sim_correct": 0.5237551095160718,
+      "composite_density": 0.95654296875,
+      "mean_synapse_density": 0.4886474609375
+    },
+    {
+      "decay_cycles": 5,
+      "precision_at_1": 0.2613065326633166,
+      "precision_at_top_k": 0.6381909547738693,
+      "mean_sim_correct": 0.5217490821714899,
+      "composite_density": 0.9532470703125,
+      "mean_synapse_density": 0.3958740234375
+    },
+    {
+      "decay_cycles": 10,
+      "precision_at_1": 0.23115577889447236,
+      "precision_at_top_k": 0.5276381909547738,
+      "mean_sim_correct": 0.5188980757109488,
+      "composite_density": 0.940673828125,
+      "mean_synapse_density": 0.2340087890625
+    }
+  ],
+  "T1_4_rehearsal_frequency": [
+    {
+      "rehearsal_count": 0,
+      "precision_at_1": 0.24489795918367346,
+      "precision_at_top_k": 0.7448979591836735,
+      "mean_sim_correct": 0.5285185132114404,
+      "composite_density": 0.93359375,
+      "mean_synapse_density": 0.41162109375
+    },
+    {
+      "rehearsal_count": 1,
+      "precision_at_1": 0.23469387755102042,
+      "precision_at_top_k": 0.7244897959183674,
+      "mean_sim_correct": 0.5363091368725174,
+      "composite_density": 0.9521484375,
+      "mean_synapse_density": 0.705810546875
+    },
+    {
+      "rehearsal_count": 2,
+      "precision_at_1": 0.25510204081632654,
+      "precision_at_top_k": 0.7142857142857143,
+      "mean_sim_correct": 0.5399985443164655,
+      "composite_density": 0.9583740234375,
+      "mean_synapse_density": 0.8529052734375
+    },
+    {
+      "rehearsal_count": 4,
+      "precision_at_1": 0.23469387755102042,
+      "precision_at_top_k": 0.7244897959183674,
+      "mean_sim_correct": 0.5422688088690487,
+      "composite_density": 0.9559326171875,
+      "mean_synapse_density": 0.963134765625
+    }
+  ],
+  "total_sweep_seconds": 497.3909673690796
+}
