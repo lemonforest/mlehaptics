@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "siona"
+version = "0.0.1"
+description = "siona — co-name alias for srmech (Stored-Relationship Mechanism). Installing siona installs srmech; `import siona` is `import srmech` (same objects, single source of truth)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Steven Kirkland" }]
+keywords = ["srmech", "siona", "alias", "stored-relationship-mechanism", "spectral", "cascade"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["srmech>=0.4.3"]
+
+[project.urls]
+Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/siona"
+Repository = "https://github.com/lemonforest/mlehaptics"
+Issues = "https://github.com/lemonforest/mlehaptics/issues"
+"srmech (canonical package)" = "https://pypi.org/project/srmech/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["siona"]
+
+[tool.hatch.build.targets.sdist]
+include = ["siona/", "README.md", "pyproject.toml"]
