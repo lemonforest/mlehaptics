@@ -6,6 +6,68 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc3] - 2026-05-28
+
+**rc3 of N for v0.5.0 — state-chained wire format ("biological TOTP-like").**
+
+Per user direction 2026-05-28: same-user-defensive forward-secrecy for bus
+channels. Each frame N's encoding depends on state_{N-1}; receiver must walk
+the chain to decrypt. Pure-Python cipher (SHA-256 keystream + HMAC-SHA256
+integrity); ABI unchanged at 3 (no new C symbols this rc).
+
+Framework reading: Class A + Class I + Class K composed at the wire layer;
+substrate-self-recognition extended to the frame chain.
+
+- Added: `srmech.bus._chain` — `ChainState` (per-direction cipher state),
+  `derive_state`, `decode_splice` (pure-function decoder for tool-schema /
+  LLM introspection). Cipher: `state_0 = sha256(seed || ":" || channel_id
+  || ":" || direction)`; `keystream_N = sha256(state_N || "ks" ||
+  counter_be8 || block_be4)`; `ciphertext_N = plaintext XOR keystream`;
+  `state_{N+1} = sha256(state_N || "st" || ciphertext_N)`; `mac_N =
+  hmac_sha256(state_N || "mac", ciphertext || counter_be8)[:16]`. Domain-
+  separation tags (`"ks"` / `"st"` / `"mac"`) defend against
+  keystream / state-advance / MAC-key cross-contamination.
+- Added: `srmech.bus._tool_schema` — registers `srmech.bus.decode_splice`
+  as a `ToolEntry` for LLM consumption (load-bearing for rc5 MCP adapter;
+  LLMs can introspect the cipher).
+- Added: `srmech.bus._seed` — seed-resolution cascade module
+  (`resolve_client_seed` / `resolve_server_seed` / `mint_and_write_seed` /
+  `discard_seed_file`). Three sources, in priority order: explicit kwarg
+  → `SRMECH_BUS_SEED` env var → `~/.srmech/bus-{name}.seed` 0o600 file.
+- Changed: `connect(name, seed=...)` and `serve(name, seed=...,
+  handler=...)` accept an optional pre-shared seed. When seed is set (via
+  any of the three sources), the wire is encrypted; when None, the wire
+  is unencrypted (full rc2 back-compat). The server auto-writes the
+  resolved seed to the discovery file so subsequent clients on the same
+  machine can find it (suppressible via `_seed.resolve_server_seed(...,
+  write_discovery_file=False)`).
+- Added: per-direction `ChainState` discipline — each connected `Channel`
+  (client) and each accepted worker (server) carries TWO independent
+  chain states (send + recv), keyed with direction tags `"out"` / `"in"`
+  so the two halves of the duplex never share a keystream. Concurrent
+  client connections each get their own chain pair derived at accept
+  time — no shared mutable state across simultaneous clients.
+- Added: per-frame envelope on the wire body — `[16-byte mac][8-byte
+  counter_be][ciphertext]`. Tampered frame raises `MacMismatchError`
+  (constant-time `hmac.compare_digest` verification); replayed or
+  reordered frame raises `CounterReplayError`. Short body raises
+  `ChainFormatError`.
+- Added: `Channel.encrypted` / `Endpoint.encrypted` properties — query
+  whether a particular bus surface is running the cipher.
+- Tests: ~30 new tests under `tests/test_bus.py` covering chain
+  encrypt/decrypt round-trip, MAC mismatch detection, counter replay
+  rejection, seed-mismatch behaviour at the channel layer, unencrypted
+  back-compat preserved, tool-schema `decode_splice` introspection,
+  end-to-end via `serve()+connect()` with seed, seed-file priority
+  cascade, direction-tag keystream disjointness.
+
+Threat model: defensive against same-user processes that didn't initiate
+the channel. NOT designed for active local attackers (would need DH key
+establishment + AEAD; deferred to v0.5.x or v0.6.0 if needed). Honest
+scope: a co-resident process that can read the discovery file at rest
+(no kernel-isolation; 0o600 is only file-perm-level) can decrypt; the
+defence is structural ("you weren't part of the chain since state_0").
+
 ## [0.5.0rc2] - 2026-05-28
 
 **rc2 of N for v0.5.0 — C peer + real Windows named pipe + envelope fixes.**

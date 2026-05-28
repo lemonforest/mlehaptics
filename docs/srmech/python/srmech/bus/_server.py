@@ -38,6 +38,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from ._chain import (
+    ChainCipherError,
+    ChainState,
+    DIRECTION_IN,
+    DIRECTION_OUT,
+)
 from ._event import (
     Event,
     make_event,
@@ -45,6 +51,7 @@ from ._event import (
     serialize,
 )
 from ._framing import FramingError, pack_frame, unpack_frame
+from ._seed import discard_seed_file, resolve_server_seed
 from ._transport import (
     Connection,
     Transport,
@@ -75,6 +82,11 @@ class _Subscriber:
     conn: Connection
     out_q: "queue.Queue[Optional[bytes]]"  # None sentinel = shutdown
     pump_thread: threading.Thread
+    # v0.5.0rc3: each subscriber owns its own per-direction ChainState
+    # pair when the endpoint is encrypted. The broadcast path
+    # encrypts at enqueue time (per-subscriber, since each chain
+    # advances independently).
+    send_state: Optional[ChainState] = None
 
 
 class Endpoint:
@@ -98,6 +110,7 @@ class Endpoint:
         *,
         transport: Optional[Transport] = None,
         accept_backlog: int = 8,
+        seed: Optional[bytes] = None,
     ) -> None:
         self._name: str = name
         self._handler: Handler = handler
@@ -112,6 +125,16 @@ class Endpoint:
         self._sub_lock = threading.Lock()
         self._started: bool = False
         self._stopped: bool = False
+        # v0.5.0rc3: resolve the seed once at endpoint construction.
+        # Each accepted worker derives a FRESH pair of ChainState
+        # instances from this seed at accept time (so two
+        # simultaneously-connected clients each get their own
+        # independent chain — they would otherwise share a chain and
+        # immediately de-sync).
+        resolved = resolve_server_seed(name, explicit=seed)
+        self._seed: Optional[bytes] = resolved
+        self._encrypted: bool = resolved is not None
+        self._channel_id_bytes: bytes = name.encode("utf-8")
 
     # ----- public surface --------------------------------------------------
 
@@ -146,6 +169,12 @@ class Endpoint:
     @property
     def alive(self) -> bool:
         return self._started and not self._stop_event.is_set()
+
+    @property
+    def encrypted(self) -> bool:
+        """True iff this endpoint was constructed with a seed (state-
+        chained wire format active). False = rc2-compatible plaintext."""
+        return self._encrypted
 
     def start(self) -> None:
         """Bind, listen, and launch the accept thread (non-blocking)."""
@@ -200,6 +229,13 @@ class Endpoint:
         (back-pressure policy: drop-newest; we prioritise the server's
         progress over guaranteed delivery; subscribers can re-fetch
         state via a follow-up snapshot request).
+
+        v0.5.0rc3: when the endpoint is encrypted, each subscriber's
+        broadcast is encrypted under that subscriber's OWN send-chain
+        — different subscribers receive different ciphertexts of the
+        same plaintext event, because each chain advances per-
+        subscriber. The plaintext serialisation is computed once and
+        re-used; only the encrypt step is per-subscriber.
         """
         ev = make_event(
             type=type,
@@ -207,10 +243,21 @@ class Endpoint:
             sender_pid=self._pid,
             sender_name=self._name,
         )
-        frame = pack_frame(serialize(ev))
+        serialized = serialize(ev)
         with self._sub_lock:
             subs = list(self._subscribers)
         for sub in subs:
+            if self._encrypted and sub.send_state is not None:
+                try:
+                    wire_body = sub.send_state.encrypt(serialized)
+                except Exception as exc:
+                    logger.warning(
+                        "broadcast encrypt failed for subscriber: %s", exc,
+                    )
+                    continue
+            else:
+                wire_body = serialized
+            frame = pack_frame(wire_body)
             try:
                 sub.out_q.put_nowait(frame)
             except queue.Full:
@@ -247,16 +294,36 @@ class Endpoint:
                 except Exception:
                     pass
                 return
+            # v0.5.0rc3: provision a fresh per-connection chain pair
+            # if the endpoint is encrypted. Client.send → server.recv
+            # = DIRECTION_OUT (matches client's send direction).
+            # Server.send → client.recv = DIRECTION_IN.
+            if self._encrypted:
+                assert self._seed is not None
+                recv_state: Optional[ChainState] = ChainState(
+                    self._seed, self._channel_id_bytes, DIRECTION_OUT,
+                )
+                send_state: Optional[ChainState] = ChainState(
+                    self._seed, self._channel_id_bytes, DIRECTION_IN,
+                )
+            else:
+                recv_state = None
+                send_state = None
             worker = threading.Thread(
                 target=self._worker_loop,
-                args=(conn,),
+                args=(conn, recv_state, send_state),
                 name=f"srmech-bus-worker-{self._name}",
                 daemon=True,
             )
             worker.start()
             self._worker_threads.append(worker)
 
-    def _worker_loop(self, conn: Connection) -> None:
+    def _worker_loop(
+        self,
+        conn: Connection,
+        recv_state: Optional[ChainState] = None,
+        send_state: Optional[ChainState] = None,
+    ) -> None:
         """Handle one accepted connection.
 
         Reads frames until EOF / error. For each request:
@@ -271,6 +338,12 @@ class Endpoint:
         request (no response sent). Exceptions inside the handler are
         caught and returned as ``{"type": "_error", ...}`` responses
         so the client doesn't hang.
+
+        v0.5.0rc3: when ``recv_state`` / ``send_state`` are supplied,
+        every inbound frame is decrypted with ``recv_state`` and
+        every outbound frame encrypted with ``send_state`` (per-
+        direction chain advance). The two states are independent —
+        the duplex's two halves walk separate chains.
         """
         # `should_close_conn` lets us hand `conn` off to the subscriber
         # pump without the worker closing the socket out from under it.
@@ -288,6 +361,16 @@ class Endpoint:
                     return
                 if frame is None:
                     return  # clean EOF
+                # v0.5.0rc3: decrypt inbound if encrypted.
+                if recv_state is not None:
+                    try:
+                        frame = recv_state.decrypt(frame)
+                    except ChainCipherError as exc:
+                        logger.debug(
+                            "chain cipher error on bus worker: %s "
+                            "(seed mismatch or tamper)", exc,
+                        )
+                        return
                 try:
                     ev = parse(frame)
                 except Exception as exc:
@@ -299,7 +382,9 @@ class Endpoint:
                         sender_name=self._name,
                     )
                     try:
-                        conn.send_bytes(pack_frame(serialize(err)))
+                        conn.send_bytes(
+                            _wrap_outbound(serialize(err), send_state)
+                        )
                     except OSError:
                         pass
                     return
@@ -314,13 +399,19 @@ class Endpoint:
                         correlation_id=ev.correlation_id,
                     )
                     try:
-                        conn.send_bytes(pack_frame(serialize(ack)))
+                        conn.send_bytes(
+                            _wrap_outbound(serialize(ack), send_state)
+                        )
                     except OSError:
                         return
                     # Hand-off: pump now owns conn. Do NOT close from
                     # the worker side or the pump's sends will fail.
+                    # v0.5.0rc3: pass the send_state to the subscriber
+                    # so broadcasts continue the same chain seamlessly
+                    # (one chain across req-rep AND broadcast frames
+                    # on the same connection).
                     should_close_conn = False
-                    self._spawn_subscriber(conn)
+                    self._spawn_subscriber(conn, send_state)
                     return
                 # Dispatch to user handler.
                 response_dict: Optional[dict]
@@ -348,7 +439,7 @@ class Endpoint:
                 )
                 try:
                     conn.send_bytes(
-                        pack_frame(serialize(response_ev))
+                        _wrap_outbound(serialize(response_ev), send_state)
                     )
                 except OSError:
                     return
@@ -361,8 +452,17 @@ class Endpoint:
                 except Exception:
                     pass
 
-    def _spawn_subscriber(self, conn: Connection) -> None:
-        """Convert a connection into a subscriber + start the pump."""
+    def _spawn_subscriber(
+        self,
+        conn: Connection,
+        send_state: Optional[ChainState] = None,
+    ) -> None:
+        """Convert a connection into a subscriber + start the pump.
+
+        v0.5.0rc3: takes the worker's existing send_state so the
+        subscriber's broadcast frames continue the same chain
+        seamlessly (no chain restart at the subscribe boundary).
+        """
         out_q: "queue.Queue[Optional[bytes]]" = queue.Queue(maxsize=1024)
         pump = threading.Thread(
             target=self._subscriber_pump,
@@ -370,7 +470,9 @@ class Endpoint:
             name=f"srmech-bus-sub-{self._name}",
             daemon=True,
         )
-        sub = _Subscriber(conn=conn, out_q=out_q, pump_thread=pump)
+        sub = _Subscriber(
+            conn=conn, out_q=out_q, pump_thread=pump, send_state=send_state,
+        )
         with self._sub_lock:
             self._subscribers.append(sub)
         pump.start()
@@ -411,6 +513,23 @@ class Endpoint:
 # ─────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────
+
+
+def _wrap_outbound(
+    serialized: bytes,
+    send_state: Optional[ChainState],
+) -> bytes:
+    """Encrypt + TLV-frame ``serialized``, or just TLV-frame it.
+
+    v0.5.0rc3 helper for the worker / subscriber send paths. When
+    ``send_state`` is ``None`` (unencrypted endpoint), this is just
+    ``pack_frame(serialized)`` — the rc2 fast path. When supplied,
+    we ``encrypt`` to advance the chain + then ``pack_frame``.
+    """
+    if send_state is None:
+        return pack_frame(serialized)
+    wire_body = send_state.encrypt(serialized)
+    return pack_frame(wire_body)
 
 
 def _event_to_dict(ev: Event) -> dict:
@@ -474,6 +593,7 @@ def serve(
     handler: Handler,
     *,
     accept_backlog: int = 8,
+    seed: Optional[bytes] = None,
 ) -> Endpoint:
     """Create + start an :class:`Endpoint` listening at ``name``.
 
@@ -491,6 +611,18 @@ def serve(
         or ``None`` (fire-and-forget).
     accept_backlog
         Listen-backlog hint for the underlying socket.
+    seed
+        Optional pre-shared cipher seed (v0.5.0rc3+) for the
+        state-chained wire format. When set, every accepted
+        connection runs the cipher; the client must have been
+        opened with the same seed (via the same arg, the
+        ``SRMECH_BUS_SEED`` env var, or the
+        ``~/.srmech/bus-{name}.seed`` discovery file). When ``None``
+        (default), the endpoint runs unencrypted (full rc2 back-
+        compat) UNLESS one of the other two seed sources is
+        populated — in which case the cascade auto-activates
+        encryption AND the resolved seed is written to the
+        discovery file for subsequent clients.
 
     Returns
     -------
@@ -498,7 +630,12 @@ def serve(
         Live endpoint. Call ``.broadcast(...)`` to fan out events,
         ``.stop()`` to shut down, or use as a context manager.
     """
-    ep = Endpoint(name, handler, accept_backlog=accept_backlog)
+    ep = Endpoint(
+        name,
+        handler,
+        accept_backlog=accept_backlog,
+        seed=seed,
+    )
     ep.start()
     return ep
 

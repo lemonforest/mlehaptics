@@ -91,38 +91,40 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc2():
-    """v0.5.0rc2 — srmech.bus C peer + real Windows named pipe + envelope fixes.
+def test_version_is_0_5_0rc3():
+    """v0.5.0rc3 — state-chained wire-format ("biological TOTP-like") for bus.
 
-    Per user direction 2026-05-28 (continuation): three changes
-    folded into one rc.
+    Per user direction 2026-05-28: same-user-defensive forward-
+    secrecy for bus channels. Each frame N's encoding depends on
+    state_{N-1}; the receiver must walk the chain from the seed to
+    decode. Pure-Python cipher (SHA-256 keystream + truncated
+    HMAC-SHA-256 integrity); ABI **unchanged at 3** (no new C
+    symbols this rc — C peer can come in v0.5.1 if performance
+    demands).
 
-    (1) **C peer for srmech.bus** — five public symbols
-        (``srmech_bus_serve`` / ``srmech_bus_server_stop`` /
-        ``srmech_bus_connect`` / ``srmech_bus_send_recv`` /
-        ``srmech_bus_client_close``) + one function-pointer typedef
-        (``srmech_bus_handler_callback_t``). JPL-clean POSIX (AF_UNIX)
-        + Windows (CreateNamedPipe via ctypes — no pywin32 dep).
-        **ABI bump 2 → 3**.
+    Three seed sources, in priority order:
+    1. Explicit kwarg: ``serve(name, seed=...)`` /
+       ``connect(name, seed=...)``.
+    2. Env var ``SRMECH_BUS_SEED`` (hex-encoded).
+    3. 0o600 discovery file ``~/.srmech/bus-{name}.seed``.
 
-    (2) **Real Windows named pipe transport** — replaces rc1's
-        TCP-loopback fallback. Server creates instances at
-        ``\\\\.\\pipe\\srmech-{name}`` via ``CreateNamedPipeW``;
-        clients connect via ``CreateFileW``. Registry token changes
-        from ``tcp 127.0.0.1 <port>`` to ``pipe \\\\.\\pipe\\srmech-{name}``.
-        TCP-loopback retained as defensive fallback.
+    When ``seed=None`` and none of the other sources are populated,
+    the bus runs unencrypted (full rc2 back-compat). When a seed
+    is set on either end but mismatched, the first MAC verification
+    fails and the channel raises :class:`MacMismatchError`.
 
-    (3) **Envelope-bug fixes from rc1's smoke test**:
-        - Bug 1: handler return-shape silently dropped keys beyond
-          ``type``; now the full handler dict passes through as the
-          response Event's ``payload`` (so ``echo``, ``server_pid``,
-          etc. survive end-to-end).
-        - Bug 2: client ``send()`` over-restricted ``payload`` to
-          dict; now accepts any JSON-serialisable value (string,
-          list, number, None, dict).
+    Per-frame format: 16-byte HMAC-SHA-256 tag + 8-byte monotone
+    counter + ciphertext. Replayed frames raise
+    :class:`CounterReplayError`.
+
+    Framework reading: Class A (content-addressing via SHA-256) ∘
+    Class I (cyclic / monotone counter) ∘ Class K (pin-slot phase
+    boundary — every frame is a chain-advance event) composed at
+    the wire layer; substrate-self-recognition extended to the
+    frame chain.
     """
-    assert srmech.__version__ == "0.5.0rc2", (
-        f"expected srmech.__version__ == '0.5.0rc2'; got "
+    assert srmech.__version__ == "0.5.0rc3", (
+        f"expected srmech.__version__ == '0.5.0rc3'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -130,7 +132,7 @@ def test_version_is_0_5_0rc2():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc2"
+    assert version_str == "0.5.0rc3"
     assert version_str == srmech.__version__
 
 

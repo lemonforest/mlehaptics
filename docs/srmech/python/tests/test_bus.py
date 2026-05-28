@@ -1005,9 +1005,560 @@ def test_bus_handler_callback_typedef_constructible():
 
 
 def test_abi_version_is_3():
-    """v0.5.0rc2 ABI bump: 2 → 3 (bus C peer + new typedef)."""
+    """v0.5.0rc2 ABI bump: 2 → 3 (bus C peer + new typedef).
+
+    v0.5.0rc3: ABI unchanged at 3 (no new C symbols this rc; the
+    state-chained wire-format cipher is pure-Python this round).
+    """
     from srmech.amsc import _native
     assert _native.EXPECTED_ABI_VERSION == 3, (
         f"EXPECTED_ABI_VERSION should be 3; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.5.0rc3 — State-chained wire format ("biological TOTP-like")
+# ──────────────────────────────────────────────────────────────────────
+
+import secrets as _secrets
+
+from srmech.bus._chain import (
+    ChainCipherError,
+    ChainFormatError,
+    ChainState,
+    COUNTER_BYTES,
+    CounterReplayError,
+    DIRECTION_IN,
+    DIRECTION_OUT,
+    FRAME_OVERHEAD_BYTES,
+    MAC_BYTES,
+    MacMismatchError,
+    STATE_BYTES,
+    decode_splice,
+    derive_state,
+)
+from srmech.bus._seed import (
+    ENV_VAR,
+    MIN_SEED_BYTES,
+    discard_seed_file,
+    mint_and_write_seed,
+    resolve_client_seed,
+    resolve_server_seed,
+    seed_path,
+)
+
+
+# ----- Chain primitives ----------------------------------------------------
+
+
+def test_chain_derive_state_is_32_bytes():
+    s = derive_state(b"x" * 32, b"ch", DIRECTION_OUT)
+    assert isinstance(s, bytes)
+    assert len(s) == STATE_BYTES
+
+
+def test_chain_derive_state_direction_separation():
+    """OUT-direction state_0 differs from IN-direction state_0 for the
+    same seed + channel_id — defends keystream disjointness."""
+    seed = b"x" * 32
+    s_out = derive_state(seed, b"ch", DIRECTION_OUT)
+    s_in = derive_state(seed, b"ch", DIRECTION_IN)
+    assert s_out != s_in
+
+
+def test_chain_derive_state_seed_separation():
+    s_a = derive_state(b"A" * 32, b"ch", DIRECTION_OUT)
+    s_b = derive_state(b"B" * 32, b"ch", DIRECTION_OUT)
+    assert s_a != s_b
+
+
+def test_chain_derive_state_channel_separation():
+    seed = b"x" * 32
+    s_a = derive_state(seed, b"channel-A", DIRECTION_OUT)
+    s_b = derive_state(seed, b"channel-B", DIRECTION_OUT)
+    assert s_a != s_b
+
+
+def test_chain_derive_state_rejects_invalid_direction():
+    with pytest.raises(ValueError):
+        derive_state(b"x" * 32, b"ch", "sideways")
+
+
+def test_chain_derive_state_rejects_empty_seed():
+    with pytest.raises(ValueError):
+        derive_state(b"", b"ch", DIRECTION_OUT)
+
+
+def test_chain_state_init_invalid_direction():
+    with pytest.raises(ValueError):
+        ChainState(b"x" * 32, b"ch", "wrong")
+
+
+def test_chain_encrypt_decrypt_round_trip():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    plaintext = b"hello, encrypted bus"
+    body = sender.encrypt(plaintext)
+    assert len(body) == FRAME_OVERHEAD_BYTES + len(plaintext)
+    assert receiver.decrypt(body) == plaintext
+
+
+def test_chain_encrypt_advances_counter():
+    seed = b"k" * 32
+    s = ChainState(seed, b"ch", DIRECTION_OUT)
+    assert s.counter == 0
+    s.encrypt(b"a")
+    assert s.counter == 1
+    s.encrypt(b"b")
+    assert s.counter == 2
+
+
+def test_chain_encrypt_advances_state():
+    seed = b"k" * 32
+    s = ChainState(seed, b"ch", DIRECTION_OUT)
+    state0 = s.state
+    s.encrypt(b"a")
+    assert s.state != state0
+
+
+def test_chain_round_trip_many_frames():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    plaintexts = [f"frame-{i}".encode() for i in range(20)]
+    bodies = [sender.encrypt(p) for p in plaintexts]
+    decoded = [receiver.decrypt(b) for b in bodies]
+    assert decoded == plaintexts
+    assert receiver.last_recv_counter == 19
+
+
+def test_chain_round_trip_large_payload():
+    """Plaintext longer than one keystream block (32 bytes) needs the
+    block-extension construction to round-trip."""
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    plaintext = b"X" * 1000
+    body = sender.encrypt(plaintext)
+    assert receiver.decrypt(body) == plaintext
+
+
+def test_chain_round_trip_empty_payload():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    body = sender.encrypt(b"")
+    assert len(body) == FRAME_OVERHEAD_BYTES
+    assert receiver.decrypt(body) == b""
+
+
+def test_chain_decrypt_rejects_mac_tamper():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    body = sender.encrypt(b"hello")
+    bad = bytes([body[0] ^ 0x01]) + body[1:]
+    with pytest.raises(MacMismatchError):
+        receiver.decrypt(bad)
+
+
+def test_chain_decrypt_rejects_ciphertext_tamper():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    body = sender.encrypt(b"hello world")
+    bad = body[:-1] + bytes([body[-1] ^ 0x01])
+    with pytest.raises(MacMismatchError):
+        receiver.decrypt(bad)
+
+
+def test_chain_decrypt_rejects_seed_mismatch():
+    sender = ChainState(b"k" * 32, b"ch", DIRECTION_OUT)
+    receiver = ChainState(b"j" * 32, b"ch", DIRECTION_OUT)
+    body = sender.encrypt(b"hello")
+    with pytest.raises(MacMismatchError):
+        receiver.decrypt(body)
+
+
+def test_chain_decrypt_rejects_channel_id_mismatch():
+    sender = ChainState(b"k" * 32, b"channel-A", DIRECTION_OUT)
+    receiver = ChainState(b"k" * 32, b"channel-B", DIRECTION_OUT)
+    body = sender.encrypt(b"hello")
+    with pytest.raises(MacMismatchError):
+        receiver.decrypt(body)
+
+
+def test_chain_decrypt_rejects_replay():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    body = sender.encrypt(b"frame 0")
+    # Accept once.
+    receiver.decrypt(body)
+    # Replaying the same frame must raise (counter no longer
+    # strictly greater than last_recv_counter).
+    with pytest.raises(CounterReplayError):
+        receiver.decrypt(body)
+
+
+def test_chain_decrypt_rejects_short_frame():
+    seed = b"k" * 32
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    with pytest.raises(ChainFormatError):
+        receiver.decrypt(b"\x00" * (FRAME_OVERHEAD_BYTES - 1))
+
+
+def test_chain_decrypt_rejects_non_bytes():
+    seed = b"k" * 32
+    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+    with pytest.raises(TypeError):
+        receiver.decrypt("not bytes")  # type: ignore[arg-type]
+
+
+def test_chain_encrypt_rejects_non_bytes():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    with pytest.raises(TypeError):
+        sender.encrypt("not bytes")  # type: ignore[arg-type]
+
+
+# ----- decode_splice (pure-function tool-schema decoder) -------------------
+
+
+def test_decode_splice_round_trip():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    state0 = sender.state
+    body = sender.encrypt(b"hello via splice")
+    plaintext, new_state, new_counter = decode_splice(body, state0, -1)
+    assert plaintext == b"hello via splice"
+    assert len(new_state) == STATE_BYTES
+    assert new_counter == 0
+    # The new_state must match what the sender now holds.
+    assert new_state == sender.state
+
+
+def test_decode_splice_chained_two_frames():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    state = sender.state
+    counter = -1
+    body0 = sender.encrypt(b"alpha")
+    body1 = sender.encrypt(b"beta")
+    p0, state, counter = decode_splice(body0, state, counter)
+    p1, state, counter = decode_splice(body1, state, counter)
+    assert p0 == b"alpha"
+    assert p1 == b"beta"
+    assert counter == 1
+
+
+def test_decode_splice_rejects_replay():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    state = sender.state
+    body = sender.encrypt(b"x")
+    _, new_state, counter = decode_splice(body, state, -1)
+    with pytest.raises(CounterReplayError):
+        decode_splice(body, state, counter)
+
+
+def test_decode_splice_rejects_tamper():
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    state = sender.state
+    body = sender.encrypt(b"x")
+    bad = bytes([body[0] ^ 0x01]) + body[1:]
+    with pytest.raises(MacMismatchError):
+        decode_splice(bad, state, -1)
+
+
+def test_decode_splice_rejects_short_frame():
+    with pytest.raises(ChainFormatError):
+        decode_splice(
+            b"\x00" * (FRAME_OVERHEAD_BYTES - 1),
+            b"\x00" * STATE_BYTES, -1,
+        )
+
+
+def test_decode_splice_rejects_bad_state_length():
+    with pytest.raises(ValueError):
+        decode_splice(b"\x00" * 100, b"too-short", -1)
+
+
+def test_decode_splice_rejects_non_int_counter():
+    with pytest.raises(TypeError):
+        decode_splice(b"\x00" * 100, b"\x00" * STATE_BYTES, "zero")  # type: ignore[arg-type]
+
+
+# ----- tool-schema registration -------------------------------------------
+
+
+def test_decode_splice_registered_as_tool_entry():
+    """decode_splice must be registered as a srmech ToolEntry on
+    `import srmech.bus`."""
+    import srmech.bus  # noqa: F401 — ensure registration fires
+    from srmech.amsc.tool_schema import get_tool_schema
+    schema = get_tool_schema()
+    entry = schema.lookup("srmech.bus.decode_splice")
+    assert entry is not None, "srmech.bus.decode_splice not registered"
+    assert entry.owner == "srmech"
+    assert entry.category == "bus"
+    pnames = [p.name for p in entry.parameters]
+    assert "framed" in pnames
+    assert "state" in pnames
+    assert "counter" in pnames
+
+
+def test_decode_splice_callable_via_public_namespace():
+    from srmech.bus import decode_splice as ds_pub
+    seed = b"k" * 32
+    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+    state0 = sender.state
+    body = sender.encrypt(b"abc")
+    plaintext, _, _ = ds_pub(body, state0, -1)
+    assert plaintext == b"abc"
+
+
+# ----- Seed-resolution cascade -------------------------------------------
+
+
+def test_seed_resolve_explicit_wins(monkeypatch, unique_name):
+    monkeypatch.setenv(ENV_VAR, "AA" * 32)
+    seed_path(unique_name).parent.mkdir(parents=True, exist_ok=True)
+    seed_path(unique_name).write_bytes(b"\x42" * 32)
+    try:
+        explicit = b"\x99" * 32
+        resolved = resolve_client_seed(unique_name, explicit=explicit)
+        assert resolved == explicit
+    finally:
+        try:
+            seed_path(unique_name).unlink()
+        except OSError:
+            pass
+
+
+def test_seed_resolve_env_beats_file(monkeypatch, unique_name):
+    env_seed = b"\xab" * 32
+    monkeypatch.setenv(ENV_VAR, env_seed.hex())
+    seed_path(unique_name).parent.mkdir(parents=True, exist_ok=True)
+    seed_path(unique_name).write_bytes(b"\x42" * 32)
+    try:
+        resolved = resolve_client_seed(unique_name)
+        assert resolved == env_seed
+    finally:
+        try:
+            seed_path(unique_name).unlink()
+        except OSError:
+            pass
+
+
+def test_seed_resolve_file_fallback(monkeypatch, unique_name):
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    file_seed = b"\x42" * 32
+    seed_path(unique_name).parent.mkdir(parents=True, exist_ok=True)
+    seed_path(unique_name).write_bytes(file_seed)
+    try:
+        resolved = resolve_client_seed(unique_name)
+        assert resolved == file_seed
+    finally:
+        try:
+            seed_path(unique_name).unlink()
+        except OSError:
+            pass
+
+
+def test_seed_resolve_returns_none_when_no_source(monkeypatch, unique_name):
+    """No explicit, no env, no file → None (rc2 back-compat)."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    assert resolve_client_seed(unique_name) is None
+
+
+def test_seed_resolve_rejects_short_env(monkeypatch, unique_name):
+    monkeypatch.setenv(ENV_VAR, "ab" * 4)
+    with pytest.raises(ValueError):
+        resolve_client_seed(unique_name)
+
+
+def test_seed_resolve_rejects_short_explicit(unique_name):
+    with pytest.raises(ValueError):
+        resolve_client_seed(unique_name, explicit=b"too-short")
+
+
+def test_seed_mint_and_write(unique_name):
+    seed = mint_and_write_seed(unique_name)
+    try:
+        assert len(seed) == MIN_SEED_BYTES
+        assert seed_path(unique_name).exists()
+        assert seed_path(unique_name).read_bytes() == seed
+    finally:
+        discard_seed_file(unique_name)
+
+
+def test_seed_discard_idempotent(unique_name):
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    assert discard_seed_file(unique_name) is False
+
+
+# ----- End-to-end bus encryption via serve()+connect() --------------------
+
+
+def _make_chain_handler():
+    def handler(event):
+        if event["type"] == "ping":
+            payload = event.get("payload") or {}
+            return {"type": "pong", "echo": payload}
+        return {"type": "unknown"}
+    return handler
+
+
+def test_unencrypted_back_compat(unique_name, monkeypatch):
+    """seed=None on both ends + no env/file → rc2 plaintext bus."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    with serve(unique_name, _make_chain_handler()) as ep:
+        assert ep.encrypted is False
+        _wait_for_endpoint(unique_name)
+        with connect(unique_name) as ch:
+            assert ch.encrypted is False
+            reply = ch.send(
+                {"type": "ping", "payload": {"hello": "rc2"}}, timeout=5.0,
+            )
+            assert reply is not None
+            assert reply["type"] == "pong"
+            assert reply["payload"]["echo"] == {"hello": "rc2"}
+
+
+def test_encrypted_end_to_end_inproc(unique_name, monkeypatch):
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    seed = _secrets.token_bytes(32)
+    with serve(unique_name, _make_chain_handler(), seed=seed) as ep:
+        assert ep.encrypted is True
+        _wait_for_endpoint(unique_name)
+        try:
+            with connect(unique_name, seed=seed) as ch:
+                assert ch.encrypted is True
+                reply = ch.send(
+                    {"type": "ping", "payload": {"x": 1}}, timeout=5.0,
+                )
+                assert reply is not None
+                assert reply["type"] == "pong"
+                assert reply["payload"]["echo"] == {"x": 1}
+        finally:
+            discard_seed_file(unique_name)
+
+
+def test_encrypted_end_to_end_many_requests(unique_name, monkeypatch):
+    """10 sequential encrypted requests on one channel — chain
+    advances on both sides; every frame decrypts cleanly."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    seed = _secrets.token_bytes(32)
+    with serve(unique_name, _make_chain_handler(), seed=seed) as ep:
+        _wait_for_endpoint(unique_name)
+        try:
+            with connect(unique_name, seed=seed) as ch:
+                for i in range(10):
+                    reply = ch.send(
+                        {"type": "ping", "payload": {"i": i}},
+                        timeout=5.0,
+                    )
+                    assert reply is not None
+                    assert reply["payload"]["echo"] == {"i": i}
+        finally:
+            discard_seed_file(unique_name)
+
+
+def test_encrypted_seed_mismatch_raises(unique_name, monkeypatch):
+    """Mismatched seeds → first MAC verification fails; server worker
+    exits; client sees BusError or BusTimeout."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    seed_good = _secrets.token_bytes(32)
+    seed_bad = _secrets.token_bytes(32)
+    # Suppress discovery-file write so client's explicit bad seed isn't
+    # overridden by the good one.
+    from srmech.bus._seed import _write_file_seed as _wfs  # noqa: F401
+    with serve(unique_name, _make_chain_handler(), seed=seed_good) as ep:
+        _wait_for_endpoint(unique_name)
+        try:
+            # Manually overwrite the discovery file with the bad seed
+            # so the client's explicit-arg path is exercised — but
+            # actually we pass it explicitly below, which beats file.
+            try:
+                with connect(unique_name, seed=seed_bad) as ch:
+                    with pytest.raises((BusTimeout, BusError)):
+                        ch.send(
+                            {"type": "ping", "payload": {}}, timeout=2.0,
+                        )
+            except (BusError, OSError):
+                # Channel may close entirely before context-manager
+                # exits — also acceptable.
+                pass
+        finally:
+            discard_seed_file(unique_name)
+
+
+def test_encrypted_env_var_source(unique_name, monkeypatch):
+    """Seed via SRMECH_BUS_SEED env var works end-to-end."""
+    seed = _secrets.token_bytes(32)
+    monkeypatch.setenv(ENV_VAR, seed.hex())
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    with serve(unique_name, _make_chain_handler()) as ep:
+        assert ep.encrypted is True
+        _wait_for_endpoint(unique_name)
+        try:
+            with connect(unique_name) as ch:
+                assert ch.encrypted is True
+                reply = ch.send(
+                    {"type": "ping", "payload": {"src": "env"}},
+                    timeout=5.0,
+                )
+                assert reply is not None
+                assert reply["payload"]["echo"] == {"src": "env"}
+        finally:
+            discard_seed_file(unique_name)
+
+
+def test_encrypted_file_source(unique_name, monkeypatch):
+    """Seed via 0o600 discovery file works end-to-end."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    seed = mint_and_write_seed(unique_name)
+    try:
+        with serve(unique_name, _make_chain_handler()) as ep:
+            assert ep.encrypted is True
+            _wait_for_endpoint(unique_name)
+            with connect(unique_name) as ch:
+                assert ch.encrypted is True
+                reply = ch.send(
+                    {"type": "ping", "payload": {"src": "file"}},
+                    timeout=5.0,
+                )
+                assert reply is not None
+                assert reply["payload"]["echo"] == {"src": "file"}
+    finally:
+        discard_seed_file(unique_name)
