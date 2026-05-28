@@ -83,7 +83,14 @@ def _make_event_any_payload(
         },
         correlation_id=correlation_id,
     )
+from ._chain import (
+    ChainCipherError,
+    ChainState,
+    DIRECTION_IN,
+    DIRECTION_OUT,
+)
 from ._framing import FramingError, pack_frame, unpack_frame
+from ._seed import resolve_client_seed
 from ._server import SUBSCRIBE_TYPE
 from ._transport import (
     Connection,
@@ -139,6 +146,7 @@ class Channel:
         *,
         transport: Optional[Transport] = None,
         broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
+        seed: Optional[bytes] = None,
     ) -> None:
         self._name: str = name
         self._transport: Transport = transport or open_client_transport()
@@ -154,6 +162,27 @@ class Channel:
         )
         self._subscribed: bool = False
         self._reader_error: Optional[BaseException] = None
+        # v0.5.0rc3: state-chained wire format. Seed sourced via the
+        # priority cascade (explicit arg → SRMECH_BUS_SEED env →
+        # ~/.srmech/bus-<name>.seed file → None=unencrypted).
+        resolved_seed = resolve_client_seed(name, explicit=seed)
+        self._encrypted: bool = resolved_seed is not None
+        # Two per-direction ChainState instances per channel. The
+        # client SENDS with DIRECTION_OUT and RECEIVES with
+        # DIRECTION_IN; the server mirrors (sends DIRECTION_IN,
+        # receives DIRECTION_OUT) — disjoint keystreams for the two
+        # halves of the duplex.
+        if self._encrypted:
+            channel_id_bytes = name.encode("utf-8")
+            self._send_state: Optional[ChainState] = ChainState(
+                resolved_seed, channel_id_bytes, DIRECTION_OUT,
+            )
+            self._recv_state: Optional[ChainState] = ChainState(
+                resolved_seed, channel_id_bytes, DIRECTION_IN,
+            )
+        else:
+            self._send_state = None
+            self._recv_state = None
 
     # ----- public ---------------------------------------------------------
 
@@ -168,6 +197,12 @@ class Channel:
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def encrypted(self) -> bool:
+        """True iff this channel was opened with a seed (state-chained
+        wire format active). False = rc2-compatible plaintext bus."""
+        return self._encrypted
 
     def connect(self) -> None:
         """Open the underlying socket and launch the reader thread."""
@@ -259,16 +294,28 @@ class Channel:
             sender_name="<client>",
             correlation_id=corr_id,
         )
-        frame = pack_frame(serialize(bus_event))
+        serialized = serialize(bus_event)
         waiter: Optional[_Waiter] = None
         if expect_reply:
             waiter = _Waiter()
             with self._waiters_lock:
                 self._waiters[corr_id] = waiter
+        # v0.5.0rc3: optional state-chained wire-format encryption.
+        # When seed was supplied (via any of the three sources), wrap
+        # the serialised event in the per-direction cipher state
+        # before TLV-framing. The encrypt + send pair lives inside the
+        # same _send_lock window so chain advancement and frame
+        # ordering stay in lockstep across concurrent sender threads.
         try:
             with self._send_lock:
                 if self._conn is None:
                     raise BusError("channel not connected")
+                if self._encrypted:
+                    assert self._send_state is not None
+                    wire_body = self._send_state.encrypt(serialized)
+                else:
+                    wire_body = serialized
+                frame = pack_frame(wire_body)
                 self._conn.send_bytes(frame)
         except OSError as exc:
             if waiter is not None:
@@ -392,6 +439,18 @@ class Channel:
                     return
                 if frame is None:
                     return  # clean EOF
+                # v0.5.0rc3: decrypt the wire body if seed was set.
+                # The reader thread is single — no lock needed on
+                # _recv_state (only this thread mutates it).
+                if self._encrypted:
+                    assert self._recv_state is not None
+                    try:
+                        frame = self._recv_state.decrypt(frame)
+                    except ChainCipherError as exc:
+                        self._reader_error = BusError(
+                            f"chain cipher error: {exc}"
+                        )
+                        return
                 try:
                     ev = parse(frame)
                 except Exception as exc:
@@ -439,6 +498,7 @@ def connect(
     name: str,
     *,
     broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
+    seed: Optional[bytes] = None,
 ) -> Channel:
     """Open a connected :class:`Channel` to the named endpoint.
 
@@ -453,6 +513,16 @@ def connect(
     broadcast_queue_max
         Maximum pending broadcasts before drop-oldest behaviour
         kicks in.
+    seed
+        Optional pre-shared cipher seed (v0.5.0rc3+) for the
+        state-chained wire format. When set, the channel encrypts
+        every frame; the server must have been opened with the same
+        seed (via the same arg, the ``SRMECH_BUS_SEED`` env var, or
+        the ``~/.srmech/bus-{name}.seed`` discovery file). When
+        ``None`` (default), the channel runs unencrypted (full
+        rc2 back-compat) UNLESS one of the other two seed sources
+        is populated (env var / seed file) — in which case the
+        cascade auto-activates encryption.
 
     Returns
     -------
@@ -464,7 +534,11 @@ def connect(
     FileNotFoundError
         If no endpoint registration is found for ``name``.
     """
-    ch = Channel(name, broadcast_queue_max=broadcast_queue_max)
+    ch = Channel(
+        name,
+        broadcast_queue_max=broadcast_queue_max,
+        seed=seed,
+    )
     ch.connect()
     return ch
 

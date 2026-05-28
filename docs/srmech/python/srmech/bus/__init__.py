@@ -81,6 +81,15 @@ read-only unidirectional special case of this bus.
 from __future__ import annotations
 
 # Public surface re-exports
+from ._chain import (
+    ChainCipherError,
+    ChainFormatError,
+    ChainState,
+    CounterReplayError,
+    MacMismatchError,
+    decode_splice,
+    derive_state,
+)
 from ._client import (
     BusError,
     BusTimeout,
@@ -110,6 +119,12 @@ from ._transport import (
     transport_kind,
 )
 
+# Tool-schema registration fires at import time (registers
+# ``srmech.bus.decode_splice`` as a ToolEntry). Kept after the public
+# re-exports so the ``srmech.bus`` namespace is fully populated by
+# the time any tool-schema introspection runs.
+from . import _tool_schema as _tool_schema  # noqa: F401 — side effect
+
 
 def list() -> list:  # noqa: A001 — public API name; shadows builtin
     """Enumerate active bus endpoints owned by the current user.
@@ -125,14 +140,21 @@ __all__ = [
     "BusError",
     "BusTimeout",
     "Channel",
+    "ChainCipherError",
+    "ChainFormatError",
+    "ChainState",
+    "CounterReplayError",
     "Endpoint",
     "Event",
     "Handler",
     "MPR_VERSION_BUS",
+    "MacMismatchError",
     "ServerEndpoint",
     "bus_dir",
     "by_name",
     "connect",
+    "decode_splice",
+    "derive_state",
     "is_posix_uds",
     "list",
     "list_endpoints",
