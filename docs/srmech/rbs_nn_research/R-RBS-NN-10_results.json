@@ -1,0 +1,95 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "D": 8192,
+  "n_concepts": 11,
+  "n_synapses": 8,
+  "sector_distribution": {
+    "0": 10,
+    "1": 0,
+    "2": 1,
+    "3": 0
+  },
+  "final_density_attestation": {
+    "n_concepts": 11,
+    "n_synapses": 8,
+    "mean_synapse_density": 0.521942138671875,
+    "min_synapse_density": 0.41162109375,
+    "max_synapse_density": 0.705810546875,
+    "composite_density": 0.8133544921875
+  },
+  "synapse_history": [
+    {
+      "pair": [
+        "apple",
+        "orange"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.41162109375,
+      "reinforce_count": 1
+    },
+    {
+      "pair": [
+        "fork",
+        "knife"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.705810546875,
+      "reinforce_count": 2
+    },
+    {
+      "pair": [
+        "knife",
+        "plate"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.41162109375,
+      "reinforce_count": 1
+    },
+    {
+      "pair": [
+        "fork",
+        "plate"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.41162109375,
+      "reinforce_count": 1
+    },
+    {
+      "pair": [
+        "D_amino",
+        "L_amino"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.705810546875,
+      "reinforce_count": 2
+    },
+    {
+      "pair": [
+        "apple",
+        "breakfast"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.705810546875,
+      "reinforce_count": 2
+    },
+    {
+      "pair": [
+        "breakfast",
+        "orange"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.41162109375,
+      "reinforce_count": 1
+    },
+    {
+      "pair": [
+        "lunch",
+        "plate"
+      ],
+      "initial_density": 0.6700439453125,
+      "current_density": 0.41162109375,
+      "reinforce_count": 1
+    }
+  ]
+}
