@@ -1,0 +1,75 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "V_sweep": [
+    100,
+    250,
+    500,
+    1000,
+    2000,
+    4000
+  ],
+  "results": [
+    {
+      "V": 100,
+      "bipolar_recall_at_1": 1.0,
+      "klein4_blind_recall_at_1": 1.0,
+      "klein4_4sec_recall_at_1": 1.0,
+      "time_bipolar_s": 0.2551882266998291,
+      "time_klein4_blind_s": 0.3369143009185791,
+      "time_klein4_4sec_s": 0.2605116367340088
+    },
+    {
+      "V": 250,
+      "bipolar_recall_at_1": 0.964,
+      "klein4_blind_recall_at_1": 1.0,
+      "klein4_4sec_recall_at_1": 1.0,
+      "time_bipolar_s": 0.7643167972564697,
+      "time_klein4_blind_s": 1.2130677700042725,
+      "time_klein4_4sec_s": 1.2241089344024658
+    },
+    {
+      "V": 500,
+      "bipolar_recall_at_1": 0.608,
+      "klein4_blind_recall_at_1": 0.936,
+      "klein4_4sec_recall_at_1": 1.0,
+      "time_bipolar_s": 2.955446243286133,
+      "time_klein4_blind_s": 4.423524379730225,
+      "time_klein4_4sec_s": 4.428616046905518
+    },
+    {
+      "V": 1000,
+      "bipolar_recall_at_1": 0.188,
+      "klein4_blind_recall_at_1": 0.575,
+      "klein4_4sec_recall_at_1": 0.999,
+      "time_bipolar_s": 11.481950998306274,
+      "time_klein4_blind_s": 16.756096124649048,
+      "time_klein4_4sec_s": 16.759018421173096
+    },
+    {
+      "V": 2000,
+      "bipolar_recall_at_1": 0.0425,
+      "klein4_blind_recall_at_1": 0.1605,
+      "klein4_4sec_recall_at_1": 0.901,
+      "time_bipolar_s": 45.517826795578,
+      "time_klein4_blind_s": 66.52237677574158,
+      "time_klein4_4sec_s": 67.0202944278717
+    },
+    {
+      "V": 4000,
+      "bipolar_recall_at_1": 0.00925,
+      "klein4_blind_recall_at_1": 0.034,
+      "klein4_4sec_recall_at_1": 0.41475,
+      "time_bipolar_s": 176.6593153476715,
+      "time_klein4_blind_s": 262.6944363117218,
+      "time_klein4_4sec_s": 265.5415759086609
+    }
+  ],
+  "ceilings": {
+    "bipolar": 500,
+    "klein4_blind": 1000,
+    "klein4_4sec": 2000
+  },
+  "ratio_klein4_4sec_vs_bipolar": 4.0,
+  "methodology": "vectorized numpy batch \u2014 matrix products and broadcasting; chunked similarity for memory"
+}
