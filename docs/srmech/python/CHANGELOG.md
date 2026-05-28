@@ -6,6 +6,40 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc6] - 2026-05-28
+
+**rc6 of N for v0.5.0 — MCP server adapter (Claude Code integration).**
+
+**LOAD-BEARING for the LLM tool-schema endpoint goal** per user direction
+2026-05-28. User is on Claude Code Max plan (no Anthropic API/SDK tier);
+MCP (Model Context Protocol) is the primary LLM integration path.
+
+- Added: `srmech.mcp` module — MCP server exposing `srmech.amsc.tool_schema`
+  ToolEntries (~150) as MCP tools. JSON-RPC 2.0 over stdio (subprocess mode)
+  or HTTP+SSE (cross-process mode).
+- Added: `srmech-mcp` console-script entry. `pip install srmech` now
+  installs both `srmech` and `srmech-mcp` on PATH.
+- Three Claude Code usage modes supported by SAME adapter:
+  1. Pure local stdio subprocess (Claude Code default)
+  2. Cross-terminal observability (long-running sweep + LLM in another
+     terminal connects via `srmech-mcp --bus-endpoint sweep-NAME`)
+  3. Subagent-orchestrated research (subagent runs srmech-mcp; reports
+     back via Claude Code subagent return)
+- Each MCP tool-call response carries MPR attestation (response_sha256 +
+  parser_version + tool_name + timestamp).
+- Inherits rc3 state-chained wire format when proxying via bus
+  (`--bus-endpoint` mode): LLM connections are forward-secure by
+  construction.
+
+Pure-Python; ABI unchanged at 3. ~31 new tests; full suite ~1584 passing.
+
+Composes with: rc4 CLI (`srmech bus tap NAME` can be used to observe
+what tools the LLM is calling); rc5 async wrapper (`srmech-mcp` HTTP+SSE
+uses async).
+
+Remaining v0.5.0 rcs: rc7 DSL runner (task #235), rc8 optional Anthropic
+SDK secondary adapter.
+
 ## [0.5.0rc5] - 2026-05-28
 
 **rc5 of N for v0.5.0 — async wrapper for the bus.**

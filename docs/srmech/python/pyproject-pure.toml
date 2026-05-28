@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.5.0rc5"
+version = "0.5.0rc6"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -82,6 +82,10 @@ dev = [
 # the import-level alias (v0.4.4); both invoke the same dispatch.
 srmech = "srmech.cli:main"
 siona = "srmech.cli:main"
+# v0.5.0rc6 — MCP (Model Context Protocol) server adapter for Claude Code.
+# Mirrors the pyproject.toml entry; pure-Python wheel ships the same console-
+# script so Pyodide / WASM environments get the same surface.
+srmech-mcp = "srmech.mcp._cli:main"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"
