@@ -91,40 +91,35 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc3():
-    """v0.5.0rc3 — state-chained wire-format ("biological TOTP-like") for bus.
+def test_version_is_0_5_0rc4():
+    """v0.5.0rc4 — ``srmech bus`` CLI subcommands.
 
-    Per user direction 2026-05-28: same-user-defensive forward-
-    secrecy for bus channels. Each frame N's encoding depends on
-    state_{N-1}; the receiver must walk the chain from the seed to
-    decode. Pure-Python cipher (SHA-256 keystream + truncated
-    HMAC-SHA-256 integrity); ABI **unchanged at 3** (no new C
-    symbols this rc — C peer can come in v0.5.1 if performance
-    demands).
+    Per user direction 2026-05-28 (continuation of the rc1/rc2/rc3
+    bus arc): the ``srmech`` console-script gets a five-subcommand
+    ``bus`` family — ``list / tap / pipe / send / serve`` — that
+    operates the v0.5.0 bus from the shell. Mirrors the
+    ``srmech status`` CLI pattern (v0.4.6rc2). Pure-Python; ABI
+    **unchanged at 3** (no new C symbols this rc).
 
-    Three seed sources, in priority order:
-    1. Explicit kwarg: ``serve(name, seed=...)`` /
-       ``connect(name, seed=...)``.
-    2. Env var ``SRMECH_BUS_SEED`` (hex-encoded).
-    3. 0o600 discovery file ``~/.srmech/bus-{name}.seed``.
+    The five subcommands:
 
-    When ``seed=None`` and none of the other sources are populated,
-    the bus runs unencrypted (full rc2 back-compat). When a seed
-    is set on either end but mismatched, the first MAC verification
-    fails and the channel raises :class:`MacMismatchError`.
+    * ``srmech bus list [--json] [--all]`` — active endpoints.
+    * ``srmech bus tap NAME [--seed HEX] [--format json|pretty]
+      [--filter TYPE] [--limit N]`` — stream broadcast events.
+    * ``srmech bus pipe SRC DST [--seed-src HEX] [--seed-dst HEX]
+      [--transform PY_EXPR]`` — daemon pipe.
+    * ``srmech bus send NAME EVENT_JSON [--seed HEX] [--timeout S]
+      [--stdin]`` — one-shot request/response.
+    * ``srmech bus serve NAME [--echo] [--seed HEX] [--seed-mint]
+      [--handler-module PYMOD:func]`` — test server.
 
-    Per-frame format: 16-byte HMAC-SHA-256 tag + 8-byte monotone
-    counter + ciphertext. Replayed frames raise
-    :class:`CounterReplayError`.
-
-    Framework reading: Class A (content-addressing via SHA-256) ∘
-    Class I (cyclic / monotone counter) ∘ Class K (pin-slot phase
-    boundary — every frame is a chain-advance event) composed at
-    the wire layer; substrate-self-recognition extended to the
-    frame chain.
+    Framework reading: Class M (cross-class bind) ∘ Class F (render
+    to the shell substrate-class-instance) ∘ Class E (catalog
+    enumeration). The shell IS another substrate-class-instance the
+    bus composes with, alongside Python / C / MCP.
     """
-    assert srmech.__version__ == "0.5.0rc3", (
-        f"expected srmech.__version__ == '0.5.0rc3'; got "
+    assert srmech.__version__ == "0.5.0rc4", (
+        f"expected srmech.__version__ == '0.5.0rc4'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -132,7 +127,7 @@ def test_version_is_0_5_0rc3():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc3"
+    assert version_str == "0.5.0rc4"
     assert version_str == srmech.__version__
 
 
