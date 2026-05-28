@@ -91,17 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc1():
-    """v0.4.5rc1 — first rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out
-    that shipped ``srmech.amsc.cascade`` Python-only by retrofitting
-    ``chiral_flip`` with both a dedicated C symbol pair
-    (``srmech_cascade_chiral_flip_{i64,f64}``) and a TOML descriptor
-    under ``srmech/amsc/_research/cascade_catalog/``. Remaining seven
-    cascade ops follow in subsequent rcs. ABI unchanged at 2; no new
-    primitive class."""
-    assert srmech.__version__ == "0.4.5rc1", (
-        f"expected srmech.__version__ == '0.4.5rc1'; got "
+def test_version_is_0_4_5rc2():
+    """v0.4.5rc2 — second rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc. Continues the v0.4.5rc1 carve-out correction by
+    retrofitting ``pin_slot_at_zero`` (Class K) with a dedicated C
+    symbol (``srmech_cascade_pin_slot_at_zero_f64``) and a TOML
+    descriptor under ``srmech/amsc/_research/cascade_catalog/``. Scalar
+    in / (int8 + double) out via output pointers; f64-only (integer
+    pin-slot stays on the Python path to preserve the int-in /
+    int-magnitude-out type contract); NaN maps to the dead-band.
+    Remaining six cascade ops follow in subsequent rcs. ABI unchanged
+    at 2 (additive symbol); no new primitive class."""
+    assert srmech.__version__ == "0.4.5rc2", (
+        f"expected srmech.__version__ == '0.4.5rc2'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -109,7 +111,7 @@ def test_version_is_0_4_5rc1():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc1"
+    assert version_str == "0.4.5rc2"
     assert version_str == srmech.__version__
 
 

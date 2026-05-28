@@ -706,6 +706,18 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_chiral_flip_f64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_pin_slot_at_zero_f64"):
+        # int srmech_cascade_pin_slot_at_zero_f64(double  x,
+        #                                          int8_t *orientation_out,
+        #                                          double *magnitude_out)
+        # v0.4.5rc2 — Class K pin-slot at zero (scalar in, two outputs).
+        lib.srmech_cascade_pin_slot_at_zero_f64.argtypes = [
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_pin_slot_at_zero_f64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

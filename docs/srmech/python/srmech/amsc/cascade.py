@@ -78,6 +78,38 @@ DEFAULT_FINE_SCALE = 1_000_000
 _ZERO_BAND = 1e-12
 
 
+def _try_native_pin_slot_at_zero(x):
+    """Native dispatch for float ``pin_slot_at_zero``.
+
+    Returns ``(int, float)`` on success or ``None`` to signal the caller
+    should fall through to the Python path. Only Python ``float`` inputs
+    dispatch through native — ``int`` (and bool, Decimal, etc.) stay on
+    the Python path so the int-in / int-magnitude-out type contract is
+    preserved (the native f64 path would coerce ``5`` to ``5.0`` and
+    return ``(1, 5.0)``, a type-change downstream callers rely on not
+    happening).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict isinstance check — bool is a subclass of int and must NOT
+    # take the native path; non-float numerics (int / Decimal / Fraction /
+    # numpy scalars) also stay on Python.
+    if type(x) is not float:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_pin_slot_at_zero_f64"):
+        return None
+    orient = ctypes.c_int8(0)
+    mag = ctypes.c_double(0.0)
+    rc = _native.LIB.srmech_cascade_pin_slot_at_zero_f64(
+        ctypes.c_double(x),
+        ctypes.byref(orient),
+        ctypes.byref(mag),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(orient.value), float(mag.value)
+
+
 def pin_slot_at_zero(x: float) -> Tuple[int, float]:
     """Class K pin-slot at zero: split ``x`` into (orientation, magnitude).
 
@@ -87,13 +119,23 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
     named cascade (rather than Python ``abs()``) keeps the cascade-count
     claimed in line with the cascade-count executed.
 
+    v0.4.5rc2: dispatches through the native C variant
+    ``srmech_cascade_pin_slot_at_zero_f64`` when ``HAS_NATIVE`` is True
+    and ``x`` is a Python ``float``. Python ``int`` (and other numeric
+    types) stay on the Python fallback so the int-in / int-magnitude-out
+    type contract is preserved bit-identically.
+
     Args:
         x: A real value.
 
     Returns:
         ``(orientation, magnitude)`` where ``orientation ∈ {-1, 0, +1}`` and
-        ``magnitude >= 0``. The origin maps to ``(0, 0.0)``.
+        ``magnitude >= 0``. The origin and NaN both map to ``(0, 0.0)``;
+        ``+inf`` / ``-inf`` map to ``(+/-1, +inf)``.
     """
+    native = _try_native_pin_slot_at_zero(x)
+    if native is not None:
+        return native
     if x > 0.0:
         return +1, x
     if x < 0.0:

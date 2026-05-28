@@ -1,0 +1,39 @@
+# Cascade catalog entry: pin_slot_at_zero
+# v0.4.5rc2 of the cascade-catalog C-parity + TOML retrofit — continues
+# the carve-out correction started in v0.4.5rc1 (chiral_flip).
+
+[cascade]
+name = "pin_slot_at_zero"
+class_composition = "K"
+purpose = "Class K pin-slot at zero — split a real into (orientation, magnitude)."
+description = """
+The canonical sign-handling cascade: split a real value into orientation
+in {-1, 0, +1} and magnitude >= 0. The sign-flip IS the Class K phase-
+boundary per user_stance_epicycle_via_gear_plus_pin; the (orientation,
+magnitude) pair IS the cascade-honest replacement for Python abs().
+NaN inputs map to the dead-band (0, 0.0) — preserving parity with the
+Python reference impl where NaN > 0 and NaN < 0 both evaluate False.
+"""
+
+[cascade.signature]
+input = "float"
+output = "tuple[int, float]"
+operation = "(sign(x), magnitude(x))"
+orientation_domain = [-1, 0, 1]
+magnitude_nonnegative = true
+nan_maps_to_dead_band = true
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_pin_slot_at_zero_f64"
+abi_version = 2
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc2"
+canonical_landings = [
+  "MFO §VII.6.x (Class K canonical pin-slot phase-boundary)",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the Class K phase-boundary",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "docs/unsolved-maths/_cascade_helpers.py — original precursor",
+]
