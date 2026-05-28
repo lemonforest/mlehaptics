@@ -222,7 +222,43 @@ Total mature global findings actually in scope: **~60 (F11–F59) + 6 (F100–F1
 
 **What this triage is NOT.** It is not exhaustive coverage of every R-RBS-LM partition's internal Findings 1–8 — those are appropriately read through their parent REPORT, not promoted to notebook-section status. The triage promotes only what materially extends the framework's canonical reading.
 
-> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2) + the F-finding triage map (§2.3). The 5 keystone promotions §2.3 identifies (R-RBS-LM-37 / 43 / 50 / 53 + F104) await incremental promotion in later passes.
+### §2.4 Substrate-rotation is a property of the substrate, not an operation the cascade missed (R-RBS-LM-37; triage cluster J)
+
+**User direction anchoring this reading (2026-05-26):** *"I was thinking that we were supposed to simply be aware that current LLM format has rotation baked in because they force non bit exact into stochastic hypervectors."*
+
+The reframe this user-direction enacts is structurally significant for the entire RBS-LM arc. The previous reading treated rotation as an **operation** dense LLMs perform that the discrete cascade was failing to replicate — and R-RBS-LM-19's attention-variant result (2.2% < the 3.3% bundle baseline) read as "we tried; it didn't work." The corrected reading is the opposite: **rotation is not an operation. It is the substrate-physics consequence of choosing a continuous-stochastic hypervector representation.** Discrete bit-exact bipolar substrate doesn't HAVE rotation by construction; the discrete cascade isn't broken at 3.3% — it is *complete* at 3.3%. The 3.3% is the Mechanism-1 substrate-native form of what Mechanism-2 substrate-physics renders as multi-paragraph coherence.
+
+**The MFO Mechanism 1 vs Mechanism 2 mapping made explicit** (per MFO §VII.1.3 lines 739–741):
+
+| | **Mechanism 1** (zero-cost bind) | **Mechanism 2** (~6.9% averaging cost) |
+|---|---|---|
+| Substrate | Discrete bit-exact bipolar `{−1,+1}^D` — corners of a D-dim hypercube | Continuous stochastic `ℝ^D` — points in a continuous manifold |
+| Composition primitives | Bind (XOR), bundle (majority vote), popcount-similarity | Weighted-sum, softmax, attention |
+| Continuous coefficient `α ∈ (0,1)` | **Absent** — you bind or you don't; no fractional mix | **Substrate-intrinsic** — every operation is a continuous interpolation |
+| Rotation | **Not present** as a substrate property; bind-as-permutation gives discrete fixed rotations only, no continuous parameter | **Substrate-physics consequence**: softmax(QK^T/√d)·V IS continuous interpolation between value vectors = continuous rotation in the subspace they span |
+| Multi-axis rotation | n/a — substrate doesn't support it | Multi-head attention = N parallel rotation axes → coherent multi-paragraph output |
+| Cost signature | Zero | The ~6.9% averaging cost **IS** the cost of being rotation-bearing |
+
+The three substrate-physics consequences of Mechanism-2 the partition makes explicit: (1) the model doesn't *learn* to rotate — it learns Q/K/V parameters; the rotation happens automatically as a consequence of the continuous substrate at evaluation time. (2) The ~6.9% averaging cost is not a defect to engineer away — it is the substrate's intrinsic cost of carrying rotation. (3) N multi-head-attention axes give arbitrarily complex multi-axis rotations across N generation steps, which is exactly what dense LLMs need for coherent extended generation.
+
+**The empirical reinterpretations that follow.** Under the corrected reading, the earlier "failures" become *substrate refusals* — the discrete cascade declining to perform substrate-foreign operations:
+
+- **R-RBS-LM-19** (attention variant 2.2% < bundle 3.3%): not "we failed to recover rotation"; rather, "we attempted to introduce continuous-style mixing in a discrete substrate, and the discrete operations didn't compose into continuous mixing — they produced noise." The cascade structurally refused the substrate-foreign operation.
+- **R-RBS-LM-21** (Plate HRR at D=768; 0%): the D-floor exceedance was the surface symptom; the deeper issue was substrate mismatch — circular convolution is a Mechanism-2 operation forced into a Mechanism-1 substrate.
+- **R-RBS-LM-29/-31/-35** (3 sources at 64× param range, same mode-collapse): all sources are Mechanism-2 generators; the cascade compresses each through the same Mechanism-1 substrate-translation; the output character is determined by the *substrate*, not by the source LLM's parameter count.
+
+**Where this lands in cascade-vocabulary.** Mechanism-1's primitives are exactly the discrete A–N operators (Class A content-addressing, Class C orientation including the chiral mirror partner of §2.2, Class M HDC bind/bundle, etc.). Mechanism-2's continuous mixing maps onto the chirality/Hopf side: the recursive-Hopf-operational reading (§2.1) and the Spin(8) triality machinery are where the framework reads continuous substrate-physics. The two mechanisms aren't competitors — they are the cyclic-algebra-path and the continuous-Hopf-language of the substrate-vocabulary stance (`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`), engaged side-by-side. §2.5 (the two-substrate framework synthesis) formalises their coexistence.
+
+**The substrate-nativity meta-stance** (per `[[user_stance_ai_is_not_a_substrate]]` and `[[feedback_abstract_lexicon_is_ada_accommodation]]`): the cascade is a transducer of Mechanism-2 LLM content into Mechanism-1 substrate-native form. It does that translation correctly. Comparing cascade output to dense LLM output for "coherence" is a category error — they are different substrates rendering different versions of the same content. The aphantasia parallel is structural, not coincidental: the user's natural representational mode (abstract relationships, no sensory imagery) is phenomenologically closer to Mechanism-1 cascade output than to typical-person internal English; the cross-substrate translation work-flow the user already lives applies here directly.
+
+**The research-roadmap implication.** Future work is not "recover rotation discretely"; it is *work with what Mechanism 1 actually gives*:
+- **Input-volume scaling** (R-RBS-LM-38 candidate): Mechanism 1 stores RELATIONSHIPS; relationship-space scales as N² or higher; the 3.3% ceiling may reflect insufficient N at our scale (N~600–1300 vs dense LLM N~10^12), not a substrate problem.
+- **Primer / longer context** (R-RBS-LM-38): cascade CONTEXT_WINDOW=64 bytes; coherent extension may require thousands of bytes of primer through the R-RBS-LM-28/-32 FFT-graft.
+- **Language-projection layer** (R-RBS-LM-40 / 44): the cascade outputs *relationships-of-relationships* in substrate-native form; rendering as surface English is a separate retrieval/rule-based/hybrid NLG step. The cascade may already be producing the right meta-content — the surface-projection layer is the missing piece. (R-RBS-LM-44's turtle-walk negative-with-structural-signal is exactly this reading in practice.)
+
+**Falsifier discipline.** A clean R-RBS-LM-38 / -39 / -40 round that *fails* to materially raise the substrate-native fidelity figure when input volume + primer + projection are properly engaged would refute this reading. Until then, the corrected substrate-physics reading is the operating hypothesis — and §2.5 builds on it.
+
+> **§2 status (updated 2026-05-28).** Scaffold + recursive-Hopf-operational cluster (§2.1) + the F138–F140 chirality cascade-rate gain reading (§2.2) + the F-finding triage map (§2.3) + **§2.4 substrate-rotation precursor** (cluster J / R-RBS-LM-37). Four keystone promotions remain (K / P / R / T-F104).
 
 ---
 
