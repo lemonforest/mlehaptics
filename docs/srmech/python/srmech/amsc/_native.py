@@ -154,6 +154,25 @@ _NDJSON_LINE_CB = ctypes.CFUNCTYPE(
 )
 
 
+# rc8 chiral_dual: higher-order callback ABI for Class C ∘ op ∘ Class C.
+# The callback signature must match the C typedef
+# srmech_cascade_op_callback_f64_t exactly:
+#
+#   typedef srmech_status_t (*srmech_cascade_op_callback_f64_t)(
+#       const double *in, size_t n, double *out, void *user_data);
+#
+# Exposed at module scope (not inside _bind) so the Python dispatch in
+# srmech.amsc.cascade can construct callback instances without reaching
+# into the library-binding closure.
+CASCADE_OP_CALLBACK_F64 = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # srmech_status_t return
+    ctypes.POINTER(ctypes.c_double),         # const double *in
+    ctypes.c_size_t,                          # size_t n
+    ctypes.POINTER(ctypes.c_double),         # double *out
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
 def _bind(lib: ctypes.CDLL) -> None:
     """Set argtypes / restype for every function we call into."""
     # const char *srmech_version(void)
@@ -799,6 +818,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_best_rational_signed_f64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_chiral_dual_f64"):
+        # int srmech_cascade_chiral_dual_f64(
+        #     srmech_cascade_op_callback_f64_t op,
+        #     void                              *user_data,
+        #     const double                     *in,
+        #     size_t                            n,
+        #     double                           *out,
+        #     double                           *workspace)
+        # v0.4.5rc8 — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation.
+        # CLOSES the cascade-catalog C-parity arc (op 8 of 8). Function-
+        # pointer callback for the inner op (chosen over Class-ID enum
+        # dispatch so arbitrary callables work per the cascade-catalog
+        # public API contract). Workspace is caller-allocated per JPL
+        # Rule 3 (no malloc inside libsrmech). Delegates the Class C
+        # inner+outer chiral_flip to the rc1 native peer.
+        lib.srmech_cascade_chiral_dual_f64.argtypes = [
+            CASCADE_OP_CALLBACK_F64,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_chiral_dual_f64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -934,6 +978,7 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
 
 
 __all__ = [
+    "CASCADE_OP_CALLBACK_F64",
     "EXPECTED_ABI_VERSION",
     "HAS_NATIVE",
     "LIB",

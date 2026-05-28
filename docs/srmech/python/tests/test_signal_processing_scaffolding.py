@@ -91,26 +91,22 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc7():
-    """v0.4.5rc7 — seventh rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Continues the v0.4.5rc1..rc6 carve-out correction
-    by retrofitting ``best_rational_signed`` (Class K ∘ Class N ∘ Class
-    C; multi-stage cascade) with a cascade-namespace C wrapper
-    (``srmech_cascade_best_rational_signed_f64``) that delegates the
-    Class N stage to the existing Class N primitive
-    ``srmech_best_rational`` and inlines the Class K + Class C stages,
-    plus a TOML descriptor with ``[cascade.composes]`` /
-    ``[cascade.delegates_to]`` / ``[cascade.rounding]`` sections. SECOND
-    of the delegating cascade ops (after cyclic_gcd / rc6). Plus a
-    README full-feature update stripping the residual *"no dedicated C
-    symbol"* carve-out language per user directive 2026-05-28
-    (*"strip MVP false things from our presence"*). The remaining 1 op
-    queued: chiral_dual (higher-order; callback ABI design — closes
-    the arc). ABI unchanged at 2 (additive symbol); no new primitive
-    class. Banker's-rounding parity via llrint() + IEEE-754
-    FE_TONEAREST."""
-    assert srmech.__version__ == "0.4.5rc7", (
-        f"expected srmech.__version__ == '0.4.5rc7'; got "
+def test_version_is_0_4_5rc8():
+    """v0.4.5rc8 — eighth rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc, and the LAST. **CLOSES THE ARC.** Adds the only
+    HIGHER-ORDER cascade op ``chiral_dual`` (Class C ∘ op ∘ Class C) via
+    a function-pointer callback ABI (``srmech_cascade_op_callback_f64_t``
+    typedef) — chosen over a Class-ID enum dispatch so arbitrary Python
+    callables work per the cascade-catalog public API contract. C peer
+    ``srmech_cascade_chiral_dual_f64`` delegates the Class C inner+outer
+    chiral_flip to the rc1 native peer; workspace is caller-allocated
+    per JPL Rule 3 (no malloc inside libsrmech). After this ship all 8
+    cascade catalog ops have full C/Python parity + TOML descriptors;
+    the v0.4.5rc1 carve-out correction is complete. ABI unchanged at 2
+    (additive symbol + typedef); no new primitive class. Ready for
+    clean v0.4.5 ship to production PyPI."""
+    assert srmech.__version__ == "0.4.5rc8", (
+        f"expected srmech.__version__ == '0.4.5rc8'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -118,7 +114,7 @@ def test_version_is_0_4_5rc7():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc7"
+    assert version_str == "0.4.5rc8"
     assert version_str == srmech.__version__
 
 

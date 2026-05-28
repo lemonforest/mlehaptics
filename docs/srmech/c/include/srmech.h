@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc7"
-#define SRMECH_VERSION       "0.4.5rc7"
+#define SRMECH_VERSION_PRE   "rc8"
+#define SRMECH_VERSION       "0.4.5rc8"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -186,6 +186,14 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  *            Multi-class cascade combining Class K pin-slot (sign-strip)
  *            + Class N best-rational anchor (delegates to srmech_best_rational)
  *            + Class C re-orientation (sign re-apply on the numerator).
+ * v0.4.5rc8: chiral_dual — HIGHER-ORDER Class C ∘ op ∘ Class C
+ *            conjugation. Takes a function-pointer callback for the
+ *            inner op (the cascade catalog accepts arbitrary callables
+ *            for op per the project discipline — Class-ID enum dispatch
+ *            would have broken the public API contract). Wraps the
+ *            existing rc1 chiral_flip C peer on both sides. CLOSES the
+ *            cascade-catalog C-parity arc (8 of 8); after this all 8
+ *            cascade ops have full C/Python parity + TOML descriptors.
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -358,6 +366,59 @@ srmech_status_t srmech_cascade_best_rational_signed_f64(
     int64_t   fine_scale,
     int64_t  *out_num,
     int64_t  *out_den);
+
+/* ------------------------------------------------------------------ *
+ * chiral_dual — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation
+ *
+ * Closes the cascade-catalog C-parity arc (v0.4.5rc8; op 8 of 8).
+ * Higher-order: takes a function-pointer callback for the inner op.
+ * Wraps the existing rc1 chiral_flip C peer on both sides.
+ *
+ * Algorithm:
+ *   workspace = chiral_flip(in)
+ *   out       = op(workspace, user_data)
+ *   out       = chiral_flip(out)            // in-place via rc1
+ *
+ * The cascade preserves spectral magnitude and inverts phase
+ * orientation (verified across 14 A–N operators in
+ * docs/srmech/notes/spike_chiral_an_spectral_shape.py; MFO §VIII.31.11
+ * §(5b)/(5c)).
+ *
+ * Memory: workspace MUST be caller-allocated with capacity >= n
+ * doubles. No malloc inside libsrmech (JPL Rule 3).
+ *
+ * Why a function-pointer callback (Option A) and NOT a Class-ID enum
+ * dispatch (Option B): the cascade catalog accepts arbitrary callables
+ * for op per the public API contract; restricting chiral_dual to known
+ * A–N srmech ops via an enum would break that contract. Option A
+ * preserves the contract; the only Python ↔ C boundary is the callback
+ * (wrapped via ctypes.CFUNCTYPE on the Python side).
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — op or out is NULL, or in/workspace is NULL
+ *                            while n > 0
+ *   (any other status propagated from the op callback or from the
+ *   underlying srmech_cascade_chiral_flip_f64)
+ * ------------------------------------------------------------------ */
+
+/* Callback signature: unary op on f64 sequences. user_data is opaque
+ * caller-supplied context (typically used by the Python ctypes layer
+ * to identify which Python callable to invoke; the Python ref captures
+ * the Python op via closure and passes NULL here). */
+typedef srmech_status_t (*srmech_cascade_op_callback_f64_t)(
+    const double *in,
+    size_t        n,
+    double       *out,
+    void         *user_data);
+
+srmech_status_t srmech_cascade_chiral_dual_f64(
+    srmech_cascade_op_callback_f64_t op,
+    void                              *user_data,
+    const double                     *in,
+    size_t                            n,
+    double                           *out,
+    double                           *workspace);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
