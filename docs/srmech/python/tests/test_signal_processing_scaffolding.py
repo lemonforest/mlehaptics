@@ -91,22 +91,24 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_6():
-    """v0.4.6rc2 — out-of-band introspection (talk-to-running-PID API).
-    Per user direction 2026-05-28: srmech exposes its internal current
-    state via a file-based status backend at ``~/.srmech/run-{pid}-
-    {start_time_ns}.ndjson``. Long sweeps become observable from a
-    second process without monkey-patching or ``top`` polling. Adds
-    the ``srmech.introspect`` module (publish ctxmgr + list / by_pid
-    reader API), the ``srmech status`` CLI subcommand, the
-    ``SRMECH_PUBLISH_STATUS=1`` env-var opt-in, and emit hooks at the
-    cascade-op + AMSC-fetch + signal-processing boundaries.
-    Off-by-default; zero cost when not publishing. ABI unchanged at 2
-    (pure Python module). Framework reading: Class H
-    (self-introspection) projected across the OS-process boundary.
+def test_version_is_0_5_0rc1():
+    """v0.5.0rc1 — srmech.bus Python skeleton (cross-process IPC).
+    Per user direction 2026-05-28: srmech / siona processes (and
+    Claude Code via MCP, rc5) compose across OS-process boundaries
+    via a TLV-framed MPR-NDJSON bus. POSIX uses real Unix-domain-
+    sockets at ``~/.srmech/bus-{name}.sock``; Windows uses a TCP-
+    loopback fallback with a registry file at
+    ``~/.srmech/bus-{name}.txt`` (named-pipe + ctypes wiring is
+    the rc2 target). Pure Python; no C peer yet; ABI unchanged at 2.
+    Sync API only (async is rc4; CLI is rc3; MCP adapter is rc5).
+    Off-by-default — importing ``srmech.bus`` binds nothing.
+    Framework reading: Class M cross-class bind ∘ Class B TLV framing
+    ∘ Class A content-addressing extended to the OS-process boundary;
+    the read-only ``srmech.introspect`` channel is the unidirectional
+    special case of this bus.
     """
-    assert srmech.__version__ == "0.4.6", (
-        f"expected srmech.__version__ == '0.4.6rc2'; got "
+    assert srmech.__version__ == "0.5.0rc1", (
+        f"expected srmech.__version__ == '0.5.0rc1'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -114,7 +116,7 @@ def test_version_is_0_4_6():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.6"
+    assert version_str == "0.5.0rc1"
     assert version_str == srmech.__version__
 
 
