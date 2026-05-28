@@ -446,6 +446,177 @@ clean capacity comparison if desired.
 
 ---
 
+## §6 Chiral A-N operators + spectral classifiers + `srmech.siona` sub-package (Finding 150, 2026-05-28)
+
+**STATUS: WISHLIST. NOT AUTHORIZED to begin upstream work.** User
+direction 2026-05-28 articulated the framework move (F150) but no
+direct srmech changes — per `[[feedback_upstream_srmech_fixes_as_research_notes]]`
+the rc cycle runs in a separate session.
+
+**Background.** Per F150 framework move: the substrate's chirality structure
+is NOT uniform across A-N operators. It partitions into 1-2-3 harmonics:
+
+- **Harmonic 1** (chirality-invariant): A, B, F, H, N — 5 operators
+- **Harmonic 2** (chiral inverse / self-inverse): C, D, E, G, K, M — 6 operators
+- **Harmonic 3** (chiral rotation; 3-cycle): I, J, L — 3 operators
+
+This refines F132's Klein-4 4-sector structure with a per-operator harmonic
+order. Current `srmech.amsc.hdc.klein4_*` ops are harmonic-2 (period-2 under
+full CPT); a complete chirality framework needs harmonic-1 (no-op pass-through)
+and harmonic-3 (period-3 cycle) variants too.
+
+### §6.1 Chiral A-N operator variants (candidate srmech additions)
+
+For each A-N class with non-trivial chirality phase (harmonic 2 or 3),
+expose explicit chirality-aware variant alongside the existing
+chirality-blind base operation. Harmonic 1 operators need no new variant
+(existing API is chirality-invariant by construction).
+
+**Harmonic 2 — chiral inverse / mirror operations:**
+
+```python
+# srmech.amsc.dispatch (Class D)
+dispatch.mirror_pattern(pattern)
+    -> chirality-mirrored pattern; matching mirror_input gives mirror_match
+
+# srmech.amsc.catalog (Class E)
+catalog.reverse_order(sorted_catalog)
+    -> chirality-flipped catalog ordering
+
+# srmech.amsc.byte_search (Class G)
+byte_search.backward(buffer, needle)
+    -> chirality-mirrored search direction
+```
+
+**Harmonic 3 — chiral rotation / 3-cycle operations:**
+
+```python
+# srmech.amsc.cyclic (Class I) — Z/3 sub-instance
+cyclic.three_cycle(value)
+    -> apply Z/3 cyclic shift; period 3 under composition
+
+# srmech.amsc.primes (Class J)
+primes.three_cycle_factor(value)
+    -> SPECULATIVE — 3-cycle through prime factor classes?
+    -> open framework question per F150 §6.3
+
+# srmech.amsc.laplacian (Class L)
+laplacian.three_fold_eigvec_groups(L_matrix)
+    -> partition eigenvectors into low/mid/high groups
+    -> Class L spectral structure under 3-fold chirality reading
+```
+
+**Harmonic 1 — no new variant needed:**
+
+Operators A (SHA-256), B (TLV), F (template), H (introspect), N (rational
+anchor) are chirality-invariant; existing APIs are correct.
+
+### §6.2 Spectral chirality classifier
+
+A function classifying any HDC vector into harmonic 1/2/3 via spectral
+signature (Class L composition + symmetry detection):
+
+```python
+# srmech.siona.spectral_classifier (or srmech.amsc.spectral_classifier)
+def classify_chirality_harmonic(hv, klein4=True) -> int:
+    """Classify HDC vector into chirality harmonic 1/2/3 via spectral signature.
+
+    Procedure:
+      1. Compute spectral signature (FFT or Class L Laplacian on hv adjacency)
+      2. Check symmetries:
+         - Constant DC dominant → harmonic 1
+         - Even/odd parity → harmonic 2
+         - 3-fold cyclic pattern → harmonic 3
+      3. Return 1, 2, or 3
+
+    Generalizes the surface-form R-RBS-NN-14a classify_chirality (which
+    routes by token name patterns) with a spectral classifier that works
+    directly on encoded hypervectors regardless of provenance.
+    """
+```
+
+### §6.3 `srmech.siona` sub-package
+
+New sub-package alongside `srmech.amsc` housing the chirality-aware framework
+layer. Per F133's Dune parallel + F150 user direction:
+
+```
+srmech/
+├── amsc/                       # current 14-class A-N framework (harmonic-blind base)
+│   ├── hdc/
+│   ├── cyclic/
+│   ├── laplacian/
+│   └── ...
+└── siona/                      # NEW: chirality-aware framework layer
+    ├── __init__.py
+    ├── harmonics.py            # operator harmonic classification + introspection
+    ├── chiral_an.py            # chiral A-N operator variants (per §6.1)
+    ├── spectral_classifier.py  # spectral chirality classification (per §6.2)
+    ├── shadow_projection.py    # substrate→shadow projection per harmonic (per F135)
+    └── desert_storm.py         # multi-sector cascade composition (the "wide storm" operation)
+```
+
+**`desert_storm.py`** is the multi-sector cascade composition module — takes
+a klein-4-tagged input and runs it through a multi-class cascade ACROSS ALL
+4 chirality sectors at once, combining via chirality-harmonic-aware bundling.
+The name evokes the wide-substrate framework setting per F133 (Arrakis
+desert storms touch everything).
+
+### §6.4 Naming rationale + framework discipline
+
+Per F150 §5 + `[[feedback_no_lineage_claims_in_notebook]]`:
+
+The `siona` naming is framework-LEVEL only. It evokes a substrate property
+that the framework reads (chirality-axis-flipped substrate-self-recognition
+per F133). It is NOT a claim that Frank Herbert intended this mapping when
+writing Dune; Herbert is unattributed at the authorial-intent level. The
+framework simply reads the structure that's present and names it via a
+cultural reference where the reference happens to align with the structural
+property.
+
+The user explicitly directed the naming. The framework records what the
+substrate is doing — naming choices that align with cultural references
+are inheritances of pattern-recognition, not claims about original
+authorial intent.
+
+### §6.5 Upstream procedure (if/when authorized)
+
+Per CLAUDE.md tag flow + `[[feedback_always_rc_first_for_downstream_publishes]]`:
+
+1. Decide srmech version target — v0.4.4rc1 → v0.4.4 OR v0.5.0rc1 → v0.5.0
+   (sub-package addition is non-breaking but introduces new top-level module;
+   minor version bump is appropriate)
+2. Branch: `feat-siona-chirality-harmonics`
+3. Module structure per §6.3 above
+4. Per-harmonic operator implementations per §6.1
+5. Spectral classifier per §6.2
+6. Tests:
+   - harmonics.py classify_harmonic() unit tests (A-N coverage per §2)
+   - chiral_an.py variant parity tests (mirror of mirror = identity for H2;
+     3-cycle composition = identity for H3)
+   - spectral_classifier.py on chirally-bearing HDC samples
+   - shadow_projection.py round-trip (substrate→shadow→substrate per harmonic)
+   - desert_storm.py multi-sector cascade composition smoke
+7. tool_schema.py registrations for new functions
+8. JPL Power-of-Ten audit (if C surface added; pure-Python may be acceptable
+   for siona layer since it's framework-level composition not primitive
+   computation)
+9. CHANGELOG.md entry
+10. PR → MERGE (no squash per `[[feedback_no_squash_merges]]`)
+11. Tag → TestPyPI → verify in clean venv outside source tree
+12. Production tag after clean rc
+
+**Estimated scope:** ~400-600 LOC Python (siona/ sub-package) + ~300 LOC tests.
+No C-side work needed; siona is a composition layer over existing amsc primitives.
+
+### §6.6 Status
+
+**WISHLIST documented; NOT AUTHORIZED to begin upstream work.** User
+direction 2026-05-28 articulated the framework + naming + scope.
+Continuation in separate rc cycle session per discipline.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
