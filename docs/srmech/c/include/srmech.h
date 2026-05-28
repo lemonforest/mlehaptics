@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc2"
-#define SRMECH_VERSION       "0.4.5rc2"
+#define SRMECH_VERSION_PRE   "rc3"
+#define SRMECH_VERSION       "0.4.5rc3"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -176,6 +176,7 @@ srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
  *
  * v0.4.5rc1: chiral_flip — Class C orientation reversal.
  * v0.4.5rc2: pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
+ * v0.4.5rc3: magnitude — Class K pin-slot magnitude-only projection.
  * ------------------------------------------------------------------ */
 
 /* chiral_flip: Class C orientation reversal of a sequence (the value-
@@ -222,6 +223,22 @@ srmech_status_t srmech_cascade_chiral_flip_f64(const double *in,
 srmech_status_t srmech_cascade_pin_slot_at_zero_f64(double  x,
                                                      int8_t *orientation_out,
                                                      double *magnitude_out);
+
+/* magnitude: Class K pin-slot magnitude-only projection — |x| but
+ * cascade-honest (composes pin_slot_at_zero, discards orientation).
+ * The replacement for C99 fabs() inside cascade code: keeps the
+ * cascade-count claimed in line with the cascade-count executed.
+ *
+ * NaN maps to the dead-band 0.0 (parity with the Python reference:
+ * pin_slot_at_zero(nan) -> (0, 0.0), so magnitude(nan) -> 0.0).
+ * +/-Inf preserve magnitude: magnitude(+inf) = magnitude(-inf) = +inf.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — magnitude_out is NULL
+ */
+srmech_status_t srmech_cascade_magnitude_f64(double  x,
+                                              double *magnitude_out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

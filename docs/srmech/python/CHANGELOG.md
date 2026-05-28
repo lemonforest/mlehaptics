@@ -4,7 +4,29 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 adds pin_slot_at_zero. Six cascade ops remain queued: magnitude, reorient, net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 adds magnitude. Five cascade ops remain queued: reorient, net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc3] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — magnitude**
+(rc3 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_magnitude_f64` C symbol (JPL-clean; scalar
+  f64 in / out via output pointer; NaN maps to dead-band 0.0
+  matching Python ref). ABI unchanged at 2 (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/magnitude.toml` —
+  third TOML cascade-catalog entry with native-symbol mapping +
+  attestation + explicit composes-from-pin_slot_at_zero declaration.
+- Changed: `srmech.amsc.cascade.magnitude` now dispatches through
+  native for pure-Python `float` inputs; Python fallback composes
+  `pin_slot_at_zero(x)[1]` (which itself dispatches native for
+  floats via rc2) for `int` / numpy-scalar / other numeric types.
+- Added: `tests/test_cascade_magnitude_parity.py` — parity across
+  int / float / 0.0 / -0.0 / NaN / Inf / small / large / bool /
+  random sweep + composition equivalence with pin_slot_at_zero.
+
+Remaining 5 cascade ops queued: reorient, net_chirality, cyclic_gcd,
+best_rational_signed, chiral_dual.
 
 ## [0.4.5rc2] - 2026-05-28
 
