@@ -1,0 +1,222 @@
+{
+  "srmech_version": "0.4.3",
+  "D": 8192,
+  "T1_classifier": {
+    "total": 20,
+    "passed": 20,
+    "failed": []
+  },
+  "T3_chirality_retrieval": {
+    "default_all_sector_0": 1.0,
+    "auto_sector": 1.0,
+    "auto_sector_distribution": {
+      "0": 14,
+      "1": 1,
+      "2": 8,
+      "3": 1
+    }
+  },
+  "T_soft_retrieval": {
+    "query": "L_alanine",
+    "truth_associate": "D_alanine",
+    "results": {
+      "temp_0.0_hard": [
+        [
+          "D_alanine",
+          0.6117111995451961
+        ],
+        [
+          "water",
+          0.5099488345650938
+        ],
+        [
+          "L_leucine",
+          0.5096645821489483
+        ],
+        [
+          "calendar",
+          0.5093803297328028
+        ],
+        [
+          "L_glycine",
+          0.5034110289937465
+        ]
+      ],
+      "temp_0.1_soft": {
+        "results": [
+          [
+            "D_alanine",
+            0.12291422081999098
+          ],
+          [
+            "water",
+            0.044427696525293554
+          ],
+          [
+            "L_leucine",
+            0.04430158904117966
+          ],
+          [
+            "calendar",
+            0.044175839511648
+          ],
+          [
+            "L_glycine",
+            0.04161601274088678
+          ]
+        ],
+        "top_k_probs_sum": 0.297435358638999,
+        "top_1": [
+          "D_alanine",
+          0.12291422081999098
+        ]
+      },
+      "temp_0.5_soft": {
+        "results": [
+          [
+            "D_alanine",
+            0.053879832169984966
+          ],
+          [
+            "water",
+            0.04395786259176263
+          ],
+          [
+            "L_leucine",
+            0.04393287943665711
+          ],
+          [
+            "calendar",
+            0.0439079104805595
+          ],
+          [
+            "L_glycine",
+            0.04338682812205312
+          ]
+        ],
+        "top_k_probs_sum": 0.22906531280101733,
+        "top_1": [
+          "D_alanine",
+          0.053879832169984966
+        ]
+      },
+      "temp_1.0_soft": {
+        "results": [
+          [
+            "D_alanine",
+            0.04841530353847451
+          ],
+          [
+            "water",
+            0.043730840592784335
+          ],
+          [
+            "L_leucine",
+            0.043718411762232005
+          ],
+          [
+            "calendar",
+            0.04370598646410272
+          ],
+          [
+            "L_glycine",
+            0.04344586941762596
+          ]
+        ],
+        "top_k_probs_sum": 0.22301641177521953,
+        "top_1": [
+          "D_alanine",
+          0.04841530353847451
+        ]
+      },
+      "temp_2.0_soft": {
+        "results": [
+          [
+            "D_alanine",
+            0.04588377986352459
+          ],
+          [
+            "water",
+            0.043607558361407284
+          ],
+          [
+            "L_leucine",
+            0.04360136102490647
+          ],
+          [
+            "calendar",
+            0.043595164569147
+          ],
+          [
+            "L_glycine",
+            0.04346524222793507
+          ]
+        ],
+        "top_k_probs_sum": 0.2201531060469204,
+        "top_1": [
+          "D_alanine",
+          0.04588377986352459
+        ]
+      },
+      "temp_5.0_soft": {
+        "results": [
+          [
+            "D_alanine",
+            0.04442571276665873
+          ],
+          [
+            "water",
+            0.04353067862149052
+          ],
+          [
+            "L_leucine",
+            0.04352820395171935
+          ],
+          [
+            "calendar",
+            0.04352572942263035
+          ],
+          [
+            "L_glycine",
+            0.043473796795183706
+          ]
+        ],
+        "top_k_probs_sum": 0.21848412155768265,
+        "top_1": [
+          "D_alanine",
+          0.04442571276665873
+        ]
+      }
+    }
+  },
+  "T_combined": {
+    "query": "left_helix_alpha",
+    "retrieved_with_temp_1.0": [
+      [
+        "right_helix_alpha",
+        0.048331474152791105
+      ],
+      [
+        "cw_rotation_slow",
+        0.04370478671401674
+      ],
+      [
+        "engine",
+        0.04358073120073794
+      ],
+      [
+        "right_helix_beta",
+        0.04356834503307918
+      ],
+      [
+        "L_glycine",
+        0.04351265082785691
+      ]
+    ]
+  },
+  "hypotheses": {
+    "classifier_pass": true,
+    "auto_sector_advantage": true,
+    "temperature_sharpens": true
+  }
+}

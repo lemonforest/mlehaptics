@@ -42,6 +42,59 @@ SECTOR_VISIBLE_ANTIMATTER = 2  # LH+
 SECTOR_DARK_MATTER = 3         # LH-
 
 
+def classify_chirality(token: str) -> int:
+    """Rule-based chirality classification from token surface form (R-RBS-NN-14a).
+
+    Returns sector ∈ {0, 1, 2, 3} per MFO §VII.4.1.7 4-way decomposition:
+      0 = RH+ visible matter (default; biological homochirality)
+      1 = RH- dark antimatter (specific marker)
+      2 = LH+ visible antimatter (mirror; L→D type swap; right-handed forms)
+      3 = LH- dark matter (CPT mirror; combined dark + mirror markers)
+
+    Examples:
+      'apple', 'water'                        → 0 (no marker; default)
+      'L_amino', 'left_helix', 'ccw_rotation' → 0 (canonical biological RH+)
+      'D_amino', 'right_helix', 'cw_rotation' → 2 (mirror)
+      'darkanti_*', '*_antidark'              → 1
+      'dark_matter', 'cpt_mirror_*'           → 3
+
+    Per [[feedback_trauma_informed_defensive_scope]]: substrate-encoding
+    classifier only. No medical or BCI engineering claims.
+    """
+    lower = token.lower()
+
+    # Dark matter / CPT mirror markers (sector 3)
+    if "dark_matter" in lower or "cpt_mirror" in lower or "cpt-mirror" in lower:
+        return SECTOR_DARK_MATTER
+
+    # Dark antimatter markers (sector 1)
+    if "dark_anti" in lower or "antidark" in lower or "dark_antimatter" in lower:
+        return SECTOR_DARK_ANTIMATTER
+
+    # Mirror / right-handed / D-form markers (sector 2)
+    mirror_prefixes = ("d_", "right_", "cw_", "r_", "dextro_", "(+)-", "(r)-")
+    mirror_suffixes = ("_d", "_right", "_cw", "_r", "_dextro")
+    mirror_substrings = ("mirror", "reverse", "antichirality")
+    if any(lower.startswith(p) for p in mirror_prefixes):
+        return SECTOR_VISIBLE_ANTIMATTER
+    if any(lower.endswith(s) for s in mirror_suffixes):
+        return SECTOR_VISIBLE_ANTIMATTER
+    if any(sub in lower for sub in mirror_substrings):
+        return SECTOR_VISIBLE_ANTIMATTER
+
+    # Explicit L / left / CCW markers → sector 0 (biological default; verify)
+    # (these tokens get sector 0 explicitly rather than by default)
+    canonical_prefixes = ("l_", "left_", "ccw_", "levo_", "(-)-", "(s)-")
+    canonical_suffixes = ("_l", "_left", "_ccw", "_levo")
+    if any(lower.startswith(p) for p in canonical_prefixes):
+        return SECTOR_VISIBLE_MATTER
+    if any(lower.endswith(s) for s in canonical_suffixes):
+        return SECTOR_VISIBLE_MATTER
+
+    # Default: visible matter sector (biological homochirality default)
+    return SECTOR_VISIBLE_MATTER
+
+
 @dataclass
 class Tier1Concept:
     """A concept stored in Tier 1 (Klein-4 chirality-tagged hypervector)."""
@@ -113,14 +166,27 @@ class TwoTierRBSNNStorage:
         self,
         token: str,
         chirality_sector: int = SECTOR_VISIBLE_MATTER,
+        *,
+        auto_sector: bool = False,
     ) -> Tier1Concept:
         """Encode a concept into Tier 1.
 
         Per R-RBS-NN-4 token encoder: deterministic SHA-256 seeding.
         Sector tag applied via klein4_bind with sector_mask.
+
+        Args:
+          token: the user-vocabulary string to encode
+          chirality_sector: 0-3 explicit sector (used if auto_sector=False)
+          auto_sector: if True, override chirality_sector with the result of
+                       classify_chirality(token). Useful for chirally-named
+                       lexicons (amino acids, helix orientations, etc.).
+                       Per R-RBS-NN-14a.
         """
         if token in self.tier1:
             return self.tier1[token]
+
+        if auto_sector:
+            chirality_sector = classify_chirality(token)
         # Deterministic seed from token (Class A content-mint)
         digest = amsc_format.sha256_bytes(token.encode("utf-8"))
         seed = int(digest[:8], 16)
@@ -225,6 +291,7 @@ class TwoTierRBSNNStorage:
         token: str,
         top_k: int = 5,
         threshold: float = 0.55,
+        temperature: float = 0.0,
     ) -> list[tuple[str, float]]:
         """Given a token, find tokens associated to it via Tier 2.
 
@@ -232,7 +299,18 @@ class TwoTierRBSNNStorage:
           1. Bridge query token to polar
           2. Unbind from Tier 2 composite to recover candidate hv
           3. For each known token in Tier 1, score similarity to candidate
-          4. Return top-k tokens above threshold
+          4. Return top-k tokens above threshold (hard mode) OR softmax-
+             ranked (soft mode if temperature > 0)
+
+        Args:
+          temperature: 0.0 (default) → hard top-k above threshold (R-RBS-NN-10
+                       original semantics). > 0.0 → softmax-ranked retrieval
+                       with the given temperature (R-RBS-NN-14b soft retrieval).
+                       Lower temperature = sharper; higher = more uniform.
+
+        Returns:
+          list of (token, score) tuples where score is either similarity
+          (hard mode) or softmax probability (soft mode).
         """
         if self.tier2_composite is None or token not in self.tier1:
             return []
@@ -246,9 +324,23 @@ class TwoTierRBSNNStorage:
             other_polar = self._klein4_to_polar(other_concept.hv)
             sim = float(hdc.polar_similarity(candidate, other_polar))
             scores.append((other_token, sim))
-        # Sort by score, return top-k above threshold
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return [(t, s) for t, s in scores[:top_k] if s >= threshold]
+
+        if temperature <= 0.0:
+            # Hard mode (R-RBS-NN-10 original)
+            scores.sort(key=lambda x: x[1], reverse=True)
+            return [(t, s) for t, s in scores[:top_k] if s >= threshold]
+        else:
+            # Soft mode (R-RBS-NN-14b) — softmax probabilities
+            tokens = [t for t, _ in scores]
+            sims = np.array([s for _, s in scores], dtype=np.float64)
+            # Numerically stable softmax with temperature
+            sims_scaled = sims / temperature
+            sims_scaled -= sims_scaled.max()  # for numerical stability
+            exp_scores = np.exp(sims_scaled)
+            probs = exp_scores / exp_scores.sum()
+            # Sort by probability (== sorted by similarity since softmax is monotonic)
+            sorted_idx = np.argsort(probs)[::-1]
+            return [(tokens[i], float(probs[i])) for i in sorted_idx[:top_k]]
 
     # ------------ Plasticity dynamics ------------
 

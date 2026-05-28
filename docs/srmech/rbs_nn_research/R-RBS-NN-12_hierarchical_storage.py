@@ -224,13 +224,14 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
         top_k: int = 5,
         threshold: float = 0.55,
         fast: bool = True,
+        temperature: float = 0.0,
     ) -> list[tuple[str, float]]:
         """Find associated tokens via the token's bucket composite.
 
         Args:
-          fast: if True (default), score only against tokens in same bucket
-                + neighbor buckets (O(K) where K = bucket size + neighbor sizes).
-                If False, score against all Tier 1 concepts (O(N); for comparison).
+          fast: bucket-local + neighbor scoring (default True) or flat O(N).
+          temperature: 0.0 (default) → hard top-k above threshold.
+                       > 0.0 → softmax-ranked (R-RBS-NN-14b).
         """
         if token not in self.tier1:
             return []
@@ -243,13 +244,11 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
         candidate = hdc.polar_unbind(composite, query_polar)
 
         if fast:
-            # O(K) candidates: same bucket + neighbor buckets
             candidate_tokens = set(self.bucket_tokens[bucket_idx])
             for neighbor in self.bucket_neighbors[bucket_idx]:
                 candidate_tokens.update(self.bucket_tokens[neighbor])
             candidate_tokens.discard(token)
         else:
-            # O(N) flat scoring (Phase 2 baseline)
             candidate_tokens = set(self.tier1.keys())
             candidate_tokens.discard(token)
 
@@ -259,8 +258,21 @@ class HierarchicalTwoTierRBSNNStorage(TwoTierRBSNNStorage):
             other_polar = self._klein4_to_polar(other_concept.hv)
             sim = float(hdc.polar_similarity(candidate, other_polar))
             scores.append((other_token, sim))
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return [(t, s) for t, s in scores[:top_k] if s >= threshold]
+
+        if temperature <= 0.0:
+            # Hard mode (R-RBS-NN-12 original)
+            scores.sort(key=lambda x: x[1], reverse=True)
+            return [(t, s) for t, s in scores[:top_k] if s >= threshold]
+        else:
+            # Soft mode (R-RBS-NN-14b)
+            tokens_list = [t for t, _ in scores]
+            sims = np.array([s for _, s in scores], dtype=np.float64)
+            sims_scaled = sims / temperature
+            sims_scaled -= sims_scaled.max()
+            exp_scores = np.exp(sims_scaled)
+            probs = exp_scores / exp_scores.sum()
+            sorted_idx = np.argsort(probs)[::-1]
+            return [(tokens_list[i], float(probs[i])) for i in sorted_idx[:top_k]]
 
     # ------------ Plasticity overrides ------------
 
