@@ -91,23 +91,26 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc6():
-    """v0.4.5rc6 — sixth rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Continues the v0.4.5rc1..rc5 carve-out correction
-    by retrofitting ``cyclic_gcd`` (Class I cyclic-group gcd) with a
-    cascade-namespace C wrapper (``srmech_cascade_cyclic_gcd_u64``) that
-    delegates to the existing Class I primitive ``srmech_gcd``, plus a
-    TOML descriptor with a ``[cascade.delegates_to]`` section
-    documenting the delegation. FIRST of the delegating cascade ops in
-    this arc (the cascade-catalog entry IS the Class I primitive; the
-    wrapper exists to maintain the ``srmech_cascade_*`` namespace
-    invariant per the user's *"delegate to A-N C peers; cascade-level C
-    wrapper + TOML"* directive). The remaining 2 ops queued:
-    best_rational_signed (multi-class K∘N∘C cascade) and chiral_dual
-    (higher-order; callback ABI). ABI unchanged at 2 (additive symbol);
-    no new primitive class."""
-    assert srmech.__version__ == "0.4.5rc6", (
-        f"expected srmech.__version__ == '0.4.5rc6'; got "
+def test_version_is_0_4_5rc7():
+    """v0.4.5rc7 — seventh rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc. Continues the v0.4.5rc1..rc6 carve-out correction
+    by retrofitting ``best_rational_signed`` (Class K ∘ Class N ∘ Class
+    C; multi-stage cascade) with a cascade-namespace C wrapper
+    (``srmech_cascade_best_rational_signed_f64``) that delegates the
+    Class N stage to the existing Class N primitive
+    ``srmech_best_rational`` and inlines the Class K + Class C stages,
+    plus a TOML descriptor with ``[cascade.composes]`` /
+    ``[cascade.delegates_to]`` / ``[cascade.rounding]`` sections. SECOND
+    of the delegating cascade ops (after cyclic_gcd / rc6). Plus a
+    README full-feature update stripping the residual *"no dedicated C
+    symbol"* carve-out language per user directive 2026-05-28
+    (*"strip MVP false things from our presence"*). The remaining 1 op
+    queued: chiral_dual (higher-order; callback ABI design — closes
+    the arc). ABI unchanged at 2 (additive symbol); no new primitive
+    class. Banker's-rounding parity via llrint() + IEEE-754
+    FE_TONEAREST."""
+    assert srmech.__version__ == "0.4.5rc7", (
+        f"expected srmech.__version__ == '0.4.5rc7'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -115,7 +118,7 @@ def test_version_is_0_4_5rc6():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc6"
+    assert version_str == "0.4.5rc7"
     assert version_str == srmech.__version__
 
 
