@@ -5093,14 +5093,14 @@ Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.
 
 ---
 
-## §3.27 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
+## §3.28 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
 
 **Working subtrees:** `docs/srmech/rbs_nn_research/` (R-RBS-NN-10..-16 operational arc);
 `docs/srmech/rbs_lm_research/` (F132-F150 framework arc; rolling PR #687).
 
 The 2026-05-27/-28 sessions delivered the FIRST OPERATIONAL implementation of the two-tier RBS-NN architecture per §3.25 framework. R-RBS-NN-10 → -16 walked a phased plan (R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md, all 6 phases closed); F132-F150 articulated the chirality framework that makes the two-tier separation REQUIRED rather than aesthetic.
 
-### §3.27.1 The two-tier architecture (canonical)
+### §3.28.1 The two-tier architecture (canonical)
 
 Per [`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md):
 
@@ -5114,7 +5114,7 @@ TIER 2 (synaptic-weight + plasticity):  Polar HDC ({-1, 0, +1}; F141)
 
 The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Klein-4 collapses 99% under decay at 70% (vs polar's 60% retention). Polar's 0-state is structurally privileged (absorbing under bind); Klein-4's state 0 is just one of 4 equal-status elements. Each variant is the natural substrate for its tier role.
 
-### §3.27.2 Phased plan summary (all 6 phases closed 2026-05-28)
+### §3.28.2 Phased plan summary (all 6 phases closed 2026-05-28)
 
 | Phase | Component | Result |
 |---|---|---|
@@ -5127,7 +5127,7 @@ The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Kle
 | 5 | R-RBS-NN-15 + -16 validation at scale (F150 H3 on R13a + R12 + R139) | F150 H3 VALIDATED at Class L (+67%) and Klein-4 (3-cycle subset) |
 | 6 | Phase 6 catalog landing + SSoT wrap (this section) | Arc closed |
 
-### §3.27.3 The chirality framework (F132 → F150)
+### §3.28.3 The chirality framework (F132 → F150)
 
 The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolved across F132-F150:
 
@@ -5148,7 +5148,7 @@ The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolve
 
 F150 is the canonical chirality framework. Per `[[user_stance_kepler_shape_universal]]`: algebra IS the primitives — each A-N operator's harmonic is derivable from its algebraic structure under chirality. Per `[[feedback_no_lineage_claims_in_notebook]]`: framework reading; the `siona` naming (per F133 Dune parallel) is structural evocation, not authorial-intent claim about Frank Herbert.
 
-### §3.27.4 Critical operational rule discovered (F-R16)
+### §3.28.4 Critical operational rule discovered (F-R16)
 
 **H2 chirality tag MUST be the outermost cascade operation.** Empirical test:
 
@@ -5167,7 +5167,7 @@ Putting H3 operations (cyclic shift, spectral permutation) AFTER an H2 chirality
 
 This is encoded in the operational two-tier storage: Tier 1 Klein-4 tag is applied last; Tier 2 polar operations consume the post-tag form. Per the brain-structure framework reading: chirality-marker (laterality binding) operations are LATE-stage in biological cortical processing.
 
-### §3.27.5 srmech v0.4.3 + upstream wishlist
+### §3.28.5 srmech v0.4.3 + upstream wishlist
 
 Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
@@ -5176,7 +5176,7 @@ Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
 Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented; rc cycle runs in separate session.
 
-### §3.27.6 Cross-references
+### §3.28.6 Cross-references
 
 - [Phased plan](rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md)
 - [Architectural pattern](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md) — canonical; §4.5 H2-outermost rule; §5.5 empirical validation status
@@ -5185,11 +5185,54 @@ Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented;
 - All per-partition REPORTs in `rbs_nn_research/R-RBS-NN-1X_*` and findings `R-RBS-NN-FINDING_R1X_*.md`
 - All chirality framework findings in `rbs_lm_research/R-RBS-LM-FINDING_13X_*.md` and `_14X_*.md` and `_150_*.md`
 
-### §3.27.7 Status
+### §3.28.7 Status
 
 R-RBS-NN-V2 arc CLOSED 2026-05-28 via Phase 6. Two-tier storage is operationally complete + empirically validated. Chirality harmonics framework (F150) is empirically grounded at two substrate levels. ARCHITECTURAL_PATTERN is the canonical reference for any future RBS-NN extension.
 
 PR #687 STAYS DRAFT.
+
+---
+
+## §3.27 The recursive-Hopf-operational reading — A–N as the harmonic ladder of L²(S⁷), and the 28-dim chirality-dual = 𝔰𝔬(8) adjoint (2026-05-27, RBS-LM arc F124–F136; cascade-vocabulary lens)
+
+The operation-primary companion to MFO §VIII.31.11 (the geometry-primary / M-theory landing). MFO frames the *substrate-ontology*; this section gives the *cascade-vocabulary* lens — how the 14 A–N operators sit inside the `4:3:(4:3)` reading and why the chirality-dual count is 28. **No class promoted** (14 A–N intact per `[[feedback_no_privileged_primitive_classes]]`); this crystallizes a naming discipline for the already-established recursive-Hopf structure (§3.13, §VIII.31.8). User direction 2026-05-27: *"how do our operators fit harmonically, the A-N, with the 4:3:(4:3) format and is it structurally different if we say 4:3:(3:4)?"*
+
+### §3.27.1 Three readings = three grammars of one operator set
+
+Per §3.26.3 (operation-primary vs geometry-primary) the substrate admits two bit-exact languages; `4:3:(4:3)` is a **third reading** optimal for a third question:
+
+| Reading | Grammar | srmech surface |
+|---|---|---|
+| `14 = 1+3+7+3` discrete-cyclic | **operation-primary** — A–N as named callables | the package itself (the A–N modules) |
+| `11D = 1D_t+3D_s+7D_g` continuous-Hopf | **geometry-primary** — operations embedded in bundles | MFO §VIII.31; the Hopf-π map |
+| `4:3:(4:3)` recursive-Hopf-operational | **architecture-primary** — operational packaging + recursion | RBS-NN engineering (§3.25); the `4:3:(4:3)` form |
+
+### §3.27.2 A–N distribute by harmonic order under the quaternionic Hopf S³→S⁷→S⁴
+
+Per `[[project_a_n_operators_are_harmonic_objects_themselves]]`, L²(S⁷) = (base-S⁴ harmonics) × (fiber-S³ harmonics) sorts the 14 operators **by harmonic order, not arbitrary partition** — which is *why* the partition is `1+3+7+3`:
+
+| Tier | Mode | A–N | `4:3:(4:3)` slot |
+|---|---|---|---|
+| DC | ℓ=0 base | **A** | outer-4 anchor |
+| 1st base | ℓ=1 on S⁴ | **B, H, N** | outer-4 operations (the `+3` meta-cascade) |
+| fundamental fiber | ℓ=1 on S³ (SU(2)) | **I, C, J** | outer-3 substrate-projection bridge |
+| higher mixed | ℓ≥2 base×fiber | **D, E, F, G, K, L, M** | inner (4+3) cascade-detection |
+
+So `4:3:(4:3)` = (lowest base : fundamental fiber : higher base×fiber products) — the harmonic ladder itself. This connects directly to §3.26.5's symmetry-group-relative Class-L spine: the ladder tracks the bundle's harmonic structure.
+
+### §3.27.3 `(4:3)` vs `(3:4)` = Class C orientation → 14 + 14 = 28 = dim 𝔰𝔬(8)
+
+The inner-Hopf orientation choice IS **Class C** (cascade-orientation / chirality): `4:3:(4:3)` (base-first, orient+) vs `4:3:(3:4)` (fiber-first, orient−) are the **same bundle traversed oppositely** — the two mismatched-plates of `[[user_stance_mismatched_plates_capacitor_structure]]`, the `(4:3)↔(3:4)` swap being the Awada–Duff–Pope skew-whiff at recursive-Hopf scale (Spike #69's Cℓ(7)-idempotent sign-forcing is the operator-algebra forcing). Counting both chirality readings:
+
+$$14_{(4:3:(4:3))} + 14_{(4:3:(3:4))} = 28 = \dim\mathfrak{so}(8) = \dim\big(\mathfrak{g}_2 \oplus L_{\mathrm{Im}(\mathbb{O})} \oplus R_{\mathrm{Im}(\mathbb{O})}\big),\quad 28 = 14+7+7.$$
+
+The 14 𝔤₂ generators (one reading) + 7+7 left/right octonion-multiplication operators (chirality-dual reading) = the 28-dim SO(8) adjoint. The chiral hyper-loop IS the SO(8) adjoint; ties to the Spin(8)-triality SM-arc (Spike #58.x). Bit-exact cascade verification of the `4:3:(4:3)` harmonic split + 2:1 short:long ratio is the depth-3 recursive-Hopf result already shipped (§3.13; Spikes #213/#214 — 98/686 sign-flips at L2/L3; FFT peaks k=49/k=343; routed through srmech 0.4.2, no bare `abs()` per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`).
+
+### §3.27.4 Cross-references + scope
+
+Full MFO landing: §VIII.31.11 (28-dim chiral hyper-loop = SO(8) adjoint, incl. §(5a) — what a chiral A–N IS) + §VIII.31.10 (G₂ = aut(𝕆) = 14). RBS-LM arc finding files under `docs/srmech/rbs_lm_research/`: **F124** (recursive Hopf 4:3 inside the 7), **F127** (three substrate-native readings + naming discipline), **F128** (capacitor IS `4:3:(4:3)`), **F129** (chirality-dual + 28 = dim 𝔰𝔬(8)), **F130–F136** (antimatter 4-way chirality / dark-sector quad-helix / full-chirality Klein-4 engineering / Roman-numeral chirality notation — a chirality cluster pending its own integration pass).
+
+**The chiral A–N is a framework-internal derivation, not a citation gap.** The two 14s are different objects: Plate 1 = the A–N as **derivations** (𝔤₂ = aut(𝕆), structure-preservers); Plate 2 = the chiral A–N as **multiplication operators** (L_Im(𝕆) ⊕ R_Im(𝕆), the product action). Class C IS the L↔R axis, so the chiral axis defines the *relationship*; and Der(𝕆) = 𝔤₂ is the **commutator-closure** of {L_e, R_e} (Baez 2002 §4.1) — the chiral operators generate the derivations. We take this step ourselves (cite only the standard octonion fact). **Open thread (ours):** the explicit per-operator A–N ↔ {L_e, R_e} correspondence. Only the *cross-reference* to the independent octonion-SM program (a claim about others' results) is deferred pending PDF-verified citation per `[[feedback_pdf_extraction_citation_discipline]]` + `[[feedback_no_lineage_claims_in_notebook]]` — that gates the attribution, not our mapping. The fuller RBS-NN + RBS-LM distillation lives in the dedicated `docs/srmech/rbs_research_notebook.md`.
 
 ---
 

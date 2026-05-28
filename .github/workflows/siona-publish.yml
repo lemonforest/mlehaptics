@@ -1,0 +1,139 @@
+name: siona-publish
+
+# Build the pure-Python `siona` alias distribution (a thin co-name for
+# `srmech` — `import siona` is `import srmech`) and publish to PyPI /
+# TestPyPI via OIDC trusted publishing.
+#
+# RC-version auto-routing (mirrors srmech-publish.yml):
+#   * Tag `siona-vX.Y.ZrcN`  → TestPyPI
+#   * Tag `siona-vX.Y.Z`      → PyPI
+# The tag suffix is the source of truth. (siona tags are created manually;
+# there is no autotag for siona.)
+#
+# Trusted-publisher entries (one-time setup):
+#   * pypi.org      project=siona, env=pypi,     workflow=siona-publish.yml
+#   * test.pypi.org project=siona, env=testpypi, workflow=siona-publish.yml
+
+on:
+  push:
+    tags:
+      - "siona-v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Publish target (override rc-auto-route)"
+        required: true
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build sdist + pure wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build twine
+      - name: Build
+        working-directory: docs/srmech/siona
+        run: |
+          set -euo pipefail
+          python -m build
+          ls -la dist/
+          # Sanity: a py3-none-any wheel + an sdist, and no stray binaries.
+          # Version-agnostic globs (siona is a metadata-only metapackage; the
+          # version changes per release).
+          ls dist/siona-*-py3-none-any.whl 1>/dev/null
+          ls dist/siona-*.tar.gz 1>/dev/null
+          python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siona-dist
+          path: docs/srmech/siona/dist/*
+
+  publish:
+    name: >-
+      publish
+      (${{
+        (github.event_name == 'workflow_dispatch' && inputs.target)
+        || (contains(github.ref_name, 'rc') && 'testpypi')
+        || 'pypi'
+      }})
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/siona-v'))
+    environment:
+      name: >-
+        ${{
+          (github.event_name == 'workflow_dispatch' && inputs.target)
+          || (contains(github.ref_name, 'rc') && 'testpypi')
+          || 'pypi'
+        }}
+      url: >-
+        ${{
+          ((github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+           || (github.event_name == 'push' && contains(github.ref_name, 'rc')))
+            && 'https://test.pypi.org/project/siona/'
+            || 'https://pypi.org/project/siona/'
+        }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: siona-dist
+          path: dist
+
+      - name: Verify tag matches pyproject (tag-push only)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import os, re, sys
+          try:
+              import tomllib
+          except ImportError:
+              import tomli as tomllib  # type: ignore[no-redef]
+          tag = os.environ["GITHUB_REF_NAME"]
+          m = re.fullmatch(r"siona-v(\d+\.\d+\.\d+(?:rc\d+)?)", tag)
+          if not m:
+              print(f"::error::tag {tag!r} does not match siona-vX.Y.Z[rcN]")
+              sys.exit(1)
+          tagv = m.group(1)
+          with open("docs/srmech/siona/pyproject.toml", "rb") as f:
+              pyv = tomllib.load(f)["project"]["version"]
+          if tagv != pyv:
+              print(f"::error::tag {tagv!r} != pyproject {pyv!r}")
+              sys.exit(1)
+          print(("rc -> TestPyPI" if "rc" in tagv else "clean -> PyPI") + f": {tagv}")
+          PY
+
+      - name: List dist
+        run: ls -la dist/
+
+      - name: Publish to TestPyPI
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
+          || (github.event_name == 'push' && contains(github.ref_name, 'rc'))
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+
+      - name: Publish to PyPI
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+          || (github.event_name == 'push' && !contains(github.ref_name, 'rc'))
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

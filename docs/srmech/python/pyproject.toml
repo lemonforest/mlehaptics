@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.4.3"
+version = "0.4.4"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -117,9 +117,10 @@ cmake.source-dir = ".."
 cmake.version = ">=3.23"
 cmake.build-type = "Release"
 
-# Python package included in the wheel alongside the (eventual)
-# CMake-installed native binary.
-wheel.packages = ["srmech"]
+# Python packages included in the wheel alongside the (eventual)
+# CMake-installed native binary. `siona` is the bundled co-name alias
+# (v0.4.4): `pip install srmech` makes `import siona` == `import srmech`.
+wheel.packages = ["srmech", "siona"]
 
 # Make the wheel reproducible across rebuilds.
 wheel.exclude = ["*.pyc", "__pycache__"]
@@ -140,6 +141,7 @@ wheel.exclude = ["*.pyc", "__pycache__"]
 # the C library locally once Phase B3 lands.
 sdist.include = [
     "srmech/**",
+    "siona/**",
     "tests/**",
     "README.md",
     "CHANGELOG.md",

@@ -91,14 +91,14 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_3():
-    """v0.4.3 — clean production release of the "Class M variant expansion"
-    arc (rc1 polar / rc2 Klein-4 / rc3 signed_sum_squared / rc4
-    symmetric_eigendecompose / rc5 rfft / rc6 cascade catalog, all verified
-    on TestPyPI). The clean (no-rc) tag ``srmech-v0.4.3`` routes to
-    production PyPI per ``.github/workflows/srmech-publish.yml``."""
-    assert srmech.__version__ == "0.4.3", (
-        f"expected srmech.__version__ == '0.4.3'; got "
+def test_version_is_0_4_4():
+    """v0.4.4 — production release consolidating rc1 (cascade chirality
+    mini-set) + rc2 (bundled `siona` co-name alias: ``pip install srmech``
+    makes ``import siona`` == ``import srmech``, same objects). No new class,
+    ABI unchanged at 2. Both rcs were clean-venv-verified on TestPyPI first;
+    the clean ``srmech-v0.4.4`` tag is the human-in-loop production gate."""
+    assert srmech.__version__ == "0.4.4", (
+        f"expected srmech.__version__ == '0.4.4'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -106,7 +106,7 @@ def test_version_is_0_4_3():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.3"
+    assert version_str == "0.4.4"
     assert version_str == srmech.__version__
 
 

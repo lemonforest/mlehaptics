@@ -4,6 +4,34 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
+_Next development line: **v0.4.5rcN**. Queued srmech follow-ups (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.4] - 2026-05-28
+
+**Production release** → PyPI. Consolidates rc1 (cascade chirality mini-set) + rc2 (bundled `siona` co-name alias), each shipped + clean-venv-verified on TestPyPI first. No new primitive class anywhere; ABI unchanged at 2; no new C symbol.
+
+- **Cascade chirality mini-set** (`srmech.amsc.cascade`, rc1) — `chiral_flip` (Class C orientation reversal), `chiral_dual` (Class C ∘ op ∘ Class C: same spectral shape, inverted orientation — verified across all 14 A–N operators), `net_chirality` (conserved Class-C cascade invariant). Tool-schema entries + `tests/test_cascade_chirality.py`.
+- **Bundled `siona` co-name alias** (rc2) — the srmech wheel ships a second top-level package, `siona`, so **`pip install srmech` makes `import siona` resolve to exactly the same objects as `import srmech`** (every `srmech.*` submodule mirrored under `siona.*`). srmech stays the single source of truth (native lib, `__version__`, tool-schema). `tests/test_siona_alias.py` (6 tests). Pairs with the standalone `siona` metapackage on PyPI (`pip install siona` → `srmech>=0.4.4`, which provides the bundled alias).
+
+Per-rc detail in the entries below.
+
+## [0.4.4rc2] - 2026-05-28
+
+**Bundled `siona` co-name alias** → TestPyPI (rc). The srmech wheel now ships a second top-level package, `siona`, alongside `srmech`: **`pip install srmech` makes `import siona` resolve to exactly the same objects as `import srmech`** (every `srmech.*` submodule mirrored under `siona.*` via `sys.modules` alias + parent-attribute binding). No forked logic — srmech stays the single source of truth (native lib, `__version__`, tool-schema). No new class; ABI unchanged at 2.
+
+- `siona/__init__.py` added; `wheel.packages` / hatchling `packages` → `["srmech", "siona"]`; `siona/**` in both sdist includes.
+- `tests/test_siona_alias.py` (6 tests): version match, top-level re-export, submodule identity, from-import, attribute-chain, callable-through-alias.
+- Pairs with the standalone `siona` PyPI distribution (a metapackage that depends on srmech and re-uses this same alias).
+
+## [0.4.4rc1] - 2026-05-27
+
+**Cascade chirality mini-set** → TestPyPI (rc). Three callables added to the foundational `srmech.amsc.cascade` catalog. No new primitive class — each is a composition of the existing Class C orientation + Class K sign; ABI unchanged at 2; no new C symbol.
+
+- **`chiral_flip(seq)`** — Class C orientation reversal (`seq[::-1]`); the value-level chirality operator.
+- **`chiral_dual(op, x)`** — Class C ∘ op ∘ Class C: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is **same spectral shape, inverted orientation** (magnitude preserved, phase flipped) — verified across all 14 operators (MFO §VIII.31.11 §(5b)/(5c); committed spike `docs/srmech/notes/spike_chiral_an_spectral_shape.py`). Reduces to the bare Class K `−1` for the sign operators (C, N); identity for real-symmetric (L).
+- **`net_chirality(orientations)`** — Class C net handedness of a cascade (product of per-op orientations via composed `reorient`; `0` if any is neutral) — the conserved Class-C invariant a chiral cascade reads out.
+- Tool-schema entries + `tests/test_cascade_chirality.py` added; `CASCADE_OPS` and `__all__` extended.
+
 ## [0.4.3] - 2026-05-27
 
 **Production release of the "Class M variant expansion" arc** → PyPI. Consolidates rc1–rc6 (each shipped + clean-venv-verified on TestPyPI first). No new primitive class anywhere — every addition is a variant or composition of the existing 14-class A–N vocabulary; ABI unchanged at 2.

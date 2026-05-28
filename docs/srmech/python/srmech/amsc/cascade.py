@@ -179,6 +179,74 @@ def cyclic_gcd(a: int, b: int) -> int:
     return _cyclic_gcd(a, b)
 
 
+def chiral_flip(seq):
+    """Class C orientation reversal: traverse the cascade the other way.
+
+    The value-level Class C cascade-orientation operator — it reverses the
+    traversal order of a sequence. Reversing a real signal is the FFT-level
+    chirality operator (same magnitude spectrum, orientation-flipped phase)
+    per MFO §VIII.31.11 §(5b): the chiral dual is "same shape, inverse".
+
+    Args:
+        seq: Any sliceable sequence (list / tuple / str / ndarray).
+
+    Returns:
+        ``seq[::-1]`` — the orientation-reversed sequence, type preserved.
+    """
+    return seq[::-1]
+
+
+def chiral_dual(op, x):
+    """Class C ∘ op ∘ Class C: run ``op`` in the opposite Class-C orientation.
+
+    The chiral-dual cascade. Conjugating any operator by the Class C
+    orientation reversal (:func:`chiral_flip`) produces its chiral dual —
+    empirically (MFO §VIII.31.11 §(5b)/(5c), committed spike
+    ``docs/srmech/notes/spike_chiral_an_spectral_shape.py``) this preserves
+    the spectral *shape* (magnitude) and inverts the *orientation* (phase).
+    For the rotation/fiber operators it is the orientation-inverse; for the
+    explicit sign/orientation operators (Class C, Class N) it reduces to the
+    bare Class K ``-1``; for real-symmetric operators (Class L) it is the
+    identity. **No new class** — this is Class C composed with ``op``.
+
+    Args:
+        op: A unary callable mapping a sequence to a sequence (an A–N
+            operator's action on a signal).
+        x: The input sequence.
+
+    Returns:
+        ``chiral_flip(op(chiral_flip(x)))`` — ``op`` evaluated in the
+        reversed Class-C orientation.
+    """
+    return chiral_flip(op(chiral_flip(x)))
+
+
+def net_chirality(orientations) -> int:
+    """Class C net handedness of a cascade: the product of per-op orientations.
+
+    A cascade built from operators each carrying a Class C orientation in
+    ``{-1, 0, +1}`` has a *net* handedness — the conserved Class-C invariant a
+    chiral cascade reads out (MFO §VIII.31.11 §(5d); the net-chirality of
+    Spike #74 / #89). Computed by composing :func:`reorient`, not by ``abs``-
+    free sign multiplication, so the cascade-count matches the cascade-shape.
+
+    Args:
+        orientations: Iterable of orientations in ``{-1, 0, +1}`` (typically
+            the first element of each operator's :func:`pin_slot_at_zero`).
+
+    Returns:
+        ``+1`` (net even / right-handed), ``-1`` (net odd / left-handed), or
+        ``0`` if any operator is orientation-neutral (a zero-crossing in the
+        chain collapses net handedness).
+    """
+    net = 1
+    for o in orientations:
+        if o == 0:
+            return 0
+        net = reorient(o, net)
+    return net
+
+
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from
 # the local _cascade_helpers; the alias lets them migrate to
@@ -195,6 +263,9 @@ CASCADE_OPS: Tuple[str, ...] = (
     "magnitude",               # Class K (magnitude-only)
     "best_rational_signed",    # Class K ∘ N ∘ C
     "cyclic_gcd",              # Class I
+    "chiral_flip",             # Class C (orientation reversal)
+    "chiral_dual",             # Class C ∘ op ∘ Class C (chiral-dual conjugation)
+    "net_chirality",           # Class C (net handedness invariant)
 )
 
 __all__ = [
@@ -206,6 +277,9 @@ __all__ = [
     "magnitude",
     "best_rational_signed",
     "cyclic_gcd",
+    "chiral_flip",
+    "chiral_dual",
+    "net_chirality",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",
