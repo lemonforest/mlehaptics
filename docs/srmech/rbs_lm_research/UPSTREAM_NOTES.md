@@ -734,3 +734,128 @@ Promoting `substrate_parameterization` to a first-class adapter makes the cascad
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
 from the RBS-LM research subtree.*
+
+---
+
+## §8 siona Profile system alignment — rbs_lm_substrate as a registered profile (2026-05-28; srmech/siona v0.4.5 PRODUCTION)
+
+User direction 2026-05-28:
+> "srmech/siona v0.4.5 has landed. lets update the package and see what siona has for us next."
+
+### §8.1 What siona 0.4.5 ships (versus 0.4.4)
+
+siona is no longer a metapackage alias — at v0.4.5 it gains its own substantive
+content: a **Profile system** (ADR-0001 / Task #199) layered above srmech that
+provides:
+
+- `siona.Profile` — dataclass for an activated profile (name / version / summary / package / raw / source_hint)
+- `siona.ProfileStatus` — enumeration status for discovered profiles
+- `siona.list_profiles()` → `Dict[str, ProfileStatus]`
+- `siona.profile(name)` → activated `Profile` object
+- `siona.profile_loader` — eager-at-import discovery via `importlib.metadata.entry_points(group="srmech.profiles")`
+- Per-profile smoke-test cache at `~/.cache/srmech/profile_smoke_tests/<name>-<version>.toml`
+
+Profile descriptors live as `srmech_profile.toml` files (v1 schema). Each
+declaring package registers its profile via `[project.entry-points."srmech.profiles"]`
+in its pyproject.toml. The loader validates against the v1 schema and
+smoke-tests every bridge surface at activation time.
+
+### §8.2 Schema (v1) — required fields per `srmech_profile.toml`
+
+```toml
+profile_schema_version = "1.0"   # required; MAJOR.MINOR; loader speaks "1.0"
+
+[profile]
+name              = "..."    # required; ^[a-z][a-z0-9_-]*$, 1..64 chars
+version           = "..."    # required; MAJOR.MINOR.PATCH[rcN]
+summary           = "..."    # required; one-line human readable
+package           = "..."    # required; declaring Python package
+srmech_requires   = "..."    # required; version constraint
+
+# All sections below are optional but smoke-tested when present.
+
+[profile.bridge]
+# name = "module:callable" — each target must import + be callable.
+build_substrate = "rbs_lm_research._canonical_substrate:build_substrate"
+# ... etc
+
+[profile.catalogs]
+attested_root = "catalogs/<dir>"   # relative to package root; auto-registered
+
+[profile.native]
+# Optional ctypes plugin tier
+
+[profile.tool_schema]
+extension_file = "..."   # optional LLM-introspection coverage
+```
+
+### §8.3 Drafted profile descriptor for rbs_lm_substrate
+
+`docs/srmech/rbs_lm_research/srmech_profile.toml` (this commit) — documentation-grade
+canonical-shape draft. NOT yet entry-point-registered. Once the research subtree
+becomes an installable Python package (§8.4 below), this file moves alongside
+that package's `pyproject.toml` and gets registered.
+
+Bridge surfaces declared:
+- `build_substrate`, `build_hierarchical_substrate` — substrate constructors
+- `encode_word_k4`, `encode_bigram_l1`, `encode_skeleton_l2`, `encode_sentence_l3` — F155 chirality-sector encoders
+- `sim_k4_batch` — Klein-4 fractional-agreement similarity
+- `run_characterization` — R-RBS-LM-122 phase sweep entry-point
+
+Catalog: `attested_root = "catalogs/rbs_lm_substrate"` (already exists at
+`docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml`).
+
+Native plugin: NONE — substrate algebra rides on srmech's native Klein-4
+primitives (`srmech.amsc.hdc.klein4_random` + `klein4_bind`); no separate
+ctypes library needed.
+
+### §8.4 Path to actual registration (substantial scope; not authorized today)
+
+Steps to make rbs_lm_substrate a real activated siona profile:
+
+1. **Make `docs/srmech/rbs_lm_research/` an installable package.**
+   - Add `pyproject.toml` (hatchling or scikit-build-core); declare package metadata
+   - Move `_canonical_substrate.py` etc. into `rbs_lm_research/` namespace
+   - Move `srmech_profile.toml` to the package data
+   - Add `[project.entry-points."srmech.profiles"]` block:
+     ```toml
+     [project.entry-points."srmech.profiles"]
+     rbs_lm_substrate = "rbs_lm_research:srmech_profile.toml"
+     ```
+
+2. **Install editable into the verify_srmech_043 venv.**
+   - `pip install -e docs/srmech/rbs_lm_research/`
+   - Verify `siona.list_profiles()` shows `rbs_lm_substrate`
+   - Verify `prof = siona.profile("rbs_lm_substrate")` activates cleanly
+   - Verify smoke-test cache populates at `~/.cache/srmech/profile_smoke_tests/`
+
+3. **Optionally TestPyPI the package.**
+   - As `rbs_lm_research-0.1.0rc1` (this is the research subtree's own rc cycle,
+     separate from srmech's rc cycle)
+   - Downstream consumers `pip install rbs_lm_research` → siona auto-discovers
+
+4. **Migrate R-RBS-LM-122 to call via the activated profile.**
+   - Instead of `import _canonical_substrate as cs; memory = cs.build_substrate(params)`,
+     becomes `prof = siona.profile("rbs_lm_substrate"); memory = prof.build_substrate(params)`
+   - Loses ~3 lines of imports; gains LLM-introspection + smoke-test guarantees
+
+### §8.5 Status
+
+**WISHLIST documented; NOT AUTHORIZED to begin packaging work.** User direction
+2026-05-28 surfaced siona's Profile system as the canonical landing for what
+the rbs_lm_substrate catalog has been doing. Drafting the profile TOML as
+documentation is sufficient alignment work today; the packaging refactor is
+its own scope when authorized.
+
+Today's substrate continues to work via the existing
+`docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml` AMSC catalog
+(literature_curated adapter) consumed directly by R-RBS-LM-122 through
+`srmech.amsc.load_descriptor` + `descriptor_hash`. The profile TOML in this
+section serves as the alignment target for future-packaging scope.
+
+---
+
+*Maintained alongside the R-RBS-LM rolling PR. New entries land at the
+top of the relevant arc section. Per upstream-as-research-notes
+discipline, this file is the canonical record of catalog-gap requests
+from the RBS-LM research subtree.*

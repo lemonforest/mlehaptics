@@ -1,0 +1,57 @@
+# srmech_profile.toml — rbs_lm_substrate
+#
+# DOCUMENTATION-GRADE — not yet entry-point-registered.
+#
+# This file is the canonical shape of the rbs_lm_substrate siona profile
+# (siona v0.4.5+, profile_schema_version = "1.0"). When the research subtree
+# becomes an installable Python package (UPSTREAM_NOTES §8), this file moves
+# alongside that package's pyproject.toml and gets registered via
+#
+#     [project.entry-points."srmech.profiles"]
+#     rbs_lm_substrate = "rbs_lm_research:srmech_profile.toml"
+#
+# After registration:
+#     prof = siona.profile("rbs_lm_substrate")
+#     prof.build_substrate(params)
+#     prof.run_characterization(phases=[1, 2, 3, 4, 5, 6, 7])
+#     prof.catalogs  # → {"attested_root": "catalogs/rbs_lm_substrate"}
+#
+# Until then this file serves as alignment documentation per
+# [[feedback_upstream_srmech_fixes_as_research_notes]].
+
+profile_schema_version = "1.0"
+
+[profile]
+name              = "rbs_lm_substrate"
+version           = "0.1.0"
+summary           = "Variable-length Klein-4 chirality-level sentence substrate (F155 sector-channels + F156 cross-level walk + F157 5-item closure + F162 full-coverage)"
+package           = "rbs_lm_research"    # placeholder — not yet installable
+srmech_requires   = ">=0.4.5"            # uses srmech.amsc.hdc.klein4_* + load_descriptor + descriptor_hash
+
+# Bridge surfaces — each "name = module:callable"
+# Smoke test: every target must import + be callable.
+[profile.bridge]
+build_substrate              = "rbs_lm_research._canonical_substrate:build_substrate"
+build_hierarchical_substrate = "rbs_lm_research._canonical_substrate:build_hierarchical_substrate"
+encode_word_k4               = "rbs_lm_research._canonical_substrate:encode_word_k4"
+encode_bigram_l1             = "rbs_lm_research._canonical_substrate:encode_bigram_l1"
+encode_skeleton_l2           = "rbs_lm_research._canonical_substrate:encode_skeleton_l2"
+encode_sentence_l3           = "rbs_lm_research._canonical_substrate:encode_sentence_l3"
+sim_k4_batch                 = "rbs_lm_research._canonical_substrate:sim_k4_batch"
+run_characterization         = "rbs_lm_research.run_characterization:main"
+
+# Catalog SSOT — relative to package root; registered into srmech's universal catalog bridge
+# at activation time (calls srmech.amsc.register_attested_root).
+[profile.catalogs]
+attested_root = "catalogs/rbs_lm_substrate"
+
+# Plugin tier — NO native plugin.
+# Substrate algebra rides on srmech's native Klein-4 primitives (klein4_random,
+# klein4_bind in srmech.amsc.hdc); no separate ctypes library needed.
+# [profile.native] intentionally omitted.
+
+# Tool-schema extension — declares the bridge functions for LLM introspection
+# via srmech.amsc.tool_schema. Authors who don't declare this block lose
+# LLM-introspection coverage, but everything else still works.
+[profile.tool_schema]
+extension_file = "tool_schema_extension.toml"
