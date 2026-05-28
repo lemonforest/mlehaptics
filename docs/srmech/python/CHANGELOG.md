@@ -4,7 +4,42 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5** (clean ship — cascade-catalog C-parity arc CLOSED at rc8). v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 added net_chirality (LAST of the simple pure-Python cascade ops); v0.4.5rc6 added cyclic_gcd (FIRST of the delegating cascade ops); v0.4.5rc7 added best_rational_signed (multi-class K∘N∘C cascade — second of the delegating cascade ops); v0.4.5rc8 adds chiral_dual (HIGHER-ORDER — the ONLY higher-order cascade op; callback ABI via srmech_cascade_op_callback_f64_t typedef; caller-allocated workspace per JPL Rule 3; delegates Class C inner+outer chiral_flip to the rc1 native peer) and CLOSES THE ARC. After rc8 ship all 8 cascade catalog ops have full C/Python parity + TOML descriptors; ready for clean v0.4.5 ship to production PyPI. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.6** (post-arc; queued srmech follow-ups deferred during the v0.4.4 chirality + siona arc and the v0.4.5 cascade-catalog C-parity arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in. Plus v0.5.0 DSL work: runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce (task #235)._
+
+## [0.4.5] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — ARC CLOSED.**
+Clean ship after rc1-rc8 sequence. All 8 cascade catalog ops now have
+full C/Python parity (10 C symbol families total) plus declarative TOML
+descriptors under `srmech/amsc/_research/cascade_catalog/`. Corrects the
+v0.4.3rc6 + v0.4.4rc1 carve-out that shipped cascade ops Python-only.
+
+**Cascade C peers added (one per rc):**
+- rc1 `srmech_cascade_chiral_flip_i64` + `_f64` — Class C orientation reversal (sequence in/out; in-place safe).
+- rc2 `srmech_cascade_pin_slot_at_zero_f64` — Class K pin-slot (scalar in / orientation+magnitude out via output pointers; NaN→dead-band).
+- rc3 `srmech_cascade_magnitude_f64` — Class K magnitude-only (scalar in/out; explicit 3-branch impl preserving NaN→0.0 parity).
+- rc4 `srmech_cascade_reorient_i64` + `_f64` — Class C re-application (two-arg shape; type-preserving; INT64_MIN guarded).
+- rc5 `srmech_cascade_net_chirality_i8` — Class C net handedness (sequence in / scalar out; empty→+1; first zero short-circuits to 0).
+- rc6 `srmech_cascade_cyclic_gcd_u64` — Class I cascade-namespace wrapper (delegates to existing `srmech_gcd` primitive).
+- rc7 `srmech_cascade_best_rational_signed_f64` — multi-class K∘N∘C cascade (delegates Class N to `srmech_best_rational`; banker's rounding via llrint() for Python parity).
+- rc8 `srmech_cascade_chiral_dual_f64` — HIGHER-ORDER (callback ABI via `srmech_cascade_op_callback_f64_t` typedef; caller-allocated workspace per JPL Rule 3; delegates inner+outer chiral_flip to rc1 native peer).
+
+**Added:**
+- 8 TOML cascade-catalog entries under `srmech/amsc/_research/cascade_catalog/` documenting each cascade's class composition, native symbol, attestation, and (where applicable) `[cascade.delegates_to]` / `[cascade.composes]` / `[cascade.higher_order]` / `[cascade.callback_marshaling]` / `[cascade.rounding]` / `[cascade.boundary_cases]` sections.
+- New public C typedef `srmech_cascade_op_callback_f64_t` for higher-order callback ABI.
+- ~150 new parity tests across all 8 ops (covering int / float / numpy / NaN / Inf / dead-band / banker's-rounding boundary / callback exception propagation / etc).
+
+**Changed:**
+- `srmech.amsc.cascade` module docstring: removed "no dedicated C symbol" carve-out clause; added "Full C/Python parity" discipline statement.
+- README.md cascade-catalog section: stripped "no dedicated C symbol" carve-out per user directive 2026-05-28 ("strip MVP false things from our presence"); added "Each cascade ships with a dedicated C symbol in libsrmech (full C/Python parity per project discipline)" statement; per-op annotations updated with C-peer rc references.
+- All 8 cascade Python entry points now dispatch through native when input shape matches the typed C variant; Python fallback retained for shapes the C ABI doesn't cover (strings, mixed types, out-of-int64 bigints, generators, etc).
+
+**Discipline preserved:**
+- ABI unchanged at 2 throughout (all rcs were additive symbols + one additive typedef).
+- JPL Power-of-Ten 6/6 audit clean across the entire arc (≥2 asserts per non-exempt function, ≤60-line functions, no malloc inside libsrmech, no goto, bounded loops).
+- No `abs()` in cascade Python (sign-handling via canonical Class K pin-slot + Class C re-orientation cascade).
+- No new `hashlib.sha256(...)` direct calls (route through `format.sha256_bytes`).
+- 1360 test suite all passing.
 
 ## [0.4.5rc8] - 2026-05-28
 

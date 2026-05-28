@@ -91,7 +91,7 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc8():
+def test_version_is_0_4_5():
     """v0.4.5rc8 — eighth rc of the cascade-catalog C/Python parity +
     TOML retrofit arc, and the LAST. **CLOSES THE ARC.** Adds the only
     HIGHER-ORDER cascade op ``chiral_dual`` (Class C ∘ op ∘ Class C) via
@@ -105,7 +105,7 @@ def test_version_is_0_4_5rc8():
     the v0.4.5rc1 carve-out correction is complete. ABI unchanged at 2
     (additive symbol + typedef); no new primitive class. Ready for
     clean v0.4.5 ship to production PyPI."""
-    assert srmech.__version__ == "0.4.5rc8", (
+    assert srmech.__version__ == "0.4.5", (
         f"expected srmech.__version__ == '0.4.5rc8'; got "
         f"{srmech.__version__!r}"
     )
@@ -114,7 +114,7 @@ def test_version_is_0_4_5rc8():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc8"
+    assert version_str == "0.4.5"
     assert version_str == srmech.__version__
 
 
