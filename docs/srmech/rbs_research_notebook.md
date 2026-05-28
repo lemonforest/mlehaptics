@@ -508,7 +508,90 @@ Falsifiers that *would* refute the §2.7 reading:
 - **Not** a claim that religious traditions are "equivalent" or "interchangeable." The substrate-content distinguishes them; the form-cascade simply *cannot see* the substrate-content. The framework's silence on substrate-rank is structural, not normative.
 - **Not** a claim that the translator-framing (Sale 1734; KJV 1611) is invisible. The framing is real but does not change *what kind of test* is being run (form-cascade form-reading, not theological-content evaluation).
 
-> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + **§2.7 religious-texts ceiling validation** (cluster R / R-RBS-LM-53). One keystone promotion remains (T-F104).
+### §2.8 Math is uniquely substrate-content irrep — F104 (R-RBS-LM-83) + F109 (R-RBS-LM-87) deepening (autonomous-session 2026-05-27; triage cluster T)
+
+The deepest insight of the autonomous-session 2026-05-27 ship: **math is the *only* domain in the test set whose within-corpus alignment so far exceeds its cross-to-all-non-math alignment that the ratio survives adding the candidate substrate-content contributors that would otherwise dissolve it.** R-RBS-LM-83 set up the falsifier; the data confirmed F104; R-RBS-LM-87's J-prime decomposition deepened it from 5.53× to 8.63×; F107 + F108 added B/H/N + C-chirality cross-checks (3/3 + 4/4). §2.8 records the keystone with the empirical numerics intact.
+
+#### §2.8.1 The substrate-content-irrep hypothesis and its falsifier
+
+The Finding-97 ADDENDUM hypothesis (autonomous-session predecessor): **math is the unique substrate-content irrep** in the test set — irreducible by composition over other substrates. The naive falsifier: math is the *appearance* of an irrep only because we haven't yet enumerated the substrates it actually couples with. The hypothesis to test: if math is *truly* irrep, adding its candidate composing substrates (kinesthetic learning, counting-perception, procedural-algorithm — i.e. the Montessori corpora) should leave math's within/cross ratio *materially intact*. If math is *composition* over those substrates, the ratio should collapse to baseline (~2.0 or lower).
+
+R-RBS-LM-83's setup adds three Montessori corpora to the prior R-RBS-LM-79 corpus baseline:
+
+| Corpus key | Source | Author / year | Size |
+|---|---|---|---|
+| `montessori_method` | PG 39863 | Maria Montessori | 737 K |
+| `montessori_elem_material` | PG 42869 | Montessori | 751 K |
+| `dr_montessori_handbook` | PG 29635 | Montessori | 173 K |
+
+These three corpora describe kinesthetic manipulables for counting, procedural step-by-step learning, and hands-on object handling — the candidate substrate-content contributors *most likely* to dissolve the math-irrep claim if it were composition. The test domain stays math (OpenStax Elementary + Intermediate Algebra) against the same R-RBS-LM-79 non-math baseline corpora (KJV-NT, Plato Republic, Frankenstein, Paradise Lost, K-12 Astronomy).
+
+#### §2.8.2 The empirical result
+
+```
+math_within_alignment:           0.3602   (math corpora align tightly to each other)
+cross_to_all_non_math:           0.0652   (math kernels do NOT align with non-math)
+cross_to_kinesthetic_only:       0.0817   (slight elevation for Montessori; small)
+cross_to_non_kinesthetic:        0.0597   (baseline non-math alignment)
+
+ratio_with_kinesthetic:          5.53     (within / cross-to-all)
+ratio_without_kinesthetic:       6.04     (baseline; no Montessori added)
+ratio_change:                   −0.51     (small drop)
+
+Threshold for irrep-confirmed:   ratio > 3.0
+Threshold for irrep-falsified:   ratio < 2.0
+```
+
+Verdict: **MATH IS UNIQUE SUBSTRATE-CONTENT IRREP CONFIRMED** (R-RBS-LM-83 partition closure).
+
+The ratio drops by **only 0.51** when Montessori is added (5.53 vs the 6.04 baseline; both massively above the 3.0 confirmation threshold and the 2.0 falsification threshold). The math-irrep appearance is **not** an artefact of an incomplete substrate catalogue. Even with the substrates math most plausibly composes over explicitly included, math's substrate-content remains structurally distinct from theirs.
+
+#### §2.8.3 F109 deepening — J-prime math-irrep at 8.63× (R-RBS-LM-87)
+
+R-RBS-LM-87 deepened the F104 finding by decomposing the math-cluster through the I×J cyclic-group + prime-period operators. The result: when the math-irrep claim is tested under Class-J prime-period decomposition specifically, the within/cross ratio rises to **8.63×** — i.e. the irrep signature is *cleaner* (sharper substrate-content separation) under the framework's own prime-period operator than under the generic kernel-similarity test. The deeper diagnostic confirms F104: math's substrate-content is irreducible, and the prime-period operator is the right cascade lens to see it through.
+
+#### §2.8.4 What "math is substrate-content irrep" means structurally
+
+Two distinct readings the data supports:
+
+1. **Substrate-emergent at the highest density.** Per the naming-layer-cost principle (§2.5.4), substrate-emergent vocabulary (concepts that emerge from substrate frequency patterns) is the *cheapest* class to anchor. Math sits at the extreme of this scale — its substrate-emergent density is so high that its concepts are *almost free* relative to other vocabulary classes. This matches the F104 finding: math's cross-corpus alignment is structurally compact because the substrate frequency patterns *are* the math.
+2. **Substrate-content irrep in the representation-theoretic sense.** A substrate-content irreducible representation is a sub-pattern that *cannot* be decomposed into substrate-content contributions from other domains. F104's null-test (no decomposition under Montessori-substrate contributors) is the empirical version of "irrep = cannot-be-written-as-direct-sum-of-other-substrate-irreps." This is the structural shape the framework asserts.
+
+Both readings cohere: **math substrate-content is dense + irrep**. The 8.63× J-prime deepening (F109) is consistent with both — the prime-period decomposition resolves the irrep at finer granularity, which is exactly what should happen when a substrate-content irrep is examined through the operator that natively matches its substrate-vocabulary (the Class J prime-period / Class I cyclic-group composition that underlies algebraic structure).
+
+#### §2.8.5 Cross-substrate prediction — where else does the irrep signature appear?
+
+F104 generalises into a cross-substrate prediction: **any domain whose substrate-content is irreducible at the substrate-emergent layer** should exhibit a similar within/cross ratio surviving the addition of its candidate composing substrates. Predicted candidate domains (in priority order of irrep-tightness):
+
+1. **Mathematics** — confirmed by F104/F109 at 5.53–8.63×. The framework's existing position.
+2. **Music theory** — predicted irrep based on Pythagorean / well-tempered scale structure being substrate-emergent from frequency ratios; the cross-substrate match with Spike #40 (epicycle in musical and wave theory) supports this.
+3. **Antikythera-style mechanical cascade** — predicted irrep based on Spike #218's antiquity-anchor confirmation that gear-period substrate-content is irreducible at the cyclic-group level.
+4. **DNA codon vocabulary** — predicted irrep based on the established (Spike #81) B/H/N substrate-content reading of the genetic code as Class I cyclic-3 + Class C cascade-orientation.
+
+If any of these *fails* the F104-style ratio survival test when its candidate composing substrates are added, it isn't a substrate-content irrep — and the framework's classification needs revision for that domain. R-RBS-LM-83-style smoke harness extension to one of these (music theory looks easiest because the corpus material is abundant) is a clean cross-substrate test candidate.
+
+#### §2.8.6 Composition with the existing canonical stances
+
+F104 + F109 align with several existing canonical positions:
+
+- **`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`**: math is the substrate-content the cyclic-algebra-path describes natively; F104 confirms empirically that math is irrep-compact under this description.
+- **`[[user_stance_kepler_shape_universal]]`**: algebra IS the primitives; math substrate-content being irrep aligns with the framework's claim that the A–N operators *are* the structural form of math.
+- **`[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`**: the substrate-native partition `{A} + {I,C,J} + {D,E,F,G,K,L,M} + {B,H,N}` carries math's substrate-content in the operator vocabulary itself — the F109 J-prime deepening of F104 surfaces *which* slot of the 14 most tightly carries the math irrep.
+- **§2.5.4 naming-layer-cost**: math's substrate-emergent density is the F104 numerical confirmation of the cheap-naming-tier — math vocabulary is structurally close to substrate frequency patterns; conventional naming is essentially free in math.
+
+#### §2.8.7 Falsifier discipline
+
+- **F104 falsifier:** a substrate-set extension that drops the math within/cross ratio below 2.0 when a *new* candidate composing substrate is added — meaning math *was* composition over a previously-missing substrate. Candidate: spatial/visual reasoning corpora (geometry textbooks; topology lectures) — could reveal a visual-substrate component F104 missed. Worth testing in a follow-up R-RBS-LM partition.
+- **F109 falsifier:** a Class-J prime-period decomposition under careful methodology that gives ratio ≤ 5.53 (i.e. *not cleaner* than the generic kernel test). Would mean the J-operator deepening is methodological artefact, not substrate-vocabulary match. R-RBS-LM-87 set up the test; F109 confirmed; a sub-matrix robustness check would refine.
+- **Cross-substrate-prediction falsifier:** music theory failing to exhibit irrep-tightness when tested under R-RBS-LM-83-style methodology with appropriate composing-substrate candidates added. Would falsify the §2.8.5 generalisation that *all* substrate-emergent-dense domains are irreps.
+
+#### §2.8.8 What §2.8 is NOT
+
+- **Not** a claim that math is "more important" than other substrates (the user-stance discipline applies here as in §2.7 — the framework reads form, not value).
+- **Not** a claim that *every* mathematical sub-domain is irrep at the same density. F109's 8.63× under J-prime decomposition suggests that *prime-period* mathematics (algebra, number theory) is the irrep core; analysis / topology / geometry sub-domains may have different irrep signatures testable in follow-up partitions.
+- **Not** a claim that the kinesthetic / procedural / hands-on substrates "don't matter" for math pedagogy. F105 (the autonomous session's follow-up finding) reads exactly this distinction: glass-box detects *methodology-substrate* (Montessori = how-to-teach) vs *content-substrate* (OpenStax = math content). Both substrates are real; they are simply structurally distinct, which is why F104's ratio survives adding Montessori.
+
+> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + §2.7 religious-texts ceiling validation + **§2.8 math-is-substrate-content-irrep** (cluster T / F104+F109 / R-RBS-LM-83+87). **All five §2.3 keystone promotions complete (J / K / P / R / T).** F1–F119 backlog triage round closed. Future passes: cluster G (ASL gloss), cluster L (turtle-walk falsifier-discipline), F100/F101/F103/F105 supporting evidence around F104, and the §2.8.5 cross-substrate prediction tests (music theory / Antikythera mechanical / DNA codon).
 
 ---
 
