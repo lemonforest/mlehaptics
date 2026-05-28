@@ -1,0 +1,80 @@
+# Cascade catalog entry: chiral_dual
+# v0.4.5rc8 of the cascade-catalog C-parity + TOML retrofit — op 8 of 8.
+# HIGHER-ORDER cascade: takes a callable as input; uses callback ABI.
+# CLOSES THE ARC: after rc8 all 8 cascade ops have full C/Python parity.
+
+[cascade]
+name = "chiral_dual"
+class_composition = "C ∘ op ∘ C"
+purpose = "Higher-order Class C orientation conjugation of an arbitrary op."
+description = """
+Conjugate any unary cascade operator by Class C orientation reversal —
+the chiral-dual: preserves spectral magnitude, inverts phase orientation.
+
+For rotation/fiber operators: orientation-inverse.
+For sign/orientation operators (Class C, Class N): reduces to bare Class K -1.
+For real-symmetric operators (Class L): identity.
+
+Verified across all 14 A–N operators in
+docs/srmech/notes/spike_chiral_an_spectral_shape.py (MFO §VIII.31.11
+§(5b)/(5c)).
+"""
+
+[cascade.signature]
+input = "tuple[callable, sequence[float64]]"
+output = "sequence[same-type-as-input-x]"
+operation = "chiral_flip(op(chiral_flip(x)))"
+preserves_magnitude_spectrum = true
+inverts_phase_orientation = true
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_chiral_dual_f64"
+c_callback_typedef = "srmech_cascade_op_callback_f64_t"
+abi_version = 2
+
+[cascade.higher_order]
+op_arity = 1
+op_signature_python = "callable(ndarray[float64]) -> ndarray[float64] | list[float64] | tuple[float64]"
+op_signature_c = "srmech_status_t (*op)(const double *in, size_t n, double *out, void *user_data)"
+workspace_required = true
+workspace_size = "n doubles, caller-allocated"
+malloc_policy = "no malloc inside libsrmech (JPL Rule 3); caller provides workspace"
+
+[cascade.composes]
+class_c_inner = "chiral_flip (rc1)"
+class_c_outer = "chiral_flip (rc1)"
+op_position = "middle (caller-supplied)"
+
+[cascade.callback_marshaling]
+python_to_c = "ctypes.CFUNCTYPE wraps Python op as a C callback"
+c_to_python = "numpy.ctypeslib.as_array wraps C buffers as numpy views (no copy)"
+error_propagation = "callback_error list captures Python exceptions; raised after C return"
+
+[cascade.design_choice]
+# Why Option A (function-pointer callback) and NOT Option B (Class-ID
+# enum dispatch over known A-N srmech ops):
+#   Option B would limit chiral_dual to the closed set of A-N srmech ops
+#   and break the public API contract that the cascade catalog accepts
+#   arbitrary Python callables for `op`. Option A preserves the
+#   contract; the only Python <-> C boundary is the callback (wrapped
+#   via ctypes.CFUNCTYPE on the Python side).
+#
+# Why a caller-allocated workspace:
+#   JPL Rule 3 — no dynamic allocation inside libsrmech. The caller
+#   knows n at the dispatch layer (the Python ref allocates via
+#   numpy.empty; embedded C callers do their own static or stack
+#   allocation).
+chosen = "Option A — function-pointer callback"
+rejected = "Option B — Class-ID enum dispatch"
+rationale = "Option A preserves the cascade-catalog public API contract that op can be any callable; Option B would restrict to known A-N srmech ops."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc8"
+canonical_landings = [
+  "MFO §VIII.31.11 §(5b) — chiral dual same shape inverse",
+  "MFO §VIII.31.11 §(5c) — operator-class dual partition (7 inverse, 2 pure-180, 1 degenerate, 4 structural)",
+  "docs/srmech/notes/spike_chiral_an_spectral_shape.py — 14-operator sweep",
+  "Spike #74 / #89 (Class C composition net-chirality)",
+]

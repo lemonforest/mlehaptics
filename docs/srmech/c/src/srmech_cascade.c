@@ -60,6 +60,14 @@
  * round(). NaN and sub-dead-band magnitudes map to (0, 1) matching
  * the Python reference impl.
  *
+ * v0.4.5rc8 op: `chiral_dual` (HIGHER-ORDER Class C ∘ op ∘ Class C
+ * conjugation). The LAST cascade op in the arc and the ONLY higher-
+ * order one — takes a function-pointer callback for the inner op plus
+ * a void *user_data for opaque caller-supplied context. Delegates the
+ * Class C inner+outer chiral_flip to the rc1 native peer. Workspace is
+ * caller-allocated (JPL Rule 3 — no malloc inside libsrmech). CLOSES
+ * the cascade-catalog C-parity arc at 8 of 8.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -477,4 +485,63 @@ srmech_status_t srmech_cascade_best_rational_signed_f64(
     *out_num = (orientation < 0) ? -nf_i : nf_i;
     *out_den = (int64_t)df;
     return SRMECH_OK;
+}
+
+/* chiral_dual — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation.
+ *
+ * Closes the cascade-catalog C-parity arc (v0.4.5rc8; op 8 of 8). The
+ * only higher-order cascade op — takes a function-pointer callback for
+ * the inner op plus an opaque user_data pointer.
+ *
+ * Algorithm (3 steps; delegates to the rc1 chiral_flip C peer twice):
+ *   1. workspace = chiral_flip(in)        via srmech_cascade_chiral_flip_f64
+ *   2. out       = op(workspace, ud)      via the supplied callback
+ *   3. out       = chiral_flip(out)       via srmech_cascade_chiral_flip_f64
+ *                                          (in-place; the rc1 peer
+ *                                          supports in == out)
+ *
+ * Memory: workspace MUST be caller-allocated with capacity >= n
+ * doubles (JPL Rule 3 — no malloc inside libsrmech). The caller knows
+ * n and allocates accordingly.
+ *
+ * JPL conformance: ≥2 asserts (op != NULL + out != NULL pre-conditions),
+ * bounded (no loops at this level; the delegated chiral_flip carries
+ * its own n/2-bounded loop and the op callback is the caller's
+ * responsibility), ≤60 lines, no malloc, no goto.
+ */
+srmech_status_t srmech_cascade_chiral_dual_f64(
+    srmech_cascade_op_callback_f64_t op,
+    void                              *user_data,
+    const double                     *in,
+    size_t                            n,
+    double                           *out,
+    double                           *workspace)
+{
+    if (op == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > 0 && (in == NULL || workspace == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(op != NULL);
+    assert(out != NULL);
+    if (n == 0) {
+        /* Empty cascade: chiral_flip(op(chiral_flip([]))) = [].
+         * Still call the callback for API consistency (the caller may
+         * use n == 0 to trigger initialisation side-effects). */
+        return op(in, 0, out, user_data);
+    }
+    /* Step 1: workspace = chiral_flip(in) via the rc1 C peer. */
+    srmech_status_t rc = srmech_cascade_chiral_flip_f64(in, n, workspace);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    /* Step 2: out = op(workspace). Callback may fail; propagate. */
+    rc = op(workspace, n, out, user_data);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    /* Step 3: out = chiral_flip(out) in-place via the rc1 C peer
+     * (chiral_flip_f64 supports in-place per its documented contract). */
+    return srmech_cascade_chiral_flip_f64(out, n, out);
 }

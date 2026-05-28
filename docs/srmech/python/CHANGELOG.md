@@ -4,7 +4,56 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 added net_chirality (LAST of the simple pure-Python cascade ops); v0.4.5rc6 added cyclic_gcd (FIRST of the delegating cascade ops); v0.4.5rc7 adds best_rational_signed (multi-class K∘N∘C cascade — second of the delegating cascade ops; Class N delegated to srmech_best_rational, Class K + Class C inlined; banker's-rounding parity via llrint() + IEEE-754 FE_TONEAREST) plus a README full-feature update stripping the residual "no dedicated C symbol" carve-out per user directive 2026-05-28. One cascade op remains queued: chiral_dual (higher-order; callback ABI design — closes the arc). Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5** (clean ship — cascade-catalog C-parity arc CLOSED at rc8). v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 added reorient; v0.4.5rc5 added net_chirality (LAST of the simple pure-Python cascade ops); v0.4.5rc6 added cyclic_gcd (FIRST of the delegating cascade ops); v0.4.5rc7 added best_rational_signed (multi-class K∘N∘C cascade — second of the delegating cascade ops); v0.4.5rc8 adds chiral_dual (HIGHER-ORDER — the ONLY higher-order cascade op; callback ABI via srmech_cascade_op_callback_f64_t typedef; caller-allocated workspace per JPL Rule 3; delegates Class C inner+outer chiral_flip to the rc1 native peer) and CLOSES THE ARC. After rc8 ship all 8 cascade catalog ops have full C/Python parity + TOML descriptors; ready for clean v0.4.5 ship to production PyPI. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc8] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — chiral_dual**
+(rc8 of 8; HIGHER-ORDER callback ABI; **CLOSES THE ARC**). After this
+ship all 8 cascade catalog ops have full C/Python parity + TOML
+descriptors. The carve-out corrections begun in v0.4.5rc1 are complete.
+
+`chiral_dual` is the ONLY higher-order cascade op in the catalog — it
+takes a callable `op` as input and conjugates it with Class C
+orientation reversal: `chiral_flip(op(chiral_flip(x)))`. The C peer
+uses a function-pointer callback ABI (Option A) rather than a
+Class-ID enum dispatch (Option B); Option B would have restricted
+`chiral_dual` to known A-N srmech ops, breaking the cascade-catalog
+public API contract that `op` can be any callable.
+
+- Added: `srmech_cascade_chiral_dual_f64` C symbol (higher-order;
+  callback ABI via `srmech_cascade_op_callback_f64_t` typedef;
+  caller-allocated workspace per JPL Rule 3; delegates the Class C
+  inner+outer chiral_flip to the rc1 native peer). ABI unchanged at 2.
+- Added: `srmech_cascade_op_callback_f64_t` public typedef in
+  `srmech.h` (callback signature for higher-order cascade ops).
+- Added: `_research/cascade_catalog/chiral_dual.toml` — eighth and
+  final TOML cascade-catalog entry with `[cascade.higher_order]` +
+  `[cascade.callback_marshaling]` + `[cascade.design_choice]`
+  sections documenting the callback ABI + the Option A vs Option B
+  design decision.
+- Added: `tests/test_cascade_chiral_dual_parity.py` — parity across
+  identity / negation / non-trivial / ndarray / empty / singleton /
+  random sweep / Python exception propagation / wrong-length-output
+  guard / mixed-type fallback / string fallback / non-callable op
+  fallback.
+- Added: `CASCADE_OP_CALLBACK_F64` ctypes CFUNCTYPE exposed at
+  `srmech.amsc._native` module scope (mirrors the C typedef
+  `srmech_cascade_op_callback_f64_t`) so the Python dispatch can
+  construct callback instances without reaching into the library-
+  binding closure.
+- Changed: `srmech.amsc.cascade.chiral_dual` dispatches through native
+  for homogeneous float64 sequences (list / tuple / 1-D ndarray);
+  Python fallback retained for strings, mixed-type sequences, non-
+  callable ops, multi-arg ops, etc. Python exceptions raised by the
+  op callback propagate correctly through the trampoline (never
+  silently swallowed).
+
+Cascade-catalog C-parity + TOML retrofit arc CLOSED at rc8. All 10
+cascade C symbol families exported (chiral_flip i64+f64,
+pin_slot_at_zero f64, magnitude f64, reorient i64+f64, net_chirality
+i8, cyclic_gcd u64, best_rational_signed f64, chiral_dual f64). Ready
+for clean v0.4.5 ship to production PyPI.
 
 ## [0.4.5rc7] - 2026-05-28
 

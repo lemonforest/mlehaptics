@@ -632,6 +632,97 @@ def chiral_flip(seq):
     return seq[::-1]
 
 
+def _try_native_chiral_dual(op, x):
+    """Native dispatch for chiral_dual (Class C ∘ op ∘ Class C).
+
+    Dispatches through the rc8 callback ABI when ``x`` is a homogeneous
+    float64 sequence (list / tuple / 1-D ndarray). The Python ``op``
+    callable is wrapped as a ctypes CFUNCTYPE; the callback marshals
+    Python ↔ C via numpy view + ctypes.memmove.
+
+    Returns the chirally-dual result on success or ``None`` to signal
+    the caller to fall through to the Python composition path. If the
+    Python op raises an exception inside the callback, the exception is
+    captured and re-raised on the Python side (after the C function
+    returns); the native path is NOT silently treated as a fall-through
+    in that case.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_chiral_dual_f64"):
+        return None
+    if not callable(op):
+        return None
+    # Detect 1-D float64 ndarray input.
+    is_ndarray = hasattr(x, "dtype") and hasattr(x, "ndim")
+    if is_ndarray:
+        import numpy as _np
+        if x.ndim != 1 or x.dtype != _np.float64:
+            return None
+        n = int(x.shape[0])
+        in_buf = _np.ascontiguousarray(x, dtype=_np.float64)
+    elif isinstance(x, (list, tuple)):
+        # Homogeneous float-only sequences route through native; mixed
+        # int+float and other shapes fall through to Python.
+        if not all(isinstance(v, float) for v in x):
+            return None
+        import numpy as _np
+        n = len(x)
+        in_buf = _np.asarray(x, dtype=_np.float64)
+    else:
+        return None
+
+    import numpy as _np
+    workspace = _np.empty(n, dtype=_np.float64)
+    out_buf = _np.empty(n, dtype=_np.float64)
+
+    # Callback: marshal C pointer + length back into a numpy view,
+    # invoke the Python op, copy result into the C output buffer. The
+    # GIL is held inside CFUNCTYPE callbacks automatically; no extra
+    # threading discipline needed.
+    callback_error: list = [None]
+
+    def _op_trampoline(in_ptr, in_n, out_ptr, _user_data):
+        try:
+            # Wrap C in/out buffers as numpy views (no copy).
+            in_view = _np.ctypeslib.as_array(in_ptr, shape=(int(in_n),))
+            out_view = _np.ctypeslib.as_array(out_ptr, shape=(int(in_n),))
+            result = op(in_view)
+            # Coerce to ndarray; verify length matches.
+            result_arr = _np.asarray(result, dtype=_np.float64).ravel()
+            if result_arr.shape != (int(in_n),):
+                callback_error[0] = ValueError(
+                    f"chiral_dual callback returned length "
+                    f"{result_arr.shape[0]}; expected {int(in_n)}"
+                )
+                return -1  # any nonzero status; reported via callback_error
+            out_view[:] = result_arr
+            return 0  # SRMECH_OK
+        except Exception as exc:
+            callback_error[0] = exc
+            return -1
+
+    c_callback = _native.CASCADE_OP_CALLBACK_F64(_op_trampoline)
+
+    rc = _native.LIB.srmech_cascade_chiral_dual_f64(
+        c_callback,
+        None,  # user_data unused (the Python op is captured by closure)
+        in_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        out_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        workspace.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+    )
+    # If the Python op raised, surface it — never silently fall back to
+    # Python composition (which would re-execute the failing op).
+    if callback_error[0] is not None:
+        raise callback_error[0]
+    if rc != _native.SRMECH_OK:
+        return None
+    if is_ndarray:
+        return out_buf
+    return out_buf.tolist() if isinstance(x, list) else tuple(out_buf.tolist())
+
+
 def chiral_dual(op, x):
     """Class C ∘ op ∘ Class C: run ``op`` in the opposite Class-C orientation.
 
@@ -645,6 +736,22 @@ def chiral_dual(op, x):
     bare Class K ``-1``; for real-symmetric operators (Class L) it is the
     identity. **No new class** — this is Class C composed with ``op``.
 
+    v0.4.5rc8: HIGHER-ORDER cascade — dispatches through the native C
+    variant ``srmech_cascade_chiral_dual_f64`` when ``HAS_NATIVE`` is
+    True and ``x`` is a homogeneous float64 sequence (1-D ndarray
+    float64, or list / tuple of pure Python floats). The C peer uses a
+    function-pointer callback ABI (``srmech_cascade_op_callback_f64_t``)
+    so arbitrary Python ``op`` callables are supported without
+    restricting to known A–N srmech ops — the cascade-catalog public API
+    contract per the project discipline. Workspace is caller-allocated
+    per JPL Rule 3 (no malloc inside libsrmech). Falls back to the pure
+    Python ``chiral_flip(op(chiral_flip(x)))`` composition for strings,
+    mixed-type sequences, non-callable ``op``, multi-arg ``op``, and
+    any other shape the strict native ABI doesn't cover. Python
+    exceptions raised by ``op`` propagate correctly through the
+    callback trampoline (never silently swallowed). CLOSES the cascade-
+    catalog C-parity + TOML retrofit arc at 8 of 8.
+
     Args:
         op: A unary callable mapping a sequence to a sequence (an A–N
             operator's action on a signal).
@@ -654,6 +761,9 @@ def chiral_dual(op, x):
         ``chiral_flip(op(chiral_flip(x)))`` — ``op`` evaluated in the
         reversed Class-C orientation.
     """
+    native = _try_native_chiral_dual(op, x)
+    if native is not None:
+        return native
     return chiral_flip(op(chiral_flip(x)))
 
 
