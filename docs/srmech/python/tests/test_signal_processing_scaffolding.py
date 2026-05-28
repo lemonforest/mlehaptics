@@ -91,21 +91,22 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_4_5rc3():
-    """v0.4.5rc3 — third rc of the cascade-catalog C/Python parity +
-    TOML retrofit arc. Continues the v0.4.5rc1+rc2 carve-out correction
-    by retrofitting ``magnitude`` (Class K pin-slot magnitude-only
-    projection) with a dedicated C symbol
-    (``srmech_cascade_magnitude_f64``) and a TOML descriptor under
-    ``srmech/amsc/_research/cascade_catalog/``. Scalar f64 in / scalar
-    f64 out via output pointer; f64-only fast-path (integer / bool /
-    other numeric inputs stay on the Python composition fallback
-    ``pin_slot_at_zero(x)[1]`` to preserve type contracts); NaN maps to
-    the dead-band 0.0 (parity with the Python ref). Remaining five
-    cascade ops follow in subsequent rcs. ABI unchanged at 2 (additive
-    symbol); no new primitive class."""
-    assert srmech.__version__ == "0.4.5rc3", (
-        f"expected srmech.__version__ == '0.4.5rc3'; got "
+def test_version_is_0_4_5rc4():
+    """v0.4.5rc4 — fourth rc of the cascade-catalog C/Python parity +
+    TOML retrofit arc. Continues the v0.4.5rc1+rc2+rc3 carve-out
+    correction by retrofitting ``reorient`` (Class C cascade-orientation
+    re-application) with dedicated C symbols
+    (``srmech_cascade_reorient_i64`` + ``srmech_cascade_reorient_f64``;
+    type-preserving) and a TOML descriptor under
+    ``srmech/amsc/_research/cascade_catalog/``. Two-arg ABI shape: int8
+    orientation × scalar value; IEEE-754 negation semantics for f64;
+    INT64_MIN documented as a caller-side boundary (Python fallback
+    handles it via arbitrary-precision int). bool orientation, numpy
+    values, lists, and out-of-int64 ints stay on the Python fallback.
+    Remaining four cascade ops follow in subsequent rcs. ABI unchanged
+    at 2 (additive symbols); no new primitive class."""
+    assert srmech.__version__ == "0.4.5rc4", (
+        f"expected srmech.__version__ == '0.4.5rc4'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -113,7 +114,7 @@ def test_version_is_0_4_5rc3():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.4.5rc3"
+    assert version_str == "0.4.5rc4"
     assert version_str == srmech.__version__
 
 

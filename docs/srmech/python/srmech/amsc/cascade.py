@@ -143,8 +143,77 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
     return 0, 0.0
 
 
+def _try_native_reorient(orientation, value):
+    """Native dispatch for reorient (Class C re-orientation).
+
+    Routes:
+      - int orientation (int8 range, not bool) + int value (int64 range,
+        not bool, not INT64_MIN) → reorient_i64
+      - int orientation (int8 range, not bool) + float value → reorient_f64
+      - else (numpy scalars, lists, ndarrays, mixed-type, bool orientation,
+        out-of-range orientation, INT64_MIN int value, out-of-int64 bigint)
+        → None (Python fallback)
+
+    INT64_MIN is explicitly excluded from the i64 path: negating it would
+    overflow under fixed-width two's complement. Python ints are
+    arbitrary precision, so `-(-(2**63))` is well-defined Python-side
+    (returns ``2**63``) — the Python fallback handles this without
+    overflow.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Orientation must be a pure Python int in int8 range (not bool).
+    if type(orientation) is not int or isinstance(orientation, bool):
+        return None
+    if orientation < -128 or orientation > 127:
+        return None
+    # Value: pure Python int or float (no bool, no numpy scalars, no Decimal).
+    if type(value) is int:
+        INT64_MIN = -(2 ** 63)
+        INT64_MAX = (2 ** 63) - 1
+        # Range check for int64; INT64_MIN explicitly excluded (negation
+        # would overflow — Python fallback handles via arbitrary precision).
+        if value <= INT64_MIN or value > INT64_MAX:
+            return None
+        if not hasattr(_native.LIB, "srmech_cascade_reorient_i64"):
+            return None
+        out = ctypes.c_int64(0)
+        rc = _native.LIB.srmech_cascade_reorient_i64(
+            ctypes.c_int8(orientation),
+            ctypes.c_int64(value),
+            ctypes.byref(out),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        return int(out.value)
+    if type(value) is float:
+        if not hasattr(_native.LIB, "srmech_cascade_reorient_f64"):
+            return None
+        out = ctypes.c_double(0.0)
+        rc = _native.LIB.srmech_cascade_reorient_f64(
+            ctypes.c_int8(orientation),
+            ctypes.c_double(value),
+            ctypes.byref(out),
+        )
+        if rc != _native.SRMECH_OK:
+            return None
+        return float(out.value)
+    return None
+
+
 def reorient(orientation: int, value):
     """Class C cascade-orientation: re-apply a captured orientation.
+
+    v0.4.5rc4: dispatches through the native C variants
+    ``srmech_cascade_reorient_i64`` / ``srmech_cascade_reorient_f64``
+    when ``HAS_NATIVE`` is True, ``orientation`` is a pure Python ``int``
+    in int8 range (not bool), and ``value`` is a pure Python ``int`` (in
+    int64 range, not INT64_MIN, not bool) or pure Python ``float``. Falls
+    back to the Python ``-value`` / ``value`` path for numpy scalars,
+    ndarrays, lists, mixed-type values, bool orientation, out-of-int8
+    orientation, INT64_MIN integer values (Python's arbitrary precision
+    handles this without overflow), and out-of-int64 bigint values. The
+    op is type-preserving: int in → int out, float in → float out.
 
     Args:
         orientation: An orientation in ``{-1, 0, +1}`` (typically the first
@@ -154,6 +223,9 @@ def reorient(orientation: int, value):
     Returns:
         ``-value`` when ``orientation < 0``, otherwise ``value`` unchanged.
     """
+    native = _try_native_reorient(orientation, value)
+    if native is not None:
+        return native
     if orientation < 0:
         return -value
     return value

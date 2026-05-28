@@ -4,7 +4,32 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 adds magnitude. Five cascade ops remain queued: reorient, net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: **v0.4.5rcN**. v0.4.5rc1 began the cascade-catalog C/Python parity + TOML retrofit (chiral_flip); v0.4.5rc2 added pin_slot_at_zero; v0.4.5rc3 added magnitude; v0.4.5rc4 adds reorient. Four cascade ops remain queued: net_chirality, cyclic_gcd, best_rational_signed, chiral_dual. Other queued srmech follow-ups beyond the parity sweep (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+
+## [0.4.5rc4] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — reorient**
+(rc4 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_reorient_i64` + `srmech_cascade_reorient_f64`
+  C symbols (JPL-clean; two-arg shape: int8 orientation x scalar value;
+  type-preserving int/float dispatch; IEEE-754 negation semantics for
+  f64). ABI unchanged at 2 (additive symbols).
+- Added: `srmech/amsc/_research/cascade_catalog/reorient.toml` — fourth
+  TOML cascade-catalog entry with native-symbol mapping + INT64_MIN
+  boundary-case documentation + attestation.
+- Changed: `srmech.amsc.cascade.reorient` now dispatches through native
+  for `int8 orientation x int64 value` or `int8 orientation x float64
+  value`; Python fallback retained for numpy scalars, ndarrays,
+  lists, mixed types, bool orientation, out-of-int64 values, and
+  INT64_MIN guard (avoids overflow).
+- Added: `tests/test_cascade_reorient_parity.py` — parity across int /
+  float / numpy / list / NaN / +/-Inf / INT64_MIN guard / out-of-int64
+  fallback / bool orientation / out-of-int8 orientation / random
+  sweeps.
+
+Remaining 4 cascade ops queued: net_chirality, cyclic_gcd,
+best_rational_signed, chiral_dual.
 
 ## [0.4.5rc3] - 2026-05-28
 

@@ -728,6 +728,30 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_magnitude_f64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_reorient_i64"):
+        # int srmech_cascade_reorient_i64(int8_t   orientation,
+        #                                  int64_t  value,
+        #                                  int64_t *out)
+        # v0.4.5rc4 — Class C cascade-orientation re-application (i64).
+        lib.srmech_cascade_reorient_i64.argtypes = [
+            ctypes.c_int8,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_reorient_i64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_reorient_f64"):
+        # int srmech_cascade_reorient_f64(int8_t  orientation,
+        #                                  double  value,
+        #                                  double *out)
+        # v0.4.5rc4 — Class C cascade-orientation re-application (f64).
+        lib.srmech_cascade_reorient_f64.argtypes = [
+            ctypes.c_int8,
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_reorient_f64.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

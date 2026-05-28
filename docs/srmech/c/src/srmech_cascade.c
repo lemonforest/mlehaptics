@@ -27,6 +27,14 @@
  * (the Class K dead-band) — preserves parity with the Python reference
  * impl where pin_slot_at_zero(nan) -> (0, 0.0).
  *
+ * v0.4.5rc4 op: `reorient` (Class C cascade-orientation re-application).
+ * Two typed variants — i64 and f64 — reflecting that the op is
+ * type-preserving (Python `reorient(-1, 5)` -> -5 int;
+ * `reorient(-1, 3.14)` -> -3.14 float). Two-arg shape: int8 orientation
+ * x scalar value; value negated iff orientation < 0 (only the SIGN of
+ * orientation matters, zero and positive both pass through). NaN and
+ * +/-Inf pass through under IEEE-754 negation in the f64 variant.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -168,5 +176,78 @@ srmech_status_t srmech_cascade_magnitude_f64(double  x,
      * (positive branch returns x>0; negative returns -x>0; else
      * returns the literal 0.0 — including the NaN-falls-through path). */
     assert(*magnitude_out >= 0.0);
+    return SRMECH_OK;
+}
+
+/* reorient — Class C cascade-orientation re-application (int64 variant).
+ *
+ * Re-applies a captured orientation in {-1, 0, +1} to an integer value.
+ * Returns -value when orientation < 0; returns value unchanged otherwise
+ * (only the SIGN of orientation matters — zero and positive both pass
+ * through, matching the Python reference impl `if orientation < 0:
+ * return -value; return value`).
+ *
+ * Boundary note: INT64_MIN cannot be negated without overflow under
+ * fixed-width two's-complement (Python ints are arbitrary precision so
+ * `-(-9223372036854775808)` is well-defined Python-side, but the i64
+ * ABI is fixed-width). Callers MUST NOT pass INT64_MIN here; the
+ * Python dispatch in srmech.amsc.cascade guards this by falling back
+ * to the Python path for INT64_MIN inputs.
+ */
+srmech_status_t srmech_cascade_reorient_i64(int8_t   orientation,
+                                             int64_t  value,
+                                             int64_t *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    /* Class C re-application: negate iff orientation < 0.
+     * Zero and positive orientation both pass value through. */
+    if (orientation < 0) {
+        *out = -value;
+    } else {
+        *out = value;
+    }
+    /* Post-condition: result is either value (orientation >= 0 branch)
+     * or -value (orientation < 0 branch). For INT64_MIN, two's-complement
+     * negation overflows and wraps back to INT64_MIN — the second clause
+     * of the disjunction admits that documented boundary case (the
+     * Python dispatch guards INT64_MIN so this path is unreachable from
+     * the supported API surface). */
+    assert((orientation < 0) ? (*out == -value || value == INT64_MIN)
+                              : (*out == value));
+    return SRMECH_OK;
+}
+
+/* reorient — Class C cascade-orientation re-application (f64 variant).
+ *
+ * IEEE-754 negation flips the sign bit; NaN stays NaN (sign-bit flip
+ * does not change NaN-ness), +/-Inf swap under orientation < 0, +/-0.0
+ * swap under orientation < 0. Matches Python's `-` operator semantics
+ * exactly.
+ */
+srmech_status_t srmech_cascade_reorient_f64(int8_t  orientation,
+                                             double  value,
+                                             double *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    if (orientation < 0) {
+        *out = -value;
+    } else {
+        *out = value;
+    }
+    /* Post-condition: for the orientation >= 0 branch the output IS the
+     * input bit-pattern; for the orientation < 0 branch IEEE-754
+     * negation flips the sign bit. NaN comparisons are excluded from
+     * the equality check because NaN != NaN under IEEE-754 — the
+     * assertion is therefore gated on `value == value` (true for all
+     * non-NaN values; false for NaN, in which case the assertion
+     * trivially passes by short-circuiting on the first clause). */
+    assert((value != value) ||
+           ((orientation < 0) ? (*out == -value) : (*out == value)));
     return SRMECH_OK;
 }
