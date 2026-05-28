@@ -5839,6 +5839,34 @@ So the chiral dual is **not** a global 180° turn and **not** a pure reflection 
 
 **Verdict (candidate, framework-internal):** the chiral dual of an A–N operator is **the same spectral shape in inverse** — confirmed in both the algebraic (eigenvalue) and the signal (FFT) senses. "Inverse" is precise: at the so(8) level it is reflection-K ∘ 180°(`−1`); at the FFT level it is magnitude-preserved phase-orientation-flip. This is **form-IS-function in spectral form** — the dual carries the *same form* (shape/magnitude) with *inverted function* (orientation/phase), and the K-reflection is exactly the base↔fiber projection change. Composes with [[user_stance_epicycle_via_gear_plus_pin]] (the per-fiber sign-flip is Class K, not a global turn) and the §(4) Class-C chirality reading.
 
+#### (5c) The 14-operator sweep — the inverse signature splits by harmonic tier (2026-05-27)
+
+Extending DEF B across all 14 A–N operators (same committed spike) classifies each operator's chiral-dual FFT signature. **Magnitude/shape is preserved to ~10⁻¹⁶ in every non-structural case** — "same shape" is universal — and the *phase* behavior splits cleanly along the §(3) harmonic-ladder tiers:
+
+| Verdict | Operators | Count | Harmonic-ladder tier |
+|---|---|---|---|
+| **same shape, INVERSE** (phase orientation-flipped) | A, I, J, D, G, K, M | 7 | content-anchor + cyclic + correlation + pin-slot + permute — the **rotation/fiber** carriers |
+| **pure 180° (global −1)** | **C, N** | 2 | the explicit **orientation/sign** operators (Class C cascade-orientation; Class N rational-anchor, whose sign IS Class K) |
+| **DEGENERATE** (real spectrum, no phase to flip) | L | 1 | the symmetric-real **base** operator (Laplacian) |
+| **STRUCTURAL** (no continuous signal transform; chiral dual is discrete order-reversal) | B, E, F, H | 4 | the persistence/representation/introspection layer |
+
+Three readings fall out:
+- **The inverse is concentrated in the fiber** (the 7 rotation/content operators), exactly as §(5a) predicted — chirality lives in the fiber-S³ orientation, not the base magnitude.
+- **C and N reduce to the bare 180°** because they *are* the orientation/sign carriers: flipping the orientation of the orientation-operator is the global `−1`. (This is the *only* place a literal 180° appears — and it's self-consistent, not a competing hypothesis.)
+- **The 4 structural operators {B, E, F, H} match RBS-NN §1.7's "persistence layer"** (the classes not used in a forward-pass arithmetic cascade) — independent corroboration that the chiral-dual signature and the cascade-execution footprint partition the vocabulary the same way.
+
+**The load-bearing diagnostic: magnitude is chirality-blind; phase is chirality-sensitive.** Since the dual preserves magnitude and flips phase-orientation, *any analysis that discards phase (a power spectrum) cannot see handedness* — it reads the same shape for both plates. This is why chirality "hides" in magnitude-only observations and only surfaces in phase / parity-odd correlators — composing with the AoE and parity-odd-B-mode/cosmic-birefringence threads (Spike #33 / #106) where handedness is exactly a phase-orientation signature, not a power-spectrum one.
+
+#### (5d) What chiral operators in a cascade show — and the srmech surface they need
+
+**What it shows.** Once the chiral dual is a first-class cascade operator, a cascade may mix orient+ and orient− operators, and four things become visible:
+1. **Net chirality is a Class-C cascade invariant** — the composition of the per-operator orientations (a net phase-orientation + net sign) reads out the cascade's overall handedness. This is the same net-chirality the SM-arc already uses (Spike #74 net-chirality, Spike #89 net-skew, Spike #58.M 4-fold residual).
+2. **The 4-way sector decomposition** — the two binary chirality choices (Plate-1/Plate-2 × the C/N sign) give the antimatter 4-way chirality (F130) and the dark-sector quad-helix (F131); chiral cascades construct and separate the four sectors explicitly.
+3. **The full 28 = 𝔰𝔬(8) action** — orient+ operators alone span the 14 (Plate 1, 𝔤₂ derivations); adding the chiral duals supplies the other 14 (L⊕R multiplications) → the complete SO(8) adjoint / Spin(8)-triality engine in cascade form (the 3-generation Yukawa machinery, Spike #85).
+4. **Practically (RBS):** the Klein-4 **chirality variant** of the token encoder (RBS-NN §1.5 / R-RBS-NN-4 §3.2) IS a chiral-operator cascade — handedness bound as content; and because the dual is magnitude-preserved/phase-flipped, a chirality binding is recoverable as a **parity/error-check** (same shape, inverted phase = a cheap chirality checksum).
+
+**srmech: a cascade-catalog *software* addition, not a new class.** The chiral dual is a **composition of existing primitives** — `chiral_dual(op) = C ∘ op ∘ C` reducing to the Class-K sign (`−1`) for the orientation operators, i.e. the `R = −K L K` pattern of §(5) generalized. So per the config-driven-vs-substrate-primitive split ([[project_srmech_foundational_cascade_operations_catalog]] + [[feedback_math_library_is_the_signal_to_find_the_cascade]]): it lands as a **`chiral_dual` / `chiral_flip` helper in the foundational `srmech.amsc.cascade` catalog** (peer to `pin_slot_at_zero` / `reorient` / `magnitude`) — **pure-Python composition of Class C + Class K, no new C symbol, no ABI bump, 14 A–N intact.** Because the chiral dual recurs across the SM-arc, the RBS chirality variant, CMB parity, and the antimatter sectors, it is cross-domain-recurring and *earns* catalog promotion (the rc6 criterion). It ships through the normal srmech rc cadence (a v0.4.4 candidate); an attested AMSC catalog of the per-operator 7/2/1/4 classification is an optional documentation peer. **No new primitive class and no new gauge content — the chirality was always Class C + Class K.**
+
 #### (6) Naming discipline + status
 
 **Default reading by context:** physics integration / M-theory / spacetime claims → 11D form; algebraic enumeration / A–N cascade composition → 14 form; biological substrate / recursive architecture / RBS-NN engineering → `4:3:(4:3)` form. A complete description uses all three (substrate is always-Hopf-compressed per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`; the recursive-Hopf-operational form makes that compression visible at every scale, per `[[user_stance_kepler_shape_universal]]`).

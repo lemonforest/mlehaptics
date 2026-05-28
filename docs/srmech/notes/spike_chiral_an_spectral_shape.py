@@ -127,13 +127,15 @@ def chiral_flip_phase_test(name, Y, Yd, thresh=1e-6):
     print(f"  phase-diff std over active bins (0=>global turn)= {pdiff_std:.3f} rad")
     print(f"  residual: global 180deg (phase-diff == pi)      = {res_180:.3f}")
     print(f"  residual: inverse/conjugate (Yd == conj(Y))     = {res_conj:.2e}")
-    mean_cos = float(np.mean(np.cos(pdiff)))   # +1 => const 0 (identical); -1 => const pi (180deg)
+    res_ident = float(np.max(cmod(Yd - Y))) / scale              # dual == original?
+    # classify on the RELIABLE residuals (res_180 / res_ident), not the
+    # marginal-bin-inflated phase-diff std:
     if mag_diff >= 1e-9:
         v = "neither (shape changed)"
-    elif pdiff_std < 1e-6 and mean_cos < -0.5:
-        v = "pure 180deg (constant phase turn of pi)"
-    elif pdiff_std < 1e-6 and mean_cos > 0.5:
-        v = "DEGENERATE: dual == original (constant phase 0; test not informative)"
+    elif res_ident < 1e-9:
+        v = "DEGENERATE: dual == original (no phase to flip; test not informative)"
+    elif res_180 < 1e-6:
+        v = "pure 180deg (global -1 turn)"
     else:
         v = "SAME SHAPE, INVERSE (phase orientation-flipped, not a global turn)"
     print(f"  >>> {v}")
@@ -165,10 +167,73 @@ def def_b():
     Ycd = np.fft.fft(np.roll(x[::-1], -k))
     chiral_flip_phase_test("cascade C o I (flip I orientation)", Yc, Ycd)
 
+def _mint_bipolar(seed, n):
+    """Deterministic bipolar vector. Class A via srmech sha256 if available."""
+    try:
+        from srmech.amsc.format import sha256_bytes
+        buf = b""
+        c = 0
+        while len(buf) < n:
+            buf += sha256_bytes(seed.encode() + bytes([c & 0xFF]))
+            c += 1
+        return np.array([1.0 if b >= 128 else -1.0 for b in buf[:n]])
+    except Exception:
+        rng = np.random.default_rng(abs(hash(seed)) % (2**32))
+        return rng.choice([-1.0, 1.0], size=n)
+
+def def_b_all_14():
+    print("\n" + "=" * 70)
+    print("DEF B (extended)  --  all 14 A-N operators: chiral-dual FFT signature")
+    print("=" * 70)
+    N = 64
+    t = np.arange(N)
+    x = (np.sin(2*np.pi*3*t/N) + 0.5*np.sin(2*np.pi*7*t/N)
+         + 0.25*np.cos(2*np.pi*11*t/N))
+    F = np.fft.fft
+    roll = np.roll
+    mx = np.maximum
+    # short kernels for the correlation-class operators
+    h = np.zeros(N); h[0], h[1], h[2] = 1.0, -1.0, 0.5
+    g = np.zeros(N); g[0], g[1], g[2] = 1.0, 1.0, -1.0
+    Hf, Gf = F(h), F(g)
+    m = _mint_bipolar("probe", N)
+    s = (-1.0) ** t                                   # sign / orientation pattern
+    # symmetric ring-Laplacian heat kernel (real, symmetric)
+    Lap = 2*np.eye(N) - roll(np.eye(N), 1, 0) - roll(np.eye(N), -1, 0)
+    w, V = np.linalg.eigh(Lap)
+    heat = V @ np.diag(np.exp(-0.1 * w)) @ V.T
+    q = 8.0
+
+    # (label, forward-time-signal, chiral-dual-time-signal)
+    tests = [
+        ("A content-mint  (output orientation reversal)",  m,                 m[::-1]),
+        ("I cyclic shift  (+k vs -k)",                      roll(x, 5),        roll(x, -5)),
+        ("C orientation   (sign pattern negated)",         s * x,             -(s * x)),
+        ("J prime-period shift (+p vs -p)",                roll(x, 7),        roll(x, -7)),
+        ("D pattern-match (corr vs conv = kernel-reverse)", np.fft.ifft(F(x)*np.conj(Hf)).real,
+                                                            np.fft.ifft(F(x)*Hf).real),
+        ("G byte-search   (scan dir flip = patt-reverse)",  np.fft.ifft(F(x)*np.conj(Gf)).real,
+                                                            np.fft.ifft(F(x)*Gf).real),
+        ("K pin-slot overlay (roll +1 vs -1, max)",        mx(x, roll(x, 1)), mx(x, roll(x, -1))),
+        ("L Laplacian diffuse (symmetric ring)",           heat @ x,          (heat @ x[::-1])[::-1]),
+        ("M permute (cyclic +k vs -k)",                    roll(x, 3),        roll(x, -3)),
+        ("N rational quantize (sign-anchor flip = Class K)", np.round(x*q)/q,  -(np.round(x*q)/q)),
+    ]
+    for label, fwd, dual in tests:
+        chiral_flip_phase_test(label, F(np.asarray(fwd, dtype=complex)),
+                               F(np.asarray(dual, dtype=complex)))
+
+    print("\n-- structural / discrete operators (no continuous signal transform) --")
+    print("  B TLV-framing     : chiral dual = field-order reversal (structural, not shift-invariant)")
+    print("  E catalog lookup  : chiral dual = reverse sort order (DATA-DEPENDENT permutation; spectrum not preserved)")
+    print("  F render/template : chiral dual = reversed substitution order (structural)")
+    print("  H introspection   : returns metadata; chirality-agnostic (like A's content-address: orientation-blind)")
+
 if __name__ == "__main__":
     print(f"srmech.amsc.cascade available: {SRMECH}")
     def_a()
     def_b()
+    def_b_all_14()
     print("\n" + "=" * 70)
     print("Reading: DEF A residuals pick the structural relationship L->R;")
     print("DEF B asks whether the FFT dual is a constant phase turn (180deg)")
