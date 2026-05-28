@@ -1,0 +1,60 @@
+{
+  "srmech_version": "0.4.3",
+  "has_native": true,
+  "abi": 2,
+  "D": 8192,
+  "N": 100,
+  "density": 0.67,
+  "total_decay": 0.3,
+  "baseline": {
+    "p_at_1": 0.20603015075376885,
+    "p_at_top_k": 0.6934673366834171,
+    "mean_sim_correct": 0.5265758598477132
+  },
+  "results": [
+    {
+      "strategy": "random",
+      "label": "R",
+      "p_at_1": 0.23618090452261306,
+      "p_at_top_k": 0.6582914572864321,
+      "mean_sim_correct": 0.5228188953339102,
+      "mean_synapse_density": 0.4691162109375,
+      "composite_density": 0.9617919921875
+    },
+    {
+      "strategy": "noise_floor",
+      "label": "N (drop low coupling)",
+      "p_at_1": 0.22613065326633167,
+      "p_at_top_k": 0.7035175879396985,
+      "mean_sim_correct": 0.5338634948312367,
+      "mean_synapse_density": 0.4690959681218593,
+      "composite_density": 0.7000732421875
+    },
+    {
+      "strategy": "redundant",
+      "label": "H (drop high coupling)",
+      "p_at_1": 0.1708542713567839,
+      "p_at_top_k": 0.45226130653266333,
+      "mean_sim_correct": 0.520484068627451,
+      "mean_synapse_density": 0.4686947923209799,
+      "composite_density": 0.6640625
+    },
+    {
+      "strategy": "middle",
+      "label": "M (drop middle)",
+      "p_at_1": 0.24623115577889448,
+      "p_at_top_k": 0.6633165829145728,
+      "mean_sim_correct": 0.529031584224599,
+      "mean_synapse_density": 0.46931189148869346,
+      "composite_density": 0.6640625
+    }
+  ],
+  "coupling_stats": {
+    "min": 0,
+    "max": 1936,
+    "mean": 136.8255615234375,
+    "median": 64.0,
+    "frac_zero": 0.0360107421875,
+    "frac_strong": 0.7669677734375
+  }
+}

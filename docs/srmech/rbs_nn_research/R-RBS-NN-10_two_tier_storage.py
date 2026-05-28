@@ -253,16 +253,22 @@ class TwoTierRBSNNStorage:
     # ------------ Plasticity dynamics ------------
 
     def forget_step(self, decay_rate: float = 0.05) -> dict:
-        """Apply Hebbian decay to Tier 2 synapses.
+        """Apply RANDOM Hebbian decay to Tier 2 synapses (baseline).
 
         Per F141: zero-injection decay is graceful (vs sign-flip noise).
         Per F146 §3: decay-recovery via rehearsal works.
 
         Decay zeros out additional positions in each synapse's polar_hv.
         Updates current_density. Re-bundles composite.
+
+        NOTE: This is RANDOM decay (uniform position selection). For
+        coupling-aware sculpted decay, use forget_step_coupling().
+        Per user framework direction 2026-05-28: random decay may be
+        the wrong substrate model — real substrate decay is likely
+        cascade-informed.
         """
         if not self.tier2:
-            return {"decayed_synapses": 0, "total_synapses": 0}
+            return {"decayed_synapses": 0, "total_synapses": 0, "strategy": "random"}
         decayed = 0
         for synapse in self.tier2.values():
             non_zero_positions = np.where(synapse.polar_hv != 0)[0]
@@ -278,6 +284,97 @@ class TwoTierRBSNNStorage:
         return {
             "decayed_synapses": decayed,
             "total_synapses": len(self.tier2),
+            "strategy": "random",
+        }
+
+    def forget_step_coupling(
+        self,
+        decay_rate: float = 0.05,
+        strategy: str = "noise_floor",
+    ) -> dict:
+        """Sculpted decay via Class K∘L coupling metric.
+
+        Per user framework direction 2026-05-28: real substrate decay is
+        not random — it's cascade-informed. This method uses the
+        signed-sum-squared coupling metric (per F144 §1.2,
+        srmech.amsc.coupling.signed_sum_squared upstream in v0.4.3) to
+        choose positions to drop based on their coupling contribution
+        across the synapse bundle.
+
+        For polar HDC: per-position coupling score is
+            score[i] = (sum_synapses(synapse.polar_hv[i]))^2
+        Range [0, n_synapses^2]. Zero contributors don't vote; ±1
+        contributors do. High score = many synapses agree at that
+        position. Low score = balanced or no-commitment positions.
+
+        Strategies:
+          'noise_floor' — drop positions with LOWEST coupling
+            (these are noise / no-consensus; drop to preserve signal)
+          'redundant' — drop positions with HIGHEST coupling
+            (drop consensus; preserves specificity at cost of common signal)
+          'middle' — drop middle-coupling band
+            (preserves both noise and consensus; tests middle-position hypothesis)
+
+        Args:
+          decay_rate: fraction of D positions to decay (global, not per-synapse)
+          strategy: see above
+
+        Returns:
+          dict with {strategy, decayed_synapses, total_synapses, n_decay_positions}
+        """
+        if not self.tier2:
+            return {
+                "decayed_synapses": 0,
+                "total_synapses": 0,
+                "strategy": strategy,
+                "n_decay_positions": 0,
+            }
+
+        # Stack all synapse polar HVs into a matrix [N_synapses, D]
+        synapse_stack = np.stack([s.polar_hv for s in self.tier2.values()])
+        # Per-position signed-sum (range [-N, N]) and its square (range [0, N^2])
+        signed_sum = synapse_stack.sum(axis=0).astype(np.int64)
+        coupling_score = signed_sum * signed_sum  # per-position; shape (D,)
+
+        n_decay = int(decay_rate * self.D)
+        if n_decay <= 0:
+            return {
+                "decayed_synapses": 0,
+                "total_synapses": len(self.tier2),
+                "strategy": strategy,
+                "n_decay_positions": 0,
+            }
+
+        # Choose positions per strategy
+        sorted_idx = np.argsort(coupling_score)
+        if strategy == "noise_floor":
+            decay_positions = sorted_idx[:n_decay]
+        elif strategy == "redundant":
+            decay_positions = sorted_idx[-n_decay:]
+        elif strategy == "middle":
+            start = (self.D - n_decay) // 2
+            decay_positions = sorted_idx[start : start + n_decay]
+        else:
+            raise ValueError(
+                f"Unknown strategy: {strategy!r}. "
+                f"Expected 'noise_floor', 'redundant', or 'middle'."
+            )
+
+        # Zero those positions in every synapse where they're currently non-zero
+        decayed = 0
+        for synapse in self.tier2.values():
+            mask = synapse.polar_hv[decay_positions] != 0
+            if mask.any():
+                synapse.polar_hv[decay_positions[mask]] = 0
+                synapse.current_density = float(hdc.polar_density(synapse.polar_hv))
+                decayed += 1
+
+        self._rebundle_composite()
+        return {
+            "decayed_synapses": decayed,
+            "total_synapses": len(self.tier2),
+            "strategy": strategy,
+            "n_decay_positions": int(n_decay),
         }
 
     def rehearse(
