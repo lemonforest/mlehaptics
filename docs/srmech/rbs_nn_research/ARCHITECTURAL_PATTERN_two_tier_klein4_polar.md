@@ -171,6 +171,38 @@ This is one candidate protocol. Further research questions in `STALE_PATHS_QUEUE
 
 ---
 
+## §4.5 HARD RULE — H2 chirality tag MUST be outermost cascade operation (per F-R16 Test 1)
+
+Empirically discovered in R-RBS-NN-FINDING_R16 §2 (2026-05-28). Tested three cascade orderings:
+
+| Ordering | Above-rand |
+|---|---:|
+| A — H3 first, then H2 (L+I, then M+M) | +0.144 |
+| **B — H2 first, then H3 (M+M, then L+I)** | **-0.0003** ← CATASTROPHIC COLLAPSE |
+| C — Interleaved (F140 baseline; ends with H2) | +0.145 |
+
+**Variant B destroys chirality signal completely.** Above-random sits at 0; the chirality structure is irreversibly scrambled.
+
+**Reason:** When the Klein-4 chirality tag is applied EARLY in the cascade and then followed by H3 operations (cyclic shift, spectral permutation), the H3 ops scramble the position-pattern that the tag had imposed. At unbind time, only the OUTERMOST operation can be cleanly inverted; the inner H2 tag is unreachable through the H3 scrambling.
+
+### Operational rule
+
+```
+H1 operations (Class A, B, F, H, N; chirality-invariant): can be anywhere
+H3 operations (Class L spectral, Class I cyclic):         INNER layers
+H2 operations (Class K sign-flip, Class M klein-4 tag):   OUTERMOST layer
+
+Two-tier storage bridge `_klein4_to_polar` works because Klein-4 tag is
+applied LAST at Tier 1 (right before bundling into Tier 2). Any future
+cascade extension MUST preserve this constraint.
+```
+
+### Brain-structure framework reading (per `[[feedback_no_lineage_claims_in_notebook]]`)
+
+Mirrors a known pattern: chirality-marker operations (laterality binding) are LATE-stage processing in biological neural architectures. Information flows through earlier (thalamic, intra-hemispheric) stages BEFORE hemispheric laterality is imposed. Bilateral integration via corpus callosum happens at the chirality-tagged stage. This is structural reading, not a biological architecture claim.
+
+---
+
 ## §5 What this pattern provides for ongoing R-RBS-NN work
 
 ### For R-RBS-NN-4 (token → hypervector encoding; pending)
@@ -201,6 +233,77 @@ Different biological substrates may exhibit different chirality usage patterns:
 - Vertebrate (Class L + M dominant) → fits the 4-class cascade pattern from F140
 
 The two-tier pattern accommodates all these by allowing per-substrate variant choice at encoding time, rather than forcing one variant globally.
+
+---
+
+## §5.5 EMPIRICAL VALIDATION STATUS (Phase 6 close, 2026-05-28)
+
+The two-tier pattern has been validated across 7 operational tests (R-RBS-NN-10 through -16):
+
+| Aspect | Finding | Verdict |
+|---|---|---|
+| End-to-end cycle (encode/learn/retrieve/forget/rehearse) | R-RBS-NN-10 | ✅ all 6 phases work |
+| Capacity ceiling | R-R11 | N ≈ 256 (MAX_BUNDLE_N boundary) |
+| **Hierarchical bundling for N > 256** | R-R12 | ✅ resolves ceiling; 2.7×-7× advantage past N=256 |
+| Latency optimization | R-R12.5 | Correct but no speedup on dense random graphs |
+| **Multi-step retrieval via Class L spectral** | R-R13a | ✅ adds 4.6× multi-hop capability |
+| Mixed-precision Tier 1 (hybrid encoding) | R-R13b | Klein-4 default wins; F146 hybrid doesn't transfer |
+| Interface polish (chirality auto-detect + soft retrieval) | R-R14 | ✅ both work; backward-compatible |
+| **Chirality harmonics 1/2/3 framework** | F150 | proposed; validated at 2 substrate levels |
+| **F150 H3 at Class L spectral** | R-R15 | ✅ 3-fold eigvec partition gives +67% retrieval |
+| **F150 H3 in Klein-4 binding** | R-R16 Test 3 | ✅ 3-cycle subset operational at +0.116 above-rand |
+| **H2-must-be-outermost rule** | R-R16 Test 1 | ✅ critical; violating it destroys signal completely |
+| Sculpted coupling-informed decay | F149 | ✅ noise_floor decay BEATS no-decay baseline |
+| Sculpted decay in hierarchical | R-R12.5 S3 | ✅ F149 ordering preserved |
+
+### Production recommendation
+
+```python
+from R_RBS_NN_12_hierarchical_storage import (
+    HierarchicalTwoTierRBSNNStorage,
+    recommend_n_buckets,
+)
+
+# For N > 200 concepts: use hierarchical
+n_buckets = recommend_n_buckets(expected_N=1000, expected_avg_degree=2)
+storage = HierarchicalTwoTierRBSNNStorage(D=8192, n_buckets=n_buckets)
+
+# Encoding with chirality awareness (R-RBS-NN-14a):
+storage.encode_concept(token, auto_sector=True)
+
+# Bulk-learn associations:
+storage.batch_learn(pairs, plasticity_density=0.67)
+
+# Retrieval — soft mode for confidence calibration (R-RBS-NN-14b):
+results = storage.retrieve_associated(token, top_k=5, temperature=1.0)
+
+# Plasticity — coupling-informed decay (F149; works in hierarchical per R12.5 S3):
+storage.forget_step_coupling(decay_rate=0.10, strategy="noise_floor")
+
+# Rehearsal — Hebbian signal recovery (F146 §3; +17.9%):
+storage.rehearse(token_a, token_b, recovery_fraction=0.5)
+```
+
+### Cascade design constraint (HARD RULE per §4.5)
+
+```python
+# CORRECT — H2 chirality tag is outermost
+class GoodCascade:
+    def encode_pipeline(self, token):
+        c = self.encode_concept(token)           # base content (H1)
+        c = self.apply_spectral(c)               # Class L (H3) inner
+        c = self.apply_cyclic(c)                 # Class I (H3) inner
+        c = self.klein4_chirality_tag(c, sector) # Class M klein-4 (H2) OUTER (LAST!)
+        return c
+
+# INCORRECT — destroys chirality signal completely
+class BadCascade:
+    def encode_pipeline(self, token):
+        c = self.encode_concept(token)
+        c = self.klein4_chirality_tag(c, sector) # H2 first (WRONG)
+        c = self.apply_spectral(c)               # H3 after destroys signal
+        return c
+```
 
 ---
 

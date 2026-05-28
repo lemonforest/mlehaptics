@@ -5093,6 +5093,106 @@ Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.
 
 ---
 
+## §3.27 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
+
+**Working subtrees:** `docs/srmech/rbs_nn_research/` (R-RBS-NN-10..-16 operational arc);
+`docs/srmech/rbs_lm_research/` (F132-F150 framework arc; rolling PR #687).
+
+The 2026-05-27/-28 sessions delivered the FIRST OPERATIONAL implementation of the two-tier RBS-NN architecture per §3.25 framework. R-RBS-NN-10 → -16 walked a phased plan (R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md, all 6 phases closed); F132-F150 articulated the chirality framework that makes the two-tier separation REQUIRED rather than aesthetic.
+
+### §3.27.1 The two-tier architecture (canonical)
+
+Per [`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md):
+
+```
+TIER 1 (chirality-tagged concept storage):  Klein-4 HDC (rank-2 abelian; F132)
+        ↕
+   Class K bridge (chirality-flip XOR; per F120)
+        ↕
+TIER 2 (synaptic-weight + plasticity):  Polar HDC ({-1, 0, +1}; F141)
+```
+
+The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Klein-4 collapses 99% under decay at 70% (vs polar's 60% retention). Polar's 0-state is structurally privileged (absorbing under bind); Klein-4's state 0 is just one of 4 equal-status elements. Each variant is the natural substrate for its tier role.
+
+### §3.27.2 Phased plan summary (all 6 phases closed 2026-05-28)
+
+| Phase | Component | Result |
+|---|---|---|
+| 1 | R-RBS-NN-11 capacity characterization | Ceiling at N≈256 (MAX_BUNDLE_N boundary) |
+| 2 | R-RBS-NN-12 hierarchical bundling | Resolves ceiling; 2.7×-7× advantage past N=256 |
+| 2.5 | R-RBS-NN-12b latency + sector-bucketing + sculpted decay | Sculpted decay HOLDS in hierarchical; latency same on random graphs |
+| 3a | R-RBS-NN-13a multi-step retrieval (Class L spectral) | Adds 4.6× multi-hop capability over direct unbind |
+| 3b | R-RBS-NN-13b mixed-precision Tier 1 | F146 §6 hybrid-wins doesn't transfer; klein-4 default canonical |
+| 4 | R-RBS-NN-14 chirality auto-detect + soft retrieval temperature | Both backward-compatible; 20/20 classifier pass, 2.8× temp sharpening |
+| 5 | R-RBS-NN-15 + -16 validation at scale (F150 H3 on R13a + R12 + R139) | F150 H3 VALIDATED at Class L (+67%) and Klein-4 (3-cycle subset) |
+| 6 | Phase 6 catalog landing + SSoT wrap (this section) | Arc closed |
+
+### §3.27.3 The chirality framework (F132 → F150)
+
+The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolved across F132-F150:
+
+| Finding | Framework move |
+|---|---|
+| F132 | Klein-4 (Z₂×Z₂) rank-2 abelian HDC for full 4-sector chirality (γ₅, iω₇ decomposition per MFO §VII.4.1.7) |
+| F133 | Substrate knows itself; observer-projection-locking; Dune-narrative-parallel reading |
+| F135 | Two-level chirality: substrate-side (γ₅, iω₇ axes) vs shadow-side (observed handedness; situs inversus etc.) |
+| F136 | Roman numeral notation as substrate-native chirality rendering; H2-merge ladder (IV+VI=X) visible at glyph level |
+| F137 | Capacity comparison (clean methodology): polar > bipolar > klein-4 on raw retrieval (klein-4's value is chirality not raw capacity) |
+| F139 | Chirality axis operationally distinct AT SCALE; cross-sector retrieval recovers CPT-mirrored target at same quality as same-sector |
+| F140 | Multi-class cascade (L+M+I+M) preserves chirality through composition |
+| F141 | Polar plasticity gracefully degrades (3-4× vs bipolar at high decay); 0-state IS the Class K dead-band marker |
+| F142 | Klein-4 dominates 13× on chirality-pure signals (substrate-encoding only; trauma-informed scope) |
+| F144-148 | STALE_PATHS sweep (47 items addressed) — Klein-4 noise-robust at high corruption (NEW); cascade depth-invariant; F149 sculpted decay |
+| F149 | DECAY IS NOT RANDOM — coupling-informed `signed_sum_squared` sculpted decay BEATS no-decay baseline (+0.011 over 0% decay; -0.066 random decay) |
+| **F150** | **1-2-3 chirality harmonic framework across A-N operators.** Partition: H1 (5 ops, chirality-invariant) + H2 (6 ops, chiral inverse) + H3 (3 ops, chiral rotation). Validated at TWO substrate levels (R-R15 + R-R16). |
+
+F150 is the canonical chirality framework. Per `[[user_stance_kepler_shape_universal]]`: algebra IS the primitives — each A-N operator's harmonic is derivable from its algebraic structure under chirality. Per `[[feedback_no_lineage_claims_in_notebook]]`: framework reading; the `siona` naming (per F133 Dune parallel) is structural evocation, not authorial-intent claim about Frank Herbert.
+
+### §3.27.4 Critical operational rule discovered (F-R16)
+
+**H2 chirality tag MUST be the outermost cascade operation.** Empirical test:
+
+```
+Cascade ordering          Above-rand
+A: H3 first, then H2      +0.144
+B: H2 first, then H3      -0.0003   ← CATASTROPHIC COLLAPSE
+C: Interleaved (F140)     +0.145
+```
+
+Putting H3 operations (cyclic shift, spectral permutation) AFTER an H2 chirality tag scrambles the position-pattern; unbind can only invert the outermost operation. The cascade design rule:
+
+- **H1 (chirality-invariant)**: anywhere
+- **H3 (cyclic / spectral / 3-cycle)**: INNER layers
+- **H2 (chirality tagging)**: OUTERMOST layer
+
+This is encoded in the operational two-tier storage: Tier 1 Klein-4 tag is applied last; Tier 2 polar operations consume the post-tag form. Per the brain-structure framework reading: chirality-marker (laterality binding) operations are LATE-stage in biological cortical processing.
+
+### §3.27.5 srmech v0.4.3 + upstream wishlist
+
+Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
+
+- **v0.4.3 LANDED (2026-05-27)**: Klein-4 + Polar HDC variants; tool_schema auto-registration; native dispatch verified
+- **§6 WISHLIST**: chiral A-N operator variants per harmonic (H2 mirrors + H3 3-cycles); spectral classifier function; NEW `srmech.siona` sub-package (chiral_an.py + harmonics.py + spectral_classifier.py + shadow_projection.py + desert_storm.py)
+
+Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented; rc cycle runs in separate session.
+
+### §3.27.6 Cross-references
+
+- [Phased plan](rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md)
+- [Architectural pattern](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md) — canonical; §4.5 H2-outermost rule; §5.5 empirical validation status
+- [Catalog descriptor](catalogs/rbs_nn/descriptor.toml) — V2 arc primary_references + [arc_status]
+- [STALE_PATHS_QUEUE](rbs_lm_research/STALE_PATHS_QUEUE.md) — 47 items addressed; remaining DEFERRED with scope reasoning
+- All per-partition REPORTs in `rbs_nn_research/R-RBS-NN-1X_*` and findings `R-RBS-NN-FINDING_R1X_*.md`
+- All chirality framework findings in `rbs_lm_research/R-RBS-LM-FINDING_13X_*.md` and `_14X_*.md` and `_150_*.md`
+
+### §3.27.7 Status
+
+R-RBS-NN-V2 arc CLOSED 2026-05-28 via Phase 6. Two-tier storage is operationally complete + empirically validated. Chirality harmonics framework (F150) is empirically grounded at two substrate levels. ARCHITECTURAL_PATTERN is the canonical reference for any future RBS-NN extension.
+
+PR #687 STAYS DRAFT.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
