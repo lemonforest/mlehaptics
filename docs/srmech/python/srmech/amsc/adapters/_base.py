@@ -180,6 +180,16 @@ def render_per_row(
     }
 
 
+# v0.4.6rc2 — introspection emit hook for the AMSC fetch boundary.
+# Imported lazily so a circular-import path stays impossible (introspect
+# does not import any amsc module). Gate-first via ``_is_publishing()``
+# so the f-string + ``extra`` dict cost stays at zero in the off-path.
+from srmech.introspect._writer import (
+    _is_publishing as _is_pub_introspect,
+    emit_if_publishing as _emit_introspect,
+)
+
+
 def run(
     descriptor: Descriptor,
     *,
@@ -197,6 +207,20 @@ def run(
     upstream response — that's correct: those rows came from those
     bytes, and the hash documents that.
     """
+    # v0.4.6rc2 — emit one event at the AMSC fetch boundary. Carries
+    # the source-key in the ``extra`` block so consumers can filter on
+    # it. Gate-first so off-path is zero allocations.
+    if _is_pub_introspect():
+        _source_key = descriptor.source.get("source_key") if hasattr(descriptor, "source") else None
+        _emit_introspect(
+            f"amsc.fetch:{descriptor.adapter_name}",
+            class_="A",  # content-addressing — fetch produces attested bytes
+            input_shape=str(descriptor.path.name) if hasattr(descriptor, "path") else "",
+            extra={
+                "adapter_name": descriptor.adapter_name,
+                "source_key": str(_source_key) if _source_key else "",
+            },
+        )
     adapter = get_adapter(descriptor.adapter_name)
     rule_hash = parser_rule_hash(descriptor.parse)
     data_schema_id = str(descriptor.schema["data_schema_id"])

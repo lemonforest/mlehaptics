@@ -1076,6 +1076,18 @@ class RBSHDCInstrument:
     ) -> bytes:
         """Full Mode-B encoding pipeline. See module-level
         :func:`encode_loe_content`."""
+        # v0.4.6rc2 — introspection emit at the RBS-HDC encode boundary.
+        # Gate-first so off-path is zero allocations.
+        from srmech.introspect._writer import (
+            _is_publishing as _ip, emit_if_publishing as _ei,
+        )
+        if _ip():
+            _ei(
+                "signal_processing.encode_content",
+                class_="A∘C∘M",
+                input_shape=f"str(len={len(content)})",
+                extra={"substrate": substrate, "D": self.D},
+            )
         return encode_loe_content(content, D=self.D, substrate=substrate)
 
     def decode_fingerprint(
@@ -1085,6 +1097,18 @@ class RBSHDCInstrument:
     ) -> str:
         """Reverse-decode a fingerprint via Class M similarity argmax.
         See module-level :func:`decode_loe_fingerprint`."""
+        # v0.4.6rc2 — introspection emit at the RBS-HDC decode boundary.
+        # Gate-first so off-path is zero allocations.
+        from srmech.introspect._writer import (
+            _is_publishing as _ip, emit_if_publishing as _ei,
+        )
+        if _ip():
+            _ei(
+                "signal_processing.decode_fingerprint",
+                class_="M",
+                input_shape=f"bytes(len={len(fingerprint)})",
+                extra={"catalog_size": len(catalog)},
+            )
         return decode_loe_fingerprint(fingerprint, catalog)
 
     def verify_bit_exact(self, content: str, encoded: bytes) -> bool:
@@ -1107,6 +1131,17 @@ class RBSHDCInstrument:
     # ── Class M similarity surface ───────────────────────────────────
     def similarity(self, a: bytes, b: bytes) -> float:
         """Class M similarity in [-1, 1] (1 - 2*hamming/D)."""
+        # v0.4.6rc2 — introspection emit at the Class M similarity boundary.
+        # Gate-first so off-path is zero allocations.
+        from srmech.introspect._writer import (
+            _is_publishing as _ip, emit_if_publishing as _ei,
+        )
+        if _ip():
+            _ei(
+                "signal_processing.similarity",
+                class_="M",
+                input_shape=f"bytes(len={len(a)})+bytes(len={len(b)})",
+            )
         return _M.similarity(a, b)
 
     # ── Class H self-introspection ──────────────────────────────────
