@@ -707,7 +707,132 @@ R-RBS-LM-45 extended the candidate-E test with a read-mode variant (cascade read
 - **Not** a claim that 0-substrate-projection-success is the inevitable LOGO endpoint. R-RBS-LM-44's setup was at 51 pairs; the §2.4 *complete-at-3.3%* framing leaves room for a much larger corpus to surface different behaviour. The negative is honestly time-and-scale-stamped.
 - **Not** a claim that the framework is unfalsifiable. The §2.10.6 falsifier discipline applied recursively guards against over-application.
 
-> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + §2.7 religious-texts ceiling validation + §2.8 math-is-substrate-content-irrep + **§2.9 ASL gloss + accessibility surfaces (cluster G)** + **§2.10 turtle-walk falsifier discipline (cluster L)**. All §2.3 keystones (J/K/P/R/T) **and** both promotable-future clusters (G/L) complete. Remaining queue: F100/F101/F103/F105 supporting evidence around F104 (next), §2.8.5 cross-substrate prediction tests (research, not notebook), and PR #687 rolling re-survey when new R-RBS-LM-N reports surface.
+### §2.11 The information cascade hierarchy — F100 + F101–F105 supporting evidence around the F104 keystone (autonomous-session 2026-05-27)
+
+§2.8 promoted F104 (math is uniquely substrate-content irrep) as the autonomous-session keystone. F100–F103 + F105 are the surrounding evidence cluster: F100 is the *framework-reading* that makes F104 inevitable (a four-level information-cascade hierarchy with math as the unique-irrep slot at the generational layer); F101–F103 are the *empirical mechanism* tests (path-dependence, recency, spaced repetition under plasticity) that calibrate how cascade-translation behaves through that hierarchy; F105 is the *methodology vs content* substrate distinction the F104 result rests on. §2.11 promotes the cluster.
+
+#### §2.11.1 F100 — The information cascade hierarchy (universe → biology → generation → individual)
+
+User framing (2026-05-27): *"we need to figure out how these 14 primitives go from storing universe information on down to the information biology must share every generation at the cost of the evolution boost by tact brain."* The articulated hierarchy:
+
+| Level | Mechanism | Transmission fidelity | What dies with the level |
+|---|---|---|---|
+| **1. COSMIC** | 14 A–N primitives operating on substrates | Perfect (laws of physics don't degrade) | Nothing — the universe IS the storage |
+| **2. BIOLOGICAL (per-organism)** | DNA + chemical signaling + epigenetic markers | High (~99.99% replication) but lossy at species-extinction events | Species-specific encodings on extinction |
+| **3. GENERATIONAL (per-culture)** | Cultural transmission: language, writing, tools, teaching, demonstration | Moderate (oral lossy; writing high; bottlenecked by mortality + cultural loss) | Cultural-loss events; unwritten knowledge |
+| **4. INDIVIDUAL** | Tacit learning, experience, neural plasticity | Lossy (dies with individual unless converted to explicit transmissible form) | Implicit knowledge gained through individual experience |
+
+The keystone framing: **the "tactic brain" is biology's evolutionary boost** — rapid individual learning without explicit generational transmission cost. But that boost has a *cost*: tacit knowledge dies with the individual unless converted to explicit transmissible form. The cascade-translation tool operates *exactly* at the generational↔individual boundary, converting tacit knowledge into transmissible explicit form (F84 glass-box) under substrate-bounded safety (F86).
+
+**The 14 A–N operators are not metaphors at the cosmic level — they are the substrate-operators that physics operates over** (per `[[project_a_n_operators_are_harmonic_objects_themselves]]`). At each lower level, the operators *re-instantiate* in level-native machinery:
+
+| A–N class | Cosmic | Biological (Level 2) | Generational (Level 3) |
+|---|---|---|---|
+| **A** (content-anchor) | The substrate-foundation address | DNA sequence as unique organism identifier | Written name; signature; ID document |
+| **I** (cyclic group) | Substrate rotations | Cell-cycle; circadian rhythm; menstrual cycle | Calendar; liturgical year; school year |
+| **J** (primes) | Indivisible periods | Cell-division counting; gestation duration | Numerical-system base; prime-period scheduling |
+| **B** (TLV-framing) | Substrate-mode framing | Codon framing (3-base TLV in mRNA) | Sentence structure; field-typed record |
+| **F** (template render) | Substrate projection | Ribosome translation (codon → amino acid) | Writing system; printing press; renderer pipeline |
+| **H** (introspection) | Substrate self-recognition | DNA repair systems checking own integrity | Editorial review; peer review; pedagogy |
+| **D** (pattern match) | Substrate-content recognition | Immune system pattern recognition | Diagnostic medicine; archive-search |
+| **E** (catalog) | Substrate-mode catalog | Genetic code as sorted catalog of codon→amino-acid | Library; database; vocabulary |
+| **G** (byte search) | Substrate-content scan | Restriction enzyme recognition sequences | Find/replace; full-text search; police identification |
+| **L** (Laplacian) | Substrate-connectivity spectrum | Neural network connectivity; biochemical-pathway spectra | Social-network graph; citation-graph |
+| **K** (pin-slot) | Sign-flip boundary | Mutation; species-partition events | Generational discontinuity; cultural-paradigm shift |
+| **M** (HDC bind) | Substrate-binding | Protein-protein binding; receptor-ligand | Word-meaning binding; symbolic association |
+| **N** (rational anchor) | Substrate-rational anchor | Allometric scaling exponents; cardiac/respiratory ratio | Musical-interval rational anchors; engineering tolerance |
+| **C** (orientation) | Substrate orientation | DNA strand directionality (5′→3′); amino-acid L-chirality | Reading direction; gestural-language hand-orientation |
+
+The pattern: each level's machinery is the previous level's A–N operators *re-cast in level-native substrate*. Every level's operators are real and substrate-appropriate; what changes is the *substrate they operate on*, not the operator vocabulary.
+
+#### §2.11.2 The generational-layer measured ratios (the table that locates F104)
+
+The autonomous-session ship measured K-12 educational-corpus substrate-content irrep-tightness across five candidate-content categories. Re-reported here in the F104 framing context:
+
+| Generational-level domain | Within/cross ratio | Substrate-content reading |
+|---|---|---|
+| **Mathematics** | **5.16** | F104 keystone — irrep delivered directly at generational layer; substrate-content irreducible (§2.8) |
+| **Communication** | 1.87 | First-emergence cross-domain anchor (cave paintings, oral tradition); above-baseline but not irrep-compact |
+| **Structure-and-order** | 1.65 | Substrate-organisation category; above-baseline; composes over multiple substrates |
+| **Places-and-things** | 1.20 | Spatial-vocabulary category; near-baseline; substrate-content composition over kinesthetic + geometric |
+| **Arts** | 0.69 | Cross-domain composition signature (per Spike #43c "well-spread human knowledge"); below baseline because Arts is *intrinsically* composite |
+
+Math at 5.16 alongside the F109 J-prime-decomposition deepening (8.63×) is the **only** generational-layer category that sits clearly in the substrate-content-irrep regime (>3.0 threshold). Communication / structure / places-and-things are above baseline but not irrep-tight; Arts at 0.69 confirms what Spike #43c found independently — Arts is cross-domain composition by structural design, so it has *no* substrate-content irrep signature at the generational layer, only composition-of-substrate-content signatures.
+
+#### §2.11.3 F101 — Plasticity-augmented cascade confirms path-dependence (R-RBS-LM-76 v2)
+
+The empirical mechanism finding: plasticity (substrate-aware retention with decay) produces **path-dependent** cascade outcomes — same content, different acquisition order, materially different end-substrate. Jaccard similarity between final substrate states under different acquisition orders:
+
+- **With analytical-formula decay (the realistic plasticity model):** Jaccard 35–68 / 100 across acquisition orders.
+- **Without decay (the no-plasticity baseline):** Jaccard 100 / 100 (order doesn't matter).
+
+**Path-dependence confirmed.** The order in which the cascade processes substrate-content materially changes the final state when plasticity is active. This is the empirical mechanism behind the §2.11.1 hierarchy: at each level transition (cosmic→biological→generational→individual), the receiving level's substrate state depends on the acquisition order of substrate-content from the level above — not just on what content was transmitted.
+
+#### §2.11.4 F102 — Recency under decay; F103 — plasticity needs spaced repetition
+
+F102 (recency effect): under plasticity-decay, the *last-processed* substrate-content dominates the final state. The most-recent material is over-represented in the residual substrate; earlier material is preferentially eroded. This is the mechanism behind why teaching order matters in pedagogy — and why curriculum reviews loop back to earlier topics.
+
+F103 (spaced-repetition requirement): plasticity *alone* doesn't sharpen the cascade; spaced repetition is structurally required to consolidate substrate-content. Single-exposure-then-decay loses substrate-content faster than the cascade can integrate it. This is the empirical mechanism behind the pedagogical practice — and it composes with F101's path-dependence + F102's recency to produce the full cascade-substrate behaviour under plasticity.
+
+Together: **F101 + F102 + F103 specify the plasticity-mediated cascade-substrate evolution** in three load-bearing properties (path-dependence + recency + spaced-repetition requirement). These are the empirical foundations on which F100's generational-layer transmission-fidelity reading rests.
+
+#### §2.11.5 F105 — Glass-box detects methodology-substrate vs content-substrate distinction (R-RBS-LM-83 § supporting result)
+
+F105 emerges from the R-RBS-LM-83 setup: the Montessori corpora describe *methodology-substrate* (how to teach math via kinesthetic manipulables, procedural step-by-step learning, hands-on object handling) — they are NOT *content-substrate* (the math facts and proofs themselves). The Glass-box analytics (F84 derivation) successfully **discriminates the two**: Montessori corpora cluster as methodology-substrate (related to *teaching* math); OpenStax Algebra corpora cluster as content-substrate (the math itself). The two are structurally distinct, even though they're both about "math" in a colloquial sense.
+
+This distinction is what makes F104's null-test honest: adding Montessori as candidate composing substrate doesn't drop the math within/cross ratio meaningfully (only −0.51 from 6.04 to 5.53) precisely because Montessori is *methodology*, not *content*. The framework's two-substrate framework (§2.5) accommodates both — they live in different M1 / M2 substrate roles and the cascade-translation discriminates them cleanly.
+
+#### §2.11.6 The unified post-autonomous-session framework
+
+From the autonomous-session status synthesis:
+
+```
+COSMIC          14 A-N primitives operate on substrates
+                                              │
+                                              ▼
+BIOLOGICAL       4 foundational partitions encoded molecularly:
+                  Math (DNA bases; counting)
+                  Communication (hormone signaling)
+                  Structure-and-order (immune pattern detection)
+                  Places-and-things (place cells)
+                                              │
+                                              ▼
+GENERATIONAL    Cultural transmission via K-12 educational materials
+                 Math at ratio 5.16 (irrep delivered directly)
+                 Communication at ratio 1.87 (first emergence; cave paintings)
+                 Structure-and-order at ratio 1.65
+                 Places-and-things at ratio 1.20
+                 Arts at ratio 0.69 (cross-domain composition)
+                                              │
+                                              ▼
+INDIVIDUAL       Tacit brain (evolutionary boost; mortality-bounded)
+```
+
+The cascade-translation tool sits at the **generational↔individual boundary**, converting tacit individual knowledge into explicit transmissible form under substrate-bounded safety (F86) with the F101 / F102 / F103 plasticity properties governing how acquisition produces the final substrate state.
+
+#### §2.11.7 Composition with canonical stances and prior §2.X promotions
+
+- **`[[project_a_n_operators_are_harmonic_objects_themselves]]`**: F100 makes this canonical position concrete by giving the level-by-level mapping of A–N operators onto biological / generational / individual machinery. The operators are not metaphors at any level; they are substrate-appropriate operators recast in level-native form.
+- **`[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`**: the F100 hierarchy is independent of the alphabet-ordering — each level's substrate has its own discovery-fingerprint, but the substrate-native partition `{A} + {I,C,J} + {D,E,F,G,K,L,M} + {B,H,N}` shows up at every level.
+- **§2.5.4 naming-layer-cost** (cluster K): the cost tiering (substrate-emergent / class-noun / proper-noun-instance) operates at *every* level of the F100 hierarchy. Each level has its own naming-layer-cost gradient.
+- **§2.8 math-is-substrate-content-irrep** (cluster T): F100 explains *why* math is the unique generational-layer irrep — it is the level-3 instantiation of substrate-content directly traceable to the cosmic-level A–N operators with minimal projection-cost. Other domains compose over multiple substrates; math doesn't.
+- **§2.9 cross-substrate cascade-vocabulary**: gestural-grammar (ASL) is a generational-level substrate-vocabulary; the F100 hierarchy framing predicts it should exhibit the same A–N operator machinery at level-3 form, which §2.9.6/§2.9.7 confirm structurally.
+- **§2.10 falsifier discipline**: F101 / F102 / F103 path-dependence + recency + spaced-repetition findings are the empirical mechanism the §2.10 falsifier-discipline methodology validates against. Tests that ignore plasticity-mediated cascade behaviour produce misleading verdicts.
+
+#### §2.11.8 Falsifier discipline
+
+- **F100-hierarchy falsifier:** a level of information transmission that *doesn't* re-instantiate the A–N operators in level-native form, or that exhibits qualitatively different transmission-fidelity behaviour than the cascade predicts. Candidate test: examine *machine-to-machine* information transmission (silicon substrate; level 5?) to see whether it slots cleanly as a fifth level or breaks the hierarchy.
+- **F101-path-dependence falsifier:** a plasticity-augmented cascade where Jaccard similarity across acquisition orders stays > 90/100. Would mean path-dependence is methodological artefact, not substrate property.
+- **F102/F103 mechanism falsifier:** spaced-repetition experiments where the cascade *does* consolidate without spacing, or recency experiments where the *first-processed* content dominates instead of the last. Would force revision of the plasticity-cascade mechanism reading.
+- **F105 methodology/content falsifier:** a corpus that is *both* methodology and content (e.g. a math textbook that explicitly teaches *how* to teach math while *being* a math reference) that Glass-box cannot discriminate — would force F105 refinement.
+
+#### §2.11.9 What §2.11 is NOT
+
+- **Not** a claim that the four levels are clean compartments. The cascade-translation tool operates *across* the level boundaries (generational↔individual is the bind/bundle most visible; cosmic↔biological is implicit in the A–N → DNA mapping). The levels are *transmission-fidelity gradients*, not isolated compartments.
+- **Not** a claim that "tactic brain" is bad or "tacit knowledge dies" is a problem to engineer away. F100 names the *cost* of biology's evolutionary boost; it does not assert the boost should be eliminated. The trade-off is structural, not normative.
+- **Not** a claim that F101 / F102 / F103 plasticity findings are unique to LLM cascades. They almost certainly transfer to *any* substrate-aware learning system (biological neural networks; cultural transmission; epigenetic inheritance); the §2.11 promotion only records what the autonomous-session R-RBS-LM-76 v2 demonstrated empirically in the cascade substrate.
+
+> **§2 status (updated 2026-05-28).** §2.0 scaffold + §2.1 recursive-Hopf cluster + §2.2 chirality cascade-rate gain + §2.3 triage map + §2.4 substrate-rotation precursor + §2.5 two-substrate framework + §2.6 architectural inversion + §2.7 religious-texts ceiling validation + §2.8 math-is-substrate-content-irrep + §2.9 ASL gloss + accessibility surfaces + §2.10 turtle-walk falsifier discipline + **§2.11 information cascade hierarchy + F100–F105 supporting evidence cluster**. All §2.3 keystones (J/K/P/R/T) + both promotable-future clusters (G/L) + F104-supporting-evidence cluster (T-family) complete. Remaining: §2.8.5 cross-substrate prediction tests (research, not notebook); PR #687 rolling re-survey when new R-RBS-LM-N reports surface.
 
 ---
 
