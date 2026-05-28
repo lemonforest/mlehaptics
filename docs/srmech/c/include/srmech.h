@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 4
-#define SRMECH_VERSION_PATCH 4
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.4.4"
+#define SRMECH_VERSION_PATCH 5
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.4.5rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -162,6 +162,42 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
  *     `out_hex`. */
 srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
                                            char       *out_hex);
+
+/* ------------------------------------------------------------------ *
+ * Cascade catalog — cross-domain named cascades
+ *
+ * Each cascade op composes the existing 14-class A–N primitive
+ * vocabulary into a recurring named pattern (per the cascade-catalog
+ * discipline: a named cascade is the default, a math-library call the
+ * exception). Cascades carry their own C symbols for full C/Python
+ * parity per the project's full-coverage discipline, AND ship as TOML
+ * descriptors under srmech/amsc/_research/cascade_catalog/ for
+ * declarative composition.
+ *
+ * v0.4.5rc1: chiral_flip — Class C orientation reversal.
+ * ------------------------------------------------------------------ */
+
+/* chiral_flip: Class C orientation reversal of a sequence (the value-
+ * level Class C cascade-orientation operator; reverses traversal order).
+ * Reversing a real signal is the FFT-level chirality operator: same
+ * magnitude spectrum, orientation-flipped phase (MFO §VIII.31.11 §(5b)).
+ *
+ * Two typed variants — cascade inputs are heterogeneous (int sequences
+ * from cyclic-group land, float sequences from spectral land); each
+ * caller picks the matching ABI. `in` and `out` may alias (the impl
+ * supports in-place reversal); `n == 0` is allowed and is a no-op.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — in or out is NULL with n > 0
+ */
+srmech_status_t srmech_cascade_chiral_flip_i64(const int64_t *in,
+                                                size_t         n,
+                                                int64_t       *out);
+
+srmech_status_t srmech_cascade_chiral_flip_f64(const double *in,
+                                                size_t        n,
+                                                double       *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

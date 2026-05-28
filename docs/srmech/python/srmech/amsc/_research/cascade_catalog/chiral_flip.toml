@@ -1,0 +1,39 @@
+# Cascade catalog entry: chiral_flip
+# Generated as part of the v0.4.5rc1 C-parity + TOML retrofit; corrects
+# the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade ops Python-only.
+
+[cascade]
+name = "chiral_flip"
+class_composition = "C"
+purpose = "Class C orientation reversal of a sequence — the value-level Class C cascade-orientation operator."
+description = """
+Reverses the traversal order of a sequence. At the FFT level this is the
+chirality operator: same magnitude spectrum, orientation-flipped phase
+(MFO §VIII.31.11 §(5b); verified across all 14 A–N operators in
+docs/srmech/notes/spike_chiral_an_spectral_shape.py).
+"""
+
+[cascade.signature]
+input = "sequence[int64|float64]"
+output = "sequence[same-dtype-as-input]"
+operation = "seq[::-1]"
+preserves_shape = true
+preserves_magnitude_spectrum = true
+inverts_phase_orientation = true
+in_place_safe = true
+
+[cascade.native]
+c_symbol_i64 = "srmech_cascade_chiral_flip_i64"
+c_symbol_f64 = "srmech_cascade_chiral_flip_f64"
+abi_version = 2
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc1"
+canonical_landings = [
+  "MFO §VIII.31.11 §(5b) — chiral dual same shape inverse",
+  "docs/srmech/notes/spike_chiral_an_spectral_shape.py — 14-operator sweep",
+  "docs/srmech/rbs_research_notebook.md §2.2 — cascade-rate gain reading",
+  "docs/srmech/srmech_research_notebook.md §3.27 — recursive-Hopf catalog",
+]
