@@ -84,6 +84,64 @@ def sim_k4_batch(query: np.ndarray, candidates: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Rolling context-state encoder — the F166 inference-substrate "hidden state"
+# ---------------------------------------------------------------------------
+
+class ContextSubstrate:
+    """Rolling context-state encoder (F166 walk; the inference "hidden state").
+
+    The last-k tokens → ONE Klein-4 substrate state via positional role-filler
+    binding: bundle_p[ klein4_bind(pos_key(p), enc(token_p)) ]. This is the
+    state an autoregressive RBS-LM conditions its next-token distribution on
+    (Steps 1-4 all share it). Catalog-driven (D, hex_chars from the descriptor's
+    substrate section); deterministic / bit-exact.
+
+    Class composition: Class A (content-hash mint via enc) ∘ Class M (klein4
+    bind) ∘ Class I/iω₇ position keys, bundled. NOT a bolted-on neural state —
+    a named A-N cascade under the 28D chirality coordinate.
+
+    The even-count bundle pad (never DROP a real token) is the fix for the
+    R-RBS-LM-126 first-run odd/even sawtooth artifact: klein4_bundle needs an
+    ODD count (majority tie-break), so an even window APPENDS a fixed neutral
+    pad vector rather than discarding a real token.
+    """
+
+    def __init__(self, *, D: int, hex_chars: int, sector: int = 0):
+        self.D = int(D)
+        self.hex_chars = int(hex_chars)
+        self.sector = int(sector)
+        self._poskey: dict[int, np.ndarray] = {}
+        self._pad = self.enc("__bundle_pad__")  # fixed neutral tie-breaker
+
+    def enc(self, tok: str, sector: int | None = None) -> np.ndarray:
+        return encode_word_k4(
+            tok, D=self.D,
+            sector=self.sector if sector is None else sector,
+            hex_chars=self.hex_chars,
+        )
+
+    def pos_key(self, p: int) -> np.ndarray:
+        if p not in self._poskey:
+            self._poskey[p] = self.enc(f"__ctx_pos_{p}__")
+        return self._poskey[p]
+
+    def bundle_odd(self, vecs) -> np.ndarray:
+        """klein4_bundle requires an ODD count; APPEND a fixed neutral pad when
+        the count is even — never DROP a real token (the 126 sawtooth fix)."""
+        if len(vecs) == 1:
+            return vecs[0]
+        if len(vecs) % 2 == 0:
+            vecs = list(vecs) + [self._pad]
+        return hdc.klein4_bundle(*vecs)
+
+    def encode_context(self, window) -> np.ndarray:
+        """last-k tokens → ONE Klein-4 state (positional role-filler bind + bundle)."""
+        bound = [hdc.klein4_bind(self.pos_key(p), self.enc(tok))
+                 for p, tok in enumerate(window)]
+        return self.bundle_odd(bound)
+
+
+# ---------------------------------------------------------------------------
 # Canonical substrate class — params is the desc.fetch[adapter] nested dict
 # ---------------------------------------------------------------------------
 

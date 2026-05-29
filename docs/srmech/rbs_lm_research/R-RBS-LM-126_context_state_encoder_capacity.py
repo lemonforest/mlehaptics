@@ -49,20 +49,6 @@ from srmech import __version__ as SRMECH_VERSION
 CATALOG = HERE.parent / "catalogs" / "rbs_lm_substrate" / "descriptor_rbs_lm_inference.toml"
 
 
-_BUNDLE_PAD = None   # fixed neutral tie-breaker, set once D is known
-
-
-def k4_bundle_odd(vecs):
-    """klein4_bundle requires an ODD count (majority tie-break). When the count
-    is EVEN, APPEND a fixed neutral pad vector — never DROP a real token (dropping
-    caused the even-k sawtooth artifact in the first run: k=2 lost token 1)."""
-    if len(vecs) == 1:
-        return vecs[0]
-    if len(vecs) % 2 == 0:
-        vecs = list(vecs) + [_BUNDLE_PAD]
-    return hdc.klein4_bundle(*vecs)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--catalog", type=Path, default=CATALOG)
@@ -79,22 +65,11 @@ def main():
     corpus_n = int(ic["corpus_n"])
     seed = int(ic["seed"])
 
-    def enc(tok, sector=0):
-        return cs.encode_word_k4(tok, D=D, sector=sector, hex_chars=hexc)
-
-    global _BUNDLE_PAD
-    _BUNDLE_PAD = enc("__bundle_pad__")   # fixed neutral tie-breaker for even bundles
-
-    _poskey_cache = {}
-    def pos_key(p):
-        if p not in _poskey_cache:
-            _poskey_cache[p] = enc(f"__ctx_pos_{p}__")
-        return _poskey_cache[p]
-
-    def encode_context(window):
-        """last-k tokens → ONE Klein-4 state (positional role-filler bind + bundle)."""
-        bound = [hdc.klein4_bind(pos_key(p), enc(tok)) for p, tok in enumerate(window)]
-        return k4_bundle_odd(bound)
+    # rolling context-state encoder (shared substrate machinery; F166 hidden state)
+    ctx = cs.ContextSubstrate(D=D, hex_chars=hexc)
+    enc = ctx.enc
+    encode_context = ctx.encode_context
+    k4_bundle_odd = ctx.bundle_odd
 
     print(f"srmech v{SRMECH_VERSION}; HAS_NATIVE={HAS_NATIVE}; ABI={NATIVE_ABI_VERSION}; D={D}")
     print(f"Catalog: {args.catalog.name}  hash={dh[:16]}...")
