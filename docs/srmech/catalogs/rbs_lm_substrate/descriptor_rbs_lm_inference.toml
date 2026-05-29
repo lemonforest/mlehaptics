@@ -1,0 +1,81 @@
+# RBS-LM inference-substrate catalog — the native 28D inference instrument
+#
+# F166 walk. This is the catalog the fully-realized RBS-LM inference substrate
+# instantiates from. Step 1 populates [inference.context]; later steps add
+# [inference.distribution], [inference.sampling], [inference.loop].
+#
+# Same Klein-4 substrate machinery as the canonical descriptor; the inference
+# instrument is the AUTOREGRESSIVE composition of already-characterized
+# operations (F162 encode, F165 retrieve, F156 compose, F162-P7 score) under
+# the 28D chirality coordinate. Bit-exact / deterministic / MPR-attested — the
+# inversion of the float-distillation Path-D arc.
+
+[source]
+key                  = "rbs_lm_inference_substrate"
+human_readable_name  = "RBS-LM native inference substrate (28D bi-axial chirality; bit-exact)"
+purpose              = "The catalog the native RBS-LM inference substrate instantiates from (F166 walk). Inference = an A-N cascade under the 28D chirality coordinate: context encode (Class A∘M + iω₇ position), next-structure retrieve (Class M argmax = decode_fingerprint), Klein-4 cross-level compose (F156), co-occurrence + substrate-sim score (F162 P7), labeled-anchor route (F165). Deterministic + bit-exact: same context + same catalog + same srmech_version → identical distribution. NOT a distillation of float-weight LLMs (Path D was diagnostic); built UP from the substrate. Step 1 = rolling context-state encoder + capacity."
+license              = "CC0"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+f166_walk            = "F166 — the walkable path; this catalog is the artifact of Step 5 packaging, populated step by step"
+f162_substrate       = "F162 — full-coverage substrate characterization (encode/recall 1.000); the context encoder reuses this"
+f156_generation      = "F156 — Klein-4 cross-level walk (the compose step)"
+f165_anchor          = "F165 — multi-kernel reference object (the corpus-knowledge / DOMAIN-anchor store)"
+f150_position        = "F150 — chirality harmonics; iω₇ rotation as positional encoding"
+f154_capacity        = "F154 — 4× ceiling; the context-capacity bound this step measures"
+canonical_substrate  = "docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml — the canonical substrate params this inherits"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/inference_step1_context.ndjson"
+
+# --- substrate params (same as canonical) ---
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+[fetch.literature_curated.corpus]
+source                  = "template"
+tokenizer               = "whitespace"
+
+[fetch.literature_curated.corpus.template]
+module                  = "R-RBS-LM-113_larger_corpus_scaling.py"
+
+# --- inference instrument (F166 walk; Step 1 populates context) ---
+[fetch.literature_curated.inference.context]
+# Rolling context-state encoder: last-k tokens → ONE Klein-4 state via positional
+# role-filler binding (pos_key_p ⊕ token_p, bundled). Capacity = retrieval of the
+# true next-token from a bundled associative memory of (context→next) pairs.
+position_encoding       = "rolling_iomega7"   # positional role-filler (iω₇-style)
+window_sweep            = [1, 2, 3, 4, 5, 7, 10]    # context length k to sweep
+n_assoc_sweep           = [50, 100, 200, 400, 800]  # # (context→next) pairs in memory
+corpus_n                = 2000      # sentences to draw (context,next) pairs from
+seed                    = 42
+cleanup_vocab           = "next_token_set"   # cleanup over the observed next-token vocabulary
+
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.inference_substrate.v1"
+ndjson_file    = "substrate_measurements/inference_step1_context.ndjson"
+
+[rendering]
+name_template    = "RBS-LM inference '{measurement_id}'"
+purpose_template = "Inference substrate measurement phase={phase} (k={window}, N={n_assoc})"
+cite_as_template = "mlehaptics RBS-LM inference substrate ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; bit-exact native"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "Native RBS-LM inference substrate catalog. Inference is an A-N cascade under 28D chirality, composed from already-characterized operations (F162/F156/F165/F162-P7). Deterministic: SHA-256 token seeds → fixed Klein-4 vectors; exact XOR bind; seeded sampling. Same context + same catalog + same srmech_version → bit-exact identical output. The inversion of float-weight distillation (Path D), which was diagnostic-only. srmech 0.5.0 native ABI=3. Step 1 measures the rolling context-state encoder's capacity (the substrate's bit-exact 'context window')."
+
+[gap_targeting]
+gap_label = "rbs_lm_native_inference_substrate"
