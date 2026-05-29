@@ -6,6 +6,102 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc14] - 2026-05-29
+
+**rc14 of N for v0.5.0 — the "full JSON↔native MCP coercion" voxel.** A
+live probe of the rc13 catalog proved **65 of 158 tools (41%) were
+advertised to MCP / Anthropic but UNCALLABLE** — their parameters are
+`bytes` / `np.ndarray` / `complex`, types JSON-RPC cannot express. rc14
+makes **all 158 tools MCP-callable** via full **bidirectional** coercion:
+a tool that accepts JSON but returns an un-serialisable ndarray is equally
+unusable, so the fix covers params-in AND results-out. Pure-Python only —
+no C change, ABI stays 3.
+
+Framework reading: bidirectional coercion is **Class H
+(self-introspection)** at the package's tool-surface — the package making
+its own A–N callables' types JSON-expressible across the JSON-RPC /
+Anthropic boundary. The base64 / `[re, im]` encodings are **Class B
+(TLV-framing)** — encoding-boundary translation between continuous native
+types and the discrete JSON wire. No new primitive class is introduced.
+
+### Added
+
+- **Bidirectional JSON↔native coercion (`srmech.mcp._coercion`).** A clean
+  type→coercer dispatch keyed on each `ToolParameter.type` string, plus a
+  structural outbound serialiser:
+  - `bytes` ↔ base64 `str` (user decision — binary-safe + unambiguous;
+    replaces the rc13 hex convention). Malformed base64 raises a clear
+    `ValueError` naming the param.
+  - `np.ndarray` ↔ nested JSON list (row-major `.tolist()`); complex
+    arrays serialise each element as `[re, im]`.
+  - `complex` ↔ `[re, im]` (a bare JSON number decodes to `complex(n, 0)`).
+  - numpy scalars (`np.int64` / `np.float64` / `np.uint8` / …) → Python
+    `int` / `float` / `bool` on the outbound path.
+  - container types recurse element-wise: `Sequence[bytes]`,
+    `Sequence[np.ndarray]`, `tuple[np.ndarray, ...]`,
+    `Mapping[bytes, bytes]` (`template.render`),
+    `list[tuple[bytes, int]]` (`dispatch.match` rules),
+    `list[tuple[bytes, bytes]]` (`naming.lookup` pairs).
+- **Schema encoding hints.** Each non-JSON native type's schema property
+  carries a JSON-encoding hint in its `description` (`bytes` → string +
+  "base64-encoded bytes"; `np.ndarray` → array + "nested JSON array,
+  row-major; complex elements as [re, im]"; `complex` → array +
+  "[real, imaginary]"; containers → the element hint), so an MCP /
+  Anthropic consumer learns the wire form up front. `complex` now renders
+  as a JSON-schema `array` (was `string`). The rc13 property-key grammar +
+  rc10 name discipline are untouched (the hint lives in the value's
+  description, never the key).
+- **THE TYPE-COERCIBILITY RATCHET — `test_all_param_types_json_coercible`
+  in `tests/test_mcp.py`.** For EVERY `ToolEntry` param across
+  `get_tool_schema().tools`, it asserts the coercion dispatch HAS an
+  explicit handler for the declared type. This guarantees no future tool
+  can advertise an uncallable param type unnoticed (complements the rc13
+  schema/signature name-drift ratchet). Running it over all 158 tools
+  surfaced 33 distinct param types, all now handled.
+
+### Changed
+
+- `srmech.mcp._tools._coerce_arguments` now routes every inbound argument
+  through `_coercion.coerce_param` (was a small inline hex/path matcher).
+- `srmech.mcp._tools.serialise_result` now walks the result through
+  `_coercion.serialise_native` before `json.dumps`, so bytes → base64,
+  ndarray → nested list (complex as `[re, im]`), complex → `[re, im]`,
+  numpy scalars → Python scalars, tuples/sets → lists — round-trippable
+  with the inbound path.
+
+### Tests
+
+- `test_coercion_roundtrips_scalar_leaf_types` — `coerce_param(serialise_
+  native(x)) == x` for bytes / complex / real-ndarray (exact); complex
+  arrays via the explicit `complex_pairs_to_ndarray` builder.
+- `test_serialise_native_emits_json_serialisable` — `json.dumps`
+  succeeds for bytes / complex / real+complex ndarray / numpy scalars /
+  nested tuples / dict-with-bytes-key.
+- `test_invoke_*` live-path round-trips through `invoke_tool` (the shared
+  MCP + Anthropic entry): `naming.lookup` (base64 key + pairs),
+  `template.render` (base64 mapping), `hdc.bind` (base64 ↔ bytes
+  round-trip), `laplacian.jacobi_eigvals` (nested-list matrix → eigenvalue
+  list), `qm.sm.higgs_potential` (phi=`[re, im]`), `dispatch.match` (base64
+  rules) — each asserts the result is JSON-serialisable.
+- `test_invoke_klein4_random_seed_reproducible_rc14_path` — rc13 seed
+  reproducibility holds through the rc14 ndarray-result coercion.
+- `test_schema_renders_encoding_hints` +
+  `test_encoding_hints_preserve_property_key_grammar` — STEP 3 schema-hint
+  coverage; property-key grammar still clean.
+- The two rc13 hex-based tests (`*_sha256_bytes_*`, `serialise_result_
+  handles_bytes_*`) are updated to base64 (the rc14 wire form).
+- Version-gate test renamed `test_version_is_0_5_0rc13` →
+  `test_version_is_0_5_0rc14`; `test_version_module_matches` stays
+  literal-free.
+
+> **NOTE — arrays over JSON are payload-heavy.** Arrays are now
+> MCP-callable, but a large ndarray serialised as a nested JSON list is
+> expensive over the JSON-RPC wire. The bus **handle-API** (a later voxel)
+> remains the by-reference path for bulk array work — per the
+> package-for-bulk / MCP-for-interactive design boundary. Use MCP coercion
+> for interactive / small-payload calls; use the bus handle for bulk
+> spectral arrays.
+
 ## [0.5.0rc13] - 2026-05-29
 
 **rc13 of N for v0.5.0 — MCP surface-correctness bug-fix voxel.** Two

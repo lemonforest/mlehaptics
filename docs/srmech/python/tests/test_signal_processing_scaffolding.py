@@ -91,32 +91,35 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc13():
-    """v0.5.0rc13 — MCP surface-correctness bug-fix voxel.
+def test_version_is_0_5_0rc14():
+    """v0.5.0rc14 — full JSON<->native MCP coercion voxel.
 
-    Two real bugs surfaced by upstream MCP usage, plus the
-    would-have-caught-it ratchet. Both bugs affected BOTH the MCP path
-    and the Anthropic adapter (shared ``srmech.mcp._tools.invoke_tool``):
+    A live probe of the rc13 catalog proved 65 of 158 tools (41%) were
+    advertised to MCP / Anthropic but UNCALLABLE: their params are
+    ``bytes`` / ``np.ndarray`` / ``complex`` — types JSON-RPC cannot
+    express. rc14 makes ALL 158 tools MCP-callable via full BIDIRECTIONAL
+    coercion (params in + results out — a tool that accepts JSON but
+    returns an un-serialisable ndarray is equally unusable):
 
-    1. ``hdc.klein4_random`` / ``hdc.polar_random`` integer ``seed``.
-       They were seedable only via ``rng: numpy.random.Generator``,
-       which cannot cross JSON-RPC nor be expressed in an Anthropic tool
-       schema — so MCP / Anthropic callers could not obtain a
-       DETERMINISTIC vector (breaking the bit-exact / attestation
-       discipline). Added an integer ``seed`` param (``rng`` wins if
-       both supplied); the ToolEntry now advertises ``seed`` and DROPS
-       the un-serialisable Generator.
-    2. ``srmech.amsc.naming.lookup`` schema/signature drift. Its
-       ToolEntry declared a param (``entries``) the shipped
-       ``lookup(key, pairs)`` does not accept, so the tool was
-       uncallable (``TypeError: unexpected keyword 'entries'``). Fixed
-       the SCHEMA to match the shipped signature (``pairs``).
+    * ``bytes``      <-> base64 ``str`` (binary-safe, unambiguous).
+    * ``np.ndarray`` <-> nested JSON list (row-major; complex elements as
+      ``[re, im]``).
+    * ``complex``    <-> ``[re, im]``.
+    * numpy scalars  -> Python int / float on the outbound path.
+    * container types (``Sequence[bytes]`` / ``Sequence[np.ndarray]`` /
+      ``Mapping[bytes, bytes]`` / ``list[tuple[bytes, int]]`` /
+      ``list[tuple[bytes, bytes]]`` / ``tuple[np.ndarray, ...]``) recurse
+      element-wise.
 
-    Plus THE RATCHET — ``test_schema_signature_alignment_no_drift`` in
-    test_mcp.py asserts every ToolEntry's declared params are bindable to
-    its resolved callable. It would have caught BUG B and additionally
-    surfaced ``template.render`` (declared ``substitutions``; shipped
-    ``mapping``), which was aligned to the shipped signature too.
+    The per-type coercer dispatch lives in ``srmech.mcp._coercion``; the
+    schema rendering adds a JSON-encoding hint per non-JSON type so an LLM
+    learns to base64-encode etc.
+
+    Plus THE TYPE-COERCIBILITY RATCHET —
+    ``test_all_param_types_json_coercible`` in test_mcp.py asserts every
+    advertised param type has a coercion handler, so no future tool can
+    ship an uncallable param type unnoticed (complements the rc13
+    name-drift ratchet).
 
     The version-gate test stays the SINGLE deliberate human-literal gate
     (the conscious per-rc bump point); ``test_version_module_matches``
@@ -125,14 +128,16 @@ def test_version_is_0_5_0rc13():
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: the fixes are Class H (self-introspection) at the
-    package's tool-surface — the schema recognising its own callables'
-    shape. The ``seed`` is Class N (rational/deterministic anchor) made
-    JSON-expressible so the bit-exact discipline survives the JSON-RPC /
-    Anthropic boundary. No new primitive class is introduced.
+    Framework reading: bidirectional coercion is Class H (self-
+    introspection) at the package's tool-surface — the package making its
+    own A-N callables' types JSON-expressible across the JSON-RPC /
+    Anthropic boundary. The base64 / ``[re, im]`` encodings are Class B
+    (TLV-framing — encoding-boundary translation between continuous native
+    types and the discrete JSON wire). No new primitive class is
+    introduced.
     """
-    assert srmech.__version__ == "0.5.0rc13", (
-        f"expected srmech.__version__ == '0.5.0rc13'; got "
+    assert srmech.__version__ == "0.5.0rc14", (
+        f"expected srmech.__version__ == '0.5.0rc14'; got "
         f"{srmech.__version__!r}"
     )
 
