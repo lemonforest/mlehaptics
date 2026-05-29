@@ -100,6 +100,20 @@ operating_temps         = [0.005, 0.01, 0.02, 0.05]  # the cold confident regime
 n_sequences             = 50      # sequences generated per (T, L) cell
 loop_seed               = 7       # generation RNG seed (deterministic / bit-exact)
 
+# --- Step 5: the instantiable artifact's operating defaults ---
+[fetch.literature_curated.inference.instrument]
+# RBSLMInferenceSubstrate.from_catalog(this) builds the substrate from these
+# params; .learn(stream) loads knowledge into a context→next associative memory
+# (bounded by the F154 capacity at this D); .infer(prompt, T) runs the
+# autoregressive loop (Steps 1-4 composed). Bit-exact / deterministic /
+# MPR-attested — the fully-realized native inference substrate, NOT a float
+# distillation.
+operating_k             = 5        # context window (Steps 1-2 productive length)
+operating_temperature   = 0.02     # the loop-free / grammatical sweet spot (Step 4)
+memory_capacity         = 200      # single-memory bound at D=8192 (F154 4× ceiling); scale via hierarchical bucketing (F162 P4)
+default_max_tokens      = 30
+learn_seed              = 42       # which capacity-bounded slice of the stream the memory holds
+
 [parse]
 natural_key = "measurement_id"
 
