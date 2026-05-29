@@ -1388,6 +1388,18 @@ def test_invalid_base64_bytes_raises_clear_error() -> None:
         coerce_param("not!valid!base64!", "bytes", param="data")
 
 
+def test_coerce_param_none_passthrough_for_optional() -> None:
+    """A JSON ``null`` (Python ``None``) for an ``Optional[...]`` param
+    passes through as ``None`` regardless of the declared element type —
+    NOT a 0-d object array (which ``np.asarray(None)`` would build)."""
+    from srmech.mcp._coercion import coerce_param
+
+    assert coerce_param(None, "Optional[np.ndarray]") is None
+    assert coerce_param(None, "np.ndarray") is None
+    assert coerce_param(None, "bytes") is None
+    assert coerce_param(None, "complex") is None
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Targeted round-trip + live-path tests through invoke_tool (the shared
 # MCP + Anthropic entry). Each asserts the result is JSON-serialisable.

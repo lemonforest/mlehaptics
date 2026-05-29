@@ -362,7 +362,15 @@ def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
     """Coerce one inbound JSON ``value`` to the native type its declared
     ``type_string`` names. A type with no registered coercer passes
     through unchanged (the underlying callable is the canonical
-    validator)."""
+    validator).
+
+    A JSON ``null`` (Python ``None``) always passes through unchanged —
+    it means "absent / use the default" for an ``Optional[...]`` param,
+    regardless of the declared element type (so an explicit ``null`` for
+    an ``Optional[np.ndarray]`` stays ``None``, not a 0-d object array).
+    """
+    if value is None:
+        return None
     coercer = _PARAM_COERCERS.get(type_string)
     if coercer is None:
         return value
