@@ -241,10 +241,29 @@ def _name_from_filename(name: str) -> Optional[str]:
 
 
 def _iter_candidate_files(root: Path) -> Iterator[Path]:
-    """Yield every bus-* file under ``root``."""
+    """Yield every bus-* file under ``root``.
+
+    Accepts both regular files (the Windows TCP-loopback ``.txt``
+    registry file) AND Unix-domain-socket files (POSIX ``.sock``).
+    A UDS socket file reports ``is_file() == False`` even though it
+    is a real on-disk entry — historic v0.5.0rc1 bug (silently broke
+    POSIX discovery for the entire rc series). Use ``is_dir()``
+    inversion + presence as the canonical "non-directory entry"
+    check; that includes regular files, sockets, FIFOs, and symlinks
+    (the latter is a non-issue because :func:`bus_dir` is
+    user-controlled).
+    """
     try:
         for p in root.iterdir():
-            if not p.is_file():
+            # Filter directories explicitly; accept regular files +
+            # UDS sockets (the POSIX ``.sock`` entries). Other special
+            # types (FIFO, char/block dev) are extremely unlikely to
+            # carry the ``bus-`` prefix but if one does we let the
+            # name filter handle it.
+            try:
+                if p.is_dir():
+                    continue
+            except OSError:
                 continue
             if not p.name.startswith(BUS_SOCK_PREFIX):
                 continue

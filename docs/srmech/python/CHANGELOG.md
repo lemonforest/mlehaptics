@@ -8,7 +8,24 @@ _Next development line: **v0.4.7** — chiral-cascade research items from MFO §
 
 ## [0.5.0rc9] - 2026-05-28
 
-**rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional).**
+**rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional) +
+POSIX bus-discovery fix.**
+
+### Fixed (load-bearing, since v0.5.0rc1)
+
+- **POSIX bus discovery silently returned empty.** `_iter_candidate_files`
+  filtered the `~/.srmech/` directory with `Path.is_file()`, which returns
+  `False` for AF_UNIX socket files (they're `S_IFSOCK`, not `S_IFREG`).
+  Effect: `by_name()` / `list_endpoints()` reported no live endpoints on
+  POSIX even though the socket existed and was connectable, so every test
+  using the `_wait_for_endpoint` helper hit a 5 s timeout on every POSIX
+  CI cell across the rc1–rc9 series (40+ failing tests per cell, masked
+  by the prior 3 POSIX cells going red the whole time). Windows passed
+  throughout because its `.txt` registry file IS a regular file. Fix:
+  invert the filter (skip directories; accept regular files + sockets).
+  New regression test `test_discovery_iterates_uds_socket_files`.
+
+### Added — Anthropic SDK adapter
 
 Optional companion to rc6 MCP (primary path for Claude Code users). This
 adapter targets users who script Claude API directly outside Claude Code
