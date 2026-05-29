@@ -2049,6 +2049,81 @@ def _register_introspect_tools() -> None:
             ),
         )
     )
+    # v0.5.0rc9: register the read-side "status" surface so MCP /
+    # Claude Code consumers can discover the live-run enumerator and
+    # the by-pid lookup. Without these, the introspection surface was
+    # write-only from the LLM's catalog perspective — publish was
+    # visible but the matching read API was invisible.
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.list",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Enumerate active (and recently-died) srmech runs "
+                "owned by the current user by scanning "
+                "`~/.srmech/run-{pid}-{start_time_ns}.ndjson`. The "
+                "read-side complement to `srmech.introspect.publish`: "
+                "use this from a second process to observe a "
+                "long-running sweep. Side effect: dead-PID files "
+                "whose `session_end` event committed cleanly are "
+                "removed on read (auto-cleanup); their Run records "
+                "are still returned in the result so the caller can "
+                "inspect the final state. Most-recent first (sorted "
+                "descending by `start_time_ns`). Returns `[]` on "
+                "Pyodide / WASM (no filesystem). v0.5.0rc9 "
+                "(MCP / catalog discoverability)."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="list[Run]",
+                shape=(
+                    "Each Run is a frozen dataclass: pid (int), "
+                    "start_time_ns (int), script_name (str), "
+                    "current_op (str), current_class (str), "
+                    "elapsed_ms (int), status ('running' | "
+                    "'finished' | 'died'), event_count (int), "
+                    "file_path (pathlib.Path). Sorted most-recent "
+                    "first."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.by_pid",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Look up the most-recent srmech run for one PID. "
+                "PID-recycling defence: if two status files share "
+                "the same PID because the OS reused it, the one "
+                "with the larger `start_time_ns` wins (the more-"
+                "recent run; the `start_time_ns` suffix in the "
+                "filename defeats PID recycling). Returns `None` if "
+                "no file matches, or on Pyodide / WASM (no "
+                "filesystem). v0.5.0rc9 (MCP / catalog "
+                "discoverability)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "pid", "int", required=True,
+                    summary="Process ID to look up.",
+                ),
+            ),
+            returns=ToolReturn(
+                type="Run | None",
+                shape=(
+                    "Frozen dataclass with pid (int), start_time_ns "
+                    "(int), script_name (str), current_op (str), "
+                    "current_class (str), elapsed_ms (int), status "
+                    "('running' | 'finished' | 'died'), event_count "
+                    "(int), file_path (pathlib.Path). `None` when "
+                    "no file matches the PID."
+                ),
+            ),
+        )
+    )
 
 
 # Call at module import so srmech's own tools are always present

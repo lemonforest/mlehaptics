@@ -68,6 +68,25 @@ Anthropic client (no real API calls).
 **This completes the v0.5.0 rc walk** (rc1-rc9 all shipped). Awaiting
 user load-test signal before cutting clean v0.5.0 → production PyPI.
 
+### Fixed — MCP tool-schema discoverability gap
+
+- **MCP tool-schema discoverability fix**: `srmech.introspect.list`,
+  `srmech.introspect.by_pid`, `srmech.bus.list_endpoints`, `srmech.bus.by_name`,
+  and `srmech.bus.decode_splice` are now visible to MCP / Claude Code consumers.
+  Root cause: `srmech.mcp._tools` only imported `srmech.amsc.tool_schema` and
+  never triggered the side-effect imports of `srmech.bus._tool_schema` or
+  `srmech.introspect`, so the "status" introspection surface and the bus
+  discovery surfaces were silently missing from the LLM-facing catalog. Fix
+  adds explicit `from .. import bus as _bus` / `from .. import introspect as
+  _introspect` warmup at the top of `mcp/_tools.py` plus two new ToolEntry
+  registrations on each module (introspect: `list`, `by_pid`; bus:
+  `list_endpoints`, `by_name`). Total registered tool count goes from 150 to
+  155 (decode_splice was registered all along — it just wasn't visible
+  through the MCP wrapper because the side-effect import was missing).
+  Six new regression tests in `tests/test_mcp.py` lock the fix in by
+  asserting each tool appears in `get_tool_schema()` after importing
+  `srmech.mcp._tools` (the exact path Claude Code / MCP clients take).
+
 ## [0.5.0rc8] - 2026-05-28
 
 **rc8 of N for v0.5.0 — Cascade DSL runner (task #235).**
