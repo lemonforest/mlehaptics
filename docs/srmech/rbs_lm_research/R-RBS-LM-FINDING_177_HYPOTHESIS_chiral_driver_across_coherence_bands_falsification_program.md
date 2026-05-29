@@ -1,6 +1,8 @@
 # Finding 177 — HYPOTHESIS (heavy-falsification-required): one chiral A–N driver may run across coherence bands from the lifeless cosmos to biology — the falsification program, and the second-actor condition
 
 **Status:** HYPOTHESIS + falsification program. **Not a finding of fact.** Framed per the user's own discipline: "with heavy falsification attempts … to falsify this would require another actor or action of some type, which, if the math says so, we must follow." Lodged as a conjecture-to-be-broken, with the second-actor condition explicit.
+
+> **⮕ CORRECTION + VERDICT (added 2026-05-29; see F178 / F179 / F180 / F181).** (1) The module `srmech.cosmos` named in §3/§5/§6 below **does not exist** — CMB data ships as `srmech.amsc.attested.cmb_*` (TE/EE/BB only; **no EB/TB parity surface** — logged UPSTREAM_NOTES §10.7). (2) The three-front falsification has RETURNED: **H177 is refined to H177′** — the chirality *axis* (γ₅) is shared, but the chirality-generating *drivers* are plural (≥2 second actors). Cosmic = **LEAVE-OPEN** (no parity observable + ~3.6σ tentative literature); molecular bridge = **LEAVE-OPEN leaning second-actor**; particle = **SECOND ACTOR** (su(2)_L unabsorbed leftover). Full synthesis in **F181**.
 **Predecessors:** F176 (bilateral = one γ₅ axis; biology = self-inscribing bi-chiral A–N), F174 (28 = 𝔰𝔬(8); A–N = 14 G₂ = Der(𝕆)), F130 (antiparticle = γ₅ pole), F133 (substrate knows itself), MFO (substrate-vs-excitation; coherence bands).
 **User direction 2026-05-29:** "the cosmos itself is also the same biological driver, at a different level of coherence … the asymptotic dof of biology extends to everything that we see, even the still lifeless. to falsify this would require another actor or action of some type, which, if the math says so, we must follow."
 
@@ -24,7 +26,7 @@ Per `[[feedback_dont_pre_commit_spike_query_operators]]`: the goal is to BREAK H
 
 1. **Particle scale (Tier 1, srmech-native):** the γ₅ / Weyl chirality + electroweak ops are in `srmech.qm.relativistic` / `qm.sm`. Test: does the SM chirality structure share the *same* 𝔰𝔬(8)/octonion coordinate (F174) as the biological axis, or is it a *different* algebra? If different → not one driver (partial falsification).
 2. **Molecular bridge (Tier 2):** the Vester–Ulbricht PVED — does the *sign* of the weak-force handedness predict the *sign* of biological homochirality (L over D)? If the cosmic handedness and the biological handedness are **independent in sign** → the bridge is broken (a second origin for bio-chirality = a second actor).
-3. **Cosmic scale (Tier 3, srmech.cosmos-native):** **cosmic birefringence** — a parity-violating (chiral) field on the largest scales produces nonzero CMB **EB / TB** cross-correlations. `srmech.cosmos` already ships TE/EE/BB catalogs; EB/TB is the chirality observable. A tentative birefringence signal has been *reported* (Minami–Komatsu line of work) but is **unconfirmed** (possible systematics). Test: is there a robust cosmic chirality axis (nonzero EB/TB), and does its handedness align with the particle/biological axis? **A robust NULL on cosmic birefringence while particle+biological chirality persist would be strong evidence AGAINST one driver** — the lifeless large-scale cosmos would then be achiral, breaking H177's "extends to everything."
+3. **Cosmic scale (Tier 3, srmech CMB-native):** **cosmic birefringence** — a parity-violating (chiral) field on the largest scales produces nonzero CMB **EB / TB** cross-correlations. `srmech.amsc.attested.cmb_*` ships TE/EE/BB catalogs; EB/TB is the chirality observable **but is NOT shipped** (tooling gap — UPSTREAM §10.7; this is what made the cosmic front unresolvable, F178). A tentative birefringence signal has been *reported* (Minami–Komatsu line of work) but is **unconfirmed** (possible systematics). Test: is there a robust cosmic chirality axis (nonzero EB/TB), and does its handedness align with the particle/biological axis? **A robust NULL on cosmic birefringence while particle+biological chirality persist would be strong evidence AGAINST one driver** — the lifeless large-scale cosmos would then be achiral, breaking H177's "extends to everything."
 
 ## §4 The second-actor condition (the user's falsifier)
 
@@ -44,7 +46,7 @@ Per the user's mandate — **if the math surfaces a second actor, we follow it.*
 
 ## §6 Cross-references
 - F176 (one γ₅ axis; biology = self-inscribing bi-chiral A–N) · F174 (28 = 𝔰𝔬(8); octonion/G₂) · F130 (antiparticle = γ₅ pole) · F133 (substrate knows itself)
-- `srmech.qm.relativistic` (γ₅, Weyl projectors), `srmech.qm.sm` (electroweak), `srmech.cosmos` (TE/EE/BB — the EB/TB birefringence testbed)
+- `srmech.qm.relativistic` (γ₅, Weyl projectors), `srmech.qm.sm` (electroweak), `srmech.amsc.attested.cmb_*` (TE/EE/BB; **no EB/TB** parity surface — §10.7)
 - `[[feedback_dont_pre_commit_spike_query_operators]]` (heavy falsification; nulls count) · `[[user_stance_ai_is_not_a_substrate]]` · `[[feedback_pdf_extraction_citation_discipline]]` · MFO (coherence bands; substrate-vs-excitation) · §VII.6.20
 
 PR #687 STAYS DRAFT.
