@@ -108,7 +108,13 @@ n_per_length            = 50
 values                  = [400, 800, 1600, 3200, 6400, 12800]
 
 [fetch.literature_curated.measurement.dimension_sweep]
-values                  = [2048, 4096, 8192, 16384, 32768]
+# D=32768 dropped after the canonical-catalog run died on 2026-05-28 partway
+# through phase 3 at D=16384 → D=32768 (OOM most likely; cumulative numpy
+# allocations across the prior D values held in scope). 8× dynamic range
+# {2048, 4096, 8192, 16384} is sufficient to characterize substrate
+# D-dependence; F154 4× ceiling validated D=8192 as the canonical operating
+# point separately.
+values                  = [2048, 4096, 8192, 16384]
 fixed_n                 = 2000
 
 [fetch.literature_curated.measurement.bucket_sweep]

@@ -1,0 +1,13 @@
+{
+  "_comment": "Project-scoped MCP server config for this worktree. Per srmech v0.5.0rc6+ (siona.mcp): MCP is the primary LLM integration path for the Claude Code Max plan. The srmech-mcp adapter exposes ~150 srmech.amsc.tool_schema ToolEntry registrations as MCP tools (klein4 HDC + AMSC catalog + cascade ops + descriptor/profile/introspect surfaces). Every tools/call returns an MPR-v1 attestation block alongside the result.",
+  "_venv_note": "command path assumes the research venv at /tmp/verify_srmech_043/venv (created during srmech 0.4.3 verification; preserved across sessions). If the venv is relocated, update the command path here.",
+  "mcpServers": {
+    "srmech": {
+      "command": "/tmp/verify_srmech_043/venv/bin/srmech-mcp",
+      "args": [
+        "--name", "srmech"
+      ],
+      "env": {}
+    }
+  }
+}
