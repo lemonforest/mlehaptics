@@ -132,7 +132,7 @@ def test_version_is_0_5_0rc10():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc9"
+    assert version_str == "0.5.0rc10"
     assert version_str == srmech.__version__
 
 
