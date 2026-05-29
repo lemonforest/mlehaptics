@@ -24,6 +24,15 @@ POSIX bus-discovery fix.**
   throughout because its `.txt` registry file IS a regular file. Fix:
   invert the filter (skip directories; accept regular files + sockets).
   New regression test `test_discovery_iterates_uds_socket_files`.
+- **`Endpoint.stop()` left accepted-client sockets open.** The listen
+  socket was closed but each per-connection worker held its own accepted
+  socket — workers would keep serving requests that arrived AFTER
+  `stop()` returned, defeating the "stopped server cannot reply"
+  contract verified by `test_send_after_server_stop_raises`. Surfaced
+  on POSIX once the discovery bug above was fixed (was previously
+  masked by the pre-`_wait_for_endpoint` timeout). Fix: track each
+  accepted `Connection` on a per-endpoint list and close them all in
+  `stop()` before joining worker threads.
 
 ### Added — Anthropic SDK adapter
 
