@@ -1,0 +1,161 @@
+# RBS-LM substrate catalog — religious-texts variant (28D chirality revisit)
+#
+# Variant of the canonical rbs_lm_substrate catalog. Same substrate library
+# (_canonical_substrate.py), same srmech 0.5.0 Klein-4 machinery, same MPR
+# attestation — different corpus source (6 real religious texts) + a
+# chirality-signature measurement config.
+#
+# Research question (per user direction 2026-05-29): the R-RBS-LM-53 arc found
+# the big-3 Abrahamic texts FLAT-SPECTRAL-IDENTICAL (diagonal/off-diagonal
+# similarity ratio 0.99 — MFO §VII.6.20 epistemic ceiling). Does the 28D
+# bi-axial chirality decomposition (F158) LIFT that degeneracy — i.e., do texts
+# that look identical under flat similarity DIFFER along the chirality axes?
+#
+# SCOPE DISCIPLINE (load-bearing): structural/spectral reading ONLY. No
+# doctrinal claims, no ranking of texts, no truth/origin/supersession claims
+# per [[feedback_no_lineage_claims_in_notebook]] + [[feedback_trauma_informed
+# _defensive_scope]]. Texts are STRUCTURAL TEST-OBJECTS. §VII.6.20 honored:
+# form-claims only; substrate-identity/meaning still requires a DOMAIN anchor.
+
+[source]
+key                  = "rbs_lm_substrate_religious_texts"
+human_readable_name  = "RBS-LM substrate — religious-texts 28D chirality revisit (6 corpora)"
+purpose              = "Catalog variant feeding 6 open religious texts (3 Abrahamic + 3 Eastern) through the canonical Klein-4 chirality substrate to test whether the 28D bi-axial chirality decomposition lifts the flat-spectral structural degeneracy R-RBS-LM-53 found (ratio 0.99). Phase 1: per-text 28D chirality signature + cross-text discrimination. Phase 2: cross-navigation (grammar of one text walked via relational structure of another) as F156 Mode D generalized to whole-text structure. Structural-only; §VII.6.20 ceiling honored."
+license              = "CC0 for the catalog; corpora are public-domain open translations (Gutenberg / public translations)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+rbs_lm_53_arc          = "docs/srmech/rbs_lm_research/R-RBS-LM-53_SUMMARY_REPORT.md — the flat-spectral 0.99 identity finding + DOMAIN-anchor framework (F44-F50)"
+f158_28d_chirality     = "F158 — 28D bi-axial chirality (14 A-N × 2 axes = 4 sectors × 7 G2); the lens this variant applies"
+f164_grammar_native    = "F164 — grammar is substrate-native; chirality sectors ARE grammatical-hierarchy levels (the basis for cross-navigation)"
+f142_chirality_pure    = "F142 — chirality discriminates WHERE chirality is the load-bearing distinction; the null-risk this variant must honestly face"
+mfo_VII_6_20           = "MFO §VII.6.20 — epistemic ceiling: cascade reads form, not substrate-identity; the ceiling this variant probes"
+canonical_catalog      = "docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml — the canonical variant this derives from"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/religious_texts.ndjson"
+
+# ---------------------------------------------------------------------------
+# Substrate parameters — same as canonical (Klein-4, D=8192, ABI=3 native)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16   # raised from 8: real-text vocab is large (10k+ types)
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+[fetch.literature_curated.generation]
+default_top_k                = 10
+max_walk_length              = 30
+max_paths                    = 100
+cycle_policy                 = "allow"   # real prose repeats tokens; allow cycles in the walk
+l4_direct_composition        = false
+skeleton_length_fallback     = []
+
+[fetch.literature_curated.hierarchical]
+n_buckets                   = 16
+default_strategy            = "hash"
+allowed_strategies          = ["hash", "first_bigram_hash", "sector_then_hash"]
+sentence_hash_hex_chars     = 16
+
+# ---------------------------------------------------------------------------
+# Corpus source — 6 religious texts (cached; attested by content SHA-256)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.corpus]
+source                  = "religious_text_kernels"
+tokenizer               = "whitespace"
+cache_dir               = "~/.cache/rbs_lm_corpora"
+strip_gutenberg         = true     # strip PG header/footer boilerplate (per 53-arc strip_gutenberg)
+unit                    = "verse_line"   # one structural unit per non-empty line (verse/aphorism)
+
+[fetch.literature_curated.corpus.texts.quran_yusuf_ali]
+label    = "Quran (Sale 1734 / Yusuf Ali register)"
+family   = "abrahamic"
+filename = "quran_yusuf_ali.txt"
+sha256   = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+
+[fetch.literature_curated.corpus.texts.kjv_ot]
+label    = "KJV Old Testament"
+family   = "abrahamic"
+filename = "kjv_old_testament.txt"
+sha256   = "60b2b8021452180eb0ad9ce11e275451b809f257bfb86f1f6a66f54abecc71f5"
+
+[fetch.literature_curated.corpus.texts.kjv_nt]
+label    = "KJV New Testament"
+family   = "abrahamic"
+filename = "kjv_new_testament.txt"
+sha256   = "f26f3c9c32bee2e3f1a71437ba69b7c47f1420d822b3b3681943ccb2825f7fc6"
+
+[fetch.literature_curated.corpus.texts.bhagavad_gita]
+label    = "Bhagavad Gita (Arnold)"
+family   = "eastern"
+filename = "bhagavad_gita.txt"
+sha256   = "a5d170ed807a42a8ff196fd5c6d61ceeda4b51788c1918f9b64fbbd5b2317900"
+
+[fetch.literature_curated.corpus.texts.tao_te_ching]
+label    = "Tao Te Ching (Legge)"
+family   = "eastern"
+filename = "tao_te_ching.txt"
+sha256   = "ff1f2d83b2737d08ce93dec90ee74fe07919d37b019c5e81b1dfd2e9d48ff5fd"
+
+[fetch.literature_curated.corpus.texts.dhammapada]
+label    = "Dhammapada (Müller)"
+family   = "eastern"
+filename = "dhammapada.txt"
+sha256   = "2b57e8ecdf63644586db1e74baca10d7b532e09362d7f94ff46711cde5676957"
+
+# ---------------------------------------------------------------------------
+# Chirality-signature measurement (Phase 1) — the 28D revisit config
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.chirality_signature]
+# Per-text signature components computed against the text's aggregate Klein-4
+# encoding. The flat-spectral baseline (bundle similarity) reproduces the 0.99
+# R-RBS-LM-53 result; the chirality components test whether resolving along the
+# (γ₅, iω₇) axes lifts the degeneracy.
+n_units_per_text        = 2000     # sample N verse-lines per text (balanced across texts)
+seed                    = 42
+sector_routing          = "bigram_parity"   # route bigrams to sectors by word-order parity
+                                             # (forward/reverse presence) so sector occupancy
+                                             # carries word-order STRUCTURE, not token hash.
+                                             # "hash" = null-control (uniform sectors expected).
+chirality_ops           = ["gamma5_flip", "omega7_flip", "cpt_mirror"]
+compute_flat_baseline   = true     # reproduce the 0.99 flat-similarity matrix for comparison
+
+# ---------------------------------------------------------------------------
+# Cross-navigation (Phase 2) — grammar(A) walked via logic(B)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.cross_navigation]
+enabled                 = true
+# For each ordered pair (A, B): take A's sector-hierarchy (grammar) and walk it
+# using B's bigram-adjacency (logic). Measure coherence + breakpoints + the
+# hybrid's chirality signature. F156 Mode D generalized.
+max_pairs               = 30       # all ordered pairs of 6 texts = 30
+sample_seeds_per_pair   = 20
+
+# ---------------------------------------------------------------------------
+# Standard AMSC tail
+# ---------------------------------------------------------------------------
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.religious_text_chirality.v1"
+ndjson_file    = "substrate_measurements/religious_texts.ndjson"
+
+[rendering]
+name_template    = "RBS-LM religious-text chirality '{measurement_id}'"
+purpose_template = "Chirality signature / cross-navigation for {text_label} (phase={phase})"
+cite_as_template = "mlehaptics RBS-LM religious-texts variant ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; STRUCTURAL-ONLY per §VII.6.20"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "Variant of the canonical rbs_lm_substrate catalog. Each corpus is attested by content SHA-256 (recorded above); corpora are public-domain open translations cached at ~/.cache/rbs_lm_corpora, re-fetchable from Project Gutenberg. Measurement consumes the canonical Klein-4 substrate library via srmech 0.5.0 native (ABI=3). STRUCTURAL/SPECTRAL READING ONLY per [[feedback_trauma_informed_defensive_scope]] + [[feedback_no_lineage_claims_in_notebook]]: the texts are structural test-objects; no doctrinal/truth/origin/ranking claims; MFO §VII.6.20 epistemic ceiling honored (form-claims only; substrate-identity requires a DOMAIN anchor). The research question is whether 28D chirality lifts the flat-spectral degeneracy R-RBS-LM-53 measured — an honest test that may return null (F142: chirality discriminates only where it is the load-bearing distinction)."
+
+[gap_targeting]
+gap_label = "rbs_lm_substrate_religious_texts_28d_chirality"
