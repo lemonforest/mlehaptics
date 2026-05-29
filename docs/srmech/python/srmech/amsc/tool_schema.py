@@ -816,8 +816,13 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.naming.lookup", owner="srmech", category="naming",
             summary="Binary search over a sorted (key, value) catalog. Keys MUST "
                     "be pre-sorted ascending lexicographic by caller.",
+            # rc13 drift fix: the param is `pairs` (the iterable of
+            # (key, value) tuples) — the shipped `naming.lookup(key, pairs)`
+            # signature. The earlier `entries` name made the tool uncallable
+            # via MCP / Anthropic (TypeError: unexpected keyword 'entries').
             parameters=(P("key", "bytes", True),
-                        P("entries", "list[tuple[bytes, bytes]]", True)),
+                        P("pairs", "list[tuple[bytes, bytes]]", True,
+                          "sorted (key, value) pairs")),
             returns=R("Optional[bytes]", "value or None"),
         ),
 
@@ -828,8 +833,14 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.template.render", owner="srmech", category="template",
             summary="Render a template with {key} placeholders. Plain bytes "
                     "pass through; unknown key raises ValueError.",
+            # rc13 drift fix: the param is `mapping` (the bytes->bytes
+            # substitution map) — the shipped `template.render(template_bytes,
+            # mapping)` signature. The earlier `substitutions` name made the
+            # tool uncallable via MCP / Anthropic (TypeError: unexpected
+            # keyword 'substitutions'); surfaced by the rc13 drift ratchet.
             parameters=(P("template_bytes", "bytes", True),
-                        P("substitutions", "Mapping[bytes, bytes]", True)),
+                        P("mapping", "Mapping[bytes, bytes]", True,
+                          "key -> value substitution map")),
             returns=R("bytes", "rendered output"),
         ),
 
@@ -1046,9 +1057,18 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.polar_random", owner="srmech", category="hdc",
             summary="Random polar hypervector: int8 array of D elements in "
-                    "{-1, 0, +1} (the 3-state Class-M variant alphabet).",
+                    "{-1, 0, +1} (the 3-state Class-M variant alphabet). "
+                    "Pass an integer `seed` for a DETERMINISTIC vector "
+                    "(bit-exact / attestation discipline).",
+            # rc13: advertise the JSON-friendly integer `seed`, NOT the
+            # un-serialisable `rng: numpy.random.Generator` (a Generator has
+            # no valid JSON-Schema type and cannot cross JSON-RPC / an
+            # Anthropic tool schema). In-process Python callers still have
+            # the `rng=` kwarg on the function; the schema exposes only the
+            # serialisable path.
             parameters=(P("D", "int", True, "dimension"),
-                        P("rng", "numpy.random.Generator", False)),
+                        P("seed", "int", False,
+                          "integer seed for a deterministic vector")),
             returns=R("np.ndarray", "int8 in {-1,0,+1}"),
         ),
         ToolEntry(
@@ -1118,8 +1138,14 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_random", owner="srmech", category="hdc",
             summary="Random Klein-4 hypervector: uint8 array of D elements in "
-                    "{0,1,2,3} (the rank-2 Class-M variant alphabet).",
-            parameters=(P("D", "int", True), P("rng", "numpy.random.Generator", False)),
+                    "{0,1,2,3} (the rank-2 Class-M variant alphabet). "
+                    "Pass an integer `seed` for a DETERMINISTIC vector "
+                    "(bit-exact / attestation discipline).",
+            # rc13: advertise the JSON-friendly integer `seed`, NOT the
+            # un-serialisable `rng: numpy.random.Generator` (see polar_random).
+            parameters=(P("D", "int", True, "dimension"),
+                        P("seed", "int", False,
+                          "integer seed for a deterministic vector")),
             returns=R("np.ndarray", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
