@@ -4,7 +4,41 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). Plus optional v0.5.0rc9 Anthropic SDK secondary adapter._
+
+## [0.5.0rc8] - 2026-05-28
+
+**rc8 of N for v0.5.0 — Cascade DSL runner (task #235).**
+
+Fluent `chain()` API + TOML-driven runner + loop/fold/reduce control flow.
+
+- Added: `srmech.dsl` module — `chain(name).then(op).loop(n, sub).fold(init,
+  op).reduce(op).run(input)` fluent composition over the 8 cascade-catalog
+  ops shipped in v0.4.5.
+- Added: TOML cascade-catalog runtime loader — reads the 8 descriptors
+  from `srmech/amsc/_research/cascade_catalog/` and resolves op names to
+  Python entry points (which route to C peers when `HAS_NATIVE`).
+- Added: `srmech dsl run / ops / visualize` CLI subcommands. The `run`
+  subcommand loads a TOML chain spec (`[chain]` + `[[stage]]` array
+  with `op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op`
+  discriminators), executes against `--input` (inline JSON) or
+  `--input-file` (JSON / NDJSON), emits to stdout or `--output-file`.
+- DSL stages emit `dsl.<chain_name>.stage.<N>` events (and a closing
+  `dsl.<chain_name>.complete` event) when introspection publish is
+  active; observable via `srmech status` or `srmech bus tap`.
+- Each builder method (`then` / `loop` / `fold` / `reduce`) validates
+  the op name against the on-disk catalog at chain-construction time
+  (unknown ops raise `ValueError` immediately, not at `run()` time).
+- No new primitive class — loop / fold / reduce are compositions of
+  the existing 14-class A–N vocabulary (loop = Class I cyclic
+  repetition; fold / reduce = Class M accumulator bind).
+
+Completes ADR-0002 Phase 2-v2 (loop/fold/reduce in chain DSL; task #235).
+
+Pure-Python; ABI unchanged at 3. ~30 new tests; full suite ~1644 passing.
+
+Remaining: optional rc9 Anthropic SDK adapter (defer if you don't need
+non-Claude-Code LLM integration).
 
 ## [0.5.0rc7] - 2026-05-28
 
