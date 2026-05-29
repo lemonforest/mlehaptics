@@ -57,9 +57,11 @@ from ._catalog import (
     lookup_cascade_op,
 )
 from ._chain import Chain, chain
+from ._tool_surface import list_catalog_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
     build_chain_from_toml,
+    build_chain_from_toml_str,
     load_chain_toml,
 )
 
@@ -76,5 +78,9 @@ __all__ = [
     # TOML loader
     "load_chain_toml",
     "build_chain_from_toml",
+    "build_chain_from_toml_str",
     "build_chain_from_dict",
+    # Declarative one-shot surface (v0.5.0rc12 — LLM tool entry points)
+    "run_toml_chain",
+    "list_catalog_ops",
 ]

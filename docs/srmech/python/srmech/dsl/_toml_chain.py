@@ -82,6 +82,46 @@ def build_chain_from_toml(path: Union[str, Path]) -> Chain:
     return build_chain_from_dict(data)
 
 
+def build_chain_from_toml_str(spec: str) -> Chain:
+    """Build a Chain from an in-memory TOML chain-spec *string*.
+
+    The string counterpart of :func:`build_chain_from_toml` (which reads
+    from a path). Lets a caller author a chain spec inline and
+    materialise it without writing a file first — the load-bearing entry
+    point for the v0.5.0rc12 ``srmech.dsl.run_toml_chain`` ToolEntry, so
+    an LLM can compose AND run a cascade in a single tool call.
+
+    Parameters
+    ----------
+    spec
+        A TOML document with a ``[chain]`` table + ``[[stage]]`` array
+        entries (the same schema :func:`build_chain_from_toml` reads
+        from disk).
+
+    Returns
+    -------
+    Chain
+        The constructed pipeline.
+
+    Raises
+    ------
+    TypeError
+        If ``spec`` is not a string.
+    tomllib.TOMLDecodeError
+        On malformed TOML.
+    ValueError
+        On schema mismatch (propagated from
+        :func:`build_chain_from_dict`).
+    """
+    if not isinstance(spec, str):
+        raise TypeError(
+            f"build_chain_from_toml_str: spec must be a str of TOML; "
+            f"got {type(spec).__name__}"
+        )
+    data = _toml.loads(spec)
+    return build_chain_from_dict(data)
+
+
 def build_chain_from_dict(data: Dict[str, Any]) -> Chain:
     """Materialise a Chain from an already-parsed TOML dict.
 
@@ -226,5 +266,6 @@ def _apply_stage_to_chain(
 __all__ = [
     "load_chain_toml",
     "build_chain_from_toml",
+    "build_chain_from_toml_str",
     "build_chain_from_dict",
 ]
