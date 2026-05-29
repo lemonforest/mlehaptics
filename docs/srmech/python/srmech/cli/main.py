@@ -30,6 +30,7 @@ import sys
 from typing import List, Optional
 
 from . import bus as _bus_cli
+from . import dsl as _dsl_cli
 from . import status as _status
 from srmech.version import __version__ as _srmech_version
 
@@ -80,6 +81,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _bus_cli.add_arguments(bus_p)
+    dsl_p = sub.add_parser(
+        "dsl",
+        help=(
+            "Operate the v0.5.0rc8 cascade DSL (run / ops / visualize)."
+        ),
+        description=(
+            "Operate the v0.5.0rc8 cascade DSL runner (task #235). Three "
+            "subcommands: run (execute a TOML chain spec), ops (list "
+            "cascade-catalog ops), visualize (pretty-print a parsed "
+            "chain's stage list)."
+        ),
+    )
+    _dsl_cli.add_arguments(dsl_p)
     return parser
 
 
@@ -103,6 +117,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _status.run(args)
     if args.command == "bus":
         return _bus_cli.run(args)
+    if args.command == "dsl":
+        return _dsl_cli.run(args)
     parser.print_help()
     return 0
 

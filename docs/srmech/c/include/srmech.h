@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 5
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc7"
-#define SRMECH_VERSION       "0.5.0rc7"
+#define SRMECH_VERSION_PRE   "rc8"
+#define SRMECH_VERSION       "0.5.0rc8"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported

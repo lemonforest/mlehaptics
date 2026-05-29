@@ -91,50 +91,36 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc7():
-    """v0.5.0rc7 — UTLP Bio-TOTP cipher alignment + tool-schema
-    opt-in discoverability.
+def test_version_is_0_5_0rc8():
+    """v0.5.0rc8 — Cascade DSL runner (task #235 / ADR-0002 Phase 2-v2).
 
-    Per user direction 2026-05-28 (post-rc6 follow-up): rc3 shipped
-    a SHA-256-state-chained cipher that was structurally related to
-    but DIFFERENT from the actual UTLP Bio-TOTP pattern in
-    ``examples/utlp/utlp_hal_security.h`` (Claim 255). rc7 replaces
-    rc3's ``_chain.py`` with ``_bio_totp.py`` implementing the real
-    UTLP construction: key derivation rolls with a 250 ms time
-    bucket (``Key = SHA256(DNA || QuantizedTime)[0:16]``); receiver
-    tolerates ±1 window for clock skew; nonce constructed from
-    sender_id + channel_id + packet_seq ("Exon fields"); same code
-    path for unencrypted (ZERO_DNA) and encrypted channels
-    (herd-immunity); kwarg renamed ``seed`` → ``dna`` for naming
-    alignment (``seed`` still accepted with DeprecationWarning).
-    Default cipher uses stdlib HMAC-SHA-256 keystream (zero new
-    deps); ``pip install srmech[crypto]`` opts into UTLP-exact
-    AES-128-CTR via the ``cryptography`` library.
+    Fluent ``chain()`` API + TOML-driven runner + loop/fold/reduce
+    control flow over the 8 cascade-catalog ops shipped in v0.4.5.
+    Adds ``srmech.dsl`` module + ``srmech dsl {run, ops, visualize}``
+    CLI subcommands.
 
-    Plus: every emitting op's ToolEntry now mentions inline:
-    "Events emitted only when wrapped in
-    ``srmech.introspect.publish()`` or
-    ``SRMECH_PUBLISH_STATUS=1`` env-var set; otherwise silent."
-    Plus a new top-level ``srmech.introspect.publish`` ToolEntry
-    documenting the opt-in path. Discoverable via the MCP adapter
-    (rc6) — LLMs in Claude Code see the opt-in path inline when
-    reading the tool catalog.
+    The DSL reads TOML cascade-catalog descriptors at construction
+    time and resolves op names to their ``srmech.amsc.cascade.*``
+    Python entry points (which themselves route to C peers when
+    ``HAS_NATIVE`` is True). Per-stage events emit
+    ``dsl.<chain_name>.stage.<N>`` lines under
+    ``srmech.introspect.publish()`` — observable via
+    ``srmech status`` or ``srmech bus tap``.
 
-    OUT OF SCOPE per user direction: UTLP's mesh / multi-arbor /
-    Loom / Genesis-election / time-sync layer is embedded-specific
-    and is NOT brought over to srmech.bus. srmech.bus is local-IPC
-    only.
+    No new primitive class — loop / fold / reduce are compositions
+    of the existing 14-class A–N vocabulary (loop = Class I cyclic
+    repetition; fold / reduce = Class M accumulator bind).
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: Class A (content-addressing — SHA-256 of
-    DNA + time) ∘ Class I (cyclic — monotone packet_seq + time
-    bucketing) ∘ Class K (pin-slot phase boundary — every key-roll
-    is a phase boundary between adjacent time windows; the ±1 skew
-    tolerance IS the "soft boundary" reading per Class K).
+    Framework reading: Class M (cross-class bind) ∘ Class F
+    (declarative render of the cascade structure) ∘ Class E (catalog
+    enumeration of cascade ops). The DSL is the host process'
+    self-description of which A–N primitives it instantiates and in
+    what order — a Class H self-introspection at the pipeline scale.
     """
-    assert srmech.__version__ == "0.5.0rc7", (
-        f"expected srmech.__version__ == '0.5.0rc7'; got "
+    assert srmech.__version__ == "0.5.0rc8", (
+        f"expected srmech.__version__ == '0.5.0rc8'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -142,7 +128,7 @@ def test_version_is_0_5_0rc7():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc7"
+    assert version_str == "0.5.0rc8"
     assert version_str == srmech.__version__
 
 
