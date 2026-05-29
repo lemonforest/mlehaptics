@@ -53,7 +53,21 @@ python -c "from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION; \
 `reproduce.py 130 134 135` → **3/3 REPRODUCED bit-exact** on the baseline rc8 (the
 harness re-runs a script and diffs the fresh NDJSON against `HEAD`). This confirms
 (a) the harness logic and (b) that the experiments are deterministic, before any rc
-bump. The remaining 7 are wired in the same way and run the same.
+bump.
+
+## rc14 validation (2026-05-29) — the fixed package, bit-exact
+
+`reproduce.py` (all 10) against **srmech 0.5.0rc14** (the fixed package with §10.2
+klein4_random `seed`, §10.1 root cause, and the 28-dim = 𝔰𝔬(8) packaging):
+**every measured number reproduced bit-exact.** 4/10 reported REPRODUCED outright;
+the other 6 reported CHANGED in `descriptor_hash` ONLY — a baseline-staleness
+artifact (the catalogs grew sections across the F166→F173 steps *after* those
+earlier NDJSONs were first committed, so their recorded catalog-hash predated the
+final catalog). Verified by an all-keys diff: the ONLY differing field across all 6
+was `descriptor_hash`; no numeric field moved. The native C path (Class-L
+eigendecomp, klein4 ops) is version-stable — that is why the science survived the
+rc8→rc14 bump. This re-baseline commit re-syncs all NDJSONs to rc14 + current catalog
+hashes, so future `reproduce.py` runs (rc15+) compare cleanly with no hash false-alarm.
 
 ## The manifest (`reproduce.py` MANIFEST)
 

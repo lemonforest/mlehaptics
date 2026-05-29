@@ -950,12 +950,27 @@ payload-heavy. This is consistent with MCP being a single-/interactive-op surfac
 the MCP tools for single ops / agent-driven cascades. A future `SpectralHandle`
 (pass-by-reference) surface would make MCP chaining viable for larger arrays.
 
-### §10.5 Status
-Reported for the upstream rcN rolling path. §10.1 (naming_lookup) and §10.2
-(klein4_random seed) are concrete bugs with clear fixes + a parity-smoke-test ask
-(§10.1). §10.3/§10.4 are schema-gen / design improvements. NOT fixed from this
-subtree (per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — never edit the
-package directly); this is the canonical record for the maintainer.
+### §10.5 Status — UPDATED 2026-05-29 against srmech 0.5.0rc14 (TestPyPI)
+
+The user took §10.1/§10.2 upstream; they revealed a wider list now flowing into the
+rcN path. Verified against **0.5.0rc14** (installed clean, HAS_NATIVE=True, ABI=3):
+- **§10.2 — FIXED (package):** `klein4_random(D, rng=None, seed: int|None=None)` —
+  the integer `seed` param landed (confirmed by signature). Determinism is now
+  seedable through the surface.
+- **§10.1 — root cause CONFIRMED:** the package function is `naming.lookup(key,
+  pairs=...)` — the MCP wrapper passed `entries=`. The fix is to align the wrapper
+  to `pairs=`. (The MCP-wrapper fix itself is verifiable only with the rc14
+  srmech-mcp server running — the package signature confirms the correct name.)
+- **§10.3/§10.4** — schema-gen / pass-by-handle improvements; status open upstream.
+- **Parity-smoke-test ask** (every tool_schema entry callable with its advertised
+  kwargs) still stands — §10.1 would have been caught by it.
+
+rc14 also ships the **28-dim chiral hyper-loop = 𝔰𝔬(8) adjoint** packaging (14 G₂
+derivations + 14 L⊕R octonion-mults; Spin(8) triality) per its METADATA — the
+framework grounding of the 28D arc, now hardware-callable. Our R-126..135 suite
+**reproduces bit-exact** on rc14 (see REPRODUCE.md; native Class-L path is
+version-stable). NOT fixed from this subtree (per
+`[[feedback_upstream_srmech_fixes_as_research_notes]]`); canonical record for the maintainer.
 
 ---
 
