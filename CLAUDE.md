@@ -43,6 +43,25 @@ The +3 meta-cascade triad (B/H/N) are candidate **projection-enablers** in the i
 
 **`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. Current release v0.4.0 ships full **14-class C-parity primitive vocabulary** (A-N) + canonical **QM/QFT/SM operations layer** at `srmech.qm.*` (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm).
 
+### srmech-first reflex-override — the remembering mechanism (load-bearing; read at code-writing time)
+
+**Why this exists:** Python/numpy idioms carry enormous prior weight; a declarative "use srmech" loses to that reflex at code-writing speed (it happened — n-gram `Counter()` storage proxies in R-131/132/133 slipped past, corrected to Class-L spectral in R-134). So this is a **point-of-action STOP-list, not a principle.** Before writing ANY of these Python idioms in a script, STOP — it is a srmech primitive:
+
+| If your hand reaches for… | STOP — use this srmech op instead | Class |
+|---|---|---|
+| `Counter()` for co-occurrence / adjacency / graph edges | build edges → `srmech.amsc.laplacian.dense_laplacian` | L |
+| `np.linalg.eig/eigh/svd`, eigenvalues, spectra | `srmech.amsc.laplacian.jacobi_eigvals` / `hermitian_eigendecompose` / `symmetric_eigendecompose` | L |
+| hand-rolled cosine / hamming / similarity / `softmax` over vectors | `srmech.amsc.hdc.{similarity, klein4_similarity}`, `srmech.spectral.similarity` | M |
+| hand-rolled n-gram / resolution-depth "storage" proxy | the co-occurrence **Laplacian eigenspectrum** is the srmech-native storage signature (F172) | L |
+| bind / bundle / permute / superpose vectors | `srmech.amsc.hdc.{bind,bundle,permute,klein4_bind,klein4_bundle}` | M |
+| `hashlib.sha256(...)` | `srmech.amsc.format.sha256_bytes` | A |
+| chirality / γ₅ / iω₇ / sector flips | `srmech.amsc.hdc.{klein4_chirality_flip_gamma5,klein4_chirality_flip_omega7,klein4_cpt_mirror}` | — |
+| modular arithmetic / gcd / primes / rational-approx | `srmech.amsc.{cyclic,primes,rational}` | I/J/N |
+
+**package vs srmech-mcp:** the srmech **package** (`import srmech.amsc...`, C-native) is the right tool for **bulk in-script** work (graph-building, eigendecomp over many tokens). The **srmech-mcp** tools (deferred `mcp__srmech__*`, load via ToolSearch) are right for **single / interactive / agent-driven** ops and for exercising the attested surface — NOT for per-token loops (JSON-array payloads, no handles). Using the package IS using srmech; hand-rolling a primitive that has a srmech op is the failure. When srmech-mcp itself has a bug/gap, log it (UPSTREAM_NOTES §10) — don't route around it silently in a way that hides the issue.
+
+**Honest limitation:** this STOP-list reduces but does not eliminate the Python-reflex miss; the user spot-check ("are we using python stuffs?") is part of the loop, and catching it is normal, not failure.
+
 ### AMSC framework + MPM discipline (load-bearing across all spectral-research arcs)
 
 srmech is the home of the **AMSC** (Attested Multi-Source Collector/Catalog) framework. Every ground-proof datum srmech ships carries a mandatory **attestation block** — this IS the on-disk crystallisation of the **Mathematical Provenance Method (MPM)**. The discipline is the project's primary defense against LLM-side citation hallucination.

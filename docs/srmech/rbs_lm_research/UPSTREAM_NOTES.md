@@ -909,6 +909,56 @@ package directly from this subtree; this note is the canonical absorption record
 
 ---
 
+## §10 srmech-mcp issues (2026-05-29) — surfaced by exercising the MCP surface for upstream rc fixes
+
+Per user direction 2026-05-29 ("tell us when there are issues with srmech-mcp so we can correct it upstream; some known issues are being worked on in the next rcN"). Exercised the `mcp__srmech__*` surface directly (srmech 0.5.0rc8). **The core surface WORKS and is correct** — `dense_laplacian(n=4, path edges)` → correct D−A; `jacobi_eigvals([[2,-1,0],[-1,2,-1],[0,-1,2]])` → [0.586, 2.0, 3.414] = exact (2±√2, 2); `klein4_similarity` → 0.875 (7/8). Issues found:
+
+### §10.1 BUG — `naming_lookup` is uncallable (schema/signature drift)
+`mcp__srmech__srmech_amsc_naming_lookup(key=..., entries=[[k,v],...])` →
+`TypeError: lookup() got an unexpected keyword argument 'entries'`.
+The MCP tool schema advertises param `entries`, but the underlying `lookup()` does
+not accept that kwarg (likely named `catalog`/positional). **The MCP wrapper kwarg
+name is out of sync with the function signature → the tool always errors.** Fix:
+align the wrapper param name to `lookup()`'s actual signature (or rename the
+parameter), and add a parity smoke-test that every tool_schema entry is callable
+with its advertised kwargs.
+
+### §10.2 BUG — `klein4_random` is non-reproducible via MCP (no JSON-serializable seed)
+Two calls with `D=16` returned different vectors; the only randomness param is
+`rng: numpy.random.Generator` — a Python object that **cannot cross JSON-RPC**, so
+there is NO way to seed for determinism through the MCP surface. This **breaks the
+framework's own bit-exact / attestation discipline** for any MCP-driven cascade
+using `klein4_random` (and likely `polar_random`, any `*_random`). Fix: expose an
+integer `seed: int` param (alongside or instead of the `rng` object) on all
+`*_random` MCP surfaces; the server constructs `default_rng(seed)`.
+
+### §10.3 SCHEMA-GEN — non-JSON Python types leak into MCP schemas
+Root cause shared by §10.2: the auto-generated MCP schemas expose Python-native
+types that aren't JSON-serializable — `numpy.random.Generator` (rng), and `bytes` /
+`SpectralHandle` (e.g. `naming_lookup`, `spectral_similarity`). Arrays coerce fine
+(lists work), but object/bytes params are ambiguous or unusable over JSON. Fix: the
+schema generator should map non-serializable params to serializable surrogates
+(`rng`→`seed:int`; `bytes`→base64 `str` with documented encoding; `SpectralHandle`
+→ an opaque handle id), or mark them MCP-excluded.
+
+### §10.4 DESIGN NOTE (not a bug) — array ops return full JSON, no handles
+`dense_laplacian` returns the full n×n matrix as nested JSON; `jacobi_eigvals`
+returns a list. There is no handle to pass an intermediate by reference, so chaining
+(Laplacian→eigvals) round-trips the whole array, and bulk per-token work would be
+payload-heavy. This is consistent with MCP being a single-/interactive-op surface:
+**use the srmech package for bulk in-script work** (CLAUDE.md §2 reflex-override),
+the MCP tools for single ops / agent-driven cascades. A future `SpectralHandle`
+(pass-by-reference) surface would make MCP chaining viable for larger arrays.
+
+### §10.5 Status
+Reported for the upstream rcN rolling path. §10.1 (naming_lookup) and §10.2
+(klein4_random seed) are concrete bugs with clear fixes + a parity-smoke-test ask
+(§10.1). §10.3/§10.4 are schema-gen / design improvements. NOT fixed from this
+subtree (per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — never edit the
+package directly); this is the canonical record for the maintainer.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
