@@ -91,34 +91,40 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc9():
-    """v0.5.0rc9 — Anthropic SDK secondary adapter (optional).
+def test_version_is_0_5_0rc10():
+    """v0.5.0rc10 — fix Anthropic tool-schema illegal varargs key + shared varargs dispatch.
 
-    rc9 adds :mod:`srmech.llm.anthropic_agent` for users who script
-    the Anthropic Claude API directly outside Claude Code (FastAPI
-    servers, Jupyter notebooks, CI pipelines). The rc6 MCP adapter
-    remains the primary path for Claude Code users (no API key
-    needed). The ``anthropic`` SDK is an OPTIONAL dependency:
-    ``pip install srmech[anthropic]`` installs it plus the
-    ``srmech-agent`` console script. Default install adds nothing.
+    Found by a LIVE Anthropic API test of the rc9 adapter (the
+    mock-backed tests could not catch it). Two bugs in the SHARED
+    tool-schema / dispatch, affecting BOTH the MCP path and the
+    Anthropic adapter:
 
-    Same tool catalog as MCP (the ~149
-    :mod:`srmech.amsc.tool_schema` ToolEntries); same MPR
-    attestation envelope per tool call (re-uses
-    :func:`srmech.mcp._server.build_attestation`).
+    1. ``srmech.amsc.hdc.polar_bundle`` / ``klein4_bundle`` registered
+       their variadic parameter as ``*vectors`` — the ``*`` sigil
+       leaked into the ToolParameter name, violating Anthropic's
+       ``^[a-zA-Z0-9_.-]{1,64}$`` property-key pattern and rejecting
+       the ENTIRE catalogue with a 400. Renamed ``*vectors`` ->
+       ``vectors`` (``Sequence[np.ndarray]``).
+    2. ``srmech.mcp._tools.invoke_tool`` called ``fn(**coerced)``
+       (keyword-only), which cannot invoke a ``VAR_POSITIONAL``
+       function; now detects the variadic via ``inspect.signature``
+       and unpacks the bound sequence positionally.
+
+    Regression ratchets added: every tool's input_schema property
+    keys must match the Anthropic pattern (guards both adapters
+    forever); both bundle tools invoke cleanly through
+    ``invoke_tool``.
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: Class M (cross-class bind) at the
-    direct-SDK substrate-class-instance instead of MCP's stdio
-    JSON-RPC substrate-class-instance. The A–N composition is
-    invariant across transports; only the consumer's
-    substrate-class-instance differs.
-
-    This rc completes the v0.5.0 rc walk (rc1-rc9).
+    Framework reading: the tool-schema is a Class A (content-addressed
+    callable identifier) ∘ Class E (catalog) surface; a leaked Python
+    sigil broke the projection into the Anthropic substrate-class
+    instance. The A–N composition is invariant across transports;
+    only the consumer's substrate-class-instance differs.
     """
-    assert srmech.__version__ == "0.5.0rc9", (
-        f"expected srmech.__version__ == '0.5.0rc9'; got "
+    assert srmech.__version__ == "0.5.0rc10", (
+        f"expected srmech.__version__ == '0.5.0rc10'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -126,7 +132,7 @@ def test_version_is_0_5_0rc9():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc9"
+    assert version_str == "0.5.0rc10"
     assert version_str == srmech.__version__
 
 

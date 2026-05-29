@@ -6,6 +6,67 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc10] - 2026-05-29
+
+**rc10 of N for v0.5.0 — two shared-dispatch bug-fixes found by a LIVE
+Anthropic API test of the rc9 adapter (the mocks could not catch them).**
+
+Both bugs lived in the **shared** tool-schema / dispatch surface that
+**both** the MCP adapter (rc6, `srmech-mcp`) and the Anthropic SDK
+adapter (rc9, `srmech-agent`) route through, so each affected both
+transports at once. Pure-Python only — no C change, ABI stays 3.
+
+### Fixed (load-bearing, both adapters)
+
+- **Illegal tool-schema property key blocked the ENTIRE Anthropic
+  catalog (live 400).** `srmech.amsc.hdc.polar_bundle` and
+  `srmech.amsc.hdc.klein4_bundle` were registered with the param name
+  `*vectors` — the Python varargs sigil leaked into the `ToolParameter`
+  NAME, so the generated `input_schema.properties` carried a key
+  `*vectors`. Anthropic rejects it with `400 — input_schema.properties:
+  Property keys should match pattern '^[a-zA-Z0-9_.-]{1,64}$'`, which
+  fails the whole `messages.create` call (every tool, not just the two
+  bundles). The unit-test mocks never sent the catalog to a real
+  validator, so they passed; only a live API call surfaced it. Fix:
+  rename the param `*vectors` → `vectors` in both registrations, typed
+  `Sequence[np.ndarray]` to match the sibling `srmech.amsc.hdc.bundle`
+  convention (variadic — "one or more vectors of equal length").
+- **Varargs dispatch (`fn(**coerced)` cannot call a `*args` function).**
+  `srmech.mcp._tools.invoke_tool` ended with `return fn(**coerced)`
+  (keyword-args only). For a variadic callable like
+  `polar_bundle(*vectors)`, `fn(vectors=[...])` raises `TypeError:
+  polar_bundle() got an unexpected keyword argument 'vectors'`. Both
+  adapters call this `invoke_tool`, so invoking either bundle tool was
+  broken on BOTH paths even after the property-key rename. Fix: detect a
+  `VAR_POSITIONAL` parameter via `inspect.signature(fn)` and unpack the
+  supplied sequence positionally (`fn(*seq, **coerced)`); the historical
+  sigil-prefixed key (`*vectors`) is still tolerated so no in-flight
+  caller breaks.
+
+### Added — defence-in-depth + regression ratchets
+
+- **Property-key sanitiser in the MCP/Anthropic converter.**
+  `tool_entry_to_mcp_def` now strips any leaked Python sigil (leading
+  `*` / `**`) and clamps every `inputSchema.properties` key to
+  `^[a-zA-Z0-9_.-]{1,64}$` (the `required` list is sanitised in lockstep
+  so it still references real properties). The rename above is the SSoT
+  fix; this guards BOTH adapters against a future sloppy varargs/kwargs
+  registration (mirrors the rc9 belt-and-braces lesson).
+- **Two would-have-caught-it test ratchets** in `tests/test_mcp.py`:
+  (a) for every registered tool, assert every
+  `tool_entry_to_mcp_def(entry)["inputSchema"]["properties"]` key
+  matches the Anthropic grammar and contains no `*` (caught BUG 1 — it
+  FAILS on the pre-fix `tool_schema`, PASSES after the rename; guards
+  all 155 tools on both transports forever); (b) invoke
+  `srmech.amsc.hdc.polar_bundle` AND `srmech.amsc.hdc.klein4_bundle`
+  through `invoke_tool` with a small valid list of vectors and assert a
+  real bundled result (not a `TypeError` / `MCPToolError`) (caught BUG
+  2).
+
+For Claude Code users on the rc6 MCP path, this rc fixes the two bundle
+tools (they were uncallable / catalog-blocking there too); no other
+behaviour changes.
+
 ## [0.5.0rc9] - 2026-05-28
 
 **rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional) +

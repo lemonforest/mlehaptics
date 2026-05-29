@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import threading
@@ -20,6 +21,7 @@ import urllib.request
 from http.client import HTTPConnection
 from typing import Any, Dict, Iterator, List, Tuple
 
+import numpy as np
 import pytest
 
 # Force bus tools to register so coverage matches the runtime baseline.
@@ -90,6 +92,65 @@ def test_tool_entry_to_mcp_def_known_shape() -> None:
     assert "category: format" in d["description"]
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Property-key validity ratchet (v0.5.0rc10)
+#
+# BUG 1 (found by a LIVE Anthropic API test of the rc9 adapter, NOT by
+# the mocks): ``srmech.amsc.hdc.polar_bundle`` / ``klein4_bundle`` were
+# registered with the param name ``*vectors`` — the Python varargs sigil
+# leaked into the ToolParameter NAME, so the MCP/Anthropic input_schema
+# carried a property KEY ``*vectors``. Anthropic rejected the WHOLE
+# catalog with ``400 — input_schema.properties: Property keys should
+# match pattern '^[a-zA-Z0-9_.-]{1,64}$'``. The same converter feeds
+# both adapters, so this single ratchet guards every tool on BOTH paths.
+# ──────────────────────────────────────────────────────────────────────
+
+#: The Anthropic / MCP property-key grammar (anchored).
+_ANTHROPIC_PROPERTY_KEY_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,64}$")
+
+
+def test_every_tool_property_key_matches_anthropic_grammar() -> None:
+    """Every ``inputSchema.properties`` KEY of every registered tool
+    must match Anthropic's ``^[a-zA-Z0-9_.-]{1,64}$`` grammar and
+    contain no Python varargs/kwargs sigil (``*``).
+
+    This is the ratchet that would have caught BUG 1 (the ``*vectors``
+    leak). It runs through ``tool_entry_to_mcp_def`` — the converter
+    BOTH the MCP server and the Anthropic SDK adapter use — so it
+    locks down the property-key grammar for all ~155 tools on both
+    transports at once.
+    """
+    schema = get_tool_schema()
+    assert len(schema.tools) > 50, "tool registry unexpectedly small"
+    offenders: List[Tuple[str, str]] = []
+    for entry in schema.tools:
+        mcp_def = tool_entry_to_mcp_def(entry)
+        for key in mcp_def["inputSchema"]["properties"]:
+            if "*" in key or not _ANTHROPIC_PROPERTY_KEY_RE.match(key):
+                offenders.append((entry.name, key))
+    assert not offenders, (
+        "tool property keys violate Anthropic's "
+        "'^[a-zA-Z0-9_.-]{1,64}$' grammar (a leaked Python varargs "
+        f"sigil gets the whole catalog 400'd on the Anthropic path): "
+        f"{offenders}"
+    )
+
+
+def test_required_keys_reference_real_properties() -> None:
+    """Every name in ``inputSchema.required`` must be an actual key in
+    ``inputSchema.properties`` — a sanity check that the defence-in-depth
+    key sanitiser keeps ``required`` and ``properties`` in lockstep."""
+    schema = get_tool_schema()
+    for entry in schema.tools:
+        mcp_def = tool_entry_to_mcp_def(entry)
+        props = mcp_def["inputSchema"]["properties"]
+        for req in mcp_def["inputSchema"]["required"]:
+            assert req in props, (
+                f"{entry.name}: required key {req!r} not in properties "
+                f"{sorted(props)}"
+            )
+
+
 def test_filter_predicate_compiles_glob() -> None:
     """``compile_filter`` builds a callable that matches fnmatch
     patterns."""
@@ -145,6 +206,88 @@ def test_invoke_tool_unknown_raises_mcp_tool_error() -> None:
     from srmech.mcp._tools import MCPToolError
     with pytest.raises(MCPToolError):
         invoke_tool("srmech.nope.does_not_exist", {})
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Varargs dispatch (v0.5.0rc10)
+#
+# BUG 2 (found by the same LIVE Anthropic API test): ``invoke_tool``
+# ended with ``fn(**coerced)`` — keyword-args only. For a variadic
+# callable like ``hdc.polar_bundle(*vectors)``, ``fn(vectors=[...])``
+# raises ``TypeError: got an unexpected keyword argument 'vectors'``.
+# Both adapters route through ``invoke_tool``, so invoking either bundle
+# tool was broken on BOTH paths. The fix detects a VAR_POSITIONAL slot
+# via ``inspect.signature`` and unpacks the supplied list positionally.
+#
+# Vectors are built with the parity-test fixtures (``hdc.polar_random``
+# / ``hdc.klein4_random``); each ndarray is ``tolist()``'d to emulate a
+# JSON array (the wire form a real MCP / Anthropic client sends).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
+    """``hdc.polar_bundle`` (a ``*vectors`` variadic) invokes cleanly
+    through ``invoke_tool`` — NOT a TypeError / MCPToolError.
+
+    This is the test that would have caught BUG 2.
+    """
+    from srmech.amsc import hdc
+    from srmech.mcp._tools import MCPToolError
+
+    rng = np.random.default_rng(11)
+    # JSON arrays decode to Python lists; emulate that wire form.
+    vectors = [hdc.polar_random(16, rng).tolist() for _ in range(3)]
+    try:
+        result = invoke_tool(
+            "srmech.amsc.hdc.polar_bundle", {"vectors": vectors}
+        )
+    except (TypeError, MCPToolError) as exc:  # pragma: no cover
+        pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
+    # A real bundled result: a length-16 polar vector over {-1, 0, +1}.
+    arr = np.asarray(result)
+    assert arr.shape == (16,)
+    assert set(np.unique(arr).tolist()) <= {-1, 0, 1}
+    # Bit-exact against calling the reference directly with *args.
+    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
+    assert np.array_equal(arr, expected)
+
+
+def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
+    """``hdc.klein4_bundle`` (a ``*vectors`` variadic) invokes cleanly
+    through ``invoke_tool``. Companion to the polar test for BUG 2."""
+    from srmech.amsc import hdc
+    from srmech.mcp._tools import MCPToolError
+
+    rng = np.random.default_rng(11)
+    vectors = [hdc.klein4_random(16, rng).tolist() for _ in range(3)]
+    try:
+        result = invoke_tool(
+            "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
+        )
+    except (TypeError, MCPToolError) as exc:  # pragma: no cover
+        pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
+    arr = np.asarray(result)
+    assert arr.shape == (16,)
+    assert set(np.unique(arr).tolist()) <= {0, 1, 2, 3}
+    expected = hdc.klein4_bundle(*[np.asarray(v) for v in vectors])
+    assert np.array_equal(arr, expected)
+
+
+def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
+    """Belt-and-braces: a caller that still sends the historical
+    sigil-prefixed key (``*vectors``) is tolerated (the dispatcher
+    falls back to it), so no in-flight client breaks on the rename."""
+    from srmech.amsc import hdc
+
+    rng = np.random.default_rng(7)
+    vectors = [hdc.polar_random(8, rng).tolist() for _ in range(3)]
+    result = invoke_tool(
+        "srmech.amsc.hdc.polar_bundle", {"*vectors": vectors}
+    )
+    arr = np.asarray(result)
+    assert arr.shape == (8,)
+    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
+    assert np.array_equal(arr, expected)
 
 
 # ──────────────────────────────────────────────────────────────────────

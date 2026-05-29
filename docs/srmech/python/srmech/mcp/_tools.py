@@ -39,7 +39,9 @@ which the dispatcher converts to a JSON-RPC error response.
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
+import re
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from ..amsc.tool_schema import (
@@ -129,6 +131,33 @@ def _json_schema_type_for(param_type: str) -> str:
 # ──────────────────────────────────────────────────────────────────────
 
 
+# Anthropic (and the MCP JSON-schema convention) require every
+# ``input_schema.properties`` KEY to match this pattern. A leaked Python
+# varargs/kwargs sigil (``*vectors`` / ``**opts``) violates it and gets
+# the WHOLE catalog rejected with a 400 on the Anthropic path. The SSoT
+# fix is to register clean ToolParameter names (no sigil); this regex +
+# sanitiser is belt-and-braces so a future sloppy registration can never
+# again ship an illegal key to either adapter. (rc10 lesson — a live
+# Anthropic API test, not the mocks, caught the original ``*vectors``.)
+_PROPERTY_KEY_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,64}$")
+
+
+def _sanitise_property_key(key: str) -> str:
+    """Strip leading Python varargs/kwargs sigils and clamp a property
+    key to the Anthropic/MCP ``^[a-zA-Z0-9_.-]{1,64}$`` grammar.
+
+    ``*vectors`` -> ``vectors``; ``**opts`` -> ``opts``; any other
+    out-of-grammar character is replaced with ``_`` and the result is
+    truncated to 64 chars. A key that is already valid is returned
+    unchanged (the common path)."""
+    if _PROPERTY_KEY_RE.match(key):
+        return key
+    cleaned = key.lstrip("*")
+    cleaned = re.sub(r"[^a-zA-Z0-9_.-]", "_", cleaned)[:64]
+    # Guard the empty / still-invalid edge (e.g. key was all sigils).
+    return cleaned if _PROPERTY_KEY_RE.match(cleaned) else "arg"
+
+
 def _parameter_to_schema_prop(p: ToolParameter) -> Dict[str, Any]:
     """Convert one ToolParameter -> JSON-schema property dict."""
     prop: Dict[str, Any] = {
@@ -150,9 +179,13 @@ def tool_entry_to_mcp_def(entry: ToolEntry) -> Dict[str, Any]:
     props: Dict[str, Any] = {}
     required: List[str] = []
     for p in entry.parameters:
-        props[p.name] = _parameter_to_schema_prop(p)
+        # Sanitise the property KEY (defence-in-depth — see
+        # ``_sanitise_property_key``); the ``required`` list must use the
+        # SAME sanitised key so it still references a real property.
+        key = _sanitise_property_key(p.name)
+        props[key] = _parameter_to_schema_prop(p)
         if p.required:
-            required.append(p.name)
+            required.append(key)
 
     # Description carries the summary + return-type hint + owner +
     # category so the LLM has all the context the registry tracks.
@@ -332,7 +365,11 @@ def invoke_tool(name: str, arguments: Dict[str, Any]) -> Any:
        callable expects.
     3. Resolve the dotted name to a live callable.
     4. Call it with ``**arguments`` (keyword-arguments only;
-       JSON-RPC has no positional notion).
+       JSON-RPC has no positional notion) — UNLESS the callable has
+       a ``*args`` (VAR_POSITIONAL) parameter, in which case the
+       tool-schema exposes that variadic under a clean single name
+       (e.g. ``vectors`` for ``hdc.polar_bundle(*vectors)``) and we
+       unpack the supplied sequence positionally (``fn(*seq)``).
     5. Return the raw Python result (the server layer JSON-serialises
        and wraps in MCP envelope).
 
@@ -342,6 +379,33 @@ def invoke_tool(name: str, arguments: Dict[str, Any]) -> Any:
     entry = _entry_by_name(name)
     coerced = _coerce_arguments(entry, arguments or {})
     fn = _resolve_dotted_callable(name)
+
+    # Variadic dispatch: ``fn(**coerced)`` cannot call a function with a
+    # ``*args`` (VAR_POSITIONAL) parameter — Python raises
+    # ``TypeError: got an unexpected keyword argument`` for the variadic
+    # name. The tool-schema deliberately exposes the variadic under a
+    # clean property name (e.g. ``vectors``), so when the resolved
+    # callable has a VAR_POSITIONAL slot, pop the supplied sequence and
+    # unpack it positionally; remaining args stay keyword. Found by a
+    # live Anthropic API test of the rc9 adapter (hdc.polar_bundle /
+    # hdc.klein4_bundle were uncallable on BOTH the MCP and Anthropic
+    # paths because both route through this dispatcher).
+    sig = inspect.signature(fn)
+    var_pos = next(
+        (p for p in sig.parameters.values()
+         if p.kind is inspect.Parameter.VAR_POSITIONAL),
+        None,
+    )
+    if var_pos is not None:
+        seq = coerced.pop(var_pos.name, None)
+        if seq is None:
+            # Tolerate the historical sigil-prefixed key (``*vectors``)
+            # in case any out-of-date caller still sends it, and the
+            # plain ``vectors`` fallback the schema now publishes.
+            seq = coerced.pop("*" + var_pos.name, None)
+            if seq is None:
+                seq = coerced.pop("vectors", [])
+        return fn(*seq, **coerced)
     return fn(**coerced)
 
 

@@ -1072,8 +1072,16 @@ def _register_primitive_class_tools() -> None:
             summary="Polar bundle: per-position sticky majority "
                     "(sign of the sum); exact ties resolve to 0. No "
                     "odd-count restriction.",
-            parameters=(P("*vectors", "np.ndarray", True,
-                          "int8 {-1,0,+1}, all same length"),),
+            # Variadic ``polar_bundle(*vectors)``: tool-schema exposes the
+            # one-or-more-vectors VAR_POSITIONAL under a CLEAN name
+            # ``vectors`` (NOT ``*vectors`` — the ``*`` sigil is illegal in
+            # an Anthropic input_schema property key
+            # ``^[a-zA-Z0-9_.-]{1,64}$``). Sequence type matches the
+            # sibling ``srmech.amsc.hdc.bundle`` convention; the dispatcher
+            # (``srmech.mcp._tools.invoke_tool``) unpacks it positionally.
+            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+                          "one or more int8 {-1,0,+1} vectors of equal "
+                          "length"),),
             returns=R("np.ndarray", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
@@ -1133,8 +1141,12 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
                     "independently; exact ties → 0 for that bit.",
-            parameters=(P("*vectors", "np.ndarray", True,
-                          "uint8 {0,1,2,3}, all same length"),),
+            # Variadic ``klein4_bundle(*vectors)``: exposed under the clean
+            # name ``vectors`` (the ``*`` sigil is illegal in an Anthropic
+            # property key). See polar_bundle note above.
+            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+                          "one or more uint8 {0,1,2,3} vectors of equal "
+                          "length"),),
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
