@@ -855,6 +855,60 @@ section serves as the alignment target for future-packaging scope.
 
 ---
 
+## §9 `srmech.rbs_lm` inference substrate — `RBSLMInferenceSubstrate` + `siona.profile("rbs_lm").infer()` (2026-05-29; F166 walk complete)
+
+The F166 walk (R-RBS-LM-126..130) produced a native, bit-exact, catalog-instantiable
+inference substrate, currently living in the research subtree as
+`docs/srmech/rbs_lm_research/_rbs_lm_inference.RBSLMInferenceSubstrate` (+ the
+`_canonical_substrate.ContextSubstrate` rolling-context encoder it composes).
+This §9 records the upstream absorption target.
+
+### §9.1 What the research-subtree artifact does today
+
+```python
+from _rbs_lm_inference import RBSLMInferenceSubstrate
+sub = RBSLMInferenceSubstrate.from_catalog("descriptor_rbs_lm_inference.toml")
+sub.learn(token_stream)                              # context→next assoc memory
+cands, probs = sub.next_token_distribution(ctx)      # Steps 2-3
+text = sub.infer(["the","cat"], temperature=0.02)    # Step 4 autoregressive loop
+att  = sub.attestation()                             # MPR block
+```
+
+Composition (all named A-N ops, bit-exact): Step 1 `ContextSubstrate.encode_context`
+(Class A∘M + iω₇ position), Step 2 `next_token_distribution` (Class M retrieve over
+bigram-legal candidates), Step 3 temperature (soft-retrieval dial), Step 4 `infer`
+(the loop). Parameterized entirely by `descriptor_rbs_lm_inference.toml`
+([inference.context/distribution/sampling/loop/instrument]).
+
+### §9.2 Upstream landing — `srmech.rbs_lm`
+
+A first-class `srmech.rbs_lm` module would host:
+- `srmech.rbs_lm.ContextSubstrate` — the rolling-context encoder (composes with `srmech.amsc.hdc.klein4_*`)
+- `srmech.rbs_lm.RBSLMInferenceSubstrate` — the inference object above
+- a `srmech.rbs_lm` tool_schema surface (`from_catalog` / `learn` / `next_token_distribution` / `infer` / `attestation`) so an LLM-as-tool can drive inference
+- the siona profile binding: `siona.profile("rbs_lm").infer(context, temperature=...)` resolves to a configured `RBSLMInferenceSubstrate` (this is the §8 profile system + §9 object joined — the profile's "activate" loads the catalog + builds the substrate; `.infer` is the loop)
+
+### §9.3 Capacity / scale-up note (load-bearing for upstream)
+
+A single context→next associative memory holds ~`memory_capacity` (200 at D=8192)
+(k-window→next) pairs — the F154 4× ceiling. For corpus-scale inference the upstream
+object must compose with **hierarchical bucketing** (F162 P4 / R-RBS-NN-12,
+`CanonicalHierarchicalMemory`) so the memory partitions across buckets. The
+research-subtree class today is the single-memory (characterized-regime) version;
+the hierarchical inference memory is the scale-up the upstream `srmech.rbs_lm`
+should provide.
+
+### §9.4 Status
+
+**WISHLIST documented; NOT AUTHORIZED to begin upstream work.** The artifact works
+in the research subtree and is the precursor; promotion to `srmech.rbs_lm` + the
+`siona.profile("rbs_lm").infer()` binding + the hierarchical-memory scale-up are a
+clean separate rc cycle when scope opens. Per
+`[[feedback_upstream_srmech_fixes_as_research_notes]]`: never edit the srmech
+package directly from this subtree; this note is the canonical absorption record.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
