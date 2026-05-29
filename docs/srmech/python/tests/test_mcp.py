@@ -945,3 +945,109 @@ def test_mcp_import_chain_does_not_loop() -> None:
         f"v0.5.0rc9 discoverability set incomplete after MCP "
         f"import; missing {sorted(missing)}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Self-recognition root (v0.5.0rc11)
+#
+# ``warmup_all()`` is THE single registration entry-point — it imports
+# every submodule that registers ToolEntries so the registry is fully
+# populated no matter how srmech was entered, permanently closing the
+# orphan-registration bug class (the rc9 bus miss). ``describe()`` is
+# the self-recognition ROOT: the package's at-a-glance map of its own
+# shape, also registered as a tool so MCP / Anthropic consumers can ask
+# "what is srmech / what can it do?".
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_warmup_all_populates_registry() -> None:
+    """``warmup_all()`` imports every registration-bearing submodule so
+    bus + introspect tools are present in the tool schema regardless of
+    entry-path. Closes the orphan-registration bug class (rc9 bus miss).
+    """
+    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+
+    warmup_all()  # idempotent
+    names = {e.name for e in get_tool_schema().tools}
+    # bus tools (the rc9 orphan) + introspect tools must all be present.
+    required = {
+        "srmech.bus.decode_splice",
+        "srmech.bus.list_endpoints",
+        "srmech.bus.by_name",
+        "srmech.introspect.publish",
+        "srmech.introspect.list",
+        "srmech.introspect.by_pid",
+        "srmech.introspect.describe",
+    }
+    missing = required - names
+    assert not missing, (
+        f"warmup_all() left the registry incomplete; missing "
+        f"{sorted(missing)}"
+    )
+
+
+def test_describe_shape() -> None:
+    """``srmech.introspect.describe()`` returns the self-shape dict with
+    all expected keys; the counts are internally consistent and agree
+    with the live tool schema."""
+    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect import describe
+
+    d = describe()
+    # Top-level keys.
+    assert set(d.keys()) == {
+        "srmech_version",
+        "tool_schema_version",
+        "native",
+        "tools",
+        "categories",
+    }
+    # Version agrees with the package attribute (no hardcoded literal).
+    assert d["srmech_version"] == srmech.__version__
+    assert isinstance(d["tool_schema_version"], str) and d["tool_schema_version"]
+
+    # native block shape.
+    native = d["native"]
+    assert set(native.keys()) == {
+        "has_native",
+        "abi_version",
+        "native_version",
+    }
+    assert isinstance(native["has_native"], bool)
+
+    # tools.total agrees with the live schema length.
+    schema = get_tool_schema()
+    assert d["tools"]["total"] == len(schema.tools)
+
+    # by_category sums to total.
+    by_category = d["tools"]["by_category"]
+    assert isinstance(by_category, dict)
+    assert sum(by_category.values()) == d["tools"]["total"]
+
+    # categories are sorted + non-empty + match the by_category keys.
+    cats = d["categories"]
+    assert cats, "describe() returned no categories"
+    assert cats == sorted(cats), "categories must be sorted"
+    assert set(cats) == set(by_category.keys())
+
+
+def test_describe_registered_as_tool() -> None:
+    """``srmech.introspect.describe`` appears in the catalog after warmup
+    (so MCP / Anthropic consumers can call the self-recognition root),
+    with no parameters (keeps the property-key ratchet trivially happy).
+    """
+    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+
+    warmup_all()
+    entry = get_tool_schema().lookup("srmech.introspect.describe")
+    assert entry is not None, (
+        "srmech.introspect.describe not registered as a ToolEntry"
+    )
+    assert entry.owner == "srmech"
+    assert entry.category == "introspect"
+    # No params — the self-recognition root takes no arguments.
+    assert entry.parameters == ()
+    # And it converts to a clean MCP def (guards both adapters).
+    mcp_def = tool_entry_to_mcp_def(entry)
+    assert mcp_def["inputSchema"]["properties"] == {}
+    assert mcp_def["inputSchema"]["required"] == []
