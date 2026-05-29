@@ -156,9 +156,25 @@ def build_K1_chiral(chunks_tokens, vocab):
     return eigen_bundle(eigvals, eigvecs, vocab), chiral_energy
 
 
+def trim_chunks_to_budget(chunks, budget):
+    """Trim a list of token-chunks so total tokens ≤ budget (preserve chunk boundaries)."""
+    out, total = [], 0
+    for c in chunks:
+        if total + len(c) > budget:
+            remain = budget - total
+            if remain >= 2:
+                out.append(c[:remain])
+            break
+        out.append(c)
+        total += len(c)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--catalog", type=Path, default=VARIANT)
+    ap.add_argument("--equal-tokens", action="store_true",
+                    help="cap every text to the smallest text's token budget (kills sparsity confound)")
     args = ap.parse_args()
 
     desc = load_descriptor(args.catalog)
@@ -171,20 +187,33 @@ def main():
     print(f"K1 params: K={K_EIG} M={M_VOCAB} vocab={VOCAB_SIZE} window={WINDOW} chunks={N_CHUNKS}")
     print(f"Catalog: {args.catalog.name}  hash={dh[:16]}...\n")
 
+    # Pass 1: load + tokenize all texts
+    chunks_by = {}
     keys, labels, fams = [], {}, {}
-    flat_kernels, chiral_kernels, chiral_energy = {}, {}, {}
     for key, meta in texts.items():
         path = cache_dir / meta["filename"]
         body = strip_gutenberg(path.read_text(encoding="utf-8", errors="replace"))
-        chunks = [tokenize(c) for c in chunk_text(body)]
-        chunks = [c for c in chunks if c]
+        chunks = [c for c in (tokenize(c) for c in chunk_text(body)) if c]
+        chunks_by[key] = chunks
+        keys.append(key); labels[key] = meta["label"]; fams[key] = meta["family"]
+
+    # Optional equalization: cap every text to the smallest text's token budget
+    if args.equal_tokens:
+        budget = min(sum(len(c) for c in chunks_by[k]) for k in keys)
+        print(f"  [equal-tokens] capping every text to {budget} tokens (smallest text)\n")
+        chunks_by = {k: trim_chunks_to_budget(v, budget) for k, v in chunks_by.items()}
+
+    # Pass 2: build kernels
+    flat_kernels, chiral_kernels, chiral_energy = {}, {}, {}
+    for key in keys:
+        chunks = chunks_by[key]
+        ntok = sum(len(c) for c in chunks)
         kf, vocab = build_K1_flat(chunks)
         kc, ce = build_K1_chiral(chunks, vocab)
         flat_kernels[key] = kf
         chiral_kernels[key] = kc
         chiral_energy[key] = ce
-        keys.append(key); labels[key] = meta["label"]; fams[key] = meta["family"]
-        print(f"  {meta['label']:34s} fam={meta['family']:9s} chunks={len(chunks):4d} chiral_energy={ce:.4f}")
+        print(f"  {labels[key]:34s} fam={fams[key]:9s} chunks={len(chunks):4d} tokens={ntok:7d} chiral_energy={ce:.4f}")
 
     def matrix(kernels, title):
         print("\n" + "=" * 92)
