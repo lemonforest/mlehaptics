@@ -50,6 +50,7 @@ from ..amsc.tool_schema import (
     get_tool_schema,
     warmup_all,
 )
+from ._coercion import coerce_param, serialise_native
 
 # v0.5.0rc11 — Self-recognition root. The rc9 fix scattered explicit
 # side-effect imports here (``from .. import bus`` / ``introspect``) to
@@ -89,11 +90,11 @@ _TYPE_LEXICON: Dict[str, str] = {
     "float": "number",
     "Optional[float]": "number",
     "number": "number",
-    "complex": "string",  # complex serialises as "a+bi" string
+    "complex": "array",  # complex rides as [real, imaginary] (rc14)
     "bool": "boolean",
     "str": "string",
     "Optional[str]": "string",
-    "bytes": "string",  # MCP transports JSON; bytes ride as hex/b64
+    "bytes": "string",  # MCP transports JSON; bytes ride as base64 (rc14)
     "Sequence[bytes]": "array",
     "list[tuple[bytes, bytes]]": "array",
     "list[tuple[bytes, int]]": "array",
@@ -122,6 +123,42 @@ _TYPE_LEXICON: Dict[str, str] = {
 def _json_schema_type_for(param_type: str) -> str:
     """Map a ToolEntry param type-string to a JSON-schema type token."""
     return _TYPE_LEXICON.get(param_type, "string")
+
+
+# Per-type JSON-encoding hint (v0.5.0rc14). Appended to a param's
+# ``description`` so an MCP / Anthropic consumer learns HOW to encode a
+# non-JSON native type (base64 for bytes, nested array for ndarray,
+# ``[re, im]`` for complex, and the element-hint for the containers). The
+# bidirectional coercer in ``srmech.mcp._coercion`` is the runtime half;
+# this is how the LLM learns the wire form up front. Types not in this
+# map (plain int / float / str / ...) carry no extra hint.
+_ENCODING_HINT: Dict[str, str] = {
+    "bytes": "base64-encoded bytes",
+    "complex": "[real, imaginary]",
+    "np.ndarray": (
+        "nested JSON array, row-major; complex elements as [re, im]"
+    ),
+    "Optional[np.ndarray]": (
+        "nested JSON array, row-major; complex elements as [re, im]"
+    ),
+    "Sequence[bytes]": "array of base64-encoded byte strings",
+    "Sequence[np.ndarray]": (
+        "array of nested JSON arrays (each row-major; complex as [re, im])"
+    ),
+    "tuple[np.ndarray, ...]": (
+        "array of nested JSON arrays (each row-major; complex as [re, im])"
+    ),
+    "Mapping[bytes, bytes]": (
+        "object mapping base64-encoded key bytes to base64-encoded "
+        "value bytes"
+    ),
+    "list[tuple[bytes, int]]": (
+        "array of [base64-encoded bytes, integer] pairs"
+    ),
+    "list[tuple[bytes, bytes]]": (
+        "array of [base64-encoded key, base64-encoded value] pairs"
+    ),
+}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -157,17 +194,26 @@ def _sanitise_property_key(key: str) -> str:
 
 
 def _parameter_to_schema_prop(p: ToolParameter) -> Dict[str, Any]:
-    """Convert one ToolParameter -> JSON-schema property dict."""
+    """Convert one ToolParameter -> JSON-schema property dict.
+
+    The description carries (1) the param's summary, (2) the canonical
+    srmech type-string (so an LLM sees the richer hint even when the
+    JSON-schema ``type`` lossily degraded), and (3) — for the non-JSON
+    native types — the rc14 JSON-encoding hint (base64 for bytes,
+    nested array for ndarray, ``[re, im]`` for complex, the element
+    hint for containers), so an MCP / Anthropic consumer knows how to
+    encode the value.
+    """
+    base = (
+        f"{p.summary} (srmech-type: {p.type})"
+        if p.summary
+        else f"srmech-type: {p.type}"
+    )
+    hint = _ENCODING_HINT.get(p.type)
+    description = f"{base} ({hint})" if hint else base
     prop: Dict[str, Any] = {
         "type": _json_schema_type_for(p.type),
-        # Keep the original ToolEntry type-string in the description
-        # so an LLM client can read the canonical (richer) type-hint
-        # even when the JSON-schema type lossily degraded.
-        "description": (
-            f"{p.summary} (srmech-type: {p.type})"
-            if p.summary
-            else f"srmech-type: {p.type}"
-        ),
+        "description": description,
     }
     return prop
 
@@ -299,45 +345,36 @@ def _resolve_dotted_callable(name: str) -> Callable[..., Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Bytes/path coercion helpers (the JSON-typed args need light coercion
-# before they can reach the underlying Python callables)
+# Inbound parameter coercion (JSON -> native)
+#
+# v0.5.0rc14: full bidirectional coercion. The per-type coercer table
+# lives in ``srmech.mcp._coercion`` (importable for the type-coercibility
+# ratchet + round-trip tests). ``bytes`` ride as base64, ``np.ndarray``
+# as a nested JSON list (complex elements as ``[re, im]``), ``complex`` as
+# ``[re, im]``, plus the container element-recursions. The callable
+# remains the canonical validator and will raise on a real mismatch.
 # ──────────────────────────────────────────────────────────────────────
-
-
-def _coerce_arg(value: Any, type_hint: str) -> Any:
-    """Light coercion of a JSON-typed arg to the Python type the
-    callable expects. Pure best-effort; the callable is the canonical
-    validator and will raise on a real mismatch.
-    """
-    # bytes ride as hex strings (lowercase) over JSON.
-    if type_hint == "bytes" and isinstance(value, str):
-        try:
-            return bytes.fromhex(value)
-        except ValueError:
-            # If it's not hex, pass the str through; the callable will
-            # see a TypeError and the dispatcher will surface it as an
-            # MCP error.
-            return value
-    if type_hint == "pathlib.Path" and isinstance(value, str):
-        import pathlib
-        return pathlib.Path(value)
-    if type_hint == "tuple[int, int]" and isinstance(value, list):
-        return tuple(value)
-    # Everything else: pass through. The underlying callable is the
-    # canonical validator.
-    return value
 
 
 def _coerce_arguments(
     entry: ToolEntry, arguments: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Apply ``_coerce_arg`` per-parameter using the ToolEntry's
-    declared types. Unknown / extra arguments pass through unchanged
-    so the underlying callable raises a real TypeError."""
+    """Coerce each inbound JSON argument to the native Python type the
+    ToolEntry's declared parameter type names (via
+    :func:`srmech.mcp._coercion.coerce_param`).
+
+    Unknown / extra arguments (those with no matching ToolParameter) pass
+    through unchanged so the underlying callable raises a real TypeError —
+    surfaced to the consumer as an MCP error response.
+    """
     type_by_name: Dict[str, str] = {p.name: p.type for p in entry.parameters}
     out: Dict[str, Any] = {}
     for k, v in arguments.items():
-        out[k] = _coerce_arg(v, type_by_name.get(k, "str"))
+        type_string = type_by_name.get(k)
+        if type_string is None:
+            out[k] = v  # extra arg; let the callable reject it
+        else:
+            out[k] = coerce_param(v, type_string, param=k)
     return out
 
 
@@ -416,44 +453,40 @@ def serialise_result(result: Any) -> str:
     """Render a tool result as a JSON-text string suitable for the
     MCP ``content[].text`` slot.
 
-    Falls back to ``repr(result)`` for objects json.dumps cannot
-    handle (e.g. numpy arrays, dataclasses, tuples-of-bytes). The
-    MCP content slot is fundamentally textual; this is the
-    appropriate place to lossy-serialise.
+    v0.5.0rc14: the result is first walked through
+    :func:`srmech.mcp._coercion.serialise_native` (the outbound half of
+    the bidirectional coercion) so ``bytes`` -> base64, ``np.ndarray`` ->
+    nested list (complex elements as ``[re, im]``), ``complex`` ->
+    ``[re, im]``, numpy scalars -> Python scalars, and tuples/sets ->
+    lists — round-trippable with the inbound :func:`_coerce_arguments`.
+    Anything ``serialise_native`` leaves untouched is handed to
+    ``json.dumps`` with the :func:`_json_fallback` ``default=`` for the
+    last-resort cases (dataclasses, exotic objects). Falls back to
+    ``repr(result)`` only if even that cannot serialise.
     """
     try:
-        return json.dumps(result, default=_json_fallback, sort_keys=False)
+        prepared = serialise_native(result)
+        return json.dumps(prepared, default=_json_fallback, sort_keys=False)
     except (TypeError, ValueError):
         return repr(result)
 
 
 def _json_fallback(obj: Any) -> Any:
-    """json.dumps default= callable for objects we can't natively
-    serialise. Preserves enough info that an LLM consumer can read
-    the result without losing structure."""
-    # numpy arrays -> list
-    try:
-        import numpy as np  # type: ignore
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, np.generic):
-            return obj.item()
-    except ImportError:  # pragma: no cover — numpy is a hard dep
-        pass
-    # bytes -> hex
-    if isinstance(obj, (bytes, bytearray)):
-        return obj.hex()
-    # tuples / sets -> list
-    if isinstance(obj, (tuple, set, frozenset)):
-        return list(obj)
-    # pathlib.Path -> str
-    import pathlib
-    if isinstance(obj, pathlib.PurePath):
-        return str(obj)
+    """``json.dumps`` ``default=`` for objects ``serialise_native`` left
+    untouched (it handles bytes / ndarray / complex / numpy-scalars /
+    tuples / dicts / Path). This catches the remaining structured cases —
+    dataclasses — and degrades anything else to ``repr`` so an LLM
+    consumer still sees the value without losing the call."""
+    # serialise_native already covers ndarray / numpy-scalar / bytes /
+    # complex / tuple / set / Path; re-run it defensively in case a
+    # nested ``default=`` invocation surfaces one of those.
+    prepared = serialise_native(obj)
+    if prepared is not obj:
+        return prepared
     # Dataclasses -> their asdict view if available.
     import dataclasses
-    if dataclasses.is_dataclass(obj):
-        return dataclasses.asdict(obj)
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return serialise_native(dataclasses.asdict(obj))
     # Last resort: repr
     return repr(obj)
 

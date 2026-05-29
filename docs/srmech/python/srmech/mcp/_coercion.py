@@ -1,0 +1,465 @@
+"""Bidirectional JSON <-> native coercion for the MCP / Anthropic surface
+(v0.5.0rc14).
+
+THE PROBLEM (found by a live probe of the rc13 catalog): 65 of 158
+``srmech`` tools were advertised to MCP / Anthropic consumers but were
+*uncallable*, because their declared parameter (or return) types are
+``bytes`` / ``np.ndarray`` / ``complex`` — types JSON-RPC cannot express.
+A tool that *accepts* JSON but *returns* an un-serialisable ndarray is
+equally unusable, so the fix is **bidirectional**:
+
+* ``coerce_param(value, type_string)`` — JSON value -> the native Python
+  type the resolved callable expects (the inbound direction).
+* ``serialise_native(value)`` — a native Python result -> a
+  JSON-serialisable value (the outbound direction).
+
+Encoding conventions (user decision 2026-05-29)
+-----------------------------------------------
+* ``bytes``        <-> base64 ``str``  (unambiguous, binary-safe; the
+  earlier hex convention was lossier to read and not what the rc14 wire
+  format standardises on).
+* ``np.ndarray``   <-> nested JSON ``list`` (row-major, ``.tolist()``);
+  complex arrays carry each element as a ``[re, im]`` 2-list.
+* ``complex``      <-> ``[re, im]`` 2-list (a bare JSON number decodes to
+  ``complex(n, 0)``).
+* numpy scalars (``np.int64`` / ``np.float64`` / ``np.uint8`` / ...) ->
+  plain Python ``int`` / ``float`` on the outbound path.
+* Container types recurse element-wise (see ``_PARAM_COERCERS``).
+
+The inbound table is keyed on the *declared* ToolEntry type-string so a
+ratchet (``test_all_param_types_json_coercible``) can assert every
+advertised param type has a handler — no future tool can ship an
+uncallable param type unnoticed. The outbound serialiser is *structural*
+(it walks the actual Python value) because a result's concrete type is
+not always pinned by the declared ``ToolReturn`` string (e.g. ``Any``).
+
+dtype inference (inbound ndarray) — the documented caveat
+---------------------------------------------------------
+The generic inbound ``np.ndarray`` path builds a **real** array
+(``np.asarray`` — ``float64`` if any float is present, ``int64`` for
+all-ints). It deliberately does NOT auto-promote ``[re, im]`` leaves to a
+complex array, because a real 2-column matrix (``[[1, 2], [3, 4]]``) is
+shape-indistinguishable from a length-2 complex vector — guessing would
+silently corrupt the far more common real-matrix ops (graph-Laplacian,
+real-symmetric eigendecomposition, real 3-/4-vectors). Consequences:
+
+* The real-array round-trip ``coerce_param(serialise_native(x)) == x`` is
+  EXACT (values and shape).
+* Complex-input ops stay correct too: each casts internally via
+  ``np.ascontiguousarray(value, dtype=complex128)``, and a real symmetric
+  matrix IS a valid Hermitian input — the real→complex128 promotion is
+  lossless.
+* The only input the generic path cannot express is an array carrying
+  genuine *imaginary* parts. Single complex *scalars* ride as ``[re, im]``
+  via the ``complex`` coercer; bulk complex *array* work is the bus
+  by-reference handle path (per the package-for-bulk / MCP-for-interactive
+  design boundary), not the JSON MCP path. The opt-in
+  ``complex_pairs_to_ndarray`` builds a complex128 array from ``[re, im]``
+  leaves for the round-trip test and any future explicitly-complex param.
+* Integer-typed ops (``klein4`` uint8 / ``polar`` int8) receive a
+  ``float64`` / ``int64`` array and re-cast internally via
+  ``np.asarray(..., dtype=...)`` in their own guards — round-trip equality
+  holds on *values*, not on the intermediate JSON dtype.
+
+Pure Python; no new C symbol; ABI unchanged.
+"""
+
+from __future__ import annotations
+
+import base64
+import binascii
+from typing import Any, Callable, Dict, List, Tuple
+
+import numpy as np
+
+# ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
+# malformed input.
+_BinasciiError = binascii.Error
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Scalar element coercers (inbound: one JSON leaf -> one native leaf)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _b64_to_bytes(value: Any, *, param: str = "") -> bytes:
+    """Decode a base64 ``str`` (the rc14 wire form for ``bytes``) to raw
+    bytes. Tolerates a value that is *already* ``bytes`` (an in-process
+    caller may pass raw bytes through ``invoke_tool``).
+    """
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    if not isinstance(value, str):
+        raise ValueError(
+            f"expected base64-encoded bytes for param {param or '<bytes>'!r}; "
+            f"got {type(value).__name__}"
+        )
+    try:
+        return base64.b64decode(value, validate=True)
+    except (ValueError, _BinasciiError) as exc:
+        raise ValueError(
+            f"expected base64-encoded bytes for param {param or '<bytes>'!r}: "
+            f"{exc}"
+        ) from exc
+
+
+def _to_complex(value: Any, *, param: str = "") -> complex:
+    """Coerce a JSON value to ``complex``.
+
+    Accepts ``[re, im]`` (a 2-element list/tuple), a bare JSON number
+    (-> ``complex(n, 0)``), or a value that is already ``complex``.
+    """
+    if isinstance(value, complex):
+        return value
+    if isinstance(value, (int, float)):
+        return complex(value, 0.0)
+    if isinstance(value, (list, tuple)):
+        if len(value) != 2:
+            raise ValueError(
+                f"expected [real, imaginary] (2 numbers) for complex param "
+                f"{param or '<complex>'!r}; got length {len(value)}"
+            )
+        re_part, im_part = value
+        return complex(float(re_part), float(im_part))
+    raise ValueError(
+        f"expected [real, imaginary] or a number for complex param "
+        f"{param or '<complex>'!r}; got {type(value).__name__}"
+    )
+
+
+def _to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
+    """Coerce a nested JSON list to a **real** ``np.ndarray`` (the
+    natural numpy dtype: ``float64`` for any float, ``int64`` for all
+    ints). A value already an ndarray passes through unchanged.
+
+    DTYPE CAVEAT (the documented round-trip caveat). A nested list of
+    plain numbers is built as a *real* array; the generic ``np.ndarray``
+    path does NOT auto-promote ``[re, im]`` leaves to a complex array,
+    because a real 2-column matrix (e.g. ``[[1, 2], [3, 4]]``) is
+    shape-indistinguishable from a length-2 complex vector — guessing
+    would corrupt the far more common real-matrix ops (graph-Laplacian,
+    real symmetric eigendecomposition, real 3-/4-vectors). This makes the
+    real-array round-trip ``coerce_param(serialise_native(x)) == x``
+    EXACT, and is lossless for the complex-input ops too: every complex
+    op internally casts via ``np.ascontiguousarray(value,
+    dtype=complex128)`` and a real symmetric matrix IS a valid Hermitian
+    input. The only thing the generic path cannot accept on input is an
+    array carrying genuine *imaginary* parts — express those explicitly
+    with :func:`_complex_pairs_to_ndarray` (the ``complex`` element coercer
+    handles single complex scalars; bulk complex array work is the bus
+    by-reference handle path, not the JSON MCP path).
+    """
+    if isinstance(value, np.ndarray):
+        return value
+    # np.asarray picks float64 for any float present, int64 for all-ints.
+    # Force float64 when the value is (nested) numeric with any float so a
+    # mixed int/float matrix is uniform; np.asarray already does this.
+    return np.asarray(value)
+
+
+def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
+    """Build a ``complex128`` array from nested ``[re, im]`` leaves — the
+    inverse of the outbound complex-array serialisation (each scalar is a
+    2-list ``[re, im]``). Used by round-trip tests and any future op that
+    declares an explicitly-complex array param; the generic
+    :func:`_to_ndarray` deliberately does NOT call this (see its dtype
+    caveat). A value already a complex ndarray passes through.
+    """
+    if isinstance(value, np.ndarray):
+        return value.astype(np.complex128)
+    real = np.asarray(value, dtype=np.float64)
+    if real.ndim == 0 or real.shape[-1] != 2:
+        raise ValueError(
+            f"complex ndarray param {param or '<ndarray>'!r}: innermost "
+            f"axis must be [re, im] (length 2); got shape {real.shape}"
+        )
+    return real[..., 0] + 1j * real[..., 1]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Inbound dispatch table: declared ToolEntry type-string -> coercer
+#
+# The KEY is the exact ``ToolParameter.type`` string. ``coerce_param``
+# looks the param's declared type up here; a hit applies the coercer, a
+# miss passes the value through unchanged (the callable is the canonical
+# validator). The ratchet asserts EVERY declared param type has an entry
+# here (pass-through types included), so no uncallable type slips by.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _identity(value: Any, *, param: str = "") -> Any:
+    """Pass a JSON-native (or object-handle / pass-through) value through
+    unchanged. The underlying callable validates it."""
+    return value
+
+
+def _seq_bytes(value: Any, *, param: str = "") -> List[bytes]:
+    """``Sequence[bytes]`` / ``list[bytes]`` -> list of base64-decoded
+    bytes."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of base64 strings for param "
+            f"{param or '<seq-bytes>'!r}; got {type(value).__name__}"
+        )
+    return [_b64_to_bytes(v, param=param) for v in value]
+
+
+def _seq_ndarray(value: Any, *, param: str = "") -> List[np.ndarray]:
+    """``Sequence[np.ndarray]`` -> list of ndarrays (each from a nested
+    list)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of nested arrays for param "
+            f"{param or '<seq-ndarray>'!r}; got {type(value).__name__}"
+        )
+    return [_to_ndarray(v, param=param) for v in value]
+
+
+def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[np.ndarray, ...]:
+    """``tuple[np.ndarray, ...]`` -> tuple of ndarrays (the QM gauge ops
+    take a *tuple* of generator matrices)."""
+    return tuple(_seq_ndarray(value, param=param))
+
+
+def _mapping_bytes_bytes(value: Any, *, param: str = "") -> Dict[bytes, bytes]:
+    """``Mapping[bytes, bytes]`` (``template.render``) -> dict of
+    base64-decoded key -> base64-decoded value bytes."""
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"expected an object {{base64-key: base64-value}} for param "
+            f"{param or '<map-bytes>'!r}; got {type(value).__name__}"
+        )
+    return {
+        _b64_to_bytes(k, param=param): _b64_to_bytes(v, param=param)
+        for k, v in value.items()
+    }
+
+
+def _list_tuple_bytes_int(
+    value: Any, *, param: str = ""
+) -> List[Tuple[bytes, int]]:
+    """``list[tuple[bytes, int]]`` (``dispatch.match`` rules) -> list of
+    (base64-bytes, int) tuples. Each element rides as ``[base64, int]``."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of [base64, int] pairs for param "
+            f"{param or '<rules>'!r}; got {type(value).__name__}"
+        )
+    out: List[Tuple[bytes, int]] = []
+    for i, pair in enumerate(value):
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError(
+                f"param {param or '<rules>'!r}[{i}] must be a "
+                f"[base64-bytes, int] pair"
+            )
+        out.append((_b64_to_bytes(pair[0], param=param), int(pair[1])))
+    return out
+
+
+def _list_tuple_bytes_bytes(
+    value: Any, *, param: str = ""
+) -> List[Tuple[bytes, bytes]]:
+    """``list[tuple[bytes, bytes]]`` (``naming.lookup`` pairs) -> list of
+    (base64-bytes, base64-bytes) tuples. Each element rides as
+    ``[base64-key, base64-value]``."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of [base64-key, base64-value] pairs for param "
+            f"{param or '<pairs>'!r}; got {type(value).__name__}"
+        )
+    out: List[Tuple[bytes, bytes]] = []
+    for i, pair in enumerate(value):
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError(
+                f"param {param or '<pairs>'!r}[{i}] must be a "
+                f"[base64-key, base64-value] pair"
+            )
+        out.append(
+            (_b64_to_bytes(pair[0], param=param),
+             _b64_to_bytes(pair[1], param=param))
+        )
+    return out
+
+
+def _to_path(value: Any, *, param: str = "") -> Any:
+    """``pathlib.Path`` <- str."""
+    import pathlib
+    if isinstance(value, pathlib.PurePath):
+        return value
+    return pathlib.Path(value)
+
+
+def _to_int_tuple(value: Any, *, param: str = "") -> Tuple[int, ...]:
+    """``tuple[int, int]`` <- a JSON list of ints (the rational ops take a
+    ``(num, den)`` pair). JSON has no tuple; a list arrives."""
+    if isinstance(value, tuple):
+        return value
+    if not isinstance(value, list):
+        raise ValueError(
+            f"expected a list for tuple param {param or '<int-tuple>'!r}; "
+            f"got {type(value).__name__}"
+        )
+    return tuple(value)
+
+
+#: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
+#: entries are JSON-native or opaque-handle types that ``invoke_tool``
+#: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
+#: so the ratchet can prove every advertised type is accounted for.
+_PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
+    # ── non-JSON scalar types (the core of the 65/158 fix) ──
+    "bytes": _b64_to_bytes,
+    "complex": _to_complex,
+    "np.ndarray": _to_ndarray,
+    "Optional[np.ndarray]": _to_ndarray,
+    # ── container element-recursion ──
+    "Sequence[bytes]": _seq_bytes,
+    "Sequence[np.ndarray]": _seq_ndarray,
+    "tuple[np.ndarray, ...]": _tuple_ndarray,
+    "Mapping[bytes, bytes]": _mapping_bytes_bytes,
+    "list[tuple[bytes, int]]": _list_tuple_bytes_int,
+    "list[tuple[bytes, bytes]]": _list_tuple_bytes_bytes,
+    # ── JSON-native-ish that still want a light shape fix ──
+    "pathlib.Path": _to_path,
+    "tuple[int, int]": _to_int_tuple,
+    "list[tuple[int, int]]": _identity,   # nested lists JSON-native
+    # ── JSON-native scalars (explicit pass-through) ──
+    "int": _identity,
+    "Optional[int]": _identity,
+    "float": _identity,
+    "Optional[float]": _identity,
+    "number": _identity,
+    "bool": _identity,
+    "str": _identity,
+    "Optional[str]": _identity,
+    "dict": _identity,
+    "Optional[dict]": _identity,
+    "list": _identity,
+    "list[int]": _identity,
+    "Optional[list[float]]": _identity,
+    "iterable[int]": _identity,
+    "sequence": _identity,
+    "int | float | str | list | dict": _identity,
+    # ── opaque in-process handle types (cannot ride JSON; the schema
+    #    renders them as objects and an in-process caller passes the real
+    #    object through). Listed so the ratchet stays exhaustive. ──
+    "ChainSpec": _identity,
+    "SpectralHandle": _identity,
+    "SpectralHandle | bytes": _identity,
+    "callable": _identity,
+    "numpy.random.Generator": _identity,
+}
+
+
+def has_coercer(type_string: str) -> bool:
+    """True iff the inbound dispatch has an explicit handler for this
+    declared type-string. The type-coercibility ratchet calls this for
+    every advertised param type."""
+    return type_string in _PARAM_COERCERS
+
+
+def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
+    """Coerce one inbound JSON ``value`` to the native type its declared
+    ``type_string`` names. A type with no registered coercer passes
+    through unchanged (the underlying callable is the canonical
+    validator).
+
+    A JSON ``null`` (Python ``None``) always passes through unchanged —
+    it means "absent / use the default" for an ``Optional[...]`` param,
+    regardless of the declared element type (so an explicit ``null`` for
+    an ``Optional[np.ndarray]`` stays ``None``, not a 0-d object array).
+    """
+    if value is None:
+        return None
+    coercer = _PARAM_COERCERS.get(type_string)
+    if coercer is None:
+        return value
+    return coercer(value, param=param)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Outbound serialisation: native Python result -> JSON-serialisable value
+#
+# Structural (walks the value), because a result's concrete type is not
+# always pinned by the declared ``ToolReturn`` string (``Any`` / union
+# returns). Round-trippable for the scalar leaf types:
+# ``coerce_param(serialise_native(x), <type>) == x`` for bytes / complex /
+# ndarray (modulo ndarray dtype — see the module docstring caveat).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _ndarray_to_json(arr: np.ndarray) -> Any:
+    """Serialise an ndarray to a nested JSON list. Complex arrays carry
+    each element as ``[re, im]`` (the inverse of :func:`_to_ndarray`)."""
+    if np.iscomplexobj(arr):
+        # Stack real/imag on a new trailing axis so each scalar becomes
+        # [re, im]; .tolist() then yields nested [re, im] leaves.
+        stacked = np.stack([arr.real, arr.imag], axis=-1)
+        return stacked.tolist()
+    return arr.tolist()
+
+
+def serialise_native(value: Any) -> Any:
+    """Recursively convert a native Python result to a JSON-serialisable
+    value.
+
+    * ``bytes`` -> base64 ``str``
+    * ``np.ndarray`` -> nested list (complex -> ``[re, im]`` leaves)
+    * ``complex`` -> ``[re, im]``
+    * numpy scalars -> Python ``int`` / ``float`` / ``bool``
+    * tuples / lists / sets -> list (recursed)
+    * dicts -> dict (values recursed; keys base64'd if bytes)
+    * ``pathlib.PurePath`` -> ``str``
+
+    Anything else is returned unchanged for ``json.dumps`` to handle (or
+    for the caller's ``default=`` fallback to catch).
+    """
+    # bytes -> base64
+    if isinstance(value, (bytes, bytearray)):
+        return base64.b64encode(bytes(value)).decode("ascii")
+    # complex -> [re, im]
+    if isinstance(value, complex):
+        return [value.real, value.imag]
+    # numpy ndarray -> nested list
+    if isinstance(value, np.ndarray):
+        return _ndarray_to_json(value)
+    # numpy scalar -> python scalar (np.bool_ -> bool, integer -> int, ...)
+    if isinstance(value, np.generic):
+        item = value.item()
+        if isinstance(item, complex):
+            return [item.real, item.imag]
+        return item
+    # dict -> recurse (a bytes key serialises to its base64 string)
+    if isinstance(value, dict):
+        out: Dict[Any, Any] = {}
+        for k, v in value.items():
+            key = (
+                base64.b64encode(bytes(k)).decode("ascii")
+                if isinstance(k, (bytes, bytearray))
+                else k
+            )
+            out[key] = serialise_native(v)
+        return out
+    # tuple / list / set -> list (recurse)
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return [serialise_native(v) for v in value]
+    # pathlib.Path -> str
+    import pathlib
+    if isinstance(value, pathlib.PurePath):
+        return str(value)
+    return value
+
+
+__all__ = [
+    "coerce_param",
+    "has_coercer",
+    "serialise_native",
+    "complex_pairs_to_ndarray",
+]
+
+
+#: Public alias for the explicit ``[re, im]``-leaf -> complex128 array
+#: coercer (the generic ``np.ndarray`` path stays real per its dtype
+#: caveat; this is the opt-in complex-array builder for round-trip tests
+#: and any future explicitly-complex array param).
+complex_pairs_to_ndarray = _complex_pairs_to_ndarray
