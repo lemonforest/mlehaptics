@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.5.0rc8"
+version = "0.5.0rc9"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -71,6 +71,12 @@ tests = ["pytest>=7.0"]
 # the cryptography wheel — the stdlib HMAC-SHA-256 fallback always
 # works, so install this extra only when AES-CTR is required.
 crypto = ["cryptography>=41.0"]
+# Anthropic extra (v0.5.0rc9): enables the secondary
+# ``srmech.llm.anthropic_agent.AnthropicAgent`` direct-SDK adapter
+# for users who script Claude API outside Claude Code. Default
+# install does NOT add it. Pure-Python; Pyodide can install the
+# ``anthropic`` SDK via micropip if browser usage is desired.
+anthropic = ["anthropic>=0.40.0"]
 dev = [
     "pytest>=7.0",
     "build",
@@ -91,6 +97,10 @@ siona = "srmech.cli:main"
 # Mirrors the pyproject.toml entry; pure-Python wheel ships the same console-
 # script so Pyodide / WASM environments get the same surface.
 srmech-mcp = "srmech.mcp._cli:main"
+# v0.5.0rc9 — Anthropic Claude SDK secondary adapter (mirror of
+# pyproject.toml so the pure-Python wheel ships the same console
+# script). Requires ``pip install srmech[anthropic]``.
+srmech-agent = "srmech.llm.anthropic_agent_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"

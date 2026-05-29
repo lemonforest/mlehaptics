@@ -583,6 +583,45 @@ def test_short_list_alias_equals_list_endpoints():
     assert {e.name for e in a} == {e.name for e in b} or len(a) <= len(b) + 1
 
 
+def test_discovery_iterates_uds_socket_files(unique_name):
+    """Regression: ``_iter_candidate_files`` must yield POSIX UDS
+    socket files, not skip them.
+
+    v0.5.0rc1–rc9 bug: the bus-discovery iterator filtered with
+    ``Path.is_file()``, which returns ``False`` for AF_UNIX socket
+    files on POSIX (they're stat-type ``S_IFSOCK``, not ``S_IFREG``).
+    Effect: every ``by_name()`` / ``list_endpoints()`` call returned
+    empty on POSIX even though the socket existed and was connectable.
+    The ``_wait_for_endpoint`` helper used by 40+ bus tests therefore
+    timed out on every POSIX CI cell across the rc1–rc9 series. Fixed
+    by inverting the directory check (skip dirs, accept everything
+    else). Windows passes irrespective because its ``.txt`` registry
+    file IS a regular file.
+    """
+    def handler(event):
+        return {"type": "ack"}
+    with serve(unique_name, handler=handler):
+        # Direct iteration must surface the socket-file entry.
+        from srmech.bus._discovery import _iter_candidate_files
+        from srmech.bus._transport import bus_dir
+        names = {p.name for p in _iter_candidate_files(bus_dir())}
+        # The endpoint's on-disk registration must be present.
+        from srmech.bus._event import (
+            BUS_SOCK_PREFIX, BUS_SOCK_SUFFIX, BUS_REGISTRY_SUFFIX,
+        )
+        expected_uds = (
+            f"{BUS_SOCK_PREFIX}{unique_name}{BUS_SOCK_SUFFIX}"
+        )
+        expected_reg = (
+            f"{BUS_SOCK_PREFIX}{unique_name}{BUS_REGISTRY_SUFFIX}"
+        )
+        # POSIX yields the .sock; Windows yields the .txt registry.
+        assert (expected_uds in names) or (expected_reg in names), (
+            f"discovery did not surface the endpoint registration; "
+            f"saw {sorted(names)}"
+        )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Cross-process smoke test
 # ──────────────────────────────────────────────────────────────────────

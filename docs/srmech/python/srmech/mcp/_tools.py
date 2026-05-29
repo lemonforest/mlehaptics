@@ -48,6 +48,22 @@ from ..amsc.tool_schema import (
     get_tool_schema,
 )
 
+# v0.5.0rc9 — side-effect imports: ensure all downstream tool_schema
+# registrations fire before any MCP consumer queries the registry.
+# - ``srmech.bus`` triggers ``srmech.bus._tool_schema._register_bus_tools()``
+#   (registers ``srmech.bus.decode_splice`` / ``.list_endpoints`` /
+#   ``.by_name``). srmech.bus is NOT transitively imported by
+#   ``srmech.amsc.tool_schema``; without this warmup the bus tools
+#   were silently missing from the LLM-facing catalog (root cause of
+#   the discoverability bug).
+# - ``srmech.introspect`` is already imported transitively from
+#   ``srmech.__init__`` (which calls ``_introspect._maybe_auto_publish``)
+#   so its tools are registered through that path, but adding the
+#   explicit import here is belt-and-braces + readable: the MCP
+#   wrapper now self-documents which sibling packages it surfaces.
+from .. import bus as _bus  # noqa: F401 — side effect: registers srmech.bus.* tools
+from .. import introspect as _introspect  # noqa: F401 — side effect: registers srmech.introspect.* tools
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Errors

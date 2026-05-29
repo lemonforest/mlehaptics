@@ -139,6 +139,14 @@ class Endpoint:
         self._stop_event = threading.Event()
         self._subscribers: List[_Subscriber] = []
         self._sub_lock = threading.Lock()
+        # v0.5.0rc9 fix: track each ACCEPTED client Connection so
+        # ``stop()`` can close them. The listen socket alone is not
+        # enough — workers hold per-conn handles that remain open
+        # otherwise, which makes ``test_send_after_server_stop_raises``
+        # race on POSIX (worker continues to serve a request that
+        # arrives after ``stop()`` returns).
+        self._accepted_conns: List["Connection"] = []
+        self._conn_lock = threading.Lock()
         self._started: bool = False
         self._stopped: bool = False
         # v0.5.0rc7: resolve the DNA secret once at endpoint
@@ -222,6 +230,20 @@ class Endpoint:
             self._transport.close()
         except Exception:
             pass
+        # v0.5.0rc9 fix: close every accepted-client Connection so
+        # any blocked worker reads / in-flight handler responses fail
+        # promptly. Without this, the worker's already-open per-conn
+        # socket keeps serving requests that arrive AFTER stop()
+        # returned, defeating the "stopped server cannot reply" test
+        # contract (see test_send_after_server_stop_raises).
+        with self._conn_lock:
+            conns = list(self._accepted_conns)
+            self._accepted_conns.clear()
+        for c in conns:
+            try:
+                c.close()
+            except Exception:
+                pass
         # Tell every subscriber to drain.
         with self._sub_lock:
             subs = list(self._subscribers)
@@ -342,6 +364,11 @@ class Endpoint:
                 except Exception:
                     pass
                 return
+            # v0.5.0rc9 fix: register the accepted Connection so
+            # ``stop()`` can close it. See the matching note on
+            # ``self._accepted_conns`` in ``__init__``.
+            with self._conn_lock:
+                self._accepted_conns.append(conn)
             # v0.5.0rc7: provision a fresh per-connection Bio-TOTP
             # channel pair if the endpoint is encrypted. recv_bio
             # decodes inbound (client → server) frames; send_bio

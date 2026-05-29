@@ -661,3 +661,144 @@ def test_cli_filter_flag_subprocess() -> None:
             p.wait(timeout=5.0)
         except subprocess.TimeoutExpired:
             p.kill()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# MCP tool-schema discoverability (v0.5.0rc9)
+#
+# Regression tests for the discoverability gap caught 2026-05-28: the
+# MCP wrapper at ``srmech.mcp._tools`` only imported
+# ``srmech.amsc.tool_schema`` and never triggered the side-effect
+# imports of ``srmech.bus._tool_schema`` (which registers the bus
+# tools) — so the bus discovery + decode surfaces and the introspect
+# read surfaces were silently missing from the LLM-facing catalog.
+#
+# The fix: side-effect imports at the top of ``srmech.mcp._tools``
+# plus two new ``register_tool`` calls in each of
+# ``srmech.amsc.tool_schema._register_introspect_tools`` and
+# ``srmech.bus._tool_schema._register_bus_tools``.
+#
+# These five tests lock the fix in — they all assert via
+# ``srmech.mcp._tools`` import (the path Claude Code / MCP clients
+# take), which is THE entry point the bug lived behind. The
+# ``import srmech.bus`` line at the top of this file (added in rc6)
+# does NOT cover the regression because the bug was the absence of
+# that side-effect import in the MCP layer itself.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _names_after_mcp_import() -> set:
+    """Return the set of tool names visible after importing the MCP
+    tool wrapper (the path an MCP / Claude Code consumer takes).
+    """
+    # The import below is the SUT — importing ``srmech.mcp._tools``
+    # must transitively trigger every side-effect registration that
+    # the MCP-facing catalog depends on. Using ``noqa: F401`` so the
+    # import isn't optimised away by a linter; same pattern as the
+    # production code.
+    from srmech.mcp import _tools  # noqa: F401 — side effect under test
+    from srmech.amsc.tool_schema import get_tool_schema
+    schema = get_tool_schema()
+    return {e.name for e in schema.tools}
+
+
+def test_introspect_list_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.introspect.list`` is registered after MCP wrapper import.
+
+    Regression for v0.5.0rc9 discoverability fix: the read-side
+    ``list`` surface complements ``srmech.introspect.publish`` and
+    must be visible to MCP / Claude Code consumers.
+    """
+    names = _names_after_mcp_import()
+    assert "srmech.introspect.list" in names, (
+        "srmech.introspect.list missing from tool_schema after MCP "
+        "import (v0.5.0rc9 regression — read-side introspect surface)"
+    )
+
+
+def test_introspect_by_pid_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.introspect.by_pid`` is registered after MCP wrapper import.
+
+    Regression for v0.5.0rc9 discoverability fix.
+    """
+    names = _names_after_mcp_import()
+    assert "srmech.introspect.by_pid" in names, (
+        "srmech.introspect.by_pid missing from tool_schema after MCP "
+        "import (v0.5.0rc9 regression — PID-lookup introspect surface)"
+    )
+
+
+def test_bus_decode_splice_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.bus.decode_splice`` is registered after MCP wrapper import.
+
+    THIS IS THE PRIMARY REGRESSION TEST for the side-effect-import bug:
+    ``srmech.bus.decode_splice`` HAS been registered in
+    ``srmech.bus._tool_schema`` since v0.5.0rc7, but the MCP wrapper
+    at ``srmech.mcp._tools`` never imported ``srmech.bus``, so the
+    registration never fired and the tool was invisible to MCP /
+    Claude Code consumers. The fix is the ``from .. import bus``
+    side-effect import at the top of ``srmech.mcp._tools``; this
+    test guards against it being removed.
+    """
+    names = _names_after_mcp_import()
+    assert "srmech.bus.decode_splice" in names, (
+        "srmech.bus.decode_splice missing from tool_schema after MCP "
+        "import (v0.5.0rc9 regression — side-effect import of "
+        "srmech.bus removed?)"
+    )
+
+
+def test_bus_list_endpoints_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.bus.list_endpoints`` is registered after MCP wrapper import.
+
+    Regression for v0.5.0rc9 discoverability fix: bus endpoint
+    enumeration surface must be visible to MCP / Claude Code
+    consumers (paired with ``srmech.bus.by_name``).
+    """
+    names = _names_after_mcp_import()
+    assert "srmech.bus.list_endpoints" in names, (
+        "srmech.bus.list_endpoints missing from tool_schema after MCP "
+        "import (v0.5.0rc9 regression — bus discovery enumerator)"
+    )
+
+
+def test_bus_by_name_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.bus.by_name`` is registered after MCP wrapper import.
+
+    Regression for v0.5.0rc9 discoverability fix.
+    """
+    names = _names_after_mcp_import()
+    assert "srmech.bus.by_name" in names, (
+        "srmech.bus.by_name missing from tool_schema after MCP "
+        "import (v0.5.0rc9 regression — bus by-name lookup)"
+    )
+
+
+def test_mcp_import_chain_does_not_loop() -> None:
+    """``srmech.mcp._tools`` import must not trigger a circular
+    import via ``srmech.bus`` -> ``srmech.amsc.tool_schema`` ->
+    ``srmech.bus`` (the cycle the fix was careful to avoid)."""
+    # If a cycle existed, this import would raise ImportError or
+    # AttributeError on first import in a fresh interpreter. The
+    # test suite as a whole exercises a non-fresh interpreter, so
+    # this test is mostly a documentation guard — the assertion is
+    # that the side-effect imports complete cleanly and the expected
+    # tools are present.
+    from srmech.mcp import _tools  # noqa: F401
+    from srmech.amsc.tool_schema import get_tool_schema
+    schema = get_tool_schema()
+    # The full v0.5.0rc9 discoverability set is present in one shot.
+    required = {
+        "srmech.introspect.publish",
+        "srmech.introspect.list",
+        "srmech.introspect.by_pid",
+        "srmech.bus.decode_splice",
+        "srmech.bus.list_endpoints",
+        "srmech.bus.by_name",
+    }
+    names = {e.name for e in schema.tools}
+    missing = required - names
+    assert not missing, (
+        f"v0.5.0rc9 discoverability set incomplete after MCP "
+        f"import; missing {sorted(missing)}"
+    )

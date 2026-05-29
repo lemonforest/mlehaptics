@@ -113,6 +113,94 @@ def _register_bus_tools() -> None:
             },
         )
     )
+    # v0.5.0rc9: register the bus discovery surfaces so MCP /
+    # Claude Code consumers can enumerate live endpoints owned by
+    # the current user and look up a specific endpoint by name.
+    # These were previously invisible to the LLM catalog even though
+    # the public Python API at ``srmech.bus.list_endpoints`` /
+    # ``srmech.bus.by_name`` has been load-bearing since v0.5.0rc1.
+    register_tool(
+        ToolEntry(
+            name="srmech.bus.list_endpoints",
+            owner="srmech",
+            category="bus",
+            summary=(
+                "Enumerate currently-running srmech.bus endpoints "
+                "owned by the current user by scanning the "
+                "`~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` "
+                "(Windows) registry directory. Best-effort liveness "
+                "check per endpoint (POSIX: UDS connect probe; "
+                "Windows: TCP loopback connect or WaitNamedPipeW "
+                "probe). Side effect (when `cleanup_dead=True`, the "
+                "default): registration files for endpoints whose "
+                "server is no longer accepting connections are "
+                "removed from disk on read. Returns `[]` on Pyodide "
+                "/ WASM (no socket support). Sorted alphabetically "
+                "by endpoint name. v0.5.0rc9 (MCP / catalog "
+                "discoverability; backing function shipped since "
+                "v0.5.0rc1)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "cleanup_dead", "bool", required=False,
+                    summary=(
+                        "When True (default), registration files "
+                        "for endpoints with no live server are "
+                        "removed from disk as a side effect."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="list[Endpoint]",
+                shape=(
+                    "Each Endpoint is a frozen dataclass: name "
+                    "(str), path (pathlib.Path), transport ('uds' "
+                    "POSIX / 'pipe' or 'tcp' Windows), alive "
+                    "(bool), pid (Optional[int], currently always "
+                    "None — reserved for a future rc that records "
+                    "owner PID in the registry file)."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.bus.by_name",
+            owner="srmech",
+            category="bus",
+            summary=(
+                "Look up one srmech.bus endpoint by name. Same "
+                "registry scan as `srmech.bus.list_endpoints` but "
+                "returns just the matching record (or `None` if no "
+                "endpoint of that name is registered for the current "
+                "user). Does NOT auto-clean dead-endpoint "
+                "registration files (the caller may want to inspect "
+                "a dead endpoint's record). Returns `None` on "
+                "Pyodide / WASM. v0.5.0rc9 (MCP / catalog "
+                "discoverability; backing function shipped since "
+                "v0.5.0rc1)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "name", "str", required=True,
+                    summary=(
+                        "Endpoint name (matches the name passed to "
+                        "`srmech.bus.serve(name, ...)`)."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="Endpoint | None",
+                shape=(
+                    "Frozen dataclass with name (str), path "
+                    "(pathlib.Path), transport ('uds' / 'pipe' / "
+                    "'tcp'), alive (bool), pid (Optional[int]). "
+                    "`None` when no matching endpoint is "
+                    "registered."
+                ),
+            ),
+        )
+    )
 
 
 # Fire the registration at module-import time. srmech.bus.__init__

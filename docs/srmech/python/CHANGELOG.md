@@ -4,7 +4,88 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). Plus optional v0.5.0rc9 Anthropic SDK secondary adapter._
+_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+
+## [0.5.0rc9] - 2026-05-28
+
+**rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional) +
+POSIX bus-discovery fix.**
+
+### Fixed (load-bearing, since v0.5.0rc1)
+
+- **POSIX bus discovery silently returned empty.** `_iter_candidate_files`
+  filtered the `~/.srmech/` directory with `Path.is_file()`, which returns
+  `False` for AF_UNIX socket files (they're `S_IFSOCK`, not `S_IFREG`).
+  Effect: `by_name()` / `list_endpoints()` reported no live endpoints on
+  POSIX even though the socket existed and was connectable, so every test
+  using the `_wait_for_endpoint` helper hit a 5 s timeout on every POSIX
+  CI cell across the rc1–rc9 series (40+ failing tests per cell, masked
+  by the prior 3 POSIX cells going red the whole time). Windows passed
+  throughout because its `.txt` registry file IS a regular file. Fix:
+  invert the filter (skip directories; accept regular files + sockets).
+  New regression test `test_discovery_iterates_uds_socket_files`.
+- **`Endpoint.stop()` left accepted-client sockets open.** The listen
+  socket was closed but each per-connection worker held its own accepted
+  socket — workers would keep serving requests that arrived AFTER
+  `stop()` returned, defeating the "stopped server cannot reply"
+  contract verified by `test_send_after_server_stop_raises`. Surfaced
+  on POSIX once the discovery bug above was fixed (was previously
+  masked by the pre-`_wait_for_endpoint` timeout). Fix: track each
+  accepted `Connection` on a per-endpoint list and close them all in
+  `stop()` before joining worker threads.
+
+### Added — Anthropic SDK adapter
+
+Optional companion to rc6 MCP (primary path for Claude Code users). This
+adapter targets users who script Claude API directly outside Claude Code
+(FastAPI servers, Jupyter notebooks, CI pipelines using the `anthropic`
+Python SDK).
+
+- Added: `srmech.llm.anthropic_agent.AnthropicAgent` — builds the tool
+  catalog from `srmech.amsc.tool_schema` ToolEntries, hands to Anthropic
+  SDK, runs the tool_use message-loop, returns final assistant message
+  with per-tool-call MPR attestation transcript.
+- Added: `srmech-agent` console-script entry. `pip install srmech[anthropic]`
+  installs the optional dep + the `srmech-agent` command.
+- Optional dep: `anthropic>=0.40.0`. Default install does NOT add it
+  (zero impact on users who don't need it).
+- The Anthropic tool-name grammar (`^[a-zA-Z0-9_-]{1,64}$`) doesn't admit
+  the dots in srmech dotted names; the adapter swaps `.` ↔ `_` round-trip
+  and keeps a per-instance reverse map so any future tool with an
+  underscore in its name still round-trips unambiguously.
+- Re-uses `srmech.mcp._server.build_attestation` so the MPR envelope
+  per tool call is byte-identical to what the MCP adapter emits for the
+  same (tool, result) pair — same response_sha256 across transports.
+
+For Claude Code users, this rc adds nothing — rc6 `srmech-mcp` is still
+the right path. This rc exists for the user community: anyone scripting
+Claude API outside Claude Code can now use srmech as a tool source with
+the same MPR attestation discipline.
+
+Pure-Python; ABI unchanged at 3. ~20 new tests using mocked
+Anthropic client (no real API calls).
+
+**This completes the v0.5.0 rc walk** (rc1-rc9 all shipped). Awaiting
+user load-test signal before cutting clean v0.5.0 → production PyPI.
+
+### Fixed — MCP tool-schema discoverability gap
+
+- **MCP tool-schema discoverability fix**: `srmech.introspect.list`,
+  `srmech.introspect.by_pid`, `srmech.bus.list_endpoints`, `srmech.bus.by_name`,
+  and `srmech.bus.decode_splice` are now visible to MCP / Claude Code consumers.
+  Root cause: `srmech.mcp._tools` only imported `srmech.amsc.tool_schema` and
+  never triggered the side-effect imports of `srmech.bus._tool_schema` or
+  `srmech.introspect`, so the "status" introspection surface and the bus
+  discovery surfaces were silently missing from the LLM-facing catalog. Fix
+  adds explicit `from .. import bus as _bus` / `from .. import introspect as
+  _introspect` warmup at the top of `mcp/_tools.py` plus two new ToolEntry
+  registrations on each module (introspect: `list`, `by_pid`; bus:
+  `list_endpoints`, `by_name`). Total registered tool count goes from 150 to
+  155 (decode_splice was registered all along — it just wasn't visible
+  through the MCP wrapper because the side-effect import was missing).
+  Six new regression tests in `tests/test_mcp.py` lock the fix in by
+  asserting each tool appears in `get_tool_schema()` after importing
+  `srmech.mcp._tools` (the exact path Claude Code / MCP clients take).
 
 ## [0.5.0rc8] - 2026-05-28
 
