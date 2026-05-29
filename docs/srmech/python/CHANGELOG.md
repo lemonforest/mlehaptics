@@ -6,6 +6,58 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc11] - 2026-05-29
+
+**rc11 of N for v0.5.0 — the "Self-recognition root" voxel.** The
+keystone of the v0.5.0 substrate-self-recognition arc: the package
+gains a single canonical surface to populate AND recognise its own
+tool-schema shape. Pure-Python only — no C change, ABI stays 3.
+
+Framework reading: `describe()` IS **Class H (self-introspection)** at
+package scale — the package recognising and rendering the SHAPE of its
+own A–N tool surface. `warmup_all()` is the Class A (content-addressed
+callable identifier) ∘ Class E (catalog) population step that
+GUARANTEES the Class H view is complete regardless of entry-path.
+
+### Added
+
+- **`srmech.amsc.tool_schema.warmup_all()` — THE single registration
+  entry-point.** Imports every submodule that registers `ToolEntry`s
+  (`srmech.bus` / `srmech.introspect`) so the registry is fully
+  populated no matter how srmech was entered (library / CLI / MCP /
+  Anthropic adapter). Idempotent. Fires from `srmech.__init__` (per
+  user direction 2026-05-29 — substrate-coherent: every consumer sees
+  the complete tool-schema from t=0). **Permanently closes the
+  orphan-registration bug class** — the rc9 miss where `srmech.bus`
+  tools were silently absent from the LLM-facing catalog because no
+  entry-path imported the bus. THE single place future voxels add their
+  registration import. Re-exported as `srmech.warmup_all`.
+- **`srmech.introspect.describe()` — the self-recognition ROOT
+  surface.** The "what is srmech?" root: a structured, at-a-glance map
+  of the package's own shape — package version, tool-schema version,
+  native-dispatch status (`has_native` / `abi_version` /
+  `native_version`), total registered tool count + per-category
+  breakdown, and the sorted list of category names. Calls
+  `warmup_all()` first so the counts are complete. Registered as a
+  `ToolEntry` (`srmech.introspect.describe`, no params) so MCP /
+  Anthropic consumers can ask "what is srmech / what can it do?". A
+  ROOT / INDEX — it surfaces the SHAPE; per-tool JSON schemas, env, and
+  error-type detail come from later voxels (rc15 / rc16).
+
+### Changed
+
+- **`srmech.mcp._tools` now warms up via the canonical entry-point.**
+  The rc9 scattered side-effect imports (`from .. import bus` /
+  `introspect`) are replaced by a single `warmup_all()` call. Behaviour
+  is identical (registry fully populated before `get_tool_schema()`),
+  but the warmup list is now maintained in ONE place.
+- **De-brittled the version-gate test** (`tests/test_signal_processing
+  _scaffolding.py`). `test_version_is_0_5_0rcN` (renamed to `…rc11`) is
+  now the SINGLE deliberate human-literal gate — the conscious per-rc
+  bump point. `test_version_module_matches` no longer hardcodes a
+  literal; it only asserts the SSoT sources AGREE plus a PEP 440 sanity
+  shape, so it survives version bumps (this gate bit us 3× in rc10).
+
 ## [0.5.0rc10] - 2026-05-29
 
 **rc10 of N for v0.5.0 — two shared-dispatch bug-fixes found by a LIVE
