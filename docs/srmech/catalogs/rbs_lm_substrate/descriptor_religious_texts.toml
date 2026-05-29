@@ -159,6 +159,25 @@ seed                    = 42
 klein4_sector_demo      = true   # bind level-predictions into Klein-4 sectors; read occupancy
 
 # ---------------------------------------------------------------------------
+# Confound control (F169) — separate STORAGE structure from SURFACE repetition
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.confound_control]
+# F168 §5.1 caveat: resolution depth conflated intrinsic structure with
+# repetition-density × data budget. This controls both: match TOKEN BUDGET and
+# VOCAB across the real-language corpora, so resolution depth becomes a clean
+# INTRINSIC (the STORAGE axis). Surface repetition (1 - distinct-trigram ratio of
+# the corpus itself) is reported as the SEPARATE EXPRESSION/surface axis.
+# Hypothesis (user 2026-05-29): storage and expression are SEPARABLE axes — if
+# controlled storage-depth is ~invariant across expression styles while surface
+# repetition varies independently, knowledge-storage is shared and only the
+# arts-of-communication layer differs. Structural test on text objects ONLY;
+# NOT a clinical claim about real cognition (§VII.6.20).
+budget_tokens           = 12000    # matched token budget per corpus (auto-clamped to min available)
+shared_vocab            = 600      # matched top-V vocab; rest → <unk> (auto-clamped to min available)
+max_order               = 6
+seed                    = 42
+
+# ---------------------------------------------------------------------------
 # Standard AMSC tail
 # ---------------------------------------------------------------------------
 [parse]
