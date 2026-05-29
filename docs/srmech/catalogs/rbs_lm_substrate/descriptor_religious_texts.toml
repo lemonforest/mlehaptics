@@ -178,6 +178,33 @@ max_order               = 6
 seed                    = 42
 
 # ---------------------------------------------------------------------------
+# Translation pairs (F171) — SAME content, DIFFERENT translator (the invariance test)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.translation_pairs]
+# The F169 core test needs SAME content rendered by different translators. The
+# Quran is the available pair: the cached Yusuf-Ali/Sale-register text vs Rodwell.
+# Storage-depth (controlled) should be INVARIANT across translations of the same
+# content if storage is expression-independent; surface repetition is free to vary.
+# STRUCTURAL test-objects ONLY; no doctrinal claims (§VII.6.20).
+
+[fetch.literature_curated.translation_pairs.quran_yusuf_ali]
+label       = "Quran (Sale 1734 / Yusuf Ali register)"
+filename    = "quran_yusuf_ali.txt"
+sha256      = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+pair_id     = "quran"
+source_note = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.translation_pairs.quran_rodwell]
+label        = "Quran (Rodwell 1861)"
+filename     = "quran_rodwell.txt"
+sha256       = "1cda1809c67ae8743b9be7f8f8cc5893872243dd39eb2f96247c0de01edf3fe0"
+pair_id      = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/3434/pg3434.txt"
+source_ref   = "Project Gutenberg ebook #3434 (J. M. Rodwell, The Koran)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+# ---------------------------------------------------------------------------
 # Standard AMSC tail
 # ---------------------------------------------------------------------------
 [parse]
