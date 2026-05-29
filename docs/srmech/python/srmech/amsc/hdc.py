@@ -263,13 +263,19 @@ def _check_polar_pair(a, b, op: str):
     return a, b
 
 
-def polar_random(D: int, rng=None):
+def polar_random(D: int, rng=None, seed: "int | None" = None):
     """Random polar hypervector of dimension ``D`` with elements in {-1, 0, +1}.
 
     Args:
         D: Vector dimension (positive).
-        rng: Optional ``numpy.random.Generator``; a fresh default is used if
-            omitted.
+        rng: Optional ``numpy.random.Generator`` for in-process Python
+            callers. A ``Generator`` cannot cross JSON-RPC nor be expressed
+            in an Anthropic tool schema; use ``seed`` from those callers.
+        seed: Optional integer seed. When given (and ``rng`` is not), the
+            generator is built internally as ``np.random.default_rng(seed)``,
+            so MCP / Anthropic callers can obtain a DETERMINISTIC vector
+            (srmech's bit-exact / attestation discipline). **Precedence:**
+            an explicit ``rng`` wins over ``seed`` if both are supplied.
 
     Returns:
         ``int8`` array of shape ``(D,)`` with elements drawn uniformly from
@@ -278,7 +284,7 @@ def polar_random(D: int, rng=None):
     if D <= 0:
         raise ValueError("hdc.polar_random: D must be positive")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(seed)
     return rng.integers(-1, 2, size=D, dtype=np.int8)
 
 
@@ -405,12 +411,24 @@ def _as_klein4(v, op: str):
     return arr
 
 
-def klein4_random(D: int, rng=None):
-    """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}."""
+def klein4_random(D: int, rng=None, seed: "int | None" = None):
+    """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
+
+    Args:
+        D: Vector dimension (positive).
+        rng: Optional ``numpy.random.Generator`` for in-process Python
+            callers. A ``Generator`` cannot cross JSON-RPC nor be expressed
+            in an Anthropic tool schema; use ``seed`` from those callers.
+        seed: Optional integer seed. When given (and ``rng`` is not), the
+            generator is built internally as ``np.random.default_rng(seed)``,
+            so MCP / Anthropic callers can obtain a DETERMINISTIC vector
+            (srmech's bit-exact / attestation discipline). **Precedence:**
+            an explicit ``rng`` wins over ``seed`` if both are supplied.
+    """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(seed)
     return rng.integers(0, 4, size=D, dtype=np.uint8)
 
 
