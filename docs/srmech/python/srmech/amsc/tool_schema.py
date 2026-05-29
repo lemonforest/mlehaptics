@@ -82,6 +82,17 @@ else:  # pragma: no cover  (py3.10 only)
 # ──────────────────────────────────────────────────────────────────────
 TOOL_SCHEMA_VERSION: str = "1.0"
 
+#: Inline discoverability note (v0.5.0rc7) appended to the ``summary``
+#: of every emitting op's ToolEntry. Surfaces the opt-in path through
+#: ``srmech.introspect.publish`` / ``SRMECH_PUBLISH_STATUS`` so the
+#: MCP-adapter-facing tool catalog (rc6) tells the LLM where to flip
+#: emission on. Without this opt-in, all srmech operations are silent
+#: (zero overhead in the off-path).
+PUBLISH_OPT_IN_NOTE: str = (
+    " Events emitted only when wrapped in `srmech.introspect.publish()` "
+    "or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent."
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Error types
@@ -422,7 +433,7 @@ def _register_amsc_tools() -> None:
             summary="Stream MPRRecords line-by-line from an NDJSON file. "
                     "Native C dispatch for IO + line tokenisation when "
                     "available; stdlib fallback otherwise. JSON parsing "
-                    "stays in Python.",
+                    "stays in Python." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 ToolParameter("path", "pathlib.Path", required=True,
                               summary="Path to an MPR-format NDJSON file"),
@@ -470,7 +481,7 @@ def _register_amsc_tools() -> None:
             category="catalog",
             summary="Paginated read of an attested dataset's rows. T0+T1+T2+T3 "
                     "tiered: committed baseline + collect re-bake + user "
-                    "runtime kernel + live query.",
+                    "runtime kernel + live query." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 ToolParameter("source_key", "str", required=True),
                 ToolParameter("limit", "Optional[int]", required=False),
@@ -1186,7 +1197,7 @@ def _register_primitive_class_tools() -> None:
             summary="Class K pin-slot at zero: split x into (orientation ∈ "
                     "{-1,0,+1}, magnitude ≥ 0). Sign-flip IS the canonical "
                     "Class K phase-boundary; the cascade-honest split that "
-                    "replaces a bare abs().",
+                    "replaces a bare abs()." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("tuple[int, float]", "(orientation, magnitude)"),
         ),
@@ -1195,7 +1206,8 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class C cascade-orientation: re-apply a captured "
                     "orientation {-1,0,+1} to a value (negates iff "
-                    "orientation < 0). Pairs with pin_slot_at_zero.",
+                    "orientation < 0). Pairs with pin_slot_at_zero."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
                         P("value", "number", True, "magnitude to re-sign")),
             returns=R("number", "value, negated iff orientation < 0"),
@@ -1205,7 +1217,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class K pin-slot at zero, magnitude only (orientation "
                     "discarded). The cascade-honest replacement for Python "
-                    "abs() when only |x| is needed.",
+                    "abs() when only |x| is needed." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("float", "|x| as the Class K pin-slot magnitude"),
         ),
@@ -1215,7 +1227,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class K ∘ N ∘ C: float → signed small-denominator "
                     "rational. Strip sign at the Class K pin-slot, find the "
                     "Class N best-rational of the magnitude, re-apply the "
-                    "sign as Class C (no abs(); sign lives in numerator).",
+                    "sign as Class C (no abs(); sign lives in numerator)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "the float to anchor"),
                         P("max_denominator", "int", False, "Class N ceiling; default 100"),
                         P("fine_scale", "int", False, "magnitude→int-pair scale; default 1e6")),
@@ -1226,7 +1239,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class I cyclic gcd (delegates to srmech.amsc.cyclic.gcd). "
                     "The cascade-named alias for reaching the Class I primitive "
-                    "instead of math.gcd.",
+                    "instead of math.gcd." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
         ),
@@ -1239,7 +1252,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class C orientation reversal: reverse a sequence's "
                     "traversal order (seq[::-1]). The value-level Class C "
                     "operator; reversing a real signal is the FFT-level "
-                    "chirality operator (magnitude preserved, phase inverted).",
+                    "chirality operator (magnitude preserved, phase inverted)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("seq", "sequence", True, "sliceable sequence"),),
             returns=R("sequence", "orientation-reversed sequence (type preserved)"),
         ),
@@ -1250,7 +1264,8 @@ def _register_primitive_class_tools() -> None:
                     "Class-C orientation. Conjugating any operator by "
                     "chiral_flip yields its chiral dual — same spectral shape, "
                     "inverted orientation (MFO §VIII.31.11). Reduces to Class K "
-                    "-1 for the sign operators; identity for real-symmetric ops.",
+                    "-1 for the sign operators; identity for real-symmetric ops."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("op", "callable", True, "unary sequence→sequence operator"),
                         P("x", "sequence", True, "input sequence")),
             returns=R("sequence", "chiral_flip(op(chiral_flip(x)))"),
@@ -1261,7 +1276,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class C net handedness of a cascade: product of per-op "
                     "orientations in {-1,0,+1} via composed reorient (no "
                     "abs-free sign multiply). Returns +1 (right), -1 (left), or "
-                    "0 if any operator is orientation-neutral.",
+                    "0 if any operator is orientation-neutral."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("orientations", "iterable[int]", True, "orientations in {-1,0,+1}"),),
             returns=R("int", "net handedness in {-1, 0, +1}"),
         ),
@@ -1299,7 +1315,7 @@ def _register_spectral_runtime_tools() -> None:
                     "coefficients + content_sha + n_modes). Class chain: "
                     "Class L (Hermitian eigendecomposition; Chung 1997) ∘ "
                     "Class A (SHA-256 content-addressing for cache + "
-                    "integrity).",
+                    "integrity)." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("state", "np.ndarray", True, "(n,) state vector"),
                         P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
                         P("encoder_tag", "str", False, "default 'default'")),
@@ -1312,7 +1328,7 @@ def _register_spectral_runtime_tools() -> None:
                     "(SpectralHandle or raw bytes). Class M (HDC bind / "
                     "XOR self-inverse) per Plate 1995 + Kanerva 2009; "
                     "Spike #114 Option B (direct on encoded coefficient "
-                    "bytes). bind(a, bind(a, b)) = b.",
+                    "bytes). bind(a, bind(a, b)) = b." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("ref", "SpectralHandle | bytes", True),
                         P("current", "SpectralHandle | bytes", True)),
             returns=R("bytes", "same length as inputs"),
@@ -1323,7 +1339,8 @@ def _register_spectral_runtime_tools() -> None:
             summary="Reconstruct the node-domain state from a SpectralHandle "
                     "via inverse projection ``V @ coeffs``. Class chain: "
                     "Class L (inverse eigendecomposition; Chung 1997) ∘ "
-                    "Class M (SHA-256 content integrity check on handle).",
+                    "Class M (SHA-256 content integrity check on handle)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("laplacian", "np.ndarray", True),
                         P("encoder_tag", "str", False, "default 'default'")),
@@ -1335,7 +1352,7 @@ def _register_spectral_runtime_tools() -> None:
             summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in "
                     "[−1, +1]. Class M per Kanerva 2009 §3.2; direct on "
                     "coefficient bytes. +1 = identical, 0 = orthogonal, "
-                    "−1 = anti-correlated.",
+                    "−1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
             returns=R("float", "in [-1, +1]"),
@@ -1353,7 +1370,7 @@ def _register_spectral_runtime_tools() -> None:
                     "Class chain: Class C (cascade-extrapolate) ∘ Class L "
                     "(Hermitian Laplacian eigenstructure). Spike #113 + "
                     "MS #14 rcN+2 anchor. Magnitudes preserved (unitary); "
-                    "phase evolves per eigenmode.",
+                    "phase evolves per eigenmode." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("laplacian", "np.ndarray", True),
                         P("steps", "int", False, "default 1; ticks forward"),
@@ -1372,7 +1389,7 @@ def _register_spectral_runtime_tools() -> None:
                     "2026-05-18. When ``popcount(delta) / (8·len) <= "
                     "threshold``, returns all-zero bytes (prediction "
                     "sufficient). Composes with :func:`predict` to close "
-                    "the predictive-coding cascade.",
+                    "the predictive-coding cascade." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("predicted", "SpectralHandle | bytes", True),
                         P("observed", "SpectralHandle | bytes", True),
                         P("threshold", "float", False,
@@ -1388,7 +1405,8 @@ def _register_spectral_runtime_tools() -> None:
                     "Class K (magnitude-band sparse-truncate / "
                     "threshold-gate) per Mallat 2008 §9.2 (best k-term "
                     "approximation) + Spike #117 anchor. Exactly one of "
-                    "``keep_k`` / ``threshold`` must be supplied.",
+                    "``keep_k`` / ``threshold`` must be supplied."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("keep_k", "Optional[int]", False,
                           "top-k modes by magnitude"),
@@ -1978,6 +1996,61 @@ def _register_qm_tools() -> None:
         register_tool(e)
 
 
+def _register_introspect_tools() -> None:
+    """Register the opt-in introspection surface (v0.5.0rc7).
+
+    Discoverability fix per user direction 2026-05-28: srmech's
+    cascade-op / AMSC-fetch / signal-processing dispatch sites
+    can all emit per-op events to a status file (consumed by
+    ``srmech status`` / ``srmech bus tap``), but emission is OFF
+    by default — wrapping in :func:`srmech.introspect.publish` or
+    setting ``SRMECH_PUBLISH_STATUS=1`` before ``import srmech``
+    turns it on. LLMs reading the tool catalog (via the rc6 MCP
+    adapter) should see the opt-in path inline.
+    """
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.publish",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Opt-in context manager that enables per-op event "
+                "emission for `srmech status` / `srmech bus tap` "
+                "consumers. Wrap your sweep in `with "
+                "srmech.introspect.publish():` OR set "
+                "`SRMECH_PUBLISH_STATUS=1` env-var before importing "
+                "srmech to enable per-op events. Without this opt-in, "
+                "all srmech operations are silent (no overhead). "
+                "Designed for research sessions where you want to "
+                "observe a long-running sweep from a second process "
+                "via `srmech status` or via `srmech bus tap`. Events "
+                "land in `~/.srmech/run-{pid}-{start_time_ns}.ndjson` "
+                "(NDJSON, one MPR-shaped event per line). v0.4.6+ "
+                "(out-of-band introspection); v0.5.0rc7 (catalog "
+                "discoverability)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "remove_on_exit", "bool", required=False,
+                    summary=(
+                        "If True, the status file is unlinked when "
+                        "the with-block exits. Default False — leave "
+                        "the file for `srmech status` to auto-clean "
+                        "on next read."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="contextmanager[_PublishHandle]",
+                shape=(
+                    "Yields a handle exposing pid, start_time_ns, "
+                    "file_path of the active writer."
+                ),
+            ),
+        )
+    )
+
+
 # Call at module import so srmech's own tools are always present
 # in the registry. Profile tools join via register_profile_tools
 # at profile-activation time.
@@ -1985,6 +2058,7 @@ _register_amsc_tools()
 _register_primitive_class_tools()
 _register_spectral_runtime_tools()
 _register_qm_tools()
+_register_introspect_tools()
 
 
 __all__ = [

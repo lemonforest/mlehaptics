@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.5.0rc6"
+version = "0.5.0rc7"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -83,6 +83,13 @@ collectors = [
 ]
 # Tests extra: runs srmech's own pytest suite.
 tests = ["pytest>=7.0"]
+# Crypto extra (v0.5.0rc7): enables UTLP-exact AES-128-CTR Bio-TOTP
+# backend for the bus wire cipher (Claim 255). Without this extra
+# the bus falls back to a stdlib HMAC-SHA-256 keystream of the same
+# SHAPE — equivalent for srmech's defensive-scope threat model.
+# Install with ``pip install srmech[crypto]`` when you want the
+# UTLP-verbatim cipher primitive.
+crypto = ["cryptography>=41.0"]
 # Dev extra: everything plus build tooling.
 dev = [
     "pytest>=7.0",

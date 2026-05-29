@@ -36,15 +36,16 @@ import time
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from ._chain import (
-    ChainCipherError,
-    ChainState,
-    DIRECTION_IN,
-    DIRECTION_OUT,
+from ._bio_totp import (
+    BioTotpChannel,
+    BioTotpError,
+    ZERO_DNA,
+    channel_id_from_name,
 )
 from ._event import (
+    MPR_VERSION_BUS,
     Event,
     make_event,
     parse,
@@ -82,11 +83,11 @@ class _Subscriber:
     conn: Connection
     out_q: "queue.Queue[Optional[bytes]]"  # None sentinel = shutdown
     pump_thread: threading.Thread
-    # v0.5.0rc3: each subscriber owns its own per-direction ChainState
-    # pair when the endpoint is encrypted. The broadcast path
-    # encrypts at enqueue time (per-subscriber, since each chain
-    # advances independently).
-    send_state: Optional[ChainState] = None
+    # v0.5.0rc7: each subscriber owns its own Bio-TOTP send channel
+    # when the endpoint is encrypted. The broadcast path encrypts at
+    # enqueue time (per-subscriber, since each channel advances its
+    # own packet_seq independently).
+    send_bio: Optional[BioTotpChannel] = None
 
 
 class Endpoint:
@@ -110,8 +111,23 @@ class Endpoint:
         *,
         transport: Optional[Transport] = None,
         accept_backlog: int = 8,
-        seed: Optional[bytes] = None,
+        dna: Optional[bytes] = None,
+        seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
     ) -> None:
+        # v0.5.0rc7: ``seed`` is a deprecated alias for ``dna`` (UTLP
+        # Bio-TOTP naming alignment, Claim 255). Accept either for
+        # one rc cycle.
+        if seed is not None:
+            import warnings as _warnings
+            _warnings.warn(
+                "srmech.bus.serve / Endpoint(seed=...) is deprecated "
+                "as of v0.5.0rc7; use dna=... (UTLP Bio-TOTP naming, "
+                "Claim 255). The seed kwarg will be removed in v0.5.0 "
+                "final.",
+                DeprecationWarning, stacklevel=3,
+            )
+            if dna is None:
+                dna = seed
         self._name: str = name
         self._handler: Handler = handler
         self._transport: Transport = transport or open_server_transport()
@@ -125,16 +141,20 @@ class Endpoint:
         self._sub_lock = threading.Lock()
         self._started: bool = False
         self._stopped: bool = False
-        # v0.5.0rc3: resolve the seed once at endpoint construction.
-        # Each accepted worker derives a FRESH pair of ChainState
-        # instances from this seed at accept time (so two
-        # simultaneously-connected clients each get their own
-        # independent chain — they would otherwise share a chain and
-        # immediately de-sync).
-        resolved = resolve_server_seed(name, explicit=seed)
-        self._seed: Optional[bytes] = resolved
+        # v0.5.0rc7: resolve the DNA secret once at endpoint
+        # construction. Each accepted worker gets a FRESH pair of
+        # BioTotpChannel instances from this DNA at accept time —
+        # two simultaneously-connected clients each get their own
+        # independent packet_seq counters (they would otherwise
+        # share counters and immediately de-sync).
+        resolved = resolve_server_seed(name, explicit=dna)
+        self._dna: Optional[bytes] = resolved
         self._encrypted: bool = resolved is not None
-        self._channel_id_bytes: bytes = name.encode("utf-8")
+        self._channel_id_u32: int = channel_id_from_name(name)
+        # Server's own sender_id_u64 — bias the high bit so the
+        # server's nonces can never collide with the client's even
+        # when they share a PID (single-process tests).
+        self._sender_id_u64: int = int(self._pid) | (1 << 63)
 
     # ----- public surface --------------------------------------------------
 
@@ -172,8 +192,9 @@ class Endpoint:
 
     @property
     def encrypted(self) -> bool:
-        """True iff this endpoint was constructed with a seed (state-
-        chained wire format active). False = rc2-compatible plaintext."""
+        """True iff this endpoint was constructed with a Bio-TOTP DNA
+        secret (UTLP wire obfuscation active per Claim 255). False
+        = rc6-compatible plaintext."""
         return self._encrypted
 
     def start(self) -> None:
@@ -230,40 +251,67 @@ class Endpoint:
         progress over guaranteed delivery; subscribers can re-fetch
         state via a follow-up snapshot request).
 
-        v0.5.0rc3: when the endpoint is encrypted, each subscriber's
-        broadcast is encrypted under that subscriber's OWN send-chain
-        — different subscribers receive different ciphertexts of the
-        same plaintext event, because each chain advances per-
-        subscriber. The plaintext serialisation is computed once and
-        re-used; only the encrypt step is per-subscriber.
+        v0.5.0rc7: when the endpoint is Bio-TOTP encrypted, each
+        subscriber's broadcast is encrypted under that subscriber's
+        OWN send channel — different subscribers receive different
+        ciphertexts of the same plaintext event, because each channel
+        advances its own ``packet_seq`` independently and the rolling
+        key may straddle a window boundary for one but not another.
+        The plaintext serialisation is computed once per recipient
+        when encrypted (so the binding-check attestation fields
+        target each recipient's expected nonce shape).
         """
-        ev = make_event(
-            type=type,
-            payload=payload or {},
-            sender_pid=self._pid,
-            sender_name=self._name,
-        )
-        serialized = serialize(ev)
         with self._sub_lock:
             subs = list(self._subscribers)
-        for sub in subs:
-            if self._encrypted and sub.send_state is not None:
+        if self._encrypted:
+            # Per-subscriber serialise so each carries the right
+            # sender_id/channel_id binding fields in the attestation.
+            for sub in subs:
+                if sub.send_bio is None:
+                    # Defensive: encrypted endpoint but subscriber
+                    # missing its channel — skip.
+                    continue
+                ev = _make_event_with_binding(
+                    type=type,
+                    payload=payload or {},
+                    sender_pid=self._pid,
+                    sender_name=self._name,
+                    sender_id_u64=sub.send_bio.sender_id,
+                    channel_id_u32=sub.send_bio.channel_id,
+                )
+                serialized = serialize(ev)
                 try:
-                    wire_body = sub.send_state.encrypt(serialized)
+                    wire_body = sub.send_bio.encrypt(serialized)
                 except Exception as exc:
                     logger.warning(
                         "broadcast encrypt failed for subscriber: %s", exc,
                     )
                     continue
-            else:
-                wire_body = serialized
-            frame = pack_frame(wire_body)
-            try:
-                sub.out_q.put_nowait(frame)
-            except queue.Full:
-                logger.debug(
-                    "broadcast queue full for subscriber; dropping event"
-                )
+                frame = pack_frame(wire_body)
+                try:
+                    sub.out_q.put_nowait(frame)
+                except queue.Full:
+                    logger.debug(
+                        "broadcast queue full for subscriber; "
+                        "dropping event"
+                    )
+        else:
+            ev = make_event(
+                type=type,
+                payload=payload or {},
+                sender_pid=self._pid,
+                sender_name=self._name,
+            )
+            serialized = serialize(ev)
+            for sub in subs:
+                frame = pack_frame(serialized)
+                try:
+                    sub.out_q.put_nowait(frame)
+                except queue.Full:
+                    logger.debug(
+                        "broadcast queue full for subscriber; "
+                        "dropping event"
+                    )
 
     # ----- context-manager API --------------------------------------------
 
@@ -294,24 +342,33 @@ class Endpoint:
                 except Exception:
                     pass
                 return
-            # v0.5.0rc3: provision a fresh per-connection chain pair
-            # if the endpoint is encrypted. Client.send → server.recv
-            # = DIRECTION_OUT (matches client's send direction).
-            # Server.send → client.recv = DIRECTION_IN.
+            # v0.5.0rc7: provision a fresh per-connection Bio-TOTP
+            # channel pair if the endpoint is encrypted. recv_bio
+            # decodes inbound (client → server) frames; send_bio
+            # encrypts outbound (server → client). Bio-TOTP uses
+            # distinct sender_ids per side (client uses its PID,
+            # server uses PID with high bit set) so nonces never
+            # collide even with single-process tests.
             if self._encrypted:
-                assert self._seed is not None
-                recv_state: Optional[ChainState] = ChainState(
-                    self._seed, self._channel_id_bytes, DIRECTION_OUT,
+                assert self._dna is not None
+                recv_bio: Optional[BioTotpChannel] = BioTotpChannel(
+                    dna=self._dna,
+                    sender_id=self._sender_id_u64,
+                    channel_id=self._channel_id_u32,
+                    strict=True,
                 )
-                send_state: Optional[ChainState] = ChainState(
-                    self._seed, self._channel_id_bytes, DIRECTION_IN,
+                send_bio: Optional[BioTotpChannel] = BioTotpChannel(
+                    dna=self._dna,
+                    sender_id=self._sender_id_u64,
+                    channel_id=self._channel_id_u32,
+                    strict=True,
                 )
             else:
-                recv_state = None
-                send_state = None
+                recv_bio = None
+                send_bio = None
             worker = threading.Thread(
                 target=self._worker_loop,
-                args=(conn, recv_state, send_state),
+                args=(conn, recv_bio, send_bio),
                 name=f"srmech-bus-worker-{self._name}",
                 daemon=True,
             )
@@ -321,8 +378,8 @@ class Endpoint:
     def _worker_loop(
         self,
         conn: Connection,
-        recv_state: Optional[ChainState] = None,
-        send_state: Optional[ChainState] = None,
+        recv_bio: Optional[BioTotpChannel] = None,
+        send_bio: Optional[BioTotpChannel] = None,
     ) -> None:
         """Handle one accepted connection.
 
@@ -339,11 +396,10 @@ class Endpoint:
         caught and returned as ``{"type": "_error", ...}`` responses
         so the client doesn't hang.
 
-        v0.5.0rc3: when ``recv_state`` / ``send_state`` are supplied,
-        every inbound frame is decrypted with ``recv_state`` and
-        every outbound frame encrypted with ``send_state`` (per-
-        direction chain advance). The two states are independent —
-        the duplex's two halves walk separate chains.
+        v0.5.0rc7: when ``recv_bio`` / ``send_bio`` are supplied,
+        every inbound frame is decrypted with ``recv_bio`` and every
+        outbound frame encrypted with ``send_bio`` (UTLP Bio-TOTP
+        per Claim 255).
         """
         # `should_close_conn` lets us hand `conn` off to the subscriber
         # pump without the worker closing the socket out from under it.
@@ -361,29 +417,35 @@ class Endpoint:
                     return
                 if frame is None:
                     return  # clean EOF
-                # v0.5.0rc3: decrypt inbound if encrypted.
-                if recv_state is not None:
+                # v0.5.0rc7: decrypt inbound if encrypted.
+                if recv_bio is not None:
                     try:
-                        frame = recv_state.decrypt(frame)
-                    except ChainCipherError as exc:
+                        frame = recv_bio.decrypt(frame)
+                    except BioTotpError as exc:
                         logger.debug(
-                            "chain cipher error on bus worker: %s "
-                            "(seed mismatch or tamper)", exc,
+                            "Bio-TOTP cipher error on bus worker: %s "
+                            "(dna mismatch or tamper)", exc,
                         )
                         return
                 try:
                     ev = parse(frame)
                 except Exception as exc:
                     # Send a structured error reply if possible.
-                    err = make_event(
+                    err = _make_event_with_binding(
                         type="_error",
                         payload={"reason": f"parse: {exc}"},
                         sender_pid=self._pid,
                         sender_name=self._name,
+                        sender_id_u64=(
+                            send_bio.sender_id if send_bio else None
+                        ),
+                        channel_id_u32=(
+                            send_bio.channel_id if send_bio else None
+                        ),
                     )
                     try:
                         conn.send_bytes(
-                            _wrap_outbound(serialize(err), send_state)
+                            _wrap_outbound(serialize(err), send_bio)
                         )
                     except OSError:
                         pass
@@ -391,27 +453,33 @@ class Endpoint:
                 if ev.type == SUBSCRIBE_TYPE:
                     # Hand the connection off to subscriber-pump.
                     # ACK first so the client knows the flip happened.
-                    ack = make_event(
+                    ack = _make_event_with_binding(
                         type="_subscribed",
                         payload={"ok": True},
                         sender_pid=self._pid,
                         sender_name=self._name,
                         correlation_id=ev.correlation_id,
+                        sender_id_u64=(
+                            send_bio.sender_id if send_bio else None
+                        ),
+                        channel_id_u32=(
+                            send_bio.channel_id if send_bio else None
+                        ),
                     )
                     try:
                         conn.send_bytes(
-                            _wrap_outbound(serialize(ack), send_state)
+                            _wrap_outbound(serialize(ack), send_bio)
                         )
                     except OSError:
                         return
                     # Hand-off: pump now owns conn. Do NOT close from
                     # the worker side or the pump's sends will fail.
-                    # v0.5.0rc3: pass the send_state to the subscriber
-                    # so broadcasts continue the same chain seamlessly
-                    # (one chain across req-rep AND broadcast frames
-                    # on the same connection).
+                    # v0.5.0rc7: pass the send_bio to the subscriber
+                    # so broadcasts continue the same packet_seq /
+                    # nonce sequence seamlessly (one channel across
+                    # req-rep AND broadcast frames on the same conn).
                     should_close_conn = False
-                    self._spawn_subscriber(conn, send_state)
+                    self._spawn_subscriber(conn, send_bio)
                     return
                 # Dispatch to user handler.
                 response_dict: Optional[dict]
@@ -430,16 +498,22 @@ class Endpoint:
                 response_type, response_payload = _normalise_response(
                     response_dict
                 )
-                response_ev = make_event(
+                response_ev = _make_event_with_binding(
                     type=response_type,
                     payload=response_payload,
                     sender_pid=self._pid,
                     sender_name=self._name,
                     correlation_id=ev.correlation_id,
+                    sender_id_u64=(
+                        send_bio.sender_id if send_bio else None
+                    ),
+                    channel_id_u32=(
+                        send_bio.channel_id if send_bio else None
+                    ),
                 )
                 try:
                     conn.send_bytes(
-                        _wrap_outbound(serialize(response_ev), send_state)
+                        _wrap_outbound(serialize(response_ev), send_bio)
                     )
                 except OSError:
                     return
@@ -455,13 +529,14 @@ class Endpoint:
     def _spawn_subscriber(
         self,
         conn: Connection,
-        send_state: Optional[ChainState] = None,
+        send_bio: Optional[BioTotpChannel] = None,
     ) -> None:
         """Convert a connection into a subscriber + start the pump.
 
-        v0.5.0rc3: takes the worker's existing send_state so the
-        subscriber's broadcast frames continue the same chain
-        seamlessly (no chain restart at the subscribe boundary).
+        v0.5.0rc7: takes the worker's existing send_bio so the
+        subscriber's broadcast frames continue the same
+        ``packet_seq`` sequence seamlessly (no nonce-counter restart
+        at the subscribe boundary).
         """
         out_q: "queue.Queue[Optional[bytes]]" = queue.Queue(maxsize=1024)
         pump = threading.Thread(
@@ -471,7 +546,7 @@ class Endpoint:
             daemon=True,
         )
         sub = _Subscriber(
-            conn=conn, out_q=out_q, pump_thread=pump, send_state=send_state,
+            conn=conn, out_q=out_q, pump_thread=pump, send_bio=send_bio,
         )
         with self._sub_lock:
             self._subscribers.append(sub)
@@ -517,19 +592,63 @@ class Endpoint:
 
 def _wrap_outbound(
     serialized: bytes,
-    send_state: Optional[ChainState],
+    send_bio: Optional[BioTotpChannel],
 ) -> bytes:
     """Encrypt + TLV-frame ``serialized``, or just TLV-frame it.
 
-    v0.5.0rc3 helper for the worker / subscriber send paths. When
-    ``send_state`` is ``None`` (unencrypted endpoint), this is just
-    ``pack_frame(serialized)`` — the rc2 fast path. When supplied,
-    we ``encrypt`` to advance the chain + then ``pack_frame``.
+    v0.5.0rc7 helper for the worker / subscriber send paths. When
+    ``send_bio`` is ``None`` (unencrypted endpoint), this is just
+    ``pack_frame(serialized)`` — the rc6 fast path. When supplied,
+    we Bio-TOTP ``encrypt`` (advances packet_seq + emits the rolling
+    key) + then ``pack_frame``.
     """
-    if send_state is None:
+    if send_bio is None:
         return pack_frame(serialized)
-    wire_body = send_state.encrypt(serialized)
+    wire_body = send_bio.encrypt(serialized)
     return pack_frame(wire_body)
+
+
+def _make_event_with_binding(
+    type: str,
+    payload: Any,
+    *,
+    sender_pid: int,
+    sender_name: str,
+    correlation_id: str = "",
+    sender_id_u64: Optional[int] = None,
+    channel_id_u32: Optional[int] = None,
+) -> Event:
+    """Construct an :class:`Event` carrying Bio-TOTP binding fields.
+
+    Mirrors :func:`srmech.bus._event.make_event` but injects
+    ``sender_id_u64`` + ``channel_id_u32`` into the attestation
+    when supplied so the receiver's Bio-TOTP decrypt path can
+    binding-check the nonce against the plaintext. The two fields
+    are absent on unencrypted channels (rc6 wire shape preserved).
+    """
+    import time as _time
+    if payload is None:
+        payload_out: Any = {}
+    elif isinstance(payload, dict):
+        payload_out = dict(payload)
+    else:
+        payload_out = payload
+    attestation: Dict[str, Any] = {
+        "sender_pid": int(sender_pid),
+        "sender_name": str(sender_name),
+        "ts_ns": _time.time_ns(),
+    }
+    if sender_id_u64 is not None:
+        attestation["sender_id_u64"] = int(sender_id_u64)
+    if channel_id_u32 is not None:
+        attestation["channel_id_u32"] = int(channel_id_u32)
+    return Event(
+        mpr_version=MPR_VERSION_BUS,
+        type=type,
+        payload=payload_out,
+        attestation=attestation,
+        correlation_id=correlation_id,
+    )
 
 
 def _event_to_dict(ev: Event) -> dict:
@@ -593,7 +712,8 @@ def serve(
     handler: Handler,
     *,
     accept_backlog: int = 8,
-    seed: Optional[bytes] = None,
+    dna: Optional[bytes] = None,
+    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> Endpoint:
     """Create + start an :class:`Endpoint` listening at ``name``.
 
@@ -611,18 +731,24 @@ def serve(
         or ``None`` (fire-and-forget).
     accept_backlog
         Listen-backlog hint for the underlying socket.
-    seed
-        Optional pre-shared cipher seed (v0.5.0rc3+) for the
-        state-chained wire format. When set, every accepted
-        connection runs the cipher; the client must have been
-        opened with the same seed (via the same arg, the
-        ``SRMECH_BUS_SEED`` env var, or the
+    dna
+        Optional pre-shared Bio-TOTP secret (v0.5.0rc7+, UTLP
+        Claim 255). When set, every accepted connection runs the
+        Bio-TOTP cipher (key rolls every 250 ms by default;
+        configurable via ``SRMECH_BUS_TOTP_WINDOW_NS``); the client
+        must have been opened with the same ``dna`` (via the same
+        arg, the ``SRMECH_BUS_SEED`` env var — env-var name
+        unchanged for back-compat — or the
         ``~/.srmech/bus-{name}.seed`` discovery file). When ``None``
-        (default), the endpoint runs unencrypted (full rc2 back-
-        compat) UNLESS one of the other two seed sources is
+        (default), the endpoint runs unencrypted (full rc6 back-
+        compat) UNLESS one of the other two DNA sources is
         populated — in which case the cascade auto-activates
-        encryption AND the resolved seed is written to the
-        discovery file for subsequent clients.
+        encryption AND the resolved DNA is written to the discovery
+        file for subsequent clients.
+    seed
+        Deprecated alias for ``dna`` (rc7 → v0.5.0 final). Emits
+        :class:`DeprecationWarning`; ignored when ``dna`` is also
+        supplied.
 
     Returns
     -------
@@ -634,6 +760,7 @@ def serve(
         name,
         handler,
         accept_backlog=accept_backlog,
+        dna=dna,
         seed=seed,
     )
     ep.start()

@@ -1018,25 +1018,29 @@ def test_abi_version_is_3():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# v0.5.0rc3 — State-chained wire format ("biological TOTP-like")
+# v0.5.0rc7 — UTLP Bio-TOTP wire-format (Claim 255 alignment)
 # ──────────────────────────────────────────────────────────────────────
 
 import secrets as _secrets
 
-from srmech.bus._chain import (
-    ChainCipherError,
-    ChainFormatError,
-    ChainState,
-    COUNTER_BYTES,
-    CounterReplayError,
-    DIRECTION_IN,
-    DIRECTION_OUT,
+from srmech.bus._bio_totp import (
+    BioTotpChannel,
+    BioTotpDecryptError,
+    BioTotpError,
+    BioTotpFormatError,
+    DEFAULT_WINDOW_NS,
     FRAME_OVERHEAD_BYTES,
-    MAC_BYTES,
-    MacMismatchError,
-    STATE_BYTES,
+    KEY_BYTES,
+    MIN_DNA_BYTES,
+    NONCE_BYTES,
+    WINDOW_ENV_VAR,
+    ZERO_DNA,
+    build_nonce,
+    channel_id_from_name,
+    cipher_backend_name,
     decode_splice,
-    derive_state,
+    derive_key,
+    parse_nonce,
 )
 from srmech.bus._seed import (
     ENV_VAR,
@@ -1049,247 +1053,315 @@ from srmech.bus._seed import (
 )
 
 
-# ----- Chain primitives ----------------------------------------------------
+# ----- Bio-TOTP key derivation + nonce helpers -----------------------------
 
 
-def test_chain_derive_state_is_32_bytes():
-    s = derive_state(b"x" * 32, b"ch", DIRECTION_OUT)
-    assert isinstance(s, bytes)
-    assert len(s) == STATE_BYTES
+def test_bio_totp_default_window_is_250ms():
+    """rc7 spec: 250 ms = 250_000_000 ns — way faster than RFC 6238."""
+    assert DEFAULT_WINDOW_NS == 250_000_000
 
 
-def test_chain_derive_state_direction_separation():
-    """OUT-direction state_0 differs from IN-direction state_0 for the
-    same seed + channel_id — defends keystream disjointness."""
-    seed = b"x" * 32
-    s_out = derive_state(seed, b"ch", DIRECTION_OUT)
-    s_in = derive_state(seed, b"ch", DIRECTION_IN)
-    assert s_out != s_in
+def test_bio_totp_zero_dna_is_32_zero_bytes():
+    assert ZERO_DNA == b"\x00" * 32
 
 
-def test_chain_derive_state_seed_separation():
-    s_a = derive_state(b"A" * 32, b"ch", DIRECTION_OUT)
-    s_b = derive_state(b"B" * 32, b"ch", DIRECTION_OUT)
-    assert s_a != s_b
+def test_bio_totp_cipher_backend_name_is_legal():
+    name = cipher_backend_name()
+    assert name in ("AES-128-CTR", "HMAC-SHA-256-CTR")
 
 
-def test_chain_derive_state_channel_separation():
-    seed = b"x" * 32
-    s_a = derive_state(seed, b"channel-A", DIRECTION_OUT)
-    s_b = derive_state(seed, b"channel-B", DIRECTION_OUT)
-    assert s_a != s_b
+def test_bio_totp_derive_key_is_16_bytes():
+    """Bio-TOTP key truncates SHA-256 output to 16 bytes (AES-128 key
+    width)."""
+    k = derive_key(b"d" * 32, 1_000_000_000, DEFAULT_WINDOW_NS)
+    assert isinstance(k, bytes)
+    assert len(k) == KEY_BYTES == 16
 
 
-def test_chain_derive_state_rejects_invalid_direction():
-    with pytest.raises(ValueError):
-        derive_state(b"x" * 32, b"ch", "sideways")
+def test_bio_totp_derive_key_dna_separation():
+    k_a = derive_key(b"A" * 32, 1_000_000_000, DEFAULT_WINDOW_NS)
+    k_b = derive_key(b"B" * 32, 1_000_000_000, DEFAULT_WINDOW_NS)
+    assert k_a != k_b
 
 
-def test_chain_derive_state_rejects_empty_seed():
-    with pytest.raises(ValueError):
-        derive_state(b"", b"ch", DIRECTION_OUT)
+def test_bio_totp_derive_key_rolls_with_time_window():
+    """Different time buckets → different keys; that is the
+    rolling-key signature of the cipher."""
+    win = DEFAULT_WINDOW_NS
+    k_t0 = derive_key(b"d" * 32, 0, win)
+    k_t1 = derive_key(b"d" * 32, win, win)
+    k_t2 = derive_key(b"d" * 32, 2 * win, win)
+    assert k_t0 != k_t1 != k_t2
 
 
-def test_chain_state_init_invalid_direction():
-    with pytest.raises(ValueError):
-        ChainState(b"x" * 32, b"ch", "wrong")
+def test_bio_totp_derive_key_constant_within_window():
+    """Two timestamps inside the SAME bucket derive the SAME key —
+    that is how the ±1-window skew tolerance becomes meaningful."""
+    win = DEFAULT_WINDOW_NS
+    base = 5 * win
+    k_a = derive_key(b"d" * 32, base, win)
+    k_b = derive_key(b"d" * 32, base + win - 1, win)
+    assert k_a == k_b
 
 
-def test_chain_encrypt_decrypt_round_trip():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
-    plaintext = b"hello, encrypted bus"
+def test_bio_totp_build_nonce_is_16_bytes():
+    n = build_nonce(0x1122334455667788, 0xAABBCCDD, 0x12345678)
+    assert isinstance(n, bytes)
+    assert len(n) == NONCE_BYTES == 16
+
+
+def test_bio_totp_nonce_round_trip():
+    sender_id = 0xDEADBEEFCAFEBABE
+    channel_id = 0xCAFEF00D
+    packet_seq = 0x01020304
+    n = build_nonce(sender_id, channel_id, packet_seq)
+    s, c, p = parse_nonce(n)
+    assert (s, c, p) == (sender_id, channel_id, packet_seq)
+
+
+def test_bio_totp_parse_nonce_rejects_wrong_length():
+    with pytest.raises(BioTotpFormatError):
+        parse_nonce(b"\x00" * 8)
+
+
+def test_bio_totp_channel_id_from_name_is_u32():
+    cid = channel_id_from_name("my-endpoint")
+    assert isinstance(cid, int)
+    assert 0 <= cid <= 0xFFFFFFFF
+
+
+def test_bio_totp_channel_id_from_name_stable():
+    """Same name → same channel_id (deterministic; both ends compute
+    it without sharing state)."""
+    a = channel_id_from_name("my-endpoint")
+    b = channel_id_from_name("my-endpoint")
+    assert a == b
+
+
+# ----- BioTotpChannel encrypt/decrypt round-trip --------------------------
+
+
+def _bio_make_event_bytes(sender_id: int, channel_id: int, body: dict) -> bytes:
+    """Build a minimal JSON bus-Event-shape payload bound to a nonce.
+
+    The Bio-TOTP decrypt path binding-checks the plaintext's
+    ``attestation.sender_id_u64`` / ``channel_id_u32`` against the
+    nonce's fields. Tests therefore need to use Event-shaped plaintexts
+    rather than arbitrary bytes for the cross-channel + tamper tests
+    where binding-check fires; round-trip tests on the SAME channel
+    use arbitrary bytes (binding is permissive when fields absent).
+    """
+    import json
+    ev = {
+        "mpr_version": "1.0",
+        "type": "ping",
+        "payload": body,
+        "attestation": {
+            "sender_id_u64": int(sender_id),
+            "channel_id_u32": int(channel_id),
+        },
+        "correlation_id": "",
+    }
+    return json.dumps(ev, sort_keys=True).encode("utf-8")
+
+
+def test_bio_totp_encrypt_decrypt_round_trip():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1234, channel_id=5678)
+    receiver = BioTotpChannel(dna=dna, sender_id=1234, channel_id=5678)
+    plaintext = b"hello bio-totp bus"
     body = sender.encrypt(plaintext)
     assert len(body) == FRAME_OVERHEAD_BYTES + len(plaintext)
     assert receiver.decrypt(body) == plaintext
 
 
-def test_chain_encrypt_advances_counter():
-    seed = b"k" * 32
-    s = ChainState(seed, b"ch", DIRECTION_OUT)
-    assert s.counter == 0
+def test_bio_totp_encrypt_advances_packet_seq():
+    dna = b"k" * 32
+    s = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    assert s.send_seq == 0
     s.encrypt(b"a")
-    assert s.counter == 1
+    assert s.send_seq == 1
     s.encrypt(b"b")
-    assert s.counter == 2
+    assert s.send_seq == 2
 
 
-def test_chain_encrypt_advances_state():
-    seed = b"k" * 32
-    s = ChainState(seed, b"ch", DIRECTION_OUT)
-    state0 = s.state
-    s.encrypt(b"a")
-    assert s.state != state0
-
-
-def test_chain_round_trip_many_frames():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_round_trip_many_frames():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     plaintexts = [f"frame-{i}".encode() for i in range(20)]
     bodies = [sender.encrypt(p) for p in plaintexts]
     decoded = [receiver.decrypt(b) for b in bodies]
     assert decoded == plaintexts
-    assert receiver.last_recv_counter == 19
+    assert receiver.last_recv_seq == 19
 
 
-def test_chain_round_trip_large_payload():
-    """Plaintext longer than one keystream block (32 bytes) needs the
-    block-extension construction to round-trip."""
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_round_trip_large_payload():
+    """Plaintext longer than one keystream block (32 bytes for HMAC,
+    16 bytes for AES) needs the block-extension construction to
+    round-trip."""
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     plaintext = b"X" * 1000
     body = sender.encrypt(plaintext)
     assert receiver.decrypt(body) == plaintext
 
 
-def test_chain_round_trip_empty_payload():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_round_trip_empty_payload():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     body = sender.encrypt(b"")
     assert len(body) == FRAME_OVERHEAD_BYTES
     assert receiver.decrypt(body) == b""
 
 
-def test_chain_decrypt_rejects_mac_tamper():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
-    body = sender.encrypt(b"hello")
-    bad = bytes([body[0] ^ 0x01]) + body[1:]
-    with pytest.raises(MacMismatchError):
-        receiver.decrypt(bad)
-
-
-def test_chain_decrypt_rejects_ciphertext_tamper():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
-    body = sender.encrypt(b"hello world")
-    bad = body[:-1] + bytes([body[-1] ^ 0x01])
-    with pytest.raises(MacMismatchError):
-        receiver.decrypt(bad)
-
-
-def test_chain_decrypt_rejects_seed_mismatch():
-    sender = ChainState(b"k" * 32, b"ch", DIRECTION_OUT)
-    receiver = ChainState(b"j" * 32, b"ch", DIRECTION_OUT)
-    body = sender.encrypt(b"hello")
-    with pytest.raises(MacMismatchError):
+def test_bio_totp_decrypt_rejects_dna_mismatch_strict():
+    """Wrong-DNA decryption in strict mode (the bus default) produces
+    garbage that fails the binding-check — caught as BioTotpDecryptError."""
+    sender = BioTotpChannel(
+        dna=b"k" * 32, sender_id=1, channel_id=2, strict=True,
+    )
+    receiver = BioTotpChannel(
+        dna=b"j" * 32, sender_id=1, channel_id=2, strict=True,
+    )
+    plaintext = _bio_make_event_bytes(1, 2, {"x": 1})
+    body = sender.encrypt(plaintext)
+    with pytest.raises(BioTotpDecryptError):
         receiver.decrypt(body)
 
 
-def test_chain_decrypt_rejects_channel_id_mismatch():
-    sender = ChainState(b"k" * 32, b"channel-A", DIRECTION_OUT)
-    receiver = ChainState(b"k" * 32, b"channel-B", DIRECTION_OUT)
-    body = sender.encrypt(b"hello")
-    with pytest.raises(MacMismatchError):
+def test_bio_totp_decrypt_rejects_channel_id_mismatch():
+    """A frame whose nonce embeds channel_id=X but whose plaintext
+    binds to channel_id=Y is rejected (binding-check substitutes for
+    a per-frame MAC). Fires in both strict and permissive modes
+    because a PRESENT-BUT-MISMATCHED binding is a contradiction even
+    when permissive about absence."""
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    mismatched_plaintext = _bio_make_event_bytes(1, 999, {"x": 1})
+    body = sender.encrypt(mismatched_plaintext)
+    with pytest.raises(BioTotpDecryptError):
         receiver.decrypt(body)
 
 
-def test_chain_decrypt_rejects_replay():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_decrypt_rejects_replay():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     body = sender.encrypt(b"frame 0")
-    # Accept once.
     receiver.decrypt(body)
-    # Replaying the same frame must raise (counter no longer
-    # strictly greater than last_recv_counter).
-    with pytest.raises(CounterReplayError):
+    # Replaying the same frame must raise (packet_seq no longer
+    # strictly greater than last_recv_seq).
+    with pytest.raises(BioTotpDecryptError):
         receiver.decrypt(body)
 
 
-def test_chain_decrypt_rejects_short_frame():
-    seed = b"k" * 32
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
-    with pytest.raises(ChainFormatError):
-        receiver.decrypt(b"\x00" * (FRAME_OVERHEAD_BYTES - 1))
+def test_bio_totp_decrypt_rejects_short_frame():
+    dna = b"k" * 32
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
+    with pytest.raises(BioTotpFormatError):
+        receiver.decrypt(b"\x00" * (NONCE_BYTES - 1))
 
 
-def test_chain_decrypt_rejects_non_bytes():
-    seed = b"k" * 32
-    receiver = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_decrypt_rejects_non_bytes():
+    dna = b"k" * 32
+    receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     with pytest.raises(TypeError):
         receiver.decrypt("not bytes")  # type: ignore[arg-type]
 
 
-def test_chain_encrypt_rejects_non_bytes():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
+def test_bio_totp_encrypt_rejects_non_bytes():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     with pytest.raises(TypeError):
         sender.encrypt("not bytes")  # type: ignore[arg-type]
+
+
+def test_bio_totp_rejects_short_dna():
+    with pytest.raises(ValueError):
+        BioTotpChannel(dna=b"too-short", sender_id=1, channel_id=2)
+
+
+def test_bio_totp_zero_dna_round_trip_herd_immunity():
+    """ZERO_DNA = b'\\x00'*32 runs the SAME crypto path with a
+    constant key — deterministic ciphertext recoverable by anyone but
+    indistinguishable from real-DNA traffic on the wire."""
+    sender = BioTotpChannel(dna=ZERO_DNA, sender_id=1, channel_id=2)
+    receiver = BioTotpChannel(dna=ZERO_DNA, sender_id=1, channel_id=2)
+    plaintext = b"public/herd-immunity payload"
+    body = sender.encrypt(plaintext)
+    assert receiver.decrypt(body) == plaintext
+
+
+def test_bio_totp_clock_skew_one_window_tolerated():
+    """Receiver tolerates ±1 window of clock drift between
+    sender and receiver — the strict-mode discipline. Skew tolerance
+    requires strict=True because the binding-check IS what tells the
+    receiver "this window's key decrypted the right plaintext"
+    among the 3 candidates."""
+    dna = b"k" * 32
+    sender = BioTotpChannel(
+        dna=dna, sender_id=1, channel_id=2, strict=True,
+    )
+    receiver = BioTotpChannel(
+        dna=dna, sender_id=1, channel_id=2, strict=True,
+    )
+    base_ns = time.time_ns()
+    # Use a bus-Event-shaped plaintext so the strict binding-check
+    # has the attestation fields to validate against.
+    plaintext = _bio_make_event_bytes(1, 2, {"x": "skewed"})
+    body = sender.encrypt(plaintext, time_ns=base_ns - DEFAULT_WINDOW_NS)
+    assert receiver.decrypt(body, time_ns=base_ns) == plaintext
 
 
 # ----- decode_splice (pure-function tool-schema decoder) -------------------
 
 
-def test_decode_splice_round_trip():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    state0 = sender.state
+def test_decode_splice_round_trip_with_dna():
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     body = sender.encrypt(b"hello via splice")
-    plaintext, new_state, new_counter = decode_splice(body, state0, -1)
+    plaintext, used_time_ns = decode_splice(body, dna)
     assert plaintext == b"hello via splice"
-    assert len(new_state) == STATE_BYTES
-    assert new_counter == 0
-    # The new_state must match what the sender now holds.
-    assert new_state == sender.state
-
-
-def test_decode_splice_chained_two_frames():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    state = sender.state
-    counter = -1
-    body0 = sender.encrypt(b"alpha")
-    body1 = sender.encrypt(b"beta")
-    p0, state, counter = decode_splice(body0, state, counter)
-    p1, state, counter = decode_splice(body1, state, counter)
-    assert p0 == b"alpha"
-    assert p1 == b"beta"
-    assert counter == 1
-
-
-def test_decode_splice_rejects_replay():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    state = sender.state
-    body = sender.encrypt(b"x")
-    _, new_state, counter = decode_splice(body, state, -1)
-    with pytest.raises(CounterReplayError):
-        decode_splice(body, state, counter)
-
-
-def test_decode_splice_rejects_tamper():
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    state = sender.state
-    body = sender.encrypt(b"x")
-    bad = bytes([body[0] ^ 0x01]) + body[1:]
-    with pytest.raises(MacMismatchError):
-        decode_splice(bad, state, -1)
+    assert isinstance(used_time_ns, int)
 
 
 def test_decode_splice_rejects_short_frame():
-    with pytest.raises(ChainFormatError):
-        decode_splice(
-            b"\x00" * (FRAME_OVERHEAD_BYTES - 1),
-            b"\x00" * STATE_BYTES, -1,
-        )
+    with pytest.raises(BioTotpFormatError):
+        decode_splice(b"\x00" * (NONCE_BYTES - 1), b"k" * 32)
 
 
-def test_decode_splice_rejects_bad_state_length():
-    with pytest.raises(ValueError):
-        decode_splice(b"\x00" * 100, b"too-short", -1)
-
-
-def test_decode_splice_rejects_non_int_counter():
+def test_decode_splice_rejects_non_bytes_dna():
     with pytest.raises(TypeError):
-        decode_splice(b"\x00" * 100, b"\x00" * STATE_BYTES, "zero")  # type: ignore[arg-type]
+        decode_splice(b"\x00" * (NONCE_BYTES + 1), "not bytes")  # type: ignore[arg-type]
+
+
+def test_decode_splice_rejects_non_bytes_framed():
+    with pytest.raises(TypeError):
+        decode_splice("not bytes", b"k" * 32)  # type: ignore[arg-type]
+
+
+def test_decode_splice_window_env_var_override(monkeypatch):
+    """SRMECH_BUS_TOTP_WINDOW_NS env var overrides DEFAULT_WINDOW_NS
+    inside decode_splice."""
+    dna = b"k" * 32
+    custom_window_ns = 100_000_000  # 100 ms
+    monkeypatch.setenv(WINDOW_ENV_VAR, str(custom_window_ns))
+    sender = BioTotpChannel(
+        dna=dna, sender_id=1, channel_id=2, window_ns=custom_window_ns,
+    )
+    body = sender.encrypt(b"narrow window")
+    plaintext, _ = decode_splice(body, dna)
+    assert plaintext == b"narrow window"
+
+
+def test_decode_splice_window_env_var_rejects_bad_value(monkeypatch):
+    monkeypatch.setenv(WINDOW_ENV_VAR, "not-a-number")
+    with pytest.raises(ValueError):
+        decode_splice(b"\x00" * (NONCE_BYTES + 1), b"k" * 32)
 
 
 # ----- tool-schema registration -------------------------------------------
@@ -1307,18 +1379,48 @@ def test_decode_splice_registered_as_tool_entry():
     assert entry.category == "bus"
     pnames = [p.name for p in entry.parameters]
     assert "framed" in pnames
-    assert "state" in pnames
-    assert "counter" in pnames
+    assert "dna" in pnames
+    # rc7 description must mention the Bio-TOTP / UTLP framing
+    assert "Bio-TOTP" in entry.summary or "UTLP" in entry.summary
 
 
 def test_decode_splice_callable_via_public_namespace():
     from srmech.bus import decode_splice as ds_pub
-    seed = b"k" * 32
-    sender = ChainState(seed, b"ch", DIRECTION_OUT)
-    state0 = sender.state
+    dna = b"k" * 32
+    sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     body = sender.encrypt(b"abc")
-    plaintext, _, _ = ds_pub(body, state0, -1)
+    plaintext, _ = ds_pub(body, dna)
     assert plaintext == b"abc"
+
+
+# ----- _chain deprecation-shim back-compat --------------------------------
+
+
+def test_chain_shim_imports_emit_deprecation_warning():
+    """Importing srmech.bus._chain or constructing ChainState fires a
+    DeprecationWarning (one-rc shim before removal in v0.5.0 final)."""
+    import importlib
+    import sys as _sys
+    # Force a fresh import of the shim to trigger the module-level
+    # warning.
+    _sys.modules.pop("srmech.bus._chain", None)
+    with pytest.warns(DeprecationWarning):
+        importlib.import_module("srmech.bus._chain")
+
+
+def test_chain_shim_chain_state_still_round_trips():
+    """rc6-era code using ChainState(seed, channel_id, direction)
+    must still work for one rc cycle."""
+    import warnings
+    from srmech.bus._chain import ChainState as _ChainState
+    from srmech.bus._chain import DIRECTION_OUT as _DIR_OUT
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        seed = b"k" * 32
+        sender = _ChainState(seed, b"ch", _DIR_OUT)
+        receiver = _ChainState(seed, b"ch", _DIR_OUT)
+        body = sender.encrypt(b"legacy frame")
+        assert receiver.decrypt(body) == b"legacy frame"
 
 
 # ----- Seed-resolution cascade -------------------------------------------
@@ -1446,12 +1548,12 @@ def test_encrypted_end_to_end_inproc(unique_name, monkeypatch):
         seed_path(unique_name).unlink()
     except OSError:
         pass
-    seed = _secrets.token_bytes(32)
-    with serve(unique_name, _make_chain_handler(), seed=seed) as ep:
+    dna = _secrets.token_bytes(32)
+    with serve(unique_name, _make_chain_handler(), dna=dna) as ep:
         assert ep.encrypted is True
         _wait_for_endpoint(unique_name)
         try:
-            with connect(unique_name, seed=seed) as ch:
+            with connect(unique_name, dna=dna) as ch:
                 assert ch.encrypted is True
                 reply = ch.send(
                     {"type": "ping", "payload": {"x": 1}}, timeout=5.0,
@@ -1463,19 +1565,58 @@ def test_encrypted_end_to_end_inproc(unique_name, monkeypatch):
             discard_seed_file(unique_name)
 
 
+def test_encrypted_seed_kwarg_deprecation_warning(unique_name, monkeypatch):
+    """rc7: passing ``seed=`` (rather than ``dna=``) still works but
+    fires a DeprecationWarning — one-rc back-compat for callers using
+    the rc3-era kwarg name."""
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    try:
+        seed_path(unique_name).unlink()
+    except OSError:
+        pass
+    dna = _secrets.token_bytes(32)
+    import warnings as _warnings
+    with _warnings.catch_warnings(record=True) as caught:
+        _warnings.simplefilter("always")
+        with serve(unique_name, _make_chain_handler(), seed=dna) as ep:
+            assert ep.encrypted is True
+            _wait_for_endpoint(unique_name)
+            try:
+                with connect(unique_name, seed=dna) as ch:
+                    assert ch.encrypted is True
+                    reply = ch.send(
+                        {"type": "ping", "payload": {"x": 1}},
+                        timeout=5.0,
+                    )
+                    assert reply is not None
+                    assert reply["payload"]["echo"] == {"x": 1}
+            finally:
+                discard_seed_file(unique_name)
+        # Both serve() and connect() seed= path should have warned.
+        seed_warnings = [
+            w for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and "seed" in str(w.message)
+        ]
+        assert len(seed_warnings) >= 2, (
+            f"expected ≥2 seed= DeprecationWarnings; got "
+            f"{[str(w.message) for w in seed_warnings]}"
+        )
+
+
 def test_encrypted_end_to_end_many_requests(unique_name, monkeypatch):
-    """10 sequential encrypted requests on one channel — chain
+    """10 sequential encrypted requests on one channel — packet_seq
     advances on both sides; every frame decrypts cleanly."""
     monkeypatch.delenv(ENV_VAR, raising=False)
     try:
         seed_path(unique_name).unlink()
     except OSError:
         pass
-    seed = _secrets.token_bytes(32)
-    with serve(unique_name, _make_chain_handler(), seed=seed) as ep:
+    dna = _secrets.token_bytes(32)
+    with serve(unique_name, _make_chain_handler(), dna=dna) as ep:
         _wait_for_endpoint(unique_name)
         try:
-            with connect(unique_name, seed=seed) as ch:
+            with connect(unique_name, dna=dna) as ch:
                 for i in range(10):
                     reply = ch.send(
                         {"type": "ping", "payload": {"i": i}},
@@ -1488,26 +1629,26 @@ def test_encrypted_end_to_end_many_requests(unique_name, monkeypatch):
 
 
 def test_encrypted_seed_mismatch_raises(unique_name, monkeypatch):
-    """Mismatched seeds → first MAC verification fails; server worker
-    exits; client sees BusError or BusTimeout."""
+    """Mismatched DNA → Bio-TOTP decrypt fails on the binding check;
+    server worker exits; client sees BusError or BusTimeout."""
     monkeypatch.delenv(ENV_VAR, raising=False)
     try:
         seed_path(unique_name).unlink()
     except OSError:
         pass
-    seed_good = _secrets.token_bytes(32)
-    seed_bad = _secrets.token_bytes(32)
-    # Suppress discovery-file write so client's explicit bad seed isn't
+    dna_good = _secrets.token_bytes(32)
+    dna_bad = _secrets.token_bytes(32)
+    # Suppress discovery-file write so client's explicit bad DNA isn't
     # overridden by the good one.
     from srmech.bus._seed import _write_file_seed as _wfs  # noqa: F401
-    with serve(unique_name, _make_chain_handler(), seed=seed_good) as ep:
+    with serve(unique_name, _make_chain_handler(), dna=dna_good) as ep:
         _wait_for_endpoint(unique_name)
         try:
-            # Manually overwrite the discovery file with the bad seed
+            # Manually overwrite the discovery file with the bad DNA
             # so the client's explicit-arg path is exercised — but
             # actually we pass it explicitly below, which beats file.
             try:
-                with connect(unique_name, seed=seed_bad) as ch:
+                with connect(unique_name, dna=dna_bad) as ch:
                     with pytest.raises((BusTimeout, BusError)):
                         ch.send(
                             {"type": "ping", "payload": {}}, timeout=2.0,

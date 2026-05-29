@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.5.0rc6"
+version = "0.5.0rc7"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -66,6 +66,11 @@ collectors = [
     "beautifulsoup4>=4.11",
 ]
 tests = ["pytest>=7.0"]
+# Crypto extra (v0.5.0rc7): UTLP-exact AES-128-CTR Bio-TOTP backend
+# for the bus wire cipher (Claim 255). Pyodide/WASM may not support
+# the cryptography wheel — the stdlib HMAC-SHA-256 fallback always
+# works, so install this extra only when AES-CTR is required.
+crypto = ["cryptography>=41.0"]
 dev = [
     "pytest>=7.0",
     "build",

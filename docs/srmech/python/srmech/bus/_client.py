@@ -57,6 +57,8 @@ def _make_event_any_payload(
     sender_pid: int,
     sender_name: str,
     correlation_id: str,
+    sender_id_u64: Optional[int] = None,
+    channel_id_u32: Optional[int] = None,
 ) -> Event:
     """Construct an :class:`Event` that accepts ANY JSON-serialisable payload.
 
@@ -70,24 +72,35 @@ def _make_event_any_payload(
     dataclass directly, preserving the input payload type (it's still
     JSON-serialised at frame time via :func:`json.dumps`, which will
     raise on truly non-serialisable inputs — the canonical place).
+
+    v0.5.0rc7: when the bus channel is Bio-TOTP-encrypted, the
+    attestation also carries ``sender_id_u64`` + ``channel_id_u32``
+    so the receiver's decrypt path can binding-check the nonce
+    against the plaintext (Bio-TOTP has no per-frame MAC; this
+    field-binding IS the integrity check).
     """
     import time as _time
+    attestation: Dict[str, Any] = {
+        "sender_pid": int(sender_pid),
+        "sender_name": str(sender_name),
+        "ts_ns": _time.time_ns(),
+    }
+    if sender_id_u64 is not None:
+        attestation["sender_id_u64"] = int(sender_id_u64)
+    if channel_id_u32 is not None:
+        attestation["channel_id_u32"] = int(channel_id_u32)
     return Event(
         mpr_version=MPR_VERSION_BUS,
         type=type,
         payload=payload,  # type: ignore[arg-type] — runtime is JSON-typed
-        attestation={
-            "sender_pid": int(sender_pid),
-            "sender_name": str(sender_name),
-            "ts_ns": _time.time_ns(),
-        },
+        attestation=attestation,
         correlation_id=correlation_id,
     )
-from ._chain import (
-    ChainCipherError,
-    ChainState,
-    DIRECTION_IN,
-    DIRECTION_OUT,
+from ._bio_totp import (
+    BioTotpChannel,
+    BioTotpError,
+    ZERO_DNA,
+    channel_id_from_name,
 )
 from ._framing import FramingError, pack_frame, unpack_frame
 from ._seed import resolve_client_seed
@@ -146,8 +159,22 @@ class Channel:
         *,
         transport: Optional[Transport] = None,
         broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
-        seed: Optional[bytes] = None,
+        dna: Optional[bytes] = None,
+        seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
     ) -> None:
+        # v0.5.0rc7: ``seed`` is a deprecated alias for ``dna`` (UTLP
+        # Bio-TOTP naming alignment). Accept either for one rc cycle.
+        if seed is not None:
+            import warnings as _warnings
+            _warnings.warn(
+                "srmech.bus.connect / Channel(seed=...) is deprecated "
+                "as of v0.5.0rc7; use dna=... (UTLP Bio-TOTP naming, "
+                "Claim 255). The seed kwarg will be removed in v0.5.0 "
+                "final.",
+                DeprecationWarning, stacklevel=3,
+            )
+            if dna is None:
+                dna = seed
         self._name: str = name
         self._transport: Transport = transport or open_client_transport()
         self._conn: Optional[Connection] = None
@@ -162,27 +189,37 @@ class Channel:
         )
         self._subscribed: bool = False
         self._reader_error: Optional[BaseException] = None
-        # v0.5.0rc3: state-chained wire format. Seed sourced via the
-        # priority cascade (explicit arg → SRMECH_BUS_SEED env →
-        # ~/.srmech/bus-<name>.seed file → None=unencrypted).
-        resolved_seed = resolve_client_seed(name, explicit=seed)
-        self._encrypted: bool = resolved_seed is not None
-        # Two per-direction ChainState instances per channel. The
-        # client SENDS with DIRECTION_OUT and RECEIVES with
-        # DIRECTION_IN; the server mirrors (sends DIRECTION_IN,
-        # receives DIRECTION_OUT) — disjoint keystreams for the two
-        # halves of the duplex.
+        # v0.5.0rc7: UTLP Bio-TOTP wire obfuscation (Claim 255).
+        # DNA sourced via the priority cascade (explicit arg →
+        # SRMECH_BUS_SEED env → ~/.srmech/bus-<name>.seed file →
+        # None=unencrypted rc6 back-compat).
+        resolved_dna = resolve_client_seed(name, explicit=dna)
+        self._encrypted: bool = resolved_dna is not None
+        # Bio-TOTP channel-id is a deterministic u32 hash of the name
+        # so both ends compute the same value without sharing state.
+        self._channel_id_u32: int = channel_id_from_name(name)
         if self._encrypted:
-            channel_id_bytes = name.encode("utf-8")
-            self._send_state: Optional[ChainState] = ChainState(
-                resolved_seed, channel_id_bytes, DIRECTION_OUT,
+            # Each side embeds its OWN sender_id in every nonce it
+            # emits (client uses PID; server uses PID with high-bit
+            # set to keep the two disjoint even when client+server
+            # happen to be the same PID in tests).
+            self._sender_id_u64: int = int(self._pid)
+            self._bio_send: Optional[BioTotpChannel] = BioTotpChannel(
+                dna=resolved_dna,
+                sender_id=self._sender_id_u64,
+                channel_id=self._channel_id_u32,
+                strict=True,
             )
-            self._recv_state: Optional[ChainState] = ChainState(
-                resolved_seed, channel_id_bytes, DIRECTION_IN,
+            self._bio_recv: Optional[BioTotpChannel] = BioTotpChannel(
+                dna=resolved_dna,
+                sender_id=self._sender_id_u64,
+                channel_id=self._channel_id_u32,
+                strict=True,
             )
         else:
-            self._send_state = None
-            self._recv_state = None
+            self._sender_id_u64 = int(self._pid)
+            self._bio_send = None
+            self._bio_recv = None
 
     # ----- public ---------------------------------------------------------
 
@@ -200,8 +237,9 @@ class Channel:
 
     @property
     def encrypted(self) -> bool:
-        """True iff this channel was opened with a seed (state-chained
-        wire format active). False = rc2-compatible plaintext bus."""
+        """True iff this channel was opened with a Bio-TOTP DNA
+        secret (UTLP wire obfuscation active per Claim 255). False
+        = rc6-compatible plaintext bus."""
         return self._encrypted
 
     def connect(self) -> None:
@@ -287,12 +325,19 @@ class Channel:
         # canonical place to detect them.
         payload = event.get("payload")
         corr_id = new_correlation_id() if expect_reply else ""
+        # v0.5.0rc7: inject sender_id_u64 + channel_id_u32 into the
+        # attestation block when encrypted so the receiver's Bio-TOTP
+        # decrypt path can binding-check the nonce against the
+        # plaintext. The two fields are absent on unencrypted channels
+        # (rc6 wire shape preserved).
         bus_event = _make_event_any_payload(
             type=ev_type,
             payload=payload,
             sender_pid=self._pid,
             sender_name="<client>",
             correlation_id=corr_id,
+            sender_id_u64=(self._sender_id_u64 if self._encrypted else None),
+            channel_id_u32=(self._channel_id_u32 if self._encrypted else None),
         )
         serialized = serialize(bus_event)
         waiter: Optional[_Waiter] = None
@@ -300,19 +345,19 @@ class Channel:
             waiter = _Waiter()
             with self._waiters_lock:
                 self._waiters[corr_id] = waiter
-        # v0.5.0rc3: optional state-chained wire-format encryption.
-        # When seed was supplied (via any of the three sources), wrap
-        # the serialised event in the per-direction cipher state
-        # before TLV-framing. The encrypt + send pair lives inside the
-        # same _send_lock window so chain advancement and frame
+        # v0.5.0rc7: UTLP Bio-TOTP wire obfuscation (Claim 255). When
+        # DNA was supplied (via any of the three sources), wrap the
+        # serialised event in the per-direction Bio-TOTP cipher before
+        # TLV-framing. The encrypt + send pair lives inside the same
+        # _send_lock window so packet_seq advancement and frame
         # ordering stay in lockstep across concurrent sender threads.
         try:
             with self._send_lock:
                 if self._conn is None:
                     raise BusError("channel not connected")
                 if self._encrypted:
-                    assert self._send_state is not None
-                    wire_body = self._send_state.encrypt(serialized)
+                    assert self._bio_send is not None
+                    wire_body = self._bio_send.encrypt(serialized)
                 else:
                     wire_body = serialized
                 frame = pack_frame(wire_body)
@@ -439,16 +484,16 @@ class Channel:
                     return
                 if frame is None:
                     return  # clean EOF
-                # v0.5.0rc3: decrypt the wire body if seed was set.
+                # v0.5.0rc7: decrypt the wire body if DNA was set.
                 # The reader thread is single — no lock needed on
-                # _recv_state (only this thread mutates it).
+                # _bio_recv (only this thread mutates it).
                 if self._encrypted:
-                    assert self._recv_state is not None
+                    assert self._bio_recv is not None
                     try:
-                        frame = self._recv_state.decrypt(frame)
-                    except ChainCipherError as exc:
+                        frame = self._bio_recv.decrypt(frame)
+                    except BioTotpError as exc:
                         self._reader_error = BusError(
-                            f"chain cipher error: {exc}"
+                            f"Bio-TOTP cipher error: {exc}"
                         )
                         return
                 try:
@@ -498,7 +543,8 @@ def connect(
     name: str,
     *,
     broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
-    seed: Optional[bytes] = None,
+    dna: Optional[bytes] = None,
+    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> Channel:
     """Open a connected :class:`Channel` to the named endpoint.
 
@@ -513,16 +559,23 @@ def connect(
     broadcast_queue_max
         Maximum pending broadcasts before drop-oldest behaviour
         kicks in.
-    seed
-        Optional pre-shared cipher seed (v0.5.0rc3+) for the
-        state-chained wire format. When set, the channel encrypts
-        every frame; the server must have been opened with the same
-        seed (via the same arg, the ``SRMECH_BUS_SEED`` env var, or
-        the ``~/.srmech/bus-{name}.seed`` discovery file). When
+    dna
+        Optional pre-shared Bio-TOTP secret (v0.5.0rc7+, UTLP
+        Claim 255) for the wire-obfuscation cipher. When set, the
+        channel encrypts every frame with a key that rolls every
+        250 ms (configurable via ``SRMECH_BUS_TOTP_WINDOW_NS``);
+        the server must have been opened with the same ``dna``
+        (via the same arg, the ``SRMECH_BUS_SEED`` env var — the
+        env var name stays unchanged for back-compat — or the
+        ``~/.srmech/bus-{name}.seed`` discovery file). When
         ``None`` (default), the channel runs unencrypted (full
-        rc2 back-compat) UNLESS one of the other two seed sources
-        is populated (env var / seed file) — in which case the
-        cascade auto-activates encryption.
+        rc6 back-compat) UNLESS one of the other two DNA sources
+        is populated — in which case the cascade auto-activates
+        encryption.
+    seed
+        Deprecated alias for ``dna`` (rc7 → v0.5.0 final). Emits
+        :class:`DeprecationWarning`; ignored when ``dna`` is also
+        supplied.
 
     Returns
     -------
@@ -537,6 +590,7 @@ def connect(
     ch = Channel(
         name,
         broadcast_queue_max=broadcast_queue_max,
+        dna=dna,
         seed=seed,
     )
     ch.connect()

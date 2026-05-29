@@ -91,38 +91,50 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc6():
-    """v0.5.0rc6 — MCP (Model Context Protocol) server adapter.
+def test_version_is_0_5_0rc7():
+    """v0.5.0rc7 — UTLP Bio-TOTP cipher alignment + tool-schema
+    opt-in discoverability.
 
-    Per user direction 2026-05-28 (continuation of the rc1–rc5 bus
-    arc): user is on Claude Code Max plan (no Anthropic API/SDK
-    tier), so MCP is the primary LLM integration path. ``srmech-mcp``
-    console-script exposes ``srmech.amsc.tool_schema`` registrations
-    (~150) as MCP tools over JSON-RPC 2.0 (stdio default; HTTP+SSE
-    via ``--transport http-sse``).
+    Per user direction 2026-05-28 (post-rc6 follow-up): rc3 shipped
+    a SHA-256-state-chained cipher that was structurally related to
+    but DIFFERENT from the actual UTLP Bio-TOTP pattern in
+    ``examples/utlp/utlp_hal_security.h`` (Claim 255). rc7 replaces
+    rc3's ``_chain.py`` with ``_bio_totp.py`` implementing the real
+    UTLP construction: key derivation rolls with a 250 ms time
+    bucket (``Key = SHA256(DNA || QuantizedTime)[0:16]``); receiver
+    tolerates ±1 window for clock skew; nonce constructed from
+    sender_id + channel_id + packet_seq ("Exon fields"); same code
+    path for unencrypted (ZERO_DNA) and encrypted channels
+    (herd-immunity); kwarg renamed ``seed`` → ``dna`` for naming
+    alignment (``seed`` still accepted with DeprecationWarning).
+    Default cipher uses stdlib HMAC-SHA-256 keystream (zero new
+    deps); ``pip install srmech[crypto]`` opts into UTLP-exact
+    AES-128-CTR via the ``cryptography`` library.
 
-    Three integration modes via the SAME adapter (config switch):
+    Plus: every emitting op's ToolEntry now mentions inline:
+    "Events emitted only when wrapped in
+    ``srmech.introspect.publish()`` or
+    ``SRMECH_PUBLISH_STATUS=1`` env-var set; otherwise silent."
+    Plus a new top-level ``srmech.introspect.publish`` ToolEntry
+    documenting the opt-in path. Discoverable via the MCP adapter
+    (rc6) — LLMs in Claude Code see the opt-in path inline when
+    reading the tool catalog.
 
-    * Pure local stdio subprocess (Claude Code default).
-    * Cross-terminal observability (``--bus-endpoint NAME`` proxies
-      tool calls through a running ``srmech.bus`` endpoint).
-    * Subagent-orchestrated research (Claude Code's Agent tool spawns
-      a sub-Claude with ``srmech-mcp`` registered).
-
-    Each ``tools/call`` response carries an MPR-style attestation
-    block (``response_sha256`` over result + tool name + parser
-    version + timestamp).
+    OUT OF SCOPE per user direction: UTLP's mesh / multi-arbor /
+    Loom / Genesis-election / time-sync layer is embedded-specific
+    and is NOT brought over to srmech.bus. srmech.bus is local-IPC
+    only.
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: Class M (cross-class bind) ∘ Class E (catalog
-    enumeration) ∘ Class A (content-addressing) extended to the LLM
-    substrate-class boundary. The LLM is one substrate-class-instance;
-    the Python interpreter is another; ``srmech.mcp`` is the bind
-    operator.
+    Framework reading: Class A (content-addressing — SHA-256 of
+    DNA + time) ∘ Class I (cyclic — monotone packet_seq + time
+    bucketing) ∘ Class K (pin-slot phase boundary — every key-roll
+    is a phase boundary between adjacent time windows; the ±1 skew
+    tolerance IS the "soft boundary" reading per Class K).
     """
-    assert srmech.__version__ == "0.5.0rc6", (
-        f"expected srmech.__version__ == '0.5.0rc6'; got "
+    assert srmech.__version__ == "0.5.0rc7", (
+        f"expected srmech.__version__ == '0.5.0rc7'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -130,7 +142,7 @@ def test_version_is_0_5_0rc6():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc6"
+    assert version_str == "0.5.0rc7"
     assert version_str == srmech.__version__
 
 

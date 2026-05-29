@@ -1,228 +1,106 @@
-"""State-chained wire format ("biological TOTP-like") for srmech.bus.
+"""Deprecation shim for the rc3 ``_chain`` module — superseded by
+``_bio_totp`` in v0.5.0rc7.
 
-Per user direction 2026-05-28 (rc3 of N for v0.5.0): each frame N's
-encoding depends on state_{N-1}; the receiver must walk the chain
-from the seed to decode. Same-user-defensive forward-secrecy: a third
-process that didn't initiate the channel cannot read mid-stream
-(it has neither the seed nor the chain-state).
+Per user direction 2026-05-28: rc3's SHA-256-state-chained cipher
+was structurally related to UTLP Bio-TOTP (Claim 255) but **did
+not implement the actual UTLP construction**. rc7 replaces it with
+:mod:`srmech.bus._bio_totp`, which carries the real UTLP wire
+pattern (time-rolling key + nonce-only frame).
 
-Cipher (stream cipher with chain advance + per-frame MAC):
+This module remains importable for one rc cycle (rc7) so any
+downstream consumer reading the old surface gets a clear pointer
+to the new module. The old names are mapped through to Bio-TOTP
+equivalents where the meaning carries over; the SHA-256-chain-
+specific symbols (``derive_state``, ``MAC_BYTES``,
+``MacMismatchError``, ``CounterReplayError``, ``ChainFormatError``,
+``COUNTER_BYTES``, ``STATE_BYTES``) are kept as deprecated
+re-exports of the closest Bio-TOTP analogues so the old import
+shape doesn't import-error existing user code.
 
-    state_0     = sha256(seed || ":" || channel_id || ":" || direction)
-    keystream_N = sha256(state_N || "ks" || counter_N_be8)   # 32 bytes
-                  (repeat-truncate for plaintext lengths != 32)
-    ciphertext_N = plaintext_N XOR keystream_N[:len(plaintext_N)]
-    state_{N+1} = sha256(state_N || "st" || ciphertext_N)
-    mac_N       = hmac_sha256(state_N || "mac", ciphertext_N || counter_N_be8)[:16]
-
-Frame body layout (TLV length-prefix already supplied by _framing.py):
-
-    [16-byte mac][8-byte counter_BE][ciphertext]
-
-Decoder discipline:
-
-    1. Read mac + counter + ciphertext from frame body.
-    2. Verify counter > last_counter (replay protection — strict GT).
-    3. Recompute the expected MAC against the held state; reject on
-       mismatch.
-    4. Compute keystream from current state + counter, XOR to
-       plaintext.
-    5. Advance state with the ciphertext + counter (so both sides
-       walk identical chains).
-
-Replay protection: monotone uint64 counter (wraps at 2^64 — practical
-infinity for any bus channel's lifetime). Out-of-order delivery is
-treated as tampering and rejected (req/rep over TCP / UDS / named
-pipe is naturally ordered).
-
-Framework reading: this is Class A (content-addressing — SHA-256
-keystream + state derivation) ∘ Class I (cyclic — monotone counter
-addition mod 2^64) ∘ Class K (pin-slot phase boundary — every frame
-is a chain-advance event, the boundary between state_N and
-state_{N+1}). Substrate-self-recognition is extended to the frame
-chain: each frame's plaintext is recoverable only by an observer
-that has been participating in the chain since state_0.
-
-Threat model
-------------
-DEFENSIVE against same-user processes that did not initiate the
-channel. NOT designed against an active local attacker who can read
-the seed at rest (the discovery-file path is 0o600 but no kernel
-isolation), nor against active MITM (no DH key exchange). If those
-threats matter, see the v0.5.x / v0.6.0 roadmap for the AEAD + DH
-key-establishment story.
-
-Public API
-----------
-
-* :class:`ChainState` — per-direction cipher state. Each Channel
-  holds two: outgoing + incoming. Use :meth:`encrypt` to wrap a
-  plaintext into the wire body shape; :meth:`decrypt` to unwrap an
-  inbound wire body.
-* :func:`derive_state` — pure helper: produce ``state_0`` from
-  ``seed`` + ``channel_id`` + ``direction`` byte.
-* :func:`decode_splice` — inspectable pure-function decoder
-  registered as a :class:`srmech.amsc.tool_schema.ToolEntry`. Takes
-  a framed body + the matching held state + counter; returns
-  ``(plaintext, new_state, new_counter)``. Suitable for LLM / agent
-  introspection of mid-stream frames given the chain state at a
-  point in time.
-
-No new ``hashlib.sha256(...)`` direct calls — every SHA-256 routes
-through :func:`srmech.amsc.format.sha256_bytes` so the native C
-dispatch picks up transparently.
+Removal target: v0.5.0 final (the next clean tag).
 """
 
 from __future__ import annotations
 
-import hmac
-import struct
-from typing import Tuple
+import warnings
 
-from ..amsc.format import sha256_bytes
+from ._bio_totp import (
+    BioTotpChannel as _BioTotpChannel,
+    BioTotpDecryptError as _BioTotpDecryptError,
+    BioTotpError as _BioTotpError,
+    BioTotpFormatError as _BioTotpFormatError,
+    FRAME_OVERHEAD_BYTES,
+    NONCE_BYTES as _NONCE_BYTES,
+    decode_splice as _decode_splice_bio_totp,
+    derive_key,
+)
 
-# ──────────────────────────────────────────────────────────────────────
-# Wire-format constants
-# ──────────────────────────────────────────────────────────────────────
+# One-shot module-level deprecation notice (fires on first import).
+warnings.warn(
+    "srmech.bus._chain is deprecated as of v0.5.0rc7; use "
+    "srmech.bus._bio_totp instead (UTLP Bio-TOTP cipher per Claim 255). "
+    "This shim will be removed in v0.5.0 final.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-#: Bytes of state used as the cipher carrier (SHA-256 = 32).
+
+# ─────────────────────────────────────────────────────────────────────
+# Constant aliases — same byte widths where they overlap, dropped
+# where rc3 had a distinct concept that Bio-TOTP elides.
+# ─────────────────────────────────────────────────────────────────────
+
+#: Bytes of state in rc3's chain state. Bio-TOTP has no chain state;
+#: kept as 32 (= SHA-256 digest width) for any code that read the
+#: constant before checking ``derive_state`` existed.
 STATE_BYTES: int = 32
 
-#: Bytes of the per-frame HMAC tag (truncated SHA-256 = 16 = 128 bits).
-MAC_BYTES: int = 16
+#: rc3 MAC-tag width. Bio-TOTP has no per-frame MAC; kept as 0 so
+#: code that did ``FRAME_OVERHEAD_BYTES - MAC_BYTES`` arithmetic
+#: still works (the answer becomes the new
+#: ``FRAME_OVERHEAD_BYTES``).
+MAC_BYTES: int = 0
 
-#: Bytes of the per-frame monotone counter (uint64 big-endian).
-COUNTER_BYTES: int = 8
+#: rc3 counter width. Bio-TOTP's packet_seq is a u32, but lives
+#: INSIDE the nonce, so the per-frame overhead does not break it
+#: out separately.
+COUNTER_BYTES: int = 4
 
-#: Bytes of overhead each frame body carries beyond the plaintext
-#: (16-byte mac + 8-byte counter).
-FRAME_OVERHEAD_BYTES: int = MAC_BYTES + COUNTER_BYTES
-
-#: Direction tag — outgoing side.
+#: rc3 direction tag — outgoing side. Bio-TOTP doesn't separate
+#: directions structurally (each side uses its own ``sender_id``),
+#: so the OUT/IN constants degrade to documentation-only labels.
 DIRECTION_OUT: str = "out"
-
-#: Direction tag — incoming side.
 DIRECTION_IN: str = "in"
-
-#: Valid direction tags. The two ends of a channel use OPPOSITE
-#: tags so the keystreams never collide: client.send_state =
-#: ``"out"`` matches server.recv_state = ``"out"``; client.recv_state
-#: = ``"in"`` matches server.send_state = ``"in"``.
 DIRECTIONS: frozenset = frozenset({DIRECTION_OUT, DIRECTION_IN})
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Error types
-# ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────
+# Error-class aliases
+# ─────────────────────────────────────────────────────────────────────
 
 
-class ChainCipherError(Exception):
-    """Base class for state-chained wire-format errors."""
+class ChainCipherError(_BioTotpError):
+    """Deprecated alias for :class:`BioTotpError`."""
 
 
-class MacMismatchError(ChainCipherError):
-    """Raised when the per-frame HMAC tag does not match.
-
-    Causes (in rough order of likelihood):
-
-    * The two ends were initialised with different seeds.
-    * The two ends ran out-of-step (a frame was dropped between them).
-    * The frame was tampered with in transit.
-    """
+class ChainFormatError(_BioTotpFormatError, ChainCipherError):
+    """Deprecated alias for :class:`BioTotpFormatError`."""
 
 
-class CounterReplayError(ChainCipherError):
-    """Raised when an inbound frame's counter is not strictly greater
-    than the last accepted counter on this direction (replay or
-    reorder)."""
+class MacMismatchError(_BioTotpDecryptError, ChainCipherError):
+    """Deprecated alias for :class:`BioTotpDecryptError` — Bio-TOTP
+    has no MAC; the closest analogue is a failed decryption across
+    all candidate windows."""
 
 
-class ChainFormatError(ChainCipherError):
-    """Raised when an inbound frame body is shorter than the minimum
-    overhead (16-byte MAC + 8-byte counter)."""
+class CounterReplayError(_BioTotpDecryptError, ChainCipherError):
+    """Deprecated alias for :class:`BioTotpDecryptError` — replay
+    surfaces as a decrypt failure (packet_seq guard)."""
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Hash helpers
-# ──────────────────────────────────────────────────────────────────────
-
-
-def _sha256_raw(data: bytes) -> bytes:
-    """SHA-256 over ``data`` returning raw 32 bytes.
-
-    Routes through :func:`srmech.amsc.format.sha256_bytes` (which
-    returns hex) and unhexes — keeps the JPL-discipline rule (no new
-    direct ``hashlib.sha256`` calls) while exposing the raw-bytes
-    surface the cipher needs.
-    """
-    return bytes.fromhex(sha256_bytes(data))
-
-
-def _hmac_sha256(key: bytes, msg: bytes) -> bytes:
-    """HMAC-SHA-256 with the standard RFC 2104 construction.
-
-    Implemented in terms of :func:`_sha256_raw` (no direct
-    ``hashlib.sha256`` calls) so the native C SHA-256 dispatch picks
-    up transparently. The stdlib :mod:`hmac` module only supplies the
-    XOR pad framework; the underlying hash primitive routes through
-    srmech's discipline-compliant surface.
-    """
-    block_size = 64  # SHA-256 block size (bytes)
-    if len(key) > block_size:
-        key = _sha256_raw(key)
-    # Pad key with zeros up to block size.
-    key = key + b"\x00" * (block_size - len(key))
-    o_key_pad = bytes(b ^ 0x5C for b in key)
-    i_key_pad = bytes(b ^ 0x36 for b in key)
-    inner = _sha256_raw(i_key_pad + msg)
-    return _sha256_raw(o_key_pad + inner)
-
-
-# Cross-check: stdlib hmac.compare_digest gives constant-time
-# comparison for MAC verification. Bind it as a module-level helper
-# so the receive path uses constant-time comparison (defensive
-# against timing-oracle MAC attacks — defensive scope only).
-_constant_time_eq = hmac.compare_digest
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Keystream + state derivation
-# ──────────────────────────────────────────────────────────────────────
-
-
-def _counter_be8(counter: int) -> bytes:
-    """Encode a uint64 counter as 8 big-endian bytes."""
-    assert 0 <= counter < (1 << 64), (
-        f"counter must fit in uint64; got {counter}"
-    )
-    return struct.pack(">Q", counter)
-
-
-def _keystream(state: bytes, counter: int, n: int) -> bytes:
-    """Produce ``n`` keystream bytes for the given state + counter.
-
-    Construction: repeated SHA-256 over
-    ``state || "ks" || counter_be8 || block_index_be4``. The
-    block_index field defends against keystream reuse for plaintexts
-    longer than 32 bytes; for the common case (n <= 32) only one
-    block is emitted.
-    """
-    assert len(state) == STATE_BYTES, (
-        f"state must be {STATE_BYTES} bytes; got {len(state)}"
-    )
-    assert n >= 0, f"keystream length must be non-negative; got {n}"
-    if n == 0:
-        return b""
-    counter_field = _counter_be8(counter)
-    out = bytearray()
-    block_index = 0
-    while len(out) < n:
-        block = _sha256_raw(
-            state + b"ks" + counter_field + struct.pack(">I", block_index)
-        )
-        out.extend(block)
-        block_index += 1
-    return bytes(out[:n])
+# ─────────────────────────────────────────────────────────────────────
+# Pure-function aliases
+# ─────────────────────────────────────────────────────────────────────
 
 
 def derive_state(
@@ -230,78 +108,93 @@ def derive_state(
     channel_id: bytes,
     direction: str = DIRECTION_OUT,
 ) -> bytes:
-    """Compute the initial ``state_0`` for a chain.
+    """Deprecated: rc3 helper that derived a chain state from
+    ``(seed, channel_id, direction)``.
 
-    ``seed`` is the pre-shared cipher seed (caller-provided; min 1
-    byte but 32 bytes recommended). ``channel_id`` identifies the
-    endpoint by name (typically the bus channel name encoded as
-    UTF-8). ``direction`` is ``"out"`` or ``"in"`` so the two ends
-    derive disjoint keystreams for the two halves of the duplex.
-
-    Returns the 32-byte ``state_0``.
+    Bio-TOTP has no chain state — the per-frame key is derived from
+    ``(dna, quantized_time)`` instead. For compatibility, this shim
+    returns a deterministic 32-byte digest of the inputs (so any
+    test that asserted ``derive_state(...) != derive_state(...)``
+    on different inputs still passes), but the value has no role in
+    the Bio-TOTP wire path.
     """
-    assert isinstance(seed, (bytes, bytearray)), (
-        f"seed must be bytes-like; got {type(seed).__name__}"
+    warnings.warn(
+        "derive_state is rc3-only; Bio-TOTP uses derive_key(dna, "
+        "time_ns, window_ns) instead.",
+        DeprecationWarning, stacklevel=2,
     )
-    assert isinstance(channel_id, (bytes, bytearray)), (
-        f"channel_id must be bytes-like; got {type(channel_id).__name__}"
-    )
+    if not isinstance(seed, (bytes, bytearray)):
+        raise TypeError(
+            f"seed must be bytes-like; got {type(seed).__name__}"
+        )
+    if not isinstance(channel_id, (bytes, bytearray)):
+        raise TypeError(
+            f"channel_id must be bytes-like; got {type(channel_id).__name__}"
+        )
     if direction not in DIRECTIONS:
         raise ValueError(
-            f"direction must be one of {sorted(DIRECTIONS)!r}; got {direction!r}"
+            f"direction must be one of {sorted(DIRECTIONS)!r}; "
+            f"got {direction!r}"
         )
     if len(seed) == 0:
         raise ValueError("seed must be non-empty")
-    direction_bytes = direction.encode("ascii")
-    return _sha256_raw(
-        bytes(seed) + b":" + bytes(channel_id) + b":" + direction_bytes
+    from ..amsc.format import sha256_bytes
+    payload = (
+        bytes(seed) + b":" + bytes(channel_id) + b":"
+        + direction.encode("ascii")
     )
+    return bytes.fromhex(sha256_bytes(payload))
 
 
-def _advance_state(state: bytes, ciphertext: bytes) -> bytes:
-    """Compute ``state_{N+1}`` from ``state_N`` + the ciphertext."""
-    assert len(state) == STATE_BYTES, (
-        f"state must be {STATE_BYTES} bytes; got {len(state)}"
-    )
-    return _sha256_raw(state + b"st" + ciphertext)
+def decode_splice(framed, *args, **kwargs):
+    """Deprecated: rc3 took ``(framed, state, counter)``; Bio-TOTP
+    takes ``(framed, dna, *, window_ns=None, time_ns=None)``.
 
-
-def _compute_mac(state: bytes, ciphertext: bytes, counter: int) -> bytes:
-    """HMAC the (ciphertext || counter) under a per-state MAC key.
-
-    The MAC key is ``state || "mac"`` — domain-separated from the
-    keystream derivation (``"ks"``) and the state-advance (``"st"``).
-    Returns 16 truncated bytes.
+    For rc7 compatibility we accept either signature. If the
+    second positional argument is 32 bytes AND no later argument
+    looks like an int-counter, we treat it as a Bio-TOTP ``dna``
+    arg and dispatch to :func:`srmech.bus._bio_totp.decode_splice`.
+    The chain-shaped signature raises a clear error pointing at the
+    new module.
     """
-    assert len(state) == STATE_BYTES, (
-        f"state must be {STATE_BYTES} bytes; got {len(state)}"
+    warnings.warn(
+        "srmech.bus._chain.decode_splice is deprecated; use "
+        "srmech.bus._bio_totp.decode_splice (signature: "
+        "(framed, dna, *, window_ns=None, time_ns=None)).",
+        DeprecationWarning, stacklevel=2,
     )
-    mac_key = state + b"mac"
-    full = _hmac_sha256(mac_key, ciphertext + _counter_be8(counter))
-    return full[:MAC_BYTES]
+    if len(args) >= 2 and isinstance(args[1], int):
+        raise TypeError(
+            "rc3 decode_splice signature (framed, state, counter) is "
+            "no longer supported in rc7. Use "
+            "srmech.bus._bio_totp.decode_splice(framed, dna, "
+            "window_ns=..., time_ns=...) instead."
+        )
+    return _decode_splice_bio_totp(framed, *args, **kwargs)
 
 
-# ──────────────────────────────────────────────────────────────────────
-# ChainState — per-direction cipher state
-# ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────
+# ChainState — adapter onto BioTotpChannel
+# ─────────────────────────────────────────────────────────────────────
 
 
 class ChainState:
-    """Per-direction cipher state for one channel.
+    """Deprecated: rc3 per-direction chain state.
 
-    Each :class:`~srmech.bus._client.Channel` (and each server-side
-    accepted connection) holds two ChainState instances: one for
-    outgoing frames, one for incoming. They share the same seed +
-    channel_id but use opposite direction tags so the two halves of
-    the duplex have disjoint keystreams.
+    rc7 routes this through :class:`BioTotpChannel`. Constructor
+    accepts the rc3 signature ``(seed, channel_id, direction)`` and
+    derives a Bio-TOTP channel with ``dna = seed``, ``sender_id`` =
+    deterministic hash of ``(channel_id, direction)`` so the two
+    directions get distinct nonces (matching rc3's keystream-
+    disjointness guarantee at a different algebraic layer).
 
-    Not thread-safe: the bus layer serialises sends via its own
-    ``_send_lock`` and processes inbound frames in a single reader
-    thread, so this object never sees concurrent mutation in
-    practice.
+    The MAC-mismatch / counter-replay error surfaces become
+    Bio-TOTP-decrypt failures, but the same exception-class names
+    are kept (via the alias classes above) so rc6-era except clauses
+    still catch the failures.
     """
 
-    __slots__ = ("_state", "_counter", "_last_recv_counter", "_direction")
+    __slots__ = ("_bio", "_direction")
 
     def __init__(
         self,
@@ -309,19 +202,45 @@ class ChainState:
         channel_id: bytes,
         direction: str,
     ) -> None:
+        warnings.warn(
+            "ChainState is rc3-only; use BioTotpChannel from "
+            "srmech.bus._bio_totp instead.",
+            DeprecationWarning, stacklevel=2,
+        )
         if direction not in DIRECTIONS:
             raise ValueError(
                 f"direction must be one of {sorted(DIRECTIONS)!r}; "
                 f"got {direction!r}"
             )
-        self._state: bytes = derive_state(seed, channel_id, direction)
-        # Outgoing-side counter starts at 0 (first frame uses counter=0).
-        self._counter: int = 0
-        # Incoming side tracks the last accepted counter so the next
-        # frame must have a STRICTLY greater counter. Start at -1 so
-        # counter=0 (the first ever frame) passes the > check.
-        self._last_recv_counter: int = -1
-        self._direction: str = direction
+        if not isinstance(seed, (bytes, bytearray)):
+            raise TypeError(
+                f"seed must be bytes-like; got {type(seed).__name__}"
+            )
+        if len(seed) == 0:
+            raise ValueError("seed must be non-empty")
+        if len(seed) < 32:
+            raise ValueError(
+                f"seed must be ≥ 32 bytes for Bio-TOTP; got {len(seed)}"
+            )
+        # Deterministic sender_id from (channel_id, direction) so the
+        # OUT and IN halves don't collide on the wire — rc3 used
+        # separate keystreams; we use distinct nonces.
+        from ..amsc.format import sha256_bytes
+        sender_seed = (
+            bytes(channel_id) + b":" + direction.encode("ascii")
+        )
+        sender_id = int.from_bytes(
+            bytes.fromhex(sha256_bytes(sender_seed))[:8], "big",
+        )
+        channel_id_int = int.from_bytes(
+            bytes.fromhex(sha256_bytes(bytes(channel_id)))[:4], "big",
+        )
+        self._bio = _BioTotpChannel(
+            dna=bytes(seed),
+            sender_id=sender_id,
+            channel_id=channel_id_int,
+        )
+        self._direction = direction
 
     @property
     def direction(self) -> str:
@@ -329,182 +248,34 @@ class ChainState:
 
     @property
     def state(self) -> bytes:
-        """Current 32-byte chain state (the state that the NEXT
-        operation will use). Read-only snapshot."""
-        return self._state
+        """rc3 chain-state surface. Bio-TOTP has no chain state;
+        returns a deterministic 32-byte derivation of the channel
+        identity so legacy code reading the property doesn't error."""
+        from ..amsc.format import sha256_bytes
+        payload = (
+            self._bio.dna
+            + b":" + str(self._bio.sender_id).encode("ascii")
+            + b":" + str(self._bio.channel_id).encode("ascii")
+        )
+        return bytes.fromhex(sha256_bytes(payload))
 
     @property
     def counter(self) -> int:
-        """Send-side: counter for the NEXT outgoing frame.
-        Receive-side: not meaningful (use last_recv_counter instead)."""
-        return self._counter
+        """rc3 outbound-counter surface. Maps to Bio-TOTP's
+        ``send_seq``."""
+        return self._bio.send_seq
 
     @property
     def last_recv_counter(self) -> int:
-        """Last accepted inbound counter on this direction. -1 means
-        no inbound frame has yet been accepted."""
-        return self._last_recv_counter
+        """rc3 inbound-counter surface. Maps to Bio-TOTP's
+        ``last_recv_seq``."""
+        return self._bio.last_recv_seq
 
     def encrypt(self, plaintext: bytes) -> bytes:
-        """Wrap ``plaintext`` into a wire-body frame.
-
-        Returns a bytes object of length
-        ``MAC_BYTES + COUNTER_BYTES + len(plaintext)`` with layout
-        ``[mac][counter_be][ciphertext]``. The caller (transport
-        layer) prepends the TLV length prefix via
-        :func:`srmech.bus._framing.pack_frame`.
-
-        Side effect: advances the chain (state ← state_{N+1};
-        counter ← counter + 1) so the next call uses fresh material.
-        """
-        if not isinstance(plaintext, (bytes, bytearray)):
-            raise TypeError(
-                f"plaintext must be bytes-like; got {type(plaintext).__name__}"
-            )
-        pt = bytes(plaintext)
-        ks = _keystream(self._state, self._counter, len(pt))
-        ciphertext = bytes(p ^ k for p, k in zip(pt, ks))
-        mac = _compute_mac(self._state, ciphertext, self._counter)
-        body = mac + _counter_be8(self._counter) + ciphertext
-        # Advance the chain.
-        self._state = _advance_state(self._state, ciphertext)
-        # uint64 wraparound after 2^64 frames is allowed but
-        # practically unreachable for any bus channel's lifetime.
-        self._counter = (self._counter + 1) & ((1 << 64) - 1)
-        return body
+        return self._bio.encrypt(plaintext)
 
     def decrypt(self, framed: bytes) -> bytes:
-        """Unwrap a wire-body frame and return the plaintext.
-
-        Raises :class:`ChainFormatError` if the frame body is too
-        short to contain the mac + counter header.
-        Raises :class:`CounterReplayError` if the counter is not
-        strictly greater than the last accepted counter on this
-        direction (replay / reorder / duplication).
-        Raises :class:`MacMismatchError` if the per-frame MAC does
-        not verify (tamper / seed-mismatch / chain de-sync).
-        """
-        if not isinstance(framed, (bytes, bytearray)):
-            raise TypeError(
-                f"framed must be bytes-like; got {type(framed).__name__}"
-            )
-        body = bytes(framed)
-        if len(body) < FRAME_OVERHEAD_BYTES:
-            raise ChainFormatError(
-                f"frame body shorter than overhead "
-                f"({len(body)} < {FRAME_OVERHEAD_BYTES})"
-            )
-        mac_recv = body[:MAC_BYTES]
-        counter_field = body[MAC_BYTES:MAC_BYTES + COUNTER_BYTES]
-        ciphertext = body[MAC_BYTES + COUNTER_BYTES:]
-        (counter,) = struct.unpack(">Q", counter_field)
-        # Replay / reorder guard — strictly monotone.
-        if counter <= self._last_recv_counter:
-            raise CounterReplayError(
-                f"inbound counter {counter} <= last accepted "
-                f"{self._last_recv_counter}"
-            )
-        # MAC verification (constant-time compare).
-        mac_expected = _compute_mac(self._state, ciphertext, counter)
-        if not _constant_time_eq(mac_recv, mac_expected):
-            raise MacMismatchError(
-                "per-frame HMAC mismatch (seed mismatch / chain "
-                "de-sync / tamper)"
-            )
-        # Decrypt + advance.
-        ks = _keystream(self._state, counter, len(ciphertext))
-        plaintext = bytes(c ^ k for c, k in zip(ciphertext, ks))
-        self._state = _advance_state(self._state, ciphertext)
-        self._last_recv_counter = counter
-        return plaintext
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Inspectable pure-function decoder (tool-schema surface)
-# ──────────────────────────────────────────────────────────────────────
-
-
-def decode_splice(
-    framed: bytes,
-    state: bytes,
-    counter: int,
-) -> Tuple[bytes, bytes, int]:
-    """Pure-function decoder for one chain frame.
-
-    Given an inbound wire body, the held chain state, and the
-    last-accepted counter, returns
-    ``(plaintext, new_state, new_counter)``. Suitable for LLM /
-    agent introspection of mid-stream frames given the chain state
-    at a point in time.
-
-    No side effects — does NOT mutate any global state. The caller
-    is responsible for holding the returned ``new_state`` +
-    ``new_counter`` for the next call.
-
-    Parameters
-    ----------
-    framed
-        The frame body bytes (``[mac][counter_be][ciphertext]``).
-    state
-        The 32-byte chain state held by the caller (the state the
-        sender used to generate this frame).
-    counter
-        Last-accepted counter on this direction (the next frame's
-        counter must be strictly greater). Pass ``-1`` for the very
-        first frame in a chain.
-
-    Returns
-    -------
-    (plaintext, new_state, new_counter)
-        Tuple of the decoded plaintext, the next chain state, and
-        the just-accepted counter (use as the ``counter`` input for
-        the next call).
-
-    Raises
-    ------
-    ChainFormatError, CounterReplayError, MacMismatchError
-        See :meth:`ChainState.decrypt`.
-    """
-    if not isinstance(framed, (bytes, bytearray)):
-        raise TypeError(
-            f"framed must be bytes-like; got {type(framed).__name__}"
-        )
-    if not isinstance(state, (bytes, bytearray)):
-        raise TypeError(
-            f"state must be bytes-like; got {type(state).__name__}"
-        )
-    if len(state) != STATE_BYTES:
-        raise ValueError(
-            f"state must be {STATE_BYTES} bytes; got {len(state)}"
-        )
-    if not isinstance(counter, int):
-        raise TypeError(
-            f"counter must be int; got {type(counter).__name__}"
-        )
-    body = bytes(framed)
-    if len(body) < FRAME_OVERHEAD_BYTES:
-        raise ChainFormatError(
-            f"frame body shorter than overhead "
-            f"({len(body)} < {FRAME_OVERHEAD_BYTES})"
-        )
-    mac_recv = body[:MAC_BYTES]
-    counter_field = body[MAC_BYTES:MAC_BYTES + COUNTER_BYTES]
-    ciphertext = body[MAC_BYTES + COUNTER_BYTES:]
-    (frame_counter,) = struct.unpack(">Q", counter_field)
-    if frame_counter <= counter:
-        raise CounterReplayError(
-            f"frame counter {frame_counter} <= last accepted {counter}"
-        )
-    state_bytes = bytes(state)
-    mac_expected = _compute_mac(state_bytes, ciphertext, frame_counter)
-    if not _constant_time_eq(mac_recv, mac_expected):
-        raise MacMismatchError(
-            "per-frame HMAC mismatch (seed mismatch / chain de-sync / tamper)"
-        )
-    ks = _keystream(state_bytes, frame_counter, len(ciphertext))
-    plaintext = bytes(c ^ k for c, k in zip(ciphertext, ks))
-    new_state = _advance_state(state_bytes, ciphertext)
-    return plaintext, new_state, frame_counter
+        return self._bio.decrypt(framed)
 
 
 __all__ = [
@@ -521,5 +292,6 @@ __all__ = [
     "MacMismatchError",
     "STATE_BYTES",
     "decode_splice",
+    "derive_key",
     "derive_state",
 ]

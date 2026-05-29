@@ -1,9 +1,10 @@
-"""Tool-schema registration for srmech.bus (v0.5.0rc3).
+"""Tool-schema registration for srmech.bus (v0.5.0rc7).
 
-Registers the state-chained wire-format decoder as a
+Registers the UTLP Bio-TOTP wire-format decoder
+(:func:`srmech.bus._bio_totp.decode_splice`) as a
 :class:`srmech.amsc.tool_schema.ToolEntry` so LLM / agent consumers
 can introspect (and call) the cipher's pure decoder surface without
-reading the implementation. Load-bearing for the rc5 MCP-adapter
+reading the implementation. Load-bearing for the rc6 MCP-adapter
 work where the bus apparatus is exposed to Claude Code over MCP.
 
 Idempotent: registration goes through :func:`register_tool` which
@@ -37,58 +38,78 @@ def _register_bus_tools() -> None:
             owner="srmech",
             category="bus",
             summary=(
-                "Decode one frame of a state-chained bus channel "
-                "given the held chain state + last-accepted counter. "
-                "Pure function (no side effects); suitable for LLM / "
-                "agent introspection of mid-stream traffic. Returns "
-                "(plaintext, new_state, new_counter); the caller "
-                "holds the new state + counter for the next call. "
-                "Cipher: SHA-256 keystream + HMAC-SHA-256 integrity; "
-                "state advances as state_{N+1} = sha256(state_N || "
-                "'st' || ciphertext_N). v0.5.0rc3 (state-chained "
-                "wire format; UTLP-inspired)."
+                "Decode one frame of a UTLP Bio-TOTP bus channel "
+                "(Claim 255 alignment) given the per-channel DNA "
+                "secret. Pure function (no side effects); suitable "
+                "for LLM / agent introspection of mid-stream "
+                "traffic. Returns (plaintext, used_time_ns); the "
+                "plaintext is the original JSON-encoded bus Event "
+                "and the used_time_ns is the candidate time-bucket "
+                "value that successfully decoded (the current bucket "
+                "or ±1 bucket for clock-skew tolerance). Cipher: "
+                "AES-128-CTR when ``pip install srmech[crypto]`` "
+                "extra is installed (UTLP-exact path); HMAC-SHA-256 "
+                "counter-mode keystream by default (stdlib-only, "
+                "structurally equivalent for the defensive-scope "
+                "threat model). Key derivation rolls every 250 ms "
+                "(WINDOW_NS=250_000_000; configurable via "
+                "``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver "
+                "tolerates ±1 window for clock skew. Frame layout: "
+                "[nonce:16][ciphertext]; nonce = sender_id_u64 || "
+                "channel_id_u32 || packet_seq_u32. Pass ZERO_DNA "
+                "(b'\\x00'*32) for herd-immunity / public mode. "
+                "v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255)."
             ),
             parameters=(
                 ToolParameter(
                     "framed", "bytes", required=True,
                     summary=(
-                        "Frame body (mac[16] || counter_be8[8] || "
-                        "ciphertext) — the unwrapped TLV payload."
+                        "Frame body (nonce[16] || ciphertext) — the "
+                        "unwrapped TLV payload."
                     ),
                 ),
                 ToolParameter(
-                    "state", "bytes", required=True,
+                    "dna", "bytes", required=True,
                     summary=(
-                        "32-byte chain state the sender used for this "
-                        "frame (the held state on the caller's side)."
+                        "32+ byte pre-shared Bio-TOTP secret. Pass "
+                        "ZERO_DNA (b'\\x00'*32) for herd-immunity / "
+                        "public mode (same code path; deterministic "
+                        "ciphertext recoverable by anyone)."
                     ),
                 ),
                 ToolParameter(
-                    "counter", "int", required=True,
+                    "window_ns", "int", required=False,
                     summary=(
-                        "Last-accepted counter on this direction. "
-                        "Pass -1 for the first frame in a chain. "
-                        "Inbound frame's counter must be strictly "
-                        "greater (replay protection)."
+                        "Optional time-window override in "
+                        "nanoseconds (default 250_000_000 = 250 ms; "
+                        "env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` "
+                        "honoured)."
+                    ),
+                ),
+                ToolParameter(
+                    "time_ns", "int", required=False,
+                    summary=(
+                        "Optional explicit wall-clock override "
+                        "(defaults to time.time_ns()). Useful for "
+                        "replaying historical captures."
                     ),
                 ),
             ),
             returns=ToolReturn(
-                type="tuple[bytes, bytes, int]",
+                type="tuple[bytes, int]",
                 shape=(
-                    "(plaintext, new_state, new_counter) — plaintext "
-                    "bytes, 32-byte next chain state, just-accepted "
-                    "counter."
+                    "(plaintext, used_time_ns) — JSON-encoded bus "
+                    "Event bytes, and the candidate time value that "
+                    "decoded successfully."
                 ),
             ),
             smoke_test_hint={
                 # Smoke hint is intentionally not a real frame — the
                 # tool-schema smoke-test layer doesn't synthesise valid
                 # framed bytes on its own. Real usage threads through
-                # ChainState.encrypt() to produce framed inputs.
+                # BioTotpChannel.encrypt() to produce framed inputs.
                 "framed": "b'<framed-bytes>'",
-                "state": "b'<32-byte-state>'",
-                "counter": "-1",
+                "dna": "b'<32-byte-dna>'",
             },
         )
     )
