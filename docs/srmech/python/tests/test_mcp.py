@@ -1051,3 +1051,47 @@ def test_describe_registered_as_tool() -> None:
     mcp_def = tool_entry_to_mcp_def(entry)
     assert mcp_def["inputSchema"]["properties"] == {}
     assert mcp_def["inputSchema"]["required"] == []
+
+
+# ──────────────────────────────────────────────────────────────────────
+# DSL surface (v0.5.0rc12)
+#
+# The rc8 cascade DSL is exposed declaratively as two ToolEntries so an
+# LLM composes + runs a cascade in one call. These two tests keep the
+# dsl entries in the MCP-import discoverability manifest (the path a
+# Claude Code / MCP client takes); full DSL-tool coverage lives in
+# test_dsl_tools.py.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_dsl_tools_in_tool_schema_via_mcp_import() -> None:
+    """``srmech.dsl.run_toml_chain`` + ``srmech.dsl.list_catalog_ops``
+    are registered after the MCP wrapper import (the path an MCP /
+    Claude Code consumer takes) — the rc12 DSL surface voxel."""
+    names = _names_after_mcp_import()
+    for tool_name in (
+        "srmech.dsl.run_toml_chain",
+        "srmech.dsl.list_catalog_ops",
+    ):
+        assert tool_name in names, (
+            f"{tool_name} missing from tool_schema after MCP import "
+            f"(v0.5.0rc12 DSL surface voxel)"
+        )
+
+
+def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
+    """``srmech.dsl.run_toml_chain`` is one-shot callable through the
+    MCP ``invoke_tool`` path with a real TOML spec — composes + runs a
+    cascade in a single call (rc12)."""
+    spec = (
+        "[chain]\n"
+        'name = "rc12-mcp"\n'
+        "\n"
+        "[[stage]]\n"
+        'op = "chiral_flip"\n'
+    )
+    result = invoke_tool(
+        "srmech.dsl.run_toml_chain",
+        {"spec": spec, "input_value": [10, 20, 30]},
+    )
+    assert result == [30, 20, 10]

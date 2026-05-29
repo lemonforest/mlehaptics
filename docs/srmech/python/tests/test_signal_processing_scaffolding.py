@@ -91,50 +91,46 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc11():
-    """v0.5.0rc11 — Self-recognition root: ``warmup_all()`` +
-    ``introspect.describe()``.
+def test_version_is_0_5_0rc12():
+    """v0.5.0rc12 — the "DSL surface" voxel.
 
-    The keystone voxel of the v0.5.0 substrate-self-recognition arc.
-    The package gains a single canonical surface to populate AND
-    recognise its own tool-schema shape:
+    Exposes the rc8 cascade-composition DSL (``srmech.dsl.*``) as
+    declarative MCP / Anthropic ToolEntries so an LLM composes AND runs
+    a cascade in a single tool call. The fluent ``chain().then(...)
+    .loop(...)`` builder is not tool-callable (a tool call can't chain
+    methods); the *declarative* surface does real work in ONE call:
 
-    1. ``srmech.amsc.tool_schema.warmup_all()`` — THE single
-       registration entry-point. Imports every registration-bearing
-       submodule (``srmech.bus`` / ``srmech.introspect``) so the
-       ToolEntry registry is fully populated no matter how srmech was
-       entered (library / CLI / MCP / Anthropic adapter). Fires from
-       ``srmech.__init__`` so every consumer sees the full registry
-       from t=0. PERMANENTLY CLOSES the orphan-registration bug class
-       (the rc9 miss where ``srmech.bus`` tools were silently absent
-       from the LLM-facing catalog because no entry-path imported the
-       bus). The scattered side-effect imports in ``srmech.mcp._tools``
-       are replaced by one ``warmup_all()`` call.
-    2. ``srmech.introspect.describe()`` — the "what is srmech?" root.
-       A structured, at-a-glance map of the package's own shape
-       (version, native status, tool total + by-category, sorted
-       category names). Registered as a ToolEntry so MCP / Anthropic
-       consumers can ask "what can srmech do?". The self-recognition
-       ROOT surface; deeper detail (env / error-types / full JSON
-       schemas) comes in later voxels (rc15 / rc16).
+    1. ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an
+       inline TOML chain spec + run it atomically, returning the chain
+       result. Backed by the new ``build_chain_from_toml_str`` (the
+       string counterpart of ``build_chain_from_toml``). Plain keyword
+       params, so ``invoke_tool``'s ``fn(**coerced)`` calls it directly.
+    2. ``srmech.dsl.list_catalog_ops()`` — enumerate the 8
+       cascade-catalog ops + their A–N class + 1-line purpose (sourced
+       from the on-disk descriptors), so an LLM knows which ``op`` /
+       ``fold_op`` / ``reduce_op`` names a spec may use.
 
-    Also de-brittled the version-gate test: this is now the SINGLE
-    deliberate human-literal gate (the conscious per-rc bump point);
-    ``test_version_module_matches`` no longer hardcodes a literal and
-    only checks the SSoT sources AGREE (so it survives version bumps).
+    Registered via ``_register_dsl_tools()`` at ``tool_schema`` import
+    (declarative data only — no ``srmech.dsl`` import there, so no
+    cycle); ``srmech.dsl`` also appended to ``warmup_all()`` for a
+    complete, self-documenting registration manifest.
+
+    The version-gate test stays the SINGLE deliberate human-literal gate
+    (the conscious per-rc bump point); ``test_version_module_matches``
+    is de-brittled (no literal) and only checks the SSoT sources AGREE,
+    so it survives version bumps.
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: ``describe()`` IS Class H (self-introspection)
-    at package scale — the package recognising its own A–N tool
-    surface and rendering that shape. ``warmup_all()`` is the Class A
-    (content-addressed callable identifier) ∘ Class E (catalog)
-    population step that GUARANTEES the Class H view is complete
-    regardless of entry-path (the rc9 orphan was an incomplete
-    projection of the package's own shape).
+    Framework reading: the DSL composes Class M (cross-class bind) over
+    the cascade catalog — each chain stage is one A–N primitive-class
+    instance, the chain is the composition. ``list_catalog_ops`` is
+    Class E (catalog enumeration) ∘ Class F (render of each descriptor's
+    class + purpose). No new primitive class is introduced; this voxel
+    makes the rc8 composer callable in one shot from an LLM tool surface.
     """
-    assert srmech.__version__ == "0.5.0rc11", (
-        f"expected srmech.__version__ == '0.5.0rc11'; got "
+    assert srmech.__version__ == "0.5.0rc12", (
+        f"expected srmech.__version__ == '0.5.0rc12'; got "
         f"{srmech.__version__!r}"
     )
 

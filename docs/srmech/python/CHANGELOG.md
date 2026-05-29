@@ -6,6 +6,69 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc12] - 2026-05-29
+
+**rc12 of N for v0.5.0 — the "DSL surface" voxel.** Exposes the rc8
+cascade-composition DSL (`srmech.dsl.*`) as declarative MCP / Anthropic
+`ToolEntry`s, so an LLM composes AND runs a cascade in a single tool
+call. The fluent `chain().then(...).loop(...)` builder is not
+tool-callable (a tool call can't chain methods); the declarative surface
+does real work in ONE call. Pure-Python only — no C change, ABI stays 3.
+
+Framework reading: the DSL composes **Class M (cross-class bind)** over
+the cascade catalog — each chain stage is one A–N primitive-class
+instance, the chain is the composition. `list_catalog_ops` is **Class E
+(catalog enumeration) ∘ Class F (descriptor render)**. No new primitive
+class is introduced; this voxel makes the rc8 composer callable in one
+shot from an LLM tool surface.
+
+### Added
+
+- **`srmech.dsl.run_toml_chain(spec, input_value)` — compose + run a
+  cascade in ONE call.** Author an inline TOML chain spec (a `[chain]`
+  table + `[[stage]]` array; each stage carries one discriminator —
+  `op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op`),
+  feed an input value, get the chain result. The declarative, one-shot
+  face of the rc8 DSL. Registered as a `ToolEntry` (owner `srmech`,
+  category `dsl`) with plain keyword params (`spec` / `input_value`), so
+  the rc10 property-key grammar holds and `invoke_tool`'s `fn(**coerced)`
+  calls it directly (no VAR_POSITIONAL unpack).
+- **`srmech.dsl.list_catalog_ops()` — enumerate the cascade-catalog
+  ops.** Returns one record per op (`{name, class, purpose}`) sourced
+  from the on-disk cascade-catalog TOML descriptors (the SSoT), so an
+  LLM can pick valid `op` / `fold_op` / `reduce_op` names + read each
+  op's A–N class before authoring a spec. 8 ops: `best_rational_signed`,
+  `chiral_dual`, `chiral_flip`, `cyclic_gcd`, `magnitude`,
+  `net_chirality`, `pin_slot_at_zero`, `reorient`. Registered as a
+  no-param `ToolEntry`.
+- **`srmech.dsl.build_chain_from_toml_str(spec)` — the string
+  counterpart of `build_chain_from_toml`.** Builds a `Chain` from an
+  in-memory TOML chain-spec string (rather than a path), so a chain can
+  be authored inline and materialised without writing a file first. The
+  load-bearing primitive `run_toml_chain` is built on.
+
+### Changed
+
+- **`srmech.amsc.tool_schema.warmup_all()` now imports `srmech.dsl`.**
+  Appended to the warmup import list so the dsl `ToolEntry`s register no
+  matter the entry-path and the manifest stays complete. The
+  registration itself fires from `_register_dsl_tools()` at
+  `tool_schema` import (declarative data only — it does NOT import
+  `srmech.dsl`, so there is no import cycle; the dotted-name targets are
+  resolved by `srmech.mcp._tools` at invoke time). The `warmup_all()`
+  import is independently verified cycle-free: neither `srmech.dsl` nor
+  `srmech.introspect` imports `srmech.amsc.tool_schema` at module load.
+- **De-brittled version-gate test** carries forward — `test_version_is_0
+  _5_0rc12` (renamed) is the single deliberate human-literal gate;
+  `test_version_module_matches` stays literal-free (sources-agree +
+  PEP 440 shape only).
+
+### Tests
+
+- Test determinism: pinned `time_ns` on all bio-totp round-trip tests so
+  they no longer depend on wall-clock window alignment (eliminates a
+  CI-load timing flake; no production change).
+
 ## [0.5.0rc11] - 2026-05-29
 
 **rc11 of N for v0.5.0 — the "Self-recognition root" voxel.** The

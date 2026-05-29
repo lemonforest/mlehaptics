@@ -2180,6 +2180,126 @@ def _register_introspect_tools() -> None:
     )
 
 
+def _register_dsl_tools() -> None:
+    """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
+
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 8 cascade-catalog
+    ops via a fluent builder (``chain().then(...).loop(...)...``). That
+    method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
+    can't chain builder methods. So this voxel exposes the *declarative*
+    surface: tools that do real work in ONE call.
+
+    Two entries, both with plain keyword parameters (no ``*args`` /
+    ``**kwargs`` — the rc10 property-key grammar holds and
+    ``invoke_tool``'s ``fn(**coerced)`` calls them directly):
+
+    * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
+      TOML chain spec + run it atomically; an LLM composes AND runs a
+      cascade in one call.
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 8 cascade-catalog
+      ops + their A–N class + purpose, so an LLM knows which op names a
+      spec may use.
+
+    Framework reading: the DSL composes Class M (cross-class bind) over
+    the cascade catalog; ``list_catalog_ops`` is Class E (catalog
+    enumeration) ∘ Class F (render of each descriptor's class + purpose).
+    No new primitive class is introduced.
+
+    NOTE on the import-cycle: this function builds *declarative*
+    ``ToolEntry`` data only — it does NOT import ``srmech.dsl`` (whose
+    ``_chain`` pulls ``srmech.introspect._writer`` and whose ``_catalog``
+    lazily pulls ``srmech.amsc.cascade``). The dotted-name targets are
+    resolved by :mod:`srmech.mcp._tools` at *invoke* time, not here, so
+    registering at this module's import is cycle-free. ``warmup_all()``
+    additionally imports ``srmech.dsl`` for manifest completeness; that
+    import is also cycle-free (verified — neither ``srmech.dsl`` nor
+    ``srmech.introspect`` imports ``srmech.amsc.tool_schema`` at module
+    load).
+    """
+    rc12 = " (v0.5.0rc12 — DSL surface voxel)."
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.run_toml_chain",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Compose AND run a cascade in ONE call: author an inline "
+                "TOML chain spec, feed an input value, get the chain "
+                "result. The declarative, one-shot face of the rc8 "
+                "cascade DSL (the fluent `chain().then(...).loop(...)` "
+                "builder is not tool-callable — a tool call can't chain "
+                "methods). The `spec` is a TOML document with a `[chain]` "
+                "table + `[[stage]]` array entries; each stage carries "
+                "exactly one discriminator: `op` (then), `loop_n` + "
+                "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
+                "`reduce_op` (reduce); any other key forwards as a "
+                "cascade-op kwarg (e.g. `max_denominator`). Op names come "
+                "from `srmech.dsl.list_catalog_ops` (the 8-op cascade "
+                "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
+                "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
+                "DSL composes Class M (cross-class bind) over the cascade "
+                "catalog; each stage is one A–N primitive-class instance, "
+                "the chain is the composition." + rc12
+            ),
+            parameters=(
+                ToolParameter(
+                    "spec", "str", required=True,
+                    summary=(
+                        "TOML chain spec: a [chain] table + [[stage]] "
+                        "array (one builder call per stage)."
+                    ),
+                ),
+                ToolParameter(
+                    "input_value", "int | float | str | list | dict",
+                    required=True,
+                    summary=(
+                        "Seed value fed to the first stage (a JSON-shaped "
+                        "value: number / string / list / dict). Passed to "
+                        "Chain.run unchanged."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="Any",
+                shape=(
+                    "Output of the final stage (an empty chain returns "
+                    "the input unchanged)."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.list_catalog_ops",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Enumerate the cascade-catalog ops a chain spec may use. "
+                "The discovery companion to `srmech.dsl.run_toml_chain`: "
+                "returns one record per op so an LLM can pick valid `op` "
+                "/ `fold_op` / `reduce_op` names and read each op's A–N "
+                "class composition + 1-line purpose BEFORE authoring a "
+                "spec. Sourced from the on-disk cascade-catalog TOML "
+                "descriptors (the SSoT), so it stays in lockstep with the "
+                "ops the runner can actually resolve (8 ops: "
+                "best_rational_signed, chiral_dual, chiral_flip, "
+                "cyclic_gcd, magnitude, net_chirality, pin_slot_at_zero, "
+                "reorient). Framework reading: Class E (catalog "
+                "enumeration) ∘ Class F (descriptor render). No "
+                "parameters." + rc12
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="list[dict]",
+                shape=(
+                    "[{'name': str, 'class': <A–N class composition>, "
+                    "'purpose': str}, ...] sorted ascending by name."
+                ),
+            ),
+        )
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Single registration entry-point (v0.5.0rc11 — Self-recognition root)
 # ──────────────────────────────────────────────────────────────────────
@@ -2206,10 +2326,19 @@ def warmup_all() -> None:
       registered by ``_register_introspect_tools()`` at this module's
       import, but importing the module keeps the warmup list a complete,
       self-documenting manifest of the registration-bearing submodules.
+    * ``srmech.dsl`` is belt-and-braces (v0.5.0rc12) — its tool entries
+      are registered by ``_register_dsl_tools()`` at this module's
+      import (declarative data only — no ``srmech.dsl`` import there, so
+      no cycle), but importing the module keeps the manifest complete
+      and confirms the package is importable. The import is cycle-free:
+      neither ``srmech.dsl`` nor ``srmech.introspect`` imports
+      ``srmech.amsc.tool_schema`` at module load (``srmech.dsl._catalog``
+      only references it in a docstring; ``srmech.introspect`` imports it
+      lazily inside ``describe()``).
     """
     import importlib
 
-    for mod in ("srmech.bus", "srmech.introspect"):
+    for mod in ("srmech.bus", "srmech.introspect", "srmech.dsl"):
         try:
             importlib.import_module(mod)
         except Exception:  # pragma: no cover - defensive; optional submodules
@@ -2224,6 +2353,7 @@ _register_primitive_class_tools()
 _register_spectral_runtime_tools()
 _register_qm_tools()
 _register_introspect_tools()
+_register_dsl_tools()
 
 
 __all__ = [
