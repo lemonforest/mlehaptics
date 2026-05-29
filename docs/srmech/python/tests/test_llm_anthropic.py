@@ -201,16 +201,50 @@ def test_name_mapping_under_64_char_ceiling() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_tool_catalog_includes_every_registered_tool(mock_sdk) -> None:
-    """The catalog handed to Claude has one entry per registered
-    ToolEntry; the count matches the MCP adapter."""
+def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
+    """The catalog handed to Claude has one entry per ADVERTISED
+    (``mcp_callable=True``) ToolEntry — v0.5.0rc15 excludes the 7
+    handle-pending ``srmech.spectral.*`` tools so Claude is never offered
+    an uncallable tool. The count matches the MCP advertised surface
+    (``tool_entries_to_mcp_defs``)."""
+    from srmech.mcp._tools import tool_entries_to_mcp_defs
+
     mock_sdk([])  # no responses needed; we only construct the agent
     agent = AnthropicAgent()
-    expected = len(get_tool_schema().tools)
+    schema = get_tool_schema()
+    expected = sum(1 for e in schema.tools if e.mcp_callable)
     assert len(agent.tools) == expected
     assert expected > 50, (
-        f"expected ~149 registered tools; got {expected}"
+        f"expected ~151 advertised tools; got {expected}"
     )
+    # Same count as the MCP adapter's advertised surface.
+    assert len(agent.tools) == len(list(tool_entries_to_mcp_defs()))
+    # The full registry is strictly larger (the 7 handle-pending tools
+    # are still present for introspection, just not advertised).
+    assert len(schema.tools) == expected + 7
+
+
+def test_handle_pending_tools_excluded_from_anthropic_catalog(
+    mock_sdk,
+) -> None:
+    """v0.5.0rc15 — NONE of the 7 handle-pending ``srmech.spectral.*``
+    tools (``mcp_callable=False``) appear in the Anthropic catalog Claude
+    sees, on EITHER the catalog name list OR the reverse name map."""
+    mock_sdk([])
+    agent = AnthropicAgent()
+    schema = get_tool_schema()
+    pending = {e.name for e in schema.tools if not e.mcp_callable}
+    assert pending, "expected at least one handle-pending tool"
+    # No advertised catalog entry maps back to a handle-pending srmech name.
+    catalog_srmech_names = set(agent._name_map.values())
+    leaked = pending & catalog_srmech_names
+    assert not leaked, (
+        f"handle-pending tools leaked into the Anthropic catalog: {leaked}"
+    )
+    # And none of the synthesised Anthropic names is one of theirs.
+    pending_anthropic = {n.replace(".", "_") for n in pending}
+    catalog_names = {t["name"] for t in agent.tools}
+    assert not (pending_anthropic & catalog_names)
 
 
 def test_tool_catalog_entries_have_anthropic_shape(mock_sdk) -> None:

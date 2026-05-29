@@ -258,7 +258,15 @@ def tool_entries_to_mcp_defs(
     *,
     name_filter: Optional[Callable[[str], bool]] = None,
 ) -> Iterator[Dict[str, Any]]:
-    """Yield an MCP tool definition for every registered ToolEntry.
+    """Yield an MCP tool definition for every ADVERTISED registered
+    ToolEntry.
+
+    v0.5.0rc15 — entries marked ``mcp_callable=False`` (the 7
+    ``srmech.spectral.*`` handle-pending tools) are EXCLUDED here so a
+    ``tools/list`` consumer is never offered a tool it cannot actually
+    call. They remain in ``get_tool_schema().tools`` for introspection
+    (``srmech.introspect.describe`` reports them under
+    ``handle_pending``); only the advertised catalog hides them.
 
     Parameters
     ----------
@@ -269,6 +277,8 @@ def tool_entries_to_mcp_defs(
     """
     schema = get_tool_schema()
     for entry in schema.tools:
+        if not entry.mcp_callable:
+            continue
         if name_filter is not None and not name_filter(entry.name):
             continue
         yield tool_entry_to_mcp_def(entry)

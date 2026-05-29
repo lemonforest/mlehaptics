@@ -609,6 +609,15 @@ def describe() -> Dict[str, Any]:
     scope here (later voxels — rc15 config/data-schemas, rc16 LLM
     agent — add those deeper surfaces).
 
+    v0.5.0rc15 — the ``tools`` block now reports the MCP-callability
+    SPLIT: ``mcp_callable`` (advertised across the JSON-RPC / Anthropic
+    boundary) vs. ``handle_pending`` (registered for introspection but
+    NOT advertised — the 7 ``srmech.spectral.*`` tools whose surface is a
+    bare ``SpectralHandle`` JSON cannot carry by value; by-reference id
+    grammar lands in rc16). A top-level ``handle_pending`` lists their
+    names. The package declaring its own callable shape IS the apparatus
+    thesis (Class H self-introspection at package scale).
+
     Returns
     -------
     dict
@@ -621,7 +630,10 @@ def describe() -> Dict[str, Any]:
                          "abi_version": <int|None>,
                          "native_version": <str|None>},
               "tools": {"total": <int>,
+                        "mcp_callable": <int>,
+                        "handle_pending": <int>,
                         "by_category": {<category>: <count>, ...}},
+              "handle_pending": [<sorted handle-pending tool names>],
               "categories": [<sorted category names>],
             }
     """
@@ -641,8 +653,14 @@ def describe() -> Dict[str, Any]:
     schema = get_tool_schema()
 
     by_category: Dict[str, int] = {}
+    handle_pending: List[str] = []
+    mcp_callable_count = 0
     for entry in schema.tools:
         by_category[entry.category] = by_category.get(entry.category, 0) + 1
+        if entry.mcp_callable:
+            mcp_callable_count += 1
+        else:
+            handle_pending.append(entry.name)
 
     return {
         "srmech_version": schema.srmech_version,
@@ -654,8 +672,11 @@ def describe() -> Dict[str, Any]:
         },
         "tools": {
             "total": len(schema.tools),
+            "mcp_callable": mcp_callable_count,
+            "handle_pending": len(handle_pending),
             "by_category": dict(sorted(by_category.items())),
         },
+        "handle_pending": sorted(handle_pending),
         "categories": sorted(by_category.keys()),
     }
 

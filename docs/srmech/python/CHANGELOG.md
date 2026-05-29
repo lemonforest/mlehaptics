@@ -6,6 +6,83 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc15] - 2026-05-29
+
+**rc15 of N for v0.5.0 — the "every-tool invocation smoke + honest
+`mcp_callable` marking" voxel (upstream §10.1).** rc14 made every declared
+param TYPE JSON-coercible and shipped the static `has_coercer` ratchet —
+but `has_coercer` could not tell a REAL coercer from the `_identity`
+pass-through. The 7 `srmech.spectral.*` tools whose surface is a bare
+`SpectralHandle` / `SpectralHandle | bytes` went **statically-green yet
+were not actually invocable** across the JSON boundary (an opaque
+in-process dataclass handle cannot ride JSON by value). rc15 closes that
+gap empirically and marks those 7 honestly. Pure-Python only — no C
+change, ABI stays 3.
+
+Framework reading: the package declaring its own callable shape (which
+tools are advertisable vs. handle-pending) IS **Class H
+(self-introspection)** at package scale — the apparatus thesis. No new
+primitive class is introduced.
+
+### Added
+
+- **THE EVERY-TOOL INVOCATION SMOKE (§10.1) —
+  `test_every_advertised_tool_invocable` in `tests/test_mcp.py`.** For
+  EVERY `mcp_callable=True` `ToolEntry`, it synthesises a minimal valid
+  args dict from the tool's schema (using the rc14 coercion encodings per
+  declared type — `int`→1, `float`→1.0, `bytes`→base64(b"abcd"),
+  `np.ndarray`→2×2 identity, `complex`→`[1.0, 0.0]`, containers→minimal
+  valid shapes), then actually CALLS the tool via `invoke_tool`. It
+  asserts NO binding error (`TypeError` unexpected/missing kwarg) and NO
+  coercion error; it TOLERATES domain errors (`ValueError` / non-square
+  matrix / length mismatch / op-internal `TypeError`) — those prove the
+  tool was reached with bindable + coercible args (callability, not domain
+  validity). Result: **151/151 advertised tools invocable**. This is the
+  EMPIRICAL complement to rc14's static `has_coercer` ratchet — it closes
+  the `has_coercer`-vs-actually-callable gap that left the SpectralHandle
+  `_identity` pass-through green.
+- **`ToolEntry.mcp_callable: bool` (default `True`, back-compat) +
+  `ToolEntry.mcp_unavailable_reason: str | None`.** The 7 handle-pending
+  `srmech.spectral.*` tools (`decompose` / `delta` / `recompose` /
+  `similarity` / `predict` / `prediction_error` / `truncate_sparse`) are
+  marked `mcp_callable=False` with the reason "handle-pending:
+  by-reference SpectralHandle id arrives in the bus handle-grammar (rc16);
+  use the srmech package directly until then." `to_jsonable()` emits both
+  new fields.
+- **`test_handle_pending_absent_from_advertised_catalogs` +
+  `test_handle_pending_tools_excluded_from_anthropic_catalog`.** Assert
+  the 7 handle-pending tools are absent from BOTH advertised catalogs (MCP
+  `tools/list` + Anthropic `_build_tool_catalog`) while remaining in the
+  registry for introspection.
+
+### Changed
+
+- **Advertised-surface exclusion of `mcp_callable=False` entries at BOTH
+  seams.** `srmech.mcp._tools.tool_entries_to_mcp_defs` (the MCP
+  `tools/list` source) and `AnthropicAgent._build_tool_catalog` (the
+  Anthropic seam) now skip `mcp_callable=False` entries, so an LLM is
+  never offered a tool it cannot call. The advertised surface drops from
+  158 → **151**; the registry (`get_tool_schema().tools`) keeps all 158
+  for introspection.
+- **`srmech.introspect.describe()` reports the split.** The `tools` block
+  now carries `mcp_callable` + `handle_pending` counts alongside `total` +
+  `by_category`, and a top-level `handle_pending` lists the 7 names. The
+  `describe` ToolEntry's documented return-shape is updated to match.
+- **Schema-accuracy fix surfaced by the smoke:**
+  `srmech.amsc.laplacian.dense_laplacian` + `normalized_laplacian` now
+  declare `edges` as `list[tuple[int, int]]` (matching the shipped
+  `(n, edges: Iterable[Tuple[int, int]])` signature + the sibling
+  `dense_adjacency` entry); the earlier bare `list` type advertised an
+  edge-list shape too loose for an LLM to populate. Signature unchanged.
+
+### Deferred
+
+- **SpectralHandle by-reference invocation → rc16** (per user decision).
+  The bus handle-grammar (a `SpectralHandle` id arriving by reference)
+  lets the 7 spectral tools become `mcp_callable=True` then; until then the
+  `srmech` package (`import srmech.spectral`) is the path for spectral
+  work.
+
 ## [0.5.0rc14] - 2026-05-29
 
 **rc14 of N for v0.5.0 — the "full JSON↔native MCP coercion" voxel.** A
