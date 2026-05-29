@@ -81,14 +81,20 @@ read-only unidirectional special case of this bus.
 from __future__ import annotations
 
 # Public surface re-exports
-from ._chain import (
-    ChainCipherError,
-    ChainFormatError,
-    ChainState,
-    CounterReplayError,
-    MacMismatchError,
+# v0.5.0rc7: primary cipher surface is now Bio-TOTP (UTLP Claim 255).
+# The rc3 _chain module remains importable as a deprecation shim for
+# one rc cycle; its names map onto Bio-TOTP equivalents.
+from ._bio_totp import (
+    BioTotpChannel,
+    BioTotpDecryptError,
+    BioTotpError,
+    BioTotpFormatError,
+    DEFAULT_WINDOW_NS,
+    WINDOW_ENV_VAR,
+    ZERO_DNA,
+    channel_id_from_name,
+    cipher_backend_name,
     decode_splice,
-    derive_state,
 )
 from ._client import (
     BusError,
@@ -137,24 +143,27 @@ def list() -> list:  # noqa: A001 — public API name; shadows builtin
 
 __all__ = [
     "BUS_DIR_NAME",
+    "BioTotpChannel",
+    "BioTotpDecryptError",
+    "BioTotpError",
+    "BioTotpFormatError",
     "BusError",
     "BusTimeout",
     "Channel",
-    "ChainCipherError",
-    "ChainFormatError",
-    "ChainState",
-    "CounterReplayError",
+    "DEFAULT_WINDOW_NS",
     "Endpoint",
     "Event",
     "Handler",
     "MPR_VERSION_BUS",
-    "MacMismatchError",
     "ServerEndpoint",
+    "WINDOW_ENV_VAR",
+    "ZERO_DNA",
     "bus_dir",
     "by_name",
+    "channel_id_from_name",
+    "cipher_backend_name",
     "connect",
     "decode_splice",
-    "derive_state",
     "is_posix_uds",
     "list",
     "list_endpoints",

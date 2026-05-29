@@ -6,6 +6,44 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), v0.5.0 DSL work (runner + fluent chain() API + CLI pipe + ADR-0002 Phase 2-v2 loop/fold/reduce, task #235), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc7] - 2026-05-28
+
+**rc7 of N for v0.5.0 — UTLP Bio-TOTP cipher alignment + tool-schema opt-in
+discoverability.**
+
+Two related fixes per user direction 2026-05-28:
+
+1. **UTLP Bio-TOTP cipher alignment** (Claim 255). rc3 shipped a SHA-256
+   chained-cipher that was structurally related but DIFFERENT from the
+   actual UTLP Bio-TOTP pattern in `examples/utlp/utlp_hal_security.h`.
+   rc7 replaces rc3's `_chain.py` with `_bio_totp.py` implementing the
+   real UTLP construction: key derivation rolls with a 250 ms time bucket
+   (`Key = SHA256(DNA || QuantizedTime)[0:16]`); receiver tolerates ±1
+   window for clock skew; nonce constructed from sender_id + channel_id +
+   packet_seq ("Exon fields"); same code path for unencrypted (ZERO_DNA)
+   and encrypted channels (herd-immunity); kwarg renamed `seed` → `dna`
+   for naming alignment (`seed` still accepted with DeprecationWarning).
+   Default cipher uses stdlib HMAC-SHA-256 keystream (zero new deps);
+   `pip install srmech[crypto]` opts into UTLP-exact AES-128-CTR via
+   the `cryptography` library.
+
+2. **Tool-schema opt-in discoverability**: every emitting op's ToolEntry
+   now mentions inline: "Events emitted only when wrapped in
+   `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var
+   set; otherwise silent." Plus new top-level
+   `srmech.introspect.publish` ToolEntry documenting the opt-in.
+   Discoverable via the MCP adapter (rc6) — LLMs in Claude Code see the
+   opt-in path inline when reading the tool catalog.
+
+OUT OF SCOPE per user direction: UTLP's mesh / multi-arbor / Loom /
+Genesis-election / time-sync layer is embedded-specific and is NOT
+brought over to srmech.bus. srmech.bus is local-IPC only.
+
+Pure-Python; ABI unchanged at 3. ~30 new tests; full suite ~1614 passing.
+
+Remaining v0.5.0 rcs: rc8 DSL runner (task #235), optional rc9 Anthropic
+SDK secondary adapter.
+
 ## [0.5.0rc6] - 2026-05-28
 
 **rc6 of N for v0.5.0 — MCP server adapter (Claude Code integration).**

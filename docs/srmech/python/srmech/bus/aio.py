@@ -337,7 +337,8 @@ async def connect(
     name: str,
     *,
     broadcast_queue_max: int = _sync_client.DEFAULT_BROADCAST_QUEUE_MAX,
-    seed: Optional[bytes] = None,
+    dna: Optional[bytes] = None,
+    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> AsyncIterator[AsyncChannel]:
     """Async equivalent of :func:`srmech.bus.connect`.
 
@@ -345,12 +346,15 @@ async def connect(
     underlying sync channel on context exit (in a worker thread, so
     the close is cancellation-safe).
 
-    Parameters mirror the sync :func:`srmech.bus.connect`.
+    Parameters mirror the sync :func:`srmech.bus.connect`. The
+    rc7-renamed ``dna`` kwarg is preferred over ``seed`` (deprecated
+    alias kept for one rc cycle).
     """
     sync_ch = await asyncio.to_thread(
         _sync_client.connect,
         name,
         broadcast_queue_max=broadcast_queue_max,
+        dna=dna,
         seed=seed,
     )
     async_ch = AsyncChannel(sync_ch)
@@ -367,7 +371,8 @@ async def serve(
     handler: Callable[[dict], Any],
     *,
     accept_backlog: int = 8,
-    seed: Optional[bytes] = None,
+    dna: Optional[bytes] = None,
+    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> AsyncIterator[AsyncEndpoint]:
     """Async equivalent of :func:`srmech.bus.serve`.
 
@@ -413,6 +418,7 @@ async def serve(
         name,
         wrapped_handler,
         accept_backlog=accept_backlog,
+        dna=dna,
         seed=seed,
     )
     async_ep = AsyncEndpoint(sync_ep)
