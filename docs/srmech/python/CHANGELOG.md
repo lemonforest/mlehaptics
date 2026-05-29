@@ -6,6 +6,79 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc13] - 2026-05-29
+
+**rc13 of N for v0.5.0 — MCP surface-correctness bug-fix voxel.** Two
+real bugs surfaced by upstream MCP usage, plus the would-have-caught-it
+ratchet. Both bugs affected BOTH the MCP path and the Anthropic adapter
+(shared `srmech.mcp._tools.invoke_tool` dispatch). Pure-Python only — no
+C change, ABI stays 3.
+
+Framework reading: the fixes are **Class H (self-introspection)** at the
+package's tool-surface — the schema recognising its own callables' shape.
+The integer `seed` is **Class N (rational / deterministic anchor)** made
+JSON-expressible so the bit-exact / attestation discipline survives the
+JSON-RPC / Anthropic boundary. No new primitive class is introduced.
+
+### Fixed
+
+- **`hdc.klein4_random` / `hdc.polar_random` are now seedable over
+  JSON-RPC (BUG A — found via upstream MCP usage).** They were seedable
+  only via `rng: numpy.random.Generator`, which cannot cross JSON-RPC nor
+  be expressed in an Anthropic tool schema — so MCP / Anthropic callers
+  could not obtain a DETERMINISTIC Klein-4 / polar vector, breaking
+  srmech's bit-exact / attestation discipline. Both ops gain an integer
+  `seed: int | None = None` param: when given (and `rng` is not), the
+  generator is built internally as `np.random.default_rng(seed)`. The
+  in-process `rng=` path is preserved for back-compat; **precedence** —
+  an explicit `rng` wins over `seed` if both are supplied. Each op's
+  `ToolEntry` now advertises the JSON-friendly `seed: int` and DROPS the
+  un-serialisable `rng` Generator (a Generator has no valid JSON-Schema
+  type and should never have been in the MCP-facing schema). Acceptance:
+  `klein4_random(seed=42)` is bit-identical twice directly AND twice
+  through `invoke_tool`.
+- **`srmech.amsc.naming.lookup` is callable again via MCP / Anthropic
+  (BUG B — found via upstream MCP usage).** Its `ToolEntry` declared a
+  param `entries` that the shipped `lookup(key, pairs)` does not accept,
+  so every MCP / Anthropic invocation raised
+  `TypeError: lookup() got an unexpected keyword argument 'entries'` —
+  the tool was uncallable. Fixed the SCHEMA to match the shipped
+  signature (`entries` → `pairs`), least-surprise (the function is the
+  SSoT).
+- **`srmech.amsc.template.render` schema/signature drift (surfaced by
+  the new ratchet).** Its `ToolEntry` declared `substitutions` while the
+  shipped `render(template_bytes, mapping)` accepts `mapping` — same
+  uncallable-tool failure mode as BUG B. Aligned the schema
+  (`substitutions` → `mapping`).
+
+### Added
+
+- **THE RATCHET — schema/signature alignment test
+  (`test_schema_signature_alignment_no_drift` in `tests/test_mcp.py`).**
+  For EVERY `ToolEntry` in `get_tool_schema().tools`, it resolves the
+  dotted callable and asserts each declared parameter is BINDABLE to the
+  callable's signature (tolerating `**kwargs` and the rc10 `*args`
+  clean-name convention). This catches the whole class of bug behind
+  BUG B before it ships. Running it surfaced exactly two drifts across
+  all 158 tools — `naming.lookup` (`entries`) and `template.render`
+  (`substitutions`) — both now fixed; the ratchet passes clean.
+
+### Tests
+
+- `test_klein4_random_seed_reproducible` + `test_polar_random_seed_
+  reproducible` — same `seed` ⇒ bit-identical vectors directly and via
+  `invoke_tool`; a different seed differs (seed is load-bearing).
+- `test_random_ops_rng_takes_precedence_over_seed` — `rng` wins over
+  `seed`; the legacy `rng=` path stays back-compat.
+- `test_random_ops_schema_drops_unserialisable_rng` — the `*_random`
+  ToolEntries advertise `seed` and NOT `rng`.
+- `test_naming_lookup_callable_via_invoke_tool` +
+  `test_template_render_callable_via_invoke_tool` — both return a real
+  result through `invoke_tool` (no TypeError).
+- De-brittled version-gate test carries forward — `test_version_is_0_5_
+  0rc13` (renamed) is the single deliberate human-literal gate;
+  `test_version_module_matches` stays literal-free.
+
 ## [0.5.0rc12] - 2026-05-29
 
 **rc12 of N for v0.5.0 — the "DSL surface" voxel.** Exposes the rc8

@@ -91,29 +91,32 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc12():
-    """v0.5.0rc12 — the "DSL surface" voxel.
+def test_version_is_0_5_0rc13():
+    """v0.5.0rc13 — MCP surface-correctness bug-fix voxel.
 
-    Exposes the rc8 cascade-composition DSL (``srmech.dsl.*``) as
-    declarative MCP / Anthropic ToolEntries so an LLM composes AND runs
-    a cascade in a single tool call. The fluent ``chain().then(...)
-    .loop(...)`` builder is not tool-callable (a tool call can't chain
-    methods); the *declarative* surface does real work in ONE call:
+    Two real bugs surfaced by upstream MCP usage, plus the
+    would-have-caught-it ratchet. Both bugs affected BOTH the MCP path
+    and the Anthropic adapter (shared ``srmech.mcp._tools.invoke_tool``):
 
-    1. ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an
-       inline TOML chain spec + run it atomically, returning the chain
-       result. Backed by the new ``build_chain_from_toml_str`` (the
-       string counterpart of ``build_chain_from_toml``). Plain keyword
-       params, so ``invoke_tool``'s ``fn(**coerced)`` calls it directly.
-    2. ``srmech.dsl.list_catalog_ops()`` — enumerate the 8
-       cascade-catalog ops + their A–N class + 1-line purpose (sourced
-       from the on-disk descriptors), so an LLM knows which ``op`` /
-       ``fold_op`` / ``reduce_op`` names a spec may use.
+    1. ``hdc.klein4_random`` / ``hdc.polar_random`` integer ``seed``.
+       They were seedable only via ``rng: numpy.random.Generator``,
+       which cannot cross JSON-RPC nor be expressed in an Anthropic tool
+       schema — so MCP / Anthropic callers could not obtain a
+       DETERMINISTIC vector (breaking the bit-exact / attestation
+       discipline). Added an integer ``seed`` param (``rng`` wins if
+       both supplied); the ToolEntry now advertises ``seed`` and DROPS
+       the un-serialisable Generator.
+    2. ``srmech.amsc.naming.lookup`` schema/signature drift. Its
+       ToolEntry declared a param (``entries``) the shipped
+       ``lookup(key, pairs)`` does not accept, so the tool was
+       uncallable (``TypeError: unexpected keyword 'entries'``). Fixed
+       the SCHEMA to match the shipped signature (``pairs``).
 
-    Registered via ``_register_dsl_tools()`` at ``tool_schema`` import
-    (declarative data only — no ``srmech.dsl`` import there, so no
-    cycle); ``srmech.dsl`` also appended to ``warmup_all()`` for a
-    complete, self-documenting registration manifest.
+    Plus THE RATCHET — ``test_schema_signature_alignment_no_drift`` in
+    test_mcp.py asserts every ToolEntry's declared params are bindable to
+    its resolved callable. It would have caught BUG B and additionally
+    surfaced ``template.render`` (declared ``substitutions``; shipped
+    ``mapping``), which was aligned to the shipped signature too.
 
     The version-gate test stays the SINGLE deliberate human-literal gate
     (the conscious per-rc bump point); ``test_version_module_matches``
@@ -122,15 +125,14 @@ def test_version_is_0_5_0rc12():
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: the DSL composes Class M (cross-class bind) over
-    the cascade catalog — each chain stage is one A–N primitive-class
-    instance, the chain is the composition. ``list_catalog_ops`` is
-    Class E (catalog enumeration) ∘ Class F (render of each descriptor's
-    class + purpose). No new primitive class is introduced; this voxel
-    makes the rc8 composer callable in one shot from an LLM tool surface.
+    Framework reading: the fixes are Class H (self-introspection) at the
+    package's tool-surface — the schema recognising its own callables'
+    shape. The ``seed`` is Class N (rational/deterministic anchor) made
+    JSON-expressible so the bit-exact discipline survives the JSON-RPC /
+    Anthropic boundary. No new primitive class is introduced.
     """
-    assert srmech.__version__ == "0.5.0rc12", (
-        f"expected srmech.__version__ == '0.5.0rc12'; got "
+    assert srmech.__version__ == "0.5.0rc13", (
+        f"expected srmech.__version__ == '0.5.0rc13'; got "
         f"{srmech.__version__!r}"
     )
 
