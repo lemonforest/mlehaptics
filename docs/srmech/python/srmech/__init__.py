@@ -77,6 +77,8 @@ __all__ = [
     "profile",
     # introspect module exposure (v0.4.6rc2)
     "introspect",
+    # self-recognition root (v0.5.0rc11)
+    "warmup_all",
 ]
 
 # Expose ``srmech.introspect`` as a regular attribute (the module is
@@ -84,3 +86,19 @@ __all__ = [
 # just records it for symbol-exposure tests that check
 # ``hasattr(srmech, "introspect")``).
 introspect = _introspect
+
+# v0.5.0rc11 — Self-recognition root. ``warmup_all()`` is THE single
+# registration entry-point: it imports every submodule that registers
+# ToolEntries (``srmech.bus`` / ``srmech.introspect``) so the registry
+# is fully populated no matter how srmech was entered. Per user
+# direction 2026-05-29 it fires here in ``__init__`` — substrate-
+# coherent: every consumer sees the complete tool-schema from t=0,
+# permanently closing the orphan-registration bug class (the rc9 bus
+# miss). Placed at the END of package init (after ``__version__`` /
+# profile loader / introspect are all set up) so the
+# ``from .amsc.tool_schema import warmup_all`` import — which fully
+# initialises ``srmech.amsc`` — sees a complete core ``srmech``
+# namespace and cannot trip an import cycle.
+from .amsc.tool_schema import warmup_all  # noqa: E402
+
+warmup_all()
