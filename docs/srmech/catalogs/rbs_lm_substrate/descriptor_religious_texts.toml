@@ -139,6 +139,26 @@ max_pairs               = 30       # all ordered pairs of 6 texts = 30
 sample_seeds_per_pair   = 20
 
 # ---------------------------------------------------------------------------
+# Emergent-perplexity profile (F168) — resolution-level = chirality-sector depth
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.emergent_perplexity]
+# F168 test: read perplexity off the RESOLUTION-LEVEL profile, NOT a forced
+# softmax. The n-gram orders ARE the F155 structural levels = the chirality
+# sectors (word=order1, bigram=order2, ... long-range=higher). Backoff-accuracy
+# as a function of max-order is the emergent profile: the order beyond which it
+# plateaus is the corpus's resolution DEPTH (its emergent perplexity profile).
+# Per-text = domain-anchored (each labeled kernel its own domain, F165); the
+# template corpus is the SHALLOW-structure control (Step 4 plateaued at order 2).
+# Prediction (F168 §5): real long-range corpora keep gaining accuracy at higher
+# orders (deeper sectors populate) where the template plateaus. Null counts.
+max_order               = 6      # resolution levels (sectors) to profile (unigram..6-gram)
+n_units_per_text        = 4000   # verse-lines sampled per text
+held_out_fraction       = 0.5    # train-half / test-half (F163 §7 length-control)
+test_positions          = 4000   # held-out positions scored per corpus
+seed                    = 42
+klein4_sector_demo      = true   # bind level-predictions into Klein-4 sectors; read occupancy
+
+# ---------------------------------------------------------------------------
 # Standard AMSC tail
 # ---------------------------------------------------------------------------
 [parse]
