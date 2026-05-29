@@ -218,6 +218,15 @@ class AnthropicAgent:
         tools: List[Dict[str, Any]] = []
         name_map: Dict[str, str] = {}
         for entry in ts.tools:
+            # v0.5.0rc15 — never offer Claude a tool that is not actually
+            # invocable across the JSON boundary. The 7 handle-pending
+            # ``srmech.spectral.*`` tools (``mcp_callable=False``) stay in
+            # the registry for introspection but are excluded from the
+            # Anthropic catalog — same seam-exclusion the MCP
+            # ``tools/list`` path applies in
+            # ``srmech.mcp._tools.tool_entries_to_mcp_defs``.
+            if not entry.mcp_callable:
+                continue
             if self.config.tool_filter is not None and not \
                     self.config.tool_filter(entry.name):
                 continue

@@ -93,6 +93,16 @@ PUBLISH_OPT_IN_NOTE: str = (
     "or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent."
 )
 
+#: Reason stamped on the 7 ``srmech.spectral.*`` ToolEntries marked
+#: ``mcp_callable=False`` (v0.5.0rc15). Their surface is a bare
+#: ``SpectralHandle`` / ``SpectralHandle | bytes`` opaque handle JSON-RPC
+#: cannot carry by value; the by-reference id grammar arrives over the bus
+#: in rc16. Until then the package is the path for spectral work.
+_SPECTRAL_HANDLE_PENDING_REASON: str = (
+    "handle-pending: by-reference SpectralHandle id arrives in the bus "
+    "handle-grammar (rc16); use the srmech package directly until then."
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Error types
@@ -158,6 +168,21 @@ class ToolEntry:
     returns: Optional[ToolReturn] = None
     smoke_test_hint: Optional[Dict[str, Any]] = None
     example: Optional[Dict[str, Any]] = None
+    #: v0.5.0rc15 — whether this tool is actually invocable across the
+    #: JSON-RPC / Anthropic boundary. Default ``True`` (back-compat: every
+    #: pre-rc15 ToolEntry stays callable). Set ``False`` for tools whose
+    #: param/return types are an opaque in-process handle that JSON cannot
+    #: carry by value (the 7 ``srmech.spectral.*`` tools whose surface is a
+    #: bare ``SpectralHandle`` / ``SpectralHandle | bytes`` — rc14 left
+    #: their coercion as an ``_identity`` pass-through, which the static
+    #: ``has_coercer`` ratchet could not distinguish from a real handler).
+    #: A ``False`` entry STAYS in ``get_tool_schema().tools`` for
+    #: introspection but is EXCLUDED from the advertised MCP ``tools/list``
+    #: + Anthropic catalogs so an LLM is never offered an uncallable tool.
+    mcp_callable: bool = True
+    #: Human-readable reason a tool is ``mcp_callable=False`` (surfaced to
+    #: introspection consumers). ``None`` for callable tools.
+    mcp_unavailable_reason: Optional[str] = None
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -168,6 +193,7 @@ class ToolEntry:
             "category": self.category,
             "summary": self.summary,
             "parameters": [asdict(p) for p in self.parameters],
+            "mcp_callable": self.mcp_callable,
         }
         if self.returns is not None:
             out["returns"] = asdict(self.returns)
@@ -175,6 +201,8 @@ class ToolEntry:
             out["smoke_test_hint"] = dict(self.smoke_test_hint)
         if self.example is not None:
             out["example"] = dict(self.example)
+        if self.mcp_unavailable_reason is not None:
+            out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
         return out
 
 
@@ -664,7 +692,16 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Graph Laplacian L = D - A. Native C dispatch when "
                     "n ≤ 256; numpy fallback otherwise.",
-            parameters=(P("n", "int", True), P("edges", "list", True),
+            # rc15: declare `edges` as list[tuple[int, int]] (matching the
+            # shipped `dense_laplacian(n, edges: Iterable[Tuple[int, int]])`
+            # signature + the sibling `dense_adjacency` entry). The earlier
+            # bare `list` type advertised an edge-list shape too loose for an
+            # LLM to populate correctly — surfaced by the rc15 every-tool
+            # invocation smoke (a bare-`list` synth fed [1, 2] tripped the
+            # op's 2-tuple unpack). Schema-accuracy fix only; signature
+            # unchanged.
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
@@ -673,7 +710,12 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Symmetric normalized Laplacian L_sym = I - D^{-1/2} A D^{-1/2}. "
                     "Isolated vertices have diagonal entry 0.",
-            parameters=(P("n", "int", True), P("edges", "list", True),
+            # rc15: declare `edges` as list[tuple[int, int]] (matching the
+            # shipped signature + the dense_adjacency entry). Schema-accuracy
+            # fix surfaced by the rc15 every-tool invocation smoke; signature
+            # unchanged.
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
@@ -1335,6 +1377,22 @@ def _register_spectral_runtime_tools() -> None:
     over the existing 14-class A-N vocabulary per
     ``[[feedback_no_privileged_primitive_classes]]``; no new primitive
     class is introduced.
+
+    v0.5.0rc15 — every one of these 7 entries is marked
+    ``mcp_callable=False`` (:data:`_SPECTRAL_HANDLE_PENDING_REASON`).
+    Their param/return surface is a bare ``SpectralHandle`` (or
+    ``SpectralHandle | bytes``) — an opaque in-process dataclass handle
+    that JSON-RPC cannot carry by value. rc14 mapped that type to an
+    ``_identity`` coercion pass-through, which the static ``has_coercer``
+    ratchet could not tell apart from a real handler (the gap rc15's
+    every-tool invocation smoke closes). The by-reference handle grammar
+    (a ``SpectralHandle`` id arriving over the bus) lands in rc16; until
+    then these stay registered for introspection but are EXCLUDED from the
+    advertised MCP / Anthropic catalogs so an LLM is never offered a tool
+    it cannot actually call. Use the ``srmech`` package directly
+    (``import srmech.spectral``) for spectral work today. The spectral
+    functions THEMSELVES are untouched — this is surface-honesty marking
+    only.
     """
     P = ToolParameter
     R = ToolReturn
@@ -1358,6 +1416,8 @@ def _register_spectral_runtime_tools() -> None:
                         P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("SpectralHandle", "frozen dataclass"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.delta", owner="srmech",
@@ -1370,6 +1430,8 @@ def _register_spectral_runtime_tools() -> None:
             parameters=(P("ref", "SpectralHandle | bytes", True),
                         P("current", "SpectralHandle | bytes", True)),
             returns=R("bytes", "same length as inputs"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.recompose", owner="srmech",
@@ -1383,6 +1445,8 @@ def _register_spectral_runtime_tools() -> None:
                         P("laplacian", "np.ndarray", True),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("np.ndarray", "(n_modes,) complex128"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.similarity", owner="srmech",
@@ -1394,6 +1458,8 @@ def _register_spectral_runtime_tools() -> None:
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
             returns=R("float", "in [-1, +1]"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         # ────────────────────────────────────────────────────────────
         # rcN+2 — predict / prediction_error / truncate_sparse
@@ -1415,6 +1481,8 @@ def _register_spectral_runtime_tools() -> None:
                         P("dt", "float", False, "default 1.0; tick magnitude"),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("SpectralHandle", "phase-evolved coefficients"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.prediction_error", owner="srmech",
@@ -1433,6 +1501,8 @@ def _register_spectral_runtime_tools() -> None:
                         P("threshold", "float", False,
                           "default 0.0; in [0.0, 1.0]")),
             returns=R("bytes", "delta or all-zeros if gated"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.truncate_sparse", owner="srmech",
@@ -1451,6 +1521,8 @@ def _register_spectral_runtime_tools() -> None:
                         P("threshold", "Optional[float]", False,
                           "magnitude floor; modes >= kept")),
             returns=R("SpectralHandle", "truncated coefficients"),
+            mcp_callable=False,
+            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
     ]
     for e in entries:
@@ -2182,8 +2254,12 @@ def _register_introspect_tools() -> None:
                 "then returns the package version, the tool-schema "
                 "version, the native-dispatch status (has_native / "
                 "abi_version / native_version), the total registered "
-                "tool count + a per-category breakdown, and the sorted "
-                "list of category names. This is a ROOT / INDEX — it "
+                "tool count split into mcp_callable (advertised over "
+                "JSON-RPC / Anthropic) vs handle_pending (registered for "
+                "introspection but not advertised — the SpectralHandle "
+                "by-reference tools, rc16) + a per-category breakdown, "
+                "and the sorted list of category names. This is a ROOT / "
+                "INDEX — it "
                 "surfaces the SHAPE; per-tool JSON schemas, env, and "
                 "error-type detail come from later voxels. Framework "
                 "reading: Class H (self-introspection) at package scale "
@@ -2197,9 +2273,11 @@ def _register_introspect_tools() -> None:
                     "{'srmech_version': str, 'tool_schema_version': "
                     "str, 'native': {'has_native': bool, 'abi_version': "
                     "int | None, 'native_version': str | None}, "
-                    "'tools': {'total': int, 'by_category': {category: "
-                    "count, ...}}, 'categories': [sorted category "
-                    "names]}"
+                    "'tools': {'total': int, 'mcp_callable': int, "
+                    "'handle_pending': int, 'by_category': {category: "
+                    "count, ...}}, 'handle_pending': [sorted "
+                    "handle-pending tool names], 'categories': [sorted "
+                    "category names]}"
                 ),
             ),
         )
