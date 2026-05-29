@@ -91,35 +91,40 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc14():
-    """v0.5.0rc14 — full JSON<->native MCP coercion voxel.
+def test_version_is_0_5_0rc15():
+    """v0.5.0rc15 — every-tool invocation smoke + honest mcp_callable
+    marking (upstream §10.1).
 
-    A live probe of the rc13 catalog proved 65 of 158 tools (41%) were
-    advertised to MCP / Anthropic but UNCALLABLE: their params are
-    ``bytes`` / ``np.ndarray`` / ``complex`` — types JSON-RPC cannot
-    express. rc14 makes ALL 158 tools MCP-callable via full BIDIRECTIONAL
-    coercion (params in + results out — a tool that accepts JSON but
-    returns an un-serialisable ndarray is equally unusable):
+    rc14 made all declared param TYPES JSON-coercible and shipped the
+    static ``has_coercer`` ratchet. But ``has_coercer`` could not tell a
+    REAL coercer from the ``_identity`` pass-through: the 7
+    ``srmech.spectral.*`` tools whose surface is a bare ``SpectralHandle``
+    / ``SpectralHandle | bytes`` went statically-green yet were NOT
+    actually invocable across the JSON boundary (an opaque in-process
+    dataclass handle cannot ride JSON by value).
 
-    * ``bytes``      <-> base64 ``str`` (binary-safe, unambiguous).
-    * ``np.ndarray`` <-> nested JSON list (row-major; complex elements as
-      ``[re, im]``).
-    * ``complex``    <-> ``[re, im]``.
-    * numpy scalars  -> Python int / float on the outbound path.
-    * container types (``Sequence[bytes]`` / ``Sequence[np.ndarray]`` /
-      ``Mapping[bytes, bytes]`` / ``list[tuple[bytes, int]]`` /
-      ``list[tuple[bytes, bytes]]`` / ``tuple[np.ndarray, ...]``) recurse
-      element-wise.
+    rc15 closes that gap on two fronts:
 
-    The per-type coercer dispatch lives in ``srmech.mcp._coercion``; the
-    schema rendering adds a JSON-encoding hint per non-JSON type so an LLM
-    learns to base64-encode etc.
+    * ``mcp_callable: bool`` on ``ToolEntry`` (default True, back-compat).
+      The 7 SpectralHandle tools are marked ``mcp_callable=False`` with a
+      ``mcp_unavailable_reason`` ("handle-pending: by-reference
+      SpectralHandle id arrives in the bus handle-grammar (rc16)"). They
+      stay in ``get_tool_schema().tools`` for introspection but are
+      EXCLUDED from the advertised MCP ``tools/list`` + Anthropic catalogs
+      so an LLM is never offered an uncallable tool. The spectral
+      functions THEMSELVES are untouched (surface-honesty marking only).
+    * THE EVERY-TOOL INVOCATION SMOKE (§10.1) —
+      ``test_every_advertised_tool_invocable`` in test_mcp.py synthesises
+      minimal valid args from each advertised tool's schema (rc14
+      encodings per type) and actually CALLS it via ``invoke_tool``,
+      asserting no binding / coercion error (tolerating domain errors that
+      prove the tool was reached). The EMPIRICAL complement to rc14's
+      static ratchet.
 
-    Plus THE TYPE-COERCIBILITY RATCHET —
-    ``test_all_param_types_json_coercible`` in test_mcp.py asserts every
-    advertised param type has a coercion handler, so no future tool can
-    ship an uncallable param type unnoticed (complements the rc13
-    name-drift ratchet).
+    ``srmech.introspect.describe()`` now reports the split (``total`` /
+    ``mcp_callable`` / ``handle_pending`` + the handle-pending name list).
+    SpectralHandle by-reference invocation is deferred to rc16 per user
+    decision.
 
     The version-gate test stays the SINGLE deliberate human-literal gate
     (the conscious per-rc bump point); ``test_version_module_matches``
@@ -128,16 +133,13 @@ def test_version_is_0_5_0rc14():
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: bidirectional coercion is Class H (self-
-    introspection) at the package's tool-surface — the package making its
-    own A-N callables' types JSON-expressible across the JSON-RPC /
-    Anthropic boundary. The base64 / ``[re, im]`` encodings are Class B
-    (TLV-framing — encoding-boundary translation between continuous native
-    types and the discrete JSON wire). No new primitive class is
-    introduced.
+    Framework reading: the package declaring its own callable shape (which
+    tools are advertisable vs handle-pending) IS Class H (self-
+    introspection) at package scale — the apparatus thesis. No new
+    primitive class is introduced.
     """
-    assert srmech.__version__ == "0.5.0rc14", (
-        f"expected srmech.__version__ == '0.5.0rc14'; got "
+    assert srmech.__version__ == "0.5.0rc15", (
+        f"expected srmech.__version__ == '0.5.0rc15'; got "
         f"{srmech.__version__!r}"
     )
 
