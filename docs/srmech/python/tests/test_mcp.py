@@ -1000,12 +1000,13 @@ def test_describe_shape() -> None:
     from srmech.introspect import describe
 
     d = describe()
-    # Top-level keys.
+    # Top-level keys (rc15 adds the handle_pending name list).
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
         "native",
         "tools",
+        "handle_pending",
         "categories",
     }
     # Version agrees with the package attribute (no hardcoded literal).
@@ -1029,6 +1030,18 @@ def test_describe_shape() -> None:
     by_category = d["tools"]["by_category"]
     assert isinstance(by_category, dict)
     assert sum(by_category.values()) == d["tools"]["total"]
+
+    # rc15 — the MCP-callability split is internally consistent.
+    assert d["tools"]["mcp_callable"] + d["tools"]["handle_pending"] == \
+        d["tools"]["total"]
+    assert d["tools"]["mcp_callable"] == \
+        sum(1 for e in schema.tools if e.mcp_callable)
+    # The top-level handle_pending list agrees with the count and the
+    # live schema's mcp_callable=False entries, and is sorted.
+    hp = d["handle_pending"]
+    assert hp == sorted(hp)
+    assert len(hp) == d["tools"]["handle_pending"]
+    assert set(hp) == {e.name for e in schema.tools if not e.mcp_callable}
 
     # categories are sorted + non-empty + match the by_category keys.
     cats = d["categories"]
@@ -1577,3 +1590,265 @@ def test_encoding_hints_preserve_property_key_grammar() -> None:
             assert _ANTHROPIC_PROPERTY_KEY_RE.match(key), (
                 f"{entry.name}: property key {key!r} violates grammar"
             )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Every-tool invocation smoke (v0.5.0rc15; upstream §10.1)
+#
+# THE GAP rc14's static ratchet missed: ``has_coercer(type)`` proves a
+# declared type has *a* coercion handler, but ``SpectralHandle``'s handler
+# was ``_identity`` (pass-through) — so the static ratchet went GREEN even
+# though the tool was not actually invocable across the JSON boundary.
+# rc15 closes this with an EMPIRICAL smoke: synthesise minimal valid args
+# from each advertised tool's schema (using the rc14 encodings per declared
+# type) and actually CALL it through ``invoke_tool``.
+#
+# We test CALLABILITY, not domain validity:
+#   * a BINDING error (TypeError: unexpected/missing kwarg) is a FAILURE —
+#     the schema declares a param the callable can't bind;
+#   * a COERCION error (the synth value won't coerce to the native type) is
+#     a FAILURE — the encoding the schema advertises doesn't round-trip;
+#   * a DOMAIN error (ValueError / non-square matrix / length mismatch /
+#     ZeroDivision / a real op-internal AssertionError) is TOLERATED — it
+#     PROVES the tool was reached with bindable + coercible args.
+#
+# The 7 ``mcp_callable=False`` handle-pending spectral tools are NOT in the
+# advertised surface, so they are not synthesised here (and a companion
+# assertion proves they are absent from both advertised catalogs).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _synth_value_for_type(type_string: str) -> Any:
+    """Synthesise ONE minimal, schema-valid JSON-wire value for a declared
+    ToolEntry param type, using the rc14 coercion encodings.
+
+    Returns the value an MCP / Anthropic client would put on the wire
+    (base64 ``str`` for bytes, nested list for ndarray, ``[re, im]`` for
+    complex, etc.) — ``invoke_tool``'s inbound coercion turns it native.
+    A type with no explicit case falls through to a JSON string (the
+    lexicon's own degrade-to-string default), so a never-before-seen type
+    still gets *a* value rather than a KeyError in the test harness.
+    """
+    import base64
+
+    # 2x2 identity as a nested list (valid square matrix for the
+    # Laplacian / Hermitian ops; also a valid length-2 row vector source).
+    mat2 = [[1.0, 0.0], [0.0, 1.0]]
+    # A short flat vector (valid for matvec / state / 1-D array ops).
+    vec = [1.0, 0.0]
+    b64 = base64.b64encode(b"abcd").decode("ascii")
+
+    table: Dict[str, Any] = {
+        "int": 1,
+        "Optional[int]": 1,
+        "float": 1.0,
+        "Optional[float]": 1.0,
+        "number": 1.0,
+        "bool": True,
+        "str": "a",
+        "Optional[str]": "a",
+        "bytes": b64,
+        "complex": [1.0, 0.0],
+        # ndarray: a 2x2 identity (square — satisfies the most ops; the
+        # vector ops accept it as a 2-row matrix or re-shape internally;
+        # any shape complaint is a tolerated DOMAIN error).
+        "np.ndarray": mat2,
+        "Optional[np.ndarray]": mat2,
+        # container element-recursions (minimal valid shapes).
+        "Sequence[bytes]": [b64, b64],
+        "Sequence[np.ndarray]": [vec, vec],
+        "tuple[np.ndarray, ...]": [mat2, mat2],
+        "Mapping[bytes, bytes]": {b64: b64},
+        "list[tuple[bytes, int]]": [[b64, 1]],
+        "list[tuple[bytes, bytes]]": [[b64, b64]],
+        # a self-loop on node 0 — a valid edge for any graph size n >= 1
+        # (so the laplacian ops, whose `n` synths to 1, return cleanly).
+        "list[tuple[int, int]]": [[0, 0]],
+        "tuple[int, int]": [1, 1],
+        # JSON-native-ish.
+        "dict": {},
+        "Optional[dict]": {},
+        "list": [1, 2],
+        "list[int]": [1, 2, 3],
+        "Optional[list[float]]": [1.0, 2.0],
+        "iterable[int]": [1, -1, 1],
+        "sequence": [1, 2, 3],
+        "pathlib.Path": "smoke_nonexistent_path.toml",
+        "int | float | str | list | dict": 1,
+        # opaque in-process handles: a tool call CAN bind them (the kwarg
+        # is accepted); the callable then raises a tolerated DOMAIN error
+        # because the synth value isn't a real handle. We pass a dict /
+        # name so binding succeeds (these are NOT mcp_callable=False except
+        # the SpectralHandle ones, which are already excluded from the
+        # advertised surface this smoke iterates).
+        "ChainSpec": {},
+        "callable": "abs",
+        "SpectralHandle": {},
+        "SpectralHandle | bytes": b64,
+        "numpy.random.Generator": None,
+    }
+    return table.get(type_string, "a")
+
+
+def _synth_args_for_entry(entry: Any) -> Dict[str, Any]:
+    """Build a minimal valid args dict for one ToolEntry: fill every
+    REQUIRED param with a synth value; omit optionals (we are testing the
+    minimal-required call path)."""
+    args: Dict[str, Any] = {}
+    for p in entry.parameters:
+        if p.required:
+            args[p.name] = _synth_value_for_type(p.type)
+    return args
+
+
+def _is_binding_error(exc: BaseException) -> bool:
+    """A TypeError that signals a kwarg-binding mismatch (the failure mode
+    the every-tool smoke exists to catch) — as opposed to a TypeError
+    raised by the op's own domain logic (e.g. an arithmetic on an
+    incompatible synth value)."""
+    if not isinstance(exc, TypeError):
+        return False
+    msg = str(exc).lower()
+    binding_markers = (
+        "unexpected keyword argument",
+        "required positional argument",
+        "required keyword-only argument",
+        "missing",
+        "got multiple values",
+        "takes no arguments",
+        "positional arguments but",
+        "takes",  # "...takes N positional arguments but M were given"
+    )
+    return any(m in msg for m in binding_markers)
+
+
+def test_every_advertised_tool_invocable() -> None:
+    """§10.1 — THE EVERY-TOOL INVOCATION SMOKE.
+
+    For EVERY ``mcp_callable=True`` ToolEntry: synthesise minimal valid
+    args from its schema (rc14 encodings per declared type), then invoke it
+    via ``invoke_tool``. Assert no BINDING error (the schema declares a
+    param the callable can't bind) and no COERCION error (the advertised
+    encoding doesn't round-trip). DOMAIN errors (ValueError, non-square
+    matrix, length mismatch, ZeroDivision, op-internal AssertionError) are
+    TOLERATED — they prove the tool was CALLED with bindable + coercible
+    args (we test callability, not domain validity).
+
+    This is the empirical complement to the rc14 ``has_coercer`` ratchet,
+    which could not tell a real coercer from the ``_identity`` pass-through
+    that left the SpectralHandle tools statically-green but uninvocable.
+    """
+    from srmech.mcp._tools import _coerce_arguments
+
+    schema = get_tool_schema()
+    advertised = [e for e in schema.tools if e.mcp_callable]
+    assert len(advertised) > 50, "advertised tool registry unexpectedly small"
+
+    failures: List[Tuple[str, Dict[str, Any], str]] = []
+    invoked_ok = 0
+
+    for entry in advertised:
+        synth = _synth_args_for_entry(entry)
+
+        # Phase 1 — coercion in isolation. A failure here means the
+        # advertised wire-encoding for some declared type does not coerce
+        # to the native type (a real, fixable surface bug).
+        try:
+            _coerce_arguments(entry, synth)
+        except Exception as exc:  # noqa: BLE001 — classify below
+            failures.append(
+                (entry.name, synth, f"COERCION {type(exc).__name__}: {exc}")
+            )
+            continue
+
+        # Phase 2 — full invoke (coerce + resolve + call). Tolerate domain
+        # errors; flag only binding errors. The result itself must
+        # JSON-serialise (the server slot is textual JSON) — a result that
+        # cannot serialise is also a real surface bug.
+        try:
+            raw = invoke_tool(entry.name, synth)
+        except TypeError as exc:
+            if _is_binding_error(exc):
+                failures.append(
+                    (entry.name, synth, f"BINDING TypeError: {exc}")
+                )
+            else:
+                invoked_ok += 1  # op-internal TypeError == reached the op
+            continue
+        except Exception:  # noqa: BLE001 — tolerated domain error
+            # ValueError / numpy LinAlgError / ZeroDivisionError /
+            # AssertionError / MCPToolError-from-domain etc. — the tool WAS
+            # called with bindable + coercible args. That is the property
+            # under test; the domain rejection is expected for synth data.
+            invoked_ok += 1
+            continue
+
+        # Reached the op AND returned — the result must be serialisable.
+        try:
+            serialise_result(raw)
+        except Exception as exc:  # noqa: BLE001
+            failures.append(
+                (entry.name, synth,
+                 f"RESULT not serialisable {type(exc).__name__}: {exc}")
+            )
+            continue
+        invoked_ok += 1
+
+    print(
+        f"\n{invoked_ok}/{len(advertised)} advertised tools invocable "
+        f"(binding+coercion clean)"
+    )
+    assert not failures, (
+        "every-tool invocation smoke found tools that are advertised but "
+        "NOT invocable with their advertised schema (binding / coercion / "
+        "non-serialisable-result — the gap the static has_coercer ratchet "
+        f"missed):\n"
+        + "\n".join(
+            f"  - {name}: {err}\n      args={args!r}"
+            for name, args, err in failures
+        )
+    )
+    # All advertised tools reached their op (or returned) — none failed on
+    # binding/coercion.
+    assert invoked_ok == len(advertised)
+
+
+def test_handle_pending_absent_from_advertised_catalogs() -> None:
+    """v0.5.0rc15 — the ``mcp_callable=False`` handle-pending tools are
+    absent from BOTH advertised catalogs (MCP ``tools/list`` via
+    ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
+    seam) while remaining in the registry for introspection. An LLM must
+    never be offered a tool it cannot actually call."""
+    schema = get_tool_schema()
+    pending = {e.name for e in schema.tools if not e.mcp_callable}
+    assert pending, "expected the 7 handle-pending spectral tools"
+    assert pending == {
+        "srmech.spectral.decompose",
+        "srmech.spectral.delta",
+        "srmech.spectral.recompose",
+        "srmech.spectral.similarity",
+        "srmech.spectral.predict",
+        "srmech.spectral.prediction_error",
+        "srmech.spectral.truncate_sparse",
+    }
+
+    # MCP advertised surface (the tools/list seam).
+    mcp_names = {d["name"] for d in tool_entries_to_mcp_defs()}
+    assert not (pending & mcp_names), (
+        f"handle-pending tools leaked into the MCP advertised catalog: "
+        f"{pending & mcp_names}"
+    )
+
+    # Anthropic catalog seam — replicate _build_tool_catalog's filter
+    # exactly (it excludes mcp_callable=False, then synthesises names).
+    anthropic_srmech_names = {
+        e.name for e in schema.tools if e.mcp_callable
+    }
+    assert not (pending & anthropic_srmech_names), (
+        f"handle-pending tools leaked into the Anthropic catalog: "
+        f"{pending & anthropic_srmech_names}"
+    )
+
+    # But they ARE still in the registry (introspection keeps them).
+    all_names = {e.name for e in schema.tools}
+    assert pending <= all_names
