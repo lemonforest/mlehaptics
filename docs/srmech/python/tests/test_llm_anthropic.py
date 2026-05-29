@@ -294,7 +294,8 @@ def test_run_with_one_tool_use_dispatches_then_finishes(mock_sdk) -> None:
         id="toolu_1",
         # The Anthropic-grammar name for sha256_bytes.
         name="srmech_amsc_format_sha256_bytes",
-        input={"data": "deadbeef"},  # hex-encoded bytes
+        # rc14: bytes ride as base64 over the wire (was hex).
+        input={"data": "3q2+7w=="},  # base64 of b"\xde\xad\xbe\xef"
     )
     handle = mock_sdk([
         _MockResponse(
@@ -315,7 +316,7 @@ def test_run_with_one_tool_use_dispatches_then_finishes(mock_sdk) -> None:
     assert tc["name"] == "srmech_amsc_format_sha256_bytes"
     assert tc["srmech_name"] == "srmech.amsc.format.sha256_bytes"
     assert tc["is_error"] is False
-    # The result of sha256_bytes on bytes.fromhex("deadbeef") is a hex
+    # The result of sha256_bytes on the base64-decoded bytes is a hex
     # digest; we don't pin the value, just that it's a 64-char hex.
     assert isinstance(tc["result"], str) and len(tc["result"]) == 64
     # Attestation block is the MPR envelope shape.
@@ -343,12 +344,12 @@ def test_run_with_multiple_tool_uses_invokes_each(mock_sdk) -> None:
                 _MockToolUseBlock(
                     id="toolu_1",
                     name="srmech_amsc_format_sha256_bytes",
-                    input={"data": "aa"},
+                    input={"data": "qg=="},  # base64 of b"\xaa"
                 ),
                 _MockToolUseBlock(
                     id="toolu_2",
                     name="srmech_amsc_format_sha256_bytes",
-                    input={"data": "bb"},
+                    input={"data": "uw=="},  # base64 of b"\xbb"
                 ),
             ],
             stop_reason="tool_use",
@@ -386,7 +387,7 @@ def test_max_iterations_cap_fires(mock_sdk) -> None:
             content=[_MockToolUseBlock(
                 id=f"toolu_{i}",
                 name="srmech_amsc_format_sha256_bytes",
-                input={"data": "aa"},
+                input={"data": "qg=="},  # base64 of b"\xaa"
             )],
             stop_reason="tool_use",
         )
@@ -504,7 +505,7 @@ def test_attestation_matches_mcp_adapter_for_same_call(mock_sdk) -> None:
             content=[_MockToolUseBlock(
                 id="toolu_x",
                 name="srmech_amsc_format_sha256_bytes",
-                input={"data": "deadbeef"},
+                input={"data": "3q2+7w=="},  # base64 of b"\xde\xad\xbe\xef"
             )],
             stop_reason="tool_use",
         ),
@@ -521,7 +522,7 @@ def test_attestation_matches_mcp_adapter_for_same_call(mock_sdk) -> None:
     # the agent used and compare structural keys; the timestamp
     # naturally drifts between the two calls so we don't pin
     # response_sha256 equality, only structure.
-    raw = invoke_tool("srmech.amsc.format.sha256_bytes", {"data": "deadbeef"})
+    raw = invoke_tool("srmech.amsc.format.sha256_bytes", {"data": "3q2+7w=="})
     mcp_att = build_attestation(
         tool_name="srmech.amsc.format.sha256_bytes",
         result_text=serialise_result(raw),

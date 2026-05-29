@@ -185,13 +185,16 @@ def test_invoke_tool_chiral_flip_roundtrips() -> None:
     assert result == [4, 3, 2, 1]
 
 
-def test_invoke_tool_sha256_bytes_with_hex_coercion() -> None:
-    """bytes parameters arrive as hex strings (MCP rides JSON, which
-    has no bytes type); ``invoke_tool`` coerces them back."""
-    # "abc" hex -> "616263"
+def test_invoke_tool_sha256_bytes_with_base64_coercion() -> None:
+    """bytes parameters arrive as base64 strings (MCP rides JSON, which
+    has no bytes type; rc14 standardises bytes on base64 — binary-safe,
+    unambiguous); ``invoke_tool`` decodes them back to raw bytes."""
+    import base64
+
+    # "abc" base64 -> "YWJj"
     result = invoke_tool(
         "srmech.amsc.format.sha256_bytes",
-        {"data": b"abc".hex()},
+        {"data": base64.b64encode(b"abc").decode("ascii")},
     )
     assert isinstance(result, str)
     assert len(result) == 64
@@ -296,10 +299,13 @@ def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
 
 
 def test_serialise_result_handles_bytes_tuples_paths() -> None:
-    """JSON-text rendering of awkward Python objects."""
-    out = serialise_result({"hex": b"\x00\xff", "tup": (1, 2)})
+    """JSON-text rendering of awkward Python objects (rc14: bytes ride as
+    base64, tuples become lists)."""
+    import base64
+
+    out = serialise_result({"b": b"\x00\xff", "tup": (1, 2)})
     parsed = json.loads(out)
-    assert parsed["hex"] == "00ff"
+    assert parsed["b"] == base64.b64encode(b"\x00\xff").decode("ascii")
     assert parsed["tup"] == [1, 2]
 
 
@@ -1271,3 +1277,291 @@ def test_schema_signature_alignment_no_drift() -> None:
         "bindable to the resolved callable (the tool is uncallable via MCP "
         f"/ Anthropic): {drift}"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Full JSON<->native coercion (v0.5.0rc14)
+#
+# A live probe of the rc13 catalog proved 65/158 tools were advertised to
+# MCP / Anthropic but UNCALLABLE because their params are bytes /
+# np.ndarray / complex — types JSON-RPC cannot express. rc14 adds full
+# BIDIRECTIONAL coercion (params in + results out) so every tool is
+# MCP-callable. The type-coercibility ratchet below complements the rc13
+# name-drift ratchet: rc13 guarantees a param NAME binds; rc14 guarantees
+# a param TYPE is JSON-coercible.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_all_param_types_json_coercible() -> None:
+    """THE TYPE-COERCIBILITY RATCHET (v0.5.0rc14): every ToolEntry param's
+    declared type MUST have an explicit handler in the coercion dispatch
+    (``srmech.mcp._coercion``). This is the would-have-caught-it ratchet
+    for the 65/158 uncallable-tool finding: no future tool can advertise a
+    non-JSON-coercible param type unnoticed — a missing handler fails here.
+
+    JSON-native and opaque-handle types are listed as explicit
+    pass-throughs in the dispatch (not defaulted), so this ratchet proves
+    the dispatch is EXHAUSTIVE over the advertised surface, not merely
+    that the awkward types are covered.
+    """
+    from srmech.mcp._coercion import has_coercer
+
+    schema = get_tool_schema()
+    assert len(schema.tools) > 50, "tool registry unexpectedly small"
+    unhandled: List[Tuple[str, str, str]] = []
+    for entry in schema.tools:
+        for p in entry.parameters:
+            if not has_coercer(p.type):
+                unhandled.append((entry.name, p.name, p.type))
+    assert not unhandled, (
+        "these declared ToolEntry param types have NO coercion handler "
+        "(the tool may be uncallable via MCP / Anthropic — add a handler "
+        f"in srmech.mcp._coercion._PARAM_COERCERS): {unhandled}"
+    )
+
+
+def test_coercion_roundtrips_scalar_leaf_types() -> None:
+    """``coerce_param(serialise_native(x)) == x`` for representative
+    bytes / complex / real-ndarray values (the documented round-trip
+    guarantee). Complex arrays use the explicit ``complex_pairs_to_ndarray``
+    builder (the generic ndarray path stays real per its dtype caveat)."""
+    from srmech.mcp._coercion import (
+        coerce_param,
+        complex_pairs_to_ndarray,
+        serialise_native,
+    )
+
+    # bytes <-> base64 (incl. non-UTF-8 / NUL bytes).
+    raw = b"\x00\xff\x10binary\x7f"
+    assert coerce_param(serialise_native(raw), "bytes") == raw
+
+    # complex <-> [re, im].
+    z = complex(3.0, -2.5)
+    assert coerce_param(serialise_native(z), "complex") == z
+    # A bare JSON number decodes to complex(n, 0).
+    assert coerce_param(5, "complex") == complex(5, 0)
+
+    # real ndarray <-> nested list (EXACT — values + shape).
+    arr = np.array([[1.0, 2.0], [3.0, 4.0]])
+    back = coerce_param(serialise_native(arr), "np.ndarray")
+    assert np.array_equal(back, arr)
+
+    # complex ndarray: serialised as [re, im] leaves, rebuilt via the
+    # explicit complex builder (documented dtype caveat — the generic
+    # np.ndarray inbound path does NOT auto-promote).
+    carr = np.array([1 + 2j, 3 - 4j])
+    assert np.array_equal(
+        complex_pairs_to_ndarray(serialise_native(carr)), carr
+    )
+
+
+def test_serialise_native_emits_json_serialisable() -> None:
+    """``serialise_native`` output is always JSON-serialisable for the
+    awkward Python types ops return (bytes / complex / ndarray (real +
+    complex) / numpy scalars / nested tuples / dict with bytes key)."""
+    from srmech.mcp._coercion import serialise_native
+
+    samples: List[Any] = [
+        b"\x00\xff",
+        complex(1, 2),
+        np.array([1.0, 2.0, 3.0]),
+        np.array([[1 + 1j, 2 - 2j]]),
+        np.int64(7),
+        np.float64(1.5),
+        np.uint8(255),
+        (1, 2, b"ab"),
+        {b"key": np.array([1, 2])},
+        {"nested": [np.int64(3), complex(0, 1)]},
+    ]
+    for s in samples:
+        # Must not raise — the load-bearing guarantee for the tool_result.
+        json.dumps(serialise_native(s))
+
+
+def test_invalid_base64_bytes_raises_clear_error() -> None:
+    """A malformed base64 value for a ``bytes`` param raises a clear
+    ValueError naming the param (per the rc14 contract)."""
+    from srmech.mcp._coercion import coerce_param
+
+    with pytest.raises(ValueError, match="base64"):
+        # '!' is not a valid base64 alphabet char (validate=True).
+        coerce_param("not!valid!base64!", "bytes", param="data")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Targeted round-trip + live-path tests through invoke_tool (the shared
+# MCP + Anthropic entry). Each asserts the result is JSON-serialisable.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _b64(data: bytes) -> str:
+    import base64
+    return base64.b64encode(data).decode("ascii")
+
+
+def _assert_json_serialisable(raw: Any) -> None:
+    """A tool result must JSON-serialise through ``serialise_result`` (the
+    server slot is textual JSON)."""
+    text = serialise_result(raw)
+    json.loads(text)  # round-trips through json; raises on failure
+
+
+def test_invoke_naming_lookup_base64_params() -> None:
+    """``naming.lookup`` with base64 key + base64 (key, value) pairs
+    returns the matching value — no TypeError — and serialises to JSON."""
+    raw = invoke_tool(
+        "srmech.amsc.naming.lookup",
+        {
+            "key": _b64(b"A"),
+            "pairs": [[_b64(b"A"), _b64(b"content-addressing")]],
+        },
+    )
+    assert raw == b"content-addressing"
+    _assert_json_serialisable(raw)
+
+
+def test_invoke_template_render_base64_mapping() -> None:
+    """``template.render`` with base64 template + base64->base64 mapping
+    renders the bytes; the result base64-encodes in JSON."""
+    import base64
+
+    raw = invoke_tool(
+        "srmech.amsc.template.render",
+        {"template_bytes": _b64(b"Class {x}"), "mapping": {_b64(b"x"): _b64(b"A")}},
+    )
+    assert raw == b"Class A"
+    text = serialise_result(raw)
+    assert json.loads(text) == base64.b64encode(b"Class A").decode("ascii")
+
+
+def test_invoke_hdc_bind_base64_roundtrips() -> None:
+    """``hdc.bind`` of two base64 byte-vectors returns bound bytes; the
+    base64 result round-trips back to the same bytes."""
+    import base64
+
+    from srmech.mcp._coercion import coerce_param
+
+    a = bytes([1, 2, 3, 4])
+    b = bytes([5, 6, 7, 8])
+    raw = invoke_tool(
+        "srmech.amsc.hdc.bind", {"a": _b64(a), "b": _b64(b)}
+    )
+    assert raw == bytes(x ^ y for x, y in zip(a, b))
+    text = serialise_result(raw)
+    encoded = json.loads(text)
+    assert encoded == base64.b64encode(raw).decode("ascii")
+    # The serialised base64 coerces straight back to the bound bytes.
+    assert coerce_param(encoded, "bytes") == raw
+
+
+def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
+    """``laplacian.jacobi_eigvals`` with a nested-list real symmetric
+    matrix returns an eigenvalue list (JSON array)."""
+    matrix = [
+        [2.0, -1.0, 0.0],
+        [-1.0, 2.0, -1.0],
+        [0.0, -1.0, 2.0],
+    ]
+    raw = invoke_tool(
+        "srmech.amsc.laplacian.jacobi_eigvals", {"matrix": matrix}
+    )
+    arr = np.asarray(raw)
+    assert arr.shape == (3,)
+    # Known spectrum of the path-graph-3 Laplacian-like tridiagonal matrix.
+    expected = np.sort(np.linalg.eigvalsh(np.asarray(matrix)))
+    assert np.allclose(np.sort(arr), expected)
+    text = serialise_result(raw)
+    assert isinstance(json.loads(text), list)
+
+
+def test_invoke_higgs_potential_complex_phi() -> None:
+    """``qm.sm.higgs_potential`` with phi=[re, im] returns a real float;
+    the result is JSON-serialisable."""
+    raw = invoke_tool(
+        "srmech.qm.sm.higgs_potential",
+        {"phi": [1.0, 0.5], "mu_squared": 2.0, "lam": 1.0},
+    )
+    # V = -mu^2 |phi|^2 + lam |phi|^4; |phi|^2 = 1.25.
+    assert isinstance(raw, float)
+    assert abs(raw - (-2.0 * 1.25 + 1.0 * 1.25 ** 2)) < 1e-12
+    _assert_json_serialisable(raw)
+
+
+def test_invoke_dispatch_match_base64_rules() -> None:
+    """``dispatch.match`` with base64 input + [base64, int] rules returns
+    a serialisable result (the (matched, tag) tuple -> JSON list)."""
+    raw = invoke_tool(
+        "srmech.amsc.dispatch.match",
+        {"input_bytes": _b64(b"hello"), "rules": [[_b64(b"he"), 1], [_b64(b"xyz"), 2]]},
+    )
+    _assert_json_serialisable(raw)
+
+
+def test_invoke_klein4_random_seed_reproducible_rc14_path() -> None:
+    """rc13 ``klein4_random(seed)`` reproducibility still holds through the
+    rc14 coercion path (ndarray result -> JSON list, bit-identical)."""
+    r1 = serialise_result(
+        invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+    )
+    r2 = serialise_result(
+        invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+    )
+    assert r1 == r2
+    assert set(json.loads(r1)) <= {0, 1, 2, 3}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Schema rendering hints (v0.5.0rc14, STEP 3) — so an LLM learns HOW to
+# encode bytes / ndarray / complex / containers.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_schema_renders_encoding_hints() -> None:
+    """The MCP/Anthropic schema property for a non-JSON native type
+    carries its JSON-encoding hint in the description, and the rc13
+    property-key grammar + rc10 name discipline stay intact."""
+    schema = get_tool_schema()
+
+    def _prop(tool_name: str, param: str) -> Dict[str, Any]:
+        entry = schema.lookup(tool_name)
+        assert entry is not None, f"{tool_name} not registered"
+        return tool_entry_to_mcp_def(entry)["inputSchema"]["properties"][param]
+
+    # bytes -> string + base64 hint.
+    p = _prop("srmech.amsc.format.sha256_bytes", "data")
+    assert p["type"] == "string"
+    assert "base64" in p["description"]
+
+    # np.ndarray -> array + nested-array hint.
+    p = _prop("srmech.amsc.laplacian.jacobi_eigvals", "matrix")
+    assert p["type"] == "array"
+    assert "nested JSON array" in p["description"]
+
+    # complex -> array + [real, imaginary] hint.
+    p = _prop("srmech.qm.sm.higgs_potential", "phi")
+    assert p["type"] == "array"
+    assert "real, imaginary" in p["description"]
+
+    # Mapping[bytes, bytes] -> object + base64 key/value hint.
+    p = _prop("srmech.amsc.template.render", "mapping")
+    assert p["type"] == "object"
+    assert "base64" in p["description"]
+
+    # list[tuple[bytes, int]] -> array + [base64, integer] hint.
+    p = _prop("srmech.amsc.dispatch.match", "rules")
+    assert p["type"] == "array"
+    assert "base64" in p["description"]
+
+
+def test_encoding_hints_preserve_property_key_grammar() -> None:
+    """Adding encoding hints must not perturb the rc13 property-key
+    grammar ratchet — every property key still matches Anthropic's
+    ``^[a-zA-Z0-9_.-]{1,64}$`` (the hint lives in the VALUE's description,
+    never the KEY)."""
+    schema = get_tool_schema()
+    for entry in schema.tools:
+        mcp_def = tool_entry_to_mcp_def(entry)
+        for key in mcp_def["inputSchema"]["properties"]:
+            assert _ANTHROPIC_PROPERTY_KEY_RE.match(key), (
+                f"{entry.name}: property key {key!r} violates grammar"
+            )
