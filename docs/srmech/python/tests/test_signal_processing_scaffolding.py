@@ -91,37 +91,38 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc5():
-    """v0.5.0rc5 — async wrapper for the bus.
+def test_version_is_0_5_0rc6():
+    """v0.5.0rc6 — MCP (Model Context Protocol) server adapter.
 
-    Per user direction 2026-05-28 (continuation of the rc1/rc2/rc3/rc4
-    bus arc): the ``srmech.bus`` module gets an async wrapper at
-    ``srmech.bus.aio`` — thin :mod:`asyncio` shim over the sync API via
-    :func:`asyncio.to_thread`. Covers FastAPI / aiohttp / asyncio-native
-    callers without doubling C-peer complexity. Sync API remains the
-    SSOT; async is a courtesy wrapper. Pure-Python; ABI **unchanged
-    at 3** (no new C symbols this rc).
+    Per user direction 2026-05-28 (continuation of the rc1–rc5 bus
+    arc): user is on Claude Code Max plan (no Anthropic API/SDK
+    tier), so MCP is the primary LLM integration path. ``srmech-mcp``
+    console-script exposes ``srmech.amsc.tool_schema`` registrations
+    (~150) as MCP tools over JSON-RPC 2.0 (stdio default; HTTP+SSE
+    via ``--transport http-sse``).
 
-    The async surface:
+    Three integration modes via the SAME adapter (config switch):
 
-    * ``aio.AsyncChannel`` — async wrapper around ``Channel``.
-    * ``aio.AsyncEndpoint`` — async wrapper around ``Endpoint``.
-    * ``aio.AsyncPipeHandle`` — async wrapper around the pipe handle.
-    * ``aio.connect(name, seed=...)`` — async context manager.
-    * ``aio.serve(name, handler, seed=...)`` — async context manager;
-      handler can be **sync OR async** (async awaited via
-      :func:`asyncio.run_coroutine_threadsafe` from the sync worker
-      thread, back onto the caller's event loop).
-    * ``aio.list_endpoints()`` / ``aio.list()`` — async discovery.
-    * ``aio.pipe(src, dst, transform=...)`` — async daemon pipe.
+    * Pure local stdio subprocess (Claude Code default).
+    * Cross-terminal observability (``--bus-endpoint NAME`` proxies
+      tool calls through a running ``srmech.bus`` endpoint).
+    * Subagent-orchestrated research (Claude Code's Agent tool spawns
+      a sub-Claude with ``srmech-mcp`` registered).
 
-    Framework reading: Class M (cross-class bind) at the async/sync
-    substrate-class boundary. The asyncio event loop is one substrate-
-    class-instance; the thread-pool worker is another; ``to_thread`` is
-    the bind operator.
+    Each ``tools/call`` response carries an MPR-style attestation
+    block (``response_sha256`` over result + tool name + parser
+    version + timestamp).
+
+    Pure-Python; ABI unchanged at 3.
+
+    Framework reading: Class M (cross-class bind) ∘ Class E (catalog
+    enumeration) ∘ Class A (content-addressing) extended to the LLM
+    substrate-class boundary. The LLM is one substrate-class-instance;
+    the Python interpreter is another; ``srmech.mcp`` is the bind
+    operator.
     """
-    assert srmech.__version__ == "0.5.0rc5", (
-        f"expected srmech.__version__ == '0.5.0rc5'; got "
+    assert srmech.__version__ == "0.5.0rc6", (
+        f"expected srmech.__version__ == '0.5.0rc6'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -129,7 +130,7 @@ def test_version_is_0_5_0rc5():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc5"
+    assert version_str == "0.5.0rc6"
     assert version_str == srmech.__version__
 
 
