@@ -102,6 +102,34 @@ def patch_params_D(params, D_val: int) -> dict:
     return p
 
 
+def _recall_eval(corpus, recall_fn, params):
+    """Evaluate recall over `corpus`, honoring catalog measurement.recall_sample.
+
+    The catalog field controls cost vs coverage of the recall measurement:
+      - "full" (or int >= len(corpus)) → evaluate every sentence; recall is
+        exact but O(N²·D) because self-recall argmaxes each query against the
+        full N×D matrix
+      - int K < len(corpus) → evaluate a deterministically-seeded random sample
+        of K sentences; recall rate estimated to within sampling error, O(K·N·D)
+
+    Returns (n_correct, n_evaluated). The catalog field is the SSOT — this
+    function is the wiring that makes it actually control the measurement,
+    closing the declared-but-unwired gap.
+    """
+    recall_sample = params["measurement"].get("recall_sample", "full")
+    if recall_sample == "full" or (
+        isinstance(recall_sample, int) and recall_sample >= len(corpus)
+    ):
+        sample = corpus
+    else:
+        k = int(recall_sample)
+        rng = np.random.default_rng(int(params["measurement"]["seed"]))
+        idx = rng.choice(len(corpus), size=k, replace=False)
+        sample = [corpus[i] for i in idx]
+    correct = sum(1 for tokens in sample if recall_fn(tokens))
+    return correct, len(sample)
+
+
 # ---------------------------------------------------------------------------
 # Phases
 # ---------------------------------------------------------------------------
@@ -134,18 +162,19 @@ def phase1_length_sweep(params, vocab, out_records, attestation):
             memory.learn_sentence(tokens)
         t_build = time.time() - t0
         t0 = time.time()
-        correct = sum(1 for tokens in corpus if memory.self_recall(tokens))
+        correct, n_eval = _recall_eval(corpus, memory.self_recall, params)
         t_recall = time.time() - t0
         record = {
             **attestation,
             "phase": "P1_length_sweep",
             "L": L,
             "n_sentences": len(corpus),
+            "n_recall_evaluated": n_eval,
             "n_words": len(memory.words_l0),
             "n_bigrams": len(memory.bigrams_l1),
             "n_skeletons": len(memory.skeletons_l2),
             "n_stored_l3": len(memory.sentences_l3),
-            "self_recall": correct / len(corpus),
+            "self_recall": correct / n_eval,
             "build_seconds": t_build,
             "recall_seconds": t_recall,
         }
@@ -171,7 +200,7 @@ def phase2_corpus_sweep(params, out_records, attestation):
         for tokens in corpus:
             memory.learn_sentence(tokens)
         t_build = time.time() - t0
-        correct = sum(1 for tokens in corpus if memory.self_recall(tokens))
+        correct, n_eval = _recall_eval(corpus, memory.self_recall, params)
         record = {
             **attestation,
             "phase": "P2_corpus_sweep",
@@ -180,8 +209,9 @@ def phase2_corpus_sweep(params, out_records, attestation):
             "n_words": len(memory.words_l0),
             "n_bigrams": len(memory.bigrams_l1),
             "n_skeletons": len(memory.skeletons_l2),
-            "self_recall": correct / len(corpus),
-            "n_misclassified": len(corpus) - correct,
+            "self_recall": correct / n_eval,
+            "n_recall_evaluated": n_eval,
+            "n_misclassified": n_eval - correct,
             "build_seconds": t_build,
         }
         out_records.append(record)
@@ -211,7 +241,7 @@ def phase3_dimension_sweep(params, out_records, attestation):
         for tokens in base_corpus:
             memory.learn_sentence(tokens)
         t_build = time.time() - t0
-        correct = sum(1 for tokens in base_corpus if memory.self_recall(tokens))
+        correct, n_eval = _recall_eval(base_corpus, memory.self_recall, params)
         record = {
             **attestation,
             "phase": "P3_dimension_sweep",
@@ -220,7 +250,8 @@ def phase3_dimension_sweep(params, out_records, attestation):
             "n_words": len(memory.words_l0),
             "n_bigrams": len(memory.bigrams_l1),
             "n_skeletons": len(memory.skeletons_l2),
-            "self_recall": correct / len(base_corpus),
+            "self_recall": correct / n_eval,
+            "n_recall_evaluated": n_eval,
             "build_seconds": t_build,
         }
         out_records.append(record)
@@ -251,7 +282,7 @@ def phase4_bucket_sweep(params, out_records, attestation):
             for tokens in base_corpus:
                 hier.learn_sentence(tokens)
             t_build = time.time() - t0
-            correct = sum(1 for tokens in base_corpus if hier.recall_sentence(tokens))
+            correct, n_eval = _recall_eval(base_corpus, hier.recall_sentence, params)
             stats = hier.bucket_load_stats()
             record = {
                 **attestation,
@@ -259,7 +290,8 @@ def phase4_bucket_sweep(params, out_records, attestation):
                 "strategy": strategy,
                 "n_buckets": nb,
                 "N_actual": len(base_corpus),
-                "self_recall": correct / len(base_corpus),
+                "self_recall": correct / n_eval,
+                "n_recall_evaluated": n_eval,
                 "build_seconds": t_build,
                 **{f"bucket_{k}": v for k, v in stats.items()},
             }

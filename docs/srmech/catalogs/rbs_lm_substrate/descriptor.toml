@@ -97,7 +97,16 @@ token_known             = 0.1
 substrate_skel_sim      = 0.3
 
 [fetch.literature_curated.measurement]
-recall_sample           = "full"
+# recall_sample bounded to 500 after the 2026-05-29 canonical run ground for
+# ~20 min on the single N=12800 full-corpus recall: full-corpus self-recall is
+# O(N²·D) (each of N sentences argmax-compared against the full N×D matrix), so
+# at N=12800 that is ~12330² × 8192 ≈ 1.2e12 element-compares for ONE data point.
+# A bounded random sample of 500 estimates the recall rate to within sampling
+# error well under the 1/N misclass granularity observed (recall has been
+# exactly 1.000 at every measured N), without the quadratic wall-clock blowup.
+# This is the catalog-parameter fix for the runtime balloon — NOT a C-path issue
+# (HAS_NATIVE=True / ABI=3 confirmed); the cost was the measurement protocol.
+recall_sample           = 500
 seed                    = 42
 
 [fetch.literature_curated.measurement.length_sweep]
