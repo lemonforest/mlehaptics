@@ -63,6 +63,12 @@ shot from an LLM tool surface.
   `test_version_module_matches` stays literal-free (sources-agree +
   PEP 440 shape only).
 
+### Tests
+
+- Test determinism: pinned `time_ns` on all bio-totp round-trip tests so
+  they no longer depend on wall-clock window alignment (eliminates a
+  CI-load timing flake; no production change).
+
 ## [0.5.0rc11] - 2026-05-29
 
 **rc11 of N for v0.5.0 — the "Self-recognition root" voxel.** The

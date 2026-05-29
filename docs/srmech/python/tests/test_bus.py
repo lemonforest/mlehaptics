@@ -1092,6 +1092,13 @@ from srmech.bus._seed import (
 )
 
 
+# Fixed wall-clock for deterministic bio-totp round-trips: encrypt + decrypt
+# MUST share one time-window (the cipher keys on floor(time_ns / 250ms) with
+# only ±1 window skew tolerance). Without pinning, CI-load jitter between
+# encrypt and decrypt can straddle >1 window → garbage decrypt (flake).
+_BIO_FIXED_NS = 1_700_000_000_000_000_000
+
+
 # ----- Bio-TOTP key derivation + nonce helpers -----------------------------
 
 
@@ -1209,9 +1216,9 @@ def test_bio_totp_encrypt_decrypt_round_trip():
     sender = BioTotpChannel(dna=dna, sender_id=1234, channel_id=5678)
     receiver = BioTotpChannel(dna=dna, sender_id=1234, channel_id=5678)
     plaintext = b"hello bio-totp bus"
-    body = sender.encrypt(plaintext)
+    body = sender.encrypt(plaintext, time_ns=_BIO_FIXED_NS)
     assert len(body) == FRAME_OVERHEAD_BYTES + len(plaintext)
-    assert receiver.decrypt(body) == plaintext
+    assert receiver.decrypt(body, time_ns=_BIO_FIXED_NS) == plaintext
 
 
 def test_bio_totp_encrypt_advances_packet_seq():
@@ -1229,8 +1236,8 @@ def test_bio_totp_round_trip_many_frames():
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     plaintexts = [f"frame-{i}".encode() for i in range(20)]
-    bodies = [sender.encrypt(p) for p in plaintexts]
-    decoded = [receiver.decrypt(b) for b in bodies]
+    bodies = [sender.encrypt(p, time_ns=_BIO_FIXED_NS) for p in plaintexts]
+    decoded = [receiver.decrypt(b, time_ns=_BIO_FIXED_NS) for b in bodies]
     assert decoded == plaintexts
     assert receiver.last_recv_seq == 19
 
@@ -1243,17 +1250,17 @@ def test_bio_totp_round_trip_large_payload():
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     plaintext = b"X" * 1000
-    body = sender.encrypt(plaintext)
-    assert receiver.decrypt(body) == plaintext
+    body = sender.encrypt(plaintext, time_ns=_BIO_FIXED_NS)
+    assert receiver.decrypt(body, time_ns=_BIO_FIXED_NS) == plaintext
 
 
 def test_bio_totp_round_trip_empty_payload():
     dna = b"k" * 32
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
-    body = sender.encrypt(b"")
+    body = sender.encrypt(b"", time_ns=_BIO_FIXED_NS)
     assert len(body) == FRAME_OVERHEAD_BYTES
-    assert receiver.decrypt(body) == b""
+    assert receiver.decrypt(body, time_ns=_BIO_FIXED_NS) == b""
 
 
 def test_bio_totp_decrypt_rejects_dna_mismatch_strict():
@@ -1331,8 +1338,8 @@ def test_bio_totp_zero_dna_round_trip_herd_immunity():
     sender = BioTotpChannel(dna=ZERO_DNA, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=ZERO_DNA, sender_id=1, channel_id=2)
     plaintext = b"public/herd-immunity payload"
-    body = sender.encrypt(plaintext)
-    assert receiver.decrypt(body) == plaintext
+    body = sender.encrypt(plaintext, time_ns=_BIO_FIXED_NS)
+    assert receiver.decrypt(body, time_ns=_BIO_FIXED_NS) == plaintext
 
 
 def test_bio_totp_clock_skew_one_window_tolerated():
@@ -1362,8 +1369,8 @@ def test_bio_totp_clock_skew_one_window_tolerated():
 def test_decode_splice_round_trip_with_dna():
     dna = b"k" * 32
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
-    body = sender.encrypt(b"hello via splice")
-    plaintext, used_time_ns = decode_splice(body, dna)
+    body = sender.encrypt(b"hello via splice", time_ns=_BIO_FIXED_NS)
+    plaintext, used_time_ns = decode_splice(body, dna, time_ns=_BIO_FIXED_NS)
     assert plaintext == b"hello via splice"
     assert isinstance(used_time_ns, int)
 
@@ -1392,8 +1399,12 @@ def test_decode_splice_window_env_var_override(monkeypatch):
     sender = BioTotpChannel(
         dna=dna, sender_id=1, channel_id=2, window_ns=custom_window_ns,
     )
-    body = sender.encrypt(b"narrow window")
-    plaintext, _ = decode_splice(body, dna)
+    body = sender.encrypt(b"narrow window", time_ns=_BIO_FIXED_NS)
+    # decode_splice resolves its window from SRMECH_BUS_TOTP_WINDOW_NS
+    # (set above to custom_window_ns) — the path under test — so both
+    # sides quantise on the SAME 100 ms window. Pinning time_ns keeps
+    # floor(time_ns / window_ns) identical regardless of CI-load jitter.
+    plaintext, _ = decode_splice(body, dna, time_ns=_BIO_FIXED_NS)
     assert plaintext == b"narrow window"
 
 
@@ -1427,8 +1438,8 @@ def test_decode_splice_callable_via_public_namespace():
     from srmech.bus import decode_splice as ds_pub
     dna = b"k" * 32
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
-    body = sender.encrypt(b"abc")
-    plaintext, _ = ds_pub(body, dna)
+    body = sender.encrypt(b"abc", time_ns=_BIO_FIXED_NS)
+    plaintext, _ = ds_pub(body, dna, time_ns=_BIO_FIXED_NS)
     assert plaintext == b"abc"
 
 
