@@ -87,6 +87,19 @@ sweep_n_assoc           = 100     # low-load regime where context beats the bigr
 n_sampled_draws         = 50      # seeded draws per probe to realize diversity
 sample_seed             = 42
 
+# --- Step 4: the autoregressive loop — THIS IS INFERENCE ---
+[fetch.literature_curated.inference.loop]
+# encode context → P(next|context) → sample → append → re-encode. The substrate
+# becomes a generator conditioned on its OWN running output. The real test of an
+# inference substrate: does coherence hold over many steps, measured NATIVELY
+# (corpus trigram-legality + grammar POS-bigram-validity + anti-loop/anti-collapse),
+# NOT against a float LLM. Compared against a pure bigram-walk baseline to isolate
+# the value-add of the k-window context memory over the immediate predecessor.
+gen_length_sweep        = [10, 20, 40]               # tokens generated per sequence
+operating_temps         = [0.005, 0.01, 0.02, 0.05]  # the cold confident regime (Step 3)
+n_sequences             = 50      # sequences generated per (T, L) cell
+loop_seed               = 7       # generation RNG seed (deterministic / bit-exact)
+
 [parse]
 natural_key = "measurement_id"
 
