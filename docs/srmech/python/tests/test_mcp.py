@@ -1095,3 +1095,179 @@ def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
         {"spec": spec, "input_value": [10, 20, 30]},
     )
     assert result == [30, 20, 10]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# MCP surface-correctness (v0.5.0rc13)
+#
+# Two real bugs surfaced by upstream MCP usage, plus the would-have-caught
+# -it ratchet. Both bugs affect BOTH the MCP path and the Anthropic adapter
+# (shared ``srmech.mcp._tools.invoke_tool``).
+#
+# BUG A — ``hdc.klein4_random`` / ``hdc.polar_random`` were seedable only
+# via ``rng: numpy.random.Generator``, which cannot cross JSON-RPC nor be
+# expressed in an Anthropic tool schema — so MCP / Anthropic callers could
+# not get a DETERMINISTIC vector (breaking srmech's bit-exact / attestation
+# discipline). Fix: an integer ``seed`` param; the ToolEntry advertises
+# ``seed`` and DROPS the un-serialisable Generator.
+#
+# BUG B — ``srmech.amsc.naming.lookup``'s ToolEntry declared a param
+# (``entries``) the shipped ``lookup(key, pairs)`` does not accept, so the
+# tool was uncallable (``TypeError: unexpected keyword argument 'entries'``).
+# Fix: align the SCHEMA to the shipped signature (``pairs``).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_klein4_random_seed_reproducible() -> None:
+    """``hdc.klein4_random(seed=42)`` is DETERMINISTIC — twice directly,
+    and twice through ``invoke_tool`` (the MCP / Anthropic shared path) —
+    so a JSON-RPC / Anthropic caller can reproduce a Klein-4 vector
+    (bit-exact / attestation discipline). This is the BUG A acceptance
+    test."""
+    from srmech.amsc import hdc
+
+    # Direct: identical vectors for the same seed.
+    a = hdc.klein4_random(8, seed=42)
+    b = hdc.klein4_random(8, seed=42)
+    assert np.array_equal(a, b)
+    assert set(np.unique(a).tolist()) <= {0, 1, 2, 3}
+
+    # Through invoke_tool twice (the wire path): also identical.
+    r1 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+    r2 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+    assert np.array_equal(np.asarray(r1), np.asarray(r2))
+    # And invoke_tool agrees bit-exactly with the direct seeded call.
+    assert np.array_equal(np.asarray(r1), a)
+
+    # A different seed gives a different vector (the seed is load-bearing).
+    c = hdc.klein4_random(8, seed=43)
+    assert not np.array_equal(a, c)
+
+
+def test_polar_random_seed_reproducible() -> None:
+    """Companion to klein4: ``hdc.polar_random(seed=...)`` is deterministic
+    directly and through ``invoke_tool`` (the second ``*_random`` op fixed
+    for BUG A)."""
+    from srmech.amsc import hdc
+
+    a = hdc.polar_random(8, seed=7)
+    b = hdc.polar_random(8, seed=7)
+    assert np.array_equal(a, b)
+    assert set(np.unique(a).tolist()) <= {-1, 0, 1}
+
+    r1 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
+    r2 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
+    assert np.array_equal(np.asarray(r1), np.asarray(r2))
+    assert np.array_equal(np.asarray(r1), a)
+
+
+def test_random_ops_rng_takes_precedence_over_seed() -> None:
+    """When BOTH ``rng`` and ``seed`` are given, the explicit ``rng`` wins
+    (documented precedence), and the legacy ``rng=`` path stays back-compat
+    for in-process Python callers."""
+    from srmech.amsc import hdc
+
+    # rng= path still works (back-compat).
+    assert hdc.klein4_random(8, rng=np.random.default_rng(0)).shape == (8,)
+    assert hdc.polar_random(8, rng=np.random.default_rng(0)).shape == (8,)
+
+    # rng wins over seed: the rng-built vector differs from the seed-only one.
+    rng_out = hdc.klein4_random(8, rng=np.random.default_rng(999), seed=1)
+    seed_out = hdc.klein4_random(8, seed=1)
+    assert not np.array_equal(rng_out, seed_out)
+
+
+def test_random_ops_schema_drops_unserialisable_rng() -> None:
+    """The ``*_random`` ToolEntries advertise the JSON-friendly ``seed``
+    and NO un-serialisable ``rng`` Generator (a Generator has no valid
+    JSON-Schema type and must never reach the MCP / Anthropic schema)."""
+    schema = get_tool_schema()
+    for name in ("srmech.amsc.hdc.klein4_random",
+                 "srmech.amsc.hdc.polar_random"):
+        entry = schema.lookup(name)
+        assert entry is not None, f"{name} not registered"
+        param_names = {p.name for p in entry.parameters}
+        assert "seed" in param_names, f"{name} must advertise `seed`"
+        assert "rng" not in param_names, (
+            f"{name} must NOT advertise the un-serialisable `rng` Generator"
+        )
+
+
+def test_naming_lookup_callable_via_invoke_tool() -> None:
+    """``srmech.amsc.naming.lookup`` is callable through ``invoke_tool``
+    and returns a real result — NOT a ``TypeError`` from a phantom param
+    name. This is the BUG B acceptance test (the schema declared a param
+    the shipped ``lookup(key, pairs)`` does not accept)."""
+    pairs = [(b"a", b"x"), (b"b", b"y"), (b"c", b"z")]  # pre-sorted
+    result = invoke_tool(
+        "srmech.amsc.naming.lookup", {"key": b"b", "pairs": pairs}
+    )
+    assert result == b"y"
+    # A miss returns None (still a real result, no TypeError).
+    miss = invoke_tool(
+        "srmech.amsc.naming.lookup", {"key": b"zzz", "pairs": pairs}
+    )
+    assert miss is None
+
+
+def test_template_render_callable_via_invoke_tool() -> None:
+    """``srmech.amsc.template.render`` is callable through ``invoke_tool``
+    with the real ``mapping`` param — the second schema/signature drift the
+    rc13 ratchet surfaced (the schema declared ``substitutions``)."""
+    result = invoke_tool(
+        "srmech.amsc.template.render",
+        {"template_bytes": b"hi {n}", "mapping": {b"n": b"there"}},
+    )
+    assert result == b"hi there"
+
+
+def test_schema_signature_alignment_no_drift() -> None:
+    """THE RATCHET (v0.5.0rc13): for EVERY ToolEntry, the declared
+    parameters must be BINDABLE to the resolved callable's signature —
+    i.e. no schema/signature drift. A drift means the tool is uncallable
+    via MCP / Anthropic (both route through ``invoke_tool``), exactly the
+    BUG B failure mode.
+
+    Tolerances:
+      * a callable with ``**kwargs`` (VAR_KEYWORD) accepts any name;
+      * the rc10 varargs convention exposes a ``*args`` slot under a clean
+        name (e.g. ``vectors``), so a leading ``*`` on a declared param
+        name is stripped before the membership check.
+
+    This test would have caught both naming.lookup (``entries``) and
+    template.render (``substitutions``). It guards all ~158 tools at once.
+    """
+    from srmech.mcp._tools import _resolve_dotted_callable
+
+    schema = get_tool_schema()
+    assert len(schema.tools) > 50, "tool registry unexpectedly small"
+
+    drift: List[Tuple[str, str, List[str]]] = []
+    for entry in schema.tools:
+        fn = _resolve_dotted_callable(entry.name)
+        sig = __import__("inspect").signature(fn)
+        params = sig.parameters.values()
+        Parameter = __import__("inspect").Parameter
+        has_var_kw = any(
+            p.kind is Parameter.VAR_KEYWORD for p in params
+        )
+        accepted = {
+            p.name
+            for p in params
+            if p.kind
+            in (
+                Parameter.POSITIONAL_OR_KEYWORD,
+                Parameter.KEYWORD_ONLY,
+                Parameter.VAR_POSITIONAL,
+            )
+        }
+        for p in entry.parameters:
+            nm = p.name.lstrip("*")  # tolerate the rc10 varargs convention
+            if not has_var_kw and nm not in accepted:
+                drift.append((entry.name, p.name, sorted(accepted)))
+
+    assert not drift, (
+        "schema/signature drift — these declared ToolEntry params are not "
+        "bindable to the resolved callable (the tool is uncallable via MCP "
+        f"/ Anthropic): {drift}"
+    )
