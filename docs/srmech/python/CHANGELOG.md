@@ -4,7 +4,43 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). Plus optional v0.5.0rc9 Anthropic SDK secondary adapter._
+_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+
+## [0.5.0rc9] - 2026-05-28
+
+**rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional).**
+
+Optional companion to rc6 MCP (primary path for Claude Code users). This
+adapter targets users who script Claude API directly outside Claude Code
+(FastAPI servers, Jupyter notebooks, CI pipelines using the `anthropic`
+Python SDK).
+
+- Added: `srmech.llm.anthropic_agent.AnthropicAgent` — builds the tool
+  catalog from `srmech.amsc.tool_schema` ToolEntries, hands to Anthropic
+  SDK, runs the tool_use message-loop, returns final assistant message
+  with per-tool-call MPR attestation transcript.
+- Added: `srmech-agent` console-script entry. `pip install srmech[anthropic]`
+  installs the optional dep + the `srmech-agent` command.
+- Optional dep: `anthropic>=0.40.0`. Default install does NOT add it
+  (zero impact on users who don't need it).
+- The Anthropic tool-name grammar (`^[a-zA-Z0-9_-]{1,64}$`) doesn't admit
+  the dots in srmech dotted names; the adapter swaps `.` ↔ `_` round-trip
+  and keeps a per-instance reverse map so any future tool with an
+  underscore in its name still round-trips unambiguously.
+- Re-uses `srmech.mcp._server.build_attestation` so the MPR envelope
+  per tool call is byte-identical to what the MCP adapter emits for the
+  same (tool, result) pair — same response_sha256 across transports.
+
+For Claude Code users, this rc adds nothing — rc6 `srmech-mcp` is still
+the right path. This rc exists for the user community: anyone scripting
+Claude API outside Claude Code can now use srmech as a tool source with
+the same MPR attestation discipline.
+
+Pure-Python; ABI unchanged at 3. ~20 new tests using mocked
+Anthropic client (no real API calls).
+
+**This completes the v0.5.0 rc walk** (rc1-rc9 all shipped). Awaiting
+user load-test signal before cutting clean v0.5.0 → production PyPI.
 
 ## [0.5.0rc8] - 2026-05-28
 

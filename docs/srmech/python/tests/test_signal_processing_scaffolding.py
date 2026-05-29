@@ -91,36 +91,34 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc8():
-    """v0.5.0rc8 — Cascade DSL runner (task #235 / ADR-0002 Phase 2-v2).
+def test_version_is_0_5_0rc9():
+    """v0.5.0rc9 — Anthropic SDK secondary adapter (optional).
 
-    Fluent ``chain()`` API + TOML-driven runner + loop/fold/reduce
-    control flow over the 8 cascade-catalog ops shipped in v0.4.5.
-    Adds ``srmech.dsl`` module + ``srmech dsl {run, ops, visualize}``
-    CLI subcommands.
+    rc9 adds :mod:`srmech.llm.anthropic_agent` for users who script
+    the Anthropic Claude API directly outside Claude Code (FastAPI
+    servers, Jupyter notebooks, CI pipelines). The rc6 MCP adapter
+    remains the primary path for Claude Code users (no API key
+    needed). The ``anthropic`` SDK is an OPTIONAL dependency:
+    ``pip install srmech[anthropic]`` installs it plus the
+    ``srmech-agent`` console script. Default install adds nothing.
 
-    The DSL reads TOML cascade-catalog descriptors at construction
-    time and resolves op names to their ``srmech.amsc.cascade.*``
-    Python entry points (which themselves route to C peers when
-    ``HAS_NATIVE`` is True). Per-stage events emit
-    ``dsl.<chain_name>.stage.<N>`` lines under
-    ``srmech.introspect.publish()`` — observable via
-    ``srmech status`` or ``srmech bus tap``.
-
-    No new primitive class — loop / fold / reduce are compositions
-    of the existing 14-class A–N vocabulary (loop = Class I cyclic
-    repetition; fold / reduce = Class M accumulator bind).
+    Same tool catalog as MCP (the ~149
+    :mod:`srmech.amsc.tool_schema` ToolEntries); same MPR
+    attestation envelope per tool call (re-uses
+    :func:`srmech.mcp._server.build_attestation`).
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: Class M (cross-class bind) ∘ Class F
-    (declarative render of the cascade structure) ∘ Class E (catalog
-    enumeration of cascade ops). The DSL is the host process'
-    self-description of which A–N primitives it instantiates and in
-    what order — a Class H self-introspection at the pipeline scale.
+    Framework reading: Class M (cross-class bind) at the
+    direct-SDK substrate-class-instance instead of MCP's stdio
+    JSON-RPC substrate-class-instance. The A–N composition is
+    invariant across transports; only the consumer's
+    substrate-class-instance differs.
+
+    This rc completes the v0.5.0 rc walk (rc1-rc9).
     """
-    assert srmech.__version__ == "0.5.0rc8", (
-        f"expected srmech.__version__ == '0.5.0rc8'; got "
+    assert srmech.__version__ == "0.5.0rc9", (
+        f"expected srmech.__version__ == '0.5.0rc9'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -128,7 +126,7 @@ def test_version_is_0_5_0rc8():
 def test_version_module_matches():
     """``srmech.version.__version__`` agrees with package attribute."""
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc8"
+    assert version_str == "0.5.0rc9"
     assert version_str == srmech.__version__
 
 

@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.5.0rc8"
+version = "0.5.0rc9"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -90,6 +90,14 @@ tests = ["pytest>=7.0"]
 # Install with ``pip install srmech[crypto]`` when you want the
 # UTLP-verbatim cipher primitive.
 crypto = ["cryptography>=41.0"]
+# Anthropic extra (v0.5.0rc9): enables the secondary
+# ``srmech.llm.anthropic_agent.AnthropicAgent`` direct-SDK adapter
+# for users who script Claude API outside Claude Code (FastAPI
+# servers, Jupyter notebooks, CI pipelines). Default install does
+# NOT add it — Claude Code users use the rc6 ``srmech-mcp`` adapter
+# (no API key, billing handled by Claude Code Max plan) and never
+# need this extra. Install with ``pip install srmech[anthropic]``.
+anthropic = ["anthropic>=0.40.0"]
 # Dev extra: everything plus build tooling.
 dev = [
     "pytest>=7.0",
@@ -114,6 +122,12 @@ siona = "srmech.cli:main"
 # via --transport http-sse). Exposes srmech.amsc.tool_schema entries
 # (~150) as MCP tools.
 srmech-mcp = "srmech.mcp._cli:main"
+# v0.5.0rc9 — Anthropic Claude SDK secondary adapter for users who
+# script Claude API directly outside Claude Code (FastAPI servers,
+# Jupyter notebooks, CI pipelines). Requires the ``anthropic``
+# optional dep (``pip install srmech[anthropic]``). Claude Code
+# users should prefer ``srmech-mcp`` (no API key needed).
+srmech-agent = "srmech.llm.anthropic_agent_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"
