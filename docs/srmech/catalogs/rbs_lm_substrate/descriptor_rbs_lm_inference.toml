@@ -74,6 +74,19 @@ window_focus            = [3, 5, 7]            # the productive context lengths 
 n_assoc_focus           = [50, 100, 200, 400]  # span the Step-1 capacity crossover
 probe_sample            = 200     # probes per (k,N) cell for distribution statistics
 
+# --- Step 3: temperature as the sampling knob (coherence/diversity tradeoff) ---
+[fetch.literature_curated.inference.sampling]
+# Return the DISTRIBUTION, not the argmax. Temperature T (the R-RBS-NN-14b
+# soft-retrieval knob) trades RECALL (low T → replay the exact recorded next
+# token) against DIVERSITY (high T → sample more uniformly over the bigram-legal
+# candidates — still grammatical, but creative). Sweep T to map the curve and
+# locate the perplexity-minimizing (best-calibrated) temperature.
+temperature_sweep       = [0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0]
+sweep_k                 = 5       # productive context length (from Steps 1-2)
+sweep_n_assoc           = 100     # low-load regime where context beats the bigram
+n_sampled_draws         = 50      # seeded draws per probe to realize diversity
+sample_seed             = 42
+
 [parse]
 natural_key = "measurement_id"
 
