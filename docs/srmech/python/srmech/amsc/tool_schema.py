@@ -2136,6 +2136,84 @@ def _register_introspect_tools() -> None:
             ),
         )
     )
+    # v0.5.0rc11: the self-recognition ROOT. Register
+    # ``srmech.introspect.describe`` so MCP / Anthropic consumers can
+    # ask "what is srmech / what can it do?" and get the package's own
+    # at-a-glance shape (version + native status + tool total +
+    # by-category + sorted category names) in one call. No parameters.
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.describe",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "The self-recognition ROOT (v0.5.0rc11): a structured, "
+                "at-a-glance map of srmech's own shape. Start here to "
+                "discover 'what is srmech / what can it do?' without "
+                "reading the implementation. Calls `warmup_all()` first "
+                "so the counts are complete no matter how srmech was "
+                "entered (library / CLI / MCP / Anthropic adapter), "
+                "then returns the package version, the tool-schema "
+                "version, the native-dispatch status (has_native / "
+                "abi_version / native_version), the total registered "
+                "tool count + a per-category breakdown, and the sorted "
+                "list of category names. This is a ROOT / INDEX — it "
+                "surfaces the SHAPE; per-tool JSON schemas, env, and "
+                "error-type detail come from later voxels. Framework "
+                "reading: Class H (self-introspection) at package scale "
+                "— the package recognising the shape of its own A–N "
+                "tool surface. No parameters."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="dict",
+                shape=(
+                    "{'srmech_version': str, 'tool_schema_version': "
+                    "str, 'native': {'has_native': bool, 'abi_version': "
+                    "int | None, 'native_version': str | None}, "
+                    "'tools': {'total': int, 'by_category': {category: "
+                    "count, ...}}, 'categories': [sorted category "
+                    "names]}"
+                ),
+            ),
+        )
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Single registration entry-point (v0.5.0rc11 — Self-recognition root)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def warmup_all() -> None:
+    """Import every srmech submodule that registers ToolEntries, so the
+    registry is fully populated no matter how srmech was entered (library,
+    CLI, MCP, Anthropic adapter). Idempotent. THE single place future
+    voxels add their registration import — replaces scattered side-effect
+    imports. Closes the orphan-registration bug class (v0.5.0rc9 bus miss).
+
+    ``srmech.amsc`` (this module's package) and ``srmech.qm`` register
+    their tools at *this* module's import time via the
+    ``_register_*_tools()`` calls below, so they are always present once
+    ``srmech.amsc.tool_schema`` is imported. The submodules listed here
+    are the ones whose registration is NOT transitively guaranteed by
+    importing ``srmech.amsc.tool_schema``:
+
+    * ``srmech.bus`` fires ``srmech.bus._tool_schema._register_bus_tools``
+      (the rc9 orphan — bus tools were silently missing from the
+      LLM-facing catalog because no entry-path imported the bus).
+    * ``srmech.introspect`` is belt-and-braces — its tool entries are
+      registered by ``_register_introspect_tools()`` at this module's
+      import, but importing the module keeps the warmup list a complete,
+      self-documenting manifest of the registration-bearing submodules.
+    """
+    import importlib
+
+    for mod in ("srmech.bus", "srmech.introspect"):
+        try:
+            importlib.import_module(mod)
+        except Exception:  # pragma: no cover - defensive; optional submodules
+            pass
 
 
 # Call at module import so srmech's own tools are always present
@@ -2163,4 +2241,5 @@ __all__ = [
     "register_tool",
     "tool_schema_view",
     "unregister_profile_tools",
+    "warmup_all",
 ]

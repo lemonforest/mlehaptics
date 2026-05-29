@@ -585,6 +585,81 @@ def _maybe_auto_publish() -> None:
     # internal atexit hook emits session_end best-effort.
 
 
+# ─────────────────────────────────────────────────────────────────────
+# describe() — the self-recognition ROOT surface (v0.5.0rc11)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def describe() -> Dict[str, Any]:
+    """Return a structured, at-a-glance map of srmech's own shape.
+
+    The "what is srmech?" root — the **self-recognition ROOT surface**
+    of the v0.5.0 substrate-self-recognition arc. Calls
+    :func:`srmech.amsc.tool_schema.warmup_all` first so the counts are
+    complete no matter how srmech was entered, then groups the
+    registered tool-schema by ``entry.category`` and folds in the
+    native-dispatch status.
+
+    Framework reading: this IS **Class H (self-introspection)** at
+    package scale — the package recognising and rendering the SHAPE of
+    its own A–N tool surface (composes with the per-process Class-H
+    projection that the rest of this module implements). It is a ROOT /
+    INDEX: it surfaces the shape, not the detail. Per-tool JSON schemas,
+    environment, and error-type catalogues are deliberately out of
+    scope here (later voxels — rc15 config/data-schemas, rc16 LLM
+    agent — add those deeper surfaces).
+
+    Returns
+    -------
+    dict
+        ::
+
+            {
+              "srmech_version": <str>,
+              "tool_schema_version": <str>,
+              "native": {"has_native": <bool>,
+                         "abi_version": <int|None>,
+                         "native_version": <str|None>},
+              "tools": {"total": <int>,
+                        "by_category": {<category>: <count>, ...}},
+              "categories": [<sorted category names>],
+            }
+    """
+    # Lazy imports: this module is imported during ``srmech.__init__``
+    # BEFORE ``warmup_all`` / ``srmech.amsc`` are fully wired, so a
+    # module-level import of these would be premature (import cycle).
+    from ..amsc import _native
+    from ..amsc.tool_schema import (
+        TOOL_SCHEMA_VERSION,
+        get_tool_schema,
+        warmup_all,
+    )
+
+    # Populate the registry from every entry-path before we count.
+    warmup_all()
+
+    schema = get_tool_schema()
+
+    by_category: Dict[str, int] = {}
+    for entry in schema.tools:
+        by_category[entry.category] = by_category.get(entry.category, 0) + 1
+
+    return {
+        "srmech_version": schema.srmech_version,
+        "tool_schema_version": TOOL_SCHEMA_VERSION,
+        "native": {
+            "has_native": bool(_native.HAS_NATIVE),
+            "abi_version": _native.NATIVE_ABI_VERSION,
+            "native_version": _native.NATIVE_VERSION,
+        },
+        "tools": {
+            "total": len(schema.tools),
+            "by_category": dict(sorted(by_category.items())),
+        },
+        "categories": sorted(by_category.keys()),
+    }
+
+
 __all__ = [
     "Event",
     "INTROSPECT_DIR_NAME",
@@ -593,6 +668,7 @@ __all__ = [
     "_PublishHandle",
     "_maybe_auto_publish",
     "by_pid",
+    "describe",
     "describe_shape",
     "emit_if_publishing",
     "introspect_dir",

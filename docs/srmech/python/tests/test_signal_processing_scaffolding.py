@@ -91,49 +91,70 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc10():
-    """v0.5.0rc10 — fix Anthropic tool-schema illegal varargs key + shared varargs dispatch.
+def test_version_is_0_5_0rc11():
+    """v0.5.0rc11 — Self-recognition root: ``warmup_all()`` +
+    ``introspect.describe()``.
 
-    Found by a LIVE Anthropic API test of the rc9 adapter (the
-    mock-backed tests could not catch it). Two bugs in the SHARED
-    tool-schema / dispatch, affecting BOTH the MCP path and the
-    Anthropic adapter:
+    The keystone voxel of the v0.5.0 substrate-self-recognition arc.
+    The package gains a single canonical surface to populate AND
+    recognise its own tool-schema shape:
 
-    1. ``srmech.amsc.hdc.polar_bundle`` / ``klein4_bundle`` registered
-       their variadic parameter as ``*vectors`` — the ``*`` sigil
-       leaked into the ToolParameter name, violating Anthropic's
-       ``^[a-zA-Z0-9_.-]{1,64}$`` property-key pattern and rejecting
-       the ENTIRE catalogue with a 400. Renamed ``*vectors`` ->
-       ``vectors`` (``Sequence[np.ndarray]``).
-    2. ``srmech.mcp._tools.invoke_tool`` called ``fn(**coerced)``
-       (keyword-only), which cannot invoke a ``VAR_POSITIONAL``
-       function; now detects the variadic via ``inspect.signature``
-       and unpacks the bound sequence positionally.
+    1. ``srmech.amsc.tool_schema.warmup_all()`` — THE single
+       registration entry-point. Imports every registration-bearing
+       submodule (``srmech.bus`` / ``srmech.introspect``) so the
+       ToolEntry registry is fully populated no matter how srmech was
+       entered (library / CLI / MCP / Anthropic adapter). Fires from
+       ``srmech.__init__`` so every consumer sees the full registry
+       from t=0. PERMANENTLY CLOSES the orphan-registration bug class
+       (the rc9 miss where ``srmech.bus`` tools were silently absent
+       from the LLM-facing catalog because no entry-path imported the
+       bus). The scattered side-effect imports in ``srmech.mcp._tools``
+       are replaced by one ``warmup_all()`` call.
+    2. ``srmech.introspect.describe()`` — the "what is srmech?" root.
+       A structured, at-a-glance map of the package's own shape
+       (version, native status, tool total + by-category, sorted
+       category names). Registered as a ToolEntry so MCP / Anthropic
+       consumers can ask "what can srmech do?". The self-recognition
+       ROOT surface; deeper detail (env / error-types / full JSON
+       schemas) comes in later voxels (rc15 / rc16).
 
-    Regression ratchets added: every tool's input_schema property
-    keys must match the Anthropic pattern (guards both adapters
-    forever); both bundle tools invoke cleanly through
-    ``invoke_tool``.
+    Also de-brittled the version-gate test: this is now the SINGLE
+    deliberate human-literal gate (the conscious per-rc bump point);
+    ``test_version_module_matches`` no longer hardcodes a literal and
+    only checks the SSoT sources AGREE (so it survives version bumps).
 
     Pure-Python; ABI unchanged at 3.
 
-    Framework reading: the tool-schema is a Class A (content-addressed
-    callable identifier) ∘ Class E (catalog) surface; a leaked Python
-    sigil broke the projection into the Anthropic substrate-class
-    instance. The A–N composition is invariant across transports;
-    only the consumer's substrate-class-instance differs.
+    Framework reading: ``describe()`` IS Class H (self-introspection)
+    at package scale — the package recognising its own A–N tool
+    surface and rendering that shape. ``warmup_all()`` is the Class A
+    (content-addressed callable identifier) ∘ Class E (catalog)
+    population step that GUARANTEES the Class H view is complete
+    regardless of entry-path (the rc9 orphan was an incomplete
+    projection of the package's own shape).
     """
-    assert srmech.__version__ == "0.5.0rc10", (
-        f"expected srmech.__version__ == '0.5.0rc10'; got "
+    assert srmech.__version__ == "0.5.0rc11", (
+        f"expected srmech.__version__ == '0.5.0rc11'; got "
         f"{srmech.__version__!r}"
     )
 
 
 def test_version_module_matches():
-    """``srmech.version.__version__`` agrees with package attribute."""
+    """``srmech.version.__version__`` agrees with the package attribute.
+
+    De-brittled 2026-05-29 — the single deliberate literal gate is
+    ``test_version_is_0_5_0rcN``; this test only checks the sources
+    AGREE (plus a PEP 440 sanity shape) so it survives version bumps.
+    NO hardcoded ``"0.5.0rcN"`` literal here anymore.
+    """
+    import re
+
     from srmech.version import __version__ as version_str
-    assert version_str == "0.5.0rc10"
     assert version_str == srmech.__version__
+    # PEP 440 sanity: looks like a version (e.g. 0.5.0rc11 / 1.2.3).
+    assert re.match(r"^\d+\.\d+\.\d+", version_str), (
+        f"version {version_str!r} does not look like a version string"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
