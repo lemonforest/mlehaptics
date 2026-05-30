@@ -6,6 +6,29 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc1] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #751 — the lean A–N ISA two-tier split.**
+
+First rc of the v0.6.0 line. Splits `srmech.amsc.cascade` (a single module) into a
+two-tier package along the lean-ISA boundary (per F208):
+
+- **`srmech.amsc.cascade.atoms`** — the 6 silicon-able 1:1 ISA intrinsics
+  (`pin_slot_at_zero` K, `reorient` C, `magnitude` K, `chiral_flip` C,
+  `chiral_dual` C∘op∘C, `net_chirality` C).
+- **`srmech.amsc.cascade.compose`** — the 2 iterative algorithms over the atoms
+  (`cyclic_gcd` = Euclid's remainder loop, `best_rational_signed` = the
+  Class K∘N∘C continued-fraction loop).
+
+`atoms.*` / `compose.*` are the new canonical homes; the flat
+`srmech.amsc.cascade.<op>` names (and the `class_*` / `best_rat_signed` aliases)
+are **retained as deprecated-for-one-release aliases** — importable with NO
+runtime `DeprecationWarning` this release. **Public surface byte-identical**:
+`describe()` tool total STAYS **174**, the MCP `srmech.amsc.cascade.*` tool names
+and the introspect emit strings are unchanged. Pure-Python packaging refactor;
+**ABI unchanged at 3** (no `c/` change); full C dispatch + TOML descriptors
+intact; no `abs()` (Class K pin-slot). Closes #751.
+
 ## [0.5.0] - 2026-05-30
 
 **Production graduation — srmech as a substrate-self-recognition apparatus.**
