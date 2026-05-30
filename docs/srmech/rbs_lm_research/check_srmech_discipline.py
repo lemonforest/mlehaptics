@@ -56,6 +56,8 @@ class V(ast.NodeVisitor):
         ln = n.lineno
         if name == "abs":
             self.hard.append((ln, "abs() — use srmech.amsc.cascade.magnitude (rc22+); sign-fold = cascade.pin_slot_at_zero (Class K) + cascade.reorient (Class C); never python abs()"))
+        elif name in ("np.abs", "numpy.abs"):
+            self.review.append((ln, "np.abs — OK only as a residual/diagnostic NORM (e.g. max|recon-orig|); a cascade SIGN-FOLD must use cascade.magnitude (rc22) / Class-K+C, not np.abs"))
         elif name in ("hashlib.sha256",):
             self.hard.append((ln, "hashlib.sha256 — route through srmech.amsc.format.sha256_bytes"))
         elif name in HARD_EIG:
