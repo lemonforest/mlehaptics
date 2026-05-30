@@ -77,6 +77,18 @@
 - rc18 replaced the *top-level* `HAS_NATIVE` bool + `_native.NATIVE_ABI_VERSION` surface with a **profile-loader** (`srmech.profile(name)`, `list_profiles()`, `ProfileStatus`, `AbiMismatchError`, `warmup_all()`; ctypes-loaded `_native/libsrmech.so`). **A bare `pip install srmech==0.5.0rc18` shows `list_profiles() == {}`.** **CORRECTION (2026-05-30, issue #733): native status IS still verifiable** — `from srmech.amsc._native import HAS_NATIVE` (= True) and `NATIVE_ABI_VERSION` (= 3) work in rc18 (the AMSC shim kept them). The real gap is narrower than first stated: the *top-level* surface doesn't expose a bare-install status, and the old top-level "verify `HAS_NATIVE=True`" recipe effectively moved down into the AMSC shim.
 - **Ask:** (a) document the rc18 native-status check (the working recipe is `from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION`; clarify whether `list_profiles()` is also expected to populate); (b) clarify whether a bare install should **auto-register a default native profile** (currently none); (c) ideally surface a one-call top-level status (e.g. `srmech.native_status()`) mirroring the AMSC-shim flag for downstream rc-verification.
 
+### W13 — `srmech mcp emit-mcpb`: a user-invoked CLI that emits a ready-to-install Claude Desktop bundle from introspection  *(NEW — desktop-extension distribution; ENHANCEMENT; user direction 2026-05-30)*
+- **Context:** Claude Desktop installs MCP servers as **`.mcpb`** bundles (formerly `.dxt`; a ZIP + a root `manifest.json`; spec: `anthropics/mcpb` / `modelcontextprotocol/mcpb`). srmech already holds every value a manifest needs — `tool_schema.get_tool_schema()` (the `mcp_callable` tool set), `__version__`, and the `srmech.mcp._cli` entry point — so the manifest should be **derived by introspection, never hand-authored** (no magic numbers: no frozen tool list, no baked interpreter path, no hardcoded version).
+- **Ask:** add a **user-invoked** CLI subcommand — `srmech mcp emit-mcpb [--out .] [--type uv|python] [--manifest-only] [--name srmech]` — that:
+  - introspects tool_schema + `__version__` + entry point → writes a spec-valid `manifest.json`;
+  - packs a ready-to-install **`srmech.mcpb`** into the **cwd** using stdlib `zipfile` — **NO Node / `@anthropic-ai/mcpb` toolchain required** — and prints the absolute output path so the user can find it trivially;
+  - defaults to **`server.type: "uv"`** (declare srmech as the dependency → `uv` fetches the correct platform wheel from PyPI at install; path-/version-agnostic; solves the spec's "Python bundles cannot portably bundle compiled dependencies" limitation — i.e. the `libsrmech` native wheel), with **`server.type: "python"` + `user_config.python_path`** as the documented offline/air-gapped fallback;
+  - `--manifest-only` emits just `manifest.json` (+ a `server/` shim) for users who want to edit/repack.
+- **Explicitly NOT:** an auto-emit on `pip install` / wheel-build side-effect (it is a deliberate user action), and **NOT** a baked `sys.executable` in `mcp_config.command` (that reintroduces the exact `/tmp`-reboot brittleness we hit with the Claude Code `.mcp.json` — a magic number *and* a portability bug).
+- **Provenance fit:** the emitted manifest can carry `__version__` + a `tool_schema` hash as an MPR-style attestation block — bundle provenance, consistent with the AMSC ethos.
+- **Gold gate:** the `uv`-type bundle resolves srmech from an index `uv` can reach → **live PyPI**, so the emitted bundle is naturally gold-version-stamped (no rc-as-SoT issue; same principle as `.mcp.json`).
+- **Verified now (2026-05-30):** the server end is already healthy — `srmech-mcp` (stdio) does `initialize` + `tools/list`=173 (incl. so8/triality/klein4) + `tools/call` against the 0.5.0rc18 venv. Only the *emit/pack* surface is missing.
+
 ---
 
 ## Priority for the maintainer (suggested)
@@ -84,7 +96,7 @@
 2. **W12** (native-status recipe) — rc18 moved the native-status surface into the AMSC shim (`srmech.amsc._native.HAS_NATIVE`, still True); the top-level profile-loader just lacks a bare-install status. Verifiable today (correction #733); the ask is to surface/document it at the top level.
 3. **W2 / W3** (determinism + schema-gen) — confirm the MCP wrapper exposes the now-landed `seed`; fix the surrogate mapping.
 4. **W4 / W5 / W6b / W6c** — cheap docstring/naming/alias fixes (W6 superseded by W12).
-5. **W8 / W9 / W11** — enhancements; schedule with the chaining / parity-cosmology / A–N-embedding work.
+5. **W8 / W9 / W11 / W13** — enhancements; schedule with the chaining / parity-cosmology / A–N-embedding work. **W13** (desktop `.mcpb` emit) pairs with the gold cut — its `uv`-type bundle wants srmech on live PyPI.
 6. ✅ **W10** (triality op) — **DONE** in rc18 (F192); **W2** seed — **DONE** package-side (confirm MCP wrapper).
 
 ---
