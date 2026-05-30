@@ -62,6 +62,7 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import functools
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -132,13 +133,20 @@ def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return b_companion, c_companion
 
 
+@functools.lru_cache(maxsize=None)
 def _companion_maps() -> Tuple[np.ndarray, np.ndarray]:
-    """Build the two ``28x28`` companion involutions ``(S_B, S_C)``.
+    """Build the two ``28x28`` companion involutions ``(S_B, S_C)`` (cached).
 
     Column ``col`` of ``S_B`` (resp. ``S_C``) is the ``E_{pq}``-coords of the
     ``B`` (resp. ``C``) companion of the ``col``-th ``E_{pq}`` basis matrix.
-    Cached at module import is unnecessary (cheap, deterministic); callers
-    that need both ``tau`` and ``swap`` share this one build.
+    This is the dominant cost of the whole engine — building it solves 28
+    ``512x128`` least-squares systems (one ``_solve_companions`` per ``E_{pq}``
+    generator) — so it is built exactly once and memoised. The two returned
+    arrays are ``writeable=False`` so the cached build can never be mutated by
+    a caller; :func:`triality_automorphism` / :func:`triality_swap` / (via
+    :func:`srmech.qm.so8.so7_subalgebra`) copy out a fresh writeable array.
+    Deterministic (no ``np.random``), so the cached value is bit-identical to
+    a fresh build and the bit-exact acceptance tests are unaffected.
     """
     s_b = np.zeros((_DIM_SO8, _DIM_SO8))
     s_c = np.zeros((_DIM_SO8, _DIM_SO8))
@@ -146,6 +154,8 @@ def _companion_maps() -> Tuple[np.ndarray, np.ndarray]:
         b_companion, c_companion = _solve_companions(generator)
         s_b[:, col] = _epq_coords(b_companion)
         s_c[:, col] = _epq_coords(c_companion)
+    s_b.flags.writeable = False
+    s_c.flags.writeable = False
     return s_b, s_c
 
 
@@ -166,6 +176,8 @@ def triality_automorphism() -> np.ndarray:
         ``28x28`` real matrix ``tau`` with ``tau^3 = I_28``.
     """
     s_b, s_c = _companion_maps()
+    # ``@`` of the two cached read-only arrays yields a FRESH writeable array
+    # (the cached companions are never mutated), so this is safe to return.
     return s_b @ s_c
 
 
@@ -184,7 +196,10 @@ def triality_swap() -> np.ndarray:
         ``28x28`` real involution ``S_B``.
     """
     s_b, _ = _companion_maps()
-    return s_b
+    # Defensive copy: the cached ``s_b`` is read-only; hand the caller a
+    # fresh WRITEABLE array so a downstream mutation can never corrupt the
+    # shared cache (the build is expensive; the per-call copy is cheap).
+    return np.array(s_b)
 
 
 def _normalise_frame(frame: str) -> str:

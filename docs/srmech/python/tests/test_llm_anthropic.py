@@ -203,11 +203,11 @@ def test_name_mapping_under_64_char_ceiling() -> None:
 
 def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     """The catalog handed to Claude has one entry per ADVERTISED
-    (``mcp_callable=True``) ToolEntry. v0.5.0rc16 — the 7
-    ``srmech.spectral.*`` tools became callable via the by-reference
+    (``mcp_callable=True``) ToolEntry. v0.5.0rc18 — since rc16 the 7
+    ``srmech.spectral.*`` tools are callable via the by-reference
     ``$srmech_handle`` grammar, so there are ZERO handle-pending tools and
-    EVERY registered tool is advertised (rc17 carries this forward, adding
-    the 15 so(8)/triality tools). The count matches the MCP advertised
+    EVERY registered tool is advertised (rc17 added the 15 so(8)/triality
+    tools; rc18 carries this forward). The count matches the MCP advertised
     surface (``tool_entries_to_mcp_defs``)."""
     from srmech.mcp._tools import tool_entries_to_mcp_defs
 

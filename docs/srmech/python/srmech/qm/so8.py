@@ -46,6 +46,7 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import functools
 from typing import List, Tuple
 
 import numpy as np
@@ -177,6 +178,37 @@ def _deterministic_rank_subset(
     return [matrices[k] for k in kept_indices]
 
 
+def _frozen_tuple(matrices: List[np.ndarray]) -> Tuple[np.ndarray, ...]:
+    """A cache-safe tuple of ``writeable=False`` copies of ``matrices``.
+
+    The cached builders below return one of these so the memoised value can
+    never be mutated through the references the public copy-out reads from.
+    """
+    out: List[np.ndarray] = []
+    for m in matrices:
+        frozen = np.array(m)
+        frozen.flags.writeable = False
+        out.append(frozen)
+    return tuple(out)
+
+
+def _thaw_tuple(frozen: Tuple[np.ndarray, ...]) -> Tuple[np.ndarray, ...]:
+    """Defensive copy-out: a fresh tuple of fresh WRITEABLE arrays.
+
+    The public ``so(8)`` surfaces hand callers a thawed copy of the cached
+    build so a downstream mutation can never corrupt the shared cache; the
+    build is expensive, the per-call copy is cheap, and the values are
+    bit-identical (deterministic — no ``np.random``).
+    """
+    return tuple(np.array(m) for m in frozen)
+
+
+@functools.lru_cache(maxsize=None)
+def _build_g2() -> Tuple[np.ndarray, ...]:
+    """Cached read-only ``g2`` basis (the expensive rank-revealing subset)."""
+    return _frozen_tuple(_deterministic_rank_subset(_all_derivations(), _DIM_G2))
+
+
 def g2_subalgebra() -> Tuple[np.ndarray, ...]:
     """The 14 octonion derivations ``Der(O) = g2`` as antisymmetric ``8x8``.
 
@@ -185,7 +217,8 @@ def g2_subalgebra() -> Tuple[np.ndarray, ...]:
     the span has rank exactly 14.
     This is the KILLER-test target: ``Fix(tau) = span(g2)`` (the
     ``D4 --(Z3 fold)--> G2`` theorem), the same ``14`` as the A-N
-    ``1 + 3 + 7 + 3`` partition.
+    ``1 + 3 + 7 + 3`` partition. The expensive build is memoised
+    (:func:`_build_g2`); each call returns a fresh writeable copy.
 
     Class M (the ``g2`` Lie subalgebra; derivations bind octonion products).
 
@@ -194,7 +227,17 @@ def g2_subalgebra() -> Tuple[np.ndarray, ...]:
     Returns:
         Tuple of 14 antisymmetric ``8x8`` real matrices spanning ``g2``.
     """
-    return tuple(_deterministic_rank_subset(_all_derivations(), _DIM_G2))
+    return _thaw_tuple(_build_g2())
+
+
+@functools.lru_cache(maxsize=None)
+def _build_so8_adjoint() -> Tuple[np.ndarray, ...]:
+    """Cached read-only ``so(8)`` adjoint basis (``14 g2 + 7 L + 7 R``)."""
+    basis = _basis_vectors()
+    g2 = list(_build_g2())
+    l_type = [octonion_left_mult(basis[i]) for i in range(1, _DIM)]
+    r_type = [octonion_right_mult(basis[i]) for i in range(1, _DIM)]
+    return _frozen_tuple(g2 + l_type + r_type)
 
 
 def so8_adjoint_basis() -> Tuple[np.ndarray, ...]:
@@ -209,16 +252,24 @@ def so8_adjoint_basis() -> Tuple[np.ndarray, ...]:
     directions; ``g2`` is the other 14).
 
     Canonical SSoT: Baez (2002) §2.4 + §4.1 (so(8) from octonion
-    multiplication; ``g2 = Der(O)``).
+    multiplication; ``g2 = Der(O)``). The build is memoised
+    (:func:`_build_so8_adjoint`); each call returns a fresh writeable copy.
 
     Returns:
         Tuple of 28 antisymmetric ``8x8`` real matrices.
     """
-    basis = _basis_vectors()
-    g2 = list(g2_subalgebra())
-    l_type = [octonion_left_mult(basis[i]) for i in range(1, _DIM)]
-    r_type = [octonion_right_mult(basis[i]) for i in range(1, _DIM)]
-    return tuple(g2 + l_type + r_type)
+    return _thaw_tuple(_build_so8_adjoint())
+
+
+@functools.lru_cache(maxsize=None)
+def _build_so7() -> Tuple[np.ndarray, ...]:
+    """Cached read-only ``so(7)`` basis (SVD nullspace of ``S_B - I``)."""
+    # Imported here to keep the module DAG acyclic at import time
+    # (octonion <- so8 <- triality): so7 needs the triality companion map.
+    from srmech.qm.triality import triality_swap
+
+    swap = triality_swap()
+    return _frozen_tuple(_fixed_space_matrices(swap, _DIM_SO7))
 
 
 def so7_subalgebra() -> Tuple[np.ndarray, ...]:
@@ -232,18 +283,14 @@ def so7_subalgebra() -> Tuple[np.ndarray, ...]:
     Class C (the ``Z2``-swap-fixed subalgebra; ``Z2`` swap = Class C
     chirality / the ``D4 --(Z2 fold)--> B3`` Dynkin reflection).
 
-    Canonical SSoT: Baez (2002) §2.4 + the ``D4 -> B3`` Dynkin fold.
+    Canonical SSoT: Baez (2002) §2.4 + the ``D4 -> B3`` Dynkin fold. The
+    build is memoised (:func:`_build_so7`); each call returns a fresh
+    writeable copy.
 
     Returns:
         Tuple of 21 antisymmetric ``8x8`` real matrices spanning ``so(7)``.
     """
-    # Imported here to keep the module DAG acyclic at import time
-    # (octonion <- so8 <- triality): so7 needs the triality companion map.
-    from srmech.qm.triality import triality_swap
-
-    swap = triality_swap()
-    fixed = _fixed_space_matrices(swap, _DIM_SO7)
-    return tuple(fixed)
+    return _thaw_tuple(_build_so7())
 
 
 def _fixed_space_matrices(operator: np.ndarray, dim: int) -> List[np.ndarray]:

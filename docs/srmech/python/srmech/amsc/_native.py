@@ -54,6 +54,11 @@ from typing import Optional
 #        (CFUNCTYPE construction), so ABI bumps.
 EXPECTED_ABI_VERSION: int = 3
 
+# Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
+# expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
+# detected NATIVE_ABI_VERSION, which is None when no native lib is present).
+ABI_VERSION: int = EXPECTED_ABI_VERSION
+
 
 SRMECH_OK: int = 0
 SRMECH_ERR_NULL_ARG: int = 1
@@ -1063,6 +1068,7 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
 
 
 __all__ = [
+    "ABI_VERSION",
     "BUS_HANDLER_CALLBACK",
     "CASCADE_OP_CALLBACK_F64",
     "EXPECTED_ABI_VERSION",

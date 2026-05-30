@@ -91,15 +91,25 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc17():
-    """v0.5.0rc17 — the SO(8) TRIALITY voxel: three new qm-layer surfaces
+def test_version_is_0_5_0rc18():
+    """v0.5.0rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
+
+    Carries the rc17 SO(8) TRIALITY voxel forward with the deterministic
+    constant-returning ``srmech.qm.{octonion,so8,triality}`` builders now
+    module-level cached (the public surfaces return DEFENSIVE COPIES, so the
+    six bit-exact acceptance tests pass identically). Doc/accuracy fixes for
+    the downstream RBS-LM wishlist (``sha256_bytes`` returns the hex digest;
+    ``klein4_bundle`` accepts any count; ``weak_mixing_angle`` returns
+    radians; ``_native.ABI_VERSION`` back-compat alias; cosmos references).
+    Pure-Python; ABI stays 3. (The rc17 SO(8) TRIALITY voxel — three new
+    qm-layer surfaces
     (``srmech.qm.octonion`` / ``srmech.qm.so8`` / ``srmech.qm.triality``)
     expose the octonion Cayley-Dickson-from-H table, the 28-generator
     ``so(8)`` adjoint (14 g2 + 7 L + 7 R), and the ``28x28`` order-3 outer
     automorphism ``tau`` with ``Fix(tau) = g2`` (dim 14 = the A-N
     ``1+3+7+3`` partition). +15 ToolEntries (158 -> 173). Plus the
     ``operator_name`` ``__module__`` hardening (rejects re-exported stdlib
-    reached through a srmech module). Pure-Python; ABI stays 3.
+    reached through a srmech module).)
 
     This builds on the rc16 handle dual-grammar voxel: the by-reference
     ``$srmech_handle`` id (name+uuid) + the package-scope ``srmech._handles``
@@ -151,8 +161,8 @@ def test_version_is_0_5_0rc17():
     introspection) at package scale — the apparatus thesis. No new
     primitive class is introduced.
     """
-    assert srmech.__version__ == "0.5.0rc17", (
-        f"expected srmech.__version__ == '0.5.0rc17'; got "
+    assert srmech.__version__ == "0.5.0rc18", (
+        f"expected srmech.__version__ == '0.5.0rc18'; got "
         f"{srmech.__version__!r}"
     )
 

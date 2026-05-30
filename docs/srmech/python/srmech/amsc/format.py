@@ -377,9 +377,12 @@ def _resolve_sort_key(record: MPRRecord, dotted: str) -> Any:
 
 
 def sha256_bytes(data: bytes) -> str:
-    """SHA-256 over raw bytes; returns lowercase hex string. Used
-    by every adapter's ``attest()`` step to fingerprint upstream
-    response bytes.
+    """SHA-256 over raw input bytes; returns the 64-char lowercase hex
+    digest as a ``str`` (NOT the raw 32-byte digest). The ``_bytes`` in
+    the name names the INPUT type (the raw bytes hashed), not the return
+    type — this is the Python parity of C ``srmech_sha256_hex`` and of
+    ``hashlib.sha256(data).hexdigest()``. Used by every adapter's
+    ``attest()`` step to fingerprint upstream response bytes.
 
     Task #201 Phase B3 — dispatches to the native C implementation
     (``srmech.amsc._native.sha256_hex_c``) when the shared library

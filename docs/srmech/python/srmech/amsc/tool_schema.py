@@ -1211,7 +1211,8 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
-                    "independently; exact ties → 0 for that bit.",
+                    "independently; accepts any count n>=1 (even or odd); "
+                    "exact ties (only possible for even n) → 0 for that bit.",
             # Variadic ``klein4_bundle(*vectors)``: exposed under the clean
             # name ``vectors`` (the ``*`` sigil is illegal in an Anthropic
             # property key). See polar_bundle note above.
@@ -2034,7 +2035,8 @@ def _register_qm_tools() -> None:
         ToolEntry(
             name="srmech.qm.sm.weak_mixing_angle", owner="srmech", category="qm.sm",
             summary="Weinberg mixing angle θ_W = atan(g'/g). Weinberg (1967); "
-                    "Peskin-Schroeder §20.2.",
+                    "Peskin-Schroeder §20.2. Returns the angle in RADIANS "
+                    "(not sin²θ_W, not degrees).",
             parameters=(P("g", "float", True, "SU(2)_L coupling > 0"),
                         P("g_prime", "float", True, "U(1)_Y coupling")),
             returns=R("float", "radians"),

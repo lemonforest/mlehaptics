@@ -93,7 +93,7 @@ Each class is importable as `srmech.amsc.<module>` with native C dispatch and a 
 
 | Module | Class | Primitive operation |
 |---|---|---|
-| `format`, `_native` | A | Content-addressing via SHA-256 (`sha256_bytes`) |
+| `format`, `_native` | A | Content-addressing via SHA-256 (`sha256_bytes` -> 64-char lowercase hex digest `str`) |
 | `tlv` | B | Byte-canonical TLV pack (`tlv_pack`) |
 | `format` | C | Streaming NDJSON iterator (`read_ndjson`) |
 | `dispatch` | D | Multi-needle byte-pattern dispatch (`match`) |

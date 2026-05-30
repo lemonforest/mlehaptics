@@ -451,7 +451,11 @@ def klein4_unbind(c, a):
 
 def klein4_bundle(*vectors):
     """Klein-4 bundle: per-bit majority vote on each of the 2 bits
-    independently. Exact ties (count == n/2) resolve to 0 for that bit."""
+    independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
+    there is NO odd-only requirement). A bit is set only when its 1-count
+    is strictly greater than ``n // 2``, so an exact tie (``count == n/2``,
+    possible only for even ``n``) deterministically resolves to 0 for that
+    bit."""
     if len(vectors) == 0:
         raise ValueError("hdc.klein4_bundle: requires at least one vector")
     arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
