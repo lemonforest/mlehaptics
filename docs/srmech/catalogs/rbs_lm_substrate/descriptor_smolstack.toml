@@ -1,0 +1,221 @@
+# RBS-LM substrate catalog — smol-stack variant (Phase C / F163 placeholder fulfilled)
+#
+# Variant of the canonical rbs_lm_substrate catalog (descriptor.toml). Same
+# substrate library (_canonical_substrate.py), same srmech 0.5.0 Klein-4
+# machinery, same MPR attestation — different corpus source: a deliberately
+# SMALL, multi-source curated "stack" of distinct-register texts (the
+# smol-stack), exercising the canonical R-RBS-LM-122 unified characterization
+# (P0..P7) on a real-file (non-template) corpus for the first time.
+#
+# This fulfils the ROADMAP "#184 smol-stack Phase C" item and the canonical
+# descriptor's note that "Variants (smol_stack, etc.) override fields without
+# re-declaring substrate library code." We use Finding 204 (not 163) to stay
+# sequential; F163's "Phase C / smol-stack" placeholder is hereby fulfilled.
+#
+# SMOKE STATUS (load-bearing honesty): the five stack texts are SYNTHETIC
+# fragments authored for this methodology run — NOT a sourced external corpus.
+# Each is attested by its real content SHA-256 (computed via
+# srmech.amsc.format.sha256_bytes, recorded below). Provenance is
+# "synthesised by this run for methodology validation", NOT a fabricated
+# external citation. The run is a METHODOLOGY SMOKE (does the canonical
+# characterization machinery consume a multi-file real-text stack and produce
+# a stable substrate signature?), NOT a data claim about any natural corpus.
+# When a genuinely-sourced smol-stack is wired, this descriptor's [corpus]
+# block is the slot it drops into (same loader, swap files + real attestation).
+
+[source]
+key                  = "rbs_lm_substrate_smolstack"
+human_readable_name  = "RBS-LM substrate — smol-stack variant (5 small multi-register texts; methodology smoke)"
+purpose              = "Catalog variant feeding a deliberately SMALL multi-source 'stack' (5 distinct-register synthetic texts: procedural / almanac / fable / aphorism / travel-log) through the canonical Klein-4 chirality-level substrate, exercising the R-RBS-LM-122 unified characterization (P0..P7) on a real-FILE (non-template) corpus for the first time. Fulfils ROADMAP #184 smol-stack Phase C. SMOKE: texts are synthetic fragments attested by content SHA-256 — a methodology validation of the multi-file loader + per-source substrate-signature comparison, NOT a data claim about any natural corpus."
+license              = "CC0 for the catalog; the five stack texts are CC0 synthetic fragments authored for this run (attested by content SHA-256 below)"
+homepage             = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/catalogs/rbs_lm_substrate"
+
+[source.primary_references]
+canonical_catalog      = "docs/srmech/catalogs/rbs_lm_substrate/descriptor.toml — the canonical variant this derives from (smol_stack named as an intended variant there)"
+religious_texts_variant = "docs/srmech/catalogs/rbs_lm_substrate/descriptor_religious_texts.toml — the real-text variant TEMPLATE for descriptor shape + corpus attestation"
+characterization_script = "docs/srmech/rbs_lm_research/R-RBS-LM-122_substrate_characterization.py — the unified P0..P7 characterization this variant runs (via R-RBS-LM-147)"
+runner_script          = "docs/srmech/rbs_lm_research/R-RBS-LM-147_smolstack_characterization.py — wires a smol_stack corpus loader into the R-122 phases"
+f162_full_coverage     = "F162 — full-coverage substrate characterization via the canonical catalog (template corpus); the baseline this variant compares against"
+f163_phase_c_placeholder = "F163 — '#184 smol-stack Phase C / F163' placeholder; fulfilled here as Finding 204 (kept sequential)"
+
+[fetch]
+adapter      = "literature_curated"
+ndjson_path  = "substrate_measurements/r147_smolstack.ndjson"
+
+# ---------------------------------------------------------------------------
+# Substrate parameters — same Klein-4 algebra as canonical; hex raised to 16
+# because a real multi-source vocab (538 types here; larger in a real stack)
+# benefits from a wider token-seed prefix (matches the religious-texts variant).
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.substrate]
+D                       = 8192
+sector_count            = 4
+min_skeleton_length     = 4
+token_seed_hex_chars    = 16
+
+[fetch.literature_curated.encoding]
+backend                 = "klein4"
+encoder_library         = "docs/srmech/rbs_lm_research/_canonical_substrate.py"
+encoder_version         = "0.1.0"
+
+[fetch.literature_curated.generation]
+default_top_k                = 5
+max_walk_length              = 12   # bounded for tractable real-prose generation (P5)
+max_paths                    = 100
+# cycle_policy = "forbid" (canonical default): real prose has DENSE bigram
+# adjacency, so "allow" makes the generation BFS (walk_bigram_chain) explode
+# combinatorially up to max_walk_length (the template corpus never hits this —
+# its grammar frames are rigid). "forbid" bounds path length to the vocabulary
+# and runs in ~14 ms/seed (probed); this is the correct setting for the
+# R-122 P5 generation phase on a real-text corpus. (The religious-texts variant
+# used "allow" only because its OWN runner, R-123, never invokes the walk.)
+cycle_policy                 = "forbid"
+l4_direct_composition        = false
+skeleton_length_fallback     = []
+
+[fetch.literature_curated.hierarchical]
+n_buckets                   = 16
+default_strategy            = "hash"
+allowed_strategies          = ["hash", "first_bigram_hash", "sector_then_hash"]
+sentence_hash_hex_chars     = 16
+
+# ---------------------------------------------------------------------------
+# Corpus source — the smol-stack: 5 small distinct-register texts.
+# source = "smol_stack" : the R-147 runner reads these files, strips the
+# 2-line synthetic header, splits to verse-line units (one non-empty line),
+# tokenizes whitespace/lowercase, and pools them into one corpus for the
+# unified P0..P7 run (and per-source for the signature comparison).
+# Each text attested by its content SHA-256 (srmech.amsc.format.sha256_bytes).
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.corpus]
+source                  = "smol_stack"
+tokenizer               = "whitespace"
+cache_dir               = "~/.cache/rbs_lm_corpora/smolstack"
+strip_header_lines      = 2          # the 2-line "SMOL-STACK SYNTHETIC SOURCE ... Not a data claim. CC0." banner
+unit                    = "verse_line"
+smoke_status            = "methodology_smoke"   # NOT a data claim about a natural corpus
+data_claim              = false
+
+[fetch.literature_curated.corpus.texts.proc_recipe]
+label    = "Procedural register (recipe-like)"
+register = "procedural"
+filename = "proc_recipe.txt"
+sha256   = "6d4ab48391fd4b1875fb773bcd903c214e0921cb3d46ac3a673c90f555d09fe6"
+
+[fetch.literature_curated.corpus.texts.almanac_astro]
+label    = "Almanac register (astronomical-like)"
+register = "almanac"
+filename = "almanac_astro.txt"
+sha256   = "0465aed66fb3c46325738252b037b544374a767a913eba6c18e9ec0c12b7cc69"
+
+[fetch.literature_curated.corpus.texts.fable_narrative]
+label    = "Narrative register (fable-like)"
+register = "narrative"
+filename = "fable_narrative.txt"
+sha256   = "c9e3d30bbf74589e42621688ef0afac9d5cbfc14f72cae622fb946d6e786924a"
+
+[fetch.literature_curated.corpus.texts.aphorism_maxims]
+label    = "Aphorism register (maxim-like)"
+register = "aphorism"
+filename = "aphorism_maxims.txt"
+sha256   = "d1a045cfd5e9b54737cd67d21d255fb2b8bacb795750ebd213df6b21a38ed234"
+
+[fetch.literature_curated.corpus.texts.travel_log]
+label    = "Travel-log register (journal-like)"
+register = "travel"
+filename = "travel_log.txt"
+sha256   = "45e0097fe4d8fd39bc657346867f890fcd11f8123967e0244c561540d29c1d30"
+
+# ---------------------------------------------------------------------------
+# Grammar — real prose has no fixed POS template; substrate-native skeleton
+# validity is the only meaningful grammar check on a real-text corpus.
+# (pos_template mode is template-corpus-only; the R-122 phase6 handles
+#  mode="substrate_native" by checking skeleton membership.)
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.grammar]
+mode                    = "substrate_native"
+pos_source              = "none"
+allow_multi_class_pos   = true
+
+[fetch.literature_curated.plausibility]
+combination_mode        = "weighted_geometric_mean"
+eps_smoothing           = 0.000001
+skip_distances          = [2, 3]
+
+[fetch.literature_curated.plausibility.weights]
+bigram_freq             = 0.4
+skip_gram               = 0.2
+token_known             = 0.1
+substrate_skel_sim      = 0.3
+
+# ---------------------------------------------------------------------------
+# Measurement sweeps — clamped to the TINY smol-stack (134 units total).
+# Length sweep stays full (the substrate algebra is length-independent, F162
+# P1); corpus + dimension sweeps clamp N to what the stack actually holds.
+# recall_sample = "full": at this size full self-recall is cheap (no O(N^2) wall).
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.measurement]
+recall_sample           = "full"
+seed                    = 42
+
+[fetch.literature_curated.measurement.length_sweep]
+values                  = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+n_per_length            = 20
+
+[fetch.literature_curated.measurement.corpus_sweep]
+# the stack pools to ~134 units; sweep up to and slightly past it (build_corpus
+# clamps to available) so the saturation/no-saturation behaviour is visible.
+values                  = [25, 50, 100, 134]
+
+[fetch.literature_curated.measurement.dimension_sweep]
+values                  = [2048, 4096, 8192, 16384]
+fixed_n                 = 134
+
+[fetch.literature_curated.measurement.bucket_sweep]
+values                  = [4, 8, 16, 32]
+
+[fetch.literature_curated.measurement.top_k_sweep]
+values                  = [5, 10, 20]
+
+[fetch.literature_curated.measurement.perturbation_categories]
+values                  = ["single_swap", "type_violation", "partial_shuffle", "full_random"]
+
+[fetch.literature_curated.measurement.weight_sensitivity_configs]
+baseline                 = {bigram_freq = 0.4, skip_gram = 0.2, token_known = 0.1, substrate_skel_sim = 0.3}
+bigram_only              = {bigram_freq = 1.0, skip_gram = 0.0, token_known = 0.0, substrate_skel_sim = 0.0}
+substrate_only           = {bigram_freq = 0.0, skip_gram = 0.0, token_known = 0.0, substrate_skel_sim = 1.0}
+balanced                 = {bigram_freq = 0.25, skip_gram = 0.25, token_known = 0.25, substrate_skel_sim = 0.25}
+
+# ---------------------------------------------------------------------------
+# Per-source substrate-signature comparison (the smol-stack-specific result).
+# For each of the 5 sources, the R-147 runner computes a substrate signature
+# (n_words, n_bigrams, n_skeletons, bigram-density, type/token ratio, and the
+# Klein-4 sector occupancy of the source's bigram bundle) and reports the
+# cross-source spread — does each register leave a distinguishable signature,
+# or is the smol-stack signature flat across registers?
+# ---------------------------------------------------------------------------
+[fetch.literature_curated.source_signature]
+enabled                 = true
+seed                    = 42
+
+# ---------------------------------------------------------------------------
+# Standard AMSC tail (6 mandatory sections: source/fetch above, then these)
+# ---------------------------------------------------------------------------
+[parse]
+natural_key = "measurement_id"
+
+[schema]
+data_schema_id = "srmech.rbs_lm.substrate_measurement.smolstack.v1"
+ndjson_file    = "substrate_measurements/r147_smolstack.ndjson"
+
+[rendering]
+name_template    = "RBS-LM smol-stack substrate measurement '{measurement_id}'"
+purpose_template = "Smol-stack characterization phase={phase} (D={D}, source=smol_stack, SMOKE — not a data claim)"
+cite_as_template = "mlehaptics RBS-LM smol-stack variant ('{measurement_id}') via srmech v{srmech_version}; descriptor_hash={descriptor_hash}; METHODOLOGY SMOKE (synthetic stack, not a data claim)"
+
+[attestation]
+method     = "config_descriptor"
+provenance = "Variant of the canonical rbs_lm_substrate catalog. The five stack texts are CC0 SYNTHETIC fragments authored for this methodology run (NOT a sourced external corpus); each is attested by its real content SHA-256 (recorded above; computed via srmech.amsc.format.sha256_bytes), cached at ~/.cache/rbs_lm_corpora/smolstack. Provenance is 'synthesised by this run for methodology validation', NOT a fabricated external citation per [[feedback_pdf_extraction_citation_discipline]]. Measurement consumes the canonical Klein-4 substrate library via srmech 0.5.0 native (ABI=3) through the R-RBS-LM-122 unified characterization phases (P0..P7) plus a per-source signature comparison. SMOKE STATUS (smoke_status='methodology_smoke', data_claim=false): this validates that the characterization machinery consumes a multi-file real-text stack and yields a stable substrate signature — it is NOT a data claim about any natural corpus. Same descriptor_hash + same srmech_version + same (synthetic) stack -> bit-exact reproducible measurements."
+
+[gap_targeting]
+gap_label = "rbs_lm_substrate_smolstack_phase_c"
