@@ -37,8 +37,16 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 - **B — chirality→instrument bridge (F200 / R-144): NULL + degenerate.** Triality-structured tagging does NOT help the RBS-NN store: capacity identical (16/16/16); within-vs-cross contrast **worse** (Klein-4 1.93 vs triality 1.50). Mechanism: Klein-4 (Z₂×Z₂, order-2) sectors are *deterministically* orthogonal (clean rejection); triality (order-3) has no clean orthogonal realization in an order-2 substrate → random-orthogonal, underperforms. Confirms F196 nesting **operationally**: storage-chirality = order-2 Klein-4; algebra-chirality = order-3 triality — different levels. (W11 refinement: a triality-tagging *storage* op would be a footgun in an order-2 substrate.)
 - **C — biology grounding (F201 / R-145): 3 SUPPORTED · 2 OPEN · 1 CONTRADICTED** (source-verified citations; no clinical claims). Lateralization-as-one-axis **CONTRADICTED** (empirically multidimensional); agonist/antagonist · antiparallel-DNA · bio-homochirality-as-own-symmetry-breaking **SUPPORTED**; E/I balance · insect-CX **OPEN**. Updates F176 §3.
 
-**LIVE QUEUE (still open; not gated on upstream):**
-- instrument scale-up (hierarchical F162-P4 + F165 DOMAIN-anchor in the F166 loop) · #184 smol-stack Phase C · #189 cross-navigation Part 2.
+**LIVE QUEUE — 2026-05-30 redispatch DONE (F203/F204/F205; 3 parallel agents, opus/max-effort/small-context + srmech preamble; all srmech-native 0-HARD, ratchet-green, reviewed before commit):**
+- ✅ **instrument scale-up (F203 / R-146):** hierarchical sha256-routed bucketing extends the F166 instrument's capacity ~4× past the ~257 single-bundle ceiling (0.12→0.41 @ N=1024); the F165 DOMAIN anchor is a strong SECOND orthogonalizing CAPACITY axis (0.41→0.90 @ N=1024) but only +0.0200 (= the pre-stated null threshold) on held-out generation top-k → **MIXED**: capacity positive, generation-lift borderline/NULL (not leaned).
+- ✅ **#184 smol-stack Phase C (F204 / R-147):** R-122's P0–P7 characterization now runs end-to-end on a real-FILE multi-source stack (closes the `smol_stack` gap, zero new substrate code); the stack's substrate-signature is **INDISTINGUISHABLE** from the F162 template on every substrate-intrinsic axis → **NULL**, consistent with the F172/F199 flat-spectral ceiling. Methodology smoke (5 synthetic register-distinct texts, sha256-attested, `data_claim=false` — no fabricated provenance).
+- ✅ **#189 cross-nav Part 2 (F205 / R-148):** grammar(A) walked via logic(B) is **indistinguishable from a shape-matched random anchor** (Δ +0.0069, inside 2·SE) → **NULL (informative)**: steering re-routed 31/86 walks but yielded no directed benefit; grammar/logic eigvec tables near-orthogonal (A→B = +0.074). Real PD corpora (Carroll *Symbolic Logic*/*Game of Logic*; McGuffey). Confirms F163's cross-domain null.
+
+**NEXT QUEUE (natural follow-ups surfaced by the above):**
+- F203: add an `[inference.scaleup]` descriptor block (fully catalog-drive the sweep) + push N≫1024 to find the hierarchical ceiling.
+- F204: re-run smol-stack on a **real sourced** multi-text corpus (the smoke validated the machinery; the data-claim version is the next rung).
+- F205: cross-nav on a **less-orthogonal** domain pair (grammar/logic were near-orthogonal; test whether ANY cross-domain steering is non-null).
+- discipline-backlog remediation: the 32 historical HARD `abs()`/etc. (baseline-frozen, down-only) — per-callsite human-read pass.
 
 **GATED on upstream (deferred):** F191 *within-triad* operator pairing (needs W11 / #744) · MCP-side re-verification (W1/W2/W3 — needs srmech-mcp back) · parity-odd cosmic front (W9 / #743) · `srmech.rbs_lm` packaging (see Upstream-absorption thread below).
 
