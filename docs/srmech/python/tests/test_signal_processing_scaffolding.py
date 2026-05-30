@@ -91,8 +91,16 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc18():
-    """v0.5.0rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
+def test_version_is_0_5_0rc19():
+    """v0.5.0rc19 — discoverable native-dispatch status (issue #733).
+
+    Adds top-level ``srmech.native_status()`` (also in ``__all__`` /
+    ``dir(srmech)``) returning ``{has_native, dispatching, abi_version,
+    expected_abi, native_version, load_error}`` — the discoverable, recipe-
+    stable answer to "is the C backend loaded + ABI-matched + dispatching?",
+    mirroring ``describe()['native']``. Pure-Python; ABI unchanged at 3.
+
+    (Prior rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
 
     Carries the rc17 SO(8) TRIALITY voxel forward with the deterministic
     constant-returning ``srmech.qm.{octonion,so8,triality}`` builders now
@@ -159,10 +167,10 @@ def test_version_is_0_5_0rc18():
     Framework reading: the package declaring its own callable shape (which
     tools are advertisable vs handle-pending) IS Class H (self-
     introspection) at package scale — the apparatus thesis. No new
-    primitive class is introduced.
+    primitive class is introduced.)
     """
-    assert srmech.__version__ == "0.5.0rc18", (
-        f"expected srmech.__version__ == '0.5.0rc18'; got "
+    assert srmech.__version__ == "0.5.0rc19", (
+        f"expected srmech.__version__ == '0.5.0rc19'; got "
         f"{srmech.__version__!r}"
     )
 

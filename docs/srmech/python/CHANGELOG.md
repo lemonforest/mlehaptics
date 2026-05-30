@@ -6,6 +6,26 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0rc19] - 2026-05-29
+
+**rc19 of N for v0.5.0 — discoverable native-dispatch status.** Closes #733
+(the post-rc18 native-check recipe). Pure-Python; **ABI unchanged at 3** (the
+C header VERSION strings bump to rc19, `SRMECH_ABI_VERSION` does not).
+
+- **Discoverable native-dispatch status — top-level `srmech.native_status()`**
+  (also in `srmech.__all__` / `dir(srmech)`) returning `{has_native,
+  dispatching, abi_version, expected_abi, native_version, load_error}`,
+  mirroring `describe()['native']`. The recipe-stable replacement for poking
+  `srmech.amsc._native.HAS_NATIVE` in the TestPyPI-before-PyPI verification
+  flow: `dispatching` is `True` iff `libsrmech` loaded AND its ABI matched
+  `EXPECTED_ABI_VERSION` (native ops really run); on mismatch/failure it is
+  `False`, `load_error` carries the reason, and srmech transparently uses the
+  pure-Python fallback. NB the native shim lives at `srmech.amsc._native` —
+  NOT `srmech._native`, the data dir that merely holds the binary. Framework
+  reading: Class H (self-introspection) at package scale — the package
+  recognising whether its own C backend is live. README native-dispatch recipe
+  updated accordingly.
+
 ## [0.5.0rc18] - 2026-05-29
 
 **rc18 of N for v0.5.0 — the downstream-wishlist + hygiene + perf CLEANUP rc.**

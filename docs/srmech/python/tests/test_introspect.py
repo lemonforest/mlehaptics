@@ -607,3 +607,61 @@ def test_describe_shape_never_raises():
 
     # Property access raises → describe_shape must catch and degrade.
     assert isinstance(describe_shape(Pathological()), str)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# native_status() — discoverable native-dispatch status (v0.5.0rc19; #733)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_native_status():
+    """``srmech.native_status()`` is the discoverable native-dispatch check.
+
+    The post-rc18 replacement for poking ``srmech.amsc._native.HAS_NATIVE``
+    in the TestPyPI-before-PyPI verification recipe (issue #733): a single
+    top-level call, surfaced where ``dir(srmech)`` finds it, returning a
+    fixed-shape dict that mirrors ``describe()['native']``.
+
+    State-agnostic: passes in BOTH the native (wheel + libsrmech) and
+    pure-Python (source-tree / Pyodide / ABI-mismatch) states — it asserts
+    ONLY the contract (keys / types / cross-source agreement), never that
+    ``has_native`` is True.
+    """
+    # Discoverable: top-level attr, in dir(), in __all__.
+    assert hasattr(srmech, "native_status")
+    assert callable(srmech.native_status)
+    assert "native_status" in dir(srmech)
+    assert "native_status" in srmech.__all__
+
+    status = srmech.native_status()
+    assert isinstance(status, dict)
+
+    # Exactly these keys — no more, no less.
+    assert set(status.keys()) == {
+        "has_native",
+        "dispatching",
+        "abi_version",
+        "expected_abi",
+        "native_version",
+        "load_error",
+    }
+
+    # Type contract.
+    assert isinstance(status["has_native"], bool)
+    assert isinstance(status["dispatching"], bool)
+    assert status["abi_version"] is None or isinstance(status["abi_version"], int)
+    assert isinstance(status["expected_abi"], int)
+    assert status["native_version"] is None or isinstance(
+        status["native_version"], str
+    )
+    assert status["load_error"] is None or isinstance(status["load_error"], str)
+
+    # expected_abi is the compiled-against ABI (pinned at 3 for this line).
+    assert status["expected_abi"] == 3
+
+    # Agrees with describe()['native'] on the shared fields (single source
+    # of truth: both read srmech.amsc._native).
+    native = srmech.introspect.describe()["native"]
+    assert status["has_native"] == native["has_native"]
+    assert status["abi_version"] == native["abi_version"]
+    assert status["native_version"] == native["native_version"]

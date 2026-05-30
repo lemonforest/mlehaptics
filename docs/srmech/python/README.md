@@ -89,7 +89,16 @@ Full context: [substrate-native-maths research notebook](https://mlehaptics.read
 
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
-Each class is importable as `srmech.amsc.<module>` with native C dispatch and a Python fallback. The C surface is loaded once at import time; if loading fails (Pyodide, ABI mismatch), the package transparently falls back to pure Python and `srmech.amsc._native.HAS_NATIVE` becomes `False`.
+Each class is importable as `srmech.amsc.<module>` with native C dispatch and a Python fallback. The C surface is loaded once at import time; if loading fails (Pyodide, ABI mismatch), the package transparently falls back to pure Python.
+
+To check the backend state, call `srmech.native_status()` (top-level; equivalently `describe()['native']`) — `{has_native, dispatching, abi_version, expected_abi, native_version, load_error}`. `dispatching` is `True` iff `libsrmech` loaded **and** its ABI matched, so native ops really run; otherwise `load_error` carries the reason and the pure-Python fallback is used. (The native shim is `srmech.amsc._native`; `srmech._native` is the data dir that merely *holds* the binary.)
+
+```python
+import srmech
+srmech.native_status()
+# {'has_native': True, 'dispatching': True, 'abi_version': 3,
+#  'expected_abi': 3, 'native_version': '0.5.0rc19', 'load_error': None}
+```
 
 | Module | Class | Primitive operation |
 |---|---|---|
