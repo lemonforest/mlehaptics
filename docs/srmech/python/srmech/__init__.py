@@ -77,6 +77,8 @@ __all__ = [
     "profile",
     # introspect module exposure (v0.4.6rc2)
     "introspect",
+    # top-level native-dispatch status (v0.5.0rc19; issue #733)
+    "native_status",
     # self-recognition root (v0.5.0rc11)
     "warmup_all",
 ]
@@ -86,6 +88,14 @@ __all__ = [
 # just records it for symbol-exposure tests that check
 # ``hasattr(srmech, "introspect")``).
 introspect = _introspect
+
+# v0.5.0rc19 — top-level native-dispatch status (issue #733). The
+# discoverable one-call check that ``libsrmech`` is loaded + ABI-matched
+# + actually dispatching (vs. the pure-Python fallback). The native shim
+# lives at ``srmech.amsc._native``; this surfaces it where ``dir(srmech)``
+# finds it. Equivalent to ``describe()['native']`` plus expected-ABI +
+# dispatching + load-error fields.
+native_status = _introspect.native_status
 
 # v0.5.0rc11 — Self-recognition root. ``warmup_all()`` is THE single
 # registration entry-point: it imports every submodule that registers

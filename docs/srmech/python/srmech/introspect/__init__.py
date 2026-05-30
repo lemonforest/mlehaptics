@@ -681,6 +681,43 @@ def describe() -> Dict[str, Any]:
     }
 
 
+def native_status() -> Dict[str, Any]:
+    """One-call native-dispatch status — is ``libsrmech`` loaded, ABI-matched, dispatching?
+
+    The discoverable, recipe-stable answer to "is the C backend active on
+    this install?" A bare ``pip install srmech`` ships
+    ``libsrmech.{so,dll,dylib}`` inside ``srmech/_native/``; this confirms
+    it loaded, ABI-matched the Python shim, and is actually dispatched to
+    (vs. the pure-numpy fallback). NB the native shim lives at
+    ``srmech.amsc._native`` — NOT ``srmech._native``, which is the data
+    directory that merely *holds* the binary. Exposed top-level as
+    ``srmech.native_status()`` (and as ``describe()['native']``) so it is
+    discoverable from ``dir(srmech)`` — the post-rc18 replacement for the
+    old ``_native.HAS_NATIVE`` poke in the TestPyPI-before-PyPI discipline
+    (issue #733).
+
+    Returns
+    -------
+    dict
+        ``{"has_native": bool, "dispatching": bool, "abi_version": int|None,
+        "expected_abi": int, "native_version": str|None,
+        "load_error": str|None}``. ``dispatching`` is True iff the binary
+        loaded AND its ABI matched ``EXPECTED_ABI_VERSION`` (native ops
+        really run); on mismatch/failure it is False, ``load_error`` carries
+        the reason, and srmech transparently uses the pure-Python fallback.
+    """
+    from ..amsc import _native
+
+    return {
+        "has_native": bool(_native.HAS_NATIVE),
+        "dispatching": bool(_native.HAS_NATIVE),
+        "abi_version": _native.NATIVE_ABI_VERSION,
+        "expected_abi": _native.EXPECTED_ABI_VERSION,
+        "native_version": _native.NATIVE_VERSION,
+        "load_error": None if _native.LOAD_ERROR is None else str(_native.LOAD_ERROR),
+    }
+
+
 __all__ = [
     "Event",
     "INTROSPECT_DIR_NAME",
@@ -694,6 +731,7 @@ __all__ = [
     "emit_if_publishing",
     "introspect_dir",
     "list",
+    "native_status",
     "parse",
     "publish",
     "serialize",
