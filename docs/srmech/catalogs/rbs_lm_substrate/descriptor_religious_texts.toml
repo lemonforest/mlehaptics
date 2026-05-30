@@ -178,6 +178,42 @@ max_order               = 6
 seed                    = 42
 
 # ---------------------------------------------------------------------------
+# Recipient-fiber retrieval-vs-render test (F214 / R-RBS-LM-214) — F212 §5
+# ---------------------------------------------------------------------------
+# F212 §5 test: condition the SAME fixed knowledge query on three recipient-
+# absorption frames (ELI5 / peer / expert), each encoded as a Class-C orientation
+# (hdc.klein4_chirality_flip_* — the rigid vector-level Class-C operators) bound
+# into the F166 rolling context-state (the QUERY/hidden-state, NOT the render).
+# Then measure whether RETRIEVAL/ADDRESSING shifts across the three frames vs
+# only the final render: (1) Klein-4 SECTOR OCCUPANCY of the recipient-conditioned
+# probe (F168 resolution-depth sectors), (2) the Class-L EIGEN-PROJECTION of the
+# per-frame activation graph (dense_laplacian -> jacobi_eigvals; spectral distance
+# across frames), (3) WHICH stored relationships (candidate continuations) the
+# probe activates (ranked-set overlap across frames). A shape-matched RANDOM
+# orientation control (n_random rigid random Klein-4 orientations bound the same
+# way) is the noise floor: structured-frame spread must EXCEED random-frame spread
+# to count as real steering.
+#   Pre-stated null (F212 §5): "only the render differs; retrieval / sector-
+#   occupancy / eigen-projection is INVARIANT across recipient frames" => naive
+#   separable model holds (recipient is render-only).
+#   Retrieval differs (beyond the random control) => recipient-fiber threads into
+#   the QUERY/addressing => the RECIPIENT anchor must live in the F166 context-
+#   state (CONFIRMS F212). Nulls count. STRUCTURAL test-objects ONLY; §VII.6.20.
+[fetch.literature_curated.recipient_fiber]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most retrieval headroom for steering to surface
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets
+n_queries          = 400       # fixed held-out queries (context windows) scored per frame
+window             = 5         # k-token context window (the F166 rolling state width)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors (a real distribution)
+top_k_activate     = 5         # ranked-set size for the "which relationships activate" overlap metric
+n_random           = 16        # shape-matched random orientation control frames: enough pairwise
+                               # distances to estimate the random-spread DISTRIBUTION (not a 3-sample
+                               # point estimate), so the structured spread's noise-floor PERCENTILE is meaningful
+noise_percentile   = 0.90      # structured pairwise spread must exceed this percentile of the random-spread
+                               # distribution to count as a retrieval-shift beyond noise (honest gate)
+seed               = 42
+
+# ---------------------------------------------------------------------------
 # Translation pairs (F171) — SAME content, DIFFERENT translator (the invariance test)
 # ---------------------------------------------------------------------------
 [fetch.literature_curated.translation_pairs]
