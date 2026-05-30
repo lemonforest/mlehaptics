@@ -6,6 +6,34 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc7] - 2026-05-30
+
+**MS #20 C-parity voxel #771 — the C-orchestration half of the Klein-4 four-sector parallel cascade dispatch.**
+
+Closes the C/Python parity gap rc6 opened: rc6 shipped a Python-only `cascade.parallel_sector_dispatch`, but
+under srmech's full-parity commitment (the library must run on a microcontroller with **NO host Python**) the C
+side must do the same four-sector dispatch. Adds the **ABI-additive** C symbol
+`srmech_cascade_parallel_sector_dispatch(body, user, in, n, n_sectors, out_sectors, scratch, scratch_len)`
+(+ the `srmech_cascade_body_f64` callback typedef):
+
+- Runs the ≤4 Klein-4 sector-duals `inv_T_s(body(T_s(x)))` into **disjoint caller-supplied buffers**
+  (`out_sectors`/`scratch` sliced per sector; **no malloc** — JPL Rule 3), composing the existing C atoms
+  `srmech_cascade_reorient_f64` (iω₇) + `srmech_cascade_chiral_flip_f64` (γ₅). Sector 2 == `chiral_dual`.
+- **Portable thread shim, guarded like `srmech_bus.c`:** POSIX `pthread`, Windows `CreateThread`, else a
+  **serial fallback** — a thread-less microcontroller still computes all 4 sectors (serial == threaded
+  **bit-exact**; the disjoint-slice contract makes the sectors order-free). Concurrency is platform-gated;
+  the capability is universal. Thread handles are fixed `[4]` stack arrays.
+- **Cap-at-4** (F220): `n_sectors > 4` → clean error (past 4 needs the order-3 triality).
+
+Bound in `srmech.amsc._native` (`cascade_parallel_sector_dispatch_c`) with a Python C/Python-parity test
+(bit-exact vs rc6's `parallel_sector_dispatch`; GIL-safe — single-sector native calls + Python-side `T_s`
+composition, the threaded multi-sector fan-out exercised from the C smoke test with C-native bodies) plus a
+16-check C smoke test.
+
+**ABI unchanged at 3** (a new symbol is additive). **`describe()` stays 177** (no new Python ToolEntry — this
+is the C peer of an existing surface; rc6's Python API/behaviour untouched). JPL Power-of-Ten ratchet green
+(Rules 1/3/4/5 honored); no `abs()`. Closes #771 — the C/Python parity for the four-sector dispatch is whole.
+
 ## [0.6.0rc6] - 2026-05-30
 
 **MS #20 parallel-dispatch voxel (F233 / #778) — the Klein-4 four-sector parallel cascade.**

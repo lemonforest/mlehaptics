@@ -182,6 +182,28 @@ CASCADE_OP_CALLBACK_F64 = ctypes.CFUNCTYPE(
 )
 
 
+# v0.6.0rc7 (#771): the cascade `body` callback ABI for the Klein-4
+# four-sector PARALLEL dispatch C peer. Mirror of the C typedef
+#
+#   typedef srmech_status_t (*srmech_cascade_body_f64)(
+#       const double *in, size_t n, double *out, void *user);
+#
+# Same wire-shape as CASCADE_OP_CALLBACK_F64 (named separately for the
+# dispatch role; identical ctypes signature).
+#
+# GIL/CALLBACK HAZARD (load-bearing): the C dispatch spawns up to 4
+# threads (pthread / CreateThread) and invokes this callback from EACH
+# of them. Invoking a Python CFUNCTYPE callback from a C-spawned thread
+# (one with no PyThreadState) is UNSAFE. The Python shim below therefore
+# only ever drives the C dispatch with n_sectors=1 (a single sector ⇒
+# at most one spawned thread, and the callback re-enters the
+# interpreter from a thread the Python runtime owns the GIL handoff
+# for). Multi-thread fan-out with a Python body is NOT exercised from
+# Python; the threaded fan-out is validated from the C smoke test with
+# a C-native body (no Python callback crosses the thread boundary).
+CASCADE_BODY_CALLBACK_F64 = CASCADE_OP_CALLBACK_F64
+
+
 # v0.5.0rc2: srmech.bus handler-dispatch callback ABI. Mirror of the
 # C typedef in srmech.h:
 #
@@ -873,6 +895,33 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cascade_chiral_dual_f64.restype = ctypes.c_int
 
+    if hasattr(lib, "srmech_cascade_parallel_sector_dispatch"):
+        # int srmech_cascade_parallel_sector_dispatch(
+        #     srmech_cascade_body_f64 body, void *user,
+        #     const double *in, size_t n,
+        #     uint32_t n_sectors,
+        #     double *out_sectors,
+        #     double *scratch, size_t scratch_len)
+        # v0.6.0rc7 (#771) — C-orchestration parity for the rc6 Python
+        # parallel_sector_dispatch. Runs the ≤4 Klein-4 chirality
+        # sectors of a caller-supplied cascade body and writes the four
+        # sector duals into the disjoint out_sectors[s*n ..] slices,
+        # each sector using its own disjoint scratch[s*n ..] slice (the
+        # F233 4-way independence ⇒ 0 cross-thread writes). Threaded on
+        # POSIX/Windows; SERIAL fallback (bit-identical) on thread-less
+        # targets. Workspace caller-allocated (JPL Rule 3, no malloc).
+        lib.srmech_cascade_parallel_sector_dispatch.argtypes = [
+            CASCADE_BODY_CALLBACK_F64,               # body
+            ctypes.c_void_p,                          # user
+            ctypes.POINTER(ctypes.c_double),         # in
+            ctypes.c_size_t,                          # n
+            ctypes.c_uint32,                          # n_sectors (1..4)
+            ctypes.POINTER(ctypes.c_double),         # out_sectors
+            ctypes.POINTER(ctypes.c_double),         # scratch
+            ctypes.c_size_t,                          # scratch_len
+        ]
+        lib.srmech_cascade_parallel_sector_dispatch.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # v0.5.0rc2: srmech.bus C peer (6 public symbols).
     # All bus symbols are hasattr-guarded — a stale rc1 lib (ABI v2)
@@ -1067,10 +1116,170 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
     return results
 
 
+#: Klein-4 sector (γ₅, iω₇) sign-pair labels, sector 0..3. Mirror of
+#: the rc6 Python SECTOR_LABELS. -1 => that axis is flipped by T_s.
+_PARALLEL_SECTOR_LABELS = (
+    (1, 1),   # sector 0 — identity
+    (1, -1),  # sector 1 — iω₇-flip only
+    (-1, 1),  # sector 2 — γ₅-flip only (== chiral_dual axis)
+    (-1, -1),  # sector 3 — both / CPT mirror
+)
+
+
+def _parallel_dispatch_one_sector_native(body, xs, n):
+    """Single-thread native dispatch of sector 0 (identity transform).
+
+    Drives :c:func:`srmech_cascade_parallel_sector_dispatch` with
+    ``n_sectors=1`` — which always computes sector 0 (``T_0 == identity``,
+    so the result is ``body(xs)``). A single-sector dispatch spawns at
+    most ONE worker thread, so the Python ``body`` callback never crosses
+    the multi-thread fan-out (the GIL/callback hazard the multi-sector
+    threaded path carries). Returns ``(list[float], err_holder)`` where
+    ``err_holder[0]`` carries any exception the body raised.
+    """
+    DblN = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_in = DblN(*xs) if n > 0 else DblN()
+    out_arr = DblN()
+    scratch = DblN()
+    callback_error: list = [None]
+
+    def _body_trampoline(in_ptr, in_n, out_ptr, _user):
+        try:
+            count = int(in_n)
+            in_vals = [float(in_ptr[i]) for i in range(count)]
+            result = list(body(in_vals))
+            if len(result) != count:
+                callback_error[0] = ValueError(
+                    f"body returned length {len(result)}; expected {count}"
+                )
+                return SRMECH_ERR_BAD_INPUT
+            for i in range(count):
+                out_ptr[i] = float(result[i])
+            return SRMECH_OK
+        except Exception as exc:  # noqa: BLE001 — re-raised on Python side
+            callback_error[0] = exc
+            return SRMECH_ERR_INTERNAL
+
+    c_callback = CASCADE_BODY_CALLBACK_F64(_body_trampoline)
+    rc = LIB.srmech_cascade_parallel_sector_dispatch(
+        c_callback,
+        None,
+        ctypes.cast(c_in, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.c_uint32(1),  # ONE sector ⇒ single-thread, sector 0
+        ctypes.cast(out_arr, ctypes.POINTER(ctypes.c_double)),
+        ctypes.cast(scratch, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+    )
+    if callback_error[0] is not None:
+        raise callback_error[0]
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_cascade_parallel_sector_dispatch returned status {rc}"
+        )
+    return [float(out_arr[i]) for i in range(n)]
+
+
+def _parallel_transform_native(gamma5, omega7, seq):
+    """Apply the Klein-4 stream-transform T_s to ``seq`` via the native
+    C atoms (``srmech_cascade_reorient_f64`` for iω₇, then
+    ``srmech_cascade_chiral_flip_f64`` for γ₅) — the same composition
+    (omega7 first, gamma5 second) the C dispatch uses internally."""
+    out = list(seq)
+    if omega7 < 0:
+        flipped = []
+        for v in out:
+            o = ctypes.c_double(0.0)
+            LIB.srmech_cascade_reorient_f64(
+                ctypes.c_int8(-1), ctypes.c_double(float(v)), ctypes.byref(o))
+            flipped.append(float(o.value))
+        out = flipped
+    if gamma5 < 0:
+        n = len(out)
+        DblN = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+        c_in = DblN(*out) if n > 0 else DblN()
+        c_out = DblN()
+        LIB.srmech_cascade_chiral_flip_f64(
+            ctypes.cast(c_in, ctypes.POINTER(ctypes.c_double)),
+            ctypes.c_size_t(n),
+            ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)))
+        out = [float(c_out[i]) for i in range(n)]
+    return out
+
+
+def cascade_parallel_sector_dispatch_c(body, x, n_sectors: int = 4) -> list:
+    """Native Klein-4 four-sector dispatch — must only be called when
+    ``HAS_NATIVE`` is True (#771; the C peer of the rc6 Python
+    ``parallel_sector_dispatch``).
+
+    Runs the cascade ``body`` (a unary callable mapping a float sequence
+    to a float sequence) across its ``n_sectors`` (1..4) Klein-4
+    chirality sectors and returns ``[sector0, sector1, ...]`` — a list of
+    length ``n_sectors`` whose element ``s`` is the sector dual
+    ``T_s(body(T_s(x)))`` as a ``list[float]``.
+
+    GIL/CALLBACK HAZARD (load-bearing) — how it is AVOIDED. The C
+    dispatch spawns one thread PER sector and invokes ``body`` (wrapped
+    as a ctypes ``CFUNCTYPE``) from each. Invoking a Python callback from
+    a C-spawned thread with no ``PyThreadState`` is unsafe, so this shim
+    NEVER drives the multi-sector threaded fan-out with a Python body.
+    Instead, for each sector ``s`` it:
+
+      1. applies ``T_s`` to ``x`` via the native C atoms
+         (:c:func:`srmech_cascade_reorient_f64` /
+         :c:func:`srmech_cascade_chiral_flip_f64`) —
+         :func:`_parallel_transform_native`;
+      2. runs ``body(T_s(x))`` through the C dispatch with ``n_sectors=1``
+         (sector 0 ⇒ ``T_0 == identity`` ⇒ exactly ``body(·)``; a
+         single-sector dispatch spawns at most ONE worker thread, so the
+         Python callback never crosses the multi-thread fan-out) —
+         :func:`_parallel_dispatch_one_sector_native`;
+      3. applies ``T_s`` again to the result (``inv_T_s == T_s``).
+
+    The composed result ``T_s(body(T_s(x)))`` is the sector ``s`` dual —
+    bit-identical to what the full multi-sector threaded dispatch
+    produces (the sectors are independent / order-free, the F233
+    invariant the C smoke test asserts with a C-native body). This
+    exercises the C dispatch's spawn-join + buffer-slicing machinery
+    (single-thread) AND the C transform atoms, while keeping the Python
+    callback off the multi-thread path.
+
+    Raises ``RuntimeError`` if ``HAS_NATIVE`` is False, ``ValueError``
+    for ``n_sectors`` out of 1..4, or ``RuntimeError`` on a non-OK
+    native status.
+    """
+    if not HAS_NATIVE or LIB is None:
+        raise RuntimeError(
+            "srmech.amsc._native.cascade_parallel_sector_dispatch_c called "
+            "but HAS_NATIVE is False"
+        )
+    if not hasattr(LIB, "srmech_cascade_parallel_sector_dispatch"):
+        raise RuntimeError(
+            "native lib lacks srmech_cascade_parallel_sector_dispatch "
+            "(stale dll; rebuild)"
+        )
+    if not isinstance(n_sectors, int) or isinstance(n_sectors, bool):
+        raise ValueError(f"n_sectors must be an int; got {type(n_sectors).__name__}")
+    if n_sectors < 1 or n_sectors > 4:
+        raise ValueError(f"n_sectors must be in 1..4; got {n_sectors}")
+
+    xs = [float(v) for v in x]
+    n = len(xs)
+    results: list = []
+    for s in range(n_sectors):
+        gamma5, omega7 = _PARALLEL_SECTOR_LABELS[s]
+        ts_in = _parallel_transform_native(gamma5, omega7, xs)
+        inner = _parallel_dispatch_one_sector_native(body, ts_in, n)
+        results.append(_parallel_transform_native(gamma5, omega7, inner))
+    return results
+
+
 __all__ = [
     "ABI_VERSION",
     "BUS_HANDLER_CALLBACK",
+    "CASCADE_BODY_CALLBACK_F64",
     "CASCADE_OP_CALLBACK_F64",
+    "cascade_parallel_sector_dispatch_c",
     "EXPECTED_ABI_VERSION",
     "HAS_NATIVE",
     "LIB",
