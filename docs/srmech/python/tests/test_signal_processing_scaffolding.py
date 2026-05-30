@@ -91,11 +91,32 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc21():
-    """v0.5.0rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
+def test_version_is_0_5_0rc22():
+    """v0.5.0rc22 — `srmech mcp emit-mcpb` CLI: emit a Claude Desktop
+    .mcpb bundle from srmech introspection (issue #749 / MS #19 / W13).
+
+    Adds ``srmech mcp emit-mcpb`` (backed by ``srmech/cli/mcp.py`` +
+    ``srmech/mcp/_mcpb.py``: ``build_manifest`` / ``pack_mcpb``). The
+    emitted ``manifest.json`` version + ``tools[]`` are DERIVED from
+    ``srmech.__version__`` and the advertised ``tool_schema`` surface
+    (never a frozen literal); ``server.type`` defaults to the spec-valid
+    ``"uv"`` (the host fetches the platform wheel carrying ``libsrmech``
+    from PyPI at install — the portable answer to bundling a compiled
+    native dep), with a ``"python"`` ``user_config``-gated fallback that
+    bakes NO ``sys.executable``. An MPR attestation block carries
+    ``__version__`` + a 64-hex tool-schema SHA-256 via
+    ``srmech.amsc.format.sha256_bytes`` (no new ``hashlib.sha256``); the
+    ``.mcpb`` is a stdlib-``zipfile`` ZIP with root ``manifest.json`` (no
+    Node toolchain). NO new ToolEntry — a CLI command is not an
+    ``srmech.amsc`` tool — so ``describe()`` tool total STAYS 174.
+    Pure-Python; ABI unchanged at 3 (the C header VERSION strings bump to
+    rc22, ``SRMECH_ABI_VERSION`` does not — no C source change). Sign /
+    phase-boundary discipline preserved: no ``abs()`` (Class K pin-slot).
+
+    (Prior rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
     (issue #744, wishlist).
 
-    Adds a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
+    Added a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
     exposes the bit-exact su(3)-module structure of the 14 g2 = Der(O)
     generators: the Lie-algebra branching 14 = 8 + 3 + 3bar (su(3) adjoint +
     fundamental + antifundamental; the 7-dim octonion-vector branches
@@ -120,7 +141,7 @@ def test_version_is_0_5_0rc21():
     proof (Baez §4.1 is cited for g2 = Der(O) / dim 14 ONLY — the build
     input; the branching is the op's own bit-exact self-attesting
     computation). The A-N reading is surfaced ONLY under the separately-keyed
-    ``framework_an_reading`` field, tagged "framework-reading, not derived".
+    ``framework_an_reading`` field, tagged "framework-reading, not derived".)
 
     (Prior rc20 — cosmic-birefringence beta posterior AMSC catalog
     (issue #743). Added ``srmech.amsc.attested.cosmic_birefringence`` (four
@@ -210,8 +231,8 @@ def test_version_is_0_5_0rc21():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0rc21", (
-        f"expected srmech.__version__ == '0.5.0rc21'; got "
+    assert srmech.__version__ == "0.5.0rc22", (
+        f"expected srmech.__version__ == '0.5.0rc22'; got "
         f"{srmech.__version__!r}"
     )
 
