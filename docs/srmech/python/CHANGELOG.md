@@ -6,6 +6,31 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0rc22] - 2026-05-30
+
+**rc22 of N for v0.5.0 — `srmech mcp emit-mcpb`: emit a Claude Desktop `.mcpb` bundle generated ENTIRELY from srmech introspection.**
+Closes #749 (MS #19 / wishlist W13). Pure-Python; **ABI unchanged at 3** (the C header
+VERSION strings bump to rc22, `SRMECH_ABI_VERSION` does not — no C source change).
+
+- **New `srmech mcp emit-mcpb [--out .] [--type uv|python] [--name srmech] [--manifest-only] [--filter GLOB]`** —
+  builds a Claude Desktop MCP Bundle from the live tool schema and prints the absolute output path.
+- **New `srmech/cli/mcp.py` + `srmech/mcp/_mcpb.py`** (`build_manifest` / `pack_mcpb`) — the
+  `mcp` subcommand group (mirrors `srmech/cli/bus.py`'s nested-subparser shape) and the emitter.
+- **Manifest version + `tools[]` are DERIVED** from `srmech.__version__` + the advertised
+  `tool_schema` surface (`tool_entries_to_mcp_defs()`, the `mcp_callable` subset) — no frozen
+  literal, so a future handle-pending tool cannot silently desync the bundle.
+- **`server.type` defaults to the spec-valid `"uv"`** (anthropics/mcpb): the host fetches the
+  platform wheel carrying the compiled `libsrmech` from PyPI via `uv` at install — the portable
+  answer to bundling a compiled-native dep (nothing native rides inside the `.mcpb`). A `"python"`
+  fallback gates the interpreter via a required `user_config.python_path` (default `"python3"`) —
+  **no baked `sys.executable`** (issue #749 portability bug).
+- **MPR attestation block** carries `srmech.__version__` + a 64-hex tool-schema SHA-256 computed
+  via `srmech.amsc.format.sha256_bytes` (routes native dispatch; no new `hashlib.sha256`).
+- The `.mcpb` is a **stdlib-`zipfile` ZIP** whose root carries `manifest.json` (plus
+  `pyproject.toml` for uv resolution + `server/main.py` entry-point shim) — no Node toolchain.
+- **NO new ToolEntry** — a CLI command is not an `srmech.amsc` tool — `describe()` tool total
+  **STAYS 174**.
+
 ## [0.5.0rc21] - 2026-05-30
 
 **rc21 of N for v0.5.0 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O).**

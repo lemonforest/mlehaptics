@@ -31,6 +31,7 @@ from typing import List, Optional
 
 from . import bus as _bus_cli
 from . import dsl as _dsl_cli
+from . import mcp as _mcp_cli
 from . import status as _status
 from srmech.version import __version__ as _srmech_version
 
@@ -94,6 +95,20 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _dsl_cli.add_arguments(dsl_p)
+    mcp_p = sub.add_parser(
+        "mcp",
+        help=(
+            "Emit MCP integration artifacts (emit-mcpb: Claude Desktop "
+            "bundle)."
+        ),
+        description=(
+            "Operate srmech's MCP integration surface. v0.5.0rc22 "
+            "sub-subcommand 'emit-mcpb' writes a Claude Desktop .mcpb "
+            "bundle generated from srmech introspection (version + tool "
+            "list derived; no hand-authored manifest)."
+        ),
+    )
+    _mcp_cli.add_arguments(mcp_p)
     return parser
 
 
@@ -119,6 +134,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _bus_cli.run(args)
     if args.command == "dsl":
         return _dsl_cli.run(args)
+    if args.command == "mcp":
+        return _mcp_cli.run(args)
     parser.print_help()
     return 0
 
