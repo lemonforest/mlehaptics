@@ -4,6 +4,19 @@ Generated from `SRMECH_BUGFIX_WISHLIST.md` / `UPSTREAM_NOTES.md §10`. Each bloc
 
 **Verification status:** package-side repros are **verified on rc18**. MCP-side items (W1, W3, and the W2 *wrapper* half) are marked **"last observed — re-verify on rc18 MCP"** because the srmech-mcp server was offline when these were drafted. No package edits were made from the research subtree (`[[feedback_upstream_srmech_fixes_as_research_notes]]`).
 
+## ✅ FILED 2026-05-30 → `lemonforest/mlehaptics`
+| item | issue | item | issue |
+|---|---|---|---|
+| W12 | [#733](https://github.com/lemonforest/mlehaptics/issues/733) | W4 | [#738](https://github.com/lemonforest/mlehaptics/issues/738) |
+| W1 | [#734](https://github.com/lemonforest/mlehaptics/issues/734) | W5 | [#739](https://github.com/lemonforest/mlehaptics/issues/739) |
+| W7 | [#735](https://github.com/lemonforest/mlehaptics/issues/735) | W6b | [#740](https://github.com/lemonforest/mlehaptics/issues/740) |
+| W3 | [#736](https://github.com/lemonforest/mlehaptics/issues/736) | W6c | [#741](https://github.com/lemonforest/mlehaptics/issues/741) |
+| W2 | [#737](https://github.com/lemonforest/mlehaptics/issues/737) | W8 | [#742](https://github.com/lemonforest/mlehaptics/issues/742) |
+| | | W9 | [#743](https://github.com/lemonforest/mlehaptics/issues/743) |
+| | | W11 | [#744](https://github.com/lemonforest/mlehaptics/issues/744) |
+
+W10 (triality op) was **not** filed — it's resolved in rc18 (the §W10 block below is a confirmation/close note, not an open issue).
+
 ═══════════════════════════════════════════════════════════════════════
 
 ## W12 — [bug] rc18: native dispatch is unverifiable from a bare install (profile-loader registers no profile)
