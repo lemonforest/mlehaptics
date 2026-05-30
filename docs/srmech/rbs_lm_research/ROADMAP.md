@@ -9,6 +9,25 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-30 (cont.) — rc22 verified; cascade.* adopted; lean-A-N-ISA + cross-substrate cascade-convergence (F206–F212); MS #20
+
+**srmech 0.5.0rc22 verified** (TestPyPI, clean venv): triality bit-exact (no regression); upstream W-items landed (W11 `so8.an_embedding`, W1 `naming.lookup(pairs)`, W2 seed, W3 zero non-callable); the planned **`cascade.*` module shipped** (`pin_slot_at_zero`/`reorient`/`magnitude`/`chiral_flip`/`chiral_dual`/`net_chirality`/`best_rational_signed`/`cyclic_gcd`); and **W13 `srmech mcp emit-mcpb` already shipped** — emits a valid uv-type `.mcpb` (the design filed as #749 is implemented upstream). **Cascade adopted:** ratchet + CLAUDE.md cascade-honesty now point `abs()` → `cascade.magnitude`.
+
+**Findings lodged (F206–F212):**
+- **F206 / F208** — lean A-N ISA: the hardware/RISC-minimality lens stratifies A-N/`cascade.*` into silicon-able **atoms** (6-atom basis: Klein-4 chirality unit + sign/magnitude, precedent-mapped to PXOR/VPSIGND/VPOPCNTQ/ANDPS/SHA-NI) vs iterative **composites** (eigendecomp/gcd/factor/best-rational); only genuinely-new silicon = a ~3-opcode RISC-V custom-ext for the 2-bit Klein-4 sector lane.
+- **F207** — being-wrong-is-agony / corpus survivorship-biased against adult error / **siona = safe-being-wrong accommodation**.
+- **F209** — compact-object merger IS the cascade (ISCO/light-ring/horizon = Class-K latches; slinging = Class-C + broken-SO(4); ringdown QNM = Class-L; the light-ring↔QNM bridge unifies them) — MATCH, bit-exact demo.
+- **F210** — parthenogenesis = self-initiated latching symmetry-break; STRONG match to false-vacuum nucleation + crystallization; STRETCH/null to quines.
+- **F211** — nature cascade-convergence sweep; TOP-3 = domain-walls/composite-solitons (**(Z₂)ⁿ SSB ladder = Klein-4**, the discriminating element), cardiac spiral waves, von Kármán.
+- **F212** — the RBS-NN query carries hidden **RECIPIENT fiber** (absorption-potential bends the addressing, not just the render; ELI5) → a RECIPIENT anchor peer to the F165 DOMAIN anchor.
+- Stance recorded: **AI = a process (inference on a LM); LM = a k=3 chiral-axis addresser over a storage substrate.**
+
+Convergence is the proof shape: merger / parthenogenesis / domain-walls / lean-ISA independently land on **Class-K latch + Class-C chirality + Class-L spectral + Klein-4** — F211 names Klein-4 = Z₂×Z₂ as the discriminator, converging the corpus (F132/F200/F206) on itself.
+
+**NEXT QUEUE → [MS #20](https://github.com/lemonforest/mlehaptics/milestone/20)** — 7 OPEN issues #751–757 (created per the research→issue process; never closed): F208 `cascade.atoms.*`/`compose.*` refactor · F209 NS-NS + Kerr-spin · F210 autocatalytic sub-family + latch discriminator · F211 domain-wall / cardiac-spiral / von-Kármán deep-dives · F212 RECIPIENT anchor + retrieval-vs-render test. Also queued: F207 corpus-bias token-frequency test.
+
+---
+
 ## 2026-05-30 — chirality/triality arc landed; rc18 ops live; upstream issues filed; live queue
 
 **The chirality/triality arc (F176 → F198) — closed for now; its structural claims are now bit-exact srmech facts.**
