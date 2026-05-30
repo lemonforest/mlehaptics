@@ -91,8 +91,20 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc5():
-    """v0.6.0rc5 — MS #20 reentrant-core voxel #772: the C core is now fully
+def test_version_is_0_6_0rc6():
+    """v0.6.0rc6 — MS #20 parallel-dispatch voxel (F233 / #778): pure-Python
+    srmech.amsc.cascade.parallel_sector_dispatch(body, x) — runs a cascade
+    across its ≤4 Klein-4 chirality sectors (γ₅± × iω₇±) CONCURRENTLY on a
+    ThreadPoolExecutor, capped at 4 (the order-3 triality is the only escape
+    past 4, F220). Each sector reconstructs from its OWN sector-transformed
+    input (0 cross-thread reads → parallel == serial bit-exact); sector-2 ==
+    cascade.chiral_dual. Composes ONLY already-C-parity'd atoms (chiral_flip /
+    reorient / chiral_dual / net_chirality / magnitude) — no Python-only
+    cascade capability; the C-orchestration parity is #771 (kept open; full
+    C/Python parity = srmech needs no Python to run the 4-sector dispatch).
+    +1 ToolEntry → describe() tool total 176 → 177. Pure-Python; ABI 3; no abs().
+
+    Prior v0.6.0rc5 — MS #20 reentrant-core voxel #772: the C core is now fully
     reentrant — the two remaining shared-static scratch buffers (ndjson
     g_line_buf, laplacian Hwork) are gone. g_line_buf (1 MiB) is now a
     function-local static SRMECH_THREAD_LOCAL buffer in srmech_ndjson_iter
@@ -279,8 +291,8 @@ def test_version_is_0_6_0rc5():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc5", (
-        f"expected srmech.__version__ == '0.6.0rc5'; got "
+    assert srmech.__version__ == "0.6.0rc6", (
+        f"expected srmech.__version__ == '0.6.0rc6'; got "
         f"{srmech.__version__!r}"
     )
 

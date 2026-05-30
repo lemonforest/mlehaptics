@@ -85,6 +85,7 @@ from typing import Tuple
 # resolve as attribute access (and so ``import srmech.amsc.cascade.atoms`` works).
 from . import atoms
 from . import compose
+from . import parallel
 
 # Flat re-export — the public surface stays byte-identical to the
 # pre-split single module. ``atoms`` ships the 6 silicon-able 1:1 ISA
@@ -104,6 +105,15 @@ from .compose import (
     DEFAULT_FINE_SCALE,
     cyclic_gcd,
     best_rational_signed,
+)
+# The Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233). A Python
+# *orchestration* layer over the C-parity'd cascade.atoms — runs one cascade
+# body across its ≤4 Klein-4 chirality sectors concurrently. C-orchestration
+# parity tracked by issue #771.
+from .parallel import (
+    KLEIN4_SECTOR_CAP,
+    Z4_DISPATCH_SLOTS,
+    parallel_sector_dispatch,
 )
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
@@ -139,6 +149,10 @@ __all__ = [
     "chiral_flip",
     "chiral_dual",
     "net_chirality",
+    # Klein-4 four-sector parallel dispatch (v0.6.0rc6; F233)
+    "KLEIN4_SECTOR_CAP",
+    "Z4_DISPATCH_SLOTS",
+    "parallel_sector_dispatch",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",
@@ -146,4 +160,5 @@ __all__ = [
     # submodules (new canonical homes)
     "atoms",
     "compose",
+    "parallel",
 ]

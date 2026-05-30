@@ -1369,6 +1369,52 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("orientations", "iterable[int]", True, "orientations in {-1,0,+1}"),),
             returns=R("int", "net handedness in {-1, 0, +1}"),
         ),
+        # Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233 / the 4-rung).
+        # A Python ORCHESTRATION layer over the C-parity'd cascade.atoms — it
+        # composes ONLY chiral_flip / reorient / chiral_dual / net_chirality /
+        # magnitude (no Python-only cascade capability; only the thread
+        # fan-out is Python). C-orchestration parity tracked by issue #771.
+        ToolEntry(
+            name="srmech.amsc.cascade.parallel_sector_dispatch", owner="srmech",
+            category="cascade",
+            summary="Run one cascade body across its ≤4 Klein-4 chirality "
+                    "sectors CONCURRENTLY (ThreadPoolExecutor, max_workers=4); "
+                    "each sector s = inv_T_s(body(T_s(x))) on its OWN "
+                    "sector-transformed input — 0 cross-thread reads (the F233 "
+                    "4-way independence), so parallel == serial bit-for-bit. "
+                    "T_s composes the two commuting Class-C involutions: γ₅ = "
+                    "chiral_flip (reversal), iω₇ = reorient(-1,·) (per-element "
+                    "sign-flip); sector 2 (γ₅-only) == cascade.chiral_dual "
+                    "bit-exact (the F232 2-rung object). Z₄ quarter-turn dispatch "
+                    "slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the "
+                    "order-2×order-2 Klein-4 IDENTITY). Hard-capped at 4 — "
+                    "Klein-4 has no order-4+ element; 8+ needs the order-3 "
+                    "triality (srmech.qm.triality, F220), NOT done here. "
+                    "Usefulness collapse-lattice 4/2/2/1 (bi-axial→4 distinct; "
+                    "iω₇-sym→2; γ₅-sym→2; bi-sym→1). No abs() (Class K "
+                    "magnitude / Class C net_chirality). The thread-count ladder "
+                    "IS the chirality-access ladder (1→2→4→triality) is a "
+                    "framework-reading (framework_thread_ladder_reading), NOT a "
+                    "derived theorem. Composes ONLY C-parity'd cascade.atoms; "
+                    "C-orchestration parity tracked by issue #771. Class C/K. "
+                    "F233/R-RBS-LM-FINDING_233; F219; F220." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("body", "operator_name", True,
+                          "dotted NAME of a unary sequence→sequence cascade "
+                          "operator (resolved to its callable through the "
+                          "srmech-namespace operator-name resolver)"),
+                        P("x", "sequence", True, "input sequence"),
+                        P("n_sectors", "int", False,
+                          "how many of the 4 Klein-4 sectors to dispatch "
+                          "(1..4; default 4; hard-capped at 4)")),
+            returns=R("dict",
+                      "{sectors:{s:{label:(γ₅,iω₇), result}}, "
+                      "z4_dispatch_slots:[0,1,2,3], independence "
+                      "(cross_sector_reads 0, parallel_equals_serial, "
+                      "sector2_is_chiral_dual), collapse_lattice "
+                      "(n_distinct/classes/label/useful 4/2/2/1), cap "
+                      "(sector_cap 4, beyond_4_needs triality), "
+                      "framework_thread_ladder_reading}"),
+        ),
     ]
     for e in entries:
         register_tool(e)

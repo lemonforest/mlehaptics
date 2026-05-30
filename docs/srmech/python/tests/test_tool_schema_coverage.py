@@ -85,6 +85,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.atoms.net_chirality",
     "srmech.amsc.cascade.compose.cyclic_gcd",
     "srmech.amsc.cascade.compose.best_rational_signed",
+    # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
+    # Registered under its STABLE flat public name
+    # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);
+    # the submodule-dotted name is the same object re-exported flat, exempt
+    # exactly like the atoms/compose submodule ops above.
+    "srmech.amsc.cascade.parallel.parallel_sector_dispatch",
 })
 
 
