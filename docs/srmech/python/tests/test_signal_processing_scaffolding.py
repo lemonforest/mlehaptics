@@ -91,8 +91,15 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc3():
-    """v0.6.0rc3 — MS #20 forward-arch voxel #761 (F220): the order-3 triality
+def test_version_is_0_6_0rc4():
+    """v0.6.0rc4 — MS #20 docs/accuracy voxel #738: the sha256_bytes docstring
+    now documents the int-conversion path — it returns a 64-char hex str (the
+    Class A content-address), so a caller wanting an int uses int(h, 16) /
+    int(h[:8], 16), NOT int.from_bytes(...). Docs-only (no API change);
+    describe() tool total STAYS 176; ABI unchanged at 3. (#739/#740/#741 were
+    verified already correct as of rc18 — W5/W6b/W6c.) Closes #738.
+
+    Prior v0.6.0rc3 — MS #20 forward-arch voxel #761 (F220): the order-3 triality
     surfaced as the 7th lean-ISA primitive — srmech.qm.triality.
     lean_isa_seventh_primitive(). The chirality-complete A–N core = 6 order-2
     cascade.atoms + 1 order-3 triality (triality_automorphism, τ³=I) = 7 — the
@@ -260,8 +267,8 @@ def test_version_is_0_6_0rc3():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc3", (
-        f"expected srmech.__version__ == '0.6.0rc3'; got "
+    assert srmech.__version__ == "0.6.0rc4", (
+        f"expected srmech.__version__ == '0.6.0rc4'; got "
         f"{srmech.__version__!r}"
     )
 
