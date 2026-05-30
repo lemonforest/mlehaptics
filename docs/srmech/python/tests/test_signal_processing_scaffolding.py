@@ -91,8 +91,9 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc21():
-    """v0.5.0rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
+def test_version_is_0_5_0():
+    """v0.5.0 — production graduation (rc9–rc21 voxel arc). The headline
+    voxel is the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
     (issue #744, wishlist).
 
     Adds a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
@@ -102,7 +103,7 @@ def test_version_is_0_5_0rc21():
     1 + 3 + 3bar over the same su(3)). su(3) = the stabiliser
     {D in g2 : D·e_K = 0}; the GENUINE fundamental is the +i eigenspace of
     the su(3)-INVARIANT complex structure J (J² = −I) on the 6-real-dim
-    complement (a real 3-span cannot carry it — [su3, real-3] leaks ~8.3),
+    complement (a real 3-span cannot carry it — [su3, real-3] leaks O(1)),
     so [su3, 3] ⊆ 3 is bit-exact (~3e-14). su(3) is identified by the
     INVARIANT certificate {dim 8, rank 2 via the centraliser of a regular
     element, simple (adjoint commutant dim 1)} + Killing-orthonormal total
@@ -110,7 +111,7 @@ def test_version_is_0_5_0rc21():
     reduced through the scalar Class K pin-slot magnitude, never abs(). MPR
     self-attestation content-addresses the COMPUTED structure (the 14 g2
     generators' float64 bytes). +1 ToolEntry (173 -> 174). Pure-Python;
-    ABI unchanged at 3 (the C header VERSION strings bump to rc21;
+    ABI unchanged at 3 (the C header VERSION strings are 0.5.0;
     SRMECH_ABI_VERSION does not — no C source change).
 
     Framework reading: the SAME 14-dim g2 carries TWO distinct enumerations
@@ -210,8 +211,8 @@ def test_version_is_0_5_0rc21():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0rc21", (
-        f"expected srmech.__version__ == '0.5.0rc21'; got "
+    assert srmech.__version__ == "0.5.0", (
+        f"expected srmech.__version__ == '0.5.0'; got "
         f"{srmech.__version__!r}"
     )
 

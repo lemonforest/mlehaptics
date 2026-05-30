@@ -6,6 +6,42 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0] - 2026-05-30
+
+**Production graduation of the v0.5.0 voxel arc (rc9–rc21) — srmech as a
+substrate-self-recognition apparatus.**
+
+This is the clean production release consolidating the rc9–rc21 series (built
+voxel-by-voxel — each rc one "voxel of knowledge" the package gains about its
+own callable shape). No code changes over `0.5.0rc21` beyond the version bump
+(4 SSOT → `0.5.0`; the computed-fresh self-attestation `parser_version` strings
+→ `srmech 0.5.0`) and documentation finalisation. **ABI 3; 174 registered
+ToolEntries (all `mcp_callable`, `handle_pending: 0`).** Verify the backend with
+`srmech.native_status()` and the surface with `srmech.introspect.describe()`.
+
+What the v0.5.0 line ships over v0.4.x, by voxel:
+
+- **Self-recognition root** — `srmech.introspect.describe()` (version +
+  native-dispatch status + per-category tool counts), fired in `__init__` via
+  `warmup_all()` so every consumer sees the complete tool-schema from t=0.
+- **so(8)/Spin(8) triality engine** (`srmech.qm.{octonion, so8, triality}`) —
+  the MPR-attested octonion table, the 28-generator `so(8)` adjoint
+  (`14 g₂ + 7 + 7`), the order-3 outer automorphism `τ` with `Fix(τ) = g₂`
+  dim 14, and **`so8.an_embedding`** — the bit-exact `su(3) ⊕ 3 ⊕ 3̄` Lie
+  branching of the 14 g₂ generators.
+- **By-reference handle grammar** — the `$srmech_handle` id (name + uuid dual
+  grammar) that makes all 7 `srmech.spectral.*` operations MCP-callable.
+- **Discoverable native-dispatch status** — top-level `srmech.native_status()`.
+- **AMSC attested catalogs** — including
+  `srmech.amsc.attested.cosmic_birefringence` (4 PDF-verified cosmic-
+  birefringence β posteriors, the asymmetric Eskilt & Komatsu posterior kept
+  as separate lo/hi half-widths).
+- **Foundational `srmech.amsc.cascade` catalog** + the Class-M HDC variant
+  ladder, `coupling`, `symmetric_eigendecompose`, `rfft` — all with native C
+  parity.
+
+The per-rc detail for every voxel is in the `[0.5.0rcN]` entries below.
+
 ## [0.5.0rc21] - 2026-05-30
 
 **rc21 of N for v0.5.0 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O).**

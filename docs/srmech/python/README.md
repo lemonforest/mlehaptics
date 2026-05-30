@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.5.0 (release candidate; rc-series on TestPyPI)** — 14-class A–N primitive vocabulary with native C parity; canonical QM/QFT/SM operations + a callable so(8)/Spin(8) triality surface (octonion `L`/`R`-mult + the 28-generator adjoint + the order-3 automorphism `τ`, `Fix(τ) = g₂ = 14`); runtime spectral decomposition now JSON-callable by-reference (the `$srmech_handle` grammar); dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech`, so `pip install siona` resolves here too.)*
+**Status:** **v0.5.0** — 14-class A–N primitive vocabulary with native C parity; canonical QM/QFT/SM operations + a callable so(8)/Spin(8) triality surface (octonion `L`/`R`-mult + the 28-generator adjoint + the order-3 automorphism `τ`, `Fix(τ) = g₂ = 14`); runtime spectral decomposition now JSON-callable by-reference (the `$srmech_handle` grammar); dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech`, so `pip install siona` resolves here too.)*
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -97,7 +97,7 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 3,
-#  'expected_abi': 3, 'native_version': '0.5.0rc19', 'load_error': None}
+#  'expected_abi': 3, 'native_version': '0.5.0', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -130,7 +130,7 @@ Each operation cites canonical physics literature in its docstring (Schrödinger
 - `gauge` — SU(2) and SU(3) generators (Gell-Mann basis), structure constants, Casimir operator, Wilson loops from segment data.
 - `sm` — Higgs vev, weak mixing angle, W/Z boson masses, Weinberg relation residual, Yukawa coupling, CKM matrix construction.
 - `octonion` — the MPR-attested Cayley-Dickson-from-H convention: `octonion_mult_table` (the attested `(8,8,8)` int8 structure constants), `octonion_left_mult` / `octonion_right_mult` (the `8×8` `L_a` / `R_a` binders), `octonion_conjugate`, `octonion_norm` (Class K ∘ C, never `abs()`). `octonion_table_attestation` content-addresses the table bytes via `sha256_bytes`. Cites Baez (2002), *The Octonions* (arXiv:math/0105155).
-- `so8` — the 28-generator `so(8)` adjoint partitioned **14 (g₂ = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`, `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy subset, no RNG), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold).
+- `so8` — the 28-generator `so(8)` adjoint partitioned **14 (g₂ = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`, `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy subset, no RNG), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold), and `an_embedding` — the bit-exact **su(3) ⊕ 3 ⊕ 3̄** Lie branching of the 14 g₂ generators (su(3) = the stabiliser of an imaginary octonion unit; the genuine fundamental `3` is the `+i` eigenspace of the su(3)-invariant complex structure `J`, `J² = −I`, so a real 3-span cannot carry it). The `8 + 3 + 3̄` decomposition is the op's own self-attesting bit-exact computation (Baez §4.1 cited for `g₂ = Der O` / dim 14 only, the build input); the 14 A-N class names are surfaced only as a documented `framework_an_reading` label ("framework-reading, not derived"), distinct from this su(3) partition.
 - `triality` — the Spin(8) triality engine: `triality_automorphism` (the `28×28` order-3 outer automorphism `τ`, `τ³ = I`, `Fix(τ) = g₂` dim 14), `triality_swap` (the Z2 — with `τ` generates `S3 = Out(Spin(8))`), `triality_cycle` (the Class-I `8v → 8s → 8c` rep-permutation), `triality_apply`, `triality_companions`, `triality_relation_residual` (Cartan's `g_v(x·y) = g_s(x)·y + x·g_c(y)`, 0 when correct). Cites Cartan (1925) + Baez (2002).
 
 ### `srmech.spectral` — runtime spectral decomposition
@@ -248,7 +248,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.4.2",
+    "parser_version": "srmech 0.5.0",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"
@@ -279,7 +279,7 @@ Every primitive class, every `srmech.qm.*` operation (including the so(8)/triali
 from srmech.introspect import describe
 
 d = describe()
-print(d["srmech_version"])              # e.g. "0.5.0rc17"
+print(d["srmech_version"])              # e.g. "0.5.0"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
 print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
