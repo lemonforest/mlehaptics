@@ -113,9 +113,14 @@ _TYPE_LEXICON: Dict[str, str] = {
     "Sequence[np.ndarray]": "array",
     "pathlib.Path": "string",
     "callable": "string",  # callables can't ride JSON; ride as name
+    # rc16 — operator_name rides as a dotted srmech.* operator-name string.
+    "operator_name": "string",
     "ChainSpec": "object",
+    # rc16 — a SpectralHandle rides BY REFERENCE as the $srmech_handle id
+    # object; the union also accepts base64 bytes (still resolvable at
+    # runtime, but the primary wire form is now the handle object).
     "SpectralHandle": "object",
-    "SpectralHandle | bytes": "string",
+    "SpectralHandle | bytes": "object",
     "numpy.random.Generator": "object",
 }
 
@@ -157,6 +162,21 @@ _ENCODING_HINT: Dict[str, str] = {
     ),
     "list[tuple[bytes, bytes]]": (
         "array of [base64-encoded key, base64-encoded value] pairs"
+    ),
+    # rc16 — by-reference handle dual-grammar. The LLM copies a producer
+    # tool's returned id object verbatim into the next tool's input.
+    "SpectralHandle": (
+        'an opaque handle id {"$srmech_handle": {"uuid": ..., "name": ...}} '
+        "returned by a producing spectral tool (decompose / predict / "
+        "truncate_sparse) — pass it back verbatim"
+    ),
+    "SpectralHandle | bytes": (
+        'an opaque handle id {"$srmech_handle": {"uuid": ..., "name": ...}} '
+        "returned by a producing spectral tool, OR base64-encoded bytes"
+    ),
+    "operator_name": (
+        "dotted import path of a unary sequence->sequence srmech operator, "
+        'e.g. "srmech.amsc.cascade.chiral_flip"'
     ),
 }
 

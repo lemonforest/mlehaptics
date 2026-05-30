@@ -51,11 +51,24 @@ real-symmetric eigendecomposition, real 3-/4-vectors). Consequences:
   lossless.
 * The only input the generic path cannot express is an array carrying
   genuine *imaginary* parts. Single complex *scalars* ride as ``[re, im]``
-  via the ``complex`` coercer; bulk complex *array* work is the bus
+  via the ``complex`` coercer; bulk complex *array* work is the
   by-reference handle path (per the package-for-bulk / MCP-for-interactive
   design boundary), not the JSON MCP path. The opt-in
   ``complex_pairs_to_ndarray`` builds a complex128 array from ``[re, im]``
   leaves for the round-trip test and any future explicitly-complex param.
+
+By-reference handle dual-grammar (v0.5.0rc16) — now LIVE
+--------------------------------------------------------
+A ``SpectralHandle`` is a frozen, bytes-bearing dataclass JSON-RPC cannot
+carry by VALUE. rc16 carries it BY REFERENCE: a producer tool's returned
+handle is intercepted by ``serialise_native`` and emitted as a tagged id
+object ``{"$srmech_handle": {"uuid", "name", "kind"}}`` (registered in the
+package-scope ``srmech._handles`` registry); a consumer param of declared
+type ``SpectralHandle`` / ``SpectralHandle | bytes`` is resolved back to the
+live object by ``coerce_param``. The union still accepts a bare base64
+``str`` for raw bytes. ``chiral_dual``'s ``op`` rides as an
+``operator_name`` (a dotted ``srmech.*`` unary seq->seq operator name)
+resolved through the same registry's name-grammar arm.
 * Integer-typed ops (``klein4`` uint8 / ``polar`` int8) receive a
   ``float64`` / ``int64`` array and re-cast internally via
   ``np.asarray(..., dtype=...)`` in their own guards — round-trip equality
@@ -75,6 +88,28 @@ import numpy as np
 # ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
 # malformed input.
 _BinasciiError = binascii.Error
+
+# Module-scope cache for the lazily-imported ``SpectralHandle`` type, so
+# ``serialise_native``'s outbound interception (which runs on every
+# serialise of a non-leaf object) imports the type at most once. ``None``
+# until first use; a sentinel ``False`` is never stored — a failed import
+# simply leaves it ``None`` (no SpectralHandle in this build).
+_SPECTRAL_HANDLE_TYPE: Any = None
+
+
+def _spectral_handle_type() -> Any:
+    """Return the ``SpectralHandle`` class (lazily imported + cached) or
+    ``None`` if ``srmech.spectral`` is unavailable. Lazy/local so
+    ``_coercion`` stays a leaf module at load (it is imported during warmup
+    before the spectral surface is guaranteed wired)."""
+    global _SPECTRAL_HANDLE_TYPE
+    if _SPECTRAL_HANDLE_TYPE is None:
+        try:
+            from srmech.spectral import SpectralHandle as _SH
+        except Exception:  # noqa: BLE001 — no spectral surface in this build
+            return None
+        _SPECTRAL_HANDLE_TYPE = _SH
+    return _SPECTRAL_HANDLE_TYPE
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -302,6 +337,63 @@ def _to_int_tuple(value: Any, *, param: str = "") -> Tuple[int, ...]:
     return tuple(value)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# rc16 — by-reference handle dual-grammar coercers
+#
+# A ``SpectralHandle`` is a frozen, bytes-bearing dataclass JSON-RPC cannot
+# carry by VALUE; rc16 carries it BY REFERENCE as a tagged id object
+# ``{"$srmech_handle": {"uuid", "name", "kind"}}`` minted by a producer tool
+# and resolved through the package-scope ``srmech._handles`` registry. The
+# cross-module touches are LOCAL (function-body) imports so ``_coercion``
+# stays a leaf module at load (it is imported during warmup, before the
+# spectral surface is guaranteed wired).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _resolve_spectral_handle(value: Any, *, param: str = "") -> Any:
+    """Resolve a ``{"$srmech_handle": {...}}`` id object to the live
+    :class:`srmech.spectral.SpectralHandle`. Tolerates a value that is
+    ALREADY a ``SpectralHandle`` (an in-process caller may pass the real
+    object through ``invoke_tool``, mirroring how :func:`_b64_to_bytes`
+    tolerates raw bytes)."""
+    from srmech._handles import (
+        HANDLE_ENVELOPE_KEY,
+        get_handle_registry,
+        is_handle_envelope,
+    )
+
+    if is_handle_envelope(value):
+        return get_handle_registry().resolve(
+            value[HANDLE_ENVELOPE_KEY], kind="spectral"
+        )
+    # Already-native pass-through (the underlying fn validates it).
+    return value
+
+
+def _resolve_spectral_handle_or_bytes(value: Any, *, param: str = "") -> Any:
+    """Discriminate the ``SpectralHandle | bytes`` union on JSON shape: a
+    dict carrying the ``$srmech_handle`` sentinel -> registry-resolve to a
+    ``SpectralHandle``; otherwise the existing base64-``str`` / raw-``bytes``
+    path (raw-bytes callers preserved exactly — the union contract)."""
+    from srmech._handles import is_handle_envelope
+
+    if is_handle_envelope(value):
+        return _resolve_spectral_handle(value, param=param)
+    return _b64_to_bytes(value, param=param)
+
+
+def _resolve_operator_name(value: Any, *, param: str = "") -> Any:
+    """Resolve an ``operator_name`` (a dotted ``srmech.*`` unary
+    sequence->sequence operator name) to its live callable via the
+    registry's name-grammar arm. Tolerates an already-callable value for
+    in-process callers."""
+    if callable(value):
+        return value
+    from srmech._handles import resolve_operator_name
+
+    return resolve_operator_name(value)
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -344,8 +436,15 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     #    renders them as objects and an in-process caller passes the real
     #    object through). Listed so the ratchet stays exhaustive. ──
     "ChainSpec": _identity,
-    "SpectralHandle": _identity,
-    "SpectralHandle | bytes": _identity,
+    # ── rc16 by-reference handle dual-grammar (was _identity in rc14/15;
+    #    now REAL resolvers — the $srmech_handle envelope -> live object). ──
+    "SpectralHandle": _resolve_spectral_handle,
+    "SpectralHandle | bytes": _resolve_spectral_handle_or_bytes,
+    #: ``operator_name`` is chiral_dual's ``op``: a dotted ``srmech.*`` unary
+    #: seq->seq operator NAME resolved to its callable (rc16). ``callable``
+    #: is RETAINED (other tools / the DSL / direct callers still pass a live
+    #: callable; the exhaustiveness ratchet needs the key present).
+    "operator_name": _resolve_operator_name,
     "callable": _identity,
     "numpy.random.Generator": _identity,
 }
@@ -414,6 +513,19 @@ def serialise_native(value: Any) -> Any:
     Anything else is returned unchanged for ``json.dumps`` to handle (or
     for the caller's ``default=`` fallback to catch).
     """
+    # rc16 — SpectralHandle returns cross JSON BY REFERENCE. Intercept the
+    # opaque frozen handle BEFORE the generic dataclass/dict fall-through
+    # (which would otherwise base64 its inline ``coefficients_bytes`` and
+    # leak the full payload): register it in the in-process handle registry
+    # and emit the ``{"$srmech_handle": {uuid, name, kind}}`` id object the
+    # LLM copies verbatim into the next tool's input. (Checked first so the
+    # interception ordering is unambiguous.)
+    _sh_type = _spectral_handle_type()
+    if _sh_type is not None and isinstance(value, _sh_type):
+        from srmech._handles import encode_envelope, get_handle_registry
+
+        uuid_hex, name = get_handle_registry().register(value, kind="spectral")
+        return encode_envelope(uuid_hex, name, "spectral")
     # bytes -> base64
     if isinstance(value, (bytes, bytearray)):
         return base64.b64encode(bytes(value)).decode("ascii")

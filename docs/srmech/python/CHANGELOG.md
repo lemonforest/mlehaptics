@@ -6,6 +6,106 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
+## [0.5.0rc16] - 2026-05-29
+
+**rc16 of N for v0.5.0 — the "handle dual-grammar" voxel.** rc15 marked the
+7 `srmech.spectral.*` tools `mcp_callable=False` because their param/return
+surface is a bare `SpectralHandle` (or `SpectralHandle | bytes`) — an
+opaque, frozen, bytes-bearing dataclass JSON-RPC cannot carry **by value**.
+rc16 carries it **by reference**: a producer's returned handle is
+intercepted on the outbound path and emitted as a small tagged id object the
+LLM copies verbatim into the next tool's input; a consumer param is resolved
+back to the live object on the inbound path. The 7 spectral tools are now
+`mcp_callable=True` (**handle_pending 7→0; mcp_callable 151→158**), and
+`chiral_dual`'s `op` is accepted as a dotted operator **name** (was an
+over-advertised `callable` that bound the synth string `"abs"` then raised a
+tolerated `str`-not-callable `TypeError`). Pure-Python only — no C source
+change; **ABI stays 3** (the C header's VERSION strings bump to rc16, the
+`SRMECH_ABI_VERSION` integer does not).
+
+Framework reading: name (meaning-encoded, biology-native / continuous-Hopf)
+and uuid (position-encoded, silicon-native / cyclic-algebra) are two
+grammars resolving to ONE in-process structure — the registry is the **B/H/N
+translation locus**. We never force both halves into one "sentence"; each
+consumer speaks the grammar native to it (SpectralHandle uses the uuid+name
+registration arm; `chiral_dual.op` uses the stateless name arm).
+
+### Added
+
+- **`srmech/_handles.py` — a package-scope `HandleRegistry`** (the shared
+  name+uuid machinery, serving both the 7 spectral tools now and the bus
+  later). Bounded-LRU `OrderedDict` keyed by `uuid.uuid4().hex` (cap
+  `HANDLE_REGISTRY_MAX=256`), `threading.RLock`-guarded, with a `name→uuid`
+  secondary index and a value-hash idempotency map (an identical-by-value
+  handle registered twice returns its existing id). `kind`-discriminated.
+  Typed `HandleNotFoundError` (a clean "re-produce it" message on a
+  miss/eviction) and `HandleKindError`. The `$srmech_handle` envelope key +
+  `encode_envelope()` / `is_handle_envelope()` helpers. A name auto-derives
+  for a `SpectralHandle` as `"spectral:" + content_sha[:12]` — reusing the
+  Class A SHA-256 already on the frozen dataclass, so **no new
+  `hashlib.sha256` call** is introduced.
+- **`resolve_operator_name(name)`** — the stateless name-grammar arm for
+  `chiral_dual`'s `op`. Restricted to the **`srmech.` namespace**: a name
+  outside it (`os.system`, `builtins.*`, stdlib, `numpy.*`, …) is rejected
+  with a clean `ValueError` **before** any import, so the advertised
+  `operator_name` contract is never "an arbitrary importable callable".
+- **`tests/test_handles.py`** — registry dual-grammar (resolve by uuid AND
+  by name), uuid/name disagreement, bounded-LRU eviction + `HandleNotFoundError`,
+  `HandleKindError`, idempotent same-value registration, thread-safety
+  smoke, and the operator-name allow-list (accepts `srmech.*`, rejects
+  everything else).
+- **`tests/test_mcp.py`** — `test_spectral_handle_param_coercer_resolves`,
+  `test_spectral_handle_or_bytes_discriminates`,
+  `test_operator_name_param_resolves_callable`,
+  `test_evicted_handle_in_invoke_gives_clean_error` (the empirical proof the
+  rc14/15 `_identity` pass-throughs are now real resolvers — the thing the
+  static `has_coercer` ratchet structurally cannot see).
+- **`tests/test_spectral.py`** — full JSON round-trips through `invoke_tool`:
+  `decompose → recompose` (the wire form is asserted to be the
+  `$srmech_handle` envelope, NOT an inline coefficients dict), plus a chained
+  `decompose → predict → truncate_sparse → recompose` producer→consumer
+  chain.
+
+### Changed
+
+- **The 7 `srmech.spectral.*` ToolEntries flip to `mcp_callable=True`** (the
+  rc15 `mcp_callable=False` + `_SPECTRAL_HANDLE_PENDING_REASON` markers
+  removed). They are auto-included in both advertised catalogs (the MCP
+  `tools/list` seam and the Anthropic catalog) and `describe()` re-buckets
+  them from `handle_pending` into `mcp_callable` from the live flags — no
+  edit needed in those consumers.
+- **`chiral_dual`'s `op` param type `callable` → `operator_name`** (a new
+  declared type). `srmech.mcp._coercion` gains real coercers
+  (`_resolve_spectral_handle`, `_resolve_spectral_handle_or_bytes`,
+  `_resolve_operator_name`); `serialise_native` gains one `SpectralHandle`
+  branch (register + emit envelope) ahead of its dict/tuple fall-through.
+  `_TYPE_LEXICON` / `_ENCODING_HINT` teach the LLM the `$srmech_handle`
+  envelope (handle params) and the dotted operator-name string. The
+  `callable` coercer key is RETAINED (other tools / the DSL / direct callers
+  still pass a live callable; the exhaustiveness ratchet needs the key).
+  `chiral_dual`'s Python signature is unchanged — resolution is at the
+  coercion layer, so the DSL + direct callers are unaffected.
+- **The rc15 catalog-EXCLUSION ratchets are INVERTED to catalog-INCLUSION**
+  in BOTH `tests/test_mcp.py` (`test_handle_pending_absent_from_advertised_catalogs`)
+  AND `tests/test_llm_anthropic.py`
+  (`test_handle_pending_tools_excluded_from_anthropic_catalog` +
+  `test_tool_catalog_includes_every_advertised_tool`'s `expected + 7` → `+ 0`):
+  zero handle-pending tools remain; all 7 spectral names are PRESENT in both
+  advertised surfaces. The every-tool invocation smoke
+  (`_synth_value_for_type`) now synths `operator_name` →
+  `srmech.amsc.cascade.chiral_flip` (a genuine unary seq→seq op) and
+  `SpectralHandle` → a freshly-minted registered `$srmech_handle` envelope,
+  so the smoke exercises a REAL round-trip rather than a tolerated domain
+  failure.
+
+### Unchanged
+
+- **C source + ABI.** No file under `c/` other than the header's VERSION
+  strings is touched; `SRMECH_ABI_VERSION` stays **3** and the Python shim's
+  `EXPECTED_ABI_VERSION` stays **3**. The JPL Power-of-Ten ratchet is
+  unaffected. The whole voxel is a Python tool-schema / registry / MCP-surface
+  change. TestPyPI rc verification before any production PyPI tag.
+
 ## [0.5.0rc15] - 2026-05-29
 
 **rc15 of N for v0.5.0 — the "every-tool invocation smoke + honest

@@ -257,3 +257,91 @@ class TestEndToEndIdentity:
         # Recover h_b's coefficients via second bind
         recovered_b_bytes = delta(h_a, d)
         assert recovered_b_bytes == h_b.coefficients_bytes
+
+
+# ---------------------------------------------------------------------------
+# rc16 — by-reference handle JSON round-trip THROUGH the MCP dispatch seam
+# (the 7 spectral tools became mcp_callable=True; a producer's returned
+# SpectralHandle crosses JSON as a $srmech_handle id a consumer resolves).
+# ---------------------------------------------------------------------------
+
+
+def _json_invoke(name, args):
+    """Invoke a tool and parse its serialised JSON-string result (the
+    server wire form)."""
+    import json
+
+    from srmech.mcp import invoke_tool
+    from srmech.mcp._tools import serialise_result
+
+    return json.loads(serialise_result(invoke_tool(name, args)))
+
+
+class TestHandleJSONRoundTrip:
+    def test_decompose_recompose_json_roundtrip_via_invoke_tool(self):
+        """invoke_tool(decompose) -> a $srmech_handle envelope (NOT an inline
+        coefficients dict) -> invoke_tool(recompose, handle=envelope) matches
+        the direct in-process recompose (same 2x2 Hermitian both ends so the
+        substrate descriptor hashes agree)."""
+        from srmech._handles import HANDLE_ENVELOPE_KEY, get_handle_registry
+
+        clear_eigenbasis_cache()
+        get_handle_registry().clear()
+
+        L = [[1.0, -1.0], [-1.0, 1.0]]
+        state = [1.0, 2.0]
+
+        env = _json_invoke(
+            "srmech.spectral.decompose", {"state": state, "laplacian": L}
+        )
+        # By-reference id object — NOT the inline 4-field/coefficients dict.
+        assert HANDLE_ENVELOPE_KEY in env
+        import json as _json
+
+        assert "coefficients_bytes" not in _json.dumps(env)
+
+        recomposed = _json_invoke(
+            "srmech.spectral.recompose", {"handle": env, "laplacian": L}
+        )
+        # Compare against the direct in-process recompose of the same state.
+        direct = recompose(decompose(np.array(state), np.array(L)), np.array(L))
+        # recomposed is a nested [re, im] list (complex128 ndarray on wire).
+        got = np.asarray(recomposed)
+        got_complex = got[..., 0] + 1j * got[..., 1]
+        np.testing.assert_allclose(got_complex, direct, atol=1e-9)
+
+    def test_producer_producer_consumer_chain_via_invoke_tool(self):
+        """decompose -> predict(envelope) -> truncate_sparse(envelope) ->
+        recompose, all via invoke_tool — chained by-reference handles
+        resolve end-to-end (each producer's returned handle is a fresh
+        registered envelope the next consumer resolves)."""
+        from srmech._handles import HANDLE_ENVELOPE_KEY, get_handle_registry
+
+        clear_eigenbasis_cache()
+        get_handle_registry().clear()
+
+        L = [[2.0, -1.0, -1.0], [-1.0, 2.0, -1.0], [-1.0, -1.0, 2.0]]
+        state = [1.0, 0.5, -0.5]
+
+        h0 = _json_invoke(
+            "srmech.spectral.decompose", {"state": state, "laplacian": L}
+        )
+        assert HANDLE_ENVELOPE_KEY in h0
+
+        h1 = _json_invoke(
+            "srmech.spectral.predict",
+            {"handle": h0, "laplacian": L, "steps": 1},
+        )
+        assert HANDLE_ENVELOPE_KEY in h1
+
+        h2 = _json_invoke(
+            "srmech.spectral.truncate_sparse", {"handle": h1, "keep_k": 2}
+        )
+        assert HANDLE_ENVELOPE_KEY in h2
+
+        recomposed = _json_invoke(
+            "srmech.spectral.recompose", {"handle": h2, "laplacian": L}
+        )
+        got = np.asarray(recomposed)
+        # A length-3 complex state reconstructs (each scalar a [re, im] pair).
+        assert got.shape == (3, 2)
