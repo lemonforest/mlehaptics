@@ -2214,6 +2214,36 @@ def _register_qm_tools() -> None:
                       "weights:(6,2), decomposition, imaginary_unit, "
                       "attestation}"),
         ),
+        ToolEntry(
+            name="srmech.qm.so8.quaternion_subalgebra_stabilizer",
+            owner="srmech",
+            category="qm.so8",
+            summary="The bit-exact 6-dim so(4) = su(2) ⊕ su(2) subalgebra of "
+                    "g2 = Der(O) stabilising a quaternion subalgebra H ⊂ O "
+                    "(the ℍ-reading sibling of an_embedding). H = "
+                    "span(e0,e_a,e_b,e_c) for a Fano line; so(4) = "
+                    "{D in g2 : D·span(H_imag) ⊆ span(H_imag)} (SVD nullspace, "
+                    "orthonormalised; dim 6). Certificate: Killing-form rank 6 "
+                    "(semisimple, Cartan), the two-triplet Killing spectrum "
+                    "(two eigenvalues ×3 = su(2) ⊕ su(2)), the two su(2) ideals "
+                    "via the self-dual / anti-self-dual split on H^⊥ ≅ R^4 "
+                    "([su2_+,su2_-]=0, each closes), and ℍ-choice-invariance "
+                    "(spectrum bit-identical across the 7 Fano-line H). The "
+                    "su(2) ⊕ su(2) split is this op's own computation, NOT a "
+                    "cited theorem; never abs(). F215: this Lie SYMMETRY surface "
+                    "is distinct from the 6 cascade.atoms group-element ops "
+                    "(6=6 is coincidence; 0/6 atoms are Lie generators) — a "
+                    "framework-reading label, NOT a derived theorem. Class C-L. "
+                    "Baez (2002) §4.1 (g2 = Der O, dim 14).",
+            parameters=(P("quaternion_index", "int", False,
+                          "1-based Fano-line index 1..7 selecting H "
+                          "(default 1 = line (1,2,3))"),),
+            returns=R("dict",
+                      "{so4:[6 8x8], su2_plus:[3 8x8], su2_minus:[3 8x8], "
+                      "killing_form:(6,6), killing_rank:6, killing_spectrum:(6,), "
+                      "decomposition, quaternion_fano_line, "
+                      "quaternion_imaginary_units, attestation}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # srmech.qm.triality — the Spin(8) triality engine. The 28×28
