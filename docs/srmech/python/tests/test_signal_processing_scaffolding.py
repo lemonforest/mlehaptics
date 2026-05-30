@@ -91,8 +91,20 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc2():
-    """v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.qm.so8 op
+def test_version_is_0_6_0rc3():
+    """v0.6.0rc3 — MS #20 forward-arch voxel #761 (F220): the order-3 triality
+    surfaced as the 7th lean-ISA primitive — srmech.qm.triality.
+    lean_isa_seventh_primitive(). The chirality-complete A–N core = 6 order-2
+    cascade.atoms + 1 order-3 triality (triality_automorphism, τ³=I) = 7 — the
+    only access to the 3rd chiral axis. BIT-EXACT certificate: τ has order
+    exactly 3 + the Lagrange arithmetic 3∤8 (the 6 atoms commute → abelian
+    Z₂×Z₂×Z₂, |G|=8, no order-3 element ⇒ the order-3 axis is unreachable —
+    held as framework-reading, NOT a derived theorem, under
+    framework_chirality_complete_reading). +1 ToolEntry → describe() tool total
+    175 → 176. Pure-Python; ABI unchanged at 3; no abs() (Class K pin-slot,
+    scalar cascade.magnitude). Closes #761.
+
+    Prior v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.qm.so8 op
     quaternion_subalgebra_stabilizer() — the bit-exact 6-dim so(4)=su(2)⊕su(2)
     G₂-stabiliser of a quaternion ℍ⊂𝕆 (the ℍ-reading sibling of an_embedding;
     F215). Keeps the Lie SYMMETRY surface (so(4)⊂g₂) distinct from the
@@ -248,8 +260,8 @@ def test_version_is_0_6_0rc2():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc2", (
-        f"expected srmech.__version__ == '0.6.0rc2'; got "
+    assert srmech.__version__ == "0.6.0rc3", (
+        f"expected srmech.__version__ == '0.6.0rc3'; got "
         f"{srmech.__version__!r}"
     )
 

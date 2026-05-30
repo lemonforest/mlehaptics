@@ -2314,6 +2314,33 @@ def _register_qm_tools() -> None:
                         P("g_c", "np.ndarray", True, "8×8 8_c companion")),
             returns=R("float", "0 when the Cartan relation holds"),
         ),
+        ToolEntry(
+            name="srmech.qm.triality.lean_isa_seventh_primitive",
+            owner="srmech", category="qm.triality",
+            summary="The order-3 triality as the 7th lean-ISA primitive, "
+                    "completing the chirality-complete A-N core: 6 order-2 "
+                    "cascade.atoms (pin_slot_at_zero / reorient / magnitude / "
+                    "chiral_flip / chiral_dual / net_chirality) + 1 order-3 "
+                    "triality (triality_automorphism) = 7 — the only access to "
+                    "the 3rd chiral axis (F220). BIT-EXACT certificate: τ has "
+                    "order exactly 3 (‖τ³−I‖≈0, τ≠I, τ²≠I) via the engine, plus "
+                    "the Lagrange arithmetic 3∤8 / 3∣3 (never abs(); scalar "
+                    "Class K pin-slot magnitude). The 6 atoms commute (abelian "
+                    "Z2×Z2×Z2, |G|=8) so 3∤8 ⇒ no order-3 element ⇒ the order-3 "
+                    "axis is unreachable from them — a documented "
+                    "framework-reading (scope hierarchy endianness ⊂ Class C ⊂ "
+                    "Klein-4 ⊂ Spin(8) triality), NOT a derived theorem, "
+                    "surfaced under framework_chirality_complete_reading. "
+                    "Class I (cyclic order-3). Baez (2002) §2.4 "
+                    "(Out(Spin(8))=S3); F220 is the framework finding.",
+            parameters=(),
+            returns=R("dict",
+                      "{order_two_atoms:(6,), order_three_primitive, "
+                      "triality:28×28 τ, certificate (bit-exact: triality_order "
+                      "3, residuals, abelian_group_order 8, lagrange_obstruction, "
+                      "chirality_complete_core 7), attestation, "
+                      "framework_chirality_complete_reading}"),
+        ),
     ]
     for e in entries:
         register_tool(e)
