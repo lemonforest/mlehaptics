@@ -91,8 +91,20 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc4():
-    """v0.6.0rc4 — MS #20 docs/accuracy voxel #738: the sha256_bytes docstring
+def test_version_is_0_6_0rc5():
+    """v0.6.0rc5 — MS #20 reentrant-core voxel #772: the C core is now fully
+    reentrant — the two remaining shared-static scratch buffers (ndjson
+    g_line_buf, laplacian Hwork) are gone. g_line_buf (1 MiB) is now a
+    function-local static SRMECH_THREAD_LOCAL buffer in srmech_ndjson_iter
+    (per-thread, cross-chunk-persistent, no stack-overflow risk); Hwork moves to
+    a new ABI-additive srmech_hermitian_eigendecompose_ws(..., workspace, ws_len)
+    caller-supplied entry, with the existing symbol routing through it via a
+    thread-local workspace. No shared mutable static remains in any op call path
+    → the #771 plugin can parallelize the full surface. ABI unchanged at 3 (new
+    symbol is additive); no API/behaviour change → describe() tool total STAYS
+    176; JPL Power-of-Ten ratchet green; no abs(). Closes #772.
+
+    Prior v0.6.0rc4 — MS #20 docs/accuracy voxel #738: the sha256_bytes docstring
     now documents the int-conversion path — it returns a 64-char hex str (the
     Class A content-address), so a caller wanting an int uses int(h, 16) /
     int(h[:8], 16), NOT int.from_bytes(...). Docs-only (no API change);
@@ -267,8 +279,8 @@ def test_version_is_0_6_0rc4():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc4", (
-        f"expected srmech.__version__ == '0.6.0rc4'; got "
+    assert srmech.__version__ == "0.6.0rc5", (
+        f"expected srmech.__version__ == '0.6.0rc5'; got "
         f"{srmech.__version__!r}"
     )
 

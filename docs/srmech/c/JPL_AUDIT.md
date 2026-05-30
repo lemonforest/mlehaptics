@@ -2,10 +2,18 @@
 
 **Standard:** Holzmann, G. J. (2006). "The Power of Ten — Rules for Developing Safety Critical Code." *IEEE Computer* 39(6), 95-99.
 
-**Audited at:** v0.1.1rc8 (Task #201 Phase B6).
+**Audited at:** v0.1.1rc8 (Task #201 Phase B6); reentrancy delta
+re-audited at v0.6.0rc5 (#772).
 
-**Scope:** 3 source files under `c/src/*.c` and the public header
-`c/include/srmech.h`. Total roughly 500 LOC across:
+**Scope:** the source files under `c/src/*.c` and the public header
+`c/include/srmech.h`. The original Phase B6 audit covered the three
+baseline files below; the per-class C surfaces added since
+(`srmech_cyclic.c`, `srmech_laplacian.c`, `srmech_primes.c`,
+`srmech_rational.c`, `srmech_kepler.c`, `srmech_hdc.c`,
+`srmech_dispatch.c`, `srmech_catalog.c`, `srmech_template.c`,
+`srmech_tlv.c`, `srmech_search.c`, `srmech_cascade.c`,
+`srmech_bus.c`) are held to the same rules by the mechanical ratchet
+`tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).
 - `c/src/srmech_sha256.c` — FIPS 180-4 SHA-256 (Phase B3).
@@ -103,9 +111,28 @@ mechanically obvious. We never use `while(1)` or `for(;;)`.
 - All buffers are either:
   - Stack-allocated, compile-time-constant-sized (e.g.
     `uint8_t chunk[SRMECH_NDJSON_CHUNK_BYTES]`).
-  - Static-scope, compile-time-constant-sized (e.g.
-    `static char g_line_buf[SRMECH_NDJSON_MAX_LINE_BYTES]`).
-  - Caller-supplied (e.g. `char *out_hex` to `srmech_sha256_hex`).
+  - **Thread-local static**, compile-time-constant-sized (e.g.
+    the 1 MiB NDJSON line-assembly buffer in `srmech_ndjson_iter`
+    and the ~1 MiB Hermitian-eigendecomp working matrix `Hwork` in
+    `srmech_hermitian_eigendecompose` — both `static
+    SRMECH_THREAD_LOCAL`).
+  - Caller-supplied (e.g. `char *out_hex` to `srmech_sha256_hex`;
+    `double *workspace` to `srmech_hermitian_eigendecompose_ws`).
+
+**Static-scope scratch is itself a legitimate Rule-3 method** — the
+buffer has static storage duration, never touches the allocator, and
+is sized at compile time. The #772 conversion of the two former
+**shared-static** scratch buffers (`srmech_ndjson.c`'s `g_line_buf`
+and `srmech_laplacian.c`'s `Hwork`) was therefore **a reentrancy
+trade, NOT a Rule-3 fix**: they were already Rule-3-clean. The change
+adds the `SRMECH_THREAD_LOCAL` qualifier (and, for the eigendecomp, a
+new `srmech_hermitian_eigendecompose_ws` entry taking a caller-
+supplied workspace) so the buffers are per-thread / caller-owned
+rather than process-wide-shared. This makes the entire op surface
+safe to drive concurrently (the #771 multi-threaded plugin) while
+keeping the large (~1 MiB) buffers OFF the stack — `_Thread_local` /
+`__declspec(thread)` static storage is both Rule-3-clean and
+reentrant-across-threads. No malloc was introduced.
 
 ✅ **Pass.**
 
@@ -129,8 +156,11 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_sha256_state_to_hex`    |  20   | ✅      |
 | `srmech_sha256_hex`             |  57   | ✅      |
 | `srmech_ndjson_emit`            |  20   | ✅      |
-| `srmech_ndjson_process_chunk`   |  43   | ✅ *(extracted in Phase B6)* |
-| `srmech_ndjson_iter`            |  51   | ✅ *(was 76; reduced by extracting `process_chunk`)* |
+| `srmech_ndjson_process_chunk`   |  46   | ✅ *(gained `char *line_buf` param in #772)* |
+| `srmech_ndjson_iter`            |  55   | ✅ *(thread-local `line_buf` added in #772; still < 60)* |
+| `srmech_hermitian_run_sweeps`   |  27   | ✅ *(extracted from eigendecompose in #772)* |
+| `srmech_hermitian_eigendecompose_ws` | 44 | ✅ *(#772 reentrant caller-workspace entry)* |
+| `srmech_hermitian_eigendecompose`     | 19 | ✅ *(#772 thin thread-local-workspace wrapper)* |
 
 ### Fix shipped in this audit pass
 
@@ -162,10 +192,21 @@ Per-function assertion counts:
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |
 | `srmech_sha256_hex`             |    3    | ✅                                                  |
 | `srmech_ndjson_emit`            |    2    | ✅                                                  |
-| `srmech_ndjson_process_chunk`   |    4    | ✅                                                  |
+| `srmech_ndjson_process_chunk`   |    5    | ✅ *(gained `line_buf != NULL` assert in #772)*     |
 | `srmech_ndjson_iter`            |    2    | ✅                                                  |
+| `srmech_hermitian_run_sweeps`   |    3    | ✅ *(Hwork / V non-NULL + n ≤ MAX_NODES)*           |
+| `srmech_hermitian_eigendecompose_ws` |  4  | ✅ *(out ptrs + n bound + `ws_len ≥ total`)*        |
+| `srmech_hermitian_eigendecompose`     |  2  | ✅ *(thin wrapper; out-ptr asserts)*                |
 
-**Total: 15 assertions across 6 non-trivial functions = 2.5/fn average.** Exceeds the 2.0 floor.
+The Hermitian-eigendecomp `_ws` entry additionally validates the new
+workspace parameters at runtime (`workspace != NULL` →
+`SRMECH_ERR_NULL_ARG`; `ws_len < 2*n*n` → `SRMECH_ERR_OVERFLOW`) in
+addition to the debug-build asserts, per Rule 7.
+
+**Total: 18 assertions across the NDJSON + Hermitian-reentrancy
+functions; every non-exempt function stays ≥ 2.** Exceeds the 2.0
+floor. (The repo-wide ratchet `tests/test_jpl_audit.py` enforces this
+mechanically across all `c/src/*.c`.)
 
 ### Exemption policy
 
@@ -198,10 +239,21 @@ Manual review of every variable declaration:
   `uint8_t chunk[]` in ndjson_iter) declared at the function
   entry — minimal-scope wouldn't help; they're used throughout the
   function body.
-- The static `g_line_buf` is at file scope because it has to
-  persist across `srmech_ndjson_process_chunk` invocations *during
-  one* `srmech_ndjson_iter` call. The single-thread contract is
-  documented in `srmech.h`.
+- The NDJSON line-assembly buffer must persist across
+  `srmech_ndjson_process_chunk` invocations *during one*
+  `srmech_ndjson_iter` call (a line can straddle chunk boundaries).
+  As of #772 it is a **function-local `static SRMECH_THREAD_LOCAL`**
+  buffer inside `srmech_ndjson_iter` (no longer a file-scope
+  `g_line_buf` global), threaded into `process_chunk` / `emit` as a
+  `char *line_buf` parameter so no helper references a file-scope
+  global. At 1 MiB it stays static-duration (too large to stack
+  safely per call) but is now per-thread → reentrant across threads.
+  The `srmech_hermitian_eigendecompose` working matrix `Hwork` got
+  the same treatment (function-local `static SRMECH_THREAD_LOCAL`),
+  and additionally exposes `srmech_hermitian_eigendecompose_ws` with
+  a caller-supplied workspace for callers that want to own the
+  buffer. The earlier single-thread contract for these two buffers
+  is thereby retired.
 
 ✅ **Pass.**
 
@@ -248,8 +300,21 @@ Return-value checks at every internal-callsite:
 - `grep -n "##\|__VA_ARGS__\|\.\.\." c/src/*.c c/include/srmech.h` → no matches.
 - All `#define` directives are simple constants (`SRMECH_VERSION_*`,
   `SRMECH_NDJSON_CHUNK_BYTES`, `SRMECH_NDJSON_MAX_LINE_BYTES`,
-  `SRMECH_ABI_VERSION`) or include guards (`#ifndef SRMECH_H`).
-- No multi-line macros. No function-like macros.
+  `SRMECH_ABI_VERSION`, `SRMECH_THREAD_LOCAL`) or include guards
+  (`#ifndef SRMECH_H`).
+- `SRMECH_THREAD_LOCAL` (#772) is a single-token object-like macro
+  selecting the platform TLS keyword (`_Thread_local` /
+  `__declspec(thread)` / `__thread`) via `#if`; no token-paste, no
+  varargs, no line continuation.
+- One **function-like** macro exists: `SRMECH_HERMITIAN_WS_LEN(n)`
+  (#772), a single-line pure-arithmetic constant helper
+  (`((size_t)(n) * (size_t)(n) * 2u)`) that lets a caller size the
+  Hermitian-eigendecomp workspace. It is side-effect-free, expands on
+  one line, and uses neither token-paste nor varargs — within the
+  spirit of Rule 8 (which prohibits multi-line / recursive / token-
+  pasting macros, not all parameterised constants). `SRMECH_HERMITIAN_WS_MAX`
+  is its object-like `n = MAX_NODES` specialisation, also single-line.
+- No multi-line macros. No recursive / token-pasting macros.
 - `#ifdef __cplusplus` only for `extern "C"` block — standard.
 
 ✅ **Pass.**
@@ -342,8 +407,27 @@ the toolchain-level Rule-10 ratchet.
   extracting `srmech_ndjson_process_chunk`. Documented the Rule 9
   callback deviation. Wrote this document. Added CI pedantic-build
   job (Rule 10 ratchet).
+- **v0.6.0rc5 (#772) — full-core reentrancy.** A full-core audit for
+  shared mutable static data (`grep` over `c/src/*.c`) found exactly
+  two process-wide-shared scratch buffers: `srmech_ndjson.c`'s
+  `g_line_buf` and `srmech_laplacian.c`'s `Hwork`. Both were already
+  Rule-3-clean (static-duration, no malloc) — the change is a
+  **reentrancy trade, not a Rule-3 fix**. `g_line_buf` became a
+  function-local `static SRMECH_THREAD_LOCAL` buffer threaded into
+  `process_chunk`/`emit` as a parameter (no API/ABI change). `Hwork`
+  became per-thread the same way, and a new ABI-additive exported
+  symbol `srmech_hermitian_eigendecompose_ws` exposes a caller-
+  supplied workspace (validated: non-NULL + `ws_len ≥ 2*n*n`); the
+  original `srmech_hermitian_eigendecompose` now routes through that
+  core via a thread-local workspace. The sweep loop was extracted
+  into `srmech_hermitian_run_sweeps` to keep all three functions
+  under Rule 4's 60-line limit. New portable TLS macro
+  `SRMECH_THREAD_LOCAL` (`_Thread_local` / `__declspec(thread)` /
+  `__thread`). `SRMECH_ABI_VERSION` unchanged at 3 (adding a symbol
+  never bumps ABI). No new mechanical violations; ratchet stays at 0.
 
-**Total mechanically-detectable violations: 1 → 0.**
+**Total mechanically-detectable violations: 1 → 0 (held at 0 through
+v0.6.0rc5).**
 
 The pin test `tests/test_jpl_audit.py` enforces the zero count
 going forward — PRs that introduce a new function > 60 lines or

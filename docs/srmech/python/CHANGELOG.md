@@ -6,6 +6,32 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc5] - 2026-05-30
+
+**MS #20 reentrant-core voxel #772 — the C core is now fully reentrant (enables the #771 plugin).**
+
+A full-core audit found **exactly two** shared-static scratch buffers; both are removed, so no op
+call path touches shared mutable static — the prerequisite for parallelizing the full surface.
+
+- **`srmech_ndjson.c` `g_line_buf` (1 MiB line-assembly buffer)** → a function-local
+  `static SRMECH_THREAD_LOCAL` buffer inside `srmech_ndjson_iter`, threaded into `process_chunk`
+  as a parameter. Per-thread (reentrant across threads), cross-chunk-persistent (the streaming
+  contract is preserved), no stack-overflow risk (1 MiB never goes on the stack), no malloc
+  (JPL Rule 3). `srmech_ndjson_iter`'s signature/behaviour is unchanged.
+- **`srmech_laplacian.c` `Hwork` (≈1 MiB Hermitian-eigendecomp workspace at N≤256)** → a new
+  **ABI-additive** exported entry `srmech_hermitian_eigendecompose_ws(n, H, out_eigvals,
+  out_eigvecs, workspace, ws_len)` taking a caller-supplied workspace
+  (`ws_len >= SRMECH_HERMITIAN_WS_LEN(n) = 2·n·n`). The existing `srmech_hermitian_eigendecompose`
+  keeps its signature and now routes through the `_ws` core via a `static SRMECH_THREAD_LOCAL`
+  workspace — reentrant, no malloc, no large stack frame. Output is bit-identical.
+
+New portable `SRMECH_THREAD_LOCAL` macro (`__declspec(thread)` / `_Thread_local` / `__thread`).
+
+**ABI unchanged at 3** (a new symbol is additive — never bumps ABI). **No Python API change** —
+`describe()` tool total **stays 176**; the JPL Power-of-Ten ratchet (`test_jpl_audit.py`) stays
+green (a reentrancy trade, NOT a Rule-3 fix — static scratch was already Rule-3-clean); no `abs()`.
+Closes #772.
+
 ## [0.6.0rc4] - 2026-05-30
 
 **MS #20 docs/accuracy voxel #738 — `sha256_bytes` int-conversion guidance.**
