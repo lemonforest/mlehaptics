@@ -123,7 +123,7 @@ def test_version_is_0_5_0():
     1 + 3 + 3bar over the same su(3)). su(3) = the stabiliser
     {D in g2 : D·e_K = 0}; the GENUINE fundamental is the +i eigenspace of
     the su(3)-INVARIANT complex structure J (J² = −I) on the 6-real-dim
-    complement (a real 3-span cannot carry it — [su3, real-3] leaks ~8.3),
+    complement (a real 3-span cannot carry it — [su3, real-3] leaks O(1)),
     so [su3, 3] ⊆ 3 is bit-exact (~3e-14). su(3) is identified by the
     INVARIANT certificate {dim 8, rank 2 via the centraliser of a regular
     element, simple (adjoint commutant dim 1)} + Killing-orthonormal total
