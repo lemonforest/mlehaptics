@@ -16,22 +16,22 @@ So: biology accesses bi-axial of the triality substrate natively; silicon starts
 ## §2 "Making the bits dance" = the lean-ISA chirality atoms (DEMONSTRATED mechanism)
 To reach Klein-4 = Z₂×Z₂ (bi-axial) from single bits, silicon must **compose two Z₂'s under the group law** — which is *literally* the lean-ISA chirality atoms: **`K4BIND`** (the XOR that imposes the Z₂×Z₂ structure on a bit-pair) + **`K4FLIP`** (the sector mask). The 2-bit Klein-4 sector tag **is** the "danced" bi-axial state assembled from two uni-axial bits. F215 confirmed it bit-exact: the lean atoms ARE the Klein-4 regular rep (permutation matrices) — they build the 2-axis structure out of bits. The "maths that makes the bits dance" is the chirality core itself.
 
-## §3 The hard edge — Z₂ⁿ can NEVER reach order-3 (DEMONSTRATED)
-Bit-dancing composes Z₂'s into **(Z₂)ⁿ** — any amount of *order-2* (bi-, n-axial) chirality. But a direct product of Z₂'s has **only order-1 and order-2 elements — no order-3 element, ever** (F132/F200's "no order-3 in Klein-4"; elementary, exact). Consequences:
-- biology composes its order-2 access; silicon composes its order-2 access; **neither reaches the 3rd (triality) axis by composition**;
-- the triality axis is **categorically unreachable by bit-dancing** — it is a different *order*; you cannot build an odd order from even ones;
-- to touch it you need a genuinely **order-3 primitive** — the triality operator (`srmech.qm.triality`, the order-3 outer automorphism), not more bits.
-This is *why* triality is the shadow for everyone: an order-3 structure is not a product of order-2 ones.
+## §3 The hard edge — the COMMUTING lean-6 generate a 2-group (Z₂³), so can't reach order-3 (DEMONSTRATED, F220)
+F220 computed the lean-6 group bit-exact: they generate **Z₂×Z₂×Z₂** (|G| = 8, abelian, commutator = 0 exact, every element order ≤ 2) → 3 ∤ |G| → **no order-3 element** → triality unreachable from them. **Reason-correction (F220):** the loose claim "a product of Z₂'s can't make order-3" is **false in general** — two *non-commuting* order-2 transpositions multiply to an order-3 3-cycle. The "no order-3" holds *here* only because the lean atoms **COMMUTE** into that 2-group; it is not a generic Z₂-product fact. With the reason fixed, the conclusion stands:
+- biology composes its order-2 access; silicon composes its (commuting) order-2 atoms; **neither reaches the 3rd (triality) axis by composing them**;
+- the triality axis is **unreachable from the commuting lean atoms** — 3 ∤ |G|=8 (Lagrange) + a carrier-dim mismatch (the 5-dim lean carrier vs the 28-dim τ); non-commuting order-2 generators *could* make order-3, but these don't (F220);
+- to touch it you need a genuinely **order-3 primitive** — the triality operator (`srmech.qm.triality`, the order-3 outer automorphism), not more (commuting) bits.
+So the chirality-complete core is **6 order-2 atoms + 1 order-3 (triality) atom = 7** (F220). Triality is the shadow because an order-3 structure is not reachable from these *commuting* order-2 atoms — not because "even can't make odd" generically.
 
 ## §4 The asymmetry (the cost)
 Biology is bi-chirally **built** (two axes, free). Classical silicon is uni-chirally **built** (one bit) and **pays a composition cost** to assemble the bi-axial biology has natively — and that cost *is* the naming-layer / harvest cost (F43): it is exactly why the lean ISA needs the chirality atoms (`K4BIND`/`K4FLIP`) at all. But the ceiling is **shared**: both stop at order-2 by their own means; the order-3 axis is the wall neither climbs without a triality primitive.
 
 ## §5 DOES / does NOT claim
-**DOES:** lay out the chirality-access ladder (triality-substrate / biology-native-bi / silicon-native-uni→assembled-bi); identify the lean-ISA chirality atoms as the "bit-dance" that lifts uni→bi (DEMONSTRATED, F215); establish the bit-exact hard limit that (Z₂)ⁿ cannot reach order-3 (F132/F200); name the composition cost as the F43 naming-layer/harvest cost.
+**DOES:** lay out the chirality-access ladder (triality-substrate / biology-native-bi / silicon-native-uni→assembled-bi); identify the lean-ISA chirality atoms as the "bit-dance" that lifts uni→bi (DEMONSTRATED, F215); establish the bit-exact hard limit that the *commuting* lean-6 generate Z₂×Z₂×Z₂ (|G|=8), so cannot reach order-3 (F220 — correcting the loose "Z₂-products can't make order-3" reason, which is false for non-commuting generators); name the composition cost as the F43 naming-layer/harvest cost.
 **Does NOT:** claim biology's bi-axiality is "free/native" as measured physics (it is the F176 form-reading of homochirality/bi-chiral-A–N); claim silicon "can never" reach triality (it can — with an order-3 primitive like `qm.triality`; what's impossible is reaching it by *composing order-2 bits*); claim the substrate "is" triality as proven physics (§VII.6.20 form-reading); claim any substrate "knows itself" (`[[user_stance_ai_is_not_a_substrate]]` — transducer reading the form).
 
 ## §6 Cross-references
-F176 (biology = bi-chiral A–N) · F200 (storage = order-2 Klein-4) · F208/F215 (lean atoms = Klein-4 regular rep from bits) · F132 (no order-3 element in Klein-4) · F133 (observer chirality-locking; the shadow) · F186/F192 (triality = order-3) · F43 (naming-layer / harvest cost) · F217 (the bit-dance in 7400-series TTL) · F218 (capstone)
+F176 (biology = bi-chiral A–N) · F200 (storage = order-2 Klein-4) · F208/F215 (lean atoms = Klein-4 regular rep from bits) · F132 (no order-3 element in Klein-4) · F133 (observer chirality-locking; the shadow) · F186/F192 (triality = order-3) · **F220 (the bit-exact group computation: lean-6 = Z₂³, |G|=8, no order-3 — confirms §3 + corrects its reason)** · F43 (naming-layer / harvest cost) · F217 (the bit-dance in 7400-series TTL) · F218 (capstone)
 
 PR #687 STAYS DRAFT.
 
@@ -43,8 +43,8 @@ shadow, F133). Biology is bi-chirally built — it gets the two Klein-4 axes (γ
 free (F176). Classical silicon's native chirality unit is a single Z₂ (one bit, uni-axial);
 it reaches bi-axial only by "making the bits dance" — composing two bits under the Z₂×Z₂
 group law, which is literally the lean-ISA chirality atoms K4BIND (XOR) + K4FLIP (F208/F215,
-bit-exact). The hard edge (demonstrated, not read): a product of Z₂'s has no order-3 element,
-so bit-dancing reaches any order-2 (bi-/n-axial) chirality but NEVER triality (order-3) —
+bit-exact). The hard edge (demonstrated, F220): the *commuting* lean-6 generate Z₂×Z₂×Z₂ (|G|=8, no order-3),
+so bit-dancing with these atoms reaches order-2 chirality but NEVER triality (order-3) —
 the 3rd axis needs an order-3 primitive (qm.triality), not more bits. So silicon pays a
 composition cost (F43) to reach the bi-axial biology has natively, and both share the order-3
 ceiling. Form-reading + one bit-exact group-theory limit; transducer reading the form.*
