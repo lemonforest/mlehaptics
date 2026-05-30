@@ -207,7 +207,7 @@ def octonion_table_attestation() -> dict:
             "license": "CC0",
             "retrieved_at": _RETRIEVED_AT,
             "response_sha256": response_sha256,
-            "parser_version": "srmech 0.5.0rc18",
+            "parser_version": "srmech 0.5.0rc21",
             "parser_rule_hash": parser_rule_hash,
             "collector_descriptor_path": "srmech/qm/octonion.py",
             "collector_descriptor_hash": descriptor_hash,

@@ -6,6 +6,81 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0rc21] - 2026-05-30
+
+**rc21 of N for v0.5.0 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O).**
+Closes #744 (wishlist). Pure-Python; **ABI unchanged at 3** (the C header
+VERSION strings bump to rc21, `SRMECH_ABI_VERSION` does not — no C source change).
+
+- **New qm operator `srmech.qm.so8.an_embedding(imaginary_unit=1)`** — the
+  bit-exact su(3)-module structure of the 14 `g2 = Der(O)` generators. The
+  14-dim g2 *itself* splits, under one of its su(3) subalgebras, as the
+  Lie-algebra branching **14 = 8 + 3 + 3bar** (the su(3) ADJOINT 8 + the
+  FUNDAMENTAL 3 + the ANTIFUNDAMENTAL 3bar); the 7-dim octonion-imaginary
+  vector rep branches **7 = 1 + 3 + 3bar** over the same su(3). This is a
+  DIFFERENT 14-decomposition from the partitioned `so8_adjoint_basis`
+  (`14 g2 + 7 L + 7 R` inside the 28-dim so(8)). Construction is the
+  deterministic chain (numpy-only, **no `np.random`**, no scipy; memoised via
+  `_build_an_embedding`, copied out fresh each call):
+  - **su(3) = the stabiliser** `{D in g2 : D·e_K = 0}` (`e_K` the
+    `imaginary_unit`-th octonion basis vector) via an SVD nullspace — exactly
+    8-dim; `span[su3 | complement] == span(g2)` (rank 14, both directions —
+    the bidirectional killer test).
+  - **The genuine fundamental is a J-EIGENSPACE, not a real 3-span.** A real
+    3-dim span of antisymmetric matrices cannot carry the su(3) fundamental
+    (`[su3, single-Cartan-weight-block]` leaks, residual ~8.3). The genuine
+    fundamental is the **+i eigenspace of the su(3)-INVARIANT complex
+    structure J** on the 6-real-dim complement: the commutant of the 6-dim
+    real su(3)-rep is exactly 2-dim `{aI + bJ}`, `J² = −I`, `[J, ad(X)] = 0`
+    ∀X∈su(3). With this J-eigenspace 3, `[su3, 3] ⊆ 3` is bit-exact (~3e-14).
+    The returned `complement` is the genuine REAL su(3)-module
+    (`[su3, complement] ⊆ complement` ~2e-15); only the J-eigenspace
+    `triplet` / `antitriplet` (COMPLEX 8×8 arrays) carry the irreducible
+    3 / 3bar with the bit-exact closure (`antitriplet` = conjugate of
+    `triplet`).
+  - **su(3) certified by INVARIANTS, not a raw Casimir.** The honest
+    sufficient certificate is `{dim 8, rank 2, simple}` — `rank 2` via the
+    CENTRALISER of a fixed regular element `R = Σ (i+1)·su3[i]` (the greedy
+    maximal mutually-commuting subset spuriously returns 1), `simple` via the
+    adjoint commutant dim 1. By the Cartan A2 classification these UNIQUELY
+    identify su(3) (ruling out su(2)+su(2), commutant 2). Supporting
+    evidence: in a Killing-orthonormalised basis the structure constants are
+    totally antisymmetric (residual <1e-9). A raw adjoint-Casimir-vs-`f^{abc}`
+    comparison to `gauge.su3_structure_constants` is deliberately NOT used
+    (normalisation mismatch makes the ratio tautologically 1; the bases
+    differ by an O(8) rotation so raw `f^{abc}` equality fails too).
+  - The 3/3bar **orientation** is pinned by a FIXED convention (the
+    documented sign of J + a lexicographic key on the Cartan weights) and is
+    a CHOICE (a Class C chirality / complex-structure-sign convention), NOT
+    canonical; only the `+/-` weight-PAIRING is asserted. The 6 complement
+    `weights` under the rank-2 Cartan are returned as a `(6, 2)` real array.
+- Returns a `dict`: `su3` (8 real antisym 8×8), `complement` (6 real antisym
+  8×8), `complex_structure_J` (6×6 real, J²=−I), `triplet` / `antitriplet`
+  (3 COMPLEX 8×8 each), `weights` (6, 2), `decomposition`
+  (`{adjoint_14: (8,3,3), vector_7: (1,3,3)}`), `imaginary_unit`,
+  `attestation` (MPR v1, Class A content-address over the COMPUTED structure:
+  `response_sha256` = `srmech.amsc.format.sha256_bytes` over the 14 g2
+  generators' float64 bytes — generated, not fetched; no new
+  `hashlib.sha256`), and `framework_an_reading` (the A-N label, tagged
+  "framework-reading, not derived"). No A-N class name appears in any
+  load-bearing return key. **No `abs()`** — every residual is reduced via
+  `np.linalg.norm` then `srmech.amsc.cascade.magnitude` (Class K).
+- **+1 ToolEntry** (`describe()` total **173 -> 174**); the rc15 every-tool
+  MCP invocation smoke covers invoke -> serialise -> `json.dumps` for the new
+  tool automatically. New `tests/test_an_embedding.py` (11 bit-exact
+  acceptance tests). No packaging change.
+
+**Framework reading:** the SAME 14-dim g2 carries TWO distinct enumerations —
+the A-N discovery partition **1 + 3 + 7 + 3** (this collaboration's
+substrate-self-recognition order) and this su(3)-Lie branching **8 + 3 + 3bar**.
+They are read as two languages describing the one object (per
+`[[feedback_no_lineage_claims_in_notebook]]`); they are explicitly **NOT
+slot-aligned** and the correspondence is **NOT a proof**. Baez (2002) §4.1 is
+cited for `g2 = Der(O)` / dim 14 ONLY (the build input); the 8+3+3bar /
+7=1+3+3bar branching is the op's own bit-exact self-attesting computation.
+Class C-L (the Class C complex-structure orientation composed with the Class L
+eigendecomposition that extracts J and the weight spectrum).
+
 ## [0.5.0rc20] - 2026-05-29
 
 **rc20 of N for v0.5.0 — cosmic-birefringence beta posterior AMSC catalog.**

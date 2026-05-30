@@ -2191,6 +2191,29 @@ def _register_qm_tools() -> None:
             parameters=(),
             returns=R("tuple[np.ndarray, ...]", "21 generators (antisym 8×8)"),
         ),
+        ToolEntry(
+            name="srmech.qm.so8.an_embedding", owner="srmech",
+            category="qm.so8",
+            summary="The bit-exact su(3) ⊕ 3 ⊕ 3bar Lie decomposition of the "
+                    "14 g2 = Der(O) generators (the su(3) adjoint 8 + the "
+                    "J-eigenspace fundamental 3 + antifundamental 3bar; the "
+                    "7-dim octonion-vector branches 1+3+3bar over the same "
+                    "su(3)). su(3) = stabiliser {D : D·e_K = 0}; the genuine "
+                    "fundamental is the +i eigenspace of the su(3)-invariant "
+                    "complex structure J (J²=−I); [su3,3]⊆3 bit-exact. "
+                    "su(3) identified by the invariant certificate {dim 8, "
+                    "rank 2, simple} (Cartan A2), never abs(). bit-exact "
+                    "computed; A-N class names are a documented "
+                    "framework-reading label (NOT a derived theorem). "
+                    "Class C-L. Baez (2002) §4.1 (g2 = Der O, dim 14).",
+            parameters=(P("imaginary_unit", "int", False,
+                          "fixed imaginary octonion unit 1..7 (default 1)"),),
+            returns=R("dict",
+                      "{su3:[8 8x8], complement:[6 8x8], "
+                      "complex_structure_J, triplet:[3], antitriplet:[3], "
+                      "weights:(6,2), decomposition, imaginary_unit, "
+                      "attestation}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # srmech.qm.triality — the Spin(8) triality engine. The 28×28
