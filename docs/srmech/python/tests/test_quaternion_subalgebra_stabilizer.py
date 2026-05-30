@@ -18,8 +18,8 @@ The tests prove the invariant CERTIFICATE:
 4. ℍ-CHOICE-INVARIANCE across ≥ 2 quaternion subalgebras — the Killing
    spectrum is bit-identical (the seven Fano-line H are g2-conjugate).
 5. the MPR self-attestation block is present + well-formed.
-6. ``srmech.introspect.describe()["tools"]["total"] == 175`` (the
-   +1 ToolEntry).
+6. ``srmech.introspect.describe()["tools"]["total"] == 176`` (this voxel's
+   +1 ToolEntry, plus the #761 lean-ISA seventh-primitive voxel's +1).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot
 magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
@@ -338,14 +338,15 @@ def test_framework_so4_reading_is_distinct_from_atoms():
 
 
 # ----------------------------------------------------------------------
-# TEST 6 — the +1 ToolEntry (introspection tool total goes 174 -> 175).
+# TEST 6 — the introspection tool total (174 -> 175 here -> 176 with the
+#          #761 lean-ISA seventh-primitive voxel also registered).
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_175():
+def test_introspect_tools_total_is_176():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 175
+    assert introspect.describe()["tools"]["total"] == 176
 
 
 def test_tool_entry_registered():

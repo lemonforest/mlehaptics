@@ -13,7 +13,8 @@ Per issue #751 (F208 / MS #20 forward-architecture). The single
 The flat ``srmech.amsc.cascade.<op>`` public surface must stay
 byte-identical (every flat name IS the same object as its submodule
 home), ``CASCADE_OPS`` unchanged, and ``srmech.introspect.describe()``
-must report 175 tools (174 at rc1 + 1 for the rc2 so(4) stabiliser voxel).
+must report 176 tools (174 at rc1 + 1 for the rc2 so(4) stabiliser voxel
++ 1 for the rc3 lean-ISA seventh-primitive voxel).
 This is a behaviour-preserving refactor.
 """
 
@@ -115,14 +116,15 @@ def test_cascade_ops_unchanged():
 
 
 # ----------------------------------------------------------------------
-# (e) introspection tools.total is 175 (174 rc1 + 1 rc2 so(4) stabiliser)
+# (e) introspection tools.total is 176 (174 rc1 + 1 rc2 so(4) stabiliser
+#     + 1 rc3 lean-ISA seventh-primitive)
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_175():
+def test_introspect_tools_total_is_176():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 175
+    assert introspect.describe()["tools"]["total"] == 176
 
 
 # ----------------------------------------------------------------------

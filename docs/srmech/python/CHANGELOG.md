@@ -6,6 +6,30 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc3] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #761 (F220) — the order-3 triality as the 7th lean-ISA primitive.**
+
+Adds `srmech.qm.triality.lean_isa_seventh_primitive()` — surfaces the existing order-3
+triality automorphism (τ, τ³ = I; the v0.5.0 `srmech.qm.triality` engine) as the **7th
+lean-ISA primitive**, making the chirality-complete A–N core explicit: **6 order-2
+`cascade.atoms` (pin_slot_at_zero / reorient / magnitude / chiral_flip / chiral_dual /
+net_chirality) + 1 order-3 triality = 7** — the only access to the 3rd chiral axis.
+
+**BIT-EXACT certificate** (asserted in code): τ has order exactly 3 (‖τ³−I‖ ≈ 3.6e-14,
+τ ≠ I, τ² ≠ I) via the engine, plus the Lagrange arithmetic `3 ∤ 8` / `3 ∣ 3` ⇒
+`lagrange_obstruction` — all residuals via the scalar Class K pin-slot `cascade.magnitude`,
+never `abs()`. **Framework-reading, NOT a derived theorem** (under
+`framework_chirality_complete_reading`): that the 6 atoms generate *exactly* Z₂×Z₂×Z₂
+(|G| = 8) — a faithful common group rep of the 6 heterogeneous atoms isn't cleanly
+available, so |G|=8 / Z₂³ is the documented F220 finding + the Lagrange argument, NOT
+labelled bit-exact derived. Scope hierarchy: endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8)
+triality. Baez (2002) cited for Out(Spin(8))=S₃ / g₂=Der(𝕆) only; F220 is the framework
+finding.
+
+**+1 ToolEntry → `describe()` tool total 175 → 176.** Pure-Python; **ABI unchanged at 3**
+(no `c/` change); no `abs()` (Class K pin-slot). Closes #761.
+
 ## [0.6.0rc2] - 2026-05-30
 
 **MS #20 forward-architecture, voxel #759 — the ℍ-reading 𝔰𝔬(4)=𝔰𝔲(2)⊕𝔰𝔲(2) stabiliser.**
