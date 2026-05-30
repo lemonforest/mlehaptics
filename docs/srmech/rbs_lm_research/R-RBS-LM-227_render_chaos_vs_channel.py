@@ -300,6 +300,29 @@ def main():
     next_after = {a: sorted(c.keys()) for a, c in bigram.items()}   # the FIXED candidate set
     vocab = sorted(set(stream))
     ctxsub = cs.ContextSubstrate(D=D, hex_chars=hexc)
+    # --- bit-exact performance: memoize the pure token encoder. enc(tok) ==
+    # --- encode_word_k4(tok, sector=0) is a DETERMINISTIC function of the token
+    # --- (fresh sha256-seeded RNG per word), so caching its result and reusing the
+    # --- SAME array is numerically identical: klein4_bind / klein4_bundle never
+    # --- mutate their operands (proven by the existing run — the cached pos_key and
+    # --- bundle-pad are reused as bind/bundle inputs across every encode_context,
+    # --- and band_key is reused as a klein4_bind arg across all 60k positions, yet
+    # --- the run is bit-exact). The F166 loop (gen_render) and the F168 emitted-
+    # --- sector readout (emitted_sector_hist) both re-encode the same vocab tokens
+    # --- on the order of 10^5-10^6 times; with the cache each unique token's vector
+    # --- is built ONCE. NOT a design change — the encode_context state vector is
+    # --- byte-for-byte identical; only the redundant re-encoding is removed.
+    _enc_cache: dict[str, np.ndarray] = {}
+    _enc_uncached = ctxsub.enc                 # bound method, captured before shadowing
+    def _enc_memo(tok, sector=None):
+        if sector is None:                     # the only form used (encode_context / pos_key / key mint)
+            v = _enc_cache.get(tok)
+            if v is None:
+                v = _enc_uncached(tok)
+                _enc_cache[tok] = v
+            return v
+        return _enc_uncached(tok, sector)      # explicit-sector form delegates uncached (never hit here)
+    ctxsub.enc = _enc_memo                      # instance attr shadows the method -> self.enc uses the cache
     vocab_vecs = np.stack([ctxsub.enc(w) for w in vocab])
     vocab_idx = {w: i for i, w in enumerate(vocab)}
     corpus_trigrams = {(stream[i], stream[i + 1], stream[i + 2])
@@ -364,6 +387,22 @@ def main():
     # invariant per step (FIXED-CONTEXT integrity). gr is a band-derived deterministic
     # RNG per (seed-window, channel) so structured-vs-random differ ONLY by the label.
     # ----------------------------------------------------------------------
+    # bit-exact performance: encode_context(window) is a PURE function of the window
+    # tuple (positional role-filler bind + bundle; the channel band_key does NOT enter
+    # it), and gen_render + emitted_sector_hist evaluate it over the SAME windows of each
+    # rendered sequence (full[t:t+k]). Cache by window tuple so the F168 emitted-sector
+    # readout reuses the F166 loop's context encodings instead of rebuilding them. Cleared
+    # per render_signature (per channel) so memory stays bounded; the SAME array is reused
+    # (encode_context / klein4_bind / bundle are non-mutating) -> byte-for-byte identical.
+    _ctx_cache: dict[tuple, np.ndarray] = {}
+    def _encode_context_cached(window_tokens):
+        key = tuple(window_tokens)
+        v = _ctx_cache.get(key)
+        if v is None:
+            v = ctxsub.encode_context(window_tokens)
+            _ctx_cache[key] = v
+        return v
+
     def gen_render(window_tokens, length, T, band_key, gr):
         out = []
         win = list(window_tokens)
@@ -377,7 +416,7 @@ def main():
             else:
                 cidx = [vocab_idx[c] for c in cands]
                 cand_vecs = vocab_vecs[cidx]
-                ctx_state = ctxsub.encode_context(win[-k:])
+                ctx_state = _encode_context_cached(win[-k:])
                 base_sims = cs.sim_k4_batch(hdc.klein4_bind(M, ctx_state), cand_vecs)  # Tier-1 (F166 probe)
                 depth_match = cs.sim_k4_batch(hdc.klein4_bind(ctx_state, band_key), cand_vecs)  # Tier-2 channel
                 score = (1.0 - alpha) * base_sims + alpha * depth_match  # Class-K bridge (F224 (C))
@@ -395,15 +434,25 @@ def main():
     # emitted token, encode_word_k4 at each sector s, argmax which sector the channel-
     # conditioned probe most recovers. The channel-conditioned probe for an emitted
     # token is the Tier-2-mixed score-probe at its emission context.
+    # bit-exact performance: the sector-tagged probe STACK for a token depends ONLY on
+    # the token (encode_word_k4 is deterministic; the channel band_key does NOT enter the
+    # sector encoding — it only enters `probe`), so build each unique emitted token's
+    # sector_count probes ONCE and reuse the SAME stack across all 19 channels x 80 seeds
+    # x 40 positions (was sector_count re-encodes every position). sim_k4_batch reads the
+    # stack (non-mutating), so the per-position argmax is byte-for-byte identical.
+    _sector_probe_cache: dict[str, np.ndarray] = {}
     def emitted_sector_hist(full_seq, band_key, sector_count):
         hist = Counter()              # emitted-sector OCCUPANCY read via sim argmax (NOT a storage proxy)
         for pos in range(window, len(full_seq)):
             tok = full_seq[pos]
-            ctx_state = ctxsub.encode_context(full_seq[pos - window:pos])
+            ctx_state = _encode_context_cached(full_seq[pos - window:pos])
             probe = hdc.klein4_bind(ctx_state, band_key)   # the channel-conditioned probe
-            sector_probes = np.stack([
-                cs.encode_word_k4(tok, D=ctxsub.D, sector=s, hex_chars=ctxsub.hex_chars)
-                for s in range(sector_count)])
+            sector_probes = _sector_probe_cache.get(tok)
+            if sector_probes is None:
+                sector_probes = np.stack([
+                    cs.encode_word_k4(tok, D=ctxsub.D, sector=s, hex_chars=ctxsub.hex_chars)
+                    for s in range(sector_count)])
+                _sector_probe_cache[tok] = sector_probes
             sec = int(cs.sim_k4_batch(probe, sector_probes).argmax())
             hist[sec] += 1
         return hist
@@ -432,6 +481,7 @@ def main():
 
     # one channel's full render signature over the FIXED seed-window pool, at temp T.
     def render_signature(band_key, label, T):
+        _ctx_cache.clear()            # bound the encode_context cache to one channel's windows
         seqs = []
         sec_hist = Counter()
         coh_acc = defaultdict(list)
