@@ -6,6 +6,23 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc4] - 2026-05-30
+
+**MS #20 docs/accuracy voxel #738 — `sha256_bytes` int-conversion guidance.**
+
+Docs-only. `srmech.amsc.format.sha256_bytes` returns a **64-char lowercase hex `str`** (the Class A
+content-address), NOT raw `bytes` — the `_bytes` in the name is the INPUT type. The `Returns:` section
+now spells out the int-conversion path a caller needs: `int(h, 16)` (full 256-bit) or `int(h[:8], 16)`
+(a truncated 32-bit tag), **NOT** `int.from_bytes(...)` (the return is already hex text — no raw digest
+bytes to feed it). Closes #738.
+
+The sibling docs items — #739 (`klein4_bundle` accepts even counts; per-bit strict-majority threshold
+drops ties to 0), #740 (`weak_mixing_angle` returns θ_W in **radians**, not sin²θ_W), #741 (no stale
+`srmech.cosmos` references; CMB lives under `srmech.amsc.attested.cmb_*` / `cosmic_birefringence`) —
+were verified **already correct as of rc18** (W5 / W6b / W6c); no change needed here.
+
+**No API change** — `srmech.introspect.describe()` tool total **stays 176**; pure-Python; **ABI unchanged at 3**.
+
 ## [0.6.0rc3] - 2026-05-30
 
 **MS #20 forward-architecture, voxel #761 (F220) — the order-3 triality as the 7th lean-ISA primitive.**

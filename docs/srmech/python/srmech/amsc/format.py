@@ -388,6 +388,15 @@ def sha256_bytes(data: bytes) -> str:
     (``srmech.amsc._native.sha256_hex_c``) when the shared library
     is available, otherwise uses stdlib ``hashlib``. The two paths
     are byte-identical (pinned by ``tests/test_native_sha256.py``).
+
+    Returns:
+        A ``str`` of exactly 64 lowercase hex characters (the Class A
+        content-address), NOT raw ``bytes``. A caller wanting the digest
+        as an integer should parse the hex string with
+        ``int(h, 16)`` (full 256-bit value) or
+        ``int(h[:8], 16)`` (a truncated 32-bit tag), NOT
+        ``int.from_bytes(...)`` — the return is already hex text, so there
+        are no raw digest bytes to feed ``int.from_bytes``.
     """
     # Lazy import to keep srmech.amsc.format importable on platforms
     # where _native fails to load — the module always exposes a
