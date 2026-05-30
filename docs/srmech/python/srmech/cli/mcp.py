@@ -1,6 +1,6 @@
 """``srmech mcp`` subcommand group.
 
-v0.5.0rc22 ships one sub-subcommand: ``emit-mcpb`` — emit a Claude
+v0.5.0 ships one sub-subcommand: ``emit-mcpb`` — emit a Claude
 Desktop ``.mcpb`` bundle generated entirely from srmech introspection
 (issue #749 / MS #19 / wishlist W13). The bundle's manifest version +
 tool list are DERIVED from ``srmech.__version__`` and the advertised

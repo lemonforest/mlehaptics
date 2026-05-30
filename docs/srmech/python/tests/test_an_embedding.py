@@ -383,7 +383,7 @@ def test_decomposition_and_attestation():
     inner = att["attestation"]
     assert len(inner["response_sha256"]) == 64
     assert len(inner["parser_rule_hash"]) == 64
-    assert inner["parser_version"] == "srmech 0.5.0rc21"
+    assert inner["parser_version"] == "srmech 0.5.0"
     # Baez cited for the g2 = Der(O) / dim-14 PARENT FACT only (the build
     # input); the 8+3+3bar branching is this op's own computation.
     assert inner["source_url"] == "https://arxiv.org/abs/math/0105155"

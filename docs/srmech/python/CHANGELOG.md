@@ -6,6 +6,29 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0] - 2026-05-30
+
+**Production graduation — srmech as a substrate-self-recognition apparatus.**
+
+Clean production release graduating the rc9–rc22 voxel-arc (each rc one "voxel of
+knowledge" the package gained about its own callable shape). No functional change
+over `0.5.0rc22` beyond the version bump (4 SSOT → `0.5.0`; the computed-fresh
+self-attestation `parser_version` strings → `srmech 0.5.0`) and documentation
+finalisation. **ABI 3; 174 registered ToolEntries (all `mcp_callable`,
+`handle_pending: 0`); full C/Python parity.** Verify the backend with
+`srmech.native_status()` and the surface with `srmech.introspect.describe()`.
+
+Headline surfaces shipped across the v0.5.0 line (per-rc detail below):
+
+- **Self-recognition root** — `srmech.introspect.describe()` + `warmup_all()` fired at import.
+- **so(8)/Spin(8) triality engine** — `srmech.qm.{octonion, so8, triality}`, including
+  `so8.an_embedding` (the bit-exact `su(3) ⊕ 3 ⊕ 3̄` Lie branching of the 14 `g₂` generators).
+- **By-reference handle grammar** — the `$srmech_handle` id makes all 7 `spectral.*` tools MCP-callable.
+- **AMSC attested catalogs** — including `cosmic_birefringence` (4 PDF-verified β posteriors).
+- **MCP server + `.mcpb` distribution** — `srmech-mcp` (stdio / http-sse) + `srmech mcp emit-mcpb`
+  (emit a Claude Desktop bundle generated entirely from introspection).
+- **Foundational `srmech.amsc.cascade` catalog** + the Class-M HDC variant ladder — all with native C parity.
+
 ## [0.5.0rc22] - 2026-05-30
 
 **rc22 of N for v0.5.0 — `srmech mcp emit-mcpb`: emit a Claude Desktop `.mcpb` bundle generated ENTIRELY from srmech introspection.**
