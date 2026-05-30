@@ -91,8 +91,16 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc1():
-    """v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.amsc.cascade split
+def test_version_is_0_6_0rc2():
+    """v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.qm.so8 op
+    quaternion_subalgebra_stabilizer() — the bit-exact 6-dim so(4)=su(2)⊕su(2)
+    G₂-stabiliser of a quaternion ℍ⊂𝕆 (the ℍ-reading sibling of an_embedding;
+    F215). Keeps the Lie SYMMETRY surface (so(4)⊂g₂) distinct from the
+    cascade.atoms OPERATOR surface so the 6=6 coincidence can't recur. +1
+    ToolEntry → describe() tool total 174 → 175. Pure-Python; ABI unchanged
+    at 3; no abs() (Class K pin-slot). Closes #759.
+
+    Prior v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.amsc.cascade split
     into a two-tier lean-ISA package — cascade.atoms.* (6 silicon-able 1:1
     intrinsics: pin_slot_at_zero, reorient, magnitude, chiral_flip,
     chiral_dual, net_chirality) vs cascade.compose.* (2 iterative algorithms:
@@ -240,8 +248,8 @@ def test_version_is_0_6_0rc1():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc1", (
-        f"expected srmech.__version__ == '0.6.0rc1'; got "
+    assert srmech.__version__ == "0.6.0rc2", (
+        f"expected srmech.__version__ == '0.6.0rc2'; got "
         f"{srmech.__version__!r}"
     )
 

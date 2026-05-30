@@ -6,6 +6,29 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc2] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #759 — the ℍ-reading 𝔰𝔬(4)=𝔰𝔲(2)⊕𝔰𝔲(2) stabiliser.**
+
+Adds `srmech.qm.so8.quaternion_subalgebra_stabilizer(quaternion_index=1)` (per F215):
+the bit-exact **6-dim 𝔰𝔬(4) = 𝔰𝔲(2) ⊕ 𝔰𝔲(2)** subalgebra of g₂ = Der(𝕆) that
+stabilises a quaternion subalgebra ℍ ⊂ 𝕆 — the ℍ-reading **sibling** of
+`an_embedding` (the 𝔰𝔲(3)⊕3⊕3̄ ℂ-reading). Returns the 6 so(4) generators, the two
+su(2) ideals (3+3, commuting, self-dual / anti-self-dual on ℍ^⊥), the Killing form
+(rank 6, semisimple) with its two-triplet spectrum, and an MPR self-attestation —
+all bit-exact and **ℍ-choice-invariant** across the 7 Fano-line quaternion subalgebras.
+
+The point (F215): keep the Lie **symmetry** surface (𝔰𝔬(4) ⊂ g₂) visibly distinct
+from the **operator** surface (`cascade.atoms.*`, the 6 lean-ISA ops) so the "6 = 6"
+conflation can't recur — the 6 atoms are group-element ops (0/6 Lie generators); the
+dimension match is coincidence. Surfaced under the separately-keyed
+`framework_so4_reading` field (framework-reading, not a derived theorem); the
+su(2)⊕su(2) split is the op's own bit-exact computation (Baez 2002 §4.1 cited for
+g₂ = Der(𝕆) only).
+
+**+1 ToolEntry → `describe()` tool total 174 → 175.** Pure-Python; **ABI unchanged at
+3** (no `c/` change); no `abs()` (Class K pin-slot). Closes #759.
+
 ## [0.6.0rc1] - 2026-05-30
 
 **MS #20 forward-architecture, voxel #751 — the lean A–N ISA two-tier split.**
