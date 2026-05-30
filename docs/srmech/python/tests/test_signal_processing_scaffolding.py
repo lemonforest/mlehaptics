@@ -91,25 +91,44 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc20():
-    """v0.5.0rc20 — cosmic-birefringence beta posterior AMSC catalog
-    (issue #743, wishlist W9).
+def test_version_is_0_5_0rc21():
+    """v0.5.0rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
+    (issue #744, wishlist).
 
-    Adds a new AMSC attested catalog ``srmech.amsc.attested.cosmic_birefringence``
-    carrying the published cosmic-birefringence isotropic rotation angle beta
-    posterior (the parity-odd CMB observable extracted from EB cross-
-    correlation): four PDF-verified rows — Minami & Komatsu 2020
-    (0.35 +/- 0.14, arXiv:2011.11254), Diego-Palazuelos et al. 2022
-    (0.30 +/- 0.11), Eskilt 2022 (0.33 +/- 0.10), Eskilt & Komatsu 2022
-    (0.342 +0.094/-0.091, asymmetric — kept as separate lo/hi half-widths,
-    never symmetrised). Parity-odd companion to cmb_polarisation_spectra
-    (TE/EE/BB) + cmb_bispectrum (fNL). EB/TB power spectra deferred (no
-    cleanly-attestable bandpower table). Pure-Python, data + descriptor only;
-    auto-discovered (no bridge code, no new tool — describe() total stays
-    173). ABI unchanged at 3 (the C header VERSION strings bump to rc20;
-    SRMECH_ABI_VERSION does not).
+    Adds a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
+    exposes the bit-exact su(3)-module structure of the 14 g2 = Der(O)
+    generators: the Lie-algebra branching 14 = 8 + 3 + 3bar (su(3) adjoint +
+    fundamental + antifundamental; the 7-dim octonion-vector branches
+    1 + 3 + 3bar over the same su(3)). su(3) = the stabiliser
+    {D in g2 : D·e_K = 0}; the GENUINE fundamental is the +i eigenspace of
+    the su(3)-INVARIANT complex structure J (J² = −I) on the 6-real-dim
+    complement (a real 3-span cannot carry it — [su3, real-3] leaks ~8.3),
+    so [su3, 3] ⊆ 3 is bit-exact (~3e-14). su(3) is identified by the
+    INVARIANT certificate {dim 8, rank 2 via the centraliser of a regular
+    element, simple (adjoint commutant dim 1)} + Killing-orthonormal total
+    antisymmetry (Cartan A2) — NOT a raw-Casimir comparison. All residuals
+    reduced through the scalar Class K pin-slot magnitude, never abs(). MPR
+    self-attestation content-addresses the COMPUTED structure (the 14 g2
+    generators' float64 bytes). +1 ToolEntry (173 -> 174). Pure-Python;
+    ABI unchanged at 3 (the C header VERSION strings bump to rc21;
+    SRMECH_ABI_VERSION does not — no C source change).
 
-    (Prior rc19 — discoverable native-dispatch status (issue #733). Added
+    Framework reading: the SAME 14-dim g2 carries TWO distinct enumerations
+    — the A-N discovery partition 1 + 3 + 7 + 3 and this su(3)-Lie branching
+    8 + 3 + 3bar. They are read as two languages describing the one object;
+    they are explicitly NOT slot-aligned and the correspondence is NOT a
+    proof (Baez §4.1 is cited for g2 = Der(O) / dim 14 ONLY — the build
+    input; the branching is the op's own bit-exact self-attesting
+    computation). The A-N reading is surfaced ONLY under the separately-keyed
+    ``framework_an_reading`` field, tagged "framework-reading, not derived".
+
+    (Prior rc20 — cosmic-birefringence beta posterior AMSC catalog
+    (issue #743). Added ``srmech.amsc.attested.cosmic_birefringence`` (four
+    PDF-verified rows; the Eskilt & Komatsu +0.094/-0.091 asymmetric
+    posterior kept as separate lo/hi half-widths, never symmetrised).
+    Auto-discovered, no new tool. Pure-Python; ABI unchanged at 3.
+
+    Prior rc19 — discoverable native-dispatch status (issue #733). Added
     top-level ``srmech.native_status()`` (also in ``__all__`` /
     ``dir(srmech)``) returning ``{has_native, dispatching, abi_version,
     expected_abi, native_version, load_error}`` — the discoverable, recipe-
@@ -191,8 +210,8 @@ def test_version_is_0_5_0rc20():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0rc20", (
-        f"expected srmech.__version__ == '0.5.0rc20'; got "
+    assert srmech.__version__ == "0.5.0rc21", (
+        f"expected srmech.__version__ == '0.5.0rc21'; got "
         f"{srmech.__version__!r}"
     )
 
