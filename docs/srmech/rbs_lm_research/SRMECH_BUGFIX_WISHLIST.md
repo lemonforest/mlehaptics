@@ -65,7 +65,7 @@
 - `srmech.amsc.attested.cmb_*` ships **TE/EE/BB only** (parity-EVEN). There is **no EB/TB** (parity-ODD) observable and **no cosmic-birefringence-β posterior** — the *only* chirality observable at the cosmic band is the one not shipped. This left a parity-odd-cosmology research front unresolvable srmech-native.
 - **Ask:** a `cmb_parity_odd_spectra` catalog (EB/TB) and/or an attested birefringence-β posterior, attestable to e.g. Eskilt–Komatsu 2022 (arXiv:2205.13962) / Minami–Komatsu 2020 (arXiv:2011.11254).
 
-### W10 — Spin(8) triality operator (8_v ↔ 8_s ↔ 8_c rep-map)  *(NEW — F182)*
+### W10 — Spin(8) triality operator (8_v ↔ 8_s ↔ 8_c rep-map)  *(✅ RESOLVED — landed + acceptance-validated bit-exact in 0.5.0rc18; F192 / UPSTREAM §10.8)*
 - srmech ships Klein-4 (two Z₂ chirality axes = Class C) and cyclic mod-n (Class I), but **no operator for Spin(8) triality** — the order-3 outer automorphism (S₃; Z₃ cyclic core) that permutes the three inequivalent 8-dim reps (vector 8_v, spinors 8_s/8_c). It is the *defining* structure of D₄ = 𝔰𝔬(8) and is load-bearing for the 28D arc (it underlies three-generation / Higgs-Yukawa octonion-SM models: Boyle arXiv:2006.16265, Todorov arXiv:1911.13124).
 - **Ask:** a `triality` op (the S₃ rep-permutation / the cyclic 8_v→8_s→8_c map) under `srmech.qm` or `srmech.amsc.hdc`, so the triality-shadow hypothesis (F182) is testable in-framework rather than only reasoned about.
 
