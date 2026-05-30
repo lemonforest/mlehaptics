@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 6
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc4"
-#define SRMECH_VERSION       "0.6.0rc4"
+#define SRMECH_VERSION_PRE   "rc5"
+#define SRMECH_VERSION       "0.6.0rc5"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -86,6 +86,31 @@ extern "C" {
  *      existing function signature changed.
  */
 #define SRMECH_ABI_VERSION 3
+
+/* ------------------------------------------------------------------ *
+ * Thread-local storage qualifier (reentrancy support; #772)
+ *
+ * SRMECH_THREAD_LOCAL expands to the platform's thread-local-storage
+ * keyword. C11 `_Thread_local` on conforming compilers; MSVC's
+ * `__declspec(thread)` on Microsoft toolchains that predate full C11
+ * TLS support. Each is Rule-3-clean (static-duration, no malloc) and
+ * gives every thread its own copy of the qualified object, so a
+ * thread-local-static scratch buffer is reentrant ACROSS threads —
+ * exactly what the #771 multi-threaded plugin needs without risking a
+ * stack overflow from a large per-call frame.
+ *
+ * This is a single-token object-like macro (JPL Rule 8 clean: no
+ * token-paste, no varargs, no line continuation).
+ * ------------------------------------------------------------------ */
+#if defined(_MSC_VER)
+#define SRMECH_THREAD_LOCAL __declspec(thread)
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define SRMECH_THREAD_LOCAL _Thread_local
+#elif defined(__GNUC__)
+#define SRMECH_THREAD_LOCAL __thread
+#else
+#define SRMECH_THREAD_LOCAL
+#endif
 
 /* ------------------------------------------------------------------ *
  * Status codes
@@ -133,8 +158,8 @@ srmech_status_t srmech_sha256_hex(const uint8_t *data,
  *     lineno counter still advances, so callback-side error
  *     messages line up byte-exactly with the file.
  *
- *     `line` points into srmech's static line-assembly buffer and
- *     is valid only for the duration of the callback. `line_len`
+ *     `line` points into srmech's per-thread line-assembly buffer
+ *     and is valid only for the duration of the callback. `line_len`
  *     excludes the terminating LF and any trailing CR (mirrors
  *     Python's `raw.rstrip("\r\n")`).
  *
@@ -142,11 +167,13 @@ srmech_status_t srmech_sha256_hex(const uint8_t *data,
  *     the skipped empties); callers can use it directly in error
  *     messages.
  *
- *     SINGLE-THREAD CONTRACT: srmech_ndjson_iter uses a static
- *     1 MiB line-assembly buffer, so it is not safe to call from
- *     two threads concurrently. (The two callsites in srmech today
- *     — Python format.read_ndjson + the C-side parity test —
- *     are both serial.)
+ *     REENTRANCY (#772): the 1 MiB line-assembly buffer is a
+ *     function-local `static SRMECH_THREAD_LOCAL` buffer, so
+ *     srmech_ndjson_iter is safe to call from multiple threads
+ *     concurrently — each thread owns its own buffer. (Recursive
+ *     re-entry on the SAME thread, e.g. calling srmech_ndjson_iter
+ *     from inside its own callback, would still reuse that thread's
+ *     buffer — not a supported usage.)
  *
  *     Error returns:
  *       SRMECH_ERR_NULL_ARG     — path or cb is NULL
@@ -596,6 +623,39 @@ srmech_status_t srmech_hermitian_eigendecompose(
     const double  *H_interleaved,
     double        *out_eigvals,
     double        *out_eigvecs_interleaved);
+
+/* Required workspace length (in doubles) for srmech_hermitian_
+ * eigendecompose_ws at a given node count `n`: a working copy of the
+ * n×n complex Hermitian matrix in interleaved-double form = 2*n*n
+ * doubles. Use SRMECH_HERMITIAN_WS_MAX to size a worst-case
+ * (n == SRMECH_LAPLACIAN_MAX_NODES) buffer. */
+#define SRMECH_HERMITIAN_WS_LEN(n) ((size_t)(n) * (size_t)(n) * 2u)
+#define SRMECH_HERMITIAN_WS_MAX SRMECH_HERMITIAN_WS_LEN(SRMECH_LAPLACIAN_MAX_NODES)
+
+/* Reentrant variant of srmech_hermitian_eigendecompose (#772).
+ *
+ * Identical numerics + output contract, but takes a CALLER-SUPPLIED
+ * working buffer `workspace` (length `ws_len` doubles) instead of an
+ * internal shared-static scratch matrix. This makes the eigendecomp
+ * safe to drive concurrently from many threads (the #771 plugin),
+ * each passing its own workspace, with no malloc (JPL Rule 3) and no
+ * large per-call stack frame.
+ *
+ * `workspace` must be non-NULL with `ws_len >= SRMECH_HERMITIAN_WS_LEN(n)`
+ * = 2*n*n doubles; returns SRMECH_ERR_OVERFLOW if too small or n
+ * exceeds SRMECH_LAPLACIAN_MAX_NODES, SRMECH_ERR_NULL_ARG if any
+ * required pointer is NULL.
+ *
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION is unchanged. The
+ * original srmech_hermitian_eigendecompose remains and now routes
+ * through this core using a thread-local workspace. */
+srmech_status_t srmech_hermitian_eigendecompose_ws(
+    uint32_t       n,
+    const double  *H_interleaved,
+    double        *out_eigvals,
+    double        *out_eigvecs_interleaved,
+    double        *workspace,
+    size_t         ws_len);
 
 /* Dense complex matrix-vector multiplication: out = M @ v.
  * M_interleaved is rows*cols interleaved-double pairs (row-major).

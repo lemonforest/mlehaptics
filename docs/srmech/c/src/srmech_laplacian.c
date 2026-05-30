@@ -495,35 +495,21 @@ static void srmech_hermitian_sort_eigenpairs(uint32_t n,
     }
 }
 
-srmech_status_t srmech_hermitian_eigendecompose(
-    uint32_t       n,
-    const double  *H_interleaved,
-    double        *out_eigvals,
-    double        *out_eigvecs_interleaved)
+/* Helper: drive the complex-Jacobi sweep loop to convergence on the
+ * working matrix `Hwork` (in-place rotations), accumulating the
+ * rotations into V. Returns SRMECH_ERR_OVERFLOW on non-convergence
+ * within SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS, else SRMECH_OK. Split
+ * out of srmech_hermitian_eigendecompose_ws to keep both the _ws
+ * entry and the wrapper under JPL Rule 4's 60-line limit. */
+static srmech_status_t srmech_hermitian_run_sweeps(uint32_t n,
+                                                   double *Hwork,
+                                                   double *V)
 {
-    assert(out_eigvals != NULL);
-    assert(out_eigvecs_interleaved != NULL);
-    if (H_interleaved == NULL || out_eigvals == NULL
-        || out_eigvecs_interleaved == NULL) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
-    if (n == 0) {
-        return SRMECH_OK;
-    }
-    /* Working copy of H (in-place rotations); V starts as identity. */
-    static double Hwork[2 * SRMECH_LAPLACIAN_MAX_NODES
-                       * SRMECH_LAPLACIAN_MAX_NODES];
-    size_t total = (size_t)n * n * 2;
-    for (size_t i = 0; i < total; i++) {
-        Hwork[i] = H_interleaved[i];
-    }
-    srmech_hermitian_init_identity(n, out_eigvecs_interleaved);
+    assert(Hwork != NULL);
+    assert(V != NULL);
+    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
     /* Convergence target = 1e-12² × initial off-diagonal norm. */
-    double init_off = srmech_hermitian_off_diag_sq(n, Hwork);
-    double target = 1e-24 * init_off;
+    double target = 1e-24 * srmech_hermitian_off_diag_sq(n, Hwork);
     uint32_t sweep;
     for (sweep = 0; sweep < SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS; sweep++) {
         double off = srmech_hermitian_off_diag_sq(n, Hwork);
@@ -532,8 +518,7 @@ srmech_status_t srmech_hermitian_eigendecompose(
         }
         for (uint32_t p = 0; p < n; p++) {
             for (uint32_t q = p + 1; q < n; q++) {
-                srmech_hermitian_jacobi_rotate(n, Hwork,
-                    out_eigvecs_interleaved, p, q);
+                srmech_hermitian_jacobi_rotate(n, Hwork, V, p, q);
             }
         }
     }
@@ -541,13 +526,72 @@ srmech_status_t srmech_hermitian_eigendecompose(
         && srmech_hermitian_off_diag_sq(n, Hwork) > target) {
         return SRMECH_ERR_OVERFLOW;
     }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_hermitian_eigendecompose_ws(
+    uint32_t       n,
+    const double  *H_interleaved,
+    double        *out_eigvals,
+    double        *out_eigvecs_interleaved,
+    double        *workspace,
+    size_t         ws_len)
+{
+    assert(out_eigvals != NULL);
+    assert(out_eigvecs_interleaved != NULL);
+    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    if (H_interleaved == NULL || out_eigvals == NULL
+        || out_eigvecs_interleaved == NULL || workspace == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (n == 0) {
+        return SRMECH_OK;
+    }
+    /* Caller-supplied working copy of H (in-place rotations). */
+    size_t total = (size_t)n * n * 2;
+    if (ws_len < total) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    assert(ws_len >= total);
+    for (size_t i = 0; i < total; i++) {
+        workspace[i] = H_interleaved[i];
+    }
+    srmech_hermitian_init_identity(n, out_eigvecs_interleaved);
+    srmech_status_t st = srmech_hermitian_run_sweeps(
+        n, workspace, out_eigvecs_interleaved);
+    if (st != SRMECH_OK) {
+        return st;
+    }
     /* Extract diagonal (real part) as eigenvalues. */
     for (uint32_t i = 0; i < n; i++) {
-        out_eigvals[i] = Hwork[((size_t)i * n + i) * 2];
+        out_eigvals[i] = workspace[((size_t)i * n + i) * 2];
     }
     srmech_hermitian_sort_eigenpairs(n, out_eigvals,
                                      out_eigvecs_interleaved);
     return SRMECH_OK;
+}
+
+srmech_status_t srmech_hermitian_eigendecompose(
+    uint32_t       n,
+    const double  *H_interleaved,
+    double        *out_eigvals,
+    double        *out_eigvecs_interleaved)
+{
+    assert(out_eigvals != NULL);
+    assert(out_eigvecs_interleaved != NULL);
+    /* Per-thread workspace (#772 reentrancy). Static duration (a
+     * complex 256×256 working matrix is ~1 MiB — too large to stack)
+     * but thread-local, so concurrent callers on different threads
+     * each get a private copy. Rule-3-clean: static duration, no
+     * malloc. Routes through the _ws core so both entries share one
+     * numeric path. */
+    static SRMECH_THREAD_LOCAL double Hwork[SRMECH_HERMITIAN_WS_MAX];
+    return srmech_hermitian_eigendecompose_ws(
+        n, H_interleaved, out_eigvals, out_eigvecs_interleaved,
+        Hwork, SRMECH_HERMITIAN_WS_MAX);
 }
 
 srmech_status_t srmech_dense_matvec_complex(
