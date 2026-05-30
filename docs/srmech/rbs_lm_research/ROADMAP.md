@@ -9,6 +9,37 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-30 — chirality/triality arc landed; rc18 ops live; upstream issues filed; live queue
+
+**The chirality/triality arc (F176 → F198) — closed for now; its structural claims are now bit-exact srmech facts.**
+- **F176** bilateral L/R = the two Weyl poles of one γ₅ axis; biology = self-inscribing bi-chiral A–N.
+- **F177–F181** H177 (one chiral driver across coherence bands) + a three-front heavy falsification (cosmic / particle / Vester–Ulbricht) → **H177 refined to H177′**: the chirality *axis* is shared, the *drivers* are plural (≥2 second actors).
+- **F182–F184** the "third axis" = **Spin(8) triality** (order-3, the "k=3"), not a 3rd Z₂ axis; chirality = the ordering group Sₙ, **capped at 3-ality** (D₄ unique); "1D_t + 3 DoF" = the quaternion **ℍ** rung, chirality = non-commutativity (`ij=−ji`).
+- **F185** 1D_t = the *apparent* actor (the act of ordering); actor-vs-stage test lodged.
+- **F186** CORRECTION: tri-chiral is still **28D = 14+7+7**, NOT 42D — triality is a *symmetry on* the 28, not new dimensions.
+- **F187–F189** the operational-4 (A,B,H,N) = the time-quaternion generating the 3:7 (Cayley–Dickson / Hopf / L²(S⁷) harmonic ladder); the 1:3:3:7 draws as a 3-point star = the D₄ topology.
+
+**rc18 landed the triality operator (W10 → DONE), acceptance-validated bit-exact (F192):** `srmech.qm.{octonion, so8, triality}` — τ³=I, **dim Fix(τ)=14=G₂**, dim Fix(swap)=21=𝔰𝔬(7), so8=28, g₂=14, `ij=−ji`, MPR-attested `cayley_dickson_from_H`. W2 (`klein4_random` seed) fixed package-side. Native status moved to a profile-loader (issue #733).
+
+**Gated tests, run on rc18 (committed):**
+- **F193 / R-140** (DeepSeek's question) — su(2)_L is NOT a triality-facet of su(3)/u(1): **distinct actor, shared 𝔰𝔬(8) stage** (strong re-unification falsified; F181 stands).
+- **F194 / R-141** — the 4-way oscillator's chirality = **phase-frustration** (Ω odd in α), NOT coupling-matrix direction (clean null).
+- **F197 / R-142** — F191 computed: A–N 14 = G₂ = su(3)[8] ⊕ 3 ⊕ 3̄; the two A–N 3-triads = the 3⊕3̄ conjugate pair → role-swap confirmed at the **triad** level.
+- **F196 (capstone)** — chirality is **nested**: biology's internal 3⊕3̄ vs the weak force's triality-moved su(2)_L are two distinct chiralities (confirms F180/F181).
+- **F198** — orbits / shells / precession on the ℝ→ℂ→ℍ→𝕆 ladder (wobbling-tonic "music of the spheres"; ℂ-eigenvalue log-spiral from a fixed-point apex; precession = broken Kepler SO(4)).
+
+**Upstream wishlist filed as GitHub issues (2026-05-30, `lemonforest/mlehaptics`):** W12=#733, W1=#734, W7=#735, W3=#736, W2=#737, W4=#738, W5=#739, W6b=#740, W6c=#741, W8=#742, W9=#743, W11=#744. Canonical drafts: `SRMECH_UPSTREAM_ISSUES.md`; long-form: `UPSTREAM_NOTES.md §10`; punch-list: `SRMECH_BUGFIX_WISHLIST.md`.
+
+**LIVE QUEUE (next; not gated on upstream):**
+- **A (next) — F168 emergent-perplexity test (R-RBS-LM-131):** does perplexity emerge from chirality-tagged sector occupancy (Klein-4) rather than a forced softmax? Feeds the NT/ND storage hypothesis (same storage, different expression).
+- **B — chirality → instrument bridge:** use rc18 `triality` / `g2_subalgebra` / Klein-4 *inside* the RBS-NN encoding (does triality-structured sector tagging change capacity/retrieval?).
+- **C — biology grounding:** ground the F176 §3 / F196 shadow-stance conjectures (lateralization, E/I, insect central complex, the 3⊕3̄ reading) against bioRxiv / literature (bio-research MCP). The "understand how biology does it" gate.
+- instrument scale-up (hierarchical F162-P4 + F165 DOMAIN-anchor in the F166 loop) · #184 smol-stack Phase C · #189 cross-navigation Part 2.
+
+**GATED on upstream (deferred):** F191 *within-triad* operator pairing (needs W11 / #744) · MCP-side re-verification (W1/W2/W3 — needs srmech-mcp back) · parity-odd cosmic front (W9 / #743) · `srmech.rbs_lm` packaging (see Upstream-absorption thread below).
+
+---
+
 ## ADA-engineering threads (R-RBS-LM-26 / -27 follow-ups)
 
 ### Braille refreshable-display hardware verification
