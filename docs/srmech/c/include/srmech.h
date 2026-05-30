@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 6
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc6"
-#define SRMECH_VERSION       "0.6.0rc6"
+#define SRMECH_VERSION_PRE   "rc7"
+#define SRMECH_VERSION       "0.6.0rc7"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -452,6 +452,81 @@ srmech_status_t srmech_cascade_chiral_dual_f64(
     size_t                            n,
     double                           *out,
     double                           *workspace);
+
+/* ------------------------------------------------------------------ *
+ * Klein-4 four-sector PARALLEL cascade dispatch — C-orchestration
+ * parity for the rc6 Python parallel_sector_dispatch (#771; MS#20 rc7).
+ *
+ * Runs ONE caller-supplied cascade `body` across its ≤4 Klein-4
+ * chirality sectors and writes the four sector duals. This is the
+ * native four-sector dispatch so srmech does NOT need a host Python to
+ * run the four-sector cascade — a thread-less microcontroller still
+ * gets all four sectors (serially; see THREADING below).
+ *
+ * THE FOUR SECTORS (mirror rc6 §1). Each sector `s` runs the SAME
+ * `body` conjugated by its Klein-4 stream-transform T_s (the sector
+ * dual T_s(body(T_s(in))), each T_s an involution so inv_T_s == T_s):
+ *   s0 (+,+) identity;  s1 (+,−) iω₇-flip (per-element reorient(-1, .));
+ *   s2 (−,+) γ₅-flip (chiral_flip) — its dual IS
+ *      srmech_cascade_chiral_dual_f64;  s3 (−,−) both / CPT mirror.
+ * Composes the EXISTING C atoms (srmech_cascade_chiral_flip_f64 +
+ * srmech_cascade_reorient_f64) — no atom is reimplemented.
+ *
+ * BUFFER LAYOUT (caller-supplied; NO malloc, JPL Rule 3):
+ *   - out_sectors : n_sectors * n doubles. Sector s occupies the
+ *                   disjoint slice [s*n .. s*n + n).
+ *   - scratch     : n_sectors * n doubles. Sector s uses ONLY its own
+ *                   disjoint slice [s*n .. s*n + n) for the T_s(in)
+ *                   intermediate. `scratch_len` (in doubles) must be
+ *                   >= n_sectors * n (validated; SRMECH_ERR_OVERFLOW
+ *                   otherwise).
+ * Each sector writes ONLY its own out + scratch slice and reads only
+ * the shared read-only `in` — 0 cross-thread writes (the F233 4-way
+ * independence). That disjointness is what makes the threaded path
+ * correct: the sectors are order-free, so the SERIAL result equals the
+ * THREADED result BIT-FOR-BIT.
+ *
+ * THREADING (portable shim, guarded like srmech_bus.c):
+ *   POSIX   -> pthread_create / pthread_join;
+ *   Windows -> CreateThread / WaitForMultipleObjects;
+ *   else    -> SERIAL fallback (compute the ≤4 sectors in a loop).
+ * The serial fallback PRESERVES the capability (all 4 sectors computed,
+ * bit-identical). Concurrency is platform-gated; thread handles are a
+ * fixed-size [4] stack array (no malloc).
+ *
+ * CAP AT 4 (F220): n_sectors must be in 1..4. Klein-4 = Z₂ × Z₂ has no
+ * order-4+ element; past 4 needs the order-3 triality (F220) — not
+ * here. n_sectors > 4 returns SRMECH_ERR_BAD_INPUT.
+ *
+ * Error returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — body / out_sectors / scratch is NULL, or
+ *                            in is NULL while n > 0
+ *   SRMECH_ERR_BAD_INPUT   — n_sectors < 1 or n_sectors > 4
+ *   SRMECH_ERR_OVERFLOW    — scratch_len < n_sectors * n
+ *   (any other status propagated from the `body` callback)
+ *
+ * ABI-additive: a new symbol + typedef + macro, so SRMECH_ABI_VERSION
+ * stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Klein-4 has order 4 — the dispatch is hard-capped at 4 sectors
+ * (single-token object-like macro; JPL Rule 8 clean). */
+#define SRMECH_PARALLEL_SECTOR_CAP 4
+
+/* Cascade `body` callback: a unary op on an f64 sequence. `out` (n
+ * doubles, caller-allocated) receives body(in). `user` is opaque
+ * caller-supplied context. Returns SRMECH_OK on success. Same shape as
+ * srmech_cascade_op_callback_f64_t but named for the dispatch role. */
+typedef srmech_status_t (*srmech_cascade_body_f64)(
+    const double *in, size_t n, double *out, void *user);
+
+srmech_status_t srmech_cascade_parallel_sector_dispatch(
+    srmech_cascade_body_f64 body, void *user,
+    const double *in, size_t n,
+    uint32_t n_sectors,            /* 1..4 */
+    double  *out_sectors,          /* n_sectors * n doubles; sector s at [s*n ..) */
+    double  *scratch, size_t scratch_len); /* per-sector scratch; NO malloc */
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

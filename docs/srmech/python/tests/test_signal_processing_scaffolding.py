@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc6():
-    """v0.6.0rc6 — MS #20 parallel-dispatch voxel (F233 / #778): pure-Python
+def test_version_is_0_6_0rc7():
+    """v0.6.0rc7 — MS #20 C-parity voxel #771: the C-orchestration half of the
+    Klein-4 four-sector parallel cascade dispatch (the C peer of rc6's Python
+    cascade.parallel_sector_dispatch). New ABI-additive C symbol
+    srmech_cascade_parallel_sector_dispatch runs the <=4 sector-duals
+    inv_T_s(body(T_s(x))) into disjoint caller buffers (no malloc; JPL Rule 3)
+    via a portable thread shim (pthread / Windows / serial fallback) — so srmech
+    runs the four-sector dispatch with NO host Python (full C/Python parity).
+    sector-2 == cascade.chiral_dual; serial == threaded bit-exact; cap-at-4.
+    Closes the rc6 Python-only parity gap. No new ToolEntry → describe() STAYS
+    177; ABI unchanged at 3 (additive symbol). Closes #771.
+
+    Prior v0.6.0rc6 — MS #20 parallel-dispatch voxel (F233 / #778): pure-Python
     srmech.amsc.cascade.parallel_sector_dispatch(body, x) — runs a cascade
     across its ≤4 Klein-4 chirality sectors (γ₅± × iω₇±) CONCURRENTLY on a
     ThreadPoolExecutor, capped at 4 (the order-3 triality is the only escape
@@ -291,8 +302,8 @@ def test_version_is_0_6_0rc6():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc6", (
-        f"expected srmech.__version__ == '0.6.0rc6'; got "
+    assert srmech.__version__ == "0.6.0rc7", (
+        f"expected srmech.__version__ == '0.6.0rc7'; got "
         f"{srmech.__version__!r}"
     )
 
