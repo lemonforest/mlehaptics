@@ -91,16 +91,32 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc19():
-    """v0.5.0rc19 — discoverable native-dispatch status (issue #733).
+def test_version_is_0_5_0rc20():
+    """v0.5.0rc20 — cosmic-birefringence beta posterior AMSC catalog
+    (issue #743, wishlist W9).
 
-    Adds top-level ``srmech.native_status()`` (also in ``__all__`` /
+    Adds a new AMSC attested catalog ``srmech.amsc.attested.cosmic_birefringence``
+    carrying the published cosmic-birefringence isotropic rotation angle beta
+    posterior (the parity-odd CMB observable extracted from EB cross-
+    correlation): four PDF-verified rows — Minami & Komatsu 2020
+    (0.35 +/- 0.14, arXiv:2011.11254), Diego-Palazuelos et al. 2022
+    (0.30 +/- 0.11), Eskilt 2022 (0.33 +/- 0.10), Eskilt & Komatsu 2022
+    (0.342 +0.094/-0.091, asymmetric — kept as separate lo/hi half-widths,
+    never symmetrised). Parity-odd companion to cmb_polarisation_spectra
+    (TE/EE/BB) + cmb_bispectrum (fNL). EB/TB power spectra deferred (no
+    cleanly-attestable bandpower table). Pure-Python, data + descriptor only;
+    auto-discovered (no bridge code, no new tool — describe() total stays
+    173). ABI unchanged at 3 (the C header VERSION strings bump to rc20;
+    SRMECH_ABI_VERSION does not).
+
+    (Prior rc19 — discoverable native-dispatch status (issue #733). Added
+    top-level ``srmech.native_status()`` (also in ``__all__`` /
     ``dir(srmech)``) returning ``{has_native, dispatching, abi_version,
     expected_abi, native_version, load_error}`` — the discoverable, recipe-
     stable answer to "is the C backend loaded + ABI-matched + dispatching?",
     mirroring ``describe()['native']``. Pure-Python; ABI unchanged at 3.
 
-    (Prior rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
+    Prior rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
 
     Carries the rc17 SO(8) TRIALITY voxel forward with the deterministic
     constant-returning ``srmech.qm.{octonion,so8,triality}`` builders now
@@ -167,10 +183,16 @@ def test_version_is_0_5_0rc19():
     Framework reading: the package declaring its own callable shape (which
     tools are advertisable vs handle-pending) IS Class H (self-
     introspection) at package scale — the apparatus thesis. No new
-    primitive class is introduced.)
+    primitive class is introduced.
+
+    Framework reading (rc20): the cosmic-birefringence catalog is the
+    parity-ODD voxel of the CMB-knowledge surface — beta is a signed,
+    asymmetric quantity, and keeping the Eskilt & Komatsu +0.094/-0.091
+    posterior as two separate half-widths (never abs()/symmetrised) IS the
+    sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0rc19", (
-        f"expected srmech.__version__ == '0.5.0rc19'; got "
+    assert srmech.__version__ == "0.5.0rc20", (
+        f"expected srmech.__version__ == '0.5.0rc20'; got "
         f"{srmech.__version__!r}"
     )
 

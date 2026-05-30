@@ -6,6 +6,49 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0rc20] - 2026-05-29
+
+**rc20 of N for v0.5.0 — cosmic-birefringence beta posterior AMSC catalog.**
+Closes #743 (wishlist W9). Pure-Python, data + descriptor only; **ABI unchanged
+at 3** (the C header VERSION strings bump to rc20, `SRMECH_ABI_VERSION` does
+not — no C source change).
+
+- **New AMSC attested catalog `srmech.amsc.attested.cosmic_birefringence`** —
+  the published cosmic-birefringence isotropic rotation angle β posterior, the
+  parity-**odd** CMB observable (the in-vacuo rotation of the CMB-polarisation
+  plane, extracted from the EB cross-correlation after simultaneously solving
+  for the instrumental polarisation-angle miscalibration). Four PDF-verified
+  rows (single `row_type` `birefringence_beta_posterior`), values taken
+  verbatim from the measuring papers' arXiv abstracts:
+  - **Minami & Komatsu 2020**, PRL 125, 221301, **arXiv:2011.11254** —
+    β = 0.35 ± 0.14° (Planck PR3; excludes 0 at 99.2% C.L., 2.4σ). The
+    arXiv id is the *measurement* paper (NOT 2006.15982, the methodology-only
+    companion that reports no β from data).
+  - **Diego-Palazuelos et al. 2022**, PRL 128, 091302, arXiv:2201.07682 —
+    β = 0.30 ± 0.11° (Planck PR4 NPIPE; authors decline a cosmological
+    significance pending foreground knowledge — caveat kept verbatim).
+  - **Eskilt 2022**, A&A 662, A10, arXiv:2201.13347 — β = 0.33 ± 0.10°
+    (Planck PR4 LFI+HFI, frequency-independent all-bands, f_sky = 0.93).
+  - **Eskilt & Komatsu 2022**, PRD 106, 063503, arXiv:2205.13962 —
+    β = 0.342 **(+0.094 / −0.091)°** (Planck PR4 + WMAP 9yr joint; excludes 0
+    at 99.987% C.L., 3.6σ). The **asymmetric** posterior is stored as two
+    separate non-negative half-widths (`beta_err_lo_deg` = 0.091,
+    `beta_err_hi_deg` = 0.094) and is **never abs()/symmetrised** (sign /
+    phase-boundary discipline at the attestation scale).
+- Parity-**odd** companion to the parity-even `cmb_polarisation_spectra`
+  (TE/EE/BB) and `cmb_bispectrum` (fNL) catalogs. EB/TB parity-odd *power
+  spectra* are **deferred** — there is no cleanly-attestable published
+  bandpower table with a clear license/URL/DOI; hand-keying a figure-read
+  sample would fail attestation by construction. A future row_type
+  `birefringence_ebtb_bandpower` can be added if a licensed machine-readable
+  product becomes available.
+- Auto-discovered by the AMSC loader (no bridge code, no registration); the
+  per-row 9-field MPR attestation block is synthesised at read time from each
+  row's per-row source DOI + `entered_locally_at` (deterministic, no live
+  fetch). **No new tool** (`describe()` total stays 173 — a new catalog
+  *source*, not a `ToolEntry`); no packaging change (the attested data is
+  auto-recursed by `wheel.packages` / `packages=['srmech','siona']`).
+
 ## [0.5.0rc19] - 2026-05-29
 
 **rc19 of N for v0.5.0 — discoverable native-dispatch status.** Closes #733
