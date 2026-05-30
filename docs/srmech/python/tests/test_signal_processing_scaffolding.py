@@ -91,9 +91,9 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc22():
-    """v0.5.0rc22 — `srmech mcp emit-mcpb` CLI: emit a Claude Desktop
-    .mcpb bundle from srmech introspection (issue #749 / MS #19 / W13).
+def test_version_is_0_5_0():
+    """v0.5.0 — production graduation of the rc9–rc22 voxel arc. The final
+    voxel is the `srmech mcp emit-mcpb` CLI (issue #749 / MS #19 / W13).
 
     Adds ``srmech mcp emit-mcpb`` (backed by ``srmech/cli/mcp.py`` +
     ``srmech/mcp/_mcpb.py``: ``build_manifest`` / ``pack_mcpb``). The
@@ -231,8 +231,8 @@ def test_version_is_0_5_0rc22():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0rc22", (
-        f"expected srmech.__version__ == '0.5.0rc22'; got "
+    assert srmech.__version__ == "0.5.0", (
+        f"expected srmech.__version__ == '0.5.0'; got "
         f"{srmech.__version__!r}"
     )
 

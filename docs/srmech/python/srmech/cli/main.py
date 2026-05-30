@@ -102,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
             "bundle)."
         ),
         description=(
-            "Operate srmech's MCP integration surface. v0.5.0rc22 "
+            "Operate srmech's MCP integration surface. v0.5.0 "
             "sub-subcommand 'emit-mcpb' writes a Claude Desktop .mcpb "
             "bundle generated from srmech introspection (version + tool "
             "list derived; no hand-authored manifest)."

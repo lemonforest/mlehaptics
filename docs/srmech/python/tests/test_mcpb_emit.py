@@ -1,5 +1,5 @@
 """Tests for ``srmech mcp emit-mcpb`` — the Claude Desktop .mcpb emitter
-(issue #749 / MS #19 / wishlist W13, v0.5.0rc22).
+(issue #749 / MS #19 / wishlist W13, v0.5.0).
 
 The manifest is built ENTIRELY from srmech introspection: the version is
 ``srmech.__version__`` (asserted NOT-frozen), the tool list is the
