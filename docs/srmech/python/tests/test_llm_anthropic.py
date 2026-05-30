@@ -203,10 +203,11 @@ def test_name_mapping_under_64_char_ceiling() -> None:
 
 def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     """The catalog handed to Claude has one entry per ADVERTISED
-    (``mcp_callable=True``) ToolEntry — v0.5.0rc15 excludes the 7
-    handle-pending ``srmech.spectral.*`` tools so Claude is never offered
-    an uncallable tool. The count matches the MCP advertised surface
-    (``tool_entries_to_mcp_defs``)."""
+    (``mcp_callable=True``) ToolEntry. v0.5.0rc16 — the 7
+    ``srmech.spectral.*`` tools became callable via the by-reference
+    ``$srmech_handle`` grammar, so there are now ZERO handle-pending tools
+    and EVERY registered tool is advertised. The count matches the MCP
+    advertised surface (``tool_entries_to_mcp_defs``)."""
     from srmech.mcp._tools import tool_entries_to_mcp_defs
 
     mock_sdk([])  # no responses needed; we only construct the agent
@@ -215,36 +216,55 @@ def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     expected = sum(1 for e in schema.tools if e.mcp_callable)
     assert len(agent.tools) == expected
     assert expected > 50, (
-        f"expected ~151 advertised tools; got {expected}"
+        f"expected ~158 advertised tools; got {expected}"
     )
     # Same count as the MCP adapter's advertised surface.
     assert len(agent.tools) == len(list(tool_entries_to_mcp_defs()))
-    # The full registry is strictly larger (the 7 handle-pending tools
-    # are still present for introspection, just not advertised).
-    assert len(schema.tools) == expected + 7
+    # rc16 — the full registry equals the advertised surface (no
+    # handle-pending tools remain).
+    assert len(schema.tools) == expected + 0
 
 
 def test_handle_pending_tools_excluded_from_anthropic_catalog(
     mock_sdk,
 ) -> None:
-    """v0.5.0rc15 — NONE of the 7 handle-pending ``srmech.spectral.*``
-    tools (``mcp_callable=False``) appear in the Anthropic catalog Claude
-    sees, on EITHER the catalog name list OR the reverse name map."""
+    """v0.5.0rc16 — INVERTED to a catalog-INCLUSION assertion (the near-
+    identical Anthropic-side copy of the test_mcp.py exclusion ratchet). The
+    7 ``srmech.spectral.*`` tools became ``mcp_callable=True`` once the
+    by-reference ``$srmech_handle`` grammar landed, so there are ZERO
+    handle-pending tools and all 7 spectral names ARE present in the
+    Anthropic catalog Claude sees (both the reverse name map AND the
+    synthesised name list)."""
     mock_sdk([])
     agent = AnthropicAgent()
     schema = get_tool_schema()
     pending = {e.name for e in schema.tools if not e.mcp_callable}
-    assert pending, "expected at least one handle-pending tool"
-    # No advertised catalog entry maps back to a handle-pending srmech name.
-    catalog_srmech_names = set(agent._name_map.values())
-    leaked = pending & catalog_srmech_names
-    assert not leaked, (
-        f"handle-pending tools leaked into the Anthropic catalog: {leaked}"
+    assert pending == set(), (
+        f"rc16 expects ZERO handle-pending tools; still pending: {pending}"
     )
-    # And none of the synthesised Anthropic names is one of theirs.
-    pending_anthropic = {n.replace(".", "_") for n in pending}
+
+    spectral_names = {
+        "srmech.spectral.decompose",
+        "srmech.spectral.delta",
+        "srmech.spectral.recompose",
+        "srmech.spectral.similarity",
+        "srmech.spectral.predict",
+        "srmech.spectral.prediction_error",
+        "srmech.spectral.truncate_sparse",
+    }
+    # All 7 map back through the Anthropic reverse name map.
+    catalog_srmech_names = set(agent._name_map.values())
+    assert spectral_names <= catalog_srmech_names, (
+        f"spectral tools missing from the Anthropic catalog reverse map: "
+        f"{spectral_names - catalog_srmech_names}"
+    )
+    # And each synthesised Anthropic name (dots->underscores) is present.
+    spectral_anthropic = {n.replace(".", "_") for n in spectral_names}
     catalog_names = {t["name"] for t in agent.tools}
-    assert not (pending_anthropic & catalog_names)
+    assert spectral_anthropic <= catalog_names, (
+        f"spectral tools missing from the Anthropic catalog name list: "
+        f"{spectral_anthropic - catalog_names}"
+    )
 
 
 def test_tool_catalog_entries_have_anthropic_shape(mock_sdk) -> None:

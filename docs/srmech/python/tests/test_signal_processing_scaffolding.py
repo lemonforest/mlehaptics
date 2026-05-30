@@ -91,9 +91,14 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc15():
-    """v0.5.0rc15 — every-tool invocation smoke + honest mcp_callable
-    marking (upstream §10.1).
+def test_version_is_0_5_0rc16():
+    """v0.5.0rc16 — handle dual-grammar voxel: the by-reference
+    ``$srmech_handle`` id (name+uuid) + the package-scope
+    ``srmech._handles`` registry make the 7 ``srmech.spectral.*`` tools
+    JSON-callable (handle_pending 7->0), and ``chiral_dual``'s ``op`` is
+    accepted as a dotted ``srmech.*`` operator-name. This builds on the
+    rc15 every-tool invocation smoke + honest mcp_callable marking
+    (upstream §10.1).
 
     rc14 made all declared param TYPES JSON-coercible and shipped the
     static ``has_coercer`` ratchet. But ``has_coercer`` could not tell a
@@ -138,8 +143,8 @@ def test_version_is_0_5_0rc15():
     introspection) at package scale — the apparatus thesis. No new
     primitive class is introduced.
     """
-    assert srmech.__version__ == "0.5.0rc15", (
-        f"expected srmech.__version__ == '0.5.0rc15'; got "
+    assert srmech.__version__ == "0.5.0rc16", (
+        f"expected srmech.__version__ == '0.5.0rc16'; got "
         f"{srmech.__version__!r}"
     )
 

@@ -93,14 +93,17 @@ PUBLISH_OPT_IN_NOTE: str = (
     "or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent."
 )
 
-#: Reason stamped on the 7 ``srmech.spectral.*`` ToolEntries marked
-#: ``mcp_callable=False`` (v0.5.0rc15). Their surface is a bare
-#: ``SpectralHandle`` / ``SpectralHandle | bytes`` opaque handle JSON-RPC
-#: cannot carry by value; the by-reference id grammar arrives over the bus
-#: in rc16. Until then the package is the path for spectral work.
+#: RESOLVED in v0.5.0rc16. This was the reason stamped on the 7
+#: ``srmech.spectral.*`` ToolEntries marked ``mcp_callable=False`` in rc15
+#: (their surface is a bare ``SpectralHandle`` / ``SpectralHandle | bytes``
+#: opaque handle JSON-RPC cannot carry by value). rc16 ships the
+#: by-reference id grammar (``$srmech_handle`` envelope + :mod:`srmech._handles`
+#: registry), so all 7 are now ``mcp_callable=True`` and this constant is no
+#: longer applied to any entry. Retained (unused) for changelog/history
+#: legibility; safe to delete in a later release.
 _SPECTRAL_HANDLE_PENDING_REASON: str = (
-    "handle-pending: by-reference SpectralHandle id arrives in the bus "
-    "handle-grammar (rc16); use the srmech package directly until then."
+    "handle-pending (resolved in rc16): by-reference SpectralHandle id now "
+    "rides as the $srmech_handle envelope via srmech._handles."
 )
 
 
@@ -1346,7 +1349,11 @@ def _register_primitive_class_tools() -> None:
                     "inverted orientation (MFO §VIII.31.11). Reduces to Class K "
                     "-1 for the sign operators; identity for real-symmetric ops."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("op", "callable", True, "unary sequence→sequence operator"),
+            parameters=(P("op", "operator_name", True,
+                          "dotted NAME of a unary sequence→sequence operator "
+                          "(e.g. srmech.amsc.cascade.chiral_flip); resolved "
+                          "to its callable through the srmech-namespace "
+                          "operator-name resolver"),
                         P("x", "sequence", True, "input sequence")),
             returns=R("sequence", "chiral_flip(op(chiral_flip(x)))"),
         ),
@@ -1378,21 +1385,19 @@ def _register_spectral_runtime_tools() -> None:
     ``[[feedback_no_privileged_primitive_classes]]``; no new primitive
     class is introduced.
 
-    v0.5.0rc15 — every one of these 7 entries is marked
-    ``mcp_callable=False`` (:data:`_SPECTRAL_HANDLE_PENDING_REASON`).
-    Their param/return surface is a bare ``SpectralHandle`` (or
-    ``SpectralHandle | bytes``) — an opaque in-process dataclass handle
-    that JSON-RPC cannot carry by value. rc14 mapped that type to an
-    ``_identity`` coercion pass-through, which the static ``has_coercer``
-    ratchet could not tell apart from a real handler (the gap rc15's
-    every-tool invocation smoke closes). The by-reference handle grammar
-    (a ``SpectralHandle`` id arriving over the bus) lands in rc16; until
-    then these stay registered for introspection but are EXCLUDED from the
-    advertised MCP / Anthropic catalogs so an LLM is never offered a tool
-    it cannot actually call. Use the ``srmech`` package directly
-    (``import srmech.spectral``) for spectral work today. The spectral
-    functions THEMSELVES are untouched — this is surface-honesty marking
-    only.
+    v0.5.0rc16 — every one of these 7 entries is now ``mcp_callable=True``
+    (the default; the rc15 ``mcp_callable=False`` +
+    :data:`_SPECTRAL_HANDLE_PENDING_REASON` markers are removed). Their
+    param/return surface is a ``SpectralHandle`` (or ``SpectralHandle |
+    bytes``) — an opaque, frozen, bytes-bearing dataclass JSON-RPC cannot
+    carry by VALUE. rc16 carries it BY REFERENCE: a producer's returned
+    handle is intercepted by ``serialise_native`` and emitted as a tagged
+    id object ``{"$srmech_handle": {"uuid", "name", "kind"}}`` (registered
+    in the package-scope :mod:`srmech._handles` registry), and a consumer
+    param is resolved back to the live object by ``coerce_param``. The union
+    ``SpectralHandle | bytes`` still accepts a bare base64 ``str`` for raw
+    bytes. The spectral functions THEMSELVES are byte-for-byte untouched —
+    the whole voxel is wire-marshalling + registry only.
     """
     P = ToolParameter
     R = ToolReturn
@@ -1416,8 +1421,6 @@ def _register_spectral_runtime_tools() -> None:
                         P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("SpectralHandle", "frozen dataclass"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.delta", owner="srmech",
@@ -1430,8 +1433,6 @@ def _register_spectral_runtime_tools() -> None:
             parameters=(P("ref", "SpectralHandle | bytes", True),
                         P("current", "SpectralHandle | bytes", True)),
             returns=R("bytes", "same length as inputs"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.recompose", owner="srmech",
@@ -1445,8 +1446,6 @@ def _register_spectral_runtime_tools() -> None:
                         P("laplacian", "np.ndarray", True),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("np.ndarray", "(n_modes,) complex128"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.similarity", owner="srmech",
@@ -1458,8 +1457,6 @@ def _register_spectral_runtime_tools() -> None:
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
             returns=R("float", "in [-1, +1]"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         # ────────────────────────────────────────────────────────────
         # rcN+2 — predict / prediction_error / truncate_sparse
@@ -1481,8 +1478,6 @@ def _register_spectral_runtime_tools() -> None:
                         P("dt", "float", False, "default 1.0; tick magnitude"),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("SpectralHandle", "phase-evolved coefficients"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.prediction_error", owner="srmech",
@@ -1501,8 +1496,6 @@ def _register_spectral_runtime_tools() -> None:
                         P("threshold", "float", False,
                           "default 0.0; in [0.0, 1.0]")),
             returns=R("bytes", "delta or all-zeros if gated"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
         ToolEntry(
             name="srmech.spectral.truncate_sparse", owner="srmech",
@@ -1521,8 +1514,6 @@ def _register_spectral_runtime_tools() -> None:
                         P("threshold", "Optional[float]", False,
                           "magnitude floor; modes >= kept")),
             returns=R("SpectralHandle", "truncated coefficients"),
-            mcp_callable=False,
-            mcp_unavailable_reason=_SPECTRAL_HANDLE_PENDING_REASON,
         ),
     ]
     for e in entries:

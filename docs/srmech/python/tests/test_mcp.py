@@ -1618,6 +1618,25 @@ def test_encoding_hints_preserve_property_key_grammar() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _synth_spectral_handle_envelope() -> Dict[str, Any]:
+    """Mint a real ``SpectralHandle`` (decompose a 2-node state on a 2x2
+    Hermitian Laplacian) and return its registered ``$srmech_handle`` id
+    envelope — the by-reference wire value for a ``SpectralHandle`` param.
+
+    The handle is registered in the SAME process-wide registry the inbound
+    coercer resolves against (via ``serialise_native``), so a downstream
+    ``invoke_tool`` call binds AND resolves a genuine handle (the smoke's
+    contract: any descriptor-hash mismatch vs a different synth laplacian is
+    a TOLERATED domain error, proving the tool was reached)."""
+    from srmech.spectral import decompose
+    from srmech.mcp._coercion import serialise_native
+
+    state = np.array([1.0, 0.0])
+    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    handle = decompose(state, laplacian)
+    return serialise_native(handle)
+
+
 def _synth_value_for_type(type_string: str) -> Any:
     """Synthesise ONE minimal, schema-valid JSON-wire value for a declared
     ToolEntry param type, using the rc14 coercion encodings.
@@ -1675,15 +1694,23 @@ def _synth_value_for_type(type_string: str) -> Any:
         "sequence": [1, 2, 3],
         "pathlib.Path": "smoke_nonexistent_path.toml",
         "int | float | str | list | dict": 1,
-        # opaque in-process handles: a tool call CAN bind them (the kwarg
-        # is accepted); the callable then raises a tolerated DOMAIN error
-        # because the synth value isn't a real handle. We pass a dict /
-        # name so binding succeeds (these are NOT mcp_callable=False except
-        # the SpectralHandle ones, which are already excluded from the
-        # advertised surface this smoke iterates).
+        # opaque in-process handles. ``ChainSpec`` / ``callable`` /
+        # ``numpy.random.Generator`` bind as a dict / name / None and let the
+        # op raise a tolerated DOMAIN error.
         "ChainSpec": {},
         "callable": "abs",
-        "SpectralHandle": {},
+        # rc16 — ``operator_name`` synths to a GENUINE unary seq->seq op so
+        # chiral_dual is driven cleanly (was the old "callable"->"abs"
+        # str-not-callable tolerated TypeError). The srmech-namespace
+        # allow-list resolves it; chiral_flip is a real seq->seq operator.
+        "operator_name": "srmech.amsc.cascade.chiral_flip",
+        # rc16 — a SpectralHandle synths to a FRESHLY-MINTED, registered
+        # by-reference id envelope so recompose/predict/truncate_sparse bind
+        # + RESOLVE a genuine handle (any descriptor-hash mismatch vs the 2x2
+        # synth laplacian is a TOLERATED domain ValueError). The union keeps
+        # the base64 bytes arm (delta/similarity/prediction_error exercise
+        # the raw-bytes path; the handle arm is covered by a dedicated unit).
+        "SpectralHandle": _synth_spectral_handle_envelope(),
         "SpectralHandle | bytes": b64,
         "numpy.random.Generator": None,
     }
@@ -1814,15 +1841,21 @@ def test_every_advertised_tool_invocable() -> None:
 
 
 def test_handle_pending_absent_from_advertised_catalogs() -> None:
-    """v0.5.0rc15 — the ``mcp_callable=False`` handle-pending tools are
-    absent from BOTH advertised catalogs (MCP ``tools/list`` via
+    """v0.5.0rc16 — the rc15 catalog-EXCLUSION ratchet is INVERTED to a
+    catalog-INCLUSION ratchet. The 7 ``srmech.spectral.*`` tools became
+    ``mcp_callable=True`` once the by-reference ``$srmech_handle`` grammar
+    landed, so there are now ZERO handle-pending tools and all 7 spectral
+    names are PRESENT in BOTH advertised surfaces (MCP ``tools/list`` via
     ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
-    seam) while remaining in the registry for introspection. An LLM must
-    never be offered a tool it cannot actually call."""
+    seam). (If a residual handle-pending tool is ever introduced later, a
+    fresh exclusion assertion can be re-added for it.)"""
     schema = get_tool_schema()
     pending = {e.name for e in schema.tools if not e.mcp_callable}
-    assert pending, "expected the 7 handle-pending spectral tools"
-    assert pending == {
+    assert pending == set(), (
+        f"rc16 expects ZERO handle-pending tools; still pending: {pending}"
+    )
+
+    spectral_names = {
         "srmech.spectral.decompose",
         "srmech.spectral.delta",
         "srmech.spectral.recompose",
@@ -1832,23 +1865,109 @@ def test_handle_pending_absent_from_advertised_catalogs() -> None:
         "srmech.spectral.truncate_sparse",
     }
 
-    # MCP advertised surface (the tools/list seam).
+    # MCP advertised surface (the tools/list seam) — the 7 are PRESENT.
     mcp_names = {d["name"] for d in tool_entries_to_mcp_defs()}
-    assert not (pending & mcp_names), (
-        f"handle-pending tools leaked into the MCP advertised catalog: "
-        f"{pending & mcp_names}"
+    assert spectral_names <= mcp_names, (
+        f"spectral tools missing from the MCP advertised catalog: "
+        f"{spectral_names - mcp_names}"
     )
 
     # Anthropic catalog seam — replicate _build_tool_catalog's filter
-    # exactly (it excludes mcp_callable=False, then synthesises names).
+    # exactly (it excludes mcp_callable=False, then synthesises names) — the
+    # 7 are PRESENT.
     anthropic_srmech_names = {
         e.name for e in schema.tools if e.mcp_callable
     }
-    assert not (pending & anthropic_srmech_names), (
-        f"handle-pending tools leaked into the Anthropic catalog: "
-        f"{pending & anthropic_srmech_names}"
+    assert spectral_names <= anthropic_srmech_names, (
+        f"spectral tools missing from the Anthropic catalog: "
+        f"{spectral_names - anthropic_srmech_names}"
     )
 
-    # But they ARE still in the registry (introspection keeps them).
-    all_names = {e.name for e in schema.tools}
-    assert pending <= all_names
+
+# ──────────────────────────────────────────────────────────────────────
+# rc16 — by-reference handle dual-grammar coercion (empirical proof the
+# rc14/15 ``_identity`` pass-throughs are now REAL resolvers, which the
+# static ``has_coercer`` ratchet structurally cannot see).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_spectral_handle_param_coercer_resolves() -> None:
+    """``coerce_param(envelope, 'SpectralHandle')`` returns the LIVE
+    ``SpectralHandle`` whose content_sha matches the original — i.e. the
+    coercer is no longer the rc14 ``_identity`` pass-through."""
+    from srmech.spectral import SpectralHandle, decompose
+    from srmech.mcp._coercion import coerce_param, serialise_native
+
+    state = np.array([1.0, 2.0])
+    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    handle = decompose(state, laplacian)
+
+    env = serialise_native(handle)
+    # Outbound is a by-reference id object, NOT the inline 4-field dict.
+    assert "$srmech_handle" in env
+    assert "coefficients_bytes" not in json.dumps(env)
+
+    resolved = coerce_param(env, "SpectralHandle")
+    assert isinstance(resolved, SpectralHandle)
+    assert resolved.content_sha == handle.content_sha
+
+
+def test_spectral_handle_or_bytes_discriminates() -> None:
+    """The union coercer resolves a ``$srmech_handle`` envelope to a
+    ``SpectralHandle`` AND decodes a bare base64 ``str`` to ``bytes`` —
+    both arms, so raw-bytes callers are preserved."""
+    import base64
+
+    from srmech.spectral import SpectralHandle, decompose
+    from srmech.mcp._coercion import coerce_param, serialise_native
+
+    handle = decompose(
+        np.array([1.0, 2.0]), np.array([[1.0, -1.0], [-1.0, 1.0]])
+    )
+    env = serialise_native(handle)
+
+    # Handle arm.
+    resolved = coerce_param(env, "SpectralHandle | bytes")
+    assert isinstance(resolved, SpectralHandle)
+    # Bytes arm.
+    b64 = base64.b64encode(b"\x01\x02\x03\x04").decode("ascii")
+    raw = coerce_param(b64, "SpectralHandle | bytes")
+    assert raw == b"\x01\x02\x03\x04"
+
+
+def test_operator_name_param_resolves_callable() -> None:
+    """``coerce_param('srmech.amsc.cascade.chiral_flip', 'operator_name')``
+    returns a callable; ``invoke_tool`` drives chiral_dual end-to-end with
+    NO TypeError (the rc15 over-advertisement is now honest); an unknown /
+    out-of-namespace op name raises a clean error."""
+    from srmech.mcp._coercion import coerce_param
+
+    fn = coerce_param("srmech.amsc.cascade.chiral_flip", "operator_name")
+    assert callable(fn)
+
+    # End-to-end through invoke_tool: chiral_dual(chiral_flip, [1,2,3]) =
+    # chiral_flip(chiral_flip(chiral_flip(x))) — three reversals net to ONE
+    # reversal, so the result is the reversed sequence.
+    res = invoke_tool(
+        "srmech.amsc.cascade.chiral_dual",
+        {"op": "srmech.amsc.cascade.chiral_flip", "x": [1.0, 2.0, 3.0]},
+    )
+    assert list(res) == [3.0, 2.0, 1.0]
+
+    # Out-of-namespace op (os.system) is rejected at coercion time.
+    with pytest.raises(ValueError):
+        coerce_param("os.system", "operator_name")
+
+
+def test_evicted_handle_in_invoke_gives_clean_error() -> None:
+    """Referencing a handle envelope whose uuid is NOT in the registry
+    (e.g. evicted) yields a clean ``HandleNotFoundError`` (a tolerated
+    domain error), not an opaque crash."""
+    from srmech._handles import HandleNotFoundError, encode_envelope
+
+    stale = encode_envelope("0" * 32, "spectral:deadbeefdead", "spectral")
+    with pytest.raises(HandleNotFoundError):
+        invoke_tool(
+            "srmech.spectral.recompose",
+            {"handle": stale, "laplacian": [[1.0, -1.0], [-1.0, 1.0]]},
+        )
