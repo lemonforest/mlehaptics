@@ -12,10 +12,12 @@ Generated from `SRMECH_BUGFIX_WISHLIST.md` / `UPSTREAM_NOTES.md §10`. Each bloc
 | W7 | [#735](https://github.com/lemonforest/mlehaptics/issues/735) | W6b | [#740](https://github.com/lemonforest/mlehaptics/issues/740) |
 | W3 | [#736](https://github.com/lemonforest/mlehaptics/issues/736) | W6c | [#741](https://github.com/lemonforest/mlehaptics/issues/741) |
 | W2 | [#737](https://github.com/lemonforest/mlehaptics/issues/737) | W8 | [#742](https://github.com/lemonforest/mlehaptics/issues/742) |
-| | | W9 | [#743](https://github.com/lemonforest/mlehaptics/issues/743) |
+| W13 | [#749](https://github.com/lemonforest/mlehaptics/issues/749) | W9 | [#743](https://github.com/lemonforest/mlehaptics/issues/743) |
 | | | W11 | [#744](https://github.com/lemonforest/mlehaptics/issues/744) |
 
 W10 (triality op) was **not** filed — it's resolved in rc18 (the §W10 block below is a confirmation/close note, not an open issue).
+
+**Milestone [MS #19 — srmech-mcp: server surface + Desktop (.mcpb) distribution & testing](https://github.com/lemonforest/mlehaptics/milestone/19)** (2026-05-30) is the single home for the MCP-surface + Desktop-extension design & testing effort. It groups the MCP-surface cluster — **W1 / W7 / W3 / W2 / W8** (#734 / #735 / #736 / #737 / #742, closed) — plus the new **W13** (#749, open). Open invitation: file additional issues there as development surfaces them.
 
 ═══════════════════════════════════════════════════════════════════════
 
