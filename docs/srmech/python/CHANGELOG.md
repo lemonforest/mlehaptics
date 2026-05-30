@@ -6,6 +6,32 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc6] - 2026-05-30
+
+**MS #20 parallel-dispatch voxel (F233 / #778) — the Klein-4 four-sector parallel cascade.**
+
+Adds `srmech.amsc.cascade.parallel_sector_dispatch(body, x, *, n_sectors=4)` — the Python orchestration
+half of "1 cascade = 4 independent threads" (F233 / R-RBS-LM-FINDING_233). Runs a cascade `body` across
+its ≤4 **Klein-4 chirality sectors** (γ₅± × iω₇±) **concurrently** on a `ThreadPoolExecutor(max_workers=4)`,
+each sector computed as `inv_T_s(body(T_s(x)))` from its OWN sector-transformed input — **0 cross-thread
+reads** (the F233 4-way independence), so the parallel result equals the serial result **bit-for-bit**
+(asserted). Sector 2 (γ₅) is **exactly** `cascade.chiral_dual` (the F232 2-rung object; asserted).
+
+- **Z₄ dispatch slots** `[0,1,2,3]` (cyclic-order-4 timing, distinct from the order-2×order-2 Klein-4 identity).
+- **Cap-at-4** (F220): `n_sectors > 4` raises — Klein-4 has no order-4+ element; the only escape past 4 is
+  the order-3 triality (`srmech.qm.triality.lean_isa_seventh_primitive`, rc3), NOT implemented here.
+- **Usefulness collapse-lattice 4/2/2/1**: bi-axial → 4 distinct; single-axis-symmetric → 2; bi-symmetric → 1.
+
+**FULL C/PYTHON PARITY discipline:** a Python *orchestration* layer ONLY — it composes **exclusively**
+already-C-parity'd atoms (`chiral_flip` / `reorient` / `chiral_dual` / `net_chirality` / `magnitude`); **no
+cascade capability is Python-exclusive** (only the thread fan-out is Python). The **C-orchestration parity is
+tracked by #771** (kept open) so `srmech` does not *need* Python to run the four-sector dispatch (Python = the
+ergonomic half; C = the parity half). On the native path the threads run **truly parallel** (ctypes `CDLL`
+releases the GIL per call; the C ops are reentrant since rc5/#772); pure-Python is correct-but-serialized.
+
+**+1 ToolEntry → `describe()` tool total 176 → 177.** Pure-Python; **ABI unchanged at 3**; no `abs()`
+(Class K `magnitude` / Class C `net_chirality`).
+
 ## [0.6.0rc5] - 2026-05-30
 
 **MS #20 reentrant-core voxel #772 — the C core is now fully reentrant (enables the #771 plugin).**

@@ -17,8 +17,8 @@ The tests prove the certificate:
 5. the separately-keyed ``framework_chirality_complete_reading`` is present,
    tagged "framework-reading, not derived", and is NOT in any load-bearing
    certificate key.
-6. ``srmech.introspect.describe()["tools"]["total"] == 176`` (the +1
-   ToolEntry).
+6. ``srmech.introspect.describe()["tools"]["total"] == 177`` (the running
+   total after the rc6 parallel_sector_dispatch +1 ToolEntry).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
 (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
@@ -247,14 +247,15 @@ def test_framework_reading_is_distinct_and_not_load_bearing():
 
 
 # ----------------------------------------------------------------------
-# TEST 6 — the +1 ToolEntry (introspection tool total goes 175 -> 176).
+# TEST 6 — the introspection tool total (this voxel's +1 took it to 176;
+# the rc6 parallel_sector_dispatch +1 then took it to 177).
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_176():
+def test_introspect_tools_total_is_177():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 176
+    assert introspect.describe()["tools"]["total"] == 177
 
 
 def test_tool_entry_registered():
