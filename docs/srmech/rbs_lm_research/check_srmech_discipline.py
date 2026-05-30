@@ -9,7 +9,7 @@ Exit code = number of HARD violations (0 = clean) so it can gate a (sub-agent) b
 REVIEW + COVERAGE items are warnings (need a human read) and do NOT change the exit code.
 
 HARD (the STOP-list, CLAUDE.md §2 — these are never OK in a cascade):
-  abs(...)                  -> sign = Class K pin-slot + Class C; name the fold, never python abs()
+  abs(...)                  -> srmech.amsc.cascade.magnitude (rc22+); sign-fold = cascade.pin_slot_at_zero (K) + cascade.reorient (C); never python abs()
   np.linalg.eig/eigh/svd    -> srmech.amsc.laplacian.{jacobi_eigvals, hermitian_eigendecompose, symmetric_eigendecompose}
   hashlib.sha256(...)       -> srmech.amsc.format.sha256_bytes
 REVIEW (legitimate ONLY if it feeds a srmech op — needs a human read):
@@ -55,7 +55,7 @@ class V(ast.NodeVisitor):
         name = dotted(n.func)
         ln = n.lineno
         if name == "abs":
-            self.hard.append((ln, "abs() — sign is Class K + C; never python abs() in a cascade"))
+            self.hard.append((ln, "abs() — use srmech.amsc.cascade.magnitude (rc22+); sign-fold = cascade.pin_slot_at_zero (Class K) + cascade.reorient (Class C); never python abs()"))
         elif name in ("hashlib.sha256",):
             self.hard.append((ln, "hashlib.sha256 — route through srmech.amsc.format.sha256_bytes"))
         elif name in HARD_EIG:
