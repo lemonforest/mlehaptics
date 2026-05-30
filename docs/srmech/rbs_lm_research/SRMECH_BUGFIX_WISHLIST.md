@@ -23,7 +23,7 @@
 
 ### W2 — `*_random` (MCP) cannot be seeded over JSON-RPC → non-reproducible  *(§10.2, FIXED in rc14 package; verify MCP wrapper)*
 - **Repro:** two `klein4_random(D=16)` MCP calls returned different vectors; the only randomness param was `rng: numpy.random.Generator`, which **cannot cross JSON-RPC** → no determinism through MCP. This **breaks srmech's own bit-exact / attestation discipline** for any MCP-driven cascade using a `*_random`.
-- **Status:** the **package** is fixed — `klein4_random(D, rng=None, seed: int|None=None)` (integer `seed` confirmed in rc14 signature). **Remaining:** confirm the **MCP wrapper** exposes `seed:int` for `klein4_random` *and* the other `*_random` surfaces (`polar_random`, etc.).
+- **Status:** the **package** is fixed — `klein4_random(D, rng=None, seed: int|None=None)` (integer `seed` confirmed in rc14 signature). **Remaining:** confirm the **MCP wrapper** exposes `seed:int` for `klein4_random` *and* the other `*_random` surfaces (`polar_random`, etc.). **Re-confirmed live 2026-05-30 (F182): the `klein4_random` MCP schema STILL exposes only `rng` (a numpy object), no `seed` — it remains non-reproducible via MCP; the wrapper fix has not yet shipped.**
 
 ---
 
@@ -65,13 +65,17 @@
 - `srmech.amsc.attested.cmb_*` ships **TE/EE/BB only** (parity-EVEN). There is **no EB/TB** (parity-ODD) observable and **no cosmic-birefringence-β posterior** — the *only* chirality observable at the cosmic band is the one not shipped. This left a parity-odd-cosmology research front unresolvable srmech-native.
 - **Ask:** a `cmb_parity_odd_spectra` catalog (EB/TB) and/or an attested birefringence-β posterior, attestable to e.g. Eskilt–Komatsu 2022 (arXiv:2205.13962) / Minami–Komatsu 2020 (arXiv:2011.11254).
 
+### W10 — Spin(8) triality operator (8_v ↔ 8_s ↔ 8_c rep-map)  *(NEW — F182)*
+- srmech ships Klein-4 (two Z₂ chirality axes = Class C) and cyclic mod-n (Class I), but **no operator for Spin(8) triality** — the order-3 outer automorphism (S₃; Z₃ cyclic core) that permutes the three inequivalent 8-dim reps (vector 8_v, spinors 8_s/8_c). It is the *defining* structure of D₄ = 𝔰𝔬(8) and is load-bearing for the 28D arc (it underlies three-generation / Higgs-Yukawa octonion-SM models: Boyle arXiv:2006.16265, Todorov arXiv:1911.13124).
+- **Ask:** a `triality` op (the S₃ rep-permutation / the cyclic 8_v→8_s→8_c map) under `srmech.qm` or `srmech.amsc.hdc`, so the triality-shadow hypothesis (F182) is testable in-framework rather than only reasoned about.
+
 ---
 
 ## Priority for the maintainer (suggested)
 1. **W1** (uncallable tool) + **W7** (the CI test that prevents its whole class) — highest leverage.
 2. **W2 / W3** (determinism + schema-gen) — confirm MCP wrapper exposes the now-landed `seed`; fix the surrogate mapping.
 3. **W4 / W5 / W6 / W6b / W6c** — cheap docstring/naming/alias fixes; clear a lot of caller friction.
-4. **W8 / W9** — enhancements; schedule when the chaining / parity-cosmology work is prioritized.
+4. **W8 / W9 / W10** — enhancements; schedule when the chaining / parity-cosmology / triality work is prioritized.
 
 ---
 
