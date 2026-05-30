@@ -73,15 +73,15 @@
 - The triality op (W10) let us compute that the **A–N 14 = G₂ = su(3)[8] ⊕ 3 ⊕ 3̄** (F197), confirming the I/C/J↔B/H/N role-swap at the **triad** level. But the **per-operator A–N → g₂ assignment** (which specific class A…N is which g₂ generator / which 3-vs-3̄ component) is **not shipped**, so the **within-triad** operator pairing (does the chiral flip send I→B, C→H, J→N specifically?) is not yet computable (F197 §4).
 - **Ask:** an attested map **A–N class → g₂ generator(s)** (e.g. `srmech.qm.so8.an_embedding()` returning the 14 *named* generators in the su(3)⊕3⊕3̄ basis), so the operator-level chiral-flip swap (F191) becomes a measurement, not a reading.
 
-### W12 — native-status verification recipe for the rc18 profile-loader  *(NEW — F192 / §10.8.3; supersedes W6) — HIGH (rc18 verifiability regression)*
-- rc18 replaced the `HAS_NATIVE` bool + `_native.NATIVE_ABI_VERSION` with a **profile-loader** (`srmech.profile(name)`, `list_profiles()`, `ProfileStatus`, `AbiMismatchError`, `warmup_all()`; ctypes-loaded `_native/libsrmech.so`). **A bare `pip install srmech==0.5.0rc18` shows `list_profiles() == {}`** — so there is **no documented way to confirm the C backend is actually dispatching** (vs the numpy fallback), and the old "verify `HAS_NATIVE=True`" rc-verification recipe no longer applies.
-- **Ask:** (a) document the rc18 native-status check (how to confirm `libsrmech.so` is loaded + ABI-matched + dispatched); (b) clarify whether a bare install should **auto-register a default native profile** (currently none); (c) ideally restore a one-call status (e.g. `srmech.native_status()`) for downstream rc-verification.
+### W12 — native-status verification recipe for the rc18 profile-loader  *(NEW — F192 / §10.8.3; supersedes W6) — MEDIUM (top-level status-surface gap; native IS verifiable via the AMSC shim — see correction)*
+- rc18 replaced the *top-level* `HAS_NATIVE` bool + `_native.NATIVE_ABI_VERSION` surface with a **profile-loader** (`srmech.profile(name)`, `list_profiles()`, `ProfileStatus`, `AbiMismatchError`, `warmup_all()`; ctypes-loaded `_native/libsrmech.so`). **A bare `pip install srmech==0.5.0rc18` shows `list_profiles() == {}`.** **CORRECTION (2026-05-30, issue #733): native status IS still verifiable** — `from srmech.amsc._native import HAS_NATIVE` (= True) and `NATIVE_ABI_VERSION` (= 3) work in rc18 (the AMSC shim kept them). The real gap is narrower than first stated: the *top-level* surface doesn't expose a bare-install status, and the old top-level "verify `HAS_NATIVE=True`" recipe effectively moved down into the AMSC shim.
+- **Ask:** (a) document the rc18 native-status check (the working recipe is `from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION`; clarify whether `list_profiles()` is also expected to populate); (b) clarify whether a bare install should **auto-register a default native profile** (currently none); (c) ideally surface a one-call top-level status (e.g. `srmech.native_status()`) mirroring the AMSC-shim flag for downstream rc-verification.
 
 ---
 
 ## Priority for the maintainer (suggested)
 1. **W1** (uncallable tool) + **W7** (the CI test that prevents its whole class) — highest leverage.
-2. **W12** (native-status recipe) — rc18 made native dispatch unverifiable from a bare install; blocks downstream rc-verification discipline.
+2. **W12** (native-status recipe) — rc18 moved the native-status surface into the AMSC shim (`srmech.amsc._native.HAS_NATIVE`, still True); the top-level profile-loader just lacks a bare-install status. Verifiable today (correction #733); the ask is to surface/document it at the top level.
 3. **W2 / W3** (determinism + schema-gen) — confirm the MCP wrapper exposes the now-landed `seed`; fix the surrogate mapping.
 4. **W4 / W5 / W6b / W6c** — cheap docstring/naming/alias fixes (W6 superseded by W12).
 5. **W8 / W9 / W11** — enhancements; schedule with the chaining / parity-cosmology / A–N-embedding work.

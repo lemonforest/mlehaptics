@@ -34,7 +34,10 @@ def integrate(N, A, omega, K, alpha=0.0, T=80.0, dt=0.01, seed=0):
 
 
 def order_param(theta):
-    return float(abs(np.mean(np.exp(1j * theta))))
+    # Kuramoto coherence = modulus of the complex order parameter; named explicitly as
+    # (re^2 + im^2)^0.5 rather than python abs() per the cascade discipline (CLAUDE.md §4).
+    z = np.mean(np.exp(1j * theta))
+    return float((z.real ** 2 + z.imag ** 2) ** 0.5)
 
 
 if __name__ == "__main__":
@@ -50,7 +53,7 @@ if __name__ == "__main__":
     for name, A in [("symmetric_ring", A_sym), ("directed_ring", A_fwd)]:
         Om = np.mean([integrate(N, A, omega, K, seed=s)[1] for s in range(8)])
         r = np.mean([order_param(integrate(N, A, omega, K, seed=s)[0]) for s in range(8)])
-        print(f"   {name:16s}: <Omega>={Om:+.4f}  <r>={r:.3f}  -> {'ACHIRAL (null)' if abs(Om) < 1e-6 else 'chiral'}")
+        print(f"   {name:16s}: <Omega>={Om:+.4f}  <r>={r:.3f}  -> {'ACHIRAL (null)' if -1e-6 < Om < 1e-6 else 'chiral'}")
 
     print("(b) phase-frustration sweep (all-to-all A): Omega(alpha) should be ODD in alpha:")
     for alpha in [-0.7, -0.3, 0.0, 0.3, 0.7]:

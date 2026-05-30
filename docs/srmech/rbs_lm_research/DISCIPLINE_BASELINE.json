@@ -1,0 +1,27 @@
+{
+  "_comment": "JPL-style ratchet baseline (CLAUDE.md model: violations only go DOWN). Per-file HARD abs()/eig/sha256 counts as of the freeze. Regenerate ONLY when REDUCING, via: python3 check_srmech_discipline.py --update-baseline",
+  "files": {
+    "R-RBS-LM-100_klein4_classL_classI_multi_class_cascade.py": 2,
+    "R-RBS-LM-103_sweepA_capacity_extensions.py": 1,
+    "R-RBS-LM-104_sweepB_chirality_cascade_variations.py": 2,
+    "R-RBS-LM-123_religious_text_chirality.py": 1,
+    "R-RBS-LM-132_storage_vs_expression_two_axis.py": 2,
+    "R-RBS-LM-133_translation_invariance_core_test.py": 5,
+    "R-RBS-LM-42_fp16_vs_q4_smoke.py": 1,
+    "R-RBS-LM-48_two_stage_pipeline_smoke.py": 1,
+    "R-RBS-LM-49z_srmech_native_rebuild.py": 1,
+    "R-RBS-LM-53f_translation_stability_smoke.py": 1,
+    "R-RBS-LM-54e_cross_substrate_family_smoke.py": 1,
+    "R-RBS-LM-54m_poetry_ride_smoke.py": 1,
+    "R-RBS-LM-54o_spin_falsification_smoke.py": 1,
+    "R-RBS-LM-54p_cluster_rank_smoke.py": 1,
+    "R-RBS-LM-90_rbsnn_coupling_spectrum_smoke.py": 1,
+    "R-RBS-LM-92_coupling_evolution_eigvec_emergence_smoke.py": 1,
+    "R-RBS-LM-93_bidirectional_cooccurrence_pope_couplet_smoke.py": 1,
+    "R-RBS-LM-94_arts_transmission_function_test_smoke.py": 1,
+    "R-RBS-LM-96_class_k_translator_smoke.py": 4,
+    "R-RBS-LM-98_klein4_classL_cascade_composition.py": 1,
+    "R-RBS-LM-99v2_cross_sector_discrimination.py": 2
+  },
+  "total": 32
+}

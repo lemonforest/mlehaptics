@@ -36,7 +36,7 @@ The load-bearing structural claims of the whole F182→F191 arc are no longer fr
 - rc14 had a `HAS_NATIVE` bool + `_native.NATIVE_ABI_VERSION`. **rc18 replaces this with a profile-loader:** `srmech.profile(name)`, `list_profiles()`, `ProfileStatus`, `AbiMismatchError`, `warmup_all()`; native is a **ctypes-loaded `_native/libsrmech.so`** (present in the wheel).
 - **But a bare clean-venv install shows `list_profiles() == {}`** (no profile registered) → native *dispatch* appears opt-in / entry-point-gated, not active-by-default. Could not confirm native dispatch active from a bare install.
 - **The qm layer (triality/octonion/so8) is numpy** — bit-exact regardless of native. So §2's validation stands independent of the native-dispatch question.
-- The old "verify `HAS_NATIVE=True`" recipe is **obsolete for rc18**; supersedes the W6 ABI-attr note. Flag for upstream: document the rc18 native-status check and whether a bare install should register a default profile.
+- The old *top-level* "verify `HAS_NATIVE=True`" recipe changed in rc18; supersedes the W6 ABI-attr note. **CORRECTION (2026-05-30, issue #733): `srmech.amsc._native.HAS_NATIVE` (= True) + `NATIVE_ABI_VERSION` (= 3) DO work in rc18 — native status IS verifiable via the AMSC shim (`from srmech.amsc._native import HAS_NATIVE`). The gap is narrower than first stated: only the *top-level* profile-loader (`srmech.list_profiles()` → `{}`) lacks a bare-install status surface.** Flag for upstream: document the rc18 native-status check and whether a bare install should register a default profile.
 
 ## §5 Unblocked (the gated research path)
 All now runnable, srmech-native, small/cheap:
