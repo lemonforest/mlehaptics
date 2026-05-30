@@ -9,6 +9,22 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-30 (cont.³) — RBS-NN/LM core queue resumed: instrument capacity law + the teaching≡bilingual≡multilingual arc → "an anchor axis is a Class-L similarity space"; persistent-plasticity synthesis (F221–F226); MS #20 → #763/#765/#767
+
+Resumed the core RBS-NN/LM queue (parallel + sequential agents, opus / small-context + srmech preamble; all srmech-native 0-HARD, ratchet-green, reviewed before commit, bit-exact):
+- **F221** (#760 ✎) — structured RECIPIENT depth-anchor over the F168 ladder: **tier-1 clean NULL** (render-only, 0/3; stronger than F214). §4 caveat: the inherited sector-occupancy readout is a near-chance instrument → the null is partly anchor, partly meter.
+- **F222** (#763) — instrument capacity knee: **DEMONSTRATED** the `n_buckets × V_ceiling` law (clean 4×-buckets→4×-knee-N) + the F165 DOMAIN-anchor orthogonalization **persists to N=8192** (+0.388, ~×n_domains multiplier); honest per-bucket≈64-not-257 + D=4096-cap caveats; borderline gen-top-k +0.0200.
+- **F223** (#765) — byte-level encode at 100×: **clean NULL** (mode-collapse persists/deepens; never beats the byte-frequency baseline; storage signature saturates by 50×). R-RBS-LM-19 ~3.3% ceiling holds; "more bytes" ruled out. Closes R-RBS-LM-25 §7.
+- **F224** (#760 ✎) — the decisive **teaching ≡ bilingualism** head-to-head (calibrated readout; #760 ask #1+#2): **refined NULL — the difference is the AXIS.** Even the KNOWN-WORKING DOMAIN/language binding fails on the depth axis; the family label *co-varies with which continuation is legal* (addressing → steers), the depth band is *orthogonal to which is legal* (render → doesn't). Retires F221's binding+meter explanations as the cause.
+- **F225** (#767) — the **multilingual** extension: **PRED2 CONFIRMED** (the F222 ×n_domains multiplier degrades gracefully with inter-domain similarity, corr −0.966) + **PRED1 NULL** (the Class-L spectrum reads register/form, not theological family — §VII.6.20). The split IS the point: an **anchor axis is a non-orthogonal Class-L similarity space**, the same regime F221 found the depth axis in → the apples-to-apples form of teaching ≡ bilingual ≡ multilingual.
+- **F226** — the synthesis (**FRAMEWORK-READING, no clinical claim**): **persistent plasticity = the low-lock end of one chirality-lock = the K∘C sign-pair (chirality internal) over a 1:3 (A:B/H/N) anchor+meta cascade**; design read as a *result* of the chirality, not a designed module; "spectrum" = the Class-L distribution along that DoF. **Strict separation:** 24 **web-verified peer-reviewed citations** (OA-flagged; tiered settled/hypothesis/contested) carry every cognitive/ND claim; the framework adds only the structural shape. Framed to **honor the ND community** (dignity anchored on ND-authored sources — monotropism/Lawson, den Houting, Botha et al.). Honesty folded from the literature: sensory modulation is **bidirectional** (under-responsivity the larger effect) → "atypically gated," not "uniformly more sensitive." Forward-ask: the **single-K∘C-lock-parameter sweep** (criticality at the phase boundary) — a test of the substrate MODEL.
+
+**Convergence headline:** F165 → F222 → F221 → F224 → F225 → F226 — a labeled anchor steers retrieval only on an **addressing** axis (co-varies-with-legal); that axis is a **non-orthogonal Class-L similarity space** (both language and depth live there); the framework reads its low-lock end as **persistent plasticity** (K∘C over A:B/H/N), pointing at verified neurodiversity / critical-period science for the meaning.
+
+**Live forward-asks (queued, all OPEN):** #760 depth-as-backoff-ORDER (R-131) not sector-band; #763 pin `V_ceiling(D)` + finer domains + iω₇ third axis; #765 bigram clustering scaffold (`LoE.bigram.{a}.{b}`) + sharded multi-instrument; #767 register-controlled / genuine-foreign-language PRED1 (corpus-gated) + the capacity-vs-similarity typology law; **F226** the single-lock-parameter sweep (+ bi-chiral-population variant). **MS #20 now #751–767** (all OPEN; created, never closed).
+
+---
+
 ## 2026-05-30 (cont.²) — cross-substrate convergence MEASURED (F213/F215/F214) + lean-ISA → 74xx TTL (F217) + M-theory fork resolved (F216); MS #20 → #751–760
 
 Worked the MS #20 queue + the deep questions, 3 parallel agents + 2 inline readings (5 findings):
