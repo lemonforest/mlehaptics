@@ -30,9 +30,11 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 **Upstream wishlist filed as GitHub issues (2026-05-30, `lemonforest/mlehaptics`):** W12=#733, W1=#734, W7=#735, W3=#736, W2=#737, W4=#738, W5=#739, W6b=#740, W6c=#741, W8=#742, W9=#743, W11=#744. Canonical drafts: `SRMECH_UPSTREAM_ISSUES.md`; long-form: `UPSTREAM_NOTES.md §10`; punch-list: `SRMECH_BUGFIX_WISHLIST.md`.
 
+**ALREADY DONE (the emergent-perplexity / storage-expression line — do NOT re-run):** F168/R-131 (resolution-depth = emergent perplexity; §5.1 result) · **F169** (storage & expression are separable axes — the confound-controlled matched-budget re-run) · **F171/F172** (translation-invariance: first evidence, then srmech-native temper) · **F173** (structure tracks form; content is lexical).
+
 **LIVE QUEUE (next; not gated on upstream):**
-- **A (next) — F168 emergent-perplexity test (R-RBS-LM-131):** does perplexity emerge from chirality-tagged sector occupancy (Klein-4) rather than a forced softmax? Feeds the NT/ND storage hypothesis (same storage, different expression).
-- **B — chirality → instrument bridge:** use rc18 `triality` / `g2_subalgebra` / Klein-4 *inside* the RBS-NN encoding (does triality-structured sector tagging change capacity/retrieval?).
+- **A (next) — strong-invariance test:** F171 was *first evidence* (one translation pair) and F172 tempered it; the strong test is **more parallel translation pairs** (KJV vs another English Bible; multiple Quran/Gita translations) → does the *storage axis* (structure) stay translation-invariant at scale while the *expression axis* varies? Directly tests the **NT/ND storage hypothesis** (same storage, different expression). Needs parallel-corpus sourcing (cacheable); package + Klein-4 only.
+- **B — chirality → instrument bridge:** use rc18 `triality` / `g2_subalgebra` / Klein-4 *inside* the RBS-NN encoding (does triality-structured sector tagging change capacity/retrieval?). Newest — the rc18 ops are fresh.
 - **C — biology grounding:** ground the F176 §3 / F196 shadow-stance conjectures (lateralization, E/I, insect central complex, the 3⊕3̄ reading) against bioRxiv / literature (bio-research MCP). The "understand how biology does it" gate.
 - instrument scale-up (hierarchical F162-P4 + F165 DOMAIN-anchor in the F166 loop) · #184 smol-stack Phase C · #189 cross-navigation Part 2.
 
