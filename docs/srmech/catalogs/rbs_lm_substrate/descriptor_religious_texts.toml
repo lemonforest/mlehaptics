@@ -214,6 +214,48 @@ noise_percentile   = 0.90      # structured pairwise spread must exceed this per
 seed               = 42
 
 # ---------------------------------------------------------------------------
+# Structured RECIPIENT depth-anchor (F221 / R-RBS-LM-221) — the F214 forward-ask
+# ---------------------------------------------------------------------------
+# F214 falsified the CONTENT-FREE operationalization: a rigid global Class-C twist
+# of the F166 context-state (klein4_chirality_flip_*) re-labels every F168 sector
+# uniformly => indistinguishable from a random orientation in retrieval (1/3 metrics
+# beyond the p90 noise floor, and that one a construction artifact). F214 §8 forward
+# ask: build a STRUCTURED RECIPIENT anchor that is a WHICH-DEPTH operator over the
+# F168 sector ladder (peer to the F165 DOMAIN labeled-store), bound into the F166
+# query/context-state (NOT the render), that biases sector occupancy NON-RANDOMLY:
+#   ELI5   -> shallow band, sectors [0,1]    (word/bigram resolution depth)
+#   peer   -> neutral band, all sectors      (the native register)
+#   expert -> deep band,    sectors [2,3]    (the F168 load-bearing deep sectors)
+# Each frame's anchor = the klein4 BUNDLE of encode_word_k4 depth-tag vectors over
+# its target sector band (the F168 sector tagging), bound into the SAME context-state
+# the SAME way (klein4_bind) the F214 random control is bound. The ONLY difference
+# from the F214 random control is that the bound vector carries DEPTH STRUCTURE
+# (points at a sector band) rather than being a random orientation — so any shift
+# beyond the floor is attributable to the absorption-depth STRUCTURE, not the op-kind.
+# Re-run the identical F212 §5 retrieval-vs-render test vs the SAME 16-frame
+# shape-matched random-orientation control (the F214 noise floor, p90 gate).
+#   Pre-stated null (STRONGER than F214's): "even the STRUCTURED depth-anchor does
+#   not exceed the noise floor in retrieval => the recipient-fiber is render-only
+#   even WITH depth structure." Retrieval-shift beyond floor => CONFIRMS F212: the
+#   recipient-fiber threads into the addressing as a depth-operator; the RECIPIENT
+#   anchor belongs in the F166 context-state (resolves #760). Nulls count.
+# STRUCTURAL test-objects ONLY; §VII.6.20 (texts are test-objects; no doctrinal claims).
+[fetch.literature_curated.recipient_depth_anchor]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most depth headroom to bias
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets
+n_queries          = 400       # fixed held-out queries (context windows) scored per frame
+window             = 5         # k-token context window (the F166 rolling state width)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors
+top_k_activate     = 5         # ranked-set size for the "which relationships activate" overlap metric
+n_random           = 16        # SAME shape-matched random-orientation control as F214 (the noise floor)
+noise_percentile   = 0.90      # structured spread must exceed this percentile of the random-spread dist
+n_anchor_tags      = 9         # depth-tag vectors bundled per band (odd, for klein4_bundle majority)
+shallow_band       = [0, 1]    # ELI5  -> word/bigram sectors
+neutral_band       = [0, 1, 2, 3]  # peer -> native register (all F168 sectors)
+deep_band          = [2, 3]    # expert -> the F168 load-bearing deep sectors
+seed               = 42
+
+# ---------------------------------------------------------------------------
 # Translation pairs (F171) — SAME content, DIFFERENT translator (the invariance test)
 # ---------------------------------------------------------------------------
 [fetch.literature_curated.translation_pairs]
