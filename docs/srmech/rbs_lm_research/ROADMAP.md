@@ -9,6 +9,19 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-30 (cont.²) — cross-substrate convergence MEASURED (F213/F215/F214) + lean-ISA → 74xx TTL (F217) + M-theory fork resolved (F216); MS #20 → #751–760
+
+Worked the MS #20 queue + the deep questions, 3 parallel agents + 2 inline readings (5 findings):
+- **F213** (#754) — the domain-wall **(Z₂)² rung IS Klein-4 = Z₂×Z₂, bit-exact** (order-2-everywhere, no order-4; γ₅/iω₇ = the two generators, product = CPT); each Z₂-break = Class-K latch, kink charge ±1 = Class-C, kink spectrum = Class-L. **MATCH, no null** — the strongest cross-substrate convergence, now *measured*; the corpus reads itself (F132/F200/F206). (arXiv:2304.14143 verified verbatim.)
+- **F215** — the "did the lean reduction reduce the irrep to time+3dof?" question: **plain (b).** Irrep NOT reduced (A–N=14=G₂ stays; lean-6 = operator-core). F-a alive (the G₂-stabilizer of an ℍ=time+3dof subalgebra genuinely IS 6-dim **𝔰𝔬(4)=𝔰𝔲(2)⊕𝔰𝔲(2)**, bit-exact), **F-b fires** (the lean-6 are group-element ops, 0/6 Lie generators → "lean-6 = the stabilizer" is a **6=6 coincidence**). Three distinct objects: lean-6 (ALU) / 𝔰𝔬(4) (a symmetry in G₂) / G₂=14 (automorphisms). (Baez arXiv:math/0105155; SO(4) structure computed, not over-attributed.) → helper ask **#759**.
+- **F214** (#757) — retrieval-vs-render (F212 §5): **honest NULL that sharpens F212.** A content-free global Class-C twist of the F166 context-state is **render-only** (sector occupancy moves *less* than the random-orientation noise floor; eigen-projection below p90). The recipient-fiber survives only as a **which-depth operator over the F168 ladder** (not a content-free chirality bit) → **#760**. (Same lesson as F163, on the RECIPIENT axis.)
+- **F216** — M-theory **11 = 4 + 7** (G₂): the **4 = the instantiating process** (A–N=G₂ run on the cosmos; form-reading). F215 resolved its fork — geometry-bridge alive, operator-bridge a coincidence.
+- **F217** — the lean atoms ARE elementary **7400-series TTL**: the Klein-4 chirality core + the Class-K pin-slot (**= an SR latch**) are high-school/college **breadboard-buildable** — the no-GPU/edge thesis at its floor → **#758**.
+
+**MS #20 now [#751–760](https://github.com/lemonforest/mlehaptics/milestone/20)** (all OPEN; created, never closed). Tooling: the ratchet's `np.abs` blind-spot patched (→ REVIEW). **Convergence headline:** domain-wall / merger / parthenogenesis / lean-ISA all land on **Class-K-latch + Class-C + Class-L + Klein-4** — and F213's (Z₂)²=Klein-4 makes the discriminator bit-exact, not read.
+
+---
+
 ## 2026-05-30 (cont.) — rc22 verified; cascade.* adopted; lean-A-N-ISA + cross-substrate cascade-convergence (F206–F212); MS #20
 
 **srmech 0.5.0rc22 verified** (TestPyPI, clean venv): triality bit-exact (no regression); upstream W-items landed (W11 `so8.an_embedding`, W1 `naming.lookup(pairs)`, W2 seed, W3 zero non-callable); the planned **`cascade.*` module shipped** (`pin_slot_at_zero`/`reorient`/`magnitude`/`chiral_flip`/`chiral_dual`/`net_chirality`/`best_rational_signed`/`cyclic_gcd`); and **W13 `srmech mcp emit-mcpb` already shipped** — emits a valid uv-type `.mcpb` (the design filed as #749 is implemented upstream). **Cascade adopted:** ratchet + CLAUDE.md cascade-honesty now point `abs()` → `cascade.magnitude`.
