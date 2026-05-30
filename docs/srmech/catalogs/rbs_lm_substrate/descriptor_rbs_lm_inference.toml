@@ -114,6 +114,32 @@ memory_capacity         = 200      # single-memory bound at D=8192 (F154 4× cei
 default_max_tokens      = 30
 learn_seed              = 42       # which capacity-bounded slice of the stream the memory holds
 
+# --- F222: catalog-driven scale-up sweep (the F203 §6.1/§6.4 follow-up) ---
+[fetch.literature_curated.inference.scaleup]
+# F203 (R-RBS-LM-146) measured the FLAT/HIER/HIER+DOMAIN capacity curve at
+# N <= 1024 from MODULE-LEVEL constants (N_SWEEP / N_BUCKETS / TOP_K_GEN). That
+# left the sweep un-catalog-driven (the F203 §6 follow-up note). This section
+# lifts those params INTO the catalog (additive; no existing section touched) so
+# the F222 run is descriptor-driven + descriptor_hash-attested, and it pushes
+# N >> 1024 to find the HIERARCHICAL capacity knee (where per-bucket load finally
+# exceeds the ~257 single-bundle ceiling) and to test whether the F203 DOMAIN-
+# anchor orthogonalization (capacity 0.41 -> 0.90 at N=1024) persists at higher N.
+n_sweep                 = [128, 257, 512, 1024, 2048, 4096, 8192]  # straddle + far exceed the F203 ceiling
+n_buckets_sweep         = [8, 32]   # 8 = the F203 fan-out (per-bucket ceiling reached early); 32 = 4x more buckets (knee should move ~4x in N)
+window_k                = 5         # productive context length (Steps 1-2; = operating_k)
+top_k_gen               = 3         # generation-quality readout: true-next in top-3 ranked candidates
+n_probe_gen             = 400       # held-out probes for the top-k generation-quality readout
+domain_null_threshold   = 0.02      # GEN-QUALITY null: DOMAIN fails if domain_hit - nodomain_hit <= this
+capacity_null_threshold = 0.05      # CAPACITY null: hierarchical fails if hier_acc - flat_acc <= this at the largest N
+# tractability caps (honest; reported in the NDJSON) — the knee is D-RELATIVE
+# (per-bucket ceiling ~ V_ceiling(D)), so a smaller D shifts the curve but does
+# NOT change the SHAPE; we cap D so the N=8192 x |vocab| x D retrieval stays
+# tractable and report D in every record. corpus_n bumped so the trained set +
+# held-out probes both fit without exhausting the pair pool at N=8192.
+scaleup_D               = 4096      # capped D for the scale-up sweep (F203 used 8192; knee is D-relative)
+scaleup_corpus_n        = 8000      # sentences -> ~43k (context->next) pairs, ample headroom past N=8192
+scaleup_seed            = 42        # pair-sampling RNG (deterministic / bit-exact)
+
 [parse]
 natural_key = "measurement_id"
 
