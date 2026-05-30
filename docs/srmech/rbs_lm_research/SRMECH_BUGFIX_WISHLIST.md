@@ -41,7 +41,7 @@
 - **Symptom:** in rc14, `srmech.amsc.hdc.klein4_bundle(*vectors)` accepts an **even** count with no odd-count enforcement / no tie-break error. Earlier guidance held that `klein4_bundle` "needs an ODD count (majority tie-break)."
 - **Ask:** confirm the intended even-count tie-break semantics and document them. (Bears on a downstream pad-not-drop fix that assumed odd-only; if even is handled natively the pad is unnecessary.)
 
-### W6 — `_native` ABI attribute naming  *(§10.7.3, MINOR)*
+### W6 — `_native` ABI attribute naming  *(§10.7.3, MINOR — SUPERSEDED in rc18 by the profile-loader; see W12)*
 - **Symptom:** `srmech._native` exposes `NATIVE_ABI_VERSION` and `EXPECTED_ABI_VERSION` (both = 3), **not** a top-level `ABI_VERSION`; `_native.ABI_VERSION` raises `AttributeError`.
 - **Fix:** add an `ABI_VERSION` alias or document the two names.
 
@@ -69,14 +69,24 @@
 - srmech ships Klein-4 (two Z₂ chirality axes = Class C) and cyclic mod-n (Class I), but **no operator for Spin(8) triality** — the order-3 outer automorphism (S₃; Z₃ cyclic core) that permutes the three inequivalent 8-dim reps (vector 8_v, spinors 8_s/8_c). It is the *defining* structure of D₄ = 𝔰𝔬(8) and is load-bearing for the 28D arc (it underlies three-generation / Higgs-Yukawa octonion-SM models: Boyle arXiv:2006.16265, Todorov arXiv:1911.13124).
 - **Ask:** a `triality` op (the S₃ rep-permutation / the cyclic 8_v→8_s→8_c map) under `srmech.qm` or `srmech.amsc.hdc`, so the triality-shadow hypothesis (F182) is testable in-framework rather than only reasoned about.
 
+### W11 — A–N → g₂ embedding / labeling operator  *(NEW — F197; the analogue of W10 for the A–N partition)*
+- The triality op (W10) let us compute that the **A–N 14 = G₂ = su(3)[8] ⊕ 3 ⊕ 3̄** (F197), confirming the I/C/J↔B/H/N role-swap at the **triad** level. But the **per-operator A–N → g₂ assignment** (which specific class A…N is which g₂ generator / which 3-vs-3̄ component) is **not shipped**, so the **within-triad** operator pairing (does the chiral flip send I→B, C→H, J→N specifically?) is not yet computable (F197 §4).
+- **Ask:** an attested map **A–N class → g₂ generator(s)** (e.g. `srmech.qm.so8.an_embedding()` returning the 14 *named* generators in the su(3)⊕3⊕3̄ basis), so the operator-level chiral-flip swap (F191) becomes a measurement, not a reading.
+
+### W12 — native-status verification recipe for the rc18 profile-loader  *(NEW — F192 / §10.8.3; supersedes W6) — HIGH (rc18 verifiability regression)*
+- rc18 replaced the `HAS_NATIVE` bool + `_native.NATIVE_ABI_VERSION` with a **profile-loader** (`srmech.profile(name)`, `list_profiles()`, `ProfileStatus`, `AbiMismatchError`, `warmup_all()`; ctypes-loaded `_native/libsrmech.so`). **A bare `pip install srmech==0.5.0rc18` shows `list_profiles() == {}`** — so there is **no documented way to confirm the C backend is actually dispatching** (vs the numpy fallback), and the old "verify `HAS_NATIVE=True`" rc-verification recipe no longer applies.
+- **Ask:** (a) document the rc18 native-status check (how to confirm `libsrmech.so` is loaded + ABI-matched + dispatched); (b) clarify whether a bare install should **auto-register a default native profile** (currently none); (c) ideally restore a one-call status (e.g. `srmech.native_status()`) for downstream rc-verification.
+
 ---
 
 ## Priority for the maintainer (suggested)
 1. **W1** (uncallable tool) + **W7** (the CI test that prevents its whole class) — highest leverage.
-2. **W2 / W3** (determinism + schema-gen) — confirm MCP wrapper exposes the now-landed `seed`; fix the surrogate mapping.
-3. **W4 / W5 / W6 / W6b / W6c** — cheap docstring/naming/alias fixes; clear a lot of caller friction.
-4. **W8 / W9 / W10** — enhancements; schedule when the chaining / parity-cosmology / triality work is prioritized.
+2. **W12** (native-status recipe) — rc18 made native dispatch unverifiable from a bare install; blocks downstream rc-verification discipline.
+3. **W2 / W3** (determinism + schema-gen) — confirm the MCP wrapper exposes the now-landed `seed`; fix the surrogate mapping.
+4. **W4 / W5 / W6b / W6c** — cheap docstring/naming/alias fixes (W6 superseded by W12).
+5. **W8 / W9 / W11** — enhancements; schedule with the chaining / parity-cosmology / A–N-embedding work.
+6. ✅ **W10** (triality op) — **DONE** in rc18 (F192); **W2** seed — **DONE** package-side (confirm MCP wrapper).
 
 ---
 
-*Verified env: srmech 0.5.0rc14 (TestPyPI), clean venv outside source tree, `HAS_NATIVE=True`, ABI 3. Long-form repro + context: `UPSTREAM_NOTES.md §10`. Compiled from the RBS-LM research subtree per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — no package edits made from here.*
+*Verified env: srmech **0.5.0rc18** (TestPyPI), clean venv outside source tree. Native: `_native/libsrmech.so` ships, but native dispatch is now **profile-gated** (W12) — `list_profiles() == {}` on a bare install, so HAS_NATIVE/ABI can no longer be read the old way. W10 (triality) landed + acceptance-validated bit-exact (F192). Long-form repro + context: `UPSTREAM_NOTES.md §10` (§10.8 = rc18). Compiled from the RBS-LM research subtree per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — no package edits made from here.*
