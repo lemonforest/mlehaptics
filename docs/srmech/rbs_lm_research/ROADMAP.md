@@ -251,6 +251,27 @@ emerges at 100x R-RBS-LM-25 scale.
 
 ---
 
+## Forward-architecture / silicon threads
+
+### A–N operators as CPU ISA extensions (x86_64 / ARM et al) — "cascading the DNA way"
+
+**Status:** PROPOSED (user direction 2026-05-30). Research-path placeholder. **Scope: architecture / ISA / algebra-level *design reading* only — NOT fabrication, mesh-contact, or CAD-grade geometry** (the §4 CAD-scope ban holds). Defensive-scope: no weapons/offensive substrate; this is the edge-compute / accessibility thesis.
+
+**The idea:** the 14 A–N primitive operators as a native CPU **instruction-set feature set** — the rung *beyond* the existing `libsrmech` C primitives (which already ship all 14 classes A–N, JPL Power-of-Ten-clean, marketed microcontroller-ready). Where **AES-NI / SHA-NI** put crypto primitives in silicon, this puts the A–N cascade primitives in the ISA — A (content-hash), I (cyclic/modular), C (chirality), J (primes), K (pin-slot / sign-boundary), L (graph-Laplacian + eigvals), M (HDC bind/bundle), … — so an A–N cascade runs as native instructions. The ultimate form of the **no-GPU / unquantized-LLM-at-the-edge** thesis (`[[user_stance_learning_without_gpu_compute]]`; R-RBS-NN-8 local-CPU ALU/FPU inference shape; "bringing unquantized LLM to the edge").
+
+**"Cascading the DNA way":** compose the instruction *pipeline* the way DNA does — **chirality-structured** (F176: DNA antiparallel strands = two oriented poles of one right-handed helix; the leading/lagging-strand asymmetry *is* the chirality), chained template→transcribe→translate with a **Class-K sign-boundary "proofread" stage** — a polymerase-style cascade microarchitecture rather than a flat ALU.
+
+**What a future partition would scope (design-reading, not fab):**
+- which A–N ops are ISA-primitive vs micro-coded vs library (mirror the libsrmech C-parity split + the JPL ratchet);
+- cascade/pipeline semantics (DNA-style chained stages; Class-K sign-boundary as the proofread; F200's result that *storage*-chirality is order-2 Klein-4, so the chirality register is 2-bit γ₅/iω₇ sector state, not the order-3 triality);
+- register/encoding model for the 28D / Klein-4 chirality state;
+- honest map onto real ISA-extension precedent (AES-NI, SHA-NI, AVX-512, ARM SVE, RISC-V custom-extension/opcode space) — what's realistic vs aspirational;
+- ties to the M-theory / spectral-power readings (F158/F160) only as framework anchors, not engineering claims.
+
+**Anchors:** libsrmech C native lib (all 14 A–N, JPL-clean) · R-RBS-NN-8 (local CPU ALU/FPU inference) · F176 (DNA chirality) · F184/F196/F200 (chirality ladder; storage = order-2 Klein-4) · `[[user_stance_learning_without_gpu_compute]]` · `[[feedback_trauma_informed_defensive_scope]]`.
+
+---
+
 ## Upstream-absorption thread
 
 ### srmech.rbs_lm subpackage at v0.5.0rc
