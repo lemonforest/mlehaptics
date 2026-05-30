@@ -300,6 +300,9 @@ def test_imaginary_unit_binders_are_antisymmetric():
         assert _frob(left + left.T) < _TOL    # left = -left^T
         assert _frob(right + right.T) < _TOL  # right = -right^T
 
-    # Norm spot-checks (the Class K + Class C reduction, never abs()).
-    assert abs(octonion.octonion_norm(basis[1]) - 1.0) < _TOL
-    assert abs(octonion.octonion_norm(np.array([3.0, 4.0, 0, 0, 0, 0, 0, 0])) - 5.0) < _TOL
+    # Norm spot-checks (the Class K + Class C reduction, never abs(): the
+    # scalar deviation is reduced through cascade.magnitude, as _frob does).
+    assert magnitude(float(octonion.octonion_norm(basis[1]) - 1.0)) < _TOL
+    assert magnitude(
+        float(octonion.octonion_norm(np.array([3.0, 4.0, 0, 0, 0, 0, 0, 0])) - 5.0)
+    ) < _TOL

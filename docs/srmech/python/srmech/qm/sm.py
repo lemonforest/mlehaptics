@@ -108,7 +108,9 @@ def weak_mixing_angle(g: float, g_prime: float) -> float:
         g_prime: U(1)_Y gauge coupling.
 
     Returns:
-        ``θ_W`` in radians; ``tan θ_W = g'/g``.
+        ``θ_W`` in **radians** (the angle itself; NOT ``sin²θ_W`` and NOT
+        degrees); ``tan θ_W = g'/g``. For the PDG ``sin²θ_W ≈ 0.231``
+        convention, take ``math.sin(weak_mixing_angle(g, g_prime))**2``.
     """
     if g <= 0:
         raise ValueError(f"weak_mixing_angle: g must be > 0; got {g}")

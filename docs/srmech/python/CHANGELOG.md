@@ -6,6 +6,63 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.5.0rc18] - 2026-05-29
+
+**rc18 of N for v0.5.0 — the downstream-wishlist + hygiene + perf CLEANUP rc.**
+No new surface; the rc17 SO(8) triality engine is carried forward verbatim
+(the six bit-exact acceptance tests pass IDENTICALLY) with a performance fix,
+doc/accuracy corrections from the downstream RBS-LM consumer wishlist, and
+carry-over hygiene. Pure-Python only — **no C source change; ABI stays 3** (the
+C header VERSION strings bump to rc18, `SRMECH_ABI_VERSION` does not).
+
+- **Perf — the triality constants are now memoised.** `srmech.qm.triality`'s
+  internal `_companion_maps` (the dominant cost — 28 `512×128` least-squares
+  solves) plus `triality_automorphism` / `triality_swap` and
+  `srmech.qm.so8`'s `g2_subalgebra` / `so8_adjoint_basis` / `so7_subalgebra`
+  are `functools.lru_cache`-memoised (the build runs once). Because callers
+  may mutate the returned array, **every public surface returns a DEFENSIVE
+  COPY** of the read-only cached build (the expensive build is cached; the
+  per-call `.copy()` is cheap), so no mutable array is ever shared across
+  callers and every returned value is bit-identical to a fresh build. The
+  determinism (no `np.random`) makes the cached value exact;
+  `octonion_table_attestation` stays reproducible. `tests/test_so8_triality.py`
+  drops from ~300 s to ~1.5 s. (`octonion_mult_table` was already cached in
+  rc17 — the exemplar pattern this rc extends to the so8/triality builders.)
+- **W4 doc — `srmech.amsc.format.sha256_bytes` returns the HEX DIGEST.** It is
+  named for its INPUT (raw bytes) but returns the 64-char lowercase hex digest
+  `str` (the Python parity of C `srmech_sha256_hex` / `hashlib.…hexdigest()`),
+  NOT the raw 32-byte digest. Clarified in the docstring + the README Class-A
+  row. No rename (route-through discipline).
+- **W5 doc — `srmech.amsc.hdc.klein4_bundle` accepts ANY count.** The docstring
+  now states explicitly that it takes any `n >= 1` (even OR odd); an exact tie
+  (possible only for even `n`) deterministically resolves to 0 for that bit.
+  There is NO odd-only requirement (the "odd-only" note was a downstream
+  artifact, never in srmech source). Mirrored into the ToolEntry summary. No
+  validation added.
+- **W6 code — `srmech.amsc._native.ABI_VERSION` back-compat alias** (=
+  `EXPECTED_ABI_VERSION`, currently 3) added + exported in `__all__`, for
+  downstream code that reads `_native.ABI_VERSION` (the runtime-detected
+  `NATIVE_ABI_VERSION` is `None` when no native lib is present). Non-breaking.
+- **W6b doc — `srmech.qm.sm.weak_mixing_angle` returns RADIANS.** Docstring +
+  ToolEntry summary now disambiguate the unit explicitly (the angle itself,
+  NOT `sin²θ_W` and NOT degrees; convert via `math.sin(…)**2`).
+- **W6c accuracy — `srmech.cosmos` references.** No `srmech/cosmos/` package
+  exists; the packaged cosmos catalog is `srmech.amsc.attested.cosmos_validation`
+  (Friedmann dark-fraction). The shipped surface (README + `srmech/`) has ZERO
+  `srmech.cosmos` references (already accurate); the only inaccurate references
+  (root `CLAUDE.md`, internal / not PyPI-shipped) were corrected to point at the
+  real path. No packaged TE/EE/BB/fNL/lensing catalog (notebook-only).
+- **W2 confirm — the `seed` param is already advertised.** `polar_random` and
+  `klein4_random`'s ToolEntries already expose the optional integer `seed`
+  (rc13); confirmed, no change needed.
+- **Hygiene** — two `abs()` float-tolerance spot-checks in
+  `tests/test_so8_triality.py` switched to `cascade.magnitude(float(...))`
+  (full Class K∘C cascade-honesty, matching the file's `_frob` helper); the
+  `pyproject.toml` + `pyproject-pure.toml` `description` em-dash (which violated
+  the files' own ASCII-only comment) swapped to ` - ` IDENTICALLY in both
+  (byte-identical, under the 512-char Summary limit); the
+  `tests/test_llm_anthropic.py` docstring prose refreshed rc16 → rc18.
+
 ## [0.5.0rc17] - 2026-05-29
 
 **rc17 of N for v0.5.0 — the SO(8) TRIALITY voxel.** Three new `srmech.qm`-layer
