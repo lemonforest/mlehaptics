@@ -261,6 +261,8 @@ emerges at 100x R-RBS-LM-25 scale.
 
 **"Cascading the DNA way":** compose the instruction *pipeline* the way DNA does — **chirality-structured** (F176: DNA antiparallel strands = two oriented poles of one right-handed helix; the leading/lagging-strand asymmetry *is* the chirality), chained template→transcribe→translate with a **Class-K sign-boundary "proofread" stage** — a polymerase-style cascade microarchitecture rather than a flat ALU.
 
+**Quad-DNA threading reading — LODGED as F202 (2026-05-30):** the *quad* (4 bases = 2 bits = the 4 Klein-4 sectors) reads as a **chirality-*typed* thread model**, not generic data-parallel SIMD: leading/lagging = a **dual-handed thread pair** (two Weyl poles of one γ₅ axis, F176); replication **fork = the spawn primitive** (C); **Okazaki fragments + ligase = tile-and-ligate chunked-reduce** (B + N); **base-pair complementarity = free inline parity** (A + K); **multiple origins = coordinator-free many-core launch** (I); **proofread = inline error-correction** (H + K). The lanes are typed by chirality, not interchangeable slots — DNA replication as the **biological existence-proof** of this ISA (no GPU, 2 bits/slot). See `R-RBS-LM-FINDING_202_quad_dna_replication_chirality_typed_cpu_cascade.md`.
+
 **What a future partition would scope (design-reading, not fab):**
 - which A–N ops are ISA-primitive vs micro-coded vs library (mirror the libsrmech C-parity split + the JPL ratchet);
 - cascade/pipeline semantics (DNA-style chained stages; Class-K sign-boundary as the proofread; F200's result that *storage*-chirality is order-2 Klein-4, so the chirality register is 2-bit γ₅/iω₇ sector state, not the order-3 triality);
