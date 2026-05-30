@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cosmic_birefringence.row.v1",
+  "title": "Cosmic-birefringence isotropic rotation angle beta posterior row",
+  "description": "One published cosmic-birefringence beta posterior. Each row records the central isotropic-rotation angle beta (degrees), the lower/upper 68% C.L. half-widths as two non-negative fields (so an asymmetric posterior is representable WITHOUT abs()/symmetrisation), the dataset, the EB-cross-correlation extraction method, and per-row provenance (published DOI + arXiv id + open arXiv URL). beta is the parity-odd observable extracted from the EB (and TB) cross-correlation after simultaneously solving for the instrumental polarisation-angle miscalibration.",
+  "type": "object",
+  "required": [
+    "measurement_id",
+    "row_type",
+    "beta_deg",
+    "beta_err_lo_deg",
+    "beta_err_hi_deg",
+    "confidence_level",
+    "dataset",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "measurement_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for this beta posterior (e.g. 'eskilt_komatsu_2022_wmap_planck_pr4')."
+    },
+    "row_type": {
+      "type": "string",
+      "enum": ["birefringence_beta_posterior"],
+      "description": "Single value in this catalogue."
+    },
+    "beta_deg": {
+      "type": "number",
+      "description": "Central isotropic cosmic-birefringence rotation angle beta in degrees. MAY be negative in principle (the observable is parity-odd and signed) though all four catalogued measurements are positive (~0.3-0.34 deg)."
+    },
+    "beta_err_lo_deg": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Lower 68% C.L. half-width of the beta posterior, in degrees (the '-' side of beta = central (+hi/-lo)). Non-negative magnitude; equals beta_err_hi_deg for a symmetric quote. Stored separately from the upper half-width so an asymmetric posterior is never collapsed via abs()."
+    },
+    "beta_err_hi_deg": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Upper 68% C.L. half-width of the beta posterior, in degrees (the '+' side). Non-negative magnitude; equals beta_err_lo_deg for a symmetric quote."
+    },
+    "confidence_level": {
+      "type": "number",
+      "description": "Confidence level of the quoted half-widths as a fraction (0.68 for the standard 68% C.L.)."
+    },
+    "significance_sigma": {
+      "type": ["number", "null"],
+      "description": "Significance (in sigma) at which the measurement excludes beta = 0, where the authors report it (e.g. 2.4, 3.6). Null where the authors decline to assign a cosmological significance."
+    },
+    "excludes_zero_cl_percent": {
+      "type": ["number", "null"],
+      "description": "Confidence level (as a percentage) at which beta = 0 is excluded, where reported (e.g. 99.2, 99.987). Null where not stated."
+    },
+    "dataset": {
+      "type": "string",
+      "description": "Data set analysed, e.g. 'Planck PR3 (2018)', 'Planck PR4 (NPIPE)', 'Planck PR4 LFI+HFI', 'Planck PR4 + WMAP 9yr'."
+    },
+    "method": {
+      "type": ["string", "null"],
+      "description": "Extraction method, e.g. 'EB cross-correlation, simultaneous beta + miscalibration angle'. The parity-odd EB (and TB) cross-correlation extraction that simultaneously solves for the instrumental polarisation-angle miscalibration."
+    },
+    "sky_fraction": {
+      "type": ["number", "null"],
+      "description": "Sky fraction (fsky) used in the analysis where the abstract states it (e.g. 0.93 for the Eskilt 2022 frequency-independent fit); null where not quoted."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rounded_2sf", "rounded_3sf", "none"],
+      "description": "Per-row precision flag. These rows are 'high' (abstract values verbatim)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes, e.g. carrying an abstract caveat verbatim."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Published journal DOI of the measuring paper (e.g. 10.1103/PhysRevD.106.063503)."
+    },
+    "source_url": {
+      "type": ["string", "null"],
+      "description": "arXiv abstract URL of the measuring paper (https://arxiv.org/abs/<id>) --- the open, attestable anchor for this row."
+    },
+    "source_arxiv": {
+      "type": ["string", "null"],
+      "description": "arXiv identifier of the measuring paper (e.g. '2205.13962')."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 partial date for the cited source (publication month)."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date when this row was added to the AMSC catalogue."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional source version label, e.g. 'arXiv:2205.13962'."
+    },
+    "source_file": {
+      "type": ["string", "null"],
+      "description": "Optional source-paper section/label (e.g. 'abstract')."
+    }
+  }
+}

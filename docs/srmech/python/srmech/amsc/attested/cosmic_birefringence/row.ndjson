@@ -1,0 +1,37 @@
+# Cosmic-birefringence isotropic rotation angle beta posterior catalogue.
+#
+# Each line below is one MPR row data block (NDJSON), a FLAT data-only dict
+# (NOT an MPRRecord envelope --- the 9-field attestation block is synthesised
+# at read time by the literature_curated adapter from the per-row source_doi
+# + entered_locally_at). Lines starting with "#" or empty lines are skipped.
+#
+# Single row_type "birefringence_beta_posterior". Four PDF-verified headline
+# rows, one per measuring paper; values extracted from the actual arXiv
+# abstracts (do NOT alter / round / re-derive):
+#
+#   1. Minami & Komatsu 2020, PRL 125, 221301, arXiv:2011.11254
+#        beta = 0.35 +/- 0.14 deg; excludes 0 at 99.2% C.L. (2.4 sigma);
+#        Planck 2018 (PR3) polarisation data.
+#        [arXiv:2011.11254 is the MEASUREMENT paper. It is NOT 2006.15982,
+#         the methodology-only companion that reports no beta from data.]
+#   2. Diego-Palazuelos et al. 2022, PRL 128, 091302, arXiv:2201.07682
+#        beta = 0.30 +/- 0.11 deg; Planck PR4 (NPIPE). Abstract gives only
+#        0.30 +/- 0.11 and declines to assign cosmological significance.
+#   3. Eskilt 2022, A&A 662, A10, arXiv:2201.13347
+#        beta = 0.33 +/- 0.10 deg (frequency-independent all-bands fit,
+#        fsky = 0.93); Planck PR4 LFI+HFI.
+#   4. Eskilt & Komatsu 2022, PRD 106, 063503, arXiv:2205.13962
+#        beta = 0.342 (+0.094 / -0.091) deg (ASYMMETRIC --- lo=0.091,
+#        hi=0.094 stored SEPARATELY, never symmetrised); excludes 0 at
+#        99.987% C.L. (3.6 sigma); Planck PR4 + WMAP 9-year joint.
+#
+# EB/TB parity-odd power spectra are DEFERRED (no cleanly-attestable
+# bandpower table); the beta posterior is the attestable parity-odd
+# observable. See descriptor.toml header for the full deferral note.
+#
+# precision_flag = "high" for all rows (abstract values verbatim).
+
+{"measurement_id": "minami_komatsu_2020_planck_pr3", "row_type": "birefringence_beta_posterior", "beta_deg": 0.35, "beta_err_lo_deg": 0.14, "beta_err_hi_deg": 0.14, "confidence_level": 0.68, "significance_sigma": 2.4, "excludes_zero_cl_percent": 99.2, "dataset": "Planck PR3 (2018)", "method": "EB cross-correlation, simultaneous beta + miscalibration angle", "sky_fraction": null, "precision_flag": "high", "notes": null, "source_doi": "10.1103/PhysRevLett.125.221301", "source_arxiv": "2011.11254", "source_url": "https://arxiv.org/abs/2011.11254", "source_published_date": "2020-11", "entered_locally_at": "2026-05-29", "source_version": "arXiv:2011.11254", "source_file": "abstract"}
+{"measurement_id": "diego_palazuelos_2022_planck_pr4", "row_type": "birefringence_beta_posterior", "beta_deg": 0.30, "beta_err_lo_deg": 0.11, "beta_err_hi_deg": 0.11, "confidence_level": 0.68, "significance_sigma": null, "excludes_zero_cl_percent": null, "dataset": "Planck PR4 (NPIPE)", "method": "EB cross-correlation", "sky_fraction": null, "precision_flag": "high", "notes": "Authors decline to assign cosmological significance pending improved foreground knowledge (abstract gives 0.30 +/- 0.11 only)", "source_doi": "10.1103/PhysRevLett.128.091302", "source_arxiv": "2201.07682", "source_url": "https://arxiv.org/abs/2201.07682", "source_published_date": "2022-02", "entered_locally_at": "2026-05-29", "source_version": "arXiv:2201.07682", "source_file": "abstract"}
+{"measurement_id": "eskilt_2022_planck_pr4_freqindep", "row_type": "birefringence_beta_posterior", "beta_deg": 0.33, "beta_err_lo_deg": 0.10, "beta_err_hi_deg": 0.10, "confidence_level": 0.68, "significance_sigma": null, "excludes_zero_cl_percent": null, "dataset": "Planck PR4 LFI+HFI", "sky_fraction": 0.93, "method": "EB cross-correlation, frequency-independent all-bands", "precision_flag": "high", "notes": null, "source_doi": "10.1051/0004-6361/202243269", "source_arxiv": "2201.13347", "source_url": "https://arxiv.org/abs/2201.13347", "source_published_date": "2022-06", "entered_locally_at": "2026-05-29", "source_version": "arXiv:2201.13347", "source_file": "abstract"}
+{"measurement_id": "eskilt_komatsu_2022_wmap_planck_pr4", "row_type": "birefringence_beta_posterior", "beta_deg": 0.342, "beta_err_lo_deg": 0.091, "beta_err_hi_deg": 0.094, "confidence_level": 0.68, "significance_sigma": 3.6, "excludes_zero_cl_percent": 99.987, "dataset": "Planck PR4 + WMAP 9yr", "method": "EB cross-correlation, joint", "sky_fraction": null, "precision_flag": "high", "notes": "Asymmetric 68% C.L. posterior: +0.094 / -0.091 deg (beta_err_lo_deg=0.091, beta_err_hi_deg=0.094 stored separately; not symmetrised). Strongest single result.", "source_doi": "10.1103/PhysRevD.106.063503", "source_arxiv": "2205.13962", "source_url": "https://arxiv.org/abs/2205.13962", "source_published_date": "2022-09", "entered_locally_at": "2026-05-29", "source_version": "arXiv:2205.13962", "source_file": "abstract"}

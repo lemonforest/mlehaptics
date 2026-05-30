@@ -610,7 +610,7 @@ def test_describe_shape_never_raises():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# native_status() — discoverable native-dispatch status (v0.5.0rc19; #733)
+# native_status() — discoverable native-dispatch status (v0.5.0rc20; #743)
 # ─────────────────────────────────────────────────────────────────────
 
 
