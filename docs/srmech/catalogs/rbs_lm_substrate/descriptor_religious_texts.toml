@@ -256,6 +256,50 @@ deep_band          = [2, 3]    # expert -> the F168 load-bearing deep sectors
 seed               = 42
 
 # ---------------------------------------------------------------------------
+# DECISIVE teaching==bilingualism head-to-head (F224 / R-RBS-LM-224) — #760 ask #1+#2
+# ---------------------------------------------------------------------------
+# THE CONJECTURE (R-RBS-LM-54 Rosetta cross-encoding-projection cascade): teaching
+# == bilingualism — both "hold one content in two encodings, project across via a
+# Class-C which-way selector + an anchor bound into the query (Class M)." ONLY the
+# anchor's AXIS differs: BILINGUAL = which-LANGUAGE label = a DOMAIN axis (F165
+# labeled-store; WORKS, +0.388 to N=8192 per F222); TEACHING = which-DEPTH operator
+# over the F168 sector ladder = the RECIPIENT/ELI5 axis (F212; NULL so far — F221
+# built it as an XOR-twist of the probe -> tier-1 render-only null, partly anchor +
+# partly meter). THE DECISIVE TEST: build the depth anchor the SAME WAY the WORKING
+# DOMAIN/language anchor is built (a labeled-store key bound into retrieval, read as
+# a Tier-2 similarity RE-WEIGHTING per F119/F120 Class-K bridge, NOT an XOR-twist),
+# AND read it with a meter that has REAL DYNAMIC RANGE (a band-conditioned ranking-
+# divergence: does a SHALLOW-band query rank DIFFERENT continuations first than a
+# DEEP-band query?), and see whether the DEPTH axis steers retrieval LIKE the
+# LANGUAGE axis does. 3 conditions, identical corpus/queries/readout/floor; ONLY the
+# anchor build/read differs:
+#   (A) DOMAIN/language labeled-store key bound into the key (KNOWN-WORKING, F165/F146/F222)
+#   (B) RECIPIENT depth XOR-twist of the probe                (KNOWN-NULL, F221)
+#   (C) RECIPIENT depth as a read-side Tier-2 re-weight       (NEW; #760 ask #2, F120 Class-K)
+# Readout gated on the SAME 16-frame shape-matched random-orientation floor (p90).
+#   Pre-stated NULL: "(C) stays at the noise floor like (B) => teaching != bilingual
+#   on the addressing side; depth is genuinely render-only, not language-like."
+#   Pre-stated POSITIVE: "(C) clears the floor like (A) => CONFIRMS teaching ==
+#   bilingual on the addressing side; resolves #760 forward-ask #2." Nulls count.
+# STRUCTURAL test-objects ONLY; §VII.6.20 (texts + languages are test-objects; no
+# cognitive / doctrinal / BCI claim).
+[fetch.literature_curated.recipient_tier2]
+demo_text          = "kjv_nt"  # F168: deepest sector structure -> most depth headroom (SAME as F214/F221)
+n_units            = 6000      # verse-lines sampled to build the bigram store + candidate sets (SAME)
+n_queries          = 400       # fixed held-out queries scored per condition (SAME as F214/F221)
+window             = 5         # k-token context window (the F166 rolling state width) (SAME)
+min_candidates     = 3         # only score queries whose last token has >=3 legal successors (SAME)
+n_random           = 16        # SAME shape-matched random-orientation control as F214/F221 (the noise floor)
+noise_percentile   = 0.90      # a condition's shallow-vs-deep divergence must exceed this percentile to clear the floor
+n_anchor_tags      = 9         # depth-tag vectors bundled per band (odd, for klein4_bundle majority) (SAME as F221)
+shallow_band       = [0, 1]    # shallow/learner depth -> word/bigram sectors (SAME band defs as F221 ELI5)
+deep_band          = [2, 3]    # deep/expert depth -> the F168 load-bearing deep sectors (SAME as F221 expert)
+tier2_alpha        = 0.5       # Class-K Tier-1<->Tier-2 bridge mix: score = (1-a)*base_sim + a*depth_match
+                               # (0.5 = equal weight; the depth-band match re-weights the un-conditioned
+                               # context->candidate similarity at SCORING time, NOT an XOR twist of the probe)
+seed               = 42
+
+# ---------------------------------------------------------------------------
 # Translation pairs (F171) — SAME content, DIFFERENT translator (the invariance test)
 # ---------------------------------------------------------------------------
 [fetch.literature_curated.translation_pairs]
