@@ -205,9 +205,10 @@ def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     """The catalog handed to Claude has one entry per ADVERTISED
     (``mcp_callable=True``) ToolEntry. v0.5.0rc16 — the 7
     ``srmech.spectral.*`` tools became callable via the by-reference
-    ``$srmech_handle`` grammar, so there are now ZERO handle-pending tools
-    and EVERY registered tool is advertised. The count matches the MCP
-    advertised surface (``tool_entries_to_mcp_defs``)."""
+    ``$srmech_handle`` grammar, so there are ZERO handle-pending tools and
+    EVERY registered tool is advertised (rc17 carries this forward, adding
+    the 15 so(8)/triality tools). The count matches the MCP advertised
+    surface (``tool_entries_to_mcp_defs``)."""
     from srmech.mcp._tools import tool_entries_to_mcp_defs
 
     mock_sdk([])  # no responses needed; we only construct the agent
@@ -216,7 +217,7 @@ def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     expected = sum(1 for e in schema.tools if e.mcp_callable)
     assert len(agent.tools) == expected
     assert expected > 50, (
-        f"expected ~158 advertised tools; got {expected}"
+        f"expected the full advertised registry (~173 at rc17); got {expected}"
     )
     # Same count as the MCP adapter's advertised surface.
     assert len(agent.tools) == len(list(tool_entries_to_mcp_defs()))
@@ -228,13 +229,13 @@ def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
 def test_handle_pending_tools_excluded_from_anthropic_catalog(
     mock_sdk,
 ) -> None:
-    """v0.5.0rc16 — INVERTED to a catalog-INCLUSION assertion (the near-
-    identical Anthropic-side copy of the test_mcp.py exclusion ratchet). The
-    7 ``srmech.spectral.*`` tools became ``mcp_callable=True`` once the
-    by-reference ``$srmech_handle`` grammar landed, so there are ZERO
-    handle-pending tools and all 7 spectral names ARE present in the
-    Anthropic catalog Claude sees (both the reverse name map AND the
-    synthesised name list)."""
+    """v0.5.0rc16 (held through rc17) — INVERTED to a catalog-INCLUSION
+    assertion (the near-identical Anthropic-side copy of the test_mcp.py
+    exclusion ratchet). The 7 ``srmech.spectral.*`` tools became
+    ``mcp_callable=True`` once the by-reference ``$srmech_handle`` grammar
+    landed, so there are ZERO handle-pending tools and all 7 spectral names
+    ARE present in the Anthropic catalog Claude sees (both the reverse name
+    map AND the synthesised name list)."""
     mock_sdk([])
     agent = AnthropicAgent()
     schema = get_tool_schema()

@@ -307,6 +307,15 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
     ``ValueError`` — so we keep the namespace allow-list as the up-front
     guard and let the smoke synth a genuine unary op,
     ``srmech.amsc.cascade.chiral_flip``.)
+
+    SAFETY (v0.5.0rc17 hardening): the ``srmech.*`` name PREFIX is necessary
+    but NOT sufficient. ``_resolve_dotted_callable`` walks attributes, so a
+    name can traverse THROUGH a srmech module to a re-exported stdlib
+    callable (e.g. ``srmech.amsc.format.hashlib.sha256`` -> the real
+    ``_hashlib`` ``sha256``). After resolution we additionally verify the
+    resolved object's ``__module__`` is itself ``srmech.*``, rejecting any
+    name that reaches a re-exported stdlib / foreign callable. Fail-closed:
+    a ``None`` / non-``str`` ``__module__`` is treated as a reject.
     """
     if not isinstance(name, str) or not name:
         raise ValueError(
@@ -324,6 +333,19 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
     from srmech.mcp._tools import _resolve_dotted_callable
 
     resolved = _resolve_dotted_callable(name)
+    # rc17 hardening: the srmech.* name PREFIX is necessary but not
+    # sufficient -- _resolve_dotted_callable walks attributes, so a name can
+    # traverse THROUGH a srmech module to a re-exported stdlib callable
+    # (e.g. srmech.amsc.format.hashlib.sha256 -> the real _hashlib sha256).
+    # Verify the RESOLVED object truly originates in the srmech namespace.
+    origin = getattr(resolved, "__module__", None)
+    if not (isinstance(origin, str) and origin.startswith(_OPERATOR_NAME_ALLOWED_PREFIX)):
+        raise ValueError(
+            f"operator_name {name!r} resolved to an object defined in "
+            f"{origin!r}, outside the {_OPERATOR_NAME_ALLOWED_PREFIX!r} "
+            f"namespace (re-exported stdlib / foreign callables are rejected "
+            f"for safety)"
+        )
     # Best-effort callability check (the resolver already enforces this,
     # but assert the advertised contract explicitly).
     if not callable(resolved):

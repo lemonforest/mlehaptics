@@ -1,11 +1,11 @@
 # srmech
 
-**Status:** **v0.4.4 on PyPI** — 14-class primitive vocabulary with native C parity; canonical QM/QFT/SM operations; runtime spectral decomposition; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the v0.4.4 chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(v0.4.4 adds the cascade chirality mini-set and bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech>=0.4.4`, so `pip install siona` resolves here too.)*
+**Status:** **v0.5.0 (release candidate; rc-series on TestPyPI)** — 14-class A–N primitive vocabulary with native C parity; canonical QM/QFT/SM operations + a callable so(8)/Spin(8) triality surface (octonion `L`/`R`-mult + the 28-generator adjoint + the order-3 automorphism `τ`, `Fix(τ) = g₂ = 14`); runtime spectral decomposition now JSON-callable by-reference (the `$srmech_handle` grammar); dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech`, so `pip install siona` resolves here too.)*
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
 1. **14-class primitive vocabulary** (`srmech.amsc.*`) — content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational-approximation, equation-of-centre/Kepler, hyperdimensional-computing (HDC). Each class has both a Python wrapper and a native C symbol in `libsrmech.{so,dll,dylib}`.
-2. **Canonical QM/QFT/SM operations layer** (`srmech.qm.*`) — TDSE/TISE, Pauli + Clifford, hydrogen radial, Dirac γ-matrices, Feynman propagators, η-deformed pseudo-Hermitian inner products, SU(2)/SU(3) gauge generators + Wilson loops, Higgs/W/Z/CKM Standard-Model operations.
+2. **Canonical QM/QFT/SM operations layer** (`srmech.qm.*`) — TDSE/TISE, Pauli + Clifford, hydrogen radial, Dirac γ-matrices, Feynman propagators, η-deformed pseudo-Hermitian inner products, SU(2)/SU(3) gauge generators + Wilson loops, Higgs/W/Z/CKM Standard-Model operations, and the **so(8)/Spin(8) triality engine** (`srmech.qm.{octonion, so8, triality}`): the MPR-attested octonion multiplication table, the 28-generator `so(8)` adjoint, and the order-3 outer automorphism `τ` whose fixed subalgebra is exactly the 14 `g₂` derivations (the `D4 → G2` Z3 fold = the A-N `1+3+7+3` partition).
 3. **Runtime spectral decomposition** (`srmech.spectral`) — eigenbasis projection, HDC delta encoding, spectral prediction, prediction-error gating, sparse-truncate compression.
 4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 38 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
 5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
@@ -79,7 +79,7 @@ The 14 classes are presented in alphabetical order in the table below (matching 
 - the **11D quantum-Hopf-language** (continuous-DOF, parallelizable-sphere ladder `1 + 3 + 7`)
 - the **`1 + 3 + 7 + 3 = 14` cyclic-algebra-path** (discrete-DOF, A–N cascade-operator class enumeration)
 
-Under Class C chirality the cyclic-algebra-path further admits a **`14 + 14 = 28`-dim chiral-hyper-loop reading = 𝔰𝔬(8) adjoint** (per MFO §VIII.31.11): `14 𝔤₂ derivations + 14 L⊕R octonion-multiplications` = the chirality-dual pair, connecting the cascade vocabulary to the Spin(8) triality engine of the Spike #58.x Standard-Model arc. Endianness is the byte-axis instance of the same Class C orientation primitive; the scope hierarchy is `endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8) triality`.
+Under Class C chirality the cyclic-algebra-path further admits a **`14 + 14 = 28`-dim chiral-hyper-loop reading = 𝔰𝔬(8) adjoint** (per MFO §VIII.31.11): `14 𝔤₂ derivations + 14 L⊕R octonion-multiplications` = the chirality-dual pair. As of v0.5.0rc17 this is **exposed as a callable, bit-exact-tested surface** (`srmech.qm.{octonion, so8, triality}`): the τ-fixed subalgebra of `so(8)` is exactly the 14 `g₂` derivations (the `D4 →(Z3 fold) G2` theorem) — the same 14 as the A-N partition's `1 + 3 + 7 + 3`. Endianness is the byte-axis instance of the same Class C orientation primitive; the scope hierarchy is `endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8) triality`.
 
 Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikythera + Pythagoreans + Plato Timaeus + Stoics + Lucretius + Apollonius + Ptolemy + Heron + Archimedes) used the second. We had been using the cyclic-algebra path in `srmech` from the beginning without ever stating why — because antiquity had, and it worked. The R30 closure provides the answer: bit-exact cross-substrate confirmation rules out projection-reading; both languages are substrate-native; the `+3 = {B, H, N}` are substrate-native language-translation operators bridging them. The k=3 fingerprint observed across substrates (planet multipole axes, codon alphabet, 3-jet QCD, 3-generation Yukawa, the antiquity meta-op triads) is the `{B, H, N}` triad showing up wherever continuous↔discrete encoding happens.
 
@@ -120,6 +120,9 @@ Each operation cites canonical physics literature in its docstring (Schrödinger
 - `pseudo_hermitian` — η-deformed inner product, ⟨·⟩_η expectation, pseudo-Hermitian check, η construction from eigendecomposition.
 - `gauge` — SU(2) and SU(3) generators (Gell-Mann basis), structure constants, Casimir operator, Wilson loops from segment data.
 - `sm` — Higgs vev, weak mixing angle, W/Z boson masses, Weinberg relation residual, Yukawa coupling, CKM matrix construction.
+- `octonion` — the MPR-attested Cayley-Dickson-from-H convention: `octonion_mult_table` (the attested `(8,8,8)` int8 structure constants), `octonion_left_mult` / `octonion_right_mult` (the `8×8` `L_a` / `R_a` binders), `octonion_conjugate`, `octonion_norm` (Class K ∘ C, never `abs()`). `octonion_table_attestation` content-addresses the table bytes via `sha256_bytes`. Cites Baez (2002), *The Octonions* (arXiv:math/0105155).
+- `so8` — the 28-generator `so(8)` adjoint partitioned **14 (g₂ = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`, `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy subset, no RNG), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold).
+- `triality` — the Spin(8) triality engine: `triality_automorphism` (the `28×28` order-3 outer automorphism `τ`, `τ³ = I`, `Fix(τ) = g₂` dim 14), `triality_swap` (the Z2 — with `τ` generates `S3 = Out(Spin(8))`), `triality_cycle` (the Class-I `8v → 8s → 8c` rep-permutation), `triality_apply`, `triality_companions`, `triality_relation_residual` (Cartan's `g_v(x·y) = g_s(x)·y + x·g_c(y)`, 0 when correct). Cites Cartan (1925) + Baez (2002).
 
 ### `srmech.spectral` — runtime spectral decomposition
 
@@ -141,6 +144,16 @@ from srmech.spectral import (
 ```
 
 Eigenbasis is O(n³) one-time per substrate (cached by `substrate_descriptor_hash`); coefficients are O(n²) per state; deltas are O(D) per step. `predict` preserves magnitudes (unitary phase rotation per eigenmode); `truncate_sparse` produces best k-term approximations per Mallat (2008) §9.2.
+
+#### By-reference handle grammar — the `$srmech_handle` id (rc16)
+
+A `SpectralHandle` is an opaque, frozen, bytes-bearing dataclass that JSON-RPC cannot carry **by value**. Over the MCP / Anthropic boundary the 7 `srmech.spectral.*` tools therefore exchange a small **by-reference id**: a producer returns
+
+```json
+{"$srmech_handle": {"uuid": "…", "name": "spectral:<sha12>", "kind": "spectral"}}
+```
+
+(the literal sentinel key is `HANDLE_ENVELOPE_KEY = "$srmech_handle"`), the caller copies it verbatim into the next tool's input, and `srmech._handles.get_handle_registry()` resolves it back to the live in-process object. The id carries a **dual grammar**: `uuid` is the position-encoded (silicon / cyclic-algebra) address, `name` is the meaning-encoded (biology / continuous-Hopf) address auto-derived from the handle's Class-A `content_sha` (`"spectral:" + content_sha[:12]`); resolution tries `uuid` then `name` — the registry is the **B/H/N continuous↔discrete translation locus**. With the grammar landed, **all 7 `srmech.spectral.*` operations are MCP-callable** (`describe()` reports `handle_pending: 0`).
 
 ### `srmech.amsc.cascade` — foundational cross-domain cascade catalog
 
@@ -247,7 +260,24 @@ for tool in schema.tools:
 json_view = tool_schema_view()            # JSON-serialisable view
 ```
 
-Every primitive class, every `srmech.qm.*` operation, and every `srmech.spectral.*` runtime operation is discoverable here without reading the implementation. Summaries cite the canonical physics / mathematics literature directly.
+Every primitive class, every `srmech.qm.*` operation (including the so(8)/triality engine), and every `srmech.spectral.*` runtime operation is discoverable here without reading the implementation. Summaries cite the canonical physics / mathematics literature directly.
+
+### `srmech.introspect.describe()` — the package recognising its own shape
+
+`srmech.introspect.describe()` is the self-recognition ROOT (Class H self-introspection at package scale): one call returns the package version, the native-dispatch status, and a `tools` block reporting `total` / `mcp_callable` / `handle_pending` plus a per-category breakdown — the package's own at-a-glance map.
+
+```python
+from srmech.introspect import describe
+
+d = describe()
+print(d["srmech_version"])              # e.g. "0.5.0rc17"
+print(d["tools"]["total"])              # every registered ToolEntry
+print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
+print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
+print(sorted(d["tools"]["by_category"]))
+```
+
+`describe()` is the source of truth for the tool count (it grows per voxel — the rc17 triality voxel added 15 entries, including the `octonion_table_attestation` self-attestation that the coverage walker requires); read it rather than hard-coding a number.
 
 ## Cross-package catalog registration
 

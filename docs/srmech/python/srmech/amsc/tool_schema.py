@@ -2092,6 +2092,173 @@ def _register_qm_tools() -> None:
             parameters=(P("V", "np.ndarray", True),),
             returns=R("float", "~0"),
         ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.octonion — the MPR-attested Cayley-Dickson-from-H
+        # octonion algebra (foundational layer of the so(8)/triality
+        # engine, v0.5.0rc17). Class A (table + attestation), Class M
+        # (L/R binders), Class C (conjugate), Class K∘C (norm, no abs()).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_mult_table", owner="srmech",
+            category="qm.octonion",
+            summary="The (8,8,8) int8 structure-constant tensor C with "
+                    "e_i·e_j = Σ_k C[i,j,k] e_k (fixed Cayley-Dickson-from-H "
+                    "convention; MPR-attested). Class A. Baez (2002) §2.",
+            parameters=(),
+            returns=R("np.ndarray", "(8,8,8) int8 structure constants"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_table_attestation",
+            owner="srmech", category="qm.octonion",
+            summary="MPR v1 self-attestation dict for the structure-constant "
+                    "table; response_sha256 content-addresses the int8 table "
+                    "bytes via sha256_bytes (Class A). Baez (2002), "
+                    "arXiv:math/0105155.",
+            parameters=(),
+            returns=R("dict", "MPR v1 attestation block"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_left_mult", owner="srmech",
+            category="qm.octonion",
+            summary="Left-multiplication matrix L_a (x → a·x) as 8×8 real; "
+                    "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
+                    "(binding). Baez (2002) §2.3-2.4.",
+            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            returns=R("np.ndarray", "8×8 L_a"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_right_mult", owner="srmech",
+            category="qm.octonion",
+            summary="Right-multiplication matrix R_a (x → x·a) as 8×8 real; "
+                    "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
+                    "(binding). Baez (2002) §2.3-2.4.",
+            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            returns=R("np.ndarray", "8×8 R_a"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_conjugate", owner="srmech",
+            category="qm.octonion",
+            summary="Octonion conjugate conj(x) = (x_0, -x_1, …, -x_7); flips "
+                    "the imaginary-axis signs. Class C (orientation). "
+                    "Baez (2002) §2.1.",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            returns=R("np.ndarray", "8-vector"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_norm", owner="srmech",
+            category="qm.octonion",
+            summary="Octonion norm √(Σ x_i²) via the scalar Class K pin-slot "
+                    "magnitude (cascade.magnitude) then sqrt — never abs(). "
+                    "Class K∘C. Baez (2002) §2.1.",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.so8 — the 28-generator so(8) adjoint, partitioned
+        # 14 (g2 = Der O) + 7 (L-type) + 7 (R-type). The 14 = the A-N
+        # 1+3+7+3 partition. Class M (g2 + L/R binders); Class C (so7).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.so8.so8_adjoint_basis", owner="srmech",
+            category="qm.so8",
+            summary="The 28 antisymmetric 8×8 so(8) generators in partitioned "
+                    "order 14 (g2 = Der O) + 7 (L-type L_{e_i}) + 7 (R-type "
+                    "R_{e_i}). Class M. Baez (2002) §2.4 + §4.1.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]",
+                      "28 antisymmetric 8×8, partitioned 14+7+7"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.g2_subalgebra", owner="srmech",
+            category="qm.so8",
+            summary="The 14 octonion derivations Der(O) = g2 (deterministic "
+                    "rank-revealing numpy subset of the 21 D_{e_i,e_j}; rank "
+                    "exactly 14). The Fix(τ) killer-test target. Class M. "
+                    "Baez (2002) §4.1; Schafer (1966).",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "14 derivations (antisym 8×8)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.so7_subalgebra", owner="srmech",
+            category="qm.so8",
+            summary="The 21-dim so(7) fixed space ker(S_B − I) (D4 → B3 Z2 "
+                    "fold), as antisymmetric 8×8 generators (deterministic "
+                    "SVD nullspace). Class C. Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "21 generators (antisym 8×8)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.triality — the Spin(8) triality engine. The 28×28
+        # order-3 outer automorphism τ = S_B @ S_C (Fix(τ) = g2 = 14),
+        # the Z2 swap, Cartan companions + residual. Class I (cyclic),
+        # Class C (swap), Class M (companions), Class K∘C (residual).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.triality.triality_automorphism", owner="srmech",
+            category="qm.triality",
+            summary="The 28×28 order-3 outer automorphism τ = S_B·S_C "
+                    "(product of the two companion involutions); τ³ = I, "
+                    "τ ≠ I, Fix(τ) = g2 dim 14 (D4 →Z3 G2). Class I. "
+                    "Baez (2002) §2.4; Cartan (1925).",
+            parameters=(),
+            returns=R("np.ndarray", "28×28 τ, τ³ = I"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_swap", owner="srmech",
+            category="qm.triality",
+            summary="The 28×28 Z2 companion involution S_B; S_B² = I, "
+                    "Fix(S_B) = so(7) dim 21 (D4 →Z2 B3). With τ generates "
+                    "S3 = Out(Spin(8)). Class C. Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("np.ndarray", "28×28 Z2 involution"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_cycle", owner="srmech",
+            category="qm.triality",
+            summary="The next frame in the order-3 rep-permutation "
+                    "8v → 8s → 8c → 8v (Class-I mod-3 cyclic step via "
+                    "srmech.amsc.cyclic.mod_add). Raises on an unknown frame. "
+                    "Baez (2002) §2.4.",
+            parameters=(P("frame", "str", True, "8v/8s/8c frame label"),),
+            returns=R("str", "next frame in 8v → 8s → 8c"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_apply", owner="srmech",
+            category="qm.triality",
+            summary="Carry an 8-vector between irrep frames per the cycle "
+                    "distance (Class I frame-transport ∘ Class M companions). "
+                    "Raises on a wrong shape or unknown frame. "
+                    "Baez (2002) §2.4; Cartan (1925).",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),
+                        P("from_frame", "str", True, "source frame label"),
+                        P("to_frame", "str", True, "target frame label")),
+            returns=R("np.ndarray", "8-vector in to_frame"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_companions", owner="srmech",
+            category="qm.triality",
+            summary="The (g_s, g_c) companions solving Cartan's relation "
+                    "g_v(x·y) = g_s(x)·y + x·g_c(y) by deterministic "
+                    "least-squares; for a g2 derivation g_s = g_c = g_v. "
+                    "Class M. Baez (2002) §2.4.",
+            parameters=(P("g_v", "np.ndarray", True, "8×8 so(8) generator"),),
+            returns=R("tuple[np.ndarray, ...]", "(g_s, g_c) companions"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_relation_residual",
+            owner="srmech", category="qm.triality",
+            summary="Scalar Cartan-relation deviation Σ_ij ‖g_v(e_i·e_j) − "
+                    "g_s(e_i)·e_j − e_i·g_c(e_j)‖ via the scalar Class K "
+                    "pin-slot magnitude (never abs()); 0 when correct. "
+                    "Class K∘C. Baez (2002) §2.4.",
+            parameters=(P("g_v", "np.ndarray", True, "8×8 generator"),
+                        P("g_s", "np.ndarray", True, "8×8 8_s companion"),
+                        P("g_c", "np.ndarray", True, "8×8 8_c companion")),
+            returns=R("float", "0 when the Cartan relation holds"),
+        ),
     ]
     for e in entries:
         register_tool(e)
