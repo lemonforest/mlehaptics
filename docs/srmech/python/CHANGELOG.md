@@ -4,7 +4,56 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.7** — chiral-cascade research items from MFO §VIII.31.11 §(5d) (the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, the RBS Klein-4 parity tie-in), and deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
+
+## [0.5.0rc17] - 2026-05-29
+
+**rc17 of N for v0.5.0 — the SO(8) TRIALITY voxel.** Three new `srmech.qm`-layer
+surfaces make the so(8)/Spin(8) triality structure a callable, bit-exact-tested
+surface (the full 28 = 𝔰𝔬(8) chiral read-out long flagged in [Unreleased]):
+
+- **`srmech.qm.octonion`** — the MPR-attested Cayley-Dickson-from-H octonion
+  multiplication table (an `(8,8,8)` int8 structure-constant tensor whose
+  `octonion_table_attestation()` content-addresses the table bytes via
+  `srmech.amsc.format.sha256_bytes` — **no new `hashlib.sha256`**) + the
+  `octonion_left_mult` / `octonion_right_mult` `L_a` / `R_a` binders,
+  `octonion_conjugate`, and `octonion_norm` (Class K ∘ C, **never `abs()`**:
+  the scalar sum-of-squares is reduced through `srmech.amsc.cascade.magnitude`).
+- **`srmech.qm.so8`** — the 28-generator `so(8)` adjoint partitioned
+  **14 (g2 = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`,
+  `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy
+  subset, **no `np.random`**), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold).
+- **`srmech.qm.triality`** — the `28×28` order-3 outer automorphism
+  `τ = S_B · S_C` (the PRODUCT of the two companion involutions, NOT a naive
+  `A → B` map) with **`Fix(τ) = g2` (dim 14) = the A-N `1+3+7+3` partition**
+  (the `D4 → G2` Z3 fold), the Z2 swap (`Fix = so(7)`, dim 21), the Class-I
+  `8v → 8s → 8c` cycle (via `srmech.amsc.cyclic.mod_add`), the frame-transport
+  `triality_apply`, the Cartan companions `triality_companions`, and the
+  Class K ∘ C `triality_relation_residual` (never `abs()`).
+
+Six bit-exact acceptance tests (`tests/test_so8_triality.py`): `τ³ = I` /
+`τ ≠ I` / `τ² ≠ I`; the KILLER `Fix(τ) = g2 = 14` (belt-and-suspenders rank
+asserts + bidirectional projection residual); `Fix(Z2) = so(7) = 21`; Cartan
+residual = 0 over a g2/L/R sample; rep inequivalence + cycle closure; octonion
+convention attested + reproducible. Residuals `≤ 4e-14`.
+
+**+15 ToolEntries (158 → 173)** — `octonion_table_attestation` gets its own
+ToolEntry (the coverage walker demands one for every public `srmech.qm.*`
+callable). `operator_name` `__module__` hardening: a name that traverses
+THROUGH a srmech module to a re-exported stdlib callable
+(`srmech.amsc.format.hashlib.sha256` → the real `_hashlib` sha256) is now
+rejected by a post-resolution `__module__` check. The PyPI README is refreshed
+for BOTH the rc16 handle-grammar surface and the rc17 triality surface.
+Pure-Python only — no C source change; **ABI stays 3** (the C header's VERSION
+strings bump to rc17, the `SRMECH_ABI_VERSION` integer does not).
+
+Framework reading: the τ-fixed subalgebra of `so(8)` being exactly the 14 `g2`
+derivations — the same 14 as the A-N `1+3+7+3` partition — is the keystone tying
+the cascade vocabulary to the Spin(8) triality engine
+(`endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8) triality`). Class A (the attested
+table), Class M (the L/R binders + g2 derivations + companions), Class C (the
+Z2 swap + conjugation), Class I (the order-3 cyclic rep-permutation), Class
+K ∘ C (the norm + residual, no `abs()`).
 
 ## [0.5.0rc16] - 2026-05-29
 

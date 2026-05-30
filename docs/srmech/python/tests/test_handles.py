@@ -274,6 +274,31 @@ def test_resolve_operator_name_accepts_srmech_op() -> None:
     assert fn([1.0, 2.0, 3.0]) == [3.0, 2.0, 1.0]
 
 
+def test_resolve_operator_name_rejects_reexported_stdlib() -> None:
+    """rc17 hardening: the ``srmech.*`` name PREFIX is necessary but not
+    sufficient. A name that traverses THROUGH a srmech module to a
+    re-exported stdlib callable (``srmech.amsc.format.hashlib.sha256`` ->
+    the real ``_hashlib`` ``sha256``) is REJECTED by the post-resolution
+    ``__module__`` check, even though its dotted name starts with
+    ``srmech.``."""
+    import srmech.amsc.format as _fmt
+
+    # Precondition: the re-exported callable is NOT defined in srmech.
+    assert _fmt.hashlib.sha256.__module__ != "srmech.amsc.format"
+    with pytest.raises(ValueError):
+        resolve_operator_name("srmech.amsc.format.hashlib.sha256")
+
+
+def test_resolve_operator_name_still_accepts_genuine_srmech_op() -> None:
+    """The rc17 hardening does NOT regress a genuine in-namespace operator:
+    ``srmech.amsc.cascade.chiral_flip`` (``__module__`` is
+    ``srmech.amsc.cascade``) still resolves and round-trips."""
+    fn = resolve_operator_name("srmech.amsc.cascade.chiral_flip")
+    assert fn.__module__ == "srmech.amsc.cascade"
+    assert callable(fn)
+    assert fn([1.0, 2.0, 3.0]) == [3.0, 2.0, 1.0]
+
+
 def test_resolve_operator_name_rejects_non_srmech_namespace() -> None:
     """Anything outside the ``srmech.`` namespace is rejected with a clean
     ValueError BEFORE any import is attempted (os.system, builtins, stdlib,

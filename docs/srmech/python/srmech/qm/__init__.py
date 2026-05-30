@@ -39,6 +39,16 @@ Submodules:
   structure constants, Casimirs, Wilson-loop holonomy.
 - :mod:`srmech.qm.sm` — Electroweak unification, Higgs mechanism, Yukawa
   fermion masses, CKM matrix.
+- :mod:`srmech.qm.octonion` — the MPR-attested Cayley-Dickson-from-H
+  octonion multiplication table + ``L_a`` / ``R_a`` binders, conjugate,
+  norm (Class K ∘ C, never ``abs()``).
+- :mod:`srmech.qm.so8` — the 28-generator ``so(8)`` adjoint partitioned
+  ``14 (g2 = Der O) + 7 (L-type) + 7 (R-type)``; ``g2_subalgebra`` (the 14),
+  ``so7_subalgebra`` (the 21; ``D4 -> B3`` fold).
+- :mod:`srmech.qm.triality` — the Spin(8) triality engine: the ``28×28``
+  order-3 outer automorphism ``τ = S_B ∘ S_C`` (``τ³ = I``,
+  ``Fix(τ) = g2`` dim 14 = the A-N ``1+3+7+3`` partition), the ``Z2`` swap,
+  Cartan companions + residual.
 
 Canonical SSoT:
 
@@ -58,23 +68,29 @@ Canonical SSoT:
 from srmech.qm import (
     bell,
     gauge,
+    octonion,
     potentials,
     propagators,
     pseudo_hermitian,
     relativistic,
     single_particle,
     sm,
+    so8,
     spin,
+    triality,
 )
 
 __all__ = [
     "bell",
     "gauge",
+    "octonion",
     "potentials",
     "propagators",
     "pseudo_hermitian",
     "relativistic",
     "single_particle",
     "sm",
+    "so8",
     "spin",
+    "triality",
 ]

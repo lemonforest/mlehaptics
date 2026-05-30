@@ -1841,12 +1841,12 @@ def test_every_advertised_tool_invocable() -> None:
 
 
 def test_handle_pending_absent_from_advertised_catalogs() -> None:
-    """v0.5.0rc16 — the rc15 catalog-EXCLUSION ratchet is INVERTED to a
-    catalog-INCLUSION ratchet. The 7 ``srmech.spectral.*`` tools became
-    ``mcp_callable=True`` once the by-reference ``$srmech_handle`` grammar
-    landed, so there are now ZERO handle-pending tools and all 7 spectral
-    names are PRESENT in BOTH advertised surfaces (MCP ``tools/list`` via
-    ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
+    """v0.5.0rc16 (held through rc17) — the rc15 catalog-EXCLUSION ratchet is
+    INVERTED to a catalog-INCLUSION ratchet. The 7 ``srmech.spectral.*`` tools
+    became ``mcp_callable=True`` once the by-reference ``$srmech_handle``
+    grammar landed, so there are now ZERO handle-pending tools and all 7
+    spectral names are PRESENT in BOTH advertised surfaces (MCP ``tools/list``
+    via ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
     seam). (If a residual handle-pending tool is ever introduced later, a
     fresh exclusion assertion can be re-added for it.)"""
     schema = get_tool_schema()

@@ -91,14 +91,22 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0rc16():
-    """v0.5.0rc16 — handle dual-grammar voxel: the by-reference
-    ``$srmech_handle`` id (name+uuid) + the package-scope
-    ``srmech._handles`` registry make the 7 ``srmech.spectral.*`` tools
-    JSON-callable (handle_pending 7->0), and ``chiral_dual``'s ``op`` is
-    accepted as a dotted ``srmech.*`` operator-name. This builds on the
-    rc15 every-tool invocation smoke + honest mcp_callable marking
-    (upstream §10.1).
+def test_version_is_0_5_0rc17():
+    """v0.5.0rc17 — the SO(8) TRIALITY voxel: three new qm-layer surfaces
+    (``srmech.qm.octonion`` / ``srmech.qm.so8`` / ``srmech.qm.triality``)
+    expose the octonion Cayley-Dickson-from-H table, the 28-generator
+    ``so(8)`` adjoint (14 g2 + 7 L + 7 R), and the ``28x28`` order-3 outer
+    automorphism ``tau`` with ``Fix(tau) = g2`` (dim 14 = the A-N
+    ``1+3+7+3`` partition). +15 ToolEntries (158 -> 173). Plus the
+    ``operator_name`` ``__module__`` hardening (rejects re-exported stdlib
+    reached through a srmech module). Pure-Python; ABI stays 3.
+
+    This builds on the rc16 handle dual-grammar voxel: the by-reference
+    ``$srmech_handle`` id (name+uuid) + the package-scope ``srmech._handles``
+    registry make the 7 ``srmech.spectral.*`` tools JSON-callable
+    (handle_pending 7->0), and ``chiral_dual``'s ``op`` is accepted as a
+    dotted ``srmech.*`` operator-name. This builds on the rc15 every-tool
+    invocation smoke + honest mcp_callable marking (upstream §10.1).
 
     rc14 made all declared param TYPES JSON-coercible and shipped the
     static ``has_coercer`` ratchet. But ``has_coercer`` could not tell a
@@ -143,8 +151,8 @@ def test_version_is_0_5_0rc16():
     introspection) at package scale — the apparatus thesis. No new
     primitive class is introduced.
     """
-    assert srmech.__version__ == "0.5.0rc16", (
-        f"expected srmech.__version__ == '0.5.0rc16'; got "
+    assert srmech.__version__ == "0.5.0rc17", (
+        f"expected srmech.__version__ == '0.5.0rc17'; got "
         f"{srmech.__version__!r}"
     )
 
