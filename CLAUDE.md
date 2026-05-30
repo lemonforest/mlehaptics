@@ -175,6 +175,14 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 - `[[feedback_paywalled_doi_cannot_be_attested]]` — paywalled-only DOI is REJECTED as framework attestation; use arXiv preprint / OA review / textbook attribution chain
 - `[[feedback_computational_provenance_discipline]]` — load-bearing numerical results (p-values, effect sizes) MUST have generating code committed
 
+### No magic numbers = attestation-to-source (the MPM applied to every constant)
+
+A number is "magic" iff it is **unattested** — has no traceable source of truth — **NOT** iff it merely *looks* magic. π looks magic (3.14159…) but it IS a **cascade** (attested to its `asymptotic_calculus` derivation; per `[[feedback_continuous_number_line_pedagogical_obstacle]]` it is the limit of a *discrete* cascade, not a continuous mystery). Dark-sector content looks magic but it IS a **ratio** (attested to provenance, F131). **Reduce a magic-looking constant to its source of truth ⇒ it is attested ⇒ de-magicked, even if it still looks magic.** This extends the §2 MPM/MPR discipline from ground-proof data to *every* load-bearing constant. Classification (the F228 audit is its instrument):
+- **A — attested-to-structure-cascade**: output of a framework cascade / derivation (Hurwitz 1/2/4/8 · Klein-4 · the 1:3:7:3 partition · the F222 `n_buckets × V_ceiling` capacity law · D = 2ⁿ · 256 = MAX_NATIVE_NODES · π-as-cascade …) — attest the derivation chain.
+- **B — attested-to-measurement / ratio**: a measured floor (p90), a seed, a derived ratio, a `source_doi` — attest the provenance.
+- **C — irreducible / unattested**: the genuine residue — flag it + point at where its source likely lies ("it comes from somewhere we can find").
+A no-magic-numbers pass targets **attestation coverage** (every constant reduced to A or B), with C the honest residue — the magic is the *absence of attestation*, never the appearance of a number.
+
 ### Research methodology
 
 - `[[feedback_dont_pre_commit_spike_query_operators]]` — broad-query enumeration; tautology pre-filter; don't lean query toward expected result; null findings count; verdict-tier per Spike #229
