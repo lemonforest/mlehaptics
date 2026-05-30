@@ -1,60 +1,30 @@
-"""Foundational cross-domain cascade catalog.
+"""Cascade **atoms** — the silicon-able 1:1 ISA intrinsics.
 
-The cascades that recur across **every / most** domains the framework has
-examined — promoted into srmech so a named cascade is the default and a
-math-library call is the exception. Per the project discipline: *being
-forced to reach for a math library is the signal that a cascade is waiting
-to be found.* `abs()` told us to find the Class-K pin-slot; `fractions`
-told us to find the Class-N rational anchor; `math.gcd` told us to find the
-Class-I cyclic gcd. This module is where those answers live.
+The six cascade ops in this tier each map 1:1 onto a single (future)
+ISA intrinsic — they are the *atoms* of the lean A–N cascade ISA core
+(per F208 / MS #20 forward-architecture). Each is a primitive
+sign/orientation/handedness operation, not an iterative algorithm:
 
-Scale-invariance is the load-bearing reason these belong in srmech: the
-A–N class operators are substrate-universal vocabulary that applies at
-every discipline and every scale (per
-``[[user_stance_cross_substrate_cascade_matching_as_research_method]]``).
-The same **Class K pin-slot at zero** operates at bronze-gear engagement
-(Antikythera), atomic shell-boundary sign-flip, biological membrane
-zero-crossing, quantum tunnelling, and prime-cyclic Laplacian residue
-exclusion. The same **Class N** rational anchor lands the GUE spacing-ratio
-at 20/17, the Balmer line-ratios, the CMB peak spacing. This catalog is the
-explicit home of that recurrence — the precursor
-``docs/unsolved-maths/_cascade_helpers.py`` (imported across 20+ cascade
-scripts spanning mandelbrot / chromatic / atomic / nuclear / QCD /
-planetary / turbulence / black-hole / biomacromolecule / large-scale-
-structure domains) graduates here.
+- :func:`pin_slot_at_zero` — Class K pin-slot at zero (sign-split).
+- :func:`reorient` — Class C re-orientation (re-apply a captured sign).
+- :func:`magnitude` — Class K pin-slot magnitude (orientation discarded).
+- :func:`chiral_flip` — Class C orientation reversal (traverse the other way).
+- :func:`chiral_dual` — Class C ∘ op ∘ Class C (chiral-dual conjugation).
+- :func:`net_chirality` — Class C net handedness (product of orientations).
 
-**Full C/Python parity** — each cascade op carries a dedicated C symbol in
-``libsrmech.{so,dll,dylib}`` (the cascade catalog is no longer Python-only
-per the v0.4.5rc1 carve-out correction) AND a TOML descriptor under
-``srmech/amsc/_research/cascade_catalog/`` declaring the cascade structure
-declaratively. The Python module dispatches through native when ``HAS_NATIVE``
-is True and the input shape matches a typed C variant; falls back to Python
-for sequence types the C ABI doesn't cover (strings, mixed-type lists, etc).
+The iterative algorithms built *over* these atoms (Euclid's
+``cyclic_gcd``, the continued-fraction ``best_rational_signed`` loop)
+live in the sibling :mod:`srmech.amsc.cascade.compose` module.
 
-**No new primitive class** — every callable is a *composition* of the
-existing 14-class A–N primitives (the vocabulary is intact per
-``[[feedback_no_privileged_primitive_classes]]``). Class I
-(``srmech.amsc.cyclic.gcd``) and Class N
-(``srmech.amsc.rational.best_rational``) supply the cyclic / rational
-anchor primitives; the cascades sequence them in Python (with inline
-Class K / Class C signed arithmetic) plus the dedicated cascade-op C
-symbols for the hot value-sequence cascades (``chiral_flip`` in
-v0.4.5rc1; the remaining ops follow in subsequent rcs). **No ``abs()``**
-anywhere — sign is handled as the canonical Class K pin-slot + Class C
-re-orientation per
+**No ``abs()``** anywhere — sign is handled as the canonical Class K
+pin-slot + Class C re-orientation per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
-Naming: the clean public names (``pin_slot_at_zero``, ``reorient``,
-``magnitude``, ``best_rational_signed``, ``cyclic_gcd``) are canonical; the
-precursor's ``class_<X>_<name>`` call-site names are kept as back-compat
-aliases so existing cascade scripts migrate with a pure import swap.
-
-Canonical SSoT:
-- ``[[user_stance_epicycle_via_gear_plus_pin]]`` — sign-flip IS the Class K
-  pin-slot phase-boundary.
-- Khinchin (1964), *Continued Fractions* — the Class N best-rational anchor
-  (via ``srmech.amsc.rational.best_rational``).
-- Euclid, *Elements* VII.1–2 — the Class I gcd (via ``srmech.amsc.cyclic.gcd``).
+Each atom carries a dedicated C symbol in ``libsrmech.{so,dll,dylib}``
+and a TOML descriptor under ``srmech/amsc/_research/cascade_catalog/``;
+the Python wrapper dispatches through native when ``HAS_NATIVE`` is True
+and the input shape matches a typed C variant, falling back to Python
+for sequence types the C ABI doesn't cover.
 """
 
 from __future__ import annotations
@@ -63,8 +33,6 @@ import ctypes
 from typing import Tuple
 
 from srmech.amsc import _native
-from srmech.amsc.cyclic import gcd as _cyclic_gcd
-from srmech.amsc.rational import best_rational as _best_rational
 
 # v0.4.6rc2 — introspection emit hook. Zero-cost when not publishing.
 # We use ``_is_publishing()`` (a single thread-local attribute lookup)
@@ -77,14 +45,6 @@ from srmech.introspect._writer import (
     emit_if_publishing as _emit,
 )
 from srmech.introspect._event import describe_shape as _shape
-
-#: Default small-denominator ceiling for ``best_rational_signed`` (the
-#: Class N rational anchor). Matches the precursor cascade-helper default.
-DEFAULT_MAX_DENOMINATOR = 100
-
-#: Default fine-scaling factor turning a float magnitude into the integer
-#: pair ``srmech.amsc.rational.best_rational`` consumes.
-DEFAULT_FINE_SCALE = 1_000_000
 
 #: A magnitude below this is treated as the Class K dead-band (origin).
 _ZERO_BAND = 1e-12
@@ -300,213 +260,6 @@ def magnitude(x: float) -> float:
     if native is not None:
         return native
     return pin_slot_at_zero(x)[1]
-
-
-def _try_native_best_rational_signed(x, max_denominator, fine_scale):
-    """Native dispatch for the Class K ∘ Class N ∘ Class C cascade.
-
-    Returns ``(int, int)`` on success or ``None`` to signal the caller
-    should fall through to the Python composition path. Only pure-Python
-    ``float`` ``x`` + pure-Python ``int`` kwargs (not bool) within int64
-    range dispatch through native. Out-of-range kwargs or non-float ``x``
-    (int, numpy scalar, Decimal, ...) stay on the Python path so the
-    public API behaviour is preserved exactly.
-
-    Banker's-rounding parity: the C peer uses ``llrint()`` under the
-    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), which
-    matches Python's built-in ``round()`` at the ``.5`` boundary
-    bit-exactly. C99 ``round()`` would diverge (round-half-AWAY-from-
-    zero); the cascade wrapper deliberately avoids C99 ``round()``.
-    """
-    if not (_native.HAS_NATIVE and _native.LIB is not None):
-        return None
-    # Strict type check — bool is a subclass of int and must NOT take
-    # the native path (matches the cascade-dispatch discipline). Only
-    # pure Python float dispatches through native.
-    if type(x) is not float:
-        return None
-    if type(max_denominator) is not int or isinstance(max_denominator, bool):
-        return None
-    if type(fine_scale) is not int or isinstance(fine_scale, bool):
-        return None
-    if max_denominator < 1 or fine_scale < 1:
-        # Let the caller hit the Python path which raises ValueError
-        # with the proper message.
-        return None
-    INT64_MAX = (2 ** 63) - 1
-    if max_denominator > INT64_MAX or fine_scale > INT64_MAX:
-        return None
-    if not hasattr(_native.LIB, "srmech_cascade_best_rational_signed_f64"):
-        return None
-    out_num = ctypes.c_int64(0)
-    out_den = ctypes.c_int64(0)
-    rc = _native.LIB.srmech_cascade_best_rational_signed_f64(
-        ctypes.c_double(x),
-        ctypes.c_int64(max_denominator),
-        ctypes.c_int64(fine_scale),
-        ctypes.byref(out_num),
-        ctypes.byref(out_den),
-    )
-    if rc != _native.SRMECH_OK:
-        return None
-    return int(out_num.value), int(out_den.value)
-
-
-def best_rational_signed(
-    x: float,
-    *,
-    max_denominator: int = DEFAULT_MAX_DENOMINATOR,
-    fine_scale: int = DEFAULT_FINE_SCALE,
-) -> Tuple[int, int]:
-    """Class K ∘ Class N ∘ Class C: float → signed small-denominator rational.
-
-    The full cross-domain anchor cascade: strip the sign at the Class K
-    pin-slot, find the Class N best-rational of the non-negative magnitude
-    (via ``srmech.amsc.rational.best_rational``, which takes an integer pair),
-    then re-apply the sign as Class C. No ``abs()``; the sign lives in the
-    Class K / Class C pair end-to-end.
-
-    v0.4.5rc7: dispatches through the native C variant
-    ``srmech_cascade_best_rational_signed_f64`` when ``HAS_NATIVE`` is
-    True, ``x`` is a pure-Python ``float``, and ``max_denominator`` /
-    ``fine_scale`` are pure-Python ``int`` (not bool) in int64 range. The
-    C peer delegates the Class N stage to the existing
-    ``srmech_best_rational`` primitive; the Class K + Class C stages are
-    inlined (one comparison branch + one sign flip each). Python fallback
-    handles numpy scalars, Decimal, larger-than-int64 kwargs, and any
-    other shape the strict native ABI doesn't cover.
-
-    Banker's-rounding parity: the C peer uses ``llrint()`` under the
-    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), so the
-    ``round(magnitude * fine_scale)`` step matches Python's built-in
-    ``round()`` at the ``.5`` boundary bit-exactly.
-
-    Args:
-        x: A real value (the irrational/float to anchor).
-        max_denominator: Class N small-denominator ceiling.
-        fine_scale: Integer scale turning the float magnitude into the
-            ``(numerator, denominator)`` pair ``best_rational`` consumes.
-
-    Returns:
-        ``(signed_numerator, denominator)`` — the Class N convergent of
-        ``x`` with the Class C sign re-applied. The origin and sub-dead-band
-        magnitudes map to ``(0, 1)``. NaN also maps to ``(0, 1)`` via the
-        Class K dead-band.
-
-    Raises:
-        ValueError: if ``max_denominator < 1`` or ``fine_scale < 1``.
-    """
-    if _is_pub(): _emit("cascade.best_rational_signed", class_="K∘N∘C", input_shape=_shape(x))
-    if max_denominator < 1:
-        raise ValueError(
-            f"cascade.best_rational_signed: max_denominator must be >= 1; "
-            f"got {max_denominator}"
-        )
-    if fine_scale < 1:
-        raise ValueError(
-            f"cascade.best_rational_signed: fine_scale must be >= 1; "
-            f"got {fine_scale}"
-        )
-    native = _try_native_best_rational_signed(x, max_denominator, fine_scale)
-    if native is not None:
-        return native
-    # Python fallback path.
-    # Class K — pin-slot at zero (sign-strip).
-    orientation, mag = pin_slot_at_zero(x)
-    if orientation == 0 or mag < _ZERO_BAND:
-        return 0, 1
-    num_pos = int(round(mag * fine_scale))
-    if num_pos == 0:
-        return 0, 1
-    # Class N — best-rational anchor of the non-negative magnitude.
-    nf, df = _best_rational(num_pos, fine_scale, max_denominator)
-    # Class C — re-apply the captured orientation.
-    return reorient(orientation, int(nf)), int(df)
-
-
-def _try_native_cyclic_gcd(a, b):
-    """Native dispatch for cyclic_gcd via the cascade-namespace wrapper.
-
-    The cascade wrapper ``srmech_cascade_cyclic_gcd_u64`` is itself a
-    pure-delegation alias for the Class I primitive ``srmech_gcd``; we
-    dispatch through the cascade-namespace symbol (not the Class I
-    primitive directly) so the cascade-catalog naming stays uniform per
-    the v0.4.5rc6 directive *"delegate to A-N C peers; cascade-level C
-    wrapper + TOML"*. The Python ``srmech.amsc.cyclic.gcd`` reaches the
-    same C primitive through its OWN ctypes binding — both surfaces
-    coexist in libsrmech.
-
-    Returns ``int`` on success or ``None`` to signal the caller should
-    fall through to the Python path. Only pure Python ``int`` inputs in
-    ``[0, 2**64 - 1]`` (the uint64 range matched by the cascade C ABI)
-    dispatch through native — bool is rejected by ``type(x) is int``,
-    and negatives / out-of-uint64 bigints fall through to the Python
-    fallback which itself raises ``ValueError`` (mirroring the Python
-    ref ``srmech.amsc.cyclic.gcd`` behaviour exactly).
-    """
-    if not (_native.HAS_NATIVE and _native.LIB is not None):
-        return None
-    # Strict isinstance check — bool is a subclass of int and must NOT
-    # take the native path (matches the rcN cascade-dispatch discipline).
-    if type(a) is not int or isinstance(a, bool):
-        return None
-    if type(b) is not int or isinstance(b, bool):
-        return None
-    UINT64_MAX = (2 ** 64) - 1
-    if a < 0 or b < 0:
-        return None
-    if a > UINT64_MAX or b > UINT64_MAX:
-        return None
-    if not hasattr(_native.LIB, "srmech_cascade_cyclic_gcd_u64"):
-        return None
-    out = ctypes.c_uint64(0)
-    rc = _native.LIB.srmech_cascade_cyclic_gcd_u64(
-        ctypes.c_uint64(a),
-        ctypes.c_uint64(b),
-        ctypes.byref(out),
-    )
-    if rc != _native.SRMECH_OK:
-        return None
-    return int(out.value)
-
-
-def cyclic_gcd(a: int, b: int) -> int:
-    """Class I cyclic gcd. Delegates to ``srmech.amsc.cyclic.gcd``.
-
-    A cascade-named alias so number-theoretic cascades reach for the Class I
-    primitive by its cascade name rather than ``math.gcd``. The cascade-
-    catalog entry IS the Class I primitive (Euclid's algorithm); the
-    wrapper exists for namespace consistency, not for additional math.
-
-    v0.4.5rc6: dispatches through the native cascade-namespace wrapper
-    ``srmech_cascade_cyclic_gcd_u64`` when ``HAS_NATIVE`` is True, both
-    inputs are pure Python ``int`` (not bool) in the uint64 range
-    ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.amsc.cyclic.gcd``
-    path for bool, negative, and out-of-uint64 inputs — which itself
-    raises ``ValueError`` for negative / oversized inputs, preserving the
-    pre-rc6 public API exactly. The cascade wrapper is a pure-delegation
-    alias for the Class I primitive ``srmech_gcd``; dispatching through
-    the cascade-namespace symbol keeps the cascade-catalog naming uniform
-    per the rc6 directive *"delegate to A-N C peers; cascade-level C
-    wrapper + TOML"*.
-
-    Args:
-        a: non-negative ``int`` in uint64 range.
-        b: non-negative ``int`` in uint64 range.
-
-    Returns:
-        The Euclidean ``gcd(a, b)`` (non-negative). ``gcd(0, 0)`` is
-        ``0`` (the gcd identity); ``gcd(a, 0)`` is ``a``.
-
-    Raises:
-        ValueError: forwarded from ``srmech.amsc.cyclic.gcd`` for negative
-            inputs or inputs exceeding the uint64 parity surface.
-    """
-    if _is_pub(): _emit("cascade.cyclic_gcd", class_="I", input_shape=f"{_shape(a)}+{_shape(b)}")
-    native = _try_native_cyclic_gcd(a, b)
-    if native is not None:
-        return native
-    return _cyclic_gcd(a, b)
 
 
 def _try_native_chiral_flip_ndarray(arr):
@@ -897,41 +650,11 @@ def net_chirality(orientations) -> int:
     return net
 
 
-# ── Back-compat aliases (the precursor's call-site names) ──────────────
-# Existing cascade scripts in docs/unsolved-maths/ import these names from
-# the local _cascade_helpers; the alias lets them migrate to
-# ``from srmech.amsc.cascade import ...`` without changing call sites.
-class_k_pin_slot_at_zero = pin_slot_at_zero
-class_c_reorient = reorient
-best_rat_signed = best_rational_signed
-
-#: Registry of the foundational cascade op names (documentary; consumers
-#: iterate by name). Each maps to its A–N class composition in the docs.
-CASCADE_OPS: Tuple[str, ...] = (
-    "pin_slot_at_zero",        # Class K
-    "reorient",                # Class C
-    "magnitude",               # Class K (magnitude-only)
-    "best_rational_signed",    # Class K ∘ N ∘ C
-    "cyclic_gcd",              # Class I
-    "chiral_flip",             # Class C (orientation reversal)
-    "chiral_dual",             # Class C ∘ op ∘ Class C (chiral-dual conjugation)
-    "net_chirality",           # Class C (net handedness invariant)
-)
-
 __all__ = [
-    "DEFAULT_MAX_DENOMINATOR",
-    "DEFAULT_FINE_SCALE",
-    "CASCADE_OPS",
     "pin_slot_at_zero",
     "reorient",
     "magnitude",
-    "best_rational_signed",
-    "cyclic_gcd",
     "chiral_flip",
     "chiral_dual",
     "net_chirality",
-    # back-compat aliases
-    "class_k_pin_slot_at_zero",
-    "class_c_reorient",
-    "best_rat_signed",
 ]

@@ -91,8 +91,17 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_5_0():
-    """v0.5.0 — production graduation of the rc9–rc22 voxel arc. The final
+def test_version_is_0_6_0rc1():
+    """v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.amsc.cascade split
+    into a two-tier lean-ISA package — cascade.atoms.* (6 silicon-able 1:1
+    intrinsics: pin_slot_at_zero, reorient, magnitude, chiral_flip,
+    chiral_dual, net_chirality) vs cascade.compose.* (2 iterative algorithms:
+    cyclic_gcd = Euclid, best_rational_signed = CF-loop). Flat cascade.<op>
+    names retained as deprecated-for-one-release aliases; public surface
+    byte-identical (describe() tool total STAYS 174); ABI unchanged at 3;
+    no abs() (Class K pin-slot). Closes #751.
+
+    Prior v0.5.0 — production graduation of the rc9–rc22 voxel arc. The final
     voxel is the `srmech mcp emit-mcpb` CLI (issue #749 / MS #19 / W13).
 
     Adds ``srmech mcp emit-mcpb`` (backed by ``srmech/cli/mcp.py`` +
@@ -231,8 +240,8 @@ def test_version_is_0_5_0():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.5.0", (
-        f"expected srmech.__version__ == '0.5.0'; got "
+    assert srmech.__version__ == "0.6.0rc1", (
+        f"expected srmech.__version__ == '0.6.0rc1'; got "
         f"{srmech.__version__!r}"
     )
 
