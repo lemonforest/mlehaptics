@@ -205,6 +205,147 @@ retrieved_at = "2026-05-29"
 license      = "public domain (Project Gutenberg)"
 
 # ---------------------------------------------------------------------------
+# Strong-invariance test (F199 / R-RBS-LM-143) — SEVERAL within-source translation
+# clusters, so within-vs-across becomes statistically meaningful (F171 was n=1).
+# ---------------------------------------------------------------------------
+# The F171/F172 core test had ONE Quran pair (n=1). The strong test sources MULTIPLE
+# translations of the SAME source so WITHIN-source storage-similarity is a DISTRIBUTION
+# tested against the ACROSS-source distribution. Three within-source clusters:
+#   (1) QURAN  — 5 translations of the identical Arabic source: Sale, Rodwell,
+#                Yusuf-Ali, Pickthall, Shakir  -> C(5,2)=10 within-pairs
+#   (2) BIBLE-OT — KJV-OT vs WEB-OT (Books 01-39)  -> 1 within-pair
+#   (3) BIBLE-NT — KJV-NT vs WEB-NT (Books 40-66)  -> 1 within-pair
+# Pre-specified outcomes (spike-query discipline; nulls count): (a) storage HIGH
+# within-source / LOW across-source while expression varies -> NT/ND storage
+# hypothesis supported; (b) storage also varies within-source -> not a clean storage
+# axis (null); (c) can't source enough pairs -> scope-limited. Storage signatures are
+# srmech-native Class L (co-occurrence Laplacian eigenspectrum + envelope-residual +
+# 28D chirality K1-chiral) + controlled resolution-depth; expression axis = surface
+# repetition. STRUCTURAL test-objects ONLY; no doctrinal claims (§VII.6.20).
+[fetch.literature_curated.strong_invariance]
+budget_tokens = 12000    # matched token budget per translation (auto-clamped to min available)
+seed          = 42
+
+# --- Quran cluster (5 translations of one source) ---
+[fetch.literature_curated.strong_invariance.translations.quran_sale]
+label        = "Quran (George Sale 1734)"
+filename     = "quran_yusuf_ali.txt"   # cached file IS PG #7440 Sale (header-verified 2026-05-30)
+sha256       = "e91167f80f73ab9efc2a9613af16689628413bfc03b0d11dc4c153c979fd9d8b"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/7440/pg7440.txt"
+source_ref   = "Project Gutenberg ebook #7440 (George Sale, The Koran / Al-Qur'an)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_rodwell]
+label        = "Quran (J. M. Rodwell 1861)"
+filename     = "quran_rodwell.txt"
+sha256       = "1cda1809c67ae8743b9be7f8f8cc5893872243dd39eb2f96247c0de01edf3fe0"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/3434/pg3434.txt"
+source_ref   = "Project Gutenberg ebook #3434 (J. M. Rodwell, The Koran)"
+retrieved_at = "2026-05-29"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_yusufali]
+label        = "Quran (Abdullah Yusuf Ali)"
+filename     = "quran_yusufali_pg16955.txt"   # split from PG #16955 (Y: lines)
+sha256       = "c2a4ede6b581dd8f4c395ded30b0211a3bf23dbfad6b6766c2fc780b6402c65a"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Yusuf-Ali column, 'Y:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; Y: -> Yusuf-Ali (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_pickthall]
+label        = "Quran (Marmaduke Pickthall)"
+filename     = "quran_pickthall_pg16955.txt"   # split from PG #16955 (P: lines)
+sha256       = "21a70802cc693779bf866fb55eeeee85c328ef21d077a75a9ae6229e7c837fd5"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Pickthall column, 'P:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; P: -> Pickthall (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+[fetch.literature_curated.strong_invariance.translations.quran_shakir]
+label        = "Quran (M. H. Shakir)"
+filename     = "quran_shakir_pg16955.txt"   # split from PG #16955 (S: lines)
+sha256       = "524791284c19922f596ef5b75990ff9c943871ccdaa244c5079c27e2d3181a2a"
+source_id    = "quran"
+source_url   = "https://www.gutenberg.org/cache/epub/16955/pg16955.txt"
+source_ref   = "Project Gutenberg ebook #16955 (Three translations side by side; Shakir column, 'S:' prefix)"
+parent_sha256 = "68c0cf5b08c51b2ee2155937f6e6162d7f7abeb36fa479a57c4ffd8b755f903d"
+split_rule   = "stateful Y:/P:/S: line-prefix demux; S: -> Shakir (see split_corpora.py in R-143)"
+retrieved_at = "2026-05-30"
+license      = "public domain (Project Gutenberg)"
+
+# --- Bible-OT cluster (2 translations) ---
+[fetch.literature_curated.strong_invariance.translations.kjv_ot]
+label        = "Bible Old Testament (KJV)"
+filename     = "kjv_old_testament.txt"
+sha256       = "60b2b8021452180eb0ad9ce11e275451b809f257bfb86f1f6a66f54abecc71f5"
+source_id    = "bible_ot"
+source_note  = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.strong_invariance.translations.web_ot]
+label         = "Bible Old Testament (World English Bible)"
+filename      = "web_ot_pg8294.txt"   # split from PG #8294 (Books 01-39 Genesis..Malachi)
+sha256        = "e7f29ba4679a127cfcd4ca1cbb05e5f552e7e171e836a34f5b5923195a590d12"
+source_id     = "bible_ot"
+source_url    = "https://www.gutenberg.org/cache/epub/8294/pg8294.txt"
+source_ref    = "Project Gutenberg ebook #8294 (World English Bible, Complete); OT = Books 01-39"
+parent_sha256 = "164d718121fec9e24db48a7d9acc802abfc20dc5ecf2c4d310d3ae1aacbc9324"
+split_rule    = "'Book NN <name>' markers; books 01-39 -> OT (see split_corpora.py in R-143)"
+retrieved_at  = "2026-05-30"
+license       = "public domain (Project Gutenberg)"
+
+# --- Bible-NT cluster (2 translations) ---
+[fetch.literature_curated.strong_invariance.translations.kjv_nt]
+label        = "Bible New Testament (KJV)"
+filename     = "kjv_new_testament.txt"
+sha256       = "f26f3c9c32bee2e3f1a71437ba69b7c47f1420d822b3b3681943ccb2825f7fc6"
+source_id    = "bible_nt"
+source_note  = "previously cached (R-RBS-LM-53 arc)"
+
+[fetch.literature_curated.strong_invariance.translations.web_nt]
+label         = "Bible New Testament (World English Bible)"
+filename      = "web_nt_pg8294.txt"   # split from PG #8294 (Books 40-66 Matthew..Revelation)
+sha256        = "1ce31c278a38682718ba7c44def5603a2ae9bc8d688d40e0e3cfd1ddaf4c5d48"
+source_id     = "bible_nt"
+source_url    = "https://www.gutenberg.org/cache/epub/8294/pg8294.txt"
+source_ref    = "Project Gutenberg ebook #8294 (World English Bible, Complete); NT = Books 40-66"
+parent_sha256 = "164d718121fec9e24db48a7d9acc802abfc20dc5ecf2c4d310d3ae1aacbc9324"
+split_rule    = "'Book NN <name>' markers; books 40-66 -> NT (see split_corpora.py in R-143)"
+retrieved_at  = "2026-05-30"
+license        = "public domain (Project Gutenberg)"
+
+# --- distinct-content reference anchors (NOT translation pairs; across-source baseline) ---
+[fetch.literature_curated.strong_invariance.translations.bhagavad_gita]
+label       = "Bhagavad Gita (Edwin Arnold)"
+filename    = "bhagavad_gita.txt"
+sha256      = "a5d170ed807a42a8ff196fd5c6d61ceeda4b51788c1918f9b64fbbd5b2317900"
+source_id   = "gita"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+[fetch.literature_curated.strong_invariance.translations.tao_legge]
+label       = "Tao Te Ching (James Legge)"
+filename    = "tao_te_ching.txt"
+sha256      = "ff1f2d83b2737d08ce93dec90ee74fe07919d37b019c5e81b1dfd2e9d48ff5fd"
+source_id   = "tao"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+[fetch.literature_curated.strong_invariance.translations.dhammapada]
+label       = "Dhammapada (Max Müller)"
+filename    = "dhammapada.txt"
+sha256      = "2b57e8ecdf63644586db1e74baca10d7b532e09362d7f94ff46711cde5676957"
+source_id   = "dhammapada"
+source_note = "previously cached; distinct-content anchor (singleton source)"
+
+# ---------------------------------------------------------------------------
 # Standard AMSC tail
 # ---------------------------------------------------------------------------
 [parse]
