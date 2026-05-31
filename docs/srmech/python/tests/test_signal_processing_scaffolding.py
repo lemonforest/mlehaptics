@@ -91,8 +91,26 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc7():
-    """v0.6.0rc7 — MS #20 C-parity voxel #771: the C-orchestration half of the
+def test_version_is_0_6_0rc8():
+    """v0.6.0rc8 — MS #20 slowdown-fix voxel (#778/#771): the Klein-4
+    four-sector parallel dispatch no longer SLOWS DOWN vs serial. TWO defects
+    fixed (both Python-side; the C dispatch was already correct — create-all-
+    then-join-all). (1) The native shim _native.cascade_parallel_sector_dispatch_c
+    ran N serial n_sectors=1 calls (the rc7 "GIL-hazard" workaround) → ZERO
+    cross-sector concurrency (0.99× vs serial); now ONE n_sectors=N threaded C
+    call, so the ≤4 sector callbacks OVERLAP for a GIL-releasing body (measured
+    ~4× on a sleep body — ctypes holds the GIL per CFUNCTYPE callback, so
+    invoking a Python body from the C-spawned threads is safe; the hazard was
+    empirically disproven). (2) The rc6 Python cascade.parallel_sector_dispatch
+    recomputed the serial reference (+ chiral_dual) inline on EVERY call →
+    ~2.25× body invocations = a 2.6–7.7× slowdown vs serial; the
+    parallel==serial / sector2==chiral_dual invariants are now STRUCTURAL
+    guarantees (proven in the test suite), with a new verify=False kwarg for
+    the opt-in runtime cross-check. No new ToolEntry → describe() STAYS 177;
+    ABI unchanged at 3 (Python-only change; no C source edit). Delivers the
+    F233 4-thread speedup as shipped (#778/#771).
+
+    Prior v0.6.0rc7 — MS #20 C-parity voxel #771: the C-orchestration half of the
     Klein-4 four-sector parallel cascade dispatch (the C peer of rc6's Python
     cascade.parallel_sector_dispatch). New ABI-additive C symbol
     srmech_cascade_parallel_sector_dispatch runs the <=4 sector-duals
@@ -302,8 +320,8 @@ def test_version_is_0_6_0rc7():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc7", (
-        f"expected srmech.__version__ == '0.6.0rc7'; got "
+    assert srmech.__version__ == "0.6.0rc8", (
+        f"expected srmech.__version__ == '0.6.0rc8'; got "
         f"{srmech.__version__!r}"
     )
 

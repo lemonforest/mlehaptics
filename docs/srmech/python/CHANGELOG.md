@@ -6,6 +6,17 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc8] - 2026-05-30
+
+**MS #20 slowdown-fix voxel (#778 / #771) — the Klein-4 four-sector parallel dispatch no longer SLOWS DOWN vs serial; the F233 4-thread speedup is delivered as shipped.**
+
+A downstream repro showed `cascade.parallel_sector_dispatch` running **2.6–7.7× SLOWER than serial**, and the native C peer at **0.99×** (no concurrency) for a GIL-releasing (`time.sleep`) body × 4 sectors. Root-caused to **two Python-side defects** — the C dispatch itself was already correct (create-all-then-join-all; verified by rebuilding `libsrmech.dll` and timing the raw `n_sectors=4` symbol with a CFUNCTYPE sleep body: **0.065 s, not 0.24 s** → genuinely concurrent):
+
+- **The native shim `_native.cascade_parallel_sector_dispatch_c` was serial by design.** The rc7 build drove the C dispatch as **N serial `n_sectors=1` calls** (a workaround for a presumed "Python callback from a C-spawned thread is unsafe" hazard) — which traded away **all** the concurrency (the 0.99×). The hazard was **empirically disproven**: ctypes invokes a `CFUNCTYPE` callback from a foreign thread *safely* (it acquires the GIL via `PyGILState_Ensure`), and since the `CDLL` call releases the GIL, a GIL-releasing body lets the ≤4 sector callbacks **genuinely overlap**. The shim now drives **ONE `n_sectors=N`** threaded C call (the dead serial helpers `_parallel_dispatch_one_sector_native` / `_parallel_transform_native` are removed). Bit-exact vs the rc6 Python dispatch (10/10 parity tests); ~4× on a sleep body.
+- **The rc6 Python `cascade.parallel_sector_dispatch` double-computed on every call.** It ran the 4 sectors on a `ThreadPoolExecutor`, then **recomputed all 4 serially** (plus a 3rd `chiral_dual` recompute) for the inline `parallel == serial` / `sector2 == chiral_dual` assertions — ~2.25× the body invocations + per-call pool overhead = the 2.6–7.7× slowdown. Those invariants are **structural guarantees of the 4-way independence** (independence ⇒ order-free ⇒ parallel == serial; sector 2 *is* the γ₅-only transform = `chiral_dual` by definition), now proven in the test suite rather than recomputed per call. A new **`verify=False`** kwarg runs the runtime cross-check on demand; `independence["runtime_verified"]` reports which path ran.
+
+A GIL-bound pure-Python CPU body still can't overlap (the inherent CPython limit; 3.13 free-threading lifts it) — but it is no longer a *slowdown*, and GIL-releasing / native / IO / numpy bodies now get the real ≤4× speedup. **No new ToolEntry → `describe()` stays 177; ABI unchanged at 3** (Python-only change; no C source edit). New regression guard: the default path invokes `body` **exactly `n_sectors` times** (`test_parallel_sector_dispatch`). No `abs()`. Delivers the F233 4-thread Klein-4 speedup (#778 / #771).
+
 ## [0.6.0rc7] - 2026-05-30
 
 **MS #20 C-parity voxel #771 — the C-orchestration half of the Klein-4 four-sector parallel cascade dispatch.**

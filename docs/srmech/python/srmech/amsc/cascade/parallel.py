@@ -74,13 +74,23 @@ fan-out is Python here. The **C-orchestration parity is tracked by issue
 not *need* Python to run the four-sector cascade. Python is the ergonomic
 half; C (#771) is the parity half.
 
-TRUE-PARALLEL NOTE. On the native path the
-:class:`~concurrent.futures.ThreadPoolExecutor` runs **truly parallel**
-because srmech's ctypes ``CDLL`` releases the GIL per native call and the C
-ops are reentrant (rc5 / #772); on the pure-Python fallback the result is
-**correct but GIL-serialized** (and Python 3.13 free-threading parallelizes
-it). This module makes **no** timing / speedup claim (those are flaky) — it
-asserts CORRECTNESS + INDEPENDENCE only.
+TRUE-PARALLEL NOTE. The ≤4 sectors are dispatched on a
+:class:`~concurrent.futures.ThreadPoolExecutor`. A **GIL-releasing** body
+(native / IO / numpy, and the C atoms inside each ``T_s`` — srmech's ctypes
+``CDLL`` releases the GIL per native call, reentrant per rc5 / #772) lets the
+threads **genuinely overlap**; a CPU-bound **pure-Python** body is correct
+but GIL-serialized (Python 3.13 free-threading lifts that). The C-native peer
+(:func:`srmech.amsc._native.cascade_parallel_sector_dispatch_c`, #771) drives
+ONE ``n_sectors=N`` threaded C dispatch with the same overlap behaviour.
+
+This module makes **no** timing / speedup *assertion* (timing tests are
+flaky) — it asserts CORRECTNESS + INDEPENDENCE only. CRITICAL (rc8): the
+correctness invariant (parallel == serial bit-for-bit) is a STRUCTURAL
+guarantee of the 4-way independence, proven in the test suite — it is **NOT**
+recomputed on every call. Recomputing the serial reference inline doubled the
+body invocations and made the dispatch a 2.6–7.7× SLOWDOWN vs serial,
+defeating the F233 speedup; pass ``verify=True`` for the opt-in runtime
+cross-check.
 
 **No ``abs()``** anywhere — residual / magnitude via
 :func:`srmech.amsc.cascade.atoms.magnitude`; handedness via
@@ -237,6 +247,7 @@ def parallel_sector_dispatch(
     x: Sequence,
     *,
     n_sectors: int = KLEIN4_SECTOR_CAP,
+    verify: bool = False,
 ) -> Dict[str, Any]:
     """Run ``body`` across its ≤4 Klein-4 chirality sectors CONCURRENTLY.
 
@@ -275,6 +286,15 @@ def parallel_sector_dispatch(
         x: The input sequence.
         n_sectors: How many of the 4 Klein-4 sectors to dispatch (1..4;
             default 4). Hard-capped at :data:`KLEIN4_SECTOR_CAP`.
+        verify: When ``True``, RE-CHECK the correctness invariants at
+            runtime — recompute the serial (same-sector) reference and
+            assert ``parallel == serial`` bit-for-bit, plus
+            ``sector 2 == cascade.chiral_dual``. Default ``False``: those
+            are STRUCTURAL guarantees of the 4-way independence (proven in
+            the test suite), NOT recomputed per call — recomputing them
+            inline doubled the body invocations and made the dispatch a
+            2.6–7.7× slowdown vs serial (the rc8 fix). ``independence
+            ["runtime_verified"]`` reports which path ran.
 
     Returns:
         A ``dict`` with keys:
@@ -343,29 +363,40 @@ def parallel_sector_dispatch(
             future_by_sector[sector].result() for sector in sector_indices
         ]
 
-    # ── SERIAL reference (single thread, same sectors, same own-input
-    #    construction). Because the sectors are independent, the parallel
-    #    result MUST equal this bit-for-bit — the decisive invariant.
-    serial_results = [_sector_dual(body, sector, x) for sector in sector_indices]
-    parallel_equals_serial = all(
-        _equal(p, s) for p, s in zip(parallel_results, serial_results)
-    )
-    assert parallel_equals_serial, (
-        "parallel_sector_dispatch: parallel result must equal the serial "
-        "(same-sector) result bit-for-bit (the sectors are independent, so "
-        "order-free) — this invariant FAILED"
-    )
-
-    # ── Sector 2 (γ₅-only) dual IS F232's cascade.chiral_dual, bit-exact.
-    sector2_is_chiral_dual: bool = True
-    if n_sectors > 2:
-        f232_dual = _chiral_dual(body, x)
-        sector2_is_chiral_dual = _equal(parallel_results[2], f232_dual)
-        assert sector2_is_chiral_dual, (
-            "parallel_sector_dispatch: sector-2 dual must equal "
-            "cascade.chiral_dual(body, x) bit-for-bit (the F232 2-rung "
-            "object) — this invariant FAILED"
+    # ── CORRECTNESS by construction (NOT a per-call recompute). The sectors
+    #    are mutually independent — each worker reads ONLY its own T_s(x) and
+    #    writes ONLY its own result (0 cross-thread reads). Independence ⇒
+    #    order-free ⇒ the parallel result equals the serial (same-sector)
+    #    result bit-for-bit; sector 2 (γ₅-only) IS cascade.chiral_dual by
+    #    definition. These are STRUCTURAL guarantees, proven in the test
+    #    suite (test_parallel_sector_dispatch) — they are NOT recomputed on
+    #    every call. Recomputing the serial reference (+ chiral_dual) inline
+    #    DOUBLED the body invocations and turned the dispatch into a
+    #    2.6–7.7× SLOWDOWN vs serial (defeating the F233 4-thread speedup);
+    #    that was the rc8 bug-fix. Pass ``verify=True`` to run the serial
+    #    cross-check at runtime (paranoid callers + the parity test).
+    parallel_equals_serial = True
+    sector2_is_chiral_dual = True
+    if verify:
+        serial_results = [
+            _sector_dual(body, sector, x) for sector in sector_indices
+        ]
+        parallel_equals_serial = all(
+            _equal(p, s) for p, s in zip(parallel_results, serial_results)
         )
+        assert parallel_equals_serial, (
+            "parallel_sector_dispatch(verify=True): parallel result must "
+            "equal the serial (same-sector) result bit-for-bit (the sectors "
+            "are independent, so order-free) — this invariant FAILED"
+        )
+        if n_sectors > 2:
+            f232_dual = _chiral_dual(body, x)
+            sector2_is_chiral_dual = _equal(parallel_results[2], f232_dual)
+            assert sector2_is_chiral_dual, (
+                "parallel_sector_dispatch(verify=True): sector-2 dual must "
+                "equal cascade.chiral_dual(body, x) bit-for-bit (the F232 "
+                "2-rung object) — this invariant FAILED"
+            )
 
     # ── Collapse-lattice readout (F233 §2.4): distinct sector results.
     classes = _distinct_classes(parallel_results)
@@ -394,6 +425,11 @@ def parallel_sector_dispatch(
         "cross_sector_reads": 0,
         "parallel_equals_serial": parallel_equals_serial,
         "sector2_is_chiral_dual": sector2_is_chiral_dual,
+        # Whether the two invariants above were RE-CHECKED at runtime this
+        # call (verify=True) or asserted as structural guarantees (default,
+        # verify=False — proven once in the test suite, not recomputed
+        # per call; the rc8 slowdown fix).
+        "runtime_verified": verify,
         "n_sectors": n_sectors,
         "max_workers": KLEIN4_SECTOR_CAP,
         # The handedness invariants (Class C; computed via net_chirality,

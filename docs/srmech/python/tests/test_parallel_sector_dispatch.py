@@ -334,3 +334,53 @@ def test_framework_reading_is_separately_keyed_and_tagged():
     assert "note" not in dispatch["independence"]
     assert "note" not in dispatch["cap"]
     assert "note" not in dispatch["collapse_lattice"]
+
+
+# ----------------------------------------------------------------------
+# rc8 — the slowdown fix. The default path must NOT recompute the body
+# (the rc6/rc7 inline serial recompute doubled body invocations →
+# 2.6–7.7× slowdown vs serial). verify=True keeps the opt-in cross-check.
+# ----------------------------------------------------------------------
+
+
+def test_default_path_invokes_body_exactly_n_sectors_times():
+    """Regression guard: by default the dispatch invokes ``body`` exactly
+    ``n_sectors`` times (one per sector) — NOT the ~2.25× of the old inline
+    serial-recompute (the 2.6–7.7× slowdown). list.append is atomic under the
+    GIL, so the count is reliable across the 4 worker threads."""
+    invocations = []  # list.append is GIL-atomic ⇒ a safe cross-thread tally
+
+    def _counting(seq):
+        invocations.append(1)
+        return [v + 1 for v in seq]
+
+    parallel_sector_dispatch(_counting, _X, n_sectors=4)
+    assert len(invocations) == 4, (
+        f"default path invoked body {len(invocations)}× for 4 sectors; "
+        "expected exactly 4 (no per-call serial recompute) — rc8 regression"
+    )
+
+    invocations.clear()
+    parallel_sector_dispatch(_counting, _X, n_sectors=2)
+    assert len(invocations) == 2
+
+
+def test_default_certificate_reports_structural_guarantees_unverified():
+    """Default (verify=False): the correctness invariants are reported as
+    STRUCTURAL guarantees (True) and ``runtime_verified`` is False."""
+    d = parallel_sector_dispatch(_biaxial, _X)
+    assert d["independence"]["runtime_verified"] is False
+    assert d["independence"]["parallel_equals_serial"] is True
+    assert d["independence"]["sector2_is_chiral_dual"] is True
+
+
+def test_verify_true_runs_runtime_crosscheck():
+    """verify=True recomputes the serial reference + chiral_dual and asserts
+    them bit-for-bit (the opt-in paranoid path / parity check). Results are
+    identical to the default path."""
+    for body in (_biaxial, _iw7_symmetric, _gamma5_symmetric, _bi_symmetric):
+        d = parallel_sector_dispatch(body, _X, verify=True)
+        assert d["independence"]["runtime_verified"] is True
+        assert d["independence"]["parallel_equals_serial"] is True
+        assert d["independence"]["sector2_is_chiral_dual"] is True
+        assert _results(d) == _results(parallel_sector_dispatch(body, _X))
