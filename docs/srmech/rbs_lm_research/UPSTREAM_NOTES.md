@@ -1017,6 +1017,12 @@ The §10.7 items surfaced while exercising the `qm.relativistic` / `qm.gauge` / 
 
 **Forward-ask (for the user/maintainer to file — NOT filed here; no package edit):** extend `kuramoto_step` with an **optional coupling matrix / adjacency argument** (or a Laplacian), e.g. `kuramoto_step(theta, omega, *, coupling=1.0, adjacency=None, dt=0.01)` where `adjacency[i,j]` weights `sin(θ_j − θ_i)` for oscillator `i` (and a non-symmetric `adjacency` expresses directed/one-way coupling). This would cover the graph-structured + directed coupling the F240 / F235 air-gapped-graph findings need, while the scalar path stays the default. A `Sakaguchi` phase-frustration `alpha` and an optional per-oscillator pinning anchor would round it out (the binary-phase γ₅ carry-lock case F234/F236 used). Recorded per the upstream-as-research-notes discipline; the F240 measurement stands either way (the analog substrate supplies the graph-structured integrator the op lacks).
 
+### §11.2 rc9 verified CLEAN — native loads (ABI 3); use `srmech.introspect.native_status()` for the TestPyPI native check going forward (2026-05-31; F243 / F244 / F242c-fix)
+
+Exercising rc9 across the `qm.octonion`/`so8`/`triality` surface (F243), the Class-L Laplacian + `format` + `cascade.kuramoto_step` ops (F242c, F244), and the bit-exact `format.sha256_bytes` re-verify (F240): **no new functional bug surfaced.** Native loads + dispatches correctly — `srmech.amsc._native.HAS_NATIVE = True`, `LIB` set, **ABI 3 = expected_abi**, `srmech.introspect.native_status()` → `{has_native: true, dispatching: true, abi_version: 3, load_error: null}`, 178 tools all MCP-callable. All ops give correct answers (`jacobi_eigvals(K3)=[0,3,3]`; octonion associator Fano split 7/28; `kuramoto_step` runs).
+
+**One API note for the TestPyPI-before-PyPI discipline (not a bug — an improvement):** rc9 added a structured **`srmech.introspect`** module (`native_status()` / `describe()`), whose own docstring marks the bare `_native.HAS_NATIVE` poke the "old" way. The clean-venv native check in the release discipline should use **`srmech.introspect.native_status()`** going forward — note the flag lives at `srmech.amsc._native.HAS_NATIVE`, **NOT** the top-level `srmech._native` (which is the compiled-lib package dir, empty of the flag; mis-probing it this session briefly read a spurious absence). The §11.1 `kuramoto_step` graph-coupling gap remains open (rc9 ships all-to-all-uniform only).
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
