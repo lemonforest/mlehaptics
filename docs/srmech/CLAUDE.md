@@ -17,11 +17,16 @@ beyond a single-file read.
 **srmech** is short for **Stored-Relationship Mechanism**. It is:
 
 - A Python research package, published as **`srmech`** on PyPI.
-  Current release: **`v0.4.0`** (Task #217 Phase C1 close —
-  full 14-class C-parity primitive vocabulary + canonical
-  QM/QFT/SM operations layer on top of the AMSC framework).
-  Earlier `v0.2.0` (native-C-accelerated AMSC build-out) and
-  `v0.1.0` (pure-Python AMSC) remain in PyPI history.
+  Last graduated release: **`v0.5.0`** (production graduation of
+  the rc9–rc22 voxel arc — srmech.bus IPC bus, DSL operator-chain
+  runner, MCP / agent adapters, profile-plugin loader, the
+  𝔰𝔬(8) / g₂ embedding + triality read-out). The **current dev
+  head is `v0.6.0rc10`** (on TestPyPI, graduating to a clean
+  `v0.6.0`) — the cascade.atoms / cascade.compose two-tier
+  lean-ISA arc. Earlier `v0.4.0` (full 14-class C-parity primitive
+  vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
+  (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
+  AMSC) remain in PyPI history.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
@@ -55,6 +60,34 @@ beyond a single-file read.
   packages (`ephemerides-spectral` today; more later) register
   their catalog SSOTs with via `srmech.amsc.catalog.register_attested_root()`.
 
+**What shipped since v0.4.0 — the v0.5.0 and v0.6.0 arcs:**
+
+- **v0.5.0 (graduated to production PyPI)** — the rc9–rc22 voxel
+  arc, srmech recognising its own shape voxel-by-voxel. It adds:
+  the **`srmech.bus`** cross-process IPC bus + **Bus-class API**
+  (Bio-TOTP wire cipher, Claim 255); the **`srmech.dsl`**
+  operator-chain runner that loads the cascade-catalog TOML
+  descriptors; the **`srmech-mcp`** Model Context Protocol server
+  adapter (for Claude Code) and the **`srmech-agent`** Anthropic
+  SDK adapter; the **profile-plugin loader**; a top-level
+  **`srmech.native_status()`**; **`srmech.qm.so8.an_embedding`**
+  (14 = 8 + 3 + 3̄ su(3) branching of g₂ = Der(𝕆)); the full
+  **28 = 𝔰𝔬(8) chiral read-out** (`srmech.qm.so8` adjoint +
+  `srmech.qm.triality` order-3 outer automorphism); and
+  **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
+  bundle from introspection).
+- **v0.6.0 (rc1–rc9 to date; rc10 dev head)** — the lean-ISA arc.
+  It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
+  lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
+  so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
+  order-3 triality 7th primitive (#761); `sha256_bytes` docs
+  (#738); a **reentrant C core** (#772); the Klein-4 four-sector
+  **`cascade.parallel_sector_dispatch`** Python surface (#778) +
+  its C peer **`srmech_cascade_parallel_sector_dispatch`** (#771),
+  plus the parallel-dispatch slowdown fix; and the native Kuramoto
+  forward-Euler step **`srmech_cascade_kuramoto_step_f64`** +
+  **`cascade.kuramoto_step`** (rc9).
+
 The package directory layout:
 
 ```
@@ -71,6 +104,8 @@ docs/srmech/
 │   ├── src/srmech_sha256.c            ← FIPS 180-4 SHA-256, JPL-clean
 │   ├── src/srmech_ndjson.c            ← streaming NDJSON reader, JPL-clean
 │   ├── src/srmech_meta.c              ← version + ABI accessors
+│   ├── src/srmech_parallel.c          ← Klein-4 four-sector dispatch (v0.6.0)
+│   ├── src/srmech_kuramoto.c          ← native Kuramoto forward-Euler step (v0.6.0)
 │   ├── test/                          ← C-side smoke tests
 │   ├── Makefile                       ← local build flow
 │   ├── README.md
@@ -89,10 +124,18 @@ docs/srmech/
     │   │   ├── catalog.py             ← register_attested_root, bridge surfaces
     │   │   ├── _native.py             ← ctypes shim; HAS_NATIVE / sha256_hex_c / ndjson_lines_c
     │   │   ├── gap_suggester.py
-    │   │   └── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
+    │   │   ├── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
+    │   │   └── _research/cascade_catalog/  ← 10 TOML cascade descriptors (lean-ISA atoms/composites + parallel_sector_dispatch + kuramoto_step), loaded by srmech.dsl
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib
     └── tests/                         ← pytest suite
 ```
+
+The **`srmech.dsl`** operator-chain runner loads the cascade
+descriptors under `srmech/amsc/_research/cascade_catalog/` — now
+**10 TOML descriptors**: the 8 lean-ISA atoms/composites
+(`chiral_flip`, `pin_slot_at_zero`, `magnitude`, `reorient`,
+`net_chirality`, `cyclic_gcd`, `best_rational_signed`,
+`chiral_dual`) plus `parallel_sector_dispatch` and `kuramoto_step`.
 
 ---
 
@@ -362,13 +405,19 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **2** (`SRMECH_ABI_VERSION = 2` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 2` in
+C ABI version is currently **3** (`SRMECH_ABI_VERSION = 3` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 3` in
 `python/srmech/amsc/_native.py`). **Bump in lockstep** whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
 unknown symbols). v1 was Phase B3 (sha256 only); v2 added the
-`lineno` param to the NDJSON callback typedef.
+`lineno` param to the NDJSON callback typedef; **v3 (v0.5.0rc2)
+added the `srmech_bus_*` C peer for `srmech.bus` cross-process
+IPC, including the new `srmech_bus_handler_callback_t`
+function-pointer typedef** — adding a callback typedef carries a
+wire-format implication for the Python ctypes shim (CFUNCTYPE
+construction), so ABI bumped even though no existing function
+signature changed.
 
 ### JPL Power-of-Ten audit
 

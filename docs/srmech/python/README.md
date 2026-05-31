@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.5.0** — 14-class A–N primitive vocabulary with native C parity; canonical QM/QFT/SM operations + a callable so(8)/Spin(8) triality surface (octonion `L`/`R`-mult + the 28-generator adjoint + the order-3 automorphism `τ`, `Fix(τ) = g₂ = 14`); runtime spectral decomposition now JSON-callable by-reference (the `$srmech_handle` grammar); dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog (`pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, plus the chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C — a named cascade is the default, a math-library call the exception). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech`, so `pip install siona` resolves here too.)*
+**Status:** **v0.6.0** — 14-class A–N primitive vocabulary with native C parity; canonical QM/QFT/SM operations + a callable so(8)/Spin(8) triality surface (octonion `L`/`R`-mult + the 28-generator adjoint + the order-3 automorphism `τ`, `Fix(τ) = g₂ = 14`, plus the so(4) = su(2) ⊕ su(2) `quaternion_subalgebra_stabilizer` and the order-3 `lean_isa_seventh_primitive`); runtime spectral decomposition JSON-callable by-reference (the `$srmech_handle` grammar); a reentrant C core; dual-path signal-processing surface; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance framework; the Class-M HDC variant ladder (`polar` `{-1,0,+1}`, `Klein-4` `(ℤ₂)²`), a `coupling` composition score (Class K∘L), `symmetric_eigendecompose` (real-symmetric Class L), `rfft` (real-input half-spectrum dual-path op, Class A∘I∘K), and the foundational cross-domain `cascade` catalog — now a **two-tier lean-ISA split** (`cascade.atoms` primitives + `cascade.compose` composites): `pin_slot_at_zero` K / `reorient` C / `magnitude` K / `best_rational_signed` K∘N∘C / `cyclic_gcd` I, the chirality mini-set `chiral_flip` / `chiral_dual` / `net_chirality` C, the Klein-4 four-sector `parallel_sector_dispatch` (C peer `srmech_cascade_parallel_sector_dispatch`), and the native Kuramoto coupled-oscillator `kuramoto_step` (C peer `srmech_cascade_kuramoto_step_f64`) — a named cascade is the default, a math-library call the exception. *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` package on PyPI is a metapackage that depends on `srmech`, so `pip install siona` resolves here too.)*
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -97,7 +97,7 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 3,
-#  'expected_abi': 3, 'native_version': '0.5.0', 'load_error': None}
+#  'expected_abi': 3, 'native_version': '0.6.0', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -166,7 +166,9 @@ A `SpectralHandle` is an opaque, frozen, bytes-bearing dataclass that JSON-RPC c
 
 ### `srmech.amsc.cascade` — foundational cross-domain cascade catalog
 
-The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` (full C/Python parity per project discipline) AND a TOML descriptor under `srmech/amsc/_research/cascade_catalog/` documenting the composition declaratively. No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` (full C/Python parity per project discipline) AND a TOML descriptor under `srmech/amsc/_research/cascade_catalog/` documenting the composition declaratively (**10 descriptors** as of v0.6.0, loaded at runtime by `srmech.dsl`). No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+
+As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.amsc.cascade.atoms` holds the irreducible primitives and `srmech.amsc.cascade.compose` holds the composites that chain them — the same surface re-exported flat from `srmech.amsc.cascade`, so existing call sites are unchanged. The catalog grew two ops this line: `parallel_sector_dispatch` (Klein-4 four-sector orchestration) and `kuramoto_step` (the native coupled-oscillator step).
 
 - `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split). *(C peer: v0.4.5rc2)*
 - `reorient(orientation, value)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
@@ -176,6 +178,8 @@ The cascades that recur across **every / most** domains, promoted so a named cas
 - `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(C peer: v0.4.5rc1)*
 - `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C peer: v0.4.5rc8 — queued; higher-order, callback ABI)*
 - `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
+- `parallel_sector_dispatch(body, x, *, n_sectors=4, verify=False)` — **Class C** (Klein-4 `γ₅± × iω₇±` four-sector orchestration). Runs one cascade `body` across its ≤4 Klein-4 chirality sectors and returns a structured self-describing result; a GIL-releasing (native / IO / numpy) body lets the ≤4 sectors genuinely overlap. Higher-order (a body-callback orchestrator, not a unary `chain().then(...)` stage). *(C peer: `srmech_cascade_parallel_sector_dispatch`, body-callback ABI, v0.6.0; `n_sectors > 4` → `ValueError` — Klein-4 has no order-4+ element, 8+ needs the order-3 triality.)*
+- `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` — **Class I ∘ sin ∘ Σ ∘ C** one forward-Euler step of the canonical Kuramoto coupled-oscillator model (`θᵢ ← θᵢ + dt·(ωᵢ + (K/n)·Σⱼ sin(θⱼ − θᵢ))`). The O(n²) sin-coupling runs natively. *(C peer: `srmech_cascade_kuramoto_step_f64`, v0.6.0rc9; parity to libm-trig tolerance, same coupling-sum index order both sides; `n == 1` is pure drift.)*
 
 ### `srmech.signal_processing` — dual-path signal-processing surface
 
@@ -248,7 +252,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.5.0",
+    "parser_version": "srmech 0.6.0",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"
@@ -279,7 +283,7 @@ Every primitive class, every `srmech.qm.*` operation (including the so(8)/triali
 from srmech.introspect import describe
 
 d = describe()
-print(d["srmech_version"])              # e.g. "0.5.0"
+print(d["srmech_version"])              # e.g. "0.6.0"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
 print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed

@@ -1,0 +1,73 @@
+# Cascade catalog entry: kuramoto_step
+# v0.6.0rc9 of the cascade-catalog — the Kuramoto coupled-oscillator
+# forward-Euler step (#778 follow-on). A composite I∘sin∘Σ∘C with a
+# dedicated native C symbol; closes the hand-rolled-Euler parity gap.
+
+[cascade]
+name = "kuramoto_step"
+class_composition = "I∘sin∘Σ∘C"
+purpose = "One forward-Euler step of the canonical Kuramoto coupled-oscillator model."
+description = """
+One forward-Euler step of the canonical Kuramoto model (Kuramoto 1975;
+Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
+
+    theta_i <- theta_i + dt * ( omega_i
+                                + (K/n) * Σ_j sin(theta_j - theta_i) )
+
+The dispatch-clock / coupled-oscillator Euler integration the spectral-
+research arc hand-rolled in Python (F141 / F231 / R-95 / F234) — now a
+standard cascade op with a native C peer so srmech runs it with NO host
+Python (the full-parity commitment).
+
+HONEST CASCADE SHAPE: a composition of existing class operations, NOT a
+new privileged primitive — Class I (the cyclic phase theta on the
+circle) + the sin coupling (asymptotic-calculus transcendental; libm
+sin, exactly as srmech_kepler.c does) + a sum-reduce over j (Σ) + a
+Class-C Euler add (theta + dt·f). No abs().
+
+The O(n²) sin-coupling runs natively (srmech_cascade_kuramoto_step_f64).
+Parity is to libm-trig TOLERANCE (NOT bit-exact across platforms — the
+kepler trig discipline); the C peer and the Python fallback sum the
+coupling in the SAME index order. n==1 is pure drift (the only coupling
+term is sin(0) = 0); n==0 returns [].
+"""
+
+[cascade.signature]
+input = "theta: sequence[float] (phases, radians); omega: sequence[float] (natural frequencies, same length n); kwarg float coupling = 1.0 (the global coupling K); kwarg float dt = 0.01 (the forward-Euler step)"
+output = "list[float] — the n phases after one forward-Euler step"
+operation = "out[i] = theta[i] + dt * (omega[i] + (coupling/n) * sum_j sin(theta[j] - theta[i]))"
+parity = "libm-trig tolerance (NOT bit-exact cross-platform; same coupling-sum index order both sides)"
+n1_is_pure_drift = true
+n0_maps_to = "[]"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_kuramoto_step_f64"
+abi_version = 3
+
+[cascade.composes]
+# A composition of existing class operations; NOT a new privileged
+# primitive (the cascade-honesty discipline).
+class_i_stage = "the cyclic phase theta_i on the circle (Class I — modular / cyclic angle)"
+sin_coupling_stage = "sin(theta_j - theta_i) — the asymptotic-calculus transcendental coupling (libm sin, as srmech_kepler.c)"
+sum_reduce_stage = "Σ_j over all n oscillators (the mean-field all-pairs coupling sum; K/n normalisation)"
+class_c_euler_add_stage = "theta + dt·f — the Class-C forward-Euler accumulate (no abs())"
+
+[cascade.boundary_cases]
+n_zero = "n == 0 (empty theta/omega) -> []"
+n_one = "n == 1 -> pure drift theta[0] + dt*omega[0] (the only coupling term is sin(theta_0 - theta_0) = sin(0) = 0)"
+zero_coupling = "coupling == 0 -> pure drift theta[i] + dt*omega[i] (no coupling term)"
+length_mismatch = "len(omega) != len(theta) -> ValueError raised at the Python dispatch layer"
+aliasing = "the C `out` buffer MUST NOT alias `theta` or `omega` (caller-supplied disjoint buffers; the Python peer always allocates a fresh list)"
+non_numeric = "non-coercible theta/omega -> native path skipped; pure-Python fallback (float() coercion) runs"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.6.0rc9"
+canonical_landings = [
+  "Kuramoto, Y. (1975), 'Self-entrainment of a population of coupled non-linear oscillators', in International Symposium on Mathematical Problems in Theoretical Physics, Lecture Notes in Physics 39:420 (Springer) — the canonical coupled-oscillator model",
+  "Acebrón, J.A.; Bonilla, L.L.; Pérez Vicente, C.J.; Ritort, F.; Spigler, R. (2005), 'The Kuramoto model: A simple paradigm for synchronization phenomena', Rev. Mod. Phys. 77:137 — the mean-field K/N normalisation",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "R-RBS-LM F141 / F231 / R-95 / F234 — the dispatch-clock Euler recurrence the research hand-rolled (now C-parity'd)",
+  "srmech_kepler.c — the existing libm-sin precedent (Class I/J upstream) the coupling reuses",
+]
