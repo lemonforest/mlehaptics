@@ -150,6 +150,31 @@ def list_cascade_ops() -> List[str]:
     return sorted(load_catalog())
 
 
+def cascade_op_kind(op_name: str) -> str:
+    """Return the DSL role of ``op_name`` — ``"stage"`` or ``"combinator"``.
+
+    Read from the descriptor's optional ``[cascade].kind`` field; absent
+    means ``"stage"`` (the default — a plain unary ``value → value`` op
+    usable as an ``op=`` chain stage). ``"combinator"`` marks a
+    higher-order special form (``parallel_sector_dispatch`` — a 1→N
+    fan-out that takes a *body* op + data) that is NOT a plain ``op``
+    stage and must be driven by its own discriminator (the ``parallel``
+    stage / :meth:`srmech.dsl.Chain.parallel_sectors`). The chain builder
+    consults this to reject a combinator used as ``op=`` with a guided
+    error instead of a raw ``TypeError`` (v0.6.0rc11).
+
+    Returns ``"stage"`` for an unknown name (the caller's own resolution
+    via :func:`lookup_cascade_op` raises the authoritative "unknown op"
+    error; this helper does not duplicate that gate).
+    """
+    catalog = load_catalog()
+    desc = catalog.get(op_name)
+    if not isinstance(desc, dict):
+        return "stage"
+    kind = desc.get("cascade", {}).get("kind", "stage")
+    return kind if isinstance(kind, str) and kind else "stage"
+
+
 def get_descriptor(op_name: str) -> Dict[str, Any]:
     """Return the raw TOML descriptor for ``op_name``.
 
@@ -172,5 +197,6 @@ __all__ = [
     "load_catalog",
     "lookup_cascade_op",
     "list_cascade_ops",
+    "cascade_op_kind",
     "get_descriptor",
 ]

@@ -28,6 +28,10 @@ flat-stages-with-nested-loop-sub-chains:
    [[stage]]
    reduce_op = "cyclic_gcd"
 
+   [[stage]]
+   parallel_body = "chiral_flip"
+   n_sectors = 4
+
 One ``[[stage]]`` array element = one builder call. Mutually-exclusive
 discriminators tell ``build_chain_from_toml`` which builder to invoke:
 
@@ -35,6 +39,15 @@ discriminators tell ``build_chain_from_toml`` which builder to invoke:
 * ``loop_n`` + ``sub_chain`` → ``chain.loop(loop_n, build_chain_from_dict(sub_chain))``
 * ``fold_init`` + ``fold_op`` → ``chain.fold(fold_init, fold_op, **kwargs)``
 * ``reduce_op`` → ``chain.reduce(reduce_op, **kwargs)``
+* ``parallel_body`` (+ optional ``n_sectors``) → ``chain.parallel_sectors(parallel_body, n_sectors=n_sectors)``
+
+The ``parallel`` discriminator (v0.6.0rc11) is the chain face of the
+Klein-4 four-sector fan-out (:func:`srmech.amsc.cascade.parallel_sector_dispatch`):
+it runs the piped value through the ``parallel_body`` op across ≤4
+chirality sectors and yields the list of per-sector results (a 1→N
+fan-out — a special form like loop/fold/reduce, NOT a plain ``op``,
+which is why ``op = "parallel_sector_dispatch"`` is rejected with a
+guided error pointing here).
 
 Any kwargs beyond the discriminators are forwarded to the underlying
 cascade op (``max_denominator``, ``fine_scale``, …).
@@ -61,6 +74,7 @@ _RESERVED_STAGE_KEYS = frozenset({
     "loop_n", "sub_chain",
     "fold_init", "fold_op",
     "reduce_op",
+    "parallel_body", "n_sectors",
 })
 
 
@@ -184,17 +198,19 @@ def _apply_stage_to_chain(
     has_loop = "loop_n" in stage or "sub_chain" in stage
     has_fold = "fold_init" in stage or "fold_op" in stage
     has_reduce = "reduce_op" in stage
-    chosen = sum([has_op, has_loop, has_fold, has_reduce])
+    has_parallel = "parallel_body" in stage
+    chosen = sum([has_op, has_loop, has_fold, has_reduce, has_parallel])
     if chosen == 0:
         raise ValueError(
             f"stage {idx} has no discriminator; expected one of "
             f"`op`, `loop_n`+`sub_chain`, `fold_init`+`fold_op`, "
-            f"or `reduce_op`"
+            f"`reduce_op`, or `parallel_body`"
         )
     if chosen > 1:
         raise ValueError(
             f"stage {idx} has multiple discriminators "
-            f"(op / loop_n / fold_op / reduce_op); pick exactly one"
+            f"(op / loop_n / fold_op / reduce_op / parallel_body); "
+            f"pick exactly one"
         )
 
     kwargs = {k: v for k, v in stage.items() if k not in _RESERVED_STAGE_KEYS}
@@ -253,14 +269,30 @@ def _apply_stage_to_chain(
         ch.fold(stage["fold_init"], fold_op, **kwargs)
         return
 
-    # has_reduce
-    reduce_op = stage["reduce_op"]
-    if not isinstance(reduce_op, str):
+    if has_reduce:
+        reduce_op = stage["reduce_op"]
+        if not isinstance(reduce_op, str):
+            raise ValueError(
+                f"stage {idx} `reduce_op` must be a string; got "
+                f"{type(reduce_op).__name__}"
+            )
+        ch.reduce(reduce_op, **kwargs)
+        return
+
+    # has_parallel — the Klein-4 four-sector fan-out special form.
+    parallel_body = stage["parallel_body"]
+    if not isinstance(parallel_body, str):
         raise ValueError(
-            f"stage {idx} `reduce_op` must be a string; got "
-            f"{type(reduce_op).__name__}"
+            f"stage {idx} `parallel_body` must be a string (the NAME of a "
+            f"unary cascade op to fan across sectors); got "
+            f"{type(parallel_body).__name__}"
         )
-    ch.reduce(reduce_op, **kwargs)
+    n_sectors = stage.get("n_sectors", 4)
+    if not isinstance(n_sectors, int) or isinstance(n_sectors, bool):
+        raise ValueError(
+            f"stage {idx} `n_sectors` must be an int in 1..4; got {n_sectors!r}"
+        )
+    ch.parallel_sectors(parallel_body, n_sectors=n_sectors)
 
 
 __all__ = [

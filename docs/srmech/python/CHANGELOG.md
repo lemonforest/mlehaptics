@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc11] - 2026-05-31
+
+**MS #20 DSL parallel-discriminator voxel — `parallel_sector_dispatch` slots into the chain contract as a first-class special form, + cascade-op `kind` classification + guided errors. No new runtime op; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+A pre-gold introspection audit found that the Klein-4 four-sector fan-out `parallel_sector_dispatch` — a 1→N higher-order combinator (takes a *body* op + data, returns N per-sector results) — had leaked into the plain-`op` cascade catalog, so the DSL advertised it as a `chain().then(op=…)` stage where it cannot work (its first arg is `body`, not the piped value). This rc reconciles it the way loop/fold/reduce already are — as its own chain discriminator — rather than force-fitting it as a plain op:
+
+- **New `parallel` chain discriminator** — `chain.parallel_sectors(body, *, n_sectors=4)` (fluent) and `[[stage]] parallel_body='…' [n_sectors=…]` (TOML), alongside loop/fold/reduce. It fans the piped value through `body` across ≤4 Klein-4 chirality sectors (GIL-releasing bodies genuinely overlap — the F233 4-thread speedup) and yields the ordered **list of per-sector results** (a 1→N fan-out; the stage output is a list-of-sequences). `make_parallel_stage` in `srmech.dsl._control_flow`; `n_sectors` range-checked 1..4 at build time.
+- **Cascade-op `kind` classification** — descriptors carry an optional `[cascade].kind` (`"stage"` default, or `"combinator"`); `srmech.dsl.cascade_op_kind()` reads it. `parallel_sector_dispatch.toml` is now `kind = "combinator"`. Surfaced by `srmech.dsl.list_catalog_ops()` (new `kind` key), `srmech dsl ops` (a `[combinator]` tag + legend), and the tool-schema.
+- **Guided error** — using a combinator as a plain `op=`/`​.then()` stage now raises a clear `ValueError` pointing at the `parallel` discriminator, instead of a raw `TypeError` mid-run.
+- **Gap-2 discoverability** — the LLM-facing `tool_schema` summaries for `parallel_sector_dispatch` and `kuramoto_step` are front-loaded with the practical decision ("PARALLELISE a cascade body instead of running it serially…" / "Advance N coupled oscillators one synchronization step…") before the framework detail.
+
+New `test_dsl_parallel_stage.py` (parallel discriminator runs + n_sectors + combinator guard + kind), plus `test_dsl_tools.py` updated for the `kind` key. No `abs()`; no C change; no ABI bump.
+
 ## [0.6.0rc10] - 2026-05-31
 
 **MS #20 release-prep voxel — full doc-hygiene sweep ahead of the clean v0.6.0 graduation (no new runtime code).**

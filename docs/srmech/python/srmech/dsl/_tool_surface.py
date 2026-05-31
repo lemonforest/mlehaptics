@@ -99,17 +99,26 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     -------
     list[dict]
         ``[{"name": str, "class": <A–N class composition>, "purpose":
-        str}, ...]``, sorted ascending by ``name`` (10 ops: the 8
-        v0.5.0rc12 lean-ISA atoms/composites + the v0.6.0
-        parallel_sector_dispatch + kuramoto_step).
+        str, "kind": "stage" | "combinator"}, ...]``, sorted ascending by
+        ``name`` (10 ops: the 8 v0.5.0rc12 lean-ISA atoms/composites + the
+        v0.6.0 parallel_sector_dispatch + kuramoto_step). ``kind`` is the
+        DSL role: ``"stage"`` = a plain ``op=`` value→value stage;
+        ``"combinator"`` = a higher-order special form (``parallel_sector_dispatch``)
+        driven by its own discriminator (the ``parallel`` fan-out), NOT
+        usable as a plain ``op=`` stage.
     """
     out: List[Dict[str, str]] = []
     for name in list_cascade_ops():
         cascade = get_descriptor(name).get("cascade", {})
+        kind = str(cascade.get("kind", "stage")) or "stage"
         out.append({
             "name": name,
             "class": str(cascade.get("class_composition", "")),
             "purpose": str(cascade.get("purpose", "")),
+            # DSL role: "stage" (a plain `op=` value→value stage) or
+            # "combinator" (a higher-order special form — drive via its
+            # own discriminator, e.g. the `parallel` fan-out, NOT `op=`).
+            "kind": kind,
         })
     return out
 
