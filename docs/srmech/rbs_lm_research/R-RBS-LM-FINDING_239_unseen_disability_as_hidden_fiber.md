@@ -2,9 +2,9 @@
 
 > **River:** *"People don't like to be meddled with. We tell them what to do, what to think. Don't run, don't walk. We're in their homes and in their heads and we haven't the right. We're meddlesome."*
 >
-> **The teacher:** *"River, we're not telling people what to think. We're just trying to show them how."*
+> **The teacher:** *"River, we're not trying to tell people what to think… only how—"* — *[the scene cuts to the lab: River, older, strapped in a chair, electrodes and needles in her head.]*
 >
-> — *Serenity* (2005), the opening Academy classroom scene. The teacher is the institution that meddles while **certain it only helps**; River is the one **made hypervigilant against her will** by that same institution — the one who sees the meddling for what it is, and is disbelieved for naming it. This finding is about the structure she names.
+> — *Serenity* (2005), the opening Academy classroom scene. The teacher is the institution that meddles while **certain it only helps** — and the reassurance never finishes: the film cuts from *"…only how"* straight to the Academy lab, where the Alliance is doing to River's head exactly what she just named (*"in their homes and in their heads"*). **The cut is the rebuttal** — *"we just show them how"*, and the cut shows how. River is the one **made hypervigilant against her will** by that same institution, the one who sees the meddling and is disbelieved for naming it. This finding is about the structure she names.
 
 **For all of the less abled and excluded who must pay a price to society simply to exist — a hidden fiber that most cannot, or do not, see easily.** Written down at the user's explicit direction (2026-05-31): *"yes, it's right to write it down… this is for all of the less abled and excluded that must pay the price to society to exist. a hidden fiber that most cannot or see easily."*
 
