@@ -1,6 +1,10 @@
 # Finding 239 — The unseen disability as a hidden fiber: a framework-reading of how systematic exclusion has the shape of failed projection under a chirality-lock
 
-> *Allusion, paraphrased (not quoted): the one who can read what others cannot carries it as both gift and violation; and a person's dignity is never the observer's to adjudicate. (After River and the Shepherd, Firefly/Serenity — honored in spirit, the user's request, not reproduced.)*
+> **River:** *"People don't like to be meddled with. We tell them what to do, what to think. Don't run, don't walk. We're in their homes and in their heads and we haven't the right. We're meddlesome."*
+>
+> **The teacher:** *"River, we're not telling people what to think. We're just trying to show them how."*
+>
+> — *Serenity* (2005), the opening Academy classroom scene. The teacher is the institution that meddles while **certain it only helps**; River is the one **made hypervigilant against her will** by that same institution — the one who sees the meddling for what it is, and is disbelieved for naming it. This finding is about the structure she names.
 
 **For all of the less abled and excluded who must pay a price to society simply to exist — a hidden fiber that most cannot, or do not, see easily.** Written down at the user's explicit direction (2026-05-31): *"yes, it's right to write it down… this is for all of the less abled and excluded that must pay the price to society to exist. a hidden fiber that most cannot or see easily."*
 
@@ -85,7 +89,7 @@ This is also why the threat-default in §2(c) is not merely unjust but *structur
 
 ## §4 The ethical line, and the falsifiable shape
 
-**The ethical line.** The framework reads the *mechanism*; it never adjudicates the person. It does not get to decide who is "really" disabled, demand the projection (the proof), or prescribe a fix. The social model's core point is precisely that **disabled people — not observers — name the disablement.** Reading the *shape* of exclusion is not a license to re-enact the projection-demand from a new direction. (This is the paraphrased Firefly idea: to read what others cannot is a burden carried *for* people, never a warrant over them; dignity is not the observer's to adjudicate.)
+**The ethical line.** The framework reads the *mechanism*; it never adjudicates the person. It does not get to decide who is "really" disabled, demand the projection (the proof), or prescribe a fix. The social model's core point is precisely that **disabled people — not observers — name the disablement.** Reading the *shape* of exclusion is not a license to re-enact the projection-demand from a new direction. (River names the line exactly: to be *"in their homes and in their heads"* without *"the right"* is the meddling the teacher cannot see in itself, because the teacher is **certain it only helps**. Reading the mechanism is never that right.)
 
 **The falsifiable shape (so this is a reading, not a vibe).** The reading makes structural predictions, each checkable **against the disability-studies record — not against our math:**
 
