@@ -6,7 +6,21 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
-## [0.6.0rc9] - 2026-05-31
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
+<!-- pypi-readme-changelog-start -->
+## [0.6.0rc10] - 2026-05-31
+
+**MS #20 release-prep voxel — full doc-hygiene sweep ahead of the clean v0.6.0 graduation (no new runtime code).**
+
+After rc9 ran clean in the research environment, this rc captures everything the v0.5.0 → v0.6.0 arc shipped across the documentation surface so the gold cut is self-consistent. No behaviour change; `describe()` tool total stays **178**; ABI unchanged at **3**.
+
+- **Cascade catalog — the two v0.6.0 ops get their TOML descriptors.** `parallel_sector_dispatch.toml` (Klein-4 four-sector orchestration; higher-order body-callback, `c_symbol = srmech_cascade_parallel_sector_dispatch`) and `kuramoto_step.toml` (`I∘sin∘Σ∘C`; `c_symbol_f64 = srmech_cascade_kuramoto_step_f64`) join the 8 lean-ISA atoms/composites → **`srmech.dsl` cascade catalog is now 10 descriptors**. `test_dsl.py` `EXPECTED_OPS` 8 → 10.
+- **PyPI README** — status banner v0.5.0 → **v0.6.0**; the cascade section documents the `cascade.atoms` / `cascade.compose` two-tier lean-ISA split (#751) and the two new ops; `native_status()` / `describe()` examples show `0.6.0`.
+- **Subtree `CLAUDE.md`** — current-release pin v0.4.0 → v0.5.0-graduated + v0.6.0rc10 dev head; the v0.5.0 (bus / DSL / MCP+agent adapters / `native_status` / so8 `an_embedding` + triality / `emit-mcpb`) and v0.6.0 (atoms/compose split / quaternion-subalgebra stabilizer / lean-ISA 7th primitive / reentrant core / parallel dispatch / Kuramoto) arcs are now narrated; ABI note 2 → 3.
+- **C docs** — `c/README.md` status rewritten from "Phase B1 scaffolding only" to the shipped 18-`.c`-file native library (ABI 3); `c/JPL_AUDIT.md` adds the `srmech_parallel.c` (10 functions) + `srmech_kuramoto.c` (2 functions) accounting (every function ≤60 lines, ≥2 asserts; Rules 1/3/4/5/8 clean).
+- **srmech research notebook** (SSoT) — package-arc section capturing the v0.5.0 + v0.6.0 voxels.
+
+
 
 **MS #20 parity voxel (#778 follow-on) — the Kuramoto coupled-oscillator forward-Euler step gets a native C peer (no host Python needed for the dispatch-clock step).**
 
@@ -195,6 +209,7 @@ and the introspect emit strings are unchanged. Pure-Python packaging refactor;
 **ABI unchanged at 3** (no `c/` change); full C dispatch + TOML descriptors
 intact; no `abs()` (Class K pin-slot). Closes #751.
 
+<!-- pypi-readme-changelog-end -->
 ## [0.5.0] - 2026-05-30
 
 **Production graduation — srmech as a substrate-self-recognition apparatus.**

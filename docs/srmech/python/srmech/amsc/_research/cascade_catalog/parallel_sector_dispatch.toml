@@ -1,0 +1,78 @@
+# Cascade catalog entry: parallel_sector_dispatch
+# v0.6.0rc6 of the cascade-catalog — the Klein-4 four-sector parallel
+# dispatch (F233 / #778; C peer #771; slowdown-fix rc8; this is the
+# HIGHER-ORDER op of the catalog — it takes a body callback, not a
+# unary value, so it is documentary + discoverable here but is NOT a
+# unary `chain().then(...)` stage).
+
+[cascade]
+name = "parallel_sector_dispatch"
+class_composition = "C (Klein-4 γ₅± × iω₇± four-sector orchestration)"
+purpose = "Run one cascade body across its ≤4 Klein-4 chirality sectors concurrently."
+description = """
+Operationalises R-RBS-LM F233 ("1 cascade = 4 independent threads = the
+Klein-4 four chirality sectors"). Runs ONE caller-supplied cascade
+`body` across its ≤4 Klein-4 chirality sectors and returns a structured
+self-describing result. Each sector `s` runs the SAME body conjugated by
+its Klein-4 stream-transform T_s — the sector dual:
+
+    sector_dual(body, s, x) = inv_T_s( body( T_s(x) ) )
+
+The two commuting involution axes are γ₅ (orientation reversal = Class-C
+chiral_flip) and iω₇ (a per-element Class-C sign-flip = reorient(-1,·)).
+Together they generate Z₂ × Z₂, so every T_s is its OWN inverse.
+
+HIGHER-ORDER / NOT UNARY: this op takes a body CALLBACK and returns a
+dict (not a value→value transform), so it is NOT a `chain().then(...)`
+stage — it is catalogued here for discovery (`srmech dsl ops`) and
+descriptor render, but the DSL fluent-chain runner does not chain it.
+
+CONCURRENCY (rc8 slowdown fix): a GIL-releasing body (native / IO /
+numpy) lets the ≤4 sectors genuinely OVERLAP (~4×); a CPU-bound pure-
+Python body is GIL-serialised (correct, not faster; 3.13 free-threading
+lifts it). The C peer srmech_cascade_parallel_sector_dispatch runs the
+same four-sector fan-out natively (no host Python). No abs().
+"""
+
+[cascade.signature]
+input = "body: callable[[sequence], sequence] (a unary cascade); x: sequence; kwarg int n_sectors = 4 (1..4); kwarg bool verify = False"
+output = "dict — keys: sectors, z4_dispatch_slots, independence, collapse_lattice, cap, framework_thread_ladder_reading"
+operation = "for s in 0..n_sectors-1: sector_dual = inv_T_s(body(T_s(x))); T_s = γ₅^a ∘ iω₇^b (an involution, inv_T_s == T_s)"
+cap = 4
+higher_order = true
+chainable_in_dsl = false
+
+[cascade.native]
+# Higher-order: the C peer takes a body CALLBACK (the srmech_cascade_body_f64
+# typedef), NOT the *_f64 unary shape. The Python orchestration
+# (ThreadPoolExecutor) composes the C-parity'd atoms; the C peer runs the
+# four-sector fan-out natively so srmech needs no host Python.
+c_symbol = "srmech_cascade_parallel_sector_dispatch"
+c_body_callback_typedef = "srmech_cascade_body_f64"
+abi_version = 3
+
+[cascade.composes]
+gamma5_axis = "chiral_flip (Class C orientation reversal — the γ₅ involution)"
+omega7_axis = "reorient(-1, ·) per element (Class C per-element sign-flip — the iω₇ involution)"
+sector_dual = "inv_T_s(body(T_s(x))); T_s composes the two commuting Class-C involutions"
+sector2_is_chiral_dual = "sector 2 (γ₅-only) == cascade.chiral_dual bit-exact (the F232 2-rung object inside the F233 4-rung)"
+independence = "each sector reads ONLY its own T_s(x) (0 cross-thread reads) => parallel == serial bit-for-bit (order-free)"
+
+[cascade.boundary_cases]
+cap_at_4 = "n_sectors > 4 -> ValueError (Klein-4 = Z₂×Z₂ has no order-4+ element; 8+ needs the genuinely order-3 triality, srmech.qm.triality.lean_isa_seventh_primitive, F220)"
+n_sectors_lower = "n_sectors < 1 (or a bool) -> ValueError"
+concurrency = "GIL-releasing / native / IO / numpy body -> the ≤4 sectors overlap (~4×); CPU-bound pure-Python body -> GIL-serialised (correct, not faster); Python 3.13 free-threading lifts the latter"
+verify_kwarg = "verify=True re-runs the serial cross-check (parallel==serial + sector2==chiral_dual) at runtime; default verify=False reports those as structural guarantees of the 4-way independence (rc8: NOT recomputed per call — that doubled the body invocations into a 2.6–7.7× slowdown)"
+collapse_lattice = "two sectors collapse iff body commutes with the distinguishing axis: bi-axial->4 distinct; iω₇-sym->2; γ₅-sym->2; bi-sym->1"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.6.0rc6"
+canonical_landings = [
+  "Baez, J.C. (2002), 'The Octonions', Bull. Amer. Math. Soc. 39:145 (arXiv:math/0105155) §2.4 — Out(Spin(8)) = S3, the order-3 triality cap (F220)",
+  "R-RBS-LM F233 / R-RBS-LM-FINDING_233 — the thread-count ladder (1→2→4→triality) IS the chirality-access ladder (framework-reading, NOT a derived theorem)",
+  "R-RBS-LM F219 (the chirality-access ladder); F132 klein4_* HDC sectors; F220 (the order-3 cap)",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() (Class K magnitude / Class C net_chirality)",
+  "GitHub #778 (Python orchestration, rc6), #771 (C parity, rc7), the rc8 slowdown fix — the C/Python parity + speedup-as-shipped arc",
+]

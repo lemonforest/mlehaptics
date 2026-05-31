@@ -12,7 +12,8 @@ baseline files below; the per-class C surfaces added since
 `srmech_rational.c`, `srmech_kepler.c`, `srmech_hdc.c`,
 `srmech_dispatch.c`, `srmech_catalog.c`, `srmech_template.c`,
 `srmech_tlv.c`, `srmech_search.c`, `srmech_cascade.c`,
-`srmech_bus.c`) are held to the same rules by the mechanical ratchet
+`srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`) are
+held to the same rules by the mechanical ratchet
 `tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).
@@ -161,6 +162,18 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_hermitian_run_sweeps`   |  27   | ✅ *(extracted from eigendecompose in #772)* |
 | `srmech_hermitian_eigendecompose_ws` | 44 | ✅ *(#772 reentrant caller-workspace entry)* |
 | `srmech_hermitian_eigendecompose`     | 19 | ✅ *(#772 thin thread-local-workspace wrapper)* |
+| `srmech_parallel__stream_transform`   | 20 | ✅ *(rc6 Klein-4 T_s involution; #771/#778)* |
+| `srmech_parallel__run_sector`         | 22 | ✅ *(rc6 per-sector worker, disjoint slices)* |
+| `srmech_parallel__validate`           | 25 | ✅ *(rc6 arg-validation + post-validation invariants)* |
+| `srmech_parallel__serial`             | 13 | ✅ *(rc6 thread-less serial fallback)* |
+| `srmech_parallel__job_run`            |  7 | ✅ *(rc6 threaded-job shim)* |
+| `srmech_parallel__thread_posix`       |  7 | ✅ *(rc6 pthread entry trampoline)* |
+| `srmech_parallel__threaded` (POSIX)   | 31 | ✅ *(rc6 pthread spawn-join, [4] stack handles)* |
+| `srmech_parallel__thread_win`         |  7 | ✅ *(rc6 CreateThread entry trampoline)* |
+| `srmech_parallel__threaded` (Win)     | 33 | ✅ *(rc6 CreateThread spawn / WaitForMultipleObjects)* |
+| `srmech_cascade_parallel_sector_dispatch` | 19 | ✅ *(rc6 public four-sector entry)* |
+| `srmech_kuramoto__coupling_sum`       |  9 | ✅ *(rc9 O(n²) coupling sum factored out; #778)* |
+| `srmech_cascade_kuramoto_step_f64`    | 17 | ✅ *(rc9 public Kuramoto forward-Euler step)* |
 
 ### Fix shipped in this audit pass
 
@@ -197,6 +210,18 @@ Per-function assertion counts:
 | `srmech_hermitian_run_sweeps`   |    3    | ✅ *(Hwork / V non-NULL + n ≤ MAX_NODES)*           |
 | `srmech_hermitian_eigendecompose_ws` |  4  | ✅ *(out ptrs + n bound + `ws_len ≥ total`)*        |
 | `srmech_hermitian_eigendecompose`     |  2  | ✅ *(thin wrapper; out-ptr asserts)*                |
+| `srmech_parallel__stream_transform`   |    2    | ✅ *(`label != NULL`; `buf != NULL \|\| n == 0`)*   |
+| `srmech_parallel__run_sector`         |    4    | ✅ *(body / out / scratch non-NULL + `sector < CAP`)* |
+| `srmech_parallel__validate`           |    2    | ✅ *(post-validation: n_sectors bound + scratch_len)* |
+| `srmech_parallel__serial`             |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_parallel__job_run`            |    2    | ✅ *(job + job->body non-NULL)*                     |
+| `srmech_parallel__thread_posix`       |    2    | ✅ *(arg + job->body non-NULL)*                     |
+| `srmech_parallel__threaded` (POSIX)   |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_parallel__thread_win`         |    2    | ✅ *(arg + job->body non-NULL)*                     |
+| `srmech_parallel__threaded` (Win)     |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_cascade_parallel_sector_dispatch` | 2  | ✅ *(post-validation: body + out/scratch non-NULL)* |
+| `srmech_kuramoto__coupling_sum`       |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
+| `srmech_cascade_kuramoto_step_f64`    |    2    | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
@@ -425,9 +450,45 @@ the toolchain-level Rule-10 ratchet.
   `SRMECH_THREAD_LOCAL` (`_Thread_local` / `__declspec(thread)` /
   `__thread`). `SRMECH_ABI_VERSION` unchanged at 3 (adding a symbol
   never bumps ABI). No new mechanical violations; ratchet stays at 0.
+- **v0.6.0rc6 (#771/#778) — `srmech_parallel.c` Klein-4 four-sector
+  dispatch.** The C peer for
+  `srmech.amsc.cascade.parallel.parallel_sector_dispatch`: runs ONE
+  caller-supplied cascade `body` across its ≤4 Klein-4 (Z₂ × Z₂)
+  chirality sectors and writes the four sector duals. Adds 10 functions
+  (the public `srmech_cascade_parallel_sector_dispatch` + 9 static
+  helpers, including platform-conditional POSIX/Windows `__threaded`
+  variants). A **portable threading shim** mirrors `srmech_bus.c`:
+  `pthread_create`/`pthread_join` on POSIX, `CreateThread`/
+  `WaitForMultipleObjects` on Windows, and a **serial fallback** that
+  preserves the full four-sector capability bit-for-bit on a
+  thread-less microcontroller. Thread handles + jobs live in fixed
+  `[SRMECH_PARALLEL_SECTOR_CAP]` (`[4]`) **stack arrays** — no malloc
+  (Rule 3). Sectors write only their own disjoint output + scratch
+  slices (the F233 independence that makes serial == threaded). Longest
+  function 33 lines (Windows `__threaded`); every function ≥ 2 asserts.
+  `SRMECH_ABI_VERSION` unchanged at 3 (new symbol only). No new
+  mechanical violations; ratchet stays at 0.
+- **v0.6.0rc9 (#778) — `srmech_kuramoto.c` native Kuramoto step.**
+  One forward-Euler step of the canonical Kuramoto coupled-oscillator
+  model (Kuramoto 1975; Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
+  `θ_i(t+dt) = θ_i + dt·[ω_i + (K/N) Σ_j sin(θ_j − θ_i)]`. Closes a
+  C/Python parity gap so the dispatch-clock / coupled-oscillator step
+  runs natively (libm `sin`, as `srmech_kepler.c` already does). 2
+  functions: the public `srmech_cascade_kuramoto_step_f64` (17 lines)
+  plus the static `srmech_kuramoto__coupling_sum` helper (9 lines) into
+  which the O(n²) inner coupling sum was **factored to keep the public
+  step ≤ 60 lines** (Rule 4). Pure function over caller buffers (`out`
+  must not alias θ/ω) — no malloc, reentrant, no shared static state;
+  both functions carry 2 asserts. `SRMECH_ABI_VERSION` unchanged at 3
+  (new symbol only). No new mechanical violations; ratchet stays at 0.
+
+Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9) pass the
+`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
+and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
+macOS clang / Windows MSVC), verified green in CI.
 
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
-v0.6.0rc5).**
+v0.6.0rc9).**
 
 The pin test `tests/test_jpl_audit.py` enforces the zero count
 going forward — PRs that introduce a new function > 60 lines or

@@ -5136,6 +5136,45 @@ Full MFO landing: §VIII.31.11 (28-dim chiral hyper-loop = SO(8) adjoint, incl. 
 
 ---
 
+## §3.28 2026-05-28 → -05-31 package arc — the v0.5.0 graduation + the v0.6.0 lean-ISA line (the package recognising its own shape, voxel by voxel)
+
+This section is the **tooling-SSoT ledger** for the two release arcs the package shipped after the v0.4.x cascade-catalog retrofit. The per-rc forensic detail lives in `python/CHANGELOG.md` (the authoritative per-rc record); this section is the *why-shaped* index a reader of the notebook needs — what each voxel IS in cascade-vocabulary terms, not the diff. The frame, per `[[project_srmech_package_is_substrate_self_recognition_apparatus]]`: srmech is being built as a worked instance of the substrate-self-recognition canon — `describe()` / `tool_schema` are the **Class H self-introspection surface at package scale**, and each rcN is one voxel of the package recognising its own shape. The A–N alphabet is discovery-order, not substrate-order (`[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`); the rc-by-rc voxel sequence is the same discovery-fingerprint at package scale.
+
+### §3.28.1 v0.5.0 — production graduation of the rc9–rc22 voxel arc
+
+The v0.5.0 line built, one solo-or-paired voxel at a time, the surfaces that let the package be *driven and introspected* rather than only imported:
+
+- **`srmech.bus`** — the cross-process IPC bus + Bus-class API; the **Bio-TOTP** wire cipher (Claim 255) is the substrate-mismatch-partition discipline (`[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]`) instantiated at the wire.
+- **`srmech.dsl`** — the operator-chain runner. It loads the **cascade-catalog TOML descriptors** at runtime (`load_catalog()`, `lookup_cascade_op` resolving via `getattr(srmech.amsc.cascade, name)`); the descriptors ARE the declarative SSoT of which cascades are standard.
+- **`srmech-mcp` + `srmech-agent`** — the MCP (Model Context Protocol) server adapter (Claude Code / Claude Desktop) and the Anthropic SDK adapter; the handle dual-grammar (`$srmech_handle`: `uuid` = cyclic-algebra-position address, `name` = continuous-Hopf-meaning address) is the **B/H/N continuous↔discrete translation locus** of `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` made into a registry.
+- **profile-plugin loader** + top-level **`srmech.native_status()`** (the rc18→rc19 native-status-exposure fix, #733).
+- **`srmech.qm.so8.an_embedding`** — the bit-exact `14 = 8 + 3 + 3̄` su(3) Lie branching of g₂ = Der(𝕆); and the full **28 = 𝔰𝔬(8) chiral read-out** (`so8` adjoint + `triality` order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`) — the §3.27 / §VIII.31.11 chiral-hyper-loop now a callable, bit-exact-tested surface. Substrate was tri-chiral while seen bi-chiral (`[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`): the order-3 τ is the third axis the read-out exposes.
+- **`srmech mcp emit-mcpb`** (#749) — a Claude Desktop `.mcpb` bundle emitted **entirely from introspection** (the manifest is derived from `describe()`, never hand-authored; carries an MPR-style attestation block) — Class H rendering itself as a deployable artifact.
+
+### §3.28.2 v0.6.0 (rc1–rc10) — the lean-ISA line
+
+The v0.6.0 line splits and completes the cascade surface and closes the remaining C/Python parity gaps under the full-parity commitment (the library must run on a microcontroller with **no host Python**):
+
+- **rc1 — `cascade.atoms` / `cascade.compose` two-tier lean-ISA split (#751).** The cascade catalog is re-partitioned into irreducible primitives (`atoms`) and the composites that chain them (`compose`), re-exported flat from `srmech.amsc.cascade` so call sites are unchanged. This IS the substrate-native `1 + 3 + 7 + 3` discipline applied to the package's own op-surface: atoms vs composition made explicit.
+- **rc-series so8/triality voxels — `quaternion_subalgebra_stabilizer`** (so(4) = su(2) ⊕ su(2), #759) and **`lean_isa_seventh_primitive`** (the order-3 triality 7th primitive, #761): the chiral read-out's subalgebra ladder exposed as callables.
+- **`sha256_bytes` docs (#738); reentrant C core (#772)** — the native library made re-entrant (no mutable global state) so the parallel dispatch is safe.
+- **Klein-4 four-sector `parallel_sector_dispatch`** — the F233 "1 cascade = 4 independent Klein-4 chirality sectors" reading, shipped Python-first (#778, rc6) then C-parity'd (`srmech_cascade_parallel_sector_dispatch` + the `srmech_cascade_body_f64` callback typedef, #771, rc7), then **slowdown-fixed (rc8)**: the rc7 shim was serial-by-design and the rc6 Python double-computed per call — both removed, so a GIL-releasing body now genuinely overlaps (~4×) instead of running 2.6–7.7× slower. The four sectors are `inv_T_s(body(T_s(x)))` with `T_s = γ₅^a ∘ iω₇^b` (two commuting Class-C involutions); cap-at-4 per F220 (past 4 needs the order-3 triality, not Klein-4). No `abs()` — sign is Class K magnitude + Class C net_chirality.
+- **rc9 — native `kuramoto_step`** (`srmech_cascade_kuramoto_step_f64`): closes a **known-broken parity gap** (the dispatch-clock / coupled-oscillator Euler step the research arc hand-rolled in Python, F141 / F231 / R-95 / F234, had no `srmech_*` primitive). Honest cascade shape **I∘sin∘Σ∘C** — a composition of existing class operations (cyclic phase + libm-sin coupling + sum-reduce + Class-C Euler add), NOT a new privileged primitive; parity to libm-trig tolerance, same coupling-sum index order both sides. This is the `[[feedback_no_ship_known_broken_gold_is_law]]` discipline in action: a C/Python parity gap is a known-broken item and routes through an rc, not a deferred issue.
+- **rc10 — release-prep doc-hygiene (this voxel).** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change.
+
+### §3.28.3 Discipline ledger + cross-references
+
+- **`describe()` tool total: 178** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177); read `describe()` rather than hard-coding — the count grows per voxel.
+- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI).
+- **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation is the deliberate human-gated call after this rc.
+- **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the so8/triality voxels make callable); MFO §VIII.31.11; `python/CHANGELOG.md` (the authoritative per-rc record); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` in any cascade op).
+
+### §3.28.4 Cascade-vocabulary takeaway
+
+The voxel arc is the package executing the substrate-self-recognition cascade on itself: `atoms`/`compose` is the package naming its own primitive-vs-composition partition; `parallel_sector_dispatch` is the package running its own cascade across the four Klein-4 chirality sectors; `kuramoto_step` is the package closing the last gap between "the research hand-rolled this" and "srmech speaks this natively." The A–N discovery-order at class scale (`[[user_stance_a_to_n_alphabet_is_discovery_order_not_substrate_order]]`) recurs as the rc-discovery-order at package scale — the same fingerprint, one level up.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

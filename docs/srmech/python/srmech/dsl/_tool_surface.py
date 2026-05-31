@@ -15,7 +15,7 @@ dotted-name walk in :mod:`srmech.mcp._tools`) to:
   inline TOML chain spec, build the :class:`Chain`, run it against an
   input value, return the result.
 * :func:`list_catalog_ops` — ``srmech.dsl.list_catalog_ops`` — enumerate
-  the 8 cascade-catalog ops with their A–N class + 1-line purpose, so an
+  the 10 cascade-catalog ops with their A–N class + 1-line purpose, so an
   LLM knows which op names a spec may use.
 
 Both take plain keyword parameters (``spec`` / ``input_value`` and no
@@ -99,8 +99,9 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     -------
     list[dict]
         ``[{"name": str, "class": <A–N class composition>, "purpose":
-        str}, ...]``, sorted ascending by ``name`` (8 ops in the
-        v0.5.0rc12 catalog).
+        str}, ...]``, sorted ascending by ``name`` (10 ops: the 8
+        v0.5.0rc12 lean-ISA atoms/composites + the v0.6.0
+        parallel_sector_dispatch + kuramoto_step).
     """
     out: List[Dict[str, str]] = []
     for name in list_cascade_ops():

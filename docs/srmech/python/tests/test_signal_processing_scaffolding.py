@@ -91,8 +91,16 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc9():
-    """v0.6.0rc9 — MS #20 parity voxel (#778 follow-on): the Kuramoto
+def test_version_is_0_6_0rc10():
+    """v0.6.0rc10 — MS #20 release-prep doc-hygiene voxel: the two v0.6.0
+    cascade ops get their cascade-catalog TOML descriptors
+    (parallel_sector_dispatch + kuramoto_step → srmech.dsl catalog now 10
+    descriptors), and the PyPI README / subtree CLAUDE.md / C README +
+    JPL_AUDIT / research notebook §3.28 are brought current with the
+    v0.5.0 + v0.6.0 shipped state. No runtime change; describe() tool
+    total stays 178; ABI unchanged at 3.
+
+    Prior v0.6.0rc9 — MS #20 parity voxel (#778 follow-on): the Kuramoto
     coupled-oscillator forward-Euler step gets a native C peer. Closes a
     C/Python parity gap — the dispatch-clock Euler integration the
     spectral-research arc hand-rolled in Python (F141/F231/R-95/F234) had
@@ -337,8 +345,8 @@ def test_version_is_0_6_0rc9():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc9", (
-        f"expected srmech.__version__ == '0.6.0rc9'; got "
+    assert srmech.__version__ == "0.6.0rc10", (
+        f"expected srmech.__version__ == '0.6.0rc10'; got "
         f"{srmech.__version__!r}"
     )
 

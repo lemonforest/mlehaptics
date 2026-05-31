@@ -44,7 +44,15 @@ from srmech.dsl import (
 
 
 class TestCatalogLoader:
-    """Cascade-catalog runtime loader covers all 8 shipped descriptors."""
+    """Cascade-catalog runtime loader covers all 10 shipped descriptors.
+
+    8 lean-ISA atoms/composites + the 2 v0.6.0 cascade ops
+    (parallel_sector_dispatch, rc6/#778; kuramoto_step, rc9). The latter
+    two are catalogued for discovery (``srmech dsl ops`` + descriptor
+    render) and resolve to their ``srmech.amsc.cascade`` callables;
+    parallel_sector_dispatch is higher-order (a body-callback orchestrator,
+    not a unary ``chain().then(...)`` stage).
+    """
 
     EXPECTED_OPS = {
         "pin_slot_at_zero",
@@ -55,13 +63,15 @@ class TestCatalogLoader:
         "chiral_flip",
         "chiral_dual",
         "net_chirality",
+        "parallel_sector_dispatch",
+        "kuramoto_step",
     }
 
     def test_list_cascade_ops_matches_expected_set(self) -> None:
         assert set(list_cascade_ops()) == self.EXPECTED_OPS
 
-    def test_list_cascade_ops_returns_eight(self) -> None:
-        assert len(list_cascade_ops()) == 8
+    def test_list_cascade_ops_returns_ten(self) -> None:
+        assert len(list_cascade_ops()) == 10
 
     def test_list_cascade_ops_sorted(self) -> None:
         names = list_cascade_ops()
@@ -434,12 +444,13 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess:
 class TestCliDsl:
     """CLI subcommand surface."""
 
-    def test_ops_lists_eight(self) -> None:
+    def test_ops_lists_ten(self) -> None:
         result = _run_cli("dsl", "ops")
         assert result.returncode == 0, result.stderr
-        assert "8 total" in result.stdout
+        assert "10 total" in result.stdout
         # Each catalog name appears in the output.
-        for name in ["chiral_flip", "magnitude", "cyclic_gcd"]:
+        for name in ["chiral_flip", "magnitude", "cyclic_gcd",
+                     "parallel_sector_dispatch", "kuramoto_step"]:
             assert name in result.stdout
 
     def test_ops_json_emits_records(self) -> None:
@@ -447,7 +458,7 @@ class TestCliDsl:
         assert result.returncode == 0, result.stderr
         records = json.loads(result.stdout)
         assert isinstance(records, list)
-        assert len(records) == 8
+        assert len(records) == 10
         for rec in records:
             assert "name" in rec
             assert "class_composition" in rec
