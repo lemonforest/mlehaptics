@@ -8,17 +8,18 @@ Python). This module proves the C dispatch's four sector results equal
 rc6's Python ``parallel_sector_dispatch`` **bit-for-bit** for the same body
 math, plus sector-2 == ``cascade.chiral_dual``.
 
-GIL/CALLBACK HAZARD — how these tests avoid it. The C dispatch spawns one
-thread PER sector and invokes the body callback from each; invoking a Python
-``CFUNCTYPE`` callback from a C-spawned thread is unsafe. So
-``_native.cascade_parallel_sector_dispatch_c`` drives the C dispatch ONE
-sector at a time (``n_sectors=1`` ⇒ a single-thread, identity-transform
-call), composing the Klein-4 ``T_s`` transform via the native C atoms on
-each side. The threaded multi-sector fan-out is validated separately from
-the **C smoke test** (``c/test/test_srmech_parallel.c``) with a C-native
-body — no Python callback crosses the thread boundary there. The per-sector
-results are bit-identical to the multi-sector threaded dispatch (the sectors
-are independent / order-free — the F233 invariant).
+GIL + CONCURRENCY (v0.6.0rc8 — empirically settled). The C dispatch spawns
+up to N threads and invokes the body callback from each. ctypes invokes a
+``CFUNCTYPE`` callback from a C-spawned thread SAFELY (it acquires the GIL
+via ``PyGILState_Ensure``), so ``_native.cascade_parallel_sector_dispatch_c``
+drives ONE ``n_sectors=N`` threaded dispatch (the C side applies the Klein-4
+``T_s`` transform itself on disjoint per-sector slices). A GIL-releasing body
+lets the ≤N sector callbacks genuinely overlap (measured ~4× on a sleep
+body). The rc7 serial-per-sector workaround (which traded away all the
+concurrency, 0.99× vs serial) was empirically disproven and replaced. The
+results remain bit-identical to the multi-sector dispatch (the sectors are
+independent / order-free — the F233 invariant), so the parity assertions
+below are unchanged.
 
 These tests SKIP cleanly when ``HAS_NATIVE`` is False (pure-Python wheel /
 Pyodide / sdist without a toolchain).
