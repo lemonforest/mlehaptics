@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 6
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc8"
-#define SRMECH_VERSION       "0.6.0rc8"
+#define SRMECH_VERSION_PRE   "rc9"
+#define SRMECH_VERSION       "0.6.0rc9"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -527,6 +527,41 @@ srmech_status_t srmech_cascade_parallel_sector_dispatch(
     uint32_t n_sectors,            /* 1..4 */
     double  *out_sectors,          /* n_sectors * n doubles; sector s at [s*n ..) */
     double  *scratch, size_t scratch_len); /* per-sector scratch; NO malloc */
+
+/* ------------------------------------------------------------------ *
+ * Kuramoto coupled-oscillator forward-Euler step (#778 follow-on).
+ *
+ * One forward-Euler step of the canonical Kuramoto model (Kuramoto
+ * 1975; Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
+ *
+ *     out[i] = theta[i] + dt * ( omega[i]
+ *                                + (coupling_k / n) * Σ_j sin(theta[j] - theta[i]) )
+ *
+ * Closes a C/Python parity gap — the dispatch-clock Euler integration
+ * the spectral-research arc hand-rolled in Python (F141 / F231 / R-95 /
+ * F234) now has a native step. Composes existing class operations
+ * (Class I cyclic phase + sin coupling + sum-reduce + Class-C Euler
+ * add); NOT a new privileged primitive. Uses libm sin (as
+ * srmech_kepler.c does). No abs().
+ *
+ * Buffers: reads `theta`/`omega` (n doubles each), writes `out` (n
+ * doubles, caller-allocated). `out` MUST NOT alias `theta` or `omega`.
+ * Pure / reentrant (no shared static state).
+ *
+ * n == 0 is a no-op returning SRMECH_OK. n == 1 has an empty coupling
+ * sum (Σ sin(0) over the self-term cancels), so out[0] = theta[0] +
+ * dt*omega[0] — pure drift, as expected.
+ *
+ * Returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — out is NULL, or theta/omega is NULL while n > 0
+ *
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_cascade_kuramoto_step_f64(
+    const double *theta, const double *omega, size_t n,
+    double coupling_k, double dt,
+    double *out);                  /* n doubles; MUST NOT alias theta/omega */
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

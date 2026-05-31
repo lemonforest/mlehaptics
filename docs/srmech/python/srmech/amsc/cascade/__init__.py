@@ -105,6 +105,7 @@ from .compose import (
     DEFAULT_FINE_SCALE,
     cyclic_gcd,
     best_rational_signed,
+    kuramoto_step,
 )
 # The Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233). A Python
 # *orchestration* layer over the C-parity'd cascade.atoms — runs one cascade
@@ -146,6 +147,7 @@ __all__ = [
     "magnitude",
     "best_rational_signed",
     "cyclic_gcd",
+    "kuramoto_step",
     "chiral_flip",
     "chiral_dual",
     "net_chirality",

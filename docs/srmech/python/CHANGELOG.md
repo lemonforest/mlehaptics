@@ -6,6 +6,17 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+## [0.6.0rc9] - 2026-05-31
+
+**MS #20 parity voxel (#778 follow-on) — the Kuramoto coupled-oscillator forward-Euler step gets a native C peer (no host Python needed for the dispatch-clock step).**
+
+Closes a C/Python **parity gap** (a known-broken item under the full-parity commitment): the dispatch-clock / coupled-oscillator Euler integration the spectral-research arc hand-rolled in Python (F141 / F231 / R-95 / F234) had **no `srmech_*` primitive**, so srmech could not run the Kuramoto step on a microcontroller with no host Python. Adds:
+
+- **C op `srmech_cascade_kuramoto_step_f64(theta, omega, n, K, dt, out)`** — one forward-Euler step of the canonical Kuramoto model (Kuramoto 1975; Acebrón et al. 2005, *Rev. Mod. Phys.* 77:137): `out[i] = theta[i] + dt·(omega[i] + (K/n)·Σⱼ sin(theta[j]−theta[i]))`. The O(n²) sin-coupling runs natively (libm `sin`, exactly as `srmech_kepler.c` already does). JPL-clean: no malloc/goto, ≤60-line functions (the coupling sum is factored), ≥2 asserts, reentrant; `out` must not alias `theta`/`omega`.
+- **Python peer `srmech.amsc.cascade.kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)`** — dispatches to the C peer when `HAS_NATIVE`, pure-Python fallback otherwise (numpy/generators coerce via `float`). Parity is to **libm-trig tolerance** (NOT bit-exact across platforms — the kepler trig discipline); the C peer and the Python fallback sum the coupling in the same index order.
+
+**Honest cascade shape:** a *composition* of existing class operations — Class I (cyclic phase) + sin coupling + sum-reduce + Class-C Euler add — **NOT** a new privileged primitive. No `abs()`. `n==1` is pure drift (the coupling sum vanishes); `n==0` is `[]`. **+1 ToolEntry → `describe()` tool total 177 → 178; ABI unchanged at 3** (additive C symbol). Closes the hand-rolled-Euler parity gap.
+
 ## [0.6.0rc8] - 2026-05-30
 
 **MS #20 slowdown-fix voxel (#778 / #771) — the Klein-4 four-sector parallel dispatch no longer SLOWS DOWN vs serial; the F233 4-thread speedup is delivered as shipped.**

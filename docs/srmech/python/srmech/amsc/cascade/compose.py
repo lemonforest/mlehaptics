@@ -29,7 +29,8 @@ pure-delegation alias for the Class I ``srmech_gcd`` primitive; the
 from __future__ import annotations
 
 import ctypes
-from typing import Tuple
+import math
+from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
@@ -265,9 +266,124 @@ def cyclic_gcd(a: int, b: int) -> int:
     return _cyclic_gcd(a, b)
 
 
+def _try_native_kuramoto_step(theta, omega, coupling, dt):
+    """Native dispatch for the Kuramoto forward-Euler step.
+
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    Python composition path. Coerces ``theta`` / ``omega`` to float lists
+    (numpy arrays, generators, etc. coerce via ``float(...)``); any
+    coercion failure, a length mismatch, or a missing native symbol falls
+    back to Python so the public behaviour is preserved exactly.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_kuramoto_step_f64"):
+        return None
+    try:
+        th = [float(v) for v in theta]
+        om = [float(v) for v in omega]
+        k = float(coupling)
+        h = float(dt)
+    except (TypeError, ValueError):
+        return None
+    n = len(th)
+    if len(om) != n:
+        return None  # the Python path raises the ValueError with the message
+    Arr = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_th = Arr(*th) if n > 0 else Arr()
+    c_om = Arr(*om) if n > 0 else Arr()
+    c_out = Arr()
+    rc = _native.LIB.srmech_cascade_kuramoto_step_f64(
+        ctypes.cast(c_th, ctypes.POINTER(ctypes.c_double)),
+        ctypes.cast(c_om, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.c_double(k),
+        ctypes.c_double(h),
+        ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
+def kuramoto_step(
+    theta: Sequence[float],
+    omega: Sequence[float],
+    *,
+    coupling: float = 1.0,
+    dt: float = 0.01,
+) -> List[float]:
+    """Class I ∘ sin ∘ Σ ∘ C: one forward-Euler Kuramoto step.
+
+    One forward-Euler step of the canonical Kuramoto coupled-oscillator
+    model (Kuramoto 1975; Acebrón et al. 2005, *Rev. Mod. Phys.* 77:137)::
+
+        theta_i <- theta_i + dt * ( omega_i
+                                    + (coupling / n) * Σ_j sin(theta_j - theta_i) )
+
+    The dispatch-clock / coupled-oscillator Euler step the spectral-research
+    arc hand-rolled in Python (F141 / F231 / R-95 / F234) — now with a
+    native C peer (``srmech_cascade_kuramoto_step_f64``) so srmech runs the
+    Kuramoto step with **NO host Python** (the full-parity commitment). The
+    O(n²) sin-coupling runs natively (libm sin, as ``srmech.amsc.kepler``
+    does upstream).
+
+    HONEST CASCADE SHAPE. This is a *composition* of existing class
+    operations, NOT a new privileged primitive: Class I (the cyclic phase
+    ``theta`` on the circle) + the sin coupling (asymptotic-calculus
+    transcendental) + a sum-reduce over ``j`` + a Class-C Euler add
+    (``theta + dt·f``). **No ``abs()``.**
+
+    v0.6.0rc9: dispatches through the native C peer when ``HAS_NATIVE`` is
+    True and ``theta`` / ``omega`` coerce to equal-length float sequences;
+    pure-Python fallback otherwise. Parity is to **libm-trig tolerance**,
+    NOT bit-exact across platforms (the kepler trig discipline) — the C
+    peer and the Python fallback sum the coupling in the SAME index order.
+
+    Args:
+        theta: current phases (radians), length ``n``.
+        omega: natural frequencies, length ``n`` (must match ``theta``).
+        coupling: the global coupling constant ``K`` (default ``1.0``).
+        dt: the forward-Euler time step (default ``0.01``).
+
+    Returns:
+        ``list[float]`` — the ``n`` phases after one forward-Euler step.
+        ``n == 1`` is pure drift (the coupling sum ``sin(0)`` vanishes);
+        ``n == 0`` is ``[]``.
+
+    Raises:
+        ValueError: if ``len(omega) != len(theta)``.
+    """
+    if _is_pub(): _emit("cascade.kuramoto_step", class_="I∘sin∘Σ∘C", input_shape=_shape(theta))
+    theta_list = list(theta)
+    omega_list = list(omega)
+    n = len(theta_list)
+    if len(omega_list) != n:
+        raise ValueError(
+            f"cascade.kuramoto_step: omega length {len(omega_list)} != "
+            f"theta length {n}"
+        )
+    native = _try_native_kuramoto_step(theta_list, omega_list, coupling, dt)
+    if native is not None:
+        return native
+    # Python fallback — the SAME composition + the SAME coupling-sum index
+    # order as the C peer (so same-platform results match to the last bit).
+    inv_n = (float(coupling) / n) if n > 0 else 0.0
+    h = float(dt)
+    out: List[float] = []
+    for i in range(n):
+        theta_i = float(theta_list[i])
+        coupling_sum = 0.0
+        for j in range(n):
+            coupling_sum += math.sin(float(theta_list[j]) - theta_i)
+        out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
+    return out
+
+
 __all__ = [
     "DEFAULT_MAX_DENOMINATOR",
     "DEFAULT_FINE_SCALE",
     "cyclic_gcd",
     "best_rational_signed",
+    "kuramoto_step",
 ]

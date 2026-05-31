@@ -91,8 +91,25 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc8():
-    """v0.6.0rc8 — MS #20 slowdown-fix voxel (#778/#771): the Klein-4
+def test_version_is_0_6_0rc9():
+    """v0.6.0rc9 — MS #20 parity voxel (#778 follow-on): the Kuramoto
+    coupled-oscillator forward-Euler step gets a native C peer. Closes a
+    C/Python parity gap — the dispatch-clock Euler integration the
+    spectral-research arc hand-rolled in Python (F141/F231/R-95/F234) had
+    NO srmech_* primitive, so srmech could not run the Kuramoto step under
+    its full-parity commitment (no host Python). Adds
+    srmech_cascade_kuramoto_step_f64 (one forward-Euler step:
+    theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j sin(theta_j - theta_i));
+    O(n²) sin-coupling native, libm sin like kepler.c; JPL-clean, no
+    malloc/goto, ≥2 asserts) + the Python peer
+    srmech.amsc.cascade.kuramoto_step (dispatch-to-C when HAS_NATIVE,
+    pure-Python fallback; libm-trig TOLERANCE parity, same coupling-sum
+    index order). Honest cascade shape: Class I cyclic phase + sin coupling
+    + sum-reduce + Class-C Euler add; NOT a new privileged primitive. No
+    abs(). +1 ToolEntry → describe() tool total 177 → 178; ABI unchanged
+    at 3 (additive C symbol). n==1 is pure drift; n==0 is [].
+
+    Prior v0.6.0rc8 — MS #20 slowdown-fix voxel (#778/#771): the Klein-4
     four-sector parallel dispatch no longer SLOWS DOWN vs serial. TWO defects
     fixed (both Python-side; the C dispatch was already correct — create-all-
     then-join-all). (1) The native shim _native.cascade_parallel_sector_dispatch_c
@@ -320,8 +337,8 @@ def test_version_is_0_6_0rc8():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc8", (
-        f"expected srmech.__version__ == '0.6.0rc8'; got "
+    assert srmech.__version__ == "0.6.0rc9", (
+        f"expected srmech.__version__ == '0.6.0rc9'; got "
         f"{srmech.__version__!r}"
     )
 

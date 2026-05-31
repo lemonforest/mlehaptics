@@ -1327,6 +1327,29 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
+            category="cascade",
+            summary="One forward-Euler step of the canonical Kuramoto model: "
+                    "theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j "
+                    "sin(theta_j - theta_i)). The coupled-oscillator dispatch-"
+                    "clock Euler step the spectral-research arc hand-rolled in "
+                    "Python (F141/F231/R-95/F234) — now C-parity'd "
+                    "(srmech_cascade_kuramoto_step_f64, O(n²) sin-coupling "
+                    "native; libm sin like kepler) so srmech runs it with NO "
+                    "host Python. Honest composition: Class I cyclic phase + "
+                    "sin coupling + sum-reduce + Class-C Euler add; NOT a new "
+                    "privileged primitive. No abs(). Dispatches to C when "
+                    "HAS_NATIVE (libm-trig tolerance parity); pure-Python "
+                    "fallback otherwise. n==1 is pure drift; n==0 is []."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "sequence", True, "current phases (radians)"),
+                        P("omega", "sequence", True,
+                          "natural frequencies; same length as theta"),
+                        P("coupling", "float", False, "global coupling K; default 1.0"),
+                        P("dt", "float", False, "forward-Euler time step; default 0.01")),
+            returns=R("list[float]", "phases after one forward-Euler Kuramoto step"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
