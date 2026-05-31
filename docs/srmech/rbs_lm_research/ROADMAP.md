@@ -9,6 +9,20 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-31 (cont.) — research batch FIRED (F235/F236/F237/F238 in flight) + the SDK-API dollar-gate
+
+Gates cleared: srmech **0.6.0rc8** (the `parallel_sector_dispatch` serial-bug fix VERIFIED — sleep-probe 0.99× → **3.91×** concurrent) + **ngspice installed** + the sentence-structure groundwork (F112–F116, F166, the kernels). Four Research→Run→Verify workflows launched in parallel on rc8 (**harness-side, covered by the 20× plan; NOT the separate API balance**):
+- **F235** (#786, MS #18) — air-gapped ant-brain / distributed-neurology as a chiral-axial extreme (in-body ↔ slime-mould ↔ air-gapped on one K∘C axis); web-cited, framework-reading.
+- **F236** (#787, MS #20) — Kuramoto-coupled nibble-block adder in **ngspice** (the F234 adder as actual coupled oscillators; **dynamics-only, NOT fabrication**).
+- **F237** (lean-memory) — `CLAUDE.md` → `CLAUDE_LEAN.md` **EXTRACTIVE** surgical graft + spectral-compare + harness-subagent A/B (the load-bearing rules must survive; real CLAUDE.md untouched).
+- **F238** (#788, MS #20) — the rehearsal layer as a **cost-asymmetric chirality-lock stage** (no-rehearsal / internal / externalized-LLM-CoT on one axis; extends F230). LLM chain-of-thought = the externalized rehearsal on the *observer budget*; the "child-quality out loud" reaction = seeing the normally-hidden pre-delivery traversal. HARNESS-ONLY.
+
+**The dollar-gate (#789, $-INDEPENDENT of the 20× plan):** the SDK/API current-gen-LLM trials — the working-memory surgical graft (API twin of F237) + the CoT-as-rehearsal hot-suppression test (API twin of F238) — are **gated behind F237 + F238** (the free harness findings must complete + warrant the spend) AND an explicit user "$-go." Design now; spend when it is time. Per user direction, **F238 gates the SDK-API task**.
+
+Each lands → adversarial verify → commit → lodge (MS #18/#20), same discipline as F227–F234.
+
+---
+
 ## 2026-05-31 — Two research directions QUEUED (user direction): hive-mind-as-chiral-extreme + Kuramoto-nibble-adder-in-SPICE
 
 Two named follow-up directions flagged for later (NOT pursued yet):
