@@ -45,6 +45,31 @@ PAIRS = [
  {"caught_by": "F242c notation confound (corrected)",
   "false": "The prose renders carry higher round trip structural loss than the structured renders",
   "true":  "After notation normalization the structured renders carry higher loss than the prose renders as creation exceeds echo"},
+ # --- batch grow +8: caught (false, true) pairs from the F251/F252/F240c twin runs (all citation/attribution-stratum) ---
+ {"caught_by": "F251 opus Aplysia companion mis-attribution",
+  "false": "The commentary An Emerging Role for RNA in a Memory Like Behavioral Effect in Aplysia is a companion authored by the Glanzman lab team Bedecarrats Chen Pearce Cai Glanzman",
+  "true":  "The commentary An Emerging Role for RNA in a Memory Like Behavioral Effect in Aplysia is a single author piece by Rosalind Carney distinct from the Bedecarrats Glanzman transfer paper"},
+ {"caught_by": "F251 sonnet Beisson PMID slip",
+  "false": "The Beisson and Sonneborn 1965 cortical inheritance paper has PubMed identifier 14324527",
+  "true":  "The Beisson and Sonneborn 1965 cortical inheritance paper has PubMed identifier 14294056 because 14324527 indexes a different chlorophyll optical rotatory dispersion paper"},
+ {"caught_by": "F251 sonnet Biomolecules year slip",
+  "false": "The Retention and Distribution of Dopamine Dependent Reward Memory in Regenerating Planaria article was published in year 2025",
+  "true":  "The Retention and Distribution of Dopamine Dependent Reward Memory in Regenerating Planaria article is volume 16 published in year 2026"},
+ {"caught_by": "F252 opus Bielecki DOI slip",
+  "false": "The primary Bielecki 2023 box jellyfish associative learning paper has digital object identifier 10.1016 cub 2023 08 020",
+  "true":  "The primary Bielecki 2023 box jellyfish associative learning paper has digital object identifier 10.1016 cub 2023 08 056 while 08 025 indexes the commentary"},
+ {"caught_by": "F252 sonnet PMC malformed identifier",
+  "false": "The Pascual Torner 2022 immortal jellyfish genome paper has PubMed Central identifier PMC 36037356",
+  "true":  "The Pascual Torner 2022 immortal jellyfish genome paper has PubMed Central identifier PMC 9459311 because 36037356 is the PubMed identifier not a PubMed Central identifier"},
+ {"caught_by": "F240c sonnet Camponotus mus author slip",
+  "false": "The Camponotus mus antennation encodes colony needs paper is by Josens and Roces published in year 2000",
+  "true":  "The Camponotus mus antennation encodes colony needs paper is by McCabe Farina and Josens published in Insectes Sociaux in year 2006"},
+ {"caught_by": "F240c opus Camponotus mus lineage slip",
+  "false": "The Camponotus mus antennation encodes colony needs paper is from the De Marco and Farina lineage",
+  "true":  "The Camponotus mus antennation encodes colony needs paper is by McCabe Farina and Josens 2006 and De Marco is not an author of it"},
+ {"caught_by": "F240c sonnet Schultheiss species slip",
+  "false": "The Follower ants in a tandem pair are not always naive paper studies the species Temnothorax",
+  "true":  "The Follower ants in a tandem pair are not always naive paper by Schultheiss Raderschall and Narendra 2015 studies the species Camponotus consobrinus"},
 ]
 
 STOP = {"the","a","an","of","is","by","and","at","to","its","than","as","not","comes","from","using","carry","equals"}
@@ -90,8 +115,24 @@ def main():
         return {"n": len(xs), "pos": pos, "neg": neg,
                 "consistent": (pos == len(xs) or neg == len(xs)) and len(xs) >= 5,
                 "mean_delta": round(sum(xs) / len(xs), 4) if xs else 0.0}
+    # length/elaboration CONFOUND diagnostic (F242c-style artifact guard): if the LONGER statement
+    # systematically has the lower Fiedler, an observed false-vs-true Fiedler lean may be a LENGTH
+    # artifact (true corrections tend to be longer/more-elaborated), NOT a truth-value signal. The
+    # product (n_false - n_true) * (fiedler_false - fiedler_true) < 0 means longer<->lower-Fiedler.
+    inv = sum(1 for r in rows
+              if (r["false_sig"]["n_nodes"] - r["true_sig"]["n_nodes"]) * r["false_minus_true"]["fiedler"] < 0)
+    true_longer = sum(1 for r in rows if r["true_sig"]["n_nodes"] > r["false_sig"]["n_nodes"])
+    n = len(rows)
+    lc = {"true_longer_than_false": "%d/%d" % (true_longer, n),
+          "longer_stmt_has_lower_fiedler": "%d/%d" % (inv, n),
+          "interpretation": ("LENGTH-CONFOUNDED: the false-vs-true Fiedler/spread lean tracks statement "
+                             "LENGTH, not truth-value (true corrections are systematically longer/more-"
+                             "elaborated); the corpus MUST be length/elaboration-matched before the MFO "
+                             "claim can be tested." if (n and inv >= n - 1 and true_longer >= n - 1)
+                             else "no dominant length confound detected at this N")}
     summary = {
         "n_pairs": len(rows),
+        "length_confound": lc,
         "feature_sign_consistency": {k: sign_consistency(v) for k, v in deltas.items()},
         "PRE_STATED_NULL": "true and false statements do NOT differ spectrally (no consistent-sign per-pair feature delta)",
         "VERDICT": None,  # filled below
@@ -109,6 +150,11 @@ def main():
         "consistent sign across the seed pairs. The MFO claim is NEITHER supported NOR refuted here — "
         "N=%d is too small; the instrument + accumulation is the deliverable, the powered falsification "
         "awaits corpus growth across twin runs." % len(rows))
+    if lc["interpretation"].startswith("LENGTH-CONFOUNDED"):
+        summary["VERDICT"] += ("  ** CONFOUND OVERRIDES THE 'small-N' READING: " + lc["interpretation"] +
+            " The N=%d 13/14-style Fiedler/spread lean IS this length artifact, NOT a truth-value signal; "
+            "growing N will NOT help until the corpus is length/elaboration-matched (and de-stratified "
+            "from the current attribution-correction heavy mix). **" % len(rows))
     summary["response_sha256"] = sha256_bytes(
         json.dumps({k: v for k, v in summary.items() if k != "VERDICT"}, sort_keys=True, default=str).encode())
     return summary
