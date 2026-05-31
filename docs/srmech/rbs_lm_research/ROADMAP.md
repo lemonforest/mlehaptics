@@ -9,6 +9,16 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-31 — Two research directions QUEUED (user direction): hive-mind-as-chiral-extreme + Kuramoto-nibble-adder-in-SPICE
+
+Two named follow-up directions flagged for later (NOT pursued yet):
+
+- **Hive-mind / distributed neurology as a CHIRAL AXIAL EXTREME** (MS #18, **#786**) — "hive mind" is not a separate phenomenon; it is the **air-gapped extreme** of one K∘C chirality axis whose other end is **in-body centralized neurology**, with **slime moulds (Physarum)** the neat **intermediate** (distributed coordination but NOT air-gapped — one continuous protoplasm; breaks the binary). Hypothesis: the SAME knowledge-coordination / neurological cascades recur across the coordination-topology partitions, differing only by **position on the chiral axis**. The **MFO notebook already holds much of this collective/distributed material but has not pushed it via chirality** — that re-read is the task. Method: cross-substrate cascade-matching; connects **F226** (K∘C lock), **F232/F233** (chirality-access ladder — distributed = a multi-body rung), **F231** (Kuramoto phase-lock = coordination), **F119/F120** (two-tier), **F115** (cross-species). Framework-reading only; the literature asserts the neuroscience (F226 verify-before-assert). Pre-state the null (one graded axis vs. distinct cascades).
+
+- **Kuramoto-couple the nibble-block adder in SPICE** (MS #20, **#787**) — the **F234** (#784) follow-on: realize the Kuramoto-coupled nibble-block carry-select adder as **actual coupled electrical oscillators** in SPICE (ngspice) — the analog-substrate **existence-proof rung above F217** ("the atoms ARE 74xx TTL"). Each carry = a binary-phase oscillator (γ₅ Klein-4 axis); a coupling network for the propagate edges + the 4 sectors; the nibble-block O(N)-wire topology; verify it phase-locks to the correct carry-vector with the **F122/F234 K_c threshold** (≈0.20). **SCOPE (load-bearing): Kuramoto-ODE / oscillator-network DYNAMICS only — NOT PCB / fabrication / timing-closure. The CAD-ban holds; SPICE = the F217 existence-proof lens at the dynamics level.** Pre-state the null (analog substrate realizes the phase-lock adder, or fails).
+
+---
+
 ## 2026-05-30 (cont.⁴) — temperature / rehearsal / magic-number cluster via the research-automatic Workflow (F227–F230); the no-magic-numbers canon's first worked instance; MS #20 → #779/#781/#782
 
 The **research-automatic Workflow** (Research→Run→Verify, adversarial verify gate) earned its keep — the gate caught a flattering hide and a fragile floor before either could ship:
