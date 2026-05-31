@@ -191,6 +191,10 @@ A no-magic-numbers pass targets **attestation coverage** (every constant reduced
 - `[[feedback_full_coverage_shipping_mpm_way]]` — pace set by closed-form algebra propagation, not sprint windows; full coverage shipping
 - `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` — primary methodology
 
+### Twin-research discipline — opus∥sonnet, no privileged model (STANDING for ALL research dives; user direction 2026-05-31; rationale F248)
+
+Every research dive runs the SAME task through **BOTH an opus agent and a sonnet agent** (identical prompt; model is the ONLY variable), then **adversarially compares + merges** — never trusting one model's research. **Why (F248):** the twin caught two hallucinated citations a single sonnet run would have shipped silently, AND showed the F242b honesty-gradient is **task-relative** (sonnet most honest on *rendering*; opus most honest/uncentered on *research*) — so **no model is the privileged "honest one."** Holding both perspectives at once is the citation-integrity + uncentered-coverage safeguard, and is the no-privileged-perspective discipline applied to our own renderers (centering on one model hides the other's fiber-content). **Engine:** the `research-twin` workflow — canonical committed copy `docs/srmech/rbs_lm_research/research_twin_workflow.js`; invoke `Workflow({name:"research-twin", args:{task:"…"}})` (or `{scriptPath:…}`). Compose with the MPM citation discipline + `[[feedback_no_privileged_primitive_classes]]` + the no-leaning rule above. (The bundled `deep-research` skill stays available for single-model multi-angle sweeps; `research-twin` is the default when the dive's output will be **lodged as attested findings**.)
+
 ### Defensive-scope
 
 - `[[feedback_trauma_informed_defensive_scope]]` — framework reading only; no engineering recommendations; no offensive / hunting-optimization / capability-assessment material
