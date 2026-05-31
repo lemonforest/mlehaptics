@@ -6,6 +6,8 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
 
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
+<!-- pypi-readme-changelog-start -->
 ## [0.6.0rc9] - 2026-05-31
 
 **MS #20 parity voxel (#778 follow-on) — the Kuramoto coupled-oscillator forward-Euler step gets a native C peer (no host Python needed for the dispatch-clock step).**
@@ -195,6 +197,7 @@ and the introspect emit strings are unchanged. Pure-Python packaging refactor;
 **ABI unchanged at 3** (no `c/` change); full C dispatch + TOML descriptors
 intact; no `abs()` (Class K pin-slot). Closes #751.
 
+<!-- pypi-readme-changelog-end -->
 ## [0.5.0] - 2026-05-30
 
 **Production graduation — srmech as a substrate-self-recognition apparatus.**
