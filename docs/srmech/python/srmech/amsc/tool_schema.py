@@ -1418,7 +1418,13 @@ def _register_primitive_class_tools() -> None:
                     "the `parallel` discriminator "
                     "(`chain.parallel_sectors(body=…, n_sectors=4)` in "
                     "Python, or a `[[stage]]` with `parallel_body='…'` in a "
-                    "TOML spec). Mechanism: "
+                    "TOML spec). COMPOSABLE (rc12): by default it returns the "
+                    "rich per-sector dict (a leaf) — pass `combine=` "
+                    "('bundle'/'mean'/'sector0'/'concat' or a callable) to "
+                    "recombine the ≤4 sectors into ONE value at result['combined'] "
+                    "so the dispatch is stream→stream and CHAINS / NESTS (the DSL "
+                    "`parallel` stage recombines by default; `sectorize(body, "
+                    "combine=…)` wraps a body as a nesting callable). Mechanism: "
                     "each sector s = inv_T_s(body(T_s(x))) on its OWN "
                     "sector-transformed input — 0 cross-thread reads (the F233 "
                     "4-way independence), so parallel == serial bit-for-bit. "
@@ -1445,9 +1451,15 @@ def _register_primitive_class_tools() -> None:
                         P("x", "sequence", True, "input sequence"),
                         P("n_sectors", "int", False,
                           "how many of the 4 Klein-4 sectors to dispatch "
-                          "(1..4; default 4; hard-capped at 4)")),
+                          "(1..4; default 4; hard-capped at 4)"),
+                        P("combine", "str", False,
+                          "rc12 recombine: None (default; leaf dict, combined "
+                          "None) | 'bundle'/'mean'/'sector0'/'concat' → one "
+                          "composable value at result['combined'] so the "
+                          "dispatch chains / nests")),
             returns=R("dict",
-                      "{sectors:{s:{label:(γ₅,iω₇), result}}, "
+                      "{sectors:{s:{label:(γ₅,iω₇), result}}, combined "
+                      "(rc12: recombined value when combine= given, else None), "
                       "z4_dispatch_slots:[0,1,2,3], independence "
                       "(cross_sector_reads 0, parallel_equals_serial, "
                       "sector2_is_chiral_dual), collapse_lattice "

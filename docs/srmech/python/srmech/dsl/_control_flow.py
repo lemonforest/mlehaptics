@@ -159,18 +159,27 @@ def make_reduce_stage(
 
 
 def make_parallel_stage(
-    body_fn: Callable, n_sectors: int = 4,
+    body_fn: Callable, n_sectors: int = 4, combine: Any = "bundle",
 ) -> Callable[[Any], Any]:
     """Build a stage callable that fans ``body_fn`` across the Klein-4 sectors.
 
-    The ``parallel`` special form (v0.6.0rc11): the piped value is run
-    through ``body_fn`` across its ``n_sectors`` (≤ 4) Klein-4 chirality
-    sectors via :func:`srmech.amsc.cascade.parallel_sector_dispatch`, and
-    the stage emits the **ordered list of per-sector results**
-    ``[sector_0_result, …, sector_{n-1}_result]``. This is a 1→N fan-out:
-    the stage's output is a *list of sequences* (the branch), not a single
-    piped value — so a downstream stage receives the N-way bundle, not one
-    transformed sequence.
+    The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
+    piped value is run through ``body_fn`` across its ``n_sectors`` (≤ 4)
+    Klein-4 chirality sectors via
+    :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+    body (native / IO / numpy) lets the ≤4 sectors genuinely overlap.
+
+    ``combine`` decides the stage's OUTPUT SHAPE (the rc12 §11.3 fix):
+
+    * ``combine != None`` (default ``"bundle"``) — the ≤4 sector results are
+      recombined into ONE value (``result["combined"]``), so the stage is
+      ``stream → stream`` and CHAINS / NESTS like every other cascade stage.
+      This is what makes a sector-dispatched cascade carry the 4-way splay
+      THROUGH a chained cascade (the §11.3 settling-loop requirement).
+    * ``combine is None`` — a 1→N fan-out: the stage emits the **ordered
+      list of per-sector results** ``[sector_0, …, sector_{n-1}]``. This is
+      a TERMINAL shape (the next stage would receive a list-of-N, not a
+      single sequence) — the chain builder guards against chaining past it.
 
     Parameters
     ----------
@@ -183,12 +192,19 @@ def make_parallel_stage(
         How many of the 4 Klein-4 sectors to dispatch (``1..4``; default
         4). Hard-capped at 4 (the Klein-4 ``Z₂ × Z₂`` has no order-4+
         element; 8+ needs the order-3 triality, F220).
+    combine
+        Recombine for the sector results: a
+        :data:`srmech.amsc.cascade.COMBINE_REDUCERS` name (``"bundle"`` /
+        ``"mean"`` / ``"sector0"`` / ``"concat"``) or a callable → a single
+        composable value; ``None`` → the per-sector list (terminal). Default
+        ``"bundle"``.
 
     Returns
     -------
     callable
-        A unary ``input -> [per-sector results]`` stage callable matching
-        the ``Chain._stages`` contract.
+        A unary stage callable matching the ``Chain._stages`` contract:
+        ``input -> combined`` when ``combine`` is set, else
+        ``input -> [per-sector results]``.
 
     Raises
     ------
@@ -212,10 +228,13 @@ def make_parallel_stage(
         # srmech.dsl in some test configurations, so resolve at call time.
         from srmech.amsc.cascade import parallel_sector_dispatch
         result = parallel_sector_dispatch(
-            body_fn, input_value, n_sectors=n_sectors,
+            body_fn, input_value, n_sectors=n_sectors, combine=combine,
         )
-        sectors = result["sectors"]
-        return [sectors[s]["result"] for s in range(n_sectors)]
+        if combine is None:
+            sectors = result["sectors"]
+            return [sectors[s]["result"] for s in range(n_sectors)]
+        # rc12: the recombined single value → the composable stream output.
+        return result["combined"]
 
     return parallel_fn
 

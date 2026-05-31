@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc12] - 2026-05-31
+
+**MS #20 parallel-composability voxel — `parallel_sector_dispatch` becomes CHAINABLE / NESTABLE. The Klein-4 four-sector splay now carries THROUGH a chained cascade, closing a known-broken API contract. Pure-Python; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+rc11 gave the four-sector fan-out its own chain discriminator but left it a **leaf** value: the dispatch returned the rich per-sector introspection dict / list-of-N, which is **not** a valid input to another cascade. Chaining a sector-dispatched stage after another (`chain.parallel_sectors(b).parallel_sectors(b)`) crashed with `TypeError: bad operand type for unary -: 'list'` (the sector stream-transforms assume a flat scalar stream), and a sector-dispatch could not nest inside another. So the 4-way Z₄ splay applied at **one level only** and did not carry through a chained cascade — exactly the composability the RBS-LM chained settling loop needs to run 4×-per-step. Cascade ops advertise composability, so this was a known-broken contract → a gold-blocker. rc12 fixes it:
+
+- **`combine=` recombine** on `parallel_sector_dispatch(body, x, *, combine=None)` — a reducer name (`"bundle"` element-wise sum / `"mean"` / `"sector0"` value-transparent / `"concat"`) or a callable folds the ≤4 sector results into ONE value at `result["combined"]`, so a sector-dispatched cascade is `stream → stream`. `combine=None` (default) preserves the rich dict unchanged (back-compat; `combined` is `None`). No `abs()` — bundle/mean are plain addition (+ divide).
+- **`sectorize(body, *, n_sectors=4, combine="bundle")`** — wraps a body as a plain `value → value` callable that recombines, so a sector-dispatch NESTS inside another (`parallel_sector_dispatch(sectorize(inner), x, combine="bundle")`). Both exported from `srmech.amsc.cascade`.
+- **DSL `parallel_sectors` recombines by default** — `chain.parallel_sectors(body, *, n_sectors=4, combine="bundle")` is now `stream → stream` and CHAINS / NESTS like loop/fold/reduce (the rc11 crash is gone). `combine=None` keeps the terminal per-sector list; a build-time guard raises a clear error if you chain past it. TOML `parallel_body=` gains `combine=` (sentinel `"none"` → the list).
+- **Stale top-help fixed** — `srmech --help` no longer says "v0.5.0rc4 ships two subcommands"; it enumerates all four (`status` / `bus` / `dsl` / `mcp`).
+
+New tests pin the parallel→parallel chain, the nesting via `sectorize`, the terminal guard, the TOML `combine='none'` sentinel, and each reducer. No new ToolEntry; no C change; no ABI bump.
+
 ## [0.6.0rc11] - 2026-05-31
 
 **MS #20 DSL parallel-discriminator voxel — `parallel_sector_dispatch` slots into the chain contract as a first-class special form, + cascade-op `kind` classification + guided errors. No new runtime op; `describe()` tool total stays 178; ABI unchanged at 3.**

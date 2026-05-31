@@ -384,3 +384,89 @@ def test_verify_true_runs_runtime_crosscheck():
         assert d["independence"]["parallel_equals_serial"] is True
         assert d["independence"]["sector2_is_chiral_dual"] is True
         assert _results(d) == _results(parallel_sector_dispatch(body, _X))
+
+
+# ----------------------------------------------------------------------
+# rc12 — composability (§11.3). The default returns a leaf introspection
+# dict (combined is None); combine= folds the ≤4 sector results into ONE
+# value at result["combined"], so a sector-dispatched cascade is
+# stream→stream and CHAINS / NESTS. sectorize() is the nesting wrapper.
+# ----------------------------------------------------------------------
+
+
+def test_combine_none_default_combined_is_none():
+    """Default (combine=None) preserves the rich dict — combined is None
+    (back-compat: nothing recombined)."""
+    d = parallel_sector_dispatch(_biaxial, _X)
+    assert "combined" in d
+    assert d["combined"] is None
+
+
+def test_combine_bundle_is_elementwise_sum():
+    """combine='bundle' element-wise sums the ≤4 sector results (Class-M
+    superposition) into a single length-preserving stream."""
+    d = parallel_sector_dispatch(_biaxial, _X, combine="bundle")
+    results = _results(d)
+    expected = [sum(col) for col in zip(*(list(r) for r in results))]
+    assert d["combined"] == expected
+    assert len(d["combined"]) == len(_X)
+
+
+def test_combine_sector0_is_value_transparent():
+    """combine='sector0' returns sector 0 (the identity sector) alone — the
+    value-transparent recombine: combined == body(x) while the other ≤3
+    sectors still ran."""
+    d = parallel_sector_dispatch(_biaxial, _X, combine="sector0")
+    assert list(d["combined"]) == list(_biaxial(_X))
+
+
+def test_combine_mean_and_concat():
+    d_mean = parallel_sector_dispatch(_biaxial, _X, combine="mean")
+    d_bundle = parallel_sector_dispatch(_biaxial, _X, combine="bundle")
+    # mean == bundle / n_sectors, element-wise.
+    assert d_mean["combined"] == [v / 4 for v in d_bundle["combined"]]
+    d_concat = parallel_sector_dispatch(_biaxial, _X, combine="concat")
+    assert len(d_concat["combined"]) == 4 * len(_X)
+
+
+def test_combine_callable():
+    """A caller-supplied callable receives the per-sector list."""
+    d = parallel_sector_dispatch(
+        _biaxial, _X, combine=lambda results: len(results),
+    )
+    assert d["combined"] == 4
+
+
+def test_combine_invalid_raises():
+    with pytest.raises(ValueError, match="combine"):
+        parallel_sector_dispatch(_biaxial, _X, combine="not_a_reducer")
+
+
+def test_sectorize_returns_composable_unary():
+    """sectorize wraps a body as a unary seq->combined callable; the result
+    composes (it is a flat stream, not the dict)."""
+    from srmech.amsc.cascade import sectorize
+
+    sf = sectorize(_biaxial, combine="bundle")
+    out = sf(_X)
+    direct = parallel_sector_dispatch(_biaxial, _X, combine="bundle")["combined"]
+    assert out == direct
+
+
+def test_sectorize_nests():
+    """A sectorized cascade nests inside another sector dispatch — the
+    4-way splay carries THROUGH (rc11 crashed on the nested non-flat
+    value)."""
+    from srmech.amsc.cascade import sectorize
+
+    inner = sectorize(_bi_symmetric, combine="bundle")
+    d = parallel_sector_dispatch(inner, _X, combine="bundle")
+    assert d["combined"] is not None
+    assert len(d["combined"]) == len(_X)
+
+
+def test_sectorize_rejects_combine_none():
+    from srmech.amsc.cascade import sectorize
+
+    with pytest.raises(ValueError, match="single value|combine"):
+        sectorize(_biaxial, combine=None)

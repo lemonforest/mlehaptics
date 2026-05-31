@@ -76,7 +76,7 @@ beyond a single-file read.
   `srmech.qm.triality` order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
-- **v0.6.0 (rc1–rc11 to date; rc11 dev head)** — the lean-ISA arc.
+- **v0.6.0 (rc1–rc12 to date; rc12 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
   lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
   so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
@@ -92,7 +92,15 @@ beyond a single-file read.
   `parallel_sector_dispatch` 1→N fan-out into the chain contract as a
   first-class special form alongside loop/fold/reduce, with a cascade-op
   **`[cascade].kind`** classification (`stage` vs `combinator`) +
-  guided "use the `parallel` discriminator, not `op=`" errors.
+  guided "use the `parallel` discriminator, not `op=`" errors;
+  and (rc12) makes the four-sector dispatch **chainable / nestable** —
+  a `combine=` recombine (`bundle`/`mean`/`sector0`/`concat`) folds the
+  ≤4 sectors into one value (`result["combined"]`) so a sector-dispatched
+  cascade is `stream → stream` and the 4-way splay carries THROUGH a
+  chained cascade (the rc11 stage was a leaf that crashed when chained);
+  `sectorize()` wraps a body for nesting; the DSL `parallel_sectors`
+  recombines by default; plus a stale top-help fix (all four
+  `status`/`bus`/`dsl`/`mcp` subcommands enumerated).
 
 The package directory layout:
 

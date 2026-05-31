@@ -92,14 +92,31 @@ class Chain:
         not supplied.
     """
 
-    __slots__ = ("name", "_stages")
+    __slots__ = ("name", "_stages", "_terminal_reason")
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name: str = name or "chain"
         # Each stage: (op_name, callable, kwargs-dict).
         self._stages: List[Tuple[str, Callable, dict]] = []
+        # Set when a TERMINAL stage is appended (a non-combining
+        # ``parallel_sectors`` fan-out, whose output is a list-of-N, not a
+        # single composable value). Chaining past it raises a guided error
+        # instead of crashing the next stage with the list — the rc12
+        # composability guard.
+        self._terminal_reason: Optional[str] = None
 
     # ── builders ───────────────────────────────────────────────────
+
+    def _guard_not_terminal(self) -> None:
+        """Raise if the previous stage was a terminal (non-composable) one.
+
+        A ``parallel_sectors(..., combine=None)`` stage yields the
+        per-sector LIST, not a single piped value — so a following stage
+        would receive a list-of-N and fail. The rc12 guard turns that into
+        a clear, actionable error pointing at ``combine=``.
+        """
+        if self._terminal_reason is not None:
+            raise ValueError(self._terminal_reason)
 
     def then(self, op_name: str, **kwargs: Any) -> "Chain":
         """Append a cascade-catalog op by name.
@@ -119,6 +136,7 @@ class Chain:
         driven by :meth:`parallel_sectors` (the ``parallel`` discriminator),
         the same way loop/fold/reduce have their own builders.
         """
+        self._guard_not_terminal()
         if cascade_op_kind(op_name) == "combinator":
             raise ValueError(
                 f"'{op_name}' is a fan-out combinator (kind='combinator'), "
@@ -141,6 +159,7 @@ class Chain:
         next iteration's input. ``n_times == 0`` is a no-op (input
         passes through unchanged).
         """
+        self._guard_not_terminal()
         if not isinstance(sub_chain, Chain):
             raise TypeError(
                 f"loop: sub_chain must be a Chain instance; "
@@ -165,6 +184,7 @@ class Chain:
         seed accumulator; an empty input sequence yields ``init``
         unchanged.
         """
+        self._guard_not_terminal()
         op_fn = lookup_cascade_op(op_name)
         stage_fn = make_fold_stage(init, op_fn, dict(kwargs))
         self._stages.append((
@@ -181,6 +201,7 @@ class Chain:
         an empty input sequence raises ``ValueError`` (matches
         ``functools.reduce``).
         """
+        self._guard_not_terminal()
         op_fn = lookup_cascade_op(op_name)
         stage_fn = make_reduce_stage(op_fn, dict(kwargs))
         self._stages.append((
@@ -191,21 +212,18 @@ class Chain:
         return self
 
     def parallel_sectors(
-        self, body: str, *, n_sectors: int = 4,
+        self, body: str, *, n_sectors: int = 4, combine: Any = "bundle",
     ) -> "Chain":
         """Fan a unary ``body`` op across its ≤4 Klein-4 chirality sectors.
 
-        The ``parallel`` special form (v0.6.0rc11): the stage runs the
-        piped value through the ``body`` op across ``n_sectors`` (≤ 4)
-        Klein-4 sectors via
-        :func:`srmech.amsc.cascade.parallel_sector_dispatch` and emits the
-        **ordered list of per-sector results**
-        ``[sector_0, …, sector_{n-1}]``. A GIL-releasing body (native /
-        IO / numpy) lets the ≤4 sectors genuinely overlap — the F233
-        4-thread speedup — instead of running serially. This is the
-        parallel alternative to a single ``.then(body)`` stage; reach for
-        it when you have an independent cascade body to fan out rather
-        than getting locked into one thread per cascade cycle.
+        The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
+        stage runs the piped value through the ``body`` op across
+        ``n_sectors`` (≤ 4) Klein-4 sectors via
+        :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+        body (native / IO / numpy) lets the ≤4 sectors genuinely overlap —
+        the F233 4-thread speedup — instead of running serially. Reach for
+        it when you have an independent cascade body to fan out rather than
+        getting locked into one thread per cascade cycle.
 
         ``body`` is the dotted-or-bare NAME of a unary cascade op (e.g.
         ``"chiral_flip"``); it is resolved through the cascade catalog,
@@ -213,18 +231,39 @@ class Chain:
         *combinator*, not a valid ``body`` (a body must be a plain
         ``value → value`` op).
 
-        This is a **1→N fan-out**: the stage output is a *list of N
-        sequences* (the branch), not a single piped value — a downstream
-        stage receives the bundle. Use it as a terminal stage, or follow
-        it with a stage that consumes the list.
+        ``combine`` (rc12 §11.3) decides the stage's output shape:
+
+        * default ``"bundle"`` (or ``"mean"`` / ``"sector0"`` / ``"concat"``
+          / a callable) — RECOMBINE the ≤4 sector results into ONE value,
+          so the stage is ``stream → stream`` and **chains / nests** like
+          any other stage. This carries the 4-way splay THROUGH a chained
+          cascade — e.g. a settling loop runs 4×-per-step::
+
+              chain("settle").parallel_sectors("body").parallel_sectors("body")
+
+        * ``combine=None`` — emit the **ordered per-sector list**
+          ``[sector_0, …, sector_{n-1}]`` (the 1→N fan-out, for inspecting
+          the four chirality channels). This is a TERMINAL stage: chaining
+          a further builder after it raises a guided error (the next stage
+          cannot consume a list-of-N).
         """
+        self._guard_not_terminal()
         body_fn = lookup_cascade_op(body)
-        stage_fn = make_parallel_stage(body_fn, n_sectors)
+        stage_fn = make_parallel_stage(body_fn, n_sectors, combine)
         self._stages.append((
-            f"parallel_sectors({body}, n={n_sectors})",
+            f"parallel_sectors({body}, n={n_sectors}, combine={combine})",
             stage_fn,
             {},
         ))
+        if combine is None:
+            self._terminal_reason = (
+                f"cannot chain past a non-combining parallel_sectors "
+                f"('{body}', combine=None): it yields the per-sector LIST "
+                f"(a 1→N fan-out), not a single piped value, so the next "
+                f"stage cannot consume it. Pass combine='bundle' (or "
+                f"'mean'/'sector0'/'concat'/a callable) to recombine into "
+                f"one composable stream and keep chaining."
+            )
         return self
 
     # ── execution ──────────────────────────────────────────────────

@@ -31,6 +31,7 @@ flat-stages-with-nested-loop-sub-chains:
    [[stage]]
    parallel_body = "chiral_flip"
    n_sectors = 4
+   combine = "bundle"        # recombine → composable stream (default)
 
 One ``[[stage]]`` array element = one builder call. Mutually-exclusive
 discriminators tell ``build_chain_from_toml`` which builder to invoke:
@@ -39,15 +40,19 @@ discriminators tell ``build_chain_from_toml`` which builder to invoke:
 * ``loop_n`` + ``sub_chain`` → ``chain.loop(loop_n, build_chain_from_dict(sub_chain))``
 * ``fold_init`` + ``fold_op`` → ``chain.fold(fold_init, fold_op, **kwargs)``
 * ``reduce_op`` → ``chain.reduce(reduce_op, **kwargs)``
-* ``parallel_body`` (+ optional ``n_sectors``) → ``chain.parallel_sectors(parallel_body, n_sectors=n_sectors)``
+* ``parallel_body`` (+ optional ``n_sectors`` / ``combine``) → ``chain.parallel_sectors(parallel_body, n_sectors=n_sectors, combine=combine)``
 
-The ``parallel`` discriminator (v0.6.0rc11) is the chain face of the
-Klein-4 four-sector fan-out (:func:`srmech.amsc.cascade.parallel_sector_dispatch`):
-it runs the piped value through the ``parallel_body`` op across ≤4
-chirality sectors and yields the list of per-sector results (a 1→N
-fan-out — a special form like loop/fold/reduce, NOT a plain ``op``,
-which is why ``op = "parallel_sector_dispatch"`` is rejected with a
-guided error pointing here).
+The ``parallel`` discriminator (v0.6.0rc11; rc12 composability) is the
+chain face of the Klein-4 four-sector fan-out
+(:func:`srmech.amsc.cascade.parallel_sector_dispatch`): it runs the piped
+value through the ``parallel_body`` op across ≤4 chirality sectors. A
+special form like loop/fold/reduce, NOT a plain ``op`` (which is why
+``op = "parallel_sector_dispatch"`` is rejected with a guided error
+pointing here). ``combine`` (default ``"bundle"``; also ``"mean"`` /
+``"sector0"`` / ``"concat"``) RECOMBINES the ≤4 sector results into ONE
+value so the stage is ``stream → stream`` and chains / nests; the
+sentinel ``combine = "none"`` instead yields the per-sector LIST (a
+terminal 1→N fan-out — chaining past it raises a guided error).
 
 Any kwargs beyond the discriminators are forwarded to the underlying
 cascade op (``max_denominator``, ``fine_scale``, …).
@@ -74,7 +79,7 @@ _RESERVED_STAGE_KEYS = frozenset({
     "loop_n", "sub_chain",
     "fold_init", "fold_op",
     "reduce_op",
-    "parallel_body", "n_sectors",
+    "parallel_body", "n_sectors", "combine",
 })
 
 
@@ -292,7 +297,21 @@ def _apply_stage_to_chain(
         raise ValueError(
             f"stage {idx} `n_sectors` must be an int in 1..4; got {n_sectors!r}"
         )
-    ch.parallel_sectors(parallel_body, n_sectors=n_sectors)
+    # rc12 composability: `combine` decides the stage output shape. Default
+    # "bundle" (recombine → composable stream, chains / nests); the string
+    # "none"/"null" maps to Python None (the per-sector list, a TERMINAL
+    # fan-out). TOML can't express None directly, hence the sentinel.
+    combine = stage.get("combine", "bundle")
+    if not isinstance(combine, str):
+        raise ValueError(
+            f"stage {idx} `combine` must be a string (a reducer name "
+            f"'bundle'/'mean'/'sector0'/'concat', or 'none' for the "
+            f"per-sector list); got {type(combine).__name__}"
+        )
+    combine_arg = None if combine.lower() in ("none", "null") else combine
+    ch.parallel_sectors(
+        parallel_body, n_sectors=n_sectors, combine=combine_arg,
+    )
 
 
 __all__ = [

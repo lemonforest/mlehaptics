@@ -112,9 +112,11 @@ from .compose import (
 # body across its ≤4 Klein-4 chirality sectors concurrently. C-orchestration
 # parity tracked by issue #771.
 from .parallel import (
+    COMBINE_REDUCERS,
     KLEIN4_SECTOR_CAP,
     Z4_DISPATCH_SLOTS,
     parallel_sector_dispatch,
+    sectorize,
 )
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
@@ -155,6 +157,9 @@ __all__ = [
     "KLEIN4_SECTOR_CAP",
     "Z4_DISPATCH_SLOTS",
     "parallel_sector_dispatch",
+    # rc12 composability (§11.3): recombine + nesting wrapper
+    "COMBINE_REDUCERS",
+    "sectorize",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",
