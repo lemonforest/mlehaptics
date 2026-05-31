@@ -116,15 +116,16 @@ def test_cascade_ops_unchanged():
 
 
 # ----------------------------------------------------------------------
-# (e) introspection tools.total is 177 (174 rc1 + 1 rc2 so(4) stabiliser
-#     + 1 rc3 lean-ISA seventh-primitive + 1 rc6 parallel_sector_dispatch)
+# (e) introspection tools.total is 178 (174 rc1 + 1 rc2 so(4) stabiliser
+#     + 1 rc3 lean-ISA seventh-primitive + 1 rc6 parallel_sector_dispatch
+#     + 1 rc9 cascade.kuramoto_step)
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_177():
+def test_introspect_tools_total_is_178():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 177
+    assert introspect.describe()["tools"]["total"] == 178
 
 
 # ----------------------------------------------------------------------
