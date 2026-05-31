@@ -1,0 +1,42 @@
+* R-RBS-LM-236 representative: N=8 all-propagate worst case (a=0xFF,b=0,cin=1) at KC=1.000 -- the maximal carry chain, the hardest correctness case
+* F236: carry node = V on a 1 F cap = Kuramoto phase theta_i; B = the phase-ODE RHS current.
+* generate->PINK*sin(PI-V) anchor (pi=carry-1); kill->PINK*sin(0-V) anchor (0=carry-0);
+* propagate-> NO self-bias, inherit via symmetric KC*sin(V_j-V_i) edges (the Class-L A_ij).
+.param PINK=50.000000
+.param KC=1.000000
+.param PI=3.14159265358979
+C0 n0 0 1
+B0 0 n0 I={PINK*sin(PI - V(n0)) + KC*sin(V(n1)-V(n0))}
+C1 n1 0 1
+B1 0 n1 I={KC*sin(V(n0)-V(n1)) + KC*sin(V(n2)-V(n1))}
+C2 n2 0 1
+B2 0 n2 I={KC*sin(V(n1)-V(n2)) + KC*sin(V(n3)-V(n2))}
+C3 n3 0 1
+B3 0 n3 I={KC*sin(V(n2)-V(n3)) + KC*sin(V(n4)-V(n3))}
+C4 n4 0 1
+B4 0 n4 I={KC*sin(V(n3)-V(n4)) + KC*sin(V(n5)-V(n4))}
+C5 n5 0 1
+B5 0 n5 I={KC*sin(V(n4)-V(n5)) + KC*sin(V(n6)-V(n5))}
+C6 n6 0 1
+B6 0 n6 I={KC*sin(V(n5)-V(n6)) + KC*sin(V(n7)-V(n6))}
+C7 n7 0 1
+B7 0 n7 I={KC*sin(V(n6)-V(n7)) + KC*sin(V(n8)-V(n7))}
+C8 n8 0 1
+B8 0 n8 I={KC*sin(V(n7)-V(n8))}
+.ic V(n0)=2.900 V(n1)=0.170 V(n2)=0.240 V(n3)=0.310 V(n4)=0.380 V(n5)=0.450 V(n6)=0.520 V(n7)=0.590 V(n8)=0.660
+.tran 0.0100 225.0000 uic
+.control
+set noaskquit
+run
+let cc0 = cos(V(n0))
+let cc1 = cos(V(n1))
+let cc2 = cos(V(n2))
+let cc3 = cos(V(n3))
+let cc4 = cos(V(n4))
+let cc5 = cos(V(n5))
+let cc6 = cos(V(n6))
+let cc7 = cos(V(n7))
+let cc8 = cos(V(n8))
+print cc0[length(cc0)-1] cc1[length(cc1)-1] cc2[length(cc2)-1] cc3[length(cc3)-1] cc4[length(cc4)-1] cc5[length(cc5)-1] cc6[length(cc6)-1] cc7[length(cc7)-1] cc8[length(cc8)-1]
+.endc
+.end
