@@ -57,6 +57,7 @@ The +3 meta-cascade triad (B/H/N) are candidate **projection-enablers** in the i
 | `hashlib.sha256(...)` | `srmech.amsc.format.sha256_bytes` | A |
 | chirality / γ₅ / iω₇ / sector flips | `srmech.amsc.hdc.{klein4_chirality_flip_gamma5,klein4_chirality_flip_omega7,klein4_cpt_mirror}` | — |
 | modular arithmetic / gcd / primes / rational-approx | `srmech.amsc.{cyclic,primes,rational}` | I/J/N |
+| hand-rolled Euler / Kuramoto phase-step loop (Σ sin(θⱼ−θᵢ) integration) | `srmech.amsc.cascade.kuramoto_step(theta, omega, *, coupling, dt)` (rc9+, **all-to-all uniform coupling**) — *graph-structured / directed-vs-symmetric coupling NOT yet covered: use ngspice `.tran` or a matrix step there (F240/F241)* | I∘L∘C |
 
 **package vs srmech-mcp:** the srmech **package** (`import srmech.amsc...`, C-native) is the right tool for **bulk in-script** work (graph-building, eigendecomp over many tokens). The **srmech-mcp** tools (deferred `mcp__srmech__*`, load via ToolSearch) are right for **single / interactive / agent-driven** ops and for exercising the attested surface — NOT for per-token loops (JSON-array payloads, no handles). Using the package IS using srmech; hand-rolling a primitive that has a srmech op is the failure. When srmech-mcp itself has a bug/gap, log it (UPSTREAM_NOTES §10) — don't route around it silently in a way that hides the issue.
 
