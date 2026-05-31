@@ -8,7 +8,13 @@
 [cascade]
 name = "parallel_sector_dispatch"
 class_composition = "C (Klein-4 γ₅± × iω₇± four-sector orchestration)"
-purpose = "Run one cascade body across its ≤4 Klein-4 chirality sectors concurrently."
+# kind = "combinator" — a higher-order 1→N fan-out (takes a *body* op +
+# data, yields N per-sector results), NOT a plain unary value→value
+# "stage" op. The DSL rejects it as an `op=` chain stage with a guided
+# error and drives it via the `parallel` discriminator instead
+# (chain.parallel_sectors / `parallel_body=` in a TOML spec). v0.6.0rc11.
+kind = "combinator"
+purpose = "PARALLELISE a cascade body: fan it across ≤4 Klein-4 chirality sectors concurrently (the F233 4-thread alternative to one serial pass). DSL: use the `parallel` discriminator (parallel_body=), not op=."
 description = """
 Operationalises R-RBS-LM F233 ("1 cascade = 4 independent threads = the
 Klein-4 four chirality sectors"). Runs ONE caller-supplied cascade

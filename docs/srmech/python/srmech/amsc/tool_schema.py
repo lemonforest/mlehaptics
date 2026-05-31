@@ -1330,7 +1330,12 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
             category="cascade",
-            summary="One forward-Euler step of the canonical Kuramoto model: "
+            summary="Advance N COUPLED OSCILLATORS one synchronization step "
+                    "(the canonical Kuramoto model) — reach for this for "
+                    "coupled-phase / synchronization dynamics. A plain DSL "
+                    "stage-op (kind='stage'): the piped value is `theta`; "
+                    "pass `omega=` (+ optional `coupling`/`dt`) as stage "
+                    "kwargs. One forward-Euler step: "
                     "theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j "
                     "sin(theta_j - theta_i)). The coupled-oscillator dispatch-"
                     "clock Euler step the spectral-research arc hand-rolled in "
@@ -1400,8 +1405,20 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.parallel_sector_dispatch", owner="srmech",
             category="cascade",
-            summary="Run one cascade body across its ≤4 Klein-4 chirality "
-                    "sectors CONCURRENTLY (ThreadPoolExecutor, max_workers=4); "
+            summary="PARALLELISE a cascade body instead of running it "
+                    "serially: fan one cascade `body` across its ≤4 Klein-4 "
+                    "chirality sectors CONCURRENTLY (ThreadPoolExecutor, "
+                    "max_workers=4) — the F233 4-thread speedup. Reach for "
+                    "this when you have an independent cascade body to fan "
+                    "out, instead of getting locked into one thread per "
+                    "cascade cycle. HIGHER-ORDER COMBINATOR (a 1→N fan-out, "
+                    "kind='combinator'): it takes a *body* op + data and "
+                    "returns N per-sector results, so it is NOT a plain "
+                    "value→value DSL `op=` stage — in a chain, drive it via "
+                    "the `parallel` discriminator "
+                    "(`chain.parallel_sectors(body=…, n_sectors=4)` in "
+                    "Python, or a `[[stage]]` with `parallel_body='…'` in a "
+                    "TOML spec). Mechanism: "
                     "each sector s = inv_T_s(body(T_s(x))) on its OWN "
                     "sector-transformed input — 0 cross-thread reads (the F233 "
                     "4-way independence), so parallel == serial bit-for-bit. "

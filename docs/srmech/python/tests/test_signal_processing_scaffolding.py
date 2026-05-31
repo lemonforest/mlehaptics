@@ -91,8 +91,18 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc10():
-    """v0.6.0rc10 — MS #20 release-prep doc-hygiene voxel: the two v0.6.0
+def test_version_is_0_6_0rc11():
+    """v0.6.0rc11 — MS #20 DSL parallel-discriminator voxel: the Klein-4
+    four-sector fan-out parallel_sector_dispatch becomes a first-class
+    chain special form (chain.parallel_sectors / `parallel_body=`),
+    alongside loop/fold/reduce — it is a 1→N fan-out COMBINATOR
+    (kind='combinator'), not a plain `op=` value→value stage. The
+    cascade catalog gains a `kind` field; list_catalog_ops + `srmech dsl
+    ops` + the tool_schema summaries surface it; using the combinator as
+    `op=` raises a guided error pointing at the `parallel` discriminator.
+    No new ToolEntry → describe() tool total stays 178; ABI unchanged at 3.
+
+    Prior v0.6.0rc10 — MS #20 release-prep doc-hygiene voxel: the two v0.6.0
     cascade ops get their cascade-catalog TOML descriptors
     (parallel_sector_dispatch + kuramoto_step → srmech.dsl catalog now 10
     descriptors), and the PyPI README / subtree CLAUDE.md / C README +
@@ -345,8 +355,8 @@ def test_version_is_0_6_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc10", (
-        f"expected srmech.__version__ == '0.6.0rc10'; got "
+    assert srmech.__version__ == "0.6.0rc11", (
+        f"expected srmech.__version__ == '0.6.0rc11'; got "
         f"{srmech.__version__!r}"
     )
 

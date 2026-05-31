@@ -196,14 +196,27 @@ def test_dsl_list_catalog_ops() -> None:
         f"list_catalog_ops returned {sorted(names)}; expected the 10 "
         f"cascade-catalog ops {sorted(_EXPECTED_CATALOG_OPS)}"
     )
-    # Each record carries class + purpose, and they're non-empty for
-    # the real catalog descriptors.
+    # Each record carries class + purpose + kind, and class/purpose are
+    # non-empty for the real catalog descriptors.
     for rec in result:
-        assert set(rec.keys()) == {"name", "class", "purpose"}
+        assert set(rec.keys()) == {"name", "class", "purpose", "kind"}
         assert rec["class"], f"{rec['name']} has empty class composition"
         assert rec["purpose"], f"{rec['name']} has empty purpose"
+        assert rec["kind"] in ("stage", "combinator"), (
+            f"{rec['name']} has unexpected kind {rec['kind']!r}"
+        )
     # Sorted ascending by name (so an LLM gets a stable enumeration).
     assert [r["name"] for r in result] == sorted(names)
+    # The DSL role is surfaced honestly: the higher-order fan-out is a
+    # 'combinator' (not a plain `op=` stage); everything else is a 'stage'.
+    by_kind = {rec["name"]: rec["kind"] for rec in result}
+    assert by_kind["parallel_sector_dispatch"] == "combinator", (
+        "parallel_sector_dispatch must be advertised as a combinator so a "
+        "CLI/LLM user knows to drive it via the `parallel` discriminator, "
+        "not as a plain `op=` chain stage"
+    )
+    assert by_kind["kuramoto_step"] == "stage"
+    assert by_kind["chiral_flip"] == "stage"
 
 
 def test_dsl_list_catalog_ops_classes_match_known() -> None:

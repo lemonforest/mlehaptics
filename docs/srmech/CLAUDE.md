@@ -76,7 +76,7 @@ beyond a single-file read.
   `srmech.qm.triality` order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
-- **v0.6.0 (rc1–rc9 to date; rc10 dev head)** — the lean-ISA arc.
+- **v0.6.0 (rc1–rc11 to date; rc11 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
   lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
   so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
@@ -84,9 +84,15 @@ beyond a single-file read.
   (#738); a **reentrant C core** (#772); the Klein-4 four-sector
   **`cascade.parallel_sector_dispatch`** Python surface (#778) +
   its C peer **`srmech_cascade_parallel_sector_dispatch`** (#771),
-  plus the parallel-dispatch slowdown fix; and the native Kuramoto
+  plus the parallel-dispatch slowdown fix; the native Kuramoto
   forward-Euler step **`srmech_cascade_kuramoto_step_f64`** +
-  **`cascade.kuramoto_step`** (rc9).
+  **`cascade.kuramoto_step`** (rc9); the rc10 release-prep
+  doc-hygiene sweep; and (rc11) the DSL **`parallel` discriminator**
+  (`chain.parallel_sectors` / `parallel_body=`) that slots the
+  `parallel_sector_dispatch` 1→N fan-out into the chain contract as a
+  first-class special form alongside loop/fold/reduce, with a cascade-op
+  **`[cascade].kind`** classification (`stage` vs `combinator`) +
+  guided "use the `parallel` discriminator, not `op=`" errors.
 
 The package directory layout:
 

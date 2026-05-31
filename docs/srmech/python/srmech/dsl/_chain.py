@@ -26,10 +26,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-from ._catalog import lookup_cascade_op
+from ._catalog import cascade_op_kind, lookup_cascade_op
 from ._control_flow import (
     make_fold_stage,
     make_loop_stage,
+    make_parallel_stage,
     make_reduce_stage,
 )
 
@@ -111,7 +112,24 @@ class Chain:
         callable; cascade ops with keyword-only options
         (``best_rational_signed``'s ``max_denominator`` / ``fine_scale``)
         accept their canonical names.
+
+        A ``combinator``-kind op (the 1→N fan-out
+        ``parallel_sector_dispatch``) is **rejected here** with a guided
+        error — it is not a plain ``value → value`` stage and must be
+        driven by :meth:`parallel_sectors` (the ``parallel`` discriminator),
+        the same way loop/fold/reduce have their own builders.
         """
+        if cascade_op_kind(op_name) == "combinator":
+            raise ValueError(
+                f"'{op_name}' is a fan-out combinator (kind='combinator'), "
+                f"not a plain `op` stage: it takes a *body* op + data and "
+                f"yields N per-sector results (1→N), so it cannot be a "
+                f"`value → value` `.then()` / `op=` stage. Use the "
+                f"`parallel` discriminator instead — "
+                f"`chain.parallel_sectors(body=<unary-op>, n_sectors=4)` "
+                f"in Python, or a `[[stage]]` with "
+                f"`parallel_body='<unary-op>'` in a TOML chain spec."
+            )
         op_fn = lookup_cascade_op(op_name)
         self._stages.append((op_name, op_fn, dict(kwargs)))
         return self
@@ -167,6 +185,43 @@ class Chain:
         stage_fn = make_reduce_stage(op_fn, dict(kwargs))
         self._stages.append((
             f"reduce({op_name})",
+            stage_fn,
+            {},
+        ))
+        return self
+
+    def parallel_sectors(
+        self, body: str, *, n_sectors: int = 4,
+    ) -> "Chain":
+        """Fan a unary ``body`` op across its ≤4 Klein-4 chirality sectors.
+
+        The ``parallel`` special form (v0.6.0rc11): the stage runs the
+        piped value through the ``body`` op across ``n_sectors`` (≤ 4)
+        Klein-4 sectors via
+        :func:`srmech.amsc.cascade.parallel_sector_dispatch` and emits the
+        **ordered list of per-sector results**
+        ``[sector_0, …, sector_{n-1}]``. A GIL-releasing body (native /
+        IO / numpy) lets the ≤4 sectors genuinely overlap — the F233
+        4-thread speedup — instead of running serially. This is the
+        parallel alternative to a single ``.then(body)`` stage; reach for
+        it when you have an independent cascade body to fan out rather
+        than getting locked into one thread per cascade cycle.
+
+        ``body`` is the dotted-or-bare NAME of a unary cascade op (e.g.
+        ``"chiral_flip"``); it is resolved through the cascade catalog,
+        the same as :meth:`then`. ``parallel_sector_dispatch`` itself is a
+        *combinator*, not a valid ``body`` (a body must be a plain
+        ``value → value`` op).
+
+        This is a **1→N fan-out**: the stage output is a *list of N
+        sequences* (the branch), not a single piped value — a downstream
+        stage receives the bundle. Use it as a terminal stage, or follow
+        it with a stage that consumes the list.
+        """
+        body_fn = lookup_cascade_op(body)
+        stage_fn = make_parallel_stage(body_fn, n_sectors)
+        self._stages.append((
+            f"parallel_sectors({body}, n={n_sectors})",
             stage_fn,
             {},
         ))

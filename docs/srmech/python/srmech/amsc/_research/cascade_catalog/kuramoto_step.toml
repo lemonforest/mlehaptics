@@ -6,7 +6,11 @@
 [cascade]
 name = "kuramoto_step"
 class_composition = "I∘sin∘Σ∘C"
-purpose = "One forward-Euler step of the canonical Kuramoto coupled-oscillator model."
+# kind defaults to "stage" — a plain value→value op: the piped value is
+# `theta`, with `omega` (+ optional `coupling`/`dt`) supplied as stage
+# kwargs. Usable directly as a `.then("kuramoto_step", omega=[...])` /
+# `op="kuramoto_step"` chain stage.
+purpose = "Advance N coupled oscillators one step (the canonical Kuramoto synchronization model): theta += dt*(omega + (K/n)*Σ sin(theta_j - theta_i)). DSL stage-op — piped value is theta; pass omega= as a stage kwarg."
 description = """
 One forward-Euler step of the canonical Kuramoto model (Kuramoto 1975;
 Acebrón et al. 2005, Rev. Mod. Phys. 77:137):

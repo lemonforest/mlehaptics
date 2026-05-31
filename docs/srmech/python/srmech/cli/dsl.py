@@ -274,6 +274,10 @@ def run_ops(args: argparse.Namespace) -> int:
                 "name": name,
                 "class_composition": cascade.get("class_composition", ""),
                 "purpose": cascade.get("purpose", ""),
+                # DSL role: "stage" (plain `op=` value→value) or
+                # "combinator" (a special form — drive via its own
+                # discriminator, e.g. `parallel_body=`, NOT `op=`).
+                "kind": cascade.get("kind", "stage"),
             })
         print(json.dumps(records, indent=2))
         return 0
@@ -284,7 +288,15 @@ def run_ops(args: argparse.Namespace) -> int:
         cascade = desc.get("cascade", {})
         cls = cascade.get("class_composition", "")
         purpose = cascade.get("purpose", "")
-        _safe_print(f"  {name:<24}  [{cls}]  {purpose}")
+        # Mark a combinator so a CLI user knows it is NOT a plain `op=`
+        # stage (drive it via the `parallel` discriminator instead).
+        tag = " [combinator]" if cascade.get("kind") == "combinator" else ""
+        _safe_print(f"  {name:<24}  [{cls}]{tag}  {purpose}")
+    _safe_print(
+        "\nkind: plain ops are `op=` chain stages; a [combinator] is a "
+        "special form — drive it via its own discriminator "
+        "(e.g. `parallel_body=`), not `op=`."
+    )
     return 0
 
 
