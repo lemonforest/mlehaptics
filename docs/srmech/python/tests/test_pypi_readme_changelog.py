@@ -33,8 +33,15 @@ from __future__ import annotations
 
 import os
 import re
-import tomllib
 from pathlib import Path
+
+# tomllib is stdlib on 3.11+; tomli is the back-port for 3.10. Mirror
+# the package's own shim in srmech.dsl._catalog so this guard runs on
+# every supported interpreter (the 3.10 wheel ships tomli as a dep).
+try:
+    import tomllib as _toml
+except ModuleNotFoundError:  # pragma: no cover - 3.10 path
+    import tomli as _toml  # type: ignore[no-redef]
 
 import pytest
 
@@ -122,7 +129,7 @@ def test_changelog_slice_brackets_only_current_minor():
 
 @pytest.mark.parametrize("path", [PYPROJECT, PYPROJECT_PURE])
 def test_pyproject_declares_dynamic_readme(path: Path):
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _toml.loads(path.read_text(encoding="utf-8"))
     project = data["project"]
     assert "readme" not in project, f"{path.name} must not carry a static readme key"
     assert "readme" in project.get("dynamic", []), (
@@ -132,7 +139,7 @@ def test_pyproject_declares_dynamic_readme(path: Path):
 
 @pytest.mark.parametrize("path", [PYPROJECT, PYPROJECT_PURE])
 def test_pyproject_declares_fancy_pypi_readme_hook(path: Path):
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _toml.loads(path.read_text(encoding="utf-8"))
     hook = data["tool"]["hatch"]["metadata"]["hooks"]["fancy-pypi-readme"]
     assert hook["content-type"] == "text/markdown"
     fragments = hook["fragments"]
@@ -149,7 +156,7 @@ def test_pyproject_declares_fancy_pypi_readme_hook(path: Path):
 
 @pytest.mark.parametrize("path", [PYPROJECT, PYPROJECT_PURE])
 def test_pyproject_requires_fancy_pypi_readme_builder(path: Path):
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _toml.loads(path.read_text(encoding="utf-8"))
     requires = data["build-system"]["requires"]
     assert any(r.startswith("hatch-fancy-pypi-readme") for r in requires), (
         f"{path.name} build-system.requires must include hatch-fancy-pypi-readme"
@@ -166,8 +173,8 @@ def test_both_pyprojects_share_byte_identical_hook_block():
 
 
 def test_both_pyprojects_agree_on_description():
-    main = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]["description"]
-    pure = tomllib.loads(PYPROJECT_PURE.read_text(encoding="utf-8"))["project"][
+    main = _toml.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]["description"]
+    pure = _toml.loads(PYPROJECT_PURE.read_text(encoding="utf-8"))["project"][
         "description"
     ]
     assert main == pure
@@ -176,7 +183,7 @@ def test_both_pyprojects_agree_on_description():
 
 
 def test_scikit_build_core_readme_provider_configured():
-    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    data = _toml.loads(PYPROJECT.read_text(encoding="utf-8"))
     readme_meta = data["tool"]["scikit-build"]["metadata"]["readme"]
     assert readme_meta == {
         "provider": "scikit_build_core.metadata.fancy_pypi_readme"
@@ -200,7 +207,7 @@ def _assemble_long_description() -> str:
     from hatch_fancy_pypi_readme._builder import build_text
     from hatch_fancy_pypi_readme._config import load_and_validate_config
 
-    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    data = _toml.loads(PYPROJECT.read_text(encoding="utf-8"))
     config = load_and_validate_config(
         data["tool"]["hatch"]["metadata"]["hooks"]["fancy-pypi-readme"]
     )

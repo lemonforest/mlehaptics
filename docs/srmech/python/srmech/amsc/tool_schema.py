@@ -2609,7 +2609,7 @@ def _register_dsl_tools() -> None:
     * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
       TOML chain spec + run it atomically; an LLM composes AND runs a
       cascade in one call.
-    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 8 cascade-catalog
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 10 cascade-catalog
       ops + their A–N class + purpose, so an LLM knows which op names a
       spec may use.
 
@@ -2647,7 +2647,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 8-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 10-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
