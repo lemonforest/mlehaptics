@@ -92,6 +92,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # the submodule-dotted name is the same object re-exported flat, exempt
     # exactly like the atoms/compose submodule ops above.
     "srmech.amsc.cascade.parallel.parallel_sector_dispatch",
+    # cascade.parallel.sectorize (v0.6.0rc12) — a thin convenience wrapper
+    # that runs `parallel_sector_dispatch` with a recombine and returns the
+    # `combined` value (a unary nesting callable). It exposes NO capability
+    # beyond `parallel_sector_dispatch` (which IS registered) — it is sugar
+    # for nesting, exempt exactly like the helpers that wrap a primary entry.
+    "srmech.amsc.cascade.parallel.sectorize",
 })
 
 

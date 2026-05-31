@@ -45,10 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="srmech",
         description=(
-            "srmech command-line interface. v0.5.0rc4 ships two "
-            "subcommands: ``status`` (out-of-band introspection of a "
-            "running srmech sweep) and ``bus`` (operate the v0.5.0 "
-            "cross-process bus)."
+            "srmech command-line interface. Four subcommands: ``status`` "
+            "(out-of-band introspection of a running srmech sweep), "
+            "``bus`` (operate the cross-process bus), ``dsl`` (compose / "
+            "run cascade chains), and ``mcp`` (emit Model Context Protocol "
+            "integration artifacts for Claude Desktop)."
         ),
     )
     parser.add_argument(

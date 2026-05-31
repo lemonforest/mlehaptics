@@ -97,6 +97,18 @@ cross-check.
 :func:`srmech.amsc.cascade.atoms.net_chirality` (Class C / K discipline per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 
+COMPOSABILITY (rc12 §11.3). By default the dispatch returns the rich
+per-sector introspection dict — a *leaf* value that does NOT compose
+(feeding it, or the per-sector list, back into another dispatch crashed,
+since the sector stream-transforms expect a flat scalar stream). Passing
+``combine=`` (a :data:`COMBINE_REDUCERS` name or a callable) folds the ≤4
+sector results back into ONE value at ``result["combined"]``, so a
+sector-dispatched cascade is ``stream → stream`` and CHAINS / NESTS like
+every other cascade stage. :func:`sectorize` wraps a body as a ready-made
+nesting callable; the DSL ``parallel`` stage (``chain.parallel_sectors``)
+recombines by default. This closes the §11.3 gap that the 4-sector splay
+"applies at one level only and does not carry through a chained cascade".
+
 Pure-Python; ABI stays 3; no ``c/`` change.
 
 Canonical SSoT (PARENT FACTS only; F233 is the framework finding):
@@ -242,12 +254,90 @@ def _collapse_label(n_distinct: int) -> str:
     }.get(n_distinct, f"collapse_to_{n_distinct}")
 
 
+#: Named recombine reducers accepted by ``parallel_sector_dispatch``'s
+#: ``combine=`` and by :func:`sectorize`. ``combine=None`` (the low-level
+#: default) leaves the rich per-sector dict untouched (back-compat); any
+#: of these names — or a caller-supplied ``Callable[[List], Any]`` — folds
+#: the ≤4 sector results back into ONE composable value so a
+#: sector-dispatched cascade is ``stream → stream`` and CHAINS / NESTS like
+#: every other cascade stage (the rc12 composability fix; §11.3).
+COMBINE_REDUCERS: Tuple[str, ...] = ("bundle", "mean", "sector0", "concat")
+
+
+def _equal_lengths(results: List[Any]) -> int:
+    """Return the shared length of the sector results (element-wise guard).
+
+    The element-wise reducers (``bundle`` / ``mean``) need every sector
+    result to share one length — they always do (the same ``body`` runs on
+    same-length sector-transformed inputs), so a mismatch is a caller bug.
+    """
+    lengths = [len(list(r)) for r in results]
+    assert lengths, "combine: at least one sector result is required"
+    first = lengths[0]
+    assert all(n == first for n in lengths), (
+        "combine: element-wise recombine ('bundle'/'mean') needs every "
+        f"sector result to share one length; got {lengths}"
+    )
+    return first
+
+
+def _apply_combine(combine: Any, results: List[Any]) -> Any:
+    """Fold the ≤4 per-sector results into ONE composable value.
+
+    The recombine that makes a sector-dispatched cascade ``stream →
+    stream`` (the rc12 §11.3 composability fix). Each sector dual
+    ``inv_T_s(body(T_s(x)))`` lands back in the COMMON (un-transformed)
+    frame, so a per-element fold over the ≤4 of them is meaningful: for a
+    chirality-symmetric body all four agree (the recombine is exact); for
+    an asymmetric body it is the Klein-4 superposition of the four
+    chirality channels.
+
+    ``combine`` is one of :data:`COMBINE_REDUCERS` or a caller-supplied
+    ``Callable[[List[Any]], Any]``:
+
+    - ``"bundle"`` — element-wise SUM (Class-M superposition; the default
+      for the DSL ``parallel`` stage + :func:`sectorize`);
+    - ``"mean"``   — element-wise average (``bundle`` / ``n_sectors``);
+    - ``"sector0"``— sector 0's result alone (the identity ``(+, +)``
+      sector): a value-TRANSPARENT recombine — the stage value is exactly
+      ``body(x)`` while the other ≤3 sectors still ran in parallel;
+    - ``"concat"`` — flatten the sector results end-to-end (length grows).
+
+    **No ``abs()``** — ``bundle`` / ``mean`` use plain addition (and a
+    divide for the mean); all sign-handling stays Class K / C upstream in
+    the sector duals.
+    """
+    if callable(combine):
+        return combine(results)
+    if combine == "sector0":
+        return results[0]
+    if combine == "concat":
+        flat: List[Any] = []
+        for r in results:
+            flat.extend(list(r))
+        return flat
+    if combine in ("bundle", "mean"):
+        _equal_lengths(results)
+        columns = zip(*[list(r) for r in results])
+        bundled = [sum(col) for col in columns]
+        if combine == "mean":
+            n = len(results)
+            assert n >= 1, "combine 'mean': need at least one sector"
+            return [v / n for v in bundled]
+        return bundled
+    raise ValueError(
+        f"parallel_sector_dispatch: combine must be None, a callable, or "
+        f"one of {COMBINE_REDUCERS}; got {combine!r}"
+    )
+
+
 def parallel_sector_dispatch(
     body: Callable[[Sequence], Any],
     x: Sequence,
     *,
     n_sectors: int = KLEIN4_SECTOR_CAP,
     verify: bool = False,
+    combine: Any = None,
 ) -> Dict[str, Any]:
     """Run ``body`` across its ≤4 Klein-4 chirality sectors CONCURRENTLY.
 
@@ -286,6 +376,15 @@ def parallel_sector_dispatch(
         x: The input sequence.
         n_sectors: How many of the 4 Klein-4 sectors to dispatch (1..4;
             default 4). Hard-capped at :data:`KLEIN4_SECTOR_CAP`.
+        combine: Optional recombine that makes the dispatch ``stream →
+            stream`` (the rc12 §11.3 composability fix). ``None`` (default)
+            leaves the rich per-sector dict intact — ``result["combined"]``
+            is ``None``. A reducer name (:data:`COMBINE_REDUCERS` —
+            ``"bundle"`` / ``"mean"`` / ``"sector0"`` / ``"concat"``) or a
+            ``Callable[[List], Any]`` folds the ≤4 sector results into ONE
+            value at ``result["combined"]`` so a sector-dispatched cascade
+            CHAINS / NESTS like any other stage. See :func:`sectorize` for
+            the ready-made nesting wrapper.
         verify: When ``True``, RE-CHECK the correctness invariants at
             runtime — recompute the serial (same-sector) reference and
             assert ``parallel == serial`` bit-for-bit, plus
@@ -301,6 +400,10 @@ def parallel_sector_dispatch(
 
         - ``sectors`` — ``{s: {"label": (γ₅, iω₇), "result": <body output>}}``
           for ``s`` in ``0..n_sectors-1`` (the parallel dispatch result).
+        - ``combined`` — the recombined single value when ``combine`` was
+          given (the composable ``stream → stream`` output the DSL
+          ``parallel`` stage / :func:`sectorize` pipe forward), else
+          ``None`` (rc12 §11.3).
         - ``z4_dispatch_slots`` — the Z₄ quarter-turn slots
           ``[0, 1, 2, 3][:n_sectors]`` (cyclic-order-4 timing, distinct from
           the order-2×order-2 Klein-4 identity).
@@ -398,6 +501,15 @@ def parallel_sector_dispatch(
                 "2-rung object) — this invariant FAILED"
             )
 
+    # ── rc12 composability (§11.3): optionally recombine the ≤4 sector
+    #    results into ONE value so the dispatch is stream→stream (chains /
+    #    nests). combine=None (default) keeps the rich per-sector dict
+    #    intact for introspection — combined stays None (back-compat); a
+    #    reducer name / callable folds them via _apply_combine.
+    combined = (
+        None if combine is None else _apply_combine(combine, parallel_results)
+    )
+
     # ── Collapse-lattice readout (F233 §2.4): distinct sector results.
     classes = _distinct_classes(parallel_results)
     n_distinct = len(classes)
@@ -478,6 +590,11 @@ def parallel_sector_dispatch(
 
     return {
         "sectors": sectors_block,
+        # rc12 composability (§11.3): the recombined single value when a
+        # ``combine`` was given, else None. THIS is what makes a
+        # sector-dispatched cascade chain / nest — the DSL ``parallel``
+        # stage + :func:`sectorize` pipe this forward.
+        "combined": combined,
         "z4_dispatch_slots": list(Z4_DISPATCH_SLOTS[:n_sectors]),
         "independence": independence,
         "collapse_lattice": collapse_lattice,
@@ -486,9 +603,62 @@ def parallel_sector_dispatch(
     }
 
 
+def sectorize(
+    body: Callable[[Sequence], Any],
+    *,
+    n_sectors: int = KLEIN4_SECTOR_CAP,
+    combine: Any = "bundle",
+) -> Callable[[Sequence], Any]:
+    """Wrap ``body`` as a COMPOSABLE unary ``seq → recombined`` cascade.
+
+    The rc12 nesting primitive (§11.3). Returns a plain ``value → value``
+    callable that runs ``body`` across its ≤4 Klein-4 sectors and
+    recombines (via ``combine``, default ``"bundle"``) into ONE value.
+    Because the return is a single value — NOT the rich dispatch dict — a
+    sectorized cascade NESTS inside another sector dispatch and CHAINS as
+    a DSL body, closing the gap where "a sector-dispatched cascade does
+    not compose with / nest inside another sector-dispatched cascade"::
+
+        inner  = sectorize(chiral_flip)                 # seq → bundled
+        nested = parallel_sector_dispatch(inner, x, combine="bundle")
+        #        ^ the 4-sector splay now carries THROUGH a chained cascade
+
+    ``combine=None`` is rejected here — a nesting body must return a
+    single value, not the per-sector list.
+
+    Args:
+        body: A unary cascade callable (``Sequence → Sequence``).
+        n_sectors: 1..4 (hard-capped at :data:`KLEIN4_SECTOR_CAP`).
+        combine: Recombine for the wrapped result — one of
+            :data:`COMBINE_REDUCERS` or a callable; defaults to
+            ``"bundle"``. Must NOT be ``None``.
+
+    Returns:
+        A unary ``Sequence → Any`` callable safe to nest / chain.
+
+    Raises:
+        ValueError: if ``combine`` is ``None``.
+    """
+    if combine is None:
+        raise ValueError(
+            "sectorize: combine must recombine to a single value (a nesting "
+            "body cannot return the per-sector list); pass one of "
+            f"{COMBINE_REDUCERS} or a callable"
+        )
+
+    def _sectorized(seq: Sequence) -> Any:
+        return parallel_sector_dispatch(
+            body, seq, n_sectors=n_sectors, combine=combine,
+        )["combined"]
+
+    return _sectorized
+
+
 __all__ = [
     "KLEIN4_SECTOR_CAP",
     "SECTOR_LABELS",
     "Z4_DISPATCH_SLOTS",
+    "COMBINE_REDUCERS",
     "parallel_sector_dispatch",
+    "sectorize",
 ]

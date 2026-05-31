@@ -91,8 +91,24 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc11():
-    """v0.6.0rc11 — MS #20 DSL parallel-discriminator voxel: the Klein-4
+def test_version_is_0_6_0rc12():
+    """v0.6.0rc12 — MS #20 parallel-composability voxel (§11.3 DEV-UPDATE):
+    parallel_sector_dispatch becomes CHAINABLE / NESTABLE. The Klein-4
+    four-sector dispatch was a *leaf* introspection-Dict tool — feeding its
+    output (or the per-sector list) back into another sector dispatch
+    crashed (`unary -: 'list'`), so the 4-way splay applied at ONE level
+    only and did not carry through a chained cascade. rc12 adds an optional
+    `combine=` recombine (`bundle`/`mean`/`sector0`/`concat`/callable) +
+    `result["combined"]` + a `sectorize()` nesting wrapper; the DSL
+    `parallel_sectors` stage recombines by DEFAULT (`combine="bundle"`) so
+    it is `stream → stream` and chains / nests like loop/fold/reduce
+    (`combine=None` keeps the terminal per-sector list, guarded against
+    chaining-past). The TOML `parallel_body=` gains `combine=`. Also fixes
+    a stale top-help string (now enumerates all four subcommands
+    status/bus/dsl/mcp). No new ToolEntry → describe() tool total stays 178;
+    ABI unchanged at 3; pure-Python.
+
+    Prior v0.6.0rc11 — MS #20 DSL parallel-discriminator voxel: the Klein-4
     four-sector fan-out parallel_sector_dispatch becomes a first-class
     chain special form (chain.parallel_sectors / `parallel_body=`),
     alongside loop/fold/reduce — it is a 1→N fan-out COMBINATOR
@@ -355,8 +371,8 @@ def test_version_is_0_6_0rc11():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc11", (
-        f"expected srmech.__version__ == '0.6.0rc11'; got "
+    assert srmech.__version__ == "0.6.0rc12", (
+        f"expected srmech.__version__ == '0.6.0rc12'; got "
         f"{srmech.__version__!r}"
     )
 

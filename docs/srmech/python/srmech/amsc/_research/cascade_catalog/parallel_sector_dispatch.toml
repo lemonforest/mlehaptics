@@ -14,7 +14,7 @@ class_composition = "C (Klein-4 γ₅± × iω₇± four-sector orchestration)"
 # error and drives it via the `parallel` discriminator instead
 # (chain.parallel_sectors / `parallel_body=` in a TOML spec). v0.6.0rc11.
 kind = "combinator"
-purpose = "PARALLELISE a cascade body: fan it across ≤4 Klein-4 chirality sectors concurrently (the F233 4-thread alternative to one serial pass). DSL: use the `parallel` discriminator (parallel_body=), not op=."
+purpose = "PARALLELISE a cascade body: fan it across ≤4 Klein-4 chirality sectors concurrently (the F233 4-thread alternative to one serial pass). DSL: use the `parallel` discriminator (parallel_body=), not op=. rc12: pass combine= (default the DSL stage bundles) to recombine the ≤4 sectors into one value so the dispatch is stream→stream and CHAINS / NESTS."
 description = """
 Operationalises R-RBS-LM F233 ("1 cascade = 4 independent threads = the
 Klein-4 four chirality sectors"). Runs ONE caller-supplied cascade
@@ -28,10 +28,19 @@ The two commuting involution axes are γ₅ (orientation reversal = Class-C
 chiral_flip) and iω₇ (a per-element Class-C sign-flip = reorient(-1,·)).
 Together they generate Z₂ × Z₂, so every T_s is its OWN inverse.
 
-HIGHER-ORDER / NOT UNARY: this op takes a body CALLBACK and returns a
-dict (not a value→value transform), so it is NOT a `chain().then(...)`
-stage — it is catalogued here for discovery (`srmech dsl ops`) and
-descriptor render, but the DSL fluent-chain runner does not chain it.
+HIGHER-ORDER / NOT A PLAIN OP: this op takes a body CALLBACK (not the
+piped value), so it is NOT a plain `chain().then(op=...)` stage — it is
+driven via the DSL `parallel` discriminator (chain.parallel_sectors /
+`parallel_body=`), the same way loop/fold/reduce are.
+
+COMPOSABILITY (rc12): by default the op returns the rich per-sector dict
+(`combined` = None) — a leaf value that does NOT compose. Pass `combine=`
+(a reducer name `bundle`/`mean`/`sector0`/`concat` or a callable) to fold
+the ≤4 sector results into ONE value at `combined`, so a sector-dispatched
+cascade is stream→stream and CHAINS / NESTS like any other stage. The DSL
+`parallel` stage recombines by default; `sectorize(body, combine=...)`
+wraps a body as a ready-made nesting callable. No abs() (bundle/mean are
+plain addition + divide).
 
 CONCURRENCY (rc8 slowdown fix): a GIL-releasing body (native / IO /
 numpy) lets the ≤4 sectors genuinely OVERLAP (~4×); a CPU-bound pure-
@@ -41,12 +50,16 @@ same four-sector fan-out natively (no host Python). No abs().
 """
 
 [cascade.signature]
-input = "body: callable[[sequence], sequence] (a unary cascade); x: sequence; kwarg int n_sectors = 4 (1..4); kwarg bool verify = False"
-output = "dict — keys: sectors, z4_dispatch_slots, independence, collapse_lattice, cap, framework_thread_ladder_reading"
-operation = "for s in 0..n_sectors-1: sector_dual = inv_T_s(body(T_s(x))); T_s = γ₅^a ∘ iω₇^b (an involution, inv_T_s == T_s)"
+input = "body: callable[[sequence], sequence] (a unary cascade); x: sequence; kwarg int n_sectors = 4 (1..4); kwarg bool verify = False; kwarg combine = None (None | 'bundle'/'mean'/'sector0'/'concat' | callable) — the rc12 recombine"
+output = "dict — keys: sectors, combined (rc12; the recombined single value when combine= given, else None), z4_dispatch_slots, independence, collapse_lattice, cap, framework_thread_ladder_reading"
+operation = "for s in 0..n_sectors-1: sector_dual = inv_T_s(body(T_s(x))); T_s = γ₅^a ∘ iω₇^b (an involution, inv_T_s == T_s); then combined = combine(sector_duals) if combine else None"
 cap = 4
 higher_order = true
-chainable_in_dsl = false
+# Not a plain `op=` stage (it is a combinator, driven via the `parallel`
+# discriminator). rc12: with combine= it recombines to a single value, so
+# the `parallel` stage is stream→stream and CHAINS / NESTS.
+chainable_as_plain_op = false
+composable_via_combine = true
 
 [cascade.native]
 # Higher-order: the C peer takes a body CALLBACK (the srmech_cascade_body_f64
