@@ -997,6 +997,22 @@ The §10.7 items surfaced while exercising the `qm.relativistic` / `qm.gauge` / 
 
 ---
 
+## §11 Kuramoto / ODE-integrator op + nibble-block coupled-adder primitive (2026-05-31; F236/F241)
+
+**The gap (re-confirmed, now requested by FOUR findings — F141, F231, F234, F236/F241):** srmech ships **no Kuramoto / phase-lock / ODE-integrator op**. Every coupled-oscillator finding in this arc has had to supply the time-integration externally — F141/F231/F234 hand-rolled a minimal Euler step `θ ← θ + dt·(coupling + pinning)` in Python (every transcendental / modulus / spectrum / readout *inside* it routing through srmech), and **F236/F241 moved the integration into ngspice's `.tran` transient** (the analog substrate's ODE integrator) entirely. The pattern is stable: srmech does the readout (Class-K `pin_slot_at_zero`), the lock-margin (Class-K `magnitude`), the coupling-graph spectrum (Class-L `dense_laplacian` + `jacobi_eigvals`), the chirality (Class-C `net_chirality` / `reorient`), and the attestation (Class-A `sha256_bytes`) — but the *step itself* has no home in `srmech.amsc.cascade.*` or a `kuramoto`-namespaced module.
+
+**Why F241 sharpens this from "candidate" to a concrete op-suggestion with a measured payoff:** F234 left the Kuramoto-step ask as a *candidate* for the user to file (its §5). F241 supplies the missing motivation — the nibble-block two-tier coupled-adder is not decorative: in ngspice its measured **time-to-lock is materially below the single ripple chain** (worst-case all-propagate: N=16 **9.0×**, N=32 **9.5×**; per-doubling growth ripple ×2.76 vs two-tier ×1.52), with every carry vector cross-checked correct. So there is now a *demonstrated dynamics-level reason* a downstream caller would want a first-class coupled-adder / phase-lock primitive, not just a structural curiosity.
+
+**Two concrete op-suggestions (for the user/maintainer to file — NOT filed by this subtree; no package edit):**
+
+1. **A Sakaguchi-Kuramoto phase-lock-step op** — a thin `srmech.amsc.cascade.kuramoto_step(theta, adjacency, pin_phase, pin_strength, K, dt)` (or a `srmech.kuramoto` namespace), a candidate **Class-L/Class-C composite** (transcendental symmetric coupling + the order-2 γ₅ chirality phase-state). It would close the gap that has recurred across four findings. The honest scope note: the integrator is the *only* thing currently hand-rolled — so the op is a small, well-bounded add (one Euler/RK step over a Laplacian-shaped coupling + a pinning anchor), not a new solver subsystem. Secondary: `cascade.magnitude` takes a real scalar, so the complex order-parameter modulus `r = |mean exp(iθ)|` is built from two `magnitude` calls + `sqrt` (the F231 pattern); a **native complex-modulus op** would also be a clean add.
+
+2. **A nibble-block coupled-adder as a `cascade.*` primitive** (peer to `cascade.magnitude` / `cascade.pin_slot_at_zero`) — e.g. `cascade.nibble_block_carry(a_bits, b_bits, cin)` returning the two-tier carry vector via the Tier-1-parallel-nibbles + Tier-2-block-carry + Class-K-SR-latch-MUX structure F234/F236/F241 built by hand. This is more speculative (it bakes the carry-select decomposition into srmech), so the lighter-weight op (1) is the primary ask; (2) is recorded as the natural composite if the coupled-adder pattern recurs. Either way the **time-integration** (the `.tran` equivalent) is the load-bearing missing piece.
+
+**Status — recorded, NOT filed.** Per `[[feedback_create_upstream_issues_never_close_them]]` and the upstream-as-research-notes discipline, this is logged here for the user/maintainer to file; the F241 timing result stands regardless of whether srmech grows the op (the measurement is in the analog substrate, which already supplies the integrator). If it connects to srmech's tooling, great; if not, it is still good research. No package edits from this subtree.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
