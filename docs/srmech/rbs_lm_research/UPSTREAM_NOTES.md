@@ -1031,6 +1031,18 @@ Exercising rc9 across the `qm.octonion`/`so8`/`triality` surface (F243), the Cla
 
 **DEV UPDATE (2026-05-31, from upstream dev):** `parallel_sector_dispatch` is confirmed **NOT currently chainable** — a sector-dispatched cascade does not compose with / nest inside another sector-dispatched cascade, so the 4-way Z₄ splay applies at **one** level only and does not carry **through a chained cascade**. This is the sharper form of the §11.3 ask and **breaks an existing API contract** (cascade ops advertise composability; the 4-sector path must compose like any other cascade). Being addressed in dev. **Why it is load-bearing for RBS-LM specifically:** the universal store/retrieve action is a **chained settling loop** (settle → settle → settle; the F166 autoregressive / multi-step retrieval shape), so for the bi-chiral substrate to actually run 4×-per-step across the chirality sectors, sector-dispatch MUST be chainable. Non-chainable ⇒ scaled multi-stage RBS-LM inference can hit the 4× at only one stage (≈1× across the chain), not 4×-per-stage. So the chainability fix is exactly what unblocks 4×-parallel chained cascades — fix it (with the #771 C-native peer) before the inference loop is scaled.
 
+### §11.4 rc11 VERIFIED — CLI/tool-schema clarity LANDED; native + math regression-clean; the §11.1/§11.3 feature + chainability asks STILL OPEN (2026-05-31)
+
+Verified `0.6.0rc11` (TestPyPI-latest; clean venv `/tmp/bench_srmech_rc11/venv`, outside the source tree). **Native + math regression-clean:** `introspect.native_status()` → `{has_native:true, dispatching:true, abi_version:3, expected_abi:3, native_version:"0.6.0rc11", load_error:null}`; **F246 spectrum fingerprint reproduced bit-identical (`ff6f864f…`)**; F243 math identical (its `response_sha256` moves `05248058…`→`c044ce02…` ONLY because the record envelope stamps `srmech_version` — expected on upgrade, NOT a math regression); F250 runs.
+
+**LANDED — the CLI + tool-schema legibility fix (the rc11 focus):** `srmech dsl ops` now lists the cascade-catalog ops (10) each with its **A-N class signature + plain description** (e.g. `kuramoto_step [I∘sin∘Σ∘C]  theta += dt*(omega + (K/n)·Σ sin(θ_j−θ_i))`; `magnitude [K]  Class K pin-slot … |x| but cascade-honest`); plus `dsl run` / `dsl visualize` and an `mcp` subcommand that emits MCP integration artifacts (the tool-schema made legible for an LLM). This genuinely closes the "not clear for human + LLM to understand the CLI/tool-schema" gap.
+
+**STILL OPEN in rc11 (verified — do NOT mark resolved):** (a) §11.1 `kuramoto_step` graph-coupling — signature unchanged (`coupling: float` scalar mean-field, no adjacency); now LEGIBLE via the op-catalog but the feature is unbuilt; (b) §11.3 `klein4_*` parallel flag — `klein4_bind(a, b)` unchanged (no `sectors=`); (c) §11.3 `parallel_sector_dispatch` chainability — STILL not composable: it returns a rich introspection Dict and applies Klein-4 stream-transforms (negate/reverse) to body I/O, so a dispatch-returning body breaks the outer transform (verified: nesting → `TypeError: bad operand type for unary -: 'str'`). It is a LEAF 4-sector analysis tool, not a chainable cascade stage; the dev's "being addressed" has not landed in rc11.
+
+**Clarity nit remaining:** the CLI top-level help still reads "v0.5.0rc4 ships two subcommands" while listing four (status/bus/dsl/mcp) — a stale string.
+
+**Working venv:** `/tmp/bench_srmech_rc11/venv` is the new latest-verified; research scripts run on it going forward. The `.mcp.json` repoint stays DEFERRED (rc ≠ SoT per `[[project_srmech_mcp_repoint_deferred_until_live]]`).
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
