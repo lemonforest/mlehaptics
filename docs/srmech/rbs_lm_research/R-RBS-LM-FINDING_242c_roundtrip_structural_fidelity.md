@@ -2,9 +2,30 @@
 
 **Script:** [`R-RBS-LM-242c_roundtrip_structural_fidelity.py`](R-RBS-LM-242c_roundtrip_structural_fidelity.py)
 **SSoT (bit-exact NDJSON):** `docs/srmech/catalogs/rbs_lm_substrate/substrate_measurements/roundtrip_structural_fidelity.ndjson`
-**`response_sha256`:** `f97d1317f4c11ba6402283037640351b59d00b9325c452dbff83986f14a2031d` (stable across ≥2 runs; body minus `generated_at`)
+**`response_sha256`:** `6c569caf515de5ac672d41351514405bec78f055cb938d9042d6f4acc86666fb` (**v2 NOTATION-DE-CONFOUNDED**, 2026-05-31; supersedes v1 `f97d1317…`; body minus `generated_at`)
 **srmech:** `0.6.0rc9` (HAS_NATIVE) · **discipline:** `check_srmech_discipline.py` → **0 HARD**, 0 coverage-gap; ratchet **0 regressions**
 **Source linkage:** F242a wireframe `cdbed2dce37857a0…` (the live `working_memory_wireframe.ndjson`)
+
+---
+
+## ⟐ Forward-fix (2026-05-31): the `F###` ≡ "Finding ###" notation de-confound
+
+**The v1 confound (flagged, now resolved).** v1 scored token-overlap on the `TOKEN_PATTERNS` alphabet whose finding-ref pattern is `\bF\d{2,3}\b` — it matched the STRUCTURED renders' `F234` but NOT the PROSE-control renders' long-form `Finding 234`. Prose finding-refs were therefore mis-scored as drift/invention, and the struct-vs-prose total came out **REVERSED** (prose *worse* than struct — nonsensical for an echo-vs-creation contrast). v1 flagged this rather than leaning on it; this fix resolves it.
+
+**The fix.** Normalize `Finding ### / Finding F### → F###` at the render-text source, patched at the `_f242b` module level so F242b's internal `token_class_hits` calls see it too. Idempotent on the struct renders (already `F###`); the SOURCE/wireframe tokens are stored (not re-read), so **only the prose side can move**.
+
+**Result — the confound was entirely on the prose side, and it resolved exactly as predicted:**
+
+| | struct mean GEN-1 loss | prose mean GEN-1 loss | contrast (struct − prose) |
+|---|---|---|---|
+| **v1 (confounded)** | 0.9676 | 1.4072 | **−0.44** (prose worse — the artifact) |
+| **v2 (de-confounded)** | 0.9676 *(unchanged)* | **0.7278** | **+0.24** (struct worse — the EXPECTED echo-vs-creation direction) |
+
+- **Struct mean loss is unchanged** (0.9676 → 0.9676): the normalization is idempotent on the structured renders, confirming the artifact never touched them.
+- **Prose mean loss drops 1.41 → 0.73**; prose invention drops to a clean **0.062** across haiku/sonnet/opus — prose renders *echo* existing sentences, so once their `Finding ###` refs are recognized they carry almost no invention (exactly what "echo < creation" predicts).
+- **The contrast flips sign** (−0.44 → +0.24): from the confounded "prose worse" to the sensible "struct — which had to CREATE sentences from structure — carries higher round-trip loss than prose, which echoes."
+
+**Why the user asked for this:** the GEN-1 LOSS is now notation-clean — `Finding ###` and `F###` are one token-class, so the loss measures *structural* drift/invention, not a surface-form mismatch. It is ready to be the scalar a gen-1 borrowed-GPU renderer minimises. **Still a SCAFFOLD, not permanent** (the finding's own framing): the trajectory is the srmech-native render; the gen-1 renderer is the high-pass loaner trained toward fidelity by this (now de-confounded) loss. The v1 numbers below are retained as the pre-fix record.
 
 ---
 

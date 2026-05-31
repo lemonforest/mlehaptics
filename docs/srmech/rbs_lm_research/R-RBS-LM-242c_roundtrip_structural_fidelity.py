@@ -102,6 +102,7 @@ Defensive scope: encodes the project's own research renders.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -127,7 +128,22 @@ RENDER_MODELS = _f242b.RENDER_MODELS             # haiku/sonnet/opus (bare label
 PROSE_CONTROL_NAMES = _f242b.PROSE_CONTROL_NAMES  # haiku/sonnet/opus (CONTROL prose)
 TOKEN_PATTERNS = _f242b.TOKEN_PATTERNS           # the SAME load-bearing token alphabet (F242a)
 ZERO_FLOOR = _f242b.ZERO_FLOOR                   # B: near-zero spectral floor (numerical)
-render_text = _f242b.render_text
+# --- F242c FORWARD-FIX (user direction 2026-05-31): de-confound the F### vs "Finding ###"
+#     tokenizer artifact flagged in the v1 run. TOKEN_PATTERNS matches the F### surface-form
+#     (\bF\d{2,3}\b) but NOT long-form "Finding ###"; the STRUCTURED renders write "F234", the
+#     PROSE-control renders write "Finding 234", so the prose side under-counted finding-refs and
+#     inflated the struct-vs-prose drift/invention gap. Normalize "Finding ### / Finding F###"
+#     -> "F###" at the render-text source, patched at the _f242b MODULE level so F242b's INTERNAL
+#     token_class_hits calls see it too. Idempotent on the struct renders (already F###); the
+#     SOURCE/wireframe tokens are stored (not re-read), so ONLY the prose side moves. ===========
+_NOTATION_NORM = re.compile(r"\b[Ff]inding[s]?\s+F?(\d{2,3})\b")
+def _normalize_notation(text):
+    """Collapse 'Finding 234' / 'finding F234' -> 'F234' so prose matches the F### alphabet."""
+    return _NOTATION_NORM.sub(r"F\1", text)
+_orig_render_text = _f242b.render_text
+def render_text(name):
+    return _normalize_notation(_orig_render_text(name))
+_f242b.render_text = render_text                  # module-level patch: F242b-internal calls see it
 token_class_hits = _f242b.token_class_hits
 render_spectrum = _f242b.render_spectrum          # Class-L re-encode (the round-trip wireframe)
 render_sector_bundle = _f242b.render_sector_bundle
