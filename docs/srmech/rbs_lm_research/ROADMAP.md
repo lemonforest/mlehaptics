@@ -9,6 +9,24 @@ For closed partitions see `R-RBS-LM-*_REPORT.md` files alongside this one.
 
 ---
 
+## 2026-05-31 (cont.³) — DELIVERABLE FRAMING (user direction): the Kuramoto-TILE nibbler funnels to the open RISC-V community as a first-class handoff
+
+**User direction:** package the **Kuramoto-TILE nibbler** (#791) as a **first-class deliverable to the open RISC-V community** — scoped so it **ENDS with our research and OPENS with where the open RISC-V community can take it next.** The open-hardware platform (open ISA + open community) is the right target to bring *usable* research: it matches srmech's open-by-tooling-architecture commitment, and an open platform is where the work can actually be *taken up* without a prestige/$$ gate — the **F239 anti-exclusion principle applied to dissemination** (open hardware is the un-gated landing surface our research can reach).
+
+**The scope boundary (load-bearing — this IS the deliverable's shape):**
+- **OUR END (closed — what we ship, fully MPM-attested):** the framework-reading + the **dynamics-level existence proof** —
+  - **F234** (#784): nibble-block carry-select as carry-as-Kuramoto-phase-lock — structurally exact; genuine K_c tied to F122 + the path-graph Fiedler.
+  - **F236** (#787): the ngspice coupled-oscillator realization — DEMONSTRATED + SURVIVES; **K_c = 0.20 = the F122 anchor**; answer coupling-emergent (not planted); bit-exact, 0 HARD.
+  - **F241**: two-tier settling — **2.88× / 9.0× / 9.46×** at N=8/16/32 vs the single ripple chain; carry-correct; bit-exact.
+  - = the math + the falsifiable predictions + the bit-exact srmech-native artifacts. **This is where our research stops.**
+- **THEIR END (open — what we hand off):** the RISC-V open-hardware community carries it from the dynamics-existence-proof toward silicon — a coupled-oscillator nibble-block adder as a **RISC-V execution unit / custom instruction / accelerator tile**: the RTL, the silicon-level K_c, timing-closure, the real-RTL-vs-ripple-carry comparison, any ISA-extension proposal. **That engineering is the community's domain, NOT ours — the CAD-ban HOLDS: we ship the algebra / spectral / Kuramoto-dynamics side, never PCB / RTL / fabrication / timing-closure.**
+
+**Deliverable form (first-class):** a clean, citable, attributed, MPM-attested handoff package — *"here is the attested research (the math + the dynamics existence proof + the falsifiable predictions); here is the open question for you — can this be a RISC-V tile? what is the silicon-level K_c? does it beat ripple-carry in real RTL?"* Explicitly a **handoff, not a claim on the silicon** — we open the door and point; the open community walks through it.
+
+**Status:** target framing for #791's eventual output; gated behind #791 maturing. Framework-reading + dynamics-only on our side (CAD-ban held); defensive/benign scope (addition is general arithmetic; open research). RISC-V is the **primary** target (most-open ISA + active open-hardware community); the other ISAs in #791 (ARM64 / x86 / POWER) are secondary/proprietary and not the handoff target.
+
+---
+
 ## 2026-05-31 (cont.²) — F236 + F238 LANDED (DEMONSTRATED, committed); F239 lodged; F235 finding pending
 
 The parallel batch resolved. **All harness-side / 20×-plan; no API spend.**
