@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc8():
-    """v0.7.0rc8 — MS #21 rc8 voxel: the Class-L circular autocorrelation
+def test_version_is_0_7_0rc9():
+    """v0.7.0rc9 — MS #21 rc9 voxel: the v0.7.0 graduation-prep PyPI
+    description refresh (the genuinely-last rcN before the clean v0.7.0
+    cut). The PyPI ``Summary`` now names the v0.7.0 headlines it had been
+    missing — the **Moufang loop-bind** octonion family (loop-bind / 7-D
+    cross / G_2 3-form; rc1–rc7) and the **Wiener-Khinchin autocorrelation**
+    (rc8) — alongside the preserved 28-dim so(8) = 14 g_2 + 14 L/R octonion
+    / Spin(8)-triality spine, trimmed to 472 chars (under the 480 soft / 512
+    hard PyPI limit), byte-IDENTICAL in pyproject.toml + pyproject-pure.toml
+    (the publish-workflow drift guard). Description-only: NO code change, so
+    ``describe()`` stays 193, the DSL catalog stays 11 ops, ABI stays 3.
+
+    Prior v0.7.0rc8 — MS #21 rc8 voxel: the Class-L circular autocorrelation
     primitive (the F290 §C un-flatten Wiener-Khinchin op) shipped CO-EQUAL
     in Python AND C. ``srmech.amsc.cascade.autocorrelation(x)`` returns the
     circular autocorrelation r[k] = Σ_i x[i]·x[(i+k) mod n] (r[0] = Σ x² =
@@ -579,8 +590,8 @@ def test_version_is_0_7_0rc8():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc8", (
-        f"expected srmech.__version__ == '0.7.0rc8'; got "
+    assert srmech.__version__ == "0.7.0rc9", (
+        f"expected srmech.__version__ == '0.7.0rc9'; got "
         f"{srmech.__version__!r}"
     )
 
