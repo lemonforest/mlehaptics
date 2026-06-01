@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc6():
-    """v0.7.0rc6 — MS #21 rc6 voxel: bring-your-own (BYO) cascade-TOML (F289 D2).
+def test_version_is_0_7_0rc7():
+    """v0.7.0rc7 — MS #21 rc7 voxel: the co-equal C peer for the octonion
+    loop-bind family (the Python→C transpile). ``c/src/srmech_loopbind.c`` ports
+    the dim-8 octonion (Cayley-Dickson) product loop_bind + loop_conj / loop_inv /
+    cross7 / g2_three_form to native ``srmech_loop_*_f64`` symbols — recursion-free
+    (a fixed real→complex→quaternion→octonion call DAG), bit-exact with the Python
+    ``_loop_bind_raw``. ``srmech.amsc.hdc`` dispatches the five public ops to C for
+    the n==8 octonion; the HD block wrappers inherit native per-block for free. New
+    symbols only ⟹ ABI stays 3 (additive); no new ToolEntry ⟹ ``describe()`` stays
+    192. JPL Power-of-Ten clean (no recursion/malloc/goto; ≤60-line functions; ≥2
+    asserts each; gcc/clang/MSVC -Werror/-WX).
+
+    Prior v0.7.0rc6 — MS #21 rc6 voxel: bring-your-own (BYO) cascade-TOML (F289 D2).
     A domain specialist drops ``*.toml`` cascade descriptors in a dir and
     registers it (``srmech.dsl.register_catalog_dir``) — or points
     ``SRMECH_CASCADE_PATH`` at it — and the ops resolve / run / surface
@@ -555,8 +566,8 @@ def test_version_is_0_7_0rc6():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc6", (
-        f"expected srmech.__version__ == '0.7.0rc6'; got "
+    assert srmech.__version__ == "0.7.0rc7", (
+        f"expected srmech.__version__ == '0.7.0rc7'; got "
         f"{srmech.__version__!r}"
     )
 

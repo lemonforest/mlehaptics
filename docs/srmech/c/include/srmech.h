@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc6"
-#define SRMECH_VERSION       "0.7.0rc6"
+#define SRMECH_VERSION_PRE   "rc7"
+#define SRMECH_VERSION       "0.7.0rc7"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -590,6 +590,53 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
     const double *adjacency, double coupling_k, double alpha,
     const double *pin_anchor, const double *pin_strength,
     double dt, double *out);
+
+/* ------------------------------------------------------------------ *
+ * Octonion "loop-bind" Moufang family (MS#21 v0.7.0rc7)
+ *
+ * C parity for srmech.amsc.hdc's dim-8 octonion (Cayley-Dickson)
+ * product loop_bind and companions. The carrier is the OCTONION: every
+ * `n` argument MUST equal 8 (the dim where division still holds); other
+ * dimensions return SRMECH_ERR_BAD_INPUT and the Python keeps its
+ * recursive fallback. The product matches hdc._loop_bind_raw exactly:
+ *   (a, b)(c, d) = (a c - conj(d) b,  d a + b conj(c))
+ * unrolled real -> complex -> quaternion -> octonion (no recursion).
+ *
+ * The HD block variants (loop_bind_hd, loop_unbind_hd, loop_conj_hd,
+ * loop_inv_hd, loop_runbind_hd) need NO C peer of their own: their
+ * Python wrappers loop over 8-blocks calling the per-block loop_bind /
+ * loop_conj, which dispatch to these symbols.
+ *
+ * Returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — a required pointer was NULL
+ *   SRMECH_ERR_BAD_INPUT   — n != 8, or (loop_inv) a zero vector
+ *
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 3.
+ * `out` MUST NOT alias the inputs. No abs() (Class-K sign = conj flip).
+ * ------------------------------------------------------------------ */
+
+/* The octonion product x·y (Class M ∘ Class-C ordering). 8 doubles. */
+srmech_status_t srmech_loop_bind_f64(
+    const double *x, const double *y, size_t n, double *out);
+
+/* Octonion conjugate x̄ — keep x[0], negate the imaginary part (Class C). */
+srmech_status_t srmech_loop_conj_f64(
+    const double *x, size_t n, double *out);
+
+/* Moufang inverse x⁻¹ = x̄ / <x,x> (Class-K clean; the norm² gate). */
+srmech_status_t srmech_loop_inv_f64(
+    const double *x, size_t n, double *out);
+
+/* 7-D cross product x×y = Im(loop_bind(x, y)) (drop the e0 anchor). */
+srmech_status_t srmech_cross7_f64(
+    const double *x, const double *y, size_t n, double *out);
+
+/* G2 associative calibration 3-form φ(x,y,z) = <x, cross7(y, z)>. The
+ * scalar result is written to *out (a single double). */
+srmech_status_t srmech_g2_three_form_f64(
+    const double *x, const double *y, const double *z, size_t n,
+    double *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

@@ -825,13 +825,111 @@ def _reject_hd_block_misuse(arr, op):
             f"use {op}_hd for the per-block result (F-§12.1).")
 
 
+# ── Native dispatch for the dim-8 octonion loop-bind family (v0.7.0rc7) ──
+# The C peer (srmech_loop_*_f64 in c/src/srmech_loopbind.c) covers the
+# OCTONION carrier only (n == LOOP_DIM == 8); other dims return None here and
+# keep the pure-Python recursive path. The HD block wrappers (loop_bind_hd,
+# ...) inherit native acceleration for free — they call the per-8-block
+# loop_bind / loop_conj, which dispatch through these helpers.
+_DBLP = ctypes.POINTER(ctypes.c_double)
+
+
+def _loop_native_ready(symbol):
+    """True iff the native lib is loaded AND exports ``symbol``."""
+    return (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, symbol))
+
+
+def _try_native_loop_conj(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_conj_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_x = Arr(*(float(v) for v in arr))
+    c_out = Arr()
+    rc = _native.LIB.srmech_loop_conj_f64(
+        ctypes.cast(c_x, _DBLP), ctypes.c_size_t(LOOP_DIM),
+        ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_loop_bind(a_, b_):
+    if (a_.size != LOOP_DIM or b_.size != LOOP_DIM
+            or not _loop_native_ready("srmech_loop_bind_f64")):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_x = Arr(*(float(v) for v in a_))
+    c_y = Arr(*(float(v) for v in b_))
+    c_out = Arr()
+    rc = _native.LIB.srmech_loop_bind_f64(
+        ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
+        ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_loop_inv(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_x = Arr(*(float(v) for v in arr))
+    c_out = Arr()
+    rc = _native.LIB.srmech_loop_inv_f64(
+        ctypes.cast(c_x, _DBLP), ctypes.c_size_t(LOOP_DIM),
+        ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_cross7(a_, b_):
+    if (a_.size != LOOP_DIM or b_.size != LOOP_DIM
+            or not _loop_native_ready("srmech_cross7_f64")):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_x = Arr(*(float(v) for v in a_))
+    c_y = Arr(*(float(v) for v in b_))
+    c_out = Arr()
+    rc = _native.LIB.srmech_cross7_f64(
+        ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
+        ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_g2_three_form(xa, ya, za):
+    if (xa.size != LOOP_DIM or ya.size != LOOP_DIM or za.size != LOOP_DIM
+            or not _loop_native_ready("srmech_g2_three_form_f64")):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_x = Arr(*(float(v) for v in xa))
+    c_y = Arr(*(float(v) for v in ya))
+    c_z = Arr(*(float(v) for v in za))
+    c_out = ctypes.c_double(0.0)
+    rc = _native.LIB.srmech_g2_three_form_f64(
+        ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
+        ctypes.cast(c_z, _DBLP), ctypes.c_size_t(LOOP_DIM),
+        ctypes.byref(c_out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return float(c_out.value)
+
+
 def loop_conj(x):
     """Octonion conjugate x̄ — negate the imaginary part, keep the real anchor
     ``x[0]``. The Class-C orientation flip that powers the unbind. Single
-    element only — an HD block-octonion vector raises (use ``loop_conj_hd``)."""
+    element only — an HD block-octonion vector raises (use ``loop_conj_hd``).
+    Dispatches to the native ``srmech_loop_conj_f64`` for the dim-8 octonion."""
     arr = np.asarray(x, dtype=float)
     _reject_hd_block_misuse(arr, "loop_conj")
-    return _loop_conj_raw(_as_loop(x, "loop_conj"))
+    arr = _as_loop(x, "loop_conj")
+    native = _try_native_loop_conj(arr)
+    if native is not None:
+        return native
+    return _loop_conj_raw(arr)
 
 
 def loop_bind(x, y):
@@ -847,6 +945,9 @@ def loop_bind(x, y):
     a_ = _as_loop(x, "loop_bind")
     b_ = _as_loop(y, "loop_bind")
     assert a_.shape == b_.shape, "loop_bind: operands must have equal length"
+    native = _try_native_loop_bind(a_, b_)
+    if native is not None:
+        return native
     return _loop_bind_raw(a_, b_)
 
 
@@ -860,6 +961,9 @@ def loop_inv(x):
     arr = _as_loop(x, "loop_inv")
     nsq = float(np.dot(arr, arr))
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
+    native = _try_native_loop_inv(arr)
+    if native is not None:
+        return native
     return _loop_conj_raw(arr) / nsq
 
 
@@ -904,6 +1008,9 @@ def cross7(x, y):
     a_ = _as_loop(x, "cross7")
     b_ = _as_loop(y, "cross7")
     assert a_.shape == b_.shape, "cross7: operands must have equal length"
+    native = _try_native_cross7(a_, b_)
+    if native is not None:
+        return native
     prod = _loop_bind_raw(a_, b_)
     prod[0] = 0.0  # Im: drop the e₀ real component (Class-C imaginary projection)
     return prod
@@ -917,8 +1024,14 @@ def g2_three_form(x, y, z):
     (not imposed externally; F281). Class (M∘C) ∘ ⟨·,·⟩ contraction (Class-L/M);
     NO new class. Returns a scalar."""
     xa = _as_loop(x, "g2_three_form")
-    yz = cross7(y, z)
-    assert xa.shape == yz.shape, "g2_three_form: operands must have equal length"
+    ya = _as_loop(y, "g2_three_form")
+    za = _as_loop(z, "g2_three_form")
+    assert xa.shape == ya.shape and xa.shape == za.shape, (
+        "g2_three_form: operands must have equal length")
+    native = _try_native_g2_three_form(xa, ya, za)
+    if native is not None:
+        return native
+    yz = cross7(ya, za)
     return float(np.dot(xa, yz))
 
 
