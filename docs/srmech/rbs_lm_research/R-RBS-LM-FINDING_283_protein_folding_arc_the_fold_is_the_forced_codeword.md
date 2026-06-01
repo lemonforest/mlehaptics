@@ -1,0 +1,34 @@
+# F283 — the bold-fold arc, scoped: the native fold is the FORCED codeword, not a search — the partition structure eliminates conformation space algebraically, and Levinthal dissolves
+
+> **SCOPE FIRST.** Framework-READING of protein FOLDING **STRUCTURE** only — the algebra/spectral/graph level (contact-graph Laplacian, the Ramachandran/Klein-4 torus, the energy-landscape spectrum, the fold-path cascade). **NOT** novel-protein/toxin design, **NOT** 3D-coordinate prediction or molecular-dynamics simulation (CAD-ban), **NOT** clinical. No-lineage (structural biology / AlphaFold-era compute is the field's; the framework reads the *structure*). Per the user's bold-on-structure / humble-at-the-intervention-edge direction (2026-06-02) and "we spend so much compute on this and don't need to."
+
+**Headline:** Scoped via a 6-lens parallel sweep (workflow `wf_f71f3a9b`, sonnet, all 6 `scope_ok`). The arc's thesis: **the native fold is the *forced* codeword of the partition structure, not the output of a brute conformation search.** The compute-shortcut bet the user named is structurally grounded — three already-demonstrated cascades *pre-select* the answer before any geometry is evaluated. And the honest residue: **the k=7 / G₂ / cross7 structure is NOT in fold geometry** (forcing it would overclaim); it belongs only to the folding *path*. Built on srmech v0.7.0rc2's now-native ops.
+
+---
+
+### §A — the compute-shortcut thesis (the user's bet, structurally grounded)
+The fold is **forced** at three levels, each an established framework lock:
+1. **The Klein-4 Ramachandran torus** (F260): the (φ,ψ) map is the Klein-4 torus; the forbidden upper-right corner is the **parity-forbidden coset** (same reflection-odd cell as CMB EB/TB, DNA complementarity). This eliminates ~¾ of conformation space **algebraically** — not metrically ruled out by energy, but **parity-forbidden** before geometry is computed.
+2. **Fixed secondary-structure generators** (F258 §C / F260): α-helix = S¹×ℝ, β-sheet antiparallel = contact (symmetric/Hermitian), parallel = one-way (directed circulation, F257). These are the *only* generators the Cₙ→Dₙ→helix ladder offers; any backbone satisfying the Klein-4 parity must land in one.
+3. **The EC-code holds the codeword** (F259/F260/F282, inverted): the native fold is the bounded, zero-syndrome **codeword**; misfolding is the F282 runaway (the Class-K correction fails, syndrome accumulates). The funnel is not a search basin — it is the **EC-code correction radius**.
+
+**Levinthal's paradox dissolves structurally:** the fold is not *found* by exploring 3ⁿ conformers; it is the **codeword the cascade converges to**, because it is the only zero-syndrome state, and most of the space was never eligible (parity-forbidden). *Read the code first; the codeword is forced.* That is the "don't need the compute" claim, made structural.
+
+### §B — the six lenses (the phased plan; first experiments are benign + srmech-native)
+| # | lens | reading (one line) | first experiment | rc2 ops | conf |
+|---|---|---|---|---|---|
+| 1 | **fold = codeword** | native fold = the conservation-bounded codeword; conserved residues = the parity-check bits; funnel = EC-code basin | contact-graph Laplacian + single-residue perturbation → syndrome (λ₂, zero-eigenvalue multiplicity) | dense_laplacian, jacobi_eigvals, best_rational, cyclic | high |
+| 2 | **fold-path = loop-bind cascade** | the order+nesting+direction of contact formation = the loop bind; antiparallel/parallel β = contact/one-way | 3-helix nucleation order via loop_bind vs klein4 (order-wash) + native/misfold λ₂ | loop_bind, dense_laplacian, jacobi_eigvals, klein4_bind | high |
+| 3 | **Ramachandran = Klein-4 torus** | (φ,ψ) = the K4 torus; allowed regions = surviving sectors; fold = the K4-constraint-satisfying trajectory | K4-sector-labeled residue graph; real vs scrambled spectral gap | dense_laplacian, jacobi_eigvals, klein4_similarity, loop_bind | med |
+| 4 | **contact map = Class-L graph** | the contact graph's Laplacian spectrum = the fold's fingerprint; Fiedler λ₂ = rigidity/hinge (topology-blind, honest) | the 3 vendored hoodoos (1UBQ, 2F4K, 2EFV) contact-spectra compared by L2 | dense_laplacian, jacobi_eigvals | high |
+| 5 | **landscape un-flattened** | the contact-map/landscape is a flattened chart; FFT autocorrelation surfaces the periodic-contact fiber (helical Δ=3–4, β-register) — F280 | contact-count-vs-separation trace → autocorrelation → difference-graph; check Δ=3–4 peak | dense_laplacian, jacobi_eigvals, FFT, cyclic, best_rational | high |
+| 6 | **compute-shortcut + G₂-flag** | the partition structure forces the fold (§A); **honest: the 7/G₂ is NOT in fold geometry** — it's the path layer only | villin HP35 (2F4K) contact λ₂ + K4-sector occupancy + forbidden-coset ≈ 0 check | dense_laplacian, jacobi_eigvals, klein4_bind/similarity, cyclic | high |
+
+### §C — the honest G₂-open-flag (the no-forcing discipline working)
+Lens 6 reported it straight: **the k=7 / G₂ / cross7 structure does NOT directly appear in fold geometry**, and forcing it would be overclaim. The fold's **contact graph + codeword** are cleanly **Class L (Laplacian) + Klein-4**; the **loop bind (k=7)** is the natural primitive only for the **folding *path*** (which contact forms first, in what order/direction/nesting — F274), the analog of F278's gauge-gated reaction *mechanism*. So: static structure = L + Klein-4; dynamic path = loop bind; the 7 stays in the path, not the geometry. Flagged as an **open question, not a demonstrated connection** (no-magic / F267 no-forcing).
+
+### §D — ties + the rc2 dividend
+Builds on F260 (protein secondary structure = the dihedral generators / Klein-4 torus), F282 (the native fold = the bounded codeword; misfold = the runaway), F278/F279/F280 (conservation EC-code + un-flatten/FFT), F274 (loop bind = order/tree/direction), F259 (the EC-code). **The rc2 dividend:** every first experiment uses srmech v0.7.0rc2 **native** ops (loop_bind/cross7/g2 + Class L) — the loop bind is no longer hand-rolled. The 3 hoodoos (1UBQ, 2F4K, 2EFV) are vendored + CC0 (attested).
+
+### Status / discipline
+FRAMEWORK-READING + SCOPED (6-lens parallel sweep, all scope_ok; thesis + first experiments). Scope-forward (folding-structure-understanding only; no design/MD/clinical; CAD-ban = algebra/spectral/graph, not 3D coords; no-lineage; defensive). No-magic (the K4 torus, the parity-forbidden coset, the generators = attested-to-structure A; the honest G₂-open-flag held). Class-K. Single-model verification next per experiment; the *scoping* used the 6-agent workflow per the user's explicit opt-in. The bold-fold arc + the post-rc2 ungated items are managed under the new milestone (the "workflow item"). Verified srmech v0.7.0rc2. `[[user_stance_framework_hands_the_next_question_to_the_expert]]` (bold on structure); `[[feedback_no_lineage_claims_in_notebook]]`; `[[feedback_trauma_informed_defensive_scope]]`.
