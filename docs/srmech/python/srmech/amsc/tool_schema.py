@@ -1426,6 +1426,36 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "the 3-form value (scalar)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # Block-octonion HD tiling (v0.7.0rc4 / MS #21 #811). Direct sum of
+        # NB dim-8 loop_binds; block-diagonal; capacity-free vs Klein-4 (#812).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_bind_hd", owner="srmech", category="hdc",
+            summary="Block-octonion HD bind: D=NB·8 hypervector bound block-wise "
+                    "by the octonion loop_bind = the direct sum ⊕ of NB independent "
+                    "dim-8 Moufang binds (block-diagonal, no coupling). Carries "
+                    "order/tree/direction at no capacity cost vs the Klein-4 XOR "
+                    "bind (capacity-free, #812). M over a direct-sum tile; no new "
+                    "class. F289.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "the block-wise product, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_unbind_hd", owner="srmech", category="hdc",
+            summary="HD unbind: per-block Moufang left-division conj(a_k)·b_k. "
+                    "Recovers v from loop_bind_hd(a, v) for unit-per-block a "
+                    "(conj(a)·(a·v)=v by alternativity). Class-K clean; no abs(). "
+                    "F289.",
+            parameters=(
+                P("a", "np.ndarray", True, "length = positive multiple of 8"),
+                P("b", "np.ndarray", True, "same length as a"),
+            ),
+            returns=R("np.ndarray", "the unbound vector, same length"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
         # ────────────────────────────────────────────────────────────
         ToolEntry(

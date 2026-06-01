@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc4] - 2026-06-02
+
+**MS #21 rc4 voxel — the block-octonion HD tiling (#811) + capacity-free vs Klein-4 (#812). +2 ToolEntries → `describe()` 189; ABI stays 3.**
+
+The fourth v0.7.0 voxel lifts the dim-8 octonion loop-bind to hyperdimensional width, all ground-truth **computed from the shipped `loop_bind`** (so it agrees with rc1 by construction; F289):
+
+- **`srmech.amsc.hdc.loop_bind_hd(x, y)`** — the block-octonion HD bind: `D = NB·8` (canonical 2048 = 256·8) bound block-wise = the **direct sum ⊕ of NB independent dim-8 Moufang binds**. **Block-DIAGONAL** — block k of the result is exactly `loop_bind(x_k, y_k)`; nothing couples blocks (verified err `0.0e+00`). Class **M** (per-block loop_bind = M∘C with a Class-K residue) over a direct-sum **tile** layout — **NO new class**.
+- **`srmech.amsc.hdc.loop_unbind_hd(a, b)`** — per-block Moufang left-division `conj(a_k)·b_k`; recovers `v` from `loop_bind_hd(a, v)` for unit-per-block `a` (verified err `2.9e-15`). Class-K clean (conjugate + bind, no `abs()`).
+- **Capacity-free vs Klein-4 (owned verdict, F289/F277):** at matched `D=2048` the loop-bind's bind/unbind retrieval capacity is **≥ Klein-4** (identical through K=64; loop ≥ klein4 at K=128) — so it carries **order + tree + direction (F274)** at **no capacity cost** vs the commutative XOR bind. (Honest scope: the K=128 edge is one regime, not a general advantage; the load-bearing claim is the null cost.)
+- **`tests/test_loop_bind_hd.py`** (7 tests): block-diagonal err 0.0, block independence, per-block product = the shipped Cayley–Dickson table, unbind recovery < 1e-12, multiple-of-8 validation, the capacity-retrieval mechanism.
+
++2 ToolEntries (187 → **189**); ABI stays **3** (pure-Python, additive). The co-equal **C peer** is the arc's transpile-to-C step (Python-first ladder). Anchors: F289 (`rc4_groundtruth.py`); capacity curve F277.
+
 ## [0.7.0rc3] - 2026-06-02
 
 **MS #21 rc3 voxel — the loop-bind family slots into the compose engine (#813). Test-only proof; `describe()` stays 187; ABI stays 3.**
