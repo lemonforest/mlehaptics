@@ -1196,9 +1196,19 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bind", owner="srmech", category="hdc",
             summary="Klein-4 bind: component-wise (F₂)²-XOR. Commutative, "
-                    "associative, self-inverse; identity 0.",
+                    "associative, self-inverse; identity 0. rc13 sectors=/"
+                    "parallel=/mode= fans it across ≤4 concurrent lanes "
+                    "(default-ON at ≥4 cores; value-preserving). mode='chunk' "
+                    "(default) splits positions, bit-identical; mode='chirality' "
+                    "runs the F233 4-sector dispatch.",
             parameters=(P("a", "np.ndarray", True, "uint8 {0,1,2,3}"),
-                        P("b", "np.ndarray", True, "same length")),
+                        P("b", "np.ndarray", True, "same length"),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default, bit-exact) "
+                          "or 'chirality' (F233 4-sector)")),
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
@@ -1212,20 +1222,39 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
                     "independently; accepts any count n>=1 (even or odd); "
-                    "exact ties (only possible for even n) → 0 for that bit.",
+                    "exact ties (only possible for even n) → 0 for that bit. "
+                    "rc13 sectors=/parallel=/mode= fans the reduction across ≤4 "
+                    "concurrent lanes (default-ON at ≥4 cores). mode='chunk' "
+                    "(default) splits positions, bit-identical; mode='chirality' "
+                    "runs the F233 4-sector dispatch.",
             # Variadic ``klein4_bundle(*vectors)``: exposed under the clean
             # name ``vectors`` (the ``*`` sigil is illegal in an Anthropic
             # property key). See polar_bundle note above.
             parameters=(P("vectors", "Sequence[np.ndarray]", True,
                           "one or more uint8 {0,1,2,3} vectors of equal "
-                          "length"),),
+                          "length"),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default, bit-exact) "
+                          "or 'chirality' (F233 4-sector)")),
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
-                    "[0,1] (1 identical, 0 orthogonal).",
-            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True)),
+                    "[0,1] (1 identical, 0 orthogonal). rc13 sectors=/parallel=/"
+                    "mode= fans the comparison across ≤4 lanes (default-ON at ≥4 "
+                    "cores); ALWAYS returns the serial float (chunk sums "
+                    "per-slice matches; chirality recombines via sector-0).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default) or "
+                          "'chirality'")),
             returns=R("float", "in [0, 1]"),
         ),
         ToolEntry(

@@ -151,3 +151,77 @@ def test_parity_klein4_similarity():
     for _ in range(20):
         a = hdc.klein4_random(200, rng); b = hdc.klein4_random(200, rng)
         assert _c_similarity(a, b) == pytest.approx(hdc.klein4_similarity(a, b))
+
+
+# --------------------------------------------------------------------------
+# v0.6.0rc13 — the sectors= / parallel= / mode= flag (§11.3 forward-ask).
+# Two modes: chunk (data-parallel, BIT-IDENTICAL) + chirality (F233 4-sector,
+# klein4-native XOR-flips). Default-ON at >=4 cores; all defaults are
+# value-preserving. Pure-Python orchestration (co-equal parity: it does NOT
+# route through the C peer).
+# --------------------------------------------------------------------------
+
+def _k4(seed, D=257):
+    rng = np.random.default_rng(seed)
+    return rng.integers(0, 4, size=D, dtype=np.uint8)
+
+
+def test_klein4_sectors_value_preserving_across_modes():
+    """bind/bundle/similarity are value-preserving under BOTH default modes."""
+    a, b = _k4(20), _k4(21)
+    vs = [_k4(30 + i) for i in range(5)]
+    bind1 = hdc.klein4_bind(a, b, sectors=1)
+    bund1 = hdc.klein4_bundle(*vs, sectors=1)
+    sim1 = hdc.klein4_similarity(a, b, sectors=1)
+    # bind: chunk + chirality both == serial (XOR collapses all 4 sectors).
+    assert np.array_equal(hdc.klein4_bind(a, b, sectors=4, mode="chunk"), bind1)
+    assert np.array_equal(hdc.klein4_bind(a, b, sectors=4, mode="chirality"), bind1)
+    # bundle: chunk bit-identical; chirality runs + preserves shape.
+    assert np.array_equal(hdc.klein4_bundle(*vs, sectors=4, mode="chunk"), bund1)
+    assert hdc.klein4_bundle(*vs, sectors=4, mode="chirality").shape == bund1.shape
+    # similarity: chunk + chirality(sector-0) both EXACTLY == serial float.
+    assert hdc.klein4_similarity(a, b, sectors=4, mode="chunk") == sim1
+    assert hdc.klein4_similarity(a, b, sectors=4, mode="chirality") == sim1
+
+
+def test_klein4_sectors_chunk_partitions_all_sector_counts():
+    """Chunk mode is bit-identical for every lane count 1..4 (and odd D)."""
+    a, b = _k4(40, D=130), _k4(41, D=130)
+    serial = hdc.klein4_bind(a, b, sectors=1)
+    for n in (1, 2, 3, 4):
+        assert np.array_equal(hdc.klein4_bind(a, b, sectors=n, mode="chunk"), serial)
+
+
+def test_klein4_parallel_alias_and_default_on():
+    """parallel=True→4, parallel=False→1; the default (None) is value-preserving
+    regardless of the machine's core count."""
+    a, b = _k4(50), _k4(51)
+    serial = hdc.klein4_bind(a, b, sectors=1)
+    assert np.array_equal(hdc.klein4_bind(a, b, parallel=True), serial)
+    assert np.array_equal(hdc.klein4_bind(a, b, parallel=False), serial)
+    assert np.array_equal(hdc.klein4_bind(a, b), serial)  # default-on path
+    # default sectors policy: 4 when >=4 cores else 1.
+    from srmech.amsc.hdc import _klein4_default_sectors
+    import os
+    assert _klein4_default_sectors() == (4 if (os.cpu_count() or 1) >= 4 else 1)
+
+
+def test_klein4_sectors_range_and_mode_guards():
+    a, b = _k4(60), _k4(61)
+    for bad in (0, 5, -1):
+        with pytest.raises(ValueError, match="1..4|sectors"):
+            hdc.klein4_bind(a, b, sectors=bad)
+    with pytest.raises(ValueError, match="sectors"):
+        hdc.klein4_bind(a, b, sectors=True)  # bool is not a valid int
+    for op in (hdc.klein4_bind, hdc.klein4_similarity):
+        with pytest.raises(ValueError, match="mode"):
+            op(a, b, sectors=4, mode="bogus")
+    with pytest.raises(ValueError, match="mode"):
+        hdc.klein4_bundle(_k4(62), sectors=4, mode="bogus")
+
+
+def test_klein4_unbind_still_self_inverse_under_default_flag():
+    """unbind (which routes through bind, now flag-bearing) stays self-inverse."""
+    a, b = _k4(70), _k4(71)
+    c = hdc.klein4_bind(a, b)
+    assert np.array_equal(hdc.klein4_unbind(c, a), b)
