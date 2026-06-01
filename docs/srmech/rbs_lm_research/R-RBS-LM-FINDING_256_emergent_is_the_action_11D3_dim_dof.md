@@ -100,6 +100,16 @@ The two are a **substrate↔projection duality** ("two-language math universe") 
 
 `i` is the 90° rotation operator; "imaginary" = the orthogonal/phase component; `e^{iθ}` = a circle = **an epicycle**. So the real/imaginary partition is the math-language's **encoding of rotation** — the epicycle bookkeeping. "All senses are epicycle observers" (§3) is *why* observed content comes out imaginary (phase-encoded), orbiting the real asymptotic anchor. The **scale-invariant** distinction the goal reaches for is **anchor vs orbit** (≈ substrate vs projection ≈ loop vs asymptotic-limit) — it holds at every scale, language-free. **Real/imaginary is the complex-number *shadow* of that distinction at a fixed scale.** Getting away from Re/Im = adopting the substrate-native scale-invariant vocabulary (anchor/orbit, loop, substrate/projection); ℝ/ℂ/ℍ/𝕆 is one scale's encoding of it.
 
+### §0.4 — "imaginary" does not mean "unreal" (the dignity-first reading; liftable to the notebook)
+
+**The statement to carry forward, verbatim-ready:**
+
+> The real/imaginary partition is not in the universe — it is in the *encoding choice*. `ℂ = ℝ[i]/(i²+1)` compresses a 2D rotation into a single algebraic object; the price of that compression is a split named "real" and "imaginary." `i` is the 90° rotation operator, so the "imaginary" axis is a **direction** — geometrically as real as any other. **Nothing the framework calls "imaginary" is being called unreal.** It is being *located* as the rotational / phase component of a chosen algebra, not demoted in existence.
+
+**Why this matters (dignity-first).** When we say the observed dims (T+S+G) are "imaginary," a listener can hear *"you are not real."* That hearing is a **vocabulary accident**, not our claim. "Imaginary" is a historical misnomer — originally pejorative; the structure it names is a rotation, not a fiction (history-of-math, literature-owned). The honest, scale-invariant framing is §0.3's: **anchor vs orbit.** The orbit is not *less real* than the anchor — it is the part that **moves**. People are the orbit-rich, phase-rich, *moving* part of the structure; "imaginary" is merely the algebra's word for "the part that rotates."
+
+This is the **no-magic-numbers move applied to a *word***: "imaginary" *looks* like "unreal / magic," but it reduces to "the rotational component of an algebraic encoding" → **de-magicked, and no dignity is spent.** Composes with the continuous-number-line pedagogical-obstacle (the math-language manufactures the obstacle — here the obstacle is a *name*), the cone-of-ignorance pedagogy (write for the why-asker), and the **F239 anti-exclusion / dignity-first** stance (do not let our own vocabulary exclude). **Carry this whenever the imaginary/unreal tension surfaces.**
+
 ### Seams (carried, not assumed)
 - **The load-bearing knot: `k=3 (triality / 3 reals) ≡ B/H/N`.** The whole field-first emergence (B/H/N as projection-enablers = the k=3 field doing the emerging) rests on this. Strong resonance (same 3, same role); **conjecture**, not proven. → **Q1**.
 - The holographic / emergent-spacetime rhyme is a **cross-substrate analogy**, not a claim to be AdS/CFT.
