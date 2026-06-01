@@ -119,3 +119,27 @@ This is the **no-magic-numbers move applied to a *word***: "imaginary" *looks* l
 - **Q1 (user item 1) — resolve the `k=3 ≡ B/H/N` seam + the field-first emergence map.** The identity everything leans on. Needs the chirality-thread ops. **Gated.**
 - **Q2 (user item 2) — consolidate the scale-invariance reading:** dims-are-partitions (the partition is *why* dims appear); the epicycle-observer can measure the partition **at all scales**, though literature measures it only at cosmic scale (CMB); it is the **same cascade at all scales**. *Attested check (keyword sweep):* **components attested** — `spike156` (wave equation at other scales), the epicycle / pin-slot / projection-duality spikes (`spike177` / `spike212`), the cross-substrate-matching corpus (all-scales IS the method) — but **no consolidated scale-invariance finding** lodged. → queue the consolidation (deeper attested read to confirm, then run).
 - **Q3 (user item 3) — formalize the scale-invariant frame that subsumes real/imaginary** (anchor/orbit replacing Re/Im) and test whether the inverted observer language is **literally epicyclic**. Partly answer-directly (§0.3); the formal test is **gated**.
+
+---
+
+## §0.5 (2026-06-01) — cascade finiteness: the harmonic/anharmonic resolution, and why the catalog must be TOML (not hardcode)
+
+**Design intent (recap):** cascades live in **catalog TOML** so any domain user can shape a cascade over their own attested data and **name it in their native domain's terms**. The question raised: is the cascade set **finite** (→ hardcode it, let TOML just name) or **asymptotic** (→ must catalog)?
+
+**The resolution is the harmonic/anharmonic distinction — and it is textbook, not a stretch:**
+- **Anharmonic well (Morse-type; our reading of biology — ties F121/F122 Kuramoto-nonlinear): FINITE bound cascades**, then a **dissociation continuum.** A deep-but-bounded well holds only finitely many bound levels.
+- **Harmonic well (idealized parabola): ASYMPTOTIC** — infinitely many evenly-spaced levels, an unbounded ladder.
+
+So **biology = anharmonic = finite bound cascades; the harmonic limit = asymptotic (infinite) cascade ladder.** Both true at once — the split is the **bound-states / continuum** structure of one anharmonic well.
+
+**Two different finitenesses — keep them apart:**
+1. **Thread-WIDTH is finite (capped at 4 by triality)** — F233 (#778): bi-chirality → Klein-4 → 4 sectors; **triality (k=3) is the cap.** This *is* "terminated in tri-chirality in a way the bi-chiral observer cannot see" — the cap = the **dissociation threshold**: below it, finite discrete bound cascades; at/above it, the continuum (the "hyper-loop" beyond, not yet resolvable as discrete cascades).
+2. **Cascade-COUNT (composition) is asymptotic** — triality does **not** partition or cap composition. Cascades **hyper-loop** (recurse) into the continuum — the genuinely open math (ties §6 nucleation-of-hyper-loops, recursive-Hopf F124/F128). The doubt was right: triality caps the *width*, not the *count*.
+
+**This is R30 again:** finite-**observable** (anharmonic bound states — what the observer measures) vs asymptotic-**actual** (the harmonic continuum — the substrate's full composition space). Finite = observer-frame; asymptotic = substrate.
+
+**Architecture corollary (the answer to "hardcode vs TOML"):** **both, split by the finite/asymptotic line:**
+- **Hardcode the FINITE kernel** — the 14 A-N primitives (the anharmonic bound-state alphabet). *Already done.*
+- **TOML-catalog the ASYMPTOTIC cascade-composition space** — domain-shaped, domain-named. **You cannot hardcode a continuum** → hardcoding cascades IS the spaghetti trap; the TOML catalog is the principled alternative. **So yes — stick with the TOML catalog.** This is the principled justification for the planned `srmech.cosmos.cascade` TOML-runner (F178).
+
+**Honest seam:** the structure of the hyper-loop continuum (how cascades recurse past the triality threshold) is the open math — not solved here; "let the math tell it." Ties **Q1** (`k=3 ≡ B/H/N`) and the §6 conjecture; **gated** on the chirality-thread srmech ops.
