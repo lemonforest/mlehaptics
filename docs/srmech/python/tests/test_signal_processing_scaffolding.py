@@ -91,8 +91,20 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc3():
-    """v0.7.0rc3 — MS #21 rc3 voxel: the loop-bind family slots into the compose
+def test_version_is_0_7_0rc4():
+    """v0.7.0rc4 — MS #21 rc4 voxel: the block-octonion HD tiling (#811) +
+    capacity-free vs Klein-4 (#812). Adds to ``srmech.amsc.hdc``: ``loop_bind_hd``
+    = the direct sum ⊕ of 256 independent dim-8 octonion loop_binds (D=2048;
+    block-DIAGONAL, no coupling — block err 0.0) and ``loop_unbind_hd`` = per-block
+    Moufang left-division (recovers v to 2.9e-15 on unit blocks). Ground-truth
+    computed FROM the shipped loop_bind (F289), so it agrees with rc1 by
+    construction; the bind is M (per-block loop_bind) over a direct-sum TILE — NO
+    new class. Capacity-free verdict (owned, F289/F277): loop-bind ≥ Klein-4 at
+    matched D — order/tree/direction at no capacity cost. +2 ToolEntries ⟹
+    ``describe()`` total 189; ABI stays 3 (pure-Python; the co-equal C peer is the
+    arc's transpile-to-C step).
+
+    Prior v0.7.0rc3 — MS #21 rc3 voxel: the loop-bind family slots into the compose
     engine (#813). PROOF, no new surface: the octonion ops resolve dynamically as
     ``class="M", op="<name>"`` against ``DEFAULT_CLASS_REGISTRY`` (M →
     ``srmech.amsc.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
@@ -520,8 +532,8 @@ def test_version_is_0_7_0rc3():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc3", (
-        f"expected srmech.__version__ == '0.7.0rc3'; got "
+    assert srmech.__version__ == "0.7.0rc4", (
+        f"expected srmech.__version__ == '0.7.0rc4'; got "
         f"{srmech.__version__!r}"
     )
 

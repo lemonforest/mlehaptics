@@ -899,6 +899,42 @@ def g2_three_form(x, y, z):
     return float(np.dot(xa, yz))
 
 
+def loop_bind_hd(x, y):
+    """Block-octonion HD bind — the direct sum ⊕ of NB independent dim-8 octonion
+    loop_binds (D = NB·8; the canonical HD width is 2048 = 256·8). Block-DIAGONAL:
+    block k of the result is exactly the shipped ``loop_bind`` of the two k-th
+    8-blocks; nothing couples blocks (#811/F289). Carries order / tree / direction
+    (the F274 non-commutative structure) at NO capacity cost vs the commutative
+    Klein-4 XOR bind (capacity-free, #812/F277). Class M (per-block loop_bind =
+    M∘C with a Class-K residue) over a direct-sum TILE layout — NO new class.
+    Operand length must be a positive multiple of LOOP_DIM (8)."""
+    a_ = np.asarray(x, dtype=float)
+    b_ = np.asarray(y, dtype=float)
+    assert a_.shape == b_.shape, "loop_bind_hd: operands must have equal length"
+    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
+        f"loop_bind_hd: length must be a positive multiple of {LOOP_DIM}")
+    xb = a_.reshape(-1, LOOP_DIM)
+    yb = b_.reshape(-1, LOOP_DIM)
+    return np.concatenate([loop_bind(xb[k], yb[k]) for k in range(xb.shape[0])])
+
+
+def loop_unbind_hd(a, b):
+    """The HD unbind — per-block Moufang left-division conj(a_k)·b_k. For ``a``
+    built from unit-per-block octonions (the HD regime), this recovers v from
+    ``loop_bind_hd(a, v)`` exactly: conj(a)·(a·v) = v by alternativity. Uses the
+    shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean (conjugate +
+    bind, no abs()). #811/F289."""
+    a_ = np.asarray(a, dtype=float)
+    b_ = np.asarray(b, dtype=float)
+    assert a_.shape == b_.shape, "loop_unbind_hd: operands must have equal length"
+    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
+        f"loop_unbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    ab = a_.reshape(-1, LOOP_DIM)
+    bb = b_.reshape(-1, LOOP_DIM)
+    return np.concatenate(
+        [loop_bind(loop_conj(ab[k]), bb[k]) for k in range(ab.shape[0])])
+
+
 __all__ = [
     "DEFAULT_HDC_BYTES",
     "MAX_BUNDLE_N",
@@ -934,4 +970,6 @@ __all__ = [
     "loop_associator",
     "cross7",
     "g2_three_form",
+    "loop_bind_hd",
+    "loop_unbind_hd",
 ]
