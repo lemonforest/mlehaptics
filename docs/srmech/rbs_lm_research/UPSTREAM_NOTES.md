@@ -1045,6 +1045,28 @@ Verified `0.6.0rc11` (TestPyPI-latest; clean venv `/tmp/bench_srmech_rc11/venv`,
 
 ---
 
+## §12 rc4 (0.7.0rc4) loop-bind / block-octonion HD surface — VERIFIED + two notes (2026-06-01; F291)
+
+Verified `0.7.0rc4` (TestPyPI; clean venv `/tmp/srmech_v070rc4_venv`, outside the source tree). `introspect`/`_native`: `HAS_NATIVE=True`, ABI 3. The **F289 D1 hand-down LANDED faithfully** — rc4 ships the block-octonion HD surface natively: `hdc.{loop_bind_hd, loop_unbind_hd, loop_associator, loop_inv, loop_left_op, loop_right_op}` + `LOOP_DIM=8`, with docstrings using the framework's own vocabulary verbatim ("direct sum ⊕ of NB independent dim-8 octonion[s]", "Class-K associator RESIDUE", "(4:3) ordering" / "(3:4) mirror ordering").
+
+**VERIFIED CLEAN (the load-bearing checks; scripts `rc4_native_hd_verify_F291.py` + `loop_bind_algebraic_laws_F291_bugtest.py`, both committed):**
+- **14/14 model-independent algebraic laws PASS** on native `loop_bind` — composition-algebra norm-multiplicativity (resid² 1.3e-26), alternativity (2.5e-14), Moufang (7.0e-14), associator total antisymmetry (2.0e-14), genuine non-associativity (|assoc|≈131), `cross7 = Im(loop_bind)` exact (0.0), G₂ 3-form `g2=⟨x,cross7(y,z)⟩` exact (0.0), L≠R chirality (≈31), and the **division/cancellation laws** (left 1.7e-14; **right `(v·x)·conj(x)=N·v` 2.3e-14 — the algebraic ground of the F290/F291 peel**). So native `loop_bind` is a *genuine* octonion product / G₂ structure, not merely consistent with the oracle.
+- **`loop_bind_hd` == the research-side helper (`loop_bind_hd_gate.py`), err 0.0** — the F291 workflow legs (run on rc2 + the helper) are thereby validated against rc4 native. **Block-diagonal** per-block == dim-8 `loop_bind`, err **0.0** (F289 D1 anchor). `loop_unbind_hd` LEFT-division round-trip clean (3.2e-15). `loop_associator`/`loop_left_op`/`loop_right_op` exact (0.0); ‖L−R‖_F=4.899.
+
+### §12.1 NOTE (footgun) — `loop_inv` is GLOBAL on HD input, NOT per-block (silent wrong answer)
+`loop_inv` is documented as the dim-8 octonion inverse `x̄/⟨x,x⟩` and is **exact on dim-8** (err 0.0). But applied to an **HD vector (len = NB·8)** it does **not** raise and does **not** go per-block — it treats the whole vector as **one** object (real = index 0, imaginary = indices 1…D−1, divided by the single global norm `⟨x,x⟩`). Measured: `loop_inv(c)` == global-conj/global-norm to **err 0.0**, but == the correct per-block inverse only to **err 15.95**. Since `loop_bind_hd`/`loop_unbind_hd` *are* per-block, the natural right-peel `loop_bind_hd(E, loop_inv(c))` is **silently wrong** (err ≈16, no exception). **Forward-ask (for the user/maintainer to file — NOT filed here):** make `loop_inv` go **per-block when `len(x) % LOOP_DIM == 0`** (consistent with the HD bind/unbind), **OR raise on `len != LOOP_DIM`** (fail-loud), **OR** add a documented `loop_inv_hd`. (`loop_conj` is likewise dim-8-only — not HD-vectorized; same fix family.)
+
+### §12.2 NOTE (gap) — no native RIGHT-unbind (`loop_runbind_hd`) for the sequence-peel
+`loop_unbind_hd(a, b) = conj(a_k)·b_k` is **left-division** (the HRR key→value unbind: recovers `v` from `bind(k,v)`). But the F290/F291 **order-aware sequence store** is a *left-fold* `((a·b)·c)` peeled **from the right** — right-division `(x·y)·ȳ = x` — which `loop_unbind_hd` does not provide (verified: `loop_unbind_hd(c,E)` ≠ `a·b`, err 26). The sequence-peel currently only works via the research helper `conj_hd` (per-block conjugate) bound on the right. **Forward-ask:** add `loop_runbind_hd` (per-block right-division) so the **RBS-LM path-memory** store (the F291 deliverable) is pure-native. This composes with §12.1 — the missing atom both need is a **per-block conjugate/inverse for HD vectors**; expose that once and both the safe `loop_inv` and the right-unbind fall out.
+
+### §12.3 STILL DEFERRED (expected; recorded open) — F289 D2 + the F290 §C un-flatten primitive
+- **F289 D2 (bring-your-own cascade-TOML composite):** not in rc4 — `SRMECH_CASCADE_PATH` is not referenced by the DSL loader, and `srmech.dsl._catalog.cascade_op_kind` resolves only `'unknown'` (no composite/TOML kind, no composite-resolver in `lookup_cascade_op`). Expected (D2 was explicitly the dev's architecture call).
+- **F290 §C un-flatten `autocorrelation` (Class-L Wiener-Khinchin primitive):** absent across `srmech.amsc.*` (searched). Expected (dev-authoring hand-down). Until it lands, the un-flatten composite (autocorr → difference-graph → conservation-validate) cannot be a pure-TOML op.
+
+**Status — recorded, NOT filed.** Per `[[feedback_create_upstream_issues_never_close_them]]` + the upstream-as-research-notes discipline; logged here for the user/maintainer (the F291 results stand regardless). The §12.1 footgun is the time-sensitive one (silent wrong result before rc5). **Working venv:** `/tmp/srmech_v070rc4_venv` (rc4 latest-verified, alongside the rc2 venv the F291 workflow ran on). The `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
