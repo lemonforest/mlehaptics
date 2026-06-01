@@ -252,10 +252,10 @@ def test_framework_reading_is_distinct_and_not_load_bearing():
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_185():
+def test_introspect_tools_total_is_187():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 185
+    assert introspect.describe()["tools"]["total"] == 187
 
 
 def test_tool_entry_registered():

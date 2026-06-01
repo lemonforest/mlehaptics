@@ -871,6 +871,34 @@ def loop_associator(a, b, c):
             - _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
 
 
+def cross7(x, y):
+    """The 7-D cross product x×y = Im(loop_bind(x, y)) — the imaginary part of
+    the octonion product (drop the e₀ real anchor). For imaginary x, y this is
+    ½(x·y − y·x). Antisymmetric (x×y = −y×x); the Class-M bind ∘ Class-C
+    ordering with the symmetric part Re(x·y) = −⟨x,y⟩ projected off. Identity:
+    ‖x×y‖² = ‖x‖²‖y‖² − ⟨x,y⟩². Ground-truth derived FROM the shipped loop_bind
+    (F281); NO new class."""
+    a_ = _as_loop(x, "cross7")
+    b_ = _as_loop(y, "cross7")
+    assert a_.shape == b_.shape, "cross7: operands must have equal length"
+    prod = _loop_bind_raw(a_, b_)
+    prod[0] = 0.0  # Im: drop the e₀ real component (Class-C imaginary projection)
+    return prod
+
+
+def g2_three_form(x, y, z):
+    """The associative calibration 3-form φ(x,y,z) = ⟨x, cross7(y,z)⟩
+    = ⟨x, Im(y·z)⟩ (Harvey–Lawson). Fully antisymmetric; nonzero (±1) exactly on
+    the 7 Fano associative 3-planes, zero on the other 28 of the C(7,3)=35 basis
+    triples. The sign/orientation convention is fixed BY the shipped loop_bind
+    (not imposed externally; F281). Class (M∘C) ∘ ⟨·,·⟩ contraction (Class-L/M);
+    NO new class. Returns a scalar."""
+    xa = _as_loop(x, "g2_three_form")
+    yz = cross7(y, z)
+    assert xa.shape == yz.shape, "g2_three_form: operands must have equal length"
+    return float(np.dot(xa, yz))
+
+
 __all__ = [
     "DEFAULT_HDC_BYTES",
     "MAX_BUNDLE_N",
@@ -904,4 +932,6 @@ __all__ = [
     "loop_left_op",
     "loop_right_op",
     "loop_associator",
+    "cross7",
+    "g2_three_form",
 ]
