@@ -1065,6 +1065,14 @@ Verified `0.7.0rc4` (TestPyPI; clean venv `/tmp/srmech_v070rc4_venv`, outside th
 
 **Status — recorded, NOT filed.** Per `[[feedback_create_upstream_issues_never_close_them]]` + the upstream-as-research-notes discipline; logged here for the user/maintainer (the F291 results stand regardless). The §12.1 footgun is the time-sensitive one (silent wrong result before rc5). **Working venv:** `/tmp/srmech_v070rc4_venv` (rc4 latest-verified, alongside the rc2 venv the F291 workflow ran on). The `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
 
+### §12.4 RESOLVED in rc6 (0.7.0rc6, 2026-06-01; verified `rc6_fixes_verify_F291.py`, clean venv `/tmp/srmech_v070rc6_venv`)
+rc6 landed **all three** §12.1/§12.2 asks + advanced §12.3-D2. Verified, no regression (native `loop_bind == oracle` err 0.0; `loop_bind_hd == helper` err 0.0; 14/14 algebraic laws still PASS):
+- **§12.1 FIXED two ways.** (a) the scalar `loop_inv` now **fail-loud RAISES** `ValueError` on a len≠`LOOP_DIM` vector (`"length 2048 ... wider than one octonion"`) — no more silent global-conj; (b) rc6 added **`loop_conj_hd`** (per-block HD conjugate, == research `conj_hd`, err 0.0) and **`loop_inv_hd`** (per-block HD Moufang inverse; == `conj_hd` on unit blocks, 2.65e-15). The old footgun path `loop_bind_hd(E, loop_inv_hd(c))` now recovers correctly (2.72e-15).
+- **§12.2 FIXED.** rc6 added **`loop_runbind_hd(a, b)`** = per-block Moufang RIGHT-division `bₖ·conj(aₖ)`. Convention: `loop_runbind_hd(right_key, bound)`. The F290/F291 **order-aware sequence-store peel is now PURE-NATIVE** — `loop_runbind_hd(c, E)` recovers the prefix-fold (3.19e-15), the full peel chain `((a·b)·c)→a` recovers (4.35e-15), and it matches the old research-helper peel **exactly (0.0)**. (The research `conj_hd` helper is no longer needed.)
+- **§12.3-D2 LANDED (un-verified-in-depth here).** The F289-D2 bring-your-own cascade-TOML mechanism is now present: `SRMECH_CASCADE_PATH` is referenced by `srmech.dsl._catalog`, and `cascade_op_kind` recognizes a **`composite`** kind (the composite-resolver). A full end-to-end acceptance test (author a user composite-TOML on the path → load-validate → run → tool-schema surface with provenance flag) is the next focused check. **`autocorrelation` (F290 §C) is STILL ABSENT** — the un-flatten composite remains blocked on that one Class-L primitive.
+
+**Status:** §12.1 + §12.2 **RESOLVED + verified**; §12.3-D2 **landed, pending end-to-end acceptance**; §12.3-autocorrelation **still open**. Working venv `/tmp/srmech_v070rc6_venv` is the new latest-verified.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
