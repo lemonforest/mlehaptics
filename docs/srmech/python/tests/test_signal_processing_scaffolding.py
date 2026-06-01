@@ -91,8 +91,23 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc12():
-    """v0.6.0rc12 — MS #20 parallel-composability voxel (§11.3 DEV-UPDATE):
+def test_version_is_0_6_0rc13():
+    """v0.6.0rc13 — MS #20 klein4 sectors-flag voxel (§11.3 forward-ask):
+    the ``srmech.amsc.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
+    HDC ops get an optional ``sectors=`` / ``parallel=`` / ``mode=`` flag that
+    fans the op across ≤4 concurrent lanes (default-ON when ``os.cpu_count() >=
+    4``). TWO modes: ``mode="chunk"`` (default) data-parallel position-slices,
+    BIT-IDENTICAL to serial; ``mode="chirality"`` the F233 4-sector dispatch
+    using klein4's OWN XOR sector-flips (γ₅ XOR 2 / iω₇ XOR 1 / CPT XOR 3) +
+    klein4_bundle recombine (similarity recombines via sector-0 = value-
+    transparent). All defaults are value-preserving, so default-on changes only
+    the execution path. Pure-Python orchestration over the pure-Python/numpy
+    klein4 ops — CO-EQUAL PARITY: it does NOT route through the C peer; a
+    standalone-C klein4 sector dispatch (C bodies, no Python callback) is the
+    tracked follow-up. No new ToolEntry (``describe()`` stays 178; the 3 klein4
+    entries gain sectors/parallel/mode params); ABI unchanged at 3; no ``abs()``.
+
+    Prior v0.6.0rc12 — MS #20 parallel-composability voxel (§11.3 DEV-UPDATE):
     parallel_sector_dispatch becomes CHAINABLE / NESTABLE. The Klein-4
     four-sector dispatch was a *leaf* introspection-Dict tool — feeding its
     output (or the per-sector list) back into another sector dispatch
@@ -371,8 +386,8 @@ def test_version_is_0_6_0rc12():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc12", (
-        f"expected srmech.__version__ == '0.6.0rc12'; got "
+    assert srmech.__version__ == "0.6.0rc13", (
+        f"expected srmech.__version__ == '0.6.0rc13'; got "
         f"{srmech.__version__!r}"
     )
 

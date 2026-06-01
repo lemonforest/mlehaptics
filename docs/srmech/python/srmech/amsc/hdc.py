@@ -26,7 +26,9 @@ Operations:
 
 from __future__ import annotations
 
+import concurrent.futures
 import ctypes
+import os
 from typing import Sequence
 
 import numpy as np
@@ -432,33 +434,107 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
     return rng.integers(0, 4, size=D, dtype=np.uint8)
 
 
-def klein4_bind(a, b):
-    """Klein-4 bind: component-wise (F₂)²-XOR. Commutative, associative,
-    self-inverse (``bind(a, bind(a, b)) == b``); identity is 0."""
-    a = _as_klein4(a, "klein4_bind")
-    b = _as_klein4(b, "klein4_bind")
-    if a.shape != b.shape:
-        raise ValueError(
-            f"hdc.klein4_bind: lengths must match (got {a.size} vs {b.size})"
-        )
-    return np.bitwise_xor(a, b).astype(np.uint8)
+# ── Klein-4 sector / chunk parallel dispatch (v0.6.0rc13; §11.3) ──────────
+#
+# The klein4_* ops gain an optional ``sectors=`` / ``parallel=`` / ``mode=``
+# flag that runs the op across ``n_sectors`` (≤4) lanes concurrently
+# (``ThreadPoolExecutor``; GIL-releasing numpy bodies overlap). TWO modes:
+#
+#   mode="chunk"     — DATA-PARALLEL: split the D-length vector(s) into
+#                      ``n_sectors`` contiguous position-slices, run the op
+#                      per slice on its own thread, concatenate. BIT-IDENTICAL
+#                      to the serial op (the value-preserving DEFAULT).
+#   mode="chirality" — F233 4-SECTOR: conjugate the body by each of the ≤4
+#                      Klein-4 chirality-sector flips ``T_s`` — the klein4
+#                      vector's OWN XOR-flips (NOT the signed-real cascade
+#                      transforms): s=0 identity, s=1 iω₇ (XOR 1), s=2 γ₅
+#                      (XOR 2), s=3 CPT (XOR 3); each an involution, so the
+#                      sector dual is ``T_s(body(T_s(v)))``. Recombine:
+#                      bind/bundle → ``klein4_bundle`` of the ≤4 duals;
+#                      similarity → sector-0 (value-transparent).
+#
+# Default-ON when ``os.cpu_count() >= 4`` (sectors=None → 4, else 1). With the
+# chunk default every op is value-preserving, so default-on changes only the
+# EXECUTION path, never the result.
+#
+# CO-EQUAL PARITY (``[[feedback_c_python_co_equal_parity_not_callback]]``):
+# this is self-contained Python orchestration over the pure-Python/numpy
+# klein4 ops — it does NOT route through the C peer, and a standalone-C
+# klein4 sector dispatch (a C dispatch running C bodies, NEVER a Python
+# callback) is the tracked C-parity follow-up. No ``abs()`` (XOR / majority).
+
+#: Klein-4 sector XOR-flip masks, indexed by sector 0..3 — matching the F233
+#: SECTOR_LABELS order (0=(+,+) identity, 1=(+,−) iω₇, 2=(−,+) γ₅, 3=(−,−) CPT).
+_KLEIN4_SECTOR_MASKS = (0, 1, 2, 3)
 
 
-def klein4_unbind(c, a):
-    """Klein-4 unbind: self-inverse XOR, so ``unbind(bind(a, b), a) == b``."""
-    return klein4_bind(c, a)
+def _klein4_default_sectors() -> int:
+    """Default-on policy: 4 sectors when the machine has ≥4 cores, else 1."""
+    cores = os.cpu_count() or 1
+    assert cores >= 1, "os.cpu_count() must be positive"
+    return 4 if cores >= 4 else 1
 
 
-def klein4_bundle(*vectors):
-    """Klein-4 bundle: per-bit majority vote on each of the 2 bits
-    independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
-    there is NO odd-only requirement). A bit is set only when its 1-count
-    is strictly greater than ``n // 2``, so an exact tie (``count == n/2``,
-    possible only for even ``n``) deterministically resolves to 0 for that
-    bit."""
-    if len(vectors) == 0:
-        raise ValueError("hdc.klein4_bundle: requires at least one vector")
-    arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
+def _klein4_resolve_sectors(sectors, parallel) -> int:
+    """Resolve the lane count from ``sectors=`` / ``parallel=`` (→ 1..4).
+
+    ``sectors`` (int 1..4) wins; else ``parallel`` (True→4 / False→1); else the
+    default-on policy. ``sectors=1`` is the plain serial op.
+    """
+    if sectors is not None:
+        if not isinstance(sectors, int) or isinstance(sectors, bool):
+            raise ValueError(
+                f"klein4: sectors must be an int in 1..4; got {sectors!r}"
+            )
+        if sectors < 1 or sectors > 4:
+            raise ValueError(f"klein4: sectors must be in 1..4; got {sectors}")
+        return sectors
+    if parallel is True:
+        return 4
+    if parallel is False:
+        return 1
+    return _klein4_default_sectors()
+
+
+def _klein4_chunk_apply(per_slice, arrs, n_sectors):
+    """Data-parallel: split equal-length ``arrs`` into ``n_sectors`` contiguous
+    column-slices, run ``per_slice(tuple-of-slices)`` on a thread each, concat.
+
+    Bit-identical to the serial op (the slices partition the positions). Falls
+    back to a single serial call when ``n_sectors <= 1`` or the vector is
+    shorter than the lane count.
+    """
+    n = arrs[0].size
+    assert all(a.size == n for a in arrs), "klein4 chunk: arrays must share length"
+    if n_sectors <= 1 or n < n_sectors:
+        return per_slice(arrs)
+    bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
+    slabs = [
+        tuple(a[bounds[k]:bounds[k + 1]] for a in arrs) for k in range(n_sectors)
+    ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        parts = list(ex.map(per_slice, slabs))
+    return np.concatenate(parts).astype(np.uint8)
+
+
+def _klein4_sector_flip(s, v):
+    """Apply the Klein-4 sector flip ``T_s`` (an involution: XOR with mask s)."""
+    m = _KLEIN4_SECTOR_MASKS[s]
+    return v if m == 0 else np.bitwise_xor(v, m).astype(np.uint8)
+
+
+def _klein4_chirality_duals(body, v, n_sectors):
+    """Return the ≤4 sector duals ``T_s(body(T_s(v)))`` (ThreadPool; F233)."""
+    def _dual(s):
+        return _klein4_sector_flip(s, body(_klein4_sector_flip(s, v)))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        return list(ex.map(_dual, range(n_sectors)))
+
+
+def _klein4_bundle_core(arrs):
+    """Per-bit majority vote over a list of equal-length klein4 arrays (the
+    serial bundle kernel; the public :func:`klein4_bundle` wraps it)."""
     n = arrs[0].size
     for i, arr in enumerate(arrs):
         if arr.size != n:
@@ -466,22 +542,149 @@ def klein4_bundle(*vectors):
                 f"hdc.klein4_bundle: vector {i} has length {arr.size}, expected {n}"
             )
     stack = np.stack(arrs)
-    half = len(vectors) // 2
+    half = len(arrs) // 2
     bit0 = (np.bitwise_and(stack, 1).sum(axis=0) > half).astype(np.uint8)
     bit1 = (np.right_shift(stack, 1).sum(axis=0) > half).astype(np.uint8)
     return (bit1 * 2 + bit0).astype(np.uint8)
 
 
-def klein4_similarity(a, b) -> float:
+def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
+    """Klein-4 bind: component-wise (F₂)²-XOR. Commutative, associative,
+    self-inverse (``bind(a, bind(a, b)) == b``); identity is 0.
+
+    The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the bind across
+    ≤4 concurrent lanes (default-ON at ≥4 cores; see the module note above).
+    ``mode="chunk"`` (default) is data-parallel + bit-identical; ``mode=
+    "chirality"`` runs the F233 4-sector dispatch (which for XOR collapses to
+    the same vector, so it is value-transparent + carries the 4-way
+    independence). No ``abs()``.
+    """
+    a = _as_klein4(a, "klein4_bind")
+    b = _as_klein4(b, "klein4_bind")
+    if a.shape != b.shape:
+        raise ValueError(
+            f"hdc.klein4_bind: lengths must match (got {a.size} vs {b.size})"
+        )
+    n_sectors = _klein4_resolve_sectors(sectors, parallel)
+    if n_sectors <= 1:
+        return np.bitwise_xor(a, b).astype(np.uint8)
+    if mode == "chunk":
+        return _klein4_chunk_apply(
+            lambda sl: np.bitwise_xor(sl[0], sl[1]).astype(np.uint8), (a, b), n_sectors
+        )
+    if mode == "chirality":
+        duals = _klein4_chirality_duals(
+            lambda x: np.bitwise_xor(x, b).astype(np.uint8), a, n_sectors
+        )
+        return _klein4_bundle_core(duals)
+    raise ValueError(
+        f"klein4_bind: mode must be 'chunk' or 'chirality'; got {mode!r}"
+    )
+
+
+def klein4_unbind(c, a):
+    """Klein-4 unbind: self-inverse XOR, so ``unbind(bind(a, b), a) == b``."""
+    return klein4_bind(c, a)
+
+
+def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
+    """Klein-4 bundle: per-bit majority vote on each of the 2 bits
+    independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
+    there is NO odd-only requirement). A bit is set only when its 1-count
+    is strictly greater than ``n // 2``, so an exact tie (``count == n/2``,
+    possible only for even ``n``) deterministically resolves to 0 for that
+    bit.
+
+    The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the reduction
+    across ≤4 concurrent lanes (default-ON at ≥4 cores). ``mode="chunk"``
+    (default) splits the positions → BIT-IDENTICAL to the serial bundle;
+    ``mode="chirality"`` runs the F233 4-sector dispatch (bundle the
+    ``T_s``-conjugated inputs, ``inv_T_s`` each, then ``klein4_bundle`` the
+    ≤4) — meaningful only for chirality-asymmetric input sets. No ``abs()``.
+    """
+    if len(vectors) == 0:
+        raise ValueError("hdc.klein4_bundle: requires at least one vector")
+    arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
+    n_sectors = _klein4_resolve_sectors(sectors, parallel)
+    if n_sectors <= 1 or mode == "chunk":
+        if n_sectors <= 1:
+            return _klein4_bundle_core(arrs)
+        # chunk: split positions, majority-vote each slab, concat (bit-exact).
+        n = arrs[0].size
+        for i, arr in enumerate(arrs):
+            if arr.size != n:
+                raise ValueError(
+                    f"hdc.klein4_bundle: vector {i} has length {arr.size}, "
+                    f"expected {n}"
+                )
+        if n < n_sectors:
+            return _klein4_bundle_core(arrs)
+        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
+
+        def _vote(k):
+            return _klein4_bundle_core([a[bounds[k]:bounds[k + 1]] for a in arrs])
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            parts = list(ex.map(_vote, range(n_sectors)))
+        return np.concatenate(parts).astype(np.uint8)
+    if mode == "chirality":
+        def _sector_bundle(s):
+            conj = [_klein4_sector_flip(s, a) for a in arrs]
+            return _klein4_sector_flip(s, _klein4_bundle_core(conj))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            duals = list(ex.map(_sector_bundle, range(n_sectors)))
+        return _klein4_bundle_core(duals)
+    raise ValueError(
+        f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
+    )
+
+
+def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> float:
     """Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal,
-    1 = identical). All four states are informative — there is no skip state."""
+    1 = identical). All four states are informative — there is no skip state.
+
+    The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the comparison
+    across ≤4 concurrent lanes (default-ON at ≥4 cores) and ALWAYS returns the
+    same float as the serial op. ``mode="chunk"`` (default) splits the
+    positions and sums per-slice match counts (bit-identical); ``mode=
+    "chirality"`` runs the F233 4-sector dispatch and recombines via
+    **sector-0** (value-transparent — XOR-flipping both sides preserves
+    equality, so every sector equals the plain similarity anyway).
+    """
     a = _as_klein4(a, "klein4_similarity")
     b = _as_klein4(b, "klein4_similarity")
     if a.shape != b.shape:
         raise ValueError(
             f"hdc.klein4_similarity: lengths must match (got {a.size} vs {b.size})"
         )
-    return float((a == b).mean())
+    n_sectors = _klein4_resolve_sectors(sectors, parallel)
+    n = a.size
+    if n_sectors <= 1 or n == 0:
+        return float((a == b).mean())
+    if mode == "chunk":
+        if n < n_sectors:
+            return float((a == b).mean())
+        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
+
+        def _matches(k):
+            return int((a[bounds[k]:bounds[k + 1]] == b[bounds[k]:bounds[k + 1]]).sum())
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            counts = list(ex.map(_matches, range(n_sectors)))
+        return float(sum(counts) / n)
+    if mode == "chirality":
+        def _sector_sim(s):
+            return float(
+                (_klein4_sector_flip(s, a) == _klein4_sector_flip(s, b)).mean()
+            )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+            sims = list(ex.map(_sector_sim, range(n_sectors)))
+        return sims[0]  # sector-0 — value-transparent recombine
+    raise ValueError(
+        f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
+    )
 
 
 def klein4_chirality_flip_gamma5(v):

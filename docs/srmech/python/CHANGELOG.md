@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc13] - 2026-05-31
+
+**MS #20 klein4 sectors-flag voxel — the `klein4_*` HDC ops get an optional `sectors=` / `parallel=` / `mode=` flag (§11.3 forward-ask). Pure-Python; default-on at ≥4 cores; value-preserving; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+The §11.3 forward-ask asked for an optional sectors flag on the Klein-4 HDC ops, routing per-sector work through a concurrent dispatch — now that rc12 made dispatch composable. The klein4 ops (`bind` = (F₂)²-XOR, `bundle` = per-bit majority, `similarity` = mean-equality) are pure-Python/numpy, so this is self-contained Python orchestration (co-equal parity: it does **not** route through the C peer; a standalone-C klein4 sector dispatch with C bodies — never a Python callback — is the tracked follow-up).
+
+- **`sectors=` / `parallel=` / `mode=`** on `klein4_bind`, `klein4_bundle`, `klein4_similarity`. `sectors` (1..4) defaults **ON when `os.cpu_count() >= 4`** (else 1); `parallel=True/False` is the bool alias.
+- **Two modes.** `mode="chunk"` (default) is **data-parallel** — split the D-length vector(s) into ≤4 contiguous position-slices, run the op per slice on a thread, concatenate; **BIT-IDENTICAL** to the serial op. `mode="chirality"` is the **F233 4-sector dispatch** using klein4's OWN involution sector-flips (γ₅ XOR 2 / iω₇ XOR 1 / CPT XOR 3) — NOT the signed-real cascade transforms — with `klein4_bundle` recombine (similarity recombines via **sector-0**, value-transparent).
+- **All defaults are value-preserving**, so default-on changes only the *execution path*, never the result. No `abs()` (XOR / majority only). Range + mode guards raise `ValueError`.
+
+New tests in `test_hdc_klein4_parity.py` (value-preserving across both modes, chunk bit-exactness for every lane count, `parallel=` alias + default-on policy, range/mode guards, `unbind` self-inverse under the default flag). The 3 klein4 ToolEntries gain `sectors`/`parallel`/`mode` params (no new entry; `describe()` stays 178). No C change; ABI stays 3.
+
 ## [0.6.0rc12] - 2026-05-31
 
 **MS #20 parallel-composability voxel — `parallel_sector_dispatch` becomes CHAINABLE / NESTABLE. The Klein-4 four-sector splay now carries THROUGH a chained cascade, closing a known-broken API contract. Pure-Python; `describe()` tool total stays 178; ABI unchanged at 3.**

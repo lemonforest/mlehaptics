@@ -76,7 +76,7 @@ beyond a single-file read.
   `srmech.qm.triality` order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
-- **v0.6.0 (rc1–rc12 to date; rc12 dev head)** — the lean-ISA arc.
+- **v0.6.0 (rc1–rc13 to date; rc13 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
   lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
   so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
@@ -100,7 +100,13 @@ beyond a single-file read.
   chained cascade (the rc11 stage was a leaf that crashed when chained);
   `sectorize()` wraps a body for nesting; the DSL `parallel_sectors`
   recombines by default; plus a stale top-help fix (all four
-  `status`/`bus`/`dsl`/`mcp` subcommands enumerated).
+  `status`/`bus`/`dsl`/`mcp` subcommands enumerated); and (rc13) the
+  **`klein4_*` HDC ops get a `sectors=`/`parallel=`/`mode=` flag** —
+  `mode="chunk"` (default, data-parallel + bit-identical) / `mode=
+  "chirality"` (F233 4-sector via klein4's own XOR sector-flips);
+  default-on at ≥4 cores; value-preserving; pure-Python (co-equal
+  parity — no C-callback; standalone-C sector dispatch is the tracked
+  follow-up).
 
 The package directory layout:
 
