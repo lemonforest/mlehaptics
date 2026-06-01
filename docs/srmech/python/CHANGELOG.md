@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc2] - 2026-06-02
+
+**MS #21 rc2 voxel — the 7-D cross product + the G₂ associative 3-form (#813 / F281). +2 ToolEntries → `describe()` 187; ABI stays 3.**
+
+The second v0.7.0 voxel adds the loop-bind's companion invariants, both with ground-truth **computed from the shipped `loop_bind`** (so they agree with the rc1 bind by construction — no convention guess; F281):
+
+- **`srmech.amsc.hdc.cross7(x,y) = Im(loop_bind(x,y))`** — the 7-D cross product (antisymmetric; for imaginary x,y `= ½(xy−yx)`). Class **M∘C** (bind ∘ imaginary-part ordering). Identity `‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩²`.
+- **`srmech.amsc.hdc.g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`** — the associative calibration 3-form; nonzero ±1 on exactly the 7 Fano associative 3-planes, 0 on the other 28 of C(7,3)=35. Class **(M∘C)∘⟨·,·⟩**.
+- **Triality verdict (owned; F281):** `tests/test_cross7_g2_three_form.py` asserts `dim Der(loop_bind) == 14` (= G₂) **and** that a generic O(8) rotation **breaks** the bind ⟹ **triality does NOT preserve the bind; the 14-dim G₂ does.** (`klein4_triality_cycle` is the V₄-sector carrier, co-resident — not a bind-automorphism.)
+
+**NO new class** (the 14 A–N hold; Class O stays dissolved). The `#813` compose-engine registration is deferred to rc4 (lean discipline). Citations: Baez 2002 (7-D cross product / G₂); Harvey–Lawson 1982 (calibration 3-form). +2 ToolEntries (185 → **187**); ABI stays **3** (pure-Python, additive).
+
 ## [0.7.0rc1] - 2026-06-02
 
 **MS #21 loop-bind (Moufang) voxel — the k=7 gauge ARITHMETIC the triality symmetry is blind to (#814 / F271). Pure-Python core in `srmech.amsc.hdc`; +6 ToolEntries → `describe()` 185; ABI stays 3.**

@@ -1397,6 +1397,35 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "the associator, same length"),
         ),
         # ────────────────────────────────────────────────────────────
+        # 7-D cross product + G₂ associative 3-form (v0.7.0rc2 / MS #21 #813).
+        # Ground-truth derived FROM the shipped loop_bind (F281). No new class.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.cross7", owner="srmech", category="hdc",
+            summary="The 7-D cross product x×y = Im(loop_bind(x,y)) (drop the e₀ "
+                    "real anchor). Antisymmetric; for imaginary x,y = ½(xy−yx). "
+                    "M (bind) ∘ C (imaginary-part ordering). Identity "
+                    "‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩². Baez 2002 §4.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "x×y, same length (e₀ component zero)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.g2_three_form", owner="srmech", category="hdc",
+            summary="The associative calibration 3-form φ(x,y,z)=⟨x, cross7(y,z)⟩ "
+                    "=⟨x, Im(y·z)⟩. Fully antisymmetric; nonzero ±1 on exactly the "
+                    "7 Fano associative 3-planes, 0 on the other 28 triples. "
+                    "(M∘C)∘⟨·,·⟩ contraction (Class-L/M). Harvey–Lawson 1982.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector"),
+                P("y", "np.ndarray", True, "same length"),
+                P("z", "np.ndarray", True, "same length"),
+            ),
+            returns=R("float", "the 3-form value (scalar)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
         # ────────────────────────────────────────────────────────────
         ToolEntry(

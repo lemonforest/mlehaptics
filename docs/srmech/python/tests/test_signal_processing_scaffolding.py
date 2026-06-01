@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc1():
-    """v0.7.0rc1 — MS #21 loop-bind (Moufang) voxel: the k=7 gauge ARITHMETIC
+def test_version_is_0_7_0rc2():
+    """v0.7.0rc2 — MS #21 rc2 voxel: the 7-D cross product + the G₂ associative
+    3-form, the gauge ARITHMETIC's companion invariants (#813 / F281). Adds to
+    ``srmech.amsc.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
+    ``g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`` ((M∘C)∘⟨·,·⟩) — ground-truth
+    computed FROM the shipped loop_bind, so both agree with the rc1 bind by
+    construction (no convention guess). The owned triality VERDICT lands as a
+    test: ``dim Der(loop_bind) = 14`` (= G₂) and a generic O(8) rotation BREAKS
+    the bind ⟹ triality does NOT preserve the bind; the 14-dim G₂ does (F281).
+    NO new class; Class O stays dissolved. +2 ToolEntries ⟹ ``describe()`` total
+    187; ABI stays 3 (pure-Python; the co-equal C peer is a later voxel).
+
+    Prior v0.7.0rc1 — MS #21 loop-bind (Moufang) voxel: the k=7 gauge ARITHMETIC
     the triality SYMMETRY is blind to (#814 / F271). The first v0.7.0 voxel
     ports the ``loop_bind_moufang.py`` research oracle into ``srmech.amsc.hdc``:
     ``loop_bind`` (the octonion / Cayley-Dickson product), ``loop_conj``,
@@ -498,8 +509,8 @@ def test_version_is_0_7_0rc1():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc1", (
-        f"expected srmech.__version__ == '0.7.0rc1'; got "
+    assert srmech.__version__ == "0.7.0rc2", (
+        f"expected srmech.__version__ == '0.7.0rc2'; got "
         f"{srmech.__version__!r}"
     )
 
