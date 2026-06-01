@@ -744,6 +744,133 @@ def klein4_sector_count(v):
     return np.bincount(arr, minlength=4)[:4].astype(np.int64)
 
 
+# ---------------------------------------------------------------------------
+# Loop bind (Moufang) — the k=7 gauge ARITHMETIC (MS #21 / v0.7.0, #814).
+#
+# The octonion / Cayley-Dickson product: non-commutative AND non-associative,
+# so left-order (ab)c != right-order a(bc) — the (4:3)|(3:4) chirality. This is
+# the gauge *arithmetic* the triality automorphism (``klein4_triality_cycle``,
+# the gauge *symmetry*) is blind to (F271). Class-home: **M** (bind) ∘ **C**
+# (the left/right ordering) with a **Class-K associator RESIDUE** — NO new class
+# (the 14 A–N hold; Class O stays dissolved). Structure = the **Moufang loop**
+# of unit octonions (the non-associative rung above the group/ring; "loop
+# replaces ring", substrate-vocabulary discipline).
+#
+# Canonical SSoT (``[[feedback_science_is_ssot_not_project]]``): Baez, J.C.
+# (2002) "The Octonions", Bull. Amer. Math. Soc. 39, 145–205 (octonion product,
+# the three Moufang identities, G₂ = Aut(𝕆) = Der(𝕆) = 14, the 7-D cross
+# product + the G₂ calibration 3-form); Conway & Smith (2003) "On Quaternions
+# and Octonions" (the Moufang division loop).
+#
+# Class-K discipline: zero-tests via the inner-product norm² ⟨v,v⟩ — never
+# ``abs()``, no sign-folding (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
+# rc1 is the dim-8 octonion core (division holds; Cayley-Dickson to dim 16+
+# introduces zero divisors → loses unbindability). The block-octonion tiling to
+# full-D hypervectors (#811 / F276) and the co-equal C peer are later voxels.
+# ---------------------------------------------------------------------------
+
+LOOP_DIM = 8  # the octonion / k=7 carrier (division holds at dim ≤ 8)
+
+
+def _loop_conj_raw(arr):
+    """Bare octonion conjugate (no validation; for internal recursion)."""
+    y = -arr.copy()
+    y[0] = arr[0]
+    return y
+
+
+def _loop_bind_raw(a_, b_):
+    """Bare Cayley-Dickson product (no validation; the recursion engine)."""
+    n = len(a_) // 2
+    if n == 0:
+        return a_ * b_
+    a, b = a_[:n], a_[n:]
+    c, d = b_[:n], b_[n:]
+    return np.concatenate([_loop_bind_raw(a, c) - _loop_bind_raw(_loop_conj_raw(d), b),
+                           _loop_bind_raw(d, a) + _loop_bind_raw(b, _loop_conj_raw(c))])
+
+
+def _as_loop(v, op: str):
+    """Coerce to a 1-D float ndarray whose length is a power of two (the
+    Cayley-Dickson recursion bottoms out at length 1)."""
+    arr = np.asarray(v, dtype=float)
+    assert arr.ndim == 1, f"{op}: expected a 1-D vector, got ndim {arr.ndim}"
+    n = arr.shape[0]
+    assert n >= 1 and (n & (n - 1)) == 0, (
+        f"{op}: length {n} is not a power of two (Cayley-Dickson carrier)"
+    )
+    return arr
+
+
+def _loop_basis(i, dim):
+    v = np.zeros(dim)
+    v[i] = 1.0
+    return v
+
+
+def loop_conj(x):
+    """Octonion conjugate x̄ — negate the imaginary part, keep the real anchor
+    ``x[0]``. The Class-C orientation flip that powers the unbind."""
+    return _loop_conj_raw(_as_loop(x, "loop_conj"))
+
+
+def loop_bind(x, y):
+    """THE LOOP BIND (Moufang) = the Cayley-Dickson / octonion product.
+
+    Non-commutative + non-associative ⟹ left-order ``(ab)c`` ≠ right-order
+    ``a(bc)`` — the (4:3)|(3:4) chirality (Class C). Class **M** (bind) with the
+    Class-C ordering; the non-associativity surfaces as the Class-K associator
+    residue (``loop_associator``). The gauge *arithmetic* triality is blind to
+    (F271). NO new class. Operands must share a power-of-two length (dim 8 = the
+    octonion).
+    """
+    a_ = _as_loop(x, "loop_bind")
+    b_ = _as_loop(y, "loop_bind")
+    assert a_.shape == b_.shape, "loop_bind: operands must have equal length"
+    return _loop_bind_raw(a_, b_)
+
+
+def loop_inv(x):
+    """Moufang inverse x⁻¹ = x̄ / ⟨x,x⟩ — the unbind key. For a unit octonion
+    (⟨x,x⟩ = 1) this is just the conjugate; ``loop_bind(x, loop_inv(x))`` = e₀.
+    Class-K clean: the norm² gate, never ``abs()``."""
+    arr = _as_loop(x, "loop_inv")
+    nsq = float(np.dot(arr, arr))
+    assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
+    return _loop_conj_raw(arr) / nsq
+
+
+def loop_left_op(a):
+    """Left-multiplication operator L_a(x) = a·x (the (4:3) ordering) as a
+    dim×dim matrix. L_a ≠ R_a ≠ R_aᵀ — the operational chirality."""
+    arr = _as_loop(a, "loop_left_op")
+    dim = arr.shape[0]
+    return np.column_stack([_loop_bind_raw(arr, _loop_basis(k, dim)) for k in range(dim)])
+
+
+def loop_right_op(a):
+    """Right-multiplication operator R_a(x) = x·a (the (3:4) mirror ordering) as
+    a dim×dim matrix."""
+    arr = _as_loop(a, "loop_right_op")
+    dim = arr.shape[0]
+    return np.column_stack([_loop_bind_raw(_loop_basis(k, dim), arr) for k in range(dim)])
+
+
+def loop_associator(a, b, c):
+    """(a·b)·c − a·(b·c) = the Class-K associator RESIDUE of the loop bind.
+
+    Zero inside an associative (quaternionic / Fano-line) region, nonzero
+    outside = the (4:3)|(3:4) boundary. Identity: ``loop_associator(a, x, b)`` =
+    −(``[L_a, R_b]`` · x). The K-residue is what makes the loop bind carry order
+    / nesting / direction the commutative ``klein4_bind`` XOR washes out (F274).
+    """
+    aa = _as_loop(a, "loop_associator")
+    bb = _as_loop(b, "loop_associator")
+    cc = _as_loop(c, "loop_associator")
+    return (_loop_bind_raw(_loop_bind_raw(aa, bb), cc)
+            - _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
+
+
 __all__ = [
     "DEFAULT_HDC_BYTES",
     "MAX_BUNDLE_N",
@@ -770,4 +897,11 @@ __all__ = [
     "klein4_cpt_mirror",
     "klein4_triality_cycle",
     "klein4_sector_count",
+    "LOOP_DIM",
+    "loop_conj",
+    "loop_bind",
+    "loop_inv",
+    "loop_left_op",
+    "loop_right_op",
+    "loop_associator",
 ]
