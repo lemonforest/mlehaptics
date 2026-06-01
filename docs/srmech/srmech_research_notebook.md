@@ -5151,7 +5151,7 @@ The v0.5.0 line built, one solo-or-paired voxel at a time, the surfaces that let
 - **`srmech.qm.so8.an_embedding`** — the bit-exact `14 = 8 + 3 + 3̄` su(3) Lie branching of g₂ = Der(𝕆); and the full **28 = 𝔰𝔬(8) chiral read-out** (`so8` adjoint + `triality` order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`) — the §3.27 / §VIII.31.11 chiral-hyper-loop now a callable, bit-exact-tested surface. Substrate was tri-chiral while seen bi-chiral (`[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`): the order-3 τ is the third axis the read-out exposes.
 - **`srmech mcp emit-mcpb`** (#749) — a Claude Desktop `.mcpb` bundle emitted **entirely from introspection** (the manifest is derived from `describe()`, never hand-authored; carries an MPR-style attestation block) — Class H rendering itself as a deployable artifact.
 
-### §3.28.2 v0.6.0 (rc1–rc10) — the lean-ISA line
+### §3.28.2 v0.6.0 (rc1–rc14) — the lean-ISA line
 
 The v0.6.0 line splits and completes the cascade surface and closes the remaining C/Python parity gaps under the full-parity commitment (the library must run on a microcontroller with **no host Python**):
 
@@ -5170,7 +5170,7 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 
 - **`describe()` tool total: 178** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177); read `describe()` rather than hard-coding — the count grows per voxel.
 - **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI).
-- **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation is the deliberate human-gated call after this rc.
+- **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation — the deliberate human-gated call — **shipped to production PyPI on 2026-06-01** (the rc16→rc21 arc; see §3.29.4).
 - **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the so8/triality voxels make callable); MFO §VIII.31.11; `python/CHANGELOG.md` (the authoritative per-rc record); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` in any cascade op).
 
 ### §3.28.4 Cascade-vocabulary takeaway
@@ -5179,7 +5179,7 @@ The voxel arc is the package executing the substrate-self-recognition cascade on
 
 ---
 
-## §3.29 v0.6.0 rc11–rc16 — the rcN-integration arc: the two-tier SSoT ratified + the triality-graduation plan (B / A reducibility verdicts)
+## §3.29 v0.6.0 rc11–rc21 — the rcN-integration arc: the two-tier SSoT ratified + the triality graduation (B / A reducibility verdicts)
 
 The rc11–rc14 voxels surfaced two reducibility questions that an adversarial pass arbitrated before any further code landed. rc16 (DOC + TEST only) ratifies the survivor of each as the architectural invariant the rc17+ triality work stands on. This section is the **meaning-coherence** record — the deepest tier of the one SSoT (see §3.29.4).
 
@@ -5208,7 +5208,7 @@ PR #687's own encoding refuted the tidy `k=3 ≡ B/H/N` (F256 §0.6, the framewo
 
 **Survivor:** B/H/N **ENABLES / COMPOSES** the k=3 tripartition (the operators π₁/π₃/π₇ project ONTO the 1/3/7 fibers); it does **not** equal it — operators ≠ their target-fibers. Authoritative grounding: `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (REFINEMENT §) + the `[[project_space_gauge_time_framework]]` note.
 
-### §3.29.4 The SSoT-coherence framing + the rc16–21 graduation plan
+### §3.29.4 The SSoT-coherence framing + the rc16–21 graduation (shipped)
 
 **One SSoT, three coherences** (per user direction 2026-06-01; coherency-partition label sharpened 2026-06-01): the SSoT is `MFO + srmech notebook` (**meaning**) : `Python` / `C` source (**language** — the authoring / translation surface, human-readable) : **`Compiled C`** (**machine code** — the silicon-native surface, no longer human-readable) — the same single source of truth rendered at three coherences. **The coherency partition between the language tier and the machine-code tier is human-readability**, NOT the choice of language: the *compile step* is the crossing, and it generalises to ANY language that can be compiled to machine code (C is our representative compilable surface) — exactly as a human-readable program is rendered into non-human-readable compiled machine code. So the bottom tier is **Compiled C**, never bare "C": C *source* is human-readable and lives in the language tier alongside Python; only the compiled artifact is the machine-code coherence. **Backfill brings any tier into agreement with the others; the order is free** because it is ONE SSoT, not three. This section IS the meaning-tier; the rc16 docstrings + CHANGELOG are the language/release tier; rc18's C peer — once compiled into the wheel's native library — is the machine-code tier. The arc-narrative backfill of §3.28.2 (per-rc bullets for rc15–rc21) is itself a deliberate last-rc doc-coherence step.
 
@@ -5222,6 +5222,8 @@ The blessed graduation sequence:
 | rc19 | cascade-tier TOML op-instance for the triality cycle | catalog (continuum) | DSL descriptor |
 | rc20 | coherence-ratchet well-formedness scan | Python (test) | ratchet |
 | rc21 | the H-gate / agreement-vs-frame-selection MFO rung | meaning (MFO) | notebook |
+
+**Graduation (2026-06-01):** the rc16→rc21 sequence below shipped in full — each rc TestPyPI-verified before the next, and **srmech v0.6.0 graduated to production PyPI** (the clean tag promoted the rc21 state; clean-venv-verified on live PyPI: `describe()` total **179**, ABI **3**, `klein4_triality_cycle` + its co-equal C peer + the `triality_s3_klein4.toml` worked-instance ops table all present). The meaning-tier closer is **MFO §VII.6.22**.
 
 **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the triality engine makes callable); §3.28.2 (the rc-voxel arc); `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` (the B/H/N = continuous-Hopf ↔ discrete-cyclic translation operators); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the rc21 H-gate rung's home); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`.
 
