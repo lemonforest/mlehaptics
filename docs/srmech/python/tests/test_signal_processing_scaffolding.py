@@ -91,8 +91,23 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc21():
-    """v0.6.0rc21 — MS #20 H-gate / triality MFO rung voxel (the meaning-tier
+def test_version_is_0_6_0():
+    """v0.6.0 — PRODUCTION GRADUATION of the rc1–rc21 lean-ISA voxel arc to
+    PyPI. The clean (non-rc) tag promotes the rc21 state already verified-green
+    on TestPyPI; the only delta is this version string + the CHANGELOG
+    graduation entry, and the full pedantic-C + test + pure-wheel CI matrix
+    re-verifies the 0.6.0 build before the production tag. The arc: the
+    ``cascade.atoms`` / ``cascade.compose`` two-tier lean-ISA split (#751); the
+    ``srmech.qm.so8`` / ``srmech.qm.triality`` engine (28-dim adjoint + order-3
+    outer automorphism + ``Fix(tau)=g₂=14`` + ``quaternion_subalgebra_stabilizer``
+    + ``lean_isa_seventh_primitive``); the reentrant C core (#772); the Klein-4
+    four-sector ``parallel_sector_dispatch`` (+ C peer) made chainable; the
+    generalised Kuramoto-Sakaguchi step (co-equal Python + C); and the rc16–rc21
+    triality voxel sub-arc (combinator-kernel closure → ``klein4_triality_cycle``
+    Python + co-equal C → worked instance → coherence ratchet → MFO §VII.6.22
+    H-gate rung). ``describe()`` total 179; ABI 3.
+
+    Prior v0.6.0rc21 — MS #20 H-gate / triality MFO rung voxel (the meaning-tier
     closer): MFO notebook §VII.6.22 connects the rc16–rc20 triality voxel-arc to
     the §VII.6.21 Rosetta-table H-gate / fix-rotate axis — the order-3
     ``klein4_triality_cycle`` (rc17 Python + rc18 C) IS the discrete-cyclic
@@ -472,8 +487,8 @@ def test_version_is_0_6_0rc21():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc21", (
-        f"expected srmech.__version__ == '0.6.0rc21'; got "
+    assert srmech.__version__ == "0.6.0", (
+        f"expected srmech.__version__ == '0.6.0'; got "
         f"{srmech.__version__!r}"
     )
 
