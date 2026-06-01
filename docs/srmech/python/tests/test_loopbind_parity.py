@@ -4,8 +4,11 @@ The native C peer (srmech_loop_*_f64 in c/src/srmech_loopbind.c) is the
 dim-8 octonion product + companions; the Python wrappers in
 srmech.amsc.hdc dispatch to it when HAS_NATIVE. These tests assert the
 native path matches the pure-Python reference (the ``_loop_*_raw`` helpers,
-which bypass native) bit-for-bit — the Cayley-Dickson operand order is
-identical at every level, so equality is exact, not merely within tol.
+which bypass native). The Cayley-Dickson operand order is identical at every
+level, so the C is exact in real arithmetic — but a compiler that contracts
+``a*b − c`` into a fused multiply-add (e.g. clang on macOS) may differ by ≤1
+ULP, so the multiply-bearing ops are checked to ``atol=1e-12``. The conjugate
+(pure negation, no arithmetic) stays exact.
 
 Skips when the native lib is unavailable (pure-Python / Pyodide); CI's
 native test cells exercise it.
@@ -38,7 +41,7 @@ def test_loop_bind_native_matches_python():
         a, b = _rand8(), _rand8()
         got = hdc.loop_bind(a, b)                       # native path
         ref = hdc._loop_bind_raw(np.asarray(a, float), np.asarray(b, float))
-        assert np.array_equal(got, ref), (a, b)
+        assert np.allclose(got, ref, rtol=0.0, atol=1e-12), (a, b)
 
 
 @_skip
@@ -66,7 +69,7 @@ def test_cross7_native_matches_python():
         ref = hdc._loop_bind_raw(np.asarray(a, float), np.asarray(b, float))
         ref[0] = 0.0
         got = hdc.cross7(a, b)
-        assert np.array_equal(got, ref)
+        assert np.allclose(got, ref, rtol=0.0, atol=1e-12)
 
 
 @_skip
@@ -90,7 +93,7 @@ def test_loop_bind_hd_inherits_native_per_block():
     xb = x.reshape(-1, 8)
     yb = y.reshape(-1, 8)
     for k in range(xb.shape[0]):
-        assert np.array_equal(z[k], hdc._loop_bind_raw(xb[k], yb[k]))
+        assert np.allclose(z[k], hdc._loop_bind_raw(xb[k], yb[k]), rtol=0.0, atol=1e-12)
 
 
 @_skip
