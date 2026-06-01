@@ -91,8 +91,18 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc19():
-    """v0.6.0rc19 — MS #20 triality S₃=Aut(V₄) worked-instance voxel (the
+def test_version_is_0_6_0rc20():
+    """v0.6.0rc20 — MS #20 SSoT two-tier coherence-ratchet voxel: a new
+    ``tests/test_ssot_coherence_scan.py`` scans the continuum tier and asserts
+    the two-tier SSoT stays coherent as it grows — every
+    ``worked_instances/*.toml`` is well-formed, every op it references resolves
+    to a real callable, the kernel (worked-instance names) and continuum
+    (cascade DSL catalog) name-spaces stay DISJOINT, and every cascade-catalog
+    op still resolves. The rc19 triality TOML gains a machine-readable
+    ``[worked_instance.ops]`` table for the scan. DOC + TEST only; no new
+    symbol/ToolEntry (``describe()`` total stays 179); ABI stays 3.
+
+    Prior v0.6.0rc19 — MS #20 triality S₃=Aut(V₄) worked-instance voxel (the
     continuum-tier instantiation): a worked cascade INSTANCE
     (``_research/worked_instances/triality_s3_klein4.toml``) + its executable
     attestation (``test_triality_s3_worked_instance.py``) showing
@@ -452,8 +462,8 @@ def test_version_is_0_6_0rc19():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc19", (
-        f"expected srmech.__version__ == '0.6.0rc19'; got "
+    assert srmech.__version__ == "0.6.0rc20", (
+        f"expected srmech.__version__ == '0.6.0rc20'; got "
         f"{srmech.__version__!r}"
     )
 

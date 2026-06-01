@@ -61,6 +61,16 @@ flip_omega7 = "srmech.amsc.hdc.klein4_chirality_flip_omega7 — XOR 1 (Class C/K
 flip_gamma5 = "srmech.amsc.hdc.klein4_chirality_flip_gamma5 — XOR 2 (Class C/K involution)"
 cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror — XOR 3 (Class C/K involution)"
 
+# Machine-readable op table (logical-name -> dotted srmech path) — consumed by
+# the SSoT coherence ratchet (tests/test_ssot_coherence_scan.py), which resolves
+# every path to a real callable. The prose [worked_instance.composes] above is
+# the human-readable companion; this is the scannable form.
+[worked_instance.ops]
+triality_cycle = "srmech.amsc.hdc.klein4_triality_cycle"
+flip_omega7 = "srmech.amsc.hdc.klein4_chirality_flip_omega7"
+flip_gamma5 = "srmech.amsc.hdc.klein4_chirality_flip_gamma5"
+cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror"
+
 [worked_instance.attestation]
 author = "Steven Kirkland"
 license = "GPL-3.0-or-later"
