@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc5] - 2026-06-02
+
+**MS #21 rc5 voxel — the per-block HD Moufang-division family + the `loop_inv`/`loop_conj` HD footgun guard (F-§12.1 / §12.2). +3 ToolEntries → `describe()` 192; ABI stays 3.**
+
+rc4 lifted the bind to HD per-block; the unbind/conjugate atoms it leaned on were still single-element. A bug-test sweep (upstream §12) caught the gap: `loop_inv` / `loop_conj` operate on ONE Cayley-Dickson element, but `2048 = 256·8` is **also a power of two**, so an HD block-octonion vector silently passed `_as_loop` and got treated as one giant 2048-D element — the natural `loop_bind_hd(E, loop_inv(c))` was off by `‖·‖≈16` with **no exception**. This voxel closes that and completes the HD division family:
+
+- **`srmech.amsc.hdc.loop_conj_hd(x)`** — the missing per-block conjugate atom: the direct sum ⊕ of NB independent dim-8 `loop_conj`s. Class **C** over the direct-sum TILE layout; NO new class.
+- **`srmech.amsc.hdc.loop_inv_hd(x)`** — per-block Moufang inverse (`x̄ₖ/⟨xₖ,xₖ⟩` per block); the per-block unbind key. Class-K clean (per-block norm² gate, never `abs()`).
+- **`srmech.amsc.hdc.loop_runbind_hd(a, b)`** — the HD **RIGHT-unbind** (per-block `bₖ·conj(aₖ)`). Where `loop_unbind_hd` peels the LEFT factor, this peels the RIGHT — recovers `v` from `loop_bind_hd(v, a)` exactly (`(vₖ·aₖ)·conj(aₖ)=vₖ` by alternativity; verified recovery `<1e-15`). Right-division is what a **left-fold sequence store** `(((s₀·s₁)·s₂)…)` needs to peel the most-recent element off the right (F-§12.2).
+- **Footgun guard (F-§12.1):** `loop_inv` / `loop_conj` now **raise** on an HD block-octonion input (a multiple of `LOOP_DIM=8` wider than one octonion), pointing at the `*_hd` op — loud failure replaces the silent-wrong global result. The single-octonion path (dim ≤ 8) is unchanged.
+- **`tests/test_loop_hd_division.py`**: per-block conj/inv = the shipped single-element op block-wise; `loop_inv_hd == loop_conj_hd` on unit blocks; right-unbind round-trip; the `loop_inv`/`loop_conj` HD guard raises; the single-octonion path still works; multiple-of-8 validation.
+
++3 ToolEntries (189 → **192**); ABI stays **3** (pure-Python, additive). The co-equal **C peer** is the arc's transpile-to-C step (Python-first ladder). Anchors: upstream §12.1 / §12.2 bug-test hand-down.
+
 ## [0.7.0rc4] - 2026-06-02
 
 **MS #21 rc4 voxel — the block-octonion HD tiling (#811) + capacity-free vs Klein-4 (#812). +2 ToolEntries → `describe()` 189; ABI stays 3.**

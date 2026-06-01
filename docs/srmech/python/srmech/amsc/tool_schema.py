@@ -1455,6 +1455,44 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("np.ndarray", "the unbound vector, same length"),
         ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_conj_hd", owner="srmech", category="hdc",
+            summary="Per-block HD octonion conjugate: the direct sum ⊕ of NB "
+                    "dim-8 loop_conjs — THE missing atom under loop_bind_hd / "
+                    "loop_unbind_hd. The single-element loop_conj is global and "
+                    "silently wrong on an HD block vector; this is per-block. "
+                    "Class C; no new class. F-§12.1.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+            ),
+            returns=R("np.ndarray", "the per-block conjugate, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_inv_hd", owner="srmech", category="hdc",
+            summary="Per-block HD Moufang inverse: the direct sum ⊕ of NB dim-8 "
+                    "loop_invs (x̄_k/⟨x_k,x_k⟩ per block) — the per-block unbind "
+                    "key. The single-element loop_inv is global and silently "
+                    "wrong on an HD block vector; this is per-block. Class-K "
+                    "clean (per-block norm² gate, no abs()). F-§12.1.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+            ),
+            returns=R("np.ndarray", "the per-block inverse, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_runbind_hd", owner="srmech", category="hdc",
+            summary="HD RIGHT-unbind: per-block Moufang right-division "
+                    "b_k·conj(a_k). Where loop_unbind_hd peels the LEFT factor, "
+                    "this peels the RIGHT — recovers v from loop_bind_hd(v, a) "
+                    "for unit-per-block a ((v·a)·conj(a)=v by alternativity). "
+                    "Right-division for a left-fold sequence store. Class-K "
+                    "clean; no abs(). F-§12.2.",
+            parameters=(
+                P("a", "np.ndarray", True, "length = positive multiple of 8"),
+                P("b", "np.ndarray", True, "same length as a"),
+            ),
+            returns=R("np.ndarray", "the right-unbound vector, same length"),
+        ),
         # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
         # ────────────────────────────────────────────────────────────

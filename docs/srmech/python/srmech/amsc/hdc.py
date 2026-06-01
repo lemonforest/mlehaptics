@@ -808,9 +808,29 @@ def _loop_basis(i, dim):
     return v
 
 
+def _reject_hd_block_misuse(arr, op):
+    """Guard the single-element loop ops against silent HD-vector misuse (F-§12.1).
+
+    ``loop_conj`` / ``loop_inv`` act on ONE Cayley-Dickson element. An HD
+    block-octonion vector (a multiple of LOOP_DIM wider than one octonion)
+    silently passes ``_as_loop`` — 2048 = 256·8 is also a power of two — and
+    would be treated as a single 2048-D element, so the GLOBAL conj/inv is NOT
+    the per-block octonion result the HD layout means (err ≈ ‖·‖, no exception).
+    Raise instead, and point at the per-block ``*_hd`` op."""
+    if arr.ndim == 1 and arr.size > LOOP_DIM and arr.size % LOOP_DIM == 0:
+        raise ValueError(
+            f"{op}: length {arr.size} is a multiple of LOOP_DIM ({LOOP_DIM}) "
+            f"wider than one octonion — this is an HD block-octonion vector, "
+            f"not one element. The single-element {op} is silently wrong here; "
+            f"use {op}_hd for the per-block result (F-§12.1).")
+
+
 def loop_conj(x):
     """Octonion conjugate x̄ — negate the imaginary part, keep the real anchor
-    ``x[0]``. The Class-C orientation flip that powers the unbind."""
+    ``x[0]``. The Class-C orientation flip that powers the unbind. Single
+    element only — an HD block-octonion vector raises (use ``loop_conj_hd``)."""
+    arr = np.asarray(x, dtype=float)
+    _reject_hd_block_misuse(arr, "loop_conj")
     return _loop_conj_raw(_as_loop(x, "loop_conj"))
 
 
@@ -833,7 +853,10 @@ def loop_bind(x, y):
 def loop_inv(x):
     """Moufang inverse x⁻¹ = x̄ / ⟨x,x⟩ — the unbind key. For a unit octonion
     (⟨x,x⟩ = 1) this is just the conjugate; ``loop_bind(x, loop_inv(x))`` = e₀.
-    Class-K clean: the norm² gate, never ``abs()``."""
+    Class-K clean: the norm² gate, never ``abs()``. Single element only — an HD
+    block-octonion vector raises (use ``loop_inv_hd``)."""
+    arr = np.asarray(x, dtype=float)
+    _reject_hd_block_misuse(arr, "loop_inv")
     arr = _as_loop(x, "loop_inv")
     nsq = float(np.dot(arr, arr))
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
@@ -935,6 +958,66 @@ def loop_unbind_hd(a, b):
         [loop_bind(loop_conj(ab[k]), bb[k]) for k in range(ab.shape[0])])
 
 
+def loop_conj_hd(x):
+    """Per-block HD octonion conjugate — the direct sum ⊕ of NB independent
+    dim-8 ``loop_conj``s. THE missing atom under ``loop_bind_hd`` /
+    ``loop_unbind_hd`` (#811/F289): the single-element ``loop_conj`` is GLOBAL
+    (one Cayley-Dickson element) and silently wrong on an HD block-octonion
+    vector (F-§12.1) — this is the per-block form. Class C (orientation flip)
+    over the direct-sum TILE layout; NO new class. Length must be a positive
+    multiple of LOOP_DIM (8)."""
+    a_ = np.asarray(x, dtype=float)
+    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
+        f"loop_conj_hd: length must be a positive multiple of {LOOP_DIM}")
+    xb = a_.reshape(-1, LOOP_DIM)
+    return np.concatenate([_loop_conj_raw(xb[k]) for k in range(xb.shape[0])])
+
+
+def loop_inv_hd(x):
+    """Per-block HD Moufang inverse — the direct sum ⊕ of NB independent dim-8
+    ``loop_inv``s (x̄ₖ / ⟨xₖ,xₖ⟩ per block). The per-block unbind key:
+    ``loop_unbind_hd(x, loop_bind_hd(x, v)) == v``, and for ANY (not only unit)
+    per-block x, ``loop_bind_hd(x, loop_inv_hd(x))`` is the per-block e₀. The
+    single-element ``loop_inv`` is GLOBAL and silently wrong on an HD vector
+    (F-§12.1); this is the per-block form. Class-K clean (per-block norm² gate,
+    never abs()); NO new class. Length must be a positive multiple of
+    LOOP_DIM (8)."""
+    a_ = np.asarray(x, dtype=float)
+    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
+        f"loop_inv_hd: length must be a positive multiple of {LOOP_DIM}")
+    xb = a_.reshape(-1, LOOP_DIM)
+    out = []
+    for k in range(xb.shape[0]):
+        blk = xb[k]
+        nsq = float(np.dot(blk, blk))
+        assert nsq > 0.0, (
+            f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
+        out.append(_loop_conj_raw(blk) / nsq)
+    return np.concatenate(out)
+
+
+def loop_runbind_hd(a, b):
+    """The HD RIGHT-unbind — per-block Moufang RIGHT-division bₖ·conj(aₖ).
+    Where ``loop_unbind_hd`` peels the LEFT factor (recovers v from
+    ``loop_bind_hd(a, v)`` = aₖ·vₖ), this peels the RIGHT factor: for ``a``
+    built from unit-per-block octonions it recovers v from ``loop_bind_hd(v, a)``
+    = vₖ·aₖ exactly, since (vₖ·aₖ)·conj(aₖ) = vₖ·(aₖ·conj(aₖ)) = vₖ by
+    alternativity. The RBS-LM sequence store is a left-fold ``(((s₀·s₁)·s₂)…)``;
+    right-division is what peels the most-recent element off the right (F-§12.2).
+    Uses the shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean
+    (conjugate + bind, no abs()). NO new class. Length must be a positive
+    multiple of LOOP_DIM (8)."""
+    a_ = np.asarray(a, dtype=float)
+    b_ = np.asarray(b, dtype=float)
+    assert a_.shape == b_.shape, "loop_runbind_hd: operands must have equal length"
+    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
+        f"loop_runbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    ab = a_.reshape(-1, LOOP_DIM)
+    bb = b_.reshape(-1, LOOP_DIM)
+    return np.concatenate(
+        [loop_bind(bb[k], loop_conj(ab[k])) for k in range(ab.shape[0])])
+
+
 __all__ = [
     "DEFAULT_HDC_BYTES",
     "MAX_BUNDLE_N",
@@ -972,4 +1055,7 @@ __all__ = [
     "g2_three_form",
     "loop_bind_hd",
     "loop_unbind_hd",
+    "loop_conj_hd",
+    "loop_inv_hd",
+    "loop_runbind_hd",
 ]
