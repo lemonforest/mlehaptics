@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc3] - 2026-06-02
+
+**MS #21 rc3 voxel — the loop-bind family slots into the compose engine (#813). Test-only proof; `describe()` stays 187; ABI stays 3.**
+
+#813 asks how the octonion loop-bind composes in srmech's operator-chain surface. The answer needed no new code: `DEFAULT_CLASS_REGISTRY["M"] → srmech.amsc.hdc` and ops resolve dynamically by name, so `loop_bind` / `loop_conj` / `loop_associator` / `cross7` / `g2_three_form` already run as `class="M", op="<name>"` steps through `srmech.amsc.compose.run_chain` — the **M∘C-with-K-residue** cascade #813 describes.
+
+- **`tests/test_loop_bind_compose.py`** (4 tests): single-step `loop_bind` / `loop_associator` (the K residue) / `cross7` / `g2_three_form` all resolve + run via `run_chain`; a two-step **M∘C** chain (`loop_bind` then `loop_conj` via `@step[0]`) proves multi-step composition.
+
+Test-only voxel: **NO new ToolEntries** (`describe()` stays **187**), NO new class, ABI stays **3** (pure-Python). The formal cascade-catalog `.toml` descriptor for the bind carries a `[cascade.native]` C symbol, so it lands with the C-transpile step at the end of the v0.7.0 arc (Python-first → transpile-to-C ladder). The user-authored / bring-your-own external cascade-TOML path is a separate scoped voxel.
+
 ## [0.7.0rc2] - 2026-06-02
 
 **MS #21 rc2 voxel — the 7-D cross product + the G₂ associative 3-form (#813 / F281). +2 ToolEntries → `describe()` 187; ABI stays 3.**
