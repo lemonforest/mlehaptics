@@ -91,8 +91,18 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc20():
-    """v0.6.0rc20 — MS #20 SSoT two-tier coherence-ratchet voxel: a new
+def test_version_is_0_6_0rc21():
+    """v0.6.0rc21 — MS #20 H-gate / triality MFO rung voxel (the meaning-tier
+    closer): MFO notebook §VII.6.22 connects the rc16–rc20 triality voxel-arc to
+    the §VII.6.21 Rosetta-table H-gate / fix-rotate axis — the order-3
+    ``klein4_triality_cycle`` (rc17 Python + rc18 C) IS the discrete-cyclic
+    rotate-operator whose continuous-Hopf companion ``tau`` fixes g₂=14 (the
+    §VII.6.21.4 frame-invariant), with ``klein4_similarity`` the H gate, and the
+    discrete triality CLOSES (T³=id, no Class-N leak) where the continuous
+    epicycle leaks. DOC only (MFO notebook) — no code, no new symbol/ToolEntry
+    (``describe()`` total stays 179); ABI stays 3.
+
+    Prior v0.6.0rc20 — MS #20 SSoT two-tier coherence-ratchet voxel: a new
     ``tests/test_ssot_coherence_scan.py`` scans the continuum tier and asserts
     the two-tier SSoT stays coherent as it grows — every
     ``worked_instances/*.toml`` is well-formed, every op it references resolves
@@ -462,8 +472,8 @@ def test_version_is_0_6_0rc20():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc20", (
-        f"expected srmech.__version__ == '0.6.0rc20'; got "
+    assert srmech.__version__ == "0.6.0rc21", (
+        f"expected srmech.__version__ == '0.6.0rc21'; got "
         f"{srmech.__version__!r}"
     )
 

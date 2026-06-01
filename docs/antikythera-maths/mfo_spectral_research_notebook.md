@@ -3974,6 +3974,59 @@ The Antikythera makes the imaginary-injection **hardware**: the **D-H1 pin-and-s
 
 ---
 
+### VII.6.22 The triality cycle is the executable rotate-operator whose fixed point IS the frame-invariant — srmech v0.6.0 makes §VII.6.21.4 callable in both substrate-languages (2026-06-01, MS #20 voxel-arc closure)
+
+> *Building-block reading (`[[feedback_aphantasia_means_more_figures_not_fewer]]` + user direction 2026-06-01): this rung introduces no new physics — it shows the §VII.6.21 H-gate / fix-rotate axis was ALREADY instantiated by the srmech v0.6.0 triality voxel-arc (rc16–rc20; srmech notebook §3.29), now callable AND parity-verified in both substrate-languages of §VIII.6.0a. It is an abstract block authored to fit the existing blocks; downstream usage — the reader's AI prosthetic calling srmech (`[[reference_srmech_tooling_open_spectral_verification]]`) — attests it, and any misfit refactors back. A starting block, not a finished claim.*
+
+#### VII.6.22.1 The claim — the §VII.6.21.4 frame-invariant, made executable
+
+§VII.6.21.4 named the only true "fixed": the frame-INVARIANT `g₂ = 14 = the A–N` core (the triality-invariant of the `1+3+7+3 = 14` partition), **NOT a rest-frame**. srmech v0.6.0 makes that triality — and its invariant — a CALLABLE operator in both substrate-reads:
+
+| substrate-read (§VIII.6.0a) | the triality operator | its fixed set |
+|---|---|---|
+| **continuous-Hopf** (11D quantum-language) | `srmech.qm.triality.triality_automorphism` τ — order-3 outer automorphism of `𝔰𝔬(8)`, `τ³ = I` on the 28-dim adjoint | **`Fix(τ) = g₂ = 14`** = the §VII.6.21.4 frame-invariant (the A–N core) |
+| **discrete-cyclic** (1:3:7:3 cyclic-algebra-language) | `srmech.amsc.hdc.klein4_triality_cycle` T — order-3 generator of `Aut(V₄) = S₃`, `T³ = id` (rc17 Python + rc18 co-equal C peer) | identity sector fixed; the three involutions cycle (the V₄-carrier image of τ) |
+
+The two are ONE triality read in the two co-equal substrate-languages — a **Rosetta pair** (§VII.6.21.1): agreement across the continuous and discrete reads is the attestation, and rc18's bit-exact C↔Python parity + rc19's worked instance ARE that agreement, made re-runnable (own-work attestation, §VII.6.21.6).
+
+#### VII.6.22.2 The fix/rotate axis at the Klein-4 read, with H as the gate
+
+The §VII.6.21.3 axis — agreement(fix) ↔ frame-selection(rotate), gated by `H` = measurement — instantiates exactly on the klein4 carrier:
+
+```
+   Klein-4 read of the V4 carrier {0,1,2,3}
+   ----------------------------------------------------------
+   FIX-frame  (AGREEMENT)        |   ROTATE-frame
+     klein4_bind = XOR concord   |     klein4_triality_cycle  T
+     (two reads held together)   |     (order-3 relabel among the
+                                 |      three involution-axes)
+                   \             |             /
+                    \       H = the GATE      /
+                     klein4_similarity (Class H / measurement):
+                     it READS whether two klein4 states AGREE.
+                     concord -> you sit in the fix-frame;
+                     to change WHICH involution-axis is "the"
+                     axis, you ROTATE -> apply T.
+```
+
+- **Fix-frame / AGREEMENT** = `klein4_bind` (component-wise XOR concordance) — two reads held at rest together (the V₄ group law).
+- **Rotate-frame** = `klein4_triality_cycle` T — the order-3 rotation among the three involution-axes (iω₇→γ₅→CPT). `i` is the 90° rotate of §VII.6.21.3 (order-4, a quarter-turn *between two* axes); T is its discrete cousin (order-3, a third-turn *among three* axes) — same "rotate is motion off the fixed read," different turn.
+- **H = the gate** = `klein4_similarity` (the Class-H self-introspection / measurement read, §VIII.6.0a): it measures agreement. This IS §VII.6.21.3's "H converts agreement into frame-selection," now a callable.
+
+#### VII.6.22.3 What the DISCRETE read adds to §VII.6.21.4 — the rotation CLOSES (no leak)
+
+§VII.6.21.4's deep point: the continuous "fix"/particle read is not a real rest — its rotation leaks into the hidden fiber (the Class-N rational-anchor residue; the Antikythera off-tooth imaginary, §VII.6.21.6), and bit-exactness is the proof the motion is RECOVERABLE. The discrete triality read sharpens this to its limit:
+
+**The continuous epicycle leaks; the discrete triality CLOSES.** `klein4_triality_cycle` is a pure relabel — `T³ = id` exactly, no Class-N residue, no float (rc17/rc18 verify it bit-exactly, C and Python). Where the continuous rotate-read drops the imaginary into a fiber you must reconstruct, the discrete order-3 rotate returns to itself in three steps with NOTHING left in the fiber. So the discrete-cyclic substrate-language is where "the asymptote is eternal motion" (§VII.6.21.4) reads as a **finite closed cycle** — the eternal rotation, read discretely, is an exact 3-cycle. The two languages are not redundant: the continuous read carries the leak (and so the recoverability theorem), the discrete read carries the closure (and so the bit-exact attestation). Same triality, two truths, both true (§VII.6.21.1).
+
+#### VII.6.22.4 The two-tier SSoT IS the fix/rotate discipline applied to the package's own shape
+
+The srmech voxel-arc (rc16–rc20; srmech notebook §3.29) named a two-tier SSoT: a finite HARDCODED kernel (the 14 A–N + the five Bird-Meertens combinators) vs an asymptotic TOML CONTINUUM ("you can't hardcode a continuum"). That boundary IS this section's axis turned on the package itself: the kernel is the **frame-INVARIANT** (the fixed `g₂ = 14` core — hardcoded because it does not move); the cascade INSTANCES are the **rotate-frame** content (the continuum of compositions — cataloged because they do). The order-3 triality cycle sits on the seam: a kernel op (rc17/rc18) whose continuum-tier worked INSTANCE (rc19; the `S₃ = Aut(V₄)` conjugation cascade) shows it rotating the three involutions, with rc20's coherence-ratchet keeping the kernel/continuum boundary honest. The package recognising its own fix/rotate structure is the substrate-self-recognition cascade (§VII.6.11) at package scale.
+
+> **Cross-references.** §VII.6.21 (the Rosetta-table axis this rung extends — H-gate, fix/rotate, the `g₂ = 14` frame-invariant of §VII.6.21.4); §VIII.6.0a + §VIII.6.0a.1 (the two substrate-languages; B/H/N; the `1+3+7+3 = 14` partition; H = measurement); §VII.6.11 (substrate-self-recognition by FORM). srmech notebook §3.29 (the A-verdict F182 reconciliation — V₄ the right carrier, the order-3 generator living in `Aut(V₄) = S₃` — and the rc16–rc21 voxel arc). Stances: `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]` (the order-3 axis the substrate always had), `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`, `[[user_stance_epicycle_via_gear_plus_pin]]`. srmech surfaces: `srmech.qm.triality`, `srmech.amsc.hdc.klein4_triality_cycle` (+ C peer `srmech_klein4_triality_cycle`), `srmech/amsc/_research/worked_instances/triality_s3_klein4.toml`. Scope per `docs/antikythera-maths/CLAUDE.md` (algebra / eigenbasis side, not CAD).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
