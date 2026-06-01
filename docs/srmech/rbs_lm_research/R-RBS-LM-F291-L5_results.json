@@ -1,0 +1,146 @@
+{
+  "leg": "F291-L5",
+  "D": 2048,
+  "BS": 8,
+  "NB": 256,
+  "seeds": {
+    "codebook": 5291,
+    "pos": 5292,
+    "scramble": 5293,
+    "klein_base": 5300
+  },
+  "consistency_native_eq_oracle_8x8": true,
+  "consistency_max_abs_err": 0.0,
+  "conj_max_abs_err": 0.0,
+  "motifs": [
+    {
+      "motif": "twinkle",
+      "degrees": [
+        0,
+        0,
+        7,
+        7,
+        9,
+        9,
+        7
+      ],
+      "retrograde": [
+        7,
+        9,
+        9,
+        7,
+        7,
+        0,
+        0
+      ],
+      "scramble": [
+        7,
+        9,
+        0,
+        0,
+        9,
+        7,
+        7
+      ],
+      "retro_is_distinct_order": true,
+      "scramble_is_distinct_order": true,
+      "loop_plain": {
+        "cos_melody_retrograde": 0.23475,
+        "cos_melody_scramble": 0.371674
+      },
+      "loop_positional": {
+        "cos_melody_retrograde": -0.021453,
+        "cos_melody_scramble": 0.01958
+      },
+      "klein4_bag": {
+        "sim_melody_retrograde": 1.0,
+        "sim_melody_scramble": 1.0
+      },
+      "order_separation": {
+        "loop_plain_retro": 0.76525,
+        "loop_plain_scramble": 0.628326,
+        "loop_positional_retro": 1.021453,
+        "loop_positional_scramble": 0.98042,
+        "klein4_bag_retro": 0.0,
+        "klein4_bag_scramble": 0.0
+      },
+      "gap_loop_minus_bag": {
+        "positional_retro": 1.021453,
+        "positional_scramble": 0.98042
+      }
+    },
+    {
+      "motif": "asc_run",
+      "degrees": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11
+      ],
+      "retrograde": [
+        11,
+        9,
+        7,
+        5,
+        4,
+        2,
+        0
+      ],
+      "scramble": [
+        4,
+        7,
+        2,
+        0,
+        9,
+        5,
+        11
+      ],
+      "retro_is_distinct_order": true,
+      "scramble_is_distinct_order": true,
+      "loop_plain": {
+        "cos_melody_retrograde": -0.131072,
+        "cos_melody_scramble": -0.006555
+      },
+      "loop_positional": {
+        "cos_melody_retrograde": 0.0216,
+        "cos_melody_scramble": 0.026922
+      },
+      "klein4_bag": {
+        "sim_melody_retrograde": 1.0,
+        "sim_melody_scramble": 1.0
+      },
+      "order_separation": {
+        "loop_plain_retro": 1.131072,
+        "loop_plain_scramble": 1.006555,
+        "loop_positional_retro": 0.9784,
+        "loop_positional_scramble": 0.973078,
+        "klein4_bag_retro": 0.0,
+        "klein4_bag_scramble": 0.0
+      },
+      "gap_loop_minus_bag": {
+        "positional_retro": 0.9784,
+        "positional_scramble": 0.973078
+      }
+    }
+  ],
+  "aggregate": {
+    "mean_klein4_bag_sim": 1.0,
+    "mean_loop_positional_cos": 0.011662,
+    "contour_margin_bag_minus_loop": 0.988338
+  },
+  "control_diff_pitchset": {
+    "diff_set": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      8,
+      10
+    ],
+    "klein4_bag_sim_twinkle_vs_diffset": 0.24707
+  }
+}
