@@ -139,3 +139,119 @@ def test_tool_entry_registered():
     assert entry is not None
     assert entry.category == "cascade"
     assert "Kuramoto" in entry.summary
+
+
+# ----------------------------------------------------------------------
+# v0.6.0rc14 (§11.1) — the GENERALISED Kuramoto-Sakaguchi step:
+# adjacency matrix + Sakaguchi alpha + per-oscillator pinning. Defaults
+# reproduce the plain step exactly. The new co-equal C peer
+# (srmech_cascade_kuramoto_step_general_f64) is differential-tested vs the
+# Python fallback to libm-trig tolerance (skips on a pre-rc14 / pure lib).
+# ----------------------------------------------------------------------
+
+_HAS_C_GENERAL = (
+    _native.HAS_NATIVE
+    and _native.LIB is not None
+    and hasattr(_native.LIB, "srmech_cascade_kuramoto_step_general_f64")
+)
+
+
+def _reference_general(theta, omega, adjacency, coupling, alpha, psi, ps, dt):
+    """Closed-form generalised one-step (the spec): the Python fallback path."""
+    n = len(theta)
+    inv_n = (coupling / n) if n > 0 else 0.0
+    out = []
+    for i in range(n):
+        s = 0.0
+        for j in range(n):
+            w = adjacency[i][j] if adjacency is not None else inv_n
+            s += w * math.sin(theta[j] - theta[i] - alpha)
+        f = omega[i] + s
+        if psi is not None:
+            f += ps[i] * math.sin(psi[i] - theta[i])
+        out.append(theta[i] + dt * f)
+    return out
+
+
+def test_general_defaults_reproduce_simple():
+    """No new param → byte-for-byte the plain step (and the simple native peer)."""
+    theta = [0.1, 1.3, -2.0, 4.5, 0.0]
+    omega = [0.5, -0.3, 1.1, 0.2, -0.7]
+    plain = kuramoto_step(theta, omega, coupling=2.5, dt=0.05)
+    # alpha=0.0 explicitly is still the simple path (use_general stays False).
+    assert kuramoto_step(theta, omega, coupling=2.5, dt=0.05, alpha=0.0) == plain
+
+
+def test_uniform_adjacency_equals_mean_field():
+    theta = [0.1, 0.5, 1.2, 2.0]
+    omega = [0.3, -0.2, 0.1, 0.0]
+    n, K, dt = 4, 0.8, 0.05
+    A = [[K / n for _ in range(n)] for _ in range(n)]
+    via_a = kuramoto_step(theta, omega, adjacency=A, dt=dt)
+    simple = kuramoto_step(theta, omega, coupling=K, dt=dt)
+    assert via_a == pytest.approx(simple, abs=1e-12)
+
+
+def test_directed_adjacency_and_alpha_and_pinning_match_reference():
+    theta = [0.1, 0.5, 1.2, 2.0]
+    omega = [0.3, -0.2, 0.1, 0.0]
+    n, dt = 4, 0.05
+    Adir = [[(0.5 if j == (i + 1) % n else 0.0) for j in range(n)] for i in range(n)]
+    # directed adjacency
+    out = kuramoto_step(theta, omega, adjacency=Adir, alpha=0.3, dt=dt)
+    ref = _reference_general(theta, omega, Adir, 1.0, 0.3, None, None, dt)
+    assert out == pytest.approx(ref, abs=1e-12)
+    # pinning toward anchors
+    psi = [0.0, 0.0, 0.0, 0.0]
+    ps = [2.0, 1.0, 0.5, 1.5]
+    out2 = kuramoto_step(theta, omega, coupling=0.8, dt=dt,
+                         pin_anchor=psi, pin_strength=ps)
+    ref2 = _reference_general(theta, omega, None, 0.8, 0.0, psi, ps, dt)
+    assert out2 == pytest.approx(ref2, abs=1e-12)
+
+
+def test_general_validation_guards():
+    theta = [0.1, 0.5, 1.2, 2.0]
+    omega = [0.3, -0.2, 0.1, 0.0]
+    with pytest.raises(ValueError, match="adjacency must be"):
+        kuramoto_step(theta, omega, adjacency=[[1, 2], [3, 4]])
+    with pytest.raises(ValueError, match="pin_anchor length"):
+        kuramoto_step(theta, omega, pin_anchor=[0.0, 0.0])
+    with pytest.raises(ValueError, match="pin_strength length"):
+        kuramoto_step(theta, omega, pin_anchor=[0.0] * 4, pin_strength=[1.0, 2.0])
+
+
+@pytest.mark.skipif(
+    not _HAS_C_GENERAL,
+    reason="native srmech_cascade_kuramoto_step_general_f64 unavailable",
+)
+def test_native_general_parity():
+    """The C peer matches the Python generalised fallback to libm-trig tol —
+    adjacency (directed) + Sakaguchi alpha + per-oscillator pinning."""
+    theta = [0.1, 0.5, 1.2, 2.0, -0.7]
+    omega = [0.3, -0.2, 0.1, 0.0, 0.4]
+    n, dt = 5, 0.05
+    Adir = [[(0.4 if j != i else 0.0) for j in range(n)] for i in range(n)]
+    Adir[0][1] = 0.9  # break symmetry → directed
+    psi = [0.0, 0.1, 0.2, 0.3, 0.4]
+    ps = [1.0, 0.5, 2.0, 1.5, 0.0]
+    out = kuramoto_step(theta, omega, adjacency=Adir, alpha=0.3, dt=dt,
+                        pin_anchor=psi, pin_strength=ps)  # native path
+    ref = _reference_general(theta, omega, Adir, 1.0, 0.3, psi, ps, dt)
+    assert out == pytest.approx(ref, abs=1e-9)
+
+
+@pytest.mark.skipif(
+    not _HAS_C_GENERAL,
+    reason="native srmech_cascade_kuramoto_step_general_f64 unavailable",
+)
+def test_native_general_shim_direct():
+    from srmech.amsc.cascade.compose import _try_native_kuramoto_step_general
+    res = _try_native_kuramoto_step_general(
+        [0.0, 1.0], [1.0, 2.0], None, 1.0, 0.2, None, None, 0.1,
+    )
+    assert res is not None
+    assert res == pytest.approx(
+        _reference_general([0.0, 1.0], [1.0, 2.0], None, 1.0, 0.2, None, None, 0.1),
+        abs=1e-9,
+    )

@@ -76,7 +76,7 @@ beyond a single-file read.
   `srmech.qm.triality` order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
-- **v0.6.0 (rc1–rc13 to date; rc13 dev head)** — the lean-ISA arc.
+- **v0.6.0 (rc1–rc14 to date; rc14 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
   lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
   so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
@@ -106,7 +106,13 @@ beyond a single-file read.
   "chirality"` (F233 4-sector via klein4's own XOR sector-flips);
   default-on at ≥4 cores; value-preserving; pure-Python (co-equal
   parity — no C-callback; standalone-C sector dispatch is the tracked
-  follow-up).
+  follow-up); and (rc14) the **generalised Kuramoto-Sakaguchi step** —
+  `kuramoto_step(…, adjacency=, alpha=, pin_anchor=, pin_strength=)`
+  (n×n coupling matrix; non-symmetric → directed; Sakaguchi α frustration;
+  per-oscillator pinning) shipped **CO-EQUAL** in Python AND a new
+  standalone-C symbol `srmech_cascade_kuramoto_step_general_f64`
+  (additive → ABI stays 3; JPL-clean; no Python callback), differential-
+  tested. Defaults reproduce the plain step byte-for-byte.
 
 The package directory layout:
 

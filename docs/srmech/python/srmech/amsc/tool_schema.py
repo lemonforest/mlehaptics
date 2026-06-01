@@ -1375,13 +1375,30 @@ def _register_primitive_class_tools() -> None:
                     "sin coupling + sum-reduce + Class-C Euler add; NOT a new "
                     "privileged primitive. No abs(). Dispatches to C when "
                     "HAS_NATIVE (libm-trig tolerance parity); pure-Python "
-                    "fallback otherwise. n==1 is pure drift; n==0 is []."
+                    "fallback otherwise. n==1 is pure drift; n==0 is []. rc14 "
+                    "(§11.1): the GENERALISED Kuramoto-Sakaguchi step — pass "
+                    "`adjacency` (n×n coupling matrix; non-symmetric → DIRECTED "
+                    "coupling, Laplacian → graph-structured; None → all-to-all "
+                    "uniform K/n), `alpha` (Sakaguchi phase frustration, "
+                    "sin(θ_j−θ_i−α)), and/or `pin_anchor`+`pin_strength` (per-"
+                    "oscillator pinning +p_i·sin(ψ_i−θ_i)). Co-equal C peer "
+                    "srmech_cascade_kuramoto_step_general_f64 (additive; ABI "
+                    "stays 3). Defaults reproduce the plain step byte-for-byte."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("theta", "sequence", True, "current phases (radians)"),
                         P("omega", "sequence", True,
                           "natural frequencies; same length as theta"),
                         P("coupling", "float", False, "global coupling K; default 1.0"),
-                        P("dt", "float", False, "forward-Euler time step; default 0.01")),
+                        P("dt", "float", False, "forward-Euler time step; default 0.01"),
+                        P("adjacency", "list", False,
+                          "optional n×n coupling matrix; A[i][j] weights "
+                          "sin(θ_j−θ_i−α); non-symmetric=directed; None=uniform K/n"),
+                        P("alpha", "float", False,
+                          "Sakaguchi phase frustration (radians); default 0.0"),
+                        P("pin_anchor", "Optional[list[float]]", False,
+                          "optional length-n anchor phases ψ (None=no pinning)"),
+                        P("pin_strength", "number", False,
+                          "pinning strength p (scalar or length-n); default 1.0")),
             returns=R("list[float]", "phases after one forward-Euler Kuramoto step"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
