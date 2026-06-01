@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc20] - 2026-06-01
+
+**MS #20 SSoT two-tier coherence-ratchet voxel — a `test_ssot_coherence_scan.py` scanning the continuum tier as it grows: every `worked_instances/*.toml` well-formed, every referenced op resolves, the kernel/continuum name-spaces stay disjoint, every cascade-catalog op resolves. DOC + TEST only; `describe()` stays 179; ABI stays 3.**
+
+The coherence half of the SSoT discipline: rc16 named the two-tier boundary, rc19 added the first continuum-tier worked instance; rc20 adds the ratchet that keeps the boundary honest as more worked instances land.
+
+- **`tests/test_ssot_coherence_scan.py`** — scans `srmech/amsc/_research/worked_instances/`: each TOML is well-formed (`name`/`purpose`/`ops`); each dotted op-path in `[worked_instance.ops]` resolves to a real callable; the worked-instance names and the `srmech.dsl` cascade-catalog op-names are **disjoint** (the kernel/continuum boundary can't silently erode); and every cascade-catalog op still resolves via `lookup_cascade_op` (the full two-tier picture in one place). A count-ratchet (`EXPECTED_WORKED_INSTANCE_COUNT`) forces new worked instances to be conscious additions.
+- **`triality_s3_klein4.toml`** gains a machine-readable `[worked_instance.ops]` table (logical-name → dotted srmech path) so the scan resolves ops robustly rather than by regex-from-prose.
+
+No new symbol or ToolEntry; `describe()` total stays **179**. ABI stays **3**. JPL audit ratchet stays at 0. The notebook-reference cross-check stays deferred (would require parsing the notebook tree).
+
 ## [0.6.0rc19] - 2026-06-01
 
 **MS #20 triality S₃=Aut(V₄) worked-instance voxel — a continuum-tier worked cascade INSTANCE showing `klein4_triality_cycle` IS the order-3 generator of Aut(V₄)=S₃, via the conjugation `T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}` cyclically permuting the three klein4 flips. DOC + TEST only; klein4 ops stay kernel-tier; `describe()` stays 179; ABI stays 3.**
