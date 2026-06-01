@@ -86,6 +86,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.compose.cyclic_gcd",
     "srmech.amsc.cascade.compose.best_rational_signed",
     "srmech.amsc.cascade.compose.kuramoto_step",
+    # cascade.compose.autocorrelation (v0.7.0rc8) — the Class-L circular
+    # autocorrelation, registered under its flat public name
+    # ``srmech.amsc.cascade.autocorrelation`` (which IS registered); the
+    # submodule-dotted name is the same object re-exported flat, exempt
+    # exactly like cyclic_gcd / kuramoto_step above.
+    "srmech.amsc.cascade.compose.autocorrelation",
     # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
     # Registered under its STABLE flat public name
     # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);

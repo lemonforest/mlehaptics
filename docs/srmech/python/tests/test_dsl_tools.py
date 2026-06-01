@@ -41,10 +41,12 @@ _DSL_TOOL_NAMES = (
     "srmech.dsl.list_catalog_ops",
 )
 
-#: The 10 cascade-catalog ops a chain spec may reference (rc12 catalog
+#: The 11 cascade-catalog ops a chain spec may reference (rc12 catalog
 #: of 8 lean-ISA atoms/composites + the v0.6.0rc10 pair
-#: parallel_sector_dispatch + kuramoto_step).
+#: parallel_sector_dispatch + kuramoto_step + the v0.7.0rc8
+#: autocorrelation Class-L primitive).
 _EXPECTED_CATALOG_OPS = {
+    "autocorrelation",
     "best_rational_signed",
     "chiral_dual",
     "chiral_flip",
@@ -186,14 +188,14 @@ def test_dsl_run_toml_chain_unknown_op_raises() -> None:
 
 
 def test_dsl_list_catalog_ops() -> None:
-    """``srmech.dsl.list_catalog_ops`` returns the 10 catalog ops, each
+    """``srmech.dsl.list_catalog_ops`` returns the 11 catalog ops, each
     with a name + A–N class + purpose, sourced from the on-disk
     descriptors."""
     result = invoke_tool("srmech.dsl.list_catalog_ops", {})
     assert isinstance(result, list)
     names = {rec["name"] for rec in result}
     assert names == _EXPECTED_CATALOG_OPS, (
-        f"list_catalog_ops returned {sorted(names)}; expected the 10 "
+        f"list_catalog_ops returned {sorted(names)}; expected the 11 "
         f"cascade-catalog ops {sorted(_EXPECTED_CATALOG_OPS)}"
     )
     # Each record carries class + purpose + kind + provenance, and

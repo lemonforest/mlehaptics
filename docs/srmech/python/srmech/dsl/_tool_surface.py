@@ -15,7 +15,7 @@ dotted-name walk in :mod:`srmech.mcp._tools`) to:
   inline TOML chain spec, build the :class:`Chain`, run it against an
   input value, return the result.
 * :func:`list_catalog_ops` — ``srmech.dsl.list_catalog_ops`` — enumerate
-  the 10 cascade-catalog ops with their A–N class + 1-line purpose, so an
+  the 11 cascade-catalog ops with their A–N class + 1-line purpose, so an
   LLM knows which op names a spec may use.
 
 Both take plain keyword parameters (``spec`` / ``input_value`` and no

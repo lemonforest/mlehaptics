@@ -352,6 +352,78 @@ def _try_native_kuramoto_step_general(
     return [float(c_out[i]) for i in range(n)]
 
 
+def _try_native_autocorrelation(x):
+    """Native dispatch for the circular autocorrelation (the direct O(n²) sum).
+
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    numpy-FFT Python path. A coercion failure or a missing native symbol falls
+    back so the public behaviour is preserved exactly.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_autocorrelation_f64"):
+        return None
+    try:
+        xs = [float(v) for v in x]
+    except (TypeError, ValueError):
+        return None
+    n = len(xs)
+    if n == 0:
+        return []
+    Arr = ctypes.c_double * n
+    c_x = Arr(*xs)
+    c_out = Arr()
+    rc = _native.LIB.srmech_autocorrelation_f64(
+        ctypes.cast(c_x, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
+def autocorrelation(x: Sequence[float]) -> List[float]:
+    """Class L (Wiener-Khinchin): the circular autocorrelation of ``x``.
+
+        r[k] = Σ_i x[i] · x[(i + k) mod n],   r[0] = Σ x² = energy
+
+    The Wiener-Khinchin spectral object ``r = Re(IFFT(|FFT(x)|²))`` (the
+    circular-convolution theorem) — that identity is WHY autocorrelation is
+    **Class L** (the spectral side: autocorrelation ↔ power spectrum). The
+    F290 §C "un-flatten" composite (``autocorr → difference-graph →
+    conservation-validate``) consumes ``r`` (notably the ``r[0]`` energy for
+    the conservation check); shipping this primitive lets the rest of that
+    catalog be authored as pure-TOML composites.
+
+    HONEST CASCADE SHAPE: Class L (the spectral reading); computationally a
+    Σ-reduce of products — **no ``abs()``**, no sign branch. NOT a new
+    privileged primitive class.
+
+    Dispatches to the native **direct O(n²) sum** peer
+    (``srmech_autocorrelation_f64``) when ``HAS_NATIVE`` — that sum is the SAME
+    object as the FFT route (no FFT in C, so JPL-clean: no recursion, no
+    transcendentals), parity to FFT roundoff (~1e-12). The pure-Python fallback
+    uses the fast numpy FFT. ``n == 0 → []``.
+
+    Args:
+        x: the real sequence (length ``n``).
+
+    Returns:
+        ``list[float]`` of length ``n`` — the circular autocorrelation.
+    """
+    if _is_pub(): _emit("cascade.autocorrelation", class_="L", input_shape=_shape(x))
+    native = _try_native_autocorrelation(x)
+    if native is not None:
+        return native
+    import numpy as np  # lazy: only the FFT fallback needs numpy
+    xa = np.asarray([float(v) for v in x], dtype=float)
+    if xa.size == 0:
+        return []
+    r = np.real(np.fft.ifft(np.abs(np.fft.fft(xa)) ** 2))
+    return [float(v) for v in r]
+
+
 def kuramoto_step(
     theta: Sequence[float],
     omega: Sequence[float],

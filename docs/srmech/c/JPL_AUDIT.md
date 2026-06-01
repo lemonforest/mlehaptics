@@ -184,6 +184,7 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_loop_inv_f64`                 | 21 | ✅ *(rc7 public Moufang inverse x̄/⟨x,x⟩)* |
 | `srmech_cross7_f64`                   | 13 | ✅ *(rc7 public 7-D cross product Im(loop_bind))* |
 | `srmech_g2_three_form_f64`            | 20 | ✅ *(rc7 public G2 calibration 3-form scalar)* |
+| `srmech_autocorrelation_f64`          | 13 | ✅ *(rc8 Class-L circular autocorrelation; direct O(n²) sum)* |
 
 ### Fix shipped in this audit pass
 
@@ -240,6 +241,7 @@ Per-function assertion counts:
 | `srmech_loop_inv_f64`                 | 2  | ✅ *(rc7 x/out non-NULL + n==8)*                    |
 | `srmech_cross7_f64`                   | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
 | `srmech_g2_three_form_f64`            | 2  | ✅ *(rc7 x/y/z/out non-NULL + n==8)*                |
+| `srmech_autocorrelation_f64`          | 2  | ✅ *(rc8 x/out non-NULL when n>0 + out-vs-x aliasing pre)* |
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
