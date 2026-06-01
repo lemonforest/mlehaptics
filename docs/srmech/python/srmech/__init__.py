@@ -77,6 +77,8 @@ __all__ = [
     "profile",
     # introspect module exposure (v0.4.6rc2)
     "introspect",
+    # top-level self-recognition help-anchor (v0.6.0rc15)
+    "describe",
     # top-level native-dispatch status (v0.5.0rc19; issue #733)
     "native_status",
     # self-recognition root (v0.5.0rc11)
@@ -96,6 +98,14 @@ introspect = _introspect
 # finds it. Equivalent to ``describe()['native']`` plus expected-ABI +
 # dispatching + load-error fields.
 native_status = _introspect.native_status
+
+# v0.6.0rc15 — top-level self-recognition help-anchor. ``describe()`` is the
+# one-call "what IS srmech?" root (version + native + tool counts +
+# by_category). It already lives at ``srmech.introspect.describe()``;
+# surfacing it where ``dir(srmech)`` finds it mirrors the rc19 graduation of
+# ``native_status``. Stays a counts/index ROOT — the full per-tool list is
+# ``tool_schema_view()``; single-tool detail is ``ToolSchema.resolve()``.
+describe = _introspect.describe
 
 # v0.5.0rc11 — Self-recognition root. ``warmup_all()`` is THE single
 # registration entry-point: it imports every submodule that registers
