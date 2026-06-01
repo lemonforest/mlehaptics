@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc15] - 2026-06-01
+
+**MS #20 self-recognition reads voxel — the help-anchor goes top-level + fuzzy lookup. `srmech.describe()` is now reachable from `dir(srmech)` (the one-call "what is srmech?" root: version + native + tool counts + by_category); `ToolSchema` gains fuzzy `resolve()` / `resolve_all()` (a bare leaf or dotted suffix resolves to its FQN) and is now directly iterable. Pure-Python introspection surface; ABI stays 3; `describe()` tool total stays 178.**
+
+The "find the shape in ≤1 call" round-out — the very friction that opened the substrate-self-recognition arc: an LLM/agent consumer could neither (a) discover `describe()` from the top namespace, nor (b) look a tool up by its bare leaf name.
+
+- **`srmech.describe()`** — the existing `srmech.introspect.describe()` graduated to the top namespace (mirrors `native_status()`'s rc19 graduation for #733), so `dir(srmech)` surfaces the help-anchor. It stays a counts/index ROOT (shape, not detail): the full per-tool list is `tool_schema_view()`, single-tool detail is the new resolver.
+- **`ToolSchema.resolve(name)` / `.resolve_all(name)`** — exact full-name match wins (as `lookup()`); else a bare leaf (`"kuramoto_step"`) or any dotted suffix (`"cascade.kuramoto_step"`) resolves to `srmech.amsc.cascade.kuramoto_step`. `resolve()` returns the single match or `None` (no-match OR ambiguous — never silently picks); `resolve_all()` lists every candidate for the ambiguous case.
+- **`ToolSchema` is now iterable** (`for t in schema`, `len(schema)`) — yields its tools directly, closing the `'ToolSchema' object is not iterable` footgun. `get_tool_schema()` still returns the object; `tool_schema_view()` still returns the dict.
+
+New tests cover the top-level `describe()` (present + shape), the `resolve` / `resolve_all` paths (exact / leaf / suffix / ambiguous / miss), and `ToolSchema` iterability + `len`. No C touched; ABI stays 3; JPL audit ratchet stays 0.
+
 ## [0.6.0rc14] - 2026-05-31
 
 **MS #20 kuramoto matrix-step voxel — `kuramoto_step` gains the GENERALISED Kuramoto-Sakaguchi step (§11.1): adjacency matrix + Sakaguchi α + per-oscillator pinning. The first C-touching rc of the §11 arc — a CO-EQUAL standalone-C peer (additive symbol; ABI stays 3). `describe()` tool total stays 178.**

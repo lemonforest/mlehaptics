@@ -91,8 +91,14 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc14():
-    """v0.6.0rc14 — MS #20 kuramoto matrix-step voxel (§11.1 forward-ask):
+def test_version_is_0_6_0rc15():
+    """v0.6.0rc15 — MS #20 self-recognition reads voxel: top-level
+    ``srmech.describe()`` (graduated from ``srmech.introspect``) + fuzzy
+    ``ToolSchema.resolve()`` / ``resolve_all()`` (bare-leaf / dotted-suffix →
+    FQN) + iterable ``ToolSchema`` (``for t in schema`` / ``len``). Pure-Python
+    introspection surface; ABI stays 3; ``describe()`` total stays 178.
+
+    Prior v0.6.0rc14 — MS #20 kuramoto matrix-step voxel (§11.1 forward-ask):
     ``kuramoto_step`` gains the GENERALISED Kuramoto-Sakaguchi step —
     ``adjacency`` (n×n coupling matrix; non-symmetric → directed, Laplacian →
     graph-structured; None → all-to-all uniform K/n), ``alpha`` (Sakaguchi
@@ -402,8 +408,8 @@ def test_version_is_0_6_0rc14():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc14", (
-        f"expected srmech.__version__ == '0.6.0rc14'; got "
+    assert srmech.__version__ == "0.6.0rc15", (
+        f"expected srmech.__version__ == '0.6.0rc15'; got "
         f"{srmech.__version__!r}"
     )
 

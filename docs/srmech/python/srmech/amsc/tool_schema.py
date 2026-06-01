@@ -238,6 +238,50 @@ class ToolSchema:
                 return t
         return None
 
+    def __iter__(self):
+        """Iterate the registered tools directly (``for t in schema``).
+
+        v0.6.0rc15 — closes the ``'ToolSchema' object is not iterable``
+        footgun. ``get_tool_schema()`` returns this object; ``tool_schema_view()``
+        returns the JSON dict — both stay, and now the object iterates too.
+        """
+        return iter(self.tools)
+
+    def __len__(self) -> int:
+        """Number of registered tools (``len(schema)``)."""
+        return len(self.tools)
+
+    def resolve(self, name: str) -> Optional[ToolEntry]:
+        """Resolve a tool by full name OR by bare leaf / dotted suffix.
+
+        v0.6.0rc15 — the "find a tool in ≤1 call" surface. Exact full-name
+        match wins (same as :meth:`lookup`). Otherwise the bare leaf
+        (``"kuramoto_step"``) or any dotted suffix (``"cascade.kuramoto_step"``)
+        is matched against ``srmech.amsc.cascade.kuramoto_step``. Returns the
+        single matching entry, or ``None`` when there is no match OR the name
+        is AMBIGUOUS (resolves to >1 tool) — an ambiguous leaf is never
+        silently resolved. Use :meth:`resolve_all` to enumerate the
+        candidates for an ambiguous name.
+        """
+        exact = self.lookup(name)
+        if exact is not None:
+            return exact
+        matches = self.resolve_all(name)
+        return matches[0] if len(matches) == 1 else None
+
+    def resolve_all(self, name: str) -> Tuple[ToolEntry, ...]:
+        """Every tool whose full name is ``name`` or ends with ``.name``.
+
+        The companion to :meth:`resolve` for the ambiguous case: a bare leaf
+        mapping to more than one fully-qualified tool returns all of them
+        here so the caller can disambiguate. Registration order preserved.
+        """
+        suffix = "." + name
+        return tuple(
+            t for t in self.tools
+            if t.name == name or t.name.endswith(suffix)
+        )
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Registry
