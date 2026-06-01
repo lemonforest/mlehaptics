@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc18] - 2026-06-01
+
+**MS #20 klein4-triality-cycle C peer voxel (the A-arc's silicon tier) — the co-equal native symbol `srmech_klein4_triality_cycle` (in `srmech_hdc.c`) computes the identical order-3 `S₃ = Aut(V₄)` relabel as the rc17 Python op. Additive symbol → ABI stays 3; JPL-clean; differential C↔Python parity-tested. No new ToolEntry (`describe()` total stays 179).**
+
+The co-equal-parity discipline applied to rc17: the Python `klein4_triality_cycle` now has its silicon-native twin — two complete implementations, neither needing the other at runtime.
+
+- **`srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n, int inverse, uint8_t *out)`** (in `srmech_hdc.c`; declared in the `srmech.h` klein4 block) — a length-4 lookup (`{0,2,3,1}` forward / `{0,3,1,2}` inverse), the same V₄-carrier order-3 cycle. JPL Power-of-Ten clean: ≤60-line, 2 asserts, no malloc / no goto / no multi-line macro; NULL → `SRMECH_ERR_NULL_ARG`, out-of-`{0,1,2,3}` → `SRMECH_ERR_BAD_INPUT`. **NEVER a Python callback** — the C path runs the C lookup.
+- **Additive symbol → ABI stays 3** (the Python ctypes shim binds it under its own `hasattr` guard, so a klein4-capable but pre-rc18 lib still loads fine).
+- **Differential parity** (`test_hdc_klein4_parity.py`): C-vs-Python bit-exact on random vectors both directions, the explicit forward/inverse maps + order-3 identity computed in C, and the out-of-range rejection. Guarded by the symbol's own `hasattr` (skips on a stale lib; runs in the cibuildwheel cells).
+
+No new ToolEntry; `describe()` total stays **179**. JPL audit ratchet stays at 0. The Python op stays pure-Python (co-equal, not routed-through-C), matching the existing klein4 surface.
+
 ## [0.6.0rc17] - 2026-06-01
 
 **MS #20 klein4-triality-cycle voxel (the A-arc's first code) — `srmech.amsc.hdc.klein4_triality_cycle`: the order-3 `S₃ = Aut(V₄)` generator cycling the three Klein-4 involutions `iω₇(1) → γ₅(2) → CPT(3)` (identity fixed). Pure-Python; +1 ToolEntry → `describe()` total 179; ABI stays 3.**

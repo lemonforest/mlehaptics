@@ -225,3 +225,56 @@ def test_klein4_unbind_still_self_inverse_under_default_flag():
     a, b = _k4(70), _k4(71)
     c = hdc.klein4_bind(a, b)
     assert np.array_equal(hdc.klein4_unbind(c, a), b)
+
+
+# --------------------------------------------------------------------------
+# v0.6.0rc18 — the co-equal C peer srmech_klein4_triality_cycle (the A-arc's
+# silicon tier). Differential C-vs-Python on the order-3 S3 = Aut(V4) relabel,
+# both directions. Guarded by its OWN symbol hasattr — a klein4-capable but
+# pre-rc18 lib (rc13-rc17) has bind but not triality_cycle, so the parity
+# test SKIPS there and runs in CI where the lib is freshly built.
+# --------------------------------------------------------------------------
+
+_K4_TRIALITY_NATIVE = _K4_NATIVE and hasattr(
+    _native.LIB, "srmech_klein4_triality_cycle"
+)
+_requires_triality_native = pytest.mark.skipif(
+    not _K4_TRIALITY_NATIVE,
+    reason="native srmech_klein4_triality_cycle absent (pure-Python or pre-rc18 lib)",
+)
+
+
+def _c_triality(arr, inverse=False):
+    n = arr.size
+    inp = (ctypes.c_uint8 * n).from_buffer_copy(arr.astype(np.uint8).tobytes())
+    out = (ctypes.c_uint8 * n)()
+    rc = _native.LIB.srmech_klein4_triality_cycle(
+        inp, n, 1 if inverse else 0, out
+    )
+    assert rc == _native.SRMECH_OK
+    return np.frombuffer(bytes(out), dtype=np.uint8).copy()
+
+
+@_requires_triality_native
+def test_parity_klein4_triality_cycle():
+    rng = np.random.default_rng(18)
+    for _ in range(20):
+        a = hdc.klein4_random(257, rng)
+        assert (_c_triality(a, False) == hdc.klein4_triality_cycle(a)).all()
+        assert (_c_triality(a, True)
+                == hdc.klein4_triality_cycle(a, inverse=True)).all()
+    # explicit maps + order-3 identity, computed in C
+    base = np.array([0, 1, 2, 3], dtype=np.uint8)
+    assert _c_triality(base).tolist() == [0, 2, 3, 1]
+    assert _c_triality(base, True).tolist() == [0, 3, 1, 2]
+    assert (_c_triality(_c_triality(_c_triality(base))) == base).all()
+
+
+@_requires_triality_native
+def test_parity_klein4_triality_rejects_out_of_range():
+    bad = np.array([0, 1, 4], dtype=np.uint8)
+    n = bad.size
+    inp = (ctypes.c_uint8 * n).from_buffer_copy(bad.tobytes())
+    out = (ctypes.c_uint8 * n)()
+    rc = _native.LIB.srmech_klein4_triality_cycle(inp, n, 0, out)
+    assert rc != _native.SRMECH_OK  # SRMECH_ERR_BAD_INPUT

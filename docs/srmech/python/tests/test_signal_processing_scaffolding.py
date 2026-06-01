@@ -91,8 +91,17 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc17():
-    """v0.6.0rc17 — MS #20 klein4-triality-cycle voxel (the A-arc's first code):
+def test_version_is_0_6_0rc18():
+    """v0.6.0rc18 — MS #20 klein4-triality-cycle C peer voxel (the A-arc's
+    silicon tier): the co-equal native symbol ``srmech_klein4_triality_cycle``
+    (in ``srmech_hdc.c``) computes the identical order-3 ``S₃ = Aut(V₄)``
+    relabel as the rc17 Python op — additive symbol → **ABI stays 3**;
+    JPL-clean (≤60-line, ≥2-assert, no malloc/goto); bound under its own
+    ctypes ``hasattr`` so a pre-rc18 klein4 lib still loads. Differential
+    C↔Python parity-tested both directions. No new ToolEntry (``describe()``
+    total stays 179). NEVER a Python callback.
+
+    Prior v0.6.0rc17 — MS #20 klein4-triality-cycle voxel (the A-arc's first code):
     ``srmech.amsc.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
     generator cycling the three Klein-4 involutions ``iω₇(1) → γ₅(2) → CPT(3)``
     (identity fixed), the V₄-carrier image of the so(8) ``8v → 8s → 8c``
@@ -432,8 +441,8 @@ def test_version_is_0_6_0rc17():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc17", (
-        f"expected srmech.__version__ == '0.6.0rc17'; got "
+    assert srmech.__version__ == "0.6.0rc18", (
+        f"expected srmech.__version__ == '0.6.0rc18'; got "
         f"{srmech.__version__!r}"
     )
 
