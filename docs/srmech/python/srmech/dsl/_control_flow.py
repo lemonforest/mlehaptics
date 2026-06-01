@@ -16,6 +16,28 @@ Design notes
   ``reduce`` are Class M (cross-class bind: accumulator + element each
   step); ``parallel`` is Class C (the Klein-4 chirality-sector fan-out
   of :func:`srmech.amsc.cascade.parallel_sector_dispatch`).
+* **The combinator set is a CLOSED, FINITE kernel — the two-tier SSoT
+  boundary.** ``then`` (apply) + ``loop`` + ``fold`` + ``reduce`` +
+  ``parallel`` are the *five* control-flow special forms, matched 1:1 by
+  exactly five stage-discriminators in the TOML reader (``op`` /
+  ``loop_n``+``sub_chain`` / ``fold_init``+``fold_op`` / ``reduce_op`` /
+  ``parallel_body``). They are the Bird-Meertens recursion schemes (apply
+  / bounded-iterate / catamorphism-with-seed / catamorphism / Klein-4
+  map-fan-out): the finite **anharmonic kernel**, HARDCODED here (and
+  mirrored co-equally in C). The asymptotic *cascade instances* the five
+  forms sequence are NOT hardcoded — they live as TOML op-descriptors in
+  the cascade catalog ("you can't hardcode a continuum"). Kernel in code,
+  continuum in catalog: the package's substrate-native ``1 + 3 + 7 + 3``
+  discipline turned on its own op-surface. The closure is pinned by
+  ``tests/test_combinator_kernel_closure.py`` (five-builder vs
+  five-discriminator bijection; no hidden sixth form).
+* **Closure is DESIGN-ENFORCED, not mathematically inevitable.**
+  Data-dependent iteration (``while`` / ``unfold`` — loop *until* a
+  predicate rather than a fixed ``n``) is deliberately EXILED to the
+  op-instance layer: a body op decides when to stop, keeping the
+  combinator kernel total-by-construction at five forms. A future
+  ``while`` / ``unfold`` special form would be a *sixth* combinator and a
+  conscious widening of the kernel — never a silent addition.
 * **Why ``parallel`` is a special form, not a plain ``op``.** A plain
   ``op`` stage is a 1→1 ``value → value`` map. ``parallel`` is a 1→N
   *fan-out*: it runs a caller-named *body* op across the ≤4 Klein-4

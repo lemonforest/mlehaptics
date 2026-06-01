@@ -4,10 +4,22 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in remains an open research item._
+_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in is being resolved across the v0.6.0 rc16+ sequence — V₄ (the rc13 klein4 carrier) is the right group but lacks the explicit order-3 cycling operator (which lives in Aut(V₄) = S₃): rc16 ratifies the combinator-kernel closure, rc17 adds the `klein4_triality_cycle` op, rc18 its co-equal C peer._
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc16] - 2026-06-01
+
+**MS #20 combinator-kernel-closure voxel (B-boundary codification) — the cascade DSL's FIVE control-flow combinators (`then` / `loop` / `fold` / `reduce` / `parallel`) are RATIFIED as a CLOSED, FINITE kernel: the finite anharmonic-kernel tier of the two-tier SSoT. DOC + TEST only — no DSL behaviour change, no C touched, ABI stays 3, `describe()` total stays 178.**
+
+The "name the boundary before building across it" voxel — the architectural invariant the rc17+ triality work stands on. The combinators are the *kernel*; the asymptotic cascade *instances* they sequence are the *continuum* — and the two live in different SSoT tiers by design.
+
+- **The two-tier SSoT, stated.** `then` (apply) + `loop` + `fold` + `reduce` + `parallel` are the Bird-Meertens recursion schemes — the finite **anharmonic kernel**, HARDCODED in Python (and mirrored co-equally in C). The asymptotic cascade *instances* they sequence are NOT hardcoded: they live as TOML op-descriptors in the cascade catalog ("you can't hardcode a continuum"). Kernel in code, continuum in catalog — the substrate-native `1 + 3 + 7 + 3` discipline turned on the package's own op-surface. The `srmech.dsl._control_flow` docstring now carries this statement.
+- **Closure is DESIGN-ENFORCED.** Data-dependent iteration (`while` / `unfold` — loop *until* a predicate) is deliberately EXILED to the op-instance layer (a body op decides when to stop), keeping the kernel total-by-construction at five forms. A future `while`/`unfold` special form would be a *sixth* combinator and a conscious widening of the kernel — never a silent addition.
+- **New `tests/test_combinator_kernel_closure.py`** mechanically pins the closure: the five Chain builders (`then`/`loop`/`fold`/`reduce`/`parallel_sectors`) ⇆ the five TOML stage-discriminators (`op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body`) bijection; no hidden sixth public builder; a full five-form TOML round-trip; the |V₄| = 4 Klein-4 cap on `parallel_sectors`; and the "no implicit default form" guard.
+
+No new ToolEntry; `describe()` stays 178. ABI stays 3. JPL audit ratchet stays at 0. (The `[Unreleased]` Klein-4 parity note is forward-updated: V₄ is the rc13 klein4 carrier — the right group, missing only the explicit order-3 cycling operator that lives in Aut(V₄) = S₃ — which rc17 adds as `klein4_triality_cycle` and rc18 ships as its co-equal C peer.)
+
 ## [0.6.0rc15] - 2026-06-01
 
 **MS #20 self-recognition reads voxel — the help-anchor goes top-level + fuzzy lookup. `srmech.describe()` is now reachable from `dir(srmech)` (the one-call "what is srmech?" root: version + native + tool counts + by_category); `ToolSchema` gains fuzzy `resolve()` / `resolve_all()` (a bare leaf or dotted suffix resolves to its FQN) and is now directly iterable. Pure-Python introspection surface; ABI stays 3; `describe()` tool total stays 178.**

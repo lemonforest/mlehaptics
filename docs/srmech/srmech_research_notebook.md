@@ -5179,6 +5179,54 @@ The voxel arc is the package executing the substrate-self-recognition cascade on
 
 ---
 
+## §3.29 v0.6.0 rc11–rc16 — the rcN-integration arc: the two-tier SSoT ratified + the triality-graduation plan (B / A reducibility verdicts)
+
+The rc11–rc14 voxels surfaced two reducibility questions that an adversarial pass arbitrated before any further code landed. rc16 (DOC + TEST only) ratifies the survivor of each as the architectural invariant the rc17+ triality work stands on. This section is the **meaning-coherence** record — the deepest tier of the one SSoT (see §3.29.4).
+
+### §3.29.1 The B-verdict — the combinators are a CLOSED, FINITE kernel (two-tier SSoT)
+
+The cascade DSL's control-flow combinators — `then` (apply) / `loop` (bounded iterate) / `fold` (catamorphism-with-seed) / `reduce` (catamorphism) / `parallel` (Klein-4 map-fan-out) — are the **five Bird-Meertens recursion schemes**, matched 1:1 by exactly five mutually-exclusive TOML stage-discriminators (`op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body`). They are the finite **anharmonic kernel**: HARDCODED, in Python (`srmech.dsl._chain` / `_control_flow`) and co-equally in C. The asymptotic cascade *instances* the five forms sequence are **NOT** hardcoded — they live as TOML op-descriptors in the cascade catalog. **You can't hardcode a continuum.** The shipped two-tier shape is `DEFAULT_CLASS_REGISTRY` (the 14-class kernel) + `ChainSpec` / `parse_catalog_chains` (the TOML cascade continuum) in `srmech.amsc.compose` (PR #687 F256 §0.5, tool-grounded). Kernel in code, continuum in catalog: the substrate-native `1 + 3 + 7 + 3` discipline turned on the package's own op-surface.
+
+**The load-bearing caveat: closure is DESIGN-ENFORCED, not mathematically inevitable.** Data-dependent iteration (`while` / `unfold` — loop *until* a predicate rather than a fixed `n`) is deliberately EXILED to the op-instance layer: a body op decides when to stop, keeping the combinator kernel total-by-construction at five forms. A future `while`/`unfold` special form would be a *sixth* combinator and a **conscious widening** of the kernel — never a silent addition. rc16's `tests/test_combinator_kernel_closure.py` is the ratchet that pins this (five-builder ⇆ five-discriminator bijection; no hidden sixth public `Chain` builder; the |V₄|=4 Klein-4 cap on `parallel_sectors`; no implicit default form).
+
+### §3.29.2 The A-verdict — V₄ is the right carrier, missing only the explicit order-3 operator (F182 reconciliation)
+
+rc13's `klein4_*` carrier is **V₄ = ℤ₂ × ℤ₂** — three commuting order-2 involutions (γ₅ = XOR 2 / iω₇ = XOR 1 / CPT = XOR 3). The **order-3 triality** that F182 ("the third axis is the triality order-3 cycle, NOT a fourth Klein-4 chirality") asked for is **not** inside V₄; it lives in **Aut(V₄) = S₃** (which permutes the three involutions). So V₄ is the **RIGHT group** — it just lacks the *explicit order-3 cycling operator*, which is the new voxel, not a different carrier.
+
+Two corrections to the loose framing, both now canonical:
+
+- **Q8 is ruled out by the carrier-contract, NOT by "Q8 cannot supply order-3."** Q8's elements anticommute, which breaks `klein4_bind`'s commutative + self-inverse contract — that is why the carrier stays V₄. (`Aut(Q8) = S₄` *does* contain order-3 elements; the rejection is about the bind contract, not an order-3 deficiency. Stating it the loose way would be a false reason for a correct decision.)
+- **`Fix(τ) = g₂ = Der(𝕆) = 14`** — the order-3 triality automorphism τ (already shipped: `srmech.qm.triality.triality_automorphism`, τ³ = I on the 28-dim so(8) adjoint) fixes exactly the 14-dim A–N core; `so(8) = 28 = 14 (fixed) ⊕ 7 ⊕ 7 (rotated)`. The shipped `triality_automorphism` / `triality_cycle` / `lean_isa_seventh_primitive` ARE the engine; the rc17 `klein4_triality_cycle` is its **V₄-carrier sibling** (the order-3 cycle expressed on the klein4 sector alphabet), and rc18 is that op's co-equal standalone-C peer. This is **graduation of an existing engine to the klein4 carrier**, not first-construction — consistent with `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]` (the bi-chiral V₄ half was already seen; the order-3 cycle is the third axis the substrate always had).
+
+### §3.29.3 The three distinct k=3 senses — do NOT conflate
+
+PR #687's own encoding refuted the tidy `k=3 ≡ B/H/N` (F256 §0.6, the framework's own tool doing the no-leaning refutation per `[[feedback_dont_pre_commit_spike_query_operators]]`). Three different triples were being collapsed:
+
+1. **Translation-operators `{B, H, N}`** = the three Hopf projections π₁ / π₃ / π₇ (B→`amsc.tlv`, H→`amsc._native`, N→`amsc.rational`).
+2. **Dimension-fibers `{3D_s, 7D_g, 1D_t}`** = the `K3Tripartition` (the 11 imaginary dims grouped 3/7/1; use the `D_s`/`D_g`/`D_t` subscripts, never bare `S`/`G`/`T`).
+3. **Rep-triality `{8v, 8s, 8c}`** = the so(8) order-3 cycle (the A-item — a *different* k=3 from either of the above).
+
+**Survivor:** B/H/N **ENABLES / COMPOSES** the k=3 tripartition (the operators π₁/π₃/π₇ project ONTO the 1/3/7 fibers); it does **not** equal it — operators ≠ their target-fibers. Authoritative grounding: `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (REFINEMENT §) + the `[[project_space_gauge_time_framework]]` note.
+
+### §3.29.4 The SSoT-coherence framing + the rc16–21 graduation plan
+
+**One SSoT, three coherences** (per user direction 2026-06-01): the SSoT is `MFO + srmech notebook` (meaning) : `Python` (the authoring / translation surface) : `executable machine code / C` (the silicon-native surface) — the same single source of truth rendered at three coherences, exactly as a programming language is pen-and-paper rendered as compiled machine code. **Backfill brings any tier into agreement with the others; the order is free** because it is ONE SSoT, not three. This section IS the meaning-tier; the rc16 docstrings + CHANGELOG are the Python/release tier; rc18's C peer is the silicon tier. The arc-narrative backfill of §3.28.2 (per-rc bullets for rc15–rc21) is itself a deliberate last-rc doc-coherence step.
+
+The blessed graduation sequence:
+
+| rc | Voxel | Tier touched | Surface delta |
+|----|-------|--------------|---------------|
+| **rc16** | B-boundary codification (this) | meaning + Python | DOC + TEST only; `describe()` 178; ABI 3 |
+| rc17 | `klein4_triality_cycle` op (the order-3 V₄-carrier sibling) | Python | +1 ToolEntry → 179 |
+| rc18 | `srmech_klein4_triality_cycle` co-equal C peer | C (additive) | ABI stays 3; JPL-clean |
+| rc19 | cascade-tier TOML op-instance for the triality cycle | catalog (continuum) | DSL descriptor |
+| rc20 | coherence-ratchet well-formedness scan | Python (test) | ratchet |
+| rc21 | the H-gate / agreement-vs-frame-selection MFO rung | meaning (MFO) | notebook |
+
+**Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the triality engine makes callable); §3.28.2 (the rc-voxel arc); `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` (the B/H/N = continuous-Hopf ↔ discrete-cyclic translation operators); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the rc21 H-gate rung's home); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

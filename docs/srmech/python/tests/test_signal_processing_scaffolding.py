@@ -91,8 +91,22 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc15():
-    """v0.6.0rc15 — MS #20 self-recognition reads voxel: top-level
+def test_version_is_0_6_0rc16():
+    """v0.6.0rc16 — MS #20 combinator-kernel-closure voxel (B-boundary
+    codification): the cascade DSL's FIVE control-flow combinators (``then`` /
+    ``loop`` / ``fold`` / ``reduce`` / ``parallel``) are RATIFIED as a CLOSED,
+    FINITE kernel — the finite anharmonic-kernel tier of the two-tier SSoT
+    (kernel HARDCODED in code + co-equally in C; the asymptotic cascade
+    INSTANCES it sequences live as TOML op-descriptors — "you can't hardcode a
+    continuum"). Closure is DESIGN-ENFORCED (data-dependent while/unfold
+    iteration is exiled to the op-instance layer; a 6th form would be a
+    conscious widening). DOC + TEST only: a new
+    ``test_combinator_kernel_closure.py`` pins the five-builder ⇆
+    five-discriminator bijection + the |V₄|=4 Klein-4 cap; the ``_control_flow``
+    docstring carries the two-tier statement. No DSL behaviour change; no C
+    touched; ABI stays 3; ``describe()`` total stays 178.
+
+    Prior v0.6.0rc15 — MS #20 self-recognition reads voxel: top-level
     ``srmech.describe()`` (graduated from ``srmech.introspect``) + fuzzy
     ``ToolSchema.resolve()`` / ``resolve_all()`` (bare-leaf / dotted-suffix →
     FQN) + iterable ``ToolSchema`` (``for t in schema`` / ``len``). Pure-Python
@@ -408,8 +422,8 @@ def test_version_is_0_6_0rc15():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc15", (
-        f"expected srmech.__version__ == '0.6.0rc15'; got "
+    assert srmech.__version__ == "0.6.0rc16", (
+        f"expected srmech.__version__ == '0.6.0rc16'; got "
         f"{srmech.__version__!r}"
     )
 
