@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc18():
-    """v0.6.0rc18 — MS #20 klein4-triality-cycle C peer voxel (the A-arc's
+def test_version_is_0_6_0rc19():
+    """v0.6.0rc19 — MS #20 triality S₃=Aut(V₄) worked-instance voxel (the
+    continuum-tier instantiation): a worked cascade INSTANCE
+    (``_research/worked_instances/triality_s3_klein4.toml``) + its executable
+    attestation (``test_triality_s3_worked_instance.py``) showing
+    ``klein4_triality_cycle`` IS the order-3 generator of Aut(V₄)=S₃ — via the
+    conjugation ``T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}`` cyclically permuting the three
+    klein4 flips (iω₇ → γ₅ → CPT). The klein4 ops stay KERNEL-tier (hdc; NOT
+    re-exported to the DSL cascade catalog); the TOML is the continuum-tier
+    *instance*, verified in Python against the real ops. DOC + TEST only; no new
+    symbol/ToolEntry (``describe()`` total stays 179); ABI stays 3; JPL ratchet 0.
+
+    Prior v0.6.0rc18 — MS #20 klein4-triality-cycle C peer voxel (the A-arc's
     silicon tier): the co-equal native symbol ``srmech_klein4_triality_cycle``
     (in ``srmech_hdc.c``) computes the identical order-3 ``S₃ = Aut(V₄)``
     relabel as the rc17 Python op — additive symbol → **ABI stays 3**;
@@ -441,8 +452,8 @@ def test_version_is_0_6_0rc18():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc18", (
-        f"expected srmech.__version__ == '0.6.0rc18'; got "
+    assert srmech.__version__ == "0.6.0rc19", (
+        f"expected srmech.__version__ == '0.6.0rc19'; got "
         f"{srmech.__version__!r}"
     )
 

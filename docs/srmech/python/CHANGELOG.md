@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc19] - 2026-06-01
+
+**MS #20 triality S₃=Aut(V₄) worked-instance voxel — a continuum-tier worked cascade INSTANCE showing `klein4_triality_cycle` IS the order-3 generator of Aut(V₄)=S₃, via the conjugation `T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}` cyclically permuting the three klein4 flips. DOC + TEST only; klein4 ops stay kernel-tier; `describe()` stays 179; ABI stays 3.**
+
+The two-tier SSoT made concrete for the triality voxel: the order-3 cycle (rc17 Python + rc18 C) is a KERNEL op; rc19 ships its continuum-tier *instance* — a worked cascade composing it with the klein4 flips — WITHOUT blurring the kernel/catalog boundary (the hdc ops are deliberately NOT re-exported into the `srmech.dsl` cascade catalog).
+
+- **`srmech/amsc/_research/worked_instances/triality_s3_klein4.toml`** — a worked-instance descriptor (NOT a cascade-catalog op-descriptor; NOT a `run_toml_chain` chain): the V₄ carrier, the three V₄-translation flips (iω₇/γ₅/CPT = XOR 1/2/3), the order-3 Aut(V₄) generator `T = klein4_triality_cycle`, and the load-bearing conjugation cascade `T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}` (T cyclically permutes the three translations iω₇→γ₅→CPT→iω₇). Honest about the distinction: the flips are V₄ *translations* (the objects T permutes), not S₃ group elements; only the order-3 generator T is exposed (the F182 "third axis").
+- **`tests/test_triality_s3_worked_instance.py`** — the worked instance's executable attestation: against the real `hdc` ops it verifies T order-3, each flip an involution, T a V₄ homomorphism (`T(u⊕w)=T(u)⊕T(w)`), and the three-leg conjugation cycle bit-exactly.
+
+No new symbol or ToolEntry; `describe()` total stays **179**. ABI stays **3**. JPL audit ratchet stays at 0. The worked-instance TOML ships in both wheels (`srmech/**` package glob).
+
 ## [0.6.0rc18] - 2026-06-01
 
 **MS #20 klein4-triality-cycle C peer voxel (the A-arc's silicon tier) — the co-equal native symbol `srmech_klein4_triality_cycle` (in `srmech_hdc.c`) computes the identical order-3 `S₃ = Aut(V₄)` relabel as the rc17 Python op. Additive symbol → ABI stays 3; JPL-clean; differential C↔Python parity-tested. No new ToolEntry (`describe()` total stays 179).**
