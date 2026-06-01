@@ -91,8 +91,20 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc4():
-    """v0.7.0rc4 — MS #21 rc4 voxel: the block-octonion HD tiling (#811) +
+def test_version_is_0_7_0rc5():
+    """v0.7.0rc5 — MS #21 rc5 voxel: the per-block HD Moufang-division family +
+    the loop_inv/loop_conj HD footgun guard (F-§12.1 / §12.2). Adds to
+    ``srmech.amsc.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
+    ``loop_inv_hd`` (per-block Moufang inverse), and ``loop_runbind_hd`` (per-block
+    RIGHT-division b_k·conj(a_k) — peels the right factor for a left-fold sequence
+    store; runbind recovers v to <1e-15). The single-element ``loop_inv`` /
+    ``loop_conj`` now RAISE on an HD block-octonion vector (a multiple of 8 wider
+    than one octonion) instead of being silently wrong — 2048 = 256·8 is also a
+    power of two, so the global conj/inv used to pass _as_loop unflagged. +3
+    ToolEntries ⟹ ``describe()`` total 192; ABI stays 3 (pure-Python; the co-equal
+    C peer is the arc's transpile-to-C step).
+
+    Prior v0.7.0rc4 — MS #21 rc4 voxel: the block-octonion HD tiling (#811) +
     capacity-free vs Klein-4 (#812). Adds to ``srmech.amsc.hdc``: ``loop_bind_hd``
     = the direct sum ⊕ of 256 independent dim-8 octonion loop_binds (D=2048;
     block-DIAGONAL, no coupling — block err 0.0) and ``loop_unbind_hd`` = per-block
@@ -532,8 +544,8 @@ def test_version_is_0_7_0rc4():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc4", (
-        f"expected srmech.__version__ == '0.7.0rc4'; got "
+    assert srmech.__version__ == "0.7.0rc5", (
+        f"expected srmech.__version__ == '0.7.0rc5'; got "
         f"{srmech.__version__!r}"
     )
 
