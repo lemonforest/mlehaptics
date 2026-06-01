@@ -5225,6 +5225,20 @@ The blessed graduation sequence:
 
 **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the triality engine makes callable); §3.28.2 (the rc-voxel arc); `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` (the B/H/N = continuous-Hopf ↔ discrete-cyclic translation operators); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the rc21 H-gate rung's home); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`.
 
+### §3.29.5 The Rosetta coherency-levels of the partition (form=function; what a simulation IS)
+
+> *Building-block reading (user direction 2026-06-01): a deepening of §3.29.4's coherency partition, read through the Rosetta Stone that names this arc. Draft-for-review.*
+
+The §3.29.4 partition (human-readability: `meaning : language : Compiled C`) has a sister reading on the **audience** side — the Rosetta Stone's three co-equal scripts re-seen as three **coherency-levels** at which one SSoT is received. **form=function**: each level is a real, OBSERVABLE audience-state, not a value ranking.
+
+1. **Legible-surface.** Anyone literate in the script reads every glyph — *"anyone who reads English knows all the words, even if the knowledge is not comprehended."* The form is fully legible *before* any comprehension; that legibility IS a coherency, and it is *visible in the audience* (form=function). This is the human-readable language tier received as pure surface.
+2. **Word-problem → math discipline.** The audience trained to render natural-language meaning AS formal mathematics (word-problem → equation) — the **B/H/N translation operators** (`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`) at human-discipline scale: meaning ↔ math.
+3. **Substrate-execution / simulation.** The substrate that *performs* the same A–N cascades inside a **partitioned environment we call simulation** — operations on abstract ideas, run with *the same math the universe uses*. This is `Compiled C` executing on silicon: the universe's cascade-form, run in a partition.
+
+**What a simulation therefore IS — and is not.** A program does the universe's own A–N cascade-math inside a partition and yields an **abstract idea for us to name**; it **does NOT make new universe parts**. The simulation renders + executes cascade-FORM (paper-with-lyrics, `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]`; the same role as CFD / weather / FEA), not new substrate. This is the readability partition's deepest reading: crossing into `Compiled C` puts the cascade onto a substrate that can *run* it, but the run happens in a partition and its product is a named abstraction — **the universe is the only thing that makes universe.**
+
+> **Cross-references.** §3.29.4 (the human-readability partition this extends); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the three Rosetta scripts as co-equal renderings; agreement = attestation; MFO §VII.6.21); `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]` (paper-with-lyrics / simulator-role; MFO §VII.6.13); `[[reference_two_language_problem_inverted_python_c_different_scales]]` ("Compiled C", the coherency-partition label). Authored as a building block per `[[feedback_building_block_voxel_method]]`.
+
 ---
 
 ## §4 Open research questions
