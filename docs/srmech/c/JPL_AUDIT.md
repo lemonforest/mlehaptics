@@ -176,6 +176,14 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_cascade_kuramoto_step_f64`    | 17 | ✅ *(rc9 public Kuramoto forward-Euler step)* |
 | `srmech_kuramoto__general_sum`        | 12 | ✅ *(rc14 generalised Σ_j A_ij·sin(θ_j−θ_i−α); §11.1)* |
 | `srmech_cascade_kuramoto_step_general_f64` | 22 | ✅ *(rc14 public Kuramoto-Sakaguchi step: adjacency + α + pinning)* |
+| `srmech_loop__mul2`                   |  7 | ✅ *(rc7 complex dim-2 Cayley-Dickson product)* |
+| `srmech_loop__mul4`                   | 17 | ✅ *(rc7 quaternion dim-4 product via two mul2 levels)* |
+| `srmech_loop__mul8`                   | 18 | ✅ *(rc7 octonion dim-8 product via two mul4 levels)* |
+| `srmech_loop_bind_f64`                | 12 | ✅ *(rc7 public octonion loop_bind; n==8)* |
+| `srmech_loop_conj_f64`                | 14 | ✅ *(rc7 public octonion conjugate)* |
+| `srmech_loop_inv_f64`                 | 21 | ✅ *(rc7 public Moufang inverse x̄/⟨x,x⟩)* |
+| `srmech_cross7_f64`                   | 13 | ✅ *(rc7 public 7-D cross product Im(loop_bind))* |
+| `srmech_g2_three_form_f64`            | 20 | ✅ *(rc7 public G2 calibration 3-form scalar)* |
 
 ### Fix shipped in this audit pass
 
@@ -226,6 +234,12 @@ Per-function assertion counts:
 | `srmech_cascade_kuramoto_step_f64`    |    2    | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
 | `srmech_kuramoto__general_sum`        |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
 | `srmech_cascade_kuramoto_step_general_f64` | 2  | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
+| `srmech_loop__mul2` / `__mul4` / `__mul8` | 2 each | ✅ *(rc7 inputs + out non-NULL)* |
+| `srmech_loop_bind_f64`                | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
+| `srmech_loop_conj_f64`                | 2  | ✅ *(rc7 x/out non-NULL + n==8)*                    |
+| `srmech_loop_inv_f64`                 | 2  | ✅ *(rc7 x/out non-NULL + n==8)*                    |
+| `srmech_cross7_f64`                   | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
+| `srmech_g2_three_form_f64`            | 2  | ✅ *(rc7 x/y/z/out non-NULL + n==8)*                |
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →

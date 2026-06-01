@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc7] - 2026-06-02
+
+**MS #21 rc7 voxel — the co-equal C peer for the octonion loop-bind family (the Python→C transpile). New native symbols → ABI stays 3 (additive); `describe()` stays 192.**
+
+The MS#21 loop-bind family shipped Python-first (rc1–rc6); this voxel lands its **co-equal Compiled-C tier** so srmech runs the octonion algebra natively (the microcontroller-readiness commitment). `c/src/srmech_loopbind.c` ports the dim-8 octonion (Cayley-Dickson) product and companions:
+
+- **`srmech_loop_bind_f64`** — the octonion product `(a,b)(c,d) = (a c − conj(d) b, d a + b conj(c))`. JPL Rule 1 bans recursion, so the Python's recursive `_loop_bind_raw` is **unrolled** as a fixed real→complex→quaternion→octonion call DAG (`srmech_loop__mul2/4/8`) — **bit-exact** with the Python (identical operand order at every level).
+- **`srmech_loop_conj_f64`** (Class-C conjugate), **`srmech_loop_inv_f64`** (Moufang inverse `x̄/⟨x,x⟩`; Class-K clean), **`srmech_cross7_f64`** (`Im(loop_bind)`), **`srmech_g2_three_form_f64`** (`⟨x, cross7(y,z)⟩`).
+- **Octonion carrier only:** every `n` must be 8; other dims return `SRMECH_ERR_BAD_INPUT` and the Python keeps its recursive fallback. The **HD block variants** (`loop_bind_hd`, `loop_unbind_hd`, `loop_conj_hd`, `loop_inv_hd`, `loop_runbind_hd`) inherit native acceleration **for free** — their wrappers loop over 8-blocks calling the per-block `loop_bind`/`loop_conj`, which now dispatch to C.
+- **Python dispatch** in `srmech.amsc.hdc`: `loop_conj` / `loop_bind` / `loop_inv` / `cross7` / `g2_three_form` try the native path (`type`/size-guarded; `n==8` only) then fall back to pure Python — exact behaviour preserved.
+- **`tests/test_loopbind_parity.py`**: native == pure-Python (bit-exact `array_equal` for bind/conj/cross7; `<1e-15` for inv; octonion identities `x·x⁻¹=e₀`, cross7 antisymmetry; per-block HD native; the dim-16 sedenion non-octonion fallback).
+
+JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts each, no recursion/malloc/goto; gcc/clang/MSVC `-Werror`/`/WX`). **No new ToolEntry / no new class** — these are native peers of existing ops, so `describe()` stays **192**; **ABI stays 3** (new symbols are additive). Verified bit-exact on a 64-bit local build over 500 random octonions; CI's native cells + the TestPyPI wheel are the cross-compiler gate.
+
 ## [0.7.0rc6] - 2026-06-02
 
 **MS #21 rc6 voxel — bring-your-own (BYO) cascade-TOML (#811 / F289 D2). Config API only → `describe()` stays 192; ABI stays 3.**
