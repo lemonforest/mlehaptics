@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc6] - 2026-06-02
+
+**MS #21 rc6 voxel — bring-your-own (BYO) cascade-TOML (#811 / F289 D2). Config API only → `describe()` stays 192; ABI stays 3.**
+
+The DSL cascade-catalog was a closed set: only the 10 shipped `*.toml` descriptors under `srmech/amsc/_research/cascade_catalog/`. This voxel opens it — a domain specialist who needs a cascade srmech doesn't catalog, or a behaviour defined by a TOML descriptor that follows srmech's naming, can now bring their own:
+
+- **`srmech.dsl.register_catalog_dir(path)`** — register an external dir of `*.toml` cascade descriptors. The zero-API equivalent is the **`SRMECH_CASCADE_PATH`** env-var (os.pathsep-separated dirs). Registered ops then resolve (`chain().then(...)` / `run_toml_chain`), run, and surface (`list_catalog_ops` / `srmech dsl ops`) identically to shipped ops.
+- **PURE-TOML composites** — a user descriptor may carry a `[composite]` body whose `[[composite.stage]]` array is a chain of named ops (no Python): `lookup_cascade_op` resolves it to a unary stage that builds + runs the sub-chain. (Or a primitive descriptor, which needs a matching `srmech.amsc.cascade` callable, exactly as the shipped ones do.)
+- **MPM provenance tiers** — every descriptor is tagged `_provenance`: shipped = **"srmech"** (A-tier); user = **"user:&lt;sha256&gt;"** (B-tier, attested to the user's own descriptor hash, NOT a shipped primitive). `list_catalog_ops()` gains a `"provenance"` field (`"srmech"` / `"user"`).
+- **Loud-at-load validation** — a user op-name may **not shadow** a shipped or earlier op (raises); composites are validated at load (every referenced op resolves; the composite graph is acyclic). A typo fails loudly at load, not silently at run — the "follow srmech naming" gate.
+- **`tests/test_byo_cascade_toml.py`** (9 tests): register + resolve + run a user composite (fluent builder + `run_toml_chain`); `SRMECH_CASCADE_PATH`; provenance tags; shadow-rejection; unknown-op / cycle / missing-name loud-at-load; nonexistent-dir rejection; shipped catalog + `describe()` unchanged.
+
+**Config API only** — `register_catalog_dir` is not a cascade op / not a ToolEntry, so `describe()` stays **192**; ABI stays **3** (pure-Python, additive). Defaults blessed by the user (reject-on-shadow protects MPM A-tier integrity; ship anchors then iterate from use). Anchors: F289 D2 (`rc4_handdown_and_byo_cascade_toml`); §12.3 confirmed-deferred.
+
 ## [0.7.0rc5] - 2026-06-02
 
 **MS #21 rc5 voxel — the per-block HD Moufang-division family + the `loop_inv`/`loop_conj` HD footgun guard (F-§12.1 / §12.2). +3 ToolEntries → `describe()` 192; ABI stays 3.**

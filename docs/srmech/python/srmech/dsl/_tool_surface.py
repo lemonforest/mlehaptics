@@ -99,18 +99,24 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     -------
     list[dict]
         ``[{"name": str, "class": <A–N class composition>, "purpose":
-        str, "kind": "stage" | "combinator"}, ...]``, sorted ascending by
-        ``name`` (10 ops: the 8 v0.5.0rc12 lean-ISA atoms/composites + the
-        v0.6.0 parallel_sector_dispatch + kuramoto_step). ``kind`` is the
-        DSL role: ``"stage"`` = a plain ``op=`` value→value stage;
+        str, "kind": "stage" | "combinator", "provenance": "srmech" |
+        "user"}, ...]``, sorted ascending by ``name``. Includes the 10
+        shipped ops (the 8 v0.5.0rc12 lean-ISA atoms/composites + the v0.6.0
+        parallel_sector_dispatch + kuramoto_step) PLUS any bring-your-own
+        ops from a registered catalog dir (F289 D2). ``kind`` is the DSL
+        role: ``"stage"`` = a plain ``op=`` value→value stage;
         ``"combinator"`` = a higher-order special form (``parallel_sector_dispatch``)
         driven by its own discriminator (the ``parallel`` fan-out), NOT
-        usable as a plain ``op=`` stage.
+        usable as a plain ``op=`` stage. ``provenance`` is the MPM tier:
+        ``"srmech"`` (A-tier shipped) or ``"user"`` (B-tier, attested to the
+        user's own descriptor — a bring-your-own op).
     """
     out: List[Dict[str, str]] = []
     for name in list_cascade_ops():
-        cascade = get_descriptor(name).get("cascade", {})
+        desc = get_descriptor(name)
+        cascade = desc.get("cascade", {})
         kind = str(cascade.get("kind", "stage")) or "stage"
+        prov = str(desc.get("_provenance", "srmech"))
         out.append({
             "name": name,
             "class": str(cascade.get("class_composition", "")),
@@ -119,6 +125,10 @@ def list_catalog_ops() -> List[Dict[str, str]]:
             # "combinator" (a higher-order special form — drive via its
             # own discriminator, e.g. the `parallel` fan-out, NOT `op=`).
             "kind": kind,
+            # MPM provenance tier: "srmech" (A-tier shipped op) or "user"
+            # (a bring-your-own catalog-dir op, attested to its own
+            # descriptor hash, NOT a shipped primitive; F289 D2).
+            "provenance": "srmech" if prov == "srmech" else "user",
         })
     return out
 

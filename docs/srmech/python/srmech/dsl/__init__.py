@@ -55,6 +55,7 @@ from ._catalog import (
     list_cascade_ops,
     load_catalog,
     lookup_cascade_op,
+    register_catalog_dir,
 )
 from ._chain import Chain, chain
 from ._tool_surface import list_catalog_ops, run_toml_chain
@@ -75,6 +76,8 @@ __all__ = [
     "load_catalog",
     "get_descriptor",
     "CATALOG_DIR",
+    # Bring-your-own external cascade-catalog dirs (F289 D2)
+    "register_catalog_dir",
     # TOML loader
     "load_chain_toml",
     "build_chain_from_toml",
