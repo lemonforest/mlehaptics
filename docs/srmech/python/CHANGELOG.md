@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc8] - 2026-06-02
+
+**MS #21 rc8 voxel — the Class-L circular autocorrelation primitive (the F290 §C un-flatten Wiener-Khinchin op), shipped CO-EQUAL in Python AND C. +1 ToolEntry → `describe()` 193; +1 cascade-catalog op → 11 DSL ops; new symbol → ABI stays 3.**
+
+The F290 §C "un-flatten" catalog composite (`autocorr → difference-graph → conservation-validate`) was blocked on **one** missing Class-L primitive: srmech had no autocorrelation op, so the composite could not be authored as pure-TOML over named ops. This voxel ships it, Python + C together:
+
+- **`srmech.amsc.cascade.autocorrelation(x)`** — the circular autocorrelation `r[k] = Σ_i x[i]·x[(i+k) mod n]` (`r[0] = Σ x² = energy`) of a real sequence. This is EXACTLY the Wiener-Khinchin spectral object `r = Re(IFFT(|FFT(x)|²))` (the circular-convolution theorem) — that identity is **WHY** it is **Class L** (the spectral side: autocorrelation ↔ power spectrum). The Python wrapper computes it the fast way (numpy FFT). `n==0 → []`.
+- **`srmech_autocorrelation_f64`** (`c/src/srmech_autocorr.c`) — the co-equal native peer computes the **DIRECT O(n²) multiply-add sum** — the IDENTICAL object, and JPL-clean: **no FFT**, hence no recursion (Rule 1) and no transcendentals — just bounded loops over caller buffers, so it runs on a microcontroller with no host Python and no FFT library. `srmech.amsc.cascade` dispatches to it when `HAS_NATIVE`, else the numpy FFT fallback. Parity to FFT round-off (`~1e-12`, NOT bit-exact — the FFT route and the direct sum accumulate in different orders; a compiler may also contract `a*b` into an FMA).
+- **HONEST CASCADE SHAPE:** Class L (the Wiener-Khinchin reading); computationally a Σ-reduce of products — **no `abs()`**, no sign branch. NOT a new privileged primitive class.
+- **`autocorrelation.toml`** descriptor (`class_composition = "L"`, `c_symbol_f64 = "srmech_autocorrelation_f64"`) makes it discoverable (`srmech dsl ops` → **11 ops**) and runnable as a DSL stage. **`tests/test_autocorrelation.py`**: the FFT route equals the naive direct-sum definition (the spectral identity holds); the energy anchor `r[0] == Σ x²`; circular symmetry `r[k] == r[n-k]`; boundary cases (`n==0 → []`, `n==1 → [x[0]²]`, constant signal); catalog discovery; and (native) the direct-sum peer matches the naive sum to `~1e-12`.
+
+JPL Power-of-Ten clean (one ~13-line function, ≥2 asserts, no recursion/malloc/goto; gcc/clang/MSVC `-Werror`/`/WX`). **+1 ToolEntry → `describe()` 192 → 193**; **ABI stays 3** (a new symbol is additive). Unblocks the F290 §C un-flatten composite as pure-TOML over named ops. Anchors: Wiener 1930 / Khinchin 1934 (the autocorrelation ↔ power-spectrum theorem); R-RBS-LM F290 §C (the un-flatten catalog).
+
 ## [0.7.0rc7] - 2026-06-02
 
 **MS #21 rc7 voxel — the co-equal C peer for the octonion loop-bind family (the Python→C transpile). New native symbols → ABI stays 3 (additive); `describe()` stays 192.**

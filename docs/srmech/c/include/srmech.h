@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc7"
-#define SRMECH_VERSION       "0.7.0rc7"
+#define SRMECH_VERSION_PRE   "rc8"
+#define SRMECH_VERSION       "0.7.0rc8"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -637,6 +637,21 @@ srmech_status_t srmech_cross7_f64(
 srmech_status_t srmech_g2_three_form_f64(
     const double *x, const double *y, const double *z, size_t n,
     double *out);
+
+/* ------------------------------------------------------------------ *
+ * Class L — autocorrelation (MS#21 v0.7.0rc8; the F290 §C primitive)
+ *
+ * The circular autocorrelation r[k] = Σ_i x[i]·x[(i+k) mod n] (r[0] = Σx² =
+ * energy). This is the Wiener-Khinchin spectral object r = Re(IFFT(|FFT|²))
+ * — that identity is WHY it is Class L (autocorrelation ↔ power spectrum) —
+ * but the C peer computes the DIRECT O(n²) sum, which is the same object and
+ * needs NO FFT (so no recursion, no transcendentals; JPL-clean). The Python
+ * wrapper uses the fast numpy FFT route + dispatches here for the embedded /
+ * full-parity path. Parity to FFT roundoff (~1e-12). `out` (n doubles) MUST
+ * NOT alias `x`. n == 0 -> no-op. ABI-additive — SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_autocorrelation_f64(
+    const double *x, size_t n, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

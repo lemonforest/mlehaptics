@@ -91,8 +91,21 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc7():
-    """v0.7.0rc7 — MS #21 rc7 voxel: the co-equal C peer for the octonion
+def test_version_is_0_7_0rc8():
+    """v0.7.0rc8 — MS #21 rc8 voxel: the Class-L circular autocorrelation
+    primitive (the F290 §C un-flatten Wiener-Khinchin op) shipped CO-EQUAL
+    in Python AND C. ``srmech.amsc.cascade.autocorrelation(x)`` returns the
+    circular autocorrelation r[k] = Σ_i x[i]·x[(i+k) mod n] (r[0] = Σ x² =
+    energy) = Re(IFFT(|FFT(x)|²)) — the Wiener-Khinchin identity that makes
+    it Class L. The Python wrapper uses the fast numpy FFT; the native peer
+    ``srmech_autocorrelation_f64`` (c/src/srmech_autocorr.c) computes the
+    DIRECT O(n²) multiply-add sum — the same object, JPL-clean (no FFT, so
+    no recursion / no transcendentals). +1 ToolEntry ⟹ ``describe()`` total
+    193; +1 cascade-catalog op ⟹ 11 DSL ops; a new symbol only ⟹ ABI stays
+    3 (additive). Unblocks the F290 §C un-flatten composite (autocorr ->
+    difference-graph -> conservation-validate) as pure-TOML over named ops.
+
+    Prior v0.7.0rc7 — MS #21 rc7 voxel: the co-equal C peer for the octonion
     loop-bind family (the Python→C transpile). ``c/src/srmech_loopbind.c`` ports
     the dim-8 octonion (Cayley-Dickson) product loop_bind + loop_conj / loop_inv /
     cross7 / g2_three_form to native ``srmech_loop_*_f64`` symbols — recursion-free
@@ -566,8 +579,8 @@ def test_version_is_0_7_0rc7():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc7", (
-        f"expected srmech.__version__ == '0.7.0rc7'; got "
+    assert srmech.__version__ == "0.7.0rc8", (
+        f"expected srmech.__version__ == '0.7.0rc8'; got "
         f"{srmech.__version__!r}"
     )
 

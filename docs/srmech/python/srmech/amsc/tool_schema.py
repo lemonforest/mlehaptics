@@ -1610,6 +1610,32 @@ def _register_primitive_class_tools() -> None:
                           "pinning strength p (scalar or length-n); default 1.0")),
             returns=R("list[float]", "phases after one forward-Euler Kuramoto step"),
         ),
+        ToolEntry(
+            name="srmech.amsc.cascade.autocorrelation", owner="srmech",
+            category="cascade",
+            summary="Class L CIRCULAR AUTOCORRELATION (Wiener-Khinchin) of a "
+                    "real sequence — reach for this for the autocorrelation ↔ "
+                    "power-spectrum object. A plain DSL stage-op (kind='stage'): "
+                    "the piped value is the signal `x`; returns the length-n "
+                    "autocorrelation r with r[k] = Σ_i x[i]·x[(i+k) mod n] and "
+                    "r[0] = Σ x² = energy. EXACTLY the spectral object "
+                    "r = Re(IFFT(|FFT(x)|²)) (circular-convolution theorem) — "
+                    "that identity is WHY it is Class L. The F290 §C 'un-flatten' "
+                    "composite (autocorr → difference-graph → conservation-"
+                    "validate) consumes r (the r[0] energy for its conservation "
+                    "check), so this primitive lets that catalog be authored as "
+                    "pure-TOML composites. Honest shape: a Σ-reduce of products, "
+                    "NO abs(), NOT a new privileged primitive. Dispatches to the "
+                    "co-equal C peer srmech_autocorrelation_f64 (the DIRECT O(n²) "
+                    "multiply-add sum — JPL-clean: no FFT, no recursion, no "
+                    "transcendentals, embedded-ready) when HAS_NATIVE; the pure-"
+                    "Python fallback uses the fast numpy FFT. Parity to FFT round-"
+                    "off (~1e-12, NOT bit-exact — different accumulation order). "
+                    "n==0 is []." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("x", "sequence", True, "the real signal (length n)"),),
+            returns=R("list[float]",
+                      "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
