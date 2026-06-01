@@ -6,8 +6,20 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
-<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc1] - 2026-06-02
+
+**MS #21 loop-bind (Moufang) voxel — the k=7 gauge ARITHMETIC the triality symmetry is blind to (#814 / F271). Pure-Python core in `srmech.amsc.hdc`; +6 ToolEntries → `describe()` 185; ABI stays 3.**
+
+The first v0.7.0 voxel: srmech gains the octonion product (the gauge *arithmetic*) beside the triality automorphism it already had (the gauge *symmetry*). Ported faithfully from the `loop_bind_moufang.py` research oracle (F271/F272) as **M∘C with a Class-K associator residue — NO new class** (the 14 A–N hold; Class O stays dissolved); structure = the **Moufang loop**.
+
+- **`srmech.amsc.hdc.loop_bind`** — the Moufang / Cayley-Dickson octonion product (non-commutative + non-associative ⟹ `(ab)c ≠ a(bc)`, the (4:3)|(3:4) chirality); **`loop_conj`** (conjugate); **`loop_inv`** (Moufang-division unbind, `x̄/⟨x,x⟩`); **`loop_left_op`/`loop_right_op`** (L/R = the order chirality); **`loop_associator`** (the Class-K residue `(ab)c − a(bc)`, zero on a Fano line). Class-K clean (norm², no `abs()`). rc1 is the **dim-8 octonion core** (division holds); the block-octonion HD tiling (#811), the co-equal **C peer**, and the triality-automorphism composition check (#813) are later voxels.
+- **`tests/test_loop_bind_moufang.py`** (8 tests) reproduces the F271/F272 numerics: 7 associative Fano lines, `[L_a,R_b]·x = −associator`, the three Moufang identities, Jacobi-fails/Mal'cev-holds, the inverse unbinds, Artin associativity, e₀ identity.
+
+Canonical SSoT: Baez, J.C. (2002) "The Octonions", Bull. Amer. Math. Soc. 39, 145. +6 ToolEntries (179 → **185**). ABI stays **3** (pure-Python, additive). JPL audit ratchet unchanged.
+
+<!-- pypi-readme-changelog-end -->
 ## [0.6.0] - 2026-06-01
 
 **Production graduation of the v0.6.0 rc1–rc21 lean-ISA voxel arc to PyPI.** The clean (non-rc) tag promotes the **rc21** state already verified-green on TestPyPI — the only delta from rc21 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.6.0` build before the production tag. ABI **3**; `describe()` total **179**.
@@ -353,7 +365,6 @@ and the introspect emit strings are unchanged. Pure-Python packaging refactor;
 **ABI unchanged at 3** (no `c/` change); full C dispatch + TOML descriptors
 intact; no `abs()` (Class K pin-slot). Closes #751.
 
-<!-- pypi-readme-changelog-end -->
 ## [0.5.0] - 2026-05-30
 
 **Production graduation — srmech as a substrate-self-recognition apparatus.**
