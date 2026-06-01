@@ -1341,6 +1341,62 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "int64 length-4 counts"),
         ),
         # ────────────────────────────────────────────────────────────
+        # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (v0.7.0 / MS #21).
+        # M∘C with a Class-K associator residue; NO new class. Baez 2002.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_bind", owner="srmech", category="hdc",
+            summary="The loop bind (Moufang) = the octonion / Cayley-Dickson "
+                    "product. Non-commutative + non-associative ⟹ (ab)c≠a(bc): "
+                    "the k=7 gauge ARITHMETIC triality is blind to (F271). M∘C "
+                    "with a Class-K associator residue; NO new class. Baez 2002.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "the product x·y, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_conj", owner="srmech", category="hdc",
+            summary="Octonion conjugate x̄ — negate the imaginary part, keep the "
+                    "real anchor x[0]. The Class-C flip powering the unbind.",
+            parameters=(P("x", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "conjugate, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_inv", owner="srmech", category="hdc",
+            summary="Moufang inverse x⁻¹ = x̄/⟨x,x⟩ — the unbind key; "
+                    "loop_bind(x, loop_inv(x))=e₀. Class-K norm² gate, no abs().",
+            parameters=(P("x", "np.ndarray", True, "nonzero power-of-two vector"),),
+            returns=R("np.ndarray", "inverse, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_left_op", owner="srmech", category="hdc",
+            summary="Left-multiplication operator L_a(x)=a·x (the (4:3) "
+                    "ordering) as a dim×dim matrix. L_a≠R_a≠R_aᵀ.",
+            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "dim×dim matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_right_op", owner="srmech", category="hdc",
+            summary="Right-multiplication operator R_a(x)=x·a (the (3:4) mirror "
+                    "ordering) as a dim×dim matrix.",
+            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "dim×dim matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_associator", owner="srmech", category="hdc",
+            summary="(a·b)·c − a·(b·c) = the Class-K associator RESIDUE of the "
+                    "loop bind (zero on a Fano line, nonzero off it = the "
+                    "(4:3)|(3:4) boundary). =−([L_a,R_b]·c-style residue).",
+            parameters=(
+                P("a", "np.ndarray", True, "power-of-two vector"),
+                P("b", "np.ndarray", True, "same length"),
+                P("c", "np.ndarray", True, "same length"),
+            ),
+            returns=R("np.ndarray", "the associator, same length"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
         # ────────────────────────────────────────────────────────────
         ToolEntry(

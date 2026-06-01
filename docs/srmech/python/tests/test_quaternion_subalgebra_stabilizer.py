@@ -345,10 +345,10 @@ def test_framework_so4_reading_is_distinct_from_atoms():
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_179():
+def test_introspect_tools_total_is_185():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 179
+    assert introspect.describe()["tools"]["total"] == 185
 
 
 def test_tool_entry_registered():

@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0():
-    """v0.6.0 — PRODUCTION GRADUATION of the rc1–rc21 lean-ISA voxel arc to
+def test_version_is_0_7_0rc1():
+    """v0.7.0rc1 — MS #21 loop-bind (Moufang) voxel: the k=7 gauge ARITHMETIC
+    the triality SYMMETRY is blind to (#814 / F271). The first v0.7.0 voxel
+    ports the ``loop_bind_moufang.py`` research oracle into ``srmech.amsc.hdc``:
+    ``loop_bind`` (the octonion / Cayley-Dickson product), ``loop_conj``,
+    ``loop_inv`` (the Moufang-division unbind), ``loop_left_op``/``loop_right_op``
+    (the (4:3)|(3:4) L/R order-chirality), and ``loop_associator`` (the Class-K
+    residue (ab)c−a(bc), zero on a Fano line). M∘C-with-a-Class-K-residue — NO
+    new class (the 14 A–N hold; Class O stays dissolved); structure = the
+    Moufang loop. Canonical SSoT Baez 2002. +6 ToolEntries ⟹ ``describe()``
+    total 185; ABI stays 3 (pure-Python; the co-equal C peer is a later voxel).
+
+    Prior v0.6.0 — PRODUCTION GRADUATION of the rc1–rc21 lean-ISA voxel arc to
     PyPI. The clean (non-rc) tag promotes the rc21 state already verified-green
     on TestPyPI; the only delta is this version string + the CHANGELOG
     graduation entry, and the full pedantic-C + test + pure-wheel CI matrix
@@ -487,8 +498,8 @@ def test_version_is_0_6_0():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0", (
-        f"expected srmech.__version__ == '0.6.0'; got "
+    assert srmech.__version__ == "0.7.0rc1", (
+        f"expected srmech.__version__ == '0.7.0rc1'; got "
         f"{srmech.__version__!r}"
     )
 
