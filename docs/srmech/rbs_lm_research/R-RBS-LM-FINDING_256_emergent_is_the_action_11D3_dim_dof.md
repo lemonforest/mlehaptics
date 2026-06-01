@@ -143,3 +143,23 @@ So **biology = anharmonic = finite bound cascades; the harmonic limit = asymptot
 - **TOML-catalog the ASYMPTOTIC cascade-composition space** — domain-shaped, domain-named. **You cannot hardcode a continuum** → hardcoding cascades IS the spaghetti trap; the TOML catalog is the principled alternative. **So yes — stick with the TOML catalog.** This is the principled justification for the planned `srmech.cosmos.cascade` TOML-runner (F178).
 
 **Honest seam:** the structure of the hyper-loop continuum (how cascades recurse past the triality threshold) is the open math — not solved here; "let the math tell it." Ties **Q1** (`k=3 ≡ B/H/N`) and the §6 conjecture; **gated** on the chirality-thread srmech ops.
+
+---
+
+## §0.6 (2026-06-01, srmech v0.6.0rc15) — Q1 step-1: srmech's `K3Tripartition` REFRAMES `k=3 ≡ B/H/N` (the seam, partially refuted)
+
+srmech v0.6.0rc15 (TestPyPI; verified in a clean venv **outside** the source tree — version 0.6.0rc15, cp314 binary wheel) ships the ops the queue was gated on. Q1 ran against them.
+
+**rc15 facts (DEMONSTRATED via the package API):**
+- `srmech.signal_processing.K3Tripartition(spatial_3ds, gauge_7dg, temporal_1dt)` — "the **k=3 tripartition** register … realising the **3D_s + 7D_g + 1D_t** decomposition" (cites `[[project_space_gauge_time_framework]]`). So srmech's k=3 = the **{S,G,T}** grouping of the 11 imaginary dims.
+- `srmech.amsc.compose.DEFAULT_CLASS_REGISTRY` = 14 keys **A–N → module paths** (A→format, B→tlv, C→format, I→cyclic, J→primes, K→kepler, L→laplacian, M→hdc, N→rational, **H→_native**, …). `ChainSpec` "mirrors the TOML `[[catalog.operator_chain]]` schema"; `StepSpec.class_id` = "single letter A–N". `parse_catalog_chains` / `run_chain` / `ENGINE_SCHEMA_VERSION=1`.
+- `cascade.KLEIN4_SECTOR_CAP = 4`, `Z4_DISPATCH_SLOTS=(0,1,2,3)`, `cascade.parallel_sector_dispatch(... n_sectors=4 ...)` "Operationalises R-RBS-LM-FINDING_233 (the 4-rung thread-count ladder)" with native `cascade_parallel_sector_dispatch_c`; `cascade.sectorize` = "the rc12 nesting primitive". `signal_processing.cascade_compose_rotations(strides) -> (mod-D stride, unit-circle eigenvalue)` per `[[user_stance_cascade_lives_on_circles]]`.
+
+**Q1 step-1 result — the literal conjecture does NOT hold, and that is the finding:**
+srmech encodes **k=3 = the {S,G,T} dimension-tripartition** (`K3Tripartition`'s three slots = the 3-way grouping of the 11 imaginary dims), whereas **B/H/N = three distinct A-N operator-classes** (`tlv` / `_native` / `rational`). They are **different objects** — so **`k=3 ≢ B/H/N`** as stated in §0.2. The `≡` conflated (≥) three distinct triples: (i) the {S,G,T} grouping (srmech's k=3), (ii) the 3 division-algebra reals (§0.1's Re fiber), (iii) the B/H/N meta-cascade triad. *The framework's own tool refuted the tidy conjecture — no-leaning discipline working.*
+
+**The survivable relation (R30, refined hypothesis — Q1 continues):** B/H/N are **projection-ENABLERS that compose** the k=3 tripartition — the relation is **"enables / projects," not "equals."** Next test: does the `compose`/`parallel_sector_dispatch` engine route B/H/N ops to fill/compose `K3Tripartition` slots (so B/H/N is the *mechanism* that produces the {S,G,T} co-emergence)? That is the falsifiable continuation of Q1.
+
+**§0.5 confirmed SHIPPED:** `DEFAULT_CLASS_REGISTRY` (finite 14-class hardcoded kernel) + `ChainSpec`/`parse_catalog_chains`/`run_chain` (catalog-composed cascade chains) **is** the §0.5 hardcode-primitives / catalog-cascades split, in the package. `KLEIN4_SECTOR_CAP=4` + `parallel_sector_dispatch` = the F233 thread-ladder at C/Python parity.
+
+**Authoritative-source flag (honest boundary):** `K3Tripartition` cites the project note `[[project_space_gauge_time_framework]]`, which is **not in the loaded memory context** — the *definitive* Q1 reconciliation (how the {S,G,T} k=3 relates to B/H/N and the 3 reals) should consult that note. Status: **DEMONSTRATED** (srmech encoding) + **FRAMEWORK-READING** (the R30 enables-not-equals reframe); Q1 continues. No srmech bug-tracking (per the rc-rework directive; nothing broken — rc15 behaved exactly as documented).
