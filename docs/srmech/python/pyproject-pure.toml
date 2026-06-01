@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.7.0rc8"
+version = "0.7.0rc9"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -26,7 +26,7 @@ version = "0.7.0rc8"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject.toml`.
-description = "Stored-Relationship Mechanism. 14-class A-N primitive vocabulary in native C + Python - substrate-native 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L+R octonion-multiplications; Spin(8) triality) made hardware-callable. Full cascade-catalog C/Python parity (content-addressing, cyclic-group, graph-Laplacian, primes, HDC, rational, dispatch, catalog, templating, Kepler). Canonical QM/QFT/SM operations. Runtime spectral decomposition; dual-path signal-processing; AMSC (MPR v1)."
+description = "Stored-Relationship Mechanism: 14-class A-N primitive vocabulary in native C + Python. Substrate-native 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L/R octonion products; Spin(8) triality), hardware-callable - Moufang loop-bind, 7-D cross, G_2 3-form. Full cascade-catalog C/Python parity: hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener-Khinchin autocorrelation. Canonical QM/QFT/SM ops; runtime spectral; AMSC (MPR v1)."
 # The PyPI long-description (readme) is assembled dynamically by the
 # fancy-pypi-readme hook (block below): full README.md + a Changelog
 # section sliced to the CURRENT-MINOR (0.7.0) entries only + a

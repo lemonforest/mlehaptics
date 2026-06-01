@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc9] - 2026-06-02
+
+**MS #21 rc9 voxel — the v0.7.0 graduation-prep PyPI description refresh (the genuinely-last rcN before the clean v0.7.0 cut). Description-only → `describe()` stays 193; DSL catalog stays 11 ops; ABI stays 3.**
+
+The PyPI `Summary` predated the v0.7.0 arc — it named "octonion-multiplications" and "Spin(8) triality" but not the **Moufang loop-bind** op family the arc actually shipped, and nothing of rc8's autocorrelation. This voxel refreshes it (no code change):
+
+- Names the v0.7.0 headlines: **Moufang loop-bind, 7-D cross product, G_2 3-form** (the octonion family, rc1–rc7) and **Wiener-Khinchin autocorrelation** (rc8) join the cascade-parity list (Kuramoto too — shipped at v0.6.0 but never surfaced in the summary).
+- **Preserves** the substrate-native spine verbatim in substance: 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L/R octonion products; Spin(8) triality), made hardware-callable.
+- **Trimmed** the redundant `dispatch, catalog, templating, Kepler` + `dual-path signal-processing` tail (covered by "Full cascade-catalog C/Python parity") → **472 chars**, under the 480 soft / 512 hard PyPI `Summary` limit. **Byte-identical** in `pyproject.toml` + `pyproject-pure.toml` (the publish-workflow drift guard).
+
+**Description-only** — no code touched, so `describe()` stays **193**, the DSL catalog stays **11 ops**, ABI stays **3**. This is the final rcN; the clean `v0.7.0` graduation to production PyPI follows (human-gated).
+
 ## [0.7.0rc8] - 2026-06-02
 
 **MS #21 rc8 voxel — the Class-L circular autocorrelation primitive (the F290 §C un-flatten Wiener-Khinchin op), shipped CO-EQUAL in Python AND C. +1 ToolEntry → `describe()` 193; +1 cascade-catalog op → 11 DSL ops; new symbol → ABI stays 3.**
