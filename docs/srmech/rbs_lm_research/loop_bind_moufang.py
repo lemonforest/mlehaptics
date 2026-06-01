@@ -5,6 +5,14 @@ NAME: "Loop bind (Moufang)" — user direction 2026-06-02.
   non-associative; left-order (ab)c != right-order a(bc). The chirality the user
   predicted as (4:3)|(3:4).
 
+  Named honoring Ruth Moufang (1905-1977), German mathematician. The Moufang loop
+  (the non-associative analog of a group -- which the unit octonions form), the
+  Moufang plane, and the Moufang identities (this module's self-test checks all three)
+  are hers. Barred from a university teaching career under the Nazi regime on gender
+  grounds, she worked as an industrial mathematician before becoming one of the first
+  women to hold a full professorship in Germany. Calling the k=7 bind by her name keeps
+  her at the center of the structure she found -- attribution as recognition.
+
 CLASS-HOME (no new class; 14 A-N held; Class O stays dissolved):
   M (bind) o C (chirality = the left/right ordering) with a Class-K associator
   RESIDUE (the boundary that is zero inside an associative region, nonzero outside).
