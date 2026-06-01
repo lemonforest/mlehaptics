@@ -751,6 +751,19 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_similarity.restype = ctypes.c_int
 
+        # int srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n,
+        #                                  int inverse, uint8_t *out)
+        # NEW in v0.6.0rc18 — guard with its own hasattr so a klein4-capable
+        # but pre-rc18 lib (rc13-rc17) doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_triality_cycle"):
+            lib.srmech_klein4_triality_cycle.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_triality_cycle.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
     # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade

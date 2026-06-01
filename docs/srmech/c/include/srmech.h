@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 6
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc17"
-#define SRMECH_VERSION       "0.6.0rc17"
+#define SRMECH_VERSION_PRE   "rc18"
+#define SRMECH_VERSION       "0.6.0rc18"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1311,6 +1311,16 @@ srmech_status_t srmech_klein4_similarity(const uint8_t *a,
                                          const uint8_t *b,
                                          uint32_t       n,
                                          double        *out);
+
+/* klein4_triality_cycle(in, n, inverse, out): the order-3 S3 = Aut(V4)
+ * cycle of the three involutions (iw7 1 -> g5 2 -> CPT 3, identity 0
+ * fixed); the V4-carrier image of the so(8) 8v->8s->8c triality. inverse
+ * != 0 applies the reverse 3-cycle (T^2 = T^-1). Out of {0,1,2,3} ->
+ * SRMECH_ERR_BAD_INPUT. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_triality_cycle(const uint8_t *in,
+                                             uint32_t       n,
+                                             int            inverse,
+                                             uint8_t       *out);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)
