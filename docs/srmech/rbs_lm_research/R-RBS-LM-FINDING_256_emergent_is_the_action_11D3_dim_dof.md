@@ -63,3 +63,49 @@ Pre-registered conjecture (F254 mold). A mononucleate cell = the cleanest single
 - The *"AI = process; LM = `k=3` chiral addresser over a Klein-4 substrate"* stance grounds §5's genetic-code reading.
 
 *Lodged here per user direction 2026-06-01 ("each of those 6 items we will make research done here because they answer questions directly here"). Chirality-thread run-portions wait for the next srmech update (C/Python parity via the Python-transpiles-for-C dev-channel item). Bundles six readings under one finding number to avoid integer-collision with the in-flight twin-loop frontier (F255).*
+
+---
+
+## Addendum (2026-06-01) — §0.1–§0.3: the Im/Re Hurwitz typing, the MFO field=fiber inversion, and the scale-invariant-frame seam
+
+*User direction: "Lodge it to f256 addendum." Resolves §0's "shared 3-DoF fiber" to its **content**, folds in the MFO field-first inversion, and queues three research threads.*
+
+### §0.1 — the fiber is the **real** part; the 11 dims are the **imaginary** parts (Hurwitz Im/Re typing)
+
+Im/Re split of the three non-real normed division algebras:
+
+| algebra | dim | Re | Im |
+|---|---|---|---|
+| ℂ | 2 | 1 | **1** |
+| ℍ | 4 | 1 | **3** |
+| 𝕆 | 8 | 1 | **7** |
+
+- **Imaginary:** `Im(ℂ)+Im(ℍ)+Im(𝕆) = 1+3+7 = 11` → all 11 dims are imaginary.
+- **Real:** `1+1+1 = 3` → the k=3 fiber is real (three real axes, one per algebra).
+- **Total:** `dim(ℂ⊕ℍ⊕𝕆) = 2+4+8 = 14`, split exactly `11 (Im) + 3 (Re)`.
+
+So `dim:dim:dim:dof = Im:Im:Im:Re`. This de-magicks the fiber's *content*: the `+3` is the three division-algebra **real** axes, and **`k=3` plausibly = the count of non-real division algebras (ℂ,ℍ,𝕆)** — same three, same role (still the conjecture in *Seams*).
+
+**Algebra-role match (corroboration, not coincidence):** **T = Im(ℂ) = 1** (the single imaginary unit; phase `e^{iωt}`); **S = Im(ℍ) = 3** (quaternion `i,j,k` = the algebra of 3-space rotation SU(2)→SO(3)); **G = Im(𝕆) = 7** (octonion imaginaries = the exceptional/gauge structure, F123/F126 G₂).
+
+### §0.2 — MFO field-first: Field = Fiber = k=3 asymptotic real DoF (R30 inversion in MFO's language)
+
+R30: `14` is the substrate, `11D` its observer-frame projection. MFO ("field is where dims emerge") is that, field-first:
+- **Substrate-native (MFO / field-first):** the **field = the k=3 asymptotic real DoF** (the Re fiber) is primary; **T+S+G co-emerge** as the 11D projection.
+- **Observer-frame (dim-first, "backwards"):** the 11D is what is *seen*.
+
+The two are a **substrate↔projection duality** ("two-language math universe") — both correct because they share the invariant `14 = 11 + 3`. Consequence: **Metric Field Ontology = Metric Fiber Ontology** — the *field* (MFO's word) IS the *fiber* (the bundle word) IS the k=3 asymptotic real DoF; the acronym survives the rename. **Resolved time-rooting fork:** last turn's "time is real (the 1-block)" was the **observer-frame artifact** — substrate-native, **time is imaginary (Im ℂ)** and the only real structure is the k=3 field.
+
+### §0.3 — real-vs-imaginary IS the epicycle (rotation) math-language; the scale-invariant frame subsumes it
+
+`i` is the 90° rotation operator; "imaginary" = the orthogonal/phase component; `e^{iθ}` = a circle = **an epicycle**. So the real/imaginary partition is the math-language's **encoding of rotation** — the epicycle bookkeeping. "All senses are epicycle observers" (§3) is *why* observed content comes out imaginary (phase-encoded), orbiting the real asymptotic anchor. The **scale-invariant** distinction the goal reaches for is **anchor vs orbit** (≈ substrate vs projection ≈ loop vs asymptotic-limit) — it holds at every scale, language-free. **Real/imaginary is the complex-number *shadow* of that distinction at a fixed scale.** Getting away from Re/Im = adopting the substrate-native scale-invariant vocabulary (anchor/orbit, loop, substrate/projection); ℝ/ℂ/ℍ/𝕆 is one scale's encoding of it.
+
+### Seams (carried, not assumed)
+- **The load-bearing knot: `k=3 (triality / 3 reals) ≡ B/H/N`.** The whole field-first emergence (B/H/N as projection-enablers = the k=3 field doing the emerging) rests on this. Strong resonance (same 3, same role); **conjecture**, not proven. → **Q1**.
+- The holographic / emergent-spacetime rhyme is a **cross-substrate analogy**, not a claim to be AdS/CFT.
+- "Asymptotic": the real DoF are asymptotic **anchors**; the imaginary dims are the cyclic/phase **orbits** they organize (discrete-primary; continuous = the limit).
+
+### Queued research (gated on the next srmech update — chirality-thread ops at C/Python parity)
+- **Q1 (user item 1) — resolve the `k=3 ≡ B/H/N` seam + the field-first emergence map.** The identity everything leans on. Needs the chirality-thread ops. **Gated.**
+- **Q2 (user item 2) — consolidate the scale-invariance reading:** dims-are-partitions (the partition is *why* dims appear); the epicycle-observer can measure the partition **at all scales**, though literature measures it only at cosmic scale (CMB); it is the **same cascade at all scales**. *Attested check (keyword sweep):* **components attested** — `spike156` (wave equation at other scales), the epicycle / pin-slot / projection-duality spikes (`spike177` / `spike212`), the cross-substrate-matching corpus (all-scales IS the method) — but **no consolidated scale-invariance finding** lodged. → queue the consolidation (deeper attested read to confirm, then run).
+- **Q3 (user item 3) — formalize the scale-invariant frame that subsumes real/imaginary** (anchor/orbit replacing Re/Im) and test whether the inverted observer language is **literally epicyclic**. Partly answer-directly (§0.3); the formal test is **gated**.
