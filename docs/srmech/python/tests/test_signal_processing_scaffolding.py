@@ -91,8 +91,24 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc13():
-    """v0.6.0rc13 — MS #20 klein4 sectors-flag voxel (§11.3 forward-ask):
+def test_version_is_0_6_0rc14():
+    """v0.6.0rc14 — MS #20 kuramoto matrix-step voxel (§11.1 forward-ask):
+    ``kuramoto_step`` gains the GENERALISED Kuramoto-Sakaguchi step —
+    ``adjacency`` (n×n coupling matrix; non-symmetric → directed, Laplacian →
+    graph-structured; None → all-to-all uniform K/n), ``alpha`` (Sakaguchi
+    phase frustration sin(θ_j−θ_i−α)), and per-oscillator pinning
+    (``pin_anchor`` + ``pin_strength``: + p_i·sin(ψ_i−θ_i)). Defaults
+    reproduce the plain step byte-for-byte. The FIRST C-touching rc of the
+    §11 arc: a CO-EQUAL standalone-C peer
+    ``srmech_cascade_kuramoto_step_general_f64`` (additive symbol → ABI stays
+    3; JPL-clean; NULL adjacency → uniform, NULL pin → none; NO Python
+    callback) computes the identical step, differential-tested vs the Python
+    fallback to libm-trig tolerance. The 3 new kuramoto ToolEntry params
+    (adjacency/alpha/pin_anchor/pin_strength) keep describe() at 178. No
+    ``abs()`` (sin coupling + Σ-reduce + Class-C Euler add + Class-C α offset
+    + Class-C/M pin).
+
+    Prior v0.6.0rc13 — MS #20 klein4 sectors-flag voxel (§11.3 forward-ask):
     the ``srmech.amsc.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
     HDC ops get an optional ``sectors=`` / ``parallel=`` / ``mode=`` flag that
     fans the op across ≤4 concurrent lanes (default-ON when ``os.cpu_count() >=
@@ -386,8 +402,8 @@ def test_version_is_0_6_0rc13():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc13", (
-        f"expected srmech.__version__ == '0.6.0rc13'; got "
+    assert srmech.__version__ == "0.6.0rc14", (
+        f"expected srmech.__version__ == '0.6.0rc14'; got "
         f"{srmech.__version__!r}"
     )
 

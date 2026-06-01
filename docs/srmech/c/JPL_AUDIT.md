@@ -174,6 +174,8 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_cascade_parallel_sector_dispatch` | 19 | ✅ *(rc6 public four-sector entry)* |
 | `srmech_kuramoto__coupling_sum`       |  9 | ✅ *(rc9 O(n²) coupling sum factored out; #778)* |
 | `srmech_cascade_kuramoto_step_f64`    | 17 | ✅ *(rc9 public Kuramoto forward-Euler step)* |
+| `srmech_kuramoto__general_sum`        | 12 | ✅ *(rc14 generalised Σ_j A_ij·sin(θ_j−θ_i−α); §11.1)* |
+| `srmech_cascade_kuramoto_step_general_f64` | 22 | ✅ *(rc14 public Kuramoto-Sakaguchi step: adjacency + α + pinning)* |
 
 ### Fix shipped in this audit pass
 
@@ -222,6 +224,8 @@ Per-function assertion counts:
 | `srmech_cascade_parallel_sector_dispatch` | 2  | ✅ *(post-validation: body + out/scratch non-NULL)* |
 | `srmech_kuramoto__coupling_sum`       |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
 | `srmech_cascade_kuramoto_step_f64`    |    2    | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
+| `srmech_kuramoto__general_sum`        |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
+| `srmech_cascade_kuramoto_step_general_f64` | 2  | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
@@ -482,13 +486,27 @@ the toolchain-level Rule-10 ratchet.
   both functions carry 2 asserts. `SRMECH_ABI_VERSION` unchanged at 3
   (new symbol only). No new mechanical violations; ratchet stays at 0.
 
-Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9) pass the
+- **v0.6.0rc14 (§11.1) — generalised Kuramoto-Sakaguchi step.**
+  `dθ_i/dt = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`
+  added to `srmech_kuramoto.c`: a row-major `adjacency` matrix (NULL →
+  uniform `K/N`; non-symmetric → directed coupling), a Sakaguchi
+  frustration `α`, and optional per-oscillator pinning. 2 new functions:
+  the public `srmech_cascade_kuramoto_step_general_f64` (22 lines) plus the
+  static `srmech_kuramoto__general_sum` helper (12 lines, into which the
+  O(n²) weighted coupling sum is factored to keep the public step ≤ 60).
+  Pure functions over caller buffers (`out` must not alias θ/ω/adjacency/
+  pin arrays) — no malloc, reentrant, no shared static state; both carry 2
+  asserts; **NO Python callback** (co-equal parity — the C path runs C, the
+  Python path runs Python). `SRMECH_ABI_VERSION` unchanged at 3 (new symbol
+  only). No new mechanical violations; ratchet stays at 0.
+
+Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
 `tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
 and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
 macOS clang / Windows MSVC), verified green in CI.
 
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
-v0.6.0rc9).**
+v0.6.0rc14).**
 
 The pin test `tests/test_jpl_audit.py` enforces the zero count
 going forward — PRs that introduce a new function > 60 lines or

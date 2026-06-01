@@ -306,12 +306,62 @@ def _try_native_kuramoto_step(theta, omega, coupling, dt):
     return [float(c_out[i]) for i in range(n)]
 
 
+def _try_native_kuramoto_step_general(
+    theta, omega, adjacency_flat, coupling, alpha, pin_anchor, pin_strength, dt,
+):
+    """Native dispatch for the GENERALISED Kuramoto-Sakaguchi step (rc14).
+
+    ``adjacency_flat`` is a row-major length-n² float list or ``None``;
+    ``pin_anchor`` / ``pin_strength`` are length-n float lists or ``None``.
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    Python composition path (missing symbol / coercion failure). The C peer
+    runs the identical step with NO host Python (co-equal parity).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_kuramoto_step_general_f64"):
+        return None
+    n = len(theta)
+    DblP = ctypes.POINTER(ctypes.c_double)
+
+    def _buf(seq, length):
+        if seq is None:
+            return DblP()  # NULL
+        Arr = ctypes.c_double * length if length > 0 else ctypes.c_double * 1
+        c = Arr(*[float(v) for v in seq]) if length > 0 else Arr()
+        return ctypes.cast(c, DblP)
+
+    Arr = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_th = Arr(*[float(v) for v in theta]) if n > 0 else Arr()
+    c_om = Arr(*[float(v) for v in omega]) if n > 0 else Arr()
+    c_out = Arr()
+    rc = _native.LIB.srmech_cascade_kuramoto_step_general_f64(
+        ctypes.cast(c_th, DblP),
+        ctypes.cast(c_om, DblP),
+        ctypes.c_size_t(n),
+        _buf(adjacency_flat, n * n),
+        ctypes.c_double(float(coupling)),
+        ctypes.c_double(float(alpha)),
+        _buf(pin_anchor, n),
+        _buf(pin_strength, n),
+        ctypes.c_double(float(dt)),
+        ctypes.cast(c_out, DblP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
 def kuramoto_step(
     theta: Sequence[float],
     omega: Sequence[float],
     *,
     coupling: float = 1.0,
     dt: float = 0.01,
+    adjacency=None,
+    alpha: float = 0.0,
+    pin_anchor=None,
+    pin_strength=1.0,
 ) -> List[float]:
     """Class I ∘ sin ∘ Σ ∘ C: one forward-Euler Kuramoto step.
 
@@ -340,11 +390,34 @@ def kuramoto_step(
     NOT bit-exact across platforms (the kepler trig discipline) — the C
     peer and the Python fallback sum the coupling in the SAME index order.
 
+    v0.6.0rc14 (§11.1): the GENERALISED Kuramoto-Sakaguchi step. Pass any of
+    ``adjacency`` (a row-major ``n×n`` coupling matrix — ``A[i][j]`` weights
+    ``sin(θ_j − θ_i)`` for oscillator ``i``; a **non-symmetric** matrix is
+    DIRECTED / one-way coupling, a graph Laplacian is graph-structured
+    coupling), ``alpha`` (the Sakaguchi phase frustration
+    ``sin(θ_j − θ_i − α)``), and/or ``pin_anchor`` + ``pin_strength`` (a
+    per-oscillator pinning term ``+ p_i·sin(ψ_i − θ_i)``) to move past the
+    plain all-to-all mean-field. With all three at their defaults the step is
+    byte-for-byte the original. A **co-equal C peer**
+    (``srmech_cascade_kuramoto_step_general_f64`` — additive, ABI stays 3)
+    runs the identical generalised step with NO host Python; pure-Python
+    fallback otherwise (libm-trig tolerance). **No ``abs()``.**
+
     Args:
         theta: current phases (radians), length ``n``.
         omega: natural frequencies, length ``n`` (must match ``theta``).
-        coupling: the global coupling constant ``K`` (default ``1.0``).
+        coupling: the global coupling constant ``K`` (default ``1.0``); the
+            uniform mean-field weight ``K/n`` used when ``adjacency`` is None.
         dt: the forward-Euler time step (default ``0.01``).
+        adjacency: optional ``n×n`` coupling matrix (None → all-to-all uniform
+            ``K/n``). ``A[i][j]`` weights ``sin(θ_j − θ_i − α)`` for oscillator
+            ``i``; non-symmetric → directed coupling.
+        alpha: Sakaguchi phase frustration in radians (default ``0.0``).
+        pin_anchor: optional length-``n`` anchor phases ``ψ`` (None → no
+            pinning).
+        pin_strength: pinning strength ``p`` — a scalar (broadcast) or a
+            length-``n`` sequence; used only when ``pin_anchor`` is given
+            (default ``1.0``).
 
     Returns:
         ``list[float]`` — the ``n`` phases after one forward-Euler step.
@@ -352,7 +425,8 @@ def kuramoto_step(
         ``n == 0`` is ``[]``.
 
     Raises:
-        ValueError: if ``len(omega) != len(theta)``.
+        ValueError: if ``len(omega) != len(theta)``, or ``adjacency`` is not
+            ``n×n``, or ``pin_anchor`` / ``pin_strength`` length ≠ ``n``.
     """
     if _is_pub(): _emit("cascade.kuramoto_step", class_="I∘sin∘Σ∘C", input_shape=_shape(theta))
     theta_list = list(theta)
@@ -363,21 +437,82 @@ def kuramoto_step(
             f"cascade.kuramoto_step: omega length {len(omega_list)} != "
             f"theta length {n}"
         )
-    native = _try_native_kuramoto_step(theta_list, omega_list, coupling, dt)
+
+    # rc14 §11.1: the GENERALISED Kuramoto-Sakaguchi step is taken iff any of
+    # adjacency / alpha / pin_anchor departs from the plain all-to-all uniform
+    # mean-field. Otherwise the exact-back-compat simple path (with its own
+    # native peer) runs unchanged.
+    use_general = (adjacency is not None or float(alpha) != 0.0
+                   or pin_anchor is not None)
+    if not use_general:
+        native = _try_native_kuramoto_step(theta_list, omega_list, coupling, dt)
+        if native is not None:
+            return native
+        # Python fallback — the SAME composition + the SAME coupling-sum index
+        # order as the C peer (so same-platform results match to the last bit).
+        inv_n = (float(coupling) / n) if n > 0 else 0.0
+        h = float(dt)
+        out: List[float] = []
+        for i in range(n):
+            theta_i = float(theta_list[i])
+            coupling_sum = 0.0
+            for j in range(n):
+                coupling_sum += math.sin(float(theta_list[j]) - theta_i)
+            out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
+        return out
+
+    # ── generalised path: validate + dispatch (native or Python) ──────────
+    adj_flat = None
+    if adjacency is not None:
+        rows = [list(r) for r in adjacency]
+        if len(rows) != n or any(len(r) != n for r in rows):
+            raise ValueError(
+                f"cascade.kuramoto_step: adjacency must be {n}×{n}"
+            )
+        adj_flat = [float(rows[i][j]) for i in range(n) for j in range(n)]
+    psi = None
+    if pin_anchor is not None:
+        psi = [float(v) for v in pin_anchor]
+        if len(psi) != n:
+            raise ValueError(
+                f"cascade.kuramoto_step: pin_anchor length {len(psi)} != "
+                f"theta length {n}"
+            )
+    ps = None
+    if pin_anchor is not None:
+        if hasattr(pin_strength, "__len__"):
+            ps = [float(v) for v in pin_strength]
+            if len(ps) != n:
+                raise ValueError(
+                    f"cascade.kuramoto_step: pin_strength length {len(ps)} != "
+                    f"theta length {n}"
+                )
+        else:
+            ps = [float(pin_strength)] * n
+
+    native = _try_native_kuramoto_step_general(
+        theta_list, omega_list, adj_flat, coupling, alpha, psi, ps, dt,
+    )
     if native is not None:
         return native
-    # Python fallback — the SAME composition + the SAME coupling-sum index
-    # order as the C peer (so same-platform results match to the last bit).
+    # Python fallback for the generalised step — SAME index order as the C
+    # peer. No abs(): sin coupling (Class I/J) + Σ-reduce + Class-C Euler add;
+    # the Sakaguchi α is a Class-C phase offset; pinning is a Class-C/M anchor.
     inv_n = (float(coupling) / n) if n > 0 else 0.0
+    a = float(alpha)
     h = float(dt)
-    out: List[float] = []
+    out2: List[float] = []
     for i in range(n):
         theta_i = float(theta_list[i])
-        coupling_sum = 0.0
+        s = 0.0
         for j in range(n):
-            coupling_sum += math.sin(float(theta_list[j]) - theta_i)
-        out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
-    return out
+            w = adj_flat[i * n + j] if adj_flat is not None else inv_n
+            s += w * math.sin(float(theta_list[j]) - theta_i - a)
+        f = float(omega_list[i]) + s
+        if psi is not None:
+            f += ps[i] * math.sin(psi[i] - theta_i)
+        out2.append(theta_i + h * f)
+    return out2
 
 
 __all__ = [

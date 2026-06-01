@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 6
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc13"
-#define SRMECH_VERSION       "0.6.0rc13"
+#define SRMECH_VERSION_PRE   "rc14"
+#define SRMECH_VERSION       "0.6.0rc14"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -562,6 +562,34 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
     const double *theta, const double *omega, size_t n,
     double coupling_k, double dt,
     double *out);                  /* n doubles; MUST NOT alias theta/omega */
+
+/* ------------------------------------------------------------------ *
+ * GENERALISED Kuramoto-Sakaguchi forward-Euler step (v0.6.0rc14; §11.1).
+ *
+ *   dθ_i/dt = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]
+ *   θ_i(t+dt) = θ_i(t) + dt·[ above ]
+ *
+ * `adjacency` is ROW-MAJOR n×n (A_ij = weight of oscillator j on i): a
+ * non-symmetric matrix expresses DIRECTED / one-way coupling, a graph
+ * Laplacian expresses graph-structured coupling. `adjacency == NULL` ⇒
+ * every weight is the uniform mean-field K/N (so NULL adjacency + α=0 +
+ * NULL pin_anchor reproduces srmech_cascade_kuramoto_step_f64 exactly).
+ * `alpha` is the Sakaguchi phase frustration. `pin_anchor` (NULL ⇒ no
+ * pinning) is n anchor phases ψ; `pin_strength` (NULL ⇒ unit) is n
+ * per-oscillator strengths p. No abs().
+ *
+ * Returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — out NULL, or theta/omega NULL while n > 0
+ *
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+ * `out` MUST NOT alias theta / omega / adjacency / pin_anchor / pin_strength.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_cascade_kuramoto_step_general_f64(
+    const double *theta, const double *omega, size_t n,
+    const double *adjacency, double coupling_k, double alpha,
+    const double *pin_anchor, const double *pin_strength,
+    double dt, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

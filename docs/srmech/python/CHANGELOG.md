@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc14] - 2026-05-31
+
+**MS #20 kuramoto matrix-step voxel — `kuramoto_step` gains the GENERALISED Kuramoto-Sakaguchi step (§11.1): adjacency matrix + Sakaguchi α + per-oscillator pinning. The first C-touching rc of the §11 arc — a CO-EQUAL standalone-C peer (additive symbol; ABI stays 3). `describe()` tool total stays 178.**
+
+The §11.1 forward-ask: extend `kuramoto_step` past the plain all-to-all mean-field. Unlike the klein4 ops (pure-Python), `kuramoto_step` already has a C peer — so adding the matrix-step in Python only would leave a parity asymmetry (the Python op carrying a step the C can't run). Per the co-equal-parity discipline this ships in **both** substrates at once:
+
+- **`kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)`** — `dθ_i = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`. `adjacency` is a row-major n×n matrix (`A[i][j]` weights j's influence on i; **non-symmetric → directed** coupling, a Laplacian → graph-structured; `None` → all-to-all uniform `K/n`). `alpha` is the Sakaguchi phase frustration. `pin_anchor` + `pin_strength` are the per-oscillator pinning anchors ψ / strengths p. **With all three at defaults the step is byte-for-byte the original.**
+- **Co-equal C peer `srmech_cascade_kuramoto_step_general_f64`** (in `srmech_kuramoto.c`; additive symbol → **ABI stays 3**; JPL-clean: ≤60-line / ≥2-assert / no malloc / no goto / reentrant; NULL adjacency → uniform, NULL pin → none; **never a Python callback**). Differential-tested vs the Python fallback to libm-trig tolerance.
+- **No `abs()`** — sin coupling + Σ-reduce + Class-C Euler add + the Sakaguchi α (a Class-C phase offset) + the Class-C/M pinning anchor.
+
+New tests in `test_kuramoto_step.py` (defaults reproduce the simple step; uniform adjacency == mean-field; directed adjacency + α + pinning match the closed form; validation guards; C↔Python parity guarded by the new symbol's presence). The kuramoto ToolEntry gains `adjacency`/`alpha`/`pin_anchor`/`pin_strength` params (no new entry; `describe()` stays 178). JPL audit ratchet stays at 0.
+
 ## [0.6.0rc13] - 2026-05-31
 
 **MS #20 klein4 sectors-flag voxel — the `klein4_*` HDC ops get an optional `sectors=` / `parallel=` / `mode=` flag (§11.3 forward-ask). Pure-Python; default-on at ≥4 cores; value-preserving; `describe()` tool total stays 178; ABI unchanged at 3.**
