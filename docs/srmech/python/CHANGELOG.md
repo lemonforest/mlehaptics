@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0rc17] - 2026-06-01
+
+**MS #20 klein4-triality-cycle voxel (the A-arc's first code) — `srmech.amsc.hdc.klein4_triality_cycle`: the order-3 `S₃ = Aut(V₄)` generator cycling the three Klein-4 involutions `iω₇(1) → γ₅(2) → CPT(3)` (identity fixed). Pure-Python; +1 ToolEntry → `describe()` total 179; ABI stays 3.**
+
+The A-verdict (rc16 notebook §3.29) made flesh: V₄ (the rc13 klein4 carrier) is the right group but lacked the explicit order-3 cycling operator — which lives in `Aut(V₄) = S₃`. rc17 adds it.
+
+- **`klein4_triality_cycle(v, *, inverse=False)`** — the V₄-carrier image of the so(8) triality `8v → 8s → 8c` (`srmech.qm.triality.triality_cycle`). The three non-identity involutions cycle `iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)`, with identity(0) fixed — the "third axis" (F182) the three order-2 flips (`gamma5`/`omega7`/`cpt_mirror`) cannot reach: order-3 cycling, NOT a fourth order-2 chirality. A pure uint8 relabel via a length-4 lookup; `T∘T∘T = id`, `T² = T⁻¹` (`inverse=True` is the reverse cycle).
+- **Class I** (cyclic order-3 permutation) — no sign, no `abs()`; honest composition, not a new privileged primitive.
+- **Pure-Python** (co-equal-parity: the standalone-C peer `srmech_klein4_triality_cycle` is rc18 — additive → ABI stays 3; never a Python callback). +1 ToolEntry (`srmech.amsc.hdc.klein4_triality_cycle`) → `describe()` total **179**.
+
+New `test_klein4_triality_cycle.py` (explicit forward/inverse maps; order-3 identity; `T² = T⁻¹`; identity-fixed; the involution-occupancy permutation; the so(8) order-3 mirror; tool-schema registration). The two introspection count-ratchets bump 178 → 179. JPL audit ratchet stays at 0 (no C touched).
+
 ## [0.6.0rc16] - 2026-06-01
 
 **MS #20 combinator-kernel-closure voxel (B-boundary codification) — the cascade DSL's FIVE control-flow combinators (`then` / `loop` / `fold` / `reduce` / `parallel`) are RATIFIED as a CLOSED, FINITE kernel: the finite anharmonic-kernel tier of the two-tier SSoT. DOC + TEST only — no DSL behaviour change, no C touched, ABI stays 3, `describe()` total stays 178.**

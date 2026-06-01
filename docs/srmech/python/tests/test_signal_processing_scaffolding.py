@@ -91,8 +91,18 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_6_0rc16():
-    """v0.6.0rc16 — MS #20 combinator-kernel-closure voxel (B-boundary
+def test_version_is_0_6_0rc17():
+    """v0.6.0rc17 — MS #20 klein4-triality-cycle voxel (the A-arc's first code):
+    ``srmech.amsc.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
+    generator cycling the three Klein-4 involutions ``iω₇(1) → γ₅(2) → CPT(3)``
+    (identity fixed), the V₄-carrier image of the so(8) ``8v → 8s → 8c``
+    triality (``srmech.qm.triality.triality_cycle``). The "third axis" (F182)
+    the three order-2 flips cannot reach — order-3 cycling, NOT a fourth
+    order-2 chirality. Class I; pure uint8 relabel (no sign / no ``abs()``);
+    ``T∘T∘T = id``, ``T² = T⁻¹``. Pure-Python (co-equal C peer is rc18); +1
+    ToolEntry → ``describe()`` total 179; ABI stays 3.
+
+    Prior v0.6.0rc16 — MS #20 combinator-kernel-closure voxel (B-boundary
     codification): the cascade DSL's FIVE control-flow combinators (``then`` /
     ``loop`` / ``fold`` / ``reduce`` / ``parallel``) are RATIFIED as a CLOSED,
     FINITE kernel — the finite anharmonic-kernel tier of the two-tier SSoT
@@ -422,8 +432,8 @@ def test_version_is_0_6_0rc16():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.6.0rc16", (
-        f"expected srmech.__version__ == '0.6.0rc16'; got "
+    assert srmech.__version__ == "0.6.0rc17", (
+        f"expected srmech.__version__ == '0.6.0rc17'; got "
         f"{srmech.__version__!r}"
     )
 
