@@ -4,10 +4,24 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement). The full 28 = 𝔰𝔬(8) chiral read-out shipped in **rc17** (the `srmech.qm.so8` adjoint + the `srmech.qm.triality` order-3 outer automorphism); the RBS Klein-4 parity tie-in is being resolved across the v0.6.0 rc16+ sequence — V₄ (the rc13 klein4 carrier) is the right group but lacks the explicit order-3 cycling operator (which lives in Aut(V₄) = S₃): rc16 ratifies the combinator-kernel closure, rc17 adds the `klein4_triality_cycle` op, rc18 its co-equal C peer, rc19 the continuum-tier worked instance, rc20 the two-tier coherence ratchet, and rc21 reads the whole voxel back into the MFO canon as the §VII.6.22 H-gate/triality rung (the meaning-tier closer)._
+_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.6.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.6.x entry, -end- immediately before the prior released minor (currently [0.5.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.6.0] - 2026-06-01
+
+**Production graduation of the v0.6.0 rc1–rc21 lean-ISA voxel arc to PyPI.** The clean (non-rc) tag promotes the **rc21** state already verified-green on TestPyPI — the only delta from rc21 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.6.0` build before the production tag. ABI **3**; `describe()` total **179**.
+
+The arc, voxel by voxel:
+
+- **Lean-ISA two-tier split (#751)** — `cascade.atoms` / `cascade.compose`: a finite anharmonic KERNEL (14 A–N primitives + the five Bird-Meertens combinators `then`/`loop`/`fold`/`reduce`/`parallel`) vs an asymptotic TOML CONTINUUM of cascade instances ("you can't hardcode a continuum").
+- **𝔰𝔬(8) / triality engine** — `srmech.qm.so8` 28-generator adjoint (14 g₂ + 7 L + 7 R); `srmech.qm.triality` order-3 outer automorphism with `Fix(τ) = g₂ = 14`; `quaternion_subalgebra_stabilizer` so(4)=su(2)⊕su(2) (#759); `lean_isa_seventh_primitive` (#761).
+- **Reentrant C core (#772)**; the Klein-4 four-sector **`cascade.parallel_sector_dispatch`** Python surface (#778) + co-equal C peer `srmech_cascade_parallel_sector_dispatch` (#771), made chainable/nestable with a `combine=` recombine; the DSL `parallel` discriminator + `[cascade].kind` stage/combinator classification.
+- **Generalised Kuramoto-Sakaguchi step** — `cascade.kuramoto_step(…, adjacency=, alpha=, pin_anchor=, pin_strength=)` shipped CO-EQUAL Python + standalone C (`srmech_cascade_kuramoto_step_general_f64`); the `klein4_*` HDC ops gained a `sectors=`/`parallel=`/`mode=` flag.
+- **The rc16–rc21 triality voxel sub-arc** — combinator-kernel-closure ratification (rc16) → `klein4_triality_cycle` Python op (rc17) + co-equal C peer `srmech_klein4_triality_cycle` (rc18) → continuum-tier worked instance `triality_s3_klein4.toml` (rc19) → SSoT two-tier coherence-ratchet scan (rc20) → MFO §VII.6.22 H-gate/triality rung (rc21).
+
+No code change from rc21; version-string graduation + this entry only.
+
 ## [0.6.0rc21] - 2026-06-01
 
 **MS #20 H-gate / triality MFO rung voxel (the meaning-tier closer) — MFO notebook §VII.6.22 connects the rc16–rc20 triality voxel-arc to the §VII.6.21 Rosetta-table H-gate / fix-rotate axis. DOC only (research notebook); no code, no new symbol/ToolEntry; `describe()` stays 179; ABI stays 3.**
