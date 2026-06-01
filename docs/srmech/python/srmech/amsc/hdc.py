@@ -702,6 +702,41 @@ def klein4_cpt_mirror(v):
     return np.bitwise_xor(_as_klein4(v, "klein4_cpt_mirror"), 3).astype(np.uint8)
 
 
+# The order-3 triality cycle on the Klein-4 carrier (the S₃ = Aut(V₄)
+# generator). The three non-identity involutions cycle iω₇(1) → γ₅(2) →
+# CPT(3) → iω₇(1), fixing identity(0). Pure uint8 relabel via a length-4
+# lookup; applying it three times is the identity (T∘T∘T = id; T² = T⁻¹).
+_KLEIN4_TRIALITY_FORWARD = np.array([0, 2, 3, 1], dtype=np.uint8)
+_KLEIN4_TRIALITY_INVERSE = np.array([0, 3, 1, 2], dtype=np.uint8)
+
+
+def klein4_triality_cycle(v, *, inverse=False):
+    """Cycle the three Klein-4 chirality involutions — the order-3 S₃ generator.
+
+    The V₄-carrier image of the so(8) triality ``8v → 8s → 8c`` (see
+    :func:`srmech.qm.triality.triality_cycle`): the three non-identity
+    involutions cycle ``iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)``, with identity(0)
+    fixed. This is the order-3 generator of ``Aut(V₄) = S₃`` — the "third axis"
+    (F182) that the three order-2 flips (:func:`klein4_chirality_flip_gamma5` /
+    :func:`klein4_chirality_flip_omega7` / :func:`klein4_cpt_mirror`) cannot
+    reach: order-3 cycling of the involutions, NOT a fourth order-2 chirality.
+
+    Class I (cyclic order-3 permutation) — a pure uint8 relabel; no sign, no
+    ``abs()``. Applying it three times returns the input (``T∘T∘T = id``);
+    ``inverse=True`` is the reverse 3-cycle (``T² = T⁻¹``).
+
+    Args:
+        v: A Klein-4 hypervector (uint8 array, elements in ``{0, 1, 2, 3}``).
+        inverse: If True, apply the reverse cycle ``iω₇ → CPT → γ₅ → iω₇``.
+
+    Returns:
+        The relabelled uint8 array (same shape as ``v``).
+    """
+    arr = _as_klein4(v, "klein4_triality_cycle")
+    table = _KLEIN4_TRIALITY_INVERSE if inverse else _KLEIN4_TRIALITY_FORWARD
+    return table[arr].astype(np.uint8)
+
+
 def klein4_sector_count(v):
     """Per-sector occupancy ``[n0, n1, n2, n3]`` — substrate attestation of the
     chirality-sector distribution."""
@@ -733,5 +768,6 @@ __all__ = [
     "klein4_chirality_flip_gamma5",
     "klein4_chirality_flip_omega7",
     "klein4_cpt_mirror",
+    "klein4_triality_cycle",
     "klein4_sector_count",
 ]

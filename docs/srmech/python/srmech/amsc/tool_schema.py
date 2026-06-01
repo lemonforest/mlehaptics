@@ -1322,6 +1322,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_cycle", owner="srmech",
+            category="hdc",
+            summary="Order-3 S₃=Aut(V₄) triality cycle of the three Klein-4 "
+                    "involutions (iω₇→γ₅→CPT, identity fixed); the V₄-carrier "
+                    "image of the so(8) 8v→8s→8c triality. Class I; T∘T∘T=id.",
+            parameters=(
+                P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                P("inverse", "bool", False, "reverse the 3-cycle (T⁻¹ = T²)"),
+            ),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
             summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
                     "distribution attestation.",
