@@ -1,0 +1,73 @@
+# Worked cascade-INSTANCE: the S3 = Aut(V4) triality structure on the Klein-4
+# carrier (v0.6.0rc19, MS #20).
+#
+# This is a CONTINUUM-TIER worked instance, NOT a cascade-catalog op-descriptor
+# and NOT a srmech.dsl runnable chain. The Klein-4 ops it composes
+# (klein4_triality_cycle + the three chirality flips) are KERNEL-tier ops in
+# srmech.amsc.hdc — deliberately NOT registered in the srmech.dsl cascade
+# catalog (which resolves ops via srmech.amsc.cascade). Per the rc16 two-tier
+# SSoT boundary, a primitive relabel like the triality cycle stays in the
+# hardcoded kernel; THIS file is the worked *instance* that composes those
+# kernel ops into a concrete cascade. It is verified in Python against the real
+# hdc ops by tests/test_triality_s3_worked_instance.py (not by run_toml_chain).
+#
+# The instance it documents: klein4_triality_cycle IS the order-3 generator of
+# Aut(V4) = S3, shown by the conjugation relation T . XOR_a . T^-1 = XOR_{T(a)}
+# (the order-3 cycle cyclically permutes the three order-2 chirality flips).
+
+[worked_instance]
+name = "triality_s3_klein4"
+carrier = "V4 = Z2 x Z2 — the Klein-4 sector alphabet {0,1,2,3}, state = g5_bit*2 + iw7_bit, group op = XOR"
+automorphism_group = "Aut(V4) = S3 (the 6 permutations of the three non-identity elements {1,2,3}, identity 0 fixed)"
+purpose = "Demonstrate that srmech.amsc.hdc.klein4_triality_cycle is the order-3 generator of Aut(V4)=S3 — the 'third axis' (F182) beyond the three order-2 chirality flips — via the automorphism conjugation relation, composed bit-exactly from the kernel hdc ops."
+
+# Aut(V4) = S3 — the 6 relabels of the non-identity elements {1,2,3} (0 fixed).
+# srmech exposes ONLY the order-3 generator (T, T^2); the three transposition-
+# automorphisms that complete S3 are NOT srmech ops. The order-3 generator IS
+# the F182 'third axis' beyond the bi-chiral involutions.
+[worked_instance.aut_v4_s3]
+identity = "id (order 1) — the trivial relabel"
+order_3 = [
+  "T   = klein4_triality_cycle(inverse=False) — the 3-cycle (1 2 3) on the non-identity elements: {0->0, 1->2, 2->3, 3->1}",
+  "T^2 = klein4_triality_cycle(inverse=True)  — the inverse 3-cycle (1 3 2): {0->0, 1->3, 2->1, 3->2}",
+]
+order_2_automorphisms = "the three transposition-relabels (each swaps two of {1,2,3}, fixes the third + 0) complete S3 = Aut(V4); they are NOT exposed as srmech ops — only the order-3 generator T is. T is itself a V4 homomorphism: T(u XOR v) = T(u) XOR T(v) (the relabel preserves XOR), which is what makes it an automorphism."
+
+# The three klein4 flips are the V4 TRANSLATIONS (XOR by a fixed mask) — each an
+# involution on the 4-element sector set, the non-identity elements of V4 <= S4
+# (the left-regular rep). They are the OBJECTS the automorphism T permutes (by
+# conjugation, see below) — NOT elements of Aut(V4) = S3.
+[worked_instance.v4_translations]
+iw7 = "klein4_chirality_flip_omega7 = XOR 1 — involution (0 1)(2 3)"
+g5  = "klein4_chirality_flip_gamma5 = XOR 2 — involution (0 2)(1 3)"
+cpt = "klein4_cpt_mirror            = XOR 3 — involution (0 3)(1 2)"
+
+# The load-bearing relation: T conjugates each translation into the next,
+# cyclically permuting the three involutions. T . XOR_a . T^-1 = XOR_{T(a)}.
+[worked_instance.conjugation_cascade]
+relation = "klein4_triality_cycle( flip_a( klein4_triality_cycle(v, inverse=True) ) )  ==  flip_{T(a)}( v )   for every Klein-4 vector v"
+cycle = [
+  "T . iw7 . T^-1 == g5    (XOR 1 -> XOR 2;  T(1) = 2)",
+  "T . g5  . T^-1 == cpt   (XOR 2 -> XOR 3;  T(2) = 3)",
+  "T . cpt . T^-1 == iw7   (XOR 3 -> XOR 1;  T(3) = 1)",
+]
+closure = "Applying T three times returns each flip to itself (T^3 = id): iw7 -> g5 -> cpt -> iw7. This IS the order-3 cycling F182 asked for — NOT a fourth order-2 chirality."
+
+[worked_instance.composes]
+# The kernel ops this instance sequences (all srmech.amsc.hdc; co-equal C
+# peers exist for bind/bundle/similarity + triality_cycle as of rc18).
+triality_cycle = "srmech.amsc.hdc.klein4_triality_cycle — Class I order-3 relabel; C peer srmech_klein4_triality_cycle (rc18)"
+flip_omega7 = "srmech.amsc.hdc.klein4_chirality_flip_omega7 — XOR 1 (Class C/K involution)"
+flip_gamma5 = "srmech.amsc.hdc.klein4_chirality_flip_gamma5 — XOR 2 (Class C/K involution)"
+cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror — XOR 3 (Class C/K involution)"
+
+[worked_instance.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech 0.6.0rc19"
+canonical_landings = [
+  "Baez, J.C. (2002), 'The Octonions', Bull. Amer. Math. Soc. 39:145, §2.4 — S3 = triality permuting 8v/8s/8c; the so(8) order-3 outer automorphism the V4-carrier cycle mirrors",
+  "srmech notebook §3.29 — the A-verdict F182 reconciliation: V4 is the right klein4 carrier, missing only the explicit order-3 operator that lives in Aut(V4)=S3",
+  "user_stance_substrate_was_tri_chiral_while_seen_bi_chiral — the bi-chiral V4 half (the order-2 flips) was already seen; the order-3 cycle is the third axis the substrate always had",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() anywhere in the cascade",
+]
