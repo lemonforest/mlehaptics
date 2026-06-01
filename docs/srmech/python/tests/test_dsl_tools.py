@@ -196,14 +196,20 @@ def test_dsl_list_catalog_ops() -> None:
         f"list_catalog_ops returned {sorted(names)}; expected the 10 "
         f"cascade-catalog ops {sorted(_EXPECTED_CATALOG_OPS)}"
     )
-    # Each record carries class + purpose + kind, and class/purpose are
-    # non-empty for the real catalog descriptors.
+    # Each record carries class + purpose + kind + provenance, and
+    # class/purpose are non-empty for the real catalog descriptors. The
+    # shipped ops are all A-tier (provenance="srmech"); a bring-your-own
+    # registered op would be "user" (F289 D2 / v0.7.0rc6).
     for rec in result:
-        assert set(rec.keys()) == {"name", "class", "purpose", "kind"}
+        assert set(rec.keys()) == {"name", "class", "purpose", "kind", "provenance"}
         assert rec["class"], f"{rec['name']} has empty class composition"
         assert rec["purpose"], f"{rec['name']} has empty purpose"
         assert rec["kind"] in ("stage", "combinator"), (
             f"{rec['name']} has unexpected kind {rec['kind']!r}"
+        )
+        assert rec["provenance"] == "srmech", (
+            f"{rec['name']} is a shipped op; expected provenance 'srmech', "
+            f"got {rec['provenance']!r}"
         )
     # Sorted ascending by name (so an LLM gets a stable enumeration).
     assert [r["name"] for r in result] == sorted(names)

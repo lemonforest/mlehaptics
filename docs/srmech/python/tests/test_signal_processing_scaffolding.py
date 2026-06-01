@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc5():
-    """v0.7.0rc5 — MS #21 rc5 voxel: the per-block HD Moufang-division family +
+def test_version_is_0_7_0rc6():
+    """v0.7.0rc6 — MS #21 rc6 voxel: bring-your-own (BYO) cascade-TOML (F289 D2).
+    A domain specialist drops ``*.toml`` cascade descriptors in a dir and
+    registers it (``srmech.dsl.register_catalog_dir``) — or points
+    ``SRMECH_CASCADE_PATH`` at it — and the ops resolve / run / surface
+    identically to shipped ops, flagged ``provenance="user"`` (B-tier, attested
+    to their own descriptor hash). A user descriptor may be a PURE-TOML composite
+    (a ``[composite]`` body = a chain of named ops, no Python) or a primitive; it
+    may NOT shadow a shipped op-name (raises at load) and composites validate at
+    load (referenced ops resolve + the graph is acyclic). Config API only —
+    ``describe()`` stays 192; ABI stays 3 (pure-Python).
+
+    Prior v0.7.0rc5 — MS #21 rc5 voxel: the per-block HD Moufang-division family +
     the loop_inv/loop_conj HD footgun guard (F-§12.1 / §12.2). Adds to
     ``srmech.amsc.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
     ``loop_inv_hd`` (per-block Moufang inverse), and ``loop_runbind_hd`` (per-block
@@ -544,8 +555,8 @@ def test_version_is_0_7_0rc5():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc5", (
-        f"expected srmech.__version__ == '0.7.0rc5'; got "
+    assert srmech.__version__ == "0.7.0rc6", (
+        f"expected srmech.__version__ == '0.7.0rc6'; got "
         f"{srmech.__version__!r}"
     )
 
