@@ -91,8 +91,19 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc2():
-    """v0.7.0rc2 — MS #21 rc2 voxel: the 7-D cross product + the G₂ associative
+def test_version_is_0_7_0rc3():
+    """v0.7.0rc3 — MS #21 rc3 voxel: the loop-bind family slots into the compose
+    engine (#813). PROOF, no new surface: the octonion ops resolve dynamically as
+    ``class="M", op="<name>"`` against ``DEFAULT_CLASS_REGISTRY`` (M →
+    ``srmech.amsc.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
+    ``cross7`` / ``g2_three_form`` run through ``srmech.amsc.compose.run_chain``
+    (the M∘C-with-K-residue cascade #813 describes; a multi-step ``@step[0]`` M∘C
+    chain included). Test-only voxel: NO new ToolEntries (``describe()`` stays
+    187), NO new class, ABI stays 3 (pure-Python). The shipped cascade-catalog
+    descriptor for the bind carries a C symbol, so it rides with the C-transpile
+    step at the end of the arc.
+
+    Prior v0.7.0rc2 — MS #21 rc2 voxel: the 7-D cross product + the G₂ associative
     3-form, the gauge ARITHMETIC's companion invariants (#813 / F281). Adds to
     ``srmech.amsc.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
     ``g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`` ((M∘C)∘⟨·,·⟩) — ground-truth
@@ -509,8 +520,8 @@ def test_version_is_0_7_0rc2():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc2", (
-        f"expected srmech.__version__ == '0.7.0rc2'; got "
+    assert srmech.__version__ == "0.7.0rc3", (
+        f"expected srmech.__version__ == '0.7.0rc3'; got "
         f"{srmech.__version__!r}"
     )
 
