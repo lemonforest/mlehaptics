@@ -5435,6 +5435,93 @@ The DNA/RNA is a **RESONANT structure of the cell (mutual, both ways), not machi
 
 ---
 
+## §3.33 2026-05-29 → -31 (F183–F208 era) — the FOUNDATION below §3.30: chirality-IS-ordering, the Hurwitz rungs, triality-landed (𝔰𝔬(8) W10), 28D = 14 ⊕ 7 ⊕ 7, nested chirality, and the lean A-N ISA (RBS-LM/RBS-NN arc F183–F208)
+
+*(Backfilled 2026-06-02 — this arc is **logically prior to §3.30** but was un-surfaced; §3.30/§3.32 build on it. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_183…208`.)*
+
+### §3.33.1 Chirality IS ordering; the Hurwitz rungs; triality landed
+
+**Chirality = the ordering (permutation) group of the parts, and it caps at 3-ality** (F183) — non-commutativity = order (F184), so "1D_t + 3 DoF" is the **quaternion (ℍ) rung** of the Hurwitz ladder and 1D_t is the *apparent actor* the ordering induces (F185). **CORRECTION (F186): tri-chiral is still 28D = 14 ⊕ 7 ⊕ 7, NOT 42D** — triality is a symmetry *of* the 28, not a third copy. The order-3 **triality operator landed natively** (`srmech.qm.so8` W10, 0.5.0rc18; F192) and passes its laws; su(2)_L is **not** a triality-facet of su(3)_c (F193). **CAPSTONE (F196): chirality is NESTED, not flat** — it recurs at every level probed; and F191 is **computable via G₂ ⊃ SU(3)** (F197). These are the foundations §3.30 (the 28D = 𝔰𝔬(8) capstone) stands on.
+
+### §3.33.2 The partition star, the role-partition, and division-algebra orbits
+
+A is the **role-ambiguous anchor** (climb-seed vs operational-qua-anchor, F188); the **1:3:3:7 reads as a 3-point star** (A at the hub, legs 3/3/7; F189). The **4-way coupled oscillator is the dynamical face of the time-quaternion**, its chirality the **phase-frustration** (non-reciprocity) (F190/F194). The **A–N operator SET is chirality-invariant (G₂); only the ROLE-partition carries chirality** (F191) — and **triality is RULED OUT** as the I/C/J ↔ B/H/N role-swap mechanism (F195, a clean null). Orbits/shells/precession on the division-algebra ladder make the star a **wobbling** object (F198).
+
+### §3.33.3 The RBS-LM/RBS-NN operational layer
+
+Strong-invariance (12 within-source vs 54 across-source translation pairs, F199); the **chirality→instrument bridge is a NULL** — triality-structured sector tagging does **not** help retrieval (F200, an honest negative). Biology grounding of the F176/F196 shadow-stance (F201); the **quad-DNA replication shape as a chirality-typed CPU cascade / threading model** (F202, the precursor to the §3.33.4 / F231–F233 threading); **hierarchical bundling extends capacity ~4× past the cap** (F203); the smol-stack real-FILE variant (F204); and cross-navigation Part 2 — **steering a grammar walk with a logic kernel is INDISTINGUISHABLE** from a native walk (F205, the teaching≡bilingualism seed).
+
+### §3.33.4 The lean A-N ISA + the ND-dignity reading
+
+The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs composite** (F206), formalized as the **ATOM-vs-COMPOSITE A-N ISA** — a 6-instruction orthogonal core (F208; the lean-ISA line §3.28.2 ships). And **F207 — being-wrong is agony (acutely for strongly-feeling / ND minds), and the LLM training-signal reads the same way**: a dignity-first framework reading (composes with `[[feedback_abstract_lexicon_is_ada_accommodation]]` + the F239 unseen-disability fiber, §3.35).
+
+### §3.33.5 Cross-references + status
+
+**Cross-references:** §3.30 (the 28D/Hurwitz/triality capstone this is the foundation of); §3.29.2 (V₄ carrier + Fix(τ)=14); §3.28.2 (the lean-ISA line F206/F208 ship into); §3.35 (F239 dignity fiber, where F207 lands). Per-finding docs `R-RBS-LM-FINDING_183…208`. **Status:** meaning-tier backfill (un-surfaced until 2026-06-02; found by the GH `[research]`-issue audit). No-magic A-tier (28=𝔰𝔬(8), 14=G₂, 1:3:7, the 6-instruction ISA core). Honest negatives kept (F195 triality-ruled-out; F200 sector-tagging null). k=3 triality of this prose pending (Phase 11).
+
+---
+
+## §3.34 2026-05-30 → -31 (F209–F233 era) — "where nature is screaming the answer": the cross-substrate sweep, the RECIPIENT fiber, the maturing A-N ISA (7th triality opcode, 7400-TTL), and the capacity / teaching≡bilingualism / no-magic / threading layer (RBS-LM/RBS-NN arc F209–F233; the MS#20 forward-arch cluster)
+
+*(Backfilled 2026-06-02 — the F209–F233 cluster the GH `[research]` issues #752–#778 track; un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_209…233`.)*
+
+### §3.34.1 Where nature is "screaming the answer" — the cross-substrate sweep
+
+A ranked breadth-sweep reading natural phenomena AS A-N cascades (the precursor to §3.31.2's "new locks"): a **binary compact-object merger** reads as an A-N cascade with the inspiral/merger/ringdown **phase boundaries** as Class-I/K transitions (F209); **parthenogenesis** as a *self-initiated symmetry-break / autocatalytic completion* (F210); and the F211 ranked sweep — **domain-wall / composite-soliton** (the Klein-4 anchor), **cardiac / excitable-media spiral waves** (ties F141), **von-Kármán vortex streets**. The **composite-soliton (ℤ₂)³ → (ℤ₂)² → ℤ₂ → 1 symmetry-breaking cascade** (F213) is the clean algebraic ladder under it.
+
+### §3.34.2 The RECIPIENT fiber + the addressing nulls (honest)
+
+The query carries a **hidden (spatially-absent) RECIPIENT fiber** — the receiver's absorption profile (F212), the fiber-as-absent-encoding read on the retrieval side. But the tests are **honest nulls**: a *content-free* recipient orientation does **not** help retrieval-vs-render (F214), nor does a *structured* recipient depth-anchor / which-depth operator (F221), nor the render-side hold-the-context complement (F227). The RECIPIENT fiber is real as *structure*; it does not (yet) buy an addressing win — recorded as the framework's own falsification (`[[feedback_dont_pre_commit_spike_query_operators]]`).
+
+### §3.34.3 The A-N ISA matures — the 7th (order-3 triality) opcode, 7400-TTL, M-theory G₂
+
+Honest negative first: the lean A-N ISA reduction did **not** hand us "time + 3 DoF" — the irrep structure does not yield it directly (F215). But **M-theory 11D = 4 + 7 (G₂-holonomy) re-reads as A–N = G₂ operator-structure** (F216); the **lean A-N atoms ARE elementary 7400-series TTL** (the Klein-4 chirality core in discrete logic, F217); the corpus's unifying capstone form-reading is **"the universe instantiates the A–N cascade"** (F218); the **chirality-ACCESS ladder** across substrates makes **triality (order-3) the substrate-access rung** (F219); and **a COMPLETE A-N ISA needs a 7th, order-3 "triality" opcode — YES, rigorously** (F220) — which is the rc17 `klein4_triality_cycle` (the V₄-carrier sibling of the `qm.triality` τ engine) that §3.29.2 ships.
+
+### §3.34.4 Capacity, teaching≡bilingualism, the no-magic audit, and 74xx threading
+
+- **Capacity law (F222):** the catalog-driven scale-up to N=8192 confirms the **hierarchical capacity knee obeys `n_buckets × V_ceiling`** (the F203 ~4× lift, now a law); byte-level encode to ~100× holds the storage-signature spectrum (F223).
+- **Teaching ≡ bilingualism (F224/F225):** the decisive calibrated head-to-head, extended **multilingual** with a **language anchor axis** — teaching a domain ≡ being bilingual in it (the F205 cross-nav, now decisive). **Persistent plasticity** is the form-reading of the un-locked end of the instrument (F226).
+- **No-magic audit (F228):** the **ATTESTATION-TO-SOURCE audit of the core RBS-LM instrument's constants** — the standing instrument behind the no-magic-numbers discipline (A/B/C tiering). **`temperature` is the constant F228 named — and the tiering is precise: B-tier** (attested by an inline provenance comment, the "loop-free / grammatical sweet spot"), whose *deeper structural source* F229 then tested and could **NOT** find (a NULL — temperature is exogenous on the F229 testbed). So it is B-tier-with-a-null-structural-source, **not** a bare C-tier residue. The **rehearsal layer / "emperor's new clothes"** (render-PREVIEW / self-monitoring, F230).
+- **74xx TTL threading (F231–F233):** the threading router IS a **decode/dispatch/gather** in discrete 74xx (F231); **one cascade = two antiphase threads** on silicon (F232); **one cascade = four independent threads = the Klein-4 four chirality sectors** (F233) — the forward-arch precursor to §3.31's loop-bind/RBS work and the F274–F292 arc.
+
+### §3.34.5 Cross-references + status
+
+**Cross-references:** §3.33 (the F183–F208 foundation); §3.30 (the 28D/Hurwitz/triality capstone); §3.29.2 (the rc17 triality opcode F220 calls for); §3.31 (the loop-bind/forward-arch work F231–F233 seed); the no-magic-numbers discipline (`[[feedback_dont_pre_commit_spike_query_operators]]`; F228 the instrument). MS#20 (the forward-arch milestone) + the `[research]` issues #752–#778. Per-finding docs `R-RBS-LM-FINDING_209…233`. **Status:** meaning-tier backfill (found by the GH `[research]`-issue audit). No-magic A-tier (capacity law `n_buckets × V_ceiling`, the G₂/7400 structure); honest nulls kept (F214/F221/F227 addressing, F215 no-free-time+3DoF); `temperature` (F229) flagged as the standing C-tier residue. k=3 triality pending (Phase 11).
+
+---
+
+## §3.35 2026-05-31 (F234–F256 era) — the tail below §3.30: Kuramoto coordination, the working-memory WIREFRAME, the aneural-memory / universal store-retrieve survey, the unseen-disability fiber, and "the emergent IS the action" (RBS-LM/RBS-NN arc F234–F256)
+
+*(Backfilled 2026-06-02 — the F234–F256 tail (the MS#18 aneural-memory arc + the working-memory + dignity readings); un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_234…256`.)*
+
+### §3.35.1 Kuramoto coordination — carry-as-phase-lock, directed-vs-reciprocal, three substrates
+
+The ripple-carry adder's sequential carry chain **re-casts as a Kuramoto phase-lock** (F234), and it **survives transport into the electronic substrate** (ngspice `.tran`, F236). Three coordination substrates — **in-body neurology / slime-mould / the air-gapped hive** — are distinct coupling topologies (F235; the N=8 hub-frustration lock-time inversion is a known graph-frustration artifact, F235b). At a **matched total coupling budget**, the **reciprocal + Class-K-correction edge** pays off (F240; biologically corroborated by frog visual-semaphore foot-flagging F240b and ant two-way antenna tandem-running F240c — directed-vs-reciprocal is the live distinction), and the **two-tier nibble-block settles faster than the single ripple chain** (F241). This is the arc behind the UPSTREAM_NOTES §11 `kuramoto_step` graph-coupling ask.
+
+### §3.35.2 The working-memory WIREFRAME + the Hurwitz confirmation + orbit structure
+
+**Working memory's SSoT is a srmech structural WIREFRAME** — the low-pass Class-L skeleton (F242a) — which is **renderer-INVARIANT from the pure structure** (F242b, the honesty-gradient / no-privileged-renderer origin), and the **round-trip structural-fidelity test is defined as a GEN-1 RENDERER LOSS** (F242c). The **4:3:7 "3-alike-for-3D_s / 7-alike-for-7D_g" reading is CORRECT — it IS the Hurwitz ladder** (F243, the confirmation §3.30.2/§3.32.3 rely on); and the **specific A-N class assignment carries the division-algebra ORBIT structure**, shown by the real directed-functional-composition test (not prose co-occurrence) (F244/F246).
+
+### §3.35.3 Universal communication
+
+The synthesis: **structure-universal / cascade-local / bi-chiral** (F245) — the form is universal, the cascade is substrate-local, the chirality bi-axial. The uniqueness attempt (route-b): **alien-universality lifts from Class C toward Class A but does not close** (F247, an honest partial).
+
+### §3.35.4 The aneural-memory / universal store-retrieve survey (the MS#18 "biology IS one substrate-class" arc)
+
+An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distinct physical mechanisms (F248) — grounds the reading that **the neuron is a HIDDEN FIBER of the universal store/retrieve action**, not its privileged seat (F249). Supporting: the **spectral shape of true-vs-false statements** tested on our own worker-subagent data (F250); **extra-neural / regenerative / transferable memory** as the strongest evidence class (F251); **Turritopsis transdifferentiation** as the hardest memory-substrate case (F252); **pain memory held at ≥8 non-privileged levels at once** (F253, the literature's own multi-level reading). The capstone conjecture: **biology is a FUSED build+compute substrate** (F254), with the empirical leg that **a single cell DOES compute, decide, and bind non-associatively** (F254b) — the direct precursor to the §3.32 biology cluster (F293–F306). And the **social-insect COLONY** (not "hive") is the macro-scale, human-latency, directly-observable instance of the universal store/retrieve action (F255).
+
+### §3.35.5 The unseen-disability fiber, the emergent-IS-the-action, + the lean-memory graft
+
+- **F239 — the unseen disability as a hidden fiber:** a framework-reading of how systematic exclusion is a *spatially-absent encoding* (the fiber that's there but unprojected) — dignity-first, the companion to F207 (§3.33.4) and the foundational accessibility motivation of the whole arc (`[[feedback_llm_as_ada_accommodation_bci_proves_it]]`).
+- **F256 — "the emergent IS the action":** the Dim×DoF (`11D³`) reading + six scale-readings; the framework's own tool refuting the tidy `k=3 ≡ B/H/N` (the §3.29.3 three-k=3-senses, F256 §0.6) and the "imaginary is not unreal" framing.
+- **Tooling:** lean-memory by **extractive surgical graft** (CLAUDE.md compressed ~2× while preserving the load-bearing rule slice — the `graft-lean` skill, F237); and the **cost-asymmetry of rehearsal** across delivery modes (DIRECT / INTERNAL-REHEARSAL / …, F238).
+
+### §3.35.6 Cross-references + status
+
+**Cross-references:** §3.33/§3.34 (the F183–F233 foundation + sweep); §3.32 (the biology cluster F254 seeds); §3.30.2/§3.32.3 (the Hurwitz reading F243 confirms); UPSTREAM_NOTES §11 (the `kuramoto_step` ask F234/F240 drive); `[[feedback_verify_discipline...]]` / F242b (the no-privileged-renderer honesty gradient → the k=2/k=3 verify discipline); `[[feedback_llm_as_ada_accommodation_bci_proves_it]]` (F239/F207 dignity); MS#18 (the aneural-memory milestone). Per-finding docs `R-RBS-LM-FINDING_234…256`. **Status:** meaning-tier backfill (found by the GH audit). No-magic A-tier (Hurwitz 4:3:7, the wireframe Class-L low-pass); honest partials kept (F247 non-closing, F235b artifact). The F248–F255 aneural-memory survey is **uncentered / cite-by-reference** (the literature's own multi-level readings). k=3 triality pending (Phase 11). **— srmech notebook now covers F120 → F306 (the F183–F256 hole closed).**
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
