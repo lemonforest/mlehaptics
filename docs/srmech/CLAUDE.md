@@ -27,6 +27,17 @@ beyond a single-file read.
   vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
   (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
   AMSC) remain in PyPI history.
+- **Version-narrative currency note (2026-06-02, as-of-merge):** the
+  rc/version arc above can lag the dev head — **check
+  <https://test.pypi.org/project/srmech/> for the current rc** before
+  trusting it. The RBS-LM research subtree has been verifying
+  **`0.7.0rcN`** (rc11 = latest clean-verified in a venv outside the
+  source tree; `HAS_NATIVE` / ABI 3); see
+  `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §12. Low-priority to
+  reconcile while everything is still rc — it **matters more once a
+  clean (non-rc) tag lands on production PyPI** (the human-in-loop
+  graduation gate), at which point this paragraph and the 4-file
+  version SSOT should be brought current.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
