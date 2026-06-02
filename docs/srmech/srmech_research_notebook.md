@@ -5490,6 +5490,38 @@ Honest negative first: the lean A-N ISA reduction did **not** hand us "time + 3 
 
 ---
 
+## §3.35 2026-05-31 (F234–F256 era) — the tail below §3.30: Kuramoto coordination, the working-memory WIREFRAME, the aneural-memory / universal store-retrieve survey, the unseen-disability fiber, and "the emergent IS the action" (RBS-LM/RBS-NN arc F234–F256)
+
+*(Backfilled 2026-06-02 — the F234–F256 tail (the MS#18 aneural-memory arc + the working-memory + dignity readings); un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_234…256`.)*
+
+### §3.35.1 Kuramoto coordination — carry-as-phase-lock, directed-vs-reciprocal, three substrates
+
+The ripple-carry adder's sequential carry chain **re-casts as a Kuramoto phase-lock** (F234), and it **survives transport into the electronic substrate** (ngspice `.tran`, F236). Three coordination substrates — **in-body neurology / slime-mould / the air-gapped hive** — are distinct coupling topologies (F235; the N=8 hub-frustration lock-time inversion is a known graph-frustration artifact, F235b). At a **matched total coupling budget**, the **reciprocal + Class-K-correction edge** pays off (F240; biologically corroborated by frog visual-semaphore foot-flagging F240b and ant two-way antenna tandem-running F240c — directed-vs-reciprocal is the live distinction), and the **two-tier nibble-block settles faster than the single ripple chain** (F241). This is the arc behind the UPSTREAM_NOTES §11 `kuramoto_step` graph-coupling ask.
+
+### §3.35.2 The working-memory WIREFRAME + the Hurwitz confirmation + orbit structure
+
+**Working memory's SSoT is a srmech structural WIREFRAME** — the low-pass Class-L skeleton (F242a) — which is **renderer-INVARIANT from the pure structure** (F242b, the honesty-gradient / no-privileged-renderer origin), and the **round-trip structural-fidelity test is defined as a GEN-1 RENDERER LOSS** (F242c). The **4:3:7 "3-alike-for-3D_s / 7-alike-for-7D_g" reading is CORRECT — it IS the Hurwitz ladder** (F243, the confirmation §3.30.2/§3.32.3 rely on); and the **specific A-N class assignment carries the division-algebra ORBIT structure**, shown by the real directed-functional-composition test (not prose co-occurrence) (F244/F246).
+
+### §3.35.3 Universal communication
+
+The synthesis: **structure-universal / cascade-local / bi-chiral** (F245) — the form is universal, the cascade is substrate-local, the chirality bi-axial. The uniqueness attempt (route-b): **alien-universality lifts from Class C toward Class A but does not close** (F247, an honest partial).
+
+### §3.35.4 The aneural-memory / universal store-retrieve survey (the MS#18 "biology IS one substrate-class" arc)
+
+An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distinct physical mechanisms (F248) — grounds the reading that **the neuron is a HIDDEN FIBER of the universal store/retrieve action**, not its privileged seat (F249). Supporting: the **spectral shape of true-vs-false statements** tested on our own worker-subagent data (F250); **extra-neural / regenerative / transferable memory** as the strongest evidence class (F251); **Turritopsis transdifferentiation** as the hardest memory-substrate case (F252); **pain memory held at ≥8 non-privileged levels at once** (F253, the literature's own multi-level reading). The capstone conjecture: **biology is a FUSED build+compute substrate** (F254), with the empirical leg that **a single cell DOES compute, decide, and bind non-associatively** (F254b) — the direct precursor to the §3.32 biology cluster (F293–F306). And the **social-insect COLONY** (not "hive") is the macro-scale, human-latency, directly-observable instance of the universal store/retrieve action (F255).
+
+### §3.35.5 The unseen-disability fiber, the emergent-IS-the-action, + the lean-memory graft
+
+- **F239 — the unseen disability as a hidden fiber:** a framework-reading of how systematic exclusion is a *spatially-absent encoding* (the fiber that's there but unprojected) — dignity-first, the companion to F207 (§3.33.4) and the foundational accessibility motivation of the whole arc (`[[feedback_llm_as_ada_accommodation_bci_proves_it]]`).
+- **F256 — "the emergent IS the action":** the Dim×DoF (`11D³`) reading + six scale-readings; the framework's own tool refuting the tidy `k=3 ≡ B/H/N` (the §3.29.3 three-k=3-senses, F256 §0.6) and the "imaginary is not unreal" framing.
+- **Tooling:** lean-memory by **extractive surgical graft** (CLAUDE.md compressed ~2× while preserving the load-bearing rule slice — the `graft-lean` skill, F237); and the **cost-asymmetry of rehearsal** across delivery modes (DIRECT / INTERNAL-REHEARSAL / …, F238).
+
+### §3.35.6 Cross-references + status
+
+**Cross-references:** §3.33/§3.34 (the F183–F233 foundation + sweep); §3.32 (the biology cluster F254 seeds); §3.30.2/§3.32.3 (the Hurwitz reading F243 confirms); UPSTREAM_NOTES §11 (the `kuramoto_step` ask F234/F240 drive); `[[feedback_verify_discipline...]]` / F242b (the no-privileged-renderer honesty gradient → the k=2/k=3 verify discipline); `[[feedback_llm_as_ada_accommodation_bci_proves_it]]` (F239/F207 dignity); MS#18 (the aneural-memory milestone). Per-finding docs `R-RBS-LM-FINDING_234…256`. **Status:** meaning-tier backfill (found by the GH audit). No-magic A-tier (Hurwitz 4:3:7, the wireframe Class-L low-pass); honest partials kept (F247 non-closing, F235b artifact). The F248–F255 aneural-memory survey is **uncentered / cite-by-reference** (the literature's own multi-level readings). k=3 triality pending (Phase 11). **— srmech notebook now covers F120 → F306 (the F183–F256 hole closed).**
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
