@@ -90,6 +90,33 @@ def test_length_must_be_multiple_of_eight():
         hdc.loop_unbind_hd(bad, bad)
 
 
+def test_native_hd_batch_parity_all_nb():
+    # rc11 F292 #2: the native N-way SIMD HD bind (one srmech_loop_bind_hd_f64
+    # call for the whole NB-block array) must match the pure-Python per-block
+    # _loop_bind_raw oracle. NB chosen to straddle the AVX W=4 + SSE2 W=2 group
+    # sizes AND every remainder (nb mod 4, nb mod 2). On a Pyodide/no-native
+    # build loop_bind_hd takes the per-block path — still parity, so the test is
+    # unconditional. Bit-exact in practice (the octonion product is +/-/*, no FMA
+    # divergence; F292 "parity-trivial, err 0.0"); 1e-12 absorbs any 1-ULP.
+    rng = np.random.default_rng(20260602)
+    for nb in (1, 2, 3, 4, 5, 6, 7, 8, 9, 17, NB):
+        x = rng.standard_normal(nb * BS)
+        y = rng.standard_normal(nb * BS)
+        got = hdc.loop_bind_hd(x, y)
+        xb, yb = x.reshape(nb, BS), y.reshape(nb, BS)
+        want = np.concatenate([hdc._loop_bind_raw(xb[k], yb[k]) for k in range(nb)])
+        assert np.allclose(got, want, rtol=0.0, atol=1e-12), f"nb={nb}"
+
+
+def test_native_hd_symbol_wired_when_native():
+    # when the native lib is loaded it MUST export the rc11 batch symbol (the
+    # build wires srmech_loop_bind_hd_f64); _try_native_loop_bind_hd then drives
+    # loop_bind_hd. On a pure-Python build there is no symbol and that is fine.
+    from srmech.amsc import _native
+    if _native.HAS_NATIVE and _native.LIB is not None:
+        assert hasattr(_native.LIB, "srmech_loop_bind_hd_f64")
+
+
 def test_capacity_mechanism_retrieves():
     # bind K key⊗val pairs, superpose, unbind each key, clean up by nearest cosine
     # over an M-item value codebook — all K retrieved. (The full loop ≥ klein4 K=128

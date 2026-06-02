@@ -136,14 +136,17 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_bus__write_all_fd",
     "srmech_bus__read_exact_handle",
     "srmech_bus__write_all_handle",
-    # v0.7.0rc10 (F292 graft #1): srmech_sha256_batch.c internals with no
-    # pointer/bounds invariant to assert. `__ror` is a 1-line rotate (like
-    # the exempt scalar srmech_ror32); `__avx2_supported` + `__tier` are
-    # pure CPU-feature detectors (cpuid / getenv-override) returning a
-    # bounded tier {0,1,2}. See c/JPL_AUDIT.md.
+    # v0.7.0rc10 (F292 graft #1): srmech_sha256_batch.c `__ror` is a 1-line
+    # rotate (like the exempt scalar srmech_ror32), no pointer/bounds invariant.
     "srmech_sha256b__ror",
-    "srmech_sha256b__avx2_supported",
-    "srmech_sha256b__tier",
+    # v0.7.0rc11 (SIMD optimize-path HAL): srmech_simd.c CPU-feature detectors
+    # are pure cpuid/xgetbv probes returning 0/1 with no pointer/bounds
+    # invariant to assert (they replaced per-file copies in sha256_batch.c /
+    # loopbind_hd.c — net FEWER exempt functions). srmech_simd_tier is NOT
+    # exempt (it asserts env_var != NULL + max_tier >= 0). See c/JPL_AUDIT.md.
+    "srmech_simd_has_avx2",
+    "srmech_simd_has_avx",
+    "srmech_simd_has_sse2",
 }
 
 # Maximum allowed function length (JPL Rule 4).

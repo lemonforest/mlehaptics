@@ -36,43 +36,22 @@
  *
  * JPL Power-of-Ten: Rule 1 (no goto / no recursion — flat loops); Rule 3
  * (no malloc — bounded stack only); Rule 4 (<=60-line functions); Rule 5
- * (>=2 asserts per non-exempt function; the cpu-tier probe is the one
- * exempt feature-detector, see c/JPL_AUDIT.md); Rule 8 (only SINGLE-line
- * macros for the vector sigma ops); Rule 10 (-Wall -Wextra -Wpedantic
- * -Werror / /W4 /WX). ABI: new symbol only -> SRMECH_ABI_VERSION stays 3.
+ * (>=2 asserts per non-exempt function; the cpuid / tier probes live in the
+ * HAL, srmech_simd.c); Rule 8 (only SINGLE-line macros for the vector sigma
+ * ops); Rule 10 (-Wall -Wextra -Wpedantic -Werror / /W4 /WX). ABI: new
+ * symbol only -> SRMECH_ABI_VERSION stays 3.
  *
  * License: GPL-3.0-or-later.
  */
 
 #include "srmech.h"
+#include "srmech_simd.h"   /* SIMD optimize-path HAL: SRMECH_SIMD_X86,
+                            * arch includes, SRMECH_SIMD_TARGET_*, cpuid */
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>   /* getenv */
 #include <string.h>
-
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-#  define SRMECH_SHA_X86 1
-#  include <immintrin.h>
-#  if defined(_MSC_VER)
-#    include <intrin.h>
-#  else
-#    include <cpuid.h>
-#  endif
-#else
-#  define SRMECH_SHA_X86 0
-#endif
-
-/* target-attribute shim: gcc/clang need it to emit AVX2/SSE2 codegen from
- * a baseline TU; MSVC emits the intrinsics regardless of /arch. */
-#if SRMECH_SHA_X86 && !defined(_MSC_VER)
-#  define SRMECH_TGT_AVX2 __attribute__((target("avx2")))
-#  define SRMECH_TGT_SSE2 __attribute__((target("sse2")))
-#else
-#  define SRMECH_TGT_AVX2
-#  define SRMECH_TGT_SSE2
-#endif
 
 /* ------------------------------------------------------------------ *
  * SHA-256 constants (FIPS 180-4 §4.2.2 / §5.3.3) — duplicate of
@@ -203,7 +182,7 @@ static void srmech_sha256b__digest1(const uint8_t *msg, size_t len,
     }
 }
 
-#if SRMECH_SHA_X86
+#if SRMECH_SIMD_X86
 
 /* ------------------------------------------------------------------ *
  * SSE2 4-way kernel. Single-line vector macros only (JPL Rule 8).
@@ -223,7 +202,7 @@ static void srmech_sha256b__digest1(const uint8_t *msg, size_t len,
 #define S4_SS0(x)     S4_XOR(S4_XOR(S4_ROR((x),7), S4_ROR((x),18)), S4_SHR((x),3))
 #define S4_SS1(x)     S4_XOR(S4_XOR(S4_ROR((x),17), S4_ROR((x),19)), S4_SHR((x),10))
 
-SRMECH_TGT_SSE2
+SRMECH_SIMD_TARGET_SSE2
 static void srmech_sha256b__compress4(__m128i state[8], const __m128i win[16])
 {
     assert(state != NULL);
@@ -247,7 +226,7 @@ static void srmech_sha256b__compress4(__m128i state[8], const __m128i win[16])
     state[6] = S4_ADD(state[6], g); state[7] = S4_ADD(state[7], h);
 }
 
-SRMECH_TGT_SSE2
+SRMECH_SIMD_TARGET_SSE2
 static void srmech_sha256b__hash4(const uint8_t *const *msgs,
                                   const size_t *lens, uint8_t *out)
 {
@@ -310,7 +289,7 @@ static void srmech_sha256b__hash4(const uint8_t *const *msgs,
 #define A8_SS0(x)     A8_XOR(A8_XOR(A8_ROR((x),7), A8_ROR((x),18)), A8_SHR((x),3))
 #define A8_SS1(x)     A8_XOR(A8_XOR(A8_ROR((x),17), A8_ROR((x),19)), A8_SHR((x),10))
 
-SRMECH_TGT_AVX2
+SRMECH_SIMD_TARGET_AVX2
 static void srmech_sha256b__compress8(__m256i state[8], const __m256i win[16])
 {
     assert(state != NULL);
@@ -334,7 +313,7 @@ static void srmech_sha256b__compress8(__m256i state[8], const __m256i win[16])
     state[6] = A8_ADD(state[6], g); state[7] = A8_ADD(state[7], h);
 }
 
-SRMECH_TGT_AVX2
+SRMECH_SIMD_TARGET_AVX2
 static void srmech_sha256b__hash8(const uint8_t *const *msgs,
                                   const size_t *lens, uint8_t *out)
 {
@@ -382,41 +361,7 @@ static void srmech_sha256b__hash8(const uint8_t *const *msgs,
     }
 }
 
-/* cpuid feature probe -> dispatch tier {0 scalar, 1 SSE2, 2 AVX2}.
- * JPL Rule 5 EXEMPT (feature-detector; no pointer/bounds invariant to
- * assert) — see c/JPL_AUDIT.md. */
-static int srmech_sha256b__avx2_supported(void)
-{
-#if defined(_MSC_VER)
-    int regs[4];
-    __cpuid(regs, 1);
-    const int osxsave = (regs[2] >> 27) & 1;
-    const int avx = (regs[2] >> 28) & 1;
-    if (!osxsave || !avx) { return 0; }
-    if ((_xgetbv(0) & 0x6u) != 0x6u) { return 0; }
-    __cpuidex(regs, 7, 0);
-    return (regs[1] >> 5) & 1;
-#else
-    return __builtin_cpu_supports("avx2") ? 1 : 0;
-#endif
-}
-
-#endif /* SRMECH_SHA_X86 */
-
-static int srmech_sha256b__tier(void)
-{
-    const char *force = getenv("SRMECH_SHA256_FORCE_TIER");
-    if (force != NULL) {
-        const int t = atoi(force);
-        return (t < 0) ? 0 : ((t > 2) ? 2 : t);
-    }
-#if SRMECH_SHA_X86
-    if (srmech_sha256b__avx2_supported()) { return 2; }
-    return 1;  /* SSE2 is baseline on x86-64 */
-#else
-    return 0;
-#endif
-}
+#endif /* SRMECH_SIMD_X86 */
 
 /* ------------------------------------------------------------------ *
  * Public entry — declared in srmech.h.
@@ -436,9 +381,11 @@ srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
     assert(n == 0u || (msgs != NULL && lens != NULL && out_digests != NULL));
 
     size_t i = 0;
-    const int tier = srmech_sha256b__tier();
+    const int detected = srmech_simd_has_avx2() ? 2
+                       : (srmech_simd_has_sse2() ? 1 : 0);
+    const int tier = srmech_simd_tier("SRMECH_SHA256_FORCE_TIER", detected, 2);
     assert(tier >= 0 && tier <= 2);
-#if SRMECH_SHA_X86
+#if SRMECH_SIMD_X86
     if (tier == 2) {
         for (; i + 8u <= n; i += 8u) {
             srmech_sha256b__hash8(&msgs[i], &lens[i], out_digests + (i * 32u));

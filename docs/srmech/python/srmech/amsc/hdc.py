@@ -870,6 +870,31 @@ def _try_native_loop_bind(a_, b_):
     return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
 
 
+def _try_native_loop_bind_hd(a_, b_):
+    """Whole-array native HD bind — ONE ``srmech_loop_bind_hd_f64`` call binds
+    ALL NB 8-blocks (internally N-way-SIMD across blocks: AVX W=4 / SSE2 W=2 /
+    scalar remainder), replacing the Python per-block ``loop_bind`` loop. a_,
+    b_ are flat float arrays of equal length, a positive multiple of LOOP_DIM.
+    Returns the flat result (NB·8), or None to fall back to the per-block path
+    (lib absent / symbol missing / non-OK). No per-element Python loop — pointers
+    cross once (this IS the F292 graft's win). ``out`` is a fresh buffer, so it
+    never aliases the inputs (the C contract)."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+            or not _loop_native_ready("srmech_loop_bind_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    xc = np.ascontiguousarray(a_, dtype=np.float64)
+    yc = np.ascontiguousarray(b_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_bind_hd_f64(
+        xc.ctypes.data_as(_DBLP), yc.ctypes.data_as(_DBLP),
+        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
 def _try_native_loop_inv(arr):
     if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
         return None
@@ -1049,6 +1074,9 @@ def loop_bind_hd(x, y):
     assert a_.shape == b_.shape, "loop_bind_hd: operands must have equal length"
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_bind_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_bind_hd(a_, b_)
+    if native is not None:
+        return native
     xb = a_.reshape(-1, LOOP_DIM)
     yb = b_.reshape(-1, LOOP_DIM)
     return np.concatenate([loop_bind(xb[k], yb[k]) for k in range(xb.shape[0])])
