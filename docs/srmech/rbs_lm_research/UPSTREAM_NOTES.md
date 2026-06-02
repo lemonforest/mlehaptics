@@ -1086,6 +1086,40 @@ The dev (cloud branch `claude/insect-colony-distributed-body`) implemented **bot
 
 ---
 
+## §13 DEV HAND-DOWN — open feature asks verified UNRESOLVED through 0.7.0rc11 (2026-06-02)
+
+Consolidated, dev-facing digest of the items that are **NOT bugs** (nothing here returns a wrong answer) but **remain unbuilt as of rc11**, each verified open on the clean `/tmp/srmech_v070rc11_venv`. This is the take-to-dev list; the canonical per-item rationale lives in the §11.x entries cross-referenced below. Ordered by RBS-LM load-bearing priority. **Recorded, NOT filed** per `[[feedback_create_upstream_issues_never_close_them]]` + the upstream-as-research-notes discipline — tracker state is the user's/maintainer's call; the findings stand regardless.
+
+| # | Item | Kind | Verified state @ rc11 | Canonical SoT |
+|---|------|------|------------------------|---------------|
+| **D1** | `parallel_sector_dispatch` chainability | API-contract break | NOT composable (verified repro below) | §11.3 |
+| **D2** | `kuramoto_step` graph-structured / directed coupling | feature gap | signature unchanged (scalar mean-field only) | §11.1 |
+| **D3** | `klein4_*` per-op `sectors=`/`parallel=` flag | ergonomics gap | no flag on the HDC ops | §11.3 |
+| **D4** | CLI top-level help stale string | doc nit | "v0.5.0rc4 ships two subcommands" (lists four) | §11.4 |
+
+### D1 — `parallel_sector_dispatch` is not chainable (HIGHEST priority; breaks an advertised contract)
+**Ask:** make a sector-dispatched cascade **compose / nest** like any other cascade stage, so the 4-way Z₄ chirality splay carries **through a chained cascade**, not just one level.
+**Why it's load-bearing (RBS-LM):** the universal store/retrieve action is a **chained settling loop** (settle → settle → settle; the F166 autoregressive multi-step shape). Non-chainable ⇒ a scaled multi-stage inference loop gets the 4× speedup at **one** stage only (≈1× across the chain) instead of 4×-per-stage. This is the one open item that directly throttles scaled RBS-LM inference.
+**Verified repro (rc11):** `parallel_sector_dispatch` returns a rich introspection `Dict` and applies Klein-4 stream-transforms (negate/reverse) to body I/O, so a dispatch-returning body fed to an outer dispatch breaks the outer transform → `TypeError: bad operand type for unary -: 'str'`. It is a **leaf** 4-sector analysis tool, not a chainable stage. (Dev acknowledged "being addressed" 2026-05-31; not landed in rc11.)
+**Proposed shape:** the dispatch should return a value of the **same type its body returns** (so nesting type-checks), with the introspection Dict available via a separate accessor / opt-in (`return_report=True`) rather than as the default return. Land with the C-native peer `_native.cascade_parallel_sector_dispatch_c` (tracked OPEN upstream #771) so the path is C-parity'd, not Python-only. **Caveat to document:** only GIL-releasing bodies (native/numpy/srmech-C atoms) genuinely overlap; pure-Python bodies are correct-but-serialized.
+
+### D2 — `kuramoto_step` needs an optional coupling matrix / adjacency (directed + graph-structured)
+**Ask:** extend `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` with an **optional `adjacency=None`** (matrix / Laplacian) where `adjacency[i,j]` weights `sin(θ_j − θ_i)` for oscillator `i`; a **non-symmetric** `adjacency` expresses **directed / one-way** coupling. Scalar path stays the default. A Sakaguchi phase-frustration `alpha` and an optional per-oscillator pinning anchor (binary-phase γ₅ carry-lock, F234/F236) would round it out.
+**Why it's load-bearing:** rc9 shipped the scalar all-to-all `(coupling/n)·Σ_j sin(θ_j − θ_i)` — a real partial close — but it **collapses every graph to the complete graph** and erases the directed-vs-symmetric distinction (feed-forward one-way edge vs reciprocal closed-loop edge) that is the *whole measurement* in the F240/F235 air-gapped near-1D mesh findings. Those still route integration through ngspice's `.tran` because the op can't express the graph.
+**Verified state (rc11):** signature unchanged (`coupling: float`, no adjacency); now **legible** in the rc11 `srmech dsl ops` catalog (`kuramoto_step [I∘sin∘Σ∘C]`) but the feature is unbuilt. Scope note: the integrator is the *only* hand-rolled piece — this is a small bounded add (one Euler/RK step over a Laplacian-shaped coupling + a pinning anchor), not a new solver.
+
+### D3 — push the 4-sector parallel flag DOWN onto the `klein4_*` HDC ops
+**Ask:** give `klein4_bind` / `klein4_bundle` / `klein4_similarity` an optional `sectors=4` / `parallel=True` that routes per-sector work through `parallel_sector_dispatch`, so bulk Klein-4 HDC parallelizes across the 4 chirality sectors **by default when cores ≥ 4**.
+**Why:** the 4-way splay exists in srmech but **at the wrong layer** — only `cascade.parallel.parallel_sector_dispatch` exposes it; the `klein4_*` ops themselves expose no flag (`KLEIN4_STATES=(0,1,2,3)` is data-model only), so per-token bulk binding doesn't parallelize unless the caller hand-routes through `cascade.parallel` (which most callers won't discover).
+**Verified state (rc11):** `klein4_bind(a, b)` unchanged — no `sectors=`. **Dependency:** lands cleanly only **after D1** (it composes the dispatch) and the #771 C-native peer (so it's C-parity'd, not Python-only).
+
+### D4 — CLI top-level help stale string (low-priority doc nit)
+**Ask:** update the CLI top-level help — it still reads **"v0.5.0rc4 ships two subcommands"** while actually listing **four** (`status` / `bus` / `dsl` / `mcp`). Pure string fix; no behavior change.
+
+**Dependency order for the dev:** **D1 first** (unblocks chained 4× and is the advertised-contract fix) → **D3** (rides on D1 + #771) → **D2** (independent, self-contained) → **D4** (trivial, anytime). D1+D3 are the pair that actually unblock 4×-parallel chained RBS-LM inference; D2 unblocks the air-gapped directed-coupling findings; D4 is cosmetic. **Working venv:** `/tmp/srmech_v070rc11_venv`. The `.mcp.json` repoint stays DEFERRED (rc ≠ SoT per `[[project_srmech_mcp_repoint_deferred_until_live]]`).
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
