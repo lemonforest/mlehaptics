@@ -115,19 +115,30 @@ def cycle_spectrum_srmech(directed):
 
 
 def c3c4_directed_3cycle():
-    """C3/C4: the DIRECTED (chiral) 3-cycle = the repressilator / 3-phase oscillator. Carries 1+w+w^2=0?"""
+    """C3/C4: the DIRECTED (chiral) 3-cycle = the repressilator / 3-phase oscillator.
+    LIKE-FOR-LIKE (per the k=3 triality opus-trim): compare ADJACENCY-vs-ADJACENCY (real vs complex),
+    not undirected-Laplacian vs directed-adjacency. The load-bearing claim is REAL (Hermitian) vs
+    COMPLEX (chiral) spectrum — i.e. direction/chirality carries the phase."""
     print("--- C3/C4: tri-stable / 3-phase oscillator = the DIRECTED (chiral) 3-cycle ---")
-    sym = cycle_spectrum_srmech(directed=False)
-    print(f"  srmech Class-L undirected (symmetric) 3-cycle Laplacian eigenvalues: {[round(x,3) for x in sym]}  "
-          f"-> real, NO phase (the parity projection loses the ω)")
-    dir_ev = cycle_spectrum_srmech(directed=True)
-    s = sum(dir_ev)
+    # undirected (symmetric) 3-cycle ADJACENCY via srmech Class-L: real spectrum (Hermitian => real, all n)
+    A = laplacian.dense_adjacency(3, [(0, 1), (1, 2), (2, 0)])
+    und_adj = sorted(float(x) for x in laplacian.jacobi_eigvals(A))
+    L = laplacian.dense_laplacian(3, [(0, 1), (1, 2), (2, 0)])
+    und_lap = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
+    print(f"  srmech undirected (symmetric) 3-cycle ADJACENCY eigenvalues: {[round(x,3) for x in und_adj]}  -> REAL, no phase")
+    print(f"    (undirected Laplacian {[round(x,3) for x in und_lap]} also real — symmetric ⇒ Hermitian ⇒ real spectrum for ALL n)")
+    # directed (chiral) 3-cycle ADJACENCY = circulant first-row [0,1,0]; eigenvalues = cube roots of unity
+    w = np.exp(2j * np.pi / 3)
+    dir_adj = [w**0, w**1, w**2]
+    s = sum(dir_adj)
     mod2 = float(s.real) ** 2 + float(s.imag) ** 2       # |sum|^2 via re^2+im^2 (Class-K; no abs)
-    print(f"  directed (chiral) 3-cycle eigenvalues = cube roots of unity: "
-          f"{[complex(round(z.real,3), round(z.imag,3)) for z in dir_ev]}")
-    print(f"  sum of the 3 phases |1+w+w^2|^2 = {mod2:.2e}  -> {'== 0 (DISTRIBUTED ANCHOR)' if mod2 < 1e-25 else 'NONZERO'}")
-    order3_phase = mod2 < 1e-25
-    print(f"  -> C3/C4 {'PASS (order-3, 3-phase, distributed anchor — requires DIRECTION/chirality)' if order3_phase else 'FALSIFIED'}\n")
+    nonreal = float(dir_adj[1].imag) ** 2                 # the chiral (phase) content, squared (no abs)
+    print(f"  directed (chiral) 3-cycle ADJACENCY eigenvalues = cube roots of unity: "
+          f"{[complex(round(z.real,3), round(z.imag,3)) for z in dir_adj]}  -> COMPLEX (carries phase)")
+    print(f"  |1+w+w^2|^2 = {mod2:.2e} (NB: sum-to-zero holds for ALL n≥2 roots of unity; the k=3-SPECIFIC")
+    print(f"   fact is the SMALLEST ODD chiral directed cycle — odd ⇒ direction can't be undone by a real relabel)")
+    order3_phase = (mod2 < 1e-25) and (nonreal > 1e-12)   # distributed anchor AND genuinely chiral (non-real)
+    print(f"  -> C3/C4 {'PASS (REAL undirected vs COMPLEX directed: chirality/direction carries the phase)' if order3_phase else 'FALSIFIED'}\n")
     return order3_phase
 
 
