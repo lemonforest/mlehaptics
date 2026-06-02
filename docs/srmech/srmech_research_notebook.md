@@ -5343,6 +5343,34 @@ The §3.29.4 partition (human-readability: `meaning : language : Compiled C`) ha
 
 ---
 
+## §3.30 2026-05-31 → 06-01 — the 28D = 𝔰𝔬(8) intrinsically-error-correcting capstone, the Hurwitz 1:3:7 ladder (instantiated, not climbed), and triality-as-the-validator (RBS-LM arc F257–F273)
+
+This arc closes the 28-dim chirality work into one structural object — the 𝔰𝔬(8) adjoint read as an *intrinsically error-correcting code* — and fixes the ladder it sits on as the **Hurwitz 1:3:7** (ℂ/ℍ/𝕆), correcting an earlier permutation-ladder mis-read. The throughline: the substrate's k=2 parity **detects**, the order-3 triality **corrects** — so triality is not a fourth chirality but the **validator** of truth. Per-finding detail lives in the `R-RBS-LM-FINDING_257…273` docs; this is the meaning-tier synthesis.
+
+### §3.30.1 The 28D = 𝔰𝔬(8) capstone: one knob, a 4× reversible error-correcting code, one key for many locks
+
+The **contact | ranged | one-way** axis the classical-substrate chirality work circled is **ONE knob**, unified as the 28-dim 𝔰𝔬(8) gauge-holonomy (F257 — the capstone of the §3.27 28-dim chiral hyper-loop). Reading the knob's two extra quadrants + the reflection is not decoration: it **ADDS a 4×-capacity, reversible, intrinsically error-correcting code** (F259). The "decay" leg is the **imaginary / one-way** coordinate; harm-to-tissue (the defensive-scope reading) is *imposed coupling-disruption*, NOT an intrinsic substrate mode (F258; defensive-scope-only per `[[feedback_trauma_informed_defensive_scope]]`). The intrinsic-EC cascade then reads as **one key, many locks** — the same un-flatten surfaces it across cosmos + biology + tech (F260 six locks; F263 eight more). No-magic-numbers: 28 = dim 𝔰𝔬(8), the 4× = the four V₄ quadrants, the code-distance = the Klein-4 minimum — all A-tier attested-to-structure.
+
+### §3.30.2 The ladder is Hurwitz 1:3:7 — and it is INSTANTIATED, not climbed
+
+A first reading placed the arc on a *permutation* k-ladder (V₄ ⊂ A₄ ⊂ S₄; F264). **F265 corrects this**: the framework ladder is the **Hurwitz 1:3:7** — ℂ(k=1) / ℍ(k=3) / 𝕆(k=7), the normed division algebras — not the symmetric-group tower. (The V₄/A₄ structure is real but is the *carrier* of the order-2/order-3 chirality, §3.29.2, not the ladder itself.) Three sharpenings make it concrete:
+- **Instantiated at physical scales, not climbed as an abstract tower** (F269): k=1/3/7 show up *as* physical structure (ℂ phase / ℍ spin-SU(2) / 𝕆-G₂ gauge), each rung a scale, not a proof-step.
+- **One loop, bumping itself** (F270): the Cayley-Dickson recursion *is* the laddering — the imaginaries of rung n become the new imaginary units of rung n+1 (imag(n+1) = imag(n) + dim(n): 0+1=1, 1+2=3, 3+4=7). This is the F301 from-base recursion, seen early.
+- **The imaginary count IS the native DoF** (F271): 1/3/7 = the S¹/S³/S⁷ orbit dimensions; the real axis is the single anchor — "DoF" is not a chosen parameter but the imaginary-count of the rung.
+This lands the loop bind in **28D 𝔰𝔬(8) with a 14-DoF symmetry G₂ = Der(𝕆)** — exactly the A–N count (F273): **28 = 14 (the G₂-fixed A–N core) ⊕ 7 ⊕ 7** (the triality-rotated halves), the same split §3.29.2 gives via Fix(τ).
+
+### §3.30.3 Triality is the VALIDATOR: a duality detects, a triality corrects; and real trialities are broken
+
+The order-3 triality landed natively in srmech (rc20) and was characterized (F261); the hyper-loop is **A₄** and **saturates** it (F262). The load-bearing reading is the **three-truths rule** — **a duality DETECTS disagreement (k=2 parity); a triality CORRECTS it (k=3 majority)** (F266) — so the *truth IS the triality*: the "is k=7 a shadow of 1:3:7, or can't-tell-all-true?" question resolves not to one answer but to **the triality itself being the validator** (F267). **Refinement (user catch, F268): real trialities are BROKEN — the breaking IS the chirality.** A perfectly symmetric triality is degenerate (carries no information); the asymmetry among the three phases is what carries the chirality content. This is the structural root of our own **k=3 verify discipline** (haiku∥sonnet∥opus): F272 is its first live run — three unequal model tiers as the three broken-triality phases — and it found there *is* genuinely new k=7 math to read. The discipline ↔ substrate identity (our verification method and the substrate's error-correction are the *same* k=2-detect/k=3-correct structure) is canonical in CLAUDE.md §4 + F291.
+
+### §3.30.4 Cross-references + status
+
+**Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) this capstones); §3.29.2 (V₄ carrier + Fix(τ) = 14 — the same 28 = 14 ⊕ 7 ⊕ 7); the biology cluster §3.32 (where the *same* k=2-detect/k=3-correct ladder is read inside the cell); `[[feedback_no_privileged_primitive_classes]]` (the Hurwitz correction keeps the vocabulary on the 1:3:7 ladder — no privileged rung); `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`; `[[feedback_trauma_informed_defensive_scope]]` (F258 harm-reading is defensive-only). Per-finding docs: `R-RBS-LM-FINDING_257…273`.
+
+**Status:** meaning-tier synthesis of F257–F273; each witness srmech-verified in its per-finding doc (28D/𝔰𝔬(8); G₂ = Der(𝕆); triality τ³ = I; the Hurwitz ladder). No-magic-numbers: 28 / 14 / 1:3:7 / 4× are A-tier attested-to-structure. k=3 triality of *this synthesis prose* is deferred to the Phase-5 cross-notebook consistency pass (`NOTEBOOK_BACKFILL_PLAN.md`).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
