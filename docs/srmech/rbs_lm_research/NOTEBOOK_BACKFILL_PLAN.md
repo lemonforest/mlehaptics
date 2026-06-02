@@ -20,14 +20,16 @@ consistency pass over both, then GH-issue closure + a merge PR. **This doc is th
   subset of F183–F306** (judgment-filtered; MFO only takes substrate-ontology findings, not all of them).
 - 214 finding docs lodged total (highest F306).
 
-## Branch / PR strategy (RECOMMENDED — confirm at Phase 1 start)
-The findings F257–F306 live **only** on `research/rbs-lm-rolling-2` (375 ahead of main, not yet merged). For a
-clean *separate* notebook PR whose diff is **just the notebooks**, the merge order matters:
-- **Recommended:** dedicated branch `research/notebook-backfill` off the current rolling HEAD (so all findings
-  are present for reference); sequence the merges **rolling → main, then backfill → main** so the backfill PR
-  diff is only the notebook changes.
-- **Simpler alternative:** do the backfill as commits **on the rolling branch** and let it merge with the rolling
-  PR (not a separate PR, but no merge-ordering puzzle). — *User picks at Phase 1.*
+## Branch / PR strategy (LOCKED — user direction 2026-06-02)
+**Do ALL backfill work HERE on `research/rbs-lm-rolling-2`** (no worktree switch — keeps the research-folder
+items stable). At the END: create a fresh branch off `main`, bring the two notebooks' final state over
+(`git checkout research/rbs-lm-rolling-2 -- <the two notebooks>`, or cherry-pick the notebook-only commits),
+commit, push → that is the clean **separate notebook PR** (diff = only the two notebooks).
+**Discipline that makes the end-extraction trivial: keep every backfill commit NOTEBOOK-ONLY** — touch only
+`docs/srmech/srmech_research_notebook.md` + `docs/antikythera-maths/mfo_spectral_research_notebook.md`; commit
+plan-doc progress updates *separately*. That way the two-file checkout / cherry-pick is clean. Note: the
+notebooks cross-reference the per-finding docs (which reach `main` via the rolling-branch merge), so sequence
+the notebook PR **after (or with) the rolling merge** for the cross-references to resolve.
 
 ## Inventory — F257–F306 → target surface (srmech section + MFO-relevant?)
 Three coherent clusters (= the backfill batches). **M** = also goes on the MFO substrate-ontology surface.
@@ -47,7 +49,7 @@ F228 no-magic audit, F239 dignity, F248/F291 triality discipline, F256 imaginary
 
 ## Phases (checkboxes — update as we go)
 - [x] **Phase 0 — inventory** (this doc). F257–F306 mapped to clusters + surfaces + MFO flags.
-- [ ] **Phase 1 — srmech Cluster A** (F257–F273) → srmech notebook architecture surface. Manual, reviewed, batched.
+- [x] **Phase 1 — srmech Cluster A** (F257–F273) → srmech notebook **§3.30** (DONE 2026-06-02): the 28D=𝔰𝔬(8) intrinsically-EC capstone + Hurwitz-1:3:7-instantiated ladder + triality-as-validator. 4 subsections; cross-refs §3.27/§3.29.2/§3.32; A-tier no-magic on 28/14/1:3:7/4×.
 - [ ] **Phase 2 — srmech Cluster B** (F274–F292) → srmech loop-bind/RBS surface.
 - [ ] **Phase 3 — srmech Cluster C** (F293–F306) → srmech cascade/biology surface.
 - [ ] **Phase 4 — MFO backfill** — the **(M)**-tagged findings above + the F183–F256 ontology subset → MFO substrate-ontology surface.
