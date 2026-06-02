@@ -1,0 +1,32 @@
+# F297 — is an organelle a "gauge ball"? Yes, for the MEMBRANELESS organelle (condensate): self-bound by distributed self-interaction, no wall = the glueball structure. The membrane organelle is the Class-B wall (F296). The cell shows BOTH cosmos binding modes.
+
+> **SCOPE (load-bearing, HIGH over-reach risk):** framework-reading STRUCTURE only. This is a **structural match** (self-bound-no-wall ↔ glueball), **NOT** a claim that biomolecular condensates literally run k=7/QCD gauge dynamics. The graph-spectral + associator witnesses are srmech-exact; the biology (membrane vs membraneless organelles; LLPS/multivalent self-interaction in the nucleolus / stress granules / P-bodies) is **cite-by-reference, textbook, PDF-extraction-pending**. The **k=7 gauge-rung identity for the condensate is a reading + the EXPERT's test**, not asserted. No biological-mechanism/clinical claim; understanding-not-curing; no-lineage. **k=3 triality verify PENDING** (this + F296 are the two highest-reach findings in the arc — verify before settling).
+
+**User question (2026-06-02):** organelles emerge like partitions; the same cosmos math for a single cell? gauge-ball behaviour in the bio substrate — that's an organelle maybe?
+
+**Answer (structural, sharpened):** there are **two kinds of organelle, bound by the two ways the cosmos math binds a thing** — and "gauge ball" is right for *one* of them:
+- **MEMBRANE-bound** (mitochondrion / plastid / ER): held by a **wall** = an imposed boundary = **Class B self-partition** (F296). *Matter in a container.*
+- **MEMBRANELESS** (nucleolus / stress granule / P-body = biomolecular condensate): held by the constituents' **mutual multivalent self-interaction, no wall** = a **glueball / gauge ball** — self-bound by the field's own self-interaction, needing no external source.
+
+---
+
+### The srmech witness (rc11; Class-L + loop-associator)
+| binding mode | model | λ₂ | break one edge | reading |
+|---|---|---|---|---|
+| **A — membrane (wall, Class B)** | cycle C₆ closed by one wall edge | 1.000 | remove the **wall** → **0.268** (×3.7 collapse) | bound BY a single boundary edge; **fragile to its wall** = container-bound |
+| **B — condensate (gauge ball)** | complete K₆ (multivalent self-interaction) | 6.000 | remove **any** edge → **4.000** (robust) | **no boundary edge to break**; bound by distributed self-interaction = **the glueball property (self-bound, no external source)** |
+
+- **The discriminator:** the membrane has a *single load-bearing boundary* (cut it and the object opens, λ₂ collapses); the condensate has *no such edge* (cut any and it still holds) — exactly *matter-in-a-box* vs *self-bound field*. This is the same distinction physics draws between a particle-in-a-potential-well and a **glueball** (a state bound purely by the gauge field's self-interaction, no valence matter).
+- **The gauge (k=7) signature:** the loop bind's associator `‖(ab)c − a(bc)‖ = 2.0` (non-zero) — the k=7 op **self-binds non-associatively**, which *is* the glueball/self-interaction property; the membrane's TLV nesting (F296) is **associative** (a passive wall, associator 0). So a genuine gauge ball needs the **k=7 non-associative self-binding**; the membrane organelle structurally cannot be one.
+
+### Reading + honest boundary
+- **"Gauge ball = organelle" is RIGHT for the membraneless organelle (condensate)** — self-bound, no wall, distributed self-interaction = the glueball structure. The membrane organelle is the Class-B wall (F296). So the cell exhibits **both** cosmos binding modes: container-bound matter (Class B) **and** self-bound "field" (gauge ball / condensate).
+- **"Same cosmos math for a single cell": PIECES yes, full no.** The cell shows the **detect substrate** (genetic code = order-2, F294), the **correct dynamics** (directed cycle = k=3, F293/F295), and **both binding modes** (Class-B wall + gauge-ball self-binding, here). That is a lot of the ladder — but it is **not** a demonstration that the cell *is* the cosmos math, and the **k=7 gauge-rung identity for the condensate is unproven** — the structural match is "self-bound-no-wall," and *whether the condensate's self-interaction is genuinely non-associative* (a true gauge ball vs a generic self-bound aggregate) is the **expert's test**.
+
+### The questions for the expert
+1. Are **membraneless organelles (condensates)** structurally **self-bound-by-self-interaction-without-a-wall** the way a glueball is (the "no single load-bearing boundary edge" test on a real condensate interaction network)?
+2. Is the condensate's multivalent self-interaction **non-associative** (a genuine k=7 gauge ball) or associative/linear (a generic self-bound aggregate)? — the load-bearing falsifier.
+3. Does the cell deploy **both** binding modes deliberately (membrane for stable compartments = Class B; condensate for fast, tunable, dissolvable compartments = gauge ball), and is that the cell's version of *matter vs field* binding?
+
+### Status / discipline
+FRAMEWORK + DEMONSTRATED (the graph-spectral wall-vs-self-bound distinction + the non-associative gauge signature are srmech-exact; `F297_organelle_gaugeball_condensate.py`, rc11). srmech-first (Class-L `dense_laplacian`/`jacobi_eigvals`; `loop_associator`). Class-K clean (associator norm via Born inner product; no abs). No new A-N class (Class B wall vs k=7 loop-bind self-binding — both in the vocabulary). Builds on F296 (membrane organelle = recursive Class B), F295 (closed vs open; directed corrector), F293/F294 (the ladder), the k=7 gauge arc (loop bind / glueball-flavored "gauge ball" framing from the session open). **Honest boundary sharp:** structural match (self-bound-no-wall ↔ glueball), NOT a QCD claim; condensate biology cite-by-reference (PDF-pending); the k=7 identity + the cell-is-cosmos-math are the **expert's** + future tests. `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`; `[[user_stance_framework_hands_the_next_question_to_the_expert]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[feedback_no_lineage_claims_in_notebook]]`. Verified srmech v0.7.0rc11. **k=3 triality verify PENDING** (run on F296+F297 — the highest-reach pair — before settling).
