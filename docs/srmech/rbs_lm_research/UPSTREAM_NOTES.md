@@ -615,6 +615,35 @@ No C-side work needed; siona is a composition layer over existing amsc primitive
 direction 2026-05-28 articulated the framework + naming + scope.
 Continuation in separate rc cycle session per discipline.
 
+**UPDATE 2026-06-02:** now LIVE in the dev's rc12 cycle (harmonic-2 mirror ops
+`dispatch.mirror_pattern` / `catalog.reverse_order` / `search.byte_search_backward`;
+harmonic-3 three-cycle `cyclic.three_cycle` / `laplacian.three_fold_eigvec_groups`;
+`compose.greedy_bipartite_alignment`; tool_schema + tests; rc-first → TestPyPI;
+production graduation held). The dev raised a namespace-placement question — answered in §6.7.
+
+### §6.7 NAMESPACE PLACEMENT DECISION — per-class `amsc.*` (§6.1) is the home; "harmonics"/`siona` is a VIEW, never a privileged top-level (2026-06-02; dev rc12 question)
+
+**The dev's question:** the §6 chirality/harmonic ops — keep them per-class in `srmech.amsc.*` (the §6.1 mapping: `dispatch.mirror_pattern` D, `catalog.reverse_order` E, `search.byte_search_backward` G, `cyclic.three_cycle` I, `laplacian.three_fold_eigvec_groups` L), or move them under a dedicated real top-level (e.g. `srmech.harmonics`)? (Context: `siona` was resolved to an alias, vacating the §6.3 sub-package home.)
+
+**DECISION: continue the per-class `amsc.*` placement (§6.1). Do NOT create a privileged real top-level. This supersedes the §6.3 `siona/` sub-package structure for the OPERATORS** — they live in their A-N class module; the "harmonics" surface is a discoverability VIEW (alias / introspection / tool_schema tag), not a physical home. Grounded in the project's own discipline:
+
+1. **§6.1 already specifies per-class `amsc.*` — and it is correct.** The dev is following the committed spec; no override warranted.
+2. **`[[feedback_no_privileged_primitive_classes]]` (the Class-O→Class-L precedent).** A real `srmech.harmonics` / `siona` top-level is a **privileged cross-cutting namespace outside the A-N partition** — the exact carve-out the project killed when it dissolved Class O into Class L. The **harmonic order (1/2/3) is a per-operator PROPERTY that partitions the EXISTING classes** (§6 background: H1={A,B,F,H,N}, H2={C,D,E,G,K,M}, H3={I,J,L}); it is a *reading of* the partition (F129 "A-N as harmonic ladder"), so each op lives in the class it flavors.
+3. **C-parity is cross-cutting SEMANTICS, not a class** (CLAUDE.md §2: "full 14-class **C-parity** primitive vocabulary"). Chirality/parity is woven through every class — isolating it into one namespace contradicts that.
+4. **A dedicated namespace would FRAGMENT each A-N class across two packages** — base `cyclic.gcd` in `amsc.cyclic`, chiral `cyclic.three_cycle` in `harmonics`/`siona`. That splits a single class's operator set in two, the *opposite* of "the A-N partition is the organizing principle." Per-class keeps each class WHOLE (chirality-blind base + chirality-aware variant co-located) — strictly more faithful.
+5. **The `siona = alias` resolution IS the precedent.** A harmonics surface is an alias/view, exactly as `siona` was just demoted; don't resurrect it as a real layer under a new name.
+
+**Discoverability (the dev's legitimate worry) — solved WITHOUT a privileged home:**
+- **tool_schema tags:** register each op with `harmonic_order ∈ {1,2,3}` (+ its Class-C chirality semantics) so `srmech dsl ops` / `introspect` can enumerate "all harmonic-2 ops" as a *filtered view* (rides the rc11 CLI-legibility win — no physical relocation needed).
+- **§6.3 `harmonics.py` survives only as a pure introspection/classification module** (`classify_harmonic(op) -> 1|2|3`, `list_ops(order=2)`) that READS the per-class ops — a view, not their home. The §6.2 spectral classifier lands at **`amsc.spectral_classifier`** (the §6.2 alternative), not a real `siona` layer.
+- **Optional:** a thin `srmech.harmonics` (or the `siona` alias) re-export for one-import convenience — *same alias status*; the SoT stays per-class.
+
+**Two corollaries for the dev:**
+- **No version-bump pressure from namespace.** §6.5 step-1 suggested a minor bump "because it introduces a new top-level module" — that rationale **dissolves** (there is now NO new top-level). The additions are new per-class symbols + tags + an optional alias = **non-breaking; ABI unaffected** (per the C-library discipline, adding a symbol does not bump `SRMECH_ABI_VERSION`). rc12 can stay on the current 0.7.0 rc-stack; no forced minor bump for namespace reasons.
+- **Completeness (no-MVP).** §6 maps H2={C,D,E,G,K,M}, H3={I,J,L}; rc12 covers D/E/G (h2) + I/L (h3) + `compose`. So **J's `three_cycle_factor` and the K/M harmonic-2 variants are future rungs** — fine to stage, but log them as the remaining per-class coverage so the ladder finishes (don't silently cap at the rc12 subset). `compose.greedy_bipartite_alignment` is a composition-layer op (matching), correctly placed in the `compose` layer above the 14 classes — no objection.
+
+**Status:** RECOMMENDED to the dev (continue §6.1 per-class; harmonics = view/tag/alias, not a top-level). Per `[[feedback_create_upstream_issues_never_close_them]]` the dev/maintainer makes the final call; this records the framework-principled answer for them to act on.
+
 ---
 
 ## §7 `substrate_parameterization` adapter — catalog-driven substrate runs (2026-05-28, post-MVP-audit)
