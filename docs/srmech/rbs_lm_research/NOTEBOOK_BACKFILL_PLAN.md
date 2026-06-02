@@ -50,7 +50,7 @@ F228 no-magic audit, F239 dignity, F248/F291 triality discipline, F256 imaginary
 ## Phases (checkboxes — update as we go)
 - [x] **Phase 0 — inventory** (this doc). F257–F306 mapped to clusters + surfaces + MFO flags.
 - [x] **Phase 1 — srmech Cluster A** (F257–F273) → srmech notebook **§3.30** (DONE 2026-06-02): the 28D=𝔰𝔬(8) intrinsically-EC capstone + Hurwitz-1:3:7-instantiated ladder + triality-as-validator. 4 subsections; cross-refs §3.27/§3.29.2/§3.32; A-tier no-magic on 28/14/1:3:7/4×.
-- [ ] **Phase 2 — srmech Cluster B** (F274–F292) → srmech loop-bind/RBS surface.
+- [x] **Phase 2 — srmech Cluster B** (F274–F292) → srmech **§3.31** (DONE 2026-06-02): loop-bind earns-its-place (order at no capacity cost) + un-flatten new-locks (chemistry/mass-spec/bold-fold) + RBS path-memory frontier + apple-tree dev hand-downs. 5 subsections; cross-refs §3.30/§3.32/UPSTREAM §12–§13.
 - [ ] **Phase 3 — srmech Cluster C** (F293–F306) → srmech cascade/biology surface.
 - [ ] **Phase 4 — MFO backfill** — the **(M)**-tagged findings above + the F183–F256 ontology subset → MFO substrate-ontology surface.
 - [ ] **Phase 5 — k=3 TRIALITY consistency pass** (the one agent-using step, per standing discipline): haiku∥sonnet∥opus read BOTH backfilled notebooks for inconsistencies (internal contradictions, stale claims, version drift, finding↔notebook mismatch, no-magic-number coverage). Per-claim majority → correct.
