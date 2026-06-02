@@ -94,14 +94,22 @@ KNOWN_ADAPTERS: Tuple[str, ...] = (
     "netcdf_grid",
     "geotiff_bbox",
     "literature_curated",
+    "substrate_parameterization",
 )
 """Adapter categories. The first five shipped in v0.25.0. The sixth
 (``literature_curated``) shipped after v0.26.0 to support per-body
 catalogues whose ground-proof rows come from peer-reviewed
 literature with stable DOIs rather than from a live archive (no
 network fetch; NDJSON committed directly; per-row ``source_doi``
-mandatory in each row's data block). New adapter types require a
-new module under ``srmech/amsc/adapters/`` + entry here."""
+mandatory in each row's data block). The seventh
+(``substrate_parameterization``, srmech 0.7.0rc13 / UPSTREAM_NOTES §7)
+parameterizes a substrate characterization run: the substrate
+parameter set lives in nested ``[fetch.substrate_parameterization.*]``
+sub-tables surfaced as typed sub-dataclasses
+(``srmech.amsc.adapters.substrate_parameterization.config_for``), and
+``fetch``/``parse`` pass through the committed measurement NDJSON (no
+per-row DOI — the rows are computed outputs). New adapter types require
+a new module under ``srmech/amsc/adapters/`` + entry here."""
 
 
 # ──────────────────────────────────────────────────────────────────────
