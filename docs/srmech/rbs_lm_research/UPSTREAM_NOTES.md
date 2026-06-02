@@ -1076,6 +1076,14 @@ rc6 landed **all three** §12.1/§12.2 asks + advanced §12.3-D2. Verified, no r
 ### §12.5 RESOLVED in rc9 (0.7.0rc9, 2026-06-02) — `autocorrelation` landed; the un-flatten catalog is now fully authorable
 rc9 ships **`srmech.amsc.cascade.autocorrelation(x) -> List[float]`** — doc "Class L (Wiener-Khinchin): the circular autocorrelation of `x`." Verified vs the reference `IFFT(|FFT(x)|²)` (Class-K-clean `|F|² = F·conj(F)`): **err 4.2e-14** on a length-64 signal (HAS_NATIVE, ABI 3). This was the **sole remaining un-flatten blocker** (F290 §C). So: with `autocorrelation` (rc9) + the verified D2 BYO-cascade-TOML mechanism (rc6, §12.4), the **un-flatten catalog is now fully authorable as a PURE-TOML composite** — `[composite]` stages `autocorrelation (L)` → peak-detect / `dense_laplacian` difference-graph (L) → `jacobi_eigvals` (L) → conservation-validate (user-attested rule) — **no further package code needed**. **All §12 items RESOLVED.** Working venv `/tmp/srmech_v070rc9_venv` is the new latest-verified.
 
+### §12.6 rc10/rc11 — the F292 SIMD grafts LANDED + verified BIT-EXACT (0.7.0rc11, 2026-06-02; `rc11_simd_graft_verify_F292.py`, clean venv `/tmp/srmech_v070rc11_venv`)
+The dev (cloud branch `claude/insect-colony-distributed-body`) implemented **both F292 apple-tree grafts**: **rc10 = N-way SIMD SHA-256 batch** (graft #1), **rc11 = SIMD `loop_bind_hd`** (graft #2). The cloud session ran on srmech **0.6.0** (sandbox blocked `test-files.pythonhosted.org`) so it **never clean-verified them**; verified here on a clean rc11 TestPyPI install (`HAS_NATIVE`, ABI 3, `native_status` dispatching). **The F292 parity discipline (SIMD must be bit-exact to scalar) is MET:**
+- **Graft #1:** `format.sha256_batch(list[bytes]) -> list[str]` (+ `_native.sha256_batch_c`). **BIT-EXACT to scalar `sha256_bytes`** on 10 messages incl. SHA block-boundary lengths `{0,1,55,56,63,64,65,127,128,256}` + the empty-string FIPS KAT `e3b0c442…`. 0 mismatches.
+- **Graft #2:** SIMD `loop_bind_hd` (new dispatch helpers `_try_native_loop_bind_hd` / `_loop_native_ready`). **BIT-EXACT:** native `loop_bind` == oracle (64 basis pairs, err **0.0**); `loop_bind_hd` block == dim-8 `loop_bind` (block-diagonal, err **0.0**); == the research helper (err **0.0**) — the SIMD path did not change the result.
+- **No regression:** 14/14 model-independent algebraic laws PASS; `loop_runbind_hd` right-peel 3.08e-15; `autocorrelation` present.
+
+**The F292 apple-tree hand-down loop is CLOSED:** hand-down (F292) → dev implements (rc10/rc11) → **bit-exact verified** (here). Correctness/parity confirmed; the energy/throughput payoff numbers are the dev's to measure. Working venv `/tmp/srmech_v070rc11_venv` is the new latest-verified.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
