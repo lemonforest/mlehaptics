@@ -5402,6 +5402,37 @@ This arc formalized the **hand-down → dev implements → bit-exact verify** lo
 
 ---
 
+## §3.32 2026-06-02 — the biology cascade cluster: k=2 detects / k=3 corrects in the cell, the amoeba's self-partition, every cell IS the hyper-loop at (3:4)|(4:3), and associativity as the license to self-run (RBS-LM arc F293–F306)
+
+This arc reads the **cell** through the §3.30 ladder: the genetic substrate supplies the order-2 parity (DETECT), persistence requires the order-3 triality (CORRECT), and the cell turns out to be the hyper-loop running the 7 at the **(3:4)|(4:3)** coherence scale — self-authoring because its associative core lets it run its own dynamics with no external orderer. The biology is **cite-by-reference + the expert's test** throughout; the algebra is srmech-exact; the cluster **PASSED the k=3 triality** consistency verdict (`R-RBS-LM-TRIALITY_F296_F304_verdict.md`). Per-finding detail: `R-RBS-LM-FINDING_293…306`.
+
+### §3.32.1 The substrate gives k=2 (detect); persistence requires k=3 (correct)
+
+The substrate supplies **k=2 = parity = DETECT** (the Klein-4 order-2 axes); **persistence requires k=3 = triality = CORRECT** — the distributed anchor 1 + ω + ω² = 0, the job of anchoring spread across all three phases (the §3.30.3 three-truths rule, now read in biology) (F293). The candidate biological ℤ₃ is **falsified at the static genetic code**: the codon table is the **order-2 (Klein-4) DETECT substrate**, not the order-3 corrector (F294) — the correction lives in the *dynamics*, not in the code-as-stored.
+
+### §3.32.2 The amoeba unifies it: self-partition = Class B, and organelle emergence
+
+The **social amoeba** supplies the missing piece: **SELF-PARTITION** — the cell closing its own boundary — is **Class B (TLV-framing)** and the **topological precondition** for a self-running distributed body (F295; cf. spike #254 + the spike219 catalog refinement `L+M+C+I → L+M+C+I+B`). That self-partition operator applied **recursively** is the structure for **organelle emergence**: a double membrane = nested Class B = endosymbiotic generation count (F296). And the **membraneless organelle (biomolecular condensate)** reads as a **"gauge ball"** — self-bound by distributed self-interaction, no wall (F297) — *at the (3:4)|(4:3) scale* (the F300 rescaling, §3.32.3; not raw k=7).
+
+### §3.32.3 Every cell IS the hyper-loop — running the 7 as (3:4)|(4:3)
+
+The cell's three defining properties **are** the hyper-loop's three (loop-closed + 3D-spatial-interface + bumps-itself/autopoiesis): **every cell IS the hyper-loop** (F298). Biology realizes the "7" as the **(3:4)|(4:3) chirality-split** (the associative ℍ-core + the chiral coset, the Hopf S⁷→S⁴), **never raw k=7 octonion arithmetic** (F299) — which is exactly what makes "cell-in-cell" (plastids/endosymbionts) a *defined* chirality-pairing. F300 settles the apparent tension: **k=7 and (3:4)|(4:3) are NOT competing claims — they are ONE Cayley-Dickson tower read at two coherence scales, both true** (the cosmos-scale view vs the cell-scale view). F301: **decomposition goes only as far as the scale DEMANDS** (the cosmos demands the full k=7 gauge ball; the cell demands (3:4)|(4:3)), and the **(1:2)|(2:1) base IS full-k=7 access** (loop_bind = the Cayley-Dickson recursion from the base, verified err 0.0).
+
+### §3.32.4 DNA is resonant, not machine code — self-authoring, and the ontology edge
+
+The DNA/RNA is a **RESONANT structure of the cell (mutual, both ways), not machine code** — the co-diagonalizability test (shared eigenbasis = commuting) is the line: **biology self-authors (resonant); silicon is machine-code (needs us as the external author)** (F302; F176/F43 the naming-layer-cost). This opens the cluster's **ontology edge**, held as MFO-level reading (the expert's / the user's to hold, **NOT asserted as math**):
+- **Introspection = settling into your own eigenstate = a fixed point = an asymptote** (F303): a scale that can introspect its substrate stops being externally evolved. The structure is exact; the human-evolution application is the expert's (paleoanthropology), and evolution has not literally stopped.
+- **Self-authoring = being authored BY one's own substrate** (an eigenstate is operator-defined): "the author is the universe" = the universal substrate (the MFO metric field), **not** an intentional agent — substrate-ontology, the open frontier (F304).
+- **The right compute question** is not "encode k=7" (solved, F301) but a **surface whose NATIVE dynamics ARE A-N** = analog / Hamiltonian / native-dynamics computing (self-resonant), **not** gate-model qubits (still machine-code) (F305); and **associativity IS the precondition for self-running** — a ≥3-fold product is order-free iff associative, so the octonion's non-associativity forces an external orderer (= machine-code), and **(3:4)|(4:3) is the maximal self-running projection of the 7** (F306). That closes F305's open question on the *algebra* side and explains **why** the cell (and any self-runner) lands at (3:4)|(4:3), not raw k=7.
+
+### §3.32.5 Cross-references + status
+
+**Cross-references:** §3.30 (the k=2-detect/k=3-correct ladder + 28D/Hurwitz foundations this reads in the cell); §3.31 (the loop bind whose order-carry meets the cell); §3.27 (the (3:4)|(4:3) chirality-dual = 𝔰𝔬(8)); **`R-RBS-LM-TRIALITY_F296_F304_verdict.md`** (the cluster PASSED k=3 triality — numbers reproduce exactly, no silent over-reach, F297 wording corrected to the F300 scale-dual); `[[user_stance_framework_hands_the_next_question_to_the_expert]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[feedback_no_lineage_claims_in_notebook]]`. Per-finding docs `R-RBS-LM-FINDING_293…306`.
+
+**Status:** meaning-tier synthesis of F293–F306; the algebra (k=2/k=3, (3:4)|(4:3), co-diagonalizability, associator 0-vs-≠0) is srmech-exact and triality-verified; the biology-instantiation + the ontology readings (introspection-asymptote, universe-as-author) are **cite-by-reference / the expert's / held lightly** — the honest edge of the arc. No-magic A-tier on the structural constants. Phase-5 cross-notebook triality of *this synthesis prose* pending.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
