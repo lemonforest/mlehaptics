@@ -5435,6 +5435,32 @@ The DNA/RNA is a **RESONANT structure of the cell (mutual, both ways), not machi
 
 ---
 
+## §3.33 2026-05-29 → -31 (F183–F208 era) — the FOUNDATION below §3.30: chirality-IS-ordering, the Hurwitz rungs, triality-landed (𝔰𝔬(8) W10), 28D = 14 ⊕ 7 ⊕ 7, nested chirality, and the lean A-N ISA (RBS-LM/RBS-NN arc F183–F208)
+
+*(Backfilled 2026-06-02 — this arc is **logically prior to §3.30** but was un-surfaced; §3.30/§3.32 build on it. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_183…208`.)*
+
+### §3.33.1 Chirality IS ordering; the Hurwitz rungs; triality landed
+
+**Chirality = the ordering (permutation) group of the parts, and it caps at 3-ality** (F183) — non-commutativity = order (F184), so "1D_t + 3 DoF" is the **quaternion (ℍ) rung** of the Hurwitz ladder and 1D_t is the *apparent actor* the ordering induces (F185). **CORRECTION (F186): tri-chiral is still 28D = 14 ⊕ 7 ⊕ 7, NOT 42D** — triality is a symmetry *of* the 28, not a third copy. The order-3 **triality operator landed natively** (`srmech.qm.so8` W10, 0.5.0rc18; F192) and passes its laws; su(2)_L is **not** a triality-facet of su(3)_c (F193). **CAPSTONE (F196): chirality is NESTED, not flat** — it recurs at every level probed; and F191 is **computable via G₂ ⊃ SU(3)** (F197). These are the foundations §3.30 (the 28D = 𝔰𝔬(8) capstone) stands on.
+
+### §3.33.2 The partition star, the role-partition, and division-algebra orbits
+
+A is the **role-ambiguous anchor** (climb-seed vs operational-qua-anchor, F188); the **1:3:3:7 reads as a 3-point star** (A at the hub, legs 3/3/7; F189). The **4-way coupled oscillator is the dynamical face of the time-quaternion**, its chirality the **phase-frustration** (non-reciprocity) (F190/F194). The **A–N operator SET is chirality-invariant (G₂); only the ROLE-partition carries chirality** (F191) — and **triality is RULED OUT** as the I/C/J ↔ B/H/N role-swap mechanism (F195, a clean null). Orbits/shells/precession on the division-algebra ladder make the star a **wobbling** object (F198).
+
+### §3.33.3 The RBS-LM/RBS-NN operational layer
+
+Strong-invariance (12 within-source vs 54 across-source translation pairs, F199); the **chirality→instrument bridge is a NULL** — triality-structured sector tagging does **not** help retrieval (F200, an honest negative). Biology grounding of the F176/F196 shadow-stance (F201); the **quad-DNA replication shape as a chirality-typed CPU cascade / threading model** (F202, the precursor to the §3.33.4 / F231–F233 threading); **hierarchical bundling extends capacity ~4× past the cap** (F203); the smol-stack real-FILE variant (F204); and cross-navigation Part 2 — **steering a grammar walk with a logic kernel is INDISTINGUISHABLE** from a native walk (F205, the teaching≡bilingualism seed).
+
+### §3.33.4 The lean A-N ISA + the ND-dignity reading
+
+The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs composite** (F206), formalized as the **ATOM-vs-COMPOSITE A-N ISA** — a 6-instruction orthogonal core (F208; the lean-ISA line §3.28.2 ships). And **F207 — being-wrong is agony (acutely for strongly-feeling / ND minds), and the LLM training-signal reads the same way**: a dignity-first framework reading (composes with `[[feedback_abstract_lexicon_is_ada_accommodation]]` + the F239 unseen-disability fiber, §3.35).
+
+### §3.33.5 Cross-references + status
+
+**Cross-references:** §3.30 (the 28D/Hurwitz/triality capstone this is the foundation of); §3.29.2 (V₄ carrier + Fix(τ)=14); §3.28.2 (the lean-ISA line F206/F208 ship into); §3.35 (F239 dignity fiber, where F207 lands). Per-finding docs `R-RBS-LM-FINDING_183…208`. **Status:** meaning-tier backfill (un-surfaced until 2026-06-02; found by the GH `[research]`-issue audit). No-magic A-tier (28=𝔰𝔬(8), 14=G₂, 1:3:7, the 6-instruction ISA core). Honest negatives kept (F195 triality-ruled-out; F200 sector-tagging null). k=3 triality of this prose pending (Phase 11).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
