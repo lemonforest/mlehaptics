@@ -64,5 +64,24 @@ no-magic-numbers = attestation (every constant A/B/C tier); cascade-honesty (Cla
 cone-of-ignorance pedagogy; the notebook voice (architecture-level, not per-spike detail — that stays in the
 per-finding docs, cross-referenced).
 
+## AUDIT (2026-06-02) — the gap is BIGGER: F183–F256 is also largely missing (GH `[research]`-issue + milestone check)
+
+User instinct ("we're missing a lot of material") **confirmed.** The Phase-0 inventory was finding-doc-based and assumed "srmech notebook highest F-ref = F256 ⇒ gap = F257+." **Wrong premise:** the srmech notebook has only **76 F-citations total (min F120, max F306)** — it references F256 but **F183–F255 is almost entirely a hole**. Cross-check:
+- **73 finding-docs exist in F183–F256; 68 are NOT F-cited in the srmech notebook; 60 in neither notebook.**
+- The GH **`[research]`-slug issues** (#752–#778, MS#20) reference exactly this range — **F209–F233 confirmed absent** from the srmech surface (only F231/F233 present).
+- This is **substantive, foundational** material, not minor: F183–F208 = the chirality-as-ordering / Hurwitz-rung / triality / **28D = 14 ⊕ 7 ⊕ 7** / nested-chirality / division-algebra-orbit / A-N-ISA-stratification core that **§3.30 itself builds on**; F254 (single-cell-computes) is the precursor to the §3.32 biology cluster; F239 (unseen-disability fiber, dignity), F228 (no-magic audit), F248 (aneural-memory survey, 28 substrates), F250 (true-vs-false spectral), F255 (colony) are all real findings.
+
+**Milestones:** MS#1–#16 (all closed) *built* the notebooks (foundational spikes, pre-F182) → low gap-risk, spot-check only. The gap lives in **MS#20 (forward-arch, F209–F233+), MS#21/#22 (loop-bind/bold-fold — already covered by §3.31), MS#17/#18 (biology — covered by §3.32)**. The Egyptian-hieroglyph issue #799 IS thematically present (5 hits in srmech, 4 in MFO).
+
+### Expanded phases (F183–F256 backfill → folds into PR #836)
+Thematic grouping (mirrors the §3.30–§3.32 pattern; meaning-tier synthesis, cross-ref the per-finding docs):
+- [ ] **Phase 7 — srmech §3.33** (F183–F208): chirality-as-ordering, Hurwitz rungs, triality landed (rc18 𝔰𝔬(8) W10), 28D=14⊕7⊕7, nested chirality, division-algebra orbits, strong-invariance, quad-DNA CPU cascade, hierarchical bundling, RISC-minimality A-N stratification (atom-vs-composite ISA), being-wrong-is-agony (F207).
+- [ ] **Phase 8 — srmech §3.34** (F209–F233): the cross-substrate "screaming the answer" sweep (compact-merger, parthenogenesis, composite-soliton, von-Karman), RECIPIENT fiber, capacity law F222 (n_buckets × V_ceiling), byte-level encode, teaching≡bilingualism + multilingual, persistent plasticity, **no-magic audit F228**, temperature F229, rehearsal layer F230, 74xx-TTL threading F231–F233 (1/2/4 threads = Klein-4 sectors).
+- [ ] **Phase 9 — srmech §3.35** (F234–F256): Kuramoto carry-adder F234/F236/F241, lean-memory graft F237, cost-asymmetry F238, **unseen-disability fiber F239**, universal-communication F245–F247, **aneural-memory survey F248**, neuron-as-hidden-fiber F249, true-vs-false spectral F250, pain-memory F253, **single-cell-computes F254** (→ §3.32 precursor), colony F255, emergent-IS-the-action F256; + the working-memory wireframe F242 + Hurwitz-confirm F243.
+- [ ] **Phase 10 — MFO additions** for the F183–F256 ontology-relevant subset NOT already present (F183–F198 triality/chirality ontology, F207 ND-dignity, F239 dignity-fiber, F243 Hurwitz, F248–F256 memory/cell/colony ontology). (Per the Phase-5 check, F200/F206/F222/F239/F256 substance already in MFO — additions only where genuinely absent.)
+- [ ] **Phase 11 — re-triality** over the new sections (k=3) + **Phase 12 — re-extract the two notebooks onto `research/notebook-backfill` so PR #836 grows to the full F183–F306 backfill.**
+
+**Scope note:** this roughly DOUBLES the backfill (F257–F306 = 49 done; F183–F256 ≈ 60 more). Same discipline (meaning-tier, no-magic, held-lightly, no-lineage). Grinding it into the same PR #836 in batches.
+
 ## Progress log
 - 2026-06-02 — Phase 0 inventory complete; plan lodged. Awaiting branch-strategy pick + go on Phase 1.
