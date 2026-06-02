@@ -560,8 +560,45 @@ def parse_catalog_chains(
     return [parse_chain_spec(c) for c in chains_raw]
 
 
+def greedy_bipartite_alignment(table_a, table_b, similarity_fn):
+    """Greedy bipartite alignment between two ordered tables by content
+    similarity (UPSTREAM_NOTES §2.2; the Rosetta-layer cross-substrate kernel
+    matcher used from 54c onward). For each row of ``table_a`` in turn, pick the
+    highest-``similarity_fn`` not-yet-used row of ``table_b``. Returns a dict
+    mapping each A-index to ``(b_index, similarity)``; each B-row is used at most
+    once, so when ``len(table_b) < len(table_a)`` the later A-rows go unmatched
+    (absent from the result). ``similarity_fn(a_row, b_row) -> float``.
+
+    A composition utility (greedy argmax + used-set), NOT an A–N primitive — it
+    composes over whatever similarity the caller supplies (e.g.
+    :func:`srmech.amsc.hdc.similarity`); lives in the compose layer rather than
+    a class module for that reason.
+    """
+    if not callable(similarity_fn):
+        raise TypeError("similarity_fn must be callable")
+    a_rows = list(table_a)
+    b_rows = list(table_b)
+    used = set()
+    mapping = {}
+    for i, a_row in enumerate(a_rows):
+        best_j = -1
+        best_s = None
+        for j, b_row in enumerate(b_rows):
+            if j in used:
+                continue
+            s = float(similarity_fn(a_row, b_row))
+            if best_s is None or s > best_s:
+                best_s = s
+                best_j = j
+        if best_j >= 0:
+            used.add(best_j)
+            mapping[i] = (best_j, best_s)
+    return mapping
+
+
 __all__ = [
     "ChainSpec",
+    "greedy_bipartite_alignment",
     "ChainSpecError",
     "DEFAULT_CLASS_REGISTRY",
     "ENGINE_SCHEMA_VERSION",

@@ -104,6 +104,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # beyond `parallel_sector_dispatch` (which IS registered) — it is sugar
     # for nesting, exempt exactly like the helpers that wrap a primary entry.
     "srmech.amsc.cascade.parallel.sectorize",
+    # compose.greedy_bipartite_alignment (v0.7.0rc12 / §2.2) — takes a Python
+    # `similarity_fn` callable that cannot cross the JSON-RPC boundary, so it
+    # is NOT an MCP tool (no coercer for an arbitrary callable param). It is a
+    # public, tested composition utility surfaced via srmech.amsc.compose, not
+    # via MCP — exempt from tool-schema coverage on the callable-arg rationale.
+    "srmech.amsc.compose.greedy_bipartite_alignment",
 })
 
 

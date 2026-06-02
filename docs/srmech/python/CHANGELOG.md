@@ -8,6 +8,22 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc12] - 2026-06-02
+
+**RBS-LM upstream wishlist — F150 chiral A–N harmonics (UPSTREAM_NOTES §6) + §2.2 cross-substrate alignment. 7 new ToolEntries → `describe()` 194→201 (+1 coverage-exempt utility); pure-Python, no C change (this rc), ABI stays 3.**
+
+Lands the research-side F150 framework move: the 14 A–N operators carry a **per-operator chirality-harmonic order** (1/2/3) that partitions the existing classes — H1 (chirality-invariant) = A B F H N, H2 (chiral inverse / mirror) = C D E G K M, H3 (chiral rotation / 3-cycle) = I J L. Variants land **next to their base Class op** (no privileged namespace, per `[[feedback_no_privileged_primitive_classes]]`; `siona` is a co-name alias, so these are `srmech.amsc.*`).
+
+- **`srmech.amsc.harmonics`** (new) — `classify_harmonic(letter) -> 1|2|3` (the static F150 partition) + `classify_chirality_harmonic(hv) -> 1|2|3` (spectral classifier: DC-dominant→H1, else zero-mean mirror vs 3-fold self-agreement→H2/H3; energy / inner-product ratios, no abs() on the substrate). `HARMONIC_PARTITION` + `HARMONIC_LADDER_OPEN_RUNGS` constants.
+- **Harmonic-2 mirror ops** (period-2 involutions): `dispatch.mirror_pattern` (D — byte-reversed needle), `naming.reverse_order` (E — order-reversed sorted catalog), `search.byte_search_backward` (G — last-occurrence search).
+- **Harmonic-3 three-cycle ops** (period-3): `cyclic.three_cycle` (I — Z/3 generator; any non-negative int read mod 3, so the generic MCP int-synth is always in-domain), `laplacian.three_fold_eigvec_groups` (L — low/mid/high eigenvector bands).
+- **`compose.greedy_bipartite_alignment`** (§2.2) — greedy cross-substrate kernel matcher (caller `similarity_fn`); the Rosetta-layer utility. It takes a Python callable that cannot cross JSON-RPC, so it is **not** an MCP tool — it is coverage-exempt in `tests/test_tool_schema_coverage.py::_EXEMPT_FUNCTION_NAMES` on the callable-arg rationale (public + tested, surfaced via `srmech.amsc.compose`).
+- **tool_schema:** the **7** primitive ops are all registered and **fully MCP-callable** (`mcp_callable=True`) — no handle-pending entries (the rc16 zero-handle-pending invariant holds): `classify_harmonic` (str), `classify_chirality_harmonic` (np.ndarray, JSON-list-coerced + flattened), `mirror_pattern` (bytes), `reverse_order` (list[tuple[bytes,bytes]]), `byte_search_backward` (bytes×2), `three_cycle` (int), `three_fold_eigvec_groups` (np.ndarray). → `describe()` 194→**201**.
+
+**Ladder is staged, not capped** (no-silent-caps): `HARMONIC_LADDER_OPEN_RUNGS = {2: ("C","K"), 3: ("J",)}` — Class M's H2 already ships as `hdc.klein4_*` (F132); C/K explicit mirror variants + J's speculative `three_cycle_factor` (F150 §6.3) remain open for a later rung.
+
+**SCOPE:** framework-composition surfaces over the existing A–N primitives; most of UPSTREAM_NOTES §1/§2 (`rfft`, `signed_sum_squared`, `symmetric_eigendecompose`) was already shipped in prior rcs. `[[feedback_no_privileged_primitive_classes]]`.
+
 ## [0.7.0rc11] - 2026-06-02
 
 **F292 graft #2 — N-way SIMD block-octonion HD bind (`srmech.amsc.hdc.loop_bind_hd`), on a new SIMD optimize-path HAL (`c/src/srmech_simd.h`). NO new public callable → `describe()` stays 194; a NEW C symbol → ABI stays 3 (additive).**

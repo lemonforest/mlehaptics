@@ -96,9 +96,35 @@ __all__ = [
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
+    "three_fold_eigvec_groups",
 ]
 
 MAX_NATIVE_NODES: int = 256
+
+
+def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
+    """Harmonic-3 three-fold spectral reading of a real-symmetric Laplacian
+    (F150): partition the ``n`` eigenvectors (ascending eigenvalue) into three
+    contiguous LOW / MID / HIGH bands. Class L is harmonic-3 (chiral rotation /
+    3-cycle) per F150 §6.1 — the order-3 reading of the Class-L spectrum. When
+    ``n`` is not divisible by 3 the remainder rows go to the later bands so
+    ``|low| <= |mid| <= |high|``. Returns ``{"low", "mid", "high"}`` each an
+    ``(n, k)`` float64 array of the eigenvector COLUMNS in that band; the
+    chirality-aware companion to :func:`symmetric_eigendecompose`.
+    """
+    _eigvals, V = symmetric_eigendecompose(L)
+    n = int(V.shape[1]) if V.ndim == 2 else 0
+    base = n // 3
+    rem = n - 3 * base
+    n_low = base
+    n_mid = base + (1 if rem >= 2 else 0)
+    n_high = n - n_low - n_mid
+    assert n_low + n_mid + n_high == n
+    return {
+        "low": V[:, :n_low],
+        "mid": V[:, n_low:n_low + n_mid],
+        "high": V[:, n_low + n_mid:],
+    }
 
 
 def _normalize_edges_weights(

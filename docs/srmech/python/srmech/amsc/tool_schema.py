@@ -942,6 +942,73 @@ def _register_primitive_class_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # F150 chirality-harmonic variants (rc12) + §2.2 alignment.
+        # Per-operator harmonic classification + the chirality-aware
+        # variants placed next to their base Class op (no privileged
+        # namespace, per [[feedback_no_privileged_primitive_classes]]).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.harmonics.classify_harmonic", owner="srmech",
+            category="harmonics",
+            summary="Chirality-harmonic order (1/2/3) of an A–N class operator "
+                    "(F150): H1=ABFHN invariant, H2=CDEGKM mirror, H3=IJL 3-cycle.",
+            parameters=(P("class_letter", "str", True, "single A–N letter"),),
+            returns=R("int", "harmonic order 1, 2, or 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.harmonics.classify_chirality_harmonic", owner="srmech",
+            category="harmonics",
+            summary="Classify an encoded hypervector into chirality-harmonic 1/2/3 "
+                    "by its spectral symmetry signature (F150 §6.2).",
+            parameters=(P("hv", "np.ndarray", True, "encoded vector"),
+                        P("dc_threshold", "float", False)),
+            returns=R("int", "harmonic order 1, 2, or 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.dispatch.mirror_pattern", owner="srmech",
+            category="dispatch",
+            summary="Harmonic-2 chiral mirror of a dispatch pattern (F150): the "
+                    "byte-reversed needle; period-2 involution. Companion to match.",
+            parameters=(P("pattern", "bytes", True),),
+            returns=R("bytes", "byte-reversed pattern"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.naming.reverse_order", owner="srmech", category="naming",
+            summary="Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): "
+                    "the order-reversed (key, value) list; period-2 involution.",
+            parameters=(P("sorted_pairs", "list[tuple[bytes, bytes]]", True,
+                          "sorted (key, value) pairs"),),
+            returns=R("list", "order-reversed pairs"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.search.byte_search_backward", owner="srmech",
+            category="search",
+            summary="Harmonic-2 chiral mirror of byte_search (F150): offset of the "
+                    "LAST occurrence of `needle` in `haystack`, or None.",
+            parameters=(P("haystack", "bytes", True), P("needle", "bytes", True)),
+            returns=R("Optional[int]", "offset of last match or None"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.three_cycle", owner="srmech", category="cyclic",
+            summary="Harmonic-3 Z/3 cyclic shift (F150): (value+1)%3 on {0,1,2}; "
+                    "period-3 order-3 generator. Companion to the modular ops.",
+            parameters=(P("value", "int", True, "any non-negative int; read mod 3"),),
+            returns=R("int", "(value + 1) % 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.three_fold_eigvec_groups", owner="srmech",
+            category="laplacian",
+            summary="Harmonic-3 three-fold spectral reading (F150): partition the "
+                    "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
+            parameters=(P("L", "np.ndarray", True, "real-symmetric matrix"),),
+            returns=R("dict", "low/mid/high eigenvector bands"),
+        ),
+        # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
+        # registered — it takes a Python `similarity_fn` callable that cannot
+        # cross the JSON-RPC boundary, so it is not an MCP tool. It is exempt
+        # in tests/test_tool_schema_coverage.py::_EXEMPT_FUNCTION_NAMES.
+
+        # ────────────────────────────────────────────────────────────
         # Class F — substitution / templating
         # ────────────────────────────────────────────────────────────
         ToolEntry(

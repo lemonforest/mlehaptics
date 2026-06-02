@@ -21,7 +21,27 @@ from . import _native
 
 __all__ = [
     "byte_search",
+    "byte_search_backward",
 ]
+
+
+def byte_search_backward(haystack: bytes, needle: bytes) -> Optional[int]:
+    """Harmonic-2 chiral mirror of :func:`byte_search` (F150): the offset of
+    the LAST occurrence of ``needle`` in ``haystack`` (mirrored search
+    direction), or ``None`` if absent. Empty needle returns ``len(haystack)``
+    (matches ``bytes.rfind(b"")``). Class G is harmonic-2 (chiral inverse) per
+    F150 §6.1 — forward / backward are the period-2 mirror pair.
+    """
+    if not isinstance(haystack, (bytes, bytearray, memoryview)):
+        raise TypeError(
+            f"haystack must be bytes-like; got {type(haystack).__name__}"
+        )
+    if not isinstance(needle, (bytes, bytearray, memoryview)):
+        raise TypeError(
+            f"needle must be bytes-like; got {type(needle).__name__}"
+        )
+    idx = bytes(haystack).rfind(bytes(needle))
+    return idx if idx >= 0 else None
 
 
 def byte_search(haystack: bytes, needle: bytes) -> Optional[int]:
