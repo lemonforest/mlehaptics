@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc14"
+#define SRMECH_VERSION       "0.7.0rc15"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -653,7 +653,7 @@ srmech_status_t srmech_g2_three_form_f64(
     double *out);
 
 /* ------------------------------------------------------------------ *
- * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc14; F292 #2)
+ * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc15; F292 #2)
  *
  * out[k] = loop_bind(x[k], y[k]) over nb INDEPENDENT 8-blocks (the
  * block-diagonal ⊕ F289 verified err 0.0). x, y, out are each nb*8
