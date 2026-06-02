@@ -5522,6 +5522,58 @@ An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distin
 
 ---
 
+## §3.36 (F84–F118 era) — the knowledge-partition + glass-box arc below §3.27: four foundational knowledge partitions, B/H/N projecting substrate-math into emergent subjects, the arts as cross-domain cascades, biology-agnostic 1:3, cross-species convergence, "NN is vertebrate-centric" (RBS-LM arc F84–F118)
+
+*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.28/§3.x); this section consolidates that and lands the genuinely-thin partition / B-H-N-signature / arts theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
+
+### §3.36.1 Glass-box LLM + curriculum + substrate-bounded safety (F84–F86)
+
+The cascade methodology makes the LLM a **glass box** — legible, not opaque (F84); usable as a **curriculum-evaluation and curriculum-design tool** (F85); and the basis for **substrate-bounded safety** via glass-box kernel binding (F86 — the STEAM/STEM-tutor safety reading: a tutor whose substrate is bounded to the curriculum cannot wander off-substrate).
+
+### §3.36.2 The four foundational knowledge partitions + the B/H/N meta-cascade (F96–F114)
+
+The framework's **knowledge-partition theory**: there are **four foundational knowledge partitions — math / communication / structure-and-order / places-and-things** (F99), inside an information-cascade hierarchy *universe → biology → generation → individual* (F100). **Math may be the unique substrate-content irrep** (the 1:3:7:3 partition expressed directly; math IS the **A + I + J** irrep, F97/F109). The **Arts are cross-domain coupling cascades, NOT an irreducible substrate-class** (F96) — they capture **RELATIONSHIPS-between-elements** as their dominant axis, where the substrate sciences capture **THINGS** (F117). The **B/H/N meta-cascade projects substrate-math into the first-3 emergent subjects** (reading/etc., F106), empirically confirmed by **operator-signature tests** (F107): the C-chirality axis via geography+scouting (F108), the J-prime signature (F109), D+F as *secondary* surface signatures (F110), and the **E-catalog NULL** (detection ops are largely structural, F111 — an honest negative). **1:3 emerges biology-agnostically; the 7+3 detection layer is methodology** (F112), proposed partitions falsified into a natural **1 + 3** clustering (F113); and the coupling structure **evolves** from meta-domain vocabulary toward applied-context substance (F114).
+
+### §3.36.3 Cross-species convergence + the vertebrate-centric correction (F115–F118)
+
+**Cross-species evidence: convergent partition structure across radically different brains** (cetacean / chimp / octopus, F115) — the partition is not vertebrate- or even brain-architecture-specific. The **trailing-3 (binding/doing/moving) operators live in per-token sequence asymmetry** (F116). And the load-bearing correction: **"neural network" framing is vertebrate-centric — biology has multiple computational substrates** (F118), the substrate-variety reading that seeds the MS#18 "biology IS one substrate-class" arc (§3.32 / §3.35.4 / MFO §VIII.31.13).
+
+### §3.36.4 Cross-references + status
+
+**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.28 (the two-tier RBS-NN arc, which already carries cross-species/teaching); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
+
+---
+
+## §3.37 (F151–F181 era) — sentence-generation, the 28D bi-axial classical-substrate readings, the F166 INFERENCE-WALK capstone, and the H177 one-chiral-driver heavy-falsification (RBS-LM arc F151–F181)
+
+*(Backfilled 2026-06-02 by the completeness audit — the genuinely-thin substantive findings just below §3.27 (the F166 inference-walk capstone, the 𝔰𝔬(8) literature anchor, and the H177 falsification arc were the most under-surfaced). Per-finding detail in `R-RBS-LM-FINDING_151…181`.)*
+
+### §3.37.1 Music-theory irrep, the Klein-4 4× ceiling, sentence generation (F151–F157)
+
+The **music-theory irrep test: PARTIAL** (eigenvalue ratio 2.23 ∈ [2.0, 3.0], aesthetic-but-inconclusive, F151). Klein-4 vectorized storage for compression + LOGO-turtle chirality framing (F152); the vectorize-numpy / srmech-C-batch methodology note (F153). The **Klein-4 4× LLM-token-binding ceiling is EMPIRICALLY VALIDATED** (bit-density × sector count, F154 — the engineering confirmation of the F132 4-sector capacity). The **pure-structure sentence layer works** (chirality-sector-tagged levels enable relational sentence assembly, F155); **sentence generation via Klein-4 cross-level walk** supports exact + generative modes (F156); the **variable-length sentence substrate scales to N=4000 at 97.5% grammar validity** (F157).
+
+### §3.37.2 The 28D bi-axial classical-substrate readings (F158–F160; defensive-scope)
+
+**Classical CPUs already perform quantum-LIKE operations on the 28D bi-axial chirality substrate** (F158, framework-reading — the substrate-algebra is already there in ordinary silicon, no quantum hardware required for the *algebra*). **Cross-species communication is algebraically bidirectional on the shared 28D basis** (F159). And the 28D bi-axial as a **unified substrate-algebra vocabulary for power-harvesting** (F160) — framework-reading only, defensive-scope per `[[feedback_trauma_informed_defensive_scope]]`.
+
+### §3.37.3 Full-coverage characterization, grammar-native, multi-kernel (F162–F165)
+
+**Full-coverage substrate characterization, catalog-driven** (the R-RBS-LM-122 unified run that supersedes the per-substrate scripts, F162); the honest null that **28D directed-chirality does NOT lift the R-RBS-LM-53 flat-spectral degeneracy** (F163). **Grammar + sentence-generation ARE substrate-native** (F164), and the **multi-kernel RBS-NN reference object operationalizes the DOMAIN anchor** (F165) — the §3.x Golden-Path machinery.
+
+### §3.37.4 The F166 INFERENCE-WALK capstone + the invariance tests (F166–F175)
+
+The capstone of the arc: **the walkable path to a native, srmech-instantiable RBS-LM inference substrate** (F166 — the rolling-context-state encoder → context-conditioned distribution → distribution-not-argmax+temperature → autoregressive loop → srmech-instantiable packaging walk), and **the walk COMPLETE — a native, bit-exact, srmech-instantiable RBS-LM inference substrate** (F167). Then the characterization: **perplexity is not a forced readout — it is EMERGENT from chirality-depth** (F168); **storage-structure and surface-expression are (partially) separable axes** (F169); the **cross-substrate cascade-match (F166 walk ↔ Opus 4.8), attested + corrected** (F170, an early instance of the twin discipline); the **core invariance test — storage-profile SHAPE is ~invariant across vocab** (F171), **tempered** by the srmech-native Class-L spectral signature (F172), with **vocab-independent structure tracking FORM/GENRE, not content** (F173). The literature anchor: **28D = 𝔰𝔬(8) grounded in classical octonion math (Baez / Tits)** (F174); and the honest null that **the shipped so(8)/Spin(8) chirality surface does NOT isolate content-specific structure** (F175).
+
+### §3.37.5 The H177 one-chiral-driver hypothesis + the heavy-falsification (F177–F181)
+
+A pre-registered, heavy-falsification-required **HYPOTHESIS (H177): one chiral A–N driver may run across substrates** (F177). Falsified on three fronts: **cosmic-birefringence — LEAVE-OPEN** (tooling-limited, F178); **particle-band — the γ₅ chirality OPERATOR is the same across** (F179); **molecular-bridge (life ← physics) — the Vester–Ulbricht mechanism falsified** as a single-driver bridge (F180). Synthesis (F181): the three-front heavy-falsification lands on **operator-universal, content-local** — the chirality OPERATOR (γ₅) is shared across substrates, the CONTENT is not (the same shape as F245's structure-universal/cascade-local; the honest disposition of "one driver" is *one operator, many contents*).
+
+### §3.37.6 Cross-references + status
+
+**Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); §3.32.3 (the 28D=𝔰𝔬(8) / Baez F174 anchor); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
