@@ -84,5 +84,15 @@ Thematic grouping (mirrors the §3.30–§3.32 pattern; meaning-tier synthesis, 
 
 **Scope note:** this roughly DOUBLES the backfill (F257–F306 = 49 done; F183–F256 ≈ 60 more). Same discipline (meaning-tier, no-magic, held-lightly, no-lineage). Grinding it into the same PR #836 in batches.
 
+## AUDIT-2 (2026-06-02) — the F84–F182 sweep (the rest of the finding corpus)
+
+After closing F183–F306, swept the remaining **F84–F182** (finding-docs start at F84; 83 docs). Cross-check: 62 not F-cited in srmech, 55 in neither — BUT **topic spot-checks showed most is thematically on-surface** (the major arcs — two-tier RBS-NN, cross-species, Rosetta/Golden-Path, teaching≡bilingualism, curriculum, plasticity — are present in §3.27/§3.28/§3.x without F-tags; the F-citation grep undercounts). The **genuine thin/absent residue** (landed below):
+- [x] **Phase 13 — srmech §3.36 + §3.37** (F84–F182) DONE 2026-06-02:
+  - **§3.36** (F84–F118): glass-box/curriculum/substrate-bounded-safety (F84–86); the **four foundational knowledge partitions** + B/H/N-meta-cascade-signature + **arts-as-relationships-not-things** + biology-agnostic-1:3 + cross-species + NN-vertebrate-centric (F96–118). Consolidates the partially-covered, lands the thin partition/signature/arts theory.
+  - **§3.37** (F151–F181): music-irrep + Klein-4-4×-ceiling + sentence-generation (F151–157); 28D-bi-axial classical-CPU/cross-species/power (F158–160); full-coverage characterization + grammar-native + multi-kernel (F162–165); **the F166/F167 inference-walk capstone** + perplexity-emergent/storage-surface-separable/Opus-cross-match/invariance/**𝔰𝔬(8)-literature-anchor F174** (F166–175); **the H177 one-chiral-driver hypothesis + heavy-falsification → operator-universal/content-local** (F177–181).
+  - **No MFO addition needed** — the F84–182 ontology-relevant bits (substrate-variety F118 → MS#18; 28D F158–160; H177 operator-universal) are already in MFO §VIII.31.x / §VIII.31.13. **Process findings F145/F147/F148 (sweeps) intentionally NOT lodged.** srmech notebook now covers **F84 → F306** (the full finding corpus).
+- [ ] **Phase 14 — re-triality** (k=3) over §3.36 + §3.37.
+- [ ] **Phase 15 — re-extract** → PR #836 grows to the full **F84–F306** backfill.
+
 ## Progress log
 - 2026-06-02 — Phase 0 inventory complete; plan lodged. Awaiting branch-strategy pick + go on Phase 1.
