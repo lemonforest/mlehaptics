@@ -8,6 +8,31 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc15] - 2026-06-02
+
+**DSL surface audit — corrects stale op-counts in the LLM-facing cascade-DSL tool descriptions + adds an anti-drift guard. Descriptions only; no new ToolEntry → `describe()` stays 201; ABI stays 3; no C change.**
+
+The cascade-DSL tool descriptions had drifted behind the runner: the
+`srmech.dsl.list_catalog_ops` ToolEntry summary enumerated only "8 ops"
+(omitting the v0.7.0rc8 `autocorrelation` AND the v0.6.0 `kuramoto_step` /
+`parallel_sector_dispatch`), and `run_toml_chain` referenced a "10-op cascade
+catalog" — so an LLM driving the DSL via MCP would believe fewer ops exist than
+the **11** that actually ship. The CLI (`srmech dsl ops`) was already correct
+(it reads the catalog live).
+
+- **Corrected** every stale count/list across the DSL surface: the two
+  `_register_dsl_tools` ToolEntry summaries (`run_toml_chain` /
+  `list_catalog_ops`), the `srmech.dsl.__init__` + `srmech.dsl._tool_surface`
+  module docstrings — all now cite **11** ops and `list_catalog_ops` names all
+  eleven (`autocorrelation`, `best_rational_signed`, `chiral_dual`,
+  `chiral_flip`, `cyclic_gcd`, `kuramoto_step`, `magnitude`, `net_chirality`,
+  `parallel_sector_dispatch`, `pin_slot_at_zero`, `reorient`).
+- **Anti-drift guard** (`test_dsl_tool_surface_descriptions.py`): the DSL
+  ToolEntry summaries are now locked to the LIVE `list_cascade_ops()` set —
+  every live op name must appear in the `list_catalog_ops` summary and both
+  summaries must cite the current op count, so a future op forces the
+  descriptions to be updated (or CI fails) rather than silently falling stale.
+
 ## [0.7.0rc14] - 2026-06-02
 
 **RBS-LM upstream wishlist — the `srmech.rbs_lm` inference substrate (UPSTREAM_NOTES §9; F166 walk). A NEW top-level module, pure-Python; outside the `amsc.*`/`qm.*` tool-schema enumeration → `describe()` stays 201; ABI stays 3; no C change.**
