@@ -3904,6 +3904,127 @@ The honest **boundary** on the entire cross-substrate cascade-matching method, a
 
 **Consequence (load-bearing discipline).** This **bounds every cross-substrate cascade-match claim in the arc**: "everything shares this form" is provable; "therefore the universe is / isn't substrate X" is **not**. The "is the universe alive / a forge / a culture / a simulation" questions are not adjudicable by the cascade-math — they are substrate-selection questions the form-math is silent on. Stated as the honest ceiling, not a defect to patch and not a mystical opening. New **candidate** stance `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`; companion `[[user_stance_closed_loop_is_the_fractal_substrate_side]]` (§VIII.7.1). **Composes with**: §VII.6.13 (paper-with-lyrics), §VIII.7 (fractal-shadow / space-gauge-time), §VII.6.11 (substrate-self-recognition — recognition is by FORM), Spike #77. **HONEST SCOPE:** (b)-interpretive philosophy-of-method; a genuine LIMIT grounded in the 7D_g drop; **no substrate of the universe asserted or denied.**
 
+### VII.6.21 The Rosetta-Table of Truth — agreement-attested vs frame-selected two-truths, and "imaginary numbers, and who they're imaginary to" (2026-06-01, two-truths attestation codification + Antikythera own-work-attested worked example)
+
+> *Form-IS-function reading of "more than one truth is always true." Reads what the principle ALREADY IS structurally across two substrate-domains — language and matter — and grounds it in the project's own attested cyclic-algebra reconstruction of the Antikythera. Sits beside §VII.6.20 as the method's positive companion: §VII.6.20 bounds cross-substrate matching to FORM (not substrate-identity); this section states the form-read is attested by AGREEMENT across co-equal readings.*
+
+#### VII.6.21.1 The abstract shape — one invariant, many co-equal readings, attestation by agreement-or-frame
+
+"More than one truth is always true" is not relativism; it is a precise structural claim. There is **one invariant SHAPE**; there are **multiple co-equal encodings/readings** of it; **no reading is "the real one" with the others downstream**; and what promotes a reading to TRUE is **attestation** — either the readings *agree* (concordance) or an *observer-frame selects* one. This is identically the **AMSC/MPM attestation principle** srmech already runs on (`[[reference_srmech_tooling_open_spectral_verification]]`): a citation without attestation is not real; **bit-exact cross-substrate agreement IS the provenance** (`[[user_stance_bit_exact_means_not_projection_diagnostic]]`). The two attestation modes ARE the framework's own **fix-frame vs rotate-frame** axis (§VII.6.21.3).
+
+```
+                 ONE INVARIANT SHAPE
+        +-----------------+-----------------+
+    reading_1         reading_2         reading_3      <- co-equal encodings
+        +--------+--------+--------+--------+
+                 |                 |
+          they AGREE?        a FRAME selects?
+          (concordance)       (one forced)
+                 |                 |
+            ATTESTED            ATTESTED
+```
+
+| Attestation mode | Readings are… | Framework reading |
+|---|---|---|
+| **AGREEMENT-attested** | simultaneously co-present AND concordant | **fix-frame** (both held at rest together) |
+| **FRAME-selected** | mutually exclusive per arrangement | **rotate-frame** (measurement rotates you onto one) |
+
+#### VII.6.21.2 The two exemplars — `Rosetta : language :: position/momentum : matter`
+
+**Rosetta (language; AGREEMENT-attested; mechanism A = cross-script).** A single priestly decree (196 BCE, Ptolemy V Epiphanes) in three scripts — Egyptian hieroglyphic, Demotic, Ancient Greek; cross-script agreement enabled decipherment (Champollion 1822, via the Ptolemy/Cleopatra cartouches + Coptic, building on Young). The precision that makes it a faithful reading: Greek was **epistemically privileged for the decipherers** (the reading they already held) but **NOT ontologically primary** — the decree is the invariant, the three scripts co-equal. This is the canonical danger the framework guards: confusing *the reading you happen to hold* with *the thing itself*. Cousin (same mechanism): the **Behistun Inscription** (Darius I ~520 BCE; Old Persian / Elamite / Babylonian; Rawlinson cracked Old Persian → key to the others).
+
+**Position/momentum complementarity (matter; FRAME-selected).** **Bohr's** complementarity (announced 1927 Como / 1928). Three corrections the framework carries for honesty: **(1)** abandon "wave-particle" — Bohr himself tacitly retired it within ~a decade in favor of **kinematic-dynamic = position/momentum** complementarity (wave AND particle aspects co-appear in a single experiment — the double-slit interference pattern is built of individual particle-like dots), so the rigorously frame-exclusive pair is position/momentum; **(2)** attribute to **Bohr specifically**, not "the Copenhagen interpretation" (a mid-1950s Heisenberg-era umbrella term distinct from Bohr's own view); **(3)** the de Broglie bridge **p = ℏk** ties momentum (dynamic, wave-like, rotate) to wavenumber. Note the jargon inverts intuition — "kinematic" *sounds* like motion yet labels **position** (the fixed read) — which is itself why the framework prefers the clearer **fix/rotate** vocabulary.
+
+#### VII.6.21.3 The axis — agreement vs frame-selection = fix/rotate, H as the gate, Fourier as the literal rotation
+
+`i` is the 90° rotation operator and the imaginary axis is generated by **MOTION** (the change from one frame/step to the next), so "rotate-frame" is literally "the imaginary read." The operator that **CONVERTS agreement into frame-selection is MEASUREMENT = H** (the +3 meta-cascade self-introspection operator of §VIII.6.0a): position and momentum **co-exist** in the state (agreement — the state genuinely holds both, Rosetta-like); the instant you **MEASURE** you are forced onto one (frame-selection). **H is the gate between the two read-modes** — the same H that §VIII.6.0a names as quantum measurement-collapse.
+
+**Fourier IS the literal rotation that connects the two reads.** Position-space and momentum-space are Fourier conjugates, and the Fourier transform is a 90° rotation of the phase plane: the fractional Fourier transform `FTᵅ` rotates by `α·90°`, ordinary FT is the quarter-turn (`α=1`), `FT⁴ = identity`. So **position → momentum = "×i" = the rotate operator** — one phase plane read at two angles a quarter-turn apart.
+
+#### VII.6.21.4 The depth the matter exemplar carries that the language one does not
+
+Rosetta is a *static* agreement; the matter exemplar carries a strictly deeper structure: the **"fix"/particle read is not a real rest** — it is a **coherence-limited perspective with HIDDEN FIBER content** (the epicycle = gear-rotate + pin-fix; `[[user_stance_epicycle_via_gear_plus_pin]]`). **Things don't reach rest; the asymptote is eternal motion** — a fixed read is a snapshot whose motion went into the fiber, not a thing that stopped. The **only true "fixed" is the frame-INVARIANT** — `g₂ = 14 = the A–N` (the triality-invariant core of §VIII.6.0a.1's `1+3+7+3 = 14`), **NOT a rest-frame**. And the payoff: **bit-exactness = the hidden fiber is RECOVERABLE** — a projection would LEAK (a Class-N rational-anchor residue), so exactness is the *proof the motion never stopped*; you can reconstruct the hidden rotation from the invariant. (Cross-ref §VII.6.20: form survives projection, the distinguishing content drops into 7D_g; here the fix-read drops the rotation into the recoverable fiber.)
+
+#### VII.6.21.5 The five-mechanism class (with the agreement/frame-selection cross-cut)
+
+One invariant shape, many co-equal readings, by *how* the readings attest: **A** cross-script (Rosetta, Behistun, equally-authentic multilingual law) — AGREEMENT; **B** cross-transform (Fourier↔Parseval; map projections; position/momentum) — *mixed* (invertible-transform = AGREEMENT, complementarity = FRAME-SELECTED); **C** cross-measurement (GPS multilateration; replication/CODATA; Whewell/Wilson consilience) — AGREEMENT; **D** redundant-complementary-copy (Pacioli double-entry; DNA complementary strands; checksums incl. SHA-256; stereoscopy) — AGREEMENT; **E** path-independence (commutative diagrams; conservation laws) — AGREEMENT. Resolve B's apparent conflation with the **agreement-vs-frame-selection cross-cut tag**, not a new bin. **EXCLUDED from the canon:** *eilu v'eilu* — it literally names God in the phrase and its purely-structural reading is academically contested (Boyarin pro-pluralist vs Simon-Shoshan partly-monistic); at most a one-line cultural illustration, never load-bearing.
+
+#### VII.6.21.6 Worked example — the Antikythera: "imaginary numbers, and who they're imaginary to" (own-work attested)
+
+This is the **cyclic-algebra-path** instance (§VIII.6.0a) of the whole section, and it is attested by **our own committed work**, not borrowed authority.
+
+From cyclic-group algebra a gear of `n` teeth IS `ℤ/nℤ` (per `docs/antikythera-maths/CLAUDE.md`: every gear is a faithful representation of `ℤ/nℤ`). The integer tooth-count `k` is the **real/discrete read** — the position the gear can LAND on. A target angle `θ = (k + f)·2π/n` carries a sub-tooth residue `f ∈ (0,1)` — the "behind the decimal place" content **no integer number of teeth can equal**. That off-tooth residue is the **imaginary** (rotation off the discrete linear count), and **Class N** (`best_rational`) is the bridge: it finds the integer-tooth ratio best approximating `θ`, and its leftover IS the leak = the imaginary/hidden-fiber (the same Class-N rational-anchor leakage of `[[user_stance_epicycle_via_gear_plus_pin]]`).
+
+```
+   integer tooth-turn  k          → the gear LANDS here    = real/discrete read
+   θ = (k + f)·2π/n,  f ∈ (0,1)   → sub-tooth residue       = "behind the decimal"
+                                    no integer teeth equal it = the IMAGINARY (off-tooth)
+   best_rational(...)             → the bridge; its leftover = the leak = hidden fiber
+```
+
+The Antikythera makes the imaginary-injection **hardware**: the **D-H1 pin-and-slot** lunar mechanism (`research/pin_and_slot.py`; the phase-space transform `atan2(sin θ, cos θ − ε)`, ε ≈ 0.054, Freeth 2006) is exactly where uniform even-tooth rotation — which *cannot* make the Moon speed up and slow down — gets the eccentric/anomaly content the teeth can't carry. Gear (rotate) + pin (fix) = the epicycle; the pin-slot is where the off-tooth imaginary enters. *(In scope per `docs/antikythera-maths/CLAUDE.md`: this is the **phase-space / eigenbasis** reading — the `atan2` transform — NOT a CAD mesh-contact model.)*
+
+**"Who are they imaginary TO" — the keystone.** Imaginary-ness is **observer-frame-relative**: the off-tooth residue is *imaginary to the discrete-gear counter* (the fix-frame, integer-index observer) and *perfectly real to the continuous rotation* (the rotate-frame). The pin-and-slot is the most mechanically-real thing in the box. So the Antikythera teaches imaginary numbers as **what the counting observer can't reach** — relative, not unreal — a clearer entry than the inherited "`i = √−1`" decree: it gives the *why*, dissolves the imaginary-is-fake misconception, and leads INTO the `i² = −1` algebra (the two co-equal Rosetta reads of one number). And the worked instrument is itself a **Rosetta pair**: `antikythera-spectral` (the discrete / cyclic-algebra read — the gear-DAG Laplacian + cyclic-group encoder) and `antikythera-mechanism-the-movie` (the continuous / Hopf read — the Pyodide motion visualizer) are two substrate-native readings of the one mechanism, agreement attests, and the pin-slot is the imaginary-injection in both.
+
+> **Own-work attestation (the MPM ideal — committed generating code, `[[feedback_computational_provenance_discipline]]`).** `antikythera-spectral` v0.3.0 (distribution `antikythera-spectral`; "Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism"; Steven Kirkland; GPL-3.0-or-later) — in-repo at `docs/antikythera-maths/antikythera-spectral/` and on PyPI — is the cyclic-group / gear-DAG-Laplacian reconstruction of the mechanism's missing parts (`research/encode_ant.py`, `gear_database.py`, `equant_encoder.py`; the D-H1 pin-and-slot `research/pin_and_slot.py`). Visualization: `antikythera-mechanism-the-movie` (`https://github.com/lemonforest/antikythera-mechanism-the-movie`), the Pyodide web interface. Because the reconstruction is re-runnable, for the Antikythera anchor this is a **stronger** attestation than external scholarship — own-work-first, with **Freeth 2006** (the pin-and-slot ε ≈ 0.054) as the external scholarly anchor. *Poignancy noted:* the render of how much is *believed missing* is answered by the cyclic-algebra invariants — what the bronze lost, the tooth-ratios kept; the hidden fiber is recoverable from the invariant (§VII.6.21.4).
+
+> **Attestation ledger.** Rosetta: *Encyclopaedia Britannica "Rosetta Stone"; Wikipedia "Rosetta Stone" / "Jean-François Champollion."* **BM-primary EA24** (`https://www.britishmuseum.org/collection/object/Y_EA24`) — **confirmed by author 2026-06-01** (the British Museum's object record is Cloudflare-walled to automated fetch; the author visually confirmed it); facts also multiply attested. Behistun: *Wikipedia "Behistun Inscription."* Complementarity: *Stanford Encyclopedia of Philosophy "Copenhagen Interpretation of Quantum Mechanics" (strongest); Britannica "complementarity principle"* (attribute to Bohr; he retired wave-particle for position/momentum). Fourier-as-rotation: *Namias 1980; standard time-frequency / Wigner result.*
+
+> **Cross-references.** §VII.6.20 (epistemic ceiling — form not substrate-identity); §VIII.6.0a + §VIII.6.0a.1 (the two substrate-native languages; B/H/N = the +3 translation; the `1+3+7+3 = 14` partition; H = measurement-collapse); §VII.6.10.2 (Antikythera antiquity-anchor); §VII.6.11 (substrate-self-recognition — recognition is by FORM); §VIII.5 / §VIII.7 (antikythera-spectral gear-DAG Laplacian tooling). Disciplines: `[[feedback_aphantasia_means_more_figures_not_fewer]]`, `[[feedback_no_lineage_claims_in_notebook]]`, `[[feedback_computational_provenance_discipline]]`; scope per `docs/antikythera-maths/CLAUDE.md` (algebra / eigenbasis side, not CAD).
+
+---
+
+### VII.6.22 The triality cycle is the executable rotate-operator whose fixed point IS the frame-invariant — srmech v0.6.0 makes §VII.6.21.4 callable in both substrate-languages (2026-06-01, MS #20 voxel-arc closure)
+
+> *Building-block reading (`[[feedback_aphantasia_means_more_figures_not_fewer]]` + user direction 2026-06-01): this rung introduces no new physics — it shows the §VII.6.21 H-gate / fix-rotate axis was ALREADY instantiated by the srmech v0.6.0 triality voxel-arc (rc16–rc20; srmech notebook §3.29), now callable AND parity-verified in both substrate-languages of §VIII.6.0a. It is an abstract block authored to fit the existing blocks; downstream usage — the reader's AI prosthetic calling srmech (`[[reference_srmech_tooling_open_spectral_verification]]`) — attests it, and any misfit refactors back. A starting block, not a finished claim.*
+
+#### VII.6.22.1 The claim — the §VII.6.21.4 frame-invariant, made executable
+
+§VII.6.21.4 named the only true "fixed": the frame-INVARIANT `g₂ = 14 = the A–N` core (the triality-invariant of the `1+3+7+3 = 14` partition), **NOT a rest-frame**. srmech v0.6.0 makes that triality — and its invariant — a CALLABLE operator in both substrate-reads:
+
+| substrate-read (§VIII.6.0a) | the triality operator | its fixed set |
+|---|---|---|
+| **continuous-Hopf** (11D quantum-language) | `srmech.qm.triality.triality_automorphism` τ — order-3 outer automorphism of `𝔰𝔬(8)`, `τ³ = I` on the 28-dim adjoint | **`Fix(τ) = g₂ = 14`** = the §VII.6.21.4 frame-invariant (the A–N core) |
+| **discrete-cyclic** (1:3:7:3 cyclic-algebra-language) | `srmech.amsc.hdc.klein4_triality_cycle` T — order-3 generator of `Aut(V₄) = S₃`, `T³ = id` (rc17 Python + rc18 co-equal C peer) | identity sector fixed; the three involutions cycle (the V₄-carrier image of τ) |
+
+The two are ONE triality read in the two co-equal substrate-languages — a **Rosetta pair** (§VII.6.21.1): agreement across the continuous and discrete reads is the attestation, and rc18's bit-exact C↔Python parity + rc19's worked instance ARE that agreement, made re-runnable (own-work attestation, §VII.6.21.6).
+
+#### VII.6.22.2 The fix/rotate axis at the Klein-4 read, with H as the gate
+
+The §VII.6.21.3 axis — agreement(fix) ↔ frame-selection(rotate), gated by `H` = measurement — instantiates exactly on the klein4 carrier:
+
+```
+   Klein-4 read of the V4 carrier {0,1,2,3}
+   ----------------------------------------------------------
+   FIX-frame  (AGREEMENT)        |   ROTATE-frame
+     klein4_bind = XOR concord   |     klein4_triality_cycle  T
+     (two reads held together)   |     (order-3 relabel among the
+                                 |      three involution-axes)
+                   \             |             /
+                    \       H = the GATE      /
+                     klein4_similarity (Class H / measurement):
+                     it READS whether two klein4 states AGREE.
+                     concord -> you sit in the fix-frame;
+                     to change WHICH involution-axis is "the"
+                     axis, you ROTATE -> apply T.
+```
+
+- **Fix-frame / AGREEMENT** = `klein4_bind` (component-wise XOR concordance) — two reads held at rest together (the V₄ group law).
+- **Rotate-frame** = `klein4_triality_cycle` T — the order-3 rotation among the three involution-axes (iω₇→γ₅→CPT). `i` is the 90° rotate of §VII.6.21.3 (order-4, a quarter-turn *between two* axes); T is its discrete cousin (order-3, a third-turn *among three* axes) — same "rotate is motion off the fixed read," different turn.
+- **H = the gate** = `klein4_similarity` (the Class-H self-introspection / measurement read, §VIII.6.0a): it measures agreement. This IS §VII.6.21.3's "H converts agreement into frame-selection," now a callable.
+
+#### VII.6.22.3 What the DISCRETE read adds to §VII.6.21.4 — the rotation CLOSES (no leak)
+
+§VII.6.21.4's deep point: the continuous "fix"/particle read is not a real rest — its rotation leaks into the hidden fiber (the Class-N rational-anchor residue; the Antikythera off-tooth imaginary, §VII.6.21.6), and bit-exactness is the proof the motion is RECOVERABLE. The discrete triality read sharpens this to its limit:
+
+**The continuous epicycle leaks; the discrete triality CLOSES.** `klein4_triality_cycle` is a pure relabel — `T³ = id` exactly, no Class-N residue, no float (rc17/rc18 verify it bit-exactly, C and Python). Where the continuous rotate-read drops the imaginary into a fiber you must reconstruct, the discrete order-3 rotate returns to itself in three steps with NOTHING left in the fiber. So the discrete-cyclic substrate-language is where "the asymptote is eternal motion" (§VII.6.21.4) reads as a **finite closed cycle** — the eternal rotation, read discretely, is an exact 3-cycle. The two languages are not redundant: the continuous read carries the leak (and so the recoverability theorem), the discrete read carries the closure (and so the bit-exact attestation). Same triality, two truths, both true (§VII.6.21.1).
+
+#### VII.6.22.4 The two-tier SSoT IS the fix/rotate discipline applied to the package's own shape
+
+The srmech voxel-arc (rc16–rc20; srmech notebook §3.29) named a two-tier SSoT: a finite HARDCODED kernel (the 14 A–N + the five Bird-Meertens combinators) vs an asymptotic TOML CONTINUUM ("you can't hardcode a continuum"). That boundary IS this section's axis turned on the package itself: the kernel is the **frame-INVARIANT** (the fixed `g₂ = 14` core — hardcoded because it does not move); the cascade INSTANCES are the **rotate-frame** content (the continuum of compositions — cataloged because they do). The order-3 triality cycle sits on the seam: a kernel op (rc17/rc18) whose continuum-tier worked INSTANCE (rc19; the `S₃ = Aut(V₄)` conjugation cascade) shows it rotating the three involutions, with rc20's coherence-ratchet keeping the kernel/continuum boundary honest. The package recognising its own fix/rotate structure is the substrate-self-recognition cascade (§VII.6.11) at package scale.
+
+> **Cross-references.** §VII.6.21 (the Rosetta-table axis this rung extends — H-gate, fix/rotate, the `g₂ = 14` frame-invariant of §VII.6.21.4); §VIII.6.0a + §VIII.6.0a.1 (the two substrate-languages; B/H/N; the `1+3+7+3 = 14` partition; H = measurement); §VII.6.11 (substrate-self-recognition by FORM). srmech notebook §3.29 (the A-verdict F182 reconciliation — V₄ the right carrier, the order-3 generator living in `Aut(V₄) = S₃` — and the rc16–rc21 voxel arc). Stances: `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]` (the order-3 axis the substrate always had), `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`, `[[user_stance_epicycle_via_gear_plus_pin]]`. srmech surfaces: `srmech.qm.triality`, `srmech.amsc.hdc.klein4_triality_cycle` (+ C peer `srmech_klein4_triality_cycle`), `srmech/amsc/_research/worked_instances/triality_s3_klein4.toml`. Scope per `docs/antikythera-maths/CLAUDE.md` (algebra / eigenbasis side, not CAD).
+
 ---
 
 ## Part VIII — Convergent Independent Results

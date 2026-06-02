@@ -16,11 +16,16 @@
  *   - Rule 2 (bounded loops)  : OK — every loop bounded by file
  *                              size (caller-supplied) or by the
  *                              fixed read-buffer size.
- *   - Rule 3 (no malloc)      : OK — fixed-size static line-assembly
- *                              buffer + stack chunk buffer. Trade-off:
- *                              srmech_ndjson_iter is NOT thread-safe
- *                              w.r.t. the static buffer (documented in
- *                              srmech.h). Phase B6 audit may revisit.
+ *   - Rule 3 (no malloc)      : OK — fixed-size thread-local line-
+ *                              assembly buffer + stack chunk buffer.
+ *                              #772 reentrancy trade: the line buffer
+ *                              is per-thread (SRMECH_THREAD_LOCAL),
+ *                              so srmech_ndjson_iter is now safe to
+ *                              call from multiple threads concurrently
+ *                              (each thread owns its own 1 MiB buffer).
+ *                              Thread-local static is still Rule-3-
+ *                              clean (static duration, no malloc) and
+ *                              keeps the 1 MiB buffer off the stack.
  *   - Rule 4 (≤60 lines/fn)   : OK — split into chunk-process helper.
  *   - Rule 5 (≥2 asserts/fn)  : OK — input pointer + bound asserts
  *                              at every entry/state-transition point.
@@ -64,8 +69,17 @@
  */
 #define SRMECH_NDJSON_MAX_LINE_BYTES (1u * 1024u * 1024u)
 
-/* Single-threading contract — see comment above. */
-static char g_line_buf[SRMECH_NDJSON_MAX_LINE_BYTES];
+/* Line-assembly buffer (#772 reentrancy).
+ *
+ * At 1 MiB this is too large to stack-allocate safely per call, so it
+ * stays a static-duration buffer — but qualified SRMECH_THREAD_LOCAL
+ * so every thread gets its own copy. The buffer must persist across
+ * srmech_ndjson_process_chunk invocations WITHIN a single
+ * srmech_ndjson_iter call (a line can straddle chunk boundaries);
+ * function-local thread-local static gives exactly that lifetime —
+ * one private 1 MiB buffer per thread, reused across iter calls on
+ * that thread. The buffer pointer is threaded explicitly into
+ * process_chunk / emit so no helper references a file-scope global. */
 
 /* ------------------------------------------------------------------ *
  * Helper: emit one assembled line to the callback if it's non-empty.
@@ -113,11 +127,13 @@ static srmech_status_t srmech_ndjson_process_chunk(
     size_t                   n_read,
     srmech_ndjson_line_cb    cb,
     void                    *user,
+    char                    *line_buf,
     size_t                  *line_len_inout,
     size_t                  *lineno_inout)
 {
     assert(chunk != NULL);
     assert(cb != NULL);
+    assert(line_buf != NULL);
     assert(line_len_inout != NULL);
     assert(lineno_inout != NULL);
 
@@ -128,7 +144,7 @@ static srmech_status_t srmech_ndjson_process_chunk(
         const uint8_t b = chunk[i];
         if (b == (uint8_t)'\n') {
             const srmech_status_t st = srmech_ndjson_emit(
-                cb, g_line_buf, line_len, lineno, user);
+                cb, line_buf, line_len, lineno, user);
             if (st != SRMECH_OK) {
                 *line_len_inout = line_len;
                 *lineno_inout = lineno;
@@ -142,7 +158,7 @@ static srmech_status_t srmech_ndjson_process_chunk(
                 *lineno_inout = lineno;
                 return SRMECH_ERR_OVERFLOW;
             }
-            g_line_buf[line_len] = (char)b;
+            line_buf[line_len] = (char)b;
             line_len += 1u;
         }
     }
@@ -183,6 +199,10 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
         return SRMECH_ERR_IO;
     }
 
+    /* Per-thread line-assembly buffer (#772). Static duration (1 MiB
+     * is too large to stack) but thread-local, so concurrent
+     * srmech_ndjson_iter calls on different threads never collide. */
+    static SRMECH_THREAD_LOCAL char line_buf[SRMECH_NDJSON_MAX_LINE_BYTES];
     uint8_t chunk[SRMECH_NDJSON_CHUNK_BYTES];
     size_t line_len = 0u;
     size_t lineno = 1u;
@@ -199,7 +219,7 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
             break;
         }
         st = srmech_ndjson_process_chunk(
-            chunk, n_read, cb, user, &line_len, &lineno);
+            chunk, n_read, cb, user, line_buf, &line_len, &lineno);
         if (st != SRMECH_OK) {
             fclose(fp);
             return st;
@@ -213,7 +233,7 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
     }
 
     if (st == SRMECH_OK && line_len > 0u) {
-        st = srmech_ndjson_emit(cb, g_line_buf, line_len, lineno, user);
+        st = srmech_ndjson_emit(cb, line_buf, line_len, lineno, user);
     }
 
     fclose(fp);

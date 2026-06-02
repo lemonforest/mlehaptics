@@ -410,3 +410,33 @@ srmech_status_t srmech_klein4_similarity(const uint8_t *a,
     *out = (double)matches / (double)n;
     return SRMECH_OK;
 }
+
+/* klein4_triality_cycle(in, n, inverse, out): the order-3 S3 = Aut(V4)
+ * cycle of the three non-identity involutions iw7(1) -> g5(2) -> CPT(3) ->
+ * iw7(1), identity(0) fixed; the V4-carrier image of the so(8) 8v->8s->8c
+ * triality. inverse != 0 applies the reverse 3-cycle (T^2 = T^-1). Class I
+ * (cyclic order-3 relabel; no sign). Out of {0,1,2,3} -> ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_triality_cycle(const uint8_t *in,
+                                             uint32_t       n,
+                                             int            inverse,
+                                             uint8_t       *out)
+{
+    static const uint8_t fwd[4] = {0u, 2u, 3u, 1u};
+    static const uint8_t inv[4] = {0u, 3u, 1u, 2u};
+    const uint8_t *table = (inverse != 0) ? inv : fwd;
+    assert(in != NULL && out != NULL);
+    assert(n > 0);
+    if (in == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        if (in[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out[i] = table[in[i]];
+    }
+    return SRMECH_OK;
+}

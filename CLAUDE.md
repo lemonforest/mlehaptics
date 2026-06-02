@@ -109,11 +109,11 @@ A citation without attestation is not real; an attestation that can't be re-veri
 | Cyclic / modular gcd | `srmech.amsc.cyclic.gcd` | **I** |
 | Rational anchor (best-rational) | `srmech.amsc.rational.best_rational(num: int, denom: int, max_d: int)` | **N** |
 | Cascade primitives (planned) | `srmech.amsc.cascade.*` (precursor at `docs/unsolved-maths/_cascade_helpers.py`) | foundational |
-| TOML cascade-runner (planned) | `srmech.cosmos.cascade.*` *(planned; `srmech.cosmos` is not yet a module — F178)* | composition |
+| TOML cascade-runner (planned; NOT yet packaged — no `srmech.cosmos` module exists; F178) | `srmech.amsc.cascade.*` are the shipped cascade primitives | composition |
 | Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+) | spectral |
 | AMSC catalogs (attested data) | `srmech.amsc.tool_schema` for catalog creation | provenance |
 | Asymptotic calculus (trig / transcendentals / calculus) | `srmech.asymptotic_calculus.*` | math |
-| Cosmos catalogs (CMB TE/EE/BB; **no EB/TB** parity surface) | `srmech.amsc.attested.cmb_*` | astrophysical |
+| Cosmos catalogs (packaged under `srmech.amsc.attested.*`; CMB TE/EE/BB — **no EB/TB** parity surface) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
 
 Per `[[project_srmech_foundational_cascade_operations_catalog]]`: cascade-helpers replacing Python math modules should land as srmech catalog peers to `asymptotic_calculus` and `trigonometry`.
 

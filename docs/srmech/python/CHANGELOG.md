@@ -4,7 +4,2096 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: **v0.4.5rcN**. Queued srmech follow-ups (deferred during the v0.4.4 chirality + siona arc): the chiral-cascade research items from MFO §VIII.31.11 §(5d) — net-chirality cascade invariant, the 4-way chirality sector, the full 28 = 𝔰𝔬(8) chiral read-out, and the RBS Klein-4 parity tie-in._
+_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
+<!-- pypi-readme-changelog-start -->
+## [0.7.0rc11] - 2026-06-02
+
+**F292 graft #2 — N-way SIMD block-octonion HD bind (`srmech.amsc.hdc.loop_bind_hd`), on a new SIMD optimize-path HAL (`c/src/srmech_simd.h`). NO new public callable → `describe()` stays 194; a NEW C symbol → ABI stays 3 (additive).**
+
+The on-theme F292 graft: `loop_bind_hd` is the block-diagonal direct sum ⊕ of NB **independent** dim-8 octonion products (F289 verified err 0.0) — exactly the data-parallel shape cpuminer's N-way-SIMD mindset exploits. It was a **Python loop** over the NB 8-blocks (one ctypes call per block); this collapses it to **one native call** that advances W blocks per SIMD pass.
+
+- **`srmech_loop_bind_hd_f64(x, y, nb, out)`** (`c/src/srmech_loopbind_hd.c`, new) — binds all NB blocks in one call via a runtime **AVX (256-bit double, W=4)** / **SSE2 (W=2)** / scalar dispatch. The SIMD kernels mirror the rc7 `mul2/mul4/mul8` Cayley-Dickson op-DAG with `double` → a vector holding W blocks of one component; the scalar tier (remainder / non-x86 / Pyodide) reuses the shipped `srmech_loop_bind_f64`, so it is bit-exact with the single-block product by construction. `loop_bind_hd` dispatches to it (whole NB-block array crosses once — no per-element Python loop); the per-block fallback is unchanged. NOTE the 256-bit **double** ops are AVX, not AVX2.
+- **HAL — `c/src/srmech_simd.h` + `srmech_simd.c` (new):** ALL machine-specific bits other than the kernels now live in ONE place — the `SRMECH_SIMD_X86` platform macro, the arch intrinsic includes, the `SRMECH_SIMD_TARGET_*` per-function attributes, and the cpuid/xgetbv feature probes (`srmech_simd_has_avx2/_avx/_sse2`) + env-tier clamp (`srmech_simd_tier`). The portable core (`srmech_sha256.c`, `srmech_loopbind.c`) and the public header (`c/include/srmech.h`) stay 100% machine-agnostic. **rc10's `srmech_sha256_batch.c` is retrofitted onto the HAL** — its own platform/target/cpuid copies deleted (byte-identical SHA output, every tier; net FEWER Rule-5-exempt functions). New optimize-path ops include the HAL and write only their kernels.
+- **Bit-exact, every tier:** scalar / SSE2 / AVX all match the pure-Python `_loop_bind_raw` per block (**maxerr 0.00e+00**, including the canonical HD width 2048 = 256·8) — the F292 "parity-trivial" prediction confirmed. `tests/test_loop_bind_hd.py`. SHA-256 batch regression: still byte-identical to `hashlib` + NIST KATs at every tier.
+- **JPL-clean:** intrinsics (NOT asm); no `goto`/recursion/malloc; ≤60-line functions; single-line vector macros (Rule 8); kernels self-isolate via `__attribute__((target("avx"|"sse2")))` so the library compiles at baseline ISA (no global `-mavx`); ≥2 asserts per non-exempt function (the cpuid probes are the documented exempt entries). gcc/clang/MSVC `-Werror`/`/WX`.
+
+**SCOPE (load-bearing):** energy/perf-engineering of srmech's OWN Class-M HD bind (octonion algebra — not hashing, not mining). The HAL is the architectural answer to "no machine-specific bits in the core; abstract the optimize path behind a header." `[[feedback_trauma_informed_defensive_scope]]`.
+
+**`describe()` stays 194** (internal acceleration of an existing surface, no new ToolEntry); **ABI stays 3** (new symbol, additive). Anchor: F292 (`R-RBS-LM-FINDING_292_cpu_optimization_reference_graft_handdown`).
+
+## [0.7.0rc10] - 2026-06-02
+
+**F292 graft #1 — N-way SIMD SHA-256 BATCH (`srmech.amsc.format.sha256_batch`), folding the F292 CPU-optimization hand-down into v0.7.0. +1 ToolEntry → `describe()` 194; a NEW symbol → ABI stays 3 (additive).**
+
+The first "apple-tree" graft from F292: take cpuminer's battle-tested **N-way SIMD SHA-256 technique** (`sha256d_ms_4way/8way`) and re-implement it JPL-clean in srmech's own hash, for the bulk-attestation common case (fingerprinting a whole catalog of upstream response bytes at once).
+
+- **`srmech.amsc.format.sha256_batch(datas) -> list[str]`** — one 64-char lowercase hex digest per message, each **byte-identical** to `sha256_bytes(d)` / `hashlib.sha256(d).hexdigest()`. A throughput surface, NOT a new content-address shape. Dispatches to the native peer when present, else a `hashlib` loop.
+- **`srmech_sha256_batch`** (`c/src/srmech_sha256_batch.c`, new) — a runtime **cpuid dispatch** to **AVX2 8-way** / **SSE2 4-way** (scalar fallback for the `n mod W` remainder, non-x86, and Pyodide). The W lanes step through their own message's 512-bit blocks in SIMD lockstep, with a **per-lane mask** freezing a lane once its (shorter) message is done — so variable-length batches are correct, each lane's state advancing exactly as the scalar one-shot would. `SRMECH_SHA256_FORCE_TIER={0,1,2}` overrides the dispatch (test hook).
+- **Bit-exact, every tier:** scalar / SSE2 / AVX2 all match `hashlib` + the NIST KATs (`""`, `"abc"`, 1M-`a`) over a full padding-boundary length matrix and mixed-length batches (verified locally via the force-tier hook; CI's native cells exercise the host tier). `tests/test_sha256_batch.py`.
+- **JPL-clean:** intrinsics (NOT asm); no `goto`/recursion/malloc; ≤60-line functions; the SIMD sigma ops are **single-line** macros (Rule 8); the AVX2 kernel self-isolates via `__attribute__((target("avx2")))` so the library compiles at baseline ISA (no global `-mavx2`); ≥2 asserts per non-exempt function (the cpuid feature-detectors are the documented exempt entries). gcc/clang/MSVC `-Werror`/`/WX`.
+
+**SCOPE (load-bearing):** energy/perf-engineering of srmech's OWN provenance hashing — **NOT cryptocurrency mining** (binding doesn't make hashing cheaper; SHA-256 has no PoW shortcut; "a correct instrument, not a money printer"). Technique attested to **public references** (FIPS 180-4 for the algorithm; the Intel Intrinsics Guide + Gueron & Krasnov, "Parallelizing message schedules to accelerate SHA-256" for the N-way structure); cpuminer (GPLv2+, forward-compatible with srmech GPL-3.0+) was read only as a working-impl pointer. `[[feedback_trauma_informed_defensive_scope]]`.
+
+**+1 ToolEntry → `describe()` 193 → 194**; **ABI stays 3** (new symbol, additive). Anchors: F292 (`R-RBS-LM-FINDING_292_cpu_optimization_reference_graft_handdown`); the btc-rosetta midstate bench (the measured 1.73× energy anchor).
+
+## [0.7.0rc9] - 2026-06-02
+
+**MS #21 rc9 voxel — the v0.7.0 graduation-prep PyPI description refresh (the genuinely-last rcN before the clean v0.7.0 cut). Description-only → `describe()` stays 193; DSL catalog stays 11 ops; ABI stays 3.**
+
+The PyPI `Summary` predated the v0.7.0 arc — it named "octonion-multiplications" and "Spin(8) triality" but not the **Moufang loop-bind** op family the arc actually shipped, and nothing of rc8's autocorrelation. This voxel refreshes it (no code change):
+
+- Names the v0.7.0 headlines: **Moufang loop-bind, 7-D cross product, G_2 3-form** (the octonion family, rc1–rc7) and **Wiener-Khinchin autocorrelation** (rc8) join the cascade-parity list (Kuramoto too — shipped at v0.6.0 but never surfaced in the summary).
+- **Preserves** the substrate-native spine verbatim in substance: 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L/R octonion products; Spin(8) triality), made hardware-callable.
+- **Trimmed** the redundant `dispatch, catalog, templating, Kepler` + `dual-path signal-processing` tail (covered by "Full cascade-catalog C/Python parity") → **472 chars**, under the 480 soft / 512 hard PyPI `Summary` limit. **Byte-identical** in `pyproject.toml` + `pyproject-pure.toml` (the publish-workflow drift guard).
+
+**Description-only** — no code touched, so `describe()` stays **193**, the DSL catalog stays **11 ops**, ABI stays **3**. This is the final rcN; the clean `v0.7.0` graduation to production PyPI follows (human-gated).
+
+## [0.7.0rc8] - 2026-06-02
+
+**MS #21 rc8 voxel — the Class-L circular autocorrelation primitive (the F290 §C un-flatten Wiener-Khinchin op), shipped CO-EQUAL in Python AND C. +1 ToolEntry → `describe()` 193; +1 cascade-catalog op → 11 DSL ops; new symbol → ABI stays 3.**
+
+The F290 §C "un-flatten" catalog composite (`autocorr → difference-graph → conservation-validate`) was blocked on **one** missing Class-L primitive: srmech had no autocorrelation op, so the composite could not be authored as pure-TOML over named ops. This voxel ships it, Python + C together:
+
+- **`srmech.amsc.cascade.autocorrelation(x)`** — the circular autocorrelation `r[k] = Σ_i x[i]·x[(i+k) mod n]` (`r[0] = Σ x² = energy`) of a real sequence. This is EXACTLY the Wiener-Khinchin spectral object `r = Re(IFFT(|FFT(x)|²))` (the circular-convolution theorem) — that identity is **WHY** it is **Class L** (the spectral side: autocorrelation ↔ power spectrum). The Python wrapper computes it the fast way (numpy FFT). `n==0 → []`.
+- **`srmech_autocorrelation_f64`** (`c/src/srmech_autocorr.c`) — the co-equal native peer computes the **DIRECT O(n²) multiply-add sum** — the IDENTICAL object, and JPL-clean: **no FFT**, hence no recursion (Rule 1) and no transcendentals — just bounded loops over caller buffers, so it runs on a microcontroller with no host Python and no FFT library. `srmech.amsc.cascade` dispatches to it when `HAS_NATIVE`, else the numpy FFT fallback. Parity to FFT round-off (`~1e-12`, NOT bit-exact — the FFT route and the direct sum accumulate in different orders; a compiler may also contract `a*b` into an FMA).
+- **HONEST CASCADE SHAPE:** Class L (the Wiener-Khinchin reading); computationally a Σ-reduce of products — **no `abs()`**, no sign branch. NOT a new privileged primitive class.
+- **`autocorrelation.toml`** descriptor (`class_composition = "L"`, `c_symbol_f64 = "srmech_autocorrelation_f64"`) makes it discoverable (`srmech dsl ops` → **11 ops**) and runnable as a DSL stage. **`tests/test_autocorrelation.py`**: the FFT route equals the naive direct-sum definition (the spectral identity holds); the energy anchor `r[0] == Σ x²`; circular symmetry `r[k] == r[n-k]`; boundary cases (`n==0 → []`, `n==1 → [x[0]²]`, constant signal); catalog discovery; and (native) the direct-sum peer matches the naive sum to `~1e-12`.
+
+JPL Power-of-Ten clean (one ~13-line function, ≥2 asserts, no recursion/malloc/goto; gcc/clang/MSVC `-Werror`/`/WX`). **+1 ToolEntry → `describe()` 192 → 193**; **ABI stays 3** (a new symbol is additive). Unblocks the F290 §C un-flatten composite as pure-TOML over named ops. Anchors: Wiener 1930 / Khinchin 1934 (the autocorrelation ↔ power-spectrum theorem); R-RBS-LM F290 §C (the un-flatten catalog).
+
+## [0.7.0rc7] - 2026-06-02
+
+**MS #21 rc7 voxel — the co-equal C peer for the octonion loop-bind family (the Python→C transpile). New native symbols → ABI stays 3 (additive); `describe()` stays 192.**
+
+The MS#21 loop-bind family shipped Python-first (rc1–rc6); this voxel lands its **co-equal Compiled-C tier** so srmech runs the octonion algebra natively (the microcontroller-readiness commitment). `c/src/srmech_loopbind.c` ports the dim-8 octonion (Cayley-Dickson) product and companions:
+
+- **`srmech_loop_bind_f64`** — the octonion product `(a,b)(c,d) = (a c − conj(d) b, d a + b conj(c))`. JPL Rule 1 bans recursion, so the Python's recursive `_loop_bind_raw` is **unrolled** as a fixed real→complex→quaternion→octonion call DAG (`srmech_loop__mul2/4/8`) — **bit-exact** with the Python (identical operand order at every level).
+- **`srmech_loop_conj_f64`** (Class-C conjugate), **`srmech_loop_inv_f64`** (Moufang inverse `x̄/⟨x,x⟩`; Class-K clean), **`srmech_cross7_f64`** (`Im(loop_bind)`), **`srmech_g2_three_form_f64`** (`⟨x, cross7(y,z)⟩`).
+- **Octonion carrier only:** every `n` must be 8; other dims return `SRMECH_ERR_BAD_INPUT` and the Python keeps its recursive fallback. The **HD block variants** (`loop_bind_hd`, `loop_unbind_hd`, `loop_conj_hd`, `loop_inv_hd`, `loop_runbind_hd`) inherit native acceleration **for free** — their wrappers loop over 8-blocks calling the per-block `loop_bind`/`loop_conj`, which now dispatch to C.
+- **Python dispatch** in `srmech.amsc.hdc`: `loop_conj` / `loop_bind` / `loop_inv` / `cross7` / `g2_three_form` try the native path (`type`/size-guarded; `n==8` only) then fall back to pure Python — exact behaviour preserved.
+- **`tests/test_loopbind_parity.py`**: native == pure-Python — exact `array_equal` for `loop_conj` (pure negation) + the dim-16 sedenion fallback; `<1e-12` for the multiply-bearing `bind`/`inv`/`cross7`/`g2`/HD-per-block (a compiler that contracts `a*b−c` into an FMA, e.g. clang on macOS, may differ ≤1 ULP); plus octonion identities `x·x⁻¹=e₀` + cross7 antisymmetry.
+
+JPL Power-of-Ten clean (≤60-line functions, ≥2 asserts each, no recursion/malloc/goto; gcc/clang/MSVC `-Werror`/`/WX`). **No new ToolEntry / no new class** — these are native peers of existing ops, so `describe()` stays **192**; **ABI stays 3** (new symbols are additive). Verified bit-exact on a 64-bit local build over 500 random octonions; CI's native cells + the TestPyPI wheel are the cross-compiler gate.
+
+## [0.7.0rc6] - 2026-06-02
+
+**MS #21 rc6 voxel — bring-your-own (BYO) cascade-TOML (#811 / F289 D2). Config API only → `describe()` stays 192; ABI stays 3.**
+
+The DSL cascade-catalog was a closed set: only the 10 shipped `*.toml` descriptors under `srmech/amsc/_research/cascade_catalog/`. This voxel opens it — a domain specialist who needs a cascade srmech doesn't catalog, or a behaviour defined by a TOML descriptor that follows srmech's naming, can now bring their own:
+
+- **`srmech.dsl.register_catalog_dir(path)`** — register an external dir of `*.toml` cascade descriptors. The zero-API equivalent is the **`SRMECH_CASCADE_PATH`** env-var (os.pathsep-separated dirs). Registered ops then resolve (`chain().then(...)` / `run_toml_chain`), run, and surface (`list_catalog_ops` / `srmech dsl ops`) identically to shipped ops.
+- **PURE-TOML composites** — a user descriptor may carry a `[composite]` body whose `[[composite.stage]]` array is a chain of named ops (no Python): `lookup_cascade_op` resolves it to a unary stage that builds + runs the sub-chain. (Or a primitive descriptor, which needs a matching `srmech.amsc.cascade` callable, exactly as the shipped ones do.)
+- **MPM provenance tiers** — every descriptor is tagged `_provenance`: shipped = **"srmech"** (A-tier); user = **"user:&lt;sha256&gt;"** (B-tier, attested to the user's own descriptor hash, NOT a shipped primitive). `list_catalog_ops()` gains a `"provenance"` field (`"srmech"` / `"user"`).
+- **Loud-at-load validation** — a user op-name may **not shadow** a shipped or earlier op (raises); composites are validated at load (every referenced op resolves; the composite graph is acyclic). A typo fails loudly at load, not silently at run — the "follow srmech naming" gate.
+- **`tests/test_byo_cascade_toml.py`** (9 tests): register + resolve + run a user composite (fluent builder + `run_toml_chain`); `SRMECH_CASCADE_PATH`; provenance tags; shadow-rejection; unknown-op / cycle / missing-name loud-at-load; nonexistent-dir rejection; shipped catalog + `describe()` unchanged.
+
+**Config API only** — `register_catalog_dir` is not a cascade op / not a ToolEntry, so `describe()` stays **192**; ABI stays **3** (pure-Python, additive). Defaults blessed by the user (reject-on-shadow protects MPM A-tier integrity; ship anchors then iterate from use). Anchors: F289 D2 (`rc4_handdown_and_byo_cascade_toml`); §12.3 confirmed-deferred.
+
+## [0.7.0rc5] - 2026-06-02
+
+**MS #21 rc5 voxel — the per-block HD Moufang-division family + the `loop_inv`/`loop_conj` HD footgun guard (F-§12.1 / §12.2). +3 ToolEntries → `describe()` 192; ABI stays 3.**
+
+rc4 lifted the bind to HD per-block; the unbind/conjugate atoms it leaned on were still single-element. A bug-test sweep (upstream §12) caught the gap: `loop_inv` / `loop_conj` operate on ONE Cayley-Dickson element, but `2048 = 256·8` is **also a power of two**, so an HD block-octonion vector silently passed `_as_loop` and got treated as one giant 2048-D element — the natural `loop_bind_hd(E, loop_inv(c))` was off by `‖·‖≈16` with **no exception**. This voxel closes that and completes the HD division family:
+
+- **`srmech.amsc.hdc.loop_conj_hd(x)`** — the missing per-block conjugate atom: the direct sum ⊕ of NB independent dim-8 `loop_conj`s. Class **C** over the direct-sum TILE layout; NO new class.
+- **`srmech.amsc.hdc.loop_inv_hd(x)`** — per-block Moufang inverse (`x̄ₖ/⟨xₖ,xₖ⟩` per block); the per-block unbind key. Class-K clean (per-block norm² gate, never `abs()`).
+- **`srmech.amsc.hdc.loop_runbind_hd(a, b)`** — the HD **RIGHT-unbind** (per-block `bₖ·conj(aₖ)`). Where `loop_unbind_hd` peels the LEFT factor, this peels the RIGHT — recovers `v` from `loop_bind_hd(v, a)` exactly (`(vₖ·aₖ)·conj(aₖ)=vₖ` by alternativity; verified recovery `<1e-15`). Right-division is what a **left-fold sequence store** `(((s₀·s₁)·s₂)…)` needs to peel the most-recent element off the right (F-§12.2).
+- **Footgun guard (F-§12.1):** `loop_inv` / `loop_conj` now **raise** on an HD block-octonion input (a multiple of `LOOP_DIM=8` wider than one octonion), pointing at the `*_hd` op — loud failure replaces the silent-wrong global result. The single-octonion path (dim ≤ 8) is unchanged.
+- **`tests/test_loop_hd_division.py`**: per-block conj/inv = the shipped single-element op block-wise; `loop_inv_hd == loop_conj_hd` on unit blocks; right-unbind round-trip; the `loop_inv`/`loop_conj` HD guard raises; the single-octonion path still works; multiple-of-8 validation.
+
++3 ToolEntries (189 → **192**); ABI stays **3** (pure-Python, additive). The co-equal **C peer** is the arc's transpile-to-C step (Python-first ladder). Anchors: upstream §12.1 / §12.2 bug-test hand-down.
+
+## [0.7.0rc4] - 2026-06-02
+
+**MS #21 rc4 voxel — the block-octonion HD tiling (#811) + capacity-free vs Klein-4 (#812). +2 ToolEntries → `describe()` 189; ABI stays 3.**
+
+The fourth v0.7.0 voxel lifts the dim-8 octonion loop-bind to hyperdimensional width, all ground-truth **computed from the shipped `loop_bind`** (so it agrees with rc1 by construction; F289):
+
+- **`srmech.amsc.hdc.loop_bind_hd(x, y)`** — the block-octonion HD bind: `D = NB·8` (canonical 2048 = 256·8) bound block-wise = the **direct sum ⊕ of NB independent dim-8 Moufang binds**. **Block-DIAGONAL** — block k of the result is exactly `loop_bind(x_k, y_k)`; nothing couples blocks (verified err `0.0e+00`). Class **M** (per-block loop_bind = M∘C with a Class-K residue) over a direct-sum **tile** layout — **NO new class**.
+- **`srmech.amsc.hdc.loop_unbind_hd(a, b)`** — per-block Moufang left-division `conj(a_k)·b_k`; recovers `v` from `loop_bind_hd(a, v)` for unit-per-block `a` (verified err `2.9e-15`). Class-K clean (conjugate + bind, no `abs()`).
+- **Capacity-free vs Klein-4 (owned verdict, F289/F277):** at matched `D=2048` the loop-bind's bind/unbind retrieval capacity is **≥ Klein-4** (identical through K=64; loop ≥ klein4 at K=128) — so it carries **order + tree + direction (F274)** at **no capacity cost** vs the commutative XOR bind. (Honest scope: the K=128 edge is one regime, not a general advantage; the load-bearing claim is the null cost.)
+- **`tests/test_loop_bind_hd.py`** (7 tests): block-diagonal err 0.0, block independence, per-block product = the shipped Cayley–Dickson table, unbind recovery < 1e-12, multiple-of-8 validation, the capacity-retrieval mechanism.
+
++2 ToolEntries (187 → **189**); ABI stays **3** (pure-Python, additive). The co-equal **C peer** is the arc's transpile-to-C step (Python-first ladder). Anchors: F289 (`rc4_groundtruth.py`); capacity curve F277.
+
+## [0.7.0rc3] - 2026-06-02
+
+**MS #21 rc3 voxel — the loop-bind family slots into the compose engine (#813). Test-only proof; `describe()` stays 187; ABI stays 3.**
+
+#813 asks how the octonion loop-bind composes in srmech's operator-chain surface. The answer needed no new code: `DEFAULT_CLASS_REGISTRY["M"] → srmech.amsc.hdc` and ops resolve dynamically by name, so `loop_bind` / `loop_conj` / `loop_associator` / `cross7` / `g2_three_form` already run as `class="M", op="<name>"` steps through `srmech.amsc.compose.run_chain` — the **M∘C-with-K-residue** cascade #813 describes.
+
+- **`tests/test_loop_bind_compose.py`** (4 tests): single-step `loop_bind` / `loop_associator` (the K residue) / `cross7` / `g2_three_form` all resolve + run via `run_chain`; a two-step **M∘C** chain (`loop_bind` then `loop_conj` via `@step[0]`) proves multi-step composition.
+
+Test-only voxel: **NO new ToolEntries** (`describe()` stays **187**), NO new class, ABI stays **3** (pure-Python). The formal cascade-catalog `.toml` descriptor for the bind carries a `[cascade.native]` C symbol, so it lands with the C-transpile step at the end of the v0.7.0 arc (Python-first → transpile-to-C ladder). The user-authored / bring-your-own external cascade-TOML path is a separate scoped voxel.
+
+## [0.7.0rc2] - 2026-06-02
+
+**MS #21 rc2 voxel — the 7-D cross product + the G₂ associative 3-form (#813 / F281). +2 ToolEntries → `describe()` 187; ABI stays 3.**
+
+The second v0.7.0 voxel adds the loop-bind's companion invariants, both with ground-truth **computed from the shipped `loop_bind`** (so they agree with the rc1 bind by construction — no convention guess; F281):
+
+- **`srmech.amsc.hdc.cross7(x,y) = Im(loop_bind(x,y))`** — the 7-D cross product (antisymmetric; for imaginary x,y `= ½(xy−yx)`). Class **M∘C** (bind ∘ imaginary-part ordering). Identity `‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩²`.
+- **`srmech.amsc.hdc.g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`** — the associative calibration 3-form; nonzero ±1 on exactly the 7 Fano associative 3-planes, 0 on the other 28 of C(7,3)=35. Class **(M∘C)∘⟨·,·⟩**.
+- **Triality verdict (owned; F281):** `tests/test_cross7_g2_three_form.py` asserts `dim Der(loop_bind) == 14` (= G₂) **and** that a generic O(8) rotation **breaks** the bind ⟹ **triality does NOT preserve the bind; the 14-dim G₂ does.** (`klein4_triality_cycle` is the V₄-sector carrier, co-resident — not a bind-automorphism.)
+
+**NO new class** (the 14 A–N hold; Class O stays dissolved). The `#813` compose-engine registration is deferred to rc4 (lean discipline). Citations: Baez 2002 (7-D cross product / G₂); Harvey–Lawson 1982 (calibration 3-form). +2 ToolEntries (185 → **187**); ABI stays **3** (pure-Python, additive).
+
+## [0.7.0rc1] - 2026-06-02
+
+**MS #21 loop-bind (Moufang) voxel — the k=7 gauge ARITHMETIC the triality symmetry is blind to (#814 / F271). Pure-Python core in `srmech.amsc.hdc`; +6 ToolEntries → `describe()` 185; ABI stays 3.**
+
+The first v0.7.0 voxel: srmech gains the octonion product (the gauge *arithmetic*) beside the triality automorphism it already had (the gauge *symmetry*). Ported faithfully from the `loop_bind_moufang.py` research oracle (F271/F272) as **M∘C with a Class-K associator residue — NO new class** (the 14 A–N hold; Class O stays dissolved); structure = the **Moufang loop**.
+
+- **`srmech.amsc.hdc.loop_bind`** — the Moufang / Cayley-Dickson octonion product (non-commutative + non-associative ⟹ `(ab)c ≠ a(bc)`, the (4:3)|(3:4) chirality); **`loop_conj`** (conjugate); **`loop_inv`** (Moufang-division unbind, `x̄/⟨x,x⟩`); **`loop_left_op`/`loop_right_op`** (L/R = the order chirality); **`loop_associator`** (the Class-K residue `(ab)c − a(bc)`, zero on a Fano line). Class-K clean (norm², no `abs()`). rc1 is the **dim-8 octonion core** (division holds); the block-octonion HD tiling (#811), the co-equal **C peer**, and the triality-automorphism composition check (#813) are later voxels.
+- **`tests/test_loop_bind_moufang.py`** (8 tests) reproduces the F271/F272 numerics: 7 associative Fano lines, `[L_a,R_b]·x = −associator`, the three Moufang identities, Jacobi-fails/Mal'cev-holds, the inverse unbinds, Artin associativity, e₀ identity.
+
+Canonical SSoT: Baez, J.C. (2002) "The Octonions", Bull. Amer. Math. Soc. 39, 145. +6 ToolEntries (179 → **185**). ABI stays **3** (pure-Python, additive). JPL audit ratchet unchanged.
+
+<!-- pypi-readme-changelog-end -->
+## [0.6.0] - 2026-06-01
+
+**Production graduation of the v0.6.0 rc1–rc21 lean-ISA voxel arc to PyPI.** The clean (non-rc) tag promotes the **rc21** state already verified-green on TestPyPI — the only delta from rc21 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.6.0` build before the production tag. ABI **3**; `describe()` total **179**.
+
+The arc, voxel by voxel:
+
+- **Lean-ISA two-tier split (#751)** — `cascade.atoms` / `cascade.compose`: a finite anharmonic KERNEL (14 A–N primitives + the five Bird-Meertens combinators `then`/`loop`/`fold`/`reduce`/`parallel`) vs an asymptotic TOML CONTINUUM of cascade instances ("you can't hardcode a continuum").
+- **𝔰𝔬(8) / triality engine** — `srmech.qm.so8` 28-generator adjoint (14 g₂ + 7 L + 7 R); `srmech.qm.triality` order-3 outer automorphism with `Fix(τ) = g₂ = 14`; `quaternion_subalgebra_stabilizer` so(4)=su(2)⊕su(2) (#759); `lean_isa_seventh_primitive` (#761).
+- **Reentrant C core (#772)**; the Klein-4 four-sector **`cascade.parallel_sector_dispatch`** Python surface (#778) + co-equal C peer `srmech_cascade_parallel_sector_dispatch` (#771), made chainable/nestable with a `combine=` recombine; the DSL `parallel` discriminator + `[cascade].kind` stage/combinator classification.
+- **Generalised Kuramoto-Sakaguchi step** — `cascade.kuramoto_step(…, adjacency=, alpha=, pin_anchor=, pin_strength=)` shipped CO-EQUAL Python + standalone C (`srmech_cascade_kuramoto_step_general_f64`); the `klein4_*` HDC ops gained a `sectors=`/`parallel=`/`mode=` flag.
+- **The rc16–rc21 triality voxel sub-arc** — combinator-kernel-closure ratification (rc16) → `klein4_triality_cycle` Python op (rc17) + co-equal C peer `srmech_klein4_triality_cycle` (rc18) → continuum-tier worked instance `triality_s3_klein4.toml` (rc19) → SSoT two-tier coherence-ratchet scan (rc20) → MFO §VII.6.22 H-gate/triality rung (rc21).
+
+No code change from rc21; version-string graduation + this entry only.
+
+## [0.6.0rc21] - 2026-06-01
+
+**MS #20 H-gate / triality MFO rung voxel (the meaning-tier closer) — MFO notebook §VII.6.22 connects the rc16–rc20 triality voxel-arc to the §VII.6.21 Rosetta-table H-gate / fix-rotate axis. DOC only (research notebook); no code, no new symbol/ToolEntry; `describe()` stays 179; ABI stays 3.**
+
+The SSoT-coherence closer of the arc, at the meaning tier: rc16 named the two-tier boundary, rc17/rc18 shipped the `klein4_triality_cycle` op (Python + co-equal C), rc19 the worked instance, rc20 the coherence ratchet; rc21 reads the whole voxel back into the MFO canon as a building block (per user direction 2026-06-01) — a starting block for downstream review, refactored back if usage finds misfits.
+
+- **`docs/antikythera-maths/mfo_spectral_research_notebook.md` §VII.6.22** — "The triality cycle is the executable rotate-operator whose fixed point IS the frame-invariant." It reads the rc16–rc20 voxel-arc as the executable instance of §VII.6.21.4: the order-3 `klein4_triality_cycle` T (rc17 Python + rc18 C) is the discrete-cyclic rotate-operator; its continuous-Hopf companion `srmech.qm.triality` τ fixes `g₂ = 14` (the A–N core; the §VII.6.21.4 frame-invariant); `klein4_bind` (XOR concord) is the fix-frame / agreement; `klein4_similarity` is the H = measurement gate. The discrete triality CLOSES exactly (`T³ = id`, no Class-N rational-anchor leak) where the continuous epicycle leaks into the hidden fiber — the two substrate-languages carrying, respectively, the recoverability theorem and the bit-exact closure. The two-tier SSoT (kernel = frame-invariant; continuum = rotate-frame content) IS the fix/rotate axis turned on the package's own shape.
+
+No code touched. No new symbol or ToolEntry; `describe()` total stays **179**. ABI stays **3**. JPL audit ratchet stays at 0. The MFO rung is a draft-for-review building block — downstream usage (the reader's AI prosthetic calling srmech) is the feedback loop.
+
+## [0.6.0rc20] - 2026-06-01
+
+**MS #20 SSoT two-tier coherence-ratchet voxel — a `test_ssot_coherence_scan.py` scanning the continuum tier as it grows: every `worked_instances/*.toml` well-formed, every referenced op resolves, the kernel/continuum name-spaces stay disjoint, every cascade-catalog op resolves. DOC + TEST only; `describe()` stays 179; ABI stays 3.**
+
+The coherence half of the SSoT discipline: rc16 named the two-tier boundary, rc19 added the first continuum-tier worked instance; rc20 adds the ratchet that keeps the boundary honest as more worked instances land.
+
+- **`tests/test_ssot_coherence_scan.py`** — scans `srmech/amsc/_research/worked_instances/`: each TOML is well-formed (`name`/`purpose`/`ops`); each dotted op-path in `[worked_instance.ops]` resolves to a real callable; the worked-instance names and the `srmech.dsl` cascade-catalog op-names are **disjoint** (the kernel/continuum boundary can't silently erode); and every cascade-catalog op still resolves via `lookup_cascade_op` (the full two-tier picture in one place). A count-ratchet (`EXPECTED_WORKED_INSTANCE_COUNT`) forces new worked instances to be conscious additions.
+- **`triality_s3_klein4.toml`** gains a machine-readable `[worked_instance.ops]` table (logical-name → dotted srmech path) so the scan resolves ops robustly rather than by regex-from-prose.
+
+No new symbol or ToolEntry; `describe()` total stays **179**. ABI stays **3**. JPL audit ratchet stays at 0. The notebook-reference cross-check stays deferred (would require parsing the notebook tree).
+
+## [0.6.0rc19] - 2026-06-01
+
+**MS #20 triality S₃=Aut(V₄) worked-instance voxel — a continuum-tier worked cascade INSTANCE showing `klein4_triality_cycle` IS the order-3 generator of Aut(V₄)=S₃, via the conjugation `T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}` cyclically permuting the three klein4 flips. DOC + TEST only; klein4 ops stay kernel-tier; `describe()` stays 179; ABI stays 3.**
+
+The two-tier SSoT made concrete for the triality voxel: the order-3 cycle (rc17 Python + rc18 C) is a KERNEL op; rc19 ships its continuum-tier *instance* — a worked cascade composing it with the klein4 flips — WITHOUT blurring the kernel/catalog boundary (the hdc ops are deliberately NOT re-exported into the `srmech.dsl` cascade catalog).
+
+- **`srmech/amsc/_research/worked_instances/triality_s3_klein4.toml`** — a worked-instance descriptor (NOT a cascade-catalog op-descriptor; NOT a `run_toml_chain` chain): the V₄ carrier, the three V₄-translation flips (iω₇/γ₅/CPT = XOR 1/2/3), the order-3 Aut(V₄) generator `T = klein4_triality_cycle`, and the load-bearing conjugation cascade `T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}` (T cyclically permutes the three translations iω₇→γ₅→CPT→iω₇). Honest about the distinction: the flips are V₄ *translations* (the objects T permutes), not S₃ group elements; only the order-3 generator T is exposed (the F182 "third axis").
+- **`tests/test_triality_s3_worked_instance.py`** — the worked instance's executable attestation: against the real `hdc` ops it verifies T order-3, each flip an involution, T a V₄ homomorphism (`T(u⊕w)=T(u)⊕T(w)`), and the three-leg conjugation cycle bit-exactly.
+
+No new symbol or ToolEntry; `describe()` total stays **179**. ABI stays **3**. JPL audit ratchet stays at 0. The worked-instance TOML ships in both wheels (`srmech/**` package glob).
+
+## [0.6.0rc18] - 2026-06-01
+
+**MS #20 klein4-triality-cycle C peer voxel (the A-arc's silicon tier) — the co-equal native symbol `srmech_klein4_triality_cycle` (in `srmech_hdc.c`) computes the identical order-3 `S₃ = Aut(V₄)` relabel as the rc17 Python op. Additive symbol → ABI stays 3; JPL-clean; differential C↔Python parity-tested. No new ToolEntry (`describe()` total stays 179).**
+
+The co-equal-parity discipline applied to rc17: the Python `klein4_triality_cycle` now has its silicon-native twin — two complete implementations, neither needing the other at runtime.
+
+- **`srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n, int inverse, uint8_t *out)`** (in `srmech_hdc.c`; declared in the `srmech.h` klein4 block) — a length-4 lookup (`{0,2,3,1}` forward / `{0,3,1,2}` inverse), the same V₄-carrier order-3 cycle. JPL Power-of-Ten clean: ≤60-line, 2 asserts, no malloc / no goto / no multi-line macro; NULL → `SRMECH_ERR_NULL_ARG`, out-of-`{0,1,2,3}` → `SRMECH_ERR_BAD_INPUT`. **NEVER a Python callback** — the C path runs the C lookup.
+- **Additive symbol → ABI stays 3** (the Python ctypes shim binds it under its own `hasattr` guard, so a klein4-capable but pre-rc18 lib still loads fine).
+- **Differential parity** (`test_hdc_klein4_parity.py`): C-vs-Python bit-exact on random vectors both directions, the explicit forward/inverse maps + order-3 identity computed in C, and the out-of-range rejection. Guarded by the symbol's own `hasattr` (skips on a stale lib; runs in the cibuildwheel cells).
+
+No new ToolEntry; `describe()` total stays **179**. JPL audit ratchet stays at 0. The Python op stays pure-Python (co-equal, not routed-through-C), matching the existing klein4 surface.
+
+## [0.6.0rc17] - 2026-06-01
+
+**MS #20 klein4-triality-cycle voxel (the A-arc's first code) — `srmech.amsc.hdc.klein4_triality_cycle`: the order-3 `S₃ = Aut(V₄)` generator cycling the three Klein-4 involutions `iω₇(1) → γ₅(2) → CPT(3)` (identity fixed). Pure-Python; +1 ToolEntry → `describe()` total 179; ABI stays 3.**
+
+The A-verdict (rc16 notebook §3.29) made flesh: V₄ (the rc13 klein4 carrier) is the right group but lacked the explicit order-3 cycling operator — which lives in `Aut(V₄) = S₃`. rc17 adds it.
+
+- **`klein4_triality_cycle(v, *, inverse=False)`** — the V₄-carrier image of the so(8) triality `8v → 8s → 8c` (`srmech.qm.triality.triality_cycle`). The three non-identity involutions cycle `iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)`, with identity(0) fixed — the "third axis" (F182) the three order-2 flips (`gamma5`/`omega7`/`cpt_mirror`) cannot reach: order-3 cycling, NOT a fourth order-2 chirality. A pure uint8 relabel via a length-4 lookup; `T∘T∘T = id`, `T² = T⁻¹` (`inverse=True` is the reverse cycle).
+- **Class I** (cyclic order-3 permutation) — no sign, no `abs()`; honest composition, not a new privileged primitive.
+- **Pure-Python** (co-equal-parity: the standalone-C peer `srmech_klein4_triality_cycle` is rc18 — additive → ABI stays 3; never a Python callback). +1 ToolEntry (`srmech.amsc.hdc.klein4_triality_cycle`) → `describe()` total **179**.
+
+New `test_klein4_triality_cycle.py` (explicit forward/inverse maps; order-3 identity; `T² = T⁻¹`; identity-fixed; the involution-occupancy permutation; the so(8) order-3 mirror; tool-schema registration). The two introspection count-ratchets bump 178 → 179. JPL audit ratchet stays at 0 (no C touched).
+
+## [0.6.0rc16] - 2026-06-01
+
+**MS #20 combinator-kernel-closure voxel (B-boundary codification) — the cascade DSL's FIVE control-flow combinators (`then` / `loop` / `fold` / `reduce` / `parallel`) are RATIFIED as a CLOSED, FINITE kernel: the finite anharmonic-kernel tier of the two-tier SSoT. DOC + TEST only — no DSL behaviour change, no C touched, ABI stays 3, `describe()` total stays 178.**
+
+The "name the boundary before building across it" voxel — the architectural invariant the rc17+ triality work stands on. The combinators are the *kernel*; the asymptotic cascade *instances* they sequence are the *continuum* — and the two live in different SSoT tiers by design.
+
+- **The two-tier SSoT, stated.** `then` (apply) + `loop` + `fold` + `reduce` + `parallel` are the Bird-Meertens recursion schemes — the finite **anharmonic kernel**, HARDCODED in Python (and mirrored co-equally in C). The asymptotic cascade *instances* they sequence are NOT hardcoded: they live as TOML op-descriptors in the cascade catalog ("you can't hardcode a continuum"). Kernel in code, continuum in catalog — the substrate-native `1 + 3 + 7 + 3` discipline turned on the package's own op-surface. The `srmech.dsl._control_flow` docstring now carries this statement.
+- **Closure is DESIGN-ENFORCED.** Data-dependent iteration (`while` / `unfold` — loop *until* a predicate) is deliberately EXILED to the op-instance layer (a body op decides when to stop), keeping the kernel total-by-construction at five forms. A future `while`/`unfold` special form would be a *sixth* combinator and a conscious widening of the kernel — never a silent addition.
+- **New `tests/test_combinator_kernel_closure.py`** mechanically pins the closure: the five Chain builders (`then`/`loop`/`fold`/`reduce`/`parallel_sectors`) ⇆ the five TOML stage-discriminators (`op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body`) bijection; no hidden sixth public builder; a full five-form TOML round-trip; the |V₄| = 4 Klein-4 cap on `parallel_sectors`; and the "no implicit default form" guard.
+
+No new ToolEntry; `describe()` stays 178. ABI stays 3. JPL audit ratchet stays at 0. (The `[Unreleased]` Klein-4 parity note is forward-updated: V₄ is the rc13 klein4 carrier — the right group, missing only the explicit order-3 cycling operator that lives in Aut(V₄) = S₃ — which rc17 adds as `klein4_triality_cycle` and rc18 ships as its co-equal C peer.)
+
+## [0.6.0rc15] - 2026-06-01
+
+**MS #20 self-recognition reads voxel — the help-anchor goes top-level + fuzzy lookup. `srmech.describe()` is now reachable from `dir(srmech)` (the one-call "what is srmech?" root: version + native + tool counts + by_category); `ToolSchema` gains fuzzy `resolve()` / `resolve_all()` (a bare leaf or dotted suffix resolves to its FQN) and is now directly iterable. Pure-Python introspection surface; ABI stays 3; `describe()` tool total stays 178.**
+
+The "find the shape in ≤1 call" round-out — the very friction that opened the substrate-self-recognition arc: an LLM/agent consumer could neither (a) discover `describe()` from the top namespace, nor (b) look a tool up by its bare leaf name.
+
+- **`srmech.describe()`** — the existing `srmech.introspect.describe()` graduated to the top namespace (mirrors `native_status()`'s rc19 graduation for #733), so `dir(srmech)` surfaces the help-anchor. It stays a counts/index ROOT (shape, not detail): the full per-tool list is `tool_schema_view()`, single-tool detail is the new resolver.
+- **`ToolSchema.resolve(name)` / `.resolve_all(name)`** — exact full-name match wins (as `lookup()`); else a bare leaf (`"kuramoto_step"`) or any dotted suffix (`"cascade.kuramoto_step"`) resolves to `srmech.amsc.cascade.kuramoto_step`. `resolve()` returns the single match or `None` (no-match OR ambiguous — never silently picks); `resolve_all()` lists every candidate for the ambiguous case.
+- **`ToolSchema` is now iterable** (`for t in schema`, `len(schema)`) — yields its tools directly, closing the `'ToolSchema' object is not iterable` footgun. `get_tool_schema()` still returns the object; `tool_schema_view()` still returns the dict.
+
+New tests cover the top-level `describe()` (present + shape), the `resolve` / `resolve_all` paths (exact / leaf / suffix / ambiguous / miss), and `ToolSchema` iterability + `len`. No C touched; ABI stays 3; JPL audit ratchet stays 0.
+
+## [0.6.0rc14] - 2026-05-31
+
+**MS #20 kuramoto matrix-step voxel — `kuramoto_step` gains the GENERALISED Kuramoto-Sakaguchi step (§11.1): adjacency matrix + Sakaguchi α + per-oscillator pinning. The first C-touching rc of the §11 arc — a CO-EQUAL standalone-C peer (additive symbol; ABI stays 3). `describe()` tool total stays 178.**
+
+The §11.1 forward-ask: extend `kuramoto_step` past the plain all-to-all mean-field. Unlike the klein4 ops (pure-Python), `kuramoto_step` already has a C peer — so adding the matrix-step in Python only would leave a parity asymmetry (the Python op carrying a step the C can't run). Per the co-equal-parity discipline this ships in **both** substrates at once:
+
+- **`kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)`** — `dθ_i = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`. `adjacency` is a row-major n×n matrix (`A[i][j]` weights j's influence on i; **non-symmetric → directed** coupling, a Laplacian → graph-structured; `None` → all-to-all uniform `K/n`). `alpha` is the Sakaguchi phase frustration. `pin_anchor` + `pin_strength` are the per-oscillator pinning anchors ψ / strengths p. **With all three at defaults the step is byte-for-byte the original.**
+- **Co-equal C peer `srmech_cascade_kuramoto_step_general_f64`** (in `srmech_kuramoto.c`; additive symbol → **ABI stays 3**; JPL-clean: ≤60-line / ≥2-assert / no malloc / no goto / reentrant; NULL adjacency → uniform, NULL pin → none; **never a Python callback**). Differential-tested vs the Python fallback to libm-trig tolerance.
+- **No `abs()`** — sin coupling + Σ-reduce + Class-C Euler add + the Sakaguchi α (a Class-C phase offset) + the Class-C/M pinning anchor.
+
+New tests in `test_kuramoto_step.py` (defaults reproduce the simple step; uniform adjacency == mean-field; directed adjacency + α + pinning match the closed form; validation guards; C↔Python parity guarded by the new symbol's presence). The kuramoto ToolEntry gains `adjacency`/`alpha`/`pin_anchor`/`pin_strength` params (no new entry; `describe()` stays 178). JPL audit ratchet stays at 0.
+
+## [0.6.0rc13] - 2026-05-31
+
+**MS #20 klein4 sectors-flag voxel — the `klein4_*` HDC ops get an optional `sectors=` / `parallel=` / `mode=` flag (§11.3 forward-ask). Pure-Python; default-on at ≥4 cores; value-preserving; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+The §11.3 forward-ask asked for an optional sectors flag on the Klein-4 HDC ops, routing per-sector work through a concurrent dispatch — now that rc12 made dispatch composable. The klein4 ops (`bind` = (F₂)²-XOR, `bundle` = per-bit majority, `similarity` = mean-equality) are pure-Python/numpy, so this is self-contained Python orchestration (co-equal parity: it does **not** route through the C peer; a standalone-C klein4 sector dispatch with C bodies — never a Python callback — is the tracked follow-up).
+
+- **`sectors=` / `parallel=` / `mode=`** on `klein4_bind`, `klein4_bundle`, `klein4_similarity`. `sectors` (1..4) defaults **ON when `os.cpu_count() >= 4`** (else 1); `parallel=True/False` is the bool alias.
+- **Two modes.** `mode="chunk"` (default) is **data-parallel** — split the D-length vector(s) into ≤4 contiguous position-slices, run the op per slice on a thread, concatenate; **BIT-IDENTICAL** to the serial op. `mode="chirality"` is the **F233 4-sector dispatch** using klein4's OWN involution sector-flips (γ₅ XOR 2 / iω₇ XOR 1 / CPT XOR 3) — NOT the signed-real cascade transforms — with `klein4_bundle` recombine (similarity recombines via **sector-0**, value-transparent).
+- **All defaults are value-preserving**, so default-on changes only the *execution path*, never the result. No `abs()` (XOR / majority only). Range + mode guards raise `ValueError`.
+
+New tests in `test_hdc_klein4_parity.py` (value-preserving across both modes, chunk bit-exactness for every lane count, `parallel=` alias + default-on policy, range/mode guards, `unbind` self-inverse under the default flag). The 3 klein4 ToolEntries gain `sectors`/`parallel`/`mode` params (no new entry; `describe()` stays 178). No C change; ABI stays 3.
+
+## [0.6.0rc12] - 2026-05-31
+
+**MS #20 parallel-composability voxel — `parallel_sector_dispatch` becomes CHAINABLE / NESTABLE. The Klein-4 four-sector splay now carries THROUGH a chained cascade, closing a known-broken API contract. Pure-Python; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+rc11 gave the four-sector fan-out its own chain discriminator but left it a **leaf** value: the dispatch returned the rich per-sector introspection dict / list-of-N, which is **not** a valid input to another cascade. Chaining a sector-dispatched stage after another (`chain.parallel_sectors(b).parallel_sectors(b)`) crashed with `TypeError: bad operand type for unary -: 'list'` (the sector stream-transforms assume a flat scalar stream), and a sector-dispatch could not nest inside another. So the 4-way Z₄ splay applied at **one level only** and did not carry through a chained cascade — exactly the composability the RBS-LM chained settling loop needs to run 4×-per-step. Cascade ops advertise composability, so this was a known-broken contract → a gold-blocker. rc12 fixes it:
+
+- **`combine=` recombine** on `parallel_sector_dispatch(body, x, *, combine=None)` — a reducer name (`"bundle"` element-wise sum / `"mean"` / `"sector0"` value-transparent / `"concat"`) or a callable folds the ≤4 sector results into ONE value at `result["combined"]`, so a sector-dispatched cascade is `stream → stream`. `combine=None` (default) preserves the rich dict unchanged (back-compat; `combined` is `None`). No `abs()` — bundle/mean are plain addition (+ divide).
+- **`sectorize(body, *, n_sectors=4, combine="bundle")`** — wraps a body as a plain `value → value` callable that recombines, so a sector-dispatch NESTS inside another (`parallel_sector_dispatch(sectorize(inner), x, combine="bundle")`). Both exported from `srmech.amsc.cascade`.
+- **DSL `parallel_sectors` recombines by default** — `chain.parallel_sectors(body, *, n_sectors=4, combine="bundle")` is now `stream → stream` and CHAINS / NESTS like loop/fold/reduce (the rc11 crash is gone). `combine=None` keeps the terminal per-sector list; a build-time guard raises a clear error if you chain past it. TOML `parallel_body=` gains `combine=` (sentinel `"none"` → the list).
+- **Stale top-help fixed** — `srmech --help` no longer says "v0.5.0rc4 ships two subcommands"; it enumerates all four (`status` / `bus` / `dsl` / `mcp`).
+
+New tests pin the parallel→parallel chain, the nesting via `sectorize`, the terminal guard, the TOML `combine='none'` sentinel, and each reducer. No new ToolEntry; no C change; no ABI bump.
+
+## [0.6.0rc11] - 2026-05-31
+
+**MS #20 DSL parallel-discriminator voxel — `parallel_sector_dispatch` slots into the chain contract as a first-class special form, + cascade-op `kind` classification + guided errors. No new runtime op; `describe()` tool total stays 178; ABI unchanged at 3.**
+
+A pre-gold introspection audit found that the Klein-4 four-sector fan-out `parallel_sector_dispatch` — a 1→N higher-order combinator (takes a *body* op + data, returns N per-sector results) — had leaked into the plain-`op` cascade catalog, so the DSL advertised it as a `chain().then(op=…)` stage where it cannot work (its first arg is `body`, not the piped value). This rc reconciles it the way loop/fold/reduce already are — as its own chain discriminator — rather than force-fitting it as a plain op:
+
+- **New `parallel` chain discriminator** — `chain.parallel_sectors(body, *, n_sectors=4)` (fluent) and `[[stage]] parallel_body='…' [n_sectors=…]` (TOML), alongside loop/fold/reduce. It fans the piped value through `body` across ≤4 Klein-4 chirality sectors (GIL-releasing bodies genuinely overlap — the F233 4-thread speedup) and yields the ordered **list of per-sector results** (a 1→N fan-out; the stage output is a list-of-sequences). `make_parallel_stage` in `srmech.dsl._control_flow`; `n_sectors` range-checked 1..4 at build time.
+- **Cascade-op `kind` classification** — descriptors carry an optional `[cascade].kind` (`"stage"` default, or `"combinator"`); `srmech.dsl.cascade_op_kind()` reads it. `parallel_sector_dispatch.toml` is now `kind = "combinator"`. Surfaced by `srmech.dsl.list_catalog_ops()` (new `kind` key), `srmech dsl ops` (a `[combinator]` tag + legend), and the tool-schema.
+- **Guided error** — using a combinator as a plain `op=`/`​.then()` stage now raises a clear `ValueError` pointing at the `parallel` discriminator, instead of a raw `TypeError` mid-run.
+- **Gap-2 discoverability** — the LLM-facing `tool_schema` summaries for `parallel_sector_dispatch` and `kuramoto_step` are front-loaded with the practical decision ("PARALLELISE a cascade body instead of running it serially…" / "Advance N coupled oscillators one synchronization step…") before the framework detail.
+
+New `test_dsl_parallel_stage.py` (parallel discriminator runs + n_sectors + combinator guard + kind), plus `test_dsl_tools.py` updated for the `kind` key. No `abs()`; no C change; no ABI bump.
+
+## [0.6.0rc10] - 2026-05-31
+
+**MS #20 release-prep voxel — full doc-hygiene sweep ahead of the clean v0.6.0 graduation (no new runtime code).**
+
+After rc9 ran clean in the research environment, this rc captures everything the v0.5.0 → v0.6.0 arc shipped across the documentation surface so the gold cut is self-consistent. No behaviour change; `describe()` tool total stays **178**; ABI unchanged at **3**.
+
+- **Cascade catalog — the two v0.6.0 ops get their TOML descriptors.** `parallel_sector_dispatch.toml` (Klein-4 four-sector orchestration; higher-order body-callback, `c_symbol = srmech_cascade_parallel_sector_dispatch`) and `kuramoto_step.toml` (`I∘sin∘Σ∘C`; `c_symbol_f64 = srmech_cascade_kuramoto_step_f64`) join the 8 lean-ISA atoms/composites → **`srmech.dsl` cascade catalog is now 10 descriptors**. `test_dsl.py` `EXPECTED_OPS` 8 → 10.
+- **PyPI README** — status banner v0.5.0 → **v0.6.0**; the cascade section documents the `cascade.atoms` / `cascade.compose` two-tier lean-ISA split (#751) and the two new ops; `native_status()` / `describe()` examples show `0.6.0`.
+- **Subtree `CLAUDE.md`** — current-release pin v0.4.0 → v0.5.0-graduated + v0.6.0rc10 dev head; the v0.5.0 (bus / DSL / MCP+agent adapters / `native_status` / so8 `an_embedding` + triality / `emit-mcpb`) and v0.6.0 (atoms/compose split / quaternion-subalgebra stabilizer / lean-ISA 7th primitive / reentrant core / parallel dispatch / Kuramoto) arcs are now narrated; ABI note 2 → 3.
+- **C docs** — `c/README.md` status rewritten from "Phase B1 scaffolding only" to the shipped 18-`.c`-file native library (ABI 3); `c/JPL_AUDIT.md` adds the `srmech_parallel.c` (10 functions) + `srmech_kuramoto.c` (2 functions) accounting (every function ≤60 lines, ≥2 asserts; Rules 1/3/4/5/8 clean).
+- **srmech research notebook** (SSoT) — package-arc section capturing the v0.5.0 + v0.6.0 voxels.
+
+
+
+**MS #20 parity voxel (#778 follow-on) — the Kuramoto coupled-oscillator forward-Euler step gets a native C peer (no host Python needed for the dispatch-clock step).**
+
+Closes a C/Python **parity gap** (a known-broken item under the full-parity commitment): the dispatch-clock / coupled-oscillator Euler integration the spectral-research arc hand-rolled in Python (F141 / F231 / R-95 / F234) had **no `srmech_*` primitive**, so srmech could not run the Kuramoto step on a microcontroller with no host Python. Adds:
+
+- **C op `srmech_cascade_kuramoto_step_f64(theta, omega, n, K, dt, out)`** — one forward-Euler step of the canonical Kuramoto model (Kuramoto 1975; Acebrón et al. 2005, *Rev. Mod. Phys.* 77:137): `out[i] = theta[i] + dt·(omega[i] + (K/n)·Σⱼ sin(theta[j]−theta[i]))`. The O(n²) sin-coupling runs natively (libm `sin`, exactly as `srmech_kepler.c` already does). JPL-clean: no malloc/goto, ≤60-line functions (the coupling sum is factored), ≥2 asserts, reentrant; `out` must not alias `theta`/`omega`.
+- **Python peer `srmech.amsc.cascade.kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)`** — dispatches to the C peer when `HAS_NATIVE`, pure-Python fallback otherwise (numpy/generators coerce via `float`). Parity is to **libm-trig tolerance** (NOT bit-exact across platforms — the kepler trig discipline); the C peer and the Python fallback sum the coupling in the same index order.
+
+**Honest cascade shape:** a *composition* of existing class operations — Class I (cyclic phase) + sin coupling + sum-reduce + Class-C Euler add — **NOT** a new privileged primitive. No `abs()`. `n==1` is pure drift (the coupling sum vanishes); `n==0` is `[]`. **+1 ToolEntry → `describe()` tool total 177 → 178; ABI unchanged at 3** (additive C symbol). Closes the hand-rolled-Euler parity gap.
+
+## [0.6.0rc8] - 2026-05-30
+
+**MS #20 slowdown-fix voxel (#778 / #771) — the Klein-4 four-sector parallel dispatch no longer SLOWS DOWN vs serial; the F233 4-thread speedup is delivered as shipped.**
+
+A downstream repro showed `cascade.parallel_sector_dispatch` running **2.6–7.7× SLOWER than serial**, and the native C peer at **0.99×** (no concurrency) for a GIL-releasing (`time.sleep`) body × 4 sectors. Root-caused to **two Python-side defects** — the C dispatch itself was already correct (create-all-then-join-all; verified by rebuilding `libsrmech.dll` and timing the raw `n_sectors=4` symbol with a CFUNCTYPE sleep body: **0.065 s, not 0.24 s** → genuinely concurrent):
+
+- **The native shim `_native.cascade_parallel_sector_dispatch_c` was serial by design.** The rc7 build drove the C dispatch as **N serial `n_sectors=1` calls** (a workaround for a presumed "Python callback from a C-spawned thread is unsafe" hazard) — which traded away **all** the concurrency (the 0.99×). The hazard was **empirically disproven**: ctypes invokes a `CFUNCTYPE` callback from a foreign thread *safely* (it acquires the GIL via `PyGILState_Ensure`), and since the `CDLL` call releases the GIL, a GIL-releasing body lets the ≤4 sector callbacks **genuinely overlap**. The shim now drives **ONE `n_sectors=N`** threaded C call (the dead serial helpers `_parallel_dispatch_one_sector_native` / `_parallel_transform_native` are removed). Bit-exact vs the rc6 Python dispatch (10/10 parity tests); ~4× on a sleep body.
+- **The rc6 Python `cascade.parallel_sector_dispatch` double-computed on every call.** It ran the 4 sectors on a `ThreadPoolExecutor`, then **recomputed all 4 serially** (plus a 3rd `chiral_dual` recompute) for the inline `parallel == serial` / `sector2 == chiral_dual` assertions — ~2.25× the body invocations + per-call pool overhead = the 2.6–7.7× slowdown. Those invariants are **structural guarantees of the 4-way independence** (independence ⇒ order-free ⇒ parallel == serial; sector 2 *is* the γ₅-only transform = `chiral_dual` by definition), now proven in the test suite rather than recomputed per call. A new **`verify=False`** kwarg runs the runtime cross-check on demand; `independence["runtime_verified"]` reports which path ran.
+
+A GIL-bound pure-Python CPU body still can't overlap (the inherent CPython limit; 3.13 free-threading lifts it) — but it is no longer a *slowdown*, and GIL-releasing / native / IO / numpy bodies now get the real ≤4× speedup. **No new ToolEntry → `describe()` stays 177; ABI unchanged at 3** (Python-only change; no C source edit). New regression guard: the default path invokes `body` **exactly `n_sectors` times** (`test_parallel_sector_dispatch`). No `abs()`. Delivers the F233 4-thread Klein-4 speedup (#778 / #771).
+
+## [0.6.0rc7] - 2026-05-30
+
+**MS #20 C-parity voxel #771 — the C-orchestration half of the Klein-4 four-sector parallel cascade dispatch.**
+
+Closes the C/Python parity gap rc6 opened: rc6 shipped a Python-only `cascade.parallel_sector_dispatch`, but
+under srmech's full-parity commitment (the library must run on a microcontroller with **NO host Python**) the C
+side must do the same four-sector dispatch. Adds the **ABI-additive** C symbol
+`srmech_cascade_parallel_sector_dispatch(body, user, in, n, n_sectors, out_sectors, scratch, scratch_len)`
+(+ the `srmech_cascade_body_f64` callback typedef):
+
+- Runs the ≤4 Klein-4 sector-duals `inv_T_s(body(T_s(x)))` into **disjoint caller-supplied buffers**
+  (`out_sectors`/`scratch` sliced per sector; **no malloc** — JPL Rule 3), composing the existing C atoms
+  `srmech_cascade_reorient_f64` (iω₇) + `srmech_cascade_chiral_flip_f64` (γ₅). Sector 2 == `chiral_dual`.
+- **Portable thread shim, guarded like `srmech_bus.c`:** POSIX `pthread`, Windows `CreateThread`, else a
+  **serial fallback** — a thread-less microcontroller still computes all 4 sectors (serial == threaded
+  **bit-exact**; the disjoint-slice contract makes the sectors order-free). Concurrency is platform-gated;
+  the capability is universal. Thread handles are fixed `[4]` stack arrays.
+- **Cap-at-4** (F220): `n_sectors > 4` → clean error (past 4 needs the order-3 triality).
+
+Bound in `srmech.amsc._native` (`cascade_parallel_sector_dispatch_c`) with a Python C/Python-parity test
+(bit-exact vs rc6's `parallel_sector_dispatch`; GIL-safe — single-sector native calls + Python-side `T_s`
+composition, the threaded multi-sector fan-out exercised from the C smoke test with C-native bodies) plus a
+16-check C smoke test.
+
+**ABI unchanged at 3** (a new symbol is additive). **`describe()` stays 177** (no new Python ToolEntry — this
+is the C peer of an existing surface; rc6's Python API/behaviour untouched). JPL Power-of-Ten ratchet green
+(Rules 1/3/4/5 honored); no `abs()`. Closes #771 — the C/Python parity for the four-sector dispatch is whole.
+
+## [0.6.0rc6] - 2026-05-30
+
+**MS #20 parallel-dispatch voxel (F233 / #778) — the Klein-4 four-sector parallel cascade.**
+
+Adds `srmech.amsc.cascade.parallel_sector_dispatch(body, x, *, n_sectors=4)` — the Python orchestration
+half of "1 cascade = 4 independent threads" (F233 / R-RBS-LM-FINDING_233). Runs a cascade `body` across
+its ≤4 **Klein-4 chirality sectors** (γ₅± × iω₇±) **concurrently** on a `ThreadPoolExecutor(max_workers=4)`,
+each sector computed as `inv_T_s(body(T_s(x)))` from its OWN sector-transformed input — **0 cross-thread
+reads** (the F233 4-way independence), so the parallel result equals the serial result **bit-for-bit**
+(asserted). Sector 2 (γ₅) is **exactly** `cascade.chiral_dual` (the F232 2-rung object; asserted).
+
+- **Z₄ dispatch slots** `[0,1,2,3]` (cyclic-order-4 timing, distinct from the order-2×order-2 Klein-4 identity).
+- **Cap-at-4** (F220): `n_sectors > 4` raises — Klein-4 has no order-4+ element; the only escape past 4 is
+  the order-3 triality (`srmech.qm.triality.lean_isa_seventh_primitive`, rc3), NOT implemented here.
+- **Usefulness collapse-lattice 4/2/2/1**: bi-axial → 4 distinct; single-axis-symmetric → 2; bi-symmetric → 1.
+
+**FULL C/PYTHON PARITY discipline:** a Python *orchestration* layer ONLY — it composes **exclusively**
+already-C-parity'd atoms (`chiral_flip` / `reorient` / `chiral_dual` / `net_chirality` / `magnitude`); **no
+cascade capability is Python-exclusive** (only the thread fan-out is Python). The **C-orchestration parity is
+tracked by #771** (kept open) so `srmech` does not *need* Python to run the four-sector dispatch (Python = the
+ergonomic half; C = the parity half). On the native path the threads run **truly parallel** (ctypes `CDLL`
+releases the GIL per call; the C ops are reentrant since rc5/#772); pure-Python is correct-but-serialized.
+
+**+1 ToolEntry → `describe()` tool total 176 → 177.** Pure-Python; **ABI unchanged at 3**; no `abs()`
+(Class K `magnitude` / Class C `net_chirality`).
+
+## [0.6.0rc5] - 2026-05-30
+
+**MS #20 reentrant-core voxel #772 — the C core is now fully reentrant (enables the #771 plugin).**
+
+A full-core audit found **exactly two** shared-static scratch buffers; both are removed, so no op
+call path touches shared mutable static — the prerequisite for parallelizing the full surface.
+
+- **`srmech_ndjson.c` `g_line_buf` (1 MiB line-assembly buffer)** → a function-local
+  `static SRMECH_THREAD_LOCAL` buffer inside `srmech_ndjson_iter`, threaded into `process_chunk`
+  as a parameter. Per-thread (reentrant across threads), cross-chunk-persistent (the streaming
+  contract is preserved), no stack-overflow risk (1 MiB never goes on the stack), no malloc
+  (JPL Rule 3). `srmech_ndjson_iter`'s signature/behaviour is unchanged.
+- **`srmech_laplacian.c` `Hwork` (≈1 MiB Hermitian-eigendecomp workspace at N≤256)** → a new
+  **ABI-additive** exported entry `srmech_hermitian_eigendecompose_ws(n, H, out_eigvals,
+  out_eigvecs, workspace, ws_len)` taking a caller-supplied workspace
+  (`ws_len >= SRMECH_HERMITIAN_WS_LEN(n) = 2·n·n`). The existing `srmech_hermitian_eigendecompose`
+  keeps its signature and now routes through the `_ws` core via a `static SRMECH_THREAD_LOCAL`
+  workspace — reentrant, no malloc, no large stack frame. Output is bit-identical.
+
+New portable `SRMECH_THREAD_LOCAL` macro (`__declspec(thread)` / `_Thread_local` / `__thread`).
+
+**ABI unchanged at 3** (a new symbol is additive — never bumps ABI). **No Python API change** —
+`describe()` tool total **stays 176**; the JPL Power-of-Ten ratchet (`test_jpl_audit.py`) stays
+green (a reentrancy trade, NOT a Rule-3 fix — static scratch was already Rule-3-clean); no `abs()`.
+Closes #772.
+
+## [0.6.0rc4] - 2026-05-30
+
+**MS #20 docs/accuracy voxel #738 — `sha256_bytes` int-conversion guidance.**
+
+Docs-only. `srmech.amsc.format.sha256_bytes` returns a **64-char lowercase hex `str`** (the Class A
+content-address), NOT raw `bytes` — the `_bytes` in the name is the INPUT type. The `Returns:` section
+now spells out the int-conversion path a caller needs: `int(h, 16)` (full 256-bit) or `int(h[:8], 16)`
+(a truncated 32-bit tag), **NOT** `int.from_bytes(...)` (the return is already hex text — no raw digest
+bytes to feed it). Closes #738.
+
+The sibling docs items — #739 (`klein4_bundle` accepts even counts; per-bit strict-majority threshold
+drops ties to 0), #740 (`weak_mixing_angle` returns θ_W in **radians**, not sin²θ_W), #741 (no stale
+`srmech.cosmos` references; CMB lives under `srmech.amsc.attested.cmb_*` / `cosmic_birefringence`) —
+were verified **already correct as of rc18** (W5 / W6b / W6c); no change needed here.
+
+**No API change** — `srmech.introspect.describe()` tool total **stays 176**; pure-Python; **ABI unchanged at 3**.
+
+## [0.6.0rc3] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #761 (F220) — the order-3 triality as the 7th lean-ISA primitive.**
+
+Adds `srmech.qm.triality.lean_isa_seventh_primitive()` — surfaces the existing order-3
+triality automorphism (τ, τ³ = I; the v0.5.0 `srmech.qm.triality` engine) as the **7th
+lean-ISA primitive**, making the chirality-complete A–N core explicit: **6 order-2
+`cascade.atoms` (pin_slot_at_zero / reorient / magnitude / chiral_flip / chiral_dual /
+net_chirality) + 1 order-3 triality = 7** — the only access to the 3rd chiral axis.
+
+**BIT-EXACT certificate** (asserted in code): τ has order exactly 3 (‖τ³−I‖ ≈ 3.6e-14,
+τ ≠ I, τ² ≠ I) via the engine, plus the Lagrange arithmetic `3 ∤ 8` / `3 ∣ 3` ⇒
+`lagrange_obstruction` — all residuals via the scalar Class K pin-slot `cascade.magnitude`,
+never `abs()`. **Framework-reading, NOT a derived theorem** (under
+`framework_chirality_complete_reading`): that the 6 atoms generate *exactly* Z₂×Z₂×Z₂
+(|G| = 8) — a faithful common group rep of the 6 heterogeneous atoms isn't cleanly
+available, so |G|=8 / Z₂³ is the documented F220 finding + the Lagrange argument, NOT
+labelled bit-exact derived. Scope hierarchy: endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8)
+triality. Baez (2002) cited for Out(Spin(8))=S₃ / g₂=Der(𝕆) only; F220 is the framework
+finding.
+
+**+1 ToolEntry → `describe()` tool total 175 → 176.** Pure-Python; **ABI unchanged at 3**
+(no `c/` change); no `abs()` (Class K pin-slot). Closes #761.
+
+## [0.6.0rc2] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #759 — the ℍ-reading 𝔰𝔬(4)=𝔰𝔲(2)⊕𝔰𝔲(2) stabiliser.**
+
+Adds `srmech.qm.so8.quaternion_subalgebra_stabilizer(quaternion_index=1)` (per F215):
+the bit-exact **6-dim 𝔰𝔬(4) = 𝔰𝔲(2) ⊕ 𝔰𝔲(2)** subalgebra of g₂ = Der(𝕆) that
+stabilises a quaternion subalgebra ℍ ⊂ 𝕆 — the ℍ-reading **sibling** of
+`an_embedding` (the 𝔰𝔲(3)⊕3⊕3̄ ℂ-reading). Returns the 6 so(4) generators, the two
+su(2) ideals (3+3, commuting, self-dual / anti-self-dual on ℍ^⊥), the Killing form
+(rank 6, semisimple) with its two-triplet spectrum, and an MPR self-attestation —
+all bit-exact and **ℍ-choice-invariant** across the 7 Fano-line quaternion subalgebras.
+
+The point (F215): keep the Lie **symmetry** surface (𝔰𝔬(4) ⊂ g₂) visibly distinct
+from the **operator** surface (`cascade.atoms.*`, the 6 lean-ISA ops) so the "6 = 6"
+conflation can't recur — the 6 atoms are group-element ops (0/6 Lie generators); the
+dimension match is coincidence. Surfaced under the separately-keyed
+`framework_so4_reading` field (framework-reading, not a derived theorem); the
+su(2)⊕su(2) split is the op's own bit-exact computation (Baez 2002 §4.1 cited for
+g₂ = Der(𝕆) only).
+
+**+1 ToolEntry → `describe()` tool total 174 → 175.** Pure-Python; **ABI unchanged at
+3** (no `c/` change); no `abs()` (Class K pin-slot). Closes #759.
+
+## [0.6.0rc1] - 2026-05-30
+
+**MS #20 forward-architecture, voxel #751 — the lean A–N ISA two-tier split.**
+
+First rc of the v0.6.0 line. Splits `srmech.amsc.cascade` (a single module) into a
+two-tier package along the lean-ISA boundary (per F208):
+
+- **`srmech.amsc.cascade.atoms`** — the 6 silicon-able 1:1 ISA intrinsics
+  (`pin_slot_at_zero` K, `reorient` C, `magnitude` K, `chiral_flip` C,
+  `chiral_dual` C∘op∘C, `net_chirality` C).
+- **`srmech.amsc.cascade.compose`** — the 2 iterative algorithms over the atoms
+  (`cyclic_gcd` = Euclid's remainder loop, `best_rational_signed` = the
+  Class K∘N∘C continued-fraction loop).
+
+`atoms.*` / `compose.*` are the new canonical homes; the flat
+`srmech.amsc.cascade.<op>` names (and the `class_*` / `best_rat_signed` aliases)
+are **retained as deprecated-for-one-release aliases** — importable with NO
+runtime `DeprecationWarning` this release. **Public surface byte-identical**:
+`describe()` tool total STAYS **174**, the MCP `srmech.amsc.cascade.*` tool names
+and the introspect emit strings are unchanged. Pure-Python packaging refactor;
+**ABI unchanged at 3** (no `c/` change); full C dispatch + TOML descriptors
+intact; no `abs()` (Class K pin-slot). Closes #751.
+
+## [0.5.0] - 2026-05-30
+
+**Production graduation — srmech as a substrate-self-recognition apparatus.**
+
+Clean production release graduating the rc9–rc22 voxel-arc (each rc one "voxel of
+knowledge" the package gained about its own callable shape). No functional change
+over `0.5.0rc22` beyond the version bump (4 SSOT → `0.5.0`; the computed-fresh
+self-attestation `parser_version` strings → `srmech 0.5.0`) and documentation
+finalisation. **ABI 3; 174 registered ToolEntries (all `mcp_callable`,
+`handle_pending: 0`); full C/Python parity.** Verify the backend with
+`srmech.native_status()` and the surface with `srmech.introspect.describe()`.
+
+Headline surfaces shipped across the v0.5.0 line (per-rc detail below):
+
+- **Self-recognition root** — `srmech.introspect.describe()` + `warmup_all()` fired at import.
+- **so(8)/Spin(8) triality engine** — `srmech.qm.{octonion, so8, triality}`, including
+  `so8.an_embedding` (the bit-exact `su(3) ⊕ 3 ⊕ 3̄` Lie branching of the 14 `g₂` generators).
+- **By-reference handle grammar** — the `$srmech_handle` id makes all 7 `spectral.*` tools MCP-callable.
+- **AMSC attested catalogs** — including `cosmic_birefringence` (4 PDF-verified β posteriors).
+- **MCP server + `.mcpb` distribution** — `srmech-mcp` (stdio / http-sse) + `srmech mcp emit-mcpb`
+  (emit a Claude Desktop bundle generated entirely from introspection).
+- **Foundational `srmech.amsc.cascade` catalog** + the Class-M HDC variant ladder — all with native C parity.
+
+## [0.5.0rc22] - 2026-05-30
+
+**rc22 of N for v0.5.0 — `srmech mcp emit-mcpb`: emit a Claude Desktop `.mcpb` bundle generated ENTIRELY from srmech introspection.**
+Closes #749 (MS #19 / wishlist W13). Pure-Python; **ABI unchanged at 3** (the C header
+VERSION strings bump to rc22, `SRMECH_ABI_VERSION` does not — no C source change).
+
+- **New `srmech mcp emit-mcpb [--out .] [--type uv|python] [--name srmech] [--manifest-only] [--filter GLOB]`** —
+  builds a Claude Desktop MCP Bundle from the live tool schema and prints the absolute output path.
+- **New `srmech/cli/mcp.py` + `srmech/mcp/_mcpb.py`** (`build_manifest` / `pack_mcpb`) — the
+  `mcp` subcommand group (mirrors `srmech/cli/bus.py`'s nested-subparser shape) and the emitter.
+- **Manifest version + `tools[]` are DERIVED** from `srmech.__version__` + the advertised
+  `tool_schema` surface (`tool_entries_to_mcp_defs()`, the `mcp_callable` subset) — no frozen
+  literal, so a future handle-pending tool cannot silently desync the bundle.
+- **`server.type` defaults to the spec-valid `"uv"`** (anthropics/mcpb): the host fetches the
+  platform wheel carrying the compiled `libsrmech` from PyPI via `uv` at install — the portable
+  answer to bundling a compiled-native dep (nothing native rides inside the `.mcpb`). A `"python"`
+  fallback gates the interpreter via a required `user_config.python_path` (default `"python3"`) —
+  **no baked `sys.executable`** (issue #749 portability bug).
+- **MPR attestation block** carries `srmech.__version__` + a 64-hex tool-schema SHA-256 computed
+  via `srmech.amsc.format.sha256_bytes` (routes native dispatch; no new `hashlib.sha256`).
+- The `.mcpb` is a **stdlib-`zipfile` ZIP** whose root carries `manifest.json` (plus
+  `pyproject.toml` for uv resolution + `server/main.py` entry-point shim) — no Node toolchain.
+- **NO new ToolEntry** — a CLI command is not an `srmech.amsc` tool — `describe()` tool total
+  **STAYS 174**.
+
+## [0.5.0rc21] - 2026-05-30
+
+**rc21 of N for v0.5.0 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O).**
+Closes #744 (wishlist). Pure-Python; **ABI unchanged at 3** (the C header
+VERSION strings bump to rc21, `SRMECH_ABI_VERSION` does not — no C source change).
+
+- **New qm operator `srmech.qm.so8.an_embedding(imaginary_unit=1)`** — the
+  bit-exact su(3)-module structure of the 14 `g2 = Der(O)` generators. The
+  14-dim g2 *itself* splits, under one of its su(3) subalgebras, as the
+  Lie-algebra branching **14 = 8 + 3 + 3bar** (the su(3) ADJOINT 8 + the
+  FUNDAMENTAL 3 + the ANTIFUNDAMENTAL 3bar); the 7-dim octonion-imaginary
+  vector rep branches **7 = 1 + 3 + 3bar** over the same su(3). This is a
+  DIFFERENT 14-decomposition from the partitioned `so8_adjoint_basis`
+  (`14 g2 + 7 L + 7 R` inside the 28-dim so(8)). Construction is the
+  deterministic chain (numpy-only, **no `np.random`**, no scipy; memoised via
+  `_build_an_embedding`, copied out fresh each call):
+  - **su(3) = the stabiliser** `{D in g2 : D·e_K = 0}` (`e_K` the
+    `imaginary_unit`-th octonion basis vector) via an SVD nullspace — exactly
+    8-dim; `span[su3 | complement] == span(g2)` (rank 14, both directions —
+    the bidirectional killer test).
+  - **The genuine fundamental is a J-EIGENSPACE, not a real 3-span.** A real
+    3-dim span of antisymmetric matrices cannot carry the su(3) fundamental
+    (`[su3, single-Cartan-weight-block]` leaks, residual ~8.3). The genuine
+    fundamental is the **+i eigenspace of the su(3)-INVARIANT complex
+    structure J** on the 6-real-dim complement: the commutant of the 6-dim
+    real su(3)-rep is exactly 2-dim `{aI + bJ}`, `J² = −I`, `[J, ad(X)] = 0`
+    ∀X∈su(3). With this J-eigenspace 3, `[su3, 3] ⊆ 3` is bit-exact (~3e-14).
+    The returned `complement` is the genuine REAL su(3)-module
+    (`[su3, complement] ⊆ complement` ~2e-15); only the J-eigenspace
+    `triplet` / `antitriplet` (COMPLEX 8×8 arrays) carry the irreducible
+    3 / 3bar with the bit-exact closure (`antitriplet` = conjugate of
+    `triplet`).
+  - **su(3) certified by INVARIANTS, not a raw Casimir.** The honest
+    sufficient certificate is `{dim 8, rank 2, simple}` — `rank 2` via the
+    CENTRALISER of a fixed regular element `R = Σ (i+1)·su3[i]` (the greedy
+    maximal mutually-commuting subset spuriously returns 1), `simple` via the
+    adjoint commutant dim 1. By the Cartan A2 classification these UNIQUELY
+    identify su(3) (ruling out su(2)+su(2), commutant 2). Supporting
+    evidence: in a Killing-orthonormalised basis the structure constants are
+    totally antisymmetric (residual <1e-9). A raw adjoint-Casimir-vs-`f^{abc}`
+    comparison to `gauge.su3_structure_constants` is deliberately NOT used
+    (normalisation mismatch makes the ratio tautologically 1; the bases
+    differ by an O(8) rotation so raw `f^{abc}` equality fails too).
+  - The 3/3bar **orientation** is pinned by a FIXED convention (the
+    documented sign of J + a lexicographic key on the Cartan weights) and is
+    a CHOICE (a Class C chirality / complex-structure-sign convention), NOT
+    canonical; only the `+/-` weight-PAIRING is asserted. The 6 complement
+    `weights` under the rank-2 Cartan are returned as a `(6, 2)` real array.
+- Returns a `dict`: `su3` (8 real antisym 8×8), `complement` (6 real antisym
+  8×8), `complex_structure_J` (6×6 real, J²=−I), `triplet` / `antitriplet`
+  (3 COMPLEX 8×8 each), `weights` (6, 2), `decomposition`
+  (`{adjoint_14: (8,3,3), vector_7: (1,3,3)}`), `imaginary_unit`,
+  `attestation` (MPR v1, Class A content-address over the COMPUTED structure:
+  `response_sha256` = `srmech.amsc.format.sha256_bytes` over the 14 g2
+  generators' float64 bytes — generated, not fetched; no new
+  `hashlib.sha256`), and `framework_an_reading` (the A-N label, tagged
+  "framework-reading, not derived"). No A-N class name appears in any
+  load-bearing return key. **No `abs()`** — every residual is reduced via
+  `np.linalg.norm` then `srmech.amsc.cascade.magnitude` (Class K).
+- **+1 ToolEntry** (`describe()` total **173 -> 174**); the rc15 every-tool
+  MCP invocation smoke covers invoke -> serialise -> `json.dumps` for the new
+  tool automatically. New `tests/test_an_embedding.py` (11 bit-exact
+  acceptance tests). No packaging change.
+
+**Framework reading:** the SAME 14-dim g2 carries TWO distinct enumerations —
+the A-N discovery partition **1 + 3 + 7 + 3** (this collaboration's
+substrate-self-recognition order) and this su(3)-Lie branching **8 + 3 + 3bar**.
+They are read as two languages describing the one object (per
+`[[feedback_no_lineage_claims_in_notebook]]`); they are explicitly **NOT
+slot-aligned** and the correspondence is **NOT a proof**. Baez (2002) §4.1 is
+cited for `g2 = Der(O)` / dim 14 ONLY (the build input); the 8+3+3bar /
+7=1+3+3bar branching is the op's own bit-exact self-attesting computation.
+Class C-L (the Class C complex-structure orientation composed with the Class L
+eigendecomposition that extracts J and the weight spectrum).
+
+## [0.5.0rc20] - 2026-05-29
+
+**rc20 of N for v0.5.0 — cosmic-birefringence beta posterior AMSC catalog.**
+Closes #743 (wishlist W9). Pure-Python, data + descriptor only; **ABI unchanged
+at 3** (the C header VERSION strings bump to rc20, `SRMECH_ABI_VERSION` does
+not — no C source change).
+
+- **New AMSC attested catalog `srmech.amsc.attested.cosmic_birefringence`** —
+  the published cosmic-birefringence isotropic rotation angle β posterior, the
+  parity-**odd** CMB observable (the in-vacuo rotation of the CMB-polarisation
+  plane, extracted from the EB cross-correlation after simultaneously solving
+  for the instrumental polarisation-angle miscalibration). Four PDF-verified
+  rows (single `row_type` `birefringence_beta_posterior`), values taken
+  verbatim from the measuring papers' arXiv abstracts:
+  - **Minami & Komatsu 2020**, PRL 125, 221301, **arXiv:2011.11254** —
+    β = 0.35 ± 0.14° (Planck PR3; excludes 0 at 99.2% C.L., 2.4σ). The
+    arXiv id is the *measurement* paper (NOT 2006.15982, the methodology-only
+    companion that reports no β from data).
+  - **Diego-Palazuelos et al. 2022**, PRL 128, 091302, arXiv:2201.07682 —
+    β = 0.30 ± 0.11° (Planck PR4 NPIPE; authors decline a cosmological
+    significance pending foreground knowledge — caveat kept verbatim).
+  - **Eskilt 2022**, A&A 662, A10, arXiv:2201.13347 — β = 0.33 ± 0.10°
+    (Planck PR4 LFI+HFI, frequency-independent all-bands, f_sky = 0.93).
+  - **Eskilt & Komatsu 2022**, PRD 106, 063503, arXiv:2205.13962 —
+    β = 0.342 **(+0.094 / −0.091)°** (Planck PR4 + WMAP 9yr joint; excludes 0
+    at 99.987% C.L., 3.6σ). The **asymmetric** posterior is stored as two
+    separate non-negative half-widths (`beta_err_lo_deg` = 0.091,
+    `beta_err_hi_deg` = 0.094) and is **never abs()/symmetrised** (sign /
+    phase-boundary discipline at the attestation scale).
+- Parity-**odd** companion to the parity-even `cmb_polarisation_spectra`
+  (TE/EE/BB) and `cmb_bispectrum` (fNL) catalogs. EB/TB parity-odd *power
+  spectra* are **deferred** — there is no cleanly-attestable published
+  bandpower table with a clear license/URL/DOI; hand-keying a figure-read
+  sample would fail attestation by construction. A future row_type
+  `birefringence_ebtb_bandpower` can be added if a licensed machine-readable
+  product becomes available.
+- Auto-discovered by the AMSC loader (no bridge code, no registration); the
+  per-row 9-field MPR attestation block is synthesised at read time from each
+  row's per-row source DOI + `entered_locally_at` (deterministic, no live
+  fetch). **No new tool** (`describe()` total stays 173 — a new catalog
+  *source*, not a `ToolEntry`); no packaging change (the attested data is
+  auto-recursed by `wheel.packages` / `packages=['srmech','siona']`).
+
+## [0.5.0rc19] - 2026-05-29
+
+**rc19 of N for v0.5.0 — discoverable native-dispatch status.** Closes #733
+(the post-rc18 native-check recipe). Pure-Python; **ABI unchanged at 3** (the
+C header VERSION strings bump to rc19, `SRMECH_ABI_VERSION` does not).
+
+- **Discoverable native-dispatch status — top-level `srmech.native_status()`**
+  (also in `srmech.__all__` / `dir(srmech)`) returning `{has_native,
+  dispatching, abi_version, expected_abi, native_version, load_error}`,
+  mirroring `describe()['native']`. The recipe-stable replacement for poking
+  `srmech.amsc._native.HAS_NATIVE` in the TestPyPI-before-PyPI verification
+  flow: `dispatching` is `True` iff `libsrmech` loaded AND its ABI matched
+  `EXPECTED_ABI_VERSION` (native ops really run); on mismatch/failure it is
+  `False`, `load_error` carries the reason, and srmech transparently uses the
+  pure-Python fallback. NB the native shim lives at `srmech.amsc._native` —
+  NOT `srmech._native`, the data dir that merely holds the binary. Framework
+  reading: Class H (self-introspection) at package scale — the package
+  recognising whether its own C backend is live. README native-dispatch recipe
+  updated accordingly.
+
+## [0.5.0rc18] - 2026-05-29
+
+**rc18 of N for v0.5.0 — the downstream-wishlist + hygiene + perf CLEANUP rc.**
+No new surface; the rc17 SO(8) triality engine is carried forward verbatim
+(the six bit-exact acceptance tests pass IDENTICALLY) with a performance fix,
+doc/accuracy corrections from the downstream RBS-LM consumer wishlist, and
+carry-over hygiene. Pure-Python only — **no C source change; ABI stays 3** (the
+C header VERSION strings bump to rc18, `SRMECH_ABI_VERSION` does not).
+
+- **Perf — the triality constants are now memoised.** `srmech.qm.triality`'s
+  internal `_companion_maps` (the dominant cost — 28 `512×128` least-squares
+  solves) plus `triality_automorphism` / `triality_swap` and
+  `srmech.qm.so8`'s `g2_subalgebra` / `so8_adjoint_basis` / `so7_subalgebra`
+  are `functools.lru_cache`-memoised (the build runs once). Because callers
+  may mutate the returned array, **every public surface returns a DEFENSIVE
+  COPY** of the read-only cached build (the expensive build is cached; the
+  per-call `.copy()` is cheap), so no mutable array is ever shared across
+  callers and every returned value is bit-identical to a fresh build. The
+  determinism (no `np.random`) makes the cached value exact;
+  `octonion_table_attestation` stays reproducible. `tests/test_so8_triality.py`
+  drops from ~300 s to ~1.5 s. (`octonion_mult_table` was already cached in
+  rc17 — the exemplar pattern this rc extends to the so8/triality builders.)
+- **W4 doc — `srmech.amsc.format.sha256_bytes` returns the HEX DIGEST.** It is
+  named for its INPUT (raw bytes) but returns the 64-char lowercase hex digest
+  `str` (the Python parity of C `srmech_sha256_hex` / `hashlib.…hexdigest()`),
+  NOT the raw 32-byte digest. Clarified in the docstring + the README Class-A
+  row. No rename (route-through discipline).
+- **W5 doc — `srmech.amsc.hdc.klein4_bundle` accepts ANY count.** The docstring
+  now states explicitly that it takes any `n >= 1` (even OR odd); an exact tie
+  (possible only for even `n`) deterministically resolves to 0 for that bit.
+  There is NO odd-only requirement (the "odd-only" note was a downstream
+  artifact, never in srmech source). Mirrored into the ToolEntry summary. No
+  validation added.
+- **W6 code — `srmech.amsc._native.ABI_VERSION` back-compat alias** (=
+  `EXPECTED_ABI_VERSION`, currently 3) added + exported in `__all__`, for
+  downstream code that reads `_native.ABI_VERSION` (the runtime-detected
+  `NATIVE_ABI_VERSION` is `None` when no native lib is present). Non-breaking.
+- **W6b doc — `srmech.qm.sm.weak_mixing_angle` returns RADIANS.** Docstring +
+  ToolEntry summary now disambiguate the unit explicitly (the angle itself,
+  NOT `sin²θ_W` and NOT degrees; convert via `math.sin(…)**2`).
+- **W6c accuracy — `srmech.cosmos` references.** No `srmech/cosmos/` package
+  exists; the packaged cosmos catalog is `srmech.amsc.attested.cosmos_validation`
+  (Friedmann dark-fraction). The shipped surface (README + `srmech/`) has ZERO
+  `srmech.cosmos` references (already accurate); the only inaccurate references
+  (root `CLAUDE.md`, internal / not PyPI-shipped) were corrected to point at the
+  real path. No packaged TE/EE/BB/fNL/lensing catalog (notebook-only).
+- **W2 confirm — the `seed` param is already advertised.** `polar_random` and
+  `klein4_random`'s ToolEntries already expose the optional integer `seed`
+  (rc13); confirmed, no change needed.
+- **Hygiene** — two `abs()` float-tolerance spot-checks in
+  `tests/test_so8_triality.py` switched to `cascade.magnitude(float(...))`
+  (full Class K∘C cascade-honesty, matching the file's `_frob` helper); the
+  `pyproject.toml` + `pyproject-pure.toml` `description` em-dash (which violated
+  the files' own ASCII-only comment) swapped to ` - ` IDENTICALLY in both
+  (byte-identical, under the 512-char Summary limit); the
+  `tests/test_llm_anthropic.py` docstring prose refreshed rc16 → rc18.
+
+## [0.5.0rc17] - 2026-05-29
+
+**rc17 of N for v0.5.0 — the SO(8) TRIALITY voxel.** Three new `srmech.qm`-layer
+surfaces make the so(8)/Spin(8) triality structure a callable, bit-exact-tested
+surface (the full 28 = 𝔰𝔬(8) chiral read-out long flagged in [Unreleased]):
+
+- **`srmech.qm.octonion`** — the MPR-attested Cayley-Dickson-from-H octonion
+  multiplication table (an `(8,8,8)` int8 structure-constant tensor whose
+  `octonion_table_attestation()` content-addresses the table bytes via
+  `srmech.amsc.format.sha256_bytes` — **no new `hashlib.sha256`**) + the
+  `octonion_left_mult` / `octonion_right_mult` `L_a` / `R_a` binders,
+  `octonion_conjugate`, and `octonion_norm` (Class K ∘ C, **never `abs()`**:
+  the scalar sum-of-squares is reduced through `srmech.amsc.cascade.magnitude`).
+- **`srmech.qm.so8`** — the 28-generator `so(8)` adjoint partitioned
+  **14 (g2 = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`,
+  `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy
+  subset, **no `np.random`**), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold).
+- **`srmech.qm.triality`** — the `28×28` order-3 outer automorphism
+  `τ = S_B · S_C` (the PRODUCT of the two companion involutions, NOT a naive
+  `A → B` map) with **`Fix(τ) = g2` (dim 14) = the A-N `1+3+7+3` partition**
+  (the `D4 → G2` Z3 fold), the Z2 swap (`Fix = so(7)`, dim 21), the Class-I
+  `8v → 8s → 8c` cycle (via `srmech.amsc.cyclic.mod_add`), the frame-transport
+  `triality_apply`, the Cartan companions `triality_companions`, and the
+  Class K ∘ C `triality_relation_residual` (never `abs()`).
+
+Six bit-exact acceptance tests (`tests/test_so8_triality.py`): `τ³ = I` /
+`τ ≠ I` / `τ² ≠ I`; the KILLER `Fix(τ) = g2 = 14` (belt-and-suspenders rank
+asserts + bidirectional projection residual); `Fix(Z2) = so(7) = 21`; Cartan
+residual = 0 over a g2/L/R sample; rep inequivalence + cycle closure; octonion
+convention attested + reproducible. Residuals `≤ 4e-14`.
+
+**+15 ToolEntries (158 → 173)** — `octonion_table_attestation` gets its own
+ToolEntry (the coverage walker demands one for every public `srmech.qm.*`
+callable). `operator_name` `__module__` hardening: a name that traverses
+THROUGH a srmech module to a re-exported stdlib callable
+(`srmech.amsc.format.hashlib.sha256` → the real `_hashlib` sha256) is now
+rejected by a post-resolution `__module__` check. The PyPI README is refreshed
+for BOTH the rc16 handle-grammar surface and the rc17 triality surface.
+Pure-Python only — no C source change; **ABI stays 3** (the C header's VERSION
+strings bump to rc17, the `SRMECH_ABI_VERSION` integer does not).
+
+Framework reading: the τ-fixed subalgebra of `so(8)` being exactly the 14 `g2`
+derivations — the same 14 as the A-N `1+3+7+3` partition — is the keystone tying
+the cascade vocabulary to the Spin(8) triality engine
+(`endianness ⊂ Class C ⊂ Klein-4 ⊂ Spin(8) triality`). Class A (the attested
+table), Class M (the L/R binders + g2 derivations + companions), Class C (the
+Z2 swap + conjugation), Class I (the order-3 cyclic rep-permutation), Class
+K ∘ C (the norm + residual, no `abs()`).
+
+## [0.5.0rc16] - 2026-05-29
+
+**rc16 of N for v0.5.0 — the "handle dual-grammar" voxel.** rc15 marked the
+7 `srmech.spectral.*` tools `mcp_callable=False` because their param/return
+surface is a bare `SpectralHandle` (or `SpectralHandle | bytes`) — an
+opaque, frozen, bytes-bearing dataclass JSON-RPC cannot carry **by value**.
+rc16 carries it **by reference**: a producer's returned handle is
+intercepted on the outbound path and emitted as a small tagged id object the
+LLM copies verbatim into the next tool's input; a consumer param is resolved
+back to the live object on the inbound path. The 7 spectral tools are now
+`mcp_callable=True` (**handle_pending 7→0; mcp_callable 151→158**), and
+`chiral_dual`'s `op` is accepted as a dotted operator **name** (was an
+over-advertised `callable` that bound the synth string `"abs"` then raised a
+tolerated `str`-not-callable `TypeError`). Pure-Python only — no C source
+change; **ABI stays 3** (the C header's VERSION strings bump to rc16, the
+`SRMECH_ABI_VERSION` integer does not).
+
+Framework reading: name (meaning-encoded, biology-native / continuous-Hopf)
+and uuid (position-encoded, silicon-native / cyclic-algebra) are two
+grammars resolving to ONE in-process structure — the registry is the **B/H/N
+translation locus**. We never force both halves into one "sentence"; each
+consumer speaks the grammar native to it (SpectralHandle uses the uuid+name
+registration arm; `chiral_dual.op` uses the stateless name arm).
+
+### Added
+
+- **`srmech/_handles.py` — a package-scope `HandleRegistry`** (the shared
+  name+uuid machinery, serving both the 7 spectral tools now and the bus
+  later). Bounded-LRU `OrderedDict` keyed by `uuid.uuid4().hex` (cap
+  `HANDLE_REGISTRY_MAX=256`), `threading.RLock`-guarded, with a `name→uuid`
+  secondary index and a value-hash idempotency map (an identical-by-value
+  handle registered twice returns its existing id). `kind`-discriminated.
+  Typed `HandleNotFoundError` (a clean "re-produce it" message on a
+  miss/eviction) and `HandleKindError`. The `$srmech_handle` envelope key +
+  `encode_envelope()` / `is_handle_envelope()` helpers. A name auto-derives
+  for a `SpectralHandle` as `"spectral:" + content_sha[:12]` — reusing the
+  Class A SHA-256 already on the frozen dataclass, so **no new
+  `hashlib.sha256` call** is introduced.
+- **`resolve_operator_name(name)`** — the stateless name-grammar arm for
+  `chiral_dual`'s `op`. Restricted to the **`srmech.` namespace**: a name
+  outside it (`os.system`, `builtins.*`, stdlib, `numpy.*`, …) is rejected
+  with a clean `ValueError` **before** any import, so the advertised
+  `operator_name` contract is never "an arbitrary importable callable".
+- **`tests/test_handles.py`** — registry dual-grammar (resolve by uuid AND
+  by name), uuid/name disagreement, bounded-LRU eviction + `HandleNotFoundError`,
+  `HandleKindError`, idempotent same-value registration, thread-safety
+  smoke, and the operator-name allow-list (accepts `srmech.*`, rejects
+  everything else).
+- **`tests/test_mcp.py`** — `test_spectral_handle_param_coercer_resolves`,
+  `test_spectral_handle_or_bytes_discriminates`,
+  `test_operator_name_param_resolves_callable`,
+  `test_evicted_handle_in_invoke_gives_clean_error` (the empirical proof the
+  rc14/15 `_identity` pass-throughs are now real resolvers — the thing the
+  static `has_coercer` ratchet structurally cannot see).
+- **`tests/test_spectral.py`** — full JSON round-trips through `invoke_tool`:
+  `decompose → recompose` (the wire form is asserted to be the
+  `$srmech_handle` envelope, NOT an inline coefficients dict), plus a chained
+  `decompose → predict → truncate_sparse → recompose` producer→consumer
+  chain.
+
+### Changed
+
+- **The 7 `srmech.spectral.*` ToolEntries flip to `mcp_callable=True`** (the
+  rc15 `mcp_callable=False` + `_SPECTRAL_HANDLE_PENDING_REASON` markers
+  removed). They are auto-included in both advertised catalogs (the MCP
+  `tools/list` seam and the Anthropic catalog) and `describe()` re-buckets
+  them from `handle_pending` into `mcp_callable` from the live flags — no
+  edit needed in those consumers.
+- **`chiral_dual`'s `op` param type `callable` → `operator_name`** (a new
+  declared type). `srmech.mcp._coercion` gains real coercers
+  (`_resolve_spectral_handle`, `_resolve_spectral_handle_or_bytes`,
+  `_resolve_operator_name`); `serialise_native` gains one `SpectralHandle`
+  branch (register + emit envelope) ahead of its dict/tuple fall-through.
+  `_TYPE_LEXICON` / `_ENCODING_HINT` teach the LLM the `$srmech_handle`
+  envelope (handle params) and the dotted operator-name string. The
+  `callable` coercer key is RETAINED (other tools / the DSL / direct callers
+  still pass a live callable; the exhaustiveness ratchet needs the key).
+  `chiral_dual`'s Python signature is unchanged — resolution is at the
+  coercion layer, so the DSL + direct callers are unaffected.
+- **The rc15 catalog-EXCLUSION ratchets are INVERTED to catalog-INCLUSION**
+  in BOTH `tests/test_mcp.py` (`test_handle_pending_absent_from_advertised_catalogs`)
+  AND `tests/test_llm_anthropic.py`
+  (`test_handle_pending_tools_excluded_from_anthropic_catalog` +
+  `test_tool_catalog_includes_every_advertised_tool`'s `expected + 7` → `+ 0`):
+  zero handle-pending tools remain; all 7 spectral names are PRESENT in both
+  advertised surfaces. The every-tool invocation smoke
+  (`_synth_value_for_type`) now synths `operator_name` →
+  `srmech.amsc.cascade.chiral_flip` (a genuine unary seq→seq op) and
+  `SpectralHandle` → a freshly-minted registered `$srmech_handle` envelope,
+  so the smoke exercises a REAL round-trip rather than a tolerated domain
+  failure.
+
+### Unchanged
+
+- **C source + ABI.** No file under `c/` other than the header's VERSION
+  strings is touched; `SRMECH_ABI_VERSION` stays **3** and the Python shim's
+  `EXPECTED_ABI_VERSION` stays **3**. The JPL Power-of-Ten ratchet is
+  unaffected. The whole voxel is a Python tool-schema / registry / MCP-surface
+  change. TestPyPI rc verification before any production PyPI tag.
+
+## [0.5.0rc15] - 2026-05-29
+
+**rc15 of N for v0.5.0 — the "every-tool invocation smoke + honest
+`mcp_callable` marking" voxel (upstream §10.1).** rc14 made every declared
+param TYPE JSON-coercible and shipped the static `has_coercer` ratchet —
+but `has_coercer` could not tell a REAL coercer from the `_identity`
+pass-through. The 7 `srmech.spectral.*` tools whose surface is a bare
+`SpectralHandle` / `SpectralHandle | bytes` went **statically-green yet
+were not actually invocable** across the JSON boundary (an opaque
+in-process dataclass handle cannot ride JSON by value). rc15 closes that
+gap empirically and marks those 7 honestly. Pure-Python only — no C
+change, ABI stays 3.
+
+Framework reading: the package declaring its own callable shape (which
+tools are advertisable vs. handle-pending) IS **Class H
+(self-introspection)** at package scale — the apparatus thesis. No new
+primitive class is introduced.
+
+### Added
+
+- **THE EVERY-TOOL INVOCATION SMOKE (§10.1) —
+  `test_every_advertised_tool_invocable` in `tests/test_mcp.py`.** For
+  EVERY `mcp_callable=True` `ToolEntry`, it synthesises a minimal valid
+  args dict from the tool's schema (using the rc14 coercion encodings per
+  declared type — `int`→1, `float`→1.0, `bytes`→base64(b"abcd"),
+  `np.ndarray`→2×2 identity, `complex`→`[1.0, 0.0]`, containers→minimal
+  valid shapes), then actually CALLS the tool via `invoke_tool`. It
+  asserts NO binding error (`TypeError` unexpected/missing kwarg) and NO
+  coercion error; it TOLERATES domain errors (`ValueError` / non-square
+  matrix / length mismatch / op-internal `TypeError`) — those prove the
+  tool was reached with bindable + coercible args (callability, not domain
+  validity). Result: **151/151 advertised tools invocable**. This is the
+  EMPIRICAL complement to rc14's static `has_coercer` ratchet — it closes
+  the `has_coercer`-vs-actually-callable gap that left the SpectralHandle
+  `_identity` pass-through green.
+- **`ToolEntry.mcp_callable: bool` (default `True`, back-compat) +
+  `ToolEntry.mcp_unavailable_reason: str | None`.** The 7 handle-pending
+  `srmech.spectral.*` tools (`decompose` / `delta` / `recompose` /
+  `similarity` / `predict` / `prediction_error` / `truncate_sparse`) are
+  marked `mcp_callable=False` with the reason "handle-pending:
+  by-reference SpectralHandle id arrives in the bus handle-grammar (rc16);
+  use the srmech package directly until then." `to_jsonable()` emits both
+  new fields.
+- **`test_handle_pending_absent_from_advertised_catalogs` +
+  `test_handle_pending_tools_excluded_from_anthropic_catalog`.** Assert
+  the 7 handle-pending tools are absent from BOTH advertised catalogs (MCP
+  `tools/list` + Anthropic `_build_tool_catalog`) while remaining in the
+  registry for introspection.
+
+### Changed
+
+- **Advertised-surface exclusion of `mcp_callable=False` entries at BOTH
+  seams.** `srmech.mcp._tools.tool_entries_to_mcp_defs` (the MCP
+  `tools/list` source) and `AnthropicAgent._build_tool_catalog` (the
+  Anthropic seam) now skip `mcp_callable=False` entries, so an LLM is
+  never offered a tool it cannot call. The advertised surface drops from
+  158 → **151**; the registry (`get_tool_schema().tools`) keeps all 158
+  for introspection.
+- **`srmech.introspect.describe()` reports the split.** The `tools` block
+  now carries `mcp_callable` + `handle_pending` counts alongside `total` +
+  `by_category`, and a top-level `handle_pending` lists the 7 names. The
+  `describe` ToolEntry's documented return-shape is updated to match.
+- **Schema-accuracy fix surfaced by the smoke:**
+  `srmech.amsc.laplacian.dense_laplacian` + `normalized_laplacian` now
+  declare `edges` as `list[tuple[int, int]]` (matching the shipped
+  `(n, edges: Iterable[Tuple[int, int]])` signature + the sibling
+  `dense_adjacency` entry); the earlier bare `list` type advertised an
+  edge-list shape too loose for an LLM to populate. Signature unchanged.
+
+### Deferred
+
+- **SpectralHandle by-reference invocation → rc16** (per user decision).
+  The bus handle-grammar (a `SpectralHandle` id arriving by reference)
+  lets the 7 spectral tools become `mcp_callable=True` then; until then the
+  `srmech` package (`import srmech.spectral`) is the path for spectral
+  work.
+
+## [0.5.0rc14] - 2026-05-29
+
+**rc14 of N for v0.5.0 — the "full JSON↔native MCP coercion" voxel.** A
+live probe of the rc13 catalog proved **65 of 158 tools (41%) were
+advertised to MCP / Anthropic but UNCALLABLE** — their parameters are
+`bytes` / `np.ndarray` / `complex`, types JSON-RPC cannot express. rc14
+makes **all 158 tools MCP-callable** via full **bidirectional** coercion:
+a tool that accepts JSON but returns an un-serialisable ndarray is equally
+unusable, so the fix covers params-in AND results-out. Pure-Python only —
+no C change, ABI stays 3.
+
+Framework reading: bidirectional coercion is **Class H
+(self-introspection)** at the package's tool-surface — the package making
+its own A–N callables' types JSON-expressible across the JSON-RPC /
+Anthropic boundary. The base64 / `[re, im]` encodings are **Class B
+(TLV-framing)** — encoding-boundary translation between continuous native
+types and the discrete JSON wire. No new primitive class is introduced.
+
+### Added
+
+- **Bidirectional JSON↔native coercion (`srmech.mcp._coercion`).** A clean
+  type→coercer dispatch keyed on each `ToolParameter.type` string, plus a
+  structural outbound serialiser:
+  - `bytes` ↔ base64 `str` (user decision — binary-safe + unambiguous;
+    replaces the rc13 hex convention). Malformed base64 raises a clear
+    `ValueError` naming the param.
+  - `np.ndarray` ↔ nested JSON list (row-major `.tolist()`); complex
+    arrays serialise each element as `[re, im]`.
+  - `complex` ↔ `[re, im]` (a bare JSON number decodes to `complex(n, 0)`).
+  - numpy scalars (`np.int64` / `np.float64` / `np.uint8` / …) → Python
+    `int` / `float` / `bool` on the outbound path.
+  - container types recurse element-wise: `Sequence[bytes]`,
+    `Sequence[np.ndarray]`, `tuple[np.ndarray, ...]`,
+    `Mapping[bytes, bytes]` (`template.render`),
+    `list[tuple[bytes, int]]` (`dispatch.match` rules),
+    `list[tuple[bytes, bytes]]` (`naming.lookup` pairs).
+- **Schema encoding hints.** Each non-JSON native type's schema property
+  carries a JSON-encoding hint in its `description` (`bytes` → string +
+  "base64-encoded bytes"; `np.ndarray` → array + "nested JSON array,
+  row-major; complex elements as [re, im]"; `complex` → array +
+  "[real, imaginary]"; containers → the element hint), so an MCP /
+  Anthropic consumer learns the wire form up front. `complex` now renders
+  as a JSON-schema `array` (was `string`). The rc13 property-key grammar +
+  rc10 name discipline are untouched (the hint lives in the value's
+  description, never the key).
+- **THE TYPE-COERCIBILITY RATCHET — `test_all_param_types_json_coercible`
+  in `tests/test_mcp.py`.** For EVERY `ToolEntry` param across
+  `get_tool_schema().tools`, it asserts the coercion dispatch HAS an
+  explicit handler for the declared type. This guarantees no future tool
+  can advertise an uncallable param type unnoticed (complements the rc13
+  schema/signature name-drift ratchet). Running it over all 158 tools
+  surfaced 33 distinct param types, all now handled.
+
+### Changed
+
+- `srmech.mcp._tools._coerce_arguments` now routes every inbound argument
+  through `_coercion.coerce_param` (was a small inline hex/path matcher).
+- `srmech.mcp._tools.serialise_result` now walks the result through
+  `_coercion.serialise_native` before `json.dumps`, so bytes → base64,
+  ndarray → nested list (complex as `[re, im]`), complex → `[re, im]`,
+  numpy scalars → Python scalars, tuples/sets → lists — round-trippable
+  with the inbound path.
+
+### Tests
+
+- `test_coercion_roundtrips_scalar_leaf_types` — `coerce_param(serialise_
+  native(x)) == x` for bytes / complex / real-ndarray (exact); complex
+  arrays via the explicit `complex_pairs_to_ndarray` builder.
+- `test_serialise_native_emits_json_serialisable` — `json.dumps`
+  succeeds for bytes / complex / real+complex ndarray / numpy scalars /
+  nested tuples / dict-with-bytes-key.
+- `test_invoke_*` live-path round-trips through `invoke_tool` (the shared
+  MCP + Anthropic entry): `naming.lookup` (base64 key + pairs),
+  `template.render` (base64 mapping), `hdc.bind` (base64 ↔ bytes
+  round-trip), `laplacian.jacobi_eigvals` (nested-list matrix → eigenvalue
+  list), `qm.sm.higgs_potential` (phi=`[re, im]`), `dispatch.match` (base64
+  rules) — each asserts the result is JSON-serialisable.
+- `test_invoke_klein4_random_seed_reproducible_rc14_path` — rc13 seed
+  reproducibility holds through the rc14 ndarray-result coercion.
+- `test_schema_renders_encoding_hints` +
+  `test_encoding_hints_preserve_property_key_grammar` — STEP 3 schema-hint
+  coverage; property-key grammar still clean.
+- The two rc13 hex-based tests (`*_sha256_bytes_*`, `serialise_result_
+  handles_bytes_*`) are updated to base64 (the rc14 wire form).
+- Version-gate test renamed `test_version_is_0_5_0rc13` →
+  `test_version_is_0_5_0rc14`; `test_version_module_matches` stays
+  literal-free.
+
+> **NOTE — arrays over JSON are payload-heavy.** Arrays are now
+> MCP-callable, but a large ndarray serialised as a nested JSON list is
+> expensive over the JSON-RPC wire. The bus **handle-API** (a later voxel)
+> remains the by-reference path for bulk array work — per the
+> package-for-bulk / MCP-for-interactive design boundary. Use MCP coercion
+> for interactive / small-payload calls; use the bus handle for bulk
+> spectral arrays.
+
+## [0.5.0rc13] - 2026-05-29
+
+**rc13 of N for v0.5.0 — MCP surface-correctness bug-fix voxel.** Two
+real bugs surfaced by upstream MCP usage, plus the would-have-caught-it
+ratchet. Both bugs affected BOTH the MCP path and the Anthropic adapter
+(shared `srmech.mcp._tools.invoke_tool` dispatch). Pure-Python only — no
+C change, ABI stays 3.
+
+Framework reading: the fixes are **Class H (self-introspection)** at the
+package's tool-surface — the schema recognising its own callables' shape.
+The integer `seed` is **Class N (rational / deterministic anchor)** made
+JSON-expressible so the bit-exact / attestation discipline survives the
+JSON-RPC / Anthropic boundary. No new primitive class is introduced.
+
+### Fixed
+
+- **`hdc.klein4_random` / `hdc.polar_random` are now seedable over
+  JSON-RPC (BUG A — found via upstream MCP usage).** They were seedable
+  only via `rng: numpy.random.Generator`, which cannot cross JSON-RPC nor
+  be expressed in an Anthropic tool schema — so MCP / Anthropic callers
+  could not obtain a DETERMINISTIC Klein-4 / polar vector, breaking
+  srmech's bit-exact / attestation discipline. Both ops gain an integer
+  `seed: int | None = None` param: when given (and `rng` is not), the
+  generator is built internally as `np.random.default_rng(seed)`. The
+  in-process `rng=` path is preserved for back-compat; **precedence** —
+  an explicit `rng` wins over `seed` if both are supplied. Each op's
+  `ToolEntry` now advertises the JSON-friendly `seed: int` and DROPS the
+  un-serialisable `rng` Generator (a Generator has no valid JSON-Schema
+  type and should never have been in the MCP-facing schema). Acceptance:
+  `klein4_random(seed=42)` is bit-identical twice directly AND twice
+  through `invoke_tool`.
+- **`srmech.amsc.naming.lookup` is callable again via MCP / Anthropic
+  (BUG B — found via upstream MCP usage).** Its `ToolEntry` declared a
+  param `entries` that the shipped `lookup(key, pairs)` does not accept,
+  so every MCP / Anthropic invocation raised
+  `TypeError: lookup() got an unexpected keyword argument 'entries'` —
+  the tool was uncallable. Fixed the SCHEMA to match the shipped
+  signature (`entries` → `pairs`), least-surprise (the function is the
+  SSoT).
+- **`srmech.amsc.template.render` schema/signature drift (surfaced by
+  the new ratchet).** Its `ToolEntry` declared `substitutions` while the
+  shipped `render(template_bytes, mapping)` accepts `mapping` — same
+  uncallable-tool failure mode as BUG B. Aligned the schema
+  (`substitutions` → `mapping`).
+
+### Added
+
+- **THE RATCHET — schema/signature alignment test
+  (`test_schema_signature_alignment_no_drift` in `tests/test_mcp.py`).**
+  For EVERY `ToolEntry` in `get_tool_schema().tools`, it resolves the
+  dotted callable and asserts each declared parameter is BINDABLE to the
+  callable's signature (tolerating `**kwargs` and the rc10 `*args`
+  clean-name convention). This catches the whole class of bug behind
+  BUG B before it ships. Running it surfaced exactly two drifts across
+  all 158 tools — `naming.lookup` (`entries`) and `template.render`
+  (`substitutions`) — both now fixed; the ratchet passes clean.
+
+### Tests
+
+- `test_klein4_random_seed_reproducible` + `test_polar_random_seed_
+  reproducible` — same `seed` ⇒ bit-identical vectors directly and via
+  `invoke_tool`; a different seed differs (seed is load-bearing).
+- `test_random_ops_rng_takes_precedence_over_seed` — `rng` wins over
+  `seed`; the legacy `rng=` path stays back-compat.
+- `test_random_ops_schema_drops_unserialisable_rng` — the `*_random`
+  ToolEntries advertise `seed` and NOT `rng`.
+- `test_naming_lookup_callable_via_invoke_tool` +
+  `test_template_render_callable_via_invoke_tool` — both return a real
+  result through `invoke_tool` (no TypeError).
+- De-brittled version-gate test carries forward — `test_version_is_0_5_
+  0rc13` (renamed) is the single deliberate human-literal gate;
+  `test_version_module_matches` stays literal-free.
+
+## [0.5.0rc12] - 2026-05-29
+
+**rc12 of N for v0.5.0 — the "DSL surface" voxel.** Exposes the rc8
+cascade-composition DSL (`srmech.dsl.*`) as declarative MCP / Anthropic
+`ToolEntry`s, so an LLM composes AND runs a cascade in a single tool
+call. The fluent `chain().then(...).loop(...)` builder is not
+tool-callable (a tool call can't chain methods); the declarative surface
+does real work in ONE call. Pure-Python only — no C change, ABI stays 3.
+
+Framework reading: the DSL composes **Class M (cross-class bind)** over
+the cascade catalog — each chain stage is one A–N primitive-class
+instance, the chain is the composition. `list_catalog_ops` is **Class E
+(catalog enumeration) ∘ Class F (descriptor render)**. No new primitive
+class is introduced; this voxel makes the rc8 composer callable in one
+shot from an LLM tool surface.
+
+### Added
+
+- **`srmech.dsl.run_toml_chain(spec, input_value)` — compose + run a
+  cascade in ONE call.** Author an inline TOML chain spec (a `[chain]`
+  table + `[[stage]]` array; each stage carries one discriminator —
+  `op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op`),
+  feed an input value, get the chain result. The declarative, one-shot
+  face of the rc8 DSL. Registered as a `ToolEntry` (owner `srmech`,
+  category `dsl`) with plain keyword params (`spec` / `input_value`), so
+  the rc10 property-key grammar holds and `invoke_tool`'s `fn(**coerced)`
+  calls it directly (no VAR_POSITIONAL unpack).
+- **`srmech.dsl.list_catalog_ops()` — enumerate the cascade-catalog
+  ops.** Returns one record per op (`{name, class, purpose}`) sourced
+  from the on-disk cascade-catalog TOML descriptors (the SSoT), so an
+  LLM can pick valid `op` / `fold_op` / `reduce_op` names + read each
+  op's A–N class before authoring a spec. 8 ops: `best_rational_signed`,
+  `chiral_dual`, `chiral_flip`, `cyclic_gcd`, `magnitude`,
+  `net_chirality`, `pin_slot_at_zero`, `reorient`. Registered as a
+  no-param `ToolEntry`.
+- **`srmech.dsl.build_chain_from_toml_str(spec)` — the string
+  counterpart of `build_chain_from_toml`.** Builds a `Chain` from an
+  in-memory TOML chain-spec string (rather than a path), so a chain can
+  be authored inline and materialised without writing a file first. The
+  load-bearing primitive `run_toml_chain` is built on.
+
+### Changed
+
+- **`srmech.amsc.tool_schema.warmup_all()` now imports `srmech.dsl`.**
+  Appended to the warmup import list so the dsl `ToolEntry`s register no
+  matter the entry-path and the manifest stays complete. The
+  registration itself fires from `_register_dsl_tools()` at
+  `tool_schema` import (declarative data only — it does NOT import
+  `srmech.dsl`, so there is no import cycle; the dotted-name targets are
+  resolved by `srmech.mcp._tools` at invoke time). The `warmup_all()`
+  import is independently verified cycle-free: neither `srmech.dsl` nor
+  `srmech.introspect` imports `srmech.amsc.tool_schema` at module load.
+- **De-brittled version-gate test** carries forward — `test_version_is_0
+  _5_0rc12` (renamed) is the single deliberate human-literal gate;
+  `test_version_module_matches` stays literal-free (sources-agree +
+  PEP 440 shape only).
+
+### Tests
+
+- Test determinism: pinned `time_ns` on all bio-totp round-trip tests so
+  they no longer depend on wall-clock window alignment (eliminates a
+  CI-load timing flake; no production change).
+
+## [0.5.0rc11] - 2026-05-29
+
+**rc11 of N for v0.5.0 — the "Self-recognition root" voxel.** The
+keystone of the v0.5.0 substrate-self-recognition arc: the package
+gains a single canonical surface to populate AND recognise its own
+tool-schema shape. Pure-Python only — no C change, ABI stays 3.
+
+Framework reading: `describe()` IS **Class H (self-introspection)** at
+package scale — the package recognising and rendering the SHAPE of its
+own A–N tool surface. `warmup_all()` is the Class A (content-addressed
+callable identifier) ∘ Class E (catalog) population step that
+GUARANTEES the Class H view is complete regardless of entry-path.
+
+### Added
+
+- **`srmech.amsc.tool_schema.warmup_all()` — THE single registration
+  entry-point.** Imports every submodule that registers `ToolEntry`s
+  (`srmech.bus` / `srmech.introspect`) so the registry is fully
+  populated no matter how srmech was entered (library / CLI / MCP /
+  Anthropic adapter). Idempotent. Fires from `srmech.__init__` (per
+  user direction 2026-05-29 — substrate-coherent: every consumer sees
+  the complete tool-schema from t=0). **Permanently closes the
+  orphan-registration bug class** — the rc9 miss where `srmech.bus`
+  tools were silently absent from the LLM-facing catalog because no
+  entry-path imported the bus. THE single place future voxels add their
+  registration import. Re-exported as `srmech.warmup_all`.
+- **`srmech.introspect.describe()` — the self-recognition ROOT
+  surface.** The "what is srmech?" root: a structured, at-a-glance map
+  of the package's own shape — package version, tool-schema version,
+  native-dispatch status (`has_native` / `abi_version` /
+  `native_version`), total registered tool count + per-category
+  breakdown, and the sorted list of category names. Calls
+  `warmup_all()` first so the counts are complete. Registered as a
+  `ToolEntry` (`srmech.introspect.describe`, no params) so MCP /
+  Anthropic consumers can ask "what is srmech / what can it do?". A
+  ROOT / INDEX — it surfaces the SHAPE; per-tool JSON schemas, env, and
+  error-type detail come from later voxels (rc15 / rc16).
+
+### Changed
+
+- **`srmech.mcp._tools` now warms up via the canonical entry-point.**
+  The rc9 scattered side-effect imports (`from .. import bus` /
+  `introspect`) are replaced by a single `warmup_all()` call. Behaviour
+  is identical (registry fully populated before `get_tool_schema()`),
+  but the warmup list is now maintained in ONE place.
+- **De-brittled the version-gate test** (`tests/test_signal_processing
+  _scaffolding.py`). `test_version_is_0_5_0rcN` (renamed to `…rc11`) is
+  now the SINGLE deliberate human-literal gate — the conscious per-rc
+  bump point. `test_version_module_matches` no longer hardcodes a
+  literal; it only asserts the SSoT sources AGREE plus a PEP 440 sanity
+  shape, so it survives version bumps (this gate bit us 3× in rc10).
+
+## [0.5.0rc10] - 2026-05-29
+
+**rc10 of N for v0.5.0 — two shared-dispatch bug-fixes found by a LIVE
+Anthropic API test of the rc9 adapter (the mocks could not catch them).**
+
+Both bugs lived in the **shared** tool-schema / dispatch surface that
+**both** the MCP adapter (rc6, `srmech-mcp`) and the Anthropic SDK
+adapter (rc9, `srmech-agent`) route through, so each affected both
+transports at once. Pure-Python only — no C change, ABI stays 3.
+
+### Fixed (load-bearing, both adapters)
+
+- **Illegal tool-schema property key blocked the ENTIRE Anthropic
+  catalog (live 400).** `srmech.amsc.hdc.polar_bundle` and
+  `srmech.amsc.hdc.klein4_bundle` were registered with the param name
+  `*vectors` — the Python varargs sigil leaked into the `ToolParameter`
+  NAME, so the generated `input_schema.properties` carried a key
+  `*vectors`. Anthropic rejects it with `400 — input_schema.properties:
+  Property keys should match pattern '^[a-zA-Z0-9_.-]{1,64}$'`, which
+  fails the whole `messages.create` call (every tool, not just the two
+  bundles). The unit-test mocks never sent the catalog to a real
+  validator, so they passed; only a live API call surfaced it. Fix:
+  rename the param `*vectors` → `vectors` in both registrations, typed
+  `Sequence[np.ndarray]` to match the sibling `srmech.amsc.hdc.bundle`
+  convention (variadic — "one or more vectors of equal length").
+- **Varargs dispatch (`fn(**coerced)` cannot call a `*args` function).**
+  `srmech.mcp._tools.invoke_tool` ended with `return fn(**coerced)`
+  (keyword-args only). For a variadic callable like
+  `polar_bundle(*vectors)`, `fn(vectors=[...])` raises `TypeError:
+  polar_bundle() got an unexpected keyword argument 'vectors'`. Both
+  adapters call this `invoke_tool`, so invoking either bundle tool was
+  broken on BOTH paths even after the property-key rename. Fix: detect a
+  `VAR_POSITIONAL` parameter via `inspect.signature(fn)` and unpack the
+  supplied sequence positionally (`fn(*seq, **coerced)`); the historical
+  sigil-prefixed key (`*vectors`) is still tolerated so no in-flight
+  caller breaks.
+
+### Added — defence-in-depth + regression ratchets
+
+- **Property-key sanitiser in the MCP/Anthropic converter.**
+  `tool_entry_to_mcp_def` now strips any leaked Python sigil (leading
+  `*` / `**`) and clamps every `inputSchema.properties` key to
+  `^[a-zA-Z0-9_.-]{1,64}$` (the `required` list is sanitised in lockstep
+  so it still references real properties). The rename above is the SSoT
+  fix; this guards BOTH adapters against a future sloppy varargs/kwargs
+  registration (mirrors the rc9 belt-and-braces lesson).
+- **Two would-have-caught-it test ratchets** in `tests/test_mcp.py`:
+  (a) for every registered tool, assert every
+  `tool_entry_to_mcp_def(entry)["inputSchema"]["properties"]` key
+  matches the Anthropic grammar and contains no `*` (caught BUG 1 — it
+  FAILS on the pre-fix `tool_schema`, PASSES after the rename; guards
+  all 155 tools on both transports forever); (b) invoke
+  `srmech.amsc.hdc.polar_bundle` AND `srmech.amsc.hdc.klein4_bundle`
+  through `invoke_tool` with a small valid list of vectors and assert a
+  real bundled result (not a `TypeError` / `MCPToolError`) (caught BUG
+  2).
+
+For Claude Code users on the rc6 MCP path, this rc fixes the two bundle
+tools (they were uncallable / catalog-blocking there too); no other
+behaviour changes.
+
+## [0.5.0rc9] - 2026-05-28
+
+**rc9 of N for v0.5.0 — Anthropic SDK secondary adapter (optional) +
+POSIX bus-discovery fix.**
+
+### Fixed (load-bearing, since v0.5.0rc1)
+
+- **POSIX bus discovery silently returned empty.** `_iter_candidate_files`
+  filtered the `~/.srmech/` directory with `Path.is_file()`, which returns
+  `False` for AF_UNIX socket files (they're `S_IFSOCK`, not `S_IFREG`).
+  Effect: `by_name()` / `list_endpoints()` reported no live endpoints on
+  POSIX even though the socket existed and was connectable, so every test
+  using the `_wait_for_endpoint` helper hit a 5 s timeout on every POSIX
+  CI cell across the rc1–rc9 series (40+ failing tests per cell, masked
+  by the prior 3 POSIX cells going red the whole time). Windows passed
+  throughout because its `.txt` registry file IS a regular file. Fix:
+  invert the filter (skip directories; accept regular files + sockets).
+  New regression test `test_discovery_iterates_uds_socket_files`.
+- **`Endpoint.stop()` left accepted-client sockets open.** The listen
+  socket was closed but each per-connection worker held its own accepted
+  socket — workers would keep serving requests that arrived AFTER
+  `stop()` returned, defeating the "stopped server cannot reply"
+  contract verified by `test_send_after_server_stop_raises`. Surfaced
+  on POSIX once the discovery bug above was fixed (was previously
+  masked by the pre-`_wait_for_endpoint` timeout). Fix: track each
+  accepted `Connection` on a per-endpoint list and close them all in
+  `stop()` before joining worker threads.
+
+### Added — Anthropic SDK adapter
+
+Optional companion to rc6 MCP (primary path for Claude Code users). This
+adapter targets users who script Claude API directly outside Claude Code
+(FastAPI servers, Jupyter notebooks, CI pipelines using the `anthropic`
+Python SDK).
+
+- Added: `srmech.llm.anthropic_agent.AnthropicAgent` — builds the tool
+  catalog from `srmech.amsc.tool_schema` ToolEntries, hands to Anthropic
+  SDK, runs the tool_use message-loop, returns final assistant message
+  with per-tool-call MPR attestation transcript.
+- Added: `srmech-agent` console-script entry. `pip install srmech[anthropic]`
+  installs the optional dep + the `srmech-agent` command.
+- Optional dep: `anthropic>=0.40.0`. Default install does NOT add it
+  (zero impact on users who don't need it).
+- The Anthropic tool-name grammar (`^[a-zA-Z0-9_-]{1,64}$`) doesn't admit
+  the dots in srmech dotted names; the adapter swaps `.` ↔ `_` round-trip
+  and keeps a per-instance reverse map so any future tool with an
+  underscore in its name still round-trips unambiguously.
+- Re-uses `srmech.mcp._server.build_attestation` so the MPR envelope
+  per tool call is byte-identical to what the MCP adapter emits for the
+  same (tool, result) pair — same response_sha256 across transports.
+
+For Claude Code users, this rc adds nothing — rc6 `srmech-mcp` is still
+the right path. This rc exists for the user community: anyone scripting
+Claude API outside Claude Code can now use srmech as a tool source with
+the same MPR attestation discipline.
+
+Pure-Python; ABI unchanged at 3. ~20 new tests using mocked
+Anthropic client (no real API calls).
+
+**This completes the v0.5.0 rc walk** (rc1-rc9 all shipped). Awaiting
+user load-test signal before cutting clean v0.5.0 → production PyPI.
+
+### Fixed — MCP tool-schema discoverability gap
+
+- **MCP tool-schema discoverability fix**: `srmech.introspect.list`,
+  `srmech.introspect.by_pid`, `srmech.bus.list_endpoints`, `srmech.bus.by_name`,
+  and `srmech.bus.decode_splice` are now visible to MCP / Claude Code consumers.
+  Root cause: `srmech.mcp._tools` only imported `srmech.amsc.tool_schema` and
+  never triggered the side-effect imports of `srmech.bus._tool_schema` or
+  `srmech.introspect`, so the "status" introspection surface and the bus
+  discovery surfaces were silently missing from the LLM-facing catalog. Fix
+  adds explicit `from .. import bus as _bus` / `from .. import introspect as
+  _introspect` warmup at the top of `mcp/_tools.py` plus two new ToolEntry
+  registrations on each module (introspect: `list`, `by_pid`; bus:
+  `list_endpoints`, `by_name`). Total registered tool count goes from 150 to
+  155 (decode_splice was registered all along — it just wasn't visible
+  through the MCP wrapper because the side-effect import was missing).
+  Six new regression tests in `tests/test_mcp.py` lock the fix in by
+  asserting each tool appears in `get_tool_schema()` after importing
+  `srmech.mcp._tools` (the exact path Claude Code / MCP clients take).
+
+## [0.5.0rc8] - 2026-05-28
+
+**rc8 of N for v0.5.0 — Cascade DSL runner (task #235).**
+
+Fluent `chain()` API + TOML-driven runner + loop/fold/reduce control flow.
+
+- Added: `srmech.dsl` module — `chain(name).then(op).loop(n, sub).fold(init,
+  op).reduce(op).run(input)` fluent composition over the 8 cascade-catalog
+  ops shipped in v0.4.5.
+- Added: TOML cascade-catalog runtime loader — reads the 8 descriptors
+  from `srmech/amsc/_research/cascade_catalog/` and resolves op names to
+  Python entry points (which route to C peers when `HAS_NATIVE`).
+- Added: `srmech dsl run / ops / visualize` CLI subcommands. The `run`
+  subcommand loads a TOML chain spec (`[chain]` + `[[stage]]` array
+  with `op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op`
+  discriminators), executes against `--input` (inline JSON) or
+  `--input-file` (JSON / NDJSON), emits to stdout or `--output-file`.
+- DSL stages emit `dsl.<chain_name>.stage.<N>` events (and a closing
+  `dsl.<chain_name>.complete` event) when introspection publish is
+  active; observable via `srmech status` or `srmech bus tap`.
+- Each builder method (`then` / `loop` / `fold` / `reduce`) validates
+  the op name against the on-disk catalog at chain-construction time
+  (unknown ops raise `ValueError` immediately, not at `run()` time).
+- No new primitive class — loop / fold / reduce are compositions of
+  the existing 14-class A–N vocabulary (loop = Class I cyclic
+  repetition; fold / reduce = Class M accumulator bind).
+
+Completes ADR-0002 Phase 2-v2 (loop/fold/reduce in chain DSL; task #235).
+
+Pure-Python; ABI unchanged at 3. ~30 new tests; full suite ~1644 passing.
+
+Remaining: optional rc9 Anthropic SDK adapter (defer if you don't need
+non-Claude-Code LLM integration).
+
+## [0.5.0rc7] - 2026-05-28
+
+**rc7 of N for v0.5.0 — UTLP Bio-TOTP cipher alignment + tool-schema opt-in
+discoverability.**
+
+Two related fixes per user direction 2026-05-28:
+
+1. **UTLP Bio-TOTP cipher alignment** (Claim 255). rc3 shipped a SHA-256
+   chained-cipher that was structurally related but DIFFERENT from the
+   actual UTLP Bio-TOTP pattern in `examples/utlp/utlp_hal_security.h`.
+   rc7 replaces rc3's `_chain.py` with `_bio_totp.py` implementing the
+   real UTLP construction: key derivation rolls with a 250 ms time bucket
+   (`Key = SHA256(DNA || QuantizedTime)[0:16]`); receiver tolerates ±1
+   window for clock skew; nonce constructed from sender_id + channel_id +
+   packet_seq ("Exon fields"); same code path for unencrypted (ZERO_DNA)
+   and encrypted channels (herd-immunity); kwarg renamed `seed` → `dna`
+   for naming alignment (`seed` still accepted with DeprecationWarning).
+   Default cipher uses stdlib HMAC-SHA-256 keystream (zero new deps);
+   `pip install srmech[crypto]` opts into UTLP-exact AES-128-CTR via
+   the `cryptography` library.
+
+2. **Tool-schema opt-in discoverability**: every emitting op's ToolEntry
+   now mentions inline: "Events emitted only when wrapped in
+   `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var
+   set; otherwise silent." Plus new top-level
+   `srmech.introspect.publish` ToolEntry documenting the opt-in.
+   Discoverable via the MCP adapter (rc6) — LLMs in Claude Code see the
+   opt-in path inline when reading the tool catalog.
+
+OUT OF SCOPE per user direction: UTLP's mesh / multi-arbor / Loom /
+Genesis-election / time-sync layer is embedded-specific and is NOT
+brought over to srmech.bus. srmech.bus is local-IPC only.
+
+Pure-Python; ABI unchanged at 3. ~30 new tests; full suite ~1614 passing.
+
+Remaining v0.5.0 rcs: rc8 DSL runner (task #235), optional rc9 Anthropic
+SDK secondary adapter.
+
+## [0.5.0rc6] - 2026-05-28
+
+**rc6 of N for v0.5.0 — MCP server adapter (Claude Code integration).**
+
+**LOAD-BEARING for the LLM tool-schema endpoint goal** per user direction
+2026-05-28. User is on Claude Code Max plan (no Anthropic API/SDK tier);
+MCP (Model Context Protocol) is the primary LLM integration path.
+
+- Added: `srmech.mcp` module — MCP server exposing `srmech.amsc.tool_schema`
+  ToolEntries (~150) as MCP tools. JSON-RPC 2.0 over stdio (subprocess mode)
+  or HTTP+SSE (cross-process mode).
+- Added: `srmech-mcp` console-script entry. `pip install srmech` now
+  installs both `srmech` and `srmech-mcp` on PATH.
+- Three Claude Code usage modes supported by SAME adapter:
+  1. Pure local stdio subprocess (Claude Code default)
+  2. Cross-terminal observability (long-running sweep + LLM in another
+     terminal connects via `srmech-mcp --bus-endpoint sweep-NAME`)
+  3. Subagent-orchestrated research (subagent runs srmech-mcp; reports
+     back via Claude Code subagent return)
+- Each MCP tool-call response carries MPR attestation (response_sha256 +
+  parser_version + tool_name + timestamp).
+- Inherits rc3 state-chained wire format when proxying via bus
+  (`--bus-endpoint` mode): LLM connections are forward-secure by
+  construction.
+
+Pure-Python; ABI unchanged at 3. ~31 new tests; full suite ~1584 passing.
+
+Composes with: rc4 CLI (`srmech bus tap NAME` can be used to observe
+what tools the LLM is calling); rc5 async wrapper (`srmech-mcp` HTTP+SSE
+uses async).
+
+Remaining v0.5.0 rcs: rc7 DSL runner (task #235), rc8 optional Anthropic
+SDK secondary adapter.
+
+## [0.5.0rc5] - 2026-05-28
+
+**rc5 of N for v0.5.0 — async wrapper for the bus.**
+
+Thin asyncio shim over the sync API via `asyncio.to_thread()`. Covers
+FastAPI/aiohttp/asyncio-native callers without doubling C-peer complexity.
+Sync API remains the SSOT; async is a courtesy wrapper.
+
+- Added: `srmech.bus.aio` module — `AsyncChannel`, `AsyncEndpoint`,
+  `AsyncPipeHandle`, async `connect`, async `serve`, async `list`
+  (alias for `list_endpoints`), async `list_endpoints`, async `pipe`.
+- Handler can be sync OR async; async handlers awaited via
+  `asyncio.run_coroutine_threadsafe` from the sync server's worker thread
+  (handler runs back on the caller's event loop, not in the worker thread).
+- `aio.connect` / `aio.serve` are async context managers (`async with ...`).
+- `subscribe()` returns an async generator (per-`__anext__` worker hop).
+- All encryption/seed/discovery semantics inherited unchanged from sync API.
+
+Pure-Python; ABI unchanged at 3. No native asyncio plumbing in v1 (real
+asyncio-native path via `asyncio.open_unix_connection` can come in v0.5.x
+if a workload demands).
+
+~25 new tests using `asyncio.run(...)` inside sync test functions (no
+`pytest-asyncio` dep added — keeps the test surface light).
+
+## [0.5.0rc4] - 2026-05-28
+
+**rc4 of N for v0.5.0 — `srmech bus` CLI subcommands.**
+
+Adds `list / tap / pipe / send / serve` subcommands to the `srmech`
+console-script entry that was introduced in v0.4.6. Operates the
+v0.5.0 bus from the shell: enumerate endpoints, tail live event
+streams, chain endpoints, one-shot send, test-serve.
+
+- Added: `srmech bus list [--json] [--all]` — active endpoints,
+  ownership-filtered.
+- Added: `srmech bus tap NAME [--seed HEX] [--format json|pretty]
+  [--filter TYPE] [--limit N]` — stream events.
+- Added: `srmech bus pipe SRC DST [--seed-src HEX] [--seed-dst HEX]
+  [--transform PY_EXPR]` — daemon pipe.
+- Added: `srmech bus send NAME EVENT_JSON [--seed HEX] [--timeout S]
+  [--stdin]` — one-shot request.
+- Added: `srmech bus serve NAME [--echo] [--seed HEX] [--seed-mint]
+  [--handler-module PYMOD:func]` — test server.
+
+Pure-Python; ABI unchanged at 3.
+
+~30 new tests via subprocess invocation of the entry point.
+
+## [0.5.0rc3] - 2026-05-28
+
+**rc3 of N for v0.5.0 — state-chained wire format ("biological TOTP-like").**
+
+Per user direction 2026-05-28: same-user-defensive forward-secrecy for bus
+channels. Each frame N's encoding depends on state_{N-1}; receiver must walk
+the chain to decrypt. Pure-Python cipher (SHA-256 keystream + HMAC-SHA256
+integrity); ABI unchanged at 3 (no new C symbols this rc).
+
+Framework reading: Class A + Class I + Class K composed at the wire layer;
+substrate-self-recognition extended to the frame chain.
+
+- Added: `srmech.bus._chain` — `ChainState` (per-direction cipher state),
+  `derive_state`, `decode_splice` (pure-function decoder for tool-schema /
+  LLM introspection). Cipher: `state_0 = sha256(seed || ":" || channel_id
+  || ":" || direction)`; `keystream_N = sha256(state_N || "ks" ||
+  counter_be8 || block_be4)`; `ciphertext_N = plaintext XOR keystream`;
+  `state_{N+1} = sha256(state_N || "st" || ciphertext_N)`; `mac_N =
+  hmac_sha256(state_N || "mac", ciphertext || counter_be8)[:16]`. Domain-
+  separation tags (`"ks"` / `"st"` / `"mac"`) defend against
+  keystream / state-advance / MAC-key cross-contamination.
+- Added: `srmech.bus._tool_schema` — registers `srmech.bus.decode_splice`
+  as a `ToolEntry` for LLM consumption (load-bearing for rc5 MCP adapter;
+  LLMs can introspect the cipher).
+- Added: `srmech.bus._seed` — seed-resolution cascade module
+  (`resolve_client_seed` / `resolve_server_seed` / `mint_and_write_seed` /
+  `discard_seed_file`). Three sources, in priority order: explicit kwarg
+  → `SRMECH_BUS_SEED` env var → `~/.srmech/bus-{name}.seed` 0o600 file.
+- Changed: `connect(name, seed=...)` and `serve(name, seed=...,
+  handler=...)` accept an optional pre-shared seed. When seed is set (via
+  any of the three sources), the wire is encrypted; when None, the wire
+  is unencrypted (full rc2 back-compat). The server auto-writes the
+  resolved seed to the discovery file so subsequent clients on the same
+  machine can find it (suppressible via `_seed.resolve_server_seed(...,
+  write_discovery_file=False)`).
+- Added: per-direction `ChainState` discipline — each connected `Channel`
+  (client) and each accepted worker (server) carries TWO independent
+  chain states (send + recv), keyed with direction tags `"out"` / `"in"`
+  so the two halves of the duplex never share a keystream. Concurrent
+  client connections each get their own chain pair derived at accept
+  time — no shared mutable state across simultaneous clients.
+- Added: per-frame envelope on the wire body — `[16-byte mac][8-byte
+  counter_be][ciphertext]`. Tampered frame raises `MacMismatchError`
+  (constant-time `hmac.compare_digest` verification); replayed or
+  reordered frame raises `CounterReplayError`. Short body raises
+  `ChainFormatError`.
+- Added: `Channel.encrypted` / `Endpoint.encrypted` properties — query
+  whether a particular bus surface is running the cipher.
+- Tests: ~30 new tests under `tests/test_bus.py` covering chain
+  encrypt/decrypt round-trip, MAC mismatch detection, counter replay
+  rejection, seed-mismatch behaviour at the channel layer, unencrypted
+  back-compat preserved, tool-schema `decode_splice` introspection,
+  end-to-end via `serve()+connect()` with seed, seed-file priority
+  cascade, direction-tag keystream disjointness.
+
+Threat model: defensive against same-user processes that didn't initiate
+the channel. NOT designed for active local attackers (would need DH key
+establishment + AEAD; deferred to v0.5.x or v0.6.0 if needed). Honest
+scope: a co-resident process that can read the discovery file at rest
+(no kernel-isolation; 0o600 is only file-perm-level) can decrypt; the
+defence is structural ("you weren't part of the chain since state_0").
+
+## [0.5.0rc2] - 2026-05-28
+
+**rc2 of N for v0.5.0 — C peer + real Windows named pipe + envelope fixes.**
+
+Per user direction 2026-05-28 (continuation of the rc1 dispatch): three
+changes folded into one rc — the bus C peer for sub-µs native dispatch
+(when both ends opt in), real Windows named pipes via Win32 ctypes
+(no `pywin32` dependency), and two envelope bugs from the rc1 cross-
+process smoke that silently dropped handler-returned keys and
+over-restricted client `payload` schema.
+
+- Added: `srmech_bus_*` C symbols — `srmech_bus_serve`,
+  `srmech_bus_server_accept_one`, `srmech_bus_server_stop`,
+  `srmech_bus_connect`, `srmech_bus_send_recv`,
+  `srmech_bus_client_close` — plus the function-pointer typedef
+  `srmech_bus_handler_callback_t`. JPL-clean POSIX (AF_UNIX) +
+  Windows (CreateNamedPipe via Win32, no pywin32 dep). Workspace
+  allocated once per server at `srmech_bus_serve`; reused across
+  every accepted connection (no allocation in the hot path; JPL
+  Rule 3 honored via cold-path-only allocation allowance). **ABI
+  bump 2 → 3** (the new function-pointer typedef carries a wire-
+  format implication for the Python ctypes CFUNCTYPE construction).
+- Added: Python ctypes binding `srmech.amsc._native.BUS_HANDLER_CALLBACK`
+  + bindings for all six new C symbols (hasattr-guarded so a stale
+  rc1 lib falls through cleanly to the Python-only path).
+- Added: `srmech.bus._transport.NamedPipeTransport` + the
+  `_SafeNamedPipeServerTransport` wrapper that auto-falls-back to
+  TCP-loopback on `CreateNamedPipeW` failure (rare; for sandboxed
+  test environments). Default Windows transport remains TCP-loopback
+  for rc2; opt-in to the named-pipe path via
+  `SRMECH_BUS_USE_NAMED_PIPE=1`. (The named-pipe accept loop on
+  Windows 10 / Python 3.14 exhibited a Connect/accept-ordering
+  regression under `multiprocessing.spawn` — the first
+  `ConnectNamedPipe` completed without a corresponding client
+  `CreateFileW`, leaving the worker reading from a phantom
+  connection; the rc2 commit message documents the investigation;
+  not yet root-caused. The C peer + Python ctypes infrastructure
+  are in place for a later rcN to flip the default once the
+  Connect/accept race is understood.)
+- Added: discovery registry token now accepts `pipe \\.\pipe\srmech-{name}`
+  (rc2 named-pipe servers) in addition to `tcp 127.0.0.1 <port>`
+  (rc1 fallback / locked-down environments).
+  `_endpoint_alive_named_pipe` probes via `WaitNamedPipeW` (which
+  does not consume a pipe instance per Microsoft docs).
+- Fixed: handler return-shape now correctly passes the full handler
+  dict through as the response Event's `payload` (rc1 was silently
+  aliasing `payload` to `handler_result.get("payload")` and dropping
+  every other key). A handler returning
+  `{"type": "pong", "echo": ..., "server_pid": ...}` now delivers
+  all three keys to the client end-to-end. The `type` discriminator
+  is also retained inside the payload for client-side inspection.
+  Handler contract documented in `_server.py:_normalise_response`.
+- Fixed: client `Channel.send()` no longer requires `payload` to be
+  a dict. Any JSON-serialisable value is accepted (string, list,
+  number, bool, `None`, dict). `json.dumps` raises at the canonical
+  serialisation boundary on truly non-serialisable inputs. Matches
+  standard JSON conventions; supports e.g. `{"type": "ping",
+  "payload": "echo-me"}` and `{"type": "metrics", "payload": [1, 2, 3]}`.
+- Fixed: handlers receive `payload` of the original JSON type
+  (string / list / number / dict / None), not coerced. Server's
+  `_event_to_dict` no longer wraps non-dict payloads as
+  `{"value": ...}`.
+- Changed: handlers without a `type` key in their return dict now
+  default to discriminator `"ok"` (rc1 defaulted to `"_response"`;
+  the rc2 default matches the spec's "type=ok default" idiom).
+- Changed: handler exceptions yield `{"type": "_error", "reason": ...,
+  "traceback": ...}` (rc1 nested these inside `payload` which the
+  Bug-1 fix obviated; the rc2 error envelope is flat and the full
+  dict still passes through as the response payload per the new
+  contract).
+- Tests: ~13 new tests covering Bug-1 (handler full-dict pass-through),
+  Bug-2 (any-JSON-payload), ABI v3 verification, native C-peer
+  symbol presence, BUS_HANDLER_CALLBACK CFUNCTYPE constructibility.
+  Total bus test count 49 → 62; full suite 1453 → 1457 passing.
+- JPL audit: `srmech_bus.c` opted into `RULE_3_COLD_PATH_FILES`
+  (cold-path-only allocation; no malloc in accept loop or per-
+  request worker). Seven small bus low-level helpers added to
+  `RULE_5_EXEMPT_FUNCTIONS` per the established static-internal-
+  trivial-wrapper pattern. Rule 4 / Rule 8 / Rule 1 all clean
+  without exemption.
+
+Remaining v0.5.0 rcs: rc3 state-chained wire format (per user
+direction 2026-05-28 — TOTP-like rolling cipher with srmech-provided
+`decode_splice` via tool-schema; same-user-defensive forward
+secrecy), rc4 CLI, rc5 async wrapper, rc6 MCP adapter (Claude Code
+integration), rc7 DSL runner, rc8 optional Anthropic SDK adapter.
+
+## [0.5.0rc1] - 2026-05-28
+
+**rc1 of N for v0.5.0 — `srmech.bus` Python skeleton.**
+
+Per user direction 2026-05-28: a cross-process bus over Unix-domain-sockets
+(POSIX) and Windows-named-pipes / TCP-loopback fallback (Windows), TLV-framed,
+MPR-NDJSON payloads, bidirectional req/rep + pub/sub. End-goal: srmech/siona
+processes (and Claude Code via MCP, rc5) compose across process boundaries.
+
+Framework reading: Class M ∘ Class B ∘ Class A extended to the OS-process-class
+boundary. Class H introspection (v0.4.6) is the unidirectional read-only special
+case of the bus.
+
+- Added: `srmech.bus` module — `serve()`, `connect()`, `list()`, `pipe()`,
+  `Endpoint`, `Channel`, `Event`. Sync API. Pure Python (no C peer yet —
+  that's rc2; ABI unchanged at 2).
+- Transport: POSIX Unix domain sockets at `~/.srmech/bus-{name}.sock`
+  (permissions `0o600`) + Windows TCP-loopback fallback with a registry
+  file at `~/.srmech/bus-{name}.txt` recording the kernel-assigned port.
+  Real named-pipes via ctypes is the rc2 target; the rc1 fallback keeps
+  the wire protocol identical so the rc2 swap is transport-only.
+- Framing: 4-byte length-prefix TLV; payload is JSON-encoded MPR-shaped
+  `Event` (mpr_version + type + payload + attestation + correlation_id).
+- Discovery: `~/.srmech/bus-{name}.sock` (POSIX) / `~/.srmech/bus-{name}.txt`
+  registry (Windows). Same ownership-filter as introspect — no `top` /
+  `ps` / `Get-Process` needed.
+- Req/rep: client `send()` issues a fresh UUID correlation-id and blocks
+  for the matching reply; server handler returns a dict (response) or
+  `None` (fire-and-forget).
+- Pub/sub: server `Endpoint.broadcast()` fans out to every connected
+  subscriber; client `Channel.subscribe()` yields broadcast events.
+  Drop-newest / drop-oldest backpressure policies (server / client).
+- Daemon pipe: `pipe(source, sink, transform=...)` composes two endpoints.
+- Off by default; importing `srmech.bus` binds nothing.
+- ~30-40 new parity tests; full suite passes.
+
+Remaining v0.5.0 rcs queued: rc2 (C peer + ctypes Windows-named-pipe),
+rc3 (CLI), rc4 (async wrapper), rc5 (MCP server adapter for Claude Code),
+rc6 (DSL runner consuming bus), rc7 (optional Anthropic SDK adapter).
+
+## [0.4.6] - 2026-05-28
+
+**Clean ship — two-arc v0.4.6 closed (PyPI description SO(8) refresh + out-of-band introspection).**
+
+PyPI metadata refresh leads with substrate-native 28-dim chiral hyper-loop = 𝔰𝔬(8) adjoint framing (per user 2026-05-28 *"strip MVP false things"*). NEW public surface: srmech is now installable as a **console-script binary** — `pip install srmech` puts `srmech` on PATH for the first time, with one subcommand `srmech status` providing out-of-band introspection of running srmech sweeps.
+
+**rc1 (TestPyPI verified)**: PyPI `description` field rewritten. 502 chars; both pyproject + pyproject-pure identical. Leads with 28D = 𝔰𝔬(8) adjoint framing.
+
+**rc2 (TestPyPI verified incl. CLI on PATH + live publish/status/auto-cleanup)**:
+- Added: `srmech.introspect` module — `publish()` context manager; `list()` enumerates active runs (filters by file ownership; no `top`/`ps`/`Get-Process` needed); `by_pid(N).follow()` streams events; frozen `Run` + `Event` dataclasses (MPR-shaped; attestable).
+- Added: `srmech status [--pid N] [-f]` CLI subcommand + `pip install srmech` → `srmech` console-script on PATH (NEW public surface).
+- Added: `SRMECH_PUBLISH_STATUS=1` env var auto-activates publish process-wide.
+- File backend: `~/.srmech/run-{pid}-{start_time_ns}.ndjson` (start_time_ns defeats PID recycling).
+- Off by default; off-path emit check ≈174ns; on-path emit ≈76µs (json+file write+flush).
+- Cross-platform Linux/macOS/Windows (POSIX `os.kill(pid, 0)`; Windows ctypes `OpenProcess` — no pywin32 dep). Pyodide degrades cleanly.
+- 35 new tests in `test_introspect.py`; full suite 1392 passing.
+
+**Framework reading**: introspection IS Class H (self-introspection) extended across the OS-process boundary; the running process IS the spatial manifold, the introspection API IS its algebraic projection. The "srmech calls itself" extension composes with Spike #219 / MFO §VII.6.11 substrate-self-recognition cascade.
+
+**ABI**: unchanged at 2 (no C changes; pure Python module).
+
+## [0.4.6rc2] - 2026-05-28
+
+**Out-of-band introspection — talk-to-running-PID API.** Per user
+direction 2026-05-28: srmech now exposes its internal current state
+over a file-based API. Long-running sweeps (30 min to hours) become
+observable from a second process without monkey-patching, GDB attach,
+or `top` / `ps` polling. Substrate-self-recognition extended across
+the OS-process boundary (the framework reading: Class H at PID level).
+
+- Added: `srmech.introspect` module — `publish()` context manager;
+  `list()` enumerates active runs (filters by file ownership; no `top`
+  needed); `by_pid(N).follow()` streams events; `Run` + `Event` frozen
+  dataclasses.
+- Added: `srmech status [--pid N] [-f]` CLI subcommand. Also wired
+  `python -m srmech status ...` via `srmech/__main__.py` and the
+  `[project.scripts]` console-script `srmech = "srmech.cli:main"` in
+  both pyprojects.
+- Added: `SRMECH_PUBLISH_STATUS=1` env var auto-activates publish.
+- File backend: `~/.srmech/run-{pid}-{start_time_ns}.ndjson`
+  (start_time_ns defeats PID recycling). MPR-shaped events (re-uses
+  srmech.amsc.format envelope — introspection is itself attestable).
+- Off by default; zero cost when not used. Emit hooks at cascade-op
+  (all 8 ops in `srmech.amsc.cascade`) + AMSC-fetch (`adapters._base.run`)
+  + signal-processing (`cascade_dispatcher.dispatch` + RBS-HDC
+  encode/decode/similarity boundaries) are no-ops without publish.
+- Auto-cleanup: `list()` checks `os.kill(pid, 0)` (POSIX) / Win32
+  `OpenProcess` (Windows); removes orphan files; reports dead PIDs as
+  "died" with the last event's data preserved in the returned Run.
+- ~30 new parity tests (`tests/test_introspect.py`). Tier 1
+  (status-file) ships; Tier 2 (mmap ring buffer for >1k events/sec)
+  deferred until an op proves it needs it.
+- Cross-platform: Linux/macOS/Windows. Pyodide degrades cleanly.
+
+ABI unchanged at 2 (no C changes; pure Python module).
+
+## [0.4.6rc1] - 2026-05-28
+
+**PyPI metadata refresh — leads with SO(8) 28D framing.** Description-only
+change; no code, no test, no ABI delta. Reason: the prior v0.4.5 PyPI
+description listed the 14-class primitive vocabulary without ever
+mentioning that the substrate the vocabulary instantiates is the 28-dim
+chiral hyper-loop = 𝔰𝔬(8) adjoint (14 𝔤₂ derivations + 14 L⊕R
+octonion-multiplications; Spin(8) triality) — out of step with the
+docs/RTD MFO/substrate-native blocks updated in PR #698 + the v0.4.5
+cascade-catalog C-parity arc that made the 28D substrate hardware-
+callable. Per user 2026-05-28 ("strip MVP false things"), refreshed.
+
+- Changed: `pyproject.toml` + `pyproject-pure.toml` `description` field —
+  leads with "substrate-native 28-dim chiral hyper-loop = so(8) adjoint
+  (14 g_2 derivations + 14 L+R octonion-multiplications; Spin(8) triality)
+  made hardware-callable"; keeps the 14-class vocabulary enumeration for
+  PyPI search; mentions cascade-catalog C/Python parity (v0.4.5 arc).
+  502 chars, both files identical.
+- Version: 0.4.5 → 0.4.6rc1 across 5 SSOTs + version-pin test rename.
+
+rc1 → TestPyPI; clean v0.4.6 follows after verify on the project page.
+
+## [0.4.5] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — ARC CLOSED.**
+Clean ship after rc1-rc8 sequence. All 8 cascade catalog ops now have
+full C/Python parity (10 C symbol families total) plus declarative TOML
+descriptors under `srmech/amsc/_research/cascade_catalog/`. Corrects the
+v0.4.3rc6 + v0.4.4rc1 carve-out that shipped cascade ops Python-only.
+
+**Cascade C peers added (one per rc):**
+- rc1 `srmech_cascade_chiral_flip_i64` + `_f64` — Class C orientation reversal (sequence in/out; in-place safe).
+- rc2 `srmech_cascade_pin_slot_at_zero_f64` — Class K pin-slot (scalar in / orientation+magnitude out via output pointers; NaN→dead-band).
+- rc3 `srmech_cascade_magnitude_f64` — Class K magnitude-only (scalar in/out; explicit 3-branch impl preserving NaN→0.0 parity).
+- rc4 `srmech_cascade_reorient_i64` + `_f64` — Class C re-application (two-arg shape; type-preserving; INT64_MIN guarded).
+- rc5 `srmech_cascade_net_chirality_i8` — Class C net handedness (sequence in / scalar out; empty→+1; first zero short-circuits to 0).
+- rc6 `srmech_cascade_cyclic_gcd_u64` — Class I cascade-namespace wrapper (delegates to existing `srmech_gcd` primitive).
+- rc7 `srmech_cascade_best_rational_signed_f64` — multi-class K∘N∘C cascade (delegates Class N to `srmech_best_rational`; banker's rounding via llrint() for Python parity).
+- rc8 `srmech_cascade_chiral_dual_f64` — HIGHER-ORDER (callback ABI via `srmech_cascade_op_callback_f64_t` typedef; caller-allocated workspace per JPL Rule 3; delegates inner+outer chiral_flip to rc1 native peer).
+
+**Added:**
+- 8 TOML cascade-catalog entries under `srmech/amsc/_research/cascade_catalog/` documenting each cascade's class composition, native symbol, attestation, and (where applicable) `[cascade.delegates_to]` / `[cascade.composes]` / `[cascade.higher_order]` / `[cascade.callback_marshaling]` / `[cascade.rounding]` / `[cascade.boundary_cases]` sections.
+- New public C typedef `srmech_cascade_op_callback_f64_t` for higher-order callback ABI.
+- ~150 new parity tests across all 8 ops (covering int / float / numpy / NaN / Inf / dead-band / banker's-rounding boundary / callback exception propagation / etc).
+
+**Changed:**
+- `srmech.amsc.cascade` module docstring: removed "no dedicated C symbol" carve-out clause; added "Full C/Python parity" discipline statement.
+- README.md cascade-catalog section: stripped "no dedicated C symbol" carve-out per user directive 2026-05-28 ("strip MVP false things from our presence"); added "Each cascade ships with a dedicated C symbol in libsrmech (full C/Python parity per project discipline)" statement; per-op annotations updated with C-peer rc references.
+- All 8 cascade Python entry points now dispatch through native when input shape matches the typed C variant; Python fallback retained for shapes the C ABI doesn't cover (strings, mixed types, out-of-int64 bigints, generators, etc).
+
+**Discipline preserved:**
+- ABI unchanged at 2 throughout (all rcs were additive symbols + one additive typedef).
+- JPL Power-of-Ten 6/6 audit clean across the entire arc (≥2 asserts per non-exempt function, ≤60-line functions, no malloc inside libsrmech, no goto, bounded loops).
+- No `abs()` in cascade Python (sign-handling via canonical Class K pin-slot + Class C re-orientation cascade).
+- No new `hashlib.sha256(...)` direct calls (route through `format.sha256_bytes`).
+- 1360 test suite all passing.
+
+## [0.4.5rc8] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — chiral_dual**
+(rc8 of 8; HIGHER-ORDER callback ABI; **CLOSES THE ARC**). After this
+ship all 8 cascade catalog ops have full C/Python parity + TOML
+descriptors. The carve-out corrections begun in v0.4.5rc1 are complete.
+
+`chiral_dual` is the ONLY higher-order cascade op in the catalog — it
+takes a callable `op` as input and conjugates it with Class C
+orientation reversal: `chiral_flip(op(chiral_flip(x)))`. The C peer
+uses a function-pointer callback ABI (Option A) rather than a
+Class-ID enum dispatch (Option B); Option B would have restricted
+`chiral_dual` to known A-N srmech ops, breaking the cascade-catalog
+public API contract that `op` can be any callable.
+
+- Added: `srmech_cascade_chiral_dual_f64` C symbol (higher-order;
+  callback ABI via `srmech_cascade_op_callback_f64_t` typedef;
+  caller-allocated workspace per JPL Rule 3; delegates the Class C
+  inner+outer chiral_flip to the rc1 native peer). ABI unchanged at 2.
+- Added: `srmech_cascade_op_callback_f64_t` public typedef in
+  `srmech.h` (callback signature for higher-order cascade ops).
+- Added: `_research/cascade_catalog/chiral_dual.toml` — eighth and
+  final TOML cascade-catalog entry with `[cascade.higher_order]` +
+  `[cascade.callback_marshaling]` + `[cascade.design_choice]`
+  sections documenting the callback ABI + the Option A vs Option B
+  design decision.
+- Added: `tests/test_cascade_chiral_dual_parity.py` — parity across
+  identity / negation / non-trivial / ndarray / empty / singleton /
+  random sweep / Python exception propagation / wrong-length-output
+  guard / mixed-type fallback / string fallback / non-callable op
+  fallback.
+- Added: `CASCADE_OP_CALLBACK_F64` ctypes CFUNCTYPE exposed at
+  `srmech.amsc._native` module scope (mirrors the C typedef
+  `srmech_cascade_op_callback_f64_t`) so the Python dispatch can
+  construct callback instances without reaching into the library-
+  binding closure.
+- Changed: `srmech.amsc.cascade.chiral_dual` dispatches through native
+  for homogeneous float64 sequences (list / tuple / 1-D ndarray);
+  Python fallback retained for strings, mixed-type sequences, non-
+  callable ops, multi-arg ops, etc. Python exceptions raised by the
+  op callback propagate correctly through the trampoline (never
+  silently swallowed).
+
+Cascade-catalog C-parity + TOML retrofit arc CLOSED at rc8. All 10
+cascade C symbol families exported (chiral_flip i64+f64,
+pin_slot_at_zero f64, magnitude f64, reorient i64+f64, net_chirality
+i8, cyclic_gcd u64, best_rational_signed f64, chiral_dual f64). Ready
+for clean v0.4.5 ship to production PyPI.
+
+## [0.4.5rc7] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — best_rational_signed**
+(rc7 of N; multi-class K∘N∘C cascade with delegation to existing Class N
+primitive). PLUS: README full-feature update strips residual "no
+dedicated C symbol" carve-out language per user directive 2026-05-28
+(*"strip MVP false things from our presence"*).
+
+best_rational_signed is the SECOND of the delegating cascade ops in
+this arc (after cyclic_gcd / rc6). The C peer composes three A–N stages:
+Class K pin-slot (sign-strip) inlined + Class N best-rational anchor
+delegated to the existing `srmech_best_rational` primitive + Class C
+re-orientation (sign re-apply on the numerator) inlined. The multi-
+stage delegation pattern generalises rc6's single-class delegation
+pattern to the multi-stage case.
+
+Banker's-rounding parity (load-bearing): Python's built-in round() uses
+round-half-to-even (banker's rounding); C99 round() uses round-half-
+AWAY-from-zero. The C peer uses `llrint()` under the default IEEE-754
+FE_TONEAREST mode (= round-half-to-even) for bit-exact parity with
+Python's round() at the .5 boundary.
+
+- Added: `srmech_cascade_best_rational_signed_f64` C symbol (JPL-clean;
+  multi-stage K∘N∘C cascade; Class K + Class C stages inlined; Class N
+  delegated to existing `srmech_best_rational` primitive; banker's
+  rounding via `llrint()` for Python parity). ABI unchanged at 2
+  (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/best_rational_signed.toml`
+  — seventh TOML cascade-catalog entry with `[cascade.composes]` /
+  `[cascade.delegates_to]` / `[cascade.rounding]` sections documenting
+  the multi-stage composition + the IEEE-754 rounding-mode choice.
+- Added: `tests/test_cascade_best_rational_signed_parity.py` — parity
+  across basic positives / basic negatives / origin / sub-dead-band /
+  NaN / tiny / large / custom kwargs / invalid kwargs / random sweep /
+  banker's-rounding boundary (load-bearing — confirms llrint() vs C99
+  round() distinction holds at the .5 boundary).
+- Changed: `srmech.amsc.cascade.best_rational_signed` dispatches through
+  native for pure-Python `float` `x` + Python `int` kwargs (not bool)
+  in int64 range; Python fallback retained for numpy scalars, Decimal,
+  larger-than-int64 kwargs, and any other shape the strict native ABI
+  doesn't cover. The pre-rc7 ValueError-on-invalid-kwargs public API
+  is preserved exactly (native path skips on invalid kwargs and falls
+  through to the Python path which raises with the proper message).
+- Changed: README cascade-catalog section corrected — removed "no
+  dedicated C symbol" carve-out; added "Each cascade ships with a
+  dedicated C symbol in libsrmech (full C/Python parity)" discipline
+  statement; per-op annotations updated with C-peer rc references
+  (rc1-rc7; rc8 chiral_dual queued).
+
+Remaining: rc8 chiral_dual (higher-order; callback ABI design — closes
+the arc). After rc8: clean v0.4.5 ship to production PyPI.
+
+## [0.4.5rc6] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — cyclic_gcd**
+(rc6 of N; FIRST of the delegating cascade ops).
+
+cyclic_gcd is a pure-delegation cascade — the cascade-catalog entry IS
+the Class I primitive (Euclid gcd; `srmech_gcd`). Per the user's
+*"delegate to A-N C peers; cascade-level C wrapper + TOML"* directive,
+this rc ships a thin cascade-namespace wrapper that internally calls
+the existing Class I C primitive, plus a TOML descriptor with a
+`[cascade.delegates_to]` section documenting the delegation.
+
+- Added: `srmech_cascade_cyclic_gcd_u64` C symbol — cascade-namespace
+  wrapper that delegates to the existing Class I primitive
+  `srmech_gcd`. uint64 inputs / uint64 output via pointer, mirroring
+  the Class I primitive's signature exactly. ABI unchanged at 2
+  (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/cyclic_gcd.toml` —
+  sixth TOML cascade-catalog entry with `[cascade.delegates_to]`
+  documenting the Class I primitive linkage (cascade-as-named-pattern
+  vs primitive-class operation).
+- Changed: `srmech.amsc.cascade.cyclic_gcd` dispatches through the
+  cascade-namespace wrapper for `(int, int)` inputs in the uint64
+  range; Python fallback (which itself routes to the Class I primitive
+  via `srmech.amsc.cyclic.gcd`) covers bool, negative, and
+  out-of-uint64 bigint inputs. The public API is unchanged: negative
+  inputs and bigints still raise `ValueError` via the Python ref.
+
+Remaining 2 cascade ops queued: best_rational_signed (multi-class
+K∘N∘C cascade), chiral_dual (higher-order; callback ABI design).
+
+## [0.4.5rc5] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — net_chirality**
+(rc5 of N; LAST of the simple pure-Python cascade ops in this arc).
+
+- Added: `srmech_cascade_net_chirality_i8` C symbol (JPL-clean; sequence
+  in / scalar out via output pointer; empty input → +1; zero-element
+  short-circuits to 0; bounded loop). ABI unchanged at 2.
+- Added: `srmech/amsc/_research/cascade_catalog/net_chirality.toml` —
+  fifth TOML cascade-catalog entry with boundary-cases section.
+- Changed: `srmech.amsc.cascade.net_chirality` dispatches through native
+  for list[int] / tuple[int] / 1-D int ndarrays where every element
+  fits int8; Python fallback covers generators, bool elements (False
+  == 0 short-circuits via Python iteration), out-of-int8 values, mixed
+  types.
+
+Remaining 3 cascade ops queued: cyclic_gcd (delegates to existing
+Class I C peer), best_rational_signed (multi-class K∘N∘C cascade),
+chiral_dual (higher-order; callback ABI design).
+
+## [0.4.5rc4] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — reorient**
+(rc4 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_reorient_i64` + `srmech_cascade_reorient_f64`
+  C symbols (JPL-clean; two-arg shape: int8 orientation x scalar value;
+  type-preserving int/float dispatch; IEEE-754 negation semantics for
+  f64). ABI unchanged at 2 (additive symbols).
+- Added: `srmech/amsc/_research/cascade_catalog/reorient.toml` — fourth
+  TOML cascade-catalog entry with native-symbol mapping + INT64_MIN
+  boundary-case documentation + attestation.
+- Changed: `srmech.amsc.cascade.reorient` now dispatches through native
+  for `int8 orientation x int64 value` or `int8 orientation x float64
+  value`; Python fallback retained for numpy scalars, ndarrays,
+  lists, mixed types, bool orientation, out-of-int64 values, and
+  INT64_MIN guard (avoids overflow).
+- Added: `tests/test_cascade_reorient_parity.py` — parity across int /
+  float / numpy / list / NaN / +/-Inf / INT64_MIN guard / out-of-int64
+  fallback / bool orientation / out-of-int8 orientation / random
+  sweeps.
+
+Remaining 4 cascade ops queued: net_chirality, cyclic_gcd,
+best_rational_signed, chiral_dual.
+
+## [0.4.5rc3] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — magnitude**
+(rc3 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_magnitude_f64` C symbol (JPL-clean; scalar
+  f64 in / out via output pointer; NaN maps to dead-band 0.0
+  matching Python ref). ABI unchanged at 2 (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/magnitude.toml` —
+  third TOML cascade-catalog entry with native-symbol mapping +
+  attestation + explicit composes-from-pin_slot_at_zero declaration.
+- Changed: `srmech.amsc.cascade.magnitude` now dispatches through
+  native for pure-Python `float` inputs; Python fallback composes
+  `pin_slot_at_zero(x)[1]` (which itself dispatches native for
+  floats via rc2) for `int` / numpy-scalar / other numeric types.
+- Added: `tests/test_cascade_magnitude_parity.py` — parity across
+  int / float / 0.0 / -0.0 / NaN / Inf / small / large / bool /
+  random sweep + composition equivalence with pin_slot_at_zero.
+
+Remaining 5 cascade ops queued: reorient, net_chirality, cyclic_gcd,
+best_rational_signed, chiral_dual.
+
+## [0.4.5rc2] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — pin_slot_at_zero**
+(rc2 of N; continues the carve-out correction started in rc1).
+
+- Added: `srmech_cascade_pin_slot_at_zero_f64` C symbol (JPL clean;
+  scalar in / (int8 + double) out via output pointers; NaN maps to
+  the dead-band matching Python's reference behaviour). ABI unchanged
+  at 2 (additive symbol).
+- Added: `srmech/amsc/_research/cascade_catalog/pin_slot_at_zero.toml`
+  — second TOML cascade-catalog entry with native-symbol mapping +
+  attestation.
+- Changed: `srmech.amsc.cascade.pin_slot_at_zero` now dispatches
+  through native for `float` inputs; Python fallback retained for
+  `int` and other numeric types (preserves the int-in / int-magnitude-
+  out type contract).
+- Added: `tests/test_cascade_pin_slot_at_zero_parity.py` — parity
+  tests across int / float / 0.0 / -0.0 / NaN / Inf / small / large.
+
+Remaining 6 cascade ops queued: magnitude, reorient, net_chirality,
+cyclic_gcd, best_rational_signed, chiral_dual.
+
+## [0.4.5rc1] - 2026-05-28
+
+**Cascade-catalog C/Python parity + TOML retrofit — chiral_flip** (carve-out
+correction). The v0.4.3rc6 + v0.4.4rc1 cascade-catalog ships codified a
+carve-out from the project's full-C-parity discipline by shipping cascade
+ops as Python-only compositions with no C symbols and no TOML descriptors.
+This rc begins the correction by retrofitting chiral_flip with both. The
+remaining seven cascade ops will follow in subsequent rcs.
+
+- Added: `srmech_cascade_chiral_flip_i64` + `srmech_cascade_chiral_flip_f64`
+  native C symbols (JPL Power-of-Ten clean; in-place safe; ≥2 asserts;
+  bounded loops; no malloc). ABI unchanged at 2 (additive symbol, not a
+  wire-format change).
+- Added: `srmech/amsc/_research/cascade_catalog/chiral_flip.toml` — first
+  TOML cascade-catalog entry with native-symbol mapping + attestation.
+- Changed: `srmech.amsc.cascade.chiral_flip` now dispatches through native
+  when input is `list[int]` / `list[float]` / `ndarray[int64|float64]`;
+  Python fallback retained for string / tuple / mixed-type inputs.
+- Changed: module docstring corrected — removed the "no dedicated C symbol"
+  carve-out sentence; added "full C/Python parity" discipline statement.
+- Added: `tests/test_cascade_chiral_flip_parity.py` — C/Python parity tests
+  for int64, float64, list, tuple, ndarray, empty, singleton, odd-length.
+
+Remaining 7 cascade ops queued for subsequent rcs in this v0.4.5 line.
 
 ## [0.4.4] - 2026-05-28
 

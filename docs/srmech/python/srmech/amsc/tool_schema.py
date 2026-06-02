@@ -82,6 +82,30 @@ else:  # pragma: no cover  (py3.10 only)
 # ──────────────────────────────────────────────────────────────────────
 TOOL_SCHEMA_VERSION: str = "1.0"
 
+#: Inline discoverability note (v0.5.0rc7) appended to the ``summary``
+#: of every emitting op's ToolEntry. Surfaces the opt-in path through
+#: ``srmech.introspect.publish`` / ``SRMECH_PUBLISH_STATUS`` so the
+#: MCP-adapter-facing tool catalog (rc6) tells the LLM where to flip
+#: emission on. Without this opt-in, all srmech operations are silent
+#: (zero overhead in the off-path).
+PUBLISH_OPT_IN_NOTE: str = (
+    " Events emitted only when wrapped in `srmech.introspect.publish()` "
+    "or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent."
+)
+
+#: RESOLVED in v0.5.0rc16. This was the reason stamped on the 7
+#: ``srmech.spectral.*`` ToolEntries marked ``mcp_callable=False`` in rc15
+#: (their surface is a bare ``SpectralHandle`` / ``SpectralHandle | bytes``
+#: opaque handle JSON-RPC cannot carry by value). rc16 ships the
+#: by-reference id grammar (``$srmech_handle`` envelope + :mod:`srmech._handles`
+#: registry), so all 7 are now ``mcp_callable=True`` and this constant is no
+#: longer applied to any entry. Retained (unused) for changelog/history
+#: legibility; safe to delete in a later release.
+_SPECTRAL_HANDLE_PENDING_REASON: str = (
+    "handle-pending (resolved in rc16): by-reference SpectralHandle id now "
+    "rides as the $srmech_handle envelope via srmech._handles."
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Error types
@@ -147,6 +171,21 @@ class ToolEntry:
     returns: Optional[ToolReturn] = None
     smoke_test_hint: Optional[Dict[str, Any]] = None
     example: Optional[Dict[str, Any]] = None
+    #: v0.5.0rc15 — whether this tool is actually invocable across the
+    #: JSON-RPC / Anthropic boundary. Default ``True`` (back-compat: every
+    #: pre-rc15 ToolEntry stays callable). Set ``False`` for tools whose
+    #: param/return types are an opaque in-process handle that JSON cannot
+    #: carry by value (the 7 ``srmech.spectral.*`` tools whose surface is a
+    #: bare ``SpectralHandle`` / ``SpectralHandle | bytes`` — rc14 left
+    #: their coercion as an ``_identity`` pass-through, which the static
+    #: ``has_coercer`` ratchet could not distinguish from a real handler).
+    #: A ``False`` entry STAYS in ``get_tool_schema().tools`` for
+    #: introspection but is EXCLUDED from the advertised MCP ``tools/list``
+    #: + Anthropic catalogs so an LLM is never offered an uncallable tool.
+    mcp_callable: bool = True
+    #: Human-readable reason a tool is ``mcp_callable=False`` (surfaced to
+    #: introspection consumers). ``None`` for callable tools.
+    mcp_unavailable_reason: Optional[str] = None
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -157,6 +196,7 @@ class ToolEntry:
             "category": self.category,
             "summary": self.summary,
             "parameters": [asdict(p) for p in self.parameters],
+            "mcp_callable": self.mcp_callable,
         }
         if self.returns is not None:
             out["returns"] = asdict(self.returns)
@@ -164,6 +204,8 @@ class ToolEntry:
             out["smoke_test_hint"] = dict(self.smoke_test_hint)
         if self.example is not None:
             out["example"] = dict(self.example)
+        if self.mcp_unavailable_reason is not None:
+            out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
         return out
 
 
@@ -195,6 +237,50 @@ class ToolSchema:
             if t.name == name:
                 return t
         return None
+
+    def __iter__(self):
+        """Iterate the registered tools directly (``for t in schema``).
+
+        v0.6.0rc15 — closes the ``'ToolSchema' object is not iterable``
+        footgun. ``get_tool_schema()`` returns this object; ``tool_schema_view()``
+        returns the JSON dict — both stay, and now the object iterates too.
+        """
+        return iter(self.tools)
+
+    def __len__(self) -> int:
+        """Number of registered tools (``len(schema)``)."""
+        return len(self.tools)
+
+    def resolve(self, name: str) -> Optional[ToolEntry]:
+        """Resolve a tool by full name OR by bare leaf / dotted suffix.
+
+        v0.6.0rc15 — the "find a tool in ≤1 call" surface. Exact full-name
+        match wins (same as :meth:`lookup`). Otherwise the bare leaf
+        (``"kuramoto_step"``) or any dotted suffix (``"cascade.kuramoto_step"``)
+        is matched against ``srmech.amsc.cascade.kuramoto_step``. Returns the
+        single matching entry, or ``None`` when there is no match OR the name
+        is AMBIGUOUS (resolves to >1 tool) — an ambiguous leaf is never
+        silently resolved. Use :meth:`resolve_all` to enumerate the
+        candidates for an ambiguous name.
+        """
+        exact = self.lookup(name)
+        if exact is not None:
+            return exact
+        matches = self.resolve_all(name)
+        return matches[0] if len(matches) == 1 else None
+
+    def resolve_all(self, name: str) -> Tuple[ToolEntry, ...]:
+        """Every tool whose full name is ``name`` or ends with ``.name``.
+
+        The companion to :meth:`resolve` for the ambiguous case: a bare leaf
+        mapping to more than one fully-qualified tool returns all of them
+        here so the caller can disambiguate. Registration order preserved.
+        """
+        suffix = "." + name
+        return tuple(
+            t for t in self.tools
+            if t.name == name or t.name.endswith(suffix)
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -416,13 +502,39 @@ def _register_amsc_tools() -> None:
             },
         ),
         ToolEntry(
+            name="srmech.amsc.format.sha256_batch",
+            owner="srmech",
+            category="format",
+            summary="N-WAY SIMD SHA-256 of MANY messages at once (F292 "
+                    "graft #1; v0.7.0rc10) — reach for this for BULK "
+                    "attestation (fingerprint a whole catalog of upstream "
+                    "response bytes in one call). Returns one 64-char "
+                    "lowercase hex digest per input, each byte-identical to "
+                    "sha256_bytes(d). A throughput surface, NOT a new "
+                    "content-address shape. Native C dispatches to AVX2 "
+                    "8-way / SSE2 4-way on x86 (scalar elsewhere); hashlib "
+                    "fallback. SCOPE: energy/perf of srmech's own hashing — "
+                    "NOT mining (SHA-256 has no PoW shortcut).",
+            parameters=(
+                ToolParameter("datas", "list[bytes]", required=True,
+                              summary="The messages to hash"),
+            ),
+            returns=ToolReturn(type="list[str]",
+                               shape="one 64-char lowercase hex digest per input"),
+            smoke_test_hint={"datas": "[b'', b'abc']"},
+            example={
+                "input": {"datas": "[b'abc']"},
+                "output": "['ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad']",
+            },
+        ),
+        ToolEntry(
             name="srmech.amsc.format.read_ndjson",
             owner="srmech",
             category="format",
             summary="Stream MPRRecords line-by-line from an NDJSON file. "
                     "Native C dispatch for IO + line tokenisation when "
                     "available; stdlib fallback otherwise. JSON parsing "
-                    "stays in Python.",
+                    "stays in Python." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 ToolParameter("path", "pathlib.Path", required=True,
                               summary="Path to an MPR-format NDJSON file"),
@@ -470,7 +582,7 @@ def _register_amsc_tools() -> None:
             category="catalog",
             summary="Paginated read of an attested dataset's rows. T0+T1+T2+T3 "
                     "tiered: committed baseline + collect re-bake + user "
-                    "runtime kernel + live query.",
+                    "runtime kernel + live query." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 ToolParameter("source_key", "str", required=True),
                 ToolParameter("limit", "Optional[int]", required=False),
@@ -653,7 +765,16 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Graph Laplacian L = D - A. Native C dispatch when "
                     "n ≤ 256; numpy fallback otherwise.",
-            parameters=(P("n", "int", True), P("edges", "list", True),
+            # rc15: declare `edges` as list[tuple[int, int]] (matching the
+            # shipped `dense_laplacian(n, edges: Iterable[Tuple[int, int]])`
+            # signature + the sibling `dense_adjacency` entry). The earlier
+            # bare `list` type advertised an edge-list shape too loose for an
+            # LLM to populate correctly — surfaced by the rc15 every-tool
+            # invocation smoke (a bare-`list` synth fed [1, 2] tripped the
+            # op's 2-tuple unpack). Schema-accuracy fix only; signature
+            # unchanged.
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
@@ -662,7 +783,12 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Symmetric normalized Laplacian L_sym = I - D^{-1/2} A D^{-1/2}. "
                     "Isolated vertices have diagonal entry 0.",
-            parameters=(P("n", "int", True), P("edges", "list", True),
+            # rc15: declare `edges` as list[tuple[int, int]] (matching the
+            # shipped signature + the dense_adjacency entry). Schema-accuracy
+            # fix surfaced by the rc15 every-tool invocation smoke; signature
+            # unchanged.
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
@@ -805,8 +931,13 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.naming.lookup", owner="srmech", category="naming",
             summary="Binary search over a sorted (key, value) catalog. Keys MUST "
                     "be pre-sorted ascending lexicographic by caller.",
+            # rc13 drift fix: the param is `pairs` (the iterable of
+            # (key, value) tuples) — the shipped `naming.lookup(key, pairs)`
+            # signature. The earlier `entries` name made the tool uncallable
+            # via MCP / Anthropic (TypeError: unexpected keyword 'entries').
             parameters=(P("key", "bytes", True),
-                        P("entries", "list[tuple[bytes, bytes]]", True)),
+                        P("pairs", "list[tuple[bytes, bytes]]", True,
+                          "sorted (key, value) pairs")),
             returns=R("Optional[bytes]", "value or None"),
         ),
 
@@ -817,8 +948,14 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.template.render", owner="srmech", category="template",
             summary="Render a template with {key} placeholders. Plain bytes "
                     "pass through; unknown key raises ValueError.",
+            # rc13 drift fix: the param is `mapping` (the bytes->bytes
+            # substitution map) — the shipped `template.render(template_bytes,
+            # mapping)` signature. The earlier `substitutions` name made the
+            # tool uncallable via MCP / Anthropic (TypeError: unexpected
+            # keyword 'substitutions'); surfaced by the rc13 drift ratchet.
             parameters=(P("template_bytes", "bytes", True),
-                        P("substitutions", "Mapping[bytes, bytes]", True)),
+                        P("mapping", "Mapping[bytes, bytes]", True,
+                          "key -> value substitution map")),
             returns=R("bytes", "rendered output"),
         ),
 
@@ -1035,9 +1172,18 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.polar_random", owner="srmech", category="hdc",
             summary="Random polar hypervector: int8 array of D elements in "
-                    "{-1, 0, +1} (the 3-state Class-M variant alphabet).",
+                    "{-1, 0, +1} (the 3-state Class-M variant alphabet). "
+                    "Pass an integer `seed` for a DETERMINISTIC vector "
+                    "(bit-exact / attestation discipline).",
+            # rc13: advertise the JSON-friendly integer `seed`, NOT the
+            # un-serialisable `rng: numpy.random.Generator` (a Generator has
+            # no valid JSON-Schema type and cannot cross JSON-RPC / an
+            # Anthropic tool schema). In-process Python callers still have
+            # the `rng=` kwarg on the function; the schema exposes only the
+            # serialisable path.
             parameters=(P("D", "int", True, "dimension"),
-                        P("rng", "numpy.random.Generator", False)),
+                        P("seed", "int", False,
+                          "integer seed for a deterministic vector")),
             returns=R("np.ndarray", "int8 in {-1,0,+1}"),
         ),
         ToolEntry(
@@ -1061,8 +1207,16 @@ def _register_primitive_class_tools() -> None:
             summary="Polar bundle: per-position sticky majority "
                     "(sign of the sum); exact ties resolve to 0. No "
                     "odd-count restriction.",
-            parameters=(P("*vectors", "np.ndarray", True,
-                          "int8 {-1,0,+1}, all same length"),),
+            # Variadic ``polar_bundle(*vectors)``: tool-schema exposes the
+            # one-or-more-vectors VAR_POSITIONAL under a CLEAN name
+            # ``vectors`` (NOT ``*vectors`` — the ``*`` sigil is illegal in
+            # an Anthropic input_schema property key
+            # ``^[a-zA-Z0-9_.-]{1,64}$``). Sequence type matches the
+            # sibling ``srmech.amsc.hdc.bundle`` convention; the dispatcher
+            # (``srmech.mcp._tools.invoke_tool``) unpacks it positionally.
+            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+                          "one or more int8 {-1,0,+1} vectors of equal "
+                          "length"),),
             returns=R("np.ndarray", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
@@ -1099,16 +1253,32 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_random", owner="srmech", category="hdc",
             summary="Random Klein-4 hypervector: uint8 array of D elements in "
-                    "{0,1,2,3} (the rank-2 Class-M variant alphabet).",
-            parameters=(P("D", "int", True), P("rng", "numpy.random.Generator", False)),
+                    "{0,1,2,3} (the rank-2 Class-M variant alphabet). "
+                    "Pass an integer `seed` for a DETERMINISTIC vector "
+                    "(bit-exact / attestation discipline).",
+            # rc13: advertise the JSON-friendly integer `seed`, NOT the
+            # un-serialisable `rng: numpy.random.Generator` (see polar_random).
+            parameters=(P("D", "int", True, "dimension"),
+                        P("seed", "int", False,
+                          "integer seed for a deterministic vector")),
             returns=R("np.ndarray", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bind", owner="srmech", category="hdc",
             summary="Klein-4 bind: component-wise (F₂)²-XOR. Commutative, "
-                    "associative, self-inverse; identity 0.",
+                    "associative, self-inverse; identity 0. rc13 sectors=/"
+                    "parallel=/mode= fans it across ≤4 concurrent lanes "
+                    "(default-ON at ≥4 cores; value-preserving). mode='chunk' "
+                    "(default) splits positions, bit-identical; mode='chirality' "
+                    "runs the F233 4-sector dispatch.",
             parameters=(P("a", "np.ndarray", True, "uint8 {0,1,2,3}"),
-                        P("b", "np.ndarray", True, "same length")),
+                        P("b", "np.ndarray", True, "same length"),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default, bit-exact) "
+                          "or 'chirality' (F233 4-sector)")),
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
@@ -1121,16 +1291,40 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
-                    "independently; exact ties → 0 for that bit.",
-            parameters=(P("*vectors", "np.ndarray", True,
-                          "uint8 {0,1,2,3}, all same length"),),
+                    "independently; accepts any count n>=1 (even or odd); "
+                    "exact ties (only possible for even n) → 0 for that bit. "
+                    "rc13 sectors=/parallel=/mode= fans the reduction across ≤4 "
+                    "concurrent lanes (default-ON at ≥4 cores). mode='chunk' "
+                    "(default) splits positions, bit-identical; mode='chirality' "
+                    "runs the F233 4-sector dispatch.",
+            # Variadic ``klein4_bundle(*vectors)``: exposed under the clean
+            # name ``vectors`` (the ``*`` sigil is illegal in an Anthropic
+            # property key). See polar_bundle note above.
+            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+                          "one or more uint8 {0,1,2,3} vectors of equal "
+                          "length"),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default, bit-exact) "
+                          "or 'chirality' (F233 4-sector)")),
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
-                    "[0,1] (1 identical, 0 orthogonal).",
-            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True)),
+                    "[0,1] (1 identical, 0 orthogonal). rc13 sectors=/parallel=/"
+                    "mode= fans the comparison across ≤4 lanes (default-ON at ≥4 "
+                    "cores); ALWAYS returns the serial float (chunk sums "
+                    "per-slice matches; chirality recombines via sector-0).",
+            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default) or "
+                          "'chirality'")),
             returns=R("float", "in [0, 1]"),
         ),
         ToolEntry(
@@ -1154,11 +1348,176 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_cycle", owner="srmech",
+            category="hdc",
+            summary="Order-3 S₃=Aut(V₄) triality cycle of the three Klein-4 "
+                    "involutions (iω₇→γ₅→CPT, identity fixed); the V₄-carrier "
+                    "image of the so(8) 8v→8s→8c triality. Class I; T∘T∘T=id.",
+            parameters=(
+                P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                P("inverse", "bool", False, "reverse the 3-cycle (T⁻¹ = T²)"),
+            ),
+            returns=R("np.ndarray", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
             summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
                     "distribution attestation.",
             parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
             returns=R("np.ndarray", "int64 length-4 counts"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (v0.7.0 / MS #21).
+        # M∘C with a Class-K associator residue; NO new class. Baez 2002.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_bind", owner="srmech", category="hdc",
+            summary="The loop bind (Moufang) = the octonion / Cayley-Dickson "
+                    "product. Non-commutative + non-associative ⟹ (ab)c≠a(bc): "
+                    "the k=7 gauge ARITHMETIC triality is blind to (F271). M∘C "
+                    "with a Class-K associator residue; NO new class. Baez 2002.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "the product x·y, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_conj", owner="srmech", category="hdc",
+            summary="Octonion conjugate x̄ — negate the imaginary part, keep the "
+                    "real anchor x[0]. The Class-C flip powering the unbind.",
+            parameters=(P("x", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "conjugate, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_inv", owner="srmech", category="hdc",
+            summary="Moufang inverse x⁻¹ = x̄/⟨x,x⟩ — the unbind key; "
+                    "loop_bind(x, loop_inv(x))=e₀. Class-K norm² gate, no abs().",
+            parameters=(P("x", "np.ndarray", True, "nonzero power-of-two vector"),),
+            returns=R("np.ndarray", "inverse, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_left_op", owner="srmech", category="hdc",
+            summary="Left-multiplication operator L_a(x)=a·x (the (4:3) "
+                    "ordering) as a dim×dim matrix. L_a≠R_a≠R_aᵀ.",
+            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "dim×dim matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_right_op", owner="srmech", category="hdc",
+            summary="Right-multiplication operator R_a(x)=x·a (the (3:4) mirror "
+                    "ordering) as a dim×dim matrix.",
+            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            returns=R("np.ndarray", "dim×dim matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_associator", owner="srmech", category="hdc",
+            summary="(a·b)·c − a·(b·c) = the Class-K associator RESIDUE of the "
+                    "loop bind (zero on a Fano line, nonzero off it = the "
+                    "(4:3)|(3:4) boundary). =−([L_a,R_b]·c-style residue).",
+            parameters=(
+                P("a", "np.ndarray", True, "power-of-two vector"),
+                P("b", "np.ndarray", True, "same length"),
+                P("c", "np.ndarray", True, "same length"),
+            ),
+            returns=R("np.ndarray", "the associator, same length"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # 7-D cross product + G₂ associative 3-form (v0.7.0rc2 / MS #21 #813).
+        # Ground-truth derived FROM the shipped loop_bind (F281). No new class.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.cross7", owner="srmech", category="hdc",
+            summary="The 7-D cross product x×y = Im(loop_bind(x,y)) (drop the e₀ "
+                    "real anchor). Antisymmetric; for imaginary x,y = ½(xy−yx). "
+                    "M (bind) ∘ C (imaginary-part ordering). Identity "
+                    "‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩². Baez 2002 §4.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "x×y, same length (e₀ component zero)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.g2_three_form", owner="srmech", category="hdc",
+            summary="The associative calibration 3-form φ(x,y,z)=⟨x, cross7(y,z)⟩ "
+                    "=⟨x, Im(y·z)⟩. Fully antisymmetric; nonzero ±1 on exactly the "
+                    "7 Fano associative 3-planes, 0 on the other 28 triples. "
+                    "(M∘C)∘⟨·,·⟩ contraction (Class-L/M). Harvey–Lawson 1982.",
+            parameters=(
+                P("x", "np.ndarray", True, "power-of-two vector"),
+                P("y", "np.ndarray", True, "same length"),
+                P("z", "np.ndarray", True, "same length"),
+            ),
+            returns=R("float", "the 3-form value (scalar)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Block-octonion HD tiling (v0.7.0rc4 / MS #21 #811). Direct sum of
+        # NB dim-8 loop_binds; block-diagonal; capacity-free vs Klein-4 (#812).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_bind_hd", owner="srmech", category="hdc",
+            summary="Block-octonion HD bind: D=NB·8 hypervector bound block-wise "
+                    "by the octonion loop_bind = the direct sum ⊕ of NB independent "
+                    "dim-8 Moufang binds (block-diagonal, no coupling). Carries "
+                    "order/tree/direction at no capacity cost vs the Klein-4 XOR "
+                    "bind (capacity-free, #812). M over a direct-sum tile; no new "
+                    "class. F289.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+                P("y", "np.ndarray", True, "same length as x"),
+            ),
+            returns=R("np.ndarray", "the block-wise product, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_unbind_hd", owner="srmech", category="hdc",
+            summary="HD unbind: per-block Moufang left-division conj(a_k)·b_k. "
+                    "Recovers v from loop_bind_hd(a, v) for unit-per-block a "
+                    "(conj(a)·(a·v)=v by alternativity). Class-K clean; no abs(). "
+                    "F289.",
+            parameters=(
+                P("a", "np.ndarray", True, "length = positive multiple of 8"),
+                P("b", "np.ndarray", True, "same length as a"),
+            ),
+            returns=R("np.ndarray", "the unbound vector, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_conj_hd", owner="srmech", category="hdc",
+            summary="Per-block HD octonion conjugate: the direct sum ⊕ of NB "
+                    "dim-8 loop_conjs — THE missing atom under loop_bind_hd / "
+                    "loop_unbind_hd. The single-element loop_conj is global and "
+                    "silently wrong on an HD block vector; this is per-block. "
+                    "Class C; no new class. F-§12.1.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+            ),
+            returns=R("np.ndarray", "the per-block conjugate, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_inv_hd", owner="srmech", category="hdc",
+            summary="Per-block HD Moufang inverse: the direct sum ⊕ of NB dim-8 "
+                    "loop_invs (x̄_k/⟨x_k,x_k⟩ per block) — the per-block unbind "
+                    "key. The single-element loop_inv is global and silently "
+                    "wrong on an HD block vector; this is per-block. Class-K "
+                    "clean (per-block norm² gate, no abs()). F-§12.1.",
+            parameters=(
+                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+            ),
+            returns=R("np.ndarray", "the per-block inverse, same length"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.loop_runbind_hd", owner="srmech", category="hdc",
+            summary="HD RIGHT-unbind: per-block Moufang right-division "
+                    "b_k·conj(a_k). Where loop_unbind_hd peels the LEFT factor, "
+                    "this peels the RIGHT — recovers v from loop_bind_hd(v, a) "
+                    "for unit-per-block a ((v·a)·conj(a)=v by alternativity). "
+                    "Right-division for a left-fold sequence store. Class-K "
+                    "clean; no abs(). F-§12.2.",
+            parameters=(
+                P("a", "np.ndarray", True, "length = positive multiple of 8"),
+                P("b", "np.ndarray", True, "same length as a"),
+            ),
+            returns=R("np.ndarray", "the right-unbound vector, same length"),
         ),
         # ────────────────────────────────────────────────────────────
         # Class K ∘ L composition — signed-sum coupling score (v0.4.3rc3).
@@ -1186,7 +1545,7 @@ def _register_primitive_class_tools() -> None:
             summary="Class K pin-slot at zero: split x into (orientation ∈ "
                     "{-1,0,+1}, magnitude ≥ 0). Sign-flip IS the canonical "
                     "Class K phase-boundary; the cascade-honest split that "
-                    "replaces a bare abs().",
+                    "replaces a bare abs()." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("tuple[int, float]", "(orientation, magnitude)"),
         ),
@@ -1195,7 +1554,8 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class C cascade-orientation: re-apply a captured "
                     "orientation {-1,0,+1} to a value (negates iff "
-                    "orientation < 0). Pairs with pin_slot_at_zero.",
+                    "orientation < 0). Pairs with pin_slot_at_zero."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
                         P("value", "number", True, "magnitude to re-sign")),
             returns=R("number", "value, negated iff orientation < 0"),
@@ -1205,7 +1565,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class K pin-slot at zero, magnitude only (orientation "
                     "discarded). The cascade-honest replacement for Python "
-                    "abs() when only |x| is needed.",
+                    "abs() when only |x| is needed." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("float", "|x| as the Class K pin-slot magnitude"),
         ),
@@ -1215,7 +1575,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class K ∘ N ∘ C: float → signed small-denominator "
                     "rational. Strip sign at the Class K pin-slot, find the "
                     "Class N best-rational of the magnitude, re-apply the "
-                    "sign as Class C (no abs(); sign lives in numerator).",
+                    "sign as Class C (no abs(); sign lives in numerator)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "the float to anchor"),
                         P("max_denominator", "int", False, "Class N ceiling; default 100"),
                         P("fine_scale", "int", False, "magnitude→int-pair scale; default 1e6")),
@@ -1226,9 +1587,80 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class I cyclic gcd (delegates to srmech.amsc.cyclic.gcd). "
                     "The cascade-named alias for reaching the Class I primitive "
-                    "instead of math.gcd.",
+                    "instead of math.gcd." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
+            category="cascade",
+            summary="Advance N COUPLED OSCILLATORS one synchronization step "
+                    "(the canonical Kuramoto model) — reach for this for "
+                    "coupled-phase / synchronization dynamics. A plain DSL "
+                    "stage-op (kind='stage'): the piped value is `theta`; "
+                    "pass `omega=` (+ optional `coupling`/`dt`) as stage "
+                    "kwargs. One forward-Euler step: "
+                    "theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j "
+                    "sin(theta_j - theta_i)). The coupled-oscillator dispatch-"
+                    "clock Euler step the spectral-research arc hand-rolled in "
+                    "Python (F141/F231/R-95/F234) — now C-parity'd "
+                    "(srmech_cascade_kuramoto_step_f64, O(n²) sin-coupling "
+                    "native; libm sin like kepler) so srmech runs it with NO "
+                    "host Python. Honest composition: Class I cyclic phase + "
+                    "sin coupling + sum-reduce + Class-C Euler add; NOT a new "
+                    "privileged primitive. No abs(). Dispatches to C when "
+                    "HAS_NATIVE (libm-trig tolerance parity); pure-Python "
+                    "fallback otherwise. n==1 is pure drift; n==0 is []. rc14 "
+                    "(§11.1): the GENERALISED Kuramoto-Sakaguchi step — pass "
+                    "`adjacency` (n×n coupling matrix; non-symmetric → DIRECTED "
+                    "coupling, Laplacian → graph-structured; None → all-to-all "
+                    "uniform K/n), `alpha` (Sakaguchi phase frustration, "
+                    "sin(θ_j−θ_i−α)), and/or `pin_anchor`+`pin_strength` (per-"
+                    "oscillator pinning +p_i·sin(ψ_i−θ_i)). Co-equal C peer "
+                    "srmech_cascade_kuramoto_step_general_f64 (additive; ABI "
+                    "stays 3). Defaults reproduce the plain step byte-for-byte."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "sequence", True, "current phases (radians)"),
+                        P("omega", "sequence", True,
+                          "natural frequencies; same length as theta"),
+                        P("coupling", "float", False, "global coupling K; default 1.0"),
+                        P("dt", "float", False, "forward-Euler time step; default 0.01"),
+                        P("adjacency", "list", False,
+                          "optional n×n coupling matrix; A[i][j] weights "
+                          "sin(θ_j−θ_i−α); non-symmetric=directed; None=uniform K/n"),
+                        P("alpha", "float", False,
+                          "Sakaguchi phase frustration (radians); default 0.0"),
+                        P("pin_anchor", "Optional[list[float]]", False,
+                          "optional length-n anchor phases ψ (None=no pinning)"),
+                        P("pin_strength", "number", False,
+                          "pinning strength p (scalar or length-n); default 1.0")),
+            returns=R("list[float]", "phases after one forward-Euler Kuramoto step"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.autocorrelation", owner="srmech",
+            category="cascade",
+            summary="Class L CIRCULAR AUTOCORRELATION (Wiener-Khinchin) of a "
+                    "real sequence — reach for this for the autocorrelation ↔ "
+                    "power-spectrum object. A plain DSL stage-op (kind='stage'): "
+                    "the piped value is the signal `x`; returns the length-n "
+                    "autocorrelation r with r[k] = Σ_i x[i]·x[(i+k) mod n] and "
+                    "r[0] = Σ x² = energy. EXACTLY the spectral object "
+                    "r = Re(IFFT(|FFT(x)|²)) (circular-convolution theorem) — "
+                    "that identity is WHY it is Class L. The F290 §C 'un-flatten' "
+                    "composite (autocorr → difference-graph → conservation-"
+                    "validate) consumes r (the r[0] energy for its conservation "
+                    "check), so this primitive lets that catalog be authored as "
+                    "pure-TOML composites. Honest shape: a Σ-reduce of products, "
+                    "NO abs(), NOT a new privileged primitive. Dispatches to the "
+                    "co-equal C peer srmech_autocorrelation_f64 (the DIRECT O(n²) "
+                    "multiply-add sum — JPL-clean: no FFT, no recursion, no "
+                    "transcendentals, embedded-ready) when HAS_NATIVE; the pure-"
+                    "Python fallback uses the fast numpy FFT. Parity to FFT round-"
+                    "off (~1e-12, NOT bit-exact — different accumulation order). "
+                    "n==0 is []." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("x", "sequence", True, "the real signal (length n)"),),
+            returns=R("list[float]",
+                      "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
@@ -1239,7 +1671,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class C orientation reversal: reverse a sequence's "
                     "traversal order (seq[::-1]). The value-level Class C "
                     "operator; reversing a real signal is the FFT-level "
-                    "chirality operator (magnitude preserved, phase inverted).",
+                    "chirality operator (magnitude preserved, phase inverted)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("seq", "sequence", True, "sliceable sequence"),),
             returns=R("sequence", "orientation-reversed sequence (type preserved)"),
         ),
@@ -1250,8 +1683,13 @@ def _register_primitive_class_tools() -> None:
                     "Class-C orientation. Conjugating any operator by "
                     "chiral_flip yields its chiral dual — same spectral shape, "
                     "inverted orientation (MFO §VIII.31.11). Reduces to Class K "
-                    "-1 for the sign operators; identity for real-symmetric ops.",
-            parameters=(P("op", "callable", True, "unary sequence→sequence operator"),
+                    "-1 for the sign operators; identity for real-symmetric ops."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("op", "operator_name", True,
+                          "dotted NAME of a unary sequence→sequence operator "
+                          "(e.g. srmech.amsc.cascade.chiral_flip); resolved "
+                          "to its callable through the srmech-namespace "
+                          "operator-name resolver"),
                         P("x", "sequence", True, "input sequence")),
             returns=R("sequence", "chiral_flip(op(chiral_flip(x)))"),
         ),
@@ -1261,9 +1699,80 @@ def _register_primitive_class_tools() -> None:
             summary="Class C net handedness of a cascade: product of per-op "
                     "orientations in {-1,0,+1} via composed reorient (no "
                     "abs-free sign multiply). Returns +1 (right), -1 (left), or "
-                    "0 if any operator is orientation-neutral.",
+                    "0 if any operator is orientation-neutral."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("orientations", "iterable[int]", True, "orientations in {-1,0,+1}"),),
             returns=R("int", "net handedness in {-1, 0, +1}"),
+        ),
+        # Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233 / the 4-rung).
+        # A Python ORCHESTRATION layer over the C-parity'd cascade.atoms — it
+        # composes ONLY chiral_flip / reorient / chiral_dual / net_chirality /
+        # magnitude (no Python-only cascade capability; only the thread
+        # fan-out is Python). C-orchestration parity tracked by issue #771.
+        ToolEntry(
+            name="srmech.amsc.cascade.parallel_sector_dispatch", owner="srmech",
+            category="cascade",
+            summary="PARALLELISE a cascade body instead of running it "
+                    "serially: fan one cascade `body` across its ≤4 Klein-4 "
+                    "chirality sectors CONCURRENTLY (ThreadPoolExecutor, "
+                    "max_workers=4) — the F233 4-thread speedup. Reach for "
+                    "this when you have an independent cascade body to fan "
+                    "out, instead of getting locked into one thread per "
+                    "cascade cycle. HIGHER-ORDER COMBINATOR (a 1→N fan-out, "
+                    "kind='combinator'): it takes a *body* op + data and "
+                    "returns N per-sector results, so it is NOT a plain "
+                    "value→value DSL `op=` stage — in a chain, drive it via "
+                    "the `parallel` discriminator "
+                    "(`chain.parallel_sectors(body=…, n_sectors=4)` in "
+                    "Python, or a `[[stage]]` with `parallel_body='…'` in a "
+                    "TOML spec). COMPOSABLE (rc12): by default it returns the "
+                    "rich per-sector dict (a leaf) — pass `combine=` "
+                    "('bundle'/'mean'/'sector0'/'concat' or a callable) to "
+                    "recombine the ≤4 sectors into ONE value at result['combined'] "
+                    "so the dispatch is stream→stream and CHAINS / NESTS (the DSL "
+                    "`parallel` stage recombines by default; `sectorize(body, "
+                    "combine=…)` wraps a body as a nesting callable). Mechanism: "
+                    "each sector s = inv_T_s(body(T_s(x))) on its OWN "
+                    "sector-transformed input — 0 cross-thread reads (the F233 "
+                    "4-way independence), so parallel == serial bit-for-bit. "
+                    "T_s composes the two commuting Class-C involutions: γ₅ = "
+                    "chiral_flip (reversal), iω₇ = reorient(-1,·) (per-element "
+                    "sign-flip); sector 2 (γ₅-only) == cascade.chiral_dual "
+                    "bit-exact (the F232 2-rung object). Z₄ quarter-turn dispatch "
+                    "slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the "
+                    "order-2×order-2 Klein-4 IDENTITY). Hard-capped at 4 — "
+                    "Klein-4 has no order-4+ element; 8+ needs the order-3 "
+                    "triality (srmech.qm.triality, F220), NOT done here. "
+                    "Usefulness collapse-lattice 4/2/2/1 (bi-axial→4 distinct; "
+                    "iω₇-sym→2; γ₅-sym→2; bi-sym→1). No abs() (Class K "
+                    "magnitude / Class C net_chirality). The thread-count ladder "
+                    "IS the chirality-access ladder (1→2→4→triality) is a "
+                    "framework-reading (framework_thread_ladder_reading), NOT a "
+                    "derived theorem. Composes ONLY C-parity'd cascade.atoms; "
+                    "C-orchestration parity tracked by issue #771. Class C/K. "
+                    "F233/R-RBS-LM-FINDING_233; F219; F220." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("body", "operator_name", True,
+                          "dotted NAME of a unary sequence→sequence cascade "
+                          "operator (resolved to its callable through the "
+                          "srmech-namespace operator-name resolver)"),
+                        P("x", "sequence", True, "input sequence"),
+                        P("n_sectors", "int", False,
+                          "how many of the 4 Klein-4 sectors to dispatch "
+                          "(1..4; default 4; hard-capped at 4)"),
+                        P("combine", "str", False,
+                          "rc12 recombine: None (default; leaf dict, combined "
+                          "None) | 'bundle'/'mean'/'sector0'/'concat' → one "
+                          "composable value at result['combined'] so the "
+                          "dispatch chains / nests")),
+            returns=R("dict",
+                      "{sectors:{s:{label:(γ₅,iω₇), result}}, combined "
+                      "(rc12: recombined value when combine= given, else None), "
+                      "z4_dispatch_slots:[0,1,2,3], independence "
+                      "(cross_sector_reads 0, parallel_equals_serial, "
+                      "sector2_is_chiral_dual), collapse_lattice "
+                      "(n_distinct/classes/label/useful 4/2/2/1), cap "
+                      "(sector_cap 4, beyond_4_needs triality), "
+                      "framework_thread_ladder_reading}"),
         ),
     ]
     for e in entries:
@@ -1281,6 +1790,20 @@ def _register_spectral_runtime_tools() -> None:
     over the existing 14-class A-N vocabulary per
     ``[[feedback_no_privileged_primitive_classes]]``; no new primitive
     class is introduced.
+
+    v0.5.0rc16 — every one of these 7 entries is now ``mcp_callable=True``
+    (the default; the rc15 ``mcp_callable=False`` +
+    :data:`_SPECTRAL_HANDLE_PENDING_REASON` markers are removed). Their
+    param/return surface is a ``SpectralHandle`` (or ``SpectralHandle |
+    bytes``) — an opaque, frozen, bytes-bearing dataclass JSON-RPC cannot
+    carry by VALUE. rc16 carries it BY REFERENCE: a producer's returned
+    handle is intercepted by ``serialise_native`` and emitted as a tagged
+    id object ``{"$srmech_handle": {"uuid", "name", "kind"}}`` (registered
+    in the package-scope :mod:`srmech._handles` registry), and a consumer
+    param is resolved back to the live object by ``coerce_param``. The union
+    ``SpectralHandle | bytes`` still accepts a bare base64 ``str`` for raw
+    bytes. The spectral functions THEMSELVES are byte-for-byte untouched —
+    the whole voxel is wire-marshalling + registry only.
     """
     P = ToolParameter
     R = ToolReturn
@@ -1299,7 +1822,7 @@ def _register_spectral_runtime_tools() -> None:
                     "coefficients + content_sha + n_modes). Class chain: "
                     "Class L (Hermitian eigendecomposition; Chung 1997) ∘ "
                     "Class A (SHA-256 content-addressing for cache + "
-                    "integrity).",
+                    "integrity)." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("state", "np.ndarray", True, "(n,) state vector"),
                         P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
                         P("encoder_tag", "str", False, "default 'default'")),
@@ -1312,7 +1835,7 @@ def _register_spectral_runtime_tools() -> None:
                     "(SpectralHandle or raw bytes). Class M (HDC bind / "
                     "XOR self-inverse) per Plate 1995 + Kanerva 2009; "
                     "Spike #114 Option B (direct on encoded coefficient "
-                    "bytes). bind(a, bind(a, b)) = b.",
+                    "bytes). bind(a, bind(a, b)) = b." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("ref", "SpectralHandle | bytes", True),
                         P("current", "SpectralHandle | bytes", True)),
             returns=R("bytes", "same length as inputs"),
@@ -1323,7 +1846,8 @@ def _register_spectral_runtime_tools() -> None:
             summary="Reconstruct the node-domain state from a SpectralHandle "
                     "via inverse projection ``V @ coeffs``. Class chain: "
                     "Class L (inverse eigendecomposition; Chung 1997) ∘ "
-                    "Class M (SHA-256 content integrity check on handle).",
+                    "Class M (SHA-256 content integrity check on handle)."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("laplacian", "np.ndarray", True),
                         P("encoder_tag", "str", False, "default 'default'")),
@@ -1335,7 +1859,7 @@ def _register_spectral_runtime_tools() -> None:
             summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in "
                     "[−1, +1]. Class M per Kanerva 2009 §3.2; direct on "
                     "coefficient bytes. +1 = identical, 0 = orthogonal, "
-                    "−1 = anti-correlated.",
+                    "−1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
             returns=R("float", "in [-1, +1]"),
@@ -1353,7 +1877,7 @@ def _register_spectral_runtime_tools() -> None:
                     "Class chain: Class C (cascade-extrapolate) ∘ Class L "
                     "(Hermitian Laplacian eigenstructure). Spike #113 + "
                     "MS #14 rcN+2 anchor. Magnitudes preserved (unitary); "
-                    "phase evolves per eigenmode.",
+                    "phase evolves per eigenmode." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("laplacian", "np.ndarray", True),
                         P("steps", "int", False, "default 1; ticks forward"),
@@ -1372,7 +1896,7 @@ def _register_spectral_runtime_tools() -> None:
                     "2026-05-18. When ``popcount(delta) / (8·len) <= "
                     "threshold``, returns all-zero bytes (prediction "
                     "sufficient). Composes with :func:`predict` to close "
-                    "the predictive-coding cascade.",
+                    "the predictive-coding cascade." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("predicted", "SpectralHandle | bytes", True),
                         P("observed", "SpectralHandle | bytes", True),
                         P("threshold", "float", False,
@@ -1388,7 +1912,8 @@ def _register_spectral_runtime_tools() -> None:
                     "Class K (magnitude-band sparse-truncate / "
                     "threshold-gate) per Mallat 2008 §9.2 (best k-term "
                     "approximation) + Spike #117 anchor. Exactly one of "
-                    "``keep_k`` / ``threshold`` must be supplied.",
+                    "``keep_k`` / ``threshold`` must be supplied."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
                         P("keep_k", "Optional[int]", False,
                           "top-k modes by magnitude"),
@@ -1915,7 +2440,8 @@ def _register_qm_tools() -> None:
         ToolEntry(
             name="srmech.qm.sm.weak_mixing_angle", owner="srmech", category="qm.sm",
             summary="Weinberg mixing angle θ_W = atan(g'/g). Weinberg (1967); "
-                    "Peskin-Schroeder §20.2.",
+                    "Peskin-Schroeder §20.2. Returns the angle in RADIANS "
+                    "(not sin²θ_W, not degrees).",
             parameters=(P("g", "float", True, "SU(2)_L coupling > 0"),
                         P("g_prime", "float", True, "U(1)_Y coupling")),
             returns=R("float", "radians"),
@@ -1973,9 +2499,599 @@ def _register_qm_tools() -> None:
             parameters=(P("V", "np.ndarray", True),),
             returns=R("float", "~0"),
         ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.octonion — the MPR-attested Cayley-Dickson-from-H
+        # octonion algebra (foundational layer of the so(8)/triality
+        # engine, v0.5.0rc17). Class A (table + attestation), Class M
+        # (L/R binders), Class C (conjugate), Class K∘C (norm, no abs()).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_mult_table", owner="srmech",
+            category="qm.octonion",
+            summary="The (8,8,8) int8 structure-constant tensor C with "
+                    "e_i·e_j = Σ_k C[i,j,k] e_k (fixed Cayley-Dickson-from-H "
+                    "convention; MPR-attested). Class A. Baez (2002) §2.",
+            parameters=(),
+            returns=R("np.ndarray", "(8,8,8) int8 structure constants"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_table_attestation",
+            owner="srmech", category="qm.octonion",
+            summary="MPR v1 self-attestation dict for the structure-constant "
+                    "table; response_sha256 content-addresses the int8 table "
+                    "bytes via sha256_bytes (Class A). Baez (2002), "
+                    "arXiv:math/0105155.",
+            parameters=(),
+            returns=R("dict", "MPR v1 attestation block"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_left_mult", owner="srmech",
+            category="qm.octonion",
+            summary="Left-multiplication matrix L_a (x → a·x) as 8×8 real; "
+                    "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
+                    "(binding). Baez (2002) §2.3-2.4.",
+            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            returns=R("np.ndarray", "8×8 L_a"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_right_mult", owner="srmech",
+            category="qm.octonion",
+            summary="Right-multiplication matrix R_a (x → x·a) as 8×8 real; "
+                    "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
+                    "(binding). Baez (2002) §2.3-2.4.",
+            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            returns=R("np.ndarray", "8×8 R_a"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_conjugate", owner="srmech",
+            category="qm.octonion",
+            summary="Octonion conjugate conj(x) = (x_0, -x_1, …, -x_7); flips "
+                    "the imaginary-axis signs. Class C (orientation). "
+                    "Baez (2002) §2.1.",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            returns=R("np.ndarray", "8-vector"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_norm", owner="srmech",
+            category="qm.octonion",
+            summary="Octonion norm √(Σ x_i²) via the scalar Class K pin-slot "
+                    "magnitude (cascade.magnitude) then sqrt — never abs(). "
+                    "Class K∘C. Baez (2002) §2.1.",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.so8 — the 28-generator so(8) adjoint, partitioned
+        # 14 (g2 = Der O) + 7 (L-type) + 7 (R-type). The 14 = the A-N
+        # 1+3+7+3 partition. Class M (g2 + L/R binders); Class C (so7).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.so8.so8_adjoint_basis", owner="srmech",
+            category="qm.so8",
+            summary="The 28 antisymmetric 8×8 so(8) generators in partitioned "
+                    "order 14 (g2 = Der O) + 7 (L-type L_{e_i}) + 7 (R-type "
+                    "R_{e_i}). Class M. Baez (2002) §2.4 + §4.1.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]",
+                      "28 antisymmetric 8×8, partitioned 14+7+7"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.g2_subalgebra", owner="srmech",
+            category="qm.so8",
+            summary="The 14 octonion derivations Der(O) = g2 (deterministic "
+                    "rank-revealing numpy subset of the 21 D_{e_i,e_j}; rank "
+                    "exactly 14). The Fix(τ) killer-test target. Class M. "
+                    "Baez (2002) §4.1; Schafer (1966).",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "14 derivations (antisym 8×8)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.so7_subalgebra", owner="srmech",
+            category="qm.so8",
+            summary="The 21-dim so(7) fixed space ker(S_B − I) (D4 → B3 Z2 "
+                    "fold), as antisymmetric 8×8 generators (deterministic "
+                    "SVD nullspace). Class C. Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("tuple[np.ndarray, ...]", "21 generators (antisym 8×8)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.an_embedding", owner="srmech",
+            category="qm.so8",
+            summary="The bit-exact su(3) ⊕ 3 ⊕ 3bar Lie decomposition of the "
+                    "14 g2 = Der(O) generators (the su(3) adjoint 8 + the "
+                    "J-eigenspace fundamental 3 + antifundamental 3bar; the "
+                    "7-dim octonion-vector branches 1+3+3bar over the same "
+                    "su(3)). su(3) = stabiliser {D : D·e_K = 0}; the genuine "
+                    "fundamental is the +i eigenspace of the su(3)-invariant "
+                    "complex structure J (J²=−I); [su3,3]⊆3 bit-exact. "
+                    "su(3) identified by the invariant certificate {dim 8, "
+                    "rank 2, simple} (Cartan A2), never abs(). bit-exact "
+                    "computed; A-N class names are a documented "
+                    "framework-reading label (NOT a derived theorem). "
+                    "Class C-L. Baez (2002) §4.1 (g2 = Der O, dim 14).",
+            parameters=(P("imaginary_unit", "int", False,
+                          "fixed imaginary octonion unit 1..7 (default 1)"),),
+            returns=R("dict",
+                      "{su3:[8 8x8], complement:[6 8x8], "
+                      "complex_structure_J, triplet:[3], antitriplet:[3], "
+                      "weights:(6,2), decomposition, imaginary_unit, "
+                      "attestation}"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so8.quaternion_subalgebra_stabilizer",
+            owner="srmech",
+            category="qm.so8",
+            summary="The bit-exact 6-dim so(4) = su(2) ⊕ su(2) subalgebra of "
+                    "g2 = Der(O) stabilising a quaternion subalgebra H ⊂ O "
+                    "(the ℍ-reading sibling of an_embedding). H = "
+                    "span(e0,e_a,e_b,e_c) for a Fano line; so(4) = "
+                    "{D in g2 : D·span(H_imag) ⊆ span(H_imag)} (SVD nullspace, "
+                    "orthonormalised; dim 6). Certificate: Killing-form rank 6 "
+                    "(semisimple, Cartan), the two-triplet Killing spectrum "
+                    "(two eigenvalues ×3 = su(2) ⊕ su(2)), the two su(2) ideals "
+                    "via the self-dual / anti-self-dual split on H^⊥ ≅ R^4 "
+                    "([su2_+,su2_-]=0, each closes), and ℍ-choice-invariance "
+                    "(spectrum bit-identical across the 7 Fano-line H). The "
+                    "su(2) ⊕ su(2) split is this op's own computation, NOT a "
+                    "cited theorem; never abs(). F215: this Lie SYMMETRY surface "
+                    "is distinct from the 6 cascade.atoms group-element ops "
+                    "(6=6 is coincidence; 0/6 atoms are Lie generators) — a "
+                    "framework-reading label, NOT a derived theorem. Class C-L. "
+                    "Baez (2002) §4.1 (g2 = Der O, dim 14).",
+            parameters=(P("quaternion_index", "int", False,
+                          "1-based Fano-line index 1..7 selecting H "
+                          "(default 1 = line (1,2,3))"),),
+            returns=R("dict",
+                      "{so4:[6 8x8], su2_plus:[3 8x8], su2_minus:[3 8x8], "
+                      "killing_form:(6,6), killing_rank:6, killing_spectrum:(6,), "
+                      "decomposition, quaternion_fano_line, "
+                      "quaternion_imaginary_units, attestation}"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.triality — the Spin(8) triality engine. The 28×28
+        # order-3 outer automorphism τ = S_B @ S_C (Fix(τ) = g2 = 14),
+        # the Z2 swap, Cartan companions + residual. Class I (cyclic),
+        # Class C (swap), Class M (companions), Class K∘C (residual).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.triality.triality_automorphism", owner="srmech",
+            category="qm.triality",
+            summary="The 28×28 order-3 outer automorphism τ = S_B·S_C "
+                    "(product of the two companion involutions); τ³ = I, "
+                    "τ ≠ I, Fix(τ) = g2 dim 14 (D4 →Z3 G2). Class I. "
+                    "Baez (2002) §2.4; Cartan (1925).",
+            parameters=(),
+            returns=R("np.ndarray", "28×28 τ, τ³ = I"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_swap", owner="srmech",
+            category="qm.triality",
+            summary="The 28×28 Z2 companion involution S_B; S_B² = I, "
+                    "Fix(S_B) = so(7) dim 21 (D4 →Z2 B3). With τ generates "
+                    "S3 = Out(Spin(8)). Class C. Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("np.ndarray", "28×28 Z2 involution"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_cycle", owner="srmech",
+            category="qm.triality",
+            summary="The next frame in the order-3 rep-permutation "
+                    "8v → 8s → 8c → 8v (Class-I mod-3 cyclic step via "
+                    "srmech.amsc.cyclic.mod_add). Raises on an unknown frame. "
+                    "Baez (2002) §2.4.",
+            parameters=(P("frame", "str", True, "8v/8s/8c frame label"),),
+            returns=R("str", "next frame in 8v → 8s → 8c"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_apply", owner="srmech",
+            category="qm.triality",
+            summary="Carry an 8-vector between irrep frames per the cycle "
+                    "distance (Class I frame-transport ∘ Class M companions). "
+                    "Raises on a wrong shape or unknown frame. "
+                    "Baez (2002) §2.4; Cartan (1925).",
+            parameters=(P("x", "np.ndarray", True, "8-vector"),
+                        P("from_frame", "str", True, "source frame label"),
+                        P("to_frame", "str", True, "target frame label")),
+            returns=R("np.ndarray", "8-vector in to_frame"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_companions", owner="srmech",
+            category="qm.triality",
+            summary="The (g_s, g_c) companions solving Cartan's relation "
+                    "g_v(x·y) = g_s(x)·y + x·g_c(y) by deterministic "
+                    "least-squares; for a g2 derivation g_s = g_c = g_v. "
+                    "Class M. Baez (2002) §2.4.",
+            parameters=(P("g_v", "np.ndarray", True, "8×8 so(8) generator"),),
+            returns=R("tuple[np.ndarray, ...]", "(g_s, g_c) companions"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.triality_relation_residual",
+            owner="srmech", category="qm.triality",
+            summary="Scalar Cartan-relation deviation Σ_ij ‖g_v(e_i·e_j) − "
+                    "g_s(e_i)·e_j − e_i·g_c(e_j)‖ via the scalar Class K "
+                    "pin-slot magnitude (never abs()); 0 when correct. "
+                    "Class K∘C. Baez (2002) §2.4.",
+            parameters=(P("g_v", "np.ndarray", True, "8×8 generator"),
+                        P("g_s", "np.ndarray", True, "8×8 8_s companion"),
+                        P("g_c", "np.ndarray", True, "8×8 8_c companion")),
+            returns=R("float", "0 when the Cartan relation holds"),
+        ),
+        ToolEntry(
+            name="srmech.qm.triality.lean_isa_seventh_primitive",
+            owner="srmech", category="qm.triality",
+            summary="The order-3 triality as the 7th lean-ISA primitive, "
+                    "completing the chirality-complete A-N core: 6 order-2 "
+                    "cascade.atoms (pin_slot_at_zero / reorient / magnitude / "
+                    "chiral_flip / chiral_dual / net_chirality) + 1 order-3 "
+                    "triality (triality_automorphism) = 7 — the only access to "
+                    "the 3rd chiral axis (F220). BIT-EXACT certificate: τ has "
+                    "order exactly 3 (‖τ³−I‖≈0, τ≠I, τ²≠I) via the engine, plus "
+                    "the Lagrange arithmetic 3∤8 / 3∣3 (never abs(); scalar "
+                    "Class K pin-slot magnitude). The 6 atoms commute (abelian "
+                    "Z2×Z2×Z2, |G|=8) so 3∤8 ⇒ no order-3 element ⇒ the order-3 "
+                    "axis is unreachable from them — a documented "
+                    "framework-reading (scope hierarchy endianness ⊂ Class C ⊂ "
+                    "Klein-4 ⊂ Spin(8) triality), NOT a derived theorem, "
+                    "surfaced under framework_chirality_complete_reading. "
+                    "Class I (cyclic order-3). Baez (2002) §2.4 "
+                    "(Out(Spin(8))=S3); F220 is the framework finding.",
+            parameters=(),
+            returns=R("dict",
+                      "{order_two_atoms:(6,), order_three_primitive, "
+                      "triality:28×28 τ, certificate (bit-exact: triality_order "
+                      "3, residuals, abelian_group_order 8, lagrange_obstruction, "
+                      "chirality_complete_core 7), attestation, "
+                      "framework_chirality_complete_reading}"),
+        ),
     ]
     for e in entries:
         register_tool(e)
+
+
+def _register_introspect_tools() -> None:
+    """Register the opt-in introspection surface (v0.5.0rc7).
+
+    Discoverability fix per user direction 2026-05-28: srmech's
+    cascade-op / AMSC-fetch / signal-processing dispatch sites
+    can all emit per-op events to a status file (consumed by
+    ``srmech status`` / ``srmech bus tap``), but emission is OFF
+    by default — wrapping in :func:`srmech.introspect.publish` or
+    setting ``SRMECH_PUBLISH_STATUS=1`` before ``import srmech``
+    turns it on. LLMs reading the tool catalog (via the rc6 MCP
+    adapter) should see the opt-in path inline.
+    """
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.publish",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Opt-in context manager that enables per-op event "
+                "emission for `srmech status` / `srmech bus tap` "
+                "consumers. Wrap your sweep in `with "
+                "srmech.introspect.publish():` OR set "
+                "`SRMECH_PUBLISH_STATUS=1` env-var before importing "
+                "srmech to enable per-op events. Without this opt-in, "
+                "all srmech operations are silent (no overhead). "
+                "Designed for research sessions where you want to "
+                "observe a long-running sweep from a second process "
+                "via `srmech status` or via `srmech bus tap`. Events "
+                "land in `~/.srmech/run-{pid}-{start_time_ns}.ndjson` "
+                "(NDJSON, one MPR-shaped event per line). v0.4.6+ "
+                "(out-of-band introspection); v0.5.0rc7 (catalog "
+                "discoverability)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "remove_on_exit", "bool", required=False,
+                    summary=(
+                        "If True, the status file is unlinked when "
+                        "the with-block exits. Default False — leave "
+                        "the file for `srmech status` to auto-clean "
+                        "on next read."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="contextmanager[_PublishHandle]",
+                shape=(
+                    "Yields a handle exposing pid, start_time_ns, "
+                    "file_path of the active writer."
+                ),
+            ),
+        )
+    )
+    # v0.5.0rc9: register the read-side "status" surface so MCP /
+    # Claude Code consumers can discover the live-run enumerator and
+    # the by-pid lookup. Without these, the introspection surface was
+    # write-only from the LLM's catalog perspective — publish was
+    # visible but the matching read API was invisible.
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.list",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Enumerate active (and recently-died) srmech runs "
+                "owned by the current user by scanning "
+                "`~/.srmech/run-{pid}-{start_time_ns}.ndjson`. The "
+                "read-side complement to `srmech.introspect.publish`: "
+                "use this from a second process to observe a "
+                "long-running sweep. Side effect: dead-PID files "
+                "whose `session_end` event committed cleanly are "
+                "removed on read (auto-cleanup); their Run records "
+                "are still returned in the result so the caller can "
+                "inspect the final state. Most-recent first (sorted "
+                "descending by `start_time_ns`). Returns `[]` on "
+                "Pyodide / WASM (no filesystem). v0.5.0rc9 "
+                "(MCP / catalog discoverability)."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="list[Run]",
+                shape=(
+                    "Each Run is a frozen dataclass: pid (int), "
+                    "start_time_ns (int), script_name (str), "
+                    "current_op (str), current_class (str), "
+                    "elapsed_ms (int), status ('running' | "
+                    "'finished' | 'died'), event_count (int), "
+                    "file_path (pathlib.Path). Sorted most-recent "
+                    "first."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.by_pid",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "Look up the most-recent srmech run for one PID. "
+                "PID-recycling defence: if two status files share "
+                "the same PID because the OS reused it, the one "
+                "with the larger `start_time_ns` wins (the more-"
+                "recent run; the `start_time_ns` suffix in the "
+                "filename defeats PID recycling). Returns `None` if "
+                "no file matches, or on Pyodide / WASM (no "
+                "filesystem). v0.5.0rc9 (MCP / catalog "
+                "discoverability)."
+            ),
+            parameters=(
+                ToolParameter(
+                    "pid", "int", required=True,
+                    summary="Process ID to look up.",
+                ),
+            ),
+            returns=ToolReturn(
+                type="Run | None",
+                shape=(
+                    "Frozen dataclass with pid (int), start_time_ns "
+                    "(int), script_name (str), current_op (str), "
+                    "current_class (str), elapsed_ms (int), status "
+                    "('running' | 'finished' | 'died'), event_count "
+                    "(int), file_path (pathlib.Path). `None` when "
+                    "no file matches the PID."
+                ),
+            ),
+        )
+    )
+    # v0.5.0rc11: the self-recognition ROOT. Register
+    # ``srmech.introspect.describe`` so MCP / Anthropic consumers can
+    # ask "what is srmech / what can it do?" and get the package's own
+    # at-a-glance shape (version + native status + tool total +
+    # by-category + sorted category names) in one call. No parameters.
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.describe",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "The self-recognition ROOT (v0.5.0rc11): a structured, "
+                "at-a-glance map of srmech's own shape. Start here to "
+                "discover 'what is srmech / what can it do?' without "
+                "reading the implementation. Calls `warmup_all()` first "
+                "so the counts are complete no matter how srmech was "
+                "entered (library / CLI / MCP / Anthropic adapter), "
+                "then returns the package version, the tool-schema "
+                "version, the native-dispatch status (has_native / "
+                "abi_version / native_version), the total registered "
+                "tool count split into mcp_callable (advertised over "
+                "JSON-RPC / Anthropic) vs handle_pending (registered for "
+                "introspection but not advertised — the SpectralHandle "
+                "by-reference tools, rc16) + a per-category breakdown, "
+                "and the sorted list of category names. This is a ROOT / "
+                "INDEX — it "
+                "surfaces the SHAPE; per-tool JSON schemas, env, and "
+                "error-type detail come from later voxels. Framework "
+                "reading: Class H (self-introspection) at package scale "
+                "— the package recognising the shape of its own A–N "
+                "tool surface. No parameters."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="dict",
+                shape=(
+                    "{'srmech_version': str, 'tool_schema_version': "
+                    "str, 'native': {'has_native': bool, 'abi_version': "
+                    "int | None, 'native_version': str | None}, "
+                    "'tools': {'total': int, 'mcp_callable': int, "
+                    "'handle_pending': int, 'by_category': {category: "
+                    "count, ...}}, 'handle_pending': [sorted "
+                    "handle-pending tool names], 'categories': [sorted "
+                    "category names]}"
+                ),
+            ),
+        )
+    )
+
+
+def _register_dsl_tools() -> None:
+    """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
+
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 8 cascade-catalog
+    ops via a fluent builder (``chain().then(...).loop(...)...``). That
+    method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
+    can't chain builder methods. So this voxel exposes the *declarative*
+    surface: tools that do real work in ONE call.
+
+    Two entries, both with plain keyword parameters (no ``*args`` /
+    ``**kwargs`` — the rc10 property-key grammar holds and
+    ``invoke_tool``'s ``fn(**coerced)`` calls them directly):
+
+    * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
+      TOML chain spec + run it atomically; an LLM composes AND runs a
+      cascade in one call.
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 10 cascade-catalog
+      ops + their A–N class + purpose, so an LLM knows which op names a
+      spec may use.
+
+    Framework reading: the DSL composes Class M (cross-class bind) over
+    the cascade catalog; ``list_catalog_ops`` is Class E (catalog
+    enumeration) ∘ Class F (render of each descriptor's class + purpose).
+    No new primitive class is introduced.
+
+    NOTE on the import-cycle: this function builds *declarative*
+    ``ToolEntry`` data only — it does NOT import ``srmech.dsl`` (whose
+    ``_chain`` pulls ``srmech.introspect._writer`` and whose ``_catalog``
+    lazily pulls ``srmech.amsc.cascade``). The dotted-name targets are
+    resolved by :mod:`srmech.mcp._tools` at *invoke* time, not here, so
+    registering at this module's import is cycle-free. ``warmup_all()``
+    additionally imports ``srmech.dsl`` for manifest completeness; that
+    import is also cycle-free (verified — neither ``srmech.dsl`` nor
+    ``srmech.introspect`` imports ``srmech.amsc.tool_schema`` at module
+    load).
+    """
+    rc12 = " (v0.5.0rc12 — DSL surface voxel)."
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.run_toml_chain",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Compose AND run a cascade in ONE call: author an inline "
+                "TOML chain spec, feed an input value, get the chain "
+                "result. The declarative, one-shot face of the rc8 "
+                "cascade DSL (the fluent `chain().then(...).loop(...)` "
+                "builder is not tool-callable — a tool call can't chain "
+                "methods). The `spec` is a TOML document with a `[chain]` "
+                "table + `[[stage]]` array entries; each stage carries "
+                "exactly one discriminator: `op` (then), `loop_n` + "
+                "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
+                "`reduce_op` (reduce); any other key forwards as a "
+                "cascade-op kwarg (e.g. `max_denominator`). Op names come "
+                "from `srmech.dsl.list_catalog_ops` (the 10-op cascade "
+                "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
+                "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
+                "DSL composes Class M (cross-class bind) over the cascade "
+                "catalog; each stage is one A–N primitive-class instance, "
+                "the chain is the composition." + rc12
+            ),
+            parameters=(
+                ToolParameter(
+                    "spec", "str", required=True,
+                    summary=(
+                        "TOML chain spec: a [chain] table + [[stage]] "
+                        "array (one builder call per stage)."
+                    ),
+                ),
+                ToolParameter(
+                    "input_value", "int | float | str | list | dict",
+                    required=True,
+                    summary=(
+                        "Seed value fed to the first stage (a JSON-shaped "
+                        "value: number / string / list / dict). Passed to "
+                        "Chain.run unchanged."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="Any",
+                shape=(
+                    "Output of the final stage (an empty chain returns "
+                    "the input unchanged)."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.list_catalog_ops",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Enumerate the cascade-catalog ops a chain spec may use. "
+                "The discovery companion to `srmech.dsl.run_toml_chain`: "
+                "returns one record per op so an LLM can pick valid `op` "
+                "/ `fold_op` / `reduce_op` names and read each op's A–N "
+                "class composition + 1-line purpose BEFORE authoring a "
+                "spec. Sourced from the on-disk cascade-catalog TOML "
+                "descriptors (the SSoT), so it stays in lockstep with the "
+                "ops the runner can actually resolve (8 ops: "
+                "best_rational_signed, chiral_dual, chiral_flip, "
+                "cyclic_gcd, magnitude, net_chirality, pin_slot_at_zero, "
+                "reorient). Framework reading: Class E (catalog "
+                "enumeration) ∘ Class F (descriptor render). No "
+                "parameters." + rc12
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="list[dict]",
+                shape=(
+                    "[{'name': str, 'class': <A–N class composition>, "
+                    "'purpose': str}, ...] sorted ascending by name."
+                ),
+            ),
+        )
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Single registration entry-point (v0.5.0rc11 — Self-recognition root)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def warmup_all() -> None:
+    """Import every srmech submodule that registers ToolEntries, so the
+    registry is fully populated no matter how srmech was entered (library,
+    CLI, MCP, Anthropic adapter). Idempotent. THE single place future
+    voxels add their registration import — replaces scattered side-effect
+    imports. Closes the orphan-registration bug class (v0.5.0rc9 bus miss).
+
+    ``srmech.amsc`` (this module's package) and ``srmech.qm`` register
+    their tools at *this* module's import time via the
+    ``_register_*_tools()`` calls below, so they are always present once
+    ``srmech.amsc.tool_schema`` is imported. The submodules listed here
+    are the ones whose registration is NOT transitively guaranteed by
+    importing ``srmech.amsc.tool_schema``:
+
+    * ``srmech.bus`` fires ``srmech.bus._tool_schema._register_bus_tools``
+      (the rc9 orphan — bus tools were silently missing from the
+      LLM-facing catalog because no entry-path imported the bus).
+    * ``srmech.introspect`` is belt-and-braces — its tool entries are
+      registered by ``_register_introspect_tools()`` at this module's
+      import, but importing the module keeps the warmup list a complete,
+      self-documenting manifest of the registration-bearing submodules.
+    * ``srmech.dsl`` is belt-and-braces (v0.5.0rc12) — its tool entries
+      are registered by ``_register_dsl_tools()`` at this module's
+      import (declarative data only — no ``srmech.dsl`` import there, so
+      no cycle), but importing the module keeps the manifest complete
+      and confirms the package is importable. The import is cycle-free:
+      neither ``srmech.dsl`` nor ``srmech.introspect`` imports
+      ``srmech.amsc.tool_schema`` at module load (``srmech.dsl._catalog``
+      only references it in a docstring; ``srmech.introspect`` imports it
+      lazily inside ``describe()``).
+    """
+    import importlib
+
+    for mod in ("srmech.bus", "srmech.introspect", "srmech.dsl"):
+        try:
+            importlib.import_module(mod)
+        except Exception:  # pragma: no cover - defensive; optional submodules
+            pass
 
 
 # Call at module import so srmech's own tools are always present
@@ -1985,6 +3101,8 @@ _register_amsc_tools()
 _register_primitive_class_tools()
 _register_spectral_runtime_tools()
 _register_qm_tools()
+_register_introspect_tools()
+_register_dsl_tools()
 
 
 __all__ = [
@@ -2002,4 +3120,5 @@ __all__ = [
     "register_tool",
     "tool_schema_view",
     "unregister_profile_tools",
+    "warmup_all",
 ]

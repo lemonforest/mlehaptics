@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "siona"
-version = "0.0.2"
+version = "0.0.4"
 # siona is a METADATA-ONLY metapackage (no Python files of its own). The
 # `import siona` co-name alias ships INSIDE the srmech wheel (top-level
-# `siona/` package alongside `srmech`, from srmech v0.4.4). All this dist
-# does is guarantee srmech>=0.4.4 is present, which is what provides
+# `siona/` package alongside `srmech`, from srmech v0.4.6). All this dist
+# does is guarantee srmech>=0.4.6 is present, which is what provides
 # `import siona`. Shipping no `siona/` here is deliberate: it prevents a
 # file-ownership collision when both `siona` and `srmech` are installed.
-description = "siona - co-name metapackage for srmech (Stored-Relationship Mechanism). Installs srmech>=0.4.4, whose wheel provides the 'import siona' alias (same objects as 'import srmech', single source of truth)."
+description = "siona - co-name metapackage for srmech (Stored-Relationship Mechanism). Installs srmech>=0.4.6, whose wheel provides the 'import siona' alias (same objects as 'import srmech', single source of truth)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
@@ -28,8 +28,8 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
-# srmech>=0.4.4 is the floor that bundles the in-wheel `siona/` alias.
-dependencies = ["srmech>=0.4.4"]
+# srmech>=0.4.6 is the floor that bundles the in-wheel `siona/` alias.
+dependencies = ["srmech>=0.4.6"]
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/siona"

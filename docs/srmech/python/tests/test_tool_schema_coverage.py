@@ -71,6 +71,39 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
     "srmech.amsc.cascade.class_c_reorient",          # = reorient
     "srmech.amsc.cascade.best_rat_signed",           # = best_rational_signed
+    # cascade.atoms.* / cascade.compose.* — the two-tier split (#751 / F208).
+    # These submodules are the new canonical *homes* of the cascade ops, but
+    # the tool-schema registers each op under its STABLE flat public name
+    # ``srmech.amsc.cascade.<op>`` (introspection stability per #751) — which
+    # IS registered. The submodule-dotted names are the same objects re-
+    # exported flat, so they are exempt here exactly like the aliases above.
+    "srmech.amsc.cascade.atoms.pin_slot_at_zero",
+    "srmech.amsc.cascade.atoms.reorient",
+    "srmech.amsc.cascade.atoms.magnitude",
+    "srmech.amsc.cascade.atoms.chiral_flip",
+    "srmech.amsc.cascade.atoms.chiral_dual",
+    "srmech.amsc.cascade.atoms.net_chirality",
+    "srmech.amsc.cascade.compose.cyclic_gcd",
+    "srmech.amsc.cascade.compose.best_rational_signed",
+    "srmech.amsc.cascade.compose.kuramoto_step",
+    # cascade.compose.autocorrelation (v0.7.0rc8) — the Class-L circular
+    # autocorrelation, registered under its flat public name
+    # ``srmech.amsc.cascade.autocorrelation`` (which IS registered); the
+    # submodule-dotted name is the same object re-exported flat, exempt
+    # exactly like cyclic_gcd / kuramoto_step above.
+    "srmech.amsc.cascade.compose.autocorrelation",
+    # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
+    # Registered under its STABLE flat public name
+    # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);
+    # the submodule-dotted name is the same object re-exported flat, exempt
+    # exactly like the atoms/compose submodule ops above.
+    "srmech.amsc.cascade.parallel.parallel_sector_dispatch",
+    # cascade.parallel.sectorize (v0.6.0rc12) — a thin convenience wrapper
+    # that runs `parallel_sector_dispatch` with a recombine and returns the
+    # `combined` value (a unary nesting callable). It exposes NO capability
+    # beyond `parallel_sector_dispatch` (which IS registered) — it is sugar
+    # for nesting, exempt exactly like the helpers that wrap a primary entry.
+    "srmech.amsc.cascade.parallel.sectorize",
 })
 
 

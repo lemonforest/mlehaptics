@@ -48,7 +48,16 @@ from typing import Optional
 #   v1 — Phase B3 baseline: srmech_sha256_hex.
 #   v2 — Phase B4: srmech_ndjson_iter callback signature gained
 #        `size_t lineno` (the callback typedef wire-format changed).
-EXPECTED_ABI_VERSION: int = 2
+#   v3 — v0.5.0rc2: srmech_bus_* C peer; new function-pointer typedef
+#        srmech_bus_handler_callback_t. Adding a typedef carries a
+#        wire-format implication for the Python ctypes shim
+#        (CFUNCTYPE construction), so ABI bumps.
+EXPECTED_ABI_VERSION: int = 3
+
+# Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
+# expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
+# detected NATIVE_ABI_VERSION, which is None when no native lib is present).
+ABI_VERSION: int = EXPECTED_ABI_VERSION
 
 
 SRMECH_OK: int = 0
@@ -154,6 +163,72 @@ _NDJSON_LINE_CB = ctypes.CFUNCTYPE(
 )
 
 
+# rc8 chiral_dual: higher-order callback ABI for Class C ∘ op ∘ Class C.
+# The callback signature must match the C typedef
+# srmech_cascade_op_callback_f64_t exactly:
+#
+#   typedef srmech_status_t (*srmech_cascade_op_callback_f64_t)(
+#       const double *in, size_t n, double *out, void *user_data);
+#
+# Exposed at module scope (not inside _bind) so the Python dispatch in
+# srmech.amsc.cascade can construct callback instances without reaching
+# into the library-binding closure.
+CASCADE_OP_CALLBACK_F64 = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # srmech_status_t return
+    ctypes.POINTER(ctypes.c_double),         # const double *in
+    ctypes.c_size_t,                          # size_t n
+    ctypes.POINTER(ctypes.c_double),         # double *out
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
+# v0.6.0rc7 (#771): the cascade `body` callback ABI for the Klein-4
+# four-sector PARALLEL dispatch C peer. Mirror of the C typedef
+#
+#   typedef srmech_status_t (*srmech_cascade_body_f64)(
+#       const double *in, size_t n, double *out, void *user);
+#
+# Same wire-shape as CASCADE_OP_CALLBACK_F64 (named separately for the
+# dispatch role; identical ctypes signature).
+#
+# GIL + CONCURRENCY (v0.6.0rc8 — empirically settled). The C dispatch
+# spawns up to 4 threads (pthread / CreateThread) and invokes this
+# callback from EACH of them. ctypes invokes a CFUNCTYPE callback from a
+# foreign (C-spawned) thread SAFELY — it acquires the GIL via
+# PyGILState_Ensure (creating a thread-state on demand) for the duration
+# of the callback and releases it after. So the multi-sector threaded
+# fan-out with a Python body IS safe, and the shim below drives ONE
+# n_sectors=N dispatch (not N serial n_sectors=1 calls). Concurrency:
+# srmech's ctypes CDLL releases the GIL across the dispatch call, so a
+# GIL-RELEASING body (native / IO / numpy / sleep) lets the <=4 callback
+# threads genuinely OVERLAP — measured ~4x on a sleep body (rc8 fix for
+# the rc7 serial-shim slowdown). A CPU-bound PURE-Python body is still
+# GIL-serialised across threads (the inherent CPython limit; Python 3.13
+# free-threading lifts it) — correct, just not faster.
+CASCADE_BODY_CALLBACK_F64 = CASCADE_OP_CALLBACK_F64
+
+
+# v0.5.0rc2: srmech.bus handler-dispatch callback ABI. Mirror of the
+# C typedef in srmech.h:
+#
+#   typedef srmech_status_t (*srmech_bus_handler_callback_t)(
+#       const uint8_t *request, size_t request_len,
+#       uint8_t       *response, size_t *response_len_inout,
+#       void          *user_data);
+#
+# Exposed at module scope so srmech.bus dispatch can construct
+# trampolines without reaching into the closure. Same rationale as
+# CASCADE_OP_CALLBACK_F64.
+BUS_HANDLER_CALLBACK = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # srmech_status_t return
+    ctypes.c_void_p,                          # const uint8_t *request
+    ctypes.c_size_t,                          # size_t request_len
+    ctypes.c_void_p,                          # uint8_t *response
+    ctypes.POINTER(ctypes.c_size_t),         # size_t *response_len_inout
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
 def _bind(lib: ctypes.CDLL) -> None:
     """Set argtypes / restype for every function we call into."""
     # const char *srmech_version(void)
@@ -171,6 +246,22 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.c_char_p,
     ]
     lib.srmech_sha256_hex.restype = ctypes.c_int
+
+    # v0.7.0rc10 (F292 graft #1): N-way SIMD SHA-256 batch. NEW symbol —
+    # hasattr-guarded so a stale lib built before rc10 doesn't disable the
+    # whole native surface (same best-effort pattern as the cascade/polar/
+    # klein4 blocks below).
+    #   int srmech_sha256_batch(const uint8_t *const *msgs,
+    #                           const size_t *lens, size_t n,
+    #                           uint8_t *out_digests)   /* n*32 bytes */
+    if hasattr(lib, "srmech_sha256_batch"):
+        lib.srmech_sha256_batch.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_sha256_batch.restype = ctypes.c_int
 
     # int srmech_ndjson_iter(const char *path,
     #                        srmech_ndjson_line_cb cb,
@@ -676,6 +767,254 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_similarity.restype = ctypes.c_int
 
+        # int srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n,
+        #                                  int inverse, uint8_t *out)
+        # NEW in v0.6.0rc18 — guard with its own hasattr so a klein4-capable
+        # but pre-rc18 lib (rc13-rc17) doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_triality_cycle"):
+            lib.srmech_klein4_triality_cycle.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_triality_cycle.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
+    # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade
+    # ops Python-only. NEW symbols — guard with hasattr so a stale lib
+    # built before these landed doesn't disable the whole native
+    # surface (same best-effort pattern as the rc12 / polar / klein4
+    # blocks above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_cascade_chiral_flip_i64"):
+        # int srmech_cascade_chiral_flip_i64(const int64_t *in,
+        #                                     size_t         n,
+        #                                     int64_t       *out)
+        lib.srmech_cascade_chiral_flip_i64.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_chiral_flip_i64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_chiral_flip_f64"):
+        # int srmech_cascade_chiral_flip_f64(const double *in,
+        #                                     size_t        n,
+        #                                     double       *out)
+        lib.srmech_cascade_chiral_flip_f64.argtypes = [
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_chiral_flip_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_pin_slot_at_zero_f64"):
+        # int srmech_cascade_pin_slot_at_zero_f64(double  x,
+        #                                          int8_t *orientation_out,
+        #                                          double *magnitude_out)
+        # v0.4.5rc2 — Class K pin-slot at zero (scalar in, two outputs).
+        lib.srmech_cascade_pin_slot_at_zero_f64.argtypes = [
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_pin_slot_at_zero_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_magnitude_f64"):
+        # int srmech_cascade_magnitude_f64(double  x,
+        #                                   double *magnitude_out)
+        # v0.4.5rc3 — Class K pin-slot magnitude-only (scalar in / out).
+        lib.srmech_cascade_magnitude_f64.argtypes = [
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_magnitude_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_reorient_i64"):
+        # int srmech_cascade_reorient_i64(int8_t   orientation,
+        #                                  int64_t  value,
+        #                                  int64_t *out)
+        # v0.4.5rc4 — Class C cascade-orientation re-application (i64).
+        lib.srmech_cascade_reorient_i64.argtypes = [
+            ctypes.c_int8,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_reorient_i64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_reorient_f64"):
+        # int srmech_cascade_reorient_f64(int8_t  orientation,
+        #                                  double  value,
+        #                                  double *out)
+        # v0.4.5rc4 — Class C cascade-orientation re-application (f64).
+        lib.srmech_cascade_reorient_f64.argtypes = [
+            ctypes.c_int8,
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_reorient_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_net_chirality_i8"):
+        # int srmech_cascade_net_chirality_i8(const int8_t *orientations,
+        #                                      size_t        n,
+        #                                      int8_t       *out)
+        # v0.4.5rc5 — Class C net handedness invariant (sequence in /
+        # scalar out via output pointer; empty input -> +1; zero-element
+        # short-circuits to 0).
+        lib.srmech_cascade_net_chirality_i8.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_cascade_net_chirality_i8.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_cyclic_gcd_u64"):
+        # int srmech_cascade_cyclic_gcd_u64(uint64_t  a,
+        #                                    uint64_t  b,
+        #                                    uint64_t *out)
+        # v0.4.5rc6 — Class I cyclic-group gcd, cascade-namespace
+        # wrapper. FIRST of the delegating cascade ops: the cascade
+        # entry IS the Class I primitive (srmech_gcd); this wrapper
+        # exists to maintain the srmech_cascade_* namespace invariant.
+        lib.srmech_cascade_cyclic_gcd_u64.argtypes = [
+            ctypes.c_uint64,
+            ctypes.c_uint64,
+            ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_cascade_cyclic_gcd_u64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_best_rational_signed_f64"):
+        # int srmech_cascade_best_rational_signed_f64(
+        #     double    x, int64_t max_denominator, int64_t fine_scale,
+        #     int64_t  *out_num, int64_t *out_den)
+        # v0.4.5rc7 — Class K ∘ Class N ∘ Class C; multi-stage cascade
+        # delegating the Class N stage to srmech_best_rational with the
+        # Class K + Class C stages inlined. Banker's rounding via
+        # llrint() under default IEEE-754 FE_TONEAREST mode for parity
+        # with Python's built-in round().
+        lib.srmech_cascade_best_rational_signed_f64.argtypes = [
+            ctypes.c_double,
+            ctypes.c_int64,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.POINTER(ctypes.c_int64),
+        ]
+        lib.srmech_cascade_best_rational_signed_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_chiral_dual_f64"):
+        # int srmech_cascade_chiral_dual_f64(
+        #     srmech_cascade_op_callback_f64_t op,
+        #     void                              *user_data,
+        #     const double                     *in,
+        #     size_t                            n,
+        #     double                           *out,
+        #     double                           *workspace)
+        # v0.4.5rc8 — HIGHER-ORDER Class C ∘ op ∘ Class C conjugation.
+        # CLOSES the cascade-catalog C-parity arc (op 8 of 8). Function-
+        # pointer callback for the inner op (chosen over Class-ID enum
+        # dispatch so arbitrary callables work per the cascade-catalog
+        # public API contract). Workspace is caller-allocated per JPL
+        # Rule 3 (no malloc inside libsrmech). Delegates the Class C
+        # inner+outer chiral_flip to the rc1 native peer.
+        lib.srmech_cascade_chiral_dual_f64.argtypes = [
+            CASCADE_OP_CALLBACK_F64,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+        lib.srmech_cascade_chiral_dual_f64.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_cascade_parallel_sector_dispatch"):
+        # int srmech_cascade_parallel_sector_dispatch(
+        #     srmech_cascade_body_f64 body, void *user,
+        #     const double *in, size_t n,
+        #     uint32_t n_sectors,
+        #     double *out_sectors,
+        #     double *scratch, size_t scratch_len)
+        # v0.6.0rc7 (#771) — C-orchestration parity for the rc6 Python
+        # parallel_sector_dispatch. Runs the ≤4 Klein-4 chirality
+        # sectors of a caller-supplied cascade body and writes the four
+        # sector duals into the disjoint out_sectors[s*n ..] slices,
+        # each sector using its own disjoint scratch[s*n ..] slice (the
+        # F233 4-way independence ⇒ 0 cross-thread writes). Threaded on
+        # POSIX/Windows; SERIAL fallback (bit-identical) on thread-less
+        # targets. Workspace caller-allocated (JPL Rule 3, no malloc).
+        lib.srmech_cascade_parallel_sector_dispatch.argtypes = [
+            CASCADE_BODY_CALLBACK_F64,               # body
+            ctypes.c_void_p,                          # user
+            ctypes.POINTER(ctypes.c_double),         # in
+            ctypes.c_size_t,                          # n
+            ctypes.c_uint32,                          # n_sectors (1..4)
+            ctypes.POINTER(ctypes.c_double),         # out_sectors
+            ctypes.POINTER(ctypes.c_double),         # scratch
+            ctypes.c_size_t,                          # scratch_len
+        ]
+        lib.srmech_cascade_parallel_sector_dispatch.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # v0.5.0rc2: srmech.bus C peer (6 public symbols).
+    # All bus symbols are hasattr-guarded — a stale rc1 lib (ABI v2)
+    # won't have them and the load will fall through to the rc1
+    # Python-only path. (ABI v2 vs v3 mismatch ALSO bails earlier in
+    # the load sequence; this is double-defence.)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_bus_serve"):
+        # srmech_status_t srmech_bus_serve(
+        #     const char *name, srmech_bus_handler_callback_t handler,
+        #     void *user_data, srmech_bus_server_handle_t **out_handle)
+        lib.srmech_bus_serve.argtypes = [
+            ctypes.c_char_p,
+            BUS_HANDLER_CALLBACK,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_serve.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_server_accept_one"):
+        # srmech_status_t srmech_bus_server_accept_one(
+        #     srmech_bus_server_handle_t *h)
+        lib.srmech_bus_server_accept_one.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_server_accept_one.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_server_stop"):
+        # srmech_status_t srmech_bus_server_stop(
+        #     srmech_bus_server_handle_t *h)
+        lib.srmech_bus_server_stop.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_server_stop.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_connect"):
+        # srmech_status_t srmech_bus_connect(
+        #     const char *name, srmech_bus_client_handle_t **out_handle)
+        lib.srmech_bus_connect.argtypes = [
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_connect.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_send_recv"):
+        # srmech_status_t srmech_bus_send_recv(
+        #     srmech_bus_client_handle_t *h,
+        #     const uint8_t *request, size_t request_len,
+        #     uint8_t *response, size_t *response_len_inout)
+        lib.srmech_bus_send_recv.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        lib.srmech_bus_send_recv.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_client_close"):
+        # srmech_status_t srmech_bus_client_close(
+        #     srmech_bus_client_handle_t *h)
+        lib.srmech_bus_client_close.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_client_close.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -738,6 +1077,53 @@ def sha256_hex_c(data: bytes) -> str:
             f"this should not happen for valid inputs"
         )
     return out.value.decode("ascii")
+
+
+def sha256_batch_c(datas: "list[bytes]") -> "list[str]":
+    """Native N-way SIMD SHA-256 of many messages (F292 graft #1).
+
+    Returns a list of 64-char lowercase hex digests, one per input — each
+    byte-identical to ``hashlib.sha256(d).hexdigest()``. On x86 the native
+    peer dispatches to AVX2 8-way / SSE2 4-way; the per-message result is
+    bit-exact with the single-stream ``sha256_hex_c``.
+
+    Must only be called when ``HAS_NATIVE`` is True AND the lib carries the
+    rc10 symbol (a stale pre-rc10 lib lacks it; callers fall back to a
+    hashlib loop in ``srmech.amsc.format.sha256_batch``).
+    """
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_sha256_batch"):
+        raise RuntimeError(
+            "srmech.amsc._native.sha256_batch_c called but the native "
+            "srmech_sha256_batch symbol is unavailable; use "
+            "srmech.amsc.format.sha256_batch (which dispatches correctly)"
+        )
+    n = len(datas)
+    if n == 0:
+        return []
+    keep = []  # keep per-message buffers alive across the call
+    ptrs = (ctypes.POINTER(ctypes.c_uint8) * n)()
+    lens = (ctypes.c_size_t * n)()
+    for i, d in enumerate(datas):
+        b = bytes(d)
+        if len(b) == 0:
+            ptrs[i] = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+            lens[i] = ctypes.c_size_t(0)
+        else:
+            buf = (ctypes.c_uint8 * len(b)).from_buffer_copy(b)
+            keep.append(buf)
+            ptrs[i] = ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint8))
+            lens[i] = ctypes.c_size_t(len(b))
+    out = (ctypes.c_uint8 * (n * 32))()
+    rc = LIB.srmech_sha256_batch(
+        ptrs, lens, ctypes.c_size_t(n),
+        ctypes.cast(out, ctypes.POINTER(ctypes.c_uint8)),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_sha256_batch returned non-OK status {rc}; "
+            f"this should not happen for valid inputs"
+        )
+    return [bytes(out[i * 32:(i + 1) * 32]).hex() for i in range(n)]
 
 
 class NativeNDJsonError(Exception):
@@ -810,7 +1196,124 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
     return results
 
 
+def cascade_parallel_sector_dispatch_c(body, x, n_sectors: int = 4) -> list:
+    """Native Klein-4 four-sector dispatch — must only be called when
+    ``HAS_NATIVE`` is True (#771; the C peer of the rc6 Python
+    ``parallel_sector_dispatch``).
+
+    Runs the cascade ``body`` (a unary callable mapping a float sequence
+    to a float sequence) across its ``n_sectors`` (1..4) Klein-4
+    chirality sectors and returns ``[sector0, sector1, ...]`` — a list of
+    length ``n_sectors`` whose element ``s`` is the sector dual
+    ``T_s(body(T_s(x)))`` as a ``list[float]``.
+
+    CONCURRENT (v0.6.0rc8 — the serial-shim slowdown fix). This drives
+    the C dispatch with ONE ``n_sectors=N`` call: the C side spawns up to
+    ``N`` threads (pthread / CreateThread), applies the Klein-4 ``T_s``
+    transform itself (via the C atoms ``srmech_cascade_reorient_f64`` /
+    ``srmech_cascade_chiral_flip_f64`` on disjoint per-sector slices), and
+    invokes ``body`` from EACH thread. ``body`` is wrapped as a ctypes
+    ``CFUNCTYPE``; ctypes acquires the GIL (``PyGILState_Ensure``) for the
+    callback, so calling it from the C-spawned threads is SAFE. Because
+    srmech's ``CDLL`` releases the GIL across the dispatch call, a
+    GIL-RELEASING body (native / IO / numpy / sleep) lets the ``<=N``
+    sector callbacks genuinely OVERLAP (measured ~4x on a sleep body). A
+    CPU-bound pure-Python body is GIL-serialised across threads (the
+    inherent CPython limit) — correct, just not faster.
+
+    Earlier (rc7) this shim ran ``N`` serial ``n_sectors=1`` calls to
+    avoid a (mistaken) GIL/callback hazard — that traded away ALL the
+    concurrency (0.99x vs serial). The hazard was empirically disproven;
+    the single ``n_sectors=N`` call is both safe and the F233 4-thread
+    speedup as shipped (#778 / #771).
+
+    The result is bit-identical to the rc6 Python
+    ``parallel_sector_dispatch`` (the sectors are independent /
+    order-free, the F233 invariant).
+
+    Raises ``RuntimeError`` if ``HAS_NATIVE`` is False, ``ValueError``
+    for ``n_sectors`` out of 1..4, or ``RuntimeError`` on a non-OK
+    native status; any exception the body raises propagates out.
+    """
+    if not HAS_NATIVE or LIB is None:
+        raise RuntimeError(
+            "srmech.amsc._native.cascade_parallel_sector_dispatch_c called "
+            "but HAS_NATIVE is False"
+        )
+    if not hasattr(LIB, "srmech_cascade_parallel_sector_dispatch"):
+        raise RuntimeError(
+            "native lib lacks srmech_cascade_parallel_sector_dispatch "
+            "(stale dll; rebuild)"
+        )
+    if not isinstance(n_sectors, int) or isinstance(n_sectors, bool):
+        raise ValueError(f"n_sectors must be an int; got {type(n_sectors).__name__}")
+    if n_sectors < 1 or n_sectors > 4:
+        raise ValueError(f"n_sectors must be in 1..4; got {n_sectors}")
+
+    xs = [float(v) for v in x]
+    n = len(xs)
+    total = n_sectors * n
+    DblIn = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_in = DblIn(*xs) if n > 0 else DblIn()
+    OutArr = ctypes.c_double * total if total > 0 else ctypes.c_double * 1
+    out_sectors = OutArr()
+    scratch = OutArr()
+    callback_error: list = [None]
+
+    def _body_trampoline(in_ptr, in_n, out_ptr, _user):
+        # Invoked CONCURRENTLY from up to ``n_sectors`` C-spawned threads.
+        # ctypes holds the GIL (PyGILState_Ensure) for the duration of this
+        # callback, so the Python work is serialised against itself and
+        # ``callback_error`` / ``body`` are touched under the GIL. Each
+        # thread reads ONLY its own disjoint scratch slice (``in_ptr``) and
+        # writes ONLY its own disjoint out slice (``out_ptr``) — 0
+        # cross-thread aliasing (the F233 independence the C dispatch relies
+        # on). A GIL-releasing body lets the threads overlap.
+        try:
+            count = int(in_n)
+            in_vals = [float(in_ptr[i]) for i in range(count)]
+            result = list(body(in_vals))
+            if len(result) != count:
+                callback_error[0] = ValueError(
+                    f"body returned length {len(result)}; expected {count}"
+                )
+                return SRMECH_ERR_BAD_INPUT
+            for i in range(count):
+                out_ptr[i] = float(result[i])
+            return SRMECH_OK
+        except Exception as exc:  # noqa: BLE001 — re-raised on the Python side
+            callback_error[0] = exc
+            return SRMECH_ERR_INTERNAL
+
+    c_callback = CASCADE_BODY_CALLBACK_F64(_body_trampoline)
+    rc = LIB.srmech_cascade_parallel_sector_dispatch(
+        c_callback,
+        None,
+        ctypes.cast(c_in, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.c_uint32(n_sectors),
+        ctypes.cast(out_sectors, ctypes.POINTER(ctypes.c_double)),
+        ctypes.cast(scratch, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(total),
+    )
+    if callback_error[0] is not None:
+        raise callback_error[0]
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_cascade_parallel_sector_dispatch returned status {rc}"
+        )
+    return [
+        [float(out_sectors[s * n + i]) for i in range(n)]
+        for s in range(n_sectors)
+    ]
+
+
 __all__ = [
+    "ABI_VERSION",
+    "BUS_HANDLER_CALLBACK",
+    "CASCADE_BODY_CALLBACK_F64",
+    "CASCADE_OP_CALLBACK_F64",
+    "cascade_parallel_sector_dispatch_c",
     "EXPECTED_ABI_VERSION",
     "HAS_NATIVE",
     "LIB",
@@ -820,6 +1323,7 @@ __all__ = [
     "NativeNDJsonError",
     "ndjson_lines_c",
     "sha256_hex_c",
+    "sha256_batch_c",
     "SRMECH_OK",
     "SRMECH_ERR_NULL_ARG",
     "SRMECH_ERR_BAD_INPUT",

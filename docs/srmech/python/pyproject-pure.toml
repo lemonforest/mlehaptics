@@ -13,12 +13,12 @@
 # pyproject-pure.toml.
 
 [build-system]
-requires = ["hatchling>=1.18"]
+requires = ["hatchling>=1.18", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.4.4"
+version = "0.7.0rc11"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -26,8 +26,16 @@ version = "0.4.4"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject.toml`.
-description = "Stored-Relationship Mechanism research package. 14-class primitive vocabulary in native C + Python (content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational, equation-of-centre/Kepler, HDC); canonical QM/QFT/SM operations layer (Schrödinger, Dirac, Yang-Mills, Standard Model); runtime spectral decomposition; dual-path signal-processing surface; AMSC provenance framework (MPR v1 + universal catalog bridge)."
-readme = "README.md"
+description = "Stored-Relationship Mechanism: 14-class A-N primitive vocabulary in native C + Python. Substrate-native 28-dim chiral hyper-loop = so(8) adjoint (14 g_2 derivations + 14 L/R octonion products; Spin(8) triality), hardware-callable - Moufang loop-bind, 7-D cross, G_2 3-form. Full cascade-catalog C/Python parity: hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener-Khinchin autocorrelation. Canonical QM/QFT/SM ops; runtime spectral; AMSC (MPR v1)."
+# The PyPI long-description (readme) is assembled dynamically by the
+# fancy-pypi-readme hook (block below): full README.md + a Changelog
+# section sliced to the CURRENT-MINOR (0.7.0) entries only + a
+# "Full changelog" link. CHANGELOG.md stays the single source of
+# truth (no hand-maintained duplication). hatchling consumes the
+# shared [tool.hatch.metadata.hooks.fancy-pypi-readme] block
+# natively; scikit-build-core (pyproject.toml) consumes the same
+# block via its built-in provider.
+dynamic = ["readme"]
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 authors = [{ name = "Steven Kirkland" }]
@@ -66,6 +74,17 @@ collectors = [
     "beautifulsoup4>=4.11",
 ]
 tests = ["pytest>=7.0"]
+# Crypto extra (v0.5.0rc7): UTLP-exact AES-128-CTR Bio-TOTP backend
+# for the bus wire cipher (Claim 255). Pyodide/WASM may not support
+# the cryptography wheel — the stdlib HMAC-SHA-256 fallback always
+# works, so install this extra only when AES-CTR is required.
+crypto = ["cryptography>=41.0"]
+# Anthropic extra (v0.5.0rc9): enables the secondary
+# ``srmech.llm.anthropic_agent.AnthropicAgent`` direct-SDK adapter
+# for users who script Claude API outside Claude Code. Default
+# install does NOT add it. Pure-Python; Pyodide can install the
+# ``anthropic`` SDK via micropip if browser usage is desired.
+anthropic = ["anthropic>=0.40.0"]
 dev = [
     "pytest>=7.0",
     "build",
@@ -75,6 +94,21 @@ dev = [
     "requests>=2.28",
     "beautifulsoup4>=4.11",
 ]
+
+[project.scripts]
+# v0.4.6rc2 — first CLI subcommand: ``srmech status`` (out-of-band
+# introspection of a running srmech sweep). The siona alias mirrors
+# the import-level alias (v0.4.4); both invoke the same dispatch.
+srmech = "srmech.cli:main"
+siona = "srmech.cli:main"
+# v0.5.0rc6 — MCP (Model Context Protocol) server adapter for Claude Code.
+# Mirrors the pyproject.toml entry; pure-Python wheel ships the same console-
+# script so Pyodide / WASM environments get the same surface.
+srmech-mcp = "srmech.mcp._cli:main"
+# v0.5.0rc9 — Anthropic Claude SDK secondary adapter (mirror of
+# pyproject.toml so the pure-Python wheel ships the same console
+# script). Requires ``pip install srmech[anthropic]``.
+srmech-agent = "srmech.llm.anthropic_agent_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/python"
@@ -110,3 +144,32 @@ exclude = [
     "**/*.pyc",
     "srmech/_native/**",
 ]
+
+# ─────────────────────────────────────────────────────────────────
+# Dynamic PyPI long-description (fancy-pypi-readme)
+# ─────────────────────────────────────────────────────────────────
+#
+# SHARED METADATA — this block MUST be byte-identical to the one in
+# pyproject.toml. The publish workflow + the two-pyproject discipline
+# expect both files to agree on shared metadata. hatchling (this pure
+# wheel) consumes this natively; scikit-build-core (platform wheel)
+# consumes it via its built-in provider. CHANGELOG.md stays the
+# single source of truth for the changelog text — the third fragment
+# slices the current-minor entries out of it by HTML markers, so
+# there is NO hand-maintained changelog duplication.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = "\n\n---\n\n## Changelog — current 0.7.0 line\n\n"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "CHANGELOG.md"
+start-after = "<!-- pypi-readme-changelog-start -->"
+end-before = "<!-- pypi-readme-changelog-end -->"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = "\n\n**[Full changelog →](https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/python/CHANGELOG.md)**\n"

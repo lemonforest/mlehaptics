@@ -50,6 +50,18 @@ from .profile_loader import (
     profile,
 )
 
+# v0.4.6rc2 — out-of-band introspection (talk-to-running-PID API).
+# Per user direction 2026-05-28: long sweeps (30 min to hours) become
+# observable from a second process via a file-based status backend at
+# ``~/.srmech/run-{pid}-{start_time_ns}.ndjson``. OFF by default; the
+# import itself MUST NOT create any file. The env-var opt-in
+# ``SRMECH_PUBLISH_STATUS=1`` activates a process-wide publish context
+# at import time per the spec — implemented via the
+# ``_maybe_auto_publish`` hook below.
+from . import introspect as _introspect
+
+_introspect._maybe_auto_publish()
+
 __all__ = [
     "__version__",
     # profile loader API (Task #199, ADR-0001)
@@ -63,4 +75,50 @@ __all__ = [
     "SmokeTestFailedError",
     "list_profiles",
     "profile",
+    # introspect module exposure (v0.4.6rc2)
+    "introspect",
+    # top-level self-recognition help-anchor (v0.6.0rc15)
+    "describe",
+    # top-level native-dispatch status (v0.5.0rc19; issue #733)
+    "native_status",
+    # self-recognition root (v0.5.0rc11)
+    "warmup_all",
 ]
+
+# Expose ``srmech.introspect`` as a regular attribute (the module is
+# already importable via the ``from . import introspect`` above; this
+# just records it for symbol-exposure tests that check
+# ``hasattr(srmech, "introspect")``).
+introspect = _introspect
+
+# v0.5.0rc19 — top-level native-dispatch status (issue #733). The
+# discoverable one-call check that ``libsrmech`` is loaded + ABI-matched
+# + actually dispatching (vs. the pure-Python fallback). The native shim
+# lives at ``srmech.amsc._native``; this surfaces it where ``dir(srmech)``
+# finds it. Equivalent to ``describe()['native']`` plus expected-ABI +
+# dispatching + load-error fields.
+native_status = _introspect.native_status
+
+# v0.6.0rc15 — top-level self-recognition help-anchor. ``describe()`` is the
+# one-call "what IS srmech?" root (version + native + tool counts +
+# by_category). It already lives at ``srmech.introspect.describe()``;
+# surfacing it where ``dir(srmech)`` finds it mirrors the rc19 graduation of
+# ``native_status``. Stays a counts/index ROOT — the full per-tool list is
+# ``tool_schema_view()``; single-tool detail is ``ToolSchema.resolve()``.
+describe = _introspect.describe
+
+# v0.5.0rc11 — Self-recognition root. ``warmup_all()`` is THE single
+# registration entry-point: it imports every submodule that registers
+# ToolEntries (``srmech.bus`` / ``srmech.introspect``) so the registry
+# is fully populated no matter how srmech was entered. Per user
+# direction 2026-05-29 it fires here in ``__init__`` — substrate-
+# coherent: every consumer sees the complete tool-schema from t=0,
+# permanently closing the orphan-registration bug class (the rc9 bus
+# miss). Placed at the END of package init (after ``__version__`` /
+# profile loader / introspect are all set up) so the
+# ``from .amsc.tool_schema import warmup_all`` import — which fully
+# initialises ``srmech.amsc`` — sees a complete core ``srmech``
+# namespace and cannot trip an import cycle.
+from .amsc.tool_schema import warmup_all  # noqa: E402
+
+warmup_all()

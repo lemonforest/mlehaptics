@@ -2,10 +2,19 @@
 
 **Standard:** Holzmann, G. J. (2006). "The Power of Ten — Rules for Developing Safety Critical Code." *IEEE Computer* 39(6), 95-99.
 
-**Audited at:** v0.1.1rc8 (Task #201 Phase B6).
+**Audited at:** v0.1.1rc8 (Task #201 Phase B6); reentrancy delta
+re-audited at v0.6.0rc5 (#772).
 
-**Scope:** 3 source files under `c/src/*.c` and the public header
-`c/include/srmech.h`. Total roughly 500 LOC across:
+**Scope:** the source files under `c/src/*.c` and the public header
+`c/include/srmech.h`. The original Phase B6 audit covered the three
+baseline files below; the per-class C surfaces added since
+(`srmech_cyclic.c`, `srmech_laplacian.c`, `srmech_primes.c`,
+`srmech_rational.c`, `srmech_kepler.c`, `srmech_hdc.c`,
+`srmech_dispatch.c`, `srmech_catalog.c`, `srmech_template.c`,
+`srmech_tlv.c`, `srmech_search.c`, `srmech_cascade.c`,
+`srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`) are
+held to the same rules by the mechanical ratchet
+`tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).
 - `c/src/srmech_sha256.c` — FIPS 180-4 SHA-256 (Phase B3).
@@ -103,9 +112,28 @@ mechanically obvious. We never use `while(1)` or `for(;;)`.
 - All buffers are either:
   - Stack-allocated, compile-time-constant-sized (e.g.
     `uint8_t chunk[SRMECH_NDJSON_CHUNK_BYTES]`).
-  - Static-scope, compile-time-constant-sized (e.g.
-    `static char g_line_buf[SRMECH_NDJSON_MAX_LINE_BYTES]`).
-  - Caller-supplied (e.g. `char *out_hex` to `srmech_sha256_hex`).
+  - **Thread-local static**, compile-time-constant-sized (e.g.
+    the 1 MiB NDJSON line-assembly buffer in `srmech_ndjson_iter`
+    and the ~1 MiB Hermitian-eigendecomp working matrix `Hwork` in
+    `srmech_hermitian_eigendecompose` — both `static
+    SRMECH_THREAD_LOCAL`).
+  - Caller-supplied (e.g. `char *out_hex` to `srmech_sha256_hex`;
+    `double *workspace` to `srmech_hermitian_eigendecompose_ws`).
+
+**Static-scope scratch is itself a legitimate Rule-3 method** — the
+buffer has static storage duration, never touches the allocator, and
+is sized at compile time. The #772 conversion of the two former
+**shared-static** scratch buffers (`srmech_ndjson.c`'s `g_line_buf`
+and `srmech_laplacian.c`'s `Hwork`) was therefore **a reentrancy
+trade, NOT a Rule-3 fix**: they were already Rule-3-clean. The change
+adds the `SRMECH_THREAD_LOCAL` qualifier (and, for the eigendecomp, a
+new `srmech_hermitian_eigendecompose_ws` entry taking a caller-
+supplied workspace) so the buffers are per-thread / caller-owned
+rather than process-wide-shared. This makes the entire op surface
+safe to drive concurrently (the #771 multi-threaded plugin) while
+keeping the large (~1 MiB) buffers OFF the stack — `_Thread_local` /
+`__declspec(thread)` static storage is both Rule-3-clean and
+reentrant-across-threads. No malloc was introduced.
 
 ✅ **Pass.**
 
@@ -129,8 +157,37 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_sha256_state_to_hex`    |  20   | ✅      |
 | `srmech_sha256_hex`             |  57   | ✅      |
 | `srmech_ndjson_emit`            |  20   | ✅      |
-| `srmech_ndjson_process_chunk`   |  43   | ✅ *(extracted in Phase B6)* |
-| `srmech_ndjson_iter`            |  51   | ✅ *(was 76; reduced by extracting `process_chunk`)* |
+| `srmech_ndjson_process_chunk`   |  46   | ✅ *(gained `char *line_buf` param in #772)* |
+| `srmech_ndjson_iter`            |  55   | ✅ *(thread-local `line_buf` added in #772; still < 60)* |
+| `srmech_hermitian_run_sweeps`   |  27   | ✅ *(extracted from eigendecompose in #772)* |
+| `srmech_hermitian_eigendecompose_ws` | 44 | ✅ *(#772 reentrant caller-workspace entry)* |
+| `srmech_hermitian_eigendecompose`     | 19 | ✅ *(#772 thin thread-local-workspace wrapper)* |
+| `srmech_parallel__stream_transform`   | 20 | ✅ *(rc6 Klein-4 T_s involution; #771/#778)* |
+| `srmech_parallel__run_sector`         | 22 | ✅ *(rc6 per-sector worker, disjoint slices)* |
+| `srmech_parallel__validate`           | 25 | ✅ *(rc6 arg-validation + post-validation invariants)* |
+| `srmech_parallel__serial`             | 13 | ✅ *(rc6 thread-less serial fallback)* |
+| `srmech_parallel__job_run`            |  7 | ✅ *(rc6 threaded-job shim)* |
+| `srmech_parallel__thread_posix`       |  7 | ✅ *(rc6 pthread entry trampoline)* |
+| `srmech_parallel__threaded` (POSIX)   | 31 | ✅ *(rc6 pthread spawn-join, [4] stack handles)* |
+| `srmech_parallel__thread_win`         |  7 | ✅ *(rc6 CreateThread entry trampoline)* |
+| `srmech_parallel__threaded` (Win)     | 33 | ✅ *(rc6 CreateThread spawn / WaitForMultipleObjects)* |
+| `srmech_cascade_parallel_sector_dispatch` | 19 | ✅ *(rc6 public four-sector entry)* |
+| `srmech_kuramoto__coupling_sum`       |  9 | ✅ *(rc9 O(n²) coupling sum factored out; #778)* |
+| `srmech_cascade_kuramoto_step_f64`    | 17 | ✅ *(rc9 public Kuramoto forward-Euler step)* |
+| `srmech_kuramoto__general_sum`        | 12 | ✅ *(rc14 generalised Σ_j A_ij·sin(θ_j−θ_i−α); §11.1)* |
+| `srmech_cascade_kuramoto_step_general_f64` | 22 | ✅ *(rc14 public Kuramoto-Sakaguchi step: adjacency + α + pinning)* |
+| `srmech_loop__mul2`                   |  7 | ✅ *(rc7 complex dim-2 Cayley-Dickson product)* |
+| `srmech_loop__mul4`                   | 17 | ✅ *(rc7 quaternion dim-4 product via two mul2 levels)* |
+| `srmech_loop__mul8`                   | 18 | ✅ *(rc7 octonion dim-8 product via two mul4 levels)* |
+| `srmech_loop_bind_f64`                | 12 | ✅ *(rc7 public octonion loop_bind; n==8)* |
+| `srmech_loop_conj_f64`                | 14 | ✅ *(rc7 public octonion conjugate)* |
+| `srmech_loop_inv_f64`                 | 21 | ✅ *(rc7 public Moufang inverse x̄/⟨x,x⟩)* |
+| `srmech_cross7_f64`                   | 13 | ✅ *(rc7 public 7-D cross product Im(loop_bind))* |
+| `srmech_g2_three_form_f64`            | 20 | ✅ *(rc7 public G2 calibration 3-form scalar)* |
+| `srmech_autocorrelation_f64`          | 13 | ✅ *(rc8 Class-L circular autocorrelation; direct O(n²) sum)* |
+| `srmech_sha256_batch` + `srmech_sha256_batch.c` internals | ≤45 | ✅ *(rc10 F292 N-way SIMD SHA-256: fill_block / load_words / compress1 / digest1 / compress4 / hash4 / compress8 / hash8 / batch — each ≤45 lines; SIMD sigma ops are SINGLE-line macros per Rule 8)* |
+| `srmech_simd.c` HAL (`srmech_simd_has_avx2` / `_avx` / `_sse2` / `srmech_simd_tier`) | ≤22 | ✅ *(rc11 SIMD optimize-path HAL — cpuid/xgetbv probes + env-tier clamp; the ONE home of the machine-specific detection bits)* |
+| `srmech_loop_bind_hd_f64` + `srmech_loopbind_hd.c` internals | ≤45 | ✅ *(rc11 F292 N-way SIMD block-octonion HD bind: vmul2/4/8 a-/s- kernels + avx/sse2 group loops + public entry — each ≤45 lines; SIMD ops are SINGLE-line macros per Rule 8)* |
 
 ### Fix shipped in this audit pass
 
@@ -162,10 +219,57 @@ Per-function assertion counts:
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |
 | `srmech_sha256_hex`             |    3    | ✅                                                  |
 | `srmech_ndjson_emit`            |    2    | ✅                                                  |
-| `srmech_ndjson_process_chunk`   |    4    | ✅                                                  |
+| `srmech_ndjson_process_chunk`   |    5    | ✅ *(gained `line_buf != NULL` assert in #772)*     |
 | `srmech_ndjson_iter`            |    2    | ✅                                                  |
+| `srmech_hermitian_run_sweeps`   |    3    | ✅ *(Hwork / V non-NULL + n ≤ MAX_NODES)*           |
+| `srmech_hermitian_eigendecompose_ws` |  4  | ✅ *(out ptrs + n bound + `ws_len ≥ total`)*        |
+| `srmech_hermitian_eigendecompose`     |  2  | ✅ *(thin wrapper; out-ptr asserts)*                |
+| `srmech_parallel__stream_transform`   |    2    | ✅ *(`label != NULL`; `buf != NULL \|\| n == 0`)*   |
+| `srmech_parallel__run_sector`         |    4    | ✅ *(body / out / scratch non-NULL + `sector < CAP`)* |
+| `srmech_parallel__validate`           |    2    | ✅ *(post-validation: n_sectors bound + scratch_len)* |
+| `srmech_parallel__serial`             |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_parallel__job_run`            |    2    | ✅ *(job + job->body non-NULL)*                     |
+| `srmech_parallel__thread_posix`       |    2    | ✅ *(arg + job->body non-NULL)*                     |
+| `srmech_parallel__threaded` (POSIX)   |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_parallel__thread_win`         |    2    | ✅ *(arg + job->body non-NULL)*                     |
+| `srmech_parallel__threaded` (Win)     |    2    | ✅ *(body non-NULL + n_sectors bound)*              |
+| `srmech_cascade_parallel_sector_dispatch` | 2  | ✅ *(post-validation: body + out/scratch non-NULL)* |
+| `srmech_kuramoto__coupling_sum`       |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
+| `srmech_cascade_kuramoto_step_f64`    |    2    | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
+| `srmech_kuramoto__general_sum`        |    2    | ✅ *(`theta != NULL`; `i < n`)*                     |
+| `srmech_cascade_kuramoto_step_general_f64` | 2  | ✅ *(out non-NULL + theta/omega-vs-n aliasing pre)* |
+| `srmech_loop__mul2` / `__mul4` / `__mul8` | 2 each | ✅ *(rc7 inputs + out non-NULL)* |
+| `srmech_loop_bind_f64`                | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
+| `srmech_loop_conj_f64`                | 2  | ✅ *(rc7 x/out non-NULL + n==8)*                    |
+| `srmech_loop_inv_f64`                 | 2  | ✅ *(rc7 x/out non-NULL + n==8)*                    |
+| `srmech_cross7_f64`                   | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
+| `srmech_g2_three_form_f64`            | 2  | ✅ *(rc7 x/y/z/out non-NULL + n==8)*                |
+| `srmech_autocorrelation_f64`          | 2  | ✅ *(rc8 x/out non-NULL when n>0 + out-vs-x aliasing pre)* |
+| `srmech_sha256_batch`                 | 2  | ✅ *(rc10 msgs/lens/out non-NULL when n>0 + tier∈{0,1,2})* |
+| `srmech_sha256_batch.c` block/compress/hash internals | 2 each | ✅ *(rc10 fill_block/load_words/compress1/digest1/compress4/hash4/compress8/hash8 — pointer + buffer pre-conditions)* |
+| `srmech_loop_bind_hd_f64`             | 2  | ✅ *(rc11 x/y/out non-NULL when nb>0 + tier∈{0,1,2})* |
+| `srmech_loopbind_hd.c` vmul/group internals | 2 each | ✅ *(rc11 vmul2a/4a/8a + vmul2s/4s/8s + avx/sse2 group loops — x/y/out non-NULL)* |
+| `srmech_simd_tier` (HAL)              | 2  | ✅ *(rc11 env_var != NULL + max_tier >= 0)* |
 
-**Total: 15 assertions across 6 non-trivial functions = 2.5/fn average.** Exceeds the 2.0 floor.
+**Rule 5 EXEMPT:** `srmech_sha256b__ror` (rc10 — 1-line rotate, like the exempt
+scalar `srmech_ror32`). `srmech_simd_has_avx2` / `srmech_simd_has_avx` /
+`srmech_simd_has_sse2` (rc11 SIMD optimize-path HAL — pure cpuid/xgetbv
+CPU-feature detectors returning 0/1, no pointer/bounds invariant to assert;
+they REPLACED the per-file `srmech_sha256b__avx2_supported`/`__tier` copies, so
+the HAL nets FEWER exempt functions, and `srmech_simd_tier` is NOT exempt). The
+`SRMECH_{SHA256,LOOP_HD}_FORCE_TIER` env overrides + bounded-tier {0,1,2} clamp
+live in the non-exempt `srmech_simd_tier`. Mirrored in
+`tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
+
+The Hermitian-eigendecomp `_ws` entry additionally validates the new
+workspace parameters at runtime (`workspace != NULL` →
+`SRMECH_ERR_NULL_ARG`; `ws_len < 2*n*n` → `SRMECH_ERR_OVERFLOW`) in
+addition to the debug-build asserts, per Rule 7.
+
+**Total: 18 assertions across the NDJSON + Hermitian-reentrancy
+functions; every non-exempt function stays ≥ 2.** Exceeds the 2.0
+floor. (The repo-wide ratchet `tests/test_jpl_audit.py` enforces this
+mechanically across all `c/src/*.c`.)
 
 ### Exemption policy
 
@@ -198,10 +302,21 @@ Manual review of every variable declaration:
   `uint8_t chunk[]` in ndjson_iter) declared at the function
   entry — minimal-scope wouldn't help; they're used throughout the
   function body.
-- The static `g_line_buf` is at file scope because it has to
-  persist across `srmech_ndjson_process_chunk` invocations *during
-  one* `srmech_ndjson_iter` call. The single-thread contract is
-  documented in `srmech.h`.
+- The NDJSON line-assembly buffer must persist across
+  `srmech_ndjson_process_chunk` invocations *during one*
+  `srmech_ndjson_iter` call (a line can straddle chunk boundaries).
+  As of #772 it is a **function-local `static SRMECH_THREAD_LOCAL`**
+  buffer inside `srmech_ndjson_iter` (no longer a file-scope
+  `g_line_buf` global), threaded into `process_chunk` / `emit` as a
+  `char *line_buf` parameter so no helper references a file-scope
+  global. At 1 MiB it stays static-duration (too large to stack
+  safely per call) but is now per-thread → reentrant across threads.
+  The `srmech_hermitian_eigendecompose` working matrix `Hwork` got
+  the same treatment (function-local `static SRMECH_THREAD_LOCAL`),
+  and additionally exposes `srmech_hermitian_eigendecompose_ws` with
+  a caller-supplied workspace for callers that want to own the
+  buffer. The earlier single-thread contract for these two buffers
+  is thereby retired.
 
 ✅ **Pass.**
 
@@ -248,8 +363,21 @@ Return-value checks at every internal-callsite:
 - `grep -n "##\|__VA_ARGS__\|\.\.\." c/src/*.c c/include/srmech.h` → no matches.
 - All `#define` directives are simple constants (`SRMECH_VERSION_*`,
   `SRMECH_NDJSON_CHUNK_BYTES`, `SRMECH_NDJSON_MAX_LINE_BYTES`,
-  `SRMECH_ABI_VERSION`) or include guards (`#ifndef SRMECH_H`).
-- No multi-line macros. No function-like macros.
+  `SRMECH_ABI_VERSION`, `SRMECH_THREAD_LOCAL`) or include guards
+  (`#ifndef SRMECH_H`).
+- `SRMECH_THREAD_LOCAL` (#772) is a single-token object-like macro
+  selecting the platform TLS keyword (`_Thread_local` /
+  `__declspec(thread)` / `__thread`) via `#if`; no token-paste, no
+  varargs, no line continuation.
+- One **function-like** macro exists: `SRMECH_HERMITIAN_WS_LEN(n)`
+  (#772), a single-line pure-arithmetic constant helper
+  (`((size_t)(n) * (size_t)(n) * 2u)`) that lets a caller size the
+  Hermitian-eigendecomp workspace. It is side-effect-free, expands on
+  one line, and uses neither token-paste nor varargs — within the
+  spirit of Rule 8 (which prohibits multi-line / recursive / token-
+  pasting macros, not all parameterised constants). `SRMECH_HERMITIAN_WS_MAX`
+  is its object-like `n = MAX_NODES` specialisation, also single-line.
+- No multi-line macros. No recursive / token-pasting macros.
 - `#ifdef __cplusplus` only for `extern "C"` block — standard.
 
 ✅ **Pass.**
@@ -342,8 +470,77 @@ the toolchain-level Rule-10 ratchet.
   extracting `srmech_ndjson_process_chunk`. Documented the Rule 9
   callback deviation. Wrote this document. Added CI pedantic-build
   job (Rule 10 ratchet).
+- **v0.6.0rc5 (#772) — full-core reentrancy.** A full-core audit for
+  shared mutable static data (`grep` over `c/src/*.c`) found exactly
+  two process-wide-shared scratch buffers: `srmech_ndjson.c`'s
+  `g_line_buf` and `srmech_laplacian.c`'s `Hwork`. Both were already
+  Rule-3-clean (static-duration, no malloc) — the change is a
+  **reentrancy trade, not a Rule-3 fix**. `g_line_buf` became a
+  function-local `static SRMECH_THREAD_LOCAL` buffer threaded into
+  `process_chunk`/`emit` as a parameter (no API/ABI change). `Hwork`
+  became per-thread the same way, and a new ABI-additive exported
+  symbol `srmech_hermitian_eigendecompose_ws` exposes a caller-
+  supplied workspace (validated: non-NULL + `ws_len ≥ 2*n*n`); the
+  original `srmech_hermitian_eigendecompose` now routes through that
+  core via a thread-local workspace. The sweep loop was extracted
+  into `srmech_hermitian_run_sweeps` to keep all three functions
+  under Rule 4's 60-line limit. New portable TLS macro
+  `SRMECH_THREAD_LOCAL` (`_Thread_local` / `__declspec(thread)` /
+  `__thread`). `SRMECH_ABI_VERSION` unchanged at 3 (adding a symbol
+  never bumps ABI). No new mechanical violations; ratchet stays at 0.
+- **v0.6.0rc6 (#771/#778) — `srmech_parallel.c` Klein-4 four-sector
+  dispatch.** The C peer for
+  `srmech.amsc.cascade.parallel.parallel_sector_dispatch`: runs ONE
+  caller-supplied cascade `body` across its ≤4 Klein-4 (Z₂ × Z₂)
+  chirality sectors and writes the four sector duals. Adds 10 functions
+  (the public `srmech_cascade_parallel_sector_dispatch` + 9 static
+  helpers, including platform-conditional POSIX/Windows `__threaded`
+  variants). A **portable threading shim** mirrors `srmech_bus.c`:
+  `pthread_create`/`pthread_join` on POSIX, `CreateThread`/
+  `WaitForMultipleObjects` on Windows, and a **serial fallback** that
+  preserves the full four-sector capability bit-for-bit on a
+  thread-less microcontroller. Thread handles + jobs live in fixed
+  `[SRMECH_PARALLEL_SECTOR_CAP]` (`[4]`) **stack arrays** — no malloc
+  (Rule 3). Sectors write only their own disjoint output + scratch
+  slices (the F233 independence that makes serial == threaded). Longest
+  function 33 lines (Windows `__threaded`); every function ≥ 2 asserts.
+  `SRMECH_ABI_VERSION` unchanged at 3 (new symbol only). No new
+  mechanical violations; ratchet stays at 0.
+- **v0.6.0rc9 (#778) — `srmech_kuramoto.c` native Kuramoto step.**
+  One forward-Euler step of the canonical Kuramoto coupled-oscillator
+  model (Kuramoto 1975; Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
+  `θ_i(t+dt) = θ_i + dt·[ω_i + (K/N) Σ_j sin(θ_j − θ_i)]`. Closes a
+  C/Python parity gap so the dispatch-clock / coupled-oscillator step
+  runs natively (libm `sin`, as `srmech_kepler.c` already does). 2
+  functions: the public `srmech_cascade_kuramoto_step_f64` (17 lines)
+  plus the static `srmech_kuramoto__coupling_sum` helper (9 lines) into
+  which the O(n²) inner coupling sum was **factored to keep the public
+  step ≤ 60 lines** (Rule 4). Pure function over caller buffers (`out`
+  must not alias θ/ω) — no malloc, reentrant, no shared static state;
+  both functions carry 2 asserts. `SRMECH_ABI_VERSION` unchanged at 3
+  (new symbol only). No new mechanical violations; ratchet stays at 0.
 
-**Total mechanically-detectable violations: 1 → 0.**
+- **v0.6.0rc14 (§11.1) — generalised Kuramoto-Sakaguchi step.**
+  `dθ_i/dt = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`
+  added to `srmech_kuramoto.c`: a row-major `adjacency` matrix (NULL →
+  uniform `K/N`; non-symmetric → directed coupling), a Sakaguchi
+  frustration `α`, and optional per-oscillator pinning. 2 new functions:
+  the public `srmech_cascade_kuramoto_step_general_f64` (22 lines) plus the
+  static `srmech_kuramoto__general_sum` helper (12 lines, into which the
+  O(n²) weighted coupling sum is factored to keep the public step ≤ 60).
+  Pure functions over caller buffers (`out` must not alias θ/ω/adjacency/
+  pin arrays) — no malloc, reentrant, no shared static state; both carry 2
+  asserts; **NO Python callback** (co-equal parity — the C path runs C, the
+  Python path runs Python). `SRMECH_ABI_VERSION` unchanged at 3 (new symbol
+  only). No new mechanical violations; ratchet stays at 0.
+
+Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
+`tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
+and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
+macOS clang / Windows MSVC), verified green in CI.
+
+**Total mechanically-detectable violations: 1 → 0 (held at 0 through
+v0.6.0rc14).**
 
 The pin test `tests/test_jpl_audit.py` enforces the zero count
 going forward — PRs that introduce a new function > 60 lines or

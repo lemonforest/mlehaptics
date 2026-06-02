@@ -1,0 +1,117 @@
+# Cascade catalog entry: kuramoto_step
+# v0.6.0rc9 of the cascade-catalog — the Kuramoto coupled-oscillator
+# forward-Euler step (#778 follow-on). A composite I∘sin∘Σ∘C with a
+# dedicated native C symbol; closes the hand-rolled-Euler parity gap.
+#
+# v0.6.0rc14 (§11.1): generalized to the Kuramoto-Sakaguchi matrix-step.
+# Optional kwargs adjacency= (n×n coupling weights — non-uniform / directed
+# / Laplacian-weighted topology, NOT just all-to-all mean-field), alpha=
+# (the Sakaguchi phase-lag), pin_anchor=/pin_strength= (per-oscillator
+# pinning term). Defaults reproduce the simple mean-field step bit-for-bit.
+# Co-equal C peer srmech_cascade_kuramoto_step_general_f64 (ABI-additive;
+# ABI stays 3). No Python callback from C; no abs().
+
+[cascade]
+name = "kuramoto_step"
+class_composition = "I∘sin∘Σ∘C"
+# kind defaults to "stage" — a plain value→value op: the piped value is
+# `theta`, with `omega` (+ optional `coupling`/`dt`) supplied as stage
+# kwargs. Usable directly as a `.then("kuramoto_step", omega=[...])` /
+# `op="kuramoto_step"` chain stage.
+purpose = "Advance N coupled oscillators one step (the canonical Kuramoto synchronization model): theta += dt*(omega + (K/n)*Σ sin(theta_j - theta_i)). DSL stage-op — piped value is theta; pass omega= as a stage kwarg."
+description = """
+One forward-Euler step of the canonical Kuramoto model (Kuramoto 1975;
+Acebrón et al. 2005, Rev. Mod. Phys. 77:137):
+
+    theta_i <- theta_i + dt * ( omega_i
+                                + (K/n) * Σ_j sin(theta_j - theta_i) )
+
+The dispatch-clock / coupled-oscillator Euler integration the spectral-
+research arc hand-rolled in Python (F141 / F231 / R-95 / F234) — now a
+standard cascade op with a native C peer so srmech runs it with NO host
+Python (the full-parity commitment).
+
+HONEST CASCADE SHAPE: a composition of existing class operations, NOT a
+new privileged primitive — Class I (the cyclic phase theta on the
+circle) + the sin coupling (asymptotic-calculus transcendental; libm
+sin, exactly as srmech_kepler.c does) + a sum-reduce over j (Σ) + a
+Class-C Euler add (theta + dt·f). No abs().
+
+The O(n²) sin-coupling runs natively (srmech_cascade_kuramoto_step_f64).
+Parity is to libm-trig TOLERANCE (NOT bit-exact across platforms — the
+kepler trig discipline); the C peer and the Python fallback sum the
+coupling in the SAME index order. n==1 is pure drift (the only coupling
+term is sin(0) = 0); n==0 returns [].
+
+GENERALIZED FORM (v0.6.0rc14, §11.1 — the Kuramoto-Sakaguchi matrix-step):
+
+    theta_i <- theta_i + dt * ( omega_i
+                                + Σ_j A_ij * sin(theta_j - theta_i - alpha)
+                                [ + p_i * sin(psi_i - theta_i) ] )
+
+Supplying ANY of adjacency= / a non-zero alpha= / pin_anchor= routes to the
+generalized native peer srmech_cascade_kuramoto_step_general_f64:
+  - adjacency: an n×n coupling-weight matrix (row-major). None -> uniform
+    K/n (recovers the mean-field step). Non-symmetric -> directed coupling.
+    A graph Laplacian's off-diagonal weights give topology-aware coupling.
+  - alpha: the Sakaguchi phase-lag (Sakaguchi & Kuramoto 1986). 0.0 -> the
+    plain Kuramoto coupling.
+  - pin_anchor (psi_i) / pin_strength (p_i): a per-oscillator pinning /
+    forcing term pulling theta_i toward psi_i with strength p_i (p_i = 1.0
+    default when pin_strength is a scalar). pin_anchor=None -> no pinning.
+With all three at their defaults the generalized form reduces, term for
+term, to the simple mean-field step (verified bit-for-bit in the tests).
+The generalized peer is ABI-ADDITIVE (a new exported symbol) — ABI stays 3.
+No Python callback from C (the co-equal-parity discipline); no abs().
+"""
+
+[cascade.signature]
+input = "theta: sequence[float] (phases, radians); omega: sequence[float] (natural frequencies, same length n); kwarg float coupling = 1.0 (the global coupling K); kwarg float dt = 0.01 (the forward-Euler step); GENERALIZED (rc14) kwargs: adjacency = None | n×n sequence (row-major coupling weights), alpha = 0.0 (Sakaguchi phase-lag), pin_anchor = None | sequence[float] length n (per-oscillator anchor psi_i), pin_strength = 1.0 | sequence[float] length n (per-oscillator pin strength p_i)"
+output = "list[float] — the n phases after one forward-Euler step"
+operation = "simple: out[i] = theta[i] + dt * (omega[i] + (coupling/n) * sum_j sin(theta[j] - theta[i])); generalized: out[i] = theta[i] + dt * (omega[i] + sum_j A_ij * sin(theta[j] - theta[i] - alpha) [+ p_i * sin(psi_i - theta[i])]), where A_ij = adjacency[i][j] or coupling/n when adjacency is None"
+operation_general_routing = "adjacency is not None OR alpha != 0.0 OR pin_anchor is not None -> generalized native peer; else the simple mean-field step"
+parity = "libm-trig tolerance (NOT bit-exact cross-platform; same coupling-sum index order both sides)"
+n1_is_pure_drift = true
+n0_maps_to = "[]"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_kuramoto_step_f64"
+c_symbol_general_f64 = "srmech_cascade_kuramoto_step_general_f64"
+abi_version = 3
+abi_note = "rc14 adds srmech_cascade_kuramoto_step_general_f64 as a NEW exported symbol (additive) — ABI stays 3 (a new symbol does not bump ABI; only a wire-format change of an existing symbol does)."
+
+[cascade.composes]
+# A composition of existing class operations; NOT a new privileged
+# primitive (the cascade-honesty discipline).
+class_i_stage = "the cyclic phase theta_i on the circle (Class I — modular / cyclic angle)"
+sin_coupling_stage = "sin(theta_j - theta_i) — the asymptotic-calculus transcendental coupling (libm sin, as srmech_kepler.c)"
+sum_reduce_stage = "Σ_j over all n oscillators (the mean-field all-pairs coupling sum; K/n normalisation)"
+class_c_euler_add_stage = "theta + dt·f — the Class-C forward-Euler accumulate (no abs())"
+adjacency_stage = "rc14: A_ij coupling-weight matrix — the topology of which oscillators couple (Class L graph-weight surface; None recovers the uniform K/n mean-field row)"
+alpha_phase_lag_stage = "rc14: the Sakaguchi phase-lag inside the sin — a Class-C cascade-orientation offset on the coupling argument (theta_j - theta_i - alpha)"
+pin_stage = "rc14: p_i * sin(psi_i - theta_i) — a per-oscillator pinning/forcing term (a second sin coupling, this one to a fixed anchor psi_i rather than to the other oscillators)"
+
+[cascade.boundary_cases]
+n_zero = "n == 0 (empty theta/omega) -> []"
+n_one = "n == 1 -> pure drift theta[0] + dt*omega[0] (the only coupling term is sin(theta_0 - theta_0) = sin(0) = 0)"
+zero_coupling = "coupling == 0 -> pure drift theta[i] + dt*omega[i] (no coupling term)"
+length_mismatch = "len(omega) != len(theta) -> ValueError raised at the Python dispatch layer"
+adjacency_shape = "rc14: adjacency must be n×n (n rows of n weights) -> ValueError at the Python dispatch layer if any row length != n"
+pin_length = "rc14: pin_anchor (and pin_strength when a sequence) must have length n -> ValueError at the Python dispatch layer"
+generalized_defaults = "rc14: adjacency=None, alpha=0.0, pin_anchor=None reproduces the simple mean-field step bit-for-bit"
+aliasing = "the C `out` buffer MUST NOT alias `theta` or `omega` (caller-supplied disjoint buffers; the Python peer always allocates a fresh list)"
+non_numeric = "non-coercible theta/omega -> native path skipped; pure-Python fallback (float() coercion) runs"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.6.0rc9"
+canonical_landings = [
+  "Kuramoto, Y. (1975), 'Self-entrainment of a population of coupled non-linear oscillators', in International Symposium on Mathematical Problems in Theoretical Physics, Lecture Notes in Physics 39:420 (Springer) — the canonical coupled-oscillator model",
+  "Acebrón, J.A.; Bonilla, L.L.; Pérez Vicente, C.J.; Ritort, F.; Spigler, R. (2005), 'The Kuramoto model: A simple paradigm for synchronization phenomena', Rev. Mod. Phys. 77:137 — the mean-field K/N normalisation",
+  "Sakaguchi, H.; Kuramoto, Y. (1986), 'A Soluble Active Rotater Model Showing Phase Transitions via Mutual Entrainment', Prog. Theor. Phys. 76:576 — the phase-lag alpha (rc14 generalized step)",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "feedback_c_python_co_equal_parity_not_callback — the generalized C peer is a standalone symbol; C never calls back into Python (rc14)",
+  "R-RBS-LM F141 / F231 / R-95 / F234 — the dispatch-clock Euler recurrence the research hand-rolled (now C-parity'd)",
+  "srmech_kepler.c — the existing libm-sin precedent (Class I/J upstream) the coupling reuses",
+]

@@ -1,0 +1,146 @@
+# Cosmic Birefringence --- isotropic CMB-polarisation rotation angle beta
+# posterior (Planck / WMAP).
+#
+# Parity-odd observable ship: cosmic birefringence is the in-vacuo rotation
+# of the plane of linear CMB polarisation by an angle beta as photons
+# propagate from the last-scattering surface to today. A non-zero beta is a
+# parity-violating signal --- e.g. from a Chern-Simons coupling of a (pseudo)
+# scalar field (axion-like / quintessence dark energy) to electromagnetism.
+# It is extracted from the parity-odd EB (and TB) cross-correlation of the
+# CMB polarisation field, after simultaneously solving for the instrumental
+# polarisation-angle miscalibration that would otherwise be perfectly
+# degenerate with a cosmological rotation.
+#
+# Where cmb_polarisation_spectra (TE/EE/BB) and cmb_bispectrum (fNL)
+# constrain the parity-EVEN second- and third-point statistics of the CMB,
+# this catalogue records the parity-ODD isotropic-rotation observable beta ---
+# the headline number the cosmic-birefringence literature reports.
+#
+# Each row = one published beta posterior (central value + 68% C.L. half-
+# widths). The half-widths are stored as TWO non-negative fields
+# (beta_err_lo_deg / beta_err_hi_deg) so that an asymmetric posterior is
+# representable WITHOUT abs()/symmetrisation --- the Eskilt & Komatsu 2022
+# joint result is +0.094 / -0.091 deg and MUST keep its asymmetry intact
+# (sign / asymmetry discipline; never collapse a signed/asymmetric quantity).
+#
+# Four PDF-verified headline rows (one per measuring paper; values extracted
+# from the actual arXiv abstracts, NOT from memory --- do not alter/round):
+#
+#   1. Minami & Komatsu 2020, PRL 125, 221301 (arXiv:2011.11254)
+#      "New Extraction of the Cosmic Birefringence from the Planck 2018
+#      Polarization Data". beta = 0.35 +/- 0.14 deg; excludes 0 at 99.2%
+#      C.L. (2.4 sigma). Planck 2018 (PR3) polarisation data.
+#      NOTE: arXiv:2011.11254 is the MEASUREMENT paper. It is NOT
+#      arXiv:2006.15982, which is the methodology-only companion
+#      ("Simultaneous determination ... II") that reports no beta from data
+#      (it validates the EB-nulling method on simulations). Attesting the
+#      0.35-deg value to 2006.15982 would cite a paper that does not report
+#      it --- precisely the citation drift this framework's MPM guards
+#      against. The catalogue row uses 2011.11254.
+#
+#   2. Diego-Palazuelos et al. 2022, PRL 128, 091302 (arXiv:2201.07682)
+#      "Cosmic Birefringence from Planck Data Release 4". beta = 0.30 +/-
+#      0.11 deg (nearly full-sky). Planck PR4 (NPIPE). The abstract gives
+#      ONLY 0.30 +/- 0.11 and explicitly declines to assign cosmological
+#      significance pending improved foreground knowledge --- no foreground-
+#      marginalised headline number is invented here (carried verbatim in
+#      the row's notes).
+#
+#   3. Eskilt 2022, A&A 662, A10 (arXiv:2201.13347)
+#      "Frequency-Dependent Constraints on Cosmic Birefringence from the
+#      LFI and HFI Planck Data Release 4". beta = 0.33 +/- 0.10 deg
+#      (frequency-INDEPENDENT all-bands fit, fsky = 0.93). Planck PR4
+#      LFI+HFI. (The paper's two other values --- 0.26 +/- 0.11 HFI+70GHz,
+#      0.29 +0.10/-0.11 frequency-dependent --- are not rowed here; the
+#      frequency-independent all-bands value is the headline-comparable one.)
+#
+#   4. Eskilt & Komatsu 2022, PRD 106, 063503 (arXiv:2205.13962)
+#      "Improved Constraints on Cosmic Birefringence from the WMAP and
+#      Planck Cosmic Microwave Background Polarization Data".
+#      beta = 0.342 (+0.094 / -0.091) deg (ASYMMETRIC); excludes 0 at
+#      99.987% C.L. (3.6 sigma). Planck PR4 + WMAP 9-year joint analysis.
+#      The strongest single result and the natural primary row.
+#
+# EB/TB parity-odd POWER SPECTRA (C_l^EB, C_l^TB) are DEFERRED at this rc ---
+# there is no cleanly-attestable published bandpower table with a clear
+# license / URL / DOI for these analyses (the EB likelihood is internal to
+# each paper and presented in figures; the Planck Legacy Archive distributes
+# TT/TE/EE/BB but not parity-odd EB/TB as a standard PR3/PR4 product).
+# Hand-keying a figure-read EB/TB sample would have no verifiable source and
+# would fail attestation by construction --- exactly what AMSC exists to
+# prevent. The beta posterior IS the attestable parity-odd observable and
+# fully covers the wishlist W9 intent (issue #743). A future row_type
+# `birefringence_ebtb_bandpower` can be added to THIS catalogue if/when a
+# licensed machine-readable EB/TB bandpower product (future Planck / ACT /
+# LiteBIRD release) becomes available --- NO EB/TB rows until then.
+#
+# Attestation note: source_url (the catalogue-level open anchor) is the
+# arXiv abstract URL of the strongest result (2205.13962). Each ROW cites
+# its own measuring paper via the per-row source_doi / source_arxiv /
+# source_url --- a reader uses the per-row fields for the actual evidence of
+# each beta; the catalogue-level homepage is only the representative anchor.
+# Per the framework's attestation discipline the arXiv preprint is the
+# open/attestable source while the published journal DOI is the canonical
+# cite_as.
+
+[source]
+key = "cosmic_birefringence"
+human_readable_name = "Cosmic Birefringence Isotropic Rotation Angle beta Posterior (Planck/WMAP) Catalogue"
+purpose = "ground-proof rows for the published cosmic-birefringence isotropic-rotation angle beta (the parity-odd CMB observable extracted from EB cross-correlation); parity-odd companion to cmb_polarisation_spectra (TE/EE/BB) and cmb_bispectrum (fNL)"
+license = "literature-curated; per-row source DOI cites the measuring paper"
+homepage = "https://arxiv.org/abs/2205.13962"
+canonical_doi = "10.1103/PhysRevD.106.063503"
+
+# homepage above is the arXiv abstract URL of the strongest single result
+# (Eskilt & Komatsu 2022, arXiv:2205.13962) --- the catalogue-level open
+# anchor that the synthesised attestation's source_url field uses. canonical_doi
+# is that same paper's published journal DOI. Per-row provenance cites each
+# measuring paper's own DOI / arXiv ID; the catalogue is extensible by adding
+# further beta-posterior rows (future surveys) or a separate EB/TB-bandpower
+# row_type once a licensed machine-readable product exists.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "cosmic_birefringence.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Cosmic Birefringence beta Posterior Catalogue (curated against the published EB-cross-correlation measurements: Minami & Komatsu 2020 PRL 125:221301 arXiv:2011.11254; Diego-Palazuelos et al. 2022 PRL 128:091302 arXiv:2201.07682; Eskilt 2022 A&A 662:A10 arXiv:2201.13347; Eskilt & Komatsu 2022 PRD 106:063503 arXiv:2205.13962); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof cosmic-birefringence angle beta = {schema.beta_deg} deg for measurement {schema.measurement_id} (dataset {schema.dataset})"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Cosmic-birefringence beta is a parity-ODD cosmological observable --- a
+# different statistical quantity than the power-spectrum
+# (cmb_polarisation_spectra) or bispectrum (cmb_bispectrum) catalogues. The
+# dynamical-regime classifier has no regime label for a parity-violating
+# rotation observable; closest existing label is rigid_body_action_angle_stable
+# (the beta posteriors are observationally stable across PR3/PR4/WMAP
+# pipelines and converge near ~0.3-0.34 deg). A future label such as
+# `cosmological_parity_violation` would be more precise.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+[catalog]
+chain_schema_version = 1

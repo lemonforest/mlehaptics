@@ -377,14 +377,26 @@ def _resolve_sort_key(record: MPRRecord, dotted: str) -> Any:
 
 
 def sha256_bytes(data: bytes) -> str:
-    """SHA-256 over raw bytes; returns lowercase hex string. Used
-    by every adapter's ``attest()`` step to fingerprint upstream
-    response bytes.
+    """SHA-256 over raw input bytes; returns the 64-char lowercase hex
+    digest as a ``str`` (NOT the raw 32-byte digest). The ``_bytes`` in
+    the name names the INPUT type (the raw bytes hashed), not the return
+    type — this is the Python parity of C ``srmech_sha256_hex`` and of
+    ``hashlib.sha256(data).hexdigest()``. Used by every adapter's
+    ``attest()`` step to fingerprint upstream response bytes.
 
     Task #201 Phase B3 — dispatches to the native C implementation
     (``srmech.amsc._native.sha256_hex_c``) when the shared library
     is available, otherwise uses stdlib ``hashlib``. The two paths
     are byte-identical (pinned by ``tests/test_native_sha256.py``).
+
+    Returns:
+        A ``str`` of exactly 64 lowercase hex characters (the Class A
+        content-address), NOT raw ``bytes``. A caller wanting the digest
+        as an integer should parse the hex string with
+        ``int(h, 16)`` (full 256-bit value) or
+        ``int(h[:8], 16)`` (a truncated 32-bit tag), NOT
+        ``int.from_bytes(...)`` — the return is already hex text, so there
+        are no raw digest bytes to feed ``int.from_bytes``.
     """
     # Lazy import to keep srmech.amsc.format importable on platforms
     # where _native fails to load — the module always exposes a
@@ -397,6 +409,33 @@ def sha256_bytes(data: bytes) -> str:
     return h.hexdigest()
 
 
+def sha256_batch(datas: "list[bytes]") -> "list[str]":
+    """SHA-256 over MANY messages at once; returns one 64-char lowercase
+    hex digest per input (a ``list[str]``, parallel to ``datas``). Each
+    digest is byte-identical to ``sha256_bytes(d)`` /
+    ``hashlib.sha256(d).hexdigest()`` — this is purely a THROUGHPUT surface
+    for the bulk-attestation case (fingerprinting a whole catalog of
+    upstream response bytes at once), not a new content-address shape.
+
+    v0.7.0rc10 (F292 graft #1) — dispatches to the native **N-way SIMD**
+    peer (``srmech.amsc._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
+    on x86, scalar elsewhere) when the shared library carries the rc10
+    symbol, otherwise a stdlib ``hashlib`` loop. The two paths are
+    byte-identical (pinned by ``tests/test_sha256_batch.py``).
+
+    Args:
+        datas: the messages to hash (each a ``bytes``-like object).
+
+    Returns:
+        ``list[str]`` of 64-char lowercase hex digests, one per input.
+    """
+    from . import _native
+    if (_native.HAS_NATIVE and getattr(_native, "LIB", None) is not None
+            and hasattr(_native.LIB, "srmech_sha256_batch")):
+        return _native.sha256_batch_c(list(datas))
+    return [hashlib.sha256(bytes(d)).hexdigest() for d in datas]
+
+
 __all__ = [
     "MPR_SCHEMA_VERSION",
     "MANDATORY_ATTESTATION_FIELDS",
@@ -407,4 +446,5 @@ __all__ = [
     "read_ndjson",
     "write_ndjson",
     "sha256_bytes",
+    "sha256_batch",
 ]

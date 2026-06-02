@@ -1,0 +1,44 @@
+# Cascade catalog entry: magnitude
+# v0.4.5rc3 of the cascade-catalog C-parity + TOML retrofit — continues
+# the carve-out correction (op 3 of 8).
+
+[cascade]
+name = "magnitude"
+class_composition = "K"
+purpose = "Class K pin-slot magnitude-only projection — |x| but cascade-honest."
+description = """
+The cascade-honest replacement for Python abs() when only the magnitude
+is needed. Class K pin-slot magnitude (composes pin_slot_at_zero, discards
+the orientation). NaN maps to 0.0 (Class K dead-band) — same as
+pin_slot_at_zero — preserving Python parity. +/-Inf preserve magnitude.
+"""
+
+[cascade.signature]
+input = "float"
+output = "float"
+operation = "pin_slot_at_zero(x)[1]"
+nonnegative = true
+nan_maps_to_dead_band = true
+inf_preserved = true
+
+[cascade.composes]
+# Documented composition: magnitude IS Class K magnitude-only,
+# equivalent to pin_slot_at_zero(x)[1]. The dedicated C symbol is a
+# fast-path optimisation, not a separate primitive class.
+canonical_form = "pin_slot_at_zero ∘ project_magnitude"
+class_op = "K"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_magnitude_f64"
+abi_version = 2
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.4.5rc3"
+canonical_landings = [
+  "MFO §VII.6.x (Class K canonical pin-slot phase-boundary)",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the Class K phase-boundary",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "docs/unsolved-maths/_cascade_helpers.py — original precursor",
+]
