@@ -41,7 +41,28 @@ def mirror_pattern(pattern: bytes) -> bytes:
         raise TypeError(
             f"pattern must be bytes-like; got {type(pattern).__name__}"
         )
-    return bytes(pattern)[::-1]
+    p = bytes(pattern)
+    if len(p) == 0:
+        return b""
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_mirror_pattern")
+        and len(p) <= 0xFFFF_FFFF
+    ):
+        in_ptr = (ctypes.c_uint8 * len(p)).from_buffer_copy(p)
+        out_buf = (ctypes.c_uint8 * len(p))()
+        rc = _native.LIB.srmech_mirror_pattern(
+            in_ptr,
+            ctypes.c_uint32(len(p)),
+            out_buf,
+        )
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_mirror_pattern returned non-OK status {rc}"
+            )
+        return bytes(out_buf)
+    return p[::-1]
 
 
 def match(input_bytes: bytes,

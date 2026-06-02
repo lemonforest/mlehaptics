@@ -81,3 +81,51 @@ srmech_status_t srmech_byte_search(const uint8_t *haystack,
     *out_offset = SRMECH_SEARCH_NOT_FOUND;
     return SRMECH_OK;
 }
+
+srmech_status_t srmech_byte_search_backward(const uint8_t *haystack,
+                                            uint32_t       haystack_len,
+                                            const uint8_t *needle,
+                                            uint32_t       needle_len,
+                                            uint32_t      *out_offset)
+{
+    assert(out_offset != NULL);
+    assert(needle_len == 0 || needle != NULL);
+    if (out_offset == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (needle_len > 0 && needle == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (haystack_len > 0 && haystack == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Empty needle: Python's s.rfind("") returns len(s). */
+    if (needle_len == 0) {
+        *out_offset = haystack_len;
+        return SRMECH_OK;
+    }
+    if (needle_len > haystack_len) {
+        *out_offset = SRMECH_SEARCH_NOT_FOUND;
+        return SRMECH_OK;
+    }
+    /* Last-occurrence search: scan candidate offsets high to low (i-1
+     * avoids unsigned underflow); first (highest) match wins. Bounded by
+     * haystack_len x needle_len. */
+    uint32_t last = haystack_len - needle_len;
+    for (uint32_t i = last + 1u; i > 0u; i--) {
+        uint32_t off = i - 1u;
+        bool match = true;
+        for (uint32_t j = 0; j < needle_len; j++) {
+            if (haystack[off + j] != needle[j]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            *out_offset = off;
+            return SRMECH_OK;
+        }
+    }
+    *out_offset = SRMECH_SEARCH_NOT_FOUND;
+    return SRMECH_OK;
+}

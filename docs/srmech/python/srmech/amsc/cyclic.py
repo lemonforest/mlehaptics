@@ -58,6 +58,22 @@ def three_cycle(value: int) -> int:
         raise TypeError(f"value must be int; got {type(value).__name__}")
     if value < 0:
         raise ValueError(f"three_cycle: value must be non-negative; got {value}")
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_three_cycle")
+        and value <= 0xFFFF_FFFF_FFFF_FFFF
+    ):
+        out = ctypes.c_uint64(0)
+        rc = _native.LIB.srmech_three_cycle(
+            ctypes.c_uint64(value),
+            ctypes.byref(out),
+        )
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_three_cycle returned non-OK status {rc}"
+            )
+        return int(out.value)
     return (value + 1) % 3
 
 

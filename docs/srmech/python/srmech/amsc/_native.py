@@ -1015,6 +1015,40 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_bus_client_close.argtypes = [ctypes.c_void_p]
         lib.srmech_bus_client_close.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.7.0rc16: C-transpile of the rc12 chiral primitives (Classes
+    # I / D / G). NEW symbols — hasattr-guarded so a stale lib built
+    # before rc16 doesn't disable the whole native surface (same
+    # best-effort pattern as the cascade/polar/klein4 blocks above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_three_cycle"):
+        # int srmech_three_cycle(uint64_t value, uint64_t *out)
+        lib.srmech_three_cycle.argtypes = [
+            ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_three_cycle.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mirror_pattern"):
+        # int srmech_mirror_pattern(const uint8_t *pattern,
+        #                           uint32_t pattern_len, uint8_t *out)
+        lib.srmech_mirror_pattern.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_mirror_pattern.restype = ctypes.c_int
+    if hasattr(lib, "srmech_byte_search_backward"):
+        # int srmech_byte_search_backward(const uint8_t *haystack,
+        #     uint32_t haystack_len, const uint8_t *needle,
+        #     uint32_t needle_len, uint32_t *out_offset)
+        lib.srmech_byte_search_backward.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_byte_search_backward.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

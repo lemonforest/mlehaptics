@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc16] - 2026-06-02
+
+**C-transpile of the rc12 chiral primitives — native C peers for the F150 Class-I/D/G chiral ops, byte-exact with their Python fallbacks. Additive C symbols → ABI stays 3; `describe()` stays 201 (no new public callable — the ops already shipped in rc12); JPL ratchet unchanged.**
+
+The three rc12 chiral ops with a clean integer/byte kernel now have a native C surface, dispatched-to when `HAS_NATIVE` (pure-Python fallback unchanged, byte-exact):
+
+- **`srmech_three_cycle`** (Class I → `srmech_cyclic.c`) — the Z/3 generator `(value+1)%3`, computed overflow-safe as `((value%3)+1)%3`; wired into `srmech.amsc.cyclic.three_cycle` (uint64-range values dispatch to C, larger fall back to Python).
+- **`srmech_mirror_pattern`** (Class D → `srmech_dispatch.c`) — the byte-reversed needle; wired into `srmech.amsc.dispatch.mirror_pattern`.
+- **`srmech_byte_search_backward`** (Class G → `srmech_search.c`) — the last-occurrence search (rfind; empty needle → `len`, absent → `UINT32_MAX`/`None`); wired into `srmech.amsc.search.byte_search_backward`.
+
+Each is pi-free integer/byte arithmetic, ≥2 asserts, ≤60 lines, no goto/malloc/recursion, warning-clean under `-Wall -Wextra -Wpedantic` (JPL Power-of-Ten). 9 new native-vs-Python parity tests (`test_chiral_c_parity.py`) force both paths and assert byte-exact agreement across boundaries / random sweeps / period-3 / involution / empty-absent-multi-occurrence. ctypes bindings are `hasattr`-guarded so a stale `.dll` falls back to Python rather than failing to load.
+
+**Deferred rungs (no-silent-caps):** Class E `reverse_order` (list-of-pairs reversal — a Python data-structure op, not a numeric/byte kernel; intentionally Python-only) and Class L `three_fold_eigvec_groups` (eigendecompose-adjacent band split) remain Python-only for now; the rbs_lm Klein-4 encode helpers compose the already-C-backed `klein4_*` primitives.
+
 ## [0.7.0rc15] - 2026-06-02
 
 **DSL surface audit — corrects stale op-counts in the LLM-facing cascade-DSL tool descriptions + adds an anti-drift guard. Descriptions only; no new ToolEntry → `describe()` stays 201; ABI stays 3; no C change.**

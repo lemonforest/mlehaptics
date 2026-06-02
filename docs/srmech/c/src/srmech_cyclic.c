@@ -234,3 +234,17 @@ srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out)
     *out = (uint64_t)inv;
     return SRMECH_OK;
 }
+
+srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out)
+{
+    assert(out != NULL);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Harmonic-3 Z/3 generator (F150): (value + 1) mod 3, read on the
+     * residue class of value. Computed as ((value % 3) + 1) % 3 to stay
+     * overflow-safe at value == UINT64_MAX (value + 1 would wrap). */
+    *out = ((value % 3u) + 1u) % 3u;
+    assert(*out < 3u);
+    return SRMECH_OK;
+}
