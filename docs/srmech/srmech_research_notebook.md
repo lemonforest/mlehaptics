@@ -5461,6 +5461,35 @@ The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs
 
 ---
 
+## §3.34 2026-05-30 → -31 (F209–F233 era) — "where nature is screaming the answer": the cross-substrate sweep, the RECIPIENT fiber, the maturing A-N ISA (7th triality opcode, 7400-TTL), and the capacity / teaching≡bilingualism / no-magic / threading layer (RBS-LM/RBS-NN arc F209–F233; the MS#20 forward-arch cluster)
+
+*(Backfilled 2026-06-02 — the F209–F233 cluster the GH `[research]` issues #752–#778 track; un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_209…233`.)*
+
+### §3.34.1 Where nature is "screaming the answer" — the cross-substrate sweep
+
+A ranked breadth-sweep reading natural phenomena AS A-N cascades (the precursor to §3.31.2's "new locks"): a **binary compact-object merger** reads as an A-N cascade with the inspiral/merger/ringdown **phase boundaries** as Class-I/K transitions (F209); **parthenogenesis** as a *self-initiated symmetry-break / autocatalytic completion* (F210); and the F211 ranked sweep — **domain-wall / composite-soliton** (the Klein-4 anchor), **cardiac / excitable-media spiral waves** (ties F141), **von-Kármán vortex streets**. The **composite-soliton (ℤ₂)³ → (ℤ₂)² → ℤ₂ → 1 symmetry-breaking cascade** (F213) is the clean algebraic ladder under it.
+
+### §3.34.2 The RECIPIENT fiber + the addressing nulls (honest)
+
+The query carries a **hidden (spatially-absent) RECIPIENT fiber** — the receiver's absorption profile (F212), the fiber-as-absent-encoding read on the retrieval side. But the tests are **honest nulls**: a *content-free* recipient orientation does **not** help retrieval-vs-render (F214), nor does a *structured* recipient depth-anchor / which-depth operator (F221), nor the render-side hold-the-context complement (F227). The RECIPIENT fiber is real as *structure*; it does not (yet) buy an addressing win — recorded as the framework's own falsification (`[[feedback_dont_pre_commit_spike_query_operators]]`).
+
+### §3.34.3 The A-N ISA matures — the 7th (order-3 triality) opcode, 7400-TTL, M-theory G₂
+
+Honest negative first: the lean A-N ISA reduction did **not** hand us "time + 3 DoF" — the irrep structure does not yield it directly (F215). But **M-theory 11D = 4 + 7 (G₂-holonomy) re-reads as A–N = G₂ operator-structure** (F216); the **lean A-N atoms ARE elementary 7400-series TTL** (the Klein-4 chirality core in discrete logic, F217); the corpus's unifying capstone form-reading is **"the universe instantiates the A–N cascade"** (F218); the **chirality-ACCESS ladder** across substrates makes **triality (order-3) the substrate-access rung** (F219); and **a COMPLETE A-N ISA needs a 7th, order-3 "triality" opcode — YES, rigorously** (F220) — which is exactly the rc17 `klein4_triality_cycle` that §3.29.2 ships.
+
+### §3.34.4 Capacity, teaching≡bilingualism, the no-magic audit, and 74xx threading
+
+- **Capacity law (F222):** the catalog-driven scale-up to N=8192 confirms the **hierarchical capacity knee obeys `n_buckets × V_ceiling`** (the F203 ~4× lift, now a law); byte-level encode to ~100× holds the storage-signature spectrum (F223).
+- **Teaching ≡ bilingualism (F224/F225):** the decisive calibrated head-to-head, extended **multilingual** with a **language anchor axis** — teaching a domain ≡ being bilingual in it (the F205 cross-nav, now decisive). **Persistent plasticity** is the form-reading of the un-locked end of the instrument (F226).
+- **No-magic audit (F228):** the **ATTESTATION-TO-SOURCE audit of the core RBS-LM instrument's constants** — the standing instrument behind the no-magic-numbers discipline (A/B/C tiering); **`temperature` is the residue** F228 named (the un-derived `operating_temperature`, F229). The **rehearsal layer / "emperor's new clothes"** (render-PREVIEW / self-monitoring, F230).
+- **74xx TTL threading (F231–F233):** the threading router IS a **decode/dispatch/gather** in discrete 74xx (F231); **one cascade = two antiphase threads** on silicon (F232); **one cascade = four independent threads = the Klein-4 four chirality sectors** (F233) — the forward-arch precursor to §3.31's loop-bind/RBS work and the F274–F292 arc.
+
+### §3.34.5 Cross-references + status
+
+**Cross-references:** §3.33 (the F183–F208 foundation); §3.30 (the 28D/Hurwitz/triality capstone); §3.29.2 (the rc17 triality opcode F220 calls for); §3.31 (the loop-bind/forward-arch work F231–F233 seed); the no-magic-numbers discipline (`[[feedback_dont_pre_commit_spike_query_operators]]`; F228 the instrument). MS#20 (the forward-arch milestone) + the `[research]` issues #752–#778. Per-finding docs `R-RBS-LM-FINDING_209…233`. **Status:** meaning-tier backfill (found by the GH `[research]`-issue audit). No-magic A-tier (capacity law `n_buckets × V_ceiling`, the G₂/7400 structure); honest nulls kept (F214/F221/F227 addressing, F215 no-free-time+3DoF); `temperature` (F229) flagged as the standing C-tier residue. k=3 triality pending (Phase 11).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
