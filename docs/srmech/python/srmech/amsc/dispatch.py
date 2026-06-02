@@ -27,7 +27,21 @@ from typing import Iterable, Tuple
 
 from . import _native
 
-__all__ = ["match"]
+__all__ = ["match", "mirror_pattern"]
+
+
+def mirror_pattern(pattern: bytes) -> bytes:
+    """Harmonic-2 chiral mirror of a dispatch pattern (F150): the byte-reversed
+    needle. Class D is harmonic-2 (chiral inverse / self-inverse) per F150 §6.1
+    — ``mirror_pattern(mirror_pattern(p)) == p`` (period 2). Matching a
+    mirror-reversed input against the mirrored pattern yields the mirror match;
+    the chirality-aware companion to :func:`match`. ``pattern`` is bytes-like.
+    """
+    if not isinstance(pattern, (bytes, bytearray, memoryview)):
+        raise TypeError(
+            f"pattern must be bytes-like; got {type(pattern).__name__}"
+        )
+    return bytes(pattern)[::-1]
 
 
 def match(input_bytes: bytes,

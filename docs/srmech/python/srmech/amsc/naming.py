@@ -27,7 +27,17 @@ from typing import Iterable, Optional, Tuple
 
 from . import _native
 
-__all__ = ["lookup"]
+__all__ = ["lookup", "reverse_order"]
+
+
+def reverse_order(sorted_pairs: Iterable[Tuple[bytes, bytes]]) -> list:
+    """Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): the
+    order-reversed ``(key, value)`` list — a descending-key view of an
+    ascending catalog. Class E is harmonic-2 (chiral inverse) per F150 §6.1;
+    ``reverse_order(reverse_order(x)) == list(x)`` (period 2). The
+    chirality-aware companion to :func:`lookup`.
+    """
+    return list(sorted_pairs)[::-1]
 
 
 def lookup(key: bytes,

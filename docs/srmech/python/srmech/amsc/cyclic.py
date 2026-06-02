@@ -42,7 +42,23 @@ __all__ = [
     "mod_mul",
     "mod_pow",
     "mod_inv",
+    "three_cycle",
 ]
+
+
+def three_cycle(value: int) -> int:
+    """Harmonic-3 Z/3 cyclic shift (F150): the order-3 generator on Z/3 —
+    ``(value + 1) % 3``. ``value`` is any non-negative int, read mod 3 (so the
+    three residue classes 0/1/2 cycle 0→1→2→0). Class I is harmonic-3 (chiral
+    rotation) per F150 §6.1; applying ``three_cycle`` THREE times is the
+    identity on each residue (period 3) — the order-3 triality companion to the
+    modular Class-I primitives.
+    """
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError(f"value must be int; got {type(value).__name__}")
+    if value < 0:
+        raise ValueError(f"three_cycle: value must be non-negative; got {value}")
+    return (value + 1) % 3
 
 
 def _ensure_uint64(name: str, value: int) -> int:
