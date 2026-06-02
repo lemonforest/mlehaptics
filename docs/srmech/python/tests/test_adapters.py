@@ -32,7 +32,7 @@ from srmech.amsc.descriptor import load_descriptor
 
 
 def test_all_known_adapters_registered() -> None:
-    """All six adapter modules register themselves at import time."""
+    """All seven adapter modules register themselves at import time."""
     expected = {
         "html_scraper",
         "json_api",
@@ -40,6 +40,7 @@ def test_all_known_adapters_registered() -> None:
         "netcdf_grid",
         "geotiff_bbox",
         "literature_curated",
+        "substrate_parameterization",
     }
     assert set(ADAPTERS.keys()) == expected
 

@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc13] - 2026-06-02
+
+**RBS-LM upstream wishlist — the `substrate_parameterization` adapter + typed Descriptor sub-dataclasses (UPSTREAM_NOTES §7). Pure-Python, additive; no new ToolEntry → `describe()` stays 201; ABI stays 3; no C change.**
+
+A seventh AMSC adapter (`html_scraper` / `json_api` / `csv_bulk` / `netcdf_grid` / `geotiff_bbox` / `literature_curated` → + `substrate_parameterization`). Where the first six answer *"where do the ground-proof rows come from?"*, this one answers *"how is a parameterized substrate configured?"* — every former module-level magic number of a substrate characterization run (the RBS-LM variable-length Klein-4 chirality-level sentence substrate is the canonical consumer) lives in attested `[fetch.substrate_parameterization.*]` sub-tables rather than script-embedded MVP magic (`[[feedback_no_mvp_framing]]` + user direction 2026-05-28).
+
+- **Typed sub-dataclasses** (in `srmech.amsc.adapters.substrate_parameterization`): `SubstrateParams`, `EncodingParams`, `GenerationParams`, `HierarchicalParams`, `CorpusParams` (required) + `GrammarParams`, `PlausibilityParams`, `MeasurementParams` (optional), composed into a frozen `SubstrateConfig`. First-class typed access (`cfg.substrate.D`) replaces dict-navigation (`desc.fetch["literature_curated"]["substrate"]["D"]`).
+- **`parse_substrate_config(params)`** — validates the called-out invariants: `D > 0` (and every count); `cycle_policy ∈ {forbid, allow, count_limited}`; `corpus.source` / `corpus.tokenizer` / `grammar.mode` enums; `default_strategy ∈ allowed_strategies`; `0 ≤ plausibility weight ≤ 1`; `eps_smoothing > 0`. Booleans are rejected where ints are required.
+- **`config_for(descriptor)`** — typed accessor that locates the substrate sub-table inside `descriptor.fetch` (the `substrate_parameterization` key when migrated, else the legacy `literature_curated` key, else `[fetch]` directly), so it works for a migrated descriptor AND one still riding the interim adapter.
+- **`fetch` / `parse`** — the AMSC adapter protocol: `fetch` reads the committed `[fetch].ndjson_path` (the characterization measurement output); `parse` decodes it line-by-line. These rows are *computed* outputs attested by the descriptor + `parser_rule_hash`, so (unlike `literature_curated`) no per-row `source_doi` is required.
+
+**SCOPE:** the typed config layer only. The `run_substrate_characterization` operation that *consumes* a `SubstrateConfig` + corpus + phase set and *produces* the measurement NDJSON is the substrate-module port (UPSTREAM_NOTES §9), landing in a follow-up rc. The adapter module lives under the coverage-exempt `srmech.amsc.adapters.*` prefix (like its six siblings), so no tool-schema churn. `[[feedback_no_mvp_framing]]`.
+
 ## [0.7.0rc12] - 2026-06-02
 
 **RBS-LM upstream wishlist — F150 chiral A–N harmonics (UPSTREAM_NOTES §6) + §2.2 cross-substrate alignment. 7 new ToolEntries → `describe()` 194→201 (+1 coverage-exempt utility); pure-Python, no C change (this rc), ABI stays 3.**
