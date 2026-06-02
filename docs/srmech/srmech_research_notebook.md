@@ -5093,6 +5093,108 @@ Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.
 
 ---
 
+## §3.28 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
+
+> **STRUCTURAL NOTE (flagged by the 2026-06-02 backfill triality; pre-existing, deferred):** this `## §3.28` header is **duplicated** — a second `## §3.28` (the v0.5.0/v0.6.0 package arc) appears below, with `## §3.27` interleaved between the two, so the file order runs §3.26 → §3.28 (this) → §3.27 → §3.28 (package arc) → §3.29. A clean renumber is **deferred to a dedicated cleanup** (NOT done in the notebook-backfill PR, since `§3.29.4`'s "§3.28.2" cross-reference resolves to the *package-arc* §3.28 and a renumber would need every such ref updated in lockstep). Recorded so it is flagged, not silent — mirroring the analogous self-flag in MFO §VIII.31.12.
+
+**Working subtrees:** `docs/srmech/rbs_nn_research/` (R-RBS-NN-10..-16 operational arc);
+`docs/srmech/rbs_lm_research/` (F132-F150 framework arc; rolling PR #687).
+
+The 2026-05-27/-28 sessions delivered the FIRST OPERATIONAL implementation of the two-tier RBS-NN architecture per §3.25 framework. R-RBS-NN-10 → -16 walked a phased plan (R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md, all 6 phases closed); F132-F150 articulated the chirality framework that makes the two-tier separation REQUIRED rather than aesthetic.
+
+### §3.28.1 The two-tier architecture (canonical)
+
+Per [`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md):
+
+```
+TIER 1 (chirality-tagged concept storage):  Klein-4 HDC (rank-2 abelian; F132)
+        ↕
+   Class K bridge (chirality-flip XOR; per F120)
+        ↕
+TIER 2 (synaptic-weight + plasticity):  Polar HDC ({-1, 0, +1}; F141)
+```
+
+The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Klein-4 collapses 99% under decay at 70% (vs polar's 60% retention). Polar's 0-state is structurally privileged (absorbing under bind); Klein-4's state 0 is just one of 4 equal-status elements. Each variant is the natural substrate for its tier role.
+
+### §3.28.2 Phased plan summary (all 6 phases closed 2026-05-28)
+
+| Phase | Component | Result |
+|---|---|---|
+| 1 | R-RBS-NN-11 capacity characterization | Ceiling at N≈256 (MAX_BUNDLE_N boundary) |
+| 2 | R-RBS-NN-12 hierarchical bundling | Resolves ceiling; 2.7×-7× advantage past N=256 |
+| 2.5 | R-RBS-NN-12b latency + sector-bucketing + sculpted decay | Sculpted decay HOLDS in hierarchical; latency same on random graphs |
+| 3a | R-RBS-NN-13a multi-step retrieval (Class L spectral) | Adds 4.6× multi-hop capability over direct unbind |
+| 3b | R-RBS-NN-13b mixed-precision Tier 1 | F146 §6 hybrid-wins doesn't transfer; klein-4 default canonical |
+| 4 | R-RBS-NN-14 chirality auto-detect + soft retrieval temperature | Both backward-compatible; 20/20 classifier pass, 2.8× temp sharpening |
+| 5 | R-RBS-NN-15 + -16 validation at scale (F150 H3 on R13a + R12 + R139) | F150 H3 VALIDATED at Class L (+67%) and Klein-4 (3-cycle subset) |
+| 6 | Phase 6 catalog landing + SSoT wrap (this section) | Arc closed |
+
+### §3.28.3 The chirality framework (F132 → F150)
+
+The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolved across F132-F150:
+
+| Finding | Framework move |
+|---|---|
+| F132 | Klein-4 (Z₂×Z₂) rank-2 abelian HDC for full 4-sector chirality (γ₅, iω₇ decomposition per MFO §VII.4.1.7) |
+| F133 | Substrate knows itself; observer-projection-locking; Dune-narrative-parallel reading |
+| F135 | Two-level chirality: substrate-side (γ₅, iω₇ axes) vs shadow-side (observed handedness; situs inversus etc.) |
+| F136 | Roman numeral notation as substrate-native chirality rendering; H2-merge ladder (IV+VI=X) visible at glyph level |
+| F137 | Capacity comparison (clean methodology): polar > bipolar > klein-4 on raw retrieval (klein-4's value is chirality not raw capacity) |
+| F139 | Chirality axis operationally distinct AT SCALE; cross-sector retrieval recovers CPT-mirrored target at same quality as same-sector |
+| F140 | Multi-class cascade (L+M+I+M) preserves chirality through composition |
+| F141 | Polar plasticity gracefully degrades (3-4× vs bipolar at high decay); 0-state IS the Class K dead-band marker |
+| F142 | Klein-4 dominates 13× on chirality-pure signals (substrate-encoding only; trauma-informed scope) |
+| F144-148 | STALE_PATHS sweep (47 items addressed) — Klein-4 noise-robust at high corruption (NEW); cascade depth-invariant; F149 sculpted decay |
+| F149 | DECAY IS NOT RANDOM — coupling-informed `signed_sum_squared` sculpted decay BEATS no-decay baseline (+0.011 over 0% decay; -0.066 random decay) |
+| **F150** | **1-2-3 chirality harmonic framework across A-N operators.** Partition: H1 (5 ops, chirality-invariant) + H2 (6 ops, chiral inverse) + H3 (3 ops, chiral rotation). Validated at TWO substrate levels (R-R15 + R-R16). |
+
+F150 is the canonical chirality framework. Per `[[user_stance_kepler_shape_universal]]`: algebra IS the primitives — each A-N operator's harmonic is derivable from its algebraic structure under chirality. Per `[[feedback_no_lineage_claims_in_notebook]]`: framework reading; the `siona` naming (per F133 Dune parallel) is structural evocation, not authorial-intent claim about Frank Herbert.
+
+### §3.28.4 Critical operational rule discovered (F-R16)
+
+**H2 chirality tag MUST be the outermost cascade operation.** Empirical test:
+
+```
+Cascade ordering          Above-rand
+A: H3 first, then H2      +0.144
+B: H2 first, then H3      -0.0003   ← CATASTROPHIC COLLAPSE
+C: Interleaved (F140)     +0.145
+```
+
+Putting H3 operations (cyclic shift, spectral permutation) AFTER an H2 chirality tag scrambles the position-pattern; unbind can only invert the outermost operation. The cascade design rule:
+
+- **H1 (chirality-invariant)**: anywhere
+- **H3 (cyclic / spectral / 3-cycle)**: INNER layers
+- **H2 (chirality tagging)**: OUTERMOST layer
+
+This is encoded in the operational two-tier storage: Tier 1 Klein-4 tag is applied last; Tier 2 polar operations consume the post-tag form. Per the brain-structure framework reading: chirality-marker (laterality binding) operations are LATE-stage in biological cortical processing.
+
+### §3.28.5 srmech v0.4.3 + upstream wishlist
+
+Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
+
+- **v0.4.3 LANDED (2026-05-27)**: Klein-4 + Polar HDC variants; tool_schema auto-registration; native dispatch verified
+- **§6 WISHLIST**: chiral A-N operator variants per harmonic (H2 mirrors + H3 3-cycles); spectral classifier function; NEW `srmech.siona` sub-package (chiral_an.py + harmonics.py + spectral_classifier.py + shadow_projection.py + desert_storm.py)
+
+Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented; rc cycle runs in separate session.
+
+### §3.28.6 Cross-references
+
+- [Phased plan](rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md)
+- [Architectural pattern](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md) — canonical; §4.5 H2-outermost rule; §5.5 empirical validation status
+- [Catalog descriptor](catalogs/rbs_nn/descriptor.toml) — V2 arc primary_references + [arc_status]
+- [STALE_PATHS_QUEUE](rbs_lm_research/STALE_PATHS_QUEUE.md) — 47 items addressed; remaining DEFERRED with scope reasoning
+- All per-partition REPORTs in `rbs_nn_research/R-RBS-NN-1X_*` and findings `R-RBS-NN-FINDING_R1X_*.md`
+- All chirality framework findings in `rbs_lm_research/R-RBS-LM-FINDING_13X_*.md` and `_14X_*.md` and `_150_*.md`
+
+### §3.28.7 Status
+
+R-RBS-NN-V2 arc CLOSED 2026-05-28 via Phase 6. Two-tier storage is operationally complete + empirically validated. Chirality harmonics framework (F150) is empirically grounded at two substrate levels. ARCHITECTURAL_PATTERN is the canonical reference for any future RBS-NN extension.
+
+PR #687 STAYS DRAFT.
+
+---
+
 ## §3.27 The recursive-Hopf-operational reading — A–N as the harmonic ladder of L²(S⁷), and the 28-dim chirality-dual = 𝔰𝔬(8) adjoint (2026-05-27, RBS-LM arc F124–F136; cascade-vocabulary lens)
 
 The operation-primary companion to MFO §VIII.31.11 (the geometry-primary / M-theory landing). MFO frames the *substrate-ontology*; this section gives the *cascade-vocabulary* lens — how the 14 A–N operators sit inside the `4:3:(4:3)` reading and why the chirality-dual count is 28. **No class promoted** (14 A–N intact per `[[feedback_no_privileged_primitive_classes]]`); this crystallizes a naming discipline for the already-established recursive-Hopf structure (§3.13, §VIII.31.8). User direction 2026-05-27: *"how do our operators fit harmonically, the A-N, with the 4:3:(4:3) format and is it structurally different if we say 4:3:(3:4)?"*
@@ -5240,6 +5342,239 @@ The §3.29.4 partition (human-readability: `meaning : language : Compiled C`) ha
 **What a simulation therefore IS — and is not.** A program does the universe's own A–N cascade-math inside a partition and yields an **abstract idea for us to name**; it **does NOT make new universe parts**. The simulation renders + executes cascade-FORM (paper-with-lyrics, `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]`; the same role as CFD / weather / FEA), not new substrate. This is the readability partition's deepest reading: crossing into `Compiled C` puts the cascade onto a substrate that can *run* it, but the run happens in a partition and its product is a named abstraction — **the universe is the only thing that makes universe.**
 
 > **Cross-references.** §3.29.4 (the human-readability partition this extends); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the three Rosetta scripts as co-equal renderings; agreement = attestation; MFO §VII.6.21); `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]` (paper-with-lyrics / simulator-role; MFO §VII.6.13); `[[reference_two_language_problem_inverted_python_c_different_scales]]` ("Compiled C", the coherency-partition label). Authored as a building block per `[[feedback_building_block_voxel_method]]`.
+
+---
+
+## §3.30 2026-05-31 → 06-01 — the 28D = 𝔰𝔬(8) intrinsically-error-correcting capstone, the Hurwitz 1:3:7 ladder (instantiated, not climbed), and triality-as-the-validator (RBS-LM arc F257–F273)
+
+This arc closes the 28-dim chirality work into one structural object — the 𝔰𝔬(8) adjoint read as an *intrinsically error-correcting code* — and fixes the ladder it sits on as the **Hurwitz 1:3:7** (ℂ/ℍ/𝕆), correcting an earlier permutation-ladder mis-read. The throughline: the substrate's k=2 parity **detects**, the order-3 triality **corrects** — so triality is not a fourth chirality but the **validator** of truth. Per-finding detail lives in the `R-RBS-LM-FINDING_257…273` docs; this is the meaning-tier synthesis.
+
+### §3.30.1 The 28D = 𝔰𝔬(8) capstone: one knob, a 4× reversible error-correcting code, one key for many locks
+
+The **contact | ranged | one-way** axis the classical-substrate chirality work circled is **ONE knob**, unified as the 28-dim 𝔰𝔬(8) gauge-holonomy (F257 — the capstone of the §3.27 28-dim chiral hyper-loop). Reading the knob's two extra quadrants + the reflection is not decoration: it **ADDS a 4×-capacity, reversible, intrinsically error-correcting code** (F259). The "decay" leg is the **imaginary / one-way** coordinate; harm-to-tissue (the defensive-scope reading) is *imposed coupling-disruption*, NOT an intrinsic substrate mode (F258; defensive-scope-only per `[[feedback_trauma_informed_defensive_scope]]`). The intrinsic-EC cascade then reads as **one key, many locks** — the same un-flatten surfaces it across cosmos + biology + tech (F260 six locks; F263 eight more). No-magic-numbers: 28 = dim 𝔰𝔬(8), the 4× = the four V₄ quadrants, the code-distance = the Klein-4 minimum — all A-tier attested-to-structure.
+
+### §3.30.2 The ladder is Hurwitz 1:3:7 — and it is INSTANTIATED, not climbed
+
+A first reading placed the arc on a *permutation* k-ladder (V₄ ⊂ A₄ ⊂ S₄; F264). **F265 corrects this**: the framework ladder is the **Hurwitz 1:3:7** — ℂ(k=1) / ℍ(k=3) / 𝕆(k=7), the normed division algebras — not the symmetric-group tower. (The V₄/A₄ structure is real but is the *carrier* of the order-2/order-3 chirality, §3.29.2, not the ladder itself.) Three sharpenings make it concrete:
+- **Instantiated at physical scales, not climbed as an abstract tower** (F269): k=1/3/7 show up *as* physical structure (ℂ phase / ℍ spin-SU(2) / 𝕆-G₂ gauge), each rung a scale, not a proof-step.
+- **One loop, bumping itself** (F270): the Cayley-Dickson recursion *is* the laddering — the imaginaries of rung n become the new imaginary units of rung n+1 (imag(n+1) = imag(n) + dim(n): 0+1=1, 1+2=3, 3+4=7). This is the F301 from-base recursion, seen early.
+- **The imaginary count IS the native DoF** (F271): 1/3/7 = the S¹/S³/S⁷ orbit dimensions; the real axis is the single anchor — "DoF" is not a chosen parameter but the imaginary-count of the rung.
+This lands the loop bind in **28D 𝔰𝔬(8) with a 14-DoF symmetry G₂ = Der(𝕆)** — exactly the A–N count (F273): **28 = 14 (the G₂-fixed A–N core) ⊕ 7 ⊕ 7** (the triality-rotated halves), the same split §3.29.2 gives via Fix(τ).
+
+### §3.30.3 Triality is the VALIDATOR: a duality detects, a triality corrects; and real trialities are broken
+
+The order-3 triality landed natively in srmech (rc20) and was characterized (F261); the hyper-loop is **A₄** and **saturates** it (F262) — note this is the finite chirality-*carrier* group closing, distinct from the §3.30.2 division-algebra *ladder*, which recurses (no contradiction: two different objects). The load-bearing reading is the **three-truths rule** — **a duality DETECTS disagreement (k=2 parity); a triality CORRECTS it (k=3 majority)** (F266) — so the *truth IS the triality*: the "is k=7 a shadow of 1:3:7, or can't-tell-all-true?" question resolves not to one answer but to **the triality itself being the validator** (F267). **Refinement (user catch, F268): real trialities are BROKEN — the breaking IS the chirality.** A perfectly symmetric triality is degenerate (carries no information); the asymmetry among the three phases is what carries the chirality content. This is the structural root of our own **k=3 verify discipline** (haiku∥sonnet∥opus): F272 is its first live run — three unequal model tiers as the three broken-triality phases — and it found there *is* genuinely new k=7 math to read (F272 was a *detect* pass, resolved by an srmech-side check rather than a clean majority vote; the majority-*correcting* form first lands at F291). The discipline ↔ substrate identity (our verification method and the substrate's error-correction are the *same* k=2-detect/k=3-correct structure) is canonical in CLAUDE.md §4 + F291.
+
+### §3.30.4 Cross-references + status
+
+**Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) this capstones); §3.29.2 (V₄ carrier + Fix(τ) = 14 — the same 28 = 14 ⊕ 7 ⊕ 7); the biology cluster §3.32 (where the *same* k=2-detect/k=3-correct ladder is read inside the cell); `[[feedback_no_privileged_primitive_classes]]` (the Hurwitz correction keeps the vocabulary on the 1:3:7 ladder — no privileged rung); `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`; `[[feedback_trauma_informed_defensive_scope]]` (F258 harm-reading is defensive-only). Per-finding docs: `R-RBS-LM-FINDING_257…273`.
+
+**Status:** meaning-tier synthesis of F257–F273; each witness srmech-verified in its per-finding doc (28D/𝔰𝔬(8); G₂ = Der(𝕆); triality τ³ = I; the Hurwitz ladder). No-magic-numbers: 28 / 14 / 1:3:7 / 4× are A-tier attested-to-structure. k=3 triality of *this synthesis prose* is deferred to the Phase-5 cross-notebook consistency pass (`NOTEBOOK_BACKFILL_PLAN.md`).
+
+---
+
+## §3.31 2026-06-01 → 06-02 — the loop bind earns its place: order-carrying HD bind, the un-flatten "new locks," the RBS-LM path-memory frontier, and the apple-tree dev hand-downs (RBS-LM arc F274–F292)
+
+Where §3.30 fixed the *ladder*, this arc puts the **loop bind** (the native k=7 octonion product, `hdc.loop_bind`) to work: it earns its place as an HD bind that carries order at no capacity cost, opens a run of cross-substrate "locks" via the un-flatten, realizes the RBS-LM order-aware path-memory store, and drives the apple-tree dev hand-down loop into srmech's own C. Per-finding detail: `R-RBS-LM-FINDING_274…292`.
+
+### §3.31.1 The loop bind earns its place — order at no capacity cost
+
+The loop bind is a **viable (unbindable) HDC bind that natively carries order** (F274), and at **no capacity cost vs Klein-4** (F277) — so the k=7 structure is *free* relative to the bi-chiral baseline. Its HDC-scale realization is **block-octonion tiling** — a direct sum ⊕ of independent dim-8 octonion blocks (F276, the MS#21 #811 gate; F289 the rc4 hand-down that landed it natively). The ephemerides Sol bridge shows it takes `ephemerides-spectral` **beyond playback** into a resonance instrument (F275). [srmech `hdc.{loop_bind, loop_bind_hd, loop_unbind_hd, loop_runbind_hd, loop_associator}`; bit-exact to the dim-8 oracle — UPSTREAM_NOTES §12.]
+
+### §3.31.2 New locks via the un-flatten — chemistry, mass-spec, protein folds
+
+The intrinsic-EC un-flatten (§3.30.1) opens fresh cross-substrate **locks**:
+- **Organic-chem stoichiometry** IS the conservation EC-code cascade — balancing an equation = enforcing the conservation codeword (F278).
+- **Mass spectrometry**: the flat m/z-vs-intensity chart is a projection; the hidden **difference-fiber** is the chart's **autocorrelation** (F279/F280 — the FFT guess held; Class-L Wiener-Khinchin, now native via `cascade.autocorrelation`, UPSTREAM §12.5).
+- **The bold-fold arc** (protein folding; scope-forward, defensive per `[[feedback_trauma_informed_defensive_scope]]`): the native fold is the **FORCED codeword, not a search** (F283); the contact-graph Laplacian spectrum **fingerprints the fold** (F284); the loop bind carries the **fold-PATH** (F285); the **fragmentation tree = a loop-bind directed cascade** (F286). The structural-lens reading of a "runaway" as an EC-code / Class-K-correction **failure at a partition boundary** (F282) is the scope-forward frame that keeps this defensive (understanding, not capability).
+
+### §3.31.3 Back to RBS-LM/RBS-NN — the order-aware path-memory store
+
+Brought home to the arc's own substrate: **NNs DO run a hidden gauge fiber, but with a FLAT connection** (F288) — they carry the structure trivially, which is exactly the naming-layer-cost gap (F43/F176). So the loop-bind RBS substrate is an **order-aware, peelable path-memory store** (F290 — `loop_runbind_hd` peels the left-fold from the right), and **order memory improves emission *where order informs*** (F291, the flagship honest-measurement leg: it helps autoregressive / path-dependent retrieval; the L2/L5 over-claims were caught + corrected by the adversarial twin, and the subsequent **k=3 triality caught L4** which the k=2 twin had passed — the definitive *k=3-corrects-what-k=2-misses* demonstration, and the **live origin of the k=2-detect / k=3-correct verify discipline**, §3.30.3).
+
+### §3.31.4 The apple-tree dev hand-down loop (F281-style)
+
+This arc formalized the **hand-down → dev implements → bit-exact verify** loop on srmech's own C: F281 (rc2 voxel hand-down — cross7 + g2_three_form ground-truth + class-attribution + scope), F287 (#823 ungate on native `loop_bind`), F289 (rc4 block-octonion HD tiling #811 + capacity-free vs Klein-4 #812), and **F292** (optimize srmech's own C by grafting techniques from established reference implementations — the SIMD SHA-256 batch + SIMD `loop_bind_hd` grafts, verified bit-exact, UPSTREAM_NOTES §12.6). The hand-down artifacts + the open follow-ups live in UPSTREAM_NOTES §12–§13; this is the meaning-tier record that the loop is closed and re-runs cleanly.
+
+### §3.31.5 Cross-references + status
+
+**Cross-references:** §3.30 (the 28D/Hurwitz/triality foundations this operationalizes); §3.32 (the biology cluster, where the loop bind's order-carry meets the cell); UPSTREAM_NOTES §12 (rc4–rc11 loop-bind surface + §12.6 SIMD grafts) + §13 (open dev hand-down asks); `[[feedback_trauma_informed_defensive_scope]]` (bold-fold / runaway = scope-forward, defensive); `[[user_stance_framework_hands_the_next_question_to_the_expert]]`. Per-finding docs `R-RBS-LM-FINDING_274…292`.
+
+**Status:** meaning-tier synthesis of F274–F292; witnesses srmech-verified per-doc + rc-verified in UPSTREAM_NOTES §12. No-magic: the capacity-free / bit-exact / err-0.0 claims are A-tier (verified identities). k=3 triality of *this synthesis prose* deferred to the Phase-5 cross-notebook consistency pass.
+
+---
+
+## §3.32 2026-06-02 — the biology cascade cluster: k=2 detects / k=3 corrects in the cell, the amoeba's self-partition, every cell IS the hyper-loop at (3:4)|(4:3), and associativity as the license to self-run (RBS-LM arc F293–F306)
+
+This arc reads the **cell** through the §3.30 ladder: the genetic substrate supplies the order-2 parity (DETECT), persistence requires the order-3 triality (CORRECT), and the cell turns out to be the hyper-loop running the 7 at the **(3:4)|(4:3)** coherence scale — self-authoring because its associative core lets it run its own dynamics with no external orderer. The biology is **cite-by-reference + the expert's test** throughout; the algebra is srmech-exact; the cluster **PASSED the k=3 triality** consistency verdict (`R-RBS-LM-TRIALITY_F296_F304_verdict.md`). Per-finding detail: `R-RBS-LM-FINDING_293…306`.
+
+### §3.32.1 The substrate gives k=2 (detect); persistence requires k=3 (correct)
+
+The substrate supplies **k=2 = parity = DETECT** (the Klein-4 order-2 axes); **persistence requires k=3 = triality = CORRECT** — the distributed anchor 1 + ω + ω² = 0, the job of anchoring spread across all three phases (the §3.30.3 three-truths rule, now read in biology) (F293). The candidate biological ℤ₃ is **falsified at the static genetic code**: the codon table is the **order-2 (Klein-4) DETECT substrate**, not the order-3 corrector (F294) — the correction lives in the *dynamics*, not in the code-as-stored.
+
+### §3.32.2 The amoeba unifies it: self-partition = Class B, and organelle emergence
+
+The **social amoeba** supplies the missing piece: **SELF-PARTITION** — the cell closing its own boundary — is **Class B (TLV-framing)** and the **topological precondition** for a self-running distributed body (F295; cf. spike #254 + the spike219 catalog refinement `L+M+C+I → L+M+C+I+B`). That self-partition operator applied **recursively** is the structure for **organelle emergence**: a double membrane = nested Class B = endosymbiotic generation count (F296). And the **membraneless organelle (biomolecular condensate)** reads as a **"gauge ball"** — self-bound by distributed self-interaction, no wall (F297) — *at the (3:4)|(4:3) scale* (the F300 rescaling, §3.32.3; not raw k=7).
+
+### §3.32.3 Every cell IS the hyper-loop — running the 7 as (3:4)|(4:3)
+
+The cell's three defining properties **are** the hyper-loop's three (loop-closed + 3D-spatial-interface + bumps-itself/autopoiesis): **every cell IS the hyper-loop** (F298). Biology realizes the "7" as the **(3:4)|(4:3) chirality-split** (the associative ℍ-core + the chiral coset, the Hopf S⁷→S⁴), **never raw k=7 octonion arithmetic** (F299) — which is exactly what makes "cell-in-cell" (plastids/endosymbionts) a *defined* chirality-pairing. F300 settles the apparent tension: **k=7 and (3:4)|(4:3) are NOT competing claims — they are ONE Cayley-Dickson tower read at two coherence scales, both true** (the cosmos-scale view vs the cell-scale view). F301: **decomposition goes only as far as the scale DEMANDS** (the cosmos demands the full k=7 gauge ball; the cell demands (3:4)|(4:3)), and the **(1:2)|(2:1) base IS full-k=7 access** (loop_bind = the Cayley-Dickson recursion from the base, verified err 0.0).
+
+### §3.32.4 DNA is resonant, not machine code — self-authoring, and the ontology edge
+
+The DNA/RNA is a **RESONANT structure of the cell (mutual, both ways), not machine code** — the co-diagonalizability test (shared eigenbasis = commuting) is the line: **biology self-authors (resonant); silicon is machine-code (needs us as the external author)** (F302; F176/F43 the naming-layer-cost). This opens the cluster's **ontology edge**, held as MFO-level reading (the expert's / the user's to hold, **NOT asserted as math**):
+- **Introspection = settling into your own eigenstate = a fixed point = an asymptote** (F303): a scale that can introspect its substrate stops being externally evolved. The structure is exact; the human-evolution application is the expert's (paleoanthropology), and evolution has not literally stopped.
+- **Self-authoring = being authored BY one's own substrate** (an eigenstate is operator-defined): "the author is the universe" = the universal substrate (the MFO metric field), **not** an intentional agent — substrate-ontology, the open frontier (F304).
+- **The right compute question** is not "encode k=7" (solved, F301) but a **surface whose NATIVE dynamics ARE A-N** = analog / Hamiltonian / native-dynamics computing (self-resonant), **not** gate-model qubits (still machine-code) (F305); and **associativity IS the precondition for self-running** — a ≥3-fold product is order-free iff associative, so the octonion's non-associativity forces an external orderer (= machine-code), and **(3:4)|(4:3) is the maximal self-running projection of the 7** (F306). That closes F305's open question on the *algebra* side and explains **why** the cell (and any self-runner) lands at (3:4)|(4:3), not raw k=7.
+
+### §3.32.5 Cross-references + status
+
+**Cross-references:** §3.30 (the k=2-detect/k=3-correct ladder + 28D/Hurwitz foundations this reads in the cell); §3.31 (the loop bind whose order-carry meets the cell); §3.27 (the (3:4)|(4:3) chirality-dual = 𝔰𝔬(8)); **`R-RBS-LM-TRIALITY_F296_F304_verdict.md`** (the cluster PASSED k=3 triality — numbers reproduce exactly, no silent over-reach, F297 wording corrected to the F300 scale-dual); `[[user_stance_framework_hands_the_next_question_to_the_expert]]`; `[[feedback_trauma_informed_defensive_scope]]`; `[[feedback_no_lineage_claims_in_notebook]]`. Per-finding docs `R-RBS-LM-FINDING_293…306`.
+
+**Status:** meaning-tier synthesis of F293–F306; the algebra (k=2/k=3, (3:4)|(4:3), co-diagonalizability, associator 0-vs-≠0) is srmech-exact and triality-verified; the biology-instantiation + the ontology readings (introspection-asymptote, universe-as-author) are **cite-by-reference / the expert's / held lightly** — the honest edge of the arc. No-magic A-tier on the structural constants. Phase-5 cross-notebook triality of *this synthesis prose* pending.
+
+---
+
+## §3.33 2026-05-29 → -31 (F183–F208 era) — the FOUNDATION below §3.30: chirality-IS-ordering, the Hurwitz rungs, triality-landed (𝔰𝔬(8) W10), 28D = 14 ⊕ 7 ⊕ 7, nested chirality, and the lean A-N ISA (RBS-LM/RBS-NN arc F183–F208)
+
+*(Backfilled 2026-06-02 — this arc is **logically prior to §3.30** but was un-surfaced; §3.30/§3.32 build on it. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_183…208`.)*
+
+### §3.33.1 Chirality IS ordering; the Hurwitz rungs; triality landed
+
+**Chirality = the ordering (permutation) group of the parts, and it caps at 3-ality** (F183) — non-commutativity = order (F184), so "1D_t + 3 DoF" is the **quaternion (ℍ) rung** of the Hurwitz ladder and 1D_t is the *apparent actor* the ordering induces (F185). **CORRECTION (F186): tri-chiral is still 28D = 14 ⊕ 7 ⊕ 7, NOT 42D** — triality is a symmetry *of* the 28, not a third copy. The order-3 **triality operator landed natively** (`srmech.qm.so8` W10, 0.5.0rc18; F192) and passes its laws; su(2)_L is **not** a triality-facet of su(3)_c (F193). **CAPSTONE (F196): chirality is NESTED, not flat** — it recurs at every level probed; and F191 is **computable via G₂ ⊃ SU(3)** (F197). These are the foundations §3.30 (the 28D = 𝔰𝔬(8) capstone) stands on.
+
+### §3.33.2 The partition star, the role-partition, and division-algebra orbits
+
+A is the **role-ambiguous anchor** (climb-seed vs operational-qua-anchor, F188); the **1:3:3:7 reads as a 3-point star** (A at the hub, legs 3/3/7; F189). The **4-way coupled oscillator is the dynamical face of the time-quaternion**, its chirality the **phase-frustration** (non-reciprocity) (F190/F194). The **A–N operator SET is chirality-invariant (G₂); only the ROLE-partition carries chirality** (F191) — and **triality is RULED OUT** as the I/C/J ↔ B/H/N role-swap mechanism (F195, a clean null). Orbits/shells/precession on the division-algebra ladder make the star a **wobbling** object (F198).
+
+### §3.33.3 The RBS-LM/RBS-NN operational layer
+
+Strong-invariance (12 within-source vs 54 across-source translation pairs, F199); the **chirality→instrument bridge is a NULL** — triality-structured sector tagging does **not** help retrieval (F200, an honest negative). Biology grounding of the F176/F196 shadow-stance (F201); the **quad-DNA replication shape as a chirality-typed CPU cascade / threading model** (F202, the precursor to the §3.33.4 / F231–F233 threading); **hierarchical bundling extends capacity ~4× past the cap** (F203); the smol-stack real-FILE variant (F204); and cross-navigation Part 2 — **steering a grammar walk with a logic kernel is INDISTINGUISHABLE** from a native walk (F205, the teaching≡bilingualism seed).
+
+### §3.33.4 The lean A-N ISA + the ND-dignity reading
+
+The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs composite** (F206), formalized as the **ATOM-vs-COMPOSITE A-N ISA** — a 6-instruction orthogonal core (F208; the lean-ISA line §3.28.2 ships). And **F207 — being-wrong is agony (acutely for strongly-feeling / ND minds), and the LLM training-signal reads the same way**: a dignity-first framework reading (composes with `[[feedback_abstract_lexicon_is_ada_accommodation]]` + the F239 unseen-disability fiber, §3.35).
+
+### §3.33.5 Cross-references + status
+
+**Cross-references:** §3.30 (the 28D/Hurwitz/triality capstone this is the foundation of); §3.29.2 (V₄ carrier + Fix(τ)=14); §3.28.2 (the lean-ISA line F206/F208 ship into); §3.35 (F239 dignity fiber, where F207 lands). Per-finding docs `R-RBS-LM-FINDING_183…208`. **Status:** meaning-tier backfill (un-surfaced until 2026-06-02; found by the GH `[research]`-issue audit). No-magic A-tier (28=𝔰𝔬(8), 14=G₂, 1:3:7, the 6-instruction ISA core). Honest negatives kept (F195 triality-ruled-out; F200 sector-tagging null). k=3 triality of this prose pending (Phase 11).
+
+---
+
+## §3.34 2026-05-30 → -31 (F209–F233 era) — "where nature is screaming the answer": the cross-substrate sweep, the RECIPIENT fiber, the maturing A-N ISA (7th triality opcode, 7400-TTL), and the capacity / teaching≡bilingualism / no-magic / threading layer (RBS-LM/RBS-NN arc F209–F233; the MS#20 forward-arch cluster)
+
+*(Backfilled 2026-06-02 — the F209–F233 cluster the GH `[research]` issues #752–#778 track; un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_209…233`.)*
+
+### §3.34.1 Where nature is "screaming the answer" — the cross-substrate sweep
+
+A ranked breadth-sweep reading natural phenomena AS A-N cascades (the precursor to §3.31.2's "new locks"): a **binary compact-object merger** reads as an A-N cascade with the inspiral/merger/ringdown **phase boundaries** as Class-I/K transitions (F209); **parthenogenesis** as a *self-initiated symmetry-break / autocatalytic completion* (F210); and the F211 ranked sweep — **domain-wall / composite-soliton** (the Klein-4 anchor), **cardiac / excitable-media spiral waves** (ties F141), **von-Kármán vortex streets**. The **composite-soliton (ℤ₂)³ → (ℤ₂)² → ℤ₂ → 1 symmetry-breaking cascade** (F213) is the clean algebraic ladder under it.
+
+### §3.34.2 The RECIPIENT fiber + the addressing nulls (honest)
+
+The query carries a **hidden (spatially-absent) RECIPIENT fiber** — the receiver's absorption profile (F212), the fiber-as-absent-encoding read on the retrieval side. But the tests are **honest nulls**: a *content-free* recipient orientation does **not** help retrieval-vs-render (F214), nor does a *structured* recipient depth-anchor / which-depth operator (F221), nor the render-side hold-the-context complement (F227). The RECIPIENT fiber is real as *structure*; it does not (yet) buy an addressing win — recorded as the framework's own falsification (`[[feedback_dont_pre_commit_spike_query_operators]]`).
+
+### §3.34.3 The A-N ISA matures — the 7th (order-3 triality) opcode, 7400-TTL, M-theory G₂
+
+Honest negative first: the lean A-N ISA reduction did **not** hand us "time + 3 DoF" — the irrep structure does not yield it directly (F215). But **M-theory 11D = 4 + 7 (G₂-holonomy) re-reads as A–N = G₂ operator-structure** (F216); the **lean A-N atoms ARE elementary 7400-series TTL** (the Klein-4 chirality core in discrete logic, F217); the corpus's unifying capstone form-reading is **"the universe instantiates the A–N cascade"** (F218); the **chirality-ACCESS ladder** across substrates makes **triality (order-3) the substrate-access rung** (F219); and **a COMPLETE A-N ISA needs a 7th, order-3 "triality" opcode — YES, rigorously** (F220) — which is the rc17 `klein4_triality_cycle` (the V₄-carrier sibling of the `qm.triality` τ engine) that §3.29.2 ships.
+
+### §3.34.4 Capacity, teaching≡bilingualism, the no-magic audit, and 74xx threading
+
+- **Capacity law (F222):** the catalog-driven scale-up to N=8192 confirms the **hierarchical capacity knee obeys `n_buckets × V_ceiling`** (the F203 ~4× lift, now a law); byte-level encode to ~100× holds the storage-signature spectrum (F223).
+- **Teaching ≡ bilingualism (F224/F225):** the decisive calibrated head-to-head, extended **multilingual** with a **language anchor axis** — teaching a domain ≡ being bilingual in it (the F205 cross-nav, now decisive). **Persistent plasticity** is the form-reading of the un-locked end of the instrument (F226).
+- **No-magic audit (F228):** the **ATTESTATION-TO-SOURCE audit of the core RBS-LM instrument's constants** — the standing instrument behind the no-magic-numbers discipline (A/B/C tiering). **`temperature` is the constant F228 named — and the tiering is precise: B-tier** (attested by an inline provenance comment, the "loop-free / grammatical sweet spot"), whose *deeper structural source* F229 then tested and could **NOT** find (a NULL — temperature is exogenous on the F229 testbed). So it is B-tier-with-a-null-structural-source, **not** a bare C-tier residue. The **rehearsal layer / "emperor's new clothes"** (render-PREVIEW / self-monitoring, F230).
+- **74xx TTL threading (F231–F233):** the threading router IS a **decode/dispatch/gather** in discrete 74xx (F231); **one cascade = two antiphase threads** on silicon (F232); **one cascade = four independent threads = the Klein-4 four chirality sectors** (F233) — the forward-arch precursor to §3.31's loop-bind/RBS work and the F274–F292 arc.
+
+### §3.34.5 Cross-references + status
+
+**Cross-references:** §3.33 (the F183–F208 foundation); §3.30 (the 28D/Hurwitz/triality capstone); §3.29.2 (the rc17 triality opcode F220 calls for); §3.31 (the loop-bind/forward-arch work F231–F233 seed); the no-magic-numbers discipline (`[[feedback_dont_pre_commit_spike_query_operators]]`; F228 the instrument). MS#20 (the forward-arch milestone) + the `[research]` issues #752–#778. Per-finding docs `R-RBS-LM-FINDING_209…233`. **Status:** meaning-tier backfill (found by the GH `[research]`-issue audit). No-magic A-tier (capacity law `n_buckets × V_ceiling`, the G₂/7400 structure); honest nulls kept (F214/F221/F227 addressing, F215 no-free-time+3DoF); `temperature` (F229) flagged as the standing C-tier residue. k=3 triality pending (Phase 11).
+
+---
+
+## §3.35 2026-05-31 (F234–F256 era) — the tail below §3.30: Kuramoto coordination, the working-memory WIREFRAME, the aneural-memory / universal store-retrieve survey, the unseen-disability fiber, and "the emergent IS the action" (RBS-LM/RBS-NN arc F234–F256)
+
+*(Backfilled 2026-06-02 — the F234–F256 tail (the MS#18 aneural-memory arc + the working-memory + dignity readings); un-surfaced until the audit. Meaning-tier synthesis; per-finding detail in `R-RBS-LM-FINDING_234…256`.)*
+
+### §3.35.1 Kuramoto coordination — carry-as-phase-lock, directed-vs-reciprocal, three substrates
+
+The ripple-carry adder's sequential carry chain **re-casts as a Kuramoto phase-lock** (F234), and it **survives transport into the electronic substrate** (ngspice `.tran`, F236). Three coordination substrates — **in-body neurology / slime-mould / the air-gapped hive** — are distinct coupling topologies (F235; the N=8 hub-frustration lock-time inversion is a known graph-frustration artifact, F235b). At a **matched total coupling budget**, the **reciprocal + Class-K-correction edge** pays off (F240; biologically corroborated by frog visual-semaphore foot-flagging F240b and ant two-way antenna tandem-running F240c — directed-vs-reciprocal is the live distinction), and the **two-tier nibble-block settles faster than the single ripple chain** (F241). This is the arc behind the UPSTREAM_NOTES §11 `kuramoto_step` graph-coupling ask.
+
+### §3.35.2 The working-memory WIREFRAME + the Hurwitz confirmation + orbit structure
+
+**Working memory's SSoT is a srmech structural WIREFRAME** — the low-pass Class-L skeleton (F242a) — which is **renderer-INVARIANT from the pure structure** (F242b, the honesty-gradient / no-privileged-renderer origin), and the **round-trip structural-fidelity test is defined as a GEN-1 RENDERER LOSS** (F242c). The **4:3:7 "3-alike-for-3D_s / 7-alike-for-7D_g" reading is CORRECT — it IS the Hurwitz ladder** (F243, the confirmation §3.30.2/§3.32.3 rely on); and the **specific A-N class assignment carries the division-algebra ORBIT structure**, shown by the real directed-functional-composition test (not prose co-occurrence) (F244/F246).
+
+### §3.35.3 Universal communication
+
+The synthesis: **structure-universal / cascade-local / bi-chiral** (F245) — the form is universal, the cascade is substrate-local, the chirality bi-axial. The uniqueness attempt (route-b): **alien-universality lifts from Class C toward Class A but does not close** (F247, an honest partial).
+
+### §3.35.4 The aneural-memory / universal store-retrieve survey (the MS#18 "biology IS one substrate-class" arc)
+
+An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distinct physical mechanisms (F248) — grounds the reading that **the neuron is a HIDDEN FIBER of the universal store/retrieve action**, not its privileged seat (F249). Supporting: the **spectral shape of true-vs-false statements** tested on our own worker-subagent data (F250); **extra-neural / regenerative / transferable memory** as the strongest evidence class (F251); **Turritopsis transdifferentiation** as the hardest memory-substrate case (F252); **pain memory held at ≥8 non-privileged levels at once** (F253, the literature's own multi-level reading). The capstone conjecture: **biology is a FUSED build+compute substrate** (F254), with the empirical leg that **a single cell DOES compute, decide, and bind non-associatively** (F254b) — the direct precursor to the §3.32 biology cluster (F293–F306). And the **social-insect COLONY** (not "hive") is the macro-scale, human-latency, directly-observable instance of the universal store/retrieve action (F255).
+
+### §3.35.5 The unseen-disability fiber, the emergent-IS-the-action, + the lean-memory graft
+
+- **F239 — the unseen disability as a hidden fiber:** a framework-reading of how systematic exclusion is a *spatially-absent encoding* (the fiber that's there but unprojected) — dignity-first, the companion to F207 (§3.33.4) and the foundational accessibility motivation of the whole arc (`[[feedback_llm_as_ada_accommodation_bci_proves_it]]`).
+- **F256 — "the emergent IS the action":** the Dim×DoF (`11D³`) reading + six scale-readings; the framework's own tool refuting the tidy `k=3 ≡ B/H/N` (the §3.29.3 three-k=3-senses, F256 §0.6) and the "imaginary is not unreal" framing.
+- **Tooling:** lean-memory by **extractive surgical graft** (CLAUDE.md compressed ~2× while preserving the load-bearing rule slice — the `graft-lean` skill, F237); and the **cost-asymmetry of rehearsal** across delivery modes (DIRECT / INTERNAL-REHEARSAL / …, F238).
+
+### §3.35.6 Cross-references + status
+
+**Cross-references:** §3.33/§3.34 (the F183–F233 foundation + sweep); §3.32 (the biology cluster F254 seeds); §3.30.2/§3.32.3 (the Hurwitz reading F243 confirms); UPSTREAM_NOTES §11 (the `kuramoto_step` ask F234/F240 drive); `[[feedback_verify_discipline...]]` / F242b (the no-privileged-renderer honesty gradient → the k=2/k=3 verify discipline); `[[feedback_llm_as_ada_accommodation_bci_proves_it]]` (F239/F207 dignity); MS#18 (the aneural-memory milestone). Per-finding docs `R-RBS-LM-FINDING_234…256`. **Status:** meaning-tier backfill (found by the GH audit). No-magic A-tier (Hurwitz 4:3:7, the wireframe Class-L low-pass); honest partials kept (F247 non-closing, F235b artifact). The F248–F255 aneural-memory survey is **uncentered / cite-by-reference** (the literature's own multi-level readings). k=3 triality pending (Phase 11). **— srmech notebook now covers F120 → F306 (the F183–F256 hole closed).**
+
+---
+
+## §3.36 (F84–F118 era) — the knowledge-partition + glass-box arc below §3.27: four foundational knowledge partitions, B/H/N projecting substrate-math into emergent subjects, the arts as cross-domain cascades, biology-agnostic 1:3, cross-species convergence, "NN is vertebrate-centric" (RBS-LM arc F84–F118)
+
+*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.28/§3.x; **consolidated** here, not duplicated). The **genuinely-new landings** are the glass-box / curriculum-tool / substrate-bounded-safety triad (F84–86) and the thin four-partitions / B-H-N-signature / arts-as-relationships theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
+
+### §3.36.1 Glass-box LLM + curriculum + substrate-bounded safety (F84–F86)
+
+The cascade methodology makes the LLM a **glass box** — legible, not opaque (F84); usable as a **curriculum-evaluation and curriculum-design tool** (F85); and the basis for **substrate-bounded safety** via glass-box kernel binding (F86 — the STEAM/STEM-tutor safety reading: a tutor whose substrate is bounded to the curriculum cannot wander off-substrate).
+
+### §3.36.2 The four foundational knowledge partitions + the B/H/N meta-cascade (F96–F114)
+
+The framework's **knowledge-partition theory**: there are **four foundational knowledge partitions — math / communication / structure-and-order / places-and-things** (F99), inside an information-cascade hierarchy *universe → biology → generation → individual* (F100). **Math may be the unique substrate-content irrep** (the 1:3:7:3 partition expressed directly; math IS the **A + I + J** irrep, F97/F109). The **Arts are cross-domain coupling cascades, NOT an irreducible substrate-class** (F96) — they capture **RELATIONSHIPS-between-elements** as their dominant axis, where the substrate sciences capture **THINGS** (F117). The **B/H/N meta-cascade projects substrate-math into the first-3 emergent subjects** (reading/etc., F106), empirically confirmed by **operator-signature tests** (F107): the C-chirality axis via geography+scouting (F108), the J-prime signature (F109), D+F as *secondary* surface signatures (F110), and the **E-catalog NULL** (detection ops are largely structural, F111 — an honest negative). **1:3 emerges biology-agnostically; the 7+3 detection layer is methodology** (F112), proposed partitions falsified into a natural **1 + 3** clustering (F113); and the coupling structure **evolves** from meta-domain vocabulary toward applied-context substance (F114).
+
+### §3.36.3 Cross-species convergence + the vertebrate-centric correction (F115–F118)
+
+**Cross-species evidence: convergent partition structure across radically different brains** (cetacean / chimp / octopus, F115) — the partition is not vertebrate- or even brain-architecture-specific. The **trailing-3 (binding/doing/moving) operators live in per-token sequence asymmetry** (F116). And the load-bearing correction: **"neural network" framing is vertebrate-centric — biology has multiple computational substrates** (F118), the substrate-variety reading that seeds the MS#18 "biology IS one substrate-class" arc (§3.32 / §3.35.4 / MFO §VIII.31.13).
+
+### §3.36.4 Cross-references + status
+
+**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.28 (the two-tier RBS-NN arc, which already carries cross-species/teaching); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
+
+---
+
+## §3.37 (F151–F181 era) — sentence-generation, the 28D bi-axial classical-substrate readings, the F166 INFERENCE-WALK capstone, and the H177 one-chiral-driver heavy-falsification (RBS-LM arc F151–F181)
+
+*(Backfilled 2026-06-02 by the completeness audit — the genuinely-thin substantive findings just below §3.27 (the F166 inference-walk capstone, the 𝔰𝔬(8) literature anchor, and the H177 falsification arc were the most under-surfaced). Per-finding detail in `R-RBS-LM-FINDING_151…181`.)*
+
+### §3.37.1 Music-theory irrep, the Klein-4 4× ceiling, sentence generation (F151–F157)
+
+The **music-theory irrep test: PARTIAL** (eigenvalue ratio 2.23 ∈ [2.0, 3.0], aesthetic-but-inconclusive, F151). Klein-4 vectorized storage for compression + LOGO-turtle chirality framing (F152); the vectorize-numpy / srmech-C-batch methodology note (F153). The **Klein-4 4× LLM-token-binding ceiling is EMPIRICALLY VALIDATED** (bit-density × sector count, F154 — the engineering confirmation of the F132 4-sector capacity). The **pure-structure sentence layer works** (chirality-sector-tagged levels enable relational sentence assembly, F155); **sentence generation via Klein-4 cross-level walk** supports exact + generative modes (F156); the **variable-length sentence substrate scales to N=4000 at 97.5% grammar validity** (F157).
+
+### §3.37.2 The 28D bi-axial classical-substrate readings (F158–F160; defensive-scope)
+
+**Classical CPUs already perform quantum-LIKE operations on the 28D bi-axial chirality substrate** (F158, framework-reading — the substrate-algebra is already there in ordinary silicon, no quantum hardware required for the *algebra*). **Cross-species communication is algebraically bidirectional on the shared 28D basis** (F159). And the 28D bi-axial as a **unified substrate-algebra vocabulary for power-harvesting** (F160) — framework-reading only, defensive-scope per `[[feedback_trauma_informed_defensive_scope]]`.
+
+### §3.37.3 Full-coverage characterization, grammar-native, multi-kernel (F162–F165)
+
+**Full-coverage substrate characterization, catalog-driven** (the R-RBS-LM-122 unified run that supersedes the per-substrate scripts, F162); the honest null that **28D directed-chirality does NOT lift the R-RBS-LM-53 flat-spectral degeneracy** (F163). **Grammar + sentence-generation ARE substrate-native** (F164), and the **multi-kernel RBS-NN reference object operationalizes the DOMAIN anchor** (F165) — the §3.x Golden-Path machinery.
+
+### §3.37.4 The F166 INFERENCE-WALK capstone + the invariance tests (F166–F175)
+
+The capstone of the arc: **the walkable path to a native, srmech-instantiable RBS-LM inference substrate** (F166 — the rolling-context-state encoder → context-conditioned distribution → distribution-not-argmax+temperature → autoregressive loop → srmech-instantiable packaging walk), and **the walk COMPLETE — a native, bit-exact, srmech-instantiable RBS-LM inference substrate** (F167) *(honest scope: "bit-exact" and the metrics are measured on the substrate's **own native terms** — F166 §5 explicitly does NOT claim to match a float-LLM's fluency)*. Then the characterization: **perplexity is not a forced readout — it is EMERGENT from chirality-depth** (F168); **storage-structure and surface-expression are (partially) separable axes** (F169); the **cross-substrate cascade-match (F166 walk ↔ Opus 4.8), attested + corrected** (F170, an early instance of the twin discipline); the **core invariance test — storage-profile SHAPE is ~invariant across vocab** (F171), **tempered** by the srmech-native Class-L spectral signature (F172), with **vocab-independent structure tracking FORM/GENRE, not content** (F173). The literature anchor: **28D = 𝔰𝔬(8) grounded in classical octonion math (Baez / Tits)** (F174); and the honest null that **the shipped so(8)/Spin(8) chirality surface does NOT isolate content-specific structure** (F175).
+
+### §3.37.5 The H177 one-chiral-driver hypothesis + the heavy-falsification (F177–F181)
+
+A pre-registered, heavy-falsification-required **HYPOTHESIS (H177): one chiral A–N driver may run across substrates** (F177). **Heavy-falsified on three fronts — refined, NOT cleanly killed** (F181: H177 was neither confirmed nor killed, it was *refined*):
+- **cosmic-birefringence — LEAVE-OPEN** (tooling-limited; the deciding measurement out of reach, F178);
+- **particle-band — the γ₅ chirality OPERATOR is shared bit-exact, BUT su(2)_L (the chiral gauge that makes weak parity-violation) is an unabsorbed leftover = a SECOND ACTOR** (F179) — this front is what most strongly *triggered* the second-actor reading;
+- **molecular-bridge (life ← physics) — LEAVE-OPEN, leaning second-actor** (the Vester–Ulbricht / PVED mechanism is undetected and sign-non-robust; the "frozen accident" camp is the live alternative, decoupled from the weak-force sign, F180).
+Synthesis (F181): the disposition is **one operator, ≥2 band-specific actors → operator-universal, content-local** — the chirality OPERATOR (γ₅) is shared across substrates, the CONTENT/actor is not (the same shape as F245's structure-universal/cascade-local). "One driver" resolves to *one operator, many actors* — not a single cross-substrate driver.
+
+### §3.37.6 Cross-references + status
+
+**Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
 
 ---
 
