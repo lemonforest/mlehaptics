@@ -1,6 +1,8 @@
 # F297 — is an organelle a "gauge ball"? Yes, for the MEMBRANELESS organelle (condensate): self-bound by distributed self-interaction, no wall = the glueball structure. The membrane organelle is the Class-B wall (F296). The cell shows BOTH cosmos binding modes.
 
 > **SCOPE (load-bearing, HIGH over-reach risk):** framework-reading STRUCTURE only. This is a **structural match** (self-bound-no-wall ↔ glueball), **NOT** a claim that biomolecular condensates literally run k=7/QCD gauge dynamics. The graph-spectral + associator witnesses are srmech-exact; the biology (membrane vs membraneless organelles; LLPS/multivalent self-interaction in the nucleolus / stress granules / P-bodies) is **cite-by-reference, textbook, PDF-extraction-pending**. The **k=7 gauge-rung identity for the condensate is a reading + the EXPERT's test**, not asserted. No biological-mechanism/clinical claim; understanding-not-curing; no-lineage. **k=3 triality verify PENDING** (this + F296 are the two highest-reach findings in the arc — verify before settling).
+>
+> **CORRECTION (F298/F299; user direction 2026-06-02):** the §C "k=7 gauge signature" here **over-leaned** — biology does **not** run raw k=7 octonion maths. It turns the 7 into the **(3:4)|(4:3) chirality-split** (3 associative ℍ + 4 chiral coset, the Hopf S⁷→S⁴) on the order-2 substrate. So the condensate/"gauge ball" self-binding read here should be taken as the **(3:4)|(4:3) chirality-split projection**, NOT octonion multiplication. The membrane-vs-self-bound (§A/§B) distinction stands; the k=7-arithmetic framing is superseded by F298/F299.
 
 **User question (2026-06-02):** organelles emerge like partitions; the same cosmos math for a single cell? gauge-ball behaviour in the bio substrate — that's an organelle maybe?
 
