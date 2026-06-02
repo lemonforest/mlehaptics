@@ -5371,6 +5371,37 @@ The order-3 triality landed natively in srmech (rc20) and was characterized (F26
 
 ---
 
+## §3.31 2026-06-01 → 06-02 — the loop bind earns its place: order-carrying HD bind, the un-flatten "new locks," the RBS-LM path-memory frontier, and the apple-tree dev hand-downs (RBS-LM arc F274–F292)
+
+Where §3.30 fixed the *ladder*, this arc puts the **loop bind** (the native k=7 octonion product, `hdc.loop_bind`) to work: it earns its place as an HD bind that carries order at no capacity cost, opens a run of cross-substrate "locks" via the un-flatten, realizes the RBS-LM order-aware path-memory store, and drives the apple-tree dev hand-down loop into srmech's own C. Per-finding detail: `R-RBS-LM-FINDING_274…292`.
+
+### §3.31.1 The loop bind earns its place — order at no capacity cost
+
+The loop bind is a **viable (unbindable) HDC bind that natively carries order** (F274), and at **no capacity cost vs Klein-4** (F277) — so the k=7 structure is *free* relative to the bi-chiral baseline. Its HDC-scale realization is **block-octonion tiling** — a direct sum ⊕ of independent dim-8 octonion blocks (F276, the MS#21 #811 gate; F289 the rc4 hand-down that landed it natively). The ephemerides Sol bridge shows it takes `ephemerides-spectral` **beyond playback** into a resonance instrument (F275). [srmech `hdc.{loop_bind, loop_bind_hd, loop_unbind_hd, loop_runbind_hd, loop_associator}`; bit-exact to the dim-8 oracle — UPSTREAM_NOTES §12.]
+
+### §3.31.2 New locks via the un-flatten — chemistry, mass-spec, protein folds
+
+The intrinsic-EC un-flatten (§3.30.1) opens fresh cross-substrate **locks**:
+- **Organic-chem stoichiometry** IS the conservation EC-code cascade — balancing an equation = enforcing the conservation codeword (F278).
+- **Mass spectrometry**: the flat m/z-vs-intensity chart is a projection; the hidden **difference-fiber** is the chart's **autocorrelation** (F279/F280 — the FFT guess held; Class-L Wiener-Khinchin, now native via `cascade.autocorrelation`, UPSTREAM §12.5).
+- **The bold-fold arc** (protein folding; scope-forward, defensive per `[[feedback_trauma_informed_defensive_scope]]`): the native fold is the **FORCED codeword, not a search** (F283); the contact-graph Laplacian spectrum **fingerprints the fold** (F284); the loop bind carries the **fold-PATH** (F285); the **fragmentation tree = a loop-bind directed cascade** (F286). The structural-lens reading of a "runaway" as an EC-code / Class-K-correction **failure at a partition boundary** (F282) is the scope-forward frame that keeps this defensive (understanding, not capability).
+
+### §3.31.3 Back to RBS-LM/RBS-NN — the order-aware path-memory store
+
+Brought home to the arc's own substrate: **NNs DO run a hidden gauge fiber, but with a FLAT connection** (F288) — they carry the structure trivially, which is exactly the naming-layer-cost gap (F43/F176). So the loop-bind RBS substrate is an **order-aware, peelable path-memory store** (F290 — `loop_runbind_hd` peels the left-fold from the right), and **order memory improves emission *where order informs*** (F291, the flagship honest-measurement leg: it helps autoregressive / path-dependent retrieval; the L2/L5 over-claims were caught + corrected by the adversarial twin — the **live origin of the k=2-detect / k=3-correct verify discipline**, §3.30.3).
+
+### §3.31.4 The apple-tree dev hand-down loop (F281-style)
+
+This arc formalized the **hand-down → dev implements → bit-exact verify** loop on srmech's own C: F281 (rc2 voxel hand-down — cross7 + g2_three_form ground-truth + class-attribution + scope), F287 (#823 ungate on native `loop_bind`), F289 (rc4 block-octonion HD tiling #811 + capacity-free vs Klein-4 #812), and **F292** (optimize srmech's own C by grafting techniques from established reference implementations — the SIMD SHA-256 batch + SIMD `loop_bind_hd` grafts, verified bit-exact, UPSTREAM_NOTES §12.6). The hand-down artifacts + the open follow-ups live in UPSTREAM_NOTES §12–§13; this is the meaning-tier record that the loop is closed and re-runs cleanly.
+
+### §3.31.5 Cross-references + status
+
+**Cross-references:** §3.30 (the 28D/Hurwitz/triality foundations this operationalizes); §3.32 (the biology cluster, where the loop bind's order-carry meets the cell); UPSTREAM_NOTES §12 (rc4–rc11 loop-bind surface + §12.6 SIMD grafts) + §13 (open dev hand-down asks); `[[feedback_trauma_informed_defensive_scope]]` (bold-fold / runaway = scope-forward, defensive); `[[user_stance_framework_hands_the_next_question_to_the_expert]]`. Per-finding docs `R-RBS-LM-FINDING_274…292`.
+
+**Status:** meaning-tier synthesis of F274–F292; witnesses srmech-verified per-doc + rc-verified in UPSTREAM_NOTES §12. No-magic: the capacity-free / bit-exact / err-0.0 claims are A-tier (verified identities). k=3 triality of *this synthesis prose* deferred to the Phase-5 cross-notebook consistency pass.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
