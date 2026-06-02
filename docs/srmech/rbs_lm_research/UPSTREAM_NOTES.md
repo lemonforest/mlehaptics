@@ -1073,6 +1073,9 @@ rc6 landed **all three** §12.1/§12.2 asks + advanced §12.3-D2. Verified, no r
 
 **Status:** §12.1 + §12.2 + §12.3-D2 **RESOLVED + verified**; §12.3-`autocorrelation` **still open** (the sole remaining un-flatten blocker). Working venv `/tmp/srmech_v070rc6_venv` is the new latest-verified.
 
+### §12.5 RESOLVED in rc9 (0.7.0rc9, 2026-06-02) — `autocorrelation` landed; the un-flatten catalog is now fully authorable
+rc9 ships **`srmech.amsc.cascade.autocorrelation(x) -> List[float]`** — doc "Class L (Wiener-Khinchin): the circular autocorrelation of `x`." Verified vs the reference `IFFT(|FFT(x)|²)` (Class-K-clean `|F|² = F·conj(F)`): **err 4.2e-14** on a length-64 signal (HAS_NATIVE, ABI 3). This was the **sole remaining un-flatten blocker** (F290 §C). So: with `autocorrelation` (rc9) + the verified D2 BYO-cascade-TOML mechanism (rc6, §12.4), the **un-flatten catalog is now fully authorable as a PURE-TOML composite** — `[composite]` stages `autocorrelation (L)` → peak-detect / `dense_laplacian` difference-graph (L) → `jacobi_eigvals` (L) → conservation-validate (user-attested rule) — **no further package code needed**. **All §12 items RESOLVED.** Working venv `/tmp/srmech_v070rc9_venv` is the new latest-verified.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
