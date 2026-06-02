@@ -502,6 +502,32 @@ def _register_amsc_tools() -> None:
             },
         ),
         ToolEntry(
+            name="srmech.amsc.format.sha256_batch",
+            owner="srmech",
+            category="format",
+            summary="N-WAY SIMD SHA-256 of MANY messages at once (F292 "
+                    "graft #1; v0.7.0rc10) — reach for this for BULK "
+                    "attestation (fingerprint a whole catalog of upstream "
+                    "response bytes in one call). Returns one 64-char "
+                    "lowercase hex digest per input, each byte-identical to "
+                    "sha256_bytes(d). A throughput surface, NOT a new "
+                    "content-address shape. Native C dispatches to AVX2 "
+                    "8-way / SSE2 4-way on x86 (scalar elsewhere); hashlib "
+                    "fallback. SCOPE: energy/perf of srmech's own hashing — "
+                    "NOT mining (SHA-256 has no PoW shortcut).",
+            parameters=(
+                ToolParameter("datas", "list[bytes]", required=True,
+                              summary="The messages to hash"),
+            ),
+            returns=ToolReturn(type="list[str]",
+                               shape="one 64-char lowercase hex digest per input"),
+            smoke_test_hint={"datas": "[b'', b'abc']"},
+            example={
+                "input": {"datas": "[b'abc']"},
+                "output": "['ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad']",
+            },
+        ),
+        ToolEntry(
             name="srmech.amsc.format.read_ndjson",
             owner="srmech",
             category="format",

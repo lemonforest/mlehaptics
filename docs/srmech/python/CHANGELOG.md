@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc10] - 2026-06-02
+
+**F292 graft #1 — N-way SIMD SHA-256 BATCH (`srmech.amsc.format.sha256_batch`), folding the F292 CPU-optimization hand-down into v0.7.0. +1 ToolEntry → `describe()` 194; a NEW symbol → ABI stays 3 (additive).**
+
+The first "apple-tree" graft from F292: take cpuminer's battle-tested **N-way SIMD SHA-256 technique** (`sha256d_ms_4way/8way`) and re-implement it JPL-clean in srmech's own hash, for the bulk-attestation common case (fingerprinting a whole catalog of upstream response bytes at once).
+
+- **`srmech.amsc.format.sha256_batch(datas) -> list[str]`** — one 64-char lowercase hex digest per message, each **byte-identical** to `sha256_bytes(d)` / `hashlib.sha256(d).hexdigest()`. A throughput surface, NOT a new content-address shape. Dispatches to the native peer when present, else a `hashlib` loop.
+- **`srmech_sha256_batch`** (`c/src/srmech_sha256_batch.c`, new) — a runtime **cpuid dispatch** to **AVX2 8-way** / **SSE2 4-way** (scalar fallback for the `n mod W` remainder, non-x86, and Pyodide). The W lanes step through their own message's 512-bit blocks in SIMD lockstep, with a **per-lane mask** freezing a lane once its (shorter) message is done — so variable-length batches are correct, each lane's state advancing exactly as the scalar one-shot would. `SRMECH_SHA256_FORCE_TIER={0,1,2}` overrides the dispatch (test hook).
+- **Bit-exact, every tier:** scalar / SSE2 / AVX2 all match `hashlib` + the NIST KATs (`""`, `"abc"`, 1M-`a`) over a full padding-boundary length matrix and mixed-length batches (verified locally via the force-tier hook; CI's native cells exercise the host tier). `tests/test_sha256_batch.py`.
+- **JPL-clean:** intrinsics (NOT asm); no `goto`/recursion/malloc; ≤60-line functions; the SIMD sigma ops are **single-line** macros (Rule 8); the AVX2 kernel self-isolates via `__attribute__((target("avx2")))` so the library compiles at baseline ISA (no global `-mavx2`); ≥2 asserts per non-exempt function (the cpuid feature-detectors are the documented exempt entries). gcc/clang/MSVC `-Werror`/`/WX`.
+
+**SCOPE (load-bearing):** energy/perf-engineering of srmech's OWN provenance hashing — **NOT cryptocurrency mining** (binding doesn't make hashing cheaper; SHA-256 has no PoW shortcut; "a correct instrument, not a money printer"). Technique attested to **public references** (FIPS 180-4 for the algorithm; the Intel Intrinsics Guide + Gueron & Krasnov, "Parallelizing message schedules to accelerate SHA-256" for the N-way structure); cpuminer (GPLv2+, forward-compatible with srmech GPL-3.0+) was read only as a working-impl pointer. `[[feedback_trauma_informed_defensive_scope]]`.
+
+**+1 ToolEntry → `describe()` 193 → 194**; **ABI stays 3** (new symbol, additive). Anchors: F292 (`R-RBS-LM-FINDING_292_cpu_optimization_reference_graft_handdown`); the btc-rosetta midstate bench (the measured 1.73× energy anchor).
+
 ## [0.7.0rc9] - 2026-06-02
 
 **MS #21 rc9 voxel — the v0.7.0 graduation-prep PyPI description refresh (the genuinely-last rcN before the clean v0.7.0 cut). Description-only → `describe()` stays 193; DSL catalog stays 11 ops; ABI stays 3.**

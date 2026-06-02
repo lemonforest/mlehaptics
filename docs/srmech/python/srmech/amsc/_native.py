@@ -247,6 +247,22 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_sha256_hex.restype = ctypes.c_int
 
+    # v0.7.0rc10 (F292 graft #1): N-way SIMD SHA-256 batch. NEW symbol —
+    # hasattr-guarded so a stale lib built before rc10 doesn't disable the
+    # whole native surface (same best-effort pattern as the cascade/polar/
+    # klein4 blocks below).
+    #   int srmech_sha256_batch(const uint8_t *const *msgs,
+    #                           const size_t *lens, size_t n,
+    #                           uint8_t *out_digests)   /* n*32 bytes */
+    if hasattr(lib, "srmech_sha256_batch"):
+        lib.srmech_sha256_batch.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_sha256_batch.restype = ctypes.c_int
+
     # int srmech_ndjson_iter(const char *path,
     #                        srmech_ndjson_line_cb cb,
     #                        void *user)
@@ -1063,6 +1079,53 @@ def sha256_hex_c(data: bytes) -> str:
     return out.value.decode("ascii")
 
 
+def sha256_batch_c(datas: "list[bytes]") -> "list[str]":
+    """Native N-way SIMD SHA-256 of many messages (F292 graft #1).
+
+    Returns a list of 64-char lowercase hex digests, one per input — each
+    byte-identical to ``hashlib.sha256(d).hexdigest()``. On x86 the native
+    peer dispatches to AVX2 8-way / SSE2 4-way; the per-message result is
+    bit-exact with the single-stream ``sha256_hex_c``.
+
+    Must only be called when ``HAS_NATIVE`` is True AND the lib carries the
+    rc10 symbol (a stale pre-rc10 lib lacks it; callers fall back to a
+    hashlib loop in ``srmech.amsc.format.sha256_batch``).
+    """
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_sha256_batch"):
+        raise RuntimeError(
+            "srmech.amsc._native.sha256_batch_c called but the native "
+            "srmech_sha256_batch symbol is unavailable; use "
+            "srmech.amsc.format.sha256_batch (which dispatches correctly)"
+        )
+    n = len(datas)
+    if n == 0:
+        return []
+    keep = []  # keep per-message buffers alive across the call
+    ptrs = (ctypes.POINTER(ctypes.c_uint8) * n)()
+    lens = (ctypes.c_size_t * n)()
+    for i, d in enumerate(datas):
+        b = bytes(d)
+        if len(b) == 0:
+            ptrs[i] = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+            lens[i] = ctypes.c_size_t(0)
+        else:
+            buf = (ctypes.c_uint8 * len(b)).from_buffer_copy(b)
+            keep.append(buf)
+            ptrs[i] = ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint8))
+            lens[i] = ctypes.c_size_t(len(b))
+    out = (ctypes.c_uint8 * (n * 32))()
+    rc = LIB.srmech_sha256_batch(
+        ptrs, lens, ctypes.c_size_t(n),
+        ctypes.cast(out, ctypes.POINTER(ctypes.c_uint8)),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_sha256_batch returned non-OK status {rc}; "
+            f"this should not happen for valid inputs"
+        )
+    return [bytes(out[i * 32:(i + 1) * 32]).hex() for i in range(n)]
+
+
 class NativeNDJsonError(Exception):
     """srmech_ndjson_iter returned a non-OK status.
 
@@ -1260,6 +1323,7 @@ __all__ = [
     "NativeNDJsonError",
     "ndjson_lines_c",
     "sha256_hex_c",
+    "sha256_batch_c",
     "SRMECH_OK",
     "SRMECH_ERR_NULL_ARG",
     "SRMECH_ERR_BAD_INPUT",

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc9"
-#define SRMECH_VERSION       "0.7.0rc9"
+#define SRMECH_VERSION_PRE   "rc10"
+#define SRMECH_VERSION       "0.7.0rc10"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -149,6 +149,20 @@ int         srmech_abi_version(void);
 srmech_status_t srmech_sha256_hex(const uint8_t *data,
                                   size_t         data_len,
                                   char          *out_hex);
+
+/* F292 graft #1 (v0.7.0rc10): N-way SIMD SHA-256 BATCH. Hashes `n`
+ * independent messages — msgs[i] points to lens[i] bytes (msgs[i] may be
+ * NULL iff lens[i]==0); writes the raw 32-byte digest of message i into
+ * out_digests[i*32 ..]. out_digests must be n*32 bytes and must NOT alias
+ * any input. Bit-exact with srmech_sha256_hex / hashlib per message; on
+ * x86 it dispatches at runtime to AVX2 8-way / SSE2 4-way and falls back
+ * to the scalar path (remainder, non-x86, Pyodide). The
+ * SRMECH_SHA256_FORCE_TIER env-var ({0,1,2}) overrides the dispatch (test
+ * hook). New symbol only — ABI stays 3. */
+srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
+                                    const size_t         *lens,
+                                    size_t                n,
+                                    uint8_t              *out_digests);
 
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file

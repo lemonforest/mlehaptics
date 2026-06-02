@@ -185,6 +185,7 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_cross7_f64`                   | 13 | ✅ *(rc7 public 7-D cross product Im(loop_bind))* |
 | `srmech_g2_three_form_f64`            | 20 | ✅ *(rc7 public G2 calibration 3-form scalar)* |
 | `srmech_autocorrelation_f64`          | 13 | ✅ *(rc8 Class-L circular autocorrelation; direct O(n²) sum)* |
+| `srmech_sha256_batch` + `srmech_sha256_batch.c` internals | ≤45 | ✅ *(rc10 F292 N-way SIMD SHA-256: fill_block / load_words / compress1 / digest1 / compress4 / hash4 / compress8 / hash8 / batch — each ≤45 lines; SIMD sigma ops are SINGLE-line macros per Rule 8)* |
 
 ### Fix shipped in this audit pass
 
@@ -242,6 +243,15 @@ Per-function assertion counts:
 | `srmech_cross7_f64`                   | 2  | ✅ *(rc7 x/y/out non-NULL + n==8)*                  |
 | `srmech_g2_three_form_f64`            | 2  | ✅ *(rc7 x/y/z/out non-NULL + n==8)*                |
 | `srmech_autocorrelation_f64`          | 2  | ✅ *(rc8 x/out non-NULL when n>0 + out-vs-x aliasing pre)* |
+| `srmech_sha256_batch`                 | 2  | ✅ *(rc10 msgs/lens/out non-NULL when n>0 + tier∈{0,1,2})* |
+| `srmech_sha256_batch.c` block/compress/hash internals | 2 each | ✅ *(rc10 fill_block/load_words/compress1/digest1/compress4/hash4/compress8/hash8 — pointer + buffer pre-conditions)* |
+
+**Rule 5 EXEMPT (rc10, F292):** `srmech_sha256b__ror` (1-line rotate, like
+the exempt scalar `srmech_ror32`), `srmech_sha256b__avx2_supported` +
+`srmech_sha256b__tier` (pure CPU-feature detectors — cpuid / a
+`SRMECH_SHA256_FORCE_TIER` getenv override returning a bounded tier
+{0,1,2}; no pointer/bounds invariant to assert). Mirrored in
+`tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
