@@ -91,8 +91,23 @@ def test_submodule_imports():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_version_is_0_7_0rc9():
-    """v0.7.0rc9 — MS #21 rc9 voxel: the v0.7.0 graduation-prep PyPI
+def test_version_is_0_7_0rc10():
+    """v0.7.0rc10 — F292 graft #1: the N-way SIMD SHA-256 BATCH
+    (`srmech.amsc.format.sha256_batch`), folding the F292 perf-engineering
+    hand-down into v0.7.0. cpuminer's N-way-lane TECHNIQUE re-implemented
+    JPL-clean in `c/src/srmech_sha256_batch.c`: a runtime cpuid dispatch to
+    AVX2 8-way / SSE2 4-way (scalar fallback for the remainder / non-x86 /
+    Pyodide), each lane stepping its own message's blocks in SIMD lockstep
+    with a per-lane mask freezing finished (shorter) messages. Every tier
+    is bit-exact with the single-stream `sha256_hex_c` / hashlib / NIST KATs
+    (all three proven locally via the SRMECH_SHA256_FORCE_TIER hook). SCOPE:
+    energy/perf of srmech's own provenance hashing — NOT mining (SHA-256 has
+    no PoW shortcut; technique attested to FIPS 180-4 / Intel / Gueron-
+    Krasnov). +1 ToolEntry ⟹ `describe()` 194; a NEW symbol ⟹ ABI stays 3
+    (additive); no `-mavx2` global (the AVX2 kernel self-isolates via the
+    target attribute).
+
+    Prior v0.7.0rc9 — MS #21 rc9 voxel: the v0.7.0 graduation-prep PyPI
     description refresh (the genuinely-last rcN before the clean v0.7.0
     cut). The PyPI ``Summary`` now names the v0.7.0 headlines it had been
     missing — the **Moufang loop-bind** octonion family (loop-bind / 7-D
@@ -590,8 +605,8 @@ def test_version_is_0_7_0rc9():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.0rc9", (
-        f"expected srmech.__version__ == '0.7.0rc9'; got "
+    assert srmech.__version__ == "0.7.0rc10", (
+        f"expected srmech.__version__ == '0.7.0rc10'; got "
         f"{srmech.__version__!r}"
     )
 

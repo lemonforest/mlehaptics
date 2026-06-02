@@ -409,6 +409,33 @@ def sha256_bytes(data: bytes) -> str:
     return h.hexdigest()
 
 
+def sha256_batch(datas: "list[bytes]") -> "list[str]":
+    """SHA-256 over MANY messages at once; returns one 64-char lowercase
+    hex digest per input (a ``list[str]``, parallel to ``datas``). Each
+    digest is byte-identical to ``sha256_bytes(d)`` /
+    ``hashlib.sha256(d).hexdigest()`` — this is purely a THROUGHPUT surface
+    for the bulk-attestation case (fingerprinting a whole catalog of
+    upstream response bytes at once), not a new content-address shape.
+
+    v0.7.0rc10 (F292 graft #1) — dispatches to the native **N-way SIMD**
+    peer (``srmech.amsc._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
+    on x86, scalar elsewhere) when the shared library carries the rc10
+    symbol, otherwise a stdlib ``hashlib`` loop. The two paths are
+    byte-identical (pinned by ``tests/test_sha256_batch.py``).
+
+    Args:
+        datas: the messages to hash (each a ``bytes``-like object).
+
+    Returns:
+        ``list[str]`` of 64-char lowercase hex digests, one per input.
+    """
+    from . import _native
+    if (_native.HAS_NATIVE and getattr(_native, "LIB", None) is not None
+            and hasattr(_native.LIB, "srmech_sha256_batch")):
+        return _native.sha256_batch_c(list(datas))
+    return [hashlib.sha256(bytes(d)).hexdigest() for d in datas]
+
+
 __all__ = [
     "MPR_SCHEMA_VERSION",
     "MANDATORY_ATTESTATION_FIELDS",
@@ -419,4 +446,5 @@ __all__ = [
     "read_ndjson",
     "write_ndjson",
     "sha256_bytes",
+    "sha256_batch",
 ]

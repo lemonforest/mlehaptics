@@ -1675,6 +1675,7 @@ def _synth_value_for_type(type_string: str) -> Any:
         "Optional[np.ndarray]": mat2,
         # container element-recursions (minimal valid shapes).
         "Sequence[bytes]": [b64, b64],
+        "list[bytes]": [b64, b64],   # v0.7.0rc10: format.sha256_batch `datas`
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],
         "Mapping[bytes, bytes]": {b64: b64},

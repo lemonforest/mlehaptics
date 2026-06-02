@@ -406,6 +406,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Optional[np.ndarray]": _to_ndarray,
     # ── container element-recursion ──
     "Sequence[bytes]": _seq_bytes,
+    "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
     "Mapping[bytes, bytes]": _mapping_bytes_bytes,
