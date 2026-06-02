@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc15"
+#define SRMECH_VERSION       "0.7.0rc16"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -653,7 +653,7 @@ srmech_status_t srmech_g2_three_form_f64(
     double *out);
 
 /* ------------------------------------------------------------------ *
- * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc15; F292 #2)
+ * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc16; F292 #2)
  *
  * out[k] = loop_bind(x[k], y[k]) over nb INDEPENDENT 8-blocks (the
  * block-diagonal ⊕ F289 verified err 0.0). x, y, out are each nb*8
@@ -740,6 +740,11 @@ srmech_status_t srmech_mod_pow(uint64_t a, uint64_t k, uint64_t n,
  * `n <= INT64_MAX` (returns SRMECH_ERR_OVERFLOW otherwise).
  * Returns SRMECH_ERR_BAD_INPUT for n in {0, 1}. */
 srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
+
+/* Harmonic-3 Z/3 generator (F150): *out = (value + 1) mod 3, read on
+ * the residue class of value. Result is always in {0, 1, 2}; applying
+ * it three times is the identity on each residue (period 3). */
+srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)
@@ -1013,6 +1018,17 @@ srmech_status_t srmech_byte_search(const uint8_t *haystack,
                                    uint32_t       needle_len,
                                    uint32_t      *out_offset);
 
+/* Harmonic-2 chiral mirror of srmech_byte_search (F150): find the LAST
+ * occurrence of `needle` in `haystack`. On match: *out_offset = highest
+ * index where needle appears. On miss: *out_offset = UINT32_MAX
+ * (SRMECH_SEARCH_NOT_FOUND). Empty needle returns *out_offset =
+ * haystack_len (matches Python's `bytes.rfind(b'')` convention). */
+srmech_status_t srmech_byte_search_backward(const uint8_t *haystack,
+                                            uint32_t       haystack_len,
+                                            const uint8_t *needle,
+                                            uint32_t       needle_len,
+                                            uint32_t      *out_offset);
+
 /* ------------------------------------------------------------------ *
  * Class H — self-introspection (Task #217 Phase C1 rc4 acknowledgment).
  *
@@ -1043,6 +1059,15 @@ srmech_status_t srmech_dispatch_match(const uint8_t  *input,
                                       uint32_t        n_rules,
                                       bool           *out_matched,
                                       uint32_t       *out_tag);
+
+/* Harmonic-2 chiral mirror of a dispatch pattern (F150): write the
+ * `pattern_len` bytes of `pattern` reversed into `out`
+ * (out[i] = pattern[pattern_len - 1 - i]). `out` is caller-owned and
+ * must NOT alias `pattern`. Empty pattern writes nothing. Applying it
+ * twice is the identity (period 2). */
+srmech_status_t srmech_mirror_pattern(const uint8_t *pattern,
+                                      uint32_t       pattern_len,
+                                      uint8_t       *out);
 
 /* ------------------------------------------------------------------ *
  * Class E — catalog / naming (Task #217 Phase C1 rc5)
