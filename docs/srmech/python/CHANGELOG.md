@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc14] - 2026-06-02
+
+**RBS-LM upstream wishlist — the `srmech.rbs_lm` inference substrate (UPSTREAM_NOTES §9; F166 walk). A NEW top-level module, pure-Python; outside the `amsc.*`/`qm.*` tool-schema enumeration → `describe()` stays 201; ABI stays 3; no C change.**
+
+Ports the F166 bit-exact, catalog-instantiable inference substrate from the research subtree into the package — inference built UP from the 28-D Klein-4 coordinate, not distilled DOWN from float weights. The typed substrate config of rc13 (`substrate_parameterization`) gets its first consumer.
+
+- **`srmech.rbs_lm.ContextSubstrate`** — the rolling-context encoder: per-token Klein-4 vectors (SHA-256 seed → fixed vector, sector arithmetic), `iω₇` position keys, odd-bundle of the last-k tokens → ONE Klein-4 state (Class A∘M encode + position). Plus the numpy-level encode helpers (`token_seed`, `encode_word_k4`, `encode_bigram_l1`, `encode_skeleton_l2`, `encode_sentence_l3`, `sim_k4_batch`) — the same Klein-4 sector cascade as `srmech.amsc.hdc.klein4_*`, at numpy-array granularity for the inference loop.
+- **`srmech.rbs_lm.RBSLMInferenceSubstrate`** — the inference object: `from_catalog(toml)` / `from_params(dict)` build it; `learn(stream)` loads the bigram candidate structure + a context→next associative memory (F154-bounded, `klein4_bind` over windows, odd-bundle); `next_token_distribution(ctx, temperature)` retrieves over bigram-legal candidates (Class M) + temperature-softmax; `infer(prompt, …, seed)` is the deterministic autoregressive loop; `attestation()` returns the MPR block (descriptor_hash + srmech_version + abi + provenance) so any generated sequence is re-derivable.
+
+**Determinism:** same corpus + params + srmech_version + seed → bit-exact identical output (SHA-256 token seeds, exact XOR bind, seeded sampling). Faithful (bit-exact) port of the research artifact; composes the existing `srmech.amsc.hdc.klein4_*` primitives + `srmech.amsc.load_descriptor`/`descriptor_hash` (no new `hashlib.sha256` — routes through `srmech.amsc.format.sha256_bytes` via `token_seed`).
+
+**SCOPE / deferred rungs (no-silent-caps):** rc14 ships the two classes. The `srmech.rbs_lm` **tool_schema surface** (LLM-as-tool inference) + the **`siona.profile("rbs_lm").infer()` binding** (§8+§9 join) + the **hierarchical-memory scale-up** (`CanonicalHierarchicalMemory`, F162 — past the single-memory F154 4× ceiling, for corpus-scale inference) remain open for follow-up rcs. `[[feedback_no_mvp_framing]]`.
+
 ## [0.7.0rc13] - 2026-06-02
 
 **RBS-LM upstream wishlist — the `substrate_parameterization` adapter + typed Descriptor sub-dataclasses (UPSTREAM_NOTES §7). Pure-Python, additive; no new ToolEntry → `describe()` stays 201; ABI stays 3; no C change.**
