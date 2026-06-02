@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc11] - 2026-06-02
+
+**F292 graft #2 — N-way SIMD block-octonion HD bind (`srmech.amsc.hdc.loop_bind_hd`), on a new SIMD optimize-path HAL (`c/src/srmech_simd.h`). NO new public callable → `describe()` stays 194; a NEW C symbol → ABI stays 3 (additive).**
+
+The on-theme F292 graft: `loop_bind_hd` is the block-diagonal direct sum ⊕ of NB **independent** dim-8 octonion products (F289 verified err 0.0) — exactly the data-parallel shape cpuminer's N-way-SIMD mindset exploits. It was a **Python loop** over the NB 8-blocks (one ctypes call per block); this collapses it to **one native call** that advances W blocks per SIMD pass.
+
+- **`srmech_loop_bind_hd_f64(x, y, nb, out)`** (`c/src/srmech_loopbind_hd.c`, new) — binds all NB blocks in one call via a runtime **AVX (256-bit double, W=4)** / **SSE2 (W=2)** / scalar dispatch. The SIMD kernels mirror the rc7 `mul2/mul4/mul8` Cayley-Dickson op-DAG with `double` → a vector holding W blocks of one component; the scalar tier (remainder / non-x86 / Pyodide) reuses the shipped `srmech_loop_bind_f64`, so it is bit-exact with the single-block product by construction. `loop_bind_hd` dispatches to it (whole NB-block array crosses once — no per-element Python loop); the per-block fallback is unchanged. NOTE the 256-bit **double** ops are AVX, not AVX2.
+- **HAL — `c/src/srmech_simd.h` + `srmech_simd.c` (new):** ALL machine-specific bits other than the kernels now live in ONE place — the `SRMECH_SIMD_X86` platform macro, the arch intrinsic includes, the `SRMECH_SIMD_TARGET_*` per-function attributes, and the cpuid/xgetbv feature probes (`srmech_simd_has_avx2/_avx/_sse2`) + env-tier clamp (`srmech_simd_tier`). The portable core (`srmech_sha256.c`, `srmech_loopbind.c`) and the public header (`c/include/srmech.h`) stay 100% machine-agnostic. **rc10's `srmech_sha256_batch.c` is retrofitted onto the HAL** — its own platform/target/cpuid copies deleted (byte-identical SHA output, every tier; net FEWER Rule-5-exempt functions). New optimize-path ops include the HAL and write only their kernels.
+- **Bit-exact, every tier:** scalar / SSE2 / AVX all match the pure-Python `_loop_bind_raw` per block (**maxerr 0.00e+00**, including the canonical HD width 2048 = 256·8) — the F292 "parity-trivial" prediction confirmed. `tests/test_loop_bind_hd.py`. SHA-256 batch regression: still byte-identical to `hashlib` + NIST KATs at every tier.
+- **JPL-clean:** intrinsics (NOT asm); no `goto`/recursion/malloc; ≤60-line functions; single-line vector macros (Rule 8); kernels self-isolate via `__attribute__((target("avx"|"sse2")))` so the library compiles at baseline ISA (no global `-mavx`); ≥2 asserts per non-exempt function (the cpuid probes are the documented exempt entries). gcc/clang/MSVC `-Werror`/`/WX`.
+
+**SCOPE (load-bearing):** energy/perf-engineering of srmech's OWN Class-M HD bind (octonion algebra — not hashing, not mining). The HAL is the architectural answer to "no machine-specific bits in the core; abstract the optimize path behind a header." `[[feedback_trauma_informed_defensive_scope]]`.
+
+**`describe()` stays 194** (internal acceleration of an existing surface, no new ToolEntry); **ABI stays 3** (new symbol, additive). Anchor: F292 (`R-RBS-LM-FINDING_292_cpu_optimization_reference_graft_handdown`).
+
 ## [0.7.0rc10] - 2026-06-02
 
 **F292 graft #1 — N-way SIMD SHA-256 BATCH (`srmech.amsc.format.sha256_batch`), folding the F292 CPU-optimization hand-down into v0.7.0. +1 ToolEntry → `describe()` 194; a NEW symbol → ABI stays 3 (additive).**

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc10"
-#define SRMECH_VERSION       "0.7.0rc10"
+#define SRMECH_VERSION_PRE   "rc11"
+#define SRMECH_VERSION       "0.7.0rc11"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -651,6 +651,31 @@ srmech_status_t srmech_cross7_f64(
 srmech_status_t srmech_g2_three_form_f64(
     const double *x, const double *y, const double *z, size_t n,
     double *out);
+
+/* ------------------------------------------------------------------ *
+ * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc11; F292 #2)
+ *
+ * out[k] = loop_bind(x[k], y[k]) over nb INDEPENDENT 8-blocks (the
+ * block-diagonal ⊕ F289 verified err 0.0). x, y, out are each nb*8
+ * doubles; LOOP_DIM is fixed at 8. This is the data-parallel shape the
+ * cpuminer N-way-SIMD mindset exploits — nb independent octonion units
+ * advanced across SIMD lanes in ONE C call (was a Python per-block loop).
+ * Runtime-dispatched AVX (256-bit double, W=4 blocks/pass; note: AVX, not
+ * AVX2) / SSE2 (W=2) / scalar remainder reusing srmech_loop_bind_f64 (so
+ * the scalar tier is bit-exact with the single-block product). The SIMD
+ * tiers mirror the same Cayley-Dickson op-DAG per lane, so each lane is
+ * bit-exact modulo a possible FMA-contraction 1-ULP (parity at ~1e-12).
+ * SRMECH_LOOP_HD_FORCE_TIER={0,1,2} overrides dispatch (test hook).
+ *
+ * Returns:
+ *   SRMECH_OK              — success (nb == 0 is a no-op)
+ *   SRMECH_ERR_NULL_ARG    — x, y, or out is NULL with nb > 0
+ *
+ * `out` MUST NOT alias x or y. ABI-additive — SRMECH_ABI_VERSION stays 3.
+ * No abs() (Class-K sign = conj flip, same as the per-block product).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_loop_bind_hd_f64(
+    const double *x, const double *y, size_t nb, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — autocorrelation (MS#21 v0.7.0rc8; the F290 §C primitive)

@@ -186,6 +186,8 @@ brace; counted by awk script in `tests/test_jpl_audit.py`):
 | `srmech_g2_three_form_f64`            | 20 | ✅ *(rc7 public G2 calibration 3-form scalar)* |
 | `srmech_autocorrelation_f64`          | 13 | ✅ *(rc8 Class-L circular autocorrelation; direct O(n²) sum)* |
 | `srmech_sha256_batch` + `srmech_sha256_batch.c` internals | ≤45 | ✅ *(rc10 F292 N-way SIMD SHA-256: fill_block / load_words / compress1 / digest1 / compress4 / hash4 / compress8 / hash8 / batch — each ≤45 lines; SIMD sigma ops are SINGLE-line macros per Rule 8)* |
+| `srmech_simd.c` HAL (`srmech_simd_has_avx2` / `_avx` / `_sse2` / `srmech_simd_tier`) | ≤22 | ✅ *(rc11 SIMD optimize-path HAL — cpuid/xgetbv probes + env-tier clamp; the ONE home of the machine-specific detection bits)* |
+| `srmech_loop_bind_hd_f64` + `srmech_loopbind_hd.c` internals | ≤45 | ✅ *(rc11 F292 N-way SIMD block-octonion HD bind: vmul2/4/8 a-/s- kernels + avx/sse2 group loops + public entry — each ≤45 lines; SIMD ops are SINGLE-line macros per Rule 8)* |
 
 ### Fix shipped in this audit pass
 
@@ -245,12 +247,18 @@ Per-function assertion counts:
 | `srmech_autocorrelation_f64`          | 2  | ✅ *(rc8 x/out non-NULL when n>0 + out-vs-x aliasing pre)* |
 | `srmech_sha256_batch`                 | 2  | ✅ *(rc10 msgs/lens/out non-NULL when n>0 + tier∈{0,1,2})* |
 | `srmech_sha256_batch.c` block/compress/hash internals | 2 each | ✅ *(rc10 fill_block/load_words/compress1/digest1/compress4/hash4/compress8/hash8 — pointer + buffer pre-conditions)* |
+| `srmech_loop_bind_hd_f64`             | 2  | ✅ *(rc11 x/y/out non-NULL when nb>0 + tier∈{0,1,2})* |
+| `srmech_loopbind_hd.c` vmul/group internals | 2 each | ✅ *(rc11 vmul2a/4a/8a + vmul2s/4s/8s + avx/sse2 group loops — x/y/out non-NULL)* |
+| `srmech_simd_tier` (HAL)              | 2  | ✅ *(rc11 env_var != NULL + max_tier >= 0)* |
 
-**Rule 5 EXEMPT (rc10, F292):** `srmech_sha256b__ror` (1-line rotate, like
-the exempt scalar `srmech_ror32`), `srmech_sha256b__avx2_supported` +
-`srmech_sha256b__tier` (pure CPU-feature detectors — cpuid / a
-`SRMECH_SHA256_FORCE_TIER` getenv override returning a bounded tier
-{0,1,2}; no pointer/bounds invariant to assert). Mirrored in
+**Rule 5 EXEMPT:** `srmech_sha256b__ror` (rc10 — 1-line rotate, like the exempt
+scalar `srmech_ror32`). `srmech_simd_has_avx2` / `srmech_simd_has_avx` /
+`srmech_simd_has_sse2` (rc11 SIMD optimize-path HAL — pure cpuid/xgetbv
+CPU-feature detectors returning 0/1, no pointer/bounds invariant to assert;
+they REPLACED the per-file `srmech_sha256b__avx2_supported`/`__tier` copies, so
+the HAL nets FEWER exempt functions, and `srmech_simd_tier` is NOT exempt). The
+`SRMECH_{SHA256,LOOP_HD}_FORCE_TIER` env overrides + bounded-tier {0,1,2} clamp
+live in the non-exempt `srmech_simd_tier`. Mirrored in
 `tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
