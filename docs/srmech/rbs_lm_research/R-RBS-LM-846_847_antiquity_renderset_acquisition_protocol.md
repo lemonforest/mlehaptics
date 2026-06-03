@@ -59,3 +59,28 @@ Fetch + attest the Rosetta Stone render-set (Greek `primary-verified`; hieroglyp
 - the **exact scope of the Topoi CC BY-SA** (XML file vs whole annotation layer) — confirm on the OSF landing page before redistribution.
 
 **Status:** render-set #1 attested at the **metadata/provenance + k=3-property** level (cross-checked); ancient-script *content* is `flagged-residue`. **Ingest target = the Topoi CC-BY-SA TEI/EpiDoc XML.** Doubles as the first ingest-gate / many-to-many test (#849) once the build lands. **Next:** cross-*corpus* independence — a Perseus Greek↔Latin↔English set + a CDLI/ORACC cuneiform set — so independence is cross-corpus, not just cross-script-within-one-artifact.
+
+---
+
+## RENDER-SETS #2 + #3 — cross-corpus ACQUIRED + triality-cross-checked (2026-06-03)
+Substitute-verifier triality (haiku∥sonnet∥opus). **It earned its keep again:** opus caught a **P-number error** (the search-suggested CDLI `P461271` is NOT the Hammurabi stele — it is a 1st-millennium commentary "Fs Finet I 098"; the stele composite is likely `Q007317`, unfetchable this pass) and surfaced a **CDLI/ORACC reachability disagreement** (sonnet quoted ATF from `P464358`; opus found `cdli.earth` composite routes 500/404 + ORACC HTTPS unresolved) → **CDLI/ORACC native-ATF = flagged-residue** (disputed reachability + unresolved P-number → Assyriologist + working CDLI). opus also secured a **German render** — independence *beyond English* (honors the F49 "English-only collapses independence" lesson).
+
+### Render-set #2 — Thucydides, *History of the Peloponnesian War* (Greek ↔ Latin ↔ English TRIPLE)
+A genuine **3-render cross-language triple**, all **CC-BY-SA 4.0**, same CTS work `tlg0003.tlg001`, opening sentences quoted verbatim (content-identity confirmed). Primary-verified from the canonical-greekLit XML `<teiHeader>`:
+- **Greek** `tlg0003.tlg001.perseus-grc2` — Henry Stuart Jones, OUP 1910/1942 — `Θουκυδίδης Ἀθηναῖος ξυνέγραψε…`
+- **Latin** `tlg0003.tlg001.1st1K-lat2` — Friedrich Haase, Didot 1869 (First1KGreek) — `Thucydides Atheniensis conscripsit…`
+- **English** `tlg0003.tlg001.perseus-eng6` — Richard Crawley 1914 — `Thucydides, an Athenian, wrote…`
+Hosted: `github.com/PerseusDL/canonical-greekLit`; Scaife Viewer (`scaife.perseus.org`). Independence: 3 translators / 3 eras (1869 / 1914 / 1942). **Flagged residue:** OCR fidelity (Latin Haase = "quickly corrected OCR output"; Greek Kurzweil-scanned) → classicist; ancient-script content fidelity unverified-by-us. (Corroboration: opus confirmed the NT/Perseus has Greek+English but **no co-hosted Latin** — most Perseus texts lack a Latin render, so Thucydides is a deliberately-good pick.)
+
+### Render-set #3 — Code of Hammurabi (Akkadian transliteration + English ×2 + German)
+Clean PD set with a **non-English** render (the independence we wanted):
+- **Akkadian transliteration + German** — Hugo Winckler, *Die Gesetze Hammurabis in Umschrift und Übersetzung* (Leipzig: Hinrichs, 1904), archive.org `diegesetzehamm1904hamm` — **PD**; Umschrift (transliteration) + German in one volume. (opus-grounded)
+- **English (King 1910)** — Avalon Project (Yale) / Wikisource `Codex_Hammurabi_(King_translation)` — **PD** (King d. 1919).
+- **English (Harper 1904)** — Wikisource `The_Code_of_Hammurabi_(Harper_translation)` — **PD**.
+§1 + prologue quoted across renders (content-identity: King "If any one ensnare another…"; Harper "When the lofty Anu…"). **Flagged residue:** the **CDLI/ORACC native ATF + stele P-number** (`P461271` WRONG → likely composite `Q007317`; reachability disputed) → Assyriologist + working CDLI; **eHammurabi** = "© OMNIKA, Some rights reserved" → reference-only, NOT redistributable; Winckler 1904 OCR (Fraktur) is messy → Assyriologist; ancient-script fidelity unverified-by-us.
+
+### Cross-corpus independence achieved
+- #1 Rosetta = cross-**script** within one artifact (hiero/Demotic/Greek).
+- #2 Thucydides = cross-**language** (Greek/Latin/English, 3 eras), uniform CC-BY-SA-4.0.
+- #3 Hammurabi = cross-**language incl. non-English** (English ×2 + German) + a native transliteration.
+Together = the maximally-independent multi-language render-base the F335/F337 truth-filter wants. **Next:** a Hebrew (Sefaria) and/or Sanskrit (GRETIL) set to widen beyond the European/Mesopotamian axis; the CDLI/ORACC native-ATF upgrade (when access works); and #847 (native-language peer-review) as the methodology sibling.
