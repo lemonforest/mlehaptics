@@ -1210,6 +1210,43 @@ So the rc19 **DSL-compose-engine residual is RESOLVED**: the chain runner loads 
 
 **Verdict: rc21 is CLEAN for the RBS-LM surface** — native dispatch + all gated surfaces verified (no rc19 regression), and the DSL compose-engine now confirmed running end-to-end across all chain special-forms. Sole new finding is the `reorient` stage arg-order mismatch (loud failure, not a wrong answer). **Recorded, NOT filed** per `[[feedback_create_upstream_issues_never_close_them]]`. Working venv `/tmp/verify_srmech_v070rc21` is the new latest-verified; `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
 
+## §17 DESIGN ASK — catalog → kernel → DSL entry: unify the two op registries + ship the 2 missing text-stage primitives (2026-06-03; rc21-grounded)
+
+**Question driving this (user):** what tooling does srmech need so that *our* LM kernels built from catalogs — **and anyone's catalog of any other texts** — show up as DSL entries (discoverable + runnable the way the 11 cascade ops are)?
+
+**The good news first — srmech already ships ~80% of this (verified on rc21):**
+- `signal_processing.encode_loe_content(content: str, *, D=8192, substrate='default') -> bytes` — a working **text → instrument** encoder (verified: 1024-byte instrument, self-sim **1.000**, vs-unrelated **−0.007**).
+- `srmech.rbs_lm` ships the **layered text encoders** `encode_word_k4` / `encode_bigram_l1` / `encode_skeleton_l2` / `encode_sentence_l3` + `RBSLMInferenceSubstrate` / `ContextSubstrate` / `sim_k4_batch` / `token_seed` — the 4:3:7-ish encode stack, upstreamed.
+- `signal_processing.RBSHDCInstrument` (build / encode_content / decode_fingerprint / query_class / similarity / verify_bit_exact) + `mint_cascade_composition` + `decode_loe_fingerprint`.
+- `amsc.catalog` ships a **catalog-chain mechanism**: `list_catalog_chains(source_key)` ("enumerate operator chains declared by a catalog") + `run_catalog_chain(source_key, chain_name, *, row_index=, inputs=)` ("execute a declared chain on a catalog row") + `use_local_kernel(path, *, adapter_class=)` ("register a user-runtime-kernel overlay (T2)") + `get_local_kernel_state()`.
+- Class-L `dense_laplacian` / `hermitian_eigendecompose` + Class-M `mint_vector` / `bundle` / `bind` / `permute` (the kernel-build math primitives) all present.
+
+**So the gap is NOT "build the capability" — it is UNIFICATION + 2 missing precursors.** Verified the disconnect on rc21: `dsl.list_catalog_ops()` returns **exactly the 11 cascade ops**; `encode_loe_content` is **not** among them and `lookup_cascade_op('encode_loe_content')` → `ValueError: unknown cascade op`; `dsl` has **no** `list_catalog_chains`/`run_catalog_chain`, `catalog` has **no** `list_cascade_ops`. **The DSL op-discovery surface and the AMSC catalog-chain surface are fully disjoint** — a kernel chain declared on a text-catalog is invisible to the DSL, and the working `encode_loe_content` text→instrument op can't be named in a chain.
+
+### The 4 changes (ordered cheapest-highest-leverage first)
+
+| # | Change | Why | Status today |
+|---|---|---|---|
+| **U2** | **Register the existing text→instrument encoders as DSL cascade-ops** — `encode_loe_content` + the `rbs_lm.encode_{word_k4,bigram_l1,skeleton_l2,sentence_l3}` stack. One catalog-TOML descriptor each (like the 11 shipped). | Cheapest, highest leverage: the primitive **already works** (verified). Registering it makes `[[stage]] op="encode_loe_content"` legal → **any catalog's text rows get a one-line kernel chain.** | exists in `signal_processing`/`rbs_lm`, **invisible to DSL** |
+| **U1** | **Ship the 2 missing text→graph stage primitives** so the *presence* (K1) kernel-build is an authorable pure-TOML composite end-to-end: `tokenize(text, *, stopwords=, min_len=, pattern=) -> List[str]` (Class B/G text-segmentation) and `cooccurrence_edges(tokens, *, window=, vocab_size=) -> (n, edges, weights)` (**Class L precursor** — tokens→weighted edges). | These are the only missing links between `text` and the already-shipped `dense_laplacian`. `cooccurrence_edges` **kills the hand-rolled `Counter()` co-occurrence** our research scripts use (the exact idiom the CLAUDE.md STOP-list flags). With U1+U2, K1 = pure-TOML composite `tokenize → cooccurrence_edges → dense_laplacian → eigendecompose → topk_eigvec_tokens → mint → bundle`; K3 composes from `bind`+`permute` (an `ngram_bind` convenience would finish it). | **absent** (verified: no `tokenize`/`cooccur` op) |
+| **U3** | **Unify the op-discovery surface** — one call (`dsl.list_ops()` or extend `list_cascade_ops()`) that enumerates BOTH value-transform cascade ops (incl. D2 user composites) AND `catalog.list_catalog_chains` entries, each tagged `kind` (stage / combinator / catalog-chain) + `provenance` (`srmech` / `user:<sha>` / `catalog:<source_key>`). | This IS the literal ask: a kernel chain declared on a text-catalog **shows up in the DSL op list**. The two registries already exist; they just don't see each other. | two **disjoint** surfaces (verified) |
+| **U4** | **Catalog → DSL auto-registration bridge** — `register_attested_root(...)` of a text-catalog + a declared kernel chain (or one dropped on `SRMECH_CASCADE_PATH`) **auto-appears** in the U3 discovery surface, tagged `catalog:<source_key>`. | "Anyone's text catalog → DSL entry" becomes **one path, not three doors** (`list_catalog_chains` + `SRMECH_CASCADE_PATH` D2 + `use_local_kernel` overlay are the three doors today). | plumbing exists in pieces; **not routed through DSL** |
+
+**Net:** U2 alone unlocks one-line per-catalog kernel chains (the cheapest win, primitive already verified). U1 makes the full presence-kernel pure-TOML-authorable (and retires our `Counter()` hand-roll). U3+U4 are the "shows up in DSL entries for anyone's texts" unification. All four compose with the verified **F289-D2 BYO-cascade-TOML** mechanism (§12.4) and the **`run_toml_chain` compose-engine** (§16) already shipped.
+
+### §17.1 OURS-side follow-on (not an upstream ask) — migrate onto the upstreamed surface
+Our hand-rolled kernel-build (R-RBS-LM-52b, the F339 refresh) **predates** `srmech.rbs_lm` + `encode_loe_content` and reinvents what srmech now ships. A parity-check task (OURS): does `encode_loe_content` / the `rbs_lm.encode_*` stack reproduce our K1/K3 signal on the notebooks? Where parity holds, migrate the research scripts onto the upstreamed surface (kills the `Counter()` + `re.findall` hand-rolls; routes through the attested package). This is the srmech-first reflex applied to our own tooling debt.
+
+### §17.2 "Anything else upstream?" — consolidated open carry-forwards (as of rc21)
+| item | kind | state |
+|---|---|---|
+| §15.1 `cascade.magnitude(x: float)` real-only | contract/doc | OPEN — complex modulus leaks internal `>`; ours: CLAUDE.md over-describes it |
+| §16.1 `cascade.reorient(orientation, value)` data-arg-second | DSL-stage-contract | OPEN — un-invokable as bare `op=`/`parallel_body=`; new this session |
+| §13 **D4** CLI top-level help stale string | doc nit | OPEN — still not re-tested (package-API verification only) |
+| §17 U1–U4 catalog→kernel→DSL unification | feature/design | NEW this entry |
+
+All **recorded, NOT filed** per `[[feedback_create_upstream_issues_never_close_them]]` — tracker state is the user's/maintainer's call; the design stands regardless.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
