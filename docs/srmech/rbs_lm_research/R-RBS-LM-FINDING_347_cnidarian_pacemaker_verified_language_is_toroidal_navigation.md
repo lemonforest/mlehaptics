@@ -35,6 +35,18 @@ Encode language on a **toroidal / grid manifold**: map tokens (or co-occurrence 
 
 If the toroidal encoding discriminates AND fails the shuffle control AND is cross-language-shared, the "missing primitive" is confirmed as **Class-I-as-navigable-torus**, and it is the metric the R6 cross-language test should use.
 
+### §3.1 The cross-language test needs a dedicated ROSETTA-STONE translation object (the connection) — refinement (user direction 2026-06-03)
+
+R6's metric failed for **two** reasons: Zipf-flatness (§2) **and frame-blindness** — each corpus's grid is built in its own arbitrary coordinate frame (eigenvector signs/order, the cyclic origin), so comparing two grids directly cannot distinguish *"same structure, different coordinates"* from *"different structure."* In the R2 (4+3) fiber-bundle language: **comparing two language-grid fibers without a connection is meaningless** — and a flat eigenspectrum-correlation silently assumed the frames matched.
+
+**The fix is a dedicated Rosetta-stone translation object = the connection on the bundle.** A set of known translation pairs (concept_A ↔ concept_B) gauge-fixes the alignment between the two language-tori (parallel transport between the per-language fibers). We already have these objects: **R-RBS-LM-54** (the Rosetta Stone Layer "GOLDEN PATH" — shared translation layer with bound domain kernels), **F334** (Rosetta = ≥3 co-equal renderings, agreement = attestation), and the **#846 render-sets** (the Rosetta Stone, the Thucydides Greek↔Latin↔English triple, Hammurabi) — the real multilingual translation anchors.
+
+**This gives the structure-universality test its teeth:** fit the toroidal frame-alignment on a **handful of Rosetta anchor-pairs only**, then ask whether the **non-anchor** concepts come into correspondence too. If the navigation structure is universal, a few anchors should **parallel-transport the whole torus into alignment** (the rest of navigation transfers); if structure is language-specific, only the anchors line up and the bulk diverges. That generalization-beyond-the-anchors is the falsifiable signal R6's frame-blind metric could never see.
+
+**So the test splits cleanly:**
+- **Phase A (no fetch — runs now):** within-language toroidal encoding on the English notebooks — does a Class-I torus discriminate where K1 (F339) was Zipf-flat, AND **fail the shuffle control**? Establishes that the navigation axis exists and is a real (shuffle-fragile) structure.
+- **Phase B (needs the Rosetta object — user-in-loop):** cross-language — build per-language grids, fit the frame on **Rosetta anchor-pairs only**, test whether non-anchor concepts transfer (structure-universal). Needs the #846 multilingual fetch + the substitute-verifier triality + a dedicated Rosetta translation anchor. This is the genuine, frame-aware replacement for R6's failed metric.
+
 ## Discipline
 
 §1 verification is grounded in our own findings (F121/F119/F120/F126/F121b), prime-first; the O'Keefe phase-coding citation was already PDF-verified (F121b). §2 is a **hypothesis** (framework reading) — the within-corpus mapping (grid = Class I toroidal; places-and-things = C+M+I) stands; the external "gridlike code for concepts" neuroscience is **flagged needs-PDF-verification** before any attested use (MPM). §3 is the falsifiable test, with the R6 shuffle control as the built-in honesty gate. Understanding-not-curing; defensive scope. Composes with F341–F346 (R1–R6): the Class-I torus is the *navigation* rung the K1/K3 kernels lack.
