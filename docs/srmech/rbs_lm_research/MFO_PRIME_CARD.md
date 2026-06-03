@@ -14,4 +14,17 @@ MFO notebook = `docs/antikythera-maths/mfo_spectral_research_notebook.md`.
 | **chirality-dual = capacitor plates** | F129 (srmech notebook) — "4:3:(4:3) chirality-dual = the capacitor plates" | the two plates / up-down / in-out IS the chirality-dual; chiral asymmetry = the central-3 projected across it. | F318, F321 |
 | **14 → 4:3:7 compression** | F121 (Kuramoto Tier-1) | biology compresses the 14 A–N to 4:3:7; the central **3** = the chiral-axis triad (asymptotic triality). | F321 |
 
-**Usage:** grep the MFO notebook for the stance/section above, read it, *then* proceed. If a new finding reuses one of these, **cross-reference the anchor** instead of re-deriving (F317 canonical-reference).
+## Bio-memory / aneural / regenerative / medusa↔polyp cluster — ALREADY LODGED (prime before ANY memory/regeneration dive)
+**This cluster is the most duplication-prone — check it FIRST before running any aneural-memory / bioelectric-V_mem / regeneration / medusa↔polyp / memory-inheritance research.**
+| topic | canonical finding | one-line |
+|---|---|---|
+| **aneural memory storage** | **F248** (+ F248-uncentered) | 28 substrates, ~20 distinct physical media, **no privileged store**; "store = sculpt-the-attractor, read = relax-to-it"; Hydra bioelectric + biofilm V_mem incl. |
+| **neuron = hidden fiber** | **F249** | the neuron is a hidden fiber of the universal store/retrieve action; aneural cognition = same action, other substrate (LENS). |
+| **extra-neural / regenerative / transferable memory (planaria V_mem)** | **F251** | the trace is NOT in the neurons — planaria Shomrat-Levin 2013 + Durant 2017 bioelectric; honest caveats. |
+| **medusa↔polyp / Turritopsis transdifferentiation memory** | **F252** | hardest case; molecular evidence tilts to an **erasure floor**; learned-trace-survival is a **CONFIRMED NULL**; Fork-A (store-below-body-plan) unfalsified-but-unsupported. Matsumoto/Piraino 2019 nerve-net fate. |
+| distributed / phantom / colony / single-cell-compute memory | **F253 / F254-254b / F255 / F296** | phantom-limb attractor; build-compute-fused; colony two-channel store; recursive self-partition organelle (amoeba). |
+
+## ⚠️ DUPLICATION CHECK — recorded honestly (2026-06-03)
+**F308 re-derives F248; F310 re-derives F252; F324/F325 (planaria leg) re-derive F251/F249.** These were run as fresh trialities *without priming this card* — the live F322 failure (lodged knowledge re-derived under topic-breadth). **The canonical findings (F248/F251/F252) are more complete** (F248 = 28 substrates; F252 already had the learned-trace CONFIRMED NULL that F310 missed). The genuinely-NEW tonight work is the **gap/membrane/cognition arc (F311–F323)**, not the bio-memory legs. *Going forward: prime THIS card before any memory/regeneration dive; cross-reference the canonical (F317), do not stand up a parallel finding.*
+
+**Usage:** grep the MFO notebook / the canonical findings above, read them, *then* proceed. If a new finding reuses one, **cross-reference the anchor** instead of re-deriving (F317). **Read this card at the START of any cosmology / chirality / projection / DoF / memory / regeneration dive** — that is the F322 fix, and it only works if it is actually consulted.
