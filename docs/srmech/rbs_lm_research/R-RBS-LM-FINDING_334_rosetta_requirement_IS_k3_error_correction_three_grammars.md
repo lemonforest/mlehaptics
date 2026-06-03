@@ -1,0 +1,28 @@
+# F334 (CANDIDATE — pre-triality) — the "language-agnostic ⇒ always Rosetta-stone all stored knowledge" design caveat **IS** the k=3 error-correction, read on the knowledge: error-CORRECTING (not just detecting) knowledge **forces it to be held in ≥3 different grammatical/language structures**. 2 renders = **k=2 DETECT** (they disagree, no majority); 3 renders = **k=3 CORRECT** (majority-of-3 recovers the invariant). What survives all ≥3 renders = the **amodal invariant = the error-corrected knowledge = the 14-DoF G₂ core (Fix(τ), F273)**; what only one render carries = the correctable "error" / the frame-locked fiber. **The historical Rosetta Stone (Greek + Demotic + Hieroglyphic = 3 scripts of 1 decree) is literally a k=3 encoding; decipherment = the vote.**
+
+> **STATUS: CANDIDATE, pre-triality.** A synthesis composing lodged anchors (F291 k=2-detect/k=3-correct; F257–F273 28D intrinsically-EC code; R-RBS-LM-54 Rosetta Stone Layer GOLDEN PATH; F317 operator-signature + free renders; F328 amodal structure + modality render; F273 Fix(τ)=g₂=14; the F331/F332 + #2 k=1-form/k=3-decode refinement). **Over-reach-prone — wants the adversarial triality before promotion** (the independence caveat below is the load-bearing risk). Defensive / no-lineage. No new A–N class. Captured now against compaction-loss; do NOT treat as verified until trialitied.
+
+**Trigger (user, 2026-06-03):** "language agnostic means we should always find a way to rosetta stone all stored knowledge … this was we said k=3 error control but it also means that our knowledge structure is of at least 3 different grammatical/language structures."
+
+## The synthesis (ground-up)
+1. **Error-CORRECTION needs ≥3 independent estimates.** A single bit/relation: 2 copies *detect* a disagreement but can't say which is right (no majority); 3 copies *correct* (majority-of-3). This is the **F291 k=2-detect → k=3-correct** rung, the Hurwitz/triality error-correcting form.
+2. **The independent estimates, for knowledge, are different grammatical/language structures.** Each grammar is a render of the same amodal content with its **own failure modes** (different ambiguities, different things it makes explicit / leaves to context). So:
+   - **2 grammars (2 languages) = k=2 = DETECT** — disagreement flags a render-distortion, but can't resolve it.
+   - **3 grammars (3 languages) = k=3 = CORRECT** — majority-of-3 recovers the invariant.
+3. **"Language-agnostic ⇒ always Rosetta-stone all stored knowledge" = the same constraint.** Storing the *amodal invariant* and being *able to cross-render it into ≥3 structures* is precisely a k=3 error-correcting code over knowledge; **the Rosetta cross-translation IS the majority vote.**
+4. **The invariant = the corrected knowledge.** What survives all ≥3 renders is the amodal core — **the 14-DoF G₂ invariant (Fix(τ), F273)**; the render-specific surplus that only one grammar carries is the correctable "error" (the frame-locked / chirality-dual fiber, F332/#2).
+5. **Self-evidencing anchor:** the **Rosetta Stone is 3 scripts of 1 decree** — a k=3 encoding by construction; Champollion's decode = running the 3-way vote to recover the invariant content. The name was apt.
+
+## Consequence for the build (composes R-RBS-LM-54 Rosetta Stone Layer)
+The **Rosetta Stone Layer is not a convenience — it is the error-correction substrate** of RBS-LM/RBS-SNN. Store the **amodal invariant** (operator-signature, F317) + **≥3 independent grammatical renders**; **cross-translation = the k=3 vote**; **what agrees across the 3 = error-corrected knowledge.** This is the design-level reading of why the GOLDEN PATH (Rosetta layer + bound domain kernels) was the right architecture, and it sets a concrete **≥3-render requirement** for any knowledge claimed robust.
+
+## Gate-flags (the over-reach risks — for the triality to stress)
+- **Independence is load-bearing.** True error-correction needs the ≥3 renders to fail **independently** (orthogonal failure modes). 3 closely-related grammars (e.g. 3 SVO languages) give *weak* correction; maximally-different structures (SVO / SOV / spatial-sign / logical-relational form) give *strong* correction. "≥3 renders" alone is necessary but **not sufficient** — they must be independent. THIS is the claim most likely to over-reach.
+- **≥3 is the k=3 *minimum*.** k=7 (7 independent renders) would be a stronger code (the octonion rung); k=3 is the floor for correction, not a cap.
+- **Reading, not theorem.** The "grammar = independent codeword" mapping is a framework reading (composing F328/F291), not a proof that grammatical renders are good error-correcting codes. Wants the adversarial triality + ideally a computed check (cross-render agreement actually recovering a corrupted invariant).
+
+## Ties
+Composes **F291** (k=2-detect/k=3-correct triality), **F257–F273** (28D 𝔰𝔬(8) intrinsically-EC code; F273 Fix(τ)=g₂=14 = the invariant), **R-RBS-LM-54** (Rosetta Stone Layer / GOLDEN PATH = the EC substrate), **F317** (operator-signature invariant + free renders = the codewords), **F328** (amodal structure + modality render = invariant + the ≥3 renders), **F331/F332 + #2** (the k=1 flat form crosses the gap; each body decodes locally to k=3; ≥3 such forms = the code). Open: the #1 language-development thread (sentence structure = the form growing to carry what environmental DoF can't) — a single grammar is one codeword; ≥3 is the corrected store.
+
+### Status / discipline
+**CANDIDATE, pre-triality** — captured against compaction-loss, NOT verified. Primed from the lodged corpus (not re-derived). Defensive / no-lineage. No new A–N class. Promotion requires the adversarial triality (haiku∥sonnet∥opus) stressing the independence caveat + a computed cross-render-recovery check.
