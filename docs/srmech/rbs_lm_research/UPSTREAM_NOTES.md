@@ -1159,6 +1159,32 @@ Consolidated, dev-facing digest of the items that are **NOT bugs** (nothing here
 
 ---
 
+## §15 rc19 (0.7.0rc19) VERIFIED CLEAN — §13 D1/D2/D3 dev-hand-down asks LANDED; one new finding (2026-06-03)
+
+Full bug-test of `srmech==0.7.0rc19` (TestPyPI) in a clean venv **outside** the source tree (`/tmp/verify_srmech_v070rc19`, Python 3.14.4, native `cp314-cp314-manylinux` wheel + numpy 2.4.6). `native_status() = {has_native: True, dispatching: True, abi_version: 3, expected_abi: 3, native_version: '0.7.0rc19', load_error: None}`. `tool_schema.get_tool_schema()` → **201 entries**. Scripts: `/tmp/verify_rc19_{discover,main,fix}.py`.
+
+**The §13 dev-hand-down asks D1/D2/D3 are RESOLVED — verified, not assumed:**
+
+| # | §13 ask | rc19 verified state |
+|---|---|---|
+| **D1** | `parallel_sector_dispatch` chainable | **LANDED** — sig now `(body, x, *, n_sectors=4, verify=False, combine=None)`; `cascade.sectorize(body, *, n_sectors=4, combine='bundle')` wraps a body for nesting; `verify=True` self-check passes (returns `sectors/combined/z4_dispatch_slots/independence/collapse_lattice/cap/...`). The `combine=` recombine makes it stream→stream chainable. |
+| **D2** | `kuramoto_step` graph/directed coupling | **LANDED (rc14)** — sig now `(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)`. `adjacency=` (n×n) runs; **`alpha=0.0` reproduces the plain step BYTE-FOR-BYTE** (residual 0.00e+00). |
+| **D3** | `klein4_*` per-op `sectors=`/`parallel=` flag | **LANDED (rc13)** — `klein4_bind(a,b,*,sectors=None,parallel=None,mode='chunk')`, same on `klein4_bundle`. **Value-preserving CONFIRMED bit-identical**: `mode='chunk'` and `parallel=True` both `np.array_equal` to the serial default (bind + bundle, D=4096). |
+| **D4** | CLI top-help stale string | **NOT re-tested** this pass (package-API only, no CLI invocation). Carry forward. |
+
+So the D1+D3 pair that unblocks 4×-parallel **chained** RBS-LM inference, and D2 (directed-coupling for the air-gapped findings + the queued CoCC-noise directed-Kuramoto leg), are all shipped as of rc19 — the directed-Kuramoto step can now run native instead of via ngspice `.tran`.
+
+**Other gated surfaces — all PASS:** `so8.so8_adjoint_basis()` = **28** (28 DIM), `so8.g2_subalgebra()` = **14** (14 DoF), `so8.an_embedding()` → dict (`su3/complement/triplet/antitriplet/...`, the 14 = 8+3+3̄ branch); `triality.triality_automorphism()` is 28×28 with **τ³ = I** to residual **3.66e-15**; core A–N spot-checks clean (sha256 FIPS `abc`; gcd; `best_rational(314159,100000,1000)=(355,113)`; `factor(360)=2³·3²·5`; triangle Laplacian eigvals `[0,3,3]`; `pin_slot_at_zero(-2)=(-1,2.0)`).
+
+### §15.1 NEW FINDING — `cascade.magnitude(x: float)` is real-only; unhelpful error on complex; our CLAUDE.md over-describes it
+**Observed:** `cascade.magnitude` is `(x: float) -> float` and correctly returns `|x|` for reals (`magnitude(-5.0) → 5.0`, the cascade-honest `abs()` replacement). **But `cascade.magnitude(complex(3,4))` raises `TypeError: '>' not supported between instances of 'complex' and 'float'`** — an internal comparison leaking, not a clean contract error.
+**Mismatch (ours too):** the monorepo `CLAUDE.md` STOP-list calls `cascade.magnitude` "the modulus; replaces the hand-written `(re**2+im**2)**0.5`" — which implies a complex / 2-D Euclidean modulus it does **not** provide (it is single-real `abs`; `magnitude(25)` returns 25, not 5).
+**Two-sided ask:** *srmech-side (recorded, not filed):* either (a) accept a complex / 2-tuple and return `(re²+im²)^0.5`, or (b) keep real-only but raise a clear `TypeError("magnitude expects a real float; for the complex modulus use …")` instead of leaking the internal `>`. Low priority; no wrong answer in-contract. *Ours:* correct the `CLAUDE.md` line — `cascade.magnitude` is the **real `|x|`** (Class-K / `abs()` replacement); the complex `(re²+im²)^0.5` modulus needs a compose or the (a)/(b) fix.
+
+**Verdict: rc19 is CLEAN for the RBS-LM surface** — native dispatch + all gated surfaces verified; D1/D2/D3 landed; sole finding is the minor `magnitude` real-only contract/doc mismatch. **Recorded, NOT filed** (tracker state is the user's/maintainer's call per `[[feedback_create_upstream_issues_never_close_them]]`). `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
