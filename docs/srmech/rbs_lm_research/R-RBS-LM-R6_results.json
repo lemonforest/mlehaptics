@@ -1,0 +1,45 @@
+{
+  "partition": "R-RBS-LM-R6 (#855 R6)",
+  "srmech_version": "0.7.0rc25",
+  "metric": "normalized K1 Laplacian eigenspectrum-shape Pearson correlation",
+  "r_srmech_mfo_real": 0.9735125936691297,
+  "r_srmech_shuffled_ctrl": 0.9984204230005405,
+  "r_mfo_shuffled_ctrl": 0.9668007913046501,
+  "metric_distinguishes_structure": false,
+  "topn": 60,
+  "vocab": 200,
+  "window": 5,
+  "spectra_top8": {
+    "srmech": [
+      1.0,
+      0.8988776573092978,
+      0.7766867561593894,
+      0.5089934426396426,
+      0.4858117722768483,
+      0.329259061351586,
+      0.2787341633024674,
+      0.25243645973092854
+    ],
+    "mfo": [
+      1.0,
+      0.8684071732718689,
+      0.6968638526630472,
+      0.6518885614515483,
+      0.6227376473726893,
+      0.5735682950284394,
+      0.39807299545721114,
+      0.3560463010584827
+    ],
+    "srmech_shuffled": [
+      1.0,
+      0.8208889245520564,
+      0.7432174055090479,
+      0.4540527961058956,
+      0.4293016177413428,
+      0.302981164982703,
+      0.25174616797911264,
+      0.22375571490507049
+    ]
+  },
+  "multilingual_status": "corpora SOURCED+ATTESTED (10 locales, #846); ENCODE needs fetch + substitute-verifier triality (user-not-multilingual) = user-in-loop continuation"
+}
