@@ -1247,6 +1247,30 @@ Our hand-rolled kernel-build (R-RBS-LM-52b, the F339 refresh) **predates** `srme
 
 All **recorded, NOT filed** per `[[feedback_create_upstream_issues_never_close_them]]` — tracker state is the user's/maintainer's call; the design stands regardless.
 
+## §18 rc25 (0.7.0rc25) VERIFIED CLEAN — §15.1 + §16.1 RESOLVED; #797 gate DELIVERED; open-issue triage pass (2026-06-03)
+
+Full bug-test of `srmech==0.7.0rc25` (TestPyPI, clean venv `/tmp/verify_srmech_v070rc25`, cp314 native wheel + numpy 2.4.6): `native_status` = `{has_native: True, abi_version: 3, native_version: '0.7.0rc25', load_error: None}`; tool_schema **201**. **No regression** — all rc21/§16 surfaces re-confirmed (loop_bind/hd, klein4 `mode=`, kuramoto `adjacency=/alpha=`, so8 **28** / g2 **14**, triality τ³=I **3.66e-15**, `run_toml_chain` compose-engine runs `magnitude(-5)→5.0`). Scripts: `/tmp/verify_rc25.py`.
+
+**Both prior findings RESOLVED by rc25:**
+- **§15.1 (magnitude) → FIXED (the (b) path).** `cascade.magnitude(complex(3,4))` now raises a **clean Class-K contract error** (`"Class K real-axis (pin-slot) operation … does not accept complex"`) instead of leaking the internal `>`. Real `|x|` unchanged. *Ours-side residue NOW DONE:* the monorepo `CLAUDE.md` STOP-list line that called it "the modulus; replaces `(re²+im²)^0.5`" is corrected — it is the **real `|x|`** abs-replacement, not a complex modulus.
+- **§16.1 (reorient) → FIXED (the (a) path).** Signature is now `reorient(value, *, orientation: int)` — **data-first**, orientation keyword-only. Verified as a DSL stage: `[[stage]] op="reorient"` `orientation=-1` on input `7.0` → **−7.0** (clean, no arg collision). The bare `op="reorient"` with no orientation still errors — but that is **correct-by-design** (a reorientation needs a direction), not the contract bug. Resolved.
+
+**#797 gate DELIVERED.** The gate ("chirality-thread ops at C/Python parity, via the Python-transpiles-for-C dev-channel item") is satisfied: rc25 ships **`_native.cascade_parallel_sector_dispatch_c`** (the four-Klein-4-sector chirality-thread dispatch is now native-C-backed). `parallel_sector_dispatch(…, verify=True)` → `parallel_equals_serial=True`, `cross_sector_reads=0`, `z4_dispatch_slots=[0,1,2,3]`, `runtime_verified=True`. Genuine C/Python parity.
+
+**Open-issue triage (user-directed close-pass — "if no bug jumps out, close them, so we can track the research-gated srmech items"):**
+
+| issue | kind | rc25 result | action |
+|---|---|---|---|
+| **#843** RBS-NN→RBS-SNN rename | naming-adoption | `srmech.rbs_lm` has **no NN-named identifiers** → nothing to rename; research relabel adopted (F311/F317) | **CLOSED** (settled) |
+| **#823** post-rc2 ungate tracker | gate-tracker | last blocker (compose-engine/`run_chain`) cleared rc21/§16; native sector dispatch rc25 → all gates down | **CLOSED** (ungate complete) |
+| **#797** field-first MFO inversion | research, gated | gate **delivered** (sector-dispatch C parity) → ungated; Q1/Q2/Q3 still undone | **KEPT OPEN** + commented (ungated, ready under #855) |
+| **#812** loop-bind capacity char | research | native loop_bind + klein4 baseline + sector C parity present → ungated | **KEPT OPEN** + commented (ready; = #855 R1) |
+| **#844** notebook-native TARGET / **#855** epic | forward targets | n/a | kept open |
+
+User explicitly authorized closing this pass (the direction `[[feedback_create_upstream_issues_never_close_them]]` said to wait for). Each close carries a transparent rc25 verification comment; reopen if a blocker resurfaces.
+
+**Net: rc25 cleared the last srmech gates.** No srmech-package item still blocks research — #797/#812 are now ungated-ready under #855; the **HOLD lifts**. Working venv `/tmp/verify_srmech_v070rc25` = new latest-verified.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
