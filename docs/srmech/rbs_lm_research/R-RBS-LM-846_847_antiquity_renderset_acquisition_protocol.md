@@ -145,3 +145,33 @@ All English → **user-sanity-checkable** (no triality needed). PD/OA sources, v
 3. **The English locales are usage-level-distinct only** (they share grammar) → cross-coupling among en-US/GB/AU will be **HIGH/near-identical** — which is *exactly why* the Slavic-Cyrillic family is the scientifically richer cross-coupling test (real language-distance). The English locales are the **verifiable warm-up**, not the informative test.
 
 **Next:** write `descriptor.toml` per locale (can-do-now, R-RBS-LM-13 `compute_from_source` schema) + the MPM attestation blocks; the srmech **ENCODE** (kernel-build from corpus) is **srmech-gated** (bugfix-wait). Then Latin-script Romance/Germanic (Fr/It/De) via triality.
+
+### Stream-B sets #2 (Romance/Germanic) + #3 (Slavic-Cyrillic) — triality-cross-checked (2026-06-03)
+Substitute-verifier triality (haiku∥sonnet∥opus); all non-English. **It earned its keep — corrected 2 false-negatives + caught 3 pollution sources:** (i) haiku concluded Italian native-instruction was weak / only translation-polluted → **opus found Fornaciari 1882, a clean PD native Italian grammar** (corrected); (ii) sonnet/haiku said Ukrainian was thin/primer-only → **opus found Smal-Stotsky & Gartner 1914, a full PD Ukrainian grammar** (corrected); (iii) **rejected as polluted per F49:** Vittorini (Italian — an EN→IT *translation* for English learners), Belinsky & Grech (Russian — *reviews* of grammars, not grammars), Tsertelyev (Ukrainian — a review).
+
+**Set #2 — Latin-script:**
+| lang | primary native-instruction corpus | secondary | license | verify |
+|---|---|---|---|---|
+| **French** | Bescherelle, *Grammaire nationale* (1850), fr.wikisource | fr.wikibooks (native FR) | PD + CC-BY-SA | primary-verified (verbatim body; 2/3) |
+| **Italian** | **Fornaciari, *Grammatica italiana dell'uso moderno* (1882), it.wikisource** | it.wikibooks (native IT) | PD + CC-BY-SA | primary-verified (verbatim, opus); **Vittorini REJECTED (translation)** |
+| **German** | de.wikibooks *Deutsche Grammatik* (modern, native) + Wustmann *Allerhand Sprachdummheiten* (1912, Gutenberg) | Grimm *Deutsche Grammatik* Bd.1 (1822) = foundational-historical anchor | CC-BY-SA + PD | primary-verified (verbatim); **Grimm flagged: historical-comparative + Fraktur OCR, NOT modern-learner** |
+
+**Set #3 — Cyrillic-script:**
+| lang | primary native-instruction corpus | secondary | license | verify |
+|---|---|---|---|---|
+| **Russian** | Grot, *Русское правописание* (1885), ru.wikisource | Lomonosov *Российская грамматика* (1757, ur-text); ru.wikibooks | PD + CC | primary-verified (verbatim, opus); **Belinsky/Grech reviews REJECTED** |
+| **Ukrainian** | **Smal-Stotsky & Gartner, *Граматика руської мови* (1914)** — uk.wikisource / archive.org / Diasporiana (3 OA homes) | Derkachov 1861; Simovych 1919 | PD | primary-verified (verbatim, opus); **THINNER — under-catalogued** (Bruce-modern + Tsertelyev-review rejected) |
+| **Bulgarian** | Neofit Rilski, *Болгарска грамматика* (1835) — zografnasledstvo / strumski / Wikimedia Commons | — | PD | **3/3 on source; THINNEST — image-scan only (no OCR text-layer → transcription needed); 1835 transitional register** |
+| **Serbian** | Novaković, *Српска граматика* (1894), sr.wikisource | Vuk Karadžić *Писменица* (1814) | PD + CC-BY-SA | primary-verified (verbatim Cyrillic; 2/3); **SCRIPT-CONTROL DISPUTED** |
+
+**Flagged residue (honest non-multilingual limits → native-speaker / linguist):**
+- **Script-content fidelity** unverified-by-us across all (we verified provenance/license/native-not-translation, not the grammatical *content*).
+- **Wikibooks EN-mediation:** prefer **native-script wikibooks** (fr/it/de/ru.wikibooks) — the en.wikibooks frame carries EN render-fiber.
+- **Register-date:** PD grammars span 1755–1914 (historical registers); contemporary-locale kernels need modern OA supplements (the native-script wikibooks).
+- **Bulgarian = image-scan only** (Rilski 1835) → an OCR/transcription pass is required before ingest.
+- **Serbian script-control DISPUTE:** sonnet — the sr.wikisource Novaković page has a Cyrillic↔Latin toggle = the hold-language-vary-script control; opus — that toggle may be a Wikisource *transliteration-render*, and no clean PD *digraphic* source exists (Vuk 1814 predates the reform; modern dual-script grammars are in-copyright). **Resolve whether the toggle is a genuine dual-script edition before using Serbian as the script-control.**
+- **Ukrainian under-catalogued:** Smal-Stotsky 1914 is NOT linked from the author's Wikisource page — a naive search misses it (found via archive.org/Diasporiana).
+
+**Availability verdict (as predicted):** FR/IT/DE/RU = rich, clean, text-layer PD. UK/BG/SR = thinner (UK under-catalogued; BG image-scan-only; SR script-control-disputed). None invented; all reached by fetch.
+
+**Status:** Stream B corpora SOURCED + ATTESTED for all 7 + the 3 English locales = **10 kernels' corpora identified.** **Next (can-do-now):** `descriptor.toml` + MPM blocks per kernel; resolve the BG-OCR + SR-script-control residues. **srmech ENCODE = bugfix-gated.** The Cyrillic-Slavic set is ready as the cross-coupling testbed (Ru/Uk/Bg/Sr; Serbian script-control pending resolution).
