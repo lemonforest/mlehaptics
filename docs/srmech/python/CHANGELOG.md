@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc25] - 2026-06-03
+
+**CLI module docstrings refreshed to enumerate all four subcommands (`status` / `bus` / `dsl` / `mcp`) + an anti-staleness ratchet so they can't silently drift again (UPSTREAM_NOTES §13 D4). Docs only; ABI stays 3; `describe()` stays 201.**
+
+The `srmech.cli` package + `srmech.cli.main` module docstrings had frozen at the v0.5.0rc4 *two-subcommand era* (`status` + `bus`), silently omitting `dsl` (v0.5.0rc8) and `mcp` (v0.5.0) even after the live CLI grew to four. The user-facing argparse `--help` was already correct (refreshed v0.6.0rc12) — only the module docstrings drifted.
+
+- **`cli/main.py` + `cli/__init__.py` docstrings** — now enumerate all four subcommands with their intro versions + Usage examples for `dsl` / `mcp`.
+- **`tests/test_cli_docstring_freshness.py`** (new) — reads the **live argparse subparser registry** (no hard-coded list to itself go stale) and asserts both module docstrings *and* the top-level `--help` description name every registered subcommand. A future subcommand that forgets the docstring now fails CI instead of drifting unnoticed.
+
+This closes the last srmech-side item under the #855 "Dependency gates" list (§13 D4). It was a stale-finding cleanup: the behaviour was never wrong, only the module docs lagged.
+
 ## [0.7.0rc24] - 2026-06-03
 
 **Class K real-axis atoms reject complex input cleanly — `cascade.magnitude` / `cascade.pin_slot_at_zero` now raise an intentional `TypeError` instead of leaking the internal `x > 0.0` comparison (UPSTREAM_NOTES §15.1, srmech-side fix (b)). Pure-Python boundary guard; ABI stays 3; `describe()` stays 201.**
