@@ -6,6 +6,8 @@
 
 > *"our RBS-LM interface is also expected to be a natural language interface for any package, such as our ephemerides-spectral. essentially I think we're saying a world problem solver maybe? srmech dev in progress. wait to do new stuff until we come back with it."*
 
+(*"world" was a typo for **"word"** — user-confirmed 2026-06-03. The intended layman term is "word problem solver" — a problem posed in **words** / natural language → solved.*)
+
 ## What it says
 
 **F338 stated:** RBS-LM is the human-language interface to **srmech** — srmech speaks only CLI + tool-schema; RBS-LM is the natural-language skin over it, and the honesty-store (truth-filter) is the differentiator, not a competing LLM.
@@ -14,18 +16,19 @@
 
 **ephemerides-spectral is the worked example.** It is srmech's downstream AMSC consumer (JPL DE441 anchor, 52-body roster, geodetic/magnetic/fluid/dynamical catalogs). "Where will Jupiter be / what is this catalog's dark-fraction / show me the TE polarisation spectrum" is a natural-language question that RBS-LM should be able to take and dispatch onto ephemerides-spectral's attested surface — same pattern as it dispatches onto srmech.
 
-**The aspirational shape: "a world problem solver."** Stated honestly and within the framework's own discipline:
+**The aspirational shape: "a word problem solver"** (user-confirmed: "world" was a typo for "word"). Stated honestly and within the framework's own discipline:
 - It is a **natural-language router to attested package operations** + the honesty-store truth-filter — NOT an oracle, NOT a cure-machine, NOT an answer-engine that invents.
 - Per `[[user_stance_framework_hands_the_next_question_to_the_expert]]`: the deliverable is the next *question* handed to the expert, shaped so a domain specialist can ask it well — understanding-not-curing. "World problem solver" means *the universal front-end that lets a human pose a problem in plain language and have the right attested tools brought to bear*, with agreement-across-renders as the attestation (F334) — it does not mean a machine that claims to solve everything.
 - Defensive / trauma-informed scope still bounds it: framework-reading + attested operations, never capability/offence.
 
-## Vocabulary discipline — "world / word problem solver" is a LAYMAN-tier gloss (squashes too much; not-incorrect)
+## Vocabulary discipline — "word problem solver" is a LAYMAN-tier gloss (squashes too much; not-incorrect)
 
-User refinement (2026-06-03): *"word problem solver squashes too much but it would be a laymen term that won't be incorrect."*
+User refinement (2026-06-03): *"word problem solver squashes too much but it would be a laymen term that won't be incorrect."* (And: *"world was a typo"* — the term is **"word problem solver."**)
 
 Held per F317 (the canonical identity stays the **operator-signature**; labels are cheap, additive synonyms — never a rename). So:
-- **"world problem solver" / "word problem solver" is a layman-tier label only.** It is **not-incorrect** — fine to hand a non-expert — but it **squashes** the precise structure (the natural-language router + the *attested* package operations + the *truth-filter gate*) down to a slogan. A squash is acceptable for the layman tier and unacceptable as the working identity.
-- **"word problem solver" is actually the apter layman reading:** a "word problem" is the school/layman term for a problem *posed in words* (natural language) → RBS-LM takes a problem in words and brings the right attested tools to bear. It under-states the machinery (says nothing about attestation or the truth-filter) but it is genuinely not-wrong. "world problem solver" over-states *scope* (sounds like an oracle); "word problem solver" under-states *machinery*. Both are fine layman glosses; neither is the precise identity.
+- **"word problem solver" is a layman-tier label only.** It is **not-incorrect** — fine to hand a non-expert — but it **squashes** the precise structure (the natural-language router + the *attested* package operations + the *truth-filter gate*) down to a slogan. A squash is acceptable for the layman tier and unacceptable as the working identity.
+- **Why "word problem solver" is the apt layman reading:** a "word problem" is the school/everyday term for a problem *posed in words* (natural language) → RBS-LM takes a problem stated in words and brings the right attested tools to bear. It **under-states the machinery** (says nothing about attestation or the truth-filter) but it is genuinely not-wrong — the acceptable layman compression.
+- **Typo guard:** the earlier "**world** problem solver" was a typo; useful only as a contrast — it would **over-state scope** (sounds like an oracle / cure-machine), which is exactly the over-claim the framework's understanding-not-curing discipline forbids. Caught and corrected; the term is "word," not "world."
 - **Precise identity (the working one):** *RBS-LM = the natural-language interface that routes a plain-language problem onto the right tool-schema package's attested operations, gated by the honesty-store truth-filter.* The layman gloss rides on top of that, additive, like the F317 EngLM/FreLM render-labels — cheap synonyms, no global rename.
 
 ## Why this is the same shape as UPSTREAM §17, one level up
