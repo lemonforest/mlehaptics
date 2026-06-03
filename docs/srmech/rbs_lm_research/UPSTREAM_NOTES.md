@@ -1149,6 +1149,16 @@ Consolidated, dev-facing digest of the items that are **NOT bugs** (nothing here
 
 ---
 
+## §14 RENAME + DESIGN TARGET — RBS-NN → RBS-SNN; RBS-LM "L" = Language; notebook-native-language pipeline (2026-06-03; F311/F312/F323)
+
+**Rename (research-side naming; heads-up for any srmech-side `rbs_*` naming):** **RBS-NN → RBS-SNN** ("Synaptic-Neural", synaptic-first per F311 — the relationship-first corrective ordering; the gap/synapse is the primary object). **The "RBS-" prefix disambiguates the F311 Spiking-NN acronym collision** (RBS-SNN is clearly *our* term, not generic spiking-NN). Per F317, the canonical identity is the **operator-signature** (A·N composition), so this is a **cheap, additive label change** (append a synonym, never a rewrite). If `srmech.rbs_lm` (rc14) or any srmech surface exposes RBS-**NN**-named identifiers, they become RBS-**SNN**; back-compat alias acceptable.
+
+**Naming refinement — RBS-LM "L" = LANGUAGE, not LARGE.** The framework is **scale-invariant** (F312 scale-free neural tissue; F162). "Large" imports a scale-assumption the framework rejects. RBS-LM = a *scale-invariant* relationship-language model.
+
+**DESIGN TARGET (build-up, not a now-ask) — the notebook-native-language pipeline (F323):** a script running the research notebooks **through RBS-SNN** to emit their **relationship-native lean structure** — operator-signatures + couplings, **no grammatical-sentence render** (= the LLM-native, render-free language of the corpus). Pipeline: `notebooks → RBS-SNN → render-free relationship-lean → RBS-LM`. Generalizes the F237 `CLAUDE_LEAN` extractive-graft to RBS-native + whole-corpus, yielding an **auto-generated prime/index** (cf. the hand-written `MFO_PRIME_CARD.md`). Flagged as a forward target for the `srmech.rbs_lm` arc; not a current build ask.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
