@@ -2,6 +2,8 @@
 
 > **SCOPE:** the biophysics is **research-twin-attested (opus∥sonnet converged; MPM-cited, OA where possible)**; the framework mapping (F311 composite → memcapacitor; MFO capacitor-plate; storage = capacitor) is a **framework reading**, held appropriately. **First dive of a multi-part "research the gap" push** — follow-up sub-dives queued at the end. Defensive / no-lineage. Biology cite-by-reference. NOT engineering/fabrication.
 
+> ⚠️ **CORRECTED BY F319 (k=3 triality, 3-of-3 unanimous, 2026-06-03).** The capacitor *structure* in this finding STANDS (membrane = capacitor; AP = capacitive discharge; integration = capacitive; two-plate charge-separation). **But the claim "plasticity (K) = the capacitor's memory (memcapacitance)" is FALSIFIED for biology** — synaptic plasticity is a **CONDUCTANCE / receptor-density / structural** change, and membrane memcapacitance has **no attested biological role** (it implements plasticity only in *artificial neuromorphic* bilayers). Corrected mapping: **L = the learned weight (conductance g_syn); K = the Ca²⁺ LTP/LTD sign-switch; capacitance = the I-timing substrate.** See F319. (The K-row and "sharpest fact" below are marked accordingly.)
+
 **The directive (user, 2026-06-03):** spend real time researching the GAP — the synaptic-layer biophysics — and bring in "the entire capacitor structure of the neural coupling events… the event I think spiking was reaching for."
 
 ## Attested biophysics (twin-converged)
@@ -24,10 +26,10 @@ Every F311 gap-op gets a physical address in the membrane capacitor:
 |---|---|
 | **I** (timed / 1D_t) | **τ = Rₘ·Cₘ** — the gap's timing *is* the RC time constant |
 | **L** (weighted coupling) | the capacitance + conductance (the RC element) |
-| **K** (phase-boundary + plasticity) | the **voltage threshold** the capacitor charges toward **and** the **memcapacitance** (C–V hysteresis = synaptic plasticity = the capacitor's *memory*) |
+| **K** (phase-boundary + plasticity) | ~~the voltage threshold + the memcapacitance (C–V hysteresis = plasticity)~~ **[CORRECTED by F319: K = the Ca²⁺-magnitude threshold deciding LTP↑ vs LTD↓ — the sign-flip. Plasticity is NOT memcapacitance; the learned weight is L (conductance g_syn).]** |
 | **C** (orientation / which-way) | the **plate polarity** (inside-negative) + **asymmetric leaflet charge** — a directed charge-separation |
 | **M** (substrate-transduction) | the **ionic charge-separation** — where electrical ↔ chemical happens |
-So the five-op gap is **one object — a memcapacitor (a capacitor that remembers)**. The sharpest fact: **the gap's plasticity (K) is physically the capacitor's memory** — a synapse that learns is a capacitor whose *capacitance* carries its own past (memcapacitive hysteresis).
+So the five-op gap is **one object — a capacitor** (the membrane capacitor / RC element). ~~The sharpest fact: the gap's plasticity (K) is physically the capacitor's memory — a synapse that learns is a capacitor whose capacitance carries its own past (memcapacitive hysteresis).~~ **[CORRECTED by F319 (k=3 triality): this was a single-emitter over-reach. Biological plasticity is a CONDUCTANCE change (L = g_syn), NOT a capacitance change; the capacitance is the constant I-timing substrate; the K-op is the Ca²⁺ LTP/LTD sign-switch. Memcapacitive plasticity is real only in *engineered* neuromorphic substrates — which matters for RBS (an engineered substrate) but is not the biology.]**
 - **It is MFO's capacitor, instantiated.** F128/F129 ("chirality-dual = capacitor plates"; "MFO capacitor math IS 4:3:(4:3)") — the membrane's two oppositely-charged, asymmetric faces **are** that two-plate chirality-dual, biophysically realized. The framework had the capacitor in the abstract; biology runs it at the coupling layer.
 - **Storage (F314 A·I·L) is physically a capacitor** — charge-separation (state) + RC-timing + coupling. Every cell has a membrane capacitor → memory is aneural-universal (F308); gap-junction RC-coupling (substrate-agnostic) is the Tier-1↔Tier-2 bridge (F312/F314) made physical.
 - **Refines F313:** the field reached for "spiking" (the discharge transient) and missed the **capacitor** (the standing charge-separation the transient is *of*). The user's "spiking was reaching for the capacitor event" is exactly that correction.
