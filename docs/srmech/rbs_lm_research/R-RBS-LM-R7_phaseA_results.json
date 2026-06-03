@@ -1,0 +1,39 @@
+{
+  "partition": "R-RBS-LM-R7 Phase A (F347 \u00a73 Phase A)",
+  "srmech_version": "0.7.0rc25",
+  "vocab": 200,
+  "grid": 12,
+  "eigenvalue_shape_corr_R6_metric": 0.9984184046901518,
+  "eigenvector_navigation_corr": 0.21379835609512202,
+  "shuffle_gate_passed": true,
+  "seed_neighborhoods": {
+    "cascade": [
+      "asymptotic-dof",
+      "universal",
+      "anchor",
+      "scale",
+      "signature"
+    ],
+    "chirality": [
+      "variant",
+      "real",
+      "mfo",
+      "field",
+      "srmech"
+    ],
+    "spectral": [
+      "project",
+      "partition",
+      "under",
+      "operator",
+      "when"
+    ],
+    "substrate": [
+      "composition",
+      "spike",
+      "class",
+      "mechanism",
+      "canonical"
+    ]
+  }
+}
