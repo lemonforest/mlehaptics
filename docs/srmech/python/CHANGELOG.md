@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc18] - 2026-06-02
+
+**SHA-NI single-stream SHA-256 (F292 graft #3) — performance-engineering of srmech's OWN content-addressing hash for the common single-message case (`sha256_bytes`, every AMSC attestation). Built in CI so a SHA-NI-capable runner exercises the kernel, not parked because the dev CPU lacks the feature. New C symbol → ABI stays 3; `describe()` stays 201; JPL ratchet unchanged.**
+
+Graft #1 (rc10 `sha256_batch`) accelerates "hash N independent messages" by filling SIMD lanes; the single-message case it can't help is exactly the hot path (one response-bytes blob fingerprinted per attestation). The Intel SHA Extensions (SHA-NI) accelerate ONE message — `_mm_sha256rnds2_epu32` runs two rounds per instruction, `_mm_sha256msg1/msg2_epu32` drive the schedule — so one 64-byte block compresses in a handful of instructions.
+
+- **`srmech_sha256_shani`** (new `c/src/srmech_sha256_shani.c`) — FIPS-pads a block at a time, runs each block through the SHA-NI compress (state kept packed in the Intel ABEF/CDGH layout), and writes the raw 32-byte digest. The 64 rounds are factored into JPL-clean ≤60-line helpers (load warm-up + a cyclic steady-state group driven by a rotating message-register index + a final group) that are bit-identical to the canonical interleaving. A self-contained scalar duplicate (byte-for-byte the `srmech_sha256.c` compress, NIST-KAT-pinned) is the oracle AND the fallback.
+- **HAL** (`srmech_simd.{h,c}`, rc11) gains `srmech_simd_has_shani()` (leaf7 EBX bit29 — no OSXSAVE gate; XMM state is always OS-saved) + `SRMECH_SIMD_TARGET_SHANI` (`target("sha,sse4.1,ssse3")` on gcc/clang; empty on MSVC). Target-attribute-guarded compilation means the kernel **builds on any host** (incl. the SHA-NI-less dev CPU); runtime cpuid-dispatch enters it only where the feature is present.
+- **Dispatch safety:** the kernel is NEVER entered unless cpuid confirms SHA-NI, so the `SRMECH_SHANI_FORCE_TIER` test hook ({0,1}) can only select scalar-or-(SHA-NI-if-present) — it can never SIGILL. `srmech.amsc.format.sha256_bytes` prefers the SHA-NI peer when the rc18 symbol is bound (transparent hot-path accel; every arm bit-exact).
+- **Honest coverage:** `tests/test_sha256_shani.py` pins the scalar oracle on every host (force tier 0) AND the auto path (kernel on SHA-NI runners, scalar elsewhere); the "kernel actually ran" assertion is **exercise-if-present / skip-with-log** keyed on `_native.has_shani()` (so a non-SHA-NI runner skips with a clear log rather than passing a scalar run off as kernel coverage). A CI **cpuid-dump** step records which matrix cells carry the feature. `_native.has_shani()` surfaces the host capability (tri-state True/False/None).
+
+Each function is pi-free, ≥2 asserts (the cpuid probe + the 1-line rotate are the documented Rule-5 exemptions), ≤60 lines, no goto/malloc/recursion, single-line macros only, warning-clean under `-Wall -Wextra -Wpedantic` / `/W4 /WX`.
+
 ## [0.7.0rc17] - 2026-06-02
 
 **C-transpile of the last two rc12 chiral primitives (Class E + L) — closes the C/Python-parity gap so NO rc12 primitive op is Python-only (full-C-parity commitment per `[[feedback_no_binding_layer_carveout]]`). Additive C symbols → ABI stays 3; `describe()` stays 201; JPL ratchet unchanged.**

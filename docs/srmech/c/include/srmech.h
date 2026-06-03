@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc17"
+#define SRMECH_VERSION       "0.7.0rc18"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -163,6 +163,20 @@ srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
                                     const size_t         *lens,
                                     size_t                n,
                                     uint8_t              *out_digests);
+
+/* F292 graft #3 (v0.7.0rc18): SHA-NI SINGLE-STREAM SHA-256. Hashes ONE
+ * message — `data` points to `len` bytes (data may be NULL iff len==0) —
+ * and writes the RAW 32-byte digest into out_digest[0..31] (out_digest must
+ * be 32 bytes and must NOT alias data). Bit-exact with srmech_sha256_hex /
+ * hashlib. On x86 with the Intel SHA Extensions present it runs the SHA-NI
+ * rnds2/msg1/msg2 kernel; hosts without the feature (and non-x86 / Pyodide)
+ * take the scalar path. The kernel is NEVER entered unless cpuid confirms
+ * SHA-NI, so the SRMECH_SHANI_FORCE_TIER env-var ({0,1}) test hook can only
+ * select scalar-or-(SHA-NI-if-present) — it can never SIGILL. New symbol
+ * only — ABI stays 3. */
+srmech_status_t srmech_sha256_shani(const uint8_t *data,
+                                    size_t         len,
+                                    uint8_t       *out_digest);
 
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file
