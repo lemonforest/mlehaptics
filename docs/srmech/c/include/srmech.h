@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc20"
+#define SRMECH_VERSION       "0.7.0rc21"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -668,6 +668,20 @@ srmech_status_t srmech_cross7_f64(
 srmech_status_t srmech_g2_three_form_f64(
     const double *x, const double *y, const double *z, size_t n,
     double *out);
+
+/* Class-K associator residue (a·b)·c − a·(b·c) (8 doubles out; the (4:3)|
+ * (3:4) non-associativity). MS#21 v0.7.0rc21 — completes the #814 op-spec
+ * C/Python parity (left_op/right_op/associator were pure-Python composites). */
+srmech_status_t srmech_loop_associator_f64(
+    const double *a, const double *b, const double *c, size_t n, double *out);
+
+/* Left/right multiplication operator matrices L_a (col k = a·e_k) and R_a
+ * (col k = e_k·a). `out` is n*n doubles, row-major (out[i*n+k]), byte-matching
+ * numpy column_stack of the per-basis binds. ABI-additive — stays 3. */
+srmech_status_t srmech_loop_left_op_f64(
+    const double *a, size_t n, double *out);
+srmech_status_t srmech_loop_right_op_f64(
+    const double *a, size_t n, double *out);
 
 /* ------------------------------------------------------------------ *
  * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc17; F292 #2)

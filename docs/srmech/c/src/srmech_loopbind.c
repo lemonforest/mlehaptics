@@ -199,3 +199,80 @@ srmech_status_t srmech_g2_three_form_f64(
     *out = acc;
     return SRMECH_OK;
 }
+
+/* The Class-K associator residue (a·b)·c − a·(b·c) — zero in an associative
+ * (quaternionic / Fano-line) region, nonzero outside (the (4:3)|(3:4)
+ * boundary). 8 doubles in each of a,b,c; 8 doubles out. Two fixed triple-
+ * products via the static octonion product (no recursion). */
+srmech_status_t srmech_loop_associator_f64(
+    const double *a, const double *b, const double *c, size_t n, double *out)
+{
+    if (a == NULL || b == NULL || c == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_LOOP_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(a != NULL && b != NULL && c != NULL);
+    assert(out != NULL && n == SRMECH_LOOP_DIM);
+    double ab[SRMECH_LOOP_DIM], bc[SRMECH_LOOP_DIM];
+    double ab_c[SRMECH_LOOP_DIM], a_bc[SRMECH_LOOP_DIM];
+    srmech_loop__mul8(a, b, ab);     /* (a·b)   */
+    srmech_loop__mul8(ab, c, ab_c);  /* (a·b)·c */
+    srmech_loop__mul8(b, c, bc);     /* (b·c)   */
+    srmech_loop__mul8(a, bc, a_bc);  /* a·(b·c) */
+    for (size_t i = 0; i < SRMECH_LOOP_DIM; ++i) {
+        out[i] = ab_c[i] - a_bc[i];
+    }
+    return SRMECH_OK;
+}
+
+/* Left-multiplication operator matrix L_a: column k = a·e_k (the (4:3)
+ * ordering). `out` is n*n doubles, row-major, out[i*n + k] = (a·e_k)_i —
+ * byte-matching numpy ``column_stack`` of the per-basis binds. */
+srmech_status_t srmech_loop_left_op_f64(const double *a, size_t n, double *out)
+{
+    if (a == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_LOOP_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(a != NULL && out != NULL);
+    assert(n == SRMECH_LOOP_DIM);
+    for (size_t k = 0; k < SRMECH_LOOP_DIM; ++k) {
+        double e[SRMECH_LOOP_DIM] = {0.0};
+        double col[SRMECH_LOOP_DIM];
+        e[k] = 1.0;
+        srmech_loop__mul8(a, e, col);  /* a · e_k */
+        for (size_t i = 0; i < SRMECH_LOOP_DIM; ++i) {
+            out[i * SRMECH_LOOP_DIM + k] = col[i];
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Right-multiplication operator matrix R_a: column k = e_k·a (the (3:4)
+ * mirror ordering). `out` is n*n doubles, row-major, out[i*n + k] =
+ * (e_k·a)_i — byte-matching numpy ``column_stack`` of the per-basis binds. */
+srmech_status_t srmech_loop_right_op_f64(const double *a, size_t n, double *out)
+{
+    if (a == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_LOOP_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(a != NULL && out != NULL);
+    assert(n == SRMECH_LOOP_DIM);
+    for (size_t k = 0; k < SRMECH_LOOP_DIM; ++k) {
+        double e[SRMECH_LOOP_DIM] = {0.0};
+        double col[SRMECH_LOOP_DIM];
+        e[k] = 1.0;
+        srmech_loop__mul8(e, a, col);  /* e_k · a */
+        for (size_t i = 0; i < SRMECH_LOOP_DIM; ++i) {
+            out[i * SRMECH_LOOP_DIM + k] = col[i];
+        }
+    }
+    return SRMECH_OK;
+}
