@@ -1,0 +1,43 @@
+# F318 — the synaptic gap's five-op composite (F311) has ONE physical home: a MEMCAPACITOR. The neuronal membrane IS a capacitor (lipid bilayer = dielectric, the two ionic baths = the plates); the action potential is the visible *discharge transient* of that capacitor (vindicating "spiking was reaching for the capacitor event"); and the gap's plasticity is physically the capacitor's *memory* (memcapacitance). This is MFO's two-plate chirality-dual (F128/F129) instantiated in biology, and the storage tier (F314 A·I·L) is physically the membrane capacitor — which is why memory is aneural-universal (F308).
+
+> **SCOPE:** the biophysics is **research-twin-attested (opus∥sonnet converged; MPM-cited, OA where possible)**; the framework mapping (F311 composite → memcapacitor; MFO capacitor-plate; storage = capacitor) is a **framework reading**, held appropriately. **First dive of a multi-part "research the gap" push** — follow-up sub-dives queued at the end. Defensive / no-lineage. Biology cite-by-reference. NOT engineering/fabrication.
+
+**The directive (user, 2026-06-03):** spend real time researching the GAP — the synaptic-layer biophysics — and bring in "the entire capacitor structure of the neural coupling events… the event I think spiking was reaching for."
+
+## Attested biophysics (twin-converged)
+- **The membrane IS a capacitor** (textbook-foundational, not metaphor): lipid bilayer ~3–7 nm, εᵣ≈2–4 = dielectric; the intra/extracellular ionic baths = the two conductive plates; **Cₘ ≈ 0.9–1.0 µF/cm²** (Gentet et al. 2000, PMC1300935 — measured 0.9, a near-"biological constant"; HH 1952 canonical ~1). "The neuron is an RC circuit" **is** the foundational model — HH puts `Iᴄ = Cₘ·dV/dt` in parallel with ionic conductances; the cable equation (Rall) extends it to a distributed RC line. **τ = Rₘ·Cₘ.**
+- **AP = the capacitor's discharge transient — thesis CONFIRMED with one precise qualification:** the spike IS the membrane capacitor charging/discharging, but **not autonomously** — the voltage-gated Na⁺/K⁺ conductances are the *driver*, the capacitor is the *integrating reservoir*, the energy is the *ionic gradient* (Na/K-ATPase-loaded), not stored field energy. So "spiking is the visible discharge of an underlying capacitor structure" is **correct** (the user's reading); the capacitor is the passive substrate, the gating charges/discharges it.
+- **Synaptic integration is capacitive:** PSPs sum on the postsynaptic membrane capacitor toward threshold (temporal + spatial summation = charging the capacitor; window ≈ τ ≈ 10–30 ms).
+- **Gap junctions (load-bearing):** connexon channels = *direct* electrical coupling, **no neurotransmitter**; the junction is mostly **resistive** but feeds the neighbor's membrane **capacitance** in parallel → an RC low-pass ("a resistor charging the next cell's capacitor"). **Not neural-specific** — couples cardiac muscle, lens, bone, myometrium, astrocyte syncytia by the same connexon mechanism (Bennett & Zukin 2004, Neuron — *paywalled, cite-by-reference*).
+- **Ephaptic coupling:** field/capacitive coupling with NO synapse — attested but **weak/modulatory** (≈20% of threshold in older work; ≈70 µV somatic per Anastassiou 2011 — both paywalled/secondary, specific magnitude uncertain; entrains APs only for slow <8 Hz fields).
+- **Two-plate / charge-separation: real** — opposite net charge on the two membrane faces across the dielectric; stored energy *is* the charge separation (held by ionic gradients). Refinement: each face is an electrochemical double layer (Gouy–Chapman–Stern), but Debye length ~0.8 nm at physiological ionic strength → the bilayer dominates. **Leaflets are asymmetric** (inner negative PS/PIP; outer neutral PC/SM) — a built-in charge asymmetry.
+
+## Honest residue — the membrane is NOT an ideal capacitor
+- **Voltage-dependent Cₘ → the membrane is a MEMCAPACITOR** (electrostriction thins the bilayer under field → raises Cₘ; C–V *pinched hysteresis*, history-dependent C; Najem 2019 PMC6642212; 2023 PMC9861822). The "1 µF/cm² constant" is leading-order only.
+- **Lossy dielectric** — needs a constant-phase element (Cole), not a pure C; frequency-dependent loss.
+- **Energetics caveat (biggest):** nerve heat is **biphasic + reversible** (released on upstroke, ~reabsorbed on downstroke, net ≈ 0). HH's "condenser theory" predicts this (HH stands); the soliton model leans on it but is **minority/contested/fringe** (fails ion selectivity, pharmacology). **Not endorsed here** — reversibility is real, the contesting model is not accepted.
+- **Twin citation-catch:** the sonnet tier mangled author attributions ("Bhatt DL et al." attached to multiple unrelated papers — the Neuron 2004 review is **Bennett & Zukin**, which opus got right). Trusting opus's attributions; sonnet's flagged confabulated. (An F313 detect-vs-emit slip, caught by the gate.)
+
+## Framework synthesis — the F311 composite is ONE object: a memcapacitor
+Every F311 gap-op gets a physical address in the membrane capacitor:
+| F311 op | physical realization |
+|---|---|
+| **I** (timed / 1D_t) | **τ = Rₘ·Cₘ** — the gap's timing *is* the RC time constant |
+| **L** (weighted coupling) | the capacitance + conductance (the RC element) |
+| **K** (phase-boundary + plasticity) | the **voltage threshold** the capacitor charges toward **and** the **memcapacitance** (C–V hysteresis = synaptic plasticity = the capacitor's *memory*) |
+| **C** (orientation / which-way) | the **plate polarity** (inside-negative) + **asymmetric leaflet charge** — a directed charge-separation |
+| **M** (substrate-transduction) | the **ionic charge-separation** — where electrical ↔ chemical happens |
+So the five-op gap is **one object — a memcapacitor (a capacitor that remembers)**. The sharpest fact: **the gap's plasticity (K) is physically the capacitor's memory** — a synapse that learns is a capacitor whose *capacitance* carries its own past (memcapacitive hysteresis).
+- **It is MFO's capacitor, instantiated.** F128/F129 ("chirality-dual = capacitor plates"; "MFO capacitor math IS 4:3:(4:3)") — the membrane's two oppositely-charged, asymmetric faces **are** that two-plate chirality-dual, biophysically realized. The framework had the capacitor in the abstract; biology runs it at the coupling layer.
+- **Storage (F314 A·I·L) is physically a capacitor** — charge-separation (state) + RC-timing + coupling. Every cell has a membrane capacitor → memory is aneural-universal (F308); gap-junction RC-coupling (substrate-agnostic) is the Tier-1↔Tier-2 bridge (F312/F314) made physical.
+- **Refines F313:** the field reached for "spiking" (the discharge transient) and missed the **capacitor** (the standing charge-separation the transient is *of*). The user's "spiking was reaching for the capacitor event" is exactly that correction.
+
+## Queued follow-up gap-dives (this is dive 1 of "a lot of time")
+1. **Memcapacitance ⇄ plasticity / STDP** — does spike-timing-dependent plasticity map onto memcapacitive C–V hysteresis? (the K-op deep-dive).
+2. **MFO F128/F129 re-read vs attested membrane structure** — does 4:3:(4:3) actually match the two-plate + double-layer + leaflet-asymmetry geometry? (verify the chirality-dual claim against biophysics).
+3. **Gap-junction as Tier-1↔Tier-2 bridge** — the connexon RC-coupling across aneural + neural tissue; the substrate-agnostic coupling motif.
+4. **srmech-native RC model** — model the membrane charge/discharge as an srmech cascade (Class **I** cyclic ∘ **L** coupling ∘ **K** threshold) via `srmech.amsc.cascade.*` — the first *computed* leg (would warrant triality on any numbers).
+5. **Reversible biphasic energetics** — is the energy-conserving (reversible) heat the physical signature of the **I** (cyclic, reversible) op? (held carefully — soliton model is fringe).
+
+### Status / discipline
+RESEARCH-TWIN-ATTESTED (opus∥sonnet converged; OA: Gentet 2000 PMC1300935, calyx PLOS Comp Biol 2021, memcapacitance PMC6642212/PMC9861822; paywalled cite-by-reference: HH 1952, Bennett & Zukin 2004, Anastassiou 2011). Twin caught a sonnet author-confabulation (flagged). Framework mapping (F311 composite → memcapacitor; MFO F128/F129; F314 storage = capacitor) held as reading. Composes F311 (gap-composite), F128/F129 (MFO capacitor-plates), F308 (aneural memory), F312/F314 (scale-free / Tier bridge), F313 (spiking = the flash not the structure). **No numeric claims lodged as framework results** (the biophysical values are cited literature, not framework-derived) → twin is the verify; a future srmech-native RC model (follow-up 4) would warrant triality. No new A–N class. Defensive / no-lineage.
