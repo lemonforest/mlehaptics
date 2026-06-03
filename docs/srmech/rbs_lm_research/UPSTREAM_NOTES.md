@@ -1183,6 +1183,33 @@ So the D1+D3 pair that unblocks 4×-parallel **chained** RBS-LM inference, and D
 
 **Verdict: rc19 is CLEAN for the RBS-LM surface** — native dispatch + all gated surfaces verified; D1/D2/D3 landed; sole finding is the minor `magnitude` real-only contract/doc mismatch. **Recorded, NOT filed** (tracker state is the user's/maintainer's call per `[[feedback_create_upstream_issues_never_close_them]]`). `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
 
+## §16 rc21 (0.7.0rc21) VERIFIED CLEAN — DSL compose-engine exercised END-TO-END (the rc19 residual); one new finding (2026-06-03)
+
+Full bug-test of `srmech==0.7.0rc21` (TestPyPI) in a clean venv **outside** the source tree (`/tmp/verify_srmech_v070rc21`, Python 3.14, native `cp314-cp314-manylinux` wheel + numpy 2.4.6). `native_status() = {has_native: True, abi_version: 3, native_version: '0.7.0rc21', load_error: None}`. `tool_schema` → **201 entries** (unchanged from rc19). Scripts: `/tmp/verify_rc21{,_chain,_chain2,_chain3}.py`.
+
+**No regression vs rc19** — all gated surfaces re-confirmed: `loop_bind`/`loop_bind_hd`/`loop_unbind_hd`/`loop_runbind_hd` present; `klein4_bind` `mode=` flag present; `kuramoto_step` `adjacency=`/`alpha=` present; `so8.so8_adjoint_basis()` = **28**, `so8.g2_subalgebra()` = **14**; `triality.triality_automorphism()` 28×28 with **τ³ = I** residual **3.66e-15**.
+
+**NEW THIS PASS — the DSL operator-chain compose-engine (`srmech.dsl`) run END-TO-END.** rc19 confirmed the *surface* (`run_toml_chain`, `build_chain_from_{dict,toml,toml_str}`, `Chain`, `list_cascade_ops`, …) but did not *execute* a chain. rc21 exercised every chain special-form against known-correct outputs — all PASS:
+
+| Chain form | TOML | Input → Output | Verdict |
+|---|---|---|---|
+| single `op` | `op="magnitude"` | `-5.0 → 5.0` | ✓ Class K |
+| single `op` (seq) | `op="chiral_flip"` | `[1,2,3] → [3,2,1]` | ✓ Class C |
+| **multi-stage** | `magnitude` → `best_rational_signed(max_d=10)` | `-3.5 → (7,2)` (= 7/2 = 3.5) | ✓ stages compose |
+| `loop_n` + `sub_chain` | `loop_n=3` over `chiral_flip` | `[1,2,3] → [3,2,1]` (odd) | ✓ control-flow |
+| `fold` | `fold_init=0`, `fold_op="cyclic_gcd"` | `[12,8,6] → 2` | ✓ Class I |
+| `reduce` | `reduce_op="cyclic_gcd"` | `[12,8,6] → 2` | ✓ |
+| `parallel_body` (combine=bundle) | `chiral_flip` × 4 sectors | `[1,2,3] → [12,8,4]` (4·[3,2,1]) | ✓ Klein-4 fan-out |
+
+So the rc19 **DSL-compose-engine residual is RESOLVED**: the chain runner loads TOML (`[chain]` + `[[stage]]` array), materialises `op`/`loop`/`fold`/`reduce`/`parallel_sectors`, and runs — chains stream→stream and nests (the rc12 chainability holds through the runner).
+
+### §16.1 NEW FINDING — `cascade.reorient(orientation, value)` is un-invokable as a DSL `op=` stage (data-arg-second vs pipe-into-arg0 contract)
+**Observed:** every catalog op tagged `kind="stage"` is data-first except `reorient`. `reorient`'s signature is `reorient(orientation: int, value)` — the **data argument is SECOND**. The DSL unary-stage contract pipes the streamed value into the **first** positional, so it lands in `orientation`, leaving `value` unfilled → `TypeError: reorient() missing 1 required positional argument: 'value'`. Supplying `orientation=` as a stage kwarg instead collides: `TypeError: reorient() got multiple values for argument 'orientation'` (the pipe already filled position 0). Net: `reorient` **cannot be driven as an `op=` stage or as a `parallel_body=`**, though the catalog lists it `kind="stage"`.
+**Not a math bug.** The `(orientation, value)` order is natural for hand-composed Python (`o, m = pin_slot_at_zero(x); reorient(o, new_m)`), and `reorient` works fine called directly. It is specifically a **DSL-stage-contract mismatch.** (Verified clean by contrast: `magnitude`, `chiral_flip`, `pin_slot_at_zero`, `best_rational_signed`, `net_chirality`, `autocorrelation` are all data-first and drive as `op=` stages without issue; `cyclic_gcd`/`chiral_dual` are binary and only valid via `fold`/`reduce`/their op-arg, not as bare `op=` — expected.)
+**Two-sided ask:** *srmech-side (recorded, not filed):* either (a) reorder to `reorient(value, *, orientation)` so the data arg is first (matching every other stage-op + the pipe contract — cleanest), or (b) keep the order but drop `kind="stage"` from `reorient`'s catalog entry and document that it composes only after a `pin_slot_at_zero`, or (c) have the DSL detect the data-arg position. Low priority; no wrong answer (it fails loud, just unhelpfully). *Ours:* when authoring chain-TOML, do **not** use `reorient` as a bare `op=`/`parallel_body=` stage until (a)/(b) lands.
+
+**Verdict: rc21 is CLEAN for the RBS-LM surface** — native dispatch + all gated surfaces verified (no rc19 regression), and the DSL compose-engine now confirmed running end-to-end across all chain special-forms. Sole new finding is the `reorient` stage arg-order mismatch (loud failure, not a wrong answer). **Recorded, NOT filed** per `[[feedback_create_upstream_issues_never_close_them]]`. Working venv `/tmp/verify_srmech_v070rc21` is the new latest-verified; `.mcp.json` repoint stays DEFERRED (rc ≠ SoT).
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
