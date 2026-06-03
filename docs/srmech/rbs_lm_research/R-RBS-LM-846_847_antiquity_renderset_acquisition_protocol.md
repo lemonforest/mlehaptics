@@ -38,3 +38,24 @@ Defensive / no-lineage / structure-reading only; MPM attestation on every render
 
 ### Next concrete step
 Fetch + attest the Rosetta Stone render-set (Greek `primary-verified`; hieroglyphic/Demotic `flagged-residue` → triality cross-check), build the MPR blocks, and run it as the first ≥3-render anchor. Then extend to a Greek/Latin pair (Perseus) and a cuneiform pair (CDLI/ORACC) to get cross-*corpus* independence, not just cross-script-within-one-artifact.
+
+---
+
+## RENDER-SET #1 ACQUIRED + triality-cross-checked (2026-06-03) — the Rosetta Stone
+**Method:** my primary fetch (attalus Greek) + a **k=3 substitute-verifier triality** (haiku∥sonnet∥opus each independently fetched the primary sources, quote-or-flag).
+
+**The triality earned its keep (the substitute verifier worked):** haiku + sonnet hit `ECONNREFUSED` on the *best* source — **Rosetta Stone Online (Topoi / Humboldt-Univ. Berlin)** — because WebFetch force-upgrades to HTTPS and that site is **HTTP-only**. **Opus diagnosed it** (`curl http://… → 200 OK`, Apache/WordPress) and recovered the source. 2-of-3 would have wrongly reported "Topoi unreachable"; **k=3 corrected the false-negative.** *Protocol note added: the antiquity-fetch path must allow plain-HTTP — many scholarly sites are HTTP-only.*
+
+**Cross-checked (k=3 + my fetch agree):**
+- **k=3 anchor CONFIRMED** — one decree (Ptolemy V, 27 March 196 BC) in three scripts (hieroglyphic / Demotic / Greek), **"only minor differences across the three versions"** (the redundant ≥3-render property); the decree *self-mandates* its trilingual inscription. `primary-verified` across all tiers + Wikipedia.
+- **Cleanest open-licensed render-set → Rosetta Stone Online (Topoi/Humboldt):** TEI/EpiDoc XML `Rosetta_Stone-v1.1-04012019.epidoc.tei.xml`, **CC BY-SA**, per-script layers (traditional + modern transliteration, interlinear morphemic glossing, EN+DE word-by-word + sentence translations). Coordinators: Lincke / Werning / Georgakopoulos. Stone photo © British Museum CC-BY-NC-SA. **← the render-set to ingest.**
+- **attalus.org** — English **translations only**, **no license stated** → scholarly provenance, NOT redistributable (Greek = Carol Andrews, BM 1985, citing **OGIS 90 / PackHum 219002**; Demotic = Quirke & Andrews, BM 1988 + Simpson, Griffith 1996).
+- **Greek original** via **OGIS 90 / PackHum** (`epigraphy.packhum.org/text/219002`).
+
+**FLAGGED RESIDUE (honest non-multilingual limits — the substitute-verifier cannot close these; → domain expert):**
+- the **ancient-script → transliteration/translation fidelity** is unverified-by-us (rests on the BM / Griffith / Topoi scholarship);
+- the **hieroglyphic first half is physically lost** (stone damage; attalus: *"almost all of the first half of the hieroglyphic version has been lost"*);
+- the **"minor differences"** across renders are asserted but **not enumerated** → the *degree* of render-independence-vs-redundancy is uncollated;
+- the **exact scope of the Topoi CC BY-SA** (XML file vs whole annotation layer) — confirm on the OSF landing page before redistribution.
+
+**Status:** render-set #1 attested at the **metadata/provenance + k=3-property** level (cross-checked); ancient-script *content* is `flagged-residue`. **Ingest target = the Topoi CC-BY-SA TEI/EpiDoc XML.** Doubles as the first ingest-gate / many-to-many test (#849) once the build lands. **Next:** cross-*corpus* independence — a Perseus Greek↔Latin↔English set + a CDLI/ORACC cuneiform set — so independence is cross-corpus, not just cross-script-within-one-artifact.
