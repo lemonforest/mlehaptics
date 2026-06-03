@@ -28,5 +28,14 @@ F331→F337 is not philosophy — it is the **build spec** for this interface:
 - **F337** — form=function: the multi-render form self-proofreads its render layer (DNA-style).
 - ⇒ a human interface that **speaks srmech's truth, in human language, honestly, without the falsehoods** — implemented by **#197 (notebook-native pipeline) + the Rosetta layer + the ingest-gate.**
 
+## CAP on the Rosetta Stone of srmech + the DSL as the channel (user, 2026-06-03)
+This arc (F331→F338) is recorded as the **CAP on the Rosetta Stone of srmech**: the multi-render honesty-store IS srmech's Rosetta Stone — ≥3 co-equal renderings of one attested invariant, agreement = attestation (F334/F336; `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]`).
+
+**The channel hypothesis (user, to confirm against the `srmech.dsl` surface):** the srmech **DSL layer** (`srmech.dsl`, the operator-chain runner over the cascade-catalog TOML descriptors) is what creates the **communication channel** with srmech. It is already coherent at two renders — **CLI** (machine-facing) and **tool-schema** (LLM / agent-facing) — and the target third render is **human-language-agnostic** (the RBS-LM honesty-store). So:
+
+> srmech math engine  →  **DSL = the channel**  →  renders: **CLI** (machine) · **tool-schema** (LLM/agent) · **human language** (RBS-LM, target).
+
+The Rosetta Stone's "three co-equal scripts" map onto the channel's three renders (CLI / tool-schema / human-language); **agreement across them = the attested invariant.** That makes the DSL the natural home for the ingest-gate + the multi-render store, and it's why the channel can be **language-agnostic**: the renders are co-equal scripts of one invariant, exactly the F334/F336/F337 structure. Held as a framework reading; the *DSL-is-the-channel* identification is the user's hypothesis (2026-06-03), to verify against the shipped `srmech.dsl` operator-chain surface.
+
 ### Status / discipline
 Purpose/scope anchor for the arc; ensures F331→F337 reads as "srmech's honest human interface," not "a competing LLM." Cites canon; no new claim of its own (it frames). Defensive / no-lineage; accessibility-mission-anchored. No new A–N class.
