@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc19] - 2026-06-03
+
+**HAL constant-attestation discipline — MPM (Mathematical Provenance Method) applied to CODE CONSTANTS, retroactive. Externally-sourced magic that srmech does NOT derive from its own framework (and historically transcribed by hand) is now attested in a per-target header MPR block AND, where derivable, regenerated-and-asserted by a test. Pure provenance/hardening: no behaviour change → ABI stays 3; `describe()` stays 201; every dispatch arm byte-identical.**
+
+Motivated by the rc18 SHA-NI K-table typo (`0x8CC70808` where FIPS K[59] is `0x8CC70208`) — a transcribe-from-memory error invisible on a host without the SHA feature, caught only on SHA-NI CI. The fix generalises: magic constants get attested + derived-and-asserted so the next such typo fails locally, on any host, at unit-test time.
+
+- **`c/src/srmech_sha256_constants.h`** (new) — the SINGLE attested home for FIPS K[64] + H0[8] (MPR block → FIPS 180-4 §4.2.2/§5.3.3). The three SHA-256 TUs (`srmech_sha256.c` / `_batch.c` / `_shani.c`) now `#include` it instead of each carrying a hand-copied duplicate (that duplication was the same risk surface as the rc18 bug).
+- **`c/src/srmech_sha256_shani.h`** (new) — the packed SHA-NI `KP[16][2]` + an MPR block attesting BOTH the constants (FIPS) and the rnds2/msg1/msg2 instruction **sequence** (Intel SDM Vol 2 + Intel SHA Extensions whitepaper as primary; noloader/Walton as a working-impl pointer, NOT a drifting byte-hash; correctness pinned by `test_sha256_shani.py` on SHA-NI CI).
+- **`c/src/srmech_simd.h`** — MPR block for the cpuid leaf/bit numbers (Intel SDM Vol 2A CPUID: leaf-1 ECX bit 27/28 OSXSAVE/AVX; leaf-7 EBX bit 5/29 AVX2/SHA; XGETBV XCR0 gate) + the GCC/Clang target-attribute feature strings (GCC x86 Function Attributes).
+- **`tests/test_fips_constants_attested.py`** (new) — derive-and-assert: regenerates K from **exact integer cube-roots** of the first 64 primes (`icbrt(p<<96)`) and H0 from square-roots (`isqrt(p<<64)`) — no float, no ULP risk — and asserts byte-for-byte against the committed `srmech_sha256_constants.h` tables **and** the decoded packed `KP`. This is the gate that would have failed rc18's typo at unit-test time. (Self-check: asserts the derivation itself yields K[59]=`0x8CC70208`.)
+
+The discipline going forward: a HAL/target magic constant ships with (a) an MPR attestation block in its `.h`, and (b) a regenerate-and-assert test where the value is derivable; a hand edit the test doesn't bless is a defect by construction.
+
 ## [0.7.0rc18] - 2026-06-02
 
 **SHA-NI single-stream SHA-256 (F292 graft #3) — performance-engineering of srmech's OWN content-addressing hash for the common single-message case (`sha256_bytes`, every AMSC attestation). Built in CI so a SHA-NI-capable runner exercises the kernel, not parked because the dev CPU lacks the feature. New C symbol → ABI stays 3; `describe()` stays 201; JPL ratchet unchanged.**

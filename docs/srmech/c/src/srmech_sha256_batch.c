@@ -47,38 +47,16 @@
 #include "srmech.h"
 #include "srmech_simd.h"   /* SIMD optimize-path HAL: SRMECH_SIMD_X86,
                             * arch includes, SRMECH_SIMD_TARGET_*, cpuid */
+#include "srmech_sha256_constants.h"   /* attested FIPS K[64] + H0[8] */
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-/* ------------------------------------------------------------------ *
- * SHA-256 constants (FIPS 180-4 §4.2.2 / §5.3.3) — duplicate of
- * srmech_sha256.c (kept in sync; both NIST-KAT-pinned).
- * ------------------------------------------------------------------ */
-static const uint32_t SRMECH_SHA256B_K[64] = {
-    0x428a2f98u, 0x71374491u, 0xb5c0fbcfu, 0xe9b5dba5u,
-    0x3956c25bu, 0x59f111f1u, 0x923f82a4u, 0xab1c5ed5u,
-    0xd807aa98u, 0x12835b01u, 0x243185beu, 0x550c7dc3u,
-    0x72be5d74u, 0x80deb1feu, 0x9bdc06a7u, 0xc19bf174u,
-    0xe49b69c1u, 0xefbe4786u, 0x0fc19dc6u, 0x240ca1ccu,
-    0x2de92c6fu, 0x4a7484aau, 0x5cb0a9dcu, 0x76f988dau,
-    0x983e5152u, 0xa831c66du, 0xb00327c8u, 0xbf597fc7u,
-    0xc6e00bf3u, 0xd5a79147u, 0x06ca6351u, 0x14292967u,
-    0x27b70a85u, 0x2e1b2138u, 0x4d2c6dfcu, 0x53380d13u,
-    0x650a7354u, 0x766a0abbu, 0x81c2c92eu, 0x92722c85u,
-    0xa2bfe8a1u, 0xa81a664bu, 0xc24b8b70u, 0xc76c51a3u,
-    0xd192e819u, 0xd6990624u, 0xf40e3585u, 0x106aa070u,
-    0x19a4c116u, 0x1e376c08u, 0x2748774cu, 0x34b0bcb5u,
-    0x391c0cb3u, 0x4ed8aa4au, 0x5b9cca4fu, 0x682e6ff3u,
-    0x748f82eeu, 0x78a5636fu, 0x84c87814u, 0x8cc70208u,
-    0x90befffau, 0xa4506cebu, 0xbef9a3f7u, 0xc67178f2u
-};
-static const uint32_t SRMECH_SHA256B_H0[8] = {
-    0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
-    0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u
-};
+/* SHA-256 K[64] + H0[8] come from the attested srmech_sha256_constants.h
+ * (included above) — no per-file duplicate (rc19 constant-attestation
+ * discipline; the old hand-copied table was a transcription-risk surface). */
 
 /* ------------------------------------------------------------------ *
  * Streaming per-message block padder (no malloc). Fills `out[64]` with
@@ -151,7 +129,7 @@ static void srmech_sha256b__compress1(uint32_t state[8], const uint8_t block[64]
     for (size_t i = 0; i < 64u; i++) {
         const uint32_t bs1 = srmech_sha256b__ror(e, 6) ^ srmech_sha256b__ror(e, 11) ^ srmech_sha256b__ror(e, 25);
         const uint32_t ch = (e & f) ^ ((~e) & g);
-        const uint32_t t1 = h + bs1 + ch + SRMECH_SHA256B_K[i] + w[i];
+        const uint32_t t1 = h + bs1 + ch + SRMECH_SHA256_K[i] + w[i];
         const uint32_t bs0 = srmech_sha256b__ror(a, 2) ^ srmech_sha256b__ror(a, 13) ^ srmech_sha256b__ror(a, 22);
         const uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
         const uint32_t t2 = bs0 + maj;
@@ -167,7 +145,7 @@ static void srmech_sha256b__digest1(const uint8_t *msg, size_t len,
     assert(out != NULL);
     assert(msg != NULL || len == 0u);
     uint32_t state[8];
-    memcpy(state, SRMECH_SHA256B_H0, sizeof(state));
+    memcpy(state, SRMECH_SHA256_H0, sizeof(state));
     uint8_t block[64];
     size_t b = 0;
     while (srmech_sha256b__fill_block(msg, len, b, block)) {
@@ -215,7 +193,7 @@ static void srmech_sha256b__compress4(__m128i state[8], const __m128i win[16])
     __m128i a = state[0], b = state[1], c = state[2], d = state[3];
     __m128i e = state[4], f = state[5], g = state[6], h = state[7];
     for (size_t i = 0; i < 64u; i++) {
-        const __m128i kk = _mm_set1_epi32((int)SRMECH_SHA256B_K[i]);
+        const __m128i kk = _mm_set1_epi32((int)SRMECH_SHA256_K[i]);
         const __m128i t1 = S4_ADD(S4_ADD(S4_ADD(S4_ADD(h, S4_BS1(e)), S4_CH(e, f, g)), kk), w[i]);
         const __m128i t2 = S4_ADD(S4_BS0(a), S4_MAJ(a, b, c));
         h = g; g = f; f = e; e = S4_ADD(d, t1); d = c; c = b; b = a; a = S4_ADD(t1, t2);
@@ -233,7 +211,7 @@ static void srmech_sha256b__hash4(const uint8_t *const *msgs,
     assert(msgs != NULL);
     assert(out != NULL);
     __m128i st[8];
-    for (size_t i = 0; i < 8u; i++) { st[i] = _mm_set1_epi32((int)SRMECH_SHA256B_H0[i]); }
+    for (size_t i = 0; i < 8u; i++) { st[i] = _mm_set1_epi32((int)SRMECH_SHA256_H0[i]); }
     size_t maxb = 0;
     for (size_t L = 0; L < 4u; L++) {
         const size_t nb = (lens[L] + 72u) / 64u;
@@ -302,7 +280,7 @@ static void srmech_sha256b__compress8(__m256i state[8], const __m256i win[16])
     __m256i a = state[0], b = state[1], c = state[2], d = state[3];
     __m256i e = state[4], f = state[5], g = state[6], h = state[7];
     for (size_t i = 0; i < 64u; i++) {
-        const __m256i kk = _mm256_set1_epi32((int)SRMECH_SHA256B_K[i]);
+        const __m256i kk = _mm256_set1_epi32((int)SRMECH_SHA256_K[i]);
         const __m256i t1 = A8_ADD(A8_ADD(A8_ADD(A8_ADD(h, A8_BS1(e)), A8_CH(e, f, g)), kk), w[i]);
         const __m256i t2 = A8_ADD(A8_BS0(a), A8_MAJ(a, b, c));
         h = g; g = f; f = e; e = A8_ADD(d, t1); d = c; c = b; b = a; a = A8_ADD(t1, t2);
@@ -320,7 +298,7 @@ static void srmech_sha256b__hash8(const uint8_t *const *msgs,
     assert(msgs != NULL);
     assert(out != NULL);
     __m256i st[8];
-    for (size_t i = 0; i < 8u; i++) { st[i] = _mm256_set1_epi32((int)SRMECH_SHA256B_H0[i]); }
+    for (size_t i = 0; i < 8u; i++) { st[i] = _mm256_set1_epi32((int)SRMECH_SHA256_H0[i]); }
     size_t maxb = 0;
     for (size_t L = 0; L < 8u; L++) {
         const size_t nb = (lens[L] + 72u) / 64u;

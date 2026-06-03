@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc18"
+#define SRMECH_VERSION       "0.7.0rc19"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -164,7 +164,7 @@ srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
                                     size_t                n,
                                     uint8_t              *out_digests);
 
-/* F292 graft #3 (v0.7.0rc18): SHA-NI SINGLE-STREAM SHA-256. Hashes ONE
+/* F292 graft #3 (v0.7.0rc19): SHA-NI SINGLE-STREAM SHA-256. Hashes ONE
  * message — `data` points to `len` bytes (data may be NULL iff len==0) —
  * and writes the RAW 32-byte digest into out_digest[0..31] (out_digest must
  * be 32 bytes and must NOT alias data). Bit-exact with srmech_sha256_hex /
