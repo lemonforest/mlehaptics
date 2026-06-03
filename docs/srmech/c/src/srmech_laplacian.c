@@ -694,3 +694,22 @@ srmech_status_t srmech_elementwise_transcendental(
     }
     return SRMECH_OK;
 }
+
+srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+                                        uint32_t *out_mid, uint32_t *out_high)
+{
+    assert(out_low != NULL && out_mid != NULL && out_high != NULL);
+    if (out_low == NULL || out_mid == NULL || out_high == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Harmonic-3 three-fold band split (F150): partition n eigenvectors into
+     * contiguous low/mid/high bands; the remainder rows go to the later bands
+     * so |low| <= |mid| <= |high|. Bit-exact with the Python reference. */
+    uint32_t base = n / 3u;
+    uint32_t rem = n - 3u * base;
+    *out_low = base;
+    *out_mid = base + (rem >= 2u ? 1u : 0u);
+    *out_high = n - *out_low - *out_mid;
+    assert(*out_low + *out_mid + *out_high == n);
+    return SRMECH_OK;
+}

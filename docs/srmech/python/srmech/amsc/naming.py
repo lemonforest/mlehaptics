@@ -37,7 +37,23 @@ def reverse_order(sorted_pairs: Iterable[Tuple[bytes, bytes]]) -> list:
     ``reverse_order(reverse_order(x)) == list(x)`` (period 2). The
     chirality-aware companion to :func:`lookup`.
     """
-    return list(sorted_pairs)[::-1]
+    pairs = list(sorted_pairs)
+    n = len(pairs)
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_reverse_order")
+        and n <= 0xFFFF_FFFF
+        and n > 0
+    ):
+        order = (ctypes.c_uint32 * n)()
+        rc = _native.LIB.srmech_reverse_order(ctypes.c_uint32(n), order)
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_reverse_order returned non-OK status {rc}"
+            )
+        return [pairs[order[i]] for i in range(n)]
+    return pairs[::-1]
 
 
 def lookup(key: bytes,
