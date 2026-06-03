@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc19"
+#define SRMECH_VERSION       "0.7.0rc20"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -630,10 +630,13 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
  *   (a, b)(c, d) = (a c - conj(d) b,  d a + b conj(c))
  * unrolled real -> complex -> quaternion -> octonion (no recursion).
  *
- * The HD block variants (loop_bind_hd, loop_unbind_hd, loop_conj_hd,
- * loop_inv_hd, loop_runbind_hd) need NO C peer of their own: their
- * Python wrappers loop over 8-blocks calling the per-block loop_bind /
- * loop_conj, which dispatch to these symbols.
+ * The HD block variants each have a native whole-array C peer too —
+ * srmech_loop_bind_hd_f64 (below; N-way SIMD) plus the rc20 family
+ * srmech_loop_{conj,inv,unbind,runbind}_hd_f64 (srmech_loophd_family.c) —
+ * so EVERY Python loop op has a C-source transpile (the "C = transpiled
+ * Python" Rosetta discipline; notebook §3.29.4). The Python wrappers
+ * dispatch to those peers and keep a per-8-block pure-Python fallback for
+ * Pyodide / WASM, looping the per-block loop_bind / loop_conj here.
  *
  * Returns:
  *   SRMECH_OK              — success
@@ -690,6 +693,45 @@ srmech_status_t srmech_g2_three_form_f64(
  * ------------------------------------------------------------------ */
 srmech_status_t srmech_loop_bind_hd_f64(
     const double *x, const double *y, size_t nb, double *out);
+
+/* ------------------------------------------------------------------ *
+ * The rest of the HD loop family — whole-array C peers (MS#21 v0.7.0rc20)
+ *
+ * The faithful transpile of the Python per-block wrappers (hdc.py
+ * loop_{conj,inv,unbind,runbind}_hd): the SHIPPED per-block symbol applied
+ * over nb INDEPENDENT dim-8 blocks (the block-diagonal ⊕, #811/F289),
+ * collapsing the Python per-block loop into ONE native call. Completes the
+ * "C = transpiled Python" Rosetta parity (notebook §3.29.4) — no HD loop op
+ * is Python-only. Scalar (no N-way SIMD; the bind owns that, above); the
+ * heavy step where present is the per-block product, already native.
+ *
+ * Each is nb*8 doubles per buffer; LOOP_DIM is fixed at 8; `out` MUST NOT
+ * alias the inputs; nb == 0 is a no-op. conj/unbind/runbind = Class C ∘
+ * Class M; inv = Class-K clean (norm² gate, never abs()). NO new class.
+ *
+ * Returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — a required pointer was NULL with nb > 0
+ *   SRMECH_ERR_BAD_INPUT   — (loop_inv_hd) a zero block has no inverse
+ *
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Per-block HD conjugate: out[k] = conj(x[k]) over nb dim-8 blocks. */
+srmech_status_t srmech_loop_conj_hd_f64(
+    const double *x, size_t nb, double *out);
+
+/* Per-block HD Moufang inverse: out[k] = conj(x[k]) / <x[k],x[k]>. */
+srmech_status_t srmech_loop_inv_hd_f64(
+    const double *x, size_t nb, double *out);
+
+/* Per-block HD LEFT-unbind (left-division): out[k] = conj(a[k])·b[k]. */
+srmech_status_t srmech_loop_unbind_hd_f64(
+    const double *a, const double *b, size_t nb, double *out);
+
+/* Per-block HD RIGHT-unbind (right-division): out[k] = b[k]·conj(a[k]). */
+srmech_status_t srmech_loop_runbind_hd_f64(
+    const double *a, const double *b, size_t nb, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — autocorrelation (MS#21 v0.7.0rc8; the F290 §C primitive)

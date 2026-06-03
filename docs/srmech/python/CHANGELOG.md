@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc20] - 2026-06-03
+
+**Native C peers for the rest of the HD loop family — completes "C = transpiled Python" (the Rosetta discipline, notebook §3.29.4–§3.29.5: one SSoT rendered as meaning : Python AND C source : Compiled C). The HD block conjugate / Moufang inverse / left-unbind / right-unbind were Python-only per-block loops; now each has a whole-array C transpile, so NO HD loop op is Python-only. Additive C symbols → ABI stays 3; `describe()` stays 201; every dispatch arm bit-exact with its Python fallback.**
+
+`srmech_loop_bind_hd_f64` (rc11/rc17, the F292 #2 graft) gave the HD BIND its native peer; the companions (`loop_conj_hd` / `loop_inv_hd` / `loop_unbind_hd` / `loop_runbind_hd`) kept looping over 8-blocks in Python — a Rosetta with a glyph present in one script (Python) but missing from the other (C source), so those ops had no machine-code tier. This rc renders them in C too:
+
+- **`c/src/srmech_loophd_family.c`** (new) — `srmech_loop_{conj,inv,unbind,runbind}_hd_f64`, the SHIPPED per-block symbol (`srmech_loop_conj_f64` / `srmech_loop_inv_f64` / `srmech_loop_bind_f64`) applied over NB independent dim-8 blocks (the block-diagonal ⊕, #811/F289). The faithful transpile of the Python wrappers — same per-block ops, same order — collapsing the per-block Python loop into ONE native call (bit-exact with the fallback by construction). `loop_inv_hd` propagates `SRMECH_ERR_BAD_INPUT` from a zero block (→ the Python fallback raises, contract preserved). Scalar — no N-way SIMD here (the bind owns that, `srmech_loopbind_hd.c`); the heavy step where present (the product) is already native per-block.
+- **`srmech.amsc.hdc`** — `loop_conj_hd` / `loop_inv_hd` / `loop_unbind_hd` / `loop_runbind_hd` dispatch to the new peers when `HAS_NATIVE`, with the per-8-block pure-Python recursion kept as the Pyodide / WASM fallback (`hasattr`-guarded ctypes, stale-`.dll`-safe).
+- **`c/include/srmech.h`** — 4 new prototypes; the stale "the HD variants need NO C peer of their own" note is retired (it predated `loop_bind_hd`'s peer and contradicted the Rosetta discipline).
+- **`tests/test_loop_hd_native_parity.py`** (new) — asserts the whole-array native peer agrees with the pure-Python Cayley-Dickson recursion (`_loop_bind_raw` / `_loop_conj_raw`) — the literal Rosetta agreement-attestation — plus the round-trip identities. The existing `test_loop_hd_division.py` suite now exercises the native path for free.
+
+Closes the C/Python-parity ask in **#814** (loop-bind op spec — "Parity-tested against the Python fallback", now true across the HD surface too) on the realization established in **#811**/**#812** (the dim-8 → high-dim block-octonion ⊕). Each function is ≤60 lines, ≥2 asserts, no goto/malloc/recursion, single-line macros only, warning-clean under `-Wall -Wextra -Wpedantic` / `/W4 /WX` (JPL Power-of-Ten).
+
 ## [0.7.0rc19] - 2026-06-03
 
 **HAL constant-attestation discipline — MPM (Mathematical Provenance Method) applied to CODE CONSTANTS, retroactive. Externally-sourced magic that srmech does NOT derive from its own framework (and historically transcribed by hand) is now attested in a per-target header MPR block AND, where derivable, regenerated-and-asserted by a test. Pure provenance/hardening: no behaviour change → ABI stays 3; `describe()` stays 201; every dispatch arm byte-identical.**

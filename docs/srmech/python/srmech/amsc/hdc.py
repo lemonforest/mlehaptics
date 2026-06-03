@@ -895,6 +895,81 @@ def _try_native_loop_bind_hd(a_, b_):
     return out
 
 
+def _try_native_loop_conj_hd(a_):
+    """Whole-array native HD conjugate — ONE ``srmech_loop_conj_hd_f64`` call
+    conjugates ALL NB 8-blocks, replacing the Python per-block ``_loop_conj_raw``
+    loop. a_ is a flat float array, a positive multiple of LOOP_DIM. Returns the
+    flat result, or None to fall back (lib absent / symbol missing / non-OK)."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0
+            or not _loop_native_ready("srmech_loop_conj_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    xc = np.ascontiguousarray(a_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_conj_hd_f64(
+        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_inv_hd(a_):
+    """Whole-array native HD Moufang inverse — ONE ``srmech_loop_inv_hd_f64`` call
+    inverts ALL NB 8-blocks. None on fall-back; a zero block makes the C peer
+    return BAD_INPUT → None here → the Python fallback raises (the contract)."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0
+            or not _loop_native_ready("srmech_loop_inv_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    xc = np.ascontiguousarray(a_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_inv_hd_f64(
+        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_unbind_hd(a_, b_):
+    """Whole-array native HD LEFT-unbind — ONE ``srmech_loop_unbind_hd_f64`` call
+    computes conj(aₖ)·bₖ over ALL NB blocks. None on fall-back."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+            or not _loop_native_ready("srmech_loop_unbind_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    ac = np.ascontiguousarray(a_, dtype=np.float64)
+    bc = np.ascontiguousarray(b_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_unbind_hd_f64(
+        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
+        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_runbind_hd(a_, b_):
+    """Whole-array native HD RIGHT-unbind — ONE ``srmech_loop_runbind_hd_f64``
+    call computes bₖ·conj(aₖ) over ALL NB blocks. None on fall-back."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+            or not _loop_native_ready("srmech_loop_runbind_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    ac = np.ascontiguousarray(a_, dtype=np.float64)
+    bc = np.ascontiguousarray(b_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_runbind_hd_f64(
+        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
+        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
 def _try_native_loop_inv(arr):
     if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
         return None
@@ -1093,6 +1168,9 @@ def loop_unbind_hd(a, b):
     assert a_.shape == b_.shape, "loop_unbind_hd: operands must have equal length"
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_unbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_unbind_hd(a_, b_)
+    if native is not None:
+        return native
     ab = a_.reshape(-1, LOOP_DIM)
     bb = b_.reshape(-1, LOOP_DIM)
     return np.concatenate(
@@ -1110,6 +1188,9 @@ def loop_conj_hd(x):
     a_ = np.asarray(x, dtype=float)
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_conj_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_conj_hd(a_)
+    if native is not None:
+        return native
     xb = a_.reshape(-1, LOOP_DIM)
     return np.concatenate([_loop_conj_raw(xb[k]) for k in range(xb.shape[0])])
 
@@ -1126,6 +1207,9 @@ def loop_inv_hd(x):
     a_ = np.asarray(x, dtype=float)
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_inv_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_inv_hd(a_)
+    if native is not None:
+        return native
     xb = a_.reshape(-1, LOOP_DIM)
     out = []
     for k in range(xb.shape[0]):
@@ -1153,6 +1237,9 @@ def loop_runbind_hd(a, b):
     assert a_.shape == b_.shape, "loop_runbind_hd: operands must have equal length"
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_runbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_runbind_hd(a_, b_)
+    if native is not None:
+        return native
     ab = a_.reshape(-1, LOOP_DIM)
     bb = b_.reshape(-1, LOOP_DIM)
     return np.concatenate(
