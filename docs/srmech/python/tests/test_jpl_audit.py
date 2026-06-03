@@ -147,6 +147,11 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_simd_has_avx2",
     "srmech_simd_has_avx",
     "srmech_simd_has_sse2",
+    # v0.7.0rc18 (F292 graft #3): srmech_simd_has_shani is the same kind of
+    # pure cpuid feature detector (leaf7 EBX bit29). srmech_sha256_shani.c
+    # `__ror` is the 1-line rotate (like srmech_ror32 / srmech_sha256b__ror).
+    "srmech_simd_has_shani",
+    "srmech_sha256ni__ror",
 }
 
 # Maximum allowed function length (JPL Rule 4).

@@ -71,6 +71,30 @@ int srmech_simd_has_sse2(void)
 #endif
 }
 
+/* SHA-NI (Intel SHA Extensions): leaf7 sub-leaf0 EBX bit29. Unlike AVX2/AVX
+ * this needs NO OSXSAVE/xgetbv gate — it operates on XMM, whose state the OS
+ * always saves. JPL Rule 5 EXEMPT (feature detector; no pointer/bounds
+ * invariant to assert). */
+int srmech_simd_has_shani(void)
+{
+#if !SRMECH_SIMD_X86
+    return 0;
+#elif defined(_MSC_VER)
+    int regs[4];
+    __cpuidex(regs, 7, 0);
+    return (regs[1] >> 29) & 1;
+#else
+    /* Raw leaf7/sub0 cpuid (NOT __builtin_cpu_supports("sha"), which old
+     * gcc — e.g. the 6.x MinGW dev toolchain — does not recognise as a
+     * valid feature string). EBX bit29 = SHA. */
+    unsigned eax = 0u, ebx = 0u, ecx = 0u, edx = 0u;
+    if (__get_cpuid_count(7u, 0u, &eax, &ebx, &ecx, &edx) == 0) {
+        return 0;
+    }
+    return (ebx & (1u << 29)) ? 1 : 0;
+#endif
+}
+
 /* Env-override + clamp. NOT Rule-5 exempt — carries its invariants. */
 int srmech_simd_tier(const char *env_var, int detected, int max_tier)
 {

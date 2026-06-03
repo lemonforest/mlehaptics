@@ -52,10 +52,31 @@
 #  define SRMECH_SIMD_TARGET_AVX2 __attribute__((target("avx2")))
 #  define SRMECH_SIMD_TARGET_AVX  __attribute__((target("avx")))
 #  define SRMECH_SIMD_TARGET_SSE2 __attribute__((target("sse2")))
+/* SHA-NI uses the SHA extensions plus SSE4.1 (_mm_blend_epi16) and SSSE3
+ * (_mm_shuffle_epi8 / _mm_alignr_epi8); name all three so gcc/clang emit the
+ * codegen from a baseline TU. MSVC emits the intrinsics regardless -> empty. */
+#  define SRMECH_SIMD_TARGET_SHANI __attribute__((target("sha,sse4.1,ssse3")))
 #else
 #  define SRMECH_SIMD_TARGET_AVX2
 #  define SRMECH_SIMD_TARGET_AVX
 #  define SRMECH_SIMD_TARGET_SSE2
+#  define SRMECH_SIMD_TARGET_SHANI
+#endif
+
+/* Can THIS toolchain compile the SHA-NI kernel? MSVC always; gcc/clang iff
+ * <shaintrin.h> is available (the SHA Extensions intrinsics live there, and
+ * `target("sha")` works wherever they do). An x86 toolchain too old to ship
+ * the header (or non-x86) degrades to the scalar-only path — the public
+ * srmech_sha256_shani symbol still exists, just never enters the kernel. */
+#if SRMECH_SIMD_X86 && defined(_MSC_VER)
+#  define SRMECH_SIMD_SHANI_KERNEL 1
+#elif SRMECH_SIMD_X86 && defined(__has_include)
+#  if __has_include(<shaintrin.h>)
+#    define SRMECH_SIMD_SHANI_KERNEL 1
+#  endif
+#endif
+#ifndef SRMECH_SIMD_SHANI_KERNEL
+#  define SRMECH_SIMD_SHANI_KERNEL 0
 #endif
 
 /* ------------------------------------------------------------------ *
@@ -68,6 +89,9 @@
 int srmech_simd_has_avx2(void);
 int srmech_simd_has_avx(void);
 int srmech_simd_has_sse2(void);
+/* SHA-NI (Intel SHA Extensions). 1 if the host supports the SHA feature
+ * (leaf7 EBX bit29), else 0; always 0 off x86. No OS-state gate needed. */
+int srmech_simd_has_shani(void);
 
 /* Dispatch-tier helper — the env-override + clamp idiom in one place.
  * If `env_var` is set in the environment, returns atoi(value) clamped to
