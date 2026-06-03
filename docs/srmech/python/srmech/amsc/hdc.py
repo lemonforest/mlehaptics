@@ -1018,6 +1018,53 @@ def _try_native_g2_three_form(xa, ya, za):
     return float(c_out.value)
 
 
+def _try_native_loop_associator(aa, bb, cc):
+    if (aa.size != LOOP_DIM or bb.size != LOOP_DIM or cc.size != LOOP_DIM
+            or not _loop_native_ready("srmech_loop_associator_f64")):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_a = Arr(*(float(v) for v in aa))
+    c_b = Arr(*(float(v) for v in bb))
+    c_c = Arr(*(float(v) for v in cc))
+    c_out = Arr()
+    rc = _native.LIB.srmech_loop_associator_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.cast(c_b, _DBLP), ctypes.cast(c_c, _DBLP),
+        ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_loop_left_op(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_left_op_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
+    c_a = Arr(*(float(v) for v in arr))
+    c_out = Mat()
+    rc = _native.LIB.srmech_loop_left_op_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
+    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
+
+
+def _try_native_loop_right_op(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_right_op_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
+    c_a = Arr(*(float(v) for v in arr))
+    c_out = Mat()
+    rc = _native.LIB.srmech_loop_right_op_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
+    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
+
+
 def loop_conj(x):
     """Octonion conjugate x̄ — negate the imaginary part, keep the real anchor
     ``x[0]``. The Class-C orientation flip that powers the unbind. Single
@@ -1072,6 +1119,9 @@ def loop_left_op(a):
     dim×dim matrix. L_a ≠ R_a ≠ R_aᵀ — the operational chirality."""
     arr = _as_loop(a, "loop_left_op")
     dim = arr.shape[0]
+    native = _try_native_loop_left_op(arr)
+    if native is not None:
+        return native
     return np.column_stack([_loop_bind_raw(arr, _loop_basis(k, dim)) for k in range(dim)])
 
 
@@ -1080,6 +1130,9 @@ def loop_right_op(a):
     a dim×dim matrix."""
     arr = _as_loop(a, "loop_right_op")
     dim = arr.shape[0]
+    native = _try_native_loop_right_op(arr)
+    if native is not None:
+        return native
     return np.column_stack([_loop_bind_raw(_loop_basis(k, dim), arr) for k in range(dim)])
 
 
@@ -1094,6 +1147,9 @@ def loop_associator(a, b, c):
     aa = _as_loop(a, "loop_associator")
     bb = _as_loop(b, "loop_associator")
     cc = _as_loop(c, "loop_associator")
+    native = _try_native_loop_associator(aa, bb, cc)
+    if native is not None:
+        return native
     return (_loop_bind_raw(_loop_bind_raw(aa, bb), cc)
             - _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
 

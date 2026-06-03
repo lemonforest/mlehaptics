@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc21] - 2026-06-03
+
+**Native C peers for the last three loop-bind ops computing via pure-Python — `loop_associator` / `loop_left_op` / `loop_right_op`. Closes a parity gap the rc20 #814 close glossed: those three (all named in #814's op spec) still ran the pure-Python Cayley-Dickson recursion (`_loop_bind_raw`) while `cross7`/`g2_three_form` already had dedicated C symbols. Now every op in the loop-bind spec is at native C/Python parity. Additive C symbols → ABI stays 3; `describe()` stays 201; every dispatch arm bit-exact with its Python fallback.**
+
+The "C = transpiled Python" Rosetta discipline (notebook §3.29.4–§3.29.5) admits no Python-only carve-out: a composition-op gets a C rendering exactly as `cross7 = Im(bind)` and `g2 = ⟨x, cross7⟩` did (rc7). The associator (the Class-K residue, the genuinely-new k=7 arithmetic surfaced in #797/F271) and the L/R multiplication-operator matrices were the remaining pure-Python composites:
+
+- **`srmech_loop_associator_f64`** (`c/src/srmech_loopbind.c`) — `(a·b)·c − a·(b·c)`, two fixed triple-products via the static octonion product (no recursion); 8 doubles out.
+- **`srmech_loop_left_op_f64` / `srmech_loop_right_op_f64`** — the L_a (col k = a·e_k) / R_a (col k = e_k·a) operator matrices, n·n doubles row-major, byte-matching numpy `column_stack` of the per-basis binds.
+- **`srmech.amsc.hdc`** — `loop_associator` / `loop_left_op` / `loop_right_op` dispatch to the peers for the dim-8 octonion when `HAS_NATIVE`, pure-Python recursion kept as the Pyodide/WASM (and non-dim-8) fallback.
+- **`tests/test_loop_operator_native_parity.py`** (new) — native peer vs the pure-Python recursion (the Rosetta agreement-attestation), plus the associator's known structure (zero on associative/Fano triples, antisymmetry).
+
+With rc7 (per-block) + rc11/rc17 (HD bind SIMD) + rc20 (HD conj/inv/unbind/runbind) + rc21 (associator + L/R operators), the **entire** `srmech.amsc.hdc` loop-bind / Moufang surface is native at both single-octonion and HD-block scale — no op is Python-only. JPL Power-of-Ten clean (≤60-line, ≥2 asserts, no goto/malloc/recursion); warning-clean under `-Wall -Wextra -Wpedantic -Werror` / `/W4 /WX`.
+
 ## [0.7.0rc20] - 2026-06-03
 
 **Native C peers for the rest of the HD loop family — completes "C = transpiled Python" (the Rosetta discipline, notebook §3.29.4–§3.29.5: one SSoT rendered as meaning : Python AND C source : Compiled C). The HD block conjugate / Moufang inverse / left-unbind / right-unbind were Python-only per-block loops; now each has a whole-array C transpile, so NO HD loop op is Python-only. Additive C symbols → ABI stays 3; `describe()` stays 201; every dispatch arm bit-exact with its Python fallback.**
