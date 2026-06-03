@@ -110,8 +110,38 @@ Together = the maximally-independent multi-language render-base the F335/F337 tr
 | **German** | language | OA German grammar/usage | moderate | triality |
 | **Spanish es-ES** | locale | RAE / Peninsular grammar/usage | moderate | triality |
 | **Spanish es-MX** | locale | Mexican-Spanish usage | **thinner** — source carefully | triality |
-| **Cyrillic** | **AMBIGUOUS** | — | — | **resolve: Russian (Cyrillic-LANGUAGE kernel) vs Cyrillic-SCRIPT render-layer** (different layers) |
+| **Russian** | language (Cyrillic) | OA Russian grammar/usage | moderate (richest Slavic OA) | triality |
+| **Ukrainian** | language (Cyrillic) | OA Ukrainian grammar/usage | **thinner** — source carefully | triality |
+| **Bulgarian** | language (Cyrillic) | OA Bulgarian grammar/usage | **thinner** — source carefully | triality |
+| **Serbian** | language (**Cyrillic + Latin**, digraphic) | OA Serbian grammar/usage | **thinner** — source carefully | triality; **digraphia = built-in script-control** |
 
 **Build-catalog per kernel (AMSC):** native-instruction corpus + `descriptor.toml` + MPM attestation (source / license / `response_sha256`). **Substitute-verifier triality for every non-English kernel** (the user is not multilingual). **Phased:** English locales first (most available + partial self-check) → Latin-script Romance/Germanic via triality → Cyrillic/Russian once the layer is resolved.
 
 **Purpose:** this roster IS the kernel-set for the **cross-coupling / structure-universality experiment** (the prior-turn research direction): build independent native kernels → test cross-coupling at 0 anchors → add #846 Rosetta anchors → measure **anchor-count vs translation-fidelity** = the operational, falsifiable test of "is structure universal." Defensive / MPM / no-lineage; not srmech-gated.
+
+**Controlled-design bonus (Cyrillic-Slavic family; user resolution 2026-06-03):** Russian + Ukrainian + Bulgarian + Serbian = 4 LANGUAGE kernels sharing ONE script (Cyrillic) → the cleanest cross-coupling testbed. **Hold script, vary language** → isolates the *language-layer* coupling from the script confound; **distance-graded** (Ru+Uk = East Slavic, close vs Bg+Sr = South Slavic, further → a coupling-vs-distance *curve*). **Serbian is digraphic (Cyrillic + Latin)** → a same-language-two-script render-set = a **built-in script-layer control** (hold language, vary script). So the Slavic-Cyrillic set supplies *both* experiment controls — scientifically richer than the near-identical English locales (low variation). Tradeoff: all non-English (every kernel needs the substitute-verifier triality) + Uk/Bg/Sr corpora thinner than Russian.
+
+---
+
+## STREAM B — kernel-catalog build BEGUN (2026-06-03): English locales first
+**Per-kernel build recipe (AMSC):** (1) source an **open-access native-instruction corpus** ("how to speak/write THIS variety" — grammar / usage / readers, NOT translations); (2) write `descriptor.toml` (the `compute_from_source`/`literature_curated` schema, per R-RBS-LM-13); (3) MPM attestation per source (`source_url` / `license` / `retrieved_at` / `response_sha256`); (4) verify — English locales are **user-sanity-checkable**; every non-English kernel goes through the substitute-verifier triality. Phase order: **en-US → en-GB → en-AU** (then Latin-script Romance/Germanic, then the Cyrillic-Slavic testbed).
+
+### Stream-B set #1 — English locales: native-instruction corpora sourced + attested (2026-06-03)
+All English → **user-sanity-checkable** (no triality needed). PD/OA sources, via Project Gutenberg / OA:
+
+**en-US** (rich; R-RBS-LM-73 head-start):
+- **McGuffey Eclectic Readers** — Project Gutenberg, **PD**: Primer #14642, First #14640, Third #14766, Fourth #14880 (New-Fourth #1490), Fifth #15040 — *this is the R-RBS-LM-73 grammar-substrate corpus already in-tree.*
+- **American grammars** (PD): Kittredge & Farley, *An Advanced English Grammar* (#45814, Harvard); Baskervill & Sewell, *An English Grammar* (#14006, Vanderbilt); Goold Brown, *The Grammar of English Grammars* (#11615).
+
+**en-GB** (clean anchor):
+- **Fowler & Fowler, *The King's English* (1906)** — Project Gutenberg **#75439, PD** — the canonical British usage guide (precursor to *Modern English Usage*).
+
+**en-AU** (THINNEST — flagged):
+- No comprehensive **PD** Australian grammar. Cleanest OA: **Australian Government Style Manual** (free online since 2020; **license to VERIFY** — likely Crown CC-BY) + **WSU Library Open Textbook Style Guide** (Western Sydney Univ. Pressbooks, **CC** — verify). These are **style/usage** guides, not full grammars — *appropriate*, since en-AU's locale-distinctiveness IS usage/spelling/vocabulary (it shares English grammar with US/GB). **Macquarie Dictionary + Cambridge Guide to Australian English Usage = copyrighted, NOT usable.**
+
+**Honest caveats:**
+1. **Register-date** — PD grammars are historical (McGuffey 1836 / Fowler 1906 / Goold Brown ~1850s); a *contemporary*-locale kernel would need modern OA supplements (Wikibooks / OER). Flag each kernel's register; structure-universality should hold across registers, so historical is acceptable for the first cross-coupling test.
+2. **en-AU licenses to VERIFY** (Gov Style Manual / WSU) before ingest; paywalled-only → rejected per MPM.
+3. **The English locales are usage-level-distinct only** (they share grammar) → cross-coupling among en-US/GB/AU will be **HIGH/near-identical** — which is *exactly why* the Slavic-Cyrillic family is the scientifically richer cross-coupling test (real language-distance). The English locales are the **verifiable warm-up**, not the informative test.
+
+**Next:** write `descriptor.toml` per locale (can-do-now, R-RBS-LM-13 `compute_from_source` schema) + the MPM attestation blocks; the srmech **ENCODE** (kernel-build from corpus) is **srmech-gated** (bugfix-wait). Then Latin-script Romance/Germanic (Fr/It/De) via triality.
