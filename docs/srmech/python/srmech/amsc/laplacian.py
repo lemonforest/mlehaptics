@@ -114,11 +114,32 @@ def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
     """
     _eigvals, V = symmetric_eigendecompose(L)
     n = int(V.shape[1]) if V.ndim == 2 else 0
-    base = n // 3
-    rem = n - 3 * base
-    n_low = base
-    n_mid = base + (1 if rem >= 2 else 0)
-    n_high = n - n_low - n_mid
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_three_fold_bands")
+        and n <= 0xFFFF_FFFF
+    ):
+        lo = ctypes.c_uint32(0)
+        mid = ctypes.c_uint32(0)
+        hi = ctypes.c_uint32(0)
+        rc = _native.LIB.srmech_three_fold_bands(
+            ctypes.c_uint32(n),
+            ctypes.byref(lo),
+            ctypes.byref(mid),
+            ctypes.byref(hi),
+        )
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_three_fold_bands returned non-OK status {rc}"
+            )
+        n_low, n_mid, n_high = lo.value, mid.value, hi.value
+    else:
+        base = n // 3
+        rem = n - 3 * base
+        n_low = base
+        n_mid = base + (1 if rem >= 2 else 0)
+        n_high = n - n_low - n_mid
     assert n_low + n_mid + n_high == n
     return {
         "low": V[:, :n_low],

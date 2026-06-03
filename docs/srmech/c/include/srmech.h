@@ -65,7 +65,7 @@ extern "C" {
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
 #define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.7.0rc16"
+#define SRMECH_VERSION       "0.7.0rc17"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -653,7 +653,7 @@ srmech_status_t srmech_g2_three_form_f64(
     double *out);
 
 /* ------------------------------------------------------------------ *
- * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc16; F292 #2)
+ * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc17; F292 #2)
  *
  * out[k] = loop_bind(x[k], y[k]) over nb INDEPENDENT 8-blocks (the
  * block-diagonal ⊕ F289 verified err 0.0). x, y, out are each nb*8
@@ -812,6 +812,14 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
                                       uint32_t  max_sweeps,
                                       double    tolerance,
                                       double   *out_eigvals);
+
+/* Harmonic-3 three-fold band split (F150): partition n eigenvectors into
+ * contiguous low/mid/high bands. base = n/3; the remainder (n mod 3) rows go
+ * to the later bands so *out_low <= *out_mid <= *out_high and the three sum
+ * to n. Bit-exact with the Python three_fold_eigvec_groups band sizing.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+                                        uint32_t *out_mid, uint32_t *out_high);
 
 /* ------------------------------------------------------------------ *
  * Class L broadening — ADR-0002 Phase 2 (Task #225, srmech v0.4.1rc5).
@@ -1093,6 +1101,14 @@ srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
                                       bool           *out_found,
                                       uint32_t       *out_value_offset,
                                       uint32_t       *out_value_length);
+
+/* Harmonic-2 chiral mirror of a sorted catalog (F150): write the reversed
+ * index permutation out_order[i] = n - 1 - i. The Python wrapper applies this
+ * to the (key, value) pairs to produce a descending-key view of an ascending
+ * catalog; applying it twice is the identity (period 2). `out_order` is
+ * caller-owned with room for n uint32 entries; empty n writes nothing.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_reverse_order(uint32_t n, uint32_t *out_order);
 
 /* ------------------------------------------------------------------ *
  * Class F — substitution / templating (Task #217 Phase C1 rc5)

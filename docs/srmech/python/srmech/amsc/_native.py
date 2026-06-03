@@ -1049,6 +1049,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_byte_search_backward.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.7.0rc17: C-transpile of the last two rc12 chiral primitives
+    # (Class L three-fold band split, Class E reverse-order). NEW symbols
+    # — hasattr-guarded so a stale lib built before rc17 doesn't disable
+    # the whole native surface (same best-effort pattern as the rc16 block
+    # above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_three_fold_bands"):
+        # int srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+        #     uint32_t *out_mid, uint32_t *out_high)
+        lib.srmech_three_fold_bands.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_three_fold_bands.restype = ctypes.c_int
+    if hasattr(lib, "srmech_reverse_order"):
+        # int srmech_reverse_order(uint32_t n, uint32_t *out_order)
+        lib.srmech_reverse_order.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_reverse_order.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None

@@ -119,3 +119,19 @@ srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
     }
     return SRMECH_OK;
 }
+
+srmech_status_t srmech_reverse_order(uint32_t n, uint32_t *out_order)
+{
+    assert(n == 0 || out_order != NULL);
+    if (n > 0 && out_order == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Harmonic-2 chiral mirror of a sorted catalog (F150): the reversed index
+     * order — out_order[i] = n - 1 - i. The wrapper applies this permutation to
+     * the (key,value) pairs (a descending-key view of an ascending catalog). */
+    for (uint32_t i = 0; i < n; i++) {
+        out_order[i] = n - 1u - i;
+    }
+    assert(n == 0 || out_order[0] == n - 1u);
+    return SRMECH_OK;
+}

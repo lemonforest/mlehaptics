@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc17] - 2026-06-02
+
+**C-transpile of the last two rc12 chiral primitives (Class E + L) — closes the C/Python-parity gap so NO rc12 primitive op is Python-only (full-C-parity commitment per `[[feedback_no_binding_layer_carveout]]`). Additive C symbols → ABI stays 3; `describe()` stays 201; JPL ratchet unchanged.**
+
+rc16 transpiled the Class-I/D/G chiral ops; rc16's two "deferred" ops were a soft-MVP carve-out the project rejects — both have clean integer kernels and now have native C peers, dispatched-to when `HAS_NATIVE` (byte-exact Python fallback unchanged):
+
+- **`srmech_reverse_order`** (Class E → `srmech_catalog.c`) — the reversed index permutation `out[i] = n-1-i` (the chiral mirror of a sorted catalog; the wrapper applies the permutation to the `(key, value)` pairs); wired into `srmech.amsc.naming.reverse_order`.
+- **`srmech_three_fold_bands`** (Class L → `srmech_laplacian.c`) — the harmonic-3 three-fold band split (`low/mid/high` from `n/3` + remainder to the later bands so `|low| ≤ |mid| ≤ |high|`); wired into `srmech.amsc.laplacian.three_fold_eigvec_groups` (the band-size computation gains a C path; the eigvec solve composes the existing Class-L spectral machinery).
+
+Each is pi-free integer arithmetic, 2 asserts, ≤60 lines, no goto/malloc/recursion, warning-clean (`-Wall -Wextra -Wpedantic`). `hasattr`-guarded ctypes bindings (stale-`.dll`-safe). 4 new native-vs-Python parity tests (`test_chiral_EL_c_parity.py`) force both paths.
+
+With rc16+rc17, **every rc12 primitive op (D/E/G/I/L) now has a native C surface.** (`classify_harmonic` is a static partition-constant lookup and `classify_chirality_harmonic` is a composite spectral reading — classifiers, not bare per-class primitives — so they compose rather than each get a C symbol, consistent with the primitive-vs-composite line the architecture already draws.)
+
 ## [0.7.0rc16] - 2026-06-02
 
 **C-transpile of the rc12 chiral primitives — native C peers for the F150 Class-I/D/G chiral ops, byte-exact with their Python fallbacks. Additive C symbols → ABI stays 3; `describe()` stays 201 (no new public callable — the ops already shipped in rc12); JPL ratchet unchanged.**
