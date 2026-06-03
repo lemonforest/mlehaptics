@@ -1,13 +1,19 @@
 """srmech CLI entry point.
 
 Wires the ``srmech`` (and ``siona``) console-script entry to a single
-:func:`main` dispatch.
+:func:`main` dispatch. **Four subcommands** — ``status`` / ``bus`` /
+``dsl`` / ``mcp``:
 
 * v0.4.6rc2 shipped ``srmech status`` (out-of-band introspection of a
   running srmech sweep), backed by :mod:`srmech.cli.status`.
-* v0.5.0rc4 adds ``srmech bus`` subcommands
+* v0.5.0rc4 added the ``srmech bus`` subcommand family
   (``list / tap / pipe / send / serve``) for operating the v0.5.0
-  bus from the shell, backed by :mod:`srmech.cli.bus`.
+  cross-process bus from the shell, backed by :mod:`srmech.cli.bus`.
+* v0.5.0 added ``srmech mcp`` (emit Model Context Protocol
+  integration artifacts for Claude Desktop), backed by
+  :mod:`srmech.cli.mcp`.
+* v0.5.0rc8 added ``srmech dsl`` (compose / run cascade chains),
+  backed by :mod:`srmech.cli.dsl`.
 
 Usage::
 
@@ -19,6 +25,10 @@ Usage::
     srmech bus send NAME EVENT_JSON     # one-shot request
     srmech bus tap NAME                 # stream broadcast events
     srmech bus pipe SRC DST             # forward SRC -> DST
+
+    srmech dsl run SPEC.toml            # run a cascade chain spec
+    srmech dsl ops                      # list cascade ops
+    srmech mcp emit-mcpb                # write a Claude Desktop bundle
 
 ``python -m srmech ...`` is equivalent.
 """
