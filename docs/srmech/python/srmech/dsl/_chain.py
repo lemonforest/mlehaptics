@@ -24,6 +24,7 @@ introduced.
 
 from __future__ import annotations
 
+import functools
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from ._catalog import cascade_op_kind, lookup_cascade_op
@@ -213,6 +214,7 @@ class Chain:
 
     def parallel_sectors(
         self, body: str, *, n_sectors: int = 4, combine: Any = "bundle",
+        **body_kwargs: Any,
     ) -> "Chain":
         """Fan a unary ``body`` op across its ≤4 Klein-4 chirality sectors.
 
@@ -230,6 +232,13 @@ class Chain:
         the same as :meth:`then`. ``parallel_sector_dispatch`` itself is a
         *combinator*, not a valid ``body`` (a body must be a plain
         ``value → value`` op).
+
+        Extra ``**body_kwargs`` are bound to the body op (``functools.partial``)
+        so an op with keyword-only options can still be a ``parallel_body`` —
+        e.g. ``parallel_sectors("reorient", orientation=-1)`` or
+        ``parallel_sectors("best_rational_signed", max_denominator=100)``.
+        The bound body stays a unary ``value → value`` callable, so the
+        per-sector dispatch is unchanged (UPSTREAM_NOTES §16.1).
 
         ``combine`` (rc12 §11.3) decides the stage's output shape:
 
@@ -249,9 +258,16 @@ class Chain:
         """
         self._guard_not_terminal()
         body_fn = lookup_cascade_op(body)
+        if body_kwargs:
+            # Bind the body op's keyword-only options (e.g. reorient's
+            # orientation=-1) so a required-kwarg op can be a parallel_body:
+            # the per-sector dispatch calls body_fn(stream) with the kwargs
+            # already applied (UPSTREAM_NOTES §16.1 parallel_body= completion).
+            body_fn = functools.partial(body_fn, **body_kwargs)
+        label_kw = "".join(f", {k}={v}" for k, v in body_kwargs.items())
         stage_fn = make_parallel_stage(body_fn, n_sectors, combine)
         self._stages.append((
-            f"parallel_sectors({body}, n={n_sectors}, combine={combine})",
+            f"parallel_sectors({body}, n={n_sectors}, combine={combine}{label_kw})",
             stage_fn,
             {},
         ))
