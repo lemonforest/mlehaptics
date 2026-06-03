@@ -12,7 +12,7 @@ The reference Python impl (cascade.py) is:
     for o in orientations:
         if o == 0:
             return 0
-        net = reorient(o, net)
+        net = reorient(net, orientation=o)
     return net
 
 The native C impl (srmech_cascade_net_chirality_i8) preserves that
@@ -182,13 +182,13 @@ def test_out_of_int8_ndarray_falls_back():
 
 
 def test_out_of_int8_list_falls_back():
-    """[200]: 200 > 127 -> Python fallback. reorient(200, 1) returns 1
+    """[200]: 200 > 127 -> Python fallback. reorient(1, orientation=200) returns 1
     (orientation < 0 is False)."""
     assert cascade.net_chirality([200]) == 1
 
 
 def test_out_of_int8_negative_list_falls_back():
-    """[-200]: -200 < -128 -> Python fallback. reorient(-200, 1) returns -1
+    """[-200]: -200 < -128 -> Python fallback. reorient(1, orientation=-200) returns -1
     (orientation < 0 is True; -1 * 1 = -1)."""
     assert cascade.net_chirality([-200]) == -1
 

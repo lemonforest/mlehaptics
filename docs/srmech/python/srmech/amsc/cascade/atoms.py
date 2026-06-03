@@ -174,8 +174,20 @@ def _try_native_reorient(orientation, value):
     return None
 
 
-def reorient(orientation: int, value):
+def reorient(value, *, orientation: int):
     """Class C cascade-orientation: re-apply a captured orientation.
+
+    **Signature (v0.7.0rc22):** ``value`` is the data argument and comes
+    **first** (positional); ``orientation`` is **keyword-only**. This makes
+    ``reorient`` a data-first DSL chain stage like every other stage-op
+    (``magnitude`` / ``chiral_flip`` / ``best_rational_signed`` …): the runner
+    pipes the stream into ``value`` (arg 0) and ``orientation`` arrives as a
+    bound kwarg — ``chain.then("reorient", orientation=-1)`` in Python, or a
+    ``[[stage]] op="reorient"`` + ``orientation = -1`` in a TOML chain (the
+    same keyword-only-option pattern as ``best_rational_signed``'s
+    ``max_denominator``). The earlier ``reorient(orientation, value)`` order
+    was un-invokable as an ``op=``/``parallel_body=`` stage (UPSTREAM_NOTES
+    §16.1: the pipe filled ``orientation`` and dropped ``value``).
 
     v0.4.5rc4: dispatches through the native C variants
     ``srmech_cascade_reorient_i64`` / ``srmech_cascade_reorient_f64``
@@ -189,9 +201,11 @@ def reorient(orientation: int, value):
     op is type-preserving: int in → int out, float in → float out.
 
     Args:
+        value: The magnitude (or magnitude-derived quantity) to re-sign
+            (the data argument — typically the second element of a
+            :func:`pin_slot_at_zero` result).
         orientation: An orientation in ``{-1, 0, +1}`` (typically the first
-            element of a :func:`pin_slot_at_zero` result).
-        value: The magnitude (or magnitude-derived quantity) to re-sign.
+            element of a :func:`pin_slot_at_zero` result). Keyword-only.
 
     Returns:
         ``-value`` when ``orientation < 0``, otherwise ``value`` unchanged.
@@ -646,7 +660,7 @@ def net_chirality(orientations) -> int:
     for o in orientations:
         if o == 0:
             return 0
-        net = reorient(o, net)
+        net = reorient(net, orientation=o)
     return net
 
 

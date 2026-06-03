@@ -1621,10 +1621,12 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class C cascade-orientation: re-apply a captured "
                     "orientation {-1,0,+1} to a value (negates iff "
-                    "orientation < 0). Pairs with pin_slot_at_zero."
+                    "orientation < 0). Data-first DSL stage — value is "
+                    "positional, orientation is keyword-only (op=\"reorient\" "
+                    "+ orientation=-1). Pairs with pin_slot_at_zero."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
-                        P("value", "number", True, "magnitude to re-sign")),
+            parameters=(P("value", "number", True, "magnitude to re-sign (data arg, first)"),
+                        P("orientation", "int", True, "in {-1,0,+1}; keyword-only")),
             returns=R("number", "value, negated iff orientation < 0"),
         ),
         ToolEntry(
@@ -1803,7 +1805,7 @@ def _register_primitive_class_tools() -> None:
                     "sector-transformed input — 0 cross-thread reads (the F233 "
                     "4-way independence), so parallel == serial bit-for-bit. "
                     "T_s composes the two commuting Class-C involutions: γ₅ = "
-                    "chiral_flip (reversal), iω₇ = reorient(-1,·) (per-element "
+                    "chiral_flip (reversal), iω₇ = reorient(·, orientation=-1) (per-element "
                     "sign-flip); sector 2 (γ₅-only) == cascade.chiral_dual "
                     "bit-exact (the F232 2-rung object). Z₄ quarter-turn dispatch "
                     "slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the "

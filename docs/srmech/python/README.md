@@ -171,7 +171,7 @@ The cascades that recur across **every / most** domains, promoted so a named cas
 As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.amsc.cascade.atoms` holds the irreducible primitives and `srmech.amsc.cascade.compose` holds the composites that chain them — the same surface re-exported flat from `srmech.amsc.cascade`, so existing call sites are unchanged. The catalog grew two ops this line: `parallel_sector_dispatch` (Klein-4 four-sector orchestration) and `kuramoto_step` (the native coupled-oscillator step).
 
 - `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split). *(C peer: v0.4.5rc2)*
-- `reorient(orientation, value)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
+- `reorient(value, *, orientation)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
 - `magnitude(x)` — **Class K** magnitude-only convenience. *(C peer: v0.4.5rc3)*
 - `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator). *(C peer: v0.4.5rc7 — delegates Class N stage to `srmech_best_rational`; banker's rounding via `llrint()`)*
 - `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`). *(C peer: v0.4.5rc6 — delegates to Class I primitive `srmech_gcd`)*

@@ -18,11 +18,16 @@ sign handling per feedback_sign_handling_is_class_k_pin_slot_not_alu_abs.
 """
 
 [cascade.signature]
-input = "tuple[int8, int64|float64]"
+# v0.7.0rc22: data-first — value is positional (the DSL pipe fills it),
+# orientation is keyword-only (bound as a stage kwarg, like
+# best_rational_signed's max_denominator). Was (orientation, value);
+# reordered per UPSTREAM_NOTES §16.1 so reorient drives as an op= stage.
+input = "value: int64|float64 (positional); orientation: int8 in {-1,0,+1} (keyword-only)"
 output = "int64|float64 (same type as value)"
 operation = "value if orientation >= 0 else -value"
 type_preserving = true
 ieee754_negation_for_float = true
+dsl_stage = "data-first; op=\"reorient\" with orientation=-1 (keyword-only bound kwarg)"
 
 [cascade.native]
 c_symbol_i64 = "srmech_cascade_reorient_i64"
