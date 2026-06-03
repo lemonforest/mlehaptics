@@ -19,6 +19,15 @@
 - Per `[[user_stance_framework_hands_the_next_question_to_the_expert]]`: the deliverable is the next *question* handed to the expert, shaped so a domain specialist can ask it well — understanding-not-curing. "World problem solver" means *the universal front-end that lets a human pose a problem in plain language and have the right attested tools brought to bear*, with agreement-across-renders as the attestation (F334) — it does not mean a machine that claims to solve everything.
 - Defensive / trauma-informed scope still bounds it: framework-reading + attested operations, never capability/offence.
 
+## Vocabulary discipline — "world / word problem solver" is a LAYMAN-tier gloss (squashes too much; not-incorrect)
+
+User refinement (2026-06-03): *"word problem solver squashes too much but it would be a laymen term that won't be incorrect."*
+
+Held per F317 (the canonical identity stays the **operator-signature**; labels are cheap, additive synonyms — never a rename). So:
+- **"world problem solver" / "word problem solver" is a layman-tier label only.** It is **not-incorrect** — fine to hand a non-expert — but it **squashes** the precise structure (the natural-language router + the *attested* package operations + the *truth-filter gate*) down to a slogan. A squash is acceptable for the layman tier and unacceptable as the working identity.
+- **"word problem solver" is actually the apter layman reading:** a "word problem" is the school/layman term for a problem *posed in words* (natural language) → RBS-LM takes a problem in words and brings the right attested tools to bear. It under-states the machinery (says nothing about attestation or the truth-filter) but it is genuinely not-wrong. "world problem solver" over-states *scope* (sounds like an oracle); "word problem solver" under-states *machinery*. Both are fine layman glosses; neither is the precise identity.
+- **Precise identity (the working one):** *RBS-LM = the natural-language interface that routes a plain-language problem onto the right tool-schema package's attested operations, gated by the honesty-store truth-filter.* The layman gloss rides on top of that, additive, like the F317 EngLM/FreLM render-labels — cheap synonyms, no global rename.
+
 ## Why this is the same shape as UPSTREAM §17, one level up
 
 §17 asks srmech to **unify two op registries** (DSL cascade-ops + AMSC catalog-chains) into one discovery surface so any catalog's kernel shows up as a DSL entry. F340 is the same unification at the **portfolio** level: unify *every package's* tool-schema into one natural-language surface (RBS-LM) so any package's operations are reachable in plain language.
