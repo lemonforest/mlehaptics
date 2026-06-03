@@ -1,0 +1,145 @@
+{
+  "partition": "R-RBS-LM-R5 (#855 R5)",
+  "srmech_version": "0.7.0rc25",
+  "D": 8192,
+  "rows": [
+    {
+      "type": "transposition",
+      "correct": "the",
+      "typo": "teh",
+      "byte_bag": 1.0,
+      "byte_seq": 0.00244140625,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "transposition",
+      "correct": "form",
+      "typo": "from",
+      "byte_bag": 1.0,
+      "byte_seq": 0.01318359375,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "transposition",
+      "correct": "trial",
+      "typo": "trail",
+      "byte_bag": 1.0,
+      "byte_seq": 0.0185546875,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "transposition",
+      "correct": "angel",
+      "typo": "angle",
+      "byte_bag": 1.0,
+      "byte_seq": 0.0087890625,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "omit_insert",
+      "correct": "hello",
+      "typo": "helo",
+      "byte_bag": 0.5,
+      "byte_seq": 0.00927734375,
+      "glyph_bag": 0.501708984375
+    },
+    {
+      "type": "omit_insert",
+      "correct": "really",
+      "typo": "realy",
+      "byte_bag": 0.876708984375,
+      "byte_seq": 0.0009765625,
+      "glyph_bag": 0.8759765625
+    },
+    {
+      "type": "omit_insert",
+      "correct": "necessary",
+      "typo": "necesary",
+      "byte_bag": 0.743896484375,
+      "byte_seq": -0.006591796875,
+      "glyph_bag": 0.754150390625
+    },
+    {
+      "type": "mirror_bd_pq",
+      "correct": "bad",
+      "typo": "dad",
+      "byte_bag": 0.50341796875,
+      "byte_seq": 0.00146484375,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "mirror_bd_pq",
+      "correct": "bog",
+      "typo": "dog",
+      "byte_bag": 0.494384765625,
+      "byte_seq": 0.00146484375,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "mirror_bd_pq",
+      "correct": "bpdq",
+      "typo": "dqbp",
+      "byte_bag": 0.51025390625,
+      "byte_seq": -0.021484375,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "mirror_bd_pq",
+      "correct": "dip",
+      "typo": "diq",
+      "byte_bag": 0.50244140625,
+      "byte_seq": 0.0146484375,
+      "glyph_bag": 1.0
+    },
+    {
+      "type": "phonetic",
+      "correct": "enough",
+      "typo": "enuff",
+      "byte_bag": 0.262939453125,
+      "byte_seq": -0.003173828125,
+      "glyph_bag": 0.256591796875
+    },
+    {
+      "type": "phonetic",
+      "correct": "phone",
+      "typo": "fone",
+      "byte_bag": 0.2431640625,
+      "byte_seq": 0.01025390625,
+      "glyph_bag": 0.268798828125
+    },
+    {
+      "type": "phonetic",
+      "correct": "night",
+      "typo": "nite",
+      "byte_bag": 0.5107421875,
+      "byte_seq": 0.012939453125,
+      "glyph_bag": 0.512451171875
+    }
+  ],
+  "summary": {
+    "transposition": {
+      "byte_bag": 1.0,
+      "byte_seq": 0.0107421875,
+      "glyph_bag": 1.0
+    },
+    "omit_insert": {
+      "byte_bag": 0.7068684895833334,
+      "byte_seq": 0.001220703125,
+      "glyph_bag": 0.7106119791666666
+    },
+    "mirror_bd_pq": {
+      "byte_bag": 0.50262451171875,
+      "byte_seq": -0.0009765625,
+      "glyph_bag": 1.0
+    },
+    "phonetic": {
+      "byte_bag": 0.3389485677083333,
+      "byte_seq": 0.006673177083333333,
+      "glyph_bag": 0.345947265625
+    }
+  },
+  "bag_catches_transposition": true,
+  "sequence_graceful": false,
+  "glyph_beats_byte_on_mirror": true,
+  "phonetic_out_of_scope": true
+}
