@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc24] - 2026-06-03
+
+**Class K real-axis atoms reject complex input cleanly — `cascade.magnitude` / `cascade.pin_slot_at_zero` now raise an intentional `TypeError` instead of leaking the internal `x > 0.0` comparison (UPSTREAM_NOTES §15.1, srmech-side fix (b)). Pure-Python boundary guard; ABI stays 3; `describe()` stays 201.**
+
+`cascade.magnitude` and `cascade.pin_slot_at_zero` are **Class K pin-slot** operations — real-axis sign-splits, signature `(x: float)`. A complex argument previously fell through to `pin_slot_at_zero`'s `if x > 0.0:` and surfaced an opaque `TypeError: '>' not supported between instances of 'complex' and 'float'` — an internal comparison leaking, not a contract error.
+
+- **`_require_real(x, op)`** — shared boundary guard. Raises `TypeError("cascade.{op} is a Class K real-axis (pin-slot) operation and does not accept complex input … use e.g. math.hypot(z.real, z.imag) for the modulus.")` before any dispatch. Catches Python `complex` **and** numpy complex scalars / 0-d arrays (`dtype.kind == 'c'`). Every real numeric (`int` / `float` / `bool` / `Decimal` / `Fraction` / numpy real scalar) is ordered against `0.0` and passes through bit-identically — no behaviour change for in-contract inputs.
+- **Honest class boundary:** kept real-only (option (b), not (a)) because the complex modulus `(re**2+im**2)**0.5` is a **Euclidean-norm** op — a *different* cascade class, not a Class K pin-slot. Conflating it would muddy the cascade-class accounting.
+- **No C change / no ABI bump:** the native `srmech_cascade_magnitude_f64` / `…_pin_slot_at_zero_f64` symbols take `c_double` — the C ABI has no complex entry point by design, so this is purely a Python-boundary input-validation guard, not a new operation. The Rosetta "C = transpiled Python" discipline is not engaged (there is no Python *operation* here lacking a C peer; rejecting out-of-contract input is a language-level concern).
+- **`tests/test_cascade_magnitude_complex_reject.py`** (new) — both atoms raise a clean `TypeError` (with the actionable message) on Python complex and numpy complex128 / complex64; real inputs (float / int / negative / zero / NaN / ±inf) are unaffected.
+
+With rc24 the §15.1 srmech-side gate (tracked in #855) is closed; the paired `CLAUDE.md` STOP-list doc correction lives on the parallel-session research branch (maintainer's to apply, per the upstream-as-research-notes discipline).
+
 ## [0.7.0rc23] - 2026-06-03
 
 **`parallel_sectors` gains a body-kwarg channel — completes the §16.1 `parallel_body=` half so a kwarg-taking op can be a parallel body, symmetric with `op=`/`.then`. Pure-Python DSL; ABI stays 3; `describe()` stays 201.**
