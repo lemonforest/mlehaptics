@@ -50,6 +50,41 @@ from srmech.introspect._event import describe_shape as _shape
 _ZERO_BAND = 1e-12
 
 
+def _require_real(x, op: str) -> None:
+    """Reject complex input to a Class K real-axis (pin-slot) atom.
+
+    :func:`pin_slot_at_zero` and :func:`magnitude` are **Class K pin-slot**
+    operations — real-axis sign-splits. A complex argument would otherwise
+    leak the internal ``x > 0.0`` comparison as an opaque
+    ``TypeError: '>' not supported between instances of 'complex' and
+    'float'`` (UPSTREAM_NOTES §15.1). This raises an intentional, actionable
+    contract error at the boundary instead — the srmech-side fix (b): keep
+    the op real-only, but fail cleanly rather than leaking the comparison.
+
+    The complex modulus ``(re**2 + im**2) ** 0.5`` is a **Euclidean-norm**
+    operation — a *different* cascade class, not a Class K pin-slot — so it
+    is deliberately out of scope for these atoms.
+
+    Catches both Python ``complex`` and numpy complex scalars / 0-d arrays
+    (``dtype.kind == 'c'``). Every real numeric (``int`` / ``float`` /
+    ``bool`` / ``Decimal`` / ``Fraction`` / numpy real scalar) is ordered
+    against ``0.0`` and passes through untouched.
+    """
+    is_complex = isinstance(x, complex)
+    if not is_complex:
+        # numpy complex scalars: complex64 is NOT a Python-complex subclass,
+        # so the isinstance check above misses it — check the dtype kind.
+        is_complex = getattr(getattr(x, "dtype", None), "kind", None) == "c"
+    if is_complex:
+        raise TypeError(
+            f"cascade.{op} is a Class K real-axis (pin-slot) operation and "
+            f"does not accept complex input ({x!r}); the complex modulus "
+            f"(re**2+im**2)**0.5 is a Euclidean-norm op — a different cascade "
+            f"class, not a Class K pin-slot. Use e.g. "
+            f"math.hypot(z.real, z.imag) for the modulus."
+        )
+
+
 def _try_native_pin_slot_at_zero(x):
     """Native dispatch for float ``pin_slot_at_zero``.
 
@@ -104,7 +139,13 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
         ``(orientation, magnitude)`` where ``orientation ∈ {-1, 0, +1}`` and
         ``magnitude >= 0``. The origin and NaN both map to ``(0, 0.0)``;
         ``+inf`` / ``-inf`` map to ``(+/-1, +inf)``.
+
+    Raises:
+        TypeError: If ``x`` is complex — Class K pin-slot is a real-axis
+            sign-split; the complex modulus is a different cascade class
+            (UPSTREAM_NOTES §15.1). See :func:`_require_real`.
     """
+    _require_real(x, "pin_slot_at_zero")
     if _is_pub(): _emit("cascade.pin_slot_at_zero", class_="K", input_shape=_shape(x))
     native = _try_native_pin_slot_at_zero(x)
     if native is not None:
@@ -268,7 +309,14 @@ def magnitude(x: float) -> float:
 
     Returns:
         ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``).
+
+    Raises:
+        TypeError: If ``x`` is complex — :func:`magnitude` is the real
+            ``|x|`` (Class K). The complex modulus ``(re**2+im**2)**0.5`` is a
+            Euclidean-norm op, a *different* cascade class (UPSTREAM_NOTES
+            §15.1). See :func:`_require_real`.
     """
+    _require_real(x, "magnitude")
     if _is_pub(): _emit("cascade.magnitude", class_="K", input_shape=_shape(x))
     native = _try_native_magnitude(x)
     if native is not None:
