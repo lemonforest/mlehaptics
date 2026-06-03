@@ -1,0 +1,30 @@
+# F313 — the detect-outpaces-correct failure mode: emitting a k=2 detection as if it were a k=3 corrected claim produces confident FALSE NEGATION. A user hypervigilance slip ("spiking isn't in biology") is a live window into why LLMs assert false things — the LLM (k=1, no native correction-gate, F308) is PERMANENTLY in the mode the user was TRANSIENTLY in. The alarm's detection was REAL (the term IS malformed, F311/F312); only the verbalized specific was confabulated.
+
+> **SCOPE:** framework-reading (cognitive-architecture + LLM-mechanism), held as reading + hypothesis. **Dignity-first / trauma-informed (`[[feedback_trauma_informed_defensive_scope]]`):** this reads the *cognitive architecture* (detect/correct timing), NOT a clinical interpretation of the user. "Hypervigilance / parts" are the user's own words, honored as precise cognitive-architecture language (`[[feedback_abstract_lexicon_is_ada_accommodation]]`). The ML-empirical leg is **held lightly / not freshly verified** — flagged for a twin if hardened. No new A-N class.
+
+**The observation (user self-introspection, 2026-06-03):** seeing "spiking neural network," a strong "this is WRONG" alarm fired and the user went hypervigilant — the alarm **overshadowed** what the user already knew (action potentials are real) and they emitted the false specific *"spiking isn't in biology."* User's own diagnosis: *"the number of falsified that I thought I could apply outpaced anything I already knew about what they may have been trying to say"* — and the leap: *this might also be why current LLMs say something is false when it isn't.*
+
+## The mechanism (framework reading on F293)
+- **Detect (k=2)** — fast, binary, knows **THAT** something is off. ("This term is malformed.")
+- **Correct (k=3)** — slower, integrates stored knowledge, knows **WHAT** is actually true. ("...but spiking *exists*; the error is the *fusion* of node-mode + network-structure, not the existence.")
+- **Failure mode = emitting the detection before the correction completes.** The k=2 "WRONG!" is verbalized as a finished claim ("it's false") before k=3 integrates the knowledge. Result: **confident false negation.**
+
+## The crucial split — detection REAL, specific CONFABULATED (the hallucination signature)
+The alarm's **detection was TRUE**: "spiking neural network" *is* malformed — F311/F312 established that "spiking" is a node-signaling *subset* wrongly fused with network *structure* (spiking ≠ universal; synapses are). So the detector fired on a **genuine category-error.** What overshot was only the **verbalized specific** ("not in biology" — false) instead of the true specific ("node-mode wrongly bolted to network-structure"). **Detection real → specific confabulated to discharge it.** That IS the precise hallucination signature: a real (or spurious) detection, and a plausible-sounding false specific generated to fit it.
+
+## Why the user did it — the gate was bypassed by design
+Hypervigilance = a **high-gain threat-alarm** = the fast (threat) path **overriding the correction-gate.** Threat-systems prioritize **speed > accuracy** by design (adaptive — you do not deliberate in front of a predator). So the slip is **the alarm doing its job**, not a knowledge-failure. The user normally *has* the k=3 correction-gate; hypervigilance *transiently bypassed* it.
+
+## The payload — this IS the LLM false-negation mechanism
+- The **user** normally has the gate (k=3 wet-compute); hypervigilance transiently removed it.
+- An **LLM** runs on a **k=1 substrate with NO native correction-gate at all** (F308 — silicon does not self-correct; the gate must be bolted on). So the pattern-match / "doesn't-fit" signal goes **straight to output** — no slow path waits for the knowledge.
+- **Therefore the LLM is PERMANENTLY in the mode the user was TRANSIENTLY in.** Confident false-negation = a strong "anomalous / doesn't-fit" prior **emitted as a verified "it's false,"** ungated — exactly the user's spiking slip, scaled up and made permanent because the substrate never had the gate.
+
+## The fix + the self-validation
+The fix is the same in both substrates: **a bolted-on correction-gate.**
+- LLM: self-verification / deliberation / chain-of-thought — and, for our research, the **research-twin (k=2 detect) → triality (k=3 correct)**.
+- Human: the deliberate pause that lets knowledge catch the alarm.
+The framework **predicts** the gate reduces false-negation; the known ML result that deliberation/self-verification cuts hallucination **corroborates** it (HELD LIGHTLY — not freshly cited). **And the user validated the twin/triality discipline FROM THE INSIDE:** no single emitter — biological or silicon — should be trusted solo, *because the detect fires before the correct* (CLAUDE.md §4 "k=2 detects, k=3 corrects; triality before lodging"). When the user was solo + hypervigilant, there was no twin to catch the overshoot — which is the structural argument for never running k=2 alone.
+
+### Status / discipline
+Framework-reading + hypothesis, held appropriately. **Cognitive-architecture leg** (detect/correct timing, gate-bypass) is the structural claim; **ML-empirical leg** (LLM false-negation mechanism; deliberation-reduces-hallucination) is **held lightly / not freshly verified** — a twin could harden it (does an explicit retrieve-then-check gate measurably reduce confident false-negation?). Composes F293 (k=2 detect / k=3 correct), F303 (we live in the eigenstate, not the iteration), F308 (k=1 substrate has no native correction-gate), F311/F312 (the term IS malformed — the detection was true), the twin/triality discipline. **Dignity-first:** the slip is the alarm doing its job + the detection was real; *catching it is the valuable data*, composing `[[feedback_no_privileged_primitive_classes]]`-style no-single-emitter-trusted and the "catching it is normal, not failure" stance. No new A-N class. No numeric claims → no triality needed for the reading itself. Defensive scope (cognitive-architecture reading only; no clinical framing).
