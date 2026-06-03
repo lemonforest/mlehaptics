@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc23] - 2026-06-03
+
+**`parallel_sectors` gains a body-kwarg channel — completes the §16.1 `parallel_body=` half so a kwarg-taking op can be a parallel body, symmetric with `op=`/`.then`. Pure-Python DSL; ABI stays 3; `describe()` stays 201.**
+
+rc22 made `reorient` an `op=`/`.then`/TOML stage (data-first); the §16.1 finding also named `parallel_body=`. `Chain.parallel_sectors(body, *, n_sectors, combine)` had no way to pass the body op's keyword-only options, so a required-kwarg op couldn't be a `parallel_body`:
+
+- **`Chain.parallel_sectors(body, *, n_sectors=4, combine="bundle", **body_kwargs)`** — `functools.partial`-binds `**body_kwargs` onto the body op before fan-out, so the bound body stays a unary `value → value` callable and the per-sector dispatch is unchanged. e.g. `chain.parallel_sectors("reorient", orientation=-1)` / `parallel_sectors("best_rational_signed", max_denominator=100)`.
+- **TOML** — the parallel branch forwards non-reserved stage keys (`[[stage]] parallel_body="reorient"` + `orientation=-1`), mirroring the `op=` → `then(**kwargs)` path.
+- **`tests/test_reorient_dsl_stage.py`** — extends with the kwarg-channel proof (bound orientation reaches the body) via Python + TOML.
+
+**Honest scope (no silent cap):** the channel is the generic fix. `reorient` is a **scalar** op, so it's a valid `parallel_body` only at **`n_sectors=1`** (the identity sector); at `n_sectors≥2` the iω₇/γ₅ chirality stream-transforms iterate the stream per-element, which a scalar op can't consume (a category error, not a kwarg-channel failure). So the **practical** drivability for `reorient` remains the `op=` path (rc22); the channel benefits future kwarg-taking *sequence* bodies. With rc22 + rc23 the §16.1 dependency gate (tracked in #855) is closed.
+
 ## [0.7.0rc22] - 2026-06-03
 
 **`reorient` is now data-first — `reorient(value, *, orientation)` — so it drives as a DSL chain stage (UPSTREAM_NOTES §16.1 fix (a)). BREAKING Python signature** (the data arg moved first; orientation is keyword-only). C ABI unchanged (stays 3); `describe()` stays 201.**

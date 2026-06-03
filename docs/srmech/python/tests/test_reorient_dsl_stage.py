@@ -63,10 +63,42 @@ def test_omega7_axis_still_negates_per_element():
     assert list(_transform_omega7([1, -2, 3])) == [-1, 2, -3]
 
 
-# NOTE (rc22 scope): ``parallel_body="reorient"`` with a bound orientation is
-# NOT yet supported — Chain.parallel_sectors(body, *, n_sectors, combine) has
-# no body-kwarg channel, so a required-kwarg op (reorient's orientation) can't
-# be a parallel_body. That is a separate parallel_sectors feature (forward
-# **body_kwargs), tracked as the follow-up; this rc fixes the op=/.then/TOML
-# drivability (the primary §16.1 finding). ``parallel_body`` ops with all-
-# defaulted kwargs (e.g. best_rational_signed) already work.
+# ── rc23: parallel_sectors body-kwarg channel (the §16.1 parallel_body= half).
+#    parallel_sectors now forwards **body_kwargs (functools.partial), so an op
+#    with bound kwargs reaches the body. NOTE: reorient is a SCALAR op, so it
+#    is a valid parallel_body only at n_sectors=1 (the identity sector); at
+#    n_sectors≥2 the chirality stream-transforms iterate the stream per-element,
+#    which a scalar op can't consume. The kwarg channel is the generic fix; the
+#    n_sectors=1 case proves the bound orientation reaches the body. ──
+
+
+def test_reorient_parallel_body_kwarg_channel_binds_orientation():
+    # The bound orientation reaches the body via functools.partial. Sector 0 is
+    # the identity transform, so its dual is body(v) = reorient(v, orientation).
+    neg = Chain("pneg").parallel_sectors(
+        "reorient", n_sectors=1, combine="sector0", orientation=-1)
+    assert neg.run(4) == -4
+    idy = Chain("pidy").parallel_sectors(
+        "reorient", n_sectors=1, combine="sector0", orientation=1)
+    assert idy.run(4) == 4
+
+
+def test_reorient_parallel_body_kwarg_from_toml():
+    spec = """
+name = "toml-pneg"
+[[stage]]
+parallel_body = "reorient"
+n_sectors = 1
+combine = "sector0"
+orientation = -1
+"""
+    assert run_toml_chain(spec, 6) == -6
+
+
+def test_reorient_scalar_not_a_multisector_parallel_body():
+    # Honest limitation: reorient is scalar, so n_sectors≥2 (where the iω₇/γ₅
+    # transforms iterate the stream) is a category error — not a kwarg-channel
+    # failure. Documents why reorient's practical drivability is the op= path.
+    with pytest.raises(TypeError):
+        Chain("p2").parallel_sectors(
+            "reorient", n_sectors=2, combine="sector0", orientation=-1).run(4)

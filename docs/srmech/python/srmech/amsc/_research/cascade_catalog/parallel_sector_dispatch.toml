@@ -25,7 +25,7 @@ its Klein-4 stream-transform T_s — the sector dual:
     sector_dual(body, s, x) = inv_T_s( body( T_s(x) ) )
 
 The two commuting involution axes are γ₅ (orientation reversal = Class-C
-chiral_flip) and iω₇ (a per-element Class-C sign-flip = reorient(-1,·)).
+chiral_flip) and iω₇ (a per-element Class-C sign-flip = reorient(·, orientation=-1)).
 Together they generate Z₂ × Z₂, so every T_s is its OWN inverse.
 
 HIGHER-ORDER / NOT A PLAIN OP: this op takes a body CALLBACK (not the
@@ -72,7 +72,7 @@ abi_version = 3
 
 [cascade.composes]
 gamma5_axis = "chiral_flip (Class C orientation reversal — the γ₅ involution)"
-omega7_axis = "reorient(-1, ·) per element (Class C per-element sign-flip — the iω₇ involution)"
+omega7_axis = "reorient(·, orientation=-1) per element (Class C per-element sign-flip — the iω₇ involution)"
 sector_dual = "inv_T_s(body(T_s(x))); T_s composes the two commuting Class-C involutions"
 sector2_is_chiral_dual = "sector 2 (γ₅-only) == cascade.chiral_dual bit-exact (the F232 2-rung object inside the F233 4-rung)"
 independence = "each sector reads ONLY its own T_s(x) (0 cross-thread reads) => parallel == serial bit-for-bit (order-free)"
