@@ -178,7 +178,7 @@ def best_rational_signed(
     # Class N — best-rational anchor of the non-negative magnitude.
     nf, df = _best_rational(num_pos, fine_scale, max_denominator)
     # Class C — re-apply the captured orientation.
-    return reorient(orientation, int(nf)), int(df)
+    return reorient(int(nf), orientation=orientation), int(df)
 
 
 def _try_native_cyclic_gcd(a, b):

@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc22] - 2026-06-03
+
+**`reorient` is now data-first — `reorient(value, *, orientation)` — so it drives as a DSL chain stage (UPSTREAM_NOTES §16.1 fix (a)). BREAKING Python signature** (the data arg moved first; orientation is keyword-only). C ABI unchanged (stays 3); `describe()` stays 201.**
+
+`reorient(orientation, value)` was the one cascade-op whose data argument was **second** — every other stage-op is data-first. The DSL chain runner pipes the stream into arg 0, so `op="reorient"` bound the stream to `orientation` and dropped `value` (`TypeError`), and a stage `orientation=` kwarg collided on position 0. It was therefore **un-invokable as an `op=` / `.then()` / TOML stage**, though the catalog listed it `kind="stage"`. Per the §16.1 "cleanest" resolution:
+
+- **`srmech.amsc.cascade.atoms.reorient(value, *, orientation)`** — `value` positional (the piped data), `orientation` keyword-only. Now drives exactly like `best_rational_signed(x, *, max_denominator=…)`: `chain.then("reorient", orientation=-1)` in Python, or a TOML `[[stage]] op="reorient"` + `orientation = -1` (the non-reserved key is forwarded as the bound kwarg). C dispatch + Python fallback unchanged internally; the C ABI (`srmech_cascade_reorient_{i64,f64}`) is untouched.
+- **Call sites updated** (the order flip is breaking): `cascade.atoms` (`net_chirality`), `cascade.compose` (`best_rational_signed`), `cascade.parallel` (`_reorient_each` / iω₇ axis), the `reorient` `tool_schema` ToolEntry (params reordered), `reorient.toml` signature, and the cascade test suite.
+- **`tests/test_reorient_dsl_stage.py`** (new) — pins the fix: reorient drives via `.then("reorient", orientation=-1)`, composes after `magnitude`, and runs from a TOML chain; the old positional second-arg now raises (keyword-only).
+
+**Migration:** `reorient(o, v)` → `reorient(v, orientation=o)`.
+
+**Scope note (no silent cap):** this fixes the `op=` / `.then` / TOML drivability (the primary finding). `parallel_body="reorient"` with a bound orientation is **not** yet supported — `Chain.parallel_sectors(body, *, n_sectors, combine)` has no body-kwarg channel, so any required-kwarg op (reorient's `orientation`) can't be a `parallel_body`; that body-kwarg forward is a separate follow-up. `parallel_body` ops whose kwargs all default (e.g. `best_rational_signed`) already work.
+
 ## [0.7.0rc21] - 2026-06-03
 
 **Native C peers for the last three loop-bind ops computing via pure-Python — `loop_associator` / `loop_left_op` / `loop_right_op`. Closes a parity gap the rc20 #814 close glossed: those three (all named in #814's op spec) still ran the pure-Python Cayley-Dickson recursion (`_loop_bind_raw`) while `cross7`/`g2_three_form` already had dedicated C symbols. Now every op in the loop-bind spec is at native C/Python parity. Additive C symbols → ABI stays 3; `describe()` stays 201; every dispatch arm bit-exact with its Python fallback.**

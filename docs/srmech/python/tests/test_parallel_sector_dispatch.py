@@ -123,7 +123,7 @@ def test_parallel_equals_serial_bit_exact():
             gamma5, omega7 = cascade.parallel.SECTOR_LABELS[s]
             t = list(_X)
             if omega7 < 0:
-                t = [cascade.reorient(-1, v) for v in t]
+                t = [cascade.reorient(v, orientation=-1) for v in t]
             if gamma5 < 0:
                 t = cascade.chiral_flip(t)
             inner = body(t)
@@ -131,7 +131,7 @@ def test_parallel_equals_serial_bit_exact():
             if gamma5 < 0:
                 inner = cascade.chiral_flip(inner)
             if omega7 < 0:
-                inner = [cascade.reorient(-1, v) for v in inner]
+                inner = [cascade.reorient(v, orientation=-1) for v in inner]
             serial.append(list(inner))
         for p, q in zip(parallel, serial):
             assert list(p) == list(q)

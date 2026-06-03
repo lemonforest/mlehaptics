@@ -140,7 +140,7 @@ def test_flat_surface_still_callable():
     # Class K magnitude (no abs()).
     assert cascade.magnitude(-5.0) == 5.0
     # Class C reorient.
-    assert cascade.reorient(-1, 7) == -7
+    assert cascade.reorient(7, orientation=-1) == -7
     # Class I cyclic gcd (Euclid).
     assert cascade.cyclic_gcd(12, 8) == 4
     # Class K ∘ N ∘ C best-rational-signed.

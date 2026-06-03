@@ -71,7 +71,7 @@ def test_python_path_numpy_ndarray():
     """numpy ndarray stays on Python; numpy negation applies."""
     np = pytest.importorskip("numpy")
     arr = np.array([1.0, 2.0, 3.0])
-    result = cascade.reorient(-1, arr)
+    result = cascade.reorient(arr, orientation=-1)
     assert isinstance(result, np.ndarray)
     assert np.array_equal(result, np.array([-1.0, -2.0, -3.0]))
 
@@ -80,25 +80,25 @@ def test_python_path_list_raises():
     """list value stays on Python; Python `-[1,2,3]` is TypeError —
     preserve that bubbling rather than masking it via native."""
     with pytest.raises(TypeError):
-        cascade.reorient(-1, [1, 2, 3])
+        cascade.reorient([1, 2, 3], orientation=-1)
     # orientation == 0 / positive should NOT negate so list passes through
     # unchanged (the `value` branch returns value).
-    result = cascade.reorient(0, [1, 2, 3])
+    result = cascade.reorient([1, 2, 3], orientation=0)
     assert result == [1, 2, 3]
 
 
 def test_python_path_orientation_zero_passes_through():
     """orientation == 0 returns value unchanged across every type."""
-    assert cascade.reorient(0, 5) == 5
-    assert cascade.reorient(0, 3.14) == 3.14
-    assert cascade.reorient(0, -7) == -7
+    assert cascade.reorient(5, orientation=0) == 5
+    assert cascade.reorient(3.14, orientation=0) == 3.14
+    assert cascade.reorient(-7, orientation=0) == -7
 
 
 def test_python_path_orientation_positive_passes_through():
     """orientation > 0 returns value unchanged."""
-    assert cascade.reorient(1, 5) == 5
-    assert cascade.reorient(1, 3.14) == 3.14
-    assert cascade.reorient(1, -7) == -7
+    assert cascade.reorient(5, orientation=1) == 5
+    assert cascade.reorient(3.14, orientation=1) == 3.14
+    assert cascade.reorient(-7, orientation=1) == -7
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ def test_python_path_orientation_positive_passes_through():
 def test_parity_int_negative_orientation():
     """orientation = -1, int values — negate; type-preserving (int out)."""
     for v in [5, -3, 0, 1, 100, -100]:
-        native = cascade.reorient(-1, v)
+        native = cascade.reorient(v, orientation=-1)
         ref = _py_ref(-1, v)
         assert native == ref, f"v={v}: native={native}, ref={ref}"
         assert isinstance(native, int)
@@ -121,7 +121,7 @@ def test_parity_int_negative_orientation():
 def test_parity_int_zero_orientation():
     """orientation = 0, int values — pass through; type-preserving."""
     for v in [5, -3, 0, 1, 100, -100]:
-        native = cascade.reorient(0, v)
+        native = cascade.reorient(v, orientation=0)
         ref = _py_ref(0, v)
         assert native == ref
         assert isinstance(native, int)
@@ -131,7 +131,7 @@ def test_parity_int_zero_orientation():
 def test_parity_int_positive_orientation():
     """orientation = +1, int values — pass through; type-preserving."""
     for v in [5, -3, 0, 1, 100, -100]:
-        native = cascade.reorient(1, v)
+        native = cascade.reorient(v, orientation=1)
         ref = _py_ref(1, v)
         assert native == ref
         assert isinstance(native, int)
@@ -146,7 +146,7 @@ def test_parity_int_positive_orientation():
 def test_parity_float_negative_orientation():
     """orientation = -1, float values — IEEE-754 negation; float out."""
     for v in [3.14, -3.14, 0.5, -0.5, 1e10, -1e-10]:
-        native = cascade.reorient(-1, v)
+        native = cascade.reorient(v, orientation=-1)
         ref = _py_ref(-1, v)
         assert native == ref, f"v={v}: native={native}, ref={ref}"
         assert isinstance(native, float)
@@ -156,7 +156,7 @@ def test_parity_float_negative_orientation():
 def test_parity_float_zero_orientation_passes_through():
     """orientation = 0, float values — pass through; type-preserving."""
     for v in [3.14, -3.14, 0.0, -0.0, 1e10]:
-        native = cascade.reorient(0, v)
+        native = cascade.reorient(v, orientation=0)
         ref = _py_ref(0, v)
         assert native == ref
         assert isinstance(native, float)
@@ -173,7 +173,7 @@ def test_int64_min_falls_back_to_python():
     Python's arbitrary-precision int returns 2**63 (which is OUT of
     int64 range) — confirming the fallback ran (no overflow / clobber)."""
     INT64_MIN = -(2 ** 63)
-    native = cascade.reorient(-1, INT64_MIN)
+    native = cascade.reorient(INT64_MIN, orientation=-1)
     ref = _py_ref(-1, INT64_MIN)
     assert native == ref
     assert native == 2 ** 63  # arbitrary-precision result
@@ -185,7 +185,7 @@ def test_int64_min_plus_one_does_dispatch_native():
     """INT64_MIN + 1 = -(2**63) + 1 = -9223372036854775807 — IS within
     safe-negation range; dispatches to native; correct result."""
     v = -(2 ** 63) + 1
-    native = cascade.reorient(-1, v)
+    native = cascade.reorient(v, orientation=-1)
     ref = _py_ref(-1, v)
     assert native == ref
     assert native == (2 ** 63) - 1
@@ -196,7 +196,7 @@ def test_int64_min_plus_one_does_dispatch_native():
 def test_int64_max_dispatches_native():
     """INT64_MAX = 2**63 - 1 — dispatches; negation is safe."""
     v = (2 ** 63) - 1
-    native = cascade.reorient(-1, v)
+    native = cascade.reorient(v, orientation=-1)
     ref = _py_ref(-1, v)
     assert native == ref
     assert native == -((2 ** 63) - 1)
@@ -208,7 +208,7 @@ def test_bigint_falls_back_to_python():
     """Values beyond int64 range must NOT dispatch to native; Python
     arbitrary-precision handles them."""
     v = 2 ** 100
-    native = cascade.reorient(-1, v)
+    native = cascade.reorient(v, orientation=-1)
     ref = _py_ref(-1, v)
     assert native == ref
     assert native == -(2 ** 100)
@@ -224,17 +224,17 @@ def test_bigint_falls_back_to_python():
 def test_nan_stays_nan_under_negation():
     """orientation < 0 with NaN value: result is still NaN (IEEE-754
     negation flips the sign bit; NaN-ness is preserved)."""
-    native = cascade.reorient(-1, float("nan"))
+    native = cascade.reorient(float("nan"), orientation=-1)
     assert math.isnan(native)
     # And orientation = 0 also keeps NaN.
-    native0 = cascade.reorient(0, float("nan"))
+    native0 = cascade.reorient(float("nan"), orientation=0)
     assert math.isnan(native0)
 
 
 @SKIP_IF_NO_NATIVE
 def test_positive_inf_swaps_to_negative_inf():
     """orientation = -1 with +inf: result is -inf."""
-    native = cascade.reorient(-1, float("inf"))
+    native = cascade.reorient(float("inf"), orientation=-1)
     ref = _py_ref(-1, float("inf"))
     assert native == ref
     assert math.isinf(native)
@@ -244,7 +244,7 @@ def test_positive_inf_swaps_to_negative_inf():
 @SKIP_IF_NO_NATIVE
 def test_negative_inf_swaps_to_positive_inf():
     """orientation = -1 with -inf: result is +inf."""
-    native = cascade.reorient(-1, float("-inf"))
+    native = cascade.reorient(float("-inf"), orientation=-1)
     ref = _py_ref(-1, float("-inf"))
     assert native == ref
     assert math.isinf(native)
@@ -262,20 +262,20 @@ def test_bool_orientation_stays_python():
     < 0`` also False → returns value. Verify result is correct AND
     Python-pathed (bool orientation never reaches the native call)."""
     # True < 0 is False, so the value is returned unchanged.
-    assert cascade.reorient(True, 5) == 5
-    assert cascade.reorient(False, 5) == 5
+    assert cascade.reorient(5, orientation=True) == 5
+    assert cascade.reorient(5, orientation=False) == 5
     # And for floats.
-    assert cascade.reorient(True, 3.14) == 3.14
-    assert cascade.reorient(False, 3.14) == 3.14
+    assert cascade.reorient(3.14, orientation=True) == 3.14
+    assert cascade.reorient(3.14, orientation=False) == 3.14
 
 
 def test_orientation_out_of_int8_range_stays_python():
     """orientation outside int8 range [-128, 127] skips native; Python
     fallback handles it. 128 >= 0 → returns value; -129 < 0 → negates."""
-    assert cascade.reorient(128, 5) == 5
-    assert cascade.reorient(-129, 5) == -5
-    assert cascade.reorient(128, 3.14) == 3.14
-    assert cascade.reorient(-129, 3.14) == -3.14
+    assert cascade.reorient(5, orientation=128) == 5
+    assert cascade.reorient(5, orientation=-129) == -5
+    assert cascade.reorient(3.14, orientation=128) == 3.14
+    assert cascade.reorient(3.14, orientation=-129) == -3.14
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ def test_parity_random_int_sweep():
     for _ in range(50):
         o = rng.choice([-1, 0, 1])
         v = rng.randint(-(2 ** 60), 2 ** 60)
-        native = cascade.reorient(o, v)
+        native = cascade.reorient(v, orientation=o)
         ref = _py_ref(o, v)
         assert native == ref, f"o={o}, v={v}: native={native}, ref={ref}"
         assert isinstance(native, int)
@@ -304,7 +304,7 @@ def test_parity_random_float_sweep():
     for _ in range(50):
         o = rng.choice([-1, 0, 1])
         v = rng.uniform(-1e6, 1e6)
-        native = cascade.reorient(o, v)
+        native = cascade.reorient(v, orientation=o)
         ref = _py_ref(o, v)
         assert native == ref, f"o={o}, v={v}: native={native}, ref={ref}"
         assert isinstance(native, float)
