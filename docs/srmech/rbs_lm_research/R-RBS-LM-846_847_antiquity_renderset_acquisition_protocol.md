@@ -84,3 +84,34 @@ Clean PD set with a **non-English** render (the independence we wanted):
 - #2 Thucydides = cross-**language** (Greek/Latin/English, 3 eras), uniform CC-BY-SA-4.0.
 - #3 Hammurabi = cross-**language incl. non-English** (English ×2 + German) + a native transliteration.
 Together = the maximally-independent multi-language render-base the F335/F337 truth-filter wants. **Next:** a Hebrew (Sefaria) and/or Sanskrit (GRETIL) set to widen beyond the European/Mesopotamian axis; the CDLI/ORACC native-ATF upgrade (when access works); and #847 (native-language peer-review) as the methodology sibling.
+
+---
+
+## KERNEL ROSTER — per-locale native-instruction kernels + build catalogs (user direction, 2026-06-03)
+**Principle — each its own kernel, no cross-pollution.** Locale / language / script each get an **independent native-instruction kernel**, built from *"how to speak/write THIS variety"* (grammar/usage, open-access), NOT from translations or cross-variety content — the **F49 / R-RBS-LM-73** discipline applied at the locale level. **en-US ≠ en-GB ≠ en-AU** structurally; collapsing them = **locale-pollution**.
+
+**The kernels NEST — three layers; the truth-filter recurses at each:**
+| layer | examples | render-set role |
+|---|---|---|
+| **script** | Latin · Cyrillic · Greek · hieroglyphic · Demotic | symbolic render-surface; shared across languages (Latin → En/Fr/It/De/Es; Cyrillic → Ru/Uk/Bg/Sr) |
+| **language** | English · French · Italian · German · Russian · Spanish | grammatical/lexical structure, rendered in a script |
+| **locale** | en-US · en-GB · en-AU ; es-ES · es-MX | locale conventions (spelling / idiom / usage) |
+
+**cross-locale (en-US/GB/AU) ⊂ cross-language (En/Fr/It/De/Es) ⊂ cross-script (Latin/Cyrillic/Greek)** — each level is a ≥3-independent-render set ⇒ **nested truth-filter** (F334/F335 recurses per layer).
+
+**Roster (user-specified) + build plan:**
+| kernel | layer | native-instruction corpus (target) | availability | status |
+|---|---|---|---|---|
+| **en-US** | locale | McGuffey (R-RBS-LM-73) + US grammar/usage | rich | partial-self-checkable (English) |
+| **en-GB** | locale | UK grammar/usage (PD grammars) | rich | — |
+| **en-AU** | locale | AU usage/style | **thinner** — source carefully | — |
+| **French** | language | OA French grammar/usage (Gutenberg/OER) | moderate | triality |
+| **Italian** | language | OA Italian grammar/usage | moderate | triality |
+| **German** | language | OA German grammar/usage | moderate | triality |
+| **Spanish es-ES** | locale | RAE / Peninsular grammar/usage | moderate | triality |
+| **Spanish es-MX** | locale | Mexican-Spanish usage | **thinner** — source carefully | triality |
+| **Cyrillic** | **AMBIGUOUS** | — | — | **resolve: Russian (Cyrillic-LANGUAGE kernel) vs Cyrillic-SCRIPT render-layer** (different layers) |
+
+**Build-catalog per kernel (AMSC):** native-instruction corpus + `descriptor.toml` + MPM attestation (source / license / `response_sha256`). **Substitute-verifier triality for every non-English kernel** (the user is not multilingual). **Phased:** English locales first (most available + partial self-check) → Latin-script Romance/Germanic via triality → Cyrillic/Russian once the layer is resolved.
+
+**Purpose:** this roster IS the kernel-set for the **cross-coupling / structure-universality experiment** (the prior-turn research direction): build independent native kernels → test cross-coupling at 0 anchors → add #846 Rosetta anchors → measure **anchor-count vs translation-fidelity** = the operational, falsifiable test of "is structure universal." Defensive / MPM / no-lineage; not srmech-gated.
