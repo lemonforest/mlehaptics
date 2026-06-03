@@ -1,0 +1,118 @@
+{
+  "partition": "R-RBS-LM-R1 (#855 R1 / #812)",
+  "srmech_version": "0.7.0rc25",
+  "D": 8192,
+  "trials": 5,
+  "threshold": 0.9,
+  "klein4": {
+    "rows": [
+      {
+        "K": 2,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.561279296875
+      },
+      {
+        "K": 4,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.471923828125
+      },
+      {
+        "K": 8,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.40555419921875
+      },
+      {
+        "K": 16,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.35848236083984375
+      },
+      {
+        "K": 32,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.3247100830078125
+      },
+      {
+        "K": 64,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.3020496368408203
+      },
+      {
+        "K": 128,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.28666019439697266
+      },
+      {
+        "K": 192,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.2796983083089193
+      }
+    ],
+    "capacity_cleanup": 192,
+    "raw_floor_K": 192
+  },
+  "loop": {
+    "rows": [
+      {
+        "K": 2,
+        "cleanup_acc": 1.0,
+        "cleanup_std": 0.0,
+        "raw_sim": 0.1381744384765625
+      },
+      {
+        "K": 4,
+        "cleanup_acc": 0.6,
+        "cleanup_std": 0.1224744871391589,
+        "raw_sim": 0.13448028564453124
+      },
+      {
+        "K": 8,
+        "cleanup_acc": 0.475,
+        "cleanup_std": 0.18371173070873836,
+        "raw_sim": 0.12431259155273437
+      },
+      {
+        "K": 16,
+        "cleanup_acc": 0.1875,
+        "cleanup_std": 0.08838834764831845,
+        "raw_sim": 0.0931365966796875
+      },
+      {
+        "K": 32,
+        "cleanup_acc": 0.075,
+        "cleanup_std": 0.025,
+        "raw_sim": 0.04959030151367187
+      },
+      {
+        "K": 64,
+        "cleanup_acc": 0.040625,
+        "cleanup_std": 0.021194781197266466,
+        "raw_sim": 0.008410835266113281
+      },
+      {
+        "K": 128,
+        "cleanup_acc": 0.009375,
+        "cleanup_std": 0.009110862335695783,
+        "raw_sim": -0.02799253463745117
+      },
+      {
+        "K": 192,
+        "cleanup_acc": 0.019791666666666666,
+        "cleanup_std": 0.005103103630798288,
+        "raw_sim": -0.04691025416056315
+      }
+    ],
+    "capacity_cleanup": 2,
+    "raw_floor_K": 8
+  },
+  "loop_needs_cleanup": true,
+  "klein4_needs_cleanup": true,
+  "note": "srmech ships klein4_bundle but NO loop bundle; loop uses np real superposition."
+}
