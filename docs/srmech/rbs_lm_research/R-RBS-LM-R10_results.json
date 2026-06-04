@@ -1,0 +1,20 @@
+{
+  "partition": "R-RBS-LM-R10 (collapse: destroy vs hide EC)",
+  "srmech_version": "0.7.0rc25",
+  "D": 512,
+  "trials": 30,
+  "results": {
+    "full_correct": 1.0,
+    "full_detect": 1.0,
+    "coll_correct_g5": 1.0,
+    "coll_correct_full": 0.0,
+    "coll_detect": 1.0,
+    "probe_g5_detect_full": 1.0,
+    "probe_g5_detect_coll": 1.0,
+    "probe_iw7_detect_full": 1.0,
+    "probe_iw7_detect_coll": 0.0
+  },
+  "iw7_invisible_to_render": true,
+  "g5_ec_survives": true,
+  "full_store_intact": true
+}
