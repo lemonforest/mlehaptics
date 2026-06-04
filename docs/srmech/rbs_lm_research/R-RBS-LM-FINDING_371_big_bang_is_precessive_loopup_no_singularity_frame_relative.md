@@ -24,6 +24,8 @@ The cosmos-scale k=7 is the **7D_g gauge sector** (`[[project_space_gauge_time_f
 - The **HPA** is the **matter-channel** anomaly — matter-pull, UHECR-aligned (8° from the Auger dipole); **not k=7**.
 - The **3-phase (k=3)** of F370 was the **minimal example/illustration** (the biological/distributed-anchor instance), NOT the cosmic gauge structure. **Corrects F370's "cosmos is k=7"** → *the **gauge sector** is k=7; matter is not; the AoE is the k=7-gauge-channel anomaly, HPA the matter-channel.*
 
+**Clarity (k=3 is pervasive, not inferior; user 2026-06-04 "we do jump around in k=3"):** the k=3↔k=7 distinction is **role/scope, not right/wrong.** k=3 (ℍ/SU(2) triality) is the **maximal ASSOCIATIVE rung** — and per F306/F299 self-running + error-correction can only close at the associative core — so the framework legitimately lands on k=3 *wherever* the job is correct / self-run / distribute-the-anchor (the triality error-correction rung F266, the directed 3-cycle F293/F294, the 3-phase, and our own haiku∥sonnet∥opus verify discipline). Even the k=7 gauge is **run as `(3:4)|(4:3)`** (F299/F300) — never raw k=7 — so it projects to a k=3-cored working form. Both are real rungs of the one 1:3:7 ladder (F270 one-loop-bumping-itself); the cosmos uses k=3 to correct/self-run and k=7 for the gauge.
+
 ## The ontology, concretized (srmech Class-K illustration)
 
 A precessive loop-up modeled as a real radius asymptoting to R_∞ = 0.30 > 0 (Class-K asymptotic-DoF via `cascade.magnitude`) with a fast cycle + slow precession:
