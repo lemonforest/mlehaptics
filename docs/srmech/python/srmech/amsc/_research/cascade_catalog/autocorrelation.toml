@@ -36,12 +36,16 @@ HONEST CASCADE SHAPE: Class L (the spectral / Wiener-Khinchin reading);
 computationally a Σ-reduce of products — NO abs(), no sign branch. NOT a
 new privileged primitive class.
 
-The Python wrapper computes it the fast way (numpy FFT). The co-equal
-native C peer srmech_autocorrelation_f64 computes the DIRECT O(n²)
-multiply-add sum — the IDENTICAL object, and JPL-clean: no FFT, hence no
-recursion (Rule 1) and no transcendentals — just bounded loops over
-caller buffers, so it runs on a microcontroller with no host Python and
-no FFT library. Parity is to FFT round-off (~1e-12, NOT bit-exact: the
+The Python wrapper uses the co-equal native C peer
+srmech_autocorrelation_f64 when present (HAS_NATIVE); that peer computes
+the DIRECT O(n²) multiply-add sum — the IDENTICAL object, and JPL-clean:
+no FFT, hence no recursion (Rule 1) and no transcendentals — just bounded
+loops over caller buffers, so it runs on a microcontroller with no host
+Python and no FFT library. The no-native fallback computes the SAME direct
+sum in pure Python (math.fsum; numpy-free since v0.7.0rc30, UPSTREAM §22 —
+the cascade layer is numpy-absent-safe), so a numpy-less install still
+runs this op. Parity of the native sum to the math identity
+r = Re(IFFT(|FFT(x)|²)) is to FFT round-off (~1e-12, NOT bit-exact: an
 FFT route and the direct sum accumulate in different orders; a compiler
 may also contract a*b into an FMA). n == 0 returns [].
 """

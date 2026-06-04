@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc30] - 2026-06-04
+
+**numpy-optional core, step 2 — the `cascade` layer is numpy-absent-safe (UPSTREAM §22, Option 1). The second voxel of the "runs embedded without numpy/LAPACK" framework-identity arc.** Pure-Python; ABI stays 3; `describe()` unchanged at 208.
+
+Introspection first (per the introspect-before-assert discipline): the four lowest-level core modules — `srmech.amsc.cyclic` (Class I), `srmech.amsc.primes` (Class J), `srmech.amsc.rational` (Class N), `srmech.amsc.format` (Classes A/B/the MPR IO) — were already **numpy-free** (zero `import numpy`). The only genuine numpy-absent crash sites in the cascade layer were two no-native fallback paths:
+
+- **`cascade.compose.autocorrelation`** — the no-native fallback used `numpy.fft` to compute `IFFT(|FFT(x)|²)`. Replaced with the **defining direct circular-autocorrelation sum** `r[k] = Σ_n x[n]·x[(n+k) mod n]` (identical value for real `x`, no FFT / no numpy; `math.fsum` keeps each per-bin sum well-conditioned). The native C path is unchanged and still primary when `HAS_NATIVE`.
+- **`cascade.atoms._try_native_chiral_dual`** — its float-list accel path did an unguarded `import numpy` (the C callback marshals via numpy views). Now guarded: numpy absent → returns `None` → the op's existing pure-Python `chiral_dual` fallback runs, rather than raising `ImportError`.
+
+- **`tests/test_cascade_numpy_absent.py`** (new, +6) — the pure-Python autocorrelation matches both the closed-form definition and the numpy-FFT reference; a `sys.modules['numpy'] = None` simulation proves the cascade ops still run with numpy absent; and an audit-lock asserts `cyclic`/`primes`/`rational`/`format` carry no `import numpy`.
+
+**Scope note (the arc):** numpy stays a **hard dependency** this rc — the flip to a `srmech[scientific]` extra is a later voxel (after `qm/*` + `signal_processing` get their `ImportError` guards). **Explicitly deferred, not silently capped:** the `atoms` stdlib-buffer C-boundary perf optimization (so the native `chiral_dual` accel path needs no numpy marshalling at all) is a tracked follow-up voxel — this rc only makes the path numpy-*absent-safe*, it does not yet make the native accel numpy-free. No new ops (`describe()` stays 208). No `abs()`.
+
 ## [0.7.0rc29] - 2026-06-04
 
 **numpy-optional core, step 1 — the `HV` carrier + the Klein-4 family goes numpy-free (UPSTREAM §22 / §22b, Option 1). The first voxel of the "runs embedded without numpy/LAPACK" framework-identity arc.** Pure-Python; ABI stays 3; `describe()` unchanged at 208.

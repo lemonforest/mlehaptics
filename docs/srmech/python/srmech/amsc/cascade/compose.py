@@ -404,7 +404,8 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     (``srmech_autocorrelation_f64``) when ``HAS_NATIVE`` — that sum is the SAME
     object as the FFT route (no FFT in C, so JPL-clean: no recursion, no
     transcendentals), parity to FFT roundoff (~1e-12). The pure-Python fallback
-    uses the fast numpy FFT. ``n == 0 → []``.
+    is the SAME direct O(n²) circular-autocorrelation sum (numpy-free, so the
+    cascade layer runs with numpy absent — UPSTREAM §22). ``n == 0 → []``.
 
     Args:
         x: the real sequence (length ``n``).
@@ -416,12 +417,17 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     native = _try_native_autocorrelation(x)
     if native is not None:
         return native
-    import numpy as np  # lazy: only the FFT fallback needs numpy
-    xa = np.asarray([float(v) for v in x], dtype=float)
-    if xa.size == 0:
+    # Numpy-free fallback (UPSTREAM §22): the direct circular autocorrelation
+    # r[k] = Σ_n x[n]·x[(n+k) mod n] — identically IFFT(|FFT(x)|²) for real x,
+    # but with no FFT / no numpy. math.fsum keeps the per-bin sum well-conditioned.
+    xs = [float(v) for v in x]
+    n = len(xs)
+    if n == 0:
         return []
-    r = np.real(np.fft.ifft(np.abs(np.fft.fft(xa)) ** 2))
-    return [float(v) for v in r]
+    return [
+        math.fsum(xs[i] * xs[(i + k) % n] for i in range(n))
+        for k in range(n)
+    ]
 
 
 def kuramoto_step(
