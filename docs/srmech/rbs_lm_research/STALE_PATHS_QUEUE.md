@@ -217,5 +217,8 @@ Status legend adds one tag for this arc:
 | **ALU-C** | the **13 rc28-walkable classes** — srmech-native demo that each shipped primitive's output == an add/sub/shift+sign cascade (A/B/C/D/E/F/G/H/I/J/K/M/N) | **ACTIVE / now** | rc28; no version bump |
 | **ALU-D** | the **numpy-free Class-L leg** — eigendecomp = Jacobi = CORDIC = shift-add+sign, fully numpy-free | ⏳ **QUEUED-srmech** | gated on the numpy removal (rc31 pure-Python Jacobi; UPSTREAM §22) — **same gate as BX-5..BX-8**; possible upstream ask: a CORDIC / shift-add atom |
 
-### Disposition
-**ALU-A (attestation) and ALU-C (13 classes) are walkable NOW** — ALU-A is the early research/attestation runnable before srmech is ready. **ALU-D (Class-L numpy-free) is queued behind the numpy removal.** Anchor + spec: F393; reductions proven: multiply (R35), divide (F392), trig/rotation/sqrt/L (R35 CORDIC).
+### Prior art (cross-ref — this thread is a convergent rederivation, NOT new)
+The lean-ISA arc already recognized most of this from the silicon angle (corpus-is-proof): **#751/F208** (6 atom intrinsics + divide/rational as iterative composites), **#761/F220** (6 order-2 + 1 order-3 triality = 7 = chirality-complete core), **F206/F208/F217** (the 2-bit Klein-4 sector lane is the *only* genuinely-new silicon; atoms ARE 74xx TTL; ~3-opcode RISC-V custom-ext). ALU-A/ALU-C should **cross-reference**, not re-derive these. What F392/F393 genuinely add: the **CORDIC reduction of the continuous/transcendental ops (trig/rotation/sqrt → Class-L eigendecomp)** = shift-add+sign.
+
+### Disposition + HOLD
+**ALU-A (attestation)** is walkable now (no srmech). **ALU-C (13 classes)** and **ALU-D (Class-L)** both **RUN srmech → HELD for extra srmech testing (user direction 2026-06-04)** — do not execute srmech-importing R-scripts until srmech has had extra testing (this composes with: don't build on the moving numpy surface). So the only truly-early item is **ALU-A** (literature/attestation via research-triality), and even that awaits a user go. Anchor + spec: F393; reductions proven: multiply (R35), divide (F392), trig/rotation/sqrt/L (R35 CORDIC).
