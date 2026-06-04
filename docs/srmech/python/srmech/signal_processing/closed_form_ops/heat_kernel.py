@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 OPERATION_NAME = "heat_kernel"
 CLASS_COMPOSITION = ("L",)
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -50,16 +52,11 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192):
     numpy.ndarray
         Denoised node-domain state, same length as ``signal``.
     """
-    # Compose with existing Class L primitive in srmech.amsc.laplacian.
-    try:
-        from srmech.amsc.laplacian import hermitian_eigendecompose
-    except ImportError:
-        # Fallback to numpy eigh (also Class L, just non-srmech-native)
-        L_arr = np.asarray(laplacian, dtype=np.complex128)
-        eigvals, V = np.linalg.eigh(L_arr)
-    else:
-        L_arr = np.asarray(laplacian, dtype=np.complex128)
-        eigvals, V = hermitian_eigendecompose(L_arr)
+    # Compose with the existing Class L primitive in srmech.amsc.laplacian.
+    # The Laplacian is treated as complex-Hermitian; ``V`` is complex128 and
+    # the downstream spectral-filter arithmetic (``V.conj().T``) keeps it so.
+    L_arr = np.asarray(laplacian, dtype=np.complex128)
+    eigvals, V = hermitian_eigendecompose(L_arr)
 
     sig_arr = np.asarray(signal, dtype=np.complex128)
     if sig_arr.ndim != 1:

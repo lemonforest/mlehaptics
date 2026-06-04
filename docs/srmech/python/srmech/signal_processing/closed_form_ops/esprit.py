@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 OPERATION_NAME = "esprit"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -53,8 +55,10 @@ def op(R, *, n_sources: int, D: int = 8192) -> np.ndarray:
     M = R_arr.shape[0]
     if n_sources >= M:
         raise ValueError(f"n_sources {n_sources} >= M {M}")
-    # Eigendecomposition (Class L).
-    eigvals, eigvecs = np.linalg.eigh(R_arr)
+    # Eigendecomposition (Class L) via srmech's own cascade primitive.
+    # R is complex-Hermitian; ESPRIT uses signal-subspace projections
+    # (phase/sign-invariant), so the complex128 eigenvectors are kept.
+    eigvals, eigvecs = hermitian_eigendecompose(R_arr)
     # Signal subspace: top n_sources.
     order = np.argsort(eigvals)[::-1]
     Es = eigvecs[:, order[:n_sources]]

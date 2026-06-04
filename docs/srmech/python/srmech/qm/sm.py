@@ -41,6 +41,8 @@ import math
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 
 # ----------------------------------------------------------------------
 # Higgs potential + vacuum expectation value
@@ -115,7 +117,7 @@ def weak_mixing_angle(g: float, g_prime: float) -> float:
     """
     if g <= 0:
         raise ValueError(f"weak_mixing_angle: g must be > 0; got {g}")
-    return math.atan2(g_prime, g)
+    return _srn.atan2(g_prime, g)
 
 
 def w_boson_mass(g: float, vev: float) -> float:
@@ -174,7 +176,7 @@ def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
     MZ = z_boson_mass(g, g_prime, vev)
     theta_W = weak_mixing_angle(g, g_prime)
     # Class-K magnitude via explicit sign-branch (no abs()); scalar real.
-    _d = MW - MZ * math.cos(theta_W)
+    _d = MW - MZ * _srn.cos(theta_W)
     return _d if _d >= 0.0 else -_d
 
 
@@ -191,8 +193,8 @@ def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:
         "M_W": w_boson_mass(g, vev),
         "M_Z": z_boson_mass(g, g_prime, vev),
         "theta_W_rad": theta_W,
-        "cos_theta_W": math.cos(theta_W),
-        "sin_theta_W": math.sin(theta_W),
+        "cos_theta_W": _srn.cos(theta_W),
+        "sin_theta_W": _srn.sin(theta_W),
         "weinberg_residual": weinberg_relation_residual(g, g_prime, vev),
     }
 
@@ -258,9 +260,9 @@ def ckm_matrix(
     Returns:
         3×3 complex unitary matrix.
     """
-    c12, s12 = math.cos(theta_12), math.sin(theta_12)
-    c13, s13 = math.cos(theta_13), math.sin(theta_13)
-    c23, s23 = math.cos(theta_23), math.sin(theta_23)
+    c12, s12 = _srn.cos(theta_12), _srn.sin(theta_12)
+    c13, s13 = _srn.cos(theta_13), _srn.sin(theta_13)
+    c23, s23 = _srn.cos(theta_23), _srn.sin(theta_23)
     phase = np.exp(1j * delta_cp)
     inv_phase = np.exp(-1j * delta_cp)
     V = np.array([

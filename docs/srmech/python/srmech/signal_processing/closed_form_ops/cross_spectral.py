@@ -19,6 +19,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "cross_spectral"
 CLASS_COMPOSITION = ("M", "A")
 PERFORMANCE_HINT = "shallow-cascade-frame-wise"
@@ -28,6 +30,20 @@ SSOT_CITATION = (
     "1161901 (Crossref). Carter (1987), 'Coherence and time delay "
     "estimation', Proc. IEEE 75(2), 236-255. DOI 10.1109/PROC.1987.13723."
 )
+
+
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade).
+
+    Replaces ``np.cos`` on window/basis angle arrays — routes each angle
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction), no
+    ``np.cos`` / ``math.cos`` in the call graph. numpy is used only as the
+    array container.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
 
 
 def op(
@@ -96,7 +112,7 @@ def op(
     S_yy_acc = np.zeros(frame_size, dtype=np.float64)
     # Hann window per segment.
     nn = np.arange(frame_size)
-    window = 0.5 * (1.0 - np.cos(2.0 * np.pi * nn / max(frame_size - 1, 1)))
+    window = 0.5 * (1.0 - _ccos(2.0 * np.pi * nn / max(frame_size - 1, 1)))
     for i in range(n_frames):
         start = i * hop_size
         xf = x[start : start + frame_size] * window

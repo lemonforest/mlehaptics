@@ -20,6 +20,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "dct"
 CLASS_COMPOSITION = ("L",)
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -31,16 +33,30 @@ SSOT_CITATION = (
 )
 
 
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade).
+
+    Replaces ``np.cos`` on the DCT-basis angle matrix — routes each angle
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction); numpy is
+    used only as the array container. The broadcast (n, n) angle expression is
+    materialised by ``np.asarray`` before per-element evaluation.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
+
+
 def _dct_matrix(n: int, dct_type: int = 2) -> np.ndarray:
     """Explicit DCT-II / DCT-III orthonormal basis matrix."""
     k = np.arange(n)[:, None]
     j = np.arange(n)[None, :]
     if dct_type == 2:
         # DCT-II: X_k = sum_j x_j * cos(pi * k * (2j + 1) / (2N))
-        return np.cos(np.pi * k * (2.0 * j + 1.0) / (2.0 * n))
+        return _ccos(np.pi * k * (2.0 * j + 1.0) / (2.0 * n))
     if dct_type == 3:
         # DCT-III: inverse of DCT-II (up to normalization)
-        return np.cos(np.pi * (2.0 * k + 1.0) * j / (2.0 * n))
+        return _ccos(np.pi * (2.0 * k + 1.0) * j / (2.0 * n))
     raise ValueError(f"dct_type must be 2 or 3; got {dct_type}")
 
 

@@ -53,6 +53,7 @@ import numpy as np
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
+from srmech.amsc.laplacian import hermitian_eigendecompose
 from srmech.qm.octonion import (
     octonion_left_mult,
     octonion_mult_table,
@@ -1391,7 +1392,11 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     su2_plus_out = [np.array(m) for m in su2_plus]
     su2_minus_out = [np.array(m) for m in su2_minus]
     killing_out = np.array(killing)
-    killing_spectrum = np.sort(np.linalg.eigvalsh(killing_out))
+    # Class-L Hermitian eigendecomposition (srmech's own primitive). The
+    # Killing form is real-symmetric; we only need its spectrum. eigvals come
+    # back ascending already; keep np.sort to preserve exact prior behaviour.
+    killing_eigvals, _ = hermitian_eigendecompose(killing_out)
+    killing_spectrum = np.sort(killing_eigvals)
 
     fano_line = _FANO_LINES_SO4[quaternion_index - 1]
 
