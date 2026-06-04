@@ -111,14 +111,15 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | `cos/sin/tan/atan/atan2` | N ∘ I ∘ C ∘ K | **shipped rc33** |
 | `cexp` / `complex_exp` | N ∘ C | **shipped rc34** |
 | Hermitian eig | L | **shipped rc32**, routed rc33 |
-| `sqrt` / `hypot` | N ∘ K (+ M) | primitive exists (`_rational_sqrt`); promote a float `sqrt`/`hypot` wrapper → **rc35** |
-| DFT / FFT | M ∘ {N∘C} ∘ I ∘ J ∘ K | twiddles shipped (cexp); direct-DFT + radix-2 cascade → **rc35/rc36** |
-| QR | M ∘ C ∘ N ∘ K | derive → implement → **rc36** |
-| SVD | L ∘ N∘K ∘ M | reachable from `hermitian_eigendecompose` → **rc36** |
-| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | after QR → **rc37** |
-| lstsq | {QR} ∘ M ∘ I | after QR → **rc37** |
-| kron | I ∘ M | **rc35** (container + index) |
-| einsum | B/D ∘ I ∘ M | **rc37** |
+| `sqrt` / `hypot` | N ∘ K (+ M) | **shipped rc35** (`rational.sqrt` / `rational.hypot`) |
+| DFT / direct | M ∘ {N∘C} ∘ I | **shipped rc36** (`cascade.spectral_cascades.dft` / `idft`; direct `O(N²)`) |
+| FFT (radix-2) | M ∘ {N∘C} ∘ I ∘ J ∘ K | twiddles shipped (cexp); the `O(N log N)` butterfly → **rc37** |
+| kron | I ∘ M | **shipped rc36** (`cascade.spectral_cascades.kron`) |
+| QR | M ∘ C ∘ N ∘ K | derive → implement → **rc37** |
+| SVD | L ∘ N∘K ∘ M | reachable from `hermitian_eigendecompose` → **rc37** |
+| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | after QR → **rc38** |
+| lstsq | {QR} ∘ M ∘ I | after QR → **rc38** |
+| einsum | B/D ∘ I ∘ M | **rc38** |
 
 ## Reframe of §22 (the "scientific tier")
 

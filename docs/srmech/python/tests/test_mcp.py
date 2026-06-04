@@ -1678,6 +1678,11 @@ def _synth_value_for_type(type_string: str) -> Any:
         "list[bytes]": [b64, b64],   # v0.7.0rc10: format.sha256_batch `datas`
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],
+        # v0.7.0rc36 spectral_cascades: each complex scalar rides as [re, im].
+        # dft/idft take a 1-D complex vector; kron takes two complex matrices.
+        "list[complex]": [[1.0, 0.0], [0.0, 1.0]],
+        "list[list[complex]]": [[[1.0, 0.0], [0.0, 0.0]],
+                                [[0.0, 0.0], [1.0, 0.0]]],
         "Mapping[bytes, bytes]": {b64: b64},
         "list[tuple[bytes, int]]": [[b64, 1]],
         "list[tuple[bytes, bytes]]": [[b64, b64]],
