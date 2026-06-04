@@ -1821,13 +1821,72 @@ def _register_primitive_class_tools() -> None:
                     "NO abs(), NOT a new privileged primitive. Dispatches to the "
                     "co-equal C peer srmech_autocorrelation_f64 (the DIRECT O(n²) "
                     "multiply-add sum — JPL-clean: no FFT, no recursion, no "
-                    "transcendentals, embedded-ready) when HAS_NATIVE; the pure-"
-                    "Python fallback uses the fast numpy FFT. Parity to FFT round-"
-                    "off (~1e-12, NOT bit-exact — different accumulation order). "
-                    "n==0 is []." + PUBLISH_OPT_IN_NOTE,
+                    "transcendentals, embedded-ready) when HAS_NATIVE; the no-"
+                    "native fallback computes the SAME direct sum in pure Python "
+                    "(math.fsum; numpy-free since v0.7.0rc30, UPSTREAM §22). Parity "
+                    "of the native sum to FFT round-off (~1e-12, NOT bit-exact — "
+                    "different accumulation order). n==0 is []." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "sequence", True, "the real signal (length n)"),),
             returns=R("list[float]",
                       "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
+        ),
+        # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380) — the
+        # native transform for a Klein-4 object. COMPOSITES over qm.octonion
+        # left/right-mult atoms; scientific tier (§22: numpy on call).
+        ToolEntry(
+            name="srmech.amsc.cascade.quaternion_dft", owner="srmech",
+            category="cascade",
+            summary="QUATERNION discrete Fourier transform (QDFT) — the native "
+                    "transform for a Klein-4 object. A Klein-4 object has TWO Z₂ "
+                    "chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
+                    "FFT first projects it to ℂ and collapses one axis (the flat "
+                    "shadow). The QDFT's ℍ coefficient algebra MATCHES the object's "
+                    "value algebra, so BOTH axes survive. Composite over the "
+                    "qm.octonion left/right-mult atoms (the ℍ non-commutativity is "
+                    "load-bearing → genuine left/right forms; the twiddle "
+                    "exp(μθ)=cos θ+μ·sin θ cannot be factored out as in the complex "
+                    "FFT). X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n]; inverse(forward(x))=x to "
+                    "float round-off, recovering ALL FOUR components. Class M (Clifford/"
+                    "HDC multiply) ∘ C (twiddle ±μ orientation) ∘ N (rational angle "
+                    "kn/N); no new primitive class, no abs(). Scientific tier "
+                    "(UPSTREAM §22): requires numpy on call. Sangwine & Ell (2012), "
+                    "arXiv:1001.4379." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"),
+                P("form", "str", False, "'left' (W·x) or 'right' (x·W); default 'left'"),
+                P("mu_axis", "str", False, "transform axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("inverse", "bool", False, "inverse QDFT (conjugate twiddle + 1/N); default False"),
+            ),
+            returns=R("list[list[float]]", "N quaternions (4-component lists)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.octonion_dft", owner="srmech",
+            category="cascade",
+            summary="OCTONION discrete Fourier transform (ODFT) — the (8:7) rung "
+                    "above the QDFT. Composite over the qm.octonion left/right-mult "
+                    "atoms. Carries the F378 NON-ASSOCIATIVITY as an EXPLICIT declared "
+                    "field: the two-sided ODFT (W_l·x·W_r) is not unique, so "
+                    "`bracketing` ∈ {'left_associated','right_associated'} "
+                    "((W_l·x)·W_r vs W_l·(x·W_r)) MUST be stated — these differ for "
+                    "octonions. The one-sided forms ('left'/'right') round-trip "
+                    "(inverse(forward(x))=x); the two-sided form is forward-only "
+                    "(its inverse is open under non-associativity → raises). Class M "
+                    "(octonion multiply) ∘ C (twiddle orientation) ∘ N (rational "
+                    "angle); no new primitive class, no abs(). Scientific tier "
+                    "(UPSTREAM §22): requires numpy on call. Błaszczyk (2019), "
+                    "arXiv:1905.12631; origin Hahn & Snopek (2011), Bull. Polish "
+                    "Acad. Sci. 59(2):167–181." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "N octonion samples, each 8-component [e0..e7]"),
+                P("form", "str", False, "'left'|'right'|'two_sided'; default 'left'"),
+                P("mu_axis", "str", False, "left/single axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("bracketing", "str", False,
+                  "two-sided association: 'left_associated'|'right_associated' (F378); default 'left_associated'"),
+                P("two_sided_right_axis", "str", False, "right twiddle axis μ_r; default 'j'"),
+                P("inverse", "bool", False, "inverse ODFT (one-sided only); default False"),
+            ),
+            returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
@@ -3099,7 +3158,7 @@ def _register_introspect_tools() -> None:
 def _register_dsl_tools() -> None:
     """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
 
-    The rc8 cascade DSL (``srmech.dsl.*``) composes the 11 cascade-catalog
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 13 cascade-catalog
     ops via a fluent builder (``chain().then(...).loop(...)...``). That
     method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
     can't chain builder methods. So this voxel exposes the *declarative*
@@ -3112,7 +3171,7 @@ def _register_dsl_tools() -> None:
     * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
       TOML chain spec + run it atomically; an LLM composes AND runs a
       cascade in one call.
-    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 11 cascade-catalog
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 13 cascade-catalog
       ops + their A–N class + purpose, so an LLM knows which op names a
       spec may use.
 
@@ -3150,7 +3209,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 11-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 13-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -3197,11 +3256,12 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (11 ops: "
+                "ops the runner can actually resolve (13 ops: "
                 "autocorrelation, best_rational_signed, chiral_dual, "
                 "chiral_flip, cyclic_gcd, kuramoto_step, magnitude, "
-                "net_chirality, parallel_sector_dispatch, pin_slot_at_zero, "
-                "reorient). Each record also carries a `kind` "
+                "net_chirality, octonion_dft, parallel_sector_dispatch, "
+                "pin_slot_at_zero, quaternion_dft, reorient). Each record "
+                "also carries a `kind` "
                 "(`stage` | `combinator`) and `provenance` (`srmech` | "
                 "`user`). Framework reading: Class E (catalog enumeration) "
                 "∘ Class F (descriptor render). No parameters." + rc12
