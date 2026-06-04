@@ -1,0 +1,15 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "no_2dim_subalgebra": true,
+  "i_times_j": [
+    1,
+    "k"
+  ],
+  "i_times_k": [
+    -1,
+    "j"
+  ],
+  "hopf_split": "3 = 1 fiber (i, U(1), Z_4 dyadic) + 2 base ({j,k} = C-line)",
+  "reading_2_1": "base as complex line : fiber (holomorphic, CP^1)",
+  "reading_11_1": "base as balanced (1:1) real dual : fiber (chirality, F129)"
+}
