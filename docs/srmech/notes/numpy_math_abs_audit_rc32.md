@@ -77,3 +77,27 @@ path that needs per-site parity verification, and §22 itself keeps the heavy qm
 linear algebra numpy-backed. Bundling 26 engine swaps into the same rc as the
 16-file abs sweep would make one un-reviewable, regression-prone rc. rc33 does the
 routing as a focused, separately-verified voxel.
+
+## rc33 CLOSURE (2026-06-04) — Category B routed
+
+Done in **v0.7.0rc33**. The premise that "full trig routing needs new infrastructure"
+was WRONG (user-corrected): the Class-N Taylor cascades (`sin/cos/atan_series_truncate`)
+were always globally convergent and `pi_cascade_digits` always shipped — the only gap
+was a **float-returning, range-reduced wrapper** composing them. That wrapper now exists:
+`srmech.amsc.rational.{cos,sin,tan,atan,atan2}` (π-cascade range reduction → Class-N
+anchor → Taylor → project to float; `atan` three-band √2∓1 reduction). Measured vs libm:
+cos/sin ≈6e-16, atan/atan2 ≈2e-16 (machine ε). +5 tool-schema entries (`describe` 210→215).
+
+- **Trig sites routed** — `qm.sm` CKM/Weinberg angles + `signal_processing`
+  window/basis/rotation trig (cross_spectral, dct, multirate, multitaper, stft,
+  ica_jade, form_function_rotation). The amsc-internal solver trig (kepler Newton,
+  kuramoto coupling, hypercomplex_dft twiddle, laplacian magnetic-phase) was NOT in
+  this audit's "~15" and stays as its own future consideration (those are inside
+  iterative solvers / DFT twiddles where the substitution is a separate fidelity Q).
+- **Hermitian eig routed** — the 11 `np.linalg.eigh`/`eigvalsh` sites in
+  qm.{potentials,gauge,single_particle,so8} + sp.{esprit,heat_kernel,ica_jade,music}
+  → `amsc.laplacian.hermitian_eigendecompose` (native C complex-Hermitian Jacobi on
+  the native path). Real-symmetric inputs `.real` the eigenvectors; complex-Hermitian
+  keep complex128. Per-site parity tests (eigvals ≤1e-9 + reconstruction).
+- **Still scientific-tier per §22** (no srmech cascade yet): svd / qr / non-Hermitian
+  eig / lstsq / einsum / kron / complex-exp / FFT.

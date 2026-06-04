@@ -21,6 +21,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "multitaper"
 CLASS_COMPOSITION = ("L", "M")
 PERFORMANCE_HINT = "shallow-cascade-bundle-amortise"
@@ -32,6 +34,19 @@ SSOT_CITATION = (
     "Walden (1993), 'Spectral Analysis for Physical Applications', "
     "Cambridge."
 )
+
+
+def _csin(a):
+    """Elementwise substrate-native sine (Class-N rational cascade).
+
+    Replaces ``np.sin`` on the cosine-taper angle array — routes each angle
+    through ``srmech.amsc.rational.sin`` (pi-free range reduction); numpy is
+    used only as the array container.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.sin(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
 
 
 def op(
@@ -72,7 +87,7 @@ def op(
         # less concentrated but identity-preserving for the dispatch surface)
         tapers = np.zeros((n_tapers, n))
         for k in range(n_tapers):
-            tapers[k] = np.sin(np.pi * (k + 1) * (np.arange(n) + 1) / (n + 1))
+            tapers[k] = _csin(np.pi * (k + 1) * (np.arange(n) + 1) / (n + 1))
             tapers[k] /= np.linalg.norm(tapers[k])
     acc = np.zeros(n, dtype=np.float64)
     for k in range(n_tapers):

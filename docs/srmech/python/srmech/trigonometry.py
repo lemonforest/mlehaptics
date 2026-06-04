@@ -10,9 +10,19 @@ Implementations live in :mod:`srmech.amsc.rational`; see
 :mod:`srmech.asymptotic_calculus` for the full continuous-calculus surface
 (transcendentals + rational arithmetic + Class-N anchors + π).
 
+Two layers:
+
+- the exact ``*_series_truncate`` Taylor cascades (return ``(num, den)``);
+- the **float-projection** ``cos`` / ``sin`` / ``tan`` / ``atan`` / ``atan2``
+  wrappers — substrate-native, drop-in replacements for ``math``/``numpy``
+  trig. They range-reduce against the π-cascade and project the exact
+  rational result to float (no ``math.cos`` / ``np.cos`` in the call graph).
+
 >>> from srmech import trigonometry as trig
 >>> trig.sin_series_truncate(1, 2, 8)   # sin(1/2) as an exact rational tuple
 (...)
+>>> trig.cos(0.5)                        # float projection; matches math.cos
+0.8775825618903728
 """
 from __future__ import annotations
 
@@ -20,10 +30,20 @@ from srmech.amsc.rational import (
     sin_series_truncate,
     cos_series_truncate,
     atan_series_truncate,
+    cos,
+    sin,
+    tan,
+    atan,
+    atan2,
 )
 
 __all__ = [
     "sin_series_truncate",
     "cos_series_truncate",
     "atan_series_truncate",
+    "cos",
+    "sin",
+    "tan",
+    "atan",
+    "atan2",
 ]

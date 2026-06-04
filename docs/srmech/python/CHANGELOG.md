@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc33] - 2026-06-04
+
+**numpy-math → srmech-cascade routing: substrate-native trig (`cos`/`sin`/`tan`/`atan`/`atan2`) that replaces `math`/`numpy` trig at machine precision, plus Hermitian-eig routed onto srmech's own primitive across qm + signal_processing.** Pure-Python additions; ABI stays 3; `describe()` 210 → **215** (+5 trig tools).
+
+- **New substrate-native float trig** — `srmech.amsc.rational.cos / sin / tan / atan / atan2` (also re-exported from `srmech.trigonometry` and `srmech.asymptotic_calculus`). The exact Class-N Taylor cascades were always globally convergent; what was missing was the **range-reduction wrapper** that composes them with the π-cascade. The pipeline is: range-reduce the angle into [−π, π] using a high-precision π drawn from `pi_cascade_digits` (Archimedes hexagon-doubling — **no `math.pi`/`np.pi` in the call graph**), anchor to a Class-N rational at the float64 floor, `cos`/`sin` Taylor partial sum, then project the exact rational to float. `atan` uses a three-band argument reduction (√2∓1 edges). Measured vs libm: **cos/sin ≈ 6e-16, atan/atan2 ≈ 2e-16** (machine ε). Class-K sign handling throughout (no `abs()`).
+- **Trig call sites routed** — `qm.sm` (Weinberg / CKM angles), and the `signal_processing` window/basis/rotation trig (`cross_spectral`, `dct`, `multirate`, `multitaper`, `stft`, `ica_jade`, `form_function_rotation`) now compute their trig through the cascade instead of `math.cos/sin` / `np.cos/sin/arctan2`, per the directive *"never use numpy math when srmech can do it with a cascade."* Value-faithful (per-site parity tests vs the prior libm result, ≤1e-9).
+- **Hermitian eigendecomposition routed** — every `np.linalg.eigh` / `eigvalsh` in `qm.{potentials, gauge, single_particle, so8}` and `signal_processing.{esprit, heat_kernel, ica_jade, music}` now goes through srmech's own **`amsc.laplacian.hermitian_eigendecompose`** (native C complex-Hermitian Jacobi when present; the eigenvalue/eigenvector math is srmech's, not LAPACK, on the native path). Real-symmetric inputs take a value-preserving `.real` on the eigenvectors; complex-Hermitian keep complex128.
+- **Tests** — `test_qm_cascade_routing_rc33.py`, `test_sp_eigh_cascade_routing_rc33.py`, `test_sp_trig_cascade_routing_rc33.py` (eig parity ≤1e-9 + reconstruction, trig vs libm at machine ε, and each public op vs its pre-change output). The codebase-wide `abs()` AST ratchet stays green.
+
+**Scope:** rc33 routes the audited qm + signal_processing numpy-math sites (`docs/srmech/notes/numpy_math_abs_audit_rc32.md`, Category B) onto srmech cascades. The genuinely scientific-tier numpy with no srmech equivalent yet (svd / qr / non-Hermitian-eig / lstsq / einsum / kron / complex-exp / FFT) stays per §22.
+
 ## [0.7.0rc32] - 2026-06-04
 
 **numpy-optional core, step 3 — the real-symmetric Class-L Laplacian core is numpy-absent-safe (its eigenvalue math is srmech's OWN Jacobi cascade, never LAPACK), PLUS a codebase-wide `abs()` elimination (the rule: "abs() is never fine").** Pure-Python; ABI stays 3; `describe()` unchanged at 210.

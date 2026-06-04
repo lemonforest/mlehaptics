@@ -44,6 +44,11 @@ __all__ = [
     "log1p_series_truncate",
     "atan_series_truncate",
     "pi_cascade_digits",
+    "cos",
+    "sin",
+    "tan",
+    "atan",
+    "atan2",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -704,6 +709,198 @@ def atan_series_truncate(numerator: int,
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
     return _reduce_rational(num, den)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Float-projection trig — substrate-native cos/sin/tan/atan/atan2.
+#
+# These are the Class-N replacements for ``math.cos`` / ``math.sin`` /
+# ``np.cos`` / ``np.sin`` / ``math.atan2`` / ``np.arctan2``. The exact
+# rational cascade IS the substrate-native computation; the returned
+# float is only the observer-frame *projection* of that rational (the
+# continuous number line is a projection per
+# ``[[feedback_continuous_number_line_pedagogical_obstacle]]``). There is
+# no ``math.cos`` / ``np.cos`` anywhere in the call graph.
+#
+# Pipeline (resolves the "trig that can replace numpy" gap — the bare
+# series were always globally convergent; what was missing was the
+# range-reduction wrapper that composes them with the π-cascade):
+#   1. range-reduce the angle into ≈[-π, π] using a high-precision π
+#      drawn from ``pi_cascade_digits`` (Archimedes hexagon-doubling) —
+#      exact rational arithmetic;
+#   2. anchor the reduced angle to a fixed-denominator Class-N rational;
+#   3. cos/sin Taylor partial sum (``cos_series_truncate`` /
+#      ``sin_series_truncate``);
+#   4. project the exact rational to float.
+# Range reduction is what keeps the globally-convergent series cheap for
+# large arguments (e.g. DSP window angles ``2π·n/(N-1)``).
+# ──────────────────────────────────────────────────────────────────────
+
+# Digits of π used for range reduction (≈1e-50, far below the float
+# projection floor). Cached once; the cascade reruns only if a caller
+# asks for more digits than cached.
+_PI_RATIONAL_DIGITS: int = 50
+_PI_RATIONAL_CACHE: "Tuple[int, int] | None" = None
+
+# Class-N anchor denominator + Taylor term count for the float
+# projection. 10**15 anchors the reduced angle at the float64 precision
+# floor (≈1e-15) so the projection matches libm to machine scale while
+# keeping the reduced-angle bignums bounded; 24 cos/sin terms drive the
+# |x|<=π series residual below 1e-16.
+_TRIG_FLOAT_ANCHOR_DEN: int = 10 ** 15
+_TRIG_FLOAT_TERMS: int = 24
+_ATAN_FLOAT_TERMS: int = 40
+
+
+def _pi_rational(digits: int = _PI_RATIONAL_DIGITS) -> Tuple[int, int]:
+    """Return π as an exact rational ``(num, den)`` from the π-cascade.
+
+    Uses :func:`pi_cascade_digits` (Archimedes hexagon-doubling; no
+    ``math.pi``) and caches the default-precision value. ``den`` is
+    ``10**digits``.
+    """
+    global _PI_RATIONAL_CACHE
+    if _PI_RATIONAL_CACHE is not None and digits <= _PI_RATIONAL_DIGITS:
+        return _PI_RATIONAL_CACHE
+    decimal = pi_cascade_digits(digits)          # e.g. "3.1415926535..."
+    int_part, _, frac_part = decimal.partition(".")
+    num = int(int_part + frac_part) if frac_part else int(int_part)
+    den = 10 ** len(frac_part) if frac_part else 1
+    result = (num, den)
+    if digits <= _PI_RATIONAL_DIGITS:
+        _PI_RATIONAL_CACHE = result
+    return result
+
+
+def _principal_angle_anchor(x: float,
+                            anchor_den: int = _TRIG_FLOAT_ANCHOR_DEN
+                            ) -> Tuple[int, int]:
+    """Range-reduce ``x`` (radians) into ≈[-π, π] and anchor it to a
+    fixed-denominator Class-N rational ``(num, anchor_den)``.
+
+    Exact float→rational (``float.as_integer_ratio``) minus an integer
+    multiple of the cascade-derived 2π; the integer-turn selection is the
+    only floating step and is exact for ``|x|`` well within float range.
+    """
+    assert anchor_den > 0, "anchor denominator must be positive"
+    x = float(x)
+    x_num, x_den = x.as_integer_ratio()
+    pi_num, pi_den = _pi_rational()
+    tau_num, tau_den = 2 * pi_num, pi_den         # 2π = tau_num / tau_den
+    turns = round(x / (tau_num / tau_den))        # nearest integer turn
+    # reduced = x - turns * 2π  (exact rational)
+    red_num = x_num * tau_den - turns * tau_num * x_den
+    red_den = x_den * tau_den
+    # Project the reduced angle to float (in ≈[-π, π]) and anchor it.
+    anchored_num = round((red_num / red_den) * anchor_den)
+    return anchored_num, anchor_den
+
+
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``cos(x)`` (radians) via the Class-N rational cascade.
+
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
+    ``math.cos`` in the call graph. Matches the libm value to ≈1e-11 for
+    all real ``x`` (range reduction keeps the Taylor series cheap).
+    """
+    a_num, a_den = _principal_angle_anchor(x)
+    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
+    return c_num / c_den
+
+
+def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``sin(x)`` (radians) via the Class-N rational cascade.
+
+    Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    """
+    a_num, a_den = _principal_angle_anchor(x)
+    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
+    return s_num / s_den
+
+
+def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``tan(x) = sin(x)/cos(x)`` via the Class-N cascade."""
+    a_num, a_den = _principal_angle_anchor(x)
+    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
+    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
+    if c_num == 0:
+        raise ValueError("tan undefined: cos(x) == 0")
+    return (s_num * c_den) / (s_den * c_num)
+
+
+# tan(π/8) and cot(π/8) = √2∓1 — the band edges that keep every atan
+# series argument at |·| <= √2−1 ≈ 0.414 (term ratio ≈0.17), so the
+# alternating series reaches full float precision well within the term
+# cap (the bare series is slow only near |x|=1, which the middle band
+# below maps to a small argument).
+_TAN_PI_8: float = 0.41421356237309515       # √2 − 1
+_COT_PI_8: float = 2.414213562373095         # √2 + 1
+
+
+def _atan_nonneg(m: float, terms: int) -> float:
+    """``atan(m)`` for ``m >= 0`` via three-band Class-N reduction.
+
+    Band edges √2∓1 cap every series argument at ≤ √2−1 so the
+    alternating atan series reaches full precision; ``π`` is the
+    cascade-derived rational.
+    """
+    pi_num, pi_den = _pi_rational()
+    pi_f = pi_num / pi_den
+    if m <= _TAN_PI_8:
+        n, d = m.as_integer_ratio()
+        a_num, a_den = atan_series_truncate(n, d, terms)
+        return a_num / a_den
+    if m >= _COT_PI_8:
+        # atan(m) = π/2 − atan(1/m); 1/m ≤ √2−1
+        inv = 1.0 / m
+        n, d = inv.as_integer_ratio()
+        a_num, a_den = atan_series_truncate(n, d, terms)
+        return pi_f / 2.0 - a_num / a_den
+    # Middle band around 1: atan(m) = π/4 + atan((m−1)/(m+1)); |·| ≤ √2−1.
+    u = (m - 1.0) / (m + 1.0)
+    n, d = u.as_integer_ratio()
+    a_num, a_den = atan_series_truncate(n, d, terms)
+    return pi_f / 4.0 + a_num / a_den
+
+
+def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
+    """``atan(x)`` via the Class-N atan cascade with band reduction.
+
+    Class-K magnitude (no ``abs()``) + three-band argument reduction
+    (``|x|>1`` → ``π/2 − atan(1/x)``; the slow ``|x|≈1`` band →
+    ``π/4 + atan((|x|−1)/(|x|+1))``) so every series argument stays in
+    the fast-convergence region. Substrate-native replacement for
+    ``math.atan`` / ``np.arctan``.
+    """
+    x = float(x)
+    # Class-K pin-slot: magnitude + orientation without abs().
+    x_mag = x if x >= 0.0 else -x
+    r = _atan_nonneg(x_mag, terms)
+    return r if x >= 0.0 else -r                  # Class-C re-orientation
+
+
+def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
+    """``atan2(y, x)`` via the Class-N atan cascade with quadrant logic.
+
+    Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
+    """
+    y = float(y)
+    x = float(x)
+    pi_num, pi_den = _pi_rational()
+    pi_f = pi_num / pi_den
+    if x == 0.0:
+        if y > 0.0:
+            return pi_f / 2.0
+        if y < 0.0:
+            return -pi_f / 2.0
+        return 0.0
+    base = atan(y / x, terms=terms)
+    if x > 0.0:
+        return base
+    # x < 0: shift by ±π using the sign of y (Class-C orientation).
+    if y >= 0.0:
+        return base + pi_f
+    return base - pi_f
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -21,6 +21,8 @@ from typing import Tuple
 
 import numpy as np
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 OPERATION_NAME = "music"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "shallow-cascade-eigendecomp-amortise"
@@ -68,8 +70,10 @@ def op(
         raise ValueError(
             f"steering_vectors first dim {A.shape[0]} != M {M}"
         )
-    # Class L: Hermitian eigendecomposition.
-    eigvals, eigvecs = np.linalg.eigh(R_arr)
+    # Class L: Hermitian eigendecomposition via srmech's own cascade primitive.
+    # R is complex-Hermitian; MUSIC uses the noise-subspace projection
+    # (phase/sign-invariant), so the complex128 eigenvectors are kept.
+    eigvals, eigvecs = hermitian_eigendecompose(R_arr)
     # Sort by ascending eigenvalue; noise subspace = smallest M - n_sources.
     order = np.argsort(eigvals)
     eigvecs = eigvecs[:, order]

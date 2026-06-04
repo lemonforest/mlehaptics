@@ -21,6 +21,10 @@ Surface
   (num, den)``): :func:`exp_series_truncate`, :func:`sin_series_truncate`,
   :func:`cos_series_truncate`, :func:`log1p_series_truncate`,
   :func:`atan_series_truncate`;
+* **float-projection trig** (substrate-native drop-ins for ``math``/``numpy``
+  trig — range-reduce against the π-cascade, then project the exact rational
+  to float; no ``math.cos`` / ``np.cos`` in the call graph): :func:`cos`,
+  :func:`sin`, :func:`tan`, :func:`atan`, :func:`atan2`;
 * **rational arithmetic**: :func:`rational_add`, :func:`rational_mul`,
   :func:`rational_div`, :func:`rational_pow_uint`;
 * **Class-N anchors**: :func:`best_rational`, :func:`continued_fraction`,
@@ -45,6 +49,11 @@ from srmech.amsc.rational import (
     cos_series_truncate,
     log1p_series_truncate,
     atan_series_truncate,
+    cos,
+    sin,
+    tan,
+    atan,
+    atan2,
     rational_add,
     rational_mul,
     rational_div,
@@ -58,6 +67,11 @@ __all__ = [
     "cos_series_truncate",
     "log1p_series_truncate",
     "atan_series_truncate",
+    "cos",
+    "sin",
+    "tan",
+    "atan",
+    "atan2",
     "rational_add",
     "rational_mul",
     "rational_div",

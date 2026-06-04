@@ -90,6 +90,7 @@ from typing import Iterable, Tuple
 
 from srmech.amsc import hdc as _M
 from srmech.amsc import cyclic as _I
+from srmech.amsc import rational as _srn
 
 from ._paths import D_DEFAULT, D_MIN, D_MAX
 
@@ -388,7 +389,8 @@ def cascade_compose_rotations(
         composed = (composed + s) % D
     # Fundamental-mode eigenvalue lambda_1 = exp(-2*pi*i * composed / D).
     theta = -2.0 * math.pi * composed / D
-    eig = complex(math.cos(theta), math.sin(theta))
+    # Substrate-native trig (Class-N rational cascade), not math.cos/sin.
+    eig = complex(_srn.cos(theta), _srn.sin(theta))
     return composed, eig
 
 
