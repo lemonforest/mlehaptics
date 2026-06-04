@@ -182,7 +182,7 @@ Status legend adds one tag for this arc:
 ### ACTIVE — walkable now (srmech-package + framework reading; no srmech version bump needed)
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
-| **BX-1** | **Holographic-principle LENS** (F389 candidate) — lossy flat-shadow vs lossless reconstruction; the resemblance and where it breaks; "lossless requires keeping fiber + chirality" | 📖 FRAMEWORK / offered | none to start; holography refs (’t Hooft / Susskind / Bekenstein / AdS-CFT) go through **k=3 triality verify-PDF** before lodging (F381 discipline); no-lineage + defensive scope (algebra/info-geometry side only, no gravity claim) |
+| **BX-1** | **Holographic-principle LENS** (F390 candidate; F389 taken by the sedenion finding) — lossy flat-shadow vs lossless reconstruction; the resemblance and where it breaks; "lossless requires keeping fiber + chirality" | 📖 FRAMEWORK / offered | none to start; holography refs (’t Hooft / Susskind / Bekenstein / AdS-CFT) go through **k=3 triality verify-PDF** before lodging (F381 discipline); no-lineage + defensive scope (algebra/info-geometry side only, no gravity claim) |
 | **BX-2** | **(8:7) inside the 15 — octonionic Hopf S⁷→S⁸** — recurse F384/F387 one rung up: does the 7 fiber as 1+(2:1)+(4:3); the chiral-dual `|` seam at k=7→15 | active | srmech-native (octonion table already shipped, `qm.octonion`); read-only, no version bump |
 
 ### DEFERRED — expert handoff / build-gated (NOT srmech-version-gated)
