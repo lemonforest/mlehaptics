@@ -78,9 +78,21 @@ bound.
 from __future__ import annotations
 
 import ctypes
-from typing import Iterable, Optional, Sequence, Tuple
+import math
+from typing import Iterable, List, Optional, Sequence, Tuple
 
-import numpy as np
+try:  # UPSTREAM §22: the real-symmetric Class-L core is numpy-absent-safe.
+    import numpy as np
+except ImportError:  # pragma: no cover - exercised in the numpy-absent path only
+    # The real-symmetric build → eigvals chain (dense_adjacency / dense_laplacian
+    # / normalized_laplacian / jacobi_eigvals) has a pure-Python fallback that
+    # runs without numpy/LAPACK (it returns list[list[float]] / list[float]).
+    # The complex-Hermitian / signed / magnetic ops are scientific tier (§22) and
+    # raise a clear ImportError (via _require_np at the _complex_to_interleaved /
+    # _normalize_edges_weights chokepoints) when called with numpy absent; the
+    # remaining numpy-tier ops (symmetric_eigendecompose / fiedler_vector /
+    # elementwise_transcendental) require numpy and fail at their first numpy use.
+    np = None  # type: ignore[assignment]
 
 from . import _native
 
@@ -153,6 +165,10 @@ def _normalize_edges_weights(
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    # The numpy edge/weight arrays feed the native-C builders + the scientific
+    # signed/magnetic Laplacians (§22). The numpy-FREE real builds use the
+    # pure-Python _validate_edges_weights_py path and never reach here.
+    _require_np("a numpy-tier graph-Laplacian build")
     if not isinstance(n, int) or n < 0:
         raise ValueError(f"n must be non-negative int; got {n!r}")
     if n > 0xFFFF_FFFF:
@@ -234,6 +250,165 @@ def _fallback_dense_adjacency(
     return A
 
 
+# ── UPSTREAM §22: numpy-absent-safe real-symmetric Class-L core ────────
+# When numpy is unavailable the build → eigvals chain runs in pure Python
+# (``list[list[float]]`` matrices, ``list[float]`` eigenvalues). The native C
+# path marshals its buffers via numpy, so numpy-absent ⇒ pure-Python (the
+# stdlib-array native marshalling is a tracked later voxel). The complex-
+# Hermitian / vectorised-transcendental ops stay numpy (scientific tier) and
+# raise a clear ImportError via ``_require_np`` when called with numpy absent.
+
+def _require_np(op_name: str) -> None:
+    if np is None:  # pragma: no cover - exercised only in the numpy-absent path
+        raise ImportError(
+            f"srmech.amsc.laplacian.{op_name} is a scientific-tier op "
+            "(complex-Hermitian / vectorised linear algebra) and requires "
+            "numpy (UPSTREAM §22: the heavy linear algebra keeps numpy). The "
+            "real-symmetric core — dense_adjacency / dense_laplacian / "
+            "normalized_laplacian / jacobi_eigvals — runs without numpy."
+        )
+
+
+def _validate_edges_weights_py(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]],
+) -> Tuple[List[Tuple[int, int]], List[float]]:
+    """Pure-Python edge/weight validation mirroring _normalize_edges_weights."""
+    if not isinstance(n, int) or n < 0:
+        raise ValueError(f"n must be non-negative int; got {n!r}")
+    if n > 0xFFFF_FFFF:
+        raise ValueError(f"n exceeds uint32 range; got {n}")
+    edge_list = [tuple(e) for e in edges]
+    for i, (uu, vv) in enumerate(edge_list):
+        if not (0 <= uu < n and 0 <= vv < n):
+            raise ValueError(f"edge {i} = ({uu}, {vv}) outside node range [0, {n})")
+    if weights is None:
+        w_list = [1.0] * len(edge_list)
+    else:
+        w_list = [float(w) for w in weights]
+        if len(w_list) != len(edge_list):
+            raise ValueError(
+                f"weights length {len(w_list)} != n_edges {len(edge_list)}"
+            )
+    return edge_list, w_list
+
+
+def _dense_adjacency_py(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]],
+) -> List[List[float]]:
+    edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
+    A = [[0.0] * n for _ in range(n)]
+    for (u, v), w in zip(edge_list, w_list):
+        # Self-loops (u == v) hit the same cell twice → 2*w on the diagonal
+        # (matches the C path / the numpy fallback).
+        A[u][v] += w
+        A[v][u] += w
+    return A
+
+
+def _dense_laplacian_py(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]],
+) -> List[List[float]]:
+    A = _dense_adjacency_py(n, edges, weights)
+    L = [[0.0] * n for _ in range(n)]
+    for r in range(n):
+        deg = 0.0
+        for c in range(n):
+            if c == r:
+                continue
+            deg += A[r][c]
+            L[r][c] = -A[r][c]
+        L[r][r] = deg
+    return L
+
+
+def _normalized_laplacian_py(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]],
+) -> List[List[float]]:
+    A = _dense_adjacency_py(n, edges, weights)
+    deg = [sum(A[r][c] for c in range(n) if c != r) for r in range(n)]
+    d_inv_sqrt = [(1.0 / math.sqrt(d)) if d > 0 else 0.0 for d in deg]
+    L = [[0.0] * n for _ in range(n)]
+    for r in range(n):
+        for c in range(n):
+            if r == c:
+                L[r][r] = 1.0 if deg[r] > 0 else 0.0
+            else:
+                L[r][c] = -A[r][c] * d_inv_sqrt[r] * d_inv_sqrt[c]
+    return L
+
+
+def _jacobi_eigvals_py(
+    matrix: Sequence[Sequence[float]],
+    max_sweeps: int = 100,
+    tolerance: float = 1e-12,
+) -> List[float]:
+    """Pure-Python cyclic Jacobi eigenvalues of a real symmetric matrix.
+
+    The numpy-free fallback for :func:`jacobi_eigvals` (UPSTREAM §22): the
+    classical cyclic Jacobi rotation — the similarity transform ``A ← JᵀAJ``
+    that zeroes each off-diagonal in turn; the converged diagonal IS the
+    spectrum. Returns the sorted (ascending) eigenvalues as a ``list[float]``.
+    Matches the native-C / ``numpy.linalg.eigvalsh`` path to Jacobi round-off.
+    No LAPACK, no numpy. No ``abs()``: the off-diagonal magnitude is read as a
+    sum of squares (inherently non-negative) and the rotation tangent handles
+    its sign explicitly via the ``tau >= 0`` branch (Class-K sign-handling, not
+    an ALU ``abs()``).
+    """
+    rows = [list(row) for row in matrix]
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(
+                f"matrix must be square 2-D; got a {n}-row matrix with a "
+                f"width-{len(r)} row"
+            )
+    if n == 0:
+        return []
+    a = [[float(rows[i][j]) for j in range(n)] for i in range(n)]
+    if n == 1:
+        return [a[0][0]]
+    for _sweep in range(max_sweeps):
+        off = math.sqrt(
+            sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
+        )
+        if off <= tolerance:
+            break
+        for p in range(n - 1):
+            for q in range(p + 1, n):
+                apq = a[p][q]
+                if apq == 0.0:
+                    continue
+                tau = (a[q][q] - a[p][p]) / (2.0 * apq)
+                if tau >= 0.0:
+                    t = 1.0 / (tau + math.sqrt(1.0 + tau * tau))
+                else:
+                    t = -1.0 / (-tau + math.sqrt(1.0 + tau * tau))
+                c = 1.0 / math.sqrt(1.0 + t * t)
+                s = t * c
+                # A ← Jᵀ A J  (Givens rotation in the (p, q) plane):
+                # pass 1 — columns p, q  (B = A J)
+                for k in range(n):
+                    akp = a[k][p]
+                    akq = a[k][q]
+                    a[k][p] = c * akp - s * akq
+                    a[k][q] = s * akp + c * akq
+                # pass 2 — rows p, q  (A' = Jᵀ B)
+                for k in range(n):
+                    apk = a[p][k]
+                    aqk = a[q][k]
+                    a[p][k] = c * apk - s * aqk
+                    a[q][k] = s * apk + c * aqk
+    return sorted(a[i][i] for i in range(n))
+
+
 def dense_adjacency(
     n: int,
     edges: Iterable[Tuple[int, int]],
@@ -245,12 +420,17 @@ def dense_adjacency(
     Self-loops add ``2*w`` to the diagonal (standard graph-theory
     convention). Parallel edges accumulate weights additively.
     """
-    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-    if _can_dispatch_native(n):
+    if np is not None and _can_dispatch_native(n):
+        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
         return _build_matrix_native(
             "srmech_graph_dense_adjacency", n, edges_u, edges_v, ws
         )
-    return _fallback_dense_adjacency(n, edges_u, edges_v, ws)
+    # srmech's own pure-Python builder (UPSTREAM §22 + the cascade-over-numpy
+    # discipline): numpy-absent → list[list[float]]; numpy-present-no-native →
+    # the SAME srmech build wrapped as an ndarray for API stability (the wrap
+    # is container layout, NOT numpy math).
+    A = _dense_adjacency_py(n, edges, weights)
+    return np.asarray(A, dtype=np.float64) if np is not None else A
 
 
 def dense_laplacian(
@@ -264,20 +444,13 @@ def dense_laplacian(
     connected graph the smallest eigenvalue is 0 with multiplicity 1
     (Fiedler vector spans the complement).
     """
-    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-    if _can_dispatch_native(n):
+    if np is not None and _can_dispatch_native(n):
+        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
         return _build_matrix_native(
             "srmech_graph_dense_laplacian", n, edges_u, edges_v, ws
         )
-    A = _fallback_dense_adjacency(n, edges_u, edges_v, ws)
-    # Degree = sum over off-diagonal entries per row.
-    diag_idx = np.arange(n)
-    A_off = A.copy()
-    A_off[diag_idx, diag_idx] = 0.0
-    deg = A_off.sum(axis=1)
-    L = -A_off
-    L[diag_idx, diag_idx] = deg
-    return L
+    L = _dense_laplacian_py(n, edges, weights)
+    return np.asarray(L, dtype=np.float64) if np is not None else L
 
 
 def normalized_laplacian(
@@ -290,23 +463,13 @@ def normalized_laplacian(
     Isolated vertices (degree 0) have diagonal entry 0 by convention
     (not 1; the ``I`` term only applies where ``D > 0``).
     """
-    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-    if _can_dispatch_native(n):
+    if np is not None and _can_dispatch_native(n):
+        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
         return _build_matrix_native(
             "srmech_graph_normalized_laplacian", n, edges_u, edges_v, ws
         )
-    A = _fallback_dense_adjacency(n, edges_u, edges_v, ws)
-    diag_idx = np.arange(n)
-    A_off = A.copy()
-    A_off[diag_idx, diag_idx] = 0.0
-    deg = A_off.sum(axis=1)
-    d_inv_sqrt = np.where(deg > 0, 1.0 / np.sqrt(np.where(deg > 0, deg, 1.0)), 0.0)
-    L = np.zeros((n, n), dtype=np.float64)
-    # Off-diagonal: -A[r,c] * d_inv_sqrt[r] * d_inv_sqrt[c]
-    L = -A_off * d_inv_sqrt[:, None] * d_inv_sqrt[None, :]
-    # Diagonal: 1 where d > 0, else 0
-    L[diag_idx, diag_idx] = (deg > 0).astype(np.float64)
-    return L
+    L = _normalized_laplacian_py(n, edges, weights)
+    return np.asarray(L, dtype=np.float64) if np is not None else L
 
 
 def jacobi_eigvals(
@@ -316,15 +479,22 @@ def jacobi_eigvals(
 ) -> np.ndarray:
     """Symmetric Jacobi eigendecomposition.
 
-    Returns the sorted (ascending) eigenvalues of a real symmetric
-    matrix. The C path is bounded by ``MAX_NATIVE_NODES = 256`` and
-    uses an in-place algebraic Jacobi rotation (pi-free). For larger
-    ``n`` (or when ``HAS_NATIVE`` is False) the fallback uses
-    ``numpy.linalg.eigvalsh``.
+    Returns the sorted (ascending) eigenvalues of a real symmetric matrix.
+    The C path is bounded by ``MAX_NATIVE_NODES = 256`` and uses an in-place
+    algebraic Jacobi rotation (pi-free). For larger ``n`` (or when
+    ``HAS_NATIVE`` is False) the fallback is **srmech's own pure-Python Jacobi
+    cascade** (:func:`_jacobi_eigvals_py`) — NOT ``numpy.linalg.eigvalsh``:
+    when srmech can do the math with its own cascade, it does (and so the
+    Class-L spectrum runs without LAPACK/numpy, UPSTREAM §22). With numpy
+    absent the input is a ``list[list[float]]`` and the return is a
+    ``list[float]``; with numpy present the return is an ``ndarray``.
 
-    ``matrix`` is **not** modified by the wrapper — a copy is made
-    before the in-place C path runs.
+    ``matrix`` is **not** modified by the wrapper — a copy is made before the
+    in-place C path runs.
     """
+    if np is None:
+        # numpy absent: srmech's pure-Python Jacobi cascade on a list-of-lists.
+        return _jacobi_eigvals_py(matrix, max_sweeps, tolerance)
     M = np.ascontiguousarray(matrix, dtype=np.float64)
     if M.ndim != 2 or M.shape[0] != M.shape[1]:
         raise ValueError(f"matrix must be square 2-D; got shape {M.shape}")
@@ -340,11 +510,19 @@ def jacobi_eigvals(
             out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
         )
         if rc == _native.SRMECH_ERR_OVERFLOW:
-            return np.sort(np.linalg.eigvalsh(M))
+            # srmech's OWN Jacobi cascade — never numpy's LAPACK eigvalsh.
+            return np.asarray(
+                _jacobi_eigvals_py(M.tolist(), max_sweeps, tolerance),
+                dtype=np.float64,
+            )
         if rc != _native.SRMECH_OK:
             raise RuntimeError(f"srmech_jacobi_eigvals returned non-OK status {rc}")
         return np.sort(out)
-    return np.sort(np.linalg.eigvalsh(M))
+    # No native: srmech's OWN Jacobi cascade — never numpy's LAPACK eigvalsh.
+    return np.asarray(
+        _jacobi_eigvals_py(M.tolist(), max_sweeps, tolerance),
+        dtype=np.float64,
+    )
 
 
 # =====================================================================
@@ -361,6 +539,7 @@ def _complex_to_interleaved(arr: np.ndarray) -> np.ndarray:
 
     Returns a 1-D contiguous float64 array of length 2*arr.size.
     """
+    _require_np("a complex-valued Class-L operation")  # scientific tier (§22)
     c = np.ascontiguousarray(arr, dtype=np.complex128)
     return c.view(np.float64).reshape(-1).copy()
 
@@ -400,6 +579,7 @@ def hermitian_eigendecompose(
     Dispatch: native C path for ``n ≤ MAX_NATIVE_NODES`` when
     ``HAS_NATIVE``; falls back to ``numpy.linalg.eigh`` otherwise.
     """
+    _require_np("hermitian_eigendecompose")  # complex scientific tier (§22)
     H_arr = np.ascontiguousarray(H, dtype=np.complex128)
     if H_arr.ndim != 2 or H_arr.shape[0] != H_arr.shape[1]:
         raise ValueError(f"H must be square 2-D; got shape {H_arr.shape}")
@@ -727,8 +907,11 @@ def signed_laplacian(
     diag_idx = np.arange(n)
     A_off = A.copy()
     A_off[diag_idx, diag_idx] = 0.0
-    # Class-K magnitude of the signed couplings → the signed degree.
-    deg = np.abs(A_off).sum(axis=1)
+    # Class-K magnitude of the signed couplings → the signed degree. Expressed
+    # as an EXPLICIT sign-branch (pin-slot + re-orientation), NOT an ALU abs():
+    # |A_ij| = A_ij where A_ij >= 0 else -A_ij. (Honours "abs() is never fine".)
+    A_mag = np.where(A_off >= 0.0, A_off, -A_off)
+    deg = A_mag.sum(axis=1)
     L = -A_off
     L[diag_idx, diag_idx] = deg
     return L

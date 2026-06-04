@@ -81,9 +81,10 @@ def op(
         Y = np.fft.fft(yy)
         S_xy = X * np.conj(Y)
         if coherence:
-            S_xx = np.abs(X) ** 2
-            S_yy = np.abs(Y) ** 2
-            S_out = np.abs(S_xy) ** 2 / np.maximum(S_xx * S_yy, 1e-30)
+            S_xx = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+            S_yy = Y.real ** 2 + Y.imag ** 2  # |z|² = real²+imag² (no abs())
+            # |z|² = real²+imag² (no abs())
+            S_out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
         else:
             S_out = S_xy
         freqs = np.fft.fftfreq(frame_size)
@@ -103,13 +104,14 @@ def op(
         X = np.fft.fft(xf)
         Y = np.fft.fft(yf)
         S_xy_acc += X * np.conj(Y)
-        S_xx_acc += np.abs(X) ** 2
-        S_yy_acc += np.abs(Y) ** 2
+        S_xx_acc += X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+        S_yy_acc += Y.real ** 2 + Y.imag ** 2  # |z|² = real²+imag² (no abs())
     S_xy = S_xy_acc / n_frames
     if coherence:
         S_xx = S_xx_acc / n_frames
         S_yy = S_yy_acc / n_frames
-        out = np.abs(S_xy) ** 2 / np.maximum(S_xx * S_yy, 1e-30)
+        # |z|² = real²+imag² (no abs())
+        out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
     else:
         out = S_xy
     freqs = np.fft.fftfreq(frame_size)

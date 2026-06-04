@@ -322,9 +322,9 @@ def verify_rotation_class_n_cycle_order(
             f"verify_rotation_class_n_cycle_order: stride must be int; "
             f"got {type(stride).__name__}"
         )
-    # gcd is well-defined for negative inputs; use abs to match
-    # Class N rational order semantics.
-    g = _I.gcd(abs(stride) if stride != 0 else D, D)
+    # gcd is well-defined for negative inputs; magnitude via
+    # Class-K sign-branch (no abs()) to match Class N rational order semantics.
+    g = _I.gcd((stride if stride >= 0 else -stride) if stride != 0 else D, D)
     return D // g
 
 

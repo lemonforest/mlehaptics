@@ -316,7 +316,10 @@ def exp_series_truncate(numerator: int,
     # Reduce to lowest terms via Class N rational gcd:
     if sum_num == 0:
         return (0, 1)
-    g = math.gcd(abs(sum_num), sum_den)
+    # Class-K magnitude as an EXPLICIT sign-branch, never an ALU abs()
+    # (sum_den is already positive upstream).
+    num_mag = sum_num if sum_num >= 0 else -sum_num
+    g = math.gcd(num_mag, sum_den)
     out_num = sum_num // g
     out_den = sum_den // g
     # Ensure denominator is positive.
@@ -346,7 +349,10 @@ def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
         return (0, 1)
-    g = math.gcd(abs(num), abs(den))
+    # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
+    num_mag = num if num >= 0 else -num
+    den_mag = den if den >= 0 else -den
+    g = math.gcd(num_mag, den_mag)
     num //= g
     den //= g
     if den < 0:

@@ -244,7 +244,8 @@ def operator_norm(H: np.ndarray) -> float:
     assert H.ndim == 2, "operator_norm: H must be 2-D"
     assert H.shape[0] == H.shape[1], "operator_norm: H must be square"
     eigvals, _V = hermitian_eigendecompose(H)
-    return float(np.max(np.abs(eigvals)))
+    # Class-K magnitude via explicit sign-branch (no abs()); eigvals real (Hermitian).
+    return float(np.max(np.where(eigvals >= 0.0, eigvals, -eigvals)))
 
 
 def chsh_pauli_combination_norm() -> float:
@@ -314,8 +315,11 @@ def verify_chsh(tolerance: float = 1e-14) -> Tuple[bool, float, float]:
     """
     primary_norm = chsh_pauli_combination_norm()
     tsirelson_norm = chsh_operator_norm()
-    primary_residual = abs(primary_norm - 2.0)
-    tsirelson_residual = abs(tsirelson_norm - TSIRELSON_BOUND)
+    # Class-K magnitude via explicit sign-branch (no abs()); scalar reals.
+    _pr = primary_norm - 2.0
+    primary_residual = _pr if _pr >= 0.0 else -_pr
+    _tr = tsirelson_norm - TSIRELSON_BOUND
+    tsirelson_residual = _tr if _tr >= 0.0 else -_tr
     verified = (primary_residual < tolerance) and (tsirelson_residual < tolerance)
     return verified, primary_residual, tsirelson_residual
 

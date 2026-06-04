@@ -576,7 +576,8 @@ def truncate_sparse(
     coeffs = np.frombuffer(
         handle.coefficients_bytes, dtype=np.complex128
     ).reshape(n).copy()
-    magnitudes = np.abs(coeffs)
+    # |z| = hypot(real, imag) (no abs()); coeffs are complex spectral coefficients.
+    magnitudes = np.hypot(coeffs.real, coeffs.imag)
     if keep_k is not None:
         k = int(keep_k)
         if k < 0 or k > n:

@@ -150,7 +150,10 @@ def kepler_solve(
         f_prime = 1.0 - e * math.cos(E)
         delta = f / f_prime
         E -= delta
-        if abs(delta) < tolerance:
+        # Class-K magnitude of the Newton step as an EXPLICIT sign-branch,
+        # never an ALU abs().
+        delta_mag = delta if delta >= 0.0 else -delta
+        if delta_mag < tolerance:
             return E
     raise RuntimeError(
         f"kepler_solve: did not converge in {max_iter} iterations "

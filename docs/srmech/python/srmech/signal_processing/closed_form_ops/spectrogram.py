@@ -60,4 +60,5 @@ def op(
         window=window,
         D=D,
     )
-    return np.abs(stft_matrix) ** 2
+    # |z|² = real²+imag² (no abs())
+    return stft_matrix.real ** 2 + stft_matrix.imag ** 2
