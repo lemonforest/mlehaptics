@@ -1,0 +1,46 @@
+{
+  "partition": "R-RBS-LM-R12 (EC-cluster holographic signature, #817 under F352)",
+  "srmech_version": "0.7.0rc25",
+  "reactions": {
+    "CH4 combustion": {
+      "coeffs": [
+        1,
+        2,
+        1,
+        2
+      ],
+      "expect": [
+        1,
+        2,
+        1,
+        2
+      ],
+      "null_dim": 1,
+      "erasure_tolerance": 3,
+      "n": 4,
+      "error_detect": 4,
+      "balanced_syndrome": 0.0
+    },
+    "photosynthesis": {
+      "coeffs": [
+        6,
+        6,
+        1,
+        6
+      ],
+      "expect": [
+        6,
+        6,
+        1,
+        6
+      ],
+      "null_dim": 1,
+      "erasure_tolerance": 3,
+      "n": 4,
+      "error_detect": 4,
+      "balanced_syndrome": 0.0
+    }
+  },
+  "holographic_signature": true,
+  "error_detect_signature": true
+}
