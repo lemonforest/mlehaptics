@@ -1261,6 +1261,26 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "Euclidean norm sqrt(a^2 + b^2)"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
+            summary="Discrete Fourier transform as the Antikythera epicycle-sum X_k = sum_n x_n * e^(-2pi*i*(k*n mod N)/N): Class I (cyclic index) + Class N (twiddle) + Class C (i-rotation) + Class M (bundle). Pure-Python O(N^2); substrate-native replacement for numpy.fft.fft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input samples"),
+                        P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
+            returns=R("list[complex]", "DFT spectrum (or inverse)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.idft", owner="srmech", category="cascade",
+            summary="Inverse DFT — dft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for numpy.fft.ifft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input spectrum"),),
+            returns=R("list[complex]", "time-domain samples"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
+            summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for numpy.kron.",
+            parameters=(P("a", "list[list[complex]]", True, "left matrix (list of rows)"),
+                        P("b", "list[list[complex]]", True, "right matrix (list of rows)")),
+            returns=R("list[list[complex]]", "Kronecker product block matrix"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",

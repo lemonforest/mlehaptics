@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc36] - 2026-06-04
+
+**The DFT as the Antikythera epicycle-sum + Kronecker, as A–N cascades — plus a Bio-TOTP test-flake root-cause + fix.** Pure-Python; ABI stays 3; `describe()` 220 → **223** (+3 spectral cascade tools).
+
+- **New numpy-free spectral cascades** `srmech.amsc.cascade.spectral_cascades.{dft, idft, kron}` (built on rc34's `cexp`):
+  - **`dft` / `idft`** — the discrete Fourier transform IS the Antikythera epicycle-sum (`[[user_stance_epicycle_via_gear_plus_pin]]`): `X_k = Σ_n x_n · e^(∓2πi·(k·n mod N)/N)` = **Class I** (the cyclic index `k·n mod N`) ∘ **Class N** (the twiddle cos/sin) ∘ **Class C** (the imaginary-unit 90° rotation) ∘ **Class M** (the bundle/superposition sum). Direct `O(N²)`; matches `numpy.fft.fft`/`ifft` to ~3e-15 (machine ε). No `math.pi`/`np.pi` in the call graph (the twiddle angle draws π from the cascade). The radix-2 `O(N log N)` butterfly (adds Class J + Class K) is the follow-on.
+  - **`kron`** — Kronecker product `A⊗B` = **Class I** (mixed-radix index) ∘ **Class M** (element products). Bit-exact vs `numpy.kron`.
+  - **MCP-callable**: the new `list[complex]` / `list[list[complex]]` param types get real inbound coercers in `srmech.mcp._coercion` (each complex scalar rides as `[re, im]`), so all three tools are invocable over the MCP / Anthropic surface (the every-tool invocation smoke covers them).
+- **Bug fix (test-only): Bio-TOTP flaky test root-caused.** `test_bus.py::test_bio_totp_decrypt_rejects_channel_id_mismatch` was intermittently failing with `DID NOT RAISE` (~1/8). Root cause: the test runs in **permissive** mode (`strict=False`) and used the **real wall clock**, so `encrypt`/`decrypt` could straddle a TOTP window boundary — the wrong-window decrypt yields garbage that fails the UTF-8/JSON parse, so the binding fields read as *absent* and permissive mode accepts (routing around the present-but-mismatched rejection the test exercises). **The cipher and the secure `strict=True` bus path are unaffected** (strict mode rejects garbage). Fixed by pinning `time_ns` (the same hook every deterministic sibling test already uses) on this test and the sibling replay test; verified deterministic over 80 executions.
+- **Tests** `tests/test_spectral_cascades_rc36.py` (+6): dft/idft vs numpy.fft, idft∘dft round-trip, kron vs numpy.kron, AST no-libm-π guard.
+
+**Roadmap:** rc37 routes the ~32 `math.sqrt`/`np.hypot` sites + the radix-2 FFT + QR/SVD; the numpy→`srmech[scientific]` dependency-flip is the capstone. No new C symbols.
+
 ## [0.7.0rc35] - 2026-06-04
 
 **`sqrt`/`hypot` cascade primitives + module rename `asymptotic_calculus` → `calculus`.** Pure-Python; ABI stays 3; `describe()` 218 → **220** (+2 root tools).
