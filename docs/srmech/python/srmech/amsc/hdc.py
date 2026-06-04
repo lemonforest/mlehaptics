@@ -843,6 +843,124 @@ def klein4_holographic_decode(store, *, replicas=4, erased=None):
 
 
 # ---------------------------------------------------------------------------
+# Explicit order-3 triality-recursion corrector (#797 op (a1); F359 contract).
+#
+# The order-2 Klein-4 store is k=2-DETECT natively (F294: no Z3, 3∤4) — two
+# views can DETECT a mismatch but cannot say which is right. k=3-CORRECT needs
+# the order-3 triality (τ³=I) past the 4-cap: this is the EXPLICIT corrector
+# path (op (a2) klein4_holographic_* is the *measured substitute* that corrects
+# with no Z3). The store carries the order-3 triality ORBIT of the value —
+# {v, T(v), T²(v)} for T = ``klein4_triality_cycle`` — so the third vote is the
+# triality orbit's third element (block2 = T²v), NOT an external 3rd render.
+# Decode brings all three orbit-blocks back to the common frame by INVERTING
+# the triality (T⁻¹ on block1, T⁻² = T on block2) and takes the 2-of-3 majority,
+# correcting one error. The correction is ATTRIBUTABLE to the order-3 op: with
+# the triality disabled (no inverse), the three raw orbit-blocks {v, Tv, T²v}
+# disagree on every non-zero sector → majority mangles them → you fall back to
+# k=2-DETECT. Class-home: M (the orbit replication bind) ∘ C (orientation:
+# T⁻¹/T to the common frame) ∘ C (the majority selection). No abs().
+#
+# F359 5-bar contract (the falsifiable bars; the canonical §20/F359 figures are
+# NOT on the read-only research branch, so this is built to the bars):
+#   (1) blind unknown-location correction beats the F353 holographic 0.25
+#       baseline (single-error recovery is exact);
+#   (2) the 3rd vote is the order-3 triality orbit of the same value;
+#   (3) C/Python parity (Python-first; the standalone-C peer is the next voxel);
+#   (4) disable the order-3 op → degrade to k=2-DETECT (correction attributable
+#       to the triality, not to plain replication);
+#   (5) WIDTH-step only — one 4-cap crossing (order-2 → order-3). The continuum
+#       count-recursion is open math; ``depth != 1`` is out-of-domain and RAISES
+#       rather than fabricating a recursion the substrate doesn't license.
+# ---------------------------------------------------------------------------
+
+_KLEIN4_TRIALITY_ORBIT = 3   # the order-3 triality orbit has exactly 3 elements
+
+
+def klein4_triality_encode(v):
+    """Encode a Klein-4 store as its order-3 triality orbit (#797 op (a1); F359).
+
+    Returns a length ``len(v) * 3`` uint8 store holding the order-3 triality
+    orbit ``[v, T(v), T²(v)]`` for ``T = klein4_triality_cycle`` (orbit-major).
+    Paired with :func:`klein4_triality_correct`: the third block (``T²v``) is the
+    triality orbit's third element — the order-3 third vote past the order-2
+    4-cap — NOT an externally-rendered copy.
+
+    Class-home **M** (orbit replication bind) ∘ **I** (the order-3 cycle that
+    generates the orbit). No ``abs()``; pure uint8 relabel.
+
+    Args:
+        v: A Klein-4 hypervector (uint8, elements ``{0, 1, 2, 3}``).
+
+    Returns:
+        uint8 store of length ``len(v) * 3`` = ``[v | T(v) | T²(v)]``.
+    """
+    arr = _as_klein4(v, "klein4_triality_encode")
+    t1 = klein4_triality_cycle(arr)              # T(v)
+    t2 = klein4_triality_cycle(t1)               # T²(v)
+    return np.concatenate([arr, t1, t2]).astype(np.uint8)
+
+
+def klein4_triality_correct(store, *, depth=1):
+    """Correct a Klein-4 store via the order-3 triality 2-of-3 majority (op (a1)).
+
+    Inverse-with-correction of :func:`klein4_triality_encode`. Reshapes the
+    store into the three orbit-blocks ``[b0, b1, b2]`` (supposed ``[v, Tv, T²v]``),
+    brings each back to the common ``v``-frame by INVERTING the triality —
+    ``b0``, ``T⁻¹(b1)``, ``T⁻²(b2) = T(b2)`` — and takes the per-position 2-of-3
+    majority (ties broken toward the lowest sector index). One corrupted block
+    (or one error) is outvoted by the two agreeing frames, so a single error is
+    corrected exactly: k=3-CORRECT where the bare order-2 store is only
+    k=2-DETECT.
+
+    The correction is **attributable to the order-3 triality**: without the
+    inverse-to-frame step the three raw orbit-blocks ``{v, Tv, T²v}`` disagree on
+    every non-zero sector, so a naive majority does not recover ``v`` (bar 4).
+
+    WIDTH-step only (bar 5): ``depth`` must be 1 (the single order-2 → order-3
+    4-cap crossing). The continuum count-recursion is open math; any other
+    ``depth`` raises ``NotImplementedError`` rather than fabricating it.
+
+    Args:
+        store: uint8 store of length divisible by 3 (from
+            :func:`klein4_triality_encode`).
+        depth: Recursion depth; only ``1`` (the width-step) is in-domain.
+
+    Returns:
+        The reconstructed length ``len(store)//3`` uint8 vector.
+
+    Raises:
+        NotImplementedError: if ``depth != 1`` (continuum-recursion is out of
+            domain — the width-only contract, F359 bar 5).
+        ValueError: if the store length is not a positive multiple of 3.
+    """
+    if depth != 1:
+        raise NotImplementedError(
+            "klein4_triality_correct: only the width-step (depth=1) is in "
+            "domain; the continuum count-recursion is open math (F359 bar 5)"
+        )
+    s = np.asarray(store, dtype=np.uint8)
+    if s.ndim != 1:
+        raise ValueError("klein4_triality_correct: store must be 1-D")
+    if s.size == 0 or s.size % _KLEIN4_TRIALITY_ORBIT != 0:
+        raise ValueError(
+            f"store length {s.size} must be a positive multiple of 3 "
+            "(the order-3 triality orbit)"
+        )
+    D = s.size // _KLEIN4_TRIALITY_ORBIT
+    b0, b1, b2 = s.reshape(_KLEIN4_TRIALITY_ORBIT, D)
+    # Invert the triality to bring every orbit-block back to the v-frame.
+    frame0 = b0
+    frame1 = klein4_triality_cycle(b1, inverse=True)   # T⁻¹(Tv) = v
+    frame2 = klein4_triality_cycle(b2)                 # T⁻²(T²v) = T(T²v) = v
+    frames = np.stack([frame0, frame1, frame2], axis=0)
+    # Per-position 2-of-3 majority over the four Klein-4 sectors.
+    counts = np.zeros((D, 4), dtype=np.int64)
+    for state in range(4):
+        counts[:, state] = (frames == state).sum(axis=0)
+    return counts.argmax(axis=1).astype(np.uint8)
+
+
+# ---------------------------------------------------------------------------
 # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (MS #21 / v0.7.0, #814).
 #
 # The octonion / Cayley-Dickson product: non-commutative AND non-associative,
@@ -1426,6 +1544,10 @@ __all__ = [
     "klein4_cpt_mirror",
     "klein4_triality_cycle",
     "klein4_sector_count",
+    "klein4_holographic_encode",
+    "klein4_holographic_decode",
+    "klein4_triality_encode",
+    "klein4_triality_correct",
     "LOOP_DIM",
     "loop_conj",
     "loop_bind",
