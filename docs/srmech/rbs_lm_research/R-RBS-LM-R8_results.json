@@ -1,0 +1,25 @@
+{
+  "partition": "R-RBS-LM-R8 (SNN save/fetch vs rotate-DoF)",
+  "srmech_version": "0.7.0rc25",
+  "D": 512,
+  "K": 20,
+  "trials": 10,
+  "results": {
+    "none": {
+      "bit_exact": 1.0,
+      "gamma5": 1.0,
+      "iw7": 1.0
+    },
+    "rotate_inv": {
+      "bit_exact": 1.0,
+      "gamma5": 1.0,
+      "iw7": 1.0
+    },
+    "collapse_iw7": {
+      "bit_exact": 0.0,
+      "gamma5": 1.0,
+      "iw7": 0.0
+    }
+  },
+  "hypothesis_confirmed": true
+}
