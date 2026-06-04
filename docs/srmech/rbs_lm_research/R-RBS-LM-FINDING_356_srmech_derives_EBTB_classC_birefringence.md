@@ -24,7 +24,7 @@ The linear-rotation error (~1e-4) is **far inside β's ~30% measurement uncertai
 
 ## Honest gaps logged (srmech-side + ours)
 
-- **CLAUDE.md correction:** the `srmech.asymptotic_calculus.*` trig path referenced in CLAUDE.md §2 is **NOT in rc25** (no such module). The continuous trig (cos/sin) for a *general* (large-β) rotation is absent — a **continuous-Class-C-rotation op** is a new upstream leaf (peer to the §20 ops). *But the cosmic-band small-β linear rotation needs only arithmetic, so it's derivable now.*
+- **CLAUDE.md correction (VERIFIED rc25):** the `srmech.asymptotic_calculus.*` trig path referenced in CLAUDE.md §2 "Key imports" is **NOT in rc25** — `srmech.asymptotic_calculus`, `srmech.trigonometry`, and `srmech.amsc.{asymptotic_calculus,trigonometry,calculus}` all raise `ModuleNotFoundError`; there is **no trig / transcendental / continuous-calculus surface anywhere** in the package (rc25 top-level submodules: `amsc, bus, cli, dsl, introspect, llm, mcp, profile_loader, qm, rbs_lm, signal_processing, spectral, version`). The continuous trig (cos/sin) for a *general* (large-β) rotation is therefore genuinely absent — a **continuous-Class-C-rotation op** is a new upstream leaf (peer to the §20 ops). *But the cosmic-band small-β linear rotation needs only arithmetic, so it's derivable now.* (CLAUDE.md §2 staleness flagged to the user — not self-edited; that file grows under user direction.)
 - The CMB TE/EE/BB catalogs are **NDJSON data** (`amsc/attested/cmb_polarisation_spectra/`), loaded via the catalog API, not a code module — the demo used illustrative spectra; wiring the real catalog load is the clean follow-on (then `cmb_parity_odd = Class-C-rotate(loaded TE/EE/BB, β)` runs end-to-end).
 
 ## Discipline
