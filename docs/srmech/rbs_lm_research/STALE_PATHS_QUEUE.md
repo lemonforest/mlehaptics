@@ -203,3 +203,19 @@ Status legend adds one tag for this arc:
 
 ### Disposition
 **BX-1, BX-2 are walkable in the next research session** (no srmech bump). **BX-3, BX-4** await user direction / the SNN build. **BX-5–BX-10 are blocked on srmech updates — chiefly the in-progress numpy-math removal** (do not author the QDFT cascade against the moving `qm` surface; resume post-numpy-free + #863 pickup). Durable handoffs for the whole arc: issue **#863** + the **R22 descriptor drafts** + findings **F356→F388** + the re-prime artifact.
+
+---
+
+## ALU-native A–N thread (F393, 2026-06-04) — does the whole 14-class vocabulary reduce to add/subtract/shift + sign(handedness)?
+
+**Spec/test-plan: F393** (anchor R35: multiply=shift-add, CORDIC rotation=shift-add+sign; + F392 divide=shift-subtract+handedness). **Hypothesis:** every A–N class reduces to **{add, subtract, shift, sign(handedness=C/K), compare, xor·and}** — no multiply unit, no divide unit, no FPU transcendental.
+
+| Item | Subject | Status | Gate / note |
+|---|---|---|---|
+| **ALU-A** | **Attestation pass (research-triality)** — verify-PDF the CS reductions: CORDIC (Volder 1959), Booth multiply (1951), restoring/non-restoring division, binary GCD (Stein 1967), SHA-256 (FIPS 180-4) | **ACTIVE / EARLY** | **runnable NOW — no srmech update needed**; this is the early research/attestation the user flagged; F381 triality + verify-PDF discipline; no-lineage (CS literature's) |
+| **ALU-B** | the per-class reduction map (14 classes → the minimal ALU set) | ✅ **DONE** | F393 |
+| **ALU-C** | the **13 rc28-walkable classes** — srmech-native demo that each shipped primitive's output == an add/sub/shift+sign cascade (A/B/C/D/E/F/G/H/I/J/K/M/N) | **ACTIVE / now** | rc28; no version bump |
+| **ALU-D** | the **numpy-free Class-L leg** — eigendecomp = Jacobi = CORDIC = shift-add+sign, fully numpy-free | ⏳ **QUEUED-srmech** | gated on the numpy removal (rc31 pure-Python Jacobi; UPSTREAM §22) — **same gate as BX-5..BX-8**; possible upstream ask: a CORDIC / shift-add atom |
+
+### Disposition
+**ALU-A (attestation) and ALU-C (13 classes) are walkable NOW** — ALU-A is the early research/attestation runnable before srmech is ready. **ALU-D (Class-L numpy-free) is queued behind the numpy removal.** Anchor + spec: F393; reductions proven: multiply (R35), divide (F392), trig/rotation/sqrt/L (R35 CORDIC).
