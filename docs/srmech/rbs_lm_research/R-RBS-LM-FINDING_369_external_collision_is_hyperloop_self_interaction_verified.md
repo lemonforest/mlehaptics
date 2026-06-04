@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 369 — VERIFIED + ATTESTED: "what looks like an external collision is the hyper-loop bumping ITSELF" (self-interaction). The attested decision is F270/F298 + MFO §VIII.31.12(1), triality-verified; re-reproduced on rc28. This dissolves the CMB external-collision framing ontologically (correcting F367/F368)
 
+> **REFINE (F371, 2026-06-04):** the self-interaction "germline" is specifically a **precessive LOOP-UP** event (a new loop rising via the F270 self-recursion; MFO §1104 Big Bang = loop-up) — and there is **no singularity** (§1130 asymptotic-DoF), so no reverse-of-a-singularity. "Big bang" is the epicycle-observer's frame-relative view of the loop-up (local observer sees a precessing asymptotic spiral, no point). See F371.
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc28 · **task (user):** "we decided that things that looked like external collisions are hyper-loop self-interactions after looking at the math. verify and ensure attested." · **verifies:** F270, F298, MFO §VIII.31.12(1); triality verdict `R-RBS-LM-TRIALITY_F296_F304_verdict.md` · **corrects the framing of:** F367(A), F368
 
 ## Verified — the decision exists, with its math, triality-verified

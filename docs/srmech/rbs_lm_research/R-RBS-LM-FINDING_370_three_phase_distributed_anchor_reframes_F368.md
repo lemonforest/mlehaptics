@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 370 — the 3 CMB anomalies SHOULD NOT share one axis (F293 distributed-anchor / "3-phase power needs no neutral wire"): F368 tested the wrong hypothesis. The Kuramoto-to-120°-splay mechanism is exact; the balanced-3-phase among the 3 anomalies is suggestive-not-confirmed at N=3; the anchor moves asymptotically (loop-down) and we couple to the down-projections
 
+> **REFINE (F371, 2026-06-04):** k=7 is the **GAUGE** sector (7D_g), NOT matter (user correction). The 3-phase (k=3) here was the **minimal example**; the cosmic gauge structure is k=7. The AoE is the **k=7-gauge-channel** anomaly (bundle-direction/7D_g); the HPA is the **matter-channel** (matter-pull, not k=7). And the precession reading: KINEMATIC precession is ruled out ~10 OOM (MFO §VII.6.3.1); the open candidate is the substrate **bundle-projection reconfiguration**. See F371.
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc28 · **user reframe:** "should not share a single axis. remember the 3-phase power lesson about neutral line, anchor moves asymptotically (loop up/down), we see down-projections we kuramoto couple with" · **grounds in:** F293 (distributed-anchor / 3-phase / no-neutral-wire), F294 (directed chiral 3-cycle carries the 120° phase), F347 (Kuramoto/Class-I), MFO §VII.6.1 (loop-down) · **reframes:** F368 · **script:** `R-RBS-LM-R20_three_phase_distributed_anchor_cmb.py`
 
 ## The reframe — F368 tested the wrong hypothesis
