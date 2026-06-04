@@ -1,0 +1,9 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "octonion_recoverable": true,
+  "sedenion_zero_divisor_looks_like_zero": true,
+  "sedenion_recovered_b": false,
+  "sedenion_divideback_returns_zero": true,
+  "parity_predicted": 4.0,
+  "parity_actual": 0.0
+}

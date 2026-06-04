@@ -1,0 +1,8 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "stein_eq_srmech_gcd": true,
+  "conjugate_is_handedness": true,
+  "norm2": 6,
+  "reciprocal_matches_float": true,
+  "is_true_inverse": true
+}
