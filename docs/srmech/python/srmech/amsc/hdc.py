@@ -29,11 +29,14 @@ from __future__ import annotations
 import concurrent.futures
 import ctypes
 import os
+import random as _random
+from array import array
 from typing import Sequence
 
 import numpy as np
 
 from . import _native
+from .hv import HV
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -413,6 +416,88 @@ def _as_klein4(v, op: str):
     return arr
 
 
+# ── numpy-free Klein-4 core (v0.7.0rc29; UPSTREAM §22/§22b) ───────────────
+# The Klein-4 carrier is the first family to go numpy-free: ops validate to a
+# stdlib ``array('B')`` working buffer and return an :class:`HV` handle (no
+# implicit ``np.ndarray`` escapes — the §22 boundary-type lever). The kernels
+# below are pure-Python byte ops; no ``np`` is touched on this path.
+
+def _as_klein4_buf(v, op: str) -> "array":
+    """Validate + copy a Klein-4 value into an ``array('B')`` working buffer.
+
+    Accepts an :class:`HV`, ``bytes`` / ``bytearray`` / ``array('B')``, a
+    ``list`` / ``tuple`` / generator of ints, or a 1-D ``numpy.ndarray``
+    (back-compat for research callers). Elements must be in ``{0, 1, 2, 3}``.
+    The numpy-free path — ``np`` is never imported or touched here."""
+    src = v.buffer if isinstance(v, HV) else v
+    buf = array("B")
+    try:
+        for x in src:
+            xi = int(x)
+            if xi < 0 or xi > 3:
+                raise ValueError(
+                    f"hdc.{op}: klein-4 elements must be in {{0, 1, 2, 3}}"
+                )
+            buf.append(xi)
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(
+            f"hdc.{op}: klein-4 vector must be a 1-D sequence of ints"
+        ) from exc
+    if len(buf) == 0:
+        raise ValueError(f"hdc.{op}: klein-4 vector must be non-empty")
+    return buf
+
+
+def _store_buf(store, op: str) -> "array":
+    """Copy a 1-D uint8 store (HV / bytes / array / list / np.ndarray) into an
+    ``array('B')`` — the lenient buffer used by the holographic decode (elements
+    are any uint8, not restricted to ``{0, 1, 2, 3}``). Numpy-free."""
+    src = store.buffer if isinstance(store, HV) else store
+    buf = array("B")
+    try:
+        for x in src:
+            buf.append(int(x))
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(f"hdc.{op}: store must be a 1-D sequence of uint8") from exc
+    return buf
+
+
+def _xor_buf(a: "array", b: "array") -> "array":
+    """Element-wise XOR of two equal-length ``array('B')`` buffers."""
+    return array("B", (x ^ y for x, y in zip(a, b)))
+
+
+def _xor_const_buf(a: "array", mask: int) -> "array":
+    """XOR every element of ``a`` with a constant ``mask`` (0 → unchanged copy)."""
+    return array("B", a) if mask == 0 else array("B", (x ^ mask for x in a))
+
+
+def _table_buf(a: "array", table) -> "array":
+    """Relabel every element of ``a`` through a length-4 lookup ``table``."""
+    return array("B", (table[x] for x in a))
+
+
+def _majority_buf(arrs) -> "array":
+    """Per-position 2-bit majority vote over equal-length ``array('B')`` buffers.
+
+    Each Klein-4 element is two independent bits; a bit is set only when its
+    1-count is strictly greater than ``len(arrs) // 2`` (an exact tie → 0).
+    The numpy-free kernel behind :func:`klein4_bundle` / the holographic +
+    triality majorities. No ``abs()``."""
+    n = len(arrs[0])
+    half = len(arrs) // 2
+    out = array("B", bytes(n))
+    for i in range(n):
+        c0 = 0
+        c1 = 0
+        for a in arrs:
+            x = a[i]
+            c0 += x & 1
+            c1 += (x >> 1) & 1
+        out[i] = ((1 if c1 > half else 0) << 1) | (1 if c0 > half else 0)
+    return out
+
+
 def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
 
@@ -429,9 +514,13 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
-    if rng is None:
-        rng = np.random.default_rng(seed)
-    return rng.integers(0, 4, size=D, dtype=np.uint8)
+    if rng is not None:
+        # Back-compat numpy ``Generator`` path: the caller already holds numpy,
+        # so this branch may use it. The default (seed / None) path below is
+        # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
+        return HV.from_sequence(rng.integers(0, 4, size=D, dtype=np.uint8))
+    r = _random.Random(seed)
+    return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
 
 # ── Klein-4 sector / chunk parallel dispatch (v0.6.0rc13; §11.3) ──────────
@@ -496,56 +585,30 @@ def _klein4_resolve_sectors(sectors, parallel) -> int:
     return _klein4_default_sectors()
 
 
-def _klein4_chunk_apply(per_slice, arrs, n_sectors):
-    """Data-parallel: split equal-length ``arrs`` into ``n_sectors`` contiguous
-    column-slices, run ``per_slice(tuple-of-slices)`` on a thread each, concat.
-
-    Bit-identical to the serial op (the slices partition the positions). Falls
-    back to a single serial call when ``n_sectors <= 1`` or the vector is
-    shorter than the lane count.
-    """
-    n = arrs[0].size
-    assert all(a.size == n for a in arrs), "klein4 chunk: arrays must share length"
-    if n_sectors <= 1 or n < n_sectors:
-        return per_slice(arrs)
-    bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-    slabs = [
-        tuple(a[bounds[k]:bounds[k + 1]] for a in arrs) for k in range(n_sectors)
-    ]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        parts = list(ex.map(per_slice, slabs))
-    return np.concatenate(parts).astype(np.uint8)
-
-
-def _klein4_sector_flip(s, v):
+def _klein4_sector_flip(s, buf: "array") -> "array":
     """Apply the Klein-4 sector flip ``T_s`` (an involution: XOR with mask s)."""
-    m = _KLEIN4_SECTOR_MASKS[s]
-    return v if m == 0 else np.bitwise_xor(v, m).astype(np.uint8)
+    return _xor_const_buf(buf, _KLEIN4_SECTOR_MASKS[s])
 
 
-def _klein4_chirality_duals(body, v, n_sectors):
-    """Return the ≤4 sector duals ``T_s(body(T_s(v)))`` (ThreadPool; F233)."""
-    def _dual(s):
-        return _klein4_sector_flip(s, body(_klein4_sector_flip(s, v)))
+def _klein4_chirality_duals(body, buf: "array", n_sectors):
+    """The ≤4 sector duals ``T_s(body(T_s(v)))`` (F233). Serial — the pure-Python
+    bodies are GIL-bound, so threading would not overlap (UPSTREAM caveat)."""
+    return [
+        _klein4_sector_flip(s, body(_klein4_sector_flip(s, buf)))
+        for s in range(n_sectors)
+    ]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        return list(ex.map(_dual, range(n_sectors)))
 
-
-def _klein4_bundle_core(arrs):
-    """Per-bit majority vote over a list of equal-length klein4 arrays (the
-    serial bundle kernel; the public :func:`klein4_bundle` wraps it)."""
-    n = arrs[0].size
-    for i, arr in enumerate(arrs):
-        if arr.size != n:
+def _klein4_bundle_core(arrs) -> "array":
+    """Per-bit majority over equal-length klein4 buffers — the serial bundle
+    kernel (the public :func:`klein4_bundle` wraps it in an :class:`HV`)."""
+    n = len(arrs[0])
+    for i, a in enumerate(arrs):
+        if len(a) != n:
             raise ValueError(
-                f"hdc.klein4_bundle: vector {i} has length {arr.size}, expected {n}"
+                f"hdc.klein4_bundle: vector {i} has length {len(a)}, expected {n}"
             )
-    stack = np.stack(arrs)
-    half = len(arrs) // 2
-    bit0 = (np.bitwise_and(stack, 1).sum(axis=0) > half).astype(np.uint8)
-    bit1 = (np.right_shift(stack, 1).sum(axis=0) > half).astype(np.uint8)
-    return (bit1 * 2 + bit0).astype(np.uint8)
+    return _majority_buf(arrs)
 
 
 def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
@@ -559,27 +622,22 @@ def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
     the same vector, so it is value-transparent + carries the 4-way
     independence). No ``abs()``.
     """
-    a = _as_klein4(a, "klein4_bind")
-    b = _as_klein4(b, "klein4_bind")
-    if a.shape != b.shape:
+    a = _as_klein4_buf(a, "klein4_bind")
+    b = _as_klein4_buf(b, "klein4_bind")
+    if len(a) != len(b):
         raise ValueError(
-            f"hdc.klein4_bind: lengths must match (got {a.size} vs {b.size})"
+            f"hdc.klein4_bind: lengths must match (got {len(a)} vs {len(b)})"
         )
-    n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    if n_sectors <= 1:
-        return np.bitwise_xor(a, b).astype(np.uint8)
-    if mode == "chunk":
-        return _klein4_chunk_apply(
-            lambda sl: np.bitwise_xor(sl[0], sl[1]).astype(np.uint8), (a, b), n_sectors
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_bind: mode must be 'chunk' or 'chirality'; got {mode!r}"
         )
-    if mode == "chirality":
-        duals = _klein4_chirality_duals(
-            lambda x: np.bitwise_xor(x, b).astype(np.uint8), a, n_sectors
-        )
-        return _klein4_bundle_core(duals)
-    raise ValueError(
-        f"klein4_bind: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
+    # XOR is sector-transparent: chunk == serial, and the F233 chirality dual
+    # T_s(T_s(a) XOR b) collapses to a XOR b for every sector. So all modes
+    # yield the plain XOR; sectors=/parallel= stay accepted value-no-op flags
+    # (pure-Python bodies don't overlap under the GIL anyway — UPSTREAM caveat).
+    return HV(_xor_buf(a, b), sectors=4)
 
 
 def klein4_unbind(c, a):
@@ -604,40 +662,22 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """
     if len(vectors) == 0:
         raise ValueError("hdc.klein4_bundle: requires at least one vector")
-    arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
+    arrs = [_as_klein4_buf(v, "klein4_bundle") for v in vectors]
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
+        )
     n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    if n_sectors <= 1 or mode == "chunk":
-        if n_sectors <= 1:
-            return _klein4_bundle_core(arrs)
-        # chunk: split positions, majority-vote each slab, concat (bit-exact).
-        n = arrs[0].size
-        for i, arr in enumerate(arrs):
-            if arr.size != n:
-                raise ValueError(
-                    f"hdc.klein4_bundle: vector {i} has length {arr.size}, "
-                    f"expected {n}"
-                )
-        if n < n_sectors:
-            return _klein4_bundle_core(arrs)
-        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-
-        def _vote(k):
-            return _klein4_bundle_core([a[bounds[k]:bounds[k + 1]] for a in arrs])
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            parts = list(ex.map(_vote, range(n_sectors)))
-        return np.concatenate(parts).astype(np.uint8)
-    if mode == "chirality":
-        def _sector_bundle(s):
-            conj = [_klein4_sector_flip(s, a) for a in arrs]
-            return _klein4_sector_flip(s, _klein4_bundle_core(conj))
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            duals = list(ex.map(_sector_bundle, range(n_sectors)))
-        return _klein4_bundle_core(duals)
-    raise ValueError(
-        f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    if mode == "chunk" or n_sectors <= 1:
+        # chunk splits positions → bit-identical to the plain serial majority.
+        return HV(_klein4_bundle_core(arrs), sectors=4)
+    # chirality (F233): bundle the T_s-conjugated inputs, inv_T_s (=T_s) each,
+    # then majority the ≤4 — meaningful only for chirality-asymmetric inputs.
+    duals = [
+        _klein4_sector_flip(s, _klein4_bundle_core([_klein4_sector_flip(s, a) for a in arrs]))
+        for s in range(n_sectors)
+    ]
+    return HV(_klein4_bundle_core(duals), sectors=4)
 
 
 def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> float:
@@ -652,62 +692,49 @@ def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> flo
     **sector-0** (value-transparent — XOR-flipping both sides preserves
     equality, so every sector equals the plain similarity anyway).
     """
-    a = _as_klein4(a, "klein4_similarity")
-    b = _as_klein4(b, "klein4_similarity")
-    if a.shape != b.shape:
+    a = _as_klein4_buf(a, "klein4_similarity")
+    b = _as_klein4_buf(b, "klein4_similarity")
+    if len(a) != len(b):
         raise ValueError(
-            f"hdc.klein4_similarity: lengths must match (got {a.size} vs {b.size})"
+            f"hdc.klein4_similarity: lengths must match (got {len(a)} vs {len(b)})"
         )
-    n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    n = a.size
-    if n_sectors <= 1 or n == 0:
-        return float((a == b).mean())
-    if mode == "chunk":
-        if n < n_sectors:
-            return float((a == b).mean())
-        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-
-        def _matches(k):
-            return int((a[bounds[k]:bounds[k + 1]] == b[bounds[k]:bounds[k + 1]]).sum())
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            counts = list(ex.map(_matches, range(n_sectors)))
-        return float(sum(counts) / n)
-    if mode == "chirality":
-        def _sector_sim(s):
-            return float(
-                (_klein4_sector_flip(s, a) == _klein4_sector_flip(s, b)).mean()
-            )
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            sims = list(ex.map(_sector_sim, range(n_sectors)))
-        return sims[0]  # sector-0 — value-transparent recombine
-    raise ValueError(
-        f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
+        )
+    _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
+    # chunk == serial; chirality recombines via sector-0, which equals the plain
+    # similarity (XOR-flipping both sides preserves equality). So every mode is
+    # the match-fraction; sectors=/parallel= stay accepted value-no-op flags.
+    n = len(a)
+    matches = sum(1 for x, y in zip(a, b) if x == y)
+    return float(matches / n)
 
 
 def klein4_chirality_flip_gamma5(v):
     """Flip the γ₅ axis: XOR with the bit-1 sector mask (2)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_gamma5"), 2).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_gamma5"), 2),
+              sectors=4)
 
 
 def klein4_chirality_flip_omega7(v):
     """Flip the iω₇ axis: XOR with the bit-0 sector mask (1)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_omega7"), 1).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_omega7"), 1),
+              sectors=4)
 
 
 def klein4_cpt_mirror(v):
     """CPT mirror: flip BOTH chirality axes (XOR with 3)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_cpt_mirror"), 3).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_cpt_mirror"), 3), sectors=4)
 
 
 # The order-3 triality cycle on the Klein-4 carrier (the S₃ = Aut(V₄)
 # generator). The three non-identity involutions cycle iω₇(1) → γ₅(2) →
 # CPT(3) → iω₇(1), fixing identity(0). Pure uint8 relabel via a length-4
 # lookup; applying it three times is the identity (T∘T∘T = id; T² = T⁻¹).
-_KLEIN4_TRIALITY_FORWARD = np.array([0, 2, 3, 1], dtype=np.uint8)
-_KLEIN4_TRIALITY_INVERSE = np.array([0, 3, 1, 2], dtype=np.uint8)
+# Plain tuples (numpy-free; consumed by ``_table_buf``).
+_KLEIN4_TRIALITY_FORWARD = (0, 2, 3, 1)
+_KLEIN4_TRIALITY_INVERSE = (0, 3, 1, 2)
 
 
 def klein4_triality_cycle(v, *, inverse=False):
@@ -732,16 +759,19 @@ def klein4_triality_cycle(v, *, inverse=False):
     Returns:
         The relabelled uint8 array (same shape as ``v``).
     """
-    arr = _as_klein4(v, "klein4_triality_cycle")
+    buf = _as_klein4_buf(v, "klein4_triality_cycle")
     table = _KLEIN4_TRIALITY_INVERSE if inverse else _KLEIN4_TRIALITY_FORWARD
-    return table[arr].astype(np.uint8)
+    return HV(_table_buf(buf, table), sectors=4)
 
 
 def klein4_sector_count(v):
     """Per-sector occupancy ``[n0, n1, n2, n3]`` — substrate attestation of the
-    chirality-sector distribution."""
-    arr = _as_klein4(v, "klein4_sector_count")
-    return np.bincount(arr, minlength=4)[:4].astype(np.int64)
+    chirality-sector distribution. Returns a stdlib ``list[int]`` (numpy-free)."""
+    buf = _as_klein4_buf(v, "klein4_sector_count")
+    counts = [0, 0, 0, 0]
+    for x in buf:
+        counts[x] += 1
+    return counts
 
 
 # ---------------------------------------------------------------------------
@@ -779,10 +809,13 @@ def klein4_holographic_encode(v, *, replicas=4):
     Returns:
         uint8 store of length ``len(v) * replicas``.
     """
-    arr = _as_klein4(v, "klein4_holographic_encode")
+    buf = _as_klein4_buf(v, "klein4_holographic_encode")
     if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
         raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
-    return np.tile(arr, replicas).astype(np.uint8)
+    out = array("B")
+    for _ in range(replicas):
+        out.extend(buf)
+    return HV(out, sectors=4)
 
 
 def klein4_holographic_decode(store, *, replicas=4, erased=None):
@@ -809,37 +842,46 @@ def klein4_holographic_decode(store, *, replicas=4, erased=None):
     Returns:
         The reconstructed length ``len(store)//replicas`` uint8 vector.
     """
-    s = np.asarray(store, dtype=np.uint8)
-    if s.ndim != 1:
-        raise ValueError("klein4_holographic_decode: store must be 1-D")
+    s = _store_buf(store, "klein4_holographic_decode")
     if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
         raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
-    if s.size == 0 or s.size % replicas != 0:
+    n = len(s)
+    if n == 0 or n % replicas != 0:
         raise ValueError(
-            f"store length {s.size} must be a positive multiple of replicas {replicas}"
+            f"store length {n} must be a positive multiple of replicas {replicas}"
         )
-    D = s.size // replicas
-    blocks = s.reshape(replicas, D)
+    D = n // replicas  # block s[r*D : (r+1)*D] is replica r (replica-major)
     if erased is None:
-        # Blind: per-column majority over the four Klein-4 states.
-        counts = np.zeros((D, 4), dtype=np.int64)
-        for state in range(4):
-            counts[:, state] = (blocks == state).sum(axis=0)
-        return counts.argmax(axis=1).astype(np.uint8)
-    # Known-location erasure: first surviving replica per column.
-    mask = np.asarray(erased, dtype=bool)
-    if mask.shape != s.shape:
-        raise ValueError(
-            f"erased mask shape {mask.shape} != store shape {s.shape}"
-        )
-    survives = ~mask.reshape(replicas, D)
-    if not bool(survives.any(axis=0).all()):
-        raise ValueError(
-            "klein4_holographic_decode: a position has all replicas erased; "
-            "unrecoverable (erasure exceeded (replicas-1)/replicas)"
-        )
-    first = survives.argmax(axis=0)        # first surviving replica per column
-    return blocks[first, np.arange(D)].astype(np.uint8)
+        # Blind: per-position majority over the ``replicas`` copies (ties → lowest).
+        out = array("B", bytes(D))
+        for i in range(D):
+            counts = [0, 0, 0, 0]
+            for r in range(replicas):
+                counts[s[r * D + i]] += 1
+            best, best_c = 0, counts[0]
+            for state in range(1, 4):
+                if counts[state] > best_c:
+                    best, best_c = state, counts[state]
+            out[i] = best
+        return HV(out, sectors=4)
+    # Known-location erasure: first surviving replica per position.
+    mask = list(erased)  # bool per store position (list / np bool array / etc.)
+    if len(mask) != n:
+        raise ValueError(f"erased mask length {len(mask)} != store length {n}")
+    out = array("B", bytes(D))
+    for i in range(D):
+        chosen = None
+        for r in range(replicas):
+            if not mask[r * D + i]:
+                chosen = s[r * D + i]
+                break
+        if chosen is None:
+            raise ValueError(
+                "klein4_holographic_decode: a position has all replicas erased; "
+                "unrecoverable (erasure exceeded (replicas-1)/replicas)"
+            )
+        out[i] = chosen
+    return HV(out, sectors=4)
 
 
 # ---------------------------------------------------------------------------
@@ -894,10 +936,13 @@ def klein4_triality_encode(v):
     Returns:
         uint8 store of length ``len(v) * 3`` = ``[v | T(v) | T²(v)]``.
     """
-    arr = _as_klein4(v, "klein4_triality_encode")
-    t1 = klein4_triality_cycle(arr)              # T(v)
-    t2 = klein4_triality_cycle(t1)               # T²(v)
-    return np.concatenate([arr, t1, t2]).astype(np.uint8)
+    buf = _as_klein4_buf(v, "klein4_triality_encode")
+    t1 = _table_buf(buf, _KLEIN4_TRIALITY_FORWARD)   # T(v)
+    t2 = _table_buf(t1, _KLEIN4_TRIALITY_FORWARD)    # T²(v)
+    out = array("B", buf)
+    out.extend(t1)
+    out.extend(t2)
+    return HV(out, sectors=4)
 
 
 def klein4_triality_correct(store, *, depth=1):
@@ -938,26 +983,34 @@ def klein4_triality_correct(store, *, depth=1):
             "klein4_triality_correct: only the width-step (depth=1) is in "
             "domain; the continuum count-recursion is open math (F359 bar 5)"
         )
-    s = np.asarray(store, dtype=np.uint8)
-    if s.ndim != 1:
-        raise ValueError("klein4_triality_correct: store must be 1-D")
-    if s.size == 0 or s.size % _KLEIN4_TRIALITY_ORBIT != 0:
+    s = _as_klein4_buf(store, "klein4_triality_correct")
+    n = len(s)
+    if n % _KLEIN4_TRIALITY_ORBIT != 0:
         raise ValueError(
-            f"store length {s.size} must be a positive multiple of 3 "
+            f"store length {n} must be a positive multiple of 3 "
             "(the order-3 triality orbit)"
         )
-    D = s.size // _KLEIN4_TRIALITY_ORBIT
-    b0, b1, b2 = s.reshape(_KLEIN4_TRIALITY_ORBIT, D)
-    # Invert the triality to bring every orbit-block back to the v-frame.
-    frame0 = b0
-    frame1 = klein4_triality_cycle(b1, inverse=True)   # T⁻¹(Tv) = v
-    frame2 = klein4_triality_cycle(b2)                 # T⁻²(T²v) = T(T²v) = v
-    frames = np.stack([frame0, frame1, frame2], axis=0)
-    # Per-position 2-of-3 majority over the four Klein-4 sectors.
-    counts = np.zeros((D, 4), dtype=np.int64)
-    for state in range(4):
-        counts[:, state] = (frames == state).sum(axis=0)
-    return counts.argmax(axis=1).astype(np.uint8)
+    D = n // _KLEIN4_TRIALITY_ORBIT
+    b0 = s[0:D]
+    b1 = s[D:2 * D]
+    b2 = s[2 * D:3 * D]
+    # Invert the triality to bring every orbit-block back to the v-frame:
+    #   frame0 = b0; frame1 = T⁻¹(b1) = T²(b1); frame2 = T⁻²(b2) = T(b2).
+    frame1 = _table_buf(b1, _KLEIN4_TRIALITY_INVERSE)  # T⁻¹(Tv) = v
+    frame2 = _table_buf(b2, _KLEIN4_TRIALITY_FORWARD)  # T⁻²(T²v) = T(T²v) = v
+    # Per-position 2-of-3 majority over the four Klein-4 sectors (ties → lowest).
+    out = array("B", bytes(D))
+    for i in range(D):
+        counts = [0, 0, 0, 0]
+        counts[b0[i]] += 1
+        counts[frame1[i]] += 1
+        counts[frame2[i]] += 1
+        best, best_c = 0, counts[0]
+        for state in range(1, 4):
+            if counts[state] > best_c:
+                best, best_c = state, counts[state]
+        out[i] = best
+    return HV(out, sectors=4)
 
 
 # ---------------------------------------------------------------------------

@@ -73,24 +73,24 @@ def test_worked_instance_toml_present_and_named():
 
 def test_triality_cycle_has_order_three():
     v = _rand(1)
-    assert (_T(_T(_T(v))) == v).all()
+    assert (_T(_T(_T(v))) == v)
 
 
 def test_square_equals_inverse():
     v = _rand(2)
-    assert (_T(_T(v)) == _T_inv(v)).all()
+    assert (_T(_T(v)) == _T_inv(v))
 
 
 def test_each_flip_is_an_involution():
     v = _rand(3)
     for flip in _FLIP.values():
-        assert (flip(flip(v)) == v).all()
+        assert (flip(flip(v)) == v)
 
 
 def test_T_is_a_v4_homomorphism():
     # T(u XOR w) == T(u) XOR T(w); klein4_bind IS the XOR group op.
     u, w = _rand(4), _rand(5)
-    assert (_T(hdc.klein4_bind(u, w)) == hdc.klein4_bind(_T(u), _T(w))).all()
+    assert (_T(hdc.klein4_bind(u, w)) == hdc.klein4_bind(_T(u), _T(w)))
 
 
 # --------------------------------------------------------------------------
@@ -104,7 +104,7 @@ def test_conjugation_cyclically_permutes_the_three_flips():
     for a, t_of_a in ((1, 2), (2, 3), (3, 1)):
         conjugated = _T(_FLIP[a](_T_inv(v)))
         expected = _FLIP[t_of_a](v)
-        assert (conjugated == expected).all(), (
+        assert (conjugated == expected), (
             f"T . XOR_{a} . T^-1 must equal XOR_{t_of_a} (the flip-cycle)"
         )
 
@@ -113,6 +113,6 @@ def test_conjugation_named_cycle_iw7_g5_cpt():
     # the same relation in the named-op vocabulary the TOML documents
     v = _rand(7)
     f_iw7, f_g5, f_cpt = _FLIP[1], _FLIP[2], _FLIP[3]
-    assert (_T(f_iw7(_T_inv(v))) == f_g5(v)).all()   # iw7 -> g5
-    assert (_T(f_g5(_T_inv(v))) == f_cpt(v)).all()   # g5  -> cpt
-    assert (_T(f_cpt(_T_inv(v))) == f_iw7(v)).all()  # cpt -> iw7
+    assert (_T(f_iw7(_T_inv(v))) == f_g5(v))   # iw7 -> g5
+    assert (_T(f_g5(_T_inv(v))) == f_cpt(v))   # g5  -> cpt
+    assert (_T(f_cpt(_T_inv(v))) == f_iw7(v))  # cpt -> iw7

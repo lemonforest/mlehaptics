@@ -35,14 +35,14 @@ def token_seed(name: str, hex_chars: int) -> int:
 def encode_word_k4(word: str, *, D: int, sector: int, hex_chars: int) -> np.ndarray:
     rng = np.random.default_rng(token_seed(word, hex_chars))
     base = hdc.klein4_random(D, rng)
-    return hdc.klein4_bind(base, np.full(D, sector, dtype=np.uint8))
+    return hdc.klein4_bind(base, np.full(D, sector, dtype=np.uint8)).to_numpy()
 
 
 def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int) -> np.ndarray:
     w_a = encode_word_k4(word_a, D=D, sector=0, hex_chars=hex_chars)
     w_b = encode_word_k4(word_b, D=D, sector=0, hex_chars=hex_chars)
     bound = hdc.klein4_bind(w_a, w_b)
-    return hdc.klein4_bind(bound, np.full(D, 1, dtype=np.uint8))
+    return hdc.klein4_bind(bound, np.full(D, 1, dtype=np.uint8)).to_numpy()
 
 
 def encode_skeleton_l2(
@@ -55,7 +55,7 @@ def encode_skeleton_l2(
     first_l1 = encode_bigram_l1(*first_bigram, D=D, hex_chars=hex_chars)
     last_l1 = encode_bigram_l1(*last_bigram, D=D, hex_chars=hex_chars)
     bound = hdc.klein4_bind(first_l1, last_l1)
-    return hdc.klein4_bind(bound, np.full(D, 2, dtype=np.uint8))
+    return hdc.klein4_bind(bound, np.full(D, 2, dtype=np.uint8)).to_numpy()
 
 
 def encode_sentence_l3(tokens, *, D: int, hex_chars: int) -> np.ndarray:
@@ -64,7 +64,7 @@ def encode_sentence_l3(tokens, *, D: int, hex_chars: int) -> np.ndarray:
         accum = hdc.klein4_bind(
             accum, encode_word_k4(w, D=D, sector=0, hex_chars=hex_chars)
         )
-    return hdc.klein4_bind(accum, np.full(D, 3, dtype=np.uint8))
+    return hdc.klein4_bind(accum, np.full(D, 3, dtype=np.uint8)).to_numpy()
 
 
 def sim_k4_batch(query: np.ndarray, candidates: np.ndarray) -> np.ndarray:
@@ -118,10 +118,11 @@ class ContextSubstrate:
         """klein4_bundle requires an ODD count; APPEND a fixed neutral pad when
         the count is even — never DROP a real token (the 126 sawtooth fix)."""
         if len(vecs) == 1:
-            return vecs[0]
+            v0 = vecs[0]
+            return v0.to_numpy() if hasattr(v0, "to_numpy") else v0
         if len(vecs) % 2 == 0:
             vecs = list(vecs) + [self._pad]
-        return hdc.klein4_bundle(*vecs)
+        return hdc.klein4_bundle(*vecs).to_numpy()
 
     def encode_context(self, window) -> np.ndarray:
         """last-k tokens → ONE Klein-4 state (positional role-filler bind + bundle)."""
