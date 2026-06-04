@@ -71,7 +71,7 @@ srmech rc28 already ships **everything a QDFT/ODFT needs** — there is **no cap
 - a hypercomplex `exp(μθ)` twiddle helper (cos·1 + sin·μ̂).
 
 ## Discipline
-- **MPM citation debt:** the quaternion-DFT literature (Ell / Sangwine / Bülow color-image line) and the octonion-Fourier-transform literature are **verify-PDF-owed before any citation lands** (F378). Not asserted here.
+- **MPM citation debt: DISCHARGED by F381** (was: verify-PDF-owed per F378). Triality-verified attested bibliography — Ell 1993 / Sangwine 1996 (sole author) / Bülow 1999 / Ell&Sangwine 2007 (quaternion); Hahn&Snopek 2011 / Błaszczyk&Snopek 2017 / Błaszczyk 2020 (octonion). The literature handles octonion non-associativity by a **declared LEFT-TO-RIGHT multiplication convention** (verbatim, arXiv:1905.12631) — externally confirming the ODFT draft's required `bracketing=` field. Framework *readings* remain our lens, not attributed to these authors.
 - Algebra / eigenbasis / cyclic-group / spectral side only.
 - The octonion structure-constant table self-attests via `qm.octonion.octonion_table_attestation()`.
 

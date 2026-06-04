@@ -86,5 +86,10 @@ canonical_landings = [
   "R-RBS-LM F377 — triality/order-3 DFT {1,ω,ω²}",
   "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts (quaternion magnitude = octonion_norm|H, Class K + Class C)",
   "qm.octonion.octonion_table_attestation() — the structure-constant table the H-restriction is read from is self-attesting",
-  "VERIFY-PDF OWED (F378; NOT yet attested): the quaternion-DFT literature (Ell / Sangwine / Bülow, color-image processing) — extract actual PDF + verify authors/title/arXiv-or-DOI before committing any citation",
+  "Ell, T.A. (1993), 'Quaternion-Fourier transforms for analysis of two-dimensional linear time-invariant partial differential systems', Proc. 32nd IEEE CDC — DOI 10.1109/CDC.1993.325510 (triality-verified F381; paywalled full-text, bibliographic confirmed)",
+  "Sangwine, S.J. (1996, sole author), 'Fourier transforms of colour images using quaternion, or hypercomplex, numbers', Electronics Letters 32(21):1979-1980 — DOI 10.1049/el:19961331 (F381; paywalled IET)",
+  "Bülow, T. (1999), 'Hypercomplex Spectral Signal Representations for the Processing and Analysis of Images', PhD thesis, Univ. Kiel — OA macau_mods_00001940 (F381)",
+  "Ell, T.A. & Sangwine, S.J. (2007, Ell-first), 'Hypercomplex Fourier Transforms of Color Images', IEEE Trans. Image Processing 16(1):22-35 — DOI 10.1109/TIP.2006.884955, PMID 17283762 (F381)",
+  "Hitzer, E. (arXiv:1306.1023), 'Quaternion Fourier Transform on Quaternion Fields and Generalizations' — OA full-text source-for-fact for the LEFT/RIGHT/two-sided distinction from non-commutativity (F381 triality-verified)",
+  "Ell, Le Bihan & Sangwine (2014), 'Quaternion Fourier Transforms for Signal and Image Processing', ISTE/Wiley, ISBN 9781848214781, DOI 10.1002/9781118930908 — comprehensive monograph (F381)",
 ]
