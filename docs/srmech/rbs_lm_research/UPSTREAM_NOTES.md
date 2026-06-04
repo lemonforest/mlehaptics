@@ -1316,6 +1316,15 @@ So: **PARTIALLY manageable in TOML — but only after §17 U2 registers the leaf
 
 **Net for srmech-dev:** F347–F354 = the #797 Q1/§4/§5 research, done; **op(b) reference now built (F357).** Op (a) (triality-recursion): build for the explicit-corrector path; the holographic-erasure code (F353) is the measured alternative. Op (b) (directed/signed-Laplacian eigen): the genuine new primitive (directed navigation, F348). #791 (waits on ngspice/#787) + #788 (un-gated; gates the dollar-gated LLM trials — diagnostic-only per F166/F351, not the native goal) noted. #797 stays research-gated on op (b) at minimum. Recorded for integration; #797 updated.
 
+## §21 ephemerides-spectral cosmos-catalog dependency — deferred srmech-0.7.0 bump (user direction 2026-06-04)
+
+The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_spectrum`; F355/F356/F368/F370) live in the **ephemerides-spectral** sister subtree, which is **NOT on the latest srmech base** (it pins an older srmech). User direction:
+
+1. **Update ephemerides-spectral → srmech 0.7.0 when 0.7.0 lands on LIVE PyPI** — NOT before (rc ≠ SoT, per `[[project_srmech_mcp_repoint_deferred_until_live]]`). Tracked here as a release-coordination task for the production-PyPI cut.
+2. **OR, if a local copy is ever needed under `docs/srmech/rbs_lm_research/`, copy the catalogs but DO NOT TRACK them** (gitignore the copy) — they are the sister package's attested data, not ours to vendor-commit.
+
+**Current state (no action needed now):** the CMB findings read the catalog NDJSON **in place from the in-repo ephemerides-spectral subtree** (`docs/antikythera-maths/research/attested/cmb_anomalies/row.ndjson`) — already tracked in the monorepo, version-independent (data, not code), so reading it involves **no copy and no srmech-version coupling**. The deferred bump (1) only matters when ephemerides-spectral's *package* is installed/run against srmech 0.7.0.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
