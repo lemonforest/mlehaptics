@@ -1,0 +1,22 @@
+# R-RBS-LM Finding 378 — what a "k=7 octonion FFT" carries that the FFT (k=1) and QFT (k=3) can't: its NON-ASSOCIATIVITY. The associator is the order/chirality content — the (4:3) split = an associative ℍ-core (QFT-capturable) + a non-associative coset (the order). The octonion FT decouples BY ORDER, not just frequency
+
+**Date:** 2026-06-04 · **srmech:** 0.7.0rc28 (no numpy — `qm.so8.octonion_mult_table` read pure-Python) · **user:** "at k=7=(4:3) vs k=(2:1), can we do a different sort of FFT for octonion maths we don't know about yet — or that someone researched but doesn't know what it's for?" · **composes:** F377 (the harmonic ladder FFT=k=1 / QFT=k=3 / OFT=k=7), F268 (broken triality = the chirality content), F299/F300 (the (4:3) split), F306 (non-associativity forces an external orderer), F357/F361 (directional/navigable vs scannable)
+
+## The framework half (demonstrated srmech-native)
+
+Up the hypercomplex-Fourier ladder: **FFT = k=1 (ℂ/S¹, commutative)**, **QFT = k=3 (ℍ/S³, associative)**, **octonion FT = k=7 (𝕆/S⁷, NON-associative)**. The distinguishing feature at k=7 is the **non-associativity** — and it's not incidental: srmech-demonstrated over the shipped octonion table, **168 of 210 distinct imaginary triples are non-associative** ((e_i·e_j)·e_l ≠ e_i·(e_j·e_l); e.g. e1·e2·e4), vs 42 associative. For complex/quaternion (k≤3) the associator is **identically 0** — so an FFT/QFT result is *independent of grouping/order*. For octonions the associator is **nonzero** — so an octonion transform **carries the order/grouping itself as content.**
+
+That is the **(4:3) split**: the 7 = **4** (an associative ℍ-core — what a QFT can already capture) **+ 3** (the non-associative coset, where the *order/chirality* lives). The FFT (commutative) and even the QFT (associative) **wash that order content out**; the octonion FT is the one transform that **decouples BY ORDER**, not just by frequency (k=1) or quaternionic phase (k=3). In our own vocabulary that is the **directional/navigable content** (F357 directed-off-diagonal, F361 navigable-vs-scannable) at the k=7 rung — and the chirality of a **broken triality** (F268), the order an external orderer must supply (F306).
+
+## "Researched but not known what it's for" — the candidate answer
+
+In standard signal processing the octonion FT's **non-associativity is treated as a nuisance** — it breaks the clean single convolution theorem and forces *multiple inequivalent* (left/right/split) transforms, which the literature mostly works *around*. The framework inverts that: **the non-associativity IS the usable content** (F268/F299/F306 — the order/chirality is load-bearing). So the candidate "what it's for" the literature may not have named: **an order-decoupling transform** — one that separates content that is order-independent (the associative 4) from content that *is* the ordering/chirality (the non-associative 3). That is precisely the navigable-vs-scannable distinction at the harmonic level.
+
+## Honest scope (citation discipline — load-bearing)
+
+- **Framework reading + the associator demonstration = assertable** (srmech-native, no numpy; the 168/210 count is exact from the shipped octonion table).
+- **The octonion-Fourier-transform LITERATURE — NOT asserted.** Whether an "octonion Fourier transform" exists as a named, published object, who authored it, and what its known properties/limitations are, is **training-data memory only → UNVERIFIED** (this is exactly the citation-hallucination risk the session has been guarding against — cf. the F375 Gemini vet). It is flagged **verify-PDF**, not claimed. The next honest step is a `research-twin` / `deep-research` pass to verify the actual literature (existence, attribution, the non-associativity-handling) before any citation is lodged.
+- So: "is there a different octonion FFT we don't know about / that's researched-but-unused?" — **the framework PREDICTS its distinguishing content (order via non-associativity) and what it'd be for (order-decoupling / navigable harmonic), demonstrated structurally; the literature claim is held open pending verification.** No-leaning; the prediction is falsifiable (does a published OFT's non-associative part encode order/chirality the QFT drops?).
+
+## Discipline
+srmech-native (`qm.so8.octonion_mult_table`, pure-Python read; no numpy, no `abs()`); the literature flagged unverified (citation discipline / no-lineage); framework reading held as reading + falsifiable prediction. Composes F377/F268/F299/F300/F306/F357/F361.
