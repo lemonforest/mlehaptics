@@ -90,7 +90,7 @@ A citation without attestation is not real; an attestation that can't be re-veri
 | TOML cascade-runner (planned; NOT yet packaged — no `srmech.cosmos` module exists) | `srmech.amsc.cascade.*` are the shipped cascade primitives | composition |
 | Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+) | spectral |
 | AMSC catalogs (attested data) | `srmech.amsc.tool_schema` for catalog creation | provenance |
-| Asymptotic calculus (trig / transcendentals / calculus) | `srmech.asymptotic_calculus.*` | math |
+| Asymptotic calculus (trig / transcendentals / calculus) | `srmech.asymptotic_calculus.*` (+ `srmech.trigonometry.*`) — **importable since v0.7.0rc26**; thin re-exports of the **Class-N** primitives in `srmech.amsc.rational` (`sin/cos/exp/log1p/atan_series_truncate(numerator, denominator, num_terms)` → exact `(num, den)` rational; the substrate-native "continuous" trig). Attested worked-instances at `srmech/amsc/attested/asymptotic_calculus/` | math |
 | Cosmos catalogs (packaged under `srmech.amsc.attested.*`) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
 
 Per `[[project_srmech_foundational_cascade_operations_catalog]]`: cascade-helpers replacing Python math modules should land as srmech catalog peers to `asymptotic_calculus` and `trigonometry`.

@@ -655,12 +655,169 @@ def elementwise_transcendental(
     return np.log(real_arr).reshape(np.shape(arr))
 
 
+# =====================================================================
+# Directed / signed Laplacian (#797 op (b); the F240/F241 directed-
+# coupling gap + the dissolved Class-O signed-metric absorbed into L)
+# =====================================================================
+#
+# The undirected combinatorial Laplacian (``dense_laplacian``) is the
+# F348 navigation control (Fiedler shuffle-fragile r=0.214). Two
+# directed/signed generalisations live here:
+#
+#   * ``signed_laplacian`` — real-symmetric; off-diagonal weights may be
+#     negative (the **signed-metric**, the operation Spike #24 located as
+#     "Class O" and which was DISSOLVED into Class L per
+#     ``[[feedback_no_privileged_primitive_classes]]``). PSD signed
+#     Laplacian L = D̄ − A with D̄_ii = Σ_j |A_ij| (Kunegis et al. 2010).
+#   * ``magnetic_laplacian`` — complex **Hermitian**; encodes edge
+#     *direction* as a phase, so a directed graph stays Hermitian and the
+#     existing :func:`hermitian_eigendecompose` (C-backed) diagonalises
+#     it. The complex eigenpair IS the directed-navigation signature.
+#
+# Both feed the existing C-backed eigensolvers; the heavy work (the
+# eigendecomposition) is native today. The standalone-C *builder* peers
+# (``srmech_graph_signed_laplacian`` / ``..._magnetic_laplacian``) are
+# the tracked next voxel, mirroring the loop_bind Python-first→C-peer
+# cadence (rc1 → rc7/rc20/rc21). Class-K discipline: the |A_ij| magnitude
+# in the signed degree is the Class-K magnitude of the signed-metric, not
+# an ALU ``abs()`` in a cascade
+# (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
+
+
+def _directed_adjacency(
+    n: int,
+    edges_u: np.ndarray,
+    edges_v: np.ndarray,
+    weights: np.ndarray,
+) -> np.ndarray:
+    """Build the dense ``n×n`` **directed** adjacency ``W[u, v] += w``.
+
+    Unlike :func:`_fallback_dense_adjacency` this does NOT mirror the
+    transpose — direction is preserved (``W`` is generally asymmetric).
+    """
+    W = np.zeros((n, n), dtype=np.float64)
+    for u, v, w in zip(edges_u, edges_v, weights):
+        W[int(u), int(v)] += float(w)
+    return W
+
+
+def signed_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+) -> np.ndarray:
+    """Signed graph Laplacian ``L = D̄ − A`` (real-symmetric, PSD).
+
+    The off-diagonal weights may be **negative** — this is the
+    signed-metric leg (the dissolved "Class O", now a Class-L
+    sub-operation). The signed degree ``D̄_ii = Σ_j |A_ij|`` uses the
+    **Class-K magnitude** of each coupling (not an ALU ``abs()`` in a
+    cascade — this is the library-internal signed-metric per
+    ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``), which
+    makes ``L`` positive-semidefinite even with negative (frustrated)
+    edges (Kunegis, J. et al. (2010) "Spectral Analysis of Signed
+    Graphs", SDM 2010).
+
+    Returns an ``n×n`` real-symmetric matrix; pair with
+    :func:`symmetric_eigendecompose` or :func:`fiedler_vector` for the
+    signed navigation embedding.
+    """
+    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
+    A = _fallback_dense_adjacency(n, edges_u, edges_v, ws)  # symmetric, signed
+    diag_idx = np.arange(n)
+    A_off = A.copy()
+    A_off[diag_idx, diag_idx] = 0.0
+    # Class-K magnitude of the signed couplings → the signed degree.
+    deg = np.abs(A_off).sum(axis=1)
+    L = -A_off
+    L[diag_idx, diag_idx] = deg
+    return L
+
+
+def magnetic_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    q: float = 0.25,
+) -> np.ndarray:
+    """Magnetic (Hermitian) Laplacian of a **directed** graph.
+
+    Direction is encoded as a complex phase so the result stays
+    **Hermitian** and the existing :func:`hermitian_eigendecompose`
+    (C-backed) diagonalises it — the complex eigenpair is the
+    directed-navigation signature (#797 op (b)). For directed edges
+    ``u → v`` with magnitude ``w``:
+
+    * symmetrised magnitude ``A_s = (W + Wᵀ) / 2``;
+    * net flow ``Θ = W − Wᵀ`` (antisymmetric);
+    * ``H = A_s ⊙ exp(i · 2π · q · Θ)`` (Hermitian: ``A_s`` symmetric,
+      the phase conjugate-antisymmetric);
+    * ``L⁽q⁾ = diag(Σ_j A_s,ij) − H``.
+
+    ``q`` is the charge / flux parameter in turns per unit net flow:
+    ``q = 0`` collapses to the real symmetrised Laplacian (the F348
+    undirected control); ``q = 1/4`` is a quarter-turn per unit
+    imbalance. The construction is the magnetic / Hermitian Laplacian
+    for directed graphs (Lieb & Loss, fluxes on graphs); a precise
+    attested citation belongs in the research notebook under the MPM
+    discipline.
+
+    Returns an ``n×n`` complex128 Hermitian matrix.
+    """
+    if not isinstance(q, (int, float)):
+        raise TypeError(f"q must be a real number; got {type(q).__name__}")
+    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
+    W = _directed_adjacency(n, edges_u, edges_v, ws)
+    A_s = 0.5 * (W + W.T)
+    theta = W - W.T
+    phase = np.exp(1j * (2.0 * np.pi * float(q)) * theta)
+    H = A_s * phase
+    diag_idx = np.arange(n)
+    H[diag_idx, diag_idx] = 0.0  # no self-phase; degree carries the diagonal
+    deg = A_s.sum(axis=1)
+    L = -H
+    L[diag_idx, diag_idx] = deg.astype(np.complex128)
+    return L
+
+
+def fiedler_vector(matrix: np.ndarray) -> np.ndarray:
+    """The Fiedler navigation embedding — eigenvector of ``λ₂``.
+
+    Returns the eigenvector of the **second-smallest** eigenvalue of a
+    Laplacian (real-symmetric *or* complex-Hermitian): the algebraic-
+    connectivity / Fiedler vector that embeds the graph for navigation
+    (F348). Dispatches to :func:`hermitian_eigendecompose` for complex
+    input (e.g. a :func:`magnetic_laplacian`) and
+    :func:`symmetric_eigendecompose` for real input (e.g.
+    :func:`signed_laplacian` / :func:`dense_laplacian`) — so the heavy
+    eigendecomposition runs on the existing C-backed path.
+
+    For ``n < 2`` there is no second eigenvector; raises ``ValueError``.
+    """
+    M = np.asarray(matrix)
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError(f"matrix must be square 2-D; got shape {M.shape}")
+    if M.shape[0] < 2:
+        raise ValueError("fiedler_vector requires n >= 2")
+    if np.iscomplexobj(M):
+        _eigvals, V = hermitian_eigendecompose(M)
+    else:
+        _eigvals, V = symmetric_eigendecompose(M)
+    # Eigenvalues are ascending; column 0 is the trivial λ₁≈0, column 1
+    # is the Fiedler vector (λ₂).
+    return V[:, 1].copy()
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
+    "signed_laplacian",
+    "magnetic_laplacian",
+    "fiedler_vector",
     "jacobi_eigvals",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",

@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc26] - 2026-06-04
+
+**Two surfaces: (1) the `srmech.asymptotic_calculus` / `srmech.trigonometry` continuous-calculus import path now resolves; (2) the directed/signed-Laplacian eigen-op (Class L, #797 op (b)). Pure-Python; ABI stays 3; `describe()` stays 201.**
+
+**(1) `srmech.asymptotic_calculus` + `srmech.trigonometry` (new modules).** The documented `srmech.asymptotic_calculus.*` import path had no module — the continuous-calculus primitives live in `srmech.amsc.rational` (Class N: `sin/cos/exp/log1p/atan_series_truncate` — exact-rational Taylor truncation, the substrate-native "continuous" trig) + the `srmech/amsc/attested/asymptotic_calculus/` catalog. These thin re-export modules make the advertised path resolve (no regression — nothing was deleted; the import surface was simply never created). `tests/test_asymptotic_calculus_alias.py` pins the re-export identity.
+
+**(2) directed/signed-Laplacian (Class L, #797 op (b)).** The undirected combinatorial Laplacian is the F348 navigation control (Fiedler shuffle-fragile r=0.214); two generalisations from the F347–F354 research:
+
+- **`signed_laplacian(n, edges, weights)`** — real-symmetric, PSD even with negative (frustrated) edges. The signed degree `D̄_ii = Σ_j |A_ij|` is the **Class-K magnitude** of the signed-metric (the operation Spike #24 located as "Class O", DISSOLVED into Class L). Kunegis et al. (2010).
+- **`magnetic_laplacian(n, edges, weights, *, q=0.25)`** — complex **Hermitian**; direction is encoded as a phase `exp(i·2π·q·(W−Wᵀ))` so a directed graph stays Hermitian and the existing C-backed `hermitian_eigendecompose` diagonalises it — the complex eigenpair is the directed-navigation signature. `q=0` collapses to the real symmetrised Laplacian (the undirected control).
+- **`fiedler_vector(matrix)`** — the λ₂ navigation embedding; dispatches real→`symmetric_eigendecompose`, complex→`hermitian_eigendecompose` (both C-backed).
+- `tests/test_directed_signed_laplacian.py` pins the Hermitian/PSD/symmetry contracts + the q=0 control.
+
+**Cadence note (honest):** the heavy eigendecomposition runs **native today** (the existing `symmetric`/`hermitian` C solvers). The standalone-C **builder** peers (`srmech_graph_signed_laplacian` / `…_magnetic_laplacian`) + tool_schema registration of the three new Class-L ops are the tracked next voxels — mirroring the `loop_bind` Python-first→C-peer cadence (rc1 → rc7/rc20/rc21); that is why `describe()` stays 201 this rc. Op (b) is the genuine new primitive (no substitute for directed navigation); op (a) (triality-recursion corrector / holographic-erasure substitute, #797) follows in rc27/rc28.
+
 ## [0.7.0rc25] - 2026-06-03
 
 **CLI module docstrings refreshed to enumerate all four subcommands (`status` / `bus` / `dsl` / `mcp`) + an anti-staleness ratchet so they can't silently drift again (UPSTREAM_NOTES §13 D4). Docs only; ABI stays 3; `describe()` stays 201.**
