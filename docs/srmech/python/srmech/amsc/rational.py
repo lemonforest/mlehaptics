@@ -52,6 +52,8 @@ __all__ = [
     "exp",
     "cexp",
     "complex_exp",
+    "sqrt",
+    "hypot",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -959,6 +961,47 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
     z = complex(z)
     e_real = exp(z.real)
     return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
+
+
+# Default scaled-integer precision for the float sqrt projection (bits
+# below the radix point; 64 → relative error well under the float64 floor).
+_SQRT_PRECISION_BITS: int = 64
+
+
+def sqrt(x: float, *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+    """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
+
+    Newton-Raphson realised as an **integer** floor-isqrt on a
+    scaled-bignum radicand (``_integer_sqrt``): **Class N** rational
+    arithmetic ∘ **Class K** sqrt-convergence (asymptotic-DoF). No float
+    ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
+    (domain error), matching ``math.sqrt``.
+    """
+    x = float(x)
+    if x < 0.0:                                   # Class-K pin-slot at zero
+        raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+    if x == 0.0:
+        return 0.0
+    xn, xd = x.as_integer_ratio()
+    # √(xn/xd) = isqrt(xn · 2^(2b) / xd) / 2^b  (exact float rational in,
+    # scaled integer Newton, project to float).
+    scale = 1 << (2 * precision_bits)
+    radicand = (xn * scale) // xd
+    root = _integer_sqrt(radicand)                # floor(√x · 2^b)
+    return root / (1 << precision_bits)
+
+
+def hypot(a: float, b: float,
+          *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+    """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
+
+    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
+    Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
+    complex modulus ``|z| = hypot(z.real, z.imag)``).
+    """
+    a = float(a)
+    b = float(b)
+    return sqrt(a * a + b * b, precision_bits=precision_bits)
 
 
 # ──────────────────────────────────────────────────────────────────────

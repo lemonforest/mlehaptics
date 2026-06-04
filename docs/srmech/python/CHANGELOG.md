@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc35] - 2026-06-04
+
+**`sqrt`/`hypot` cascade primitives + module rename `asymptotic_calculus` → `calculus`.** Pure-Python; ABI stays 3; `describe()` 218 → **220** (+2 root tools).
+
+- **New substrate-native roots** — `srmech.amsc.rational.{sqrt, hypot}` (re-exported from `srmech.calculus`). `sqrt(x)` (x ≥ 0) is Newton-Raphson realised as an **integer** floor-isqrt on a scaled-bignum radicand — **Class-N** rational arithmetic ∘ **Class-K** sqrt-convergence; no `math.sqrt`/`np.sqrt` in the call graph (AST-guarded); negative `x` raises a domain error. `hypot(a, b) = √(a²+b²)` = **Class-M** sum-of-squares bind ∘ the Class-N sqrt (the complex modulus `|z| = hypot(z.real, z.imag)`). Both **bit-exact** vs libm in testing.
+- **Module rename `asymptotic_calculus` → `calculus`** (no-break). The continuous-calculus surface is now `srmech.calculus`; `srmech.asymptotic_calculus` remains a **back-compat re-export alias** (same function objects). The "asymptotic" qualifier was an early framing that singled out this one module while the whole framework is equally substrate-native asymptotic-rational (trig, exp, the eigen ops, the FFT-as-epicycle-sum) — the insight is framework-wide now (see `docs/srmech/notes/continuous_math_as_14_class_cascade.md`), so the module is simply `calculus`. `srmech.trigonometry` (the trig subset) is unchanged.
+- **Tests** `tests/test_sqrt_rename_cascade_rc35.py` (+6): sqrt/hypot vs libm + negative-domain raise + AST no-libm-sqrt guard; `calculus` canonical surface; `asymptotic_calculus` is a true alias (identical callables + `__all__`).
+
+**Roadmap (per the derivation note):** rc36 routes the ~32 `math.sqrt`/`np.hypot` sites onto the cascade + builds the direct-DFT (the Antikythera epicycle-sum, on `cexp`) + `kron`; rc37 QR + SVD; rc38 non-Hermitian eig + lstsq + einsum; the numpy→`srmech[scientific]` dependency-flip is the capstone. No new C symbols.
+
 ## [0.7.0rc34] - 2026-06-04
 
 **"Continuous math is a cascade of the 14 A–N class operations" — the complex-exponential keystone, plus the derivation that dissolves the "scientific tier."** Pure-Python additions; ABI stays 3; `describe()` 215 → **218** (+3 exp tools).

@@ -1246,6 +1246,21 @@ def _register_primitive_class_tools() -> None:
             returns=R("complex", "e^z projected from the exact rational"),
         ),
         ToolEntry(
+            name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — Newton realised as integer floor-isqrt on a scaled-bignum radicand (Class-N rational + Class-K sqrt-convergence). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            parameters=(P("x", "float", True, "radicand, x >= 0"),
+                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
+            returns=R("float", "sqrt(x) projected from the scaled integer root"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.hypot", owner="srmech", category="rational",
+            summary="hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade — Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
+            parameters=(P("a", "float", True, "first leg"),
+                        P("b", "float", True, "second leg"),
+                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
+            returns=R("float", "Euclidean norm sqrt(a^2 + b^2)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",
