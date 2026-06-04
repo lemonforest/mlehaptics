@@ -169,5 +169,37 @@ research and NOT stale-in-the-lost sense. They're tracked here so future session
 pick them up without re-deriving the trail. Per §A4: items get walked via single
 findings or sweep findings when user direction surfaces.
 
-**The active research queue is empty as of 2026-05-28.** The next user direction
-opens the next arc.
+**The active research queue was empty as of 2026-05-28**; the bit-exactness / FFT-ladder
+arc (F380–F388) reopened it on 2026-06-04 — see below.
+
+---
+
+## Bit-exactness / FFT-ladder arc (F380–F388, 2026-06-04) — open research items
+
+Status legend adds one tag for this arc:
+- ⏳ **QUEUED-srmech** — walkable only after a srmech update lands (specific gate noted). **Do NOT start against the moving surface** — chiefly the in-progress **numpy-math removal** (rc29→rc33; the `qm`/LAPACK surface moves behind `srmech[scientific]`). See `UPSTREAM_NOTES.md` §22/§22b.
+
+### ACTIVE — walkable now (srmech-package + framework reading; no srmech version bump needed)
+| Item | Subject | Status | Gate / note |
+|---|---|---|---|
+| **BX-1** | **Holographic-principle LENS** (F389 candidate) — lossy flat-shadow vs lossless reconstruction; the resemblance and where it breaks; "lossless requires keeping fiber + chirality" | 📖 FRAMEWORK / offered | none to start; holography refs (’t Hooft / Susskind / Bekenstein / AdS-CFT) go through **k=3 triality verify-PDF** before lodging (F381 discipline); no-lineage + defensive scope (algebra/info-geometry side only, no gravity claim) |
+| **BX-2** | **(8:7) inside the 15 — octonionic Hopf S⁷→S⁸** — recurse F384/F387 one rung up: does the 7 fiber as 1+(2:1)+(4:3); the chiral-dual `|` seam at k=7→15 | active | srmech-native (octonion table already shipped, `qm.octonion`); read-only, no version bump |
+
+### DEFERRED — expert handoff / build-gated (NOT srmech-version-gated)
+| Item | Subject | Status | Gate / note |
+|---|---|---|---|
+| **BX-3** | **Z₃-native physical medium** (F383's next-question) — *"what medium carries a stable, composable order-3 (Z₃/triality) state natively?"* | ⏸️ DEFERRED-expert | device-physics / fabrication is OUT of framework scope (CAD-ban). In-scope as a **literature reading** of known Z₃ physical systems (triality dive, lens-only); the engineering is the expert's (F282) |
+| **BX-4** | **Coupled read-head as an actual RBS-SNN read mechanism** (F386+F388 → prototype) — phase-lock the readout into the RBS-SNN | ⏸️ DEFERRED-build | gated on the RBS-SNN build target (#855 / #844 / task #197); the algebra (`cascade.kuramoto_step` pin) is shipped — the integration waits on the SNN pipeline |
+
+### ⏳ QUEUED-srmech — wait for srmech updates (numpy removal IN PROGRESS)
+| Item | Subject | Gate |
+|---|---|---|
+| **BX-5** | **#863 QDFT/ODFT TOML cascade build** — author `quaternion_dft.toml` / `octonion_dft.toml` as live `cascade_catalog` descriptors (drafts done: R22) | **numpy-removal**: the cascade composes `qm.octonion` left/right-mult (the numpy/LAPACK surface), mid-rework (rc29→rc33, `qm` → `srmech[scientific]`). Building against the moving surface is premature. Resume after the numpy-free landing **and** srmech-dev picks up #863. |
+| **BX-6** | **#863 `qm.quaternion` ergonomic module** (first-class 4×4 left/right mult) — NEW srmech code | same numpy-removal gate + srmech-dev |
+| **BX-7** | **#863 `exp(μθ)` hypercomplex twiddle helper** — NEW srmech code | same gate |
+| **BX-8** | **rc29 verification** — when rc29 (numpy-drop Option 1 + HV carrier) lands: verify the HV contract (UPSTREAM §22b) + STOP-list coverage in a clean venv OUTSIDE the source tree | rc29 published to TestPyPI |
+| **BX-9** | **ephemerides-spectral → srmech 0.7.0 bump** (UPSTREAM §21) | live PyPI (rc ≠ SoT) |
+| **BX-10** | **srmech-mcp repoint + restart** (project memory: deferred) | live PyPI clean (non-rc) tag |
+
+### Disposition
+**BX-1, BX-2 are walkable in the next research session** (no srmech bump). **BX-3, BX-4** await user direction / the SNN build. **BX-5–BX-10 are blocked on srmech updates — chiefly the in-progress numpy-math removal** (do not author the QDFT cascade against the moving `qm` surface; resume post-numpy-free + #863 pickup). Durable handoffs for the whole arc: issue **#863** + the **R22 descriptor drafts** + findings **F356→F388** + the re-prime artifact.
