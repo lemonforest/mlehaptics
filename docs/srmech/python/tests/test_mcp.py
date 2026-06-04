@@ -1187,7 +1187,7 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     from srmech.amsc import hdc
 
     # rng= path still works (back-compat).
-    assert hdc.klein4_random(8, rng=np.random.default_rng(0)).shape == (8,)
+    assert len(hdc.klein4_random(8, rng=np.random.default_rng(0))) == 8
     assert hdc.polar_random(8, rng=np.random.default_rng(0)).shape == (8,)
 
     # rng wins over seed: the rng-built vector differs from the seed-only one.

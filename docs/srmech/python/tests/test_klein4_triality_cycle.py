@@ -22,7 +22,7 @@ def test_explicit_forward_mapping():
     # 0->0, 1->2, 2->3, 3->1  (the 3-cycle on {1,2,3}, identity fixed)
     out = hdc.klein4_triality_cycle(_all_sectors())
     assert out.tolist() == [0, 2, 3, 1]
-    assert out.dtype == np.uint8
+    assert out.buffer.typecode == "B"  # uint8-backed (HV)
 
 
 def test_explicit_inverse_mapping():
@@ -36,26 +36,26 @@ def test_order_three_identity():
     once = hdc.klein4_triality_cycle(v)
     twice = hdc.klein4_triality_cycle(once)
     thrice = hdc.klein4_triality_cycle(twice)
-    assert (thrice == v).all(), "T∘T∘T must be the identity (order 3)"
+    assert (thrice == v), "T∘T∘T must be the identity (order 3)"
 
 
 def test_square_equals_inverse():
     v = _all_sectors()
     twice = hdc.klein4_triality_cycle(hdc.klein4_triality_cycle(v))
     inv = hdc.klein4_triality_cycle(v, inverse=True)
-    assert (twice == inv).all(), "T² must equal T⁻¹"
+    assert (twice == inv), "T² must equal T⁻¹"
 
 
 def test_forward_then_inverse_is_identity():
     rng = np.random.default_rng(7)
     v = hdc.klein4_random(256, rng)
     rt = hdc.klein4_triality_cycle(hdc.klein4_triality_cycle(v), inverse=True)
-    assert (rt == v).all()
+    assert (rt == v)
 
 
 def test_identity_sector_is_fixed():
     v = np.zeros(64, dtype=np.uint8)
-    assert (hdc.klein4_triality_cycle(v) == 0).all()
+    assert (hdc.klein4_triality_cycle(v).tolist() == [0] * len(v))
 
 
 def test_is_a_permutation_of_the_three_involutions():
@@ -63,8 +63,8 @@ def test_is_a_permutation_of_the_three_involutions():
     # the cycle equals involution-1 before, etc.; identity(0) is invariant.
     rng = np.random.default_rng(11)
     v = hdc.klein4_random(4096, rng)
-    n0, n1, n2, n3 = hdc.klein4_sector_count(v).tolist()
-    c0, c1, c2, c3 = hdc.klein4_sector_count(hdc.klein4_triality_cycle(v)).tolist()
+    n0, n1, n2, n3 = hdc.klein4_sector_count(v)
+    c0, c1, c2, c3 = hdc.klein4_sector_count(hdc.klein4_triality_cycle(v))
     assert c0 == n0
     assert (c2, c3, c1) == (n1, n2, n3)
 

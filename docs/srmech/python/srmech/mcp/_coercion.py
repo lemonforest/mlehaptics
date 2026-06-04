@@ -533,6 +533,12 @@ def serialise_native(value: Any) -> Any:
     # complex -> [re, im]
     if isinstance(value, complex):
         return [value.real, value.imag]
+    # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
+    # The core ops return HV, not np.ndarray; cross JSON-RPC by value as a
+    # plain integer list (the same shape an ndarray result would serialise to).
+    from srmech.amsc.hv import HV as _HV
+    if isinstance(value, _HV):
+        return value.tolist()
     # numpy ndarray -> nested list
     if isinstance(value, np.ndarray):
         return _ndarray_to_json(value)

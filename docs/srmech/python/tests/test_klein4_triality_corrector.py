@@ -30,8 +30,8 @@ def _v(seed=0, D=64):
 def test_encode_shape_is_triple():
     v = _v()
     store = H.klein4_triality_encode(v)
-    assert store.shape == (v.size * 3,)
-    assert store.dtype == np.uint8
+    assert len(store) == v.size * 3
+    assert store.buffer.typecode == "B"  # uint8-backed (HV)
 
 
 def test_encode_blocks_are_the_triality_orbit():
@@ -39,7 +39,7 @@ def test_encode_blocks_are_the_triality_orbit():
     third vote is the triality orbit's third element, not an external render."""
     v = _v(3)
     store = H.klein4_triality_encode(v)
-    b0, b1, b2 = store.reshape(3, v.size)
+    b0, b1, b2 = store.to_numpy().reshape(3, v.size)
     t1 = H.klein4_triality_cycle(v)
     t2 = H.klein4_triality_cycle(t1)
     assert np.array_equal(b0, v)
@@ -65,7 +65,7 @@ def test_single_error_always_corrected():
     ok = 0
     N = 300
     for _ in range(N):
-        s = store.copy()
+        s = store.to_numpy()
         i = int(rng.integers(0, s.size))
         s[i] = np.uint8((int(s[i]) + int(rng.integers(1, 4))) % 4)  # flip sector
         ok += int(np.array_equal(H.klein4_triality_correct(s), v))
@@ -80,7 +80,7 @@ def test_corrects_one_error_in_each_block_position():
     store = H.klein4_triality_encode(v)
     for block in range(3):
         for pos in range(v.size):
-            s = store.copy()
+            s = store.to_numpy()
             idx = block * v.size + pos
             s[idx] = np.uint8((int(s[idx]) + 1) % 4)
             assert np.array_equal(H.klein4_triality_correct(s), v)
@@ -96,7 +96,7 @@ def test_order3_disabled_degrades_to_detect_not_correct():
     attributable to the order-3 triality, not to plain replication."""
     v = np.array([1, 2, 3, 1, 2, 3, 2, 3], dtype=np.uint8)  # has 2s and 3s
     store = H.klein4_triality_encode(v)
-    blocks = store.reshape(3, v.size)
+    blocks = store.to_numpy().reshape(3, v.size)
     # Naive majority over the RAW blocks (order-3 op disabled / not inverted):
     counts = np.zeros((v.size, 4), dtype=np.int64)
     for st in range(4):

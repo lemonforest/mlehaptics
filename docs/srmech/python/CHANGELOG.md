@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc29] - 2026-06-04
+
+**numpy-optional core, step 1 — the `HV` carrier + the Klein-4 family goes numpy-free (UPSTREAM §22 / §22b, Option 1). The first voxel of the "runs embedded without numpy/LAPACK" framework-identity arc.** Pure-Python; ABI stays 3; `describe()` unchanged at 208.
+
+Per the RBS-LM research subtree's §22 recommendation (make numpy *optional*, for framework-identity — NOT as a reflex-fix), the **boundary-type lever**: the core A-N vocabulary returns a framework-native handle, not a raw `np.ndarray` (a numpy-typed return invites `np.dot`/`np.linalg`; a handle forces the srmech op).
+
+- **New `srmech.amsc.hv.HV`** — a numpy-free hypervector carrier over a stdlib `array('B')` buffer. Plain-`int` `hv[i]`; scalar-`bool` `hv == other` (accepts `HV` / list / `bytes` / 1-D `np.ndarray`, so `np.array_equal(rec, v)` → `rec == v`); `hv.tolist()` / `hv.tobytes()` (stdlib) and `hv.to_numpy()` (opt-in bridge); buffer-protocol (the native C ops read/write it in place, so **HAS_NATIVE keeps HV fast** — pure-Python is only the no-native path). Imports **no numpy at load**. Distinct from `srmech.spectral.SpectralHandle`.
+- **The whole Klein-4 family is now numpy-free internally + returns `HV`** — `klein4_random` (stdlib-`random` seed path; the numpy `rng=` back-compat path is unchanged), `klein4_bind` / `unbind` / `bundle` / `similarity` (the `sectors=`/`parallel=`/`mode=` flag is preserved + value-identical; only `bundle` chirality is value-meaningful), the three `chirality_flip*` / `cpt_mirror`, `klein4_triality_cycle`, `klein4_holographic_encode` / `decode` (rc27), and `klein4_triality_encode` / `correct` (rc28). `klein4_sector_count` returns a stdlib `list[int]`. No `abs()`.
+- **Boundary plumbing**: the MCP result serialiser coerces `HV → list` (so MCP tool calls returning Klein-4 vectors still cross JSON-RPC); `rbs_lm.substrate` (a numpy research consumer, per §22) bridges back via the opt-in `.to_numpy()`.
+
+**Scope note (the arc):** numpy stays a **hard dependency** this rc — the dependency only flips to a `srmech[scientific]` extra in a later voxel, once *every* core module imports without numpy. `qm/*` + `signal_processing` keep numpy throughout (§22: "leaving numpy for the python-side triality/qm maths is correct"). Chosen for the framework-identity / embedded-install reasons, **not** as an agent-reflex cure (§22 honest caveat). Breaking: consumers of the `klein4_*` return type now get `HV` (use `.tolist()` / `.to_numpy()` / `==`). Full suite green.
+
 ## [0.7.0rc28] - 2026-06-04
 
 **Explicit order-3 triality-recursion corrector — `klein4_triality_encode` / `klein4_triality_correct` (#797 op (a1), F359 5-bar contract). The EXPLICIT k=3-CORRECT path past the order-2 4-cap (op (a2) is the measured no-Z3 substitute). Pure-Python; ABI stays 3; `describe()` 206 → 208.**
