@@ -1271,6 +1271,31 @@ User explicitly authorized closing this pass (the direction `[[feedback_create_u
 
 **Net: rc25 cleared the last srmech gates.** No srmech-package item still blocks research — #797/#812 are now ungated-ready under #855; the **HOLD lifts**. Working venv `/tmp/verify_srmech_v070rc25` = new latest-verified.
 
+## §19 Taking the RBS-SNN bottom-up findings upstream: the 3-tier division (TOML-now vs new-leaf-primitive vs default-profile) (2026-06-04)
+
+**Question (user):** the bottom-up findings are now measured — Klein-4-native store (F341), save/fetch bit-exact + the rotate-DoF (F350), the holographic-EC hybrid (F352/F353/F354), the navigation manifold (F347/F348). *Which become a DEFAULT srmech path, and which are manageable in the TOML?* The answer is a 3-tier sort, composing with §17:
+
+**Tier 1 — manageable in TOML NOW (the F289-D2 BYO-cascade mechanism, §12.4).** Any finding that is a **composition of *registered* cascade-ops** can be authored as a pure-TOML `[composite]` dropped on `SRMECH_CASCADE_PATH` — no srmech code, B-tier provenance. Covers: the save/fetch cascade (`bind → bundle → unbind`), the EC reconstruct (flips + a majority fold), the navigation pipeline — **IF their leaf ops are DSL-registered** (the catch).
+
+**Tier 2 — needs NEW LEAF primitives upstream (NOT expressible as a composition of existing ops):**
+- **§17 U1** — `tokenize`, `cooccurrence_edges` (text→graph; the K1 / navigation-map leaves).
+- `fiedler_embed` — the low-eigenvalue navigation embedding (F348); composes from `hermitian_eigendecompose` + low-eigvec-select, cleaner as a primitive.
+- `klein4_project_axis` — the iω₇-collapse / bipolar projection (F350/F354; the asymptotic-DoF render).
+- `klein4_cpt_orbit` + `parity_majority` / `erasure_reconstruct` — the CPT-orbit EC store + the parity-vote (F353/F354).
+- **§17 U2 (THE BRIDGE, highest leverage):** register the existing `klein4_{bind,unbind,bundle,*flip}` + `loop_bind*` + `encode_loe_content` as **DSL cascade-ops**. Without this, the Tier-1 TOML composites have nothing to reference — **U2 is what unlocks Tier 1.**
+
+**Tier 3 — DEFAULT PATHS (upstream profiles/catalogs).** To make a finding a *default* (not merely authorable), srmech ships it as a named profile/catalog descriptor — e.g. an `rbs_snn_store` profile (Klein-4-native save/fetch + CPT-orbit EC), a `navigation_map` cascade, a `truth_filter` (k=2-detect/k=3-correct) op. BYO-TOML makes them *authorable*; shipping makes them *default* (`siona.profile("rbs_snn")`).
+
+**Dividing line — the direct answer to "manageable in the TOML?":**
+- composition of **registered** ops → **TOML** (Tier 1);
+- **new leaf** op → **upstream** (Tier 2);
+- **default** (not just authorable) → **upstream profile** (Tier 3).
+So: **PARTIALLY manageable in TOML — but only after §17 U2 registers the leaf ops; the genuinely-new leaves (tokenize / cooccurrence_edges / fiedler_embed / klein4_project_axis / klein4_cpt_orbit / parity_majority) MUST go upstream; and "default paths" are inherently upstream (TOML is authorable, never default).**
+
+**Consolidated upstream ask = §17 (U1/U2/U3/U4) + the new leaves above + the Tier-3 RBS-SNN profiles.** Highest-leverage single change: **U2** (register the hdc/loop/loe ops as DSL ops — it converts the whole save/fetch + EC + navigation family from "needs code" to "authorable in TOML").
+
+**DATA-side peer (distinct from the op gaps):** the **CMB EB/TB parity-odd spectra + cosmic-birefringence β posterior** — `srmech.amsc.attested.cmb_*` ships TE/EE/BB (parity-even) but **NOT** EB/TB (parity-odd = the cosmic-band chirality observable; **the one chirality datum at that band is the one not shipped**). Already filed: **#743 (CLOSED)** with the attestation sources **Eskilt–Komatsu 2022 (arXiv:2205.13962)** + **Minami–Komatsu 2020 (arXiv:2011.11254)**. This is the data the F263/F352 CMB falsifier needs — a *catalog* gap, peer to the *op* gaps above.
+
 ---
 
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
