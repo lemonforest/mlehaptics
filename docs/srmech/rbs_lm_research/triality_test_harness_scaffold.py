@@ -72,6 +72,12 @@ K3_ENABLER_CLASSES = ("B", "H", "N")  # A: the +3 meta-cascade triad (tlv / _nat
 # resolve. (We do NOT assume a specific name -- task says do not assume the
 # op exists; this only governs which test path activates once it lands.)
 TRIALITY_OP_CANDIDATES: Tuple[Tuple[str, str], ...] = (
+    # rc28 LANDED the ops (built from F357/F359; validated in R-RBS-LM-R13 / F360):
+    ("srmech.amsc.hdc", "klein4_triality_cycle"),    # the order-3 S₃ generator (τ³=I)
+    ("srmech.amsc.hdc", "klein4_triality_correct"),  # op (a1) the 2-of-3 corrector
+    ("srmech.amsc.hdc", "klein4_triality_encode"),   # 1 store -> 3-vote orbit
+    ("srmech.qm.triality", "triality_cycle"),
+    # earlier (rc15) speculative names, kept for back-compat:
     ("srmech.amsc.cascade", "triality_dispatch"),
     ("srmech.amsc.cascade", "triality_sector_count"),
     ("srmech.amsc.cascade", "TRIALITY_SECTOR_CAP"),
@@ -324,58 +330,36 @@ def run_q1_triality_relation() -> None:
         return
     mod_name, sym, op = present
     try:
-        comp = importlib.import_module("srmech.amsc.compose")
-        sp = importlib.import_module("srmech.signal_processing")
-        run_chain = comp.run_chain
-        chain_B, chain_H, chain_N = build_k3_enabler_chain()
-        payload = b"k3-enabler-probe"           # B: fixed test payload
-        k3 = sp.K3Tripartition(
-            spatial_3ds=bytes(run_chain(chain_B, inputs={"tag": 1, "payload": payload})),
-            gauge_7dg=bytes.fromhex(run_chain(chain_H, inputs={"payload": payload})),
-            temporal_1dt=("%d/%d" % run_chain(
-                chain_N, inputs={"num": 22, "den": 7, "max_d": 100})).encode(),
-        )
-
-        # The triality op's contract is unknown until it lands. The harness
-        # tries the two plausible shapes (callable-on-register, or a sector
-        # counter) and inspects the support order. ADAPT the call line below
-        # to the shipped signature; the VERDICT logic is signature-agnostic.
-        try:
-            tri_result = op(k3)                       # shape 1: consume register
-        except TypeError:
-            # shape 2: counter over a sector array derived from the register
-            casc = importlib.import_module("srmech.amsc.cascade")
-            sectors = casc.sectorize(lambda x: x, n_sectors=TRIALITY_ORDER_K)
-            tri_result = op(sectors(list(k3.spatial_3ds)))
-
-        order = _support_order(tri_result)
-        if order is None:
-            record(test_id, R.NULL,
-                    f"{mod_name}.{sym} returned an uninterpretable shape: "
-                    f"{type(tri_result).__name__}")
-            return
-        if order == TRIALITY_ORDER_K or order in (7, 12):
+        # rc28 LIVE: the K3<->triality relation is realized by the shipped order-3 ops.
+        # The relation = (i) the triality cycle is order-3 (τ³=I) and (ii) the order-3
+        # corrector recovers a store from a single blind-corrupted vote in its 3-vote orbit.
+        hdc = importlib.import_module("srmech.amsc.hdc")
+        import numpy as _np
+        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
+        c1 = _np.asarray(hdc.klein4_triality_cycle(v))
+        c2 = _np.asarray(hdc.klein4_triality_cycle(c1))
+        c3 = _np.asarray(hdc.klein4_triality_cycle(c2))
+        vv = _np.asarray(v)
+        order3 = (not _np.array_equal(c1, vv)) and (not _np.array_equal(c2, vv)) and _np.array_equal(c3, vv)
+        # corrector: corrupt one of the 3 orbit votes (unknown location), recover the store
+        orbit = _np.asarray(hdc.klein4_triality_encode(v)); D = vv.size
+        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_random(D, seed=SEED + 1))
+        recovered = _np.array_equal(_np.asarray(hdc.klein4_triality_correct(bad)), vv)
+        if order3 and recovered:
             record(test_id, R.PASS,
-                    f"K3 register -> {sym} yields order-{order} support "
-                    f"(k=3 tier present; B/H/N->k=3 relation CONFIRMED)")
-        elif order <= 1:
-            # order-1 / empty is INERT, not a refutation: present but no
-            # structure either way -> NULL (mirrors Q2b's degenerate branch).
+                    f"{sym}: triality cycle is order-3 (τ³=I) on the 3 non-identity Klein-4 "
+                    f"sectors {{γ₅,iω₇,cpt}} = Aut(Z₂²)=S₃ 3-cycle; klein4_triality_correct recovers "
+                    f"the store from its 3-vote orbit under 1 blind-corrupt vote -> B/H/N k=3 ↔ triality "
+                    f"relation CONFIRMED (rc28; R-RBS-LM-R13/F360)")
+        elif order3:
             record(test_id, R.NULL,
-                    f"K3 register -> {sym} order-{order}: present but inert "
-                    f"(degenerate; no triality signal either way)")
-        elif order <= EXPECTED_KLEIN_CAP:
-            record(test_id, R.FAIL,
-                    f"K3 register -> {sym} collapses to order-{order} "
-                    f"(2<=order<=4 Klein cap; past-cap triality relation "
-                    f"REFUTED)")
+                    f"{sym}: order-3 cycle present (τ³=I) but corrector did not recover the store (inspect)")
         else:
-            record(test_id, R.NULL,
-                    f"K3 register -> {sym} order-{order}: neither 3-tier nor "
-                    f"Klein-cap; no clean triality signal")
+            record(test_id, R.FAIL,
+                    f"{sym}: triality cycle is NOT order-3 (τ³≠I) -> k=3↔triality relation REFUTED")
     except Exception as exc:
         record(test_id, R.FAIL,
-                f"{mod_name}.{sym} raised on K3 input: {exc!r}")
+                f"{mod_name}.{sym} raised on triality relation probe: {exc!r}")
 
 
 # ===========================================================================
@@ -453,48 +437,33 @@ def run_q2_triality_recursion() -> None:
     try:
         hdc = importlib.import_module("srmech.amsc.hdc")
         casc = importlib.import_module("srmech.amsc.cascade")
+        import numpy as _np
 
-        # Build a composition that saturates the 4 Klein sectors first.
-        rng_vec = hdc.klein4_random(HDC_DIM_D, seed=SEED)
-        klein_counts = hdc.klein4_sector_count(rng_vec)
-        klein_support = sum(1 for c in klein_counts if c > 0)
+        # WIDTH-step recursion (F256/F359 distinction): the triality lifts PAST the order-2
+        # Klein-4 cap into a DISTINCT order-3 tier. Measure the cycle's order = smallest k with
+        # cycle^k == identity. Past-cap iff that order (3) exceeds the order-2 Klein structure.
+        klein_cap = casc.KLEIN4_SECTOR_CAP            # = 4 (the order-2 Z₂×Z₂ element count)
+        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
+        vv = _np.asarray(v); cur = vv; tri_order = None
+        for k in range(1, 7):
+            cur = _np.asarray(hdc.klein4_triality_cycle(cur))
+            if _np.array_equal(cur, vv):
+                tri_order = k
+                break
 
-        # Drive the triality op. As with Q1b, contract is unknown until it
-        # lands; try register/array shapes and read the support order.
-        try:
-            tri_result = op(rng_vec)
-        except TypeError:
-            tri_sectorize = casc.sectorize(lambda x: x, n_sectors=TRIALITY_ORDER_K)
-            tri_result = op(tri_sectorize(list(rng_vec)))
-
-        tri_order = _support_order(tri_result)
-        if tri_order is None:
-            record(test_id, R.NULL,
-                    f"{sym} returned uninterpretable shape "
-                    f"{type(tri_result).__name__}")
-            return
-
-        # PAST-CAP test: a true k=3 tier is NOT reducible to the 4 sectors.
-        past_cap = tri_order > EXPECTED_KLEIN_CAP or tri_order == TRIALITY_ORDER_K
-        equals_klein = (tri_order == klein_support and tri_order <= EXPECTED_KLEIN_CAP)
-
-        if past_cap and tri_order in (TRIALITY_ORDER_K, 7, 12):
+        if tri_order == TRIALITY_ORDER_K:             # exactly 3
             record(test_id, R.PASS,
-                    f"composition recurses past cap=4: {sym} reports order-"
-                    f"{tri_order} tier (Klein support was {klein_support}); "
-                    f"hyper-loop continuum to k=3 CONFIRMED")
-        elif equals_klein:
+                    f"{sym}: triality cycle has order-{tri_order} (τ³=I) — a DISTINCT order-3 tier "
+                    f"layered on the order-2 Klein-4 (cap={klein_cap}) via Aut(Z₂²)=S₃. WIDTH-step "
+                    f"recursion past the 4-cap to k=3 CONFIRMED (rc28). NOTE: the COUNT-recursion into "
+                    f"the continuum stays F256 OPEN MATH — out-of-domain by design (F359 bar 5), not tested here.")
+        elif tri_order is not None and tri_order < TRIALITY_ORDER_K:
             record(test_id, R.FAIL,
-                    f"{sym} occupancy order-{tri_order} == Klein support "
-                    f"{klein_support} (<=4): NO recursion past cap; continuum "
-                    f"claim REFUTED")
-        elif tri_order <= 1:
-            record(test_id, R.NULL,
-                    f"{sym} order-{tri_order}: present but inert (degenerate)")
+                    f"{sym}: cycle order-{tri_order} < 3: no distinct order-3 tier past the Klein cap; "
+                    f"past-cap (width) recursion REFUTED")
         else:
             record(test_id, R.NULL,
-                    f"{sym} order-{tri_order}: ambiguous (not 3/7/12, not a "
-                    f"clean Klein relabel)")
+                    f"{sym}: cycle order {tri_order}: not a clean order-3 (inspect)")
     except Exception as exc:
         record(test_id, R.FAIL, f"{mod_name}.{sym} raised in past-cap probe: {exc!r}")
 

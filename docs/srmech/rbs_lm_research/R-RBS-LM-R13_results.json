@@ -1,0 +1,18 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "has_native": true,
+  "bar2_orbit_of_same_store": true,
+  "bar1_triality_correct": {
+    "0.0": 1.0,
+    "0.25": 1.0,
+    "0.5": 1.0,
+    "1.0": 1.0
+  },
+  "distance_bound_2of3_corrupt": 0.0,
+  "order2_cpt_m1_rate": 1.0,
+  "opb": {
+    "magnetic_hermitian": true,
+    "real_eigs": true,
+    "directed_sensitive": true
+  }
+}

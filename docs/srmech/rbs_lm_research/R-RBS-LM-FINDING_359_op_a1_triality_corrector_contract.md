@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 359 — op (a1) the explicit triality-recursion corrector: the falsifiable CONTRACT (spec + harness only), scoped to the finite WIDTH-step, with F256's count-recursion held OUT as open math
 
+> **CORRECTION (F360, 2026-06-04, rc28):** srmech rc28 LANDED op (a1) (`klein4_triality_correct`) and it validates — BUT validating it caught a misread in **bar 1** below: "blind correction > **F353 baseline 0.25**" treated F353's "1/4" as a 0.25 *rate*, when it is the code **DISTANCE** (corrects 1-of-4); the rate at m=1 is **1.00**. So **bar 4** (correction *uniquely* attributable to order-3) is the wrong test — any ≥3-fold majority (incl. the order-2 CPT-4-orbit) corrects 1 blind error. The op's real contribution is the **minimal native 3-vote self-encoder** (3 votes from ONE store via Aut(Z₂²)=S₃; resolves F344's "is the 3rd vote native?"), not a unique corrector. Bars 2/3/5 hold; bar 1 holds in the corrected sense (corrects 1, breaks at 2). See F360.
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc25 · **scope decision (user):** "Spec + harness only" · **for:** #797 op (a); UPSTREAM §20 (a) · **grounds in:** F256 (width-vs-count seam; "recursion past the threshold is the open math"), F353/F354 (the measured capability boundary), F291 (k=2-detect / k=3-correct), F344 (k=3 majority given stipulated copies), F197 (so(8) 3⊕3̄) · **validator:** `triality_test_harness_scaffold.py` (already PASS=3/SKIP=3)
 
 ## What this is — a contract, not a solution
