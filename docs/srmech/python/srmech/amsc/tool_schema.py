@@ -792,6 +792,53 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
+        # #797 op (b): directed / signed Laplacian (rc26). The dissolved
+        # Class-O signed-metric absorbed into L + the directed-navigation
+        # leg (magnetic / Hermitian Laplacian). Heavy eigen runs on the
+        # existing native symmetric/hermitian solvers; the standalone-C
+        # builder peers are the tracked next voxel.
+        ToolEntry(
+            name="srmech.amsc.laplacian.signed_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Signed graph Laplacian L = D̄ − A (real-symmetric, PSD); "
+                    "off-diagonal weights may be negative. Signed degree "
+                    "D̄_ii = Σ|A_ij| is the Class-K magnitude of the "
+                    "signed-metric (the dissolved Class O, now a Class-L "
+                    "sub-op). Kunegis et al. (2010).",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False,
+                          "may be negative")),
+            returns=R("np.ndarray", "n × n real-symmetric PSD signed Laplacian"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.magnetic_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Magnetic (Hermitian) Laplacian of a DIRECTED graph "
+                    "(#797 op (b)): direction encoded as phase "
+                    "exp(i·2π·q·(W−Wᵀ)) so the graph stays Hermitian and "
+                    "hermitian_eigendecompose diagonalises it; the complex "
+                    "eigenpair is the directed-navigation signature. q=0 → "
+                    "real symmetrised Laplacian (undirected control).",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "directed u → v"),
+                        P("weights", "Optional[list[float]]", False),
+                        P("q", "float", False,
+                          "flux in turns per unit net flow; default 0.25")),
+            returns=R("np.ndarray", "n × n complex128 Hermitian matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
+            category="laplacian",
+            summary="The Fiedler navigation embedding: eigenvector of the "
+                    "second-smallest eigenvalue (λ₂) of a Laplacian. "
+                    "Dispatches real→symmetric_eigendecompose, "
+                    "complex→hermitian_eigendecompose (both native).",
+            parameters=(P("matrix", "np.ndarray", True,
+                          "n × n real-symmetric or complex-Hermitian Laplacian"),),
+            returns=R("np.ndarray", "length-n λ₂ eigenvector"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",
