@@ -1,0 +1,17 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "H_closed": true,
+  "H_associative": true,
+  "seam_nonassociative": true,
+  "first_triad_signs": [
+    1,
+    1,
+    1
+  ],
+  "doubled_triad_signs": [
+    -1,
+    -1,
+    -1
+  ],
+  "chiral_dual": true
+}
