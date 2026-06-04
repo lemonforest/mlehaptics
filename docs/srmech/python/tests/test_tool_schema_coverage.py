@@ -92,6 +92,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # submodule-dotted name is the same object re-exported flat, exempt
     # exactly like cyclic_gcd / kuramoto_step above.
     "srmech.amsc.cascade.compose.autocorrelation",
+    # cascade.hypercomplex_dft.* — the quaternion/octonion DFT composites
+    # (v0.7.0rc31 / #863). Registered under their STABLE flat public names
+    # ``srmech.amsc.cascade.quaternion_dft`` / ``octonion_dft`` (which ARE
+    # registered); the submodule-dotted names are the same objects re-exported
+    # flat, exempt exactly like autocorrelation above.
+    "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft",
+    "srmech.amsc.cascade.hypercomplex_dft.octonion_dft",
     # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
     # Registered under its STABLE flat public name
     # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);

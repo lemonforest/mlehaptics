@@ -54,8 +54,10 @@ _EXPECTED_CATALOG_OPS = {
     "kuramoto_step",
     "magnitude",
     "net_chirality",
+    "octonion_dft",
     "parallel_sector_dispatch",
     "pin_slot_at_zero",
+    "quaternion_dft",
     "reorient",
 }
 

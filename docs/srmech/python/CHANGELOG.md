@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc31] - 2026-06-04
+
+**Quaternion / octonion DFT cascade composites — `quaternion_dft` / `octonion_dft` (#863, F380). The native transform for a Klein-4 object: where a complex FFT collapses one of its two Z₂ chirality axes (the flat shadow), the QDFT's ℍ coefficient algebra resolves both.** Pure-Python composites over the `qm.octonion` atoms; ABI stays 3; `describe()` 208 → 210.
+
+**Why it's exact, not analogical (F380):** the Klein-4 group **is** the quaternion units modulo sign — `Q₈/{±1} ≅ Z₂×Z₂`. So the coefficient algebra of each FFT-ladder rung carries a different chirality content: complex FFT → ℂ → `{±1,±i}/± = Z₂` (one axis); **quaternion FT → ℍ → `Q₈/± = Z₂×Z₂` (both axes)**. A QDFT's coefficient algebra matches the Klein-4 object's value algebra, so both axes survive.
+
+- **`cascade.quaternion_dft(x, *, form, mu_axis, inverse)`** — `X[k] = Σ_n exp(σ·μ·2πkn/N)·x[n]`. Left/right `form` (ℍ is non-commutative → the twiddle can't be factored out as in the complex FFT; both forms round-trip). `inverse(forward(x)) == x` to float round-off, recovering **all four** components (both Z₂ axes). Composite over the `qm.octonion` left/right-mult atoms restricted to ℍ.
+- **`cascade.octonion_dft(x, *, form, mu_axis, bracketing, two_sided_right_axis, inverse)`** — the (8:7) rung. Carries the F378 **non-associativity as an explicit declared `bracketing` field**: the two-sided ODFT `W_l·x·W_r` is not unique, so `(W_l·x)·W_r` vs `W_l·(x·W_r)` must be stated — these measurably differ for octonions. One-sided forms round-trip; the two-sided form is forward-only (its inverse is open under non-associativity → raises).
+- **Class home** M (Clifford/HDC multiply) ∘ C (twiddle ±μ orientation) ∘ N (rational angle kn/N). No new primitive class; **no `abs()`**.
+- **Scientific tier (UPSTREAM §22):** numpy is imported **lazily inside each op**, so `import srmech.amsc.cascade` stays numpy-free (the rc30 numpy-absent-safe core is intact); the transforms use numpy on call (consistent with §22 keeping the python-side qm maths numpy-ful).
+- **`tests/test_hypercomplex_dft.py`** (new, +16) — QDFT left/right round-trip (each μ axis); the load-bearing **Klein-4 both-axes-preserved** round-trip + the **complex-FFT flat-shadow contrast** (the complex projection drops bit1; the QDFT keeps it); ODFT one-sided round-trip; the **two-sided bracketing is measurably non-associative**; input validation; numpy-absent ImportError.
+- **`cascade_catalog/{quaternion_dft,octonion_dft}.toml`** (new) — the DSL-catalog descriptors with left/right form, the octonion bracketing convention as an **explicit attested field**, and PDF-verified OA citations (Sangwine & Ell, arXiv:1001.4379; Błaszczyk, arXiv:1905.12631; Hahn & Snopek 2011, Bull. Polish Acad. Sci. 59(2):167–181 — the paywalled IEEE TIP 2007 / Elsevier 2017 papers were **excluded** in favour of their OA arXiv equivalents per the paywalled-DOI rule).
+
+**Tier note (the prototype/graduation split per #863):** these are the **prototype tier** — composites over existing primitives, no capability gap. A graduation to a first-class native C primitive (`srmech_quaternion_dft`, like the existing `fft`) is a **separate later voxel**, explicitly deferred — not silently capped. Also folds a doc-honesty fix: the `autocorrelation` tool_schema summary's stale "numpy FFT fallback" claim (made inaccurate by rc30) now reads numpy-free. Full suite green.
+
 ## [0.7.0rc30] - 2026-06-04
 
 **numpy-optional core, step 2 — the `cascade` layer is numpy-absent-safe (UPSTREAM §22, Option 1). The second voxel of the "runs embedded without numpy/LAPACK" framework-identity arc.** Pure-Python; ABI stays 3; `describe()` unchanged at 208.

@@ -119,6 +119,17 @@ from .parallel import (
     parallel_sector_dispatch,
     sectorize,
 )
+# Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380). The native
+# transform for a Klein-4 object — its ℍ/𝕆 coefficient algebra resolves both
+# Z₂ chirality axes the complex FFT collapses (the flat shadow). COMPOSITES
+# over the qm.octonion left/right-mult atoms — no new primitive class. Scientific
+# tier (§22): numpy is imported lazily INSIDE each op, so this import stays
+# numpy-free (the rc30 numpy-absent-safe core is intact); the transforms use
+# numpy on call.
+from .hypercomplex_dft import (
+    quaternion_dft,
+    octonion_dft,
+)
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from
@@ -162,6 +173,9 @@ __all__ = [
     # rc12 composability (§11.3): recombine + nesting wrapper
     "COMBINE_REDUCERS",
     "sectorize",
+    # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
+    "quaternion_dft",
+    "octonion_dft",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",
