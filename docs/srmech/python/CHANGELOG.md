@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc34] - 2026-06-04
+
+**"Continuous math is a cascade of the 14 A–N class operations" — the complex-exponential keystone, plus the derivation that dissolves the "scientific tier."** Pure-Python additions; ABI stays 3; `describe()` 215 → **218** (+3 exp tools).
+
+- **New substrate-native exp family** — `srmech.amsc.rational.{exp, cexp, complex_exp}` (re-exported from `srmech.asymptotic_calculus`). `exp(x)` = Class-N Taylor with **K** argument-halving range reduction (`e^x = (e^(x/2^k))^(2^k)`, no irrational constant); `cexp(θ) = cos θ + i·sin θ` = **N**(rc33 trig) ∘ **C**(imaginary-unit 90° rotation, Euler); `complex_exp(z) = e^(z.real)·(cos z.imag + i·sin z.imag)`. No `math.exp`/`cmath.exp`/`np.exp` in the call graph (AST-guarded). Matches libm to machine ε (`cexp`/`complex_exp` ~3–9e-16; real `exp` ~1e-9 absolute at e¹⁵, machine-ε relative). **This is the keystone**: every `np.exp(1j·…)` time-evolution phase and every DFT twiddle factor IS a `cexp`.
+- **Derivation note** `docs/srmech/notes/continuous_math_as_14_class_cascade.md` — derives the A–N cascade for **every** op previously called "scientific-tier / numpy-only": `exp` (N∘K), trig (N∘I∘C∘K), `complex-exp` (N∘C), `sqrt` (N∘K), **DFT/FFT** (M∘{N∘C}∘I∘J∘K — the Antikythera epicycle-sum), **QR** (M∘C∘N∘K), **SVD** (L∘N∘K∘M, reachable from `hermitian_eigendecompose`), **non-Hermitian eig** (K∘L∘{QR}∘C), **lstsq** ({QR}∘M∘I), **kron** (I∘M), **einsum** (B/D∘I∘M). Per the two-language MFO/srmech framework there are exactly **14** irrep class operations — so none of these is a primitive srmech lacks; each is a not-yet-derived *composition*. The §22 "scientific tier" framing is dissolved: numpy's only legitimate roles are the array **container** and a **temporary fallback** for not-yet-cascaded ops.
+- **Tests** `tests/test_continuous_exp_cascade_rc34.py` (+6) — exp/cexp/complex_exp vs libm/cmath; `cexp` == Euler of srmech's own trig; AST guard against any `math/cmath/np .exp` in the call graph.
+
+**Roadmap (per the derivation note):** rc35 promotes `sqrt`/`hypot` float wrappers + a direct-DFT cascade (on `cexp`) + `kron`; rc36 builds QR + SVD; rc37 non-Hermitian eig + lstsq + einsum; the numpy→`srmech[scientific]` dependency-flip is the capstone once cascade coverage is complete. No new C symbols.
+
 ## [0.7.0rc33] - 2026-06-04
 
 **numpy-math → srmech-cascade routing: substrate-native trig (`cos`/`sin`/`tan`/`atan`/`atan2`) that replaces `math`/`numpy` trig at machine precision, plus Hermitian-eig routed onto srmech's own primitive across qm + signal_processing.** Pure-Python additions; ABI stays 3; `describe()` 210 → **215** (+5 trig tools).

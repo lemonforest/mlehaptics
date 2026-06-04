@@ -49,6 +49,9 @@ __all__ = [
     "tan",
     "atan",
     "atan2",
+    "exp",
+    "cexp",
+    "complex_exp",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -901,6 +904,61 @@ def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
     if y >= 0.0:
         return base + pi_f
     return base - pi_f
+
+
+# Default Taylor terms for the float-projection real exp (|reduced| <= 1).
+_EXP_FLOAT_TERMS: int = 24
+
+
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
+    """``e^x`` via the Class-N exp cascade with argument-halving reduction.
+
+    ``e^x = (e^(x/2^k))^(2^k)``: halve the argument until ``|x/2^k| <= 1``
+    (where the exp Taylor series converges fast), run
+    :func:`exp_series_truncate` on the exact float rational, project to
+    float, then square ``k`` times. No irrational constant is needed
+    (exp is aperiodic — unlike trig there is no π in the reduction).
+    Substrate-native replacement for ``math.exp`` / ``np.exp`` (real).
+    """
+    x = float(x)
+    if x == 0.0:
+        return 1.0
+    # Class-K magnitude (no abs()) to count the halvings.
+    x_mag = x if x >= 0.0 else -x
+    k = 0
+    while x_mag > 1.0:
+        x_mag = x_mag / 2.0
+        k += 1
+    reduced = x / (2 ** k)
+    rn, rd = float(reduced).as_integer_ratio()
+    en, ed = exp_series_truncate(rn, rd, terms)
+    val = en / ed
+    for _ in range(k):                            # (e^(x/2^k))^(2^k)
+        val = val * val
+    return val
+
+
+def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+    """``e^(i·theta) = cos(theta) + i·sin(theta)`` via the Class-N cascade.
+
+    Euler's formula: Class-N trig ∘ Class-C imaginary-unit rotation (the
+    imaginary unit *is* a 90° phase-plane rotation). Substrate-native
+    replacement for ``np.exp(1j*theta)`` / ``cmath.exp(1j*theta)`` — the
+    DFT twiddle factor and the quantum time-evolution phase.
+    """
+    return complex(cos(theta, terms=terms), sin(theta, terms=terms))
+
+
+def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+    """``e^z`` for complex ``z`` via the Class-N cascade.
+
+    ``e^z = e^(z.real)·(cos(z.imag) + i·sin(z.imag))`` — Class-N exp +
+    trig, composed by a Class-C imaginary-unit rotation. Substrate-native
+    replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
+    """
+    z = complex(z)
+    e_real = exp(z.real)
+    return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
 
 
 # ──────────────────────────────────────────────────────────────────────
