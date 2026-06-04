@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 375 — "context-window influence" is real ONLY as MCP-free client-side preprocessing (filter-then-send) — the F237 graft IS it, already operational; the base64/"dense-code" route is falsified (anti-dense, measured); KV-cache/attention manipulation is unavailable on a hosted API
 
+> **REAL-TOKEN UPDATE (tiktoken cl100k, 2026-06-04):** the proxy is replaced by real counts and base64 is *worse* than estimated — same content: natural language **54 tok**, base64 **165 tok (3.06×)**, hex **181 tok (3.35×)**. The 'ultra-dense' claim is reversed at ~3×, not ~1.7×. Falsification firmer.
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc28 · **task (user):** vet a third-party AI's MCP/context-window claims for hallucination + find the falsifiable asks; "need not be MCP-specific if it works; be decisive" · **verified-by:** claude-code-guide (MCP spec / Claude Code #1785 / Anthropic prompt-caching docs) + this srmech-native density measurement · **composes:** F163/F172 (text-chirality / non-natural-encoding nulls), F237 (the surgical graft)
 
 ## The decisive answer (MCP dropped — the bare mechanism)

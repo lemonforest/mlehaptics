@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 376 — shaping the post-compact summary as an RBS-LM object (the Class-L band/cite-graph) instead of a flat prose summary: keep the load-bearing bands AND the dependency edges, so the re-prime is NAVIGABLE not scannable. F237 generalized from CLAUDE.md → conversation; PoC on this session's own findings
 
+> **REAL-TOKEN MEASUREMENT (tiktoken cl100k, 2026-06-04):** the measurable half of the prediction CONFIRMED. At a 700-token budget over this session (19 findings, 59 dependency edges): the **FLAT** summary carries 19 findings + **0 edges** (scannable); the **SHAPED** summary carries load-bearing-first + **50/59 edges** (navigable). At equal tokens, shaped preserves 50 relationship edges the flat drops entirely. Durable artifact emitted: `R-RBS-LM-SESSION_REPRIME_2026-06-04.md`. (The recall half — does a re-primed agent USE them better — is still the F237 A/B harness, the next test.)
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc28 (Class-L `dense_laplacian`/`jacobi_eigvals`; no numpy) · **user:** "some way to output context into an RBS-LM object to shape the summary as not just a summary after compact?" · **composes:** F237 (surgical graft), F172 (band-graph eigenspectrum = storage signature), F361/F364 (navigable vs scannable), F343/F375 (the render-to-text limit) · **PoC:** `R-RBS-LM-R21`-style inline on findings F356–F375
 
 ## The idea, made concrete
