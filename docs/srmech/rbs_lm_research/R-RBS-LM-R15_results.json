@@ -1,0 +1,45 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "D": 4096,
+  "rows": [
+    {
+      "delta": 0.0,
+      "srmech_cos": 1.0,
+      "overlap": 1.0,
+      "corot": 1.0,
+      "mismatch": 0.8775825618903723
+    },
+    {
+      "delta": 0.5,
+      "srmech_cos": 0.8775825618903728,
+      "overlap": 0.8775825618903734,
+      "corot": 0.9999999999999998,
+      "mismatch": 0.8775825618903734
+    },
+    {
+      "delta": 1.0,
+      "srmech_cos": 0.5403023058681398,
+      "overlap": 0.5403023058681393,
+      "corot": 0.9999999999999998,
+      "mismatch": 0.8775825618903724
+    },
+    {
+      "delta": 1.5,
+      "srmech_cos": 0.0707372016677029,
+      "overlap": 0.07073720166770295,
+      "corot": 1.0,
+      "mismatch": 0.8775825618903724
+    },
+    {
+      "delta": 1.5714285714285714,
+      "srmech_cos": -0.0006322445915532736,
+      "overlap": -0.0006322445915532436,
+      "corot": 1.0,
+      "mismatch": 0.8775825618903728
+    }
+  ],
+  "corot_bit_exact": true,
+  "fidelity_is_cos": true,
+  "shadow_at_halfpi": true,
+  "data_norm_invariant": 1.0
+}

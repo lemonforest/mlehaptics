@@ -1,0 +1,14 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "n_tokens": 61229,
+  "n_edges": 13417,
+  "vocab": 150,
+  "magnetic_hermitian": true,
+  "complex_directional": true,
+  "rev_is_conj": 0.0,
+  "dir_energy": 41.81506905411015,
+  "dir_energy_shuffled": 43.289721643826724,
+  "sym_direction_blind": 0.0,
+  "navigable": true,
+  "scannable_shadow": true
+}
