@@ -1,0 +1,10 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "octonion_inverse_ok": true,
+  "sedenion_aabar_is_norm": true,
+  "sedenion_inverse_ok": true,
+  "octonion_norm_multiplicative": true,
+  "sedenion_norm_multiplicative": false,
+  "sedenion_worst_gap": 94.4662155510025,
+  "zero_divisor_norm2": 0.0
+}
