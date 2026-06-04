@@ -486,6 +486,15 @@ def _try_native_chiral_dual(op, x):
         return None
     if not callable(op):
         return None
+    # The native chiral_dual marshals C buffers through numpy views for the
+    # Python callback, so this accel path needs numpy. With numpy ABSENT
+    # (UPSTREAM §22 numpy-optional core), degrade to the pure-Python fallback
+    # rather than crash — the other ``_try_native_*`` helpers already return
+    # None before touching numpy for non-array input.
+    try:
+        import numpy as _np  # noqa: F401 - presence probe; re-imported below
+    except ImportError:
+        return None
     # Detect 1-D float64 ndarray input.
     is_ndarray = hasattr(x, "dtype") and hasattr(x, "ndim")
     if is_ndarray:
