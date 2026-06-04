@@ -1506,6 +1506,31 @@ def _register_primitive_class_tools() -> None:
                           "bool mask over store; True = erased")),
             returns=R("np.ndarray", "uint8 reconstructed length len(store)//replicas"),
         ),
+        # #797 op (a1): explicit order-3 triality corrector (rc28; F359 contract).
+        # The k=2-DETECT order-2 store gains k=3-CORRECT from the order-3 triality
+        # orbit — the EXPLICIT path (op (a2) is the measured no-Z3 substitute).
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_encode", owner="srmech",
+            category="hdc",
+            summary="Encode a Klein-4 store as its order-3 triality orbit "
+                    "[v,T(v),T²(v)] (#797 op (a1), F359): the third block T²v is "
+                    "the order-3 third vote past the order-2 4-cap, NOT an "
+                    "external 3rd render. Paired with klein4_triality_correct.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 store of length len(v)*3 = [v|T(v)|T²(v)]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_correct", owner="srmech",
+            category="hdc",
+            summary="Correct a Klein-4 store via the order-3 triality 2-of-3 "
+                    "majority (#797 op (a1), F359): invert the triality to the "
+                    "common v-frame (T⁻¹/T) then majority-vote — k=3-CORRECT vs "
+                    "the bare order-2 k=2-DETECT. depth!=1 raises (width-only; the "
+                    "continuum count-recursion is open math, F359 bar 5).",
+            parameters=(P("store", "np.ndarray", True, "uint8; len % 3 == 0"),
+                        P("depth", "int", False, "only 1 (the width-step) in-domain")),
+            returns=R("np.ndarray", "uint8 reconstructed length len(store)//3"),
+        ),
         # ────────────────────────────────────────────────────────────
         # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (v0.7.0 / MS #21).
         # M∘C with a Class-K associator residue; NO new class. Baez 2002.

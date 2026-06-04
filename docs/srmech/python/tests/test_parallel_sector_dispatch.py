@@ -269,10 +269,10 @@ def test_collapse_lattice_bi_symmetric_collapses_to_1():
 # ----------------------------------------------------------------------
 
 
-def test_introspect_tools_total_is_206():
+def test_introspect_tools_total_is_208():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 206
+    assert introspect.describe()["tools"]["total"] == 208
 
 
 # ----------------------------------------------------------------------

@@ -8,6 +8,24 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc28] - 2026-06-04
+
+**Explicit order-3 triality-recursion corrector — `klein4_triality_encode` / `klein4_triality_correct` (#797 op (a1), F359 5-bar contract). The EXPLICIT k=3-CORRECT path past the order-2 4-cap (op (a2) is the measured no-Z3 substitute). Pure-Python; ABI stays 3; `describe()` 206 → 208.**
+
+The order-2 Klein-4 store is **k=2-DETECT** natively (F294: no Z3, 3∤4) — two views detect a mismatch but cannot say which is right. k=3-CORRECT needs the **order-3 triality** (τ³=I) past the 4-cap. The store carries the order-3 triality **orbit** of the value, `[v, T(v), T²(v)]` for `T = klein4_triality_cycle`, so the third vote IS the triality orbit's third element (`T²v`) — not an external 3rd render:
+
+- **`klein4_triality_encode(v)`** — `len(v)*3` uint8 store = `[v | T(v) | T²(v)]` (orbit-major). Class-home **M** (orbit replication bind) ∘ **I** (the order-3 cycle that generates the orbit).
+- **`klein4_triality_correct(store, *, depth=1)`** — brings every orbit-block back to the common `v`-frame by **inverting the triality** (`T⁻¹` on block1, `T⁻²=T` on block2) then takes the per-position **2-of-3 majority**, correcting one error: k=3-CORRECT where the bare order-2 store is only k=2-DETECT.
+
+The F359 5-bar contract (each falsifiable bar verified in `tests/test_klein4_triality_corrector.py`, new, +11):
+1. **blind correction beats the F353 holographic 0.25 baseline** — single-error recovery is exact (measured rate 1.0);
+2. **the 3rd vote is the order-3 triality orbit** of the same value (`block2 == T²v`, structurally);
+3. **C/Python parity** — Python-first (co-equal); the standalone-C peer is the tracked next voxel;
+4. **disable the order-3 op → degrade to k=2-DETECT** — without the inverse-to-frame step the raw orbit-blocks `{v,Tv,T²v}` disagree on every non-zero sector, so a naive majority does NOT recover `v` (correction is attributable to the triality, not to plain replication);
+5. **WIDTH-step only** — one 4-cap crossing (order-2 → order-3); `depth != 1` **raises** `NotImplementedError` rather than fabricating the continuum count-recursion (open math).
+
+Both ops registered in tool_schema (describe 206→208). No `abs()`. Built to the #797-comment / F359 contract (the canonical §20/F359 figures are not on the read-only research branch). This closes the #797 op-pair: (b) directed/signed-Laplacian (rc26), (a2) holographic substitute (rc27), (a1) explicit triality corrector (rc28).
+
 ## [0.7.0rc27] - 2026-06-04
 
 **Klein-4 holographic-erasure code — `klein4_holographic_encode` / `klein4_holographic_decode` (#797 op (a2), F353). The measured substitute for the (a1) triality corrector: k=3-CORRECT with NO Z3. Pure-Python; ABI stays 3; `describe()` 204 → 206.**
