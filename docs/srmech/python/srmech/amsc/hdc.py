@@ -745,6 +745,104 @@ def klein4_sector_count(v):
 
 
 # ---------------------------------------------------------------------------
+# Holographic erasure code over the Klein-4 store (#797 op (a2); F353).
+#
+# The order-2 Klein-4 store is k=2-DETECT natively (F294: no Z3, 3∤4). k=3-
+# CORRECT needs EITHER the order-3 triality (op (a1)) OR this holographic-
+# erasure route, which supplies correction with **no Z3**. Replicate the
+# store across ``replicas`` blocks: any ONE surviving replica-block (a
+# ``1/replicas`` subregion) reconstructs the whole — the holographic "any
+# subregion contains the whole" property at block granularity. At
+# ``replicas=4``: erasure-tolerance **3/4** (known-location: drop up to 3 of
+# 4 blocks) and blind correction **1/4** (unknown-location: per-position
+# majority over 4 copies corrects ≤1 error). These are the F353 measured
+# tolerances; the order-2 store + this code is the *measured substitute* for
+# the (a1) explicit triality corrector. Class-home: M (replication bind) ∘
+# C (the surviving-copy/majority selection). No abs(); pure uint8 relabel +
+# count.
+
+
+def klein4_holographic_encode(v, *, replicas=4):
+    """Holographic erasure-encode a Klein-4 store into ``replicas`` copies.
+
+    Returns a length ``len(v) * replicas`` uint8 store (replica-major: the
+    input repeated ``replicas`` times). Any single replica-block — a
+    ``1/replicas`` subregion — reconstructs the whole (#797 op (a2), F353):
+    the order-2 store's k=3-CORRECT via erasure rather than the order-3
+    triality (no Z3).
+
+    Args:
+        v: A Klein-4 hypervector (uint8, elements {0,1,2,3}).
+        replicas: Number of redundant copies (>= 2; default 4 → 3/4
+            known-erasure tolerance, 1/4 blind correction).
+
+    Returns:
+        uint8 store of length ``len(v) * replicas``.
+    """
+    arr = _as_klein4(v, "klein4_holographic_encode")
+    if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
+        raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
+    return np.tile(arr, replicas).astype(np.uint8)
+
+
+def klein4_holographic_decode(store, *, replicas=4, erased=None):
+    """Reconstruct a Klein-4 store from a holographic erasure encoding.
+
+    Inverse of :func:`klein4_holographic_encode`. Two modes:
+
+    * **known-location erasure** (``erased`` given) — a boolean mask over
+      the store (True = erased / missing). Per original position, takes the
+      first surviving replica. Recovers **exactly** as long as ≥1 replica
+      survives per position — tolerates up to ``replicas-1`` of ``replicas``
+      erased (= ``(replicas-1)/replicas``; **3/4** at the default). Raises
+      ``ValueError`` if any position has *all* replicas erased.
+    * **blind correction** (``erased`` is None) — per original position,
+      majority-vote across the ``replicas`` copies (ties broken toward the
+      lowest sector index). Corrects up to ``floor((replicas-1)/2)`` errors
+      per position; for ``replicas=4`` that is 1 error = **1/4** blind.
+
+    Args:
+        store: uint8 store of length divisible by ``replicas``.
+        replicas: The replica count used at encode time.
+        erased: Optional boolean array over ``store`` (True = erased).
+
+    Returns:
+        The reconstructed length ``len(store)//replicas`` uint8 vector.
+    """
+    s = np.asarray(store, dtype=np.uint8)
+    if s.ndim != 1:
+        raise ValueError("klein4_holographic_decode: store must be 1-D")
+    if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
+        raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
+    if s.size == 0 or s.size % replicas != 0:
+        raise ValueError(
+            f"store length {s.size} must be a positive multiple of replicas {replicas}"
+        )
+    D = s.size // replicas
+    blocks = s.reshape(replicas, D)
+    if erased is None:
+        # Blind: per-column majority over the four Klein-4 states.
+        counts = np.zeros((D, 4), dtype=np.int64)
+        for state in range(4):
+            counts[:, state] = (blocks == state).sum(axis=0)
+        return counts.argmax(axis=1).astype(np.uint8)
+    # Known-location erasure: first surviving replica per column.
+    mask = np.asarray(erased, dtype=bool)
+    if mask.shape != s.shape:
+        raise ValueError(
+            f"erased mask shape {mask.shape} != store shape {s.shape}"
+        )
+    survives = ~mask.reshape(replicas, D)
+    if not bool(survives.any(axis=0).all()):
+        raise ValueError(
+            "klein4_holographic_decode: a position has all replicas erased; "
+            "unrecoverable (erasure exceeded (replicas-1)/replicas)"
+        )
+    first = survives.argmax(axis=0)        # first surviving replica per column
+    return blocks[first, np.arange(D)].astype(np.uint8)
+
+
+# ---------------------------------------------------------------------------
 # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (MS #21 / v0.7.0, #814).
 #
 # The octonion / Cayley-Dickson product: non-commutative AND non-associative,

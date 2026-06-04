@@ -8,9 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc27] - 2026-06-04
+
+**Klein-4 holographic-erasure code — `klein4_holographic_encode` / `klein4_holographic_decode` (#797 op (a2), F353). The measured substitute for the (a1) triality corrector: k=3-CORRECT with NO Z3. Pure-Python; ABI stays 3; `describe()` 204 → 206.**
+
+The order-2 Klein-4 store is **k=2-DETECT** natively (F294: no Z3, 3∤4). k=3-CORRECT needs *either* the order-3 triality (op (a1), rc28) *or* this holographic-erasure route — replicate the store across `replicas` blocks so any one surviving replica-subregion (`1/replicas`) reconstructs the whole (the holographic "any subregion contains the whole" property at block granularity):
+
+- **`klein4_holographic_encode(v, *, replicas=4)`** — `len(v)*replicas` uint8 store (replica-major).
+- **`klein4_holographic_decode(store, *, replicas=4, erased=None)`** — `erased=mask` → first-surviving-replica (exact up to **(replicas-1)/replicas = 3/4** known-location erasure; raises if a position loses all replicas); `erased=None` → per-position majority (**blind**, corrects up to `floor((replicas-1)/2)` = **1/4** errors at the default). These are the F353 measured tolerances.
+- **`tests/test_klein4_holographic_erasure.py`** (new, +10) — 3/4 known-erasure round-trip, any-single-block reconstruction, 1/4 blind correction, and an honest **past-capacity** test (3-of-4 corrupted → decode is *not* claimed correct — no silent over-claim). Both ops registered in tool_schema (describe 204→206).
+
+Class-home **M** (replication bind) ∘ **C** (surviving-copy / majority selection); no `abs()`. The standalone-C peer is the tracked next voxel. Built to the #797-comment / F353 spec. op (a1) (explicit order-3 triality corrector; F359 5-bar contract) follows in rc28.
+
 ## [0.7.0rc26] - 2026-06-04
 
-**Two surfaces: (1) the `srmech.asymptotic_calculus` / `srmech.trigonometry` continuous-calculus import path now resolves; (2) the directed/signed-Laplacian eigen-op (Class L, #797 op (b)). Pure-Python; ABI stays 3; `describe()` stays 201.**
+**Two surfaces: (1) the `srmech.asymptotic_calculus` / `srmech.trigonometry` continuous-calculus import path now resolves; (2) the directed/signed-Laplacian eigen-op (Class L, #797 op (b)). Pure-Python; ABI stays 3; `describe()` goes 201 → 204 (the three new Class-L ops registered).**
 
 **(1) `srmech.asymptotic_calculus` + `srmech.trigonometry` (new modules).** The documented `srmech.asymptotic_calculus.*` import path had no module — the continuous-calculus primitives live in `srmech.amsc.rational` (Class N: `sin/cos/exp/log1p/atan_series_truncate` — exact-rational Taylor truncation, the substrate-native "continuous" trig) + the `srmech/amsc/attested/asymptotic_calculus/` catalog. These thin re-export modules make the advertised path resolve (no regression — nothing was deleted; the import surface was simply never created). `tests/test_asymptotic_calculus_alias.py` pins the re-export identity.
 
@@ -21,7 +33,7 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 - **`fiedler_vector(matrix)`** — the λ₂ navigation embedding; dispatches real→`symmetric_eigendecompose`, complex→`hermitian_eigendecompose` (both C-backed).
 - `tests/test_directed_signed_laplacian.py` pins the Hermitian/PSD/symmetry contracts + the q=0 control.
 
-**Cadence note (honest):** the heavy eigendecomposition runs **native today** (the existing `symmetric`/`hermitian` C solvers). The standalone-C **builder** peers (`srmech_graph_signed_laplacian` / `…_magnetic_laplacian`) + tool_schema registration of the three new Class-L ops are the tracked next voxels — mirroring the `loop_bind` Python-first→C-peer cadence (rc1 → rc7/rc20/rc21); that is why `describe()` stays 201 this rc. Op (b) is the genuine new primitive (no substitute for directed navigation); op (a) (triality-recursion corrector / holographic-erasure substitute, #797) follows in rc27/rc28.
+**Cadence note (honest):** the heavy eigendecomposition runs **native today** (the existing `symmetric`/`hermitian` C solvers), and the three new ops **are registered in tool_schema** (`describe()` 201 → 204; the no-carve-out coverage ratchet requires it). The only tracked next voxel is the standalone-C **builder** peers (`srmech_graph_signed_laplacian` / `…_magnetic_laplacian`) — mirroring the `loop_bind` Python-first→C-peer cadence (rc1 → rc7/rc20/rc21). Op (b) is the genuine new primitive (no substitute for directed navigation); op (a) (triality-recursion corrector / holographic-erasure substitute, #797) follows in rc27/rc28.
 
 ## [0.7.0rc25] - 2026-06-03
 

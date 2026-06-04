@@ -1480,6 +1480,32 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
             returns=R("np.ndarray", "int64 length-4 counts"),
         ),
+        # #797 op (a2): holographic erasure code (rc27; F353 substitute).
+        # The order-2 store is k=2-DETECT; this adds k=3-CORRECT with no Z3.
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_holographic_encode", owner="srmech",
+            category="hdc",
+            summary="Holographic erasure-encode a Klein-4 store into `replicas` "
+                    "copies (#797 op (a2), F353): any one replica-subregion "
+                    "(1/replicas) reconstructs the whole — k=3-CORRECT with no "
+                    "Z3. replicas=4 → 3/4 known-erasure, 1/4 blind correction.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                        P("replicas", "int", False, "redundant copies; default 4")),
+            returns=R("np.ndarray", "uint8 store of length len(v)*replicas"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_holographic_decode", owner="srmech",
+            category="hdc",
+            summary="Reconstruct a Klein-4 store from a holographic erasure "
+                    "encoding. erased=mask → first-surviving-replica (exact up "
+                    "to (replicas-1)/replicas known erasure); erased=None → "
+                    "per-position majority (blind, corrects ≤floor((r-1)/2)).",
+            parameters=(P("store", "np.ndarray", True, "uint8; len % replicas == 0"),
+                        P("replicas", "int", False, "replica count from encode"),
+                        P("erased", "Optional[np.ndarray]", False,
+                          "bool mask over store; True = erased")),
+            returns=R("np.ndarray", "uint8 reconstructed length len(store)//replicas"),
+        ),
         # ────────────────────────────────────────────────────────────
         # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (v0.7.0 / MS #21).
         # M∘C with a Class-K associator residue; NO new class. Baez 2002.
