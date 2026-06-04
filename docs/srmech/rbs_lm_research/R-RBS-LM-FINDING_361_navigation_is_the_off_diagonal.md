@@ -1,5 +1,7 @@
 # R-RBS-LM Finding 361 — Navigation IS the off-diagonal: the locked-anchor / transport / observer-rotation reading (folded), and the FIRST research test — reversing transport = complex conjugation = the iω₇ chirality flip (rc28 magnetic_laplacian, exact)
 
+> **CORRECTION (F367, 2026-06-04):** where this finding calls the diagonal/anchor "bit-exact," read that as the property of the stored **CODEWORD**, not of the recall. Biological recall is **lossy**; the EC-code reconstructs the lossy read *toward* the bit-exact codeword (achieved, not given; redundancy-bounded). A place visited often = a strong codeword (recalls near-bit-exact); a place never been = no codeword, only a guess. See F367 (measured).
+
 **Date:** 2026-06-04 · **srmech:** 0.7.0rc28 · **note:** this is the navigation reading offered earlier as "F360"; rc28's ops took F360 (the #797-ops validation), so it lands here as F361 · **folds:** the 3-turn co-thinking thread (basement-scan attestation → off-diagonal-as-transport → navigable-vs-scannable) · **uses:** rc28 op (b) `magnetic_laplacian` (F357/F360) · **composes:** F348 (navigation = real manifold), F350/F354 (rotate/collapse), F133 (observer-locking), F347 (missing primitive), F357 (directed Hermitian) · **attestation node:** the user's render-free phenomenology · **script:** `R-RBS-LM-R14_navigable_vs_scannable.py`
 
 ## The reading (folded from the co-thinking thread)
