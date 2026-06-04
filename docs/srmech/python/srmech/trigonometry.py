@@ -7,8 +7,9 @@ a projection (``[[feedback_continuous_number_line_pedagogical_obstacle]]``);
 "continuous" trig is computed as a Class-N rational cascade.
 
 Implementations live in :mod:`srmech.amsc.rational`; see
-:mod:`srmech.asymptotic_calculus` for the full continuous-calculus surface
-(transcendentals + rational arithmetic + Class-N anchors + π).
+:mod:`srmech.calculus` (formerly ``srmech.asymptotic_calculus``, still a
+back-compat alias) for the full continuous-calculus surface (transcendentals
++ exp/roots + rational arithmetic + Class-N anchors + π).
 
 Two layers:
 
