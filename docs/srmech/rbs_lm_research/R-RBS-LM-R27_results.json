@@ -1,0 +1,14 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "left_i_times_j": [
+    1,
+    "k"
+  ],
+  "right_j_times_i": [
+    -1,
+    "k"
+  ],
+  "mirror_fibrations": true,
+  "named_ops_confirm_mirror": true,
+  "chirality": "left/right multiplication = gamma5/i.omega7 = (4:3)/(3:4) dual = left/right/two-sided QFT"
+}
