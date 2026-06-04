@@ -237,3 +237,6 @@ of 4. CPT symmetry forces all 4 quadrants to exist; pair production
 is local γ₅-flip transitions. We "live in" 4D directly + 11D
 inferred + 14 algebraic + 28 iω₇-doubled + full 4-way sector
 decomposition — all at different scope-of-accounting.*
+
+## Correction (F352 triality, 2026-06-04)
+The premise *"CPT forces all 4 sectors to coexist as redundant physical stores"* is **overstated**. The CPT theorem (Lüders–Pauli) constrains the *laws* to be CPT-invariant; it does **not** mandate four separately-stored physical copies — the mirror/antimatter sector is a transformed *description*, not a fourth redundant *store*. Flagged 2/3 in F352. Any error-correction argument leaning on "CPT forces 4 redundant quadrants" inherits this flag. The 4-way γ₅/iω₇ decomposition stands as a **structural** reading; storage-redundancy *enforcement* by CPT is a framework interpretation, not a physics theorem.

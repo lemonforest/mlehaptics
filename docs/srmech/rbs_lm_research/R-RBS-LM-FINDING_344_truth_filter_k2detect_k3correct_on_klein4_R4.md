@@ -43,3 +43,6 @@ The first run used an **absolute** `DETECT_THRESH=0.50` and reported k=2 detect-
 ## Discipline
 
 srmech-native (`klein4_random`/`klein4_bundle`/`klein4_similarity`); own measurement bug caught + fixed + reported (no-magic-numbers); detection metric is baseline-relative, not an absolute cutoff. Composes with F341 (R1: Klein-4 = the store) and F342 (R2: Klein-4 = the order-2 store rung) — the store, the error-corrector, and the truth-filter's k=3 rung are one Klein-4 object.
+
+## Correction (F352 triality, 2026-06-04)
+F344 demonstrates k=3 majority correction **given 3 stipulated copies** (2 clean + 1 corrupted) — it does **not** establish that the Klein-4 store **natively supplies an independent third vote** (the Z3). Per F294 the order-3 corrector is **structurally absent** at the codon level (3 ∤ 4). So the *native* Klein-4 store is **k=2-DETECT**; **k=3-CORRECT requires an external third render.** F353/F354 refine the mechanism: the store's correction comes from the 4-fold CPT-orbit redundancy + holographic part-contains-whole (reconstruct-from-subregion, F353), **not** an order-3 corrector — so the no-Z3 null (F294) is consistent with, even positive evidence for, the holographic-EC hybrid (F352).
