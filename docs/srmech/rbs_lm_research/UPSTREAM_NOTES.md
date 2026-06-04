@@ -1351,6 +1351,26 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §23 QDFT/ODFT — quaternion/octonion fast transforms upstream (GitHub issue #863; F380) (2026-06-04)
+
+**Issue filed:** #863 `[srmech][rbs]` — *"Quaternion/octonion fast transforms (QDFT/ODFT) — the native transform for a Klein-4 object, not its complex flat shadow."* Links #855 (RBS-SNN umbrella) + #844 (forward-arch pipeline). **Leave open/closed state to the maintainer.**
+
+**Motivation (F380, user direction "we need this to QFT a klein-4 object … not just it's flat shadow"):** a Klein-4 object's native spectral transform is the **quaternion FT**, because **Klein-4 = Q₈/{±1} = the quaternion units mod sign** — proved srmech-natively in `R-RBS-LM-R21` (the Q₈ coset table == `hdc.klein4`'s XOR table, identity relabel; Q₈ non-abelian but the quotient abelian). A *complex* FFT projects to ℂ (units mod sign = Z₂) → resolves **one** chirality axis = the flat shadow; the QDFT's coefficient algebra ℍ (units mod sign = Klein-4) resolves **both** (γ₅ & iω₇).
+
+**The decision: cascade-first, NO capability gap.** rc28 already ships every primitive: the algebra-agnostic Cooley-Tukey cyclic radix split (`amsc.primes.factor` + `amsc.cyclic`), the scalar twiddle (`asymptotic_calculus.{cos,sin}_series_truncate`; order-3 root `cyclic.three_cycle`), and the hypercomplex left/right multiply (`qm.octonion.octonion_{left,right}_mult` + `octonion_mult_table`/`octonion_norm`). Per lean-ISA atoms-vs-composites: the multiplies are **atoms** (primitives); the transform is a **composite → TOML cascade** (prototype tier), graduating to a C/Python primitive via the full ratchet **only if it earns first-class attested status** like the existing `signal_processing.closed_form_ops.fft` (the complex 2:1 rung). Cascade is the on-ramp, not a blocker.
+
+**Two structural caveats (in the issue):** (1) **non-commutativity** (ℍ,𝕆) → genuine left/right/two-sided forms; the twiddle can't be factored out, the cascade calls the explicit multiply. (2) **non-associativity** (𝕆 only) → the ODFT is **not unique**; it must **declare a bracketing convention** (F378's 168/210 triples) as an explicit attested descriptor field.
+
+**Descriptor skeleton DRAFTS** (in this subtree, NOT the package — do-not-edit-srmech discipline): `R-RBS-LM-R22_quaternion_dft.draft.toml`, `R-RBS-LM-R22_octonion_dft.draft.toml`. Faithful to the shipped `autocorrelation.toml`/`kuramoto_step.toml` schema; the maintainer lifts them into `cascade_catalog/` when QDFT graduates.
+
+**Two OPTIONAL ergonomic upstream additions (the only things that would go upstream as *new code*; not blockers, maintainer's call):**
+- a first-class **`qm.quaternion`** module (4×4 `quaternion_left_mult`/`right_mult`) so the QDFT cascade doesn't slice the 8×8 octonion block (mirrors the `qm.octonion`/`qm.so8` split);
+- a hypercomplex **`exp(μθ)`** twiddle helper (cos·1 + sin·μ̂), composable from `asymptotic_calculus` + a unit imaginary.
+
+**Citation debt (carry forward):** the quaternion-DFT literature (Ell/Sangwine/Bülow) + the octonion-Fourier-transform literature are **verify-PDF-owed before any citation lands** (F378). The draft descriptors mark these `VERIFY-PDF OWED — NOT yet attested`. Also: Artin's theorem (2-generated octonion subalgebra is associative) explains why the quaternion-subalgebra embedding recovers the unique QDFT — verify a standard algebra reference before citing in package docs.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests

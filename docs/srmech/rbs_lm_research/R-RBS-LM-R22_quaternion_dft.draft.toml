@@ -1,0 +1,90 @@
+# PROPOSED cascade catalog entry: quaternion_dft  (DRAFT — NOT a live descriptor)
+#
+# This is a DRAFT skeleton for GitHub issue #863, living in the rbs_lm_research
+# subtree (NOT srmech/amsc/_research/cascade_catalog/ — we do not edit the srmech
+# package from this session; see UPSTREAM_NOTES §23). It mirrors the schema of the
+# shipped autocorrelation.toml / kuramoto_step.toml descriptors so the maintainer
+# can lift it into the package when QDFT graduates from prototype to catalog op.
+#
+# MOTIVATION (F380): a Klein-4 object's native transform is the QUATERNION FT,
+# because Klein-4 = Q8/{±1} = the quaternion units mod sign (proved srmech-natively
+# in R-RBS-LM-R21). The complex FFT resolves ONE Z2 (the flat shadow); the QDFT's
+# coefficient algebra (H) matches the Klein-4 object's value algebra, so BOTH
+# chirality axes (gamma5 & i.omega7) survive.
+
+[cascade]
+name = "quaternion_dft"
+class_composition = "L∘I∘C"   # spectral (L) over a cyclic twiddle index (I) with a chiral left/right form (C)
+kind = "stage"                 # value→value: piped value is the quaternion-valued sequence x (n×4), returns spectrum X (n×4)
+purpose = "Quaternion discrete Fourier transform of a quaternion-valued sequence (the (4:3)/H rung of the FFT ladder): the native spectral transform for a Klein-4 object, resolving BOTH chirality axes where a complex FFT collapses one. DSL stage-op — piped value is x (length-n sequence of 4-vectors); kwargs form= and mu= select the left/right form and the imaginary axis."
+
+description = """
+The quaternion DFT of a quaternion-valued sequence x of length n:
+
+    LEFT form:   X[k] = Σ_n  e^{-mu·2π nk/N} · x[n]     (kernel left of x)
+    RIGHT form:  X[k] = Σ_n  x[n] · e^{-mu·2π nk/N}     (kernel right of x)
+
+where mu is a UNIT PURE quaternion (mu² = -1; the chosen imaginary axis) and
+e^{mu θ} = cos θ + mu·sin θ. Because H is NON-COMMUTATIVE, left ≠ right and the
+two are genuinely distinct transforms (there is also a two-sided form splitting x
+into mu-commuting / mu-anticommuting parts) — this is WHY the complex FFT's
+"factor the twiddle out" trick does not apply and the transform must call the
+explicit left/right multiply.
+
+WHY THIS IS THE KLEIN-4 OBJECT'S NATIVE TRANSFORM (F380): the Klein-4 group
+Z2xZ2 = Q8/{±1} = the quaternion units modulo sign (R-RBS-LM-R21 proves the coset
+table == hdc.klein4's XOR table). So a Klein-4 HDC object's 4 states/coord map to
+the quaternion units {1,i,j,k} mod sign. A COMPLEX FFT projects to C first, units
+{±1,±i}/± = Z2 — it resolves only ONE chirality axis (the flat shadow). The QDFT's
+coefficient algebra H has unit group Q8, Q8/± = Klein-4 — it resolves BOTH the
+gamma5 and i.omega7 axes. The transform's coefficient algebra MATCHES the object's
+value algebra.
+
+HONEST CASCADE SHAPE: a COMPOSITION of existing srmech primitives — NOT a new
+privileged primitive. The "fast" Cooley-Tukey radix split is the algebra-agnostic
+cyclic reindex (amsc.primes.factor + amsc.cyclic); the twiddle scalar part is
+asymptotic_calculus.{cos,sin}_series_truncate (the SAME scalar cos/sin as every
+rung); the coefficient multiply is the H-subalgebra restriction of
+qm.octonion.octonion_{left,right}_mult. No abs() (the quaternion magnitude is
+Class K + Class C — octonion_norm restricted to H).
+
+The complex (2:1) rung is already shipped as signal_processing.closed_form_ops.fft;
+this is the (4:3)/H rung above it.
+"""
+
+[cascade.signature]
+input = "x: sequence of n quaternions (each a length-4 real vector [w,i,j,k]); kwarg form = 'left' | 'right' | 'two_sided' (default 'left'); kwarg mu = unit pure quaternion (default [0,1,0,0] = the i-axis); kwarg inverse = false"
+output = "X: sequence of n quaternions (the quaternion spectrum)"
+operation = "left: X[k] = Σ_n exp(-mu·2π nk/N)·x[n];  right: X[k] = Σ_n x[n]·exp(-mu·2π nk/N)  (mu² = -1)"
+fast = "Cooley-Tukey decimation when N factors (amsc.primes.factor); the radix split is the algebra-agnostic cyclic reindex — only the coefficient multiply is H-valued"
+parity = "PROPOSED — to series-truncate twiddle tolerance; bit-exactness is NOT claimed (truncated cos/sin series + non-associative-free but non-commutative accumulation order)"
+
+[cascade.native]
+status = "PROPOSED — prototype as a pure-TOML composite first; graduate to a C peer (srmech_cascade_quaternion_dft_f64) via the full ratchet ONLY if it earns first-class attested status. A new symbol is ABI-additive (ABI stays 3)."
+
+[cascade.composes]
+cyclic_radix_split = "amsc.primes.factor + amsc.cyclic — the Cooley-Tukey N=N1·N2 reindex (Class I; algebra-agnostic, identical at every FFT-ladder rung)"
+twiddle_scalar = "asymptotic_calculus.{cos,sin}_series_truncate — exp(mu·θ) = cos θ + mu·sin θ; the scalar cos/sin is the SAME at every rung (only mu changes)"
+hypercomplex_multiply = "H-subalgebra restriction of qm.octonion.octonion_{left,right}_mult — left≠right carries the non-commutativity; the form= kwarg selects which"
+sum_reduce = "Σ_n over the cyclic index (the spectral accumulation; no abs(), no sign branch)"
+class_l_spectral = "the transform is the spectral side (Class L), as the complex DFT is"
+
+[cascade.boundary_cases]
+n_zero = "n == 0 -> []"
+n_one = "n == 1 -> [x[0]] (the k=0 bin is the sum of one term)"
+mu_not_unit_pure = "mu with non-zero real part or |mu| != 1 -> ValueError at the Python dispatch layer (mu must satisfy mu² = -1)"
+form_default = "form='left' is the default; left and right differ because H is non-commutative"
+complex_embedding = "a complex (or real) input embeds as quaternions with only the w,i components — the QDFT then reduces to the complex DFT along mu (the flat-shadow case, recovered as a special case)"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade DRAFT for issue #863"
+canonical_landings = [
+  "R-RBS-LM F380 — Klein-4 = Q8/{±1} = quaternion units mod sign; the QDFT motivation (proof: R-RBS-LM-R21)",
+  "R-RBS-LM F379 — (n:n−1) = 1 anchor + (n−1) couplings; only the coefficient algebra changes up the FFT ladder",
+  "R-RBS-LM F377 — triality/order-3 DFT {1,ω,ω²}",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts (quaternion magnitude = octonion_norm|H, Class K + Class C)",
+  "qm.octonion.octonion_table_attestation() — the structure-constant table the H-restriction is read from is self-attesting",
+  "VERIFY-PDF OWED (F378; NOT yet attested): the quaternion-DFT literature (Ell / Sangwine / Bülow, color-image processing) — extract actual PDF + verify authors/title/arXiv-or-DOI before committing any citation",
+]

@@ -1,0 +1,81 @@
+# PROPOSED cascade catalog entry: octonion_dft  (DRAFT — NOT a live descriptor)
+#
+# DRAFT skeleton for GitHub issue #863, living in the rbs_lm_research subtree (NOT
+# the srmech package; see UPSTREAM_NOTES §23). Mirrors the shipped descriptor schema.
+#
+# The (8:7)/O rung of the FFT ladder. It is the quaternion_dft.draft.toml's bigger
+# sibling, with ONE extra structural obligation: O is NON-ASSOCIATIVE, so the
+# transform is NOT unique — it MUST declare a bracketing/association convention.
+# This is F378's 168/210 non-associative imaginary triples made concrete: the
+# bracketing is the order content the octonion FT carries that no lower rung does.
+
+[cascade]
+name = "octonion_dft"
+class_composition = "L∘I∘C"   # spectral (L) over a cyclic twiddle (I), chiral left/right form (C); + a declared bracketing
+kind = "stage"                 # value→value: piped value is the octonion-valued sequence x (n×8), returns spectrum X (n×8)
+purpose = "Octonion discrete Fourier transform (the (8:7)/O rung of the FFT ladder). Like the QDFT but over O, carrying the non-associativity (F378's 168/210 triples) as a REQUIRED, declared, attested bracketing convention. DSL stage-op — piped value is x (length-n sequence of 8-vectors); kwargs form=, mu=, bracketing=."
+
+description = """
+The octonion DFT of an octonion-valued sequence x of length n has the same shape as
+the quaternion DFT — LEFT / RIGHT forms with twiddle e^{mu θ} = cos θ + mu·sin θ for
+a unit pure octonion mu — but O is NON-ASSOCIATIVE: (a·b)·c ≠ a·(b·c) in general
+(168 of the 210 ordered imaginary triples fail associativity; F378). Therefore:
+
+  THE OCTONION DFT IS NOT UNIQUE. Any expression with ≥2 octonion multiplies must
+  fix a BRACKETING. The descriptor REQUIRES a `bracketing=` field; the chosen
+  association order is part of the transform's identity and is ATTESTED.
+
+This is the right home for the non-associativity: expressed as a cascade, the
+bracketing is an explicit, declared, attested descriptor field rather than an
+implicit accident of evaluation order. Two octonion_dft cascades with different
+bracketing are DIFFERENT transforms and must be labelled as such.
+
+HONEST CASCADE SHAPE: a COMPOSITION of existing srmech primitives — the
+algebra-agnostic Cooley-Tukey cyclic radix split (amsc.primes.factor + amsc.cyclic),
+the scalar twiddle (asymptotic_calculus.{cos,sin}_series_truncate), and the octonion
+left/right multiply (qm.octonion.octonion_{left,right}_mult, the FULL 8×8, not the H
+block). No abs() (octonion_norm is Class K + Class C). NOT a new privileged primitive.
+
+The non-associativity is the ORDER/chirality content this rung carries that the
+quaternion (4:3) and complex (2:1) rungs do not — the (8:7) end of F379's ladder.
+"""
+
+[cascade.signature]
+input = "x: sequence of n octonions (each a length-8 real vector); kwarg form = 'left' | 'right' (default 'left'); kwarg mu = unit pure octonion (default e1-axis); kwarg bracketing = REQUIRED association convention id (e.g. 'left-assoc' | 'right-assoc' | <named-attested-convention>); kwarg inverse = false"
+output = "X: sequence of n octonions (the octonion spectrum, RELATIVE TO the declared bracketing)"
+operation = "left: X[k] = Σ_n exp(-mu·2π nk/N)·x[n] under the declared bracketing;  right: kernel on the right (mu² = -1, mu a unit pure octonion)"
+fast = "Cooley-Tukey decimation when N factors — the radix split is algebra-agnostic; the coefficient multiply is O-valued AND bracketed"
+uniqueness = "NOT unique without `bracketing=` — distinct bracketings are distinct transforms (F378)"
+parity = "PROPOSED — to series-truncate twiddle tolerance; bit-exactness NOT claimed; results are bracketing-relative"
+
+[cascade.native]
+status = "PROPOSED — prototype as a pure-TOML composite first (bracketing as a declared field); graduate to a C peer (srmech_cascade_octonion_dft_f64) via the full ratchet ONLY if it earns first-class attested status. ABI-additive (stays 3)."
+
+[cascade.composes]
+cyclic_radix_split = "amsc.primes.factor + amsc.cyclic — Cooley-Tukey reindex (Class I; algebra-agnostic)"
+twiddle_scalar = "asymptotic_calculus.{cos,sin}_series_truncate — the scalar cos/sin, same at every rung"
+octonion_multiply = "qm.octonion.octonion_{left,right}_mult (full 8×8) — left≠right (non-commutativity); the multiply table qm.octonion.octonion_mult_table carries the non-associativity"
+bracketing_declaration = "the REQUIRED association convention — the F378 order content surfaced as an explicit attested field (this is what makes the (8:7) rung structurally richer than (4:3))"
+sum_reduce = "Σ_n over the cyclic index (no abs())"
+class_l_spectral = "the spectral side (Class L)"
+
+[cascade.boundary_cases]
+n_zero = "n == 0 -> []"
+n_one = "n == 1 -> [x[0]]"
+missing_bracketing = "bracketing= omitted -> ValueError at the Python dispatch layer (the transform is not well-defined without it)"
+mu_not_unit_pure = "mu with non-zero real part or |mu| != 1 -> ValueError"
+quaternion_embedding = "an input confined to a quaternion subalgebra (only e0..e3 non-zero) reduces to the QDFT (associativity is restored on any 2-generated subalgebra — Artin's theorem); the complex embedding reduces further to the flat shadow"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade DRAFT for issue #863"
+canonical_landings = [
+  "R-RBS-LM F378 — the octonion FT carries the non-associativity (168/210 ordered imaginary triples); the bracketing is the order content",
+  "R-RBS-LM F380 — the Klein-4 / quaternion-FT motivation this (8:7) rung sits above (proof: R-RBS-LM-R21)",
+  "R-RBS-LM F379 — (n:n−1) ladder; (8:7) = the octonion rung",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() (octonion_norm = Class K + Class C)",
+  "qm.octonion.octonion_table_attestation() — the structure-constant table is self-attesting",
+  "Artin's theorem (any subalgebra of O generated by 2 elements is associative) — WHY the quaternion-subalgebra embedding recovers the unique QDFT; verify standard algebra reference before citing in package docs",
+  "VERIFY-PDF OWED (F378; NOT yet attested): the octonion-Fourier-transform literature — extract actual PDF + verify authors/title/arXiv-or-DOI before committing any citation",
+]
