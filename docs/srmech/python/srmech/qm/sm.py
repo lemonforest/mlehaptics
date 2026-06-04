@@ -67,7 +67,8 @@ def higgs_potential(phi: complex, mu_squared: float, lam: float) -> float:
         raise ValueError(f"higgs_potential: mu_squared must be > 0; got {mu_squared}")
     if lam <= 0:
         raise ValueError(f"higgs_potential: lam must be > 0; got {lam}")
-    phi_sq = abs(phi) ** 2
+    # |φ|² = real²+imag² (no abs()); value-identical for real (imag==0) and complex φ.
+    phi_sq = phi.real ** 2 + phi.imag ** 2
     return -mu_squared * phi_sq + lam * phi_sq * phi_sq
 
 
@@ -172,7 +173,9 @@ def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
     MW = w_boson_mass(g, vev)
     MZ = z_boson_mass(g, g_prime, vev)
     theta_W = weak_mixing_angle(g, g_prime)
-    return abs(MW - MZ * math.cos(theta_W))
+    # Class-K magnitude via explicit sign-branch (no abs()); scalar real.
+    _d = MW - MZ * math.cos(theta_W)
+    return _d if _d >= 0.0 else -_d
 
 
 def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:

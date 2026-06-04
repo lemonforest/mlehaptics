@@ -116,7 +116,7 @@ def op(
         )
     # Class L: transform to cyclic-graph Laplacian eigenbasis (== FFT basis).
     X = np.fft.fft(sig)
-    obs_psd = np.abs(X) ** 2
+    obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
     if signal_psd is None:
         s_psd = np.maximum(obs_psd - n_psd, 1e-30)
     else:

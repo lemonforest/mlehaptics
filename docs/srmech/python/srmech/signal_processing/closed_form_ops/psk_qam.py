@@ -89,7 +89,8 @@ def op(
         received = np.asarray(symbols, dtype=np.complex128)
         flat = received.ravel()
         # Class K: nearest-neighbour decision-region projection.
-        dists = np.abs(flat[:, None] - const[None, :])
+        _d = flat[:, None] - const[None, :]
+        dists = np.hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
         idx = np.argmin(dists, axis=1)
         return idx.reshape(received.shape)
 

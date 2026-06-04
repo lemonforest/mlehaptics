@@ -92,21 +92,26 @@ def _spectral_scores(hv: np.ndarray) -> Tuple[float, float, float]:
     - three_cycle: 3-fold rotational self-agreement = |⟨x, roll(x, n/3)⟩| /
       ⟨x, x⟩ for n divisible by 3 — a 3-periodic signal scores high
       (→ harmonic 3). 0 when n is not divisible by 3.
-    Pure real-arithmetic symmetry probes; no abs() on the substrate signal —
-    the magnitudes are inner-product / energy ratios (Class-L norms), never a
-    Class-K sign discard.
+    Pure real-arithmetic symmetry probes. Every magnitude is an EXPLICIT
+    Class-K sign-branch (pin-slot: ``x where x >= 0 else -x``) — never an ALU
+    ``abs()`` and never the ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a
+    Class-L inner product.
     """
     x = np.asarray(hv, dtype=float).reshape(-1)
     n = x.size
     energy = float(np.dot(x, x))
     if n == 0 or energy == 0.0:
         return (0.0, 0.0, 0.0)
-    total_abs = float(np.sum(np.sqrt(x * x)))
-    dc = float(np.sqrt(np.sum(x) ** 2)) / total_abs if total_abs > 0.0 else 0.0
-    mirror = float(np.sqrt(np.dot(x, x[::-1]) ** 2)) / energy
+    # Σ|x_i| (L1 norm) via the explicit Class-K sign-branch, not sqrt(x²).
+    total_mag = float(np.sum(np.where(x >= 0.0, x, -x)))
+    s = float(np.sum(x))
+    dc = (s if s >= 0.0 else -s) / total_mag if total_mag > 0.0 else 0.0
+    d_mirror = float(np.dot(x, x[::-1]))
+    mirror = (d_mirror if d_mirror >= 0.0 else -d_mirror) / energy
     if n % 3 == 0:
         rolled = np.roll(x, n // 3)
-        three = float(np.sqrt(np.dot(x, rolled) ** 2)) / energy
+        d_three = float(np.dot(x, rolled))
+        three = (d_three if d_three >= 0.0 else -d_three) / energy
     else:
         three = 0.0
     return (dc, mirror, three)

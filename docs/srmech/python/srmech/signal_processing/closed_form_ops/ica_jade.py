@@ -113,12 +113,14 @@ def op(
                 # cumulants[j,j,j,i]) / (cumulants[i,i,i,i] + cumulants[j,j,j,j]).
                 num = 2.0 * cumulants[i, j, i, j]
                 den = cumulants[i, i, i, i] - cumulants[j, j, j, j]
-                if abs(num) + abs(den) < 1e-15:
+                # Class-K sign-branch (no abs())
+                if (num if num >= 0 else -num) + (den if den >= 0 else -den) < 1e-15:
                     continue
                 theta = 0.25 * np.arctan2(num, den + 1e-15)
-                if abs(theta) < tol:
+                # Class-K sign-branch (no abs())
+                if (theta if theta >= 0 else -theta) < tol:
                     continue
-                off += abs(theta)
+                off += theta if theta >= 0 else -theta  # Class-K sign-branch (no abs())
                 c, s = np.cos(theta), np.sin(theta)
                 # Apply rotation to V and to the cumulant slices.
                 G = np.eye(k)

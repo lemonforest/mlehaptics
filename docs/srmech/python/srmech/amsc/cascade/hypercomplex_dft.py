@@ -144,7 +144,9 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
         # ℍ-closure guard: a quaternion DFT requires quaternion samples
         # (e4..e7 == 0); a non-zero octonion tail would silently leak.
         for v in xs:
-            if float(np.abs(v[4:]).sum()) != 0.0:  # noqa: introspection guard, not a cascade sign-op
+            # ℍ-closure guard: the octonion tail e4..e7 must be all-zero. A
+            # presence test (any nonzero) — no magnitude / no abs() needed.
+            if bool(np.any(v[4:] != 0.0)):
                 raise ValueError(
                     "quaternion_dft requires quaternion samples (components "
                     "e4..e7 must be zero); use octonion_dft for full octonions"

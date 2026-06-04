@@ -79,7 +79,8 @@ def op(
         )
         for i in range(n_syms):
             window = signal[i * n : (i + 1) * n]
-            corrs = np.abs(tones @ np.conj(window))
+            _c = tones @ np.conj(window)
+            corrs = np.hypot(_c.real, _c.imag)  # |z| = hypot(real,imag) (no abs())
             out[i] = np.argmax(corrs)
         return out
 

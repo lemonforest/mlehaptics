@@ -65,7 +65,7 @@ def op(
             f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
         )
     X = np.fft.fft(sig)
-    obs_psd = np.abs(X) ** 2
+    obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
     # Class N rational floor: max(|X|^2 - alpha*N, beta*N)
     new_psd = np.maximum(obs_psd - alpha * n_psd, beta * n_psd)
     # Preserve phase from X; new magnitude from new_psd.

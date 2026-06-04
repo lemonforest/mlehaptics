@@ -77,7 +77,8 @@ def op(
             X = np.fft.fft(frame)
             if channel is not None:
                 # Class L equaliser: one-tap per subcarrier divide by H_k.
-                X = X / np.where(np.abs(channel) > 1e-12, channel, 1.0)
+                # |z| = hypot(real,imag) (no abs())
+                X = X / np.where(np.hypot(channel.real, channel.imag) > 1e-12, channel, 1.0)
             out[i] = X
         return out
 

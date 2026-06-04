@@ -79,5 +79,6 @@ def op(
     # MUSIC pseudo-spectrum: P(theta) = 1 / (a^H En En^H a)
     # Vectorise across all steering vectors.
     proj = En.conj().T @ A  # shape (n_noise, K)
-    denom = np.sum(np.abs(proj) ** 2, axis=0)
+    # |z|² = real²+imag² (no abs())
+    denom = np.sum(proj.real ** 2 + proj.imag ** 2, axis=0)
     return 1.0 / np.maximum(denom, 1e-30)
