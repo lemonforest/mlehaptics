@@ -1339,6 +1339,18 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §22b HV carrier contract — confirmed
+
+
+**HV carrier contract — CONFIRMED (research-side double-check, 2026-06-04).** srmech-dev's proposed numpy-free hypervector carrier (`HV` = `array.array('B')` buffer + sectors; returned by the core ops so no implicit `np.ndarray` escapes — the §22 lever) is **right; build rc29 against it.**
+- **(a) `array('B')` + buffer-protocol C boundary — yes.** Klein-4 ∈ {0,1,2,3} fits `'B'`; contiguous + buffer-protocol → ctypes-direct, numpy-free. *Confirm in-code:* the C ops read/write the `array('B')` buffer in place so **HAS_NATIVE keeps HV fast** (pure-Python HV is only the no-native worst case).
+- **(b) value-equality + `.tolist()`/`.tobytes()`/`.to_numpy()` only — yes (this IS the reflex-guard).** *Confirm:* `hv == other` returns a **scalar bool** and **accepts `np.ndarray`** (clean `np.array_equal(rec,v)` → `rec == v` migration); `hv[i]` returns a **plain int**, not a numpy scalar (else a numpy scalar leaks + re-invites np-math).
+- **(c) start with the Klein-4 family — yes.** Cohesive uint8, highest-traffic surface, rc27/28 ops fresh, and *exactly where the reflex bites hardest* (the chirality/triality ops that produced the F372 artifact). HV distinct from `SpectralHandle` — **agree, keep lightweight.**
+- **Division of labor:** HV guards the **core/Klein-4** surface; **do NOT HV-wrap `qm/so8/triality`** — that's the LAPACK layer, keep it numpy-typed (§22), guarded instead by the CLAUDE.md §2 STOP-list (extended 2026-06-04 with the so(8)/triality + continuous-trig + magnetic_laplacian rows). **HV + STOP-list together cover both surfaces** (the F372 miss was qm-side — HV wouldn't catch it; the STOP-list is its guard).
+- **Arc rc29→rc33 sound** (numpy stays hard-dep until the rc32 `[scientific]` flip; rc31 ~150-LOC pure-Python Jacobi fallback is the one genuine new code). GO.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
