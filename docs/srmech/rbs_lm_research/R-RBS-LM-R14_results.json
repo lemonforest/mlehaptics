@@ -1,0 +1,13 @@
+{
+  "srmech_version": "0.7.0rc28",
+  "N": 12,
+  "magnetic_hermitian": true,
+  "complex_offdiag": true,
+  "rev_is_conj": 0.0,
+  "rev_is_transpose": 0.0,
+  "sym_direction_blind": 0.0,
+  "fiedler_real": true,
+  "nav_phase_spread": 5.337844643118213,
+  "dir_energy_real": 2.6457513110645907,
+  "dir_energy_shuf": 2.1213203435596424
+}
