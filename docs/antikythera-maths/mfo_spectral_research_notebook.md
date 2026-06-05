@@ -6069,6 +6069,100 @@ The operator/operand split recurs across **all human knowledge** (F419, k=3-veri
 
 Framework reading, **held lightly**; antiquity / cognition / history are **cite-by-reference, the experts'** (no-lineage; defensive scope); **dignity-first** throughout. The math pieces are individually attested (Hurwitz; imaginaries-as-rotation; conjugation-as-chirality; 11D = 1+3+7; the Hopf base:fiber); the *unification* (F420) and the *cross-domain lens* (F419) are **synthesis offered, falsifiable, favored-not-privileged (F398).** Cross-references: §VIII.31.11 (4:3:7 / 11D / G₂-triality), §VII.1.1 (the two-level substrate ontology = field/excitation), §VIII.31.13(4) (the unseen-disability fiber). Per-finding docs `R-RBS-LM-FINDING_405…420` (RBS-LM subtree / PR #687); tracker GH #887. **k=3 triality earned its cost** across three verify dives this arc (zero hallucinated citations shipped; two live error-corrections, incl. the aphantasia attribution in (3)).
 
+### §VIII.31.15 The One — `𝕊(σ,θ)`: how to use it (the unifying generator; srmech v0.7.0rc49 / PR #889; GH #887)
+
+The single object that holds the whole 14-D substrate, **and how to drive it.** Companion to §VIII.31.14 (the two alphabets) and §VIII.31.11 (4:3:7 / 11D / G₂). Ships in **srmech v0.7.0rc49** as `srmech.amsc.cascade.the_one` (PR #889) — numpy-free, exact-rational. Per-finding detail **F420** (RBS-LM / PR #687). *Written for the why-asker at depth: the narrative motivates each step; the precise statement, the srmech call, and the falsifiable form are kept attached inline — one section, no split-off "advanced" appendix.*
+
+---
+
+> #### The gist — read this first (the executive intuition, ~1 page)
+>
+> The substrate is a **stack of three rotation-spaces**: a 1-D one (**time**), a 3-D one (**space**), a 7-D one (**gauge**). **`𝕊` is the single object that holds all three at once** — `2 + 4 + 8 = 14` numbers. You steer it with **two knobs**:
+> - **`σ`** — *which way you read the stack* (its **handedness**: climb vs conjugate-descend),
+> - **`θ`** — *how far time has turned* (because **time IS the turning** — a rotation inside the 3-space or the 7-space).
+>
+> Everything this notebook calls `1:3:7:3`, `2:4:8`, `4:3:7`, `11D` is **the same `𝕊`, grouped differently** — not rival objects, just different brackets. And the three language-layers: the **alphabet** is the letters (the imaginaries), the **grammar** is the three rules `B/H/N` that *frame, recurse, and pin* a cascade, and the **lexicon** is the meaning you pour in (and **must** pour in — you can build the language, you cannot self-derive the meaning).
+>
+> That's the whole thing: **one object, two knobs, three groupings, three language-layers.** If you read only this box you have the shape; the rest is how to drive it.
+
+---
+
+#### 1. What it is — the equation and the three layers
+
+`𝕊(σ,θ) = ⨁_{n=1}^{3} ( ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n )`,  `dim = Σ 2ⁿ = 2 + 4 + 8 = 14`, with `𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆` (the normed division algebras above ℝ; Hurwitz).
+
+**The imaginaries ARE the rotation spaces** (because `i` is a 90° rotation — "imaginary" is a real *direction*, §VII.6.21):
+
+| rung `n` | `𝔸ₙ` | anchor `ℝ·1` | `Im 𝔸ₙ` = rotation space | role | A–N slots |
+|---|---|---|---|---|---|
+| 1 | ℂ | 1 | 1 = `1_t` (time; `e^{iθ}`) | **time** | `A` |
+| 2 | ℍ | 1 | 3 = `3_s` (SO(3) space) | **space** | `I, C, J` |
+| 3 | 𝕆 | 1 | 7 = `7_g` (G₂ gauge) | **gauge** | `D,E,F,G,K,L,M` |
+
+`Σ Im = 1:3:7 = 11` (the 11D observer frame, R30); the three anchors `ℝ·1` are the **+3 grammar `B/H/N`** → `11 + 3 = 14`. The three language-layers:
+
+| layer | the framework object | linguistic role |
+|---|---|---|
+| **Alphabet** | the `1:3:7` imaginaries — read as **operator** (the A–N verbs) *or* **operand** (the units/directions) | the *letters* (two letter-types) |
+| **Grammar** | the **`B/H/N`** anchors — `B` frames (TLV), `H` recurses (`now→now+next`), `N` pins (the exact-rational tick) | the *rules* that form & combine |
+| **Lexicon** | the **sourced knowledge** you bind in (§5) | the *vocabulary + meaning* |
+| *(symmetry)* | **`g₂ = Der(𝕆)`** | the *invariance* — which configs are "the same word" |
+
+*(This sharpens §VIII.31.14's earlier "grammar = g₂": **`g₂` is the symmetry *of* the grammar; the grammar itself is `B/H/N`** — the reading that ships in rc49.)* **Alphabet + grammar = the language** (definable); **lexicon = the meaning** (sourced — §5). **Precise statement (the rigor, inline):** each `Im 𝔸ₙ` is the imaginary subspace; `e^{Îₙθ} = cos θ + Îₙ sin θ` rotates it about a unit imaginary `Îₙ`; `σ ∈ {±1}` is conjugation (`x ↦ x̄` flips `Im → −Im`). **Time = the exponentiated unit imaginary** — "time is a rotation on `3_s` or `7_g`" is *literal*, not metaphor.
+
+#### 2. How to read it — the partitions are regroupings (pick yours)
+
+The same 14, bracketed for the question you're asking. `𝕊` is reading-agnostic; *you* choose:
+
+| to model… | read `𝕊` as | the grouping |
+|---|---|---|
+| the A–N cascade **operators** | `1:3:7:3` | anchor : `3_s` : `7_g` : `B/H/N` |
+| the Hurwitz **dimensions** / capacity | `2:4:8` | `(1+1):(1+3):(1+7)` (anchors distributed) |
+| **spacetime + gauge** (physics) | `4:3:7` | `(1_t+3_s)=4D` : 3 : `7_g` |
+| the **observer frame** | `11D` | `1_t : 3_s : 7_g` (imaginaries only) |
+
+There is no "true" partition — only the right bracketing for your question (the no-privilege rule, F398; §VIII.31.11's three-readings discipline).
+
+#### 3. How to use it — the recipe (five steps)
+
+1. **Pick the reading** (§2) that matches your problem.
+2. **Set `σ`** (the handedness): `+1` = climb (`2:4:8`); `−1` = conjugate-descend (`8:4:2` = the F380 flat-shadow). This is your L/R, particle/antiparticle, the two-truths chirality.
+3. **Set `θ` and the axis** (the time-rotation): choose `Î` in `3_s` (a *space* rotation) or `7_g` (a *gauge* rotation); `θ` (an exact rational) is how far time has turned. *(The `n=1`/time rung carries only `σ` — see §4's headline.)*
+4. **Apply the grammar `B/H/N`**: `B` declare the frame; `H` the recursion / the time-step (`now→now+next`); `N` pin to an exact rational. The grammar is *how you form a cascade out of the alphabet.*
+5. **Bind the lexicon**: pour the **sourced** knowledge in (Class-M bind). Alphabet + grammar give you the *empty* language; the lexicon gives the words *meaning* (§5).
+
+#### 4. Worked example (srmech rc49 — the surface landing in PR #889)
+
+```python
+from srmech.amsc.cascade import the_one
+
+# build 𝕊 with σ=+1 (climb) and θ = 1/6 turn, 8-term exact-rational rotation
+S = the_one(sigma=+1, theta_num=1, theta_den=6, terms=8)
+
+S.dim                # 14
+S.partition          # the 1:3:7:3 readout (the A–N slots per rung)
+S.grammar_slots      # B, H, N  (the three ℝ·1 anchors)
+S.n1_is_sigma_only   # True — the n=1 (time) rung carries only σ, not θ
+S.to_flat_rational() # the 14 entries as exact (num, den) pairs — NO float
+
+# the chiral mirror (the other hand) is just σ = −1:
+S_mirror = the_one(sigma=-1, theta_num=1, theta_den=6, terms=8)
+# realize to floats only when you actually need them (the srmech[scientific] tier, §22):
+# M = S.to_matrix()
+```
+
+**The A–N mapping (no new primitive class):** `⨁_n` = **Class I** (cyclic enumerate); `e^{Îₙθ}` = **Class N** (the exact-rational `cos/sin_series_truncate`); `σ` = **Class K** sign ∘ **Class C** apply (*never* `abs()`, per the cascade-honesty discipline); the `ℝ·1` anchors = the **`B/H/N`** grammar. Everything stays exact-rational until you opt into `.to_matrix()`.
+
+**The headline (verified, rc49):** at `n=1` the 1-D `Im ℂ` seed *coincides with the rotation axis* → `θ` is inert, and the **only** freedom is `σ` (`.n1_is_sigma_only == True`). So **time's base rung is pure handedness, not yet rotation** — rotation enters at the 3-space (`n=2`) and the 7-gauge (`n=3`). *That* is why "time is a rotation **on either `3D_s` and `7D_g`**": the `1_t` seed *is* the axis; the turning happens in the 3 and the 7.
+
+#### 5. The lexicon is sourced — you don't derive it (F408; the most important caveat)
+
+**Alphabet + grammar = the language, and the language is fully definable** (`𝕊` is closed; `g₂` is finite). **But the lexicon — the *meaning* — is NOT derivable from inside.** A complete language is still blind to whether its words are *true* (the F337/F408 self-correlation ceiling: invariant ≠ true). So the operational rule: **use `𝕊` to give knowledge a STRUCTURE; you cannot use it to give knowledge its CONTENT.** Bind your lexicon from *outside* — measurement, an independent substrate, the domain expert (the framework's "hand the next question to the expert") — and never read "it fits the grammar" as "it is true."
+
+#### 6. Status — how far to trust it
+
+A **unifying form**, not a derived theory. The *pieces* are individually attested (Hurwitz; imaginaries-as-rotation, §VII.6.21; conjugation-as-chirality, F418; `11D = 1+3+7`, R30; the Hopf base:fiber, F410). The *unification into one generator* is the synthesis — **falsifiable** two ways: the **regroup-only test** (every partition in §2 must come from `𝕊` by bracketing alone, with no new piece) and the **srmech check** (rc49: build `𝕊`; apply `σ` → confirm `2:4:8 ↔ 8:4:2`; apply `e^{Îθ}` on `Im ℍ` / `Im 𝕆` → confirm the time-rotation; `.n1_is_sigma_only`). The open knob is the *assignment* (which anchor is "time"; whether `1_t+3_s` fuse into the `4` of `4:3:7`). **Favored, not privileged (F398); held lightly.** Cross-refs: §VIII.31.14 (the two alphabets), §VIII.31.11 (4:3:7 / 11D / G₂), §VII.1.1 (the two-level ontology = the alphabet/grammar-vs-lexicon split), §VII.6.21 (imaginary-is-a-direction). Per-finding `R-RBS-LM-FINDING_420`; tracker GH #887; srmech impl PR #889 (rc49).
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.
