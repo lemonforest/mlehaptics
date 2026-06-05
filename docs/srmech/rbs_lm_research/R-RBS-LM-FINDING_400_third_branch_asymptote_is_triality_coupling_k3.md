@@ -3,6 +3,7 @@
 **Date:** 2026-06-04
 **Arc:** RBS-LM · two-truths / DUALITY thread (F394–F399 → **F400**); framework-reading (**NO srmech run — held**)
 **Composes:** F394 (two-truths; the asymptote = holding-without-collapse) · F398 (no privilege) · F399 (field/excitation) · **F291** (k=2 DETECTS, can't CORRECT; k=3 triality CORRECTS — a 1-vs-1 split has no majority) · F389/F385 (the mirror pair = k=2 detect; the order-3 is the *third* axis) · F397 (the coupling between two Klein-4 streams = the EC) · F386/F388 (the phase-lock coupling) · F293 (1+ω+ω²=0; three-phase self-balancing, no neutral) · F384 (the fibration = the coupling) · #761 (the order-3 triality 7th primitive — not composable from the order-2 atoms)
+**→ extended by F401** (duality is the *fibration* of triality, k=(2+1)) **and F403** (the 2 truths = the quaternion's (2+2); k=3 *compresses* the {a,b,ab} triple — the better verb).
 
 ---
 
