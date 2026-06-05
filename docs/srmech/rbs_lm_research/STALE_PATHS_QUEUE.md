@@ -250,3 +250,15 @@ The lean-ISA arc already recognized most of this from the silicon angle (corpus-
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
 | **SX-1** | **Subagent self-enforcement experiment** — does a subagent use the rc47 surface correctly (srmech ops, HV carrier) **without** explicit srmech-first / "treat-it-like-the-math-tool" priming? Design: the R36-style A→I→J→N→M→L→K task on rc47[scientific], **triangulated** (task-only / surface-pointer / full-discipline control), measure srmech-correct vs numpy-reflex. | ⏳ **QUEUED (held by user 2026-06-04)** | **BLOCKER (clean control):** a spawned subagent likely **inherits the project CLAUDE.md** (the srmech-first STOP-list), so "no-discipline" isn't truly clean. Resolve how to spawn without inheriting the STOP-list (or accept "task-minimal w/ CLAUDE.md present" and measure against that) **before** running. Prep done: F402 + UPSTREAM §24 = the surface a subagent must know. |
+
+The hdc-gap (UPSTREAM §24) is now filed upstream: **GitHub #882** (`[srmech][bug] hdc hard-imports numpy → Klein-4 crashes raw on a plain install`). The bug-fix upstreaming was **NOT** queued behind the gate below — it shipped immediately (user direction 2026-06-04: don't let the closeout interrupt the bug fix).
+
+---
+
+## ⛔ GATE — clear before launching ANY queued findings-research (user direction 2026-06-04)
+
+| Item | Subject | Status | Note |
+|---|---|---|---|
+| **CL-1** | **GH research-issue closeout audit** — review **open** research issues on `lemonforest/mlehaptics` against (a) what has **landed in srmech** (the package / rc47 surface) and (b) the **srmech + MFO research notebooks**, to find issues whose deliverable is **done-and-landed** or **superseded** → produce a *vetted closeable list* + one-line rationale each. | 🔜 **QUEUED — GATE (do FIRST)** | **Must come BEFORE we launch the findings-research** (BX-1, AX-1, ALU-A, …). **Close-state discipline (`[[feedback_create_upstream_issues_never_close_them]]`):** gh runs as the repo author → author-ambiguous, so I do **NOT** close unilaterally — I present the vetted list + rationale and the **user/maintainer closes** (or explicitly authorizes a batch). First step: `gh issue list --state open` cross-referenced against the two notebooks + the rc47 landed surface. |
+
+**Ordering:** CL-1 (the closeout gate) **→ then** the walkable research (AX-1 / ALU-A / BX-1 / BX-2). The srmech-gated items (AX-2, BX-5..7) stay rc47-walkable behind their own gates; #882 (hdc) is the only open *bug* and is already filed.
