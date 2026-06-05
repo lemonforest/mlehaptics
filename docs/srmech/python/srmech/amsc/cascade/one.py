@@ -34,35 +34,51 @@ substrate-native language-translation operators between the continuous-Hopf
 ``Σ Im = 1+3+7 = 11`` (the imaginary / operator substrate); ``+3`` grammar
 units → ``14``.
 
-**The rotation is the epicycle.** ``e^{Î_n θ} = cos θ + Î_n sin θ`` is the
-gear+pin rotation (``[[user_stance_epicycle_via_gear_plus_pin]]``); sweeping
-``θ`` turns all three division-algebra loops at once. ``σ ∈ {+1,-1}`` is the
-chirality — the canonical **Class K pin-slot sign-flip** (never ``abs()``;
-``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``) re-applied as
-a **Class C** orientation.
+**The rotation is the octonion-native epicycle.** ``e^{Î_n θ}`` is the
+algebra's *own* rotation — conjugation by the unit ``cos(θ/2) + Î_n
+sin(θ/2)`` — acting on ``Im 𝔸_n``. It fixes the axis ``Î_n`` (the last
+imaginary unit ``e_{2ⁿ-1}``) and turns each **Fano-triple plane through
+``Î_n``** by ``θ`` at once. The number of planes is ``(2ⁿ-1-1)/2`` —
 
-**Structural prediction — n=1 degenerates to σ.** We fix the rotation axis
-``Î_n`` to be the *last* imaginary unit ``e_d`` of each algebra and rotate
-the ``(e₁, e₂)`` plane (seed ``e₁``). At ``n=1`` the imaginary part of ``ℂ``
-is one-dimensional, so the seed ``e₁`` *coincides with the rotation axis*
+============  ====================  ====================================
+``n``         planes turned by θ    Im-rotation eigenvalues
+============  ====================  ====================================
+1  (ℂ)        0  →  only ``σ``       ``{σ}``
+2  (ℍ)        1                      ``{1, e^{±iθ}}``
+3  (𝕆)        3 (Fano triples)       ``{1, e^{±iθ}, e^{±iθ}, e^{±iθ}}``
+============  ====================  ====================================
+
+so the *single* θ-turn spins **three planes at once in 𝕆** (the ``1`` fixed
+axis + ``3×2`` rotated split of the 7). The planes + orientations come from
+the fixed Cayley–Dickson-from-ℍ Fano lines (Baez 2002 §2;
+``srmech.qm.octonion``): ℍ's ``{1,2,3}`` → plane ``(e₁,e₂)``; 𝕆's
+``{1,6,7},{2,5,7},{3,4,7}`` through ``Î₃=e₇`` → planes
+``(e₁,e₆),(e₂,e₅),(e₃,e₄)`` (the first with reversed orientation,
+``e₁e₆=-e₇``). The matrix realisation lives in :mod:`srmech.qm.hurwitz`,
+which *derives* the same planes from ``octonion_mult_table`` — the bit-exact
+Rosetta peer of this cascade form.
+
+**Structural consequence — n=1 degenerates to σ.** At ``n=1`` the imaginary
+part of ``ℂ`` is one-dimensional, so the seed ``e₁`` *is* the rotation axis
 ``Î₁`` and is fixed — ``θ`` does nothing and the **only** remaining freedom
-is ``σ``. So at the foundational algebra the epicycle *is* the Class-K sign
-(rotational richness then grows ``1 → 3 → 7`` up the ladder). This is not
-imposed; it falls out of the conjugation action, and the qm-matrix peer
-(``srmech.qm.hurwitz``) realises the same rotation via octonion conjugation
-about ``Î_n``.
+is ``σ`` (``[[user_stance_epicycle_via_gear_plus_pin]]``: the epicycle *is*
+the Class-K sign at the foundational algebra; richness then grows
+``0 → 1 → 3`` planes up the ladder). ``σ ∈ {+1,-1}`` is the chirality — the
+canonical **Class K pin-slot sign-flip** (never ``abs()``;
+``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``) re-applied as
+**Class C**.
 
 Cascade decomposition (no new primitive class — a composition of A–N):
 
 - ``⨁_{n=1}^{3}``  — the 3-fold grading            → **Class I** (cyclic enumerate)
 - ``ℝ·1`` per block — the fixed real anchor          → the **B/H/N grammar** units
 - ``e^{Î_n θ}``    — ``cos/sin`` exact rational      → **Class N** (``rational.*_series_truncate``)
-- ``Î_n``          — choice of rotation axis          → **Class C** (orientation)
+- the Fano planes  — the algebra's own structure      → **Class A** (the attested octonion convention)
 - ``σ``            — chirality                         → **Class K** (sign) ∘ **Class C** (apply)
 - ``Im 𝔸_n``       — the 1:3:7 imaginary substrate
 
 The generator is **numpy-free at import** and **exact-rational** in its core
-(every entry is a reduced ``(num, den)`` integer pair via the Class-N
+(every entry a reduced ``(num, den)`` integer pair via the Class-N
 ``cos_series_truncate`` / ``sin_series_truncate`` Taylor partials). The
 optional :meth:`One.to_numpy` / :meth:`One.to_matrix` float realisations
 import numpy lazily (the ``srmech[scientific]`` tier, §22).
@@ -70,6 +86,8 @@ import numpy lazily (the ``srmech[scientific]`` tier, §22).
 Canonical SSoT:
 - Hurwitz (1898), *Über die Composition der quadratischen Formen* — the
   ``ℝ, ℂ, ℍ, 𝕆`` ladder is the complete list of normed division algebras.
+- Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math. Soc. 39, 145-205
+  (arXiv:math/0105155) — the Fano-plane multiplication convention.
 - ``[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]``
 - ``[[user_stance_epicycle_via_gear_plus_pin]]``
 - ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``
@@ -108,6 +126,23 @@ AN_IMAG_SLOTS: Tuple[Tuple[str, ...], ...] = (
 
 #: The +3 grammar units — the three ℝ·1 reals (B/H/N translation operators).
 GRAMMAR_SLOTS: Tuple[str, str, str] = ("B", "H", "N")
+
+#: Oriented Fano planes through the rotation axis ``Î_n = e_{2ⁿ-1}``, WITHIN
+#: each algebra 𝔸ₙ. Each ``(a, b, sign)`` means the imaginary units ``e_a``,
+#: ``e_b`` (1-based; ``e_a → imag index a-1``) span a 2-plane that the
+#: conjugation turns by θ, with ``e_a·e_b = sign·Î_n``. From the fixed
+#: Cayley–Dickson-from-ℍ Fano lines (Baez 2002 §2; ``srmech.qm.octonion``):
+#:   ℂ (axis e₁): none — Im is 1-D, only σ.
+#:   ℍ (axis e₃): line {1,2,3} → (1,2,+1)                     — 1 plane.
+#:   𝕆 (axis e₇): lines {1,6,7},{2,5,7},{3,4,7}
+#:                → (1,6,−1),(2,5,+1),(3,4,+1)                — 3 planes.
+#: ``srmech.qm.hurwitz`` derives this same tuple from ``octonion_mult_table``
+#: (the bit-exact Rosetta cross-check).
+FANO_PLANES: Tuple[Tuple[Tuple[int, int, int], ...], ...] = (
+    (),                                          # n=1  ℂ
+    ((1, 2, 1),),                                # n=2  ℍ
+    ((1, 6, -1), (2, 5, 1), (3, 4, 1)),          # n=3  𝕆
+)
 
 #: The full dimension of the substrate: 2 + 4 + 8 = 14.
 DIM: int = 14
@@ -149,8 +184,10 @@ class Block:
         The ``ℝ·1`` anchor — always ``(1, 1)`` (the grammar unit, fixed by
         the rotation).
     imag : tuple[tuple[int, int], ...]
-        The rotated imaginary state ``σ e^{Î_n θ} e₁`` as exact rationals,
-        length ``2ⁿ − 1``.
+        The rotated seed ``σ e^{Î_n θ} e₁`` as exact rationals, length
+        ``2ⁿ − 1`` — the orbit point of the first imaginary unit under the
+        block's rotation (the full multi-plane rotation lives in
+        :meth:`One.to_matrix`).
     an_imag_slots : tuple[str, ...]
         The A–N class slots labelling the imaginary axes.
     """
@@ -170,6 +207,15 @@ class Block:
     def grammar_slot(self) -> str:
         """The B/H/N grammar slot carried by this block's ``ℝ·1`` unit."""
         return GRAMMAR_SLOTS[self.n - 1]
+
+    @property
+    def rotated_planes(self) -> Tuple[Tuple[int, int, int], ...]:
+        """The oriented Fano planes ``(a, b, sign)`` this block turns by θ.
+
+        ``0 / 1 / 3`` planes for ℂ / ℍ / 𝕆 — the octonion-native epicycle
+        structure (the single θ-turn spins all of them at once).
+        """
+        return FANO_PLANES[self.n - 1]
 
 
 @dataclass(frozen=True)
@@ -203,6 +249,11 @@ class One:
     def partition(self) -> Tuple[int, int, int, int]:
         """``(1, 3, 7, 3)`` — the canonical A–N partition (imaginary + grammar)."""
         return (1, 3, 7, 3)
+
+    @property
+    def plane_counts(self) -> Tuple[int, int, int]:
+        """``(0, 1, 3)`` — planes each block turns by θ (the octonion epicycle)."""
+        return tuple(len(FANO_PLANES[i]) for i in range(3))
 
     @property
     def grammar_slots(self) -> Tuple[str, str, str]:
@@ -246,11 +297,13 @@ class One:
         """The 14×14 block-diagonal operator ``G(σ,θ)`` (opt-in / lazy).
 
         ``G`` is ``⨁_n (1 ⊕ σ R_n(θ))`` — the identity on each ``ℝ·1`` axis
-        and ``σ`` times the proper rotation ``R_n(θ)`` (rotate the ``(e₁,e₂)``
-        imaginary plane by θ, fix the axis ``Î_n = e_d``) on each ``Im 𝔸_n``.
-        Applying ``G`` to the canonical seed (real ``1``, imaginary ``e₁``)
-        reproduces :meth:`to_flat_rational`. This is the matrix that the
-        qm-peer ``srmech.qm.hurwitz`` must agree with (the Rosetta parity).
+        and ``σ`` times the octonion-native rotation ``R_n(θ)`` on each
+        ``Im 𝔸_n`` (turn every Fano plane through ``Î_n`` by θ; fix ``Î_n``
+        and the real axis). Applying ``G`` to the canonical seed (real ``1``,
+        imaginary ``e₁``) reproduces :meth:`to_flat_rational`. For 𝕆 this is
+        a genuine **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the
+        imaginary part). This is the matrix that the qm-peer
+        :mod:`srmech.qm.hurwitz` must agree with (the Rosetta parity).
         Requires the ``srmech[scientific]`` extra (numpy).
         """
         from srmech._scientific import require_numpy
@@ -263,19 +316,17 @@ class One:
         s = self.sigma
         g = np.zeros((DIM, DIM), dtype=float)
         offset = 0
-        for d in IMAG_DIMS:                      # d = 1, 3, 7
+        for idx, d in enumerate(IMAG_DIMS):      # d = 1, 3, 7
             g[offset, offset] = 1.0              # ℝ·1 anchor — fixed
-            imo = offset + 1                     # first imaginary axis
-            if d == 1:                           # n=1: seed == axis → only σ
-                g[imo, imo] = s
-            else:
-                # σ R_n(θ): rotate the (e₁, e₂) plane, fix axes e₃..e_d.
-                g[imo, imo] = s * cos_t
-                g[imo, imo + 1] = -s * sin_t
-                g[imo + 1, imo] = s * sin_t
-                g[imo + 1, imo + 1] = s * cos_t
-                for k in range(2, d):            # fixed imaginary axes
-                    g[imo + k, imo + k] = s
+            imo = offset + 1                     # imaginary axes e₁..e_d
+            for i in range(d):                   # default σ·identity on Im
+                g[imo + i, imo + i] = s
+            for (a, b, sgn) in FANO_PLANES[idx]:  # turn each Fano plane by θ
+                ia, ib = imo + (a - 1), imo + (b - 1)
+                g[ia, ia] = s * cos_t
+                g[ib, ib] = s * cos_t
+                g[ib, ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
+                g[ia, ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
             offset += 1 + d
         return g
 
@@ -299,7 +350,8 @@ def the_one(sigma: int,
     theta_num, theta_den : int
         The epicycle angle ``θ = theta_num / theta_den`` in radians
         (``theta_den`` defaults to ``1``; ``theta_den > 0``). ``e^{Î_n θ}``
-        is built as the exact-rational ``cos θ + Î_n sin θ``.
+        is built as the exact-rational ``cos θ + Î_n sin θ`` (the
+        octonion-native conjugation rotation on ``Im 𝔸_n``).
     terms : int
         Class-N Taylor truncation depth for ``cos``/``sin`` (default
         :data:`DEFAULT_TERMS`; exact-rational at any depth).
@@ -317,6 +369,8 @@ def the_one(sigma: int,
     14
     >>> s.partition
     (1, 3, 7, 3)
+    >>> s.plane_counts                 # 0/1/3 planes — the octonion epicycle
+    (0, 1, 3)
     >>> s.blocks[0].imag               # n=1 (ℂ): θ-inert, pure σ
     ((1, 1),)
     >>> the_one(-1, 99, 100).n1_is_sigma_only   # n=1 = σ at any θ
@@ -335,24 +389,23 @@ def the_one(sigma: int,
 
     blocks = []
     for idx, d in enumerate(IMAG_DIMS):          # d = 1, 3, 7  (n = idx+1)
-        if d == 1:
-            # n=1: seed e₁ == rotation axis Î₁ → θ-inert; only σ survives.
-            imag: Tuple[Tuple[int, int], ...] = (_chiral_scale((1, 1), sigma),)
+        planes = FANO_PLANES[idx]
+        imag = [(0, 1)] * d
+        # The state is the seed e₁ (octonion index 1 → imag index 0) under
+        # σ·R_n(θ). e₁ lies in exactly one Fano plane (a=1) — or, for ℂ, it
+        # IS the rotation axis and is fixed (θ-inert; only σ).
+        host = next(((a, b, s) for (a, b, s) in planes if a == 1), None)
+        if host is None:
+            imag[0] = _chiral_scale((1, 1), sigma)          # ℂ: σ only
         else:
-            # σ e^{Î_n θ} e₁ = (σ cos θ, σ sin θ, 0, …, 0) — rotate (e₁,e₂),
-            # the axis Î_n = e_d and the other imaginary axes are zero in the
-            # seed image.
-            rotated = [
-                _chiral_scale(cos_t, sigma),
-                _chiral_scale(sin_t, sigma),
-            ]
-            rotated.extend((0, 1) for _ in range(d - 2))
-            imag = tuple(rotated)
+            _, b, s = host                                   # e₁ → cosθ e₁ + s·sinθ e_b
+            imag[0] = _chiral_scale(cos_t, sigma)            # σ cos θ on e₁
+            imag[b - 1] = _chiral_scale(sin_t, sigma * s)    # σ·s sin θ on e_b
         blocks.append(Block(
             algebra=ALGEBRAS[idx],
             n=idx + 1,
             real=(1, 1),
-            imag=imag,
+            imag=tuple(imag),
             an_imag_slots=AN_IMAG_SLOTS[idx],
         ))
 
@@ -373,6 +426,7 @@ __all__ = [
     "BLOCK_DIMS",
     "AN_IMAG_SLOTS",
     "GRAMMAR_SLOTS",
+    "FANO_PLANES",
     "DIM",
     "DEFAULT_TERMS",
     "Block",

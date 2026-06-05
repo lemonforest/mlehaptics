@@ -33,6 +33,15 @@ def test_block_dims_are_2_4_8():
     assert tuple(b.n for b in s.blocks) == (1, 2, 3)
 
 
+def test_plane_counts_are_0_1_3():
+    # The octonion-native epicycle: ℂ/ℍ/𝕆 turn 0/1/3 Fano planes by θ.
+    s = the_one(+1, 1, 1)
+    assert s.plane_counts == (0, 1, 3)
+    assert tuple(len(b.rotated_planes) for b in s.blocks) == (0, 1, 3)
+    # 𝕆's three planes are the Fano triples through Î₃ = e₇.
+    assert s.blocks[2].rotated_planes == ((1, 6, -1), (2, 5, 1), (3, 4, 1))
+
+
 def test_an_slots_tile_the_14_classes():
     s = the_one(+1, 0, 1)
     imag_slots = [c for b in s.blocks for c in b.an_imag_slots]
@@ -87,14 +96,19 @@ def test_imaginary_entries_are_exact_rational_cos_sin():
     s = the_one(+1, tn, td, terms=terms)
     cos_t = cos_series_truncate(tn, td, terms)
     sin_t = sin_series_truncate(tn, td, terms)
-    # ℍ block: (σ cos θ, σ sin θ, 0)
+    neg_sin = (-sin_t[0], sin_t[1])
+    # ℍ block: seed e₁ in plane (1,2,+1) → (σ cos θ, σ sin θ, 0).
     assert s.blocks[1].imag[0] == cos_t
     assert s.blocks[1].imag[1] == sin_t
     assert s.blocks[1].imag[2] == (0, 1)
-    # 𝕆 block: same rotated plane, remaining 5 axes zero
-    assert s.blocks[2].imag[0] == cos_t
-    assert s.blocks[2].imag[1] == sin_t
-    assert all(e == (0, 1) for e in s.blocks[2].imag[2:])
+    # 𝕆 block: seed e₁ lies in the Fano plane (1,6,−1) (e₁e₆=−e₇), so it
+    # rotates e₁ → cos θ·e₁ − sin θ·e₆ — cos θ on index 0, −sin θ on index 5,
+    # zeros elsewhere. (The full 3-plane structure lives in to_matrix; a
+    # single seed only excites its own plane.)
+    o = s.blocks[2].imag
+    assert o[0] == cos_t
+    assert o[5] == neg_sin
+    assert all(o[i] == (0, 1) for i in (1, 2, 3, 4, 6))
 
 
 def test_all_entries_are_reduced_integer_pairs():
@@ -218,3 +232,24 @@ def test_to_matrix_is_block_diagonal_orthogonal_up_to_sigma():
     s = the_one(+1, 1, 1, terms=24)     # σ=+1 → proper rotation, G Gᵀ ≈ I
     g = s.to_matrix()
     assert np.allclose(g @ g.T, np.eye(14), atol=1e-9)
+
+
+@pytest.mark.skipif(not _has_numpy(), reason="numpy (scientific tier) not installed")
+def test_octonion_block_turns_three_planes():
+    # The 𝕆 block (dims 6..13: real e₀ then imaginary e₁..e₇) is the
+    # octonion-native 3-plane rotation: eigenvalues {1 (e₀), 1 (e₇=Î₃),
+    # e^{±iθ}×3} on the 8-D block.
+    import numpy as np
+
+    theta = 0.6
+    # match the cascade's exact-rational θ to a clean fraction
+    s = the_one(+1, 6, 10, terms=26)
+    g = s.to_matrix()
+    o_block = g[6:14, 6:14]                       # the 8×8 𝕆 block (1 ⊕ R₃)
+    ang = np.sort(np.round(np.angle(np.linalg.eigvals(o_block)), 3))
+    # two fixed axes (angle 0) + three planes at ±θ
+    assert list(ang).count(0.0) == 2
+    pos = [a for a in ang if a > 1e-6]
+    neg = [a for a in ang if a < -1e-6]
+    assert len(pos) == 3 and len(neg) == 3
+    assert np.allclose(pos, round(theta, 3), atol=1e-2)
