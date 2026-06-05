@@ -58,10 +58,19 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
-import math
 from typing import List, Sequence
 
-from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
+# §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
+# Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
+from srmech.amsc.rational import cos as _rcos
+from srmech.amsc.rational import pi_cascade_digits as _pi_cascade_digits
+from srmech.amsc.rational import sin as _rsin
+from srmech.amsc.rational import sqrt as _rsqrt
+
+# Cascade-π as a float: the high-precision rational digit-string projected to
+# float once at import (no `math.pi`).
+_PI_IP, _, _PI_FP = _pi_cascade_digits(30).partition(".")
+_PI = int(_PI_IP + _PI_FP) / (10 ** len(_PI_FP))
 
 # Unit pure-imaginary quaternion axes (μ² = −1). The twiddle lives in the
 # commutative subalgebra ℝ[μ] ≅ ℂ, which is WHY the one-sided transform is
@@ -96,8 +105,8 @@ def _require_numpy():
 
 def _twiddle8(theta: float, mu: Sequence[float], np):
     """``exp(μθ) = cos θ·1 + sin θ·μ`` as an 8-vector in the ℍ ⊂ 𝕆 subalgebra."""
-    c = math.cos(theta)
-    s = math.sin(theta)
+    c = _rcos(theta)
+    s = _rsin(theta)
     w = np.zeros(8, dtype=float)
     w[0] = c
     w[1] = s * mu[1]
@@ -156,7 +165,7 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
 
     sigma = 1.0 if inverse else -1.0
     scale = (1.0 / n_pts) if inverse else 1.0
-    two_pi = 2.0 * math.pi
+    two_pi = 2.0 * _PI
 
     mult_left = form == "left"
     out: List = []

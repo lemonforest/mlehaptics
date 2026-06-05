@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc41] - 2026-06-05
+
+**`math.{sin,cos,atan2}` + `math.pi` trig/π residue sweep — route continuous trig + π through the Class-N cascade, not libm.** Pure refactor; no new tools (`describe()` stays **230**); ABI stays 3. The companion to rc40's `math.sqrt` sweep, closing the §22 libm-scalar-math audit: now that `rational.{sin,cos,tan,atan,atan2}` (rc33) + the `pi_cascade` exist, every remaining libm trig / π reference in shipped srmech is routable to its exact Class-N peer.
+
+- **14 sites routed across 4 modules** — verified machine-ε vs libm before routing (sin 7.8e-16, cos 6.7e-16, atan2 4.4e-16 across all quadrants + multiple periods; the cascade-π float is **bit-exact 0.0** vs `math.pi`):
+  - `amsc/kepler.py` ×7 — `cos`/`sin`/`atan2` in the **pin-slot** transform + the **Kepler-equation** Newton solver + the equation-of-centre series → `rational.{cos,sin,atan2}`. The iterative solver is the sensitive case (trig accuracy gates Newton convergence): `pin_slot` is **bit-exact 0.0** vs libm and the Kepler residual `|E − e·sinE − M|` holds at 4.4e-16. (The Class-K Newton-step magnitude was already an explicit sign-branch, never `abs()`.)
+  - `amsc/cascade/compose.py` ×3 — the `sin` in the Kuramoto-coupling DSL worked examples → `rational.sin` (`math.fsum` stays — exact numerical sum, no transcendental peer).
+  - `amsc/cascade/hypercomplex_dft.py` ×2 + `math.pi` ×1 — the quaternion/octonion twiddle `exp(μθ)=cosθ + μ·sinθ` + the `2π` factor → `rational.{cos,sin}` + a cascade-π float (`pi_cascade_digits(30)` projected once at import). `import math` dropped.
+  - `signal_processing/form_function_rotation.py` ×1 — the `math.pi` in the fundamental-mode eigenvalue `exp(−2πi·composed/D)` → cascade-π (its trig was already `rational.cos/sin`). `import math` dropped.
+- **Ratchet** `test_no_math_trig_pi_anywhere_in_srmech` (AST) — no `math.{sin,cos,tan,asin,acos,atan,atan2,exp,pi,tau}` reference (call **or** bare constant) anywhere in shipped srmech; only goes DOWN to zero. `math.{gcd,isqrt,fsum}` (exact integer / numerical helpers — `isqrt` even powers `rational.py`'s own sqrt cascade) are deliberately NOT flagged.
+- **Audit note** `notes/sqrt_sweep_rc40.md` — the rc41 residue section marked routed; the libm-scalar-math audit (26 references across 8 files) is now fully swept (12 sqrt @ rc40 + 14 trig/π @ rc41).
+
+**With rc41 the libm-scalar-math discipline is complete** — no `math.{sqrt,hypot,sin,cos,tan,atan,atan2,exp,pi,tau}` anywhere in shipped srmech; continuous scalar math routes through the A–N cascade (`rational.*` + the `pi_cascade`), with numpy/cmath retained only for genuinely-vectorised or complex-root ops that have no scalar-cascade peer. **Roadmap:** the numpy→`srmech[scientific]` optional-dependency-flip capstone. No new C symbols.
+
 ## [0.7.0rc40] - 2026-06-05
 
 **`math.sqrt` scalar-site retrofit sweep — route the scalar root through the Class-N cascade, not libm.** Pure refactor; no new tools (`describe()` stays **230**); ABI stays 3. The §22 discipline closeout (sibling of the rc32 `abs()`-sweep and rc33 numpy-math-sweep): now that `rational.sqrt`/`hypot` exist (rc35), every `math.sqrt` in shipped srmech is routable to its exact Class-N peer.

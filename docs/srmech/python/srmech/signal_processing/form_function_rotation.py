@@ -85,7 +85,6 @@ Canonical SSoT
 from __future__ import annotations
 
 import hashlib
-import math
 from typing import Iterable, Tuple
 
 from srmech.amsc import hdc as _M
@@ -93,6 +92,11 @@ from srmech.amsc import cyclic as _I
 from srmech.amsc import rational as _srn
 
 from ._paths import D_DEFAULT, D_MIN, D_MAX
+
+# §22: cascade-π as a float — the Archimedes pi_cascade digit-string projected
+# to float once at import (no `math.pi`); the trig itself is `_srn.cos/sin`.
+_PI_IP, _, _PI_FP = _srn.pi_cascade_digits(30).partition(".")
+_PI = int(_PI_IP + _PI_FP) / (10 ** len(_PI_FP))
 
 __all__ = [
     "form_function_rotate",
@@ -388,7 +392,7 @@ def cascade_compose_rotations(
     for s in strides_list:
         composed = (composed + s) % D
     # Fundamental-mode eigenvalue lambda_1 = exp(-2*pi*i * composed / D).
-    theta = -2.0 * math.pi * composed / D
+    theta = -2.0 * _PI * composed / D
     # Substrate-native trig (Class-N rational cascade), not math.cos/sin.
     eig = complex(_srn.cos(theta), _srn.sin(theta))
     return composed, eig
