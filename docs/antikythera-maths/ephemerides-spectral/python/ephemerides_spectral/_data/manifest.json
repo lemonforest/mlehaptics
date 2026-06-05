@@ -590,5 +590,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.29.2"
+  "version": "0.29.3rc1"
 }

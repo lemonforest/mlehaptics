@@ -438,6 +438,14 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
 
 
 def test_all_known_adapters_registered() -> None:
+    # The adapter registry is srmech's (`srmech.amsc.adapters.ADAPTERS`),
+    # so the set grows as srmech ships new adapter classes downstream of
+    # ephemerides-spectral. v0.29.3rc1 verified the package against
+    # srmech 0.7.0rc48, which registers an additional
+    # `substrate_parameterization` adapter not present in srmech 0.6.0.
+    # Assert the six adapters ephemerides-spectral depends on are all
+    # registered (subset), rather than pinning srmech's full registry to
+    # an exact set that a srmech bump would break.
     expected = {
         "html_scraper",
         "json_api",
@@ -446,7 +454,7 @@ def test_all_known_adapters_registered() -> None:
         "geotiff_bbox",
         "literature_curated",
     }
-    assert set(ADAPTERS.keys()) == expected
+    assert expected <= set(ADAPTERS.keys())
 
 
 def test_get_adapter_resolves_html_scraper() -> None:
@@ -525,10 +533,15 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     bridge: asymptotic_calculus (21st), cmb_bispectrum (22nd),
     cmb_lensing (23rd), cmb_low_ell_maps (24th),
     cmb_polarisation_spectra (25th), cosmos_validation (26th),
-    pi_digits (27th)."""
+    pi_digits (27th).
+
+    v0.29.3rc1 srmech 0.6.0/0.7.0rc48 compatibility surface: the
+    srmech production line past v0.4.2 bundles one further
+    literature_curated catalog — cosmic_birefringence (28th) —
+    surfaced transitively through the AMSC bridge."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 27
+    assert result["n_sources"] == 28
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "asymptotic_calculus",
@@ -539,6 +552,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "cmb_low_ell_maps",
         "cmb_polarisation_spectra",
         "cmb_power_spectrum",
+        "cosmic_birefringence",
         "cosmos_validation",
         "dynamical_regime",
         "dynamical_regime_probes",
@@ -571,10 +585,11 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
     (asymptotic_calculus / cmb_bispectrum / cmb_lensing /
     cmb_low_ell_maps / cmb_polarisation_spectra / cosmos_validation /
     pi_digits) surfaced transitively through the AMSC bridge in
-    v0.29.2rc1."""
+    v0.29.2rc1. v0.29.3rc1 srmech 0.6.0/0.7.0rc48 compatibility
+    surface adds cosmic_birefringence (25th curated)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 24
+    assert result["n_sources"] == 25
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -586,6 +601,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "cmb_low_ell_maps",
         "cmb_polarisation_spectra",
         "cmb_power_spectrum",
+        "cosmic_birefringence",
         "cosmos_validation",
         "dynamical_regime",
         "dynamical_regime_probes",
@@ -641,8 +657,9 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # literature_curated catalogs (asymptotic_calculus / cmb_bispectrum
     # / cmb_lensing / cmb_low_ell_maps / cmb_polarisation_spectra /
     # cosmos_validation / pi_digits) surfaced transitively in
-    # v0.29.2rc1.
-    assert result["n_sources"] == 24
+    # v0.29.2rc1 + cosmic_birefringence (25th) surfaced by the srmech
+    # 0.6.0/0.7.0rc48 compatibility surface in v0.29.3rc1.
+    assert result["n_sources"] == 25
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 
