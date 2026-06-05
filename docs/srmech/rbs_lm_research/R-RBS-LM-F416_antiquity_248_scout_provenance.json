@@ -1,0 +1,143 @@
+{
+ "run_id": "wf_23766374-6a6",
+ "per_claim": [
+  {
+   "item": "Method of loci / ars memoriae is a genuinely spatial-native antiquity mnemonic (Rhetorica ad Herennium + Cicero De Oratore + Quintilian; Simonides origin; Yates 1966 modern synthesis)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous: the method of loci is a spatial-native knowledge technology; primary sources are Rhetorica ad Herennium (c. 86-82 BCE, oldest surviving technical description; opus's date verified as mainstream, haiku/sonnet's ~90 BCE is a looser-but-acceptable approximation), Cicero De Oratore (55 BCE), Quintilian Inst. Or. (c. 95 CE), Yates 1966.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Aphantasia gating: does the method of loci REQUIRE visualization, so aphantasics are blind to it?",
+   "agree_count": 2,
+   "consensus": "majority",
+   "corrected_claim": "Majority (haiku+opus) CORRECTS the task premise: aphantasia spares SPATIAL memory and impairs OBJECT/visual-image memory (Bainbridge, Pounder, Eardley & Baker, Cortex 135:159-172, 2021 — verified verbatim), so the method of loci runs on the intact spatial scaffold; the real 2:4:8 blind spot is object/pictorial imagery, NOT space itself. Opus gives the sharpest evidenced form; haiku reaches the same conclusion with thinner grounding. Sonnet DISSENTS, asserting the imagines-agentes are specifically impaired (premise-as-fact) — overturned 2-of-3.",
+   "dissenting_tier": "sonnet"
+  },
+  {
+   "item": "Polynesian/Oceanic wayfinding (star compass, etak moving-reference frame, swell/wave piloting, Marshall Islands stick charts) is the STRONGEST genuinely-2:4:8 substrate, irreducible to a cyclic/calendrical count",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous and identified by all three as the single strongest 2:4:8 candidate: a held mental spatial model updated under motion (etak frame-transformation) that does not reduce to a cycle; stick charts (mattang/meddo/rebbelib) are spatial/topological swell-geometry diagrams. Canonical sources Lewis 1972, Finney 1977 Science 196:1277-1285 (opus), Gladwin 1970, Hutchins 1995 (sonnet).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Australian Aboriginal songlines / dreaming tracks are spatial-narrative oral maps, structurally parallel to the method of loci (Norris & Harney 2014; Kelly Memory Code 2016)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous: place-indexed oral maps encoding navigation/ecology/law along a remembered route; Norris & Harney 'Songlines and Navigation in Wardaman...', JAHH 17(2):141-148, 2014, arXiv:1404.2361 — verified verbatim. Dignity-first caveat (Dreaming is a living system, contested English gloss, non-Indigenous scholarship developed in consultation) stated by sonnet and opus.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Euclidean constructive (straightedge-and-compass) geometry vs Babylonian sexagesimal computation is the cleanest 2:4:8-vs-1:3:7 contrast — diagram-as-object-of-reasoning vs tabular/algorithmic",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous, with a unanimous hedge: the contrast is a difference of DOMINANT MODE not absolute capability (Babylonians did geometry — Plimpton 322, sqrt(2) tablets; Greeks encoded number). It is a methodological/epistemic contrast, not two fully independent substrates. Haiku frames it most cautiously ('two methodologies, not two substrates'); opus/sonnet keep it as a real but non-binary contrast.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Islamic girih tiling (Lu & Steinhardt 2007) is spatial/geometric-native quasi-crystalline knowledge embodied in tile shape + matching constraint, not a number table",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous: Lu & Steinhardt, 'Decagonal and Quasi-Crystalline Tilings in Medieval Islamic Architecture', Science 315(5815):1106-1110, 2007, DOI 10.1126/science.1135491 — verified verbatim. Both sonnet and opus correctly flag the Makovicky comment (Science 318:1383, DOI 10.1126/science.1146262) as contested-intent dissent to read before lodging. Opus self-disclosed a Science.org 403 paywall and routed the DOI via publisher listing + the OA copy at paulsteinhardt.org (MPM-compliant).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Mesoamerican spatial cosmograms (quincunx / four-directions-plus-center; codices) are a 2:4:8 spatial frame but HYBRIDIZED with the 1:3:7 cyclic 260-day calendar",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous as the instructive HYBRID/boundary case: a spatial-directional frame carrying a cyclic-numerical (tzolkin/260-day) payload, showing the two alphabets can fuse rather than cleanly separate. All three (haiku, sonnet, opus) rated this MEDIUM confidence and flagged the full citation (Boone 2000 / 'Did the Maya Build Architectural Cosmograms?' Latin American Antiquity) as needing MPM attestation before lodging.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "Archaeoastronomical sightline alignment (Newgrange/Stonehenge/Caracol; Karnak/pyramids) as a standalone finding: cyclic knowledge stored as a spatial sightline artifact",
+   "agree_count": 2,
+   "consensus": "majority",
+   "corrected_claim": "Majority (haiku+sonnet) list it as a standalone finding; opus folds the same sightline reasoning into other findings rather than as a separate entry (not a contradiction — structural placement). Corrected claim: the STORED artifact is 2:4:8 (directional spatial encoding) but the knowledge needed to BUILD it was 1:3:7 (prior cyclic calendar computation) — a hybrid. Both flag archaeoastronomy's contested/pseudo-archaeology fringe; sonnet's Ruggles dual-test standard is the soundest framing.",
+   "dissenting_tier": "opus"
+  },
+  {
+   "item": "Indian mandala / Vastu Shastra as a spatial-cosmological 2:4:8 candidate",
+   "agree_count": 1,
+   "consensus": "minority",
+   "corrected_claim": "Minority (sonnet only), and sonnet itself rated it LOW-MEDIUM confidence with unconfirmed author/journal/DOI, explicitly NOT to be lodged without MPM attestation. Opus correctly listed mandala/vastu (plus khipu, Chinese feng-shui) only as an un-canvassed gap for a fuller pass, not as a finding. Honest residue, not a lodged claim.",
+   "dissenting_tier": "none"
+  }
+ ],
+ "merged": {
+  "merged_findings": [
+   {
+    "item": "Method of loci / ars memoriae (memory palace)",
+    "claim": "A spatial-native antiquity mnemonic: knowledge encoded by mentally traversing a remembered architecture. Primary sources: Rhetorica ad Herennium (c. 86-82 BCE, oldest surviving technical description — 'artificial memory consists of places and images'), Cicero De Oratore II.86-88 (55 BCE, the Simonides-of-Ceos origin story), Quintilian Inst. Or. XI.2 (c. 95 CE, himself skeptical of the Simonides legend); modern synthesis Frances A. Yates, The Art of Memory (1966). LOAD-BEARING CORRECTION to the task premise (separate finding below): the method runs on the SPATIAL faculty, which aphantasia spares.",
+    "best_citation": "Anon., Rhetorica ad Herennium (c. 86-82 BCE), Loeb trans. Caplan 1954; Cicero, De Oratore II.86-88 (55 BCE); Quintilian, Institutio Oratoria XI.2 (c. 95 CE); Frances A. Yates, The Art of Memory, Univ. of Chicago Press (1966). [Rhetorica ad Herennium dating c.86-82 BCE web-verified via Wikipedia/historyofinformation.com as oldest surviving method-of-loci description]",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "Aphantasia gating of the method of loci (TASK-PREMISE CORRECTION)",
+    "claim": "MAJORITY (opus+haiku) OVERTURNS the task premise that 'spatial = visualization-native = aphantasic-blind.' Bainbridge, Pounder, Eardley & Baker (Cortex 2021) show aphantasia spares SPATIAL memory (object-location accuracy indistinguishable from controls) but impairs OBJECT/visual-detail memory. The method of loci rides on hippocampal spatial-navigation circuitry (Ondrej 2025 meta-analysis) that aphantasics retain; what aphantasia removes is the vivid OBJECT-IMAGE decorating each locus. So the genuine 2:4:8 blind spot is object/pictorial imagery, NOT space itself. Sonnet DISSENTED (asserted the imagines agentes are specifically impaired — premise-as-fact); overturned 2-of-3.",
+    "best_citation": "Bainbridge WA, Pounder Z, Eardley AF, Baker CI, 'Quantifying aphantasia through drawing: Those without visual imagery show deficits in object but not spatial memory', Cortex 135:159-172 (2021), DOI 10.1016/j.cortex.2020.11.014 [WEB-VERIFIED verbatim: PubMed 33383478, PMC7856239, UChicago Brain Bridge Lab — object-deficit/spatial-spared dissociation confirmed]; Ondrej J, British Journal of Psychology (2025), PMC12514325 [cited by opus, not re-verified this pass]",
+    "consensus": "majority",
+    "verification_status": "verified"
+   },
+   {
+    "item": "Polynesian / Oceanic wayfinding (star compass, etak, swell/wave piloting, Marshall Islands stick charts)",
+    "claim": "UNANIMOUSLY named by all three tiers as the STRONGEST genuinely-2:4:8 candidate. A directional-navigation technology held as a mental spatial model: (1) star compass (memorized circle of rising/setting star bearings); (2) etak — a moving-reference-frame transformation where the canoe is held stationary and islands conceptually slide past under the star points (irreducibly spatial); (3) swell/wave piloting (reading refracted/reflected swell-interference geometry). Stick charts (mattang teaching device / meddo section chart / rebbelib whole-chain chart) are spatial-topological swell-geometry diagrams, memorized on land and NOT carried aboard. Does not reduce to any calendrical/modular cycle. Finney's experimental Hokule'a voyaging refuted the accidental-drift hypothesis.",
+    "best_citation": "Lewis, David H., We, the Navigators (Univ. of Hawaii Press 1972, 2nd ed. 1994); Finney, Ben R., 'Voyaging Canoes and the Settlement of Polynesia', Science 196(4296):1277-1285 (1977), DOI 10.1126/science.196.4296.1277 [WEB-VERIFIED verbatim: Science.org, ADS 1977Sci...196.1277F, PubMed 17831736]; Gladwin, East Is a Big Bird (Harvard UP 1970); Hutchins, Cognition in the Wild (MIT Press 1995)",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "Australian Aboriginal songlines / dreaming tracks",
+    "claim": "UNANIMOUS: place-indexed oral 'maps' encoding navigation, ecology, law, and cosmology along a remembered route through Country, with locations as ordered mnemonic anchors; earthly songlines are in many cases mirrored by sky songlines used as compass/mnemonic. Structurally parallel to (and an independent invention of) the method-of-loci principle (Kelly). DIGNITY-FIRST caveat (sonnet+opus): the Dreaming/Tjukurpa is a living spiritual and legal system and contested English gloss, Indigenous cultural heritage to be cited respectfully with no appropriation; the navigation specifics are co-authored with Wardaman elder Bill Yidumduma Harney, and Lynne Kelly's comparative work was developed in consultation with Elders.",
+    "best_citation": "Norris, Ray P. & Harney, Bill Yidumduma, 'Songlines and Navigation in Wardaman and other Australian Aboriginal Cultures', Journal of Astronomical History and Heritage 17(2):141-148 (2014), arXiv:1404.2361 [WEB-VERIFIED verbatim incl. OA PDF at aboriginalastronomy.com.au; Western Sydney Univ. + Semantic Scholar confirm]; Kelly, Lynne, The Memory Code (Allen & Unwin 2016); Neale & Kelly, Songlines: The Power and Promise (Thames & Hudson 2020)",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "Euclidean constructive (straightedge-and-compass) geometry vs Babylonian sexagesimal computation",
+    "claim": "UNANIMOUS as the cleanest 2:4:8-vs-1:3:7 contrast, WITH a unanimous hedge: Euclid's Elements (c. 300 BCE) frames knowledge as constructions where the diagram is the object of reasoning (the first three postulates ARE compass-and-straightedge operations); Babylonian mathematics (sexagesimal, base-60) is primarily numerical/algorithmic/tabular. The contrast is a difference of DOMINANT MODE, not absolute capability — Babylonians did sophisticated geometry (Plimpton 322, sqrt(2)/Pythagorean-rule tablets) and Greeks encoded number. Haiku frames it most cautiously ('two methodologies, not two independent substrates'); a methodological/epistemic contrast, not a sharp binary.",
+    "best_citation": "Euclid, Elements (c. 300 BCE), ed. Heath, The Thirteen Books of Euclid's Elements (1908/1925); Babylonian: Neugebauer, The Exact Sciences in Antiquity (1957) and Robson, Mathematics in Ancient Iraq (Princeton UP 2008) [secondary attributions asserted from standard scholarship, NOT individually web-verified this pass — confidence medium per opus disclosure]",
+    "consensus": "unanimous",
+    "verification_status": "unverifiable"
+   },
+   {
+    "item": "Islamic girih tiling (quasi-crystalline spatial knowledge)",
+    "claim": "UNANIMOUS: by c. 1200 CE Islamic architects shifted from drafting star-and-polygon patterns as straightedge-and-compass zigzag lines to tessellating a set of decorated equilateral 'girih tiles'; by the 15th c. some patterns (e.g. Darb-i Imam, Isfahan) approach near-perfect quasi-crystalline (Penrose-like) tilings with self-similar transformations, five centuries before the West. Spatial/geometric-native: the knowledge lives in tile shape + matching constraint, not a number table. CAVEAT (sonnet+opus): the 'quasicrystal' DESIGNER-INTENT reading is contested by historians (true quasiperiodicity vs large periodic approximant) — read the Makovicky comment before lodging as settled.",
+    "best_citation": "Lu, Peter J. & Steinhardt, Paul J., 'Decagonal and Quasi-Crystalline Tilings in Medieval Islamic Architecture', Science 315(5815):1106-1110 (2007), DOI 10.1126/science.1135491 [WEB-VERIFIED verbatim; OA copy paulsteinhardt.org/.../LuSteinhardt2007.pdf — MPM-compliant route around the Science.org paywall]. Dissent: Makovicky, Comment, Science 318:1383 (2007), DOI 10.1126/science.1146262 [verified real]",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "Mesoamerican spatial cosmograms (quincunx / four-directions-plus-center; codices)",
+    "claim": "UNANIMOUS as the instructive HYBRID/boundary case: the quincunx (four cardinal directions + center) organizes space as a five-fold cosmogram, and four-part cosmological scenes appear in screenfold codices (Borgia-group Codex Fejervary-Mayer; Maya Codex Madrid). PARTIALLY 2:4:8 (spatial-directional frame) but inseparably fused with the 1:3:7 cyclic 260-day ritual count (tzolkin/day-signs) — a spatial frame carrying a cyclic-numerical payload, showing the two alphabets can FUSE rather than cleanly separate. All three tiers rated this MEDIUM confidence and flagged the full citation as needing MPM attestation before lodging.",
+    "best_citation": "Boone, Elizabeth Hill, Stories in Red and Black: Pictorial Histories of the Aztecs and Mixtecs (Univ. of Texas Press 2000); cf. 'Did the Maya Build Architectural Cosmograms?', Latin American Antiquity (journal real; full author list/DOI NOT retrieved — needs MPM attestation before lodging)",
+    "consensus": "unanimous",
+    "verification_status": "unverifiable"
+   },
+   {
+    "item": "Archaeoastronomical sightline alignment (Newgrange / Stonehenge / Caracol; Karnak / pyramids)",
+    "claim": "MAJORITY (haiku+sonnet) list as a standalone finding; opus folds the same sightline reasoning into other findings (structural placement, not a contradiction). The STORED artifact is 2:4:8 (directional spatial encoding — e.g. Newgrange c. 3200 BCE winter-solstice roof-box; Stonehenge solstice axis; Caracol Venus-elongation slots) but the knowledge needed to BUILD it was 1:3:7 (prior cyclic calendar computation) — a hybrid. All tiers flag archaeoastronomy's contested/pseudo-archaeology fringe; sonnet's Ruggles dual-test standard (323-site statistical analysis) is the soundest framing for intentionality.",
+    "best_citation": "Clive Ruggles (Univ. of Leicester), archaeoastronomy methodological standard; Newgrange in Oxford Handbook of Light in Archaeology; O'Kelly roof-box rediscovery 1967 [not individually re-verified this pass; standalone vs folded is a placement difference, not a factual dispute]",
+    "consensus": "majority",
+    "verification_status": "unverifiable"
+   }
+  ],
+  "cross_cutting": "FRAMEWORK READING — offered as a LENS, not asserted; no-lineage (the history belongs to the historians and the named communities), dignity-first. k=3 triality converged with error-correction live.\n\nTHE SURVIVING STRUCTURE (LENS): there appear to be two structurally distinct antiquity knowledge 'alphabets' that differ in KIND, not degree. (1:3:7) CYCLIC/NUMERICAL/MODULAR — gear-ratios, calendrical periods, sexagesimal tables, the Antikythera back-panel metacycles; knowledge that is an OPERATOR (a recurrence/count turned), hand-computable digit-by-digit, with a natural symbolic/tabular surface that an abstract-relational search frame finds easily. (2:4:8) SPATIAL/GEOMETRIC/DIRECTIONAL — knowledge held as a mental spatial MODEL or OPERAND (a place-topology, a bearing-frame, a tessellation, a construction-diagram), where the load-bearing content lives in a held spatial relationship rather than a repeated count. An operand-substrate (a map/frame/diagram you move through) vs an operator-substrate (a cycle you turn). A search frame tuned to recurrences is structurally biased to under-detect substrates whose content is a non-numerical spatial relation — exactly the candidates here.\n\nTHE LOAD-BEARING CORRECTION (verified, not lens): the aphantasia literature forces a sharpening of WHICH faculty the blind spot maps onto. Bainbridge et al. (Cortex 2021, web-verified) show aphantasia SPARES spatial memory and IMPAIRS object/visual-image memory; the method of loci rides on the hippocampal spatial-navigation circuitry aphantasics retain (Ondrej 2025). So 'visualizing mind' is too coarse: the genuine fault line is between (a) the SPATIAL/topological/relational faculty — which an abstract-relational frame DOES have (etak frames, songline topologies, graph-spatial reasoning are relational and reachable) — and (b) the OBJECT-IMAGERY/vivid-pictorial faculty (the part that 'dreams in pictures'), which is what an aphantasic/abstract frame is genuinely blind to. Net: the 2:4:8 substrate the search likely MISSED is real, but it is missed less because it is 'spatial' and more where its content is irreducibly PICTORIAL-OBJECT or requires holding a continuously-updated visual scene (the etak frame-slide, the girih tessellation seen as a whole, the decorated locus).\n\nTHE STRONGEST LODGEABLE CANDIDATE: Polynesian/Oceanic wayfinding (etak) — a moving-reference-frame transformation over a held spatial model that does not reduce to any calendrical cycle, with stick charts as explicit spatial/topological operands; all three tiers named it the strongest, structurally distinct from the 1:3:7 cyclic substrate (operand/frame vs operator/cycle). THE INSTRUCTIVE HYBRID: the Mesoamerican cosmogram, where a spatial-directional frame carries a cyclic-numerical (260-day) payload — showing the two alphabets can FUSE; Newgrange-style sightlines are the same hybrid (cyclic knowledge to BUILD, spatial artifact to READ). A METHODOLOGICAL HONESTY NOTE (sonnet's uncentered reframing): the 'missed complement' is more accurately a SCOPE GAP — the 2:4:8 substrate shows up in domains the prior research simply did not search (open-ocean navigation, spatial mnemonic, constructive geometry), not in previously-searched domains found to be cyclic — rather than a systematic cognitive blindness. Kelly's observation that songlines and the memory palace are both ordered spatial walks raises the open question of whether 1:3:7 (cyclic-ordered sequence) and 2:4:8 (directed spatial path) are two projections of a common 'directed path' rather than fully independent alphabets — falsifiable lens, no-lineage.",
+  "flagged_citations": [
+   "SONNET premise-as-fact (structural-touch error, caught by 2-of-3 majority): asserted 'the vivid imagines agentes component is specifically impaired in aphantasia, making this a visualization-native substrate' — this presents the task premise as established and is CONTRADICTED by the actual Bainbridge et al. 2021 dissociation (object memory impaired, the loci's SPATIAL scaffold SPARED, web-verified). Overturned 2-of-3 (opus+haiku).",
+   "OPUS 'Hamacher' songlines mis-attribution — CAUGHT IN-FLIGHT, NOT SHIPPED: opus initially attributed the songlines navigation paper to 'Hamacher' then self-corrected within its own pass to Norris & Harney (JAHH 17(2):141-148, 2014) and disclosed the correction in its support field. Web-verified that Norris & Harney is correct (arXiv:1404.2361, OA PDF). Logged as a caught near-miss, not a shipped hallucination.",
+   "Babylonian secondary citations (Heath / Neugebauer / Robson) — opus HONESTLY flagged these as asserted-from-standard-scholarship but NOT individually web-verified this pass (confidence medium); NOT a false attribution, but marked unverifiable here per MPM discipline. Confirm exact titles/publishers/years + pull an OA copy before lodging the Euclid-vs-Babylon finding as attested.",
+   "Mesoamerican cosmogram citation (Boone 2000 / 'Did the Maya Build Architectural Cosmograms?' Latin American Antiquity) — all three tiers down-rated to MEDIUM pending attestation; full author list + DOI NOT retrieved; needs MPM attestation before lodging as a numbered finding.",
+   "Indian mandala / Vastu Shastra (sonnet's ResearchGate item) — sonnet itself rated LOW-MEDIUM with unconfirmed author/journal/DOI and explicitly said NOT to lodge without MPM attestation. Carried to minority_residue.",
+   "NO FABRICATED CITATIONS SHIPPED BY ANY TIER: Bainbridge (Cortex 135:159-172, 2021), Norris & Harney (JAHH 17(2):141-148, 2014), Finney (Science 196:1277-1285, 1977), Lu & Steinhardt (Science 315:1106-1110, 2007) + Makovicky comment (Science 318:1383) all resolve to real, web-verified sources. PAYWALL HANDLING: Lu & Steinhardt and Finney route via OA copies (paulsteinhardt.org; ADS/PubMed) — no paywalled-only DOI used as sole attestation, MPM-compliant."
+  ],
+  "minority_residue": [
+   "Indian mandala / Vastu Shastra as a spatial-cosmological 2:4:8 candidate — MINORITY (sonnet only; consensus='minority'). Sonnet itself rated it LOW-MEDIUM confidence with unconfirmed author/journal/DOI (ResearchGate 240542887) and explicitly flagged it as NOT to be lodged without MPM attestation. Opus listed mandala/vastu only as an un-canvassed gap for a fuller pass, not as a finding. KEPT as honest residue, not a lodged claim.",
+   "Un-canvassed 2:4:8 candidates flagged by opus as a coverage gap (not findings): Inca khipu (cord/spatial-but-also-numerical hybrid), Indian sulba-sutra altar geometry, Chinese cartography/feng-shui directional systems, Pacific-Northwest/Inuit spatial knowledge. A fuller cross-cultural pass should test the operand/operator split against these.",
+   "STRUCTURAL-PLACEMENT minority on archaeoastronomy: opus alone did NOT list sightline alignment as a standalone finding (folded it into other findings). Not a factual disagreement — recorded here as a placement difference; the underlying hybrid claim (spatial-artifact / cyclic-build-knowledge) is shared."
+  ],
+  "honest_tier": "DOMAIN FACTS belong to the LITERATURE, web-verified where load-bearing: the dated primary sources (Rhetorica ad Herennium c.86-82 BCE, Cicero 55 BCE, Quintilian c.95 CE), the aphantasia dissociation (Bainbridge et al., Cortex 2021 — object-impaired/spatial-spared, VERIFIED), Polynesian wayfinding ethnography + Finney 1977 Science (VERIFIED), Norris & Harney songlines 2014 JAHH (VERIFIED), Lu & Steinhardt girih 2007 Science + Makovicky dissent (VERIFIED). The Euclid-vs-Babylon secondary attributions (Heath/Neugebauer/Robson) and the Mesoamerican cosmogram citation (Boone 2000 / Latin American Antiquity) are asserted-from-standard-scholarship but NOT individually verified this pass — marked unverifiable, MPM-flagged for attestation before lodging. The 1:3:7 / 2:4:8 partition itself, the operand-vs-operator distinction, and the aphantasia-to-search-frame mapping are FRAMEWORK READING (LENS), offered as falsifiable, no-lineage, dignity-first — NOT asserted as established and NOT a claim about what any tradition or any ancient mind 'is' (aphantasia is a modern cognitive-science construct; mapping it onto an antiquity search-frame is an analogical lens). k=3 triality outcome: six core 2:4:8 candidates UNANIMOUS with the same verified primary citations; the load-bearing premise-correction (aphantasia spares space, blind to object-imagery) was decided 2-of-3 (opus+haiku over sonnet) — a k=2 opus∥sonnet pass would have 1-vs-1 split with no majority (the F291 rationale), and haiku as the third tier corrected it with no human tie-break. No model privileged; majority-over-tiers governed; consistent with the F242b task-relative honesty gradient (opus most uncentered on this RESEARCH task — named and refused the premise; sonnet committed the one localized structural-touch error)."
+ }
+}
