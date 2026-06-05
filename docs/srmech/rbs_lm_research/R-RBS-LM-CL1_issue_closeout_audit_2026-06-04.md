@@ -25,5 +25,10 @@
 ## Honest scope of THIS pass
 This is the **high-confidence first pass** — only #757 is clean-closeable, #797 is a judgment call. A **deeper CL-1 pass** would read all ~30 bodies + cross-ref each origin-finding's *resolution* (vs *origin*) status — several "Fxxx follow-up" issues are finding-landed-but-forward-open and may have closeable *sub-parts*; that finer audit is the follow-on. The conservative batch here honors "nothing forgotten."
 
+## Disposition (user-authorized 2026-06-04)
+- **#757 → CLOSED** (superseded by #760 / F214; backlink-commented).
+- **#797 → KEPT OPEN as a rolling issue** — and the *precise* semantics (user clarification): **rolls until its originating arc resolves** (Q2-scale-invariance + AX-1), *then* closable; **and closable ≠ severed** — once closed it **stays a node in the backlink web** and can contribute back to a future arc. ("Rolling" here ≠ "open forever like a PR"; it's "open until the arc that made it resolves, links preserved after.") This is now the standing **rolling-lifecycle corollary** of the breadcrumb discipline (TRIALITY.md §5).
+- **PR #687** (the `research/rbs-lm-rolling-2` rolling PR, previously un-updated) — refreshed with the F356→F402 boundary summary.
+
 ## Backlink-web applied (per the breadcrumb discipline, CLAUDE.md §0 / TRIALITY.md §5)
 On close, the issue carries the backlink to its resolver: **#757 → #760 / F214**; **#797 → F360 (gate) + F396/AX-1 (Q1) + F382/F399/F400/F401 (Q3)**. (Forward note for the findings: F399/F400/F401 should carry `→ realizes #797 Q3` once #797 is dispositioned.)

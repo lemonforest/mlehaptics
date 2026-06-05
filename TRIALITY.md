@@ -37,6 +37,8 @@ add / subtract / shift (F392/F393) · the order-3 (triality) · the 1:3:7 ladder
 - every finding's **`Composes:`** line **forward-links** its parents (already standard);
 - when a **later** finding builds on an **earlier** one, **add a backlink to the earlier finding** (`→ extended by FXXX`) — a breadcrumb so connected knowledge stays linked **even if we forget to bring in the notes**;
 - the closeout (**CL-1**) uses this: a closeable issue is **backlinked to the finding(s) that resolved/superseded it**, with the rationale **"research trail followed, nothing forgotten"** + *landed-where*.
+- **Rolling lifecycle (the closeout corollary; user 2026-06-04):** a *rolling* issue rolls **until its originating research arc resolves**, then becomes **closable** — and **closable ≠ severed**. A closed issue **stays a node in the backlink web** and can still **contribute back to a future arc** through its links. "Closable" means *arc resolved, links preserved* — never *forgotten*. (Worked example: **#797** rolls until Q2-scale-invariance + AX-1 resolve; closable then; its Q1/Q3 realizations + the Q2 link stay live afterward.)
+
 The web *is* the EC against forgetting — the third-truth coupling applied to our own notes.
 
 ## §6 Pointers
