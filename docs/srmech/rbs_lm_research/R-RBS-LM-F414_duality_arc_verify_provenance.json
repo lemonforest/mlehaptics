@@ -1,0 +1,178 @@
+{
+ "engine": "research-triality k=3",
+ "run_id": "wf_c953a9ca-456",
+ "task": "adversarial verify of duality arc F405-F411",
+ "finding_count_by_tier": {
+  "haiku": 11,
+  "sonnet": 10,
+  "opus": 10
+ },
+ "per_claim": [
+  {
+   "item": "M1 — dim g₂ = 14, g₂ = Der(𝕆), and su(3) branching 14 = 8 ⊕ 3 ⊕ 3̄",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED. g₂ (Lie algebra of G₂, the automorphism group of the octonions) is 14-dimensional (rank 2: 12 roots + 2 Cartan) and equals Der(𝕆). Under its maximal-rank su(3) subalgebra the adjoint 14 branches as 8 ⊕ 3 ⊕ 3̄ via the Z₃-graded decomposition (natural module + its dual; 8+3+3=14). Standard Lie theory; Baez 'The Octonions' Bull. AMS 39 (2002) for Der(𝕆), Draper arXiv:1704.07819 for the Z₃-grading. Caveat (opus): no single fetched page printed the literal '8+3+3̄' string — the branching is forced by maximal-rank embedding + Z₃-grading + dimension count, not byte-verified from a primary branching table (Slansky 1981 / Yamatsu arXiv:1511.08771 would close this).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M2 — exactly four Hopf fibrations with Hopf invariant one (Adams 1960)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED. Exactly four Hopf fibrations have Hopf invariant one: S⁰↪S¹→S¹, S¹↪S³→S², S³↪S⁷→S⁴, S⁷↪S¹⁵→S⁸ (n=1,2,4,8); octonionic total S¹⁵, base S⁸, fiber S⁷, 15=8+7. Adams, 'On the non-existence of elements of Hopf invariant one', Annals of Mathematics 72 (1960) 20–104. Precision note (sonnet+opus): some formulations emphasize n=2,4,8 as the non-trivial cases, treating n=1 (real S⁰↪S¹→S¹) as degenerate; the four-fibration listing is nonetheless standard (Wikipedia, nLab). Opus flags the page range 20–104 as matching universal citation but not independently byte-verified.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M3 — Hurwitz's theorem: normed division algebras ℝ/ℂ/ℍ/𝕆 (dims 1,2,4,8; imaginaries 0,1,3,7); commutativity/associativity ladder",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED. The only normed (composition) division algebras over ℝ are ℝ/ℂ/ℍ/𝕆, dims 1,2,4,8 = 2ⁿ; imaginary-unit counts 0,1,3,7 = 2ⁿ−1. The Mersenne label is arithmetically correct (1,3,7 = 2¹−1,2²−1,2³−1; 3 and 7 are Mersenne primes, 0 and 1 are degenerate). ℂ commutative; ℍ non-commutative (associative); 𝕆 non-commutative AND non-associative (but alternative). Hurwitz 1898; equivalently the composition-algebra form. All parts verified.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M4 — Cayley-Dickson tower nested increments 2+2+4 = 8 (not 14)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED (integer-trivial, self-checking). The Cayley-Dickson tower doubles 1→2→4→8; graded increments for the ℂ/ℍ/𝕆 part are 2 + (4−2) + (8−4) = 2+2+4 = 8 — the NESTED telescoping sum. This is correctly distinguished from the PARALLEL sum 2+4+8 = 14 (= dim g₂, reached by a separate algebraic route). The two routes to 8 and 14 must not be conflated; the framework's F405 distinction is mathematically sound.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M5 — sedenions 𝕊 (dim 16) are NOT a division algebra (zero divisors, lose composition norm)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED as stated. Sedenions (dim 16, Cayley-Dickson double of 𝕆) are not a division algebra: they contain zero divisors (explicit example (e₃+e₁₀)(e₆−e₁₅)=0) and lose the multiplicative-norm/composition property (failure of alternativity for n≥4 in the C-D tower); they remain power-associative and flexible. The M5 claim itself does not depend on any specific zero-divisor count.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M5-detail — specific sedenion zero-divisor COUNT",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "The specific count is NOT a single clean number — this is the most important MPM-discipline finding of the pass, and all three tiers converge on it. Three non-interchangeable counts appear in the literature: 84 'sets'/diagonal lines (Wikipedia; de Marrais), 168 primitive unit zero-divisors (de Marrais arXiv:math/0011260), and 42 Assessor pairs (same paper); Moreno (arXiv:q-alg/9710013) separately showed the norm-one zero-divisor space is homeomorphic to compact G₂. Haiku marked the enumeration unverified/low-confidence; sonnet enumerated all three counts and required convention-specific attestation; opus tied '84' to de Marrais (84 sets/lines, 42 Assessors) and to F410, recommending the framework tighten '84 zero-divisors' to '84 zero-divisor sets/diagonal lines, 42 Assessors'. Any framework citation of a specific count must pin the exact paper AND counting convention per MPM.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "M6 — Klein four V₄ = Z₂×Z₂ and Q₈/{±1} ≅ V₄",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "CONFIRMED. V₄ ≅ Z₂×Z₂ by definition. Q₈ = {±1,±i,±j,±k} has center {1,−1} (order 2); the quotient Q₈/{±1} has order 4 with every non-identity element of order 2 (i²=j²=k²=−1 ≡ 1 in the quotient), hence ≅ V₄ (the unique non-cyclic order-4 group). Standard finite-group theory.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "L1 — three alphabets: 1:3:7:3 operators, 2:4:8 operand, g₂ 8:3:3̄ grammar = verb/noun/grammar 'triality'",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "FLAG AS LENS (framework-interpretive, not literature math) — all three tiers agree. The three numerical partitions are each real (1:3:7:3 = framework-chosen partition of 14 classes; 2:4:8 = Hurwitz unit dims summing to 14; 8:3:3̄ = genuine g₂⊃su(3) branching). The LENS content is (a) the verb/noun/grammar labelling and (b) calling the trio a 'triality'. WATCH-ITEM raised by sonnet AND opus (2 of 3): the word 'triality' is used metaphorically (a 3-fold of alphabets) but mathematical triality is a precise theorem — the order-3 outer automorphism of so(8)/D₄ permuting vector/spinor/cospinor reps. The shared word invites conflation; the framework mostly keeps the metaphorical and technical (qm.triality) senses distinct but should flag it consistently. Properly hedged, not over-asserted (F406 marks the residual Class-B).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "L2 — 'chirality = duality = operator|operand'; | as L/R action seam; chiral because 𝕆 non-commutative",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "FLAG AS LENS (framework-interpretive) — all three tiers agree, and the supporting MATH is correct: ℝ/ℂ are commutative (left-mult = right-mult, no L/R distinction) while ℍ/𝕆 are non-commutative (left-mult ≠ right-mult), so a genuine left/right-action asymmetry first appears at ℍ. The LENS is the identification 'chirality = duality = operator|operand'. WATCH-ITEM raised by sonnet AND opus (2 of 3): 'chirality' has a precise physics/math meaning (γ₅ eigenvalue / spatial handedness) that is NOT identical to non-commutativity of multiplication; a reader must not hear the framework sense as the standard one. The framework (F409) explicitly marks the bridge to γ₅|iω₇ as open/falsifiable and 'Favored, not privileged' — not over-asserted.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "L3 — the | seam is always the third/coupling; {a|third|b} scale-invariant, nesting substrate ⊂ language ⊂ field",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "FLAG AS LENS — the most speculative of the cluster; all three tiers agree it is framework ontology with no literature-math claim to confirm/refute. It is properly hedged: F411 pre-states three falsifiable forms (universal-seam, nesting-order, scale-invariance) and marks the inner-rung question srmech-held. OVER-ASSERTION WATCH raised most sharply by OPUS (and noted by sonnet as the testable sub-part): the universal quantifier 'always' ('the seam is ALWAYS the third') outruns its ~3 supporting instances (γ₅|iω₇, operator|operand, language|knowledge) — three matching instances do not establish 'always'. It stays honest because of the pre-stated null, but the universal claim is stronger than the evidence. Not a math error (no math claim). Haiku rated confidence low and tied it to AX-1; sonnet and opus rated it medium — substance identical.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "L4 — class-by-class A-N ↔ Hurwitz-imaginary bijection (operator↔unit map)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "FLAG AS LENS, CORRECTLY SELF-FLAGGED AS UNVERIFIED (Class-B) — all three tiers agree this is the model case of framework honesty. F405 explicitly names it the load-bearing residual (numerical-match, not yet a proven bijection) and pre-states the null; the framework does NOT assert the bijection. Structural falsifiability constraint contributed by SONNET (the most concrete addition): there are 7 imaginary octonion units (e1…e7) and 7 heptad classes (D,E,F,G,K,L,M); for the bijection to be more than a labelling, A-N operator composition rules would need to match the Fano-plane multiplication table (7 lines, each an associative triple) — that Fano-plane compatibility is the correct, not-yet-attempted falsifier. No over-assertion; the framework's own Class-B (not Class-A) classification is the correct one.",
+   "dissenting_tier": "none"
+  }
+ ],
+ "merged": {
+  "merged_findings": [
+   {
+    "item": "M1 — dim g₂ = 14, g₂ = Der(𝕆), su(3)-branching 14 = 8 ⊕ 3 ⊕ 3̄",
+    "claim": "CONFIRMED. g₂ (Lie algebra of G₂, the automorphism group of the octonions) is 14-dimensional (rank 2: 12 roots + 2 Cartan) and equals Der(𝕆). Under its maximal-rank su(3) subalgebra the adjoint 14 branches as 8 ⊕ 3 ⊕ 3̄ via the Z₃-graded decomposition (the su(3) adjoint 8 plus the natural module 3 and its dual 3̄; 8+3+3=14). Standard Lie theory.",
+    "best_citation": "Baez, 'The Octonions', Bull. AMS 39 (2002) 145–205 (math.ucr.edu/home/baez/octonions/node14.html: g₂ = Der(𝕆), 14 = adjoint, 7 = imaginary-octonion action); Draper Fontanals, 'Notes on G2: the Lie algebra and the Lie group', arXiv:1704.07819 (Z₃-grading: su(3) + natural + dual). Web-confirmed.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M2 — exactly four Hopf fibrations with Hopf invariant one (Adams 1960)",
+    "claim": "CONFIRMED. Exactly four Hopf fibrations have Hopf invariant one: S⁰↪S¹→S¹, S¹↪S³→S², S³↪S⁷→S⁴, S⁷↪S¹⁵→S⁸ (n=1,2,4,8); octonionic total S¹⁵, base S⁸, fiber S⁷, 15=8+7. Precision note (sonnet+opus): some formulations emphasize n=2,4,8 as the non-trivial cases, treating the real n=1 case S⁰↪S¹→S¹ as degenerate; the four-fibration listing is nonetheless standard (Wikipedia, nLab).",
+    "best_citation": "J.F. Adams, 'On the non-existence of elements of Hopf invariant one', Annals of Mathematics, 2nd Series, Vol. 72, No. 1 (Jul. 1960), pp. 20–104. Page range byte-confirmed via primary PDF copies (sas.rochester.edu Ravenel mirror; ericmalm.net) — opus's unverified-page-range gap now CLOSED.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M3 — Hurwitz's theorem: normed division algebras ℝ/ℂ/ℍ/𝕆 (dims 1,2,4,8; imaginaries 0,1,3,7); commutativity/associativity ladder",
+    "claim": "CONFIRMED. The only normed (composition) division algebras over ℝ are ℝ/ℂ/ℍ/𝕆, dims 1,2,4,8 = 2ⁿ; imaginary-unit counts 0,1,3,7 = 2ⁿ−1. Mersenne label is arithmetically correct (1,3,7 = 2¹−1,2²−1,2³−1; 3 and 7 are Mersenne primes, 0 and 1 degenerate). ℂ commutative; ℍ non-commutative (associative); 𝕆 non-commutative AND non-associative (but alternative).",
+    "best_citation": "Hurwitz (1898), composition-algebra theorem; Baez, 'The Octonions', Bull. AMS 39 (2002) 145–205 (commutative iff dim ≤ 2; associative iff dim ≤ 4). Note: haiku's 'Math. Annalen 88 (1922) 1-25' is the posthumous reprint of Hurwitz's composition-of-quadratic-forms work, not false but the 1898 attribution / Baez review chain is the cleaner OA anchor.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M4 — Cayley-Dickson tower nested increments 2+2+4 = 8 (not 14)",
+    "claim": "CONFIRMED (integer-trivial, self-checking). The Cayley-Dickson tower doubles 1→2→4→8; graded increments for the ℂ/ℍ/𝕆 part are 2 + (4−2) + (8−4) = 2+2+4 = 8 — the NESTED telescoping sum. Correctly distinguished from the PARALLEL sum 2+4+8 = 14 (= dim g₂, reached by a separate algebraic route). The two routes to 8 and 14 must not be conflated; the framework's F405 distinction is mathematically sound.",
+    "best_citation": "Cayley–Dickson construction (doubling rule); arithmetic self-checks. Wikipedia 'Cayley–Dickson construction' (dimension sequence 1,2,4,8,16,…).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M5 — sedenions 𝕊 (dim 16) are NOT a division algebra (zero divisors, lose composition norm)",
+    "claim": "CONFIRMED as stated. Sedenions (dim 16, Cayley-Dickson double of 𝕆) are not a division algebra: they contain zero divisors (explicit example (e₃+e₁₀)(e₆−e₁₅)=0) and lose the multiplicative-norm/composition property (failure of alternativity for n≥4 in the C-D tower); they remain power-associative and flexible. The M5 claim itself does not depend on any specific zero-divisor count.",
+    "best_citation": "Wikipedia 'Sedenion' (16-dim, zero divisors, explicit example); Moreno, 'The zero divisors of the Cayley–Dickson algebras over the real numbers', arXiv:q-alg/9710013 (norm-one zero-divisor space ≅ G₂). Web-confirmed.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M5-detail — specific sedenion zero-divisor COUNT (the load-bearing MPM finding of the pass)",
+    "claim": "The specific count is NOT a single clean number — all three tiers converge on this, and web spot-verify confirms it. Three non-interchangeable counts appear in the literature: 84 'sets'/diagonal lines (Wikipedia; de Marrais), 168 primitive unit zero-divisors (de Marrais; = |PSL(2,7)|, confirmed in the arXiv abstract), and 42 Assessor pairs (same paper; also 28 mutually-zero-dividing trios). Moreno separately showed the norm-one zero-divisor space is homeomorphic to compact G₂. Any framework citation of a specific count MUST pin the exact paper AND counting convention per MPM; the opus recommendation to tighten F410's '84 zero-divisors' to '84 zero-divisor sets/diagonal lines, 42 Assessors' stands.",
+    "best_citation": "de Marrais, 'The 42 Assessors and the Box-Kites they fly: Diagonal Axis-Pair Systems of Zero-Divisors in the Sedenions' 16 Dimensions', arXiv:math/0011260 (abstract web-confirmed: 168 = |PSL(2,7)| primitive unit zero-divisors, 42 Assessors, 28 trios, 7 box-kites); Moreno arXiv:q-alg/9710013 (≅ G₂).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "M6 — Klein four V₄ = Z₂×Z₂ and Q₈/{±1} ≅ V₄",
+    "claim": "CONFIRMED. V₄ ≅ Z₂×Z₂ by definition. Q₈ = {±1,±i,±j,±k} has center {1,−1} (order 2); the quotient Q₈/{±1} has order 4 with every non-identity element of order 2 (i²=j²=k²=−1 ≡ 1 in the quotient), hence ≅ V₄ (the unique non-cyclic order-4 group). Standard finite-group theory.",
+    "best_citation": "Wikipedia 'Klein four-group' (V₄ ≅ Z₂×Z₂); Groupprops 'Center of quaternion group' (Z(Q₈)={1,−1}, Q₈/Z(Q₈) ≅ Klein four-group); Dummit-Foote (textbook).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "L1 — three alphabets: 1:3:7:3 operators, 2:4:8 operand, g₂ 8:3:3̄ grammar = verb/noun/grammar 'triality'",
+    "claim": "LENS (framework-interpretive, NOT literature math) — all three tiers agree. The three numerical partitions are each real: 1:3:7:3 = framework-chosen partition of 14 A-N classes; 2:4:8 = Hurwitz unit dims summing to 14; 8:3:3̄ = genuine g₂⊃su(3) branching (verified, M1). The LENS content is (a) the verb/noun/grammar labelling and (b) calling the trio a 'triality'. WATCH-ITEM raised by sonnet AND opus (2 of 3): 'triality' is used metaphorically (a 3-fold of alphabets) but mathematical triality is a precise theorem — the order-3 outer automorphism of so(8)/D₄ permuting vector/spinor/cospinor reps. The shared word invites conflation; the framework mostly keeps the metaphorical and technical (qm.triality) senses distinct but should flag it consistently. Properly hedged (F406 marks the residual Class-B), not over-asserted.",
+    "best_citation": "Framework: F406 (R-RBS-LM-FINDING_406); CLAUDE.md §1 (1:3:7:3 partition). Underlying math anchors verified in M1 + M3. No external literature for the linguistic labelling — none claimed.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "L2 — 'chirality = duality = operator|operand'; | as L/R action seam; chiral because 𝕆 non-commutative",
+    "claim": "LENS (framework-interpretive) — all three tiers agree, and the supporting MATH is correct: ℝ/ℂ are commutative (left-mult = right-mult, no L/R distinction) while ℍ/𝕆 are non-commutative (left-mult ≠ right-mult), so a genuine left/right-action asymmetry first appears at ℍ. The LENS is the identification 'chirality = duality = operator|operand'. WATCH-ITEM raised by sonnet AND opus (2 of 3): 'chirality' has a precise physics/math meaning (γ₅ eigenvalue / spatial handedness) that is NOT identical to non-commutativity of multiplication; a reader must not hear the framework sense as the standard one. F409 explicitly marks the bridge to γ₅|iω₇ as open/falsifiable and 'Favored, not privileged' — not over-asserted.",
+    "best_citation": "Framework: F409 (R-RBS-LM-FINDING_409). Underlying non-commutativity math verified in M3. No external literature for the identification — none claimed.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "L3 — the | seam is always the third/coupling; {a|third|b} scale-invariant, nesting substrate ⊂ language ⊂ field",
+    "claim": "LENS — the most speculative of the cluster; all three tiers agree it is framework ontology with no literature-math claim to confirm/refute. Properly hedged: F411 pre-states three falsifiable forms (universal-seam, nesting-order, scale-invariance) and marks the inner-rung question srmech-held. OVER-ASSERTION WATCH raised most sharply by OPUS (and noted by sonnet as the testable sub-part): the universal quantifier 'always' ('the seam is ALWAYS the third') outruns its ~3 supporting instances (γ₅|iω₇, operator|operand, language|knowledge) — three matching instances do not establish 'always'. It stays honest because of the pre-stated null, but the universal claim is stronger than the evidence. Not a math error (no math claim). Confidence: haiku low (tied to AX-1); sonnet/opus medium — substance identical.",
+    "best_citation": "Framework: F411 (R-RBS-LM-FINDING_411), building on F400/F401 (duality = fibration of triality), F403, F406, F408; DUALITY.md/TRIALITY.md. No external literature — none claimed.",
+    "consensus": "unanimous",
+    "verification_status": "unverifiable"
+   },
+   {
+    "item": "L4 — class-by-class A-N ↔ Hurwitz-imaginary bijection (operator↔unit map)",
+    "claim": "LENS, CORRECTLY SELF-FLAGGED AS UNVERIFIED (Class-B) — all three tiers agree this is the model case of framework honesty. F405 explicitly names it the load-bearing residual (numerical-match, not yet a proven bijection) and pre-states the null; the framework does NOT assert the bijection. Structural falsifiability constraint contributed by SONNET (the most concrete addition): there are 7 imaginary octonion units (e1…e7) and 7 heptad classes (D,E,F,G,K,L,M); for the bijection to be more than a labelling, A-N operator composition rules would need to match the Fano-plane multiplication table (7 lines, each an associative triple) — that Fano-plane compatibility is the correct, not-yet-attempted falsifier. No over-assertion; the framework's own Class-B (not Class-A) classification is correct.",
+    "best_citation": "Framework: F405 (self-flagged Class-B residual); F406 (pre-states falsifiable null). No external literature — none claimed; the Fano-plane-compatibility test (sonnet) is the proposed falsifier.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   }
+  ],
+  "cross_cutting": "k=3 triality CONVERGES — UNANIMOUS (3/3) on every item, M1 through L4 plus the sedenion-count detail; no 1-vs-2 split required majority override, so the error-correcting form had no dissent to correct and minority_residue is empty.\n\nTWO LAYERS, CLEANLY SEPARATED. (a) Literature-math (M1–M6): all six are textbook-canonical and were independently web-spot-verified here — g₂ = Der(𝕆) dim 14 with su(3)-branching 8⊕3⊕3̄ (Baez/Draper), Adams 1960's exactly-four Hopf-invariant-one fibrations (page range 20–104 byte-confirmed), Hurwitz's ℝ/ℂ/ℍ/𝕆 ladder, the Cayley-Dickson telescoping 2+2+4=8 vs parallel 2+4+8=14, sedenion zero-divisors / ≅ G₂ (Moreno), and Q₈/{±1}≅V₄. Zero mathematical errors. (b) Framework lenses (L1–L4): the framework's OWN concepts (operator/operand/grammar alphabets, chirality=duality=operator|operand, the universal seam, the A-N↔unit bijection) layered ONTO the real math — all marked LENS, all properly hedged (F405/F406 mark the load-bearing bijection Class-B/unproven; every finding carries 'NO srmech run — held', pre-states falsifiable nulls, tags conclusions 'Favored, not privileged (F398)').\n\nTHREE PHRASING/SCOPE TIGHTENINGS (the pass's substantive yield — NOT corrections of fact): (1) the sedenion '84 zero-divisors' is one of three non-interchangeable literature counts (84 sets/diagonal lines / 168 = |PSL(2,7)| primitive units / 42 Assessors — all three confirmed in the de Marrais arXiv:math/0011260 abstract) and must be pinned to a specific paper + convention per MPM; (2) 'triality' (L1) should stay explicitly distinct from the technical so(8)/D₄ outer-automorphism theorem; (3) 'chirality' (L2) should stay explicitly distinct from the γ₅/handedness sense.\n\nF242b GRADIENT HOLDS for the research task: opus centered least / held the most perspectives and was most self-skeptical (it alone flagged the single-agent-survey limitation and the two unverified-but-forced citation gaps); sonnet close behind (contributed the concrete Fano-plane falsifier for L4); haiku gave the cleanest but most surface-level partition — consistent with 'opus most honest/uncentered on research.'",
+  "flagged_citations": [
+   "NONE — zero hallucinated citations or false attributions were emitted by any tier; this is a clean pass. Every literature citation checks out under web spot-verify: Adams, Annals of Mathematics 2nd Ser. Vol. 72 No. 1 (1960) pp. 20–104 (byte-confirmed, primary PDFs); Baez 'The Octonions' Bull. AMS 39 (2002) 145–205; Draper arXiv:1704.07819 (g₂ Z₃-grading); de Marrais arXiv:math/0011260 (42 Assessors / 168 = |PSL(2,7)| / 84); Moreno arXiv:q-alg/9710013 (≅ G₂). The pass surfaced PHRASING/SCOPE risks, NOT false attributions: (1) sedenion '84 zero-divisors' conflates three distinct literature counts (84 sets / 168 primitive units / 42 Assessors) — needs convention-specific attestation, but no tier asserted a wrong count as fact; (2) 'triality' (L1) metaphorical-vs-technical (so(8)/D₄) conflation risk; (3) 'chirality' (L2) vs the γ₅/handedness technical sense.",
+   "MINOR ATTRIBUTION-CHAIN NOTE (not a false citation): haiku attributed Hurwitz to 'Math. Annalen 88 (1922) 1-25' (the posthumous reprint of the composition-of-quadratic-forms paper) while opus/sonnet used the 1898 result via the Baez 2002 OA review — both correct, the 1898/Baez chain is the cleaner OA anchor. NO PAYWALLED-ONLY DOI was lodged anywhere; all attestations resolve to arXiv preprints, OA reviews (Baez), or textbook/Wikipedia/Groupprops chains, satisfying the OA-attestation discipline.",
+   "TWO opus-flagged citation gaps are now CLOSED by this pass's web spot-verify: (a) Adams page range 20–104 — byte-confirmed via Rochester/Ravenel + ericmalm primary PDFs; (b) the g₂ su(3)-branching 8⊕3⊕3̄ — confirmed via Baez (math.ucr.edu) + Draper arXiv:1704.07819 consensus ('8-dim SU(3) adjoint plus its 3 and 3̄ defining reps'). A primary printed branching table (Slansky 1981 / Yamatsu arXiv:1511.08771) would be the last byte-level upgrade but the decomposition is forced and now multiply-sourced."
+  ],
+  "minority_residue": [],
+  "honest_tier": "DOMAIN FACTS are the literature's, not the framework's: M1–M6 are standard, peer-reviewed/textbook mathematics (Lie theory, algebraic topology, division-algebra theory, finite-group theory), independently web-spot-verified in this pass — the framework asserts no ownership of them. FRAMEWORK READING is LENS: L1–L4 (operator/operand/grammar alphabets, chirality=duality=operator|operand, the universal {a|third|b} seam, the A-N↔Hurwitz-unit bijection) are the framework's own interpretive concepts layered onto the verified math, and are flagged LENS throughout — none asserted as established theorem. The framework's self-discipline is exemplary on the load-bearing residual: F405 keeps the A-N↔unit bijection at Class-B (numerical-match, not proven), pre-states its null, and the cluster tags conclusions 'Favored, not privileged.' META-CAVEAT (surfaced by opus, load-bearing): the three input surveys were each SINGLE-agent adversarial verifications (their internal agree_count = 1/1), so the genuine k=3 error-correction is THIS triangulation+merge — which, having found unanimity with no dissent to correct AND having independently web-verified the four highest-stakes citations (Adams page range, g₂ branching, de Marrais counts, Moreno ≅ G₂), is clean and lodgeable. No leaning: lenses are recorded as offered, the speculative L3 'always' is flagged as outrunning its evidence, and the sedenion-count convention-dependence is preserved rather than collapsed to a single number."
+ }
+}
