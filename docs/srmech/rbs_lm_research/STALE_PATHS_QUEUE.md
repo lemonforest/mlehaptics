@@ -212,7 +212,7 @@ Status legend adds one tag for this arc:
 
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
-| **ALU-A** ✅ | **Attestation pass (research-triality)** — verify-PDF the CS reductions: CORDIC (Volder 1959), Booth multiply (1951), restoring/non-restoring division, binary GCD (Stein 1967), SHA-256 (FIPS 180-4) | **ACTIVE / EARLY** | **runnable NOW — no srmech update needed**; this is the early research/attestation the user flagged; F381 triality + verify-PDF discipline; no-lineage (CS literature's) |
+| **ALU-A** | **Attestation pass (research-triality)** — verify-PDF the CS reductions: CORDIC (Volder 1959), Booth multiply (1951), restoring/non-restoring division, binary GCD (Stein 1967), SHA-256 (FIPS 180-4) | ✅ **RESOLVED by F407 (2026-06-05)** — k=3 triality (run wf_d6c90827-58f); 4 citations verified unanimously, NO fabrications; add/sub/shift+sign attested as **REDUCIBILITY not actuality** (FPUs ship FMA); CORDIC gain K=∏cos(arctan(2⁻ⁱ)) de-magicked; cite Stein by DOI (title hazard). Triality caught haiku's false FIPS date + omitted Stein title-mismatch. |
 | **ALU-B** | the per-class reduction map (14 classes → the minimal ALU set) | ✅ **DONE** | F393 |
 | **ALU-C** | the **13 rc28-walkable classes** — srmech-native demo that each shipped primitive's output == an add/sub/shift+sign cascade (A/B/C/D/E/F/G/H/I/J/K/M/N) | **ACTIVE / now** | rc28; no version bump |
 | **ALU-D** | the **numpy-free Class-L leg** — eigendecomp = Jacobi = CORDIC = shift-add+sign, fully numpy-free | ⏳ **QUEUED-srmech** | gated on the numpy removal (rc31 pure-Python Jacobi; UPSTREAM §22) — **same gate as BX-5..BX-8**; possible upstream ask: a CORDIC / shift-add atom |
