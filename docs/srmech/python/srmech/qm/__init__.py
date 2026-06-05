@@ -65,6 +65,12 @@ Canonical SSoT:
 - Bohr, N. (1913) *Philosophical Magazine* 26, 1-25 / 476-502.
 """
 
+# Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
+# free). Fail with an actionable [scientific] hint, not a bare numpy error.
+from srmech._scientific import require_numpy as _require_numpy
+
+_require_numpy("srmech.qm")
+
 from srmech.qm import (
     bell,
     gauge,

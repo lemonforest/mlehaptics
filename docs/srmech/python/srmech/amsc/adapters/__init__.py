@@ -38,6 +38,7 @@ from . import html_scraper
 from . import json_api
 from . import literature_curated
 from . import netcdf_grid
+from . import substrate_parameterization
 from ._base import ADAPTERS, AdapterError, attest, get_adapter, run
 
 __all__ = [
@@ -51,5 +52,6 @@ __all__ = [
     "json_api",
     "literature_curated",
     "netcdf_grid",
+    "substrate_parameterization",
     "run",
 ]

@@ -309,8 +309,11 @@ def _apply_stage_to_chain(
             f"per-sector list); got {type(combine).__name__}"
         )
     combine_arg = None if combine.lower() in ("none", "null") else combine
+    # Forward non-reserved stage keys as the body op's bound kwargs (e.g.
+    # `orientation = -1` for parallel_body="reorient") — UPSTREAM_NOTES §16.1
+    # parallel_body= completion; mirrors the `op=` → then(**kwargs) path.
     ch.parallel_sectors(
-        parallel_body, n_sectors=n_sectors, combine=combine_arg,
+        parallel_body, n_sectors=n_sectors, combine=combine_arg, **kwargs,
     )
 
 

@@ -66,13 +66,13 @@ def test_magnitude_matches_abs(x):
     [(-1, 5, -5), (+1, 5, 5), (0, 5, 5), (-1, 2.5, -2.5)],
 )
 def test_reorient(orientation, value, expected):
-    assert cascade.reorient(orientation, value) == expected
+    assert cascade.reorient(value, orientation=orientation) == expected
 
 
 def test_pin_slot_reorient_round_trip():
     for x in (3.5, -2.0, 0.0):
         orient, mag = cascade.pin_slot_at_zero(x)
-        assert cascade.reorient(orient, mag) == x
+        assert cascade.reorient(mag, orientation=orient) == x
 
 
 # ----------------------------------------------------------------------

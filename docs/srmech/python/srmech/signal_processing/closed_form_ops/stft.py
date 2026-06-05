@@ -20,6 +20,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "stft"
 CLASS_COMPOSITION = ("C", "A", "I", "K")
 PERFORMANCE_HINT = "shallow-cascade-frame-wise"
@@ -29,6 +31,19 @@ SSOT_CITATION = (
     "Oppenheim & Schafer (2010, 3rd ed.), 'Discrete-Time Signal Processing', "
     "Prentice Hall, §10.3."
 )
+
+
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade).
+
+    Replaces ``np.cos`` on the Hann-window angle array — routes each angle
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction); numpy is
+    used only as the array container.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
 
 
 def op(
@@ -69,7 +84,7 @@ def op(
     if window is None:
         # Closed-form Hann window: 0.5 (1 - cos(2 pi n / (N - 1)))
         n = np.arange(frame_size)
-        window = 0.5 * (1.0 - np.cos(2.0 * np.pi * n / max(frame_size - 1, 1)))
+        window = 0.5 * (1.0 - _ccos(2.0 * np.pi * n / max(frame_size - 1, 1)))
     window = np.asarray(window, dtype=np.float64)
     if window.shape[0] != frame_size:
         raise ValueError(

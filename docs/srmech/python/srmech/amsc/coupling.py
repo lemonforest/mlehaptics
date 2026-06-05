@@ -26,7 +26,11 @@ from __future__ import annotations
 
 from typing import Sequence
 
-import numpy as np
+# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
+# path with ndarray-typed ops; the lazy proxy keeps the module importable
+# on a plain install and only the ndarray ops raise the [scientific] hint.
+from srmech._scientific import lazy_numpy as _lazy_numpy
+np = _lazy_numpy("srmech.amsc.coupling")
 
 
 def signed_sum_squared(sources: Sequence) -> np.ndarray:

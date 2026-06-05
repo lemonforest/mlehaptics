@@ -74,3 +74,20 @@ srmech_status_t srmech_dispatch_match(const uint8_t  *input,
     }
     return SRMECH_OK;
 }
+
+srmech_status_t srmech_mirror_pattern(const uint8_t *pattern,
+                                      uint32_t       pattern_len,
+                                      uint8_t       *out)
+{
+    assert(pattern_len == 0 || pattern != NULL);
+    assert(pattern_len == 0 || out != NULL);
+    if (pattern_len > 0 && (pattern == NULL || out == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Harmonic-2 chiral mirror (F150): reverse the needle byte order.
+     * out[i] = pattern[pattern_len - 1 - i]. out must NOT alias pattern. */
+    for (uint32_t i = 0; i < pattern_len; i++) {
+        out[i] = pattern[pattern_len - 1u - i];
+    }
+    return SRMECH_OK;
+}

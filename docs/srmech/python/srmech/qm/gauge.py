@@ -35,6 +35,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
 from srmech.qm.spin import pauli_matrices
 
 
@@ -294,7 +295,10 @@ def gauge_path_segment(
         Unitary segment-holonomy matrix in the representation.
     """
     M = coupling * gauge_connection_matrix(A_components, generators)
-    eigvals, V = np.linalg.eigh(M)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive). M is a
+    # complex-Hermitian connection matrix (Gell-Mann generators are complex),
+    # so V stays complex128.
+    eigvals, V = hermitian_eigendecompose(M)
     return V @ np.diag(np.exp(1j * eigvals)) @ V.conj().T
 
 

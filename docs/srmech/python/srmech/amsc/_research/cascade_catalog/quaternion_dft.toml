@@ -1,0 +1,95 @@
+# Cascade catalog entry: quaternion_dft
+# v0.7.0rc31 of the cascade-catalog — the QUATERNION discrete Fourier
+# transform (QDFT), #863 / F380. The native transform for a Klein-4 object:
+# the complex FFT collapses one of its two Z2 chirality axes (the flat
+# shadow); the QDFT's ℍ coefficient algebra resolves BOTH.
+#
+# This is a COMPOSITE over the existing qm.octonion left/right-multiply atoms
+# (the "transform is a composite, the multiplies are the atoms" lean-ISA
+# split). It is the PROTOTYPE tier per #863 — a Python composite documented by
+# this descriptor; a graduation to a first-class native C primitive (a
+# srmech_quaternion_dft symbol like the existing fft) is a separate later voxel.
+
+[cascade]
+name = "quaternion_dft"
+class_composition = "M ∘ C ∘ N"
+# kind defaults to "stage": the piped value is the sequence of quaternion
+# samples x; returns the length-N quaternion spectrum X.
+purpose = "Quaternion discrete Fourier transform (QDFT) — the native transform for a Klein-4 object. Its ℍ coefficient algebra resolves BOTH Z₂ chirality axes the complex FFT collapses (F380). Selectable left/right form (ℍ is non-commutative). Composite over the qm.octonion multiply atoms; round-trips (inverse(forward(x))=x) recovering all four components."
+description = """
+The Klein-4 group IS the quaternion units modulo sign (F380):
+
+    Q₈ = {±1,±i,±j,±k}, centre {±1},  and  Q₈/{±1} ≅ Z₂×Z₂ = Klein-4.
+
+So the coefficient algebra of each FFT-ladder rung carries a different
+chirality content (F379, "n things with n−1 couplings"):
+
+    transform     coeff. alg.   units mod sign      chirality resolved
+    complex FFT   ℂ             {±1,±i}/± = Z₂      one axis (flat shadow)
+    QUATERNION FT ℍ             Q₈/± = Z₂×Z₂        BOTH axes (γ₅ & iω₇)
+
+Fourier-analysing a Klein-4 object with a COMPLEX FFT first projects it to ℂ,
+collapsing one of its two Z₂ axes — the flat shadow. The QDFT's ℍ coefficient
+algebra MATCHES the object's value algebra, so both axes survive.
+
+    X[k] = Σ_n  exp(σ·μ·2πkn/N) · x[n]            (left form: twiddle on left)
+    X[k] = Σ_n  x[n] · exp(σ·μ·2πkn/N)            (right form: twiddle on right)
+
+with σ = −1 (forward) / +1 (inverse), an inverse 1/N scale, and μ a unit
+pure-quaternion axis (μ²=−1). The left and right forms DIFFER because ℍ is
+non-commutative — the twiddle cannot be factored out the way the complex FFT
+does. The transform is invertible: the twiddle lives in the commutative
+subalgebra ℝ[μ]≅ℂ, so Σ_k exp(μ·2πk(n−n')/N) = N·δ and the inverse recovers
+x[n] exactly (to float round-off), INCLUDING all four components — i.e. both
+Z₂ axes, where a complex FFT keeps only one.
+
+HONEST CASCADE SHAPE: Class M (Clifford / HDC quaternion multiply, via the
+qm.octonion left/right-mult atoms restricted to the ℍ subalgebra) ∘ Class C
+(the orientation of the twiddle's ±μ phase) ∘ Class N (the rational twiddle
+angle kn/N). NO new privileged primitive class; NO abs() (the octonion
+norm/conjugate route through Class K+C). The scalar twiddle uses float trig in
+the reference impl (like the existing complex fft); the substrate-native
+Class-N exact-rational twiddle (asymptotic_calculus.{cos,sin}_series_truncate)
+is the composable alternative.
+
+SCIENTIFIC TIER (UPSTREAM §22): a qm-algebra transform — numpy is imported
+lazily on call, so `import srmech.amsc.cascade` stays numpy-free (the
+numpy-absent-safe core, v0.7.0rc30) while the transform uses numpy on call.
+"""
+
+[cascade.signature]
+input = "x: sequence of N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"
+output = "list[list[float]] — N quaternions (4-component lists), the QDFT spectrum X"
+operation = "X[k] = Σ_n T(exp(σ·μ·2πkn/N)) · x[n]; T = octonion_left_mult (form='left') / octonion_right_mult (form='right')"
+forms = ["left", "right"]
+mu_axes = ["i", "j", "k", "ijk"]
+round_trip = "inverse(forward(x)) == x to float round-off (~1e-15), recovering all four components (both Z₂ axes)"
+n0_maps_to = "[]"
+
+[cascade.composes]
+# The atoms this composite is built from (#863: "no capability gap").
+multiply_atom = "srmech.qm.octonion.octonion_left_mult / octonion_right_mult (restricted to the ℍ ⊂ 𝕆 subalgebra)"
+twiddle = "exp(μθ) = cos θ·1 + sin θ·μ (float trig; or the Class-N exact-rational asymptotic_calculus.{cos,sin}_series_truncate)"
+radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (the algebra-agnostic Cooley-Tukey reindex — identical at every rung)"
+
+[cascade.graduation]
+tier = "prototype (composite over existing primitives)"
+graduates_to = "a first-class native C/Python primitive (srmech_quaternion_dft) IF it earns attested status like the existing fft — a SEPARATE later voxel, not a prerequisite blocker"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.7.0rc31"
+# Citations VERIFIED via PDF extraction (MPM discipline;
+# docs/srmech/notes/qdft_odft_citation_verification_863.md). OA / attestable;
+# the paywalled IEEE TIP 2007 paper was EXCLUDED in favour of this OA arXiv
+# anchor by the same authors, per the paywalled-DOI rule.
+literature = [
+  "Sangwine, S. J. & Ell, T. A. (2012). Complex and Hypercomplex Discrete Fourier Transforms Based on Matrix Exponential Form of Euler's Formula. Appl. Math. Comput. 219(2):644-655. arXiv:1001.4379.",
+]
+canonical_landings = [
+  "F380 — Klein-4 = quaternion-units-mod-sign (Q₈/{±1} ≅ Z₂×Z₂); the QDFT motivation",
+  "F379 — FFT-ladder n:n−1 (1 anchor + (n−1) couplings); the coefficient-algebra ladder",
+  "issue #863 — the native transform for a Klein-4 object, not its complex flat shadow",
+  "proof: docs/srmech/rbs_lm_research/R-RBS-LM-R21_klein4_is_quaternion_units_mod_sign.py",
+]

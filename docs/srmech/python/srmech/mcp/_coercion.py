@@ -256,6 +256,32 @@ def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[np.ndarray, ...]:
     return tuple(_seq_ndarray(value, param=param))
 
 
+def _seq_complex(value: Any, *, param: str = "") -> List[complex]:
+    """``list[complex]`` / ``Sequence[complex]`` -> list of ``complex`` (the
+    rc36 ``dft`` / ``idft`` signal vector). Each element rides as ``[re, im]``
+    (or a bare number for a real sample), matched to the outbound
+    complex-list serialisation (``serialise_native`` emits each ``complex``
+    as ``[re, im]``)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of complex numbers for param "
+            f"{param or '<seq-complex>'!r}; got {type(value).__name__}"
+        )
+    return [_to_complex(v, param=param) for v in value]
+
+
+def _seq_seq_complex(value: Any, *, param: str = "") -> List[List[complex]]:
+    """``list[list[complex]]`` -> list of rows of ``complex`` (the rc36
+    ``kron`` matrix operands). Each row is a :func:`_seq_complex`; each scalar
+    rides as ``[re, im]``."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of rows for param "
+            f"{param or '<seq-seq-complex>'!r}; got {type(value).__name__}"
+        )
+    return [_seq_complex(row, param=param) for row in value]
+
+
 def _mapping_bytes_bytes(value: Any, *, param: str = "") -> Dict[bytes, bytes]:
     """``Mapping[bytes, bytes]`` (``template.render``) -> dict of
     base64-decoded key -> base64-decoded value bytes."""
@@ -409,6 +435,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
+    "list[complex]": _seq_complex,            # v0.7.0rc36: spectral_cascades.{dft,idft}
+    "list[list[complex]]": _seq_seq_complex,  # v0.7.0rc36: spectral_cascades.kron
     "Mapping[bytes, bytes]": _mapping_bytes_bytes,
     "list[tuple[bytes, int]]": _list_tuple_bytes_int,
     "list[tuple[bytes, bytes]]": _list_tuple_bytes_bytes,
@@ -533,6 +561,12 @@ def serialise_native(value: Any) -> Any:
     # complex -> [re, im]
     if isinstance(value, complex):
         return [value.real, value.imag]
+    # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
+    # The core ops return HV, not np.ndarray; cross JSON-RPC by value as a
+    # plain integer list (the same shape an ndarray result would serialise to).
+    from srmech.amsc.hv import HV as _HV
+    if isinstance(value, _HV):
+        return value.tolist()
     # numpy ndarray -> nested list
     if isinstance(value, np.ndarray):
         return _ndarray_to_json(value)

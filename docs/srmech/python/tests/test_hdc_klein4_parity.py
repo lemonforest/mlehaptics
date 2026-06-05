@@ -35,19 +35,19 @@ def test_klein4_group_axioms():
     a, b, c = (hdc.klein4_random(128, rng) for _ in range(3))
     assert set(np.unique(a).tolist()) <= {0, 1, 2, 3}
     # identity 0, self-inverse, commutative, associative
-    assert (hdc.klein4_bind(a, np.zeros_like(a)) == a).all()
-    assert (hdc.klein4_bind(a, hdc.klein4_bind(a, b)) == b).all()
-    assert (hdc.klein4_bind(a, b) == hdc.klein4_bind(b, a)).all()
+    assert (hdc.klein4_bind(a, np.zeros_like(a)) == a)
+    assert (hdc.klein4_bind(a, hdc.klein4_bind(a, b)) == b)
+    assert (hdc.klein4_bind(a, b) == hdc.klein4_bind(b, a))
     assert (hdc.klein4_bind(hdc.klein4_bind(a, b), c)
-            == hdc.klein4_bind(a, hdc.klein4_bind(b, c))).all()
+            == hdc.klein4_bind(a, hdc.klein4_bind(b, c)))
     # every element is its own inverse (Klein-four group property)
-    assert (hdc.klein4_bind(a, a) == 0).all()
+    assert hdc.klein4_bind(a, a).tolist() == [0] * len(a)
 
 
 def test_klein4_unbind():
     rng = np.random.default_rng(2)
     a = hdc.klein4_random(256, rng); b = hdc.klein4_random(256, rng)
-    assert (hdc.klein4_unbind(hdc.klein4_bind(a, b), a) == b).all()
+    assert (hdc.klein4_unbind(hdc.klein4_bind(a, b), a) == b)
 
 
 def test_klein4_chirality_flips():
@@ -55,12 +55,12 @@ def test_klein4_chirality_flips():
     a = hdc.klein4_random(64, rng)
     # γ₅ = XOR 2, iω₇ = XOR 1, CPT = XOR 3 = both flips composed
     assert (hdc.klein4_chirality_flip_omega7(hdc.klein4_chirality_flip_gamma5(a))
-            == hdc.klein4_cpt_mirror(a)).all()
+            == hdc.klein4_cpt_mirror(a))
     # each flip is an involution
     for flip in (hdc.klein4_chirality_flip_gamma5,
                  hdc.klein4_chirality_flip_omega7,
                  hdc.klein4_cpt_mirror):
-        assert (flip(flip(a)) == a).all()
+        assert (flip(flip(a)) == a)
     # explicit sector map
     base = np.array([0, 1, 2, 3], dtype=np.uint8)
     assert list(hdc.klein4_chirality_flip_gamma5(base)) == [2, 3, 0, 1]
@@ -86,7 +86,7 @@ def test_klein4_similarity_and_sector_count():
     assert hdc.klein4_similarity(a, a) == 1.0
     x = np.array([0, 1, 2, 3], np.uint8); y = np.array([0, 1, 3, 3], np.uint8)
     assert hdc.klein4_similarity(x, y) == pytest.approx(0.75)
-    assert hdc.klein4_sector_count(np.array([0, 0, 1, 2, 2, 2, 3], np.uint8)).tolist() == [2, 1, 3, 1]
+    assert hdc.klein4_sector_count(np.array([0, 0, 1, 2, 2, 2, 3], np.uint8)) == [2, 1, 3, 1]
 
 
 def test_klein4_validation():
@@ -101,17 +101,17 @@ def test_klein4_validation():
 # --------------------------------------------------------------------------
 
 def _c_bind(a, b):
-    n = a.size
-    ab = (ctypes.c_uint8 * n).from_buffer_copy(a.astype(np.uint8).tobytes())
-    bb = (ctypes.c_uint8 * n).from_buffer_copy(b.astype(np.uint8).tobytes())
+    n = len(a)
+    ab = (ctypes.c_uint8 * n).from_buffer_copy(a.tobytes())
+    bb = (ctypes.c_uint8 * n).from_buffer_copy(b.tobytes())
     out = (ctypes.c_uint8 * n)()
     assert _native.LIB.srmech_klein4_bind(ab, bb, n, out) == _native.SRMECH_OK
     return np.frombuffer(bytes(out), dtype=np.uint8).copy()
 
 
 def _c_bundle(vecs):
-    n = vecs[0].size; nv = len(vecs)
-    bufs = [(ctypes.c_uint8 * n).from_buffer_copy(v.astype(np.uint8).tobytes()) for v in vecs]
+    n = len(vecs[0]); nv = len(vecs)
+    bufs = [(ctypes.c_uint8 * n).from_buffer_copy(v.tobytes()) for v in vecs]
     ptr = (ctypes.POINTER(ctypes.c_uint8) * nv)(
         *(ctypes.cast(b, ctypes.POINTER(ctypes.c_uint8)) for b in bufs)
     )
@@ -121,9 +121,9 @@ def _c_bundle(vecs):
 
 
 def _c_similarity(a, b):
-    n = a.size
-    ab = (ctypes.c_uint8 * n).from_buffer_copy(a.astype(np.uint8).tobytes())
-    bb = (ctypes.c_uint8 * n).from_buffer_copy(b.astype(np.uint8).tobytes())
+    n = len(a)
+    ab = (ctypes.c_uint8 * n).from_buffer_copy(a.tobytes())
+    bb = (ctypes.c_uint8 * n).from_buffer_copy(b.tobytes())
     out = ctypes.c_double(0.0)
     assert _native.LIB.srmech_klein4_similarity(ab, bb, n, ctypes.byref(out)) == _native.SRMECH_OK
     return out.value
@@ -178,7 +178,7 @@ def test_klein4_sectors_value_preserving_across_modes():
     assert np.array_equal(hdc.klein4_bind(a, b, sectors=4, mode="chirality"), bind1)
     # bundle: chunk bit-identical; chirality runs + preserves shape.
     assert np.array_equal(hdc.klein4_bundle(*vs, sectors=4, mode="chunk"), bund1)
-    assert hdc.klein4_bundle(*vs, sectors=4, mode="chirality").shape == bund1.shape
+    assert len(hdc.klein4_bundle(*vs, sectors=4, mode="chirality")) == len(bund1)
     # similarity: chunk + chirality(sector-0) both EXACTLY == serial float.
     assert hdc.klein4_similarity(a, b, sectors=4, mode="chunk") == sim1
     assert hdc.klein4_similarity(a, b, sectors=4, mode="chirality") == sim1
@@ -245,8 +245,8 @@ _requires_triality_native = pytest.mark.skipif(
 
 
 def _c_triality(arr, inverse=False):
-    n = arr.size
-    inp = (ctypes.c_uint8 * n).from_buffer_copy(arr.astype(np.uint8).tobytes())
+    n = len(arr)
+    inp = (ctypes.c_uint8 * n).from_buffer_copy(arr.tobytes())
     out = (ctypes.c_uint8 * n)()
     rc = _native.LIB.srmech_klein4_triality_cycle(
         inp, n, 1 if inverse else 0, out

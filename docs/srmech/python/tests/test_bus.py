@@ -1288,21 +1288,30 @@ def test_bio_totp_decrypt_rejects_channel_id_mismatch():
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     mismatched_plaintext = _bio_make_event_bytes(1, 999, {"x": 1})
-    body = sender.encrypt(mismatched_plaintext)
+    # Pin the TOTP window on BOTH ends. Without this, the real wall clock
+    # can tick over a window boundary between encrypt and decrypt (~1/8 of
+    # runs); the wrong-window decrypt then yields garbage that fails the
+    # UTF-8/JSON parse, so the binding fields read as ABSENT and permissive
+    # mode accepts (return not strict) — routing AROUND the present-but-
+    # mismatched rejection this test means to exercise. Deterministic clock
+    # => the plaintext decrypts correctly => binding is present-but-mismatched.
+    body = sender.encrypt(mismatched_plaintext, time_ns=_BIO_FIXED_NS)
     with pytest.raises(BioTotpDecryptError):
-        receiver.decrypt(body)
+        receiver.decrypt(body, time_ns=_BIO_FIXED_NS)
 
 
 def test_bio_totp_decrypt_rejects_replay():
     dna = b"k" * 32
     sender = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
     receiver = BioTotpChannel(dna=dna, sender_id=1, channel_id=2)
-    body = sender.encrypt(b"frame 0")
-    receiver.decrypt(body)
+    # Pin the TOTP window (same clock-straddle hazard as the channel-id
+    # test above) so the first decrypt is deterministic.
+    body = sender.encrypt(b"frame 0", time_ns=_BIO_FIXED_NS)
+    receiver.decrypt(body, time_ns=_BIO_FIXED_NS)
     # Replaying the same frame must raise (packet_seq no longer
     # strictly greater than last_recv_seq).
     with pytest.raises(BioTotpDecryptError):
-        receiver.decrypt(body)
+        receiver.decrypt(body, time_ns=_BIO_FIXED_NS)
 
 
 def test_bio_totp_decrypt_rejects_short_frame():

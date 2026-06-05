@@ -100,9 +100,10 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     list[dict]
         ``[{"name": str, "class": <A–N class composition>, "purpose":
         str, "kind": "stage" | "combinator", "provenance": "srmech" |
-        "user"}, ...]``, sorted ascending by ``name``. Includes the 10
-        shipped ops (the 8 v0.5.0rc12 lean-ISA atoms/composites + the v0.6.0
-        parallel_sector_dispatch + kuramoto_step) PLUS any bring-your-own
+        "user"}, ...]``, sorted ascending by ``name``. Includes the 11
+        shipped ops (the 8 lean-ISA atoms/composites + the v0.7.0rc8
+        autocorrelation + the v0.6.0 parallel_sector_dispatch + kuramoto_step)
+        PLUS any bring-your-own
         ops from a registered catalog dir (F289 D2). ``kind`` is the DSL
         role: ``"stage"`` = a plain ``op=`` value→value stage;
         ``"combinator"`` = a higher-order special form (``parallel_sector_dispatch``)

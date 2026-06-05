@@ -792,6 +792,53 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False)),
             returns=R("np.ndarray", "n × n symmetric matrix"),
         ),
+        # #797 op (b): directed / signed Laplacian (rc26). The dissolved
+        # Class-O signed-metric absorbed into L + the directed-navigation
+        # leg (magnetic / Hermitian Laplacian). Heavy eigen runs on the
+        # existing native symmetric/hermitian solvers; the standalone-C
+        # builder peers are the tracked next voxel.
+        ToolEntry(
+            name="srmech.amsc.laplacian.signed_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Signed graph Laplacian L = D̄ − A (real-symmetric, PSD); "
+                    "off-diagonal weights may be negative. Signed degree "
+                    "D̄_ii = Σ|A_ij| is the Class-K magnitude of the "
+                    "signed-metric (the dissolved Class O, now a Class-L "
+                    "sub-op). Kunegis et al. (2010).",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False,
+                          "may be negative")),
+            returns=R("np.ndarray", "n × n real-symmetric PSD signed Laplacian"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.magnetic_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Magnetic (Hermitian) Laplacian of a DIRECTED graph "
+                    "(#797 op (b)): direction encoded as phase "
+                    "exp(i·2π·q·(W−Wᵀ)) so the graph stays Hermitian and "
+                    "hermitian_eigendecompose diagonalises it; the complex "
+                    "eigenpair is the directed-navigation signature. q=0 → "
+                    "real symmetrised Laplacian (undirected control).",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "directed u → v"),
+                        P("weights", "Optional[list[float]]", False),
+                        P("q", "float", False,
+                          "flux in turns per unit net flow; default 0.25")),
+            returns=R("np.ndarray", "n × n complex128 Hermitian matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
+            category="laplacian",
+            summary="The Fiedler navigation embedding: eigenvector of the "
+                    "second-smallest eigenvalue (λ₂) of a Laplacian. "
+                    "Dispatches real→symmetric_eigendecompose, "
+                    "complex→hermitian_eigendecompose (both native).",
+            parameters=(P("matrix", "np.ndarray", True,
+                          "n × n real-symmetric or complex-Hermitian Laplacian"),),
+            returns=R("np.ndarray", "length-n λ₂ eigenvector"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",
@@ -942,6 +989,73 @@ def _register_primitive_class_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # F150 chirality-harmonic variants (rc12) + §2.2 alignment.
+        # Per-operator harmonic classification + the chirality-aware
+        # variants placed next to their base Class op (no privileged
+        # namespace, per [[feedback_no_privileged_primitive_classes]]).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.harmonics.classify_harmonic", owner="srmech",
+            category="harmonics",
+            summary="Chirality-harmonic order (1/2/3) of an A–N class operator "
+                    "(F150): H1=ABFHN invariant, H2=CDEGKM mirror, H3=IJL 3-cycle.",
+            parameters=(P("class_letter", "str", True, "single A–N letter"),),
+            returns=R("int", "harmonic order 1, 2, or 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.harmonics.classify_chirality_harmonic", owner="srmech",
+            category="harmonics",
+            summary="Classify an encoded hypervector into chirality-harmonic 1/2/3 "
+                    "by its spectral symmetry signature (F150 §6.2).",
+            parameters=(P("hv", "np.ndarray", True, "encoded vector"),
+                        P("dc_threshold", "float", False)),
+            returns=R("int", "harmonic order 1, 2, or 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.dispatch.mirror_pattern", owner="srmech",
+            category="dispatch",
+            summary="Harmonic-2 chiral mirror of a dispatch pattern (F150): the "
+                    "byte-reversed needle; period-2 involution. Companion to match.",
+            parameters=(P("pattern", "bytes", True),),
+            returns=R("bytes", "byte-reversed pattern"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.naming.reverse_order", owner="srmech", category="naming",
+            summary="Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): "
+                    "the order-reversed (key, value) list; period-2 involution.",
+            parameters=(P("sorted_pairs", "list[tuple[bytes, bytes]]", True,
+                          "sorted (key, value) pairs"),),
+            returns=R("list", "order-reversed pairs"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.search.byte_search_backward", owner="srmech",
+            category="search",
+            summary="Harmonic-2 chiral mirror of byte_search (F150): offset of the "
+                    "LAST occurrence of `needle` in `haystack`, or None.",
+            parameters=(P("haystack", "bytes", True), P("needle", "bytes", True)),
+            returns=R("Optional[int]", "offset of last match or None"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.three_cycle", owner="srmech", category="cyclic",
+            summary="Harmonic-3 Z/3 cyclic shift (F150): (value+1)%3 on {0,1,2}; "
+                    "period-3 order-3 generator. Companion to the modular ops.",
+            parameters=(P("value", "int", True, "any non-negative int; read mod 3"),),
+            returns=R("int", "(value + 1) % 3"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.three_fold_eigvec_groups", owner="srmech",
+            category="laplacian",
+            summary="Harmonic-3 three-fold spectral reading (F150): partition the "
+                    "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
+            parameters=(P("L", "np.ndarray", True, "real-symmetric matrix"),),
+            returns=R("dict", "low/mid/high eigenvector bands"),
+        ),
+        # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
+        # registered — it takes a Python `similarity_fn` callable that cannot
+        # cross the JSON-RPC boundary, so it is not an MCP tool. It is exempt
+        # in tests/test_tool_schema_coverage.py::_EXEMPT_FUNCTION_NAMES.
+
+        # ────────────────────────────────────────────────────────────
         # Class F — substitution / templating
         # ────────────────────────────────────────────────────────────
         ToolEntry(
@@ -1073,6 +1187,146 @@ def _register_primitive_class_tools() -> None:
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.cos", owner="srmech", category="rational",
+            summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, then project the exact rational to float. Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); matches libm to ~1e-15.",
+            parameters=(P("x", "float", True, "angle in radians"),
+                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+            returns=R("float", "cos(x) projected from the exact rational"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.sin", owner="srmech", category="rational",
+            summary="sin(x) (radians) via the Class-N rational cascade (π-cascade range reduction + sin Taylor, projected to float). Substrate-native replacement for math.sin / np.sin; matches libm to ~1e-15.",
+            parameters=(P("x", "float", True, "angle in radians"),
+                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+            returns=R("float", "sin(x) projected from the exact rational"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.tan", owner="srmech", category="rational",
+            summary="tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
+            parameters=(P("x", "float", True, "angle in radians"),
+                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+            returns=R("float", "tan(x) projected from the exact rational"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.atan", owner="srmech", category="rational",
+            summary="atan(x) via the Class-N atan cascade with three-band argument reduction (√2∓1 edges → every series argument |·|<=√2−1; Class-K magnitude, no abs()). Substrate-native replacement for math.atan / np.arctan; machine-ε accurate.",
+            parameters=(P("x", "float", True, "argument"),
+                        P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
+            returns=R("float", "atan(x) in (-π/2, π/2)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.atan2", owner="srmech", category="rational",
+            summary="atan2(y, x) via the Class-N atan cascade with full quadrant logic. Substrate-native replacement for math.atan2 / np.arctan2; machine-ε accurate.",
+            parameters=(P("y", "float", True, "ordinate"),
+                        P("x", "float", True, "abscissa"),
+                        P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
+            returns=R("float", "atan2(y, x) in (-π, π]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.exp", owner="srmech", category="rational",
+            summary="e^x (real) via the Class-N exp cascade with argument-halving reduction (e^x = (e^(x/2^k))^(2^k); no irrational constant — exp is aperiodic). Substrate-native replacement for math.exp / np.exp (real).",
+            parameters=(P("x", "float", True, "real exponent"),
+                        P("terms", "int", False, "exp Taylor terms (keyword-only); default 24")),
+            returns=R("float", "e^x projected from the exact rational"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
+            summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp(1j*theta) / cmath.exp(1j*theta).",
+            parameters=(P("theta", "float", True, "phase angle in radians"),
+                        P("terms", "int", False, "trig Taylor terms (keyword-only); default 24")),
+            returns=R("complex", "e^(i*theta) on the unit circle"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.complex_exp", owner="srmech", category="rational",
+            summary="e^z for complex z = e^(z.real)*(cos(z.imag) + i*sin(z.imag)) via the Class-N cascade. Class-N exp + trig composed with Class-C i-rotation. Substrate-native replacement for np.exp / cmath.exp on a complex argument.",
+            parameters=(P("z", "complex", True, "complex exponent"),
+                        P("terms", "int", False, "trig Taylor terms (keyword-only); default 24")),
+            returns=R("complex", "e^z projected from the exact rational"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — Newton realised as integer floor-isqrt on a scaled-bignum radicand (Class-N rational + Class-K sqrt-convergence). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            parameters=(P("x", "float", True, "radicand, x >= 0"),
+                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
+            returns=R("float", "sqrt(x) projected from the scaled integer root"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.hypot", owner="srmech", category="rational",
+            summary="hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade — Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
+            parameters=(P("a", "float", True, "first leg"),
+                        P("b", "float", True, "second leg"),
+                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
+            returns=R("float", "Euclidean norm sqrt(a^2 + b^2)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
+            summary="Discrete Fourier transform as the Antikythera epicycle-sum X_k = sum_n x_n * e^(-2pi*i*(k*n mod N)/N): Class I (cyclic index) + Class N (twiddle) + Class C (i-rotation) + Class M (bundle). Pure-Python O(N^2); substrate-native replacement for numpy.fft.fft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input samples"),
+                        P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
+            returns=R("list[complex]", "DFT spectrum (or inverse)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.idft", owner="srmech", category="cascade",
+            summary="Inverse DFT — dft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for numpy.fft.ifft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input spectrum"),),
+            returns=R("list[complex]", "time-domain samples"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.fft", owner="srmech", category="cascade",
+            summary="Fast Fourier transform — the radix-2 Cooley-Tukey butterfly. Same value as dft() but O(N log N) when N is a power of two, adding Class J (radix N=2*(N/2) factorization) + Class K (butterfly recursion depth) on top of the DFT cascade. Falls back to direct dft() for non-power-of-2 N, so it is a drop-in for numpy.fft.fft at ANY length.",
+            parameters=(P("x", "list[complex]", True, "input samples"),
+                        P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
+            returns=R("list[complex]", "FFT spectrum (or inverse)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.ifft", owner="srmech", category="cascade",
+            summary="Inverse FFT — fft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for numpy.fft.ifft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input spectrum"),),
+            returns=R("list[complex]", "time-domain samples"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
+            summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for numpy.kron.",
+            parameters=(P("a", "list[list[complex]]", True, "left matrix (list of rows)"),
+                        P("b", "list[list[complex]]", True, "right matrix (list of rows)")),
+            returns=R("list[list[complex]]", "Kronecker product block matrix"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
+            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no np.linalg.qr in the call graph. mode='reduced' (default, matching numpy.linalg.qr) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+                        P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
+            returns=R("tuple[np.ndarray, np.ndarray]", "(Q, R): orthonormal-column Q + upper-triangular R"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
+            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no np.linalg.svd. full_matrices=False (reduced form). Singular values match numpy.linalg.svd to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+                        P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
+            returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]", "(U, s, Vh): singular vectors + descending singular values"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
+            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no np.linalg.lstsq. Matches numpy.linalg.lstsq(a,b)[0] to round-off.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) coefficient matrix, m>=n"),
+                        P("b", "np.ndarray", True, "(m,) or (m, k) right-hand side(s)")),
+            returns=R("np.ndarray", "least-squares solution x, shape (n,) or (n, k)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
+            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to numpy.einsum.",
+            parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
+                        P("operands", "tuple[np.ndarray, ...]", False, "the input arrays (variadic)")),
+            returns=R("np.ndarray", "the contracted tensor"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
+            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no np.linalg.eig/eigvals. Eigenvalues unique as a SET; the multiset matches numpy.linalg.eigvals to ~1e-12 for moderate sizes.",
+            parameters=(P("a", "np.ndarray", True, "(n, n) real or complex square matrix"),
+                        P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
+            returns=R("np.ndarray", "length-n complex eigenvalue array"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
@@ -1366,6 +1620,57 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
             returns=R("np.ndarray", "int64 length-4 counts"),
         ),
+        # #797 op (a2): holographic erasure code (rc27; F353 substitute).
+        # The order-2 store is k=2-DETECT; this adds k=3-CORRECT with no Z3.
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_holographic_encode", owner="srmech",
+            category="hdc",
+            summary="Holographic erasure-encode a Klein-4 store into `replicas` "
+                    "copies (#797 op (a2), F353): any one replica-subregion "
+                    "(1/replicas) reconstructs the whole — k=3-CORRECT with no "
+                    "Z3. replicas=4 → 3/4 known-erasure, 1/4 blind correction.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                        P("replicas", "int", False, "redundant copies; default 4")),
+            returns=R("np.ndarray", "uint8 store of length len(v)*replicas"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_holographic_decode", owner="srmech",
+            category="hdc",
+            summary="Reconstruct a Klein-4 store from a holographic erasure "
+                    "encoding. erased=mask → first-surviving-replica (exact up "
+                    "to (replicas-1)/replicas known erasure); erased=None → "
+                    "per-position majority (blind, corrects ≤floor((r-1)/2)).",
+            parameters=(P("store", "np.ndarray", True, "uint8; len % replicas == 0"),
+                        P("replicas", "int", False, "replica count from encode"),
+                        P("erased", "Optional[np.ndarray]", False,
+                          "bool mask over store; True = erased")),
+            returns=R("np.ndarray", "uint8 reconstructed length len(store)//replicas"),
+        ),
+        # #797 op (a1): explicit order-3 triality corrector (rc28; F359 contract).
+        # The k=2-DETECT order-2 store gains k=3-CORRECT from the order-3 triality
+        # orbit — the EXPLICIT path (op (a2) is the measured no-Z3 substitute).
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_encode", owner="srmech",
+            category="hdc",
+            summary="Encode a Klein-4 store as its order-3 triality orbit "
+                    "[v,T(v),T²(v)] (#797 op (a1), F359): the third block T²v is "
+                    "the order-3 third vote past the order-2 4-cap, NOT an "
+                    "external 3rd render. Paired with klein4_triality_correct.",
+            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            returns=R("np.ndarray", "uint8 store of length len(v)*3 = [v|T(v)|T²(v)]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_triality_correct", owner="srmech",
+            category="hdc",
+            summary="Correct a Klein-4 store via the order-3 triality 2-of-3 "
+                    "majority (#797 op (a1), F359): invert the triality to the "
+                    "common v-frame (T⁻¹/T) then majority-vote — k=3-CORRECT vs "
+                    "the bare order-2 k=2-DETECT. depth!=1 raises (width-only; the "
+                    "continuum count-recursion is open math, F359 bar 5).",
+            parameters=(P("store", "np.ndarray", True, "uint8; len % 3 == 0"),
+                        P("depth", "int", False, "only 1 (the width-step) in-domain")),
+            returns=R("np.ndarray", "uint8 reconstructed length len(store)//3"),
+        ),
         # ────────────────────────────────────────────────────────────
         # Loop bind (Moufang) — the k=7 gauge ARITHMETIC (v0.7.0 / MS #21).
         # M∘C with a Class-K associator residue; NO new class. Baez 2002.
@@ -1554,10 +1859,12 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Class C cascade-orientation: re-apply a captured "
                     "orientation {-1,0,+1} to a value (negates iff "
-                    "orientation < 0). Pairs with pin_slot_at_zero."
+                    "orientation < 0). Data-first DSL stage — value is "
+                    "positional, orientation is keyword-only (op=\"reorient\" "
+                    "+ orientation=-1). Pairs with pin_slot_at_zero."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("orientation", "int", True, "in {-1,0,+1}"),
-                        P("value", "number", True, "magnitude to re-sign")),
+            parameters=(P("value", "number", True, "magnitude to re-sign (data arg, first)"),
+                        P("orientation", "int", True, "in {-1,0,+1}; keyword-only")),
             returns=R("number", "value, negated iff orientation < 0"),
         ),
         ToolEntry(
@@ -1654,13 +1961,72 @@ def _register_primitive_class_tools() -> None:
                     "NO abs(), NOT a new privileged primitive. Dispatches to the "
                     "co-equal C peer srmech_autocorrelation_f64 (the DIRECT O(n²) "
                     "multiply-add sum — JPL-clean: no FFT, no recursion, no "
-                    "transcendentals, embedded-ready) when HAS_NATIVE; the pure-"
-                    "Python fallback uses the fast numpy FFT. Parity to FFT round-"
-                    "off (~1e-12, NOT bit-exact — different accumulation order). "
-                    "n==0 is []." + PUBLISH_OPT_IN_NOTE,
+                    "transcendentals, embedded-ready) when HAS_NATIVE; the no-"
+                    "native fallback computes the SAME direct sum in pure Python "
+                    "(math.fsum; numpy-free since v0.7.0rc30, UPSTREAM §22). Parity "
+                    "of the native sum to FFT round-off (~1e-12, NOT bit-exact — "
+                    "different accumulation order). n==0 is []." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "sequence", True, "the real signal (length n)"),),
             returns=R("list[float]",
                       "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
+        ),
+        # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380) — the
+        # native transform for a Klein-4 object. COMPOSITES over qm.octonion
+        # left/right-mult atoms; scientific tier (§22: numpy on call).
+        ToolEntry(
+            name="srmech.amsc.cascade.quaternion_dft", owner="srmech",
+            category="cascade",
+            summary="QUATERNION discrete Fourier transform (QDFT) — the native "
+                    "transform for a Klein-4 object. A Klein-4 object has TWO Z₂ "
+                    "chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
+                    "FFT first projects it to ℂ and collapses one axis (the flat "
+                    "shadow). The QDFT's ℍ coefficient algebra MATCHES the object's "
+                    "value algebra, so BOTH axes survive. Composite over the "
+                    "qm.octonion left/right-mult atoms (the ℍ non-commutativity is "
+                    "load-bearing → genuine left/right forms; the twiddle "
+                    "exp(μθ)=cos θ+μ·sin θ cannot be factored out as in the complex "
+                    "FFT). X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n]; inverse(forward(x))=x to "
+                    "float round-off, recovering ALL FOUR components. Class M (Clifford/"
+                    "HDC multiply) ∘ C (twiddle ±μ orientation) ∘ N (rational angle "
+                    "kn/N); no new primitive class, no abs(). Scientific tier "
+                    "(UPSTREAM §22): requires numpy on call. Sangwine & Ell (2012), "
+                    "arXiv:1001.4379." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"),
+                P("form", "str", False, "'left' (W·x) or 'right' (x·W); default 'left'"),
+                P("mu_axis", "str", False, "transform axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("inverse", "bool", False, "inverse QDFT (conjugate twiddle + 1/N); default False"),
+            ),
+            returns=R("list[list[float]]", "N quaternions (4-component lists)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.octonion_dft", owner="srmech",
+            category="cascade",
+            summary="OCTONION discrete Fourier transform (ODFT) — the (8:7) rung "
+                    "above the QDFT. Composite over the qm.octonion left/right-mult "
+                    "atoms. Carries the F378 NON-ASSOCIATIVITY as an EXPLICIT declared "
+                    "field: the two-sided ODFT (W_l·x·W_r) is not unique, so "
+                    "`bracketing` ∈ {'left_associated','right_associated'} "
+                    "((W_l·x)·W_r vs W_l·(x·W_r)) MUST be stated — these differ for "
+                    "octonions. The one-sided forms ('left'/'right') round-trip "
+                    "(inverse(forward(x))=x); the two-sided form is forward-only "
+                    "(its inverse is open under non-associativity → raises). Class M "
+                    "(octonion multiply) ∘ C (twiddle orientation) ∘ N (rational "
+                    "angle); no new primitive class, no abs(). Scientific tier "
+                    "(UPSTREAM §22): requires numpy on call. Błaszczyk (2019), "
+                    "arXiv:1905.12631; origin Hahn & Snopek (2011), Bull. Polish "
+                    "Acad. Sci. 59(2):167–181." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "N octonion samples, each 8-component [e0..e7]"),
+                P("form", "str", False, "'left'|'right'|'two_sided'; default 'left'"),
+                P("mu_axis", "str", False, "left/single axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("bracketing", "str", False,
+                  "two-sided association: 'left_associated'|'right_associated' (F378); default 'left_associated'"),
+                P("two_sided_right_axis", "str", False, "right twiddle axis μ_r; default 'j'"),
+                P("inverse", "bool", False, "inverse ODFT (one-sided only); default False"),
+            ),
+            returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
@@ -1736,7 +2102,7 @@ def _register_primitive_class_tools() -> None:
                     "sector-transformed input — 0 cross-thread reads (the F233 "
                     "4-way independence), so parallel == serial bit-for-bit. "
                     "T_s composes the two commuting Class-C involutions: γ₅ = "
-                    "chiral_flip (reversal), iω₇ = reorient(-1,·) (per-element "
+                    "chiral_flip (reversal), iω₇ = reorient(·, orientation=-1) (per-element "
                     "sign-flip); sector 2 (γ₅-only) == cascade.chiral_dual "
                     "bit-exact (the F232 2-rung object). Z₄ quarter-turn dispatch "
                     "slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the "
@@ -2932,7 +3298,7 @@ def _register_introspect_tools() -> None:
 def _register_dsl_tools() -> None:
     """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
 
-    The rc8 cascade DSL (``srmech.dsl.*``) composes the 8 cascade-catalog
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 13 cascade-catalog
     ops via a fluent builder (``chain().then(...).loop(...)...``). That
     method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
     can't chain builder methods. So this voxel exposes the *declarative*
@@ -2945,7 +3311,7 @@ def _register_dsl_tools() -> None:
     * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
       TOML chain spec + run it atomically; an LLM composes AND runs a
       cascade in one call.
-    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 10 cascade-catalog
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 13 cascade-catalog
       ops + their A–N class + purpose, so an LLM knows which op names a
       spec may use.
 
@@ -2983,7 +3349,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 10-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 13-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -3030,12 +3396,15 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (8 ops: "
-                "best_rational_signed, chiral_dual, chiral_flip, "
-                "cyclic_gcd, magnitude, net_chirality, pin_slot_at_zero, "
-                "reorient). Framework reading: Class E (catalog "
-                "enumeration) ∘ Class F (descriptor render). No "
-                "parameters." + rc12
+                "ops the runner can actually resolve (13 ops: "
+                "autocorrelation, best_rational_signed, chiral_dual, "
+                "chiral_flip, cyclic_gcd, kuramoto_step, magnitude, "
+                "net_chirality, octonion_dft, parallel_sector_dispatch, "
+                "pin_slot_at_zero, quaternion_dft, reorient). Each record "
+                "also carries a `kind` "
+                "(`stage` | `combinator`) and `provenance` (`srmech` | "
+                "`user`). Framework reading: Class E (catalog enumeration) "
+                "∘ Class F (descriptor render). No parameters." + rc12
             ),
             parameters=(),
             returns=ToolReturn(

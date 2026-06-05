@@ -37,9 +37,10 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-import math
 
 import numpy as np
+
+from srmech.amsc import rational as _srn
 
 
 # ----------------------------------------------------------------------
@@ -67,7 +68,8 @@ def higgs_potential(phi: complex, mu_squared: float, lam: float) -> float:
         raise ValueError(f"higgs_potential: mu_squared must be > 0; got {mu_squared}")
     if lam <= 0:
         raise ValueError(f"higgs_potential: lam must be > 0; got {lam}")
-    phi_sq = abs(phi) ** 2
+    # |φ|² = real²+imag² (no abs()); value-identical for real (imag==0) and complex φ.
+    phi_sq = phi.real ** 2 + phi.imag ** 2
     return -mu_squared * phi_sq + lam * phi_sq * phi_sq
 
 
@@ -90,7 +92,7 @@ def higgs_vev(mu_squared: float, lam: float) -> float:
         raise ValueError(f"higgs_vev: mu_squared must be > 0; got {mu_squared}")
     if lam <= 0:
         raise ValueError(f"higgs_vev: lam must be > 0; got {lam}")
-    return math.sqrt(mu_squared / (2.0 * lam))
+    return _srn.sqrt(mu_squared / (2.0 * lam))
 
 
 # ----------------------------------------------------------------------
@@ -114,7 +116,7 @@ def weak_mixing_angle(g: float, g_prime: float) -> float:
     """
     if g <= 0:
         raise ValueError(f"weak_mixing_angle: g must be > 0; got {g}")
-    return math.atan2(g_prime, g)
+    return _srn.atan2(g_prime, g)
 
 
 def w_boson_mass(g: float, vev: float) -> float:
@@ -157,7 +159,7 @@ def z_boson_mass(g: float, g_prime: float, vev: float) -> float:
             f"z_boson_mass: g, g_prime, vev must all be > 0; got "
             f"g={g}, g_prime={g_prime}, vev={vev}"
         )
-    return vev * math.sqrt(g * g + g_prime * g_prime) / 2.0
+    return vev * _srn.sqrt(g * g + g_prime * g_prime) / 2.0
 
 
 def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
@@ -172,7 +174,9 @@ def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
     MW = w_boson_mass(g, vev)
     MZ = z_boson_mass(g, g_prime, vev)
     theta_W = weak_mixing_angle(g, g_prime)
-    return abs(MW - MZ * math.cos(theta_W))
+    # Class-K magnitude via explicit sign-branch (no abs()); scalar real.
+    _d = MW - MZ * _srn.cos(theta_W)
+    return _d if _d >= 0.0 else -_d
 
 
 def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:
@@ -188,8 +192,8 @@ def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:
         "M_W": w_boson_mass(g, vev),
         "M_Z": z_boson_mass(g, g_prime, vev),
         "theta_W_rad": theta_W,
-        "cos_theta_W": math.cos(theta_W),
-        "sin_theta_W": math.sin(theta_W),
+        "cos_theta_W": _srn.cos(theta_W),
+        "sin_theta_W": _srn.sin(theta_W),
         "weinberg_residual": weinberg_relation_residual(g, g_prime, vev),
     }
 
@@ -217,7 +221,7 @@ def fermion_mass_from_yukawa(yukawa: float, vev: float) -> float:
     """
     if vev <= 0:
         raise ValueError(f"fermion_mass_from_yukawa: vev must be > 0; got {vev}")
-    return yukawa * vev / math.sqrt(2.0)
+    return yukawa * vev / _srn.sqrt(2.0)
 
 
 # ----------------------------------------------------------------------
@@ -255,9 +259,9 @@ def ckm_matrix(
     Returns:
         3×3 complex unitary matrix.
     """
-    c12, s12 = math.cos(theta_12), math.sin(theta_12)
-    c13, s13 = math.cos(theta_13), math.sin(theta_13)
-    c23, s23 = math.cos(theta_23), math.sin(theta_23)
+    c12, s12 = _srn.cos(theta_12), _srn.sin(theta_12)
+    c13, s13 = _srn.cos(theta_13), _srn.sin(theta_13)
+    c23, s23 = _srn.cos(theta_23), _srn.sin(theta_23)
     phase = np.exp(1j * delta_cp)
     inv_phase = np.exp(-1j * delta_cp)
     V = np.array([

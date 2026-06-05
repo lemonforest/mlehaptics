@@ -386,8 +386,13 @@ def sha256_bytes(data: bytes) -> str:
 
     Task #201 Phase B3 — dispatches to the native C implementation
     (``srmech.amsc._native.sha256_hex_c``) when the shared library
-    is available, otherwise uses stdlib ``hashlib``. The two paths
-    are byte-identical (pinned by ``tests/test_native_sha256.py``).
+    is available, otherwise uses stdlib ``hashlib``. v0.7.0rc18 (F292
+    graft #3) prefers the SHA-NI single-stream peer
+    (``srmech.amsc._native.sha256_shani_c``) when the rc18 symbol is
+    present — on hosts that carry the Intel SHA Extensions this runs the
+    SHA-NI kernel, and on hosts without it the symbol runs the scalar path
+    *inside the C call*, so every dispatch arm is byte-identical (all
+    pinned by ``tests/test_native_sha256.py`` + ``tests/test_sha256_shani.py``).
 
     Returns:
         A ``str`` of exactly 64 lowercase hex characters (the Class A
@@ -403,6 +408,9 @@ def sha256_bytes(data: bytes) -> str:
     # HAS_NATIVE flag, even when the .so is absent.
     from . import _native
     if _native.HAS_NATIVE:
+        if (getattr(_native, "LIB", None) is not None
+                and hasattr(_native.LIB, "srmech_sha256_shani")):
+            return _native.sha256_shani_c(data)
         return _native.sha256_hex_c(data)
     h = hashlib.sha256()
     h.update(data)

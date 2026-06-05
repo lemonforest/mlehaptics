@@ -27,7 +27,42 @@ from typing import Iterable, Tuple
 
 from . import _native
 
-__all__ = ["match"]
+__all__ = ["match", "mirror_pattern"]
+
+
+def mirror_pattern(pattern: bytes) -> bytes:
+    """Harmonic-2 chiral mirror of a dispatch pattern (F150): the byte-reversed
+    needle. Class D is harmonic-2 (chiral inverse / self-inverse) per F150 §6.1
+    — ``mirror_pattern(mirror_pattern(p)) == p`` (period 2). Matching a
+    mirror-reversed input against the mirrored pattern yields the mirror match;
+    the chirality-aware companion to :func:`match`. ``pattern`` is bytes-like.
+    """
+    if not isinstance(pattern, (bytes, bytearray, memoryview)):
+        raise TypeError(
+            f"pattern must be bytes-like; got {type(pattern).__name__}"
+        )
+    p = bytes(pattern)
+    if len(p) == 0:
+        return b""
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_mirror_pattern")
+        and len(p) <= 0xFFFF_FFFF
+    ):
+        in_ptr = (ctypes.c_uint8 * len(p)).from_buffer_copy(p)
+        out_buf = (ctypes.c_uint8 * len(p))()
+        rc = _native.LIB.srmech_mirror_pattern(
+            in_ptr,
+            ctypes.c_uint32(len(p)),
+            out_buf,
+        )
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_mirror_pattern returned non-OK status {rc}"
+            )
+        return bytes(out_buf)
+    return p[::-1]
 
 
 def match(input_bytes: bytes,

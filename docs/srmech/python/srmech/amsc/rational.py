@@ -44,6 +44,16 @@ __all__ = [
     "log1p_series_truncate",
     "atan_series_truncate",
     "pi_cascade_digits",
+    "cos",
+    "sin",
+    "tan",
+    "atan",
+    "atan2",
+    "exp",
+    "cexp",
+    "complex_exp",
+    "sqrt",
+    "hypot",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -316,7 +326,10 @@ def exp_series_truncate(numerator: int,
     # Reduce to lowest terms via Class N rational gcd:
     if sum_num == 0:
         return (0, 1)
-    g = math.gcd(abs(sum_num), sum_den)
+    # Class-K magnitude as an EXPLICIT sign-branch, never an ALU abs()
+    # (sum_den is already positive upstream).
+    num_mag = sum_num if sum_num >= 0 else -sum_num
+    g = math.gcd(num_mag, sum_den)
     out_num = sum_num // g
     out_den = sum_den // g
     # Ensure denominator is positive.
@@ -346,7 +359,10 @@ def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
         return (0, 1)
-    g = math.gcd(abs(num), abs(den))
+    # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
+    num_mag = num if num >= 0 else -num
+    den_mag = den if den >= 0 else -den
+    g = math.gcd(num_mag, den_mag)
     num //= g
     den //= g
     if den < 0:
@@ -698,6 +714,294 @@ def atan_series_truncate(numerator: int,
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
     return _reduce_rational(num, den)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Float-projection trig — substrate-native cos/sin/tan/atan/atan2.
+#
+# These are the Class-N replacements for ``math.cos`` / ``math.sin`` /
+# ``np.cos`` / ``np.sin`` / ``math.atan2`` / ``np.arctan2``. The exact
+# rational cascade IS the substrate-native computation; the returned
+# float is only the observer-frame *projection* of that rational (the
+# continuous number line is a projection per
+# ``[[feedback_continuous_number_line_pedagogical_obstacle]]``). There is
+# no ``math.cos`` / ``np.cos`` anywhere in the call graph.
+#
+# Pipeline (resolves the "trig that can replace numpy" gap — the bare
+# series were always globally convergent; what was missing was the
+# range-reduction wrapper that composes them with the π-cascade):
+#   1. range-reduce the angle into ≈[-π, π] using a high-precision π
+#      drawn from ``pi_cascade_digits`` (Archimedes hexagon-doubling) —
+#      exact rational arithmetic;
+#   2. anchor the reduced angle to a fixed-denominator Class-N rational;
+#   3. cos/sin Taylor partial sum (``cos_series_truncate`` /
+#      ``sin_series_truncate``);
+#   4. project the exact rational to float.
+# Range reduction is what keeps the globally-convergent series cheap for
+# large arguments (e.g. DSP window angles ``2π·n/(N-1)``).
+# ──────────────────────────────────────────────────────────────────────
+
+# Digits of π used for range reduction (≈1e-50, far below the float
+# projection floor). Cached once; the cascade reruns only if a caller
+# asks for more digits than cached.
+_PI_RATIONAL_DIGITS: int = 50
+_PI_RATIONAL_CACHE: "Tuple[int, int] | None" = None
+
+# Class-N anchor denominator + Taylor term count for the float
+# projection. 10**15 anchors the reduced angle at the float64 precision
+# floor (≈1e-15) so the projection matches libm to machine scale while
+# keeping the reduced-angle bignums bounded; 24 cos/sin terms drive the
+# |x|<=π series residual below 1e-16.
+_TRIG_FLOAT_ANCHOR_DEN: int = 10 ** 15
+_TRIG_FLOAT_TERMS: int = 24
+_ATAN_FLOAT_TERMS: int = 40
+
+
+def _pi_rational(digits: int = _PI_RATIONAL_DIGITS) -> Tuple[int, int]:
+    """Return π as an exact rational ``(num, den)`` from the π-cascade.
+
+    Uses :func:`pi_cascade_digits` (Archimedes hexagon-doubling; no
+    ``math.pi``) and caches the default-precision value. ``den`` is
+    ``10**digits``.
+    """
+    global _PI_RATIONAL_CACHE
+    if _PI_RATIONAL_CACHE is not None and digits <= _PI_RATIONAL_DIGITS:
+        return _PI_RATIONAL_CACHE
+    decimal = pi_cascade_digits(digits)          # e.g. "3.1415926535..."
+    int_part, _, frac_part = decimal.partition(".")
+    num = int(int_part + frac_part) if frac_part else int(int_part)
+    den = 10 ** len(frac_part) if frac_part else 1
+    result = (num, den)
+    if digits <= _PI_RATIONAL_DIGITS:
+        _PI_RATIONAL_CACHE = result
+    return result
+
+
+def _principal_angle_anchor(x: float,
+                            anchor_den: int = _TRIG_FLOAT_ANCHOR_DEN
+                            ) -> Tuple[int, int]:
+    """Range-reduce ``x`` (radians) into ≈[-π, π] and anchor it to a
+    fixed-denominator Class-N rational ``(num, anchor_den)``.
+
+    Exact float→rational (``float.as_integer_ratio``) minus an integer
+    multiple of the cascade-derived 2π; the integer-turn selection is the
+    only floating step and is exact for ``|x|`` well within float range.
+    """
+    assert anchor_den > 0, "anchor denominator must be positive"
+    x = float(x)
+    x_num, x_den = x.as_integer_ratio()
+    pi_num, pi_den = _pi_rational()
+    tau_num, tau_den = 2 * pi_num, pi_den         # 2π = tau_num / tau_den
+    turns = round(x / (tau_num / tau_den))        # nearest integer turn
+    # reduced = x - turns * 2π  (exact rational)
+    red_num = x_num * tau_den - turns * tau_num * x_den
+    red_den = x_den * tau_den
+    # Project the reduced angle to float (in ≈[-π, π]) and anchor it.
+    anchored_num = round((red_num / red_den) * anchor_den)
+    return anchored_num, anchor_den
+
+
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``cos(x)`` (radians) via the Class-N rational cascade.
+
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
+    ``math.cos`` in the call graph. Matches the libm value to ≈1e-11 for
+    all real ``x`` (range reduction keeps the Taylor series cheap).
+    """
+    a_num, a_den = _principal_angle_anchor(x)
+    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
+    return c_num / c_den
+
+
+def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``sin(x)`` (radians) via the Class-N rational cascade.
+
+    Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    """
+    a_num, a_den = _principal_angle_anchor(x)
+    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
+    return s_num / s_den
+
+
+def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``tan(x) = sin(x)/cos(x)`` via the Class-N cascade."""
+    a_num, a_den = _principal_angle_anchor(x)
+    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
+    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
+    if c_num == 0:
+        raise ValueError("tan undefined: cos(x) == 0")
+    return (s_num * c_den) / (s_den * c_num)
+
+
+# tan(π/8) and cot(π/8) = √2∓1 — the band edges that keep every atan
+# series argument at |·| <= √2−1 ≈ 0.414 (term ratio ≈0.17), so the
+# alternating series reaches full float precision well within the term
+# cap (the bare series is slow only near |x|=1, which the middle band
+# below maps to a small argument).
+_TAN_PI_8: float = 0.41421356237309515       # √2 − 1
+_COT_PI_8: float = 2.414213562373095         # √2 + 1
+
+
+def _atan_nonneg(m: float, terms: int) -> float:
+    """``atan(m)`` for ``m >= 0`` via three-band Class-N reduction.
+
+    Band edges √2∓1 cap every series argument at ≤ √2−1 so the
+    alternating atan series reaches full precision; ``π`` is the
+    cascade-derived rational.
+    """
+    pi_num, pi_den = _pi_rational()
+    pi_f = pi_num / pi_den
+    if m <= _TAN_PI_8:
+        n, d = m.as_integer_ratio()
+        a_num, a_den = atan_series_truncate(n, d, terms)
+        return a_num / a_den
+    if m >= _COT_PI_8:
+        # atan(m) = π/2 − atan(1/m); 1/m ≤ √2−1
+        inv = 1.0 / m
+        n, d = inv.as_integer_ratio()
+        a_num, a_den = atan_series_truncate(n, d, terms)
+        return pi_f / 2.0 - a_num / a_den
+    # Middle band around 1: atan(m) = π/4 + atan((m−1)/(m+1)); |·| ≤ √2−1.
+    u = (m - 1.0) / (m + 1.0)
+    n, d = u.as_integer_ratio()
+    a_num, a_den = atan_series_truncate(n, d, terms)
+    return pi_f / 4.0 + a_num / a_den
+
+
+def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
+    """``atan(x)`` via the Class-N atan cascade with band reduction.
+
+    Class-K magnitude (no ``abs()``) + three-band argument reduction
+    (``|x|>1`` → ``π/2 − atan(1/x)``; the slow ``|x|≈1`` band →
+    ``π/4 + atan((|x|−1)/(|x|+1))``) so every series argument stays in
+    the fast-convergence region. Substrate-native replacement for
+    ``math.atan`` / ``np.arctan``.
+    """
+    x = float(x)
+    # Class-K pin-slot: magnitude + orientation without abs().
+    x_mag = x if x >= 0.0 else -x
+    r = _atan_nonneg(x_mag, terms)
+    return r if x >= 0.0 else -r                  # Class-C re-orientation
+
+
+def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
+    """``atan2(y, x)`` via the Class-N atan cascade with quadrant logic.
+
+    Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
+    """
+    y = float(y)
+    x = float(x)
+    pi_num, pi_den = _pi_rational()
+    pi_f = pi_num / pi_den
+    if x == 0.0:
+        if y > 0.0:
+            return pi_f / 2.0
+        if y < 0.0:
+            return -pi_f / 2.0
+        return 0.0
+    base = atan(y / x, terms=terms)
+    if x > 0.0:
+        return base
+    # x < 0: shift by ±π using the sign of y (Class-C orientation).
+    if y >= 0.0:
+        return base + pi_f
+    return base - pi_f
+
+
+# Default Taylor terms for the float-projection real exp (|reduced| <= 1).
+_EXP_FLOAT_TERMS: int = 24
+
+
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
+    """``e^x`` via the Class-N exp cascade with argument-halving reduction.
+
+    ``e^x = (e^(x/2^k))^(2^k)``: halve the argument until ``|x/2^k| <= 1``
+    (where the exp Taylor series converges fast), run
+    :func:`exp_series_truncate` on the exact float rational, project to
+    float, then square ``k`` times. No irrational constant is needed
+    (exp is aperiodic — unlike trig there is no π in the reduction).
+    Substrate-native replacement for ``math.exp`` / ``np.exp`` (real).
+    """
+    x = float(x)
+    if x == 0.0:
+        return 1.0
+    # Class-K magnitude (no abs()) to count the halvings.
+    x_mag = x if x >= 0.0 else -x
+    k = 0
+    while x_mag > 1.0:
+        x_mag = x_mag / 2.0
+        k += 1
+    reduced = x / (2 ** k)
+    rn, rd = float(reduced).as_integer_ratio()
+    en, ed = exp_series_truncate(rn, rd, terms)
+    val = en / ed
+    for _ in range(k):                            # (e^(x/2^k))^(2^k)
+        val = val * val
+    return val
+
+
+def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+    """``e^(i·theta) = cos(theta) + i·sin(theta)`` via the Class-N cascade.
+
+    Euler's formula: Class-N trig ∘ Class-C imaginary-unit rotation (the
+    imaginary unit *is* a 90° phase-plane rotation). Substrate-native
+    replacement for ``np.exp(1j*theta)`` / ``cmath.exp(1j*theta)`` — the
+    DFT twiddle factor and the quantum time-evolution phase.
+    """
+    return complex(cos(theta, terms=terms), sin(theta, terms=terms))
+
+
+def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+    """``e^z`` for complex ``z`` via the Class-N cascade.
+
+    ``e^z = e^(z.real)·(cos(z.imag) + i·sin(z.imag))`` — Class-N exp +
+    trig, composed by a Class-C imaginary-unit rotation. Substrate-native
+    replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
+    """
+    z = complex(z)
+    e_real = exp(z.real)
+    return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
+
+
+# Default scaled-integer precision for the float sqrt projection (bits
+# below the radix point; 64 → relative error well under the float64 floor).
+_SQRT_PRECISION_BITS: int = 64
+
+
+def sqrt(x: float, *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+    """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
+
+    Newton-Raphson realised as an **integer** floor-isqrt on a
+    scaled-bignum radicand (``_integer_sqrt``): **Class N** rational
+    arithmetic ∘ **Class K** sqrt-convergence (asymptotic-DoF). No float
+    ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
+    (domain error), matching ``math.sqrt``.
+    """
+    x = float(x)
+    if x < 0.0:                                   # Class-K pin-slot at zero
+        raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+    if x == 0.0:
+        return 0.0
+    xn, xd = x.as_integer_ratio()
+    # √(xn/xd) = isqrt(xn · 2^(2b) / xd) / 2^b  (exact float rational in,
+    # scaled integer Newton, project to float).
+    scale = 1 << (2 * precision_bits)
+    radicand = (xn * scale) // xd
+    root = _integer_sqrt(radicand)                # floor(√x · 2^b)
+    return root / (1 << precision_bits)
+
+
+def hypot(a: float, b: float,
+          *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+    """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
+
+    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
+    Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
+    complex modulus ``|z| = hypot(z.real, z.imag)``).
+    """
+    a = float(a)
+    b = float(b)
+    return sqrt(a * a + b * b, precision_bits=precision_bits)
 
 
 # ──────────────────────────────────────────────────────────────────────

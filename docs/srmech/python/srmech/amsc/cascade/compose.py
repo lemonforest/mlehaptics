@@ -35,6 +35,7 @@ from typing import List, Sequence, Tuple
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
 from srmech.amsc.rational import best_rational as _best_rational
+from srmech.amsc.rational import sin as _rsin  # §22: Class-N rational trig, not libm
 
 from .atoms import pin_slot_at_zero, reorient, _ZERO_BAND
 
@@ -178,7 +179,7 @@ def best_rational_signed(
     # Class N — best-rational anchor of the non-negative magnitude.
     nf, df = _best_rational(num_pos, fine_scale, max_denominator)
     # Class C — re-apply the captured orientation.
-    return reorient(orientation, int(nf)), int(df)
+    return reorient(int(nf), orientation=orientation), int(df)
 
 
 def _try_native_cyclic_gcd(a, b):
@@ -404,7 +405,8 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     (``srmech_autocorrelation_f64``) when ``HAS_NATIVE`` — that sum is the SAME
     object as the FFT route (no FFT in C, so JPL-clean: no recursion, no
     transcendentals), parity to FFT roundoff (~1e-12). The pure-Python fallback
-    uses the fast numpy FFT. ``n == 0 → []``.
+    is the SAME direct O(n²) circular-autocorrelation sum (numpy-free, so the
+    cascade layer runs with numpy absent — UPSTREAM §22). ``n == 0 → []``.
 
     Args:
         x: the real sequence (length ``n``).
@@ -416,12 +418,17 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     native = _try_native_autocorrelation(x)
     if native is not None:
         return native
-    import numpy as np  # lazy: only the FFT fallback needs numpy
-    xa = np.asarray([float(v) for v in x], dtype=float)
-    if xa.size == 0:
+    # Numpy-free fallback (UPSTREAM §22): the direct circular autocorrelation
+    # r[k] = Σ_n x[n]·x[(n+k) mod n] — identically IFFT(|FFT(x)|²) for real x,
+    # but with no FFT / no numpy. math.fsum keeps the per-bin sum well-conditioned.
+    xs = [float(v) for v in x]
+    n = len(xs)
+    if n == 0:
         return []
-    r = np.real(np.fft.ifft(np.abs(np.fft.fft(xa)) ** 2))
-    return [float(v) for v in r]
+    return [
+        math.fsum(xs[i] * xs[(i + k) % n] for i in range(n))
+        for k in range(n)
+    ]
 
 
 def kuramoto_step(
@@ -529,7 +536,7 @@ def kuramoto_step(
             theta_i = float(theta_list[i])
             coupling_sum = 0.0
             for j in range(n):
-                coupling_sum += math.sin(float(theta_list[j]) - theta_i)
+                coupling_sum += _rsin(float(theta_list[j]) - theta_i)
             out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
         return out
 
@@ -579,10 +586,10 @@ def kuramoto_step(
         s = 0.0
         for j in range(n):
             w = adj_flat[i * n + j] if adj_flat is not None else inv_n
-            s += w * math.sin(float(theta_list[j]) - theta_i - a)
+            s += w * _rsin(float(theta_list[j]) - theta_i - a)
         f = float(omega_list[i]) + s
         if psi is not None:
-            f += ps[i] * math.sin(psi[i] - theta_i)
+            f += ps[i] * _rsin(psi[i] - theta_i)
         out2.append(theta_i + h * f)
     return out2
 

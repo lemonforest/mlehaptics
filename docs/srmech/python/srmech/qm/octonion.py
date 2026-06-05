@@ -53,7 +53,7 @@ Canonical SSoT:
 from __future__ import annotations
 
 import functools
-import math
+from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import Tuple
 
 import numpy as np
@@ -348,7 +348,7 @@ def octonion_norm(x: np.ndarray) -> float:
     # Reduce to a SCALAR float first (cascade.magnitude raises on ndarray),
     # then the Class K pin-slot magnitude, then the square root. No abs().
     sum_sq = float(np.sum(x * x))
-    return math.sqrt(_magnitude(sum_sq))
+    return _rsqrt(_magnitude(sum_sq))
 
 
 __all__ = [

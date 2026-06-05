@@ -54,9 +54,20 @@
 #include "srmech.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
+ * computes its rotation-angle roots via the cascade, not libm (rc45,
+ * C-transpile triality). All call sites pass provably non-negative args. */
+static double lap_sqrt(double x)
+{
+    assert(x >= 0.0);
+    double out = 0.0;
+    (void)srmech_rational_sqrt(x, &out);
+    assert(out >= 0.0);
+    return out;
+}
 
 #define SRMECH_LAPLACIAN_MAX_NODES        256
 #define SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS 100
@@ -176,7 +187,7 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
     double d_inv_sqrt[SRMECH_LAPLACIAN_MAX_NODES];
     for (uint32_t i = 0; i < n; i++) {
         double d = srmech_laplacian_row_degree(n, i, out_matrix);
-        d_inv_sqrt[i] = (d > 0.0) ? (1.0 / sqrt(d)) : 0.0;
+        d_inv_sqrt[i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
     }
     /* L_sym = I − D^(−1/2) A D^(−1/2). */
     for (uint32_t r = 0; r < n; r++) {
@@ -209,15 +220,15 @@ static void srmech_laplacian_jacobi_rotate(uint32_t n, double *mat,
     if (a_pq == 0.0) {
         return;
     }
-    /* tau = (a_qq − a_pp) / (2 a_pq); t = sign(tau) / (|tau| + sqrt(tau²+1)). */
+    /* tau = (a_qq − a_pp) / (2 a_pq); t = sign(tau) / (|tau| + lap_sqrt(tau²+1)). */
     double tau = (a_qq - a_pp) / (2.0 * a_pq);
     double t;
     if (tau >= 0.0) {
-        t = 1.0 / (tau + sqrt(1.0 + tau * tau));
+        t = 1.0 / (tau + lap_sqrt(1.0 + tau * tau));
     } else {
-        t = 1.0 / (tau - sqrt(1.0 + tau * tau));
+        t = 1.0 / (tau - lap_sqrt(1.0 + tau * tau));
     }
-    double c = 1.0 / sqrt(1.0 + t * t);
+    double c = 1.0 / lap_sqrt(1.0 + t * t);
     double s = t * c;
     /* Update rows p and q across all columns. */
     for (uint32_t k = 0; k < n; k++) {
@@ -363,7 +374,7 @@ static void srmech_hermitian_jacobi_rotate(uint32_t n, double *H,
     if (g_mag_sq < 1e-300) {
         return;
     }
-    double g_mag = sqrt(g_mag_sq);
+    double g_mag = lap_sqrt(g_mag_sq);
     /* Phase factor e^(iθ) = γ/|γ| — pure algebra, no atan2. */
     double cosphi = g_re / g_mag;
     double sinphi = g_im / g_mag;
@@ -371,11 +382,11 @@ static void srmech_hermitian_jacobi_rotate(uint32_t n, double *H,
     double tau = (a_qq - a_pp) / (2.0 * g_mag);
     double t;
     if (tau >= 0.0) {
-        t = 1.0 / (tau + sqrt(1.0 + tau * tau));
+        t = 1.0 / (tau + lap_sqrt(1.0 + tau * tau));
     } else {
-        t = 1.0 / (tau - sqrt(1.0 + tau * tau));
+        t = 1.0 / (tau - lap_sqrt(1.0 + tau * tau));
     }
-    double c = 1.0 / sqrt(1.0 + t * t);
+    double c = 1.0 / lap_sqrt(1.0 + t * t);
     double s = t * c;
     /* Update H and V rows/columns p, q. Helper to keep ≤60 lines. */
     srmech_hermitian_apply_rotation(n, H, V, p, q, c, s, cosphi, sinphi);
@@ -683,14 +694,33 @@ srmech_status_t srmech_elementwise_transcendental(
     for (uint32_t i = 0; i < n; i++) {
         double x = arr[i];
         if (op_id == SRMECH_TRANS_EXP) {
-            out[i] = exp(x);
+            (void)srmech_exp(x, &out[i]);          /* Class-N exp cascade, not libm */
         } else if (op_id == SRMECH_TRANS_COS) {
-            out[i] = cos(x);
+            (void)srmech_cos(x, &out[i]);
         } else if (op_id == SRMECH_TRANS_SIN) {
-            out[i] = sin(x);
+            (void)srmech_sin(x, &out[i]);
         } else {
-            out[i] = log(x);
+            (void)srmech_log(x, &out[i]);          /* Class-N log cascade, not libm */
         }
     }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+                                        uint32_t *out_mid, uint32_t *out_high)
+{
+    assert(out_low != NULL && out_mid != NULL && out_high != NULL);
+    if (out_low == NULL || out_mid == NULL || out_high == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Harmonic-3 three-fold band split (F150): partition n eigenvectors into
+     * contiguous low/mid/high bands; the remainder rows go to the later bands
+     * so |low| <= |mid| <= |high|. Bit-exact with the Python reference. */
+    uint32_t base = n / 3u;
+    uint32_t rem = n - 3u * base;
+    *out_low = base;
+    *out_mid = base + (rem >= 2u ? 1u : 0u);
+    *out_high = n - *out_low - *out_mid;
+    assert(*out_low + *out_mid + *out_high == n);
     return SRMECH_OK;
 }

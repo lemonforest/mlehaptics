@@ -50,6 +50,41 @@ from srmech.introspect._event import describe_shape as _shape
 _ZERO_BAND = 1e-12
 
 
+def _require_real(x, op: str) -> None:
+    """Reject complex input to a Class K real-axis (pin-slot) atom.
+
+    :func:`pin_slot_at_zero` and :func:`magnitude` are **Class K pin-slot**
+    operations — real-axis sign-splits. A complex argument would otherwise
+    leak the internal ``x > 0.0`` comparison as an opaque
+    ``TypeError: '>' not supported between instances of 'complex' and
+    'float'`` (UPSTREAM_NOTES §15.1). This raises an intentional, actionable
+    contract error at the boundary instead — the srmech-side fix (b): keep
+    the op real-only, but fail cleanly rather than leaking the comparison.
+
+    The complex modulus ``(re**2 + im**2) ** 0.5`` is a **Euclidean-norm**
+    operation — a *different* cascade class, not a Class K pin-slot — so it
+    is deliberately out of scope for these atoms.
+
+    Catches both Python ``complex`` and numpy complex scalars / 0-d arrays
+    (``dtype.kind == 'c'``). Every real numeric (``int`` / ``float`` /
+    ``bool`` / ``Decimal`` / ``Fraction`` / numpy real scalar) is ordered
+    against ``0.0`` and passes through untouched.
+    """
+    is_complex = isinstance(x, complex)
+    if not is_complex:
+        # numpy complex scalars: complex64 is NOT a Python-complex subclass,
+        # so the isinstance check above misses it — check the dtype kind.
+        is_complex = getattr(getattr(x, "dtype", None), "kind", None) == "c"
+    if is_complex:
+        raise TypeError(
+            f"cascade.{op} is a Class K real-axis (pin-slot) operation and "
+            f"does not accept complex input ({x!r}); the complex modulus "
+            f"(re**2+im**2)**0.5 is a Euclidean-norm op — a different cascade "
+            f"class, not a Class K pin-slot. Use e.g. "
+            f"math.hypot(z.real, z.imag) for the modulus."
+        )
+
+
 def _try_native_pin_slot_at_zero(x):
     """Native dispatch for float ``pin_slot_at_zero``.
 
@@ -104,7 +139,13 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
         ``(orientation, magnitude)`` where ``orientation ∈ {-1, 0, +1}`` and
         ``magnitude >= 0``. The origin and NaN both map to ``(0, 0.0)``;
         ``+inf`` / ``-inf`` map to ``(+/-1, +inf)``.
+
+    Raises:
+        TypeError: If ``x`` is complex — Class K pin-slot is a real-axis
+            sign-split; the complex modulus is a different cascade class
+            (UPSTREAM_NOTES §15.1). See :func:`_require_real`.
     """
+    _require_real(x, "pin_slot_at_zero")
     if _is_pub(): _emit("cascade.pin_slot_at_zero", class_="K", input_shape=_shape(x))
     native = _try_native_pin_slot_at_zero(x)
     if native is not None:
@@ -174,8 +215,20 @@ def _try_native_reorient(orientation, value):
     return None
 
 
-def reorient(orientation: int, value):
+def reorient(value, *, orientation: int):
     """Class C cascade-orientation: re-apply a captured orientation.
+
+    **Signature (v0.7.0rc22):** ``value`` is the data argument and comes
+    **first** (positional); ``orientation`` is **keyword-only**. This makes
+    ``reorient`` a data-first DSL chain stage like every other stage-op
+    (``magnitude`` / ``chiral_flip`` / ``best_rational_signed`` …): the runner
+    pipes the stream into ``value`` (arg 0) and ``orientation`` arrives as a
+    bound kwarg — ``chain.then("reorient", orientation=-1)`` in Python, or a
+    ``[[stage]] op="reorient"`` + ``orientation = -1`` in a TOML chain (the
+    same keyword-only-option pattern as ``best_rational_signed``'s
+    ``max_denominator``). The earlier ``reorient(orientation, value)`` order
+    was un-invokable as an ``op=``/``parallel_body=`` stage (UPSTREAM_NOTES
+    §16.1: the pipe filled ``orientation`` and dropped ``value``).
 
     v0.4.5rc4: dispatches through the native C variants
     ``srmech_cascade_reorient_i64`` / ``srmech_cascade_reorient_f64``
@@ -189,9 +242,11 @@ def reorient(orientation: int, value):
     op is type-preserving: int in → int out, float in → float out.
 
     Args:
+        value: The magnitude (or magnitude-derived quantity) to re-sign
+            (the data argument — typically the second element of a
+            :func:`pin_slot_at_zero` result).
         orientation: An orientation in ``{-1, 0, +1}`` (typically the first
-            element of a :func:`pin_slot_at_zero` result).
-        value: The magnitude (or magnitude-derived quantity) to re-sign.
+            element of a :func:`pin_slot_at_zero` result). Keyword-only.
 
     Returns:
         ``-value`` when ``orientation < 0``, otherwise ``value`` unchanged.
@@ -254,7 +309,14 @@ def magnitude(x: float) -> float:
 
     Returns:
         ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``).
+
+    Raises:
+        TypeError: If ``x`` is complex — :func:`magnitude` is the real
+            ``|x|`` (Class K). The complex modulus ``(re**2+im**2)**0.5`` is a
+            Euclidean-norm op, a *different* cascade class (UPSTREAM_NOTES
+            §15.1). See :func:`_require_real`.
     """
+    _require_real(x, "magnitude")
     if _is_pub(): _emit("cascade.magnitude", class_="K", input_shape=_shape(x))
     native = _try_native_magnitude(x)
     if native is not None:
@@ -423,6 +485,15 @@ def _try_native_chiral_dual(op, x):
     if not hasattr(_native.LIB, "srmech_cascade_chiral_dual_f64"):
         return None
     if not callable(op):
+        return None
+    # The native chiral_dual marshals C buffers through numpy views for the
+    # Python callback, so this accel path needs numpy. With numpy ABSENT
+    # (UPSTREAM §22 numpy-optional core), degrade to the pure-Python fallback
+    # rather than crash — the other ``_try_native_*`` helpers already return
+    # None before touching numpy for non-array input.
+    try:
+        import numpy as _np  # noqa: F401 - presence probe; re-imported below
+    except ImportError:
         return None
     # Detect 1-D float64 ndarray input.
     is_ndarray = hasattr(x, "dtype") and hasattr(x, "ndim")
@@ -646,7 +717,7 @@ def net_chirality(orientations) -> int:
     for o in orientations:
         if o == 0:
             return 0
-        net = reorient(o, net)
+        net = reorient(net, orientation=o)
     return net
 
 

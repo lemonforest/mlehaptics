@@ -19,6 +19,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "cross_spectral"
 CLASS_COMPOSITION = ("M", "A")
 PERFORMANCE_HINT = "shallow-cascade-frame-wise"
@@ -28,6 +30,20 @@ SSOT_CITATION = (
     "1161901 (Crossref). Carter (1987), 'Coherence and time delay "
     "estimation', Proc. IEEE 75(2), 236-255. DOI 10.1109/PROC.1987.13723."
 )
+
+
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade).
+
+    Replaces ``np.cos`` on window/basis angle arrays — routes each angle
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction), no
+    ``np.cos`` / ``math.cos`` in the call graph. numpy is used only as the
+    array container.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
 
 
 def op(
@@ -81,9 +97,10 @@ def op(
         Y = np.fft.fft(yy)
         S_xy = X * np.conj(Y)
         if coherence:
-            S_xx = np.abs(X) ** 2
-            S_yy = np.abs(Y) ** 2
-            S_out = np.abs(S_xy) ** 2 / np.maximum(S_xx * S_yy, 1e-30)
+            S_xx = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+            S_yy = Y.real ** 2 + Y.imag ** 2  # |z|² = real²+imag² (no abs())
+            # |z|² = real²+imag² (no abs())
+            S_out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
         else:
             S_out = S_xy
         freqs = np.fft.fftfreq(frame_size)
@@ -95,7 +112,7 @@ def op(
     S_yy_acc = np.zeros(frame_size, dtype=np.float64)
     # Hann window per segment.
     nn = np.arange(frame_size)
-    window = 0.5 * (1.0 - np.cos(2.0 * np.pi * nn / max(frame_size - 1, 1)))
+    window = 0.5 * (1.0 - _ccos(2.0 * np.pi * nn / max(frame_size - 1, 1)))
     for i in range(n_frames):
         start = i * hop_size
         xf = x[start : start + frame_size] * window
@@ -103,13 +120,14 @@ def op(
         X = np.fft.fft(xf)
         Y = np.fft.fft(yf)
         S_xy_acc += X * np.conj(Y)
-        S_xx_acc += np.abs(X) ** 2
-        S_yy_acc += np.abs(Y) ** 2
+        S_xx_acc += X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+        S_yy_acc += Y.real ** 2 + Y.imag ** 2  # |z|² = real²+imag² (no abs())
     S_xy = S_xy_acc / n_frames
     if coherence:
         S_xx = S_xx_acc / n_frames
         S_yy = S_yy_acc / n_frames
-        out = np.abs(S_xy) ** 2 / np.maximum(S_xx * S_yy, 1e-30)
+        # |z|² = real²+imag² (no abs())
+        out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
     else:
         out = S_xy
     freqs = np.fft.fftfreq(frame_size)

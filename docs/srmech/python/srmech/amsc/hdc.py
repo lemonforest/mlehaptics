@@ -29,11 +29,18 @@ from __future__ import annotations
 import concurrent.futures
 import ctypes
 import os
+import random as _random
+from array import array
 from typing import Sequence
 
-import numpy as np
+# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
+# path with ndarray-typed ops; the lazy proxy keeps the module importable
+# on a plain install and only the ndarray ops raise the [scientific] hint.
+from srmech._scientific import lazy_numpy as _lazy_numpy
+np = _lazy_numpy("srmech.amsc.hdc")
 
 from . import _native
+from .hv import HV
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -413,6 +420,88 @@ def _as_klein4(v, op: str):
     return arr
 
 
+# ── numpy-free Klein-4 core (v0.7.0rc29; UPSTREAM §22/§22b) ───────────────
+# The Klein-4 carrier is the first family to go numpy-free: ops validate to a
+# stdlib ``array('B')`` working buffer and return an :class:`HV` handle (no
+# implicit ``np.ndarray`` escapes — the §22 boundary-type lever). The kernels
+# below are pure-Python byte ops; no ``np`` is touched on this path.
+
+def _as_klein4_buf(v, op: str) -> "array":
+    """Validate + copy a Klein-4 value into an ``array('B')`` working buffer.
+
+    Accepts an :class:`HV`, ``bytes`` / ``bytearray`` / ``array('B')``, a
+    ``list`` / ``tuple`` / generator of ints, or a 1-D ``numpy.ndarray``
+    (back-compat for research callers). Elements must be in ``{0, 1, 2, 3}``.
+    The numpy-free path — ``np`` is never imported or touched here."""
+    src = v.buffer if isinstance(v, HV) else v
+    buf = array("B")
+    try:
+        for x in src:
+            xi = int(x)
+            if xi < 0 or xi > 3:
+                raise ValueError(
+                    f"hdc.{op}: klein-4 elements must be in {{0, 1, 2, 3}}"
+                )
+            buf.append(xi)
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(
+            f"hdc.{op}: klein-4 vector must be a 1-D sequence of ints"
+        ) from exc
+    if len(buf) == 0:
+        raise ValueError(f"hdc.{op}: klein-4 vector must be non-empty")
+    return buf
+
+
+def _store_buf(store, op: str) -> "array":
+    """Copy a 1-D uint8 store (HV / bytes / array / list / np.ndarray) into an
+    ``array('B')`` — the lenient buffer used by the holographic decode (elements
+    are any uint8, not restricted to ``{0, 1, 2, 3}``). Numpy-free."""
+    src = store.buffer if isinstance(store, HV) else store
+    buf = array("B")
+    try:
+        for x in src:
+            buf.append(int(x))
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(f"hdc.{op}: store must be a 1-D sequence of uint8") from exc
+    return buf
+
+
+def _xor_buf(a: "array", b: "array") -> "array":
+    """Element-wise XOR of two equal-length ``array('B')`` buffers."""
+    return array("B", (x ^ y for x, y in zip(a, b)))
+
+
+def _xor_const_buf(a: "array", mask: int) -> "array":
+    """XOR every element of ``a`` with a constant ``mask`` (0 → unchanged copy)."""
+    return array("B", a) if mask == 0 else array("B", (x ^ mask for x in a))
+
+
+def _table_buf(a: "array", table) -> "array":
+    """Relabel every element of ``a`` through a length-4 lookup ``table``."""
+    return array("B", (table[x] for x in a))
+
+
+def _majority_buf(arrs) -> "array":
+    """Per-position 2-bit majority vote over equal-length ``array('B')`` buffers.
+
+    Each Klein-4 element is two independent bits; a bit is set only when its
+    1-count is strictly greater than ``len(arrs) // 2`` (an exact tie → 0).
+    The numpy-free kernel behind :func:`klein4_bundle` / the holographic +
+    triality majorities. No ``abs()``."""
+    n = len(arrs[0])
+    half = len(arrs) // 2
+    out = array("B", bytes(n))
+    for i in range(n):
+        c0 = 0
+        c1 = 0
+        for a in arrs:
+            x = a[i]
+            c0 += x & 1
+            c1 += (x >> 1) & 1
+        out[i] = ((1 if c1 > half else 0) << 1) | (1 if c0 > half else 0)
+    return out
+
+
 def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
 
@@ -429,9 +518,13 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
-    if rng is None:
-        rng = np.random.default_rng(seed)
-    return rng.integers(0, 4, size=D, dtype=np.uint8)
+    if rng is not None:
+        # Back-compat numpy ``Generator`` path: the caller already holds numpy,
+        # so this branch may use it. The default (seed / None) path below is
+        # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
+        return HV.from_sequence(rng.integers(0, 4, size=D, dtype=np.uint8))
+    r = _random.Random(seed)
+    return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
 
 # ── Klein-4 sector / chunk parallel dispatch (v0.6.0rc13; §11.3) ──────────
@@ -496,56 +589,30 @@ def _klein4_resolve_sectors(sectors, parallel) -> int:
     return _klein4_default_sectors()
 
 
-def _klein4_chunk_apply(per_slice, arrs, n_sectors):
-    """Data-parallel: split equal-length ``arrs`` into ``n_sectors`` contiguous
-    column-slices, run ``per_slice(tuple-of-slices)`` on a thread each, concat.
-
-    Bit-identical to the serial op (the slices partition the positions). Falls
-    back to a single serial call when ``n_sectors <= 1`` or the vector is
-    shorter than the lane count.
-    """
-    n = arrs[0].size
-    assert all(a.size == n for a in arrs), "klein4 chunk: arrays must share length"
-    if n_sectors <= 1 or n < n_sectors:
-        return per_slice(arrs)
-    bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-    slabs = [
-        tuple(a[bounds[k]:bounds[k + 1]] for a in arrs) for k in range(n_sectors)
-    ]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        parts = list(ex.map(per_slice, slabs))
-    return np.concatenate(parts).astype(np.uint8)
-
-
-def _klein4_sector_flip(s, v):
+def _klein4_sector_flip(s, buf: "array") -> "array":
     """Apply the Klein-4 sector flip ``T_s`` (an involution: XOR with mask s)."""
-    m = _KLEIN4_SECTOR_MASKS[s]
-    return v if m == 0 else np.bitwise_xor(v, m).astype(np.uint8)
+    return _xor_const_buf(buf, _KLEIN4_SECTOR_MASKS[s])
 
 
-def _klein4_chirality_duals(body, v, n_sectors):
-    """Return the ≤4 sector duals ``T_s(body(T_s(v)))`` (ThreadPool; F233)."""
-    def _dual(s):
-        return _klein4_sector_flip(s, body(_klein4_sector_flip(s, v)))
+def _klein4_chirality_duals(body, buf: "array", n_sectors):
+    """The ≤4 sector duals ``T_s(body(T_s(v)))`` (F233). Serial — the pure-Python
+    bodies are GIL-bound, so threading would not overlap (UPSTREAM caveat)."""
+    return [
+        _klein4_sector_flip(s, body(_klein4_sector_flip(s, buf)))
+        for s in range(n_sectors)
+    ]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        return list(ex.map(_dual, range(n_sectors)))
 
-
-def _klein4_bundle_core(arrs):
-    """Per-bit majority vote over a list of equal-length klein4 arrays (the
-    serial bundle kernel; the public :func:`klein4_bundle` wraps it)."""
-    n = arrs[0].size
-    for i, arr in enumerate(arrs):
-        if arr.size != n:
+def _klein4_bundle_core(arrs) -> "array":
+    """Per-bit majority over equal-length klein4 buffers — the serial bundle
+    kernel (the public :func:`klein4_bundle` wraps it in an :class:`HV`)."""
+    n = len(arrs[0])
+    for i, a in enumerate(arrs):
+        if len(a) != n:
             raise ValueError(
-                f"hdc.klein4_bundle: vector {i} has length {arr.size}, expected {n}"
+                f"hdc.klein4_bundle: vector {i} has length {len(a)}, expected {n}"
             )
-    stack = np.stack(arrs)
-    half = len(arrs) // 2
-    bit0 = (np.bitwise_and(stack, 1).sum(axis=0) > half).astype(np.uint8)
-    bit1 = (np.right_shift(stack, 1).sum(axis=0) > half).astype(np.uint8)
-    return (bit1 * 2 + bit0).astype(np.uint8)
+    return _majority_buf(arrs)
 
 
 def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
@@ -559,27 +626,22 @@ def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
     the same vector, so it is value-transparent + carries the 4-way
     independence). No ``abs()``.
     """
-    a = _as_klein4(a, "klein4_bind")
-    b = _as_klein4(b, "klein4_bind")
-    if a.shape != b.shape:
+    a = _as_klein4_buf(a, "klein4_bind")
+    b = _as_klein4_buf(b, "klein4_bind")
+    if len(a) != len(b):
         raise ValueError(
-            f"hdc.klein4_bind: lengths must match (got {a.size} vs {b.size})"
+            f"hdc.klein4_bind: lengths must match (got {len(a)} vs {len(b)})"
         )
-    n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    if n_sectors <= 1:
-        return np.bitwise_xor(a, b).astype(np.uint8)
-    if mode == "chunk":
-        return _klein4_chunk_apply(
-            lambda sl: np.bitwise_xor(sl[0], sl[1]).astype(np.uint8), (a, b), n_sectors
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_bind: mode must be 'chunk' or 'chirality'; got {mode!r}"
         )
-    if mode == "chirality":
-        duals = _klein4_chirality_duals(
-            lambda x: np.bitwise_xor(x, b).astype(np.uint8), a, n_sectors
-        )
-        return _klein4_bundle_core(duals)
-    raise ValueError(
-        f"klein4_bind: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
+    # XOR is sector-transparent: chunk == serial, and the F233 chirality dual
+    # T_s(T_s(a) XOR b) collapses to a XOR b for every sector. So all modes
+    # yield the plain XOR; sectors=/parallel= stay accepted value-no-op flags
+    # (pure-Python bodies don't overlap under the GIL anyway — UPSTREAM caveat).
+    return HV(_xor_buf(a, b), sectors=4)
 
 
 def klein4_unbind(c, a):
@@ -604,40 +666,22 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """
     if len(vectors) == 0:
         raise ValueError("hdc.klein4_bundle: requires at least one vector")
-    arrs = [_as_klein4(v, "klein4_bundle") for v in vectors]
+    arrs = [_as_klein4_buf(v, "klein4_bundle") for v in vectors]
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
+        )
     n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    if n_sectors <= 1 or mode == "chunk":
-        if n_sectors <= 1:
-            return _klein4_bundle_core(arrs)
-        # chunk: split positions, majority-vote each slab, concat (bit-exact).
-        n = arrs[0].size
-        for i, arr in enumerate(arrs):
-            if arr.size != n:
-                raise ValueError(
-                    f"hdc.klein4_bundle: vector {i} has length {arr.size}, "
-                    f"expected {n}"
-                )
-        if n < n_sectors:
-            return _klein4_bundle_core(arrs)
-        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-
-        def _vote(k):
-            return _klein4_bundle_core([a[bounds[k]:bounds[k + 1]] for a in arrs])
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            parts = list(ex.map(_vote, range(n_sectors)))
-        return np.concatenate(parts).astype(np.uint8)
-    if mode == "chirality":
-        def _sector_bundle(s):
-            conj = [_klein4_sector_flip(s, a) for a in arrs]
-            return _klein4_sector_flip(s, _klein4_bundle_core(conj))
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            duals = list(ex.map(_sector_bundle, range(n_sectors)))
-        return _klein4_bundle_core(duals)
-    raise ValueError(
-        f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    if mode == "chunk" or n_sectors <= 1:
+        # chunk splits positions → bit-identical to the plain serial majority.
+        return HV(_klein4_bundle_core(arrs), sectors=4)
+    # chirality (F233): bundle the T_s-conjugated inputs, inv_T_s (=T_s) each,
+    # then majority the ≤4 — meaningful only for chirality-asymmetric inputs.
+    duals = [
+        _klein4_sector_flip(s, _klein4_bundle_core([_klein4_sector_flip(s, a) for a in arrs]))
+        for s in range(n_sectors)
+    ]
+    return HV(_klein4_bundle_core(duals), sectors=4)
 
 
 def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> float:
@@ -652,62 +696,49 @@ def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> flo
     **sector-0** (value-transparent — XOR-flipping both sides preserves
     equality, so every sector equals the plain similarity anyway).
     """
-    a = _as_klein4(a, "klein4_similarity")
-    b = _as_klein4(b, "klein4_similarity")
-    if a.shape != b.shape:
+    a = _as_klein4_buf(a, "klein4_similarity")
+    b = _as_klein4_buf(b, "klein4_similarity")
+    if len(a) != len(b):
         raise ValueError(
-            f"hdc.klein4_similarity: lengths must match (got {a.size} vs {b.size})"
+            f"hdc.klein4_similarity: lengths must match (got {len(a)} vs {len(b)})"
         )
-    n_sectors = _klein4_resolve_sectors(sectors, parallel)
-    n = a.size
-    if n_sectors <= 1 or n == 0:
-        return float((a == b).mean())
-    if mode == "chunk":
-        if n < n_sectors:
-            return float((a == b).mean())
-        bounds = [(i * n) // n_sectors for i in range(n_sectors + 1)]
-
-        def _matches(k):
-            return int((a[bounds[k]:bounds[k + 1]] == b[bounds[k]:bounds[k + 1]]).sum())
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            counts = list(ex.map(_matches, range(n_sectors)))
-        return float(sum(counts) / n)
-    if mode == "chirality":
-        def _sector_sim(s):
-            return float(
-                (_klein4_sector_flip(s, a) == _klein4_sector_flip(s, b)).mean()
-            )
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-            sims = list(ex.map(_sector_sim, range(n_sectors)))
-        return sims[0]  # sector-0 — value-transparent recombine
-    raise ValueError(
-        f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
-    )
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
+        )
+    _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
+    # chunk == serial; chirality recombines via sector-0, which equals the plain
+    # similarity (XOR-flipping both sides preserves equality). So every mode is
+    # the match-fraction; sectors=/parallel= stay accepted value-no-op flags.
+    n = len(a)
+    matches = sum(1 for x, y in zip(a, b) if x == y)
+    return float(matches / n)
 
 
 def klein4_chirality_flip_gamma5(v):
     """Flip the γ₅ axis: XOR with the bit-1 sector mask (2)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_gamma5"), 2).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_gamma5"), 2),
+              sectors=4)
 
 
 def klein4_chirality_flip_omega7(v):
     """Flip the iω₇ axis: XOR with the bit-0 sector mask (1)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_chirality_flip_omega7"), 1).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_omega7"), 1),
+              sectors=4)
 
 
 def klein4_cpt_mirror(v):
     """CPT mirror: flip BOTH chirality axes (XOR with 3)."""
-    return np.bitwise_xor(_as_klein4(v, "klein4_cpt_mirror"), 3).astype(np.uint8)
+    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_cpt_mirror"), 3), sectors=4)
 
 
 # The order-3 triality cycle on the Klein-4 carrier (the S₃ = Aut(V₄)
 # generator). The three non-identity involutions cycle iω₇(1) → γ₅(2) →
 # CPT(3) → iω₇(1), fixing identity(0). Pure uint8 relabel via a length-4
 # lookup; applying it three times is the identity (T∘T∘T = id; T² = T⁻¹).
-_KLEIN4_TRIALITY_FORWARD = np.array([0, 2, 3, 1], dtype=np.uint8)
-_KLEIN4_TRIALITY_INVERSE = np.array([0, 3, 1, 2], dtype=np.uint8)
+# Plain tuples (numpy-free; consumed by ``_table_buf``).
+_KLEIN4_TRIALITY_FORWARD = (0, 2, 3, 1)
+_KLEIN4_TRIALITY_INVERSE = (0, 3, 1, 2)
 
 
 def klein4_triality_cycle(v, *, inverse=False):
@@ -732,16 +763,258 @@ def klein4_triality_cycle(v, *, inverse=False):
     Returns:
         The relabelled uint8 array (same shape as ``v``).
     """
-    arr = _as_klein4(v, "klein4_triality_cycle")
+    buf = _as_klein4_buf(v, "klein4_triality_cycle")
     table = _KLEIN4_TRIALITY_INVERSE if inverse else _KLEIN4_TRIALITY_FORWARD
-    return table[arr].astype(np.uint8)
+    return HV(_table_buf(buf, table), sectors=4)
 
 
 def klein4_sector_count(v):
     """Per-sector occupancy ``[n0, n1, n2, n3]`` — substrate attestation of the
-    chirality-sector distribution."""
-    arr = _as_klein4(v, "klein4_sector_count")
-    return np.bincount(arr, minlength=4)[:4].astype(np.int64)
+    chirality-sector distribution. Returns a stdlib ``list[int]`` (numpy-free)."""
+    buf = _as_klein4_buf(v, "klein4_sector_count")
+    counts = [0, 0, 0, 0]
+    for x in buf:
+        counts[x] += 1
+    return counts
+
+
+# ---------------------------------------------------------------------------
+# Holographic erasure code over the Klein-4 store (#797 op (a2); F353).
+#
+# The order-2 Klein-4 store is k=2-DETECT natively (F294: no Z3, 3∤4). k=3-
+# CORRECT needs EITHER the order-3 triality (op (a1)) OR this holographic-
+# erasure route, which supplies correction with **no Z3**. Replicate the
+# store across ``replicas`` blocks: any ONE surviving replica-block (a
+# ``1/replicas`` subregion) reconstructs the whole — the holographic "any
+# subregion contains the whole" property at block granularity. At
+# ``replicas=4``: erasure-tolerance **3/4** (known-location: drop up to 3 of
+# 4 blocks) and blind correction **1/4** (unknown-location: per-position
+# majority over 4 copies corrects ≤1 error). These are the F353 measured
+# tolerances; the order-2 store + this code is the *measured substitute* for
+# the (a1) explicit triality corrector. Class-home: M (replication bind) ∘
+# C (the surviving-copy/majority selection). No abs(); pure uint8 relabel +
+# count.
+
+
+def klein4_holographic_encode(v, *, replicas=4):
+    """Holographic erasure-encode a Klein-4 store into ``replicas`` copies.
+
+    Returns a length ``len(v) * replicas`` uint8 store (replica-major: the
+    input repeated ``replicas`` times). Any single replica-block — a
+    ``1/replicas`` subregion — reconstructs the whole (#797 op (a2), F353):
+    the order-2 store's k=3-CORRECT via erasure rather than the order-3
+    triality (no Z3).
+
+    Args:
+        v: A Klein-4 hypervector (uint8, elements {0,1,2,3}).
+        replicas: Number of redundant copies (>= 2; default 4 → 3/4
+            known-erasure tolerance, 1/4 blind correction).
+
+    Returns:
+        uint8 store of length ``len(v) * replicas``.
+    """
+    buf = _as_klein4_buf(v, "klein4_holographic_encode")
+    if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
+        raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
+    out = array("B")
+    for _ in range(replicas):
+        out.extend(buf)
+    return HV(out, sectors=4)
+
+
+def klein4_holographic_decode(store, *, replicas=4, erased=None):
+    """Reconstruct a Klein-4 store from a holographic erasure encoding.
+
+    Inverse of :func:`klein4_holographic_encode`. Two modes:
+
+    * **known-location erasure** (``erased`` given) — a boolean mask over
+      the store (True = erased / missing). Per original position, takes the
+      first surviving replica. Recovers **exactly** as long as ≥1 replica
+      survives per position — tolerates up to ``replicas-1`` of ``replicas``
+      erased (= ``(replicas-1)/replicas``; **3/4** at the default). Raises
+      ``ValueError`` if any position has *all* replicas erased.
+    * **blind correction** (``erased`` is None) — per original position,
+      majority-vote across the ``replicas`` copies (ties broken toward the
+      lowest sector index). Corrects up to ``floor((replicas-1)/2)`` errors
+      per position; for ``replicas=4`` that is 1 error = **1/4** blind.
+
+    Args:
+        store: uint8 store of length divisible by ``replicas``.
+        replicas: The replica count used at encode time.
+        erased: Optional boolean array over ``store`` (True = erased).
+
+    Returns:
+        The reconstructed length ``len(store)//replicas`` uint8 vector.
+    """
+    s = _store_buf(store, "klein4_holographic_decode")
+    if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
+        raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
+    n = len(s)
+    if n == 0 or n % replicas != 0:
+        raise ValueError(
+            f"store length {n} must be a positive multiple of replicas {replicas}"
+        )
+    D = n // replicas  # block s[r*D : (r+1)*D] is replica r (replica-major)
+    if erased is None:
+        # Blind: per-position majority over the ``replicas`` copies (ties → lowest).
+        out = array("B", bytes(D))
+        for i in range(D):
+            counts = [0, 0, 0, 0]
+            for r in range(replicas):
+                counts[s[r * D + i]] += 1
+            best, best_c = 0, counts[0]
+            for state in range(1, 4):
+                if counts[state] > best_c:
+                    best, best_c = state, counts[state]
+            out[i] = best
+        return HV(out, sectors=4)
+    # Known-location erasure: first surviving replica per position.
+    mask = list(erased)  # bool per store position (list / np bool array / etc.)
+    if len(mask) != n:
+        raise ValueError(f"erased mask length {len(mask)} != store length {n}")
+    out = array("B", bytes(D))
+    for i in range(D):
+        chosen = None
+        for r in range(replicas):
+            if not mask[r * D + i]:
+                chosen = s[r * D + i]
+                break
+        if chosen is None:
+            raise ValueError(
+                "klein4_holographic_decode: a position has all replicas erased; "
+                "unrecoverable (erasure exceeded (replicas-1)/replicas)"
+            )
+        out[i] = chosen
+    return HV(out, sectors=4)
+
+
+# ---------------------------------------------------------------------------
+# Explicit order-3 triality-recursion corrector (#797 op (a1); F359 contract).
+#
+# The order-2 Klein-4 store is k=2-DETECT natively (F294: no Z3, 3∤4) — two
+# views can DETECT a mismatch but cannot say which is right. k=3-CORRECT needs
+# the order-3 triality (τ³=I) past the 4-cap: this is the EXPLICIT corrector
+# path (op (a2) klein4_holographic_* is the *measured substitute* that corrects
+# with no Z3). The store carries the order-3 triality ORBIT of the value —
+# {v, T(v), T²(v)} for T = ``klein4_triality_cycle`` — so the third vote is the
+# triality orbit's third element (block2 = T²v), NOT an external 3rd render.
+# Decode brings all three orbit-blocks back to the common frame by INVERTING
+# the triality (T⁻¹ on block1, T⁻² = T on block2) and takes the 2-of-3 majority,
+# correcting one error. The correction is ATTRIBUTABLE to the order-3 op: with
+# the triality disabled (no inverse), the three raw orbit-blocks {v, Tv, T²v}
+# disagree on every non-zero sector → majority mangles them → you fall back to
+# k=2-DETECT. Class-home: M (the orbit replication bind) ∘ C (orientation:
+# T⁻¹/T to the common frame) ∘ C (the majority selection). No abs().
+#
+# F359 5-bar contract (the falsifiable bars; the canonical §20/F359 figures are
+# NOT on the read-only research branch, so this is built to the bars):
+#   (1) blind unknown-location correction beats the F353 holographic 0.25
+#       baseline (single-error recovery is exact);
+#   (2) the 3rd vote is the order-3 triality orbit of the same value;
+#   (3) C/Python parity (Python-first; the standalone-C peer is the next voxel);
+#   (4) disable the order-3 op → degrade to k=2-DETECT (correction attributable
+#       to the triality, not to plain replication);
+#   (5) WIDTH-step only — one 4-cap crossing (order-2 → order-3). The continuum
+#       count-recursion is open math; ``depth != 1`` is out-of-domain and RAISES
+#       rather than fabricating a recursion the substrate doesn't license.
+# ---------------------------------------------------------------------------
+
+_KLEIN4_TRIALITY_ORBIT = 3   # the order-3 triality orbit has exactly 3 elements
+
+
+def klein4_triality_encode(v):
+    """Encode a Klein-4 store as its order-3 triality orbit (#797 op (a1); F359).
+
+    Returns a length ``len(v) * 3`` uint8 store holding the order-3 triality
+    orbit ``[v, T(v), T²(v)]`` for ``T = klein4_triality_cycle`` (orbit-major).
+    Paired with :func:`klein4_triality_correct`: the third block (``T²v``) is the
+    triality orbit's third element — the order-3 third vote past the order-2
+    4-cap — NOT an externally-rendered copy.
+
+    Class-home **M** (orbit replication bind) ∘ **I** (the order-3 cycle that
+    generates the orbit). No ``abs()``; pure uint8 relabel.
+
+    Args:
+        v: A Klein-4 hypervector (uint8, elements ``{0, 1, 2, 3}``).
+
+    Returns:
+        uint8 store of length ``len(v) * 3`` = ``[v | T(v) | T²(v)]``.
+    """
+    buf = _as_klein4_buf(v, "klein4_triality_encode")
+    t1 = _table_buf(buf, _KLEIN4_TRIALITY_FORWARD)   # T(v)
+    t2 = _table_buf(t1, _KLEIN4_TRIALITY_FORWARD)    # T²(v)
+    out = array("B", buf)
+    out.extend(t1)
+    out.extend(t2)
+    return HV(out, sectors=4)
+
+
+def klein4_triality_correct(store, *, depth=1):
+    """Correct a Klein-4 store via the order-3 triality 2-of-3 majority (op (a1)).
+
+    Inverse-with-correction of :func:`klein4_triality_encode`. Reshapes the
+    store into the three orbit-blocks ``[b0, b1, b2]`` (supposed ``[v, Tv, T²v]``),
+    brings each back to the common ``v``-frame by INVERTING the triality —
+    ``b0``, ``T⁻¹(b1)``, ``T⁻²(b2) = T(b2)`` — and takes the per-position 2-of-3
+    majority (ties broken toward the lowest sector index). One corrupted block
+    (or one error) is outvoted by the two agreeing frames, so a single error is
+    corrected exactly: k=3-CORRECT where the bare order-2 store is only
+    k=2-DETECT.
+
+    The correction is **attributable to the order-3 triality**: without the
+    inverse-to-frame step the three raw orbit-blocks ``{v, Tv, T²v}`` disagree on
+    every non-zero sector, so a naive majority does not recover ``v`` (bar 4).
+
+    WIDTH-step only (bar 5): ``depth`` must be 1 (the single order-2 → order-3
+    4-cap crossing). The continuum count-recursion is open math; any other
+    ``depth`` raises ``NotImplementedError`` rather than fabricating it.
+
+    Args:
+        store: uint8 store of length divisible by 3 (from
+            :func:`klein4_triality_encode`).
+        depth: Recursion depth; only ``1`` (the width-step) is in-domain.
+
+    Returns:
+        The reconstructed length ``len(store)//3`` uint8 vector.
+
+    Raises:
+        NotImplementedError: if ``depth != 1`` (continuum-recursion is out of
+            domain — the width-only contract, F359 bar 5).
+        ValueError: if the store length is not a positive multiple of 3.
+    """
+    if depth != 1:
+        raise NotImplementedError(
+            "klein4_triality_correct: only the width-step (depth=1) is in "
+            "domain; the continuum count-recursion is open math (F359 bar 5)"
+        )
+    s = _as_klein4_buf(store, "klein4_triality_correct")
+    n = len(s)
+    if n % _KLEIN4_TRIALITY_ORBIT != 0:
+        raise ValueError(
+            f"store length {n} must be a positive multiple of 3 "
+            "(the order-3 triality orbit)"
+        )
+    D = n // _KLEIN4_TRIALITY_ORBIT
+    b0 = s[0:D]
+    b1 = s[D:2 * D]
+    b2 = s[2 * D:3 * D]
+    # Invert the triality to bring every orbit-block back to the v-frame:
+    #   frame0 = b0; frame1 = T⁻¹(b1) = T²(b1); frame2 = T⁻²(b2) = T(b2).
+    frame1 = _table_buf(b1, _KLEIN4_TRIALITY_INVERSE)  # T⁻¹(Tv) = v
+    frame2 = _table_buf(b2, _KLEIN4_TRIALITY_FORWARD)  # T⁻²(T²v) = T(T²v) = v
+    # Per-position 2-of-3 majority over the four Klein-4 sectors (ties → lowest).
+    out = array("B", bytes(D))
+    for i in range(D):
+        counts = [0, 0, 0, 0]
+        counts[b0[i]] += 1
+        counts[frame1[i]] += 1
+        counts[frame2[i]] += 1
+        best, best_c = 0, counts[0]
+        for state in range(1, 4):
+            if counts[state] > best_c:
+                best, best_c = state, counts[state]
+        out[i] = best
+    return HV(out, sectors=4)
 
 
 # ---------------------------------------------------------------------------
@@ -895,6 +1168,81 @@ def _try_native_loop_bind_hd(a_, b_):
     return out
 
 
+def _try_native_loop_conj_hd(a_):
+    """Whole-array native HD conjugate — ONE ``srmech_loop_conj_hd_f64`` call
+    conjugates ALL NB 8-blocks, replacing the Python per-block ``_loop_conj_raw``
+    loop. a_ is a flat float array, a positive multiple of LOOP_DIM. Returns the
+    flat result, or None to fall back (lib absent / symbol missing / non-OK)."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0
+            or not _loop_native_ready("srmech_loop_conj_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    xc = np.ascontiguousarray(a_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_conj_hd_f64(
+        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_inv_hd(a_):
+    """Whole-array native HD Moufang inverse — ONE ``srmech_loop_inv_hd_f64`` call
+    inverts ALL NB 8-blocks. None on fall-back; a zero block makes the C peer
+    return BAD_INPUT → None here → the Python fallback raises (the contract)."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0
+            or not _loop_native_ready("srmech_loop_inv_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    xc = np.ascontiguousarray(a_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_inv_hd_f64(
+        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_unbind_hd(a_, b_):
+    """Whole-array native HD LEFT-unbind — ONE ``srmech_loop_unbind_hd_f64`` call
+    computes conj(aₖ)·bₖ over ALL NB blocks. None on fall-back."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+            or not _loop_native_ready("srmech_loop_unbind_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    ac = np.ascontiguousarray(a_, dtype=np.float64)
+    bc = np.ascontiguousarray(b_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_unbind_hd_f64(
+        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
+        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
+def _try_native_loop_runbind_hd(a_, b_):
+    """Whole-array native HD RIGHT-unbind — ONE ``srmech_loop_runbind_hd_f64``
+    call computes bₖ·conj(aₖ) over ALL NB blocks. None on fall-back."""
+    n = a_.size
+    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+            or not _loop_native_ready("srmech_loop_runbind_hd_f64")):
+        return None
+    nb = n // LOOP_DIM
+    ac = np.ascontiguousarray(a_, dtype=np.float64)
+    bc = np.ascontiguousarray(b_, dtype=np.float64)
+    out = np.empty(n, dtype=np.float64)
+    rc = _native.LIB.srmech_loop_runbind_hd_f64(
+        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
+        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out
+
+
 def _try_native_loop_inv(arr):
     if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
         return None
@@ -941,6 +1289,53 @@ def _try_native_g2_three_form(xa, ya, za):
     if rc != _native.SRMECH_OK:
         return None
     return float(c_out.value)
+
+
+def _try_native_loop_associator(aa, bb, cc):
+    if (aa.size != LOOP_DIM or bb.size != LOOP_DIM or cc.size != LOOP_DIM
+            or not _loop_native_ready("srmech_loop_associator_f64")):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    c_a = Arr(*(float(v) for v in aa))
+    c_b = Arr(*(float(v) for v in bb))
+    c_c = Arr(*(float(v) for v in cc))
+    c_out = Arr()
+    rc = _native.LIB.srmech_loop_associator_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.cast(c_b, _DBLP), ctypes.cast(c_c, _DBLP),
+        ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+
+
+def _try_native_loop_left_op(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_left_op_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
+    c_a = Arr(*(float(v) for v in arr))
+    c_out = Mat()
+    rc = _native.LIB.srmech_loop_left_op_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
+    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
+
+
+def _try_native_loop_right_op(arr):
+    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_right_op_f64"):
+        return None
+    Arr = ctypes.c_double * LOOP_DIM
+    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
+    c_a = Arr(*(float(v) for v in arr))
+    c_out = Mat()
+    rc = _native.LIB.srmech_loop_right_op_f64(
+        ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
+    if rc != _native.SRMECH_OK:
+        return None
+    flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
+    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
 
 
 def loop_conj(x):
@@ -997,6 +1392,9 @@ def loop_left_op(a):
     dim×dim matrix. L_a ≠ R_a ≠ R_aᵀ — the operational chirality."""
     arr = _as_loop(a, "loop_left_op")
     dim = arr.shape[0]
+    native = _try_native_loop_left_op(arr)
+    if native is not None:
+        return native
     return np.column_stack([_loop_bind_raw(arr, _loop_basis(k, dim)) for k in range(dim)])
 
 
@@ -1005,6 +1403,9 @@ def loop_right_op(a):
     a dim×dim matrix."""
     arr = _as_loop(a, "loop_right_op")
     dim = arr.shape[0]
+    native = _try_native_loop_right_op(arr)
+    if native is not None:
+        return native
     return np.column_stack([_loop_bind_raw(_loop_basis(k, dim), arr) for k in range(dim)])
 
 
@@ -1019,6 +1420,9 @@ def loop_associator(a, b, c):
     aa = _as_loop(a, "loop_associator")
     bb = _as_loop(b, "loop_associator")
     cc = _as_loop(c, "loop_associator")
+    native = _try_native_loop_associator(aa, bb, cc)
+    if native is not None:
+        return native
     return (_loop_bind_raw(_loop_bind_raw(aa, bb), cc)
             - _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
 
@@ -1093,6 +1497,9 @@ def loop_unbind_hd(a, b):
     assert a_.shape == b_.shape, "loop_unbind_hd: operands must have equal length"
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_unbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_unbind_hd(a_, b_)
+    if native is not None:
+        return native
     ab = a_.reshape(-1, LOOP_DIM)
     bb = b_.reshape(-1, LOOP_DIM)
     return np.concatenate(
@@ -1110,6 +1517,9 @@ def loop_conj_hd(x):
     a_ = np.asarray(x, dtype=float)
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_conj_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_conj_hd(a_)
+    if native is not None:
+        return native
     xb = a_.reshape(-1, LOOP_DIM)
     return np.concatenate([_loop_conj_raw(xb[k]) for k in range(xb.shape[0])])
 
@@ -1126,6 +1536,9 @@ def loop_inv_hd(x):
     a_ = np.asarray(x, dtype=float)
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_inv_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_inv_hd(a_)
+    if native is not None:
+        return native
     xb = a_.reshape(-1, LOOP_DIM)
     out = []
     for k in range(xb.shape[0]):
@@ -1153,6 +1566,9 @@ def loop_runbind_hd(a, b):
     assert a_.shape == b_.shape, "loop_runbind_hd: operands must have equal length"
     assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
         f"loop_runbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    native = _try_native_loop_runbind_hd(a_, b_)
+    if native is not None:
+        return native
     ab = a_.reshape(-1, LOOP_DIM)
     bb = b_.reshape(-1, LOOP_DIM)
     return np.concatenate(
@@ -1185,6 +1601,10 @@ __all__ = [
     "klein4_cpt_mirror",
     "klein4_triality_cycle",
     "klein4_sector_count",
+    "klein4_holographic_encode",
+    "klein4_holographic_decode",
+    "klein4_triality_encode",
+    "klein4_triality_correct",
     "LOOP_DIM",
     "loop_conj",
     "loop_bind",

@@ -15,6 +15,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 
 def hydrogen_radial(
     n_grid: int = 400,
@@ -62,7 +64,12 @@ def hydrogen_radial(
     H = np.diag(diag)
     off = -inv_2dr2 * np.ones(n_grid - 1)
     H += np.diag(off, k=1) + np.diag(off, k=-1)
-    eigvals, eigvecs = np.linalg.eigh(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive).
+    # H here is real-symmetric, so the eigenvectors are real; the cascade
+    # carries them in a complex128 container — take the value-preserving
+    # real part (mathematically exact for real-symmetric input).
+    eigvals, eigvecs = hermitian_eigendecompose(H)
+    eigvecs = np.asarray(eigvecs).real
     return r, eigvals, eigvecs
 
 

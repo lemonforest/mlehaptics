@@ -263,6 +263,29 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_sha256_batch.restype = ctypes.c_int
 
+    # v0.7.0rc18 (F292 graft #3): SHA-NI single-stream SHA-256. NEW symbol —
+    # hasattr-guarded (stale-lib-safe). Writes the RAW 32-byte digest; the
+    # Python wrapper hexlifies. Internally dispatches scalar-or-SHA-NI by
+    # cpuid, so this is bit-exact + safe on hosts without the SHA feature.
+    #   int srmech_sha256_shani(const uint8_t *data, size_t len,
+    #                           uint8_t *out_digest)   /* 32 bytes */
+    if hasattr(lib, "srmech_sha256_shani"):
+        lib.srmech_sha256_shani.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_sha256_shani.restype = ctypes.c_int
+
+    # v0.7.0rc18: SIMD HAL host-capability probe (exported via
+    # WINDOWS_EXPORT_ALL_SYMBOLS). Lets native_status() / the parity test
+    # see whether THIS run's host carries the SHA feature (so the SHA-NI
+    # kernel is exercise-if-present / skip-with-log, not silently assumed).
+    #   int srmech_simd_has_shani(void)
+    if hasattr(lib, "srmech_simd_has_shani"):
+        lib.srmech_simd_has_shani.argtypes = []
+        lib.srmech_simd_has_shani.restype = ctypes.c_int
+
     # int srmech_ndjson_iter(const char *path,
     #                        srmech_ndjson_line_cb cb,
     #                        void *user)
@@ -1015,6 +1038,65 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_bus_client_close.argtypes = [ctypes.c_void_p]
         lib.srmech_bus_client_close.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.7.0rc16: C-transpile of the rc12 chiral primitives (Classes
+    # I / D / G). NEW symbols — hasattr-guarded so a stale lib built
+    # before rc16 doesn't disable the whole native surface (same
+    # best-effort pattern as the cascade/polar/klein4 blocks above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_three_cycle"):
+        # int srmech_three_cycle(uint64_t value, uint64_t *out)
+        lib.srmech_three_cycle.argtypes = [
+            ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_three_cycle.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mirror_pattern"):
+        # int srmech_mirror_pattern(const uint8_t *pattern,
+        #                           uint32_t pattern_len, uint8_t *out)
+        lib.srmech_mirror_pattern.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_mirror_pattern.restype = ctypes.c_int
+    if hasattr(lib, "srmech_byte_search_backward"):
+        # int srmech_byte_search_backward(const uint8_t *haystack,
+        #     uint32_t haystack_len, const uint8_t *needle,
+        #     uint32_t needle_len, uint32_t *out_offset)
+        lib.srmech_byte_search_backward.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_byte_search_backward.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # v0.7.0rc17: C-transpile of the last two rc12 chiral primitives
+    # (Class L three-fold band split, Class E reverse-order). NEW symbols
+    # — hasattr-guarded so a stale lib built before rc17 doesn't disable
+    # the whole native surface (same best-effort pattern as the rc16 block
+    # above).
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_three_fold_bands"):
+        # int srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+        #     uint32_t *out_mid, uint32_t *out_high)
+        lib.srmech_three_fold_bands.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_three_fold_bands.restype = ctypes.c_int
+    if hasattr(lib, "srmech_reverse_order"):
+        # int srmech_reverse_order(uint32_t n, uint32_t *out_order)
+        lib.srmech_reverse_order.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_reverse_order.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1124,6 +1206,57 @@ def sha256_batch_c(datas: "list[bytes]") -> "list[str]":
             f"this should not happen for valid inputs"
         )
     return [bytes(out[i * 32:(i + 1) * 32]).hex() for i in range(n)]
+
+
+def sha256_shani_c(data: bytes) -> str:
+    """Native SHA-NI single-stream SHA-256 (F292 graft #3).
+
+    Returns the 64-char lowercase hex digest, byte-identical to
+    ``hashlib.sha256(data).hexdigest()`` / ``sha256_hex_c``. On x86 hosts
+    that carry the SHA feature this runs the SHA-NI rnds2/msg1/msg2 kernel;
+    elsewhere it runs the scalar path *inside the C call* (so the result is
+    correct on every host). Must only be called when ``HAS_NATIVE`` is True
+    AND the lib carries the rc18 symbol (a stale lib lacks it; callers fall
+    back via ``srmech.amsc.format.sha256_bytes``).
+    """
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_sha256_shani"):
+        raise RuntimeError(
+            "srmech.amsc._native.sha256_shani_c called but the native "
+            "srmech_sha256_shani symbol is unavailable; use "
+            "srmech.amsc.format.sha256_bytes (which dispatches correctly)"
+        )
+    out = (ctypes.c_uint8 * 32)()
+    out_ptr = ctypes.cast(out, ctypes.POINTER(ctypes.c_uint8))
+    if len(data) == 0:
+        rc = LIB.srmech_sha256_shani(
+            ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8)),
+            ctypes.c_size_t(0),
+            out_ptr,
+        )
+    else:
+        buf = (ctypes.c_uint8 * len(data)).from_buffer_copy(data)
+        rc = LIB.srmech_sha256_shani(buf, ctypes.c_size_t(len(data)), out_ptr)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_sha256_shani returned non-OK status {rc}; "
+            f"this should not happen for valid inputs"
+        )
+    return bytes(out).hex()
+
+
+def has_shani() -> "bool | None":
+    """Does THIS run's host carry the Intel SHA Extensions (SHA-NI)?
+
+    Returns ``True`` / ``False`` from the native cpuid probe
+    (``srmech_simd_has_shani``), or ``None`` if the native lib / the rc18
+    probe symbol is unavailable (so callers can distinguish "host lacks
+    SHA-NI" from "can't tell"). Surfaced so the SHA-NI parity test can be
+    exercise-if-present / skip-with-log rather than silently assuming
+    coverage, and so ``native_status()`` can report build capability.
+    """
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_simd_has_shani"):
+        return None
+    return bool(LIB.srmech_simd_has_shani())
 
 
 class NativeNDJsonError(Exception):
@@ -1324,6 +1457,8 @@ __all__ = [
     "ndjson_lines_c",
     "sha256_hex_c",
     "sha256_batch_c",
+    "sha256_shani_c",
+    "has_shani",
     "SRMECH_OK",
     "SRMECH_ERR_NULL_ARG",
     "SRMECH_ERR_BAD_INPUT",

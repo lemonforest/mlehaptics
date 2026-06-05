@@ -27,7 +27,33 @@ from typing import Iterable, Optional, Tuple
 
 from . import _native
 
-__all__ = ["lookup"]
+__all__ = ["lookup", "reverse_order"]
+
+
+def reverse_order(sorted_pairs: Iterable[Tuple[bytes, bytes]]) -> list:
+    """Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): the
+    order-reversed ``(key, value)`` list — a descending-key view of an
+    ascending catalog. Class E is harmonic-2 (chiral inverse) per F150 §6.1;
+    ``reverse_order(reverse_order(x)) == list(x)`` (period 2). The
+    chirality-aware companion to :func:`lookup`.
+    """
+    pairs = list(sorted_pairs)
+    n = len(pairs)
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_reverse_order")
+        and n <= 0xFFFF_FFFF
+        and n > 0
+    ):
+        order = (ctypes.c_uint32 * n)()
+        rc = _native.LIB.srmech_reverse_order(ctypes.c_uint32(n), order)
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_reverse_order returned non-OK status {rc}"
+            )
+        return [pairs[order[i]] for i in range(n)]
+    return pairs[::-1]
 
 
 def lookup(key: bytes,

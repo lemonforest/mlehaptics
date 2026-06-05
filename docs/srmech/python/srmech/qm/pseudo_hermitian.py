@@ -167,10 +167,12 @@ def construct_eta_from_eigendecomposition(
             f"got {O.shape}"
         )
     eigvals, V = np.linalg.eig(O)
-    if np.max(np.abs(eigvals.imag)) > atol:
+    # Class-K magnitude via explicit sign-branch (no abs()); .imag is real.
+    _im_mag = np.where(eigvals.imag >= 0.0, eigvals.imag, -eigvals.imag)
+    if np.max(_im_mag) > atol:
         raise ValueError(
             f"construct_eta_from_eigendecomposition: O has complex spectrum "
-            f"(max |Im λ| = {np.max(np.abs(eigvals.imag))}); η would not be "
+            f"(max |Im λ| = {np.max(_im_mag)}); η would not be "
             "positive definite"
         )
     # η = (V V†)^{-1} makes O η-pseudo-Hermitian.
@@ -199,7 +201,9 @@ def pseudo_hermitian_eigenvalues_real(
     if not is_pseudo_hermitian(O, eta, atol=atol):
         return False
     eigvals = np.linalg.eigvals(O)
-    return bool(np.max(np.abs(eigvals.imag)) < atol)
+    # Class-K magnitude via explicit sign-branch (no abs()); .imag is real.
+    _im_mag = np.where(eigvals.imag >= 0.0, eigvals.imag, -eigvals.imag)
+    return bool(np.max(_im_mag) < atol)
 
 
 __all__ = [

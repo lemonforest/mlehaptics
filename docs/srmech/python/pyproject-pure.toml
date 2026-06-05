@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.7.0rc11"
+version = "0.7.0rc48"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -62,18 +62,21 @@ classifiers = [
 ]
 dependencies = [
     "tomli>=2.0; python_version<'3.11'",
-    # numpy: hard dependency from 0.4.0rc2 onward (Class L Phase C1 ship).
-    # Must agree with pyproject.toml.
-    "numpy>=1.24",
+    # numpy is OPTIONAL as of v0.7.0 (the `scientific` extra below). Must agree
+    # with pyproject.toml. The cascade core is numpy-free; numpy backs only the
+    # scientific tier (srmech.qm.* / signal_processing.* / rbs_lm.*).
 ]
 
 [project.optional-dependencies]
+# Scientific extra (v0.7.0rc48): numpy backs the array-numerical scientific
+# tier. Pyodide installs numpy via micropip when the scientific tier is used.
+scientific = ["numpy>=1.24"]
 validation = ["jsonschema>=4.0"]
 collectors = [
     "requests>=2.28",
     "beautifulsoup4>=4.11",
 ]
-tests = ["pytest>=7.0"]
+tests = ["pytest>=7.0", "numpy>=1.24"]
 # Crypto extra (v0.5.0rc7): UTLP-exact AES-128-CTR Bio-TOTP backend
 # for the bus wire cipher (Claim 255). Pyodide/WASM may not support
 # the cryptography wheel — the stdlib HMAC-SHA-256 fallback always
@@ -87,6 +90,7 @@ crypto = ["cryptography>=41.0"]
 anthropic = ["anthropic>=0.40.0"]
 dev = [
     "pytest>=7.0",
+    "numpy>=1.24",
     "build",
     "twine",
     "hatchling>=1.18",

@@ -89,7 +89,8 @@ def op(
         # No ISI; just minimum-distance decoding.
         out = np.zeros(T, dtype=np.int64)
         for t in range(T):
-            d = np.abs(obs[t] - taps[0] * alpha)
+            _d = obs[t] - taps[0] * alpha
+            d = np.hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
             out[t] = int(np.argmin(d))
         return out
 
@@ -144,7 +145,9 @@ def op(
         expected = sum(taps[k + 1] * alpha[s_tup[k]] for k in range(memory))
         expected += taps[0] * alpha[s_tup[0]]
         for t in range(T):
-            B_log[s, t] = -np.abs(obs[t] - expected) ** 2
+            _d = obs[t] - expected
+            # |z|² = real²+imag² (no abs())
+            B_log[s, t] = -(_d.real ** 2 + _d.imag ** 2)
 
     # Initial state log-prob: uniform.
     pi_log = np.full(n_states, -np.log(n_states), dtype=np.float64)

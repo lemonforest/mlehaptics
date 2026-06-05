@@ -17,6 +17,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "multirate"
 CLASS_COMPOSITION = ("N", "C")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -26,6 +28,19 @@ SSOT_CITATION = (
     "Crochiere & Rabiner (1983), 'Multirate Digital Signal Processing', "
     "Prentice Hall."
 )
+
+
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade).
+
+    Replaces ``np.cos`` on the Hamming-window angle array — routes each angle
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction); numpy is
+    used only as the array container.
+    """
+    a = np.asarray(a, dtype=float)
+    return np.array(
+        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
+    ).reshape(a.shape)
 
 
 def op(
@@ -80,7 +95,7 @@ def op(
         n = np.arange(N_taps) - (N_taps - 1) / 2
         taps = np.sinc(cutoff * n) * cutoff
         # Hamming window
-        w = 0.54 - 0.46 * np.cos(2.0 * np.pi * np.arange(N_taps) / (N_taps - 1))
+        w = 0.54 - 0.46 * _ccos(2.0 * np.pi * np.arange(N_taps) / (N_taps - 1))
         filter_taps = taps * w
         filter_taps = filter_taps / np.sum(filter_taps)
     filtered = np.convolve(upsampled, filter_taps, mode="same")

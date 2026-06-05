@@ -23,9 +23,9 @@ group ``Z₂ × Z₂`` (γ₅± × iω₇±), so each ``T_s`` is its own inverse
 sector      (γ₅, iω₇)    stream-transform ``T_s``      srmech atom (Class C)
 ==========  ===========  ============================  ========================
 0           (+, +)       identity (neither flip)       — (the "our" sector)
-1           (+, −)       iω₇-flip only                 ``reorient(-1, ·)``
+1           (+, −)       iω₇-flip only                 ``reorient(·, orientation=-1)``
 2           (−, +)       γ₅-flip only                  ``chiral_flip`` (reverse)
-3           (−, −)       both flips / CPT mirror       ``chiral_flip`` ∘ ``reorient(-1,·)``
+3           (−, −)       both flips / CPT mirror       ``chiral_flip`` ∘ ``reorient(·, orientation=-1)``
 ==========  ===========  ============================  ========================
 
 Sector 2's dual is **exactly** :func:`srmech.amsc.cascade.chiral_dual`
@@ -161,12 +161,12 @@ def _reorient_each(orientation: int, seq: Sequence) -> List:
     The iω₇ stream-transform is a per-register sign-flip — Class C
     :func:`srmech.amsc.cascade.atoms.reorient` applied element-wise with the
     supplied orientation. With ``orientation = -1`` this is the iω₇ flip; it
-    is an involution (``reorient(-1, reorient(-1, v)) == v``) and commutes
+    is an involution (``reorient(reorient(v, orientation=-1), orientation=-1) == v``) and commutes
     with :func:`srmech.amsc.cascade.atoms.chiral_flip` (the γ₅ reversal), so
     the two generate the Klein-4 group. **No ``abs()``** — the sign is the
     canonical Class C re-orientation.
     """
-    return [_reorient(orientation, v) for v in seq]
+    return [_reorient(v, orientation=orientation) for v in seq]
 
 
 def _transform_gamma5(seq: Sequence) -> Any:
@@ -178,7 +178,7 @@ def _transform_gamma5(seq: Sequence) -> Any:
 
 
 def _transform_omega7(seq: Sequence) -> List:
-    """iω₇ axis stream-transform: per-element Class-C ``reorient(-1, ·)``.
+    """iω₇ axis stream-transform: per-element Class-C ``reorient(·, orientation=-1)``.
 
     An involution; its own inverse.
     """
@@ -353,7 +353,7 @@ def parallel_sector_dispatch(
     The four sectors (F233 §1), each ``T_s`` a Klein-4 stream-transform:
 
     - sector 0 ``(+,+)`` — identity;
-    - sector 1 ``(+,−)`` — iω₇-flip (Class-C ``reorient(-1, ·)`` per element);
+    - sector 1 ``(+,−)`` — iω₇-flip (Class-C ``reorient(·, orientation=-1)`` per element);
     - sector 2 ``(−,+)`` — γ₅-flip (``chiral_flip`` reversal); its dual is
       **exactly** :func:`srmech.amsc.cascade.chiral_dual` (asserted);
     - sector 3 ``(−,−)`` — both / CPT mirror.

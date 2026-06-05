@@ -63,6 +63,25 @@ jobs:
           # jsonschema are available for the full test suite.
           python -m pip install -e ".[dev]"
 
+      - name: Dump host SIMD / SHA-NI capability (F292 graft #3)
+        # Records — per matrix cell — whether THIS runner carries the Intel
+        # SHA Extensions, so we can see which runs exercise the rc18 SHA-NI
+        # single-stream kernel (vs the scalar fallback the dev CPU runs).
+        # The SHA-NI kernel COMPILES on every host (target-attribute-guarded);
+        # this step just reports the runtime cpuid truth. Never fails the job.
+        working-directory: docs/srmech/python
+        shell: bash
+        continue-on-error: true
+        run: |
+          python -c "from srmech.amsc import _native; \
+            s=_native.native_status() if hasattr(_native,'native_status') else {}; \
+            print('HAS_NATIVE', _native.HAS_NATIVE); \
+            print('SHA-NI host:', _native.has_shani())"
+          echo '--- raw cpu flags (best effort) ---'
+          (grep -m1 -o 'sha_ni\| sha ' /proc/cpuinfo 2>/dev/null && echo 'LINUX: SHA present') \
+            || (sysctl -a 2>/dev/null | grep -i 'sha512\|sha256\|machdep.cpu.*SHA' ) \
+            || echo '(no /proc/cpuinfo or sysctl sha flag visible)'
+
       - name: Run tests
         working-directory: docs/srmech/python
         shell: bash
@@ -135,19 +154,33 @@ jobs:
           python -m twine check --strict dist/*
           echo "pure-wheel sanity checks passed"
 
-      - name: Verify wheel installs + imports
+      - name: Verify wheel installs + imports (numpy-optional capstone)
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
+          # Install ONLY the wheel (no extras) — numpy is optional as of v0.7.0,
+          # so a bare install must import the cascade core with numpy absent.
           python -m pip install --quiet dist/*.whl
           cd /tmp
           python -c "
+          import importlib.util
+          assert importlib.util.find_spec('numpy') is None, \
+              'numpy leaked into the base install — it must be the [scientific] extra'
           from srmech import __version__
           from srmech.amsc import (
               MPRRecord, Descriptor, get_attested_dataset,
               register_attested_root, list_registered_roots,
           )
-          print(f'srmech {__version__} OK')
+          # the Class-N cascade core must work numpy-free
+          from srmech.amsc import rational
+          assert rational.best_rational(22, 7, 100) == (22, 7)
+          # the scientific tier must fail with the actionable [scientific] hint
+          try:
+              import srmech.qm  # noqa: F401
+              raise SystemExit('srmech.qm imported without numpy (guard missing)')
+          except ImportError as exc:
+              assert 'srmech[scientific]' in str(exc), exc
+          print(f'srmech {__version__} OK (numpy-optional)')
           "
 
   pedantic-build:

@@ -16,6 +16,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 
 def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
     """Closed-form Time-Dependent Schrödinger evolution.
@@ -40,7 +42,9 @@ def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
         raise ValueError(
             f"tdse_evolve: psi shape {psi.shape} incompatible with H shape {H.shape}"
         )
-    eigvals, V = np.linalg.eigh(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive). H is a
+    # general complex-Hermitian Hamiltonian, so V stays complex128.
+    eigvals, V = hermitian_eigendecompose(H)
     psi_eigbasis = V.conj().T @ psi
     psi_t_eigbasis = np.exp(-1j * eigvals * t) * psi_eigbasis
     return V @ psi_t_eigbasis
@@ -61,7 +65,9 @@ def tise_solve(H: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     if H.shape[0] != H.shape[1]:
         raise ValueError(f"tise_solve: H must be square; got shape {H.shape}")
-    return np.linalg.eigh(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive). General
+    # complex-Hermitian H, so the eigenvectors stay complex128.
+    return hermitian_eigendecompose(H)
 
 
 def commutator(A: np.ndarray, B: np.ndarray) -> np.ndarray:
@@ -99,7 +105,9 @@ def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
             f"heisenberg_evolve: A and H must have same shape; "
             f"got A={A.shape} vs H={H.shape}"
         )
-    eigvals, V = np.linalg.eigh(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive); general
+    # complex-Hermitian H, so V stays complex128.
+    eigvals, V = hermitian_eigendecompose(H)
     phases = np.exp(-1j * eigvals * t)
     U = V @ np.diag(phases) @ V.conj().T
     return U.conj().T @ A @ U
@@ -174,7 +182,9 @@ def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
             f"liouville_evolve: rho and H must have same shape; "
             f"got rho={rho.shape} vs H={H.shape}"
         )
-    eigvals, V = np.linalg.eigh(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive); general
+    # complex-Hermitian H, so V stays complex128.
+    eigvals, V = hermitian_eigendecompose(H)
     phases = np.exp(-1j * eigvals * t)
     U = V @ np.diag(phases) @ V.conj().T
     return U @ rho @ U.conj().T

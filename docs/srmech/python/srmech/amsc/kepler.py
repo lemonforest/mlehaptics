@@ -22,8 +22,11 @@ substrate-consumers of these primitives, not their authors.
 from __future__ import annotations
 
 import ctypes
-import math
 from typing import Tuple
+
+from srmech.amsc.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
+from srmech.amsc.rational import cos as _rcos
+from srmech.amsc.rational import sin as _rsin
 
 from . import _native
 
@@ -89,9 +92,9 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
             raise ValueError(f"srmech_pin_slot returned status {rc}")
         return out.value
     # Pure-Python fallback.
-    x = pin_distance + pin_offset * math.cos(theta)
-    y = pin_offset * math.sin(theta)
-    return math.atan2(y, x)
+    x = pin_distance + pin_offset * _rcos(theta)
+    y = pin_offset * _rsin(theta)
+    return _ratan2(y, x)
 
 
 def kepler_solve(
@@ -144,13 +147,16 @@ def kepler_solve(
     # Pure-Python fallback.
     if e == 0.0:
         return M_rad
-    E = M_rad + e * math.sin(M_rad)
+    E = M_rad + e * _rsin(M_rad)
     for _ in range(max_iter):
-        f = E - e * math.sin(E) - M_rad
-        f_prime = 1.0 - e * math.cos(E)
+        f = E - e * _rsin(E) - M_rad
+        f_prime = 1.0 - e * _rcos(E)
         delta = f / f_prime
         E -= delta
-        if abs(delta) < tolerance:
+        # Class-K magnitude of the Newton step as an EXPLICIT sign-branch,
+        # never an ALU abs().
+        delta_mag = delta if delta >= 0.0 else -delta
+        if delta_mag < tolerance:
             return E
     raise RuntimeError(
         f"kepler_solve: did not converge in {max_iter} iterations "
@@ -211,7 +217,7 @@ def equation_of_centre(
     for k_idx in range(n_terms):
         e_power *= e
         harmonic = (k_idx + 1) * M_rad
-        delta += _EOC_COEFFS[k_idx] * e_power * math.sin(harmonic)
+        delta += _EOC_COEFFS[k_idx] * e_power * _rsin(harmonic)
     return delta
 
 

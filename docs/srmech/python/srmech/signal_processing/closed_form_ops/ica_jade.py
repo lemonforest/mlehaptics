@@ -21,6 +21,9 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+from srmech.amsc.laplacian import hermitian_eigendecompose
+
 OPERATION_NAME = "ica_jade"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "shallow-cascade-iterative"
@@ -70,9 +73,13 @@ def op(
         n_components = p
     # Centring
     X = X - np.mean(X, axis=0, keepdims=True)
-    # Whitening via PCA (Class L: covariance eigendecomposition).
+    # Whitening via PCA (Class L: covariance eigendecomposition) via srmech's
+    # own cascade primitive. ``cov`` is a REAL symmetric covariance and the
+    # whitening arithmetic below is real, so take the (mathematically exact)
+    # real part of the always-complex128 eigenvectors (value-preserving .real).
     cov = (X.T @ X) / n
-    eigvals, eigvecs = np.linalg.eigh(cov)
+    eigvals, eigvecs = hermitian_eigendecompose(cov)
+    eigvecs = np.asarray(eigvecs).real
     # Sort by descending eigenvalue
     order = np.argsort(eigvals)[::-1]
     eigvals = eigvals[order]
@@ -113,13 +120,15 @@ def op(
                 # cumulants[j,j,j,i]) / (cumulants[i,i,i,i] + cumulants[j,j,j,j]).
                 num = 2.0 * cumulants[i, j, i, j]
                 den = cumulants[i, i, i, i] - cumulants[j, j, j, j]
-                if abs(num) + abs(den) < 1e-15:
+                # Class-K sign-branch (no abs())
+                if (num if num >= 0 else -num) + (den if den >= 0 else -den) < 1e-15:
                     continue
-                theta = 0.25 * np.arctan2(num, den + 1e-15)
-                if abs(theta) < tol:
+                theta = 0.25 * _srn.atan2(float(num), float(den) + 1e-15)
+                # Class-K sign-branch (no abs())
+                if (theta if theta >= 0 else -theta) < tol:
                     continue
-                off += abs(theta)
-                c, s = np.cos(theta), np.sin(theta)
+                off += theta if theta >= 0 else -theta  # Class-K sign-branch (no abs())
+                c, s = _srn.cos(float(theta)), _srn.sin(float(theta))
                 # Apply rotation to V and to the cumulant slices.
                 G = np.eye(k)
                 G[i, i] = c

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc11"
-#define SRMECH_VERSION       "0.7.0rc11"
+#define SRMECH_VERSION_PRE   "rc48"
+#define SRMECH_VERSION       "0.7.0rc48"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -163,6 +163,20 @@ srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
                                     const size_t         *lens,
                                     size_t                n,
                                     uint8_t              *out_digests);
+
+/* F292 graft #3 (v0.7.0rc19): SHA-NI SINGLE-STREAM SHA-256. Hashes ONE
+ * message — `data` points to `len` bytes (data may be NULL iff len==0) —
+ * and writes the RAW 32-byte digest into out_digest[0..31] (out_digest must
+ * be 32 bytes and must NOT alias data). Bit-exact with srmech_sha256_hex /
+ * hashlib. On x86 with the Intel SHA Extensions present it runs the SHA-NI
+ * rnds2/msg1/msg2 kernel; hosts without the feature (and non-x86 / Pyodide)
+ * take the scalar path. The kernel is NEVER entered unless cpuid confirms
+ * SHA-NI, so the SRMECH_SHANI_FORCE_TIER env-var ({0,1}) test hook can only
+ * select scalar-or-(SHA-NI-if-present) — it can never SIGILL. New symbol
+ * only — ABI stays 3. */
+srmech_status_t srmech_sha256_shani(const uint8_t *data,
+                                    size_t         len,
+                                    uint8_t       *out_digest);
 
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file
@@ -616,10 +630,13 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
  *   (a, b)(c, d) = (a c - conj(d) b,  d a + b conj(c))
  * unrolled real -> complex -> quaternion -> octonion (no recursion).
  *
- * The HD block variants (loop_bind_hd, loop_unbind_hd, loop_conj_hd,
- * loop_inv_hd, loop_runbind_hd) need NO C peer of their own: their
- * Python wrappers loop over 8-blocks calling the per-block loop_bind /
- * loop_conj, which dispatch to these symbols.
+ * The HD block variants each have a native whole-array C peer too —
+ * srmech_loop_bind_hd_f64 (below; N-way SIMD) plus the rc20 family
+ * srmech_loop_{conj,inv,unbind,runbind}_hd_f64 (srmech_loophd_family.c) —
+ * so EVERY Python loop op has a C-source transpile (the "C = transpiled
+ * Python" Rosetta discipline; notebook §3.29.4). The Python wrappers
+ * dispatch to those peers and keep a per-8-block pure-Python fallback for
+ * Pyodide / WASM, looping the per-block loop_bind / loop_conj here.
  *
  * Returns:
  *   SRMECH_OK              — success
@@ -652,8 +669,22 @@ srmech_status_t srmech_g2_three_form_f64(
     const double *x, const double *y, const double *z, size_t n,
     double *out);
 
+/* Class-K associator residue (a·b)·c − a·(b·c) (8 doubles out; the (4:3)|
+ * (3:4) non-associativity). MS#21 v0.7.0rc21 — completes the #814 op-spec
+ * C/Python parity (left_op/right_op/associator were pure-Python composites). */
+srmech_status_t srmech_loop_associator_f64(
+    const double *a, const double *b, const double *c, size_t n, double *out);
+
+/* Left/right multiplication operator matrices L_a (col k = a·e_k) and R_a
+ * (col k = e_k·a). `out` is n*n doubles, row-major (out[i*n+k]), byte-matching
+ * numpy column_stack of the per-basis binds. ABI-additive — stays 3. */
+srmech_status_t srmech_loop_left_op_f64(
+    const double *a, size_t n, double *out);
+srmech_status_t srmech_loop_right_op_f64(
+    const double *a, size_t n, double *out);
+
 /* ------------------------------------------------------------------ *
- * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc11; F292 #2)
+ * Block-diagonal HD loop-bind, N-way SIMD (MS#21 v0.7.0rc17; F292 #2)
  *
  * out[k] = loop_bind(x[k], y[k]) over nb INDEPENDENT 8-blocks (the
  * block-diagonal ⊕ F289 verified err 0.0). x, y, out are each nb*8
@@ -676,6 +707,45 @@ srmech_status_t srmech_g2_three_form_f64(
  * ------------------------------------------------------------------ */
 srmech_status_t srmech_loop_bind_hd_f64(
     const double *x, const double *y, size_t nb, double *out);
+
+/* ------------------------------------------------------------------ *
+ * The rest of the HD loop family — whole-array C peers (MS#21 v0.7.0rc20)
+ *
+ * The faithful transpile of the Python per-block wrappers (hdc.py
+ * loop_{conj,inv,unbind,runbind}_hd): the SHIPPED per-block symbol applied
+ * over nb INDEPENDENT dim-8 blocks (the block-diagonal ⊕, #811/F289),
+ * collapsing the Python per-block loop into ONE native call. Completes the
+ * "C = transpiled Python" Rosetta parity (notebook §3.29.4) — no HD loop op
+ * is Python-only. Scalar (no N-way SIMD; the bind owns that, above); the
+ * heavy step where present is the per-block product, already native.
+ *
+ * Each is nb*8 doubles per buffer; LOOP_DIM is fixed at 8; `out` MUST NOT
+ * alias the inputs; nb == 0 is a no-op. conj/unbind/runbind = Class C ∘
+ * Class M; inv = Class-K clean (norm² gate, never abs()). NO new class.
+ *
+ * Returns:
+ *   SRMECH_OK              — success
+ *   SRMECH_ERR_NULL_ARG    — a required pointer was NULL with nb > 0
+ *   SRMECH_ERR_BAD_INPUT   — (loop_inv_hd) a zero block has no inverse
+ *
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Per-block HD conjugate: out[k] = conj(x[k]) over nb dim-8 blocks. */
+srmech_status_t srmech_loop_conj_hd_f64(
+    const double *x, size_t nb, double *out);
+
+/* Per-block HD Moufang inverse: out[k] = conj(x[k]) / <x[k],x[k]>. */
+srmech_status_t srmech_loop_inv_hd_f64(
+    const double *x, size_t nb, double *out);
+
+/* Per-block HD LEFT-unbind (left-division): out[k] = conj(a[k])·b[k]. */
+srmech_status_t srmech_loop_unbind_hd_f64(
+    const double *a, const double *b, size_t nb, double *out);
+
+/* Per-block HD RIGHT-unbind (right-division): out[k] = b[k]·conj(a[k]). */
+srmech_status_t srmech_loop_runbind_hd_f64(
+    const double *a, const double *b, size_t nb, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — autocorrelation (MS#21 v0.7.0rc8; the F290 §C primitive)
@@ -740,6 +810,11 @@ srmech_status_t srmech_mod_pow(uint64_t a, uint64_t k, uint64_t n,
  * `n <= INT64_MAX` (returns SRMECH_ERR_OVERFLOW otherwise).
  * Returns SRMECH_ERR_BAD_INPUT for n in {0, 1}. */
 srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
+
+/* Harmonic-3 Z/3 generator (F150): *out = (value + 1) mod 3, read on
+ * the residue class of value. Result is always in {0, 1, 2}; applying
+ * it three times is the identity on each residue (period 3). */
+srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)
@@ -807,6 +882,14 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
                                       uint32_t  max_sweeps,
                                       double    tolerance,
                                       double   *out_eigvals);
+
+/* Harmonic-3 three-fold band split (F150): partition n eigenvectors into
+ * contiguous low/mid/high bands. base = n/3; the remainder (n mod 3) rows go
+ * to the later bands so *out_low <= *out_mid <= *out_high and the three sum
+ * to n. Bit-exact with the Python three_fold_eigvec_groups band sizing.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
+                                        uint32_t *out_mid, uint32_t *out_high);
 
 /* ------------------------------------------------------------------ *
  * Class L broadening — ADR-0002 Phase 2 (Task #225, srmech v0.4.1rc5).
@@ -1013,6 +1096,17 @@ srmech_status_t srmech_byte_search(const uint8_t *haystack,
                                    uint32_t       needle_len,
                                    uint32_t      *out_offset);
 
+/* Harmonic-2 chiral mirror of srmech_byte_search (F150): find the LAST
+ * occurrence of `needle` in `haystack`. On match: *out_offset = highest
+ * index where needle appears. On miss: *out_offset = UINT32_MAX
+ * (SRMECH_SEARCH_NOT_FOUND). Empty needle returns *out_offset =
+ * haystack_len (matches Python's `bytes.rfind(b'')` convention). */
+srmech_status_t srmech_byte_search_backward(const uint8_t *haystack,
+                                            uint32_t       haystack_len,
+                                            const uint8_t *needle,
+                                            uint32_t       needle_len,
+                                            uint32_t      *out_offset);
+
 /* ------------------------------------------------------------------ *
  * Class H — self-introspection (Task #217 Phase C1 rc4 acknowledgment).
  *
@@ -1044,6 +1138,15 @@ srmech_status_t srmech_dispatch_match(const uint8_t  *input,
                                       bool           *out_matched,
                                       uint32_t       *out_tag);
 
+/* Harmonic-2 chiral mirror of a dispatch pattern (F150): write the
+ * `pattern_len` bytes of `pattern` reversed into `out`
+ * (out[i] = pattern[pattern_len - 1 - i]). `out` is caller-owned and
+ * must NOT alias `pattern`. Empty pattern writes nothing. Applying it
+ * twice is the identity (period 2). */
+srmech_status_t srmech_mirror_pattern(const uint8_t *pattern,
+                                      uint32_t       pattern_len,
+                                      uint8_t       *out);
+
 /* ------------------------------------------------------------------ *
  * Class E — catalog / naming (Task #217 Phase C1 rc5)
  *
@@ -1068,6 +1171,14 @@ srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
                                       bool           *out_found,
                                       uint32_t       *out_value_offset,
                                       uint32_t       *out_value_length);
+
+/* Harmonic-2 chiral mirror of a sorted catalog (F150): write the reversed
+ * index permutation out_order[i] = n - 1 - i. The Python wrapper applies this
+ * to the (key, value) pairs to produce a descending-key view of an ascending
+ * catalog; applying it twice is the identity (period 2). `out_order` is
+ * caller-owned with room for n uint32 entries; empty n writes nothing.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_reverse_order(uint32_t n, uint32_t *out_order);
 
 /* ------------------------------------------------------------------ *
  * Class F — substitution / templating (Task #217 Phase C1 rc5)
@@ -1282,6 +1393,43 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
                                           double    e,
                                           uint32_t  n_terms,
                                           double   *out_delta_rad);
+
+/* ------------------------------------------------------------------ *
+ * Class N — native rational trig cascade (v0.7.0rc43; C-transpile
+ * triality coherence). sin/cos/atan/atan2 computed as the Class-N
+ * Taylor cascade in Q61 fixed-point, with the CYCLIC range-reduction
+ * (mod pi/2) done in pure INTEGER arithmetic (pi from the Archimedes
+ * pi-cascade; no libm sin/cos/atan2, no abs()). float appears only at
+ * the final rational->double projection. These are the native peers the
+ * kepler / kuramoto ops route through so the executable runs the cascade,
+ * not libm. Matches libm to machine epsilon for |x| < 2^55; returns
+ * SRMECH_ERR_BAD_INPUT for non-finite x (out set to NaN). Additive ->
+ * ABI unchanged.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_sin(double x, double *out);
+srmech_status_t srmech_cos(double x, double *out);
+srmech_status_t srmech_atan(double x, double *out);
+srmech_status_t srmech_atan2(double y, double x, double *out);
+
+/* Class-N rational sqrt cascade (v0.7.0rc45). sqrt(x) (x >= 0) via an INTEGER
+ * floor-isqrt on a scaled radicand (portable two-limb 128-bit isqrt; no libm,
+ * no float sqrt, no __int128) + IEEE-exponent-field power-of-two scaling.
+ * srmech_laplacian.c's cyclic-Jacobi eigensolver routes through this so the
+ * executable runs the cascade. Machine-epsilon vs libm; negative x ->
+ * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
+srmech_status_t srmech_rational_sqrt(double x, double *out);
+
+/* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
+ * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)
+ * and the 2^n scale built into the IEEE exponent field; log(x) reads
+ * x = m*2^e from the bit pattern (integer) and runs the Q61 integer atanh
+ * series log(m) = 2*atanh((m-1)/(m+1)). No libm, no float exp/log/pow.
+ * srmech_laplacian.c's elementwise transcendental op routes through these so
+ * the executable runs the cascade (the last two libm calls in libsrmech).
+ * Machine-epsilon vs libm; exp overflow -> +Inf, underflow -> 0; log of a
+ * non-positive x -> SRMECH_ERR_BAD_INPUT. Additive -> ABI unchanged. */
+srmech_status_t srmech_exp(double x, double *out);
+srmech_status_t srmech_log(double x, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)
