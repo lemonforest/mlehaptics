@@ -5,6 +5,7 @@
 **Composes:** **F382** (rotation = the asymptote = the decimal; "map to its own Cartesian" = exact) · **F392** (division = C→K; NO divide primitive; `best_rational_signed`) · **F393** (multiply = shift-add EXACT; CORDIC continuous rotation residue 5.4e-9 — NOT bit-exact) · **F379** ((n : n−1) = anchor + couplings) · **F234** (Kuramoto-coupled adder; carry fixed-point = the phase-lock) · **F401** (duality is the fibration of triality; carry the fiber → exact) · **F403** (k=3 compresses losslessly IFF the fiber/coupling is carried) · **AX-1** (the two 14-partitions: 1:3:7:3 = 2:4:8 = (1:3:7)+3) · `imaginary_does_not_mean_unreal` (i = 90° rotation; the imaginary IS the orbiting part) · F389/F390 (sedenion: division dies at 16)
 **→ extends F382, F401, F403, AX-1** (breadcrumb-web: backlinks added there).
 **← extended by F405** (AX-1 resolved: 14 = 2:4:8 = 1:3:7:3 is the SEPARATE projection — 3 anchors + 11 imaginaries; nested telescopes to 8; the two "+3"s are dual completions of the shared 11).
+**← grounded by F407** (ALU-A: the add/sub/shift+sign substrate is ATTESTED — Volder 1959 CORDIC / Booth 1951 / Stein 1967 / FIPS 180-4 — as **REDUCIBILITY, not actuality**: the substrate *can* be add/sub/shift+sign with no multiply/divide primitive; modern FPUs ship FMA arrays. Read F404's "no divide primitive" as the substrate/field-truth, not a claim about silicon).
 
 ---
 

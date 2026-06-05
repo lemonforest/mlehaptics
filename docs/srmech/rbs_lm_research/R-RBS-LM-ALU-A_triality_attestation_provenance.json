@@ -1,0 +1,133 @@
+{
+ "engine": "research-triality (k=3 haiku∥sonnet∥opus)",
+ "run_id": "wf_d6c90827-58f",
+ "task": "ALU-A attestation pass: CORDIC/Booth/Stein/FIPS — ground add/sub/shift+sign (F392/F393/F404)",
+ "finding_count_by_tier": {
+  "haiku": 14,
+  "sonnet": 4,
+  "opus": 4
+ },
+ "per_claim": [
+  {
+   "item": "CORDIC = Volder 1959, IRE Trans. Electronic Computers EC-8(3):330-334, Sept 1959, DOI 10.1109/TEC.1959.5222693; rotation/trig by iterative shift-add + per-step sign, no loop-body multiply",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "VERIFIED. All bibliographic fields (author Jack E. Volder, exact title, journal, vol EC-8, issue 3, pp 330-334, 1959, DOI) confirmed across IEEE Xplore/DBLP/Semantic Scholar by all three tiers. Inner loop = 3 shift registers + 3 adder-subtractors, conditional add/subtract of shifted operands with per-step sign sigma in {+1,-1}; no multiply in the loop. Full-text PDF paywalled (IEEE); method attested from indexed abstract + strong secondary corroboration, not a first-hand 1959-PDF read."
+  },
+  {
+   "item": "CORDIC caveat: precomputed gain constant K (reciprocal of ~1.6467 gain = 0.6072529350088812) + arctan(2^-i) elementary-angle LUT are required external constants",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "VERIFIED and load-bearing. CORDIC is NOT purely self-contained in shift-add+sign: the inner loop is shift+add+sign, but a stored arctan LUT and a gain constant K (~0.6073) must be absorbed (post/pre-scale, itself a constant multiply or further shift-add). I independently confirmed K = reciprocal of the ~1.6467 gain. These are attested-to-structure-cascade constants (infinite product of cosines), not runtime multiply/divide primitives. All three tiers surfaced this; haiku framed it slightly more dismissively ('immutable architectural constants, not counted'), opus/sonnet named it as a genuine non-zero dependency that the framework claim must keep attached."
+  },
+  {
+   "item": "Booth = Booth 1951, Q. J. Mech. Appl. Math. 4(2):236-240, DOI 10.1093/qjmam/4.2.236; signed multiply reduces to shift + conditional add/subtract",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "VERIFIED. I confirmed all fields + the verbatim abstract DIRECTLY from the Oxford Academic publisher page: 'A technique is described whereby binary numbers of either sign may be multiplied together by a uniform process which is independent of any foreknowledge of the signs of these numbers.' Author A. D. Booth (full: Andrew Donald Booth). Removes the hardware multiply PRIMITIVE; cost is O(n) add/sub+shift per n-bit multiply (radix-4 modified Booth ~O(n/2), still in the shift-add+sign family). Bibliographic record + abstract are open primary-source; full text paywalled (acceptable attestation since the DOI/abstract are openly verifiable)."
+  },
+  {
+   "item": "Stein = Stein 1967, J. Comput. Phys. 1(3):397-405, DOI 10.1016/0021-9991(67)90047-2; binary GCD via shifts + subtraction + comparison only, no division/modulo",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "VERIFIED. Fields confirmed across NASA ADS bibcode 1967JCoPh...1..397S, ScienceDirect pii 0021999167900472, CiNii, Semantic Scholar, Utah math JCP TOC. Removes the DIVIDE primitive (engine of the framework reciprocal/rational machinery, F392); does not itself remove a multiply. NUANCE (opus/I): developed by Stein ~1961, first PUBLISHED 1967 — cite 1967 as publication of record. Full text paywalled (Elsevier); no-division property attested via NIST DADS + algorithm literature + abstract, not first-hand from Stein's PDF."
+  },
+  {
+   "item": "Stein title-mismatch caveat: the paper is titled 'Computational problems associated with Racah algebra', NOT 'binary GCD' — a real discoverability hazard in citation chains",
+   "agree_count": 2,
+   "consensus": "majority",
+   "dissenting_tier": "haiku",
+   "corrected_claim": "VERIFIED and load-bearing (majority sonnet+opus; haiku OMITTED it). I confirmed via independent search: the binary-GCD algorithm appears as a subsidiary contribution buried inside a nuclear-physics/angular-momentum (Racah algebra) computation paper. Any downstream citation relying on the title alone (without DOI 10.1016/0021-9991(67)90047-2 or bibcode 1967JCoPh...1..397S) risks losing the reference. This is the single most operationally important caveat for the citation chain, and haiku missed it entirely."
+  },
+  {
+   "item": "SHA-256 = NIST FIPS 180-4 (current Aug 2015), DOI 10.6028/NIST.FIPS.180-4; round function = ADD mod 2^32 + ROTR/SHR + XOR/AND/OR/NOT, no multiply/divide",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "VERIFIED, fully open access. Opus read the NIST nvlpubs PDF cover/front-matter directly; I re-confirmed the chronology against NIST CSRC. Round function (FIPS 180-4 Sec 4.1.2/4.2.2) uses only add mod 2^32, ROTR, SHR, AND, XOR, NOT — no multiply/divide. SHA-256 was first INTRODUCED in FIPS 180-2 (Aug 2002), freely available from CSRC."
+  },
+  {
+   "item": "FIPS 180-4 chronology: first issued March 6 2012; current normative doc is the August 2015 update; it supersedes FIPS 180-3 (SHA-256 itself dates to FIPS 180-2, 2002)",
+   "agree_count": 2,
+   "consensus": "majority",
+   "dissenting_tier": "haiku",
+   "corrected_claim": "CORRECTED to: FIPS 180-4 was first issued 2012-03-06, updated 2015-08-04 (the current document), and SUPERSEDES FIPS 180-3; SHA-256 itself originates in FIPS 180-2 (2002). I verified this directly against NIST CSRC. Opus stated it correctly. HAIKU is WRONG: it claimed FIPS 180-4 was 'officially published March 2012' and that the 'August 2015 date refers to online archival, not publication date' — the Aug 2015 edition is a genuine document update (Update 1), not mere archival. SONNET stated it imprecisely ('supersedes FIPS 180-4 of March 6, 2012'), conflating the within-180-4 update with supersession; a document does not supersede itself."
+  },
+  {
+   "item": "Reducibility vs actuality distinction: these four are EXISTENCE PROOFS that each heavy op CAN be built from add/sub/shift+sign; they do NOT prove all silicon DOES so — modern FPUs ship dedicated hardware multiplier/FMA arrays; float reciprocal uses Newton-Raphson (multiply-add)",
+   "agree_count": 1,
+   "consensus": "minority",
+   "dissenting_tier": "none",
+   "corrected_claim": "Surfaced ONLY by opus (minority 1/3) but TRUE and important — promote it. The framework REDUCIBILITY claim ('these ops reduce to add/sub/shift/sign with no multiply/divide primitive') is soundly supported as an existence proof. Opus correctly separated this from the stronger FALSE claim that all silicon avoids hardware multipliers (modern FPUs ship FMA; Stein removes integer divide but float reciprocal via Newton-Raphson still uses multiply, which is then itself Booth-decomposable). Haiku conversely over-asserted ('SUPPORTED with HIGH CONFIDENCE' / 'generalizes beyond any single implementation domain'). This is a correction the 2-of-3 numeric majority does not reach, but it is factually right and not disputed by the others — flag as a minority-but-correct refinement."
+  },
+  {
+   "item": "Joint framework claim: rotation=CORDIC=shift-add+sign; multiply=Booth=shift-add; gcd=Stein=shift-sub; hash=SHA-256 — heavy ops reduce to add/sub/shift+sign with no multiply/divide primitive",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "dissenting_tier": "none",
+   "corrected_claim": "SUPPORTED as a reducibility/existence claim, with caveats attached (unanimous on support; tiers differ on how heavily to caveat). Corrected consensus reading: all four primary references are verified and each supports its sub-claim for the LOOP BODY; the claim holds for what the ops CAN be reduced to. Mandatory attached caveats: (1) CORDIC needs a stored arctan LUT + gain K (~0.6073), not runtime multiplies but real stored constants; (2) Booth is O(n) add/sub, not a single-cycle op; (3) Stein removes divide, not multiply; float reciprocal uses Newton-Raphson multiply; (4) these are existence proofs, not proof that all silicon avoids hardware multipliers. With caveats stated, the four jointly and soundly support the reducibility claim."
+  }
+ ],
+ "merged_findings": [
+  {
+   "item": "CORDIC — Volder 1959 (rotation = shift-add + per-step sign)",
+   "claim": "VERIFIED. Jack E. Volder, 'The CORDIC Trigonometric Computing Technique,' IRE Transactions on Electronic Computers, vol. EC-8, no. 3, pp. 330-334, September 1959; DOI 10.1109/TEC.1959.5222693. A special-purpose airborne digital computer whose serial arithmetic unit = three shift registers + three adder-subtractors performing conditional add-or-subtract of SHIFTED operands with a per-step SIGN decision (sigma in {+1,-1}); no multiply in the loop body. Fields confirmed unanimously (3/3) across IEEE Xplore / DBLP / Semantic Scholar / CiNii; full-text PDF paywalled (IEEE), so the method description rests on the indexed abstract + strong multi-source secondary corroboration, not a first-hand 1959-PDF read.",
+   "best_citation": "Volder, J.E. (1959). 'The CORDIC Trigonometric Computing Technique.' IRE Trans. Electronic Computers EC-8(3):330-334. DOI 10.1109/TEC.1959.5222693. (Publisher full text paywalled; bibliographic record OA via Semantic Scholar/CiNii/DBLP.)",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  },
+  {
+   "item": "CORDIC caveat — precomputed gain constant K (~0.6073) + arctan(2^-i) elementary-angle LUT are required external stored constants",
+   "claim": "VERIFIED and load-bearing (unanimous 3/3). CORDIC is NOT purely self-contained in shift-add+sign: the inner loop is shift+add+sign, but a stored arctan LUT and a gain constant K (~0.6072529350088812, the reciprocal of the ~1.6467 cumulative gain = the infinite product of cos(arctan(2^-i))) must be absorbed as a pre-/post-scale (itself a constant multiply or further shift-add approximation). These are attested-to-structure-cascade constants per the no-magic-numbers discipline, NOT runtime multiply/divide primitives. Tier nuance: haiku framed these more dismissively ('immutable architectural constants, not counted'); opus/sonnet named them as a genuine non-zero dependency the framework claim must keep attached — the opus/sonnet framing is the corrected reading.",
+   "best_citation": "Volder 1959 (method); CORDIC gain K and arctan LUT corroborated across CORDIC algorithm literature (Wikipedia CORDIC; secondary indices). K = product over i of cos(arctan(2^-i)).",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  },
+  {
+   "item": "Booth — Booth 1951 (signed multiply = shift + conditional add/subtract)",
+   "claim": "VERIFIED (directly from primary-publisher page). Andrew D. Booth, 'A Signed Binary Multiplication Technique,' The Quarterly Journal of Mechanics and Applied Mathematics, vol. 4, no. 2, pp. 236-240, 1951; DOI 10.1093/qjmam/4.2.236. Verbatim abstract confirmed from Oxford Academic: 'a technique whereby binary numbers of either sign may be multiplied together by a uniform process which is independent of any foreknowledge of the signs of these numbers' (received Aug 1, 1950; Birkbeck College Electronic Computer Project). Signed multiply reduces to SHIFT + conditional ADD/SUBTRACT on adjacent-bit transitions — removes the hardware multiply PRIMITIVE; cost is O(n) add/sub+shift per n-bit multiply (radix-4 modified Booth ~O(n/2), still in the shift-add+sign family). Full text paywalled (OUP), but the DOI + abstract are openly verifiable primary-source — acceptable attestation.",
+   "best_citation": "Booth, A.D. (1951). 'A Signed Binary Multiplication Technique.' Q. J. Mech. Appl. Math. 4(2):236-240. DOI 10.1093/qjmam/4.2.236. (Abstract + bibliographic record OA at academic.oup.com/qjmam/article-abstract/4/2/236/1874893; full text paywalled.)",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  },
+  {
+   "item": "Stein — Stein 1967 (binary GCD = shift + subtract + compare, no division)",
+   "claim": "VERIFIED. Josef Stein, 'Computational problems associated with Racah algebra,' Journal of Computational Physics, vol. 1, no. 3, pp. 397-405, 1967; DOI 10.1016/0021-9991(67)90047-2; ADS bibcode 1967JCoPh...1..397S. The binary (Stein's) GCD uses ONLY arithmetic shifts, subtraction, and comparison — explicitly no division/modulo — devised for the alternative number representation in the paper. Independently confirmed via Semantic Scholar + ScienceDirect (pii 0021999167900472) + CiNii + Utah math JCP TOC; the search-confirmed abstract lists the GCD as item (2): 'a new algorithm for calculating the greatest common divisor of two odd integers.' Removes the DIVIDE primitive (engine of the framework reciprocal/rational machinery, F392); does not itself remove a multiply. NUANCE: developed by Stein ~1961, first PUBLISHED 1967 — cite 1967 as publication of record. Full text paywalled (Elsevier); no-division property attested via NIST DADS + algorithm literature + the OA abstract.",
+   "best_citation": "Stein, J. (1967). 'Computational problems associated with Racah algebra.' J. Comput. Phys. 1(3):397-405. DOI 10.1016/0021-9991(67)90047-2; ADS bibcode 1967JCoPh...1..397S. (Abstract OA via ADS/Semantic Scholar; full text paywalled.)",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  },
+  {
+   "item": "Stein title-mismatch caveat — the paper is titled 'Computational problems associated with Racah algebra,' NOT 'binary GCD'; a real citation-chain discoverability hazard",
+   "claim": "VERIFIED and load-bearing (majority sonnet+opus; haiku OMITTED it). Independently re-confirmed: the binary-GCD algorithm appears as a subsidiary contribution (item 2 of the paper) buried inside a nuclear-physics / angular-momentum-coupling (Racah algebra) computation paper. Any downstream citation relying on the title alone (without DOI 10.1016/0021-9991(67)90047-2 or bibcode 1967JCoPh...1..397S) risks losing the reference. This is the single most operationally important caveat for the citation chain.",
+   "best_citation": "Stein 1967, DOI 10.1016/0021-9991(67)90047-2 / ADS bibcode 1967JCoPh...1..397S (use DOI/bibcode, never the title alone). Confirmed via Semantic Scholar paper page + ScienceDirect abstract.",
+   "consensus": "majority",
+   "verification_status": "verified"
+  },
+  {
+   "item": "SHA-256 — NIST FIPS 180-4 (current Aug 2015) + FIPS 180-2 (2002) provenance",
+   "claim": "VERIFIED, fully open access. NIST FIPS PUB 180-4, 'Secure Hash Standard (SHS),' August 2015; DOI 10.6028/NIST.FIPS.180-4; full PDF freely available at nvlpubs.nist.gov — no paywall. Round function (FIPS 180-4 Sec 4.1.2/4.2.2) uses only addition mod 2^32, ROTR (right rotate), SHR (right shift), and bitwise AND/OR/XOR/NOT — no multiply or divide. SHA-256 was first INTRODUCED in FIPS PUB 180-2 (Aug 2002, effective Feb 2003), freely available from NIST CSRC, which added SHA-256/384/512 to the prior SHA-1-only standard.",
+   "best_citation": "NIST FIPS PUB 180-4 (Aug 2015), DOI 10.6028/NIST.FIPS.180-4, https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf (OA, direct PDF read). SHA-256 origin: FIPS PUB 180-2 (Aug 2002), NIST CSRC (OA).",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  },
+  {
+   "item": "FIPS 180-4 chronology — first issued 2012-03-06; current normative doc is the 2015-08-04 update; it supersedes FIPS 180-3 (SHA-256 itself dates to FIPS 180-2, 2002)",
+   "claim": "CORRECTED and independently verified against NIST CSRC + the NIST PDF front matter: FIPS 180-4 was first issued 2012-03-06, updated 2015-08-04 (the current document, which 'Supersedes: FIPS 180-4 (03/06/2012)' as an in-series update), and the 180-4 standard SUPERSEDES FIPS 180-3; SHA-256 itself originates in FIPS 180-2 (2002). Opus stated this correctly. HAIKU was WRONG: it claimed 180-4 was 'officially published March 2012' and that the 'August 2015 date refers to online archival, not publication date' — the Aug 2015 edition is a genuine NIST document update, not mere archival. SONNET was imprecise: 'supersedes FIPS 180-4 of March 6, 2012' conflates the within-series update with supersession (a document does not supersede itself; 180-4 supersedes 180-3).",
+   "best_citation": "NIST CSRC FIPS 180-4 (Final, 08/04/15) page (lists 'Supersedes: FIPS 180-4 (03/06/2012)') + the NIST.FIPS.180-4.pdf front matter ('supersedes FIPS 180-3'). Both read directly.",
+   "consensus": "majority",
+   "verification_status": "verified"
+  },
+  {
+   "item": "Joint framework claim — rotation=CORDIC=shift-add+sign; multiply=Booth=shift-add; gcd=Stein=shift-sub; hash=SHA-256: heavy ops reduce to add/sub/shift+sign with no multiply/divide primitive",
+   "claim": "SUPPORTED as a REDUCIBILITY / existence claim, with caveats attached (unanimous 3/3 on support; tiers differed on caveat weight). All four primary references are verified and each supports its sub-claim for the LOOP BODY: (a) CORDIC computes rotation/trig by iterative shift-add with per-step sign, no per-step multiply; (b) Booth reduces signed multiply to shift + conditional add/subtract; (c) Stein computes gcd with only shifts/subtraction/comparison, explicitly no division; (d) SHA-256's round function is add mod 2^32 + ROTR/SHR + bitwise, no multiply. MANDATORY attached caveats: (1) CORDIC needs a stored arctan LUT + gain K (~0.6073) — stored constants, not runtime multiplies; (2) Booth is O(n) add/sub, not a single-cycle op; (3) Stein removes DIVIDE, not multiply (float reciprocal in real silicon uses Newton-Raphson multiply-add, itself then Booth-decomposable); (4) these are EXISTENCE PROOFS that each heavy op CAN be so realized — they do NOT prove all silicon DOES (modern FPUs ship dedicated multiplier/FMA arrays). With caveats stated, the four jointly and soundly support the reducibility claim.",
+   "best_citation": "Volder 1959 + Booth 1951 + Stein 1967 + NIST FIPS 180-4 (all verified above). The A-N class mapping (CORDIC -> C/K, Booth -> arithmetic, Stein -> N/I, SHA-256 -> A) is the framework's LENS, offered not asserted.",
+   "consensus": "unanimous",
+   "verification_status": "verified"
+  }
+ ]
+}
