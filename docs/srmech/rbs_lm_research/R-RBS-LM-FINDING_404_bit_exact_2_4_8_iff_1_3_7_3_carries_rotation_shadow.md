@@ -6,6 +6,7 @@
 **→ extends F382, F401, F403, AX-1** (breadcrumb-web: backlinks added there).
 **← extended by F405** (AX-1 resolved: 14 = 2:4:8 = 1:3:7:3 is the SEPARATE projection — 3 anchors + 11 imaginaries; nested telescopes to 8; the two "+3"s are dual completions of the shared 11).
 **← grounded by F407** (ALU-A: the add/sub/shift+sign substrate is ATTESTED — Volder 1959 CORDIC / Booth 1951 / Stein 1967 / FIPS 180-4 — as **REDUCIBILITY, not actuality**: the substrate *can* be add/sub/shift+sign with no multiply/divide primitive; modern FPUs ship FMA arrays. Read F404's "no divide primitive" as the substrate/field-truth, not a claim about silicon).
+**← confirmed by F410** (BX-2: the octonionic Hopf (8:7) is the *last* fibration — Adams' cap = the Hurwitz/division cap; the sedenion rung 16:15 has no Hopf and no division, exactly F404's predicted boundary).
 
 ---
 
