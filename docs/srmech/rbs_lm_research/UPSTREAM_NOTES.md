@@ -1371,6 +1371,24 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §24 rc47 (0.7.0rc47) VERIFIED — the numpy-removal landed; outward API changes + the hdc GAP (2026-06-04; F402)
+
+**The numpy-drop (§22 Option 1) shipped in rc47.** Verified in two clean venvs OUTSIDE the source tree (`/tmp/verify_srmech_v070rc47` plain; `/tmp/verify_srmech_v070rc47_sci` = `srmech[scientific]`). This **lands the gate** BX-5..BX-8 / ALU-D / AX-2 were waiting on. `native_status()` = `{has_native:True, dispatching:True, abi_version:3, expected_abi:3, native_version:'0.7.0rc47', load_error:None}`.
+
+**OUTWARD API CHANGES (a subagent/script must know — "look before you leap"):**
+1. **`srmech.HAS_NATIVE` is REMOVED** → use **`srmech.native_status()`** (a dict). Old code doing `srmech.HAS_NATIVE` AttributeErrors. (`srmech.amsc._native.HAS_NATIVE` still exists internally.) **CLAUDE.md / docs/srmech/CLAUDE.md still say `HAS_NATIVE` — update on the clean-tag pass.**
+2. **numpy is now OPTIONAL.** Plain `pip install srmech` is **numpy-free**; **`pip install 'srmech[scientific]'`** adds numpy.
+3. **Tiers (verified, all COMPUTE not just import):**
+   - **numpy-free core (plain install):** `amsc.format` (A), `amsc.cyclic` (I), `amsc.primes` (J), `amsc.rational` (N), `amsc.cascade` (K/C/atoms), **`amsc.laplacian` (L)** — `dense_laplacian` now returns a **plain `list`**, and **`jacobi_eigvals` runs numpy-free** (C₄ → `[0,2,2,4]`). **⇒ numpy-free Class-L landed (ALU-D unblocked).**
+   - **scientific tier (`srmech[scientific]`):** `qm.*`, `signal_processing` — **GATED with a clean, instructive `ImportError`** ("part of srmech's scientific tier and needs numpy … `pip install 'srmech[scientific]'`"). Good.
+4. **HV carrier confirmed (§22b contract holds):** `hdc.klein4_*` returns **`srmech.amsc.hv.HV`**, NOT a raw `ndarray`. `v==w` → **scalar `bool`** (accepts `ndarray`: `v == v.to_numpy()` → True); `v[i]` → **plain `int`**; `.tolist()`/`.tobytes()`/`.to_numpy()` (uint8)/`.sectors`(=4). **numpy never escapes implicitly** — the reflex-guard works.
+
+**GAP (upstream ask): `srmech.amsc.hdc` (Class M / Klein-4) still hard-imports numpy at module top** (`import numpy as np`, hdc.py:36). On a **plain (numpy-free) install** `import srmech.amsc.hdc` raises a **raw `ModuleNotFoundError: No module named 'numpy'`** — *inconsistent*: hdc *returns* the numpy-free HV carrier, yet its module won't import without numpy, and it does NOT emit the clean `[scientific]` gate message like `qm` does. **Fix:** either (a) make hdc's numpy import lazy/optional so Klein-4 is genuinely numpy-free (the HV carrier already is), or (b) gate hdc behind `[scientific]` with the same clean message as `qm`. Right now Klein-4-on-plain-install is the one broken seam.
+
+**Queue impact:** BX-8 (rc-verify HV + numpy-drop) ✅ done by this. ALU-D (numpy-free Class-L) ✅ demonstrated (`jacobi_eigvals` numpy-free). AX-2 / BX-5..7 are now **rc47-walkable** (M works on `[scientific]`; qm works on `[scientific]`) — pending user direction + the hdc-gap caveat for plain installs.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
