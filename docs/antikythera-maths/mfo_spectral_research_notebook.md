@@ -6073,6 +6073,8 @@ Framework reading, **held lightly**; antiquity / cognition / history are **cite-
 
 The single object that holds the whole 14-D substrate, **and how to drive it.** Companion to §VIII.31.14 (the two alphabets) and §VIII.31.11 (4:3:7 / 11D / G₂). Ships in **srmech v0.7.0rc49** as `srmech.amsc.cascade.the_one` (PR #889) — numpy-free, exact-rational. Per-finding detail **F420** (RBS-LM / PR #687). *Written for the why-asker at depth: the narrative motivates each step; the precise statement, the srmech call, and the falsifiable form are kept attached inline — one section, no split-off "advanced" appendix.*
 
+*Find this page (search aliases): **the One** · `S(σ,θ)` · `S(sigma, theta)` · `the_one` · the unifying generator · the graded Cayley-Dickson generator · `𝕊(σ,θ)`. (The heading uses the math glyph `𝕊` = U+1D54A; these plain-`S` / ASCII spellings are indexed here so the built-in search resolves the formula and the name.)*
+
 ---
 
 > #### The gist — read this first (the executive intuition, ~1 page)
