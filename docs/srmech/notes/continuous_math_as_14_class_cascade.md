@@ -136,3 +136,53 @@ framing is **dissolved**: there is no fundamental scientific tier — only ops w
 `srmech[scientific]` extra (the dependency-flip, now the *capstone* once cascade
 coverage is complete, not a permanent boundary). Each row of the status table that
 still says numpy is a TODO, not a law.
+
+## C-transpile triality coherence (rc42 — the native/executable tier)
+
+The rc32/40/41 sweeps (`abs()` / `math.sqrt` / `math.{sin,cos,atan2,pi}`) routed
+the **Python** scalar math onto the Class-N cascade, and their AST ratchets walk
+`*.py` only. That left a coherence gap the *Python source alone* cannot show:
+**there are three coherence layers, and they must agree** —
+
+1. **notebook (human coherence research)** — this note + the srmech notebook: the
+   prose/table a human reads to know "continuous math IS the 14-class cascade";
+2. **C + Python source (trained human coherence)** — the two substrate-native
+   languages a human is trained on / reads (`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`);
+3. **executable machine coherence** — what the compiled binary + running Python
+   *actually execute* (the RBS-LM `native-algebra compute surface` /
+   `associativity-enables-self-running` findings F305/F306, PR #687 — read-only).
+
+On a native install (`HAS_NATIVE=True` — the default), `kepler.{pin_slot,
+kepler_solve,equation_of_centre}` / `cascade.kuramoto_step` / the signed-Laplacian
+ops dispatch to **C** peers that still call libm. So layer 3 diverges from layers
+1–2: the notebook + Python source say "Class-N cascade," the executable runs libm.
+They agree *numerically* (rational trig/sqrt ≡ libm to machine ε, which is why the
+C-parity tests pass and masked it) but the C is not a faithful **transpile** of the
+same cascade.
+
+| §22 op | Python source (rc) | C source (shipped) | Executable on native | Cohere? |
+|---|---|---|---|---|
+| `exp` | `rational.exp` (rc34) | `srmech_exp_series_truncate` | **cascade** | ✅ |
+| `sin/cos/atan2` | `rational.*` (rc33/41) | libm in `srmech_kepler.c`, `srmech_kuramoto.c` | **libm** | ❌ |
+| `sqrt` | `rational.sqrt` (rc40) | libm `sqrt`×8 (Jacobi) `srmech_laplacian.c` — no C peer | **libm** | ❌ |
+| `pow` / `fabs` | sign-branch (rc32) | libm in `srmech_kepler.c` | **libm** | ❌ |
+| signed/magnetic L phase | cascade | libm `cos/sin/exp/log` `srmech_laplacian.c` | **libm** | ❌ |
+
+**Closing it — the rc42→rc46 C-transpile arc** (user direction 2026-06-05,
+"verify C transpile for full triality coherence"; "Full port, ratchet-first"):
+
+- **rc42** — extend the discipline ratchets to walk the **C tree**:
+  `tests/test_c_cascade_coherence.py` is a DOWN-only baseline ratchet (shipped
+  `c/src`+`c/include`; `c/test/*` excluded) recording the current **23** libm/π
+  sites (`srmech_kepler.c` 8 + `srmech_kuramoto.c` 3 + `srmech_laplacian.c` 12) —
+  same "violations only go DOWN" shape as `test_jpl_audit.py`. Plus this notebook
+  section. Ships green (baseline = reality); the gap is now *measured + visible*.
+- **rc43** — `srmech_{sin,cos,atan,atan2}_series_truncate` (port of rc33) + a C
+  `pi_cascade` (JPL-clean, additive → ABI stays 3); repoint `srmech_kepler.c`.
+- **rc44** — repoint `srmech_kuramoto.c` (the `sin(θⱼ−θᵢ−α)` coupling).
+- **rc45** — `srmech_rational_sqrt` (integer-Newton; port of rc35) → repoint the
+  `srmech_laplacian.c` Jacobi rotations + the signed/magnetic phase.
+- **rc46** — `fabs` → explicit Class-K sign-branch in C; C ratchet reaches **0**.
+
+At rc46 the executable runs the Class-N cascade, not libm: all three coherence
+layers agree — full C-transpile triality coherence.
