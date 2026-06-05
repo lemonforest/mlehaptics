@@ -1409,6 +1409,16 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §26 Class-L gap: Schur complement / Dirichlet-to-Neumann (the holographic-boundary op) (2026-06-05; BX-1/F412)
+
+**Surfaced by:** BX-1/F412 — the holographic principle IS the framework's fibration (boundary=base, bulk=total, fiber=emergent radial dim), and its srmech-native operator is the **Class-L Laplacian Schur complement** = the boundary effective Laplacian (interior/bulk integrated out onto the boundary) = the discrete **Dirichlet-to-Neumann map**.
+
+**Gap (verified rc48 surface):** `srmech.amsc.laplacian` ships the build-blocks — `dense_laplacian`, `dense_matvec_complex`, `hermitian_eigendecompose`/`symmetric_eigendecompose`/`jacobi_eigvals`, `normalized_laplacian`, `fiedler_vector`, `three_fold_eigvec_groups` — but **no `schur_complement` / `dirichlet_to_neumann` / linear-solve** symbol.
+
+**Candidate addition:** `srmech.amsc.laplacian.schur_complement(L, boundary_idx) -> S` (= `dirichlet_to_neumann`), the boundary effective Laplacian `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`. Use cases: the holographic-boundary / bulk-integrate-out reading (F412); boundary-conditioned spectral problems; the **area law** as `rank(S) = |∂|` (boundary modes, not bulk volume). **Composite note (F392):** the interior block solve `L_ii⁻¹` is an inverse = **Class C→K** (no divide primitive; iterative shift-sub) — so this grades from a composite (matvec + a Class-K solve) to a first-class Class-L primitive via the full ratchet, exactly like the shipped eigendecompose. **Status:** documented gap; the F412 held demo (area-law in the boundary `S`-spectrum) is blocked on it.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
