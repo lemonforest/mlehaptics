@@ -222,3 +222,17 @@ The lean-ISA arc already recognized most of this from the silicon angle (corpus-
 
 ### Disposition + HOLD
 **ALU-A (attestation)** is walkable now (no srmech). **ALU-C (13 classes)** and **ALU-D (Class-L)** both **RUN srmech → HELD for extra srmech testing (user direction 2026-06-04)** — do not execute srmech-importing R-scripts until srmech has had extra testing (this composes with: don't build on the moving numpy surface). So the only truly-early item is **ALU-A** (literature/attestation via research-triality), and even that awaits a user go. Anchor + spec: F393; reductions proven: multiply (R35), divide (F392), trig/rotation/sqrt/L (R35 CORDIC).
+
+---
+
+## Anchor-axis thread (F396, 2026-06-04) — "the other axis is the anchor (reach within, not up)"
+
+**Spec: F396.** Determination: WORTH RESEARCHING, two legs.
+
+| Item | Subject | Status | Gate / note |
+|---|---|---|---|
+| **AX-1** | **no-magic-numbers check on 2:4:8** — is `1:3:7:3 = 2:4:8 = (1+1):(3+1):(7+1)` a STRUCTURAL partition of the A–N 14, and is the +3 meta-triad (B/H/N) = the 3 division-algebra anchors? | **ACTIVE / now** (framework+algebra, no srmech) | **must clear the nesting gate** (ℂ⊂ℍ⊂𝕆 → 2+4+8 double-counts; graded pieces = 2+2+4=8≠14). **Pre-stated null:** if no disjoint/graded 2:4:8 structure exists, 14=2:4:8 is falsified → dropped as coincidence (Class-C until grounded). |
+| **AX-2** | **consolidated bit-exact ℍ+𝕆 demo** — exact integer algebra + within-rung-conjugate EC over dyadic components, no rung-climb, no FPU (continuous ops via CORDIC) | ⏳ **QUEUED-srmech (HELD)** | mostly already proven (F389/F392/F385/F393); the consolidated demo runs srmech → held for extra testing |
+
+### Disposition
+**AX-1** is walkable now (no srmech) but **may falsify** — that's fine (F394). **AX-2** is srmech-held. Leg-1 conclusion (anchor = the other axis; bit-exact within-rung; no climb) is high-confidence + mostly already shown; Leg-2 (the 2:4:8 partition) is gated behind AX-1's no-magic test.
