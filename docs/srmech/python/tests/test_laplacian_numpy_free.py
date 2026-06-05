@@ -1,4 +1,4 @@
-"""v0.7.0rc38 — the real-symmetric Class-L core is numpy-absent-safe, the
+"""v0.7.0rc39 — the real-symmetric Class-L core is numpy-absent-safe, the
 eigenvalue math is srmech's OWN Jacobi cascade (never numpy LAPACK), and the
 whole package is free of ALU ``abs()`` (UPSTREAM §22 + the user directives
 "abs() is never fine" and "never use numpy math when srmech can do it with a

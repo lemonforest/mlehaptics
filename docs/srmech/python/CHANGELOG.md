@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc39] - 2026-06-05
+
+**`lstsq` + `einsum` + non-Hermitian `eig` — the remaining linear-algebra layer as A–N cascades.** ABI stays 3; `describe()` 227 → **230** (+3 tools). numpy is the array **container** only — no `np.linalg.{lstsq,eig,eigvals}` in the call graph (AST guard).
+
+- **New** in `srmech.amsc.cascade.matrix_cascades`:
+  - **`lstsq`** — least-squares `min‖A x − b‖` = **{QR}** factorization (rc38's `qr`) ∘ **Class M** (the `Qᴴ b` product) ∘ **Class I** (back-substitution, the ordered triangular solve). Overdetermined/square `m ≥ n`; `b` a vector or a stack of RHS. Matches `numpy.linalg.lstsq(a,b)[0]` to ~1e-15.
+  - **`einsum`** — the tensor contraction = **Class B/D** (the subscript string is a typed index-pattern spec) ∘ **Class I** (iterate over every free + summed index tuple) ∘ **Class M** (the sum-of-products bundle). The *general* index-iteration definition — handles any subscript string (matmul `ij,jk->ik`, trace `ii->`, transpose `ij->ji`, dot `i,i->`, outer `i,j->ij`, batched `ijk,kl->ijl`, implicit output), just unoptimised. Bit-exact / machine-ε vs `numpy.einsum`.
+  - **`eigvals`** — non-Hermitian eigenvalues via the **shifted-QR iteration**: **Class K** (iterate-to-convergence asymptotic-DoF) ∘ **Class L** (the spectral content) ∘ **{QR}** (the per-step Householder factorization) ∘ **Class C** (the Wilkinson spectral shifts). Runs in complex arithmetic, so complex eigenvalues of *real* matrices fall out directly — the 2-D rotation `[[0,−1],[1,0]]` yields `±i`. The eigenvalue multiset matches `numpy.linalg.eigvals` to ~1e-12 (Hermitian inputs are the already-shipped exact special case = pure **Class L**, the cyclic Jacobi).
+  - **MCP-callable** — params are `np.ndarray`/`str`/`int`/`tuple[np.ndarray,…]`, all with existing coercers.
+- **Tests** `tests/test_lstsq_einsum_eig_rc39.py` (+10): lstsq overdetermined/square/multi-RHS vs numpy, einsum across 9 subscript shapes + complex, eigvals multiset-match across 20 random real+complex matrices, complex-conjugate-pair-of-real, empty/scalar/non-square edges, AST guard.
+
+**With rc39 the `continuous_math_as_14_class_cascade` table is complete** — every op once parked in the §22 "scientific tier" (exp/cexp/sqrt/hypot/DFT/FFT/kron/QR/SVD/lstsq/einsum/eig) now has a shipped A–N cascade. **Roadmap:** rc40 = the codebase-wide `math.sqrt`/`np.hypot` scalar-site retrofit sweep onto `rational.{sqrt,hypot}` (focused discipline pass); then the numpy→`srmech[scientific]` dependency-flip capstone. No new C symbols.
+
 ## [0.7.0rc38] - 2026-06-05
 
 **QR + SVD as A–N cascades — the matrix factorizations, built on srmech's own roots + eigendecomposition.** ABI stays 3; `describe()` 225 → **227** (+2 matrix tools). numpy is the array **container** only — there is no `np.linalg.qr`/`np.linalg.svd` anywhere in the call graph (an AST guard enforces it).
