@@ -62,7 +62,7 @@ On close, the issue carries the backlink to its resolver: **#757 → #760 / F214
 - **Rolling:** **#797** (until Q2 + AX-1 resolve).
 
 ## Deep-pass disposition (PRESENTED for user batch-authorization)
-- **Confident-close (Tier 1):** **#765, #763** — deliverables provably landed (self-attested DEMONSTRATED), forwards are fresh items.
+- **Confident-close (Tier 1):** **#765, #763** — deliverables provably landed (self-attested DEMONSTRATED), forwards are fresh items. **→ CLOSED 2026-06-05** (user-authorized; **frame-resolved**; each carries a **method-stamped closing comment** with re-surface keywords — the learn-as-method keyword-search discipline, TRIALITY.md §5).
 - **Judgment (Tier 2):** **#768, #758** (close-with-spinoff or keep); **#819, #817** (recommend mark *rolling*, not close).
 - **Leave open:** all Tier 3.
 - **Gate status:** with #765/#763 dispositioned, the tracker is clean of *done-but-open* findings issues → **CL-1 gate CLEARS**, walkable research (AX-1 / ALU-A / BX-1 / BX-2 / BX-3) is unblocked.
