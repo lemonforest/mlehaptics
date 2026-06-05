@@ -10,6 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.3rc2] — 2026-06-05
+
+### Fix — `backend="auto"` default was rejected by `get_eclipse_probability` and `get_local_view`
+
+Two bridge facades — `get_eclipse_probability(jd_tdb)` and
+`get_local_view(jd_tdb, body, lat, lon)` — declare `backend="auto"` as
+their default, but a premature `_validate_backend(backend)` in their
+validate-tuple rejected the raw `"auto"` **before** the
+`auto → concrete` resolution two lines below. Worse, `_validate_backend`
+checks the wrong roster (`{bip, complex128, c}`) for these functions,
+whose real roster is `{auto, bip, c, fpu-ref}`. The net effect: a
+default-argument call returned `{"ok": False, "error": "backend must be
+one of ['bip', 'complex128', 'c'], got 'auto'"}`.
+
+The fix drops `_validate_backend(backend)` from both validate-tuples;
+the `chosen not in {bip, c, fpu-ref}` check **after** the `"auto"`
+resolution is the correct, roster-matching gate (it already rejected
+`complex128` and any unknown backend). `find_syzygies` and
+`get_breathing_modulation` were never affected — they resolve `"auto"`
+*before* validating. Regression test in
+`tests/test_facades.py::test_default_backend_auto_resolves`. No ABI/API
+change; surfaced by an exhaustive immolation sweep of the bridge.
+
 ## [0.29.3rc1] — 2026-06-05
 
 ### Compatibility rc — verifies the package against srmech `0.7.0rc48`

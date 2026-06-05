@@ -5425,9 +5425,13 @@ def get_local_view(
         HD vector dimension. Only used for ``backend in {"auto","bip","c"}``;
         the FPU-ref path uses the instrument's configured D.
     """
+    # NB: `backend` is validated AFTER the "auto" resolution below — this
+    # function's roster is {auto, bip, c, fpu-ref}, not _validate_backend's
+    # {bip, complex128, c}. Validating the raw value here rejected the
+    # *default* backend="auto" (the `chosen not in {...}` gate below is the
+    # correct, roster-matching check).
     for v in (_validate_jd(jd_tdb), _validate_body(body),
-              _validate_lat_lon(lat, lon), _validate_kernel(kernel),
-              _validate_backend(backend)):
+              _validate_lat_lon(lat, lon), _validate_kernel(kernel)):
         if v: return v
     from ephemerides_spectral import _native_bip
     chosen = backend
@@ -5532,8 +5536,12 @@ def get_eclipse_probability(
     dict
         ``{"ok": True, "jd_tdb": ..., "probability": [0..1], "backend": ...}``.
     """
-    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel),
-              _validate_backend(backend)):
+    # NB: `backend` is validated AFTER the "auto" resolution below — this
+    # function's roster is {auto, bip, c, fpu-ref}, not _validate_backend's
+    # {bip, complex128, c}. Validating the raw value here rejected the
+    # *default* backend="auto" (the `chosen not in {...}` gate below is the
+    # correct, roster-matching check).
+    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel)):
         if v: return v
     from ephemerides_spectral import _native_bip
     chosen = backend
