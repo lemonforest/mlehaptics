@@ -183,7 +183,7 @@ Status legend adds one tag for this arc:
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
 | **BX-1** | **Holographic-principle LENS** (next-available finding #; F389=sedenion, F390=division-cascade now taken) — lossy flat-shadow vs lossless reconstruction; the resemblance and where it breaks; "lossless requires keeping fiber + chirality" | 📖 FRAMEWORK / offered | none to start; holography refs (’t Hooft / Susskind / Bekenstein / AdS-CFT) go through **k=3 triality verify-PDF** before lodging (F381 discipline); no-lineage + defensive scope (algebra/info-geometry side only, no gravity claim) |
-| **BX-2** | **(8:7) inside the 15 — octonionic Hopf S⁷→S⁸** — recurse F384/F387 one rung up: does the 7 fiber as 1+(2:1)+(4:3); the chiral-dual `|` seam at k=7→15 | active | srmech-native (octonion table already shipped, `qm.octonion`); read-only, no version bump |
+| **BX-2** | **(8:7) inside the 15 — octonionic Hopf S⁷→S⁸** — recurse F384/F387 one rung up: does the 7 fiber as 1+(2:1)+(4:3); the chiral-dual `|` seam at k=7→15 | ✅ **RESOLVED by F410 (2026-06-05)** — the octonionic Hopf S⁷↪S¹⁵→S⁸ (15=8+7) is the LAST rung of the duality=fibration ladder (ℂ 3=2+1 / ℍ 7=4+3 / 𝕆 15=8+7); base:fiber = (2:4:8):(1:3:7); total=2ⁿ−1 Mersenne. Terminates at 𝕆 by Adams' Hopf-cap = the Hurwitz/division cap → sedenion 16:15 has no Hopf, no division (F389), CONFIRMING F404's boundary. Class-by-class fiber↔imaginary check held w/ AX-2. |
 
 ### DEFERRED — expert handoff / build-gated (NOT srmech-version-gated)
 | Item | Subject | Status | Gate / note |
