@@ -116,12 +116,12 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | FFT (radix-2) | M ∘ {N∘C} ∘ I ∘ J ∘ K | **shipped rc37** (`cascade.spectral_cascades.fft` / `ifft`; `O(N log N)` power-of-2 butterfly + direct-`dft` fallback for all other N) |
 | FFT (mixed-radix) | M ∘ {N∘C} ∘ I ∘ J ∘ K | general butterfly over `N`'s full prime factorization → future refinement |
 | kron | I ∘ M | **shipped rc36** (`cascade.spectral_cascades.kron`) |
-| QR | M ∘ C ∘ N ∘ K | derive → implement → **rc38** |
-| SVD | L ∘ N∘K ∘ M | reachable from `hermitian_eigendecompose` → **rc38** |
-| `math.sqrt` / `np.hypot` scalar-site sweep | (route → `rational.{sqrt,hypot}`) | **rc38** |
-| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | after QR → **rc39** |
+| QR | M ∘ C ∘ N ∘ K | **shipped rc38** (`cascade.matrix_cascades.qr`; Householder, reduced+complete) |
+| SVD | L ∘ N∘K ∘ M | **shipped rc38** (`cascade.matrix_cascades.svd`; Gram-matrix `hermitian_eigendecompose`) |
 | lstsq | {QR} ∘ M ∘ I | after QR → **rc39** |
-| einsum | B/D ∘ I ∘ M | **rc39** |
+| einsum | B/D ∘ I ∘ M | **rc39** (general index-iteration) |
+| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | shifted-QR iteration → **rc39** |
+| `math.sqrt` / `np.hypot` scalar-site sweep | (route → `rational.{sqrt,hypot}`) | **rc40** (focused discipline pass; cf. rc32 abs-sweep / rc33 numpy-math-sweep) |
 
 ## Reframe of §22 (the "scientific tier")
 

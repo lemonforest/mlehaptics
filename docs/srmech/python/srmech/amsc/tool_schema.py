@@ -1294,6 +1294,20 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[list[complex]]", "Kronecker product block matrix"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
+            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no np.linalg.qr in the call graph. mode='reduced' (default, matching numpy.linalg.qr) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+                        P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
+            returns=R("tuple[np.ndarray, np.ndarray]", "(Q, R): orthonormal-column Q + upper-triangular R"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
+            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no np.linalg.svd. full_matrices=False (reduced form). Singular values match numpy.linalg.svd to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+                        P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
+            returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]", "(U, s, Vh): singular vectors + descending singular values"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",

@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc38] - 2026-06-05
+
+**QR + SVD as A–N cascades — the matrix factorizations, built on srmech's own roots + eigendecomposition.** ABI stays 3; `describe()` 225 → **227** (+2 matrix tools). numpy is the array **container** only — there is no `np.linalg.qr`/`np.linalg.svd` anywhere in the call graph (an AST guard enforces it).
+
+- **New** `srmech.amsc.cascade.matrix_cascades.{qr, svd}`:
+  - **`qr`** — `A = Q·R` via **Householder reflections**. Q is a product (**Class M**) of elementary reflectors `H = I − β·v·vᴴ`; each reflector is **Class K** (the sign-flip across a hyperplane) ∘ **Class M** (the outer-product `v·vᴴ` bind) ∘ **Class N** (the `2/(vᴴv)` scale, the column norm a `rational.sqrt`). The phase choice `α = −phase·‖x‖` is the **Class K** pin-slot that avoids cancellation. `mode='reduced'` (default, matching `numpy.linalg.qr`) / `'complete'`. Real + complex.
+  - **`svd`** — `A = U·diag(s)·Vᴴ` reached from the Hermitian eigendecomposition of the Gram matrix: **Class L** (`hermitian_eigendecompose` of `AᴴA` or `AAᴴ` — srmech's cyclic-Jacobi cascade) ∘ **Class N∘K** (`s = √eigvals` via `rational.sqrt`) ∘ **Class M** (`U = A·V·Σ⁻¹`).
+  - **Verified by INVARIANTS, not by element-wise numpy match** (QR/SVD are unique only up to signs): reconstruction `Q·R = A` / `U·diag(s)·Vᴴ = A` to ~1e-15, orthonormality `Qᴴ Q = I` / `Uᴴ U = I` to ~1e-14, R upper-triangular — and the singular VALUES (which *are* unique) match `numpy.linalg.svd` to round-off. The Gram route squares the condition number, so very small singular values carry √ε-scale error (documented caveat).
+  - **MCP-callable** — params are `np.ndarray`/`str`/`bool`, all with existing coercers; the every-tool smoke covers both.
+- **Tests** `tests/test_matrix_cascades_rc38.py` (+8): QR/SVD invariants across real+complex and 7 shapes, complete-mode, singular-value match vs numpy, empty, AST guard (no `abs()`, no `np.linalg.{qr,svd,eig,…}`).
+
+**Roadmap:** rc39 = `lstsq` (`{QR}∘M∘I` back-substitution) + `einsum` (`B/D∘I∘M` index-iteration) + non-Hermitian `eig` (`K∘L∘{QR}∘C`, the shifted-QR iteration); rc40 = the codebase-wide `math.sqrt`/`np.hypot` scalar-site retrofit onto `rational.{sqrt,hypot}` (a focused discipline pass, like the rc32 abs-sweep / rc33 numpy-math-sweep). The numpy→`srmech[scientific]` dependency-flip is the capstone. No new C symbols.
+
 ## [0.7.0rc37] - 2026-06-04
 
 **The FFT butterfly = the DFT cascade + Class J + Class K.** Pure-Python; ABI stays 3; `describe()` 223 → **225** (+2 FFT tools).
