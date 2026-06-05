@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc37] - 2026-06-04
+
+**The FFT butterfly = the DFT cascade + Class J + Class K.** Pure-Python; ABI stays 3; `describe()` 223 → **225** (+2 FFT tools).
+
+- **New** `srmech.amsc.cascade.spectral_cascades.{fft, ifft}` — the **radix-2 Cooley–Tukey** butterfly. Bit-for-bit the same *mathematics* as rc36's `dft` (and value-faithful to `numpy.fft.fft`/`ifft` to ~3e-14, machine ε), but `O(N log N)` when `N` is a power of two: the decimation-in-time even/odd split `x[0::2]` / `x[1::2]` is **Class J** (the radix `N = 2·(N/2)` factorization), the recursion is **Class K** (the butterfly depth), the twiddle `e^(∓2πi·k/N)` is the same `cexp` = **Class N** ∘ **Class C**, and the butterfly `E ± t·O` is **Class M** (bundle add) ∘ **Class K** (pin-slot sign-flip). No `math.pi`/`np.pi` in the call graph (π from the cascade).
+- **Full-coverage at any length** — for non-power-of-2 `N` (3, 5, 7, 13, …) `fft` falls back to rc36's direct `O(N²)` `dft`, so it is a true drop-in for `numpy.fft.fft`/`ifft` at *any* `N`, not just powers of two. (The general mixed-radix butterfly — full Class J over `N`'s prime factorization — is the follow-on refinement.)
+- **MCP-callable** — `fft`/`ifft` reuse rc36's `list[complex]` coercer; no new coercion handler needed.
+- **Tests** `tests/test_fft_radix2_rc37.py` (+7): fft/ifft vs numpy across power-of-2 AND non-power-of-2 lengths, fft≡dft agreement, ifft∘fft round-trip, empty, `_is_power_of_two` exhaustive 1..129, AST no-libm-π guard.
+
+**Roadmap:** rc38 = QR (Givens/Householder) + SVD (from `hermitian_eigendecompose`) + the `math.sqrt`/`np.hypot` scalar-site sweep onto `rational.{sqrt,hypot}`; rc39 = non-Hermitian eig + lstsq + einsum; the numpy→`srmech[scientific]` dependency-flip is the capstone. No new C symbols.
+
 ## [0.7.0rc36] - 2026-06-04
 
 **The DFT as the Antikythera epicycle-sum + Kronecker, as A–N cascades — plus a Bio-TOTP test-flake root-cause + fix.** Pure-Python; ABI stays 3; `describe()` 220 → **223** (+3 spectral cascade tools).
