@@ -2960,6 +2960,49 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # srmech.qm.hurwitz — the octonion-native matrix realisation of
+        # "the One" S(σ,θ) (#887); the qm-tier Rosetta peer of the
+        # numpy-free srmech.amsc.cascade.the_one. The Fano planes of each
+        # rotation are DERIVED from octonion_mult_table (not hardcoded), so
+        # the 14×14 matrix agrees bit-for-bit with One.to_matrix.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.hurwitz.hurwitz_matrix", owner="srmech",
+            category="qm.hurwitz",
+            summary="The One S(σ,θ) as a 14×14 octonion-native matrix "
+                    "G = ⨁_n (1 ⊕ σ R_n(θ)) (#887). R_n turns every Fano "
+                    "plane through Î_n=e_{2ⁿ-1} by θ — 0/1/3 planes for "
+                    "ℂ/ℍ/𝕆 (the 𝕆 block is a genuine 3-plane rotation, "
+                    "eigenvalues {1,e^{±iθ}×3}). Planes DERIVED from "
+                    "octonion_mult_table; bit-exactly equal to "
+                    "srmech.amsc.cascade.One.to_matrix (the Rosetta peer). "
+                    "Class A (planes) ∘ N (rational cos/sin) ∘ K·C (σ); no "
+                    "new class, no abs(). Scientific tier (§22): numpy. "
+                    "Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("sigma", "int", True, "chirality σ ∈ {+1,-1}"),
+                P("theta_num", "int", True, "angle numerator (radians)"),
+                P("theta_den", "int", False, "angle denominator > 0; default 1"),
+                P("terms", "int", False, "Class-N Taylor depth; default 24"),
+            ),
+            returns=R("np.ndarray", "(14,14) float64 orthogonal-up-to-σ matrix"),
+        ),
+        ToolEntry(
+            name="srmech.qm.hurwitz.hurwitz_planes", owner="srmech",
+            category="qm.hurwitz",
+            summary="The oriented Fano planes (a,b,sign) each Hurwitz block "
+                    "(ℂ/ℍ/𝕆) turns by θ, DERIVED from octonion_mult_table — "
+                    "0/1/3 planes (the octonion epicycle). Matches the "
+                    "hardcoded srmech.amsc.cascade.one.FANO_PLANES bit-for-bit "
+                    "(the structure cross-derivation). Class A "
+                    "(content-addressing the octonion convention). Scientific "
+                    "tier (§22): numpy. Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("tuple",
+                      "((), ((1,2,1),), ((1,6,-1),(2,5,1),(3,4,1)))"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # srmech.qm.so8 — the 28-generator so(8) adjoint, partitioned
         # 14 (g2 = Der O) + 7 (L-type) + 7 (R-type). The 14 = the A-N
         # 1+3+7+3 partition. Class M (g2 + L/R binders); Class C (so7).

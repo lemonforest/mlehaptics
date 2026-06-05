@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc50] - 2026-06-05
+
+**"The One" goes octonion-native — `S(σ,θ)`'s 𝕆 block is a 3-plane rotation, with a bit-exact qm-matrix Rosetta peer ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** rc49 used the simplest single-plane epicycle for every block; rc50 makes `e^{Î_nθ}` the **algebra's own** rotation — conjugation by the unit `cos(θ/2)+Î_n sin(θ/2)`, which turns *every Fano-triple plane through `Î_n`* by θ. The plane count is `0 / 1 / 3` for ℂ / ℍ / 𝕆: the single θ-turn spins **three planes at once in 𝕆** (eigenvalues `{1, e^{±iθ}×3}` on the imaginary part — the `1 fixed axis + 3×2 rotated` split of the 7). ℂ (σ-only) and ℍ (1-plane) are unchanged.
+
+- **`srmech.amsc.cascade.one`** — the rotation now uses `FANO_PLANES` (the oriented Fano lines through each axis: ℍ `(1,2,+1)`; 𝕆 `(1,6,−1),(2,5,+1),(3,4,+1)` through `Î₃=e₇`), matching the fixed Cayley–Dickson-from-ℍ convention (Baez 2002 §2). `One.to_matrix()` is the full block-diagonal multi-plane operator; new `One.plane_counts` → `(0,1,3)` and `Block.rotated_planes`. The 𝕆 seed `e₁` now lands in its Fano plane `(1,6,−1)` → `cosθ·e₁ − sinθ·e₆` (the only rc49 behaviour change).
+- **NEW `srmech.qm.hurwitz`** — the scientific-tier matrix peer: `hurwitz_matrix(σ, θ)` builds the same `14×14` `G(σ,θ)`, and `hurwitz_planes()` **derives** the planes straight from `octonion_mult_table` (not a hardcoded list). The cascade and the qm matrix agree **bit-for-bit** (`np.array_equal`), and the hardcoded `FANO_PLANES` equals the table-derived `hurwitz_planes()` — a genuine two-language cross-derivation (continuous-Hopf matrix vs discrete-cyclic cascade), not a restatement.
+- No new primitive class (Class A planes ∘ N rational cos/sin ∘ K·C sign), no `abs()`. Two new tool-schema entries → `describe()` total **231 → 233**. No ABI change.
+
 ## [0.7.0rc49] - 2026-06-05
 
 **"The One" — `S(σ,θ)`, the single generator of the 1+3+7+3 = 14 substrate ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** A new cascade-native surface `srmech.amsc.cascade.the_one` builds the unifying Hurwitz-ladder generator
