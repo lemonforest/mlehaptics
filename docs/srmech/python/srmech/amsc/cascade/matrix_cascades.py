@@ -47,7 +47,11 @@ import itertools
 from collections import Counter
 from typing import Dict, List, Tuple
 
-import numpy as np
+# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
+# path with ndarray-typed ops; the lazy proxy keeps the module importable
+# on a plain install and only the ndarray ops raise the [scientific] hint.
+from srmech._scientific import lazy_numpy as _lazy_numpy
+np = _lazy_numpy("srmech.amsc.cascade.matrix_cascades")
 
 from srmech.amsc.laplacian import hermitian_eigendecompose
 from srmech.amsc.rational import hypot as _rhypot

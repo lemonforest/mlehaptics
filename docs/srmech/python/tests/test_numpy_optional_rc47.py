@@ -73,25 +73,22 @@ def test_require_numpy_raises_actionable_hint_when_absent(monkeypatch):
 
 
 def test_cascade_core_modules_do_not_import_numpy_at_top_level():
-    """AST ratchet: the numpy-free cascade core must not ``import numpy`` at
-    module top level (that would silently re-hard-depend numpy via the base
-    import chain). Mirrors the no-abs / no-libm AST ratchets."""
+    """AST ratchet (broadened rc48 for #882): NO module under ``srmech/amsc/**``
+    — the numpy-free cascade core — may ``import numpy`` at module top level. A
+    top-level numpy import makes the module crash raw on a plain (numpy-free)
+    install instead of importing and gating cleanly via the ``lazy_numpy``
+    proxy. rc47's hardcoded list missed ``amsc/hdc.py`` (+ coupling / harmonics
+    / cascade.matrix_cascades); walking the whole subtree closes that hole."""
     import ast
 
-    core = [
-        "__init__.py",
-        "amsc/rational.py",
-        "amsc/cyclic.py",
-        "amsc/laplacian.py",
-        "amsc/cascade/__init__.py",
-        "_scientific.py",
-    ]
     pkg = pathlib.Path(srmech.__file__).resolve().parent
+    files = [pkg / "__init__.py", pkg / "_scientific.py"]
+    files += sorted((pkg / "amsc").rglob("*.py"))
     offenders = []
-    for rel in core:
-        p = pkg / rel
+    for p in files:
         if not p.is_file():
             continue
+        rel = p.relative_to(pkg).as_posix()
         tree = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
         for node in ast.walk(tree):
             # only flag MODULE-LEVEL imports (col_offset == 0); lazy imports
@@ -104,6 +101,47 @@ def test_cascade_core_modules_do_not_import_numpy_at_top_level():
                 if node.module and node.module.split(".")[0] == "numpy":
                     offenders.append(rel)
     assert not offenders, (
-        "cascade-core modules import numpy at top level (breaks numpy-optional "
-        f"base import): {sorted(set(offenders))}"
+        "amsc cascade-core modules import numpy at top level (crash raw on a "
+        f"plain install — use srmech._scientific.lazy_numpy): {sorted(set(offenders))}"
     )
+
+
+def test_amsc_core_modules_import_without_numpy(monkeypatch):
+    """Behavioral guard (#882): with numpy unavailable, the mixed amsc modules
+    (hdc / coupling / harmonics / cascade.matrix_cascades) still IMPORT, the
+    Klein-4 HV-carrier path runs numpy-free, and an ndarray op raises the clean
+    ``[scientific]`` hint (not a raw ``ModuleNotFoundError``)."""
+    import builtins
+    import importlib
+
+    real_import = builtins.__import__
+
+    def _no_numpy(name, *a, **k):
+        if name == "numpy" or name.startswith("numpy."):
+            raise ModuleNotFoundError("No module named 'numpy'")
+        return real_import(name, *a, **k)
+
+    targets = [
+        "srmech.amsc.hdc", "srmech.amsc.coupling", "srmech.amsc.harmonics",
+        "srmech.amsc.cascade.matrix_cascades",
+    ]
+    for m in list(sys.modules):
+        if m == "numpy" or m.startswith("numpy.") or m in targets:
+            monkeypatch.delitem(sys.modules, m, raising=False)
+    monkeypatch.setattr(builtins, "__import__", _no_numpy)
+
+    hdc = importlib.import_module("srmech.amsc.hdc")          # must not raise
+    for name in targets[1:]:
+        importlib.import_module(name)                          # must not raise
+
+    # Klein-4 HV-carrier path is genuinely numpy-free.
+    hv = hdc.klein4_random(64, seed=1)
+    assert type(hv).__name__ == "HV"
+    assert hdc.klein4_similarity(hv, hv) == 1.0
+    assert type(hdc.klein4_bind(hv, hdc.klein4_random(64, seed=2))).__name__ == "HV"
+
+    # A bipolar (ndarray) op raises the actionable [scientific] hint, not a raw
+    # numpy ModuleNotFoundError.
+    with pytest.raises(ImportError) as exc:
+        hdc.polar_random(16, seed=1)
+    assert "srmech[scientific]" in str(exc.value)
