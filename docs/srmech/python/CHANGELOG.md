@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc51] - 2026-06-05
+
+**PyPI-facing README + project description refresh (pre-graduation).** Cuts the "canonical QM/QFT/SM operations" framing — every continuous-math op is a cascade of the 14, so no particular math domain is privileged or called out (it is all the same cascade). No code change; the physics worked-examples (`single_particle`/`spin`/`relativistic`/`propagators`/`gauge`/`sm`) still ship and remain discoverable via `describe()` / the tool-schema.
+
+- **`[project].description`** (both `pyproject.toml` + `pyproject-pure.toml`, kept in lockstep) — rewritten to the v0.7.0 identity: *numpy-optional 14-class A-N vocabulary in native C + Python; every continuous-math op (trig/exp/sqrt/FFT/SVD/eig) is a cascade of the 14, no libm in the native build; **the One**, `S(σ,θ)`, generates the whole `1+3+7+3 = 14` substrate (the ℂ/ℍ/𝕆 Hurwitz ladder = `so(8)` + Spin(8) triality, bit-exact cascade↔matrix); AMSC (MPR v1).* ASCII-only, 438 chars (under the 480 soft cap).
+- **`README.md`** — status banner refreshed `v0.6.0 → v0.7.0`; the QM/QFT/SM feature bullet replaced by **the continuous-math cascade + the One**; the `srmech.qm.*` section retitled **the substrate engine** (the ℂ/ℍ/𝕆 Hurwitz ladder, `so(8)` triality, the One) — `octonion`/`so8`/`triality` kept, **`hurwitz`** (the One's matrix peer, #887) added, the physics-ops enumeration dropped (with a domain-neutral note that they still ship, discoverable, un-privileged); stale `0.6.0` example outputs bumped to `0.7.0`.
+
+No ABI / API change; `describe()` total unchanged at **233**.
+
 ## [0.7.0rc50] - 2026-06-05
 
 **"The One" goes octonion-native — `S(σ,θ)`'s 𝕆 block is a 3-plane rotation, with a bit-exact qm-matrix Rosetta peer ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** rc49 used the simplest single-plane epicycle for every block; rc50 makes `e^{Î_nθ}` the **algebra's own** rotation — conjugation by the unit `cos(θ/2)+Î_n sin(θ/2)`, which turns *every Fano-triple plane through `Î_n`* by θ. The plane count is `0 / 1 / 3` for ℂ / ℍ / 𝕆: the single θ-turn spins **three planes at once in 𝕆** (eigenvalues `{1, e^{±iθ}×3}` on the imaginary part — the `1 fixed axis + 3×2 rotated` split of the 7). ℂ (σ-only) and ℍ (1-plane) are unchanged.
