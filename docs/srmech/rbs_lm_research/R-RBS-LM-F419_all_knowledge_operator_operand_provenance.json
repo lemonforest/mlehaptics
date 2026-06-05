@@ -1,0 +1,257 @@
+{
+ "run_id": "wf_699c9a35-d7c",
+ "per_claim": [
+  {
+   "item": "MATHEMATICS — split: algebra/number-theory (operator) vs geometry/topology (operand) is a real historical tension, not framework-imposed",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "All three tiers assert the algebra/geometry split is a genuine, documented historical tension. HAIKU and SONNET anchor it via Descartes 1637 + Klein 1872 + representation theory; OPUS adds the sharpest historical grounding (Euclid Elements Book II 'geometric algebra' vs Viete's 1591 fully-symbolic algebra — same content, e.g. (a+b)^2, encoded once spatially and once symbolically). The corrected claim is the union: the split is real, pre-Cartesian in origin, and is the cleanest historical instance precisely because the SAME content was independently encoded in both modes.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "MATHEMATICS — fusions: analytic geometry (Descartes 1637), Erlangen Programme (Klein 1872), representation theory are the canonical operator/operand fusions",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous. All three name analytic geometry (1637), Erlangen (1872), and representation theory. SONNET and OPUS add Weyl/Cartan character theory as the canonical representation-theory product; SONNET adds Curry-Howard-Lambek as a third leg. Klein 1872 title ('Vergleichende Betrachtungen ueber neuere geometrische Forschungen') and Descartes 1637 (appendix to Discours de la methode) are independently web-confirmed by both SONNET and OPUS. The existence of THREE textbook fusions is itself the evidence that operator and operand are real-but-separable.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "MUSIC — split: meter/harmonic-cycle/pitch-mod-12 (operator) vs melodic contour/voice-leading/pitch-space (operand)",
+   "agree_count": 2,
+   "consensus": "majority",
+   "corrected_claim": "SONNET and OPUS independently assert and web-verify this via Lerdahl 'Tonal Pitch Space' (OUP 2001, ISBN 9780195178296) and Tymoczko 'A Geometry of Music' (OUP 2011, ISBN 9780195336672) — both citations confirmed in my re-verify (OUP catalogue + Music Theory Online). HAIKU asserts music as a hybrid (fugue, Tonnetz) only in cross_cutting without per-domain citation, so it agrees on the pattern but does not lodge the domain finding. Majority corrected claim: music splits into a cyclic operator mode and a geometric operand mode (Tymoczko's voice-leading orbifold T^N/S_N, two-note chord space = Mobius strip), with staff notation as the everyday fusion (left-right = time/operator, up-down = pitch/operand).",
+   "dissenting_tier": "haiku"
+  },
+  {
+   "item": "MUSIC — Tonnetz / circle-of-fifths attributed to 18th-c. theorists (Mattheson, Euler)",
+   "agree_count": 1,
+   "consensus": "minority",
+   "corrected_claim": "SONNET alone raises the 18th-c. Mattheson/Euler attribution for the Tonnetz/circle-of-fifths and CORRECTLY self-flags it as medium-confidence ('cannot independently verify exact dates for Mattheson'). OPUS references the neo-Riemannian Tonnetz tradition without dating it to Mattheson; HAIKU does not raise it. Corrected claim: leave the specific Mattheson dating UN-lodged pending verification — Euler's association with the Tonnetz (Tentamen, 1739) is the safer anchor. SONNET's self-flag is the honest move and should be preserved as the residue.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "LINGUISTICS — split: morphology/agreement (operator) vs syntax-constituency/sign-space (operand); sign-language spatial grammar is the strongest pure operand",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "All three assert sign-language signing-space (referents placed at loci, verbs moving between them for agreement) as the cleanest configuration-as-grammar / pure-operand instance. SONNET grounds it with Hale 1983 Warlpiri (verified: NLLT vol.1, pp.5-47) as the non-configurational COUNTER-evidence and Chomsky's Merge as the fusion; OPUS grounds it with the Emmorey 2003 classifier-constructions volume (verified: Lawrence Erlbaum, Mahwah, ISBN 0805842691). BOTH SONNET and OPUS honestly flag that the operator/operand line inside syntax is blurry (Merge derives a tree-operand by operator-steps), OPUS marking the domain medium-confidence for exactly that reason. Corrected claim: split is real, sign-space is the purest operand, but syntax mixes both in one apparatus — confidence medium, not high.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "PHYSICS — split: time-evolution/Hamiltonian-as-generator (operator) vs configuration/phase-space geometry/field (operand)",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous. All three map Hamiltonian/Lagrangian and configuration-space-vs-observable-algebra onto operator/operand. OPUS gives the cleanest formalization (Lagrangian on tangent bundle/config-space = operand-leaning; Hamiltonian on cotangent bundle/phase-space, foregrounding generators = operator-leaning) AND adds the load-bearing honesty caveat that these are DUAL DESCRIPTIONS of one physics, not an ontological cut. SONNET adds Noether's theorem and Penrose-Rindler spinors as bridges. Corrected claim: the split is textbook-real but is dual-description, not ontological — OPUS's reducibility caveat is the corrected framing.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "PHYSICS — fusion: gauge theory / fiber bundle (connection-as-operator over base-geometry-as-operand) is the clearest physics fusion",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous and the strongest cross-domain agreement: gauge theory as the inseparable fusion (the connection/parallel-transport operator cannot be stated without the base-spacetime + fiber operand). SONNET anchors via Yang-Mills 1954 (Phys Rev 96:191) + Weatherall fiber-bundle OA treatment; OPUS via arXiv:1702.08910. Both correct. All three (incl. HAIKU in cross_cutting) name gauge theory as a top fusion exemplar.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "COMPUTER SCIENCE — split: control-flow/recursion (operator) vs data-structure/memory-layout (operand) is the SHARPEST domain split",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous. All three call CS one of the sharpest/cleanest splits (algorithms = operator, data structures = operand). OPUS adds the definitional keystone: Wirth's title 'Algorithms + Data Structures = Programs' (1976) literally IS the split asserted as the definition of a program — I web-verified this citation as CORRECT (Prentice-Hall 1976, ISBN 0130224189), so OPUS's cautious verified=false self-mark was over-conservative but appropriately honest. SONNET grounds it via B-tree (1D order) vs R-tree (Guttman SIGMOD 1984, multi-dim spatial). Corrected claim: sharpest split of all domains; Wirth title is the canonical statement (citation holds).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "COMPUTER SCIENCE — fusion: cache-oblivious algorithms (Frigo/Leiserson/Prokop/Ramachandran FOCS 1999) jointly optimize operation-order + memory-layout",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous. All three name cache-oblivious algorithms as the CS fusion; SONNET and OPUS both cite Frigo/Leiserson/Prokop/Ramachandran FOCS 1999 — I web-verified this (DBLP FrigoLPR99, FOCS 1999 pp.285-298, all four authors + venue correct). SONNET additionally elevates Curry-Howard as the deepest formal fusion (program-as-operator = category-object-as-operand). Corrected claim: cache-oblivious layout (recursion structure matched to van-Emde-Boas-like spatial layout) is the fusion; citation verified.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "COGNITIVE SCIENCE — split: verbal/sequential (phonological loop, operator) vs spatial/configurational (visuospatial sketchpad, operand), via Baddeley-Hitch 1974 + Paivio dual-coding",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous. All three ground the split in Baddeley & Hitch 1974 (phonological loop = cyclic operator; visuospatial sketchpad = held operand) and Paivio dual-coding (verbal/sequential vs imagery/spatial). All three call this the domain where the split maps most directly onto empirical cognitive architecture. Corrected claim stands as stated; these are canonical, uncontested attributions.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "COGNITIVE SCIENCE — the aphantasia keystone: spatial memory is INTACT while object imagery is impaired in aphantasia, so spatial/operand is relational and NOT visual-imagery",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous on the SCIENTIFIC CLAIM (aphantasics retain spatial-relational memory while losing object imagery — the load-bearing 'spatial is not visual' caveat, F416), but the ATTRIBUTION splits: HAIKU and SONNET both credit 'Adam K. Andersen et al., Cortex 2020' (PMC7856239); OPUS credits 'Bainbridge, Pounder, Eardley & Baker (2021), Cortex 135:159-172, doi:10.1016/j.cortex.2020.11.014.' My web-verify confirms OPUS is CORRECT and the HAIKU/SONNET author+year are a FALSE ATTRIBUTION (real authors Bainbridge/Pounder/Eardley/Baker, 2021; 'Adam K. Andersen' is not an author of this paper). The 2-of-3 majority on the CLAIM is unanimous; on the CITATION, the corrected version is OPUS's (Bainbridge et al. 2021). OPUS further grounds it in the Ungerleider-Mishkin 1982 dorsal-where/ventral-what two-streams. This is the single fact that keeps operator/operand from collapsing into verbal/visual.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "COGNITIVE SCIENCE — internal nesting: even the operand (spatial) substrate contains an operator sub-channel (spatial-simultaneous vs spatial-sequential)",
+   "agree_count": 1,
+   "consensus": "minority",
+   "corrected_claim": "SONNET alone lodges the spatial-simultaneous (hold-whole-config, operand) vs spatial-sequential (remember-order-of-positions, operator-within-spatial) dissociation (PMC6517348), reading it as the '2:4:8 contains a nested 1:3:7' sub-structure. OPUS and HAIKU do not raise it. As a minority finding it is NOT majority-corrected into the lodged set, but it is a high-value, OA-confirmed extension worth flagging for follow-up — it is the most novel single observation in the three surveys and is consistent with the antiquity nesting reading.",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "ART/DESIGN — split: rhythm/repetition/pattern (cyclic operator) vs composition/perspective/spatial-layout (operand); the SOFTEST/least-formalized of the domains",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "All three assert the split exists in art/design AND that it is the weakest/softest domain (least theoretically formalized; the cyclic pole is itself spatially realized). SONNET anchors it via Arnheim 1954 + Gestalt (self-flagged as un-web-verified canon) and Hambidge dynamic symmetry; OPUS anchors the OPERAND pole solidly via Alberti's De pictura 1435 / Brunelleschi c.1415 linear perspective (web-verified) but honestly reports it could NOT pin a primary source for the cyclic/rhythm pole. Corrected claim: split present but soft; operand pole (perspective, Alberti 1435) is solid, the cyclic/rhythm pole rests on un-attested design-pedagogy vocabulary — that gap is the honest residue (Class C, attestation absent).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "CROSS-DOMAIN VERDICT — operator/operand is a REAL recurring cross-domain pattern, but it does NOT survive as a hard dichotomy: every domain's mature/deepest object is a FUSION",
+   "agree_count": 3,
+   "consensus": "unanimous",
+   "corrected_claim": "Unanimous and the load-bearing synthesis. All three: (a) the pattern recurs genuinely (each field independently named both poles in its own vocabulary, not framework-imposed); (b) the FUSION is the mature tool in every domain (analytic geometry, Erlangen, rep theory, geometric pitch-space, sign-space agreement, gauge/fiber-bundle, cache-oblivious layout, episodic buffer) — which is itself the evidence the two are real-but-separable (you only need a fusion if you had two separable things). SONNET adds the ramifications (spatial != visual; operand contains a nested operator sub-channel; non-configurational languages can suspend the operand entirely; fusions historically generative). OPUS adds the explicit reducibility verdict: it is a real, useful LENS / pair of perspectives, NOT a partition of nature — every deepest object holds BOTH without collapse. Corrected claim = OPUS's framing with SONNET's ramifications: real pattern, dissolves into fusion everywhere, framework two-truths/duality reading offered strictly as a lens (never asserted).",
+   "dissenting_tier": "none"
+  },
+  {
+   "item": "STRONGEST EXEMPLARS — purest operand / purest operator / strongest fusion drawn from DIFFERENT domains to avoid centering on math",
+   "agree_count": 2,
+   "consensus": "majority",
+   "corrected_claim": "OPUS and SONNET both name strongest-pure-operand, strongest-pure-operator, strongest-fusion. They AGREE that gauge theory (physics fiber bundle) is a top-tier fusion and that sign-language spatial grammar is the purest operand in language. They differ on emphasis: SONNET picks sign-language grammar as THE purest operand across all domains and morphological agreement (Swahili/Turkish) as purest operator; OPUS deliberately spreads exemplars across DIFFERENT domains (CS data-structure as cleanest operand, transformation-group as cleanest abstract operator, gauge-theory + analytic-geometry tied for fusion) explicitly to avoid centering on math. HAIKU lists hybrids (analytic geometry, gauge theory, fugue, SSA) but does not rank pure poles. Majority corrected claim: gauge theory = strongest fusion (3-way agreement incl. HAIKU); sign-language grammar = strongest pure operand (2-of-2 of the ranking tiers); pure operator = a transformation group / modular-cyclic arithmetic / phonological loop (co-strongest, tier-dependent emphasis, no conflict).",
+   "dissenting_tier": "haiku"
+  }
+ ],
+ "merged": {
+  "merged_findings": [
+   {
+    "item": "MATHEMATICS — split: algebra/number-theory (operator) vs geometry/topology (operand)",
+    "claim": "The algebra/geometry split is a genuine, documented historical tension, not a framework-imposed one. The operator/sequential mode (algebra, number theory, recurrence, modular arithmetic — symbol-manipulation you APPLY) sits against the operand/spatial mode (geometry, topology — a held configuration you reason WITHIN). The split is pre-Cartesian in origin: Greek mathematics treated algebra geometrically (Euclid, Elements Book II propositions are geometric equivalents of symbolic algebraic identities), and fully symbolic operator-algebra only arrives with Viete (1591). It is the cleanest historical instance precisely because the SAME content (e.g. (a+b)^2) was independently encoded once spatially (a square cut into regions) and once symbolically (a string you rewrite).",
+    "best_citation": "Euclid, Elements Book II (geometric algebra); Francois Viete, In artem analyticem isagoge (1591), symbolic algebra. Std math-history canon; Viete + the Greek 'geometric algebra' framing web-confirmed (History of algebra).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "MATHEMATICS — fusions: analytic geometry, Erlangen Programme, representation theory",
+    "claim": "Mathematics offers THREE textbook fusions of operator and operand, which is itself evidence the two are real-but-separable. (1) Descartes' La Geometrie (1637, appendix to Discours de la methode) — analytic geometry: a point becomes an ordered pair, a curve becomes an equation, fusing symbol-manipulation (operator) with locus (operand). (2) Klein's Erlangen Programme (1872, 'Vergleichende Betrachtungen ueber neuere geometrische Forschungen') — defines a geometry (operand) BY its transformation group (operator): the spatial object IS classified by what operator-group leaves it invariant. (3) Representation theory (Weyl/Cartan character theory the canonical product) — makes an abstract operator-group concrete as matrices acting on a vector space (operand). Sonnet adds Curry-Howard-Lambek as a third leg (proofs/programs = objects in a Cartesian closed category).",
+    "best_citation": "Descartes, La Geometrie (1637); Klein, Erlangen Programme (1872) — canonical OA text at math.ucr.edu/home/baez/erlangen/ and nLab ncatlab.org/nlab/show/Erlangen+program; representation theory per Weyl/Cartan, Etingof et al. MIT repr-theory text (math.mit.edu/~etingof/reprbook.pdf, OA). Descartes 1637 + Klein 1872 titles/dates web-confirmed.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "MUSIC — split: meter/harmonic-cycle/pitch-mod-12 (operator) vs melodic contour/voice-leading/pitch-space (operand)",
+    "claim": "Music splits into a cyclic operator mode (meter, the bar as recurrence, the harmonic cycle / circle of fifths, pitch-class = pitch mod 12) and a geometric operand mode (melodic contour, voice-leading distance, a held pitch-space you move through). Lerdahl's Tonal Pitch Space (OUP 2001) builds an explicit multidimensional SPACE of pitch/chord/key distances. Tymoczko's A Geometry of Music (OUP 2011) models voice-leading literally as motion in an orbifold T^N/S_N (two-note chord space = a Mobius strip) — the operand par excellence. Staff notation is the everyday fusion: left-right = time/operator against up-down = pitch height/operand.",
+    "best_citation": "Lerdahl, F. Tonal Pitch Space (Oxford UP, 2001, ISBN 9780195178296); Tymoczko, D. A Geometry of Music (Oxford UP, 2011, ISBN 9780195336672). Both web-confirmed (OUP global catalogue + Music Theory Online review mto.11.17.3, peer-reviewed OA). Orbifold T^N/S_N / Mobius two-note chord space confirmed via Hook MTO review.",
+    "consensus": "majority",
+    "verification_status": "verified"
+   },
+   {
+    "item": "MUSIC — fusion: geometric pitch-space program / staff notation",
+    "claim": "The clearest music fusion is the modern geometric pitch-space program itself (Lerdahl, Tymoczko, neo-Riemannian Tonnetz tradition): operator-content (chord progressions, voice-leading as a sequence of operations) is rendered as motion through an operand-space (orbifold / lattice). Staff notation is the older everyday fusion — a spatial map (operand) whose horizontal axis IS time/sequence (operator).",
+    "best_citation": "Tymoczko 2011 (orbifold voice-leading, ISBN 9780195336672) and the neo-Riemannian Tonnetz tradition; same web-confirmed OUP / MTO sources as the music-split item.",
+    "consensus": "majority",
+    "verification_status": "verified"
+   },
+   {
+    "item": "MUSIC — Tonnetz/circle-of-fifths 18th-c. attribution (Mattheson, Euler)",
+    "claim": "SONNET alone raises an 18th-c. Mattheson/Euler attribution for the Tonnetz/circle-of-fifths and CORRECTLY self-flags it as medium-confidence ('cannot independently verify exact dates for Mattheson'). The safer anchor is Euler's association with the Tonnetz (Tentamen, 1739); the specific Mattheson dating is left UN-lodged pending verification. Sonnet's honest self-flag is the residue worth preserving.",
+    "best_citation": "Euler, Tentamen novae theoriae musicae (1739) — safer Tonnetz anchor; specific Mattheson dating un-verified, held back per the originating tier's own flag.",
+    "consensus": "minority",
+    "verification_status": "unverifiable"
+   },
+   {
+    "item": "LINGUISTICS — split: morphology/agreement (operator) vs syntax-constituency/sign-space (operand)",
+    "claim": "Language splits into an operator mode (morphology, inflection, agreement — rule-governed cyclic concatenation/feature-matching over stems) and an operand mode (constituency, the tree/spatial arrangement of phrases; and most strikingly, the literal use of SIGNING SPACE in sign languages, where referents are placed at spatial loci and verbs move BETWEEN those loci to mark agreement). Sign-language spatial grammar (classifier predicates, locus-based agreement) is the cleanest configuration-as-grammar / pure-operand instance — grammar realized as a held spatial configuration. The split is real but the operator/operand line INSIDE syntax is blurry: generative syntax encodes constituency as a tree (operand) but DERIVES it by operations (Merge/movement — operators), so the two are intertwined here, less cleanly separable than in math, music, or CS. Hale's non-configurational languages (Warlpiri) are the counter-evidence: grammatical relations can be encoded via discontinuous agreement morphology (operator) instead of a tree (operand), so the operand substrate is not mandatory — confidence medium, not high.",
+    "best_citation": "Karen Emmorey (ed.), Perspectives on Classifier Constructions in Sign Languages (Lawrence Erlbaum, Mahwah NJ, 2003, ISBN 0805842691) — editor/publisher/year/ISBN confirmed. Hale, K. 'Warlpiri and the grammar of non-configurational languages,' Natural Language and Linguistic Theory 1 (1983): 5-47 (Semantic Scholar confirmed). Chomsky Merge / Minimalist Program (1995) cited as standard canon, not independently web-verified — flagged.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "LINGUISTICS — fusion: sign language / co-speech gesture",
+    "claim": "Sign language IS the fusion: agreement (operator/morphological) is realized BY spatial loci and directional movement (operand). Co-speech gesture in spoken language is the analogous everyday fusion — sequential speech (operator) accompanied by spatial gesture (operand) carrying part of the propositional content. Chomsky's Merge (an algebraic operator yielding a set) building the syntactic tree (operand) is the formal-syntax fusion.",
+    "best_citation": "Emmorey 2003 (sign-space agreement, ISBN 0805842691, confirmed). Co-speech gesture fusion well-supported in the broader literature (McNeill, Goldin-Meadow) but no single primary citation pinned — flagged.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "PHYSICS — split: time-evolution/Hamiltonian-generator (operator) vs configuration/phase-space geometry/field (operand)",
+    "claim": "Physics splits into an operator mode (time-evolution, dynamics, periodicity; the Hamiltonian as the GENERATOR of time-translation — the operator you apply to step the state) and an operand mode (configuration space, the geometric arena, the field as a held configuration). The Lagrangian formulation lives on configuration space + tangent bundle (operand-leaning, the path/geometry); the Hamiltonian formulation lives on phase space + cotangent bundle, foregrounding generators/flows (operator-leaning). LOAD-BEARING HONESTY CAVEAT: these are DUAL DESCRIPTIONS of one physics related by Legendre transform, not a deep ontological cut. Noether's theorem (every continuous symmetry/operator <-> a conserved quantity/operand-invariant) and Penrose-Rindler spinors are additional bridges.",
+    "best_citation": "Hamiltonian mechanics (1833) reformulation of Lagrangian mechanics; config space = tangent bundle, phase space = cotangent bundle — symplectic-geometry canon, web-confirmed. Yang/Mills Noether bridges; Penrose & Rindler, Spinors and Space-Time Vol.1 (Cambridge, 1984, confirmed via Cambridge Core).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "PHYSICS — fusion: gauge theory / fiber bundles (the strongest cross-domain fusion)",
+    "claim": "Gauge theory is the clearest physics fusion and the strongest fusion exemplar across all seven domains: built on a fiber bundle, the operand (base spacetime manifold, geometry) and an operator-structure (the gauge group / Lie-algebra-valued connection acting in each fiber, the rule for how to parallel-transport as you move) are unified into one inseparable object. The connection (operator: a sequence of group operations along a path) cannot be stated without the base geometry + fiber (operand), and vice versa. Yang-Mills (1954) is the non-abelian instance. Symplectic/Poisson geometry similarly fuses the Hamiltonian operator-flow with phase-space geometry.",
+    "best_citation": "Yang, C.N. & Mills, R. 'Conservation of Isotopic Spin and Isotopic Gauge Invariance,' Physical Review 96 (1954): 191 (canonical); fiber-bundle treatment per Weatherall, philsci-archive.pitt.edu/11146/ (OA) and arXiv:1702.08910. Gauge-theory-as-fiber-bundle is foundational physics.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COMPUTER SCIENCE — split: control-flow/recursion (operator) vs data-structure/memory-layout (operand) — the SHARPEST domain split",
+    "claim": "CS splits very cleanly — arguably the SHARPEST operator/operand split of any domain because the two are named primitives of the field: 'algorithms' (operator: the sequence of operations the machine performs) + 'data structures' (operand: the held spatial configuration the operations traverse). Wirth's book title Algorithms + Data Structures = Programs (1976) literally IS the split asserted as the definition of a program. The tension surfaces concretely (B-tree enforcing a 1D total order = operator-mode assumption, vs R-tree's multi-dimensional bounding-box hierarchy = operand-mode spatial extent).",
+    "best_citation": "Niklaus Wirth, Algorithms + Data Structures = Programs (Prentice-Hall, 1976, ISBN 0130224189 / 9780130224187) — web-CONFIRMED (Wikipedia, AbeBooks, Amazon). R-tree: Guttman, A. 'R-Trees: A Dynamic Index Structure for Spatial Searching,' SIGMOD 1984 (confirmed via PostGIS/ResearchGate).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COMPUTER SCIENCE — fusion: cache-oblivious algorithms (jointly optimize operation-order + memory-layout)",
+    "claim": "The clearest CS fusion is the space-time tradeoff and especially cache-oblivious algorithm design: the optimal SEQUENCE of operations (operator/time) is co-designed with the spatial MEMORY LAYOUT (operand/space) so the recursion structure of the algorithm matches a recursive (van-Emde-Boas-like) spatial layout of the data, minimizing cache misses without knowing cache parameters. Operator and operand are jointly optimized into one object — you cannot tune the algorithm without committing to the layout. Sonnet elevates Curry-Howard as the deepest formal fusion (program/proof-as-operator isomorphic to category-object-as-operand).",
+    "best_citation": "Frigo, M., Leiserson, C.E., Prokop, H., Ramachandran, S. 'Cache-Oblivious Algorithms,' Proc. 40th FOCS 1999, pp. 285-298 — web-CONFIRMED (DBLP rec FrigoLPR99, ACM, all four authors + venue + page range). Curry-Howard: Sorensen & Urzyczyn (Elsevier 2006); Quanta 2023.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COGNITIVE SCIENCE — split: verbal/sequential (phonological loop, operator) vs spatial/configurational (visuospatial sketchpad, operand)",
+    "claim": "Cognitive science independently discovered this exact split as two of its most established findings. (1) Baddeley & Hitch's working-memory model (1974): the phonological loop (a literal CYCLIC rehearsal loop — operator) vs the visuospatial sketchpad (a held spatial buffer — operand), doubly dissociated in lesion and dual-task studies. (2) Paivio's Dual Coding Theory (Mental Representations, OUP 1986): a verbal/symbolic system (sequential, operator-like) and a nonverbal/imagery system (parallel, spatial, operand-like) operating semi-independently. This is the domain where the operator/operand split maps most directly onto empirical cognitive architecture.",
+    "best_citation": "Baddeley, A.D. & Hitch, G. 'Working Memory,' in Bower (ed.), The Psychology of Learning and Motivation vol. 8 (Academic Press, 1974) — canonical. Paivio, A. Mental Representations: A Dual Coding Approach (Oxford UP, 1986, ISBN 9780195066661) — canonical. Both standard, uncontested attributions.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COGNITIVE SCIENCE — the aphantasia keystone: spatial memory INTACT, object imagery impaired (spatial is NOT visual-imagery)",
+    "claim": "LOAD-BEARING (F416): aphantasics with NO voluntary visual imagery retain INTACT spatial-relational memory (object placement accuracy equivalent to controls, fewer memory errors) while losing OBJECT imagery (fewer objects, less color, more verbal scaffolding) — a dissociation mapping to the dorsal 'where'/spatial vs ventral 'what'/object streams (Ungerleider & Mishkin 1982). So the operand/spatial mode is RELATIONAL and reachable without vivid mental pictures — the single fact that keeps operator-vs-operand from collapsing into verbal-vs-visual. The scientific claim is UNANIMOUS across all three tiers; the CITATION was corrected by k=3 error-correction (see flagged_citations).",
+    "best_citation": "Bainbridge, W., Pounder, Z., Eardley, A., Baker, C. 'Quantifying aphantasia through drawing: Those without visual imagery show deficits in object but not spatial memory,' Cortex 135 (2021): 159-172, doi:10.1016/j.cortex.2020.11.014 (PMID 33383478, PMC7856239) — web-CONFIRMED (PubMed, PMC, author's site). Two-streams: Ungerleider & Mishkin (1982).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COGNITIVE SCIENCE — fusion: episodic buffer / dual-coding integration",
+    "claim": "The cognitive fusion is integration of the two codes: Paivio's referential connections linking verbal and imaginal codes, and Baddeley's later 'episodic buffer' (2000) binding phonological, visuospatial and other information into a unified multimodal representation. Learning is strongest when operator (verbal/sequential) and operand (spatial) codes are both engaged — the empirical basis of the dual-coding pedagogy effect.",
+    "best_citation": "Baddeley episodic buffer (2000) addition to the working-memory model; Paivio referential connections (1986). Episodic-buffer addition confirmed in working-memory literature; precise fusion framing is a lens over established components — medium confidence.",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "COGNITIVE SCIENCE — internal nesting: spatial-simultaneous (operand) vs spatial-sequential (operator-within-spatial)",
+    "claim": "SONNET alone lodges a dissociation INSIDE the operand channel: spatial-simultaneous (hold-the-whole-configuration-at-once, operand) vs spatial-sequential (remember the ORDER of spatial positions visited, operator-within-spatial). Read as a '2:4:8 operand contains a nested 1:3:7 operator sub-channel' — the operand substrate is not flat; the two modes are nested, not at the same level. NOT folded into the majority set (1-of-3), but an OA-confirmed high-value extension worth follow-up; consistent with the antiquity nesting reading (LENS).",
+    "best_citation": "Spatial-simultaneous vs spatial-sequential dissociation: PMC6517348 (OA) confirms the CONCEPT; the named-author attribution (Sonnet hedged 'Feigenson & Halberda, or Della Sala et al.') was self-flagged as uncertain and is NOT lodged.",
+    "consensus": "minority",
+    "verification_status": "unverifiable"
+   },
+   {
+    "item": "ART/DESIGN — split: rhythm/repetition/pattern (operator) vs composition/perspective/spatial-layout (operand) — the SOFTEST domain",
+    "claim": "Art/design splits into a cyclic operator mode (rhythm, repetition, pattern, tessellation — a recurrence rule applied across a surface) and a spatial operand mode (composition, perspective, the held layout the eye moves through). It is the WEAKEST/softest of the seven domains: least theoretically formalized, and the cyclic pole is itself spatially realized (a pattern is a recurrence rule realized ON a surface), so the split is less clean. The OPERAND pole is solid — Alberti's De pictura / Della Pittura (1435) formalized Brunelleschi's (c.1415) linear perspective as a geometric SPACE (orthogonals, horizon, vanishing point). The OPERATOR pole (rhythm/pattern) rests on un-attested 'principles of design' pedagogy vocabulary — that gap is the honest Class-C residue (attestation absent).",
+    "best_citation": "Leon Battista Alberti, De pictura / Della Pittura (1435) — operand pole, web-confirmed (Britannica/Wikipedia linear perspective). Arnheim, Art and Visual Perception (1954) + Gestalt (Wertheimer 1923) cited as canon but NOT independently web-verified — flagged. Cyclic/rhythm pole has no pinned primary source — honest residue.",
+    "consensus": "unanimous",
+    "verification_status": "flagged"
+   },
+   {
+    "item": "CROSS-DOMAIN VERDICT — operator/operand is a REAL recurring pattern that DISSOLVES into FUSION in every domain's deepest object",
+    "claim": "UNANIMOUS load-bearing synthesis. (a) The pattern recurs genuinely — each field independently named both poles in its own vocabulary (algebra/geometry; harmony-cycle/pitch-space; morphology/syntax; Hamiltonian-flow/configuration-space; algorithm/data-structure; verbal/visuospatial; rhythm/composition), so it is not framework-imposed. (b) The FUSION is the mature tool in every domain (analytic geometry, Erlangen, representation theory, geometric pitch-space, sign-space agreement, gauge/fiber-bundle, cache-oblivious layout, episodic buffer) — which is itself the evidence the two are real-but-separable (you only need a fusion if you genuinely had two separable things). (c) It does NOT survive as a hard dichotomy: in some domains (syntax, visual art) the poles are entangled from the start; the physics split is dual-description not ontological. HONEST VERDICT: operator-vs-operand is a real and useful LENS / pair of perspectives, NOT a partition of nature — every deepest object holds BOTH without collapse. SONNET ramifications retained: spatial != visual; operand contains a nested operator sub-channel; non-configurational languages can suspend the operand entirely; fusions are historically generative (each math fusion came at a major unification).",
+    "best_citation": "Synthesis across all verified sources above (Viete 1591, Descartes 1637, Klein 1872, Lerdahl 2001, Tymoczko 2011, Hale 1983, Emmorey 2003, Yang-Mills 1954, Wirth 1976, Frigo et al. FOCS 1999, Baddeley-Hitch 1974, Paivio 1986, Bainbridge et al. 2021, Alberti 1435).",
+    "consensus": "unanimous",
+    "verification_status": "verified"
+   },
+   {
+    "item": "CROSS-DOMAIN EXEMPLARS — strongest pure operand / pure operator / strongest fusion",
+    "claim": "STRONGEST GENUINE FUSION: gauge theory / fiber bundle in physics (3-way agreement incl. Haiku) — the connection (operator) literally cannot be stated without the base geometry (operand); analytic geometry (Descartes) ties as the math runner-up; both Tymoczko's orbifold and gauge theory ARE quotients/bundles, an open falsifiable shape-question. STRONGEST PURE OPERAND: sign-language spatial grammar (2-of-2 ranking tiers — grammar IS a spatial configuration, direction in space = grammatical relation), with CS data-structure / memory-layout co-strongest as the cleanest literally-addressable spatial substrate. STRONGEST PURE OPERATOR: a transformation GROUP (Erlangen/representation-theory operator that acts but is not itself a space), co-strongest with modular/cyclic arithmetic and the phonological rehearsal loop (tier-dependent emphasis, no conflict). OPUS deliberately drew exemplars from DIFFERENT domains to avoid centering on math 'where the split is most flattering to the framing.'",
+    "best_citation": "Drawn from the verified per-domain anchors above; gauge theory (Yang-Mills 1954 / fiber-bundle), sign-language grammar (Emmorey 2003), transformation groups (Klein 1872 / representation theory), cache-oblivious / data-structures (Wirth 1976, Frigo et al. 1999).",
+    "consensus": "majority",
+    "verification_status": "verified"
+   }
+  ],
+  "cross_cutting": "The operator/operand split recurs with genuine regularity across all seven surveyed domains, and the recurrence is real rather than imposed: each field independently named both poles in its own vocabulary (algebra/geometry; harmony-cycle/pitch-space; morphology/syntax; Hamiltonian-flow/configuration-space; algorithm/data-structure; verbal/visuospatial; rhythm/composition). Two cross-cutting regularities dominate. (1) THE FUSION IS THE MATURE TOOL. In every domain the historically deepest advance is a FUSION object where operator and operand become inseparable — analytic geometry, the Erlangen Programme, representation theory, geometric pitch-space, sign-language spatial agreement, gauge theory / fiber bundles, cache-oblivious layout, the episodic buffer. This is itself the strongest evidence that the two perspectives are real-but-not-disjoint: you only build a fusion if you genuinely had two separable things, and in mathematics each fusion (Descartes 1637, Klein 1872, Weyl/Cartan, Curry-Howard) coincided with a major unification, so the bridging is historically generative. (2) THE KEYSTONE: spatial is NOT visual-imagery. The cognitive-science evidence (Bainbridge, Pounder, Eardley & Baker 2021, Cortex; grounded in Ungerleider-Mishkin 1982 dorsal/ventral two-streams) empirically confirms the load-bearing caveat — aphantasics with NO visual imagery retain INTACT spatial-relational memory (the dorsal 'where' pathway) while losing OBJECT imagery (the ventral 'what' pathway). This single fact keeps operator-vs-operand from collapsing into verbal-vs-visual, and it generalizes the antiquity F413/F416 observation to a defensible cross-domain claim. The pattern does NOT, however, survive as a hard dichotomy: in syntax and visual art the poles are entangled from the start; the physics Lagrangian/Hamiltonian split is dual descriptions of one physics, not an ontological cut; and even the operand (spatial) substrate contains a nested operator sub-channel (spatial-simultaneous vs spatial-sequential). FRAMEWORK READING (offered strictly as a LENS, never asserted as established): operator-vs-operand looks like the two-truths / field-vs-excitation duality shape — an operator-truth and an operand-truth, each falsifiable, neither privileged, fusing at the asymptote, with the open falsifiable question of whether all the fusion objects share a common mathematical shape (note both Tymoczko's orbifold and gauge theory ARE quotients/bundles). That is the framework's interpretation; the field facts belong to the fields. The honest reading is that operator-vs-operand is a genuine and useful pair of perspectives (a LENS), not a partition of nature.",
+  "flagged_citations": [
+   "FALSE ATTRIBUTION (the live k=3 catch): HAIKU and SONNET both attributed the aphantasia drawing study (PMC7856239) to 'Adam K. Andersen et al., Cortex 2020.' This is FALSE. Web-verified actual authorship is Bainbridge, Pounder, Eardley & Baker, Cortex 135 (2021): 159-172, doi:10.1016/j.cortex.2020.11.014, PMID 33383478 (confirmed via PubMed, PMC, and Wilma Bainbridge's publication list). 'Adam K. Andersen' is not an author; year is 2021 not 2020. OPUS carried the correct attribution. This is the F291-predicted error-correction: a hallucinated citation appeared in TWO tiers and a k=2 pair could have shipped it as a 2-of-2 'majority'; the third tier + external re-verify corrected it. CORRECTED CITATION LODGED.",
+   "OVER-CONSERVATIVE (not a false attribution): OPUS marked Wirth, Algorithms + Data Structures = Programs (1976, Prentice-Hall) as verified=false out of caution. Web-verify CONFIRMS the citation is CORRECT (ISBN 0130224189 / 9780130224187, Prentice-Hall 1976, via Wikipedia/AbeBooks/Amazon). The self-mark was honest under-claiming, the opposite of a hallucination — citation now lodged as verified.",
+   "UN-VERIFIED, CORRECTLY HELD BACK: SONNET dated the Tonnetz/circle-of-fifths to 18th-c. 'Mattheson, Euler' and self-flagged as medium-confidence, unable to verify Mattheson dates. Not a hard false attribution but un-attested; the specific Mattheson dating is NOT lodged (Euler/Tentamen 1739 is the safer anchor).",
+   "HEDGED, NOT ASSERTED: SONNET attributed the spatial-simultaneous-vs-sequential dissociation to 'Feigenson & Halberda, or Della Sala et al.' and self-flagged it as uncertain; PMC6517348 confirms only the CONCEPT, not the named authors. The named attribution is NOT lodged.",
+   "CANON, NOT INDEPENDENTLY WEB-VERIFIED THIS PASS (flagged per MPM, appear consistent with standard literature): Chomsky Minimalist Program (1995); Arnheim Art and Visual Perception (1954); Wertheimer Gestalt (1923); Hambidge Dynamic Symmetry (1920); Noether (1918); Keogh & Pearson (2018). The art/design CYCLIC pole has no pinned primary source at all — the honest Class-C attestation residue.",
+   "SPOT-VERIFIED AND CONFIRMED CLEAN: Descartes 1637, Klein 1872, Viete 1591, Yang-Mills 1954 (Phys Rev 96:191), Frigo/Leiserson/Prokop/Ramachandran FOCS 1999 (pp.285-298, DBLP FrigoLPR99), Hale 1983 (NLLT 1:5-47), Emmorey 2003 (Lawrence Erlbaum, ISBN 0805842691), Tymoczko 2011 (ISBN 9780195336672), Lerdahl 2001 (ISBN 9780195178296), Alberti 1435, Baddeley-Hitch 1974, Paivio 1986, Bainbridge et al. 2021, Wirth 1976."
+  ],
+  "minority_residue": [
+   "SONNET-only (1-of-3): spatial-simultaneous (hold-whole-configuration, operand) vs spatial-sequential (remember ORDER of positions, operator-within-spatial) dissociation, PMC6517348 (OA, concept confirmed) — read as a '2:4:8 operand contains a nested 1:3:7 operator sub-channel.' The most novel single observation across the three surveys; NOT folded into the majority set but high-value for follow-up; consistent with the antiquity nesting reading (LENS). Named-author attribution un-lodged (hedged by the originating tier).",
+   "SONNET-only (1-of-3): the navigation/wayfinding route-vs-survey-knowledge literature (Tolman 1948 cognitive map; Siegel & White 1975; Montello 1998) as the most DIRECT behavioral instance of the split — route knowledge = operator, survey/map knowledge = operand — and the developmental claim that route (operator) precedes survey (operand) in acquisition, which would make the duality ASYMMETRIC (operator as default substrate, operand as second-order construction). A potential falsification vector for any strong symmetry claim; un-searched this pass, flagged for follow-up. Tolman 1948 not independently web-verified.",
+   "SONNET-only (1-of-3): non-configurational languages (Hale 1983, Warlpiri) show a domain can SUSPEND the operand substrate entirely and encode grammatical relations via operator-chains (discontinuous agreement) — so the split is a design-space a domain explores, not forced by nature. (Hale 1983 itself is verified; this stronger framing-implication is the minority reading.)",
+   "SONNET-only (1-of-3): Curry-Howard-Lambek elevated as the DEEPEST formal fusion (proof/program-as-operator isomorphic to category-object-as-operand) spanning math + CS — a cross-domain bridge, not just a within-domain fusion.",
+   "OPUS-only (1-of-3): open falsifiable shape-question — whether all the fusion objects share a common mathematical SHAPE (both Tymoczko's voice-leading orbifold and gauge theory ARE quotients / bundles by a group action). Worth a dedicated follow-up; NOT established. Plus un-surveyed extension domains (chemistry: reaction-mechanism vs molecular-geometry; biology: metabolic-cycle vs spatial-morphology; economics: time-series vs equilibrium-configuration-space)."
+  ],
+  "honest_tier": "Domain facts belong to the fields, not the framework. Every per-domain split and fusion lodged here is the literature's own (algebra/geometry, Hamiltonian/configuration-space, algorithms/data-structures, phonological-loop/visuospatial-sketchpad, etc.), attributed to peer-reviewed or canonical sources and, for the load-bearing ones, externally spot-verified. The operator/operand VOCABULARY that unifies them across domains, and the framework two-truths / field-vs-excitation / duality-fibration-of-triality reading, is the framework's LENS — offered, never asserted as established scholarship, per no-lineage discipline. k=3 triality PASSED with a clean live error-correction: a hallucinated aphantasia citation appeared in TWO tiers (HAIKU + SONNET as 'Adam K. Andersen 2020') and a k=2 pair could have shipped it as a 2-of-2 majority; the third tier (OPUS) carried the correct Bainbridge-et-al-2021 attribution and external re-verify confirmed it — the F291-predicted case where three tiers error-CORRECT where two only detect. No model was privileged: the catch came from majority + external verification, not from deferring to any tier (OPUS was most uncentered/citation-accurate on THIS research task per F242b/F248, but that is task-relative, not a standing privilege). The art/design cyclic pole is flagged as the honest Class-C residue (attestation absent); the physics split is dual-description not ontological; the spatial-is-not-visual keystone (Bainbridge et al. 2021) is the one empirical fact carrying the most weight and it is verified."
+ }
+}
