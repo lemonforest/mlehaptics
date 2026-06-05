@@ -33,3 +33,30 @@ def require_numpy(feature: str):
             "runs without numpy."
         ) from exc
     return numpy
+
+
+class _LazyNumpy:
+    """A lazy numpy proxy (v0.7.0rc48). Importing the holding module is
+    numpy-free; the FIRST numpy attribute access imports numpy or raises the
+    ``[scientific]`` hint via :func:`require_numpy`. Used by the ``srmech.amsc``
+    modules that mix a numpy-free path (e.g. the Klein-4 HV carrier) with
+    ndarray-typed ops (bipolar HDC, the loop family) in one file — so the
+    module imports on a plain install and only the ndarray ops trigger the hint.
+    """
+
+    def __init__(self, feature):
+        # bypass __getattr__ during init
+        object.__setattr__(self, "_feature", feature)
+        object.__setattr__(self, "_mod", None)
+
+    def __getattr__(self, name):
+        mod = object.__getattribute__(self, "_mod")
+        if mod is None:
+            mod = require_numpy(object.__getattribute__(self, "_feature"))
+            object.__setattr__(self, "_mod", mod)
+        return getattr(mod, name)
+
+
+def lazy_numpy(feature: str) -> "_LazyNumpy":
+    """Return a lazy numpy proxy for ``feature`` (see :class:`_LazyNumpy`)."""
+    return _LazyNumpy(feature)

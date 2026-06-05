@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc48] - 2026-06-05
+
+**Fix [#882](https://github.com/lemonforest/mlehaptics/issues/882): `srmech.amsc.hdc` (Class M / Klein-4) — and three sibling `amsc` core modules — no longer crash raw on a plain (numpy-free) install.** rc47's numpy-optional capstone left four `srmech.amsc.*` modules with a top-level `import numpy as np`, so `import srmech.amsc.hdc` raised a raw `ModuleNotFoundError: No module named 'numpy'` instead of importing cleanly (the Klein-4 HV-carrier path is *designed* numpy-free) or gating like `srmech.qm`. rc47's AST ratchet used a hardcoded module list that missed them.
+
+- **`srmech._scientific.lazy_numpy`** — a lazy numpy proxy: the holding module imports numpy-free; the **first numpy attribute access** imports numpy or raises the actionable `pip install 'srmech[scientific]'` hint. `srmech.amsc.{hdc, coupling, harmonics, cascade.matrix_cascades}` now use it.
+- **Result, on a plain install:** the modules **import**; the **Klein-4 HV-carrier path** (`klein4_random` default-seed / `klein4_bind` / `klein4_bundle` / `klein4_similarity` / chirality / triality / holographic) runs **genuinely numpy-free**; the bipolar `polar_*` HDC + the loop family + the QR/SVD/lstsq/einsum/eig matrix cascades raise the clean `[scientific]` hint when called. The issue's preferred option (a).
+- **Ratchet broadened** — `test_numpy_optional_rc47.py` now walks the **whole `srmech/amsc/**`** subtree for module-level numpy imports (closing rc47's hardcoded-list hole), plus a numpy-blocked behavioral test (import + Klein-4 numpy-free + the `[scientific]` hint). numpy-present behavior unchanged; no ABI change; `describe()` stays **230**.
+
 ## [0.7.0rc47] - 2026-06-05
 
 **numpy is now an OPTIONAL dependency — the §22 capstone.** The §22 + C-transpile arcs (rc29–rc46) made the **Class-N cascade core numpy-free**: `srmech.amsc.*` (the A-N primitives, the rational/cyclic/laplacian cascades) and the native C surface run with **zero numpy**. rc47 demotes numpy from a hard dependency to the **`scientific`** extra. `pip install srmech` is now numpy-free; `pip install 'srmech[scientific]'` pulls it back in for the array-numerical scientific tier (`srmech.qm.*` / `srmech.signal_processing.*` / `srmech.rbs_lm.*`).

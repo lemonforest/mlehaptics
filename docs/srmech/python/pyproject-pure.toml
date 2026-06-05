@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.7.0rc47"
+version = "0.7.0rc48"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -68,7 +68,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Scientific extra (v0.7.0rc47): numpy backs the array-numerical scientific
+# Scientific extra (v0.7.0rc48): numpy backs the array-numerical scientific
 # tier. Pyodide installs numpy via micropip when the scientific tier is used.
 scientific = ["numpy>=1.24"]
 validation = ["jsonschema>=4.0"]
