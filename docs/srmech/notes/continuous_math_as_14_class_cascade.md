@@ -121,7 +121,8 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | lstsq | {QR} ∘ M ∘ I | **shipped rc39** (`cascade.matrix_cascades.lstsq`; back-substitution) |
 | einsum | B/D ∘ I ∘ M | **shipped rc39** (`cascade.matrix_cascades.einsum`; general index-iteration) |
 | eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | **shipped rc39** (`cascade.matrix_cascades.eigvals`; shifted-QR iteration) |
-| `math.sqrt` / `np.hypot` scalar-site sweep | (route → `rational.{sqrt,hypot}`) | **rc40** (focused discipline pass; cf. rc32 abs-sweep / rc33 numpy-math-sweep) |
+| `math.sqrt` scalar-site sweep | (route → `rational.sqrt`) | **shipped rc40** (12 sites: laplacian Jacobi ×5 + bell/octonion/sm/hypercomplex_dft; AST ratchet; see `notes/sqrt_sweep_rc40.md`) |
+| `math.{sin,cos,atan2}` / `math.pi` residue sweep | (route → `rational.{sin,cos,atan2}` + `pi_cascade`) | **rc41** (14 sites: kepler ×7 + compose ×3 + hypercomplex_dft ×2 + form_function_rotation pi ×1) |
 
 **As of rc39 the table is COMPLETE** — every op once parked in the §22 "scientific tier" (exp / cexp / sqrt / hypot / DFT / FFT / kron / QR / SVD / lstsq / einsum / non-Hermitian eig) now has a shipped A–N cascade in `srmech.amsc.{rational,cascade.spectral_cascades,cascade.matrix_cascades}`. The §22 "scientific tier" is dissolved: numpy's only remaining roles are the array container and a temporary fallback. rc40's `sqrt`/`hypot` retrofit-sweep + the numpy→`srmech[scientific]` dependency-flip are the closeout.
 

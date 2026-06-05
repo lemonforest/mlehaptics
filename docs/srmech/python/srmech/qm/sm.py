@@ -37,7 +37,6 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-import math
 
 import numpy as np
 
@@ -93,7 +92,7 @@ def higgs_vev(mu_squared: float, lam: float) -> float:
         raise ValueError(f"higgs_vev: mu_squared must be > 0; got {mu_squared}")
     if lam <= 0:
         raise ValueError(f"higgs_vev: lam must be > 0; got {lam}")
-    return math.sqrt(mu_squared / (2.0 * lam))
+    return _srn.sqrt(mu_squared / (2.0 * lam))
 
 
 # ----------------------------------------------------------------------
@@ -160,7 +159,7 @@ def z_boson_mass(g: float, g_prime: float, vev: float) -> float:
             f"z_boson_mass: g, g_prime, vev must all be > 0; got "
             f"g={g}, g_prime={g_prime}, vev={vev}"
         )
-    return vev * math.sqrt(g * g + g_prime * g_prime) / 2.0
+    return vev * _srn.sqrt(g * g + g_prime * g_prime) / 2.0
 
 
 def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
@@ -222,7 +221,7 @@ def fermion_mass_from_yukawa(yukawa: float, vev: float) -> float:
     """
     if vev <= 0:
         raise ValueError(f"fermion_mass_from_yukawa: vev must be > 0; got {vev}")
-    return yukawa * vev / math.sqrt(2.0)
+    return yukawa * vev / _srn.sqrt(2.0)
 
 
 # ----------------------------------------------------------------------

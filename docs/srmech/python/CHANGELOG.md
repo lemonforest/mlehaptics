@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc40] - 2026-06-05
+
+**`math.sqrt` scalar-site retrofit sweep — route the scalar root through the Class-N cascade, not libm.** Pure refactor; no new tools (`describe()` stays **230**); ABI stays 3. The §22 discipline closeout (sibling of the rc32 `abs()`-sweep and rc33 numpy-math-sweep): now that `rational.sqrt`/`hypot` exist (rc35), every `math.sqrt` in shipped srmech is routable to its exact Class-N peer.
+
+- **12 `math.sqrt` call sites routed → `srmech.amsc.rational.sqrt`**, across 5 modules:
+  - `amsc/laplacian.py` ×5 — the cyclic-Jacobi eigensolver's off-diagonal norm + rotation angles. **Class L now visibly composes Class N** (its leaf root is the rational sqrt). Jacobi vs `numpy.linalg.eigvalsh` = 8.9e-16.
+  - `qm/bell.py` ×2 (Tsirelson `2√2`, `1/√2`), `qm/octonion.py` ×1 (`octonion_norm`), `qm/sm.py` ×3 (Higgs vev / Z-mass / Yukawa), `amsc/cascade/hypercomplex_dft.py` ×1 (`1/√3`) — all bit-exact 0.0 vs libm (`rational.sqrt` is machine-ε at 64 precision bits). All 12 args are provably non-negative (guards / sums-of-squares), so `rational.sqrt`'s raise-on-negative is a safe drop-in.
+- **Ratchet** `test_no_math_sqrt_hypot_anywhere_in_srmech` (AST) — `math.sqrt`/`math.hypot` calls only go DOWN to zero. `cmath.sqrt` (complex root, the rc39 eigvals shift) and `np.sqrt(array)` (bulk-array, no scalar peer) are NOT flagged.
+- **Audit note** `notes/sqrt_sweep_rc40.md` — the full AST audit found 26 routable `math.*` references; the 12 sqrt are routed here, the **14 trig/pi residue** (`math.{sin,cos,atan2}` ×12 in kepler/compose/hypercomplex_dft + `math.pi` ×2) are STAGED to **rc41** (a different primitive family with its own anchor concerns + kepler's iterative solver). `rational.py`/`pi_cascade.py`/`trigonometry.py` have ZERO real libm calls — the float-trig cascades are genuinely libm-free.
+
+**Roadmap:** rc41 = the `math.{sin,cos,atan2}`/`math.pi` trig-residue sweep onto `rational.{sin,cos,atan2}` + `pi_cascade`; then the numpy→`srmech[scientific]` dependency-flip capstone. No new C symbols.
+
 ## [0.7.0rc39] - 2026-06-05
 
 **`lstsq` + `einsum` + non-Hermitian `eig` — the remaining linear-algebra layer as A–N cascades.** ABI stays 3; `describe()` 227 → **230** (+3 tools). numpy is the array **container** only — no `np.linalg.{lstsq,eig,eigvals}` in the call graph (AST guard).

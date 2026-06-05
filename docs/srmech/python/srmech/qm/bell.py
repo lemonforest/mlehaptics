@@ -106,7 +106,7 @@ Verdict shape: BIT-EXACT-VERIFIED at machine precision (residual ``<
 
 from __future__ import annotations
 
-import math
+from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import Tuple
 
 import numpy as np
@@ -123,9 +123,9 @@ from srmech.qm.spin import pauli_matrices
 # binary64 representation of ``2 · √2`` produced by the libm ``sqrt`` of
 # the exact IEEE-754 ``2.0``. The framework-asserted constant matches
 # this value bit-exactly; we expose it as a module constant rather than
-# recomputing ``2 * math.sqrt(2)`` in each call site.
+# recomputing ``2 * _rsqrt(2)`` in each call site.
 
-TSIRELSON_BOUND: float = 2.0 * math.sqrt(2.0)
+TSIRELSON_BOUND: float = 2.0 * _rsqrt(2.0)
 """Tsirelson's upper bound for two-qubit CHSH expectation, ``2√2``.
 
 Canonical SSoT: Cirel'son [Tsirelson] (1980) *Lett. Math. Phys.* 4, 93.
@@ -212,7 +212,7 @@ def chsh_operator() -> np.ndarray:
         ``{+2√2, 0, 0, −2√2}`` modulo double-precision floor.
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
-    inv_sqrt2 = 1.0 / math.sqrt(2.0)
+    inv_sqrt2 = 1.0 / _rsqrt(2.0)
     A0 = sigma_z
     A1 = sigma_x
     B0 = inv_sqrt2 * (sigma_z + sigma_x)
