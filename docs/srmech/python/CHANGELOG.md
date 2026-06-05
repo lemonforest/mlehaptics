@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc49] - 2026-06-05
+
+**"The One" — `S(σ,θ)`, the single generator of the 1+3+7+3 = 14 substrate ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** A new cascade-native surface `srmech.amsc.cascade.the_one` builds the unifying Hurwitz-ladder generator
+
+> `S(σ,θ) = ⨁_{n=1}^{3} ( ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n )`,  `dim = Σ 2ⁿ = 2+4+8 = 14`
+
+with `𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆` (the normed division algebras above ℝ). The decomposition **is** the A–N partition: the imaginary parts `Im 𝔸_n` (dims `1, 3, 7`) carry the anchor `A` / projection-triad `I,C,J` / detection-heptad `D,E,F,G,K,L,M`; the three `ℝ·1` real units are the **+3 grammar** `B, H, N`.
+
+- **Numpy-free, exact-rational.** `e^{Î_nθ} = cos θ + Î_n sin θ` is built from the **Class-N** rational Taylor partials (`rational.{cos,sin}_series_truncate`) — every entry is a reduced `(num, den)` integer pair; no float until the opt-in `One.to_numpy()` / `One.to_matrix()` realisations (the `srmech[scientific]` tier, §22). No new primitive class — `⨁` over `n` is **Class I**, `σ` is **Class K** sign ∘ **Class C** apply (never `abs()`).
+- **Structural prediction: n=1 degenerates to σ.** Fixing the rotation axis `Î_n = e_d` (the last imaginary unit) and rotating the `(e₁,e₂)` plane, at `n=1` the 1-D `Im ℂ` seed coincides with the axis → `θ` is inert and the only freedom is the chirality `σ` (the epicycle **is** the Class-K sign at the foundational algebra; richness grows `1→3→7`). Verified bit-exactly.
+- **Returns a structured `One`** of three `Block`s tiling `1+3+7+3`; `.dim`, `.partition`, `.grammar_slots`, `.n1_is_sigma_only`, `.to_flat_rational()`. The qm-matrix Rosetta peer (`srmech.qm.hurwitz`) + the bit-exact cascade↔matrix parity test follow in rc50. No ABI change; `describe()` unchanged. Python-only (the C-transpile triality ratchet stays at 0).
+
 ## [0.7.0rc48] - 2026-06-05
 
 **Fix [#882](https://github.com/lemonforest/mlehaptics/issues/882): `srmech.amsc.hdc` (Class M / Klein-4) — and three sibling `amsc` core modules — no longer crash raw on a plain (numpy-free) install.** rc47's numpy-optional capstone left four `srmech.amsc.*` modules with a top-level `import numpy as np`, so `import srmech.amsc.hdc` raised a raw `ModuleNotFoundError: No module named 'numpy'` instead of importing cleanly (the Klein-4 HV-carrier path is *designed* numpy-free) or gating like `srmech.qm`. rc47's AST ratchet used a hardcoded module list that missed them.
