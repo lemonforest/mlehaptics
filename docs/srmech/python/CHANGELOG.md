@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc42] - 2026-06-05
+
+**C-transpile triality coherence — start the native/executable-tier port, ratchet-first.** Pure tooling+docs; no new tools (`describe()` stays **230**); ABI stays 3; no C *behaviour* change yet. Opens the rc42→rc46 arc that makes the **executable** layer run the Class-N cascade, not libm.
+
+- **The gap rc40/rc41 didn't close.** Those sweeps were Python-only (AST ratchets walk `*.py`). On a native install (`HAS_NATIVE=True` — the default) `kepler.{pin_slot,kepler_solve,equation_of_centre}` / `cascade.kuramoto_step` / signed-Laplacian dispatch to **C** peers that still call libm `sin`/`cos`/`atan2`/`sqrt`/`pow`/`fabs`. So the three coherence layers — notebook / C+Python source / executable — agree numerically (rational ≡ libm to machine ε, which masked it) but the C isn't a faithful *transpile* of the cascade. Only `exp` already coheres (`srmech_exp_series_truncate`).
+- **New ratchet** `tests/test_c_cascade_coherence.py` — a **DOWN-only baseline** ratchet (same shape as `test_jpl_audit.py`) over the shipped library `c/src`+`c/include` (`c/test/*` excluded). Records the current **23** libm/π sites (`srmech_kepler.c` 8 + `srmech_kuramoto.c` 3 + `srmech_laplacian.c` 12); each file's count + the total only go DOWN, and no new C file may introduce libm transcendentals. Ships green (baseline = reality) — the gap is now measured + visible.
+- **Notebook** `notes/continuous_math_as_14_class_cascade.md` — new "C-transpile triality coherence" section: the three-layer coherence model + the per-op table + the rc42→rc46 roadmap, grounded in the RBS-LM `native-algebra compute surface` findings (F305/F306, PR #687, read-only).
+
+**Roadmap (rc43–rc46):** `srmech_{sin,cos,atan,atan2}_series_truncate` + C `pi_cascade` → repoint `srmech_kepler.c` (rc43); `srmech_kuramoto.c` (rc44); `srmech_rational_sqrt` → `srmech_laplacian.c` (rc45); `fabs` → Class-K sign-branch, C ratchet → 0 (rc46). Then the numpy→`srmech[scientific]` optional-dependency-flip capstone. New C symbols are additive (ABI stays 3).
+
 ## [0.7.0rc41] - 2026-06-05
 
 **`math.{sin,cos,atan2}` + `math.pi` trig/π residue sweep — route continuous trig + π through the Class-N cascade, not libm.** Pure refactor; no new tools (`describe()` stays **230**); ABI stays 3. The companion to rc40's `math.sqrt` sweep, closing the §22 libm-scalar-math audit: now that `rational.{sin,cos,tan,atan,atan2}` (rc33) + the `pi_cascade` exist, every remaining libm trig / π reference in shipped srmech is routable to its exact Class-N peer.
