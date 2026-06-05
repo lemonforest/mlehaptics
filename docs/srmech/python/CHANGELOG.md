@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc47] - 2026-06-05
+
+**numpy is now an OPTIONAL dependency — the §22 capstone.** The §22 + C-transpile arcs (rc29–rc46) made the **Class-N cascade core numpy-free**: `srmech.amsc.*` (the A-N primitives, the rational/cyclic/laplacian cascades) and the native C surface run with **zero numpy**. rc47 demotes numpy from a hard dependency to the **`scientific`** extra. `pip install srmech` is now numpy-free; `pip install 'srmech[scientific]'` pulls it back in for the array-numerical scientific tier (`srmech.qm.*` / `srmech.signal_processing.*` / `srmech.rbs_lm.*`).
+
+- **`pyproject.toml` + `pyproject-pure.toml`** — numpy moved out of `dependencies` into `optional-dependencies.scientific`. The `dev` + `tests` extras keep numpy (the full suite exercises the scientific tier). No ABI change; `describe()` stays **230**.
+- **Friendly gate** — new numpy-free `srmech._scientific.require_numpy`; the scientific-tier subpackages (`qm` / `signal_processing` / `rbs_lm`) call it at import so a no-numpy install fails with `pip install 'srmech[scientific]'`, not an opaque `No module named 'numpy'`. `ImportError` (numpy's own error subclasses it), so existing handlers keep working.
+- **CI guard** — the pure-wheel "Verify wheel installs + imports" job now asserts numpy is **absent** from the base install, that the cascade core works numpy-free, and that the scientific tier raises the actionable hint. New `test_numpy_optional_rc47.py` pins the pyproject contract + the gate + an AST ratchet that the cascade core never imports numpy at module top.
+
+This is the last planned rc of the v0.7.0 line. **Graduation to production PyPI is held** for a dedicated testing pass.
+
 ## [0.7.0rc46] - 2026-06-05
 
 **The C-transpile triality closeout — the executable runs the Class-N cascade, not libm (C ratchet → 0).** The shipped `libsrmech` now holds **no libm transcendental**: the notebook, the C+Python source, and the native executable all agree. ABI stays 3 (additive `srmech_exp`/`srmech_log`); `describe()` stays **230**.

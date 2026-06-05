@@ -100,6 +100,12 @@ Spike anchors
 
 from __future__ import annotations
 
+# Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
+# free). Fail with an actionable [scientific] hint, not a bare numpy error.
+from srmech._scientific import require_numpy as _require_numpy
+
+_require_numpy("srmech.signal_processing")
+
 # Re-export the locked architectural constants for ergonomic access.
 from ._paths import (
     CASCADE_DEPTH_THRESHOLD_FOR_PATH_B,
