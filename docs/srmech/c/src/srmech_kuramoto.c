@@ -17,8 +17,9 @@
  *
  * HONEST CASCADE SHAPE. This composes existing class operations, it is
  * NOT a new privileged primitive: Class I (cyclic phase θ on the
- * circle) + the sin coupling (asymptotic-calculus transcendental;
- * libm sin here, as srmech_kepler.c already does — Class I/J upstream)
+ * circle) + the sin coupling (the Class-N rational trig cascade via
+ * srmech_sin — rc44; the native executable runs the cascade, not libm,
+ * the same C-transpile-triality routing srmech_kepler.c took at rc43)
  * + a sum-reduce over j + a Class-C Euler add (θ + dt·f). No abs().
  *
  * THREAD/STATE. Pure function over caller buffers — reads θ/ω, writes
@@ -43,7 +44,6 @@
 #include "srmech.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stddef.h>
 
 /* The mean-field coupling sum Σ_j sin(θ_j − θ_i) for oscillator i.
@@ -55,7 +55,9 @@ static double srmech_kuramoto__coupling_sum(
     assert(i < n);
     double acc = 0.0;
     for (size_t j = 0; j < n; ++j) {
-        acc += sin(theta[j] - theta[i]);
+        double sv;
+        (void)srmech_sin(theta[j] - theta[i], &sv);   /* Class-N cascade, not libm */
+        acc += sv;
     }
     return acc;
 }
@@ -97,7 +99,9 @@ static double srmech_kuramoto__general_sum(
     double acc = 0.0;
     for (size_t j = 0; j < n; ++j) {
         const double w = (adjacency != NULL) ? adjacency[i * n + j] : inv_n;
-        acc += w * sin(theta[j] - theta[i] - alpha);
+        double sv;
+        (void)srmech_sin(theta[j] - theta[i] - alpha, &sv);   /* Class-N cascade */
+        acc += w * sv;
     }
     return acc;
 }
@@ -125,7 +129,9 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
             /* Per-oscillator pinning toward anchor ψ_i: + p_i·sin(ψ_i − θ_i).
              * NULL pin_strength ⇒ unit strength. No abs(). */
             const double p = (pin_strength != NULL) ? pin_strength[i] : 1.0;
-            f += p * sin(pin_anchor[i] - theta[i]);
+            double sv;
+            (void)srmech_sin(pin_anchor[i] - theta[i], &sv);   /* Class-N cascade */
+            f += p * sv;
         }
         out[i] = theta[i] + dt * f;
     }
