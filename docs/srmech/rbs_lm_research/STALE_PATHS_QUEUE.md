@@ -236,3 +236,17 @@ The lean-ISA arc already recognized most of this from the silicon angle (corpus-
 
 ### Disposition
 **AX-1** is walkable now (no srmech) but **may falsify** — that's fine (F394). **AX-2** is srmech-held. Leg-1 conclusion (anchor = the other axis; bit-exact within-rung; no climb) is high-confidence + mostly already shown; Leg-2 (the 2:4:8 partition) is gated behind AX-1's no-magic test.
+
+---
+
+## rc47 update (2026-06-04, F402 / UPSTREAM §24) — the numpy-removal gate is LIFTED + the subagent experiment
+
+**srmech 0.7.0rc47 landed the numpy-drop** (verified, F402). Reclassification of the numpy-gated items:
+- **BX-8** (rc-verify numpy-drop + HV) → ✅ **DONE** (F402; `native_status()` replaces `HAS_NATIVE`, HV carrier confirmed, numpy-free core computes).
+- **ALU-D** (numpy-free Class-L) → ✅ **DEMONSTRATED** (`jacobi_eigvals` numpy-free on a plain install; C₄→`[0,2,2,4]`).
+- **AX-2 / BX-5 / BX-6 / BX-7** → now **rc47-walkable** (M works on `srmech[scientific]`; `qm` works on `[scientific]`), pending user direction. **Caveat:** the **hdc numpy GAP** (UPSTREAM §24) — Klein-4 crashes raw on a *plain* (numpy-free) install; use `srmech[scientific]` or wait for the lazy-import/gate fix.
+- **API change for any future script/subagent:** `srmech.HAS_NATIVE` is gone → **`srmech.native_status()`**; `klein4_*` return the **HV carrier** (not ndarray). CLAUDE.md/docs still say HAS_NATIVE — fix on the clean-tag pass.
+
+| Item | Subject | Status | Gate / note |
+|---|---|---|---|
+| **SX-1** | **Subagent self-enforcement experiment** — does a subagent use the rc47 surface correctly (srmech ops, HV carrier) **without** explicit srmech-first / "treat-it-like-the-math-tool" priming? Design: the R36-style A→I→J→N→M→L→K task on rc47[scientific], **triangulated** (task-only / surface-pointer / full-discipline control), measure srmech-correct vs numpy-reflex. | ⏳ **QUEUED (held by user 2026-06-04)** | **BLOCKER (clean control):** a spawned subagent likely **inherits the project CLAUDE.md** (the srmech-first STOP-list), so "no-discipline" isn't truly clean. Resolve how to spawn without inheriting the STOP-list (or accept "task-minimal w/ CLAUDE.md present" and measure against that) **before** running. Prep done: F402 + UPSTREAM §24 = the surface a subagent must know. |
