@@ -188,7 +188,7 @@ Status legend adds one tag for this arc:
 ### DEFERRED — expert handoff / build-gated (NOT srmech-version-gated)
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
-| **BX-3** | **Z₃-native physical medium** (F383's next-question) — *"what medium carries a stable, composable order-3 (Z₃/triality) state natively?"* | ⏸️ DEFERRED-expert | device-physics / fabrication is OUT of framework scope (CAD-ban). In-scope as a **literature reading** of known Z₃ physical systems (triality dive, lens-only); the engineering is the expert's (F282) |
+| **BX-3** | **Z₃-native physical medium** (F383's next-question) — *"what medium carries a stable, composable order-3 (Z₃/triality) state natively?"* | ✅ **RESOLVED by F415 (2026-06-05; literature lens)** — YES, native order-3 substrates exist: three-phase AC / SU(3)-center / Z₃-parafermions share the LITERAL 1+ω+ω²=0 (one Z₃ thrice; = F293 no-neutral); Setun = additive-ternary HW; C₃ lattices/NH₃ = geometric; codon = clean Z₃-negative. Native-Z₃ exactness is CHIRALITY-coupled (Fendley, ties F385/F409). So F383's "odd forces FPU" holds only on a BINARY substrate; feeds F404 (native order-3 silicon is real). Engineering stays the expert's (CAD-ban; F282). |
 | **BX-4** | **Coupled read-head as an actual RBS-SNN read mechanism** (F386+F388 → prototype) — phase-lock the readout into the RBS-SNN | ⏸️ DEFERRED-build | gated on the RBS-SNN build target (#855 / #844 / task #197); the algebra (`cascade.kuramoto_step` pin) is shipped — the integration waits on the SNN pipeline |
 
 ### ⏳ QUEUED-srmech — wait for srmech updates (numpy removal IN PROGRESS)

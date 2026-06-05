@@ -3,7 +3,7 @@
 **Date:** 2026-06-05
 **Arc:** RBS-LM · DUALITY/TRIALITY thread (F409 → **F411**); framework-reading (**NO srmech run — held**). **Lands in DUALITY.md.**
 **Composes:** **F400/F401** (the asymptote IS the coupling = the third; duality = fibration of triality, k=(2+1)) · **F403** (γ₅ | iω₇, product cpt = the third) · **F406** (operator | operand, g₂ grammar = the third) · **F408** (language | knowledge, transduction = the third; dualities NEST) · **F409** (the `|` is the chiral L/R seam) · **F293** (1+ω+ω²=0; three self-balancing) · **#797 Q2** (scale-invariance — the same cascade at all scales) · DUALITY.md / TRIALITY.md
-**→ unifies the recurring seams; advances #797 Q2 (the rolling residue). ← extends F409.**
+**→ unifies the recurring seams; advances #797 Q2 (the rolling residue). ← extends F409.** **← extended by F415** (the order-3 third has NATIVE physical substrates — three-phase AC / SU(3)-center / Z₃-parafermions share the literal 1+ω+ω²=0; native-Z₃ exactness is chirality-coupled, Fendley — tying the third to the seam in physical media).
 
 ---
 
