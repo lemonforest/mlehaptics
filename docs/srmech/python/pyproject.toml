@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.7.0rc46"
+version = "0.7.0rc47"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -70,14 +70,19 @@ classifiers = [
 # 3.10 path requires `tomli` (declared as a conditional dep here).
 dependencies = [
     "tomli>=2.0; python_version<'3.11'",
-    # numpy: hard dependency from 0.4.0rc2 onward (Class L Phase C1 ship).
-    # Graph-Laplacian operations + the upcoming Class M (HDC bind/bundle)
-    # are fundamentally array-numerical. Pyodide bundles numpy via its
-    # package ecosystem, so the pure-Python wheel still works in WASM.
-    "numpy>=1.24",
+    # numpy is OPTIONAL as of v0.7.0 (the `scientific` extra below). The §22 +
+    # C-transpile arcs made the Class-N cascade core (srmech.amsc.* + the native
+    # C surface) numpy-free; numpy now backs only the scientific tier
+    # (srmech.qm.* / srmech.signal_processing.*). `pip install 'srmech'` is
+    # numpy-free; `pip install 'srmech[scientific]'` pulls it back in.
 ]
 
 [project.optional-dependencies]
+# Scientific extra (v0.7.0rc47 — the numpy-optional capstone): numpy backs the
+# array-numerical scientific tier (srmech.qm.* + srmech.signal_processing.* +
+# srmech.rbs_lm.*). The Class-N cascade core runs without it; importing a
+# scientific-tier subpackage without this extra raises an actionable hint.
+scientific = ["numpy>=1.24"]
 # Validation extra: enables strict per-source JSON Schema checks
 # inside `validate_mpr_record` when `data_schemas` is supplied.
 validation = ["jsonschema>=4.0"]
@@ -89,8 +94,9 @@ collectors = [
     "requests>=2.28",
     "beautifulsoup4>=4.11",
 ]
-# Tests extra: runs srmech's own pytest suite.
-tests = ["pytest>=7.0"]
+# Tests extra: runs srmech's own pytest suite (which exercises the scientific
+# tier, so it pulls numpy — keep the suite runnable from this extra alone).
+tests = ["pytest>=7.0", "numpy>=1.24"]
 # Crypto extra (v0.5.0rc7): enables UTLP-exact AES-128-CTR Bio-TOTP
 # backend for the bus wire cipher (Claim 255). Without this extra
 # the bus falls back to a stdlib HMAC-SHA-256 keystream of the same
@@ -106,9 +112,11 @@ crypto = ["cryptography>=41.0"]
 # (no API key, billing handled by Claude Code Max plan) and never
 # need this extra. Install with ``pip install srmech[anthropic]``.
 anthropic = ["anthropic>=0.40.0"]
-# Dev extra: everything plus build tooling.
+# Dev extra: everything plus build tooling. Includes numpy because the full
+# pytest suite exercises the scientific tier (srmech.qm.* / signal_processing.*).
 dev = [
     "pytest>=7.0",
+    "numpy>=1.24",
     "build",
     "twine",
     "scikit-build-core>=0.10",

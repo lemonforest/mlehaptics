@@ -154,19 +154,33 @@ jobs:
           python -m twine check --strict dist/*
           echo "pure-wheel sanity checks passed"
 
-      - name: Verify wheel installs + imports
+      - name: Verify wheel installs + imports (numpy-optional capstone)
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
+          # Install ONLY the wheel (no extras) — numpy is optional as of v0.7.0,
+          # so a bare install must import the cascade core with numpy absent.
           python -m pip install --quiet dist/*.whl
           cd /tmp
           python -c "
+          import importlib.util
+          assert importlib.util.find_spec('numpy') is None, \
+              'numpy leaked into the base install — it must be the [scientific] extra'
           from srmech import __version__
           from srmech.amsc import (
               MPRRecord, Descriptor, get_attested_dataset,
               register_attested_root, list_registered_roots,
           )
-          print(f'srmech {__version__} OK')
+          # the Class-N cascade core must work numpy-free
+          from srmech.amsc import rational
+          assert rational.best_rational(22, 7, 100) == (22, 7)
+          # the scientific tier must fail with the actionable [scientific] hint
+          try:
+              import srmech.qm  # noqa: F401
+              raise SystemExit('srmech.qm imported without numpy (guard missing)')
+          except ImportError as exc:
+              assert 'srmech[scientific]' in str(exc), exc
+          print(f'srmech {__version__} OK (numpy-optional)')
           "
 
   pedantic-build:

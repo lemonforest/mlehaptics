@@ -39,6 +39,12 @@ Public surface
 """
 from __future__ import annotations
 
+# Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
+# free). Fail with an actionable [scientific] hint, not a bare numpy error.
+from srmech._scientific import require_numpy as _require_numpy
+
+_require_numpy("srmech.rbs_lm")
+
 from .substrate import (
     ContextSubstrate,
     encode_bigram_l1,

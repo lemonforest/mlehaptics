@@ -124,7 +124,7 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | `math.sqrt` scalar-site sweep | (route → `rational.sqrt`) | **shipped rc40** (12 sites: laplacian Jacobi ×5 + bell/octonion/sm/hypercomplex_dft; AST ratchet; see `notes/sqrt_sweep_rc40.md`) |
 | `math.{sin,cos,atan2}` / `math.pi` residue sweep | (route → `rational.{sin,cos,atan2}` + `pi_cascade`) | **shipped rc41** (14 sites: kepler ×7 + compose ×3 + hypercomplex_dft ×2 + form_function_rotation pi ×1; AST ratchet `test_no_math_trig_pi_anywhere_in_srmech`) |
 
-**As of rc39 the table is COMPLETE** — every op once parked in the §22 "scientific tier" (exp / cexp / sqrt / hypot / DFT / FFT / kron / QR / SVD / lstsq / einsum / non-Hermitian eig) now has a shipped A–N cascade in `srmech.amsc.{rational,cascade.spectral_cascades,cascade.matrix_cascades}`. The §22 "scientific tier" is dissolved: numpy's only remaining roles are the array container and a temporary fallback. rc40's `sqrt`/`hypot` retrofit-sweep + the numpy→`srmech[scientific]` dependency-flip are the closeout.
+**As of rc39 the table is COMPLETE** — every op once parked in the §22 "scientific tier" (exp / cexp / sqrt / hypot / DFT / FFT / kron / QR / SVD / lstsq / einsum / non-Hermitian eig) now has a shipped A–N cascade in `srmech.amsc.{rational,cascade.spectral_cascades,cascade.matrix_cascades}`. The §22 "scientific tier" is dissolved: numpy's only remaining roles are the array container and a temporary fallback. rc40's `sqrt`/`hypot` retrofit-sweep, the rc43–rc46 C-transpile (native executable on the cascade, libm ratchet → 0), and the **rc47 numpy→`srmech[scientific]` dependency-flip** (numpy now optional; `pip install srmech` is numpy-free) are the closeout — **shipped**.
 
 ## Reframe of §22 (the "scientific tier")
 
@@ -133,9 +133,12 @@ framing is **dissolved**: there is no fundamental scientific tier — only ops w
 **not yet derived into the 14**. numpy's remaining legitimate role is (a) the array
 **container** (`zeros/array/asarray/reshape/sum/mean` — layout, not math) and (b) a
 **temporary fallback** for the not-yet-cascaded ops above, behind the optional
-`srmech[scientific]` extra (the dependency-flip, now the *capstone* once cascade
-coverage is complete, not a permanent boundary). Each row of the status table that
-still says numpy is a TODO, not a law.
+`srmech[scientific]` extra. **The dependency-flip SHIPPED at rc47**: numpy is no
+longer a hard dependency — `pip install srmech` is numpy-free (the Class-N
+cascade core + native C surface), and `pip install 'srmech[scientific]'` pulls
+numpy back for `srmech.qm.*` / `srmech.signal_processing.*` / `srmech.rbs_lm.*`.
+A numpy-free `srmech._scientific.require_numpy` gate gives those subpackages an
+actionable install hint. numpy is a TODO (the not-yet-cascaded ops), not a law.
 
 ## C-transpile triality coherence (rc42 — the native/executable tier)
 
