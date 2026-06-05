@@ -2028,6 +2028,37 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
+        # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
+        # (#887). Registered under its STABLE FLAT public name
+        # ``srmech.amsc.cascade.the_one``; the submodule-dotted
+        # ``srmech.amsc.cascade.one.the_one`` + its ``s_generator`` alias are the
+        # same object re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.the_one", owner="srmech",
+            category="cascade",
+            summary="The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 "
+                    "substrate (#887). Builds the Hurwitz division-algebra ladder "
+                    "⨁_{n=1}^{3} (ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n) (𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆) "
+                    "as one (σ,θ)-parameterised `One` of three Blocks tiling the A–N "
+                    "partition: the imaginary dims 1/3/7 carry A / I,C,J / "
+                    "D,E,F,G,K,L,M, and the three ℝ·1 reals are the +3 grammar "
+                    "B,H,N. e^{Î_nθ}=cosθ+Î_n sinθ is the exact-rational Class-N "
+                    "epicycle (rational.{cos,sin}_series_truncate); σ is Class K "
+                    "sign ∘ Class C apply (never abs()); ⨁ over n is Class I. At "
+                    "n=1 (Im ℂ one-dimensional) the seed coincides with the "
+                    "rotation axis so θ is inert and only σ survives. Numpy-free, "
+                    "exact-rational; the opt-in One.to_numpy()/to_matrix() float "
+                    "realisations are the scientific tier (§22). No new primitive "
+                    "class. SSoT: Hurwitz (1898); the parallelizable-sphere ladder "
+                    "S¹,S³,S⁷.",
+            parameters=(
+                P("sigma", "int", True, "chirality σ ∈ {+1,-1} (Class K·C sign-flip)"),
+                P("theta_num", "int", True, "epicycle angle numerator (radians)"),
+                P("theta_den", "int", False, "epicycle angle denominator > 0; default 1"),
+                P("terms", "int", False, "Class-N Taylor depth for cos/sin; default 24"),
+            ),
+            returns=R("One", "structured generator: three Blocks tiling 1+3+7+3 = 14"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
