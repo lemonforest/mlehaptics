@@ -113,13 +113,15 @@ match). The contraction itself = **I** (iterate over index tuples) ∘ **M**
 | Hermitian eig | L | **shipped rc32**, routed rc33 |
 | `sqrt` / `hypot` | N ∘ K (+ M) | **shipped rc35** (`rational.sqrt` / `rational.hypot`) |
 | DFT / direct | M ∘ {N∘C} ∘ I | **shipped rc36** (`cascade.spectral_cascades.dft` / `idft`; direct `O(N²)`) |
-| FFT (radix-2) | M ∘ {N∘C} ∘ I ∘ J ∘ K | twiddles shipped (cexp); the `O(N log N)` butterfly → **rc37** |
+| FFT (radix-2) | M ∘ {N∘C} ∘ I ∘ J ∘ K | **shipped rc37** (`cascade.spectral_cascades.fft` / `ifft`; `O(N log N)` power-of-2 butterfly + direct-`dft` fallback for all other N) |
+| FFT (mixed-radix) | M ∘ {N∘C} ∘ I ∘ J ∘ K | general butterfly over `N`'s full prime factorization → future refinement |
 | kron | I ∘ M | **shipped rc36** (`cascade.spectral_cascades.kron`) |
-| QR | M ∘ C ∘ N ∘ K | derive → implement → **rc37** |
-| SVD | L ∘ N∘K ∘ M | reachable from `hermitian_eigendecompose` → **rc37** |
-| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | after QR → **rc38** |
-| lstsq | {QR} ∘ M ∘ I | after QR → **rc38** |
-| einsum | B/D ∘ I ∘ M | **rc38** |
+| QR | M ∘ C ∘ N ∘ K | derive → implement → **rc38** |
+| SVD | L ∘ N∘K ∘ M | reachable from `hermitian_eigendecompose` → **rc38** |
+| `math.sqrt` / `np.hypot` scalar-site sweep | (route → `rational.{sqrt,hypot}`) | **rc38** |
+| eig (non-Herm) | K ∘ L ∘ {QR} ∘ C | after QR → **rc39** |
+| lstsq | {QR} ∘ M ∘ I | after QR → **rc39** |
+| einsum | B/D ∘ I ∘ M | **rc39** |
 
 ## Reframe of §22 (the "scientific tier")
 

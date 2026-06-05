@@ -1274,6 +1274,19 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[complex]", "time-domain samples"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.fft", owner="srmech", category="cascade",
+            summary="Fast Fourier transform — the radix-2 Cooley-Tukey butterfly. Same value as dft() but O(N log N) when N is a power of two, adding Class J (radix N=2*(N/2) factorization) + Class K (butterfly recursion depth) on top of the DFT cascade. Falls back to direct dft() for non-power-of-2 N, so it is a drop-in for numpy.fft.fft at ANY length.",
+            parameters=(P("x", "list[complex]", True, "input samples"),
+                        P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
+            returns=R("list[complex]", "FFT spectrum (or inverse)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.spectral_cascades.ifft", owner="srmech", category="cascade",
+            summary="Inverse FFT — fft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for numpy.fft.ifft on a 1-D sequence.",
+            parameters=(P("x", "list[complex]", True, "input spectrum"),),
+            returns=R("list[complex]", "time-domain samples"),
+        ),
+        ToolEntry(
             name="srmech.amsc.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
             summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for numpy.kron.",
             parameters=(P("a", "list[list[complex]]", True, "left matrix (list of rows)"),
