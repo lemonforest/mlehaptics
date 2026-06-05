@@ -10,6 +10,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.3rc1] — 2026-06-05
+
+### Compatibility rc — verifies the package against srmech `0.7.0rc48`
+
+Cuts a fresh rc to confirm `ephemerides-spectral` imports and runs
+unchanged with the srmech v0.7.0rc48 core underneath: srmech's
+numpy-optional + libm-free Class-N cascade core, plus the
+C-transpile triality and numpy-→`[scientific]` arcs. rc48
+compatibility is exercised by force-installing `srmech==0.7.0rc48`
+into a clean external venv alongside `ephemerides-spectral==0.29.3rc1`
+from TestPyPI.
+
+The srmech dependency pin `srmech>=0.4.2` is **left unchanged** — this
+is a compatibility-verification rc, not a floor bump. No code change,
+no ABI change (`ES_ABI_VERSION = 10` unchanged from v0.29.0), no
+`bridge.*` surface change, no test ratchet changes.
+
+**SSOT files bumped in lockstep:**
+
+- `pyproject.toml` `[project].version` 0.29.2 → 0.29.3rc1.
+- `pyproject-pure.toml` `[project].version` 0.29.2 → 0.29.3rc1.
+- `ephemerides_spectral/version.py` `__version__` 0.29.2 → 0.29.3rc1.
+- `ephemerides_spectral/srmech_profile.toml` `[profile].version`
+  0.29.2 → 0.29.3rc1.
+- `c/include/ephemerides_spectral.h` `ES_VERSION_PATCH` 2 → 3;
+  `ES_VERSION_STRING "0.29.2"` → `"0.29.3rc1"`.
+- `ephemerides_spectral/_data/manifest.json` `version` field
+  restamped 0.29.2 → 0.29.3rc1.
+- `README.md` Status banner + `*(current)*` marker moved to
+  v0.29.3rc1.
+
+### Versioning
+
+`0.29.2` → `0.29.3rc1`. rc routed to TestPyPI only; no production
+PyPI cut is planned for this compatibility rc.
+
 ## [0.29.2] — 2026-05-19
 
 Production graduation of v0.29.2rc1. No code changes vs `[0.29.2rc1]`.
