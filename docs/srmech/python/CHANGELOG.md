@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc46] - 2026-06-05
+
+**The C-transpile triality closeout — the executable runs the Class-N cascade, not libm (C ratchet → 0).** The shipped `libsrmech` now holds **no libm transcendental**: the notebook, the C+Python source, and the native executable all agree. ABI stays 3 (additive `srmech_exp`/`srmech_log`); `describe()` stays **230**.
+
+- **New `c/src/srmech_explog.c`** → `srmech_exp` / `srmech_log`, the double→double Class-N exp/log cascades (the last two libm calls in the library):
+  - `srmech_exp(x)` — range-reduce `x = n·ln2 + r` (`|r| ≤ ln2/2`, two-word Cody–Waite `ln2`), `exp(r)` via a **Q61 integer Taylor** `1 + r + r²/2! + …`, then `· 2^n` with the power-of-two built straight into the IEEE exponent field (no `ldexp`). Overflow → `+Inf`, underflow → `0`.
+  - `srmech_log(x)` — read `x = m·2^e` **exactly from the bit pattern** (no `frexp`), fold `m` into `[1/√2, √2)`, `log(m) = 2·atanh((m−1)/(m+1))` via a **Q61 integer atanh series**, then the `e·ln2` recombine (two-word `ln2`). Non-positive `x` → `SRMECH_ERR_BAD_INPUT` (NaN / −Inf).
+  - No libm, no `abs()` (Class-K sign-branch). Machine-ε vs libm (exp rel err ≤ 2.3e-16; log abs err ≤ 2.3e-16 over 500k values; `exp(log(x))` round-trips ≤ 2.3e-16).
+- **`srmech_laplacian.c` repointed** — the elementwise `exp`/`log` → `srmech_exp`/`srmech_log`; `#include <math.h>` dropped (the file now holds no libm). **Class L composes Class N in the executable.**
+- **`srmech_kepler.c`** — the last `fabs` (Newton convergence test) → an explicit **Class-K sign-branch**; `#include <math.h>` dropped (no libm in the file).
+- **C ratchet `test_c_cascade_coherence.py` → 0** (`23 → 16 → 13 → 3 → 0` across rc43–rc46). The guard now also covers the C99 **complex** libm (`csin`/`ccos`/`cexp`/`csqrt`/…) and any `<complex.h>` include, so a future complex op can't silently reintroduce libm. JPL-clean; pedantic `-Werror`/`/WX` clean.
+
+**Next (the capstone, human-gated):** the numpy→`srmech[scientific]` optional-dependency flip, then the clean `v0.7.0` graduation to production PyPI.
+
 ## [0.7.0rc45] - 2026-06-05
 
 **Native sqrt cascade — the Jacobi eigensolver runs the Class-N integer-sqrt, not libm (C-transpile triality, arc step 3).** ABI stays 3 (additive `srmech_rational_sqrt`); `describe()` stays **230**.

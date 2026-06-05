@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc45"
-#define SRMECH_VERSION       "0.7.0rc45"
+#define SRMECH_VERSION_PRE   "rc46"
+#define SRMECH_VERSION       "0.7.0rc46"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1418,6 +1418,18 @@ srmech_status_t srmech_atan2(double y, double x, double *out);
  * executable runs the cascade. Machine-epsilon vs libm; negative x ->
  * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
 srmech_status_t srmech_rational_sqrt(double x, double *out);
+
+/* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
+ * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)
+ * and the 2^n scale built into the IEEE exponent field; log(x) reads
+ * x = m*2^e from the bit pattern (integer) and runs the Q61 integer atanh
+ * series log(m) = 2*atanh((m-1)/(m+1)). No libm, no float exp/log/pow.
+ * srmech_laplacian.c's elementwise transcendental op routes through these so
+ * the executable runs the cascade (the last two libm calls in libsrmech).
+ * Machine-epsilon vs libm; exp overflow -> +Inf, underflow -> 0; log of a
+ * non-positive x -> SRMECH_ERR_BAD_INPUT. Additive -> ABI unchanged. */
+srmech_status_t srmech_exp(double x, double *out);
+srmech_status_t srmech_log(double x, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)

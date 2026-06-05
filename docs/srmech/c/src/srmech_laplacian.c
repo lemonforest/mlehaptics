@@ -54,7 +54,6 @@
 #include "srmech.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -695,13 +694,13 @@ srmech_status_t srmech_elementwise_transcendental(
     for (uint32_t i = 0; i < n; i++) {
         double x = arr[i];
         if (op_id == SRMECH_TRANS_EXP) {
-            out[i] = exp(x);
+            (void)srmech_exp(x, &out[i]);          /* Class-N exp cascade, not libm */
         } else if (op_id == SRMECH_TRANS_COS) {
             (void)srmech_cos(x, &out[i]);
         } else if (op_id == SRMECH_TRANS_SIN) {
             (void)srmech_sin(x, &out[i]);
         } else {
-            out[i] = log(x);
+            (void)srmech_log(x, &out[i]);          /* Class-N log cascade, not libm */
         }
     }
     return SRMECH_OK;

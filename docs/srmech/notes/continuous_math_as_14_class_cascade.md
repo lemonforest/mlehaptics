@@ -166,8 +166,8 @@ same cascade.
 | `sin/cos/atan2` (kepler) | `rational.*` (rc33/41) | **`srmech_{sin,cos,atan2}`** (rc43; `srmech_trig.c` integer-cyclic + Q61 Taylor) | **cascade** | ✅ |
 | `sin` (kuramoto) | `rational.*` | **`srmech_sin`** (rc44; `srmech_kuramoto.c` coupling + pinning) | **cascade** | ✅ |
 | `sqrt` | `rational.sqrt` (rc40) | **`srmech_rational_sqrt`** (rc45; `srmech_sqrt.c` two-limb integer isqrt) — `srmech_laplacian.c` Jacobi | **cascade** | ✅ |
-| `pow` / `fabs` | sign-branch (rc32) | libm in `srmech_kepler.c` | **libm** | ❌ |
-| signed/magnetic L phase | cascade | libm `cos/sin/exp/log` `srmech_laplacian.c` | **libm** | ❌ |
+| `fabs` (kepler convergence) | sign-branch (rc32) | **Class-K sign-branch** (rc46; `srmech_kepler.c` — no libm in the file) | **cascade** | ✅ |
+| `exp` / `log` (L transcendental) | `rational.{exp,log}` | **`srmech_exp`/`srmech_log`** (rc46; `srmech_explog.c` Q61 integer exp-Taylor + atanh series) — `srmech_laplacian.c` elementwise | **cascade** | ✅ |
 
 **Closing it — the rc42→rc46 C-transpile arc** (user direction 2026-06-05,
 "verify C transpile for full triality coherence"; "Full port, ratchet-first"):
@@ -181,9 +181,19 @@ same cascade.
 - **rc43** — `srmech_{sin,cos,atan,atan2}_series_truncate` (port of rc33) + a C
   `pi_cascade` (JPL-clean, additive → ABI stays 3); repoint `srmech_kepler.c`.
 - **rc44** — repoint `srmech_kuramoto.c` (the `sin(θⱼ−θᵢ−α)` coupling).
-- **rc45** — `srmech_rational_sqrt` (integer-Newton; port of rc35) → repoint the
-  `srmech_laplacian.c` Jacobi rotations + the signed/magnetic phase.
-- **rc46** — `fabs` → explicit Class-K sign-branch in C; C ratchet reaches **0**.
+- **rc45** — `srmech_rational_sqrt` (two-limb integer isqrt; port of the rc40
+  cascade) → repoint the `srmech_laplacian.c` Jacobi rotations + elementwise
+  `cos`/`sin`. C ratchet **13 → 3**.
+- **rc46** — `srmech_explog.c`: `srmech_exp` (range-reduce `x = n·ln2 + r`,
+  **Q61 integer exp-Taylor** for `exp(r)`, `2^n` built into the IEEE exponent)
+  and `srmech_log` (`x = m·2^e` read from the bit pattern, **Q61 integer atanh
+  series** `log(m) = 2·atanh((m−1)/(m+1))`, two-word `ln2` recombine) → repoint
+  the `srmech_laplacian.c` elementwise `exp`/`log`; the last `fabs`
+  (`srmech_kepler.c` convergence test) → explicit **Class-K sign-branch**. The C
+  ratchet extends to the C99 **complex** libm (`csin`/`ccos`/`cexp`/`csqrt` +
+  any `<complex.h>` include) and reaches **0**. Machine-ε vs libm (exp rel ≤
+  2.3e-16, log abs ≤ 2.3e-16 over 500k values).
 
 At rc46 the executable runs the Class-N cascade, not libm: all three coherence
-layers agree — full C-transpile triality coherence.
+layers agree — **full C-transpile triality coherence** (the shipped libsrmech
+holds no libm transcendental).
