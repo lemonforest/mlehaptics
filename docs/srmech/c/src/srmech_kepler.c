@@ -88,9 +88,16 @@ srmech_status_t srmech_pin_slot(double  theta,
     /* Standard Antikythera pin-and-slot: pin position relative to follower
      * axis is (d + i*cos(theta), i*sin(theta)); follower angle is the
      * angle to that point. Per Freeth 2021 Supp S9. */
-    double x = pin_distance + pin_offset * cos(theta);
-    double y = pin_offset * sin(theta);
-    *out_phi = atan2(y, x);
+    /* Class-N cascade trig (srmech_cos/sin/atan2), not libm — so the native
+     * executable runs the same cascade as the Python source (rc43, C-transpile
+     * triality coherence). */
+    double cs;
+    double sn;
+    (void)srmech_cos(theta, &cs);
+    (void)srmech_sin(theta, &sn);
+    double x = pin_distance + pin_offset * cs;
+    double y = pin_offset * sn;
+    (void)srmech_atan2(y, x, out_phi);
     return SRMECH_OK;
 }
 
@@ -118,10 +125,16 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
     }
     /* Smith (1979) initial guess: E_0 = M + e * sin(M). Converges in 4-6
      * iterations for e < 0.5; e >= 0.95 may need >30 (caller's max_iter). */
-    double E = M_rad + e * sin(M_rad);
+    double sin_m;
+    (void)srmech_sin(M_rad, &sin_m);
+    double E = M_rad + e * sin_m;
     for (uint32_t i = 0; i < max_iter; i++) {
-        double f      = E - e * sin(E) - M_rad;
-        double f_prime = 1.0 - e * cos(E);
+        double sin_e;
+        double cos_e;
+        (void)srmech_sin(E, &sin_e);
+        (void)srmech_cos(E, &cos_e);
+        double f      = E - e * sin_e - M_rad;
+        double f_prime = 1.0 - e * cos_e;
         /* f_prime > 0 for e < 1 (no division-by-zero risk). */
         double delta = f / f_prime;
         E -= delta;
@@ -161,7 +174,9 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
     for (uint32_t k_idx = 0; k_idx < n_terms; k_idx++) {
         e_power *= e;
         double harmonic = (double)(k_idx + 1) * M_rad;
-        delta += SRMECH_KEPLER_EOC_COEFFS[k_idx] * e_power * sin(harmonic);
+        double sin_h;
+        (void)srmech_sin(harmonic, &sin_h);
+        delta += SRMECH_KEPLER_EOC_COEFFS[k_idx] * e_power * sin_h;
     }
     *out_delta_rad = delta;
     return SRMECH_OK;
