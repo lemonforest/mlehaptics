@@ -861,9 +861,10 @@ def _register_primitive_class_tools() -> None:
                     "the operator|operand FUSION op). Exact-rational Fraction "
                     "solve (Class-N core, numpy-absent or exact=True); "
                     "numpy.linalg.solve float realization on the scientific tier.",
-            parameters=(P("L", "np.ndarray | list[list]", True,
-                          "n × n SPD operator (a graph Laplacian)"),
-                        P("boundary_idx", "Sequence[int]", True,
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
@@ -876,9 +877,10 @@ def _register_primitive_class_tools() -> None:
             summary="Alias for schur_complement — the discrete "
                     "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
                     "normal-derivative of their harmonic interior extension.",
-            parameters=(P("L", "np.ndarray | list[list]", True,
-                          "n × n SPD operator (a graph Laplacian)"),
-                        P("boundary_idx", "Sequence[int]", True,
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
