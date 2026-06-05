@@ -163,7 +163,8 @@ same cascade.
 | §22 op | Python source (rc) | C source (shipped) | Executable on native | Cohere? |
 |---|---|---|---|---|
 | `exp` | `rational.exp` (rc34) | `srmech_exp_series_truncate` | **cascade** | ✅ |
-| `sin/cos/atan2` | `rational.*` (rc33/41) | libm in `srmech_kepler.c`, `srmech_kuramoto.c` | **libm** | ❌ |
+| `sin/cos/atan2` (kepler) | `rational.*` (rc33/41) | **`srmech_{sin,cos,atan2}`** (rc43; `srmech_trig.c` integer-cyclic + Q61 Taylor) | **cascade** | ✅ |
+| `sin` (kuramoto) | `rational.*` | libm in `srmech_kuramoto.c` | **libm** | ❌ (rc44) |
 | `sqrt` | `rational.sqrt` (rc40) | libm `sqrt`×8 (Jacobi) `srmech_laplacian.c` — no C peer | **libm** | ❌ |
 | `pow` / `fabs` | sign-branch (rc32) | libm in `srmech_kepler.c` | **libm** | ❌ |
 | signed/magnetic L phase | cascade | libm `cos/sin/exp/log` `srmech_laplacian.c` | **libm** | ❌ |

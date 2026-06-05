@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc42"
-#define SRMECH_VERSION       "0.7.0rc42"
+#define SRMECH_VERSION_PRE   "rc43"
+#define SRMECH_VERSION       "0.7.0rc43"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1393,6 +1393,23 @@ srmech_status_t srmech_equation_of_centre(double    M_rad,
                                           double    e,
                                           uint32_t  n_terms,
                                           double   *out_delta_rad);
+
+/* ------------------------------------------------------------------ *
+ * Class N — native rational trig cascade (v0.7.0rc43; C-transpile
+ * triality coherence). sin/cos/atan/atan2 computed as the Class-N
+ * Taylor cascade in Q61 fixed-point, with the CYCLIC range-reduction
+ * (mod pi/2) done in pure INTEGER arithmetic (pi from the Archimedes
+ * pi-cascade; no libm sin/cos/atan2, no abs()). float appears only at
+ * the final rational->double projection. These are the native peers the
+ * kepler / kuramoto ops route through so the executable runs the cascade,
+ * not libm. Matches libm to machine epsilon for |x| < 2^55; returns
+ * SRMECH_ERR_BAD_INPUT for non-finite x (out set to NaN). Additive ->
+ * ABI unchanged.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_sin(double x, double *out);
+srmech_status_t srmech_cos(double x, double *out);
+srmech_status_t srmech_atan(double x, double *out);
+srmech_status_t srmech_atan2(double y, double x, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)

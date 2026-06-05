@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc43] - 2026-06-05
+
+**Native C trig cascade — the executable runs the Class-N cascade for trig, not libm (C-transpile triality, rc42→rc46 arc step 1).** ABI stays 3 (additive C symbols); `describe()` stays **230** (no Python tools). The first *behavioural* C port: on a native install `kepler.{pin_slot,kepler_solve,equation_of_centre}` now compute `sin`/`cos`/`atan2` via the cascade, closing the kepler row of the executable-coherence gap.
+
+- **New `c/src/srmech_trig.c`** → `srmech_sin`/`srmech_cos`/`srmech_atan`/`srmech_atan2` (double→double, status-returning). The **cyclic range-reduction (mod π/2) is pure INTEGER** (user direction "prefer ints over float always for cyclic algebra"): the IEEE-754 input is read as an exact `M·2^E` from its bit pattern (no `frexp`), the octant `k` comes from an integer wide-multiply (portable 64×64→128, no `__int128`/`_umul128`) by a high-precision cascade `2/π`, the remainder is an exact integer fraction; the Class-N Taylor runs in **Q61 fixed-point**; **float appears only at the final `(double)sum/2^61` projection**. π from the Archimedes pi-cascade (derive-and-assert constants). No libm, no `abs()` (Class-K sign-branch). Validated vs libm to machine ε — **sin 5.3e-19, cos 8.1e-20, atan 2.2e-16, atan2 0.0 bit-exact** across 200k+ angles.
+- **`srmech_kepler.c` repointed** — 7 trig sites (`cos`×2, `sin`×4, `atan2`×1) → the cascade; native `pin_slot` is bit-exact (0.0) vs libm and the Kepler residual holds at 0.0. (The `fabs` stays for rc46.)
+- **C ratchet** `test_c_cascade_coherence.py` baseline **23 → 16** (kepler 8 → 1). New ctypes parity test `test_native_trig_rc43.py`. JPL Power-of-Ten clean (≤60-line fns, ≥2 asserts); pedantic `-Werror`/`/WX` clean. Kuramoto native step (#784) confirmed green pre-touch (rc44 target).
+
+**Roadmap:** rc44 repoints `srmech_kuramoto.c` (sin×3, watching the F234 differential test); rc45 adds `srmech_rational_sqrt` → `srmech_laplacian.c`; rc46 `fabs`→sign-branch + the complex-libm guard (`csin`/`ccos`/`cexp`/`csqrt`) → C ratchet 0. Then the numpy→`srmech[scientific]` capstone.
+
 ## [0.7.0rc42] - 2026-06-05
 
 **C-transpile triality coherence — start the native/executable-tier port, ratchet-first.** Pure tooling+docs; no new tools (`describe()` stays **230**); ABI stays 3; no C *behaviour* change yet. Opens the rc42→rc46 arc that makes the **executable** layer run the Class-N cascade, not libm.

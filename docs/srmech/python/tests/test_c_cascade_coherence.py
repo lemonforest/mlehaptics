@@ -49,11 +49,11 @@ _MPI_RE = re.compile(r"\bM_PI(?:_2|_4)?\b")
 # These ONLY go DOWN as rc43+ transpiles the Class-N cascades into C. The
 # per-file ceilings make a regression point at the exact file.
 _BASELINE = {
-    "srmech_kepler.c": 8,      # cos x2, sin x4, atan2 x1, fabs x1  (rc43)
+    "srmech_kepler.c": 1,      # fabs x1 (rc46); trig routed -> srmech_sin/cos/atan2 (rc43)
     "srmech_kuramoto.c": 3,    # sin x3                              (rc44)
     "srmech_laplacian.c": 12,  # sqrt x8, exp x1, cos x1, sin x1, log x1 (rc45)
 }
-_BASELINE_TOTAL = 23
+_BASELINE_TOTAL = 16          # rc43: kepler trig (7) routed onto the C cascade (23 -> 16)
 
 
 def _strip_c_comments(src: str) -> str:
