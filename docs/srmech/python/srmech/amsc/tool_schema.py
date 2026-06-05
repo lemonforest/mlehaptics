@@ -1308,6 +1308,27 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]", "(U, s, Vh): singular vectors + descending singular values"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
+            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no np.linalg.lstsq. Matches numpy.linalg.lstsq(a,b)[0] to round-off.",
+            parameters=(P("a", "np.ndarray", True, "(m, n) coefficient matrix, m>=n"),
+                        P("b", "np.ndarray", True, "(m,) or (m, k) right-hand side(s)")),
+            returns=R("np.ndarray", "least-squares solution x, shape (n,) or (n, k)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
+            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to numpy.einsum.",
+            parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
+                        P("operands", "tuple[np.ndarray, ...]", False, "the input arrays (variadic)")),
+            returns=R("np.ndarray", "the contracted tensor"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
+            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no np.linalg.eig/eigvals. Eigenvalues unique as a SET; the multiset matches numpy.linalg.eigvals to ~1e-12 for moderate sizes.",
+            parameters=(P("a", "np.ndarray", True, "(n, n) real or complex square matrix"),
+                        P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
+            returns=R("np.ndarray", "length-n complex eigenvalue array"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",
