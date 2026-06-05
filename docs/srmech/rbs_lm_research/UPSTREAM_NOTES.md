@@ -1419,6 +1419,29 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §27 srmech 0.7.0 GRADUATED to production PyPI — the new structure learned (2026-06-05)
+
+**`srmech==0.7.0` is live on production PyPI** (the clean tag; the rc47→rc49 arc consolidated). Verified in a clean venv OUTSIDE the source tree: `native_status() = {has_native:True, dispatching:True, abi_version:3, expected_abi:3, native_version:'0.7.0', load_error:None}`. **numpy is OPTIONAL** (plain `pip install srmech` is numpy-free; `srmech[scientific]` adds it). **`HAS_NATIVE` is GONE → `native_status()`** (confirmed live). **Continuous math UNTOUCHED** (user-confirmed): `srmech.calculus` + the `asymptotic_calculus`/`trigonometry` back-compat shims all import; the five Class-N series-truncate ops (`sin/cos/atan/exp/log1p_series_truncate`) return exact `(num,den)` rationals.
+
+**The structure:**
+- **top-level** `srmech.*`: `amsc`, `bus`, `dsl`, `profile`/`profile_loader`/`list_profiles`/`Profile`/`ProfileStatus` (+ Profile* errors), `introspect`, `describe`, `native_status`, `version`, `warmup_all`.
+- **`srmech.amsc.*` submodules:** `format`(A) · `cyclic`(I) · `primes`(J) · `rational`(N) · `cascade` · `compose` · `coupling` · `hdc`(M) · `hv` · `laplacian`(L) · `harmonics` · `tlv`(B) · `naming` · `search`(G) · `dispatch`(D) · `catalog`(E) · `template`(F) · `kepler` · `descriptor` · `adapters` · `attested` · `tool_schema` · `gap_suggester` · `_native` · `_research`.
+- **NEW/grown submodules:** `hv` (the HV carrier: `HV`/`HVLike`) · `tlv` (Class B: `tlv_pack`, `TLV_PREFIX_BYTES`) · `coupling` (`signed_sum_squared` — **the UPSTREAM §1.2 gap, now shipped**) · `harmonics` (`HARMONIC_PARTITION`, `classify_harmonic`, `classify_chirality_harmonic`, the A-N harmonic ladder) · `naming` (`lookup`, `reverse_order`) · `compose` (`ChainSpec`/`StepSpec`/`DEFAULT_CLASS_REGISTRY` — the operator-chain engine).
+
+**THE ONE `𝕊(σ,θ)` is LIVE** in `srmech.amsc.cascade`: **`the_one(sigma:int, theta_num:int, theta_den:int=1, terms:int=24) -> One`** (+ `One`, `Block`, `s_generator`, `one`). Verified: `.dim==14`, `.partition==(1,3,7,3)`, `.grammar_slots==('B','H','N')`, `.n1_is_sigma_only==True`, `.to_flat_rational()` → 14 exact `(num,den)` pairs (numpy-free). **⇒ the MFO §VIII.31.15 worked example (PR #890) is VERIFIED-correct against the live surface** — the only doc drift is "ships in rc49 / PR #889" → it's now **0.7.0 live** (worth a one-line update).
+
+**QDFT/ODFT (#863) SHIPPED** in `srmech.amsc.cascade`: **`quaternion_dft(x, *, form='left', mu_axis='i', inverse=False)`** and **`octonion_dft(x, *, form='left', mu_axis='i', bracketing='left_associated', two_sided_right_axis='j', inverse=False)`** (+ the `hypercomplex_dft` module). The shipped params ARE the F381/§23 structural caveats: **`form`** = the non-commutativity (left/right/two-sided), **`bracketing`** = the octonion non-associativity declared convention, **`mu_axis`**/**`two_sided_right_axis`** = the unit imaginaries. **⇒ #863 is now CLOSEABLE** (feature landed); **BX-5/6/7 done upstream**.
+
+**STILL a gap:** **§26 Schur/DtN** (the F412/F419 operator|operand FUSION op) is **NOT shipped** — `laplacian` still has no `schur_complement`/`dirichlet_to_neumann`/solve. This remains the concrete next-step srmech ask (F419: "where the breakthroughs live").
+
+**Actionable implications:**
+1. **#863 (QDFT/ODFT) → closeable** (shipped in 0.7.0). Present for user close-authorization.
+2. **MFO §VIII.31.15** — update "rc49 / PR #889" → "0.7.0 (live PyPI)" (the surface graduated; the example is verified-correct).
+3. **The clean-tag doc pass is now TRIGGERED** (per `docs/srmech/CLAUDE.md`'s "matters more once a clean (non-rc) tag lands"): bring the version narrative + `HAS_NATIVE`→`native_status` current.
+4. **BX-10 / srmech-mcp repoint UNBLOCKED** (`project_srmech_mcp_repoint_deferred_until_live`: repoint when a clean tag lands on live — it now has). Actionable.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
