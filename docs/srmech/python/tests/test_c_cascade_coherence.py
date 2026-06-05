@@ -15,11 +15,16 @@ findings (F305/F306, PR #687, read-only): the native compute surface should be
 substrate-native too.
 
 This is a **DOWN-only baseline ratchet** (same shape as ``test_jpl_audit.py``:
-violations only go DOWN, never up). rc42 records the current count; rc43–rc46
-port ``srmech_{sin,cos,atan,atan2}_series_truncate`` + a C ``pi_cascade`` +
-``srmech_rational_sqrt`` into JPL-clean C, repoint kepler/kuramoto/laplacian off
-libm, and lower the baseline to zero. ``srmech_exp_series_truncate`` already
-exists (the only §22 op with a C cascade peer today).
+violations only go DOWN, never up). rc42 recorded the count (23); rc43–rc45
+ported ``srmech_{sin,cos,atan,atan2}`` + ``srmech_rational_sqrt`` into JPL-clean
+C and repointed kepler/kuramoto/laplacian (23 -> 16 -> 13 -> 3); **rc46 closes
+it out** — ``srmech_exp``/``srmech_log`` (the Q61 integer exp/atanh cascades)
+repoint the laplacian elementwise transcendental, and the last ``fabs`` becomes
+a Class-K sign-branch, so the baseline is **ZERO**: the shipped libsrmech holds
+no libm transcendental. The guard now also covers the C99 **complex** libm
+(``csin``/``ccos``/``cexp``/``csqrt``/... and any ``<complex.h>`` include) so a
+future complex op can't silently reintroduce libm. The executable, the
+C+Python source, and the research notebook all agree (C-transpile triality).
 """
 import pathlib
 import re
@@ -35,25 +40,26 @@ _SRMECH_ROOT = pathlib.Path(_L.__file__).resolve().parents[3]
 _C_SRC = _SRMECH_ROOT / "c" / "src"
 _C_INCLUDE = _SRMECH_ROOT / "c" / "include"
 
-# libm scalar transcendentals that each have (or will have) an exact Class-N
-# srmech cascade peer. NOT ratcheted: integer helpers, ``M_E`` etc.
+# libm scalar transcendentals that each have an exact Class-N srmech cascade
+# peer. NOT ratcheted: integer helpers, ``M_E`` etc. The C99 complex variants
+# (csin/cexp/...) are included so a future complex op can't silently bring libm
+# back in — they have no cascade peer yet, so their ceiling is 0.
 _LIBM_FUNCS = (
     "sin", "cos", "tan", "asin", "acos", "atan2", "atan",
     "exp", "log2", "log10", "log", "sqrt", "hypot", "pow", "fabs", "cbrt",
+    "csin", "ccos", "ctan", "cexp", "clog", "csqrt", "cpow", "cabs",
 )
 _CALL_RE = re.compile(r"\b(" + "|".join(_LIBM_FUNCS) + r")\s*\(")
 _MPI_RE = re.compile(r"\bM_PI(?:_2|_4)?\b")
 
-# BASELINE captured at rc42 (the shipped library c/src + c/include only;
-# c/test/* explorer/demo code is excluded — not compiled into libsrmech).
-# These ONLY go DOWN as rc43+ transpiles the Class-N cascades into C. The
-# per-file ceilings make a regression point at the exact file.
-_BASELINE = {
-    "srmech_kepler.c": 1,      # fabs x1 (rc46); trig routed -> srmech_sin/cos/atan2 (rc43)
-    "srmech_kuramoto.c": 0,    # rc44: sin x3 routed -> srmech_sin cascade
-    "srmech_laplacian.c": 2,   # rc45: sqrt x8 + cos/sin routed; exp+log stay (rc46)
-}
-_BASELINE_TOTAL = 3           # rc45: laplacian sqrt+trig routed (13 -> 3)
+# BASELINE — ZERO at rc46 (the shipped library c/src + c/include only; c/test/*
+# explorer/demo code is excluded — not compiled into libsrmech). rc42 recorded
+# 23; rc43/44/45/46 transpiled the trig / sqrt / exp / log Class-N cascades into
+# C and routed kepler/kuramoto/laplacian off libm. There is no libm
+# transcendental left in the shipped library; this dict stays EMPTY (any file
+# that reintroduces one fails — the ratchet only ever goes DOWN).
+_BASELINE = {}                # rc46: ZERO — executable fully on the cascade
+_BASELINE_TOTAL = 0           # rc46: closeout (23 -> 16 -> 13 -> 3 -> 0)
 
 
 def _strip_c_comments(src: str) -> str:
@@ -112,3 +118,40 @@ def test_c_exp_cascade_peer_exists():
     rational_c = _C_SRC / "srmech_rational.c"
     assert rational_c.is_file()
     assert "srmech_exp_series_truncate" in rational_c.read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(not _C_SRC.is_dir(), reason="C source absent (installed wheel)")
+def test_no_complex_h_include_in_shipped_library():
+    """GUARD (rc46): the shipped libsrmech does not pull in C99 ``<complex.h>``.
+    The complex-libm transcendentals (csin/ccos/cexp/csqrt/...) have no Class-N
+    cascade peer yet — so the door stays shut until one exists. Phase factors
+    are done as pure algebra (gamma/|gamma|), never via complex libm."""
+    offenders = []
+    for p in _c_files():
+        src = _strip_c_comments(p.read_text(encoding="utf-8", errors="replace"))
+        if re.search(r"#\s*include\s*<complex\.h>", src):
+            offenders.append(p.name)
+    assert not offenders, (
+        "shipped libsrmech must not include <complex.h> (no cascade peer for "
+        f"the complex libm transcendentals yet): {offenders}"
+    )
+
+
+@pytest.mark.skipif(not _C_SRC.is_dir(), reason="C source absent (installed wheel)")
+def test_c_explog_cascade_peers_exist_and_repointed():
+    """Coherence anchor (rc46 closeout): the double-wrapper exp/log cascades
+    ``srmech_exp`` / ``srmech_log`` ship in ``srmech_explog.c``, and the
+    laplacian elementwise transcendental routes through them — no bare libm
+    ``exp(``/``log(`` remains in ``srmech_laplacian.c``. Executable == source."""
+    explog_c = _C_SRC / "srmech_explog.c"
+    assert explog_c.is_file(), "srmech_explog.c (the C exp/log cascade) is missing"
+    explog_src = explog_c.read_text(encoding="utf-8")
+    assert "srmech_status_t srmech_exp(" in explog_src
+    assert "srmech_status_t srmech_log(" in explog_src
+
+    lap_src = _strip_c_comments(
+        (_C_SRC / "srmech_laplacian.c").read_text(encoding="utf-8")
+    )
+    assert "srmech_exp(" in lap_src and "srmech_log(" in lap_src
+    assert not re.search(r"(?<![A-Za-z0-9_])exp\s*\(", lap_src), "bare libm exp( in laplacian.c"
+    assert not re.search(r"(?<![A-Za-z0-9_])log\s*\(", lap_src), "bare libm log( in laplacian.c"

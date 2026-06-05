@@ -3,8 +3,10 @@
  *
  * Task #217 Phase C1 rc7 — Class K earns its C surface per the per-class
  * parity discipline. Continuous projection-shadow of the integer-cyclic
- * upstream (Class I cyclic groups + Class J prime-period). Uses libm
- * (sin / cos / atan2 / fabs); double precision throughout.
+ * upstream (Class I cyclic groups + Class J prime-period). Trig routes through
+ * the Class-N cascade (srmech_sin / srmech_cos / srmech_atan2, rc43); the
+ * convergence magnitude is a Class-K sign-branch (never fabs, rc46) — so this
+ * file holds NO libm call. Double precision throughout.
  *
  * Three load-bearing operations:
  *
@@ -51,7 +53,6 @@
 #include "srmech.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stddef.h>
 
 /* Principal sin(kM) coefficient at lowest-order e^k contribution.
@@ -138,7 +139,8 @@ srmech_status_t srmech_kepler_solve(double    M_rad,
         /* f_prime > 0 for e < 1 (no division-by-zero risk). */
         double delta = f / f_prime;
         E -= delta;
-        if (fabs(delta) < tolerance) {
+        double adelta = (delta < 0.0) ? -delta : delta;   /* Class-K magnitude, not fabs */
+        if (adelta < tolerance) {
             *out_E_rad = E;
             return SRMECH_OK;
         }

@@ -76,3 +76,28 @@ Payne-Hanek-lite reduction): a substrate that has only an integer ALU + a
 no `__int128`** — the "continuous" trig is literally a Class-N rational the ALU
 evaluates, projected to float once. Candidate comment for the lean-ISA tracker:
 the 7th-primitive / native-compute-surface discussion (F305/F306, #784 family).
+
+### rc45/rc46 extension — the SAME integer-only ISA covers sqrt + exp + log
+
+The closeout (rc45 `srmech_sqrt.c`, rc46 `srmech_explog.c`) shows the lean-ISA
+result generalises past trig to the whole §22 transcendental set:
+
+- **sqrt** — a two-limb 128-bit *integer* restoring isqrt on a bit-extracted
+  radicand (`x = M·2^e`), projected by an IEEE-exponent-field power-of-two. No
+  FPU `sqrt`, no `__int128`, no division.
+- **exp** — Q61 integer exp-Taylor on the reduced `r` (`x = n·ln2 + r`), scaled
+  by `2^n` via the exponent field. The only float ops are the `n`-pick and the
+  two-word `ln2` recombine (the projection).
+- **log** — Q61 integer atanh series on `(m−1)/(m+1)` after a *bit-pattern*
+  `m·2^e` split (the decomposition is integer, not `frexp`).
+
+**ISA shopping list (full §22 transcendental coverage):** an integer ALU, a
+`64×64→128` widening multiply (schoolbook from 32-bit parts if absent), a
+count-leading-zeros (or a bounded normalise loop), and IEEE-754 bit access
+(`memcpy`, no `ldexp`/`frexp`/`scalbn`). That set computes machine-ε
+`sin/cos/atan/atan2/sqrt/exp/log` with **zero FPU transcendental and zero
+`__int128`**. The pin-slot / kuramoto / Jacobi paths on a native install now
+prove it end-to-end — the whole "continuous math" layer is a Class-N rational
+the integer ALU evaluates, projected to float exactly once at the boundary.
+Strong candidate for the lean-ISA / native-compute-surface tracker (#784 family,
+F305/F306): the 7th-primitive substrate needs no transcendental FPU at all.
