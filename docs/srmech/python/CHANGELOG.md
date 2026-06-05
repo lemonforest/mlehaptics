@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc44] - 2026-06-05
+
+**Native Kuramoto step runs the trig cascade, not libm (C-transpile triality, arc step 2).** ABI stays 3; `describe()` stays **230**. `srmech_cascade_kuramoto_step_f64` / `_general_f64` now compute their coupling `sin` via the rc43 Class-N cascade.
+
+- **`srmech_kuramoto.c` repointed** — the 3 libm `sin` sites (mean-field coupling `Σ sin(θⱼ−θᵢ)`, the generalised Sakaguchi `Σ Aᵢⱼ·sin(θⱼ−θᵢ−α)`, and the per-oscillator pinning `pᵢ·sin(ψᵢ−θᵢ)`) → `srmech_sin`; `#include <math.h>` dropped (no other libm in the file).
+- **#784 / F234 non-regression confirmed** — the Kuramoto-coupled-adder differential test (`test_kuramoto_step.py`, the "tile nibbler") stays green with the native cascade-trig (18 passed). The defaults still reproduce the plain step.
+- C ratchet `test_c_cascade_coherence.py` baseline **16 → 13** (kuramoto 3 → 0). JPL-clean; pedantic `-Werror`/`/WX` clean.
+
+**Roadmap:** rc45 `srmech_rational_sqrt` (integer-Newton) → `srmech_laplacian.c` (sqrt×8 Jacobi + the cos/sin/exp phase); rc46 `fabs`→Class-K sign-branch + the complex-libm guard (`csin`/`ccos`/`cexp`/`csqrt`) → C ratchet **0**. Then the numpy→`srmech[scientific]` capstone.
+
 ## [0.7.0rc43] - 2026-06-05
 
 **Native C trig cascade — the executable runs the Class-N cascade for trig, not libm (C-transpile triality, rc42→rc46 arc step 1).** ABI stays 3 (additive C symbols); `describe()` stays **230** (no Python tools). The first *behavioural* C port: on a native install `kepler.{pin_slot,kepler_solve,equation_of_centre}` now compute `sin`/`cos`/`atan2` via the cascade, closing the kepler row of the executable-coherence gap.
