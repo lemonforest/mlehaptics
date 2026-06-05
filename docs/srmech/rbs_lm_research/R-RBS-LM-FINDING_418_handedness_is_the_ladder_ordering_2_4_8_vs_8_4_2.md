@@ -3,7 +3,7 @@
 **Date:** 2026-06-05
 **Arc:** RBS-LM · DUALITY/chirality thread (F409 → **F418**); framework-reading (**NO srmech run — held**)
 **Composes:** **F409** (chirality = duality = operator|operand; the `|` L/R seam; the H-same/H-orthogonal bridge) · **F389** (`(4:3)|(3:4)` = the L/R loop-multiply order = the chirality notation) · **F390** (division = conjugate = handedness; Class C→K) · **F380** (the descent / projection = the flat shadow) · **F404/F410** (the 2:4:8 ladder; climb vs the sedenion boundary) · **F403/F397** (Klein-4 = two Z₂ = the (2+2): γ₅, iω₇) · **F379** ((n:n−1) anchor+couplings, ordered) · Cayley-Dickson directedness
-**→ answers "does handedness come out of 1:3:7:3|2:4:8, or do we need 8:4:2?"; gives the F409 bridge a concrete proposal.**
+**→ answers "does handedness come out of 1:3:7:3|2:4:8, or do we need 8:4:2?"; gives the F409 bridge a concrete proposal.** **← extended by F420** (the chirality σ = conjugation is one of the two parameters of the unifying form 𝕊(σ,θ); the ladder-reversal `2:4:8 ↔ 8:4:2` is σ acting, and time `e^{Îθ}` is the other parameter).
 
 ---
 
