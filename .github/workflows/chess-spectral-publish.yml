@@ -289,6 +289,65 @@ jobs:
           name: wheel-pure
           path: docs/chess-maths/chess-spectral/python/dist/*py3-none-any.whl
 
+  asan:
+    # AddressSanitizer memory-safety gate. Moved here from the per-PR
+    # chess-spectral-ci.yml fast lane (which now runs a single lean Linux
+    # build) so PR test feedback isn't slowed by the asan build. This is
+    # the build-env-error stage: it runs at tag/publish time and gates
+    # `publish` below, so a use-after-free / overflow blocks the release
+    # (on an rc tag that means TestPyPI is blocked — the safe partition
+    # away from production PyPI). The `asan` configure/build/test presets
+    # live in CMakePresets.json (binaryDir build/asan; testPresets: asan).
+    name: asan (memory sanitizer)
+    runs-on: ubuntu-latest
+    # Only meaningful on a publish path (tag push or manual dispatch);
+    # skip on any other trigger this workflow might gain later.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chess-spectral-v'))
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        # Mirror chess-spectral-ci.yml's build-and-test deps; `chess`
+        # (python-chess) is a runtime dep (engine.search uses chess.Board).
+        run: python -m pip install --upgrade pip pytest numpy scipy chess
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure (asan preset)
+        working-directory: docs/chess-maths/chess-spectral
+        run: cmake --preset asan
+
+      - name: Build (asan)
+        working-directory: docs/chess-maths/chess-spectral
+        run: cmake --build --preset asan
+
+      - name: C unit tests under asan (ctest)
+        working-directory: docs/chess-maths/chess-spectral
+        # Hard gate (no `|| true`): the asan testPreset exists, so a
+        # sanitizer fault fails the job and blocks publish.
+        run: ctest --preset asan --output-on-failure
+
+      - name: Python parity + e2e under the asan binary
+        working-directory: docs/chess-maths/chess-spectral/python
+        env:
+          # Point pytest at the asan-instrumented binaries (build/asan,
+          # per the preset's binaryDir) so the subprocessed e2e parity
+          # tests actually exercise the sanitizer.
+          CS_SPECTRAL_BIN: ${{ github.workspace }}/docs/chess-maths/chess-spectral/build/asan/spectral
+          CS_SPECTRAL_4D_BIN: ${{ github.workspace }}/docs/chess-maths/chess-spectral/build/asan/spectral_4d
+          # The C binaries intentionally don't free everything before
+          # exec/exit; suppress leak-exit so only use-after-free /
+          # buffer-overflow (the high-value classes) are hard failures.
+          ASAN_OPTIONS: "detect_leaks=0"
+        run: pytest tests/ --ignore=tests/phase_operators -q
+
   publish:
     name: >-
       publish
@@ -297,7 +356,7 @@ jobs:
         || (contains(github.ref_name, 'rc') && 'testpypi')
         || 'pypi'
       }})
-    needs: [build-wheels, build-sdist, build-pure-wheel]
+    needs: [build-wheels, build-sdist, build-pure-wheel, asan]
     runs-on: ubuntu-latest
     # Publish only on tag-push or workflow_dispatch on a tag ref; never
     # on PR / branch dispatches.
