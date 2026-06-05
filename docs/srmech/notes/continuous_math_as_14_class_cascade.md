@@ -165,7 +165,7 @@ same cascade.
 | `exp` | `rational.exp` (rc34) | `srmech_exp_series_truncate` | **cascade** | ✅ |
 | `sin/cos/atan2` (kepler) | `rational.*` (rc33/41) | **`srmech_{sin,cos,atan2}`** (rc43; `srmech_trig.c` integer-cyclic + Q61 Taylor) | **cascade** | ✅ |
 | `sin` (kuramoto) | `rational.*` | **`srmech_sin`** (rc44; `srmech_kuramoto.c` coupling + pinning) | **cascade** | ✅ |
-| `sqrt` | `rational.sqrt` (rc40) | libm `sqrt`×8 (Jacobi) `srmech_laplacian.c` — no C peer | **libm** | ❌ |
+| `sqrt` | `rational.sqrt` (rc40) | **`srmech_rational_sqrt`** (rc45; `srmech_sqrt.c` two-limb integer isqrt) — `srmech_laplacian.c` Jacobi | **cascade** | ✅ |
 | `pow` / `fabs` | sign-branch (rc32) | libm in `srmech_kepler.c` | **libm** | ❌ |
 | signed/magnetic L phase | cascade | libm `cos/sin/exp/log` `srmech_laplacian.c` | **libm** | ❌ |
 

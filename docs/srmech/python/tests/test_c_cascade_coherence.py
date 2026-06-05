@@ -51,9 +51,9 @@ _MPI_RE = re.compile(r"\bM_PI(?:_2|_4)?\b")
 _BASELINE = {
     "srmech_kepler.c": 1,      # fabs x1 (rc46); trig routed -> srmech_sin/cos/atan2 (rc43)
     "srmech_kuramoto.c": 0,    # rc44: sin x3 routed -> srmech_sin cascade
-    "srmech_laplacian.c": 12,  # sqrt x8, exp x1, cos x1, sin x1, log x1 (rc45)
+    "srmech_laplacian.c": 2,   # rc45: sqrt x8 + cos/sin routed; exp+log stay (rc46)
 }
-_BASELINE_TOTAL = 13          # rc44: kuramoto sin x3 routed (16 -> 13)
+_BASELINE_TOTAL = 3           # rc45: laplacian sqrt+trig routed (13 -> 3)
 
 
 def _strip_c_comments(src: str) -> str:

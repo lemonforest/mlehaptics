@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc44"
-#define SRMECH_VERSION       "0.7.0rc44"
+#define SRMECH_VERSION_PRE   "rc45"
+#define SRMECH_VERSION       "0.7.0rc45"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1410,6 +1410,14 @@ srmech_status_t srmech_sin(double x, double *out);
 srmech_status_t srmech_cos(double x, double *out);
 srmech_status_t srmech_atan(double x, double *out);
 srmech_status_t srmech_atan2(double y, double x, double *out);
+
+/* Class-N rational sqrt cascade (v0.7.0rc45). sqrt(x) (x >= 0) via an INTEGER
+ * floor-isqrt on a scaled radicand (portable two-limb 128-bit isqrt; no libm,
+ * no float sqrt, no __int128) + IEEE-exponent-field power-of-two scaling.
+ * srmech_laplacian.c's cyclic-Jacobi eigensolver routes through this so the
+ * executable runs the cascade. Machine-epsilon vs libm; negative x ->
+ * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
+srmech_status_t srmech_rational_sqrt(double x, double *out);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)

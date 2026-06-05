@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.0rc45] - 2026-06-05
+
+**Native sqrt cascade — the Jacobi eigensolver runs the Class-N integer-sqrt, not libm (C-transpile triality, arc step 3).** ABI stays 3 (additive `srmech_rational_sqrt`); `describe()` stays **230**.
+
+- **New `c/src/srmech_sqrt.c`** → `srmech_rational_sqrt` — `sqrt(x)` (x≥0) via an **integer floor-isqrt** on a scaled radicand: `x = M·2^e` read from the bit pattern, `root = isqrt(M<<54)` via a **portable two-limb 128-bit integer square root** (restoring binary, 64 bounded iterations, no division, **no `__int128`**), projected by `(double)root·2^(e/2−27)` with the power-of-two built directly from the IEEE exponent field (no `ldexp`). No libm, no float sqrt. Machine-ε vs libm (rel err ≤ 2.2e-16 over 500k values; `1/√d` bit-exact).
+- **`srmech_laplacian.c` repointed** — the **8 cyclic-Jacobi `sqrt`** (off-diagonal norm + rotation angles) → a `lap_sqrt` wrapper over the cascade; the **elementwise `cos`/`sin`** → `srmech_cos`/`srmech_sin`. **Class L now visibly composes Class N in the executable.** Jacobi spectrum vs `numpy.linalg.eigvalsh` unchanged.
+- C ratchet baseline **13 → 3** (laplacian 12 → 2: only `exp` + `log` remain). JPL-clean; pedantic `-Werror`/`/WX` clean.
+
+**Roadmap (rc46, the closeout):** a C `exp` double-wrapper over `srmech_exp_series_truncate` + a C `log` (`log1p`-series + integer exponent) → repoint the laplacian signed/magnetic phase; `fabs`→Class-K sign-branch (`srmech_kepler.c`); the complex-libm guard (`csin`/`ccos`/`cexp`/`csqrt`) → **C ratchet 0**, executable fully on the cascade. Then the numpy→`srmech[scientific]` capstone.
+
 ## [0.7.0rc44] - 2026-06-05
 
 **Native Kuramoto step runs the trig cascade, not libm (C-transpile triality, arc step 2).** ABI stays 3; `describe()` stays **230**. `srmech_cascade_kuramoto_step_f64` / `_general_f64` now compute their coupling `sin` via the rc43 Class-N cascade.
