@@ -78,6 +78,7 @@ bound.
 from __future__ import annotations
 
 import ctypes
+from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -102,6 +103,8 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "schur_complement",
+    "dirichlet_to_neumann",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
@@ -524,6 +527,206 @@ def jacobi_eigvals(
         _jacobi_eigvals_py(M.tolist(), max_sweeps, tolerance),
         dtype=np.float64,
     )
+
+
+# =====================================================================
+# UPSTREAM §26 (#897) — the Class-L Schur complement / Dirichlet-to-Neumann
+# (DtN) map: the operator|operand FUSION op (F412 / F417 / F419)
+# =====================================================================
+#
+# Every other Class-L op in the corpus PROJECTS — it maps a spatial graph
+# (operand, 2:4:8) to a cyclic spectrum (operator, 1:3:7) and DROPS the
+# spatial structure (F417, the one-way seam). The Schur complement KEEPS
+# BOTH: the spatial boundary AND its operator spectrum. That is the
+# fusion, not the projection.
+#
+# Holographic reading (F412): boundary = base, bulk = total, fiber =
+# emergent radial dim. Integrating the bulk out leaves a boundary effective
+# operator whose SIZE is |∂| (the boundary), not n (the bulk). That
+# dimensional reduction n → |∂| IS the area law.
+
+
+def _as_rows(L) -> List[list]:
+    """Coerce a matrix (ndarray / list-of-lists / sequence-of-sequences) to a
+    square list-of-lists, validating squareness. No numpy required."""
+    if np is not None and isinstance(L, np.ndarray):
+        if L.ndim != 2 or L.shape[0] != L.shape[1]:
+            raise ValueError(f"L must be square 2-D; got shape {L.shape}")
+        return L.tolist()
+    rows = [list(r) for r in L]
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"L must be square n×n; got a row of length {len(r)} for n={n}")
+    return rows
+
+
+def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], List[int]]:
+    """Split {0..n-1} into the boundary list ∂ (sorted, deduped, validated) and
+    the interior list i (the complement, sorted)."""
+    b = sorted(set(int(k) for k in boundary_idx))
+    if len(b) != len(list(boundary_idx)):
+        raise ValueError("boundary_idx must not contain duplicate indices")
+    if not b:
+        raise ValueError("boundary_idx must be non-empty (1 ≤ |∂| ≤ n)")
+    if b[0] < 0 or b[-1] >= n:
+        raise ValueError(f"boundary_idx entries must be in [0, {n}); got {b}")
+    bset = set(b)
+    i = [k for k in range(n) if k not in bset]
+    return b, i
+
+
+def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
+    """Exact-rational solve of ``A · X = B`` over the rationals — Gauss–Jordan
+    elimination in :class:`fractions.Fraction` (the Class-N exact-rational
+    primitive; division here is exact, never a float reciprocal — F392). ``A``
+    is m×m, ``B`` is m×w, the returned ``X`` is m×w. No numpy, no ``abs()``:
+    the pivot is the FIRST nonzero at/below the diagonal (exact arithmetic
+    needs no magnitude-based partial pivoting for stability — only a nonzero
+    pivot). A wholly-zero pivot column ⇒ a singular interior block."""
+    m = len(A)
+    w = len(B[0]) if B else 0
+    # Augmented [A | B] in exact rationals.
+    M = [[Fraction(A[r][c]) for c in range(m)] + [Fraction(B[r][c]) for c in range(w)]
+         for r in range(m)]
+    for col in range(m):
+        pivot = None
+        for r in range(col, m):
+            if M[r][col] != 0:
+                pivot = r
+                break
+        if pivot is None:
+            raise ZeroDivisionError(
+                "singular interior block L_ii: an interior component is "
+                "disconnected from the boundary (no harmonic extension exists)."
+            )
+        if pivot != col:
+            M[col], M[pivot] = M[pivot], M[col]
+        inv_piv = M[col][col]
+        M[col] = [x / inv_piv for x in M[col]]  # exact rational division (Class-N)
+        for r in range(m):
+            if r != col and M[r][col] != 0:
+                f = M[r][col]
+                M[r] = [M[r][cc] - f * M[col][cc] for cc in range(m + w)]
+    return [[M[r][m + cc] for cc in range(w)] for r in range(m)]
+
+
+def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
+    """Class-L Schur complement / discrete Dirichlet-to-Neumann (DtN) map
+    (UPSTREAM §26; [#897](https://github.com/lemonforest/mlehaptics/issues/897)).
+
+    Integrate the interior (bulk) out of ``L`` and keep the boundary effective
+    operator::
+
+        S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂
+
+    where ``∂ = boundary_idx`` and ``i`` is the interior complement. ``S`` is
+    the discrete **Dirichlet-to-Neumann map**: given boundary values ``x_∂``,
+    the unique harmonic extension into the interior solves
+    ``L_ii x_i = −L_i∂ x_∂`` and ``S x_∂`` is the boundary normal-derivative of
+    that extension. **Boundary data ⟹ the whole interior field.**
+
+    The operator|operand FUSION op (F412 / F417 / F419): every other Class-L
+    cascade PROJECTS (spatial operand → cyclic operator, F417's one-way seam),
+    dropping the spatial structure; ``schur_complement`` keeps BOTH the spatial
+    boundary and its spectrum. Holographic reading (F412): the bulk is
+    integrated out, the effective theory lives on the boundary — ``S`` has
+    ``|∂|`` modes (the boundary), not ``n`` (the bulk). That reduction
+    ``n → |∂|`` is the area law.
+
+    Cascade-honesty: the interior solve ``L_ii⁻¹`` is an inverse = Class C
+    (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With **numpy absent** (or
+    ``exact=True``) the solve is **exact-rational** Gauss–Jordan elimination in
+    :class:`fractions.Fraction` (the Class-N rational core — division is exact,
+    never a float reciprocal) and ``S`` is returned as ``list[list[Fraction]]``.
+    With numpy present (and ``exact=False``) the float realization rides the
+    ``[scientific]`` tier (``numpy.linalg.solve``) and ``S`` is an
+    ``ndarray``. Canonical SSoT: Zhang, *The Schur Complement and Its
+    Applications* (2005) §0; the DtN map is textbook (Golub & Van Loan §3.2).
+
+    Parameters
+    ----------
+    L : matrix, ``n×n``
+        ``ndarray`` (numpy present) or ``list[list]`` — a symmetric
+        positive-semidefinite operator (a graph Laplacian from
+        :func:`dense_laplacian`, or any SPD matrix).
+    boundary_idx : sequence[int]
+        The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
+    exact : bool, default ``False``
+        Force the exact-rational :class:`~fractions.Fraction` solve even when
+        numpy is present (returns ``list[list[Fraction]]``).
+
+    Returns
+    -------
+    S : ``|∂|×|∂|`` boundary effective operator
+        ``ndarray`` (float path) or ``list[list[Fraction]]`` (exact path).
+
+    Raises
+    ------
+    ValueError
+        Non-square ``L``; empty / out-of-range / duplicate ``boundary_idx``.
+    ZeroDivisionError
+        Singular interior block ``L_ii`` — an interior component disconnected
+        from the boundary, so no harmonic extension exists.
+
+    Notes
+    -----
+    For a pure graph Laplacian the DtN map (a Kron reduction) inherits the
+    all-ones null vector, so ``rank(S) = |∂| − c`` where ``c`` is the number of
+    connected components of the boundary-reduced graph (``= |∂| − 1`` for a
+    connected graph). The *area law* is the dimensional reduction ``n → |∂|``
+    (the effective operator lives on the boundary), not a full-rank claim.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    if n == 0:
+        raise ValueError("L must be a non-empty square matrix")
+    b, i = _validate_boundary(n, boundary_idx)
+
+    # Block extraction (pure container slicing — numpy-free).
+    def _block(rs, cs):
+        return [[rows[p][q] for q in cs] for p in rs]
+
+    L_pp = _block(b, b)  # L_∂∂
+
+    if not i:
+        # No interior to integrate out — the boundary IS the whole space.
+        if exact or np is None:
+            return [[Fraction(v) for v in r] for r in L_pp]
+        return np.asarray(L_pp, dtype=np.float64)
+
+    L_pi = _block(b, i)  # L_∂i
+    L_ip = _block(i, b)  # L_i∂
+    L_ii = _block(i, i)  # L_ii
+
+    if exact or np is None:
+        # Exact-rational core (Class-N): solve L_ii · X = L_i∂, X is |i|×|∂|.
+        X = _solve_exact(L_ii, L_ip)
+        # S = L_∂∂ − L_∂i · X  (all exact Fraction).
+        S = [
+            [
+                Fraction(L_pp[a][c])
+                - sum(Fraction(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+                for c in range(len(b))
+            ]
+            for a in range(len(b))
+        ]
+        return S
+
+    # Float realization — the [scientific] tier (numpy.linalg.solve).
+    A = np.asarray(L_ii, dtype=np.float64)
+    Bm = np.asarray(L_ip, dtype=np.float64)
+    X = np.linalg.solve(A, Bm)
+    S = np.asarray(L_pp, dtype=np.float64) - np.asarray(L_pi, dtype=np.float64) @ X
+    return S
+
+
+def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False):
+    """Alias for :func:`schur_complement` — the discrete Dirichlet-to-Neumann
+    (DtN) map ``S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`` (UPSTREAM §26; #897). Given
+    boundary values, ``S`` returns the boundary normal-derivative of their
+    harmonic extension into the interior."""
+    return schur_complement(L, boundary_idx, exact=exact)
 
 
 # =====================================================================
