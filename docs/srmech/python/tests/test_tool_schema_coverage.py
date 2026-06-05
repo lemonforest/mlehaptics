@@ -117,6 +117,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # public, tested composition utility surfaced via srmech.amsc.compose, not
     # via MCP — exempt from tool-schema coverage on the callable-arg rationale.
     "srmech.amsc.compose.greedy_bipartite_alignment",
+    # cascade.one.* — "the One" S(σ,θ) generator (#887). Registered under its
+    # STABLE FLAT public name ``srmech.amsc.cascade.the_one`` (which IS
+    # registered); ``one.the_one`` is the same object re-exported flat, and
+    # ``one.s_generator`` is the S(σ,θ) formula-name alias — exempt exactly
+    # like the hypercomplex_dft / parallel re-exports above.
+    "srmech.amsc.cascade.one.the_one",
+    "srmech.amsc.cascade.one.s_generator",
 })
 
 

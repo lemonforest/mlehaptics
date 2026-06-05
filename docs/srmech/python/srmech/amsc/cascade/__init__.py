@@ -130,6 +130,20 @@ from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
 )
+# The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
+# (#887; "the One"). The Hurwitz division-algebra ladder ℂ/ℍ/𝕆 as one
+# (σ, θ)-parameterised exact-rational object: ℝ·1 anchors (the B/H/N
+# grammar) ⊕ σ e^{Î_nθ} Im 𝔸_n (the 1:3:7 imaginary, rotated by the
+# epicycle). Numpy-free at import (the e^{Îθ} = cos+Î·sin is built from the
+# Class-N rational series); float realisations (.to_numpy / .to_matrix) are
+# the opt-in scientific tier. The qm-matrix Rosetta peer lives in
+# srmech.qm.hurwitz.
+from .one import (
+    Block,
+    One,
+    the_one,
+    s_generator,
+)
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from
@@ -176,6 +190,11 @@ __all__ = [
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
+    # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
+    "Block",
+    "One",
+    "the_one",
+    "s_generator",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",
