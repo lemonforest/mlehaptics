@@ -3,7 +3,7 @@
 **Date:** 2026-06-05
 **Arc:** RBS-LM · AX-1 (the no-magic check on the two 14-partitions); framework-reading + algebra (**NO srmech run — AX-1 is "framework+algebra, no srmech" per the queue; the arithmetic is integer-trivial and checked in-text**)
 **Composes:** **F404** (2:4:8 = 2ⁿ vs 1:3:7 = 2ⁿ−1; the two "+3"s; N = shadow-pin) · **F127** (the three substrate-native readings 11D / 14 / 4:3:(4:3) — *naming discipline*) · **F124 / F128** (4:3 recursive *inside* the 7 = the NESTED reading) · **F379** ((n : n−1) = anchor + couplings) · **F121** (biology 4:3:7) / **F123** (M-theory 14 = 4+3+7) · **#797 Q1** (k=3 == B/H/N) · **TRIALITY.md** (the +3 = the k=3 completion / the third) · no-magic discipline (Class A / B / C) · CLAUDE.md §1 (the A-N 14 partitioned "along Hurwitz-bounded structure")
-**→ resolves the AX-1 no-magic check (counting-level); advances #797 Q1.** **← extends F404** (backlink added there).
+**→ resolves the AX-1 no-magic check (counting-level); advances #797 Q1.** **← extends F404** (backlink added there). **→ extended by F406** (the residual resolved: 1:3:7:3 = operator alphabet, 2:4:8 = operand/unit alphabet, 8:3:3̄ = g₂ symmetry grammar — a verb/noun/grammar triality).
 
 ---
 
