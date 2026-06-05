@@ -849,6 +849,44 @@ def _register_primitive_class_tools() -> None:
                         P("tolerance", "float", False)),
             returns=R("np.ndarray", "n eigenvalues (unsorted)"),
         ),
+        # UPSTREAM §26 (#897): the Schur complement / Dirichlet-to-Neumann
+        # map — the operator|operand FUSION op (F412/F417/F419). Canonical
+        # SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0;
+        # Golub & Van Loan §3.2.
+        ToolEntry(
+            name="srmech.amsc.laplacian.schur_complement", owner="srmech",
+            category="laplacian",
+            summary="Class-L Schur complement / discrete Dirichlet-to-Neumann "
+                    "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
+                    "the operator|operand FUSION op). Exact-rational Fraction "
+                    "solve (Class-N core, numpy-absent or exact=True); "
+                    "numpy.linalg.solve float realization on the scientific tier.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
+                          "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "|∂| × |∂| boundary effective operator (DtN map)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dirichlet_to_neumann", owner="srmech",
+            category="laplacian",
+            summary="Alias for schur_complement — the discrete "
+                    "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
+                    "normal-derivative of their harmonic interior extension.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
+                          "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "|∂| × |∂| boundary effective operator (DtN map)"),
+        ),
         # ADR-0002 Phase 2 broadening: complex Hermitian + matvec +
         # elementwise complex multiply + array-vectorised transcendentals.
         # Per [[feedback_no_privileged_primitive_classes]] these dissolve

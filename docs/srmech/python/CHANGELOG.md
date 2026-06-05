@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.1rc1] - 2026-06-05
+
+**Class-L Schur complement / Dirichlet-to-Neumann (DtN) map — the operator|operand FUSION op ([#897](https://github.com/lemonforest/mlehaptics/issues/897); UPSTREAM §26 / F412·F417·F419).** New `srmech.amsc.laplacian.schur_complement(L, boundary_idx)` (alias `dirichlet_to_neumann`) integrates the interior (bulk) out of a Laplacian and keeps the boundary effective operator
+
+> `S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`
+
+the discrete **Dirichlet-to-Neumann map** — give boundary values, it returns the boundary normal-derivative of their harmonic interior extension (*boundary data ⟹ the whole interior field*). Every other Class-L cascade only **projects** (a spatial graph → its cyclic spectrum, F417's one-way seam, dropping the spatial structure); Schur/DtN keeps **both** the spatial boundary and its spectrum — the *fusion*, not the projection. Holographic reading (F412): the bulk is integrated out, the effective theory lives on the boundary; the operator's size is `|∂|`, not `n` — the dimensional reduction `n → |∂|` **is** the area law.
+
+- **Exact-rational core (Class-N).** With numpy absent — or `exact=True` — the interior solve `L_ii⁻¹·L_i∂` is **exact Gauss–Jordan elimination in `fractions.Fraction`** (division is exact rational, never a float reciprocal — F392; no `abs()`), and `S` is returned as `list[list[Fraction]]`. With numpy present (and `exact=False`) the float realization rides the `[scientific]` tier (`numpy.linalg.solve`) and `S` is an `ndarray`. Cascade-honesty: the inverse is Class C (conjugate) → Class K (`1/‖·‖²`); a singular interior block (an interior component disconnected from the boundary) raises `ZeroDivisionError`, not a silent NaN.
+- **Area-law statement (precise).** For a pure graph Laplacian the DtN/Kron reduction inherits the all-ones null vector, so `rank(S) = |∂| − c` (`c` = connected components of the boundary-reduced graph; `= |∂| − 1` for a connected graph). The area law is the *dimensional* reduction `n → |∂|`, not a full-rank claim. Worked check: the two endpoints of a 3-edge unit-conductance path get `S = (1/3)·[[1,−1],[−1,1]]` exactly (effective conductance 1/3).
+- Two new tool-schema entries → `describe()` total **233 → 235**. No ABI change (pure-Python; ABI stays 3). The DSL/compose-engine wiring and a co-equal C peer are the natural follow-up rcs (Python-first, like the loop family). Canonical SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0; Golub & Van Loan §3.2.
+
 ## [0.7.0] - 2026-06-05
 
 **Production graduation of the v0.7.0 rc1–rc51 arc to PyPI.** The clean (non-rc) tag promotes the **rc51** state already verified-green on TestPyPI — the only delta from rc51 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.7.0` build before the production tag. ABI **3**; `describe()` total **233**.
