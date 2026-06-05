@@ -3,7 +3,7 @@
 **Date:** 2026-06-05
 **Arc:** RBS-LM · DUALITY/TRIALITY thread (F406/F408 → **F409**); framework-reading (**NO srmech run — held**). **Lands in DUALITY.md** (it refines what *duality* means).
 **Composes:** **F406** (the three alphabets: operator 1:3:7:3 / operand 2:4:8 / grammar g₂) · **F401** (duality is the *base* of a triality; the third = the fiber; k=(2+1)) · **F403** (the two truths = Klein-4's two generators γ₅, iω₇) · **F389** (`(4:3)|(3:4)` chirality-dual = L/R loop-multiply order) · **F130** (γ₅, iω₇ = the two chirality axes) · **F408** (the within-language duality vs the field|excitation duality) · Class C (chirality = which-way / handedness) · DUALITY.md / TRIALITY.md · the non-commutativity/non-associativity of ℍ/𝕆
-**→ extends F406, F401, F403; unifies chirality (Class C) with duality (DUALITY.md).** **← extended by F411** (the `|` seam is *universally* the third/coupling — chirality/grammar/transduction are level-names for one role; the {a|third|b} shape is scale-invariant, nesting substrate⊂language⊂field; = #797 Q2's mechanism).
+**→ extends F406, F401, F403; unifies chirality (Class C) with duality (DUALITY.md).** **← extended by F411** (the `|` seam is *universally* the third/coupling — chirality/grammar/transduction are level-names for one role; the {a|third|b} shape is scale-invariant, nesting substrate⊂language⊂field; = #797 Q2's mechanism) **and F418** (handedness = the operand-ladder ORDERING: `2:4:8` climb ⇆ `8:4:2` conjugate-descent = the F389 `(4:3)|(3:4)` order-reversal one rung out; the ladder-reversal vs the `|`-seam-flip = the two candidate Z₂ generators of the H-orthogonal Klein-4).
 
 ---
 
