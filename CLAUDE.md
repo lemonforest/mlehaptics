@@ -8,6 +8,12 @@ The split (2026-05-24) preserves both lineages without one interrupting the othe
 
 ---
 
+## §0 Foundational duality — read [`DUALITY.md`](DUALITY.md) first
+
+The foundational layer beneath the 14 A-N partition is the **two-truths / field–excitation duality** ([`DUALITY.md`](DUALITY.md), repo root) — the **post-compact priming anchor** for the duality / bit-exactness arc (F379–F399). In one line: the two truths = MFO **field (structure/math) vs local excitation** (F399), held without collapse (the asymptote), neither privileged (F398), each falsifiable (F394). **add/sub/shift are the bit-exact silicon ops the A-N cascades instantiate on** (no divide/multiply primitive — F392/F393); **FPU is currently used only for frame rotation → CORDIC = shift-add+sign**; **cyclic-group algebra (Class I) is one truth bit-exact**. **The open goal (the falsifiable "if"):** *either* (A) the two truths are absolute, so we never collapse one math into the other to reveal structure, *or* (B) we prove truths must collapse asymptotically for more than just the local observer. Read DUALITY.md for the full anchor.
+
+---
+
 ## §1 Foundational irrep knowledge — the 14 A-N partition
 
 Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` (user direction 2026-05-23), the 14 A-N primitive class operators partition as **1 + 3 + 7 + 3 = 14** along Hurwitz-bounded structure:
