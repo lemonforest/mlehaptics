@@ -1,4 +1,4 @@
-"""v0.7.0rc39 — the real-symmetric Class-L core is numpy-absent-safe, the
+"""v0.7.0rc40 — the real-symmetric Class-L core is numpy-absent-safe, the
 eigenvalue math is srmech's OWN Jacobi cascade (never numpy LAPACK), and the
 whole package is free of ALU ``abs()`` (UPSTREAM §22 + the user directives
 "abs() is never fine" and "never use numpy math when srmech can do it with a
@@ -114,4 +114,36 @@ def test_no_abs_calls_anywhere_in_srmech():
     assert not offenders, (
         "ALU abs() calls found in srmech (abs() is never fine — use an explicit "
         "Class-K sign-branch / real-imag composition):\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_no_math_sqrt_hypot_anywhere_in_srmech():
+    """RATCHET (v0.7.0rc40): no ``math.sqrt`` / ``math.hypot`` CALL exists in any
+    srmech source file. The ``math`` module's scalar roots have an exact Class-N
+    srmech peer (``srmech.amsc.rational.sqrt`` / ``.hypot``) — route scalar roots
+    through the cascade, not libm (the §22 "never use numpy/libm math when srmech
+    can cascade" discipline; cf. the rc32 abs-sweep / rc33 numpy-math-sweep).
+    ``cmath.sqrt`` (genuine complex root, no rational peer) and ``np.sqrt`` on a
+    bulk array (no scalar-cascade peer for the vectorised op) are NOT flagged.
+    AST-walked so docstring/comment mentions don't trip it — only real calls do.
+    """
+    offenders = []
+    for path in _py_files():
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"sqrt", "hypot"}
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "math"
+            ):
+                offenders.append(f"{path.name}:{node.lineno} math.{node.func.attr}(")
+    assert not offenders, (
+        "math.sqrt / math.hypot calls found in srmech — route scalar roots through "
+        "srmech.amsc.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
+        + "\n  ".join(offenders)
     )

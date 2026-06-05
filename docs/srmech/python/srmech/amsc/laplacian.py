@@ -78,8 +78,9 @@ bound.
 from __future__ import annotations
 
 import ctypes
-import math
 from typing import Iterable, List, Optional, Sequence, Tuple
+
+from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
 
 try:  # UPSTREAM §22: the real-symmetric Class-L core is numpy-absent-safe.
     import numpy as np
@@ -334,7 +335,7 @@ def _normalized_laplacian_py(
 ) -> List[List[float]]:
     A = _dense_adjacency_py(n, edges, weights)
     deg = [sum(A[r][c] for c in range(n) if c != r) for r in range(n)]
-    d_inv_sqrt = [(1.0 / math.sqrt(d)) if d > 0 else 0.0 for d in deg]
+    d_inv_sqrt = [(1.0 / _rsqrt(d)) if d > 0 else 0.0 for d in deg]
     L = [[0.0] * n for _ in range(n)]
     for r in range(n):
         for c in range(n):
@@ -376,7 +377,7 @@ def _jacobi_eigvals_py(
     if n == 1:
         return [a[0][0]]
     for _sweep in range(max_sweeps):
-        off = math.sqrt(
+        off = _rsqrt(
             sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
         )
         if off <= tolerance:
@@ -388,10 +389,10 @@ def _jacobi_eigvals_py(
                     continue
                 tau = (a[q][q] - a[p][p]) / (2.0 * apq)
                 if tau >= 0.0:
-                    t = 1.0 / (tau + math.sqrt(1.0 + tau * tau))
+                    t = 1.0 / (tau + _rsqrt(1.0 + tau * tau))
                 else:
-                    t = -1.0 / (-tau + math.sqrt(1.0 + tau * tau))
-                c = 1.0 / math.sqrt(1.0 + t * t)
+                    t = -1.0 / (-tau + _rsqrt(1.0 + tau * tau))
+                c = 1.0 / _rsqrt(1.0 + t * t)
                 s = t * c
                 # A ← Jᵀ A J  (Givens rotation in the (p, q) plane):
                 # pass 1 — columns p, q  (B = A J)

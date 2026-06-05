@@ -61,6 +61,8 @@ from __future__ import annotations
 import math
 from typing import List, Sequence
 
+from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
+
 # Unit pure-imaginary quaternion axes (μ² = −1). The twiddle lives in the
 # commutative subalgebra ℝ[μ] ≅ ℂ, which is WHY the one-sided transform is
 # invertible: Σ_k exp(μ·2πk(n−n')/N) = N·δ_{n,n'} (geometric series in ℝ[μ]).
@@ -71,7 +73,7 @@ _MU_AXES = {
 }
 # The body-diagonal unit axis (i+j+k)/√3 — the order-3 (triality-adjacent)
 # pure-quaternion direction; still μ²=−1.
-_S3 = 1.0 / math.sqrt(3.0)
+_S3 = 1.0 / _rsqrt(3.0)
 _MU_AXES["ijk"] = (0.0, _S3, _S3, _S3)
 
 _FORMS = ("left", "right")
