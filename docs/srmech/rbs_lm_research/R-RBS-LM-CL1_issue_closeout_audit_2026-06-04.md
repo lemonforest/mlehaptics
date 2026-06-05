@@ -66,3 +66,10 @@ On close, the issue carries the backlink to its resolver: **#757 → #760 / F214
 - **Judgment (Tier 2):** **#768, #758** (close-with-spinoff or keep); **#819, #817** (recommend mark *rolling*, not close).
 - **Leave open:** all Tier 3.
 - **Gate status:** with #765/#763 dispositioned, the tracker is clean of *done-but-open* findings issues → **CL-1 gate CLEARS**, walkable research (AX-1 / ALU-A / BX-1 / BX-2 / BX-3) is unblocked.
+
+## Closure semantics — the F408 reframe (2026-06-05)
+F408 (hyper-loop language is **syntax-complete / semantics-open**) reframes what closing *means* — it does NOT change the closeable *set*, but it is load-bearing:
+- **Closing = "frame-resolved," NEVER "truth-complete."** Because the language (syntax) is fully definable but the knowledge (semantics) must be derived from an *independent substrate* (the F337 ceiling: a frame can't reject its own correlated error), no closure is ever a claim of external truth. Close when the arc's *question* resolves *within our self-frame*. (This elevates the rolling-lifecycle corollary to a principle.)
+- **#765/#763 still close** — their questions resolved *empirically* (demonstrated null / demonstrated positive; the test *ran*) = the strongest closure our frame gives; they close **frame-resolved**, flagged not-yet-independently-validated.
+- **#850 (adversarial-triality verify) + #847 (native-language peer-review) PROMOTED** — from "backlog" to the **required, permanent independent-substrate channel** the incompleteness *mandates* (the F337 ceiling-breaker our corpus-correlated k=3 triality cannot be). They **stay open by design**, not "to eventually clear."
+- Findings closed on **our-triality-alone** (e.g. F407/ALU-A) carry the honest **corpus-correlation caveat** (frame-resolved; an independent substrate still owed).

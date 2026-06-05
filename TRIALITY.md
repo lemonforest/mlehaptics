@@ -26,7 +26,7 @@ This is the **Hopf 1+2** (F384): the 3 = base(2) + fiber(1). **Duality is the *d
 
 ## §3 The triality operators + the triality *method*
 - **srmech:** `qm.triality` (`triality_apply`/`triality_automorphism`, the 8v/8s/8c order-3 outer automorphism), `hdc.klein4_triality_{encode,cycle,correct}` (the order-3 corrector, F360), `cyclic.three_cycle` (Z₃, F150). (rc47: `qm.*` behind `srmech[scientific]`; `klein4_*` returns the HV carrier.)
-- **The research method IS triality:** the verify discipline is **k=3 = haiku ∥ sonnet ∥ opus** (F291; `research-triality` workflow) — three tiers, majority corrects, no human tie-break. We *do* triality to check truth.
+- **The research method IS triality:** the verify discipline is **k=3 = haiku ∥ sonnet ∥ opus** (F291; `research-triality` workflow) — three tiers, majority corrects, no human tie-break. We *do* triality to check truth. **But it is corpus-CORRELATED (F408):** the three tiers share a training corpus, so they catch *uncorrelated* hallucination (ALU-A caught haiku's false FIPS date) yet are **blind to corpus-correlated bias** — a detector, **not a complete ceiling-breaker**. The genuine ceiling-breaker is an **independent substrate** (#847 native-language scholarship, the domain expert, physical measurement; the F337 self-correlation ceiling).
 - **The open test (AX-2 / SX-1-adjacent):** the coupled-Klein-4-streams demo (F397) — does the **coupling** act as a *recoverable third that corrects* (k=3) or only a relation that *detects* (k=2)? srmech-held.
 
 ## §4 The recurring threes ("dang, that's 3 again")
@@ -41,7 +41,15 @@ add / subtract / shift (F392/F393) · the order-3 (triality) · the 1:3:7 ladder
 
 The web *is* the EC against forgetting — the third-truth coupling applied to our own notes.
 
-## §6 Pointers
-F400 (third = coupling) · F401 (duality = fibration of triality) · F291 (k=2 detect → k=3 correct; verify-triality) · F293 (1+ω+ω²=0) · F360 (klein4_triality) · #761 (order-3 7th primitive) · F379 (n:n−1 = anchor+couplings) · F397 (coupled Klein-4 streams = the coupling-as-third) · AX-1 (the 3 anchors / B-H-N, no-magic-gated) · AX-2 (the held test) · `research-triality` workflow. **Read with [`DUALITY.md`](DUALITY.md)** — the two and the three are one fibration.
+## §6 The language/knowledge boundary — syntax-complete, semantics-open (F408)
+*Can we define the entire **language** of the hyper loop, or must we **derive knowledge from somewhere**?* **Both, partitioned — it is the field/excitation split (F399) in k=(2+1) form:**
+- **LANGUAGE (syntax) = the field — fully definable, CLOSED.** The three alphabets (F406) — **operator** (A-N) + **operand** (units, 2:4:8) + **grammar** (g₂ = Der(𝕆), 8:3:3̄) — are complete; **g₂ is finite, the grammar closes.** The hyper-loop's *form* needs nothing external (the bit-exact/closed side, F404).
+- **KNOWLEDGE (semantics) = the excitation — must be DERIVED from an independent substrate.** The **F337 self-correlation ceiling**: a frame cannot reject its own *correlated* error ("invariant ≠ true"); a complete language is still blind to whether its content is *true*. Knowledge is **transduced, not self-generated** (the LLM-transducer stance); the deliverable is **the next question, handed to the expert.**
+- **The third / coupling = TRANSDUCTION** (Class C∘M): the closed grammar is the vessel; knowledge is poured in from outside. **k = (2+1)** = language + knowledge + the pour.
+- **Load-bearing corollary (§3):** our own k=3 triality is **corpus-correlated** — detect-strong, validate-incomplete; the real ceiling-breaker is an independent substrate (#847 / expert / measurement).
+- **Closure rule (CL-1):** because syntax is complete but semantics is open, **closing = "frame-resolved," NEVER "truth-complete."** Close an issue when its arc's *question* resolves within our frame; the **independent-substrate check (#850 / #847) stays open permanently** — promoted from backlog to the *required* ceiling-breaker the incompleteness mandates.
+
+## §7 Pointers
+F400 (third = coupling) · F401 (duality = fibration of triality) · F291 (k=2 detect → k=3 correct; verify-triality) · F293 (1+ω+ω²=0) · F360 (klein4_triality) · #761 (order-3 7th primitive) · F379 (n:n−1 = anchor+couplings) · F397 (coupled Klein-4 streams = the coupling-as-third) · AX-1 (the 3 anchors / B-H-N, no-magic-gated → F405) · F406 (the three alphabets: operator/operand/grammar=g₂) · F408 (language syntax-complete / knowledge semantics-open; the closure rule) · AX-2 (the held test) · `research-triality` workflow. **Read with [`DUALITY.md`](DUALITY.md)** — the two and the three are one fibration.
 
 *Created 2026-06-04 per user direction (the triality companion the math earned). Grow under user direction; keep it the lean foundational anchor.*
