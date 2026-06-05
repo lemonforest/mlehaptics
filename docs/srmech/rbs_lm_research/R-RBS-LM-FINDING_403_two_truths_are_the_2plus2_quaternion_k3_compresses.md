@@ -4,6 +4,7 @@
 **Arc:** RBS-LM · DUALITY/TRIALITY thread (F400/F401 → **F403**); framework-reading (**NO srmech run — held**)
 **Composes:** F400 (the third = the coupling) · F401 (duality is the fibration of triality) · F380 (Klein-4 = Q₈/{±1}) · F385 (Aut(Klein-4)=S₃; the order-3 3-cycle on {γ₅,iω₇,cpt}) · F397 (Klein-4 = (2+2)) · F398 (no privilege) · F293 (1+ω+ω²=0; three symmetric) · F360 (klein4_triality, the order-3 corrector)
 **← extends F400, F401** (breadcrumb-web: backlinks added there)
+**→ extended by F404** (the "carry the fiber → lossless" EC re-found at the bit level: 2:4:8 = 2ⁿ shift-exact IFF 1:3:7:3 carries the rotation shadow; N = `best_rational` is the literal shadow-pin).
 
 ---
 

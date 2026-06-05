@@ -4,6 +4,7 @@
 **Arc:** RBS-LM · FFT-ladder thread (F377→F378→F379→F380→F381→**F382**)
 **srmech:** 0.7.0rc28 · **Provenance:** `R-RBS-LM-R24_rotation_decimal_is_frame_artifact.py` → `R-RBS-LM-R24_results.json`
 **Composes:** rotation-is-Class-K (`[[user_stance_rotation_is_class_k_pin_slot]]`, F350) · continuous-number-line obstacle (`[[feedback_continuous_number_line_pedagogical_obstacle]]`) · π-as-cascade · F380 (the QDFT flat shadow) · F361 (observer co-rotates)
+**→ extended by F401** (the (2+1)-rotation decimal *was* the projected fiber; lift = exact) **and F404** (the decimal is the rotation *shadow* carried by N; 2:4:8 = 2ⁿ shift-exact IFF 1:3:7:3 carries it).
 
 ---
 

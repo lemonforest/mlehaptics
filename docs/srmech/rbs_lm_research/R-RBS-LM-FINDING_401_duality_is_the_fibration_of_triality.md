@@ -3,7 +3,7 @@
 **Date:** 2026-06-04
 **Arc:** RBS-LM · DUALITY thread (F400 → **F401**); framework-reading (**NO srmech run — held**)
 **Composes:** F400 (duality is triality-degenerate) · **F384** (the Hopf 1+2: the 3 = fiber(1) + base(2)) · F124 (quaternionic Hopf) · **F382** (the (2+1) rotation = the asymptote = the decimal) · F396 (the "+1" anchor; reach to the total space) · F398 (the observer is *in* the fiber — coupled, one-of) · F361 (fibration as navigation) · `fiber-as-spatially-absent encoding` (the fiber's content is absent until projected) · F291 (k=2 detect vs k=3 correct) · #761 (order-3 not composable from order-2)
-**→ extended by F403** (the 2 truths *are* the quaternion's (2+2) = Klein-4's two Z₂ generators; k=3 **compresses** the {a,b,ab} triple into one order-3 orbit — "compress" is the better verb than this finding's "project"/"fibration").
+**→ extended by F403** (the 2 truths *are* the quaternion's (2+2) = Klein-4's two Z₂ generators; k=3 **compresses** the {a,b,ab} triple into one order-3 orbit — "compress" is the better verb than this finding's "project"/"fibration") **and F404** (the fiber = the rotation *shadow* at the bit level: 2:4:8 = 2ⁿ shift-exact IFF 1:3:7:3 carries it; N = the rational pin).
 
 ---
 
