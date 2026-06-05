@@ -1383,9 +1383,27 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
    - **scientific tier (`srmech[scientific]`):** `qm.*`, `signal_processing` — **GATED with a clean, instructive `ImportError`** ("part of srmech's scientific tier and needs numpy … `pip install 'srmech[scientific]'`"). Good.
 4. **HV carrier confirmed (§22b contract holds):** `hdc.klein4_*` returns **`srmech.amsc.hv.HV`**, NOT a raw `ndarray`. `v==w` → **scalar `bool`** (accepts `ndarray`: `v == v.to_numpy()` → True); `v[i]` → **plain `int`**; `.tolist()`/`.tobytes()`/`.to_numpy()` (uint8)/`.sectors`(=4). **numpy never escapes implicitly** — the reflex-guard works.
 
-**GAP (upstream ask): `srmech.amsc.hdc` (Class M / Klein-4) still hard-imports numpy at module top** (`import numpy as np`, hdc.py:36). On a **plain (numpy-free) install** `import srmech.amsc.hdc` raises a **raw `ModuleNotFoundError: No module named 'numpy'`** — *inconsistent*: hdc *returns* the numpy-free HV carrier, yet its module won't import without numpy, and it does NOT emit the clean `[scientific]` gate message like `qm` does. **Fix:** either (a) make hdc's numpy import lazy/optional so Klein-4 is genuinely numpy-free (the HV carrier already is), or (b) gate hdc behind `[scientific]` with the same clean message as `qm`. Right now Klein-4-on-plain-install is the one broken seam.
+**GAP (upstream ask): `srmech.amsc.hdc` (Class M / Klein-4) still hard-imports numpy at module top** (`import numpy as np`, hdc.py:36). On a **plain (numpy-free) install** `import srmech.amsc.hdc` raises a **raw `ModuleNotFoundError: No module named 'numpy'`** — *inconsistent*: hdc *returns* the numpy-free HV carrier, yet its module won't import without numpy, and it does NOT emit the clean `[scientific]` gate message like `qm` does. **Fix:** either (a) make hdc's numpy import lazy/optional so Klein-4 is genuinely numpy-free (the HV carrier already is), or (b) gate hdc behind `[scientific]` with the same clean message as `qm`. Right now Klein-4-on-plain-install is the one broken seam. **→ RESOLVED in rc48 via option (a) — issue #882 closed upstream 2026-06-05; clean-venv re-verified in §25.**
 
 **Queue impact:** BX-8 (rc-verify HV + numpy-drop) ✅ done by this. ALU-D (numpy-free Class-L) ✅ demonstrated (`jacobi_eigvals` numpy-free). AX-2 / BX-5..7 are now **rc47-walkable** (M works on `[scientific]`; qm works on `[scientific]`) — pending user direction + the hdc-gap caveat for plain installs.
+
+---
+
+## §25 rc48 (0.7.0rc48) VERIFIED — the §24 hdc GAP RESOLVED (#882 closed); srmech-slug closeout verdict (2026-06-05)
+
+**rc48 lands the §24 GAP fix.** Verified in two clean venvs OUTSIDE the source tree (`/tmp/verify_srmech_v070rc48` plain; `/tmp/verify_srmech_v070rc48_sci` = `srmech[scientific]`). `native_status()` = `{has_native:True, dispatching:True, abi_version:3, expected_abi:3, native_version:'0.7.0rc48', load_error:None}`.
+
+**#882 (the §24 hdc GAP) — FIXED via option (a), the strongest form.** On a **plain numpy-free install**, `import srmech.amsc.hdc` now succeeds and `hdc.klein4_random(16, seed=1)` returns the **`srmech.amsc.hv.HV`** carrier with NO numpy — Klein-4 (Class M) is **genuinely numpy-free**, not merely gated behind `[scientific]`. Round-trip `klein4_bind(klein4_bind(a,b), b)` recovers `a` at similarity **1.000**. The one broken seam §24 flagged (Klein-4-on-plain-install) is closed. **#882 was closed upstream 2026-06-05** (the maintainer's call — I did NOT close it; `[[feedback_create_upstream_issues_never_close_them]]`); this §25 is the independent clean-venv confirmation that the fix **holds**.
+
+**No regressions** (the "look before we leap" sweep): numpy-free core intact — A `sha256_bytes(b'abc')`=`ba7816bf…`, I `gcd(48,36)`=12, N `best_rational(375,1000,16)`=(3,8), K `cascade.magnitude(-5)`=5, **L `jacobi_eigvals` numpy-free** → C₄ `[0,2,2,4]`. `[scientific]` tier installs numpy 2.4.6 + `qm.*` imports clean (12 submodules incl. octonion/triality/so8). HV carrier §22b contract holds (`srmech.amsc.hv.HV`). *(Two non-bugs caught during the sweep, NOT srmech defects: `triality_companions()` needs a `g_v` arg — my probe omitted it; `primes.factorize` is the wrong attr name in my probe.)*
+
+**CLOSEOUT VERDICT — srmech-slug bucket** (user criterion 2026-06-05: *"we close them when bugs AND features are all resolved for that issue tracker item"*):
+- **#882** (hdc numpy bug) — **RESOLVED + already CLOSED.** Bug fixed (option a), clean-venv verified. ✓
+- **#863** (QDFT/ODFT) — **KEEP OPEN.** Feature NOT landed: the QDFT/ODFT transform is still **draft-TOML only** (BX-5 pending), AND neither optional-upstream ergonomic ask shipped in rc48 — **no `qm.quaternion` module** (qm has `octonion` w/ `octonion_left_mult`/`octonion_right_mult`, no 4×4 quaternion peer) and **no hypercomplex `exp(μθ)` twiddle** (`asymptotic_calculus` has scalar `exp`/`cexp`/`complex_exp` only). Bugs none; features open ⇒ not closeable.
+- **#855** (TRACKING umbrella) — **KEEP OPEN by design** (meta-tracker for the full RBS-SNN/RBS-LM build-out).
+- **#844** (TARGET notebook-native pipeline) — **KEEP OPEN** (forward target, not built; = task #197).
+
+**Net:** rc48 resolved exactly **#882** of the srmech-slug bucket, and it is already closed; **no NEW closes warranted.** The remaining open srmech-slug issues (#863 / #855 / #844) are feature/tracking/target items with work still pending — they close when their *features* land, per the user's criterion.
 
 ---
 

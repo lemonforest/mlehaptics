@@ -19,7 +19,7 @@
 - **Gated (deliberately blocked, not done):** #787 (ngspice), #791 (Kuramoto-TILE, behind F236), #789 ($-gated SDK).
 - **Verify-gate pending (not run):** #850 (adversarial triality on F335/F337 — "promote or trim", not yet executed), #847 (widen peer-review to native-language).
 - **Tracking / target (umbrella — stay open):** #855 (RBS-SNN tracking), #844 (notebook-native pipeline target).
-- **Active srmech (just filed / in progress):** #863 (QDFT/ODFT), #882 (hdc numpy bug — work begun upstream).
+- **Active srmech (just filed / in progress):** #863 (QDFT/ODFT) — **still open**, feature unlanded (draft-TOML only; rc48 shipped no `qm.quaternion` / no `exp(μθ)` twiddle). #882 (hdc numpy bug) — **RESOLVED + CLOSED upstream 2026-06-05 in rc48** (option a, genuinely numpy-free Class M; clean-venv re-verified UPSTREAM_NOTES §25).
 - **Pedagogy/lab:** #758 (74xx TTL lean-core).
 
 ## Honest scope of THIS pass
