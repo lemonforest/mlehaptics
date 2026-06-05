@@ -35,6 +35,7 @@ from typing import List, Sequence, Tuple
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
 from srmech.amsc.rational import best_rational as _best_rational
+from srmech.amsc.rational import sin as _rsin  # §22: Class-N rational trig, not libm
 
 from .atoms import pin_slot_at_zero, reorient, _ZERO_BAND
 
@@ -535,7 +536,7 @@ def kuramoto_step(
             theta_i = float(theta_list[i])
             coupling_sum = 0.0
             for j in range(n):
-                coupling_sum += math.sin(float(theta_list[j]) - theta_i)
+                coupling_sum += _rsin(float(theta_list[j]) - theta_i)
             out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
         return out
 
@@ -585,10 +586,10 @@ def kuramoto_step(
         s = 0.0
         for j in range(n):
             w = adj_flat[i * n + j] if adj_flat is not None else inv_n
-            s += w * math.sin(float(theta_list[j]) - theta_i - a)
+            s += w * _rsin(float(theta_list[j]) - theta_i - a)
         f = float(omega_list[i]) + s
         if psi is not None:
-            f += ps[i] * math.sin(psi[i] - theta_i)
+            f += ps[i] * _rsin(psi[i] - theta_i)
         out2.append(theta_i + h * f)
     return out2
 

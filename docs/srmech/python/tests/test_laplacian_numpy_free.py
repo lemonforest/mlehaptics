@@ -147,3 +147,50 @@ def test_no_math_sqrt_hypot_anywhere_in_srmech():
         "srmech.amsc.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
         + "\n  ".join(offenders)
     )
+
+
+# the libm trig / π family each has an exact Class-N srmech peer:
+# rational.{sin,cos,tan,atan,atan2} (rc33) + rational.exp (rc34) + the
+# pi_cascade (Archimedes hexagon-doubling). `math.gcd` / `math.isqrt` /
+# `math.fsum` are exact integer / numerical helpers (NOT continuous-libm
+# transcendentals — isqrt even powers rational.py's own sqrt cascade) and are
+# deliberately NOT in this family.
+_MATH_TRIG_PI_FAMILY = frozenset(
+    {"sin", "cos", "tan", "asin", "acos", "atan", "atan2", "exp", "pi", "tau"}
+)
+
+
+def test_no_math_trig_pi_anywhere_in_srmech():
+    """RATCHET (v0.7.0rc41): no ``math.{sin,cos,tan,atan,atan2,exp,pi,tau}``
+    reference (call OR bare constant) exists in any srmech source file. The
+    libm trig / π family each has an exact Class-N srmech peer
+    (``srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp}`` + the
+    ``pi_cascade``) — route continuous trig / π through the cascade, not libm
+    (the §22 "never use numpy/libm math when srmech can cascade" discipline;
+    cf. the rc40 ``math.sqrt`` sweep). The "continuous" number line is a
+    projection (``[[feedback_continuous_number_line_pedagogical_obstacle]]``);
+    a trig value is an exact rational cascade projected to float as the last
+    step. Walks the AST (an ``ast.Attribute`` with ``value`` ``math``) so it
+    catches both ``math.sin(x)`` calls and bare ``math.pi`` constants, while
+    docstring / comment mentions don't trip it. ``math.{gcd,isqrt,fsum}`` are
+    exact integer / numerical helpers and are NOT flagged.
+    """
+    offenders = []
+    for path in _py_files():
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr in _MATH_TRIG_PI_FAMILY
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "math"
+            ):
+                offenders.append(f"{path.name}:{node.lineno} math.{node.attr}")
+    assert not offenders, (
+        "math trig / π references found in srmech — route continuous trig / π "
+        "through srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp} + the "
+        "pi_cascade (the Class-N cascade), not libm:\n  " + "\n  ".join(offenders)
+    )
