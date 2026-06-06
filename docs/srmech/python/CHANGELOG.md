@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.4] - 2026-06-06
+
+**Production graduation of the rc1–rc2 arc — the sedenion-addressable RBS-HDC instrument + three RBS-LM candidate-additions** (PR [#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31 / §1.2 / §1.3 / rbs_nn Note 1). All compositions over the existing 14-class vocabulary — no new primitive class; ABI stays **3**:
+
+- **`srmech.amsc.cascade.sedenion_register` / `SedenionRegister`** (rc1; §31) — the sedenion box made an **addressable instrument**: 16 named slots (octonion working block `e0..e7` = the ≤7 reversible coupler word; `e8..e15` = the Hamming carry block), HDC `write`/`read`, and the genuinely-new **`navigate`** (address↔Cayley–Dickson homomorphism) + **`is_navigable`** reversibility gate (single-basis always reversible; composite-direction reversible only ≤𝕆 — the Hurwitz horizon).
+- **`cascade.signed_sum_squared`** (rc2; §1.2) — the bipolar coupling-score (Class K ∘ L; no `abs()`).
+- **`cascade.top_k_by_score`** (rc2; §1.3) — catalog top/bottom-K selection (Class E ∘ K; stable on ties).
+- **`hdc.bundle_with_ties`** (rc2; rbs_nn Note 1) — majority for any N with the Class-K bundle-tie (zero-crossing) surfaced; odd-N majority equals `bundle` exactly.
+
+`describe()` total **248 → 252** (1 + 3 ToolEntry). **No code change from rc2 — version-string graduation only**; the rc1+rc2 state was verified-green on TestPyPI (clean-venv outside the source tree: native ABI 3, sedenion read-back 8/8 + working-word bit-exact + navigate 8/8, and the three additions correct on the *core* numpy-free install). PyPI README refreshed to v0.7.4. This fully drains the actionable PR #687 upstream queue (§29/§30/§31 + §1.2/§1.3/Note 1 all delivered). SSoT: UPSTREAM_NOTES (RBS-LM, PR #687); Hurwitz (1898); Baez arXiv:math/0105155; Kanerva (2009).
+
 ## [0.7.4rc2] - 2026-06-06
 
 **Three RBS-LM UPSTREAM_NOTES candidate-additions** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) §1.2 / §1.3 / rbs_nn Note 1) — the still-open, non-stale gaps from the research branch, each a pure composition over the 14-class vocabulary (no new primitive class; ABI stays **3**; all numpy-free):
