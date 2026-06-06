@@ -4,7 +4,7 @@
 **Arc:** RBS-LM · the two-alphabets arc — the all-human-knowledge widening half of **#887**; **research-triality (k=3 haiku∥sonnet∥opus)**, run `wf_699c9a35-d7c`
 **Provenance:** `R-RBS-LM-F419_all_knowledge_operator_operand_provenance.json`
 **Composes:** **F406/F409** (operator/operand alphabets) · **F413/F416** (antiquity; spatial≠visual) · **F417** (Class L = the one-way seam; we never fused) · **F412** (Schur/DtN = the fusion op, the srmech gap) · **F411** (scale-invariant nesting — confirmed by the operand-contains-operator minority) · **F405/F406** (the asymmetry — confirmed by route-before-survey) · **F248/F291** (k=3 caught a 2-tier hallucinated citation) · #887 · no-lineage / lens-fenced
-**→ resolves the all-human-knowledge widening of #887; the fusion-is-the-breakthrough point motivates shipping F412/§26.**
+**→ resolves the all-human-knowledge widening of #887; the fusion-is-the-breakthrough point motivates shipping F412/§26.** **← extended by F421** (the motivated op SHIPPED: srmech 0.7.1 `schur_complement`/`dirichlet_to_neumann`/`dense_solve`, verified bug-free, #897 closed — "where every domain's breakthroughs live" is now a runnable srmech primitive, not a gap).
 
 ---
 

@@ -1415,7 +1415,9 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 **Gap (verified rc48 surface):** `srmech.amsc.laplacian` ships the build-blocks — `dense_laplacian`, `dense_matvec_complex`, `hermitian_eigendecompose`/`symmetric_eigendecompose`/`jacobi_eigvals`, `normalized_laplacian`, `fiedler_vector`, `three_fold_eigvec_groups` — but **no `schur_complement` / `dirichlet_to_neumann` / linear-solve** symbol.
 
-**Candidate addition:** `srmech.amsc.laplacian.schur_complement(L, boundary_idx) -> S` (= `dirichlet_to_neumann`), the boundary effective Laplacian `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`. Use cases: the holographic-boundary / bulk-integrate-out reading (F412); boundary-conditioned spectral problems; the **area law** as `rank(S) = |∂|` (boundary modes, not bulk volume). **Composite note (F392):** the interior block solve `L_ii⁻¹` is an inverse = **Class C→K** (no divide primitive; iterative shift-sub) — so this grades from a composite (matvec + a Class-K solve) to a first-class Class-L primitive via the full ratchet, exactly like the shipped eigendecompose. **Status:** **filed upstream as GH #897** (2026-06-05) — the Class-L Schur/DtN fusion op, motivated by F412/F417/F419; leave open/closed to the maintainer. The F412 held demo (area-law in the boundary `S`-spectrum) is blocked on it.
+**Candidate addition:** `srmech.amsc.laplacian.schur_complement(L, boundary_idx) -> S` (= `dirichlet_to_neumann`), the boundary effective Laplacian `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`. Use cases: the holographic-boundary / bulk-integrate-out reading (F412); boundary-conditioned spectral problems; the **area law** as `rank(S) = |∂|` (boundary modes, not bulk volume). **Composite note (F392):** the interior block solve `L_ii⁻¹` is an inverse = **Class C→K** (no divide primitive; iterative shift-sub) — so this grades from a composite (matvec + a Class-K solve) to a first-class Class-L primitive via the full ratchet, exactly like the shipped eigendecompose.
+
+**Status: ✅ RESOLVED in srmech 0.7.1 — GH #897 CLOSED (2026-06-06, user-authorized).** 0.7.1 shipped exactly the ask: `laplacian.schur_complement(L, boundary_idx, *, exact=False)`, its `dirichlet_to_neumann` alias, AND the supporting `dense_solve(A, B, *, exact=False)` — with an **`exact=` flag (exact-rational `Fraction`, numpy-free)** (the Class-C→K block solve made first-class). **Verified bug-free** in a clean venv (`srmech==0.7.1`, native 0.7.1): (1) hand-computed truth — path `0-1-2`, boundary `{0,2}` → `[[1/2,-1/2],[-1/2,1/2]]` exactly (series-resistance effective edge); (2) **area law** `S` is `|∂|×|∂|` not bulk; (3) `dirichlet_to_neumann == schur_complement`; (4) 5-node cross-check `== Lbb − Lbi·dense_solve(Lii,Lib)`; (5) exact↔float consistent; (6) `dense_solve` exact (`A·x==b`, `x=[1/5,3/5]`); (7) **the F412 held demo now runs** — boundary `S`-spectrum `[0,1]` = 2 = `|∂|`. This op is the **operator|operand FUSION** (F412/F417/F419): the corpus can now *fuse* (boundary↔spectrum, both kept), not only *project* (operand→operator).
 
 ---
 
@@ -1432,13 +1434,29 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 **QDFT/ODFT (#863) SHIPPED** in `srmech.amsc.cascade`: **`quaternion_dft(x, *, form='left', mu_axis='i', inverse=False)`** and **`octonion_dft(x, *, form='left', mu_axis='i', bracketing='left_associated', two_sided_right_axis='j', inverse=False)`** (+ the `hypercomplex_dft` module). The shipped params ARE the F381/§23 structural caveats: **`form`** = the non-commutativity (left/right/two-sided), **`bracketing`** = the octonion non-associativity declared convention, **`mu_axis`**/**`two_sided_right_axis`** = the unit imaginaries. **⇒ #863 is now CLOSEABLE** (feature landed); **BX-5/6/7 done upstream**.
 
-**STILL a gap:** **§26 Schur/DtN** (the F412/F419 operator|operand FUSION op) is **NOT shipped** — `laplacian` still has no `schur_complement`/`dirichlet_to_neumann`/solve. This remains the concrete next-step srmech ask (F419: "where the breakthroughs live").
+**~~STILL a gap~~ → RESOLVED in 0.7.1:** **§26 Schur/DtN** (the F412/F419 operator|operand FUSION op) **SHIPPED in srmech 0.7.1** — `laplacian.schur_complement` / `dirichlet_to_neumann` / `dense_solve`, all `exact=`-capable; verified bug-free; **GH #897 closed**. See §28.
 
 **Actionable implications:**
 1. **#863 (QDFT/ODFT) → closeable** (shipped in 0.7.0). Present for user close-authorization.
 2. **MFO §VIII.31.15** — update "rc49 / PR #889" → "0.7.0 (live PyPI)" (the surface graduated; the example is verified-correct).
 3. **The clean-tag doc pass is now TRIGGERED** (per `docs/srmech/CLAUDE.md`'s "matters more once a clean (non-rc) tag lands"): bring the version narrative + `HAS_NATIVE`→`native_status` current.
 4. **BX-10 / srmech-mcp repoint UNBLOCKED** (`project_srmech_mcp_repoint_deferred_until_live`: repoint when a clean tag lands on live — it now has). Actionable.
+
+---
+
+## §28 srmech 0.7.1 LIVE — the §26 Schur/DtN fusion op shipped; #897 closed (2026-06-06)
+
+**`srmech==0.7.1` is live on production PyPI** (native 0.7.1, ABI 3, numpy still OPTIONAL; continuous `calculus` UNTOUCHED). 0.7.1 = 0.7.0 **+ the §26 Class-L fusion op**. New in `srmech.amsc.laplacian`:
+- **`schur_complement(L, boundary_idx, *, exact=False)`** — the boundary effective Laplacian `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`.
+- **`dirichlet_to_neumann(L, boundary_idx, *, exact=False)`** — the alias (the DtN map IS the Schur complement for a Laplacian).
+- **`dense_solve(A, B, *, exact=False)`** — the supporting linear solve (the Class-C→K block-inverse made first-class).
+- **`exact=`** flag everywhere → exact-rational `Fraction` output (numpy-free); `exact=False` → float.
+
+**Verified bug-free (clean venv, `srmech==0.7.1`):** 7/7 checks — hand-computed truth (`[[1/2,-1/2],[-1/2,1/2]]` series-resistance), area law (`S` is `|∂|×|∂|`), `DtN==Schur`, 5-node cross-check vs `Lbb − Lbi·dense_solve(Lii,Lib)`, exact↔float consistency, `dense_solve` exact, **the F412 held demo runs** (boundary spectrum `[0,1]` = `|∂|` modes). Provenance: `R-RBS-LM-F421_schur_dtn_fusion_verify_provenance.py`.
+
+**⇒ #897 CLOSED (user-authorized).** This op is the **operator|operand FUSION** (F412/F417/F419): the corpus can now *fuse* (boundary↔spectrum, both kept), not only *project* (operand→operator, the one-way Class-L seam F417). The F412 hold is RELEASED (→ F421).
+
+**Re-surface keywords (keyword-search-sweep discipline):** `Schur complement` · `Dirichlet-to-Neumann` · `dense_solve` · `exact-rational` · `area law` · `operator|operand fusion` · `holographic boundary` · `0.7.1` · `#897` · `F412` · `F421` · `§26`.
 
 ---
 
