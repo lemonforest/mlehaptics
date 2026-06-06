@@ -198,11 +198,11 @@ Status legend adds one tag for this arc:
 | **BX-6** | **#863 `qm.quaternion` ergonomic module** (first-class 4×4 left/right mult) — NEW srmech code | same numpy-removal gate + srmech-dev |
 | **BX-7** | **#863 `exp(μθ)` hypercomplex twiddle helper** — NEW srmech code | same gate |
 | **BX-8** | **rc29 verification** — when rc29 (numpy-drop Option 1 + HV carrier) lands: verify the HV contract (UPSTREAM §22b) + STOP-list coverage in a clean venv OUTSIDE the source tree | rc29 published to TestPyPI |
-| **BX-9** | **ephemerides-spectral → srmech 0.7.0 bump** (UPSTREAM §21) | live PyPI (rc ≠ SoT) |
-| **BX-10** | **srmech-mcp repoint + restart** (project memory: deferred) | live PyPI clean (non-rc) tag |
+| **BX-9** | **ephemerides-spectral → srmech 0.7.x bump** (UPSTREAM §21) | ✅ **DONE on main (#902, 2026-06-06)** — ephemerides-spectral floor bumped `>=0.4.2 → >=0.7.1` (v0.29.3rc3). |
+| **BX-10** | **srmech-mcp repoint + restart** (project memory: deferred) | ⏸️ **UNBLOCKED but needs care** — clean tag 0.7.1 is live, so the gate is lifted; BUT the `.mcp.json` repoint touches a reboot-wiped `/tmp` venv (`project_srmech_mcp_repoint_deferred_until_live`). Awaits a deliberate repoint-to-live + commit + MCP-restart (user confirm — touches session infra). |
 
-### Disposition
-**BX-1, BX-2 are walkable in the next research session** (no srmech bump). **BX-3, BX-4** await user direction / the SNN build. **BX-5–BX-10 are blocked on srmech updates — chiefly the in-progress numpy-math removal** (do not author the QDFT cascade against the moving `qm` surface; resume post-numpy-free + #863 pickup). Durable handoffs for the whole arc: issue **#863** + the **R22 descriptor drafts** + findings **F356→F388** + the re-prime artifact.
+### Disposition (updated 2026-06-06 — numpy gate fully lifted; #863 shipped)
+**BX-1, BX-2, BX-3 ✅ resolved** (F412/F410/F415). **BX-4** awaits the RBS-SNN build (#197). **BX-5/6/7** — the **#863 QDFT/ODFT ops SHIPPED in 0.7.0** (`cascade.quaternion_dft`/`octonion_dft`, verified bug-free, #863 closed), so the *ops* are done upstream; what remains (the `cascade_catalog` TOML descriptors / ergonomic `qm.quaternion` / `exp(μθ)` helper) is **optional polish**, not blocking. **BX-8 ✅** (F402). **BX-9 ✅** (#902 on main). **BX-10** unblocked, needs a careful `.mcp.json` repoint (user confirm). Durable handoffs: issue **#863 (closed)** + findings **F356→F425** + the re-prime artifact.
 
 ---
 
