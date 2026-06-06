@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.2] - 2026-06-06
+
+**Production graduation of the rc1–rc2 arc — the (σ,θ,μ) coupler + the Hamming/GF(2) front-loader.** Two cascade-catalog additions, both composites over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):
+
+- **`cascade.hypercomplex_couple`** (rc1; [#908](https://github.com/lemonforest/mlehaptics/issues/908), F436/F437) — the bidirectional `(σ,θ,μ)` hypercomplex coupler (**COUPLE**): bind ≥3 streams into one quaternion/octonion + a joint coherence channel and unbind losslessly (the conjugate twiddle; reversible ≤ 𝕆 by Hurwitz). General/diagonal μ also extended `quaternion_dft` / `octonion_dft`.
+- **`cascade.hamming_encode` / `hamming_syndrome` / `hamming_decode_correct`** (rc2; [#910](https://github.com/lemonforest/mlehaptics/issues/910), §30 / F442/F449) — the Hamming/GF(2) single-error-correcting block code over the 2ⁿ−1 ladder (**CARRY/EC**): the front-loader's other half, lean-ALU XOR-native, shipped as a Rosetta pair with the JPL-clean `srmech_hamming_*` C peer (attested bit-exact).
+
+`describe()` total **236 → 240**. The shipped `libsrmech` holds no libm transcendental (the C-transpile triality ratchet baseline stays ZERO). **No code change from rc2 — version-string graduation only**; the rc1+rc2 state was verified-green on TestPyPI (clean-venv, incl. the fresh C↔Python Hamming parity = 0 mismatches). SSoT: Sangwine & Ell (2012) arXiv:1001.4379; Błaszczyk (2019) arXiv:1905.12631; Hurwitz (1898); Hamming (1950).
+
 ## [0.7.2rc2] - 2026-06-06
 
 **Hamming / GF(2) linear block-code family — the CARRY/EC half of the sedenion front-loader ([#910](https://github.com/lemonforest/mlehaptics/issues/910) / §30; findings F442 + F449).** Where `hypercomplex_couple` (rc1) is **COUPLE** — bind ≤7 streams reversibly into an octonion (capped at 𝕆 by Hurwitz) — this rc ships **CARRY**: hold >7 data items + locate/correct an error in one structure, reversible *past* 𝕆 using the sedenion's CODE geometry (its Fano/PG structure), **not** its broken chirality. Shipped as a **Rosetta pair**: a pure-Python spec + a JPL-clean C peer, attested bit-exact.
