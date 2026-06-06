@@ -1474,6 +1474,20 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §30 CARRY/EC gap: a 2ⁿ−1 Hamming / GF(2) block-code op — the sedenion front-loader's missing half (2026-06-06; F449, extends F442)
+
+**Surfaced by:** F449 — actualizing the sedenion **front-loader** (F442) on srmech 0.7.2rc1. The front-loader is **CARRY ∘ COUPLE**: COUPLE (bind ≤7 streams → octonion, reversibly) is now **native** (`cascade.hypercomplex_couple`, §29/#908); CARRY (hold >7 + error-correct in one structure, reversible *past* 𝕆 using the sedenion's CODE structure, **not** its broken chirality) still **hand-rolls**. Measured (F449): a Hamming(15,11) carrier holds **11 data + 4 EC** in one 15-slot structure (1.57× the 𝕆 algebra's 7 reversible slots), locates+corrects any single error (all 15 positions), recovers exactly, fully GF(2)-reversible; the octonion's Fano(7) nests inside (PG(2,2)⊂PG(3,2)).
+
+**What srmech has vs lacks:** the **GF(2) substrate is present** — `hdc._xor_buf` (private) + the lean-ALU `add`/`sub` (parity = XOR = add mod 2); and a **k=3 corrector** exists (`klein4_triality_correct`, the order-3/triality EC). But there is **NO 2ⁿ−1 Hamming / linear block-code op** — no `encode`/`syndrome`/`decode_correct` for the Hamming(7,4)/(15,11)/(31,26)… ladder. F442 + F449 both hand-roll it.
+
+**The ask:** a srmech-native **Hamming / GF(2) linear block-code family** — `cascade.hamming_encode(data_bits, n)` / `hamming_syndrome(codeword)` / `hamming_decode_correct(codeword)` over the 2ⁿ−1 ladder, **lean-ALU XOR-native** (the substrate is already there; this packages the parity-check matrix + syndrome localization). It is the **CARRY/EC** primitive that, composed with `hypercomplex_couple` (COUPLE), makes the front-loader first-class. **Hamming(7,4) = the octonion's own Fano structure (F441)**, so it sits naturally beside the `qm.so8`/octonion surface.
+
+**Non-asks / fences (F449):** (a) the code carries the octonion's **GF(2) sector/structure bits** + EC; the **real-valued coefficients** ride alongside — **real-coefficient EC is a SEPARATE, larger construction** (a real-field block code, RS/BCH-over-ℝ), NOT this ask. (b) the code gives **no multiplicative product** — bind/couple stays the `hypercomplex_couple` job (≤𝕆); carry-vs-couple are distinct roles. (c) **single-error correction** per rung (distance 3); larger tolerance = BCH/RS, a different code.
+
+**Status:** **gap identified (2026-06-06; F449); NOT yet filed upstream.** Candidate GH issue parallel to #908 — drafted, awaiting user direction to file (per `[[feedback_create_upstream_issues_never_close_them]]`: file asks under user direction). **Re-surface keywords:** `hamming` · `block code` · `code ladder` · `2ⁿ−1` · `Mersenne` · `parity check` · `syndrome` · `GF(2)` · `XOR` · `error correction` · `CARRY vs COUPLE` · `front-loader` · `sedenion structure not chirality` · `Hamming(15,11)` · `Fano` · `klein4_triality_correct` · `hypercomplex_couple` · `F442` · `F449` · `§30`.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
