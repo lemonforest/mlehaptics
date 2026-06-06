@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.3] - 2026-06-06
+
+**Production graduation of the rc1 arc — the Cayley–Dickson open-exterior boundary-demonstrator** ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23). One cascade-catalog addition, a composition over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):
+
+- **`srmech.amsc.cascade.cayley_dickson`** — the deliberately **non-reversible** object on the far side of the Hurwitz wall (ℝ→ℂ→ℍ→𝕆→𝕊(16)→…), exact-rational + numpy-free: `cd_mult` / `cd_conjugate` / `cd_norm_sq`, the integer cocycle `cd_basis_product` (with the JPL-clean `srmech_cd_basis_product` C peer), `sedenion_zero_divisor_witness`, and the `left_mult_kernel` / `left_mult_is_invertible` "no backward direction" detector. The executable falsifier for §VII.6.23 — zero divisors first at dim 16, composition norm fails at 16, conjugation defined every rung while the inverse dies at the wall. **NOT a substrate extension** (no `qm.*` peer, no DSL wiring; the closed sim stays ≤𝕆).
+
+`describe()` total **240 → 248** (8 ToolEntry). **No code change from rc1 — version-string graduation only**; the rc1 state was verified-green on TestPyPI (clean-venv outside the source tree: `HAS_NATIVE=True`, ABI 3, native C↔Python cocycle parity = 0 mismatches across dims 1–64, witness `(e1+e10)(e4−e15)=0`). PyPI README refreshed to v0.7.3 (numpy-optional install, the v0.7.x cascade families). SSoT: Hurwitz (1898); Schafer (1954) *Amer. J. Math.* 76; Moreno arXiv:q-alg/9710013; Baez arXiv:math/0105155 §2.
+
 ## [0.7.3rc1] - 2026-06-06
 
 **Cayley–Dickson open-exterior boundary-demonstrator ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23).** The deliberately **non-reversible** object on the *far side* of the Hurwitz wall: the generic doubling ℝ→ℂ→ℍ→𝕆→𝕊(16)→trigintaduonion(32)→… , exact-rational and numpy-free. `the_one` / `hypercomplex_couple` live in the reversible interior (≤𝕆); this exhibits the wall the closed simulation does **not** cross, converting §VII.6.23's open-exterior claims from literature-only (Moreno arXiv:q-alg/9710013) to **own-code-attested** (`[[feedback_own_work_is_primary_attestation]]`). **It is NOT a substrate extension** — no `qm.*` peer, no DSL wiring; past 𝕆 there is no division-algebra substrate to be native to.
