@@ -99,6 +99,11 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # flat, exempt exactly like autocorrelation above.
     "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft",
     "srmech.amsc.cascade.hypercomplex_dft.octonion_dft",
+    # cascade.hypercomplex_dft.hypercomplex_couple (v0.7.2rc1 / #908). Registered
+    # under its STABLE flat public name ``srmech.amsc.cascade.hypercomplex_couple``
+    # (which IS registered); the submodule-dotted name is the same object
+    # re-exported flat, exempt exactly like the DFT peers above.
+    "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple",
     # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
     # Registered under its STABLE flat public name
     # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);

@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from srmech.amsc.cascade import quaternion_dft, octonion_dft
+from srmech.amsc.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
 
 
 # --- Klein-4 <-> quaternion encoding (bit0 -> i-comp sign, bit1 -> j-comp sign) ---
@@ -165,9 +165,181 @@ def test_empty_input_returns_empty():
     assert octonion_dft([]) == []
 
 
+# =============================================================================
+# v0.7.2rc1 (#908, F436/F437) — general/diagonal μ-axis + the bidirectional
+# (σ, θ, μ) hypercomplex coupler.
+# =============================================================================
+
+# --- F436: a single named axis CARRIES but does NOT couple; diagonal COUPLES --
+
+def test_diagonal_axis_couples_streams_named_axis_does_not():
+    """F436: pack 3 streams (G,L,D) on i/j/k. With ``mu_axis='i'`` perturbing
+    the i-stream (G) leaves the j,k spectral channels UNTOUCHED (carry-only — a
+    complex FFT on the (1,i) plane + an independent (j,k) transform). With the
+    DIAGONAL μ it folds across all axes, so the same perturbation moves j,k too."""
+    import random
+    rng = random.Random(20260606)
+    n = 32
+    G = [rng.gauss(0, 1) for _ in range(n)]
+    L = [rng.gauss(0, 1) for _ in range(n)]
+    D = [rng.gauss(0, 1) for _ in range(n)]
+    base = [[0.0, G[t], L[t], D[t]] for t in range(n)]
+    Gp = list(G); Gp[5] += 3.0
+    pert = [[0.0, Gp[t], L[t], D[t]] for t in range(n)]
+
+    def jk_change(axis):
+        A = quaternion_dft(base, mu_axis=axis)
+        B = quaternion_dft(pert, mu_axis=axis)
+        return sum(abs(A[w][2] - B[w][2]) + abs(A[w][3] - B[w][3]) for w in range(n))
+
+    named = jk_change("i")
+    diag = jk_change("diagonal")
+    assert named < 1e-9, f"named single axis must NOT couple i→(j,k); got {named:.2e}"
+    assert diag > 1e-2, f"diagonal axis MUST couple i→(j,k); got {diag:.2e}"
+
+
+@pytest.mark.parametrize("n_streams,expected_ratio", [(3, 3.0), (7, 7.0)])
+def test_coherence_detector_anchor_energy_ratio(n_streams, expected_ratio):
+    """F436: the diagonal-μ fold sends the streams into the real/anchor channel
+    as a JOINT coherence detector — coherent streams add (∝ n·s), incoherent
+    cancel (∝ √n). The anchor-channel energy ratio is therefore ≈ n: 3.0× for a
+    quaternion (k=3), 7.0× for an octonion (k=7)."""
+    import random
+    rng = random.Random(7)
+    m = 4000
+    # theta omitted → the module default π/2: exp(μ·π/2)=μ, the pure fold.
+    coh = [hypercomplex_couple([rng.gauss(0, 1)] * n_streams, axis="diagonal")[0]
+           for _ in range(m)]
+    inc = [hypercomplex_couple([rng.gauss(0, 1) for _ in range(n_streams)],
+                               axis="diagonal")[0]
+           for _ in range(m)]
+    e_coh = sum(a * a for a in coh) / m
+    e_inc = sum(a * a for a in inc) / m
+    ratio = e_coh / e_inc
+    assert abs(ratio - expected_ratio) < 0.5 * expected_ratio, (
+        f"k={n_streams} coherence ratio {ratio:.2f} not ≈ {expected_ratio}")
+
+
+# --- general / diagonal μ accepted by the DFTs (#908) -------------------------
+
+@pytest.mark.parametrize("mu_axis", ["diagonal", [0.0, 0.6, 0.8, 0.0]])
+def test_quaternion_dft_general_axis_round_trip(mu_axis):
+    q = [[0.5, -1.0, 0.25, 0.75], [1.0, 0.0, -0.5, 0.5], [-0.25, 0.5, 1.0, -1.0]]
+    X = quaternion_dft(q, form="left", mu_axis=mu_axis)
+    qr = quaternion_dft(X, form="left", mu_axis=mu_axis, inverse=True)
+    for r, o in zip(qr, q):
+        for a, b in zip(r, o):
+            assert abs(a - b) < 1e-9
+
+
+def test_general_axis_is_normalised():
+    """A non-unit μ is normalised to unit length, so ``[0,3,4,0]`` ≡ ``[0,.6,.8,0]``."""
+    q = [[0.0, 1.0, -2.0, 0.5], [0.3, 0.0, 1.0, -1.0]]
+    a = quaternion_dft(q, mu_axis=[0.0, 3.0, 4.0, 0.0])
+    b = quaternion_dft(q, mu_axis=[0.0, 0.6, 0.8, 0.0])
+    for ra, rb in zip(a, b):
+        for x, y in zip(ra, rb):
+            assert abs(x - y) < 1e-12
+
+
+@pytest.mark.parametrize("mu_axis", ["diagonal", [0.0, 0, 0, 0, 0.6, 0.0, 0.8, 0.0]])
+def test_octonion_dft_general_axis_round_trip(mu_axis):
+    import random
+    rng = random.Random(3)
+    o = [[rng.uniform(-1, 1) for _ in range(8)] for _ in range(4)]
+    X = octonion_dft(o, form="left", mu_axis=mu_axis)
+    orr = octonion_dft(X, form="left", mu_axis=mu_axis, inverse=True)
+    for r, src in zip(orr, o):
+        for a, b in zip(r, src):
+            assert abs(a - b) < 1e-9
+
+
+# --- F437: the (σ, θ, μ) coupler binds (σ=+1) and unbinds (σ=−1) losslessly ---
+
+@pytest.mark.parametrize("streams", [[2.0, -1.0, 3.0], [1, 2, 3, 4, 5, 6, 7]])
+def test_couple_bind_unbind_round_trip(streams):
+    """F437: the reverse coupling is the conjugate twiddle (σ=−1); it undoes the
+    forward fold exactly because ℍ/𝕆 are division algebras
+    (``x̄·(x·y)=‖x‖²·y``). Reversible up to 𝕆 → lossless for ≤7 streams."""
+    bound = hypercomplex_couple(streams, axis="diagonal", theta=0.7, sigma=1)
+    back = hypercomplex_couple(bound, axis="diagonal", theta=0.7, sigma=-1)
+    # streams come back in the imaginary slots; the anchor returns to ~0.
+    assert abs(back[0]) < 1e-9
+    for got, want in zip(back[1:1 + len(streams)], streams):
+        assert abs(got - want) < 1e-9
+
+
+def test_couple_inverse_flag_matches_sigma_minus_one():
+    """``inverse=True`` flips the effective sign — equivalent to ``sigma=-1``."""
+    bound = hypercomplex_couple([2.0, -1.0, 3.0], theta=0.5, sigma=1)
+    by_sigma = hypercomplex_couple(bound, theta=0.5, sigma=-1)
+    by_inverse = hypercomplex_couple(bound, theta=0.5, sigma=1, inverse=True)
+    for a, b in zip(by_sigma, by_inverse):
+        assert abs(a - b) < 1e-12
+
+
+def test_couple_diagonal_equals_equal_weight_vector():
+    """``axis='diagonal'`` IS the equal-weight unit pure-imaginary axis."""
+    a = hypercomplex_couple([1.0, 1.0, 1.0], axis="diagonal", theta=0.9)
+    b = hypercomplex_couple([1.0, 1.0, 1.0], axis=[0.0, 1.0, 1.0, 1.0], theta=0.9)
+    for x, y in zip(a, b):
+        assert abs(x - y) < 1e-12
+
+
+def test_couple_octonion_carrier_round_trips_full_eight():
+    """A length-8 literal octonion feeds straight back in to unbind (all 8 comps)."""
+    carrier = [0.5, 1.0, -2.0, 0.25, 3.0, -0.5, 0.75, -1.0]
+    bound = hypercomplex_couple(carrier, axis="diagonal", theta=0.4, sigma=1)
+    back = hypercomplex_couple(bound, axis="diagonal", theta=0.4, sigma=-1)
+    assert len(back) == 8
+    for got, want in zip(back, carrier):
+        assert abs(got - want) < 1e-9
+
+
+# --- error cases for the new surface -----------------------------------------
+
+def test_couple_rejects_bad_sigma_and_form():
+    with pytest.raises(ValueError):
+        hypercomplex_couple([1.0, 2.0, 3.0], sigma=2)
+    with pytest.raises(ValueError):
+        hypercomplex_couple([1.0, 2.0, 3.0], form="two_sided")
+
+
+def test_couple_rejects_too_many_streams():
+    with pytest.raises(ValueError):
+        hypercomplex_couple([1.0] * 9)  # > 8 components: no carrier
+
+
+def test_quaternion_dft_rejects_octonion_axis():
+    """A quaternion transform's μ must lie in ℍ (e4..e7 == 0)."""
+    with pytest.raises(ValueError):
+        quaternion_dft([[0.0, 1.0, 0.0, 0.0]], mu_axis=[0, 0, 0, 0, 1, 0, 0, 0])
+
+
+def test_general_axis_must_be_pure_imaginary():
+    with pytest.raises(ValueError):
+        quaternion_dft([[0.0, 1.0, 0.0, 0.0]], mu_axis=[1.0, 1.0, 0.0, 0.0])  # e0!=0
+
+
+def test_general_axis_rejects_zero_vector():
+    with pytest.raises(ValueError):
+        quaternion_dft([[0.0, 1.0, 0.0, 0.0]], mu_axis=[0.0, 0.0, 0.0, 0.0])
+
+
+def test_unknown_named_axis_message_lists_diagonal():
+    with pytest.raises(ValueError, match="diagonal"):
+        quaternion_dft([[0.0, 1.0, 0.0, 0.0]], mu_axis="z")
+
+
 # --- numpy-absent: scientific-tier ops raise a clear ImportError -------------
 
 def test_dft_requires_numpy_clear_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "numpy", None)  # `import numpy` -> ImportError
     with pytest.raises(ImportError):
         quaternion_dft([[0, 1, 0, 0]])
+
+
+def test_couple_requires_numpy_clear_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "numpy", None)
+    with pytest.raises(ImportError):
+        hypercomplex_couple([1.0, 2.0, 3.0])

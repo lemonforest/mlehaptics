@@ -2088,6 +2088,51 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
+        # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437).
+        # Registered under its STABLE FLAT public name
+        # ``srmech.amsc.cascade.hypercomplex_couple``; the submodule-dotted
+        # ``srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple`` is the same
+        # object re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.hypercomplex_couple", owner="srmech",
+            category="cascade",
+            summary="Bidirectional (σ,θ,μ) hypercomplex coupler — bind ≥3 streams "
+                    "into one quaternion/octonion + a JOINT coherence channel, and "
+                    "unbind losslessly (#908, F436/F437). Where quaternion_dft / "
+                    "octonion_dft CARRY N streams along named single axes, this "
+                    "COUPLES them: it packs `streams` into the imaginary slots of a "
+                    "carrier q and applies T=exp(σ_eff·μ·θ). A DIAGONAL μ "
+                    "((i+j+k)/√3 for ℍ, (Σeₙ)/√7 for 𝕆) folds the streams into the "
+                    "real/anchor channel as a coherence detector (F436: coherent "
+                    "add ∝ n·s, incoherent cancel ∝ √n → anchor-energy ratio ≈ n). "
+                    "Bind (sigma=+1) then unbind (sigma=-1, the CONJUGATE twiddle "
+                    "exp(-μθ)) recovers q exactly via the division-algebra identity "
+                    "x̄·(x·y)=‖x‖²·y — GUARANTEED reversible only up to 𝕆 (the "
+                    "Hurwitz boundary; sedenion zero-divisors break it) → lossless "
+                    "for ≤7 streams. forward/reverse/left/right are discrete points "
+                    "of the continuous (σ,θ,μ) family = the_one's 𝕊(σ,θ) (F420) plus "
+                    "the axis μ. Class M (octonion multiply) ∘ C (σ/conjugation "
+                    "orientation) ∘ N (rational phase θ); no new algebra, no abs(). "
+                    "Scientific tier (UPSTREAM §22): requires numpy on call."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("streams", "sequence", True,
+                  "≤3 reals → quaternion imag carrier; 4–7 → octonion imag; a "
+                  "length-4/8 sequence is a literal quaternion/octonion (feeds back "
+                  "in to unbind)"),
+                P("axis", "str", False,
+                  "coupling axis μ: 'diagonal' (default) | 'i'|'j'|'k'|'ijk' | a unit "
+                  "pure-imaginary vector. A single named axis carries, not couples"),
+                P("theta", "float", False,
+                  "continuous coupling phase; default π/2 (the F436 quarter-turn fold)"),
+                P("sigma", "int", False, "chirality σ ∈ {+1,-1}: +1 binds, -1 unbinds; default +1"),
+                P("form", "str", False, "'left' (T·q) or 'right' (q·T); default 'left'"),
+                P("inverse", "bool", False, "flip the effective sign (≡ toggling sigma); default False"),
+            ),
+            returns=R("list[float]",
+                      "the coupled value — a 4-component quaternion (≤3 streams) or "
+                      "8-component octonion"),
+        ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.the_one``; the submodule-dotted
