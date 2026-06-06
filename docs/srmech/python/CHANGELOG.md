@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.1] - 2026-06-05
+
+**The Class-L Schur complement / Dirichlet-to-Neumann (DtN) map — the operator|operand FUSION op ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).** Graduation of the rc1–rc3 arc: an op that keeps BOTH a spatial boundary and its spectrum (every other Class-L cascade only projects), integrates the bulk out, and lives on the boundary — `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`.
+
+- **`srmech.amsc.laplacian.schur_complement(L, boundary_idx, *, exact=False)`** (alias `dirichlet_to_neumann`) — exact-rational `fractions.Fraction` solve (Class-N core; numpy-absent or `exact=True`) or the float `[scientific]`-tier realization; the area law is the dimensional reduction `n → |∂|`. (rc1)
+- **DSL chain-contract wiring** — `schur_complement` is a first-class cascade-catalog stage; `chain().then("schur_complement", boundary_idx=[…])` / TOML chains thread `boundary_idx` + `exact` as bound stage kwargs (the 14th catalog op). (rc2)
+- **Reusable native C peer `srmech_dense_solve_f64`** — the dense linear solve `A·X = B` the Schur/DtN float path composes over (the expensive interior solve IS an `A·X = B`), promoted to its own exported Class-L primitive. Gauss–Jordan with partial pivoting (Class-K magnitude sign-branch, no `fabs`/`abs()`); bounded `n,nrhs ≤ 256` thread-local workspace (no malloc, reentrant); no libm; JPL Power-of-Ten clean. New public op `srmech.amsc.laplacian.dense_solve(A, B, *, exact=False)`. (rc3)
+
+`describe()` total **233 → 236** (schur_complement + dirichlet_to_neumann + dense_solve). **ABI stays 3** (additive symbol; the Python ctypes shim `hasattr`-guards it). Canonical SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0; Golub & Van Loan §3. Production cut of the **rc3** state already verified-green on TestPyPI (the pedantic-C / 4-cell test / pure-wheel matrix re-verifies the `0.7.1` build); no code change from rc3 — version-string graduation only.
+
 ## [0.7.1rc3] - 2026-06-05
 
 **Native C peer for the Schur/DtN float path — a reusable `srmech_dense_solve_f64` Class-L primitive ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).** The expensive part of the Schur complement is the interior solve `L_ii⁻¹·L_i∂`, which IS a dense linear solve `A·X = B`. rc3 ships that solve as its own exported Class-L C symbol (the "every primitive earns a C surface" path), and `schur_complement` becomes a genuine **composition** over it.
