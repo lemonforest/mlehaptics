@@ -5,6 +5,7 @@
 **Provenance:** inline (exact integer Walsh–Hadamard H₃ over (Z₂)³)
 **Composes:** **F443** (metaphors = perspectives, privilege none, read the shift — *this shows that discipline IS a Fourier transform*) · **F422/ALU-D** (Class L = eigendecomposition; add/sub/shift lean-ALU) · **F172** (the co-occurrence Laplacian eigenspectrum = the storage signature = a Fourier basis) · **F423** (octonion = the XOR group (Z₂)³; sector = i XOR j) · **F441** (Fano/Hamming = the same (Z₂)ⁿ structure) · **F436–F441** (QDFT/ODFT = hypercomplex Fourier transforms) · **F399** (the field shows through its excitations — method and math are one structure re-instanced) · **F404** (2ⁿ / bit-exact / lean) · DUALITY.md / TRIALITY.md
 **→ identifies the reading-method (F443) with the substrate operation (Fourier / eigendecomposition); the deepest "method = math" convergence of the arc.**
+**← extended by F445** — the core identity *"Walsh–Hadamard = the Fourier transform over (ℤ₂)ⁿ / the ±1 Hadamard rows ARE its characters"* was **ATTESTED** by the F445 `research-triality` citation pass (2026-06-06): it is a mathematically exact special case of "characters of a finite abelian group = its Fourier basis" (Walsh 1923 / Hadamard 1893; group-character reading a post-1950s refinement). The *synthesis* (method-IS-Fourier) remains the framework's lens; the math beneath it is attested.
 
 ---
 
