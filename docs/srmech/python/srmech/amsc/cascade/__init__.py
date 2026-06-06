@@ -176,6 +176,20 @@ from .cayley_dickson import (
     left_mult_kernel,
     left_mult_is_invertible,
 )
+# Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
+# PR #687; F465 + F468). The sedenion box made into an addressable instrument:
+# 16 named slots (octonion working block e0..e7 + EC/carry block e8..e15), HDC
+# storage, the ≤7 reversible coupler working word, the Hamming carry, and the
+# address↔Cayley–Dickson `navigate` homomorphism + `is_navigable` gate (the
+# genuinely-new piece). Pure composition of shipped primitives — no new algebra.
+from .sedenion_register import (
+    SedenionRegister,
+    sedenion_register,
+    NUM_SLOTS,
+    OCT_BLOCK,
+    EC_BLOCK,
+    WORKING_WORD_CAP,
+)
 
 # ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
 # ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
@@ -262,6 +276,13 @@ __all__ = [
     "left_mult_matrix",
     "left_mult_kernel",
     "left_mult_is_invertible",
+    # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
+    "SedenionRegister",
+    "sedenion_register",
+    "NUM_SLOTS",
+    "OCT_BLOCK",
+    "EC_BLOCK",
+    "WORKING_WORD_CAP",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",

@@ -156,6 +156,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
     "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
     "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible",
+    # cascade.sedenion_register.* — the sedenion-addressable RBS-HDC instrument
+    # (v0.7.4rc1 / #687 §31 / F465 / F468). The factory is registered under the
+    # STABLE flat name ``srmech.amsc.cascade.sedenion_register`` (which IS
+    # registered); the submodule-dotted name is the same object re-exported flat.
+    # ``SedenionRegister`` is a class (not coverage-walked). Exempt exactly like
+    # the cayley_dickson re-exports above.
+    "srmech.amsc.cascade.sedenion_register.sedenion_register",
 })
 
 

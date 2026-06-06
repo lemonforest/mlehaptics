@@ -2308,6 +2308,42 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("bool", "True for dim in {1,2,4,8}, else False"),
         ),
+        # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM
+        # §31 of PR #687; F465 + F468). Registered under the STABLE flat factory
+        # name ``srmech.amsc.cascade.sedenion_register``; the submodule-dotted
+        # ``cascade.sedenion_register.sedenion_register`` is the same object
+        # re-exported flat (exempt in test_tool_schema_coverage). The class
+        # SedenionRegister is not a module-level function (not coverage-walked).
+        ToolEntry(
+            name="srmech.amsc.cascade.sedenion_register", owner="srmech",
+            category="cascade",
+            summary="Construct a SedenionRegister — the sedenion (dim-16) ADDRESSABLE "
+                    "RBS-HDC instrument (UPSTREAM §31; F465/F468). The sedenion box "
+                    "made into a named-register instrument: 16 slots e0..e15 — the "
+                    "octonion block e0..e7 is the ≤7 REVERSIBLE working word "
+                    "(hypercomplex_couple, bit-exact ≤𝕆), e8..e15 the EC/CARRY block "
+                    "(Hamming GF(2), §30). HDC ops INSTEAD of ALU: random-access-by-name "
+                    "(hdc.bind + nearest-codebook clean = associative superposition, "
+                    "classical, no quantum cost). The genuinely-new surface is "
+                    ".navigate(j) — the address↔Cayley–Dickson homomorphism (right-mult "
+                    "every slot-name by e_j so addressing respects e_i·e_j=±e_k, the "
+                    "cd_basis_product cocycle) — and .is_navigable(direction) the "
+                    "reversibility gate (left_mult_is_invertible): single-basis nav is "
+                    "always a signed permutation, composite-direction nav reversible "
+                    "ONLY ≤𝕆 (the Hurwitz horizon). Pure composition of shipped "
+                    "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
+                    "Storage + coupler are the scientific tier (numpy on call); "
+                    "navigate/is_navigable/carry/correct are numpy-free."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
+                P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
+            ),
+            returns=R("SedenionRegister",
+                      "the instrument — .write/.read (addressable storage), "
+                      ".couple_working/.uncouple_working (≤7 reversible word), "
+                      ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
+        ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.the_one``; the submodule-dotted
