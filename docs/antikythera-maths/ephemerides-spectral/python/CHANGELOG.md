@@ -10,6 +10,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc3] — 2026-06-06
+
+### Added — Solar Cycle Spectrum (the Sun's slow magnetic clock)
+
+The third **solar-dynamics** catalogue on the v0.30.0 line, after the
+v0.24.3 Sun Dynamical Spectrum (helioseismic p-modes) and the rc2
+differential rotation. Where those read the Sun's *fast* oscillations
+and rotation, this reads its *slow* magnetic clock: the ~11-year
+Schwabe sunspot cycle, the 22-year Hale magnetic-polarity cycle, the
+~88-year Gleissberg amplitude modulation, and the butterfly-diagram
+equatorward drift.
+
+- **`_research/solar_cycle_data.py`** + **`solar_cycle_catalog.py`** (new):
+  - `get_solar_cycle_spectrum()` — the period structure: **Schwabe**
+    (~11 yr), **Hale** (22 yr = 2 Schwabe), **Gleissberg** (~88 yr), the
+    butterfly emergence latitudes, and the recent-cycle roster (23/24/25).
+  - `get_hale_polarity_closure()` — **THE closure invariant**: the Hale
+    magnetic cycle is **exactly two** Schwabe cycles. The Sun's global
+    polarity reverses each activity cycle (Hale & Nicholson 1925) and
+    returns to its original sense only after two, so `Hale = 2 × Schwabe`
+    (residual exactly 0). The integer `2:1` commensurability is the
+    polarity **Class-K sign-flip** — the same sign-flip-doubles-the-period
+    structure as an epicycle (cf. the rc1 ring `(p:q)` resonance).
+  - `get_butterfly_drift()` — Spörer's law (sunspots drift ~30° → ~8°
+    latitude over each cycle).
+  - `list_solar_cycle_spectrum()` — enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (PARITY_TARGETS `python_only`);
+  **`cli.py`** — 4 new subcommands (`solar-cycle-spectrum` /
+  `hale-polarity-closure` / `butterfly-drift` /
+  `solar-cycle-spectrum-full`);
+  **`tests/test_solar_cycle_catalog.py`** (27 tests).
+
+### Changed — cascade-compute refactor (rc1/rc2 catalog math → srmech 14-class ops)
+
+The rc1 Saturn-ring and rc2 solar-rotation catalogs now route their
+continuous-math through a shared helper **`_research/_cascade.py`** that
+calls srmech's 14-class ops instead of raw `numpy` / `math`:
+
+- **Class L** — `srmech.amsc.laplacian.{dense_laplacian,
+  symmetric_eigendecompose}` for the Saturn Gaussian-proximity Fiedler
+  partition (replaces `np.linalg.eigh`).
+- **Class N** — `srmech.amsc.rational` for `sin` / `sqrt` / `asin` and
+  the `(q/p)^(2/3)` resonance power (the `exp∘log1p` cascade, replaces
+  `**`); π from the Archimedes `pi_cascade_digits` (replaces `math.pi`).
+
+Bit-equivalent to the prior values (verified to ~1e-16; the Saturn
+Fiedler partition and λ₂ are identical), so **no test thresholds moved**
+— the change is *which engine* computes the continuous-math, per the
+srmech v0.7.0 thesis (every continuous-math op a cascade of the 14).
+`_cascade.py` is shipped via the codegen `_INCLUDED_MODULES` mirror.
+
+### Provenance
+
+4 citations: Schwabe 1844 (*Astron. Nachr.* 21:233, the sunspot
+periodicity); Hale & Nicholson 1925 (*ApJ* 62:270, DOI 10.1086/142933,
+the polarity law); Hathaway 2015 (*Living Rev. Solar Phys.* 12:4, DOI
+10.1007/lrsp-2015-4, cycle length / Gleissberg / butterfly); Clette 2014
+(*Space Sci. Rev.* 186:35, DOI 10.1007/s11214-014-0074-2, the SILSO
+sunspot-number recalibration).
+
+### Scope
+
+Period-structure catalogue (integer commensurability + a drift law),
+**not** a flux-transport dynamo simulation. The Class-K sign-flip framing
+is an honest structural reading of the polarity reversal, not a forced
+`the_one` mapping (the cycle is a scalar period structure, not a Hurwitz
+rotation — task #524).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc2` → `0.30.0rc3` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc2] — 2026-06-06
 
 ### Added — Solar Differential Rotation catalog (first solar-dynamics extension)

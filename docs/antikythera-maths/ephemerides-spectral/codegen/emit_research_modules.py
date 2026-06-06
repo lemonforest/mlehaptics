@@ -17,6 +17,10 @@ _RESEARCH_DST: Path = (
 
 _INCLUDED_MODULES: List[str] = [
     "__init__.py",
+    # Cascade-compute helper — routes catalog math through srmech's
+    # 14-class ops (Class-L Laplacian / Class-N trig-pow-sqrt / Class-K
+    # sign) instead of raw numpy/math. Shared by the v0.30.x catalogs.
+    "_cascade.py",
     "ephemeris_reference_instrument.py",
     "ephemeris_loader.py",
     "bodies.py",
@@ -119,6 +123,12 @@ _INCLUDED_MODULES: List[str] = [
     # Snodgrass-Ulrich surface law + Schou-1998 internal rotation).
     "solar_rotation_data.py",
     "solar_rotation_catalog.py",
+    # v0.30.0rc3 — Solar Cycle Spectrum (the Sun's slow magnetic clock;
+    # Schwabe 11-yr / Hale 22-yr polarity-flip closure / Gleissberg
+    # 88-yr modulation / butterfly drift). The Hale = 2 x Schwabe
+    # closure is the polarity Class-K sign-flip doubling the period.
+    "solar_cycle_data.py",
+    "solar_cycle_catalog.py",
     # AMSC framework — REMOVED in Task #197 Phase 4 (2026-05-13). The
     # framework (format / descriptor / catalog / gap_suggester +
     # attested_adapters/) now lives at srmech.amsc.* on PyPI and is
