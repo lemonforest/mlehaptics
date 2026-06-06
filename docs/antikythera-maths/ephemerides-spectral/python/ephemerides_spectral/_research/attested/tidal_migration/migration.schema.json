@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tidal_migration.migration.v1",
+  "title": "Tidal migration row",
+  "description": "One parent-satellite pair's tidal-dissipation-driven secular orbital migration (the v0.21.6 sixth cross-channel coupling surface). The signed migration rate is positive=outward, negative=inward, zero=locked. Required fields are the ones every row shares (pair_name, parent_body, satellite_body, migration_rate_cm_per_year, migration_direction, source_doi, source_published_date, entered_locally_at).",
+  "type": "object",
+  "required": [
+    "pair_name",
+    "parent_body",
+    "satellite_body",
+    "migration_rate_cm_per_year",
+    "migration_direction",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "pair_name": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Canonical 'parent-satellite' pair string (e.g., 'terra-luna', 'saturn-titan')."
+    },
+    "parent_body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Parent body name (the body being orbited)."
+    },
+    "satellite_body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Satellite body name (the orbiting body whose semi-major axis drifts)."
+    },
+    "migration_rate_cm_per_year": {
+      "type": "number",
+      "minimum": -100.0,
+      "maximum": 100.0,
+      "description": "Secular migration rate in cm/year. Signed: positive = outward, negative = inward, zero = locked/synchronous."
+    },
+    "migration_direction": {
+      "type": "string",
+      "enum": ["outward", "inward", "locked"],
+      "description": "Verbatim direction label. outward = satellite gaining orbital energy; inward = losing it (tidal-disruption bound); locked = tidal end-state, no migration."
+    },
+    "is_resonance_locked": {
+      "type": "boolean",
+      "description": "True if the pair is in observed mean-motion resonance with at least one other body (e.g., Io in the Galilean Laplace 1:2:4 resonance)."
+    },
+    "additional_constraint": {
+      "type": "string",
+      "description": "Free-text constraint (resonance partners, tidal-disruption deadline, end-state characterisation)."
+    },
+    "precision_flag": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Ship-readiness precision flag (the measurement's observational quality)."
+    },
+    "source_key": {
+      "type": ["string", "null"],
+      "description": "Short citation key into the module SOURCES dict (e.g., 'williams_2014', 'lainey_2020_migration'). Redundant with source_doi; retained for cross-linking to the module's full citation string."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the peer-reviewed paper authorising this row's migration rate. Required by the literature_curated adapter for per-row attestation. Triality-attested against live CrossRef."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 date the cited paper was published. 'YYYY', 'YYYY-MM', or 'YYYY-MM-DD'. Curator-authored from the cited DOI's CrossRef metadata; aligns with Dublin Core dcterms:issued. For williams this is 2015 (CrossRef published year), not the 2014 DOI-suffix submission convention."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date this row was first added or last meaningfully amended. Curator-authored; aligns with Dublin Core dcterms:dateAccessioned."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional version/edition tag where it matters; null for journal papers whose DOI fully resolves the version."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — direction rationale, resonance context, disruption-deadline timescale, cross-references to the v0.21.4 Q-factor or v0.21.8 heat-flow surfaces."
+    }
+  }
+}

@@ -10,6 +10,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc7] — 2026-06-06
+
+### Added — attested-TOML dual-author: tidal_migration
+
+The v0.21.6 Sol Tidal Migration catalogue (6 parent-satellite pairs:
+terra-luna, mars-phobos, jupiter-io, saturn-titan, neptune-triton,
+pluto-charon) is now **dual-authored** — its hand-coded
+`_research/tidal_migration_data.py` rows are encoded a second time
+through the AMSC literature_curated path, with a per-row byte-stable
+diff test (the saturn_rings + solar_rotation pattern; the first
+attested-TOML backfill of a v0.21.x cross-channel coupling catalogue).
+
+- **`research/attested/tidal_migration/`** — new `descriptor.toml`
+  (literature_curated, `require_per_row_source_doi`), `migration.schema.json`
+  (`tidal_migration.migration.v1`), and `migration.ndjson` (6 rows).
+- **`tidal_migration_data.py`** — the `TidalMigration` dataclass gains
+  per-row provenance (`source_doi` / `source_published_date` /
+  `entered_locally_at` / `source_version`) + a `migration_to_data_dict`
+  emitter; `migration_rate_cm_per_year` etc. unchanged.
+- **`tests/test_tidal_migration_dual_author.py`** — row-count / pair-set
+  / per-field / full-dict-equality + per-row source_doi presence + the
+  williams-year-2015 assertion.
+- Ratchets: `list_attested_sources` `n_sources` 30 → 31, curated 27 → 28.
+
+### Triality attestation — DOIs verified, and a defect found
+
+The 6 tidal_migration DOIs were **triality-attested**: haiku + sonnet +
+opus each independently verified them against live CrossRef, then an
+opus reconciler collision-detected (agreement alone insufficient — the
+three models can share a wrong training prior; our committed data is the
+reference, the model weights are what's checked). All six resolve and
+match their cited paper (Williams & Boggs 2015, Lainey 2007/2009/2020,
+Jacobson 2009, McKinnon 2017). The panel corrected the terra-luna
+`source_published_date` to **2015** (CrossRef's published year; the DOI
+suffix `2014JE004755` uses the submission-ID convention).
+
+The same panel run swept the **heat_flow** catalogue (the intended
+second backfill in this batch) and **caught provenance defects in
+shipped data** (v0.21.8):
+
+- `khan_2023` (Mars row) — DOI `10.1038/s41586-023-06289-w` resolves to
+  an **unrelated condensed-matter physics paper** (Cai et al.,
+  "Signatures of fractional quantum anomalous Hall states in twisted
+  MoTe₂", Nature 622, 63-68), not any Khan Mars/lunar heat-flow paper.
+- `tobie_2008` (Titan row) — DOI is valid but is the **Enceladus**
+  south-pole hotspot paper, cited for the **Titan** row (wrong-body).
+- `veeder_2012` (Io row) — DOI sound; title is a paraphrase of the real
+  "Io: Volcanic thermal sources and global heat flow".
+
+Per MPM / gold-is-law (a citation that can't be re-verified is not real;
+do not guess a replacement from training weights), **heat_flow is held
+back** from this backfill for a dedicated citation-repair rc rather than
+shipped over broken provenance.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc6` → `0.30.0rc7` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc6] — 2026-06-06
 
 ### Changed — cascade-compute refactor: dynamical_regime classifier

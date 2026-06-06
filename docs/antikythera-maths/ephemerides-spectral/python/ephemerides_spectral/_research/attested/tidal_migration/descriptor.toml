@@ -1,0 +1,76 @@
+# Sol Tidal Migration Catalogue — per-pair tidal-dissipation-driven
+# orbital migration, authored through the AMSC literature_curated
+# framework.
+#
+# v0.30.0rc7 attested-TOML backfill (cf. saturn_rings + solar_rotation):
+# the 6 parent-satellite migration rows shipped at v0.21.6 in the
+# hand-coded `_research/tidal_migration_data.py` module are now encoded
+# a SECOND time through this AMSC path (descriptor + NDJSON + JSON
+# Schema). The two paths' data dicts are diff-checked by
+# tests/test_tidal_migration_dual_author.py; byte-stable agreement is
+# the evidence the descriptor schema expresses what the hand-coded
+# @dataclass expresses.
+#
+# Per-row source DOIs are triality-attested (haiku/sonnet/opus + opus
+# reconciler vs live CrossRef, 2026-06-06): all six resolve and match
+# their cited paper (Williams & Boggs 2015, Lainey 2007/2009/2020,
+# Jacobson 2009, McKinnon 2017). The williams DOI suffix uses the 2014
+# submission-ID convention but CrossRef's published year is 2015 — the
+# attested source_published_date reflects 2015. Dates are written at
+# year granularity (the granularity the panel externally confirmed for
+# these journal papers).
+
+[source]
+key = "tidal_migration"
+human_readable_name = "Sol Tidal Migration Catalogue"
+purpose = "ground-proof rows for tidal-dissipation-driven orbital migration of parent-satellite pairs (signed secular semi-major-axis drift; the v0.21.6 sixth cross-channel coupling surface)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://ssd.jpl.nasa.gov/"
+canonical_doi = "10.1038/s41550-020-1120-5"
+
+# canonical_doi points at Lainey et al. 2020, *Nature Astronomy* 4,
+# 1053-1058 — the headline Titan resonance-locking result and the most
+# prominent migration measurement in the set (triality-attested: DOI
+# resolves, CrossRef title/author/year match). Per-row provenance is
+# finer-grained: each row carries its own source_doi for the paper
+# authorising its values.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "migration.ndjson"
+# No endpoint / pagination / rate-limiting — literature_curated does no
+# network I/O; the "fetch" reads the committed NDJSON at ndjson_path.
+
+[parse]
+# Every row must carry its own source_doi (per-row attestation).
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "tidal_migration.migration.v1"
+data_schema_path = "migration.schema.json"
+
+[rendering]
+cite_as_template = "Sol Tidal Migration Catalogue (curated against published literature; per-row source DOIs Williams & Boggs 2015 / Lainey 2007/2009/2020 / Jacobson 2009 / McKinnon 2017); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof tidal-migration row (Sol; signed secular orbital drift of a parent-satellite pair)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+# [gap_targeting] intentionally omitted: a signed scalar migration rate
+# per parent-satellite pair does not map onto any of the v0.24.9
+# dynamical-regime classifier labels (trajectory / temporal-quasi-
+# periodic / bounded-local-Laplacian), so declaring one would be a
+# forced fit. This source is not a schema-gap target for the v0.26.0
+# trigger.
