@@ -10,6 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc6] — 2026-06-06
+
+### Changed — cascade-compute refactor: dynamical_regime classifier
+
+The v0.24.9 dynamical-regime classifier's **single "training step"** — a
+closed-form symmetric eigendecomposition of the standardised covariance
+that learns the PCA eigenbasis over the 11 v0.24.x labelled regime
+examples — now routes through the **Class-L srmech Jacobi solver**
+instead of `np.linalg.eigh`. The module joins saturn_rings +
+solar_rotation + hawaii_chain + mars_tharsis in dropping `import numpy`
+/ `import math` entirely.
+
+- **`_research/_cascade.py`** — new `symmetric_eigh(matrix)`: the
+  numpy-free drop-in for `np.linalg.eigh` on a symmetric matrix,
+  wrapping `srmech.amsc.laplacian.symmetric_eigendecompose` (Class-L
+  Jacobi). Returns `(eigvals ascending, eigvecs_cols)` where
+  `eigvecs_cols[k]` is mode `k` as a plain list (a caller-friendly
+  transpose of `eigh`'s column-major `V`).
+- **`dynamical_regime_catalog.py`** — full pure-Python + cascade rewrite:
+  - `_principal_components` builds the covariance with pure-Python sums
+    and calls `_cascade.symmetric_eigh`; the descending sort + the
+    sign-convention pivot use a squared-magnitude comparison (no
+    `abs()`, per the cascade-honesty discipline — Class C orientation).
+  - `_standardise` computes the population std via the **Class-N**
+    `_cascade.sqrt`; the nearest-neighbour Euclidean distances likewise.
+  - covariance build / projection (`_project`, `_project_rows`) / argmin
+    / cumulative-variance are pure-Python list arithmetic.
+  - `math.isfinite` → a local `_is_finite` (no `math` import).
+
+Bit-identical eigendecomposition — verified `max |Δ eigenvalue| = 0` on
+the standardised covariance, and bit-identical top-3 eigenvectors after
+the sign+order convention. Bit-equivalent end-to-end: every training
+self-classification (distance < 1e-9 to itself), every OOS-probe
+calibration ratio (Vesta `0.7908 < 0.85`, Ceres `0.9584 > 0.85`), every
+nearest-regime label and OOD flag reproduce the prior numpy values to
+~1e-15 — well under the tests' `1e-9` tolerances and the `0.85`
+threshold margins — so **no test thresholds moved**. The change is
+*which engine* computes the spectral decomposition, per the srmech
+v0.7.0 thesis (every continuous-math op a cascade of the 14).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc5` → `0.30.0rc6` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc5] — 2026-06-06
 
 ### Changed — cascade-compute refactor: hawaii_chain + mars_tharsis

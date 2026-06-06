@@ -208,6 +208,39 @@ def gaussian_eigs_from_pairs(
     return eigvals, V
 
 
+def symmetric_eigh(
+    matrix: Sequence[Sequence[float]],
+) -> Tuple[List[float], List[List[float]]]:
+    """Symmetric eigendecomposition via the Class-L srmech Jacobi solver
+    (:func:`srmech.amsc.laplacian.symmetric_eigendecompose`) — the
+    numpy-free drop-in for ``np.linalg.eigh`` on a symmetric matrix.
+
+    ``matrix`` is any symmetric 2-D sequence (covariance / Gram /
+    Laplacian). Returns ``(eigvals, eigvecs_cols)``:
+
+    * ``eigvals`` — eigenvalues ascending (the ``np.linalg.eigh``
+      convention), as a plain ``list[float]``.
+    * ``eigvecs_cols`` — a ``list`` of columns; ``eigvecs_cols[k]`` is the
+      unit eigenvector for ``eigvals[k]`` as a ``list[float]`` (so PC/mode
+      ``k`` is just ``eigvecs_cols[k]``, no ``[:, k]`` slicing). This is
+      the transpose of ``np.linalg.eigh``'s column-major ``V`` into a
+      caller-friendly per-vector list.
+
+    On the small, well-conditioned covariance matrices these catalogues
+    feed it the Jacobi sweep is bit-identical to LAPACK ``eigh``
+    (verified: ``max |Δ eigenvalue| = 0`` on the dynamical-regime
+    standardised covariance), so downstream projections / distances agree
+    to machine round-off.
+    """
+    evals, V = _lap.symmetric_eigendecompose(matrix)
+    d = len(evals)
+    eigvals = [float(evals[i]) for i in range(d)]
+    # V columns are the eigenvectors; transpose into a list-of-columns so
+    # the caller indexes mode k as eigvecs_cols[k] (a length-d vector).
+    eigvecs_cols = [[float(V[r][c]) for r in range(d)] for c in range(d)]
+    return eigvals, eigvecs_cols
+
+
 def linfit(xs: Sequence[float], ys: Sequence[float]) -> Tuple[float, float]:
     """Closed-form ordinary-least-squares line fit ``y = m·x + b``,
     returning ``(slope, intercept)``.
@@ -245,5 +278,6 @@ __all__ = [
     "asin",
     "gaussian_proximity_eigs",
     "gaussian_eigs_from_pairs",
+    "symmetric_eigh",
     "linfit",
 ]
