@@ -1,0 +1,31 @@
+# R-RBS-LM Finding 460 — srmech **0.7.3rc1 ships the full exact Cayley–Dickson algebra**, verified **20/20, no bugs** — and it makes the framework's own math native: `cd_mult`/`cd_conjugate`/`cd_norm_sq` (the hand-rolled CD of F442/F449, now a srmech op), `sedenion_zero_divisor_witness` (F424's `a·b=0` as an *own-table* witness: `e1+e10 · e4−e15 = 0`, both norm² 2, dim 16), and — the key — **`left_mult_is_invertible` / `is_division_algebra_dim` make F451's reversibility horizon a CALLABLE instrument** (is x on the reversible side of the 𝕆→𝕊 boundary?). Confirms the Hurwitz boundary exactly: multiply correct up ℂ/ℍ/𝕆/𝕊, `x·x̄=N(x)·1` at every rung, **composition `N(xy)=N(x)N(y)` holds 2/4/8 and breaks at 16** (the witness is the extreme failure: 2·2 but N(xy)=0)
+
+**Date:** 2026-06-06
+**Arc:** RBS-LM / srmech-upstream · TestPyPI rc verification (user direction: "srmech 0.7.3rc1 test.pypi.org with full cayley dickson / sedenion math")
+**Provenance:** `R-RBS-LM-CD_cayley_dickson_bugtest.py` (committed; 20/20). Clean venv `/tmp/verify_srmech_073rc1_sci` (srmech[scientific]==0.7.3rc1 from TestPyPI, outside source tree; native ABI 3).
+**Composes:** **F424** (sedenion zero divisors — *now a native witness*) · **F442 / F449 / F450** (the front-loader: ALGEBRA breaks at 𝕊 / hand-rolled CD `mul`/`cj` — *now srmech-native `cd_mult`/`cd_conjugate`*; CODE carries past) · **F451 / F453** (the 𝕆→𝕊 reversibility horizon / "where the bit-exact language ends" — *now executable via `left_mult_is_invertible` / `is_division_algebra_dim`*) · **F459** (the k=7 coupler caps at 𝕆 = the same boundary) · **F448 / §29** + **F450 / §30** (the prior 0.7.2 ops). **← realizes F424, F442, F449, F451 natively.**
+**→ the framework's Cayley–Dickson / sedenion / reversibility-horizon math is now native + exact in srmech; F451's MFO horizon is a one-line callable instrument.**
+
+## What shipped (0.7.3rc1, `srmech.amsc.cascade.cayley_dickson`)
+A complete **exact (Fraction)** Cayley–Dickson toolkit: `cd_add` · `cd_mult` · `cd_conjugate` · `cd_norm_sq` · `cd_basis` · `cd_basis_product` · `is_division_algebra_dim` · `left_mult_matrix` · **`left_mult_is_invertible`** · **`left_mult_kernel`** · **`sedenion_zero_divisor_witness`** (+ `CD_DIMS`, `ALGEBRA_NAMES`, `DIVISION_ALGEBRA_DIMS`). Own-multiplication-table, own-work-first (the witness is found by searching srmech's own basis products, not transcribed).
+
+## Acceptance test (vs the Hurwitz boundary the framework predicts) — 20/20, 0 bugs
+- **[A] multiply correct up the ladder:** ℂ `i·i=−1`; ℍ `e1·e2=−(e2·e1)` (non-commutative); 𝕆 `(e1·e2)·e4 ≠ e1·(e2·e4)` (non-associative); 𝕊 16-dim multiply runs.
+- **[B] `x·x̄ = N(x)·1`** (real, imaginaries 0) at dims 2/4/8/**16** — conjugation/norm well-defined at *every* rung (incl. the non-division sedenion).
+- **[C] composition `N(xy)=N(x)N(y)`** holds at 2/4/8; **BREAKS at 16** — the zero-divisor witness is the extreme case (`N(x)N(y)=2·2=4` but `N(xy)=N(0)=0`). This IS the Hurwitz composition-algebra boundary, exact.
+- **[D] sedenion zero-divisor witness**, recomputed with `cd_mult`: `e1+e10 · e4−e15 = 0` (all exact `Fraction(0,1)`), both factors nonzero (norm² 2), dim 16 — F424 made native + executable.
+- **[E] reversibility horizon, executable:** `is_division_algebra_dim` True for 1/2/4/8, False for 16/32; a nonzero **octonion**'s left-mult **is** invertible (no zero divisor ≤𝕆); the **sedenion** witness's left-mult is **not** invertible, with a **kernel of dim 4** (the y lives there).
+
+## Why it matters
+- **Natively replaces the framework's hand-rolled CD.** F442/F449/F451's `mul`/`cj`/zero-divisor checks were hand-rolled Python; 0.7.3rc1 provides them as exact srmech ops. The front-loader's "the algebra breaks at 𝕊, so CARRY by the code" (F449/F450) is now stated entirely in srmech-native calls.
+- **F451's reversibility horizon is now a one-line instrument.** "Where the bit-exact reversible language ends" (the 𝕆→𝕊 boundary, F451/F453, MFO-worthy) is `is_division_algebra_dim(dim)` at the rung level and `left_mult_is_invertible(x)` at the element level — the MFO horizon is *executable and exact*, strengthening the queued MFO-notebook entry.
+- **Closes the front-loader's algebra layer:** COUPLE (≤𝕆, `hypercomplex_couple`, 0.7.2) + CARRY (Hamming, 0.7.2) + the underlying CD algebra + zero-divisor/horizon detection (0.7.3rc1) are all native now.
+
+## Falsifiable form (pre-stated; not leaning — F394)
+- **rc, not production** — 0.7.3rc1 on TestPyPI; the clean (non-rc) `0.7.3` → production PyPI is the maintainer's human-gated cut. rc1 verified in a clean venv outside the source tree.
+- **The witness is srmech's OWN pair** (`e1+e10 · e4−e15`), not F424's (`e1+e10 · e5+e14`) — both are valid sedenion zero divisors (the zero-divisor set is large; left-mult kernel dim 4 here). Own-work-first per MPM, not a contradiction.
+- **Cleanup opportunity (not done):** F442/F449's hand-rolled CD scripts could be refactored to call the native `cd_*` ops — flagged, optional.
+- **Scope:** algebra/eigenbasis side; defensive / no-lineage; exact Fraction arithmetic; no CAD; no Workflow tool (inline acceptance run).
+
+## Verdict
+**srmech 0.7.3rc1 fully delivers the exact Cayley–Dickson algebra — 20/20, no bugs.** Multiply is correct up ℂ/ℍ/𝕆/𝕊, conjugation gives `x·x̄=N(x)·1` at every rung, composition `N(xy)=N(x)N(y)` holds through 𝕆 and **breaks at 𝕊** (the zero-divisor witness is the extreme failure), and the **𝕆→𝕊 reversibility horizon is now a callable, exact instrument** (`is_division_algebra_dim` / `left_mult_is_invertible` / `left_mult_kernel`). This makes native the framework's own hand-rolled CD (F442/F449), the sedenion zero divisor (F424), and — load-bearing for MFO — **F451/F453's reversibility horizon as executable code**. The front-loader's algebra layer (COUPLE ≤𝕆 + CARRY past + CD + zero-divisor detection) is now entirely srmech-native. Clean `0.7.3` → production is the maintainer's gate; rc1 verified. Favored, not privileged (F398); the witness is srmech's own pair, the hand-rolled-CD refactor is an optional cleanup.
