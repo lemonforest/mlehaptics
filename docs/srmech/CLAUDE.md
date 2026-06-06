@@ -28,10 +28,21 @@ beyond a single-file read.
   (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
   AMSC) remain in PyPI history.
 - **Version-narrative currency note (updated 2026-06-06):** the latest
-  clean (non-rc) cut is **`srmech==0.7.3`, live on production PyPI**
-  (graduated from `0.7.3rc1`; numpy OPTIONAL; native ABI 3; clean-verified
-  in a venv outside the source tree — `native_status().native_version=='0.7.3'`,
-  `has_native`/`dispatching` True). The **0.7.3** cut adds the exact
+  clean (non-rc) cut is **`srmech==0.7.4`, live on production PyPI**
+  (numpy OPTIONAL; native ABI 3; clean-verified in a venv outside the source
+  tree — `native_status().native_version=='0.7.4'`, `has_native`/`dispatching`
+  True). The **0.7.4** cut graduates the rc1/rc2 arc that drained the PR #687
+  upstream queue: **`srmech.amsc.cascade.sedenion_register.SedenionRegister`**
+  (§31 — the sedenion box as an addressable instrument: 16 named slots,
+  octonion working block `e0..e7` = the ≤7 reversible coupler word, `e8..e15`
+  = the Hamming carry block; `write`/`read`/`couple_working`/`uncouple_working`/
+  `carry`/`correct` + the genuinely-new **`navigate`** address↔Cayley–Dickson
+  homomorphism + **`is_navigable`** reversibility gate; F465/F468) plus three
+  candidate-additions — **`cascade.signed_sum_squared`** (§1.2, Class K∘L
+  coupling-score, no `abs()`), **`cascade.top_k_by_score`** (§1.3, Class E∘K
+  selection), **`hdc.bundle_with_ties`** (rbs_nn Note 1, Class-K bundle-tie).
+  All compositions over the 14-class vocabulary — **no new primitive class;
+  ABI stays 3**; `describe()` 248→252. The prior **0.7.3** cut added the exact
   (Fraction) **Cayley–Dickson** algebra `srmech.amsc.cascade.cayley_dickson`
   (PR #917 — `cd_mult`/`cd_conjugate`/`cd_norm_sq`/`cd_basis_product`,
   `is_division_algebra_dim`, `left_mult_is_invertible`/`left_mult_kernel`,
