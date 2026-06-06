@@ -108,6 +108,12 @@ _INCLUDED_MODULES: List[str] = [
     # ring-feature rows; the dual-author diff test asserts byte-stable
     # agreement.
     "saturn_rings_data.py",
+    # v0.30.0 — Saturn Ring System Catalog query surface (the temporal-
+    # spectrum catalog of a multi-regime body; promotes the staged
+    # saturn_rings_data dual-author fixture to a full query surface with
+    # the four-regime partition + (p:q) resonance closure invariant +
+    # bounded-local-Laplacian on the radial feature graph). Closes #153.
+    "saturn_rings_catalog.py",
     # AMSC framework — REMOVED in Task #197 Phase 4 (2026-05-13). The
     # framework (format / descriptor / catalog / gap_suggester +
     # attested_adapters/) now lives at srmech.amsc.* on PyPI and is

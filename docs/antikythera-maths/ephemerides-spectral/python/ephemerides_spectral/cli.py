@@ -1128,6 +1128,27 @@ def _cmd_loki_patera_eruption_cycle_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0 — Saturn Ring System CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_saturn_ring_features(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_saturn_ring_features(), pretty=args.pretty)
+
+
+def _cmd_ring_resonance_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_ring_resonance_closure(), pretty=args.pretty)
+
+
+def _cmd_ring_radial_laplacian(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_ring_radial_laplacian(), pretty=args.pretty)
+
+
+def _cmd_saturn_ring_features_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_saturn_ring_features(), pretty=args.pretty)
+
+
 # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
 
 def _cmd_cmb_power_at_ell(args: argparse.Namespace) -> int:
@@ -5056,6 +5077,96 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     lpecf.set_defaults(func=_cmd_loki_patera_eruption_cycle_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.30.0 — Saturn Ring System (temporal-spectrum catalog of a
+    # multi-regime body)
+    # ──────────────────────────────────────────────────────────────────
+
+    # saturn-ring-features
+    srf = sub.add_parser(
+        "saturn-ring-features",
+        help="Saturn ring system: 12 features + the four-regime partition",
+        description=(
+            "v0.30.0 -- Saturn ring system, a multi-regime body. The\n"
+            "12 catalogued ring features (boundaries, gaps, shepherd\n"
+            "moons, resonance anchors) partition across four of the\n"
+            "v0.24.x dynamical regimes:\n"
+            "\n"
+            "  rigid_body_action_angle_stable    (Cassini, Encke,\n"
+            "                                     Keeler, Pan, Daphnis)\n"
+            "  rigid_body_action_angle_mutual_lock (A-ring edge, 7:6\n"
+            "                                     Janus-Epimetheus)\n"
+            "  temporal_quasi_periodic_cycle      (F-ring core +\n"
+            "                                     Prometheus/Pandora)\n"
+            "  bounded_local_laplacian_family     (B/C-ring boundaries)\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral saturn-ring-features --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    srf.set_defaults(func=_cmd_saturn_ring_features)
+
+    # ring-resonance-closure (THE headline)
+    rrc = sub.add_parser(
+        "ring-resonance-closure",
+        help="(p:q) mean-motion resonance closure invariant (the headline)",
+        description=(
+            "v0.30.0 headline. Integer inner-Lindblad commensura-\n"
+            "bilities predict the observed ring boundaries from the\n"
+            "perturbing moons' semi-major axes:\n"
+            "\n"
+            "  a_res = a_moon * (q/p)^(2/3)\n"
+            "\n"
+            "  Cassini Division inner edge : 2:1 Mimas\n"
+            "  A-ring outer edge           : 7:6 Janus-Epimetheus\n"
+            "\n"
+            "Predicts to <1%; the sub-percent residual is bounded by\n"
+            "the leading Saturn-J2 epicyclic-frequency correction\n"
+            "(3/2) J2 (R/a)^2 -- the oblateness signature. The ring-\n"
+            "system analogue of Luna's Saros triple and the Sun's\n"
+            "Tassoul asymptotic relation.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral ring-resonance-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rrc.set_defaults(func=_cmd_ring_resonance_closure)
+
+    # ring-radial-laplacian
+    rrl = sub.add_parser(
+        "ring-radial-laplacian",
+        help="Bounded-local-Laplacian eigenbasis on the radial feature graph",
+        description=(
+            "Builds the Gaussian-proximity graph Laplacian on the 12\n"
+            "ring features ordered by radial distance and reads its\n"
+            "Fiedler eigenpair (the v0.24.5 Hawaii bounded-local\n"
+            "machinery on ring radii). The Fiedler vector bisects the\n"
+            "ring system at its largest radial gap -- the ~25,000 km\n"
+            "seam between the C/B-ring inner edges and the Cassini\n"
+            "Division and everything outward. Same eigenbasis machinery\n"
+            "as v0.18.0 body_architecture."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rrl.set_defaults(func=_cmd_ring_radial_laplacian)
+
+    # saturn-ring-features-full
+    srff = sub.add_parser(
+        "saturn-ring-features-full",
+        help="Full Saturn ring-system feature enumeration + citations",
+        description=(
+            "Returns every ring feature + the citation dict so\n"
+            "consumers can verify the provenance (Tiscareno 2013\n"
+            "ring-structure review; Showalter 1991 Pan; Porco 2005\n"
+            "Daphnis; Spitale & Porco 2009 F-ring; Murray-Dermott 1999\n"
+            "Lindblad derivations; JPL SSD moon mean elements)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    srff.set_defaults(func=_cmd_saturn_ring_features_full)
 
     # ──────────────────────────────────────────────────────────────────
     # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies

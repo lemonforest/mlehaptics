@@ -296,6 +296,12 @@ from ephemerides_spectral._research.loki_patera_catalog import (
     list_loki_patera_eruption_cycle
         as _list_loki_patera_eruption_cycle_impl,
 )
+from ephemerides_spectral._research.saturn_rings_catalog import (
+    get_saturn_ring_features as _get_saturn_ring_features_impl,
+    get_ring_resonance_closure as _get_ring_resonance_closure_impl,
+    get_ring_radial_laplacian as _get_ring_radial_laplacian_impl,
+    list_saturn_ring_features as _list_saturn_ring_features_impl,
+)
 from ephemerides_spectral._research.cmb_power_spectrum_catalog import (
     get_cmb_power_at_ell as _get_cmb_power_at_ell_impl,
     get_cmb_first_acoustic_peak as _get_cmb_first_acoustic_peak_impl,
@@ -4898,6 +4904,65 @@ def list_loki_patera_eruption_cycle() -> Dict[str, Any]:
     """Full enumeration of Loki Patera cycle peaks + modes +
     citations."""
     return _list_loki_patera_eruption_cycle_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0 — Saturn Ring System Catalog (temporal-spectrum catalog of a
+# multi-regime body). The staged dual-author ring data (12 RingFeature
+# rows) promoted to a full query surface: the four-regime partition, the
+# (p:q) mean-motion resonance closure invariant (integer commensura-
+# bilities predict the observed ring boundaries to <1%, residual bounded
+# by the leading Saturn-J2 oblateness correction), and the bounded-local
+# Laplacian eigenbasis on the radial feature graph (v0.24.5 Hawaii
+# machinery on ring radii). Pure-Python; computed at query time. Closes
+# task #153.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_saturn_ring_features() -> Dict[str, Any]:
+    """Saturn ring system — 12 features + the four-regime partition +
+    ring-system constants.
+
+    The multi-regime headline of v0.30.0: the ring features span four
+    of the v0.24.x dynamical regimes (rigid-body action-angle stable /
+    Janus-Epimetheus mutual-lock / temporal quasi-periodic F-ring /
+    bounded-local-Laplacian B/C boundaries), each named by the
+    feature's ``regime_label``.
+    """
+    return _get_saturn_ring_features_impl()
+
+
+def get_ring_resonance_closure() -> Dict[str, Any]:
+    """The (p:q) mean-motion resonance closure invariant — THE headline
+    of v0.30.0.
+
+    Integer inner-Lindblad commensurabilities (Cassini Division 2:1
+    Mimas; A-ring outer edge 7:6 Janus-Epimetheus) predict the observed
+    ring boundaries from the moons' semi-major axes (``a_moon ·
+    (q/p)^(2/3)``) to <1%; the sub-percent residual is bounded by the
+    leading Saturn-J2 epicyclic-frequency correction ``(3/2) J2 (R/a)^2``
+    — the oblateness signature. The ring-system analogue of Luna's Saros
+    triple and the Sun's Tassoul asymptotic relation.
+    """
+    return _get_ring_resonance_closure_impl()
+
+
+def get_ring_radial_laplacian() -> Dict[str, Any]:
+    """Bounded-local-Laplacian eigenbasis on the ring radial feature
+    graph (v0.24.5 Hawaii machinery on ring radii).
+
+    The Fiedler vector bisects the ring system at its largest radial
+    gap — the ~25 000 km seam between the C/B-ring inner edges and the
+    Cassini Division and everything outward. Same eigenbasis machinery
+    as v0.18.0 body_architecture and v0.24.5 Hawaii, on a single body's
+    ring structure.
+    """
+    return _get_ring_radial_laplacian_impl()
+
+
+def list_saturn_ring_features() -> Dict[str, Any]:
+    """Full enumeration of Saturn ring-system features + citations."""
+    return _list_saturn_ring_features_impl()
 
 
 # ──────────────────────────────────────────────────────────────────────

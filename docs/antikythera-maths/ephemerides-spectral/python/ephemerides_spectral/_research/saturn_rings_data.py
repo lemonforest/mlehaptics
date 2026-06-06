@@ -338,6 +338,14 @@ SOURCES: Dict[str, str] = {
         "Cambridge University Press. ISBN 978-0521575973. "
         "Textbook reference for Lindblad resonance derivations."
     ),
+    "jpl_ssd_sat_elements": (
+        "JPL Solar System Dynamics, Planetary Satellite Mean Orbital "
+        "Parameters (ssd.jpl.nasa.gov/sats/elem). Mean semi-major axes "
+        "for Mimas (ephemeris SAT441) and the Janus-Epimetheus "
+        "co-orbital pair (SAT415), epoch 2000-01-01.5 TDB. Cited by the "
+        "v0.30.0 catalogue (saturn_rings_catalog) for the perturbing "
+        "moons' semi-major axes in the (p:q) resonance closure invariant."
+    ),
 }
 
 

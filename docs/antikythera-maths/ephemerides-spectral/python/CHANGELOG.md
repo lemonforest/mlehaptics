@@ -10,6 +10,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc1] — 2026-06-05
+
+### Added — Saturn Ring System Catalog (multi-regime body; closes task #153)
+
+The staged dual-author Saturn-ring data (the 12 `RingFeature` rows in
+`_research/saturn_rings_data.py`, already mirrored to the AMSC NDJSON at
+`research/attested/saturn_rings/`) is promoted from a dual-author parity
+fixture to a full **query surface** — the temporal-spectrum catalogue of
+a **multi-regime body**, the next entry in the v0.24.x per-body
+dynamical-spectrum family.
+
+- **`_research/saturn_rings_catalog.py`** (new) — the query surface:
+  - `get_saturn_ring_features()` — the 12 features + the **four-regime
+    partition** (the v0.24.x dynamical regimes, now spanning one body's
+    rings): `rigid_body_action_angle_stable` (Cassini Division, Encke,
+    Keeler, Pan, Daphnis, the Mimas anchor), `rigid_body_action_angle_mutual_lock`
+    (A-ring outer edge, 7:6 with the Janus–Epimetheus co-orbital pair),
+    `temporal_quasi_periodic_cycle` (F-ring core + Prometheus/Pandora
+    shepherds), `bounded_local_laplacian_family` (B/C-ring boundaries).
+  - `get_ring_resonance_closure()` — **THE closure invariant**: the
+    naïve-Kepler `(p:q)` inner-Lindblad resonance locations
+    `a_res = a_moon · (q/p)^(2/3)` predict the observed Cassini-Division
+    (2:1 Mimas, 0.59% residual) and A-ring (7:6 Janus–Epimetheus, 0.08%
+    residual) boundaries to under 1%, with each residual **bounded by the
+    leading Saturn-J₂ epicyclic-frequency correction** `(3/2) J₂ (R/a)²`
+    (the oblateness signature). The ring-system analogue of Luna's Saros
+    triple and the Sun's Tassoul asymptotic relation. The Mimas 2:1
+    resonance-anchor row cross-checks the fresh computation to < 0.1%.
+  - `get_ring_radial_laplacian()` — the **bounded-local-Laplacian**
+    eigenbasis on the radial feature graph (the v0.24.5 Hawaii machinery
+    on ring radii): the Fiedler vector bisects the system at its largest
+    radial gap (~24,930 km, the C/B inner edges vs the Cassini-and-outward
+    features), with a single sign change along the radial ordering.
+  - `list_saturn_ring_features()` — full enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (`get_saturn_ring_features` /
+  `get_ring_resonance_closure` / `get_ring_radial_laplacian` /
+  `list_saturn_ring_features`), all classified `python_only` in
+  `test_parity_smoke.PARITY_TARGETS` (computed at query time; no encoder
+  surface, no C twin).
+- **`cli.py`** — 4 new subcommands: `saturn-ring-features`,
+  `ring-resonance-closure`, `ring-radial-laplacian`,
+  `saturn-ring-features-full`.
+- **`tests/test_saturn_rings_catalog.py`** (new, 34 tests) — roster /
+  regime-partition / closure-invariant / J₂-bound / radial-Laplacian /
+  bridge / CLI ratchets.
+
+### Provenance
+
+- Saturn J₂ (`1.6290573e-2`, unnormalised) and the gravity-expansion
+  reference radius are **reused from the in-repo Geodetic Catalog**
+  (`GRAVITY_MODELS['saturn']`, Cassini-Iess-2019) — own-work-primary
+  attestation, no new external source, and the ring closure invariant can
+  never drift from the geodetic value.
+- The perturbing moons' semi-major axes (Mimas, Janus, Epimetheus) are
+  attested to JPL SSD planetary-satellite mean elements (SAT441 / SAT415,
+  epoch 2000-01-01.5 TDB); `saturn_rings_data.SOURCES` 5 → 6.
+
+### Scope
+
+Algebra / eigenbasis side per `docs/antikythera-maths/CLAUDE.md`: rational
+`(p:q)` mean-motion locks, a first-order J₂ oblateness scale, and a
+graph-Laplacian spectrum on the radial feature positions. **Not** a
+particle-collision / self-gravity-wake / viscous-spreading
+microsimulation.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10` unchanged). The dual-author
+  parity fixture (`saturn_rings_data` ↔ AMSC NDJSON) and its diff test are
+  untouched. New minor `0.29.3rc3` → `0.30.0rc1` carries the srmech
+  `>=0.7.1` dependency floor forward from the un-graduated 0.29.3 rc
+  series. Rc cycles through TestPyPI only.
+
 ## [0.29.3rc3] — 2026-06-05
 
 ### Changed

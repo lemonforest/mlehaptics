@@ -500,9 +500,13 @@
       "sha256": "6e4ee02d5f165d0b2e1807805a520443ed4ccdb9b781df13196fc181bc01385c",
       "size_bytes": 13382
     },
+    "_research/saturn_rings_catalog.py": {
+      "sha256": "88363e6c2aa44fd687b99d820a6982729a040b0dd1044d9bbb4f31980c133ac4",
+      "size_bytes": 18991
+    },
     "_research/saturn_rings_data.py": {
-      "sha256": "5ba6dda5757e9cfda3e3c447698826097c5b62a20b60f0ba8218d9daabe90b6e",
-      "size_bytes": 16484
+      "sha256": "571345f9ba87447e7af3506895b2e398c1e08732671cc2a07104e88b351f8178",
+      "size_bytes": 16950
     },
     "_research/secular_elements_data.py": {
       "sha256": "2e28a361027fe37d3eed145eb99a404461b6c312be2ad4485004a22ed3b9e13c",
@@ -590,5 +594,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.29.3rc3"
+  "version": "0.30.0rc1"
 }
