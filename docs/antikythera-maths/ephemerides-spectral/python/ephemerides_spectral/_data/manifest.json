@@ -9,8 +9,8 @@
       "size_bytes": 318
     },
     "_research/_cascade.py": {
-      "sha256": "3d32ce74513cf3501cac85eefb827b00e5f0769aca1f27d42a82c261f5ae7df6",
-      "size_bytes": 9062
+      "sha256": "fb471568cde2ccd5175abc80c13dcdd58c4fae460853a9c50daaf0bb08492f20",
+      "size_bytes": 10658
     },
     "_research/admittance_catalog.py": {
       "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
@@ -349,8 +349,8 @@
       "size_bytes": 27022
     },
     "_research/dynamical_regime_catalog.py": {
-      "sha256": "2dec0dd043e176379f88d6000f761cef0f87487aaa015f729edb277471221d21",
-      "size_bytes": 21563
+      "sha256": "480b92cfdbbd3aeb03bf6672c92e96cfb6d3403c38c866498babef8254b78b91",
+      "size_bytes": 24251
     },
     "_research/dynamical_regime_data.py": {
       "sha256": "e14ca6b10b90f665bc29389eab6b2db96337cff01da9267100e450adad9c6ec9",
@@ -638,5 +638,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc5"
+  "version": "0.30.0rc6"
 }
