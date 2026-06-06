@@ -224,6 +224,30 @@
       "sha256": "88e6c28938d3eae9f581775b7f2f71edd0f23f140378af5c12f07f757832c44c",
       "size_bytes": 4847
     },
+    "_research/attested/solar_cycle/descriptor.toml": {
+      "sha256": "63d2c2b8c445e85e6c1dc57f3f6af4bff731745571d14823280d1ea116394059",
+      "size_bytes": 3276
+    },
+    "_research/attested/solar_cycle/solar_cycle.ndjson": {
+      "sha256": "7ff5da1ad275db22a697cd0f2d14f60db975c0589467120dcd6e468eca760400",
+      "size_bytes": 1436
+    },
+    "_research/attested/solar_cycle/solar_cycle.schema.json": {
+      "sha256": "78c0feb59b4982a78128d80f0e3822e4ff2ebd05689ee072a522052241e306c6",
+      "size_bytes": 2877
+    },
+    "_research/attested/solar_rotation/descriptor.toml": {
+      "sha256": "a38b2b6f93fa5204243d1c0366ec7616f8f7f42865b1f3585a961610906dcccd",
+      "size_bytes": 3376
+    },
+    "_research/attested/solar_rotation/rotation_anchor.ndjson": {
+      "sha256": "765389c8494cbf420d31fe23dc3d04d96141ba85ad74d10b2f833903911123f2",
+      "size_bytes": 2206
+    },
+    "_research/attested/solar_rotation/rotation_anchor.schema.json": {
+      "sha256": "1c09d6255ee6425bade75676a16e3402123e1d6563fde0d713f172528123561e",
+      "size_bytes": 3829
+    },
     "_research/attested/sun_dynamical_spectrum/descriptor.toml": {
       "sha256": "8988232361e844222e88917c206d6c2f8bbbf6a1ada86c1cb77d63e1574c5360",
       "size_bytes": 3059
@@ -529,16 +553,16 @@
       "size_bytes": 6671
     },
     "_research/solar_cycle_data.py": {
-      "sha256": "6e0e84a3c29ae7e24633f1c672e21a3f9c6e8b47a7b5c59a84b7759d612b09fe",
-      "size_bytes": 5897
+      "sha256": "42e07890f309ebac49e42c58454905e641a1920e83c5be1ea00dce5b1077b890",
+      "size_bytes": 7416
     },
     "_research/solar_rotation_catalog.py": {
       "sha256": "3d836d8f37deb66a20aecb53688785dd482972d337a589ad7321c33e2f9c83d8",
       "size_bytes": 9476
     },
     "_research/solar_rotation_data.py": {
-      "sha256": "6cc8aad5cc8c439f25079fe39a4b99d7349d2ffba0c3d60ec9a51bd0827bb221",
-      "size_bytes": 8350
+      "sha256": "217cba52e2ca545ea80804a4ec0ea531846c6a5254c0106d396e9c42d9747fd8",
+      "size_bytes": 9981
     },
     "_research/spherical_harmonic_catalog.py": {
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
@@ -614,5 +638,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc3"
+  "version": "0.30.0rc4"
 }

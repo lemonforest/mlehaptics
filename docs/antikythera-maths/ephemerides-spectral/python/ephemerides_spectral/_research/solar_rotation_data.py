@@ -109,6 +109,16 @@ class RotationAnchor:
     ``radius_r_sun`` is the fractional radius (None for a surface-only
     latitude anchor). ``sidereal_period_days`` is the local sidereal
     rotation period; ``regime`` names the dynamical regime.
+
+    Per-row provenance (``source_doi`` / ``source_published_date`` /
+    ``entered_locally_at`` / ``source_version``) mirrors the
+    ``solar_rotation.rotation_anchor.v1`` JSON Schema so this hand-coded
+    path and the AMSC literature_curated path at
+    ``research/attested/solar_rotation/`` dual-author the same rows
+    (the v0.30.0rc4 dual-author exercise; cf. saturn_rings). The DOIs +
+    dates are triality-attested (haiku/sonnet/opus vs ADS/IOP/arXiv);
+    dates are written at the granularity all three externally confirmed
+    (month where unanimous, else year).
     """
 
     region: str
@@ -117,7 +127,11 @@ class RotationAnchor:
     sidereal_period_days: float
     regime: str
     source_key: str
+    source_doi: str
+    source_published_date: str
+    entered_locally_at: str
     notes: str
+    source_version: Optional[str] = None
 
 
 #: Internal + surface rotation anchors. The two convection-zone surface
@@ -131,6 +145,9 @@ ROTATION_ANCHORS: List[RotationAnchor] = [
         sidereal_period_days=24.47,
         regime="differential_convection_zone",
         source_key="snodgrass_ulrich_1990",
+        source_doi="10.1086/168467",
+        source_published_date="1990-03",
+        entered_locally_at="2026-06-06",
         notes="Equatorial surface sidereal period 360/A = 360/14.713 = 24.47 d (fastest).",
     ),
     RotationAnchor(
@@ -140,6 +157,9 @@ ROTATION_ANCHORS: List[RotationAnchor] = [
         sidereal_period_days=34.19,
         regime="differential_convection_zone",
         source_key="snodgrass_ulrich_1990",
+        source_doi="10.1086/168467",
+        source_published_date="1990-03",
+        entered_locally_at="2026-06-06",
         notes="Polar surface sidereal period 360/(A+B+C) = 360/10.530 = 34.19 d (slowest).",
     ),
     RotationAnchor(
@@ -149,6 +169,9 @@ ROTATION_ANCHORS: List[RotationAnchor] = [
         sidereal_period_days=27.0,
         regime="shear_boundary",
         source_key="schou_1998",
+        source_doi="10.1086/306146",
+        source_published_date="1998",
+        entered_locally_at="2026-06-06",
         notes="The thin shear layer between the differential convection zone and the rigid radiative interior; the dynamo seat. Mean rate ~27 d.",
     ),
     RotationAnchor(
@@ -158,6 +181,9 @@ ROTATION_ANCHORS: List[RotationAnchor] = [
         sidereal_period_days=26.9,
         regime="rigid_body",
         source_key="schou_1998",
+        source_doi="10.1086/306146",
+        source_published_date="1998",
+        entered_locally_at="2026-06-06",
         notes="Below the tachocline the interior rotates nearly rigidly at ~432 nHz (~26.9 d sidereal), independent of latitude (Schou 1998; Howe 2009).",
     ),
 ]
@@ -192,7 +218,12 @@ SOURCES: Dict[str, str] = {
 
 
 def anchor_to_data_dict(anchor: RotationAnchor) -> Dict[str, object]:
-    """Convert a RotationAnchor to a plain dict for the catalogue."""
+    """Convert a RotationAnchor to the same dict shape that
+    ``bridge.get_attested_dataset('solar_rotation')`` returns in each
+    row's ``data`` block (key order matches the
+    ``solar_rotation.rotation_anchor.v1`` JSON Schema). Used by the
+    dual-author diff test to normalise the two paths before comparison.
+    """
     return {
         "region": anchor.region,
         "radius_r_sun": anchor.radius_r_sun,
@@ -200,6 +231,10 @@ def anchor_to_data_dict(anchor: RotationAnchor) -> Dict[str, object]:
         "sidereal_period_days": anchor.sidereal_period_days,
         "regime": anchor.regime,
         "source_key": anchor.source_key,
+        "source_doi": anchor.source_doi,
+        "source_published_date": anchor.source_published_date,
+        "entered_locally_at": anchor.entered_locally_at,
+        "source_version": anchor.source_version,
         "notes": anchor.notes,
     }
 

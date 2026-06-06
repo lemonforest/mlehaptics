@@ -81,13 +81,27 @@ class SolarCycle:
 
     ``length_years`` is None for the ongoing cycle. ``start_year`` is
     the cycle-minimum epoch (decimal year).
+
+    Per-row provenance (``source_doi`` / ``source_published_date`` /
+    ``entered_locally_at`` / ``source_version``) mirrors the
+    ``solar_cycle.solar_cycle.v1`` JSON Schema so this hand-coded path
+    and the AMSC literature_curated path at
+    ``research/attested/solar_cycle/`` dual-author the same rows (the
+    v0.30.0rc4 dual-author exercise). The DOIs + dates are
+    triality-attested (haiku/sonnet/opus vs ADS/arXiv); dates are
+    written at year granularity (the value all three externally
+    confirmed — the panel declined to over-claim publisher month/day).
     """
 
     number: int
     start_year: float
     length_years: Optional[float]
     source_key: str
+    source_doi: str
+    source_published_date: str
+    entered_locally_at: str
     notes: str
+    source_version: Optional[str] = None
 
 
 #: The most recent solar cycles (cycle-minimum to cycle-minimum).
@@ -97,6 +111,9 @@ SOLAR_CYCLES: List[SolarCycle] = [
         start_year=1996.4,
         length_years=12.3,
         source_key="hathaway_2015",
+        source_doi="10.1007/lrsp-2015-4",
+        source_published_date="2015",
+        entered_locally_at="2026-06-06",
         notes="Minimum 1996.4 to 2008.96; a long cycle (~12.3 yr), the deep 2008-2009 minimum.",
     ),
     SolarCycle(
@@ -104,6 +121,9 @@ SOLAR_CYCLES: List[SolarCycle] = [
         start_year=2008.96,
         length_years=11.0,
         source_key="hathaway_2015",
+        source_doi="10.1007/lrsp-2015-4",
+        source_published_date="2015",
+        entered_locally_at="2026-06-06",
         notes="Minimum 2008.96 to 2019.96; a weak cycle (lowest peak amplitude in a century).",
     ),
     SolarCycle(
@@ -111,6 +131,9 @@ SOLAR_CYCLES: List[SolarCycle] = [
         start_year=2019.96,
         length_years=None,
         source_key="clette_2014",
+        source_doi="10.1007/s11214-014-0074-2",
+        source_published_date="2014",
+        entered_locally_at="2026-06-06",
         notes="Ongoing from the 2019.96 minimum; SILSO-tracked sunspot number.",
     ),
 ]
@@ -142,12 +165,21 @@ SOURCES: Dict[str, str] = {
 
 
 def cycle_to_data_dict(cycle: SolarCycle) -> Dict[str, object]:
-    """Convert a SolarCycle to a plain dict for the catalogue."""
+    """Convert a SolarCycle to the same dict shape that
+    ``bridge.get_attested_dataset('solar_cycle')`` returns in each row's
+    ``data`` block (key order matches the ``solar_cycle.solar_cycle.v1``
+    JSON Schema). Used by the dual-author diff test to normalise the two
+    paths before comparison.
+    """
     return {
         "number": cycle.number,
         "start_year": cycle.start_year,
         "length_years": cycle.length_years,
         "source_key": cycle.source_key,
+        "source_doi": cycle.source_doi,
+        "source_published_date": cycle.source_published_date,
+        "entered_locally_at": cycle.entered_locally_at,
+        "source_version": cycle.source_version,
         "notes": cycle.notes,
     }
 

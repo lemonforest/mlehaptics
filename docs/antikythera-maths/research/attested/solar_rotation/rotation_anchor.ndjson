@@ -1,0 +1,13 @@
+# Sol Solar Rotation bootstrap catalogue.
+# Each line below is one MPR row's data block (NDJSON). Lines starting
+# with '#' or empty lines are skipped by the literature_curated adapter.
+#
+# 4 rotation anchors: 2 Snodgrass-Ulrich 1990 surface evaluations
+# (equator / pole) + 2 Schou 1998 helioseismic interior anchors
+# (tachocline shear + near-rigid radiative interior). Per-row source
+# DOIs triality-attested; dates at the granularity all three tiers
+# externally confirmed (month for Snodgrass-Ulrich, year for Schou).
+{"region": "convection_zone_equator_surface", "radius_r_sun": 1.0, "latitude_deg": 0.0, "sidereal_period_days": 24.47, "regime": "differential_convection_zone", "source_key": "snodgrass_ulrich_1990", "source_doi": "10.1086/168467", "source_published_date": "1990-03", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Equatorial surface sidereal period 360/A = 360/14.713 = 24.47 d (fastest)."}
+{"region": "convection_zone_pole_surface", "radius_r_sun": 1.0, "latitude_deg": 90.0, "sidereal_period_days": 34.19, "regime": "differential_convection_zone", "source_key": "snodgrass_ulrich_1990", "source_doi": "10.1086/168467", "source_published_date": "1990-03", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Polar surface sidereal period 360/(A+B+C) = 360/10.530 = 34.19 d (slowest)."}
+{"region": "tachocline", "radius_r_sun": 0.7, "latitude_deg": null, "sidereal_period_days": 27.0, "regime": "shear_boundary", "source_key": "schou_1998", "source_doi": "10.1086/306146", "source_published_date": "1998", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "The thin shear layer between the differential convection zone and the rigid radiative interior; the dynamo seat. Mean rate ~27 d."}
+{"region": "radiative_interior", "radius_r_sun": 0.4, "latitude_deg": null, "sidereal_period_days": 26.9, "regime": "rigid_body", "source_key": "schou_1998", "source_doi": "10.1086/306146", "source_published_date": "1998", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Below the tachocline the interior rotates nearly rigidly at ~432 nHz (~26.9 d sidereal), independent of latitude (Schou 1998; Howe 2009)."}
