@@ -676,6 +676,28 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.30.0 Sol Saturn Ring System Catalog (temporal-spectrum
+    # catalogue of a multi-regime body; the staged dual-author ring data
+    # promoted to a query surface — four-regime partition + (p:q)
+    # resonance closure invariant + bounded-local-Laplacian on the radial
+    # feature graph). Pure-Python; computed at query time from the 12-row
+    # roster. No C twin makes sense.
+    "get_saturn_ring_features": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_ring_resonance_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_ring_radial_laplacian": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_saturn_ring_features": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── First cosmology-instrument pair — cmb_power_spectrum +
     # cmb_anomalies. Pure-Python query surfaces over committed NDJSON;
     # no encoder-touching, no C twin makes sense.
