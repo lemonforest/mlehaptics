@@ -436,6 +436,39 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_dense_solve_f64.restype = ctypes.c_int
 
+    # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
+    # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
+    # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).
+    #   int srmech_hamming_encode(const uint8_t *data, size_t k, int n,
+    #                             uint8_t *out_codeword)
+    if hasattr(lib, "srmech_hamming_encode"):
+        lib.srmech_hamming_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # data (k bits)
+            ctypes.c_size_t,                    # k
+            ctypes.c_int,                       # n (parity-bit count)
+            ctypes.POINTER(ctypes.c_uint8),     # out_codeword (2^n-1 bits)
+        ]
+        lib.srmech_hamming_encode.restype = ctypes.c_int
+    #   int srmech_hamming_syndrome(const uint8_t *codeword, size_t len,
+    #                               int *out_pos)
+    if hasattr(lib, "srmech_hamming_syndrome"):
+        lib.srmech_hamming_syndrome.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # codeword (len bits)
+            ctypes.c_size_t,                    # len
+            ctypes.POINTER(ctypes.c_int),       # out_pos (1-indexed; 0 clean)
+        ]
+        lib.srmech_hamming_syndrome.restype = ctypes.c_int
+    #   int srmech_hamming_decode_correct(const uint8_t *codeword, size_t len,
+    #                                     uint8_t *out_data, int *out_pos)
+    if hasattr(lib, "srmech_hamming_decode_correct"):
+        lib.srmech_hamming_decode_correct.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # codeword (len bits)
+            ctypes.c_size_t,                    # len
+            ctypes.POINTER(ctypes.c_uint8),     # out_data (len-n bits)
+            ctypes.POINTER(ctypes.c_int),       # out_pos
+        ]
+        lib.srmech_hamming_decode_correct.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------

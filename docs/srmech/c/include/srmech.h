@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 2
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.7.2rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.7.2rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1701,6 +1701,53 @@ srmech_status_t srmech_bus_send_recv(
 
 /* Close the client + free its handle. After return, h is invalid. */
 srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
+
+/* --------------------------------------------------------------------
+ * Hamming / GF(2) linear block-code family (#910 / §30; F442/F449).
+ *
+ * The CARRY/EC half of the sedenion front-loader: a 2^n-1 single-error-
+ * correcting Hamming code, lean-ALU XOR-native (GF(2) add = parity = XOR;
+ * no float, no libm, no malloc). Canonical 1-indexed construction: codeword
+ * length N = 2^n - 1, parity bits at the power-of-two positions; the syndrome
+ * IS the 1-indexed position of the single flipped bit (0 = clean). Distance 3
+ * => corrects any single-bit error. Hamming(7,4) is the octonion's own Fano
+ * plane (F441). Rosetta peer of srmech.amsc.cascade.hamming_* — attested
+ * bit-exact by tests/test_cascade_hamming_parity.py.
+ *
+ * ABI-additive: new symbols + one macro, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Upper bound on the parity-bit count n (codeword 2^n - 1 <= 65535). Shared
+ * with the Python surface (srmech.amsc.cascade.hamming.HAMMING_MAX_N). */
+#define SRMECH_HAMMING_MAX_N 16
+
+/* Encode k = (2^n - 1) - n data bits (each 0/1) into a 2^n-1-bit codeword.
+ *   data         : k input bits (0/1), caller-owned.
+ *   k            : MUST equal (2^n - 1) - n.
+ *   n            : parity-bit count, 2 <= n <= SRMECH_HAMMING_MAX_N.
+ *   out_codeword : caller-owned, length 2^n - 1; receives the codeword.
+ * Errors: SRMECH_ERR_NULL_ARG (null ptr); SRMECH_ERR_BAD_INPUT (n out of
+ * range, k mismatch, or a non-0/1 data bit). */
+srmech_status_t srmech_hamming_encode(const uint8_t *data, size_t k, int n,
+                                      uint8_t *out_codeword);
+
+/* Compute the syndrome (1-indexed flipped-bit position; 0 = clean).
+ *   codeword : len bits (0/1); len MUST be of the form 2^n - 1.
+ *   len      : codeword length.
+ *   out_pos  : receives the 1-indexed error position (0 if clean).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (len not 2^n-1 in range,
+ * or a non-0/1 bit). */
+srmech_status_t srmech_hamming_syndrome(const uint8_t *codeword, size_t len,
+                                        int *out_pos);
+
+/* Locate + correct any single-bit error and recover the data payload.
+ *   codeword : len bits (0/1), len = 2^n - 1.
+ *   len      : codeword length.
+ *   out_data : caller-owned, length len - n; receives the k corrected data bits.
+ *   out_pos  : receives the 1-indexed error position (0 if clean).
+ * Single-error-correcting (distance 3). Errors as srmech_hamming_syndrome. */
+srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t len,
+                                              uint8_t *out_data, int *out_pos);
 
 #ifdef __cplusplus
 }
