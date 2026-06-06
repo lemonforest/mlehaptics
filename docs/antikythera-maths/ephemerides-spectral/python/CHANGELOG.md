@@ -10,6 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc5] — 2026-06-06
+
+### Changed — cascade-compute refactor: hawaii_chain + mars_tharsis
+
+The 4th + 5th catalogues to route their continuous-math through the
+shared `_research/_cascade.py` helper (srmech's 14-class ops) instead
+of raw `numpy` / `math`, after the rc3 Saturn-ring + solar-rotation
+refactor. The Hawaiian-Emperor seamount chain (v0.24.5) and Mars
+Tharsis volcanic chain (v0.24.7) are structurally identical: haversine
+distances + a Gaussian-proximity graph-Laplacian Fiedler partition + a
+degree-1 line fit.
+
+- **`_research/_cascade.py`** — new helpers:
+  - `sin` / `cos` / `atan2` (radian-input Class-N rational, re-exporting
+    `srmech.amsc.rational`).
+  - `great_circle_distance_km(lat1, lon1, lat2, lon2, radius_km)` — the
+    haversine, transcendental core via the Class-N cascade.
+  - `gaussian_eigs_from_pairs(n, pair_distances, sigma)` — the
+    distance-metric generalisation of `gaussian_proximity_eigs`
+    (Class-L `srmech.amsc.laplacian` build + `symmetric_eigendecompose`),
+    for graphs whose edge length is a great-circle distance, not a 1-D
+    coordinate difference. Replaces `np.linalg.eigh` on a hand-built `L`.
+  - `linfit(xs, ys)` — closed-form OLS `(slope, intercept)`, the
+    degree-1 `np.polyfit` replacement (normal-equation arithmetic, no
+    SVD, no numpy).
+- **`hawaii_chain_catalog.py`** — haversine → `_cascade`; the two
+  `np.linalg.eigh` Fiedler sites → `_cascade.gaussian_eigs_from_pairs`
+  (Meiji sign-pin preserved); the two `np.polyfit` slope/residual fits
+  → `_cascade.linfit`; `math.isnan` → `m == m`. Drops `import math` /
+  `import numpy`.
+- **`mars_tharsis_catalog.py`** — the same refactor (Mars radius;
+  Olympus-Mons sign-pin; ridge `lon = a·lat + b` fit → `_cascade.linfit`).
+
+Bit-equivalent to the prior values — the Fiedler partitions, λ₂/λ₃
+eigenvalue gaps, the post-bend Pacific-plate velocity slope, and the
+Olympus/Alba ridge residuals are unchanged within float round-off, so
+**no test thresholds moved**. The change is *which engine* computes the
+continuous-math, per the srmech v0.7.0 thesis (every continuous-math op
+a cascade of the 14).
+
+### Scope
+
+dynamical_regime (the covariance-PCA classifier) is **deferred to its
+own rc** — its calibration-ratio + OOS-probe tests are sensitive to the
+exact eigenbasis, a materially more delicate refactor than the
+Gaussian-Laplacian Fiedler one shipped here.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc4` → `0.30.0rc5` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc4] — 2026-06-06
 
 ### Added — attested-TOML dual-author for solar_rotation + solar_cycle
