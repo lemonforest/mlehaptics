@@ -92,6 +92,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # submodule-dotted name is the same object re-exported flat, exempt
     # exactly like cyclic_gcd / kuramoto_step above.
     "srmech.amsc.cascade.compose.autocorrelation",
+    # cascade.compose.{signed_sum_squared,top_k_by_score} (v0.7.4rc2; PR #687
+    # §1.2/§1.3). Registered under their flat ``srmech.amsc.cascade.*`` names
+    # (which ARE registered); the submodule-dotted names are the same objects
+    # re-exported flat, exempt exactly like cyclic_gcd / autocorrelation above.
+    "srmech.amsc.cascade.compose.signed_sum_squared",
+    "srmech.amsc.cascade.compose.top_k_by_score",
     # cascade.hypercomplex_dft.* — the quaternion/octonion DFT composites
     # (v0.7.0rc31 / #863). Registered under their STABLE flat public names
     # ``srmech.amsc.cascade.quaternion_dft`` / ``octonion_dft`` (which ARE

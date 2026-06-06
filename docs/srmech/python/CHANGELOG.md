@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.4rc2] - 2026-06-06
+
+**Three RBS-LM UPSTREAM_NOTES candidate-additions** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) §1.2 / §1.3 / rbs_nn Note 1) — the still-open, non-stale gaps from the research branch, each a pure composition over the 14-class vocabulary (no new primitive class; ABI stays **3**; all numpy-free):
+
+- **`srmech.amsc.cascade.signed_sum_squared(sources)`** (§1.2) — the **coupling-score** composite: per position, `s = Σ_sources (2·bit−1)` (**Class K** bipolar) then `s²` (**Class L** signed-magnitude-square). Large where sources agree, ~0 where they cancel; no `abs()`.
+- **`srmech.amsc.cascade.top_k_by_score(scores, k, *, largest=True)`** (§1.3) — the **catalog selection** composite: **Class E** (sorted-key order) ∘ **Class K** (sparse truncate to top/bottom k). Stable on ties. The band-selection / weak-coupling-prune step.
+- **`srmech.amsc.hdc.bundle_with_ties(vectors)`** (rbs_nn Note 1) — bitwise majority across **any** N, returning `(majority, ties)`: the tie bit marks where the bundle accumulator crosses zero — a **Class K event** (the phase-boundary / derivative-sign-flip of MFO §VII.6.12.1) — surfaced without changing the binary-byte storage form. For odd N the majority byte equals `bundle` exactly.
+
+`describe()` total **249 → 252** (3 ToolEntry). Re-scan of PR #687 confirmed §31 is the last section and §29/§30/§31 are all delivered; the remaining notes are stale (superseded by the v0.6.0/v0.7.0 arcs) or explicitly non-blockers. SSoT: UPSTREAM_NOTES §1.2/§1.3 (RBS-LM) + rbs_nn Note 1; Kanerva (2009) *Hyperdimensional Computing*.
+
 ## [0.7.4rc1] - 2026-06-06
 
 **Sedenion-addressable hyper-loop RBS-HDC instrument** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31; F465 + F468) — **the sedenion box made into an RBS-HDC instrument.** A composition over shipped v0.7.3 primitives (no new primitive class, no new algebra; ABI stays **3**):

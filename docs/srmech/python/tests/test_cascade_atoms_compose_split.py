@@ -126,7 +126,7 @@ def test_cascade_ops_unchanged():
 def test_introspect_tools_total_is_210():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 249
+    assert introspect.describe()["tools"]["total"] == 252
 
 
 # ----------------------------------------------------------------------
