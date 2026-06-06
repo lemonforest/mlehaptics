@@ -2133,6 +2133,64 @@ def _register_primitive_class_tools() -> None:
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
                       "8-component octonion"),
         ),
+        # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
+        # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
+        # PAIR: pure-Python spec + JPL-clean srmech_hamming_* C peer, attested
+        # bit-exact by tests/test_cascade_hamming_parity.py.
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_encode", owner="srmech",
+            category="cascade",
+            summary="Encode k = 2ⁿ−1−n data bits into a Hamming(2ⁿ−1, k) "
+                    "single-error-correcting GF(2) codeword (#910 / §30). The "
+                    "CARRY/EC half of the sedenion front-loader: where "
+                    "hypercomplex_couple (COUPLE) binds ≤7 streams reversibly into "
+                    "an octonion (capped at 𝕆 by Hurwitz), the Hamming code CARRIES "
+                    ">7 data items + error-correction in one structure using the "
+                    "sedenion's CODE geometry (its Fano/PG structure, NOT its broken "
+                    "chirality). Canonical 1-indexed construction: parity bits at the "
+                    "power-of-two positions, each the even-parity XOR of the positions "
+                    "it covers. Lean-ALU XOR-native (GF(2) add = parity = XOR); no "
+                    "float, no libm, no abs(). Hamming(7,4) IS the octonion's own Fano "
+                    "plane (F441). Class B (structure framing) ∘ I (cyclic index "
+                    "arithmetic) ∘ A (content integrity). SSoT: Hamming (1950)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("data_bits", "sequence", True,
+                  "exactly 2ⁿ−1−n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))"),
+                P("n", "int", True, "parity-bit count, 2 ≤ n ≤ 16; codeword length is 2ⁿ−1"),
+            ),
+            returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_syndrome", owner="srmech",
+            category="cascade",
+            summary="Compute the Hamming syndrome — the 1-indexed position of the "
+                    "single flipped bit (0 = clean) (#910 / §30). Recompute each "
+                    "power-of-two parity; the failed set read as a binary number IS "
+                    "the error position (Hamming's construction). Lean-ALU XOR; no "
+                    "float, no libm. Class A (content-addressed error locator)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("int", "1-indexed flipped-bit position; 0 if the word is clean"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_decode_correct", owner="srmech",
+            category="cascade",
+            summary="Locate + correct any single-bit error and recover the data "
+                    "payload (#910 / §30). Single-error-correcting (minimum distance "
+                    "3): a clean or single-error word recovers exactly. The located "
+                    "bit is flipped (Class K sign-flip at the syndrome slot, GF(2)). "
+                    "Lean-ALU XOR; no float, no libm, no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("dict",
+                      "{'data': k corrected payload bits, 'error_position': int "
+                      "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
+        ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.the_one``; the submodule-dotted

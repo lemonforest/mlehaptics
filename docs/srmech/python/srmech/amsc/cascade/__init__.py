@@ -131,6 +131,14 @@ from .hypercomplex_dft import (
     octonion_dft,
     hypercomplex_couple,
 )
+# Hamming / GF(2) linear block-code family — the CARRY/EC half of the
+# sedenion front-loader (#910 / §30; F442/F449). Lean-ALU XOR-native; the
+# Rosetta C peer (srmech_hamming_*) is attested bit-exact by the parity test.
+from .hamming import (
+    hamming_encode,
+    hamming_syndrome,
+    hamming_decode_correct,
+)
 # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
 # (#887; "the One"). The Hurwitz division-algebra ladder ℂ/ℍ/𝕆 as one
 # (σ, θ)-parameterised exact-rational object: ℝ·1 anchors (the B/H/N
@@ -206,6 +214,10 @@ __all__ = [
     "octonion_dft",
     # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
     "hypercomplex_couple",
+    # Hamming / GF(2) block-code family (v0.7.2rc2; #910, §30 / F442/F449)
+    "hamming_encode",
+    "hamming_syndrome",
+    "hamming_decode_correct",
     # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
     "Block",
     "One",

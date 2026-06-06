@@ -104,6 +104,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (which IS registered); the submodule-dotted name is the same object
     # re-exported flat, exempt exactly like the DFT peers above.
     "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple",
+    # cascade.hamming.* — the Hamming/GF(2) block-code family (v0.7.2rc2 / #910
+    # §30). Registered under their STABLE flat public names
+    # ``srmech.amsc.cascade.hamming_{encode,syndrome,decode_correct}`` (which ARE
+    # registered); the submodule-dotted names are the same objects re-exported
+    # flat, exempt exactly like the hypercomplex_dft peers above.
+    "srmech.amsc.cascade.hamming.hamming_encode",
+    "srmech.amsc.cascade.hamming.hamming_syndrome",
+    "srmech.amsc.cascade.hamming.hamming_decode_correct",
     # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
     # Registered under its STABLE flat public name
     # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);
