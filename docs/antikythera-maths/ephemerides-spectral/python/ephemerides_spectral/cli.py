@@ -1149,6 +1149,27 @@ def _cmd_saturn_ring_features_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_saturn_ring_features(), pretty=args.pretty)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0rc2 — Solar Rotation CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_solar_differential_rotation(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_differential_rotation(), pretty=args.pretty)
+
+
+def _cmd_solar_rotation_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_rotation_closure(), pretty=args.pretty)
+
+
+def _cmd_solar_internal_rotation(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_internal_rotation(), pretty=args.pretty)
+
+
+def _cmd_solar_differential_rotation_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_solar_differential_rotation(), pretty=args.pretty)
+
+
 # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
 
 def _cmd_cmb_power_at_ell(args: argparse.Namespace) -> int:
@@ -5167,6 +5188,79 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     srff.set_defaults(func=_cmd_saturn_ring_features_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.30.0rc2 — Solar Rotation (surface differential + internal)
+    # ──────────────────────────────────────────────────────────────────
+
+    # solar-differential-rotation
+    sdr = sub.add_parser(
+        "solar-differential-rotation",
+        help="Sun's surface differential rotation Omega(lat) across latitude",
+        description=(
+            "v0.30.0rc2 -- the Sun's surface differential rotation, the\n"
+            "first solar-dynamics extension of the v0.24.3 Sun Dynamical\n"
+            "Spectrum. The Snodgrass-Ulrich 1990 law\n"
+            "\n"
+            "  Omega(lat) = A + B sin^2(lat) + C sin^4(lat)   [deg/day]\n"
+            "  A = 14.713,  B = -2.396,  C = -1.787  (sidereal)\n"
+            "\n"
+            "Equator ~24.5 d, poles ~34 d; the equator laps the poles\n"
+            "every ~86 days. Per-band sidereal + synodic periods.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-differential-rotation --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sdr.set_defaults(func=_cmd_solar_differential_rotation)
+
+    # solar-rotation-closure (THE headline)
+    src = sub.add_parser(
+        "solar-rotation-closure",
+        help="Doppler-1990 vs sunspot-1863 rotation closure (the headline)",
+        description=(
+            "v0.30.0rc2 headline. The Snodgrass-Ulrich 1990 Doppler\n"
+            "differential-rotation law reproduces Carrington's 1863\n"
+            "sunspot-derived 25.38-day sidereal period at latitude\n"
+            "~26 deg -- inside the sunspot active band (~5-35 deg).\n"
+            "Two independent determinations, 127 years apart, agree\n"
+            "where they overlap.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-rotation-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    src.set_defaults(func=_cmd_solar_rotation_closure)
+
+    # solar-internal-rotation
+    sir = sub.add_parser(
+        "solar-internal-rotation",
+        help="Helioseismic internal rotation (tachocline + rigid core)",
+        description=(
+            "The Sun's helioseismically-inverted internal rotation\n"
+            "(Schou 1998 SOI/MDI; Howe 2009 review): a differential\n"
+            "convection zone, a near-rigid radiative interior, and the\n"
+            "thin tachocline shear layer at ~0.70 R_sun -- the seat of\n"
+            "the solar dynamo."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sir.set_defaults(func=_cmd_solar_internal_rotation)
+
+    # solar-differential-rotation-full
+    sdrf = sub.add_parser(
+        "solar-differential-rotation-full",
+        help="Full solar-rotation enumeration + citations",
+        description=(
+            "Returns the Snodgrass-Ulrich coefficients + all rotation\n"
+            "anchors + the citation dict (Snodgrass-Ulrich 1990;\n"
+            "Carrington 1863; Schou 1998; Howe 2009)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sdrf.set_defaults(func=_cmd_solar_differential_rotation_full)
 
     # ──────────────────────────────────────────────────────────────────
     # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies

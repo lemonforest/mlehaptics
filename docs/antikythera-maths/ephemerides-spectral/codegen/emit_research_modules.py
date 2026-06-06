@@ -114,6 +114,11 @@ _INCLUDED_MODULES: List[str] = [
     # the four-regime partition + (p:q) resonance closure invariant +
     # bounded-local-Laplacian on the radial feature graph). Closes #153.
     "saturn_rings_catalog.py",
+    # v0.30.0rc2 — Solar differential + internal rotation (first
+    # solar-dynamics extension of the v0.24.3 Sun Dynamical Spectrum;
+    # Snodgrass-Ulrich surface law + Schou-1998 internal rotation).
+    "solar_rotation_data.py",
+    "solar_rotation_catalog.py",
     # AMSC framework — REMOVED in Task #197 Phase 4 (2026-05-13). The
     # framework (format / descriptor / catalog / gap_suggester +
     # attested_adapters/) now lives at srmech.amsc.* on PyPI and is

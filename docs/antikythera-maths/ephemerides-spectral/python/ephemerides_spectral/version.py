@@ -9,4 +9,4 @@ the publish workflow's tag-version-check step parses both files and
 fails the build on mismatch.
 """
 
-__version__: str = "0.30.0rc1"
+__version__: str = "0.30.0rc2"

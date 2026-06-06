@@ -698,6 +698,27 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.30.0rc2 Sol Solar Rotation Catalog (surface differential
+    # rotation Omega(lat) + helioseismic internal rotation). First
+    # solar-dynamics extension of the v0.24.3 Sun Dynamical Spectrum.
+    # Pure-Python; the latitude profile + Carrington-closure are computed
+    # at query time from the Snodgrass-Ulrich coefficients. No C twin.
+    "get_solar_differential_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_solar_rotation_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_solar_internal_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_solar_differential_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── First cosmology-instrument pair — cmb_power_spectrum +
     # cmb_anomalies. Pure-Python query surfaces over committed NDJSON;
     # no encoder-touching, no C twin makes sense.
