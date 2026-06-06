@@ -189,7 +189,7 @@ Status legend adds one tag for this arc:
 | Item | Subject | Status | Gate / note |
 |---|---|---|---|
 | **BX-3** | **Z₃-native physical medium** (F383's next-question) — *"what medium carries a stable, composable order-3 (Z₃/triality) state natively?"* | ✅ **RESOLVED by F415 (2026-06-05; literature lens)** — YES, native order-3 substrates exist: three-phase AC / SU(3)-center / Z₃-parafermions share the LITERAL 1+ω+ω²=0 (one Z₃ thrice; = F293 no-neutral); Setun = additive-ternary HW; C₃ lattices/NH₃ = geometric; codon = clean Z₃-negative. Native-Z₃ exactness is CHIRALITY-coupled (Fendley, ties F385/F409). So F383's "odd forces FPU" holds only on a BINARY substrate; feeds F404 (native order-3 silicon is real). Engineering stays the expert's (CAD-ban; F282). |
-| **BX-4** | **Coupled read-head as an actual RBS-SNN read mechanism** (F386+F388 → prototype) — phase-lock the readout into the RBS-SNN | ⏸️ DEFERRED-build | gated on the RBS-SNN build target (#855 / #844 / task #197); the algebra (`cascade.kuramoto_step` pin) is shipped — the integration waits on the SNN pipeline |
+| **BX-4** | **Coupled read-head as an actual RBS-SNN read mechanism** (F386+F388 → prototype) — phase-lock the readout into the RBS-SNN | ✅ **RESOLVED by F429 (2026-06-06)** — built as stage 4 of the #197 RBS-SNN core: `cascade.kuramoto_step` pin-lock reads a finding's coupling-row from the noisy corpus store, **recall 1.00 / precision 1.00** (F388 temporal EC) vs unlocked ~0.56 precision. Provenance `R-RBS-SNN-4_phase_lock_readhead.py`. The store retrieves rather than re-derives. |
 
 ### ⏳ QUEUED-srmech — wait for srmech updates (numpy removal IN PROGRESS)
 | Item | Subject | Gate |
