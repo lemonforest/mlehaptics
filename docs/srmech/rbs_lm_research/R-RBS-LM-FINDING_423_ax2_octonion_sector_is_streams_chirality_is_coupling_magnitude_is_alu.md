@@ -4,7 +4,7 @@
 **Arc:** RBS-LM · anchor-axis thread (F396/AX-2; F397 mechanism+null → **F423**); **srmech-RUN (sanctioned: 0.7.1 live, hold satisfied; exact-integer, no FPU)**
 **Provenance:** `R-RBS-LM-AX-2_octonion_two_klein4_streams_provenance.py` (committed; 7/7, exact-integer Cayley-Dickson, validated genuine octonion algebra)
 **Composes:** **F397** (the mechanism: 𝕆 k=7 as two Kuramoto-coupled Klein-4 streams, coupling = within-rung EC / the ⏐ seam / k=2 parity; *the pre-stated null this resolves*) · **F403** (Klein-4 = two Z₂ = the (2+2): γ₅, iω₇) · **F410** (the 𝕆 Hopf 15=8+7; the ⏐ seam at k=7→15) · **F389/F390** (chirality = conjugate = handedness = order-reversal) · **F418** (handedness = the ORDERING; `2:4:8⇆8:4:2`) · **F404** (2ⁿ shift-exact / Mersenne) · **F422/ALU-C** (the magnitude layer = the lean-ALU bilinear) · **F405** (the +3 anchors)
-**→ resolves the AX-2 / F397 null; closes the last srmech-held item of the F396 anchor-axis thread.**
+**→ resolves the AX-2 / F397 null; closes the last srmech-held item of the F396 anchor-axis thread.** **← extended by F424** (the sedenion boundary test: SECTOR + CHIRALITY survive past 𝕆 unbroken, only MAGNITUDE breaks — the three-part split *localizes* the Hurwitz cap to one layer).
 
 ---
 
