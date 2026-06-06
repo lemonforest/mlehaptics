@@ -27,11 +27,9 @@ Reference: research notebook §17.7.
 
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List, Tuple
 
-import numpy as np
-
+from . import _cascade
 from .hawaii_chain_data import (
     HAWAII_HOTSPOT_LAT_DEG,
     HAWAII_HOTSPOT_LON_DEG,
@@ -53,18 +51,13 @@ _EARTH_RADIUS_KM: float = 6371.0
 def _great_circle_distance_km(
     lat1: float, lon1: float, lat2: float, lon2: float,
 ) -> float:
-    """Great-circle distance in km between two (lat, lon) points
-    in degrees. Standard haversine formula."""
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlam = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2.0) ** 2
+    """Great-circle distance in km between two (lat, lon) points in
+    degrees (haversine). The transcendental core routes through the
+    Class-N cascade (:func:`_cascade.great_circle_distance_km`), not
+    ``math``."""
+    return _cascade.great_circle_distance_km(
+        lat1, lon1, lat2, lon2, _EARTH_RADIUS_KM,
     )
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return _EARTH_RADIUS_KM * c
 
 
 def _seamount_to_dict(s: Seamount, arc_length_km: float) -> Dict[str, Any]:
@@ -101,32 +94,30 @@ def _compute_arc_lengths_km() -> List[float]:
     return [arcs[s.name] for s in HAWAIIAN_EMPEROR_SEAMOUNTS]
 
 
-def _build_proximity_laplacian(
+def _build_proximity_eigs(
     sigma_km: float = 500.0,
-) -> Tuple[np.ndarray, List[str]]:
-    """Build a graph Laplacian on the seamount nodes with edges
-    weighted by Gaussian-kernel spatial proximity:
+) -> Tuple[Any, Any, List[str]]:
+    """Eigenbasis of the Gaussian-proximity graph Laplacian on the
+    seamount nodes (edges ``w_ij = exp(-d_ij² / (2σ²))`` with d_ij the
+    great-circle distance between seamounts i and j).
 
-        w_ij = exp(-d_ij² / (2 σ²))
-
-    where d_ij is the great-circle distance between seamounts i and
-    j. This is the **bounded-local-Laplacian** — same algebraic
-    machinery as v0.18.0 body_architecture's resonance Laplacian,
-    but on a physical-position graph instead of an orbital-resonance
-    graph.
+    The **bounded-local-Laplacian** — same algebraic machinery as
+    v0.18.0 body_architecture's resonance Laplacian, on a physical-
+    position graph. The build + eigendecomposition route through the
+    Class-L cascade (:func:`_cascade.gaussian_eigs_from_pairs` →
+    ``srmech.amsc.laplacian``), not raw ``numpy``.
 
     Returns
     -------
-    L : np.ndarray (n × n)
-        Weighted graph Laplacian L = D - W where W is the symmetric
-        weight matrix and D is its row-sum diagonal.
+    eigvals, eigvecs : ndarray
+        Ascending eigenvalues + eigenvector columns (``eigvecs[:, 1]``
+        is the Fiedler vector).
     names : list[str]
-        Seamount names in row/column order.
+        Seamount names in node order.
     """
     n = len(HAWAIIAN_EMPEROR_SEAMOUNTS)
     names = [s.name for s in HAWAIIAN_EMPEROR_SEAMOUNTS]
-    W = np.zeros((n, n), dtype=np.float64)
-    sigma_sq_2 = 2.0 * sigma_km * sigma_km
+    pairs: List[Tuple[int, int, float]] = []
     for i in range(n):
         si = HAWAIIAN_EMPEROR_SEAMOUNTS[i]
         for j in range(i + 1, n):
@@ -135,31 +126,21 @@ def _build_proximity_laplacian(
                 si.latitude_deg, si.longitude_deg,
                 sj.latitude_deg, sj.longitude_deg,
             )
-            w = math.exp(-(d * d) / sigma_sq_2)
-            W[i, j] = w
-            W[j, i] = w
-    D = np.diag(W.sum(axis=1))
-    L = D - W
-    return L, names
+            pairs.append((i, j, d))
+    eigvals, eigvecs = _cascade.gaussian_eigs_from_pairs(n, pairs, sigma_km)
+    return eigvals, eigvecs, names
 
 
-def _fiedler_with_sign_convention(
-    L: np.ndarray, names: List[str],
-) -> Tuple[float, np.ndarray]:
-    """Compute the Fiedler eigenpair (λ₂, f₂) with sign convention
-    pinned: the **oldest seamount (Meiji)** has positive Fiedler
-    value. This makes the sign convention reproducible across
-    LAPACK-pivoting differences.
+def _fiedler_from_eigs(
+    eigvals: Any, eigvecs: Any, names: List[str],
+) -> Tuple[float, Any]:
+    """Read the Fiedler eigenpair (λ₂, f₂) from an ascending
+    eigendecomposition, with sign convention pinned so the **oldest
+    seamount (Meiji)** has a positive Fiedler value (reproducible
+    across pivoting differences). Class-C sign re-application.
     """
-    eigvals, eigvecs = np.linalg.eigh(L)
-    # Sort ascending; first eigenvalue is ~0 (constant eigenvector),
-    # second is Fiedler.
-    order = np.argsort(eigvals)
-    eigvals = eigvals[order]
-    eigvecs = eigvecs[:, order]
     fiedler_value = float(eigvals[1])
     fiedler_vec = eigvecs[:, 1]
-    # Sign convention: pin Meiji's coordinate to positive.
     if "meiji" in names:
         meiji_idx = names.index("meiji")
         if fiedler_vec[meiji_idx] < 0:
@@ -195,8 +176,8 @@ def get_hawaii_chain() -> Dict[str, Any]:
         fiedler_eigenvalue, seamounts: [...]}``.
     """
     arcs = _compute_arc_lengths_km()
-    L, names = _build_proximity_laplacian()
-    fiedler_value, fiedler_vec = _fiedler_with_sign_convention(L, names)
+    eigvals, eigvecs, names = _build_proximity_eigs()
+    fiedler_value, fiedler_vec = _fiedler_from_eigs(eigvals, eigvecs, names)
 
     seamounts_out: List[Dict[str, Any]] = []
     for i, s in enumerate(HAWAIIAN_EMPEROR_SEAMOUNTS):
@@ -211,13 +192,12 @@ def get_hawaii_chain() -> Dict[str, Any]:
         if s.arc == "hawaiian"
     ]
     if len(post_bend) >= 2:
-        ages = np.array([s.age_myr for s, _ in post_bend])
-        lengths = np.array([al for _, al in post_bend])
-        # Slope: km / Myr → cm/yr after unit conversion (1 km/Myr = 10 cm/century? No: 1 km/Myr = 0.1 cm/yr... let's compute properly)
-        # 1 km / 1 Myr = 10⁵ cm / 10⁶ yr = 0.1 cm/yr. So velocity_cm_yr = slope_km_per_Myr / 10.
-        slope_km_per_myr = float(
-            np.polyfit(ages, lengths, 1)[0]
-        )
+        ages = [s.age_myr for s, _ in post_bend]
+        lengths = [al for _, al in post_bend]
+        # 1 km / 1 Myr = 10⁵ cm / 10⁶ yr = 0.1 cm/yr, so
+        # velocity_cm_yr = slope_km_per_Myr / 10. Slope via the Class-N
+        # closed-form OLS cascade (_cascade.linfit), not np.polyfit.
+        slope_km_per_myr = float(_cascade.linfit(ages, lengths)[0])
         velocity_cm_per_yr = slope_km_per_myr / 10.0
     else:
         slope_km_per_myr = float("nan")
@@ -284,11 +264,7 @@ def get_hawaii_emperor_bend_signature() -> Dict[str, Any]:
         eigenvalue_gap, fiedler_zero_crossings, ...,
         bend_residual_signature, plate_velocity}``.
     """
-    L, names = _build_proximity_laplacian()
-    eigvals, eigvecs = np.linalg.eigh(L)
-    order = np.argsort(eigvals)
-    eigvals = eigvals[order]
-    eigvecs = eigvecs[:, order]
+    eigvals, eigvecs, names = _build_proximity_eigs()
     lambda_1 = float(eigvals[0])
     lambda_2 = float(eigvals[1])
     lambda_3 = float(eigvals[2])
@@ -333,13 +309,14 @@ def get_hawaii_emperor_bend_signature() -> Dict[str, Any]:
     ]
     bend_residual_signature: List[Dict[str, Any]] = []
     if len(post_bend_indices) >= 2:
-        ages = np.array([
+        ages = [
             HAWAIIAN_EMPEROR_SEAMOUNTS[i].age_myr
             for i in post_bend_indices
-        ])
-        lengths = np.array([arcs[i] for i in post_bend_indices])
-        # Linear fit: arc_length = m * age + b
-        m, b = np.polyfit(ages, lengths, 1)
+        ]
+        lengths = [arcs[i] for i in post_bend_indices]
+        # Linear fit arc_length = m·age + b via the Class-N closed-form
+        # OLS cascade (_cascade.linfit), not np.polyfit.
+        m, b = _cascade.linfit(ages, lengths)
         # Compute residual for every seamount
         for i, s in enumerate(HAWAIIAN_EMPEROR_SEAMOUNTS):
             predicted = m * s.age_myr + b
@@ -371,9 +348,9 @@ def get_hawaii_emperor_bend_signature() -> Dict[str, Any]:
         "fiedler_sign_changes": sign_changes,
         "n_fiedler_sign_changes": len(sign_changes),
         "plate_velocity": {
-            "post_bend_slope_km_per_myr": float(m) if not math.isnan(m) else None,
+            "post_bend_slope_km_per_myr": float(m) if m == m else None,
             "post_bend_velocity_cm_per_yr": (
-                float(m) / 10.0 if not math.isnan(m) else None
+                float(m) / 10.0 if m == m else None
             ),
         },
         "bend_residual_signature": bend_residual_signature,

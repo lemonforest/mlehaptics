@@ -71,6 +71,41 @@ def cos_deg(degrees: float, *, terms: int = 24) -> float:
     return _rat.cos(radians(degrees), terms=terms)
 
 
+def sin(x: float, *, terms: int = 24) -> float:
+    """``sin`` of an angle in **radians** via the Class-N rational sine."""
+    return _rat.sin(x, terms=terms)
+
+
+def cos(x: float, *, terms: int = 24) -> float:
+    """``cos`` of an angle in **radians** via the Class-N rational cosine."""
+    return _rat.cos(x, terms=terms)
+
+
+def atan2(y: float, x: float, *, terms: int = 48) -> float:
+    """``atan2(y, x)`` via the Class-N rational atan (quadrant-aware)."""
+    return _rat.atan2(y, x, terms=terms)
+
+
+def great_circle_distance_km(
+    lat1: float, lon1: float, lat2: float, lon2: float, radius_km: float,
+) -> float:
+    """Great-circle (haversine) distance in km between two (lat, lon)
+    points in degrees, on a sphere of the given radius.
+
+    Every transcendental routes through the Class-N cascade (``sin`` /
+    ``cos`` / ``atan2`` / ``sqrt`` via :mod:`srmech.amsc.rational`), not
+    ``math`` — the haversine ``c = 2·atan2(√a, √(1−a))`` with
+    ``a = sin²(Δφ/2) + cos φ₁ cos φ₂ sin²(Δλ/2)``.
+    """
+    phi1 = radians(lat1)
+    phi2 = radians(lat2)
+    sin_dphi2 = sin(radians(lat2 - lat1) / 2.0)
+    sin_dlam2 = sin(radians(lon2 - lon1) / 2.0)
+    a = sin_dphi2 * sin_dphi2 + cos(phi1) * cos(phi2) * sin_dlam2 * sin_dlam2
+    c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a))
+    return radius_km * c
+
+
 def pow_frac(
     x_num: int, x_den: int, p_num: int, p_den: int, *, terms: int = 48,
 ) -> float:
@@ -138,6 +173,63 @@ def gaussian_proximity_eigs(
     return eigvals, V
 
 
+def gaussian_eigs_from_pairs(
+    n: int,
+    pair_distances: Sequence[Tuple[int, int, float]],
+    sigma: float,
+    *,
+    terms: int = 64,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Bounded-local-Laplacian eigenbasis from precomputed pairwise
+    distances (Class-L build + eigendecompose; Class-N Gaussian weights).
+
+    The general form of :func:`gaussian_proximity_eigs` for graphs whose
+    edge length is an arbitrary metric (e.g. a great-circle distance),
+    not a 1-D coordinate difference. ``pair_distances`` is an iterable of
+    ``(i, j, d_ij)`` for ``i < j``; the weight is
+    ``w_ij = exp(−d_ij² / (2σ²))`` from the Class-N argument-halved
+    ``exp``. Forms the Laplacian via
+    :func:`srmech.amsc.laplacian.dense_laplacian` and reads its
+    eigenpairs via :func:`symmetric_eigendecompose`.
+
+    Returns ``(eigvals, V)`` — ``eigvals`` ascending, ``V`` columns the
+    eigenvectors (so ``V[:, 1]`` is the Fiedler vector).
+    """
+    two_sigma_sq = 2.0 * sigma * sigma
+    edges: List[Tuple[int, int]] = []
+    weights: List[float] = []
+    for i, j, d in pair_distances:
+        arg = -(d * d) / two_sigma_sq
+        w = 0.0 if arg < -45.0 else _rat.exp(arg, terms=terms)
+        edges.append((i, j))
+        weights.append(w)
+    L = _lap.dense_laplacian(n, edges, weights)
+    eigvals, V = _lap.symmetric_eigendecompose(L)
+    return eigvals, V
+
+
+def linfit(xs: Sequence[float], ys: Sequence[float]) -> Tuple[float, float]:
+    """Closed-form ordinary-least-squares line fit ``y = m·x + b``,
+    returning ``(slope, intercept)``.
+
+    The degree-1 ``numpy.polyfit`` replacement, written as the
+    closed-form normal-equation arithmetic (sums + one division) rather
+    than an SVD — pure Class-(none) algebra, no numpy. For the
+    well-conditioned ``x`` of these catalogues (ages / latitudes) it
+    agrees with ``polyfit(x, y, 1)`` to floating-point round-off.
+    Raises ``ZeroDivisionError`` on a degenerate (zero-variance) ``x``.
+    """
+    n = len(xs)
+    sx = sum(xs)
+    sy = sum(ys)
+    sxx = sum(x * x for x in xs)
+    sxy = sum(x * y for x, y in zip(xs, ys))
+    denom = n * sxx - sx * sx
+    slope = (n * sxy - sx * sy) / denom
+    intercept = (sy - slope * sx) / n
+    return slope, intercept
+
+
 __all__ = [
     "PI",
     "radians",
@@ -145,7 +237,13 @@ __all__ = [
     "sqrt",
     "sin_deg",
     "cos_deg",
+    "sin",
+    "cos",
+    "atan2",
+    "great_circle_distance_km",
     "pow_frac",
     "asin",
     "gaussian_proximity_eigs",
+    "gaussian_eigs_from_pairs",
+    "linfit",
 ]

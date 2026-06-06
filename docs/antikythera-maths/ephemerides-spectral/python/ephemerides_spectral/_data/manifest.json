@@ -9,8 +9,8 @@
       "size_bytes": 318
     },
     "_research/_cascade.py": {
-      "sha256": "3bcda5278a632094badd89ead108b905b66992614095ee541be96b491a212924",
-      "size_bytes": 5380
+      "sha256": "3d32ce74513cf3501cac85eefb827b00e5f0769aca1f27d42a82c261f5ae7df6",
+      "size_bytes": 9062
     },
     "_research/admittance_catalog.py": {
       "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
@@ -409,8 +409,8 @@
       "size_bytes": 81546
     },
     "_research/hawaii_chain_catalog.py": {
-      "sha256": "cedc719b19a479fa0260622bf2fcfca5d2344aba767d87e581cb1490bfdadadb",
-      "size_bytes": 16066
+      "sha256": "e86c763a0a877fe4053da8a488b79361a97e491fc776ef4f14f03fe00cf25bdd",
+      "size_bytes": 15521
     },
     "_research/hawaii_chain_data.py": {
       "sha256": "1428693d0fc0747d7a2af55dcc6af51998888a4ab23eae80b4d6ae3f69412c6d",
@@ -477,8 +477,8 @@
       "size_bytes": 18121
     },
     "_research/mars_tharsis_catalog.py": {
-      "sha256": "3cbfcad601c2a91907c158fdb31fc5166f9a03816e1c23effccc557c929bc713",
-      "size_bytes": 15881
+      "sha256": "8593f92870d65f3038dd657c31155ee33776a8c7fb4ed598e3ab2a2f42c1e6d2",
+      "size_bytes": 15456
     },
     "_research/mars_tharsis_data.py": {
       "sha256": "76aef845ed8b72648ff373db99b837aba5216dff142cde86d68b8c346a6c854c",
@@ -638,5 +638,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc4"
+  "version": "0.30.0rc5"
 }
