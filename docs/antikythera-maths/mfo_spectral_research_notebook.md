@@ -6069,9 +6069,9 @@ The operator/operand split recurs across **all human knowledge** (F419, k=3-veri
 
 Framework reading, **held lightly**; antiquity / cognition / history are **cite-by-reference, the experts'** (no-lineage; defensive scope); **dignity-first** throughout. The math pieces are individually attested (Hurwitz; imaginaries-as-rotation; conjugation-as-chirality; 11D = 1+3+7; the Hopf base:fiber); the *unification* (F420) and the *cross-domain lens* (F419) are **synthesis offered, falsifiable, favored-not-privileged (F398).** Cross-references: §VIII.31.11 (4:3:7 / 11D / G₂-triality), §VII.1.1 (the two-level substrate ontology = field/excitation), §VIII.31.13(4) (the unseen-disability fiber). Per-finding docs `R-RBS-LM-FINDING_405…420` (RBS-LM subtree / PR #687); tracker GH #887. **k=3 triality earned its cost** across three verify dives this arc (zero hallucinated citations shipped; two live error-corrections, incl. the aphantasia attribution in (3)).
 
-### §VIII.31.15 The One — `𝕊(σ,θ)`: how to use it (the unifying generator; srmech v0.7.0rc49 / PR #889; GH #887)
+### §VIII.31.15 The One — `𝕊(σ,θ)`: how to use it (the unifying generator; srmech 0.7.0/0.7.1 live / PR #889; GH #887)
 
-The single object that holds the whole 14-D substrate, **and how to drive it.** Companion to §VIII.31.14 (the two alphabets) and §VIII.31.11 (4:3:7 / 11D / G₂). Ships in **srmech v0.7.0rc49** as `srmech.amsc.cascade.the_one` (PR #889) — numpy-free, exact-rational. Per-finding detail **F420** (RBS-LM / PR #687). *Written for the why-asker at depth: the narrative motivates each step; the precise statement, the srmech call, and the falsifiable form are kept attached inline — one section, no split-off "advanced" appendix.*
+The single object that holds the whole 14-D substrate, **and how to drive it.** Companion to §VIII.31.14 (the two alphabets) and §VIII.31.11 (4:3:7 / 11D / G₂). **Shipped in srmech 0.7.0 and live on production PyPI** (re-verified on **0.7.1**) as `srmech.amsc.cascade.the_one` (PR #889) — numpy-free, exact-rational. Per-finding detail **F420** (RBS-LM / PR #687). *Written for the why-asker at depth: the narrative motivates each step; the precise statement, the srmech call, and the falsifiable form are kept attached inline — one section, no split-off "advanced" appendix.*
 
 *Find this page (search aliases): **the One** · `S(σ,θ)` · `S(sigma, theta)` · `the_one` · the unifying generator · the graded Cayley-Dickson generator · `𝕊(σ,θ)`. (The heading uses the math glyph `𝕊` = U+1D54A; these plain-`S` / ASCII spellings are indexed here so the built-in search resolves the formula and the name.)*
 
@@ -6110,7 +6110,7 @@ The single object that holds the whole 14-D substrate, **and how to drive it.** 
 | **Lexicon** | the **sourced knowledge** you bind in (§5) | the *vocabulary + meaning* |
 | *(symmetry)* | **`g₂ = Der(𝕆)`** | the *invariance* — which configs are "the same word" |
 
-*(This sharpens §VIII.31.14's earlier "grammar = g₂": **`g₂` is the symmetry *of* the grammar; the grammar itself is `B/H/N`** — the reading that ships in rc49.)* **Alphabet + grammar = the language** (definable); **lexicon = the meaning** (sourced — §5). **Precise statement (the rigor, inline):** each `Im 𝔸ₙ` is the imaginary subspace; `e^{Îₙθ} = cos θ + Îₙ sin θ` rotates it about a unit imaginary `Îₙ`; `σ ∈ {±1}` is conjugation (`x ↦ x̄` flips `Im → −Im`). **Time = the exponentiated unit imaginary** — "time is a rotation on `3_s` or `7_g`" is *literal*, not metaphor.
+*(This sharpens §VIII.31.14's earlier "grammar = g₂": **`g₂` is the symmetry *of* the grammar; the grammar itself is `B/H/N`** — the reading that shipped in 0.7.0.)* **Alphabet + grammar = the language** (definable); **lexicon = the meaning** (sourced — §5). **Precise statement (the rigor, inline):** each `Im 𝔸ₙ` is the imaginary subspace; `e^{Îₙθ} = cos θ + Îₙ sin θ` rotates it about a unit imaginary `Îₙ`; `σ ∈ {±1}` is conjugation (`x ↦ x̄` flips `Im → −Im`). **Time = the exponentiated unit imaginary** — "time is a rotation on `3_s` or `7_g`" is *literal*, not metaphor.
 
 #### 2. How to read it — the partitions are regroupings (pick yours)
 
@@ -6133,7 +6133,7 @@ There is no "true" partition — only the right bracketing for your question (th
 4. **Apply the grammar `B/H/N`**: `B` declare the frame; `H` the recursion / the time-step (`now→now+next`); `N` pin to an exact rational. The grammar is *how you form a cascade out of the alphabet.*
 5. **Bind the lexicon**: pour the **sourced** knowledge in (Class-M bind). Alphabet + grammar give you the *empty* language; the lexicon gives the words *meaning* (§5).
 
-#### 4. Worked example (srmech rc49 — the surface landing in PR #889)
+#### 4. Worked example (srmech 0.7.0/0.7.1 live — the surface landed in PR #889)
 
 ```python
 from srmech.amsc.cascade import the_one
@@ -6155,7 +6155,7 @@ S_mirror = the_one(sigma=-1, theta_num=1, theta_den=6, terms=8)
 
 **The A–N mapping (no new primitive class):** `⨁_n` = **Class I** (cyclic enumerate); `e^{Îₙθ}` = **Class N** (the exact-rational `cos/sin_series_truncate`); `σ` = **Class K** sign ∘ **Class C** apply (*never* `abs()`, per the cascade-honesty discipline); the `ℝ·1` anchors = the **`B/H/N`** grammar. Everything stays exact-rational until you opt into `.to_matrix()`.
 
-**The headline (verified, rc49):** at `n=1` the 1-D `Im ℂ` seed *coincides with the rotation axis* → `θ` is inert, and the **only** freedom is `σ` (`.n1_is_sigma_only == True`). So **time's base rung is pure handedness, not yet rotation** — rotation enters at the 3-space (`n=2`) and the 7-gauge (`n=3`). *That* is why "time is a rotation **on either `3D_s` and `7D_g`**": the `1_t` seed *is* the axis; the turning happens in the 3 and the 7.
+**The headline (verified, 0.7.1):** at `n=1` the 1-D `Im ℂ` seed *coincides with the rotation axis* → `θ` is inert, and the **only** freedom is `σ` (`.n1_is_sigma_only == True`). So **time's base rung is pure handedness, not yet rotation** — rotation enters at the 3-space (`n=2`) and the 7-gauge (`n=3`). *That* is why "time is a rotation **on either `3D_s` and `7D_g`**": the `1_t` seed *is* the axis; the turning happens in the 3 and the 7.
 
 #### 5. The lexicon is sourced — you don't derive it (F408; the most important caveat)
 
@@ -6163,7 +6163,7 @@ S_mirror = the_one(sigma=-1, theta_num=1, theta_den=6, terms=8)
 
 #### 6. Status — how far to trust it
 
-A **unifying form**, not a derived theory. The *pieces* are individually attested (Hurwitz; imaginaries-as-rotation, §VII.6.21; conjugation-as-chirality, F418; `11D = 1+3+7`, R30; the Hopf base:fiber, F410). The *unification into one generator* is the synthesis — **falsifiable** two ways: the **regroup-only test** (every partition in §2 must come from `𝕊` by bracketing alone, with no new piece) and the **srmech check** (rc49: build `𝕊`; apply `σ` → confirm `2:4:8 ↔ 8:4:2`; apply `e^{Îθ}` on `Im ℍ` / `Im 𝕆` → confirm the time-rotation; `.n1_is_sigma_only`). The open knob is the *assignment* (which anchor is "time"; whether `1_t+3_s` fuse into the `4` of `4:3:7`). **Favored, not privileged (F398); held lightly.** Cross-refs: §VIII.31.14 (the two alphabets), §VIII.31.11 (4:3:7 / 11D / G₂), §VII.1.1 (the two-level ontology = the alphabet/grammar-vs-lexicon split), §VII.6.21 (imaginary-is-a-direction). Per-finding `R-RBS-LM-FINDING_420`; tracker GH #887; srmech impl PR #889 (rc49).
+A **unifying form**, not a derived theory. The *pieces* are individually attested (Hurwitz; imaginaries-as-rotation, §VII.6.21; conjugation-as-chirality, F418; `11D = 1+3+7`, R30; the Hopf base:fiber, F410). The *unification into one generator* is the synthesis — **falsifiable** two ways: the **regroup-only test** (every partition in §2 must come from `𝕊` by bracketing alone, with no new piece) and the **srmech check** (0.7.1 live: build `𝕊`; apply `σ` → confirm `2:4:8 ↔ 8:4:2`; apply `e^{Îθ}` on `Im ℍ` / `Im 𝕆` → confirm the time-rotation; `.n1_is_sigma_only`). The open knob is the *assignment* (which anchor is "time"; whether `1_t+3_s` fuse into the `4` of `4:3:7`). **Favored, not privileged (F398); held lightly.** Cross-refs: §VIII.31.14 (the two alphabets), §VIII.31.11 (4:3:7 / 11D / G₂), §VII.1.1 (the two-level ontology = the alphabet/grammar-vs-lexicon split), §VII.6.21 (imaginary-is-a-direction). Per-finding `R-RBS-LM-FINDING_420`; tracker GH #887; srmech impl PR #889 (shipped 0.7.0; live 0.7.1).
 
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
