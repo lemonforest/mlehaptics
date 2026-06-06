@@ -3,7 +3,7 @@
 **Date:** 2026-06-06
 **Arc:** RBS-LM / RBS-SNN · consensus / triality (F440 → **F441**, the user's "exploit k=7?" question); **demonstration (Fano = octonion = Hamming(7,4))**
 **Composes:** **F291/F248** (k=3 = the verify-triumvirate; k=2 detect → k=3 correct) · **F440** (the consensus structure; knowledge vs communication) · **F423** (octonion = the Fano plane = the `i XOR j` sector structure) · **F424** (Hurwitz cap; 𝕆 = the last division algebra) · **F404** (2ⁿ−1 Mersenne ladder) · **F437** (the reversible `(σ,θ,μ)` coupler ≤ 𝕆) · **F438** (stacked/tiled kernels past 𝕆) · standard coding theory (Hamming(7,4); the Steiner triple system S(2,3,7); the Fano plane PG(2,2)) — *attested mathematics, no-lineage.*
-**→ answers "can we exploit k=7 for a larger consensus with math magics?"; identifies the framework k-ladder as the Hamming code family.**
+**→ answers "can we exploit k=7 for a larger consensus with math magics?"; identifies the framework k-ladder as the Hamming code family.** **← extended by F442** (the user's "bigger int": past 𝕆 the division-algebra dies but the CODE ladder lives — use the sedenion's STRUCTURE = Hamming(15,11) to *hold* an octonion, never its chirality; the carry-role is unbounded, the couple-role caps at 𝕆).
 
 ---
 
