@@ -63,6 +63,24 @@ than just too very much such etc i.e. e.g. cf via vs per pre post sub
 super inter intra extra meta non co de re un mis
 """.split())
 
+# wikitext / HTML / infobox residue left by strip_code — these dominate the
+# top-vocab as MARKUP, not content (the K1 pollution caught in the first
+# simplewiki build: category/align/bgcolor/class/id/references). Strip them so
+# the presence kernel's vocabulary is content, not table attributes. (Reusable
+# for the full enwiki build.)
+MARKUP_RESIDUE = set("""
+category categories reference references align bgcolor colspan rowspan valign
+cellpadding cellspacing style class id px thumb thumbnail upright left right
+center centre none width height file image images img caption url http https
+www com org net html htm jpg jpeg png gif svg webp cite ref refs nbsp td tr th
+thead tbody table div span font color colour size title alt href src redirect
+infobox wikitable sortable retrieved archived isbn issn oclc pmid doi edit
+navbox hatnote smaller larger plainlist flatlist nowrap mw wiki wikipedia
+template templates stub disambiguation namespace toc navbar collapsible mini
+small big sub sup align center
+""".split())
+STOPWORDS |= MARKUP_RESIDUE
+
 _MINT_CACHE = {}
 
 
@@ -185,7 +203,7 @@ def encode_probe_K1(text):
 
 
 # ---- K3 sequence (position-bound n-gram bind + bundle) ----
-def build_K3_sequence(tokens_per_section, n_gram=3, sample_n=20000,
+def build_K3_sequence(tokens_per_section, n_gram=3, sample_n=120000,
                       position_stride=2731, seed=42):
     rng = random.Random(seed)
     all_ngrams = []
