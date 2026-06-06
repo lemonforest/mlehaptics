@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.4rc1] - 2026-06-06
+
+**Sedenion-addressable hyper-loop RBS-HDC instrument** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31; F465 + F468) — **the sedenion box made into an RBS-HDC instrument.** A composition over shipped v0.7.3 primitives (no new primitive class, no new algebra; ABI stays **3**):
+
+- **`srmech.amsc.cascade.sedenion_register` / `SedenionRegister`** — the sedenion (dim-16) **address space**: 16 named slots `e0..e15`. The octonion block `e0..e7` is the **≤7 reversible working word** (`hypercomplex_couple`, bit-exact ≤𝕆); `e8..e15` is the **EC/carry block** (`hamming_*`, GF(2), §30). HDC ops **instead of ALU**: `write`/`read` are random-access-by-name (`hdc.bind` + nearest-codebook clean = associative superposition, classical, no quantum cost); `couple_working`/`uncouple_working` are the reversible word; `carry`/`correct` the single-error-correcting EC block.
+- **The genuinely-new surface — the operational hyper-loop (F468):** `navigate(j)` is the **address↔Cayley–Dickson homomorphism** — right-multiply every slot *name* by `e_j` so addressing respects `e_i·e_j = ±e_k` (the `cd_basis_product` cocycle); `is_navigable(direction)` is the **reversibility gate** (`left_mult_is_invertible`): single-basis navigation is always a signed permutation (reversible at every dim), composite-direction navigation is reversible **only ≤𝕆** — a sedenion zero-divisor direction breaks it. The hyper-loop's horizon IS the Hurwitz wall.
+- **Fences:** the **associative** capacity is `D`-bounded (HDC crosstalk), distinct from the **reversible** working set (≤7, the coupler) — kept distinct (F465); real-coefficient EC stays out (the §30 GF(2)-only fence); sign is **Class C** (`chiral_flip`), never `abs()`. Storage + coupler are the scientific tier (numpy on call); `navigate`/`is_navigable`/`carry`/`correct` are numpy-free.
+
+`describe()` total **248 → 249** (the `sedenion_register` factory). The class composes `hdc.{bind,bundle,similarity}` + `hypercomplex_couple` + `hamming_*` + `cd_basis_product`/`left_mult_is_invertible` + `chiral_flip`. SSoT: UPSTREAM §31 (RBS-LM, PR #687); Hurwitz (1898); Baez arXiv:math/0105155; Kanerva (2009) *Hyperdimensional Computing*.
+
 ## [0.7.3] - 2026-06-06
 
 **Production graduation of the rc1 arc — the Cayley–Dickson open-exterior boundary-demonstrator** ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23). One cascade-catalog addition, a composition over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):
