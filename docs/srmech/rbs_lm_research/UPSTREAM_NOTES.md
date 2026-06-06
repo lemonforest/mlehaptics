@@ -1460,6 +1460,16 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 ---
 
+## §29 QDFT/ODFT gap: a GENERAL / DIAGONAL μ-axis for true triality coupling (2026-06-06; F436)
+
+**Surfaced by:** F436 — coupling coherence across 3 kernels. The shipped `cascade.quaternion_dft` / `octonion_dft` expose **named single μ-axes only** (`mu_axis='i'|'j'|'k'|…`). Measured consequence (F436): with a single named axis the transform **carries** N streams (round-trips) but does **NOT couple** them across axes — perturbing the i-stream leaves the j,k streams' spectra untouched (it is a complex FFT on the (1,μ) plane + an independent transform on the rest).
+
+**The genuine coupling needs a DIAGONAL / GENERAL μ** (e.g. `(i+j+k)/√3`, or `(Σeₙ)/√7` for octonion): then `μ·(Gi+Lj+Dk)` folds all three streams into the **real/anchor** channel (`−(G+L+D)` = a joint coherence detector, F436: 3.0× coherent-vs-incoherent energy) while the imaginaries carry the pairwise relations — i.e. the k=3 (quaternion) / k=7 (octonion) coupling + 1 error channel in one object.
+
+**Candidate addition:** allow `mu_axis` to accept a **unit pure-imaginary vector** (general μ), or a `mu_axis='diagonal'` convenience (the equal-weight pure-imaginary axis). Use cases: triality coupling of ≥3 streams + a coherence channel (F436); the lean-hybrid single-kernel sentence carrier (F431→F436). **Composite note:** μ is a unit pure-imaginary quaternion/octonion; the twiddle `exp(μθ)` is already the F381/BX-7 helper — this is exposing its axis, not new algebra. **Status:** logged as a research-notes gap (2026-06-06); leave the upstream filing to the user/maintainer per `[[feedback_create_upstream_issues_never_close_them]]` (I can file a GH issue on direction, as with #897). **Re-surface keywords:** `quaternion_dft` · `octonion_dft` · `mu_axis` · `diagonal axis` · `triality coupling` · `coherence channel` · `F436` · `§29`.
+
+---
+
 *Maintained alongside the R-RBS-LM rolling PR. New entries land at the
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests

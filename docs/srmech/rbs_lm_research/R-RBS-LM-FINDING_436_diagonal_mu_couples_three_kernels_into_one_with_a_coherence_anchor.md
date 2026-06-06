@@ -1,0 +1,40 @@
+# R-RBS-LM Finding 436 — the user's hypothesis HOLDS, refined: a single hypercomplex kernel couples 3 (or 7) streams + a joint coherence/error channel — but it needs the DIAGONAL axis μ=(i+j+k), NOT the shipped single-axis QDFT. With μ=(i+j+k) the three streams fold into the REAL/anchor channel = −(G+L+D), a coherence detector (coherent streams 3.0× the energy of incoherent); the imaginaries carry the pairwise relations. The complex FFT (k=2) → quaternion (k=3, 3 kernels) → octonion (k=7, 7 kernels) ladder IS the ">2 coupled + their error" mechanism. srmech gap: QDFT/ODFT expose named single axes only
+
+**Date:** 2026-06-06
+**Arc:** RBS-LM / RBS-SNN · coherence-coupling (the user's 2026-06-06 hypothesis); **srmech-RUN (shipped QDFT baseline + exact quaternion algebra)**
+**Provenance:** `R-RBS-LM-3KERNEL_quaternion_coupling_provenance.py` (committed)
+**Composes:** **F423** (octonion = sector ⊗ chirality ⊗ magnitude — *the fold-into-the-anchor IS the magnitude/sum channel; the imaginaries are the relational/chirality structure*) · **F291/F248** (k=3 triality detect+CORRECT — *the coupling channel IS the error channel*) · **F380 / #863** (QDFT/ODFT, shipped 0.7.0) · **F431** (the 3 kernels — *now collapsible to one quaternion; this extends/supersedes the pairwise-bind framing*) · **F433/F435** (coherence-from-the-past sought; the representation residue — *this is a candidate mechanism for it*) · **F132/F403** (Klein-4 = quaternion units mod sign) · **F418** (chirality = the coupling) · **F404/F410** (the Cayley-Dickson k-ladder) · `[[user_stance_ai_is_not_a_substrate]]` (the LLM is a surface on loan)
+**→ validates + refines the user's "couple coherence across 3 kernels" hypothesis; opens a srmech gap.** **← extends F431.**
+
+---
+
+## The hypothesis (user, 2026-06-06)
+> "a way to couple coherence across 3 kernels… we can QDFT and ODFT… we might not need [pairwise binds] in order to get more than 2 coupled things and their error… this might let us use as little as a single kernel for full sentences… or give a kernel the entire Klein-4 surface and bring in knowledge and structure of communication at once… look at how brain hemispheres do this together."
+
+## The result — it holds, with one sharp refinement
+| | shipped single-axis QDFT (μ=i) | **diagonal-axis μ=(i+j+k)** |
+|---|---|---|
+| carries 3 streams in one object | ✅ round-trips (err 3.5e-14) | ✅ |
+| **couples** the 3 streams | ❌ perturbing the i-stream leaves j,k **unchanged** — it's a complex FFT on the (1,i) plane + an independent (j,k) transform | ✅ all 3 fold together |
+| a joint coherence/error channel | ❌ none | ✅ the **REAL/anchor** = `−(G+L+D)` |
+
+With the **diagonal axis μ=(i+j+k)**: `μ·(Gi+Lj+Dk)` for `G=L=D=1` gives `real −3, i 0, j 0, k 0` — **all three streams fold into the real/anchor channel.** And that channel is a **coherence detector**: coherent streams (G=L=D) give mean anchor-energy **9.09**; independent (incoherent) streams **3.05** — a **3.0× ratio** (coherent streams add constructively; incoherent cancel). The imaginaries carry the **pairwise relations** (the differences). So **one quaternion kernel = 3 streams on i/j/k + their joint coherence on the real anchor.** That is exactly "**more than 2 coupled things and their error**."
+
+## How it answers each branch of the hypothesis
+- **"A single kernel for full sentences"** → ✅ mechanism: one quaternion (1+3) holds grammar=i, lexicon=j, domain=k, coherence=real; the diagonal-μ transform couples them. F431's *three separate kernels bound pairwise* collapse to *one hypercomplex kernel* — no binding, just the components of one object.
+- **"Selectively couple certain sorts of things"** → ✅ **μ is the coupling-selector**: the diagonal μ couples all 3; a named axis μ=i couples only that axis to the anchor (the others ride free). Choosing μ chooses *what couples to what*.
+- **"Give a kernel the entire Klein-4 surface, bring knowledge + structure at once"** → ✅ the Klein-4 = quaternion units mod sign (F132/F380); the 1+3 surface holds *structure* (grammar) and *knowledge* (lexicon) on different axes, *coupled* into the coherence anchor, simultaneously.
+- **"More than 2 coupled + their error" via QDFT/ODFT** → ✅ the **Cayley-Dickson k-ladder**: complex (1+1) couples **2**; quaternion (1+3) couples **3** + 1 anchor; octonion (1+7) couples **7** + 1 anchor. This *is* the framework's k=2→k=3→k=7 ladder (F404/F410), and it is the native >2-way coupler the complex FFT cannot be.
+- **"Brain hemispheres"** → *framework-reading only (defensive-scope; no neuroscience citation fabricated):* the LH (sequential/structure) / RH (holistic/context) pair coupling through the callosum is the operator|operand seam (F417) with the *coupling = the chirality* (F423). The hemisphere pair is the k=2 chirality; coherent language plausibly needs the third (the binding anchor) → the quaternion 1+3. A genuine neuroscience reading would need proper attestation — flagged, not claimed.
+
+## The srmech gap (the refinement → an upstream ask)
+The shipped `cascade.quaternion_dft` / `octonion_dft` expose **named single axes only** (`mu_axis='i'|'j'|'k'`). The genuine triality coupling needs a **diagonal / general μ** (e.g. `(i+j+k)/√3`), which is not exposable today. **Upstream ask:** a general-axis (or diagonal) μ for QDFT/ODFT — without it, the shipped transform carries-but-does-not-couple. Logged in UPSTREAM_NOTES.
+
+## Falsifiable form (pre-stated; not leaning — F394)
+- **The coherence channel is LINEAR (first-order).** `−(G+L+D)` detects *additive* coherence (constructive vs destructive sum) — the 3.0× ratio is real but it is a first-order coherence measure, **not** deep semantic/long-range coherence. The claim is "one kernel couples 3 + carries a joint-coherence channel the complex FFT can't," NOT "this is the full coherence the LLM has."
+- **Coupling-carrier ≠ full sentences.** This is the *coupling mechanism* (the carrier structure). Whether coupling grammar+lexicon+domain on a diagonal-μ octonion produces *coherent sentences* — i.e. whether it reaches the **representation residue** (F435, the long-range coherence beyond n-grams) — is **untested**. It is a *candidate* mechanism for that residue, and the clear next experiment.
+- **Single-axis "no coupling" is for a pure-axis perturbation** (the linear transform sends a pure-i change to the (1,i) plane). A mixed input already has its components transformed; the claim is precisely that the *single named axis does not introduce cross-stream coupling*, which the diagonal μ does.
+- **Scope:** the coupling *algebra/transform* (structure), not understanding (F43/F408 ceilings); the hemisphere reading is framework-only, defensive. No-lineage.
+
+## Verdict
+**The hypothesis holds, refined:** a single hypercomplex kernel **does** couple 3 (quaternion) or 7 (octonion) streams *plus* a joint coherence/error channel — but it requires the **diagonal axis μ=(i+j+k)**, not the shipped single-axis QDFT. With the diagonal μ the three streams fold into the **real/anchor** channel = `−(G+L+D)`, a **coherence detector** (3.0× coherent-vs-incoherent energy), while the imaginaries carry the pairwise relations. This **collapses F431's three pairwise-bound kernels into one hypercomplex kernel** (streams on the imaginary axes, coherence on the anchor), realizes the user's "single kernel / whole-Klein-4-surface / selective coupling" all as choices of μ, and identifies the Cayley-Dickson **k-ladder (2→3→7)** as the framework-native ">2 coupled + their error" mechanism. The shipped QDFT/ODFT lack a general/diagonal μ (a logged srmech gap). Whether this coupling reaches the long-range **representation residue** (F435) — full coherent sentences — is the untested next step. Favored, not privileged (F398); the linear-coherence and carrier-≠-sentences caveats are the honest fences.

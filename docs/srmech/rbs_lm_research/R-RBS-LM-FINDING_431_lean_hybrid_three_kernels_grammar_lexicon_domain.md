@@ -6,7 +6,7 @@
 **Arc:** RBS-LM / RBS-SNN · the render-vs-structure question (answers the user's 2026-06-06 sentence-structure question); **srmech-RUN (Class-M bind)**
 **Provenance:** `R-RBS-SNN-5_three_kernel_sentence_bind.py` (committed; 4/4 + swap)
 **Composes:** **F408** (the hyper-loop LANGUAGE = syntax-complete / KNOWLEDGE = semantics-open — the_one gives syntax, lexicon is sourced) · **F329** (the 3-layer unlump: amodal structure / encode-decode convention / modality channel) · **F155** (pure-structure sentence layer — 4-level Klein-4, 1.000 recall per level) · **F156** (sentence generation via Klein-4 walk — *"the cat played song"*, novel, zero learned grammar model) · **F164** (grammar is substrate-native — NSL/homesign) · **F169** (storage and expression are *separable axes*) · **F311/F323** (relationship-first; the Class-F render is stripped) · **F426–F430** (the RBS-SNN core = the domain kernel) · **F43** (meaning lives in the naming-layer)
-**→ answers "can we save a lean structure hybrid instead of a super-dense LLM?" (yes) and "is there a different way to query the existing kernels?" (yes — already, F155/F156).**
+**→ answers "can we save a lean structure hybrid instead of a super-dense LLM?" (yes) and "is there a different way to query the existing kernels?" (yes — already, F155/F156).** **← extended by F436** (the three kernels need not be bound pairwise — they collapse to the 3 imaginary axes of ONE quaternion, coupled by the diagonal μ=(i+j+k), with the real anchor = their joint coherence; one hypercomplex kernel, not three binds).
 
 ---
 
