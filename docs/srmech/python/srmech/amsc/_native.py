@@ -419,6 +419,23 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_elementwise_transcendental.restype = ctypes.c_int
 
+    # int srmech_dense_solve_f64(uint32_t n, uint32_t nrhs,
+    #     const double *A, const double *B, double *out_X)
+    # v0.7.1rc3 additive symbol (#897 §26): the reusable Class-L dense
+    # linear solve A·X = B the Schur/DtN float path composes over.
+    # hasattr-guarded because EXPECTED_ABI_VERSION stays 3 — a stale ABI-3
+    # lib built before this rc lacks the symbol; an unguarded bind would
+    # AttributeError and disable the whole native surface.
+    if hasattr(lib, "srmech_dense_solve_f64"):
+        lib.srmech_dense_solve_f64.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # nrhs
+            ctypes.POINTER(ctypes.c_double),    # A (n*n, row-major)
+            ctypes.POINTER(ctypes.c_double),    # B (n*nrhs, row-major)
+            ctypes.POINTER(ctypes.c_double),    # out_X (n*nrhs, row-major)
+        ]
+        lib.srmech_dense_solve_f64.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------
