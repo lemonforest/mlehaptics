@@ -2344,6 +2344,61 @@ def _register_primitive_class_tools() -> None:
                       ".couple_working/.uncouple_working (≤7 reversible word), "
                       ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
         ),
+        # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
+        # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
+        # The two compose ops register under flat ``cascade.*`` names (submodule-
+        # dotted ``cascade.compose.*`` exempt in coverage); bundle_with_ties is a
+        # Class-M op registered under its real ``srmech.amsc.hdc.*`` name.
+        ToolEntry(
+            name="srmech.amsc.cascade.signed_sum_squared", owner="srmech",
+            category="cascade",
+            summary="Element-wise squared signed-sum across a stack of bit sources "
+                    "— the coupling-score composite (UPSTREAM §1.2). Per position: "
+                    "s = Σ_sources (2·bit−1) (Class K bipolar transform); out = s² "
+                    "(Class L signed-magnitude-square). Large where sources agree "
+                    "(coherent |Σ|≈N), ~0 where they cancel — the coupling score. "
+                    "No abs(): the square carries the sign boundary. Operates on a "
+                    "stack of source arrays, not a single graph." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("sources", "sequence", True,
+                  "non-empty sequence of equal-length 0/1 bit sequences"),
+            ),
+            returns=R("list[int]", "per-position squared signed-sum"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.top_k_by_score", owner="srmech",
+            category="cascade",
+            summary="Indices of the k highest- (or lowest-) scoring items — the "
+                    "catalog selection composite (UPSTREAM §1.3). Class E (sorted-key "
+                    "order) ∘ Class K (sparse truncate to top/bottom k). Stable: ties "
+                    "keep ascending index order. The band-selection / weak-coupling-"
+                    "prune step (top-K bands by magnitude; bottom-K bits by coupling-"
+                    "square)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("scores", "sequence", True, "one comparable score per item"),
+                P("k", "int", True, "how many indices to return (0 ≤ k ≤ len(scores))"),
+                P("largest", "bool", False, "True (default) → highest k; False → lowest k"),
+            ),
+            returns=R("list[int]", "k indices, best-first"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.bundle_with_ties", owner="srmech",
+            category="hdc",
+            summary="Bitwise majority across ANY number of BSC vectors, with the tie "
+                    "state surfaced (UPSTREAM rbs_nn Note 1). Unlike bundle (odd N "
+                    "only, no ties), accepts any N and returns (majority, ties): "
+                    "majority bit = 1 where strictly >half are set (tie→0; for odd N "
+                    "equals bundle exactly); ties bit = 1 where the counts are exactly "
+                    "equal (even N only). A tie is a Class K event — the bundle "
+                    "accumulator crossing zero (the phase-boundary / derivative-sign-"
+                    "flip of MFO §VII.6.12.1), surfaced without changing the binary-"
+                    "byte storage form. No abs(); counts only." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("vectors", "sequence", True,
+                  "sequence of equal-length BSC byte vectors; any count (odd or even)"),
+            ),
+            returns=R("tuple", "(majority_bytes, ties_bytes) — each the input length"),
+        ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.the_one``; the submodule-dotted

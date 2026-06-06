@@ -151,6 +151,66 @@ def bundle(vectors: Sequence[bytes]) -> bytes:
     return bytes(result)
 
 
+def bundle_with_ties(vectors: Sequence[bytes]) -> "tuple[bytes, bytes]":
+    """Bitwise majority across ANY number of BSC vectors, with the tie state
+    surfaced explicitly (UPSTREAM_NOTES rbs_nn Note 1).
+
+    :func:`bundle` requires an odd count so ties cannot occur. This accepts any
+    ``N`` (the even-count case is the point) and returns ``(majority, ties)``:
+
+    * ``majority`` — one bit per position, ``1`` where **strictly** more than
+      half the inputs are set, else ``0`` (a tie resolves to ``0``; for odd
+      ``N`` this byte equals :func:`bundle`'s output exactly).
+    * ``ties`` — one bit per position, ``1`` where the set / unset counts are
+      **exactly equal** (only possible for even ``N``), else ``0``.
+
+    A tie is a **Class K event**: the bundle accumulator crosses zero there (the
+    derivative-sign-flip / phase-boundary of MFO §VII.6.12.1). Surfacing it lets
+    a cascade track how close a bundled state is to a phase-boundary tie —
+    without changing the binary-byte storage form. **No ``abs()``** — counts
+    only (the sign boundary IS the tie bit).
+
+    Args:
+        vectors: Sequence of BSC vectors (all same length, non-empty). Any
+            count (odd or even) is accepted.
+
+    Returns:
+        ``(majority, ties)`` — two byte vectors, each the input length.
+
+    Raises:
+        ValueError: empty sequence, mismatched lengths, zero-length vectors, or
+            more than ``MAX_BUNDLE_N`` vectors.
+    """
+    n_vectors = len(vectors)
+    if n_vectors == 0:
+        raise ValueError("hdc.bundle_with_ties: vectors sequence must be non-empty")
+    if n_vectors > MAX_BUNDLE_N:
+        raise ValueError(
+            f"hdc.bundle_with_ties: n_vectors {n_vectors} exceeds "
+            f"MAX_BUNDLE_N {MAX_BUNDLE_N}"
+        )
+    n_bytes = len(vectors[0])
+    if n_bytes == 0:
+        raise ValueError("hdc.bundle_with_ties: vectors must be non-empty")
+    for i, v in enumerate(vectors):
+        if len(v) != n_bytes:
+            raise ValueError(
+                f"hdc.bundle_with_ties: vector {i} has length {len(v)}, "
+                f"expected {n_bytes}"
+            )
+    majority = bytearray(n_bytes)
+    ties = bytearray(n_bytes)
+    for byte_i in range(n_bytes):
+        for bit in range(8):
+            count = sum((v[byte_i] >> bit) & 1 for v in vectors)
+            two = count * 2
+            if two > n_vectors:                 # strict majority set
+                majority[byte_i] |= (1 << bit)
+            elif two == n_vectors:              # exact tie — the Class K event
+                ties[byte_i] |= (1 << bit)
+    return bytes(majority), bytes(ties)
+
+
 def permute(a: bytes, rotate_bits: int) -> bytes:
     """Cyclic bit-rotation of a BSC vector by ``rotate_bits`` positions.
 
@@ -1582,6 +1642,7 @@ __all__ = [
     "KLEIN4_STATES",
     "bind",
     "bundle",
+    "bundle_with_ties",
     "permute",
     "similarity",
     "polar_random",
