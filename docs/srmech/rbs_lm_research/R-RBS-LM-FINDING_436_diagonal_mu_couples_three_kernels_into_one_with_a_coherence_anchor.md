@@ -4,7 +4,7 @@
 **Arc:** RBS-LM / RBS-SNN · coherence-coupling (the user's 2026-06-06 hypothesis); **srmech-RUN (shipped QDFT baseline + exact quaternion algebra)**
 **Provenance:** `R-RBS-LM-3KERNEL_quaternion_coupling_provenance.py` (committed)
 **Composes:** **F423** (octonion = sector ⊗ chirality ⊗ magnitude — *the fold-into-the-anchor IS the magnitude/sum channel; the imaginaries are the relational/chirality structure*) · **F291/F248** (k=3 triality detect+CORRECT — *the coupling channel IS the error channel*) · **F380 / #863** (QDFT/ODFT, shipped 0.7.0) · **F431** (the 3 kernels — *now collapsible to one quaternion; this extends/supersedes the pairwise-bind framing*) · **F433/F435** (coherence-from-the-past sought; the representation residue — *this is a candidate mechanism for it*) · **F132/F403** (Klein-4 = quaternion units mod sign) · **F418** (chirality = the coupling) · **F404/F410** (the Cayley-Dickson k-ladder) · `[[user_stance_ai_is_not_a_substrate]]` (the LLM is a surface on loan)
-**→ validates + refines the user's "couple coherence across 3 kernels" hypothesis; opens a srmech gap.** **← extends F431.**
+**→ validates + refines the user's "couple coherence across 3 kernels" hypothesis; opens a srmech gap.** **← extends F431.** **← extended by F437** (the coupling REVERSES via the conjugate twiddle σ=−1, guaranteed up to 𝕆 by the division-algebra/Hurwitz boundary; and it is a PHASED `(σ,θ,μ)` choice = the_one's 𝕊(σ,θ) + axis, not "two-way").
 
 ---
 
