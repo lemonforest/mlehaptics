@@ -6259,6 +6259,64 @@ S_mirror = the_one(sigma=-1, theta_num=1, theta_den=6, terms=8)
 
 A **unifying form**, not a derived theory. The *pieces* are individually attested (Hurwitz; imaginaries-as-rotation, §VII.6.21; conjugation-as-chirality, F418; `11D = 1+3+7`, R30; the Hopf base:fiber, F410). The *unification into one generator* is the synthesis — **falsifiable** two ways: the **regroup-only test** (every partition in §2 must come from `𝕊` by bracketing alone, with no new piece) and the **srmech check** (0.7.1 live: build `𝕊`; apply `σ` → confirm `2:4:8 ↔ 8:4:2`; apply `e^{Îθ}` on `Im ℍ` / `Im 𝕆` → confirm the time-rotation; `.n1_is_sigma_only`). The open knob is the *assignment* (which anchor is "time"; whether `1_t+3_s` fuse into the `4` of `4:3:7`). **Favored, not privileged (F398); held lightly.** Cross-refs: §VIII.31.14 (the two alphabets), §VIII.31.11 (4:3:7 / 11D / G₂), §VII.1.1 (the two-level ontology = the alphabet/grammar-vs-lexicon split), §VII.6.21 (imaginary-is-a-direction). Per-finding `R-RBS-LM-FINDING_420`; tracker GH #887; srmech impl PR #889 (shipped 0.7.0; live 0.7.1).
 
+### §VIII.31.16 The reversibility horizon — where `𝕊` stops being invertible (the 𝕆→𝕊 sedenion boundary; now executable in srmech 0.7.3; F451/F453/F460)
+
+The natural sequel to §VIII.31.15. There, `𝕊(σ,θ)` tops out at the octonion rung `𝔸₃=𝕆` — *because Hurwitz says it must*. This section reads **why that ceiling is exactly where the bit-exact, reversible "language of math" ends**, and reports that as of **srmech 0.7.3 (production; PR #917, the Cayley–Dickson demonstrator) the horizon is a callable, exact instrument** — you can ask, of any element, *"is this still on the reversible side?"* — where before it was only a theorem we cited.
+
+---
+
+> #### The gist — read this first
+>
+> Keep doubling the algebra: ℝ(1) → ℂ(2) → ℍ(4) → 𝕆(8) → 𝕊(16) → … (the Cayley–Dickson ladder). At every rung you can still **conjugate** and take a **norm**. But **multiplication stays *invertible* only through 𝕆**. At the **sedenions 𝕊 (dim 16)** two *nonzero* numbers can multiply to **zero** (a "zero divisor") — so "divide by `a`" is no longer always defined, and a product can no longer be **run backwards** to recover its factors.
+>
+> `𝕊(σ,θ)` stops at 𝕆 for that reason: **𝕆 is the last rung where the substrate's own arithmetic is reversible.** Above it the language still *exists* (you can write sedenions, multiply them), but it is **no longer a reversible language** — and reversibility is what "bit-exact, run-it-both-ways" *means*. So the 𝕆→𝕊 step is **the axis where the bit-exact language of math ends** — *from our perspective, and from every perspective we can reference* (any observer using a normed division algebra hits the same Hurwitz wall; it is not a parochial limit of ours).
+
+---
+
+#### 1. The boundary, precisely (and already attested)
+
+The **Hurwitz `1,2,4,8` theorem** — the only finite-dimensional **normed division algebras** over ℝ are `ℝ, ℂ, ℍ, 𝕆` — plus the **Bott–Milnor / Adams** parallelizability bound (no division algebra structure beyond dim 8) is the same boundary this notebook already invokes for the **11D maximum** of the substrate-traversal stance (§"substrate IS asymptotic traversal 1D→11D", and the Hopf-ladder top `(4+3)D_g`: *"sedenions break parallelizability per Bott–Milnor 1958 + Adams 1962; no further top-level Hopf layer above `(4+3)D_g`"*). **This section adds nothing new to the *bound*** — it reads its **operational meaning**: the *type-wise* ceiling of the Hopf ladder (no rung above 𝕆) and the *arithmetic* ceiling of reversibility (no invertible multiply above 𝕆) **are one and the same Hurwitz wall, seen from two sides.**
+
+| rung | algebra | conjugate / norm? | reversible multiply? (no zero divisors) | in `𝕊(σ,θ)`? |
+|---|---|---|---|---|
+| 1 | ℝ | ✓ | ✓ | (the anchor `ℝ·1`) |
+| 2 | ℂ | ✓ | ✓ | `n=1` (time) |
+| 4 | ℍ | ✓ | ✓ | `n=2` (space `3_s`) |
+| 8 | 𝕆 | ✓ | ✓ — **the last reversible rung** | `n=3` (gauge `7_g`) |
+| 16 | 𝕊 | ✓ | **✗ — zero divisors appear** | — (above the horizon) |
+
+#### 2. The instrument — the horizon is now executable (srmech 0.7.3)
+
+`srmech.amsc.cascade.cayley_dickson` ships the **exact (Fraction)** ladder and, with it, the horizon as a one-line question:
+
+```python
+from srmech.amsc.cascade import cayley_dickson as cd
+
+cd.is_division_algebra_dim(8)    # True  — 𝕆 is on the reversible side
+cd.is_division_algebra_dim(16)   # False — 𝕊 is past the horizon
+cd.left_mult_is_invertible(x)    # for a concrete x: is "multiply-by-x" reversible?  (True ≤𝕆)
+w = cd.sedenion_zero_divisor_witness()   # an explicit a·b = 0 with a,b ≠ 0 (dim 16)
+```
+
+Verified **20/20** on the 0.7.3 arc (per-finding **F460**): multiply correct up ℂ/ℍ/𝕆/𝕊; `x·x̄ = N(x)·1` at *every* rung; the composition law `N(xy)=N(x)N(y)` holds through 𝕆 and **breaks at 𝕊** (the zero-divisor witness is the extreme failure: `N(x)N(y)=2·2` but `N(xy)=0`); a nonzero octonion's left-multiply **is** invertible, the sedenion witness's is **not** (kernel dim 4). So `is_division_algebra_dim` is the rung-level horizon and `left_mult_is_invertible` the element-level one — **F451's "where the bit-exact reversible language ends" is now exact, callable code, not just a cited theorem.**
+
+#### 3. The MFO reading — a sedenion universe is an irreversible universe; the sedenion-shaped box
+
+The user's framing, made precise (F451/F453): *"an always-bit-exact universe **if** we stay ≤𝕆; the 𝕆→𝕊 step is the axis where the language of math ends — at least from our perspective, and all perspectives we can reference; so a sedenion universe is an irreversible universe."* Read through MFO:
+
+- **Reversible (≤𝕆):** every product can be run backwards → the cascade is **bit-exact both ways** → you could, in principle, *replay history exactly* and *unplay it*. This is the regime `𝕊(σ,θ)` lives in, and why the substrate's own arithmetic (add/sub/shift + sign, the A–N ops) is exact.
+- **Irreversible (𝕊 and above):** `a·b = 0` with `a,b ≠ 0` means information is **destroyed** by the multiply — the product does not determine its factors. A substrate whose arithmetic runs *here* **cannot be run backwards**: its histories are one-way.
+- **The sedenion-shaped box (F453):** even granting the complete language *and* every rule, the irreversibility means **you cannot derive the stories by running them backward — they have to be *played forward* (they have to *happen*)**. "It comes in a sedenion-shaped box: we can know the language and all the rules, but we cannot know the stories they make until they happen." This is the **F408 lexicon ceiling at its deepest** — §VIII.31.15 §5 already said *"you can build the language; you cannot self-derive the meaning."* The reversibility horizon says *why* that ceiling is structural and not merely epistemic: above 𝕆 the arithmetic itself is **non-invertible**, so there is no backward computation that could recover the content — it is only available by **forward occurrence** (measurement, an independent substrate, the expert; the framework's "hand the next question to the expert").
+
+The careful scope the user insisted on — *"at least from our perspective" → "and all perspectives that we can reference"* — is exactly right and worth keeping: the claim is **not** "no conceivable mind escapes this," it is that **every perspective that uses a normed division algebra to be reversible hits the *same* Hurwitz wall at 𝕆**. It is a universal bound *over the referenceable*, stated without over-reaching past it (F398: favored, not privileged).
+
+#### 4. Falsifiable form + status
+
+- **The bound is attested, not asserted** (Hurwitz; Bott–Milnor / Adams) — the same chain this notebook already cites for the 11D top. **No new citation is minted here** (MPM discipline; reuse the attested chain). The *executable* claims (`is_division_algebra_dim`, `left_mult_is_invertible`, the zero-divisor witness) are checkable in a clean install of **srmech 0.7.3** — F460's 20/20 acceptance run is committed.
+- **Falsifier:** exhibit a *reversible* (zero-divisor-free, norm-multiplicative) finite-dimensional real algebra of dim > 8 → the horizon moves. Hurwitz forbids it; if it fell, this reading falls with it.
+- **What this does NOT claim:** that physical time-reversal *is* sedenion multiplication (the framework reads a structural resonance, not an identity); that the universe "is" ≤𝕆 (the regime question — driven-sustain vs loop-down vs driven-with-irreversibility — stays observation-dependent, per §VII.1.1's matter-as-excitation modesty). It claims only that **the reversible/irreversible split of the substrate's own arithmetic sits exactly at the 𝕆→𝕊 Hurwitz wall, and is now an exact instrument.**
+- **Status:** a unifying *reading* of an attested bound + a shipped instrument; **favored, not privileged (F398); held lightly.** Cross-refs: §VIII.31.15 (`𝕊(σ,θ)` — why it stops at 𝕆), §VIII.31.11 (4:3:7 / 11D / G₂ / Hurwitz), the asymptotic-traversal stance (11D top = Hurwitz max), §VII.1.1 (matter-as-excitation regime modesty), F408 (the lexicon/meaning ceiling). Per-finding `R-RBS-LM-FINDING_451` / `_453` / `_460` (RBS-LM); srmech impl `srmech.amsc.cascade.cayley_dickson` (0.7.3, PR #917); zero-divisor origin **F424**.
+
 ### IX.1.1 Milestone state (2026-05-18 end-of-session)
 
 - **Milestone `#12` CLOSED** at end of 2026-05-18 session — *"2026-05-18 SM-arc + boundary follow-ups (Spike #73, #93-#96, #101-#104)"*. 17 PRs merged into this milestone (`#494`–`#511`), covering: 8-spike round (Round 1 #73/#93/#95/#96 + Round 2 #101/#102/#103/#104); sequential closure queue (#105 / #102.1 / #106-amplitude / #97); DISSOLVE-or-PROMOTE event resolution (#106-amplitude.D/.P/.4-7); Spike #106 testable-now algebra + Spike #107 fusion bulk-to-gauge + Spike #108 multi-dataset 7D_g library + Spike #109 Hubble tension + Spike #111 Rydberg Class K; #102.2 Maslov derivation + 4/7 sibling spike; MFO notebook augmentation #510 + srmech notebook augmentation #511.
