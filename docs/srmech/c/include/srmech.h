@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
-#define SRMECH_VERSION_PATCH 2
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.7.2"
+#define SRMECH_VERSION_PATCH 3
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.7.3rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1748,6 +1748,35 @@ srmech_status_t srmech_hamming_syndrome(const uint8_t *codeword, size_t len,
  * Single-error-correcting (distance 3). Errors as srmech_hamming_syndrome. */
 srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t len,
                                               uint8_t *out_data, int *out_pos);
+
+/* ------------------------------------------------------------------
+ * Cayley-Dickson basis-unit cocycle (v0.7.3rc1; #915 / MFO §VII.6.23) — the
+ * integer structural core of the open-exterior demonstrator. The product of
+ * two unit basis elements e_i * e_j = sign * e_index in the dim-D
+ * Cayley-Dickson algebra (the result index is i XOR j; the sign carries the
+ * Fano/orientation structure). Computed by the same iterative doubling-step the
+ * Python recursion uses, unrolled to a bounded loop (no recursion; JPL Rule 1).
+ * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_basis_product —
+ * attested bit-exact by tests/test_cascade_cayley_dickson_parity.py.
+ *
+ * ABI-additive: a new symbol + two macros, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Hard ceiling on the algebra dimension (a power of two). Shared with the
+ * Python surface (srmech.amsc.cascade.cayley_dickson.CD_MAX_DIM). */
+#define SRMECH_CD_MAX_DIM 64
+/* log2(SRMECH_CD_MAX_DIM) — the doubling-loop over-bound (JPL Rule 2). */
+#define SRMECH_CD_MAX_LEVELS 6
+
+/* Product of two unit basis elements: e_i * e_j = sign * e_index.
+ *   dim        : algebra dimension, a power of two in [1, SRMECH_CD_MAX_DIM].
+ *   i, j       : basis indices in [0, dim).
+ *   out_index  : receives the result basis index in [0, dim) (== i XOR j).
+ *   out_sign   : receives the sign, +1 or -1.
+ * Errors: SRMECH_ERR_NULL_ARG (null ptr); SRMECH_ERR_BAD_INPUT (dim not a
+ * power of two in range, or i/j out of range). */
+srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
+                                        int *out_index, int *out_sign);
 
 #ifdef __cplusplus
 }

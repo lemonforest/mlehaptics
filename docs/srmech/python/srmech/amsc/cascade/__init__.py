@@ -153,6 +153,29 @@ from .one import (
     the_one,
     s_generator,
 )
+# Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 / MFO
+# §VII.6.23). The deliberately NON-reversible object on the far side of the
+# Hurwitz wall: generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… doubling, exact-rational + numpy-free.
+# NOT a substrate extension — the closed sim stays ≤𝕆; this exhibits the wall
+# (zero divisors at 16, no inverse map) so §VII.6.23's open-exterior claims are
+# own-code-attested. The integer cocycle cd_basis_product has a JPL-clean C peer.
+from .cayley_dickson import (
+    CD_MAX_DIM,
+    CD_DIMS,
+    DIVISION_ALGEBRA_DIMS,
+    ALGEBRA_NAMES,
+    cd_mult,
+    cd_conjugate,
+    cd_add,
+    cd_norm_sq,
+    cd_basis,
+    cd_basis_product,
+    is_division_algebra_dim,
+    sedenion_zero_divisor_witness,
+    left_mult_matrix,
+    left_mult_kernel,
+    left_mult_is_invertible,
+)
 
 # ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
 # ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
@@ -223,6 +246,22 @@ __all__ = [
     "One",
     "the_one",
     "s_generator",
+    # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
+    "CD_MAX_DIM",
+    "CD_DIMS",
+    "DIVISION_ALGEBRA_DIMS",
+    "ALGEBRA_NAMES",
+    "cd_mult",
+    "cd_conjugate",
+    "cd_add",
+    "cd_norm_sq",
+    "cd_basis",
+    "cd_basis_product",
+    "is_division_algebra_dim",
+    "sedenion_zero_divisor_witness",
+    "left_mult_matrix",
+    "left_mult_kernel",
+    "left_mult_is_invertible",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",

@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.3rc1] - 2026-06-06
+
+**Cayley–Dickson open-exterior boundary-demonstrator ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23).** The deliberately **non-reversible** object on the *far side* of the Hurwitz wall: the generic doubling ℝ→ℂ→ℍ→𝕆→𝕊(16)→trigintaduonion(32)→… , exact-rational and numpy-free. `the_one` / `hypercomplex_couple` live in the reversible interior (≤𝕆); this exhibits the wall the closed simulation does **not** cross, converting §VII.6.23's open-exterior claims from literature-only (Moreno arXiv:q-alg/9710013) to **own-code-attested** (`[[feedback_own_work_is_primary_attestation]]`). **It is NOT a substrate extension** — no `qm.*` peer, no DSL wiring; past 𝕆 there is no division-algebra substrate to be native to.
+
+- **New `srmech.amsc.cascade.cayley_dickson`** — `cd_mult` / `cd_conjugate` / `cd_norm_sq` (exact-rational generic product, convention from Baez §2; `x·x̄ = N(x)·1` at every rung), `cd_basis` / `cd_basis_product` (the integer basis cocycle `e_i·e_j = ±e_{i⊕j}`), `sedenion_zero_divisor_witness` (a concrete dim-16 `x·y = 0`, both nonzero, found from our own table), and `left_mult_kernel` / `left_mult_is_invertible` (the map `u ↦ x·u` has a **kernel** ⟺ no inverse map — the "no backward direction to point" of §VII.6.23.4, exact-rational RREF). Composition of A–N: **M** (bilinear bind) ∘ **C** (conjugation-ordered cross terms) ∘ **K** (sign-flip; no `abs()`) + **N** (rational anchor) + **L** (kernel rank); no new primitive class.
+- **Native C peer `srmech_cd_basis_product`** (`c/src/srmech_cayley_dickson.c`) — the integer cocycle, the single doubling-recursion unrolled to a bounded loop (no recursion; JPL Power-of-Ten clean — `-Wall -Wextra -Wpedantic -Werror`, **no libm/malloc/goto**, ≥2 asserts/fn). Attested **bit-exact** against the Python `cd_basis_product` across dims 1…64 by `tests/test_cascade_cayley_dickson_parity.py`. The arbitrary-rational product stays Python by the same vendoring-scope decision that keeps TOML parsing in Python (no bignum rational in libsrmech). ABI-additive — **SRMECH_ABI_VERSION stays 3** (new symbol + two macros, ctypes `hasattr`-guarded).
+- **Attested facts (exact, re-runnable):** zero divisors first appear at 16 and are absent at ≤8 (Hurwitz); the composition norm `N(x·y)=N(x)·N(y)` holds for dims ≤ 8 and fails at 16; conjugation is defined at every rung while the product's inverse dies at the wall (§VII.6.23.3 "chirality persists, its reversing power does not").
+
+`describe()` total **240 → 248** (8 ToolEntry). SSoT: Hurwitz (1898); Schafer (1954) *Amer. J. Math.* 76; Moreno arXiv:q-alg/9710013; Baez arXiv:math/0105155 §2.
+
 ## [0.7.2] - 2026-06-06
 
 **Production graduation of the rc1–rc2 arc — the (σ,θ,μ) coupler + the Hamming/GF(2) front-loader.** Two cascade-catalog additions, both composites over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):

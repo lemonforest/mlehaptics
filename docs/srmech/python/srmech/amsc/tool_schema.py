@@ -2191,6 +2191,123 @@ def _register_primitive_class_tools() -> None:
                       "{'data': k corrected payload bits, 'error_position': int "
                       "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
         ),
+        # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 /
+        # MFO §VII.6.23) — the deliberately NON-reversible object past the Hurwitz
+        # wall. Registered under STABLE flat names ``srmech.amsc.cascade.cd_*`` etc.;
+        # the submodule-dotted ``cascade.cayley_dickson.*`` are the same objects
+        # re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_mult", owner="srmech",
+            category="cascade",
+            summary="Exact-rational Cayley–Dickson product of two equal-dimension "
+                    "elements (#915 / MFO §VII.6.23). Generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… "
+                    "doubling, numpy-free, each component a Fraction. This is the "
+                    "OPEN-EXTERIOR demonstrator, NOT a substrate extension: the_one / "
+                    "hypercomplex_couple live in the reversible interior (≤𝕆); this is "
+                    "the non-division object past the Hurwitz wall where the product "
+                    "loses its inverse. Class M (bilinear bind) ∘ C (conjugation-ordered "
+                    "cross terms) ∘ K (sign-flip; no abs())."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "first element — a power-of-two-length sequence of ints/Fractions"),
+                P("b", "sequence", True, "second element — same dimension as a"),
+            ),
+            returns=R("tuple", "the product, a tuple of exact Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_conjugate", owner="srmech",
+            category="cascade",
+            summary="Cayley–Dickson conjugation — negate the imaginary part (Class K "
+                    "sign-flip, no abs()). Defined at EVERY rung: x·x̄ = N(x)·1 even "
+                    "where the product has no inverse (§VII.6.23.3: chirality persists; "
+                    "its reversing power does not)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("tuple", "the conjugate, a tuple of exact Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_norm_sq", owner="srmech",
+            category="cascade",
+            summary="The squared norm N(x) = Σ xᵢ² (exact rational; x·x̄ = N(x)·1). "
+                    "Positive-definite at every rung. The composition identity "
+                    "N(x·y) = N(x)·N(y) holds for dims ≤ 8 and FAILS at 16 (a "
+                    "zero-divisor pair has N(x·y)=0 while N(x)·N(y)≠0; §VII.6.23 C3)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("Fraction", "the squared norm Σ xᵢ²"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_basis_product", owner="srmech",
+            category="cascade",
+            summary="The integer structural core — basis-unit cocycle e_i·e_j = "
+                    "sign·e_index (the result index is i⊕j; the sign carries the Fano/"
+                    "orientation structure). Integer-only; the JPL-clean C peer "
+                    "srmech_cd_basis_product returns the identical (index, sign) "
+                    "(Rosetta-attested by test_cascade_cayley_dickson_parity.py)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension (power of two ≤ 64)"),
+                P("i", "int", True, "first basis index in [0, dim)"),
+                P("j", "int", True, "second basis index in [0, dim)"),
+            ),
+            returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.sedenion_zero_divisor_witness", owner="srmech",
+            category="cascade",
+            summary="Exhibit a concrete sedenion (dim 16) zero divisor: x, y both "
+                    "nonzero with x·y = 0 — found from OUR OWN multiplication table "
+                    "(own-work-first, not a literature transcription). The executable "
+                    "form of '§VII.6.23: zero divisors first appear at 16 and never "
+                    "heal'. Division algebras (dims 1,2,4,8) provably have none."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("dict",
+                      "{'dim':16, 'x','y': Fraction tuples, 'x_form','y_form': "
+                      "'e_i ± e_j' strings, 'x_norm_sq','y_norm_sq': nonzero, "
+                      "'product': all-zero, 'product_is_zero': True}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.left_mult_kernel", owner="srmech",
+            category="cascade",
+            summary="Exact-rational kernel basis of the map u ↦ x·u. NONEMPTY ⟺ x is "
+                    "a left zero divisor ⟺ multiply-by-x is non-injective ⟺ no inverse "
+                    "map exists — the 'no backward direction to point' of §VII.6.23.4 "
+                    "(anything past and unobserved is lost). Empty for every nonzero "
+                    "element of a division algebra (≤𝕆). Class L (linear-algebra rank)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("list", "kernel-basis vectors (Fraction tuples); empty if invertible"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.left_mult_is_invertible", owner="srmech",
+            category="cascade",
+            summary="True iff u ↦ x·u is a bijection (a backward direction exists). "
+                    "Always True for nonzero x at dims ≤ 8; False for a zero divisor at "
+                    "dim ≥ 16 — the reversibility that ends at the Hurwitz wall."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("bool", "True iff multiply-by-x has a (two-sided) inverse map"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.is_division_algebra_dim", owner="srmech",
+            category="cascade",
+            summary="True iff the dim-D Cayley–Dickson algebra is a normed division "
+                    "algebra (Hurwitz 1898): the reversible interior is exactly dims "
+                    "1, 2, 4, 8. The boundary between the simulable ≤𝕆 substrate and "
+                    "the open exterior (≥16)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "an algebra dimension"),
+            ),
+            returns=R("bool", "True for dim in {1,2,4,8}, else False"),
+        ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.the_one``; the submodule-dotted
