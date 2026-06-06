@@ -79,7 +79,22 @@ navbox hatnote smaller larger plainlist flatlist nowrap mw wiki wikipedia
 template templates stub disambiguation namespace toc navbar collapsible mini
 small big sub sup align center
 """.split())
-STOPWORDS |= MARKUP_RESIDUE
+# LaTeX command-word backstop (layered with the extractor's <math>-drop): any
+# math command that leaks past extraction tokenizes to these — filter them so the
+# presence kernel's vocabulary stays content, not notation. (enwiki is math-heavy;
+# simplewiki measured ~0 LaTeX, so this is a no-op there + insurance for enwiki.)
+LATEX_RESIDUE = set("""
+displaystyle frac dfrac tfrac sqrt sum prod int oint lim sup inf max min
+alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa
+lambda mu nu xi pi rho sigma tau upsilon phi varphi chi psi omega
+mathbf mathrm mathit mathcal mathbb mathfrak boldsymbol textbf textit textrm
+text operatorname cdot cdots ldots times div pm mp leq geq neq approx equiv
+partial nabla infty forall exists in notin subset supset cup cap emptyset
+begin end array matrix pmatrix bmatrix vmatrix cases align aligned gather
+left right big bigg langle rangle lfloor rfloor lceil rceil overline underline
+hat bar vec dot ddot tilde widehat overrightarrow mathsf
+""".split())
+STOPWORDS |= MARKUP_RESIDUE | LATEX_RESIDUE
 
 _MINT_CACHE = {}
 
