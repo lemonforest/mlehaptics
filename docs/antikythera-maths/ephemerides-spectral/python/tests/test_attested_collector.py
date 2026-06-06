@@ -402,6 +402,8 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
         "secular_elements",
+        "solar_cycle",
+        "solar_rotation",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
@@ -428,6 +430,9 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
     assert found["cmb_power_spectrum"].adapter_name == "literature_curated"
     # Companion cosmology-instrument ship (6 canonical CMB anomalies).
     assert found["cmb_anomalies"].adapter_name == "literature_curated"
+    # v0.30.0rc4 dual-author — solar_rotation + solar_cycle.
+    assert found["solar_rotation"].adapter_name == "literature_curated"
+    assert found["solar_cycle"].adapter_name == "literature_curated"
     # v0.28.0rc1 Phase 10a — per-body J2000 Keplerian mean elements.
     assert found["secular_elements"].adapter_name == "literature_curated"
 
@@ -541,7 +546,8 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     surfaced transitively through the AMSC bridge."""
     result = bridge.list_attested_sources()
     assert result["ok"] is True
-    assert result["n_sources"] == 28
+    # v0.30.0rc4 dual-author: solar_rotation (29th) + solar_cycle (30th).
+    assert result["n_sources"] == 30
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "asymptotic_calculus",
@@ -569,6 +575,8 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
         "secular_elements",
+        "solar_cycle",
+        "solar_rotation",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
@@ -589,7 +597,8 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
     surface adds cosmic_birefringence (25th curated)."""
     result = bridge.list_attested_sources(adapter_class="curated")
     assert result["ok"] is True
-    assert result["n_sources"] == 25
+    # +solar_rotation +solar_cycle (v0.30.0rc4 dual-author) → 27 curated.
+    assert result["n_sources"] == 27
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -615,6 +624,8 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "pluto_charon_dynamical_spectrum",
         "saturn_rings",
         "secular_elements",
+        "solar_cycle",
+        "solar_rotation",
         "sun_dynamical_spectrum",
         "toroidal_residual",
         "yarkovsky_yorp",
@@ -659,7 +670,8 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # cosmos_validation / pi_digits) surfaced transitively in
     # v0.29.2rc1 + cosmic_birefringence (25th) surfaced by the srmech
     # 0.6.0/0.7.0rc48 compatibility surface in v0.29.3rc1.
-    assert result["n_sources"] == 25
+    # + solar_rotation + solar_cycle (v0.30.0rc4 dual-author) → 27.
+    assert result["n_sources"] == 27
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 

@@ -1,0 +1,74 @@
+# Sol Solar Rotation Catalogue — surface differential rotation +
+# helioseismic internal rotation, authored through the AMSC
+# literature_curated framework.
+#
+# v0.30.0rc4 dual-author exercise (cf. saturn_rings): the same 4
+# rotation-anchor rows are encoded TWICE — once through this AMSC path
+# (descriptor + NDJSON + JSON Schema), once through the hand-coded
+# `_research/solar_rotation_data.py` module (the rc2 Sol Solar Rotation
+# catalogue's data source). The two paths' NDJSON are diff-checked by
+# tests/test_solar_rotation_dual_author.py; byte-stable agreement is
+# the evidence the descriptor schema expresses what the hand-coded
+# @dataclass expresses.
+#
+# Per-row source DOIs are triality-attested (haiku/sonnet/opus vs NASA
+# ADS / IOPscience / arXiv): 10.1086/168467 (Snodgrass & Ulrich 1990,
+# the surface A/B/C law) and 10.1086/306146 (Schou 1998, the SOI/MDI
+# internal-rotation inversion). Both DOIs resolve and carry independent
+# external evidence; per-row dates are written at the granularity all
+# three tiers externally confirmed (month for Snodgrass-Ulrich, year
+# for Schou — the panel declined to over-claim publisher day/month).
+
+[source]
+key = "solar_rotation"
+human_readable_name = "Sol Solar Rotation Catalogue"
+purpose = "ground-proof rows for the Sun's surface differential rotation (Snodgrass-Ulrich law) + helioseismic internal rotation (tachocline + near-rigid radiative interior)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://gong.nso.edu/"
+canonical_doi = "10.12942/lrsp-2009-1"
+
+# canonical_doi points at Howe 2009, *Living Reviews in Solar Physics*
+# 6:1 — the open-access review of solar interior rotation and its
+# variation (triality-attested: DOI resolves, arXiv 0902.2406,
+# ADS 2009LRSP....6....1H). Per-row provenance is finer-grained: each
+# row carries its own source_doi for the paper authorising its values.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "rotation_anchor.ndjson"
+# No endpoint / pagination / rate-limiting — literature_curated does no
+# network I/O; the "fetch" reads the committed NDJSON at ndjson_path.
+
+[parse]
+# Every row must carry its own source_doi (per-row attestation).
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "solar_rotation.rotation_anchor.v1"
+data_schema_path = "rotation_anchor.schema.json"
+
+[rendering]
+cite_as_template = "Sol Solar Rotation Catalogue (curated against published literature; Howe 2009 *Living Rev. Solar Phys.* 6:1 + per-row source DOIs Snodgrass-Ulrich 1990 / Schou 1998); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof rotation-anchor row (Sol; surface differential + helioseismic internal rotation)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+# [gap_targeting] intentionally omitted: rotation-as-a-spectral-profile
+# (a scalar Omega(lat) rate field + a 1-D radial transition) does not
+# map onto any of the v0.24.9 dynamical-regime classifier labels
+# (trajectory / temporal-quasi-periodic / bounded-local-Laplacian), so
+# declaring one would be a forced fit. This source is not a schema-gap
+# target for the v0.26.0 trigger.

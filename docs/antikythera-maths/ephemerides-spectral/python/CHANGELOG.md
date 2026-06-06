@@ -10,6 +10,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc4] — 2026-06-06
+
+### Added — attested-TOML dual-author for solar_rotation + solar_cycle
+
+The 2nd + 3rd applications of the saturn_rings dual-author pattern: the
+rc2 Solar Rotation and rc3 Solar Cycle catalogues now author their data
+rows TWICE — the hand-coded `_research/*_data.py` module **and** an AMSC
+`literature_curated` descriptor + JSON Schema + NDJSON — with a per-row
+diff test asserting byte-stable agreement.
+
+- **`research/attested/solar_rotation/`** (new): `descriptor.toml` +
+  `rotation_anchor.schema.json` + `rotation_anchor.ndjson` (4 anchors:
+  2 Snodgrass-Ulrich 1990 surface evaluations + 2 Schou 1998 interior
+  anchors). canonical_doi = Howe 2009 (`10.12942/lrsp-2009-1`).
+  `[gap_targeting]` intentionally omitted — rotation-as-a-spectral-
+  profile maps to no v0.24.9 classifier regime.
+- **`research/attested/solar_cycle/`** (new): `descriptor.toml` +
+  `solar_cycle.schema.json` + `solar_cycle.ndjson` (3 cycles: 23/24
+  Hathaway 2015, 25 Clette 2014). canonical_doi = Hathaway 2015
+  (`10.1007/lrsp-2015-4`). `[gap_targeting] = temporal_quasi_periodic_cycle`
+  (the activity cycle is the same regime as Axial Seamount / Loki Patera).
+- **`_research/solar_rotation_data.py`** + **`solar_cycle_data.py`** —
+  `RotationAnchor` / `SolarCycle` dataclasses gain per-row provenance
+  (`source_doi` / `source_published_date` / `entered_locally_at` /
+  `source_version`); `*_to_data_dict` emit them in schema order.
+- **`tests/test_solar_rotation_dual_author.py`** +
+  **`tests/test_solar_cycle_dual_author.py`** (new) — row-count,
+  key-set, per-field, full-dict-equality, and per-row source_doi
+  presence assertions.
+- `bridge.list_attested_sources` ratchets: `n_sources` 28 → 30,
+  curated 25 → 27 (`test_attested_collector.py`).
+
+### Provenance — triality-attested citations (MPM defense-in-depth)
+
+The per-row DOIs + published dates were verified by a **triality panel**
+(haiku + sonnet + opus), each independently attesting all 8 citations
+against NASA ADS / IOPscience / arXiv / Royal Observatory of Belgium,
+then an opus reconciler collision-detecting. Agreement alone was treated
+as insufficient — the three models can share a wrong training prior — so
+every CONFIRMED field also carries an independently-fetched external-
+evidence URL, and load-bearing `doi`/`published_date` disagreements
+demote to NEEDS_REVIEW rather than trusting consensus.
+
+- All four per-row journal DOIs confirmed resolving with OA evidence:
+  `10.1086/168467` (Snodgrass-Ulrich 1990, → `1990-03`),
+  `10.1086/306146` (Schou 1998, → `1998`),
+  `10.1007/lrsp-2015-4` (Hathaway 2015, → `2015`),
+  `10.1007/s11214-014-0074-2` (Clette 2014, → `2014`).
+- The panel **refused** the day/month precision (`1998-09-20`,
+  `2015-09-21`) that no external source pins — dates are written at the
+  granularity all three tiers confirmed (year, except Snodgrass-Ulrich's
+  unanimous month). This is the exact shared-prior over-claim the panel
+  exists to catch.
+- It flagged Schwabe 1844's Wiley DOI as paywalled (HTTP 402) —
+  unusable as a sole attestation per `[[feedback_paywalled_doi_cannot_be_attested]]`.
+  Schwabe is metadata-only (not a per-row DOI), so nothing was blocked;
+  the free ADS bibcode is the attestable route.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc3` → `0.30.0rc4` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc3] — 2026-06-06
 
 ### Added — Solar Cycle Spectrum (the Sun's slow magnetic clock)
