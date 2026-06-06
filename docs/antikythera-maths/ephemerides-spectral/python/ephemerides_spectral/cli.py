@@ -1170,6 +1170,22 @@ def _cmd_solar_differential_rotation_full(args: argparse.Namespace) -> int:
     return _emit(bridge.list_solar_differential_rotation(), pretty=args.pretty)
 
 
+def _cmd_solar_cycle_spectrum(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_cycle_spectrum(), pretty=args.pretty)
+
+
+def _cmd_hale_polarity_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_hale_polarity_closure(), pretty=args.pretty)
+
+
+def _cmd_butterfly_drift(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_butterfly_drift(), pretty=args.pretty)
+
+
+def _cmd_solar_cycle_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_solar_cycle_spectrum(), pretty=args.pretty)
+
+
 # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
 
 def _cmd_cmb_power_at_ell(args: argparse.Namespace) -> int:
@@ -5261,6 +5277,78 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sdrf.set_defaults(func=_cmd_solar_differential_rotation_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Sol Solar Cycle Spectrum (v0.30.0rc3) — the Sun's slow magnetic
+    # clock: Schwabe / Hale / Gleissberg periods + the butterfly drift.
+    # ──────────────────────────────────────────────────────────────────
+
+    # solar-cycle-spectrum
+    scs = sub.add_parser(
+        "solar-cycle-spectrum",
+        help="Sun's magnetic activity-cycle periods + butterfly + roster",
+        description=(
+            "v0.30.0rc3 -- the Sun's slow magnetic clock, the third\n"
+            "solar-dynamics catalogue (after the Sun Dynamical Spectrum's\n"
+            "p-modes and the differential-rotation profile). The Schwabe\n"
+            "sunspot cycle (~11 yr), the Hale magnetic-polarity cycle\n"
+            "(22 yr = 2 Schwabe), the Gleissberg amplitude modulation\n"
+            "(~88 yr), plus the butterfly-diagram emergence latitudes and\n"
+            "the recent-cycle roster (cycles 23/24/25).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-cycle-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scs.set_defaults(func=_cmd_solar_cycle_spectrum)
+
+    # hale-polarity-closure (THE headline)
+    hpc = sub.add_parser(
+        "hale-polarity-closure",
+        help="Hale = 2 x Schwabe polarity-flip closure (the headline)",
+        description=(
+            "v0.30.0rc3 headline. The Hale magnetic cycle is exactly two\n"
+            "Schwabe sunspot cycles: the Sun's global polarity reverses\n"
+            "each activity cycle (Hale & Nicholson 1925) and returns to\n"
+            "its original sense only after two, so Hale = 2 x Schwabe.\n"
+            "The 2:1 commensurability is the polarity Class-K sign-flip --\n"
+            "the same sign-flip-doubles-the-period structure as an\n"
+            "epicycle (cf. the rc1 ring (p:q) resonance).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral hale-polarity-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hpc.set_defaults(func=_cmd_hale_polarity_closure)
+
+    # butterfly-drift
+    bfd = sub.add_parser(
+        "butterfly-drift",
+        help="Spörer's law -- the butterfly-diagram equatorward drift",
+        description=(
+            "Spörer's law: sunspots emerge at ~30 deg latitude at the\n"
+            "start of a cycle and drift toward the equator (~8 deg) by\n"
+            "its end; plotting emergence latitude vs time over many\n"
+            "cycles draws the butterfly wings."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    bfd.set_defaults(func=_cmd_butterfly_drift)
+
+    # solar-cycle-spectrum-full
+    scsf = sub.add_parser(
+        "solar-cycle-spectrum-full",
+        help="Full solar-cycle enumeration + citations",
+        description=(
+            "Returns the three cycle periods + the recent-cycle roster +\n"
+            "the citation dict (Schwabe 1844; Hale & Nicholson 1925;\n"
+            "Hathaway 2015; Clette 2014)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scsf.set_defaults(func=_cmd_solar_cycle_spectrum_full)
 
     # ──────────────────────────────────────────────────────────────────
     # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies

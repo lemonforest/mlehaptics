@@ -72,11 +72,9 @@ dynamical-spectrum family).
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
-import numpy as np
-
+from . import _cascade
 from .geodetic_catalog_data import GRAVITY_MODELS
 from .saturn_rings_data import (
     SATURN_RING_FEATURES,
@@ -160,9 +158,10 @@ def _predicted_resonance_radius_km(a_moon_km: float, p: int, q: int) -> float:
 
     This is the point-mass commensurability (Murray & Dermott 1999
     §8.6); Saturn's oblateness shifts it by the J₂ term surfaced in
-    :func:`get_ring_resonance_closure`.
+    :func:`get_ring_resonance_closure`. The ``(q/p)^(2/3)`` power is the
+    Class-N exp∘log cascade (:func:`_cascade.pow_frac`), not ``**``.
     """
-    return a_moon_km * (float(q) / float(p)) ** (2.0 / 3.0)
+    return a_moon_km * _cascade.pow_frac(q, p, 2, 3)
 
 
 def _j2_frequency_correction(a_km: float) -> float:
@@ -318,38 +317,11 @@ def get_ring_resonance_closure() -> Dict[str, Any]:
 
 # ---------------------------------------------------------------------------
 # Bounded-local-Laplacian on the radial feature graph (v0.24.5 Hawaii
-# machinery applied to ring radii).
+# machinery applied to ring radii). The Gaussian-proximity Laplacian
+# build + eigendecomposition route through the Class-L cascade helper
+# (srmech.amsc.laplacian, via _cascade.gaussian_proximity_eigs) — no raw
+# numpy eigh.
 # ---------------------------------------------------------------------------
-
-
-def _build_radial_proximity_laplacian(
-    sigma_km: float = 10000.0,
-) -> Tuple[np.ndarray, List[float], List[str]]:
-    """Gaussian-proximity graph Laplacian ``L = D − W`` on the ring
-    features, ordered by radial distance, with
-
-        w_ij = exp(-(r_i − r_j)² / (2 σ²)).
-
-    Same bounded-local-Laplacian machinery as v0.24.5 Hawaii (a finite
-    local graph rather than a full-disk eigenbasis), with the chain
-    coordinate being radial distance from Saturn instead of along-track
-    distance on a hotspot trail.
-    """
-    ordered = sorted(SATURN_RING_FEATURES, key=lambda f: f.radial_distance_km)
-    radii = [f.radial_distance_km for f in ordered]
-    names = [f.name for f in ordered]
-    n = len(ordered)
-    W = np.zeros((n, n), dtype=np.float64)
-    two_sigma_sq = 2.0 * sigma_km * sigma_km
-    for i in range(n):
-        for j in range(i + 1, n):
-            d = radii[i] - radii[j]
-            w = math.exp(-(d * d) / two_sigma_sq)
-            W[i, j] = w
-            W[j, i] = w
-    D = np.diag(W.sum(axis=1))
-    L = D - W
-    return L, radii, names
 
 
 def _largest_radial_gap() -> Dict[str, Any]:
@@ -395,17 +367,19 @@ def get_ring_radial_laplacian() -> Dict[str, Any]:
         n_sign_changes, largest_radial_gap, features}``.
     """
     sigma_km = 10000.0
-    L, radii, names = _build_radial_proximity_laplacian(sigma_km)
-    eigvals, eigvecs = np.linalg.eigh(L)
-    order = np.argsort(eigvals)
-    eigvals = eigvals[order]
-    eigvecs = eigvecs[:, order]
+    ordered = sorted(SATURN_RING_FEATURES, key=lambda f: f.radial_distance_km)
+    radii = [f.radial_distance_km for f in ordered]
+    names = [f.name for f in ordered]
+    # Class-L build + eigendecompose via the cascade helper
+    # (srmech.amsc.laplacian.dense_laplacian + symmetric_eigendecompose);
+    # eigvals ascending, V columns the eigenvectors.
+    eigvals, eigvecs = _cascade.gaussian_proximity_eigs(radii, sigma_km)
     lambda_2 = float(eigvals[1])
     lambda_3 = float(eigvals[2])
     fiedler = eigvecs[:, 1]
-    # Sign convention: pin the innermost feature (smallest radius, the
-    # first in the radial ordering) to a non-negative Fiedler value, so
-    # the partition is reproducible across LAPACK pivoting differences.
+    # Sign convention (Class-C reorient): pin the innermost feature
+    # (smallest radius, first in the radial ordering) to a non-negative
+    # Fiedler value, so the partition is reproducible across pivoting.
     if fiedler[0] < 0:
         fiedler = -fiedler
 

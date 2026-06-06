@@ -719,6 +719,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.30.0rc3 Sol Solar Cycle Spectrum (Schwabe 11-yr / Hale 22-yr
+    # polarity-flip closure / Gleissberg 88-yr / butterfly drift). The
+    # third solar-dynamics catalogue. Pure-Python period structure +
+    # integer commensurability; no transcendental, no C twin.
+    "get_solar_cycle_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_hale_polarity_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_butterfly_drift": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_solar_cycle_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── First cosmology-instrument pair — cmb_power_spectrum +
     # cmb_anomalies. Pure-Python query surfaces over committed NDJSON;
     # no encoder-touching, no C twin makes sense.

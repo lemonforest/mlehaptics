@@ -35,9 +35,9 @@ Reference: research notebook §17 (solar dynamics).
 
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List
 
+from . import _cascade
 from .solar_rotation_data import (
     CARRINGTON_SIDEREAL_PERIOD_DAYS,
     EARTH_ORBITAL_RATE_DEG_PER_DAY,
@@ -56,8 +56,14 @@ _LATITUDE_BANDS_DEG: List[float] = [0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0]
 
 
 def _omega_deg_per_day(latitude_deg: float) -> float:
-    """Sidereal rotation rate at a latitude (Snodgrass-Ulrich 1990)."""
-    s2 = math.sin(math.radians(latitude_deg)) ** 2
+    """Sidereal rotation rate at a latitude (Snodgrass-Ulrich 1990).
+
+    ``sin(lat)`` is the Class-N rational sine (``_cascade.sin_deg``),
+    not ``math.sin`` — the surface law's transcendental routes through
+    the srmech cascade.
+    """
+    s = _cascade.sin_deg(latitude_deg)
+    s2 = s * s
     return (
         SU_A_DEG_PER_DAY
         + SU_B_DEG_PER_DAY * s2
@@ -91,12 +97,15 @@ def _carrington_latitude_deg() -> float:
     c_q = SU_A_DEG_PER_DAY - omega_target
     disc = b_q * b_q - 4.0 * a_q * c_q
     assert disc >= 0.0, "no real Carrington-latitude root"
-    sqrt_disc = math.sqrt(disc)
-    # Two roots; pick the one with sin^2 in [0, 1].
+    # Class-N integer-Newton sqrt (not math.sqrt).
+    sqrt_disc = _cascade.sqrt(disc)
+    # Two roots; pick the one with sin^2 in [0, 1]. lat = degrees(asin(
+    # sqrt(s))) — sqrt + asin + degrees all route through the Class-N
+    # cascade (_cascade.asin is atan(x/sqrt(1-x^2)); π from pi_cascade).
     for sign in (1.0, -1.0):
         s = (-b_q + sign * sqrt_disc) / (2.0 * a_q)
         if 0.0 <= s <= 1.0:
-            return math.degrees(math.asin(math.sqrt(s)))
+            return _cascade.degrees(_cascade.asin(_cascade.sqrt(s)))
     raise ValueError("no physical Carrington-latitude root in [0, 1]")
 
 

@@ -308,6 +308,12 @@ from ephemerides_spectral._research.solar_rotation_catalog import (
     get_solar_internal_rotation as _get_solar_internal_rotation_impl,
     list_solar_differential_rotation as _list_solar_differential_rotation_impl,
 )
+from ephemerides_spectral._research.solar_cycle_catalog import (
+    get_solar_cycle_spectrum as _get_solar_cycle_spectrum_impl,
+    get_hale_polarity_closure as _get_hale_polarity_closure_impl,
+    get_butterfly_drift as _get_butterfly_drift_impl,
+    list_solar_cycle_spectrum as _list_solar_cycle_spectrum_impl,
+)
 from ephemerides_spectral._research.cmb_power_spectrum_catalog import (
     get_cmb_power_at_ell as _get_cmb_power_at_ell_impl,
     get_cmb_first_acoustic_peak as _get_cmb_first_acoustic_peak_impl,
@@ -5012,6 +5018,48 @@ def get_solar_internal_rotation() -> Dict[str, Any]:
 def list_solar_differential_rotation() -> Dict[str, Any]:
     """Full enumeration of solar-rotation data + citations."""
     return _list_solar_differential_rotation_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Solar Cycle Spectrum (v0.30.0rc3) — the Sun's slow magnetic clock:
+# the ~11-yr Schwabe sunspot cycle, the 22-yr Hale polarity cycle, the
+# ~88-yr Gleissberg modulation, and the butterfly-diagram drift. The
+# closure is the integer Hale = 2 x Schwabe — the polarity sign-flip
+# (Class-K) doubling the period, exactly as an epicycle's sign-flip does.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_solar_cycle_spectrum() -> Dict[str, Any]:
+    """Sun's magnetic activity cycle — the period structure: the Schwabe
+    sunspot cycle (~11 yr), the Hale magnetic-polarity cycle (22 yr = 2
+    Schwabe), the Gleissberg amplitude modulation (~88 yr), plus the
+    butterfly-diagram emergence latitudes and the recent-cycle roster.
+    """
+    return _get_solar_cycle_spectrum_impl()
+
+
+def get_hale_polarity_closure() -> Dict[str, Any]:
+    """THE closure of v0.30.0rc3: the Hale magnetic cycle is exactly two
+    Schwabe sunspot cycles. The Sun's global polarity reverses each
+    activity cycle (Hale & Nicholson 1925) and returns to its original
+    sense only after two, so Hale = 2 x Schwabe — the 2:1 commensurability
+    is the polarity Class-K sign-flip, the same sign-flip-doubles-the-
+    period structure as an epicycle.
+    """
+    return _get_hale_polarity_closure_impl()
+
+
+def get_butterfly_drift() -> Dict[str, Any]:
+    """Spörer's law — the butterfly-diagram equatorward drift: sunspots
+    emerge at ~30 deg latitude at cycle start and drift to ~8 deg by
+    cycle end.
+    """
+    return _get_butterfly_drift_impl()
+
+
+def list_solar_cycle_spectrum() -> Dict[str, Any]:
+    """Full enumeration of solar-cycle data + citations."""
+    return _list_solar_cycle_spectrum_impl()
 
 
 # ──────────────────────────────────────────────────────────────────────

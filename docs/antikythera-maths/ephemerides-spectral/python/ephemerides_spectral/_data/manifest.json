@@ -8,6 +8,10 @@
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
+    "_research/_cascade.py": {
+      "sha256": "3bcda5278a632094badd89ead108b905b66992614095ee541be96b491a212924",
+      "size_bytes": 5380
+    },
     "_research/admittance_catalog.py": {
       "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
       "size_bytes": 4993
@@ -501,8 +505,8 @@
       "size_bytes": 13382
     },
     "_research/saturn_rings_catalog.py": {
-      "sha256": "88363e6c2aa44fd687b99d820a6982729a040b0dd1044d9bbb4f31980c133ac4",
-      "size_bytes": 18991
+      "sha256": "79c45585a6ded36c39b9b75019532cc32c326ea5ccf8da98adfb8f9f8435aed2",
+      "size_bytes": 18408
     },
     "_research/saturn_rings_data.py": {
       "sha256": "571345f9ba87447e7af3506895b2e398c1e08732671cc2a07104e88b351f8178",
@@ -520,9 +524,17 @@
       "sha256": "6b6d168bbe5eaee980cd93c2c5ba043b51a9dd2bc4459ba6691e917538bcb23d",
       "size_bytes": 13483
     },
+    "_research/solar_cycle_catalog.py": {
+      "sha256": "a2f3bbe42923d98a04e6f10b77f860ec85280b4b1f0ee86a089daf5ee232d19e",
+      "size_bytes": 6671
+    },
+    "_research/solar_cycle_data.py": {
+      "sha256": "6e0e84a3c29ae7e24633f1c672e21a3f9c6e8b47a7b5c59a84b7759d612b09fe",
+      "size_bytes": 5897
+    },
     "_research/solar_rotation_catalog.py": {
-      "sha256": "e4e09884efad5f5ecb25dc3b8b70c7064457c4e94cc20a1453b5677f90dc5724",
-      "size_bytes": 9056
+      "sha256": "3d836d8f37deb66a20aecb53688785dd482972d337a589ad7321c33e2f9c83d8",
+      "size_bytes": 9476
     },
     "_research/solar_rotation_data.py": {
       "sha256": "6cc8aad5cc8c439f25079fe39a4b99d7349d2ffba0c3d60ec9a51bd0827bb221",
@@ -602,5 +614,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc2"
+  "version": "0.30.0rc3"
 }
