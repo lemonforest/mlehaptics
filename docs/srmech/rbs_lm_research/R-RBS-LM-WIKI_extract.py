@@ -14,11 +14,33 @@ Output: <out>/articles.jsonl  (one {"title","text"} per line).
 
 import argparse
 import bz2
+import html
 import json
+import re
 from pathlib import Path
 from xml.etree.ElementTree import iterparse
 
 import mwparserfromhell
+
+# --- markup-cleaning (F447 residue + F-WIKI-MARKUP scan): drop math/ref SOURCE
+# before strip_code so LaTeX (\frac, \displaystyle) + citation markup never leak
+# as tokens; then unescape entities + strip residual HTML tags. Dependency-free.
+# Negligible for simplewiki (measured <0.5%); load-bearing for full enwiki (math-heavy). ---
+_MATH_RE = re.compile(r"<\s*math\b[^>]*>.*?<\s*/\s*math\s*>", re.S | re.I)
+_REF_RE = re.compile(r"<\s*ref\b[^>]*>.*?<\s*/\s*ref\s*>", re.S | re.I)
+_DISP_RE = re.compile(r"\{\\displaystyle[^{}]*\}")
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+
+
+def _clean(wikitext):
+    s = _MATH_RE.sub(" ", wikitext)               # drop <math>…</math> LaTeX source
+    s = _REF_RE.sub(" ", s)                        # drop <ref>…</ref> citation source
+    s = mwparserfromhell.parse(s).strip_code()     # wikitext markup
+    s = html.unescape(s)                           # &amp; &lt; … → chars
+    s = _DISP_RE.sub(" ", s)                       # any {\displaystyle …} residue
+    s = _TAG_RE.sub(" ", s)                        # residual HTML tags
+    return _WS_RE.sub(" ", s).strip()
 
 
 def localname(tag):
@@ -56,7 +78,7 @@ def extract(dump_path, out_dir, max_articles=0, min_chars=200, log_every=20000):
                 pages += 1
                 if ns == "0" and not redirect and text:
                     try:
-                        plain = mwparserfromhell.parse(text).strip_code()
+                        plain = _clean(text)
                     except Exception:
                         plain = text
                     if len(plain) >= min_chars:
