@@ -4027,6 +4027,79 @@ The srmech voxel-arc (rc16–rc20; srmech notebook §3.29) named a two-tier SSoT
 
 ---
 
+### VII.6.23 The sedenion boundary is the open-future boundary: forward-determinism with structural irreversibility — anything past and unobserved is lost (2026-06-06, triality-attested; #908 / #910 §30)
+
+> *Building-block reading (`[[feedback_aphantasia_means_more_figures_not_fewer]]` + user direction 2026-06-06): §VII.6.12.2 read the sedenion as the **wall** — the rung whose lost properties *bound* the substrate at 11D = 1+3+7. This rung reads the wall's **far side**: the same boundary that caps the visible ladder is the boundary past which the future is unknowable. No new physics — it names what our own bit-exact code (the_one #887; `hypercomplex_couple` #908; the F424/F437 reversal measurement; the Hamming CARRY #910 §30) already attests, and what the literature (Hurwitz 1898; Baez arXiv:math/0105155; Moreno arXiv:q-alg/9710013) backs. A starting block; downstream usage refactors any misfit.*
+
+#### VII.6.23.1 The claim — reversible interior, division boundary, open exterior
+
+The Cayley–Dickson ladder splits the substrate into two régimes across one boundary:
+
+| régime | dim | algebraic character | what it IS, in MFO |
+|---|---|---|---|
+| **reversible interior** | ≤ 8 (ℝ, ℂ, ℍ, 𝕆) | normed **division** algebras — every nonzero element invertible; multiplication is a bijection | **the rules we can see** — bit-exact, forward-*and*-backward, simulable (the_one's 2+4+8 = 14) |
+| ↑ the **division boundary** | 𝕆 → 𝕊 | Hurwitz ceiling: composition + alternativity first fail on this doubling | the COUPLE↔CARRY seam — reversible bind (≤𝕆) gives way to coded carry (≥𝕊) |
+| **open exterior** | ≥ 16 (𝕊, 32, …) | **zero divisors** appear; global invertibility fails; never heals climbing | **the unknown future** — forward-defined, not backward-recoverable |
+
+The load-bearing identity: **a substrate with an open future must be non-division — dim ≥ 16.** The reversible physics we can write down and run is its 𝕆-interior; the openness is the signature that the whole is sedenion-shaped *or higher*. (We claim the *boundary*, not a specific rung — see fences, §VII.6.23.6.)
+
+#### VII.6.23.2 The staircase of forgetting (triality-attested C1–C5)
+
+```
+dim  algebra            lost on reaching this rung          survives ALL higher rungs        invertible?
+ 1   ℝ  real            (base)                              —                                 yes
+ 2   ℂ  complex         ordering                            commutativity, associativity      yes
+ 4   ℍ  quaternion      commutativity                       associativity                     yes
+ 8   𝕆  octonion        associativity (alternativity KEPT;  alternativity, composition norm   yes   ◄ Hurwitz ceiling
+                        composition norm KEPT)
+════════════════  division boundary: on doubling 𝕆 → 𝕊 both alternativity AND ════════════════
+════════════════  the composition norm ‖xy‖=‖x‖‖y‖ first fail, and zero divisors appear ═════
+16   𝕊  sedenion        alternativity, composition,         power-associativity, flexibility, NO* ◄ zero divisors
+                        DIVISION (∃ x·y=0, x,y≠0)           conjugation, quadratic norm-form
+32   trigintaduonion    (nothing further is lost)           "                                 NO*
+64   …                  (nothing further is lost)           "                                 NO*  ◄ never returns
+```
+
+\**"NO" = global reversibility fails, not "nothing is invertible": **many** nonzero sedenions still have inverses; the point is that **some nonzero elements have none** (the zero divisors), so multiplication is no longer a bijection. One non-invertible direction is enough to break the clean flow.* (Claim C6, triality-attested.)
+
+What the climb **keeps forever** (C2, C5): power-associativity, flexibility, the conjugation involution `(a,b)* = (a*,−b)`, and the quadratic norm-form. Exactly enough to step **forward** (multiply, raise to a power, conjugate, measure a norm) — and never enough to step **back** uniquely. Hurwitz (1898) is a hard ceiling (C1): no division/composition structure ever returns above dim 8, so reversibility is lost **permanently** at 𝕊 and at the trigintaduonions (32) and beyond — monotonically worse, never healing (C4).
+
+#### VII.6.23.3 Chirality persists; its *reversing power* does not
+
+A vocabulary sharpening of §30 / F449's "broken chirality." **Chirality itself never breaks.** The conjugation `x ↦ x̄` is defined at every rung (C2) — the order-reversal operator is present at 16, 32, 64, forever. What breaks is the identity that lets the conjugate *undo* a fold: `x̄·(x·y) = ‖x‖²·y` needs alternativity/composition, which die on 𝕆→𝕊. So:
+
+> the conjugate survives every rung; its power to **reverse** is permanently lost from the sedenion onward.
+
+That is the precise content of "broken chirality": not an absent operation, but an operation that no longer guarantees recovery — which is exactly why the CARRY half (#910 §30) had to route past 𝕆 through a **code**, "the sedenion's CODE structure, NOT its broken chirality."
+
+#### VII.6.23.4 Anything past and unobserved is lost — there is no backward direction to point
+
+In the interior (≤𝕆), "multiply by x" is a bijection: a two-way street, you can point backward (×x⁻¹) exactly as well as forward. Past the boundary a zero divisor `x·y = 0` (both nonzero) means "multiply by x" has a **kernel** — it is not injective, and **no inverse map exists**. So there is no single backward direction to point: many distinct pasts fold to one present, and the operation that would walk it back is not a function at all.
+
+Therefore the only trace of the past that survives forward is what was **observed / recorded** — and observation is **Class H** (the measurement gate, §VII.6.21.3 / §VII.6.22.2: H reads agreement and fixes the frame). What H records is carried forward as a code (the CARRY / Hamming half); what H does not read falls into the kernel and is **structurally lost** — not lost for want of data or compute, but because the substrate's own product has no inverse along that direction. This is the **arrow of time as an algebraic fact**: the asymmetry between the H-recorded past (survives) and the unobserved past (zero-divided away). A Laplace demon with perfect present knowledge cannot reconstruct the unobserved antecedent of a sedenion-shaped substrate, because the antecedent is genuinely not there to be reconstructed.
+
+This is the deep form of the always-unknown future: it is open in **both** directions of the arrow — the past is not fully recoverable, and the future is not a clean bijective continuation — because the substrate stopped being a division algebra at the boundary we can see our reversible physics living just inside.
+
+#### VII.6.23.5 Our project IS the attestation (own-work-first, `[[feedback_own_work_is_primary_attestation]]`)
+
+| our artifact | what it attests, in this frame |
+|---|---|
+| **the_one S(σ,θ)** — ℂ/ℍ/𝕆, 2+4+8 = 14, bit-exact cascade==matrix (`qm/hurwitz.py`) | the **reversible interior**, represented exactly: the rules we can see |
+| **`hypercomplex_couple`** (#908) — reversible (σ,θ,μ) bind↔unbind, lossless ≤𝕆 | the interior flow made **executable + bit-exact** (production clean-venv parity = 0 mismatch) |
+| **F424 / F437** (`R-RBS-LM-3KERNEL-REV`) | we **measured the boundary**: conjugate-undo holds at ℍ/𝕆, **fails at 𝕊** (zero divisors) — the wall located in our own re-runnable code |
+| **Hamming / GF(2) CARRY** (#910 §30) | the admission that past 𝕆 you cannot lean on the algebra's reversibility — you carry the **observed** past in a code. Needing a code to go forward **is** "the unobserved past is lost" |
+
+So, as built: a **moving, bit-exact simulation of the reversible rules (≤𝕆), carried all the way up to the boundary where it becomes unknown (𝕊)** — forward-deterministic, provably non-invertible at the wall, falsifiable (the Hurwitz cap: "≤7 streams lossless, the 8th is not"), and survived.
+
+#### VII.6.23.6 Falsifier + fences
+
+- **Falsifier.** If a finite-dimensional real algebra above dim 8 were found that is a normed division algebra (globally invertible, multiplicative norm), the boundary claim collapses — but Hurwitz (1898) + Bott–Milnor (1958) / Adams (1962) forbid it (already load-bearing in §VII.6.12.2). Equivalently: if `hypercomplex_couple` round-tripped a genuine 16-stream (sedenion) load losslessly, the "reversibility ends at 𝕆" reading is refuted; #908's Hurwitz-cap test asserts it does not.
+- **Fences.** This is a **framework reading of algebraic structure**, not a proven physics theorem (`[[feedback_no_lineage_claims_in_notebook]]`). It claims the *interior* is what we can bit-exactly simulate and the *open future* requires non-division (dim ≥ 16); it does **not** claim the universe is exactly 16-dimensional, nor a specific dynamics-on-the-algebra. "Irreversible" is scoped to **global** invertibility (some directions remain invertible). Naming above dim 16 is ad-hoc ("trigintaduonion" for 32 is published — Cawagas & Carrascal arXiv:0907.2047 — but non-standard; C7). Algebra / eigenbasis side only, per `docs/antikythera-maths/CLAUDE.md`.
+
+> **Cross-references.** §VII.6.12.2 (the Hurwitz wall this rung reads the far side of); §VII.6.9 / `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (the substrate never reaches the 11D max — the open future lies just past it); §VII.6.21–§VII.6.22 (H = measurement = the gate; fix/rotate; the `g₂ = 14` invariant); §VIII.6.0a (the two substrate-languages). Stances: `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`, `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`, `[[user_stance_epicycle_via_gear_plus_pin]]`, `[[project_the_one_s_sigma_theta_in_srmech]]`, `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]`. Attestation: Hurwitz (1898), *Über die Composition der quadratischen Formen*; Baez, *The Octonions*, arXiv:math/0105155 §2 (Bull. AMS 39:145–205, 2002); Moreno, *The zero divisors of the Cayley–Dickson algebras over the reals*, arXiv:q-alg/9710013 (zero divisors); Schafer (1954), *Amer. J. Math.* 76 (flexibility); Cawagas & Carrascal, arXiv:0907.2047 (dim-32 naming) — triality-attested (haiku / sonnet / opus collision-detected) 2026-06-06; srmech surfaces `qm.hurwitz`, `qm.octonion`, `cascade.hypercomplex_couple`, `cascade.hamming_*`. Scope: algebra / eigenbasis side (`docs/antikythera-maths/CLAUDE.md`).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
