@@ -28,16 +28,23 @@ beyond a single-file read.
   (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
   AMSC) remain in PyPI history.
 - **Version-narrative currency note (updated 2026-06-06):** the latest
-  clean (non-rc) cut is **`srmech==0.7.2`, live on production PyPI**
-  (numpy OPTIONAL; native ABI 3; clean-verified in a venv outside the
-  source tree — `native_status().native_version=='0.7.2'`). The 0.7.2
-  cut graduated the rc1/rc2 hypercomplex arc: **`cascade.hypercomplex_couple`**
-  (the bidirectional `(σ,θ,μ)` coupler, GH #908 / F448 — bind ≤7 streams
-  → octonion, reversible to ~1e-16) and the **`cascade.hamming_encode`/
-  `hamming_syndrome`/`hamming_decode_correct`** 2ⁿ−1 GF(2) block-code
-  family (UPSTREAM_NOTES §30 / F450 — the front-loader's CARRY/EC half,
-  XOR-only lean-ALU). (0.7.1 — the prior clean cut — remains in PyPI
-  history.) For current work install from production PyPI (`pip install
+  clean (non-rc) cut is **`srmech==0.7.3`, live on production PyPI**
+  (graduated from `0.7.3rc1`; numpy OPTIONAL; native ABI 3; clean-verified
+  in a venv outside the source tree — `native_status().native_version=='0.7.3'`,
+  `has_native`/`dispatching` True). The **0.7.3** cut adds the exact
+  (Fraction) **Cayley–Dickson** algebra `srmech.amsc.cascade.cayley_dickson`
+  (PR #917 — `cd_mult`/`cd_conjugate`/`cd_norm_sq`/`cd_basis_product`,
+  `is_division_algebra_dim`, `left_mult_is_invertible`/`left_mult_kernel`,
+  `sedenion_zero_divisor_witness`; the **𝕆→𝕊 reversibility horizon** as a
+  callable instrument — F460, verified 20/20; the MFO reading at notebook
+  §VIII.31.16 / PR #918). The prior **0.7.2** cut graduated the rc1/rc2
+  hypercomplex arc: **`cascade.hypercomplex_couple`** (the bidirectional
+  `(σ,θ,μ)` coupler, GH #908 / F448 — bind ≤7 streams → octonion, reversible
+  to ~1e-16) and the **`cascade.hamming_encode`/`hamming_syndrome`/
+  `hamming_decode_correct`** 2ⁿ−1 GF(2) block-code family (UPSTREAM_NOTES
+  §30 / F450 — the front-loader's CARRY/EC half, XOR-only lean-ALU). (0.7.1
+  / 0.7.2 remain in PyPI history.) For current work install from production
+  PyPI (`pip install
   srmech`, or `srmech[scientific]` for the numpy-backed `qm`/QDFT/coupler
   surface). **API note:** the public
   native-status entry point is **`srmech.native_status()`** (a dict:
