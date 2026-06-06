@@ -1492,11 +1492,30 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 **What srmech has vs lacks:** **all the pieces exist** — `amsc.hdc.{bind,bundle,similarity}` (the register read/write), `cascade.hypercomplex_couple` (the ≤7 reversible working word, §29), `cascade.hamming_*` (the carry/EC, §30), `cascade.cayley_dickson.cd_basis_product` (the 16-slot address algebra). What's **lacking is the ergonomic wrapper** that composes them into one named-register object, and the **homomorphism** wiring the HDC address vectors to the sedenion multiplication table.
 
-**The ask (two parts, both ERGONOMIC/compositional — no new algebra):** (1) a **`cascade.sedenion_register`** object — 16 named slots, `write(slot, vec)` / `read(slot)` (bundle + unbind + clean), an octonion-coupler **working word** (≤7 reversible), and a Hamming **EC/carry block** (>7), as one first-class surface; (2) an **address↔CD-product homomorphism** so `bind`-navigation *respects* `e_i·e_j = ±e_k` (the "hyper-loop" — pointer arithmetic over the named container becomes operational, not just structural).
+**The ask (two parts, both ERGONOMIC/compositional — no new algebra; BOTH now prototyped):** (1) a **`cascade.sedenion_register`** object — 16 named slots, `write`/`read`, an octonion-coupler **working word** (≤7 reversible), a Hamming **EC/carry block** (>7); (2) the **address↔CD-product homomorphism** as a `navigate` method so addressing *respects* `e_i·e_j = ±e_k` — **prototyped + verified in F468** (8/8 routing; round-trip reversible; the reversibility horizon carried into the motion).
 
-**Non-asks / fences:** (a) **no new algebra** — this packages `hypercomplex_couple` + `hamming_*` + `cd_basis_product` + `hdc.*`, all shipped; it is convenience + the homomorphism, not a new primitive class (F398, no privileged class). (b) the register's *associative* capacity is **D-bounded** (HDC crosstalk), distinct from the *reversible* working set (≤7, the coupler) — the wrapper must keep the two boundaries distinct (F465 honesty). (c) real-coefficient EC stays out (the §30 GF(2)-only fence carries).
+**Concrete API spec (composes shipped 0.7.3 primitives — `hypercomplex_couple` §29, `hamming_*` §30, `cd_basis_product`/`left_mult_is_invertible` CD, `hdc.{bind,bundle,similarity}`, `chiral_flip`):**
 
-**Status:** **OPEN — ergonomic, NOT blocking** (the prototype `R-RBS-LM-SEDENION_addressable_hdc_instrument.py` runs on stock 0.7.3, all four demos green). Lowest priority of the open asks; the genuinely-new bit is the address↔CD homomorphism (the operational hyper-loop). Landed-where: **F465**. **Re-surface keywords:** `sedenion register` · `addressable` · `address space` · `named container` · `HDC instead of ALU` · `working word` · `EC/carry block` · `hyper-loop` · `address↔CD homomorphism` · `pointer arithmetic` · `associative superposition` · `no quantum cost` · `two languages` · `turn on itself` · `Class H` · `hypercomplex_couple` · `hamming` · `cd_basis_product` · `F451` · `F459` · `F465` · `§31`.
+```python
+class SedenionRegister:                       # amsc.cascade.sedenion_register
+    def __init__(self, D=8192, codebook=None): ...        # 16 named slots e0..e15
+    # --- storage (HDC associative, D-bounded capacity) ---
+    def write(self, slot:int, vec) -> None              # bind(ADDR[slot], vec) into the bundle
+    def read(self, slot:int) -> vec                     # unbind + nearest-codebook clean
+    # --- the ≤7 reversible working word (the octonion block, F459) ---
+    def couple_working(self, vals:Sequence) -> oct      # hypercomplex_couple(vals[:7])  (bit-exact ≤𝕆)
+    def uncouple_working(self, oct) -> Sequence         # inverse=True  (recovers ≤7 exactly)
+    # --- the EC/carry block (>7, Hamming, §30/F450) ---
+    def carry(self, overflow_bits, n=3) -> codeword     # hamming_encode
+    def correct(self, codeword) -> dict                 # hamming_decode_correct
+    # --- the operational hyper-loop (F468; the homomorphism) ---
+    def navigate(self, j:int) -> "SedenionRegister"     # right-mult slot-names by e_j: content i→±e_{i·j}
+    def is_navigable(self, direction) -> bool           # left_mult_is_invertible (reversible ≤𝕆 only)
+```
+
+**Non-asks / fences:** (a) **no new algebra** — pure packaging of shipped ops (F398, no privileged class). (b) the register's *associative* capacity is **D-bounded** (HDC crosstalk), distinct from the *reversible* working set (≤7, the coupler) — keep the two boundaries distinct (F465). (c) single-basis `navigate(j)` is always a signed permutation (reversible at every dim); **composite-direction** navigation is reversible **only ≤𝕆** — `is_navigable` (=`left_mult_is_invertible`) is the gate (F468). (d) real-coefficient EC stays out (§30 GF(2)-only fence). (e) sign is **Class C** (`chiral_flip`), never `abs()`/negate.
+
+**Status:** **READY TO SPEC — both halves prototyped + verified (NOT blocking).** `R-RBS-LM-SEDENION_addressable_hdc_instrument.py` (F465; register read/write/working-word/carry/turn-on-itself, stock 0.7.3) **+** `R-RBS-LM-SEDENION_operational_hyperloop.py` (F468; the address↔CD `navigate`, 8/8 routing, round-trip reversible, horizon via `is_navigable`) together **define the whole surface** — srmech can lift it directly into `cascade.sedenion_register` by wrapping the existing calls. The genuinely-new contribution is the `navigate` homomorphism + `is_navigable` gate (the operational hyper-loop). The RBS-SNN/SynNN reading (F468): `navigate` = the k=3 read-head walk, the working word = the k=7 coupler. Landed-where: **F465 + F468**. **Re-surface keywords:** `sedenion register` · `SedenionRegister` · `addressable` · `address space` · `named container` · `HDC instead of ALU` · `working word` · `EC/carry block` · `hyper-loop` · `navigate` · `address↔CD homomorphism` · `is_navigable` · `pointer arithmetic` · `associative superposition` · `no quantum cost` · `two languages` · `turn on itself` · `Class H` · `RBS-SNN` · `SynNN` · `read-head walk` · `hypercomplex_couple` · `hamming` · `cd_basis_product` · `left_mult_is_invertible` · `F451` · `F459` · `F465` · `F468` · `§31`.
 
 ---
 
