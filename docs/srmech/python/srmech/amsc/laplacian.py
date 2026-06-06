@@ -103,6 +103,7 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
     "hermitian_eigendecompose",
@@ -611,6 +612,103 @@ def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
     return [[M[r][m + cc] for cc in range(w)] for r in range(m)]
 
 
+def _as_solve_rhs(B, n: int):
+    """Normalise a dense-solve right-hand side to ``(is_vector, rows)`` where
+    ``rows`` is an ``n``-row list-of-lists. A 1-D ``B`` (length ``n``) is a
+    single column (returned ``is_vector=True``); a 2-D ``B`` is used as-is.
+    Values are preserved verbatim — NO float coercion — so the exact-rational
+    path keeps ints / :class:`~fractions.Fraction` inputs exact."""
+    if np is not None and isinstance(B, np.ndarray):
+        if B.ndim == 1:
+            if B.shape[0] != n:
+                raise ValueError(f"B vector length {B.shape[0]} != A dimension {n}")
+            return True, [[v] for v in B]
+        rows = [list(row) for row in B]
+    else:
+        seq = list(B)
+        is_1d = bool(seq) and not isinstance(seq[0], (list, tuple)) and not (
+            np is not None and isinstance(seq[0], np.ndarray)
+        )
+        if is_1d:
+            if len(seq) != n:
+                raise ValueError(f"B vector length {len(seq)} != A dimension {n}")
+            return True, [[v] for v in seq]
+        rows = [list(row) for row in seq]
+    if len(rows) != n:
+        raise ValueError(f"B must have {n} rows to match A ({n}×{n}); got {len(rows)}")
+    return False, rows
+
+
+def dense_solve(A, B, *, exact: bool = False):
+    """Class-L dense linear solve ``A · X = B``
+    (v0.7.1rc3; [#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).
+
+    The reusable solve the Schur-complement / Dirichlet-to-Neumann float path
+    composes over — its interior solve ``L_ii⁻¹ · L_i∂`` IS an ``A · X = B``.
+    Promoted to its own exported Class-L primitive: a dense solve is a
+    fundamental, reusable matrix op, and the solve (not the downstream matmul)
+    is where the cost lives.
+
+    ``A`` is ``n×n``; ``B`` is ``n×w`` (a matrix → ``X`` is ``n×w``) or length
+    ``n`` (a vector → ``X`` is length ``n``).
+
+    With **numpy absent** (or ``exact=True``) the solve is **exact-rational**
+    Gauss–Jordan in :class:`fractions.Fraction` (the Class-N core — division is
+    exact, never a float reciprocal, F392) and ``X`` is ``list[list[Fraction]]``
+    (or ``list[Fraction]`` for a vector RHS). With numpy present (and
+    ``exact=False``) the float realization rides the ``[scientific]`` tier: the
+    native C peer ``srmech_dense_solve_f64`` (Gauss–Jordan with partial
+    pivoting — the Class-K magnitude pivot, a sign branch not ``abs()``;
+    bounded ``n, w ≤ 256``) when available, else ``numpy.linalg.solve``.
+
+    Raises
+    ------
+    ValueError
+        Non-square ``A``; ``B`` row-count ≠ ``n``.
+    ZeroDivisionError
+        Singular ``A`` (exact path — no unique solution).
+    """
+    A_rows = _as_rows(A)
+    n = len(A_rows)
+    if n == 0:
+        raise ValueError("A must be a non-empty square matrix")
+    for r in A_rows:
+        if len(r) != n:
+            raise ValueError(
+                f"A must be square; got an {n}-row matrix with a width-{len(r)} row"
+            )
+    is_vec, B_rows = _as_solve_rhs(B, n)
+    w = len(B_rows[0]) if B_rows and B_rows[0] else 0
+
+    if exact or np is None:
+        X = _solve_exact(A_rows, B_rows)  # exact Fraction Gauss–Jordan (Class-N)
+        return [row[0] for row in X] if is_vec else X
+
+    # Float realization — native dense_solve C peer, else numpy.linalg.solve.
+    A_arr = np.ascontiguousarray(A_rows, dtype=np.float64)
+    B_arr = np.ascontiguousarray(B_rows, dtype=np.float64)
+    if (
+        _can_dispatch_native(n)
+        and w <= MAX_NATIVE_NODES
+        and hasattr(_native.LIB, "srmech_dense_solve_f64")
+    ):
+        out = np.zeros((n, w), dtype=np.float64)
+        rc = _native.LIB.srmech_dense_solve_f64(
+            ctypes.c_uint32(n),
+            ctypes.c_uint32(w),
+            A_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            B_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return out[:, 0] if is_vec else out
+        if rc not in (_native.SRMECH_ERR_OVERFLOW, _native.SRMECH_ERR_BAD_INPUT):
+            raise RuntimeError(f"srmech_dense_solve_f64 returned non-OK status {rc}")
+        # OVERFLOW (over the native bound) or BAD_INPUT (singular) → numpy.
+    X = np.linalg.solve(A_arr, B_arr)
+    return X[:, 0] if is_vec else X
+
+
 def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     """Class-L Schur complement / discrete Dirichlet-to-Neumann (DtN) map
     (UPSTREAM §26; [#897](https://github.com/lemonforest/mlehaptics/issues/897)).
@@ -700,8 +798,9 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     L_ii = _block(i, i)  # L_ii
 
     if exact or np is None:
-        # Exact-rational core (Class-N): solve L_ii · X = L_i∂, X is |i|×|∂|.
-        X = _solve_exact(L_ii, L_ip)
+        # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
+        # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
+        X = dense_solve(L_ii, L_ip, exact=True)
         # S = L_∂∂ − L_∂i · X  (all exact Fraction).
         S = [
             [
@@ -713,10 +812,10 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         ]
         return S
 
-    # Float realization — the [scientific] tier (numpy.linalg.solve).
-    A = np.asarray(L_ii, dtype=np.float64)
-    Bm = np.asarray(L_ip, dtype=np.float64)
-    X = np.linalg.solve(A, Bm)
+    # Float realization — the [scientific] tier. The expensive interior solve
+    # rides the native dense_solve C peer (numpy fallback inside dense_solve);
+    # the cheap boundary GEMM + subtract stay numpy.
+    X = dense_solve(L_ii, L_ip)
     S = np.asarray(L_pp, dtype=np.float64) - np.asarray(L_pi, dtype=np.float64) @ X
     return S
 
@@ -1211,6 +1310,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matvec_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
+    "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
 )

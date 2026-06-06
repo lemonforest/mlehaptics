@@ -849,6 +849,28 @@ def _register_primitive_class_tools() -> None:
                         P("tolerance", "float", False)),
             returns=R("np.ndarray", "n eigenvalues (unsorted)"),
         ),
+        # v0.7.1rc3 (#897 §26): the reusable dense linear solve A·X = B the
+        # Schur/DtN float path composes over (its interior solve IS an
+        # A·X = B). Native C peer srmech_dense_solve_f64 (Gauss–Jordan,
+        # partial pivoting, n,w ≤ 256) on the scientific tier; exact-rational
+        # Fraction Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_solve", owner="srmech",
+            category="laplacian",
+            summary="Class-L dense linear solve A·X = B (A n×n; B/X n×w matrix "
+                    "or length-n vector). The reusable solve schur_complement "
+                    "composes over. Native C peer (Gauss–Jordan, partial "
+                    "pivoting, n,w ≤ 256) on the scientific tier; exact-rational "
+                    "Fraction solve (Class-N core, numpy-absent or exact=True).",
+            parameters=(P("A", "np.ndarray", True,
+                          "n × n coefficient matrix; nested JSON list over MCP"),
+                        P("B", "np.ndarray", True,
+                          "right-hand side: n × w matrix or length-n vector"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "X solving A·X = B (shape of B)"),
+        ),
         # UPSTREAM §26 (#897): the Schur complement / Dirichlet-to-Neumann
         # map — the operator|operand FUSION op (F412/F417/F419). Canonical
         # SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0;

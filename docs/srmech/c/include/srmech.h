@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   "rc2"
-#define SRMECH_VERSION       "0.7.1rc2"
+#define SRMECH_VERSION_PRE   "rc3"
+#define SRMECH_VERSION       "0.7.1rc3"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1015,6 +1015,23 @@ srmech_status_t srmech_elementwise_transcendental(
     const double  *arr,
     int            op_id,
     double        *out);
+
+/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26). A is n×n, B and the
+ * output X are n×nrhs, all row-major doubles (caller-allocated). Gauss–
+ * Jordan with partial pivoting; the reusable Class-L float primitive the
+ * Schur-complement / DtN float path composes over for its interior solve.
+ * A singular A (a wholly-zero pivot column at/below the diagonal) returns
+ * SRMECH_ERR_BAD_INPUT. Bounded n, nrhs ≤ 256 (a thread-local augmented
+ * workspace); larger systems return SRMECH_ERR_OVERFLOW (Python falls back
+ * to numpy.linalg.solve). No libm: a solve is + − × ÷ only.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+ */
+srmech_status_t srmech_dense_solve_f64(
+    uint32_t       n,
+    uint32_t       nrhs,
+    const double  *A,
+    const double  *B,
+    double        *out_X);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
