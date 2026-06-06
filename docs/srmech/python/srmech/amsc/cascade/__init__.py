@@ -129,6 +129,7 @@ from .parallel import (
 from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
+    hypercomplex_couple,
 )
 # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
 # (#887; "the One"). The Hurwitz division-algebra ladder ℂ/ℍ/𝕆 as one
@@ -203,6 +204,8 @@ __all__ = [
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
+    # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
+    "hypercomplex_couple",
     # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
     "Block",
     "One",
