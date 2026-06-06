@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.29.3rc3] — 2026-06-05
+
+### Changed
+- **srmech dependency floor bump `>=0.4.2` → `>=0.7.1`** — tracks the just-graduated **srmech v0.7.1** production cut (the [#897](https://github.com/lemonforest/mlehaptics/issues/897) §26 Class-L Schur-complement / Dirichlet-to-Neumann arc + the reusable `dense_solve` C peer). Updated in both `pyproject.toml` and `pyproject-pure.toml`.
+
+### Verified
+- `ephemerides-spectral` consumes only `srmech.amsc.*` (the numpy-free AMSC core), so the AMSC-bridge source counts are already 0.7.x-aligned: the 75 `tests/test_attested_collector.py` tests pass unchanged against srmech 0.7.1 (the `n_sources` 28 / 25 ratchets hold). No `bridge.*` surface change; no test ratchet changes.
+
+### Unchanged
+- **No `ephemerides_spectral` code change; no ABI change** (`ES_ABI_VERSION = 10` unchanged from v0.29.0). Version-only bump `0.29.3rc2` → `0.29.3rc3` across the SSOT locations (`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`, `c/include/ephemerides_spectral.h`, `ephemerides_spectral/_data/manifest.json`, README banner). Rc cycles through TestPyPI only.
+
 ## [0.29.3rc2] — 2026-06-05
 
 ### Fix — `backend="auto"` default was rejected by `get_eclipse_probability` and `get_local_view`
