@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.7.0** — the 14-class A–N primitive vocabulary in native C + Python, **numpy-optional**. Every continuous-math op — trig, exp, sqrt, FFT, SVD, eig — is a **cascade of the 14**, not a separate primitive; the native build holds no libm. **The One**, `S(σ,θ)` (`cascade.the_one`, exact-rational + numpy-free, with the bit-exact `qm.hurwitz` matrix peer), generates the whole `1 + 3 + 7 + 3 = 14` substrate: the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`). Full C/Python cascade-catalog parity (hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener–Khinchin autocorrelation; the two-tier `cascade.atoms`/`cascade.compose` lean-ISA split; the Klein-4 four-sector `parallel_sector_dispatch`); runtime spectral + dual-path signal-processing surfaces; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance. A named cascade is the default, a math-library call the exception. *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` PyPI package is a metapackage that depends on `srmech`.)*
+**Status:** **v0.7.3** — the 14-class A–N primitive vocabulary in native C + Python, **numpy-optional**. Every continuous-math op — trig, exp, sqrt, FFT, SVD, eig — is a **cascade of the 14**, not a separate primitive; the native build holds no libm. **The One**, `S(σ,θ)` (`cascade.the_one`, exact-rational + numpy-free, with the bit-exact `qm.hurwitz` matrix peer), generates the whole `1 + 3 + 7 + 3 = 14` substrate: the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`). Full C/Python cascade-catalog parity (hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener–Khinchin autocorrelation; the two-tier `cascade.atoms`/`cascade.compose` lean-ISA split; the Klein-4 four-sector `parallel_sector_dispatch`); runtime spectral + dual-path signal-processing surfaces; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance. A named cascade is the default, a math-library call the exception. The v0.7.x line adds the Class-L **Schur complement / Dirichlet-to-Neumann** op, the bidirectional **`(σ,θ,μ)` hypercomplex coupler** (`cascade.hypercomplex_couple` — bind ≤7 streams reversibly into a quaternion/octonion, the Hurwitz-capped interior) + the **Hamming/GF(2) CARRY** code (`cascade.hamming_*` — error-correcting carry *past* 𝕆), and the **Cayley–Dickson open-exterior demonstrator** (`cascade.cayley_dickson` — the deliberately non-reversible object on the far side of the Hurwitz wall: zero divisors at dim 16, the executable "no backward direction" falsifier). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` PyPI package is a metapackage that depends on `srmech`.)*
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -24,11 +24,13 @@ Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix 
 ## Install
 
 ```bash
-pip install srmech                  # core (numpy + stdlib; no jsonschema, no network adapters)
+pip install srmech                  # core: stdlib only — the numpy-free Class-N cascade + native C surface
+pip install srmech[scientific]      # adds numpy for the array tier (srmech.qm.* / signal_processing / spectral)
 pip install srmech[validation]      # adds jsonschema for strict data-block validation
 pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
-pip install srmech[dev]             # everything
 ```
+
+The core install is **numpy-optional** (v0.7.0 capstone): the 14-class cascade core runs on stdlib alone; importing a scientific-tier subpackage (`srmech.qm.*`, `srmech.signal_processing`, `srmech.spectral`) without `[scientific]` raises an actionable hint rather than a raw `ImportError`.
 
 ## Quick start
 
@@ -97,7 +99,7 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 3,
-#  'expected_abi': 3, 'native_version': '0.7.0', 'load_error': None}
+#  'expected_abi': 3, 'native_version': '0.7.3', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -247,7 +249,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.7.0",
+    "parser_version": "srmech 0.7.3",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"
@@ -278,7 +280,7 @@ Every primitive class, every `srmech.qm.*` operation (including the so(8)/triali
 from srmech.introspect import describe
 
 d = describe()
-print(d["srmech_version"])              # e.g. "0.7.0"
+print(d["srmech_version"])              # e.g. "0.7.3"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
 print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
