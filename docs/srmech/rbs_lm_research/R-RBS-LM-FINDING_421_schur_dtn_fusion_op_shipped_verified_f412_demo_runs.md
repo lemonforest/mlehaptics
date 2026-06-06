@@ -3,7 +3,7 @@
 **Date:** 2026-06-06
 **Arc:** RBS-LM · the operator|operand FUSION thread (F412 → F417 → F419 → **F421**); **srmech-RUN (sanctioned shipped-op verification + the F412 held demo released)**
 **Composes:** **F412** (the holographic principle IS the framework's fibration; the Schur/DtN = the fusion op; the srmech gap §26 — *the held demo this finding runs*) · **F417** (Class L = the operator|operand seam, but **one-way**: operand→operator projection only — the fusion was the missing keep-both) · **F419** (the fusion is where EVERY domain's breakthroughs live — ship it) · **F392** (no divide primitive; the interior block-inverse `L_ii⁻¹` = Class C→K iterative shift-sub — why the solve grades to first-class) · **F408** (frame-resolved closure-semantics; closable ≠ severed; keyword-search-sweep) · **§26/§28 UPSTREAM_NOTES** · **GH #897**
-**→ closes the F412/F417/F419 convergence: the fusion op now EXISTS + is verified; releases the F412 hold.** **← (forward-links to be added to F412/F417/F419 as `← extended by F421`).**
+**→ closes the F412/F417/F419 convergence: the fusion op now EXISTS + is verified; releases the F412 hold.** **← extended by F425** (the first real corpus fusion: the chessboard grid graph run through `schur_complement` instead of `jacobi_eigvals` — the 28 rim squares kept, the 36-square interior folded in; the holographic test passes, an interior wall changes the boundary `S` in 576 entries).
 
 ---
 
