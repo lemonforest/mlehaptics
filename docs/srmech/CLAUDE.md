@@ -27,13 +27,19 @@ beyond a single-file read.
   vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
   (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
   AMSC) remain in PyPI history.
-- **Version-narrative currency note (updated 2026-06-06):** the clean
-  (non-rc) graduation gate **has now fired** — **`srmech==0.7.1` is
-  live on production PyPI** (numpy OPTIONAL; native ABI 3;
-  clean-verified in a venv outside the source tree). The rc arc
-  (rc11…rc49 → 0.7.0 → 0.7.1) consolidated; for current work install
-  from production PyPI (`pip install srmech`, or `srmech[scientific]`
-  for the numpy-backed `qm`/QDFT surface). **API note:** the public
+- **Version-narrative currency note (updated 2026-06-06):** the latest
+  clean (non-rc) cut is **`srmech==0.7.2`, live on production PyPI**
+  (numpy OPTIONAL; native ABI 3; clean-verified in a venv outside the
+  source tree — `native_status().native_version=='0.7.2'`). The 0.7.2
+  cut graduated the rc1/rc2 hypercomplex arc: **`cascade.hypercomplex_couple`**
+  (the bidirectional `(σ,θ,μ)` coupler, GH #908 / F448 — bind ≤7 streams
+  → octonion, reversible to ~1e-16) and the **`cascade.hamming_encode`/
+  `hamming_syndrome`/`hamming_decode_correct`** 2ⁿ−1 GF(2) block-code
+  family (UPSTREAM_NOTES §30 / F450 — the front-loader's CARRY/EC half,
+  XOR-only lean-ALU). (0.7.1 — the prior clean cut — remains in PyPI
+  history.) For current work install from production PyPI (`pip install
+  srmech`, or `srmech[scientific]` for the numpy-backed `qm`/QDFT/coupler
+  surface). **API note:** the public
   native-status entry point is **`srmech.native_status()`** (a dict:
   `has_native`/`dispatching`/`abi_version`/`native_version`/`load_error`)
   — the top-level `srmech.HAS_NATIVE` boolean was **removed** in 0.7.0.
