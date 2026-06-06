@@ -302,6 +302,12 @@ from ephemerides_spectral._research.saturn_rings_catalog import (
     get_ring_radial_laplacian as _get_ring_radial_laplacian_impl,
     list_saturn_ring_features as _list_saturn_ring_features_impl,
 )
+from ephemerides_spectral._research.solar_rotation_catalog import (
+    get_solar_differential_rotation as _get_solar_differential_rotation_impl,
+    get_solar_rotation_closure as _get_solar_rotation_closure_impl,
+    get_solar_internal_rotation as _get_solar_internal_rotation_impl,
+    list_solar_differential_rotation as _list_solar_differential_rotation_impl,
+)
 from ephemerides_spectral._research.cmb_power_spectrum_catalog import (
     get_cmb_power_at_ell as _get_cmb_power_at_ell_impl,
     get_cmb_first_acoustic_peak as _get_cmb_first_acoustic_peak_impl,
@@ -4963,6 +4969,49 @@ def get_ring_radial_laplacian() -> Dict[str, Any]:
 def list_saturn_ring_features() -> Dict[str, Any]:
     """Full enumeration of Saturn ring-system features + citations."""
     return _list_saturn_ring_features_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0rc2 — Solar Rotation Catalog (surface differential rotation +
+# internal rotation). First solar-dynamics extension of the v0.24.3 Sun
+# Dynamical Spectrum: the Snodgrass-Ulrich 1990 surface law Omega(lat) +
+# the helioseismic internal profile (tachocline + rigid radiative core),
+# with the closure invariant that the 1990 Doppler law reproduces
+# Carrington's 1863 sunspot-derived 25.38-day period. Pure-Python;
+# computed at query time.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_solar_differential_rotation() -> Dict[str, Any]:
+    """Sun's surface differential rotation — the Snodgrass-Ulrich 1990
+    law Omega(lat) = A + B sin^2 + C sin^4 across latitude.
+
+    Equator ~24.5 d, poles ~34 d (sidereal); the equator laps the poles
+    every ~86 days.
+    """
+    return _get_solar_differential_rotation_impl()
+
+
+def get_solar_rotation_closure() -> Dict[str, Any]:
+    """THE closure of v0.30.0rc2: the 1990 Doppler differential-rotation
+    law reproduces Carrington's 1863 sunspot-derived 25.38-day sidereal
+    period at latitude ~26 deg, inside the sunspot active band — two
+    independent determinations 127 years apart, agreeing.
+    """
+    return _get_solar_rotation_closure_impl()
+
+
+def get_solar_internal_rotation() -> Dict[str, Any]:
+    """Sun's helioseismic internal rotation (Schou 1998 / Howe 2009):
+    differential convection zone, near-rigid radiative interior, and the
+    tachocline shear at ~0.70 R_sun (the dynamo seat).
+    """
+    return _get_solar_internal_rotation_impl()
+
+
+def list_solar_differential_rotation() -> Dict[str, Any]:
+    """Full enumeration of solar-rotation data + citations."""
+    return _list_solar_differential_rotation_impl()
 
 
 # ──────────────────────────────────────────────────────────────────────

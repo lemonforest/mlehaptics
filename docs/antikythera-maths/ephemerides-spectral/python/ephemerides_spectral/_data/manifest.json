@@ -520,6 +520,14 @@
       "sha256": "6b6d168bbe5eaee980cd93c2c5ba043b51a9dd2bc4459ba6691e917538bcb23d",
       "size_bytes": 13483
     },
+    "_research/solar_rotation_catalog.py": {
+      "sha256": "e4e09884efad5f5ecb25dc3b8b70c7064457c4e94cc20a1453b5677f90dc5724",
+      "size_bytes": 9056
+    },
+    "_research/solar_rotation_data.py": {
+      "sha256": "6cc8aad5cc8c439f25079fe39a4b99d7349d2ffba0c3d60ec9a51bd0827bb221",
+      "size_bytes": 8350
+    },
     "_research/spherical_harmonic_catalog.py": {
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
       "size_bytes": 11594
@@ -594,5 +602,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc1"
+  "version": "0.30.0rc2"
 }

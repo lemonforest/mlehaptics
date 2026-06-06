@@ -10,6 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc2] — 2026-06-06
+
+### Added — Solar Differential Rotation catalog (first solar-dynamics extension)
+
+The first **solar-dynamics** extension of the v0.24.3 Sun Dynamical
+Spectrum (helioseismic p-modes): the Sun's surface differential rotation
++ helioseismically-inverted internal rotation, read as a spectral
+rotation-profile. Shipped on the same v0.30.0 line as rc1 (one eventual
+graduation).
+
+- **`_research/solar_rotation_data.py`** + **`solar_rotation_catalog.py`** (new):
+  - `get_solar_differential_rotation()` — the **Snodgrass-Ulrich 1990**
+    surface law `Omega(lat) = A + B sin^2(lat) + C sin^4(lat)`
+    (`A=14.713`, `B=-2.396`, `C=-1.787` deg/day sidereal) tabulated over
+    7 latitude bands: equatorial ~24.5 d, polar ~34 d, ~86-day
+    equator-to-pole lap, plus each band's synodic period.
+  - `get_solar_rotation_closure()` — **THE closure invariant**: the 1990
+    **Doppler** law reproduces Carrington's 1863 **sunspot**-derived
+    **25.38-day** sidereal period at latitude **~26°**, inside the
+    sunspot active band (~5–35°). Two independent determinations, 127
+    years apart, agreeing where they overlap — the solar analogue of the
+    ring `(p:q)` resonance and the Sun's Tassoul asymptotic relation.
+  - `get_solar_internal_rotation()` — the helioseismic interior (Schou
+    1998 SOI/MDI; Howe 2009): a differential convection zone, a
+    near-rigid radiative interior, and the **tachocline** shear at
+    **~0.70 R_sun** (the dynamo seat).
+  - `list_solar_differential_rotation()` — enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (PARITY_TARGETS `python_only`);
+  **`cli.py`** — 4 new subcommands (`solar-differential-rotation` /
+  `solar-rotation-closure` / `solar-internal-rotation` /
+  `solar-differential-rotation-full`);
+  **`tests/test_solar_rotation_catalog.py`** (26 tests).
+
+### Provenance
+
+4 citations: Snodgrass & Ulrich 1990 (*ApJ* 351:309, DOI 10.1086/168467,
+the surface A/B/C law); Carrington 1863 (the 25.38-day sunspot
+determination, matching the package's Sol Carrington Time); Schou 1998
+(*ApJ* 505:390, DOI 10.1086/306146, internal-rotation inversion); Howe
+2009 (*Living Rev. Solar Phys.* 6:1, DOI 10.12942/lrsp-2009-1).
+
+### Scope
+
+Rotation-as-a-spectral-profile per `docs/antikythera-maths/CLAUDE.md`
+(a scalar `Omega(lat)` rate field + a 1-D radial transition). **Not** a
+3-D MHD dynamo simulation. `the_one` does not apply (task #524).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc1` → `0.30.0rc2` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
 ## [0.30.0rc1] — 2026-06-05
 
 ### Added — Saturn Ring System Catalog (multi-regime body; closes task #153)
