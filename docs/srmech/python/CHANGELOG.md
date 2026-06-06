@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.1rc2] - 2026-06-05
+
+**Schur/DtN wired into the DSL chain contract ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26 follow-up).** The rc1 `schur_complement` op shipped only at `srmech.amsc.laplacian.schur_complement`; rc2 makes it a first-class **cascade-catalog stage** so it drives in a `chain().then(...)` / TOML chain like any other Class-L op. The chain runner resolves stage ops via `getattr(srmech.amsc.cascade, name)`, so the op is **re-exported flat** onto `srmech.amsc.cascade` (a DSL-resolution alias of the laplacian-registered op — *not* a second primitive, so it stays out of `cascade.__all__` and adds no tool-schema entry; `describe()` total holds at **235**).
+
+- **`boundary_idx` + `exact` thread through as bound stage kwargs** — the data-first pattern (`schur_complement(L, *, boundary_idx, exact=False)`; the pipe fills `L`, the kwargs bind), exactly like `reorient`'s `orientation`. `boundary_idx` is required (no default) — a chain that omits it fails loudly with `TypeError`, never silently. A new descriptor `cascade_catalog/schur_complement.toml` (`class_composition = "L"`) makes it the **14th** catalog op (`srmech dsl ops` → `14 total`); `schur_complement` + `dirichlet_to_neumann` also join the documentary `LAPLACIAN_OPS` registry.
+- **Tests** (`tests/test_schur_complement_dsl_stage.py`): `.then("schur_complement", boundary_idx=[0,3], exact=True)` and the equivalent TOML `[[stage]]` both reduce the path-4 graph Laplacian to `S = (1/3)[[1,−1],[−1,1]]` (exact `Fraction`, numpy-free); the float path is numpy-guarded. No ABI change (ABI stays **3**); the co-equal native C peer is the rc3 follow-up.
+
 ## [0.7.1rc1] - 2026-06-05
 
 **Class-L Schur complement / Dirichlet-to-Neumann (DtN) map — the operator|operand FUSION op ([#897](https://github.com/lemonforest/mlehaptics/issues/897); UPSTREAM §26 / F412·F417·F419).** New `srmech.amsc.laplacian.schur_complement(L, boundary_idx)` (alias `dirichlet_to_neumann`) integrates the interior (bulk) out of a Laplacian and keeps the boundary effective operator

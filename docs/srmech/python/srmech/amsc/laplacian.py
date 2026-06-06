@@ -1211,4 +1211,6 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matvec_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
+    "schur_complement",
+    "dirichlet_to_neumann",
 )

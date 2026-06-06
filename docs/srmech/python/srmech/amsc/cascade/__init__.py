@@ -145,6 +145,19 @@ from .one import (
     s_generator,
 )
 
+# ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
+# ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
+# A–N home is Class L; the tool-schema entry is registered there). The DSL
+# chain runner resolves stage ops via ``getattr(srmech.amsc.cascade, name)``
+# (srmech.dsl._catalog.lookup_cascade_op), so the cascade-catalog descriptor
+# schur_complement.toml needs the callable reachable at this flat name.
+# Re-exported here for that resolution only — deliberately NOT added to
+# ``__all__`` (it is the laplacian-registered op reached for the chain
+# contract, not a second cascade-native primitive). It is numpy-absent-safe
+# (exact-rational path), so this import keeps the rc30 numpy-free core intact.
+# See tests/test_schur_complement_dsl_stage.py.
+from ..laplacian import schur_complement  # noqa: F401  (DSL resolution alias)
+
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from
 # the local _cascade_helpers; the alias lets them migrate to
