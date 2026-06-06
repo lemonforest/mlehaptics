@@ -3,6 +3,7 @@
 **Date:** 2026-06-04
 **Arc:** RBS-LM · bit-exactness / anchor-axis thread (F396 → **F397**); **proposal — NO srmech run (held); the demo is srmech-gated**
 **Composes:** F396 (the other axis = anchor; bit-exact within-rung, no climb) · F386/F388 (Kuramoto phase-lock = temporal EC, bit-exact recall) · F387 (octonion = (4:3)\|(3:4), two quaternion halves; the \| seam) · F132/F380 (Klein-4 = Z₂×Z₂ = the quaternion units mod sign) · F389/F394 (the two-mirror = k=2 parity / two-truths) · F393 (phase-lock / continuous ops = CORDIC = shift-add+sign)
+**← extended by F423 (AX-2, the demo run):** the exact-integer octonion algebra resolves this finding's pre-stated null — the product factors **three ways**: SECTOR (which `e_k`) = `i XOR j` = the two Klein-4 quads + the ℓ-coupling bit (the abelian streams); CHIRALITY (the sign) = the antisymmetric cocycle `ε(i,j)=−ε(j,i)` = **the coupling, NOT the streams**; MAGNITUDE = the Class-M/ALU bilinear. So "full product vs chirality skeleton" was a **false binary** — the streams give the *sector* skeleton; **the chirality IS the coupling** (the ⏐ seam = the single ℓ-bit).
 
 ---
 
