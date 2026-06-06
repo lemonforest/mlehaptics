@@ -1436,10 +1436,10 @@ The CMB/cosmos catalogs the RBS-LM CMB arc reads (`cmb_anomalies`, `cmb_power_sp
 
 **~~STILL a gap~~ → RESOLVED in 0.7.1:** **§26 Schur/DtN** (the F412/F419 operator|operand FUSION op) **SHIPPED in srmech 0.7.1** — `laplacian.schur_complement` / `dirichlet_to_neumann` / `dense_solve`, all `exact=`-capable; verified bug-free; **GH #897 closed**. See §28.
 
-**Actionable implications:**
-1. **#863 (QDFT/ODFT) → closeable** (shipped in 0.7.0). Present for user close-authorization.
-2. **MFO §VIII.31.15** — update "rc49 / PR #889" → "0.7.0 (live PyPI)" (the surface graduated; the example is verified-correct).
-3. **The clean-tag doc pass is now TRIGGERED** (per `docs/srmech/CLAUDE.md`'s "matters more once a clean (non-rc) tag lands"): bring the version narrative + `HAS_NATIVE`→`native_status` current.
+**Actionable implications (status 2026-06-06 — maintenance tail cleared):**
+1. **#863 (QDFT/ODFT) → ✅ CLOSED** (shipped 0.7.0; re-verified bug-free on 0.7.1 — round-trip + DFT(δ)-flat + linearity, scientific venv; verification comment lodged on the issue).
+2. **MFO §VIII.31.15** — ✅ doc-touch "rc49 / PR #889" → "0.7.0/0.7.1 live" done via off-main PR (the_one shipped; the example is verified-correct).
+3. **The clean-tag doc pass** — ✅ done in `docs/srmech/CLAUDE.md`: version narrative brought to "0.7.1 live"; **key finding — the top-level `srmech.HAS_NATIVE` was removed → `srmech.native_status()`, but the *internal* `srmech.amsc._native.HAS_NATIVE` still EXISTS** (the dispatch shim references it), so the architecture-doc mentions of `_native.HAS_NATIVE` stay accurate (no rip-out needed); added the public `native_status()` path to the verify snippet.
 4. **BX-10 / srmech-mcp repoint UNBLOCKED** (`project_srmech_mcp_repoint_deferred_until_live`: repoint when a clean tag lands on live — it now has). Actionable.
 
 ---

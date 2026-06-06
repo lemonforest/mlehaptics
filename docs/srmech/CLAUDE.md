@@ -27,17 +27,20 @@ beyond a single-file read.
   vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
   (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
   AMSC) remain in PyPI history.
-- **Version-narrative currency note (2026-06-02, as-of-merge):** the
-  rc/version arc above can lag the dev head — **check
-  <https://test.pypi.org/project/srmech/> for the current rc** before
-  trusting it. The RBS-LM research subtree has been verifying
-  **`0.7.0rcN`** (rc11 = latest clean-verified in a venv outside the
-  source tree; `HAS_NATIVE` / ABI 3); see
-  `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §12. Low-priority to
-  reconcile while everything is still rc — it **matters more once a
-  clean (non-rc) tag lands on production PyPI** (the human-in-loop
-  graduation gate), at which point this paragraph and the 4-file
-  version SSOT should be brought current.
+- **Version-narrative currency note (updated 2026-06-06):** the clean
+  (non-rc) graduation gate **has now fired** — **`srmech==0.7.1` is
+  live on production PyPI** (numpy OPTIONAL; native ABI 3;
+  clean-verified in a venv outside the source tree). The rc arc
+  (rc11…rc49 → 0.7.0 → 0.7.1) consolidated; for current work install
+  from production PyPI (`pip install srmech`, or `srmech[scientific]`
+  for the numpy-backed `qm`/QDFT surface). **API note:** the public
+  native-status entry point is **`srmech.native_status()`** (a dict:
+  `has_native`/`dispatching`/`abi_version`/`native_version`/`load_error`)
+  — the top-level `srmech.HAS_NATIVE` boolean was **removed** in 0.7.0.
+  The *internal* `srmech.amsc._native.HAS_NATIVE` attribute still
+  exists (the dispatch shim references it), so the architecture notes
+  below that mention `_native.HAS_NATIVE` remain accurate. See
+  `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §27/§28.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
@@ -567,8 +570,9 @@ Plan:
    print(ephemerides_spectral.__version__, srmech.__version__)
    # ephemerides-spectral has bridge.* surfaces; the AMSC ones
    # route through srmech.amsc.* after the Task #197 refactor.
-   from srmech.amsc import _native
-   print("srmech HAS_NATIVE:", _native.HAS_NATIVE, "ABI:", _native.NATIVE_ABI_VERSION)
+   print("srmech native_status:", srmech.native_status())  # public API (0.7.0+)
+   from srmech.amsc import _native                          # internal shim (still present)
+   print("srmech _native.HAS_NATIVE:", _native.HAS_NATIVE, "ABI:", _native.NATIVE_ABI_VERSION)
    from ephemerides_spectral import bridge
    print(bridge.list_attested_sources()["n_sources"])
    ```
