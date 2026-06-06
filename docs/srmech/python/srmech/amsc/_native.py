@@ -469,6 +469,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_hamming_decode_correct.restype = ctypes.c_int
 
+    # Cayley-Dickson basis-unit cocycle (v0.7.3rc1; #915 / MFO §VII.6.23) — the
+    # integer structural core of the open-exterior demonstrator. hasattr-guarded
+    # so a stale lib (pre-rc1) keeps the rest of the native surface.
+    #   int srmech_cd_basis_product(int dim, int i, int j,
+    #                               int *out_index, int *out_sign)
+    if hasattr(lib, "srmech_cd_basis_product"):
+        lib.srmech_cd_basis_product.argtypes = [
+            ctypes.c_int,                       # dim (power of two <= 64)
+            ctypes.c_int,                       # i (basis index)
+            ctypes.c_int,                       # j (basis index)
+            ctypes.POINTER(ctypes.c_int),       # out_index (== i ^ j)
+            ctypes.POINTER(ctypes.c_int),       # out_sign (+1 / -1)
+        ]
+        lib.srmech_cd_basis_product.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------
