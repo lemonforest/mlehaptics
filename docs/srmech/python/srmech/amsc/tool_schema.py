@@ -3410,7 +3410,7 @@ def _register_introspect_tools() -> None:
 def _register_dsl_tools() -> None:
     """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
 
-    The rc8 cascade DSL (``srmech.dsl.*``) composes the 13 cascade-catalog
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 14 cascade-catalog
     ops via a fluent builder (``chain().then(...).loop(...)...``). That
     method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
     can't chain builder methods. So this voxel exposes the *declarative*
@@ -3423,7 +3423,7 @@ def _register_dsl_tools() -> None:
     * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
       TOML chain spec + run it atomically; an LLM composes AND runs a
       cascade in one call.
-    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 13 cascade-catalog
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 14 cascade-catalog
       ops + their A–N class + purpose, so an LLM knows which op names a
       spec may use.
 
@@ -3461,7 +3461,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 13-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 14-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -3508,11 +3508,12 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (13 ops: "
+                "ops the runner can actually resolve (14 ops: "
                 "autocorrelation, best_rational_signed, chiral_dual, "
                 "chiral_flip, cyclic_gcd, kuramoto_step, magnitude, "
                 "net_chirality, octonion_dft, parallel_sector_dispatch, "
-                "pin_slot_at_zero, quaternion_dft, reorient). Each record "
+                "pin_slot_at_zero, quaternion_dft, reorient, "
+                "schur_complement). Each record "
                 "also carries a `kind` "
                 "(`stage` | `combinator`) and `provenance` (`srmech` | "
                 "`user`). Framework reading: Class E (catalog enumeration) "

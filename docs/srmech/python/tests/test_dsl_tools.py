@@ -59,6 +59,7 @@ _EXPECTED_CATALOG_OPS = {
     "pin_slot_at_zero",
     "quaternion_dft",
     "reorient",
+    "schur_complement",
 }
 
 
