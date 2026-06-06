@@ -260,6 +260,18 @@
       "sha256": "5a242271f02b8d5bad7f679f2802ab87d79d8bea0e467bf15f7e3ca84575b3e3",
       "size_bytes": 3371
     },
+    "_research/attested/tidal_migration/descriptor.toml": {
+      "sha256": "22292f73209c79a87c2c18927d946daeb9c69dcf4bef7589c384b934673f0948",
+      "size_bytes": 3391
+    },
+    "_research/attested/tidal_migration/migration.ndjson": {
+      "sha256": "aadecd3ce8ac559f5c5e852626e50fab24aa96ea6a549d8d6c5ea1b869ac4275",
+      "size_bytes": 4598
+    },
+    "_research/attested/tidal_migration/migration.schema.json": {
+      "sha256": "9bc00c785d01d603128f80da3927a14a549b5c14872ab351743f27719962fabe",
+      "size_bytes": 4120
+    },
     "_research/attested/toroidal_residual/descriptor.toml": {
       "sha256": "01310b58a96f0f0ee680b17ad37630d61d5f92e2803f2862b878b3f5e79ea5e6",
       "size_bytes": 3253
@@ -601,8 +613,8 @@
       "size_bytes": 4414
     },
     "_research/tidal_migration_data.py": {
-      "sha256": "e72d2c5751edb87b351d764efe0b5d2a45a70a457aa76ad0877421d6c33d410a",
-      "size_bytes": 12216
+      "sha256": "dc3f347fb652eeaeae6aef63f63269f4bdb34b6e2317c61a575f5914803a41a8",
+      "size_bytes": 15053
     },
     "_research/time_scales.py": {
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
@@ -638,5 +650,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc6"
+  "version": "0.30.0rc7"
 }

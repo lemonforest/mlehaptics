@@ -92,6 +92,19 @@ class TidalMigration:
     precision_flag: str = PRECISION_HIGH
     notes: Optional[str] = None
     source_key: str = ""
+    # Per-row provenance (v0.30.0rc7 attested-TOML dual-author exercise;
+    # cf. saturn_rings + solar_rotation). Mirrors the
+    # tidal_migration.migration.v1 JSON Schema so this hand-coded path and
+    # the AMSC literature_curated path at research/attested/tidal_migration/
+    # dual-author the same 6 rows. The DOIs were triality-attested
+    # (haiku/sonnet/opus + opus reconciler vs live CrossRef): all six
+    # resolve and match; williams' published year is 2015 (the DOI suffix
+    # uses the 2014 submission convention). Dates at year granularity (the
+    # granularity the panel externally confirmed for journal papers).
+    source_doi: str = ""
+    source_published_date: str = ""
+    entered_locally_at: str = ""
+    source_version: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +132,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "in the solar system. Drives Earth's spin-down + day "
               "lengthening. Cross-references v0.21.4 Earth Q.",
         source_key="williams_2014",
+        source_doi="10.1002/2014JE004755",
+        source_published_date="2015",
+        entered_locally_at="2026-06-06",
     ),
 
     # ---- Mars-Phobos — Lainey 2007 -----------------------------------
@@ -140,6 +156,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "lags satellite → inward migration. Tidal disruption / "
               "Roche-limit crossing extrapolated to ~50 Myr.",
         source_key="lainey_2007",
+        source_doi="10.1051/0004-6361:20065466",
+        source_published_date="2007",
+        entered_locally_at="2026-06-06",
     ),
 
     # ---- Jupiter Laplace — Lainey 2009 -------------------------------
@@ -163,6 +182,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "2009 fit of 117 years of astrometry. Cross-references "
               "v0.21.4 Io Q ≈ 80.",
         source_key="lainey_2009_migration",
+        source_doi="10.1038/nature08108",
+        source_published_date="2009",
+        entered_locally_at="2026-06-06",
     ),
 
     # ---- Saturn-Titan — Lainey 2020 ----------------------------------
@@ -186,6 +208,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "(cross-references v0.21.4 Mankovich-Fuller 2021 ring "
               "seismology). Lainey 2020.",
         source_key="lainey_2020_migration",
+        source_doi="10.1038/s41550-020-1120-5",
+        source_published_date="2020",
+        entered_locally_at="2026-06-06",
     ),
 
     # ---- Neptune-Triton — Jacobson 2009 ------------------------------
@@ -206,6 +231,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "reversed → inward migration. Will cross Roche limit "
               "in ~3.6 Gyr, becoming ring system. Jacobson 2009 fit.",
         source_key="jacobson_2009",
+        source_doi="10.1088/0004-6256/137/5/4322",
+        source_published_date="2009",
+        entered_locally_at="2026-06-06",
     ),
 
     # ---- Pluto-Charon — dual tidal lock ------------------------------
@@ -229,6 +257,9 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
               "puts barycentre outside Pluto. End-state of tidal "
               "evolution; no further migration. McKinnon 2017.",
         source_key="mckinnon_2017",
+        source_doi="10.1016/j.icarus.2016.11.019",
+        source_published_date="2017",
+        entered_locally_at="2026-06-06",
     ),
 ]
 
@@ -239,9 +270,11 @@ TIDAL_MIGRATIONS: List[TidalMigration] = [
 
 SOURCES: Dict[str, str] = {
     "williams_2014": (
-        "Williams J. G. & Boggs D. H. (2014). Tides on the Moon: "
+        "Williams J. G. & Boggs D. H. (2015). Tides on the Moon: "
         "Theory and determination of dissipation. JGR Planets 120, "
-        "689-724. DOI: 10.1002/2014JE004755"
+        "689-724. DOI: 10.1002/2014JE004755 (CrossRef published year "
+        "2015 — the '2014' in the DOI suffix is the submission-ID "
+        "convention; triality-attested 2026-06-06)."
     ),
     "lainey_2007": (
         "Lainey V. et al. (2007). First numerical ephemerides of "
@@ -272,6 +305,32 @@ SOURCES: Dict[str, str] = {
 }
 
 
+def migration_to_data_dict(m: TidalMigration) -> Dict[str, object]:
+    """Convert a TidalMigration to the same dict shape that
+    ``bridge.get_attested_dataset('tidal_migration')`` returns in each
+    row's ``data`` block (key order matches the
+    ``tidal_migration.migration.v1`` JSON Schema). Used by the
+    dual-author diff test to normalise the two paths before comparison
+    (the v0.30.0rc7 attested-TOML backfill exercise; cf. solar_rotation).
+    """
+    return {
+        "pair_name": m.pair_name,
+        "parent_body": m.parent_body,
+        "satellite_body": m.satellite_body,
+        "migration_rate_cm_per_year": m.migration_rate_cm_per_year,
+        "migration_direction": m.migration_direction,
+        "is_resonance_locked": m.is_resonance_locked,
+        "additional_constraint": m.additional_constraint,
+        "precision_flag": m.precision_flag,
+        "source_key": m.source_key,
+        "source_doi": m.source_doi,
+        "source_published_date": m.source_published_date,
+        "entered_locally_at": m.entered_locally_at,
+        "source_version": m.source_version,
+        "notes": m.notes,
+    }
+
+
 __all__ = [
     "PRECISION_HIGH",
     "PRECISION_MEDIUM",
@@ -283,4 +342,5 @@ __all__ = [
     "TIDAL_MIGRATIONS",
     "SOURCES",
     "TidalMigration",
+    "migration_to_data_dict",
 ]

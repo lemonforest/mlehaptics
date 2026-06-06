@@ -34,7 +34,7 @@ profile_schema_version = "1.0"
 
 [profile]
 name            = "ephemerides"
-version         = "0.30.0rc6"
+version         = "0.30.0rc7"
 summary         = "Sol Star System spectral instrument — 52-body roster, 11 cross-channel coupling surfaces, native-C BIP encoder, AMSC-attested catalogs (Geodetic/EM/Magnetic/Fluid/Dynamical) anchored on JPL DE441"
 package         = "ephemerides_spectral"
 srmech_requires = ">=0.4.2"
