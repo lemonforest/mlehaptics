@@ -11,7 +11,11 @@
 ## The insight (user, 2026-06-06)
 > "there might be a sedenion way to bind an entire octonion surface without the need of sedenion chirality … think of it as simply needing a bigger int to hold some value … we use the math structure of sedenions to speak the coherent knowledge of the octonions."
 
-> **⚠ Clarified framing (user, 2026-06-06):** *"a bigger front-end loader to fill a dump truck at once vs two loads — front-load more into the same structure is all I'm getting at."* The core point is **operation WIDTH / throughput**, simpler than the elaboration below: a sedenion-**width** operation scoops a whole octonion's worth (plus headroom) in **ONE pass** where octonion-width takes **two** — same destination structure, fewer passes (the int32→int64 / one-wide-op-vs-two reading). **"Without sedenion chirality" = you only need the bigger bucket (the width), not the sedenion's multiplication.** The carry-vs-couple / code-vs-algebra split below is *one mechanism* that realizes this honestly (the bigger code is the bigger bucket), but the intended intuition is just: **front-load more per pass into the same container.**
+> **Framing note (user, 2026-06-06) — metaphors are perspectives; privilege none (F443).** The user offered the front-end-loader image *as another lens, not a correction*: *"a bigger front-end loader to fill a dump truck at once vs two loads — front-load more into the same structure"*; and explicitly: *"no single answer is right and no single metaphor is an answer."* So read this finding as **three co-equal lenses on one structure**, each lighting a different facet — hold all three, watch the thinking move between them:
+> - **bigger int / front-end loader** → the **width / throughput** facet: front-load more per pass into the same container (the int32→int64 / one-wide-op-vs-two reading);
+> - **code vs algebra** (the body below) → the **what-survives-the-cap** facet: the code ladder (Hamming) is unbounded, the division-algebra caps at 𝕆;
+> - **carry vs couple** → the **role** facet: storage/EC vs multiplicative binding.
+> "Without sedenion chirality" reads consistently across all three: *use the sedenion's size/structure, not its multiplication.* The insight is the **multiplicity**, not any single framing (F398 favored-not-privileged; F440 multi-perspective; the whole-corpus-is-proof stance).
 
 ## The resolution — two ladders that DIVERGE at 𝕆
 The framework had one ladder (ℂ/ℍ/𝕆/𝕊, the Cayley-Dickson doubling). The insight splits it into **two**:

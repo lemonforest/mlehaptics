@@ -42,6 +42,8 @@ add / subtract / shift (F392/F393) · the order-3 (triality) · the 1:3:7 ladder
 
 The web *is* the EC against forgetting — the third-truth coupling applied to our own notes.
 
+- **Metaphors are perspectives, privilege none (F443; user 2026-06-05):** a metaphor (front-end-loader / code-vs-algebra / carry-vs-couple…) is a *perspective on* a structure, not a claim about it — *"no single answer is right and no single metaphor is an answer."* Offer several over the same object, **privilege none**, and read the insight in **how the thinking shifts between them.** This is **F398 (favored-not-privileged) + the multi-perspective consensus (F440/F441) applied to our own lenses** — the metaphors ARE the k perspectives over one object; holding several is the k>1 anti-collapse guard (don't let a local-best metaphor harden into the global answer — the F337 self-correlation trap at the *framing* layer).
+
 ## §6 The language/knowledge boundary — syntax-complete, semantics-open (F408)
 *Can we define the entire **language** of the hyper loop, or must we **derive knowledge from somewhere**?* **Both, partitioned — it is the field/excitation split (F399) in k=(2+1) form:**
 - **LANGUAGE (syntax) = the field — fully definable, CLOSED.** The three alphabets (F406) — **operator** (A-N) + **operand** (units, 2:4:8) + **grammar** (g₂ = Der(𝕆), 8:3:3̄) — are complete; **g₂ is finite, the grammar closes.** The hyper-loop's *form* needs nothing external (the bit-exact/closed side, F404).
