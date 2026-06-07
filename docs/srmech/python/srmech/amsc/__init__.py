@@ -59,6 +59,8 @@ from .format import (
     MPRValidationError,
     read_ndjson,
     sha256_bytes,
+    sha256_hex,
+    sha256_raw,
     validate_mpr_record,
     write_ndjson,
 )
@@ -76,6 +78,8 @@ __all__ = [
     "MPRValidationError",
     "read_ndjson",
     "sha256_bytes",
+    "sha256_hex",
+    "sha256_raw",
     "validate_mpr_record",
     "write_ndjson",
     # descriptor

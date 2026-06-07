@@ -66,6 +66,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (already registered).
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
+    # format.sha256_hex / sha256_raw (v0.7.5rc1; W4 / RBS-LM bugfix wishlist) —
+    # the name-says-return alias and the raw-32-byte companion of
+    # ``sha256_bytes`` (which IS registered). Same value, same native dispatch
+    # (sha256_raw is bytes.fromhex(sha256_bytes(...))); exempt exactly like the
+    # validate_mpr_record / write_ndjson helpers that wrap a registered entry.
+    "srmech.amsc.format.sha256_hex",
+    "srmech.amsc.format.sha256_raw",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
@@ -162,6 +169,15 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
     "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
     "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible",
+    # cayley_dickson loop-navigation helpers (v0.7.5rc1; W15 / RBS-LM bugfix
+    # wishlist) — closure / left_orbit / min_generating_set are the
+    # combinatorial layer built entirely on the registered ``cd_basis_product``
+    # cocycle (the loop analogues of the cyclic-group orbit machinery). Sugar
+    # around a registered entry — exempt exactly like cd_add / cd_basis /
+    # left_mult_matrix above.
+    "srmech.amsc.cascade.cayley_dickson.closure",
+    "srmech.amsc.cascade.cayley_dickson.left_orbit",
+    "srmech.amsc.cascade.cayley_dickson.min_generating_set",
     # cascade.sedenion_register.* — the sedenion-addressable RBS-HDC instrument
     # (v0.7.4rc1 / #687 §31 / F465 / F468). The factory is registered under the
     # STABLE flat name ``srmech.amsc.cascade.sedenion_register`` (which IS

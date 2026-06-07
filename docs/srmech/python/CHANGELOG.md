@@ -8,6 +8,23 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc1] - 2026-06-07
+
+**Three still-open items from the RBS-LM srmech bug-fix wishlist** (`docs/srmech/rbs_lm_research/SRMECH_BUGFIX_WISHLIST.md`; the list's top priorities W1/W2/W7/W10/W12 all already shipped across the rc18→0.7.4 arc). Pure-Python, additive — **no new primitive class; ABI stays 3**:
+
+- **W4 — `srmech.amsc.format.sha256_hex` / `sha256_raw`** (the naming companions of `sha256_bytes`). `sha256_bytes` returns a 64-char hex **str** — the `_bytes` names the INPUT type, which trips callers who read it as a return type. `sha256_hex(data)` is the value-identical, name-says-return alias; `sha256_raw(data)` returns the raw **32-byte** digest (so `int.from_bytes(sha256_raw(d), "big")` works directly instead of `int(sha256_bytes(d), 16)`). `sha256_raw` is `bytes.fromhex(sha256_bytes(...))` — same native/stdlib dispatch, **no new `hashlib.sha256` call site** (Phase B5).
+- **W14 — `atan_series_truncate` / `log1p_series_truncate` now refuse out-of-domain arguments loudly.** The naive Taylor partial sums have radius of convergence 1; past it they **silently returned a divergent rational** (`atan(2/1)` → ~3e16, `log1p(799/1)` → blow-up). They now raise a **Class-N domain `ValueError`** for `|x| > 1` (atan) / `x > 1` or `x ≤ -1` (log1p) — the §15.1/§18 Class-K contract-error pattern (refuse, don't answer wrongly). The `|x| = 1` conditional boundary (atan(1) = π/4, log1p(1) = log 2) stays allowed. These exact-rational ops cannot range-reduce (π is irrational); the float projection `rational.atan(x)` IS band-reduced and stays the path for `|x| > 1`.
+- **W15 — `srmech.amsc.cascade.cayley_dickson.{closure, left_orbit, min_generating_set}`** — the combinatorial loop-navigation layer over the registered `cd_basis_product` cocycle (the loop-shelf arc F541/F544/F546 re-derived these each time; now a named home). `closure(dim, gens)` → the sub-loop a generator set spans (a single octonion unit → 4, all 7 → the full loop 16); `left_orbit(dim, start, gen)` → one left-multiplication cycle; `min_generating_set(dim, units)` → the loop's navigation dimensionality (3 for 𝕆, 2 for ℍ, 1 for ℂ). Pure-integer, numpy-free.
+
+`describe()` total **unchanged** — the new functions are alias / companion / building-block helpers of already-registered entries, so they are tool-schema-coverage-exempt exactly like `sha256_bytes`'s `validate_mpr_record` / `write_ndjson` and `cd_basis_product`'s `cd_add` / `cd_basis`.
+
+**Plus two pre-existing `sedenion_register` fixes** (folded in to keep the lean CI green — both shipped latent in v0.7.4; neither in this rc's W4/W14/W15 surface):
+
+- **Cascade-honesty:** `SedenionRegister.read()` used `abs()` on similarities to track max-magnitude. Replaced with the explicit **Class-K pin-slot sign-branch** (`s if s >= 0 else -s`), bit-identical for every float, polarity carried separately as Class-C `best_sign` — per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (closes the `test_no_abs_calls_anywhere_in_srmech` ratchet).
+- **MCP resolution (a W1-class bug):** the `srmech.amsc.cascade.sedenion_register` ToolEntry **did not resolve to a callable** once the same-named submodule was imported (Python rebinds the package attribute from the re-exported factory to the module object). The dotted-name resolver now prefers the same-named callable inside a colliding module — the "module X re-exports callable X" convention — so the registry name resolves regardless of import order (closes the W7 ratchet `test_schema_signature_alignment_no_drift`).
+
+SSoT: RBS-LM bug-fix wishlist (PR [#687](https://github.com/lemonforest/mlehaptics/pull/687)); Hurwitz (1898); Baez arXiv:math/0105155 §2; Apostol *Mathematical Analysis* 2nd ed. Theorem 12.20.
+
 ## [0.7.4] - 2026-06-06
 
 **Production graduation of the rc1–rc2 arc — the sedenion-addressable RBS-HDC instrument + three RBS-LM candidate-additions** (PR [#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31 / §1.2 / §1.3 / rbs_nn Note 1). All compositions over the existing 14-class vocabulary — no new primitive class; ABI stays **3**:

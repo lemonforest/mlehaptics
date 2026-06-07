@@ -168,16 +168,22 @@ class SedenionRegister:
         if not self.codebook or not self._slots:
             return (None, 1)
         noisy = bind(self._addr(slot), self.materialize())
-        best_key, best_sign, best_abs = None, 1, -1.0
+        best_key, best_sign, best_mag = None, 1, -1.0
         for key, vec in self.codebook.items():
             if key == "__pad__":
                 continue
             s_pos = similarity(noisy, vec)
             s_neg = similarity(noisy, chiral_flip(vec))
-            if abs(s_pos) >= best_abs:
-                best_key, best_sign, best_abs = key, 1, abs(s_pos)
-            if abs(s_neg) > best_abs:
-                best_key, best_sign, best_abs = key, -1, abs(s_neg)
+            # Class-K magnitude — the explicit pin-slot sign-branch, never
+            # ``abs()`` (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
+            # Bit-identical to ``abs(s)`` for every float; the polarity that
+            # wins is carried separately as ``best_sign`` (Class C).
+            mag_pos = s_pos if s_pos >= 0.0 else -s_pos
+            mag_neg = s_neg if s_neg >= 0.0 else -s_neg
+            if mag_pos >= best_mag:
+                best_key, best_sign, best_mag = key, 1, mag_pos
+            if mag_neg > best_mag:
+                best_key, best_sign, best_mag = key, -1, mag_neg
         return (best_key, best_sign)
 
     def slots(self) -> Dict[int, Tuple[str, int]]:

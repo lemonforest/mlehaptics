@@ -444,6 +444,39 @@ def sha256_batch(datas: "list[bytes]") -> "list[str]":
     return [hashlib.sha256(bytes(d)).hexdigest() for d in datas]
 
 
+def sha256_hex(data: bytes) -> str:
+    """SHA-256 over raw input bytes; returns the 64-char lowercase **hex**
+    digest as a ``str`` — the name-says-what-it-returns alias of
+    :func:`sha256_bytes` (W4 / RBS-LM bugfix wishlist; the ``_bytes`` suffix
+    on :func:`sha256_bytes` names the *input* type, which trips callers who
+    read it as a return type). Identical value, identical native dispatch —
+    use whichever name reads clearer at the call site.
+
+    Returns:
+        A ``str`` of exactly 64 lowercase hex characters (the Class A
+        content-address). For the raw 32-byte digest, use :func:`sha256_raw`.
+    """
+    return sha256_bytes(data)
+
+
+def sha256_raw(data: bytes) -> bytes:
+    """SHA-256 over raw input bytes; returns the raw **32-byte** digest as
+    ``bytes`` (the companion :func:`sha256_bytes`/:func:`sha256_hex` lack —
+    W4 / RBS-LM bugfix wishlist). A caller wanting the digest as an integer
+    can now do ``int.from_bytes(sha256_raw(data), "big")`` directly, instead
+    of ``int(sha256_bytes(data), 16)``.
+
+    Derived from :func:`sha256_bytes` (``bytes.fromhex``) so it rides the
+    SAME native/stdlib dispatch — there is no new ``hashlib.sha256(...)``
+    call site (Phase B5 discipline; route through ``sha256_bytes``).
+
+    Returns:
+        A ``bytes`` of exactly 32 raw digest bytes. For the hex string, use
+        :func:`sha256_hex` / :func:`sha256_bytes`.
+    """
+    return bytes.fromhex(sha256_bytes(data))
+
+
 __all__ = [
     "MPR_SCHEMA_VERSION",
     "MANDATORY_ATTESTATION_FIELDS",
@@ -454,5 +487,7 @@ __all__ = [
     "read_ndjson",
     "write_ndjson",
     "sha256_bytes",
+    "sha256_hex",
+    "sha256_raw",
     "sha256_batch",
 ]
