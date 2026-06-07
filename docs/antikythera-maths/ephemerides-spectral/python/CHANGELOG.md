@@ -10,6 +10,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc8] — 2026-06-07
+
+### Changed — srmech dependency floor `>=0.7.1` → `>=0.7.4`
+
+Tracks the just-graduated **srmech v0.7.2 / v0.7.3 / v0.7.4**
+production cuts:
+
+- **v0.7.2** — the bidirectional `(σ,θ,μ)` `hypercomplex_couple`
+  (QDFT/ODFT general/diagonal μ-axis; issue #908) + the Hamming/GF(2)
+  single-error-correcting block-code front-loader (§30, Rosetta C/Python).
+- **v0.7.3** — the Cayley–Dickson open-exterior boundary-demonstrator
+  (`cascade.cayley_dickson`; PR #915 / MFO §VII.6.23) — the deliberately
+  non-reversible object past the Hurwitz wall.
+- **v0.7.4** — the sedenion-addressable RBS-HDC instrument
+  `cascade.sedenion_register` (PR #687 §31) + three RBS-LM
+  candidate-additions (`signed_sum_squared` / `top_k_by_score` /
+  `bundle_with_ties`).
+
+Every one of these is an **additive composite over the srmech 14-class
+A–N vocabulary** — no new primitive class, srmech ABI stays **3**, numpy
+stays optional. `ephemerides-spectral` consumes the `srmech.amsc.*`
+surface only — the Class-L `srmech.amsc.laplacian` + Class-N
+`srmech.amsc.rational` cascade ops the v0.30.0 `_research/_cascade.py`
+refactors route through, plus the AMSC catalog/format framework — all of
+which is unchanged and additive across 0.7.1 → 0.7.4. The 75
+`test_attested_collector` tests pass unchanged; the `n_sources` 31 /
+curated 28 AMSC-bridge ratchets hold.
+
+**Profile-floor lockstep fix.** The same sweep corrects
+`srmech_profile.toml`'s `[profile].srmech_requires`, which had been left
+at `>=0.4.2` when the v0.29.3rc3 floor bump moved the two `pyproject`
+`srmech>=…` pins to `>=0.7.1` (the field is informational for the
+plugin-profile loader and unenforced by any test, so it didn't break
+anything — but it had been silently understating the real floor since
+the v0.30.0 `_cascade.py` refactors began consuming the 0.7.x Class-L /
+Class-N ops). It now reads `>=0.7.4`, back in lockstep with the
+dependency pin (restoring the 0.29.1 / 0.29.2rc1 lockstep discipline).
+
+**No `ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`
+unchanged from v0.29.0); version-only bump `0.30.0rc7` → `0.30.0rc8`
+across the SSOT locations (`pyproject.toml`, `pyproject-pure.toml`,
+`version.py`, `srmech_profile.toml`, `c/include/ephemerides_spectral.h`,
+`ephemerides_spectral/_data/manifest.json`, README banner) plus the two
+`srmech>=…` dependency lines and the profile floor. Rc cycles through
+TestPyPI only.
+
 ## [0.30.0rc7] — 2026-06-06
 
 ### Added — attested-TOML dual-author: tidal_migration
