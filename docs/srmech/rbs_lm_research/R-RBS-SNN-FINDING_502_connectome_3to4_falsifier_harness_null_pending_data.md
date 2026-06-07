@@ -6,6 +6,8 @@
 **Composes:** **F492** (the 3:4 recurrent:feedforward prediction — *this is its empirical test*) · **F487** (the directed synapse = chirality; magnetic Laplacian — *present even in the null*) · **F491** (the fiber-3 closes / base-4 feedforward — *the recurrent/feedforward classification*) · **F394** (the falsifier held open) · **MPM / §4 citation discipline** (the attestation spec; no faked data) · **`[[user_stance_cross_substrate_cascade_matching_as_research_method]]`** (real biological data, attested) · **F282** (hands the empirical question to the expert/data). **← rung #3 set up: the falsifier, harness + null, real run pending.**
 **→ the 3:4 recurrent:feedforward falsifier: harness ready, null baseline 0.28:6.66 (chance), a real ≈3:4 would be a clear signal above chance; real-data run PENDING (MPM-attested C. elegans connectome), not faked; held open (F394).**
 
+**→ RESOLVED by F505 (real data, attested Cook 2019):** QUALIFIED SURVIVE — recurrent ≈2 : feedforward ≈4 (vs this null 0.28:6.66); the recurrent core is REAL (≈8× above chance) and feedforward-4 is confirmed, but the recurrent count is ≈2, NOT ≈3 — the exact 3:4 refines to ~2:4. The qualitative structure survives; the precise fiber-3 corrects to ~2. Sharper next probe: 3-cycle (quaternion-loop) recurrence vs the 2-cycle reciprocity measured here.
+
 ## The test
 - **Prediction (F492):** a real neuron's dominant ≤7 couplings split **~3 RECURRENT : ~4 FEEDFORWARD** (the fiber-3 closes into a loop; the base-4 is one-way).
 - **SURVIVES** if the mean ≈ (3, 4) and clearly above the random baseline.
